@@ -8,6 +8,7 @@ import {
   SURVEY_START_DELAY_MS,
 } from '../config/surveyConfig';
 import { getSurveyReminderMessage, getSurveyStartMessage } from '../utils/surveyNotificationCopy';
+import { isSurveyReminderActionRequired } from '../utils/surveyReminderEligibility';
 
 const isForeignKeyError = (error) => {
   if (!error) return false;
@@ -89,6 +90,29 @@ const scheduleSurveyReminderNotifications = async ({
   nowIso,
 }) => {
   if (!partidoId || !surveyDeadlineAt) return { inserted: 0 };
+
+  let lifecycleRow = null;
+  try {
+    const { data } = await supabase
+      .from('partidos')
+      .select('estado, survey_status, survey_closes_at, result_status')
+      .eq('id', partidoId)
+      .maybeSingle();
+    lifecycleRow = data || null;
+  } catch (_lifecycleError) {
+    lifecycleRow = null;
+  }
+
+  const reminderActionRequired = isSurveyReminderActionRequired({
+    surveyStatus: lifecycleRow?.survey_status || partido?.survey_status,
+    resultStatus: lifecycleRow?.result_status || partido?.result_status,
+    matchStatus: lifecycleRow?.estado || partido?.estado,
+    surveyClosesAt: lifecycleRow?.survey_closes_at || partido?.survey_closes_at || surveyDeadlineAt,
+    nowMs: new Date(nowIso || new Date().toISOString()).getTime(),
+  });
+  if (!reminderActionRequired) {
+    return { inserted: 0 };
+  }
 
   const recipientIds = await fetchMatchRecipientIds(partidoId, partido?.creado_por || null);
   if (recipientIds.length === 0) return { inserted: 0 };

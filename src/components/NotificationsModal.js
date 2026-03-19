@@ -8,6 +8,7 @@ import { useNotifications } from '../context/NotificationContext';
 import {
   resolveNotificationActionability,
   resolveSurveyNotificationNavigation,
+  shouldTreatNotificationAsSurveyForm,
 } from '../utils/notificationRouter';
 import { resolveMatchInviteRoute } from '../utils/matchInviteRoute';
 import LoadingSpinner from './LoadingSpinner';
@@ -30,7 +31,6 @@ import {
   buildNotificationFallbackRoute,
   buildTeamChallengeRoute,
   extractNotificationMatchId,
-  isSurveyFormNotificationType,
   isTeamChallengeNotification,
   resolveAdminAwareMatchRoute,
   resolveTeamChallengeRouteFromMatchId,
@@ -142,7 +142,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
       console.warn('[NOTIFICATION_CLICK] onClose threw:', e);
     }
 
-    if (isSurveyFormNotificationType(notification)) {
+    if (shouldTreatNotificationAsSurveyForm(notification)) {
       const surveyNavigation = await resolveSurveyNotificationNavigation({
         notification,
         supabaseClient: supabase,
@@ -381,7 +381,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
   };
 
   const isClosedSurveyNotification = (notification) => {
-    if (!isSurveyFormNotificationType(notification)) return false;
+    if (!shouldTreatNotificationAsSurveyForm(notification)) return false;
     return isSurveyNotificationClosed(notification);
   };
 

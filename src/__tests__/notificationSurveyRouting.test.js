@@ -246,6 +246,76 @@ describe('survey notification routing', () => {
     expect(result.reason).toBe('survey_closed');
   });
 
+  test('treats reminder-like legacy notifications as survey-form navigation', async () => {
+    const supabaseMock = createSupabaseMock({
+      partidoRow: {
+        id: 556,
+        fecha: '2025-01-01',
+        hora: '20:00',
+        estado: 'finalizado',
+        survey_status: 'open',
+        survey_closes_at: '2030-01-02T20:00:00.000Z',
+        result_status: 'pending',
+        finished_at: '2025-01-02T20:00:00.000Z',
+      },
+      rosterRows: [{ usuario_id: 'user-1' }],
+    });
+
+    const result = await resolveSurveyNotificationNavigation({
+      notification: {
+        type: 'survey_finished',
+        partido_id: 556,
+        title: 'Recordatorio de encuesta',
+        data: {
+          reminder_type: '1h_before_deadline',
+          link: '/resultados-encuesta/556',
+        },
+      },
+      supabaseClient: supabaseMock,
+      userId: 'user-1',
+    });
+
+    expect(result).toEqual({
+      canNavigate: true,
+      route: '/encuesta/556',
+      reason: 'ok',
+      message: '',
+    });
+  });
+
+  test('blocks reminder-like legacy notifications when survey is already closed', async () => {
+    const supabaseMock = createSupabaseMock({
+      partidoRow: {
+        id: 557,
+        fecha: '2025-01-01',
+        hora: '20:00',
+        estado: 'finalizado',
+        survey_status: 'closed',
+        survey_closes_at: '2025-01-02T20:00:00.000Z',
+        result_status: 'finished',
+        finished_at: '2025-01-02T20:00:00.000Z',
+      },
+      rosterRows: [{ usuario_id: 'user-1' }],
+    });
+
+    const result = await resolveNotificationActionability({
+      notification: {
+        type: 'survey_finished',
+        partido_id: 557,
+        title: 'Recordatorio de encuesta',
+        data: {
+          reminder_type: '1h_before_deadline',
+          link: '/resultados-encuesta/557',
+        },
+      },
+      supabaseClient: supabaseMock,
+      nowMs: Date.parse('2025-01-03T12:00:00.000Z'),
+    });
+
+    expect(result.isActionable).toBe(false);
+    expect(result.reason).toBe('survey_reminder_stale');
+  });
+
   test('survey_results_ready navega sin forzar showAwards aunque venga en link legacy', async () => {
     const navigate = jest.fn();
     await openNotification({
@@ -408,5 +478,41 @@ describe('survey notification routing', () => {
       isActionable: false,
       reason: 'match_finished',
     }));
+  });
+
+  test('openNotification no navega en reminder legacy disfrazado de survey_finished cuando ya cerró', async () => {
+    const navigate = jest.fn();
+    const onActionBlocked = jest.fn();
+    const supabaseMock = createSupabaseMock({
+      partidoRow: {
+        id: 815,
+        fecha: '2025-01-01',
+        hora: '20:00',
+        estado: 'finalizado',
+        survey_status: 'closed',
+        survey_closes_at: '2025-01-02T20:00:00.000Z',
+        result_status: 'finished',
+        finished_at: '2025-01-02T20:00:00.000Z',
+      },
+      rosterRows: [{ usuario_id: 'user-1' }],
+    });
+
+    await openNotification({
+      id: 'notif-815',
+      type: 'survey_finished',
+      partido_id: 815,
+      title: 'Recordatorio de encuesta',
+      data: {
+        reminder_type: '1h_before_deadline',
+        link: '/resultados-encuesta/815',
+      },
+    }, navigate, {
+      supabaseClient: supabaseMock,
+      userId: 'user-1',
+      onActionBlocked,
+    });
+
+    expect(navigate).not.toHaveBeenCalled();
+    expect(onActionBlocked).not.toHaveBeenCalled();
   });
 });

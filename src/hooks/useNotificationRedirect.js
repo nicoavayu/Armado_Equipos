@@ -11,6 +11,8 @@ import { isPendingMatchInviteNotification } from '../utils/notificationInviteSta
 import { track } from '../utils/monitoring/analytics';
 import {
   resolveNotificationActionability,
+  resolveSurveyNotificationNavigation,
+  shouldTreatNotificationAsSurveyForm,
   stripShowAwardsParam,
 } from '../utils/notificationRouter';
 import { notifyBlockingError } from '../utils/notifyBlockingError';
@@ -58,6 +60,47 @@ const buildNotificationEnvelopeFromPayload = ({ payload = {}, route = '' } = {})
   };
 };
 
+const resolveSurveyNavigationForEnvelope = async ({ envelope = {}, fallbackRoute = '' } = {}) => {
+  if (!shouldTreatNotificationAsSurveyForm(envelope)) {
+    return {
+      handled: false,
+      blocked: false,
+      route: String(fallbackRoute || '').trim() || null,
+      message: '',
+    };
+  }
+
+  let userId = '';
+  try {
+    const { data: authData } = await supabase.auth.getUser();
+    userId = String(authData?.user?.id || '').trim();
+  } catch (_authError) {
+    userId = '';
+  }
+
+  const surveyNavigation = await resolveSurveyNotificationNavigation({
+    notification: envelope,
+    supabaseClient: supabase,
+    userId,
+  });
+
+  if (!surveyNavigation.canNavigate) {
+    return {
+      handled: true,
+      blocked: true,
+      route: null,
+      message: surveyNavigation.message || '',
+    };
+  }
+
+  return {
+    handled: true,
+    blocked: false,
+    route: surveyNavigation.route || String(fallbackRoute || '').trim() || null,
+    message: '',
+  };
+};
+
 /**
  * Hook para manejar redirecciones desde notificaciones push
  */
@@ -72,6 +115,12 @@ export const useNotificationRedirect = () => {
       if (!route) return;
 
       const envelope = buildNotificationEnvelopeFromPayload({ payload, route });
+      const surveyNavigation = await resolveSurveyNavigationForEnvelope({ envelope, fallbackRoute: route });
+      if (surveyNavigation.blocked) {
+        if (surveyNavigation.message) notifyBlockingError(surveyNavigation.message);
+        return;
+      }
+
       const actionability = await resolveNotificationActionability({
         notification: envelope,
         supabaseClient: supabase,
@@ -88,7 +137,7 @@ export const useNotificationRedirect = () => {
         opened_from_push: true,
         source: 'native_push_redirect',
       });
-      navigate(route);
+      navigate(surveyNavigation.route || route);
     };
 
     // Listener para mensajes del Service Worker
@@ -98,6 +147,15 @@ export const useNotificationRedirect = () => {
           payload: event.data || {},
           route: event.data?.url,
         });
+        const surveyNavigation = await resolveSurveyNavigationForEnvelope({
+          envelope,
+          fallbackRoute: event.data?.url,
+        });
+        if (surveyNavigation.blocked) {
+          if (surveyNavigation.message) notifyBlockingError(surveyNavigation.message);
+          return;
+        }
+
         const actionability = await resolveNotificationActionability({
           notification: envelope,
           supabaseClient: supabase,
@@ -114,8 +172,9 @@ export const useNotificationRedirect = () => {
           opened_from_push: true,
           source: 'service_worker',
         });
-        console.log('Redirecting from push notification to:', event.data.url);
-        navigate(event.data.url);
+        const targetRoute = surveyNavigation.route || event.data?.url;
+        console.log('Redirecting from push notification to:', targetRoute);
+        if (targetRoute) navigate(targetRoute);
       }
     };
 
@@ -149,6 +208,28 @@ export const useNotificationRedirect = () => {
         ? notification.data
         : {},
     };
+
+    const fallbackRoute = envelope?.data?.link || envelope?.data?.resultsUrl || '';
+    const surveyNavigation = await resolveSurveyNavigationForEnvelope({
+      envelope,
+      fallbackRoute,
+    });
+    if (surveyNavigation.blocked) {
+      if (surveyNavigation.message) notifyBlockingError(surveyNavigation.message);
+      return;
+    }
+
+    if (surveyNavigation.handled && surveyNavigation.route) {
+      if (notificationType) {
+        track('push_opened', {
+          notification_type: notificationType || undefined,
+          opened_from_push: true,
+          source: 'in_app_push',
+        });
+      }
+      navigate(surveyNavigation.route);
+      return;
+    }
 
     const actionability = await resolveNotificationActionability({
       notification: envelope,

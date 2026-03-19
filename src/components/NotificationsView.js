@@ -6,6 +6,7 @@ import { resolveMatchInviteRoute } from '../utils/matchInviteRoute';
 import {
   resolveNotificationActionability,
   resolveSurveyNotificationNavigation,
+  shouldTreatNotificationAsSurveyForm,
   stripShowAwardsParam,
 } from '../utils/notificationRouter';
 import { useNotifications } from '../context/NotificationContext';
@@ -30,7 +31,6 @@ import {
   buildNotificationFallbackRoute,
   buildTeamChallengeRoute,
   extractNotificationMatchId,
-  isSurveyFormNotificationType,
   isTeamChallengeNotification,
   resolveAdminAwareMatchRoute,
   resolveTeamChallengeRouteFromMatchId,
@@ -146,7 +146,7 @@ const NotificationsView = () => {
 
     console.debug('[NOTIFICATION_CLICK]', { id: notification?.id, type: notification?.type, link, matchId });
 
-    if (isSurveyFormNotificationType(notification)) {
+    if (shouldTreatNotificationAsSurveyForm(notification)) {
       try { if (!notification.read) await markAsRead(notification.id); } catch (e) { /* Intentionally empty */ }
 
       const surveyNavigation = await resolveSurveyNotificationNavigation({
@@ -242,7 +242,7 @@ const NotificationsView = () => {
 
     if (
       data.matchId
-      && !isSurveyFormNotificationType(notification)
+      && !shouldTreatNotificationAsSurveyForm(notification)
       && notification?.type !== 'match_invite'
       && notification?.type !== 'match_kicked'
       && notification?.type !== 'match_update'
@@ -524,7 +524,7 @@ const NotificationsView = () => {
   };
 
   const isClosedSurveyNotification = (notification) => {
-    if (!isSurveyFormNotificationType(notification)) return false;
+    if (!shouldTreatNotificationAsSurveyForm(notification)) return false;
     return isSurveyNotificationClosed(notification);
   };
 

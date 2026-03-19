@@ -26,7 +26,10 @@ jest.mock('react-router-dom', () => {
   };
 });
 
-const { deriveAwardsUiState } = require('../pages/ResultadosEncuestaView');
+const {
+  deriveAwardsUiState,
+  shouldShowAwardsRetryAction,
+} = require('../pages/ResultadosEncuestaView');
 
 describe('Resultados awards UI state', () => {
   test('pending awards keep awards section hidden and pending card visible', () => {
@@ -116,5 +119,25 @@ describe('Resultados awards UI state', () => {
     expect(uiState.awardsStatus).toBe('not_eligible');
     expect(uiState.awardsReady).toBe(false);
     expect(uiState.hasInsufficientVotesForAwards).toBe(true);
+  });
+
+  test('retry action is hidden for not_eligible final state', () => {
+    const shouldShowRetry = shouldShowAwardsRetryAction({
+      results: { awards_status: 'not_eligible' },
+      awardsStatus: 'not_eligible',
+      isSurveyClosed: true,
+    });
+
+    expect(shouldShowRetry).toBe(false);
+  });
+
+  test('retry action is shown only when awards are still pending', () => {
+    const shouldShowRetry = shouldShowAwardsRetryAction({
+      results: { awards_status: 'pending' },
+      awardsStatus: 'pending',
+      isSurveyClosed: true,
+    });
+
+    expect(shouldShowRetry).toBe(true);
   });
 });

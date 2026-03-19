@@ -5,6 +5,7 @@ import { resolveMatchInviteRoute } from './matchInviteRoute';
 import { isSurveyNotificationClosed } from './surveyNotificationCopy';
 import { resolveSurveyAccess } from './surveyAccess';
 import { parseLocalDateTime } from './dateLocal';
+import { isSurveyReminderActionRequired } from './surveyReminderEligibility';
 import {
   buildTeamChallengeRoute,
   extractNotificationMatchId,
@@ -60,6 +61,11 @@ const AWARDS_NOTIFICATION_TYPES = new Set([
   'award_won',
 ]);
 
+const SURVEY_REMINDER_NOTIFICATION_TYPES = new Set([
+  'survey_reminder',
+  'survey_reminder_12h',
+]);
+
 const CONSULTABLE_NOTIFICATION_TYPES = new Set([
   ...RESULTS_NOTIFICATION_TYPES,
   ...AWARDS_NOTIFICATION_TYPES,
@@ -109,6 +115,11 @@ const LIFECYCLE_CACHE_TTL_MS = 60 * 1000;
 const lifecycleCacheByMatchId = new Map();
 
 const normalizeToken = (value) => String(value || '').trim().toLowerCase();
+
+const REMINDER_TYPE_TOKENS = new Set([
+  '1h_before_deadline',
+  '12h_before_deadline',
+]);
 
 const toMillis = (value) => {
   const ms = value ? new Date(value).getTime() : NaN;
@@ -181,6 +192,39 @@ const resolveOperationalReferenceStartAt = (notification = {}, partidoRow = null
   return parseIsoDateTimeCandidate(isoCandidate);
 };
 
+export const isSurveyReminderLikeNotification = (notification = {}) => {
+  const type = normalizeToken(notification?.type);
+  if (SURVEY_REMINDER_NOTIFICATION_TYPES.has(type)) return true;
+
+  const data = notification?.data || {};
+  const reminderTypeToken = normalizeToken(data?.reminder_type || data?.reminderType);
+  if (REMINDER_TYPE_TOKENS.has(reminderTypeToken)) return true;
+
+  const title = normalizeToken(notification?.title);
+  const message = normalizeToken(notification?.message);
+  const hasReminderCopy = (
+    title.includes('recordatorio')
+    || message.includes('recordatorio')
+  ) && (
+    title.includes('encuesta')
+    || message.includes('encuesta')
+  );
+  if (!hasReminderCopy) return false;
+
+  const deepLink = notification?.deep_link
+    || notification?.deepLink
+    || data?.deep_link
+    || data?.deepLink
+    || data?.link
+    || null;
+  const normalizedLink = normalizeSurveyLink(deepLink, extractNotificationMatchId(notification));
+  return Boolean(normalizedLink);
+};
+
+export const shouldTreatNotificationAsSurveyForm = (notification = {}) => (
+  isSurveyFormNotificationType(notification) || isSurveyReminderLikeNotification(notification)
+);
+
 const getCachedLifecycleRow = (matchId, nowMs) => {
   const cacheEntry = lifecycleCacheByMatchId.get(matchId);
   if (!cacheEntry) return undefined;
@@ -206,7 +250,7 @@ const fetchMatchLifecycleRow = async ({ supabaseClient, matchId, nowMs }) => {
   try {
     const { data, error } = await supabaseClient
       .from('partidos')
-      .select('id, fecha, hora, estado, result_status, finished_at')
+      .select('id, fecha, hora, estado, survey_status, survey_closes_at, result_status, finished_at')
       .eq('id', matchId)
       .maybeSingle();
     if (error) return null;
@@ -232,13 +276,42 @@ export const resolveNotificationActionability = async ({
   nowMs = Date.now(),
 } = {}) => {
   const type = normalizeToken(notification?.type);
+  const reminderLike = isSurveyReminderLikeNotification(notification);
+  const matchId = extractLifecycleMatchId(notification);
+  const partidoRow = matchId
+    ? await fetchMatchLifecycleRow({
+      supabaseClient,
+      matchId,
+      nowMs,
+    })
+    : null;
+
   if (!type) {
     return {
       isActionable: true,
       reason: 'missing_type',
       message: '',
-      matchId: null,
+      matchId,
     };
+  }
+
+  if (reminderLike) {
+    const reminderActionRequired = isSurveyReminderActionRequired({
+      surveyStatus: partidoRow?.survey_status || notification?.data?.survey_status || notification?.data?.surveyStatus,
+      resultStatus: partidoRow?.result_status || notification?.data?.result_status,
+      matchStatus: partidoRow?.estado || notification?.data?.estado,
+      surveyClosesAt: partidoRow?.survey_closes_at || notification?.data?.survey_deadline_at || notification?.data?.survey_closes_at,
+      nowMs,
+    });
+
+    if (!reminderActionRequired) {
+      return {
+        isActionable: false,
+        reason: 'survey_reminder_stale',
+        message: 'Esta encuesta ya cerró y esta notificación de recordatorio ya no tiene acciones disponibles.',
+        matchId,
+      };
+    }
   }
 
   if (CONSULTABLE_NOTIFICATION_TYPES.has(type)) {
@@ -246,7 +319,7 @@ export const resolveNotificationActionability = async ({
       isActionable: true,
       reason: 'consultable_notification',
       message: '',
-      matchId: extractLifecycleMatchId(notification),
+      matchId,
     };
   }
 
@@ -255,11 +328,10 @@ export const resolveNotificationActionability = async ({
       isActionable: true,
       reason: 'non_operational_notification',
       message: '',
-      matchId: extractLifecycleMatchId(notification),
+      matchId,
     };
   }
 
-  const matchId = extractLifecycleMatchId(notification);
   if (!matchId) {
     return {
       isActionable: true,
@@ -268,12 +340,6 @@ export const resolveNotificationActionability = async ({
       matchId: null,
     };
   }
-
-  const partidoRow = await fetchMatchLifecycleRow({
-    supabaseClient,
-    matchId,
-    nowMs,
-  });
 
   const normalizedEstado = normalizeToken(partidoRow?.estado || notification?.data?.estado);
   if (CLOSED_MATCH_STATUS_TOKENS.has(normalizedEstado)) {
@@ -341,7 +407,7 @@ export const resolveSurveyNotificationNavigation = async ({
   supabaseClient = supabase,
   userId = '',
 } = {}) => {
-  if (!isSurveyFormNotificationType(notification)) {
+  if (!shouldTreatNotificationAsSurveyForm(notification)) {
     return {
       canNavigate: false,
       route: null,
@@ -358,6 +424,33 @@ export const resolveSurveyNotificationNavigation = async ({
       reason: 'missing_match_id',
       message: 'No encontramos la encuesta de esta notificación.',
     };
+  }
+
+  const nowMs = Date.now();
+  const partidoRow = await fetchMatchLifecycleRow({
+    supabaseClient,
+    matchId: String(matchId),
+    nowMs,
+  });
+
+  const reminderLike = isSurveyReminderLikeNotification(notification);
+  if (reminderLike) {
+    const reminderActionRequired = isSurveyReminderActionRequired({
+      surveyStatus: partidoRow?.survey_status || notification?.data?.survey_status || notification?.data?.surveyStatus,
+      resultStatus: partidoRow?.result_status || notification?.data?.result_status,
+      matchStatus: partidoRow?.estado || notification?.data?.estado,
+      surveyClosesAt: partidoRow?.survey_closes_at || notification?.data?.survey_deadline_at || notification?.data?.survey_closes_at,
+      nowMs,
+    });
+
+    if (!reminderActionRequired) {
+      return {
+        canNavigate: false,
+        route: null,
+        reason: 'survey_closed',
+        message: 'Esta encuesta ya cerró y esta notificación de recordatorio ya no tiene acciones disponibles.',
+      };
+    }
   }
 
   if (isSurveyNotificationClosed(notification)) {
@@ -436,7 +529,7 @@ export async function openNotification(n, navigate, options = {}) {
       return;
     }
 
-    if (isSurveyFormNotificationType(type)) {
+    if (shouldTreatNotificationAsSurveyForm(n)) {
       const surveyNavigation = await resolveSurveyNotificationNavigation({
         notification: n,
         supabaseClient: options?.supabaseClient || supabase,

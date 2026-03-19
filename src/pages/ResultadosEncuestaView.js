@@ -82,6 +82,15 @@ export const deriveAwardsUiState = ({
   };
 };
 
+export const shouldShowAwardsRetryAction = ({
+  results = null,
+  awardsStatus = null,
+  isSurveyClosed = false,
+} = {}) => {
+  const normalizedAwardsStatus = normalizeAwardsStatus(awardsStatus) || 'pending';
+  return Boolean(results) && Boolean(isSurveyClosed) && normalizedAwardsStatus === 'pending';
+};
+
 // Context to broadcast live previewPlayers without recreating slides
 const PreviewPlayersContext = createContext([]);
 
@@ -1361,8 +1370,9 @@ const ResultadosEncuestaView = () => {
 
   const prepareForceFallbackSlides = ({ notEligible = hasInsufficientVotesForAwards } = {}) => {
     const matchInfo = partido || { nombre: `Partido ${partidoId}` };
+    const slideKey = notEligible ? 'awards-not-eligible' : 'awards-pending';
     return [{
-      key: 'awards-pending',
+      key: slideKey,
       duration: 3200,
       content: (
         <div
@@ -1375,10 +1385,10 @@ const ResultadosEncuestaView = () => {
           }}
         >
           <div className="font-bebas-real text-[48px] md:text-[68px] leading-[0.9] text-white" style={{ textShadow: '0 0 22px rgba(14,169,198,0.5)' }}>
-            PREMIACIÓN
+            {notEligible ? 'RESULTADOS' : 'PREMIACIÓN'}
           </div>
           <div className="text-white/70 tracking-[0.35em] text-xs md:text-sm mt-2 mb-6">
-            DEL PARTIDO
+            {notEligible ? 'ENCUESTA CERRADA' : 'DEL PARTIDO'}
           </div>
           <div className="text-[#0EA9C6] text-lg md:text-xl font-bold mb-2">
             {matchInfo.nombre || matchInfo.titulo || `Partido ${partidoId}`}
@@ -1935,6 +1945,16 @@ const ResultadosEncuestaView = () => {
   const remainingVotes = Number.isFinite(Number(surveyProgress.remainingVotes))
     ? Math.max(0, Number(surveyProgress.remainingVotes))
     : 0;
+  const awardsStatusColorClass = awardsStatus === 'ready'
+    ? 'text-green-400'
+    : awardsStatus === 'not_eligible'
+      ? 'text-orange-300'
+      : 'text-yellow-400';
+  const showRetryAction = shouldShowAwardsRetryAction({
+    results,
+    awardsStatus,
+    isSurveyClosed,
+  });
 
   // OVERLAY ANIMATION RENDER
   // Carousel state
@@ -2061,7 +2081,7 @@ const ResultadosEncuestaView = () => {
             <>
               <p className="text-sm tracking-[0.01em] mt-2">
                 <span className="text-gray-400">Estado de los Premios: </span>
-                <span className={`${awardsStatus === 'ready' ? 'text-green-400' : 'text-yellow-400'} font-bold`}>
+                <span className={`${awardsStatusColorClass} font-bold`}>
                   {awardsStatus === 'ready' ? 'Listos para ver' : awardsStatus === 'not_eligible' ? 'No elegible para premios' : 'En progreso'}
                 </span>
               </p>
@@ -2073,6 +2093,17 @@ const ResultadosEncuestaView = () => {
             </>
           )}
         </div>
+
+        {isSurveyClosed && hasInsufficientVotesForAwards && (
+          <div className="mb-6 rounded-xl border border-orange-300/35 bg-orange-950/20 p-4">
+            <p className="text-orange-200 text-lg font-semibold text-center">
+              No hubo suficientes votaciones para generar premios de este partido.
+            </p>
+            <p className="text-orange-100/80 text-sm text-center mt-2">
+              Los resultados del partido se mantienen como referencia, sin premiación.
+            </p>
+          </div>
+        )}
 
         {/* Results Summary */}
         {results && awardsReady && (
@@ -2136,7 +2167,7 @@ const ResultadosEncuestaView = () => {
             Volver
           </button>
 
-          {results && results.estado !== 'finalizado' && (
+          {showRetryAction && (
             <button
               onClick={handleRetry}
               className="min-h-[52px] px-6 rounded-xl text-[18px] font-bebas tracking-[0.04em] uppercase text-white bg-[#0EA9C6] border border-[#38c7df] hover:bg-[#0c90a8] transition-all shadow-lg"
@@ -2188,7 +2219,10 @@ const ResultadosEncuestaView = () => {
         {/* Absences Section */}
         {absences.length > 0 && (
           <div className="mt-8 border-t border-white/10 pt-8">
-            <h3 className="text-2xl text-white  mb-6 pl-2 border-l-4 border-red-500">Información de Ausencias</h3>
+            <h3 className="text-2xl text-white mb-2 pl-2 border-l-4 border-red-500">Información de Ausencias</h3>
+            <p className="text-sm text-white/60 mb-5">
+              Información secundaria del partido. No corresponde a premiación.
+            </p>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
               {absences.map((jugador) => (
                 <div key={jugador.uuid} className="bg-black/20 rounded-lg p-3 flex flex-col items-center">
@@ -2196,6 +2230,7 @@ const ResultadosEncuestaView = () => {
                     <ProfileCard
                       profile={jugador}
                       isVisible={true}
+                      showSideAwards={false}
                     />
                   </div>
                   <div className="mt-2 text-center text-xs text-gray-400 w-full bg-black/40 py-2 rounded">
