@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Camera, ChevronDown, Crown, Eye, MoreVertical, Pencil, Trash2, UserPlus, Users } from 'lucide-react';
+import { Camera, ChevronDown, Crown, Eye, MoreVertical, Pencil, Trash2, Users } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Modal from '../../../components/Modal';
 import ConfirmModal from '../../../components/ConfirmModal';
@@ -28,6 +28,8 @@ import { uploadTeamCrest, uploadTeamMemberPhoto } from '../../../services/storag
 import { notifyBlockingError } from '../../../utils/notifyBlockingError';
 import { formatSkillLevelLabel, getTeamProvidedColors } from '../utils/teamColors';
 import { QUIERO_JUGAR_EQUIPOS_SUBTAB_STORAGE_KEY, resolveTeamRosterLimit } from '../config';
+import { useSupabaseRealtime } from '../../../hooks/useSupabaseRealtime';
+import { useRefreshOnVisibility } from '../../../hooks/useRefreshOnVisibility';
 
 const modalActionButtonBaseClass = '!w-full !h-auto !min-h-[44px] !px-4 !py-2.5 !rounded-none !font-bebas !text-base !tracking-[0.01em] !normal-case sm:!text-[13px] sm:!px-3 sm:!py-2 sm:!min-h-[36px]';
 const modalPrimaryActionButtonClass = `${modalActionButtonBaseClass} !border !border-[#7d5aff] !bg-[#6a43ff] !text-white !shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:!bg-[#7550ff]`;
@@ -36,7 +38,7 @@ const teamSectionModalShellClass = '!rounded-none !border !border-[rgba(88,107,1
 const optionCardClass = 'w-full rounded-none border border-white/15 bg-white/5 p-3 text-left transition-all hover:bg-white/10';
 const disabledOptionCardClass = `${optionCardClass} disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none disabled:hover:bg-white/5`;
 const transparentMenuButtonClass = 'kebab-menu-btn relative z-10';
-const addMemberButtonClass = 'mt-3 w-full border border-[#7d5aff] bg-[#6a43ff] px-3 py-3 text-left transition-colors hover:bg-[#7550ff]';
+const addMemberButtonClass = 'mt-3 w-full min-h-[52px] rounded-[var(--radius-standard)] border border-[#7d5aff] bg-[#6a43ff] px-4 py-3 text-center text-white font-oswald text-[18px] font-semibold transition-all hover:bg-[#7550ff] active:opacity-95 shadow-[0_8px_28px_rgba(106,67,255,0.28)]';
 
 const EMPTY_NEW_MEMBER = {
   jugadorId: '',
@@ -194,6 +196,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
   const navigate = useNavigate();
   const memberPhotoInputRef = useRef(null);
   const roleMenuContainerRef = useRef(null);
+  const realtimeRefreshTimeoutRef = useRef(null);
   const [searchParams, setSearchParams] = useSearchParams();
 
   const activeTab = normalizeDetailTab(searchParams.get('tab'));
@@ -276,31 +279,52 @@ const EquipoDetalleView = ({ teamId, userId }) => {
     return () => document.removeEventListener('pointerdown', handlePointerDownCapture, true);
   }, [roleMenuOpen]);
 
-  const loadTeamDetail = useCallback(async (team) => {
+  const loadTeamCollections = useCallback(async (
+    team,
+    {
+      includeHistory = true,
+      withDetailLoading = true,
+      silent = false,
+    } = {},
+  ) => {
     if (!team?.id) return;
 
     try {
-      setDetailLoading(true);
-      const [teamMembers, history, pendingInvitations] = await Promise.all([
+      if (withDetailLoading) setDetailLoading(true);
+
+      const [teamMembers, pendingInvitations, history] = await Promise.all([
         listTeamMembers(team.id),
-        listTeamMatchHistory(team.id),
         listTeamPendingInvitations(team.id),
+        includeHistory ? listTeamMatchHistory(team.id) : Promise.resolve(null),
       ]);
       setMembers(teamMembers || []);
-      setTeamMatchHistory(history || []);
       setTeamPendingInvitations(pendingInvitations || []);
+      if (includeHistory) {
+        setTeamMatchHistory(history || []);
+      }
     } catch (error) {
-      notifyBlockingError(error.message || 'No se pudo cargar el detalle del equipo');
+      if (!silent) {
+        notifyBlockingError(error.message || 'No se pudo cargar el detalle del equipo');
+      } else {
+        console.warn('[TEAM_DETAIL] refresh de colecciones fallido', error);
+      }
     } finally {
-      setDetailLoading(false);
+      if (withDetailLoading) setDetailLoading(false);
     }
   }, []);
 
-  const loadSelectedTeam = useCallback(async () => {
+  const loadSelectedTeam = useCallback(async ({
+    withLoading = true,
+    includeHistory = true,
+    withDetailLoading,
+    silent = false,
+  } = {}) => {
     if (!userId || !teamId) return;
 
+    const shouldShowDetailLoading = withDetailLoading ?? !withLoading;
+
     try {
-      setLoading(true);
+      if (withLoading) setLoading(true);
       const teams = await listAccessibleTeams(userId);
       const found = (teams || []).find((team) => toStringId(team?.id) === toStringId(teamId));
 
@@ -313,18 +337,107 @@ const EquipoDetalleView = ({ teamId, userId }) => {
       }
 
       setSelectedTeam(found);
-      await loadTeamDetail(found);
+      await loadTeamCollections(found, {
+        includeHistory,
+        withDetailLoading: shouldShowDetailLoading,
+        silent,
+      });
     } catch (error) {
-      notifyBlockingError(error.message || 'No se pudo cargar el equipo');
-      setSelectedTeam(null);
+      if (!silent) {
+        notifyBlockingError(error.message || 'No se pudo cargar el equipo');
+        setSelectedTeam(null);
+      } else {
+        console.warn('[TEAM_DETAIL] refresh del equipo fallido', error);
+      }
     } finally {
-      setLoading(false);
+      if (withLoading) setLoading(false);
     }
-  }, [loadTeamDetail, teamId, userId]);
+  }, [loadTeamCollections, teamId, userId]);
 
   useEffect(() => {
-    loadSelectedTeam();
+    loadSelectedTeam({ withLoading: true, includeHistory: true, silent: false });
   }, [loadSelectedTeam]);
+
+  const refreshSelectedTeam = useCallback(async ({
+    includeHistory = false,
+    withLoading = false,
+    withDetailLoading = false,
+    silent = true,
+  } = {}) => {
+    await loadSelectedTeam({
+      withLoading,
+      includeHistory,
+      withDetailLoading,
+      silent,
+    });
+  }, [loadSelectedTeam]);
+
+  const scheduleRealtimeTeamRefresh = useCallback(() => {
+    window.clearTimeout(realtimeRefreshTimeoutRef.current);
+    realtimeRefreshTimeoutRef.current = window.setTimeout(() => {
+      refreshSelectedTeam({
+        includeHistory: false,
+        withLoading: false,
+        withDetailLoading: false,
+        silent: true,
+      });
+    }, 140);
+  }, [refreshSelectedTeam]);
+
+  useEffect(() => (
+    () => {
+      window.clearTimeout(realtimeRefreshTimeoutRef.current);
+    }
+  ), []);
+
+  useRefreshOnVisibility(
+    () => {
+      refreshSelectedTeam({
+        includeHistory: false,
+        withLoading: false,
+        withDetailLoading: false,
+        silent: true,
+      });
+    },
+    {
+      enabled: Boolean(userId && teamId),
+    },
+  );
+
+  useSupabaseRealtime({
+    enabled: Boolean(userId && teamId),
+    channelName: `team-detail-${teamId}`,
+    deps: [teamId, userId, scheduleRealtimeTeamRefresh],
+    events: [
+      {
+        event: '*',
+        schema: 'public',
+        table: 'teams',
+        filter: `id=eq.${teamId}`,
+        handler: () => {
+          scheduleRealtimeTeamRefresh();
+        },
+      },
+      {
+        event: '*',
+        schema: 'public',
+        table: 'team_members',
+        filter: `team_id=eq.${teamId}`,
+        handler: () => {
+          scheduleRealtimeTeamRefresh();
+        },
+      },
+      {
+        event: '*',
+        schema: 'public',
+        table: 'team_invitations',
+        filter: `team_id=eq.${teamId}`,
+        handler: () => {
+          scheduleRealtimeTeamRefresh();
+        },
+      },
+    ],
+  });
 
   const occupiedUserIds = useMemo(
     () => new Set(
@@ -400,11 +513,6 @@ const EquipoDetalleView = ({ teamId, userId }) => {
   );
   const isRosterFull = members.length >= rosterLimit;
   const rosterUsageLabel = `${members.length}/${rosterLimit} jugadores`;
-
-  const refreshSelectedTeam = async () => {
-    if (!selectedTeam?.id) return;
-    await loadTeamDetail(selectedTeam);
-  };
 
   const resetMemberModalState = useCallback(() => {
     setNewMember(EMPTY_NEW_MEMBER);
@@ -672,7 +780,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
         await updateTeamMember(memberEditing.id, { ...updates });
       }
 
-      await refreshSelectedTeam();
+      await refreshSelectedTeam({ includeHistory: false, silent: false });
       closeMemberModal();
     } catch (error) {
       notifyBlockingError(error.message || 'No se pudo guardar el jugador en la plantilla');
@@ -702,7 +810,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
         teamId: selectedTeam.id,
         invitedUserId: selectedFriend.id,
       });
-      await refreshSelectedTeam();
+      await refreshSelectedTeam({ includeHistory: false, silent: false });
       closeInviteMemberModal();
       console.info('Invitacion enviada');
     } catch (error) {
@@ -735,7 +843,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
         permissionsRole: 'member',
         role: 'player',
       });
-      await refreshSelectedTeam();
+      await refreshSelectedTeam({ includeHistory: false, silent: false });
       setAddMemberChoiceOpen(false);
       console.info('Te agregaste al equipo');
     } catch (error) {
@@ -775,7 +883,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
       );
 
       setOpenMemberMenuId(null);
-      await refreshSelectedTeam();
+      await refreshSelectedTeam({ includeHistory: false, silent: false });
       console.info('Capitanía transferida');
     } catch (error) {
       notifyBlockingError(error.message || 'No se pudo transferir la capitanía');
@@ -793,7 +901,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
     try {
       setIsSaving(true);
       await revokeTeamInvitation(invitationId);
-      await refreshSelectedTeam();
+      await refreshSelectedTeam({ includeHistory: false, silent: false });
       console.info('Invitacion revocada');
     } catch (error) {
       notifyBlockingError(error.message || 'No se pudo revocar la invitacion');
@@ -814,7 +922,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
       setIsSaving(true);
       await removeTeamMember(memberId);
       if (!skipRefresh) {
-        await refreshSelectedTeam();
+        await refreshSelectedTeam({ includeHistory: false, silent: false });
       }
       return true;
     } catch (error) {
@@ -907,7 +1015,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
       }
 
       setTeamFormOpen(false);
-      await loadSelectedTeam();
+      await refreshSelectedTeam({ includeHistory: false, silent: false });
     } catch (error) {
       notifyBlockingError(error.message || 'No se pudo actualizar el equipo');
     } finally {
@@ -1064,12 +1172,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                   onClick={openAddMemberChoiceModal}
                   className={addMemberButtonClass}
                 >
-                  <div className="flex items-center gap-2.5">
-                    <UserPlus size={20} className="shrink-0 text-white" />
-                    <p className="text-white font-bebas text-lg tracking-[0.03em]">
-                      Agregar jugador
-                    </p>
-                  </div>
+                  Agregar jugador
                 </button>
               ) : null}
 
@@ -1118,7 +1221,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                         }}
                         detailBadges={(
                           <div className="inline-flex items-center gap-1.5">
-                            <span className="inline-flex min-w-[34px] items-center justify-center rounded border border-white/25 bg-black/35 px-2 py-1 text-[10px] font-bold text-white">
+                            <span className="inline-flex min-w-[34px] items-center justify-center rounded border border-[#8a7bff]/55 bg-[linear-gradient(135deg,rgba(76,58,194,0.92),rgba(106,67,255,0.9))] px-2 py-1 text-[10px] font-bold text-[#f4f1ff] shadow-[0_0_12px_rgba(106,67,255,0.22)]">
                               #{member.shirt_number ?? '-'}
                             </span>
                             {member.is_captain ? (
@@ -1423,6 +1526,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                     key={friendId}
                     type="button"
                     onClick={() => setSelectedFriendUserId(friendId)}
+                    data-preserve-button-case="true"
                     className={`w-full rounded-none border p-2 transition-all text-left ${isSelected
                       ? 'border-[#9ED3FF]/50 bg-[#128BE9]/15'
                       : 'border-white/15 bg-white/5 hover:bg-white/10'

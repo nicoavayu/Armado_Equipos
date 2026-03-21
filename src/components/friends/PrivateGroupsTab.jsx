@@ -23,6 +23,25 @@ import {
   removeFriendFromPrivateGroup,
   renamePrivateGroup,
 } from '../../services/db/privateFriendGroups';
+import { useRefreshOnVisibility } from '../../hooks/useRefreshOnVisibility';
+
+const GROUPS_DEBUG_PREFIX = '[AMIGOS_DEBUG][PrivateGroupsTab]';
+const PRIVATE_GROUPS_TIMEOUT_CODE = 'PRIVATE_GROUPS_TIMEOUT';
+const GROUPS_RAW_QUERY_DIAGNOSTIC = true;
+const GROUPS_VIEW_STATES = Object.freeze({
+  IDLE: 'idle',
+  LOADING: 'loading',
+  SUCCESS: 'success',
+  EMPTY: 'empty',
+  ERROR: 'error',
+});
+
+const createPrivateGroupsTimeoutError = (requestId) => {
+  const error = new Error('La carga de grupos está tardando demasiado. Probá de nuevo en unos segundos.');
+  error.code = PRIVATE_GROUPS_TIMEOUT_CODE;
+  error.requestId = requestId;
+  return error;
+};
 
 const PRIMARY_ACTION_BUTTON_CLASS = 'inline-flex min-h-[44px] items-center justify-center gap-2 rounded-none border border-[#7d5aff] bg-[#6a43ff] px-4 py-2.5 font-bebas text-base tracking-[0.01em] text-white shadow-[0_0_14px_rgba(106,67,255,0.3)] transition-all hover:bg-[#7550ff] active:opacity-95 disabled:cursor-not-allowed disabled:border-[rgba(125,90,255,0.45)] disabled:bg-[rgba(106,67,255,0.55)] disabled:text-white/45 disabled:shadow-none';
 const SECONDARY_ACTION_BUTTON_CLASS = 'inline-flex min-h-[44px] items-center justify-center gap-2 rounded-none border border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] px-4 py-2.5 font-bebas text-base tracking-[0.01em] text-white/92 transition-all hover:bg-[rgba(30,45,94,0.95)] active:opacity-95 disabled:cursor-not-allowed disabled:opacity-50';
@@ -265,7 +284,7 @@ const GroupCard = ({
                 }}
               >
                 <Pencil size={15} />
-                <span>Editar grupo</span>
+                <span>Cambiar nombre</span>
               </button>
               <button
                 type="button"
@@ -318,10 +337,10 @@ const CreateGroupModal = ({
   }, [friends, search]);
 
   const footer = (
-    <div className="flex flex-wrap justify-end gap-2">
+    <div className="grid grid-cols-2 gap-2">
       <button
         type="button"
-        className={`${SECONDARY_ACTION_BUTTON_CLASS} min-w-[140px] flex-1 sm:flex-none`}
+        className={`${SECONDARY_ACTION_BUTTON_CLASS} w-full min-w-0`}
         onClick={onClose}
         disabled={saving}
         data-preserve-button-case="true"
@@ -330,7 +349,7 @@ const CreateGroupModal = ({
       </button>
       <button
         type="button"
-        className={`${PRIMARY_ACTION_BUTTON_CLASS} min-w-[140px] flex-1 sm:flex-none`}
+        className={`${PRIMARY_ACTION_BUTTON_CLASS} w-full min-w-0`}
         disabled={saving || !toText(name)}
         onClick={async () => {
           if (saving) return;
@@ -432,10 +451,10 @@ const EditGroupModal = ({
   }, [group?.id, group?.name, isOpen]);
 
   const footer = (
-    <div className="flex flex-wrap justify-end gap-2">
+    <div className="grid grid-cols-2 gap-2">
       <button
         type="button"
-        className={`${SECONDARY_ACTION_BUTTON_CLASS} min-w-[140px] flex-1 sm:flex-none`}
+        className={`${SECONDARY_ACTION_BUTTON_CLASS} w-full min-w-0`}
         onClick={onClose}
         disabled={saving}
         data-preserve-button-case="true"
@@ -444,7 +463,7 @@ const EditGroupModal = ({
       </button>
       <button
         type="button"
-        className={`${PRIMARY_ACTION_BUTTON_CLASS} min-w-[140px] flex-1 sm:flex-none`}
+        className={`${PRIMARY_ACTION_BUTTON_CLASS} w-full min-w-0`}
         disabled={saving || !toText(name) || toText(name) === toText(group?.name)}
         onClick={async () => {
           if (saving) return;
@@ -467,7 +486,7 @@ const EditGroupModal = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Editar grupo"
+      title="Cambiar nombre"
       footer={footer}
       className="w-full max-w-[520px] !bg-[#101a35] border border-[rgba(98,117,184,0.58)]"
       classNameContent="p-5"
@@ -532,10 +551,10 @@ const AddGroupMembersModal = ({
   }, [addableFriends, search]);
 
   const footer = (
-    <div className="flex flex-wrap justify-end gap-2">
+    <div className="grid grid-cols-2 gap-2">
       <button
         type="button"
-        className={`${SECONDARY_ACTION_BUTTON_CLASS} min-w-[140px] flex-1 sm:flex-none`}
+        className={`${SECONDARY_ACTION_BUTTON_CLASS} w-full min-w-0`}
         onClick={onClose}
         disabled={adding}
         data-preserve-button-case="true"
@@ -544,7 +563,7 @@ const AddGroupMembersModal = ({
       </button>
       <button
         type="button"
-        className={`${PRIMARY_ACTION_BUTTON_CLASS} min-w-[140px] flex-1 sm:flex-none`}
+        className={`${PRIMARY_ACTION_BUTTON_CLASS} w-full min-w-0`}
         disabled={adding || selectedFriendIds.size === 0}
         onClick={async () => {
           if (adding || selectedFriendIds.size === 0) return;
@@ -624,10 +643,14 @@ const GroupDetailModal = ({
   onRemoveMember,
 }) => {
   const [removingMemberId, setRemovingMemberId] = useState(null);
+  const [memberToRemove, setMemberToRemove] = useState(null);
+  const [confirmingRemoval, setConfirmingRemoval] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
     setRemovingMemberId(null);
+    setMemberToRemove(null);
+    setConfirmingRemoval(false);
   }, [group?.id, group?.updated_at, isOpen]);
 
   const memberIdSet = useMemo(() => new Set(
@@ -641,54 +664,76 @@ const GroupDetailModal = ({
     [availableFriends, memberIdSet],
   );
 
-  return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title={group?.name || 'Grupo'}
-      className="w-full max-w-[860px] !bg-[#101a35] border border-[rgba(98,117,184,0.58)]"
-      classNameContent="p-5"
-    >
-      <div className="flex flex-col gap-4">
-        <div>
-          <button
-            type="button"
-            className={`${PRIMARY_ACTION_BUTTON_CLASS} w-full`}
-            onClick={() => onOpenAddMembers?.(group)}
-            disabled={addableFriendsCount === 0}
-            data-preserve-button-case="true"
-          >
-            Agregar amigos
-          </button>
-          {addableFriendsCount === 0 ? (
-            <p className="mt-3 text-xs text-white/45">
-              No tenés más amigos disponibles para agregar.
-            </p>
-          ) : null}
-        </div>
+  const handleConfirmRemoveMember = useCallback(async () => {
+    const targetMember = memberToRemove;
+    const memberId = toText(targetMember?.friend_user_id || targetMember?.profile?.id);
+    if (!targetMember || !memberId) return;
 
-        <div className="rounded-none border border-[rgba(88,107,170,0.46)] bg-[rgba(18,28,62,0.78)] p-4">
-          <div className="mb-3 text-white">
-            <div className={SECTION_TITLE_CLASS}>Integrantes del grupo</div>
+    setConfirmingRemoval(true);
+    setRemovingMemberId(memberId);
+
+    try {
+      await onRemoveMember?.(group, targetMember);
+      setMemberToRemove(null);
+    } finally {
+      setRemovingMemberId(null);
+      setConfirmingRemoval(false);
+    }
+  }, [group, memberToRemove, onRemoveMember]);
+
+  return (
+    <>
+      <Modal
+        isOpen={isOpen}
+        onClose={onClose}
+        title={group?.name || 'Grupo'}
+        className="w-full max-w-[860px] !bg-[#101a35] border border-[rgba(98,117,184,0.58)]"
+        classNameContent="p-5"
+      >
+        <div className="flex flex-col gap-4">
+          <div>
+            <button
+              type="button"
+              className={`${PRIMARY_ACTION_BUTTON_CLASS} w-full`}
+              onClick={() => onOpenAddMembers?.(group)}
+              disabled={addableFriendsCount === 0}
+              data-preserve-button-case="true"
+            >
+              Agregar amigos
+            </button>
+            {addableFriendsCount === 0 ? (
+              <p className="mt-3 text-xs text-white/45">
+                No tenés más amigos disponibles para agregar.
+              </p>
+            ) : null}
           </div>
 
-          <GroupMembersList
-            members={group?.members || []}
-            removingMemberId={removingMemberId}
-            disabled={false}
-            onRemove={async (member) => {
-              const memberId = toText(member?.friend_user_id || member?.profile?.id);
-              setRemovingMemberId(memberId);
-              try {
-                await onRemoveMember?.(group, member);
-              } finally {
-                setRemovingMemberId(null);
-              }
-            }}
-          />
+          <div className="rounded-none border border-[rgba(88,107,170,0.46)] bg-[rgba(18,28,62,0.78)] p-4">
+            <div className="mb-3 text-white">
+              <div className={SECTION_TITLE_CLASS}>Integrantes del grupo</div>
+            </div>
+
+            <GroupMembersList
+              members={group?.members || []}
+              removingMemberId={removingMemberId}
+              disabled={confirmingRemoval}
+              onRemove={(member) => setMemberToRemove(member)}
+            />
+          </div>
         </div>
-      </div>
-    </Modal>
+      </Modal>
+
+      <ConfirmModal
+        isOpen={Boolean(memberToRemove)}
+        onCancel={() => setMemberToRemove(null)}
+        onConfirm={handleConfirmRemoveMember}
+        isDeleting={confirmingRemoval}
+        title="Quitar integrante"
+        message={`¿Querés quitar a "${memberToRemove?.profile?.nombre || 'este jugador'}" de "${group?.name || 'este grupo'}"? Esto no elimina la amistad.`}
+        confirmText="Quitar del grupo"
+        cancelText="Cancelar"
+      />
+    </>
   );
 };
 
@@ -697,9 +742,15 @@ const PrivateGroupsTab = ({
   friends = [],
   onInlineNotice,
 }) => {
+  const isMountedRef = useRef(true);
+  const instanceIdRef = useRef(`groups-tab-${Math.random().toString(36).slice(2, 8)}`);
+  const refreshRequestSeqRef = useRef(0);
+  const loadTimeoutRef = useRef(null);
   const [groups, setGroups] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [loadError, setLoadError] = useState(null);
+  const [groupsViewState, setGroupsViewState] = useState(
+    () => (currentUserId ? GROUPS_VIEW_STATES.LOADING : GROUPS_VIEW_STATES.IDLE),
+  );
+  const [groupsErrorMessage, setGroupsErrorMessage] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState(null);
   const [inviteGroupId, setInviteGroupId] = useState(null);
@@ -707,6 +758,34 @@ const PrivateGroupsTab = ({
   const [editingGroupId, setEditingGroupId] = useState(null);
   const [groupToArchive, setGroupToArchive] = useState(null);
   const [archiving, setArchiving] = useState(false);
+  const groupsRef = useRef([]);
+  const groupsViewStateRef = useRef(GROUPS_VIEW_STATES.IDLE);
+
+  const updateGroupsViewState = useCallback((nextValue, reason, requestId = null, meta = {}) => {
+    console.debug(`${GROUPS_DEBUG_PREFIX}[view-state]`, {
+      instanceId: instanceIdRef.current,
+      nextState: nextValue,
+      reason,
+      requestId,
+      currentUserId,
+      ...meta,
+    });
+    groupsViewStateRef.current = nextValue;
+    setGroupsViewState(nextValue);
+  }, [currentUserId]);
+
+  const renderBranch = groupsViewState;
+
+  console.debug(`${GROUPS_DEBUG_PREFIX}[render]`, {
+    instanceId: instanceIdRef.current,
+    currentUserId,
+    rawOnly: GROUPS_RAW_QUERY_DIAGNOSTIC,
+    groupsViewState,
+    groupsErrorMessage,
+    groupCount: groups.length,
+    friendsCount: friends.length,
+    renderBranch,
+  });
 
   const friendOptions = useMemo(() => {
     const seenIds = new Set();
@@ -726,6 +805,14 @@ const PrivateGroupsTab = ({
     [groups, selectedGroupId],
   );
 
+  useEffect(() => {
+    groupsRef.current = groups;
+  }, [groups]);
+
+  useEffect(() => {
+    groupsViewStateRef.current = groupsViewState;
+  }, [groupsViewState]);
+
   const editingGroup = useMemo(
     () => groups.find((group) => group.id === editingGroupId) || null,
     [groups, editingGroupId],
@@ -742,43 +829,219 @@ const PrivateGroupsTab = ({
     }
   }, [selectedGroup]);
 
-  const replaceGroupInState = useCallback((updatedGroup, options = {}) => {
-    if (!updatedGroup?.id) return;
-    const selectGroup = options?.select !== false;
-    setGroups((prev) => sortGroupsByUpdatedAt(
-      prev.some((group) => group.id === updatedGroup.id)
-        ? prev.map((group) => (group.id === updatedGroup.id ? updatedGroup : group))
-        : [updatedGroup, ...prev],
-    ));
-    if (selectGroup) {
-      setSelectedGroupId(updatedGroup.id);
-    }
-  }, []);
-
-  const refreshGroups = useCallback(async () => {
-    if (!currentUserId) {
-      setGroups([]);
-      setLoadError(null);
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const nextGroups = await getPrivateGroupsByOwner(currentUserId);
-      setLoadError(null);
-      setGroups(sortGroupsByUpdatedAt(nextGroups || []));
-    } catch (error) {
-      console.error('[PRIVATE_GROUPS] Error loading groups:', error);
-      setLoadError(error?.message || 'No se pudieron cargar tus grupos.');
-      setGroups([]);
-    } finally {
-      setLoading(false);
+  useEffect(() => () => {
+    console.debug(`${GROUPS_DEBUG_PREFIX}[cleanup]`, {
+      instanceId: instanceIdRef.current,
+      currentUserId,
+    });
+    isMountedRef.current = false;
+    if (loadTimeoutRef.current) {
+      clearTimeout(loadTimeoutRef.current);
+      loadTimeoutRef.current = null;
     }
   }, [currentUserId]);
 
   useEffect(() => {
-    refreshGroups();
+    console.debug(`${GROUPS_DEBUG_PREFIX}[mount]`, {
+      instanceId: instanceIdRef.current,
+      currentUserId,
+    });
+  }, [currentUserId]);
+
+  const replaceGroupInState = useCallback((updatedGroup, options = {}) => {
+    if (!updatedGroup?.id) return;
+    const selectGroup = options?.select !== false;
+    setGroups((prev) => {
+      const nextGroups = sortGroupsByUpdatedAt(
+        prev.some((group) => group.id === updatedGroup.id)
+          ? prev.map((group) => (group.id === updatedGroup.id ? updatedGroup : group))
+          : [updatedGroup, ...prev],
+      );
+      groupsRef.current = nextGroups;
+      return nextGroups;
+    });
+    setGroupsErrorMessage(null);
+    updateGroupsViewState(GROUPS_VIEW_STATES.SUCCESS, 'replace-group-in-state', updatedGroup.id);
+    if (selectGroup) {
+      setSelectedGroupId(updatedGroup.id);
+    }
+  }, [updateGroupsViewState]);
+
+  const refreshGroups = useCallback(async ({
+    withLoading = true,
+    silent = false,
+  } = {}) => {
+    const requestId = ++refreshRequestSeqRef.current;
+
+    console.info(`${GROUPS_DEBUG_PREFIX}[load][start]`, {
+      instanceId: instanceIdRef.current,
+      requestId,
+      withLoading,
+      silent,
+      currentUserId,
+    });
+
+    if (!currentUserId) {
+      console.info(`${GROUPS_DEBUG_PREFIX}[load][missing-user]`, {
+        instanceId: instanceIdRef.current,
+        requestId,
+      });
+      if (isMountedRef.current && requestId === refreshRequestSeqRef.current) {
+        groupsRef.current = [];
+        setGroups([]);
+        setGroupsErrorMessage(null);
+        updateGroupsViewState(GROUPS_VIEW_STATES.IDLE, 'missing-current-user', requestId);
+      }
+      return;
+    }
+
+    let timeoutId = null;
+
+    if (withLoading) {
+      if (loadTimeoutRef.current) {
+        clearTimeout(loadTimeoutRef.current);
+      }
+
+      if (isMountedRef.current && requestId === refreshRequestSeqRef.current) {
+        setGroupsErrorMessage(null);
+        updateGroupsViewState(GROUPS_VIEW_STATES.LOADING, 'refreshGroups:start', requestId, {
+          silent,
+        });
+      }
+    }
+
+    try {
+      const groupsPromise = getPrivateGroupsByOwner(currentUserId, {
+        debugRequestId: requestId,
+        debugSource: 'PrivateGroupsTab.refreshGroups',
+        rawOnly: GROUPS_RAW_QUERY_DIAGNOSTIC,
+      });
+
+      const nextGroups = withLoading
+        ? await Promise.race([
+          groupsPromise,
+          new Promise((_, reject) => {
+            timeoutId = window.setTimeout(() => {
+              reject(createPrivateGroupsTimeoutError(requestId));
+            }, 7000);
+            loadTimeoutRef.current = timeoutId;
+          }),
+        ])
+        : await groupsPromise;
+
+      console.info(`${GROUPS_DEBUG_PREFIX}[load][resolved]`, {
+        instanceId: instanceIdRef.current,
+        requestId,
+        groupCount: Array.isArray(nextGroups) ? nextGroups.length : null,
+        rawOnly: GROUPS_RAW_QUERY_DIAGNOSTIC,
+      });
+
+      if (!isMountedRef.current || requestId !== refreshRequestSeqRef.current) {
+        console.info(`${GROUPS_DEBUG_PREFIX}[load][resolved-stale-ignored]`, {
+          instanceId: instanceIdRef.current,
+          requestId,
+          latestRequestId: refreshRequestSeqRef.current,
+        });
+        return;
+      }
+
+      const resolvedGroups = sortGroupsByUpdatedAt(nextGroups || []);
+      groupsRef.current = resolvedGroups;
+      setGroupsErrorMessage(null);
+      setGroups(resolvedGroups);
+      updateGroupsViewState(
+        resolvedGroups.length > 0
+          ? GROUPS_VIEW_STATES.SUCCESS
+          : GROUPS_VIEW_STATES.EMPTY,
+        'refreshGroups:resolved',
+        requestId,
+        {
+          silent,
+          groupCount: resolvedGroups.length,
+          rawOnly: GROUPS_RAW_QUERY_DIAGNOSTIC,
+        },
+      );
+
+      console.info(`${GROUPS_DEBUG_PREFIX}[load][state-applied]`, {
+        instanceId: instanceIdRef.current,
+        requestId,
+        groupCount: Array.isArray(nextGroups) ? nextGroups.length : null,
+      });
+    } catch (error) {
+      if (!isMountedRef.current || requestId !== refreshRequestSeqRef.current) {
+        console.info(`${GROUPS_DEBUG_PREFIX}[load][catch-stale-ignored]`, {
+          instanceId: instanceIdRef.current,
+          requestId,
+          latestRequestId: refreshRequestSeqRef.current,
+          error: error?.message || String(error),
+        });
+        return;
+      }
+
+      console.error(`${GROUPS_DEBUG_PREFIX}[load][catch]`, {
+        instanceId: instanceIdRef.current,
+        requestId,
+        code: error?.code || null,
+        message: error?.message || String(error),
+        error,
+      });
+
+      if (!silent) {
+        const fallbackGroups = Array.isArray(groupsRef.current) ? groupsRef.current : [];
+        const nextMessage = error?.code === PRIVATE_GROUPS_TIMEOUT_CODE
+          ? 'La carga de grupos está tardando demasiado. Probá de nuevo en unos segundos.'
+          : (error?.message || 'No se pudieron cargar tus grupos.');
+        const hasRenderableGroups = fallbackGroups.length > 0;
+
+        setGroupsErrorMessage(hasRenderableGroups ? null : nextMessage);
+        if (!hasRenderableGroups) {
+          groupsRef.current = [];
+          setGroups([]);
+        }
+        updateGroupsViewState(
+          hasRenderableGroups ? GROUPS_VIEW_STATES.SUCCESS : GROUPS_VIEW_STATES.ERROR,
+          'refreshGroups:catch',
+          requestId,
+          {
+            silent,
+            code: error?.code || null,
+            fallbackCount: fallbackGroups.length,
+          },
+        );
+      }
+    } finally {
+      console.info(`${GROUPS_DEBUG_PREFIX}[load][finally]`, {
+        instanceId: instanceIdRef.current,
+        requestId,
+        withLoading,
+        silent,
+        currentUserId,
+        latestRequestId: refreshRequestSeqRef.current,
+        groupsViewState: groupsViewStateRef.current,
+      });
+
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+
+      if (withLoading && loadTimeoutRef.current === timeoutId) {
+        loadTimeoutRef.current = null;
+      }
+    }
+  }, [currentUserId, updateGroupsViewState]);
+
+  useEffect(() => {
+    refreshGroups({ withLoading: true, silent: false });
   }, [refreshGroups]);
+
+  useRefreshOnVisibility(
+    () => {
+      refreshGroups({ withLoading: false, silent: true });
+    },
+    {
+      enabled: Boolean(currentUserId),
+    },
+  );
 
   const showSuccessNotice = useCallback((key, message) => {
     if (typeof onInlineNotice === 'function') {
@@ -801,7 +1064,7 @@ const PrivateGroupsTab = ({
       if (createdGroup) {
         replaceGroupInState(createdGroup, { select: false });
       } else {
-        await refreshGroups();
+        await refreshGroups({ withLoading: false, silent: false });
       }
 
       setShowCreateModal(false);
@@ -869,7 +1132,19 @@ const PrivateGroupsTab = ({
         ownerUserId: currentUserId,
       });
 
-      setGroups((prev) => prev.filter((group) => group.id !== groupToArchive.id));
+      const nextGroups = (Array.isArray(groupsRef.current) ? groupsRef.current : [])
+        .filter((group) => group.id !== groupToArchive.id);
+      groupsRef.current = nextGroups;
+      setGroups(nextGroups);
+      setGroupsErrorMessage(null);
+      updateGroupsViewState(
+        nextGroups.length > 0 ? GROUPS_VIEW_STATES.SUCCESS : GROUPS_VIEW_STATES.EMPTY,
+        'archive-group:state-applied',
+        groupToArchive.id,
+        {
+          remainingGroups: nextGroups.length,
+        },
+      );
       if (selectedGroupId === groupToArchive.id) {
         setSelectedGroupId(null);
       }
@@ -885,6 +1160,71 @@ const PrivateGroupsTab = ({
     }
   };
 
+  const renderGroupsContent = () => {
+    switch (groupsViewState) {
+      case GROUPS_VIEW_STATES.LOADING:
+        return (
+          <div className="flex min-h-[180px] items-center justify-center">
+            <LoadingSpinner size="medium" />
+          </div>
+        );
+
+      case GROUPS_VIEW_STATES.ERROR:
+        return (
+          <EmptyStateCard
+            icon={FolderOpen}
+            title="No pudimos cargar tus grupos"
+            description={groupsErrorMessage || 'Probá de nuevo en unos segundos.'}
+            className="my-0 p-5"
+          />
+        );
+
+      case GROUPS_VIEW_STATES.SUCCESS:
+        return (
+          <div className="flex flex-col gap-3">
+            {GROUPS_RAW_QUERY_DIAGNOSTIC && (
+              <div className="px-1 text-[11px] uppercase tracking-[0.14em] text-white/45">
+                Modo diagnostico: query base cruda
+              </div>
+            )}
+            {groups.map((group) => (
+              GROUPS_RAW_QUERY_DIAGNOSTIC ? (
+                <div
+                  key={group.id}
+                  className="rounded-none border border-[rgba(88,107,170,0.46)] bg-[rgba(15,24,56,0.72)] px-4 py-3"
+                >
+                  <div className="font-oswald text-lg text-white">{group?.name || 'Grupo'}</div>
+                  <div className="mt-1 text-xs text-white/60">ID: {group?.id || 'sin-id'}</div>
+                  <div className="mt-1 text-xs text-white/60">Integrantes: 0</div>
+                </div>
+              ) : (
+                <GroupCard
+                  key={group.id}
+                  group={group}
+                  onOpen={(nextGroup) => setSelectedGroupId(nextGroup?.id || null)}
+                  onInvite={(nextGroup) => setInviteGroupId(nextGroup?.id || null)}
+                  onEdit={(nextGroup) => setEditingGroupId(nextGroup?.id || null)}
+                  onDelete={(nextGroup) => setGroupToArchive(nextGroup)}
+                />
+              )
+            ))}
+          </div>
+        );
+
+      case GROUPS_VIEW_STATES.EMPTY:
+      case GROUPS_VIEW_STATES.IDLE:
+      default:
+        return (
+          <EmptyStateCard
+            icon={FolderOpen}
+            title="Todavía no creaste grupos"
+            description="Creá grupos privados para organizar amigos y usarlos al invitar a un partido."
+            className="my-0 p-5"
+          />
+        );
+    }
+  };
+
   return (
     <div className="w-full">
       <div className="mb-4 flex flex-col gap-3">
@@ -895,6 +1235,9 @@ const PrivateGroupsTab = ({
         >
           Crear grupo
         </button>
+        <p className="mt-0 px-1 text-xs text-white/55">
+          Invitá a tus grupos de amigos en un solo paso.
+        </p>
 
         <div className="mt-1 mb-0.5 flex items-center gap-2.5 px-1">
           <span className={SECTION_DIVIDER_LABEL_CLASS}>
@@ -904,38 +1247,7 @@ const PrivateGroupsTab = ({
         </div>
       </div>
 
-      {loading ? (
-        <div className="flex min-h-[180px] items-center justify-center">
-          <LoadingSpinner size="medium" />
-        </div>
-      ) : loadError ? (
-        <EmptyStateCard
-          icon={FolderOpen}
-          title="No pudimos cargar tus grupos"
-          description={loadError}
-          className="my-0 p-5"
-        />
-      ) : groups.length === 0 ? (
-        <EmptyStateCard
-          icon={FolderOpen}
-          title="Todavía no creaste grupos"
-          description="Creá grupos privados para organizar amigos y usarlos al invitar a un partido."
-          className="my-0 p-5"
-        />
-      ) : (
-        <div className="flex flex-col gap-3">
-          {groups.map((group) => (
-            <GroupCard
-              key={group.id}
-              group={group}
-              onOpen={(nextGroup) => setSelectedGroupId(nextGroup?.id || null)}
-              onInvite={(nextGroup) => setInviteGroupId(nextGroup?.id || null)}
-              onEdit={(nextGroup) => setEditingGroupId(nextGroup?.id || null)}
-              onDelete={(nextGroup) => setGroupToArchive(nextGroup)}
-            />
-          ))}
-        </div>
-      )}
+      {renderGroupsContent()}
 
       <CreateGroupModal
         isOpen={showCreateModal}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Bell, CalendarClock, CheckCircle, ClipboardList, ShieldAlert, Trophy, User, UserPlus, Users, Vote, XCircle } from 'lucide-react';
 import supabase from '../supabase';
 import { useAuth } from './AuthProvider';
@@ -21,6 +21,8 @@ import {
 } from '../utils/surveyNotificationCopy';
 import {
   applyMatchNameQuotes,
+  formatMatchReminderMessage,
+  formatMatchReminderTitle,
   formatMatchCancelledMessage,
   formatTeamInviteMessage,
   quoteMatchName,
@@ -43,6 +45,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
   const { user } = useAuth();
   const { notifications, fetchNotifications: refreshNotifications, clearAllNotifications: clearNotificationsLocal } = useNotifications();
   const navigate = useNavigate();
+  const location = useLocation();
   const [loading, setLoading] = useState(false);
   const [activeFilter, setActiveFilter] = useState('all');
 
@@ -371,7 +374,13 @@ const NotificationsModal = ({ isOpen, onClose }) => {
       return false;
     }
     try {
-      navigate(route, options);
+      navigate(route, {
+        ...options,
+        state: {
+          ...(options.state || {}),
+          backTo: `${location.pathname}${location.search}`,
+        },
+      });
       return true;
     } catch (error) {
       console.error('[NOTIFICATIONS_MODAL] navigation error', { route, error });
@@ -533,6 +542,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
                 const isSurveyStartLike = notification.type === 'survey' || notification.type === 'survey_start' || notification.type === 'post_match_survey';
                 const isSurveyReminder = notification.type === 'survey_reminder' || notification.type === 'survey_reminder_12h';
                 const isSurveyResults = notification.type === 'survey_results_ready';
+                const isMatchReminder = notification.type === 'match_reminder_1h';
                 const isTeamInvite = notification.type === 'team_invite';
                 const isMatchCancelled = notification.type === 'match_cancelled';
                 const isTeamChallengeAccepted = isTeamChallengeNotification(notification);
@@ -549,6 +559,8 @@ const NotificationsModal = ({ isOpen, onClose }) => {
                     ? 'Recordatorio de encuesta'
                     : isSurveyResults
                       ? 'Resultados de encuesta listos'
+                      : isMatchReminder
+                        ? formatMatchReminderTitle(notification)
                       : isMatchCancelled
                         ? 'Partido cancelado'
                       : isTeamChallengeAccepted
@@ -562,6 +574,8 @@ const NotificationsModal = ({ isOpen, onClose }) => {
                   ? getSurveyReminderMessage({ source: notification, matchName: quotedMatchName })
                   : isSurveyResults
                     ? getSurveyResultsReadyMessage({ matchName: quotedMatchName })
+                    : isMatchReminder
+                      ? formatMatchReminderMessage(notification)
                     : isMatchCancelled
                       ? formatMatchCancelledMessage(notification, { fallbackLabel: matchFallbackLabel })
                     : isTeamInvite

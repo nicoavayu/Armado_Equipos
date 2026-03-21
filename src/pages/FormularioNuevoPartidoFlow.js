@@ -7,9 +7,10 @@ import { formatLocalDateShort } from '../utils/dateLocal';
 import { useTimeout } from '../hooks/useTimeout';
 import { useScrollResetOnChange } from '../hooks/useScrollReset';
 import { normalizeTimeHHmm, isBlockedInDebug, getDebugInfo } from '../lib/matchDateDebug';
+import { buildMatchLocationFields, extractPersistedLocation } from '../utils/matchLocation';
 import { v4 as uuidv4 } from 'uuid';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
-import { Camera } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 
 import PageTitle from '../components/PageTitle';
 import ListaPartidosFrecuentes from './ListaPartidosFrecuentes';
@@ -29,7 +30,6 @@ const SECONDARY_ACTION_BUTTON_CLASS = 'w-full h-[52px] mt-4 mb-0 rounded-none bo
 const SEGMENT_BUTTON_BASE_CLASS = 'h-[44px] px-2 text-[16px] font-semibold font-oswald rounded-none transition-all border flex items-center justify-center';
 const CONFIRM_ITEM_CLASS = 'bg-[linear-gradient(160deg,rgba(31,38,86,0.86),rgba(16,24,60,0.94))] border border-[rgba(108,126,196,0.46)] backdrop-blur-md rounded-none p-4 mb-3 flex justify-between items-center text-white font-sans shadow-[0_12px_24px_rgba(4,10,28,0.35)]';
 const EDIT_ITEM_BUTTON_CLASS = 'bg-[rgba(26,37,83,0.95)] border border-[rgba(106,126,202,0.52)] text-white px-3 py-1.5 rounded-none text-xs font-semibold cursor-pointer transition-all font-oswald hover:bg-[rgba(39,53,110,0.98)] hover:border-[rgba(140,158,228,0.7)]';
-
 const STEP_TITLE_STYLE = {
   color: '#fff',
   textAlign: 'left',
@@ -41,6 +41,13 @@ const STEP_TITLE_STYLE = {
   display: 'block',
 };
 const FLOW_STEP_ROOT_STYLE = { transform: 'translateZ(0)' };
+
+const isQuarterHourTime = (timeValue) => {
+  const normalized = normalizeTimeHHmm(timeValue);
+  if (!normalized) return false;
+  const minutes = Number(normalized.split(':')[1]);
+  return [0, 15, 30, 45].includes(minutes);
+};
 
 export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
   const { user, profile } = useAuth();
@@ -63,6 +70,9 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
   // New: toggle to save created party as frequent
   const [saveAsFrequent, setSaveAsFrequent] = useState(false);
   const [willPlay, setWillPlay] = useState(true);
+  const progressCurrentStep = Math.min(Math.max(step, STEPS.NAME), STEPS.CONFIRM);
+  const progressFillPercent = Math.round((progressCurrentStep / STEPS.CONFIRM) * 100);
+  const [animatedProgressPercent, setAnimatedProgressPercent] = useState(progressFillPercent);
 
   useScrollResetOnChange(step);
 
@@ -86,6 +96,29 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
   const [cupo, setCupo] = useState(modalidadToCupo['F5']);
   const [tipoPartido, setTipoPartido] = useState('Masculino');
   useEffect(() => { setCupo(modalidadToCupo[modalidad]); }, [modalidad, modalidadToCupo]);
+  const timeOptions = useMemo(
+    () => Array.from({ length: 24 * 4 }, (_, index) => {
+      const totalMinutes = index * 15;
+      const hours = String(Math.floor(totalMinutes / 60)).padStart(2, '0');
+      const minutes = String(totalMinutes % 60).padStart(2, '0');
+      const value = `${hours}:${minutes}`;
+      return { value, label: value };
+    }),
+    [],
+  );
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.requestAnimationFrame !== 'function') {
+      setAnimatedProgressPercent(progressFillPercent);
+      return undefined;
+    }
+
+    const animationFrame = window.requestAnimationFrame(() => {
+      setAnimatedProgressPercent(progressFillPercent);
+    });
+
+    return () => window.cancelAnimationFrame(animationFrame);
+  }, [progressFillPercent]);
 
   const getSegmentButtonClass = (isActive) => `${SEGMENT_BUTTON_BASE_CLASS} ${isActive
     ? 'bg-[#6a43ff] border-[#7d5aff] text-white shadow-[0_8px_18px_rgba(106,67,255,0.34)]'
@@ -103,14 +136,6 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
 
   const canContinueWhereStep = Boolean(sede);
 
-  const [file, setFile] = useState(null);
-  const [fotoPreview, setFotoPreview] = useState(null);
-  const handleFile = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
-      setFotoPreview(URL.createObjectURL(e.target.files[0]));
-    }
-  };
   const nextStep = () => {
     setAnimation('slide-out');
     setTimeoutSafe(() => {
@@ -152,17 +177,19 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
 
   const handleSelectFrecuente = (partidoFrecuente) => {
     try {
+      const storedLocation = extractPersistedLocation(partidoFrecuente);
       setNombrePartido(partidoFrecuente?.nombre || '');
       setSede(partidoFrecuente?.sede || '');
+      setSedeInfo(storedLocation.placeId || storedLocation.lat || storedLocation.lng
+        ? {
+          description: storedLocation.description,
+          place_id: storedLocation.placeId,
+          lat: storedLocation.lat,
+          lng: storedLocation.lng,
+        }
+        : null);
       setTipoPartido(partidoFrecuente?.tipo_partido || 'Masculino');
       setValorCancha(partidoFrecuente?.precio_cancha !== undefined && partidoFrecuente?.precio_cancha !== null ? String(partidoFrecuente.precio_cancha) : '');
-      if (partidoFrecuente?.imagen_url) {
-        // Only set preview from template if there is currently no preview
-        if (!fotoPreview) {
-          setFotoPreview(partidoFrecuente.imagen_url);
-          setFile(null);
-        }
-      }
     } catch (e) {
       console.error('Error preloading partido frecuente into form', e);
     } finally {
@@ -188,23 +215,6 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
     try {
       let partido;
 
-      // Upload image if present (unchanged)
-      let _imagenUrl = null;
-      if (file) {
-        try {
-          const fileExt = file.name.split('.').pop();
-          const fileName = `partido_${Date.now()}.${fileExt}`;
-          const { error: uploadError } = await supabase.storage
-            .from('jugadores-fotos')
-            .upload(fileName, file, { upsert: true });
-          if (uploadError) throw uploadError;
-          const { data } = supabase.storage
-            .from('jugadores-fotos')
-            .getPublicUrl(fileName);
-          _imagenUrl = data?.publicUrl;
-        } catch (error) { /* ignore */ }
-      }
-
       // Normalize numeric precio value (used only for the frequent template insert)
       const precioVal = Number.isFinite(parsedCanchaPrice) && parsedCanchaPrice > 0
         ? parsedCanchaPrice
@@ -218,8 +228,10 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
         nombre: nombrePartido.trim(),
         fecha,
         hora: hora.trim(),
-        sede: sede.trim(),
-        sedeMaps: { place_id: sedeInfo?.place_id || '' },
+        ...buildMatchLocationFields({
+          locationText: sede,
+          locationInfo: sedeInfo,
+        }),
         modalidad,
         cupo_jugadores: Number(resolvedCupo),
         falta_jugadores: false,
@@ -317,12 +329,30 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
   // mainStyles replaced by Tailwind classes: min-h-[100dvh] w-screen bg-gradient-to-br from-[#24c6dc] via-[#514a9d] to-[#514a9d] overflow-y-auto flex flex-col items-center p-0 pb-10
   // innerStyles replaced by Tailwind classes: w-full max-w-[440px] mx-auto px-4 pb-10
 
+  const renderFlowProgressBar = () => (
+    <div className="w-full flex justify-center px-4 pb-4">
+      <div className="w-full max-w-[440px]">
+        <div className="h-[2px] w-full overflow-hidden rounded-full bg-white/18 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.14)]">
+          <div
+            className="h-full origin-left rounded-full transition-[width] duration-[280ms] ease-out"
+            style={{
+              width: `${animatedProgressPercent}%`,
+              background: 'linear-gradient(90deg, rgba(106,67,255,0.92) 0%, rgba(125,90,255,0.92) 100%)',
+              boxShadow: '0 0 8px rgba(106,67,255,0.3)',
+            }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+
 
   // ------ Paso 1: NOMBRE ------
   if (step === STEPS.NAME) {
     return (
       <div className="min-h-[100dvh] w-full max-w-full overflow-x-hidden pt-[110px]" style={FLOW_STEP_ROOT_STYLE}>
         <PageTitle title="NUEVO PARTIDO" onBack={onVolver}>NUEVO PARTIDO</PageTitle>
+        {renderFlowProgressBar()}
         <div className="w-full flex flex-col items-center pb-10">
           <div className="w-full max-w-[440px] px-4">
 
@@ -330,64 +360,19 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
             {/* Button "PARTIDOS FRECUENTES" removed as requested */}
 
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '1rem' }}>
-              {/*
-              // BEFORE: large image upload area
-              // (was a big dashed box 112x112 with optional preview and large "+" placeholder)
-
-              // AFTER: compact inline image + name field
-              // Thumbnail (48-64px) left, text input right. Image optional and clickable to open file selector.
-            */}
-
-              {/* Label moved ABOVE the inline block so thumbnail aligns with the input */}
               <label className="block w-full text-white font-medium mb-2 font-sans" style={STEP_TITLE_STYLE}>
                 Nombre del partido
                 <span className="ml-1 text-[#7d5aff] font-bold" aria-label="Campo obligatorio">*</span>
               </label>
 
-              <div className="flex items-center gap-3 w-full mb-2">
-                <div
-                  className="w-12 h-12 min-w-[48px] rounded-none bg-[rgba(24,35,76,0.82)] border border-dashed border-[rgba(124,142,210,0.5)] flex items-center justify-center overflow-hidden cursor-pointer"
-                  role="button"
-                  aria-label={fotoPreview ? 'Cambiar imagen del partido' : 'Agregar imagen'}
-                  onClick={() => document.getElementById('partido-foto-input').click()}
-                  title={fotoPreview ? 'Cambiar imagen' : 'Agregar imagen'}
-                >
-                  {fotoPreview ? (
-                    <img
-                      src={fotoPreview}
-                      alt="foto partido"
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'contain',
-                        display: 'block',
-                        padding: '2px',
-                        background: 'rgba(14,24,61,0.6)',
-                      }}
-                    />
-                  ) : (
-                    <Camera size={18} className="text-white/65" strokeWidth={2} />
-                  )}
-                  <input
-                    id="partido-foto-input"
-                    type="file"
-                    accept="image/*"
-                    style={{ display: 'none' }}
-                    onChange={handleFile}
-                  />
-                </div>
-
-                <div style={{ flex: 1 }}>
-                  <input
-                    className={`input-modern input-modern--grow ${INPUT_MODERN_CLASS} !mb-0`}
-                    type="text"
-                    placeholder="Ej: Partido del Viernes"
-                    value={nombrePartido}
-                    onChange={(e) => setNombrePartido(e.target.value)}
-                    autoFocus
-                  />
-                </div>
-              </div>
+              <input
+                className={`input-modern input-modern--grow ${INPUT_MODERN_CLASS} !mb-0`}
+                type="text"
+                placeholder="Ej: Partido del Viernes"
+                value={nombrePartido}
+                onChange={(e) => setNombrePartido(e.target.value)}
+                autoFocus
+              />
             </div>
 
             {/* Selector de modalidad */}
@@ -506,6 +491,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
     return (
       <div className="min-h-[100dvh] w-full max-w-full overflow-x-hidden pt-[110px]" style={FLOW_STEP_ROOT_STYLE}>
         <PageTitle title="NUEVO PARTIDO" onBack={onVolver}>NUEVO PARTIDO</PageTitle>
+        {renderFlowProgressBar()}
         <div className="w-full flex flex-col items-center pb-10">
           <div className="w-full max-w-[440px] px-4 flex flex-col h-full">
             <div className="flex-shrink-0">
@@ -521,6 +507,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
                 type="date"
                 value={fecha}
                 onChange={(e) => setFecha(e.target.value)}
+                placeholder="Ej: 25/03/2026"
                 style={{ marginBottom: 22, width: '100%' }}
               />
               <label style={{ fontWeight: 500, color: '#fff', marginBottom: 8, display: 'block', fontFamily: "'Inter', sans-serif" }}>
@@ -528,25 +515,24 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
                 <span className="ml-1 text-[#7d5aff] font-bold" aria-label="Campo obligatorio">*</span>
               </label>
               <div className="relative w-full" style={{ marginBottom: 22 }}>
-                <input
-                  className={INPUT_MODERN_CLASS}
-                  type="time"
+                <select
+                  className={`${INPUT_MODERN_CLASS} ${hora ? 'text-white' : 'text-white/40'} !mb-0 !h-[55px] pr-12`}
                   value={hora}
                   onChange={(e) => setHora(e.target.value)}
-                  placeholder="hh:mm"
                   style={{
-                    marginBottom: 0,
                     width: '100%',
-                    height: 55,
-                    color: hora ? undefined : 'transparent',
-                    WebkitTextFillColor: hora ? undefined : 'transparent',
                   }}
-                />
-                {!hora && (
-                  <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-white/40 font-sans text-lg">
-                    Hora (hh:mm)
-                  </span>
-                )}
+                >
+                  <option value="">Ej: 20:00</option>
+                  {timeOptions.map((timeOption) => (
+                    <option key={timeOption.value} value={timeOption.value}>
+                      {timeOption.label}
+                    </option>
+                  ))}
+                </select>
+                <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-white/55">
+                  <ChevronDown size={20} strokeWidth={2.2} />
+                </span>
               </div>
             </div>
 
@@ -563,6 +549,15 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
                       key: 'new_match_invalid_time',
                       type: 'warning',
                       message: 'Se requiere una hora válida.',
+                    });
+                    return;
+                  }
+
+                  if (!isQuarterHourTime(hora)) {
+                    showInlineNotice({
+                      key: 'new_match_invalid_time_step',
+                      type: 'warning',
+                      message: 'Elegí un horario en intervalos de 15 minutos.',
                     });
                     return;
                   }
@@ -617,6 +612,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
     return (
       <div className="min-h-[100dvh] w-full max-w-full overflow-x-hidden pt-[110px]" style={FLOW_STEP_ROOT_STYLE}>
         <PageTitle title="NUEVO PARTIDO" onBack={onVolver}>NUEVO PARTIDO</PageTitle>
+        {renderFlowProgressBar()}
         <div className="w-full flex flex-col items-center pb-10">
           <div className="w-full max-w-[440px] px-4 flex flex-col h-full">
             {/* Form section: header + inputs */}
@@ -629,9 +625,13 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
                 value={sede}
                 onChange={(nextValue) => {
                   setSede(nextValue);
-                  if (!nextValue.trim()) {
-                    setSedeInfo(null);
-                  }
+                  setSedeInfo((currentInfo) => {
+                    if (!nextValue.trim()) return null;
+                    const currentDescription = String(currentInfo?.description || '').trim();
+                    return currentDescription && currentDescription === nextValue.trim()
+                      ? currentInfo
+                      : null;
+                  });
                 }}
                 onSelect={(info) => {
                   setSede(info.description);
@@ -708,26 +708,10 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
     return (
       <div className="min-h-[100dvh] w-full max-w-full overflow-x-hidden pt-[110px]" style={FLOW_STEP_ROOT_STYLE}>
         <PageTitle title="NUEVO PARTIDO" onBack={onVolver}>NUEVO PARTIDO</PageTitle>
+        {renderFlowProgressBar()}
         <div className="w-full flex flex-col items-center pb-10">
           <div className="w-full max-w-[440px] px-4">
             <div style={{ marginTop: '0.4rem' }}></div>
-            {fotoPreview && (
-              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
-                <img
-                  src={fotoPreview}
-                  alt="foto partido"
-                  style={{
-                    width: 120,
-                    height: 120,
-                    objectFit: 'contain',
-                    borderRadius: 0,
-                    border: '2px solid rgba(255,255,255,0.3)',
-                    background: 'rgba(14,24,61,0.6)',
-                    padding: '4px',
-                  }}
-                />
-              </div>
-            )}
             <ul className="bg-transparent border-none shadow-none p-0 mt-[10px] mb-0 list-none">
               <li className={CONFIRM_ITEM_CLASS}>
                 <span className="font-semibold text-base text-white/90">Nombre:</span>

@@ -20,6 +20,7 @@ import {
   normalizeAwardsStatus,
 } from '../utils/awardsReadiness';
 import { SURVEY_MIN_VOTERS_FOR_AWARDS } from '../config/surveyConfig';
+import { useSmartBackNavigation } from '../hooks/useSmartBackNavigation';
 
 const ensurePlayersList = (players) => {
   if (players && players.length > 0) return players;
@@ -103,6 +104,9 @@ const ResultadosEncuestaView = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const goBackSmart = useSmartBackNavigation({
+    fallback: '/',
+  });
   const searchParams = new URLSearchParams(location.search);
   const forceAwardsMode =
     Boolean(location?.state?.forceAwards) ||
@@ -1924,7 +1928,7 @@ const ResultadosEncuestaView = () => {
   };
 
   const handleBack = () => {
-    navigate(-1);
+    goBackSmart();
   };
 
   if (loading) {

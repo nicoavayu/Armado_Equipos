@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
-import { formatLocalDateShort, parseLocalDateTime } from '../utils/dateLocal';
+import { formatLocalDateShort } from '../utils/dateLocal';
 import Modal from './Modal';
 import LoadingSpinner from './LoadingSpinner';
 import MatchSelectionCard from './MatchSelectionCard';
@@ -9,6 +9,7 @@ import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { showGlobalNotice } from '../utils/globalNoticeModal';
 import { requestImmediatePushDispatchSafe } from '../services/pushDispatchService';
 import { track } from '../utils/monitoring/analytics';
+import { QUIERO_JUGAR_OPEN_MATCHES_VIEW } from '../services/db/openMatches';
 import {
     buildInviteStateByMatch,
     EMPTY_MATCH_INVITE_STATE,
@@ -168,11 +169,10 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
             const clearedIds = new Set((clearedRows || []).map((r) => String(r.partido_id)));
 
             const { data: partidosData, error: partidosError } = await supabase
-                .from('partidos')
-                .select('id, nombre, fecha, hora, sede, modalidad, cupo_jugadores, tipo_partido, creado_por, precio_cancha_por_persona, estado, deleted_at, codigo')
+                .from(QUIERO_JUGAR_OPEN_MATCHES_VIEW)
+                .select('id, nombre, fecha, hora, sede, modalidad, cupo_jugadores, tipo_partido, creado_por, codigo')
                 .in('id', myMatchIds)
-                .order('fecha', { ascending: true })
-                .order('hora', { ascending: true });
+                .order('kickoff_at', { ascending: true });
 
             if (partidosError) throw partidosError;
 
@@ -221,25 +221,11 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
             const inviteStatesByMatch = buildInviteStateByMatch(
                 inviteRows.filter((row) => dedupedMatchIdTexts.has(resolveNotificationMatchIdText(row) || '')),
             );
-
-            const now = new Date();
             const matchesWithStatus = dedupedMatches
                 .filter((match) => {
                     if (!match?.id) return false;
                     if (clearedIds.has(String(match.id))) return false;
-
-                    const estado = String(match.estado || '').toLowerCase();
-                    if (['cancelado', 'cancelled', 'deleted'].includes(estado) || match.deleted_at) {
-                        return false;
-                    }
-
-                    if (!match.fecha || !match.hora) return true;
-
-                    const matchDateTime = parseLocalDateTime(match.fecha, match.hora);
-                    if (!matchDateTime) return true;
-
-                    const oneHourAfter = new Date(matchDateTime.getTime() + 60 * 60 * 1000);
-                    return now <= oneHourAfter;
+                    return true;
                 })
                 .map((match) => {
                     const playersInMatch = (jugadoresData || []).filter((j) => j.partido_id === match.id);
@@ -429,7 +415,7 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
             ) : matches.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-10 px-6 text-center bg-[rgba(20,31,70,0.82)] rounded-none border border-[rgba(98,117,184,0.58)] border-dashed">
                     <p className="text-white/50 text-sm leading-relaxed mb-1">
-                        No tenés partidos activos disponibles para invitar.
+                        No tenés partidos abiertos disponibles para invitar.
                     </p>
                     <p className="text-white/35 text-xs">No se muestran partidos vencidos ni partidos donde este jugador ya forma parte de la nómina.</p>
                 </div>

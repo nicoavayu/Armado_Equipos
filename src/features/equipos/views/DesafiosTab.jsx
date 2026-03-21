@@ -23,6 +23,8 @@ import { notifyBlockingError } from '../../../utils/notifyBlockingError';
 import EmptyStateCard from '../../../components/EmptyStateCard';
 import Button from '../../../components/Button';
 import { Flag, Search } from 'lucide-react';
+import { useRefreshOnVisibility } from '../../../hooks/useRefreshOnVisibility';
+import { useInterval } from '../../../hooks/useInterval';
 
 const publishActionBaseClass = '!w-full !h-auto !min-h-[44px] !px-4 !py-2.5 !rounded-none !font-bebas !text-base !tracking-[0.01em] !normal-case sm:!text-[13px] sm:!px-3 sm:!py-2 sm:!min-h-[36px]';
 const publishActionPrimaryClass = `${publishActionBaseClass} !border !border-[#7d5aff] !bg-[#6a43ff] !text-white !shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:!bg-[#7550ff]`;
@@ -32,6 +34,7 @@ const primaryCtaClass = 'flex-1 min-h-[44px] px-4 py-2.5 rounded-none border bor
 const secondaryCtaClass = 'flex-1 min-h-[44px] px-4 py-2.5 rounded-none border font-bebas text-base tracking-[0.01em] flex items-center justify-center text-center gap-2 transition-all active:opacity-95 sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]';
 const compactSearchCtaClass = 'relative flex-none w-[72px] min-h-[44px] rounded-none border font-bebas text-base tracking-[0.01em] flex items-center justify-center text-center transition-all active:opacity-95 sm:w-[60px] sm:min-h-[36px]';
 const filterFieldClass = 'h-[44px] rounded-none bg-[rgba(15,24,56,0.72)] border border-[rgba(88,107,170,0.46)] px-3 text-[15px] text-white outline-none focus:border-[#6a43ff] focus:ring-1 focus:ring-[#6a43ff]/45';
+const DESAFIOS_REFRESH_INTERVAL_MS = 30000;
 
 const formatMoneyAr = (value) => {
   const parsed = Number(value);
@@ -76,46 +79,92 @@ const DesafiosTab = ({
   const [completeTarget, setCompleteTarget] = useState(null);
   const [inlineNotice, setInlineNotice] = useState({ type: '', message: '' });
   const [acceptBlockedMessage, setAcceptBlockedMessage] = useState('');
+  const { setIntervalSafe, clearIntervalSafe } = useInterval();
 
-  const loadChallenges = useCallback(async () => {
+  const loadChallenges = useCallback(async ({
+    withLoading = true,
+    silent = false,
+  } = {}) => {
     if (!userId) return;
 
     try {
-      setLoading(true);
+      if (withLoading) setLoading(true);
       const openRows = await listOpenChallenges(filters);
       setOpenChallenges(openRows || []);
     } catch (error) {
-      notifyBlockingError(error.message || 'No se pudieron cargar los desafios');
+      if (!silent) {
+        notifyBlockingError(error.message || 'No se pudieron cargar los desafios');
+      } else {
+        console.warn('[DESAFIOS] refresh de desafios fallido', error);
+      }
     } finally {
-      setLoading(false);
+      if (withLoading) setLoading(false);
     }
   }, [filters, userId]);
 
-  const loadMyTeamsData = useCallback(async () => {
+  const loadMyTeamsData = useCallback(async ({
+    silent = false,
+  } = {}) => {
     if (!userId) return;
 
     try {
       const manageable = await listMyManageableTeams(userId);
       setManageableTeams(manageable || []);
     } catch (error) {
-      notifyBlockingError(error.message || 'No se pudieron cargar tus equipos');
+      if (!silent) {
+        notifyBlockingError(error.message || 'No se pudieron cargar tus equipos');
+      } else {
+        console.warn('[DESAFIOS] refresh de equipos manejables fallido', error);
+      }
     }
   }, [userId]);
 
+  const refreshDesafiosBoard = useCallback(async ({
+    withLoading = false,
+    silent = true,
+  } = {}) => {
+    await Promise.all([
+      loadMyTeamsData({ silent }),
+      loadChallenges({ withLoading, silent }),
+    ]);
+  }, [loadChallenges, loadMyTeamsData]);
+
   useEffect(() => {
     if (!userId) return;
-    loadMyTeamsData();
+    loadMyTeamsData({ silent: false });
   }, [loadMyTeamsData, userId]);
 
   useEffect(() => {
     if (!userId) return;
-    loadChallenges();
+    loadChallenges({ withLoading: true, silent: false });
   }, [loadChallenges, userId]);
 
   useEffect(() => {
     if (!prefilledTeamId) return;
     setShowPublishModal(true);
   }, [prefilledTeamId]);
+
+  useRefreshOnVisibility(
+    () => {
+      refreshDesafiosBoard({ withLoading: false, silent: true });
+    },
+    {
+      enabled: Boolean(userId),
+    },
+  );
+
+  useEffect(() => {
+    clearIntervalSafe();
+
+    if (!userId) return undefined;
+
+    setIntervalSafe(() => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+      refreshDesafiosBoard({ withLoading: false, silent: true });
+    }, DESAFIOS_REFRESH_INTERVAL_MS);
+
+    return () => clearIntervalSafe();
+  }, [clearIntervalSafe, refreshDesafiosBoard, setIntervalSafe, userId]);
 
   const visibleChallenges = useMemo(
     () => openChallenges.filter((challenge) => {
@@ -359,7 +408,7 @@ const DesafiosTab = ({
             setIsSubmitting(true);
             await createChallenge(userId, payload);
             setShowPublishModal(false);
-            await loadChallenges();
+            await refreshDesafiosBoard({ withLoading: false, silent: false });
             onChallengePublished?.();
           } catch (error) {
             notifyBlockingError(error.message || 'No se pudo publicar el desafio');
@@ -384,7 +433,7 @@ const DesafiosTab = ({
             setIsSubmitting(true);
             await updateChallenge(userId, editingChallenge.id, payload);
             setEditingChallenge(null);
-            await loadChallenges();
+            await refreshDesafiosBoard({ withLoading: false, silent: false });
             setInlineNotice({
               type: 'success',
               message: 'Desafio actualizado correctamente.',
@@ -417,7 +466,7 @@ const DesafiosTab = ({
               acceptedTeamName: acceptedTeam?.name || '',
             });
             closeAcceptChallengeModal();
-            await loadChallenges();
+            await refreshDesafiosBoard({ withLoading: false, silent: false });
             if (result?.matchId) {
               navigate(`/desafios/equipos/partidos/${result.matchId}`);
             }
@@ -445,7 +494,7 @@ const DesafiosTab = ({
             setIsSubmitting(true);
             await cancelChallenge(cancelConfirmChallenge.id);
             setCancelConfirmChallenge(null);
-            await loadChallenges();
+            await refreshDesafiosBoard({ withLoading: false, silent: false });
           } catch (error) {
             notifyBlockingError(error.message || 'No se pudo cancelar el desafío');
           } finally {
@@ -493,7 +542,7 @@ const DesafiosTab = ({
             setIsSubmitting(true);
             await completeChallenge({ challengeId, scoreA, scoreB, playedAt });
             setCompleteTarget(null);
-            await loadChallenges();
+            await refreshDesafiosBoard({ withLoading: false, silent: false });
           } catch (error) {
             notifyBlockingError(error.message || 'No se pudo finalizar el desafio');
           } finally {

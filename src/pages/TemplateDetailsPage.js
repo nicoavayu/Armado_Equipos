@@ -8,6 +8,7 @@ import { crearPartidoDesdeFrec } from '../services/db/frequentMatches';
 import { findDuplicateTemplateMatch, findUserScheduleConflicts } from '../services/db/matchScheduling';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { resolveNextTemplateDate } from '../utils/frequentTemplateDate';
+import { useSmartBackNavigation } from '../hooks/useSmartBackNavigation';
 
 const formatearSede = (sede = '') => {
   if (sede === 'La Terraza Fútbol 5, 8') return 'La Terraza Fútbol 5 y 8';
@@ -36,6 +37,9 @@ const TemplateDetailsPage = () => {
   const { templateId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
+  const goBackSmart = useSmartBackNavigation({
+    fallback: '/frecuentes',
+  });
   const { user } = useAuth();
   const [template, setTemplate] = useState(location.state?.template || null);
   const [isCreating, setIsCreating] = useState(false);
@@ -183,7 +187,7 @@ const TemplateDetailsPage = () => {
   return (
     <>
       <div className="w-full max-w-[600px] mx-auto flex flex-col items-center pt-24 pb-32 px-4 box-border">
-        <PageTitle title="PLANTILLA" onBack={() => navigate(-1)}>PLANTILLA</PageTitle>
+        <PageTitle title="PLANTILLA" onBack={() => goBackSmart()}>PLANTILLA</PageTitle>
 
         <div className="w-full mt-8 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
           <div className="flex justify-between items-start mb-4">

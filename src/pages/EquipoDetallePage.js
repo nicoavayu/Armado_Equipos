@@ -1,26 +1,30 @@
 import React from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../components/AuthProvider';
 import PageTitle from '../components/PageTitle';
 import PageTransition from '../components/PageTransition';
 import EquipoDetalleView from '../features/equipos/views/EquipoDetalleView';
+import { useSmartBackNavigation } from '../hooks/useSmartBackNavigation';
 
 const EquipoDetallePage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { teamId } = useParams();
   const { user } = useAuth();
+  const goBackSmart = useSmartBackNavigation({
+    fallback: '/desafios',
+    fallbackState: { equiposSubtab: 'mis-equipos' },
+  });
 
-  const handleBack = () => {
-    if (window.history.length > 1) {
-      navigate(-1);
-      return;
-    }
-    navigate('/desafios');
-  };
+  const handleBack = () => goBackSmart();
 
   const handleOpenTeamChat = () => {
     if (!teamId) return;
-    navigate(`/desafios/equipos/${teamId}/chat`);
+    navigate(`/desafios/equipos/${teamId}/chat`, {
+      state: {
+        backTo: `${location.pathname}${location.search}`,
+      },
+    });
   };
 
   return (

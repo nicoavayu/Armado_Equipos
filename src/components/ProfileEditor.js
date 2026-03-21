@@ -59,7 +59,7 @@ const ProfileEditorForm = ({
   isEmbedded = false,
 }) => {
   const formBottomPaddingClass = isEmbedded
-    ? 'pb-2'
+    ? 'pb-[calc(env(safe-area-inset-bottom)+12px)]'
     : 'pb-32';
   const actionButtonsBottomPaddingClass = isEmbedded ? 'pb-0' : 'pb-16';
 
@@ -189,7 +189,7 @@ const ProfileEditorForm = ({
           <label className={labelClass}>Localidad</label>
           <div className="flex gap-2 items-center">
             <input
-              className={`${inputClass} flex-1`}
+              className={`${singleLineFieldClass} flex-1`}
               type="text"
               value={locationDisplayValue}
               onChange={(e) => {
@@ -201,7 +201,7 @@ const ProfileEditorForm = ({
               readOnly={locationInputReadOnly}
             />
             <button
-              className="h-[44px] min-w-[44px] px-3 rounded-none border border-[#f4d03f] bg-[#f4d03f]/15 text-[#f4d03f] text-base cursor-pointer transition-all hover:bg-[#f4d03f]/25 flex items-center justify-center"
+              className="h-[42px] min-w-[42px] px-3 rounded-none border border-[#f4d03f] bg-[#f4d03f]/15 text-[#f4d03f] text-base cursor-pointer transition-all hover:bg-[#f4d03f]/25 flex items-center justify-center"
               onClick={handleGeolocation}
               type="button"
               title={locationDisabled ? 'Habilitar ubicación' : 'Actualizar ubicación'}
@@ -1092,8 +1092,8 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
   if (!isOpen) return null;
 
   // Shared classes
-  const inputClass = 'w-full bg-[rgba(53,58,102,0.88)] border border-[rgba(133,149,208,0.5)] text-white px-4 py-3 rounded-none text-base transition-all focus:outline-none focus:border-[#7f8dff] focus:bg-[rgba(62,67,114,0.95)] focus:ring-2 focus:ring-[#6f7dff]/30 placeholder:text-white/45 read-only:opacity-70 read-only:cursor-not-allowed shadow-inner backdrop-blur-sm';
-  const singleLineFieldClass = `${inputClass} h-[54px] py-0`;
+  const inputClass = 'w-full bg-[rgba(53,58,102,0.88)] border border-[rgba(133,149,208,0.5)] text-white px-4 py-3 rounded-none text-[15px] transition-all focus:outline-none focus:border-[#7f8dff] focus:bg-[rgba(62,67,114,0.95)] focus:ring-2 focus:ring-[#6f7dff]/30 placeholder:text-white/45 read-only:opacity-70 read-only:cursor-not-allowed shadow-inner backdrop-blur-sm';
+  const singleLineFieldClass = `${inputClass} h-[50px] py-0`;
   const labelClass = 'text-white/90 text-sm font-bold mb-2 block uppercase tracking-wider';
   const formGroupClass = 'flex flex-col w-full';
   const locationDisplayValue = locationLoading
@@ -1104,7 +1104,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
   if (isEmbedded) {
     return (
       <div
-        className="w-full relative overflow-x-hidden bg-[linear-gradient(180deg,rgba(18,26,60,0.16)_0%,rgba(18,26,60,0.1)_78%,rgba(18,26,60,0)_100%)]"
+        className="w-full min-h-full relative overflow-x-hidden"
         style={{ overflowX: 'clip' }}
       >
         <ProfileEditorForm
@@ -1300,7 +1300,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
               <label className={labelClass}>Localidad</label>
               <div className="flex gap-2 items-center">
                 <input
-                  className={`${inputClass} flex-1`}
+                  className={`${singleLineFieldClass} flex-1`}
                   type="text"
                   value={locationDisplayValue}
                   onChange={(e) => {
@@ -1312,7 +1312,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
                   readOnly={locationInputReadOnly}
                 />
                 <button
-                  className="h-[44px] min-w-[44px] px-3 rounded-none border border-[#f4d03f] bg-[#f4d03f]/15 text-[#f4d03f] text-base cursor-pointer transition-all hover:bg-[#f4d03f]/25 flex items-center justify-center"
+                  className="h-[42px] min-w-[42px] px-3 rounded-none border border-[#f4d03f] bg-[#f4d03f]/15 text-[#f4d03f] text-base cursor-pointer transition-all hover:bg-[#f4d03f]/25 flex items-center justify-center"
                   onClick={handleGeolocation}
                   type="button"
                   title={locationDisabled ? 'Habilitar ubicación' : 'Actualizar ubicación'}

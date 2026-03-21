@@ -329,6 +329,7 @@ export const notifyAdminJoinRequest = async ({
       requestId: requestId || null,
       request_user_id: requesterUserId || null,
       requester_name: name,
+      status: 'pending',
       link: `/admin/${matchIdNumber}?tab=solicitudes`,
     },
     adminUserId,

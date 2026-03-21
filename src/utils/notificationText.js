@@ -1,36 +1,78 @@
 const escapeRegExp = (value = '') => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+const normalizeNotificationLabel = (value = '') => (
+  String(value || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^"+|"+$/g, '')
+);
+
+const GENERIC_MATCH_NAME_TOKENS = new Set([
+  'd',
+  'el',
+  'partido',
+  'tu partido',
+  'este partido',
+  'match',
+]);
+
+export const sanitizeNotificationMatchName = (value, fallback = '') => {
+  const normalizedFallback = normalizeNotificationLabel(fallback);
+  const raw = normalizeNotificationLabel(value);
+  if (!raw) return normalizedFallback;
+
+  const lowered = raw.toLowerCase();
+  const compact = raw.replace(/[^\p{L}\p{N}]+/gu, '');
+  if (!compact || compact.length < 2 || GENERIC_MATCH_NAME_TOKENS.has(lowered)) {
+    return normalizedFallback;
+  }
+
+  return raw;
+};
+
 export const quoteMatchName = (value, fallback = 'este partido') => {
-  const raw = String(value || fallback).trim().replace(/^"+|"+$/g, '');
+  const raw = sanitizeNotificationMatchName(value, fallback);
   return `"${raw || fallback}"`;
 };
 
 export const resolveNotificationMatchName = (notification, fallback = 'este partido') => {
   const data = notification?.data || {};
-  return (
+  const candidate = (
     data?.partido_nombre
     || data?.match_name
     || data?.matchName
     || notification?.partido_nombre
     || notification?.match_name
-    || fallback
   );
+  return sanitizeNotificationMatchName(candidate, fallback);
 };
 
 export const applyMatchNameQuotes = (text, matchName) => {
   const sourceText = String(text || '');
-  const normalizedMatchName = String(matchName || '').trim().replace(/^"+|"+$/g, '');
+  const normalizedMatchName = sanitizeNotificationMatchName(matchName, '');
   if (!sourceText || !normalizedMatchName) return sourceText;
 
   const quoted = quoteMatchName(normalizedMatchName);
-  const pattern = new RegExp(escapeRegExp(normalizedMatchName), 'g');
+  const pattern = new RegExp(`(^|[^\\p{L}\\p{N}])(${escapeRegExp(normalizedMatchName)})(?=$|[^\\p{L}\\p{N}])`, 'gu');
 
-  return sourceText.replace(pattern, (found, offset, fullText) => {
-    const before = fullText[offset - 1];
-    const after = fullText[offset + found.length];
+  return sourceText.replace(pattern, (found, prefix, matchValue, offset, fullText) => {
+    const matchStart = offset + prefix.length;
+    const before = fullText[matchStart - 1];
+    const after = fullText[matchStart + matchValue.length];
     if (before === '"' && after === '"') return found;
-    return quoted;
+    return `${prefix}${quoted}`;
   });
+};
+
+export const formatMatchReminderTitle = () => 'Recordatorio de partido';
+
+export const formatMatchReminderMessage = (notification, { fallback = 'Tu partido' } = {}) => {
+  const matchName = resolveNotificationMatchName(notification, '');
+  if (matchName) {
+    return `${matchName} empieza en aproximadamente 1 hora.`;
+  }
+
+  return `${fallback} empieza en aproximadamente 1 hora.`;
 };
 
 export const resolveNotificationTeamName = (notification, fallback = 'Equipo') => {

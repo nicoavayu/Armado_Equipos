@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAnimatedNavigation } from '../hooks/useAnimatedNavigation';
 import { useAuth } from '../components/AuthProvider';
@@ -13,6 +13,9 @@ import {
   getJugadoresDelPartido,
   refreshJugadoresPartido,
 } from '../supabase';
+import { useRefreshOnVisibility } from '../hooks/useRefreshOnVisibility';
+import { useSupabaseRealtime } from '../hooks/useSupabaseRealtime';
+import { useInterval } from '../hooks/useInterval';
 
 const AdminPanelPage = () => {
   const navigate = useNavigate();
@@ -22,44 +25,134 @@ const AdminPanelPage = () => {
   const [partidoActual, setPartidoActual] = useState(null);
   const [jugadoresDelPartido, setJugadoresDelPartido] = useState([]);
   const [loading, setLoading] = useState(true);
+  const matchId = Number(partidoId);
+  const partidoActualRef = useRef(null);
+  const bundleRefreshInFlightRef = useRef(false);
+  const { setIntervalSafe, clearIntervalSafe } = useInterval();
 
   useEffect(() => {
-    const cargarPartido = async () => {
-      try {
-        const id = Number(partidoId);
-        const partido = await getPartidoPorId(id);
-        if (partido) {
-          setPartidoActual(partido);
+    partidoActualRef.current = partidoActual;
+  }, [partidoActual]);
 
-          const jugadores = await getJugadoresDelPartido(id);
-          setJugadoresDelPartido(jugadores);
+  const loadMatchBundle = useCallback(async ({
+    withLoading = false,
+    allowRedirect = false,
+    refreshPlayersOnly = false,
+  } = {}) => {
+    if (!matchId || Number.isNaN(matchId)) return;
+    if (!withLoading && bundleRefreshInFlightRef.current) return;
 
-          if (jugadores.length === 0 && partido.jugadores && partido.jugadores.length > 0) {
-            console.log('Refreshing players for match:', id);
-            try {
-              const refreshedPlayers = await refreshJugadoresPartido(id);
-              setJugadoresDelPartido(refreshedPlayers);
-            } catch (refreshError) {
-              console.error('Error refreshing players:', refreshError);
-            }
-          }
-        } else {
+    if (withLoading) {
+      setLoading(true);
+    }
+
+    try {
+      bundleRefreshInFlightRef.current = true;
+      let partido = refreshPlayersOnly ? partidoActualRef.current : await getPartidoPorId(matchId);
+
+      if (!refreshPlayersOnly) {
+        if (!partido) {
           notifyBlockingError('Partido no encontrado');
-          navigate('/');
+          if (allowRedirect) {
+            navigate('/');
+          }
+          return;
         }
-      } catch (error) {
-        console.error('Error loading match:', error);
+
+        setPartidoActual((prev) => ({
+          ...(prev || {}),
+          ...partido,
+        }));
+      }
+
+      let jugadores = await getJugadoresDelPartido(matchId);
+
+      if (!refreshPlayersOnly && jugadores.length === 0 && partido?.jugadores?.length > 0) {
+        try {
+          jugadores = await refreshJugadoresPartido(matchId);
+        } catch (refreshError) {
+          console.error('Error refreshing players:', refreshError);
+        }
+      }
+
+      setJugadoresDelPartido(jugadores);
+      setPartidoActual((prev) => {
+        if (!prev && !partido) return prev;
+        return {
+          ...(prev || {}),
+          ...(partido || {}),
+          jugadores,
+        };
+      });
+    } catch (error) {
+      console.error('Error loading match bundle:', error);
+      if (allowRedirect) {
         notifyBlockingError('Error al cargar el partido');
         navigate('/');
-      } finally {
+      }
+    } finally {
+      bundleRefreshInFlightRef.current = false;
+      if (withLoading) {
         setLoading(false);
       }
-    };
-
-    if (partidoId) {
-      cargarPartido();
     }
-  }, [partidoId, navigate, user]);
+  }, [matchId, navigate]);
+
+  useEffect(() => {
+    if (partidoId) {
+      loadMatchBundle({ withLoading: true, allowRedirect: true });
+    }
+  }, [partidoId, loadMatchBundle, user]);
+
+  useRefreshOnVisibility(() => {
+    loadMatchBundle();
+  }, {
+    enabled: Boolean(matchId),
+  });
+
+  useEffect(() => {
+    if (!matchId || Number.isNaN(matchId)) {
+      clearIntervalSafe();
+      return undefined;
+    }
+
+    setIntervalSafe(() => {
+      if (document.visibilityState !== 'visible') return;
+      loadMatchBundle();
+    }, 5000);
+
+    return clearIntervalSafe;
+  }, [clearIntervalSafe, loadMatchBundle, matchId, setIntervalSafe]);
+
+  const realtimeEvents = useMemo(() => (
+    matchId ? [
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'partidos',
+        filter: `id=eq.${matchId}`,
+        handler: () => {
+          loadMatchBundle({ refreshPlayersOnly: false });
+        },
+      },
+      {
+        event: '*',
+        schema: 'public',
+        table: 'jugadores',
+        filter: `partido_id=eq.${matchId}`,
+        handler: () => {
+          loadMatchBundle({ refreshPlayersOnly: true });
+        },
+      },
+    ] : []
+  ), [loadMatchBundle, matchId]);
+
+  useSupabaseRealtime({
+    enabled: Boolean(matchId),
+    channelName: matchId ? `admin-panel-page-${matchId}` : null,
+    deps: [matchId],
+    events: realtimeEvents,
+  });
 
   const handleJugadoresChange = async (nuevosJugadores) => {
     if (!partidoActual) return;

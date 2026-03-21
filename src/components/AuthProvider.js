@@ -1,8 +1,9 @@
-import React, { useState, useEffect, createContext, useContext, useCallback } from 'react';
+import React, { useState, useEffect, createContext, useContext, useCallback, useRef } from 'react';
 import { supabase, getProfile, createOrUpdateProfile } from '../supabase';
 import LoadingSpinner from './LoadingSpinner';
 
 const AuthContext = createContext();
+let authProviderInstanceCounter = 0;
 
 const LOCAL_EDIT_MODE = process.env.NODE_ENV === 'development' && process.env.REACT_APP_LOCAL_EDIT_MODE !== 'false';
 const LOCAL_DEV_USER_ID = '00000000-0000-4000-8000-000000000001';
@@ -85,6 +86,10 @@ const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const instanceIdRef = useRef(authProviderInstanceCounter += 1);
+  const authResolved = !loading;
+  const shouldShowBlockingSpinner = loading && process.env.NODE_ENV === 'production';
+  const shouldPassThroughWhileLoading = loading && process.env.NODE_ENV !== 'production';
 
   const activateLocalDevSession = useCallback(() => {
     const devUser = createLocalDevUser();
@@ -194,23 +199,66 @@ const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     let mounted = true;
+    const instanceId = instanceIdRef.current;
+
+    console.info('[AMIGOS_DEBUG][AuthProvider][bootstrap][start]', {
+      instanceId,
+      authResolved: false,
+      localEditMode: LOCAL_EDIT_MODE,
+    });
 
     const init = async () => {
+      let sessionExists = false;
+      let sessionUserExists = false;
+      let sessionUserId = null;
+
       try {
         const { data: { session } } = await supabase.auth.getSession();
+        sessionExists = Boolean(session);
+        sessionUserExists = Boolean(session?.user);
+        sessionUserId = session?.user?.id || null;
+
+        console.info('[AMIGOS_DEBUG][AuthProvider][bootstrap][session]', {
+          instanceId,
+          sessionExists,
+          userExists: sessionUserExists,
+          userId: sessionUserId,
+        });
+
         if (!mounted) return;
 
         console.log('Initial session:', session?.user?.id);
         if (session?.user) {
           setUser(session.user);
-          await fetchProfile(session.user);
+          setLoading(false);
+          Promise.resolve(fetchProfile(session.user)).catch((profileError) => {
+            console.error('[AMIGOS_DEBUG][AuthProvider][profile][init-error]', {
+              instanceId,
+              userId: session.user?.id || null,
+              error: profileError,
+            });
+          });
         } else if (LOCAL_EDIT_MODE) {
           let activated = false;
           try {
             const { data, error } = await supabase.auth.signInAnonymously();
+            console.info('[AMIGOS_DEBUG][AuthProvider][bootstrap][anonymous-result]', {
+              instanceId,
+              error: error?.message || null,
+              userExists: Boolean(data?.user),
+              userId: data?.user?.id || null,
+            });
+            if (!mounted) return;
             if (!error && data?.user) {
               setUser(data.user);
-              await fetchProfile(data.user);
+              setLoading(false);
+              Promise.resolve(fetchProfile(data.user)).catch((profileError) => {
+                console.error('[AMIGOS_DEBUG][AuthProvider][profile][anonymous-error]', {
+                  instanceId,
+                  userId: data.user?.id || null,
+                  error: profileError,
+                });
+              });
               activated = true;
             } else if (error) {
               console.warn('[AUTH] Anonymous sign-in unavailable:', error.message);
@@ -218,43 +266,91 @@ const AuthProvider = ({ children }) => {
           } catch (anonError) {
             console.warn('[AUTH] Anonymous sign-in failed:', anonError);
           }
-          if (!activated) activateLocalDevSession();
+          if (!mounted) return;
+          if (!activated) {
+            const devUser = activateLocalDevSession();
+            console.info('[AMIGOS_DEBUG][AuthProvider][bootstrap][local-dev-session]', {
+              instanceId,
+              userId: devUser?.id || null,
+            });
+            setLoading(false);
+          }
         } else {
           setUser(null);
           setProfile(null);
+          setLoading(false);
         }
       } catch (error) {
         console.error('[AUTH] Error getting initial session:', error);
+        console.error('[AMIGOS_DEBUG][AuthProvider][bootstrap][error]', {
+          instanceId,
+          error,
+        });
+        if (!mounted) return;
         if (LOCAL_EDIT_MODE) {
-          activateLocalDevSession();
+          const devUser = activateLocalDevSession();
+          console.info('[AMIGOS_DEBUG][AuthProvider][bootstrap][local-dev-fallback]', {
+            instanceId,
+            userId: devUser?.id || null,
+          });
+          setLoading(false);
         } else {
           setUser(null);
           setProfile(null);
+          setLoading(false);
         }
       } finally {
-        if (mounted) setLoading(false);
+        console.info('[AMIGOS_DEBUG][AuthProvider][bootstrap][end]', {
+          instanceId,
+          sessionExists,
+          userExists: sessionUserExists,
+          userId: sessionUserId,
+          mounted,
+        });
       }
     };
 
     init();
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.info('[AMIGOS_DEBUG][AuthProvider][listener]', {
+        instanceId,
+        event,
+        sessionExists: Boolean(session),
+        userExists: Boolean(session?.user),
+        userId: session?.user?.id || null,
+      });
       if (!mounted) return;
       if (session?.user) {
         setUser(session.user);
-        fetchProfile(session.user);
+        setLoading(false);
+        Promise.resolve(fetchProfile(session.user)).catch((profileError) => {
+          console.error('[AMIGOS_DEBUG][AuthProvider][profile][listener-error]', {
+            instanceId,
+            userId: session.user?.id || null,
+            error: profileError,
+          });
+        });
       } else if (LOCAL_EDIT_MODE) {
-        activateLocalDevSession();
+        const devUser = activateLocalDevSession();
+        console.info('[AMIGOS_DEBUG][AuthProvider][listener][local-dev-session]', {
+          instanceId,
+          userId: devUser?.id || null,
+        });
+        setLoading(false);
       } else {
         setUser(null);
         setProfile(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => {
       mounted = false;
+      console.info('[AMIGOS_DEBUG][AuthProvider][bootstrap][cleanup]', {
+        instanceId,
+      });
       subscription.unsubscribe();
     };
   }, [activateLocalDevSession]);
@@ -263,17 +359,45 @@ const AuthProvider = ({ children }) => {
     user,
     profile,
     loading,
+    authResolved,
     refreshProfile,
     updateLocalProfile,
     localEditMode: LOCAL_EDIT_MODE,
   };
 
-  if (loading) {
+  console.debug('[AMIGOS_DEBUG][AuthProvider][render]', {
+    instanceId: instanceIdRef.current,
+    loading,
+    authResolved,
+    sessionExists: Boolean(user),
+    userExists: Boolean(user),
+    userId: user?.id || null,
+    hasProfile: Boolean(profile),
+    shouldShowBlockingSpinner,
+    shouldPassThroughWhileLoading,
+  });
+
+  if (shouldShowBlockingSpinner) {
+    console.debug('[AMIGOS_DEBUG][AuthProvider][blocking-spinner]', {
+      loading,
+      authResolved,
+      userExists: Boolean(user),
+      userId: user?.id || null,
+    });
     return (
       <div className="voting-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
         <LoadingSpinner size="large" fullScreen />
       </div>
     );
+  }
+
+  if (shouldPassThroughWhileLoading) {
+    console.debug('[AMIGOS_DEBUG][AuthProvider][debug-pass-through]', {
+      loading,
+      authResolved,
+      userExists: Boolean(user),
+      userId: user?.id || null,
+    });
   }
 
   return (

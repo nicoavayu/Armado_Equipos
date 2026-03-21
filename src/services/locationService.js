@@ -11,6 +11,12 @@ const LOCATION_ERROR_MESSAGES = {
   TIMEOUT: 'Tiempo agotado',
   UNAVAILABLE: 'Geolocalización no disponible',
 };
+const DEV_LOCATION_OVERRIDE_SESSION_KEY = 'arma_dev_location_override';
+const DEV_LOCATION_OVERRIDE_LOCAL_KEY = 'arma_dev_location_override';
+const DEFAULT_DEV_LOCALHOST_LOCATION = {
+  lat: -34.6037347,
+  lng: -58.3815704,
+};
 
 const normalizeNumber = (value) => {
   if (typeof value === 'number') return Number.isFinite(value) ? value : null;
@@ -158,6 +164,40 @@ const getNativePosition = async (options) => {
 
 const toRadians = (value) => value * (Math.PI / 180);
 
+const isLocalhostHostname = (value) => {
+  const host = String(value || '').trim().toLowerCase();
+  return host === 'localhost' || host === '127.0.0.1' || host === '::1';
+};
+
+const parseOverrideLocation = (value) => {
+  if (!value) return null;
+
+  if (typeof value === 'string') {
+    try {
+      const parsedJson = JSON.parse(value);
+      return parseOverrideLocation(parsedJson);
+    } catch (_error) {
+      const [latToken, lngToken] = value.split(',').map((token) => token?.trim());
+      const lat = normalizeNumber(latToken);
+      const lng = normalizeNumber(lngToken);
+      if (isValidCoordinates(lat, lng)) {
+        return { lat, lng };
+      }
+      return null;
+    }
+  }
+
+  if (typeof value === 'object') {
+    const lat = normalizeNumber(value?.lat ?? value?.latitude);
+    const lng = normalizeNumber(value?.lng ?? value?.longitude);
+    if (isValidCoordinates(lat, lng)) {
+      return { lat, lng };
+    }
+  }
+
+  return null;
+};
+
 export const distanceInMeters = (fromLat, fromLng, toLat, toLng) => {
   const lat1 = normalizeNumber(fromLat);
   const lng1 = normalizeNumber(fromLng);
@@ -191,6 +231,52 @@ export const getCurrentPosition = async (options = {}) => {
   }
 
   return getWebPosition(resolvedOptions);
+};
+
+export const getLocalhostDevelopmentLocation = () => {
+  if (process.env.NODE_ENV !== 'development') return null;
+  if (typeof window === 'undefined') return null;
+  if (!isLocalhostHostname(window.location?.hostname)) return null;
+
+  const searchParams = new URLSearchParams(window.location?.search || '');
+  const queryLat = normalizeNumber(searchParams.get('devLat'));
+  const queryLng = normalizeNumber(searchParams.get('devLng'));
+  if (isValidCoordinates(queryLat, queryLng)) {
+    return {
+      lat: queryLat,
+      lng: queryLng,
+      accuracy_m: null,
+      timestamp: new Date().toISOString(),
+      source: 'localhost_query_override',
+    };
+  }
+
+  const sessionOverride = parseOverrideLocation(window.sessionStorage?.getItem(DEV_LOCATION_OVERRIDE_SESSION_KEY));
+  if (sessionOverride) {
+    return {
+      ...sessionOverride,
+      accuracy_m: null,
+      timestamp: new Date().toISOString(),
+      source: 'localhost_session_override',
+    };
+  }
+
+  const localOverride = parseOverrideLocation(window.localStorage?.getItem(DEV_LOCATION_OVERRIDE_LOCAL_KEY));
+  if (localOverride) {
+    return {
+      ...localOverride,
+      accuracy_m: null,
+      timestamp: new Date().toISOString(),
+      source: 'localhost_local_override',
+    };
+  }
+
+  return {
+    ...DEFAULT_DEV_LOCALHOST_LOCATION,
+    accuracy_m: null,
+    timestamp: new Date().toISOString(),
+    source: 'localhost_default_caba',
+  };
 };
 
 export const reverseGeocode = async (lat, lng) => {

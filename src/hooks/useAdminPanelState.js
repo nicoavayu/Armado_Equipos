@@ -165,9 +165,7 @@ export const useAdminPanelState = ({
 
   // Sync with initial props
   useEffect(() => {
-    if (jugadores && jugadores.length > 0) {
-      setJugadoresLocal(jugadores);
-    }
+    setJugadoresLocal(Array.isArray(jugadores) ? jugadores : []);
   }, [jugadores]);
 
   // Check invitation
@@ -290,25 +288,6 @@ export const useAdminPanelState = ({
 
     fetchJugadores();
 
-    // Real-time subscription for players
-    const playersChannel = supabase
-      .channel(`match-players-${partidoActual.id}`)
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'jugadores',
-        filter: `partido_id=eq.${partidoActual.id}`,
-      }, async () => {
-        console.log('[REALTIME] Players changed, refreshing...');
-        try {
-          const jugadoresPartido = await getJugadoresDelPartido(partidoActual.id);
-          setJugadoresLocal(jugadoresPartido);
-        } catch (error) {
-          console.error('Error refreshing players:', error);
-        }
-      })
-      .subscribe();
-
     // Real-time subscription for votes (authenticated)
     const votesChannel = supabase
       .channel(`match-votes-${partidoActual.id}`)
@@ -373,7 +352,6 @@ export const useAdminPanelState = ({
       .subscribe();
 
     return () => {
-      supabase.removeChannel(playersChannel);
       supabase.removeChannel(votesChannel);
       supabase.removeChannel(publicVotesChannel);
       supabase.removeChannel(publicVotersChannel);

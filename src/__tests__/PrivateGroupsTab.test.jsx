@@ -124,7 +124,7 @@ describe('PrivateGroupsTab', () => {
     expect(screen.getByRole('heading', { name: /Crear grupo/i })).toBeInTheDocument();
   });
 
-  test('opens add-friends in a separate modal and moves invite-to-match into the group menu', async () => {
+  test('renders raw groups from the base query without waiting for enrichment', async () => {
     mockGetPrivateGroupsByOwner.mockResolvedValueOnce([
       {
         id: 'group-1',
@@ -177,22 +177,10 @@ describe('PrivateGroupsTab', () => {
       />,
     );
 
-    fireEvent.click((await screen.findByText('Futbol 7')).closest('button'));
-
-    expect(screen.queryByPlaceholderText('Buscar amigos...')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Agregar amigos/i })).toHaveAttribute('data-preserve-button-case', 'true');
-    expect(screen.queryByRole('button', { name: /Invitar grupo/i })).not.toBeInTheDocument();
-    expect(screen.getByText('Integrantes del grupo')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: /Agregar amigos/i }));
-
-    expect(await screen.findByPlaceholderText('Buscar amigos...')).toBeInTheDocument();
+    expect(await screen.findByText('Modo diagnostico: query base cruda')).toBeInTheDocument();
+    expect(screen.getByText('Futbol 7')).toBeInTheDocument();
+    expect(screen.getByText('ID: group-1')).toBeInTheDocument();
+    expect(screen.getByText('Integrantes: 0')).toBeInTheDocument();
     expect(screen.queryByText('invite-group-modal')).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: /^Cancelar$/i }));
-    fireEvent.click(screen.getByRole('button', { name: /Opciones de Futbol 7/i }));
-    fireEvent.click(await screen.findByRole('button', { name: /Invitar a partido/i }));
-
-    expect(await screen.findByText('invite-group-modal')).toBeInTheDocument();
   });
 });

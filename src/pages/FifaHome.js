@@ -1,7 +1,6 @@
 // src/FifaHome.js
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 // import '../HomeStyleKit.css'; // Removed in Tailwind migration
-import Logo from '../Logo.png';
 
 import { useAuth } from '../components/AuthProvider';
 import FifaHomeContent from '../components/FifaHomeContent';
@@ -16,28 +15,6 @@ export default function FifaHome({ onModoSeleccionado }) {
   useAuth(); // Hook call required for context
   const [showProfileEditor, setShowProfileEditor] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [loading, setLoading] = useState(true);
-
-  // Simulate loading state
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 2500);
-    return () => clearTimeout(timer);
-  }, []);
-
-  // If loading, show only the logo
-  if (loading) {
-    return (
-      <div className="fixed inset-0 flex items-center justify-center z-[9999]">
-        <img
-          src={Logo}
-          alt="Logo"
-          className="w-48 h-auto animate-pulse-zoom drop-shadow-2xl"
-        />
-      </div>
-    );
-  }
 
   // If showing notifications, render the NotificationsView
   if (showNotifications) {

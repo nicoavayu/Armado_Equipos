@@ -1,10 +1,27 @@
 import React from 'react';
 import { MapPin, MoreVertical, Star, User } from 'lucide-react';
 
-const POS_MAP = { ARQ: 'ARQ', DEF: 'DEF', MED: 'MED', DEL: 'DEL', arquero: 'ARQ', defensor: 'DEF', mediocampista: 'MED', delantero: 'DEL' };
+const POS_MAP = {
+  ARQ: 'ARQ',
+  DEF: 'DEF',
+  MED: 'MED',
+  DEL: 'DEL',
+  arq: 'ARQ',
+  def: 'DEF',
+  med: 'MED',
+  del: 'DEL',
+  arquero: 'ARQ',
+  defensor: 'DEF',
+  mediocampista: 'MED',
+  delantero: 'DEL',
+};
 const POS_COLOR_MAP = { ARQ: '#FDB022', DEF: '#FF6B9D', MED: '#06C270', DEL: '#FF3B3B' };
 
-const getPos = (p) => POS_MAP[p] || 'DEF';
+const getPos = (p) => {
+  const raw = String(p || '').trim();
+  if (!raw) return 'DEF';
+  return POS_MAP[raw] || POS_MAP[raw.toUpperCase()] || 'DEF';
+};
 const getPosColor = (p) => POS_COLOR_MAP[p] || '#8178e5';
 
 const getInitials = (name) => {
@@ -111,7 +128,7 @@ const PlayerMiniCard = ({
           ) : null}
 
           <div
-            className="inline-flex items-center justify-center px-2 py-1 rounded text-[10px] font-bold text-white min-w-[34px]"
+            className="inline-flex items-center justify-center px-2 py-1 rounded text-[10px] font-bold text-white min-w-[34px] uppercase"
             style={{ backgroundColor: posColor }}
           >
             {posicion}

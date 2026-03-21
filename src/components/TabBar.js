@@ -60,7 +60,7 @@ const TabBar = ({ activeTab, onTabChange }) => {
             transition: 'transform 250ms ease-out, opacity 200ms ease-out',
           }}
         >
-          <span className="mx-3 block h-full rounded-full bg-white/90 shadow-[0_0_8px_rgba(255,255,255,0.22)] md:mx-4" />
+          <span className="mx-3 block h-full rounded-full bg-[#6a43ff] shadow-[0_0_10px_rgba(106,67,255,0.4)] md:mx-4" />
         </div>
         {tabs.map((tab, index) => {
           const isActive = activeTab === tab.key;

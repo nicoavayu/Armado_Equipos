@@ -5,6 +5,7 @@ import { useAuth } from '../../components/AuthProvider';
 import DesafiosTab from './views/DesafiosTab';
 import MisEquiposTab from './views/MisEquiposTab';
 import { QUIERO_JUGAR_EQUIPOS_SUBTAB_STORAGE_KEY } from './config';
+import { useSmartBackNavigation } from '../../hooks/useSmartBackNavigation';
 
 const SUBTABS = [
   { key: 'desafios', label: 'DESAFIOS' },
@@ -24,6 +25,9 @@ const QuieroJugarEquipos = ({
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+  const goBackSmart = useSmartBackNavigation({
+    fallback: '/',
+  });
 
   const [activeSubtab, setActiveSubtab] = useState(() => {
     const queryTab = normalizeEquiposSubtab(new URLSearchParams(location.search).get('tab'));
@@ -70,7 +74,7 @@ const QuieroJugarEquipos = ({
 
   return (
     <>
-      <PageTitle title={pageTitle} onBack={() => navigate(-1)}>{pageTitle}</PageTitle>
+      <PageTitle title={pageTitle} onBack={() => goBackSmart()}>{pageTitle}</PageTitle>
 
       <div className="w-full flex justify-center pb-7" style={{ paddingTop: `${secondaryTabsTop}px` }}>
         <div

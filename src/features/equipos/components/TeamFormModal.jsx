@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Check } from 'lucide-react';
+import { Check, Loader2 } from 'lucide-react';
 import Modal from '../../../components/Modal';
-import Button from '../../../components/Button';
 import {
   TEAM_FORMAT_OPTIONS,
   TEAM_MODE_OPTIONS,
@@ -32,9 +31,13 @@ const normalizeHex = (value) => {
   return /^#[0-9A-Fa-f]{6}$/.test(withHash) ? withHash.toUpperCase() : null;
 };
 
-const actionButtonBaseClass = '!w-full !h-auto !min-h-[44px] !px-4 !py-2.5 !rounded-none !font-bebas !text-base !tracking-[0.01em] !normal-case sm:!text-[13px] sm:!px-3 sm:!py-2 sm:!min-h-[36px]';
-const actionPrimaryClass = `${actionButtonBaseClass} !border !border-[#7d5aff] !bg-[#6a43ff] !text-white !shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:!bg-[#7550ff]`;
-const actionSecondaryClass = `${actionButtonBaseClass} !border !border-white/35 !bg-white/5 !text-white hover:!bg-white/10`;
+const PRIMARY_ACTION_BUTTON_CLASS = 'inline-flex min-h-[44px] items-center justify-center gap-2 rounded-none border border-[#7d5aff] bg-[#6a43ff] px-4 py-2.5 font-bebas text-base tracking-[0.01em] text-white shadow-[0_0_14px_rgba(106,67,255,0.3)] transition-all hover:bg-[#7550ff] active:opacity-95 disabled:cursor-not-allowed disabled:border-[rgba(125,90,255,0.45)] disabled:bg-[rgba(106,67,255,0.55)] disabled:text-white/45 disabled:shadow-none';
+const SECONDARY_ACTION_BUTTON_CLASS = 'inline-flex min-h-[44px] items-center justify-center gap-2 rounded-none border border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] px-4 py-2.5 font-bebas text-base tracking-[0.01em] text-white/92 transition-all hover:bg-[rgba(30,45,94,0.95)] active:opacity-95 disabled:cursor-not-allowed disabled:opacity-50';
+const INPUT_CLASS = 'h-[52px] w-full rounded-none border border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] px-4 text-white font-oswald text-lg outline-none transition-all duration-300 focus:border-[#7f8dff] focus:bg-[rgba(30,45,94,0.95)] focus:ring-2 focus:ring-[#6f7dff]/30 placeholder:text-white/45 backdrop-blur-md';
+const INPUT_SMALL_CLASS = 'w-full rounded-none border border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] px-3 py-2.5 text-white font-oswald text-base outline-none transition-all duration-300 focus:border-[#7f8dff] focus:bg-[rgba(30,45,94,0.95)] focus:ring-2 focus:ring-[#6f7dff]/30 placeholder:text-white/45 backdrop-blur-md';
+const FIELD_LABEL_CLASS = 'mb-2 block text-sm text-white/70';
+const SECTION_CARD_CLASS = 'rounded-none border border-[rgba(88,107,170,0.46)] bg-[rgba(18,28,62,0.78)] p-4';
+const SECTION_TITLE_CLASS = 'font-oswald text-[clamp(16px,4.4vw,20px)] font-semibold leading-tight tracking-[0.01em] text-white';
 
 const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = false }) => {
   const crestFileRef = useRef(null);
@@ -106,37 +109,35 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
       isOpen={isOpen}
       onClose={onClose}
       title={title}
-      className="w-full max-w-[560px]"
-      classNameContent="p-4 sm:p-5"
+      className="w-full max-w-[620px] !bg-[#101a35] border border-[rgba(98,117,184,0.58)]"
+      classNameContent="p-5"
       footer={(
-        <div className="grid grid-cols-2 gap-2 mt-2.5 max-w-[420px] mx-auto">
-          <Button
+        <div className="grid grid-cols-2 gap-2">
+          <button
             type="button"
             onClick={onClose}
-            variant="secondary"
-            className={actionSecondaryClass}
             disabled={isSubmitting}
+            className={`${SECONDARY_ACTION_BUTTON_CLASS} w-full min-w-0`}
             data-preserve-button-case="true"
           >
             Cancelar
-          </Button>
-          <Button
+          </button>
+          <button
             type="submit"
             form="team-form-modal"
-            className={actionPrimaryClass}
-            loading={isSubmitting}
-            loadingText="Guardando..."
-            disabled={form.name.trim().length === 0}
+            disabled={isSubmitting || form.name.trim().length === 0}
+            className={`${PRIMARY_ACTION_BUTTON_CLASS} w-full min-w-0`}
             data-preserve-button-case="true"
           >
-            Guardar
-          </Button>
+            {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : null}
+            {isSubmitting ? 'Guardando...' : 'Guardar'}
+          </button>
         </div>
       )}
     >
       <form
         id="team-form-modal"
-        className="space-y-3"
+        className="space-y-5"
         onSubmit={(event) => {
           event.preventDefault();
 
@@ -159,40 +160,41 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
         }}
       >
         <label className="block">
-          <span className="text-xs text-white/80 uppercase tracking-wide">Nombre</span>
+          <span className={FIELD_LABEL_CLASS}>Nombre del equipo</span>
           <input
             type="text"
             required
             maxLength={60}
             value={form.name}
             onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
-            className="mt-1 w-full rounded-none bg-slate-900/80 border border-white/20 px-3 py-2 text-white outline-none focus:border-[#128BE9]"
+            className={INPUT_CLASS}
+            placeholder="Ej. Atlético del martes"
           />
         </label>
 
         <div className="grid grid-cols-2 gap-3">
           <label className="block">
-            <span className="text-xs text-white/80 uppercase tracking-wide">Formato</span>
+            <span className={FIELD_LABEL_CLASS}>Formato</span>
             <select
               value={form.format}
               onChange={(event) => setForm((prev) => ({ ...prev, format: Number(event.target.value) }))}
-              className="mt-1 w-full rounded-none bg-slate-900/80 border border-white/20 px-3 py-2 text-white outline-none focus:border-[#128BE9]"
+              className={INPUT_CLASS}
             >
               {TEAM_FORMAT_OPTIONS.map((value) => (
                 <option key={value} value={value}>F{value}</option>
               ))}
             </select>
-            <p className="mt-1 text-[11px] text-white/65">
+            <p className="mt-2 text-[11px] text-white/55">
               Cupo máximo de plantilla: <span className="text-white font-semibold">{rosterLimit}</span> jugadores.
             </p>
           </label>
 
           <label className="block">
-            <span className="text-xs text-white/80 uppercase tracking-wide">Nivel</span>
+            <span className={FIELD_LABEL_CLASS}>Nivel</span>
             <select
               value={form.skill_level}
               onChange={(event) => setForm((prev) => ({ ...prev, skill_level: event.target.value }))}
-              className="mt-1 w-full rounded-none bg-slate-900/80 border border-white/20 px-3 py-2 text-white outline-none focus:border-[#128BE9]"
+              className={INPUT_CLASS}
             >
               {TEAM_SKILL_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>{option.label}</option>
@@ -202,11 +204,11 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
         </div>
 
         <label className="block">
-          <span className="text-xs text-white/80 uppercase tracking-wide">Genero</span>
+          <span className={FIELD_LABEL_CLASS}>Género</span>
           <select
             value={form.mode}
             onChange={(event) => setForm((prev) => ({ ...prev, mode: event.target.value }))}
-            className="mt-1 w-full rounded-none bg-slate-900/80 border border-white/20 px-3 py-2 text-white outline-none focus:border-[#128BE9]"
+            className={INPUT_CLASS}
           >
             {TEAM_MODE_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>{option.label}</option>
@@ -215,19 +217,19 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
         </label>
 
         <label className="block">
-          <span className="text-xs text-white/80 uppercase tracking-wide">Zona base</span>
-          <div className="mt-1">
+          <span className={FIELD_LABEL_CLASS}>Zona base</span>
+          <div>
             <NeighborhoodAutocomplete
               value={form.base_zone}
               onChange={(nextZone) => setForm((prev) => ({ ...prev, base_zone: nextZone }))}
               placeholder="Ej: Palermo"
-              inputClassName="w-full rounded-none bg-slate-900/80 border border-white/20 px-3 py-2 text-white outline-none focus:border-[#128BE9] disabled:opacity-60 disabled:cursor-not-allowed"
+              inputClassName={`${INPUT_CLASS} disabled:opacity-60 disabled:cursor-not-allowed`}
             />
           </div>
         </label>
 
         {isCreateMode ? (
-          <label className="rounded-none border border-white/15 bg-white/5 p-3 inline-flex items-start gap-2.5 text-white/90 font-oswald text-[15px] cursor-pointer select-none">
+          <label className={`${SECTION_CARD_CLASS} inline-flex items-start gap-2.5 text-white/90 font-oswald text-[15px] cursor-pointer select-none`}>
             <input
               type="checkbox"
               checked={addCurrentUserAsPlayer}
@@ -235,32 +237,32 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
               className="sr-only"
             />
             <span
-              className={`mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-none ui-flat border transition-all ${addCurrentUserAsPlayer
-                ? 'border-[#93C5FD] bg-[#2563EB] text-white shadow-[0_0_0_3px_rgba(37,99,235,0.22)]'
-                : 'border-white/30 bg-slate-900/70 text-transparent'
+              className={`mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-none border transition-all ${addCurrentUserAsPlayer
+                ? 'border-[#8e7dff] bg-[#6a43ff] text-white shadow-[0_0_0_3px_rgba(106,67,255,0.22)]'
+                : 'border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] text-transparent'
                 }`}
             >
               <Check size={13} strokeWidth={3} />
             </span>
             <span className="leading-tight">
               <span className="block text-white">Agregarme como jugador</span>
-              <span className="mt-1 block text-xs text-white/65">Te agrega automáticamente a la plantilla del equipo.</span>
+              <span className="mt-1 block text-xs text-white/55">Te agrega automáticamente a la plantilla del equipo.</span>
             </span>
           </label>
         ) : null}
 
-        <div className="rounded-none border border-white/15 bg-white/5 p-3">
+        <div className={SECTION_CARD_CLASS}>
           <div className="flex items-center justify-between">
-            <span className="text-xs text-white/80 uppercase tracking-wide">Colores (opcionales)</span>
+            <span className={SECTION_TITLE_CLASS}>Colores opcionales</span>
             <button
               type="button"
               disabled={colors.length >= 3}
               onClick={() => setColors((prev) => (prev.length >= 3 ? prev : [...prev, '#128BE9']))}
-              className="inline-flex items-center justify-center rounded-none border border-[#9ED3FF]/35 bg-[#128BE9]/10 p-2 text-[#9ED3FF] transition-all hover:bg-[#128BE9]/20 disabled:opacity-45 disabled:cursor-not-allowed"
+              className="inline-flex items-center justify-center rounded-none border border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] p-2 text-[#9ED3FF] transition-all hover:bg-[rgba(30,45,94,0.95)] disabled:opacity-45 disabled:cursor-not-allowed"
               title="Agregar color"
               aria-label="Agregar color"
             >
-              <span className="inline-flex h-4 w-4 items-center justify-center rounded-none border border-[#9ED3FF]/35 bg-[#128BE9]/20">
+              <span className="inline-flex h-4 w-4 items-center justify-center rounded-none border border-[#9ED3FF]/35 bg-[#128BE9]/12">
                 <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
                   <path d="M12 5v14M5 12h14" />
                 </svg>
@@ -272,8 +274,8 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
             {colors.length === 0 ? (
               <p className="text-xs text-white/55">Sin colores personalizados.</p>
             ) : colors.map((color, index) => (
-              <div key={`${index}-${color}`} className="flex items-center gap-2">
-                <div className="h-10 w-12 rounded-none border border-white/20 bg-slate-900/60 p-1.5">
+              <div key={`${index}-${color}`} className="flex items-center gap-2 rounded-none border border-[rgba(88,107,170,0.46)] bg-[rgba(12,22,52,0.86)] px-2.5 py-2">
+                <div className="h-10 w-12 rounded-none border border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] p-1.5">
                   <input
                     type="color"
                     value={normalizeHex(color) || '#128BE9'}
@@ -292,7 +294,7 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
                     setColors((prev) => prev.map((item, itemIndex) => (itemIndex === index ? value : item)));
                   }}
                   placeholder="#128BE9"
-                  className="flex-1 rounded-none bg-slate-900/80 border border-white/20 px-2.5 py-2 text-sm text-white"
+                  className={`flex-1 ${INPUT_SMALL_CLASS}`}
                 />
                 <button
                   type="button"
@@ -310,8 +312,8 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
           </div>
         </div>
 
-        <div className="rounded-none border border-white/15 bg-white/5 p-3">
-          <span className="text-xs text-white/80 uppercase tracking-wide">Escudo (opcional)</span>
+        <div className={SECTION_CARD_CLASS}>
+          <span className={SECTION_TITLE_CLASS}>Escudo opcional</span>
           <div className="mt-2 flex items-center gap-3">
             <button
               type="button"
@@ -320,7 +322,7 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
                 crestFileRef.current.value = '';
                 crestFileRef.current.click();
               }}
-              className="h-14 w-14 rounded-none overflow-hidden border border-white/20 bg-slate-900/60 flex items-center justify-center shrink-0 transition-all hover:border-[#9ED3FF]/45"
+              className="h-14 w-14 rounded-none overflow-hidden border border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] flex items-center justify-center shrink-0 transition-all hover:border-[#9ED3FF]/45"
               title="Elegir escudo"
               aria-label="Elegir escudo"
             >
@@ -345,7 +347,7 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
                 crestFileRef.current.value = '';
                 crestFileRef.current.click();
               }}
-              className="flex-1 min-w-0 rounded-none border border-dashed border-white/20 bg-slate-900/45 px-3 py-3 text-left text-white/90 font-oswald text-[16px] transition-all hover:border-[#9ED3FF]/45 hover:text-white"
+              className="flex-1 min-w-0 rounded-none border border-dashed border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.56)] px-3 py-3 text-left text-white/90 font-oswald text-[16px] transition-all hover:border-[#9ED3FF]/45 hover:text-white"
             >
               Elegir foto
             </button>

@@ -1,10 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../../supabase';
 import LoadingSpinner from '../LoadingSpinner';
 import { Check, Loader2, X } from 'lucide-react';
 import { PlayerCardTrigger } from '../ProfileComponents';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { notifyAdminPlayerJoined } from '../../services/matchJoinNotificationService';
+import { useRefreshOnVisibility } from '../../hooks/useRefreshOnVisibility';
+import { useSupabaseRealtime } from '../../hooks/useSupabaseRealtime';
+import { useInterval } from '../../hooks/useInterval';
+import { fetchPendingMatchJoinRequests } from '../../services/db/matchJoinRequests';
 
 const EmptyRequestsMailboxIcon = () => (
     <svg
@@ -32,26 +36,28 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted, onRequestResolve
     const [loading, setLoading] = useState(true);
     const [processing, setProcessing] = useState(new Set());
     const [processingAction, setProcessingAction] = useState({});
+    const matchId = Number(partidoActual?.id);
+    const fetchInFlightRef = useRef(false);
+    const queuedSilentRefreshRef = useRef(false);
+    const { setIntervalSafe, clearIntervalSafe } = useInterval();
 
-    useEffect(() => {
-        fetchRequests();
-    }, [partidoActual?.id]);
-
-    const fetchRequests = async () => {
+    const fetchRequests = useCallback(async ({ silent = false } = {}) => {
         if (!partidoActual?.id) return;
+        if (fetchInFlightRef.current) {
+            if (silent) {
+                queuedSilentRefreshRef.current = true;
+            }
+            return;
+        }
 
         try {
-            setLoading(true);
+            fetchInFlightRef.current = true;
+            if (!silent) {
+                setLoading(true);
+            }
 
             // Fetch pending requests
-            const { data: requestsData, error: requestsError } = await supabase
-                .from('match_join_requests')
-                .select('id, match_id, user_id, status, created_at')
-                .eq('match_id', partidoActual.id)
-                .eq('status', 'pending')
-                .order('created_at', { ascending: false });
-
-            if (requestsError) throw requestsError;
+            const requestsData = await fetchPendingMatchJoinRequests(partidoActual.id);
 
             if (!requestsData || requestsData.length === 0) {
                 setRequests([]);
@@ -92,11 +98,65 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted, onRequestResolve
             setRequests(enrichedRequests);
         } catch (error) {
             console.error('Error fetching requests:', error);
-            notifyBlockingError('Error al cargar solicitudes');
+            if (!silent) {
+                notifyBlockingError('Error al cargar solicitudes');
+            }
         } finally {
-            setLoading(false);
+            fetchInFlightRef.current = false;
+            if (!silent) {
+                setLoading(false);
+            }
+            if (queuedSilentRefreshRef.current) {
+                queuedSilentRefreshRef.current = false;
+                void fetchRequests({ silent: true });
+            }
         }
-    };
+    }, [partidoActual?.id]);
+
+    useEffect(() => {
+        fetchRequests();
+    }, [fetchRequests]);
+
+    useRefreshOnVisibility(() => {
+        fetchRequests({ silent: true });
+    }, {
+        enabled: Boolean(matchId),
+    });
+
+    useEffect(() => {
+        if (!matchId) {
+            clearIntervalSafe();
+            return undefined;
+        }
+
+        setIntervalSafe(() => {
+            if (document.visibilityState !== 'visible') return;
+            fetchRequests({ silent: true });
+        }, 2500);
+
+        return clearIntervalSafe;
+    }, [clearIntervalSafe, fetchRequests, matchId, setIntervalSafe]);
+
+    const realtimeEvents = useMemo(() => (
+        matchId ? [
+            {
+                event: '*',
+                schema: 'public',
+                table: 'match_join_requests',
+                filter: `match_id=eq.${matchId}`,
+                handler: () => {
+                    fetchRequests({ silent: true });
+                },
+            },
+        ] : []
+    ), [fetchRequests, matchId]);
+
+    useSupabaseRealtime({
+        enabled: Boolean(matchId),
+        channelName: matchId ? `admin-match-requests-${matchId}` : null,
+        deps: [matchId],
+        events: realtimeEvents,
+    });
 
     const handleAccept = async (request) => {
         if (processing.has(request.id)) return;

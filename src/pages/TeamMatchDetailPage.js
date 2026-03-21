@@ -33,6 +33,7 @@ import {
   updateTeamMatchDetails,
 } from '../services/db/teamChallenges';
 import { notifyBlockingError } from '../utils/notifyBlockingError';
+import { useSmartBackNavigation } from '../hooks/useSmartBackNavigation';
 
 const AVATAR_VISIBLE_LIMIT = 5;
 const DETAIL_CARD_RADIUS_CLASS = 'rounded-[18px]';
@@ -284,6 +285,9 @@ const TeamCardLocked = ({
 
 const TeamMatchDetailPage = () => {
   const navigate = useNavigate();
+  const goBackSmart = useSmartBackNavigation({
+    fallback: '/desafios',
+  });
   const { matchId } = useParams();
   const { user } = useAuth();
 
@@ -1192,7 +1196,13 @@ const TeamMatchDetailPage = () => {
     <PageTransition>
       <PageTitle
         title="Detalle partido"
-        onBack={() => navigate(-1)}
+        onBack={() => goBackSmart({
+          onBeforeBack: () => {
+            if (!isChatOpen) return false;
+            setIsChatOpen(false);
+            return true;
+          },
+        })}
         showChatButton
         onChatClick={() => setIsChatOpen(true)}
         unreadCount={chatUnreadCount}

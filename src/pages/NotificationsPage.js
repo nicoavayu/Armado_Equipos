@@ -1,16 +1,19 @@
 import React from 'react';
-import { useAnimatedNavigation } from '../hooks/useAnimatedNavigation';
 import PageTransition from '../components/PageTransition';
 import PageTitle from '../components/PageTitle';
 import NotificationsView from '../components/NotificationsView';
+import { useSmartBackNavigation } from '../hooks/useSmartBackNavigation';
 
 const NotificationsPage = () => {
-  const { navigateWithAnimation } = useAnimatedNavigation();
+  const goBackSmart = useSmartBackNavigation({
+    fallback: '/',
+    forceFallback: true,
+  });
 
   return (
     <PageTransition>
       <div className="min-h-[100dvh] pt-[80px]">
-        <PageTitle onBack={() => navigateWithAnimation('/', 'back')}>
+        <PageTitle onBack={() => goBackSmart()}>
           NOTIFICACIONES
         </PageTitle>
         <div className="w-full flex flex-col items-center px-4 pt-0">

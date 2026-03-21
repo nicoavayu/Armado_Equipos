@@ -5,6 +5,7 @@ import {
 } from '../../utils/matchInviteState';
 
 const PRIVATE_GROUP_USER_FIELDS = 'id, nombre, avatar_url, email, localidad';
+const PRIVATE_GROUPS_DEBUG_PREFIX = '[AMIGOS_DEBUG][privateFriendGroups]';
 
 const normalizeId = (value) => {
   const normalized = String(value || '').trim();
@@ -123,9 +124,14 @@ const listAcceptedFriendUserIds = async (ownerUserId, client = supabase) => {
   ]).filter((userId) => userId !== normalizedOwnerUserId);
 };
 
-const fetchUsersById = async (userIds = [], client = supabase) => {
+const fetchUsersById = async (userIds = [], client = supabase, debugMeta = {}) => {
   const normalizedUserIds = normalizeIdList(userIds);
   if (normalizedUserIds.length === 0) return new Map();
+
+  console.info(`${PRIVATE_GROUPS_DEBUG_PREFIX}[users][start]`, {
+    requestId: debugMeta?.requestId || null,
+    count: normalizedUserIds.length,
+  });
 
   const { data, error } = await client
     .from('usuarios')
@@ -134,7 +140,50 @@ const fetchUsersById = async (userIds = [], client = supabase) => {
 
   if (error) throw error;
 
+  console.info(`${PRIVATE_GROUPS_DEBUG_PREFIX}[users][end]`, {
+    requestId: debugMeta?.requestId || null,
+    count: Array.isArray(data) ? data.length : 0,
+  });
+
   return new Map((data || []).map((row) => [normalizeId(row?.id), row]).filter(([id]) => Boolean(id)));
+};
+
+const fetchBasePrivateGroupsByOwner = async (ownerUserId, options = {}, client = supabase) => {
+  const normalizedOwnerUserId = normalizeId(ownerUserId);
+  if (!normalizedOwnerUserId) return [];
+
+  const debugRequestId = options?.debugRequestId || null;
+  const debugSource = options?.debugSource || null;
+  const includeArchived = options?.includeArchived === true;
+
+  console.info(`${PRIVATE_GROUPS_DEBUG_PREFIX}[raw-query][start]`, {
+    requestId: debugRequestId,
+    source: debugSource,
+    ownerUserId: normalizedOwnerUserId,
+    includeArchived,
+  });
+
+  let query = client
+    .from('private_friend_groups')
+    .select('id, owner_user_id, name, created_at, updated_at, archived_at')
+    .eq('owner_user_id', normalizedOwnerUserId)
+    .order('updated_at', { ascending: false });
+
+  if (!includeArchived) {
+    query = query.is('archived_at', null);
+  }
+
+  const { data, error } = await query;
+  if (error) throw mapPrivateGroupError(error);
+
+  const groupRows = data || [];
+  console.info(`${PRIVATE_GROUPS_DEBUG_PREFIX}[raw-query][resolved]`, {
+    requestId: debugRequestId,
+    source: debugSource,
+    rawRowCount: groupRows.length,
+  });
+
+  return groupRows;
 };
 
 const getOwnedGroupRecord = async ({
@@ -180,9 +229,19 @@ const ensureOwnedGroupRecord = async ({
   return groupRecord;
 };
 
-const fetchGroupMembersByGroupId = async (groupIds = [], client = supabase) => {
+const fetchGroupMembersByGroupId = async (groupIds = [], client = supabase, debugMeta = {}) => {
   const normalizedGroupIds = normalizeIdList(groupIds);
-  if (normalizedGroupIds.length === 0) return new Map();
+  if (normalizedGroupIds.length === 0) {
+    console.info(`${PRIVATE_GROUPS_DEBUG_PREFIX}[members][skip-empty-groups]`, {
+      requestId: debugMeta?.requestId || null,
+    });
+    return new Map();
+  }
+
+  console.info(`${PRIVATE_GROUPS_DEBUG_PREFIX}[members][start]`, {
+    requestId: debugMeta?.requestId || null,
+    groupCount: normalizedGroupIds.length,
+  });
 
   const { data: memberRows, error: memberError } = await client
     .from('private_friend_group_members')
@@ -192,9 +251,15 @@ const fetchGroupMembersByGroupId = async (groupIds = [], client = supabase) => {
 
   if (memberError) throw memberError;
 
+  console.info(`${PRIVATE_GROUPS_DEBUG_PREFIX}[members][rows-fetched]`, {
+    requestId: debugMeta?.requestId || null,
+    memberRowCount: Array.isArray(memberRows) ? memberRows.length : 0,
+  });
+
   const profileById = await fetchUsersById(
     (memberRows || []).map((row) => row?.friend_user_id),
     client,
+    debugMeta,
   );
 
   const membersByGroupId = new Map();
@@ -225,6 +290,11 @@ const fetchGroupMembersByGroupId = async (groupIds = [], client = supabase) => {
     );
   });
 
+  console.info(`${PRIVATE_GROUPS_DEBUG_PREFIX}[members][end]`, {
+    requestId: debugMeta?.requestId || null,
+    resolvedGroupCount: membersByGroupId.size,
+  });
+
   return membersByGroupId;
 };
 
@@ -243,6 +313,18 @@ const mapGroupRow = (row, membersByGroupId) => {
     member_count: members.length,
   };
 };
+
+const mapRawGroupRow = (row) => ({
+  id: normalizeId(row?.id),
+  owner_user_id: normalizeId(row?.owner_user_id),
+  name: row?.name || 'Grupo',
+  created_at: row?.created_at || null,
+  updated_at: row?.updated_at || null,
+  archived_at: row?.archived_at || null,
+  members: [],
+  member_count: 0,
+  raw_only: true,
+});
 
 const fetchPendingInviteStateByUserId = async ({
   matchId,
@@ -337,28 +419,48 @@ const toInviteUserSummary = (userId, profileById) => {
 export const getPrivateGroupsByOwner = async (ownerUserId, options = {}, client = supabase) => {
   const normalizedOwnerUserId = normalizeId(ownerUserId);
   if (!normalizedOwnerUserId) return [];
+  const debugRequestId = options?.debugRequestId || null;
+  const debugSource = options?.debugSource || null;
 
-  const includeArchived = options?.includeArchived === true;
-  let query = client
-    .from('private_friend_groups')
-    .select('id, owner_user_id, name, created_at, updated_at, archived_at')
-    .eq('owner_user_id', normalizedOwnerUserId)
-    .order('updated_at', { ascending: false });
+  console.info(`${PRIVATE_GROUPS_DEBUG_PREFIX}[groups][start]`, {
+    requestId: debugRequestId,
+    source: debugSource,
+    ownerUserId: normalizedOwnerUserId,
+    rawOnly: options?.rawOnly === true,
+  });
 
-  if (!includeArchived) {
-    query = query.is('archived_at', null);
+  const groupRows = await fetchBasePrivateGroupsByOwner(ownerUserId, options, client);
+  console.info(`${PRIVATE_GROUPS_DEBUG_PREFIX}[groups][query-finished]`, {
+    requestId: debugRequestId,
+    groupCount: groupRows.length,
+    rawOnly: options?.rawOnly === true,
+  });
+
+  if (options?.rawOnly === true) {
+    const rawGroups = groupRows.map(mapRawGroupRow);
+    console.info(`${PRIVATE_GROUPS_DEBUG_PREFIX}[groups][raw-only-bypass-enrichment]`, {
+      requestId: debugRequestId,
+      rawRowCount: rawGroups.length,
+    });
+    return rawGroups;
   }
 
-  const { data, error } = await query;
-  if (error) throw mapPrivateGroupError(error);
-
-  const groupRows = data || [];
   const membersByGroupId = await fetchGroupMembersByGroupId(
     groupRows.map((row) => row?.id),
     client,
+    {
+      requestId: debugRequestId,
+      ownerUserId: normalizedOwnerUserId,
+    },
   );
 
-  return groupRows.map((row) => mapGroupRow(row, membersByGroupId));
+  const mappedGroups = groupRows.map((row) => mapGroupRow(row, membersByGroupId));
+  console.info(`${PRIVATE_GROUPS_DEBUG_PREFIX}[groups][end]`, {
+    requestId: debugRequestId,
+    groupCount: mappedGroups.length,
+  });
+
+  return mappedGroups;
 };
 
 export const getPrivateGroupById = async (groupId, ownerUserId, client = supabase) => {

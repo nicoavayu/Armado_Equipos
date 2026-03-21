@@ -6,6 +6,7 @@ import { supabase } from '../supabase';
 import { ensureParticipantsSnapshot } from '../services/historySnapshotService';
 import { normalizeAwardType } from '../services/db/userIdentity';
 import AvatarFallback from '../components/AvatarFallback';
+import { useSmartBackNavigation } from '../hooks/useSmartBackNavigation';
 
 const fmtDateShort = (ymd) => {
   if (!ymd) return '—';
@@ -431,6 +432,9 @@ const TemplateHistoryPage = () => {
     selectedMatch?.estado,
     selectedResult?.result_status || resultSnapshot?.result_status,
   );
+  const goBackSmart = useSmartBackNavigation({
+    fallback: '/frecuentes',
+  });
 
   const isDetail = Boolean(selectedMatch);
 
@@ -444,7 +448,7 @@ const TemplateHistoryPage = () => {
           setSelectedId(null);
           return;
         }
-        navigate(-1);
+        goBackSmart();
       }}
       >
         HISTORIAL
@@ -453,7 +457,7 @@ const TemplateHistoryPage = () => {
       <div className="w-full mt-1 bg-slate-900 border border-slate-800 rounded-none p-4 shadow-xl">
         {!isDetail && (
           <>
-            <div className="font-bebas text-[28px] leading-7 text-white tracking-wide truncate">
+            <div className="font-oswald text-[20px] font-semibold leading-tight text-white truncate">
               {formatSentenceCase(template?.nombre, 'Plantilla')}
             </div>
           </>

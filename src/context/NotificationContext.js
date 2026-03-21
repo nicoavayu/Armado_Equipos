@@ -1,12 +1,14 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { supabase } from '../supabase';
 import { handleError } from '../lib/errorHandler';
-import { useInterval } from '../hooks/useInterval';
 import { logger } from '../lib/logger';
-import { subscribeToNotifications } from '../services/realtimeService';
+import { useRefreshOnVisibility } from '../hooks/useRefreshOnVisibility';
+import { useSupabaseRealtime } from '../hooks/useSupabaseRealtime';
 import { getSurveyReminderMessage, getSurveyResultsReadyMessage, getSurveyStartMessage } from '../utils/surveyNotificationCopy';
 import {
   applyMatchNameQuotes,
+  formatMatchReminderMessage,
+  formatMatchReminderTitle,
   formatTeamInviteMessage,
   quoteMatchName,
   resolveNotificationMatchName,
@@ -56,7 +58,8 @@ export const NotificationProvider = ({ children }) => {
   const [lastFetchCount, setLastFetchCount] = useState(null);
   const [lastRealtimeAt, setLastRealtimeAt] = useState(null);
   const [lastRealtimePayloadType, setLastRealtimePayloadType] = useState(null);
-  const { setIntervalSafe } = useInterval();
+  const refreshRunningRef = useRef(false);
+  const lastRefreshMsRef = useRef(0);
   const resolveNotificationMatchId = useCallback((notification) => {
     if (!notification) return null;
     const data = notification.data || {};
@@ -219,75 +222,6 @@ export const NotificationProvider = ({ children }) => {
     });
     return () => sub?.subscription?.unsubscribe?.();
   }, []);
-
-  // Fetch notifications from Supabase
-  useEffect(() => {
-    if (!currentUserId) return;
-
-    logger.log('[NOTIFICATIONS] Setting up for user:', currentUserId);
-    console.log('[NOTIFICATIONS] Setting up NotificationContext for user:', currentUserId);
-
-    // Initial fetch of notifications
-    fetchNotifications();
-
-    // Lightweight refresh system (Fallback)
-    const REFRESH_MS = 300000; // 5 minutes
-    let lastRefresh = 0;
-    let refreshRunning = false;
-
-    const refresh = async () => {
-      if (refreshRunning) return; // Anti-overlap guard
-      const now = Date.now();
-      if (now - lastRefresh < 5000) return; // Debounce: 5s minimum between refreshes
-      lastRefresh = now;
-      refreshRunning = true;
-      try {
-        await fetchNotifications();
-      } catch (e) {
-        logger.warn('[NOTIFICATIONS] Refresh failed:', e);
-      } finally {
-        refreshRunning = false;
-      }
-    };
-
-    const onFocus = () => refresh();
-    const onVisibilityChange = () => {
-      if (document.visibilityState === 'visible') refresh();
-    };
-
-    // Set up refresh mechanisms
-    setIntervalSafe(refresh, REFRESH_MS);
-    window.addEventListener('focus', onFocus);
-    document.addEventListener('visibilitychange', onVisibilityChange);
-
-    // Subscribe to real-time notifications via Service
-    const unsubscribe = subscribeToNotifications(currentUserId, (payload) => {
-      console.debug('[RT] Notifications payload:', payload);
-
-      if (payload.new) {
-        setLastRealtimeAt(new Date().toISOString());
-        setLastRealtimePayloadType(payload.new.type || null);
-        handleNewNotification(payload.new);
-      } else if (payload.eventType === 'UPDATE') {
-        // Handle updates (e.g. read status changed elsewhere)
-        // Ideally we update the specific item in state
-        console.log('[NOTIFICATIONS] Update received:', payload.new);
-        setNotifications((prev) =>
-          prev.map((n) => (n.id === payload.new.id ? { ...n, ...payload.new } : n)),
-        );
-      }
-    });
-
-    return () => {
-      logger.log('[NOTIFICATIONS] Cleaning up subscription and refresh listeners');
-
-      // Clean up refresh mechanisms
-      window.removeEventListener('focus', onFocus);
-      document.removeEventListener('visibilitychange', onVisibilityChange);
-
-      unsubscribe();
-    };
-  }, [currentUserId, resolveNotificationMatchId, fetchAwardsReadinessByMatchIds, isAwardsReadyNotificationType]);
 
   // Fetch all notifications for the current user
   const fetchNotifications = useCallback(async () => {
@@ -466,6 +400,26 @@ export const NotificationProvider = ({ children }) => {
       handleError(error, { showToast: false, onError: () => { } });
     }
   }, [currentUserId, filterPrematureAwardsNotifications]);
+
+  const refreshNotificationsSafely = useCallback(async ({ force = false } = {}) => {
+    if (!currentUserId) return;
+    if (refreshRunningRef.current) return;
+
+    const now = Date.now();
+    if (!force && now - lastRefreshMsRef.current < 5000) {
+      return;
+    }
+
+    refreshRunningRef.current = true;
+    lastRefreshMsRef.current = now;
+    try {
+      await fetchNotifications();
+    } catch (error) {
+      logger.warn('[NOTIFICATIONS] Refresh failed:', error);
+    } finally {
+      refreshRunningRef.current = false;
+    }
+  }, [currentUserId, fetchNotifications]);
 
   // Deduplicate notifications per user+partido, preferring survey-related types
   const dedupeNotificationsForDisplay = (notifs = []) => {
@@ -754,6 +708,28 @@ export const NotificationProvider = ({ children }) => {
     logger.log('[NOTIFICATIONS] Notification processed successfully');
   };
 
+  useEffect(() => {
+    if (!currentUserId) return undefined;
+
+    logger.log('[NOTIFICATIONS] Setting up for user:', currentUserId);
+    console.log('[NOTIFICATIONS] Setting up NotificationContext for user:', currentUserId);
+    refreshNotificationsSafely({ force: true });
+
+    const intervalId = window.setInterval(() => {
+      refreshNotificationsSafely();
+    }, 300000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [currentUserId, refreshNotificationsSafely]);
+
+  useRefreshOnVisibility(() => {
+    refreshNotificationsSafely();
+  }, {
+    enabled: Boolean(currentUserId),
+  });
+
   // Show toast notification based on type
   const showNotificationToast = (notification) => {
     logger.log('[NOTIFICATIONS] Showing toast for:', notification.type);
@@ -797,6 +773,9 @@ export const NotificationProvider = ({ children }) => {
         break;
       case 'match_kicked':
         console.info(`${toastTitle}: ${toastMessage}`, toastOptions);
+        break;
+      case 'match_reminder_1h':
+        console.info(`${formatMatchReminderTitle(notification)}: ${formatMatchReminderMessage(notification)}`, toastOptions);
         break;
       case 'survey_start':
       case 'post_match_survey': {
@@ -945,6 +924,52 @@ export const NotificationProvider = ({ children }) => {
     setScheduledNotifications([]);
     setUnreadCount({ friends: 0, matches: 0, total: 0 });
   };
+
+  useSupabaseRealtime({
+    enabled: Boolean(currentUserId),
+    channelName: currentUserId ? `notifications:${currentUserId}` : null,
+    deps: [currentUserId],
+    onStatusChange: setSubscriptionStatus,
+    events: currentUserId ? [
+      {
+        event: '*',
+        schema: 'public',
+        table: 'notifications',
+        filter: `user_id=eq.${currentUserId}`,
+        handler: (payload) => {
+          console.debug('[RT] Notifications payload:', payload);
+
+          if (payload.eventType === 'INSERT' && payload.new) {
+            setLastRealtimeAt(new Date().toISOString());
+            setLastRealtimePayloadType(payload.new.type || null);
+            handleNewNotification(payload.new);
+            return;
+          }
+
+          if (payload.eventType === 'UPDATE' && payload.new) {
+            setNotifications((prev) => {
+              const updated = prev.map((notification) => (
+                notification.id === payload.new.id
+                  ? { ...notification, ...payload.new }
+                  : notification
+              ));
+              updateUnreadCount(updated);
+              return updated;
+            });
+            return;
+          }
+
+          if (payload.eventType === 'DELETE' && payload.old?.id) {
+            setNotifications((prev) => {
+              const updated = prev.filter((notification) => notification.id !== payload.old.id);
+              updateUnreadCount(updated);
+              return updated;
+            });
+          }
+        },
+      },
+    ] : [],
+  });
 
   // Create a new notification (for testing or manual creation)
   const createNotification = async (type, title, message, data = {}, partidoId = null) => {

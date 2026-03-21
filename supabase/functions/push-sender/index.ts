@@ -259,13 +259,33 @@ function defaultTitleForType(type: string): string {
   }
 }
 
+function buildMatchReminderBody(payload: Record<string, unknown>): string {
+  const matchName = (
+    readString(payload, "match_name")
+    ?? readString(payload, "matchName")
+    ?? readString(payload, "partido_nombre")
+    ?? ""
+  ).trim();
+
+  if (matchName.length >= 2) {
+    return `${matchName} empieza en aproximadamente 1 hora.`;
+  }
+
+  return "Tu partido empieza en aproximadamente 1 hora.";
+}
+
 function buildPushMessage(row: DeliveryLogRow) {
   const payload = row.payload_json && typeof row.payload_json === "object"
     ? row.payload_json
     : {};
 
-  const title = readString(payload, "title") ?? defaultTitleForType(row.notification_type);
-  const body = readString(payload, "message") ?? readString(payload, "body") ?? "Tenes una actualizacion nueva.";
+  const notificationType = String(row.notification_type || "").toLowerCase();
+  const title = notificationType === "match_reminder_1h"
+    ? "Recordatorio de partido"
+    : (readString(payload, "title") ?? defaultTitleForType(row.notification_type));
+  const body = notificationType === "match_reminder_1h"
+    ? buildMatchReminderBody(payload as Record<string, unknown>)
+    : (readString(payload, "message") ?? readString(payload, "body") ?? "Tenes una actualizacion nueva.");
 
   const data: Record<string, string> = {
     notification_type: safeString(row.notification_type, 120),

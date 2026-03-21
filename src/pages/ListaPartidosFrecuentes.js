@@ -8,6 +8,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import EmptyStateCard from '../components/EmptyStateCard';
 import InlineNotice from '../components/ui/InlineNotice';
 import { normalizeTimeHHmm, isBlockedInDebug, getDebugInfo } from '../lib/matchDateDebug';
+import { buildMatchLocationFields } from '../utils/matchLocation';
 import { CalendarDays } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import useInlineNotice from '../hooks/useInlineNotice';
@@ -101,8 +102,17 @@ function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
         nombre,
         fecha: selectedDate,
         hora: editTime ? selectedTime : (template.hora || ''),
-        sede: sede || '',
-        sedeMaps: '',
+        ...buildMatchLocationFields({
+          locationText: sede || template?.sede || '',
+          locationInfo: template?.sede_place_id || template?.sede_latitud || template?.sede_longitud
+            ? {
+              place_id: template?.sede_place_id,
+              lat: template?.sede_latitud,
+              lng: template?.sede_longitud,
+            }
+            : null,
+          existingLocation: template,
+        }),
         modalidad: template.modalidad || 'F5',
         cupo_jugadores: Number(cupo) || 10,
         falta_jugadores: false,

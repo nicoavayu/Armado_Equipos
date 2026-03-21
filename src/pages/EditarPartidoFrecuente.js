@@ -7,6 +7,7 @@ import InlineNotice from '../components/ui/InlineNotice';
 import useInlineNotice from '../hooks/useInlineNotice';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { todayYmdLocal } from '../utils/frequentTemplateDate';
+import { buildFrequentMatchLocationFields, extractPersistedLocation } from '../utils/matchLocation';
 
 const SECTION_LABEL_CLASS = 'text-white/60 font-medium block font-oswald text-xs uppercase tracking-widest pl-1 mb-2';
 const INPUT_CLASS = 'appearance-none bg-[rgba(53,58,102,0.88)] border border-[rgba(133,149,208,0.5)] text-white font-oswald text-lg px-4 py-3 rounded-none w-full box-border h-[52px] transition-all duration-300 focus:outline-none focus:border-[#7f8dff] focus:ring-2 focus:ring-[#6f7dff]/30 backdrop-blur-md placeholder:text-white/30';
@@ -19,7 +20,15 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
   const [fecha, setFecha] = useState(initialFecha);
   const [hora, setHora] = useState(partido.hora);
   const [sede, setSede] = useState(partido.sede);
-  const [_sedeInfo, setSedeInfo] = useState(null);
+  const initialStoredLocation = extractPersistedLocation(partido);
+  const [sedeInfo, setSedeInfo] = useState(initialStoredLocation.placeId || initialStoredLocation.lat || initialStoredLocation.lng
+    ? {
+      description: initialStoredLocation.description,
+      place_id: initialStoredLocation.placeId,
+      lat: initialStoredLocation.lat,
+      lng: initialStoredLocation.lng,
+    }
+    : null);
   const [loading, setLoading] = useState(false);
   const [file, setFile] = useState(null);
   const [fotoPreview, setFotoPreview] = useState(partido.imagen_url);
@@ -247,7 +256,14 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
       const updatesFrecuente = {};
       // Only fields allowed in partidos_frecuentes
       if (nombre !== undefined) updatesFrecuente.nombre = nombre;
-      if (sede !== undefined) updatesFrecuente.sede = sede;
+      Object.assign(
+        updatesFrecuente,
+        buildFrequentMatchLocationFields({
+          locationText: sede,
+          locationInfo: sedeInfo,
+          existingLocation: partido,
+        }),
+      );
       if (hora !== undefined) updatesFrecuente.hora = time24;
       if (fecha !== undefined) updatesFrecuente.dia_semana = weekdayFromYMD(fecha);
       if (fecha !== undefined) updatesFrecuente.fecha = fecha;
@@ -407,9 +423,13 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
               value={sede}
               onChange={(nextValue) => {
                 setSede(nextValue);
-                if (!nextValue.trim()) {
-                  setSedeInfo(null);
-                }
+                setSedeInfo((currentInfo) => {
+                  if (!nextValue.trim()) return null;
+                  const currentDescription = String(currentInfo?.description || '').trim();
+                  return currentDescription && currentDescription === nextValue.trim()
+                    ? currentInfo
+                    : null;
+                });
               }}
               onSelect={(info) => {
                 setSede(info.description);

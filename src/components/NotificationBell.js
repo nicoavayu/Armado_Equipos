@@ -2,7 +2,12 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
-import { applyMatchNameQuotes, resolveNotificationMatchName } from '../utils/notificationText';
+import {
+  applyMatchNameQuotes,
+  formatMatchReminderMessage,
+  formatMatchReminderTitle,
+  resolveNotificationMatchName,
+} from '../utils/notificationText';
 import './NotificationBell.css';
 
 const NotificationBell = () => {
@@ -53,8 +58,13 @@ const NotificationBell = () => {
             ) : (
               notifications.map((notification) => {
                 const matchName = resolveNotificationMatchName(notification, '');
-                const title = applyMatchNameQuotes(notification.title || '', matchName);
-                const message = applyMatchNameQuotes(notification.message || '', matchName);
+                const isMatchReminder = notification.type === 'match_reminder_1h';
+                const title = isMatchReminder
+                  ? formatMatchReminderTitle(notification)
+                  : applyMatchNameQuotes(notification.title || '', matchName);
+                const message = isMatchReminder
+                  ? formatMatchReminderMessage(notification)
+                  : applyMatchNameQuotes(notification.message || '', matchName);
                 return (
                   <div
                     key={notification.id}

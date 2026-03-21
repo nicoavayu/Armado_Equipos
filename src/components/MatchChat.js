@@ -1,10 +1,9 @@
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 // src/components/MatchChat.js
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useCallback, useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { supabase } from '../supabase';
 import { useAuth } from './AuthProvider';
-import { subscribeToMatchChat } from '../services/realtimeService';
 import { useKeyboard } from '../hooks/useKeyboard';
 // import './MatchChat.css'; // REMOVED
 
@@ -16,6 +15,41 @@ const AUTHOR_COLORS = [
 ];
 const TEAM_CHAT_SIDE_COLORS = ['#A78BFA', '#22D3EE'];
 const normalizeAuthorKey = (value) => String(value || '').trim().toLowerCase();
+const DEBUG_MATCH_CHAT = process.env.NODE_ENV === 'development';
+const logMatchChat = (step, payload = {}) => {
+  if (!DEBUG_MATCH_CHAT) return;
+  console.info(`[TEAM_CHAT][${step}]`, payload);
+};
+
+const normalizeChatMessage = (row = {}) => ({
+  ...row,
+  id: row?.id ?? null,
+  partido_id: row?.partido_id ?? null,
+  team_match_id: row?.team_match_id ?? null,
+  user_id: row?.user_id ?? null,
+  autor: String(row?.autor || '').trim() || 'Usuario',
+  mensaje: String(row?.mensaje || '').trim(),
+  timestamp: row?.timestamp || row?.created_at || null,
+  created_at: row?.created_at || row?.timestamp || null,
+});
+
+const compareChatMessageOrder = (left, right) => {
+  const leftTime = new Date(left?.timestamp || left?.created_at || 0).getTime();
+  const rightTime = new Date(right?.timestamp || right?.created_at || 0).getTime();
+  if (leftTime !== rightTime) return leftTime - rightTime;
+  return Number(left?.id || 0) - Number(right?.id || 0);
+};
+
+const mergeChatMessages = (...groups) => {
+  const dedup = new Map();
+  groups.flat().forEach((row) => {
+    const normalized = normalizeChatMessage(row);
+    const key = String(normalized?.id ?? '').trim();
+    if (!key) return;
+    dedup.set(key, normalized);
+  });
+  return Array.from(dedup.values()).sort(compareChatMessageOrder);
+};
 
 export default function MatchChat({ partidoId, isOpen, onClose }) {
   const { user, profile } = useAuth();
@@ -30,8 +64,17 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const scrollLockRef = useRef({ scrollY: 0, locked: false });
+  const messagesRef = useRef([]);
+  const postgresChannelRef = useRef(null);
+  const broadcastChannelRef = useRef(null);
+  const loadRequestSeqRef = useRef(0);
+  const loadPromiseRef = useRef(null);
   const normalizedMatchId = String(partidoId || '').trim();
   const isTeamMatchChat = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(normalizedMatchId);
+
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
@@ -50,25 +93,129 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
   }, []);
 
   useEffect(() => {
-    if (isOpen && partidoId) {
-      fetchMessages();
-      markAsRead();
+    if (!isOpen || !partidoId) return undefined;
 
-      const unsubscribe = subscribeToMatchChat(partidoId, (payload) => {
-        console.debug(`[RT] Chat msg received for ${partidoId}:`, payload.new?.id);
-        if (payload.new) {
-          setMessages((prev) => {
-            if (prev.find((m) => m.id === payload.new.id)) return prev;
-            return [...prev, payload.new];
+    console.info('TEAM_CHAT_PAGE_MOUNT_HARD', window.location.pathname);
+    logMatchChat('PAGE_MOUNT', {
+      pathname: window.location.pathname,
+      partidoId,
+      normalizedMatchId,
+      isTeamMatchChat,
+      userId: user?.id || null,
+    });
+
+    fetchMessages({ silent: true }).catch(() => {});
+    markAsRead();
+
+    const postgresChannelName = `match-chat-postgres:${normalizedMatchId}`;
+    const postgresFilter = isTeamMatchChat
+      ? `team_match_id=eq.${normalizedMatchId}`
+      : `partido_id=eq.${Number(normalizedMatchId)}`;
+
+    const postgresChannel = supabase
+      .channel(postgresChannelName)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'mensajes_partido',
+        filter: postgresFilter,
+      }, (payload) => {
+        logMatchChat('postgres:insert', {
+          channel: postgresChannelName,
+          partidoId,
+          payload: payload?.new || null,
+          timestamp: new Date().toISOString(),
+        });
+
+        if (!payload?.new) return;
+
+        setMessages((prev) => {
+          const nextMessage = normalizeChatMessage(payload.new);
+          const exists = prev.some((row) => String(row?.id) === String(nextMessage?.id));
+          const merged = exists ? prev : mergeChatMessages(prev, [nextMessage]);
+          logMatchChat('setMessages:postgres', {
+            prevIds: prev.map((row) => String(row?.id ?? '')),
+            nextId: String(nextMessage?.id ?? ''),
+            exists,
+            finalIds: merged.map((row) => String(row?.id ?? '')),
           });
-        }
+          return merged;
+        });
+      })
+      .subscribe((status) => {
+        logMatchChat('postgres:status', {
+          channel: postgresChannelName,
+          partidoId,
+          status,
+        });
       });
 
-      return () => {
-        unsubscribe();
-      };
-    }
-  }, [isOpen, partidoId]);
+    postgresChannelRef.current = postgresChannel;
+
+    const broadcastChannelName = `match-chat-sync:${normalizedMatchId}`;
+    const broadcastChannel = supabase.channel(broadcastChannelName, {
+      config: {
+        broadcast: {
+          self: false,
+          ack: true,
+        },
+      },
+    });
+
+    broadcastChannel
+      .on('broadcast', { event: 'message-created' }, (payload) => {
+        const broadcastPayload = payload?.payload || {};
+        logMatchChat('broadcast:received', {
+          channel: broadcastChannelName,
+          partidoId,
+          payload: broadcastPayload,
+          timestamp: new Date().toISOString(),
+        });
+
+        const messageRow = broadcastPayload?.message ? normalizeChatMessage(broadcastPayload.message) : null;
+        if (messageRow?.id) {
+          setMessages((prev) => {
+            const exists = prev.some((row) => String(row?.id) === String(messageRow?.id));
+            const merged = exists ? prev : mergeChatMessages(prev, [messageRow]);
+            logMatchChat('setMessages:broadcast', {
+              prevIds: prev.map((row) => String(row?.id ?? '')),
+              nextId: String(messageRow?.id ?? ''),
+              exists,
+              finalIds: merged.map((row) => String(row?.id ?? '')),
+            });
+            return merged;
+          });
+        }
+
+        logMatchChat('broadcast:loadMessages', { partidoId });
+        fetchMessages({ silent: true }).catch(() => {});
+      })
+      .subscribe((status) => {
+        logMatchChat('broadcast:status', {
+          channel: broadcastChannelName,
+          partidoId,
+          status,
+        });
+      });
+
+    broadcastChannelRef.current = broadcastChannel;
+
+    return () => {
+      logMatchChat('PAGE_UNMOUNT', {
+        pathname: window.location.pathname,
+        partidoId,
+        normalizedMatchId,
+      });
+      if (postgresChannelRef.current === postgresChannel) {
+        postgresChannelRef.current = null;
+      }
+      if (broadcastChannelRef.current === broadcastChannel) {
+        broadcastChannelRef.current = null;
+      }
+      supabase.removeChannel(postgresChannel);
+      supabase.removeChannel(broadcastChannel);
+    };
+  }, [isOpen, isTeamMatchChat, normalizedMatchId, partidoId, user?.id]);
 
   useEffect(() => {
     if (!isOpen) return undefined;
@@ -258,7 +405,23 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
     scrollToBottom();
   }, [messages]);
 
-  const fetchMessages = async () => {
+  const fetchMessages = useCallback(async ({ silent = false } = {}) => {
+    if (!normalizedMatchId) return [];
+    if (loadPromiseRef.current) {
+      logMatchChat('loadMessages:reuse-inflight', { partidoId, normalizedMatchId });
+      return loadPromiseRef.current;
+    }
+
+    const requestId = loadRequestSeqRef.current + 1;
+    loadRequestSeqRef.current = requestId;
+    logMatchChat('loadMessages:start', {
+      requestId,
+      partidoId,
+      normalizedMatchId,
+      isTeamMatchChat,
+      existingIds: messagesRef.current.map((row) => String(row?.id ?? '')),
+    });
+
     try {
       let query = supabase
         .from('mensajes_partido')
@@ -276,14 +439,41 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
         query = query.eq('partido_id', numericMatchId);
       }
 
-      const { data, error } = await query;
+      loadPromiseRef.current = query.then(({ data, error }) => {
+        if (error) throw error;
 
-      if (error) throw error;
-      setMessages(data || []);
+        const normalizedRows = mergeChatMessages(data || []);
+        logMatchChat('loadMessages:result', {
+          requestId,
+          count: normalizedRows.length,
+          ids: normalizedRows.map((row) => String(row?.id ?? '')),
+        });
+
+        setMessages((prev) => {
+          const merged = mergeChatMessages(prev, normalizedRows);
+          logMatchChat('setMessages:load', {
+            requestId,
+            prevIds: prev.map((row) => String(row?.id ?? '')),
+            fetchedIds: normalizedRows.map((row) => String(row?.id ?? '')),
+            finalIds: merged.map((row) => String(row?.id ?? '')),
+          });
+          return merged;
+        });
+
+        return normalizedRows;
+      });
+
+      return await loadPromiseRef.current;
     } catch (error) {
       console.error('Error fetching messages:', error);
+      if (!silent) {
+        notifyBlockingError('No se pudieron cargar los mensajes del chat.');
+      }
+      return [];
+    } finally {
+      loadPromiseRef.current = null;
     }
-  };
+  }, [isTeamMatchChat, normalizedMatchId, partidoId]);
 
   const markAsRead = () => {
     localStorage.setItem(`chat_read_${partidoId}`, Date.now().toString());
@@ -311,6 +501,7 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
 
   const handleSendMessage = async () => {
     if (!newMessage.trim()) return;
+    console.info('TEAM_CHAT_SEND_CLICK_HARD');
 
     const userInfo = getUserInfo();
     if (!userInfo) {
@@ -321,6 +512,13 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
     setLoading(true);
     try {
       const trimmedMessage = newMessage.trim();
+      logMatchChat('SEND_CLICK', {
+        partidoId,
+        normalizedMatchId,
+        isTeamMatchChat,
+        userId: user?.id || null,
+        messagePreview: trimmedMessage.slice(0, 80),
+      });
       const { error: rpcError } = isTeamMatchChat
         ? await supabase.rpc('send_team_match_chat_message', {
           p_team_match_id: normalizedMatchId,
@@ -370,8 +568,38 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
         }
       }
 
+      const rows = await fetchMessages({ silent: true });
+      const latestMessage = Array.isArray(rows) && rows.length > 0 ? rows[rows.length - 1] : null;
+      const broadcastChannel = broadcastChannelRef.current;
+      if (broadcastChannel) {
+        const payload = {
+          partidoId,
+          normalizedMatchId,
+          isTeamMatchChat,
+          senderUserId: user?.id || null,
+          sentAt: new Date().toISOString(),
+          message: latestMessage ? normalizeChatMessage(latestMessage) : null,
+        };
+        logMatchChat('broadcast:send', {
+          channel: `match-chat-sync:${normalizedMatchId}`,
+          payload,
+        });
+        try {
+          const result = await broadcastChannel.send({
+            type: 'broadcast',
+            event: 'message-created',
+            payload,
+          });
+          logMatchChat('broadcast:send-result', {
+            channel: `match-chat-sync:${normalizedMatchId}`,
+            result,
+          });
+        } catch (broadcastError) {
+          console.warn('[TEAM_CHAT] broadcast send failed', broadcastError);
+        }
+      }
+
       setNewMessage('');
-      fetchMessages();
 
       // Devolver el foco al campo de texto
       setTimeout(() => {

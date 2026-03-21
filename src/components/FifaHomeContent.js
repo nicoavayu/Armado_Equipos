@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Activity, AlertTriangle, Bell, CalendarClock, CheckCircle, ChevronRight, ClipboardList, Trophy, UserPlus, Users, Vote } from 'lucide-react';
@@ -12,6 +12,7 @@ import { buildActivityFeed } from '../utils/activityFeed';
 import { AWARDS_READY_NOTIFICATION_TYPES, isAwardsReadyStatus } from '../utils/awardsReadiness';
 import ProximosPartidos from './ProximosPartidos';
 import NotificationsBell from './NotificationsBell';
+import { useRefreshOnVisibility } from '../hooks/useRefreshOnVisibility';
 
 const activityIconMap = {
   Activity,
@@ -34,6 +35,7 @@ const severityIconClass = {
 };
 
 const AWARDS_RING_WINDOW_MS = 24 * 60 * 60 * 1000;
+const HOME_ACTIVE_MATCHES_REFRESH_MS = 60000;
 export const isAwardsRingNotificationType = (notificationType) => (
   AWARDS_READY_NOTIFICATION_TYPES.has(String(notificationType || '').trim().toLowerCase())
 );
@@ -108,7 +110,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
   const markAsRead = notificationsCtx.markAsRead || (async () => {});
   const navigate = useNavigate();
   const location = useLocation();
-  const { setIntervalSafe } = useInterval();
+  const { setIntervalSafe, clearIntervalSafe } = useInterval();
   const [activeMatches, setActiveMatches] = useState([]);
   const [activityLoading, setActivityLoading] = useState(true);
   const [activityItems, setActivityItems] = useState([]);
@@ -118,6 +120,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
   const [awardsRingLoading, setAwardsRingLoading] = useState(false);
   const statusDropdownRef = useRef(null);
   const activityLoadedRef = useRef(false);
+  const activeMatchesRefreshInFlightRef = useRef(false);
 
   const nowTs = Date.now();
   const awardsCandidateNotifs = (notifications || [])
@@ -175,17 +178,6 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
   };
 
   const cardClass = 'bg-white/10 border border-white/20 rounded-none p-4 cursor-pointer transition-[transform,background-color,border-color,box-shadow] duration-300 aspect-square relative overflow-hidden flex flex-col justify-start no-underline text-white backdrop-blur-[15px] z-[1] hover:-translate-y-1.5 hover:scale-[1.02] hover:bg-white/20 hover:border-white/40 active:translate-y-0 active:scale-100 sm:p-3.5 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]';
-
-  useEffect(() => {
-    if (user) {
-      fetchActiveMatches();
-
-      // Actualizar cada 10 segundos para tiempo real
-      setIntervalSafe(() => {
-        fetchActiveMatches();
-      }, 10000);
-    }
-  }, [user, setIntervalSafe]);
 
   useEffect(() => {
     if (!location?.state?.openProximosPartidos) return;
@@ -275,10 +267,17 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
     };
   }, [user?.id, awardsCandidateMatchIdsKey]);
 
-  const fetchActiveMatches = async () => {
+  const fetchActiveMatches = useCallback(async () => {
     if (!user) {
+      setActiveMatches([]);
       return;
     }
+
+    if (activeMatchesRefreshInFlightRef.current) {
+      return;
+    }
+
+    activeMatchesRefreshInFlightRef.current = true;
 
     try {
       // Usar la misma lógica que ProximosPartidos.js
@@ -506,9 +505,36 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
     } catch (error) {
       console.error('Error fetching active matches:', error);
     } finally {
-      // Activity loading is managed by the feed builder effect.
+      activeMatchesRefreshInFlightRef.current = false;
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    clearIntervalSafe();
+
+    if (!user?.id) {
+      setActiveMatches([]);
+      return undefined;
+    }
+
+    fetchActiveMatches();
+
+    setIntervalSafe(() => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+      fetchActiveMatches();
+    }, HOME_ACTIVE_MATCHES_REFRESH_MS);
+
+    return () => clearIntervalSafe();
+  }, [clearIntervalSafe, fetchActiveMatches, setIntervalSafe, user?.id]);
+
+  useRefreshOnVisibility(
+    () => {
+      fetchActiveMatches();
+    },
+    {
+      enabled: Boolean(user?.id),
+    },
+  );
 
   const getInitial = () => {
     if (profile?.avatar_url) return null;

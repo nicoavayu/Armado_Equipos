@@ -1,13 +1,28 @@
 import { supabase } from '../../lib/supabaseClient';
 import { weekdayFromYMD } from '../../utils/dateLocal';
+import {
+  buildFrequentMatchLocationFields,
+  buildMatchLocationFields,
+} from '../../utils/matchLocation';
 import { findDuplicateTemplateMatch } from './matchScheduling';
+import { QUIERO_JUGAR_OPEN_MATCHES_VIEW } from './openMatches';
 
 /**
  * Creates a new frequent match template
  * @param {Object} matchData - Frequent match data
  * @returns {Promise<Object>} Created frequent match record
  */
-export const crearPartidoFrecuente = async ({ nombre, sede, hora, jugadores_frecuentes, dia_semana, habilitado, imagen_url, tipo_partido }) => {
+export const crearPartidoFrecuente = async (matchData) => {
+  const {
+    nombre,
+    sede,
+    hora,
+    jugadores_frecuentes,
+    dia_semana,
+    habilitado,
+    imagen_url,
+    tipo_partido,
+  } = matchData || {};
   // Get current authenticated user
   const { data: { user }, error: authError } = await supabase.auth.getUser();
 
@@ -26,9 +41,21 @@ export const crearPartidoFrecuente = async ({ nombre, sede, hora, jugadores_frec
     throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
   }
 
+  const frequentLocationFields = buildFrequentMatchLocationFields({
+    locationText: sede,
+    locationInfo: matchData?.sede_place_id || matchData?.sede_latitud || matchData?.sede_longitud
+      ? {
+        place_id: matchData?.sede_place_id,
+        lat: matchData?.sede_latitud,
+        lng: matchData?.sede_longitud,
+      }
+      : null,
+    existingLocation: matchData,
+  });
+
   const insertData = {
     nombre: nombre.trim(),
-    sede: sede.trim(),
+    ...frequentLocationFields,
     hora: hora.trim(),
     jugadores_frecuentes: jugadores_frecuentes || [],
     creado_por: user.id, // Automatically set to current user's UID
@@ -203,8 +230,17 @@ export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha, modalidad =
     nombre: partidoFrecuente.nombre,
     fecha: normalizedDate,
     hora: partidoFrecuente.hora,
-    sede: partidoFrecuente.sede,
-    sedeMaps: { place_id: '' },
+    ...buildMatchLocationFields({
+      locationText: partidoFrecuente.sede,
+      locationInfo: partidoFrecuente?.sede_place_id || partidoFrecuente?.sede_latitud || partidoFrecuente?.sede_longitud
+        ? {
+          place_id: partidoFrecuente?.sede_place_id,
+          lat: partidoFrecuente?.sede_latitud,
+          lng: partidoFrecuente?.sede_longitud,
+        }
+        : null,
+      existingLocation: partidoFrecuente,
+    }),
     modalidad: finalModalidad,
     cupo_jugadores: finalCupo,
     falta_jugadores: false,
@@ -401,11 +437,13 @@ export const checkPartidosFrecuentesSchema = async () => {
 };
 
 /**
- * Get active matches for the current user
- * @returns {Promise<Array>} Array of active matches
+ * Get operationally open matches for the current user.
+ * Kept as a compatibility helper, but now aligned with the same backend source
+ * used by Quiero Jugar to avoid legacy state drift.
+ * @returns {Promise<Array>} Array of operationally open matches where the user participates
  */
 export const getPartidosActivosUsuario = async () => {
-  console.log('[getPartidosActivosUsuario] Fetching active matches for current user');
+  console.log('[getPartidosActivosUsuario] Fetching operationally open matches for current user');
   try {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
@@ -413,21 +451,17 @@ export const getPartidosActivosUsuario = async () => {
       return [];
     }
 
-    // Fetch matches with likely "active" states. Adjust states if your app uses different ones.
-    const activeStates = ['equipos_formados', 'activo', 'en_juego', 'en_curso'];
-
     const { data: partidos, error } = await supabase
-      .from('partidos_view')
+      .from(QUIERO_JUGAR_OPEN_MATCHES_VIEW)
       .select('*')
-      .in('estado', activeStates)
-      .order('fecha', { ascending: true });
+      .order('kickoff_at', { ascending: true });
 
     if (error) {
-      console.error('[getPartidosActivosUsuario] Error fetching partidas:', error);
+      console.error('[getPartidosActivosUsuario] Error fetching matches:', error);
       return [];
     }
 
-    console.log('[getPartidosActivosUsuario] Total active matches fetched:', partidos?.length || 0);
+    console.log('[getPartidosActivosUsuario] Total open matches fetched:', partidos?.length || 0);
 
     // Filter client-side to include only matches where the current user is among the jugadores
     const uid = user.id;
@@ -586,6 +620,10 @@ export const insertPartidoFrecuenteFromPartido = async (partidoRef) => {
 
   if (existing?.id) {
     const updates = {
+      ...buildFrequentMatchLocationFields({
+        locationText: templateKey.sede,
+        existingLocation: partido,
+      }),
       hora: partido.hora || null,
       habilitado: true,
       fecha: partido.fecha || null,
@@ -605,7 +643,10 @@ export const insertPartidoFrecuenteFromPartido = async (partidoRef) => {
   if (!templateRow) {
     const insertPayload = {
       nombre: templateKey.nombre,
-      sede: templateKey.sede,
+      ...buildFrequentMatchLocationFields({
+        locationText: templateKey.sede,
+        existingLocation: partido,
+      }),
       hora: partido.hora || null,
       jugadores_frecuentes,
       fecha: partido.fecha || null,

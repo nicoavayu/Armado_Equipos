@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Check, Loader2, MoreVertical, Shield, Trash2, Users, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import TeamCard from '../components/TeamCard';
@@ -19,6 +19,8 @@ import {
 } from '../../../services/db/teamChallenges';
 import { uploadTeamCrest } from '../../../services/storage/teamCrests';
 import { notifyBlockingError } from '../../../utils/notifyBlockingError';
+import { useRefreshOnVisibility } from '../../../hooks/useRefreshOnVisibility';
+import { useSupabaseRealtime } from '../../../hooks/useSupabaseRealtime';
 
 const createTeamButtonClass = '!w-full !h-auto !min-h-[44px] !px-4 !py-2.5 !rounded-none !border !border-[#7d5aff] !bg-[#6a43ff] !text-white !font-bebas !text-base !tracking-[0.01em] !normal-case !shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:!bg-[#7550ff] sm:!text-[13px] sm:!px-3 sm:!py-2 sm:!min-h-[36px]';
 const invitationAcceptIconButtonClass = 'h-11 w-11 rounded-none border border-[#7d5aff] bg-[#6a43ff] text-white shadow-[0_0_14px_rgba(106,67,255,0.3)] transition-all hover:bg-[#7550ff] hover:-translate-y-[1px] active:translate-y-0 active:scale-[0.96] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center';
@@ -26,6 +28,7 @@ const invitationRejectIconButtonClass = 'h-11 w-11 rounded-none border border-[r
 
 const MisEquiposTab = ({ userId }) => {
   const navigate = useNavigate();
+  const realtimeRefreshTimeoutRef = useRef(null);
 
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -39,11 +42,14 @@ const MisEquiposTab = ({ userId }) => {
   const [teamDeleteCascadeConfirmOpen, setTeamDeleteCascadeConfirmOpen] = useState(false);
   const [teamDeleteSuccess, setTeamDeleteSuccess] = useState(null);
 
-  const loadTeams = useCallback(async () => {
+  const loadTeams = useCallback(async ({
+    withLoading = true,
+    silent = false,
+  } = {}) => {
     if (!userId) return;
 
     try {
-      setLoading(true);
+      if (withLoading) setLoading(true);
       const rows = await listAccessibleTeams(userId);
       let enrichedRows = rows || [];
 
@@ -63,27 +69,46 @@ const MisEquiposTab = ({ userId }) => {
       setTeams(enrichedRows);
       setOpenTeamMenuId((prev) => (enrichedRows.some((team) => team.id === prev) ? prev : null));
     } catch (error) {
-      notifyBlockingError(error.message || 'No se pudieron cargar tus equipos');
+      if (!silent) {
+        notifyBlockingError(error.message || 'No se pudieron cargar tus equipos');
+      } else {
+        console.warn('[MIS_EQUIPOS] refresh de equipos fallido', error);
+      }
     } finally {
-      setLoading(false);
+      if (withLoading) setLoading(false);
     }
   }, [userId]);
 
-  const loadIncomingInvitations = useCallback(async () => {
+  const loadIncomingInvitations = useCallback(async ({
+    silent = false,
+  } = {}) => {
     if (!userId) return;
 
     try {
       const rows = await listIncomingTeamInvitations(userId);
       setIncomingInvitations(rows || []);
     } catch (error) {
-      notifyBlockingError(error.message || 'No se pudieron cargar tus invitaciones de equipo');
+      if (!silent) {
+        notifyBlockingError(error.message || 'No se pudieron cargar tus invitaciones de equipo');
+      } else {
+        console.warn('[MIS_EQUIPOS] refresh de invitaciones fallido', error);
+      }
     }
   }, [userId]);
 
-  useEffect(() => {
-    loadTeams();
-    loadIncomingInvitations();
+  const refreshTeamDashboard = useCallback(async ({
+    withLoading = false,
+    silent = false,
+  } = {}) => {
+    await Promise.all([
+      loadTeams({ withLoading, silent }),
+      loadIncomingInvitations({ silent }),
+    ]);
   }, [loadIncomingInvitations, loadTeams]);
+
+  useEffect(() => {
+    refreshTeamDashboard({ withLoading: true });
+  }, [refreshTeamDashboard]);
 
   useEffect(() => {
     if (!openTeamMenuId) return undefined;
@@ -92,6 +117,63 @@ const MisEquiposTab = ({ userId }) => {
     window.addEventListener('click', closeMenu);
     return () => window.removeEventListener('click', closeMenu);
   }, [openTeamMenuId]);
+
+  const scheduleRealtimeRefresh = useCallback(() => {
+    window.clearTimeout(realtimeRefreshTimeoutRef.current);
+    realtimeRefreshTimeoutRef.current = window.setTimeout(() => {
+      refreshTeamDashboard({ withLoading: false, silent: true });
+    }, 140);
+  }, [refreshTeamDashboard]);
+
+  useEffect(() => (
+    () => {
+      window.clearTimeout(realtimeRefreshTimeoutRef.current);
+    }
+  ), []);
+
+  useRefreshOnVisibility(
+    () => {
+      refreshTeamDashboard({ withLoading: false, silent: true });
+    },
+    {
+      enabled: Boolean(userId),
+    },
+  );
+
+  useSupabaseRealtime({
+    enabled: Boolean(userId),
+    channelName: `mis-equipos-${userId}`,
+    deps: [userId, scheduleRealtimeRefresh],
+    events: [
+      {
+        event: '*',
+        schema: 'public',
+        table: 'team_invitations',
+        filter: `invited_user_id=eq.${userId}`,
+        handler: () => {
+          scheduleRealtimeRefresh();
+        },
+      },
+      {
+        event: '*',
+        schema: 'public',
+        table: 'team_members',
+        filter: `user_id=eq.${userId}`,
+        handler: () => {
+          scheduleRealtimeRefresh();
+        },
+      },
+      {
+        event: '*',
+        schema: 'public',
+        table: 'teams',
+        filter: `owner_user_id=eq.${userId}`,
+        handler: () => {
+          scheduleRealtimeRefresh();
+        },
+      },
+    ],
+  });
 
   const handleCreateOrUpdateTeam = async (payload, crestFile, options = {}) => {
     if (!userId) return;
@@ -136,7 +218,7 @@ const MisEquiposTab = ({ userId }) => {
         });
       }
 
-      await loadTeams();
+      await loadTeams({ withLoading: false });
       setTeamFormOpen(false);
       setEditingTeam(null);
     } catch (error) {
@@ -158,7 +240,7 @@ const MisEquiposTab = ({ userId }) => {
       setOpenTeamMenuId(null);
       setTeamDeleteTarget(null);
       setTeamDeleteCascadeConfirmOpen(false);
-      await loadTeams();
+      await loadTeams({ withLoading: false });
       setTeamDeleteSuccess({
         canceledPending: effectiveCanceledPending,
       });
@@ -173,7 +255,7 @@ const MisEquiposTab = ({ userId }) => {
     try {
       setIsSaving(true);
       await acceptTeamInvitation(invitationId);
-      await Promise.all([loadTeams(), loadIncomingInvitations()]);
+      await Promise.all([loadTeams({ withLoading: false }), loadIncomingInvitations()]);
       console.info('Te uniste al equipo');
     } catch (error) {
       notifyBlockingError(error.message || 'No se pudo aceptar la invitacion');
@@ -303,7 +385,15 @@ const MisEquiposTab = ({ userId }) => {
               <div key={team.id} className="relative">
                 <TeamCard
                   team={team}
-                  onClick={() => navigate(`/desafios/equipos/${team.id}`)}
+                  onClick={() => navigate(`/desafios/equipos/${team.id}`, {
+                    state: {
+                      equiposSubtab: 'mis-equipos',
+                      backTo: '/desafios',
+                      backToState: {
+                        equiposSubtab: 'mis-equipos',
+                      },
+                    },
+                  })}
                   className="pr-14"
                 />
 

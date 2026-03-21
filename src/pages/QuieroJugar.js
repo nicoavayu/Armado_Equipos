@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useDeferredValue, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { useAuth } from '../components/AuthProvider';
@@ -17,15 +17,20 @@ import EmptyStateCard from '../components/EmptyStateCard';
 import { handleError } from '../lib/errorHandler';
 import { Calendar, Clock, MapPin, Star, ListOrdered, Users, CalendarX2 } from 'lucide-react';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
+import { hasValidCoordinates, toCoordinateNumber } from '../utils/matchLocation';
+import {
+  countOperationallyOpenMatches,
+  fetchOpenMatchesForQuieroJugar,
+  fetchQuieroJugarMatchAudit,
+} from '../services/db/openMatches';
+import { distanceInMeters, getCurrentPosition, getLocalhostDevelopmentLocation } from '../services/locationService';
+import { useSmartBackNavigation } from '../hooks/useSmartBackNavigation';
+import { useRefreshOnVisibility } from '../hooks/useRefreshOnVisibility';
 
 const containerClass = 'flex flex-col items-center w-full pb-6 px-4 box-border font-oswald';
+const SHOULD_LOG_MATCH_AUDIT = process.env.NODE_ENV !== 'production';
 
 const normalizeLocationToken = (value) => String(value || '').replace(/\s+/g, ' ').trim();
-const normalizeMatchToken = (value) => String(value || '')
-  .normalize('NFD')
-  .replace(/[\u0300-\u036f]/g, '')
-  .toLowerCase()
-  .trim();
 
 const isPostalCodeToken = (token) => /^[A-Z]?\d{4,}[A-Z0-9-]*$/i.test(token);
 
@@ -38,7 +43,7 @@ const stripPostalAndCountry = (value) => normalizeLocationToken(value)
   .trim();
 
 const buildMatchLocationLabel = (partido) => {
-  const rawSede = partido?.sede || '';
+  const rawSede = partido?.sede_direccion_normalizada || partido?.sede || '';
   const sedeTokens = String(rawSede)
     .split(',')
     .map(stripPostalAndCountry)
@@ -57,123 +62,17 @@ const buildMatchLocationLabel = (partido) => {
   return fromNamedVenue || place;
 };
 
-const toCoordinateNumber = (value) => {
-  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
-  if (typeof value === 'string') {
-    const normalized = value.trim().replace(',', '.');
-    if (!normalized) return null;
-    const parsed = Number(normalized);
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-  return null;
-};
-
-const hasValidCoordinates = (lat, lng) => {
-  const parsedLat = toCoordinateNumber(lat);
-  const parsedLng = toCoordinateNumber(lng);
-
-  if (!Number.isFinite(parsedLat) || !Number.isFinite(parsedLng)) return false;
-  if (parsedLat < -90 || parsedLat > 90 || parsedLng < -180 || parsedLng > 180) return false;
-
-  // Descarta "Null Island" (0,0), común cuando la ubicación quedó mal guardada.
-  if (Math.abs(parsedLat) < 0.0001 && Math.abs(parsedLng) < 0.0001) return false;
-  return true;
-};
-
 const MATCH_DISTANCE_STORAGE_KEY = 'quiero-jugar-match-distance-km';
 const MIN_MATCH_DISTANCE_KM = 1;
 const MAX_MATCH_DISTANCE_KM = 30;
 const DEFAULT_MATCH_DISTANCE_KM = 30;
+const QUIERO_JUGAR_MATCHES_POLL_MS = 20000;
+const QUIERO_JUGAR_PLAYERS_POLL_MS = 30000;
 
 const clampMatchDistanceKm = (value) => {
   if (!Number.isFinite(value)) return DEFAULT_MATCH_DISTANCE_KM;
   return Math.min(MAX_MATCH_DISTANCE_KM, Math.max(MIN_MATCH_DISTANCE_KM, Math.round(value)));
 };
-
-const parseMapsData = (value) => {
-  if (!value) return null;
-  if (typeof value === 'object') return value;
-  if (typeof value !== 'string') return null;
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  try {
-    const parsed = JSON.parse(trimmed);
-    return parsed && typeof parsed === 'object' ? parsed : null;
-  } catch (_error) {
-    return null;
-  }
-};
-
-const getPlaceIdFromMatch = (partido) => {
-  const mapsData = parseMapsData(partido?.sedeMaps || partido?.sede_maps || null);
-  const directPlaceId = partido?.sede_place_id || partido?.place_id || partido?.location_place_id;
-  const mapsPlaceId = mapsData?.place_id || mapsData?.placeId || mapsData?.google_place_id || mapsData?.googlePlaceId;
-  return String(directPlaceId || mapsPlaceId || '').trim() || null;
-};
-
-const resolveMatchCoordinates = (partido) => {
-  const directPairs = [
-    [partido?.latitud, partido?.longitud],
-    [partido?.latitude, partido?.longitude],
-    [partido?.lat, partido?.lng],
-    [partido?.lat, partido?.lon],
-    [partido?.match_latitud, partido?.match_longitud],
-    [partido?.match_lat, partido?.match_lng],
-    [partido?.sede_latitud, partido?.sede_longitud],
-    [partido?.sede_lat, partido?.sede_lng],
-    [partido?.cancha_latitud, partido?.cancha_longitud],
-    [partido?.cancha_lat, partido?.cancha_lng],
-    [partido?.location_lat, partido?.location_lng],
-    [partido?.location_latitude, partido?.location_longitude],
-    [partido?.geo_lat, partido?.geo_lng],
-  ];
-
-  for (const [rawLat, rawLng] of directPairs) {
-    const lat = toCoordinateNumber(rawLat);
-    const lng = toCoordinateNumber(rawLng);
-    if (hasValidCoordinates(lat, lng)) {
-      return { lat, lng };
-    }
-  }
-
-  const mapsData = parseMapsData(partido?.sedeMaps || partido?.sede_maps || null);
-  if (mapsData && typeof mapsData === 'object') {
-    const mapsPairs = [
-      [mapsData?.lat, mapsData?.lng],
-      [mapsData?.lat, mapsData?.lon],
-      [mapsData?.latitude, mapsData?.longitude],
-      [mapsData?.location?.lat, mapsData?.location?.lng],
-      [mapsData?.geometry?.location?.lat, mapsData?.geometry?.location?.lng],
-    ];
-
-    for (const [rawLat, rawLng] of mapsPairs) {
-      const lat = toCoordinateNumber(rawLat);
-      const lng = toCoordinateNumber(rawLng);
-      if (hasValidCoordinates(lat, lng)) {
-        return { lat, lng };
-      }
-    }
-  }
-
-  return null;
-};
-
-const geocodeRequest = (geocoder, request) => new Promise((resolve) => {
-  geocoder.geocode(request, (results, status) => {
-    if (status !== 'OK' || !Array.isArray(results) || !results.length) {
-      resolve(null);
-      return;
-    }
-    const location = results[0]?.geometry?.location;
-    const lat = typeof location?.lat === 'function' ? location.lat() : location?.lat;
-    const lng = typeof location?.lng === 'function' ? location.lng() : location?.lng;
-    if (hasValidCoordinates(lat, lng)) {
-      resolve({ lat: toCoordinateNumber(lat), lng: toCoordinateNumber(lng) });
-      return;
-    }
-    resolve(null);
-  });
-});
 
 const QuieroJugar = ({
   secondaryTabsTop = 80,
@@ -183,14 +82,20 @@ const QuieroJugar = ({
   const MAX_SUBSTITUTE_SLOTS = 4;
 
   const navigate = useNavigate();
-  const onVolver = () => navigate(-1);
+  const goBackSmart = useSmartBackNavigation({
+    fallback: '/',
+  });
+  const onVolver = () => goBackSmart();
   const { user } = useAuth();
   const [partidosAbiertos, setPartidosAbiertos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [freePlayers, setFreePlayers] = useState([]);
   const [sortBy, setSortBy] = useState('distance');
   const [userLocation, setUserLocation] = useState(null);
-  const [derivedMatchCoordinates, setDerivedMatchCoordinates] = useState({});
+  const [locationResolved, setLocationResolved] = useState(false);
+  const [openMatchesBaseCount, setOpenMatchesBaseCount] = useState(0);
+  const [matchAudit, setMatchAudit] = useState([]);
+  const [matchesError, setMatchesError] = useState('');
   const [maxMatchDistanceKm, setMaxMatchDistanceKm] = useState(() => {
     const saved = Number(sessionStorage.getItem(MATCH_DISTANCE_STORAGE_KEY));
     return clampMatchDistanceKm(saved);
@@ -208,8 +113,9 @@ const QuieroJugar = ({
   const [actionFriendStatus, setActionFriendStatus] = useState(null);
   const [isSubmittingFriend, setIsSubmittingFriend] = useState(false);
   const [showSecondaryTabs, setShowSecondaryTabs] = useState(false);
-  const geocodedMatchIdsRef = useRef(new Set());
-  const geocoderCacheRef = useRef(new Map());
+  const auditLogSignatureRef = useRef('');
+  const matchesRequestRef = useRef(0);
+  const deferredMaxMatchDistanceKm = useDeferredValue(maxMatchDistanceKm);
   const { getRelationshipStatus, sendFriendRequest } = useAmigos(user?.id || null);
 
   useScrollResetOnChange(activeTab);
@@ -219,93 +125,8 @@ const QuieroJugar = ({
   };
 
   useEffect(() => {
-    fetchPartidosAbiertos();
-    if (user) {
-      fetchFreePlayers();
-      getUserLocation();
-    }
-  }, [user]);
-
-  useEffect(() => {
     sessionStorage.setItem(MATCH_DISTANCE_STORAGE_KEY, String(maxMatchDistanceKm));
   }, [maxMatchDistanceKm]);
-
-  useEffect(() => {
-    setDerivedMatchCoordinates({});
-    geocodedMatchIdsRef.current = new Set();
-    geocoderCacheRef.current.clear();
-  }, [user?.id]);
-
-  useEffect(() => {
-    if (!userLocation || !Array.isArray(partidosAbiertos) || partidosAbiertos.length === 0) return;
-    const mapsApi = window?.google?.maps;
-    if (!mapsApi?.Geocoder) return;
-
-    const pendingMatches = partidosAbiertos.filter((partido) => {
-      const matchId = String(partido?.id || '');
-      if (!matchId) return false;
-      if (resolveMatchCoordinates(partido)) return false;
-      if (derivedMatchCoordinates[matchId] && hasValidCoordinates(derivedMatchCoordinates[matchId]?.lat, derivedMatchCoordinates[matchId]?.lng)) {
-        return false;
-      }
-      return !geocodedMatchIdsRef.current.has(matchId);
-    });
-
-    if (pendingMatches.length === 0) return;
-
-    const geocoder = new mapsApi.Geocoder();
-    let cancelled = false;
-
-    const geocodeMissingMatches = async () => {
-      const updates = {};
-
-      for (const partido of pendingMatches) {
-        if (cancelled) break;
-
-        const matchId = String(partido?.id || '');
-        if (!matchId) continue;
-        geocodedMatchIdsRef.current.add(matchId);
-
-        const placeId = getPlaceIdFromMatch(partido);
-        const address = String(partido?.sede || '').trim();
-        const cacheKey = placeId ? `place:${placeId}` : (address ? `address:${address.toLowerCase()}` : null);
-
-        if (cacheKey && geocoderCacheRef.current.has(cacheKey)) {
-          const cached = geocoderCacheRef.current.get(cacheKey);
-          if (cached && hasValidCoordinates(cached?.lat, cached?.lng)) {
-            updates[matchId] = cached;
-          }
-          continue;
-        }
-
-        let resolved = null;
-        if (placeId) {
-          resolved = await geocodeRequest(geocoder, { placeId });
-        }
-        if (!resolved && address) {
-          resolved = await geocodeRequest(geocoder, { address });
-        }
-
-        if (cacheKey) {
-          geocoderCacheRef.current.set(cacheKey, resolved || null);
-        }
-
-        if (resolved && hasValidCoordinates(resolved?.lat, resolved?.lng)) {
-          updates[matchId] = resolved;
-        }
-      }
-
-      if (!cancelled && Object.keys(updates).length > 0) {
-        setDerivedMatchCoordinates((prev) => ({ ...prev, ...updates }));
-      }
-    };
-
-    geocodeMissingMatches();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [userLocation, partidosAbiertos, derivedMatchCoordinates]);
 
   useEffect(() => {
     setShowSecondaryTabs(false);
@@ -331,7 +152,7 @@ const QuieroJugar = ({
     resolveActionPlayerRelationship();
   }, [actionPlayer, user?.id, getRelationshipStatus]);
 
-  const getUserLocation = () => {
+  const getUserLocation = useCallback(async () => {
     const setLocationFromProfileFallback = async () => {
       try {
         if (!user?.id) return setUserLocation(null);
@@ -352,90 +173,100 @@ const QuieroJugar = ({
           return;
         }
 
+        const devLocation = getLocalhostDevelopmentLocation();
+        if (devLocation) {
+          console.info('[QUIERO_JUGAR] Using localhost development location fallback', devLocation);
+          setUserLocation({
+            lat: devLocation.lat,
+            lng: devLocation.lng,
+          });
+          return;
+        }
+
         setUserLocation(null);
       } catch (error) {
         console.log('Could not resolve location from profile:', error);
-        setUserLocation(null);
+        const devLocation = getLocalhostDevelopmentLocation();
+        if (devLocation) {
+          console.info('[QUIERO_JUGAR] Using localhost development location fallback after profile error', devLocation);
+          setUserLocation({
+            lat: devLocation.lat,
+            lng: devLocation.lng,
+          });
+        } else {
+          setUserLocation(null);
+        }
+      } finally {
+        setLocationResolved(true);
       }
     };
 
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const lat = toCoordinateNumber(position.coords.latitude);
-          const lng = toCoordinateNumber(position.coords.longitude);
+    try {
+      const currentPosition = await getCurrentPosition({
+        enableHighAccuracy: false,
+        timeout: 15000,
+        maximumAge: 300000,
+      });
+      const lat = toCoordinateNumber(currentPosition?.lat);
+      const lng = toCoordinateNumber(currentPosition?.lng);
 
-          if (hasValidCoordinates(lat, lng)) {
-            setUserLocation({ lat, lng });
-            return;
-          }
-
-          setLocationFromProfileFallback();
-        },
-        (error) => {
-          console.log('Geolocation error, trying profile location:', error);
-          setLocationFromProfileFallback();
-        },
-      );
-    } else {
-      setLocationFromProfileFallback();
+      if (hasValidCoordinates(lat, lng)) {
+        setUserLocation({ lat, lng });
+        setLocationResolved(true);
+        return;
+      }
+    } catch (error) {
+      console.log('Geolocation error, trying profile location:', error);
     }
-  };
 
-  const calculateDistance = (lat1, lng1, lat2, lng2) => {
-    const R = 6371;
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLng = (lng2 - lng1) * Math.PI / 180;
-    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-      Math.sin(dLng / 2) * Math.sin(dLng / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-  };
+    await setLocationFromProfileFallback();
+  }, [user?.id]);
 
   const { setIntervalSafe, clearIntervalSafe } = useInterval();
 
-  useEffect(() => {
-    if (user && activeTab === 'players') {
-      setIntervalSafe(() => {
-        fetchFreePlayers();
-      }, 5000);
-      return () => clearIntervalSafe();
-    }
-  }, [user, activeTab, setIntervalSafe, clearIntervalSafe]);
+  const fetchPartidosAbiertos = useCallback(async () => {
+    if (!user?.id) return;
+    const requestId = matchesRequestRef.current + 1;
+    matchesRequestRef.current = requestId;
 
-  useEffect(() => {
-    if (activeTab === 'matches') {
-      setIntervalSafe(() => {
-        fetchPartidosAbiertos();
-      }, 5000);
-      return () => clearIntervalSafe();
-    }
-  }, [activeTab, setIntervalSafe, clearIntervalSafe]);
-
-  const fetchPartidosAbiertos = async () => {
     try {
-      const { data, error } = await supabase
-        .from('partidos_view')
-        .select('*')
-        .eq('falta_jugadores', true)
-        .in('estado', ['active', 'activo'])
-        .order('fecha', { ascending: true });
+      setMatchesError('');
+      const [nextMatches, baseCount, auditRows] = await Promise.all([
+        fetchOpenMatchesForQuieroJugar({
+          userLocation,
+          maxDistanceKm: deferredMaxMatchDistanceKm,
+        }),
+        countOperationallyOpenMatches(),
+        SHOULD_LOG_MATCH_AUDIT
+          ? fetchQuieroJugarMatchAudit({
+            userLocation,
+            maxDistanceKm: deferredMaxMatchDistanceKm,
+          }).catch((auditError) => {
+            console.warn('[QUIERO_JUGAR] Match audit unavailable:', auditError);
+            return [];
+          })
+          : Promise.resolve([]),
+      ]);
 
-      if (error) throw error;
-      const sanitizedRows = (data || []).filter((row) => {
-        const matchName = normalizeMatchToken(row?.nombre || row?.titulo || row?.name || '');
-        return !/^desafio\s*:/.test(matchName);
-      });
-      setPartidosAbiertos(sanitizedRows);
+      if (requestId !== matchesRequestRef.current) return;
+
+      setPartidosAbiertos(nextMatches);
+      setOpenMatchesBaseCount(baseCount);
+      if (SHOULD_LOG_MATCH_AUDIT) {
+        setMatchAudit(auditRows);
+      }
     } catch (error) {
+      if (requestId !== matchesRequestRef.current) return;
+      setMatchesError(error.message || 'No se pudieron cargar los partidos.');
       notifyBlockingError('Error cargando partidos: ' + error.message);
     } finally {
-      setLoading(false);
+      if (requestId === matchesRequestRef.current) {
+        setLoading(false);
+      }
     }
-  };
+  }, [deferredMaxMatchDistanceKm, user?.id, userLocation]);
 
-  const fetchFreePlayers = async () => {
+  const fetchFreePlayers = useCallback(async () => {
     try {
       const { data: freePlayersData, error: freePlayersError } = await supabase
         .from('jugadores_sin_partido')
@@ -487,7 +318,73 @@ const QuieroJugar = ({
     } catch (error) {
       handleError(error, { showToast: false, onError: () => console.error(error) });
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setPartidosAbiertos([]);
+      setOpenMatchesBaseCount(0);
+      setMatchAudit([]);
+      setMatchesError('');
+      setLocationResolved(false);
+      setLoading(false);
+      return;
+    }
+    if (!locationResolved) return;
+    fetchPartidosAbiertos();
+  }, [fetchPartidosAbiertos, locationResolved, user?.id, userLocation?.lat, userLocation?.lng, deferredMaxMatchDistanceKm]);
+
+  useEffect(() => {
+    if (!user) return;
+    setLoading(true);
+    setLocationResolved(false);
+    setMatchesError('');
+    fetchFreePlayers();
+    getUserLocation();
+  }, [fetchFreePlayers, getUserLocation, user]);
+
+  useEffect(() => {
+    clearIntervalSafe();
+
+    if (!user?.id) {
+      return undefined;
+    }
+
+    if (activeTab === 'players') {
+      setIntervalSafe(() => {
+        if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+        fetchFreePlayers();
+      }, QUIERO_JUGAR_PLAYERS_POLL_MS);
+    } else if (activeTab === 'matches') {
+      setIntervalSafe(() => {
+        if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+        fetchPartidosAbiertos();
+      }, QUIERO_JUGAR_MATCHES_POLL_MS);
+    }
+
+    return () => clearIntervalSafe();
+  }, [activeTab, clearIntervalSafe, fetchFreePlayers, fetchPartidosAbiertos, setIntervalSafe, user?.id]);
+
+  useRefreshOnVisibility(
+    () => {
+      if (!user?.id) return;
+
+      if (activeTab === 'players') {
+        fetchFreePlayers();
+        return;
+      }
+
+      if (!locationResolved) {
+        getUserLocation();
+        return;
+      }
+
+      fetchPartidosAbiertos();
+    },
+    {
+      enabled: Boolean(user?.id),
+    },
+  );
 
   const sortedFreePlayers = [...freePlayers].sort((a, b) => {
     if (sortBy === 'rating') {
@@ -511,8 +408,18 @@ const QuieroJugar = ({
       const hasCoordsB = hasValidCoordinates(b.latitud, b.longitud);
 
       if (hasCoordsA && hasCoordsB) {
-        const distanceA = calculateDistance(userLocation.lat, userLocation.lng, toCoordinateNumber(a.latitud), toCoordinateNumber(a.longitud));
-        const distanceB = calculateDistance(userLocation.lat, userLocation.lng, toCoordinateNumber(b.latitud), toCoordinateNumber(b.longitud));
+        const distanceA = distanceInMeters(
+          userLocation.lat,
+          userLocation.lng,
+          toCoordinateNumber(a.latitud),
+          toCoordinateNumber(a.longitud),
+        ) || 0;
+        const distanceB = distanceInMeters(
+          userLocation.lat,
+          userLocation.lng,
+          toCoordinateNumber(b.latitud),
+          toCoordinateNumber(b.longitud),
+        ) || 0;
         return distanceA - distanceB;
       }
 
@@ -524,22 +431,63 @@ const QuieroJugar = ({
 
   // Filter out current user from the general list
   const otherPlayers = sortedFreePlayers.filter((p) => p.user_id !== user?.id);
+  const canFilterByDistance = Boolean(userLocation);
+  const visibleMatches = partidosAbiertos;
+  const isResolvingLocation = Boolean(user?.id) && !locationResolved;
 
-  const handleInviteFriends = (partido) => {
-    if (!user) {
-      notifyBlockingError('Debes iniciar sesión para invitar amigos');
-      return;
-    }
-    setSelectedMatch(partido);
-    setShowInviteModal(true);
-  };
+  useEffect(() => {
+    if (!SHOULD_LOG_MATCH_AUDIT || typeof window === 'undefined') return;
 
-  if (loading) {
+    const auditSignature = JSON.stringify(
+      matchAudit.map((audit) => ({
+        partidoId: audit.partido_id,
+        estado: audit.estado_normalizado,
+        expired: audit.expired,
+        userHasLocation: audit.user_has_location,
+        matchHasCoordinates: audit.match_has_coordinates,
+        distanceKm: audit.distance_km,
+        withinDistance: audit.within_distance,
+        includedInList: audit.included_in_list,
+        exclusionReasons: audit.exclusion_reasons,
+      })),
+    );
+
+    if (auditSignature === auditLogSignatureRef.current) return;
+    auditLogSignatureRef.current = auditSignature;
+
+    window.__armaQuieroJugarAudit = matchAudit;
+    window.__armaQuieroJugarVisibleMatchIds = visibleMatches.map((match) => match.id);
+
+    console.groupCollapsed(
+      `[QUIERO JUGAR][audit] visibles=${visibleMatches.length}/${matchAudit.length}`,
+    );
+    console.table(
+      matchAudit.map((audit) => ({
+        partido_id: audit.partido_id,
+        estado: audit.estado_normalizado,
+        cancelado: audit.cancelado,
+        startDateTime: audit.start_datetime,
+        expired: audit.expired,
+        userHasLocation: audit.user_has_location,
+        matchHasCoordinates: audit.match_has_coordinates,
+        distanceKm: audit.distance_km,
+        withinDistance: audit.within_distance,
+        includedInList: audit.included_in_list,
+        exclusionReasons: Array.isArray(audit.exclusion_reasons) ? audit.exclusion_reasons.join(', ') : '',
+      })),
+    );
+    console.debug('[QUIERO JUGAR][audit:full]', matchAudit);
+    console.groupEnd();
+  }, [matchAudit, visibleMatches]);
+
+  if (loading || isResolvingLocation) {
     return (
       <div className="min-h-[100dvh] w-screen flex items-center justify-center px-4">
         <PageLoadingState
           title="CARGANDO PARTIDOS"
-          description="Estamos buscando partidos y jugadores disponibles cerca tuyo."
+          description={isResolvingLocation
+            ? 'Estamos resolviendo tu ubicación y buscando partidos disponibles.'
+            : 'Estamos buscando partidos y jugadores disponibles cerca tuyo.'}
           skeletonCards={2}
         />
       </div>
@@ -601,65 +549,7 @@ const QuieroJugar = ({
         {activeTab === 'matches' ? (
           // Matches Tab
           (() => {
-            const now = new Date();
-            const activePartidos = partidosAbiertos
-              .map((partido) => {
-                const matchDateTime = new Date(`${partido.fecha}T${partido.hora}`);
-                const oneHourAfter = new Date(matchDateTime.getTime() + 60 * 60 * 1000);
-                if (now > oneHourAfter) return null;
-
-                const matchCoordinates = resolveMatchCoordinates(partido) || derivedMatchCoordinates[String(partido?.id || '')] || null;
-                const distanceKm = userLocation && matchCoordinates
-                  ? calculateDistance(
-                    userLocation.lat,
-                    userLocation.lng,
-                    matchCoordinates.lat,
-                    matchCoordinates.lng,
-                  )
-                  : null;
-
-                return {
-                  ...partido,
-                  distanceKm,
-                };
-              })
-              .filter(Boolean);
-
-            const filteredPartidos = activePartidos.filter((partido) => {
-              if (!Number.isFinite(partido.distanceKm)) return true;
-              return partido.distanceKm <= maxMatchDistanceKm;
-            });
-
-            const sortedPartidos = [...filteredPartidos].sort((a, b) => {
-              const createdA = new Date(a.created_at || '').getTime();
-              const createdB = new Date(b.created_at || '').getTime();
-              const hasCreatedA = Number.isFinite(createdA);
-              const hasCreatedB = Number.isFinite(createdB);
-
-              if (hasCreatedA && hasCreatedB && createdA !== createdB) return createdB - createdA;
-              if (hasCreatedA && !hasCreatedB) return -1;
-              if (!hasCreatedA && hasCreatedB) return 1;
-
-              const startA = new Date(`${a.fecha || ''}T${a.hora || '00:00'}`).getTime();
-              const startB = new Date(`${b.fecha || ''}T${b.hora || '00:00'}`).getTime();
-              const hasStartA = Number.isFinite(startA);
-              const hasStartB = Number.isFinite(startB);
-
-              if (hasStartA && hasStartB && startA !== startB) return startA - startB;
-              if (hasStartA && !hasStartB) return -1;
-              if (!hasStartA && hasStartB) return 1;
-
-              const hasDistanceA = Number.isFinite(a.distanceKm);
-              const hasDistanceB = Number.isFinite(b.distanceKm);
-
-              if (hasDistanceA && hasDistanceB) return a.distanceKm - b.distanceKm;
-              if (hasDistanceA && !hasDistanceB) return -1;
-              if (!hasDistanceA && hasDistanceB) return 1;
-
-              return 0;
-            });
-
-            if (activePartidos.length === 0) {
+            if (openMatchesBaseCount === 0) {
               return (
                 <EmptyStateCard
                   icon={CalendarX2}
@@ -674,6 +564,26 @@ const QuieroJugar = ({
 
             return (
               <>
+                {matchesError ? (
+                  <div className="w-full max-w-[500px] mt-2 mb-4 border border-[rgba(177,72,72,0.45)] bg-[rgba(73,20,20,0.4)] px-4 py-4 shadow-[0_10px_24px_rgba(0,0,0,0.24)]">
+                    <div className="font-oswald text-sm font-semibold text-red-100">
+                      No pudimos actualizar el listado de partidos.
+                    </div>
+                    <p className="mt-1 text-[12px] font-oswald text-red-100/80">
+                      {matchesError}
+                    </p>
+                    <button
+                      className="mt-3 inline-flex min-h-[40px] items-center justify-center border border-[rgba(255,255,255,0.18)] bg-[rgba(20,31,70,0.82)] px-3 py-2 font-bebas text-sm tracking-[0.01em] text-white/92 transition-all hover:bg-[rgba(30,45,94,0.95)]"
+                      onClick={() => {
+                        setLoading(true);
+                        fetchPartidosAbiertos();
+                      }}
+                    >
+                      Reintentar
+                    </button>
+                  </div>
+                ) : null}
+
                 <div className="w-full max-w-[500px] mt-2 mb-4 border border-[rgba(88,107,170,0.46)] bg-[#1e293b]/92 px-3 py-3 shadow-[0_10px_24px_rgba(0,0,0,0.28)]">
                   <div className="flex items-center justify-between gap-2 mb-2.5">
                     <span className="font-bebas text-[0.9rem] uppercase tracking-[0.06em] text-white/85">
@@ -690,33 +600,43 @@ const QuieroJugar = ({
                     min={MIN_MATCH_DISTANCE_KM}
                     max={MAX_MATCH_DISTANCE_KM}
                     step={1}
+                    disabled={!canFilterByDistance}
                     value={maxMatchDistanceKm}
                     onInput={handleMatchDistanceChange}
                     onChange={handleMatchDistanceChange}
-                    className="w-full cursor-pointer accent-[#6a43ff]"
+                    className={`w-full accent-[#6a43ff] ${canFilterByDistance ? 'cursor-pointer' : 'cursor-not-allowed opacity-45'}`}
                     style={{ touchAction: 'pan-x' }}
                     aria-label="Distancia maxima de partidos"
                   />
 
                   <p className="mt-2 text-[11px] font-oswald text-white/55">
-                    {userLocation
-                      ? 'Filtramos por distancia solo los partidos con coordenadas.'
-                      : 'Activa ubicacion o cargala en tu perfil para filtrar por distancia.'}
+                    {canFilterByDistance
+                      ? 'Con ubicacion activa mostramos solo partidos dentro del radio y con coordenadas persistidas.'
+                      : 'Sin ubicacion disponible no filtramos por distancia y mostramos todos los partidos abiertos.'}
                   </p>
+                  {!canFilterByDistance ? (
+                    <p className="mt-1 text-[11px] font-oswald text-white/40">
+                      Activá la ubicacion del navegador o completá tu ubicacion en Perfil para usar este filtro.
+                    </p>
+                  ) : null}
                 </div>
 
-                {sortedPartidos.length === 0 ? (
+                {visibleMatches.length === 0 ? (
                   <div className="w-full max-w-[500px] border border-[rgba(88,107,170,0.46)] bg-[#1e293b]/92 p-6 text-center">
                     <p className="text-white font-oswald text-base">
-                      No hay partidos dentro de {maxMatchDistanceKm} km.
+                      {canFilterByDistance
+                        ? `No hay partidos elegibles dentro de ${maxMatchDistanceKm} km.`
+                        : 'No hay partidos abiertos elegibles para mostrar en este momento.'}
                     </p>
                     <p className="text-white/60 font-oswald text-sm mt-1">
-                      Proba aumentar la distancia maxima para ver mas opciones.
+                      {canFilterByDistance
+                        ? 'Proba aumentar la distancia maxima para ver mas opciones.'
+                        : 'Cuando tengamos ubicacion disponible, el filtro por distancia se va a activar automaticamente.'}
                     </p>
                   </div>
                 ) : (
                   <>
-                    {sortedPartidos.map((partido) => {
+                    {visibleMatches.map((partido) => {
                       const cupoMaximo = Number(partido.cupo_jugadores || 20);
                       const jugadores = Array.isArray(partido.jugadores) ? partido.jugadores : [];
                       const jugadoresCount = jugadores.length;
@@ -747,11 +667,6 @@ const QuieroJugar = ({
                               </div>
                             </div>
                             <div className="shrink-0 flex items-center justify-end gap-2 flex-wrap">
-                              {isOwnerMatch ? (
-                                <span className="font-oswald px-2.5 py-1.5 rounded-none text-[11px] font-semibold shrink-0 whitespace-nowrap border border-[#8e7dff] bg-[rgba(106,67,255,0.18)] text-[#ddd7ff]">
-                                  Tu partido
-                                </span>
-                              ) : null}
                               {isComplete ? (
                                 <span className="px-2.5 py-1.5 rounded-none text-[11px] font-semibold shrink-0 whitespace-nowrap bg-[#165a2e] text-[#22c55e] border border-[#22c55e]">
                                   {titularesDisplayCount}/{cupoMaximo}
@@ -769,9 +684,14 @@ const QuieroJugar = ({
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-2 mb-3">
+                          <div className="flex items-center gap-2 mb-3 flex-wrap">
                             <span className="font-oswald text-[11px] font-semibold px-2.5 py-1.5 rounded-none shrink-0 whitespace-nowrap bg-[#0f2f23] border-2 border-[#22c55e] text-[#dcfce7]">{partido.modalidad || 'F5'}</span>
                             <span className="font-oswald text-[11px] font-semibold px-2.5 py-1.5 rounded-none shrink-0 whitespace-nowrap bg-[#213448] border-2 border-[#2dd4bf] text-[#ccfbf1]">{partido.tipo_partido || 'Mixto'}</span>
+                            {isOwnerMatch ? (
+                              <span className="font-oswald px-2 py-1 rounded-none text-[10px] font-semibold shrink-0 whitespace-nowrap border border-[#8e7dff] bg-[rgba(106,67,255,0.16)] text-[#ddd7ff] uppercase tracking-[0.04em]">
+                                Tu partido
+                              </span>
+                            ) : null}
                           </div>
 
                           <div className="font-oswald text-sm font-medium text-white/90 flex items-center gap-2 min-w-0">
@@ -852,12 +772,14 @@ const QuieroJugar = ({
                       profile={player}
                       variant="searching"
                       showDistanceUnavailable={sortBy === 'distance'}
-                      distanceKm={userLocation && hasValidCoordinates(player.latitud, player.longitud) ? calculateDistance(
-                        userLocation.lat,
-                        userLocation.lng,
-                        toCoordinateNumber(player.latitud),
-                        toCoordinateNumber(player.longitud),
-                      ) : null}
+                      distanceKm={userLocation && hasValidCoordinates(player.latitud, player.longitud)
+                        ? (distanceInMeters(
+                          userLocation.lat,
+                          userLocation.lng,
+                          toCoordinateNumber(player.latitud),
+                          toCoordinateNumber(player.longitud),
+                        ) || 0) / 1000
+                        : null}
                       onClick={(e) => {
                         const rect = e?.currentTarget?.getBoundingClientRect?.();
                         setActionAnchorPoint({

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Bell, CalendarClock, CheckCircle, ChevronDown, ChevronUp, ClipboardList, Trophy, UserPlus, Users, Vote, XCircle } from 'lucide-react';
 import { toBigIntId } from '../utils';
 import { resolveMatchInviteRoute } from '../utils/matchInviteRoute';
@@ -21,6 +21,8 @@ import {
 } from '../utils/surveyNotificationCopy';
 import {
   applyMatchNameQuotes,
+  formatMatchReminderMessage,
+  formatMatchReminderTitle,
   formatMatchCancelledMessage,
   formatTeamInviteMessage,
   quoteMatchName,
@@ -45,6 +47,7 @@ import { track } from '../utils/monitoring/analytics';
 const NotificationsView = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const {
     notifications,
     markAsRead,
@@ -64,16 +67,6 @@ const NotificationsView = () => {
   useEffect(() => {
     console.log('[NOTIFICATIONS_VIEW] Component mounted, fetching notifications');
     fetchNotifications();
-  }, [fetchNotifications]);
-
-  // Refetch notifications when returning to this view
-  useEffect(() => {
-    const handleFocus = () => {
-      fetchNotifications();
-    };
-
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
   }, [fetchNotifications]);
 
   // Log notifications when they change
@@ -100,7 +93,13 @@ const NotificationsView = () => {
       return false;
     }
     try {
-      navigate(route, options);
+      navigate(route, {
+        ...options,
+        state: {
+          ...(options.state || {}),
+          backTo: `${location.pathname}${location.search}`,
+        },
+      });
       return true;
     } catch (error) {
       console.error('[NOTIFICATION_CLICK] navigation error', { route, error });
@@ -575,6 +574,7 @@ const NotificationsView = () => {
     const isSurveyStartLike = notification.type === 'survey' || notification.type === 'survey_start' || notification.type === 'post_match_survey';
     const isSurveyReminder = notification.type === 'survey_reminder' || notification.type === 'survey_reminder_12h';
     const isSurveyResults = notification.type === 'survey_results_ready';
+    const isMatchReminder = notification.type === 'match_reminder_1h';
     const isTeamInvite = notification.type === 'team_invite';
     const isMatchCancelled = notification.type === 'match_cancelled';
     const isTeamChallengeAccepted = isTeamChallengeNotification(notification);
@@ -591,6 +591,8 @@ const NotificationsView = () => {
         ? 'Recordatorio de encuesta'
         : isSurveyResults
           ? 'Resultados de encuesta listos'
+          : isMatchReminder
+            ? formatMatchReminderTitle(notification)
           : isMatchCancelled
             ? 'Partido cancelado'
           : isTeamChallengeAccepted
@@ -604,6 +606,8 @@ const NotificationsView = () => {
         ? getSurveyReminderMessage({ source: notification, matchName: quotedMatchName })
         : isSurveyResults
           ? getSurveyResultsReadyMessage({ matchName: quotedMatchName })
+          : isMatchReminder
+            ? formatMatchReminderMessage(notification)
           : isMatchCancelled
             ? formatMatchCancelledMessage(notification, { fallbackLabel: matchFallbackLabel })
           : isTeamInvite

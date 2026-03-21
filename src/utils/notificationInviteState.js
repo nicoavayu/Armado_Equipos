@@ -25,6 +25,16 @@ export const hasPendingMatchInviteStatus = (notification) => {
   return isPendingInviteStatus(notification?.data?.status);
 };
 
+export const isResolvedMatchJoinRequestNotification = (notification) => {
+  if (normalizeNotificationType(notification) !== 'match_join_request') return false;
+  const status = normalizeInviteStatus(
+    notification?.data?.status
+    ?? notification?.status
+    ?? '',
+  );
+  return status === 'cancelled' || status === 'rejected';
+};
+
 export const isPendingMatchInviteNotification = (notification) => {
   if (!hasPendingMatchInviteStatus(notification)) return false;
   if (notification?.read === true) return false;
@@ -166,6 +176,10 @@ export const filterNotificationsForInbox = (notifications = []) => {
     if (!notification) return false;
 
     const matchId = getNotificationMatchIdText(notification);
+
+    if (isResolvedMatchJoinRequestNotification(notification)) {
+      return false;
+    }
 
     if (isMatchKickedNotification(notification)) {
       return true;

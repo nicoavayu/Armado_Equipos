@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { useAuth } from '../components/AuthProvider';
@@ -19,6 +19,10 @@ import { notifyAdminJoinRequest, notifyAdminPlayerJoined } from '../services/mat
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { openMatchCalendarInvite } from '../utils/calendarInvite';
 import { useScrollResetOnChange } from '../hooks/useScrollReset';
+import { useSmartBackNavigation } from '../hooks/useSmartBackNavigation';
+import { useRefreshOnVisibility } from '../hooks/useRefreshOnVisibility';
+import { useSupabaseRealtime } from '../hooks/useSupabaseRealtime';
+import { useInterval } from '../hooks/useInterval';
 import {
   getNotificationTimestampMs,
   hasPendingMatchInviteStatus,
@@ -54,6 +58,7 @@ const GUEST_SELF_JOIN_ENABLED = true;
 const MAX_SUBSTITUTES = 4;
 const INVITE_ACCEPT_BUTTON_VIOLET = '#644dff';
 const INVITE_ACCEPT_BUTTON_VIOLET_DARK = '#4e2fd3';
+const REOPENABLE_JOIN_REQUEST_STATUSES = new Set(['cancelled', 'rejected']);
 const isMatchClosed = (match) => {
   const estado = String(match?.estado || '').toLowerCase();
   return CLOSED_MATCH_STATUSES.has(estado);
@@ -79,6 +84,122 @@ const buildMatchNotificationOrFilter = (matchId) => {
     .filter(Boolean)
     .join(',');
 };
+
+const normalizeJoinRequestStatus = (value) => String(value || '').trim().toLowerCase();
+
+const resolvePublicJoinStatus = (value) => {
+  const normalizedStatus = normalizeJoinRequestStatus(value);
+  if (normalizedStatus === 'pending') return 'pending';
+  if (normalizedStatus === 'approved') return 'approved';
+  return 'none';
+};
+
+const canFallbackCancelledJoinRequestStatus = (error) => {
+  const code = String(error?.code || '').trim();
+  const message = String(error?.message || '').toLowerCase();
+  const details = String(error?.details || '').toLowerCase();
+  const hint = String(error?.hint || '').toLowerCase();
+
+  return (
+    code === '23514'
+    || code === '22P02'
+    || message.includes('check constraint')
+    || message.includes('invalid input value')
+    || message.includes('status')
+    || details.includes('status')
+    || hint.includes('status')
+  );
+};
+
+const isMissingCancelOwnJoinRequestRpcError = (error) => {
+  const code = String(error?.code || '').trim();
+  const message = String(error?.message || '').trim().toLowerCase();
+  return (
+    code === 'PGRST202'
+    || message.includes('cancel_own_match_join_request')
+    || message.includes('could not find the function')
+    || message.includes('function public.cancel_own_match_join_request')
+  );
+};
+
+async function cancelLatestPendingJoinRequest({ requestId, matchId, userId }) {
+  if (!requestId || !matchId || !userId) {
+    return { appliedStatus: null, error: null, noRowsUpdated: false };
+  }
+
+  const { data: rpcData, error: rpcError } = await supabase.rpc('cancel_own_match_join_request', {
+    p_match_id: Number(matchId),
+  });
+
+  if (!rpcError) {
+    const rpcStatus = normalizeJoinRequestStatus(rpcData?.status);
+    if (rpcStatus === 'cancelled' || rpcStatus === 'rejected') {
+      return { appliedStatus: rpcStatus, error: null, noRowsUpdated: false };
+    }
+    if (rpcStatus === 'not_found') {
+      return { appliedStatus: null, error: null, noRowsUpdated: true };
+    }
+  } else if (!isMissingCancelOwnJoinRequestRpcError(rpcError)) {
+    return { appliedStatus: null, error: rpcError, noRowsUpdated: false };
+  }
+
+  const candidateStatuses = ['cancelled', 'rejected'];
+  let lastError = null;
+
+  for (const nextStatus of candidateStatuses) {
+    const { data, error } = await supabase
+      .from('match_join_requests')
+      .update({ status: nextStatus })
+      .eq('id', requestId)
+      .eq('match_id', matchId)
+      .eq('user_id', userId)
+      .eq('status', 'pending')
+      .select('id, status');
+
+    const updatedRow = Array.isArray(data) ? data[0] : null;
+
+    if (!error && updatedRow?.id) {
+      return { appliedStatus: nextStatus, error: null, noRowsUpdated: false };
+    }
+
+    if (!error && !updatedRow?.id) {
+      return { appliedStatus: null, error: null, noRowsUpdated: true };
+    }
+
+    if (error && (String(error?.code || '').trim() === 'PGRST116' || Number(error?.status) === 406)) {
+      return { appliedStatus: null, error: null, noRowsUpdated: true };
+    }
+
+    lastError = error;
+
+    if (nextStatus !== 'cancelled' || !canFallbackCancelledJoinRequestStatus(error)) {
+      return { appliedStatus: null, error, noRowsUpdated: false };
+    }
+  }
+
+  return { appliedStatus: null, error: lastError, noRowsUpdated: false };
+}
+
+async function fetchLatestJoinRequest({ matchId, userId, status } = {}) {
+  if (!matchId || !userId) {
+    return { data: null, error: null };
+  }
+
+  let query = supabase
+    .from('match_join_requests')
+    .select('id, status, created_at')
+    .eq('match_id', Number(matchId))
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .order('id', { ascending: false })
+    .limit(1);
+
+  if (status) {
+    query = query.eq('status', status);
+  }
+
+  return query.maybeSingle();
+}
 
 async function fetchInviteAccessState({ userId, matchId }) {
   if (!userId || !matchId) {
@@ -395,17 +516,20 @@ function SharedInviteLayout({
   codigoValido,
   mode,
   joinStatus,
+  joinCancelling,
   isMatchFull,
   inlineNotice,
   onClearInlineNotice,
   onAddToCalendar,
+  onCancelJoinRequest,
   showBottomNav = false,
 }) {
   const isEmbeddedInMainLayout = mode === 'public';
-  const isSent = joinStatus === 'pending';
+  const isPending = joinStatus === 'pending';
   const isApproved = joinStatus === 'approved';
   const isPendingSync = joinStatus === 'approved_pending_sync';
   const isSending = submitting && joinStatus === 'none';
+  const isCancelling = joinCancelling && isPending;
   const matchPrimaryButtonClass = 'w-full font-bebas text-base px-4 py-2.5 border border-[#7d5aff] rounded-[5px] cursor-pointer transition-all text-white min-h-[44px] flex items-center justify-center text-center bg-[#6a43ff] shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:bg-[#7550ff] disabled:opacity-60 disabled:cursor-not-allowed';
   const matchSecondaryButtonClass = 'w-full font-bebas text-base px-4 py-2.5 border border-[rgba(88,107,170,0.46)] rounded-[5px] cursor-pointer transition-all text-[rgba(242,246,255,0.9)] min-h-[44px] flex items-center justify-center text-center bg-[rgba(23,35,74,0.72)] hover:bg-[rgba(31,45,91,0.82)] disabled:opacity-60 disabled:cursor-not-allowed';
   const publicCtaBaseClass = 'w-full font-bebas text-base px-4 py-2.5 border rounded-[5px] transition-all min-h-[44px] flex items-center justify-center text-center disabled:opacity-100';
@@ -415,8 +539,10 @@ function SharedInviteLayout({
       ? 'border-[rgba(245,158,11,0.62)] bg-[rgba(146,64,14,0.74)] text-[#fff8eb] cursor-not-allowed'
       : isPendingSync
         ? 'border-[rgba(52,211,153,0.66)] bg-[rgba(16,185,129,0.72)] text-white cursor-wait'
-        : isSent || isApproved
-          ? 'border-[rgba(125,90,255,0.52)] bg-[rgba(100,77,255,0.38)] text-white/85 cursor-not-allowed'
+        : isPending
+          ? 'border-[rgba(248,113,113,0.52)] bg-[rgba(127,29,29,0.84)] text-white hover:bg-[rgba(153,27,27,0.9)] shadow-[0_0_14px_rgba(248,113,113,0.14)]'
+          : isApproved
+            ? 'border-[rgba(125,90,255,0.52)] bg-[rgba(100,77,255,0.38)] text-white/85 cursor-not-allowed'
           : 'border-[#7d5aff] bg-[#6a43ff] text-white hover:bg-[#7550ff] shadow-[0_0_14px_rgba(106,67,255,0.3)]';
 
   const renderJoinedBlock = () => (
@@ -479,8 +605,8 @@ function SharedInviteLayout({
                   ) : (
                     <div className="flex flex-col gap-3 w-full">
                       <button
-                        onClick={onSumarse}
-                        disabled={submitting || isSent || isPendingSync || joinStatus === 'checking' || isMatchFull}
+                        onClick={isPending ? onCancelJoinRequest : onSumarse}
+                        disabled={joinStatus === 'checking' || isPendingSync || isMatchFull || (isPending ? isCancelling : submitting)}
                         className={`${publicCtaBaseClass} ${publicCtaStateClass}`}
                       >
                         {joinStatus === 'checking' ? (
@@ -494,15 +620,18 @@ function SharedInviteLayout({
                             Aprobado - sincronizando...
                           </span>
                         ) : isMatchFull ? 'Partido completo' :
+                          isCancelling ? 'Cancelando...' :
                           isSending ? 'Enviando...' :
-                            isSent ? 'Solicitud enviada' :
+                            isPending ? 'Cancelar solicitud' :
                               'Solicitar unirme'}
                       </button>
 
-                      {isSent && (
-                        <p className="text-white/70 font-oswald text-sm mt-1">
-                          Esperando aprobación del admin.
-                        </p>
+                      {isPending && (
+                        <div className="flex flex-col items-center gap-2">
+                          <p className="text-white/70 font-oswald text-sm mt-1">
+                            Esperando aprobación del admin.
+                          </p>
+                        </div>
                       )}
                       {isPendingSync && (
                         <p className="text-emerald-300 font-oswald text-sm mt-1">
@@ -551,6 +680,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
   const [jugadores, setJugadores] = useState([]);
   const { partidoId } = useParams();
   const navigate = useNavigate();
+  const goBackSmart = useSmartBackNavigation();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
 
@@ -565,6 +695,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
   const [alreadyJoined, setAlreadyJoined] = useState(false);
   const [joinStatus, setJoinStatus] = useState('checking'); // 'checking', 'none', 'pending', 'approved', 'approved_pending_sync'
   const [joinSubmitting, setJoinSubmitting] = useState(false);
+  const [joinCancelling, setJoinCancelling] = useState(false);
   const [inviteValidatedByNotification, setInviteValidatedByNotification] = useState(false);
   const [scheduleWarning, setScheduleWarning] = useState({
     isOpen: false,
@@ -577,6 +708,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
   const [inlineNotice, setInlineNotice] = useState(null);
   const pendingContinueRef = useRef(null);
   const guestPhotoInputRef = useRef(null);
+  const suppressRejectedJoinNoticeRef = useRef(false);
 
   useScrollResetOnChange(step);
 
@@ -668,10 +800,137 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
 
   // Anti-race condition: track request ID
   const reqIdRef = useRef(0);
+  const joinStatusRef = useRef(joinStatus);
+  const publicLiveRefreshInFlightRef = useRef(false);
+  const hasShownRemovalNoticeRef = useRef(false);
+  const { setIntervalSafe: setLiveRefreshIntervalSafe, clearIntervalSafe: clearLiveRefreshIntervalSafe } = useInterval();
 
   // Query params (soportamos versión corta para links más compactos)
   const codigoParam = searchParams.get('codigo') || searchParams.get('c');
   const inviteTokenParam = searchParams.get('invite') || searchParams.get('i');
+
+  useEffect(() => {
+    joinStatusRef.current = joinStatus;
+  }, [joinStatus]);
+
+  const refreshPublicMatchSnapshot = useCallback(async ({ showClosedNotice = false } = {}) => {
+    if (mode !== 'public' || !partidoId) return null;
+
+    const { data: partidoData, error: partidoError } = await supabase
+      .from('partidos_view')
+      .select('*')
+      .eq('id', partidoId)
+      .maybeSingle();
+
+    if (partidoError || !partidoData) {
+      setError('Partido no encontrado');
+      return null;
+    }
+
+    const { data: jugadoresData, count } = await supabase
+      .from('jugadores')
+      .select('*', { count: 'exact' })
+      .eq('partido_id', partidoId);
+
+    setPartido({ ...partidoData, jugadoresCount: count || 0 });
+    setJugadores(jugadoresData || []);
+
+    if (isMatchClosed(partidoData)) {
+      setError('Este partido fue cancelado o cerrado.');
+      if (showClosedNotice) {
+        showInlineNotice('warning', 'Este partido fue cancelado o cerrado.');
+      }
+    } else {
+      setError((currentError) => (
+        currentError === 'Este partido fue cancelado o cerrado.'
+          ? null
+          : currentError
+      ));
+    }
+
+    return {
+      partidoData,
+      jugadoresData: jugadoresData || [],
+      jugadoresCount: count || 0,
+    };
+  }, [mode, partidoId]);
+
+  const refreshPublicJoinStateFromBackend = useCallback(async ({ showTransitionFeedback = false } = {}) => {
+    if (mode !== 'public' || !user?.id || !partidoId) return 'none';
+
+    const previousStatus = joinStatusRef.current;
+    const matchId = Number(partidoId);
+    const { isMember } = await isUserMemberOfMatch(user.id, matchId);
+
+    if (isMember) {
+      if (showTransitionFeedback && previousStatus !== 'approved' && previousStatus !== 'checking') {
+        openJoinSuccessModal();
+      }
+      setJoinStatus('approved');
+      return 'approved';
+    }
+
+    const { data: latestRequest, error: latestRequestError } = await fetchLatestJoinRequest({
+      matchId,
+      userId: user.id,
+    });
+
+    if (latestRequestError) {
+      console.error('[PUBLIC_MATCH] realtime refresh error', latestRequestError);
+      return previousStatus;
+    }
+
+    const latestStatus = normalizeJoinRequestStatus(latestRequest?.status);
+
+    if (latestStatus === 'pending') {
+      setJoinStatus('pending');
+      return 'pending';
+    }
+
+    if (latestStatus === 'approved') {
+      setJoinStatus('approved_pending_sync');
+      return 'approved_pending_sync';
+    }
+
+    setJoinStatus('none');
+    const shouldSuppressRejectedFeedback = suppressRejectedJoinNoticeRef.current;
+    if (shouldSuppressRejectedFeedback) {
+      suppressRejectedJoinNoticeRef.current = false;
+    }
+    if (
+      showTransitionFeedback
+      && (previousStatus === 'approved' || previousStatus === 'approved_pending_sync')
+      && !hasShownRemovalNoticeRef.current
+    ) {
+      hasShownRemovalNoticeRef.current = true;
+      showInlineNotice('warning', 'Ya no formás parte de este partido.');
+    }
+    if (showTransitionFeedback && previousStatus === 'pending' && latestStatus === 'rejected' && !shouldSuppressRejectedFeedback) {
+      showInlineNotice('warning', 'Tu solicitud fue rechazada.');
+    }
+    return 'none';
+  }, [mode, partidoId, user?.id]);
+
+  const runPublicLiveRefresh = useCallback(async ({
+    showTransitionFeedback = false,
+    showClosedNotice = false,
+  } = {}) => {
+    if (mode !== 'public' || !partidoId) return;
+    if (publicLiveRefreshInFlightRef.current) return;
+
+    publicLiveRefreshInFlightRef.current = true;
+    try {
+      await refreshPublicMatchSnapshot({ showClosedNotice });
+      if (user?.id) {
+        const nextStatus = await refreshPublicJoinStateFromBackend({ showTransitionFeedback });
+        if (nextStatus === 'approved' || nextStatus === 'pending') {
+          hasShownRemovalNoticeRef.current = false;
+        }
+      }
+    } finally {
+      publicLiveRefreshInFlightRef.current = false;
+    }
+  }, [mode, partidoId, refreshPublicJoinStateFromBackend, refreshPublicMatchSnapshot, user?.id]);
 
   // Clear guest localStorage when authenticated user accesses match
   useEffect(() => {
@@ -695,6 +954,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       setInviteValidatedByNotification(false);
       setSubmitting(false);
       setJoinSubmitting(false);
+      setJoinCancelling(false);
 
       console.log('[LOAD_PARTIDO] Starting load', { partidoId, mode, user: !!user, reqId });
 
@@ -782,14 +1042,10 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
             setJoinStatus('approved');
           } else {
             // 2. Verificar si hay solicitud (más reciente)
-            const { data: request, error: reqErr } = await supabase
-              .from('match_join_requests')
-              .select('id, status, created_at')
-              .eq('match_id', Number(partidoId))
-              .eq('user_id', user.id)
-              .order('created_at', { ascending: false })
-              .limit(1)
-              .maybeSingle();
+            const { data: request, error: reqErr } = await fetchLatestJoinRequest({
+              matchId: Number(partidoId),
+              userId: user.id,
+            });
 
             // Check if this request is stale
             if (reqId !== reqIdRef.current) {
@@ -799,19 +1055,19 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
 
             if (reqErr) console.error('[INVITE_PUBLIC] request check error', reqErr);
 
-            if (request?.status === 'pending') {
+            const requestStatus = normalizeJoinRequestStatus(request?.status);
+
+            if (requestStatus === 'pending') {
               console.log('[PUBLIC_MATCH] setJoinStatus: pending', { partidoId, userId: user.id, source: 'request_pending', reqId });
               setJoinStatus('pending');
-            } else if (request?.status === 'approved') {
-              // If request says approved but user is not in jugadores, treat as stale state.
-              // This happens after admin kicks a user and should allow re-request immediately.
-              console.warn('[PUBLIC_MATCH] stale approved request without membership, resetting to none', {
+            } else if (requestStatus === 'approved') {
+              console.warn('[PUBLIC_MATCH] approved request without membership, waiting for sync', {
                 partidoId,
                 userId: user.id,
                 requestId: request.id,
                 reqId
               });
-              setJoinStatus('none');
+              setJoinStatus('approved_pending_sync');
             } else {
               console.log('[PUBLIC_MATCH] setJoinStatus: none', { partidoId, userId: user.id, source: 'no_request', reqId });
               setJoinStatus('none');
@@ -994,30 +1250,92 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
     loadPartido();
   }, [partidoId, codigoParam, mode, user, navigate]);
 
-  // Realtime membership guard:
-  // If the user is removed from jugadores while viewing the match, return to home immediately.
-  useEffect(() => {
-    if ((mode !== 'public' && mode !== 'invite') || !user?.id || !partidoId) return undefined;
+  useRefreshOnVisibility(() => {
+    if (mode !== 'public' || !partidoId) return;
 
-    const channel = supabase
-      .channel(`public-match-membership-${partidoId}-${user.id}`)
-      .on('postgres_changes', {
+    runPublicLiveRefresh();
+  }, {
+    enabled: mode === 'public' && Boolean(partidoId),
+  });
+
+  useEffect(() => {
+    if (mode !== 'public' || !partidoId) {
+      clearLiveRefreshIntervalSafe();
+      return undefined;
+    }
+
+    setLiveRefreshIntervalSafe(() => {
+      if (document.visibilityState !== 'visible') return;
+      runPublicLiveRefresh({ showTransitionFeedback: true });
+    }, 4000);
+
+    return clearLiveRefreshIntervalSafe;
+  }, [clearLiveRefreshIntervalSafe, mode, partidoId, runPublicLiveRefresh, setLiveRefreshIntervalSafe]);
+
+  useSupabaseRealtime({
+    enabled: (mode === 'public' || mode === 'invite') && Boolean(user?.id) && Boolean(partidoId),
+    channelName: user?.id && partidoId ? `match-membership-${mode}-${partidoId}-${user.id}` : null,
+    deps: [mode, partidoId, user?.id, navigate],
+    events: user?.id && partidoId ? [
+      {
         event: 'DELETE',
         schema: 'public',
         table: 'jugadores',
         filter: `partido_id=eq.${Number(partidoId)}`,
-      }, (payload) => {
-        const removedUserId = payload?.old?.usuario_id;
-        if (String(removedUserId) !== String(user.id)) return;
-        showInlineNotice('warning', 'Fuiste removido del partido por el admin.');
-        setTimeout(() => navigate('/', { replace: true }), 900);
-      })
-      .subscribe();
+        handler: async (payload) => {
+          const removedUserId = payload?.old?.usuario_id;
+          if (String(removedUserId) !== String(user.id)) return;
+          if (mode === 'public') {
+            hasShownRemovalNoticeRef.current = true;
+            setJoinStatus('none');
+            showInlineNotice('warning', 'Ya no formás parte de este partido.');
+            await runPublicLiveRefresh();
+            return;
+          }
+          setJoinStatus('none');
+          showInlineNotice('warning', 'Fuiste removido del partido por el admin.');
+          setTimeout(() => navigate('/', { replace: true }), 900);
+        },
+      },
+    ] : [],
+  });
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [mode, user?.id, partidoId, navigate]);
+  useSupabaseRealtime({
+    enabled: mode === 'public' && Boolean(partidoId),
+    channelName: partidoId ? `public-match-live-${partidoId}` : null,
+    deps: [mode, partidoId, user?.id],
+    events: partidoId ? [
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'partidos',
+        filter: `id=eq.${Number(partidoId)}`,
+        handler: () => {
+          runPublicLiveRefresh({ showTransitionFeedback: true, showClosedNotice: true });
+        },
+      },
+      {
+        event: '*',
+        schema: 'public',
+        table: 'jugadores',
+        filter: `partido_id=eq.${Number(partidoId)}`,
+        handler: async () => {
+          await runPublicLiveRefresh({ showTransitionFeedback: true });
+        },
+      },
+      {
+        event: '*',
+        schema: 'public',
+        table: 'match_join_requests',
+        filter: `match_id=eq.${Number(partidoId)}`,
+        handler: (payload) => {
+          const payloadUserId = payload?.new?.user_id || payload?.old?.user_id;
+          if (!user?.id || String(payloadUserId) !== String(user.id)) return;
+          runPublicLiveRefresh({ showTransitionFeedback: true });
+        },
+      },
+    ] : [],
+  });
 
   // Recheck membership for approved_pending_sync state
   async function recheckMembership(userUuid, matchId, originalReqId, attempt = 1) {
@@ -1074,6 +1392,14 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       }
     }, intervalMs);
   }
+
+  useEffect(() => {
+    if (mode !== 'public' || joinStatus !== 'approved_pending_sync' || !user?.id || !partidoId) {
+      return;
+    }
+
+    recheckMembership(user.id, Number(partidoId), reqIdRef.current);
+  }, [joinStatus, mode, user?.id, partidoId]);
 
   // Si el usuario ya está logueado, ofrecerle sumar directamente
   useEffect(() => {
@@ -1168,7 +1494,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       return;
     }
 
-    if (joinStatus !== 'none' || joinSubmitting) return;
+    if (joinStatus !== 'none' || joinSubmitting || joinCancelling) return;
 
     try {
       const canContinue = await checkScheduleConflictAndMaybeWarn({ skipWarning: skipScheduleWarning });
@@ -1202,17 +1528,48 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
 
       if (insertError) {
         if (String(insertError.code) === '23505') {
-          // Duplicate request - check existing status
+          // Duplicate request - check latest status and recover when the latest row is reopenable.
           console.log('[SOLICITAR_UNIRME] Duplicate request detected, checking existing status');
-          const { data: existingRequest } = await supabase
-            .from('match_join_requests')
-            .select('id, status')
-            .eq('match_id', Number(partidoId))
-            .eq('user_id', user.id)
-            .single();
+          const { data: existingRequest } = await fetchLatestJoinRequest({
+            matchId: Number(partidoId),
+            userId: user.id,
+          });
+
+          const existingStatus = normalizeJoinRequestStatus(existingRequest?.status);
+
+          if (existingRequest && REOPENABLE_JOIN_REQUEST_STATUSES.has(existingStatus)) {
+            const { data: reopenedRequest, error: reopenError } = await supabase
+              .from('match_join_requests')
+              .update({ status: 'pending' })
+              .eq('id', existingRequest.id)
+              .select('id')
+              .single();
+
+            if (reopenError) {
+              throw reopenError;
+            }
+
+            const requesterName = user?.user_metadata?.nombre || user?.email?.split('@')[0] || 'Un jugador';
+            await notifyAdminJoinRequest({
+              matchId: Number(partidoId),
+              requestId: reopenedRequest?.id || existingRequest.id,
+              requesterUserId: user?.id || null,
+              requesterName,
+              adminUserId: partido?.creado_por || null,
+            });
+
+            setJoinStatus('pending');
+            showInlineNotice('success', 'Solicitud enviada. Esperando aprobación del admin.');
+            return;
+          }
 
           if (existingRequest) {
-            setJoinStatus(existingRequest.status);
+            if (existingStatus === 'approved') {
+              const { isMember } = await isUserMemberOfMatch(user.id, Number(partidoId));
+              setJoinStatus(isMember ? 'approved' : 'approved_pending_sync');
+            } else {
+              setJoinStatus(resolvePublicJoinStatus(existingRequest.status));
+            }
             // No toast here: status is reflected in UI.
           }
           return;
@@ -1241,6 +1598,116 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       notifyBlockingError('No se pudo enviar la solicitud');
     } finally {
       setJoinSubmitting(false);
+    }
+  };
+
+  const handleCancelarSolicitud = async () => {
+    if (mode !== 'public' || !user?.id || joinStatus !== 'pending' || joinSubmitting || joinCancelling) {
+      return;
+    }
+
+    setJoinCancelling(true);
+    suppressRejectedJoinNoticeRef.current = true;
+    try {
+      const matchId = Number(partidoId);
+      const { isMember } = await isUserMemberOfMatch(user.id, matchId);
+
+      if (isMember) {
+        suppressRejectedJoinNoticeRef.current = false;
+        setJoinStatus('approved');
+        showInlineNotice('info', 'Ya estás aprobado para este partido.');
+        return;
+      }
+
+      const { data: latestPendingRequest, error: pendingRequestError } = await fetchLatestJoinRequest({
+        matchId,
+        userId: user.id,
+        status: 'pending',
+      });
+
+      if (pendingRequestError) {
+        throw pendingRequestError;
+      }
+
+      if (!latestPendingRequest?.id) {
+        suppressRejectedJoinNoticeRef.current = false;
+        const { data: latestRequest, error: latestRequestError } = await fetchLatestJoinRequest({
+          matchId,
+          userId: user.id,
+        });
+
+        if (latestRequestError) {
+          throw latestRequestError;
+        }
+
+        const latestStatus = resolvePublicJoinStatus(latestRequest?.status);
+        if (latestStatus === 'approved') {
+          setJoinStatus('approved_pending_sync');
+          showInlineNotice('info', 'Tu solicitud ya fue aprobada.');
+        } else {
+          setJoinStatus('none');
+          showInlineNotice('info', 'La solicitud ya no estaba pendiente.');
+        }
+        return;
+      }
+
+      const { error: cancelError } = await cancelLatestPendingJoinRequest({
+        requestId: latestPendingRequest.id,
+        matchId,
+        userId: user.id,
+      });
+
+      if (cancelError) {
+        suppressRejectedJoinNoticeRef.current = false;
+        throw cancelError;
+      }
+
+      const { data: latestRequestAfterCancel, error: latestRequestAfterCancelError } = await fetchLatestJoinRequest({
+        matchId,
+        userId: user.id,
+      });
+
+      if (latestRequestAfterCancelError) {
+        suppressRejectedJoinNoticeRef.current = false;
+        throw latestRequestAfterCancelError;
+      }
+
+      const latestStatusAfterCancel = normalizeJoinRequestStatus(latestRequestAfterCancel?.status);
+      if (latestStatusAfterCancel === 'pending') {
+        suppressRejectedJoinNoticeRef.current = false;
+        const { isMember: isMemberAfterCancelAttempt } = await isUserMemberOfMatch(user.id, matchId);
+        if (isMemberAfterCancelAttempt) {
+          setJoinStatus('approved');
+          showInlineNotice('info', 'Ya estás aprobado para este partido.');
+        } else {
+          setJoinStatus('pending');
+          showInlineNotice('warning', 'No se pudo cancelar la solicitud. Reintentá.');
+        }
+        return;
+      }
+
+      if (latestStatusAfterCancel === 'approved') {
+        suppressRejectedJoinNoticeRef.current = false;
+        setJoinStatus('approved_pending_sync');
+        showInlineNotice('info', 'Tu solicitud ya fue aprobada.');
+        return;
+      }
+
+      joinStatusRef.current = 'none';
+      setJoinStatus('none');
+      showInlineNotice('success', 'Solicitud cancelada');
+      await refreshPublicJoinStateFromBackend();
+    } catch (err) {
+      suppressRejectedJoinNoticeRef.current = false;
+      console.error('[CANCELAR_SOLICITUD] Error canceling pending request:', {
+        code: err?.code,
+        message: err?.message,
+        details: err?.details,
+        hint: err?.hint,
+      });
+      showInlineNotice('warning', 'No se pudo cancelar la solicitud. Reintentá.');
+    } finally {
+      setJoinCancelling(false);
     }
   };
 
@@ -1527,6 +1994,9 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
   if (step === 'invitation') {
     const isPublic = mode === 'public';
     const showBottomNav = !isPublic && !!user;
+    const handleBack = () => goBackSmart({
+      fallback: isPublic ? '/quiero-jugar' : '/',
+    });
     return (
       <>
         <SharedInviteLayout
@@ -1538,14 +2008,16 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           submitting={submitting || joinSubmitting}
           onSumarse={handleSumarse}
           onNavigateHome={() => navigate('/')}
-          onNavigateBack={() => navigate(-1)}
+          onNavigateBack={handleBack}
           codigoValido={codigoValido}
           mode={mode}
           joinStatus={joinStatus}
+          joinCancelling={joinCancelling}
           isMatchFull={isMatchFull}
           inlineNotice={inlineNotice}
           onClearInlineNotice={() => setInlineNotice(null)}
           onAddToCalendar={handleAddToCalendar}
+          onCancelJoinRequest={handleCancelarSolicitud}
           showBottomNav={showBottomNav}
         />
         <ConfirmModal

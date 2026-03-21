@@ -4,7 +4,7 @@ import Modal from '../Modal';
 import LoadingSpinner from '../LoadingSpinner';
 import MatchSelectionCard from '../MatchSelectionCard';
 import { supabase } from '../../supabase';
-import { formatLocalDateShort, parseLocalDateTime } from '../../utils/dateLocal';
+import { formatLocalDateShort } from '../../utils/dateLocal';
 import { resolveInviteRecipientsFromGroups } from '../../services/db/privateFriendGroups';
 import { normalizeSendMatchInviteResult } from '../../utils/matchInviteState';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
@@ -15,6 +15,7 @@ import {
   readCachedInvitedGroupIds,
   rememberCachedInvitedGroupIds,
 } from '../../utils/groupInviteCache';
+import { QUIERO_JUGAR_OPEN_MATCHES_VIEW } from '../../services/db/openMatches';
 
 const PRIMARY_ACTION_BUTTON_CLASS = 'inline-flex min-h-[44px] items-center justify-center gap-2 rounded-none border border-[#7d5aff] bg-[#6a43ff] px-4 py-2.5 font-bebas text-base tracking-[0.01em] text-white shadow-[0_0_14px_rgba(106,67,255,0.3)] transition-all hover:bg-[#7550ff] active:opacity-95 disabled:cursor-not-allowed disabled:border-[rgba(125,90,255,0.45)] disabled:bg-[rgba(106,67,255,0.55)] disabled:text-white/45 disabled:shadow-none';
 const SECONDARY_ACTION_BUTTON_CLASS = 'inline-flex min-h-[44px] items-center justify-center gap-2 rounded-none border border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] px-4 py-2.5 font-bebas text-base tracking-[0.01em] text-white/92 transition-all hover:bg-[rgba(30,45,94,0.95)] active:opacity-95 disabled:cursor-not-allowed disabled:opacity-50';
@@ -145,11 +146,10 @@ const InviteGroupToMatchModal = ({
 
       try {
         const { data: adminMatches, error: matchesError } = await supabase
-          .from('partidos')
-          .select('id, nombre, fecha, hora, sede, modalidad, cupo_jugadores, tipo_partido, precio_cancha_por_persona, estado, deleted_at')
+          .from(QUIERO_JUGAR_OPEN_MATCHES_VIEW)
+          .select('id, nombre, fecha, hora, sede, modalidad, cupo_jugadores, tipo_partido')
           .eq('creado_por', currentUserId)
-          .order('fecha', { ascending: true })
-          .order('hora', { ascending: true });
+          .order('kickoff_at', { ascending: true });
 
         if (matchesError) throw matchesError;
 
@@ -164,22 +164,7 @@ const InviteGroupToMatchModal = ({
           playerRows = data || [];
         }
 
-        const now = new Date();
         const nextMatches = (adminMatches || [])
-          .filter((match) => {
-            const estado = String(match?.estado || '').toLowerCase();
-            if (['cancelado', 'cancelled', 'deleted'].includes(estado) || match?.deleted_at) {
-              return false;
-            }
-
-            if (!match?.fecha || !match?.hora) return true;
-
-            const matchDateTime = parseLocalDateTime(match.fecha, match.hora);
-            if (!matchDateTime) return true;
-
-            const oneHourAfter = new Date(matchDateTime.getTime() + 60 * 60 * 1000);
-            return now <= oneHourAfter;
-          })
           .map((match) => {
             const playersInMatch = playerRows.filter((row) => row?.partido_id === match.id);
             const starterCapacity = Number(match?.cupo_jugadores || 20);
@@ -394,10 +379,10 @@ const InviteGroupToMatchModal = ({
   };
 
   const footer = (
-    <div className="flex flex-wrap justify-end gap-2">
+    <div className="grid grid-cols-2 gap-2">
       <button
         type="button"
-        className={`${SECONDARY_ACTION_BUTTON_CLASS} min-w-[140px] flex-1 sm:flex-none`}
+        className={`${SECONDARY_ACTION_BUTTON_CLASS} w-full min-w-0`}
         onClick={onClose}
         disabled={inviting}
         data-preserve-button-case="true"
@@ -406,7 +391,7 @@ const InviteGroupToMatchModal = ({
       </button>
       <button
         type="button"
-        className={`${PRIMARY_ACTION_BUTTON_CLASS} min-w-[160px] flex-1 sm:flex-none`}
+        className={`${PRIMARY_ACTION_BUTTON_CLASS} w-full min-w-0`}
         onClick={handleInviteGroup}
         disabled={inviting || !selectedMatch?.id || !selectedMatch?.canInvite}
         data-preserve-button-case="true"
@@ -446,7 +431,7 @@ const InviteGroupToMatchModal = ({
           </div>
         ) : matches.length === 0 ? (
           <div className="rounded-none border border-dashed border-white/15 px-4 py-8 text-center text-sm text-white/55">
-            No tenés partidos disponibles para invitar a este grupo.
+            No tenés partidos abiertos disponibles para invitar a este grupo.
           </div>
         ) : (
           <div className="flex max-h-[420px] flex-col gap-3 overflow-y-auto pr-1">
