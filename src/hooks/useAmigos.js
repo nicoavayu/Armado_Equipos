@@ -1,9 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase, getAmigos as getAmigosFromSupabase } from '../supabase';
 import { useNotifications } from '../context/NotificationContext';
 import { requestImmediatePushDispatchSafe } from '../services/pushDispatchService';
 import { track } from '../utils/monitoring/analytics';
-import { isAbortLikeError } from '../utils/isAbortLikeError';
 
 /**
  * Validate if a string is a valid UUID format
@@ -42,140 +41,31 @@ const pickBestAvatarUrl = (...candidates) => {
   return scored[0]?.url || null;
 };
 
-const FRIENDS_DEBUG_PREFIX = '[AMIGOS_DEBUG][useAmigos][friends]';
-const FRIENDS_TIMEOUT_CODE = 'AMIGOS_FRIENDS_TIMEOUT';
-const FRIENDS_TIMEOUT_MS = 7000;
-export const FRIENDS_VIEW_STATES = Object.freeze({
-  IDLE: 'idle',
-  LOADING: 'loading',
-  SUCCESS: 'success',
-  EMPTY: 'empty',
-  ERROR: 'error',
-});
-
-const createFriendsTimeoutError = (requestId) => {
-  const error = new Error('La carga de amigos está tardando demasiado. Probá de nuevo en unos segundos.');
-  error.code = FRIENDS_TIMEOUT_CODE;
-  error.requestId = requestId;
-  return error;
-};
-
 /**
  * Hook for managing friend relationships
  * @returns {Object} Friend management functions and state
  */
 export const useAmigos = (currentUserId) => {
   const [amigos, setAmigos] = useState([]);
-  const [friendsState, setFriendsState] = useState(FRIENDS_VIEW_STATES.IDLE);
-  const [pendingRequestsLoading, setPendingRequestsLoading] = useState(false);
-  const [friendsError, setFriendsError] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const { createNotification: _createNotification } = useNotifications();
-  const isMountedRef = useRef(true);
-  const amigosRef = useRef([]);
-  const getAmigosRequestSeqRef = useRef(0);
-  const visibleFriendsRequestIdRef = useRef(0);
-  const getPendingRequestsSeqRef = useRef(0);
-  const pendingLoadingRequestIdRef = useRef(0);
-  const friendsStateRef = useRef(FRIENDS_VIEW_STATES.IDLE);
-
-  const updateFriendsState = useCallback((nextValue, reason, requestId = null, meta = {}) => {
-    console.debug('[AMIGOS_DEBUG][useAmigos][friendsState]', {
-      nextValue,
-      reason,
-      requestId,
-      currentUserId,
-      ...meta,
-    });
-    friendsStateRef.current = nextValue;
-    setFriendsState(nextValue);
-  }, [currentUserId]);
-
-  const friendsLoading = friendsState === FRIENDS_VIEW_STATES.LOADING;
-
-  const updatePendingRequestsLoading = useCallback((nextValue, reason) => {
-    console.debug('[AMIGOS_DEBUG][useAmigos][pendingRequestsLoading]', {
-      nextValue,
-      reason,
-      currentUserId,
-    });
-    setPendingRequestsLoading(nextValue);
-  }, [currentUserId]);
-
-  useEffect(() => {
-    amigosRef.current = amigos;
-  }, [amigos]);
-
-  useEffect(() => {
-    friendsStateRef.current = friendsState;
-  }, [friendsState]);
-
-  useEffect(() => {
-    console.debug('[AMIGOS_DEBUG][useAmigos][state]', {
-      currentUserId,
-      amigosCount: amigos.length,
-      friendsState,
-      friendsLoading,
-      pendingRequestsLoading,
-      friendsError,
-    });
-  }, [amigos.length, currentUserId, friendsError, friendsLoading, friendsState, pendingRequestsLoading]);
-
-  useEffect(() => () => {
-    isMountedRef.current = false;
-  }, []);
 
   // Get all friends with status 'accepted' usando la nueva función refactorizada
-  const getAmigos = useCallback(async (options = {}) => {
-    const silent = Boolean(options?.silent);
-    const requestId = ++getAmigosRequestSeqRef.current;
-    let timeoutId = null;
-
-    console.info(`${FRIENDS_DEBUG_PREFIX}[load][start]`, {
-      requestId,
-      silent,
-      currentUserId,
-    });
-
+  const getAmigos = useCallback(async () => {
     if (!currentUserId) {
-      console.info(`${FRIENDS_DEBUG_PREFIX}[load][missing-user]`, {
-        requestId,
-        silent,
-      });
-      if (isMountedRef.current) {
-        amigosRef.current = [];
-        setAmigos([]);
-        setFriendsError(null);
-        updateFriendsState(FRIENDS_VIEW_STATES.IDLE, 'missing-current-user', requestId, {
-          silent,
-        });
-      }
+      console.log('[HOOK_AMIGOS] No currentUserId provided');
+      setAmigos([]);
       return [];
     }
 
     console.log('[HOOK_AMIGOS] Fetching friends for user:', currentUserId);
-    if (!silent) {
-      visibleFriendsRequestIdRef.current = requestId;
-      if (isMountedRef.current && requestId === getAmigosRequestSeqRef.current) {
-        setFriendsError(null);
-        updateFriendsState(FRIENDS_VIEW_STATES.LOADING, 'getAmigos:start', requestId, {
-          silent,
-        });
-      }
-    }
+    setLoading(true);
+    setError(null);
 
     try {
-      const friendUsers = await (
-        silent
-          ? getAmigosFromSupabase(currentUserId)
-          : Promise.race([
-            getAmigosFromSupabase(currentUserId),
-            new Promise((_, reject) => {
-              timeoutId = window.setTimeout(() => {
-                reject(createFriendsTimeoutError(requestId));
-              }, FRIENDS_TIMEOUT_MS);
-            }),
-          ])
-      );
+      // Usar la función refactorizada que devuelve usuarios directos
+      const friendUsers = await getAmigosFromSupabase(currentUserId);
 
       console.log('[HOOK_AMIGOS] Friends received from supabase function:', {
         count: friendUsers?.length || 0,
@@ -199,113 +89,18 @@ export const useAmigos = (currentUserId) => {
         })) || [],
       });
 
-      console.info(`${FRIENDS_DEBUG_PREFIX}[load][resolved]`, {
-        requestId,
-        silent,
-        friendCount: formattedAmigos.length,
-      });
-
-      if (requestId !== getAmigosRequestSeqRef.current) {
-        console.info(`${FRIENDS_DEBUG_PREFIX}[load][resolved-stale-ignored]`, {
-          requestId,
-          latestRequestId: getAmigosRequestSeqRef.current,
-          silent,
-        });
-        return formattedAmigos;
-      }
-
-      if (isMountedRef.current && requestId === getAmigosRequestSeqRef.current) {
-        amigosRef.current = formattedAmigos;
-        setAmigos(formattedAmigos);
-        setFriendsError(null);
-        updateFriendsState(
-          formattedAmigos.length > 0 ? FRIENDS_VIEW_STATES.SUCCESS : FRIENDS_VIEW_STATES.EMPTY,
-          'getAmigos:resolved',
-          requestId,
-          {
-            silent,
-            friendCount: formattedAmigos.length,
-          },
-        );
-      }
+      setAmigos(formattedAmigos);
       return formattedAmigos;
     } catch (err) {
-      if (requestId !== getAmigosRequestSeqRef.current) {
-        console.info(`${FRIENDS_DEBUG_PREFIX}[load][catch-stale-ignored]`, {
-          requestId,
-          latestRequestId: getAmigosRequestSeqRef.current,
-          silent,
-          message: err?.message || String(err),
-        });
-        return amigosRef.current || [];
-      }
-
-      if (isAbortLikeError(err)) {
-        console.info(`${FRIENDS_DEBUG_PREFIX}[load][abort]`, {
-          requestId,
-          silent,
-        });
-        if (!silent && isMountedRef.current && requestId === visibleFriendsRequestIdRef.current) {
-          const fallbackCount = Array.isArray(amigosRef.current) ? amigosRef.current.length : 0;
-          setFriendsError(null);
-          updateFriendsState(
-            fallbackCount > 0 ? FRIENDS_VIEW_STATES.SUCCESS : FRIENDS_VIEW_STATES.EMPTY,
-            'getAmigos:abort',
-            requestId,
-            {
-              silent,
-              fallbackCount,
-            },
-          );
-        }
-        return amigosRef.current || [];
-      }
-
-      console.error(`${FRIENDS_DEBUG_PREFIX}[load][catch]`, {
-        requestId,
-        silent,
-        code: err?.code || null,
-        message: err?.message || String(err),
-        error: err,
-      });
-
       console.error('[HOOK_AMIGOS] Error fetching friends:', err);
       console.error('[HOOK_AMIGOS] Error context:', { userId: currentUserId });
-      if (isMountedRef.current && requestId === getAmigosRequestSeqRef.current) {
-        const fallbackFriends = Array.isArray(amigosRef.current) ? amigosRef.current : [];
-        const hasRenderableFriends = fallbackFriends.length > 0;
-        setFriendsError(hasRenderableFriends ? null : err.message);
-        if (!silent && !hasRenderableFriends) {
-          amigosRef.current = [];
-          setAmigos([]);
-        }
-        updateFriendsState(
-          hasRenderableFriends ? FRIENDS_VIEW_STATES.SUCCESS : FRIENDS_VIEW_STATES.ERROR,
-          'getAmigos:catch',
-          requestId,
-          {
-            silent,
-            fallbackCount: fallbackFriends.length,
-            code: err?.code || null,
-          },
-        );
-      }
-      return amigosRef.current || [];
+      setError(err.message);
+      setAmigos([]);
+      return [];
     } finally {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-
-      console.info(`${FRIENDS_DEBUG_PREFIX}[load][finally]`, {
-        requestId,
-        silent,
-        currentUserId,
-        visibleOwnerRequestId: visibleFriendsRequestIdRef.current,
-        latestRequestId: getAmigosRequestSeqRef.current,
-        friendsState: friendsStateRef.current,
-      });
+      setLoading(false);
     }
-  }, [currentUserId, updateFriendsState]);
+  }, [currentUserId]);
 
   // Get relationship status with a specific player
   const getRelationshipStatus = useCallback(async (playerId) => {
@@ -363,10 +158,6 @@ export const useAmigos = (currentUserId) => {
       console.log('[AMIGOS] Relationship check complete - no existing relationship found');
       return reverseData || null;
     } catch (err) {
-      if (isAbortLikeError(err)) {
-        console.info('[AMIGOS] Relationship status request aborted');
-        return null;
-      }
       console.error('[AMIGOS] Error getting relationship status:', err);
       console.error('[AMIGOS] Error context:', { currentUserId, playerId });
       return null;
@@ -485,9 +276,6 @@ export const useAmigos = (currentUserId) => {
 
       return { success: true, data };
     } catch (err) {
-      if (isAbortLikeError(err)) {
-        return { success: false, message: 'Solicitud abortada' };
-      }
       console.error('[AMIGOS] Error sending friend request:', err);
       console.error('[AMIGOS] Error context:', { currentUserId, friendId });
 
@@ -560,9 +348,6 @@ export const useAmigos = (currentUserId) => {
       getAmigos();
       return { success: true, data };
     } catch (err) {
-      if (isAbortLikeError(err)) {
-        return { success: false, message: 'Solicitud abortada' };
-      }
       console.error('[AMIGOS] Error accepting friend request:', err);
       console.error('[AMIGOS] Error context:', { requestId });
       return { success: false, message: err.message };
@@ -616,9 +401,6 @@ export const useAmigos = (currentUserId) => {
 
       return { success: true, data };
     } catch (err) {
-      if (isAbortLikeError(err)) {
-        return { success: false, message: 'Solicitud abortada' };
-      }
       console.error('[AMIGOS] Error rejecting friend request:', err);
       console.error('[AMIGOS] Error context:', { requestId });
       return { success: false, message: err.message };
@@ -663,9 +445,6 @@ export const useAmigos = (currentUserId) => {
 
       return { success: true };
     } catch (err) {
-      if (isAbortLikeError(err)) {
-        return { success: false, message: 'Solicitud abortada' };
-      }
       console.error('[AMIGOS] Error removing friend:', err);
       return { success: false, message: err.message };
     }
@@ -673,23 +452,12 @@ export const useAmigos = (currentUserId) => {
 
   // Get pending friend requests (received)
   const getPendingRequests = useCallback(async () => {
-    const requestId = ++getPendingRequestsSeqRef.current;
-
     if (!currentUserId) {
       console.log('[AMIGOS] getPendingRequests: No currentUserId provided');
-      if (isMountedRef.current) {
-        updatePendingRequestsLoading(false, 'missing-current-user');
-      }
       return [];
     }
 
     console.log('[AMIGOS] Fetching pending friend requests for user:', currentUserId);
-
-    pendingLoadingRequestIdRef.current = requestId;
-    if (isMountedRef.current && requestId === getPendingRequestsSeqRef.current) {
-      updatePendingRequestsLoading(true, `getPendingRequests:start:${requestId}`);
-    }
-
     try {
       // Ensure we're working with UUID
       const userIdUuid = typeof currentUserId === 'string' ? currentUserId : String(currentUserId);
@@ -801,28 +569,23 @@ export const useAmigos = (currentUserId) => {
 
       return formattedRequests;
     } catch (err) {
-      if (isAbortLikeError(err)) {
-        console.info('[AMIGOS] Pending requests request aborted');
-        return null;
-      }
       console.error('[AMIGOS] Error fetching pending requests:', err);
       console.error('[AMIGOS] Error context:', { userId: encodeURIComponent(currentUserId || '') });
       return [];
-    } finally {
-      if (isMountedRef.current && requestId === pendingLoadingRequestIdRef.current) {
-        updatePendingRequestsLoading(false, `getPendingRequests:end:${requestId}`);
-      }
     }
-  }, [currentUserId, updatePendingRequestsLoading]);
+  }, [currentUserId]);
+
+  // Load friends on mount if currentUserId is available
+  useEffect(() => {
+    if (currentUserId) {
+      getAmigos();
+    }
+  }, [currentUserId]); // Removed getAmigos from dependencies to prevent infinite loop
 
   return {
     amigos,
-    loading: friendsLoading,
-    friendsLoading,
-    friendsState,
-    pendingRequestsLoading,
-    error: friendsError,
-    friendsError,
+    loading,
+    error,
     getAmigos,
     getRelationshipStatus,
     sendFriendRequest,
