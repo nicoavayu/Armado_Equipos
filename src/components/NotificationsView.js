@@ -65,16 +65,8 @@ const NotificationsView = () => {
   const [expandedGroups, setExpandedGroups] = useState(new Set());
 
   useEffect(() => {
-    console.log('[NOTIFICATIONS_VIEW] Component mounted, fetching notifications');
     fetchNotifications();
   }, [fetchNotifications]);
-
-  // Log notifications when they change
-  useEffect(() => {
-    console.log('[NOTIFICATIONS_VIEW] Notifications updated:', notifications.length, 'total');
-    const friendRequests = notifications.filter((n) => n.type === 'friend_request');
-    console.log('[NOTIFICATIONS_VIEW] Friend requests:', friendRequests.length, friendRequests);
-  }, [notifications]);
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -142,8 +134,6 @@ const NotificationsView = () => {
 
     const link = notification?.data?.link;
     const matchId = extractNotificationMatchId(notification);
-
-    console.debug('[NOTIFICATION_CLICK]', { id: notification?.id, type: notification?.type, link, matchId });
 
     if (shouldTreatNotificationAsSurveyForm(notification)) {
       try { if (!notification.read) await markAsRead(notification.id); } catch (e) { /* Intentionally empty */ }
@@ -221,13 +211,11 @@ const NotificationsView = () => {
       const { matchCode, matchId } = data;
       if (matchCode) {
         const url = `/votar-equipos?codigo=${matchCode}`;
-        console.log('[NOTIFICATION_CLICK] call_to_vote - navigating to:', url);
         safeNavigate(notification, url, { replace: true });
         return;
       }
       if (matchId) {
         const url = `/votar-equipos?partidoId=${matchId}`;
-        console.log('[NOTIFICATION_CLICK] call_to_vote - navigating to:', url);
         safeNavigate(notification, url, { replace: true });
         return;
       }
@@ -266,7 +254,7 @@ const NotificationsView = () => {
       {
         const inviteStatus = String(data?.status || 'pending').trim().toLowerCase();
         if (inviteStatus !== 'pending') {
-          console.info('Esta invitación ya no está activa');
+          notifyBlockingError('Esta invitación ya no está activa');
           break;
         }
         trackNotificationOpened(notification);
@@ -295,11 +283,9 @@ const NotificationsView = () => {
         const { matchCode, matchId } = data;
         if (matchCode) {
           const url = `/votar-equipos?codigo=${matchCode}`;
-          console.log('[NOTIFICATION_CLICK] About to navigate to:', url);
           safeNavigate(notification, url, { replace: true });
         } else if (matchId) {
           const url = `/votar-equipos?partidoId=${matchId}`;
-          console.log('[NOTIFICATION_CLICK] About to navigate to:', url);
           safeNavigate(notification, url, { replace: true });
         } else {
           fallbackToNotificationRoute(notification, 'No encontramos el partido para votar equipos.');
@@ -381,7 +367,6 @@ const NotificationsView = () => {
         break;
       }
       default:
-        console.log('[NOTIFICATION_CLICK] Unknown notification type:', notification.type);
         fallbackToNotificationRoute(notification);
         break;
     }
@@ -401,7 +386,6 @@ const NotificationsView = () => {
     try {
       const result = await acceptFriendRequest(requestId);
       if (result.success) {
-        console.info('Solicitud de amistad aceptada');
         markAsRead(notification.id);
         fetchNotifications();
       } else {
@@ -432,7 +416,6 @@ const NotificationsView = () => {
     try {
       const result = await rejectFriendRequest(requestId);
       if (result.success) {
-        console.info('Solicitud de amistad rechazada');
         markAsRead(notification.id);
         fetchNotifications();
       } else {

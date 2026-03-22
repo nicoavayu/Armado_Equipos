@@ -812,7 +812,6 @@ const EquipoDetalleView = ({ teamId, userId }) => {
       });
       await refreshSelectedTeam({ includeHistory: false, silent: false });
       closeInviteMemberModal();
-      console.info('Invitacion enviada');
     } catch (error) {
       notifyBlockingError(error.message || 'No se pudo enviar la invitacion');
     } finally {
@@ -845,7 +844,6 @@ const EquipoDetalleView = ({ teamId, userId }) => {
       });
       await refreshSelectedTeam({ includeHistory: false, silent: false });
       setAddMemberChoiceOpen(false);
-      console.info('Te agregaste al equipo');
     } catch (error) {
       notifyBlockingError(error.message || 'No se pudo agregarte al equipo');
     } finally {
@@ -878,13 +876,8 @@ const EquipoDetalleView = ({ teamId, userId }) => {
         newCaptainMemberId: member.id,
       });
 
-      console.info(
-        `${member?.jugador?.nombre || 'Jugador'} ahora es el capitan de ${selectedTeam?.name || 'tu equipo'}`,
-      );
-
       setOpenMemberMenuId(null);
       await refreshSelectedTeam({ includeHistory: false, silent: false });
-      console.info('Capitanía transferida');
     } catch (error) {
       notifyBlockingError(error.message || 'No se pudo transferir la capitanía');
     } finally {
@@ -902,7 +895,6 @@ const EquipoDetalleView = ({ teamId, userId }) => {
       setIsSaving(true);
       await revokeTeamInvitation(invitationId);
       await refreshSelectedTeam({ includeHistory: false, silent: false });
-      console.info('Invitacion revocada');
     } catch (error) {
       notifyBlockingError(error.message || 'No se pudo revocar la invitacion');
     } finally {
@@ -1377,7 +1369,6 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                     <button
                       key={match.id}
                       type="button"
-                      onClick={() => console.info('Detalle de partido pendiente', match.id)}
                       className="w-full rounded-none border border-white/10 bg-white/5 p-3 text-left transition-all hover:bg-white/10"
                     >
                       <div className="flex items-center gap-3">

@@ -256,7 +256,6 @@ const MisEquiposTab = ({ userId }) => {
       setIsSaving(true);
       await acceptTeamInvitation(invitationId);
       await Promise.all([loadTeams({ withLoading: false }), loadIncomingInvitations()]);
-      console.info('Te uniste al equipo');
     } catch (error) {
       notifyBlockingError(error.message || 'No se pudo aceptar la invitacion');
     } finally {
@@ -269,7 +268,6 @@ const MisEquiposTab = ({ userId }) => {
       setIsSaving(true);
       await rejectTeamInvitation(invitationId);
       await loadIncomingInvitations();
-      console.info('Invitacion rechazada');
     } catch (error) {
       notifyBlockingError(error.message || 'No se pudo rechazar la invitacion');
     } finally {

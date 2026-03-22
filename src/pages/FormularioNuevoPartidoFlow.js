@@ -193,14 +193,22 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
     } catch (e) {
       console.error('Error preloading partido frecuente into form', e);
     } finally {
-      console.info('Plantilla aplicada');
+      showInlineNotice({
+        key: 'new_match_template_applied',
+        type: 'success',
+        message: 'Plantilla aplicada.',
+      });
       setShowFrecuentes(false);
       setStep(STEPS.NAME);
     }
   };
 
   const handleEditarFrecuenteFromList = (_p) => {
-    console.info('Editar desde la lista no disponible aquí');
+    showInlineNotice({
+      key: 'new_match_template_edit_unavailable',
+      type: 'info',
+      message: 'Editar desde la lista no disponible aquí.',
+    });
   };
 
   const handleSubmit = async () => {
@@ -208,9 +216,6 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
     setError('');
     // Snapshot the toggle now to avoid stale closures — strict boolean check
     const shouldSaveFrequent = (saveAsFrequent === true);
-
-    // TEMP logs for one run only (remove after verification)
-    console.log('[NuevoPartido] saveAsFrequent:', saveAsFrequent, 'shouldSaveFrequent:', shouldSaveFrequent);
 
     try {
       let partido;
@@ -241,17 +246,12 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
       };
 
       // Finally, create the match in partidos (never with valor_cancha)
-      console.log('CREAR PARTIDO payload (final)', payload);
       partido = await crearPartido(payload);
 
       if (!partido) {
         setError('No se pudo crear el partido');
         return;
       }
-
-      console.log('[CREATE] created partido', { match_ref: partido?.match_ref, shouldSaveFrequent });
-
-      console.log('[CREAR_PARTIDO] willPlay:', willPlay, 'user:', user?.id, 'partido:', partido?.match_ref);
 
       if (willPlay === true && user?.id && partido?.id) {
         try {
@@ -292,8 +292,6 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
             if (insertError) {
               console.error('[CREAR_PARTIDO] Error insert jugador creador:', insertError);
               notifyBlockingError('No pude agregarte como jugador: ' + insertError.message);
-            } else {
-              console.log('[CREAR_PARTIDO] Creador agregado como jugador ✅', jugadorRow);
             }
           }
         } catch (err) {
@@ -303,13 +301,20 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
 
       // Only after the partido is successfully created, optionally save a frequent template
       if (shouldSaveFrequent === true) {
-        console.log('[NuevoPartido] will insert frequent template for partido match_ref:', partido?.match_ref);
         try {
           await insertPartidoFrecuenteFromPartido(partido?.match_ref ?? partido?.id);
-          console.info('Plantilla guardada');
+          showInlineNotice({
+            key: 'new_match_template_saved',
+            type: 'success',
+            message: 'Plantilla guardada.',
+          });
         } catch (err) {
           console.error('[Guardar frecuente] error inserting frequent template:', err);
-          console.warn('Partido creado, pero no se pudo guardar como frecuente');
+          showInlineNotice({
+            key: 'new_match_template_save_failed',
+            type: 'warning',
+            message: 'Partido creado, pero no se pudo guardar como frecuente.',
+          });
         }
       }
 
@@ -561,10 +566,6 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
                     });
                     return;
                   }
-
-                  // DEBUG: Log validation info
-                  const debugInfo = getDebugInfo(fecha, hora);
-                  console.log('[DEBUG] Match validation:', debugInfo);
 
                   if (isBlockedInDebug(fecha, hora)) {
                     notifyBlockingError(

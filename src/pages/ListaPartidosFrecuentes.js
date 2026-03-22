@@ -76,10 +76,6 @@ function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
       return;
     }
     
-    // DEBUG: Log validation info
-    const debugInfo = getDebugInfo(selectedDate, timeToUse);
-    console.log('[DEBUG] Template match validation:', debugInfo);
-    
     if (isBlockedInDebug(selectedDate, timeToUse)) {
       notifyBlockingError(
         'La fecha y hora elegidas ya pasaron. Elegí un día y horario posteriores al momento actual para crear el partido.',
@@ -171,7 +167,11 @@ function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
         console.warn('[USAR PLANTILLA] roster prefill failed (non-blocking)', e);
       }
 
-      console.info('Partido creado');
+      showInlineNotice({
+        key: 'frecuentes_match_created',
+        type: 'success',
+        message: 'Partido creado.',
+      });
       onUse && onUse(partido);
     } catch (err) {
       console.error('[USAR PLANTILLA] error', err);
@@ -339,6 +339,7 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
   const navigate = useNavigate();
   const [partidosFrecuentes, setPartidosFrecuentes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { notice, showInlineNotice, clearInlineNotice } = useInlineNotice();
 
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [partidoToDelete, setPartidoToDelete] = useState(null);
@@ -354,15 +355,12 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
 
     const cargarPartidosFrecuentes = async () => {
       try {
-        console.log('[ListaPartidosFrecuentes] Loading frequent templates from partidos_frecuentes');
         setLoading(true);
         const { getPartidosFrecuentes, subscribeToPartidosFrecuentesChanges } = await import('../services/db/frequentMatches');
         const partidos = await getPartidosFrecuentes();
-        console.log('[ListaPartidosFrecuentes] Frequent templates loaded:', partidos.length);
         setPartidosFrecuentes(partidos || []);
 
         channel = subscribeToPartidosFrecuentesChanges(async (payload) => {
-          console.log('[ListaPartidosFrecuentes] Realtime change detected on partidos_frecuentes, refreshing list', payload.event);
           try {
             const refreshed = await getPartidosFrecuentes();
             setPartidosFrecuentes(refreshed || []);
@@ -382,7 +380,6 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
 
     // Refresh list when a new template is created elsewhere (EditarPartidoFrecuente dispatches this)
     const handleTemplateCreated = async (e) => {
-      console.log('[ListaPartidosFrecuentes] Received partido-frecuente-creado event', e?.detail);
       try {
         const { getPartidosFrecuentes } = await import('../services/db/frequentMatches');
         const partidos = await getPartidosFrecuentes();
@@ -397,7 +394,6 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
       try {
         if (channel && channel.unsubscribe) {
           channel.unsubscribe();
-          console.log('[ListaPartidosFrecuentes] Unsubscribed from realtime channel');
         }
         window.removeEventListener('partido-frecuente-creado', handleTemplateCreated);
       } catch (err) {
@@ -409,19 +405,16 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
   const handleDeleteClick = (partido) => {
     setPartidoToDelete(partido);
     setShowConfirmModal(true);
-    console.log('[ELIMINAR HISTORIAL] click', { id: partido?.id, item: partido });
   };
 
   const deleteTemplate = async (templateId) => {
     if (!templateId) {
-      console.warn('[ELIMINAR HISTORIAL] templateId ausente');
       return;
     }
     try {
       const { deletePartidoFrecuente } = await import('../services/db/frequentMatches');
       await deletePartidoFrecuente(templateId);
     } catch (err) {
-      console.warn('[ELIMINAR HISTORIAL] deleteTemplate fallback/TODO', err);
       throw err;
     }
   };
@@ -444,7 +437,6 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
 
   const handleEditTemplate = (partido) => {
     if (typeof onEditar === 'function') return onEditar(partido);
-    console.log('[HISTORIAL] Editar plantilla', partido?.id);
   };
 
   const confirmarEliminacion = async () => {
@@ -453,11 +445,14 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
     setIsDeleting(true);
 
     try {
-      console.log('[ELIMINAR HISTORIAL] requesting delete', { id: partidoToDelete?.id });
       await deleteTemplate(partidoToDelete.id);
 
       setPartidosFrecuentes((prev) => prev.filter((p) => p.id !== partidoToDelete.id));
-      console.info('Plantilla eliminada correctamente');
+      showInlineNotice({
+        key: 'frecuentes_template_deleted',
+        type: 'success',
+        message: 'Plantilla eliminada correctamente.',
+      });
     } catch (err) {
       console.error('[ELIMINAR HISTORIAL] unexpected error', err);
       notifyBlockingError('Error al eliminar la plantilla: ' + (err?.message || String(err)));
@@ -498,6 +493,18 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
   return (
     <div className="w-full max-w-[550px] mx-auto flex flex-col items-center pt-[96px] pb-32 px-4 box-border">
       <PageTitle title="FRECUENTES" onBack={onVolver}>FRECUENTES</PageTitle>
+
+      {notice ? (
+        <div className="w-full mt-4">
+          <InlineNotice
+            key={notice.key || notice.message}
+            type={notice.type}
+            message={notice.message}
+            autoHideMs={notice.type === 'warning' ? null : 3000}
+            onClose={clearInlineNotice}
+          />
+        </div>
+      ) : null}
 
       <div className="w-full mt-0">
         {partidosFrecuentes.length === 0 ? (

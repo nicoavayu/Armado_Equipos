@@ -52,25 +52,23 @@ export const useAmigos = (currentUserId) => {
   const { createNotification: _createNotification } = useNotifications();
 
   // Get all friends with status 'accepted' usando la nueva función refactorizada
-  const getAmigos = useCallback(async () => {
+  const getAmigos = useCallback(async (options = {}) => {
+    const silent = Boolean(options?.silent);
     if (!currentUserId) {
-      console.log('[HOOK_AMIGOS] No currentUserId provided');
-      setAmigos([]);
+      if (!silent) {
+        setAmigos([]);
+      }
       return [];
     }
 
-    console.log('[HOOK_AMIGOS] Fetching friends for user:', currentUserId);
-    setLoading(true);
-    setError(null);
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
 
     try {
       // Usar la función refactorizada que devuelve usuarios directos
       const friendUsers = await getAmigosFromSupabase(currentUserId);
-
-      console.log('[HOOK_AMIGOS] Friends received from supabase function:', {
-        count: friendUsers?.length || 0,
-        sample: friendUsers?.slice(0, 2).map((u) => ({ id: u.id, nombre: u.nombre })) || [],
-      });
 
       // Convertir a formato esperado por la UI (con profile wrapper)
       const formattedAmigos = friendUsers.map((user) => ({
@@ -80,32 +78,25 @@ export const useAmigos = (currentUserId) => {
         profile: user, // El usuario completo va en profile
       }));
 
-      console.log('[HOOK_AMIGOS] Formatted friends for UI:', {
-        count: formattedAmigos.length,
-        sample: formattedAmigos.slice(0, 2).map((a) => ({
-          id: a.id,
-          profileName: a.profile?.nombre,
-          profileId: a.profile?.id,
-        })) || [],
-      });
-
       setAmigos(formattedAmigos);
       return formattedAmigos;
     } catch (err) {
       console.error('[HOOK_AMIGOS] Error fetching friends:', err);
-      console.error('[HOOK_AMIGOS] Error context:', { userId: currentUserId });
-      setError(err.message);
-      setAmigos([]);
+      if (!silent) {
+        setError(err.message);
+        setAmigos([]);
+      }
       return [];
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   }, [currentUserId]);
 
   // Get relationship status with a specific player
   const getRelationshipStatus = useCallback(async (playerId) => {
     if (!currentUserId || !playerId) {
-      console.log('[AMIGOS] getRelationshipStatus: Missing parameters', { currentUserId, playerId });
       return null;
     }
 
@@ -119,11 +110,8 @@ export const useAmigos = (currentUserId) => {
       });
       return null;
     }
-
-    console.log('[AMIGOS] Checking relationship status between users:', { currentUserId, playerId });
     try {
       // Check if there's a relationship where current user is user_id
-      console.log('[AMIGOS] Checking if current user is the requester (user_id)');
       const { data, error } = await supabase
         .from('amigos')
         .select('id, status, user_id, friend_id')
@@ -136,13 +124,9 @@ export const useAmigos = (currentUserId) => {
         return null;
       }
 
-      if (data) {
-        console.log('[AMIGOS] Relationship found as user_id:', data);
-        return data;
-      }
+      if (data) return data;
 
       // Check if there's a relationship where current user is friend_id
-      console.log('[AMIGOS] Checking if current user is the receiver (friend_id)');
       const { data: reverseData, error: reverseError } = await supabase
         .from('amigos')
         .select('id, status, user_id, friend_id')
@@ -155,11 +139,9 @@ export const useAmigos = (currentUserId) => {
         return null;
       }
 
-      console.log('[AMIGOS] Relationship check complete - no existing relationship found');
       return reverseData || null;
     } catch (err) {
       console.error('[AMIGOS] Error getting relationship status:', err);
-      console.error('[AMIGOS] Error context:', { currentUserId, playerId });
       return null;
     }
   }, [currentUserId]);
@@ -186,7 +168,6 @@ export const useAmigos = (currentUserId) => {
       return { success: false, message: 'Error: Identificadores inválidos' };
     }
 
-    console.log('[AMIGOS] Sending friend request:', { from: currentUserId, to: friendId });
     try {
       const createPendingRequest = async () => {
         const { data: insertData, error: insertError } = await supabase
@@ -207,16 +188,12 @@ export const useAmigos = (currentUserId) => {
       };
 
       // Check if a relationship already exists
-      console.log('[AMIGOS] Checking if relationship already exists');
       const existingRelation = await getRelationshipStatus(friendId);
 
       let data;
       if (existingRelation) {
-        console.log('[AMIGOS] Relationship already exists:', existingRelation);
-
         if (existingRelation.status === 'rejected') {
           // Recreate request from current user so direction and RLS constraints stay consistent.
-          console.log('[AMIGOS] Recreating rejected relationship as pending request');
           const { data: deletedRows, error: deleteError } = await supabase
             .from('amigos')
             .delete()
@@ -254,12 +231,8 @@ export const useAmigos = (currentUserId) => {
         }
       } else {
         // Create new friend request
-        console.log('[AMIGOS] Creating new friend request');
         data = await createPendingRequest();
       }
-
-
-      console.log('[AMIGOS] Friend request created successfully:', data);
       track('friend_request_sent', {
         request_id: String(data?.id || '').trim() || undefined,
         recipient_user_id: String(friendId).trim(),
@@ -277,7 +250,6 @@ export const useAmigos = (currentUserId) => {
       return { success: true, data };
     } catch (err) {
       console.error('[AMIGOS] Error sending friend request:', err);
-      console.error('[AMIGOS] Error context:', { currentUserId, friendId });
 
       // Return friendly error message based on error type
       if (err.message && err.message.includes('UUID')) {
@@ -295,11 +267,9 @@ export const useAmigos = (currentUserId) => {
   // Accept friend request
   const acceptFriendRequest = useCallback(async (requestId) => {
     if (!requestId) {
-      console.log('[AMIGOS] acceptFriendRequest: No requestId provided');
       return { success: false, message: 'ID de solicitud no proporcionado' };
     }
 
-    console.log('[AMIGOS] Accepting friend request:', requestId);
     try {
       // Ensure we're working with UUID for the request ID
       const requestIdUuid = typeof requestId === 'string' ? requestId : String(requestId);
@@ -315,8 +285,6 @@ export const useAmigos = (currentUserId) => {
         console.error('[AMIGOS] Error updating friend request status:', error);
         throw error;
       }
-
-      console.log('[AMIGOS] Friend request accepted successfully:', data);
 
       // Create notification for the sender that their request was accepted
       try {
@@ -349,7 +317,6 @@ export const useAmigos = (currentUserId) => {
       return { success: true, data };
     } catch (err) {
       console.error('[AMIGOS] Error accepting friend request:', err);
-      console.error('[AMIGOS] Error context:', { requestId });
       return { success: false, message: err.message };
     }
   }, [getAmigos]);
@@ -357,11 +324,9 @@ export const useAmigos = (currentUserId) => {
   // Reject friend request
   const rejectFriendRequest = useCallback(async (requestId) => {
     if (!requestId) {
-      console.log('[AMIGOS] rejectFriendRequest: No requestId provided');
       return { success: false, message: 'ID de solicitud no proporcionado' };
     }
 
-    console.log('[AMIGOS] Rejecting friend request:', requestId);
     try {
       // Ensure we're working with UUID for the request ID
       const requestIdUuid = typeof requestId === 'string' ? requestId : String(requestId);
@@ -377,8 +342,6 @@ export const useAmigos = (currentUserId) => {
         console.error('[AMIGOS] Error updating friend request status:', error);
         throw error;
       }
-
-      console.log('[AMIGOS] Friend request rejected successfully:', data);
 
       // Create notification for the sender that their request was rejected
       try {
@@ -402,7 +365,6 @@ export const useAmigos = (currentUserId) => {
       return { success: true, data };
     } catch (err) {
       console.error('[AMIGOS] Error rejecting friend request:', err);
-      console.error('[AMIGOS] Error context:', { requestId });
       return { success: false, message: err.message };
     }
   }, []);
@@ -410,11 +372,8 @@ export const useAmigos = (currentUserId) => {
   // Remove friend (by relationshipId)
   const removeFriend = useCallback(async (relationshipId) => {
     if (!relationshipId || !currentUserId) {
-      console.log('[AMIGOS] removeFriend: Missing parameters', { relationshipId, currentUserId });
       return { success: false, message: 'Parámetros faltantes' };
     }
-
-    console.log('[AMIGOS] Removing friendship relationshipId:', relationshipId);
 
     try {
       // Borrar por PK (id de la relación)
@@ -437,9 +396,6 @@ export const useAmigos = (currentUserId) => {
         });
         throw new Error('No se pudo borrar la amistad (0 filas afectadas). Revisar RLS o ID inválido.');
       }
-
-      console.log('[AMIGOS] Friendship removed successfully:', data[0]?.id);
-
       // Refresh friends list
       await getAmigos();
 
@@ -453,11 +409,9 @@ export const useAmigos = (currentUserId) => {
   // Get pending friend requests (received)
   const getPendingRequests = useCallback(async () => {
     if (!currentUserId) {
-      console.log('[AMIGOS] getPendingRequests: No currentUserId provided');
       return [];
     }
 
-    console.log('[AMIGOS] Fetching pending friend requests for user:', currentUserId);
     try {
       // Ensure we're working with UUID
       const userIdUuid = typeof currentUserId === 'string' ? currentUserId : String(currentUserId);
@@ -472,8 +426,6 @@ export const useAmigos = (currentUserId) => {
         console.error('[AMIGOS] Error fetching pending requests:', requestsError);
         throw requestsError;
       }
-
-      console.log('[AMIGOS] Pending requests fetched:', requestsData?.length || 0, 'results');
 
       if (!requestsData || requestsData.length === 0) return [];
 
@@ -535,11 +487,6 @@ export const useAmigos = (currentUserId) => {
         }
       });
 
-      // Log the raw data for debugging
-      if (requestsData && requestsData.length > 0) {
-        console.log('[AMIGOS] Sample pending request data:', requestsData[0]);
-      }
-
       const formattedRequests = requestsData.map((item) => {
         const profileRow = profilesData?.find((p) => p.id === item.user_id);
         const usuarioRow = usuariosData?.find((u) => u.id === item.user_id);
@@ -563,14 +510,9 @@ export const useAmigos = (currentUserId) => {
           profile: mergedProfile,
         };
       });
-
-      const withAvatar = formattedRequests.filter((r) => Boolean(r.profile?.avatar_url)).length;
-      console.log('[AMIGOS] Formatted pending requests:', formattedRequests.length, 'with avatar:', withAvatar);
-
       return formattedRequests;
     } catch (err) {
       console.error('[AMIGOS] Error fetching pending requests:', err);
-      console.error('[AMIGOS] Error context:', { userId: encodeURIComponent(currentUserId || '') });
       return [];
     }
   }, [currentUserId]);

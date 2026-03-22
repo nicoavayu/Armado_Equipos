@@ -167,13 +167,6 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted, onRequestResolve
         try {
             const userName = request.profile?.nombre || request.usuario?.nombre || 'Jugador';
 
-            console.log('[ACCEPT] Calling RPC approve_join_request:', {
-                requestId: request.id,
-                matchId: request.match_id,
-                userId: request.user_id,
-                userName,
-            });
-
             // Call atomic RPC
             const { error: rpcError } = await supabase.rpc('approve_join_request', {
                 p_request_id: request.id,
@@ -183,17 +176,12 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted, onRequestResolve
                 console.error('[ACCEPT] RPC Error:', rpcError);
                 // Handle case where player is already in the match (Duplicate key)
                 if (rpcError.code === '23505' || rpcError.message?.includes('unique constraint')) {
-                    console.log('[ACCEPT] User already in match, treating as success');
-                    console.info('El jugador ya forma parte del partido');
                     // Continue to success UI logic
                 } else {
                     notifyBlockingError(`Error al aceptar: ${rpcError.message}`);
                     throw rpcError;
                 }
             }
-
-            console.log('[ACCEPT] RPC approve_join_request completed successfully for request:', request.id);
-
             await notifyAdminPlayerJoined({
                 matchId: request.match_id,
                 playerName: userName,
@@ -221,8 +209,6 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted, onRequestResolve
 
             // Refetch requests list immediately
             await fetchRequests();
-
-            console.info(`${userName} fue aceptado en el partido`);
 
             // Notify parent to refresh players and other data
             if (onRequestAccepted) {
@@ -269,8 +255,6 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted, onRequestResolve
             if (error) throw error;
 
             const userName = request.profile?.nombre || request.usuario?.nombre || 'Jugador';
-
-            console.info(`Solicitud de ${userName} rechazada`);
 
             // Remove from list
             setRequests(prev => prev.filter(r => r.id !== request.id));

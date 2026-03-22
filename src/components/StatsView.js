@@ -47,7 +47,6 @@ import LoadingSpinner from './LoadingSpinner';
 import PageTitle from './PageTitle';
 import ManualMatchModal from './ManualMatchModal';
 import InjuryModal from './InjuryModal';
-import StatsDebugPanel from './stats/StatsDebugPanel';
 
 export const shouldIncludeSurveyResultForAwardsStats = (row) => (
   isAwardsReadyStatus(row)
@@ -65,11 +64,6 @@ const StatsView = ({ onVolver }) => {
   const [showManualMatchModal, setShowManualMatchModal] = useState(false);
   const [showInjuryModal, setShowInjuryModal] = useState(false);
   const [showLesionesDetalle, setShowLesionesDetalle] = useState(false);
-  const statsDebugEnabled = (
-    process.env.NODE_ENV !== 'production'
-    || String(process.env.REACT_APP_ENABLE_STATS_DEBUG || '').trim().toLowerCase() === 'true'
-  );
-  const [statsDebugEntries, setStatsDebugEntries] = useState([]);
   const periodSelectorRef = useRef(null);
   const [stats, setStats] = useState({
     partidosJugados: 0,
@@ -347,11 +341,6 @@ const StatsView = ({ onVolver }) => {
         rankingTimeline: extendedStats.rankingTimeline,
         consistencia: extendedStats.consistencia,
       });
-      setStatsDebugEntries(
-        statsDebugEnabled
-          ? (Array.isArray(partidosData.statsDebugEntries) ? partidosData.statsDebugEntries : [])
-          : [],
-      );
     } catch (error) {
       console.error('Error loading stats:', error);
     } finally {
@@ -429,7 +418,6 @@ const StatsView = ({ onVolver }) => {
       torneos,
       logros,
       surveyOutcomes,
-      statsDebugEntries: Array.isArray(surveyOutcomesResult?.debugEntries) ? surveyOutcomesResult.debugEntries : [],
       partidos: userPartidos,
     };
   };
@@ -523,7 +511,6 @@ const StatsView = ({ onVolver }) => {
       userIdentitySet: getUserIdentitySet(),
       isCurrentUserPlayer,
       getPlayerIdentityCandidates,
-      includeDebug: statsDebugEnabled,
     });
   };
 
@@ -1477,7 +1464,6 @@ const StatsView = ({ onVolver }) => {
         .eq('id', user.id);
       if (userError) throw userError;
 
-      console.info('Lesión marcada como recuperada');
       await loadStats();
     } catch (error) {
       console.error('Error marking lesion as recovered:', error);
@@ -1705,11 +1691,10 @@ const StatsView = ({ onVolver }) => {
     <div className="min-h-[100dvh]">
       <PageTitle onBack={onVolver}>ESTADÍSTICAS</PageTitle>
 
-      <div className="pt-[100px] px-5 pb-5 max-w-[100vw] m-0 box-border md:pt-[90px] md:px-4 sm:pt-[90px]">
-        {/* Period selector first: segmented control to define reading context before metrics */}
+      <div className="pt-[81px] max-w-[100vw] m-0 box-border md:pt-[73px]">
         <motion.div
           ref={periodSelectorRef}
-          className="mb-6 relative z-40 overflow-visible border border-[rgba(88,107,170,0.46)] bg-[#1e293b]/92"
+          className="relative z-40 overflow-visible border-y border-[rgba(88,107,170,0.46)] bg-[#1e293b]/92"
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
         >
@@ -1790,12 +1775,8 @@ const StatsView = ({ onVolver }) => {
           </div>
         </motion.div>
 
-        <StatsDebugPanel
-          enabled={statsDebugEnabled}
-          entries={statsDebugEntries}
-        />
-
-        <div className="grid grid-cols-2 gap-3 mb-6 relative z-10">
+        <div className="px-5 pt-5 pb-5 max-w-[100vw] m-0 box-border md:px-4">
+          <div className="grid grid-cols-2 gap-3 mb-6 relative z-10">
           {[
             { key: 'partidos', label: 'Partidos', value: stats.partidosJugados, icon: Dribbble, decimals: 0 },
             { key: 'amistosos', label: 'Amistosos', value: stats.amistosos, icon: Handshake, decimals: 0 },
@@ -2385,12 +2366,13 @@ const StatsView = ({ onVolver }) => {
           </motion.div>
         )}
 
-        <div className="text-center font-oswald text-xs text-white/60 mt-8 p-4">
-          Datos actualizados al {new Date().toLocaleDateString('es-ES', {
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric',
-          })}
+          <div className="text-center font-oswald text-xs text-white/60 mt-8 p-4">
+            Datos actualizados al {new Date().toLocaleDateString('es-ES', {
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric',
+            })}
+          </div>
         </div>
       </div>
 

@@ -21,14 +21,12 @@ import { hasValidCoordinates, toCoordinateNumber } from '../utils/matchLocation'
 import {
   countOperationallyOpenMatches,
   fetchOpenMatchesForQuieroJugar,
-  fetchQuieroJugarMatchAudit,
 } from '../services/db/openMatches';
 import { distanceInMeters, getCurrentPosition, getLocalhostDevelopmentLocation } from '../services/locationService';
 import { useSmartBackNavigation } from '../hooks/useSmartBackNavigation';
 import { useRefreshOnVisibility } from '../hooks/useRefreshOnVisibility';
 
 const containerClass = 'flex flex-col items-center w-full pb-6 px-4 box-border font-oswald';
-const SHOULD_LOG_MATCH_AUDIT = process.env.NODE_ENV !== 'production';
 
 const normalizeLocationToken = (value) => String(value || '').replace(/\s+/g, ' ').trim();
 
@@ -94,7 +92,6 @@ const QuieroJugar = ({
   const [userLocation, setUserLocation] = useState(null);
   const [locationResolved, setLocationResolved] = useState(false);
   const [openMatchesBaseCount, setOpenMatchesBaseCount] = useState(0);
-  const [matchAudit, setMatchAudit] = useState([]);
   const [matchesError, setMatchesError] = useState('');
   const [maxMatchDistanceKm, setMaxMatchDistanceKm] = useState(() => {
     const saved = Number(sessionStorage.getItem(MATCH_DISTANCE_STORAGE_KEY));
@@ -113,7 +110,6 @@ const QuieroJugar = ({
   const [actionFriendStatus, setActionFriendStatus] = useState(null);
   const [isSubmittingFriend, setIsSubmittingFriend] = useState(false);
   const [showSecondaryTabs, setShowSecondaryTabs] = useState(false);
-  const auditLogSignatureRef = useRef('');
   const matchesRequestRef = useRef(0);
   const deferredMaxMatchDistanceKm = useDeferredValue(maxMatchDistanceKm);
   const { getRelationshipStatus, sendFriendRequest } = useAmigos(user?.id || null);
@@ -175,7 +171,6 @@ const QuieroJugar = ({
 
         const devLocation = getLocalhostDevelopmentLocation();
         if (devLocation) {
-          console.info('[QUIERO_JUGAR] Using localhost development location fallback', devLocation);
           setUserLocation({
             lat: devLocation.lat,
             lng: devLocation.lng,
@@ -185,10 +180,8 @@ const QuieroJugar = ({
 
         setUserLocation(null);
       } catch (error) {
-        console.log('Could not resolve location from profile:', error);
         const devLocation = getLocalhostDevelopmentLocation();
         if (devLocation) {
-          console.info('[QUIERO_JUGAR] Using localhost development location fallback after profile error', devLocation);
           setUserLocation({
             lat: devLocation.lat,
             lng: devLocation.lng,
@@ -216,7 +209,6 @@ const QuieroJugar = ({
         return;
       }
     } catch (error) {
-      console.log('Geolocation error, trying profile location:', error);
     }
 
     await setLocationFromProfileFallback();
@@ -231,30 +223,18 @@ const QuieroJugar = ({
 
     try {
       setMatchesError('');
-      const [nextMatches, baseCount, auditRows] = await Promise.all([
+      const [nextMatches, baseCount] = await Promise.all([
         fetchOpenMatchesForQuieroJugar({
           userLocation,
           maxDistanceKm: deferredMaxMatchDistanceKm,
         }),
         countOperationallyOpenMatches(),
-        SHOULD_LOG_MATCH_AUDIT
-          ? fetchQuieroJugarMatchAudit({
-            userLocation,
-            maxDistanceKm: deferredMaxMatchDistanceKm,
-          }).catch((auditError) => {
-            console.warn('[QUIERO_JUGAR] Match audit unavailable:', auditError);
-            return [];
-          })
-          : Promise.resolve([]),
       ]);
 
       if (requestId !== matchesRequestRef.current) return;
 
       setPartidosAbiertos(nextMatches);
       setOpenMatchesBaseCount(baseCount);
-      if (SHOULD_LOG_MATCH_AUDIT) {
-        setMatchAudit(auditRows);
-      }
     } catch (error) {
       if (requestId !== matchesRequestRef.current) return;
       setMatchesError(error.message || 'No se pudieron cargar los partidos.');
@@ -324,7 +304,6 @@ const QuieroJugar = ({
     if (!user?.id) {
       setPartidosAbiertos([]);
       setOpenMatchesBaseCount(0);
-      setMatchAudit([]);
       setMatchesError('');
       setLocationResolved(false);
       setLoading(false);
@@ -434,51 +413,6 @@ const QuieroJugar = ({
   const canFilterByDistance = Boolean(userLocation);
   const visibleMatches = partidosAbiertos;
   const isResolvingLocation = Boolean(user?.id) && !locationResolved;
-
-  useEffect(() => {
-    if (!SHOULD_LOG_MATCH_AUDIT || typeof window === 'undefined') return;
-
-    const auditSignature = JSON.stringify(
-      matchAudit.map((audit) => ({
-        partidoId: audit.partido_id,
-        estado: audit.estado_normalizado,
-        expired: audit.expired,
-        userHasLocation: audit.user_has_location,
-        matchHasCoordinates: audit.match_has_coordinates,
-        distanceKm: audit.distance_km,
-        withinDistance: audit.within_distance,
-        includedInList: audit.included_in_list,
-        exclusionReasons: audit.exclusion_reasons,
-      })),
-    );
-
-    if (auditSignature === auditLogSignatureRef.current) return;
-    auditLogSignatureRef.current = auditSignature;
-
-    window.__armaQuieroJugarAudit = matchAudit;
-    window.__armaQuieroJugarVisibleMatchIds = visibleMatches.map((match) => match.id);
-
-    console.groupCollapsed(
-      `[QUIERO JUGAR][audit] visibles=${visibleMatches.length}/${matchAudit.length}`,
-    );
-    console.table(
-      matchAudit.map((audit) => ({
-        partido_id: audit.partido_id,
-        estado: audit.estado_normalizado,
-        cancelado: audit.cancelado,
-        startDateTime: audit.start_datetime,
-        expired: audit.expired,
-        userHasLocation: audit.user_has_location,
-        matchHasCoordinates: audit.match_has_coordinates,
-        distanceKm: audit.distance_km,
-        withinDistance: audit.within_distance,
-        includedInList: audit.included_in_list,
-        exclusionReasons: Array.isArray(audit.exclusion_reasons) ? audit.exclusion_reasons.join(', ') : '',
-      })),
-    );
-    console.debug('[QUIERO JUGAR][audit:full]', matchAudit);
-    console.groupEnd();
-  }, [matchAudit, visibleMatches]);
 
   if (loading || isResolvingLocation) {
     return (
@@ -842,7 +776,6 @@ const QuieroJugar = ({
 
           if (result.success) {
             setActionFriendStatus('pending');
-            console.info('Solicitud de amistad enviada');
             return;
           }
 

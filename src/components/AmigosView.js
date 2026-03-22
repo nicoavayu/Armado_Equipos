@@ -13,6 +13,8 @@ import { useScrollResetOnChange } from '../hooks/useScrollReset';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import EmptyStateCard from './EmptyStateCard';
 import PrivateGroupsTab from './friends/PrivateGroupsTab';
+import { useRefreshOnVisibility } from '../hooks/useRefreshOnVisibility';
+import { useSupabaseRealtime } from '../hooks/useSupabaseRealtime';
 
 const toCoordinateNumber = (value) => {
   if (typeof value === 'number') return Number.isFinite(value) ? value : null;
@@ -129,11 +131,19 @@ const AmigosView = () => {
   const noticeMetaRef = useRef({ key: null, ts: 0 });
   const noticeTimerRef = useRef(null);
   const isMountedRef = useRef(true);
+  const amigosRefreshTimeoutRef = useRef(null);
+  const friendIdsRef = useRef(new Set());
+  const incomingPendingIdsRef = useRef(new Set());
 
   const { markTypeAsRead } = useNotifications();
+  const markTypeAsReadRef = useRef(markTypeAsRead);
 
   const [friendToDelete, setFriendToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  useEffect(() => {
+    markTypeAsReadRef.current = markTypeAsRead;
+  }, [markTypeAsRead]);
 
   const clearInlineNotice = useCallback(() => {
     if (noticeTimerRef.current) {
@@ -177,6 +187,10 @@ const AmigosView = () => {
 
   useEffect(() => () => {
     isMountedRef.current = false;
+    if (amigosRefreshTimeoutRef.current) {
+      clearTimeout(amigosRefreshTimeoutRef.current);
+      amigosRefreshTimeoutRef.current = null;
+    }
     if (noticeTimerRef.current) {
       clearTimeout(noticeTimerRef.current);
       noticeTimerRef.current = null;
@@ -232,10 +246,27 @@ const AmigosView = () => {
     [pendingRequests],
   );
 
+  useEffect(() => {
+    friendIdsRef.current = friendIds;
+  }, [friendIds]);
+
+  useEffect(() => {
+    incomingPendingIdsRef.current = incomingPendingIds;
+  }, [incomingPendingIds]);
+
   const refreshPendingRequests = useCallback(async () => {
     const requests = await getPendingRequests();
     setPendingRequests(requests || []);
   }, [getPendingRequests]);
+
+  const refreshAmigosData = useCallback(async ({ silent = true } = {}) => {
+    if (!currentUserId) return;
+
+    await Promise.all([
+      getAmigos({ silent }),
+      refreshPendingRequests(),
+    ]);
+  }, [currentUserId, getAmigos, refreshPendingRequests]);
 
   const loadUserLocationFromProfile = useCallback(async (userId) => {
     if (!userId) {
@@ -266,13 +297,15 @@ const AmigosView = () => {
     }
   }, []);
 
-  const loadFriendSuggestions = useCallback(async () => {
+  const loadFriendSuggestions = useCallback(async ({ silent = false } = {}) => {
     if (!currentUserId) {
       setSuggestions([]);
       return;
     }
 
-    setSuggestionsLoading(true);
+    if (!silent) {
+      setSuggestionsLoading(true);
+    }
     try {
       const { data: myRows, error: myRowsError } = await supabase
         .from('jugadores')
@@ -310,7 +343,11 @@ const AmigosView = () => {
         return;
       }
 
-      const excludedIds = new Set([currentUserId, ...friendIds, ...incomingPendingIds]);
+      const excludedIds = new Set([
+        currentUserId,
+        ...friendIdsRef.current,
+        ...incomingPendingIdsRef.current,
+      ]);
       candidateIds = candidateIds.filter((candidateId) => !excludedIds.has(candidateId));
 
       if (candidateIds.length === 0) {
@@ -381,9 +418,11 @@ const AmigosView = () => {
       console.error('[AMIGOS] Error loading friend suggestions:', suggestionsError);
       setSuggestions([]);
     } finally {
-      setSuggestionsLoading(false);
+      if (!silent) {
+        setSuggestionsLoading(false);
+      }
     }
-  }, [currentUserId, friendIds, incomingPendingIds]);
+  }, [currentUserId]);
 
   // Get current user ID on mount
   useEffect(() => {
@@ -409,27 +448,30 @@ const AmigosView = () => {
 
     const loadData = async () => {
       setLoading(true);
-      await Promise.all([
-        getAmigos(),
-        refreshPendingRequests(),
-        markTypeAsRead('friend_request'),
-        loadUserLocationFromProfile(currentUserId),
-      ]);
-      setLoading(false);
+      try {
+        await Promise.allSettled([
+          refreshAmigosData({ silent: false }),
+          Promise.resolve(markTypeAsReadRef.current?.('friend_request')),
+          loadUserLocationFromProfile(currentUserId),
+        ]);
+      } finally {
+        setLoading(false);
+      }
     };
 
     loadData();
-  }, [currentUserId]);
+  }, [currentUserId, loadUserLocationFromProfile, refreshAmigosData]);
 
-  // Load suggestions whenever friendship graph changes
   useEffect(() => {
     if (!currentUserId) {
       setSuggestions([]);
       return;
     }
 
-    loadFriendSuggestions();
-  }, [currentUserId, loadFriendSuggestions]);
+    if (activeTab !== 'discover') return;
+
+    loadFriendSuggestions({ silent: false });
+  }, [activeTab, currentUserId, loadFriendSuggestions]);
 
   useEffect(() => {
     if (activeTab !== 'discover') {
@@ -437,6 +479,73 @@ const AmigosView = () => {
       setSearchResults([]);
     }
   }, [activeTab]);
+
+  const scheduleAmigosRefresh = useCallback(() => {
+    if (amigosRefreshTimeoutRef.current) {
+      clearTimeout(amigosRefreshTimeoutRef.current);
+    }
+
+    amigosRefreshTimeoutRef.current = window.setTimeout(() => {
+      refreshAmigosData({ silent: true });
+      if (activeTab === 'discover') {
+        Promise.resolve(markTypeAsReadRef.current?.('friend_request')).catch(() => {});
+        loadFriendSuggestions({ silent: true });
+      }
+    }, 180);
+  }, [activeTab, loadFriendSuggestions, refreshAmigosData]);
+
+  useRefreshOnVisibility(
+    () => {
+      refreshAmigosData({ silent: true });
+      if (activeTab === 'discover') {
+        Promise.resolve(markTypeAsReadRef.current?.('friend_request')).catch(() => {});
+        loadFriendSuggestions({ silent: true });
+      }
+    },
+    { enabled: Boolean(currentUserId) },
+  );
+
+  useSupabaseRealtime({
+    enabled: Boolean(currentUserId),
+    channelName: `amigos-view-${currentUserId}`,
+    deps: [currentUserId, scheduleAmigosRefresh],
+    events: [
+      {
+        event: '*',
+        schema: 'public',
+        table: 'amigos',
+        filter: `user_id=eq.${currentUserId}`,
+        handler: () => {
+          scheduleAmigosRefresh();
+        },
+      },
+      {
+        event: '*',
+        schema: 'public',
+        table: 'amigos',
+        filter: `friend_id=eq.${currentUserId}`,
+        handler: () => {
+          scheduleAmigosRefresh();
+        },
+      },
+    ],
+  });
+
+  useEffect(() => {
+    if (!currentUserId) return undefined;
+
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState !== 'visible') return;
+      refreshAmigosData({ silent: true });
+      if (activeTab === 'discover') {
+        loadFriendSuggestions({ silent: true });
+      }
+    }, 5000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [activeTab, currentUserId, loadFriendSuggestions, refreshAmigosData]);
 
   // Handle accepting a friend request
   const handleAcceptRequest = async (requestId) => {
@@ -457,7 +566,7 @@ const AmigosView = () => {
 
         await Promise.all([
           refreshPendingRequests(),
-          getAmigos(),
+          getAmigos({ silent: true }),
         ]);
       } else {
         notifyBlockingError(result.message || 'Error al aceptar solicitud');
@@ -534,7 +643,7 @@ const AmigosView = () => {
           message: 'Amigo eliminado.',
         });
 
-        await getAmigos();
+        await getAmigos({ silent: true });
       } else {
         notifyBlockingError(result.message || 'Error al eliminar amigo');
       }
@@ -715,7 +824,7 @@ const AmigosView = () => {
                       onRequestSent={() => {
                         setSearchQuery('');
                         setSearchResults([]);
-                        loadFriendSuggestions();
+                        loadFriendSuggestions({ silent: true });
                       }}
                     />
                   ))
@@ -745,7 +854,7 @@ const AmigosView = () => {
                             e.target.src = '/profile.svg';
                           }}
                         />
-                        <span className="text-lg font-bold text-white font-oswald uppercase whitespace-nowrap overflow-hidden text-ellipsis mb-1 sm:text-base">
+                        <span className="text-lg font-bold text-white font-oswald whitespace-nowrap overflow-hidden text-ellipsis mb-1 sm:text-base">
                           {request.profile?.nombre || 'Usuario'}
                         </span>
                       </div>
@@ -806,6 +915,7 @@ const AmigosView = () => {
                     onInlineNotice={showInlineNotice}
                     onRequestSent={() => {
                       setSuggestions((prev) => prev.filter((item) => item.id !== suggestedUser.id));
+                      loadFriendSuggestions({ silent: true });
                     }}
                   />
                 ))}

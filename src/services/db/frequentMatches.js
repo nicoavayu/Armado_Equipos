@@ -88,16 +88,11 @@ export const crearPartidoFrecuente = async (matchData) => {
  * @returns {Promise<Array>} Array of frequent matches
  */
 export const getPartidosFrecuentes = async () => {
-  console.log('Fetching frequent matches...');
-
   try {
     // First, let's get ALL records to see what's in the table
     const { data: allData, error: allError } = await supabase
       .from('partidos_frecuentes')
       .select('*');
-
-    console.log('All frequent matches in table:', allData);
-    console.log('Count of all records:', allData?.length || 0);
 
     if (allError) {
       console.error('Error fetching all frequent matches:', allError);
@@ -118,13 +113,6 @@ export const getPartidosFrecuentes = async () => {
         details: error.details,
       });
       throw new Error(`Error fetching frequent matches: ${error.message}`);
-    }
-
-    console.log('Enabled frequent matches fetched:', data);
-    console.log('Count of enabled records:', data?.length || 0);
-
-    if (data && data.length > 0) {
-      console.log('Sample record structure:', data[0]);
     }
 
     return data || [];
@@ -197,8 +185,6 @@ const inferCupoFromModalidad = (modalidad = '') => {
 };
 
 export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha, modalidad = 'F5', cupo = null) => {
-  console.log('Creating/finding match from frequent match:', partidoFrecuente, 'for date:', fecha);
-
   const normalizedDate = typeof fecha === 'string' ? fecha.split('T')[0] : fecha;
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -382,7 +368,6 @@ export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha, modalidad =
  * @returns {Promise<Object>} Updated frequent match
  */
 export const updateJugadoresFrecuentes = async (partidoFrecuenteId, nuevosJugadores) => {
-  console.log('Updating frequent match players:', { partidoFrecuenteId, count: nuevosJugadores.length });
   return updatePartidoFrecuente(partidoFrecuenteId, {
     jugadores_frecuentes: nuevosJugadores,
   });
@@ -393,8 +378,6 @@ export const updateJugadoresFrecuentes = async (partidoFrecuenteId, nuevosJugado
  * @returns {Promise<Object>} Schema check results
  */
 export const checkPartidosFrecuentesSchema = async () => {
-  console.log('Checking partidos_frecuentes table schema...');
-
   try {
     // Try to insert a test record to see what fields are expected
     const testData = {
@@ -427,7 +410,6 @@ export const checkPartidosFrecuentesSchema = async () => {
         .eq('id', data.id);
     }
 
-    console.log('Schema check passed:', data);
     return { success: true, data };
 
   } catch (err) {
@@ -443,7 +425,6 @@ export const checkPartidosFrecuentesSchema = async () => {
  * @returns {Promise<Array>} Array of operationally open matches where the user participates
  */
 export const getPartidosActivosUsuario = async () => {
-  console.log('[getPartidosActivosUsuario] Fetching operationally open matches for current user');
   try {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
@@ -460,8 +441,6 @@ export const getPartidosActivosUsuario = async () => {
       console.error('[getPartidosActivosUsuario] Error fetching matches:', error);
       return [];
     }
-
-    console.log('[getPartidosActivosUsuario] Total open matches fetched:', partidos?.length || 0);
 
     // Filter client-side to include only matches where the current user is among the jugadores
     const uid = user.id;
@@ -486,9 +465,6 @@ export const getPartidosActivosUsuario = async () => {
       });
     });
 
-    console.log('[getPartidosActivosUsuario] Matches where user participates:', partidasDelUsuario.length);
-    if (partidasDelUsuario.length > 0) console.log('[getPartidosActivosUsuario] Sample match:', partidasDelUsuario[0]);
-
     return partidasDelUsuario;
   } catch (err) {
     console.error('[getPartidosActivosUsuario] Exception:', err);
@@ -505,7 +481,6 @@ export const subscribeToPartidosChanges = (callback) => {
   try {
     const channel = supabase.channel('public:partidos')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'partidos' }, (payload) => {
-        console.log('[subscribeToPartidosChanges] Realtime payload received:', payload);
         if (typeof callback === 'function') callback(payload);
       })
       .subscribe();

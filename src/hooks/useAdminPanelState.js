@@ -197,7 +197,6 @@ export const useAdminPanelState = ({
           .maybeSingle();
 
         if (joinReq?.status === 'approved') {
-          console.log('[ADMIN_PANEL] User has approved request, synchronizing...');
           setHasApprovedRequest(true);
           setPendingInvitation(false);
           setInvitationChecked(true);
@@ -207,12 +206,10 @@ export const useAdminPanelState = ({
 
         // Validate partidoActual.id is a valid value
         if (!partidoActual.id || partidoActual.id === 'undefined' || partidoActual.id === 'null') {
-          console.warn('[ADMIN_PANEL] Invalid partidoActual.id, skipping invitation check');
           setInvitationChecked(true);
           return;
         }
 
-        console.log('[ADMIN_PANEL] Checking invitation for match:', partidoActual.id);
         const inviteState = await getInviteAccessState(user.id, partidoActual.id);
 
         if (inviteState.blockedByKick) {
@@ -297,7 +294,6 @@ export const useAdminPanelState = ({
         table: 'votos',
         filter: `partido_id=eq.${partidoActual.id}`,
       }, async () => {
-        console.log('[REALTIME] Auth votes changed, refreshing...');
         try {
           const votantesIds = await getVotantesIds(partidoActual.id);
           const votantesNombres = await getVotantesConNombres(partidoActual.id);
@@ -318,7 +314,6 @@ export const useAdminPanelState = ({
         table: 'votos_publicos',
         filter: `partido_id=eq.${partidoActual.id}`,
       }, async () => {
-        console.log('[REALTIME] Public votes changed, refreshing...');
         try {
           const votantesIds = await getVotantesIds(partidoActual.id);
           const votantesNombres = await getVotantesConNombres(partidoActual.id);
@@ -339,7 +334,6 @@ export const useAdminPanelState = ({
         table: 'public_voters',
         filter: `partido_id=eq.${partidoActual.id}`,
       }, async () => {
-        console.log('[REALTIME] Public voters changed, refreshing...');
         try {
           const votantesIds = await getVotantesIds(partidoActual.id);
           const votantesNombres = await getVotantesConNombres(partidoActual.id);
@@ -512,12 +506,6 @@ export const useAdminPanelState = ({
 
     setLoading(true);
     try {
-      console.log('[LEAVE_MATCH] Deleting player from match:', {
-        matchId: partidoActual.id,
-        jugadorId: jugadorId,
-        isSelfRemoval: esAutoEliminacion
-      });
-
       // Targeted cleanup: remove only votes linked to this player so we avoid
       // forcing a global voting reset when expelling someone.
       if (jugadorAEliminar) {
@@ -536,7 +524,7 @@ export const useAdminPanelState = ({
         .eq('partido_id', partidoActual.id);
 
       if (error) {
-        console.error('[LEAVE_MATCH] Error:', {
+        console.error('Error deleting player from match:', {
           code: error.code,
           message: error.message,
           details: error.details,
@@ -544,8 +532,6 @@ export const useAdminPanelState = ({
         });
         throw error;
       }
-
-      console.log('[LEAVE_MATCH] Deleted successfully');
 
       if (esAutoEliminacion && jugadorAEliminar?.usuario_id) {
         try {
@@ -703,10 +689,6 @@ export const useAdminPanelState = ({
           }
 
           if (shouldKickPushImmediately) {
-            console.log('[LEAVE_MATCH] Triggering immediate push dispatch for match_kicked', {
-              partidoId: Number(partidoActual.id),
-              removedUserId: jugadorAEliminar.usuario_id,
-            });
             requestImmediatePushDispatchSafe({
               eventType: 'match_kicked',
               matchId: Number(partidoActual.id),
@@ -738,8 +720,6 @@ export const useAdminPanelState = ({
   };
 
   const transferirAdmin = async (jugadorId) => {
-    console.log('[TRANSFER_ADMIN] Starting admin transfer', { jugadorId, isAdmin, currentUserId: user?.id });
-
     if (!isAdmin) {
       const msg = 'Solo el creador puede transferir el rol de admin';
       console.error('[TRANSFER_ADMIN]', msg);
@@ -747,7 +727,6 @@ export const useAdminPanelState = ({
     }
 
     const jugador = jugadores.find((j) => j.id === jugadorId || j.usuario_id === jugadorId);
-    console.log('[TRANSFER_ADMIN] Found jugador:', { jugador, searchedId: jugadorId });
 
     if (!jugador || !jugador.usuario_id) {
       const msg = 'El jugador debe tener una cuenta para ser admin';
@@ -762,7 +741,6 @@ export const useAdminPanelState = ({
     }
 
     try {
-      console.log('[TRANSFER_ADMIN] Updating partido creado_por to', jugador.usuario_id);
       const { error } = await supabase
         .from('partidos')
         .update({ creado_por: jugador.usuario_id })
@@ -773,7 +751,6 @@ export const useAdminPanelState = ({
         throw error;
       }
 
-      console.log('[TRANSFER_ADMIN] Update successful, updating local state');
       partidoActual.creado_por = jugador.usuario_id;
 
       const payload = {
@@ -789,11 +766,9 @@ export const useAdminPanelState = ({
         read: false,
       };
 
-      console.log('[TRANSFER_ADMIN] Inserting notification');
       await supabase.from('notifications').insert([payload]);
 
       // Trigger a minimal update to refresh admin panel (updated_at handled by trigger)
-      console.log('[TRANSFER_ADMIN] Final update to trigger refresh');
       await supabase
         .from('partidos')
         .update({ creado_por: jugador.usuario_id })
@@ -801,7 +776,6 @@ export const useAdminPanelState = ({
 
       onJugadoresChange([...jugadores]);
 
-      console.log('[TRANSFER_ADMIN] Transfer completed successfully');
       setInlineNotice('success', `${jugador.nombre || 'El jugador'} ahora es admin del partido`);
 
       // Don't reload page, let the modal stay open to show changes

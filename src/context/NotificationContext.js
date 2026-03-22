@@ -27,7 +27,6 @@ import {
 import { track } from '../utils/monitoring/analytics';
 
 const NotificationContext = createContext();
-const DEBUG_NOTIFICATIONS = process.env.NODE_ENV !== 'production';
 
 /**
  * Hook to access notification context
@@ -185,12 +184,6 @@ export const NotificationProvider = ({ children }) => {
   // Umbral para ignorar eventos realtime con created_at <= al último clear
   const ignoreBeforeRef = useRef(null);
 
-  useEffect(() => {
-    if (DEBUG_NOTIFICATIONS) {
-      console.log('[NOTIFICATIONS] NotificationProvider mounted');
-    }
-  }, []);
-
   // Get current user on mount
   useEffect(() => {
     const getCurrentUser = async () => {
@@ -202,7 +195,6 @@ export const NotificationProvider = ({ children }) => {
       }
       if (user) {
         logger.log('[NOTIFICATIONS] Current user found:', user.id);
-        console.log('[NOTIFICATIONS] Current user id (supabase.auth.getUser):', user.id);
         setCurrentUserId(user.id);
       } else {
         logger.log('[NOTIFICATIONS] No authenticated user found');
@@ -215,9 +207,6 @@ export const NotificationProvider = ({ children }) => {
   // Listen for auth state changes and keep currentUserId in sync
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (DEBUG_NOTIFICATIONS) {
-        console.log('[NOTIFICATIONS] onAuthStateChange', _event, session?.user?.id || null);
-      }
       setCurrentUserId(session?.user?.id || null);
     });
     return () => sub?.subscription?.unsubscribe?.();
@@ -231,15 +220,9 @@ export const NotificationProvider = ({ children }) => {
     }
 
     logger.log('[NOTIFICATIONS] Fetching notifications for user:', currentUserId);
-    if (DEBUG_NOTIFICATIONS) {
-      console.log('[NOTIFICATIONS] fetchNotifications START for user:', currentUserId);
-    }
     try {
       // Only fetch notifications from the recent UI window to keep the inbox lightweight.
       const cutoffISO = getNotificationsUiCutoffIso();
-      if (DEBUG_NOTIFICATIONS) {
-        console.log('[NOTIFICATIONS] fetch cutoffISO:', cutoffISO);
-      }
 
       let data;
       try {
@@ -251,15 +234,9 @@ export const NotificationProvider = ({ children }) => {
           .order('send_at', { ascending: false });
         data = res.data;
         if (res.error) {
-          if (DEBUG_NOTIFICATIONS) {
-            console.log('[NOTIFICATIONS] fetch error from supabase:', res.error?.message, res.error?.details || null);
-          }
           throw res.error;
         }
       } catch (selectErr) {
-        if (DEBUG_NOTIFICATIONS) {
-          console.log('[NOTIFICATIONS] Exception during supabase select:', selectErr);
-        }
         throw selectErr;
       }
 
@@ -353,14 +330,6 @@ export const NotificationProvider = ({ children }) => {
 
       setLastFetchAt(new Date().toISOString());
       setLastFetchCount((data && data.length) || 0);
-      if (DEBUG_NOTIFICATIONS) {
-        console.log('[NOTIFICATIONS] fetchNotifications RESULT count:', (data && data.length) || 0);
-      }
-      if (!data || data.length === 0) {
-        if (DEBUG_NOTIFICATIONS) {
-          console.log('[NOTIFICATIONS] fetchNotifications empty result for user:', currentUserId, 'cutoffISO:', cutoffISO);
-        }
-      }
 
       logger.log('[NOTIFICATIONS] Fetched notifications (total):', data?.length || 0);
 
@@ -394,9 +363,6 @@ export const NotificationProvider = ({ children }) => {
       setScheduledNotifications(scheduledRaw);
       updateUnreadCount(dedupedVisible);
     } catch (error) {
-      if (DEBUG_NOTIFICATIONS) {
-        console.log('[NOTIFICATIONS] fetchNotifications CATCH error:', error);
-      }
       handleError(error, { showToast: false, onError: () => { } });
     }
   }, [currentUserId, filterPrematureAwardsNotifications]);
@@ -703,8 +669,7 @@ export const NotificationProvider = ({ children }) => {
         }
       });
 
-    // Show toast notification for real-time updates
-    showNotificationToast(notification);
+    handleRealtimeNotificationSideEffects(notification);
     logger.log('[NOTIFICATIONS] Notification processed successfully');
   };
 
@@ -712,7 +677,6 @@ export const NotificationProvider = ({ children }) => {
     if (!currentUserId) return undefined;
 
     logger.log('[NOTIFICATIONS] Setting up for user:', currentUserId);
-    console.log('[NOTIFICATIONS] Setting up NotificationContext for user:', currentUserId);
     refreshNotificationsSafely({ force: true });
 
     const intervalId = window.setInterval(() => {
@@ -730,86 +694,15 @@ export const NotificationProvider = ({ children }) => {
     enabled: Boolean(currentUserId),
   });
 
-  // Show toast notification based on type
-  const showNotificationToast = (notification) => {
-    logger.log('[NOTIFICATIONS] Showing toast for:', notification.type);
-    const matchName = resolveNotificationMatchName(notification, '');
-    const toastTitle = applyMatchNameQuotes(notification?.title || 'Notificación', matchName);
-    const toastMessage = applyMatchNameQuotes(notification?.message || '', matchName);
+  // Notification center is the source of truth for passive updates.
+  // Keep only side effects that are still required when a realtime event lands.
+  const handleRealtimeNotificationSideEffects = (notification) => {
+    if (notification?.type !== 'admin_transfer') return;
 
-    /** @type {any} */
-    const toastOptions = ({
-      position: 'top-right',
-      autoClose: 5000,
-      hideProgressBar: false,
-      closeOnClick: true,
-      pauseOnHover: true,
-      draggable: true,
-    });
-
-    switch (notification.type) {
-      case 'friend_request':
-        console.info(`Nueva solicitud de amistad de ${notification.data?.senderName || 'alguien'}`, toastOptions);
-        break;
-      case 'match_invite':
-        console.info(`${toastTitle}: ${toastMessage}`, toastOptions);
-        break;
-      case 'team_invite':
-        console.info(`${notification.title || 'Invitacion de equipo'}: ${formatTeamInviteMessage(notification)}`, toastOptions);
-        break;
-      case 'team_captain_transfer':
-        console.info(`${notification.title || 'Capitania transferida'}: ${notification.message || ''}`, toastOptions);
-        break;
-      case 'call_to_vote':
-        console.info(`${toastTitle}: ${toastMessage}`, toastOptions);
-        break;
-      case 'match_update':
-        if (
-          isPlayerJoinedMatchUpdateNotification(notification)
-          || isPlayerLeftMatchUpdateNotification(notification)
-        ) {
-          console.info(`${toastTitle}: ${toastMessage}`, toastOptions);
-        }
-        break;
-      case 'match_kicked':
-        console.info(`${toastTitle}: ${toastMessage}`, toastOptions);
-        break;
-      case 'match_reminder_1h':
-        console.info(`${formatMatchReminderTitle(notification)}: ${formatMatchReminderMessage(notification)}`, toastOptions);
-        break;
-      case 'survey_start':
-      case 'post_match_survey': {
-        const surveyMessage = getSurveyStartMessage({
-          source: notification,
-          matchName: quoteMatchName(resolveNotificationMatchName(notification, 'este partido'), 'este partido'),
-        });
-        console.info(`${notification.title || '¡Encuesta lista!'}: ${surveyMessage}`, toastOptions);
-        break;
-      }
-      case 'survey_reminder':
-      case 'survey_reminder_12h': {
-        const reminderMessage = getSurveyReminderMessage({
-          source: notification,
-          matchName: quoteMatchName(resolveNotificationMatchName(notification, 'este partido'), 'este partido'),
-        });
-        console.info(`Recordatorio de encuesta: ${reminderMessage}`, toastOptions);
-        break;
-      }
-      case 'survey_results_ready':
-        console.info(`Resultados de encuesta listos: ${getSurveyResultsReadyMessage({ matchName: quoteMatchName(resolveNotificationMatchName(notification, 'este partido'), 'este partido') })}`, toastOptions);
-        break;
-      case 'admin_transfer':
-        console.info(`${toastTitle}: ${toastMessage}`, toastOptions);
-        // Auto-refresh if forceRefresh is true
-        if (notification.data?.forceRefresh) {
-          setTimeout(() => {
-            window.location.reload();
-          }, 2000);
-        }
-        break;
-      default:
-        // Keep less intrusive defaults; notification center remains source of truth.
-        break;
+    if (notification.data?.forceRefresh) {
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
     }
   };
 
@@ -937,8 +830,6 @@ export const NotificationProvider = ({ children }) => {
         table: 'notifications',
         filter: `user_id=eq.${currentUserId}`,
         handler: (payload) => {
-          console.debug('[RT] Notifications payload:', payload);
-
           if (payload.eventType === 'INSERT' && payload.new) {
             setLastRealtimeAt(new Date().toISOString());
             setLastRealtimePayloadType(payload.new.type || null);
@@ -1005,15 +896,11 @@ export const NotificationProvider = ({ children }) => {
         created_at: now,
       };
 
-      console.log('[NOTIFICATIONS] createNotification called - currentUserId:', currentUserId);
-      console.log('[NOTIFICATIONS] createNotification payload:', notification);
-
       // Log session user for extra diagnostics
       try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        console.log('[NOTIFICATIONS] session user:', sessionData?.session?.user?.id || null);
+        await supabase.auth.getSession();
       } catch (sessErr) {
-        console.log('[NOTIFICATIONS] getSession error:', sessErr);
+        logger.warn('[NOTIFICATIONS] getSession error:', sessErr);
       }
 
       // Attempt insert
@@ -1025,7 +912,6 @@ export const NotificationProvider = ({ children }) => {
 
       if (res.error) {
         const errCode = String(res.error?.code || res.error?.message || '');
-        console.log('[NOTIFICATIONS] createNotification insert error:', res.error);
 
         // If unique constraint violation (duplicate), perform an update for the existing row
         if (errCode === '23505') {
@@ -1040,12 +926,12 @@ export const NotificationProvider = ({ children }) => {
               .single();
 
             if (upd.error) {
-              console.log('[NOTIFICATIONS] createNotification update-after-duplicate error:', upd.error);
+              logger.warn('[NOTIFICATIONS] createNotification update-after-duplicate error:', upd.error);
               return { ok: false, error: { code: upd.error.code, message: upd.error.message, details: upd.error.details, hint: upd.error.hint } };
             }
 
             const updatedRow = upd.data;
-            try { await fetchNotifications(); } catch (e) { console.log('[NOTIFICATIONS] fetchNotifications after update failed:', e); }
+            try { await fetchNotifications(); } catch (e) { logger.warn('[NOTIFICATIONS] fetchNotifications after update failed:', e); }
             // Update local notifications array immediately to reflect the updated row (force re-render even if id unchanged)
             try {
               setNotifications((prev) => {
@@ -1053,11 +939,11 @@ export const NotificationProvider = ({ children }) => {
                 return next.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
               });
             } catch (stateErr) {
-              console.log('[NOTIFICATIONS] Error updating local notifications after duplicate update:', stateErr);
+              logger.warn('[NOTIFICATIONS] Error updating local notifications after duplicate update:', stateErr);
             }
             return { ok: true, mode: 'updated', row: updatedRow };
           } catch (updateException) {
-            console.log('[NOTIFICATIONS] exception during update-after-duplicate:', updateException);
+            logger.warn('[NOTIFICATIONS] exception during update-after-duplicate:', updateException);
             return { ok: false, error: { message: String(updateException) } };
           }
         }
@@ -1069,7 +955,7 @@ export const NotificationProvider = ({ children }) => {
           details: res.error?.details || null,
           hint: res.error?.hint || null,
         };
-        console.log('[NOTIFICATIONS] createNotification insert failed with error:', errObj);
+        logger.warn('[NOTIFICATIONS] createNotification insert failed with error:', errObj);
         return { ok: false, error: errObj };
       }
 
@@ -1080,9 +966,8 @@ export const NotificationProvider = ({ children }) => {
       try {
         await fetchNotifications();
       } catch (e) {
-        console.log('[NOTIFICATIONS] fetchNotifications after createNotification failed:', e);
+        logger.warn('[NOTIFICATIONS] fetchNotifications after createNotification failed:', e);
       }
-      console.log('[NOTIFICATIONS] lastFetchCount after createNotification:', lastFetchCount);
 
       return { ok: true, mode: 'inserted', row: newNotification };
     } catch (error) {
@@ -1092,7 +977,7 @@ export const NotificationProvider = ({ children }) => {
         details: error?.details || null,
         hint: error?.hint || null,
       };
-      console.log('[NOTIFICATIONS] createNotification unexpected error:', errObj);
+      logger.warn('[NOTIFICATIONS] createNotification unexpected error:', errObj);
       return { ok: false, error: errObj };
     }
   };

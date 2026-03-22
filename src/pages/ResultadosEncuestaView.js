@@ -621,7 +621,6 @@ const ResultadosEncuestaView = () => {
     }
     liveApplied.current.add(key);
     badgesApplied.current.add(key);
-    console.log(`🎬 applyLiveAward called: type=${type}, playerId=${playerId}`);
     setPreviewPlayers((prev) => {
       const updated = prev.map((p) => {
         if (!sharesIdentity(p, playerId)) return p;
@@ -629,30 +628,25 @@ const ResultadosEncuestaView = () => {
         if (type === 'mvp') {
           const current = p.mvp_badges ?? p.mvps ?? 0;
           const newVal = current + 1;
-          console.log(`✅ MVP Updated: ${current} → ${newVal}`);
           return normalizeBadges({ ...p, mvp_badges: newVal, mvps: newVal });
         }
         if (type === 'glove') {
           const current = p.gk_badges ?? p.guantes_dorados ?? 0;
           const newVal = current + 1;
-          console.log(`✅ GK Updated: ${current} → ${newVal}`);
           return normalizeBadges({ ...p, gk_badges: newVal, guantes_dorados: newVal });
         }
         if (type === 'dirty') {
           const current = p.red_badges ?? p.tarjetas_rojas ?? 0;
           const newVal = current + 1;
-          console.log(`✅ RED Updated: ${current} → ${newVal}`);
           return normalizeBadges({ ...p, red_badges: newVal, tarjetas_rojas: newVal });
         }
         if (type === 'penalty') {
           const base = toRating(p, 5.0);
           const next = clamp1(base - 0.5);
-          console.log(`✅ PENALTY Updated: ${base} → ${next}`);
           return normalizeBadges({ ...p, ranking: fmt1(next) });
         }
         return normalizeBadges(p);
       });
-      console.log('📊 previewPlayers after update:', updated);
       return updated.map(normalizeBadges);
     });
   };
@@ -682,9 +676,7 @@ const ResultadosEncuestaView = () => {
       const pid = playerId || getPrimaryIdentity(player);
       if (!pid) return normalizeBadges(player);
       const found = previewPlayers.find((j) => sharesIdentity(j, pid));
-      const result = normalizeBadges(found || player);
-      console.log(`🔍 resolvedPlayer updated: mvp=${result.mvp_badges}, gk=${result.gk_badges}, red=${result.red_badges}`);
-      return result;
+      return normalizeBadges(found || player);
     }, [previewPlayers, player, playerId]);
 
     // Penalty rating animation states
@@ -1606,7 +1598,6 @@ const ResultadosEncuestaView = () => {
   useEffect(() => {
     if (!partidoId) return;
     const unsubscribe = subscribeToMatchUpdates(partidoId, (event) => {
-      console.debug('[RT] Resultados update:', event.type);
       // Refetch on any significant change
       if (event.type === 'results_update' || event.type === 'votes_update' || event.type === 'match_update') {
         // Debounce could be added here if high volume, but for now direct refetch
@@ -1636,13 +1627,11 @@ const ResultadosEncuestaView = () => {
 
     let cancelled = false;
     const runForceAwards = async () => {
-      console.log('[RESULTADOS] forcing awards ensure (one-shot)', { partidoId });
       clearAutoOpenGuard();
       setAutoOpeningAwards(true);
       let openedStory = false;
       autoOpenGuardRef.current = setTimeout(() => {
         if (!cancelled) {
-          console.warn('[RESULTADOS] auto-open guard timeout, waiting for real slides (no fallback flash)');
           // Last check before giving up loading. In forced mode, always open a story fallback.
           const roster = ensurePlayersList(jugadores);
           const row = results;

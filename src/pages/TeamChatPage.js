@@ -22,11 +22,7 @@ const AUTHOR_COLORS = [
   '#facc15', '#c084fc', '#06b6d4', '#fb7185', '#34d399', '#818cf8',
   '#2dd4bf', '#4ade80', '#fda4af', '#93c5fd',
 ];
-const DEBUG_TEAM_CHAT = process.env.NODE_ENV === 'development';
-const logTeamChat = (step, payload = {}) => {
-  if (!DEBUG_TEAM_CHAT) return;
-  console.info(`[TEAM_CHAT][${step}]`, payload);
-};
+const logTeamChat = () => {};
 
 const normalizeTeamChatMessage = (row = {}) => ({
   ...row,
@@ -147,7 +143,7 @@ const TeamChatPage = () => {
         if (!silent) {
           notifyBlockingError(error.message || 'No se pudo cargar el chat del equipo');
         } else {
-          console.warn('[TEAM_CHAT] refresh de mensajes fallido', error);
+          console.warn('Team chat message refresh failed', error);
         }
         throw error;
       })
@@ -193,7 +189,7 @@ const TeamChatPage = () => {
         setCanAccess(false);
         setMessages([]);
       } else {
-        console.warn('[TEAM_CHAT] refresh fallido', error);
+        console.warn('Team chat refresh failed', error);
       }
     } finally {
       if (withLoading) setLoading(false);
@@ -597,7 +593,7 @@ const TeamChatPage = () => {
             result,
           });
         } catch (broadcastError) {
-          console.warn('[TEAM_CHAT] broadcast send failed', broadcastError);
+          console.warn('Team chat broadcast send failed', broadcastError);
         }
       }
 

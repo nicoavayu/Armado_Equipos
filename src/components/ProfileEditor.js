@@ -593,8 +593,6 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
     setLocationLoading(true);
 
     try {
-      console.debug(`${GEO_LOG_PREFIX} requesting current position`, { force });
-
       const currentPosition = await getCurrentPosition({
         enableHighAccuracy: false,
         timeout: 15000,

@@ -15,11 +15,7 @@ const AUTHOR_COLORS = [
 ];
 const TEAM_CHAT_SIDE_COLORS = ['#A78BFA', '#22D3EE'];
 const normalizeAuthorKey = (value) => String(value || '').trim().toLowerCase();
-const DEBUG_MATCH_CHAT = process.env.NODE_ENV === 'development';
-const logMatchChat = (step, payload = {}) => {
-  if (!DEBUG_MATCH_CHAT) return;
-  console.info(`[TEAM_CHAT][${step}]`, payload);
-};
+const logMatchChat = () => {};
 
 const normalizeChatMessage = (row = {}) => ({
   ...row,
@@ -94,8 +90,6 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
 
   useEffect(() => {
     if (!isOpen || !partidoId) return undefined;
-
-    console.info('TEAM_CHAT_PAGE_MOUNT_HARD', window.location.pathname);
     logMatchChat('PAGE_MOUNT', {
       pathname: window.location.pathname,
       partidoId,
@@ -501,7 +495,6 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
 
   const handleSendMessage = async () => {
     if (!newMessage.trim()) return;
-    console.info('TEAM_CHAT_SEND_CLICK_HARD');
 
     const userInfo = getUserInfo();
     if (!userInfo) {
@@ -595,7 +588,7 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
             result,
           });
         } catch (broadcastError) {
-          console.warn('[TEAM_CHAT] broadcast send failed', broadcastError);
+          console.warn('Match chat broadcast send failed', broadcastError);
         }
       }
 

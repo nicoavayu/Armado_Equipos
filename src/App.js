@@ -189,13 +189,7 @@ export default function App() {
                       <Route path="quiero-jugar/equipos/:teamId/chat" element={<LegacyTeamChatRedirect />} />
                       <Route path="quiero-jugar/equipos/partidos/:matchId" element={<LegacyTeamMatchRedirect />} />
                       <Route path="amigos" element={
-                        <Suspense fallback={(
-                          <div className="fixed inset-0 z-[17000] flex min-h-[100dvh] w-screen items-center justify-center bg-green-500 p-6 text-center">
-                            <div className="rounded border-8 border-green-950 bg-green-300 px-6 py-5 font-mono text-2xl font-black uppercase tracking-[0.16em] text-green-950 shadow-[0_18px_40px_rgba(20,83,45,0.45)]">
-                              AMIGOS SUSPENSE FALLBACK
-                            </div>
-                          </div>
-                        )}>
+                        <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
                           <AmigosPage />
                         </Suspense>
                       } />
@@ -404,23 +398,7 @@ function AppAuthWrapper() {
   const localEditMode = process.env.NODE_ENV === 'development' && process.env.REACT_APP_LOCAL_EDIT_MODE !== 'false';
   const shouldPassThroughWhileLoading = loading && process.env.NODE_ENV !== 'production';
 
-  console.debug('[AMIGOS_DEBUG][AppAuthWrapper][render]', {
-    loading,
-    authResolved,
-    userExists: Boolean(user),
-    userId: user?.id || null,
-    localEditMode,
-    pathname: location.pathname,
-  });
-
   if (shouldPassThroughWhileLoading) {
-    console.debug('[AMIGOS_DEBUG][AppAuthWrapper][loading-pass-through]', {
-      loading,
-      authResolved,
-      userExists: Boolean(user),
-      userId: user?.id || null,
-      pathname: location.pathname,
-    });
     return <Outlet />;
   }
 
@@ -434,19 +412,12 @@ function AppAuthWrapper() {
   const isVotingView = search.has('codigo');
 
   if (isVotingView) {
-    console.debug('[RouteGuard] allowVotingView');
     return <Outlet />;
   }
 
   if (!user) {
     const returnTo = `${location.pathname}${location.search}${location.hash}`;
     setAuthReturnTo(returnTo);
-    console.debug('[AMIGOS_DEBUG][AppAuthWrapper][redirect-login]', {
-      loading,
-      authResolved,
-      userExists: false,
-      pathname: location.pathname,
-    });
     return <Navigate to={`/login?returnTo=${encodeURIComponent(returnTo)}`} replace />;
   }
 

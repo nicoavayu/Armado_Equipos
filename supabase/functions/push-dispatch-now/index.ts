@@ -5,6 +5,7 @@ type KickEventType =
   | "match_invite"
   | "friend_request"
   | "match_join_request"
+  | "match_player_left"
   | "challenge_accepted"
   | "team_invite"
   | "call_to_vote"
@@ -49,6 +50,7 @@ const ALLOWED_EVENT_TYPES = new Set<KickEventType>([
   "match_invite",
   "friend_request",
   "match_join_request",
+  "match_player_left",
   "challenge_accepted",
   "team_invite",
   "call_to_vote",
@@ -298,6 +300,7 @@ async function fetchQueuedCandidateRows(
     (
       eventType === "match_invite"
       || eventType === "match_join_request"
+      || eventType === "match_player_left"
       || eventType === "call_to_vote"
       || eventType === "match_kicked"
     ) && matchId !== null
@@ -731,6 +734,125 @@ async function enqueueMatchKickedRows(
   return { inserted: rowsToInsert.length, error: null };
 }
 
+function isMatchPlayerLeftNotification(row: NotificationRow): boolean {
+  const payload = row.data && typeof row.data === "object" ? row.data : {};
+  const leftVia = readPayloadString(payload, "left_via", "leftVia");
+  if (leftVia) return true;
+
+  const title = String(row.title ?? "").trim().toLowerCase();
+  const message = String(row.message ?? "").trim().toLowerCase();
+  return title.includes("se baj") || message.includes("se baj");
+}
+
+async function enqueueMatchPlayerLeftRows(
+  supabase: ReturnType<typeof createClient>,
+  {
+    matchId,
+    recipientUserId,
+    windowStartIso,
+  }: {
+    matchId: number;
+    recipientUserId: string | null;
+    windowStartIso: string;
+  },
+): Promise<{ inserted: number; error: { message: string } | null }> {
+  let notificationsQuery = supabase
+    .from("notifications")
+    .select("id, user_id, partido_id, type, title, message, data, created_at")
+    .eq("type", "match_update")
+    .eq("partido_id", matchId)
+    .gte("created_at", windowStartIso)
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  if (recipientUserId) {
+    notificationsQuery = notificationsQuery.eq("user_id", recipientUserId);
+  }
+
+  const { data: notificationRows, error: notificationsError } = await notificationsQuery;
+  if (notificationsError) {
+    return { inserted: 0, error: { message: notificationsError.message } };
+  }
+
+  const matchingNotifications = ((notificationRows ?? []) as NotificationRow[])
+    .filter((row) => !isGuestOrInvalidRecipient(row.user_id))
+    .filter((row) => isMatchPlayerLeftNotification(row));
+
+  if (matchingNotifications.length === 0) {
+    return { inserted: 0, error: null };
+  }
+
+  const recipientIds = Array.from(new Set(
+    matchingNotifications.map((row) => normalizeOptionalString(row.user_id)).filter(Boolean),
+  ));
+
+  let existingLogs: DeliveryLogRow[] = [];
+  if (recipientIds.length > 0) {
+    const { data: existingData, error: existingError } = await supabase
+      .from("notification_delivery_log")
+      .select("id, notification_type, user_id, partido_id, created_at, payload_json, status, error_text")
+      .eq("channel", "push")
+      .eq("notification_type", "match_player_left")
+      .eq("partido_id", matchId)
+      .gte("created_at", windowStartIso)
+      .in("user_id", recipientIds)
+      .limit(50);
+
+    if (existingError) {
+      return { inserted: 0, error: { message: existingError.message } };
+    }
+    existingLogs = (existingData ?? []) as DeliveryLogRow[];
+  }
+
+  const existingNotificationIds = new Set(
+    existingLogs
+      .filter((row) => row.status !== "skipped")
+      .map((row) => readPayloadString(row.payload_json, "notification_id"))
+      .filter(Boolean),
+  );
+
+  const rowsToInsert = matchingNotifications
+    .filter((row) => !existingNotificationIds.has(row.id))
+    .map((row) => {
+      const payload = row.data && typeof row.data === "object" ? row.data : {};
+      const route = readPayloadString(payload, "link", "route") ?? `/admin/${matchId}`;
+      return {
+        partido_id: row.partido_id,
+        user_id: row.user_id,
+        notification_type: "match_player_left",
+        payload_json: {
+          ...payload,
+          event_channel: "ACTIVITY",
+          notification_id: row.id,
+          source_notification_type: row.type,
+          notification_type: "match_player_left",
+          title: row.title ?? "Jugador se bajó del partido",
+          message: row.message ?? "Un jugador se bajó del partido.",
+          partido_id: row.partido_id,
+          route,
+          link: route,
+          source: "push_dispatch_now_backfill",
+        },
+        channel: "push",
+        status: "queued",
+      };
+    });
+
+  if (rowsToInsert.length === 0) {
+    return { inserted: 0, error: null };
+  }
+
+  const { error: insertError } = await supabase
+    .from("notification_delivery_log")
+    .insert(rowsToInsert);
+
+  if (insertError) {
+    return { inserted: 0, error: { message: insertError.message } };
+  }
+
+  return { inserted: rowsToInsert.length, error: null };
+}
+
 function isEligibleRow(
   row: DeliveryLogRow,
   actorUserId: string,
@@ -767,6 +889,15 @@ function isEligibleRow(
     const payloadMatchId = normalizeOptionalInt(payload.match_id ?? payload.matchId ?? payload.partido_id ?? payload.partidoId);
     if (payloadMatchId !== null && payloadMatchId !== matchId) return false;
     return true;
+  }
+
+  if (eventType === "match_player_left") {
+    if (matchId === null) return false;
+    if (row.partido_id !== null && row.partido_id !== matchId) return false;
+    const payloadMatchId = normalizeOptionalInt(payload.match_id ?? payload.matchId ?? payload.partido_id ?? payload.partidoId);
+    if (payloadMatchId !== null && payloadMatchId !== matchId) return false;
+    const playerUserId = readPayloadString(payload, "player_user_id", "playerUserId", "senderId", "sender_id");
+    return Boolean(playerUserId && playerUserId === actorUserId);
   }
 
   if (eventType === "friend_request") {
@@ -889,6 +1020,7 @@ serve(async (req) => {
     (eventType === "challenge_accepted" && candidates.length === 0 && challengeId)
     || (eventType === "team_invite" && candidates.length === 0 && invitationId)
     || (eventType === "call_to_vote" && matchId !== null)
+    || (eventType === "match_player_left" && matchId !== null && recipientUserId !== null)
     || (eventType === "match_kicked" && matchId !== null && recipientUserId !== null);
 
   if (shouldBackfill) {
@@ -904,6 +1036,12 @@ serve(async (req) => {
           recipientUserId,
           windowStartIso,
         })
+        : eventType === "match_player_left"
+          ? await enqueueMatchPlayerLeftRows(supabase, {
+            matchId: matchId as number,
+            recipientUserId,
+            windowStartIso,
+          })
         : eventType === "match_kicked"
           ? await enqueueMatchKickedRows(supabase, {
             matchId: matchId as number,

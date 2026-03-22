@@ -118,8 +118,6 @@ const NotificationsModal = ({ isOpen, onClose }) => {
   };
 
   const handleNotificationClick = async (notification) => {
-    console.log('[NOTIFICATION_CLICK] START', { type: notification.type, data: notification.data });
-
     const trackOpened = (notificationItem) => {
       if (notificationItem?.type === 'match_invite') {
         track('match_invite_opened', {
@@ -141,8 +139,8 @@ const NotificationsModal = ({ isOpen, onClose }) => {
 
     try {
       onClose();
-    } catch (e) {
-      console.warn('[NOTIFICATION_CLICK] onClose threw:', e);
+    } catch (_error) {
+      // non-blocking
     }
 
     if (shouldTreatNotificationAsSurveyForm(notification)) {
@@ -193,7 +191,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
     if (notification.type === 'match_invite') {
       const inviteStatus = String(notification?.data?.status || 'pending').trim().toLowerCase();
       if (inviteStatus !== 'pending') {
-        console.info('Esta invitación ya no está activa');
+        notifyBlockingError('Esta invitación ya no está activa');
         return;
       }
       trackOpened(notification);
@@ -262,7 +260,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
     }
 
     if (notification.type === 'match_kicked') {
-      console.info('Fuiste removido del partido');
+      notifyBlockingError('Fuiste removido del partido');
       return;
     }
 

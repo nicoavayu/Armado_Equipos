@@ -173,9 +173,7 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
 
   const guardarCambios = async () => {
     try {
-      console.log('[EditarPartidoFrecuente] Editando plantilla frecuente');
       if (!partido?.id) {
-        console.warn('[EditarPartidoFrecuente] plantillaFrecuente sin id, se aborta update');
         showInlineNotice({
           key: 'edit_frequent_missing_template',
           type: 'warning',
@@ -277,7 +275,6 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
 
       // Update frequent template only (no partido updates here)
       if (Object.keys(updatesFrecuente).length > 0) {
-        console.log('[EditarPartidoFrecuente] Actualizando partidos_frecuentes', updatesFrecuente);
         let resFrecuente;
         try {
           resFrecuente = await updatePartidoFrecuente(partido.id, updatesFrecuente);
@@ -295,14 +292,15 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
           throw resFrecuente.error;
         }
       } else {
-        console.log('[EditarPartidoFrecuente] Sin cambios para actualizar');
+        showInlineNotice({
+          key: 'edit_frequent_no_changes',
+          type: 'info',
+          message: 'No hubo cambios para guardar.',
+        });
+        return;
       }
-
-      console.info('Plantilla guardada');
       onGuardado && onGuardado();
     } catch (error) {
-      console.error('[EditarPartidoFrecuente] guardarCambios error', error);
-
       // Build user-friendly message
       let mensajeCorto = '';
 

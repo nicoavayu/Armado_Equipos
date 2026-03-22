@@ -876,7 +876,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
     });
 
     if (latestRequestError) {
-      console.error('[PUBLIC_MATCH] realtime refresh error', latestRequestError);
+      console.error('Public match realtime refresh error', latestRequestError);
       return previousStatus;
     }
 
@@ -956,8 +956,6 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       setJoinSubmitting(false);
       setJoinCancelling(false);
 
-      console.log('[LOAD_PARTIDO] Starting load', { partidoId, mode, user: !!user, reqId });
-
       if (!partidoId) {
         setError('Partido no encontrado');
         setLoading(false);
@@ -973,10 +971,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
             .maybeSingle();
 
           // Check if this request is stale
-          if (reqId !== reqIdRef.current) {
-            console.log('[LOAD_PARTIDO] Aborting stale request (after partido fetch)', { reqId, current: reqIdRef.current });
-            return;
-          }
+          if (reqId !== reqIdRef.current) return;
 
           if (fetchError || !data) {
             setError('Partido no encontrado');
@@ -990,10 +985,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
             .eq('partido_id', partidoId);
 
           // Check if this request is stale
-          if (reqId !== reqIdRef.current) {
-            console.log('[LOAD_PARTIDO] Aborting stale request (after jugadores fetch)', { reqId, current: reqIdRef.current });
-            return;
-          }
+          if (reqId !== reqIdRef.current) return;
 
           setPartido({ ...data, jugadoresCount: count || 0 });
           setJugadores(jugadoresData || []);
@@ -1007,38 +999,19 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
 
           // If no user, set to 'none' and skip membership check
           if (!user) {
-            console.log('[LOAD_PARTIDO] No user, setting status: none', { reqId });
             setJoinStatus('none');
             setLoading(false);
             return;
           }
 
           // User is authenticated - check membership
-          console.log('[PUBLIC_MATCH] membership_check_start', {
-            partidoId: Number(partidoId),
-            currentUserUuid: user.id,
-            jugadoresCount: jugadoresData?.length || 0,
-            reqId
-          });
-
           // 1. Use centralized membership check (single source of truth)
           const { isMember, jugadorRow } = await isUserMemberOfMatch(user.id, Number(partidoId));
 
           // Check if this request is stale
-          if (reqId !== reqIdRef.current) {
-            console.log('[LOAD_PARTIDO] Aborting stale request (after membership check)', { reqId, current: reqIdRef.current });
-            return;
-          }
-
-          console.log('[PUBLIC_MATCH] membership_result', {
-            source: 'centralized_db_check',
-            isMember,
-            jugadorRow,
-            reqId
-          });
+          if (reqId !== reqIdRef.current) return;
 
           if (isMember) {
-            console.log('[PUBLIC_MATCH] setJoinStatus: approved', { partidoId, userId: user.id, source: 'db_member', reqId });
             setJoinStatus('approved');
           } else {
             // 2. Verificar si hay solicitud (más reciente)
@@ -1048,28 +1021,17 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
             });
 
             // Check if this request is stale
-            if (reqId !== reqIdRef.current) {
-              console.log('[LOAD_PARTIDO] Aborting stale request (after request check)', { reqId, current: reqIdRef.current });
-              return;
-            }
+            if (reqId !== reqIdRef.current) return;
 
             if (reqErr) console.error('[INVITE_PUBLIC] request check error', reqErr);
 
             const requestStatus = normalizeJoinRequestStatus(request?.status);
 
             if (requestStatus === 'pending') {
-              console.log('[PUBLIC_MATCH] setJoinStatus: pending', { partidoId, userId: user.id, source: 'request_pending', reqId });
               setJoinStatus('pending');
             } else if (requestStatus === 'approved') {
-              console.warn('[PUBLIC_MATCH] approved request without membership, waiting for sync', {
-                partidoId,
-                userId: user.id,
-                requestId: request.id,
-                reqId
-              });
               setJoinStatus('approved_pending_sync');
             } else {
-              console.log('[PUBLIC_MATCH] setJoinStatus: none', { partidoId, userId: user.id, source: 'no_request', reqId });
               setJoinStatus('none');
             }
           }
@@ -1103,10 +1065,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           });
           const inviteCodeFromNotification = String(inviteAccess?.inviteCode || '').trim();
 
-          if (reqId !== reqIdRef.current) {
-            console.log('[LOAD_PARTIDO] Aborting stale request (invite no-code)', { reqId, current: reqIdRef.current });
-            return;
-          }
+          if (reqId !== reqIdRef.current) return;
 
           if (inviteAccess.blockedByKick) {
             showInlineNotice('warning', 'Ya no formás parte de este partido.');
@@ -1128,10 +1087,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
             .eq('id', partidoId)
             .maybeSingle();
 
-          if (reqId !== reqIdRef.current) {
-            console.log('[LOAD_PARTIDO] Aborting stale request (invite no-code partido fetch)', { reqId, current: reqIdRef.current });
-            return;
-          }
+          if (reqId !== reqIdRef.current) return;
 
           if (partidoError || !partidoData) {
             setError('Partido no encontrado');
@@ -1144,10 +1100,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
             .select('*', { count: 'exact' })
             .eq('partido_id', partidoId);
 
-          if (reqId !== reqIdRef.current) {
-            console.log('[LOAD_PARTIDO] Aborting stale request (invite no-code jugadores fetch)', { reqId, current: reqIdRef.current });
-            return;
-          }
+          if (reqId !== reqIdRef.current) return;
 
           setPartido({ ...partidoData, jugadoresCount: count || 0 });
           setJugadores(jugadoresData || []);
@@ -1161,7 +1114,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
 
           setLoading(false);
         } catch (err) {
-          console.error('[LOAD_PARTIDO] invite no-code fallback failed', err);
+          console.error('Invite no-code fallback failed', err);
           if (reqId === reqIdRef.current) {
             setError('Partido no encontrado');
             setLoading(false);
@@ -1177,10 +1130,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
             matchId: partidoId,
           });
 
-          if (reqId !== reqIdRef.current) {
-            console.log('[LOAD_PARTIDO] Aborting stale request (invite mode access check)', { reqId, current: reqIdRef.current });
-            return;
-          }
+          if (reqId !== reqIdRef.current) return;
 
           if (inviteAccess.blockedByKick) {
             showInlineNotice('warning', 'Ya no formás parte de este partido.');
@@ -1204,10 +1154,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           p_codigo: codigoParam
         });
 
-        if (reqId !== reqIdRef.current) {
-          console.log('[LOAD_PARTIDO] Aborting stale request (invite mode)', { reqId, current: reqIdRef.current });
-          return;
-        }
+        if (reqId !== reqIdRef.current) return;
 
         if (fetchError) {
           setError('Partido no encontrado.');
@@ -1343,51 +1290,27 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
     const intervalMs = 2000;
 
     if (attempt > maxAttempts) {
-      console.warn('[RECHECK] Max attempts reached, falling back to none', { matchId, userUuid, originalReqId });
-
       // Only update if this is still the current request
       if (originalReqId === reqIdRef.current) {
-        console.log('[PUBLIC_MATCH] setJoinStatus: none', {
-          partidoId: matchId,
-          userId: userUuid,
-          source: 'recheck_timeout',
-          reqId: originalReqId
-        });
         setJoinStatus('none');
         showInlineNotice('warning', 'Tu aprobación aún no se reflejó. Reintentá más tarde.');
       }
       return;
     }
 
-    console.log('[RECHECK] Attempt', { attempt, maxAttempts, matchId, userUuid, originalReqId });
-
     setTimeout(async () => {
       // Check if request is still current
-      if (originalReqId !== reqIdRef.current) {
-        console.log('[RECHECK] Aborting - request is stale', { originalReqId, current: reqIdRef.current });
-        return;
-      }
+      if (originalReqId !== reqIdRef.current) return;
 
       const { isMember, jugadorRow } = await isUserMemberOfMatch(userUuid, matchId);
 
       // Check again after async operation
-      if (originalReqId !== reqIdRef.current) {
-        console.log('[RECHECK] Aborting - request became stale during check', { originalReqId, current: reqIdRef.current });
-        return;
-      }
+      if (originalReqId !== reqIdRef.current) return;
 
       if (isMember) {
-        console.log('[RECHECK] Success! User now in jugadores', { matchId, userUuid, jugadorRow, attempt, originalReqId });
-        console.log('[PUBLIC_MATCH] setJoinStatus: approved', {
-          partidoId: matchId,
-          userId: userUuid,
-          source: 'recheck_success',
-          reqId: originalReqId
-        });
         setJoinStatus('approved');
         openJoinSuccessModal();
       } else {
-        console.log('[RECHECK] Not yet synced, retrying...', { attempt, matchId, userUuid, originalReqId });
         recheckMembership(userUuid, matchId, originalReqId, attempt + 1);
       }
     }, intervalMs);
@@ -1506,15 +1429,12 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
         return;
       }
     } catch (err) {
-      console.error('[SOLICITAR_UNIRME] schedule check error', err);
       showInlineNotice('warning', 'No se pudo validar el conflicto de horario.');
       return;
     }
 
     setJoinSubmitting(true);
     try {
-      console.log('[SOLICITAR_UNIRME] Creating join request for match:', partidoId, 'user:', user.id);
-
       // First, create the pending request
       const { data: newRequest, error: insertError } = await supabase
         .from('match_join_requests')
@@ -1529,7 +1449,6 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       if (insertError) {
         if (String(insertError.code) === '23505') {
           // Duplicate request - check latest status and recover when the latest row is reopenable.
-          console.log('[SOLICITAR_UNIRME] Duplicate request detected, checking existing status');
           const { data: existingRequest } = await fetchLatestJoinRequest({
             matchId: Number(partidoId),
             userId: user.id,
@@ -1577,7 +1496,6 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
         throw insertError;
       }
 
-      console.log('[SOLICITAR_UNIRME] Request created successfully:', newRequest.id);
       const requesterName = user?.user_metadata?.nombre || user?.email?.split('@')[0] || 'Un jugador';
       await notifyAdminJoinRequest({
         matchId: Number(partidoId),
@@ -1589,12 +1507,6 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       setJoinStatus('pending');
       showInlineNotice('success', 'Solicitud enviada. Esperando aprobación del admin.');
     } catch (err) {
-      console.error('[SOLICITAR_UNIRME] Error creating request:', {
-        code: err.code,
-        message: err.message,
-        details: err.details,
-        hint: err.hint
-      });
       notifyBlockingError('No se pudo enviar la solicitud');
     } finally {
       setJoinSubmitting(false);

@@ -100,7 +100,6 @@ const AuthProvider = ({ children }) => {
   }, []);
 
   const fetchProfile = async (currentUser) => {
-    console.log('AuthProvider fetchProfile called with:', currentUser?.id);
     if (!currentUser) {
       setProfile(null);
       return;
@@ -114,14 +113,10 @@ const AuthProvider = ({ children }) => {
     try {
       let profileData;
       try {
-        console.log('Attempting to get existing profile...');
         profileData = await getProfile(currentUser.id);
-        console.log('Existing profile found:', profileData);
 
         const metadataAvatar = (currentUser.user_metadata?.avatar_url || currentUser.user_metadata?.picture || '').trim();
         if (metadataAvatar && !profileData?.avatar_url) {
-          console.log('[AUTH] Hydrating missing avatar_url from social metadata');
-
           const [{ error: updateUsuarioError }, { error: updateProfileError }] = await Promise.all([
             supabase
               .from('usuarios')
@@ -152,9 +147,7 @@ const AuthProvider = ({ children }) => {
         console.error('Error fetching profile from getProfile:', error);
         const code = error?.code || error?.status || null;
         if (code === 'PGRST116' || code === 116) {
-          console.log('Profile not found (PGRST116), creating profile for user:', currentUser.id);
           profileData = await createOrUpdateProfile(currentUser);
-          console.log('New profile created:', profileData);
         } else {
           // Unexpected error: do NOT try to create a profile or continue — stop to avoid loops/rate limits.
           console.error('Unexpected error fetching profile, aborting profile creation to avoid loops:', error);
@@ -164,13 +157,6 @@ const AuthProvider = ({ children }) => {
       }
 
       setProfile(profileData);
-      console.log('Profile set in state:', profileData);
-      console.log('Profile avatar fields debug:', {
-        avatar_url: profileData?.avatar_url,
-        user_metadata_avatar: currentUser.user_metadata?.avatar_url,
-        user_metadata_picture: currentUser.user_metadata?.picture,
-        all_fields: Object.keys(profileData || {}),
-      });
     } catch (error) {
       console.error('Error with profile:', error);
       setProfile(null);
@@ -201,12 +187,6 @@ const AuthProvider = ({ children }) => {
     let mounted = true;
     const instanceId = instanceIdRef.current;
 
-    console.info('[AMIGOS_DEBUG][AuthProvider][bootstrap][start]', {
-      instanceId,
-      authResolved: false,
-      localEditMode: LOCAL_EDIT_MODE,
-    });
-
     const init = async () => {
       let sessionExists = false;
       let sessionUserExists = false;
@@ -218,46 +198,24 @@ const AuthProvider = ({ children }) => {
         sessionUserExists = Boolean(session?.user);
         sessionUserId = session?.user?.id || null;
 
-        console.info('[AMIGOS_DEBUG][AuthProvider][bootstrap][session]', {
-          instanceId,
-          sessionExists,
-          userExists: sessionUserExists,
-          userId: sessionUserId,
-        });
-
         if (!mounted) return;
 
-        console.log('Initial session:', session?.user?.id);
         if (session?.user) {
           setUser(session.user);
           setLoading(false);
           Promise.resolve(fetchProfile(session.user)).catch((profileError) => {
-            console.error('[AMIGOS_DEBUG][AuthProvider][profile][init-error]', {
-              instanceId,
-              userId: session.user?.id || null,
-              error: profileError,
-            });
+            console.error('[AUTH] Error fetching profile during init:', profileError);
           });
         } else if (LOCAL_EDIT_MODE) {
           let activated = false;
           try {
             const { data, error } = await supabase.auth.signInAnonymously();
-            console.info('[AMIGOS_DEBUG][AuthProvider][bootstrap][anonymous-result]', {
-              instanceId,
-              error: error?.message || null,
-              userExists: Boolean(data?.user),
-              userId: data?.user?.id || null,
-            });
             if (!mounted) return;
             if (!error && data?.user) {
               setUser(data.user);
               setLoading(false);
               Promise.resolve(fetchProfile(data.user)).catch((profileError) => {
-                console.error('[AMIGOS_DEBUG][AuthProvider][profile][anonymous-error]', {
-                  instanceId,
-                  userId: data.user?.id || null,
-                  error: profileError,
-                });
+                console.error('[AUTH] Error fetching anonymous profile:', profileError);
               });
               activated = true;
             } else if (error) {
@@ -268,11 +226,7 @@ const AuthProvider = ({ children }) => {
           }
           if (!mounted) return;
           if (!activated) {
-            const devUser = activateLocalDevSession();
-            console.info('[AMIGOS_DEBUG][AuthProvider][bootstrap][local-dev-session]', {
-              instanceId,
-              userId: devUser?.id || null,
-            });
+            activateLocalDevSession();
             setLoading(false);
           }
         } else {
@@ -282,31 +236,15 @@ const AuthProvider = ({ children }) => {
         }
       } catch (error) {
         console.error('[AUTH] Error getting initial session:', error);
-        console.error('[AMIGOS_DEBUG][AuthProvider][bootstrap][error]', {
-          instanceId,
-          error,
-        });
         if (!mounted) return;
         if (LOCAL_EDIT_MODE) {
-          const devUser = activateLocalDevSession();
-          console.info('[AMIGOS_DEBUG][AuthProvider][bootstrap][local-dev-fallback]', {
-            instanceId,
-            userId: devUser?.id || null,
-          });
+          activateLocalDevSession();
           setLoading(false);
         } else {
           setUser(null);
           setProfile(null);
           setLoading(false);
         }
-      } finally {
-        console.info('[AMIGOS_DEBUG][AuthProvider][bootstrap][end]', {
-          instanceId,
-          sessionExists,
-          userExists: sessionUserExists,
-          userId: sessionUserId,
-          mounted,
-        });
       }
     };
 
@@ -314,30 +252,15 @@ const AuthProvider = ({ children }) => {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.info('[AMIGOS_DEBUG][AuthProvider][listener]', {
-        instanceId,
-        event,
-        sessionExists: Boolean(session),
-        userExists: Boolean(session?.user),
-        userId: session?.user?.id || null,
-      });
       if (!mounted) return;
       if (session?.user) {
         setUser(session.user);
         setLoading(false);
         Promise.resolve(fetchProfile(session.user)).catch((profileError) => {
-          console.error('[AMIGOS_DEBUG][AuthProvider][profile][listener-error]', {
-            instanceId,
-            userId: session.user?.id || null,
-            error: profileError,
-          });
+          console.error('[AUTH] Error fetching profile on auth change:', profileError);
         });
       } else if (LOCAL_EDIT_MODE) {
-        const devUser = activateLocalDevSession();
-        console.info('[AMIGOS_DEBUG][AuthProvider][listener][local-dev-session]', {
-          instanceId,
-          userId: devUser?.id || null,
-        });
+        activateLocalDevSession();
         setLoading(false);
       } else {
         setUser(null);
@@ -348,9 +271,6 @@ const AuthProvider = ({ children }) => {
 
     return () => {
       mounted = false;
-      console.info('[AMIGOS_DEBUG][AuthProvider][bootstrap][cleanup]', {
-        instanceId,
-      });
       subscription.unsubscribe();
     };
   }, [activateLocalDevSession]);
@@ -365,39 +285,12 @@ const AuthProvider = ({ children }) => {
     localEditMode: LOCAL_EDIT_MODE,
   };
 
-  console.debug('[AMIGOS_DEBUG][AuthProvider][render]', {
-    instanceId: instanceIdRef.current,
-    loading,
-    authResolved,
-    sessionExists: Boolean(user),
-    userExists: Boolean(user),
-    userId: user?.id || null,
-    hasProfile: Boolean(profile),
-    shouldShowBlockingSpinner,
-    shouldPassThroughWhileLoading,
-  });
-
   if (shouldShowBlockingSpinner) {
-    console.debug('[AMIGOS_DEBUG][AuthProvider][blocking-spinner]', {
-      loading,
-      authResolved,
-      userExists: Boolean(user),
-      userId: user?.id || null,
-    });
     return (
       <div className="voting-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
         <LoadingSpinner size="large" fullScreen />
       </div>
     );
-  }
-
-  if (shouldPassThroughWhileLoading) {
-    console.debug('[AMIGOS_DEBUG][AuthProvider][debug-pass-through]', {
-      loading,
-      authResolved,
-      userExists: Boolean(user),
-      userId: user?.id || null,
-    });
   }
 
   return (

@@ -389,7 +389,7 @@ export const notifyAdminPlayerLeft = async ({
   const matchIdNumber = toMatchId(matchId);
   if (!matchIdNumber) return { ok: false, reason: 'invalid_match_id' };
 
-  return enqueueAdminNotification({
+  const result = await enqueueAdminNotification({
     matchId: matchIdNumber,
     type: 'match_update',
     title: 'Jugador se bajó del partido',
@@ -404,6 +404,17 @@ export const notifyAdminPlayerLeft = async ({
     },
     adminUserId,
   });
+
+  if (result.ok) {
+    requestImmediatePushDispatchSafe({
+      eventType: 'match_player_left',
+      matchId: matchIdNumber,
+      recipientUserId: adminUserId || null,
+      limit: 5,
+    });
+  }
+
+  return result;
 };
 
 export default {

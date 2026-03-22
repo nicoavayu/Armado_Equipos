@@ -209,10 +209,7 @@ const AdminPanelPage = () => {
           <AdminPanel
             partidoActual={partidoActual}
             jugadores={jugadoresDelPartido}
-            onJugadoresChange={(nuevosJugadores) => {
-              console.log('Players changed:', Array.isArray(nuevosJugadores) ? nuevosJugadores.length : 0);
-              handleJugadoresChange(nuevosJugadores);
-            }}
+            onJugadoresChange={handleJugadoresChange}
             onBackToHome={() => navigateWithAnimation('/', 'back')}
           />
         </div>
