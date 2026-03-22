@@ -154,7 +154,18 @@ export async function sendVotingNotifications(partidoId, meta = {}) {
     } else {
       // Handle cases where RPC returns success: false (e.g. survey already exists)
       logger.log('[CallToVote] RPC skipped insertion:', rpcResult?.reason);
-      return { inserted: 0, reason: rpcResult?.reason };
+      return {
+        inserted: 0,
+        reason: rpcResult?.reason,
+        skippedDueToSurvey: rpcResult?.reason === 'survey_exists',
+        matchAssumedNotPlayed: rpcResult?.match_assumed_not_played === true,
+        modalidad: rpcResult?.modalidad ?? null,
+        cupoJugadores: rpcResult?.cupo_jugadores ?? null,
+        starterSlots: rpcResult?.starter_slots ?? null,
+        requiredPlayers: rpcResult?.required_players ?? null,
+        rosterCount: rpcResult?.roster_count ?? null,
+        registeredRosterCount: rpcResult?.registered_roster_count ?? null,
+      };
     }
   } catch (err) {
     console.error('[CallToVote] failed', err);

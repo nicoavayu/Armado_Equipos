@@ -331,6 +331,18 @@ export default function ArmarEquiposView({
         return;
       }
 
+      if (res?.reason === 'incomplete_roster_for_match_type') {
+        const rosterCount = Number(res?.rosterCount);
+        const requiredPlayers = Number(res?.requiredPlayers);
+        const hasCounts = Number.isFinite(rosterCount) && Number.isFinite(requiredPlayers);
+        notifyBlockingError(
+          hasCounts
+            ? `Este partido no califica para acciones post-partido: tiene ${rosterCount} jugador${rosterCount === 1 ? '' : 'es'} y el formato requiere exactamente ${requiredPlayers}.`
+            : 'Este partido no califica para acciones post-partido porque la nómina final no coincide con el formato requerido.'
+        );
+        return;
+      }
+
       if ((res.inserted || 0) > 0) {
         showInlineNotice('success', `Notificación enviada a ${res.inserted} jugadores. Entrando a votación.`);
 
