@@ -25,6 +25,7 @@ import {
 import { distanceInMeters, getCurrentPosition, getLocalhostDevelopmentLocation } from '../services/locationService';
 import { useSmartBackNavigation } from '../hooks/useSmartBackNavigation';
 import { useRefreshOnVisibility } from '../hooks/useRefreshOnVisibility';
+import { useSupabaseRealtime } from '../hooks/useSupabaseRealtime';
 
 const containerClass = 'flex flex-col items-center w-full pb-6 px-4 box-border font-oswald';
 
@@ -364,6 +365,51 @@ const QuieroJugar = ({
       enabled: Boolean(user?.id),
     },
   );
+
+  useEffect(() => {
+    if (activeTab !== 'players' || !user?.id) return;
+    fetchFreePlayers();
+  }, [activeTab, fetchFreePlayers, user?.id]);
+
+  useSupabaseRealtime({
+    enabled: Boolean(user?.id) && activeTab === 'players',
+    channelName: `quiero-jugar-players-${user?.id}`,
+    deps: [activeTab, user?.id],
+    events: [
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'jugadores_sin_partido',
+        handler: () => {
+          fetchFreePlayers();
+        },
+      },
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'jugadores_sin_partido',
+        handler: () => {
+          fetchFreePlayers();
+        },
+      },
+      {
+        event: 'DELETE',
+        schema: 'public',
+        table: 'jugadores_sin_partido',
+        handler: () => {
+          fetchFreePlayers();
+        },
+      },
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'usuarios',
+        handler: () => {
+          fetchFreePlayers();
+        },
+      },
+    ],
+  });
 
   const sortedFreePlayers = [...freePlayers].sort((a, b) => {
     if (sortBy === 'rating') {
