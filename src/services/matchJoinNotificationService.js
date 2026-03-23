@@ -1,5 +1,5 @@
 import { supabase } from '../supabase';
-import { requestImmediatePushDispatchSafe } from './pushDispatchService';
+import { requestImmediatePushDispatch } from './pushDispatchService';
 
 const normalizeName = (value, fallback = 'Un jugador') => {
   const raw = String(value || '').trim();
@@ -336,13 +336,22 @@ export const notifyAdminJoinRequest = async ({
   });
 
   if (result.ok) {
-    requestImmediatePushDispatchSafe({
-      eventType: 'match_join_request',
-      matchId: matchIdNumber,
-      requestId: requestId || null,
-      recipientUserId: adminUserId || null,
-      limit: 20,
-    });
+    try {
+      await requestImmediatePushDispatch({
+        eventType: 'match_join_request',
+        matchId: matchIdNumber,
+        requestId: requestId || null,
+        recipientUserId: adminUserId || null,
+        limit: 20,
+      });
+    } catch (error) {
+      console.error('[JOIN_NOTIFICATIONS] immediate join request push dispatch failed', {
+        matchId: matchIdNumber,
+        requestId: requestId || null,
+        adminUserId: adminUserId || null,
+        message: error?.message || String(error),
+      });
+    }
   }
 
   return result;
@@ -378,11 +387,19 @@ export const notifyAdminPlayerJoined = async ({
   });
 
   if (result.ok && playerUserId) {
-    requestImmediatePushDispatchSafe({
-      eventType: 'match_player_joined',
-      matchId: matchIdNumber,
-      limit: 20,
-    });
+    try {
+      await requestImmediatePushDispatch({
+        eventType: 'match_player_joined',
+        matchId: matchIdNumber,
+        limit: 20,
+      });
+    } catch (error) {
+      console.error('[JOIN_NOTIFICATIONS] immediate player joined push dispatch failed', {
+        matchId: matchIdNumber,
+        playerUserId,
+        message: error?.message || String(error),
+      });
+    }
   }
 
   return result;
@@ -416,12 +433,20 @@ export const notifyAdminPlayerLeft = async ({
   });
 
   if (result.ok) {
-    requestImmediatePushDispatchSafe({
-      eventType: 'match_player_left',
-      matchId: matchIdNumber,
-      recipientUserId: adminUserId || null,
-      limit: 5,
-    });
+    try {
+      await requestImmediatePushDispatch({
+        eventType: 'match_player_left',
+        matchId: matchIdNumber,
+        recipientUserId: adminUserId || null,
+        limit: 5,
+      });
+    } catch (error) {
+      console.error('[JOIN_NOTIFICATIONS] immediate player left push dispatch failed', {
+        matchId: matchIdNumber,
+        adminUserId: adminUserId || null,
+        message: error?.message || String(error),
+      });
+    }
   }
 
   return result;

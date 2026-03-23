@@ -167,44 +167,31 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted, onRequestResolve
         try {
             const userName = request.profile?.nombre || request.usuario?.nombre || 'Jugador';
 
-            // Call atomic RPC
-            const { error: rpcError } = await supabase.rpc('approve_join_request', {
-                p_request_id: request.id,
+            const { data: approvalData, error: approvalError } = await supabase.functions.invoke('approve-join-request', {
+                body: {
+                    request_id: request.id,
+                },
             });
 
-            if (rpcError) {
-                console.error('[ACCEPT] RPC Error:', rpcError);
-                // Handle case where player is already in the match (Duplicate key)
-                if (rpcError.code === '23505' || rpcError.message?.includes('unique constraint')) {
-                    // Continue to success UI logic
-                } else {
-                    notifyBlockingError(`Error al aceptar: ${rpcError.message}`);
-                    throw rpcError;
-                }
+            if (approvalError) {
+                console.error('[ACCEPT] approve-join-request error:', approvalError);
+                notifyBlockingError(`Error al aceptar: ${approvalError.message}`);
+                throw approvalError;
             }
-            await notifyAdminPlayerJoined({
-                matchId: request.match_id,
-                playerName: userName,
-                playerUserId: request.user_id,
-                joinedVia: 'admin_approval',
-            });
 
-            try {
-                await supabase.from('notifications').insert([{
-                    user_id: request.user_id,
-                    type: 'match_join_approved',
-                    title: 'Solicitud aprobada',
-                    message: `Tu solicitud para unirte al partido fue aprobada`,
-                    partido_id: request.match_id,
-                    data: {
-                        match_id: request.match_id,
-                        matchId: request.match_id,
-                        link: `/partido-publico/${request.match_id}`,
-                    },
-                    read: false,
-                }]);
-            } catch (notifError) {
-                console.error('[ACCEPT] Could not send approval notification:', notifError);
+            if (!approvalData?.ok) {
+                const message = approvalData?.message || 'No se pudo aprobar la solicitud';
+                notifyBlockingError(`Error al aceptar: ${message}`);
+                throw new Error(message);
+            }
+
+            if (approvalData?.status !== 'already_in_match') {
+                await notifyAdminPlayerJoined({
+                    matchId: request.match_id,
+                    playerName: userName,
+                    playerUserId: request.user_id,
+                    joinedVia: 'admin_approval',
+                });
             }
 
             // Refetch requests list immediately

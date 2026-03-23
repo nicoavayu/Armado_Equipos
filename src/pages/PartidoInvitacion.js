@@ -16,6 +16,7 @@ import { Camera, UserRound, CircleAlert, Zap, LockKeyhole, CheckCircle2, Calenda
 import Logo from '../Logo.png';
 import { findUserScheduleConflicts } from '../services/db/matchScheduling';
 import { notifyAdminJoinRequest, notifyAdminPlayerJoined } from '../services/matchJoinNotificationService';
+import { requestImmediatePushDispatch } from '../services/pushDispatchService';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { openMatchCalendarInvite } from '../utils/calendarInvite';
 import { useScrollResetOnChange } from '../hooks/useScrollReset';
@@ -1496,14 +1497,22 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
         throw insertError;
       }
 
-      const requesterName = user?.user_metadata?.nombre || user?.email?.split('@')[0] || 'Un jugador';
-      await notifyAdminJoinRequest({
-        matchId: Number(partidoId),
-        requestId: newRequest?.id || null,
-        requesterUserId: user?.id || null,
-        requesterName,
-        adminUserId: partido?.creado_por || null,
-      });
+      try {
+        await requestImmediatePushDispatch({
+          eventType: 'match_join_request',
+          matchId: Number(partidoId),
+          requestId: newRequest?.id || null,
+          recipientUserId: partido?.creado_por || null,
+          limit: 20,
+        });
+      } catch (dispatchError) {
+        console.error('[JOIN_REQUEST] immediate dispatch failed after DB notification insert', {
+          matchId: Number(partidoId),
+          requestId: newRequest?.id || null,
+          adminUserId: partido?.creado_por || null,
+          message: dispatchError?.message || String(dispatchError),
+        });
+      }
       setJoinStatus('pending');
       showInlineNotice('success', 'Solicitud enviada. Esperando aprobación del admin.');
     } catch (err) {

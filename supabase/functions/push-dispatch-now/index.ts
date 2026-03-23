@@ -5,6 +5,7 @@ type KickEventType =
   | "match_invite"
   | "friend_request"
   | "match_join_request"
+  | "match_join_approved"
   | "match_player_joined"
   | "match_player_left"
   | "challenge_accepted"
@@ -51,6 +52,7 @@ const ALLOWED_EVENT_TYPES = new Set<KickEventType>([
   "match_invite",
   "friend_request",
   "match_join_request",
+  "match_join_approved",
   "match_player_joined",
   "match_player_left",
   "challenge_accepted",
@@ -170,6 +172,24 @@ function readPayloadString(payload: Record<string, unknown> | null, ...keys: str
     if (normalized) return normalized;
   }
   return "";
+}
+
+// Legacy notifications may persist request ids as numbers while newer writers
+// store them as strings. Normalize both so immediate dispatch can match either.
+function readPayloadId(payload: Record<string, unknown> | null, ...keys: string[]): string | null {
+  if (!payload || typeof payload !== "object") return null;
+  for (const key of keys) {
+    const raw = payload[key];
+    if (typeof raw === "string") {
+      const normalized = raw.trim();
+      if (normalized) return normalized;
+      continue;
+    }
+    if (typeof raw === "number" && Number.isFinite(raw)) {
+      return String(raw);
+    }
+  }
+  return null;
 }
 
 function isGuestOrInvalidRecipient(userId: string | null): boolean {
@@ -302,6 +322,7 @@ async function fetchQueuedCandidateRows(
     (
       eventType === "match_invite"
       || eventType === "match_join_request"
+      || eventType === "match_join_approved"
       || eventType === "match_player_joined"
       || eventType === "match_player_left"
       || eventType === "call_to_vote"
@@ -765,10 +786,6 @@ async function enqueueMatchJoinRequestRows(
     notificationsQuery = notificationsQuery.eq("user_id", recipientUserId);
   }
 
-  if (matchId !== null) {
-    notificationsQuery = notificationsQuery.eq("partido_id", matchId);
-  }
-
   const { data: notificationRows, error: notificationsError } = await notificationsQuery;
   if (notificationsError) {
     return { inserted: 0, error: { message: notificationsError.message } };
@@ -788,7 +805,7 @@ async function enqueueMatchJoinRequestRows(
       }
 
       if (requestId) {
-        const payloadRequestId = readPayloadString(payload, "requestId", "request_id");
+        const payloadRequestId = readPayloadId(payload, "requestId", "request_id");
         if (!payloadRequestId || payloadRequestId !== requestId) return false;
       }
 
@@ -837,8 +854,11 @@ async function enqueueMatchJoinRequestRows(
     .map((row) => {
       const payload = row.data && typeof row.data === "object" ? row.data : {};
       const route = readPayloadString(payload, "link", "route") ?? `/admin/${row.partido_id ?? matchId ?? ""}?tab=solicitudes`;
+      const resolvedMatchId = row.partido_id ?? matchId;
       return {
-        partido_id: row.partido_id,
+        // Request-scoped notifications may intentionally keep match context only
+        // in payload to avoid legacy match-based unique constraints.
+        partido_id: resolvedMatchId,
         user_id: row.user_id,
         notification_type: "match_join_request",
         payload_json: {
@@ -848,7 +868,128 @@ async function enqueueMatchJoinRequestRows(
           notification_type: "match_join_request",
           title: row.title ?? "Nueva solicitud para unirse",
           message: row.message ?? "Tenés una nueva solicitud para revisar.",
-          partido_id: row.partido_id,
+          partido_id: resolvedMatchId,
+          route,
+          link: route,
+          source: "push_dispatch_now_backfill",
+        },
+        channel: "push",
+        status: "queued",
+      };
+    });
+
+  if (rowsToInsert.length === 0) {
+    return { inserted: 0, error: null };
+  }
+
+  const { error: insertError } = await supabase
+    .from("notification_delivery_log")
+    .insert(rowsToInsert);
+
+  if (insertError) {
+    return { inserted: 0, error: { message: insertError.message } };
+  }
+
+  return { inserted: rowsToInsert.length, error: null };
+}
+
+async function enqueueMatchJoinApprovedRows(
+  supabase: ReturnType<typeof createClient>,
+  {
+    matchId,
+    recipientUserId,
+    requestId,
+    windowStartIso,
+  }: {
+    matchId: number | null;
+    recipientUserId: string | null;
+    requestId: string | null;
+    windowStartIso: string;
+  },
+): Promise<{ inserted: number; error: { message: string } | null }> {
+  if (matchId === null || !recipientUserId) {
+    return { inserted: 0, error: null };
+  }
+
+  let notificationsQuery = supabase
+    .from("notifications")
+    .select("id, user_id, partido_id, type, title, message, data, created_at")
+    .eq("type", "match_join_approved")
+    .eq("user_id", recipientUserId)
+    .gte("created_at", windowStartIso)
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  const { data: notificationRows, error: notificationsError } = await notificationsQuery;
+  if (notificationsError) {
+    return { inserted: 0, error: { message: notificationsError.message } };
+  }
+
+  const matchingNotifications = ((notificationRows ?? []) as NotificationRow[])
+    .filter((row) => !isGuestOrInvalidRecipient(row.user_id))
+    .filter((row) => {
+      const payload = row.data && typeof row.data === "object" ? row.data : {};
+      const payloadMatchId = normalizeOptionalInt(payload.match_id ?? payload.matchId ?? payload.partido_id ?? payload.partidoId);
+      if (row.partido_id !== null && row.partido_id !== matchId) return false;
+      if (payloadMatchId !== null && payloadMatchId !== matchId) return false;
+
+      if (normalizeOptionalString(row.user_id) !== recipientUserId) return false;
+
+      const payloadApprovedUserId = readPayloadString(payload, "approved_user_id", "approvedUserId", "recipient_user_id", "recipientUserId");
+      if (payloadApprovedUserId && payloadApprovedUserId !== recipientUserId) return false;
+
+      if (requestId) {
+        const payloadRequestId = readPayloadId(payload, "requestId", "request_id");
+        if (!payloadRequestId || payloadRequestId !== requestId) return false;
+      }
+
+      return true;
+    });
+
+  if (matchingNotifications.length === 0) {
+    return { inserted: 0, error: null };
+  }
+
+  const { data: existingData, error: existingError } = await supabase
+    .from("notification_delivery_log")
+    .select("id, notification_type, user_id, partido_id, created_at, payload_json, status, error_text")
+    .eq("channel", "push")
+    .eq("notification_type", "match_join_approved")
+    .eq("partido_id", matchId)
+    .eq("user_id", recipientUserId)
+    .gte("created_at", windowStartIso)
+    .limit(50);
+
+  if (existingError) {
+    return { inserted: 0, error: { message: existingError.message } };
+  }
+
+  const existingNotificationIds = new Set(
+    ((existingData ?? []) as DeliveryLogRow[])
+      .filter((row) => row.status !== "skipped")
+      .map((row) => readPayloadString(row.payload_json, "notification_id"))
+      .filter(Boolean),
+  );
+
+  const rowsToInsert = matchingNotifications
+    .filter((row) => !existingNotificationIds.has(row.id))
+    .map((row) => {
+      const payload = row.data && typeof row.data === "object" ? row.data : {};
+      const route = readPayloadString(payload, "link", "route") ?? `/partido-publico/${matchId}`;
+      const resolvedMatchId = row.partido_id ?? matchId;
+      return {
+        partido_id: resolvedMatchId,
+        user_id: row.user_id,
+        notification_type: "match_join_approved",
+        payload_json: {
+          ...payload,
+          event_channel: "ACCEPTED",
+          notification_id: row.id,
+          source_notification_type: row.type,
+          notification_type: "match_join_approved",
+          title: row.title ?? "Solicitud aprobada",
+          message: row.message ?? "Tu solicitud para unirte al partido fue aprobada.",
+          partido_id: resolvedMatchId,
           route,
           link: route,
           source: "push_dispatch_now_backfill",
@@ -1171,6 +1312,18 @@ function isEligibleRow(
     return true;
   }
 
+  if (eventType === "match_join_approved") {
+    if (matchId === null) return false;
+    if (row.partido_id !== null && row.partido_id !== matchId) return false;
+    const payloadMatchId = normalizeOptionalInt(payload.match_id ?? payload.matchId ?? payload.partido_id ?? payload.partidoId);
+    if (payloadMatchId !== null && payloadMatchId !== matchId) return false;
+    if (requestId) {
+      const payloadRequestId = readPayloadId(payload, "requestId", "request_id");
+      if (!payloadRequestId || payloadRequestId !== requestId) return false;
+    }
+    return true;
+  }
+
   if (eventType === "match_player_left") {
     if (matchId === null) return false;
     if (row.partido_id !== null && row.partido_id !== matchId) return false;
@@ -1191,7 +1344,7 @@ function isEligibleRow(
 
   if (eventType === "friend_request") {
     const senderId = readPayloadString(payload, "senderId", "sender_id");
-    const payloadRequestId = readPayloadString(payload, "requestId", "request_id");
+    const payloadRequestId = readPayloadId(payload, "requestId", "request_id");
     if (!senderId || senderId !== actorUserId) return false;
     if (requestId && payloadRequestId !== requestId) return false;
     return true;
@@ -1199,7 +1352,7 @@ function isEligibleRow(
 
   if (eventType === "match_join_request") {
     const requesterId = readPayloadString(payload, "request_user_id", "requester_user_id", "senderId", "sender_id");
-    const payloadRequestId = readPayloadString(payload, "requestId", "request_id");
+    const payloadRequestId = readPayloadId(payload, "requestId", "request_id");
     if (!requesterId || requesterId !== actorUserId) return false;
     if (requestId && payloadRequestId !== requestId) return false;
     return true;
@@ -1267,9 +1420,13 @@ serve(async (req) => {
     }
   }
 
-  if (eventType === "call_to_vote" || eventType === "match_kicked") {
+  if (eventType === "call_to_vote" || eventType === "match_kicked" || eventType === "match_join_approved") {
     if (matchId === null) {
       return jsonResponse({ ok: false, reason: "invalid_match_id" }, 400, cors);
+    }
+
+    if (eventType === "match_join_approved" && !recipientUserId) {
+      return jsonResponse({ ok: false, reason: "invalid_recipient_user_id" }, 400, cors);
     }
 
     const isAllowedActor = await isAuthorizedMatchAdmin(supabase, matchId, actorUserId);
@@ -1310,6 +1467,7 @@ serve(async (req) => {
     || (eventType === "team_invite" && candidates.length === 0 && invitationId)
     || eventType === "match_join_request"
     || (eventType === "match_player_joined" && matchId !== null)
+    || (eventType === "match_join_approved" && matchId !== null && recipientUserId !== null)
     || (eventType === "call_to_vote" && matchId !== null)
     || (eventType === "match_player_left" && matchId !== null && recipientUserId !== null)
     || (eventType === "match_kicked" && matchId !== null && recipientUserId !== null);
@@ -1327,6 +1485,13 @@ serve(async (req) => {
           recipientUserId,
           requestId,
           requesterUserId: actorUserId,
+          windowStartIso,
+        })
+      : eventType === "match_join_approved"
+        ? await enqueueMatchJoinApprovedRows(supabase, {
+          matchId,
+          recipientUserId,
+          requestId,
           windowStartIso,
         })
       : eventType === "match_player_joined"
@@ -1375,6 +1540,7 @@ serve(async (req) => {
     console.log("[push-dispatch-now] backfill result", {
       eventType,
       matchId,
+      requestId,
       recipientUserId,
       inserted: backfillResult.inserted,
     });
@@ -1407,6 +1573,7 @@ serve(async (req) => {
       invoked: false,
       reason: "no_recent_eligible_queued_rows",
       event_type: eventType,
+      request_id: requestId,
       candidate_count: candidates.length,
       eligible_count: 0,
     }, 200, cors);
@@ -1418,6 +1585,7 @@ serve(async (req) => {
     eventType,
     actorUserId,
     matchId,
+    requestId,
     recipientUserId,
     candidateCount: candidates.length,
     eligibleCount: eligibleRows.length,

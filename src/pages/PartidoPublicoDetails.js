@@ -8,7 +8,7 @@ import { isUserMemberOfMatch } from '../utils/membershipCheck';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ConfirmModal from '../components/ConfirmModal';
 import { findUserScheduleConflicts } from '../services/db/matchScheduling';
-import { notifyAdminJoinRequest } from '../services/matchJoinNotificationService';
+import { requestImmediatePushDispatch } from '../services/pushDispatchService';
 
 export default function PartidoPublicoDetails() {
   const { partidoId } = useParams();
@@ -211,14 +211,21 @@ export default function PartidoPublicoDetails() {
       });
       notifyBlockingError('Error al solicitar');
     } else {
-      const requesterName = user?.user_metadata?.nombre || user?.email?.split('@')[0] || 'Un jugador';
-      await notifyAdminJoinRequest({
-        matchId,
-        requestId: null,
-        requesterUserId: user?.id || null,
-        requesterName,
-        adminUserId: partido?.creado_por || null,
-      });
+      try {
+        await requestImmediatePushDispatch({
+          eventType: 'match_join_request',
+          matchId,
+          requestId: null,
+          recipientUserId: partido?.creado_por || null,
+          limit: 20,
+        });
+      } catch (dispatchError) {
+        console.error('[PartidoPublicoDetails] immediate join request dispatch failed', {
+          matchId,
+          adminUserId: partido?.creado_por || null,
+          message: dispatchError?.message || String(dispatchError),
+        });
+      }
       setJoinStatus('pending');
       console.info('Solicitud enviada');
     }
