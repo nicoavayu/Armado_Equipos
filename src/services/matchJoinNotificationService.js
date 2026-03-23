@@ -359,7 +359,7 @@ export const notifyAdminPlayerJoined = async ({
   const matchIdNumber = toMatchId(matchId);
   if (!matchIdNumber) return { ok: false, reason: 'invalid_match_id' };
 
-  return enqueueParticipantNotification({
+  const result = await enqueueParticipantNotification({
     matchId: matchIdNumber,
     type: 'match_update',
     title: 'Nuevo jugador en el partido',
@@ -376,6 +376,16 @@ export const notifyAdminPlayerJoined = async ({
     includeAdmin: true,
     adminUserId,
   });
+
+  if (result.ok && playerUserId) {
+    requestImmediatePushDispatchSafe({
+      eventType: 'match_player_joined',
+      matchId: matchIdNumber,
+      limit: 20,
+    });
+  }
+
+  return result;
 };
 
 export const notifyAdminPlayerLeft = async ({

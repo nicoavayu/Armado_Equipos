@@ -5,6 +5,7 @@ type KickEventType =
   | "match_invite"
   | "friend_request"
   | "match_join_request"
+  | "match_player_joined"
   | "match_player_left"
   | "challenge_accepted"
   | "team_invite"
@@ -50,6 +51,7 @@ const ALLOWED_EVENT_TYPES = new Set<KickEventType>([
   "match_invite",
   "friend_request",
   "match_join_request",
+  "match_player_joined",
   "match_player_left",
   "challenge_accepted",
   "team_invite",
@@ -300,6 +302,7 @@ async function fetchQueuedCandidateRows(
     (
       eventType === "match_invite"
       || eventType === "match_join_request"
+      || eventType === "match_player_joined"
       || eventType === "match_player_left"
       || eventType === "call_to_vote"
       || eventType === "match_kicked"
@@ -880,6 +883,147 @@ function isMatchPlayerLeftNotification(row: NotificationRow): boolean {
   return title.includes("se baj") || message.includes("se baj");
 }
 
+function isMatchPlayerJoinedNotification(row: NotificationRow): boolean {
+  const payload = row.data && typeof row.data === "object" ? row.data : {};
+  const joinedVia = readPayloadString(payload, "joined_via", "joinedVia");
+  if (joinedVia) return true;
+
+  const title = String(row.title ?? "").trim().toLowerCase();
+  const message = String(row.message ?? "").trim().toLowerCase();
+  return title.includes("nuevo jugador") || message.includes("se sum");
+}
+
+async function enqueueMatchPlayerJoinedRows(
+  supabase: ReturnType<typeof createClient>,
+  {
+    matchId,
+    recipientUserId,
+    actorUserId,
+    windowStartIso,
+  }: {
+    matchId: number;
+    recipientUserId: string | null;
+    actorUserId: string;
+    windowStartIso: string;
+  },
+): Promise<{ inserted: number; error: { message: string } | null }> {
+  let notificationsQuery = supabase
+    .from("notifications")
+    .select("id, user_id, partido_id, type, title, message, data, created_at")
+    .eq("type", "match_update")
+    .eq("partido_id", matchId)
+    .gte("created_at", windowStartIso)
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  if (recipientUserId) {
+    notificationsQuery = notificationsQuery.eq("user_id", recipientUserId);
+  }
+
+  const { data: notificationRows, error: notificationsError } = await notificationsQuery;
+  if (notificationsError) {
+    return { inserted: 0, error: { message: notificationsError.message } };
+  }
+
+  const matchingNotifications = ((notificationRows ?? []) as NotificationRow[])
+    .filter((row) => !isGuestOrInvalidRecipient(row.user_id))
+    .filter((row) => isMatchPlayerJoinedNotification(row))
+    .filter((row) => {
+      const payload = row.data && typeof row.data === "object" ? row.data : {};
+      const playerUserId = readPayloadString(payload, "player_user_id", "playerUserId", "senderId", "sender_id");
+      return Boolean(playerUserId && playerUserId === actorUserId);
+    });
+
+  if (matchingNotifications.length === 0) {
+    return { inserted: 0, error: null };
+  }
+
+  const recipientIds = Array.from(new Set(
+    matchingNotifications.map((row) => normalizeOptionalString(row.user_id)).filter(Boolean),
+  ));
+
+  let existingLogs: DeliveryLogRow[] = [];
+  if (recipientIds.length > 0) {
+    const { data: existingData, error: existingError } = await supabase
+      .from("notification_delivery_log")
+      .select("id, notification_type, user_id, partido_id, created_at, payload_json, status, error_text")
+      .eq("channel", "push")
+      .eq("notification_type", "match_player_joined")
+      .eq("partido_id", matchId)
+      .gte("created_at", windowStartIso)
+      .in("user_id", recipientIds)
+      .limit(50);
+
+    if (existingError) {
+      return { inserted: 0, error: { message: existingError.message } };
+    }
+    existingLogs = (existingData ?? []) as DeliveryLogRow[];
+  }
+
+  const existingEventKeys = new Set(
+    existingLogs
+      .filter((row) => row.status !== "skipped")
+      .map((row) => readPayloadString(row.payload_json, "event_key"))
+      .filter(Boolean),
+  );
+
+  const rowsToInsert = matchingNotifications
+    .map((row) => {
+      const payload = row.data && typeof row.data === "object" ? row.data : {};
+      const route = readPayloadString(payload, "link", "route") ?? `/partido-publico/${matchId}`;
+      const playerUserId = readPayloadString(payload, "player_user_id", "playerUserId", "senderId", "sender_id");
+      const playerName = readPayloadString(payload, "player_name", "playerName");
+      const joinedVia = readPayloadString(payload, "joined_via", "joinedVia");
+      const eventKey = [
+        normalizeOptionalString(row.user_id) ?? "",
+        String(row.partido_id ?? matchId),
+        playerUserId,
+        playerName,
+        joinedVia,
+        String(row.created_at ?? ""),
+      ].join(":");
+
+      if (!eventKey || existingEventKeys.has(eventKey)) return null;
+
+      return {
+        partido_id: row.partido_id,
+        user_id: row.user_id,
+        notification_type: "match_player_joined",
+        payload_json: {
+          ...payload,
+          event_channel: "ACTIVITY",
+          event_key: eventKey,
+          notification_id: row.id,
+          source_notification_type: row.type,
+          notification_type: "match_player_joined",
+          title: row.title ?? "Nuevo jugador en el partido",
+          message: row.message ?? "Un jugador se sumó al partido.",
+          partido_id: row.partido_id,
+          route,
+          link: route,
+          source: "push_dispatch_now_backfill",
+        },
+        channel: "push",
+        status: "queued",
+      };
+    })
+    .filter(Boolean);
+
+  if (rowsToInsert.length === 0) {
+    return { inserted: 0, error: null };
+  }
+
+  const { error: insertError } = await supabase
+    .from("notification_delivery_log")
+    .insert(rowsToInsert);
+
+  if (insertError) {
+    return { inserted: 0, error: { message: insertError.message } };
+  }
+
+  return { inserted: rowsToInsert.length, error: null };
+}
+
 async function enqueueMatchPlayerLeftRows(
   supabase: ReturnType<typeof createClient>,
   {
@@ -1036,6 +1180,15 @@ function isEligibleRow(
     return Boolean(playerUserId && playerUserId === actorUserId);
   }
 
+  if (eventType === "match_player_joined") {
+    if (matchId === null) return false;
+    if (row.partido_id !== null && row.partido_id !== matchId) return false;
+    const payloadMatchId = normalizeOptionalInt(payload.match_id ?? payload.matchId ?? payload.partido_id ?? payload.partidoId);
+    if (payloadMatchId !== null && payloadMatchId !== matchId) return false;
+    const playerUserId = readPayloadString(payload, "player_user_id", "playerUserId", "senderId", "sender_id");
+    return Boolean(playerUserId && playerUserId === actorUserId);
+  }
+
   if (eventType === "friend_request") {
     const senderId = readPayloadString(payload, "senderId", "sender_id");
     const payloadRequestId = readPayloadString(payload, "requestId", "request_id");
@@ -1156,6 +1309,7 @@ serve(async (req) => {
     (eventType === "challenge_accepted" && candidates.length === 0 && challengeId)
     || (eventType === "team_invite" && candidates.length === 0 && invitationId)
     || eventType === "match_join_request"
+    || (eventType === "match_player_joined" && matchId !== null)
     || (eventType === "call_to_vote" && matchId !== null)
     || (eventType === "match_player_left" && matchId !== null && recipientUserId !== null)
     || (eventType === "match_kicked" && matchId !== null && recipientUserId !== null);
@@ -1173,6 +1327,13 @@ serve(async (req) => {
           recipientUserId,
           requestId,
           requesterUserId: actorUserId,
+          windowStartIso,
+        })
+      : eventType === "match_player_joined"
+        ? await enqueueMatchPlayerJoinedRows(supabase, {
+          matchId: matchId as number,
+          recipientUserId,
+          actorUserId,
           windowStartIso,
         })
       : eventType === "call_to_vote"

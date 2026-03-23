@@ -248,6 +248,8 @@ function defaultTitleForType(type: string): string {
       return "Invitacion al partido";
     case "match_cancelled":
       return "Partido cancelado";
+    case "match_player_joined":
+      return "Nuevo jugador en el partido";
     case "match_player_left":
       return "Jugador se bajó del partido";
     case "match_reminder_1h":

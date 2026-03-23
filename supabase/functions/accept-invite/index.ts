@@ -89,6 +89,50 @@ async function notifyMatchJoin({
   return { ok: false, mode: "failed" };
 }
 
+async function requestImmediateJoinedPush({
+  supabaseUrl,
+  anonKey,
+  authHeader,
+  partidoId,
+}: {
+  supabaseUrl: string;
+  anonKey: string;
+  authHeader: string;
+  partidoId: number;
+}) {
+  if (!authHeader.trim()) return;
+
+  try {
+    const response = await fetch(`${supabaseUrl.replace(/\/+$/, "")}/functions/v1/push-dispatch-now`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: authHeader,
+        apikey: anonKey,
+      },
+      body: JSON.stringify({
+        event_type: "match_player_joined",
+        match_id: partidoId,
+        limit: 20,
+      }),
+    });
+
+    if (!response.ok) {
+      const details = await response.text().catch(() => "");
+      console.warn("[ACCEPT_INVITE] immediate joined push dispatch failed", {
+        partidoId,
+        status: response.status,
+        details,
+      });
+    }
+  } catch (error) {
+    console.warn("[ACCEPT_INVITE] immediate joined push dispatch exception", {
+      partidoId,
+      message: (error as Error)?.message ?? String(error),
+    });
+  }
+}
+
 serve(async (req) => {
   const cors = corsHeaders(req);
 
@@ -183,6 +227,13 @@ serve(async (req) => {
         partidoId: Number(partidoId),
         playerName: safePlayerName,
         playerUserId: user.id,
+      });
+
+      await requestImmediateJoinedPush({
+        supabaseUrl,
+        anonKey,
+        authHeader,
+        partidoId: Number(partidoId),
       });
     }
 
