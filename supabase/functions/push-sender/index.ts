@@ -16,6 +16,18 @@ type DeviceTokenRow = {
   platform: string;
   provider: string;
   is_active: boolean;
+  device_id: string | null;
+};
+
+type ProviderFailureDetail = {
+  provider: string;
+  platform: string;
+  token_suffix: string;
+  device_id: string | null;
+  error_code: string | null;
+  error_message: string | null;
+  retryable: boolean;
+  invalid_token: boolean;
 };
 
 type FcmCredentials = {
@@ -317,6 +329,29 @@ function clampErrorText(input: string | null, maxLen = 700): string | null {
   const normalized = input.trim();
   if (!normalized) return null;
   return normalized.slice(0, maxLen);
+}
+
+function getTokenSuffix(token: string): string {
+  const normalized = String(token || "").trim();
+  if (!normalized) return "";
+  return normalized.length > 8 ? normalized.slice(-8) : normalized;
+}
+
+function buildProviderFailureDetail(
+  tokenRow: DeviceTokenRow,
+  provider: string,
+  status: Pick<PushSendResult, "errorCode" | "errorMessage" | "retryable" | "invalidToken">,
+): ProviderFailureDetail {
+  return {
+    provider: safeString(provider || tokenRow.provider || "unknown", 40) || "unknown",
+    platform: safeString(tokenRow.platform || "unknown", 40) || "unknown",
+    token_suffix: getTokenSuffix(tokenRow.token),
+    device_id: safeString(tokenRow.device_id, 120) || null,
+    error_code: status.errorCode ? safeString(status.errorCode, 120) : null,
+    error_message: status.errorMessage ? safeString(status.errorMessage, 300) : null,
+    retryable: Boolean(status.retryable),
+    invalid_token: Boolean(status.invalidToken),
+  };
 }
 
 function base64UrlFromBytes(bytes: Uint8Array): string {
@@ -978,7 +1013,7 @@ serve(async (req) => {
 
       const { data: tokenRows, error: tokenError } = await supabase
         .from("device_tokens")
-        .select("id, token, platform, provider, is_active")
+        .select("id, token, platform, provider, is_active, device_id")
         .eq("user_id", log.user_id)
         .eq("is_active", true)
         .order("last_seen_at", { ascending: false })
@@ -1027,7 +1062,8 @@ serve(async (req) => {
       }
 
       const sendableTokens = activeTokens.filter((tokenRow) => resolveTokenProvider(tokenRow) !== null);
-      const unsupportedTokens = activeTokens.length - sendableTokens.length;
+      const unsupportedTokenRows = activeTokens.filter((tokenRow) => resolveTokenProvider(tokenRow) === null);
+      const unsupportedTokens = unsupportedTokenRows.length;
       const providerAttemptedCounts = sendableTokens.reduce((acc, tokenRow) => {
         const provider = resolveTokenProvider(tokenRow);
         if (provider) acc[provider] = (acc[provider] ?? 0) + 1;
@@ -1080,6 +1116,8 @@ serve(async (req) => {
       let nonRetryableCount = unsupportedTokens;
       let firstProviderMessageId: string | null = null;
       const providerSentCounts: Record<string, number> = {};
+      const providerFailureCounts: Record<string, number> = {};
+      const providerFailures: ProviderFailureDetail[] = [];
       const errorCodes = new Set<string>();
       const errorMessages: string[] = [];
 
@@ -1172,6 +1210,9 @@ serve(async (req) => {
 
         if (sendRes.errorCode) errorCodes.add(sendRes.errorCode);
         if (sendRes.errorMessage) errorMessages.push(sendRes.errorMessage);
+        const failureDetail = buildProviderFailureDetail(tokenRow, provider, sendRes);
+        providerFailures.push(failureDetail);
+        providerFailureCounts[failureDetail.provider] = (providerFailureCounts[failureDetail.provider] ?? 0) + 1;
 
         if (sendRes.invalidToken) {
           invalidTokenCount += 1;
@@ -1189,12 +1230,22 @@ serve(async (req) => {
       let finalErrorCode: string | null = null;
       let finalErrorText: string | null = null;
       let nextRetryAt: string | null = null;
+      const firstFailure = providerFailures.find((failure) => (
+        failure.provider === "fcm" || failure.provider === "apns"
+      )) ?? null;
 
       if (sentCount > 0) {
         finalStatus = "sent";
         if (retryableCount > 0 || nonRetryableCount > 0) {
           finalErrorCode = "partial_delivery";
-          finalErrorText = `sent=${sentCount}, failed=${retryableCount + nonRetryableCount}`;
+          if (firstFailure) {
+            finalErrorText = clampErrorText(
+              `Partial delivery via ${firstFailure.provider}: ${firstFailure.error_code ?? "unknown_error"}`
+              + (firstFailure.error_message ? ` - ${firstFailure.error_message}` : ""),
+            );
+          } else {
+            finalErrorText = `sent=${sentCount}, failed=${retryableCount + nonRetryableCount}`;
+          }
         }
       } else if (retryableCount > 0 && log.attempt_count < config.maxAttempts) {
         finalStatus = "retryable_failed";
@@ -1226,6 +1277,9 @@ serve(async (req) => {
           unsupported_provider_count: unsupportedTokens,
           providers_attempted: providerAttemptedCounts,
           providers_sent: providerSentCounts,
+          provider_failures: providerFailures,
+          providers_failed: providerFailureCounts,
+          first_failure: firstFailure,
           sent_count: sentCount,
           retryable_count: retryableCount,
           non_retryable_count: nonRetryableCount,
