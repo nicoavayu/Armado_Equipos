@@ -28,10 +28,25 @@ export default function AuthHome() {
   const returnTo = useMemo(() => getReturnTo(location.search), [location.search]);
 
   useEffect(() => {
+    console.info('[AUTH] login_route_enter', {
+      pathname: location.pathname,
+      search: location.search,
+      returnTo,
+      loading,
+      hasUser: Boolean(user),
+      mode,
+    });
+  }, [location.pathname, location.search, returnTo, loading, user, mode]);
+
+  useEffect(() => {
     if (returnTo) {
       setAuthReturnTo(returnTo);
+      console.info('[AUTH] login_return_to_stored', {
+        pathname: location.pathname,
+        returnTo,
+      });
     }
-  }, [returnTo]);
+  }, [location.pathname, returnTo]);
 
   useEffect(() => {
     if (mode !== 'email' || cooldown <= 0) return undefined;
@@ -42,12 +57,23 @@ export default function AuthHome() {
   }, [mode, cooldown]);
 
   useEffect(() => {
+    console.info('[AUTH] login_mode_sync', {
+      pathname: location.pathname,
+      nextMode: location.pathname === '/login/email' ? 'email' : 'options',
+    });
     setMode(location.pathname === '/login/email' ? 'email' : 'options');
   }, [location.pathname]);
 
   const sendingBlocked = emailLoading || googleLoading;
 
   const sendMagicLink = async () => {
+    console.info('[AUTH] magic_link_submit', {
+      pathname: location.pathname,
+      returnTo: returnTo || '/home',
+      hasEmail: Boolean(email.trim()),
+      sendingBlocked,
+    });
+
     if (sendingBlocked) return;
     if (!email.trim()) {
       setNotice({ type: 'warning', message: 'Ingresá tu email.' });
@@ -107,6 +133,10 @@ export default function AuthHome() {
               <button
                 type="button"
                 onClick={() => {
+                  console.info('[AUTH] login_show_email_mode', {
+                    pathname: location.pathname,
+                    returnTo,
+                  });
                   setMode('email');
                   setNotice({ type: '', message: '' });
                 }}
@@ -151,6 +181,9 @@ export default function AuthHome() {
                 <button
                   type="button"
                   onClick={() => {
+                    console.info('[AUTH] login_back_to_options', {
+                      pathname: location.pathname,
+                    });
                     setMode('options');
                     setNotice({ type: '', message: '' });
                   }}

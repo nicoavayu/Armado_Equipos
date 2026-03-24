@@ -1633,9 +1633,23 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
   };
 
   const handleSumarseConCuenta = async (skipScheduleWarning = false) => {
+    console.info('[AUTH] invite_account_cta', {
+      source: 'PartidoInvitacion',
+      hasUser: Boolean(user),
+      partidoId: Number(partidoId),
+      mode,
+      skipScheduleWarning,
+      currentRoute: `${window.location.pathname}${window.location.search}${window.location.hash}`,
+    });
+
     if (!user) {
       // Redirigir a login y volver a esta URL después
       const currentUrl = window.location.pathname + window.location.search;
+      console.info('[AUTH] invite_account_cta_redirect_login', {
+        source: 'PartidoInvitacion',
+        currentUrl,
+        targetLoginRoute: `/login?returnTo=${encodeURIComponent(currentUrl)}`,
+      });
       navigate(`/login?returnTo=${encodeURIComponent(currentUrl)}`);
       return;
     }

@@ -457,6 +457,14 @@ function AppAuthWrapper() {
   if (!user) {
     const returnTo = `${location.pathname}${location.search}${location.hash}`;
     setAuthReturnTo(returnTo);
+    console.info('[AUTH] app_auth_wrapper_redirect_login', {
+      pathname: location.pathname,
+      search: location.search,
+      hash: location.hash,
+      returnTo,
+      authResolved,
+      loading,
+    });
     return <Navigate to={`/login?returnTo=${encodeURIComponent(returnTo)}`} replace />;
   }
 
