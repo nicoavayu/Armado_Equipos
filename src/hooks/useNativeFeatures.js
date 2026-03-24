@@ -10,6 +10,7 @@ import { PushNotifications } from '@capacitor/push-notifications';
 import { supabase } from '../supabase';
 import { resolveSurveyNotificationNavigation } from '../utils/notificationRouter';
 import { buildNotificationFallbackRoute, isSurveyFormNotificationType } from '../utils/notificationRoutes';
+import { resolveMatchInviteRoute } from '../utils/matchInviteRoute';
 import { showGlobalNotice } from '../utils/globalNoticeModal';
 import {
   getLastKnownNativePushToken,
@@ -75,11 +76,20 @@ const shouldShowForegroundPushNotice = ({ notificationType, data, route, title, 
 };
 
 const resolvePushRedirectRoute = async ({ notificationType, data, route }) => {
+  const normalizedType = String(notificationType || '').trim().toLowerCase();
+  const notification = buildNotificationFromPushData({ notificationType, data });
+
+  if (normalizedType === 'match_invite') {
+    const inviteRoute = resolveMatchInviteRoute(notification);
+    if (isSafeInternalPath(inviteRoute)) {
+      return inviteRoute;
+    }
+  }
+
   if (isSafeInternalPath(route) && !isSurveyFormNotificationType(notificationType)) {
     return route;
   }
 
-  const notification = buildNotificationFromPushData({ notificationType, data });
   if (isSurveyFormNotificationType(notificationType)) {
     let userId = '';
     try {

@@ -15,10 +15,6 @@ function isPublicJoinPath(path) {
 export function resolveMatchInviteRoute(notification) {
   const data = notification?.data || {};
   const candidatePath = notification?.deep_link || notification?.deepLink || data?.deep_link || data?.deepLink || data?.link;
-  if (isInvitePath(candidatePath) || isPublicJoinPath(candidatePath)) {
-    return candidatePath;
-  }
-
   const inviteMode = String(data?.invite_mode || data?.inviteMode || 'direct').trim().toLowerCase();
 
   const matchId = notification?.partido_id
@@ -29,10 +25,25 @@ export function resolveMatchInviteRoute(notification) {
     ?? notification?.match_ref
     ?? null;
 
-  if (!matchId) return null;
-
   if (inviteMode === 'request_join') {
-    return `/partido-publico/${matchId}`;
+    if (matchId) {
+      return `/partido-publico/${matchId}`;
+    }
+    if (isPublicJoinPath(candidatePath) || isInvitePath(candidatePath)) {
+      return candidatePath;
+    }
+    return null;
+  }
+
+  if (isInvitePath(candidatePath)) {
+    return candidatePath;
+  }
+
+  if (!matchId) {
+    if (isPublicJoinPath(candidatePath)) {
+      return candidatePath;
+    }
+    return null;
   }
 
   const inviteCodeRaw = data?.codigo ?? data?.matchCode ?? data?.code ?? null;
