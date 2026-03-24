@@ -331,91 +331,162 @@ function NativeAuthDeepLinkBootstrap() {
     let isDisposed = false;
     let listenerHandle = null;
     const handledUrls = new Set();
+    const stringifyAuthDetails = (details) => {
+      try {
+        return JSON.stringify(details, (_key, value) => {
+          if (value instanceof Error) {
+            return {
+              name: value.name,
+              message: value.message,
+            };
+          }
+          if (typeof value === 'undefined') return null;
+          return value;
+        });
+      } catch (error) {
+        return JSON.stringify({
+          serializationError: error?.message || String(error),
+        });
+      }
+    };
+    const logAuth = (event, details = {}) => {
+      console.info(`[AUTH] ${event} ${stringifyAuthDetails(details)}`);
+    };
+    const warnAuth = (event, details = {}) => {
+      console.warn(`[AUTH] ${event} ${stringifyAuthDetails(details)}`);
+    };
 
     const handleUrl = (incomingUrl) => {
       const rawUrl = String(incomingUrl || '').trim();
-      console.info('[AUTH] handleUrl_called', { rawUrl });
-      if (!rawUrl || handledUrls.has(rawUrl)) return;
+      const alreadyHandled = handledUrls.has(rawUrl);
+      logAuth('handleUrl_called', {
+        rawUrl,
+        alreadyHandled,
+      });
+      if (!rawUrl || alreadyHandled) return;
 
       let parsed;
       try {
         parsed = new URL(rawUrl);
       } catch (error) {
-        console.warn('[AUTH] handleUrl_parse_failed', {
+        warnAuth('handleUrl_parse_failed', {
           rawUrl,
           message: error?.message || String(error),
         });
         return;
       }
 
-      console.info('[AUTH] handleUrl_parsed', {
-        rawUrl,
-        protocol: parsed.protocol,
-        hostname: parsed.hostname,
-        pathname: parsed.pathname,
-        search: parsed.search,
-        hash: parsed.hash,
-      });
-
-      const isOauthCallback = (
-        parsed.protocol === 'com.teambalancer.app:'
-        && parsed.hostname === 'auth'
-        && (parsed.pathname === '/callback' || parsed.pathname === '/callback/')
+      const protocol = String(parsed.protocol || '');
+      const hostname = String(parsed.hostname || '');
+      const pathname = String(parsed.pathname || '');
+      const search = String(parsed.search || '');
+      const hash = String(parsed.hash || '');
+      const normalizedPathname = pathname.replace(/\/+$/, '') || '/';
+      const isNativeAuthHost = protocol === 'com.teambalancer.app:' && hostname === 'auth';
+      const isOauthCallback = isNativeAuthHost && (
+        normalizedPathname === '/callback'
+        || normalizedPathname === '/'
       );
 
-      console.info('[AUTH] handleUrl_match', {
+      logAuth('handleUrl_parsed', {
         rawUrl,
-        isOauthCallback,
+        protocol,
+        hostname,
+        pathname,
+        search,
+        hash,
+        alreadyHandled,
       });
 
-      if (!isOauthCallback) return;
+      logAuth('handleUrl_match', {
+        rawUrl,
+        protocol,
+        hostname,
+        pathname,
+        search,
+        hash,
+        isOauthCallback,
+        alreadyHandled,
+      });
+
+      if (!isNativeAuthHost) return;
 
       handledUrls.add(rawUrl);
-      console.info('[AUTH] browser_close_requested', { rawUrl });
-      Browser.close()
-        .then(() => {
-          console.info('[AUTH] browser_close_done', { rawUrl });
-        })
-        .catch((error) => {
-          console.warn('[AUTH] browser_close_failed', {
-            rawUrl,
-            message: error?.message || String(error),
+      logAuth('browser_close_requested', { rawUrl });
+      try {
+        Browser.close()
+          .then(() => {
+            logAuth('browser_close_done', { rawUrl });
+          })
+          .catch((error) => {
+            warnAuth('browser_close_failed', {
+              rawUrl,
+              message: error?.message || String(error),
+            });
           });
+      } catch (error) {
+        warnAuth('browser_close_failed', {
+          rawUrl,
+          message: error?.message || String(error),
         });
-      const callbackRoute = `/auth/callback${parsed.search || ''}${parsed.hash || ''}`;
+      }
+
+      const callbackRoute = `/auth/callback${search}${hash}`;
       const currentRoute = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-      console.info('[AUTH] callback_route', {
+      logAuth('callback_route', {
         rawUrl,
+        protocol,
+        hostname,
+        pathname,
+        search,
+        hash,
+        isOauthCallback,
         callbackRoute,
         currentRoute,
       });
-      if (currentRoute !== callbackRoute) {
-        window.location.replace(callbackRoute);
+
+      if (currentRoute === callbackRoute) {
+        logAuth('callback_route_already_current', {
+          callbackRoute,
+        });
+        return;
       }
+
+      window.setTimeout(() => {
+        logAuth('callback_route_replace', {
+          callbackRoute,
+          rawUrl,
+        });
+        window.location.replace(callbackRoute);
+      }, 0);
     };
 
     (async () => {
       try {
-        console.info('[AUTH] appUrlOpen_listener_ready');
+        logAuth('appUrlOpen_listener_ready');
         listenerHandle = await CapacitorApp.addListener('appUrlOpen', ({ url }) => {
-          console.info('[AUTH] appUrlOpen_received', { url });
+          logAuth('appUrlOpen_received', { url: String(url || '') });
           if (isDisposed) return;
           handleUrl(url);
         });
       } catch (error) {
-        console.warn('[AUTH] Could not register appUrlOpen listener:', error);
+        warnAuth('appUrlOpen_listener_failed', {
+          message: error?.message || String(error),
+        });
       }
 
       try {
         const launch = await CapacitorApp.getLaunchUrl();
-        console.info('[AUTH] app_launch_url', {
+        logAuth('app_launch_url', {
           url: launch?.url || null,
         });
         if (!isDisposed && launch?.url) {
           handleUrl(launch.url);
         }
       } catch (error) {
-        console.warn('[AUTH] Could not read launch URL:', error);
+        warnAuth('app_launch_url_failed', {
+          message: error?.message || String(error),
+        });
       }
     })();
 

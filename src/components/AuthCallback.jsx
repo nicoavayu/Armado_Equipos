@@ -7,6 +7,15 @@ import { track } from '../utils/monitoring/analytics';
 export default function AuthCallback() {
   const navigate = useNavigate();
   const [error, setError] = useState('');
+  const logAuth = (event, details = {}) => {
+    try {
+      console.info(`[AUTH] ${event} ${JSON.stringify(details)}`);
+    } catch (serializationError) {
+      console.info(`[AUTH] ${event} ${JSON.stringify({
+        serializationError: serializationError?.message || String(serializationError),
+      })}`);
+    }
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -14,7 +23,7 @@ export default function AuthCallback() {
     const run = async () => {
       try {
         const currentUrl = window.location.href;
-        console.info('[AUTH] auth_callback_enter', {
+        logAuth('auth_callback_enter', {
           href: currentUrl,
           pathname: window.location.pathname,
           search: window.location.search,
@@ -24,13 +33,13 @@ export default function AuthCallback() {
         const code = url.searchParams.get('code');
 
         if (code) {
-          console.info('[AUTH] auth_callback_code_detected', {
+          logAuth('auth_callback_code_detected', {
             codePresent: true,
           });
           const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
           if (exchangeError) throw exchangeError;
         } else if (window.location.hash) {
-          console.info('[AUTH] auth_callback_hash_detected', {
+          logAuth('auth_callback_hash_detected', {
             hash: window.location.hash,
           });
           const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
@@ -50,7 +59,7 @@ export default function AuthCallback() {
         if (sessionError) throw sessionError;
         if (!data?.session) throw new Error('No se pudo restaurar la sesión.');
 
-        console.info('[AUTH] auth_callback_session_restored', {
+        logAuth('auth_callback_session_restored', {
           hasSession: Boolean(data?.session),
           userId: data.session.user?.id || null,
         });
@@ -62,9 +71,12 @@ export default function AuthCallback() {
         });
 
         const target = consumeAuthReturnTo('/home');
-        console.info('[AUTH] auth_callback_navigate', { target });
+        logAuth('auth_callback_navigate', { target });
         navigate(target, { replace: true });
       } catch (err) {
+        logAuth('auth_callback_error', {
+          message: err?.message || String(err),
+        });
         if (!mounted) return;
         setError(err?.message || 'No pudimos completar el login.');
       }
