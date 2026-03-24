@@ -141,7 +141,9 @@ const MatchCard = ({
                     {showMenu && (
                         <div className="relative">
                             <button
+                                type="button"
                                 className="kebab-menu-btn"
+                                onMouseDown={(e) => e.stopPropagation()}
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     onMenuToggle?.(partido.id);
@@ -158,7 +160,9 @@ const MatchCard = ({
                                     <div className="py-1">
                                         {userJoined && onAbandon && (
                                             <button
+                                                type="button"
                                                 className="admin-action-menu-item admin-action-menu-item--danger"
+                                                onMouseDown={(e) => e.stopPropagation()}
                                                 onClick={(e) => { e.stopPropagation(); onAbandon(partido); }}
                                             >
                                                 <LogOut size={16} />
@@ -167,7 +171,9 @@ const MatchCard = ({
                                         )}
                                         {userRole === 'admin' && onCancel && (
                                             <button
+                                                type="button"
                                                 className="admin-action-menu-item admin-action-menu-item--danger"
+                                                onMouseDown={(e) => e.stopPropagation()}
                                                 onClick={(e) => { e.stopPropagation(); onCancel(partido); }}
                                             >
                                                 <XCircle size={16} />
@@ -176,7 +182,9 @@ const MatchCard = ({
                                         )}
                                         {isFinished && onClear && (
                                             <button
+                                                type="button"
                                                 className="admin-action-menu-item"
+                                                onMouseDown={(e) => e.stopPropagation()}
                                                 onClick={(e) => { e.stopPropagation(); onClear(partido); }}
                                             >
                                                 <XCircle size={16} />

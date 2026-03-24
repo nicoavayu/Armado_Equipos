@@ -1573,6 +1573,23 @@ export const cancelPartidoWithNotification = async (partidoId, reason = 'Partido
   return data;
 };
 
+export const leaveOwnedMatchWithTransfer = async (partidoId) => {
+  const { data, error } = await supabase.rpc('leave_owned_match_with_transfer', {
+    p_partido_id: partidoId,
+  });
+
+  if (error) {
+    console.error('[MATCH_OWNER_LEAVE] Error leaving owned match with transfer:', error);
+    throw error;
+  }
+
+  if (!data?.success) {
+    throw new Error(data?.reason || 'leave_owned_match_with_transfer_failed');
+  }
+
+  return data;
+};
+
 /**
  * Delete a match with notifications
  * Sends notifications before marking as deleted

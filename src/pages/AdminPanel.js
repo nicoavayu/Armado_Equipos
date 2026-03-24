@@ -8,6 +8,9 @@ import { useNativeFeatures } from '../hooks/useNativeFeatures';
 import { useScrollResetOnChange } from '../hooks/useScrollReset';
 import { supabase } from '../supabase';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
+import { canAbandonWithoutPenalty, incrementMatchesAbandoned } from '../utils/matchStatsManager';
+import { cancelPartidoWithNotification, leaveOwnedMatchWithTransfer } from '../services/db/matches';
+import { requestImmediatePushDispatch } from '../services/pushDispatchService';
 
 import 'react-lazy-load-image-component/src/effects/blur.css';
 // import '../HomeStyleKit.css'; // Removed in Tailwind migration
@@ -173,16 +176,55 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
   };
 
   const handleAbandon = async () => {
-    if (!adminState.currentPlayerInMatch && !user?.id) return;
-    setProcessingAction(true);
+    if (!partidoActual?.id || !user?.id) return;
     setProcessingAction(true);
     try {
+      if (isAdmin) {
+        const leaveResult = await leaveOwnedMatchWithTransfer(partidoActual.id);
+
+        if (leaveResult?.mode === 'cancel_required') {
+          await cancelPartidoWithNotification(
+            partidoActual.id,
+            'Partido cancelado porque el admin abandonó y no había otro jugador conectado para transferir la administración',
+          );
+          console.info('No había otro jugador conectado. El partido fue cancelado.');
+        } else {
+          try {
+            await requestImmediatePushDispatch({
+              eventType: 'match_player_left',
+              matchId: partidoActual.id,
+              limit: 20,
+            });
+          } catch (dispatchError) {
+            console.error('[ADMIN_LEAVE] Error dispatching immediate admin-leave push:', dispatchError);
+          }
+
+          try {
+            const canAbandonSafely = canAbandonWithoutPenalty(
+              partidoActual?.fecha,
+              partidoActual?.hora,
+            );
+            if (!canAbandonSafely) {
+              await incrementMatchesAbandoned(user.id);
+            }
+          } catch (abandonError) {
+            console.error('[ADMIN_LEAVE] Error incrementing abandonment counter:', abandonError);
+          }
+
+          console.info('Abandonaste el partido y la administración fue transferida.');
+        }
+
+        setTimeout(() => onBackToHome?.(), 1000);
+        return;
+      }
+
       // Must pass the numerical ID (PK) of the player, not the UUID
       const playerId = adminState.currentPlayerInMatch?.id;
       if (!playerId) {
         console.error('Cannot abandon: No player ID found for current user');
         return;
       }
+
       await adminState.eliminarJugador(playerId, false);
     } finally {
       setProcessingAction(false);
@@ -561,7 +603,13 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
       <ConfirmModal
         isOpen={confirmConfig.open}
         title={confirmConfig.type === 'abandon' ? 'Abandonar partido' : ''}
-        message={confirmConfig.type === 'abandon' ? 'Vas a dejar tu lugar en este partido. Esta acción no elimina el partido para los demás.' : ''}
+        message={confirmConfig.type === 'abandon'
+          ? (
+            isAdmin
+              ? 'Si abandonás el partido siendo admin, el manejo se transferirá a otro usuario conectado. Si no hay nadie disponible, el partido se cancelará.'
+              : 'Vas a dejar tu lugar en este partido. Esta acción no elimina el partido para los demás.'
+          )
+          : ''}
         onConfirm={handleAbandon}
         onCancel={() => {
           if (processingAction) return;

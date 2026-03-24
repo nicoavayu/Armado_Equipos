@@ -1,14 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthProvider';
 import { useInterval } from '../hooks/useInterval';
 import { supabase } from '../supabase';
 import { clearMatchFromList } from '../services/matchFinishService';
-import { cancelPartidoWithNotification } from '../services/db/matches';
+import { cancelPartidoWithNotification, leaveOwnedMatchWithTransfer } from '../services/db/matches';
 import { cancelTeamMatch, getTeamMatchByChallengeId, listMyTeamMatches } from '../services/db/teamChallenges';
 import { parseLocalDateTime, formatLocalDateShort } from '../utils/dateLocal';
 import { canAbandonWithoutPenalty, incrementMatchesAbandoned } from '../utils/matchStatsManager';
 import { notifyAdminPlayerLeft } from '../services/matchJoinNotificationService';
+import { requestImmediatePushDispatch } from '../services/pushDispatchService';
 import LoadingSpinner from './LoadingSpinner';
 import PageTitle from './PageTitle';
 import ConfirmModal from './ConfirmModal';
@@ -121,6 +122,7 @@ const ProximosPartidos = ({ onClose }) => {
   const [actionType, setActionType] = useState(null); // 'cancel' | 'clean' | 'abandon'
   const [partidoTarget, setPartidoTarget] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const confirmActionLockRef = useRef(false);
 
   useEffect(() => {
     if (user) {
@@ -842,10 +844,6 @@ const ProximosPartidos = ({ onClose }) => {
 
   const handleAbandonMatch = (partido) => {
     if (partido?.source_type === 'team_match') return;
-    if (partido?.userRole === 'admin') {
-      console.info('Antes de abandonar, asigná el rol de admin a otro jugador.');
-      return;
-    }
     setMenuOpenId(null);
     setPartidoTarget(partido);
     setActionType('abandon');
@@ -861,11 +859,13 @@ const ProximosPartidos = ({ onClose }) => {
   };
 
   const handleConfirmAction = async () => {
+    if (confirmActionLockRef.current) return;
     if (!partidoTarget || !actionType) {
       setShowConfirm(false);
       return;
     }
 
+    confirmActionLockRef.current = true;
     setIsProcessing(true);
     try {
       if (actionType === 'cancel') {
@@ -887,59 +887,97 @@ const ProximosPartidos = ({ onClose }) => {
         setPartidos((prev) => prev.filter((p) => p.id !== partidoTarget.id));
         setProcessingDeleteId(null);
       } else if (actionType === 'abandon') {
-        console.log('[LEAVE_MATCH] Deleting player from match:', {
-          matchId: partidoTarget.id,
-          userId: user.id
-        });
-
         setProcessingDeleteId(partidoTarget.id);
-        const { error } = await supabase
-          .from('jugadores')
-          .delete()
-          .eq('partido_id', partidoTarget.id)
-          .eq('usuario_id', user.id);
+        const isAdminLeaving = partidoTarget?.userRole === 'admin' || partidoTarget?.creado_por === user?.id;
 
-        if (error) {
-          console.error('[LEAVE_MATCH] Error:', {
-            code: error.code,
-            message: error.message,
-            details: error.details,
-            hint: error.hint
+        if (isAdminLeaving) {
+          const leaveResult = await leaveOwnedMatchWithTransfer(partidoTarget.id);
+
+          if (leaveResult?.mode === 'cancel_required') {
+            await cancelPartidoWithNotification(
+              partidoTarget.id,
+              'Partido cancelado porque el admin abandonó y no había otro jugador conectado para transferir la administración',
+            );
+            console.info('No había otro jugador conectado. El partido fue cancelado.');
+          } else {
+            try {
+              await requestImmediatePushDispatch({
+                matchId: partidoTarget.id,
+                eventType: 'match_player_left',
+                limit: 20,
+              });
+            } catch (dispatchError) {
+              console.error('[LEAVE_MATCH] Error dispatching immediate admin-leave push:', dispatchError);
+            }
+
+            try {
+              const canAbandonSafely = canAbandonWithoutPenalty(
+                partidoTarget?.fecha,
+                partidoTarget?.hora,
+              );
+              if (!canAbandonSafely && user?.id) {
+                await incrementMatchesAbandoned(user.id);
+              }
+            } catch (abandonError) {
+              console.error('[LEAVE_MATCH] Error incrementing abandonment counter:', abandonError);
+            }
+
+            console.info('Abandonaste el partido y la administración fue transferida.');
+          }
+        } else {
+          console.log('[LEAVE_MATCH] Deleting player from match:', {
+            matchId: partidoTarget.id,
+            userId: user.id
           });
-          throw error;
-        }
 
-        console.log('[LEAVE_MATCH] Deleted successfully');
+          const { error } = await supabase
+            .from('jugadores')
+            .delete()
+            .eq('partido_id', partidoTarget.id)
+            .eq('usuario_id', user.id);
 
-        if (user?.id && partidoTarget?.creado_por && partidoTarget.creado_por !== user.id) {
-          try {
-            await notifyAdminPlayerLeft({
-              matchId: partidoTarget.id,
-              playerName: user?.nombre || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Un jugador',
-              playerUserId: user.id,
-              leftVia: 'self_leave',
-              adminUserId: partidoTarget.creado_por,
+          if (error) {
+            console.error('[LEAVE_MATCH] Error:', {
+              code: error.code,
+              message: error.message,
+              details: error.details,
+              hint: error.hint
             });
-          } catch (leaveNotificationError) {
-            console.error('[LEAVE_MATCH] Error notifying admin about player leaving:', leaveNotificationError);
+            throw error;
           }
+
+          console.log('[LEAVE_MATCH] Deleted successfully');
+
+          if (user?.id && partidoTarget?.creado_por && partidoTarget.creado_por !== user.id) {
+            try {
+              await notifyAdminPlayerLeft({
+                matchId: partidoTarget.id,
+                playerName: user?.nombre || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Un jugador',
+                playerUserId: user.id,
+                leftVia: 'self_leave',
+                adminUserId: partidoTarget.creado_por,
+              });
+            } catch (leaveNotificationError) {
+              console.error('[LEAVE_MATCH] Error notifying admin about player leaving:', leaveNotificationError);
+            }
+          }
+
+          try {
+            const canAbandonSafely = canAbandonWithoutPenalty(
+              partidoTarget?.fecha,
+              partidoTarget?.hora,
+            );
+            if (!canAbandonSafely && user?.id) {
+              await incrementMatchesAbandoned(user.id);
+            }
+          } catch (abandonError) {
+            console.error('[LEAVE_MATCH] Error incrementing abandonment counter:', abandonError);
+          }
+
+          console.info('Abandonaste el partido');
         }
 
-        try {
-          const canAbandonSafely = canAbandonWithoutPenalty(
-            partidoTarget?.fecha,
-            partidoTarget?.hora,
-          );
-          if (!canAbandonSafely && user?.id) {
-            await incrementMatchesAbandoned(user.id);
-          }
-        } catch (abandonError) {
-          console.error('[LEAVE_MATCH] Error incrementing abandonment counter:', abandonError);
-        }
-
-        // Remove from local state
         setPartidos((prev) => prev.filter((p) => p.id !== partidoTarget.id));
-        console.info('Abandonaste el partido');
         setProcessingDeleteId(null);
       } else if (actionType === 'clean') {
         setProcessingClearId(partidoTarget.id);
@@ -957,6 +995,7 @@ const ProximosPartidos = ({ onClose }) => {
       console.error('[PROXIMOS] confirm action error', error);
       notifyBlockingError('Ocurrió un error al procesar la acción');
     } finally {
+      confirmActionLockRef.current = false;
       setIsProcessing(false);
       setShowConfirm(false);
       setActionType(null);
@@ -1126,7 +1165,11 @@ const ProximosPartidos = ({ onClose }) => {
             : actionType === 'clean'
               ? '¿Estás seguro de que deseas limpiar este partido de tu lista? Podrás volver a verlo en "Partidos finalizados".'
               : actionType === 'abandon'
-                ? '¿Estás seguro de que deseas abandonar este partido?'
+                ? (
+                  partidoTarget?.userRole === 'admin' || partidoTarget?.creado_por === user?.id
+                    ? 'Si abandonás el partido siendo admin, el manejo se transferirá a otro usuario conectado. Si no hay nadie disponible, el partido se cancelará.'
+                    : '¿Estás seguro de que deseas abandonar este partido?'
+                )
                 : ''
         }
         onConfirm={handleConfirmAction}
@@ -1135,7 +1178,7 @@ const ProximosPartidos = ({ onClose }) => {
         confirmText={
           actionType === 'cancel' ? 'Aceptar' :
             actionType === 'clean' ? 'Limpiar partido' :
-              'Abandonar partido'
+              'Abandonar'
         }
         cancelText="Volver"
         danger={actionType === 'cancel'}
