@@ -334,27 +334,61 @@ function NativeAuthDeepLinkBootstrap() {
 
     const handleUrl = (incomingUrl) => {
       const rawUrl = String(incomingUrl || '').trim();
+      console.info('[AUTH] handleUrl_called', { rawUrl });
       if (!rawUrl || handledUrls.has(rawUrl)) return;
 
       let parsed;
       try {
         parsed = new URL(rawUrl);
-      } catch {
+      } catch (error) {
+        console.warn('[AUTH] handleUrl_parse_failed', {
+          rawUrl,
+          message: error?.message || String(error),
+        });
         return;
       }
+
+      console.info('[AUTH] handleUrl_parsed', {
+        rawUrl,
+        protocol: parsed.protocol,
+        hostname: parsed.hostname,
+        pathname: parsed.pathname,
+        search: parsed.search,
+        hash: parsed.hash,
+      });
 
       const isOauthCallback = (
         parsed.protocol === 'com.teambalancer.app:'
         && parsed.hostname === 'auth'
-        && parsed.pathname === '/callback'
+        && (parsed.pathname === '/callback' || parsed.pathname === '/callback/')
       );
+
+      console.info('[AUTH] handleUrl_match', {
+        rawUrl,
+        isOauthCallback,
+      });
 
       if (!isOauthCallback) return;
 
       handledUrls.add(rawUrl);
-      Browser.close().catch(() => {});
+      console.info('[AUTH] browser_close_requested', { rawUrl });
+      Browser.close()
+        .then(() => {
+          console.info('[AUTH] browser_close_done', { rawUrl });
+        })
+        .catch((error) => {
+          console.warn('[AUTH] browser_close_failed', {
+            rawUrl,
+            message: error?.message || String(error),
+          });
+        });
       const callbackRoute = `/auth/callback${parsed.search || ''}${parsed.hash || ''}`;
       const currentRoute = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      console.info('[AUTH] callback_route', {
+        rawUrl,
+        callbackRoute,
+        currentRoute,
+      });
       if (currentRoute !== callbackRoute) {
         window.location.replace(callbackRoute);
       }
@@ -362,7 +396,9 @@ function NativeAuthDeepLinkBootstrap() {
 
     (async () => {
       try {
+        console.info('[AUTH] appUrlOpen_listener_ready');
         listenerHandle = await CapacitorApp.addListener('appUrlOpen', ({ url }) => {
+          console.info('[AUTH] appUrlOpen_received', { url });
           if (isDisposed) return;
           handleUrl(url);
         });
@@ -372,6 +408,9 @@ function NativeAuthDeepLinkBootstrap() {
 
       try {
         const launch = await CapacitorApp.getLaunchUrl();
+        console.info('[AUTH] app_launch_url', {
+          url: launch?.url || null,
+        });
         if (!isDisposed && launch?.url) {
           handleUrl(launch.url);
         }

@@ -31,7 +31,7 @@
                 <data
                     android:scheme="com.teambalancer.app"
                     android:host="auth"
-                    android:path="/callback" />
+                    android:pathPrefix="/callback" />
             </intent-filter>
 
         </activity>

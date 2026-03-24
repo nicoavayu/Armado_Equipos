@@ -14,13 +14,25 @@ export default function AuthCallback() {
     const run = async () => {
       try {
         const currentUrl = window.location.href;
+        console.info('[AUTH] auth_callback_enter', {
+          href: currentUrl,
+          pathname: window.location.pathname,
+          search: window.location.search,
+          hash: window.location.hash,
+        });
         const url = new URL(currentUrl);
         const code = url.searchParams.get('code');
 
         if (code) {
+          console.info('[AUTH] auth_callback_code_detected', {
+            codePresent: true,
+          });
           const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
           if (exchangeError) throw exchangeError;
         } else if (window.location.hash) {
+          console.info('[AUTH] auth_callback_hash_detected', {
+            hash: window.location.hash,
+          });
           const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
           const access_token = hash.get('access_token');
           const refresh_token = hash.get('refresh_token');
@@ -38,6 +50,11 @@ export default function AuthCallback() {
         if (sessionError) throw sessionError;
         if (!data?.session) throw new Error('No se pudo restaurar la sesión.');
 
+        console.info('[AUTH] auth_callback_session_restored', {
+          hasSession: Boolean(data?.session),
+          userId: data.session.user?.id || null,
+        });
+
         track('login_success', {
           provider: 'google',
           user_id: data.session.user?.id,
@@ -45,6 +62,7 @@ export default function AuthCallback() {
         });
 
         const target = consumeAuthReturnTo('/home');
+        console.info('[AUTH] auth_callback_navigate', { target });
         navigate(target, { replace: true });
       } catch (err) {
         if (!mounted) return;

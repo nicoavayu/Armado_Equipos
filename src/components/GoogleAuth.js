@@ -24,10 +24,23 @@ const GoogleAuth = ({ user, className, disabled = false, loading = false, onStar
         options.skipBrowserRedirect = true;
       }
 
+      console.info('[AUTH] oauth_start', {
+        flow: 'google_auth',
+        isNative,
+        redirectTo,
+        skipBrowserRedirect: options.skipBrowserRedirect === true,
+      });
+
       const oauthOptions = Object.keys(options).length > 0 ? options : undefined;
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: oauthOptions,
+      });
+
+      console.info('[AUTH] oauth_response', {
+        flow: 'google_auth',
+        redirectTo,
+        authUrl: data?.url || null,
       });
 
       if (error) {
@@ -40,6 +53,20 @@ const GoogleAuth = ({ user, className, disabled = false, loading = false, onStar
         const authUrl = data?.url;
         if (!authUrl) {
           throw new Error('No se recibió URL de autenticación.');
+        }
+        try {
+          const parsedAuthUrl = new URL(authUrl);
+          console.info('[AUTH] browser_open', {
+            flow: 'google_auth',
+            url: authUrl,
+            redirect_to: parsedAuthUrl.searchParams.get('redirect_to'),
+          });
+        } catch {
+          console.info('[AUTH] browser_open', {
+            flow: 'google_auth',
+            url: authUrl,
+            redirect_to: null,
+          });
         }
         await Browser.open({ url: authUrl });
       }
