@@ -382,10 +382,14 @@ function NativeAuthDeepLinkBootstrap() {
       const search = String(parsed.search || '');
       const hash = String(parsed.hash || '');
       const normalizedPathname = pathname.replace(/\/+$/, '') || '/';
-      const isNativeAuthHost = protocol === 'com.teambalancer.app:' && hostname === 'auth';
-      const isOauthCallback = isNativeAuthHost && (
-        normalizedPathname === '/callback'
-        || normalizedPathname === '/'
+      const collapsedPathname = normalizedPathname.replace(/^\/+/, '/');
+      const combinedCallbackPath = (
+        `${hostname ? `/${hostname}` : ''}${collapsedPathname === '/' ? '' : collapsedPathname}`
+      ) || '/';
+      const normalizedCallbackPath = combinedCallbackPath.replace(/\/+$/, '') || '/';
+      const isOauthCallback = (
+        protocol === 'com.teambalancer.app:'
+        && normalizedCallbackPath === '/auth/callback'
       );
 
       logAuth('handleUrl_parsed', {
@@ -395,6 +399,7 @@ function NativeAuthDeepLinkBootstrap() {
         pathname,
         search,
         hash,
+        normalizedCallbackPath,
         alreadyHandled,
       });
 
@@ -405,11 +410,12 @@ function NativeAuthDeepLinkBootstrap() {
         pathname,
         search,
         hash,
+        normalizedCallbackPath,
         isOauthCallback,
         alreadyHandled,
       });
 
-      if (!isNativeAuthHost) return;
+      if (!isOauthCallback) return;
 
       handledUrls.add(rawUrl);
       logAuth('browser_close_requested', { rawUrl });
@@ -440,6 +446,7 @@ function NativeAuthDeepLinkBootstrap() {
         pathname,
         search,
         hash,
+        normalizedCallbackPath,
         isOauthCallback,
         callbackRoute,
         currentRoute,
