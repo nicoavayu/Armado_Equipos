@@ -1,5 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { App as CapacitorApp } from '@capacitor/app';
 import { supabase } from '../supabase';
+import { useAuth } from '../components/AuthProvider';
+import { flushPendingPushToken, getPushTokenSyncState } from '../services/pushTokenService';
 import { handleError } from '../lib/errorHandler';
 import { logger } from '../lib/logger';
 import { useRefreshOnVisibility } from '../hooks/useRefreshOnVisibility';
@@ -43,6 +47,7 @@ export const useNotifications = () => useContext(NotificationContext);
  * @param {React.ReactNode} props.children - Child components
  */
 export const NotificationProvider = ({ children }) => {
+  const { user, authResolved } = useAuth();
   const [notifications, setNotifications] = useState([]);
   // Notifications that are scheduled for the future (send_at > now)
   const [scheduledNotifications, setScheduledNotifications] = useState([]);
@@ -59,6 +64,10 @@ export const NotificationProvider = ({ children }) => {
   const [lastRealtimePayloadType, setLastRealtimePayloadType] = useState(null);
   const refreshRunningRef = useRef(false);
   const lastRefreshMsRef = useRef(0);
+  const authResolvedRef = useRef(authResolved);
+  const pushUserIdRef = useRef(user?.id || null);
+  const initialAuthCheckedRef = useRef(false);
+  const lastObservedPushUserIdRef = useRef(null);
   const resolveNotificationMatchId = useCallback((notification) => {
     if (!notification) return null;
     const data = notification.data || {};
@@ -184,32 +193,103 @@ export const NotificationProvider = ({ children }) => {
   // Umbral para ignorar eventos realtime con created_at <= al último clear
   const ignoreBeforeRef = useRef(null);
 
-  // Get current user on mount
   useEffect(() => {
-    const getCurrentUser = async () => {
-      logger.log('[NOTIFICATIONS] Getting current user...');
-      const { data: { user }, error } = await supabase.auth.getUser();
-      if (error) {
-        logger.error('[NOTIFICATIONS] Error getting current user:', error);
-        return;
+    authResolvedRef.current = authResolved;
+    pushUserIdRef.current = user?.id || null;
+  }, [authResolved, user?.id]);
+
+  useEffect(() => {
+    if (!authResolved) return;
+
+    if (user?.id) {
+      logger.log('[NOTIFICATIONS] Current user available from auth context:', user.id);
+      setCurrentUserId(user.id);
+      return;
+    }
+
+    logger.log('[NOTIFICATIONS] No authenticated user available after auth resolution');
+    setCurrentUserId(null);
+  }, [authResolved, user?.id]);
+
+  useEffect(() => {
+    let source = null;
+    const previousUserId = lastObservedPushUserIdRef.current;
+
+    if (authResolved && !initialAuthCheckedRef.current) {
+      initialAuthCheckedRef.current = true;
+      if (user?.id) {
+        source = 'auth_restored';
       }
-      if (user) {
-        logger.log('[NOTIFICATIONS] Current user found:', user.id);
-        setCurrentUserId(user.id);
-      } else {
-        logger.log('[NOTIFICATIONS] No authenticated user found');
+    } else if (authResolved && user?.id && !previousUserId) {
+      source = 'login_success';
+    } else if (authResolved && user?.id && previousUserId && previousUserId !== user.id) {
+      source = 'login_success';
+    }
+
+    lastObservedPushUserIdRef.current = user?.id || null;
+
+    if (!source || !authResolved || !user?.id) return;
+
+    (async () => {
+      const state = await getPushTokenSyncState();
+      console.info('[PUSH] auth_ready', {
+        source,
+        authResolved,
+        userId: user.id,
+        hasPending: state.hasPending,
+        hasKnown: state.hasKnown,
+        lastSyncedTokenSuffix: state.lastSyncedTokenSuffix,
+      });
+      await flushPendingPushToken({ source });
+    })().catch((error) => {
+      console.warn('[PUSH] auth_ready flush failed', {
+        source,
+        userId: user.id,
+        message: error?.message || String(error || 'unknown_error'),
+      });
+    });
+  }, [authResolved, user?.id]);
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return undefined;
+
+    let listenerHandle = null;
+
+    CapacitorApp.addListener('resume', () => {
+      if (!authResolvedRef.current || !pushUserIdRef.current) return;
+
+      Promise.resolve()
+        .then(async () => {
+          const state = await getPushTokenSyncState();
+          console.info('[PUSH] auth_ready', {
+            source: 'app_resume',
+            authResolved: authResolvedRef.current,
+            userId: pushUserIdRef.current,
+            hasPending: state.hasPending,
+            hasKnown: state.hasKnown,
+            lastSyncedTokenSuffix: state.lastSyncedTokenSuffix,
+          });
+          await flushPendingPushToken({ source: 'app_resume' });
+        })
+        .catch((error) => {
+          console.warn('[PUSH] app_resume flush failed', {
+            userId: pushUserIdRef.current,
+            message: error?.message || String(error || 'unknown_error'),
+          });
+        });
+    })
+      .then((handle) => {
+        listenerHandle = handle;
+      })
+      .catch((error) => {
+        console.warn('[PUSH] Failed to attach app resume listener', error);
+      });
+
+    return () => {
+      if (listenerHandle?.remove) {
+        listenerHandle.remove().catch(() => null);
       }
     };
-
-    getCurrentUser();
-  }, []);
-
-  // Listen for auth state changes and keep currentUserId in sync
-  useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      setCurrentUserId(session?.user?.id || null);
-    });
-    return () => sub?.subscription?.unsubscribe?.();
   }, []);
 
   // Fetch all notifications for the current user

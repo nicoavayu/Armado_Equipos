@@ -10,9 +10,8 @@ import { PushNotifications } from '@capacitor/push-notifications';
 import { supabase } from '../supabase';
 import { resolveSurveyNotificationNavigation } from '../utils/notificationRouter';
 import { buildNotificationFallbackRoute, isSurveyFormNotificationType } from '../utils/notificationRoutes';
+import { showGlobalNotice } from '../utils/globalNoticeModal';
 import {
-  ensurePushTokenAuthSync,
-  flushPendingPushToken,
   getLastKnownNativePushToken,
   syncNativePushToken,
 } from '../services/pushTokenService';
@@ -23,6 +22,13 @@ let pushListenersAttached = false;
 let lastRegistrationToken = '';
 const NATIVE_PUSH_REDIRECT_EVENT = 'native-push-redirect';
 const PENDING_NATIVE_PUSH_REDIRECT_KEY = 'pending_native_push_redirect';
+const FOREGROUND_PUSH_NOTICE_TTL_MS = 5 * 60 * 1000;
+const seenForegroundPushKeys = new Map();
+
+const getTokenSuffix = (value) => {
+  const token = String(value || '').trim();
+  return token.length >= 8 ? token.slice(-8) : token;
+};
 
 const isSafeInternalPath = (path) => typeof path === 'string' && path.startsWith('/') && !path.startsWith('//');
 
@@ -33,6 +39,40 @@ const buildNotificationFromPushData = ({ notificationType, data }) => ({
   match_ref: data?.match_ref || data?.matchRef || null,
   data,
 });
+
+const pruneSeenForegroundPushKeys = () => {
+  const now = Date.now();
+  for (const [key, seenAt] of seenForegroundPushKeys.entries()) {
+    if ((now - seenAt) > FOREGROUND_PUSH_NOTICE_TTL_MS) {
+      seenForegroundPushKeys.delete(key);
+    }
+  }
+};
+
+const buildForegroundPushKey = ({ notificationType, data, route, title, body }) => {
+  const payload = data && typeof data === 'object' ? data : {};
+  return String(
+    payload?.delivery_log_id
+    || payload?.notification_id
+    || payload?.notificationId
+    || [
+      String(notificationType || '').trim(),
+      String(payload?.partido_id || payload?.partidoId || payload?.match_id || payload?.matchId || '').trim(),
+      String(route || '').trim(),
+      String(title || '').trim(),
+      String(body || '').trim(),
+    ].join('|')
+  ).trim();
+};
+
+const shouldShowForegroundPushNotice = ({ notificationType, data, route, title, body }) => {
+  pruneSeenForegroundPushKeys();
+  const key = buildForegroundPushKey({ notificationType, data, route, title, body });
+  if (!key) return true;
+  if (seenForegroundPushKeys.has(key)) return false;
+  seenForegroundPushKeys.set(key, Date.now());
+  return true;
+};
 
 const resolvePushRedirectRoute = async ({ notificationType, data, route }) => {
   if (isSafeInternalPath(route) && !isSurveyFormNotificationType(notificationType)) {
@@ -110,8 +150,6 @@ export const initNativePushNotifications = async () => {
 
   if (!pushBootstrapPromise) {
     pushBootstrapPromise = (async () => {
-      ensurePushTokenAuthSync();
-
       if (!pushListenersAttached) {
         await PushNotifications.addListener('pushNotificationActionPerformed', async (action) => {
           const data = action?.notification?.data || action?.notification?.extra || {};
@@ -154,6 +192,52 @@ export const initNativePushNotifications = async () => {
           }
         });
 
+        await PushNotifications.addListener('pushNotificationReceived', async (notification) => {
+          const data = notification?.data || notification?.extra || {};
+          const notificationType = String(
+            data?.notificationType
+            || data?.notification_type
+            || data?.type
+            || notification?.title
+            || '',
+          ).trim();
+
+          const route = String(
+            data?.route
+            || data?.url
+            || data?.link
+            || data?.target_route
+            || data?.targetUrl
+            || '',
+          ).trim();
+
+          const title = String(notification?.title || data?.title || 'Nueva notificacion').trim();
+          const body = String(notification?.body || data?.message || '').trim();
+
+          if (!shouldShowForegroundPushNotice({
+            notificationType,
+            data,
+            route,
+            title,
+            body,
+          })) {
+            return;
+          }
+
+          track('push_received', {
+            notification_type: notificationType || undefined,
+            route: route || undefined,
+            foreground: true,
+            source: 'capacitor_push',
+          });
+
+          showGlobalNotice({
+            title,
+            message: body || 'Tenes una actualizacion nueva.',
+            confirmText: 'Entendido',
+          });
+        });
+
         await PushNotifications.addListener('registration', async (token) => {
           const currentToken = String(token?.value || '').trim();
           if (!currentToken) return;
@@ -161,7 +245,15 @@ export const initNativePushNotifications = async () => {
           try {
             const previousToken = lastRegistrationToken || await getLastKnownNativePushToken();
             lastRegistrationToken = currentToken;
-            await syncNativePushToken(currentToken, { previousToken });
+            console.info('[PUSH] registration_received', {
+              source: 'registration',
+              tokenSuffix: getTokenSuffix(currentToken),
+              previousTokenSuffix: getTokenSuffix(previousToken),
+            });
+            await syncNativePushToken(currentToken, {
+              previousToken,
+              source: 'registration',
+            });
           } catch (error) {
             console.warn('[PUSH] Failed to sync native registration token', error);
           }
@@ -181,7 +273,6 @@ export const initNativePushNotifications = async () => {
       }
 
       await PushNotifications.register();
-      await flushPendingPushToken();
     })().catch((error) => {
       console.warn('[PUSH] bootstrapNativePush failed', error);
     });

@@ -5,9 +5,9 @@ import { supabase } from './api/supabase';
 const PUSH_DEVICE_ID_KEY = 'push_device_id';
 const PUSH_LAST_KNOWN_TOKEN_KEY = 'push_last_known_token';
 const PUSH_LAST_SYNCED_TOKEN_KEY = 'push_last_synced_token';
+const PUSH_LAST_SYNCED_USER_ID_KEY = 'push_last_synced_user_id';
 const PUSH_PENDING_TOKEN_KEY = 'push_pending_token';
 
-let authSyncStarted = false;
 let pendingSyncPromise = Promise.resolve();
 
 const isNative = () => Capacitor.isNativePlatform();
@@ -15,6 +15,11 @@ const isNative = () => Capacitor.isNativePlatform();
 const normalizeToken = (value) => {
   const token = String(value || '').trim();
   return token.length >= 20 ? token : '';
+};
+
+const getTokenSuffix = (value) => {
+  const token = normalizeToken(value);
+  return token ? token.slice(-8) : '';
 };
 
 const normalizePlatform = (value) => {
@@ -68,9 +73,9 @@ const ensureDeviceId = async () => {
 };
 
 const getCurrentUserId = async () => {
-  const { data, error } = await supabase.auth.getUser();
+  const { data, error } = await supabase.auth.getSession();
   if (error) return null;
-  return data?.user?.id || null;
+  return data?.session?.user?.id || null;
 };
 
 const getPushContext = async () => {
@@ -109,15 +114,69 @@ const enqueueSync = (task) => {
   return pendingSyncPromise;
 };
 
-const rpcRegisterToken = async ({ token, previousToken = null }) => {
+const savePendingToken = async (token, source, reason) => {
+  const cleanToken = normalizeToken(token);
+  if (!cleanToken) return;
+
+  await setStorageValue(PUSH_PENDING_TOKEN_KEY, cleanToken);
+  console.info('[PUSH] pending_saved', {
+    source,
+    reason,
+    tokenSuffix: getTokenSuffix(cleanToken),
+  });
+};
+
+const logSyncStart = ({ source, userId, token, deviceId, platform, provider, rpcName }) => {
+  console.info('[PUSH] sync_start', {
+    source,
+    userId,
+    tokenSuffix: getTokenSuffix(token),
+    deviceId,
+    platform,
+    provider,
+    rpcName,
+  });
+};
+
+const logSyncResult = ({ source, ok, userId, token, tokenId = null, reason = null }) => {
+  console.info('[PUSH] sync_result', {
+    source,
+    ok,
+    userId,
+    tokenSuffix: getTokenSuffix(token),
+    tokenId,
+    reason,
+  });
+};
+
+const logSyncError = ({ source, userId, token, error }) => {
+  console.warn('[PUSH] sync_error', {
+    source,
+    userId,
+    tokenSuffix: getTokenSuffix(token),
+    code: error?.code || null,
+    message: error?.message || String(error || 'unknown_error'),
+  });
+};
+
+const rpcRegisterToken = async ({ token, previousToken = null, source = 'unknown' }) => {
   const cleanToken = normalizeToken(token);
   if (!cleanToken) {
     return { success: false, reason: 'invalid_token' };
   }
 
+  await setStorageValue(PUSH_LAST_KNOWN_TOKEN_KEY, cleanToken);
+
   const userId = await getCurrentUserId();
   if (!userId) {
-    await setStorageValue(PUSH_PENDING_TOKEN_KEY, cleanToken);
+    await savePendingToken(cleanToken, source, 'no_session');
+    logSyncResult({
+      source,
+      ok: false,
+      userId: null,
+      token: cleanToken,
+      reason: 'no_authenticated_user',
+    });
     return { success: false, reason: 'no_authenticated_user' };
   }
 
@@ -146,33 +205,71 @@ const rpcRegisterToken = async ({ token, previousToken = null }) => {
       p_device_id: context.deviceId,
     };
 
+  logSyncStart({
+    source,
+    userId,
+    token: cleanToken,
+    deviceId: context.deviceId,
+    platform: context.platform,
+    provider: context.provider,
+    rpcName,
+  });
+
   const { data, error } = await supabase.rpc(rpcName, params);
 
   if (error) {
     if (isAuthRpcError(error)) {
-      await setStorageValue(PUSH_PENDING_TOKEN_KEY, cleanToken);
+      await savePendingToken(cleanToken, source, 'auth_rpc_error');
+      logSyncResult({
+        source,
+        ok: false,
+        userId,
+        token: cleanToken,
+        reason: 'not_authenticated',
+      });
       return { success: false, reason: 'not_authenticated' };
     }
+    logSyncError({ source, userId, token: cleanToken, error });
     throw error;
   }
 
   if (data?.success === false) {
-    await setStorageValue(PUSH_PENDING_TOKEN_KEY, cleanToken);
+    await savePendingToken(cleanToken, source, data?.reason || 'backend_rejected');
+    logSyncResult({
+      source,
+      ok: false,
+      userId,
+      token: cleanToken,
+      reason: data?.reason || 'backend_rejected',
+    });
     return data;
   }
 
   await setStorageValue(PUSH_LAST_KNOWN_TOKEN_KEY, cleanToken);
   await setStorageValue(PUSH_LAST_SYNCED_TOKEN_KEY, cleanToken);
-  await setStorageValue(PUSH_PENDING_TOKEN_KEY, cleanToken);
+  await setStorageValue(PUSH_LAST_SYNCED_USER_ID_KEY, userId);
+  await removeStorageValue(PUSH_PENDING_TOKEN_KEY);
+
+  logSyncResult({
+    source,
+    ok: true,
+    userId,
+    token: cleanToken,
+    tokenId: data?.token_id || null,
+  });
 
   return data || { success: true };
 };
 
 export const syncNativePushToken = async (token, options = {}) => {
-  return enqueueSync(() => rpcRegisterToken({ token, previousToken: options.previousToken || null }));
+  return enqueueSync(() => rpcRegisterToken({
+    token,
+    previousToken: options.previousToken || null,
+    source: options.source || 'manual',
+  }));
 };
 
-export const flushPendingPushToken = async () => {
+export const flushPendingPushToken = async (options = {}) => {
   if (!isNative()) return null;
 
   const pending = normalizeToken(await getStorageValue(PUSH_PENDING_TOKEN_KEY));
@@ -181,19 +278,26 @@ export const flushPendingPushToken = async () => {
 
   if (!token) return null;
 
-  return enqueueSync(() => rpcRegisterToken({ token }));
+  return enqueueSync(() => rpcRegisterToken({
+    token,
+    source: options.source || 'flush_pending',
+  }));
 };
 
-export const ensurePushTokenAuthSync = () => {
-  if (!isNative() || authSyncStarted) return;
-  authSyncStarted = true;
+export const getPushTokenSyncState = async () => {
+  const pending = normalizeToken(await getStorageValue(PUSH_PENDING_TOKEN_KEY));
+  const known = normalizeToken(await getStorageValue(PUSH_LAST_KNOWN_TOKEN_KEY));
+  const lastSyncedToken = normalizeToken(await getStorageValue(PUSH_LAST_SYNCED_TOKEN_KEY));
+  const lastSyncedUserId = await getStorageValue(PUSH_LAST_SYNCED_USER_ID_KEY);
 
-  supabase.auth.onAuthStateChange((_event, session) => {
-    if (!session?.user) return;
-    flushPendingPushToken().catch((error) => {
-      console.warn('[PUSH] flushPendingPushToken failed on auth state change', error);
-    });
-  });
+  return {
+    hasPending: Boolean(pending),
+    hasKnown: Boolean(known),
+    pendingTokenSuffix: getTokenSuffix(pending),
+    knownTokenSuffix: getTokenSuffix(known),
+    lastSyncedTokenSuffix: getTokenSuffix(lastSyncedToken),
+    lastSyncedUserId: lastSyncedUserId || null,
+  };
 };
 
 export const deactivateCurrentDevicePushToken = async (reason = 'user_logout') => {
@@ -201,6 +305,8 @@ export const deactivateCurrentDevicePushToken = async (reason = 'user_logout') =
 
   const userId = await getCurrentUserId();
   if (!userId) {
+    await removeStorageValue(PUSH_LAST_SYNCED_TOKEN_KEY);
+    await removeStorageValue(PUSH_LAST_SYNCED_USER_ID_KEY);
     return { success: true, skipped: 'no_authenticated_user' };
   }
 
@@ -223,6 +329,7 @@ export const deactivateCurrentDevicePushToken = async (reason = 'user_logout') =
     await setStorageValue(PUSH_PENDING_TOKEN_KEY, lastKnown);
   }
   await removeStorageValue(PUSH_LAST_SYNCED_TOKEN_KEY);
+  await removeStorageValue(PUSH_LAST_SYNCED_USER_ID_KEY);
 
   return data || { success: true };
 };
