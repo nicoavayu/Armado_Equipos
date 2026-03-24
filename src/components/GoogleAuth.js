@@ -18,9 +18,9 @@ const GoogleAuth = ({ user, className, disabled = false, loading = false, onStar
 
     try {
       const redirectTo = getAuthRedirectUrl();
-      const isNativeIos = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios';
+      const isNative = Capacitor.isNativePlatform();
       const options = redirectTo ? { redirectTo } : {};
-      if (isNativeIos) {
+      if (isNative) {
         options.skipBrowserRedirect = true;
       }
 
@@ -36,7 +36,7 @@ const GoogleAuth = ({ user, className, disabled = false, loading = false, onStar
         return;
       }
 
-      if (isNativeIos) {
+      if (isNative) {
         const authUrl = data?.url;
         if (!authUrl) {
           throw new Error('No se recibió URL de autenticación.');

@@ -1,13 +1,14 @@
 import { Capacitor } from '@capacitor/core';
 
-const NATIVE_IOS_REDIRECT_FALLBACK = 'com.teambalancer.app://auth/callback';
+const NATIVE_AUTH_REDIRECT_FALLBACK = 'com.teambalancer.app://auth/callback';
 
 export function getAuthRedirectUrl() {
   const envUrl = String(process.env.REACT_APP_AUTH_REDIRECT_URL || '').trim();
-  const isNativeIos = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios';
+  const isNative = Capacitor.isNativePlatform();
 
-  if (isNativeIos) {
-    return envUrl || NATIVE_IOS_REDIRECT_FALLBACK;
+  if (isNative) {
+    if (envUrl && !/^https?:\/\//i.test(envUrl)) return envUrl;
+    return NATIVE_AUTH_REDIRECT_FALLBACK;
   }
 
   if (envUrl && /^https?:\/\//i.test(envUrl)) return envUrl;

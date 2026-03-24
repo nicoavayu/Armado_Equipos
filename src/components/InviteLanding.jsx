@@ -118,9 +118,9 @@ export default function InviteLanding() {
     try {
       setAuthReturnTo(returnTo);
       const redirectTo = getAuthRedirectUrl();
-      const isNativeIos = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios';
+      const isNative = Capacitor.isNativePlatform();
       const options = redirectTo ? { redirectTo } : {};
-      if (isNativeIos) {
+      if (isNative) {
         options.skipBrowserRedirect = true;
       }
       const oauthOptions = Object.keys(options).length > 0 ? options : undefined;
@@ -131,7 +131,7 @@ export default function InviteLanding() {
 
       if (error) throw error;
 
-      if (isNativeIos) {
+      if (isNative) {
         const authUrl = data?.url;
         if (!authUrl) {
           throw new Error('No se recibió URL de autenticación.');
