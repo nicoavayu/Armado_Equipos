@@ -1469,7 +1469,7 @@ serve(async (req) => {
     || (eventType === "match_player_joined" && matchId !== null)
     || (eventType === "match_join_approved" && matchId !== null && recipientUserId !== null)
     || (eventType === "call_to_vote" && matchId !== null)
-    || (eventType === "match_player_left" && matchId !== null && recipientUserId !== null)
+    || (eventType === "match_player_left" && matchId !== null)
     || (eventType === "match_kicked" && matchId !== null && recipientUserId !== null);
 
   if (shouldBackfill) {
