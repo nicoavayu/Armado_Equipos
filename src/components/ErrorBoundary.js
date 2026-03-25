@@ -1,10 +1,12 @@
 import React from 'react';
 import { isChunkLoadError, recoverFromChunkLoadError } from '../utils/chunkLoadRecovery';
+import { captureException } from '../utils/monitoring/sentry';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
     this.state = { hasError: false, error: null };
+    this.lastReportedErrorSignature = null;
   }
 
   static getDerivedStateFromError(error) {
@@ -12,9 +14,29 @@ class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
+    const componentStack = errorInfo?.componentStack || '';
+    const chunkLoadError = isChunkLoadError(error);
+    const errorSignature = [
+      'ErrorBoundary',
+      error?.name || 'UnknownError',
+      error?.message || 'Unknown message',
+      componentStack,
+    ].join('::');
+
     console.error('ErrorBoundary caught an error:', error, errorInfo);
 
-    if (isChunkLoadError(error)) {
+    if (this.lastReportedErrorSignature !== errorSignature) {
+      this.lastReportedErrorSignature = errorSignature;
+      captureException(error, {
+        boundaryName: 'ErrorBoundary',
+        componentStack,
+        errorKind: chunkLoadError ? 'chunk-load' : 'render',
+        isChunkLoadError: chunkLoadError,
+        recoveryStrategy: chunkLoadError ? 'recoverFromChunkLoadError' : 'none',
+      });
+    }
+
+    if (chunkLoadError) {
       recoverFromChunkLoadError();
     }
   }

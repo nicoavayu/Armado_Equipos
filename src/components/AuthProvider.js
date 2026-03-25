@@ -1,6 +1,7 @@
 import React, { useState, useEffect, createContext, useContext, useCallback, useRef } from 'react';
 import { supabase, getProfile, createOrUpdateProfile } from '../supabase';
 import LoadingSpinner from './LoadingSpinner';
+import { clearSentryUser, setSentryUser } from '../utils/monitoring/sentry';
 
 const AuthContext = createContext();
 let authProviderInstanceCounter = 0;
@@ -50,6 +51,22 @@ function isLocalDevUser(user) {
     user &&
       (user.id === LOCAL_DEV_USER_ID || user.app_metadata?.provider === 'local-dev'),
   );
+}
+
+function getSentryUserContext(currentUser) {
+  if (!currentUser || isLocalDevUser(currentUser)) return null;
+
+  const provider = [
+    currentUser.app_metadata?.provider,
+    Array.isArray(currentUser.app_metadata?.providers) ? currentUser.app_metadata.providers[0] : null,
+    currentUser.aud,
+    currentUser.role,
+  ].find((value) => typeof value === 'string' && value.trim() !== '');
+
+  return {
+    id: currentUser.id,
+    segment: provider || 'authenticated',
+  };
 }
 
 function loadLocalDevProfile() {
@@ -274,6 +291,15 @@ const AuthProvider = ({ children }) => {
       subscription.unsubscribe();
     };
   }, [activateLocalDevSession]);
+
+  useEffect(() => {
+    if (!user || isLocalDevUser(user)) {
+      clearSentryUser();
+      return;
+    }
+
+    setSentryUser(getSentryUserContext(user));
+  }, [user]);
 
   const value = {
     user,

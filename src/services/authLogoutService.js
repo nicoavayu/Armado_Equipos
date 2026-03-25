@@ -1,5 +1,6 @@
 import { supabase } from './api/supabase';
 import { deactivateCurrentDevicePushToken } from './pushTokenService';
+import { clearSentryUser } from '../utils/monitoring/sentry';
 
 const DEFAULT_MAX_DEACTIVATE_ATTEMPTS = 3;
 const RETRY_DELAYS_MS = [0, 350, 900];
@@ -78,6 +79,8 @@ export const signOutWithPushDeactivation = async ({
       cleanup,
     };
   }
+
+  clearSentryUser();
 
   return {
     success: true,

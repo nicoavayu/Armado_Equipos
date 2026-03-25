@@ -7,6 +7,8 @@ import './utils/updateExistingMatches'; // Importar script para actualizar parti
 import { initSentry } from 'utils/monitoring/sentry';
 import { cleanupLegacyServiceWorkers } from './utils/legacyServiceWorkerCleanup';
 
+initSentry();
+
 // Global mobile guard: prevent accidental horizontal drag/side-scroll.
 if (typeof window !== 'undefined' && 'ontouchstart' in window) {
   let startX = 0;
@@ -54,8 +56,6 @@ if (process.env.NODE_ENV !== 'production') {
       });
   }
 }
-
-initSentry();
 
 if (process.env.NODE_ENV === 'production') {
   cleanupLegacyServiceWorkers();
