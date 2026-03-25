@@ -48,6 +48,9 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "REACT_APP_AUTH_REDIRECT_URL=com.teambalancer.app://auth/callback react-scripts build",
+    "build:web:release": "GENERATE_SOURCEMAP=true npm run build",
+    "sentry:web:sourcemaps:upload": "node scripts/upload_sentry_sourcemaps.mjs",
+    "release:web:sentry": "npm run build:web:release && npm run sentry:web:sourcemaps:upload",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "mobile:sync": "npm run build && npx cap sync",
@@ -96,6 +99,7 @@
     "@capacitor/android": "^7.4.2",
     "@capacitor/cli": "^7.4.2",
     "@capacitor/ios": "^7.4.2",
+    "@sentry/cli": "^3.3.3",
     "autoprefixer": "^10.4.23",
     "eslint": "^8.57.0",
     "eslint-plugin-react": "^7.34.2",
