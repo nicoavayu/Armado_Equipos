@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
 import { Swords } from 'lucide-react';
 import {
   IoFootball,
@@ -14,6 +15,13 @@ import {
 
 const TabBar = ({ activeTab, onTabChange }) => {
   const navigate = useNavigate();
+  const isAndroidNative = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android';
+  const tabBarStyle = {
+    paddingBottom: isAndroidNative
+      ? 'calc(max(var(--safe-bottom, 0px), 10px) + 8px)'
+      : 'max(env(safe-area-inset-bottom), 4px)',
+    paddingTop: isAndroidNative ? '2px' : '0px',
+  };
 
   const tabs = [
     { key: 'home', label: 'Inicio', href: '/', ActiveIcon: IoHome, InactiveIcon: IoHomeOutline },
@@ -49,7 +57,8 @@ const TabBar = ({ activeTab, onTabChange }) => {
 
   return (
     <div
-      className="app-tabbar fixed bottom-0 left-0 right-0 z-[1000] min-h-[62px] h-auto md:min-h-[70px] bg-white/5 backdrop-blur-md border-t border-white/10 shadow-[0_-8px_24px_rgba(0,0,0,0.16)] pb-[max(env(safe-area-inset-bottom),4px)] transition-[transform,opacity] duration-200"
+      className="app-tabbar fixed bottom-0 left-0 right-0 z-[1000] min-h-[62px] h-auto md:min-h-[70px] bg-white/5 backdrop-blur-md border-t border-white/10 shadow-[0_-8px_24px_rgba(0,0,0,0.16)] transition-[transform,opacity] duration-200"
+      style={tabBarStyle}
     >
       <div className="relative grid w-full grid-cols-5">
         <div

@@ -359,8 +359,17 @@ function NativeAuthDeepLinkBootstrap() {
     const handleUrl = (incomingUrl) => {
       const rawUrl = String(incomingUrl || '').trim();
       const alreadyHandled = handledUrls.has(rawUrl);
+      const rawUrlWithoutFragment = rawUrl.split('#')[0] || '';
+      const rawUrlWithoutQuery = rawUrlWithoutFragment.split('?')[0] || '';
+      const normalizedRawCallbackUrl = rawUrlWithoutQuery.replace(/\/+$/, '');
+      const isOauthCallback = (
+        normalizedRawCallbackUrl === 'com.teambalancer.app://auth/callback'
+        || normalizedRawCallbackUrl === 'com.teambalancer.app:///auth/callback'
+      );
       logAuth('handleUrl_called', {
         rawUrl,
+        normalizedRawCallbackUrl,
+        isOauthCallback,
         alreadyHandled,
       });
       if (!rawUrl || alreadyHandled) return;
@@ -381,16 +390,6 @@ function NativeAuthDeepLinkBootstrap() {
       const pathname = String(parsed.pathname || '');
       const search = String(parsed.search || '');
       const hash = String(parsed.hash || '');
-      const normalizedPathname = pathname.replace(/\/+$/, '') || '/';
-      const collapsedPathname = normalizedPathname.replace(/^\/+/, '/');
-      const combinedCallbackPath = (
-        `${hostname ? `/${hostname}` : ''}${collapsedPathname === '/' ? '' : collapsedPathname}`
-      ) || '/';
-      const normalizedCallbackPath = combinedCallbackPath.replace(/\/+$/, '') || '/';
-      const isOauthCallback = (
-        protocol === 'com.teambalancer.app:'
-        && normalizedCallbackPath === '/auth/callback'
-      );
 
       logAuth('handleUrl_parsed', {
         rawUrl,
@@ -399,7 +398,7 @@ function NativeAuthDeepLinkBootstrap() {
         pathname,
         search,
         hash,
-        normalizedCallbackPath,
+        normalizedRawCallbackUrl,
         alreadyHandled,
       });
 
@@ -410,7 +409,7 @@ function NativeAuthDeepLinkBootstrap() {
         pathname,
         search,
         hash,
-        normalizedCallbackPath,
+        normalizedRawCallbackUrl,
         isOauthCallback,
         alreadyHandled,
       });
@@ -446,7 +445,7 @@ function NativeAuthDeepLinkBootstrap() {
         pathname,
         search,
         hash,
-        normalizedCallbackPath,
+        normalizedRawCallbackUrl,
         isOauthCallback,
         callbackRoute,
         currentRoute,

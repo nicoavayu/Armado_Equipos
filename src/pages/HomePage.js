@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
 import { resolveMatchIdFromQueryParams, fetchMatchById, handleMatchResolutionError } from '../utils/matchResolver';
 import NetworkStatus from '../components/NetworkStatus';
 import VotingView from './VotingView';
@@ -9,6 +10,7 @@ import FifaHome from './FifaHome';
 const HomePage = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const isAndroidNative = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android';
   const [partidoActual, setPartidoActual] = useState(null);
   const [showVotingView, setShowVotingView] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -107,7 +109,10 @@ const HomePage = () => {
   return (
     <>
       <div className="w-full overflow-x-hidden">
-        <div className="w-full max-w-[800px] mx-auto px-4 pt-5 box-border">
+        <div
+          className="w-full max-w-[800px] mx-auto px-4 box-border"
+          style={{ paddingTop: isAndroidNative ? '0.25rem' : '1.25rem' }}
+        >
           <FifaHome onModoSeleccionado={(modo) => {
             if (modo === 'admin-historial') {
               // Navegar directamente a la lista de partidos frecuentes
