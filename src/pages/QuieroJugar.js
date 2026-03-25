@@ -67,6 +67,7 @@ const MAX_MATCH_DISTANCE_KM = 30;
 const DEFAULT_MATCH_DISTANCE_KM = 30;
 const QUIERO_JUGAR_MATCHES_POLL_MS = 20000;
 const QUIERO_JUGAR_PLAYERS_POLL_MS = 30000;
+const MATCH_DISTANCE_SLIDER_CLASS = 'quiero-jugar-distance-slider w-full';
 
 const clampMatchDistanceKm = (value) => {
   if (!Number.isFinite(value)) return DEFAULT_MATCH_DISTANCE_KM;
@@ -459,6 +460,9 @@ const QuieroJugar = ({
   const canFilterByDistance = Boolean(userLocation);
   const visibleMatches = partidosAbiertos;
   const isResolvingLocation = Boolean(user?.id) && !locationResolved;
+  const matchDistanceProgressPercent = (
+    ((maxMatchDistanceKm - MIN_MATCH_DISTANCE_KM) / (MAX_MATCH_DISTANCE_KM - MIN_MATCH_DISTANCE_KM)) * 100
+  );
 
   if (loading || isResolvingLocation) {
     return (
@@ -476,6 +480,108 @@ const QuieroJugar = ({
 
   return (
     <>
+      <style>{`
+        .quiero-jugar-distance-slider {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 100%;
+          min-height: 42px;
+          margin: 0;
+          padding: 10px 0;
+          background: transparent;
+          touch-action: pan-x;
+          -webkit-tap-highlight-color: transparent;
+        }
+        .quiero-jugar-distance-slider:focus {
+          outline: none;
+        }
+        .quiero-jugar-distance-slider::-webkit-slider-runnable-track {
+          height: 12px;
+          border-radius: 999px;
+          background:
+            linear-gradient(
+              to right,
+              #6a43ff 0%,
+              #7c5cff var(--match-distance-progress, 100%),
+              rgba(255, 255, 255, 0.96) var(--match-distance-progress, 100%),
+              rgba(255, 255, 255, 0.96) 100%
+            );
+          box-shadow: inset 0 0 0 2px rgba(111, 125, 255, 0.28);
+        }
+        .quiero-jugar-distance-slider::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 24px;
+          height: 24px;
+          margin-top: -6px;
+          border-radius: 999px;
+          border: 3px solid #efe9ff;
+          background: radial-gradient(circle at 30% 30%, #a48dff 0%, #6a43ff 58%, #5132d5 100%);
+          box-shadow:
+            0 0 0 6px rgba(106, 67, 255, 0.16),
+            0 6px 16px rgba(0, 0, 0, 0.28);
+          transition: transform 120ms ease-out, box-shadow 120ms ease-out;
+        }
+        .quiero-jugar-distance-slider:active::-webkit-slider-thumb {
+          transform: scale(1.08);
+          box-shadow:
+            0 0 0 8px rgba(106, 67, 255, 0.2),
+            0 8px 18px rgba(0, 0, 0, 0.32);
+        }
+        .quiero-jugar-distance-slider::-moz-range-track {
+          height: 12px;
+          border: none;
+          border-radius: 999px;
+          background: rgba(255, 255, 255, 0.96);
+          box-shadow: inset 0 0 0 2px rgba(111, 125, 255, 0.28);
+        }
+        .quiero-jugar-distance-slider::-moz-range-progress {
+          height: 12px;
+          border-radius: 999px;
+          background: linear-gradient(to right, #6a43ff 0%, #7c5cff 100%);
+        }
+        .quiero-jugar-distance-slider::-moz-range-thumb {
+          width: 24px;
+          height: 24px;
+          border: 3px solid #efe9ff;
+          border-radius: 999px;
+          background: radial-gradient(circle at 30% 30%, #a48dff 0%, #6a43ff 58%, #5132d5 100%);
+          box-shadow:
+            0 0 0 6px rgba(106, 67, 255, 0.16),
+            0 6px 16px rgba(0, 0, 0, 0.28);
+          transition: transform 120ms ease-out, box-shadow 120ms ease-out;
+        }
+        .quiero-jugar-distance-slider:active::-moz-range-thumb {
+          transform: scale(1.08);
+          box-shadow:
+            0 0 0 8px rgba(106, 67, 255, 0.2),
+            0 8px 18px rgba(0, 0, 0, 0.32);
+        }
+        .quiero-jugar-distance-slider:disabled::-webkit-slider-thumb,
+        .quiero-jugar-distance-slider:disabled::-moz-range-thumb {
+          box-shadow: none;
+        }
+        @media (max-width: 640px) {
+          .quiero-jugar-distance-slider {
+            min-height: 48px;
+            padding: 12px 0;
+          }
+          .quiero-jugar-distance-slider::-webkit-slider-runnable-track,
+          .quiero-jugar-distance-slider::-moz-range-track,
+          .quiero-jugar-distance-slider::-moz-range-progress {
+            height: 14px;
+          }
+          .quiero-jugar-distance-slider::-webkit-slider-thumb,
+          .quiero-jugar-distance-slider::-moz-range-thumb {
+            width: 28px;
+            height: 28px;
+          }
+          .quiero-jugar-distance-slider::-webkit-slider-thumb {
+            margin-top: -7px;
+          }
+        }
+      `}</style>
+
       <PageTitle title="QUIERO JUGAR" onBack={onVolver}>QUIERO JUGAR</PageTitle>
 
       <div className={containerClass} style={{ paddingTop: `${secondaryTabsTop}px` }}>
@@ -584,8 +690,10 @@ const QuieroJugar = ({
                     value={maxMatchDistanceKm}
                     onInput={handleMatchDistanceChange}
                     onChange={handleMatchDistanceChange}
-                    className={`w-full accent-[#6a43ff] ${canFilterByDistance ? 'cursor-pointer' : 'cursor-not-allowed opacity-45'}`}
-                    style={{ touchAction: 'pan-x' }}
+                    className={`${MATCH_DISTANCE_SLIDER_CLASS} ${canFilterByDistance ? 'cursor-pointer' : 'cursor-not-allowed opacity-45'}`}
+                    style={{
+                      '--match-distance-progress': `${matchDistanceProgressPercent}%`,
+                    }}
                     aria-label="Distancia maxima de partidos"
                   />
 

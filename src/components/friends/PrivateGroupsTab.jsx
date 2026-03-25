@@ -265,7 +265,7 @@ const GroupCard = ({
                 }}
               >
                 <Pencil size={15} />
-                <span>Editar grupo</span>
+                <span>Cambiar nombre</span>
               </button>
               <button
                 type="button"
