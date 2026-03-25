@@ -53,10 +53,14 @@ const cliCommand = process.platform === 'win32' ? 'npx.cmd' : 'npx';
 const runCli = (args, { allowFailure = false } = {}) => {
   const result = spawnSync(
     cliCommand,
-    ['sentry-cli', '--org', org, '--project', project, ...args],
+    ['sentry-cli', ...args],
     {
       stdio: 'inherit',
-      env: process.env,
+      env: {
+        ...process.env,
+        SENTRY_ORG: org,
+        SENTRY_PROJECT: project,
+      },
     },
   );
 
