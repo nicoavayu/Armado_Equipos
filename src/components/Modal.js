@@ -13,6 +13,7 @@ const Modal = ({
   closeOnBackdrop = true,
   closeOnEscape = true,
   showCloseButton = false,
+  disableEnterAnimation = false,
 }) => {
   const modalRef = useRef(null);
   const { keyboardHeight, isKeyboardOpen } = useKeyboard();
@@ -75,7 +76,7 @@ const Modal = ({
   const modalContent = (
     <div
       data-modal-root="true"
-      className="fixed inset-0 bg-black/75 backdrop-blur-[4px] z-[10001] flex justify-center animate-[fadeIn_0.2s_ease-out] overflow-y-auto"
+      className={`fixed inset-0 bg-black/75 backdrop-blur-[4px] z-[10001] flex justify-center overflow-y-auto ${disableEnterAnimation ? '' : 'animate-[fadeIn_0.2s_ease-out]'}`}
       style={{
         alignItems: isKeyboardOpen ? 'flex-start' : 'center',
         paddingTop: 'max(1.25rem, env(safe-area-inset-top))',
@@ -90,7 +91,7 @@ const Modal = ({
     >
       <div
         ref={modalRef}
-        className={`bg-[#1a1a1a] rounded-[var(--radius-standard)] shadow-[0_20px_60px_rgba(0,0,0,0.8)] max-w-[95vw] max-h-full w-auto flex flex-col overflow-hidden border border-[#333] animate-[scaleIn_0.2s_ease-out] ${className}`}
+        className={`bg-[#1a1a1a] rounded-[var(--radius-standard)] shadow-[0_20px_60px_rgba(0,0,0,0.8)] max-w-[95vw] max-h-full w-auto flex flex-col overflow-hidden border border-[#333] ${disableEnterAnimation ? '' : 'animate-[scaleIn_0.2s_ease-out]'} ${className}`}
         onClick={(e) => e.stopPropagation()}
       >
         {hasHeader && (

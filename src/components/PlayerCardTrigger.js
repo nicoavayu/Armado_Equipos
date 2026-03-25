@@ -12,7 +12,7 @@ export const TeamDisplayContext = React.createContext(false);
  * @param {Object} [props.partidoActual] - Current match data
  * @param {Function} [props.onMakeAdmin] - Function to transfer admin rights
  */
-const PlayerCardTrigger = ({ profile, children, partidoActual, onMakeAdmin }) => {
+const PlayerCardTrigger = ({ profile, children, partidoActual, onMakeAdmin, initialRelationshipStatus = null }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const isInTeamDisplay = useContext(TeamDisplayContext);
   const shouldIgnoreOpen = (target) => {
@@ -26,16 +26,13 @@ const PlayerCardTrigger = ({ profile, children, partidoActual, onMakeAdmin }) =>
 
     // Don't open profile card if we're in TeamDisplay
     if (isInTeamDisplay) {
-      console.log('[PLAYER_TRIGGER] Prevented opening modal in TeamDisplay');
       return;
     }
 
-    console.log('[PLAYER_TRIGGER] Opening modal for profile:', profile?.id);
     setIsModalOpen(true);
   };
 
   const handleCloseModal = () => {
-    console.log('[PLAYER_TRIGGER] Closing modal for profile:', profile?.id);
     setIsModalOpen(false);
   };
 
@@ -62,6 +59,7 @@ const PlayerCardTrigger = ({ profile, children, partidoActual, onMakeAdmin }) =>
         profile={profile}
         partidoActual={partidoActual}
         onMakeAdmin={onMakeAdmin}
+        initialRelationshipStatus={initialRelationshipStatus}
       />
     </>
   );

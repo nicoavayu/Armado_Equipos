@@ -1,10 +1,11 @@
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 // src/components/ProfileCardModal.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Modal from './Modal';
 import ConfirmModal from './ConfirmModal';
 import ProfileCard from './ProfileCard';
 import WhatsappIcon from './WhatsappIcon';
+import { useAuth } from './AuthProvider';
 import { useAmigos } from '../hooks/useAmigos';
 import { supabase } from '../supabase';
 import { getProfile } from '../services/db/profiles';
@@ -34,6 +35,93 @@ const resolveRegisteredUserId = (profile) => {
   return candidates.find((value) => isValidUUID(value)) || null;
 };
 
+const hasMeaningfulValue = (value) => {
+  if (value === undefined || value === null) return false;
+  if (typeof value === 'string') return value.trim().length > 0;
+  return true;
+};
+
+const parseCounter = (value) => {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+};
+
+const mergeProfileData = (baseProfile, incomingProfile) => {
+  const base = baseProfile || {};
+  const incoming = incomingProfile || {};
+  const merged = { ...base };
+
+  Object.entries(incoming).forEach(([key, value]) => {
+    if (hasMeaningfulValue(value) || !hasMeaningfulValue(merged[key])) {
+      merged[key] = value;
+    }
+  });
+
+  const mvpCount = Math.max(
+    parseCounter(base.mvp_badges),
+    parseCounter(base.mvps),
+    parseCounter(incoming.mvp_badges),
+    parseCounter(incoming.mvps),
+  );
+  const gkCount = Math.max(
+    parseCounter(base.gk_badges),
+    parseCounter(base.guantes_dorados),
+    parseCounter(incoming.gk_badges),
+    parseCounter(incoming.guantes_dorados),
+  );
+  const redCount = Math.max(
+    parseCounter(base.red_badges),
+    parseCounter(base.tarjetas_rojas),
+    parseCounter(incoming.red_badges),
+    parseCounter(incoming.tarjetas_rojas),
+  );
+
+  const hasMvpCount = [base, incoming].some((profile) => profile?.mvp_badges !== undefined || profile?.mvps !== undefined);
+  const hasGkCount = [base, incoming].some((profile) => profile?.gk_badges !== undefined || profile?.guantes_dorados !== undefined);
+  const hasRedCount = [base, incoming].some((profile) => profile?.red_badges !== undefined || profile?.tarjetas_rojas !== undefined);
+
+  if (hasMvpCount) {
+    merged.mvp_badges = mvpCount;
+    merged.mvps = mvpCount;
+  }
+  if (hasGkCount) {
+    merged.gk_badges = gkCount;
+    merged.guantes_dorados = gkCount;
+  }
+  if (hasRedCount) {
+    merged.red_badges = redCount;
+    merged.tarjetas_rojas = redCount;
+  }
+
+  const canonicalId = incoming.id || base.id || null;
+  if (canonicalId) {
+    merged.id = canonicalId;
+  }
+  if (!merged.usuario_id && (incoming.usuario_id || base.usuario_id || canonicalId)) {
+    merged.usuario_id = incoming.usuario_id || base.usuario_id || canonicalId;
+  }
+  if (!merged.user_id && (incoming.user_id || base.user_id || canonicalId)) {
+    merged.user_id = incoming.user_id || base.user_id || canonicalId;
+  }
+  if (!merged.uuid && (incoming.uuid || base.uuid || canonicalId)) {
+    merged.uuid = incoming.uuid || base.uuid || canonicalId;
+  }
+
+  return merged;
+};
+
+const normalizeRelationshipStatus = (value) => {
+  if (!value?.status) return null;
+  return {
+    id: value.id || value.relationshipId || null,
+    status: value.status,
+  };
+};
+
+const buildRelationshipCacheKey = (currentUserId, otherUserId) => (
+  currentUserId && otherUserId ? `${currentUserId}:${otherUserId}` : null
+);
+
 const PROFILE_ACTION_BUTTON_BASE = 'w-full min-w-0 h-[44px] px-2.5 rounded-none border font-bebas text-[13px] tracking-[0.01em] leading-tight cursor-pointer transition-all inline-flex items-center justify-center text-center disabled:opacity-60 disabled:cursor-not-allowed';
 const PROFILE_ACTION_BUTTON_PRIMARY = 'bg-[#6a43ff] border-[#7d5aff] text-white shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:bg-[#7550ff] active:opacity-95';
 const PROFILE_ACTION_BUTTON_INFO = 'bg-[rgba(15,64,98,0.45)] border-[rgba(65,179,255,0.55)] text-[#d3efff] hover:bg-[rgba(15,72,112,0.62)] hover:text-white active:opacity-95';
@@ -48,18 +136,34 @@ const PROFILE_ACTION_BUTTON_WARNING = 'bg-[rgba(94,73,28,0.45)] border-[rgba(236
  * @param {Object} [props.partidoActual] - Current match data
  * @param {function} [props.onMakeAdmin] - Function to make player admin
  */
-const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin }) => {
+const ProfileCardModal = ({
+  isOpen,
+  onClose,
+  profile,
+  partidoActual,
+  onMakeAdmin,
+  initialRelationshipStatus = null,
+}) => {
   const profileUserId = resolveProfileUserId(profile);
   const registeredUserId = resolveRegisteredUserId(profile);
-  const [resolvedProfile, setResolvedProfile] = useState(profile);
-  const [hasPersistedUserProfile, setHasPersistedUserProfile] = useState(false);
+  const { user: authUser } = useAuth();
+  const seededRelationshipStatus = normalizeRelationshipStatus(initialRelationshipStatus);
+  const [resolvedProfile, setResolvedProfile] = useState(() => mergeProfileData(null, profile));
+  const [hasPersistedUserProfile, setHasPersistedUserProfile] = useState(Boolean(registeredUserId));
   const [currentUserId, setCurrentUserId] = useState(null);
-  const [relationshipStatus, setRelationshipStatus] = useState(null);
+  const [relationshipStatus, setRelationshipStatus] = useState(() => seededRelationshipStatus);
   const [isLoading, setIsLoading] = useState(false);
+  const [isRelationshipLoading, setIsRelationshipLoading] = useState(false);
   const [isAdminLoading, setIsAdminLoading] = useState(false);
   const [showContactInfo, setShowContactInfo] = useState(false);
   const [playerPhone, setPlayerPhone] = useState(null);
   const [showAdminConfirm, setShowAdminConfirm] = useState(false);
+  const activeProfileKeyRef = useRef(null);
+  const profileCacheRef = useRef(new Map());
+  const profileRequestCacheRef = useRef(new Map());
+  const relationshipCacheRef = useRef(new Map());
+  const relationshipRequestCacheRef = useRef(new Map());
+  const relationshipCacheKey = buildRelationshipCacheKey(currentUserId, registeredUserId);
 
   const {
     getRelationshipStatus,
@@ -68,10 +172,51 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
   } = useAmigos(currentUserId);
 
   useEffect(() => {
-    setResolvedProfile(profile);
-    setHasPersistedUserProfile(false);
-    setRelationshipStatus(null);
-  }, [profile]);
+    const nextProfileKey = registeredUserId || profileUserId || profile?.id || null;
+
+    if (!nextProfileKey) {
+      setResolvedProfile((prev) => mergeProfileData(prev, profile));
+      setHasPersistedUserProfile(false);
+      setRelationshipStatus(null);
+      setIsRelationshipLoading(false);
+      return;
+    }
+
+    const isNewProfile = activeProfileKeyRef.current !== nextProfileKey;
+    if (isNewProfile) {
+      activeProfileKeyRef.current = nextProfileKey;
+      const cachedProfile = registeredUserId
+        ? profileCacheRef.current.get(registeredUserId) || null
+        : null;
+      const cachedRelationship = relationshipCacheKey && relationshipCacheRef.current.has(relationshipCacheKey)
+        ? relationshipCacheRef.current.get(relationshipCacheKey)
+        : null;
+
+      setResolvedProfile(mergeProfileData(profile, cachedProfile));
+      setHasPersistedUserProfile(Boolean(registeredUserId));
+      setRelationshipStatus(seededRelationshipStatus || cachedRelationship || null);
+      setIsRelationshipLoading(false);
+      setShowContactInfo(false);
+      setPlayerPhone(null);
+      return;
+    }
+
+    setResolvedProfile((prev) => mergeProfileData(prev, profile));
+    if (registeredUserId) {
+      setHasPersistedUserProfile(true);
+    }
+    if (seededRelationshipStatus) {
+      setRelationshipStatus((prev) => prev || seededRelationshipStatus);
+    }
+  }, [
+    profile,
+    profile?.id,
+    profileUserId,
+    registeredUserId,
+    relationshipCacheKey,
+    seededRelationshipStatus?.id,
+    seededRelationshipStatus?.status,
+  ]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -80,37 +225,47 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
       if (!isOpen) return;
 
       if (!registeredUserId) {
-        if (!isCancelled) setHasPersistedUserProfile(false);
         return;
       }
 
-      let latestProfile = null;
+      const cachedProfile = profileCacheRef.current.get(registeredUserId);
+      if (cachedProfile) {
+        if (!isCancelled) {
+          setResolvedProfile((prev) => mergeProfileData(prev, cachedProfile));
+          setHasPersistedUserProfile(true);
+        }
+        return;
+      }
+
       try {
-        latestProfile = await getProfile(registeredUserId);
+        let request = profileRequestCacheRef.current.get(registeredUserId);
+        if (!request) {
+          request = getProfile(registeredUserId)
+            .then((latestProfile) => {
+              if (latestProfile) {
+                profileCacheRef.current.set(registeredUserId, latestProfile);
+              }
+              return latestProfile;
+            })
+            .finally(() => {
+              profileRequestCacheRef.current.delete(registeredUserId);
+            });
+          profileRequestCacheRef.current.set(registeredUserId, request);
+        }
+
+        const latestProfile = await request;
+        if (!latestProfile || isCancelled) {
+          return;
+        }
+
+        setHasPersistedUserProfile(true);
+        setResolvedProfile((prev) => mergeProfileData(prev, latestProfile));
       } catch (error) {
+        if (!isCancelled) {
+          setHasPersistedUserProfile(Boolean(registeredUserId));
+        }
         console.warn('[PROFILE_MODAL] Could not refresh latest profile from canonical resolver:', error);
-        if (!isCancelled) setHasPersistedUserProfile(false);
-        return;
       }
-
-      if (!latestProfile || isCancelled) {
-        if (!isCancelled) setHasPersistedUserProfile(false);
-        return;
-      }
-
-      if (!isCancelled) setHasPersistedUserProfile(true);
-
-      setResolvedProfile((prev) => {
-        const baseProfile = prev || profile || {};
-        return {
-          ...baseProfile,
-          ...latestProfile,
-          id: latestProfile.id || baseProfile.id,
-          usuario_id: baseProfile.usuario_id || latestProfile.id,
-          user_id: baseProfile.user_id || latestProfile.id,
-          uuid: baseProfile.uuid || latestProfile.id,
-        };
-      });
     };
 
     fetchLatestProfile();
@@ -118,14 +273,18 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
     return () => {
       isCancelled = true;
     };
-  }, [isOpen, registeredUserId, profile]);
+  }, [isOpen, registeredUserId]);
 
   const modalProfile = resolvedProfile || profile;
 
   // Get current user ID on mount
   useEffect(() => {
+    if (authUser?.id) {
+      setCurrentUserId(authUser.id);
+      return;
+    }
+
     const getCurrentUser = async () => {
-      console.log('[PROFILE_MODAL] Getting current user');
       const { data: { user }, error } = await supabase.auth.getUser();
 
       if (error) {
@@ -134,52 +293,119 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
       }
 
       if (user) {
-        console.log('[PROFILE_MODAL] Current user found:', user.id);
         setCurrentUserId(user.id);
-      } else {
-        console.log('[PROFILE_MODAL] No authenticated user found');
       }
     };
 
     getCurrentUser();
-  }, []);
+  }, [authUser?.id]);
 
   // Check relationship status when modal opens
   useEffect(() => {
-    const checkRelationship = async () => {
-      console.log('[PROFILE_MODAL] Checking relationship status', { currentUserId, profileUserId, profileId: profile?.id });
+    let isCancelled = false;
 
+    const checkRelationship = async () => {
       if (!currentUserId || !registeredUserId || currentUserId === registeredUserId) {
-        console.log('[PROFILE_MODAL] Skipping check - missing or same user');
+        if (!isCancelled) {
+          setIsRelationshipLoading(false);
+        }
         return;
       }
 
-      console.log('[PROFILE_MODAL] Getting relationship status between', { from: currentUserId, to: registeredUserId });
-      setIsLoading(true);
-      const status = await getRelationshipStatus(registeredUserId);
-      console.log('[PROFILE_MODAL] Relationship status result:', status);
-      setRelationshipStatus(status);
-      setIsLoading(false);
+      if (seededRelationshipStatus) {
+        if (relationshipCacheKey) {
+          relationshipCacheRef.current.set(relationshipCacheKey, seededRelationshipStatus);
+        }
+        if (!isCancelled) {
+          setRelationshipStatus((prev) => prev || seededRelationshipStatus);
+          setIsRelationshipLoading(false);
+        }
+        return;
+      }
+
+      if (relationshipCacheKey && relationshipCacheRef.current.has(relationshipCacheKey)) {
+        if (!isCancelled) {
+          setRelationshipStatus(relationshipCacheRef.current.get(relationshipCacheKey) || null);
+          setIsRelationshipLoading(false);
+        }
+        return;
+      }
+
+      if (!hasPersistedUserProfile) {
+        return;
+      }
+
+      if (!isCancelled) {
+        setIsRelationshipLoading(true);
+      }
+
+      try {
+        let request = relationshipCacheKey
+          ? relationshipRequestCacheRef.current.get(relationshipCacheKey)
+          : null;
+
+        if (!request) {
+          request = getRelationshipStatus(registeredUserId)
+            .then((status) => {
+              if (relationshipCacheKey) {
+                relationshipCacheRef.current.set(relationshipCacheKey, status || null);
+              }
+              return status || null;
+            })
+            .finally(() => {
+              if (relationshipCacheKey) {
+                relationshipRequestCacheRef.current.delete(relationshipCacheKey);
+              }
+            });
+
+          if (relationshipCacheKey) {
+            relationshipRequestCacheRef.current.set(relationshipCacheKey, request);
+          }
+        }
+
+        const status = await request;
+        if (!isCancelled) {
+          setRelationshipStatus(status || null);
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsRelationshipLoading(false);
+        }
+      }
     };
 
-    if (isOpen && profile && currentUserId && hasPersistedUserProfile) {
+    if (isOpen && currentUserId && hasPersistedUserProfile) {
       checkRelationship();
     }
-  }, [isOpen, currentUserId, registeredUserId, hasPersistedUserProfile, profile]);
+    return () => {
+      isCancelled = true;
+    };
+  }, [
+    currentUserId,
+    getRelationshipStatus,
+    hasPersistedUserProfile,
+    isOpen,
+    registeredUserId,
+    relationshipCacheKey,
+    seededRelationshipStatus?.id,
+    seededRelationshipStatus?.status,
+  ]);
 
   // Handle friend request actions
   const handleAddFriend = async () => {
     if (!currentUserId || !registeredUserId || isLoading) {
-      console.log('[PROFILE_MODAL] Cannot send friend request - missing data', { currentUserId, registeredUserId, isLoading });
       return;
     }
 
-    console.log('[PROFILE_MODAL] Sending friend request from', currentUserId, 'to', registeredUserId);
     setIsLoading(true);
     const result = await sendFriendRequest(registeredUserId);
 
     if (result.success) {
-      setRelationshipStatus({ id: result.data.id, status: 'pending' });
+      const nextStatus = { id: result.data.id, status: 'pending' };
+      setRelationshipStatus(nextStatus);
+      if (relationshipCacheKey) {
+        relationshipCacheRef.current.set(relationshipCacheKey, nextStatus);
+      }
       console.info('Solicitud de amistad enviada');
     } else {
       notifyBlockingError(result.message || 'Error al enviar solicitud');
@@ -195,6 +421,9 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
 
     if (result.success) {
       setRelationshipStatus(null);
+      if (relationshipCacheKey) {
+        relationshipCacheRef.current.set(relationshipCacheKey, null);
+      }
     }
     setIsLoading(false);
   };
@@ -367,6 +596,17 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
       return null;
     }
 
+    if (isRelationshipLoading && !relationshipStatus) {
+      return (
+        <button
+          className={`${PROFILE_ACTION_BUTTON_BASE} bg-[rgba(255,255,255,0.06)] border-white/10 text-white/55 cursor-wait`}
+          disabled
+        >
+          <span>Cargando...</span>
+        </button>
+      );
+    }
+
     if (!relationshipStatus) {
       return (
         <button
@@ -409,18 +649,6 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
 
     return null;
   };
-
-
-
-  // Log modal open/close events
-  useEffect(() => {
-    if (isOpen) {
-      console.log('[PROFILE_MODAL] Modal opened for profile:', modalProfile?.id);
-    } else {
-      console.log('[PROFILE_MODAL] Modal closed');
-    }
-  }, [isOpen, modalProfile?.id]);
-
   const actionButtons = isOpen && hasPersistedUserProfile
     ? [renderFriendActionButton(), renderContactButton(), renderMakeAdminButton()].filter(Boolean)
     : [];
@@ -445,6 +673,7 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
     <Modal
       isOpen={isOpen}
       onClose={onClose}
+      disableEnterAnimation={true}
       className="relative w-[calc(100vw-1.5rem)] max-w-[360px] max-h-[calc(100vh-1.5rem)]"
       classNameContent="relative p-3 sm:p-4 overflow-x-hidden"
       closeOnBackdrop={true}
@@ -465,8 +694,8 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
           <ProfileCard
             profile={modalProfile}
             isVisible={true}
-            enableTilt={true}
-            currentUserId={currentUserId}
+            enableTilt={false}
+            disableInternalMotion={true}
             awardsLayout="space-left"
             cardMaxWidth={300}
             layoutOverrides={modalCardLayoutOverrides}

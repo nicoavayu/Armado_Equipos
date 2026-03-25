@@ -14,9 +14,6 @@ const MiniFriendCard = ({ friend, onRequestRemoveClick, currentUserId }) => {
   const profile = friend.profile;
   const name = profile?.nombre || 'Usuario';
 
-  // Debug logs
-  console.log('[MINI_FRIEND_CARD] Render state:', { showMenu, showInviteModal, name });
-
   const getSafeMenuPosition = (rect) => {
     const menuWidth = 192; // w-48
     const menuHeight = 108;
@@ -36,7 +33,13 @@ const MiniFriendCard = ({ friend, onRequestRemoveClick, currentUserId }) => {
 
   return (
     <div className="relative overflow-visible">
-      <PlayerCardTrigger profile={profile}>
+      <PlayerCardTrigger
+        profile={profile}
+        initialRelationshipStatus={{
+          id: friend?.id || friend?.relationshipId || null,
+          status: friend?.status || 'accepted',
+        }}
+      >
         <PlayerMiniCard
           profile={profile}
           variant="friend"
