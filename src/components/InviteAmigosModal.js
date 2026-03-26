@@ -1054,15 +1054,20 @@ const InviteAmigosModal = ({
                     onClick={() => toggleFriendSelection(amigo.id)}
                     disabled={inviting}
                   >
-                    <img
-                      src={amigo.avatar_url || '/profile.svg'}
-                      alt={amigo.nombre || 'Usuario'}
-                      className="h-10 w-10 rounded-full object-cover shrink-0 border border-white/15"
-                      onError={(event) => { event.currentTarget.src = '/profile.svg'; }}
-                    />
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-[rgba(20,31,70,0.82)]">
+                      <img
+                        src={amigo.avatar_url || '/profile.svg'}
+                        alt={amigo.nombre || 'Usuario'}
+                        className="h-full w-full object-cover"
+                        onError={(event) => { event.currentTarget.src = '/profile.svg'; }}
+                      />
+                    </div>
                     <div className="min-w-0 flex-1">
                       <div className="truncate font-oswald text-sm text-white">
                         {amigo.nombre || 'Usuario'}
+                      </div>
+                      <div className="truncate text-xs text-white/55">
+                        Amigo disponible
                       </div>
                     </div>
                     <div className={`h-4 w-4 shrink-0 rounded-none border ${isSelected ? 'border-[#7d5aff] bg-[#6a43ff]' : 'border-white/35 bg-transparent'}`} />
