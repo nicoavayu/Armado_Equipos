@@ -111,7 +111,7 @@ const TabBar = ({ activeTab, onTabChange }) => {
                 {showUnreadDot && (
                   <span
                     aria-hidden="true"
-                    className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-[#ff5a5f] ring-2 ring-[#1f2747] shadow-[0_0_8px_rgba(255,90,95,0.5)]"
+                    className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-[#128BE9] ring-2 ring-[#1f2747] shadow-[0_0_8px_rgba(18,139,233,0.5)]"
                   />
                 )}
               </span>
