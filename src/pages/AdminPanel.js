@@ -165,9 +165,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
   const buildTeamsLockedMessage = balancedTeamsRequiredPlayers > 0
     ? `Necesitás completar el plantel para armar los equipos (${displayedJugadores.length}/${balancedTeamsRequiredPlayers}).`
     : 'Necesitás completar el plantel para armar los equipos.';
-  const buildTeamsHelperText = balancedTeamsRequiredPlayers > 0
-    ? `Disponible cuando el plantel esté completo (${displayedJugadores.length}/${balancedTeamsRequiredPlayers})`
-    : 'Disponible cuando el plantel esté completo';
+  const buildTeamsHelperText = 'Disponible cuando el plantel esté completo';
   const canOpenChatFromHeader = Boolean(isAdmin || adminState.isPlayerInMatch);
   const invitationsOpen = Boolean(
     partidoActual?.invitations_open
