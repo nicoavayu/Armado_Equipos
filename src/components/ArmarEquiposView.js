@@ -899,6 +899,7 @@ export default function ArmarEquiposView({
         tipo={partidoActual?.tipo_partido}
         precio={partidoActual?.valor_cancha || partidoActual?.valorCancha || partidoActual?.valor || partidoActual?.precio}
         rightActions={null}
+        topOffsetClassName="mt-[62px] sm:mt-[58px]"
       />
       <div className="w-[90vw] md:w-full max-w-[90vw] md:max-w-4xl mx-auto flex flex-col gap-3 overflow-x-hidden mt-0 pt-0 pb-[calc(var(--safe-bottom,0px)+14px)]">
         {/* Lista de jugadores */}
