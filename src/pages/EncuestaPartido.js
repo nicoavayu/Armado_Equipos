@@ -2219,7 +2219,7 @@ const EncuestaPartido = () => {
           type="button"
           aria-label="Cerrar encuesta"
           onClick={() => setExitSurveyModalOpen(true)}
-          className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/18 bg-white/8 text-[24px] leading-none text-white/82 shadow-[0_12px_28px_rgba(0,0,0,0.18)] transition-all duration-150 hover:bg-white/12 hover:text-white active:scale-[0.98] sm:h-10 sm:w-10"
+          className="inline-flex h-9 w-9 items-center justify-center bg-transparent text-[28px] leading-none text-white/78 transition-all duration-150 hover:text-white active:scale-[0.98] sm:h-10 sm:w-10 sm:text-[30px]"
         >
           <span className="-mt-[2px]">×</span>
         </button>
@@ -3143,7 +3143,7 @@ const EncuestaPartido = () => {
       title="Cerrar encuesta"
       message="Si salís ahora, la encuesta va a quedar pendiente y vas a poder volver más tarde para completarla."
       confirmText="Salir"
-      cancelText="Seguir"
+      cancelText="Cancelar"
       onConfirm={confirmExitSurvey}
       onCancel={closeExitSurveyModal}
       actionsAlign="center"
