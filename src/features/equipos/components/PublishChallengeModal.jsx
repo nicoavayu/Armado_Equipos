@@ -14,7 +14,6 @@ const SECONDARY_ACTION_BUTTON_CLASS = 'inline-flex min-h-[44px] items-center jus
 const INPUT_CLASS = 'h-[52px] w-full rounded-none border border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] px-4 text-white font-oswald text-lg outline-none transition-all duration-300 focus:border-[#7f8dff] focus:bg-[rgba(30,45,94,0.95)] focus:ring-2 focus:ring-[#6f7dff]/30 placeholder:text-white/45 backdrop-blur-md';
 const INPUT_READONLY_CLASS = 'h-[52px] w-full rounded-none border border-[rgba(88,107,170,0.4)] bg-[rgba(26,35,76,0.58)] px-4 text-white/78 font-oswald text-lg outline-none';
 const FIELD_LABEL_CLASS = 'mb-2 block text-sm text-white/70';
-const SECTION_CARD_CLASS = 'rounded-none border border-[rgba(88,107,170,0.46)] bg-[rgba(18,28,62,0.78)] p-4';
 
 const FORMAT_OPTIONS_LABEL = TEAM_FORMAT_OPTIONS.map((value) => `F${value}`).join(' · ');
 const SKILL_OPTIONS_LABEL = TEAM_SKILL_OPTIONS.map((option) => option.label).join(' · ');
@@ -136,27 +135,25 @@ const PublishChallengeModal = ({
           });
         }}
       >
-        <div className={SECTION_CARD_CLASS}>
-          <label className="block">
-            <span className={`${FIELD_LABEL_CLASS} inline-flex items-center`}>
-              Equipo desafiante
-              <span className="ml-1 text-[#7d5aff] font-bold" aria-label="Campo obligatorio">*</span>
-            </span>
-            <select
-              value={challengerTeamId}
-              onChange={(event) => setChallengerTeamId(event.target.value)}
-              required
-              className={INPUT_CLASS}
-            >
-              {teams.length === 0 ? <option value="">Sin equipos</option> : null}
-              {teams.map((team) => (
-                <option key={team.id} value={team.id}>
-                  {team.name} · F{team.format} · {team.base_zone || 'sin zona'}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
+        <label className="block">
+          <span className={`${FIELD_LABEL_CLASS} inline-flex items-center`}>
+            Equipo desafiante
+            <span className="ml-1 text-[#7d5aff] font-bold" aria-label="Campo obligatorio">*</span>
+          </span>
+          <select
+            value={challengerTeamId}
+            onChange={(event) => setChallengerTeamId(event.target.value)}
+            required
+            className={INPUT_CLASS}
+          >
+            {teams.length === 0 ? <option value="">Sin equipos</option> : null}
+            {teams.map((team) => (
+              <option key={team.id} value={team.id}>
+                {team.name} · F{team.format} · {team.base_zone || 'sin zona'}
+              </option>
+            ))}
+          </select>
+        </label>
 
         <div className="grid grid-cols-2 gap-3">
           <label className="block">
