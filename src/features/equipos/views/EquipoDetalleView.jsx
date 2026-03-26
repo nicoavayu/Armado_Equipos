@@ -30,6 +30,7 @@ import { formatSkillLevelLabel, getTeamProvidedColors } from '../utils/teamColor
 import { QUIERO_JUGAR_EQUIPOS_SUBTAB_STORAGE_KEY, resolveTeamRosterLimit } from '../config';
 import { useSupabaseRealtime } from '../../../hooks/useSupabaseRealtime';
 import { useRefreshOnVisibility } from '../../../hooks/useRefreshOnVisibility';
+import { useInterval } from '../../../hooks/useInterval';
 
 const modalActionButtonBaseClass = '!w-full !h-auto !min-h-[44px] !px-4 !py-2.5 !rounded-none !font-bebas !text-base !tracking-[0.01em] !normal-case sm:!text-[13px] sm:!px-3 sm:!py-2 sm:!min-h-[36px]';
 const modalPrimaryActionButtonClass = `${modalActionButtonBaseClass} !border !border-[#7d5aff] !bg-[#6a43ff] !text-white !shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:!bg-[#7550ff]`;
@@ -39,6 +40,7 @@ const optionCardClass = 'w-full rounded-none border border-white/15 bg-white/5 p
 const disabledOptionCardClass = `${optionCardClass} disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none disabled:hover:bg-white/5`;
 const transparentMenuButtonClass = 'kebab-menu-btn relative z-10';
 const addMemberButtonClass = 'mt-3 w-full min-h-[52px] rounded-[var(--radius-standard)] border border-[#7d5aff] bg-[#6a43ff] px-4 py-3 text-center text-white font-oswald text-[18px] font-semibold transition-all hover:bg-[#7550ff] active:opacity-95 shadow-[0_8px_28px_rgba(106,67,255,0.28)]';
+const TEAM_DETAIL_LIVE_REFRESH_INTERVAL_MS = 5000;
 
 const EMPTY_NEW_MEMBER = {
   jugadorId: '',
@@ -197,6 +199,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
   const memberPhotoInputRef = useRef(null);
   const roleMenuContainerRef = useRef(null);
   const realtimeRefreshTimeoutRef = useRef(null);
+  const { setIntervalSafe, clearIntervalSafe } = useInterval();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const activeTab = normalizeDetailTab(searchParams.get('tab'));
@@ -403,6 +406,34 @@ const EquipoDetalleView = ({ teamId, userId }) => {
       enabled: Boolean(userId && teamId),
     },
   );
+
+  useEffect(() => {
+    clearIntervalSafe();
+
+    if (!selectedTeam?.id) return undefined;
+
+    setIntervalSafe(() => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+      if (isSaving || friendsLoading || loading || detailLoading) return;
+
+      loadTeamCollections(selectedTeam, {
+        includeHistory: false,
+        withDetailLoading: false,
+        silent: true,
+      });
+    }, TEAM_DETAIL_LIVE_REFRESH_INTERVAL_MS);
+
+    return () => clearIntervalSafe();
+  }, [
+    clearIntervalSafe,
+    detailLoading,
+    friendsLoading,
+    isSaving,
+    loadTeamCollections,
+    loading,
+    selectedTeam,
+    setIntervalSafe,
+  ]);
 
   useSupabaseRealtime({
     enabled: Boolean(userId && teamId),
