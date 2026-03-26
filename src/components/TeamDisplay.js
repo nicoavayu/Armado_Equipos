@@ -93,11 +93,13 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
   const [templateId, setTemplateId] = useState(null);
   const [dragTarget, setDragTarget] = useState(null);
   const [activeDragId, setActiveDragId] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
   const [showShareRequiresConfirmModal, setShowShareRequiresConfirmModal] = useState(false);
   const [showTeamsConfirmedModal, setShowTeamsConfirmedModal] = useState(false);
   const [votantes, setVotantes] = useState([]);
   const [votantesConNombres, setVotantesConNombres] = useState([]);
   const lastDragEndAtRef = useRef(0);
+  const suppressPlayerTapRef = useRef(false);
   const { notice, showInlineNotice, clearInlineNotice } = useInlineNotice();
 
   // [TEAM_BALANCER_EDIT] Para jugadores no-admin, ocultar promedios por defecto
@@ -664,6 +666,8 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
 
   const handleDragStart = (start) => {
     if (!isAdmin || teamsConfirmed) return;
+    suppressPlayerTapRef.current = true;
+    setIsDragging(true);
     setActiveDragId(start?.draggableId || null);
     setDragTarget(null);
   };
@@ -706,9 +710,13 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
   };
 
   const handleDragEnd = async (result) => {
+    setIsDragging(false);
     setActiveDragId(null);
     setDragTarget(null);
     lastDragEndAtRef.current = Date.now();
+    window.setTimeout(() => {
+      suppressPlayerTapRef.current = false;
+    }, 150);
 
     if (!isAdmin || teamsConfirmed) return;
 
@@ -957,20 +965,24 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                   droppableId={team.id}
                   isDropDisabled={!isAdmin || teamsConfirmed}
                 >
-                  {(dropProvided) => (
+                  {(dropProvided, dropSnapshot) => (
                     <div
                       ref={dropProvided.innerRef}
                       {...dropProvided.droppableProps}
-                      className="relative border p-2 w-[calc(50%-6px)] box-border transition-all flex flex-col min-h-0 rounded-none"
+                      className={`relative border p-2 w-[calc(50%-6px)] box-border transition-all duration-150 ease-out flex flex-col min-h-0 rounded-[5px] ${
+                        dropSnapshot.isDraggingOver ? 'shadow-[0_0_0_1px_rgba(18,139,233,0.18)]' : ''
+                      }`}
                       style={{
-                        borderColor: 'rgba(255,255,255,0.09)',
-                        background: 'linear-gradient(180deg, rgba(255,255,255,0.028) 0%, rgba(255,255,255,0.012) 100%)',
+                        borderColor: dropSnapshot.isDraggingOver ? 'rgba(18,139,233,0.55)' : 'rgba(255,255,255,0.09)',
+                        background: dropSnapshot.isDraggingOver
+                          ? 'linear-gradient(180deg, rgba(18,139,233,0.14) 0%, rgba(255,255,255,0.02) 100%)'
+                          : 'linear-gradient(180deg, rgba(255,255,255,0.028) 0%, rgba(255,255,255,0.012) 100%)',
                       }}
                     >
                       {editingTeamId === team.id && isAdmin ? (
                         <input
                           type="text"
-                          className="font-bebas text-lg text-[#f5f7ff] bg-[#07163b] border border-[#29aaff] rounded-none px-3 py-2 text-center tracking-widest uppercase w-full box-border md:text-xl lg:text-2xl"
+                          className="font-bebas text-lg text-[#f5f7ff] bg-[#07163b] border border-[#29aaff] rounded-[5px] px-3 py-2 text-center tracking-widest uppercase w-full box-border md:text-xl lg:text-2xl"
                           value={editingTeamName}
                           onChange={(e) => setEditingTeamName(e.target.value)}
                           onBlur={async () => {
@@ -1019,8 +1031,9 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                         />
                       ) : (
                         <h3
-                          className="font-bebas text-xl text-white m-0 tracking-wide uppercase cursor-pointer px-0 py-2 rounded-none transition-all bg-transparent break-words text-center block w-full mb-2 flex justify-center items-center"
+                          className="font-bebas text-xl text-white m-0 tracking-wide uppercase cursor-pointer px-0 py-2 rounded-[5px] transition-all bg-transparent break-words text-center block w-full mb-2 flex justify-center items-center"
                           onClick={isAdmin ? () => {
+                            if (isDragging) return;
                             if (teamsConfirmed) return;
                             setEditingTeamId(team.id);
                             setEditingTeamName(team.name);
@@ -1032,11 +1045,13 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                       )}
 
                       <div
-                        className="flex flex-col gap-1 mb-1 w-full flex-1 min-h-0 overflow-y-auto pr-0"
+                        className={`flex flex-col gap-1 mb-1 w-full flex-1 min-h-0 overflow-y-auto pr-0 rounded-[5px] transition-all duration-150 ease-out ${
+                          dropSnapshot.isDraggingOver ? 'bg-[#128BE9]/8' : ''
+                        }`}
                         style={{ height: `${teamListHeightPx}px`, minHeight: `${teamListHeightPx}px`, maxHeight: `${teamListHeightPx}px` }}
                       >
                         {teamPlayerKeys.length === 0 && (
-                          <div className="text-white/60 text-sm p-3 border border-white/10 rounded-none bg-black/20">
+                          <div className="text-white/60 text-sm p-3 border border-white/10 rounded-[5px] bg-black/20">
                             No hay jugadores cargados en este equipo (players vacío).
                           </div>
                         )}
@@ -1060,7 +1075,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                                   backgroundColor: CARD_BG_BLUE,
                                   border: `1px solid ${CARD_STROKE_BLUE}`,
                                   boxShadow: CARD_GLOW_BLUE,
-                                  borderRadius: 0,
+                                  borderRadius: 5,
                                   transform: `skewX(-${SLOT_SKEW_X}deg)`,
                                 }}
                               >
@@ -1085,26 +1100,37 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                                   {...dragProvided.dragHandleProps}
                                   onClick={isAdmin ? () => {
                                     if (teamsConfirmed) return;
+                                    if (suppressPlayerTapRef.current || isDragging) return;
                                     if (dragSnapshot.isDragging) return;
                                     if (Date.now() - lastDragEndAtRef.current < 200) return;
                                     togglePlayerLock(playerKey);
                                   } : undefined}
-                                  className={`border p-0 flex items-center gap-1.5 text-white transition-all h-12 relative w-full box-border overflow-visible select-none rounded-none
+                                  className={`group border p-0 flex items-center gap-1.5 text-white transition-all duration-150 ease-out h-12 relative w-full box-border overflow-visible select-none rounded-[5px]
                                     ${isLocked ? 'shadow-[0_0_8px_rgba(255,193,7,0.3)]' : ''}
                                     ${!isAdmin ? 'cursor-default pointer-events-none' : (teamsConfirmed || isLocked ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing')}
-                                    ${dragSnapshot.isDragging ? 'ring-2 ring-[#29aaff] border-[#29aaff]/60 z-20' : ''}
-                                    ${isReplacementTarget ? 'ring-2 ring-[#0EA9C6] border-[#0EA9C6]/70' : ''}
+                                    ${dragSnapshot.isDragging ? 'scale-[1.02] z-20' : 'hover:bg-white/[0.04]'}
+                                    ${isReplacementTarget ? 'ring-2 ring-[#0EA9C6]/80 border-[#0EA9C6]/70' : ''}
                                     ${isActiveDraggedPlayer ? 'shadow-[0_0_0_1px_rgba(14,169,198,0.45)]' : ''}
-                                    ${hasVoted ? 'ring-1 ring-emerald-400/70' : ''}
+                                    ${hasVoted && !isReplacementTarget ? 'ring-1 ring-emerald-400/70' : ''}
                                   `}
                                   style={{
-                                    backgroundColor: isLocked ? 'rgba(255,193,7,0.16)' : CARD_BG_BLUE,
-                                    borderColor: hasVoted
-                                      ? 'rgba(74, 222, 128, 0.9)'
-                                      : (isLocked ? 'rgba(255,193,7,0.74)' : CARD_STROKE_BLUE),
-                                    boxShadow: hasVoted
-                                      ? '0 0 11px rgba(74, 222, 128, 0.3)'
-                                      : (isLocked ? '0 0 10px rgba(255,193,7,0.28)' : CARD_GLOW_BLUE),
+                                    backgroundColor: dragSnapshot.isDragging
+                                      ? 'rgba(18,139,233,0.18)'
+                                      : (isReplacementTarget
+                                        ? 'rgba(14,169,198,0.15)'
+                                        : (isLocked ? 'rgba(255,193,7,0.16)' : CARD_BG_BLUE)),
+                                    borderColor: isReplacementTarget
+                                      ? 'rgba(14,169,198,0.7)'
+                                      : (dragSnapshot.isDragging
+                                        ? 'rgba(18,139,233,0.65)'
+                                        : (hasVoted
+                                          ? 'rgba(74, 222, 128, 0.9)'
+                                          : (isLocked ? 'rgba(255,193,7,0.74)' : CARD_STROKE_BLUE))),
+                                    boxShadow: dragSnapshot.isDragging
+                                      ? '0 8px 24px rgba(18,139,233,0.35)'
+                                      : (hasVoted
+                                        ? '0 0 11px rgba(74, 222, 128, 0.3)'
+                                        : (isLocked ? '0 0 10px rgba(255,193,7,0.28)' : CARD_GLOW_BLUE)),
                                     transform: `skewX(-${SLOT_SKEW_X}deg)`,
                                     touchAction: !isAdmin || teamsConfirmed || isLocked ? 'manipulation' : 'none',
                                   }}
@@ -1140,7 +1166,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                                         style={{
                                           background: getScoreColor(player.score),
                                           borderColor: getScoreColor(player.score).replace('0.9', '0.5'),
-                                          borderRadius: 0,
+                                          borderRadius: 5,
                                         }}
                                       >
                                         {(player.score || 0).toFixed(1)}
@@ -1155,7 +1181,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                         {dropProvided.placeholder}
                       </div>
 
-                      <div className="relative text-center w-full box-border mt-2 h-[58px] overflow-hidden rounded-none" style={{
+                      <div className="relative text-center w-full box-border mt-2 h-[58px] overflow-hidden rounded-[5px]" style={{
                         borderWidth: '1.5px',
                         borderStyle: 'solid',
                         borderColor: (() => {
