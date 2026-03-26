@@ -132,6 +132,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
   const [awardsReadyVisibleMatchIds, setAwardsReadyVisibleMatchIds] = useState([]);
   const [awardsRingLoading, setAwardsRingLoading] = useState(false);
   const statusDropdownRef = useRef(null);
+  const statusDropdownMenuRef = useRef(null);
   const activityLoadedRef = useRef(false);
   const activeMatchesRefreshInFlightRef = useRef(false);
 
@@ -610,6 +611,35 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
   };
 
   useEffect(() => {
+    if (!showStatusDropdown) return undefined;
+
+    const handlePointerDownOutside = (event) => {
+      const target = event.target;
+      const clickedTrigger = statusDropdownRef.current?.contains(target);
+      const clickedMenu = statusDropdownMenuRef.current?.contains(target);
+
+      if (clickedTrigger || clickedMenu) return;
+      setShowStatusDropdown(false);
+    };
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        setShowStatusDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDownOutside);
+    document.addEventListener('touchstart', handlePointerDownOutside, { passive: true });
+    document.addEventListener('keydown', handleEscape);
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDownOutside);
+      document.removeEventListener('touchstart', handlePointerDownOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [showStatusDropdown]);
+
+  useEffect(() => {
     let cancelled = false;
 
     const loadActivity = async () => {
@@ -699,7 +729,10 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
             </div>
 
             {showStatusDropdown && createPortal(
-              <div className="fixed top-20 left-4 bg-[rgba(17,26,59,0.98)] rounded-none w-[290px] z-[2147483647] overflow-hidden shadow-[0_12px_36px_rgba(8,12,38,0.55)] border border-white/20 backdrop-blur-xl origin-top-left transition-all duration-200 animate-[dropdownSlideIn_0.2s_ease-out]">
+              <div
+                ref={statusDropdownMenuRef}
+                className="fixed top-20 left-4 bg-[rgba(17,26,59,0.98)] rounded-none w-[290px] z-[2147483647] overflow-hidden shadow-[0_12px_36px_rgba(8,12,38,0.55)] border border-white/20 backdrop-blur-xl origin-top-left transition-all duration-200 animate-[dropdownSlideIn_0.2s_ease-out]"
+              >
                 <div className="px-4 py-3 font-semibold text-white/90 border-b border-white/20 font-oswald tracking-wide text-xs">
                   Estado de disponibilidad
                 </div>
