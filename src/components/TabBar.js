@@ -109,12 +109,12 @@ const TabBar = ({ activeTab, onTabChange }) => {
                 index < tabs.length - 1 ? 'border-r border-white/10' : ''
               } ${isActive ? 'text-white' : 'text-white/70'}`}
             >
-              <span className="relative flex h-6 w-6 items-center justify-center">
+              <span className={`relative flex h-6 items-center justify-center ${showUnreadDot ? 'min-w-[34px] gap-1' : 'w-6'}`}>
                 <IconComponent {...iconProps} />
                 {showUnreadDot && (
                   <span
                     aria-hidden="true"
-                    className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-[#128BE9] ring-2 ring-[#1f2747] shadow-[0_0_8px_rgba(18,139,233,0.5)]"
+                    className="h-2.5 w-2.5 shrink-0 rounded-full bg-[#128BE9] ring-2 ring-[#1f2747] shadow-[0_0_8px_rgba(18,139,233,0.5)]"
                   />
                 )}
               </span>

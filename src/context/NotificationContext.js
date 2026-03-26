@@ -891,6 +891,55 @@ export const NotificationProvider = ({ children }) => {
     }
   };
 
+  const markTeamInvitationAsHandled = async (invitationId) => {
+    const normalizedInvitationId = String(invitationId || '').trim();
+    if (!normalizedInvitationId) return;
+
+    const updatedNotifications = notifications.map((notification) => {
+      const notificationInvitationId = String(
+        notification?.data?.invitation_id
+        || notification?.data?.invitationId
+        || '',
+      ).trim();
+
+      if (
+        notification?.type === 'team_invite'
+        && notificationInvitationId === normalizedInvitationId
+        && !notification?.read
+      ) {
+        return { ...notification, read: true };
+      }
+
+      return notification;
+    });
+
+    const matchedNotificationIds = updatedNotifications
+      .filter((notification, index) => (
+        notification?.id
+        && notifications[index]?.read !== true
+        && notification?.read === true
+        && notifications[index]?.type === 'team_invite'
+      ))
+      .map((notification) => notification.id);
+
+    setNotifications(updatedNotifications);
+    updateUnreadCount(updatedNotifications);
+
+    if (matchedNotificationIds.length === 0) return;
+
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .update({ read: true })
+        .in('id', matchedNotificationIds);
+
+      if (error) throw error;
+    } catch (error) {
+      logger.error('Error marking team invitation notifications as handled:', error);
+      refreshNotificationsSafely({ force: true });
+    }
+  };
+
   // Clear all notifications (local state update)
   const clearAllNotifications = () => {
     // Registrar el instante de limpieza para ignorar eventos realtime antiguos
@@ -1071,6 +1120,7 @@ export const NotificationProvider = ({ children }) => {
     markAsRead,
     markAllAsRead,
     markTypeAsRead,
+    markTeamInvitationAsHandled,
     createNotification,
     fetchNotifications,
     clearAllNotifications,
@@ -1081,7 +1131,7 @@ export const NotificationProvider = ({ children }) => {
     lastFetchCount,
     lastRealtimeAt,
     lastRealtimePayloadType,
-  }), [notifications, scheduledNotifications, unreadCount, markAsRead, markAllAsRead, markTypeAsRead, createNotification, fetchNotifications, clearAllNotifications, currentUserId, subscriptionStatus, lastFetchAt, lastFetchCount, lastRealtimeAt, lastRealtimePayloadType]);
+  }), [notifications, scheduledNotifications, unreadCount, markAsRead, markAllAsRead, markTypeAsRead, markTeamInvitationAsHandled, createNotification, fetchNotifications, clearAllNotifications, currentUserId, subscriptionStatus, lastFetchAt, lastFetchCount, lastRealtimeAt, lastRealtimePayloadType]);
 
   return (
     <NotificationContext.Provider value={value}>

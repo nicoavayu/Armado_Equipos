@@ -21,6 +21,7 @@ import { uploadTeamCrest } from '../../../services/storage/teamCrests';
 import { notifyBlockingError } from '../../../utils/notifyBlockingError';
 import { useRefreshOnVisibility } from '../../../hooks/useRefreshOnVisibility';
 import { useSupabaseRealtime } from '../../../hooks/useSupabaseRealtime';
+import { useNotifications } from '../../../context/NotificationContext';
 
 const createTeamButtonClass = '!w-full !h-auto !min-h-[44px] !px-4 !py-2.5 !rounded-none !border !border-[#7d5aff] !bg-[#6a43ff] !text-white !font-bebas !text-base !tracking-[0.01em] !normal-case !shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:!bg-[#7550ff] sm:!text-[13px] sm:!px-3 sm:!py-2 sm:!min-h-[36px]';
 const invitationAcceptIconButtonClass = 'h-11 w-11 rounded-none border border-[#7d5aff] bg-[#6a43ff] text-white shadow-[0_0_14px_rgba(106,67,255,0.3)] transition-all hover:bg-[#7550ff] hover:-translate-y-[1px] active:translate-y-0 active:scale-[0.96] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center';
@@ -28,6 +29,8 @@ const invitationRejectIconButtonClass = 'h-11 w-11 rounded-none border border-[r
 
 const MisEquiposTab = ({ userId }) => {
   const navigate = useNavigate();
+  const notificationsCtx = useNotifications() || {};
+  const markTeamInvitationAsHandled = notificationsCtx.markTeamInvitationAsHandled;
   const realtimeRefreshTimeoutRef = useRef(null);
 
   const [loading, setLoading] = useState(true);
@@ -255,7 +258,12 @@ const MisEquiposTab = ({ userId }) => {
     try {
       setIsSaving(true);
       await acceptTeamInvitation(invitationId);
-      await Promise.all([loadTeams({ withLoading: false }), loadIncomingInvitations()]);
+      setIncomingInvitations((prev) => prev.filter((invitation) => invitation.id !== invitationId));
+      await Promise.all([
+        Promise.resolve(markTeamInvitationAsHandled?.(invitationId)),
+        loadTeams({ withLoading: false }),
+        loadIncomingInvitations(),
+      ]);
     } catch (error) {
       notifyBlockingError(error.message || 'No se pudo aceptar la invitacion');
     } finally {
@@ -267,7 +275,11 @@ const MisEquiposTab = ({ userId }) => {
     try {
       setIsSaving(true);
       await rejectTeamInvitation(invitationId);
-      await loadIncomingInvitations();
+      setIncomingInvitations((prev) => prev.filter((invitation) => invitation.id !== invitationId));
+      await Promise.all([
+        Promise.resolve(markTeamInvitationAsHandled?.(invitationId)),
+        loadIncomingInvitations(),
+      ]);
     } catch (error) {
       notifyBlockingError(error.message || 'No se pudo rechazar la invitacion');
     } finally {
