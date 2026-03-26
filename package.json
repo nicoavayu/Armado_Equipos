@@ -52,6 +52,7 @@
     "sentry:web:sourcemaps:upload": "node scripts/upload_sentry_sourcemaps.mjs",
     "release:web:sentry": "npm run build:web:release && npm run sentry:web:sourcemaps:upload",
     "test": "react-scripts test",
+    "test:ci": "CI=true react-scripts test --watchAll=false --runInBand",
     "eject": "react-scripts eject",
     "mobile:sync": "npm run build && npx cap sync",
     "android:sync": "npm run build && npx cap sync android",
