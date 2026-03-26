@@ -319,6 +319,8 @@ const TeamMatchDetailPage = () => {
   const { setIntervalSafe, clearIntervalSafe } = useInterval();
   const actionsMenuButtonRef = useRef(null);
   const cancelledRedirectRef = useRef(false);
+  const challengeSquadLoadKeyRef = useRef('');
+  const hasVisibleChallengeSquadRef = useRef(false);
 
   useEffect(() => {
     if (!inlineNotice?.message) return undefined;
@@ -367,16 +369,23 @@ const TeamMatchDetailPage = () => {
   const loadChallengeSquadForMatch = useCallback(async (matchRow, { silent = false } = {}) => {
     const challengeId = matchRow?.challenge_id || null;
     const teamIds = [matchRow?.team_a_id, matchRow?.team_b_id].filter(Boolean);
+    const loadKey = challengeId ? `${challengeId}:${teamIds.map((value) => String(value)).join(',')}` : '';
 
     if (!challengeId || teamIds.length === 0) {
+      challengeSquadLoadKeyRef.current = '';
+      hasVisibleChallengeSquadRef.current = false;
       setChallengeSquadByTeamId({});
       setChallengeSquadMeta(null);
       return;
     }
 
+    if (challengeSquadLoadKeyRef.current !== loadKey) {
+      challengeSquadLoadKeyRef.current = loadKey;
+      hasVisibleChallengeSquadRef.current = false;
+    }
+
     try {
-      const hasRenderedSquadData = Object.keys(challengeSquadByTeamId || {}).length > 0 || Boolean(challengeSquadMeta);
-      if (!silent && !hasRenderedSquadData) {
+      if (!silent && !hasVisibleChallengeSquadRef.current) {
         setChallengeSquadLoading(true);
       }
       const result = await listChallengeTeamSquad({
@@ -386,8 +395,10 @@ const TeamMatchDetailPage = () => {
       });
       setChallengeSquadByTeamId(result?.byTeamId || {});
       setChallengeSquadMeta(result?.challenge || null);
+      hasVisibleChallengeSquadRef.current = true;
     } catch (error) {
       if (!silent) {
+        hasVisibleChallengeSquadRef.current = false;
         setChallengeSquadByTeamId({});
         setChallengeSquadMeta(null);
         notifyBlockingError(error.message || 'No se pudo cargar la convocatoria del desafío');
@@ -397,7 +408,7 @@ const TeamMatchDetailPage = () => {
     } finally {
       setChallengeSquadLoading(false);
     }
-  }, [challengeSquadByTeamId, challengeSquadMeta]);
+  }, []);
 
   const refreshMatchView = useCallback(async ({
     withLoading = false,
@@ -1276,7 +1287,7 @@ const TeamMatchDetailPage = () => {
         Detalle partido
       </PageTitle>
 
-      <div className="w-full pb-8 pt-[96px]">
+      <div className="w-full pb-8 pt-[80px]">
         <div className="w-full overflow-visible">
           <MatchInfoSection
             partido={headerInfoPartido}
