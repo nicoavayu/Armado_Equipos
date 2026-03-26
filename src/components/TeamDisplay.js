@@ -44,7 +44,6 @@ const SafeWhatsappIcon = safeComp(WhatsappIcon, 'WhatsappIcon');
 const SafeLoadingSpinner = safeComp(LoadingSpinner, 'LoadingSpinner');
 const INVITE_ACCEPT_BUTTON_VIOLET = '#644dff';
 const INVITE_ACCEPT_BUTTON_VIOLET_DARK = '#4836bb';
-const SLOT_SKEW_X = 0;
 const CARD_BG_BLUE = '#07163b';
 const CARD_STROKE_BLUE = 'rgba(41, 170, 255, 0.9)';
 const CARD_GLOW_BLUE = '0 0 9px rgba(41, 170, 255, 0.24)';
@@ -1083,10 +1082,9 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                                   border: `1px solid ${CARD_STROKE_BLUE}`,
                                   boxShadow: CARD_GLOW_BLUE,
                                   borderRadius: 5,
-                                  transform: `skewX(-${SLOT_SKEW_X}deg)`,
                                 }}
                               >
-                                <span style={{ display: 'block', transform: `skewX(${SLOT_SKEW_X}deg)` }}>
+                                <span style={{ display: 'block' }}>
                                   Jugador desconocido ({playerKey})
                                 </span>
                               </div>
@@ -1138,11 +1136,9 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                                       : (hasVoted
                                         ? '0 0 11px rgba(74, 222, 128, 0.3)'
                                         : (isLocked ? '0 0 10px rgba(255,193,7,0.28)' : CARD_GLOW_BLUE)),
-                                    transform: `skewX(-${SLOT_SKEW_X}deg)`,
-                                    touchAction: !isAdmin || teamsConfirmed || isLocked ? 'manipulation' : 'none',
                                   }}
                                 >
-                                  <div className="flex items-center gap-1.5 w-full h-full min-w-0 p-1.5" style={{ transform: `skewX(${SLOT_SKEW_X}deg)` }}>
+                                  <div className="flex items-center gap-1.5 w-full h-full min-w-0 p-1.5">
                                     <div className="relative w-8 h-8 shrink-0">
                                       {player.avatar_url ? (
                                         <img
@@ -1202,9 +1198,8 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                         })(),
                         background: CARD_BG_BLUE,
                         boxShadow: CARD_GLOW_BLUE,
-                        transform: `skewX(-${SLOT_SKEW_X}deg)`,
                       }}>
-                        <div className="w-full h-full flex flex-col items-center justify-center px-2" style={{ transform: `skewX(${SLOT_SKEW_X}deg)` }}>
+                        <div className="w-full h-full flex flex-col items-center justify-center px-2">
                           <div className="text-white/70 text-[11px] font-oswald uppercase tracking-wide mb-0.5">PUNTAJE</div>
                           <div className="text-white font-bebas text-[32px] leading-none font-bold">{(team.score ?? 0).toFixed(1)}</div>
                         </div>
