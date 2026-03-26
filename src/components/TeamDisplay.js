@@ -1119,6 +1119,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                                     ${hasVoted && !isReplacementTarget ? 'ring-1 ring-emerald-400/70' : ''}
                                   `}
                                   style={{
+                                    ...(dragProvided.draggableProps.style || {}),
                                     backgroundColor: dragSnapshot.isDragging
                                       ? 'rgba(18,139,233,0.18)'
                                       : (isReplacementTarget
