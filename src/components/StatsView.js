@@ -71,7 +71,6 @@ const StatsView = ({ onVolver }) => {
     promedioRating: 0,
     chartData: [],
     topAmigos: [],
-    topFriend: null,
     recordPersonal: null,
     logros: { annual: [], historical: [] },
     partidosManuales: 0,
@@ -317,7 +316,6 @@ const StatsView = ({ onVolver }) => {
         promedioRating: partidosData.promedioRating,
         chartData: mergeChartData(partidosData.chartData, partidosManualesData.chartData),
         topAmigos: amigosData.top5,
-        topFriend: amigosData.top5[0] || null,
         recordPersonal: partidosData.record,
         logros: partidosData.logros,
         partidosManuales: partidosManualesData.total,
@@ -2234,27 +2232,6 @@ const StatsView = ({ onVolver }) => {
           </motion.div>
         )}
 
-        {stats.topFriend && (
-          <motion.div
-            className="bg-[#1e293b]/92 rounded-none p-5 mb-6 relative overflow-hidden backdrop-blur-md border border-[#ffd700]/45 shadow-[0_8px_32px_rgba(255,215,0,0.1)]"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.9 }}
-          >
-            <div className="bg-[#ffd700]/20 text-[#ffd700] px-3 py-1.5 rounded-none font-oswald text-xs font-semibold uppercase mb-3 inline-flex items-center gap-1.5 border border-[#ffd700]/30">
-              <Trophy size={16} />
-              Top Friend
-            </div>
-            <div className="flex items-center gap-4 sm:gap-3">
-              <img src={stats.topFriend.avatar} alt={stats.topFriend.nombre} className="w-[60px] h-[60px] rounded-full border-[3px] border-[#ffd700]/50 object-cover sm:w-[50px] sm:h-[50px]" />
-              <div>
-                <div className="font-oswald text-2xl font-bold text-white mb-1 sm:text-lg">{stats.topFriend.nombre}</div>
-                <div className="font-oswald text-base font-medium text-white/70">{stats.topFriend.partidos} partidos juntos</div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-
         <motion.div
           className="mb-8"
           initial={{ opacity: 0 }}
@@ -2342,6 +2319,12 @@ const StatsView = ({ onVolver }) => {
                   </div>
                   <div className="flex-1">
                     <div className="font-oswald text-lg font-semibold text-white uppercase mb-1">{amigo.nombre}</div>
+                    {index === 0 && (
+                      <div className="mb-1 inline-flex items-center gap-1.5 rounded-none border border-[#ffd700]/30 bg-[#ffd700]/18 px-2.5 py-1 font-oswald text-[11px] font-semibold uppercase tracking-wide text-[#ffd700]">
+                        <Trophy size={14} />
+                        Top Friend
+                      </div>
+                    )}
                     <div className="font-oswald text-sm font-medium text-white/80">{amigo.partidos} partidos</div>
                   </div>
                 </motion.div>
