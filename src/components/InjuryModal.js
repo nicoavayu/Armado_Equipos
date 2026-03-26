@@ -173,7 +173,7 @@ const InjuryModal = ({ isOpen, onClose, onSaved }) => {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between items-center mb-6">
-          <h3 className="font-oswald text-[34px] leading-none font-semibold text-white m-0 md:text-3xl sm:text-[30px]">
+          <h3 className="font-oswald text-2xl leading-none font-semibold tracking-[0.01em] text-white m-0">
             {activeLesion ? 'Gestionar Lesión' : 'Registrar Lesión'}
           </h3>
           <button

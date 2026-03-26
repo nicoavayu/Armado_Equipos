@@ -74,7 +74,7 @@ const ManualMatchModal = ({ isOpen, onClose, onSaved }) => {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between items-center mb-6">
-          <h3 className="font-oswald text-[34px] leading-none font-semibold text-white m-0 md:text-3xl sm:text-[30px]">Sumar Partido Manual</h3>
+          <h3 className="font-oswald text-2xl leading-none font-semibold tracking-[0.01em] text-white m-0">Sumar Partido Manual</h3>
           <button
             className="bg-transparent border border-transparent text-white/80 cursor-pointer p-1.5 rounded-none transition-all hover:border-[rgba(98,117,184,0.58)] hover:bg-[rgba(20,31,70,0.82)] hover:text-white"
             onClick={onClose}
