@@ -26,9 +26,8 @@ describe('frequent template local-date helpers', () => {
   });
 
   test('keeps local date around UTC boundary when resolving next weekday', () => {
-    // Local time in Buenos Aires: Monday 2026-03-16 23:30 (-03:00)
-    // UTC time: Tuesday 2026-03-17 02:30Z
-    jest.setSystemTime(new Date('2026-03-16T23:30:00-03:00'));
+    // Use a local wall-clock timestamp so the assertion does not depend on the runner timezone.
+    jest.setSystemTime(new Date('2026-03-16T23:30:00'));
 
     const resolved = resolveNextTemplateDate({
       fecha: null,
