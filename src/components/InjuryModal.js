@@ -12,31 +12,23 @@ const SECTION_LABEL_CLASS = 'font-oswald text-xs font-medium text-white/70 upper
 const FIELD_CLASS = 'h-[52px] w-full appearance-none rounded-none border border-[rgba(133,149,208,0.5)] bg-[rgba(53,58,102,0.88)] px-4 text-white font-oswald text-lg outline-none transition-all duration-300 focus:border-[#7f8dff] focus:ring-2 focus:ring-[#6f7dff]/30 backdrop-blur-md';
 const SECONDARY_ACTION_BUTTON_CLASS = 'flex-1 min-h-[44px] px-4 py-2.5 rounded-none border border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] text-white/92 font-bebas text-base tracking-[0.01em] transition-all inline-flex items-center justify-center hover:bg-[rgba(30,45,94,0.95)] active:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]';
 const PRIMARY_ACTION_BUTTON_CLASS = 'min-h-[44px] px-4 py-2.5 rounded-none border border-[#7d5aff] bg-[#6a43ff] text-white font-bebas text-base tracking-[0.01em] transition-all inline-flex items-center justify-center gap-2 hover:bg-[#7550ff] active:opacity-95 shadow-[0_0_14px_rgba(106,67,255,0.3)] disabled:bg-[rgba(106,67,255,0.55)] disabled:border-[rgba(125,90,255,0.5)] disabled:text-white/40 disabled:shadow-none disabled:cursor-not-allowed sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]';
-const DEFAULT_INJURY_TYPES = [
+const INJURY_TYPES = [
   'Esguince',
-  'Desgarro',
+  'Desgarro muscular',
   'Fractura',
   'Contusión',
   'Tendinitis',
   'Luxación',
   'Distensión muscular',
+  'Contractura muscular',
   'Lesión de menisco',
   'Lesión de ligamentos',
-  'Otra',
-];
-const EXTRA_INJURY_TYPES = [
-  'Esguince de tobillo',
-  'Desgarro muscular',
   'Rotura del ligamento cruzado anterior',
-  'Tendinitis',
-  'Contractura muscular',
   'Pubalgia',
-  'Fracturas óseas',
-  'Luxaciones',
   'Fascitis plantar',
   'Periostitis tibial',
+  'Otra',
 ];
-const INJURY_TYPES = Array.from(new Set([...DEFAULT_INJURY_TYPES, ...EXTRA_INJURY_TYPES]));
 
 const InjuryModal = ({ isOpen, onClose, onSaved }) => {
   const { user } = useAuth();
