@@ -796,7 +796,7 @@ const QuieroJugar = ({
                           <div className="flex gap-2 mt-4">
                             <button
                               className="flex-1 font-bebas text-base px-4 py-2.5 border border-[#7d5aff] rounded-none cursor-pointer transition-all text-white min-h-[44px] flex items-center justify-center text-center bg-[#6a43ff] shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:bg-[#7550ff]"
-                              onClick={() => navigate(`/partido-publico/${partido.id}`)}
+                              onClick={() => navigate(isOwnerMatch ? `/admin/${partido.id}` : `/partido-publico/${partido.id}`)}
                             >
                               Ver partido
                             </button>
