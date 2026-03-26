@@ -59,6 +59,7 @@ describe('buildActivityFeed retention windows', () => {
 
     expect(items).toHaveLength(1);
     expect(items[0].type).toBe('team_invite');
+    expect(items[0].route).toBe('/desafios?tab=mis-equipos');
   });
 
   test('drops unread team invites older than 5 days', async () => {

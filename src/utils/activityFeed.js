@@ -12,6 +12,7 @@ import {
   isSurveyNotificationClosed,
   resolveSurveyDeadlineAt,
 } from './surveyNotificationCopy';
+import { buildTeamInviteRoute } from './notificationRoutes';
 import { formatVenueShort } from './venueFormat';
 import {
   buildLatestCancellationTsByMatch,
@@ -1014,7 +1015,7 @@ const toActivityFromNotification = (group, match, currentUserId) => {
       icon: 'Users',
       title: `Invitación al equipo ${quoteMatchName(teamName, 'Equipo')}`,
       subtitle: inviteSubtitle,
-      route: '/desafios',
+      route: buildTeamInviteRoute(),
     };
   }
 

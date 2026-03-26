@@ -31,6 +31,7 @@ import {
 import { filterNotificationsByCategory, getCategoryCount, NOTIFICATION_FILTER_OPTIONS } from '../utils/notificationFilters';
 import {
   buildNotificationFallbackRoute,
+  buildTeamInviteRoute,
   buildTeamChallengeRoute,
   extractNotificationMatchId,
   isTeamChallengeNotification,
@@ -218,7 +219,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
     }
 
     if (notification.type === 'team_invite') {
-      safeNavigate(notification, '/desafios');
+      safeNavigate(notification, buildTeamInviteRoute());
       return;
     }
 

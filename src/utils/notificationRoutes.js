@@ -189,6 +189,8 @@ export const buildTeamChallengeRoute = (notification = {}) => {
   return '/desafios';
 };
 
+export const buildTeamInviteRoute = () => '/desafios?tab=mis-equipos';
+
 export const buildNotificationFallbackRoute = (notification = {}, idMapper = (value) => value) => {
   const data = notification?.data || {};
   const type = String(notification?.type || '').trim().toLowerCase();
@@ -234,7 +236,7 @@ export const buildNotificationFallbackRoute = (notification = {}, idMapper = (va
   }
 
   if (type === 'team_invite') {
-    return '/desafios?tab=mis-equipos';
+    return buildTeamInviteRoute();
   }
 
   if (type === 'team_captain_transfer' && teamId) {

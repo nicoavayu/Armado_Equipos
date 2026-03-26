@@ -31,6 +31,7 @@ import {
 import { filterNotificationsByCategory, getCategoryCount, NOTIFICATION_FILTER_OPTIONS } from '../utils/notificationFilters';
 import {
   buildNotificationFallbackRoute,
+  buildTeamInviteRoute,
   buildTeamChallengeRoute,
   extractNotificationMatchId,
   isTeamChallengeNotification,
@@ -243,7 +244,7 @@ const NotificationsView = () => {
         safeNavigate(notification, '/amigos');
         break;
       case 'team_invite':
-        safeNavigate(notification, '/desafios');
+        safeNavigate(notification, buildTeamInviteRoute());
         break;
       case 'team_captain_transfer': {
         const teamId = data.team_id || data.teamId || null;
