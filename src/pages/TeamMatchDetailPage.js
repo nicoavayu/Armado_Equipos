@@ -375,7 +375,10 @@ const TeamMatchDetailPage = () => {
     }
 
     try {
-      setChallengeSquadLoading(true);
+      const hasRenderedSquadData = Object.keys(challengeSquadByTeamId || {}).length > 0 || Boolean(challengeSquadMeta);
+      if (!silent && !hasRenderedSquadData) {
+        setChallengeSquadLoading(true);
+      }
       const result = await listChallengeTeamSquad({
         challengeId,
         teamIds,
@@ -394,7 +397,7 @@ const TeamMatchDetailPage = () => {
     } finally {
       setChallengeSquadLoading(false);
     }
-  }, []);
+  }, [challengeSquadByTeamId, challengeSquadMeta]);
 
   const refreshMatchView = useCallback(async ({
     withLoading = false,
