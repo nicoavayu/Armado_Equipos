@@ -9,6 +9,7 @@ import supabase from '../supabase';
 import { resolveMatchInviteRoute } from '../utils/matchInviteRoute';
 import { isPendingMatchInviteNotification } from '../utils/notificationInviteState';
 import { track } from '../utils/monitoring/analytics';
+import { resolveAdminAwareNotificationRoute } from '../utils/notificationRoutes';
 import {
   resolveNotificationActionability,
   resolveSurveyNotificationNavigation,
@@ -101,6 +102,26 @@ const resolveSurveyNavigationForEnvelope = async ({ envelope = {}, fallbackRoute
   };
 };
 
+const resolveNavigationRouteForEnvelope = async ({ envelope = {}, fallbackRoute = '' } = {}) => {
+  const safeFallbackRoute = String(fallbackRoute || '').trim() || null;
+  let userId = '';
+  try {
+    const { data: authData } = await supabase.auth.getUser();
+    userId = String(authData?.user?.id || '').trim();
+  } catch (_authError) {
+    userId = '';
+  }
+
+  const adminAwareRoute = await resolveAdminAwareNotificationRoute({
+    notification: envelope,
+    fallbackRoute: safeFallbackRoute,
+    supabaseClient: supabase,
+    userId,
+  });
+
+  return adminAwareRoute || safeFallbackRoute;
+};
+
 /**
  * Hook para manejar redirecciones desde notificaciones push
  */
@@ -131,13 +152,17 @@ export const useNotificationRedirect = () => {
       }
 
       const notificationType = resolveNotificationTypeToken(payload);
+      const targetRoute = await resolveNavigationRouteForEnvelope({
+        envelope,
+        fallbackRoute: surveyNavigation.route || route,
+      });
       track('push_opened', {
         notification_type: notificationType || undefined,
         route,
         opened_from_push: true,
         source: 'native_push_redirect',
       });
-      navigate(surveyNavigation.route || route);
+      if (targetRoute) navigate(targetRoute);
     };
 
     // Listener para mensajes del Service Worker
@@ -166,13 +191,16 @@ export const useNotificationRedirect = () => {
         }
 
         const notificationType = resolveNotificationTypeToken(event.data || {});
+        const targetRoute = await resolveNavigationRouteForEnvelope({
+          envelope,
+          fallbackRoute: surveyNavigation.route || event.data?.url,
+        });
         track('push_opened', {
           notification_type: notificationType || undefined,
           route: event.data?.url,
           opened_from_push: true,
           source: 'service_worker',
         });
-        const targetRoute = surveyNavigation.route || event.data?.url;
         console.log('Redirecting from push notification to:', targetRoute);
         if (targetRoute) navigate(targetRoute);
       }

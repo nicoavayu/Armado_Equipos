@@ -682,10 +682,16 @@ const resolveFriendActorName = (notification) => {
   const data = notification?.data || {};
   const fromData = [
     data?.from_name,
+    data?.fromName,
     data?.sender_name,
+    data?.senderName,
     data?.requester_name,
+    data?.requesterName,
     data?.player_name,
+    data?.playerName,
     data?.nombre,
+    data?.accepter_name,
+    data?.accepterName,
   ].find(Boolean);
   if (fromData) return compactText(fromData, 30, '');
 
@@ -695,6 +701,10 @@ const resolveFriendActorName = (notification) => {
   if (titleMatch?.[1]) return compactText(titleMatch[1], 30, '');
   const messageMatch = rawMessage.match(/^(.+?)\s+te/i);
   if (messageMatch?.[1]) return compactText(messageMatch[1], 30, '');
+  const acceptedTitleMatch = rawTitle.match(/^(.+?)\s+(?:ha\s+)?acept(?:ado|ó)\b/i);
+  if (acceptedTitleMatch?.[1]) return compactText(acceptedTitleMatch[1], 30, '');
+  const acceptedMessageMatch = rawMessage.match(/^(.+?)\s+(?:ha\s+)?acept(?:ado|ó)\b/i);
+  if (acceptedMessageMatch?.[1]) return compactText(acceptedMessageMatch[1], 30, '');
   return '';
 };
 
@@ -1067,7 +1077,7 @@ const toActivityFromNotification = (group, match, currentUserId) => {
       ...base,
       icon: 'CheckCircle',
       title: 'Solicitud de amistad aceptada',
-      subtitle: actorName || 'Ya pueden jugar juntos',
+      subtitle: actorName ? `${actorName} aceptó tu solicitud` : 'Ya pueden jugar juntos',
       route: '/amigos',
     };
   }

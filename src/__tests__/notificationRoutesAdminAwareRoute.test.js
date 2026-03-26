@@ -1,4 +1,7 @@
-const { resolveAdminAwareMatchRoute } = require('../utils/notificationRoutes');
+const {
+  resolveAdminAwareMatchRoute,
+  resolveAdminAwareNotificationRoute,
+} = require('../utils/notificationRoutes');
 
 const createSupabaseMock = ({ createdBy = null, error = null } = {}) => ({
   from: jest.fn(() => ({
@@ -70,5 +73,44 @@ describe('resolveAdminAwareMatchRoute', () => {
     });
 
     expect(route).toBe(`/admin/${matchId}?tab=jugadores`);
+  });
+});
+
+describe('resolveAdminAwareNotificationRoute', () => {
+  test('resolves admin route for match_player_joined push payloads', async () => {
+    const matchId = 904;
+    const userId = 'admin-user-2';
+    const supabaseMock = createSupabaseMock({ createdBy: userId });
+
+    const route = await resolveAdminAwareNotificationRoute({
+      notification: {
+        type: 'match_player_joined',
+        data: {
+          match_id: matchId,
+          link: `/partido-publico/${matchId}`,
+        },
+      },
+      fallbackRoute: `/partido-publico/${matchId}`,
+      supabaseClient: supabaseMock,
+      userId,
+    });
+
+    expect(route).toBe(`/admin/${matchId}`);
+  });
+
+  test('keeps fallback route for non admin-aware notification types', async () => {
+    const route = await resolveAdminAwareNotificationRoute({
+      notification: {
+        type: 'call_to_vote',
+        data: {
+          match_id: 905,
+        },
+      },
+      fallbackRoute: '/votar-equipos?partidoId=905',
+      supabaseClient: null,
+      userId: null,
+    });
+
+    expect(route).toBe('/votar-equipos?partidoId=905');
   });
 });

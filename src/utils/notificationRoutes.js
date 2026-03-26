@@ -16,6 +16,12 @@ const SURVEY_RELATED_NOTIFICATION_TYPES = new Set([
   'survey_finished',
 ]);
 
+const ADMIN_AWARE_MATCH_NOTIFICATION_TYPES = new Set([
+  'match_update',
+  'match_player_joined',
+  'match_player_left',
+]);
+
 const normalizeNotificationType = (notificationOrType = {}) => {
   if (typeof notificationOrType === 'string') {
     return String(notificationOrType || '').trim().toLowerCase();
@@ -70,6 +76,17 @@ const isSafeInternalPath = (path) => {
   return raw.startsWith('/') && !raw.startsWith('//');
 };
 
+const extractMatchIdFromPath = (rawPath) => {
+  const path = String(rawPath || '').trim();
+  if (!path) return null;
+  const match = path.match(/\/(?:admin|partido-publico|partido|encuesta|resultados-encuesta|votar-equipos)\/(\d+)/i);
+  return match?.[1] || null;
+};
+
+export const isAdminAwareMatchNotificationType = (notificationOrType = {}) => (
+  ADMIN_AWARE_MATCH_NOTIFICATION_TYPES.has(normalizeNotificationType(notificationOrType))
+);
+
 export const resolveAdminAwareMatchRoute = async ({
   notification = {},
   matchId = null,
@@ -114,6 +131,26 @@ export const resolveAdminAwareMatchRoute = async ({
   }
 
   return safeLink || publicRoute;
+};
+
+export const resolveAdminAwareNotificationRoute = async ({
+  notification = {},
+  fallbackRoute = null,
+  supabaseClient = null,
+  userId = null,
+} = {}) => {
+  const safeFallbackRoute = isSafeInternalPath(fallbackRoute) ? String(fallbackRoute).trim() : null;
+  if (!isAdminAwareMatchNotificationType(notification)) {
+    return safeFallbackRoute;
+  }
+
+  const resolvedMatchId = extractNotificationMatchId(notification) || extractMatchIdFromPath(safeFallbackRoute);
+  return resolveAdminAwareMatchRoute({
+    notification,
+    matchId: resolvedMatchId,
+    supabaseClient,
+    userId,
+  });
 };
 
 export const isTeamChallengeNotification = (notification = {}) => {

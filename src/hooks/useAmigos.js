@@ -294,6 +294,7 @@ export const useAmigos = (currentUserId) => {
           .select('nombre')
           .eq('id', currentUserId)
           .single();
+        const accepterName = accepterProfile?.nombre || 'Alguien';
 
         // Create notification in the database for the sender
         await supabase
@@ -302,8 +303,11 @@ export const useAmigos = (currentUserId) => {
             user_id: data.user_id, // The original sender of the request
             type: 'friend_accepted',
             title: 'Solicitud de amistad aceptada',
-            message: `${accepterProfile?.nombre || 'Alguien'} ha aceptado tu solicitud de amistad`,
-            data: { friendshipId: data.id },
+            message: `${accepterName} ha aceptado tu solicitud de amistad`,
+            data: {
+              friendshipId: data.id,
+              accepterName,
+            },
             read: false,
             created_at: new Date().toISOString(),
           }]);

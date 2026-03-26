@@ -104,4 +104,31 @@ describe('buildActivityFeed retention windows', () => {
     });
     expect(outsideWindow).toHaveLength(0);
   });
+
+  test('shows who accepted a friend request from legacy message copy', async () => {
+    const items = await runFeed({
+      id: 'friend-accepted-legacy',
+      type: 'friend_accepted',
+      read: false,
+      created_at: '2026-03-16T14:00:00.000Z',
+      message: 'Nico ha aceptado tu solicitud de amistad',
+      data: {},
+    });
+
+    expect(items).toHaveLength(1);
+    expect(items[0].subtitle).toBe('Nico aceptó tu solicitud');
+  });
+
+  test('shows who accepted a friend request from notification data', async () => {
+    const items = await runFeed({
+      id: 'friend-accepted-data',
+      type: 'friend_accepted',
+      read: false,
+      created_at: '2026-03-16T14:00:00.000Z',
+      data: { accepterName: 'Matias' },
+    });
+
+    expect(items).toHaveLength(1);
+    expect(items[0].subtitle).toBe('Matias aceptó tu solicitud');
+  });
 });
