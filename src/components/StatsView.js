@@ -2299,11 +2299,17 @@ const StatsView = ({ onVolver }) => {
               {stats.topAmigos.map((amigo, index) => (
                 <motion.div
                   key={amigo.nombre}
-                  className="flex items-center gap-4 bg-[#1e293b]/92 rounded-none p-4 mb-3 backdrop-blur-md border border-[rgba(88,107,170,0.46)] transition-all hover:translate-x-2 hover:border-[#4a7ed6] hover:brightness-[1.03] md:p-3 md:gap-3"
+                  className="relative flex items-center gap-4 bg-[#1e293b]/92 rounded-none p-4 mb-3 backdrop-blur-md border border-[rgba(88,107,170,0.46)] transition-all hover:translate-x-2 hover:border-[#4a7ed6] hover:brightness-[1.03] md:p-3 md:gap-3"
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 1.3 + index * 0.1 }}
                 >
+                  {index === 0 && (
+                    <div className="absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-none border border-[#ffd700]/30 bg-[#ffd700]/18 px-2.5 py-1 font-oswald text-[11px] font-semibold uppercase tracking-wide text-[#ffd700] md:right-2 md:top-2">
+                      <Trophy size={14} />
+                      Top Friend
+                    </div>
+                  )}
                   <div className="font-oswald text-xl font-bold text-[#ffd700] min-w-[32px]">#{index + 1}</div>
                   <div className="w-12 h-12 rounded-full border-2 border-white/30 overflow-hidden shrink-0 sm:w-10 sm:h-10">
                     {amigo.avatar && amigo.avatar !== '/profile.svg' ? (
@@ -2317,14 +2323,8 @@ const StatsView = ({ onVolver }) => {
                       </div>
                     )}
                   </div>
-                  <div className="flex-1">
+                  <div className="flex-1 pr-28 md:pr-24">
                     <div className="font-oswald text-lg font-semibold text-white uppercase mb-1">{amigo.nombre}</div>
-                    {index === 0 && (
-                      <div className="mb-1 inline-flex items-center gap-1.5 rounded-none border border-[#ffd700]/30 bg-[#ffd700]/18 px-2.5 py-1 font-oswald text-[11px] font-semibold uppercase tracking-wide text-[#ffd700]">
-                        <Trophy size={14} />
-                        Top Friend
-                      </div>
-                    )}
                     <div className="font-oswald text-sm font-medium text-white/80">{amigo.partidos} partidos</div>
                   </div>
                 </motion.div>
