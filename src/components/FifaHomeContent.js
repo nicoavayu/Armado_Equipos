@@ -36,8 +36,12 @@ const severityIconClass = {
 
 const AWARDS_RING_WINDOW_MS = 24 * 60 * 60 * 1000;
 const HOME_ACTIVE_MATCHES_REFRESH_MS = 60000;
+const normalizeNotificationType = (notificationType) => String(notificationType || '').trim().toLowerCase();
 export const isAwardsRingNotificationType = (notificationType) => (
-  AWARDS_READY_NOTIFICATION_TYPES.has(String(notificationType || '').trim().toLowerCase())
+  AWARDS_READY_NOTIFICATION_TYPES.has(normalizeNotificationType(notificationType))
+);
+export const isDirectAwardsRingNotificationType = (notificationType) => (
+  normalizeNotificationType(notificationType) === 'award_won'
 );
 
 const resolveNotificationMatchId = (notification) => (
@@ -47,6 +51,15 @@ const resolveNotificationMatchId = (notification) => (
   ?? notification?.match_ref
   ?? null
 );
+
+export const getDirectAwardsRingMatchIds = (notifications = []) => Array.from(new Set(
+  (Array.isArray(notifications) ? notifications : [])
+    .filter((notification) => isDirectAwardsRingNotificationType(notification?.type))
+    .map((notification) => resolveNotificationMatchId(notification))
+    .filter((matchId) => matchId !== null && matchId !== undefined)
+    .map((matchId) => String(matchId).trim())
+    .filter(Boolean),
+));
 
 const normalizeStatusToken = (value) => String(value || '')
   .normalize('NFD')
@@ -130,14 +143,19 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
       return createdTs > 0 && (nowTs - createdTs) <= AWARDS_RING_WINDOW_MS;
     })
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  const awardsCandidateMatchIds = Array.from(new Set(
+  const directAwardsRingMatchIds = getDirectAwardsRingMatchIds(awardsCandidateNotifs);
+  const awardsValidationMatchIds = Array.from(new Set(
     awardsCandidateNotifs
-      .map((notif) => resolveNotificationMatchId(notif))
-      .filter((id) => id !== null && id !== undefined)
-      .map((id) => String(id).trim())
+      .filter((notification) => !isDirectAwardsRingNotificationType(notification?.type))
+      .map((notification) => resolveNotificationMatchId(notification))
+      .filter((matchId) => matchId !== null && matchId !== undefined)
+      .map((matchId) => String(matchId).trim())
       .filter(Boolean),
   ));
-  const awardsCandidateMatchIdsKey = awardsCandidateMatchIds.join(',');
+  const awardsCandidateMatchIdsKey = [
+    directAwardsRingMatchIds.join(','),
+    awardsValidationMatchIds.join(','),
+  ].join('::');
   const awardsReadyVisibleMatchIdSet = new Set((awardsReadyVisibleMatchIds || []).map((id) => String(id)));
   const awardsStoryNotifs = awardsCandidateNotifs.filter((notif) => {
     const matchId = resolveNotificationMatchId(notif);
@@ -195,9 +213,10 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
         return;
       }
 
-      const candidateMatchIds = awardsCandidateMatchIds;
+      const trustedMatchIds = directAwardsRingMatchIds;
+      const candidateMatchIds = awardsValidationMatchIds;
 
-      if (candidateMatchIds.length === 0) {
+      if (trustedMatchIds.length === 0 && candidateMatchIds.length === 0) {
         setAwardsReadyVisibleMatchIds([]);
         setAwardsRingLoading(false);
         return;
@@ -208,7 +227,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
         .filter((id) => Number.isFinite(id));
 
       if (normalizedNumericIds.length === 0) {
-        setAwardsReadyVisibleMatchIds([]);
+        setAwardsReadyVisibleMatchIds(trustedMatchIds);
         setAwardsRingLoading(false);
         return;
       }
@@ -246,12 +265,15 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
           .map((row) => String(row.partido_id));
 
         if (!cancelled) {
-          setAwardsReadyVisibleMatchIds(readyMatchIds);
+          setAwardsReadyVisibleMatchIds(Array.from(new Set([
+            ...trustedMatchIds,
+            ...readyMatchIds,
+          ])));
         }
       } catch (error) {
         console.warn('[AWARDS_RING] Could not validate awards visibility:', error);
         if (!cancelled) {
-          setAwardsReadyVisibleMatchIds([]);
+          setAwardsReadyVisibleMatchIds(trustedMatchIds);
         }
       } finally {
         if (!cancelled) {
