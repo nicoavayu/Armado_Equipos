@@ -1,6 +1,7 @@
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 // src/components/TeamDisplay.js
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { TeamDisplayContext } from './PlayerCardTrigger';
 import {
   saveTeamsToDatabase,
@@ -381,8 +382,13 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
     }, 0);
 
   const persistTeams = (newTeams) => {
-    setRealtimeTeams(newTeams);
-    onTeamsChange(newTeams);
+    flushSync(() => {
+      setRealtimeTeams(newTeams);
+    });
+
+    window.setTimeout(() => {
+      onTeamsChange(newTeams);
+    }, 0);
 
     if (isAdmin && partidoId) {
       window.setTimeout(() => {
