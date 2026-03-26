@@ -34,6 +34,34 @@ import Modals from '../components/admin/Modals';
 import AdminTabs from '../components/admin/AdminTabs';
 import SolicitudesSection from '../components/admin/SolicitudesSection';
 
+const resolveSlotsFromMatchType = (match = {}) => {
+  const explicitCapacity = Number(match?.cupo_jugadores || match?.cupo || 0);
+  if (Number.isFinite(explicitCapacity) && explicitCapacity > 0) {
+    return explicitCapacity;
+  }
+
+  const token = String(match?.tipo_partido || match?.modalidad || '').trim().toUpperCase();
+  const normalized = token.replace(/\s+/g, '');
+  const matchByNumber = normalized.match(/F(\d+)/i);
+  if (matchByNumber) {
+    const playersPerTeam = Number(matchByNumber[1]);
+    if (Number.isFinite(playersPerTeam) && playersPerTeam > 0) {
+      return playersPerTeam * 2;
+    }
+  }
+
+  const fallbackByType = {
+    F5: 10,
+    F6: 12,
+    F7: 14,
+    F8: 16,
+    F9: 18,
+    F11: 22,
+  };
+
+  return fallbackByType[normalized] || 10;
+};
+
 /**
  * Main AdminPanel component for match management
  * @param {Object} props - Component props
@@ -130,9 +158,16 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
     ? adminState.jugadoresActuales
     : (Array.isArray(jugadores) ? jugadores : []);
   const starterCapacity = Number(partidoActual?.cupo_jugadores || 0);
+  const balancedTeamsRequiredPlayers = resolveSlotsFromMatchType(partidoActual);
   const maxRosterSlots = starterCapacity > 0 ? starterCapacity + 4 : 0;
   const isRosterFull = maxRosterSlots > 0 && displayedJugadores.length >= maxRosterSlots;
-  const canBuildBalancedTeams = displayedJugadores.length >= 8;
+  const canBuildBalancedTeams = displayedJugadores.length >= balancedTeamsRequiredPlayers;
+  const buildTeamsLockedMessage = balancedTeamsRequiredPlayers > 0
+    ? `Necesitás completar el plantel para armar los equipos (${displayedJugadores.length}/${balancedTeamsRequiredPlayers}).`
+    : 'Necesitás completar el plantel para armar los equipos.';
+  const buildTeamsHelperText = balancedTeamsRequiredPlayers > 0
+    ? `Disponible cuando el plantel esté completo (${displayedJugadores.length}/${balancedTeamsRequiredPlayers})`
+    : 'Disponible cuando el plantel esté completo';
   const canOpenChatFromHeader = Boolean(isAdmin || adminState.isPlayerInMatch);
   const invitationsOpen = Boolean(
     partidoActual?.invitations_open
@@ -565,7 +600,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                           }}
                           onClick={handleArmarEquipos}
                           disabled={!canBuildBalancedTeams}
-                          title={!canBuildBalancedTeams ? 'Necesitás al menos 8 jugadores para armar los equipos.' : ''}
+                          title={!canBuildBalancedTeams ? buildTeamsLockedMessage : ''}
                         >
                           <span
                             className="w-full inline-flex items-center justify-center"
@@ -576,7 +611,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                         </button>
                         {!canBuildBalancedTeams && (
                           <div className="text-[11px] text-white/50 mt-2 leading-snug">
-                            Disponible cuando haya al menos 8 jugadores
+                            {buildTeamsHelperText}
                           </div>
                         )}
                       </div>
