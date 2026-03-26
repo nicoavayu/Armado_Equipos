@@ -1486,6 +1486,68 @@ const EncuestaPartido = () => {
     Object.keys(playersByKey)
   ), [playersByKey]);
   const playerRefToKeyMap = useMemo(() => buildPlayerRefToKeyMap(jugadores), [jugadores]);
+  const challengeSurveyPlayerSections = useMemo(() => {
+    if (!isTeamChallengeSurvey) return [];
+
+    const fallbackTeamA = Array.isArray(confirmedTeams?.teamA) ? confirmedTeams.teamA : [];
+    const fallbackTeamB = Array.isArray(confirmedTeams?.teamB) ? confirmedTeams.teamB : [];
+    const teamAKeys = Array.isArray(finalTeams?.teamA) && finalTeams.teamA.length > 0
+      ? finalTeams.teamA
+      : fallbackTeamA;
+    const teamBKeys = Array.isArray(finalTeams?.teamB) && finalTeams.teamB.length > 0
+      ? finalTeams.teamB
+      : fallbackTeamB;
+
+    if (teamAKeys.length === 0 || teamBKeys.length === 0) return [];
+
+    const buildPlayersForTeam = (teamKeys = []) => {
+      const teamPlayers = [];
+      const seenKeys = new Set();
+
+      (teamKeys || []).forEach((key) => {
+        if (!key || seenKeys.has(key)) return;
+        seenKeys.add(key);
+        const player = playersByKey?.[key];
+        if (player) {
+          teamPlayers.push(player);
+        }
+      });
+
+      return teamPlayers;
+    };
+
+    const teamAPlayers = buildPlayersForTeam(teamAKeys);
+    const teamBPlayers = buildPlayersForTeam(teamBKeys);
+    if (teamAPlayers.length === 0 || teamBPlayers.length === 0) return [];
+
+    const assignedKeys = new Set([...teamAKeys, ...teamBKeys].filter(Boolean));
+    const allPlayersCovered = (jugadores || []).every((player) => {
+      const key = resolvePlayerKey(player);
+      return key ? assignedKeys.has(key) : false;
+    });
+
+    if (!allPlayersCovered) return [];
+
+    return [
+      {
+        key: 'team-a',
+        label: String(challengeSurveyTeamLabels?.teamA || 'Equipo A').trim() || 'Equipo A',
+        players: teamAPlayers,
+      },
+      {
+        key: 'team-b',
+        label: String(challengeSurveyTeamLabels?.teamB || 'Equipo B').trim() || 'Equipo B',
+        players: teamBPlayers,
+      },
+    ];
+  }, [
+    challengeSurveyTeamLabels,
+    confirmedTeams,
+    finalTeams,
+    isTeamChallengeSurvey,
+    jugadores,
+    playersByKey,
+  ]);
   const compactFlowMode = loggedRosterCount > 0 && loggedRosterCount < 3;
   const shouldDisableTeamReorganization = isTeamChallengeSurvey || teamsFinalizedBySurvey;
   const shouldForceOrganizeTeamsStep = !shouldDisableTeamReorganization;
@@ -2322,81 +2384,141 @@ const EncuestaPartido = () => {
     const playerCount = jugadores.length;
     const adaptiveGrid = resolveAdaptiveGridConfig(playerCount, viewportRatio, viewportHeight);
     const hasSelection = jugadores.some((candidate) => isSelected(candidate.uuid));
+    const renderGrid = ({
+      players,
+      gridConfig,
+      keyPrefix,
+      rowMinHeight = null,
+      maxHeight = '100%',
+      gridMaxWidth = gridConfig.gridMaxWidth,
+    }) => (
+      <div
+        className="mx-auto grid h-full w-full place-content-center overflow-visible"
+        style={{
+          gridTemplateColumns: `repeat(${gridConfig.columns}, minmax(0, 1fr))`,
+          gridTemplateRows: rowMinHeight
+            ? `repeat(${gridConfig.rows}, minmax(${rowMinHeight}px, auto))`
+            : `repeat(${gridConfig.rows}, minmax(0, 1fr))`,
+          gap: `${gridConfig.gap}px`,
+          maxWidth: `${gridMaxWidth}px`,
+          maxHeight,
+          minHeight: 0,
+          padding: gridConfig.gridPadding,
+        }}
+      >
+        {players.map((jugador, index) => {
+          const selected = isSelected(jugador.uuid);
+          const hasPhoto = Boolean(jugador.avatar_url || jugador.foto_url);
+          return (
+            <button
+              key={`${keyPrefix}${jugador.uuid}`}
+              type="button"
+              onClick={() => onSelect(jugador.uuid)}
+              className={`group relative h-full min-h-0 min-w-0 transform-gpu overflow-visible rounded-[8px] border bg-[linear-gradient(168deg,rgba(58,84,196,0.28),rgba(16,20,73,0.9))] transition-[transform,opacity,filter] duration-[260ms] ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 will-change-transform ${
+                selected
+                  ? `z-20 -translate-y-[2px] ${isTightLayout ? 'scale-[1.015]' : isCompressedLayout ? 'scale-[1.022]' : 'scale-[1.035]'}`
+                  : 'z-10 translate-y-0 scale-100'
+              } ${
+                hasSelection && !selected ? 'saturate-[0.74]' : ''
+              }`}
+              style={{
+                borderColor: selected ? 'rgba(229,243,255,0.82)' : 'rgba(255,255,255,0.24)',
+                opacity: hasSelection && !selected ? 0.45 : 1,
+                boxShadow: selected
+                  ? '0 0 0 1px rgba(191,239,255,0.82), 0 0 20px rgba(92,236,255,0.28), 0 16px 26px rgba(7,10,35,0.48)'
+                  : '0 10px 18px rgba(8,12,44,0.36)',
+              }}
+            >
+              {selected ? (
+                <div className="pointer-events-none absolute -inset-1 rounded-[10px] bg-[radial-gradient(circle,rgba(121,241,255,0.48)_0%,rgba(121,241,255,0.16)_46%,rgba(121,241,255,0)_78%)] blur-[8px]" />
+              ) : null}
+              <div
+                className="relative flex h-full w-full flex-col overflow-hidden rounded-[8px]"
+                style={{
+                  animation: 'cardIn 420ms cubic-bezier(0.22,1,0.36,1) both',
+                  animationDelay: `${Math.min(index * 16, 160)}ms`,
+                }}
+              >
+                <div className="relative h-[75%] w-full overflow-hidden bg-[#101544]">
+                  {hasPhoto ? (
+                    <img
+                      src={jugador.avatar_url || jugador.foto_url}
+                      alt={jugador.nombre}
+                      className="h-full w-full object-contain object-center bg-[#0f1544]"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <PlayerPhotoFallback
+                      silhouetteSizeClass={gridConfig.silhouetteSizeClass}
+                    />
+                  )}
+                  <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[46%] bg-gradient-to-t from-[#060a2d]/94 via-[#09113d]/55 to-transparent" />
+                </div>
+                <div className="relative flex h-[25%] w-full items-center justify-center px-1.5 bg-[linear-gradient(180deg,rgba(16,24,86,0.96)_0%,rgba(12,17,66,0.98)_100%)]">
+                  <span
+                    className={`w-full truncate text-center font-oswald font-semibold tracking-[0.035em] text-white ${gridConfig.nameSizeClass}`}
+                  >
+                    {jugador.nombre}
+                  </span>
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    );
+
+    if (challengeSurveyPlayerSections.length > 0) {
+      return (
+        <div className={`${miniCardsStageClass} items-stretch`}>
+          <div className="w-full h-full min-h-0 max-w-[980px] overflow-y-auto overscroll-contain pr-1">
+            <div className={`mx-auto flex min-h-full w-full flex-col ${isTightLayout ? 'gap-2.5' : isCompressedLayout ? 'gap-3' : 'gap-4'}`}>
+              {challengeSurveyPlayerSections.map((section, index) => {
+                const sectionGrid = resolveAdaptiveGridConfig(
+                  section.players.length,
+                  viewportRatio,
+                  Math.max(viewportHeight - (isTightLayout ? 300 : isCompressedLayout ? 340 : 380), 360),
+                );
+                const rowMinHeight = isTightLayout
+                  ? 90
+                  : isCompressedLayout
+                    ? 98
+                    : 110;
+
+                return (
+                  <div key={section.key} className="w-full min-h-0">
+                    <div className={`flex items-center gap-3 ${index > 0 ? 'pt-1' : ''}`}>
+                      <span className={`shrink-0 font-bebas uppercase tracking-[0.08em] text-white/88 ${isTightLayout ? 'text-[16px]' : isCompressedLayout ? 'text-[17px]' : 'text-[18px]'}`}>
+                        {section.label}
+                      </span>
+                      <span className="h-px flex-1 bg-white/14" />
+                    </div>
+                    <div className={isTightLayout ? 'pt-1.5' : isCompressedLayout ? 'pt-2' : 'pt-2.5'}>
+                      {renderGrid({
+                        players: section.players,
+                        gridConfig: sectionGrid,
+                        keyPrefix: `${section.key}-`,
+                        rowMinHeight,
+                        maxHeight: 'none',
+                        gridMaxWidth: Math.min(sectionGrid.gridMaxWidth, 880),
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      );
+    }
 
     return (
       <div className={miniCardsStageClass}>
-        <div
-          className="mx-auto grid h-full w-full place-content-center overflow-visible"
-          style={{
-            gridTemplateColumns: `repeat(${adaptiveGrid.columns}, minmax(0, 1fr))`,
-            gridTemplateRows: `repeat(${adaptiveGrid.rows}, minmax(0, 1fr))`,
-            gap: `${adaptiveGrid.gap}px`,
-            maxWidth: `${adaptiveGrid.gridMaxWidth}px`,
-            maxHeight: '100%',
-            minHeight: 0,
-            padding: adaptiveGrid.gridPadding,
-          }}
-        >
-          {jugadores.map((jugador, index) => {
-            const selected = isSelected(jugador.uuid);
-            const hasPhoto = Boolean(jugador.avatar_url || jugador.foto_url);
-            return (
-              <button
-                key={jugador.uuid}
-                type="button"
-                onClick={() => onSelect(jugador.uuid)}
-                className={`group relative h-full min-h-0 min-w-0 transform-gpu overflow-visible rounded-[8px] border bg-[linear-gradient(168deg,rgba(58,84,196,0.28),rgba(16,20,73,0.9))] transition-[transform,opacity,filter] duration-[260ms] ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 will-change-transform ${
-                  selected
-                    ? `z-20 -translate-y-[2px] ${isTightLayout ? 'scale-[1.015]' : isCompressedLayout ? 'scale-[1.022]' : 'scale-[1.035]'}`
-                    : 'z-10 translate-y-0 scale-100'
-                } ${
-                  hasSelection && !selected ? 'saturate-[0.74]' : ''
-                }`}
-                style={{
-                  borderColor: selected ? 'rgba(229,243,255,0.82)' : 'rgba(255,255,255,0.24)',
-                  opacity: hasSelection && !selected ? 0.45 : 1,
-                  boxShadow: selected
-                    ? '0 0 0 1px rgba(191,239,255,0.82), 0 0 20px rgba(92,236,255,0.28), 0 16px 26px rgba(7,10,35,0.48)'
-                    : '0 10px 18px rgba(8,12,44,0.36)',
-                }}
-              >
-                {selected ? (
-                  <div className="pointer-events-none absolute -inset-1 rounded-[10px] bg-[radial-gradient(circle,rgba(121,241,255,0.48)_0%,rgba(121,241,255,0.16)_46%,rgba(121,241,255,0)_78%)] blur-[8px]" />
-                ) : null}
-                <div
-                  className="relative flex h-full w-full flex-col overflow-hidden rounded-[8px]"
-                  style={{
-                    animation: 'cardIn 420ms cubic-bezier(0.22,1,0.36,1) both',
-                    animationDelay: `${Math.min(index * 16, 160)}ms`,
-                  }}
-                >
-                  <div className="relative h-[75%] w-full overflow-hidden bg-[#101544]">
-                    {hasPhoto ? (
-                      <img
-                        src={jugador.avatar_url || jugador.foto_url}
-                        alt={jugador.nombre}
-                        className="h-full w-full object-contain object-center bg-[#0f1544]"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <PlayerPhotoFallback
-                        silhouetteSizeClass={adaptiveGrid.silhouetteSizeClass}
-                      />
-                    )}
-                    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[46%] bg-gradient-to-t from-[#060a2d]/94 via-[#09113d]/55 to-transparent" />
-                  </div>
-                  <div className="relative flex h-[25%] w-full items-center justify-center px-1.5 bg-[linear-gradient(180deg,rgba(16,24,86,0.96)_0%,rgba(12,17,66,0.98)_100%)]">
-                    <span
-                      className={`w-full truncate text-center font-oswald font-semibold tracking-[0.035em] text-white ${adaptiveGrid.nameSizeClass}`}
-                    >
-                      {jugador.nombre}
-                    </span>
-                  </div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
+        {renderGrid({
+          players: jugadores,
+          gridConfig: adaptiveGrid,
+          keyPrefix: 'all-',
+        })}
       </div>
     );
   };
