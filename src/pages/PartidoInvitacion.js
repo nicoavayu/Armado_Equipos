@@ -678,6 +678,7 @@ function SharedInviteLayout({
 }
 
 export default function PartidoInvitacion({ mode = 'invite' }) {
+  const MAX_GUEST_AVATAR_DATA_URL_LENGTH = 150000;
   const [jugadores, setJugadores] = useState([]);
   const { partidoId } = useParams();
   const navigate = useNavigate();
@@ -786,6 +787,10 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
     }
     try {
       const dataUrl = await toCompressedDataUrl(file);
+      if (dataUrl.length > MAX_GUEST_AVATAR_DATA_URL_LENGTH) {
+        showInlineNotice('warning', 'La foto es demasiado pesada. Probá con otra imagen o sumate sin foto.');
+        return;
+      }
       setGuestPhotoDataUrl(dataUrl);
     } catch (err) {
       console.error('[INVITE] photo parse error:', err);
@@ -1839,7 +1844,9 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           invite: inviteTokenParam,
           nombre: guestName.trim(),
           guest_uuid: existingGuestUuid || null,
-          avatar_data_url: guestPhotoDataUrl || null,
+          avatar_data_url: guestPhotoDataUrl && guestPhotoDataUrl.length <= MAX_GUEST_AVATAR_DATA_URL_LENGTH
+            ? guestPhotoDataUrl
+            : null,
         }),
       });
 
@@ -1864,6 +1871,18 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
         }
         if (reason === 'full') {
           showInlineNotice('warning', 'El partido ya está completo.');
+          return;
+        }
+        if (reason === 'rate_limited') {
+          showInlineNotice('warning', 'Demasiados intentos seguidos. Esperá unos minutos y volvé a probar.');
+          return;
+        }
+        if (reason === 'payload_too_large') {
+          showInlineNotice('warning', 'La foto es demasiado pesada. Probá con una imagen más liviana o sin foto.');
+          return;
+        }
+        if (reason === 'invalid_name' || reason === 'invalid_payload') {
+          showInlineNotice('warning', 'Revisá tu nombre y volvé a intentar.');
           return;
         }
         throw new Error(result.error || 'Error al sumarse');
