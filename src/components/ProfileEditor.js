@@ -188,18 +188,29 @@ const ProfileEditorForm = ({
         <div className={formGroupClass}>
           <label className={labelClass}>Localidad</label>
           <div className="flex gap-2 items-center">
-            <input
-              className={`${singleLineFieldClass} flex-1`}
-              type="text"
-              value={locationDisplayValue}
-              onChange={(e) => {
-                if (!locationInputReadOnly) {
-                  handleInputChange('localidad', e.target.value);
-                }
-              }}
-              placeholder={locationLoading ? 'Detectando…' : 'Tu ciudad'}
-              readOnly={locationInputReadOnly}
-            />
+            {locationInputReadOnly ? (
+              <button
+                type="button"
+                className={`${singleLineFieldClass} flex-1 text-left text-[16px] ${locationDisplayValue ? '' : '!text-white/45'} cursor-pointer`}
+                onClick={handleGeolocation}
+                title={locationDisabled ? 'Habilitar ubicación' : 'Actualizar ubicación'}
+              >
+                {locationDisplayValue || (locationLoading ? 'Detectando…' : 'Tu ciudad')}
+              </button>
+            ) : (
+              <input
+                className={`${singleLineFieldClass} flex-1 text-[16px]`}
+                type="text"
+                value={locationDisplayValue}
+                onChange={(e) => {
+                  if (!locationInputReadOnly) {
+                    handleInputChange('localidad', e.target.value);
+                  }
+                }}
+                placeholder={locationLoading ? 'Detectando…' : 'Tu ciudad'}
+                readOnly={locationInputReadOnly}
+              />
+            )}
             <button
               className="h-[42px] min-w-[42px] px-3 rounded-none border border-[#f4d03f] bg-[#f4d03f]/15 text-[#f4d03f] text-base cursor-pointer transition-all hover:bg-[#f4d03f]/25 flex items-center justify-center"
               onClick={handleGeolocation}
@@ -1297,18 +1308,29 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
             <div className={formGroupClass}>
               <label className={labelClass}>Localidad</label>
               <div className="flex gap-2 items-center">
-                <input
-                  className={`${singleLineFieldClass} flex-1`}
-                  type="text"
-                  value={locationDisplayValue}
-                  onChange={(e) => {
-                    if (!locationInputReadOnly) {
-                      handleInputChange('localidad', e.target.value);
-                    }
-                  }}
-                  placeholder={locationLoading ? 'Detectando…' : 'Tu ciudad'}
-                  readOnly={locationInputReadOnly}
-                />
+                {locationInputReadOnly ? (
+                  <button
+                    type="button"
+                    className={`${singleLineFieldClass} flex-1 text-left text-[16px] ${locationDisplayValue ? '' : '!text-white/45'} cursor-pointer`}
+                    onClick={handleGeolocation}
+                    title={locationDisabled ? 'Habilitar ubicación' : 'Actualizar ubicación'}
+                  >
+                    {locationDisplayValue || (locationLoading ? 'Detectando…' : 'Tu ciudad')}
+                  </button>
+                ) : (
+                  <input
+                    className={`${singleLineFieldClass} flex-1 text-[16px]`}
+                    type="text"
+                    value={locationDisplayValue}
+                    onChange={(e) => {
+                      if (!locationInputReadOnly) {
+                        handleInputChange('localidad', e.target.value);
+                      }
+                    }}
+                    placeholder={locationLoading ? 'Detectando…' : 'Tu ciudad'}
+                    readOnly={locationInputReadOnly}
+                  />
+                )}
                 <button
                   className="h-[42px] min-w-[42px] px-3 rounded-none border border-[#f4d03f] bg-[#f4d03f]/15 text-[#f4d03f] text-base cursor-pointer transition-all hover:bg-[#f4d03f]/25 flex items-center justify-center"
                   onClick={handleGeolocation}

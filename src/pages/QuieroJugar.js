@@ -15,14 +15,20 @@ import PlayerMiniCard from '../components/PlayerMiniCard';
 import PlayerBadges from '../components/PlayerBadges';
 import EmptyStateCard from '../components/EmptyStateCard';
 import { handleError } from '../lib/errorHandler';
-import { Calendar, Clock, MapPin, Star, ListOrdered, Users, CalendarX2 } from 'lucide-react';
+import { Calendar, Clock, MapPin, MapPinOff, Star, ListOrdered, Users, CalendarX2 } from 'lucide-react';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { hasValidCoordinates, toCoordinateNumber } from '../utils/matchLocation';
 import {
   countOperationallyOpenMatches,
   fetchOpenMatchesForQuieroJugar,
 } from '../services/db/openMatches';
-import { distanceInMeters, getCurrentPosition, getLocalhostDevelopmentLocation } from '../services/locationService';
+import {
+  distanceInMeters,
+  getCurrentPosition,
+  getLocalhostDevelopmentLocation,
+  isPermissionDeniedError,
+  shouldRefresh,
+} from '../services/locationService';
 import { useSmartBackNavigation } from '../hooks/useSmartBackNavigation';
 import { useRefreshOnVisibility } from '../hooks/useRefreshOnVisibility';
 import { useSupabaseRealtime } from '../hooks/useSupabaseRealtime';
@@ -93,6 +99,7 @@ const QuieroJugar = ({
   const [sortBy, setSortBy] = useState('distance');
   const [userLocation, setUserLocation] = useState(null);
   const [locationResolved, setLocationResolved] = useState(false);
+  const [locationStatus, setLocationStatus] = useState('idle');
   const [openMatchesBaseCount, setOpenMatchesBaseCount] = useState(0);
   const [matchesError, setMatchesError] = useState('');
   const [maxMatchDistanceKm, setMaxMatchDistanceKm] = useState(() => {
@@ -150,71 +157,122 @@ const QuieroJugar = ({
     resolveActionPlayerRelationship();
   }, [actionPlayer, user?.id, getRelationshipStatus]);
 
-  const getUserLocation = useCallback(async () => {
-    const setLocationFromProfileFallback = async () => {
-      try {
-        if (!user?.id) return setUserLocation(null);
+  const getPersistedUserLocation = useCallback(async () => {
+    if (!user?.id) return null;
 
-        const { data, error } = await supabase
-          .from('usuarios')
-          .select('latitud, longitud')
-          .eq('id', user.id)
-          .single();
+    try {
+      const { data, error } = await supabase
+        .from('usuarios')
+        .select('latitud, longitud, location_updated_at')
+        .eq('id', user.id)
+        .single();
 
-        if (error) throw error;
+      if (error) throw error;
 
-        if (hasValidCoordinates(data?.latitud, data?.longitud)) {
-          setUserLocation({
-            lat: toCoordinateNumber(data.latitud),
-            lng: toCoordinateNumber(data.longitud),
-          });
-          return;
-        }
-
-        const devLocation = getLocalhostDevelopmentLocation();
-        if (devLocation) {
-          setUserLocation({
-            lat: devLocation.lat,
-            lng: devLocation.lng,
-          });
-          return;
-        }
-
-        setUserLocation(null);
-      } catch (error) {
-        const devLocation = getLocalhostDevelopmentLocation();
-        if (devLocation) {
-          setUserLocation({
-            lat: devLocation.lat,
-            lng: devLocation.lng,
-          });
-        } else {
-          setUserLocation(null);
-        }
-      } finally {
-        setLocationResolved(true);
+      if (hasValidCoordinates(data?.latitud, data?.longitud)) {
+        return {
+          lat: toCoordinateNumber(data.latitud),
+          lng: toCoordinateNumber(data.longitud),
+          updated_at: data?.location_updated_at || null,
+          source: 'profile',
+        };
       }
-    };
+    } catch (_error) {
+    }
+
+    const devLocation = getLocalhostDevelopmentLocation();
+    if (devLocation) {
+      return {
+        lat: devLocation.lat,
+        lng: devLocation.lng,
+        updated_at: devLocation.timestamp || null,
+        source: devLocation.source || 'dev',
+      };
+    }
+
+    return null;
+  }, [user?.id]);
+
+  const persistUserLocation = useCallback(async (currentPosition, previousLocation = null) => {
+    if (!user?.id || !hasValidCoordinates(currentPosition?.lat, currentPosition?.lng)) return;
+
+    const shouldPersist = !previousLocation || shouldRefresh({
+      lastLocation: previousLocation,
+      nextPosition: currentPosition,
+    });
+
+    if (!shouldPersist) return;
+
+    const { error } = await supabase
+      .from('usuarios')
+      .update({
+        latitud: currentPosition.lat,
+        longitud: currentPosition.lng,
+        location_accuracy_m: currentPosition.accuracy_m || null,
+        location_updated_at: currentPosition.timestamp || new Date().toISOString(),
+      })
+      .eq('id', user.id);
+
+    if (error) {
+      console.warn('[QUIERO_JUGAR_LOCATION] persist failed', error);
+    }
+  }, [user?.id]);
+
+  const getUserLocation = useCallback(async () => {
+    let persistedLocation = null;
+
+    setLocationStatus((current) => (current === 'ready' || current === 'profile' ? current : 'loading'));
+
+    persistedLocation = await getPersistedUserLocation();
+
+    if (persistedLocation) {
+      setUserLocation({
+        lat: persistedLocation.lat,
+        lng: persistedLocation.lng,
+      });
+      setLocationStatus('profile');
+      setLocationResolved(true);
+    } else {
+      setUserLocation(null);
+    }
 
     try {
       const currentPosition = await getCurrentPosition({
         enableHighAccuracy: false,
         timeout: 15000,
-        maximumAge: 300000,
+        maximumAge: 600000,
       });
       const lat = toCoordinateNumber(currentPosition?.lat);
       const lng = toCoordinateNumber(currentPosition?.lng);
 
       if (hasValidCoordinates(lat, lng)) {
+        const resolvedPosition = {
+          ...currentPosition,
+          lat,
+          lng,
+        };
+
         setUserLocation({ lat, lng });
+        setLocationStatus('ready');
         setLocationResolved(true);
+        persistUserLocation(resolvedPosition, persistedLocation).catch(() => {});
         return;
       }
     } catch (error) {
+      if (!persistedLocation) {
+        setLocationStatus(isPermissionDeniedError(error) ? 'denied' : 'unavailable');
+        setLocationResolved(true);
+        setUserLocation(null);
+      }
+      return;
     }
 
-    await setLocationFromProfileFallback();
-  }, [user?.id]);
+    if (!persistedLocation) {
+      setLocationStatus('unavailable');
+      setLocationResolved(true);
+      setUserLocation(null);
+    }
+  }, [getPersistedUserLocation, persistUserLocation]);
 
   const { setIntervalSafe, clearIntervalSafe } = useInterval();
 
@@ -308,17 +366,18 @@ const QuieroJugar = ({
       setOpenMatchesBaseCount(0);
       setMatchesError('');
       setLocationResolved(false);
+      setLocationStatus('idle');
       setLoading(false);
       return;
     }
-    if (!locationResolved) return;
     fetchPartidosAbiertos();
-  }, [fetchPartidosAbiertos, locationResolved, user?.id, userLocation?.lat, userLocation?.lng, deferredMaxMatchDistanceKm]);
+  }, [fetchPartidosAbiertos, user?.id, userLocation?.lat, userLocation?.lng, deferredMaxMatchDistanceKm]);
 
   useEffect(() => {
     if (!user) return;
     setLoading(true);
     setLocationResolved(false);
+    setLocationStatus('loading');
     setMatchesError('');
     fetchFreePlayers();
     getUserLocation();
@@ -357,7 +416,6 @@ const QuieroJugar = ({
 
       if (!locationResolved) {
         getUserLocation();
-        return;
       }
 
       fetchPartidosAbiertos();
@@ -459,19 +517,17 @@ const QuieroJugar = ({
   const otherPlayers = sortedFreePlayers.filter((p) => p.user_id !== user?.id);
   const canFilterByDistance = Boolean(userLocation);
   const visibleMatches = partidosAbiertos;
-  const isResolvingLocation = Boolean(user?.id) && !locationResolved;
+  const shouldShowLocationHelp = !canFilterByDistance && (locationStatus === 'denied' || locationStatus === 'unavailable');
   const matchDistanceProgressPercent = (
     ((maxMatchDistanceKm - MIN_MATCH_DISTANCE_KM) / (MAX_MATCH_DISTANCE_KM - MIN_MATCH_DISTANCE_KM)) * 100
   );
 
-  if (loading || isResolvingLocation) {
+  if (loading) {
     return (
       <div className="min-h-[100dvh] w-screen flex items-center justify-center px-4">
         <PageLoadingState
           title="CARGANDO PARTIDOS"
-          description={isResolvingLocation
-            ? 'Estamos resolviendo tu ubicación y buscando partidos disponibles.'
-            : 'Estamos buscando partidos y jugadores disponibles cerca tuyo.'}
+          description="Estamos buscando partidos y jugadores disponibles cerca tuyo."
           skeletonCards={2}
         />
       </div>
@@ -668,6 +724,18 @@ const QuieroJugar = ({
                       Reintentar
                     </button>
                   </div>
+                ) : null}
+
+                {shouldShowLocationHelp ? (
+                  <EmptyStateCard
+                    icon={MapPinOff}
+                    title="Activá tu ubicación"
+                    description="Para ver partidos cerca tuyo activá la ubicación desde tu perfil o desde Ajustes del teléfono. Mientras tanto te mostramos todos los partidos abiertos."
+                    actionLabel="Ir a perfil"
+                    onAction={() => navigate('/profile')}
+                    className="mt-2 mb-4"
+                    titleClassName="font-oswald text-[clamp(18px,5.6vw,22px)] font-semibold leading-tight text-white"
+                  />
                 ) : null}
 
                 <div className="w-full max-w-[500px] mt-2 mb-4 border border-[rgba(88,107,170,0.46)] bg-[#1e293b]/92 px-3 py-3 shadow-[0_10px_24px_rgba(0,0,0,0.28)]">
