@@ -34,9 +34,12 @@ import {
 } from '../services/db/teamChallenges';
 import { notifyBlockingError } from '../utils/notifyBlockingError';
 import { useSmartBackNavigation } from '../hooks/useSmartBackNavigation';
+import { useRefreshOnVisibility } from '../hooks/useRefreshOnVisibility';
+import { useInterval } from '../hooks/useInterval';
 
 const AVATAR_VISIBLE_LIMIT = 5;
 const DETAIL_CARD_RADIUS_CLASS = 'rounded-[18px]';
+const TEAM_MATCH_LIVE_REFRESH_INTERVAL_MS = 5000;
 const EMPTY_CHALLENGE_HEAD_TO_HEAD = Object.freeze({
   totalMatchesScheduled: 0,
   lastMatchScheduledAt: null,
@@ -313,6 +316,7 @@ const TeamMatchDetailPage = () => {
   const [isSquadRosterViewOpen, setIsSquadRosterViewOpen] = useState(false);
   const [ambiguousTeamDecision, setAmbiguousTeamDecision] = useState(null);
   const [ambiguousTeamModalOpen, setAmbiguousTeamModalOpen] = useState(false);
+  const { setIntervalSafe, clearIntervalSafe } = useInterval();
   const actionsMenuButtonRef = useRef(null);
   const cancelledRedirectRef = useRef(false);
 
@@ -360,7 +364,7 @@ const TeamMatchDetailPage = () => {
     setTeamMembersByTeamId(membersByTeamId || {});
   }, []);
 
-  const loadChallengeSquadForMatch = useCallback(async (matchRow) => {
+  const loadChallengeSquadForMatch = useCallback(async (matchRow, { silent = false } = {}) => {
     const challengeId = matchRow?.challenge_id || null;
     const teamIds = [matchRow?.team_a_id, matchRow?.team_b_id].filter(Boolean);
 
@@ -380,34 +384,93 @@ const TeamMatchDetailPage = () => {
       setChallengeSquadByTeamId(result?.byTeamId || {});
       setChallengeSquadMeta(result?.challenge || null);
     } catch (error) {
-      setChallengeSquadByTeamId({});
-      setChallengeSquadMeta(null);
-      notifyBlockingError(error.message || 'No se pudo cargar la convocatoria del desafío');
+      if (!silent) {
+        setChallengeSquadByTeamId({});
+        setChallengeSquadMeta(null);
+        notifyBlockingError(error.message || 'No se pudo cargar la convocatoria del desafío');
+      } else {
+        console.warn('[TEAM MATCH DETAIL] refresh silencioso de convocatoria fallido', error);
+      }
     } finally {
       setChallengeSquadLoading(false);
     }
   }, []);
 
-  const loadData = useCallback(async () => {
+  const refreshMatchView = useCallback(async ({
+    withLoading = false,
+    silent = false,
+    syncForm = true,
+  } = {}) => {
     if (!matchId) return;
 
     try {
-      setLoading(true);
+      if (withLoading) setLoading(true);
       const matchRow = await getTeamMatchById(matchId);
       setMatch(matchRow);
-      syncFormWithMatch(matchRow);
+      if (syncForm) {
+        syncFormWithMatch(matchRow);
+      }
       await loadMembersForMatch(matchRow);
-      await loadChallengeSquadForMatch(matchRow);
+      await loadChallengeSquadForMatch(matchRow, { silent });
     } catch (error) {
-      notifyBlockingError(error.message || 'No se pudo cargar el partido');
+      if (!silent) {
+        notifyBlockingError(error.message || 'No se pudo cargar el partido');
+      } else {
+        console.warn('[TEAM MATCH DETAIL] refresh silencioso del partido fallido', error);
+      }
     } finally {
-      setLoading(false);
+      if (withLoading) setLoading(false);
     }
   }, [loadChallengeSquadForMatch, loadMembersForMatch, matchId, syncFormWithMatch]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    refreshMatchView({
+      withLoading: true,
+      silent: false,
+      syncForm: true,
+    });
+  }, [refreshMatchView]);
+
+  useRefreshOnVisibility(
+    () => {
+      if (loading || saving || challengeSquadSaving) return;
+      refreshMatchView({
+        withLoading: false,
+        silent: true,
+        syncForm: !editModalOpen,
+      });
+    },
+    {
+      enabled: Boolean(matchId),
+    },
+  );
+
+  useEffect(() => {
+    clearIntervalSafe();
+
+    if (!matchId) return undefined;
+
+    setIntervalSafe(() => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+      if (loading || saving || challengeSquadSaving) return;
+      refreshMatchView({
+        withLoading: false,
+        silent: true,
+        syncForm: !editModalOpen,
+      });
+    }, TEAM_MATCH_LIVE_REFRESH_INTERVAL_MS);
+
+    return () => clearIntervalSafe();
+  }, [
+    challengeSquadSaving,
+    clearIntervalSafe,
+    editModalOpen,
+    loading,
+    matchId,
+    refreshMatchView,
+    saving,
+    setIntervalSafe,
+  ]);
 
   const isChallengeMatch = useMemo(
     () => String(match?.type || match?.origin_type || '').toLowerCase() === 'challenge' || Boolean(match?.challenge_id),
@@ -1454,7 +1517,7 @@ const TeamMatchDetailPage = () => {
                                   Todavía no hay jugadores en el plantel.
                                 </p>
                               ) : (
-                                <div className="space-y-2">
+                                <div className="divide-y divide-white/10">
                                   {myChallengeSquadRows.map((entry) => {
                                     const availabilityStatus = String(entry?.availability_status || '').trim().toLowerCase();
                                     const selectionStatus = String(entry?.selection_status || '').toLowerCase();
@@ -1466,7 +1529,7 @@ const TeamMatchDetailPage = () => {
                                     return (
                                       <div
                                         key={entry?.id || `${myChallengeTeamId}-${entry?.jugador_id}`}
-                                        className="rounded-none border border-white/10 bg-white/[0.03] px-2.5 py-1.5"
+                                        className="py-2.5 first:pt-0 last:pb-0"
                                       >
                                         <div className="flex items-center justify-between gap-2">
                                           <div className="flex items-center gap-2 min-w-0">
