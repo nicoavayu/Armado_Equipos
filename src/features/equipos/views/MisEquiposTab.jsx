@@ -290,9 +290,9 @@ const MisEquiposTab = ({ userId }) => {
         </Button>
 
         {incomingInvitations.length > 0 ? (
-          <div className="rounded-2xl border border-white/15 bg-[#0f172acc] p-3">
+          <>
             <h5 className="text-white font-oswald text-lg">Invitaciones de equipo</h5>
-            <div className="mt-2 space-y-2">
+            <div className="space-y-2">
               {incomingInvitations.map((invitation) => {
                 const teamName = invitation?.team?.name || invitation?.team_name || invitation?.teamName || 'Equipo';
                 const teamCrestUrl = invitation?.team?.crest_url || invitation?.team_crest_url || invitation?.teamCrestUrl || null;
@@ -352,7 +352,7 @@ const MisEquiposTab = ({ userId }) => {
                 );
               })}
             </div>
-          </div>
+          </>
         ) : null}
 
         <div className="mt-1 mb-0.5 flex items-center gap-2.5 px-1">
