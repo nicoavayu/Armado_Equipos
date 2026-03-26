@@ -380,16 +380,17 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
       return acc + (Number.isFinite(numericScore) ? numericScore : 0);
     }, 0);
 
-  const persistTeams = async (newTeams) => {
+  const persistTeams = (newTeams) => {
     setRealtimeTeams(newTeams);
     onTeamsChange(newTeams);
 
     if (isAdmin && partidoId) {
-      try {
-        await saveTeamsToDatabase(partidoId, newTeams);
-      } catch (error) {
-        console.error('[TEAMS_SAVE] Error saving teams:', error);
-      }
+      window.setTimeout(() => {
+        saveTeamsToDatabase(partidoId, newTeams)
+          .catch((error) => {
+            console.error('[TEAMS_SAVE] Error saving teams:', error);
+          });
+      }, 0);
     }
   };
 
@@ -709,7 +710,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
     setDragTarget(null);
   };
 
-  const handleDragEnd = async (result) => {
+  const handleDragEnd = (result) => {
     setIsDragging(false);
     setActiveDragId(null);
     setDragTarget(null);
@@ -839,7 +840,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
       }
     }
 
-    await persistTeams(nextTeams);
+    persistTeams(nextTeams);
   };
 
   const handleWhatsAppShare = () => {
