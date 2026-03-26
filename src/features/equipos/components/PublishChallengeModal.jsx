@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import Modal from '../../../components/Modal';
 import {
@@ -40,6 +40,16 @@ const toLocalDateTimeInputValue = (value) => {
   return `${year}-${month}-${day}T${hour}:${minute}`;
 };
 
+const buildModalInitializationKey = ({
+  isEditMode,
+  initialChallengeId,
+  prefilledTeamId,
+}) => (
+  isEditMode
+    ? `edit:${initialChallengeId || 'unknown'}`
+    : `create:${prefilledTeamId || 'default'}`
+);
+
 const PublishChallengeModal = ({
   isOpen,
   teams = [],
@@ -55,10 +65,22 @@ const PublishChallengeModal = ({
   const [scheduledAtLocal, setScheduledAtLocal] = useState('');
   const [locationName, setLocationName] = useState('');
   const [fieldPrice, setFieldPrice] = useState('');
+  const initializedKeyRef = useRef(null);
   const isEditMode = Boolean(initialChallenge?.id);
+  const initializationKey = useMemo(() => buildModalInitializationKey({
+    isEditMode,
+    initialChallengeId: initialChallenge?.id,
+    prefilledTeamId,
+  }), [initialChallenge?.id, isEditMode, prefilledTeamId]);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      initializedKeyRef.current = null;
+      return;
+    }
+
+    if (initializedKeyRef.current === initializationKey) return;
+    initializedKeyRef.current = initializationKey;
 
     if (isEditMode) {
       setChallengerTeamId(initialChallenge?.challenger_team_id || prefilledTeamId || teams[0]?.id || '');
@@ -78,7 +100,39 @@ const PublishChallengeModal = ({
     setScheduledAtLocal('');
     setLocationName('');
     setFieldPrice('');
-  }, [initialChallenge, isEditMode, isOpen, prefilledTeamId, teams]);
+  }, [
+    initialChallenge?.cancha_cost,
+    initialChallenge?.challenger_team_id,
+    initialChallenge?.field_price,
+    initialChallenge?.id,
+    initialChallenge?.location,
+    initialChallenge?.location_name,
+    initialChallenge?.scheduled_at,
+    initializationKey,
+    isEditMode,
+    isOpen,
+    prefilledTeamId,
+    teams,
+  ]);
+
+  useEffect(() => {
+    if (!isOpen || challengerTeamId || teams.length === 0) return;
+
+    const nextTeamId = isEditMode
+      ? initialChallenge?.challenger_team_id || prefilledTeamId || teams[0]?.id || ''
+      : prefilledTeamId || teams[0]?.id || '';
+
+    if (nextTeamId) {
+      setChallengerTeamId(nextTeamId);
+    }
+  }, [
+    challengerTeamId,
+    initialChallenge?.challenger_team_id,
+    isEditMode,
+    isOpen,
+    prefilledTeamId,
+    teams,
+  ]);
 
   const selectedTeam = useMemo(() => teams.find((team) => team.id === challengerTeamId) || null, [challengerTeamId, teams]);
   const selectedTeamMode = useMemo(
