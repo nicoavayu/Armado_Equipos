@@ -355,7 +355,12 @@ serve(async (req) => {
       return jsonResponse(cors, 413, { ok: false, reason: "payload_too_large" })
     }
 
-    const body = JSON.parse(rawBody)
+    let body: Record<string, unknown>
+    try {
+      body = JSON.parse(rawBody)
+    } catch {
+      return jsonResponse(cors, 400, { ok: false, reason: "invalid_json" })
+    }
     const partidoIdNum = Number(body?.partido_id)
     const playerName = normalizePlayerName(body?.nombre)
     const codigo = normalizeMatchCode(body?.codigo)
