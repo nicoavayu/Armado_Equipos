@@ -103,6 +103,7 @@ const NeighborhoodAutocomplete = ({
   limit = 8,
 }) => {
   const placesServiceRef = useRef(null);
+  const inputRef = useRef(null);
   const [serviceSuggestions, setServiceSuggestions] = useState([]);
 
   const {
@@ -233,11 +234,15 @@ const NeighborhoodAutocomplete = ({
 
       setValue(neighborhood, false);
       clearSuggestions();
+      setServiceSuggestions([]);
+      inputRef.current?.blur();
       onChange(neighborhood);
     } catch {
       if (isNeighborhoodLabel(fallbackNeighborhood)) {
         setValue(fallbackNeighborhood, false);
         clearSuggestions();
+        setServiceSuggestions([]);
+        inputRef.current?.blur();
         onChange(fallbackNeighborhood);
         return;
       }
@@ -254,6 +259,7 @@ const NeighborhoodAutocomplete = ({
         onChange('');
         setValue('', false);
         clearSuggestions();
+        setServiceSuggestions([]);
         return;
       }
 
@@ -263,12 +269,14 @@ const NeighborhoodAutocomplete = ({
       }
 
       clearSuggestions();
+      setServiceSuggestions([]);
     }, 120);
   };
 
   return (
     <div className="relative">
       <input
+        ref={inputRef}
         type="text"
         value={query}
         onChange={(event) => {
