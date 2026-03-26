@@ -12,6 +12,7 @@ import SurveyImportantDisclaimer from '../components/survey/SurveyImportantDiscl
 import { finalizeIfComplete } from '../services/surveyCompletionService';
 import { useAnimatedNavigation } from '../hooks/useAnimatedNavigation';
 import { useScrollResetOnChange } from '../hooks/useScrollReset';
+import { useSmartBackNavigation } from '../hooks/useSmartBackNavigation';
 import { clearMatchFromList } from '../services/matchFinishService';
 import { listChallengeApprovedSquad, listTeamMatchMembers } from '../services/db/teamChallenges';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
@@ -692,6 +693,7 @@ const EncuestaPartido = () => {
   const { fetchNotifications } = useNotifications();
   const navigate = useNavigate();
   const { navigateWithAnimation: _navigateWithAnimation } = useAnimatedNavigation();
+  const navigateBackFromSurvey = useSmartBackNavigation({ fallback: '/' });
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -723,6 +725,7 @@ const EncuestaPartido = () => {
     title: '',
     message: '',
   });
+  const [exitSurveyModalOpen, setExitSurveyModalOpen] = useState(false);
   const [surveyExitRoute, setSurveyExitRoute] = useState(null);
   const [viewportMetrics, setViewportMetrics] = useState(getViewportMetrics);
   const viewportRatio = viewportMetrics.width / Math.max(viewportMetrics.height, 1);
@@ -747,6 +750,15 @@ const EncuestaPartido = () => {
       title,
       message: String(message || 'No se pudo completar la acción.'),
     });
+  };
+
+  const closeExitSurveyModal = () => {
+    setExitSurveyModalOpen(false);
+  };
+
+  const confirmExitSurvey = () => {
+    setExitSurveyModalOpen(false);
+    navigateBackFromSurvey();
   };
 
   const getSurveyClosedMessage = (closedAtIso = null) => {
@@ -799,6 +811,7 @@ const EncuestaPartido = () => {
 
     const resetSurveyState = () => {
       setSurveyModal({ isOpen: false, title: '', message: '' });
+      setExitSurveyModalOpen(false);
       setPartido(null);
       setJugadores([]);
       setAlreadySubmitted(false);
@@ -2110,6 +2123,7 @@ const EncuestaPartido = () => {
   const questionRowClass = 'w-full shrink-0 flex items-center justify-center pt-0';
   const progressRowClass = `sticky top-0 z-40 w-full shrink-0 ${isCompressedLayout ? 'pt-1 sm:pt-1.5' : 'pt-1.5 sm:pt-2'}`;
   const progressGapClass = `w-full shrink-0 ${isTightLayout ? 'h-4 sm:h-5' : isCompressedLayout ? 'h-5 sm:h-6' : 'h-7 sm:h-8'}`;
+  const progressActionsClass = `w-full shrink-0 flex items-start justify-end ${isTightLayout ? 'h-9 pt-1.5 sm:h-10' : isCompressedLayout ? 'h-10 pt-2 sm:h-11' : 'h-11 pt-2.5 sm:h-12'}`;
   const contentRowClass = 'w-full flex-1 min-h-0 flex items-center justify-center overflow-visible';
   const playerContentRowClass = `w-full flex-1 min-h-0 flex items-center justify-center overflow-visible ${isTightLayout ? 'pt-2 sm:pt-3 pb-1 sm:pb-1.5' : isCompressedLayout ? 'pt-3 sm:pt-4 pb-2 sm:pb-3' : 'pt-5 sm:pt-6 pb-3 sm:pb-4'}`;
   const actionRowClass = `w-full shrink-0 flex items-center justify-center ${isTightLayout ? 'pt-1.5 sm:pt-2' : isCompressedLayout ? 'pt-2 sm:pt-3' : 'pt-3 sm:pt-4'}`;
@@ -2193,6 +2207,25 @@ const EncuestaPartido = () => {
       </div>
     </div>
   );
+
+  const renderExitSurveyButton = () => {
+    if (currentStep === SURVEY_STEPS.DONE) {
+      return null;
+    }
+
+    return (
+      <div className={progressActionsClass}>
+        <button
+          type="button"
+          aria-label="Cerrar encuesta"
+          onClick={() => setExitSurveyModalOpen(true)}
+          className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/18 bg-white/8 text-[24px] leading-none text-white/82 shadow-[0_12px_28px_rgba(0,0,0,0.18)] transition-all duration-150 hover:bg-white/12 hover:text-white active:scale-[0.98] sm:h-10 sm:w-10"
+        >
+          <span className="-mt-[2px]">×</span>
+        </button>
+      </div>
+    );
+  };
 
   const resolveAdaptiveGridConfig = (playerCount, ratio, height) => {
     const safeCount = Math.max(playerCount || 1, 1);
@@ -2525,7 +2558,7 @@ const EncuestaPartido = () => {
           <style>{animationStyle}</style>
           <div className={cardClass}>
             {renderStepProgress()}
-            <div className={progressGapClass} />
+            {renderExitSurveyButton() || <div className={progressGapClass} />}
           {/* STEP 0: ¿SE JUGÓ? */}
           {currentStep === SURVEY_STEPS.PLAYED && (
             <div className={`${stepClass} !justify-start animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
@@ -3103,6 +3136,16 @@ const EncuestaPartido = () => {
       singleButton={true}
       onConfirm={closeSurveyModal}
       onCancel={closeSurveyModal}
+      actionsAlign="center"
+    />
+    <ConfirmModal
+      isOpen={exitSurveyModalOpen}
+      title="Cerrar encuesta"
+      message="Si salís ahora, la encuesta va a quedar pendiente y vas a poder volver más tarde para completarla."
+      confirmText="Salir"
+      cancelText="Seguir"
+      onConfirm={confirmExitSurvey}
+      onCancel={closeExitSurveyModal}
       actionsAlign="center"
     />
     </PageTransition>
