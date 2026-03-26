@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { Swords } from 'lucide-react';
+import { useNotifications } from '../context/NotificationContext';
 import {
   IoFootball,
   IoFootballOutline,
@@ -15,6 +16,8 @@ import {
 
 const TabBar = ({ activeTab, onTabChange }) => {
   const navigate = useNavigate();
+  const notificationsCtx = useNotifications() || {};
+  const unreadCount = notificationsCtx.unreadCount || { friends: 0, matches: 0, total: 0 };
   const isAndroidNative = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android';
   const tabBarStyle = {
     paddingBottom: isAndroidNative
@@ -73,6 +76,7 @@ const TabBar = ({ activeTab, onTabChange }) => {
         </div>
         {tabs.map((tab, index) => {
           const isActive = activeTab === tab.key;
+          const showUnreadDot = tab.key === 'amigos' && (unreadCount?.friends || 0) > 0;
           const IconComponent = isActive ? tab.ActiveIcon : tab.InactiveIcon;
           const useSimulatedActive = isActive && tab.simulatedActive;
           const iconProps = {
@@ -104,6 +108,12 @@ const TabBar = ({ activeTab, onTabChange }) => {
             >
               <span className="relative flex h-6 w-6 items-center justify-center">
                 <IconComponent {...iconProps} />
+                {showUnreadDot && (
+                  <span
+                    aria-hidden="true"
+                    className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-[#ff5a5f] ring-2 ring-[#1f2747] shadow-[0_0_8px_rgba(255,90,95,0.5)]"
+                  />
+                )}
               </span>
               <span
                 className={`mt-1.5 whitespace-nowrap text-[12px] font-sans tracking-wide transition-[opacity,color,font-weight] duration-200 ${
