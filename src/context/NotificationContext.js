@@ -53,6 +53,7 @@ export const NotificationProvider = ({ children }) => {
   const [scheduledNotifications, setScheduledNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState({
     friends: 0,
+    teamInvites: 0,
     matches: 0,
     total: 0,
   });
@@ -813,6 +814,7 @@ export const NotificationProvider = ({ children }) => {
 
     setUnreadCount({
       friends: friendRequests,
+      teamInvites,
       matches: matchInvites + matchUpdates + matchKicked + teamInvites + captainTransfers + matchJoinRequests + matchJoinApproved + callToVote + surveyStarts + postMatchSurveys + surveyReminders + surveyResults + awardsReady + awardWon + surveyFinished + noShowPenalty + noShowRecovery + challengeAccepted + teamMatchCreated + challengeSquadOpen,
       total: unread.length,
     });
@@ -856,7 +858,7 @@ export const NotificationProvider = ({ children }) => {
 
       // Update local state
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-      setUnreadCount({ friends: 0, matches: 0, total: 0 });
+      setUnreadCount({ friends: 0, teamInvites: 0, matches: 0, total: 0 });
     } catch (error) {
       logger.error('Error marking all notifications as read:', error);
     }
@@ -895,7 +897,7 @@ export const NotificationProvider = ({ children }) => {
     ignoreBeforeRef.current = new Date().toISOString();
     setNotifications([]);
     setScheduledNotifications([]);
-    setUnreadCount({ friends: 0, matches: 0, total: 0 });
+    setUnreadCount({ friends: 0, teamInvites: 0, matches: 0, total: 0 });
   };
 
   useSupabaseRealtime({

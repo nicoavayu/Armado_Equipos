@@ -936,6 +936,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
           tipo={tipo}
           precio={(typeof partidoId === 'object' && partidoId?.valor_cancha) ? partidoId?.valor_cancha : undefined}
           rightActions={null}
+          topOffsetClassName="mt-[62px] sm:mt-[58px]"
         />
       </div>
 

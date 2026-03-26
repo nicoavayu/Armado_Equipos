@@ -17,7 +17,7 @@ import {
 const TabBar = ({ activeTab, onTabChange }) => {
   const navigate = useNavigate();
   const notificationsCtx = useNotifications() || {};
-  const unreadCount = notificationsCtx.unreadCount || { friends: 0, matches: 0, total: 0 };
+  const unreadCount = notificationsCtx.unreadCount || { friends: 0, teamInvites: 0, matches: 0, total: 0 };
   const isAndroidNative = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android';
   const tabBarStyle = {
     paddingBottom: isAndroidNative
@@ -76,7 +76,10 @@ const TabBar = ({ activeTab, onTabChange }) => {
         </div>
         {tabs.map((tab, index) => {
           const isActive = activeTab === tab.key;
-          const showUnreadDot = tab.key === 'amigos' && (unreadCount?.friends || 0) > 0;
+          const showUnreadDot = (
+            (tab.key === 'amigos' && (unreadCount?.friends || 0) > 0)
+            || (tab.key === 'desafios' && (unreadCount?.teamInvites || 0) > 0)
+          );
           const IconComponent = isActive ? tab.ActiveIcon : tab.InactiveIcon;
           const useSimulatedActive = isActive && tab.simulatedActive;
           const iconProps = {

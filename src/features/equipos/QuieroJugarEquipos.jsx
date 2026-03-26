@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import PageTitle from '../../components/PageTitle';
 import { useAuth } from '../../components/AuthProvider';
+import { useNotifications } from '../../context/NotificationContext';
 import DesafiosTab from './views/DesafiosTab';
 import MisEquiposTab from './views/MisEquiposTab';
 import { QUIERO_JUGAR_EQUIPOS_SUBTAB_STORAGE_KEY } from './config';
@@ -25,6 +26,8 @@ const QuieroJugarEquipos = ({
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+  const notificationsCtx = useNotifications() || {};
+  const unreadCount = notificationsCtx.unreadCount || { friends: 0, teamInvites: 0, matches: 0, total: 0 };
   const goBackSmart = useSmartBackNavigation({
     fallback: '/',
   });
@@ -101,7 +104,18 @@ const QuieroJugarEquipos = ({
                   {activeSubtab === tab.key ? (
                     <span className="pointer-events-none absolute left-0 top-0 h-[3px] w-full bg-[#644dff]" />
                   ) : null}
-                  {tab.label}
+                  {tab.key === 'mis-equipos' ? (
+                    <span className="inline-flex items-center justify-center gap-1.5">
+                      <span>{tab.label}</span>
+                      {(unreadCount?.teamInvites || 0) > 0 && (
+                        <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 bg-[#128BE9] text-white text-[10px] font-bold rounded-none border border-white/25 shadow-[0_6px_16px_rgba(18,139,233,0.35)]">
+                          {unreadCount.teamInvites}
+                        </span>
+                      )}
+                    </span>
+                  ) : (
+                    tab.label
+                  )}
                 </button>
               ))}
             </div>
