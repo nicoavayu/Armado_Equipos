@@ -15,6 +15,10 @@ jest.mock('../services/surveyCompletionService', () => ({
   setMatchAwardsStatus: jest.fn(),
 }));
 
+jest.mock('../services/db/awards', () => ({
+  notifyAwardWinnersForMatch: jest.fn(async () => ({ notified: ['mvp'], skipped: [], error: null })),
+}));
+
 const {
   AWARDS_STATUS_NOT_ELIGIBLE,
   AWARDS_STATUS_READY,

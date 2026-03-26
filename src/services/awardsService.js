@@ -1,5 +1,6 @@
 import { supabase } from '../supabase';
 import { finalizeIfComplete, computeAndPersistAwards, computeResultsAverages, setMatchAwardsStatus } from './surveyCompletionService';
+import { notifyAwardWinnersForMatch } from './db/awards';
 import {
   AWARDS_STATUS_NOT_ELIGIBLE,
   AWARDS_STATUS_PENDING,
@@ -9,6 +10,14 @@ import {
   isAwardsReadyStatus,
   normalizeAwardsStatus,
 } from '../utils/awardsReadiness';
+
+const buildAwardNotificationPayloadFromRow = (row) => ({
+  mvp: row?.awards?.mvp || (row?.mvp ? { player_id: row.mvp } : null),
+  best_gk: row?.awards?.best_gk || (row?.golden_glove ? { player_id: row.golden_glove } : null),
+  red_card: row?.awards?.red_card
+    || (row?.dirty_player ? { player_id: row.dirty_player } : null)
+    || (Array.isArray(row?.red_cards) && row.red_cards[0] ? { player_id: row.red_cards[0] } : null),
+});
 
 export async function computeAwardsForMatch(partidoId) {
   try {
@@ -63,6 +72,49 @@ export async function ensureAwards(partidoId) {
       if (!statusRes?.ok && !statusRes?.unsupported) {
         console.warn('[AWARDS] could not persist awards status', { partidoId: id, status, statusRes });
       }
+      return statusRes || null;
+    };
+
+    const notifyAwardWinnersIfReady = async (row) => {
+      if (!row || !isAwardsReadyStatus(row) || !hasAnyAwardData(row)) return;
+
+      try {
+        const notifyRes = await notifyAwardWinnersForMatch(
+          id,
+          buildAwardNotificationPayloadFromRow(row),
+        );
+        if (notifyRes?.error) {
+          console.warn('[AWARDS] notifyAwardWinnersForMatch returned error', {
+            partidoId: id,
+            notifyRes,
+          });
+        }
+      } catch (notificationError) {
+        console.warn('[AWARDS] notifyAwardWinnersForMatch failed', {
+          partidoId: id,
+          notificationError,
+        });
+      }
+    };
+
+    const finalizeReadyReturn = async (row, extra = {}) => {
+      let readyRow = row || null;
+      if (resolveStatus(readyRow) !== AWARDS_STATUS_READY) {
+        const statusRes = await persistAwardsStatus(AWARDS_STATUS_READY);
+        if (statusRes?.ok) {
+          const refetchReady = await fetchSurveyResultsRow();
+          readyRow = refetchReady.row || readyRow;
+        }
+      }
+
+      await notifyAwardWinnersIfReady(readyRow);
+
+      return {
+        ok: true,
+        row: readyRow,
+        applied: true,
+        ...extra,
+      };
     };
 
     // Gate: never force awards while the survey window is still open.
@@ -146,12 +198,7 @@ export async function ensureAwards(partidoId) {
     }
 
     if (after?.results_ready && isAwardsReadyStatus(after)) {
-      if (resolveStatus(after) !== AWARDS_STATUS_READY) {
-        await persistAwardsStatus(AWARDS_STATUS_READY);
-        const refetchReady = await fetchSurveyResultsRow();
-        after = refetchReady.row || after;
-      }
-      return { ok: true, row: after, applied: true };
+      return finalizeReadyReturn(after);
     }
 
     let retryResult = null;
@@ -181,15 +228,10 @@ export async function ensureAwards(partidoId) {
       }
 
       if (after?.results_ready && isAwardsReadyStatus(after)) {
-        await persistAwardsStatus(AWARDS_STATUS_READY);
-        const refetchReady = await fetchSurveyResultsRow();
-        return {
-          ok: true,
-          row: refetchReady.row || after,
-          applied: true,
+        return finalizeReadyReturn(after, {
           retried: true,
           retryResult,
-        };
+        });
       }
 
       if (after?.results_ready && !hasAnyAwardData(after)) {
@@ -262,15 +304,10 @@ export async function ensureAwards(partidoId) {
     }
 
     if (after?.results_ready && isAwardsReadyStatus(after)) {
-      await persistAwardsStatus(AWARDS_STATUS_READY);
-      const refetchReady = await fetchSurveyResultsRow();
-      return {
-        ok: true,
-        row: refetchReady.row || after,
-        applied: true,
+      return finalizeReadyReturn(after, {
         retried: Boolean(retryResult),
         retryResult,
-      };
+      });
     }
 
     if (after?.results_ready && !hasAnyAwardData(after)) {

@@ -1,6 +1,6 @@
 import { supabase } from '../supabase';
 import { db } from '../api/supabaseWrapper';
-import { grantAwardsForMatch } from './db/awards';
+import { grantAwardsForMatch, notifyAwardWinnersForMatch } from './db/awards';
 import { ensureNoShowRanking } from './db/penalties';
 import { handleError } from '../lib/errorHandler';
 import { ensureParticipantsSnapshot, ensureSurveyResultsSnapshot } from './historySnapshotService';
@@ -48,6 +48,27 @@ const ensureNoShowRankingSafe = async (partidoId, options = {}) => {
       error,
     });
     return null;
+  }
+};
+
+const notifyAwardWinnersSafe = async (partidoId, awards) => {
+  if (!awards || typeof awards !== 'object' || !hasAnyAwardData(awards)) {
+    return;
+  }
+
+  try {
+    const notifyRes = await notifyAwardWinnersForMatch(partidoId, awards);
+    if (notifyRes?.error) {
+      console.warn('[AWARDS] notifyAwardWinnersForMatch returned error', {
+        partidoId: Number(partidoId),
+        notifyRes,
+      });
+    }
+  } catch (error) {
+    console.warn('[AWARDS] notifyAwardWinnersForMatch failed', {
+      partidoId: Number(partidoId),
+      error,
+    });
   }
 };
 
@@ -1402,6 +1423,13 @@ export async function finalizeIfComplete(partidoId, options = {}) {
       console.warn('[FINALIZE] failed to persist awards status', { partidoId: idNum, finalAwardsStatus, statusRes });
     } else if (statusRes?.unsupported || (awardsRow && !hasSurveyResultsAwardsStatusColumn(awardsRow))) {
       console.info('[FINALIZE] skipping awards_status write because column is not available in survey_results');
+    }
+
+    if (finalAwardsStatus === AWARDS_STATUS_READY && statusRes?.ok) {
+      await notifyAwardWinnersSafe(
+        idNum,
+        awardsRow?.awards || awardsPersistResult?.awards || null,
+      );
     }
   }
 

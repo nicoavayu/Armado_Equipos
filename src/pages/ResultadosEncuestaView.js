@@ -67,13 +67,17 @@ export const deriveAwardsUiState = ({
 
   if (
     awardsStatus !== 'not_eligible'
-    && (isAwardsReadyStatus(results) || isAwardsReadyStatus(partido))
+    && (
+      isAwardsReadyStatus(results)
+      || isAwardsReadyStatus(partido)
+      || (((results?.results_ready === true) || (partido?.results_ready === true)) && hasAwardsPayload)
+    )
   ) {
     awardsStatus = 'ready';
   }
   const hasInsufficientVotesForAwards = awardsStatus === 'not_eligible';
   const awardsReady = awardsStatus === 'ready';
-  const shouldShowPendingResultsCard = !results || (!awardsReady && !hasInsufficientVotesForAwards);
+  const shouldShowPendingResultsCard = !results;
 
   return {
     awardsStatus,
@@ -1396,12 +1400,12 @@ const ResultadosEncuestaView = () => {
           <div className="text-white/80 text-base md:text-lg">
             {notEligible
               ? 'No hubo suficientes votaciones para generar premios de este partido.'
-              : 'Todavía no hay premios listos para mostrar.'}
+              : 'Estamos preparando la premiación final de este partido.'}
           </div>
           <div className="text-white/60 text-sm mt-2">
             {notEligible
               ? 'Podés revisar el resultado del partido, pero esta vez no habrá premiación.'
-              : 'Volvé en un momento.'}
+              : 'Actualizando resultados…'}
           </div>
         </div>
       ),
@@ -1658,7 +1662,10 @@ const ResultadosEncuestaView = () => {
       }, 3200);
       try {
         let row = results;
-        const rowHasReadyAwards = (candidate) => isAwardsReadyStatus(candidate);
+        const rowHasReadyAwards = (candidate) => (
+          isAwardsReadyStatus(candidate)
+          || (candidate?.results_ready === true && hasAnyAwardData(candidate))
+        );
         const rowIsNotEligible = (candidate) => isAwardsNotEligibleStatus(candidate);
 
         // If results are missing or awards are still pending, ask backend once.

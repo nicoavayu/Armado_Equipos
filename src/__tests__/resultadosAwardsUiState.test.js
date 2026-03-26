@@ -33,7 +33,7 @@ const {
 } = require('../pages/ResultadosEncuestaView');
 
 describe('Resultados awards UI state', () => {
-  test('pending awards keep awards section hidden and pending card visible', () => {
+  test('pending awards no longer show a dedicated pending awards card', () => {
     const uiState = deriveAwardsUiState({
       results: { awards_status: 'pending' },
       partido: { awards_status: 'pending' },
@@ -43,7 +43,7 @@ describe('Resultados awards UI state', () => {
     expect(uiState.awardsStatus).toBe('pending');
     expect(uiState.awardsReady).toBe(false);
     expect(uiState.hasInsufficientVotesForAwards).toBe(false);
-    expect(uiState.shouldShowPendingResultsCard).toBe(true);
+    expect(uiState.shouldShowPendingResultsCard).toBe(false);
   });
 
   test('stale pending in closed match with insufficient voters falls back to not_eligible', () => {
@@ -102,6 +102,22 @@ describe('Resultados awards UI state', () => {
     const uiState = deriveAwardsUiState({
       results: { awards_status: null, awards_generated: true },
       partido: { awards_status: null },
+      awardsSkippedByEnsure: false,
+    });
+
+    expect(uiState.awardsStatus).toBe('ready');
+    expect(uiState.awardsReady).toBe(true);
+    expect(uiState.shouldShowPendingResultsCard).toBe(false);
+  });
+
+  test('rows with results_ready and persisted awards payload are treated as ready even if status lagged', () => {
+    const uiState = deriveAwardsUiState({
+      results: {
+        awards_status: 'pending',
+        results_ready: true,
+        awards: { mvp: { player_id: '10' } },
+      },
+      partido: { awards_status: 'pending' },
       awardsSkippedByEnsure: false,
     });
 

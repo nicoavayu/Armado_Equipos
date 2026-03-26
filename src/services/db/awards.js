@@ -1,5 +1,10 @@
 import { supabase } from '../../lib/supabaseClient';
-import { getAwardCounterField, resolveStablePlayerRef } from './userIdentity';
+import {
+  getAwardCounterField,
+  normalizeAwardType,
+  resolveRegisteredUserIdFromPlayerRef,
+  resolveStablePlayerRef,
+} from './userIdentity';
 
 const AWARD_WON_NOTIFICATION_TYPE = 'award_won';
 
@@ -76,6 +81,19 @@ const insertAwardWonNotification = async ({
   if (error) throw error;
 };
 
+const resolveAwardWinnerUserId = async ({
+  playerRef,
+  playersMap,
+}) => {
+  const numericPlayerId = Number(playerRef);
+  if (Number.isFinite(numericPlayerId) && numericPlayerId > 0) {
+    const mappedUserId = String(playersMap?.get(numericPlayerId)?.user_id || '').trim();
+    if (mappedUserId) return mappedUserId;
+  }
+
+  return resolveRegisteredUserIdFromPlayerRef(playerRef, supabase);
+};
+
 const incrementUsuarioCounter = async (userId, column) => {
   try {
     const { error: rpcError } = await supabase.rpc('inc_numeric', {
@@ -150,8 +168,6 @@ export async function grantAwardsForMatch(matchId, awards) {
   }
 
   try {
-    const idNum = Number(matchId);
-    const matchName = await resolveMatchName(idNum);
     const playersMap = await getMatchPlayersMap(matchId);
     const granted = [];
     const skipped = [];
@@ -215,19 +231,6 @@ export async function grantAwardsForMatch(matchId, awards) {
         }
       }
 
-      if (playerInfo.user_id) {
-        try {
-          await insertAwardWonNotification({
-            userId: playerInfo.user_id,
-            matchId: idNum,
-            matchName,
-            awardType,
-          });
-        } catch (notificationError) {
-          console.error(`[AWARDS] Error creating private award notification for ${awardType}:`, notificationError);
-        }
-      }
-
       granted.push(awardType);
       persistedRegisteredAwards += 1;
     }
@@ -242,5 +245,68 @@ export async function grantAwardsForMatch(matchId, awards) {
       expectedRegisteredAwards: 0,
       persistedRegisteredAwards: 0,
     };
+  }
+}
+
+export async function notifyAwardWinnersForMatch(matchId, awards) {
+  if (!awards || typeof awards !== 'object') {
+    return { notified: [], skipped: [], error: 'No awards provided' };
+  }
+
+  try {
+    const idNum = Number(matchId);
+    if (!Number.isFinite(idNum) || idNum <= 0) {
+      return { notified: [], skipped: [], error: 'Invalid match ID' };
+    }
+
+    const matchName = await resolveMatchName(idNum);
+    const playersMap = await getMatchPlayersMap(idNum);
+    const notified = [];
+    const skipped = [];
+
+    for (const [rawAwardType, awardData] of Object.entries(awards)) {
+      const awardType = normalizeAwardType(rawAwardType);
+      const playerRef = awardData?.player_id ?? awardData?.jugador_id ?? null;
+
+      if (!awardType || !playerRef) continue;
+
+      let userId = null;
+      try {
+        userId = await resolveAwardWinnerUserId({
+          playerRef,
+          playersMap,
+        });
+      } catch (resolveError) {
+        console.error('[AWARDS] Error resolving award winner user:', {
+          matchId: idNum,
+          awardType,
+          playerRef,
+          resolveError,
+        });
+      }
+
+      if (!userId) {
+        skipped.push(`${awardType} (unresolved user)`);
+        continue;
+      }
+
+      try {
+        await insertAwardWonNotification({
+          userId,
+          matchId: idNum,
+          matchName,
+          awardType,
+        });
+        notified.push(awardType);
+      } catch (notificationError) {
+        console.error(`[AWARDS] Error creating private award notification for ${awardType}:`, notificationError);
+        skipped.push(`${awardType} (notification error)`);
+      }
+    }
+
+    return { notified, skipped, error: null };
+  } catch (error) {
+    console.error('[AWARDS] Error notifying award winners:', error);
+    return { notified: [], skipped: [], error: error.message };
   }
 }
