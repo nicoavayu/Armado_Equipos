@@ -1459,7 +1459,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
         onClose={closeInviteMemberModal}
         title="Invitar Amigo"
         className={`w-full max-w-[560px] ${teamSectionModalShellClass}`}
-        classNameContent="p-4 sm:p-5"
+        classNameContent="px-4 pt-3 pb-4 sm:px-5 sm:pt-4 sm:pb-5"
         footer={(
           <div className="grid grid-cols-2 gap-2">
             <Button
@@ -1486,8 +1486,8 @@ const EquipoDetalleView = ({ teamId, userId }) => {
           </div>
         )}
       >
-        <div className="space-y-3">
-          <label className="block">
+        <div className="flex h-full min-h-0 flex-col gap-3">
+          <label className="block shrink-0">
             <span className="text-xs text-white/80 tracking-wide">Buscar Amigo</span>
             <input
               type="text"
@@ -1504,11 +1504,11 @@ const EquipoDetalleView = ({ teamId, userId }) => {
           ) : null}
 
           {!friendsLoading && filteredFriends.length === 0 ? (
-            <p className="text-sm text-white/65">No hay amigos disponibles para invitar.</p>
+            <p className="shrink-0 text-sm text-white/65">No hay amigos disponibles para invitar.</p>
           ) : null}
 
           {!friendsLoading && filteredFriends.length > 0 ? (
-            <div className="max-h-[340px] overflow-y-auto space-y-2 pr-1">
+            <div className="min-h-0 flex-1 overflow-y-auto space-y-2 pr-1 pb-1">
               {filteredFriends.map((friend) => {
                 const friendId = toStringId(friend?.id);
                 const isSelected = friendId === toStringId(selectedFriendUserId);
