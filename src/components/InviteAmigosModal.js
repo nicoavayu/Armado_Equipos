@@ -135,39 +135,33 @@ const showInviteNotice = (payload) => showGlobalNotice({
   ...payload,
 });
 
-const showDirectInviteBlockerNotice = ({ status, friendName, matchName }) => {
-  const safeMatchName = matchName || 'este partido';
-
-  if (status === 'already_pending') {
-    showInviteNotice({
-      title: 'Invitación pendiente',
-      message: `${friendName} ya tiene una invitación pendiente para "${safeMatchName}".`,
-    });
-    return;
-  }
-
-  if (status === 'already_in_match') {
-    showInviteNotice({
-      title: 'Jugador ya en el partido',
-      message: `${friendName} ya forma parte de "${safeMatchName}".`,
-    });
-    return;
-  }
-
-  if (status === 'recipient_unavailable') {
-    showInviteNotice({
-      title: 'Invitaciones desactivadas',
-      message: `${friendName} no está recibiendo invitaciones en este momento.`,
-    });
-    return;
-  }
-};
-
-const showBulkInviteBlockerNotice = ({ pendingCount, unavailableCount, alreadyInMatchCount }) => {
+const showFriendInviteSummaryNotice = ({
+  sentCount = 0,
+  reinvitedCount = 0,
+  pendingCount = 0,
+  unavailableCount = 0,
+  alreadyInMatchCount = 0,
+  isRequestJoinMode = false,
+}) => {
   const lines = [];
+  const deliveredCount = sentCount + reinvitedCount;
+  const singularLabel = isRequestJoinMode ? 'sugerencia' : 'invitación';
+  const pluralLabel = isRequestJoinMode ? 'sugerencias' : 'invitaciones';
+
+  if (deliveredCount > 0) {
+    lines.push(
+      deliveredCount === 1
+        ? `Se envió 1 ${singularLabel}.`
+        : `Se enviaron ${deliveredCount} ${pluralLabel}.`,
+    );
+  }
 
   if (pendingCount > 0) {
-    lines.push(`${pendingCount} amigo${pendingCount === 1 ? '' : 's'} ya tenía${pendingCount === 1 ? '' : 'n'} una invitación pendiente.`);
+    lines.push(
+      isRequestJoinMode
+        ? `${pendingCount} amigo${pendingCount === 1 ? '' : 's'} ya tenía${pendingCount === 1 ? '' : 'n'} una sugerencia pendiente.`
+        : `${pendingCount} amigo${pendingCount === 1 ? '' : 's'} ya tenía${pendingCount === 1 ? '' : 'n'} una invitación pendiente.`,
+    );
   }
   if (alreadyInMatchCount > 0) {
     lines.push(`${alreadyInMatchCount} amigo${alreadyInMatchCount === 1 ? '' : 's'} ya forma${alreadyInMatchCount === 1 ? '' : 'n'} parte del partido.`);
@@ -577,113 +571,13 @@ const InviteAmigosModal = ({
     return sendInviteToUserId(recipientUserId, inviteContext);
   };
 
-  const handleInvitar = async (amigo) => {
+  const handleSendSelectedFriends = async () => {
     if (!partidoActual?.id) {
       notifyBlockingError('No hay partido seleccionado.');
       return;
     }
 
     if (isRequestJoinMode && !invitationsOpen) {
-      notifyBlockingError('El partido no está abierto para sugerencias.');
-      return;
-    }
-
-    setInviting(true);
-    try {
-      const inviteContext = await getInviteContext();
-      const recipientUserId = resolveFriendUserId(amigo);
-      if (!recipientUserId) {
-        notifyBlockingError('No se pudo identificar al amigo seleccionado para invitar.');
-        return;
-      }
-      const result = await sendInviteToFriend(amigo, inviteContext);
-      const friendIdText = recipientUserId;
-      const resultStatus = String(result?.status || '').trim().toLowerCase() || 'sent';
-
-      if (resultStatus === 'sent' || resultStatus === 'reinvited') {
-        requestImmediatePushDispatchSafe({
-          eventType: 'match_invite',
-          matchId: Number(partidoActual?.id),
-          recipientUserId,
-          limit: 20,
-        });
-        track('match_invite_sent', {
-          match_id: Number(partidoActual?.id),
-          recipient_user_id: recipientUserId,
-          source: 'invite_amigos_modal',
-          invite_result: resultStatus,
-        });
-        rememberBlockedInviteIds([friendIdText]);
-        return;
-      }
-
-      if (resultStatus === 'already_pending') {
-        rememberBlockedInviteIds([friendIdText]);
-        showDirectInviteBlockerNotice({
-          status: resultStatus,
-          friendName: amigo?.nombre || 'este jugador',
-          matchName: partidoActual?.nombre,
-        });
-        return;
-      }
-
-      if (resultStatus === 'already_in_match') {
-        removeFriendsAlreadyInMatch([friendIdText]);
-        showDirectInviteBlockerNotice({
-          status: resultStatus,
-          friendName: amigo?.nombre || 'este jugador',
-          matchName: partidoActual?.nombre,
-        });
-        return;
-      }
-
-      if (resultStatus === 'recipient_unavailable') {
-        showDirectInviteBlockerNotice({
-          status: resultStatus,
-          friendName: amigo?.nombre || 'este jugador',
-          matchName: partidoActual?.nombre,
-        });
-        return;
-      }
-
-      notifyBlockingError('Error al procesar la invitación');
-    } catch (error) {
-      console.error('[MODAL_AMIGOS] Error sending invite:', error);
-      handleInviteRpcError(error);
-    } finally {
-      setInviting(false);
-    }
-  };
-
-  const toggleFriendSelection = (friendId) => {
-    if (inviting) return;
-    setSelectedFriendIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(friendId)) {
-        next.delete(friendId);
-      } else {
-        next.add(friendId);
-      }
-      return next;
-    });
-  };
-
-  const toggleGroupSelection = (groupId) => {
-    if (inviting) return;
-    setSelectedGroupIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(groupId)) {
-        next.delete(groupId);
-      } else {
-        next.add(groupId);
-      }
-      return next;
-    });
-  };
-
-  const handleSendSelected = async () => {
-    if (!isRequestJoinMode) return;
-    if (!invitationsOpen) {
       notifyBlockingError('El partido no está abierto para sugerencias.');
       return;
     }
@@ -734,13 +628,18 @@ const InviteAmigosModal = ({
         }
       }
 
-      [...sentIds, ...reinvitedIds].forEach((friendId) => {
-        const parsedFriendId = String(friendId || '').trim();
-        if (!parsedFriendId) return;
+      const deliveredFriendIds = [...sentIds, ...reinvitedIds]
+        .map((friendId) => String(friendId || '').trim())
+        .filter(Boolean);
+
+      deliveredFriendIds.forEach((friendId) => {
         track('match_invite_sent', {
           match_id: Number(partidoActual?.id),
-          recipient_user_id: parsedFriendId,
-          source: 'invite_amigos_modal_bulk',
+          recipient_user_id: friendId,
+          source: deliveredFriendIds.length === 1 && !isRequestJoinMode
+            ? 'invite_amigos_modal'
+            : 'invite_amigos_modal_bulk',
+          invite_result: sentIds.includes(friendId) ? 'sent' : 'reinvited',
         });
       });
 
@@ -756,15 +655,19 @@ const InviteAmigosModal = ({
         requestImmediatePushDispatchSafe({
           eventType: 'match_invite',
           matchId: Number(partidoActual?.id),
+          ...(deliveredFriendIds.length === 1 ? { recipientUserId: deliveredFriendIds[0] } : {}),
           limit: Math.max(20, Math.min(60, (sentIds.length + reinvitedIds.length) * 10)),
         });
       }
 
       setSelectedFriendIds(new Set());
-      showBulkInviteBlockerNotice({
+      showFriendInviteSummaryNotice({
+        sentCount: sentIds.length,
+        reinvitedCount: reinvitedIds.length,
         pendingCount: alreadyPendingIds.length,
         unavailableCount: unavailableIds.length,
         alreadyInMatchCount: alreadyInMatchIds.length,
+        isRequestJoinMode,
       });
     } catch (error) {
       console.error('[MODAL_AMIGOS] Error sending selected invites:', error);
@@ -772,6 +675,32 @@ const InviteAmigosModal = ({
     } finally {
       setInviting(false);
     }
+  };
+
+  const toggleFriendSelection = (friendId) => {
+    if (inviting) return;
+    setSelectedFriendIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(friendId)) {
+        next.delete(friendId);
+      } else {
+        next.add(friendId);
+      }
+      return next;
+    });
+  };
+
+  const toggleGroupSelection = (groupId) => {
+    if (inviting) return;
+    setSelectedGroupIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupId)) {
+        next.delete(groupId);
+      } else {
+        next.add(groupId);
+      }
+      return next;
+    });
   };
 
   const handleSendSelectedGroups = async () => {
@@ -910,12 +839,14 @@ const InviteAmigosModal = ({
   const noMoreLabel = isRequestJoinMode ? 'No tenés más amigos para sugerir' : 'No tenés más amigos para invitar';
   const selectedCount = selectedFriendIds.size;
   const selectedGroupCount = selectedGroupIds.size;
-  const footer = isRequestJoinMode && visibleFriends.length > 0 ? (
+  const footer = inviteTab === 'friends' && visibleFriends.length > 0 ? (
     <div className="flex flex-col gap-3">
       <div className="text-[12px] text-white/55">
         {selectedCount > 0
           ? `${selectedCount} seleccionado${selectedCount > 1 ? 's' : ''}`
-          : 'Seleccioná amigos para enviar la sugerencia'}
+          : isRequestJoinMode
+            ? 'Seleccioná amigos para enviar la sugerencia'
+            : 'Seleccioná amigos para invitar'}
       </div>
       <div className="grid grid-cols-2 gap-2">
         <button
@@ -929,12 +860,18 @@ const InviteAmigosModal = ({
         </button>
         <button
           type="button"
-          onClick={handleSendSelected}
-          disabled={inviting || selectedCount === 0 || !invitationsOpen}
+          onClick={handleSendSelectedFriends}
+          disabled={inviting || selectedCount === 0 || (isRequestJoinMode && !invitationsOpen)}
           className={`${PRIMARY_ACTION_BUTTON_CLASS} w-full min-w-0`}
           data-preserve-button-case="true"
         >
-          {inviting ? 'Enviando...' : 'Enviar sugerencia'}
+          {inviting
+            ? 'Enviando...'
+            : isRequestJoinMode
+              ? 'Enviar sugerencia'
+              : selectedCount === 1
+                ? 'Invitar amigo'
+                : 'Invitar amigos'}
         </button>
       </div>
     </div>
@@ -1023,9 +960,11 @@ const InviteAmigosModal = ({
             </div>
           </div>
 
-          {isRequestJoinMode ? (
+          {inviteTab === 'friends' ? (
             <p className="mb-3 text-sm text-white/60">
-              Seleccioná uno o más amigos para enviarles una sugerencia.
+              {isRequestJoinMode
+                ? 'Seleccioná uno o más amigos para enviarles una sugerencia.'
+                : 'Seleccioná uno o más amigos para invitarlos juntos a este partido.'}
             </p>
           ) : inviteTab === 'groups' ? (
             <p className="mb-3 text-sm text-white/60">
@@ -1107,10 +1046,13 @@ const InviteAmigosModal = ({
               {visibleFriends.map((amigo) => {
                 const isSelected = selectedFriendIds.has(amigo.id);
                 return (
-                  <div
+                  <button
                     key={amigo.id}
-                    className={`flex items-center gap-3 px-3 py-2 rounded-none border transition-all duration-200 ${isSelected ? 'border-[#7d5aff] bg-[rgba(66,40,168,0.36)]' : 'border-[rgba(88,107,170,0.46)] bg-[rgba(18,28,62,0.78)] hover:border-[#4a7ed6]'} ${isRequestJoinMode ? 'cursor-pointer' : ''}`}
-                    onClick={isRequestJoinMode ? () => toggleFriendSelection(amigo.id) : undefined}
+                    type="button"
+                    data-preserve-button-case="true"
+                    className={`${SELECTABLE_CARD_CLASS} flex items-center gap-3 ${isSelected ? 'border-[#7d5aff] bg-[rgba(66,40,168,0.36)]' : ''}`}
+                    onClick={() => toggleFriendSelection(amigo.id)}
+                    disabled={inviting}
                   >
                     <img
                       src={amigo.avatar_url || '/profile.svg'}
@@ -1123,20 +1065,8 @@ const InviteAmigosModal = ({
                         {amigo.nombre || 'Usuario'}
                       </div>
                     </div>
-                    {isRequestJoinMode ? (
-                      <div className={`h-4 w-4 shrink-0 rounded-none border ${isSelected ? 'border-[#7d5aff] bg-[#6a43ff]' : 'border-white/35 bg-transparent'}`} />
-                    ) : (
-                      <button
-                        onClick={() => handleInvitar(amigo)}
-                        className={`${PRIMARY_ACTION_BUTTON_CLASS} min-h-[40px] shrink-0 px-4 py-2 text-sm shadow-[0_0_14px_rgba(106,67,255,0.22)]`}
-                        disabled={inviting}
-                        type="button"
-                        data-preserve-button-case="true"
-                      >
-                        {inviting ? '...' : 'Invitar'}
-                      </button>
-                    )}
-                  </div>
+                    <div className={`h-4 w-4 shrink-0 rounded-none border ${isSelected ? 'border-[#7d5aff] bg-[#6a43ff]' : 'border-white/35 bg-transparent'}`} />
+                  </button>
                 );
               })}
             </div>

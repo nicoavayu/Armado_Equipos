@@ -218,7 +218,7 @@ describe('InviteAmigosModal', () => {
     expect(screen.queryByText('No tenés amigos para invitar')).not.toBeInTheDocument();
   });
 
-  test('keeps the direct individual invite flow working for friends', async () => {
+  test('keeps the direct selected invite flow working for one friend', async () => {
     mockGetAmigos.mockResolvedValueOnce([
       {
         id: 'relationship-1',
@@ -263,7 +263,8 @@ describe('InviteAmigosModal', () => {
 
     expect(await screen.findByText('Ana')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /^Invitar$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Ana/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Invitar amigo/i }));
 
     await waitFor(() => {
       expect(mockRpc).toHaveBeenCalledWith('send_match_invite', expect.objectContaining({
@@ -286,5 +287,94 @@ describe('InviteAmigosModal', () => {
       invite_result: 'sent',
     }));
     expect(mockNotifyBlockingError).not.toHaveBeenCalled();
+  });
+
+  test('allows selecting and inviting multiple friends in one action', async () => {
+    const SECOND_FRIEND_USER_ID = '33333333-3333-4333-8333-333333333333';
+
+    mockGetAmigos.mockResolvedValueOnce([
+      {
+        id: 'relationship-1',
+        relationshipId: 'relationship-1',
+        nombre: 'Ana',
+        avatar_url: null,
+        profile: {
+          id: FRIEND_USER_ID,
+          nombre: 'Ana',
+          avatar_url: null,
+        },
+      },
+      {
+        id: 'relationship-2',
+        relationshipId: 'relationship-2',
+        nombre: 'Beto',
+        avatar_url: null,
+        profile: {
+          id: SECOND_FRIEND_USER_ID,
+          nombre: 'Beto',
+          avatar_url: null,
+        },
+      },
+    ]);
+
+    mockFrom.mockImplementation((table) => {
+      if (table === 'notifications_ext') {
+        return createQueryBuilder({ data: [], error: null });
+      }
+
+      if (table === 'usuarios') {
+        return createQueryBuilder({
+          data: { nombre: 'Capitán' },
+          error: null,
+        });
+      }
+
+      throw new Error(`Unexpected table requested in InviteAmigosModal multi test: ${table}`);
+    });
+
+    mockRpc
+      .mockResolvedValueOnce({ data: { status: 'sent' }, error: null })
+      .mockResolvedValueOnce({ data: { status: 'sent' }, error: null });
+
+    render(
+      <InviteAmigosModal
+        isOpen
+        onClose={jest.fn()}
+        currentUserId={OWNER_USER_ID}
+        partidoActual={{ id: 55, nombre: 'Partido test', fecha: '2026-03-20', hora: '20:00' }}
+        jugadores={[]}
+        mode="direct"
+      />,
+    );
+
+    expect(await screen.findByText('Ana')).toBeInTheDocument();
+    expect(screen.getByText('Beto')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Ana/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Beto/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Invitar amigos/i }));
+
+    await waitFor(() => {
+      expect(mockRpc).toHaveBeenCalledTimes(2);
+    });
+
+    expect(mockRpc).toHaveBeenNthCalledWith(1, 'send_match_invite', expect.objectContaining({
+      p_user_id: FRIEND_USER_ID,
+      p_partido_id: 55,
+      p_invite_mode: 'direct',
+    }));
+    expect(mockRpc).toHaveBeenNthCalledWith(2, 'send_match_invite', expect.objectContaining({
+      p_user_id: SECOND_FRIEND_USER_ID,
+      p_partido_id: 55,
+      p_invite_mode: 'direct',
+    }));
+    expect(mockRequestImmediatePushDispatchSafe).toHaveBeenCalledWith(expect.objectContaining({
+      eventType: 'match_invite',
+      matchId: 55,
+    }));
+    expect(mockShowGlobalNotice).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'Resultado de invitaciones',
+      message: 'Se enviaron 2 invitaciones.',
+    }));
   });
 });
