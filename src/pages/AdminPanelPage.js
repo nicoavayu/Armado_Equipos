@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useAnimatedNavigation } from '../hooks/useAnimatedNavigation';
 import { useAuth } from '../components/AuthProvider';
+import useSmartBackNavigation from '../hooks/useSmartBackNavigation';
 import PageTransition from '../components/PageTransition';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Button from '../components/Button';
@@ -19,9 +19,9 @@ import { useInterval } from '../hooks/useInterval';
 
 const AdminPanelPage = () => {
   const navigate = useNavigate();
-  const { navigateWithAnimation } = useAnimatedNavigation();
   const { partidoId } = useParams();
   const { user } = useAuth();
+  const goBackSmart = useSmartBackNavigation();
   const [partidoActual, setPartidoActual] = useState(null);
   const [jugadoresDelPartido, setJugadoresDelPartido] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -210,7 +210,7 @@ const AdminPanelPage = () => {
             partidoActual={partidoActual}
             jugadores={jugadoresDelPartido}
             onJugadoresChange={handleJugadoresChange}
-            onBackToHome={() => navigateWithAnimation('/', 'back')}
+            onBackToHome={() => goBackSmart({ fallback: '/' })}
           />
         </div>
       </div>

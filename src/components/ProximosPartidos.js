@@ -124,6 +124,11 @@ const ProximosPartidos = ({ onClose }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const confirmActionLockRef = useRef(false);
 
+  const detailNavigationState = {
+    backTo: '/',
+    backToState: { openProximosPartidos: true },
+  };
+
   useEffect(() => {
     if (user) {
       fetchUserMatches();
@@ -814,7 +819,7 @@ const ProximosPartidos = ({ onClose }) => {
     if (isTeamMatchNavigationTarget(partido)) {
       const teamMatchId = await resolveTeamMatchId(partido);
       if (teamMatchId) {
-        navigate(`/desafios/equipos/partidos/${teamMatchId}`);
+        navigate(`/desafios/equipos/partidos/${teamMatchId}`, { state: detailNavigationState });
       } else {
         const matchName = partido?.nombre || partido?.titulo || partido?.name || '';
         const fallbackPartidoId = Number(partido?.partido_id || partido?.id || 0);
@@ -825,14 +830,14 @@ const ProximosPartidos = ({ onClose }) => {
         }
         if (Number.isFinite(fallbackPartidoId) && fallbackPartidoId > 0) {
           notifyBlockingError('No se pudo resolver el detalle de desafío. Abrimos el detalle del partido.');
-          navigate(`/admin/${fallbackPartidoId}`);
+          navigate(`/admin/${fallbackPartidoId}`, { state: detailNavigationState });
         } else {
           notifyBlockingError('No se pudo abrir el detalle del partido.');
         }
       }
       return;
     }
-    navigate(`/admin/${partido.id}`);
+    navigate(`/admin/${partido.id}`, { state: detailNavigationState });
   };
 
   const handleCancelMatch = (partido) => {
