@@ -181,7 +181,10 @@ export async function sendVotingNotifications(partidoId, meta = {}) {
 export async function schedulePostMatchNotification(matchId) {
   try {
     // Canonical guard: if DB is canonical, do not schedule from JS
-    const SURVEY_FANOUT_MODE = process.env.NEXT_PUBLIC_SURVEY_FANOUT_MODE || 'db';
+    const SURVEY_FANOUT_MODE =
+      process.env.REACT_APP_SURVEY_FANOUT_MODE
+      || process.env.NEXT_PUBLIC_SURVEY_FANOUT_MODE
+      || 'db';
     if (SURVEY_FANOUT_MODE === 'db') {
       logger.log('[Notify] schedulePostMatchNotification skipped because SURVEY_FANOUT_MODE=db');
       return null;

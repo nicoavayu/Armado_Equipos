@@ -998,7 +998,10 @@ export const NotificationProvider = ({ children }) => {
     if (!currentUserId) return { ok: false, error: { message: 'no_current_user' } };
 
     // --- CANONICAL MODE CHECK: prevent client creation of survey notifications when DB is canonical ---
-    const SURVEY_FANOUT_MODE = process.env.NEXT_PUBLIC_SURVEY_FANOUT_MODE || 'db';
+    const SURVEY_FANOUT_MODE =
+      process.env.REACT_APP_SURVEY_FANOUT_MODE
+      || process.env.NEXT_PUBLIC_SURVEY_FANOUT_MODE
+      || 'db';
     if (SURVEY_FANOUT_MODE === 'db' && (type === 'survey_start' || type === 'post_match_survey')) {
       return { ok: false, error: { message: 'blocked_by_survey_fanout_mode' } };
     }

@@ -25,7 +25,10 @@ export const createPostMatchSurveyNotifications = async (partido) => {
 
   // --- CANONICAL MODE CHECK: prevent JS creation when DB is canonical ---
   const type = 'survey_start';
-  const SURVEY_FANOUT_MODE = process.env.NEXT_PUBLIC_SURVEY_FANOUT_MODE || 'db';
+  const SURVEY_FANOUT_MODE =
+    process.env.REACT_APP_SURVEY_FANOUT_MODE
+    || process.env.NEXT_PUBLIC_SURVEY_FANOUT_MODE
+    || 'db';
   if (SURVEY_FANOUT_MODE === 'db' && (type === 'survey_start' || type === 'post_match_survey')) return;
 
   if (!partido || !partido.jugadores || !partido.jugadores.length) return [];
