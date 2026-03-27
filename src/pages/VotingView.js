@@ -252,21 +252,18 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
 
         const hasActivePublicVotingWindow = async ({ matchId }) => {
           try {
-            const { data, error } = await supabase
-              .from('notifications')
-              .select('id')
-              .in('type', ['call_to_vote', 'pre_match_vote'])
-              .or(`partido_id.eq.${matchId},data->>match_id.eq.${String(matchId)},data->>matchId.eq.${String(matchId)}`)
-              .limit(1);
+            const { data, error } = await supabase.rpc('is_public_voting_open', {
+              p_partido_id: Number(matchId),
+            });
 
             if (error) {
-              console.warn('[VOTING] public voting gate lookup failed, allowing access', error);
+              console.warn('[VOTING] public voting gate RPC failed, allowing access', error);
               return true;
             }
 
-            return Boolean(data && data.length > 0);
+            return Boolean(data);
           } catch (gateError) {
-            console.warn('[VOTING] public voting gate lookup threw, allowing access', gateError);
+            console.warn('[VOTING] public voting gate RPC threw, allowing access', gateError);
             return true;
           }
         };
