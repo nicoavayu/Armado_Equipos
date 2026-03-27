@@ -18,13 +18,14 @@ import { PlayerCardTrigger, AvatarFallback } from './ProfileComponents';
 import LoadingSpinner from './LoadingSpinner';
 import PageTitle from './PageTitle';
 import MatchInfoSection from './MatchInfoSection';
+import WhatsappIcon from './WhatsappIcon';
 import normalizePartidoForHeader from '../utils/normalizePartidoForHeader';
 import { useAuth } from './AuthProvider';
 import { useNativeFeatures } from '../hooks/useNativeFeatures';
 import { sendVotingNotifications } from '../services/notificationService';
 import ConfirmModal from '../components/ConfirmModal';
 import { buildBalancedTeams } from '../utils/teamBalancer';
-import { MoreVertical, Share2 } from 'lucide-react';
+import { MoreVertical } from 'lucide-react';
 
 const INVITE_ACCEPT_BUTTON_VIOLET = '#644dff';
 const SLOT_SKEW_X = 0;
@@ -862,7 +863,6 @@ export default function ArmarEquiposView({
     transform: `skewX(${SLOT_SKEW_X}deg)`,
   };
   const sharedVoteCtaClass = 'w-[90%] max-w-[520px] mx-auto font-bebas text-base px-4 py-2.5 border border-[#7d5aff] rounded-none cursor-pointer transition-all text-white min-h-[44px] flex items-center justify-center text-center bg-[#6a43ff] shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:bg-[#7550ff] active:opacity-95 disabled:opacity-55 disabled:cursor-not-allowed';
-  const headerActionIconButtonClass = 'h-8 w-8 inline-flex items-center justify-center bg-transparent border-0 p-0 text-[#29aaff]/80 hover:text-[#29aaff] transition-colors disabled:opacity-45 disabled:cursor-not-allowed';
   const kebabMenuButtonClass = 'kebab-menu-btn';
 
   // Si no es admin, mostrar acceso denegado
@@ -917,15 +917,6 @@ export default function ArmarEquiposView({
                   {isAdmin && (
                     <div className="relative flex items-center gap-1.5 shrink-0">
                       <button
-                        type="button"
-                        className={headerActionIconButtonClass}
-                        onClick={handleWhatsApp}
-                        title="Compartir link de votación"
-                        aria-label="Compartir link de votación"
-                      >
-                        <Share2 size={14} style={{ color: HEADER_ICON_COLOR, filter: HEADER_ICON_GLOW }} />
-                      </button>
-                      <button
                         className={kebabMenuButtonClass}
                         onClick={() => setActionsMenuOpen(!actionsMenuOpen)}
                         type="button"
@@ -935,8 +926,21 @@ export default function ArmarEquiposView({
                         <MoreVertical size={15} style={{ color: HEADER_ICON_COLOR, filter: HEADER_ICON_GLOW }} />
                       </button>
                       {actionsMenuOpen && (
-                        <div className="admin-action-menu absolute top-full right-0 mt-1 w-48 z-10 overflow-hidden transition-all duration-200 ease-out" style={{ transform: `skewX(-${SLOT_SKEW_X}deg)` }}>
+                        <div className="admin-action-menu absolute top-full right-0 mt-1 w-72 z-10 overflow-hidden transition-all duration-200 ease-out" style={{ transform: `skewX(-${SLOT_SKEW_X}deg)` }}>
                           <div style={{ transform: `skewX(${SLOT_SKEW_X}deg)` }}>
+                            <button
+                              className="admin-action-menu-item whitespace-nowrap"
+                              onClick={() => {
+                                setActionsMenuOpen(false);
+                                handleWhatsApp();
+                              }}
+                              type="button"
+                            >
+                              <span className="inline-flex items-center gap-2">
+                                <WhatsappIcon size={14} color="#25D366" />
+                                <span>Enviar link de votación por WhatsApp</span>
+                              </span>
+                            </button>
                             <button
                               className="admin-action-menu-item"
                               onClick={() => {
