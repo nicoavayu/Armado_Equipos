@@ -91,6 +91,7 @@ export default function ArmarEquiposView({
   const [playerToRemove, setPlayerToRemove] = useState(null); // Para modal de eliminación
   const [hasPersistedTeams, setHasPersistedTeams] = useState(false);
   const playersSectionRef = React.useRef(null);
+  const voterRefreshInFlightRef = React.useRef(false);
   const navigate = useNavigate();
 
   // Control de permisos: verificar si el usuario es admin del partido
@@ -173,14 +174,19 @@ export default function ArmarEquiposView({
   }, [normalizeIdentity, normalizeName, votantesIdSet, votantesNameSet]);
 
   const refreshVotantes = useCallback(async () => {
-    if (!partidoActual?.id) return;
+    if (!partidoActual?.id || voterRefreshInFlightRef.current) return;
+    voterRefreshInFlightRef.current = true;
     try {
-      const votantesIds = await getVotantesIds(partidoActual.id);
-      const votantesNombres = await getVotantesConNombres(partidoActual.id);
+      const [votantesIds, votantesNombres] = await Promise.all([
+        getVotantesIds(partidoActual.id),
+        getVotantesConNombres(partidoActual.id),
+      ]);
       setVotantes(votantesIds || []);
       setVotantesConNombres(votantesNombres || []);
     } catch (error) {
       console.error('Error loading votantes:', error);
+    } finally {
+      voterRefreshInFlightRef.current = false;
     }
   }, [partidoActual?.id]);
 
@@ -226,6 +232,11 @@ export default function ArmarEquiposView({
       })
       .subscribe();
 
+    const pollIntervalId = window.setInterval(() => {
+      if (document.visibilityState !== 'visible') return;
+      refreshVotantes();
+    }, 2000);
+
     const handleFocus = () => {
       refreshVotantes();
     };
@@ -239,6 +250,7 @@ export default function ArmarEquiposView({
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
+      window.clearInterval(pollIntervalId);
       subscription.unsubscribe();
       window.removeEventListener('focus', handleFocus);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
