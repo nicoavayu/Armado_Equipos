@@ -298,7 +298,11 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
   };
 
   const openWhatsAppShare = async ({ title, text, url }) => {
-    const payloadText = text || url || '';
+    const safeText = String(text || '').trim();
+    const safeUrl = String(url || '').trim();
+    const payloadText = safeText
+      ? (safeUrl && !safeText.includes(safeUrl) ? `${safeText}\n${safeUrl}` : safeText)
+      : safeUrl;
     const encodedText = encodeURIComponent(payloadText);
     const whatsappWebUrl = `https://api.whatsapp.com/send?text=${encodedText}`;
     const whatsappAppUrl = `whatsapp://send?text=${encodedText}`;
@@ -306,7 +310,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
 
     if (isNative) {
       try {
-        await shareContent(title, text, url);
+        await shareContent(title, payloadText, undefined);
         return true;
       } catch (nativeShareError) {
         console.warn('[WHATSAPP_SHARE] Native share failed, fallback to wa.me', nativeShareError);
@@ -317,16 +321,6 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
     if (isMobileWeb) {
       window.location.href = whatsappAppUrl;
       return true;
-    }
-
-    if (navigator.share) {
-      try {
-        await navigator.share({ title, text, url });
-        return true;
-      } catch (shareError) {
-        if (shareError?.name === 'AbortError') return false;
-        console.warn('[WHATSAPP_SHARE] navigator.share failed, fallback to web URL', shareError);
-      }
     }
 
     const opened = window.open(whatsappWebUrl, '_blank', 'noopener,noreferrer');
