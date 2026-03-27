@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { getVotantesIds, getVotantesConNombres, getJugadoresDelPartido, hasRecordedVotes, removePlayerVotesFromMatch, supabase } from '../supabase';
 import { toBigIntId } from '../utils';
 import { incrementMatchesAbandoned, canAbandonWithoutPenalty } from '../utils/matchStatsManager';
@@ -99,6 +99,7 @@ export const useAdminPanelState = ({
   const [actionNotice, setActionNotice] = useState(null);
   const inputRef = useRef();
   const previousIsPlayerInMatchRef = useRef(false);
+  const voterRefreshInFlightRef = useRef(false);
   const setInlineNotice = (type, message) => {
     setActionNotice({ type, message, ts: Date.now() });
   };
@@ -114,6 +115,22 @@ export const useAdminPanelState = ({
 
   // Combined membership state
   const isPlayerInMatch = !!currentPlayerInMatch || hasApprovedRequest;
+
+  const refreshVoterState = useCallback(async () => {
+    if (!partidoActual?.id || voterRefreshInFlightRef.current) return;
+
+    voterRefreshInFlightRef.current = true;
+    try {
+      const votantesIds = await getVotantesIds(partidoActual.id);
+      const votantesNombres = await getVotantesConNombres(partidoActual.id);
+      setVotantes(votantesIds || []);
+      setVotantesConNombres(votantesNombres || []);
+    } catch (error) {
+      console.error('Error refreshing voter state:', error);
+    } finally {
+      voterRefreshInFlightRef.current = false;
+    }
+  }, [partidoActual?.id]);
 
   const getInviteAccessState = async (targetUserId, matchId) => {
     if (!targetUserId || !matchId) {
@@ -263,10 +280,7 @@ export const useAdminPanelState = ({
     if (!partidoActual?.id) return [];
     try {
       const jugadoresPartido = await getJugadoresDelPartido(partidoActual.id);
-      const votantesIds = await getVotantesIds(partidoActual.id);
-      const votantesNombres = await getVotantesConNombres(partidoActual.id);
-      setVotantes(votantesIds || []);
-      setVotantesConNombres(votantesNombres || []);
+      await refreshVoterState();
 
       // Update local state instead of calling parent onJugadoresChange 
       // which triggers a destructive updateJugadoresPartido.
@@ -281,7 +295,7 @@ export const useAdminPanelState = ({
   // Fetch initial data and real-time subscriptions
   useEffect(() => {
     const isVotingView = window.location.pathname.includes('/votar-equipos');
-    if (isVotingView) return;
+    if (isVotingView || !partidoActual?.id) return;
 
     fetchJugadores();
 
@@ -294,14 +308,7 @@ export const useAdminPanelState = ({
         table: 'votos',
         filter: `partido_id=eq.${partidoActual.id}`,
       }, async () => {
-        try {
-          const votantesIds = await getVotantesIds(partidoActual.id);
-          const votantesNombres = await getVotantesConNombres(partidoActual.id);
-          setVotantes(votantesIds || []);
-          setVotantesConNombres(votantesNombres || []);
-        } catch (error) {
-          console.error('Error refreshing votes:', error);
-        }
+        await refreshVoterState();
       })
       .subscribe();
 
@@ -314,14 +321,7 @@ export const useAdminPanelState = ({
         table: 'votos_publicos',
         filter: `partido_id=eq.${partidoActual.id}`,
       }, async () => {
-        try {
-          const votantesIds = await getVotantesIds(partidoActual.id);
-          const votantesNombres = await getVotantesConNombres(partidoActual.id);
-          setVotantes(votantesIds || []);
-          setVotantesConNombres(votantesNombres || []);
-        } catch (error) {
-          console.error('Error refreshing public votes:', error);
-        }
+        await refreshVoterState();
       })
       .subscribe();
 
@@ -334,23 +334,22 @@ export const useAdminPanelState = ({
         table: 'public_voters',
         filter: `partido_id=eq.${partidoActual.id}`,
       }, async () => {
-        try {
-          const votantesIds = await getVotantesIds(partidoActual.id);
-          const votantesNombres = await getVotantesConNombres(partidoActual.id);
-          setVotantes(votantesIds || []);
-          setVotantesConNombres(votantesNombres || []);
-        } catch (error) {
-          console.error('Error refreshing public voters:', error);
-        }
+        await refreshVoterState();
       })
       .subscribe();
 
+    const pollIntervalId = window.setInterval(() => {
+      if (document.visibilityState !== 'visible') return;
+      refreshVoterState();
+    }, 5000);
+
     return () => {
+      window.clearInterval(pollIntervalId);
       supabase.removeChannel(votesChannel);
       supabase.removeChannel(publicVotesChannel);
       supabase.removeChannel(publicVotersChannel);
     };
-  }, [partidoActual?.id]);
+  }, [partidoActual?.id, refreshVoterState]);
 
   // Initialize falta_jugadores state
   useEffect(() => {
