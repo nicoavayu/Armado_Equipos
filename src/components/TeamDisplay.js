@@ -922,8 +922,13 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
         .map((pId) => `- ${getPlayerDetails(pId).nombre}`)
         .join('\n');
 
-    const teamAText = `*EQUIPO A* (Puntaje: ${(teamA.score ?? 0).toFixed(2)})\n${playersToText(teamA)}`;
-    const teamBText = `*EQUIPO B* (Puntaje: ${(teamB.score ?? 0).toFixed(2)})\n${playersToText(teamB)}`;
+    const resolveShareTeamName = (team, fallbackName) => {
+      const candidate = String(team?.name || '').trim();
+      return candidate || fallbackName;
+    };
+
+    const teamAText = `*${resolveShareTeamName(teamA, 'Equipo A')}* (Puntaje: ${(teamA.score ?? 0).toFixed(2)})\n${playersToText(teamA)}`;
+    const teamBText = `*${resolveShareTeamName(teamB, 'Equipo B')}* (Puntaje: ${(teamB.score ?? 0).toFixed(2)})\n${playersToText(teamB)}`;
 
     // WhatsApp friendly: no header, clear spacing, real line breaks.
     const message = `${teamAText}\n\n${teamBText}`;
