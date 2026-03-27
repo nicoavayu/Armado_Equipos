@@ -1457,9 +1457,6 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
 
                   console.debug('[Vote] submit result', { ok: true });
 
-                  // Trigger refresh for admin panel (updated_at handled by trigger)
-                  await supabase.from('partidos').update({ status: 'voted' }).eq('id', partidoId);
-
                   console.debug('[Vote] step change', { from: 3, to: 'finalizado' });
                   lockedRef.current = true;
                   setFinalizado(true);
