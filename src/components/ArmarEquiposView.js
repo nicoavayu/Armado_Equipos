@@ -441,20 +441,7 @@ export default function ArmarEquiposView({
       const result = await resetVotacion(partidoActual.id);
       console.debug('[Teams] reset result', result);
 
-      showInlineNotice('success', 'Votación reseteada. Ahora podés votar de nuevo.');
-
-      // Volver a estado pre-votación: borrar notificaciones de call_to_vote y refrescar bandera local
-      try {
-        const pid = Number(partidoActual.id);
-        const orExpr = `partido_id.eq.${pid},match_ref.eq.${pid},data->>match_id.eq.${pid},data->>matchId.eq.${pid}`;
-        await supabase
-          .from('notifications')
-          .delete()
-          .eq('type', 'call_to_vote')
-          .or(orExpr);
-      } catch (notifError) {
-        console.warn('[Teams] reset voting: failed to delete call_to_vote notifications', notifError);
-      }
+      showInlineNotice('success', 'Votación reseteada. Cuando quieras, volvé a llamar a votar.');
 
       // Limpiar estado local inmediato para reflejar reset (sin esperar re-fetch)
       setVotingStarted(false);

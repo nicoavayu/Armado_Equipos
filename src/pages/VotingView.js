@@ -225,8 +225,45 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
           setAuthenticatedAvatarUrl(resolvedAuthAvatarUrl || null);
         }
 
+        const hasActiveCallToVoteForUser = async ({ matchId, recipientUserId, isCreatorUser }) => {
+          if (!recipientUserId || isCreatorUser) return true;
+
+          try {
+            const matchIdText = String(matchId);
+            const { data, error: notificationsError } = await supabase
+              .from('notifications')
+              .select('id')
+              .eq('user_id', recipientUserId)
+              .eq('type', 'call_to_vote')
+              .or(`partido_id.eq.${matchId},data->>match_id.eq.${matchIdText},data->>matchId.eq.${matchIdText}`)
+              .limit(1);
+
+            if (notificationsError) {
+              console.warn('[VOTING] call_to_vote access lookup failed, allowing access', notificationsError);
+              return true;
+            }
+
+            return Boolean(data && data.length > 0);
+          } catch (notificationsError) {
+            console.warn('[VOTING] call_to_vote access lookup threw, allowing access', notificationsError);
+            return true;
+          }
+        };
+
         // If user is recognized as player or creator, use authenticated logic
         if (userId && (matchPlayer || isCreator)) {
+          const hasActiveCallToVote = await hasActiveCallToVoteForUser({
+            matchId: partidoId,
+            recipientUserId: userId,
+            isCreatorUser: isCreator,
+          });
+
+          if (!hasActiveCallToVote) {
+            setAuthzError('La votación no está abierta en este momento.');
+            setHasAccess(false);
+            return setCargandoVotoUsuario(false);
+          }
+
           setHasAccess(true);
           setIsAdmin(isCreator);
           setUseAuthenticatedSubmit(true);
