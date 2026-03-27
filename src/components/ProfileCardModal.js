@@ -31,7 +31,11 @@ const resolveProfileUserId = (profile) => (
 );
 
 const resolveRegisteredUserId = (profile) => {
-  const candidates = [profile?.usuario_id, profile?.user_id, profile?.uuid, profile?.id];
+  // For social/contact CTAs we only want a real account identifier.
+  // `profile.uuid` can belong to a guest/player row inside a match, so using it
+  // here incorrectly exposes actions like "Solicitar amistad" for players
+  // without an associated account.
+  const candidates = [profile?.usuario_id, profile?.user_id, profile?.id];
   return candidates.find((value) => isValidUUID(value)) || null;
 };
 
