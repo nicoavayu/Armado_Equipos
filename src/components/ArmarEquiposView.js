@@ -20,6 +20,7 @@ import PageTitle from './PageTitle';
 import MatchInfoSection from './MatchInfoSection';
 import normalizePartidoForHeader from '../utils/normalizePartidoForHeader';
 import { useAuth } from './AuthProvider';
+import { useNativeFeatures } from '../hooks/useNativeFeatures';
 import { sendVotingNotifications } from '../services/notificationService';
 import ConfirmModal from '../components/ConfirmModal';
 import { buildBalancedTeams } from '../utils/teamBalancer';
@@ -77,6 +78,7 @@ export default function ArmarEquiposView({
   chatUnreadCount = 0,
 }) {
   const { user } = useAuth();
+  const { isNative } = useNativeFeatures();
   const [votantes, setVotantes] = useState([]);
   const [votantesConNombres, setVotantesConNombres] = useState([]);
   const [isClosing, setIsClosing] = useState(false);
@@ -654,33 +656,22 @@ export default function ArmarEquiposView({
     const baseUrl = getPublicBaseUrl() || window.location.origin;
     const publicLink = `${baseUrl}/votar-equipos?codigo=${encodeURIComponent(matchCode)}`;
     const text = 'Votá para armar los equipos ⚽️';
-    const waText = `${text}\n${publicLink}`;
-    const encodedText = encodeURIComponent(waText);
+    const safeText = String(text || '').trim();
+    const safeUrl = String(publicLink || '').trim();
+    const payloadText = safeText
+      ? (safeUrl && !safeText.includes(safeUrl) ? `${safeText}\n${safeUrl}` : safeText)
+      : safeUrl;
+    const encodedText = encodeURIComponent(payloadText);
     const whatsappWebUrl = `https://api.whatsapp.com/send?text=${encodedText}`;
     const whatsappAppUrl = `whatsapp://send?text=${encodedText}`;
     const isMobileWeb = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
 
     console.debug('[Teams] share link', { partidoId: partidoActual?.id, matchCode });
 
-    // En mobile web priorizamos deep-link a WhatsApp para abrir selector de contactos.
-    if (isMobileWeb) {
+    // En native/mobile priorizamos deep-link directo a WhatsApp.
+    if (isNative || isMobileWeb) {
       window.location.href = whatsappAppUrl;
       return;
-    }
-
-    // Intentar Web Share API (si disponible) en desktop.
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: 'Votación del partido',
-          text,
-          url: publicLink,
-        });
-        return;
-      } catch (shareError) {
-        if (shareError?.name === 'AbortError') return;
-        console.warn('[Share] navigator.share failed, fallback to WhatsApp URL', shareError);
-      }
     }
 
     // Fallback WhatsApp web.
