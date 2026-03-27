@@ -250,6 +250,27 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
           }
         };
 
+        const hasActivePublicVotingWindow = async ({ matchId }) => {
+          try {
+            const { data, error } = await supabase
+              .from('notifications')
+              .select('id')
+              .in('type', ['call_to_vote', 'pre_match_vote'])
+              .or(`partido_id.eq.${matchId},data->>match_id.eq.${String(matchId)},data->>matchId.eq.${String(matchId)}`)
+              .limit(1);
+
+            if (error) {
+              console.warn('[VOTING] public voting gate lookup failed, allowing access', error);
+              return true;
+            }
+
+            return Boolean(data && data.length > 0);
+          } catch (gateError) {
+            console.warn('[VOTING] public voting gate lookup threw, allowing access', gateError);
+            return true;
+          }
+        };
+
         // If user is recognized as player or creator, use authenticated logic
         if (userId && (matchPlayer || isCreator)) {
           const hasActiveCallToVote = await hasActiveCallToVoteForUser({
@@ -275,6 +296,14 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
             setStep(1); // Skip identification step
           }
         } else if (isPublicVoting) {
+          const hasActivePublicVoting = await hasActivePublicVotingWindow({ matchId: partidoId });
+
+          if (!hasActivePublicVoting) {
+            setAuthzError('La votación no está abierta en este momento.');
+            setHasAccess(false);
+            return setCargandoVotoUsuario(false);
+          }
+
           // Fallback to guest logic
           setHasAccess(true);
           setIsAdmin(false);
@@ -720,7 +749,7 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
   }
 
   // Block if no access
-  if (hasAccess === false && !isPublicVoting) {
+  if (hasAccess === false) {
     return (
       <div className={wrapperClass}>
         {cancelVoteButton}
@@ -731,7 +760,7 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
             ACCESO DENEGADO
           </div>
           <div className={textClass}>
-            No tienes permiso para votar en este partido.
+            {authzError || 'No tienes permiso para votar en este partido.'}
           </div>
           {authzError && (
             <div className="text-white/70 text-base mb-5 font-oswald">
@@ -1323,6 +1352,10 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
                       setPublicAlreadyVoted(true);
                       notifyAlreadyVoted();
                       if (DEBUG) console.debug('[Guard] Second RPC detected duplicate - locked');
+                      return;
+                    }
+                    if (result === 'voting_not_open') {
+                      notifyBlockingError('La votación no está abierta en este momento.');
                       return;
                     }
                     if (result === 'already_voted_for_player') {

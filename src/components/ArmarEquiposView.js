@@ -412,6 +412,10 @@ export default function ArmarEquiposView({
           }
         }, 500);
       } else {
+        const matchCode = await resolveMatchCode();
+        if (matchCode) {
+          await ensurePublicVotingMarker(matchCode);
+        }
         showInlineNotice('warning', 'No se enviaron notificaciones porque no hay jugadores con cuenta.');
       }
 
@@ -663,12 +667,61 @@ export default function ArmarEquiposView({
     }
   };
 
+  const ensurePublicVotingMarker = async (matchCode) => {
+    const matchId = Number(partidoActual?.id);
+    const adminUserId = user?.id;
+    if (!Number.isFinite(matchId) || matchId <= 0 || !adminUserId || !matchCode) return;
+
+    try {
+      const matchIdText = String(matchId);
+      const { data: existingRows, error: lookupError } = await supabase
+        .from('notifications')
+        .select('id')
+        .eq('user_id', adminUserId)
+        .in('type', ['call_to_vote', 'pre_match_vote'])
+        .or(`partido_id.eq.${matchId},data->>match_id.eq.${matchIdText},data->>matchId.eq.${matchIdText}`)
+        .limit(1);
+
+      if (lookupError) {
+        console.warn('[Teams] Could not check public voting marker:', lookupError);
+      }
+
+      if (existingRows && existingRows.length > 0) {
+        return;
+      }
+
+      const { error: insertError } = await supabase
+        .from('notifications')
+        .insert([{
+          user_id: adminUserId,
+          title: 'Votación abierta',
+          message: 'Link público de votación habilitado.',
+          type: 'pre_match_vote',
+          partido_id: matchId,
+          data: {
+            match_id: matchIdText,
+            matchId: matchId,
+            matchCode,
+          },
+          read: true,
+          created_at: new Date().toISOString(),
+        }]);
+
+      if (insertError) {
+        console.warn('[Teams] Could not create public voting marker:', insertError);
+      }
+    } catch (error) {
+      console.warn('[Teams] Unexpected error creating public voting marker:', error);
+    }
+  };
+
   async function handleWhatsApp() {
     const matchCode = await resolveMatchCode();
     if (!matchCode) {
       showInlineNotice('warning', 'No se pudo obtener el código del partido para compartir.');
       return;
     }
+    await ensurePublicVotingMarker(matchCode);
     const baseUrl = getPublicBaseUrl() || window.location.origin;
     const publicLink = `${baseUrl}/votar-equipos?codigo=${encodeURIComponent(matchCode)}`;
     const text = 'Votá para armar los equipos ⚽️';
