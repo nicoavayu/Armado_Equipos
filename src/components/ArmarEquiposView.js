@@ -1094,7 +1094,7 @@ export default function ArmarEquiposView({
         <ConfirmModal
           isOpen={confirmConfig.open && confirmConfig.action === 'call_to_vote'}
           title={'Iniciar votación'}
-          message={`Se notificará a los ${jugadores.length} jugadores que tienen la app para que voten. Luego entrarás a la pantalla de votación.`}
+          message={'Se notificará a los jugadores habilitados para votar. Luego entrarás a la pantalla de votación.'}
           onConfirm={() => {
             setConfirmConfig({ open: false, action: null });
             handleCallToVote();
