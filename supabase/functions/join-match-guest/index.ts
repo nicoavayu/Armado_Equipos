@@ -591,6 +591,34 @@ serve(async (req) => {
         code: insertError.code,
         message: insertError.message,
       })
+
+      if (insertError.code === "23505") {
+        const { data: existingDuplicate } = await supabase
+          .from("jugadores")
+          .select("id,nombre,uuid")
+          .eq("partido_id", partidoIdNum)
+          .eq("uuid", safeGuestUuid)
+          .maybeSingle()
+
+        if (existingDuplicate) {
+          await recordAttempt(supabase, {
+            ipHash: auditIpHash,
+            partidoId: partidoIdNum,
+            inviteTokenHash: auditInviteHash,
+            guestUuid: safeGuestUuid,
+            outcome: "already_joined",
+            userAgent: auditUserAgent,
+          })
+
+          return jsonResponse(cors, 200, {
+            ok: true,
+            already_joined: true,
+            guest_uuid: existingDuplicate.uuid,
+            jugador: existingDuplicate,
+          })
+        }
+      }
+
       await recordAttempt(supabase, {
         ipHash: auditIpHash,
         partidoId: partidoIdNum,
