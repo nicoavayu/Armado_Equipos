@@ -436,6 +436,31 @@ describe('survey notification routing', () => {
     expect(result.reason).toBe('match_finished');
   });
 
+  test('bloquea call_to_vote cuando el partido ya tiene equipos formados', async () => {
+    const supabaseMock = createSupabaseMock({
+      partidoRow: {
+        id: 815,
+        fecha: '2025-01-01',
+        hora: '20:00',
+        estado: 'equipos_formados',
+        result_status: 'pending',
+        finished_at: null,
+      },
+    });
+
+    const result = await resolveNotificationActionability({
+      notification: {
+        type: 'call_to_vote',
+        partido_id: 815,
+      },
+      supabaseClient: supabaseMock,
+      nowMs: Date.parse('2025-01-01T21:00:00.000Z'),
+    });
+
+    expect(result.isActionable).toBe(false);
+    expect(result.reason).toBe('match_finished');
+  });
+
   test('bloquea notificaciones operativas viejas aunque el estado quedó pendiente', async () => {
     const supabaseMock = createSupabaseMock({
       partidoRow: {

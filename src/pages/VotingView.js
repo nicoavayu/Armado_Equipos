@@ -5,6 +5,7 @@ import {
   checkIfAlreadyVoted,
   uploadFoto,
   submitVotos,
+  isMatchVotingOpen,
   supabase,
   getGuestSessionId,
 } from '../supabase';
@@ -225,7 +226,18 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
           setAuthenticatedAvatarUrl(resolvedAuthAvatarUrl || null);
         }
 
+        const hasVotingWindowOpen = async ({ matchId }) => {
+          try {
+            return await isMatchVotingOpen(matchId);
+          } catch (gateError) {
+            console.warn('[VOTING] voting gate validation failed, denying access', gateError);
+            return false;
+          }
+        };
+
         const hasActiveCallToVoteForUser = async ({ matchId, recipientUserId, isCreatorUser }) => {
+          const hasActiveVotingWindow = await hasVotingWindowOpen({ matchId });
+          if (!hasActiveVotingWindow) return false;
           if (!recipientUserId || isCreatorUser) return true;
 
           try {
@@ -239,33 +251,19 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
               .limit(1);
 
             if (notificationsError) {
-              console.warn('[VOTING] call_to_vote access lookup failed, allowing access', notificationsError);
-              return true;
+              console.warn('[VOTING] call_to_vote access lookup failed, denying access', notificationsError);
+              return false;
             }
 
             return Boolean(data && data.length > 0);
           } catch (notificationsError) {
-            console.warn('[VOTING] call_to_vote access lookup threw, allowing access', notificationsError);
-            return true;
+            console.warn('[VOTING] call_to_vote access lookup threw, denying access', notificationsError);
+            return false;
           }
         };
 
         const hasActivePublicVotingWindow = async ({ matchId }) => {
-          try {
-            const { data, error } = await supabase.rpc('is_public_voting_open', {
-              p_partido_id: Number(matchId),
-            });
-
-            if (error) {
-              console.warn('[VOTING] public voting gate RPC failed, allowing access', error);
-              return true;
-            }
-
-            return Boolean(data);
-          } catch (gateError) {
-            console.warn('[VOTING] public voting gate RPC threw, allowing access', gateError);
-            return true;
-          }
+          return hasVotingWindowOpen({ matchId });
         };
 
         const hasStrongAuthenticatedPlayerMatch = Boolean(
@@ -1277,6 +1275,10 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
                         if (DEBUG) console.debug('[Guard] First RPC detected duplicate - locked');
                         return;
                       }
+                      if (result === 'voting_not_open') {
+                        notifyBlockingError('La votación no está abierta en este momento.');
+                        return;
+                      }
                       if (result === 'already_voted_for_player') {
                         resultados.already += 1;
                         continue;
@@ -1385,6 +1387,10 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
                     console.warn('[Vote] could not mark completed', doneError);
                   } else {
                     const r = doneData?.result || doneData;
+                    if (r === 'voting_not_open') {
+                      notifyBlockingError('La votación no está abierta en este momento.');
+                      return;
+                    }
                     if (r === 'already_completed') {
                       lockedRef.current = true;
                       setPublicAlreadyVoted(true);

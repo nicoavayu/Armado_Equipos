@@ -508,7 +508,7 @@ serve(async (req) => {
 
     const jugadoresCount = count ?? 0
     const capacity = Number(partido.cupo_jugadores ?? 0)
-    const maxRosterSlots = capacity > 0 ? capacity + 2 : 0
+    const maxRosterSlots = capacity > 0 ? capacity + 4 : 0
     if (maxRosterSlots > 0 && jugadoresCount >= maxRosterSlots) {
       await recordAttempt(supabase, {
         ipHash: auditIpHash,

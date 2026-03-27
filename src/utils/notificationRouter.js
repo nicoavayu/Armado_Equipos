@@ -88,6 +88,8 @@ const MATCH_OPERATIONAL_NOTIFICATION_TYPES = new Set([
 ]);
 
 const CLOSED_MATCH_STATUS_TOKENS = new Set([
+  'equipos_formados',
+  'teams_formed',
   'finalizado',
   'finished',
   'cancelado',
