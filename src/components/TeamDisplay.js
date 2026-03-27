@@ -81,6 +81,7 @@ const persistMatchTeamsConfirmedState = async ({ partidoId, confirmed }) => {
 
 const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = false, partidoId = null, nombre: _nombre, fecha, hora, sede, modalidad, tipo }) => {
   const [showAverages, setShowAverages] = useState(false);
+  const [showInteractionsHelp, setShowInteractionsHelp] = useState(false);
   const [lockedPlayers, setLockedPlayers] = useState([]);
   const [editingTeamId, setEditingTeamId] = useState(null);
   const [editingTeamName, setEditingTeamName] = useState('');
@@ -100,6 +101,8 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
   const [votantesConNombres, setVotantesConNombres] = useState([]);
   const lastDragEndAtRef = useRef(0);
   const suppressPlayerTapRef = useRef(false);
+  const helpPopoverRef = useRef(null);
+  const helpButtonRef = useRef(null);
   const { notice, showInlineNotice, clearInlineNotice } = useInlineNotice();
 
   // [TEAM_BALANCER_EDIT] Para jugadores no-admin, ocultar promedios por defecto
@@ -350,6 +353,32 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
       window.removeEventListener('focus', handleFocus);
     };
   }, [partidoId]);
+
+  useEffect(() => {
+    if (!showInteractionsHelp) return undefined;
+
+    const handlePointerDown = (event) => {
+      if (helpPopoverRef.current?.contains(event.target)) return;
+      if (helpButtonRef.current?.contains(event.target)) return;
+      setShowInteractionsHelp(false);
+    };
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        setShowInteractionsHelp(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('touchstart', handlePointerDown);
+    document.addEventListener('keydown', handleEscape);
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('touchstart', handlePointerDown);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [showInteractionsHelp]);
 
   // Robust player array extraction from team object
   const getPlayersArrayFromTeam = (team) => {
@@ -955,6 +984,32 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
       </div>
 
       <div data-debug="TEAMDISPLAY_ACTIVE" className="w-[90vw] max-w-[90vw] mx-auto flex flex-col gap-3 overflow-x-visible mt-4 pb-6">
+        <div className="relative flex justify-end -mb-1">
+          <button
+            ref={helpButtonRef}
+            type="button"
+            className="h-7 w-7 inline-flex items-center justify-center rounded-full border border-white/15 bg-white/[0.05] text-white/75 transition-colors hover:bg-white/[0.09] hover:text-white"
+            aria-label="Ayuda sobre equipos armados"
+            aria-expanded={showInteractionsHelp}
+            onClick={() => setShowInteractionsHelp((prev) => !prev)}
+          >
+            <span className="font-bebas text-[14px] leading-none">i</span>
+          </button>
+          {showInteractionsHelp ? (
+            <div
+              ref={helpPopoverRef}
+              className="absolute right-0 top-9 z-20 w-[min(280px,calc(100vw-40px))] rounded-[8px] border border-white/12 bg-[#141b47]/95 px-3 py-3 shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-sm"
+              role="dialog"
+              aria-label="Ayuda rápida"
+            >
+              <div className="font-bebas text-[12px] tracking-[0.08em] text-white/88">Ayuda rápida</div>
+              <div className="mt-2 flex flex-col gap-2 text-[12px] font-oswald leading-snug text-white/72">
+                <div>Podés arrastrar jugadores entre equipos para rearmarlos.</div>
+                <div>Tocá una card para fijarla en su equipo.</div>
+              </div>
+            </div>
+          ) : null}
+        </div>
         {/* Team cards */}
         <DragDropContext
           onDragStart={handleDragStart}
