@@ -4,6 +4,7 @@ import { Bell, CalendarClock, CheckCircle, ChevronDown, ChevronUp, ClipboardList
 import { toBigIntId } from '../utils';
 import { resolveMatchInviteRoute } from '../utils/matchInviteRoute';
 import {
+  buildAwardsResultsNavigationTarget,
   resolveNotificationActionability,
   resolveSurveyNotificationNavigation,
   shouldTreatNotificationAsSurveyForm,
@@ -193,14 +194,17 @@ const NotificationsView = () => {
     }
 
     if (data.resultsUrl) {
-      const isAwardsNotif = ['awards_ready', 'award_won'].includes(notification?.type);
-      if (isAwardsNotif) {
-        safeNavigate(notification, data.resultsUrl, {
-          state: {
-            forceAwards: true,
-            fromNotification: true,
-            matchName: data?.match_name || data?.partido_nombre || null,
-          },
+      const isAwardsResultsNotif = [
+        'survey_results',
+        'survey_results_ready',
+        'survey_finished',
+        'awards_ready',
+        'award_won',
+      ].includes(notification?.type);
+      if (isAwardsResultsNotif) {
+        const target = buildAwardsResultsNavigationTarget(notification);
+        safeNavigate(notification, target.route, {
+          state: target.state,
         });
       } else {
         safeNavigate(notification, stripShowAwardsParam(data.resultsUrl));
@@ -311,34 +315,26 @@ const NotificationsView = () => {
           fallbackToNotificationRoute(notification, 'No encontramos los resultados de esta notificación.');
           break;
         }
-        safeNavigate(notification, `/resultados-encuesta/${toBigIntId(resultsMatchId)}`);
+        const target = buildAwardsResultsNavigationTarget(notification, toBigIntId(resultsMatchId));
+        safeNavigate(notification, target.route, {
+          state: target.state,
+        });
         break;
       }
       case 'awards_ready':
       case 'award_won':
-        if (data.resultsUrl) {
-          safeNavigate(notification, data.resultsUrl, {
-            state: {
-              forceAwards: true,
-              fromNotification: true,
-              matchName: data?.match_name || data?.partido_nombre || null,
-            },
+      {
+        const resultsMatchId = notification.partido_id || data.partido_id || data.match_id || data.matchId;
+        if (resultsMatchId || data.resultsUrl || data.link) {
+          const target = buildAwardsResultsNavigationTarget(notification, resultsMatchId ? toBigIntId(resultsMatchId) : null);
+          safeNavigate(notification, target.route, {
+            state: target.state,
           });
         } else {
-          const resultsMatchId = notification.partido_id || data.partido_id || data.match_id || data.matchId;
-          if (resultsMatchId) {
-            safeNavigate(notification, `/resultados-encuesta/${toBigIntId(resultsMatchId)}?showAwards=1`, {
-              state: {
-                forceAwards: true,
-                fromNotification: true,
-                matchName: data?.match_name || data?.partido_nombre || null,
-              },
-            });
-          } else {
-            fallbackToNotificationRoute(notification, 'No encontramos los resultados de esta notificación.');
-          }
+          fallbackToNotificationRoute(notification, 'No encontramos los resultados de esta notificación.');
         }
         break;
+      }
       case 'match_join_request':
         // Fallback if link is not available
         if (data.matchId) {
@@ -361,7 +357,10 @@ const NotificationsView = () => {
         // Robust matchId resolution
         const finalMatchId = notification.match_ref || notification.partido_id || data.match_id || data.matchId || data.partidoId;
         if (finalMatchId) {
-          safeNavigate(notification, `/resultados-encuesta/${toBigIntId(finalMatchId)}`);
+          const target = buildAwardsResultsNavigationTarget(notification, toBigIntId(finalMatchId));
+          safeNavigate(notification, target.route, {
+            state: target.state,
+          });
         } else {
           fallbackToNotificationRoute(notification, 'No encontramos el resultado final de este partido.');
         }

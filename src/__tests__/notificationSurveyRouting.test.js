@@ -316,7 +316,7 @@ describe('survey notification routing', () => {
     expect(result.reason).toBe('survey_reminder_stale');
   });
 
-  test('survey_results_ready navega sin forzar showAwards aunque venga en link legacy', async () => {
+  test('survey_results_ready navega forzando premiación aunque venga en link legacy', async () => {
     const navigate = jest.fn();
     await openNotification({
       type: 'survey_results_ready',
@@ -326,7 +326,14 @@ describe('survey notification routing', () => {
       },
     }, navigate);
 
-    expect(navigate).toHaveBeenCalledWith('/resultados-encuesta/700?from=legacy');
+    expect(navigate).toHaveBeenCalledWith(
+      '/resultados-encuesta/700?showAwards=1&from=legacy',
+      expect.objectContaining({
+        state: expect.objectContaining({
+          forceAwards: true,
+        }),
+      }),
+    );
   });
 
   test('bloquea survey_finished cuando el partido quedó not_eligible para premios', async () => {
@@ -403,6 +410,26 @@ describe('survey notification routing', () => {
 
     expect(navigate).toHaveBeenCalledWith(
       '/resultados-encuesta/701?showAwards=1',
+      expect.objectContaining({
+        state: expect.objectContaining({
+          forceAwards: true,
+        }),
+      }),
+    );
+  });
+
+  test('survey_finished navega con el mismo modo forzado de premiación', async () => {
+    const navigate = jest.fn();
+    await openNotification({
+      type: 'survey_finished',
+      partido_id: 704,
+      data: {
+        resultsUrl: '/resultados-encuesta/704',
+      },
+    }, navigate);
+
+    expect(navigate).toHaveBeenCalledWith(
+      '/resultados-encuesta/704?showAwards=1',
       expect.objectContaining({
         state: expect.objectContaining({
           forceAwards: true,

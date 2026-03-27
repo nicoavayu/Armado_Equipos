@@ -6,6 +6,7 @@ import supabase from '../supabase';
 import { useAuth } from './AuthProvider';
 import { useNotifications } from '../context/NotificationContext';
 import {
+  buildAwardsResultsNavigationTarget,
   resolveNotificationActionability,
   resolveSurveyNotificationNavigation,
   shouldTreatNotificationAsSurveyForm,
@@ -265,14 +266,17 @@ const NotificationsModal = ({ isOpen, onClose }) => {
       return;
     }
 
-    if (notification.type === 'survey_results_ready') {
+    if (notification.type === 'survey_results' || notification.type === 'survey_results_ready') {
       try {
         const matchId = notification?.partido_id ?? notification?.data?.match_id ?? notification?.data?.matchId ?? null;
-        if (!matchId) {
+        if (!matchId && !notification?.data?.resultsUrl && !notification?.data?.link) {
           fallbackToNotificationRoute(notification, 'No encontramos los resultados de esta notificación.');
           return;
         }
-        safeNavigate(notification, `/resultados-encuesta/${matchId}`, {}, 'No encontramos la vista de resultados de este partido.');
+        const target = buildAwardsResultsNavigationTarget(notification, matchId);
+        safeNavigate(notification, target.route, {
+          state: target.state,
+        }, 'No encontramos la vista de resultados de este partido.');
       } catch (err) {
         console.error('[NOTIFICATION_CLICK] survey_results unexpected error:', err);
         fallbackToNotificationRoute(notification, 'No pudimos abrir los resultados de esta notificación.');
@@ -283,17 +287,13 @@ const NotificationsModal = ({ isOpen, onClose }) => {
     if (notification.type === 'awards_ready' || notification.type === 'award_won') {
       try {
         const matchId = notification?.partido_id ?? notification?.data?.match_id ?? notification?.data?.matchId ?? null;
-        if (!matchId) {
+        if (!matchId && !notification?.data?.resultsUrl && !notification?.data?.link) {
           fallbackToNotificationRoute(notification, 'No encontramos los resultados de esta notificación.');
           return;
         }
-        const link = notification?.data?.resultsUrl || notification?.data?.link || `/resultados-encuesta/${matchId}?showAwards=1`;
-        safeNavigate(notification, link, {
-          state: {
-            forceAwards: true,
-            fromNotification: true,
-            matchName: notification?.data?.match_name || notification?.data?.partido_nombre || null,
-          },
+        const target = buildAwardsResultsNavigationTarget(notification, matchId);
+        safeNavigate(notification, target.route, {
+          state: target.state,
         }, 'No encontramos la vista de resultados de este partido.');
       } catch (err) {
         console.error('[NOTIFICATION_CLICK] results/awards unexpected error:', err);
@@ -304,9 +304,11 @@ const NotificationsModal = ({ isOpen, onClose }) => {
 
     if (notification.type === 'survey_finished') {
       const matchId = notification?.partido_id ?? notification?.data?.match_id ?? notification?.data?.matchId ?? notification?.match_ref ?? null;
-      if (matchId) {
-        const link = notification?.data?.resultsUrl || `/resultados-encuesta/${matchId}`;
-        safeNavigate(notification, link);
+      if (matchId || notification?.data?.resultsUrl || notification?.data?.link) {
+        const target = buildAwardsResultsNavigationTarget(notification, matchId);
+        safeNavigate(notification, target.route, {
+          state: target.state,
+        });
       } else {
         fallbackToNotificationRoute(notification, 'No encontramos el resultado final de este partido.');
       }
