@@ -1045,6 +1045,7 @@ const InviteAmigosModal = ({
             <div className="flex max-h-[420px] flex-col gap-2 overflow-y-auto pr-1">
               {visibleFriends.map((amigo) => {
                 const isSelected = selectedFriendIds.has(amigo.id);
+                const isAvailable = amigo?.acepta_invitaciones !== false;
                 return (
                   <button
                     key={amigo.id}
@@ -1066,9 +1067,11 @@ const InviteAmigosModal = ({
                       <div className="truncate font-oswald text-sm text-white">
                         {amigo.nombre || 'Usuario'}
                       </div>
-                      <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-white/55">
-                        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#5ed372]" />
-                        <span className="truncate leading-none">Disponible</span>
+                      <div className={`mt-0.5 flex items-center gap-1.5 text-[11px] ${isAvailable ? 'text-white/55' : 'text-red-200/75'}`}>
+                        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${isAvailable ? 'bg-[#5ed372]' : 'bg-[#d76a6a]'}`} />
+                        <span className="truncate leading-none">
+                          {isAvailable ? 'Disponible' : 'No disponible'}
+                        </span>
                       </div>
                     </div>
                     <div className={`h-4 w-4 shrink-0 rounded-none border ${isSelected ? 'border-[#7d5aff] bg-[#6a43ff]' : 'border-white/35 bg-transparent'}`} />

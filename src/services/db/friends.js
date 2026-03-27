@@ -100,11 +100,18 @@ export const getAmigos = async (userId) => {
       .select(selectClause)
       .in('id', friendIds);
 
-    let usersResponse = await fetchUsuarios(
-      'id, nombre, avatar_url, localidad, ranking, partidos_jugados, posicion, email, pierna_habil, nivel, latitud, longitud',
-    );
-    if (usersResponse.error && isMissingColumnError(usersResponse.error)) {
-      usersResponse = await fetchUsuarios('id, nombre, avatar_url, ranking, partidos_jugados, posicion, email');
+    const usuariosSelectClauses = [
+      'id, nombre, avatar_url, acepta_invitaciones, localidad, ranking, partidos_jugados, posicion, email, pierna_habil, nivel, latitud, longitud',
+      'id, nombre, avatar_url, acepta_invitaciones, ranking, partidos_jugados, posicion, email',
+      'id, nombre, avatar_url, ranking, partidos_jugados, posicion, email',
+    ];
+
+    let usersResponse = null;
+    for (const selectClause of usuariosSelectClauses) {
+      usersResponse = await fetchUsuarios(selectClause);
+      if (!usersResponse.error || !isMissingColumnError(usersResponse.error)) {
+        break;
+      }
     }
 
     const [
