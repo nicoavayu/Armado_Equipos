@@ -25,7 +25,7 @@ import { useNativeFeatures } from '../hooks/useNativeFeatures';
 import { sendVotingNotifications } from '../services/notificationService';
 import ConfirmModal from '../components/ConfirmModal';
 import { buildBalancedTeams } from '../utils/teamBalancer';
-import { MoreVertical } from 'lucide-react';
+import { MoreVertical, RotateCcw } from 'lucide-react';
 
 const INVITE_ACCEPT_BUTTON_VIOLET = '#644dff';
 const SLOT_SKEW_X = 0;
@@ -95,6 +95,8 @@ export default function ArmarEquiposView({
   const [hasPersistedTeams, setHasPersistedTeams] = useState(false);
   const playersSectionRef = React.useRef(null);
   const voterRefreshInFlightRef = React.useRef(false);
+  const actionsMenuRef = React.useRef(null);
+  const actionsMenuButtonRef = React.useRef(null);
   const navigate = useNavigate();
 
   // Control de permisos: verificar si el usuario es admin del partido
@@ -259,6 +261,32 @@ export default function ArmarEquiposView({
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [partidoActual?.id, refreshVotantes]);
+
+  useEffect(() => {
+    if (!actionsMenuOpen) return undefined;
+
+    const handlePointerDown = (event) => {
+      if (actionsMenuRef.current?.contains(event.target)) return;
+      if (actionsMenuButtonRef.current?.contains(event.target)) return;
+      setActionsMenuOpen(false);
+    };
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        setActionsMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('touchstart', handlePointerDown);
+    document.addEventListener('keydown', handleEscape);
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('touchstart', handlePointerDown);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [actionsMenuOpen]);
 
   // Derivar estado de votación desde DB (notificaciones de tipo call_to_vote)
   useEffect(() => {
@@ -917,6 +945,7 @@ export default function ArmarEquiposView({
                   {isAdmin && (
                     <div className="relative flex items-center gap-1.5 shrink-0">
                       <button
+                        ref={actionsMenuButtonRef}
                         className={kebabMenuButtonClass}
                         onClick={() => setActionsMenuOpen(!actionsMenuOpen)}
                         type="button"
@@ -926,7 +955,11 @@ export default function ArmarEquiposView({
                         <MoreVertical size={15} style={{ color: HEADER_ICON_COLOR, filter: HEADER_ICON_GLOW }} />
                       </button>
                       {actionsMenuOpen && (
-                        <div className="admin-action-menu absolute top-full right-0 mt-1 w-72 z-10 overflow-hidden transition-all duration-200 ease-out" style={{ transform: `skewX(-${SLOT_SKEW_X}deg)` }}>
+                        <div
+                          ref={actionsMenuRef}
+                          className="admin-action-menu absolute top-full right-0 mt-1 w-72 z-10 overflow-hidden transition-all duration-200 ease-out"
+                          style={{ transform: `skewX(-${SLOT_SKEW_X}deg)` }}
+                        >
                           <div style={{ transform: `skewX(${SLOT_SKEW_X}deg)` }}>
                             <button
                               className="admin-action-menu-item whitespace-nowrap"
@@ -938,18 +971,21 @@ export default function ArmarEquiposView({
                             >
                               <span className="inline-flex items-center gap-2">
                                 <WhatsappIcon size={14} color="#25D366" />
-                                <span>Enviar link de votación por WhatsApp</span>
+                                <span>Enviar link de votación</span>
                               </span>
                             </button>
                             <button
-                              className="admin-action-menu-item"
+                              className="admin-action-menu-item whitespace-nowrap"
                               onClick={() => {
                                 setActionsMenuOpen(false);
                                 setConfirmConfig({ open: true, action: 'reset' });
                               }}
                               type="button"
                             >
-                              <span>Resetear votación</span>
+                              <span className="inline-flex items-center gap-2">
+                                <RotateCcw size={14} style={{ color: HEADER_ICON_COLOR, filter: HEADER_ICON_GLOW }} />
+                                <span>Resetear votación</span>
+                              </span>
                             </button>
                           </div>
                         </div>
