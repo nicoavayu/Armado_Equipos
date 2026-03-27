@@ -63,6 +63,7 @@ export const NotificationProvider = ({ children }) => {
   const [lastFetchCount, setLastFetchCount] = useState(null);
   const [lastRealtimeAt, setLastRealtimeAt] = useState(null);
   const [lastRealtimePayloadType, setLastRealtimePayloadType] = useState(null);
+  const notificationsRef = useRef([]);
   const refreshRunningRef = useRef(false);
   const lastRefreshMsRef = useRef(0);
   const authResolvedRef = useRef(authResolved);
@@ -198,6 +199,10 @@ export const NotificationProvider = ({ children }) => {
     authResolvedRef.current = authResolved;
     pushUserIdRef.current = user?.id || null;
   }, [authResolved, user?.id]);
+
+  useEffect(() => {
+    notificationsRef.current = notifications;
+  }, [notifications]);
 
   useEffect(() => {
     if (!authResolved) return;
@@ -969,14 +974,36 @@ export const NotificationProvider = ({ children }) => {
           }
 
           if (payload.eventType === 'UPDATE' && payload.new) {
+            setLastRealtimeAt(new Date().toISOString());
+            setLastRealtimePayloadType(payload.new.type || null);
+
+            const isKnownNotification = notificationsRef.current.some(
+              (notification) => notification.id === payload.new.id,
+            );
+
+            if (!isKnownNotification) {
+              handleNewNotification(payload.new);
+              return;
+            }
+
             setNotifications((prev) => {
               const updated = prev.map((notification) => (
                 notification.id === payload.new.id
                   ? { ...notification, ...payload.new }
                   : notification
               ));
-              updateUnreadCount(updated);
-              return updated;
+
+              const visibleUpdated = filterNotificationsForInbox(updated);
+
+              try {
+                const deduped = dedupeNotificationsForDisplay(visibleUpdated);
+                updateUnreadCount(deduped);
+                return deduped;
+              } catch (error) {
+                logger.warn('[NOTIFICATIONS] Failed to re-dedupe updated notification. Using merged list.', error);
+                updateUnreadCount(visibleUpdated);
+                return visibleUpdated;
+              }
             });
             return;
           }

@@ -43,6 +43,7 @@ type NotificationRow = {
   message: string | null;
   data: Record<string, unknown> | null;
   created_at: string;
+  send_at?: string | null;
 };
 
 const DEFAULT_LIMIT = 20;
@@ -216,6 +217,18 @@ function shouldTreatSkippedVoteRequestRowAsHandled(row: DeliveryLogRow): boolean
   return reason === "user_active_on_match"
     || reason === "push_disabled"
     || reason === "not_match_admin";
+}
+
+function toTimestampMs(value: string | null | undefined): number {
+  if (!value) return Number.NaN;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : Number.NaN;
+}
+
+function getNotificationActivationMs(row: NotificationRow): number {
+  const sendAtMs = toTimestampMs(row.send_at ?? null);
+  if (Number.isFinite(sendAtMs)) return sendAtMs;
+  return toTimestampMs(row.created_at);
 }
 
 async function isAuthorizedMatchAdmin(
@@ -559,10 +572,9 @@ async function enqueueCallToVoteRows(
 ): Promise<{ inserted: number; error: { message: string } | null }> {
   let notificationsQuery = supabase
     .from("notifications")
-    .select("id, user_id, partido_id, type, title, message, data, created_at")
+    .select("id, user_id, partido_id, type, title, message, data, created_at, send_at")
     .eq("type", "call_to_vote")
     .eq("partido_id", matchId)
-    .gte("created_at", windowStartIso)
     .order("created_at", { ascending: false })
     .limit(100);
 
@@ -575,8 +587,14 @@ async function enqueueCallToVoteRows(
     return { inserted: 0, error: { message: notificationsError.message } };
   }
 
+  const windowStartMs = toTimestampMs(windowStartIso);
   const matchingNotifications = ((notificationRows ?? []) as NotificationRow[])
-    .filter((row) => !isGuestOrInvalidRecipient(row.user_id));
+    .filter((row) => !isGuestOrInvalidRecipient(row.user_id))
+    .filter((row) => {
+      if (!Number.isFinite(windowStartMs)) return true;
+      const activationMs = getNotificationActivationMs(row);
+      return Number.isFinite(activationMs) && activationMs >= windowStartMs;
+    });
 
   if (matchingNotifications.length === 0) {
     return { inserted: 0, error: null };
@@ -604,15 +622,28 @@ async function enqueueCallToVoteRows(
     existingLogs = (existingData ?? []) as DeliveryLogRow[];
   }
 
-  const existingNotificationIds = new Set(
-    existingLogs
-      .filter((row) => row.status !== "skipped" || shouldTreatSkippedVoteRequestRowAsHandled(row))
-      .map((row) => readPayloadString(row.payload_json, "notification_id"))
-      .filter(Boolean),
-  );
+  const latestHandledLogMsByNotificationId = new Map<string, number>();
+  existingLogs
+    .filter((row) => row.status !== "skipped" || shouldTreatSkippedVoteRequestRowAsHandled(row))
+    .forEach((row) => {
+      const notificationId = readPayloadString(row.payload_json, "notification_id");
+      if (!notificationId) return;
+      const createdAtMs = toTimestampMs(row.created_at);
+      if (!Number.isFinite(createdAtMs)) return;
+      const previousMs = latestHandledLogMsByNotificationId.get(notificationId);
+      if (!Number.isFinite(previousMs) || createdAtMs > previousMs) {
+        latestHandledLogMsByNotificationId.set(notificationId, createdAtMs);
+      }
+    });
 
   const rowsToInsert = matchingNotifications
-    .filter((row) => !existingNotificationIds.has(row.id))
+    .filter((row) => {
+      const latestHandledMs = latestHandledLogMsByNotificationId.get(row.id);
+      if (!Number.isFinite(latestHandledMs)) return true;
+      const activationMs = getNotificationActivationMs(row);
+      if (!Number.isFinite(activationMs)) return true;
+      return activationMs > latestHandledMs;
+    })
     .map((row) => {
       const payload = row.data && typeof row.data === "object" ? row.data : {};
       const route = buildVoteRoute(payload, row.partido_id);
