@@ -366,8 +366,11 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
       console.warn('[SHARE_ROSTER] Using local players after refresh error', error);
     }
 
-    const joinLink = await resolveMatchJoinLink();
-    if (!joinLink) return false;
+    let joinLink = null;
+    if (isAdmin) {
+      joinLink = await resolveMatchJoinLink();
+      if (!joinLink) return false;
+    }
 
     const message = buildWhatsAppRosterMessage({
       ...partidoActual,
