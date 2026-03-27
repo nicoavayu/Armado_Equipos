@@ -1298,23 +1298,9 @@ export const resetVotacion = async (partidoId) => {
     const pidNumber = Number(partidoId);
     const pidTargets = Number.isFinite(pidNumber) ? [pidNumber, String(pidNumber)] : [String(partidoId)];
 
-    // Primero, intentar vía RPC (security definer) para evitar restricciones RLS
     let deletedCount = 0;
-    let rpcTried = false;
 
-    try {
-      rpcTried = true;
-      const { error: rpcError } = await supabase.rpc('reset_votacion', { match_id: pidNumber });
-      if (rpcError) {
-        console.warn('⚠️ SUPABASE: reset_votacion RPC falló, se usará fallback:', rpcError);
-      } else {
-        console.log('✅ SUPABASE: reset_votacion RPC ejecutada');
-      }
-    } catch (rpcErr) {
-      console.warn('⚠️ SUPABASE: reset_votacion RPC throw, usando fallback', rpcErr);
-    }
-
-    // Fallback o validación: borrar votos manualmente (agresivo, numérico y string)
+    // Reset manual: borrar votos manualmente (agresivo, numérico y string)
     for (const target of pidTargets) {
       try {
         // Clear regular votes
@@ -1330,7 +1316,7 @@ export const resetVotacion = async (partidoId) => {
       }
     }
 
-    console.log('✅ SUPABASE: All votes (regular and public) deleted/reset', { rpcTried });
+    console.log('✅ SUPABASE: All votes (regular and public) deleted/reset');
 
     // Force match update to signal all clients via realtime
     try {
