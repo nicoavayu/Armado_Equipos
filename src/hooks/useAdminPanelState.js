@@ -121,8 +121,10 @@ export const useAdminPanelState = ({
 
     voterRefreshInFlightRef.current = true;
     try {
-      const votantesIds = await getVotantesIds(partidoActual.id);
-      const votantesNombres = await getVotantesConNombres(partidoActual.id);
+      const [votantesIds, votantesNombres] = await Promise.all([
+        getVotantesIds(partidoActual.id),
+        getVotantesConNombres(partidoActual.id),
+      ]);
       setVotantes(votantesIds || []);
       setVotantesConNombres(votantesNombres || []);
     } catch (error) {
@@ -341,10 +343,25 @@ export const useAdminPanelState = ({
     const pollIntervalId = window.setInterval(() => {
       if (document.visibilityState !== 'visible') return;
       refreshVoterState();
-    }, 5000);
+    }, 2000);
+
+    const handleFocus = () => {
+      refreshVoterState();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        refreshVoterState();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       window.clearInterval(pollIntervalId);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       supabase.removeChannel(votesChannel);
       supabase.removeChannel(publicVotesChannel);
       supabase.removeChannel(publicVotersChannel);
