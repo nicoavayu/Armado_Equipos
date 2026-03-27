@@ -1,13 +1,13 @@
-name: Smoke Stats + Notifications
+name: Prelaunch Quality Gate
 
 on:
   push:
-    branches: [main]
+    branches: [main, prelaunch-hardening]
   pull_request:
     branches: [main]
 
 jobs:
-  smoke:
+  quality:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -30,5 +30,14 @@ jobs:
       - name: Install dependencies
         run: npm ci --no-audit --fund=false --loglevel verbose
 
-      - name: Run smoke tests (stats + notifications)
-        run: CI=true npm test -- --watchAll=false --runInBand --runTestsByPath src/__tests__/statsSummary.test.js src/__tests__/notificationFilters.test.js src/__tests__/notificationRoutes.test.js
+      - name: Prepare public env file
+        run: cp .env.example .env
+
+      - name: Run lint
+        run: npm run lint
+
+      - name: Run build
+        run: npm run build
+
+      - name: Run full Jest suite
+        run: npm run test:ci

@@ -377,4 +377,43 @@ describe('InviteAmigosModal', () => {
       message: 'Se enviaron 2 invitaciones.',
     }));
   });
+
+  test('shows unavailable friends with a red-status label', async () => {
+    mockGetAmigos.mockResolvedValueOnce([
+      {
+        id: 'relationship-1',
+        relationshipId: 'relationship-1',
+        nombre: 'Ana',
+        avatar_url: null,
+        acepta_invitaciones: false,
+        profile: {
+          id: FRIEND_USER_ID,
+          nombre: 'Ana',
+          avatar_url: null,
+        },
+      },
+    ]);
+    mockGetPrivateGroupsByOwner.mockResolvedValueOnce([]);
+    mockFrom.mockImplementation((table) => {
+      if (table === 'notifications_ext') {
+        return createQueryBuilder({ data: [], error: null });
+      }
+
+      throw new Error(`Unexpected table requested in InviteAmigosModal unavailable test: ${table}`);
+    });
+
+    render(
+      <InviteAmigosModal
+        isOpen
+        onClose={jest.fn()}
+        currentUserId={OWNER_USER_ID}
+        partidoActual={{ id: 55, nombre: 'Partido test' }}
+        jugadores={[]}
+        mode="direct"
+      />,
+    );
+
+    expect(await screen.findByText('No disponible')).toBeInTheDocument();
+    expect(screen.queryByText('Disponible')).not.toBeInTheDocument();
+  });
 });

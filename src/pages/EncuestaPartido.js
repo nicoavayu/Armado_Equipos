@@ -2270,8 +2270,8 @@ const EncuestaPartido = () => {
     </div>
   );
 
-  const renderExitSurveyButton = () => {
-    if (currentStep === SURVEY_STEPS.DONE) {
+  const renderExitSurveyButton = ({ immediate = false } = {}) => {
+    if (!immediate && currentStep === SURVEY_STEPS.DONE) {
       return null;
     }
 
@@ -2280,7 +2280,13 @@ const EncuestaPartido = () => {
         <button
           type="button"
           aria-label="Cerrar encuesta"
-          onClick={() => setExitSurveyModalOpen(true)}
+          onClick={() => {
+            if (immediate) {
+              navigateBackFromSurvey();
+              return;
+            }
+            setExitSurveyModalOpen(true);
+          }}
           className="inline-flex h-9 w-9 items-center justify-center bg-transparent text-[28px] leading-none text-white/78 transition-all duration-150 hover:text-white active:scale-[0.98] sm:h-10 sm:w-10 sm:text-[30px]"
         >
           <span className="-mt-[2px]">×</span>
@@ -2563,6 +2569,7 @@ const EncuestaPartido = () => {
           <div className="absolute inset-0 overflow-hidden" style={screenBackgroundStyle} />
           <div className="relative z-[1] h-full w-full overflow-hidden" style={safeAreaStyle}>
             <div className={cardClass}>
+              {renderExitSurveyButton({ immediate: true }) || <div className={progressGapClass} />}
               <div className={`${centeredSummaryStackClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
                 <div className="w-full">
                   <div className={titleClass}>
@@ -2605,6 +2612,7 @@ const EncuestaPartido = () => {
           <div className="absolute inset-0 overflow-hidden" style={screenBackgroundStyle} />
           <div className="relative z-[1] h-full w-full overflow-hidden" style={safeAreaStyle}>
             <div className={cardClass}>
+              {renderExitSurveyButton({ immediate: true }) || <div className={progressGapClass} />}
               <div className={`${centeredSummaryStackClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
                 <div className="w-full">
                   <div className="font-bebas text-[30px] md:text-[44px] text-white tracking-[0.04em] font-bold text-center leading-[1.05] uppercase drop-shadow-md break-words w-full">
@@ -2637,6 +2645,7 @@ const EncuestaPartido = () => {
           <div className="absolute inset-0 overflow-hidden" style={screenBackgroundStyle} />
           <div className="relative z-[1] h-full w-full overflow-hidden" style={safeAreaStyle}>
             <div className={cardClass}>
+              {renderExitSurveyButton({ immediate: true }) || <div className={progressGapClass} />}
               <div className={`${centeredSummaryStackClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
                 <div className="w-full">
                   <div className={titleClass}>

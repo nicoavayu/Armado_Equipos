@@ -13,6 +13,7 @@ import { useScrollResetOnChange } from '../hooks/useScrollReset';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import EmptyStateCard from './EmptyStateCard';
 import PrivateGroupsTab from './friends/PrivateGroupsTab';
+import { useAuth } from './AuthProvider';
 import { useRefreshOnVisibility } from '../hooks/useRefreshOnVisibility';
 import { useSupabaseRealtime } from '../hooks/useSupabaseRealtime';
 
@@ -102,6 +103,7 @@ const normalizeAmigosTab = (value) => {
 };
 
 const AmigosView = () => {
+  const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [currentUserId, setCurrentUserId] = useState(null);
@@ -426,21 +428,32 @@ const AmigosView = () => {
 
   // Get current user ID on mount
   useEffect(() => {
+    if (user?.id) {
+      setCurrentUserId(user.id);
+      return undefined;
+    }
+
     const getCurrentUser = async () => {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      const getUser = supabase?.auth?.getUser;
+      if (typeof getUser !== 'function') {
+        return;
+      }
+
+      const { data: { user: authUser }, error: authError } = await getUser();
 
       if (authError) {
         console.error('[AMIGOS] Error getting current user:', authError);
         return;
       }
 
-      if (user?.id) {
-        setCurrentUserId(user.id);
+      if (authUser?.id) {
+        setCurrentUserId(authUser.id);
       }
     };
 
     getCurrentUser();
-  }, []);
+    return undefined;
+  }, [user?.id]);
 
   // Load friends and pending requests when currentUserId changes
   useEffect(() => {

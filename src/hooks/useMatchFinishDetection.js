@@ -44,7 +44,10 @@ export const useMatchFinishDetection = (partidos) => {
             }
 
             // --- CANONICAL MODE CHECK: prevent client creation when DB is canonical ---
-            const SURVEY_FANOUT_MODE = process.env.NEXT_PUBLIC_SURVEY_FANOUT_MODE || 'db';
+            const SURVEY_FANOUT_MODE =
+              process.env.REACT_APP_SURVEY_FANOUT_MODE
+              || process.env.NEXT_PUBLIC_SURVEY_FANOUT_MODE
+              || 'db';
             if (SURVEY_FANOUT_MODE === 'db') {
               notifiedMatches.current.add(partido.id);
               console.log(`Client-side skipped creating post_match_survey because SURVEY_FANOUT_MODE=db for match ${partido.id}`);

@@ -9,6 +9,7 @@ import { toSentenceCase } from '../utils/textCase';
  * @param {boolean} [props.showChatButton] - Mostrar botón de chat en el header
  * @param {() => void} [props.onChatClick] - Handler para abrir chat
  * @param {number} [props.unreadCount] - Contador de mensajes sin leer
+ * @param {React.ReactNode} [props.rightActions] - Nodo opcional para renderizar acciones a la derecha
  * @param {number} [props.contentOffsetY] - Desplazamiento vertical interno del contenido (px)
  * @param {boolean} [props.respectSafeArea] - Empuja el contenido del header debajo de la safe area
  * @param {string} [props.topOffset] - Desplazamiento superior del contenedor fijo
@@ -21,6 +22,7 @@ const PageTitle = ({
   showChatButton,
   onChatClick,
   unreadCount = 0,
+  rightActions = null,
   contentOffsetY = 0,
   respectSafeArea = false,
   topOffset,
@@ -68,8 +70,11 @@ const PageTitle = ({
           {normalizedTitle}
         </h2>
 
-        {/* Botón de chat en header */}
-        {showChatButton && (
+        {rightActions ? (
+          <div className="absolute right-0 top-1/2 -translate-y-1/2 z-10 flex items-center">
+            {rightActions}
+          </div>
+        ) : showChatButton ? (
           <button
             className="absolute right-0 top-1/2 -translate-y-1/2 z-10 text-white cursor-pointer p-2 transition-all duration-200 min-w-[44px] min-h-[44px] flex items-center justify-center hover:text-white/90 active:scale-95"
             onClick={(e) => {
@@ -87,7 +92,7 @@ const PageTitle = ({
               </span>
             )}
           </button>
-        )}
+        ) : null}
       </div>
     </div>
   );

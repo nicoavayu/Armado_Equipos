@@ -5,6 +5,7 @@ import {
   checkIfAlreadyVoted,
   uploadFoto,
   submitVotos,
+  isMatchVotingOpen,
   supabase,
   getGuestSessionId,
 } from '../supabase';
@@ -225,8 +226,95 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
           setAuthenticatedAvatarUrl(resolvedAuthAvatarUrl || null);
         }
 
-        // If user is recognized as player or creator, use authenticated logic
-        if (userId && (matchPlayer || isCreator)) {
+        const hasVotingWindowOpen = async ({ matchId }) => {
+          try {
+            return await isMatchVotingOpen(matchId);
+          } catch (gateError) {
+            console.warn('[VOTING] voting gate validation failed, denying access', gateError);
+            return false;
+          }
+        };
+
+        const hasActiveCallToVoteForUser = async ({ matchId, recipientUserId, isCreatorUser }) => {
+          const hasActiveVotingWindow = await hasVotingWindowOpen({ matchId });
+          if (!hasActiveVotingWindow) return false;
+          if (!recipientUserId || isCreatorUser) return true;
+
+          try {
+            const matchIdText = String(matchId);
+            const { data, error: notificationsError } = await supabase
+              .from('notifications')
+              .select('id')
+              .eq('user_id', recipientUserId)
+              .eq('type', 'call_to_vote')
+              .or(`partido_id.eq.${matchId},data->>match_id.eq.${matchIdText},data->>matchId.eq.${matchIdText}`)
+              .limit(1);
+
+            if (notificationsError) {
+              console.warn('[VOTING] call_to_vote access lookup failed, denying access', notificationsError);
+              return false;
+            }
+
+            return Boolean(data && data.length > 0);
+          } catch (notificationsError) {
+            console.warn('[VOTING] call_to_vote access lookup threw, denying access', notificationsError);
+            return false;
+          }
+        };
+
+        const hasActivePublicVotingWindow = async ({ matchId }) => {
+          return hasVotingWindowOpen({ matchId });
+        };
+
+        const hasStrongAuthenticatedPlayerMatch = Boolean(
+          user?.id
+          && matchPlayer?.usuario_id
+          && matchPlayer.usuario_id === user.id
+        );
+
+        // Public voting must only auto-resolve identity on an explicit current-user -> roster-player match.
+        // Logged-in users without that exact link should still go through identification like guests.
+        if (isPublicVoting) {
+          const hasActivePublicVoting = await hasActivePublicVotingWindow({ matchId: partidoId });
+
+          if (!hasActivePublicVoting) {
+            setAuthzError('La votación no está abierta en este momento.');
+            setHasAccess(false);
+            return setCargandoVotoUsuario(false);
+          }
+
+          setHasAccess(true);
+          setIsAdmin(Boolean(isCreator));
+
+          if (hasStrongAuthenticatedPlayerMatch) {
+            setUseAuthenticatedSubmit(true);
+            setAuthenticatedMatchPlayerName(matchPlayer?.nombre || null);
+            setNombre(matchPlayer.nombre);
+            setFotoPreview(matchPlayer.avatar_url || resolvedAuthAvatarUrl || null);
+            setStep(1); // Skip identification only for a strong, explicit roster match.
+          } else {
+            setUseAuthenticatedSubmit(false);
+            setAuthenticatedMatchPlayerName(null);
+
+            if (typeof getGuestSessionId === 'function') {
+              userId = getGuestSessionId(partidoId);
+            } else {
+              userId = `guest_${partidoId}_${Date.now()}`;
+            }
+          }
+        } else if (userId && (matchPlayer || isCreator)) {
+          const hasActiveCallToVote = await hasActiveCallToVoteForUser({
+            matchId: partidoId,
+            recipientUserId: userId,
+            isCreatorUser: isCreator,
+          });
+
+          if (!hasActiveCallToVote) {
+            setAuthzError('La votación no está abierta en este momento.');
+            setHasAccess(false);
+            return setCargandoVotoUsuario(false);
+          }
+
           setHasAccess(true);
           setIsAdmin(isCreator);
           setUseAuthenticatedSubmit(true);
@@ -236,20 +324,6 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
             setNombre(matchPlayer.nombre);
             setFotoPreview(matchPlayer.avatar_url || resolvedAuthAvatarUrl || null);
             setStep(1); // Skip identification step
-          }
-        } else if (isPublicVoting) {
-          // Fallback to guest logic
-          setHasAccess(true);
-          setIsAdmin(false);
-          setUseAuthenticatedSubmit(false);
-          setAuthenticatedMatchPlayerName(null);
-          // If logged in but not in match, treat as guest (or should we use their auth ID for guest voting? 
-          // Requirements imply guests select name from list. Let's keep guest ID logic unless they are in roster)
-
-          if (typeof getGuestSessionId === 'function') {
-            userId = getGuestSessionId(partidoId);
-          } else {
-            userId = `guest_${partidoId}_${Date.now()}`;
           }
         } else {
           // Not public, not in roster -> Denied
@@ -343,25 +417,6 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
     jugadores,
     useAuthenticatedSubmit,
   ]);
-
-  // Modo público: precargar nombre desde localStorage si existe
-  useEffect(() => {
-    if (!isPublicRoute) return;
-    if (nombre) return;
-    if (!jugadores || jugadores.length === 0) return;
-
-    const storageKey = resolvePublicStorageKey();
-    if (!storageKey) return;
-
-    const savedName = localStorage.getItem(storageKey);
-    if (!savedName) return;
-
-    const match = jugadoresIdentificacion.find((j) => j.nombre === savedName);
-    if (match) {
-      setNombre(savedName);
-      setStep(1);
-    }
-  }, [isPublicRoute, nombre, jugadores, jugadoresIdentificacion]);
 
   // Guard: Lock voter if already voted
   useEffect(() => {
@@ -621,11 +676,6 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
         return;
       }
 
-      const storageKey = resolvePublicStorageKey();
-      if (storageKey && nombre) {
-        localStorage.setItem(storageKey, nombre);
-      }
-
       const partidoIdParam = urlParams.get('partidoId');
       const codigoParam = urlParams.get('codigo');
       const partidoId = partidoIdParam ? parseInt(partidoIdParam, 10) : (resolvedMatchIdRef.current || partidoActual?.id);
@@ -683,7 +733,7 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
   }
 
   // Block if no access
-  if (hasAccess === false && !isPublicVoting) {
+  if (hasAccess === false) {
     return (
       <div className={wrapperClass}>
         {cancelVoteButton}
@@ -694,7 +744,7 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
             ACCESO DENEGADO
           </div>
           <div className={textClass}>
-            No tienes permiso para votar en este partido.
+            {authzError || 'No tienes permiso para votar en este partido.'}
           </div>
           {authzError && (
             <div className="text-white/70 text-base mb-5 font-oswald">
@@ -1225,6 +1275,10 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
                         if (DEBUG) console.debug('[Guard] First RPC detected duplicate - locked');
                         return;
                       }
+                      if (result === 'voting_not_open') {
+                        notifyBlockingError('La votación no está abierta en este momento.');
+                        return;
+                      }
                       if (result === 'already_voted_for_player') {
                         resultados.already += 1;
                         continue;
@@ -1288,6 +1342,10 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
                       if (DEBUG) console.debug('[Guard] Second RPC detected duplicate - locked');
                       return;
                     }
+                    if (result === 'voting_not_open') {
+                      notifyBlockingError('La votación no está abierta en este momento.');
+                      return;
+                    }
                     if (result === 'already_voted_for_player') {
                       resultados.already += 1;
                       alreadySubmitted = true;
@@ -1329,6 +1387,10 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
                     console.warn('[Vote] could not mark completed', doneError);
                   } else {
                     const r = doneData?.result || doneData;
+                    if (r === 'voting_not_open') {
+                      notifyBlockingError('La votación no está abierta en este momento.');
+                      return;
+                    }
                     if (r === 'already_completed') {
                       lockedRef.current = true;
                       setPublicAlreadyVoted(true);
@@ -1386,9 +1448,6 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
                   await submitVotos(votos, jugador?.uuid, partidoId, jugador?.nombre, jugador?.avatar_url);
 
                   console.debug('[Vote] submit result', { ok: true });
-
-                  // Trigger refresh for admin panel (updated_at handled by trigger)
-                  await supabase.from('partidos').update({ status: 'voted' }).eq('id', partidoId);
 
                   console.debug('[Vote] step change', { from: 3, to: 'finalizado' });
                   lockedRef.current = true;

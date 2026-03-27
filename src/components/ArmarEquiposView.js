@@ -18,12 +18,14 @@ import { PlayerCardTrigger, AvatarFallback } from './ProfileComponents';
 import LoadingSpinner from './LoadingSpinner';
 import PageTitle from './PageTitle';
 import MatchInfoSection from './MatchInfoSection';
+import WhatsappIcon from './WhatsappIcon';
 import normalizePartidoForHeader from '../utils/normalizePartidoForHeader';
 import { useAuth } from './AuthProvider';
+import { useNativeFeatures } from '../hooks/useNativeFeatures';
 import { sendVotingNotifications } from '../services/notificationService';
 import ConfirmModal from '../components/ConfirmModal';
 import { buildBalancedTeams } from '../utils/teamBalancer';
-import { MoreVertical, Share2 } from 'lucide-react';
+import { MoreVertical, RotateCcw } from 'lucide-react';
 
 const INVITE_ACCEPT_BUTTON_VIOLET = '#644dff';
 const SLOT_SKEW_X = 0;
@@ -77,6 +79,7 @@ export default function ArmarEquiposView({
   chatUnreadCount = 0,
 }) {
   const { user } = useAuth();
+  const { isNative } = useNativeFeatures();
   const [votantes, setVotantes] = useState([]);
   const [votantesConNombres, setVotantesConNombres] = useState([]);
   const [isClosing, setIsClosing] = useState(false);
@@ -91,6 +94,9 @@ export default function ArmarEquiposView({
   const [playerToRemove, setPlayerToRemove] = useState(null); // Para modal de eliminación
   const [hasPersistedTeams, setHasPersistedTeams] = useState(false);
   const playersSectionRef = React.useRef(null);
+  const voterRefreshInFlightRef = React.useRef(false);
+  const actionsMenuRef = React.useRef(null);
+  const actionsMenuButtonRef = React.useRef(null);
   const navigate = useNavigate();
 
   // Control de permisos: verificar si el usuario es admin del partido
@@ -173,14 +179,19 @@ export default function ArmarEquiposView({
   }, [normalizeIdentity, normalizeName, votantesIdSet, votantesNameSet]);
 
   const refreshVotantes = useCallback(async () => {
-    if (!partidoActual?.id) return;
+    if (!partidoActual?.id || voterRefreshInFlightRef.current) return;
+    voterRefreshInFlightRef.current = true;
     try {
-      const votantesIds = await getVotantesIds(partidoActual.id);
-      const votantesNombres = await getVotantesConNombres(partidoActual.id);
+      const [votantesIds, votantesNombres] = await Promise.all([
+        getVotantesIds(partidoActual.id),
+        getVotantesConNombres(partidoActual.id),
+      ]);
       setVotantes(votantesIds || []);
       setVotantesConNombres(votantesNombres || []);
     } catch (error) {
       console.error('Error loading votantes:', error);
+    } finally {
+      voterRefreshInFlightRef.current = false;
     }
   }, [partidoActual?.id]);
 
@@ -226,6 +237,11 @@ export default function ArmarEquiposView({
       })
       .subscribe();
 
+    const pollIntervalId = window.setInterval(() => {
+      if (document.visibilityState !== 'visible') return;
+      refreshVotantes();
+    }, 2000);
+
     const handleFocus = () => {
       refreshVotantes();
     };
@@ -239,11 +255,38 @@ export default function ArmarEquiposView({
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
+      window.clearInterval(pollIntervalId);
       subscription.unsubscribe();
       window.removeEventListener('focus', handleFocus);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [partidoActual?.id, refreshVotantes]);
+
+  useEffect(() => {
+    if (!actionsMenuOpen) return undefined;
+
+    const handlePointerDown = (event) => {
+      if (actionsMenuRef.current?.contains(event.target)) return;
+      if (actionsMenuButtonRef.current?.contains(event.target)) return;
+      setActionsMenuOpen(false);
+    };
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        setActionsMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('touchstart', handlePointerDown);
+    document.addEventListener('keydown', handleEscape);
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('touchstart', handlePointerDown);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [actionsMenuOpen]);
 
   // Derivar estado de votación desde DB (notificaciones de tipo call_to_vote)
   useEffect(() => {
@@ -369,6 +412,10 @@ export default function ArmarEquiposView({
           }
         }, 500);
       } else {
+        const matchCode = await resolveMatchCode();
+        if (matchCode) {
+          await ensurePublicVotingMarker(matchCode);
+        }
         showInlineNotice('warning', 'No se enviaron notificaciones porque no hay jugadores con cuenta.');
       }
 
@@ -398,20 +445,7 @@ export default function ArmarEquiposView({
       const result = await resetVotacion(partidoActual.id);
       console.debug('[Teams] reset result', result);
 
-      showInlineNotice('success', 'Votación reseteada. Ahora podés votar de nuevo.');
-
-      // Volver a estado pre-votación: borrar notificaciones de call_to_vote y refrescar bandera local
-      try {
-        const pid = Number(partidoActual.id);
-        const orExpr = `partido_id.eq.${pid},match_ref.eq.${pid},data->>match_id.eq.${pid},data->>matchId.eq.${pid}`;
-        await supabase
-          .from('notifications')
-          .delete()
-          .eq('type', 'call_to_vote')
-          .or(orExpr);
-      } catch (notifError) {
-        console.warn('[Teams] reset voting: failed to delete call_to_vote notifications', notifError);
-      }
+      showInlineNotice('success', 'Votación reseteada. Cuando quieras, volvé a llamar a votar.');
 
       // Limpiar estado local inmediato para reflejar reset (sin esperar re-fetch)
       setVotingStarted(false);
@@ -633,42 +667,80 @@ export default function ArmarEquiposView({
     }
   };
 
+  const ensurePublicVotingMarker = async (matchCode) => {
+    const matchId = Number(partidoActual?.id);
+    const adminUserId = user?.id;
+    if (!Number.isFinite(matchId) || matchId <= 0 || !adminUserId || !matchCode) return;
+
+    try {
+      const matchIdText = String(matchId);
+      const { data: existingRows, error: lookupError } = await supabase
+        .from('notifications')
+        .select('id')
+        .eq('user_id', adminUserId)
+        .in('type', ['call_to_vote', 'pre_match_vote'])
+        .or(`partido_id.eq.${matchId},data->>match_id.eq.${matchIdText},data->>matchId.eq.${matchIdText}`)
+        .limit(1);
+
+      if (lookupError) {
+        console.warn('[Teams] Could not check public voting marker:', lookupError);
+      }
+
+      if (existingRows && existingRows.length > 0) {
+        return;
+      }
+
+      const { error: insertError } = await supabase
+        .from('notifications')
+        .insert([{
+          user_id: adminUserId,
+          title: 'Votación abierta',
+          message: 'Link público de votación habilitado.',
+          type: 'pre_match_vote',
+          partido_id: matchId,
+          data: {
+            match_id: matchIdText,
+            matchId: matchId,
+            matchCode,
+          },
+          read: true,
+          created_at: new Date().toISOString(),
+        }]);
+
+      if (insertError) {
+        console.warn('[Teams] Could not create public voting marker:', insertError);
+      }
+    } catch (error) {
+      console.warn('[Teams] Unexpected error creating public voting marker:', error);
+    }
+  };
+
   async function handleWhatsApp() {
     const matchCode = await resolveMatchCode();
     if (!matchCode) {
       showInlineNotice('warning', 'No se pudo obtener el código del partido para compartir.');
       return;
     }
+    await ensurePublicVotingMarker(matchCode);
     const baseUrl = getPublicBaseUrl() || window.location.origin;
     const publicLink = `${baseUrl}/votar-equipos?codigo=${encodeURIComponent(matchCode)}`;
     const text = 'Votá para armar los equipos ⚽️';
-    const waText = `${text}\n${publicLink}`;
-    const encodedText = encodeURIComponent(waText);
+    const safeText = String(text || '').trim();
+    const safeUrl = String(publicLink || '').trim();
+    const payloadText = safeText
+      ? (safeUrl && !safeText.includes(safeUrl) ? `${safeText}\n${safeUrl}` : safeText)
+      : safeUrl;
+    const encodedText = encodeURIComponent(payloadText);
     const whatsappWebUrl = `https://api.whatsapp.com/send?text=${encodedText}`;
     const whatsappAppUrl = `whatsapp://send?text=${encodedText}`;
     const isMobileWeb = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
 
     console.debug('[Teams] share link', { partidoId: partidoActual?.id, matchCode });
 
-    // En mobile web priorizamos deep-link a WhatsApp para abrir selector de contactos.
-    if (isMobileWeb) {
+    // En native/mobile priorizamos deep-link directo a WhatsApp.
+    if (isNative || isMobileWeb) {
       window.location.href = whatsappAppUrl;
       return;
-    }
-
-    // Intentar Web Share API (si disponible) en desktop.
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: 'Votación del partido',
-          text,
-          url: publicLink,
-        });
-        return;
-      } catch (shareError) {
-        if (shareError?.name === 'AbortError') return;
-        console.warn('[Share] navigator.share failed, fallback to WhatsApp URL', shareError);
-      }
     }
 
     // Fallback WhatsApp web.
@@ -859,7 +931,6 @@ export default function ArmarEquiposView({
     transform: `skewX(${SLOT_SKEW_X}deg)`,
   };
   const sharedVoteCtaClass = 'w-[90%] max-w-[520px] mx-auto font-bebas text-base px-4 py-2.5 border border-[#7d5aff] rounded-none cursor-pointer transition-all text-white min-h-[44px] flex items-center justify-center text-center bg-[#6a43ff] shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:bg-[#7550ff] active:opacity-95 disabled:opacity-55 disabled:cursor-not-allowed';
-  const headerActionIconButtonClass = 'h-8 w-8 inline-flex items-center justify-center bg-transparent border-0 p-0 text-[#29aaff]/80 hover:text-[#29aaff] transition-colors disabled:opacity-45 disabled:cursor-not-allowed';
   const kebabMenuButtonClass = 'kebab-menu-btn';
 
   // Si no es admin, mostrar acceso denegado
@@ -914,15 +985,7 @@ export default function ArmarEquiposView({
                   {isAdmin && (
                     <div className="relative flex items-center gap-1.5 shrink-0">
                       <button
-                        type="button"
-                        className={headerActionIconButtonClass}
-                        onClick={handleWhatsApp}
-                        title="Compartir link de votación"
-                        aria-label="Compartir link de votación"
-                      >
-                        <Share2 size={14} style={{ color: HEADER_ICON_COLOR, filter: HEADER_ICON_GLOW }} />
-                      </button>
-                      <button
+                        ref={actionsMenuButtonRef}
                         className={kebabMenuButtonClass}
                         onClick={() => setActionsMenuOpen(!actionsMenuOpen)}
                         type="button"
@@ -932,17 +995,37 @@ export default function ArmarEquiposView({
                         <MoreVertical size={15} style={{ color: HEADER_ICON_COLOR, filter: HEADER_ICON_GLOW }} />
                       </button>
                       {actionsMenuOpen && (
-                        <div className="admin-action-menu absolute top-full right-0 mt-1 w-48 z-10 overflow-hidden transition-all duration-200 ease-out" style={{ transform: `skewX(-${SLOT_SKEW_X}deg)` }}>
+                        <div
+                          ref={actionsMenuRef}
+                          className="admin-action-menu absolute top-full right-0 mt-1 w-72 z-10 overflow-hidden transition-all duration-200 ease-out"
+                          style={{ transform: `skewX(-${SLOT_SKEW_X}deg)` }}
+                        >
                           <div style={{ transform: `skewX(${SLOT_SKEW_X}deg)` }}>
                             <button
-                              className="admin-action-menu-item"
+                              className="admin-action-menu-item whitespace-nowrap"
+                              onClick={() => {
+                                setActionsMenuOpen(false);
+                                handleWhatsApp();
+                              }}
+                              type="button"
+                            >
+                              <span className="inline-flex items-center gap-2">
+                                <WhatsappIcon size={14} color="#25D366" />
+                                <span>Enviar link de votación</span>
+                              </span>
+                            </button>
+                            <button
+                              className="admin-action-menu-item whitespace-nowrap"
                               onClick={() => {
                                 setActionsMenuOpen(false);
                                 setConfirmConfig({ open: true, action: 'reset' });
                               }}
                               type="button"
                             >
-                              <span>Resetear votación</span>
+                              <span className="inline-flex items-center gap-2">
+                                <RotateCcw size={14} style={{ color: HEADER_ICON_COLOR, filter: HEADER_ICON_GLOW }} />
+                                <span>Resetear votación</span>
+                              </span>
                             </button>
                           </div>
                         </div>
@@ -1094,7 +1177,7 @@ export default function ArmarEquiposView({
         <ConfirmModal
           isOpen={confirmConfig.open && confirmConfig.action === 'call_to_vote'}
           title={'Iniciar votación'}
-          message={`Se notificará a los ${jugadores.length} jugadores que tienen la app para que voten. Luego entrarás a la pantalla de votación.`}
+          message={'Se notificará a los jugadores habilitados para votar. Luego entrarás a la pantalla de votación.'}
           onConfirm={() => {
             setConfirmConfig({ open: false, action: null });
             handleCallToVote();

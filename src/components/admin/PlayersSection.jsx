@@ -432,7 +432,7 @@ const PlayersSection = ({
   const remainingTitularSlots = capacity > 0 ? Math.max(0, capacity - titularPlayers.length) : null;
   const isMatchFull = maxRosterSlots > 0 && jugadores.length >= maxRosterSlots;
   const canShareInviteLink = isAdmin && typeof onShareClick === 'function' && !isMatchFull;
-  const canShareRosterUpdate = isAdmin && typeof onShareRosterUpdate === 'function';
+  const canShareRosterUpdate = typeof onShareRosterUpdate === 'function' && (isAdmin || isPlayerInMatch);
   const completionAnimTimeoutRef = useRef(null);
   const previousCompleteRef = useRef(isTitularesComplete);
   const showInviteStylePostJoin = !isAdmin && isPlayerInMatch;
@@ -763,6 +763,19 @@ const PlayersSection = ({
             >
               <div style={{ transform: `skewX(${SLOT_SKEW_X}deg)` }}>
                 <div className="py-1 bg-transparent">
+                  {canShareRosterUpdate && (
+                    <button
+                      className="admin-action-menu-item whitespace-nowrap"
+                      onClick={() => {
+                        setLocalMenuOpen(false);
+                        onShareRosterUpdate?.();
+                      }}
+                      type="button"
+                    >
+                      <WhatsappIcon size={14} color="#25D366" />
+                      <span>Compartir por WhatsApp</span>
+                    </button>
+                  )}
                   <button
                     className="admin-action-menu-item admin-action-menu-item--danger whitespace-nowrap"
                     onClick={() => {

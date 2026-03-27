@@ -41,7 +41,7 @@ describe('buildActivityFeed awards + ordering', () => {
     expect(items[0].title.toLowerCase()).toContain('ganaste un premio');
   });
 
-  test('keeps survey_results_ready as normal results route without forcing awards', async () => {
+  test('abre survey_results_ready en el mismo destino forzado de premiación', async () => {
     const items = await buildActivityFeed([
       {
         id: 'notif-results-1',
@@ -62,7 +62,7 @@ describe('buildActivityFeed awards + ordering', () => {
 
     expect(items).toHaveLength(1);
     expect(items[0].type).toBe('survey_results_ready');
-    expect(items[0].route).toBe('/resultados-encuesta/502');
+    expect(items[0].route).toBe('/resultados-encuesta/502?showAwards=1');
   });
 
   test('keeps unread notifications first in activity feed', async () => {

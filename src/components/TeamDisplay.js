@@ -49,6 +49,7 @@ const CARD_STROKE_BLUE = 'rgba(41, 170, 255, 0.9)';
 const CARD_GLOW_BLUE = '0 0 9px rgba(41, 170, 255, 0.24)';
 const SYSTEM_ICON_BLUE = '#29aaff';
 const SYSTEM_ICON_BLUE_GLOW = 'drop-shadow(0 0 4px rgba(41, 170, 255, 0.78))';
+const TEAM_DISPLAY_HELP_SEEN_KEY = 'team_display_help_seen_v1';
 
 const isUuid = (v) => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
 const hasMissingColumnError = (error, columnName) => {
@@ -81,6 +82,15 @@ const persistMatchTeamsConfirmedState = async ({ partidoId, confirmed }) => {
 
 const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = false, partidoId = null, nombre: _nombre, fecha, hora, sede, modalidad, tipo }) => {
   const [showAverages, setShowAverages] = useState(false);
+  const [helpSeen, setHelpSeen] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      return window.localStorage.getItem(TEAM_DISPLAY_HELP_SEEN_KEY) === '1';
+    } catch (_error) {
+      return false;
+    }
+  });
+  const [showInteractionsHelp, setShowInteractionsHelp] = useState(false);
   const [lockedPlayers, setLockedPlayers] = useState([]);
   const [editingTeamId, setEditingTeamId] = useState(null);
   const [editingTeamName, setEditingTeamName] = useState('');
@@ -100,7 +110,10 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
   const [votantesConNombres, setVotantesConNombres] = useState([]);
   const lastDragEndAtRef = useRef(0);
   const suppressPlayerTapRef = useRef(false);
+  const helpPopoverRef = useRef(null);
+  const helpButtonRef = useRef(null);
   const { notice, showInlineNotice, clearInlineNotice } = useInlineNotice();
+  const highlightHelp = !helpSeen;
 
   // [TEAM_BALANCER_EDIT] Para jugadores no-admin, ocultar promedios por defecto
   useEffect(() => {
@@ -350,6 +363,45 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
       window.removeEventListener('focus', handleFocus);
     };
   }, [partidoId]);
+
+  useEffect(() => {
+    if (!showInteractionsHelp) return undefined;
+
+    const handlePointerDown = (event) => {
+      if (helpPopoverRef.current?.contains(event.target)) return;
+      if (helpButtonRef.current?.contains(event.target)) return;
+      setShowInteractionsHelp(false);
+    };
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        setShowInteractionsHelp(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('touchstart', handlePointerDown);
+    document.addEventListener('keydown', handleEscape);
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('touchstart', handlePointerDown);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [showInteractionsHelp]);
+
+  const handleHelpToggle = () => {
+    const nextOpen = !showInteractionsHelp;
+    if (nextOpen && !helpSeen) {
+      setHelpSeen(true);
+      try {
+        window.localStorage.setItem(TEAM_DISPLAY_HELP_SEEN_KEY, '1');
+      } catch (_error) {
+        // Ignore storage failures; the hint can reappear next time.
+      }
+    }
+    setShowInteractionsHelp(nextOpen);
+  };
 
   // Robust player array extraction from team object
   const getPlayersArrayFromTeam = (team) => {
@@ -870,8 +922,13 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
         .map((pId) => `- ${getPlayerDetails(pId).nombre}`)
         .join('\n');
 
-    const teamAText = `*EQUIPO A* (Puntaje: ${(teamA.score ?? 0).toFixed(2)})\n${playersToText(teamA)}`;
-    const teamBText = `*EQUIPO B* (Puntaje: ${(teamB.score ?? 0).toFixed(2)})\n${playersToText(teamB)}`;
+    const resolveShareTeamName = (team, fallbackName) => {
+      const candidate = String(team?.name || '').trim();
+      return candidate || fallbackName;
+    };
+
+    const teamAText = `*${resolveShareTeamName(teamA, 'Equipo A')}* (Puntaje: ${(teamA.score ?? 0).toFixed(2)})\n${playersToText(teamA)}`;
+    const teamBText = `*${resolveShareTeamName(teamB, 'Equipo B')}* (Puntaje: ${(teamB.score ?? 0).toFixed(2)})\n${playersToText(teamB)}`;
 
     // WhatsApp friendly: no header, clear spacing, real line breaks.
     const message = `${teamAText}\n\n${teamBText}`;
@@ -936,10 +993,53 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
           font-size: 0.95rem;
           margin-inline: 0;
         }
+        .team-help-btn--attention {
+          animation: team-help-pulse 1.7s ease-in-out infinite;
+        }
+        @keyframes team-help-pulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.09); }
+        }
       `}</style>
       {/* Chat button para todos los usuarios - Hide floating trigger as it is in the header */}
       <SafeChatButton partidoId={partidoId} hideTrigger={true} />
-      <SafePageTitle onBack={onBackToHome}>EQUIPOS ARMADOS</SafePageTitle>
+      <SafePageTitle
+        onBack={onBackToHome}
+        rightActions={(
+          <button
+            ref={helpButtonRef}
+            type="button"
+            className={`h-8 w-8 inline-flex items-center justify-center rounded-full border transition-colors ${highlightHelp ? 'team-help-btn--attention' : ''}`}
+            style={{
+              borderColor: highlightHelp ? 'rgba(247, 197, 72, 0.72)' : 'rgba(255,255,255,0.14)',
+              background: highlightHelp ? 'rgba(247, 197, 72, 0.18)' : 'rgba(255,255,255,0.05)',
+              color: highlightHelp ? '#f6d768' : 'rgba(255,255,255,0.88)',
+              boxShadow: highlightHelp ? '0 0 16px rgba(247,197,72,0.16)' : 'none',
+            }}
+            aria-label="Ayuda sobre equipos armados"
+            aria-expanded={showInteractionsHelp}
+            onClick={handleHelpToggle}
+          >
+            <span className="font-bebas text-[15px] leading-none">!</span>
+          </button>
+        )}
+      >
+        EQUIPOS ARMADOS
+      </SafePageTitle>
+      {showInteractionsHelp ? (
+        <div
+          ref={helpPopoverRef}
+          className="fixed right-4 top-[72px] z-[1002] w-[min(280px,calc(100vw-32px))] rounded-[8px] border border-white/12 bg-[#141b47]/95 px-3 py-3 shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-sm"
+          role="dialog"
+          aria-label="Ayuda rápida"
+        >
+          <div className="font-bebas text-[12px] tracking-[0.08em] text-white/88">Ayuda rápida</div>
+          <div className="mt-2 flex flex-col gap-2 text-[12px] font-oswald leading-snug text-white/72">
+            <div>Podés arrastrar jugadores entre equipos para rearmarlos.</div>
+            <div>Tocá una card para fijarla en su equipo.</div>
+          </div>
+        </div>
+      ) : null}
       <div className="relative left-1/2 w-screen -translate-x-1/2">
         <SafeMatchInfoSection
           partido={normalizePartidoForHeader(typeof partidoId === 'object' ? partidoId : undefined)}

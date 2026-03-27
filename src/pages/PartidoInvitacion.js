@@ -331,6 +331,71 @@ const resolveSlotsFromMatchType = (match = {}) => {
 };
 
 const getGuestStorageKey = (matchId, _guestName = '') => `guest_joined_${matchId}`;
+const getGuestIdentityStorageKey = (matchId) => `guest_join_identity_${matchId}`;
+const createGuestDeviceUuid = () => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `guest_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+};
+
+const getOrCreateGuestJoinIdentity = (matchId) => {
+  const storageKey = getGuestIdentityStorageKey(matchId);
+  const legacyStorageKey = getGuestStorageKey(matchId);
+
+  try {
+    const existingValue = localStorage.getItem(storageKey);
+    if (existingValue) {
+      return {
+        storageKey,
+        legacyStorageKey,
+        guestUuid: existingValue,
+        persisted: true,
+      };
+    }
+
+    const legacyValue = localStorage.getItem(legacyStorageKey);
+    if (legacyValue) {
+      localStorage.setItem(storageKey, legacyValue);
+      return {
+        storageKey,
+        legacyStorageKey,
+        guestUuid: legacyValue,
+        persisted: true,
+      };
+    }
+
+    const nextGuestUuid = createGuestDeviceUuid();
+    localStorage.setItem(storageKey, nextGuestUuid);
+    localStorage.setItem(legacyStorageKey, nextGuestUuid);
+    return {
+      storageKey,
+      legacyStorageKey,
+      guestUuid: nextGuestUuid,
+      persisted: true,
+    };
+  } catch (error) {
+    console.warn('[INVITE] guest identity storage unavailable', error);
+    return {
+      storageKey,
+      legacyStorageKey,
+      guestUuid: createGuestDeviceUuid(),
+      persisted: false,
+    };
+  }
+};
+
+const persistGuestJoinIdentity = (storageKey, guestUuid, legacyStorageKey = null) => {
+  if (!storageKey || !guestUuid) return;
+  try {
+    localStorage.setItem(storageKey, guestUuid);
+    if (legacyStorageKey) {
+      localStorage.setItem(legacyStorageKey, guestUuid);
+    }
+  } catch (error) {
+    console.warn('[INVITE] guest identity persist failed', error);
+  }
+};
 const PLACEHOLDER_NUMBER_STYLE = {
   color: 'transparent',
   WebkitTextStroke: '2px rgba(104, 154, 255, 0.5)',
@@ -678,6 +743,7 @@ function SharedInviteLayout({
 }
 
 export default function PartidoInvitacion({ mode = 'invite' }) {
+  const MAX_GUEST_AVATAR_DATA_URL_LENGTH = 150000;
   const [jugadores, setJugadores] = useState([]);
   const { partidoId } = useParams();
   const navigate = useNavigate();
@@ -786,6 +852,10 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
     }
     try {
       const dataUrl = await toCompressedDataUrl(file);
+      if (dataUrl.length > MAX_GUEST_AVATAR_DATA_URL_LENGTH) {
+        showInlineNotice('warning', 'La foto es demasiado pesada. Probá con otra imagen o sumate sin foto.');
+        return;
+      }
       setGuestPhotoDataUrl(dataUrl);
     } catch (err) {
       console.error('[INVITE] photo parse error:', err);
@@ -1823,8 +1893,11 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
 
     setSubmitting(true);
     try {
-      const storageKey = getGuestStorageKey(partidoId, guestName);
-      const existingGuestUuid = localStorage.getItem(storageKey);
+      const {
+        storageKey,
+        legacyStorageKey,
+        guestUuid: deviceGuestUuid,
+      } = getOrCreateGuestJoinIdentity(partidoId);
 
       const response = await fetch(`${supabaseUrl}/functions/v1/join-match-guest`, {
         method: 'POST',
@@ -1838,8 +1911,10 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           codigo: codigoParam,
           invite: inviteTokenParam,
           nombre: guestName.trim(),
-          guest_uuid: existingGuestUuid || null,
-          avatar_data_url: guestPhotoDataUrl || null,
+          guest_uuid: deviceGuestUuid || null,
+          avatar_data_url: guestPhotoDataUrl && guestPhotoDataUrl.length <= MAX_GUEST_AVATAR_DATA_URL_LENGTH
+            ? guestPhotoDataUrl
+            : null,
         }),
       });
 
@@ -1866,10 +1941,23 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           showInlineNotice('warning', 'El partido ya está completo.');
           return;
         }
+        if (reason === 'rate_limited') {
+          showInlineNotice('warning', 'Demasiados intentos seguidos. Esperá unos minutos y volvé a probar.');
+          return;
+        }
+        if (reason === 'payload_too_large') {
+          showInlineNotice('warning', 'La foto es demasiado pesada. Probá con una imagen más liviana o sin foto.');
+          return;
+        }
+        if (reason === 'invalid_name' || reason === 'invalid_payload') {
+          showInlineNotice('warning', 'Revisá tu nombre y volvé a intentar.');
+          return;
+        }
         throw new Error(result.error || 'Error al sumarse');
       }
 
       if (result?.already_joined) {
+        persistGuestJoinIdentity(storageKey, result?.guest_uuid || deviceGuestUuid, legacyStorageKey);
         setAlreadyJoined(true);
         setStep('already-joined');
         showInlineNotice('info', `${guestName}, ya estabas anotado.`);
@@ -1877,7 +1965,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       }
 
       // Guardar en localStorage para idempotencia
-      localStorage.setItem(storageKey, result.guest_uuid);
+      persistGuestJoinIdentity(storageKey, result?.guest_uuid || deviceGuestUuid, legacyStorageKey);
 
       setStep('success');
       showInlineNotice('success', `${guestName}, te sumaste al partido.`);

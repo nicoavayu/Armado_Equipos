@@ -177,10 +177,8 @@ describe('PrivateGroupsTab', () => {
       />,
     );
 
-    expect(await screen.findByText('Modo diagnostico: query base cruda')).toBeInTheDocument();
-    expect(screen.getByText('Futbol 7')).toBeInTheDocument();
-    expect(screen.getByText('ID: group-1')).toBeInTheDocument();
-    expect(screen.getByText('Integrantes: 0')).toBeInTheDocument();
+    expect(await screen.findByText('Futbol 7')).toBeInTheDocument();
+    expect(await screen.findByText('1 integrante')).toBeInTheDocument();
     expect(screen.queryByText('invite-group-modal')).not.toBeInTheDocument();
   });
 });

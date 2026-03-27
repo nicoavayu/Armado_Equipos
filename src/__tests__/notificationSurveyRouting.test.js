@@ -316,7 +316,7 @@ describe('survey notification routing', () => {
     expect(result.reason).toBe('survey_reminder_stale');
   });
 
-  test('survey_results_ready navega sin forzar showAwards aunque venga en link legacy', async () => {
+  test('survey_results_ready navega forzando premiación aunque venga en link legacy', async () => {
     const navigate = jest.fn();
     await openNotification({
       type: 'survey_results_ready',
@@ -326,7 +326,14 @@ describe('survey notification routing', () => {
       },
     }, navigate);
 
-    expect(navigate).toHaveBeenCalledWith('/resultados-encuesta/700?from=legacy');
+    expect(navigate).toHaveBeenCalledWith(
+      '/resultados-encuesta/700?showAwards=1&from=legacy',
+      expect.objectContaining({
+        state: expect.objectContaining({
+          forceAwards: true,
+        }),
+      }),
+    );
   });
 
   test('bloquea survey_finished cuando el partido quedó not_eligible para premios', async () => {
@@ -411,6 +418,26 @@ describe('survey notification routing', () => {
     );
   });
 
+  test('survey_finished navega con el mismo modo forzado de premiación', async () => {
+    const navigate = jest.fn();
+    await openNotification({
+      type: 'survey_finished',
+      partido_id: 704,
+      data: {
+        resultsUrl: '/resultados-encuesta/704',
+      },
+    }, navigate);
+
+    expect(navigate).toHaveBeenCalledWith(
+      '/resultados-encuesta/704?showAwards=1',
+      expect.objectContaining({
+        state: expect.objectContaining({
+          forceAwards: true,
+        }),
+      }),
+    );
+  });
+
   test('bloquea notificaciones operativas cuando el partido ya está finalizado', async () => {
     const supabaseMock = createSupabaseMock({
       partidoRow: {
@@ -430,6 +457,31 @@ describe('survey notification routing', () => {
       },
       supabaseClient: supabaseMock,
       nowMs: Date.parse('2025-01-02T12:00:00.000Z'),
+    });
+
+    expect(result.isActionable).toBe(false);
+    expect(result.reason).toBe('match_finished');
+  });
+
+  test('bloquea call_to_vote cuando el partido ya tiene equipos formados', async () => {
+    const supabaseMock = createSupabaseMock({
+      partidoRow: {
+        id: 815,
+        fecha: '2025-01-01',
+        hora: '20:00',
+        estado: 'equipos_formados',
+        result_status: 'pending',
+        finished_at: null,
+      },
+    });
+
+    const result = await resolveNotificationActionability({
+      notification: {
+        type: 'call_to_vote',
+        partido_id: 815,
+      },
+      supabaseClient: supabaseMock,
+      nowMs: Date.parse('2025-01-01T21:00:00.000Z'),
     });
 
     expect(result.isActionable).toBe(false);

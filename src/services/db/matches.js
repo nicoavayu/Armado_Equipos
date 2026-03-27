@@ -18,6 +18,51 @@ export const normalizeIdentityValue = (value) => {
 };
 
 const voteCleanupUnsupportedColumns = new Set();
+const VOTING_NOT_OPEN_MESSAGE = 'La votación no está abierta en este momento';
+
+export const isMatchVotingOpen = async (partidoId) => {
+  const pidNumber = Number(partidoId);
+  if (!Number.isFinite(pidNumber) || pidNumber <= 0) {
+    return false;
+  }
+
+  const { data, error } = await supabase.rpc('is_public_voting_open', {
+    p_partido_id: pidNumber,
+  });
+
+  if (error) {
+    console.warn('[isMatchVotingOpen] Could not validate voting gate', error);
+    throw new Error('No se pudo validar si la votación está abierta');
+  }
+
+  return Boolean(data);
+};
+
+export const assertMatchVotingOpen = async (partidoId) => {
+  const isOpen = await isMatchVotingOpen(partidoId);
+  if (!isOpen) {
+    throw new Error(VOTING_NOT_OPEN_MESSAGE);
+  }
+  return true;
+};
+
+export const cleanupVotingAccessState = async (partidoId) => {
+  const pidNumber = Number(partidoId);
+  if (!Number.isFinite(pidNumber) || pidNumber <= 0) {
+    throw new Error('Match ID is required to cleanup voting access');
+  }
+
+  const { error } = await supabase.rpc('cleanup_voting_access_state', {
+    p_partido_id: pidNumber,
+  });
+
+  if (error) {
+    console.error('[cleanupVotingAccessState] Could not cleanup voting access state', error);
+    throw new Error('No se pudo limpiar el estado de acceso de la votación');
+  }
+
+  return true;
+};
 
 export const isUuidLike = (value) => (
   typeof value === 'string'
@@ -840,6 +885,8 @@ export const submitVotos = async (votos, jugadorUuid, partidoId, jugadorNombre, 
     throw new Error('votos must be a valid non-empty object');
   }
 
+  await assertMatchVotingOpen(partidoId);
+
   const votanteId = await getCurrentUserId(partidoId);
   console.log('Current voter ID:', votanteId, 'Is guest:', votanteId.startsWith('guest_'));
 
@@ -911,6 +958,9 @@ export const submitVotos = async (votos, jugadorUuid, partidoId, jugadorNombre, 
 
     if (error.code === '23505') {
       throw new Error('Ya votaste en este partido');
+    }
+    if (String(error.message || '').toLowerCase().includes('voting_not_open')) {
+      throw new Error(VOTING_NOT_OPEN_MESSAGE);
     }
     if (error.code === '42501') {
       throw new Error('No tienes permisos para votar. Verifica las políticas de Supabase.');
@@ -1298,39 +1348,47 @@ export const resetVotacion = async (partidoId) => {
     const pidNumber = Number(partidoId);
     const pidTargets = Number.isFinite(pidNumber) ? [pidNumber, String(pidNumber)] : [String(partidoId)];
 
-    // Primero, intentar vía RPC (security definer) para evitar restricciones RLS
     let deletedCount = 0;
     let rpcTried = false;
+    let rpcSucceeded = false;
 
     try {
       rpcTried = true;
       const { error: rpcError } = await supabase.rpc('reset_votacion', { match_id: pidNumber });
       if (rpcError) {
-        console.warn('⚠️ SUPABASE: reset_votacion RPC falló, se usará fallback:', rpcError);
+        console.warn('⚠️ SUPABASE: reset_votacion RPC falló, se usará fallback manual:', rpcError);
       } else {
+        rpcSucceeded = true;
         console.log('✅ SUPABASE: reset_votacion RPC ejecutada');
       }
     } catch (rpcErr) {
-      console.warn('⚠️ SUPABASE: reset_votacion RPC throw, usando fallback', rpcErr);
+      console.warn('⚠️ SUPABASE: reset_votacion RPC throw, usando fallback manual', rpcErr);
     }
 
-    // Fallback o validación: borrar votos manualmente (agresivo, numérico y string)
-    for (const target of pidTargets) {
-      try {
-        // Clear regular votes
-        await supabase.from('votos').delete().eq('partido_id', target);
+    if (!rpcSucceeded) {
+      await cleanupVotingAccessState(pidNumber);
 
-        // Clear public votes and voters
-        await supabase.from('votos_publicos').delete().eq('partido_id', target);
-        await supabase.from('public_voters').delete().eq('partido_id', target);
+      // Reset manual: borrar votos manualmente (agresivo, numérico y string)
+      for (const target of pidTargets) {
+        try {
+          // Clear regular votes
+          await supabase.from('votos').delete().eq('partido_id', target);
 
-        deletedCount += 1; // Increment just to show activity
-      } catch (fallbackErr) {
-        console.warn(`⚠️ Error in fallback deletion for target ${target}:`, fallbackErr);
+          // Clear public votes and voters
+          await supabase.from('votos_publicos').delete().eq('partido_id', target);
+          await supabase.from('public_voters').delete().eq('partido_id', target);
+
+          deletedCount += 1; // Increment just to show activity
+        } catch (fallbackErr) {
+          console.warn(`⚠️ Error in fallback deletion for target ${target}:`, fallbackErr);
+          throw fallbackErr;
+        }
       }
-    }
 
-    console.log('✅ SUPABASE: All votes (regular and public) deleted/reset', { rpcTried });
+      console.log('✅ SUPABASE: All votes (regular and public) deleted/reset via fallback', { rpcTried, rpcSucceeded });
+    } else {
+      console.log('✅ SUPABASE: All votes (regular and public) deleted/reset', { rpcTried, rpcSucceeded });
+    }
 
     // Force match update to signal all clients via realtime
     try {

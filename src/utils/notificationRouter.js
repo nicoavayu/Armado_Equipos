@@ -88,6 +88,8 @@ const MATCH_OPERATIONAL_NOTIFICATION_TYPES = new Set([
 ]);
 
 const CLOSED_MATCH_STATUS_TOKENS = new Set([
+  'equipos_formados',
+  'teams_formed',
   'finalizado',
   'finished',
   'cancelado',
@@ -424,6 +426,34 @@ export const stripShowAwardsParam = (rawPath) => {
   return `${parsed.pathname}${search ? `?${search}` : ''}${parsed.hash || ''}`;
 };
 
+export const withShowAwardsParam = (rawPath) => {
+  const path = String(rawPath || '').trim();
+  if (!path) return path;
+
+  const parsed = new URL(path, 'https://local.app');
+  parsed.searchParams.set('showAwards', '1');
+
+  const search = parsed.searchParams.toString();
+  return `${parsed.pathname}${search ? `?${search}` : ''}${parsed.hash || ''}`;
+};
+
+export const buildAwardsResultsNavigationTarget = (notification = {}, fallbackMatchId = null) => {
+  const matchId = String(fallbackMatchId ?? extractNotificationMatchId(notification) ?? '').trim();
+  const base = notification?.data?.resultsUrl
+    || notification?.data?.link
+    || (matchId ? getResultsUrl(Number(matchId)) : null)
+    || (matchId ? `/resultados-encuesta/${matchId}` : null);
+
+  return {
+    route: withShowAwardsParam(base),
+    state: {
+      forceAwards: true,
+      fromNotification: true,
+      matchName: notification?.data?.match_name || notification?.data?.partido_nombre || null,
+    },
+  };
+};
+
 export const resolveSurveyNotificationNavigation = async ({
   notification = {},
   supabaseClient = supabase,
@@ -584,30 +614,26 @@ export async function openNotification(n, navigate, options = {}) {
     if (!matchId) return;
 
     if (RESULTS_NOTIFICATION_TYPES.has(type)) {
-      const base = n?.data?.resultsUrl || n?.data?.link || getResultsUrl(Number(matchId)) || `/resultados-encuesta/${matchId}`;
-      navigate(stripShowAwardsParam(base));
+      const target = buildAwardsResultsNavigationTarget(n, matchId);
+      if (target.route) {
+        navigate(target.route, { state: target.state });
+      }
       return;
     }
 
     if (AWARDS_NOTIFICATION_TYPES.has(type)) {
-      // Prefer explicit resultsUrl
-      const base = n?.data?.resultsUrl || n?.data?.link || getResultsUrl(Number(matchId)) || `/resultados-encuesta/${matchId}`;
-      // Ensure showAwards=1 is in query so legacy pages open awards section
-      const url = base.includes('?') ? `${base}&showAwards=1` : `${base}?showAwards=1`;
-      // Pass navigation state to force awards computation on the destination
-      navigate(url, {
-        state: {
-          fromNotification: true,
-          forceAwards: true,
-          matchName: n?.data?.match_name || n?.data?.partido_nombre || null,
-        },
-      });
+      const target = buildAwardsResultsNavigationTarget(n, matchId);
+      if (target.route) {
+        navigate(target.route, { state: target.state });
+      }
       return;
     }
 
     if (type === 'survey_finished') {
-      const base = n?.data?.resultsUrl || n?.data?.link || getResultsUrl(Number(matchId)) || `/resultados-encuesta/${matchId}`;
-      navigate(base);
+      const target = buildAwardsResultsNavigationTarget(n, matchId);
+      if (target.route) {
+        navigate(target.route, { state: target.state });
+      }
       return;
     }
 
