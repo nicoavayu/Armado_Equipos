@@ -268,8 +268,43 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
           }
         };
 
-        // If user is recognized as player or creator, use authenticated logic
-        if (userId && (matchPlayer || isCreator)) {
+        const hasStrongAuthenticatedPlayerMatch = Boolean(
+          user?.id
+          && matchPlayer?.usuario_id
+          && matchPlayer.usuario_id === user.id
+        );
+
+        // Public voting must only auto-resolve identity on an explicit current-user -> roster-player match.
+        // Logged-in users without that exact link should still go through identification like guests.
+        if (isPublicVoting) {
+          const hasActivePublicVoting = await hasActivePublicVotingWindow({ matchId: partidoId });
+
+          if (!hasActivePublicVoting) {
+            setAuthzError('La votación no está abierta en este momento.');
+            setHasAccess(false);
+            return setCargandoVotoUsuario(false);
+          }
+
+          setHasAccess(true);
+          setIsAdmin(Boolean(isCreator));
+
+          if (hasStrongAuthenticatedPlayerMatch) {
+            setUseAuthenticatedSubmit(true);
+            setAuthenticatedMatchPlayerName(matchPlayer?.nombre || null);
+            setNombre(matchPlayer.nombre);
+            setFotoPreview(matchPlayer.avatar_url || resolvedAuthAvatarUrl || null);
+            setStep(1); // Skip identification only for a strong, explicit roster match.
+          } else {
+            setUseAuthenticatedSubmit(false);
+            setAuthenticatedMatchPlayerName(null);
+
+            if (typeof getGuestSessionId === 'function') {
+              userId = getGuestSessionId(partidoId);
+            } else {
+              userId = `guest_${partidoId}_${Date.now()}`;
+            }
+          }
+        } else if (userId && (matchPlayer || isCreator)) {
           const hasActiveCallToVote = await hasActiveCallToVoteForUser({
             matchId: partidoId,
             recipientUserId: userId,
@@ -291,28 +326,6 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
             setNombre(matchPlayer.nombre);
             setFotoPreview(matchPlayer.avatar_url || resolvedAuthAvatarUrl || null);
             setStep(1); // Skip identification step
-          }
-        } else if (isPublicVoting) {
-          const hasActivePublicVoting = await hasActivePublicVotingWindow({ matchId: partidoId });
-
-          if (!hasActivePublicVoting) {
-            setAuthzError('La votación no está abierta en este momento.');
-            setHasAccess(false);
-            return setCargandoVotoUsuario(false);
-          }
-
-          // Fallback to guest logic
-          setHasAccess(true);
-          setIsAdmin(false);
-          setUseAuthenticatedSubmit(false);
-          setAuthenticatedMatchPlayerName(null);
-          // If logged in but not in match, treat as guest (or should we use their auth ID for guest voting? 
-          // Requirements imply guests select name from list. Let's keep guest ID logic unless they are in roster)
-
-          if (typeof getGuestSessionId === 'function') {
-            userId = getGuestSessionId(partidoId);
-          } else {
-            userId = `guest_${partidoId}_${Date.now()}`;
           }
         } else {
           // Not public, not in roster -> Denied
@@ -406,25 +419,6 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
     jugadores,
     useAuthenticatedSubmit,
   ]);
-
-  // Modo público: precargar nombre desde localStorage si existe
-  useEffect(() => {
-    if (!isPublicRoute) return;
-    if (nombre) return;
-    if (!jugadores || jugadores.length === 0) return;
-
-    const storageKey = resolvePublicStorageKey();
-    if (!storageKey) return;
-
-    const savedName = localStorage.getItem(storageKey);
-    if (!savedName) return;
-
-    const match = jugadoresIdentificacion.find((j) => j.nombre === savedName);
-    if (match) {
-      setNombre(savedName);
-      setStep(1);
-    }
-  }, [isPublicRoute, nombre, jugadores, jugadoresIdentificacion]);
 
   // Guard: Lock voter if already voted
   useEffect(() => {
@@ -682,11 +676,6 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
       if (!allowedNames.has(nombre)) {
         showInlineNotice('warning', 'Seleccioná un jugador invitado (sin cuenta).');
         return;
-      }
-
-      const storageKey = resolvePublicStorageKey();
-      if (storageKey && nombre) {
-        localStorage.setItem(storageKey, nombre);
       }
 
       const partidoIdParam = urlParams.get('partidoId');
