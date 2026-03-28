@@ -23,6 +23,7 @@ import InlineNotice from '../components/ui/InlineNotice';
 import SurveyImportantDisclaimer from '../components/survey/SurveyImportantDisclaimer';
 import ConfirmModal from '../components/ConfirmModal';
 import { useScrollResetContainer, useScrollResetOnChange } from '../hooks/useScrollReset';
+import Logo from '../Logo.png';
 
 // Styles are now handled via Tailwind CSS
 // Legacy styles: src/pages/LegacyVoting.css (for other components)
@@ -504,6 +505,15 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
 
   // Guard: Check if should show final screen (happy path or already voted)
   const shouldShowFinal = publicAlreadyVoted || usuarioYaVoto || finalizado;
+  const publicVotingFinalLogo = isPublicRoute ? (
+    <div className="mb-6 flex justify-center">
+      <img
+        src={Logo}
+        alt="ARMA2"
+        className="h-[72px] w-auto max-w-[180px] object-contain opacity-95 drop-shadow-[0_14px_28px_rgba(0,0,0,0.24)]"
+      />
+    </div>
+  ) : null;
 
   // Si es admin, volver a ArmarEquiposView (via onReset al AdminPanel)
   // Si no es admin, volver al inicio
@@ -594,6 +604,7 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
       <div className={wrapperClass}>
         {noticeSlot}
         <div className={cardClass}>
+          {publicVotingFinalLogo}
           <div className={titleClass}>
             {publicAlreadyVoted || usuarioYaVoto ? '¡YA VOTASTE!' : '¡GRACIAS POR VOTAR!'}
           </div>
@@ -621,6 +632,7 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
       <div className={wrapperClass}>
         {noticeSlot}
         <div className={cardClass}>
+          {publicVotingFinalLogo}
           <div className={titleClass}>
             {publicAlreadyVoted || usuarioYaVoto ? '¡YA VOTASTE!' : '¡GRACIAS POR VOTAR!'}
           </div>
@@ -1483,6 +1495,7 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
     return (
       <div className={wrapperClass}>
         <div className={cardClass}>
+          {publicVotingFinalLogo}
           <div className={titleClass}>
             {publicAlreadyVoted ? '¡YA VOTASTE!' : '¡GRACIAS POR VOTAR!'}
           </div>
