@@ -1997,9 +1997,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       <div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center p-4">
         <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6 max-w-md w-full text-center">
           <div className="flex items-center justify-center mb-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full border border-red-300/35 bg-red-500/10">
-              <CircleX className="w-10 h-10 text-red-300/90" />
-            </div>
+            <CircleX className="w-12 h-12 text-red-300/90" />
           </div>
           <h2 className="text-white text-xl font-bold mb-2">Partido no encontrado</h2>
           <p className="text-white/70 mb-4">{error}</p>
@@ -2316,9 +2314,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6 w-full">
           <div className="text-center mb-6">
             <div className="flex items-center justify-center mb-4">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full border border-red-300/35 bg-red-500/10">
-                <CircleX className="w-12 h-12 text-red-300/90" />
-              </div>
+              <CircleX className="w-12 h-12 text-red-300/90" />
             </div>
             <h2 className="text-white text-2xl font-bold mb-2">Ya estás anotado</h2>
             <p className="text-white/70 text-sm">
