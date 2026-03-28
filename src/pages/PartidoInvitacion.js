@@ -811,9 +811,10 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
   const [partido, setPartido] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [step, setStep] = useState('invitation'); // 'invitation', 'choose-method', 'guest-form', 'success', 'already-joined'
+  const [step, setStep] = useState('invitation'); // 'invitation', 'choose-method', 'guest-form', 'success', 'already-joined', 'full'
   const [guestName, setGuestName] = useState('');
   const [guestPhotoDataUrl, setGuestPhotoDataUrl] = useState('');
+  const [guestJoinSuccessType, setGuestJoinSuccessType] = useState('starter');
   const [submitting, setSubmitting] = useState(false);
   const [codigoValido, setCodigoValido] = useState(true); // Flag de validación de código
   const [alreadyJoined, setAlreadyJoined] = useState(false);
@@ -1501,7 +1502,12 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
 
     const maxRoster = getMaxRosterSlots(partido);
     if (maxRoster > 0 && jugadores.length >= maxRoster) {
-      showInlineNotice('warning', 'El partido ya está completo (incluye suplentes).');
+      if (mode === 'invite' && !user) {
+        setInlineNotice(null);
+        setStep('full');
+      } else {
+        showInlineNotice('warning', 'El partido ya está completo (incluye suplentes).');
+      }
       return;
     }
 
@@ -1963,7 +1969,8 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
     if (submitting) return;
     const maxRoster = getMaxRosterSlots(partido);
     if (maxRoster > 0 && jugadores.length >= maxRoster) {
-      showInlineNotice('warning', 'El partido ya está completo (incluye suplentes).');
+      setInlineNotice(null);
+      setStep('full');
       return;
     }
     if (!guestName.trim()) {
@@ -1984,6 +1991,8 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
 
     setSubmitting(true);
     try {
+      const matchCapacity = getMatchCapacity(partido);
+      const willJoinAsSubstitute = matchCapacity > 0 && jugadores.length >= matchCapacity;
       const {
         storageKey,
         legacyStorageKey,
@@ -2029,7 +2038,8 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           return;
         }
         if (reason === 'full') {
-          showInlineNotice('warning', 'El partido ya está completo.');
+          setInlineNotice(null);
+          setStep('full');
           return;
         }
         if (reason === 'rate_limited') {
@@ -2050,6 +2060,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       if (result?.already_joined) {
         persistGuestJoinIdentity(storageKey, result?.guest_uuid || deviceGuestUuid, legacyStorageKey);
         setAlreadyJoined(true);
+        setGuestJoinSuccessType('starter');
         setStep('already-joined');
         showInlineNotice('info', `${guestName}, ya estabas anotado.`);
         return;
@@ -2058,13 +2069,14 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       // Guardar en localStorage para idempotencia
       persistGuestJoinIdentity(storageKey, result?.guest_uuid || deviceGuestUuid, legacyStorageKey);
 
+      setGuestJoinSuccessType(willJoinAsSubstitute ? 'substitute' : 'starter');
       setStep('success');
-      showInlineNotice('success', `${guestName}, te sumaste al partido.`);
-
-      // Redirigir después de 2 segundos a vista read-only (guest sin auth)
-      setTimeout(() => {
-        setStep('already-joined');
-      }, 2000);
+      showInlineNotice(
+        'success',
+        willJoinAsSubstitute
+          ? `${guestName}, entraste como suplente.`
+          : `${guestName}, te sumaste al partido.`,
+      );
     } catch (err) {
       console.error('[PartidoInvitacion] Error sumando como invitado:', err);
       notifyBlockingError(err.message || 'No se pudo sumar al partido');
@@ -2361,6 +2373,8 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
 
   // Pantalla 4: Éxito
   if (step === 'success') {
+    const joinedAsSubstitute = guestJoinSuccessType === 'substitute';
+
     return (
       <div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center p-4">
         <div className="w-full max-w-md">
@@ -2375,13 +2389,46 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           <div className="flex items-center justify-center mb-4">
             <CheckCircle2 className="w-12 h-12 text-emerald-300/90" />
           </div>
-          <h2 className="text-white text-2xl font-bold mb-2">¡Listo!</h2>
+          <h2 className="text-white text-2xl font-bold mb-2">{joinedAsSubstitute ? 'Entraste como suplente' : '¡Listo!'}</h2>
           <p className="text-white/70 mb-4">
-            Te sumaste al partido como <span className="font-bold text-white">{guestName}</span>
+            {joinedAsSubstitute ? (
+              <>
+                Te sumaste al partido como <span className="font-bold text-white">{guestName}</span> y ocupaste un lugar de suplente.
+              </>
+            ) : (
+              <>
+                Te sumaste al partido como <span className="font-bold text-white">{guestName}</span>
+              </>
+            )}
           </p>
           <p className="text-white/50 text-sm">
-            Preparando vista...
+            {joinedAsSubstitute ? 'El cupo principal ya estaba completo, pero todavía quedaban lugares de suplente.' : 'Podés cerrar esta ventana.'}
           </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === 'full') {
+    return (
+      <div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <div className="w-full flex justify-center mb-6">
+            <img
+              src={Logo}
+              alt="ARMA2"
+              className="h-[88px] w-auto drop-shadow-2xl"
+            />
+          </div>
+          <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6 w-full text-center">
+            <div className="flex items-center justify-center mb-4">
+              <CircleX className="w-12 h-12 text-red-300/90" />
+            </div>
+            <h2 className="text-white text-2xl font-bold mb-2">Partido completo</h2>
+            <p className="text-white/70">
+              Ya no hay más cupos disponibles.
+            </p>
           </div>
         </div>
       </div>
