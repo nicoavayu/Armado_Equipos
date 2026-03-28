@@ -8,6 +8,7 @@ import PageLoadingState from '../components/PageLoadingState';
 import ProfileCard from '../components/ProfileCard';
 import StoryLikeCarousel from '../components/StoryLikeCarousel';
 import { ensureAwards } from '../services/awardsService';
+import { ensureSurveyWindowOpen } from '../services/surveyCompletionService';
 import { subscribeToMatchUpdates } from '../services/realtimeService';
 import { getProfile as getLiveProfile } from '../services/db/profiles';
 import EmptyStateCard from '../components/EmptyStateCard';
@@ -98,7 +99,10 @@ export const shouldShowAwardsRetryAction = ({
 
 export const shouldShowSecondaryResultsSections = ({
   awardsStatus = null,
-} = {}) => normalizeAwardsStatus(awardsStatus) !== 'not_eligible';
+  hasSecondaryResults = false,
+} = {}) => (
+  Boolean(hasSecondaryResults) || normalizeAwardsStatus(awardsStatus) !== 'not_eligible'
+);
 
 // Context to broadcast live previewPlayers without recreating slides
 const PreviewPlayersContext = createContext([]);
@@ -555,6 +559,25 @@ const ResultadosEncuestaView = () => {
   }, []);
 
   const computeSurveyProgress = useCallback(async ({ matchIdNum, partidoRow, rosterRows = [] }) => {
+    try {
+      const canonicalProgress = await ensureSurveyWindowOpen(matchIdNum, {
+        persistLifecycle: false,
+      });
+      const surveyStatusToken = String(canonicalProgress?.surveyStatus || '').trim().toLowerCase();
+      const hasSurveyStatus = surveyStatusToken === 'open' || surveyStatusToken === 'closed';
+
+      return {
+        surveyStatus: hasSurveyStatus ? surveyStatusToken : 'open',
+        hasSurveyStatus,
+        expectedVoters: Math.max(0, Number(canonicalProgress?.expectedVoters) || 0),
+        submissionsCount: Math.max(0, Number(canonicalProgress?.submittedVoters) || 0),
+        remainingVotes: Math.max(0, Number(canonicalProgress?.remainingVotes) || 0),
+        deadlineAt: canonicalProgress?.closesAt || null,
+      };
+    } catch (_canonicalProgressError) {
+      // Fallback to local derivation only if the canonical helper is unavailable.
+    }
+
     let roster = Array.isArray(rosterRows) ? rosterRows : [];
     if (roster.length === 0) {
       const { data: rosterData, error: rosterError } = await supabase
@@ -1961,6 +1984,7 @@ const ResultadosEncuestaView = () => {
   });
   const showSecondaryResultsSections = shouldShowSecondaryResultsSections({
     awardsStatus,
+    hasSecondaryResults: absences.length > 0,
   });
 
   // OVERLAY ANIMATION RENDER

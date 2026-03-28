@@ -7,6 +7,7 @@ const {
   deriveSurveyWindowFromMatch,
   isSurveyWindowConsistentWithKickoff,
   isSurveyWindowInvalidForKickoff,
+  resolveEffectiveSurveyWindow,
 } = require('../utils/surveyWindow');
 
 describe('surveyWindow kickoff anchoring', () => {
@@ -107,5 +108,49 @@ describe('surveyWindow kickoff anchoring', () => {
 
     expect(result.source).toBe('fallback_now');
     expect(result.openedAtIso).toBe(fallbackNowIso);
+  });
+
+  test('prefers stored lifecycle window when it is already canonical', () => {
+    const result = resolveEffectiveSurveyWindow({
+      surveyOpenedAt: '2026-03-18T02:00:00.000Z',
+      surveyClosesAt: '2026-03-19T02:00:00.000Z',
+      fecha: '2026-03-17',
+      hora: '22:00',
+    });
+
+    expect(result.source).toBe('stored');
+    expect(result.openedAtIso).toBe('2026-03-18T02:00:00.000Z');
+    expect(result.closesAtIso).toBe('2026-03-19T02:00:00.000Z');
+    expect(result.hasConsistentStoredWindow).toBe(true);
+  });
+
+  test('replaces stale lifecycle window with canonical AR window regardless of runtime timezone', () => {
+    const originalTz = process.env.TZ;
+    try {
+      process.env.TZ = 'UTC';
+      const utcResult = resolveEffectiveSurveyWindow({
+        surveyOpenedAt: '2026-03-13T02:12:35.170Z',
+        surveyClosesAt: '2026-03-14T02:12:35.170Z',
+        fecha: '2026-03-17',
+        hora: '22:00',
+      });
+
+      process.env.TZ = 'America/Los_Angeles';
+      const laResult = resolveEffectiveSurveyWindow({
+        surveyOpenedAt: '2026-03-13T02:12:35.170Z',
+        surveyClosesAt: '2026-03-14T02:12:35.170Z',
+        fecha: '2026-03-17',
+        hora: '22:00',
+      });
+
+      expect(utcResult.openedAtIso).toBe('2026-03-18T02:00:00.000Z');
+      expect(utcResult.closesAtIso).toBe('2026-03-19T02:00:00.000Z');
+      expect(laResult.openedAtIso).toBe(utcResult.openedAtIso);
+      expect(laResult.closesAtIso).toBe(utcResult.closesAtIso);
+      expect(utcResult.hasConsistentStoredWindow).toBe(false);
+      expect(laResult.hasConsistentStoredWindow).toBe(false);
+    } finally {
+      process.env.TZ = originalTz;
+    }
   });
 });

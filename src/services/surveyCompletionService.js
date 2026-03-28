@@ -5,6 +5,10 @@ import { ensureNoShowRanking } from './db/penalties';
 import { handleError } from '../lib/errorHandler';
 import { ensureParticipantsSnapshot, ensureSurveyResultsSnapshot } from './historySnapshotService';
 import { resolveStablePlayerRef } from './db/userIdentity';
+import {
+  buildEligibleRosterMap,
+  resolveChallengeSurveyEligibleUsers,
+} from './surveyEligibilityService';
 
 import {
   SURVEY_FINALIZE_DELAY_MS,
@@ -35,6 +39,60 @@ const MATCH_STATE_FINISHED = 'finalizado';
 const MATCH_STATE_CANCELLED = 'cancelado';
 
 const normalizeRef = (value) => String(value || '').trim().toLowerCase();
+
+export const normalizeSurveyPlayerIds = (values = []) => {
+  const input = Array.isArray(values) ? values : [values];
+  return [...new Set(
+    input
+      .flatMap((value) => (Array.isArray(value) ? value : [value]))
+      .map((value) => Number(value))
+      .filter((value) => Number.isFinite(value) && value > 0),
+  )];
+};
+
+export const listExistingSurveyResponsePlayerIds = async ({
+  partidoId,
+  playerIds = [],
+  client = supabase,
+} = {}) => {
+  const matchIdNum = Number(partidoId);
+  const normalizedPlayerIds = normalizeSurveyPlayerIds(playerIds);
+
+  if (!Number.isFinite(matchIdNum) || matchIdNum <= 0 || normalizedPlayerIds.length === 0) {
+    return [];
+  }
+
+  const { data, error } = await client
+    .from('post_match_surveys')
+    .select('votante_id')
+    .eq('partido_id', matchIdNum)
+    .in('votante_id', normalizedPlayerIds);
+
+  if (error && error.code !== 'PGRST116') throw error;
+  return normalizeSurveyPlayerIds((data || []).map((row) => row?.votante_id));
+};
+
+export const hasExistingSurveyResponse = async (options = {}) => {
+  const responsePlayerIds = await listExistingSurveyResponsePlayerIds(options);
+  return responsePlayerIds.length > 0;
+};
+
+export const resolveCanonicalSurveyPlayerId = ({
+  primaryPlayerId = null,
+  playerIds = [],
+} = {}) => {
+  const normalizedPrimaryPlayerIds = normalizeSurveyPlayerIds(primaryPlayerId);
+  if (normalizedPrimaryPlayerIds.length > 0) {
+    return normalizedPrimaryPlayerIds[0];
+  }
+
+  const normalizedPlayerIds = normalizeSurveyPlayerIds(playerIds);
+  if (normalizedPlayerIds.length === 0) {
+    return null;
+  }
+
+  return Math.min(...normalizedPlayerIds);
+};
 
 const ensureNoShowRankingSafe = async (partidoId, options = {}) => {
   try {
@@ -841,24 +899,6 @@ const closeSurveyLifecycleViaRpc = async ({
   };
 };
 
-const buildEligibleRosterMap = (rows = []) => {
-  const byPlayerId = new Map();
-  const eligibleUserIds = new Set();
-
-  (rows || []).forEach((row) => {
-    const playerId = Number(row?.id);
-    const userId = row?.usuario_id || null;
-    if (!Number.isFinite(playerId) || !userId) return;
-    byPlayerId.set(playerId, userId);
-    eligibleUserIds.add(String(userId));
-  });
-
-  return {
-    byPlayerId,
-    expectedVoters: eligibleUserIds.size,
-  };
-};
-
 const getDistinctSubmittedEligibleVoters = async (partidoId, eligibleByPlayerId = new Map()) => {
   const { data: surveysRows, error: surveysErr } = await supabase
     .from('post_match_surveys')
@@ -886,7 +926,7 @@ const fetchSurveyLifecycleRow = async (partidoId) => {
   try {
     const { data, error } = await supabase
       .from('partidos')
-      .select('survey_status, survey_opened_at, survey_closes_at, survey_expected_voters, result_status, winner_team, finished_at, fecha, hora')
+      .select('survey_status, survey_opened_at, survey_closes_at, survey_expected_voters, result_status, winner_team, finished_at, fecha, hora, survey_team_a, survey_team_b, final_team_a, final_team_b')
       .eq('id', partidoId)
       .maybeSingle();
     if (error) throw error;
@@ -899,17 +939,15 @@ const fetchSurveyLifecycleRow = async (partidoId) => {
   }
 };
 
-const fetchTeamMatchScheduledAt = async (partidoId) => {
+const fetchSurveyTeamMatchContext = async (partidoId) => {
   try {
     const { data, error } = await supabase
       .from('team_matches')
-      .select('scheduled_at')
+      .select('id, origin_type, challenge_id, team_a_id, team_b_id, scheduled_at')
       .eq('partido_id', partidoId)
-      .order('scheduled_at', { ascending: false, nullsFirst: false })
-      .limit(1)
       .maybeSingle();
     if (error) throw error;
-    return data?.scheduled_at || null;
+    return data || null;
   } catch (_error) {
     return null;
   }
@@ -917,6 +955,7 @@ const fetchTeamMatchScheduledAt = async (partidoId) => {
 
 export async function ensureSurveyWindowOpen(partidoId, options = {}) {
   const idNum = Number(partidoId);
+  const persistLifecycle = options?.persistLifecycle !== false;
   if (!Number.isFinite(idNum) || idNum <= 0) {
     return {
       openedAt: null,
@@ -934,7 +973,7 @@ export async function ensureSurveyWindowOpen(partidoId, options = {}) {
   const nowIso = options?.nowIso || new Date().toISOString();
   const { data: rosterRows, error: rosterErr } = await supabase
     .from('jugadores')
-    .select('id, usuario_id')
+    .select('id, usuario_id, uuid, nombre')
     .eq('partido_id', idNum);
 
   if (rosterErr) {
@@ -942,10 +981,19 @@ export async function ensureSurveyWindowOpen(partidoId, options = {}) {
     throw rosterErr;
   }
 
-  const eligibleRoster = buildEligibleRosterMap(rosterRows || []);
   const lifecycleRow = await fetchSurveyLifecycleRow(idNum);
+  const teamMatchRow = await fetchSurveyTeamMatchContext(idNum);
+  const eligibility = await resolveChallengeSurveyEligibleUsers({
+    matchId: teamMatchRow?.id || null,
+    rosterRows: rosterRows || [],
+    teamMatchRow,
+    matchRow: lifecycleRow,
+  });
+  const eligibleRoster = buildEligibleRosterMap(rosterRows || [], {
+    eligibleUserIds: eligibility?.eligibleUserIds || [],
+  });
   const normalizedStatus = normalizeSurveyStatusValue(lifecycleRow?.survey_status);
-  const scheduledAt = await fetchTeamMatchScheduledAt(idNum);
+  const scheduledAt = teamMatchRow?.scheduled_at || null;
 
   const canonicalWindow = deriveSurveyWindowFromMatch({
     fecha: lifecycleRow?.fecha || null,
@@ -991,7 +1039,7 @@ export async function ensureSurveyWindowOpen(partidoId, options = {}) {
       || shouldRecalculateStaleWindow
     );
 
-  if (shouldPersistOpenWindow) {
+  if (persistLifecycle && shouldPersistOpenWindow) {
     try {
       await supabase
         .from('partidos')
@@ -1006,7 +1054,7 @@ export async function ensureSurveyWindowOpen(partidoId, options = {}) {
     } catch (_persistError) {
       // Non-blocking fallback for environments that don't have survey lifecycle columns yet.
     }
-  } else if (shouldBumpExpectedVoters({
+  } else if (persistLifecycle && shouldBumpExpectedVoters({
     surveyStatus: normalizedStatus,
     storedExpectedVoters,
     computedEligibleVoters: computedEligibleNow,

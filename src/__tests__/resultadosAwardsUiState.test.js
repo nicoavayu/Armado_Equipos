@@ -158,9 +158,19 @@ describe('Resultados awards UI state', () => {
     expect(shouldShowRetry).toBe(true);
   });
 
-  test('secondary result sections stay hidden for not_eligible final state', () => {
+  test('secondary result sections stay visible for not_eligible final state when there is real data to show', () => {
     const shouldShowSections = shouldShowSecondaryResultsSections({
       awardsStatus: 'not_eligible',
+      hasSecondaryResults: true,
+    });
+
+    expect(shouldShowSections).toBe(true);
+  });
+
+  test('secondary result sections stay hidden for not_eligible final state when there is no secondary data', () => {
+    const shouldShowSections = shouldShowSecondaryResultsSections({
+      awardsStatus: 'not_eligible',
+      hasSecondaryResults: false,
     });
 
     expect(shouldShowSections).toBe(false);

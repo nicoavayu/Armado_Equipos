@@ -124,10 +124,6 @@ const REMINDER_TYPE_TOKENS = new Set([
   '12h_before_deadline',
 ]);
 
-const isClosedSurveyResultsNotificationType = (type) => (
-  RESULTS_NOTIFICATION_TYPES.has(type) || type === 'survey_finished'
-);
-
 const toMillis = (value) => {
   const ms = value ? new Date(value).getTime() : NaN;
   return Number.isFinite(ms) ? ms : null;
@@ -321,23 +317,6 @@ export const resolveNotificationActionability = async ({
     }
   }
 
-  if (isClosedSurveyResultsNotificationType(type)) {
-    const awardsStatus = normalizeAwardsStatus(
-      partidoRow?.awards_status
-      || notification?.data?.awards_status
-      || notification?.data?.awardsStatus,
-    );
-
-    if (awardsStatus === 'not_eligible') {
-      return {
-        isActionable: false,
-        reason: 'survey_results_not_eligible',
-        message: 'Esta encuesta cerró sin premios por falta de votos y esta notificación ya no tiene una vista disponible.',
-        matchId,
-      };
-    }
-  }
-
   if (CONSULTABLE_NOTIFICATION_TYPES.has(type)) {
     return {
       isActionable: true,
@@ -454,6 +433,39 @@ export const buildAwardsResultsNavigationTarget = (notification = {}, fallbackMa
   };
 };
 
+export const buildResultsNavigationTarget = (notification = {}, fallbackMatchId = null) => {
+  const matchId = String(fallbackMatchId ?? extractNotificationMatchId(notification) ?? '').trim();
+  const base = notification?.data?.resultsUrl
+    || notification?.data?.link
+    || (matchId ? getResultsUrl(Number(matchId)) : null)
+    || (matchId ? `/resultados-encuesta/${matchId}` : null);
+
+  return {
+    route: stripShowAwardsParam(base),
+    state: {
+      fromNotification: true,
+      matchName: notification?.data?.match_name || notification?.data?.partido_nombre || null,
+    },
+  };
+};
+
+const shouldForceAwardsResultsNavigation = ({ notificationType, awardsStatus } = {}) => {
+  const normalizedType = normalizeToken(notificationType);
+  if (AWARDS_NOTIFICATION_TYPES.has(normalizedType)) return true;
+  return normalizeAwardsStatus(awardsStatus) !== 'not_eligible';
+};
+
+const isCanonicalSurveyClosed = ({ partidoRow = null, nowMs = Date.now() } = {}) => {
+  const normalizedSurveyStatus = normalizeToken(partidoRow?.survey_status);
+  const normalizedResultStatus = normalizeToken(partidoRow?.result_status);
+  const surveyClosesAtMs = toMillis(partidoRow?.survey_closes_at);
+
+  if (normalizedSurveyStatus === 'closed') return true;
+  if (CLOSED_RESULT_STATUS_TOKENS.has(normalizedResultStatus)) return true;
+  if (surveyClosesAtMs !== null && surveyClosesAtMs <= nowMs) return true;
+  return false;
+};
+
 export const resolveSurveyNotificationNavigation = async ({
   notification = {},
   supabaseClient = supabase,
@@ -505,7 +517,7 @@ export const resolveSurveyNotificationNavigation = async ({
     }
   }
 
-  if (isSurveyNotificationClosed(notification)) {
+  if (partidoRow && isCanonicalSurveyClosed({ partidoRow, nowMs })) {
     return {
       canNavigate: false,
       route: null,
@@ -530,6 +542,15 @@ export const resolveSurveyNotificationNavigation = async ({
         message: access.message,
       };
     }
+  }
+
+  if (!partidoRow && !normalizedUserId && isSurveyNotificationClosed(notification)) {
+    return {
+      canNavigate: false,
+      route: null,
+      reason: 'survey_closed',
+      message: 'Esta encuesta ya cerró y no acepta más respuestas.',
+    };
   }
 
   const route = resolveSurveyNotificationRoute(notification) || `/encuesta/${matchId}`;
@@ -613,8 +634,23 @@ export async function openNotification(n, navigate, options = {}) {
 
     if (!matchId) return;
 
+    let resultsLifecycleRow = null;
+    if (RESULTS_NOTIFICATION_TYPES.has(type) || AWARDS_NOTIFICATION_TYPES.has(type) || type === 'survey_finished') {
+      resultsLifecycleRow = await fetchMatchLifecycleRow({
+        supabaseClient: options?.supabaseClient || supabase,
+        matchId: String(matchId),
+        nowMs: Date.now(),
+      });
+    }
+
     if (RESULTS_NOTIFICATION_TYPES.has(type)) {
-      const target = buildAwardsResultsNavigationTarget(n, matchId);
+      const awardsStatus = resultsLifecycleRow?.awards_status || n?.data?.awards_status || n?.data?.awardsStatus || null;
+      const target = shouldForceAwardsResultsNavigation({
+        notificationType: type,
+        awardsStatus,
+      })
+        ? buildAwardsResultsNavigationTarget(n, matchId)
+        : buildResultsNavigationTarget(n, matchId);
       if (target.route) {
         navigate(target.route, { state: target.state });
       }
@@ -630,7 +666,13 @@ export async function openNotification(n, navigate, options = {}) {
     }
 
     if (type === 'survey_finished') {
-      const target = buildAwardsResultsNavigationTarget(n, matchId);
+      const awardsStatus = resultsLifecycleRow?.awards_status || n?.data?.awards_status || n?.data?.awardsStatus || null;
+      const target = shouldForceAwardsResultsNavigation({
+        notificationType: type,
+        awardsStatus,
+      })
+        ? buildAwardsResultsNavigationTarget(n, matchId)
+        : buildResultsNavigationTarget(n, matchId);
       if (target.route) {
         navigate(target.route, { state: target.state });
       }

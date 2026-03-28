@@ -48,11 +48,17 @@ const createSupabaseMock = ({
     }
 
     if (table === 'jugadores') {
+      const normalizedRosterRows = (rosterRows || []).map((row, index) => ({
+        ...row,
+        id: row?.id ?? (index + 1),
+      }));
       return {
         select: jest.fn(() => ({
           eq: jest.fn(() => ({
+            data: normalizedRosterRows,
+            error: null,
             not: jest.fn(async () => ({
-              data: rosterRows,
+              data: normalizedRosterRows,
               error: null,
             })),
           })),
@@ -144,6 +150,8 @@ describe('survey notification routing', () => {
   });
 
   test('allows active survey notifications to navigate to the survey route', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2025-01-02T12:00:00.000Z'));
     const supabaseMock = createSupabaseMock({
       partidoRow: {
         id: 444,
@@ -151,35 +159,42 @@ describe('survey notification routing', () => {
         hora: '20:00',
         estado: 'pendiente',
         survey_status: 'open',
-        survey_closes_at: '2030-01-02T20:00:00.000Z',
+        survey_opened_at: '2025-01-02T00:00:00.000Z',
+        survey_closes_at: '2025-01-03T00:00:00.000Z',
         result_status: 'pending',
         finished_at: null,
       },
       rosterRows: [{ usuario_id: 'user-1' }],
     });
 
-    const result = await resolveSurveyNotificationNavigation({
-      notification: {
-        type: 'survey_start',
-        partido_id: 444,
-        data: {
-          link: '/encuesta/444',
-          survey_deadline_at: '2030-01-02T20:00:00.000Z',
+    try {
+      const result = await resolveSurveyNotificationNavigation({
+        notification: {
+          type: 'survey_start',
+          partido_id: 444,
+          data: {
+            link: '/encuesta/444',
+            survey_deadline_at: '2025-01-03T00:00:00.000Z',
+          },
         },
-      },
-      supabaseClient: supabaseMock,
-      userId: 'user-1',
-    });
+        supabaseClient: supabaseMock,
+        userId: 'user-1',
+      });
 
-    expect(result).toEqual({
-      canNavigate: true,
-      route: '/encuesta/444',
-      reason: 'ok',
-      message: '',
-    });
+      expect(result).toEqual({
+        canNavigate: true,
+        route: '/encuesta/444',
+        reason: 'ok',
+        message: '',
+      });
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   test('allows navigation when survey is still open even if match is finalizado', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2025-01-02T12:00:00.000Z'));
     const supabaseMock = createSupabaseMock({
       partidoRow: {
         id: 446,
@@ -187,31 +202,81 @@ describe('survey notification routing', () => {
         hora: '20:00',
         estado: 'finalizado',
         survey_status: 'open',
-        survey_closes_at: '2030-01-02T20:00:00.000Z',
+        survey_opened_at: '2025-01-02T00:00:00.000Z',
+        survey_closes_at: '2025-01-03T00:00:00.000Z',
         result_status: 'pending',
         finished_at: '2025-01-01T23:30:00.000Z',
       },
       rosterRows: [{ usuario_id: 'user-1' }],
     });
 
-    const result = await resolveSurveyNotificationNavigation({
-      notification: {
-        type: 'survey_reminder',
-        partido_id: 446,
-        data: {
-          link: '/encuesta/446',
+    try {
+      const result = await resolveSurveyNotificationNavigation({
+        notification: {
+          type: 'survey_reminder',
+          partido_id: 446,
+          data: {
+            link: '/encuesta/446',
+            survey_deadline_at: '2025-01-03T00:00:00.000Z',
+          },
         },
+        supabaseClient: supabaseMock,
+        userId: 'user-1',
+      });
+
+      expect(result).toEqual({
+        canNavigate: true,
+        route: '/encuesta/446',
+        reason: 'ok',
+        message: '',
+      });
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test('ignora deadline stale del payload cuando el estado canónico real sigue abierto', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2025-01-02T12:00:00.000Z'));
+    const supabaseMock = createSupabaseMock({
+      partidoRow: {
+        id: 447,
+        fecha: '2025-01-01',
+        hora: '20:00',
+        estado: 'finalizado',
+        survey_status: 'open',
+        survey_opened_at: '2025-01-02T00:00:00.000Z',
+        survey_closes_at: '2025-01-03T00:00:00.000Z',
+        result_status: 'pending',
+        finished_at: '2025-01-01T23:30:00.000Z',
       },
-      supabaseClient: supabaseMock,
-      userId: 'user-1',
+      rosterRows: [{ usuario_id: 'user-1' }],
     });
 
-    expect(result).toEqual({
-      canNavigate: true,
-      route: '/encuesta/446',
-      reason: 'ok',
-      message: '',
-    });
+    try {
+      const result = await resolveSurveyNotificationNavigation({
+        notification: {
+          type: 'survey_start',
+          partido_id: 447,
+          created_at: '2025-01-01T00:00:00.000Z',
+          data: {
+            link: '/encuesta/447',
+            survey_deadline_at: '2025-01-02T08:00:00.000Z',
+          },
+        },
+        supabaseClient: supabaseMock,
+        userId: 'user-1',
+      });
+
+      expect(result).toEqual({
+        canNavigate: true,
+        route: '/encuesta/447',
+        reason: 'ok',
+        message: '',
+      });
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   test('blocks finalized survey reminders instead of navigating elsewhere', async () => {
@@ -247,6 +312,8 @@ describe('survey notification routing', () => {
   });
 
   test('treats reminder-like legacy notifications as survey-form navigation', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2025-01-02T12:00:00.000Z'));
     const supabaseMock = createSupabaseMock({
       partidoRow: {
         id: 556,
@@ -254,33 +321,39 @@ describe('survey notification routing', () => {
         hora: '20:00',
         estado: 'finalizado',
         survey_status: 'open',
-        survey_closes_at: '2030-01-02T20:00:00.000Z',
+        survey_opened_at: '2025-01-02T00:00:00.000Z',
+        survey_closes_at: '2025-01-03T00:00:00.000Z',
         result_status: 'pending',
         finished_at: '2025-01-02T20:00:00.000Z',
       },
       rosterRows: [{ usuario_id: 'user-1' }],
     });
 
-    const result = await resolveSurveyNotificationNavigation({
-      notification: {
-        type: 'survey_finished',
-        partido_id: 556,
-        title: 'Recordatorio de encuesta',
-        data: {
-          reminder_type: '1h_before_deadline',
-          link: '/resultados-encuesta/556',
+    try {
+      const result = await resolveSurveyNotificationNavigation({
+        notification: {
+          type: 'survey_finished',
+          partido_id: 556,
+          title: 'Recordatorio de encuesta',
+          data: {
+            reminder_type: '1h_before_deadline',
+            survey_deadline_at: '2025-01-03T00:00:00.000Z',
+            link: '/resultados-encuesta/556',
+          },
         },
-      },
-      supabaseClient: supabaseMock,
-      userId: 'user-1',
-    });
+        supabaseClient: supabaseMock,
+        userId: 'user-1',
+      });
 
-    expect(result).toEqual({
-      canNavigate: true,
-      route: '/encuesta/556',
-      reason: 'ok',
-      message: '',
-    });
+      expect(result).toEqual({
+        canNavigate: true,
+        route: '/encuesta/556',
+        reason: 'ok',
+        message: '',
+      });
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   test('blocks reminder-like legacy notifications when survey is already closed', async () => {
@@ -336,7 +409,7 @@ describe('survey notification routing', () => {
     );
   });
 
-  test('bloquea survey_finished cuando el partido quedó not_eligible para premios', async () => {
+  test('mantiene survey_finished consultable aunque el partido quede not_eligible para premios', async () => {
     const supabaseMock = createSupabaseMock({
       partidoRow: {
         id: 702,
@@ -363,11 +436,11 @@ describe('survey notification routing', () => {
       nowMs: Date.parse('2025-01-03T12:00:00.000Z'),
     });
 
-    expect(result.isActionable).toBe(false);
-    expect(result.reason).toBe('survey_results_not_eligible');
+    expect(result.isActionable).toBe(true);
+    expect(result.reason).toBe('consultable_notification');
   });
 
-  test('bloquea survey_results_ready cuando el partido quedó not_eligible para premios', async () => {
+  test('mantiene survey_results_ready consultable aunque el partido quede not_eligible para premios', async () => {
     const supabaseMock = createSupabaseMock({
       partidoRow: {
         id: 703,
@@ -394,8 +467,8 @@ describe('survey notification routing', () => {
       nowMs: Date.parse('2025-01-03T12:00:00.000Z'),
     });
 
-    expect(result.isActionable).toBe(false);
-    expect(result.reason).toBe('survey_results_not_eligible');
+    expect(result.isActionable).toBe(true);
+    expect(result.reason).toBe('consultable_notification');
   });
 
   test('awards_ready mantiene navegación forzada a premiación', async () => {
@@ -630,7 +703,7 @@ describe('survey notification routing', () => {
     expect(onActionBlocked).not.toHaveBeenCalled();
   });
 
-  test('openNotification no navega en survey_finished cuando el resultado quedó not_eligible', async () => {
+  test('openNotification navega a resultados sin forzar premiación cuando survey_finished quedó not_eligible', async () => {
     const navigate = jest.fn();
     const onActionBlocked = jest.fn();
     const supabaseMock = createSupabaseMock({
@@ -659,10 +732,14 @@ describe('survey notification routing', () => {
       onActionBlocked,
     });
 
-    expect(navigate).not.toHaveBeenCalled();
-    expect(onActionBlocked).toHaveBeenCalledWith(expect.objectContaining({
-      isActionable: false,
-      reason: 'survey_results_not_eligible',
-    }));
+    expect(navigate).toHaveBeenCalledWith(
+      '/resultados-encuesta/816',
+      expect.objectContaining({
+        state: expect.objectContaining({
+          fromNotification: true,
+        }),
+      }),
+    );
+    expect(onActionBlocked).not.toHaveBeenCalled();
   });
 });

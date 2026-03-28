@@ -38,6 +38,12 @@ jest.mock('../services/db/userIdentity', () => ({
   resolveStablePlayerRef: jest.fn(async () => null),
 }));
 
+jest.mock('../services/db/teamChallenges', () => ({
+  listChallengeApprovedSquad: jest.fn(async () => ({ byTeamId: {} })),
+  listTeamMatchMembers: jest.fn(async () => ({})),
+}));
+
+const { listChallengeApprovedSquad } = require('../services/db/teamChallenges');
 const { ensureSurveyWindowOpen } = require('../services/surveyCompletionService');
 
 const buildSupabaseFromMock = ({
@@ -79,11 +85,7 @@ const buildSupabaseFromMock = ({
     return {
       select: jest.fn(() => ({
         eq: jest.fn(() => ({
-          order: jest.fn(() => ({
-            limit: jest.fn(() => ({
-              maybeSingle: jest.fn(async () => ({ data: teamMatchRow, error: null })),
-            })),
-          })),
+          maybeSingle: jest.fn(async () => ({ data: teamMatchRow, error: null })),
         })),
       })),
     };
@@ -106,6 +108,7 @@ describe('ensureSurveyWindowOpen', () => {
     jest.setSystemTime(new Date('2026-03-18T03:00:00.000Z'));
     mockFrom.mockReset();
     mockRpc.mockReset();
+    jest.clearAllMocks();
   });
 
   afterEach(() => {
@@ -229,5 +232,95 @@ describe('ensureSurveyWindowOpen', () => {
     } finally {
       process.env.TZ = originalTz;
     }
+  });
+
+  test('counts only approved challenge squad users as expected voters', async () => {
+    listChallengeApprovedSquad.mockResolvedValueOnce({
+      byTeamId: {
+        ta: [{ user_id: 'u1', jugador: { usuario_id: 'u1' } }],
+        tb: [{ user_id: 'u2', jugador: { usuario_id: 'u2' } }],
+      },
+    });
+
+    const updateCalls = [];
+    mockFrom.mockImplementation(buildSupabaseFromMock({
+      rosterRows: [
+        { id: 1, usuario_id: 'u1', uuid: 'u1', nombre: 'Uno' },
+        { id: 2, usuario_id: 'u2', uuid: 'u2', nombre: 'Dos' },
+        { id: 3, usuario_id: 'u3', uuid: 'u3', nombre: 'Tres' },
+      ],
+      lifecycleRow: {
+        survey_status: 'open',
+        survey_opened_at: '2026-03-18T02:00:00.000Z',
+        survey_closes_at: '2026-03-19T02:00:00.000Z',
+        survey_expected_voters: 0,
+        result_status: 'pending',
+        winner_team: null,
+        finished_at: null,
+        fecha: '2026-03-17',
+        hora: '22:00',
+        survey_team_a: [],
+        survey_team_b: [],
+        final_team_a: [],
+        final_team_b: [],
+      },
+      teamMatchRow: {
+        id: 404,
+        origin_type: 'challenge',
+        challenge_id: 'c404',
+        team_a_id: 'ta',
+        team_b_id: 'tb',
+        scheduled_at: '2026-03-18T01:00:00.000Z',
+      },
+      surveyRows: [],
+      updateCalls,
+    }));
+
+    const result = await ensureSurveyWindowOpen(404, {
+      nowIso: '2026-03-18T03:00:00.000Z',
+    });
+
+    expect(result.expectedVoters).toBe(2);
+    expect(result.remainingVotes).toBe(2);
+    expect(Array.from(result.eligibleByPlayerId.keys()).sort((a, b) => a - b)).toEqual([1, 2]);
+    expect(updateCalls[0]).toMatchObject({
+      survey_expected_voters: 2,
+    });
+  });
+
+  test('supports read-only progress checks without persisting lifecycle writes', async () => {
+    const updateCalls = [];
+    mockFrom.mockImplementation(buildSupabaseFromMock({
+      rosterRows: [
+        { id: 1, usuario_id: 'u1' },
+        { id: 2, usuario_id: 'u2' },
+      ],
+      lifecycleRow: {
+        survey_status: 'open',
+        survey_opened_at: null,
+        survey_closes_at: null,
+        survey_expected_voters: 0,
+        result_status: 'pending',
+        winner_team: null,
+        finished_at: null,
+        fecha: '2026-03-17',
+        hora: '22:00',
+      },
+      teamMatchRow: null,
+      surveyRows: [{ votante_id: 1 }],
+      updateCalls,
+    }));
+
+    const result = await ensureSurveyWindowOpen(505, {
+      nowIso: '2026-03-18T03:00:00.000Z',
+      persistLifecycle: false,
+    });
+
+    expect(result.openedAt).toBe('2026-03-18T02:00:00.000Z');
+    expect(result.closesAt).toBe('2026-03-19T02:00:00.000Z');
+    expect(result.expectedVoters).toBe(2);
+    expect(result.submittedVoters).toBe(1);
+    expect(result.remainingVotes).toBe(1);
+    expect(updateCalls).toHaveLength(0);
   });
 });

@@ -9,7 +9,13 @@ import PageTransition from '../components/PageTransition';
 import ConfirmModal from '../components/ConfirmModal';
 import TeamsDnDEditor from '../components/TeamsDnDEditor';
 import SurveyImportantDisclaimer from '../components/survey/SurveyImportantDisclaimer';
-import { finalizeIfComplete } from '../services/surveyCompletionService';
+import {
+  finalizeIfComplete,
+  hasExistingSurveyResponse,
+  normalizeSurveyPlayerIds,
+  resolveCanonicalSurveyPlayerId,
+} from '../services/surveyCompletionService';
+import { resolveChallengeSurveyEligibleUsers } from '../services/surveyEligibilityService';
 import { useAnimatedNavigation } from '../hooks/useAnimatedNavigation';
 import { useScrollResetOnChange } from '../hooks/useScrollReset';
 import { useSmartBackNavigation } from '../hooks/useSmartBackNavigation';
@@ -17,8 +23,12 @@ import { clearMatchFromList } from '../services/matchFinishService';
 import { listChallengeApprovedSquad, listTeamMatchMembers } from '../services/db/teamChallenges';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { SURVEY_START_DELAY_MS } from '../config/surveyConfig';
-import { parseLocalDateTime } from '../utils/dateLocal';
 import { SURVEY_WINDOW_HOURS } from '../utils/surveyNotificationCopy';
+import {
+  resolveEffectiveSurveyWindow,
+  resolveKickoffAtFromMatch,
+} from '../utils/surveyWindow';
+import { resolvePostSubmitCompletionUiState } from '../utils/surveyPostSubmitUiState';
 import {
   buildPlayerRefToKeyMap,
   buildSeededInitialTeams,
@@ -107,13 +117,24 @@ const normalizeResultStatusToken = (value) => {
   return null;
 };
 
-const resolveSurveyClosedState = ({ surveyStatus, resultStatus, surveyClosesAt, finishedAt, matchStartAt = null, now = Date.now() }) => {
+const resolveSurveyClosedState = ({
+  surveyStatus,
+  resultStatus,
+  surveyOpenedAt = null,
+  surveyClosesAt,
+  finishedAt,
+  matchStartAt = null,
+  now = Date.now(),
+}) => {
   const normalizedSurveyStatus = normalizeSurveyStatusToken(surveyStatus);
   const normalizedResultStatus = normalizeResultStatusToken(resultStatus);
+  const opensAtMs = surveyOpenedAt ? new Date(surveyOpenedAt).getTime() : NaN;
   const closesAtMs = surveyClosesAt ? new Date(surveyClosesAt).getTime() : NaN;
   const finishedAtMs = finishedAt ? new Date(finishedAt).getTime() : NaN;
   const matchStartMs = matchStartAt ? new Date(matchStartAt).getTime() : NaN;
-  const earliestValidCloseAtMs = Number.isFinite(matchStartMs) ? matchStartMs + SURVEY_START_DELAY_MS : NaN;
+  const earliestValidCloseAtMs = Number.isFinite(opensAtMs)
+    ? opensAtMs
+    : (Number.isFinite(matchStartMs) ? matchStartMs + SURVEY_START_DELAY_MS : NaN);
   const hasStaleDeadline = Number.isFinite(closesAtMs)
     && Number.isFinite(earliestValidCloseAtMs)
     && closesAtMs <= earliestValidCloseAtMs;
@@ -592,14 +613,57 @@ const resolveChallengeTeamsFromApprovedSquad = ({
 };
 
 const resolveSurveyMatchStartAt = ({ partidoRow, teamMatchRow }) => {
-  const localStart = parseLocalDateTime(partidoRow?.fecha || null, partidoRow?.hora || null);
-  if (localStart && !Number.isNaN(localStart.getTime())) return localStart;
+  return resolveKickoffAtFromMatch({
+    fecha: partidoRow?.fecha || null,
+    hora: partidoRow?.hora || null,
+    scheduledAt: teamMatchRow?.scheduled_at || null,
+  });
+};
 
-  const scheduledAt = teamMatchRow?.scheduled_at || null;
-  if (!scheduledAt) return null;
-  const scheduledDate = new Date(scheduledAt);
-  if (Number.isNaN(scheduledDate.getTime())) return null;
-  return scheduledDate;
+const resolveEffectiveSurveyWindowState = ({
+  partidoRow,
+  teamMatchRow,
+  surveyOpenedAt = null,
+  surveyClosesAt = null,
+  fallbackNowIso = null,
+}) => resolveEffectiveSurveyWindow({
+  surveyOpenedAt,
+  surveyClosesAt,
+  fecha: partidoRow?.fecha || null,
+  hora: partidoRow?.hora || null,
+  scheduledAt: teamMatchRow?.scheduled_at || null,
+  fallbackNowIso,
+});
+
+const attachSurveyAliasPlayerIds = (player, playerIds = []) => {
+  if (!player || typeof player !== 'object') return player;
+  const normalizedPlayerIds = normalizeSurveyPlayerIds([player?.id, playerIds]);
+  if (normalizedPlayerIds.length === 0) return player;
+  return {
+    ...player,
+    survey_alias_player_ids: normalizedPlayerIds,
+  };
+};
+
+const resolveSurveyAliasPlayerIds = ({
+  userId,
+  primaryPlayerId = null,
+  aliasPlayerIds = [],
+  rosterPlayers = [],
+}) => {
+  const normalizedUserId = normalizeIdentityToken(userId);
+  const rosterPlayerIds = (rosterPlayers || [])
+    .filter((player) => (
+      normalizedUserId
+      && normalizeIdentityToken(player?.usuario_id) === normalizedUserId
+    ))
+    .map((player) => player?.id);
+
+  return normalizeSurveyPlayerIds([
+    primaryPlayerId,
+    aliasPlayerIds,
+    rosterPlayerIds,
+  ]);
 };
 
 const ensureLinkedPlayerForSurvey = async ({ matchId, user }) => {
@@ -623,29 +687,14 @@ const ensureLinkedPlayerForSurvey = async ({ matchId, user }) => {
 
   let linkedRows = await fetchLinkedRows();
   if (linkedRows.length > 1) {
-    const canonical = linkedRows[0];
-    const duplicateIds = linkedRows
-      .slice(1)
-      .map((row) => Number(row?.id))
-      .filter((value) => Number.isFinite(value));
-    if (duplicateIds.length > 0) {
-      try {
-        await supabase
-          .from('jugadores')
-          .update({ usuario_id: null })
-          .in('id', duplicateIds)
-          .eq('partido_id', matchIdNum)
-          .eq('usuario_id', user.id);
-      } catch (_dedupeError) {
-        // Non-blocking fallback.
-      }
-    }
-    return canonical;
+    return attachSurveyAliasPlayerIds(linkedRows[0], linkedRows.map((row) => row?.id));
   }
 
-  if (linkedRows.length === 1) return linkedRows[0];
+  if (linkedRows.length === 1) {
+    return attachSurveyAliasPlayerIds(linkedRows[0], linkedRows.map((row) => row?.id));
+  }
 
-  // Deterministic manual->user linkage: only when uuid exactly matches auth user id.
+  // Read-only fallback: resolve the deterministic manual row without mutating roster identity.
   try {
     const { data: rosterRows, error: rosterError } = await supabase
       .from('jugadores')
@@ -660,22 +709,9 @@ const ensureLinkedPlayerForSurvey = async ({ matchId, user }) => {
     ));
 
     if (deterministicManualCandidates.length === 1) {
-      const manualRow = deterministicManualCandidates[0];
-      const { data: relinkedRow, error: relinkErr } = await supabase
-        .from('jugadores')
-        .update({ usuario_id: user.id })
-        .eq('id', manualRow.id)
-        .eq('partido_id', matchIdNum)
-        .is('usuario_id', null)
-        .select(playerFields)
-        .maybeSingle();
-
-      if (!relinkErr && relinkedRow?.id) {
-        return relinkedRow;
-      }
-
-      linkedRows = await fetchLinkedRows();
-      if (linkedRows.length > 0) return linkedRows[0];
+      return attachSurveyAliasPlayerIds(deterministicManualCandidates[0], [
+        deterministicManualCandidates[0]?.id,
+      ]);
     }
   } catch (_manualLinkError) {
     // Non-blocking fallback.
@@ -712,6 +748,7 @@ const EncuestaPartido = () => {
   const [currentStep, setCurrentStep] = useState(SURVEY_STEPS.PLAYED);
   const [alreadySubmitted, setAlreadySubmitted] = useState(false);
   const [linkedPlayerId, setLinkedPlayerId] = useState(null);
+  const [linkedPlayerIds, setLinkedPlayerIds] = useState([]);
   const [loggedRosterCount, setLoggedRosterCount] = useState(0);
   const [surveyClosed, setSurveyClosed] = useState(false);
   const [surveyClosedAt, setSurveyClosedAt] = useState(null);
@@ -830,6 +867,7 @@ const EncuestaPartido = () => {
       setCurrentStep(SURVEY_STEPS.PLAYED);
       setFormData({ ...DEFAULT_FORM_DATA });
       setLinkedPlayerId(null);
+      setLinkedPlayerIds([]);
       setLoggedRosterCount(0);
       setSurveyClosed(false);
       setSurveyClosedAt(null);
@@ -878,6 +916,7 @@ const EncuestaPartido = () => {
         let persistedSurveyTeamA = [];
         let persistedSurveyTeamB = [];
         let persistedTeamsPayload = null;
+        let matchRowForEligibility = null;
         let isTeamChallengeValue = false;
         let challengeTeamMatchContext = null;
         let challengeMembersByTeamId = null;
@@ -885,6 +924,7 @@ const EncuestaPartido = () => {
         let challengeSurveyNameValue = '';
         let challengeSurveyTeamLabelsValue = { teamA: 'Equipo A', teamB: 'Equipo B' };
         let surveyStatusValue = partidoData?.survey_status || null;
+        let surveyOpenedAtValue = partidoData?.survey_opened_at || null;
         let surveyClosesAtValue = partidoData?.survey_closes_at || null;
         let resultStatusValue = partidoData?.result_status || null;
         let finishedAtValue = partidoData?.finished_at || null;
@@ -892,11 +932,12 @@ const EncuestaPartido = () => {
           const { data: pRow, error: pErr } = await supabase
             .from('partidos')
             .select(
-              'teams_confirmed, teams_locked, teams_source, teams_locked_by_user_id, teams_locked_at, survey_team_a, survey_team_b, final_team_a, final_team_b, equipos_json, equipos, survey_status, survey_closes_at, result_status, finished_at',
+              'teams_confirmed, teams_locked, teams_source, teams_locked_by_user_id, teams_locked_at, survey_team_a, survey_team_b, final_team_a, final_team_b, equipos_json, equipos, survey_status, survey_opened_at, survey_closes_at, result_status, finished_at',
             )
             .eq('id', matchIdNum)
             .maybeSingle();
           if (!pErr && pRow) {
+            matchRowForEligibility = pRow;
             if (typeof pRow.teams_confirmed === 'boolean') {
               teamsConfirmedValue = pRow.teams_confirmed;
             }
@@ -905,6 +946,7 @@ const EncuestaPartido = () => {
             teamsLockedByValue = pRow.teams_locked_by_user_id || null;
             teamsLockedAtValue = pRow.teams_locked_at || null;
             surveyStatusValue = pRow.survey_status || surveyStatusValue;
+            surveyOpenedAtValue = pRow.survey_opened_at || surveyOpenedAtValue;
             surveyClosesAtValue = pRow.survey_closes_at || surveyClosesAtValue;
             resultStatusValue = pRow.result_status || resultStatusValue;
             finishedAtValue = pRow.finished_at || finishedAtValue;
@@ -987,18 +1029,29 @@ const EncuestaPartido = () => {
           partidoRow: partidoData,
           teamMatchRow: challengeTeamMatchContext,
         });
-        if (matchStartAt && Date.now() < (matchStartAt.getTime() + SURVEY_START_DELAY_MS)) {
-          const scheduledLabel = matchStartAt.toLocaleString('es-AR', {
-            weekday: 'short',
-            day: '2-digit',
-            month: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: false,
-            timeZone: 'America/Argentina/Buenos_Aires',
-          });
+        const surveyWindow = resolveEffectiveSurveyWindowState({
+          partidoRow: partidoData,
+          teamMatchRow: challengeTeamMatchContext,
+          surveyOpenedAt: surveyOpenedAtValue,
+          surveyClosesAt: surveyClosesAtValue,
+        });
+        const surveyOpensAtMs = surveyWindow?.openedAtIso ? new Date(surveyWindow.openedAtIso).getTime() : NaN;
+        if (Number.isFinite(surveyOpensAtMs) && Date.now() < surveyOpensAtMs) {
+          const scheduledLabel = matchStartAt
+            ? matchStartAt.toLocaleString('es-AR', {
+              weekday: 'short',
+              day: '2-digit',
+              month: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false,
+              timeZone: 'America/Argentina/Buenos_Aires',
+            })
+            : null;
           openSurveyModal(
-            `La encuesta se habilita al finalizar el partido. Está programado para ${scheduledLabel}.`,
+            scheduledLabel
+              ? `La encuesta se habilita al finalizar el partido. Está programado para ${scheduledLabel}.`
+              : 'La encuesta se habilita al finalizar el partido.',
             'Encuesta no disponible',
             { exitRoute: '/' },
           );
@@ -1013,6 +1066,7 @@ const EncuestaPartido = () => {
         }
 
         let jugadoresPartido = [];
+        let rosterRowsForEligibility = [];
         try {
           const { data: rosterRows, error: rosterError } = await supabase
             .from('jugadores')
@@ -1021,10 +1075,12 @@ const EncuestaPartido = () => {
             .order('id', { ascending: true });
           if (rosterError) throw rosterError;
           jugadoresPartido = Array.isArray(rosterRows) ? rosterRows : [];
+          rosterRowsForEligibility = Array.isArray(rosterRows) ? rosterRows : [];
         } catch (_rosterFetchError) {
           jugadoresPartido = partidoData.jugadores && Array.isArray(partidoData.jugadores)
             ? partidoData.jugadores
             : [];
+          rosterRowsForEligibility = Array.isArray(jugadoresPartido) ? jugadoresPartido : [];
         }
         jugadoresPartido = dedupeChallengeSurveyRoster(jugadoresPartido, {
           includeLooseName: isTeamChallengeValue,
@@ -1122,11 +1178,36 @@ const EncuestaPartido = () => {
           includeLooseName: isTeamChallengeValue,
         });
 
+        const challengeEligibility = await resolveChallengeSurveyEligibleUsers({
+          matchId: challengeTeamMatchContext?.id || null,
+          rosterRows: rosterRowsForEligibility,
+          teamMatchRow: challengeTeamMatchContext,
+          matchRow: matchRowForEligibility,
+          approvedByTeamId: challengeApprovedSquadByTeamId,
+          membersByTeamId: challengeMembersByTeamId,
+        });
+        const challengeEligibleUserIds = challengeEligibility?.eligibleUserIds || new Set();
         const loggedRosterPlayers = (jugadoresPartido || []).filter((player) => Boolean(player?.usuario_id));
-        const loggedCount = loggedRosterPlayers.length;
-        const currentUserEligiblePlayer = currentUserPlayer?.id
-          ? (jugadoresPartido || []).find((row) => Number(row?.id) === Number(currentUserPlayer.id)) || currentUserPlayer
-          : loggedRosterPlayers.find((row) => normalizeIdentityToken(row?.usuario_id) === normalizeIdentityToken(user.id));
+        const normalizedCurrentUserId = normalizeIdentityToken(user.id);
+        const loggedCount = isTeamChallengeValue
+          ? challengeEligibleUserIds.size
+          : loggedRosterPlayers.length;
+        const filteredCurrentUserPlayer = currentUserPlayer?.id
+          ? (jugadoresPartido || []).find((row) => Number(row?.id) === Number(currentUserPlayer.id))
+          : loggedRosterPlayers.find((row) => normalizeIdentityToken(row?.usuario_id) === normalizedCurrentUserId);
+        const currentUserEligiblePlayer = isTeamChallengeValue
+          ? (
+            challengeEligibleUserIds.has(String(user.id || '').trim())
+              ? (filteredCurrentUserPlayer || currentUserPlayer || null)
+              : null
+          )
+          : (filteredCurrentUserPlayer || currentUserPlayer || null);
+        const currentUserSurveyPlayerIds = resolveSurveyAliasPlayerIds({
+          userId: user.id,
+          primaryPlayerId: currentUserEligiblePlayer?.id || currentUserPlayer?.id || null,
+          aliasPlayerIds: currentUserPlayer?.survey_alias_player_ids || [],
+          rosterPlayers: loggedRosterPlayers,
+        });
 
         if (cancelled) return;
         setIsTeamChallengeSurvey(isTeamChallengeValue);
@@ -1159,27 +1240,20 @@ const EncuestaPartido = () => {
         }
 
         setLinkedPlayerId(currentUserEligiblePlayer.id);
+        setLinkedPlayerIds(currentUserSurveyPlayerIds);
 
-        let hasSubmitted = false;
-        const { data: existingSurvey, error: existingSurveyErr } = await supabase
-          .from('post_match_surveys')
-          .select('id')
-          .eq('partido_id', parseInt(id))
-          .eq('votante_id', currentUserEligiblePlayer.id)
-          .maybeSingle();
-
-        if (existingSurveyErr && existingSurveyErr.code !== 'PGRST116') {
-          throw existingSurveyErr;
-        }
-
-        hasSubmitted = Boolean(existingSurvey?.id);
+        const hasSubmitted = await hasExistingSurveyResponse({
+          partidoId: matchIdNum,
+          playerIds: currentUserSurveyPlayerIds,
+        });
         if (cancelled) return;
         setAlreadySubmitted(hasSubmitted);
 
         const closedState = resolveSurveyClosedState({
           surveyStatus: surveyStatusValue,
           resultStatus: resultStatusValue,
-          surveyClosesAt: surveyClosesAtValue,
+          surveyOpenedAt: surveyWindow.openedAtIso,
+          surveyClosesAt: surveyWindow.closesAtIso,
           finishedAt: finishedAtValue,
           matchStartAt,
           now: Date.now(),
@@ -1914,7 +1988,7 @@ const EncuestaPartido = () => {
     try {
       const { data, error } = await supabase
         .from('partidos')
-        .select('survey_status, survey_closes_at, result_status, finished_at, fecha, hora')
+        .select('survey_status, survey_opened_at, survey_closes_at, result_status, finished_at, fecha, hora')
         .eq('id', matchIdNum)
         .maybeSingle();
       if (!error) lifecycleRow = data || null;
@@ -1922,15 +1996,34 @@ const EncuestaPartido = () => {
       lifecycleRow = null;
     }
 
+    let lifecycleTeamMatchRow = null;
+    try {
+      const { data, error } = await supabase
+        .from('team_matches')
+        .select('scheduled_at')
+        .eq('partido_id', matchIdNum)
+        .maybeSingle();
+      if (!error) lifecycleTeamMatchRow = data || null;
+    } catch (_teamMatchError) {
+      lifecycleTeamMatchRow = null;
+    }
+
     const lifecycleMatchStartAt = resolveSurveyMatchStartAt({
       partidoRow: lifecycleRow,
-      teamMatchRow: null,
+      teamMatchRow: lifecycleTeamMatchRow,
+    });
+    const lifecycleSurveyWindow = resolveEffectiveSurveyWindowState({
+      partidoRow: lifecycleRow,
+      teamMatchRow: lifecycleTeamMatchRow,
+      surveyOpenedAt: lifecycleRow?.survey_opened_at || null,
+      surveyClosesAt: lifecycleRow?.survey_closes_at || null,
     });
 
     const closure = resolveSurveyClosedState({
       surveyStatus: lifecycleRow?.survey_status,
       resultStatus: lifecycleRow?.result_status,
-      surveyClosesAt: lifecycleRow?.survey_closes_at,
+      surveyOpenedAt: lifecycleSurveyWindow.openedAtIso,
+      surveyClosesAt: lifecycleSurveyWindow.closesAtIso,
       finishedAt: lifecycleRow?.finished_at,
       matchStartAt: lifecycleMatchStartAt,
       now: Date.now(),
@@ -1947,6 +2040,13 @@ const EncuestaPartido = () => {
 
     return { canSubmit: true, closedAt: null };
   };
+
+  const resolveCurrentUserSurveyPlayerIds = (primaryPlayerId = null) => resolveSurveyAliasPlayerIds({
+    userId: user?.id,
+    primaryPlayerId: primaryPlayerId ?? linkedPlayerId,
+    aliasPlayerIds: linkedPlayerIds,
+    rosterPlayers: jugadores,
+  });
 
   const resolveSurveyOutcome = () => {
     const winner = String(formData.ganador || '').trim();
@@ -1975,9 +2075,29 @@ const EncuestaPartido = () => {
         return;
       }
 
+      const matchIdNum = Number(id);
       const submissionGate = await ensureSurveyCanReceiveSubmission();
       if (!submissionGate.canSubmit) {
         enforceSurveyClosedUiState(submissionGate.closedAt);
+        return;
+      }
+
+      const currentUserSurveyPlayerIds = resolveCurrentUserSurveyPlayerIds();
+      const canonicalSurveyPlayerId = resolveCanonicalSurveyPlayerId({
+        primaryPlayerId: linkedPlayerId,
+        playerIds: currentUserSurveyPlayerIds,
+      });
+      if (!Number.isFinite(canonicalSurveyPlayerId) || canonicalSurveyPlayerId <= 0) {
+        openSurveyModal('Solo jugadores con cuenta registrada pueden completar esta encuesta.', 'No podés completar la encuesta');
+        return;
+      }
+      const hasExistingResponse = await hasExistingSurveyResponse({
+        partidoId: matchIdNum,
+        playerIds: currentUserSurveyPlayerIds,
+      });
+      if (hasExistingResponse) {
+        setAlreadySubmitted(true);
+        setEncuestaFinalizada(true);
         return;
       }
 
@@ -1996,15 +2116,6 @@ const EncuestaPartido = () => {
       const arqueroPlayer = outcome.seJugo && formData.arquero_id
         ? jugadores.find((j) => j.uuid === formData.arquero_id)
         : null;
-      const linkedPlayerIdNum = Number(linkedPlayerId);
-      const currentUserPlayer = (Number.isFinite(linkedPlayerIdNum)
-        ? jugadores.find((j) => Number(j?.id) === linkedPlayerIdNum)
-        : null) || jugadores.find((j) => j.usuario_id === user.id);
-      const currentUserPlayerId = Number(currentUserPlayer?.id || linkedPlayerId);
-      if (!Number.isFinite(currentUserPlayerId) || currentUserPlayerId <= 0) {
-        openSurveyModal('Solo jugadores con cuenta registrada pueden completar esta encuesta.', 'No podés completar la encuesta');
-        return;
-      }
 
       const uuidToId = new Map(jugadores.map((j) => [j.uuid, Number(j?.id)]));
       const violentosIds = (outcome.seJugo ? formData.jugadores_violentos : [])
@@ -2015,8 +2126,9 @@ const EncuestaPartido = () => {
         .filter((value) => Number.isFinite(value) && value > 0);
 
       const surveyData = {
-        partido_id: parseInt(id),
-        votante_id: currentUserPlayerId,
+        partido_id: matchIdNum,
+        // Persist new responses against the stable primary row when present; otherwise use the lowest alias id.
+        votante_id: canonicalSurveyPlayerId,
         se_jugo: outcome.seJugo,
         motivo_no_jugado: outcome.seJugo ? null : (formData.motivo_no_jugado || null),
         asistieron_todos: formData.asistieron_todos,
@@ -2048,11 +2160,24 @@ const EncuestaPartido = () => {
         throw insertError;
       }
 
+      let finalizeResult = null;
       try {
-        await finalizeIfComplete(parseInt(id));
+        finalizeResult = await finalizeIfComplete(parseInt(id));
       } catch (e) {
         console.warn('[finalizeIfComplete] non-blocking error:', e);
       }
+
+      let postSubmitSubmissionGate = null;
+      try {
+        postSubmitSubmissionGate = await ensureSurveyCanReceiveSubmission();
+      } catch (_submissionGateError) {
+        postSubmitSubmissionGate = null;
+      }
+
+      const postSubmitUiState = resolvePostSubmitCompletionUiState({
+        finalizeResult,
+        submissionGate: postSubmitSubmissionGate,
+      });
 
       // NEW: ensure match disappears from Próximos Partidos for this user
       try {
@@ -2062,8 +2187,12 @@ const EncuestaPartido = () => {
       }
 
       setAlreadySubmitted(true);
-      setEncuestaFinalizada(true);
-      setCurrentStep(SURVEY_STEPS.DONE);
+      setSurveyClosed(postSubmitUiState.shouldMarkSurveyClosed);
+      setSurveyClosedAt(postSubmitUiState.closedAt || null);
+      setEncuestaFinalizada(postSubmitUiState.shouldMarkSurveyClosed);
+      if (postSubmitUiState.shouldMarkSurveyClosed) {
+        setCurrentStep(SURVEY_STEPS.DONE);
+      }
 
     } catch (error) {
       handleError(error, { showToast: true, onError: () => { } });

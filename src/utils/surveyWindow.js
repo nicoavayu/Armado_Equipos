@@ -69,6 +69,49 @@ export const deriveSurveyWindowFromMatch = ({
   };
 };
 
+export const resolveEffectiveSurveyWindow = ({
+  surveyOpenedAt = null,
+  surveyClosesAt = null,
+  fecha = null,
+  hora = null,
+  scheduledAt = null,
+  kickoffTimeZone = MATCH_TIMEZONE_AR,
+  fallbackNowIso = null,
+} = {}) => {
+  const canonicalWindow = deriveSurveyWindowFromMatch({
+    fecha,
+    hora,
+    scheduledAt,
+    kickoffTimeZone,
+    fallbackNowIso,
+  });
+  const expectedOpenedAt = canonicalWindow.openedAtIso;
+  const expectedClosesAt = canonicalWindow.closesAtIso;
+  const hasKickoffAnchor = canonicalWindow.source === 'kickoff';
+  const hasConsistentStoredWindow = hasKickoffAnchor && isSurveyWindowConsistentWithKickoff({
+    openedAt: surveyOpenedAt,
+    closesAt: surveyClosesAt,
+    expectedOpenedAt,
+    expectedClosesAt,
+  });
+  const shouldUseCanonicalWindow = hasKickoffAnchor && !hasConsistentStoredWindow;
+
+  return {
+    source: shouldUseCanonicalWindow
+      ? canonicalWindow.source
+      : ((surveyOpenedAt || surveyClosesAt) ? 'stored' : canonicalWindow.source),
+    kickoffAtIso: canonicalWindow.kickoffAtIso,
+    openedAtIso: shouldUseCanonicalWindow
+      ? expectedOpenedAt
+      : (surveyOpenedAt || expectedOpenedAt),
+    closesAtIso: shouldUseCanonicalWindow
+      ? expectedClosesAt
+      : (surveyClosesAt || expectedClosesAt),
+    hasKickoffAnchor,
+    hasConsistentStoredWindow,
+  };
+};
+
 export const isSurveyWindowConsistentWithKickoff = ({
   openedAt = null,
   closesAt = null,

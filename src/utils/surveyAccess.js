@@ -1,6 +1,9 @@
 import { SURVEY_START_DELAY_MS } from '../config/surveyConfig';
-import { listTeamMatchMembers } from '../services/db/teamChallenges';
-import { parseLocalDateTime } from './dateLocal';
+import { resolveChallengeSurveyEligibleUsers } from '../services/surveyEligibilityService';
+import {
+  resolveEffectiveSurveyWindow,
+  resolveKickoffAtFromMatch,
+} from './surveyWindow';
 
 const normalizeIdentityToken = (value) => String(value || '').trim().toLowerCase();
 const normalizeSurveyStatusToken = (value) => {
@@ -40,30 +43,29 @@ const toReadableMatchDate = (startAt) => {
 };
 
 const resolveMatchStartAt = ({ partidoRow, teamMatchRow }) => {
-  const localStart = parseLocalDateTime(partidoRow?.fecha || null, partidoRow?.hora || null);
-  if (localStart && !Number.isNaN(localStart.getTime())) return localStart;
-
-  const scheduledAt = teamMatchRow?.scheduled_at || null;
-  if (!scheduledAt) return null;
-
-  const parsedScheduled = new Date(scheduledAt);
-  if (Number.isNaN(parsedScheduled.getTime())) return null;
-  return parsedScheduled;
+  return resolveKickoffAtFromMatch({
+    fecha: partidoRow?.fecha || null,
+    hora: partidoRow?.hora || null,
+    scheduledAt: teamMatchRow?.scheduled_at || null,
+  });
 };
 
-const isChallengeLikeTeamMatch = (teamMatchRow) => {
-  if (!teamMatchRow) return false;
-  const originType = normalizeIdentityToken(teamMatchRow?.origin_type);
-  return originType === 'challenge' || Boolean(teamMatchRow?.challenge_id);
-};
-
-export const resolveSurveyLifecycleBlock = ({ partidoRow = null, matchStartAt = null, now = Date.now() } = {}) => {
+export const resolveSurveyLifecycleBlock = ({
+  partidoRow = null,
+  surveyOpenedAt = null,
+  surveyClosesAt = null,
+  matchStartAt = null,
+  now = Date.now(),
+} = {}) => {
   const estado = normalizeIdentityToken(partidoRow?.estado);
   const surveyStatus = normalizeSurveyStatusToken(partidoRow?.survey_status);
   const resultStatus = normalizeResultStatusToken(partidoRow?.result_status);
-  const closesAtMs = toTimestamp(partidoRow?.survey_closes_at);
+  const openedAtMs = toTimestamp(surveyOpenedAt || partidoRow?.survey_opened_at);
+  const closesAtMs = toTimestamp(surveyClosesAt || partidoRow?.survey_closes_at);
   const matchStartMs = toTimestamp(matchStartAt);
-  const earliestValidCloseAtMs = matchStartMs !== null ? matchStartMs + SURVEY_START_DELAY_MS : null;
+  const earliestValidCloseAtMs = openedAtMs !== null
+    ? openedAtMs
+    : (matchStartMs !== null ? matchStartMs + SURVEY_START_DELAY_MS : null);
   const hasStaleDeadline = closesAtMs !== null
     && earliestValidCloseAtMs !== null
     && closesAtMs <= earliestValidCloseAtMs;
@@ -113,7 +115,7 @@ export const resolveSurveyAccess = async ({ supabaseClient, matchId, userId }) =
     try {
       const { data } = await supabaseClient
         .from('partidos')
-        .select('id, fecha, hora, estado, survey_status, survey_closes_at, result_status, finished_at')
+        .select('id, fecha, hora, estado, survey_status, survey_opened_at, survey_closes_at, result_status, finished_at, survey_team_a, survey_team_b, final_team_a, final_team_b')
         .eq('id', matchIdNum)
         .maybeSingle();
       partidoRow = data || null;
@@ -134,9 +136,18 @@ export const resolveSurveyAccess = async ({ supabaseClient, matchId, userId }) =
     }
 
     const matchStartAt = resolveMatchStartAt({ partidoRow, teamMatchRow });
+    const surveyWindow = resolveEffectiveSurveyWindow({
+      surveyOpenedAt: partidoRow?.survey_opened_at || null,
+      surveyClosesAt: partidoRow?.survey_closes_at || null,
+      fecha: partidoRow?.fecha || null,
+      hora: partidoRow?.hora || null,
+      scheduledAt: teamMatchRow?.scheduled_at || null,
+    });
 
     const lifecycleBlock = resolveSurveyLifecycleBlock({
       partidoRow,
+      surveyOpenedAt: surveyWindow.openedAtIso,
+      surveyClosesAt: surveyWindow.closesAtIso,
       matchStartAt,
       now: Date.now(),
     });
@@ -149,60 +160,39 @@ export const resolveSurveyAccess = async ({ supabaseClient, matchId, userId }) =
       };
     }
 
-    if (matchStartAt) {
-      const surveyOpenAtMs = matchStartAt.getTime() + SURVEY_START_DELAY_MS;
-      if (Date.now() < surveyOpenAtMs) {
-        const readableStart = toReadableMatchDate(matchStartAt);
-        return {
-          allowed: false,
-          title: 'Encuesta no disponible',
-          message: readableStart
-            ? `La encuesta se habilita al finalizar el partido. Está programado para ${readableStart}.`
-            : 'La encuesta se habilita al finalizar el partido.',
-          reason: 'survey_not_open_yet',
-        };
-      }
+    const surveyOpensAtMs = toTimestamp(surveyWindow.openedAtIso);
+    if (surveyOpensAtMs !== null && Date.now() < surveyOpensAtMs) {
+      const readableStart = toReadableMatchDate(matchStartAt);
+      return {
+        allowed: false,
+        title: 'Encuesta no disponible',
+        message: readableStart
+          ? `La encuesta se habilita al finalizar el partido. Está programado para ${readableStart}.`
+          : 'La encuesta se habilita al finalizar el partido.',
+        reason: 'survey_not_open_yet',
+      };
     }
 
-    const eligibleUserIds = new Set();
-
+    let rosterRows = [];
     try {
-      const { data: rosterRows, error: rosterError } = await supabaseClient
+      const { data, error: rosterError } = await supabaseClient
         .from('jugadores')
-        .select('usuario_id')
-        .eq('partido_id', matchIdNum)
-        .not('usuario_id', 'is', null);
+        .select('id, usuario_id, uuid, nombre')
+        .eq('partido_id', matchIdNum);
 
       if (rosterError) throw rosterError;
-      (rosterRows || []).forEach((row) => {
-        const token = String(row?.usuario_id || '').trim();
-        if (token) eligibleUserIds.add(token);
-      });
+      rosterRows = Array.isArray(data) ? data : [];
     } catch (_rosterError) {
-      // Non-blocking fallback: we still try to validate via team match members.
+      rosterRows = [];
     }
 
-    if (
-      isChallengeLikeTeamMatch(teamMatchRow)
-      && teamMatchRow?.id
-      && teamMatchRow?.team_a_id
-      && teamMatchRow?.team_b_id
-    ) {
-      try {
-        const membersByTeamId = await listTeamMatchMembers({
-          matchId: teamMatchRow.id,
-          teamIds: [teamMatchRow.team_a_id, teamMatchRow.team_b_id],
-        });
-        Object.values(membersByTeamId || {}).forEach((members) => {
-          (members || []).forEach((member) => {
-            const token = String(member?.user_id || member?.jugador?.usuario_id || '').trim();
-            if (token) eligibleUserIds.add(token);
-          });
-        });
-      } catch (_membersError) {
-        // Non-blocking fallback to jugadores-based eligibility.
-      }
-    }
+    const eligibility = await resolveChallengeSurveyEligibleUsers({
+      matchId: teamMatchRow?.id || null,
+      rosterRows,
+      teamMatchRow,
+      matchRow: partidoRow,
+    });
+    const eligibleUserIds = eligibility?.eligibleUserIds || new Set();
 
     if (eligibleUserIds.size === 0) {
       return {

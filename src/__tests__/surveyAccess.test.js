@@ -2,9 +2,59 @@ jest.mock('../config/surveyConfig', () => ({
   SURVEY_START_DELAY_MS: 60 * 60 * 1000,
 }));
 
-const { resolveSurveyLifecycleBlock } = require('../utils/surveyAccess');
+jest.mock('../services/db/teamChallenges', () => ({
+  listChallengeApprovedSquad: jest.fn(async () => ({ byTeamId: {} })),
+  listTeamMatchMembers: jest.fn(async () => ({})),
+}));
+
+const {
+  listChallengeApprovedSquad,
+} = require('../services/db/teamChallenges');
+const { resolveSurveyAccess, resolveSurveyLifecycleBlock } = require('../utils/surveyAccess');
+
+const buildSupabaseClient = ({
+  partidoRow = null,
+  teamMatchRow = null,
+  rosterRows = [],
+}) => ({
+  from: jest.fn((table) => {
+    if (table === 'partidos') {
+      return {
+        select: jest.fn(() => ({
+          eq: jest.fn(() => ({
+            maybeSingle: jest.fn(async () => ({ data: partidoRow, error: null })),
+          })),
+        })),
+      };
+    }
+
+    if (table === 'team_matches') {
+      return {
+        select: jest.fn(() => ({
+          eq: jest.fn(() => ({
+            maybeSingle: jest.fn(async () => ({ data: teamMatchRow, error: null })),
+          })),
+        })),
+      };
+    }
+
+    if (table === 'jugadores') {
+      return {
+        select: jest.fn(() => ({
+          eq: jest.fn(async () => ({ data: rosterRows, error: null })),
+        })),
+      };
+    }
+
+    throw new Error(`Unexpected table: ${table}`);
+  }),
+});
 
 describe('surveyAccess lifecycle guards', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   test('blocks closed surveys', () => {
     const result = resolveSurveyLifecycleBlock({
       partidoRow: {
@@ -81,5 +131,99 @@ describe('surveyAccess lifecycle guards', () => {
 
     expect(result.blocked).toBe(false);
     expect(result.reason).toBe('ok');
+  });
+
+  test('resolveSurveyAccess keeps the pre-open block stable across runtime timezones', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-03-18T01:30:00.000Z'));
+
+    const supabaseClient = buildSupabaseClient({
+      partidoRow: {
+        id: 77,
+        fecha: '2026-03-17',
+        hora: '22:00',
+        estado: 'pendiente',
+        survey_status: 'open',
+        survey_opened_at: null,
+        survey_closes_at: null,
+        result_status: 'pending',
+        finished_at: null,
+      },
+      teamMatchRow: null,
+      rosterRows: [{ usuario_id: 'u1' }],
+    });
+
+    const originalTz = process.env.TZ;
+    try {
+      process.env.TZ = 'UTC';
+      const utcAccess = await resolveSurveyAccess({
+        supabaseClient,
+        matchId: 77,
+        userId: 'u1',
+      });
+
+      process.env.TZ = 'America/Los_Angeles';
+      const laAccess = await resolveSurveyAccess({
+        supabaseClient,
+        matchId: 77,
+        userId: 'u1',
+      });
+
+      expect(utcAccess.allowed).toBe(false);
+      expect(utcAccess.reason).toBe('survey_not_open_yet');
+      expect(laAccess.allowed).toBe(false);
+      expect(laAccess.reason).toBe('survey_not_open_yet');
+      expect(laAccess.message).toBe(utcAccess.message);
+    } finally {
+      process.env.TZ = originalTz;
+      jest.useRealTimers();
+    }
+  });
+
+  test('blocks a registered challenge roster user who is outside the approved squad', async () => {
+    listChallengeApprovedSquad.mockResolvedValueOnce({
+      byTeamId: {
+        ta: [{ user_id: 'u1', jugador: { usuario_id: 'u1' } }],
+        tb: [{ user_id: 'u2', jugador: { usuario_id: 'u2' } }],
+      },
+    });
+
+    const access = await resolveSurveyAccess({
+      supabaseClient: buildSupabaseClient({
+        partidoRow: {
+          id: 91,
+          fecha: '2026-03-17',
+          hora: '22:00',
+          estado: 'pendiente',
+          survey_status: 'open',
+          survey_opened_at: '2026-03-18T02:00:00.000Z',
+          survey_closes_at: '2026-03-19T02:00:00.000Z',
+          result_status: 'pending',
+          finished_at: null,
+          survey_team_a: [],
+          survey_team_b: [],
+          final_team_a: [],
+          final_team_b: [],
+        },
+        teamMatchRow: {
+          id: 91,
+          origin_type: 'challenge',
+          challenge_id: 'c91',
+          team_a_id: 'ta',
+          team_b_id: 'tb',
+          scheduled_at: '2026-03-18T01:00:00.000Z',
+        },
+        rosterRows: [
+          { id: 1, usuario_id: 'u1', uuid: 'u1', nombre: 'Uno' },
+          { id: 2, usuario_id: 'u2', uuid: 'u2', nombre: 'Dos' },
+          { id: 3, usuario_id: 'u3', uuid: 'u3', nombre: 'Tres' },
+        ],
+      }),
+      matchId: 91,
+      userId: 'u3',
+    });
+
+    expect(access.allowed).toBe(false);
+    expect(access.reason).toBe('user_not_participant');
   });
 });
