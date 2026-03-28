@@ -595,18 +595,20 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
         {noticeSlot}
         <div className={cardClass}>
           <div className={titleClass}>
-            {publicAlreadyVoted ? '¡YA VOTASTE!' : '¡GRACIAS POR VOTAR!'}
+            {publicAlreadyVoted || usuarioYaVoto ? '¡YA VOTASTE!' : '¡GRACIAS POR VOTAR!'}
           </div>
           <div className={finalMessageClass}>
-            {publicAlreadyVoted
-              ? 'Tus votos ya fueron registrados ✅'
+            {publicAlreadyVoted || usuarioYaVoto
+              ? 'Tus votos ya fueron registrados.'
               : <>Tus votos fueron registrados.<br />Podés cerrar esta ventana.</>}
           </div>
-          <button
-            className={`${primaryVoteButtonClass} mt-4`}
-            style={primaryVoteButtonStyle}
-            onClick={handleFinalAction}
-          >Volver</button>
+          {!isPublicRoute && (
+            <button
+              className={`${primaryVoteButtonClass} mt-4`}
+              style={primaryVoteButtonStyle}
+              onClick={handleFinalAction}
+            >Volver</button>
+          )}
         </div>
       </div>
     );
@@ -624,14 +626,16 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
           </div>
           <div className={finalMessageClass}>
             {publicAlreadyVoted || usuarioYaVoto
-              ? 'Tus votos ya fueron registrados ✅'
+              ? 'Tus votos ya fueron registrados.'
               : <>Tus votos fueron registrados.<br />Podés cerrar esta ventana.</>}
           </div>
-          <button
-            className={`${primaryVoteButtonClass} mt-4`}
-            style={primaryVoteButtonStyle}
-            onClick={handleFinalAction}
-          >Volver</button>
+          {!isPublicRoute && (
+            <button
+              className={`${primaryVoteButtonClass} mt-4`}
+              style={primaryVoteButtonStyle}
+              onClick={handleFinalAction}
+            >Volver</button>
+          )}
         </div>
       </div>
     );
@@ -1484,14 +1488,16 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
           </div>
           <div className={finalMessageClass}>
             {publicAlreadyVoted
-              ? 'Tus votos ya fueron registrados ✅'
+              ? 'Tus votos ya fueron registrados.'
               : <>Tus votos fueron registrados.<br />Podés cerrar esta ventana.</>}
           </div>
-          <button
-            className={`${primaryVoteButtonClass} mt-4`}
-            style={primaryVoteButtonStyle}
-            onClick={handleFinalAction}
-          >Volver</button>
+          {!isPublicRoute && (
+            <button
+              className={`${primaryVoteButtonClass} mt-4`}
+              style={primaryVoteButtonStyle}
+              onClick={handleFinalAction}
+            >Volver</button>
+          )}
         </div>
       </div>
     );
