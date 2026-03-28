@@ -508,7 +508,7 @@ function NativeAuthDeepLinkBootstrap() {
 }
 
 // Wrapper para controlar la autenticación en la ruta principal
-function AppAuthWrapper() {
+export function AppAuthWrapper() {
   const { user, loading, authResolved } = useAuth();
   const location = useLocation();
   const localEditMode = process.env.NODE_ENV === 'development' && process.env.REACT_APP_LOCAL_EDIT_MODE !== 'false';
@@ -520,14 +520,6 @@ function AppAuthWrapper() {
 
   // Local development shortcut: avoid external auth redirects while editing UI.
   if (localEditMode) {
-    return <Outlet />;
-  }
-
-  // Permitir acceso sin login si hay un código de partido (para votación)
-  const search = new URLSearchParams(location.search);
-  const isVotingView = search.has('codigo');
-
-  if (isVotingView) {
     return <Outlet />;
   }
 
