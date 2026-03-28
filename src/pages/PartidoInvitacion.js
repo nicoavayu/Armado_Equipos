@@ -59,6 +59,7 @@ const GUEST_SELF_JOIN_ENABLED = true;
 const MAX_SUBSTITUTES = 4;
 const INVITE_ACCEPT_BUTTON_VIOLET = '#644dff';
 const INVITE_ACCEPT_BUTTON_VIOLET_DARK = '#4e2fd3';
+const PUBLIC_WEBSITE_URL = 'https://www.arma2.com.ar';
 const REOPENABLE_JOIN_REQUEST_STATUSES = new Set(['cancelled', 'rejected']);
 const isMatchClosed = (match) => {
   const estado = String(match?.estado || '').toLowerCase();
@@ -2364,10 +2365,10 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
               Te avisaremos novedades del partido
             </p>
             <button
-              onClick={() => navigate('/')}
+              onClick={() => window.location.assign(PUBLIC_WEBSITE_URL)}
               className="text-white/70 text-sm hover:text-white transition-all"
             >
-              Volver al inicio
+              Conocé Arma2
             </button>
           </div>
           </div>
