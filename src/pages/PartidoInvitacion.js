@@ -61,6 +61,8 @@ const INVITE_ACCEPT_BUTTON_VIOLET = '#644dff';
 const INVITE_ACCEPT_BUTTON_VIOLET_DARK = '#4e2fd3';
 const PUBLIC_WEBSITE_URL = 'https://www.arma2.com.ar';
 const PRIMARY_INVITE_BUTTON_CLASS = 'w-full text-white px-6 py-4 rounded-xl font-oswald font-semibold text-[18px] tracking-[0.01em] hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed border shadow-[0_8px_24px_rgba(100,77,255,0.35)]';
+const INVALID_INVITE_PAGE_TITLE = 'Invitación inválida';
+const INVALID_INVITE_PAGE_MESSAGE = 'Este link de invitación no es válido.';
 const REOPENABLE_JOIN_REQUEST_STATUSES = new Set(['cancelled', 'rejected']);
 const isMatchClosed = (match) => {
   const estado = String(match?.estado || '').toLowerCase();
@@ -90,11 +92,36 @@ const buildMatchNotificationOrFilter = (matchId) => {
 
 const normalizeJoinRequestStatus = (value) => String(value || '').trim().toLowerCase();
 
+const getPageErrorPresentation = (message) => {
+  if (message === INVALID_INVITE_PAGE_MESSAGE) {
+    return {
+      title: INVALID_INVITE_PAGE_TITLE,
+      body: INVALID_INVITE_PAGE_MESSAGE,
+    };
+  }
+
+  return {
+    title: 'Partido no encontrado',
+    body: message,
+  };
+};
+
 const resolvePublicJoinStatus = (value) => {
   const normalizedStatus = normalizeJoinRequestStatus(value);
   if (normalizedStatus === 'pending') return 'pending';
   if (normalizedStatus === 'approved') return 'approved';
   return 'none';
+};
+
+const isMissingGuestInviteValidationRpcError = (error) => {
+  const code = String(error?.code || '').trim();
+  const message = String(error?.message || '').trim().toLowerCase();
+
+  return (
+    code === 'PGRST202'
+    || message.includes('validate_guest_match_invite')
+    || message.includes('could not find the function')
+  );
 };
 
 const canFallbackCancelledJoinRequestStatus = (error) => {
@@ -260,6 +287,34 @@ async function fetchInviteAccessState({ userId, matchId }) {
   const blockedByKick = Boolean(latestKick) && !hasActiveInvite;
 
   return { hasActiveInvite, blockedByKick, inviteCode: inviteCode || null };
+}
+
+async function validateGuestInviteLink({ matchId, codigo, inviteToken }) {
+  if (!matchId || !codigo || !inviteToken) {
+    return { ok: false, reason: 'invalid_invite' };
+  }
+
+  const { data, error } = await supabase.rpc('validate_guest_match_invite', {
+    p_partido_id: Number(matchId),
+    p_codigo: codigo,
+    p_token: inviteToken,
+  });
+
+  if (error) {
+    if (isMissingGuestInviteValidationRpcError(error)) {
+      return { ok: null, reason: null, unsupported: true };
+    }
+
+    throw error;
+  }
+
+  const row = Array.isArray(data) ? data[0] : data;
+
+  return {
+    ok: row?.ok === true,
+    reason: String(row?.reason || '').trim().toLowerCase() || null,
+    unsupported: false,
+  };
 }
 
 async function markOwnMatchInviteAs({ userId, matchId, status }) {
@@ -1122,11 +1177,44 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
         return;
       }
 
+      const codigoValue = String(codigoParam || '').trim();
+      const inviteTokenValue = String(inviteTokenParam || '').trim();
+      const shouldPrevalidateGuestInvite = mode === 'invite' && (Boolean(inviteTokenValue) || !user);
+
+      if (shouldPrevalidateGuestInvite) {
+        if (!codigoValue || !inviteTokenValue) {
+          setCodigoValido(false);
+          setError(INVALID_INVITE_PAGE_MESSAGE);
+          setLoading(false);
+          return;
+        }
+
+        try {
+          const inviteValidation = await validateGuestInviteLink({
+            matchId: partidoId,
+            codigo: codigoValue,
+            inviteToken: inviteTokenValue,
+          });
+
+          if (reqId !== reqIdRef.current) return;
+
+          if (inviteValidation.ok === false) {
+            setCodigoValido(false);
+            setError(INVALID_INVITE_PAGE_MESSAGE);
+            setLoading(false);
+            return;
+          }
+        } catch (inviteValidationError) {
+          console.error('[INVITE] guest invite prevalidation failed', inviteValidationError);
+        }
+      }
+
       // INVITE MODE (default)
       if (!codigoParam || codigoParam.trim() === '') {
         // Permitir abrir invitaciones sin código cuando el acceso proviene de una notificación pendiente.
         if (!user?.id) {
-          setError('Partido no encontrado');
+          setCodigoValido(false);
+          setError(INVALID_INVITE_PAGE_MESSAGE);
           setLoading(false);
           return;
         }
@@ -1230,13 +1318,14 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
         if (reqId !== reqIdRef.current) return;
 
         if (fetchError) {
-          setError('Partido no encontrado.');
+          setCodigoValido(false);
+          setError(INVALID_INVITE_PAGE_MESSAGE);
           setLoading(false);
           return;
         }
         if (!data || data.length === 0) {
           setCodigoValido(false);
-          setError('Partido no encontrado');
+          setError(INVALID_INVITE_PAGE_MESSAGE);
           setLoading(false);
           return;
         }
@@ -1262,13 +1351,13 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
         }
       } catch (err) {
         if (reqId === reqIdRef.current) {
-          setError('Partido no encontrado');
+          setError(mode === 'invite' ? INVALID_INVITE_PAGE_MESSAGE : 'Partido no encontrado');
           setLoading(false);
         }
       }
     }
     loadPartido();
-  }, [partidoId, codigoParam, mode, user, navigate]);
+  }, [partidoId, codigoParam, inviteTokenParam, mode, user, navigate]);
 
   useRefreshOnVisibility(() => {
     if (mode !== 'public' || !partidoId) return;
@@ -1993,14 +2082,16 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
   }
 
   if (error || !partido) {
+    const { title: errorTitle, body: errorBody } = getPageErrorPresentation(error);
+
     return (
       <div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center p-4">
         <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6 max-w-md w-full text-center">
           <div className="flex items-center justify-center mb-4">
             <CircleX className="w-12 h-12 text-red-300/90" />
           </div>
-          <h2 className="text-white text-xl font-bold mb-2">Partido no encontrado</h2>
-          <p className="text-white/70 mb-4">{error}</p>
+          <h2 className="text-white text-xl font-bold mb-2">{errorTitle}</h2>
+          <p className="text-white/70 mb-4">{errorBody}</p>
           <button
             onClick={() => navigate('/')}
             className="bg-primary text-white px-6 py-3 rounded-xl font-bold hover:brightness-110 transition-all"
