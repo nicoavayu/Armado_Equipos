@@ -529,6 +529,14 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
       onReset();
     }
   };
+  const shouldShowReturnAction = !isPublicRoute || Boolean(authenticatedUserId);
+  const finalStateMessage = (publicAlreadyVoted || usuarioYaVoto)
+    ? 'Tus votos ya fueron registrados.'
+    : (
+      shouldShowReturnAction
+        ? 'Tus votos fueron registrados.'
+        : <>Tus votos fueron registrados.<br />Podés cerrar esta ventana.</>
+    );
 
   const clearSavedVoterIdentity = () => {
     const storageKey = resolvePublicStorageKey();
@@ -609,11 +617,9 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
             {publicAlreadyVoted || usuarioYaVoto ? '¡YA VOTASTE!' : '¡GRACIAS POR VOTAR!'}
           </div>
           <div className={finalMessageClass}>
-            {publicAlreadyVoted || usuarioYaVoto
-              ? 'Tus votos ya fueron registrados.'
-              : <>Tus votos fueron registrados.<br />Podés cerrar esta ventana.</>}
+            {finalStateMessage}
           </div>
-          {!isPublicRoute && (
+          {shouldShowReturnAction && (
             <button
               className={`${primaryVoteButtonClass} mt-4`}
               style={primaryVoteButtonStyle}
@@ -637,11 +643,9 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
             {publicAlreadyVoted || usuarioYaVoto ? '¡YA VOTASTE!' : '¡GRACIAS POR VOTAR!'}
           </div>
           <div className={finalMessageClass}>
-            {publicAlreadyVoted || usuarioYaVoto
-              ? 'Tus votos ya fueron registrados.'
-              : <>Tus votos fueron registrados.<br />Podés cerrar esta ventana.</>}
+            {finalStateMessage}
           </div>
-          {!isPublicRoute && (
+          {shouldShowReturnAction && (
             <button
               className={`${primaryVoteButtonClass} mt-4`}
               style={primaryVoteButtonStyle}
@@ -1506,11 +1510,9 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
             {publicAlreadyVoted ? '¡YA VOTASTE!' : '¡GRACIAS POR VOTAR!'}
           </div>
           <div className={finalMessageClass}>
-            {publicAlreadyVoted
-              ? 'Tus votos ya fueron registrados.'
-              : <>Tus votos fueron registrados.<br />Podés cerrar esta ventana.</>}
+            {finalStateMessage}
           </div>
-          {!isPublicRoute && (
+          {shouldShowReturnAction && (
             <button
               className={`${primaryVoteButtonClass} mt-4`}
               style={primaryVoteButtonStyle}
