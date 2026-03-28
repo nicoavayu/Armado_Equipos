@@ -12,7 +12,7 @@ import normalizePartidoForHeader from '../utils/normalizePartidoForHeader';
 import { PlayerCardTrigger } from '../components/ProfileComponents';
 import ConfirmModal from '../components/ConfirmModal';
 import InlineNotice from '../components/ui/InlineNotice';
-import { Camera, UserRound, CircleAlert, Zap, LockKeyhole, CheckCircle2, Calendar, Clock, MapPin } from 'lucide-react';
+import { Camera, UserRound, CircleX, Zap, LockKeyhole, CheckCircle2, Calendar, Clock, MapPin } from 'lucide-react';
 import Logo from '../Logo.png';
 import { findUserScheduleConflicts } from '../services/db/matchScheduling';
 import { notifyAdminJoinRequest, notifyAdminPlayerJoined } from '../services/matchJoinNotificationService';
@@ -60,6 +60,7 @@ const MAX_SUBSTITUTES = 4;
 const INVITE_ACCEPT_BUTTON_VIOLET = '#644dff';
 const INVITE_ACCEPT_BUTTON_VIOLET_DARK = '#4e2fd3';
 const PUBLIC_WEBSITE_URL = 'https://www.arma2.com.ar';
+const PRIMARY_INVITE_BUTTON_CLASS = 'w-full text-white px-6 py-4 rounded-xl font-oswald font-semibold text-[18px] tracking-[0.01em] hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed border shadow-[0_8px_24px_rgba(100,77,255,0.35)]';
 const REOPENABLE_JOIN_REQUEST_STATUSES = new Set(['cancelled', 'rejected']);
 const isMatchClosed = (match) => {
   const estado = String(match?.estado || '').toLowerCase();
@@ -1996,7 +1997,9 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       <div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center p-4">
         <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6 max-w-md w-full text-center">
           <div className="flex items-center justify-center mb-4">
-            <CircleAlert className="w-10 h-10 text-white/70" />
+            <div className="flex h-14 w-14 items-center justify-center rounded-full border border-red-300/35 bg-red-500/10">
+              <CircleX className="w-10 h-10 text-red-300/90" />
+            </div>
           </div>
           <h2 className="text-white text-xl font-bold mb-2">Partido no encontrado</h2>
           <p className="text-white/70 mb-4">{error}</p>
@@ -2250,7 +2253,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           <button
             onClick={handleSumarseComoInvitado}
             disabled={!guestName.trim() || submitting}
-            className="w-full text-white px-6 py-4 rounded-xl font-oswald font-semibold text-[18px] tracking-[0.01em] hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed mb-3 border shadow-[0_8px_24px_rgba(100,77,255,0.35)]"
+            className={`${PRIMARY_INVITE_BUTTON_CLASS} mb-3`}
             style={{
               background: INVITE_ACCEPT_BUTTON_VIOLET,
               borderColor: INVITE_ACCEPT_BUTTON_VIOLET_DARK,
@@ -2313,7 +2316,9 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6 w-full">
           <div className="text-center mb-6">
             <div className="flex items-center justify-center mb-4">
-              <CheckCircle2 className="w-12 h-12 text-emerald-300/90" />
+              <div className="flex h-16 w-16 items-center justify-center rounded-full border border-red-300/35 bg-red-500/10">
+                <CircleX className="w-12 h-12 text-red-300/90" />
+              </div>
             </div>
             <h2 className="text-white text-2xl font-bold mb-2">Ya estás anotado</h2>
             <p className="text-white/70 text-sm">
@@ -2361,12 +2366,13 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           </div>
 
           <div className="text-center">
-            <p className="text-white/60 text-sm mb-4">
-              Te avisaremos novedades del partido
-            </p>
             <button
               onClick={() => window.location.assign(PUBLIC_WEBSITE_URL)}
-              className="text-white/70 text-sm hover:text-white transition-all"
+              className={PRIMARY_INVITE_BUTTON_CLASS}
+              style={{
+                background: INVITE_ACCEPT_BUTTON_VIOLET,
+                borderColor: INVITE_ACCEPT_BUTTON_VIOLET_DARK,
+              }}
             >
               Conocé Arma2
             </button>
