@@ -750,28 +750,34 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
 
   // Block if no access
   if (hasAccess === false) {
+    const isPublicVotingUnavailable = isPublicVoting;
+    const deniedTitle = isPublicVotingUnavailable ? 'Votación no disponible' : 'ACCESO DENEGADO';
+    const deniedBody = authzError || 'No tienes permiso para votar en este partido.';
+
     return (
       <div className={wrapperClass}>
-        {cancelVoteButton}
-        {cancelVoteDialog}
+        {!isPublicVotingUnavailable && cancelVoteButton}
+        {!isPublicVotingUnavailable && cancelVoteDialog}
         {noticeSlot}
         <div className={cardClass}>
           <div className={titleClass}>
-            ACCESO DENEGADO
+            {deniedTitle}
           </div>
           <div className={textClass}>
-            {authzError || 'No tienes permiso para votar en este partido.'}
+            {deniedBody}
           </div>
-          {authzError && (
+          {authzError && !isPublicVotingUnavailable && (
             <div className="text-white/70 text-base mb-5 font-oswald">
               {authzError}
             </div>
           )}
-          <button
-            className={primaryVoteButtonClass}
-            onClick={onReset}
-            style={{ ...primaryVoteButtonStyle, marginTop: 16 }}
-          >Volver al inicio</button>
+          {!isPublicVotingUnavailable && (
+            <button
+              className={primaryVoteButtonClass}
+              onClick={onReset}
+              style={{ ...primaryVoteButtonStyle, marginTop: 16 }}
+            >Volver al inicio</button>
+          )}
         </div>
       </div>
     );
