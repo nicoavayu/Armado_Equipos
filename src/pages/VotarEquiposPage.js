@@ -33,6 +33,13 @@ const VotarEquiposPage = () => {
     navigate(targetRoute, { replace: true });
   };
 
+  const handlePublicVotingError = (error) => {
+    handleMatchResolutionError(error);
+    setShowVotingView(false);
+    setPartidoActual(null);
+    setIsLoading(false);
+  };
+
   useEffect(() => {
     const currentSearch = location.search;
 
@@ -61,18 +68,14 @@ const VotarEquiposPage = () => {
     resolveMatchIdFromQueryParams(params)
       .then(async ({ partidoId: resolvedId, error }) => {
         if (error || !resolvedId) {
-          handleMatchResolutionError(error, navigate);
-          setPartidoActual(null);
-          setIsLoading(false);
+          handlePublicVotingError(error);
           return;
         }
 
         // Fetch match data
         const { partido, error: fetchError } = await fetchMatchById(resolvedId);
         if (fetchError || !partido) {
-          handleMatchResolutionError(fetchError, navigate);
-          setPartidoActual(null);
-          setIsLoading(false);
+          handlePublicVotingError(fetchError);
           return;
         }
 
@@ -81,9 +84,7 @@ const VotarEquiposPage = () => {
       })
       .catch((err) => {
         console.error('[VOTING] Unexpected error:', err);
-        handleMatchResolutionError('Error inesperado al cargar el partido', navigate);
-        setPartidoActual(null);
-        setIsLoading(false);
+        handlePublicVotingError('Error inesperado al cargar el partido');
       });
   }, [location.search, navigate]);
 
