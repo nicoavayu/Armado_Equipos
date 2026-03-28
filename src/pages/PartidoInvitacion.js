@@ -2083,6 +2083,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
 
   if (error || !partido) {
     const { title: errorTitle, body: errorBody } = getPageErrorPresentation(error);
+    const isInvalidInviteError = error === INVALID_INVITE_PAGE_MESSAGE;
 
     return (
       <div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center p-4">
@@ -2091,13 +2092,15 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
             <CircleX className="w-12 h-12 text-red-300/90" />
           </div>
           <h2 className="text-white text-xl font-bold mb-2">{errorTitle}</h2>
-          <p className="text-white/70 mb-4">{errorBody}</p>
-          <button
-            onClick={() => navigate('/')}
-            className="bg-primary text-white px-6 py-3 rounded-xl font-bold hover:brightness-110 transition-all"
-          >
-            Volver al inicio
-          </button>
+          <p className={`text-white/70 ${isInvalidInviteError ? '' : 'mb-4'}`}>{errorBody}</p>
+          {!isInvalidInviteError && (
+            <button
+              onClick={() => navigate('/')}
+              className="bg-primary text-white px-6 py-3 rounded-xl font-bold hover:brightness-110 transition-all"
+            >
+              Volver al inicio
+            </button>
+          )}
         </div>
       </div>
     );
