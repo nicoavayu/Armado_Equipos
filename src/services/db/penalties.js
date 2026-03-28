@@ -476,6 +476,98 @@ export async function applyNoShowRecoveries(matchId, options = {}) {
   return { data: applied, error: null };
 }
 
+export async function listMatchNoShowSummary(matchId) {
+  const id = Number(matchId);
+  if (!Number.isFinite(id) || id <= 0) {
+    return { data: [], error: new Error('invalid_match_id') };
+  }
+
+  const { data: surveyRows, error: surveyErr } = await supabase
+    .from('post_match_surveys')
+    .select('votante_id, se_jugo, motivo_no_jugado, jugadores_ausentes')
+    .eq('partido_id', id);
+  if (surveyErr) return { data: [], error: surveyErr };
+  if (!surveyRows || surveyRows.length === 0) return { data: [], error: null };
+  if (!isMatchEligibleForNoShowProcessing(surveyRows)) {
+    return { data: [], error: null };
+  }
+
+  const absentConfirmMap = buildAbsentConfirmMap(surveyRows);
+  const confirmedPlayerIds = Array.from(absentConfirmMap.entries())
+    .filter(([, votersSet]) => votersSet.size >= ABSENCE_CONFIRMATION_THRESHOLD)
+    .map(([playerId]) => Number(playerId))
+    .filter((playerId) => Number.isFinite(playerId));
+  if (confirmedPlayerIds.length === 0) return { data: [], error: null };
+
+  const { data: jugadoresRows, error: jugadoresErr } = await supabase
+    .from('jugadores')
+    .select('id, usuario_id')
+    .in('id', confirmedPlayerIds);
+  if (jugadoresErr) return { data: [], error: jugadoresErr };
+
+  const playerRowsById = new Map(
+    (jugadoresRows || [])
+      .map((row) => [Number(row?.id), row])
+      .filter(([playerId]) => Number.isFinite(playerId)),
+  );
+
+  const registeredUserIds = dedupeUserIds(
+    (jugadoresRows || []).map((row) => row?.usuario_id).filter(Boolean),
+  );
+
+  let adjustmentRows = [];
+  if (registeredUserIds.length > 0) {
+    const { data, error } = await supabase
+      .from('rating_adjustments')
+      .select('user_id, type')
+      .eq('partido_id', id)
+      .in('user_id', registeredUserIds)
+      .in('type', ['no_show_penalty', 'no_show_recovery']);
+    if (error) return { data: [], error };
+    adjustmentRows = data || [];
+  }
+
+  const penalizedUserIds = new Set(
+    (adjustmentRows || [])
+      .filter((row) => row?.type === 'no_show_penalty')
+      .map((row) => String(row?.user_id || '').trim())
+      .filter(Boolean),
+  );
+  const recoveredUserIds = new Set(
+    (adjustmentRows || [])
+      .filter((row) => row?.type === 'no_show_recovery')
+      .map((row) => String(row?.user_id || '').trim())
+      .filter(Boolean),
+  );
+
+  const summary = confirmedPlayerIds.map((playerId) => {
+    const playerRow = playerRowsById.get(playerId) || null;
+    const userId = String(playerRow?.usuario_id || '').trim() || null;
+    const confirmationCount = (absentConfirmMap.get(playerId) || new Set()).size;
+
+    return {
+      playerId,
+      userId,
+      confirmationCount,
+      penaltyApplied: Boolean(userId && penalizedUserIds.has(userId)),
+      penaltyAmount: Boolean(userId && penalizedUserIds.has(userId)) ? NO_SHOW_PENALTY_AMOUNT : 0,
+      recoveryApplied: Boolean(userId && recoveredUserIds.has(userId)),
+    };
+  });
+
+  summary.sort((left, right) => {
+    if (left.penaltyApplied !== right.penaltyApplied) {
+      return left.penaltyApplied ? -1 : 1;
+    }
+    if (left.confirmationCount !== right.confirmationCount) {
+      return right.confirmationCount - left.confirmationCount;
+    }
+    return left.playerId - right.playerId;
+  });
+
+  return { data: summary, error: null };
+}
+
 const fetchNoShowAdjustmentRowsForUsers = async (userIds) => {
   const ids = dedupeUserIds(userIds);
   if (!ids.length) return { data: [], error: null };

@@ -7,7 +7,7 @@ jest.mock('../lib/supabaseClient', () => ({
   },
 }));
 
-const { applyNoShowPenalties } = require('../services/db/penalties');
+const { applyNoShowPenalties, listMatchNoShowSummary } = require('../services/db/penalties');
 
 const clone = (value) => JSON.parse(JSON.stringify(value));
 
@@ -237,5 +237,52 @@ describe('applyNoShowPenalties', () => {
       ranking: 4.5,
       partidos_abandonados: 1,
     });
+  });
+});
+
+describe('listMatchNoShowSummary', () => {
+  let state = null;
+
+  beforeEach(() => {
+    state = buildState();
+    mockSupabaseApi = buildSupabaseMock(state);
+  });
+
+  test('resume la ausencia confirmada y la penalidad aplicada para el partido', async () => {
+    state = baseState([
+      { partido_id: 10, votante_id: 1, se_jugo: true, motivo_no_jugado: null, jugadores_ausentes: [3] },
+      { partido_id: 10, votante_id: 2, se_jugo: true, motivo_no_jugado: null, jugadores_ausentes: [3] },
+    ]);
+    state.tables.rating_adjustments = [
+      { user_id: 'user-3', partido_id: 10, type: 'no_show_penalty', amount: -0.5 },
+    ];
+    mockSupabaseApi = buildSupabaseMock(state);
+
+    const result = await listMatchNoShowSummary(10);
+
+    expect(result.error).toBeNull();
+    expect(result.data).toEqual([
+      {
+        playerId: 3,
+        userId: 'user-3',
+        confirmationCount: 2,
+        penaltyApplied: true,
+        penaltyAmount: -0.5,
+        recoveryApplied: false,
+      },
+    ]);
+  });
+
+  test('no devuelve ausencias si el partido no fue elegible para penalidad', async () => {
+    state = baseState([
+      { partido_id: 10, votante_id: 1, se_jugo: false, motivo_no_jugado: 'weather_or_pitch', jugadores_ausentes: [3] },
+      { partido_id: 10, votante_id: 2, se_jugo: false, motivo_no_jugado: 'weather_or_pitch', jugadores_ausentes: [3] },
+    ]);
+    mockSupabaseApi = buildSupabaseMock(state);
+
+    const result = await listMatchNoShowSummary(10);
+
+    expect(result.error).toBeNull();
+    expect(result.data).toEqual([]);
   });
 });

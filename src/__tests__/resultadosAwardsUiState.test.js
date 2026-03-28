@@ -12,6 +12,9 @@ jest.mock('../components/ProfileCard', () => () => null);
 jest.mock('../components/StoryLikeCarousel', () => () => null);
 jest.mock('../components/EmptyStateCard', () => () => null);
 jest.mock('../services/awardsService', () => ({ ensureAwards: jest.fn(async () => ({})) }));
+jest.mock('../services/db/penalties', () => ({
+  listMatchNoShowSummary: jest.fn(async () => ({ data: [], error: null })),
+}));
 jest.mock('../services/realtimeService', () => ({ subscribeToMatchUpdates: jest.fn(() => () => {}) }));
 jest.mock('../services/db/profiles', () => ({ getProfile: jest.fn(async () => null) }));
 jest.mock('utils/notifyBlockingError', () => ({ notifyBlockingError: jest.fn() }));
@@ -28,6 +31,7 @@ jest.mock('react-router-dom', () => {
 
 const {
   deriveAwardsUiState,
+  deriveAbsenceResultsFromSummary,
   shouldShowAwardsRetryAction,
   shouldShowSecondaryResultsSections,
 } = require('../pages/ResultadosEncuestaView');
@@ -182,5 +186,86 @@ describe('Resultados awards UI state', () => {
     });
 
     expect(shouldShowSections).toBe(true);
+  });
+
+  test('absence results only use canonical no-show summary rows', () => {
+    const absences = deriveAbsenceResultsFromSummary({
+      rosterPlayers: [
+        {
+          id: 1,
+          usuario_id: 'user-1',
+          nombre: 'Titular',
+          ranking: 6.1,
+          partidos_abandonados: 4,
+          ausencias: [{ fecha: '2026-03-01' }],
+          estado: 'ineligible',
+        },
+        {
+          id: 2,
+          usuario_id: 'user-2',
+          nombre: 'Ausente confirmado',
+          ranking: 4.5,
+          partidos_abandonados: 1,
+          ausencias: [],
+          estado: 'active',
+        },
+      ],
+      noShowSummary: [
+        {
+          playerId: 2,
+          userId: 'user-2',
+          confirmationCount: 2,
+          penaltyApplied: true,
+          penaltyAmount: -0.5,
+          recoveryApplied: false,
+        },
+      ],
+    });
+
+    expect(absences).toHaveLength(1);
+    expect(absences[0]).toMatchObject({
+      id: 2,
+      nombre: 'Ausente confirmado',
+      confirmedAbsent: true,
+      confirmationCount: 2,
+      penaltyApplied: true,
+      ausenciasCount: 1,
+      prePenaltyRanking: 5.0,
+      penaltyRanking: 4.5,
+    });
+  });
+
+  test('absence summary falls back to confirmed absence without inventing a penalty', () => {
+    const absences = deriveAbsenceResultsFromSummary({
+      rosterPlayers: [
+        {
+          id: 3,
+          usuario_id: 'user-3',
+          nombre: 'Confirmado sin penalidad',
+          ranking: 5.8,
+          partidos_abandonados: 0,
+        },
+      ],
+      noShowSummary: [
+        {
+          playerId: 3,
+          userId: 'user-3',
+          confirmationCount: 2,
+          penaltyApplied: false,
+          penaltyAmount: 0,
+          recoveryApplied: false,
+        },
+      ],
+    });
+
+    expect(absences).toEqual([
+      expect.objectContaining({
+        id: 3,
+        confirmationCount: 2,
+        penaltyApplied: false,
+        prePenaltyRanking: 5.8,
+        penaltyRanking: 5.8,
+      }),
+    ]);
   });
 });

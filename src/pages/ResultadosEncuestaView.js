@@ -9,6 +9,7 @@ import ProfileCard from '../components/ProfileCard';
 import StoryLikeCarousel from '../components/StoryLikeCarousel';
 import { ensureAwards } from '../services/awardsService';
 import { ensureSurveyWindowOpen } from '../services/surveyCompletionService';
+import { listMatchNoShowSummary } from '../services/db/penalties';
 import { subscribeToMatchUpdates } from '../services/realtimeService';
 import { getProfile as getLiveProfile } from '../services/db/profiles';
 import EmptyStateCard from '../components/EmptyStateCard';
@@ -26,6 +27,88 @@ import { useSmartBackNavigation } from '../hooks/useSmartBackNavigation';
 const ensurePlayersList = (players) => {
   if (players && players.length > 0) return players;
   return [];
+};
+
+const DEFAULT_NO_SHOW_PENALTY_DELTA = 0.5;
+
+const normalizeAbsenceIdentityToken = (value) => {
+  if (value === undefined || value === null) return null;
+  const token = String(value).trim();
+  return token ? token.toLowerCase() : null;
+};
+
+const resolveAbsencePlayerRating = (player, fallback = 5.0) => {
+  const parsed = Number.parseFloat(player?.ranking ?? player?.calificacion ?? fallback);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+export const deriveAbsenceResultsFromSummary = ({
+  rosterPlayers = [],
+  noShowSummary = [],
+} = {}) => {
+  const roster = Array.isArray(rosterPlayers) ? rosterPlayers : [];
+  const summary = Array.isArray(noShowSummary) ? noShowSummary : [];
+  if (roster.length === 0 || summary.length === 0) return [];
+
+  const rosterByKey = new Map();
+  roster.forEach((player) => {
+    const playerId = Number(player?.id);
+    if (Number.isFinite(playerId) && !rosterByKey.has(`player:${playerId}`)) {
+      rosterByKey.set(`player:${playerId}`, player);
+    }
+
+    [
+      player?.usuario_id,
+      player?.user_id,
+      player?.uuid,
+      player?.auth_id,
+    ]
+      .map((value) => normalizeAbsenceIdentityToken(value))
+      .filter(Boolean)
+      .forEach((token) => {
+        const key = `user:${token}`;
+        if (!rosterByKey.has(key)) {
+          rosterByKey.set(key, player);
+        }
+      });
+  });
+
+  return summary.map((entry) => {
+    const playerId = Number(entry?.playerId);
+    const userIdToken = normalizeAbsenceIdentityToken(entry?.userId);
+    const rosterPlayer = (
+      (Number.isFinite(playerId) ? rosterByKey.get(`player:${playerId}`) : null)
+      || (userIdToken ? rosterByKey.get(`user:${userIdToken}`) : null)
+      || null
+    );
+
+    if (!rosterPlayer) return null;
+
+    const currentRating = resolveAbsencePlayerRating(rosterPlayer);
+    const rawPenaltyAmount = Number(entry?.penaltyAmount);
+    const penaltyDelta = Number.isFinite(rawPenaltyAmount)
+      ? Math.abs(rawPenaltyAmount)
+      : (entry?.penaltyApplied ? DEFAULT_NO_SHOW_PENALTY_DELTA : 0);
+
+    return {
+      ...rosterPlayer,
+      confirmedAbsent: true,
+      confirmationCount: Math.max(0, Number(entry?.confirmationCount) || 0),
+      penaltyApplied: Boolean(entry?.penaltyApplied),
+      absencePenalty: Boolean(entry?.penaltyApplied),
+      recoveryApplied: Boolean(entry?.recoveryApplied),
+      penaltyAmount: penaltyDelta > 0 ? -penaltyDelta : 0,
+      ausenciasCount: Math.max(0, Number(rosterPlayer?.partidos_abandonados ?? rosterPlayer?.pa ?? 0)),
+      prePenaltyRanking: Number(
+        (
+          Boolean(entry?.penaltyApplied)
+            ? currentRating + penaltyDelta
+            : currentRating
+        ).toFixed(1),
+      ),
+      penaltyRanking: Number(currentRating.toFixed(1)),
+    };
+  }).filter(Boolean);
 };
 
 export const deriveAwardsUiState = ({
@@ -641,6 +724,23 @@ const ResultadosEncuestaView = () => {
     };
   }, []);
 
+  const computeCanonicalAbsences = useCallback(async ({ matchIdNum, rosterPlayers = [] }) => {
+    const id = Number(matchIdNum);
+    if (!Number.isFinite(id) || id <= 0) return [];
+
+    try {
+      const { data, error } = await listMatchNoShowSummary(id);
+      if (error) throw error;
+      return deriveAbsenceResultsFromSummary({
+        rosterPlayers,
+        noShowSummary: data || [],
+      });
+    } catch (error) {
+      console.warn('[RESULTADOS] canonical no-show summary unavailable', error);
+      return [];
+    }
+  }, []);
+
   const applyLiveAward = (type, playerId) => {
     const key = `${type}-${normalizeIdentityToken(playerId) || String(playerId || '')}`;
     if (liveApplied.current.has(key) || badgesApplied.current.has(key)) {
@@ -668,9 +768,11 @@ const ResultadosEncuestaView = () => {
           return normalizeBadges({ ...p, red_badges: newVal, tarjetas_rojas: newVal });
         }
         if (type === 'penalty') {
-          const base = toRating(p, 5.0);
-          const next = clamp1(base - 0.5);
-          return normalizeBadges({ ...p, ranking: fmt1(next) });
+          const resolvedPenalty = penaltyListRef.current.find((entry) => sharesIdentity(entry, playerId));
+          const next = Number.isFinite(Number(resolvedPenalty?.penaltyRanking))
+            ? Number(resolvedPenalty.penaltyRanking)
+            : toRating(p, 5.0);
+          return normalizeBadges({ ...p, ranking: fmt1(clamp1(next)) });
         }
         return normalizeBadges(p);
       });
@@ -723,13 +825,16 @@ const ResultadosEncuestaView = () => {
       }
 
       // Precompute animation values per slide
-      const base = toRating(resolvedPlayer, 5.0);
-
       if (kind === 'penalty') {
-        const next = clamp1(base - 0.5);
-        setPenaltyFrom(base);
-        setPenaltyTo(next);
-        setPenaltyNow(base);
+        const base = Number.isFinite(Number(resolvedPlayer?.prePenaltyRanking))
+          ? Number(resolvedPlayer.prePenaltyRanking)
+          : toRating(resolvedPlayer, 5.0);
+        const next = Number.isFinite(Number(resolvedPlayer?.penaltyRanking))
+          ? Number(resolvedPlayer.penaltyRanking)
+          : base;
+        setPenaltyFrom(clamp1(base));
+        setPenaltyTo(clamp1(next));
+        setPenaltyNow(clamp1(base));
       } else {
         // For MVP, GLOVE, DIRTY: no rating change, only award count change
         setPenaltyFrom(null);
@@ -1226,7 +1331,7 @@ const ResultadosEncuestaView = () => {
 
     // PENALIZACIÓN
     const penalized = (() => {
-      const punished = absences.filter((a) => a.absencePenalty || a.ineligible);
+      const punished = absences.filter((a) => a.penaltyApplied);
       if (punished?.length) {
         const first = punished[0];
         const pid = getPrimaryIdentity(first);
@@ -1236,8 +1341,12 @@ const ResultadosEncuestaView = () => {
     })();
 
     if (penalized?.player) {
-      const base = toRating(penalized.player, 5.0);
-      const next = clamp1(base - 0.5);
+      const base = Number.isFinite(Number(penalized.player?.prePenaltyRanking))
+        ? Number(penalized.player.prePenaltyRanking)
+        : toRating(penalized.player, 5.0);
+      const next = Number.isFinite(Number(penalized.player?.penaltyRanking))
+        ? Number(penalized.player.penaltyRanking)
+        : base;
       slides.push({
         key: 'penalty',
         duration: 4500,
@@ -1251,7 +1360,7 @@ const ResultadosEncuestaView = () => {
             border="#FDBA74"
             player={penalized.player}
             playerId={penalized.playerId}
-            bottomLabel={`Penalización -0.5 • Rating: ${fmt1(base)} → ${fmt1(next)}`}
+            bottomLabel={`Penalización ${fmt1(Math.abs(Number(penalized.player?.penaltyAmount || 0)))} • Rating: ${fmt1(base)} → ${fmt1(next)}`}
             onApply={() => applyLiveAward('penalty', penalized.playerId)}
           />
         ),
@@ -1454,6 +1563,7 @@ const ResultadosEncuestaView = () => {
           setPartido(null);
           setResults(null);
           setJugadores([]);
+          setAbsences([]);
           setLoading(false);
         }
         return;
@@ -1464,6 +1574,7 @@ const ResultadosEncuestaView = () => {
           setPartido(null);
           setResults(null);
           setJugadores([]);
+          setAbsences([]);
           setLoading(false);
         }
         return;
@@ -1476,6 +1587,7 @@ const ResultadosEncuestaView = () => {
           setPartido(null);
           setResults(null);
           setJugadores([]);
+          setAbsences([]);
           setSurveyProgress({
             surveyStatus: 'open',
             hasSurveyStatus: false,
@@ -1525,6 +1637,14 @@ const ResultadosEncuestaView = () => {
           setJugadores(rosterPlayers);
           // Patch partidoData to include players for compatibility with existing code if needed
           partidoData.jugadores = rosterPlayers;
+        }
+
+        const canonicalAbsences = await computeCanonicalAbsences({
+          matchIdNum,
+          rosterPlayers,
+        });
+        if (alive) {
+          setAbsences(canonicalAbsences);
         }
 
         const progress = await computeSurveyProgress({
@@ -1619,7 +1739,7 @@ const ResultadosEncuestaView = () => {
     return () => {
       alive = false;
     };
-  }, [partidoId, user, navigate, location.search, computeSurveyProgress]);
+  }, [partidoId, user, navigate, location.search, computeCanonicalAbsences, computeSurveyProgress]);
 
   // Realtime updates
   useEffect(() => {
@@ -1829,32 +1949,8 @@ const ResultadosEncuestaView = () => {
   }, [forceAwardsMode, showingBadgeAnimations, carouselSlides, results, jugadores]);
 
   useEffect(() => {
-    const computeAbsences = () => {
-      if (!jugadores || !Array.isArray(jugadores) || jugadores.length === 0) {
-        setAbsences([]);
-        return;
-      }
-
-      const now = new Date();
-      const updatedAbsences = jugadores.map((jugador) => {
-        const ausenciasCount = (jugador.ausencias && Array.isArray(jugador.ausencias)) ? jugador.ausencias.length : 0;
-        const ineligible = (jugador.estado === 'ineligible');
-        const lastAbsenceDate = (jugador.ausencias && jugador.ausencias.length > 0) ? new Date(jugador.ausencias[jugador.ausencias.length - 1].fecha) : null;
-        const absencePenalty = (ausenciasCount > 0 && lastAbsenceDate && (now.getTime() - lastAbsenceDate.getTime()) < 7 * 24 * 60 * 60 * 1000);
-
-        return {
-          ...jugador,
-          ausenciasCount,
-          ineligible,
-          absencePenalty,
-        };
-      });
-
-      setAbsences(updatedAbsences);
-    };
-
-    computeAbsences();
-  }, [jugadores]);
+    penaltyListRef.current = absences.filter((jugador) => jugador?.penaltyApplied);
+  }, [absences]);
 
 
 
@@ -1876,6 +1972,10 @@ const ResultadosEncuestaView = () => {
 
       if (partidoData) setPartido(partidoData);
       if (rosterPlayers.length > 0) setJugadores(rosterPlayers);
+      setAbsences(await computeCanonicalAbsences({
+        matchIdNum,
+        rosterPlayers,
+      }));
 
       const progress = await computeSurveyProgress({
         matchIdNum,
@@ -2265,9 +2365,12 @@ const ResultadosEncuestaView = () => {
                     />
                   </div>
                   <div className="mt-2 text-center text-xs text-gray-400 w-full bg-black/40 py-2 rounded">
-                    <p>Ausencias: <span className="text-white font-bold">{jugador.ausenciasCount}</span></p>
-                    {jugador.absencePenalty && <span className="text-red-400 block font-bold mt-1">PENALIZADO</span>}
-                    {jugador.ineligible && <span className="text-red-600 font-extrabold block mt-1">INELIGIBLE</span>}
+                    <p>Confirmaciones: <span className="text-white font-bold">{jugador.confirmationCount}</span></p>
+                    <p>Ausencias sancionadas: <span className="text-white font-bold">{jugador.ausenciasCount}</span></p>
+                    {jugador.penaltyApplied && <span className="text-red-400 block font-bold mt-1">PENALIZADO</span>}
+                    {!jugador.penaltyApplied && jugador.confirmedAbsent && (
+                      <span className="text-orange-300 block font-bold mt-1">AUSENCIA CONFIRMADA</span>
+                    )}
                   </div>
                 </div>
               ))}
