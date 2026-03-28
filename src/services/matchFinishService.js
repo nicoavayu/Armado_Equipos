@@ -9,6 +9,7 @@ import {
 } from '../config/surveyConfig';
 import { getSurveyReminderMessage, getSurveyStartMessage } from '../utils/surveyNotificationCopy';
 import { isSurveyReminderActionRequired } from '../utils/surveyReminderEligibility';
+import { resolveChallengeSurveyEligibleUsers } from './surveyEligibilityService';
 
 const isForeignKeyError = (error) => {
   if (!error) return false;
@@ -64,21 +65,61 @@ const resolveReminderSendAt = (surveyDeadlineAtIso, leadMs, nowDate = new Date()
   return new Date(reminderAtMs).toISOString();
 };
 
-const fetchMatchRecipientIds = async (partidoId, adminUserId = null) => {
+const fetchEffectiveMatchRecipientIds = async (partidoId, options = {}) => {
+  const { partido = null } = options || {};
+
   const { data: jugadores, error: playersError } = await supabase
     .from('jugadores')
-    .select('usuario_id')
+    .select('id, usuario_id, uuid, nombre, is_substitute')
     .eq('partido_id', partidoId)
     .not('usuario_id', 'is', null);
 
   if (playersError) throw playersError;
+  if (!jugadores || jugadores.length === 0) {
+    return [];
+  }
+
+  let confirmationRow = null;
+  try {
+    const { data } = await supabase
+      .from('partido_team_confirmations')
+      .select('participants, team_a, team_b, teams_json')
+      .eq('partido_id', partidoId)
+      .maybeSingle();
+    confirmationRow = data || null;
+  } catch (_confirmationError) {
+    confirmationRow = null;
+  }
+
+  let rosterMatchRow = partido || null;
+  try {
+    const { data } = await supabase
+      .from('partidos')
+      .select('equipos_json, equipos, survey_team_a, survey_team_b, final_team_a, final_team_b')
+      .eq('id', partidoId)
+      .maybeSingle();
+    if (data) {
+      rosterMatchRow = { ...(rosterMatchRow || {}), ...data };
+    }
+  } catch (_matchRosterError) {
+    // Non-blocking fallback.
+  }
+
+  const eligibility = await resolveChallengeSurveyEligibleUsers({
+    matchId: partidoId,
+    rosterRows: jugadores,
+    matchRow: rosterMatchRow,
+    confirmationRow,
+  });
+  const eligibleUserIds = eligibility?.eligibleUserIds || new Set();
 
   const recipients = new Set();
   (jugadores || []).forEach((jugador) => {
-    const uid = jugador?.usuario_id;
-    if (uid) recipients.add(uid);
+    const uid = jugador?.usuario_id ? String(jugador.usuario_id) : '';
+    if (!uid) return;
+    if (eligibleUserIds.size > 0 && !eligibleUserIds.has(uid)) return;
+    recipients.add(uid);
   });
-  if (adminUserId) recipients.add(adminUserId);
 
   return Array.from(recipients);
 };
@@ -114,7 +155,9 @@ const scheduleSurveyReminderNotifications = async ({
     return { inserted: 0 };
   }
 
-  const recipientIds = await fetchMatchRecipientIds(partidoId, partido?.creado_por || null);
+  const recipientIds = await fetchEffectiveMatchRecipientIds(partidoId, {
+    partido,
+  });
   if (recipientIds.length === 0) return { inserted: 0 };
 
   const { data: existingReminders, error: existingRemindersError } = await supabase
@@ -339,29 +382,12 @@ export const checkAndNotifyMatchFinish = async (partido) => {
 
     console.warn('[MATCH_FINISH] enqueue_partido_notification failed, using direct insert fallback:', rpcError);
 
-    // Get all players in the match
-    const { data: jugadores, error: playersError } = await supabase
-      .from('jugadores')
-      .select('usuario_id, nombre')
-      .eq('partido_id', partidoId)
-      .not('usuario_id', 'is', null);
-      
-    if (playersError) throw playersError;
-    if (!jugadores || jugadores.length === 0) return false;
-
-    const jugadoresValidos = [];
-    const seenUserIds = new Set();
-    for (const jugador of jugadores) {
-      const uid = jugador?.usuario_id;
-      if (!uid || seenUserIds.has(uid)) continue;
-      seenUserIds.add(uid);
-      jugadoresValidos.push(jugador);
-    }
-    if (jugadoresValidos.length === 0) return false;
+    const recipientIds = await fetchEffectiveMatchRecipientIds(partidoId, { partido });
+    if (recipientIds.length === 0) return false;
 
     // Create survey notifications for each player
-    const notifications = jugadoresValidos.map((jugador) => ({
-      user_id: jugador.usuario_id,
+    const notifications = recipientIds.map((userId) => ({
+      user_id: userId,
       type: 'survey_start',
       title,
       message,

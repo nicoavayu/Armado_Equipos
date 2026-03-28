@@ -210,7 +210,7 @@ const extractTeamNamesFromPersistedTeams = (payload) => {
 
 const playerMatchesRefSet = (player, refSet) => {
   if (!player || !(refSet instanceof Set) || refSet.size === 0) return false;
-  const candidates = [player?.id, player?.uuid, player?.usuario_id]
+  const candidates = [resolvePersistRef(player), player?.id, player?.uuid, player?.usuario_id, player?.nombre]
     .map((value) => normalizeRosterRef(value))
     .filter(Boolean);
   return candidates.some((candidate) => refSet.has(candidate));
@@ -921,6 +921,7 @@ const EncuestaPartido = () => {
         let challengeTeamMatchContext = null;
         let challengeMembersByTeamId = null;
         let challengeApprovedSquadByTeamId = null;
+        let confirmationRow = null;
         let challengeSurveyNameValue = '';
         let challengeSurveyTeamLabelsValue = { teamA: 'Equipo A', teamB: 'Equipo B' };
         let surveyStatusValue = partidoData?.survey_status || null;
@@ -1082,6 +1083,20 @@ const EncuestaPartido = () => {
             : [];
           rosterRowsForEligibility = Array.isArray(jugadoresPartido) ? jugadoresPartido : [];
         }
+
+        try {
+          const { data: teamConfirmationRow, error: teamConfirmationError } = await supabase
+            .from('partido_team_confirmations')
+            .select('participants, team_a, team_b, teams_json')
+            .eq('partido_id', matchIdNum)
+            .maybeSingle();
+          if (!teamConfirmationError) {
+            confirmationRow = teamConfirmationRow || null;
+          }
+        } catch (_confirmationFetchError) {
+          confirmationRow = null;
+        }
+
         jugadoresPartido = dedupeChallengeSurveyRoster(jugadoresPartido, {
           includeLooseName: isTeamChallengeValue,
         });
@@ -1178,30 +1193,25 @@ const EncuestaPartido = () => {
           includeLooseName: isTeamChallengeValue,
         });
 
-        const challengeEligibility = await resolveChallengeSurveyEligibleUsers({
+        const surveyEligibility = await resolveChallengeSurveyEligibleUsers({
           matchId: challengeTeamMatchContext?.id || null,
           rosterRows: rosterRowsForEligibility,
           teamMatchRow: challengeTeamMatchContext,
           matchRow: matchRowForEligibility,
+          confirmationRow,
           approvedByTeamId: challengeApprovedSquadByTeamId,
           membersByTeamId: challengeMembersByTeamId,
         });
-        const challengeEligibleUserIds = challengeEligibility?.eligibleUserIds || new Set();
+        const surveyEligibleUserIds = surveyEligibility?.eligibleUserIds || new Set();
         const loggedRosterPlayers = (jugadoresPartido || []).filter((player) => Boolean(player?.usuario_id));
         const normalizedCurrentUserId = normalizeIdentityToken(user.id);
-        const loggedCount = isTeamChallengeValue
-          ? challengeEligibleUserIds.size
-          : loggedRosterPlayers.length;
+        const loggedCount = surveyEligibleUserIds.size;
         const filteredCurrentUserPlayer = currentUserPlayer?.id
           ? (jugadoresPartido || []).find((row) => Number(row?.id) === Number(currentUserPlayer.id))
           : loggedRosterPlayers.find((row) => normalizeIdentityToken(row?.usuario_id) === normalizedCurrentUserId);
-        const currentUserEligiblePlayer = isTeamChallengeValue
-          ? (
-            challengeEligibleUserIds.has(String(user.id || '').trim())
-              ? (filteredCurrentUserPlayer || currentUserPlayer || null)
-              : null
-          )
-          : (filteredCurrentUserPlayer || currentUserPlayer || null);
+        const currentUserEligiblePlayer = surveyEligibleUserIds.has(String(user.id || '').trim())
+          ? (filteredCurrentUserPlayer || currentUserPlayer || null)
+          : null;
         const currentUserSurveyPlayerIds = resolveSurveyAliasPlayerIds({
           userId: user.id,
           primaryPlayerId: currentUserEligiblePlayer?.id || currentUserPlayer?.id || null,
@@ -1276,6 +1286,23 @@ const EncuestaPartido = () => {
           return;
         }
 
+        if (!isTeamChallengeValue) {
+          const effectiveRosterRefs = surveyEligibility?.rosterRefs instanceof Set
+            ? surveyEligibility.rosterRefs
+            : new Set();
+          if (effectiveRosterRefs.size > 0) {
+            const filteredRoster = (jugadoresPartido || []).filter((player) => playerMatchesRefSet(player, effectiveRosterRefs));
+            if (filteredRoster.length > 0) {
+              jugadoresPartido = filteredRoster;
+            }
+          } else if (surveyEligibility?.excludeSubstitutesByDefault) {
+            const starterRoster = (jugadoresPartido || []).filter((player) => player?.is_substitute !== true);
+            if (starterRoster.length > 0) {
+              jugadoresPartido = starterRoster;
+            }
+          }
+        }
+
         const playerRefToKey = buildPlayerRefToKeyMap(jugadoresPartido);
         let challengeFixedTeams = { ...approvedSquadFixedTeams };
         if (
@@ -1305,12 +1332,7 @@ const EncuestaPartido = () => {
         let resolvedTeamB = [];
 
         try {
-          const { data: confirmationRow, error: confirmationError } = await supabase
-            .from('partido_team_confirmations')
-            .select('team_a, team_b')
-            .eq('partido_id', matchIdNum)
-            .maybeSingle();
-          if (!confirmationError && confirmationRow) {
+          if (confirmationRow) {
             resolvedTeamA = toPlayerKeysFromRefs({
               refs: Array.isArray(confirmationRow.team_a) ? confirmationRow.team_a : [],
               refToKeyMap: playerRefToKey,

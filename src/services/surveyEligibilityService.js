@@ -3,6 +3,7 @@ import { normalizeIdentityRef, resolvePersistRef } from './surveyTeamsService';
 
 const normalizeUserId = (value) => String(value || '').trim();
 const normalizeTeamId = (value) => String(value || '').trim();
+const normalizeRosterRef = (value) => normalizeIdentityRef(value);
 const normalizeUserIdSetInput = (values = []) => {
   const input = values instanceof Set
     ? Array.from(values)
@@ -35,6 +36,68 @@ export const buildEligibleRosterMap = (rows = [], options = {}) => {
     eligibleUserIds,
     expectedVoters: eligibleUserIds.size,
   };
+};
+
+const parsePersistedTeamsPayload = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (typeof payload === 'string') {
+    try {
+      const parsed = JSON.parse(payload);
+      return Array.isArray(parsed) ? parsed : null;
+    } catch (_error) {
+      return null;
+    }
+  }
+  return null;
+};
+
+const pushRosterRef = (bucket, value) => {
+  const token = normalizeRosterRef(value);
+  if (token) bucket.add(token);
+};
+
+const collectRosterRefsFromParticipantRows = (rows = []) => {
+  const refs = new Set();
+
+  (rows || []).forEach((row) => {
+    const player = row?.jugador && typeof row.jugador === 'object' ? row.jugador : row;
+    [
+      resolvePersistRef(player),
+      row?.user_id,
+      player?.usuario_id,
+      player?.uuid,
+      player?.id,
+      player?.nombre,
+    ].forEach((value) => pushRosterRef(refs, value));
+  });
+
+  return refs;
+};
+
+const collectRosterRefsFromTeamsPayload = (payload) => {
+  const refs = new Set();
+  const normalized = parsePersistedTeamsPayload(payload);
+  if (!Array.isArray(normalized) || normalized.length === 0) return refs;
+
+  normalized.forEach((team) => {
+    const players = Array.isArray(team?.players) ? team.players : [];
+    players.forEach((playerRef) => {
+      if (playerRef && typeof playerRef === 'object') {
+        [
+          resolvePersistRef(playerRef),
+          playerRef?.usuario_id,
+          playerRef?.uuid,
+          playerRef?.id,
+          playerRef?.nombre,
+        ].forEach((value) => pushRosterRef(refs, value));
+        return;
+      }
+
+      pushRosterRef(refs, playerRef);
+    });
+  });
+
+  return refs;
 };
 
 const getChallengeTeamBuckets = ({ byTeamId = {}, teamAId = null, teamBId = null } = {}) => {
@@ -126,6 +189,65 @@ const collectUserIdsFromRefs = (refs = [], refToUserIds = new Map()) => {
   return userIds;
 };
 
+const resolveConfirmedRosterEligibleUsers = ({
+  rosterRows = [],
+  confirmationRow = null,
+} = {}) => {
+  if (!confirmationRow || typeof confirmationRow !== 'object') return null;
+
+  const participants = Array.isArray(confirmationRow?.participants) ? confirmationRow.participants : [];
+  const participantUserIds = collectUserIdsFromParticipants(participants);
+  const participantRefs = collectRosterRefsFromParticipantRows(participants);
+  if (participantUserIds.size > 0) {
+    return {
+      source: 'confirmed_participants',
+      eligibleUserIds: participantUserIds,
+      rosterRefs: participantRefs,
+      excludeSubstitutesByDefault: false,
+    };
+  }
+
+  const teamRefs = new Set([
+    ...collectRosterRefsFromTeamsPayload(confirmationRow?.teams_json),
+    ...(Array.isArray(confirmationRow?.team_a) ? confirmationRow.team_a : []).map((value) => normalizeRosterRef(value)).filter(Boolean),
+    ...(Array.isArray(confirmationRow?.team_b) ? confirmationRow.team_b : []).map((value) => normalizeRosterRef(value)).filter(Boolean),
+  ]);
+  if (teamRefs.size === 0) return null;
+
+  const refToUserIds = buildRosterRefToUserIds(rosterRows);
+  const eligibleUserIds = collectUserIdsFromRefs(Array.from(teamRefs), refToUserIds);
+  if (eligibleUserIds.size === 0) return null;
+
+  return {
+    source: 'confirmed_teams',
+    eligibleUserIds,
+    rosterRefs: teamRefs,
+    excludeSubstitutesByDefault: false,
+  };
+};
+
+const resolvePersistedMatchRosterEligibleUsers = ({
+  rosterRows = [],
+  matchRow = null,
+} = {}) => {
+  const payloadRefs = new Set([
+    ...collectRosterRefsFromTeamsPayload(matchRow?.equipos_json),
+    ...collectRosterRefsFromTeamsPayload(matchRow?.equipos),
+  ]);
+  if (payloadRefs.size === 0) return null;
+
+  const refToUserIds = buildRosterRefToUserIds(rosterRows);
+  const eligibleUserIds = collectUserIdsFromRefs(Array.from(payloadRefs), refToUserIds);
+  if (eligibleUserIds.size === 0) return null;
+
+  return {
+    source: 'persisted_match_roster',
+    eligibleUserIds,
+    rosterRefs: payloadRefs,
+    excludeSubstitutesByDefault: false,
+  };
+};
+
 const resolvePersistedTeamEligibleUsers = ({
   rosterRows = [],
   matchRow = null,
@@ -146,6 +268,11 @@ const resolvePersistedTeamEligibleUsers = ({
       ...collectUserIdsFromRefs(teamARefs, refToUserIds),
       ...collectUserIdsFromRefs(teamBRefs, refToUserIds),
     ]),
+    rosterRefs: new Set([
+      ...teamARefs.map((value) => normalizeRosterRef(value)).filter(Boolean),
+      ...teamBRefs.map((value) => normalizeRosterRef(value)).filter(Boolean),
+    ]),
+    excludeSubstitutesByDefault: false,
   };
 };
 
@@ -167,6 +294,26 @@ const resolveTeamMatchMemberEligibleUsers = ({
       ...buckets.teamA,
       ...buckets.teamB,
     ]),
+    rosterRefs: collectRosterRefsFromParticipantRows([
+      ...buckets.teamA,
+      ...buckets.teamB,
+    ]),
+    excludeSubstitutesByDefault: false,
+  };
+};
+
+const resolveStarterRosterEligibleUsers = ({
+  rosterRows = [],
+} = {}) => {
+  const starterRows = (rosterRows || []).filter((row) => row?.is_substitute !== true);
+  const effectiveRows = starterRows.length > 0 ? starterRows : (Array.isArray(rosterRows) ? rosterRows : []);
+  const starterEligible = buildEligibleRosterMap(effectiveRows);
+
+  return {
+    source: starterRows.length > 0 ? 'starter_roster' : 'roster',
+    eligibleUserIds: starterEligible.eligibleUserIds,
+    rosterRefs: new Set(),
+    excludeSubstitutesByDefault: starterRows.length > 0,
   };
 };
 
@@ -175,14 +322,52 @@ export const resolveChallengeSurveyEligibleUsers = async ({
   rosterRows = [],
   teamMatchRow = null,
   matchRow = null,
+  confirmationRow = null,
   approvedByTeamId = null,
   membersByTeamId = null,
 } = {}) => {
-  const rosterEligible = buildEligibleRosterMap(rosterRows || []);
   if (!isChallengeLikeSurveyMatch(teamMatchRow)) {
+    const confirmedEligibility = resolveConfirmedRosterEligibleUsers({
+      rosterRows,
+      confirmationRow,
+    });
+    if (confirmedEligibility) {
+      return {
+        ...confirmedEligibility,
+        approvedByTeamId: approvedByTeamId || null,
+        membersByTeamId: membersByTeamId || null,
+      };
+    }
+
+    const persistedMatchEligibility = resolvePersistedMatchRosterEligibleUsers({
+      rosterRows,
+      matchRow,
+    });
+    if (persistedMatchEligibility) {
+      return {
+        ...persistedMatchEligibility,
+        approvedByTeamId: approvedByTeamId || null,
+        membersByTeamId: membersByTeamId || null,
+      };
+    }
+
+    const persistedEligibility = resolvePersistedTeamEligibleUsers({
+      rosterRows,
+      matchRow,
+    });
+    if (persistedEligibility) {
+      return {
+        ...persistedEligibility,
+        approvedByTeamId: approvedByTeamId || null,
+        membersByTeamId: membersByTeamId || null,
+      };
+    }
+
+    const starterEligibility = resolveStarterRosterEligibleUsers({
+      rosterRows,
+    });
     return {
-      source: 'roster',
-      eligibleUserIds: rosterEligible.eligibleUserIds,
+      ...starterEligibility,
       approvedByTeamId: approvedByTeamId || null,
       membersByTeamId: membersByTeamId || null,
     };
@@ -257,8 +442,7 @@ export const resolveChallengeSurveyEligibleUsers = async ({
   }
 
   return {
-    source: 'roster',
-    eligibleUserIds: rosterEligible.eligibleUserIds,
+    ...resolveStarterRosterEligibleUsers({ rosterRows }),
     approvedByTeamId: resolvedApprovedByTeamId,
     membersByTeamId: resolvedMembersByTeamId,
   };

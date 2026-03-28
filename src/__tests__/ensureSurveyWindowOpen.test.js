@@ -49,7 +49,9 @@ const { ensureSurveyWindowOpen } = require('../services/surveyCompletionService'
 const buildSupabaseFromMock = ({
   rosterRows = [],
   lifecycleRow = null,
+  rosterContextRow = null,
   teamMatchRow = null,
+  confirmationRow = null,
   surveyRows = [],
   updateCalls = [],
 }) => (table) => {
@@ -69,9 +71,14 @@ const buildSupabaseFromMock = ({
     };
 
     return {
-      select: jest.fn(() => ({
+      select: jest.fn((columns) => ({
         eq: jest.fn(() => ({
-          maybeSingle: jest.fn(async () => ({ data: lifecycleRow, error: null })),
+          maybeSingle: jest.fn(async () => ({
+            data: String(columns || '').includes('equipos_json')
+              ? (rosterContextRow || lifecycleRow)
+              : lifecycleRow,
+            error: null,
+          })),
         })),
       })),
       update: jest.fn((payload) => {
@@ -95,6 +102,16 @@ const buildSupabaseFromMock = ({
     return {
       select: jest.fn(() => ({
         eq: jest.fn(async () => ({ data: surveyRows, error: null })),
+      })),
+    };
+  }
+
+  if (table === 'partido_team_confirmations') {
+    return {
+      select: jest.fn(() => ({
+        eq: jest.fn(() => ({
+          maybeSingle: jest.fn(async () => ({ data: confirmationRow, error: null })),
+        })),
       })),
     };
   }
@@ -322,5 +339,47 @@ describe('ensureSurveyWindowOpen', () => {
     expect(result.submittedVoters).toBe(1);
     expect(result.remainingVotes).toBe(1);
     expect(updateCalls).toHaveLength(0);
+  });
+
+  test('excludes substitutes from expected voters when no effective roster evidence says they entered', async () => {
+    const updateCalls = [];
+    mockFrom.mockImplementation(buildSupabaseFromMock({
+      rosterRows: [
+        { id: 1, usuario_id: 'u1', uuid: 'u1', nombre: 'Titular Uno', is_substitute: false },
+        { id: 2, usuario_id: 'u2', uuid: 'u2', nombre: 'Titular Dos', is_substitute: false },
+        { id: 3, usuario_id: 'u3', uuid: 'u3', nombre: 'Suplente Tres', is_substitute: true },
+      ],
+      lifecycleRow: {
+        survey_status: 'open',
+        survey_opened_at: null,
+        survey_closes_at: null,
+        survey_expected_voters: 0,
+        result_status: 'pending',
+        winner_team: null,
+        finished_at: null,
+        fecha: '2026-03-17',
+        hora: '22:00',
+      },
+      rosterContextRow: {
+        equipos_json: null,
+        equipos: null,
+        survey_team_a: [],
+        survey_team_b: [],
+        final_team_a: [],
+        final_team_b: [],
+      },
+      confirmationRow: null,
+      teamMatchRow: null,
+      surveyRows: [],
+      updateCalls,
+    }));
+
+    const result = await ensureSurveyWindowOpen(606, {
+      nowIso: '2026-03-18T03:00:00.000Z',
+    });
+
+    expect(result.expectedVoters).toBe(2);
+    expect(result.remainingVotes).toBe(2);
+    expect(Array.from(result.eligibleByPlayerId.keys()).sort((a, b) => a - b)).toEqual([1, 2]);
   });
 });

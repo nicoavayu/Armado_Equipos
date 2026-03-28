@@ -123,6 +123,19 @@ export const resolveSurveyAccess = async ({ supabaseClient, matchId, userId }) =
       partidoRow = null;
     }
 
+    try {
+      const { data } = await supabaseClient
+        .from('partidos')
+        .select('equipos_json, equipos')
+        .eq('id', matchIdNum)
+        .maybeSingle();
+      if (data) {
+        partidoRow = { ...(partidoRow || {}), ...data };
+      }
+    } catch (_partidoRosterError) {
+      // Non-blocking fallback.
+    }
+
     let teamMatchRow = null;
     try {
       const { data } = await supabaseClient
@@ -177,7 +190,7 @@ export const resolveSurveyAccess = async ({ supabaseClient, matchId, userId }) =
     try {
       const { data, error: rosterError } = await supabaseClient
         .from('jugadores')
-        .select('id, usuario_id, uuid, nombre')
+        .select('id, usuario_id, uuid, nombre, is_substitute')
         .eq('partido_id', matchIdNum);
 
       if (rosterError) throw rosterError;
@@ -186,11 +199,24 @@ export const resolveSurveyAccess = async ({ supabaseClient, matchId, userId }) =
       rosterRows = [];
     }
 
+    let confirmationRow = null;
+    try {
+      const { data } = await supabaseClient
+        .from('partido_team_confirmations')
+        .select('participants, team_a, team_b, teams_json')
+        .eq('partido_id', matchIdNum)
+        .maybeSingle();
+      confirmationRow = data || null;
+    } catch (_confirmationError) {
+      confirmationRow = null;
+    }
+
     const eligibility = await resolveChallengeSurveyEligibleUsers({
       matchId: teamMatchRow?.id || null,
       rosterRows,
       teamMatchRow,
       matchRow: partidoRow,
+      confirmationRow,
     });
     const eligibleUserIds = eligibility?.eligibleUserIds || new Set();
 

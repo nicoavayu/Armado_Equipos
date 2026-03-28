@@ -16,6 +16,7 @@ const buildSupabaseClient = ({
   partidoRow = null,
   teamMatchRow = null,
   rosterRows = [],
+  confirmationRow = null,
 }) => ({
   from: jest.fn((table) => {
     if (table === 'partidos') {
@@ -42,6 +43,16 @@ const buildSupabaseClient = ({
       return {
         select: jest.fn(() => ({
           eq: jest.fn(async () => ({ data: rosterRows, error: null })),
+        })),
+      };
+    }
+
+    if (table === 'partido_team_confirmations') {
+      return {
+        select: jest.fn(() => ({
+          eq: jest.fn(() => ({
+            maybeSingle: jest.fn(async () => ({ data: confirmationRow, error: null })),
+          })),
         })),
       };
     }
@@ -220,6 +231,35 @@ describe('surveyAccess lifecycle guards', () => {
         ],
       }),
       matchId: 91,
+      userId: 'u3',
+    });
+
+    expect(access.allowed).toBe(false);
+    expect(access.reason).toBe('user_not_participant');
+  });
+
+  test('blocks a substitute from post-match survey access when they never entered the effective roster', async () => {
+    const access = await resolveSurveyAccess({
+      supabaseClient: buildSupabaseClient({
+        partidoRow: {
+          id: 92,
+          fecha: '2026-03-17',
+          hora: '22:00',
+          estado: 'pendiente',
+          survey_status: 'open',
+          survey_opened_at: '2026-03-18T02:00:00.000Z',
+          survey_closes_at: '2026-03-19T02:00:00.000Z',
+          result_status: 'pending',
+          finished_at: null,
+        },
+        teamMatchRow: null,
+        rosterRows: [
+          { id: 1, usuario_id: 'u1', uuid: 'u1', nombre: 'Titular Uno', is_substitute: false },
+          { id: 2, usuario_id: 'u2', uuid: 'u2', nombre: 'Titular Dos', is_substitute: false },
+          { id: 3, usuario_id: 'u3', uuid: 'u3', nombre: 'Suplente Tres', is_substitute: true },
+        ],
+      }),
+      matchId: 92,
       userId: 'u3',
     });
 

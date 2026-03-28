@@ -8,6 +8,7 @@ import { getSurveyReminderMessage, getSurveyStartMessage } from '../utils/survey
 import { finalizeIfComplete } from './surveyCompletionService';
 import { ensureAwards } from './awardsService';
 import { isAwardsNotEligibleStatus, isAwardsReadyStatus } from '../utils/awardsReadiness';
+import { resolveChallengeSurveyEligibleUsers } from './surveyEligibilityService';
 
 /**
  * Creates post-match survey notifications for all players in a match
@@ -34,10 +35,45 @@ export const createPostMatchSurveyNotifications = async (partido) => {
   if (!partido || !partido.jugadores || !partido.jugadores.length) return [];
 
   try {
-    // Get unique user IDs from the match participants (exclude guest users)
+    let confirmationRow = null;
+    try {
+      const { data } = await supabase
+        .from('partido_team_confirmations')
+        .select('participants, team_a, team_b, teams_json')
+        .eq('partido_id', Number(partido.id))
+        .maybeSingle();
+      confirmationRow = data || null;
+    } catch (_confirmationError) {
+      confirmationRow = null;
+    }
+
+    let rosterMatchRow = partido || null;
+    try {
+      const { data } = await supabase
+        .from('partidos')
+        .select('equipos_json, equipos, survey_team_a, survey_team_b, final_team_a, final_team_b')
+        .eq('id', Number(partido.id))
+        .maybeSingle();
+      if (data) {
+        rosterMatchRow = { ...(rosterMatchRow || {}), ...data };
+      }
+    } catch (_matchRosterError) {
+      // Non-blocking fallback.
+    }
+
+    const eligibility = await resolveChallengeSurveyEligibleUsers({
+      matchId: Number(partido.id),
+      rosterRows: partido.jugadores || [],
+      matchRow: rosterMatchRow,
+      confirmationRow,
+    });
+    const eligibleUserIds = eligibility?.eligibleUserIds || new Set();
+
+    // Get unique user IDs from the effective match participants (exclude guest users)
     const userIds = partido.jugadores
-      .filter((jugador) => jugador.uuid && !jugador.uuid.startsWith('guest_'))
-      .map((jugador) => jugador.uuid);
+      .map((jugador) => String(jugador?.usuario_id || jugador?.uuid || '').trim())
+      .filter((userId) => userId && !userId.startsWith('guest_'))
+      .filter((userId) => eligibleUserIds.size === 0 || eligibleUserIds.has(userId));
 
     if (userIds.length === 0) return [];
 

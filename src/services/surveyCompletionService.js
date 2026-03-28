@@ -939,11 +939,39 @@ const fetchSurveyLifecycleRow = async (partidoId) => {
   }
 };
 
+const fetchSurveyRosterContextRow = async (partidoId) => {
+  try {
+    const { data, error } = await supabase
+      .from('partidos')
+      .select('equipos_json, equipos, survey_team_a, survey_team_b, final_team_a, final_team_b')
+      .eq('id', partidoId)
+      .maybeSingle();
+    if (error) throw error;
+    return data || null;
+  } catch (_error) {
+    return null;
+  }
+};
+
 const fetchSurveyTeamMatchContext = async (partidoId) => {
   try {
     const { data, error } = await supabase
       .from('team_matches')
       .select('id, origin_type, challenge_id, team_a_id, team_b_id, scheduled_at')
+      .eq('partido_id', partidoId)
+      .maybeSingle();
+    if (error) throw error;
+    return data || null;
+  } catch (_error) {
+    return null;
+  }
+};
+
+const fetchSurveyConfirmationRow = async (partidoId) => {
+  try {
+    const { data, error } = await supabase
+      .from('partido_team_confirmations')
+      .select('participants, team_a, team_b, teams_json')
       .eq('partido_id', partidoId)
       .maybeSingle();
     if (error) throw error;
@@ -973,7 +1001,7 @@ export async function ensureSurveyWindowOpen(partidoId, options = {}) {
   const nowIso = options?.nowIso || new Date().toISOString();
   const { data: rosterRows, error: rosterErr } = await supabase
     .from('jugadores')
-    .select('id, usuario_id, uuid, nombre')
+    .select('id, usuario_id, uuid, nombre, is_substitute')
     .eq('partido_id', idNum);
 
   if (rosterErr) {
@@ -982,12 +1010,15 @@ export async function ensureSurveyWindowOpen(partidoId, options = {}) {
   }
 
   const lifecycleRow = await fetchSurveyLifecycleRow(idNum);
+  const rosterContextRow = await fetchSurveyRosterContextRow(idNum);
   const teamMatchRow = await fetchSurveyTeamMatchContext(idNum);
+  const confirmationRow = await fetchSurveyConfirmationRow(idNum);
   const eligibility = await resolveChallengeSurveyEligibleUsers({
     matchId: teamMatchRow?.id || null,
     rosterRows: rosterRows || [],
     teamMatchRow,
-    matchRow: lifecycleRow,
+    matchRow: rosterContextRow ? { ...(lifecycleRow || {}), ...rosterContextRow } : lifecycleRow,
+    confirmationRow,
   });
   const eligibleRoster = buildEligibleRosterMap(rosterRows || [], {
     eligibleUserIds: eligibility?.eligibleUserIds || [],
@@ -1483,8 +1514,11 @@ export async function finalizeIfComplete(partidoId, options = {}) {
 
   if (!SKIP_SIDE_EFFECTS) {
     try {
-      let jugadoresForNotifs = await db.fetchMany('jugadores', { partido_id: idNum });
-      jugadoresForNotifs = (jugadoresForNotifs || []).filter((j) => j.usuario_id != null);
+      const eligibleByPlayerId = surveyWindow?.eligibleByPlayerId instanceof Map
+        ? surveyWindow.eligibleByPlayerId
+        : new Map();
+      const eligibleUserIds = new Set(Array.from(eligibleByPlayerId.values()).filter(Boolean));
+      let jugadoresForNotifs = Array.from(eligibleUserIds).map((userId) => ({ usuario_id: userId }));
 
       let existingNotifs = [];
       try {
