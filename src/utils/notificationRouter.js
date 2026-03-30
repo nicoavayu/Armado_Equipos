@@ -10,6 +10,7 @@ import { normalizeAwardsStatus } from './awardsReadiness';
 import {
   buildTeamChallengeRoute,
   extractNotificationMatchId,
+  extractTeamMatchId,
   isSurveyFormNotificationType,
   isTeamChallengeNotification,
   resolveTeamChallengeRouteFromMatchId,
@@ -110,6 +111,13 @@ const CLOSED_RESULT_STATUS_TOKENS = new Set([
   'no_jugado',
   'walkover',
   'forfeit',
+]);
+
+const CLOSED_TEAM_MATCH_STATUS_TOKENS = new Set([
+  'played',
+  'cancelled',
+  'canceled',
+  'cancelado',
 ]);
 
 const OPERATIONAL_ACTION_EXPIRY_GRACE_MS = 6 * 60 * 60 * 1000;
@@ -262,6 +270,132 @@ const fetchMatchLifecycleRow = async ({ supabaseClient, matchId, nowMs }) => {
   } catch (_error) {
     return null;
   }
+};
+
+const fetchTeamMatchLifecycleRow = async ({ supabaseClient, teamMatchId }) => {
+  if (!supabaseClient || !teamMatchId) return null;
+
+  try {
+    const { data, error } = await supabaseClient
+      .from('team_matches')
+      .select('id, status, scheduled_at, partido_id')
+      .eq('id', teamMatchId)
+      .maybeSingle();
+    if (error) return null;
+    return data || null;
+  } catch (_error) {
+    return null;
+  }
+};
+
+const resolveTeamChallengeNotificationActionability = async ({
+  notification = {},
+  supabaseClient = supabase,
+  nowMs = Date.now(),
+} = {}) => {
+  const teamMatchId = extractTeamMatchId(notification);
+  if (!teamMatchId) {
+    return {
+      isActionable: true,
+      reason: 'missing_team_match_id',
+      message: '',
+      teamMatchId: null,
+    };
+  }
+
+  const teamMatchRow = await fetchTeamMatchLifecycleRow({
+    supabaseClient,
+    teamMatchId,
+  });
+  if (!teamMatchRow) {
+    return {
+      isActionable: true,
+      reason: 'team_match_not_found',
+      message: '',
+      teamMatchId,
+    };
+  }
+
+  const normalizedTeamMatchStatus = normalizeToken(teamMatchRow?.status);
+  if (CLOSED_TEAM_MATCH_STATUS_TOKENS.has(normalizedTeamMatchStatus)) {
+    return {
+      isActionable: false,
+      reason: 'team_match_closed',
+      message: 'Este desafío ya no tiene acciones disponibles desde esta notificación.',
+      teamMatchId,
+    };
+  }
+
+  const scheduledAtMs = toMillis(teamMatchRow?.scheduled_at);
+  if (scheduledAtMs !== null && scheduledAtMs <= nowMs) {
+    return {
+      isActionable: false,
+      reason: 'team_match_past',
+      message: 'Este desafío ya pasó y esta notificación ya no tiene acciones disponibles.',
+      teamMatchId,
+    };
+  }
+
+  const linkedMatchId = teamMatchRow?.partido_id ? String(teamMatchRow.partido_id).trim() : '';
+  if (!linkedMatchId) {
+    return {
+      isActionable: true,
+      reason: 'ok',
+      message: '',
+      teamMatchId,
+    };
+  }
+
+  const partidoRow = await fetchMatchLifecycleRow({
+    supabaseClient,
+    matchId: linkedMatchId,
+    nowMs,
+  });
+  if (!partidoRow) {
+    return {
+      isActionable: true,
+      reason: 'ok',
+      message: '',
+      teamMatchId,
+    };
+  }
+
+  const normalizedEstado = normalizeToken(partidoRow?.estado);
+  if (CLOSED_MATCH_STATUS_TOKENS.has(normalizedEstado)) {
+    return {
+      isActionable: false,
+      reason: 'linked_partido_closed',
+      message: 'Este desafío ya terminó y esta notificación ya no tiene acciones disponibles.',
+      teamMatchId,
+    };
+  }
+
+  const normalizedResultStatus = normalizeToken(partidoRow?.result_status);
+  if (CLOSED_RESULT_STATUS_TOKENS.has(normalizedResultStatus)) {
+    return {
+      isActionable: false,
+      reason: 'linked_partido_result_closed',
+      message: 'Este desafío ya terminó y esta notificación ya no tiene acciones disponibles.',
+      teamMatchId,
+    };
+  }
+
+  const finishedAtMs = toMillis(partidoRow?.finished_at);
+  if (finishedAtMs !== null && finishedAtMs <= nowMs) {
+    return {
+      isActionable: false,
+      reason: 'linked_partido_finished_at',
+      message: 'Este desafío ya terminó y esta notificación ya no tiene acciones disponibles.',
+      teamMatchId,
+    };
+  }
+
+  return {
+    isActionable: true,
+    reason: 'ok',
+    message: '',
+    teamMatchId,
+  };
 };
 
 export const isMatchOperationalNotificationType = (notificationOrType = {}) => {
@@ -598,6 +732,16 @@ export async function openNotification(n, navigate, options = {}) {
     })();
 
     if (isTeamChallengeNotification(n)) {
+      const teamChallengeActionability = await resolveTeamChallengeNotificationActionability({
+        notification: n,
+        supabaseClient: options?.supabaseClient || supabase,
+        nowMs: Date.now(),
+      });
+      if (!teamChallengeActionability.isActionable) {
+        options?.onActionBlocked?.(teamChallengeActionability);
+        return;
+      }
+
       navigate(buildTeamChallengeRoute(n));
       return;
     }

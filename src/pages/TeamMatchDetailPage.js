@@ -556,7 +556,14 @@ const TeamMatchDetailPage = () => {
     ),
     [challengeCreatorUserId, isChallengeMatch, user?.id],
   );
-  const canShowEditAction = canEditMatchInfo && match?.status !== 'cancelled' && match?.status !== 'played';
+  const isPastScheduledTeamMatch = useMemo(() => {
+    const scheduledAtMs = match?.scheduled_at ? new Date(match.scheduled_at).getTime() : NaN;
+    return Number.isFinite(scheduledAtMs) && scheduledAtMs <= Date.now();
+  }, [match?.scheduled_at]);
+  const canShowEditAction = canEditMatchInfo
+    && !isPastScheduledTeamMatch
+    && match?.status !== 'cancelled'
+    && match?.status !== 'played';
 
   const teamMemberByPlayerByTeamId = useMemo(() => {
     const byTeamId = {};
@@ -817,8 +824,11 @@ const TeamMatchDetailPage = () => {
   ]);
 
   const challengeSquadEditable = useMemo(() => (
-    challengeSquadStatus === 'open' && match?.status !== 'played' && match?.status !== 'cancelled'
-  ), [challengeSquadStatus, match?.status]);
+    challengeSquadStatus === 'open'
+    && !isPastScheduledTeamMatch
+    && match?.status !== 'played'
+    && match?.status !== 'cancelled'
+  ), [challengeSquadStatus, isPastScheduledTeamMatch, match?.status]);
 
   const currentUserSquadRowByTeamId = useMemo(() => {
     const byTeamId = {};
@@ -1221,6 +1231,10 @@ const TeamMatchDetailPage = () => {
     if (!match?.id) return;
     if (!canEditMatchInfo) {
       notifyBlockingError('No autorizado');
+      return;
+    }
+    if (isPastScheduledTeamMatch) {
+      notifyBlockingError('No se puede editar un partido pasado');
       return;
     }
 

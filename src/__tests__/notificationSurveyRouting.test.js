@@ -101,6 +101,89 @@ describe('survey notification routing', () => {
     expect(extractNotificationMatchId(notification)).toBe('tm-999');
   });
 
+  test('bloquea navegación de challenge viejo cuando el team_match ya pasó', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-03-30T03:30:00.000Z'));
+    const navigate = jest.fn();
+    const onActionBlocked = jest.fn();
+    const supabaseMock = createSupabaseMock({
+      teamMatchRow: {
+        id: 'tm-8142',
+        status: 'confirmed',
+        scheduled_at: '2026-03-30T01:19:00.000Z',
+        partido_id: 477,
+      },
+      partidoRow: {
+        id: 477,
+        estado: 'cancelado',
+        result_status: 'not_played',
+        finished_at: '2026-03-30T02:19:00.000Z',
+      },
+    });
+
+    try {
+      await openNotification({
+        id: 'notif-challenge-old',
+        type: 'challenge_squad_open',
+        data: {
+          team_match_id: 'tm-8142',
+          link: '/desafios/equipos/partidos/tm-8142',
+        },
+      }, navigate, {
+        supabaseClient: supabaseMock,
+        onActionBlocked,
+      });
+
+      expect(navigate).not.toHaveBeenCalled();
+      expect(onActionBlocked).toHaveBeenCalledWith(expect.objectContaining({
+        isActionable: false,
+        reason: 'team_match_past',
+      }));
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test('mantiene navegación de challenge vigente cuando el team_match sigue futuro', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-03-30T00:30:00.000Z'));
+    const navigate = jest.fn();
+    const onActionBlocked = jest.fn();
+    const supabaseMock = createSupabaseMock({
+      teamMatchRow: {
+        id: 'tm-future',
+        status: 'confirmed',
+        scheduled_at: '2026-03-30T05:00:00.000Z',
+        partido_id: 900,
+      },
+      partidoRow: {
+        id: 900,
+        estado: 'active',
+        result_status: 'pending',
+        finished_at: null,
+      },
+    });
+
+    try {
+      await openNotification({
+        id: 'notif-challenge-future',
+        type: 'challenge_squad_open',
+        data: {
+          team_match_id: 'tm-future',
+          link: '/desafios/equipos/partidos/tm-future',
+        },
+      }, navigate, {
+        supabaseClient: supabaseMock,
+        onActionBlocked,
+      });
+
+      expect(navigate).toHaveBeenCalledWith('/desafios/equipos/partidos/tm-future');
+      expect(onActionBlocked).not.toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   test('never resolves invite links as survey destination', () => {
     const notification = {
       type: 'survey_reminder',
