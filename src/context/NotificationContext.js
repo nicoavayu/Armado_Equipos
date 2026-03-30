@@ -71,6 +71,41 @@ export const NotificationProvider = ({ children }) => {
   const pushUserIdRef = useRef(user?.id || null);
   const initialAuthCheckedRef = useRef(false);
   const lastObservedPushUserIdRef = useRef(null);
+  const extractNumericInboxMatchId = useCallback((notification) => {
+    const data = notification?.data || {};
+    const explicitCandidate = (
+      notification?.partido_id
+      ?? data?.partido_id
+      ?? data?.partidoId
+      ?? data?.match_id
+      ?? data?.matchId
+      ?? notification?.match_ref
+      ?? null
+    );
+    const normalizedExplicit = String(explicitCandidate ?? '').trim();
+    if (/^\d+$/.test(normalizedExplicit)) {
+      return normalizedExplicit;
+    }
+
+    const linkCandidate = (
+      data?.link
+      || data?.deep_link
+      || data?.deepLink
+      || notification?.deep_link
+      || notification?.deepLink
+      || ''
+    );
+    const linkText = String(linkCandidate || '').trim();
+    if (!linkText) return null;
+
+    const pathMatch = linkText.match(/\/(?:admin|partido-publico|partido|encuesta|resultados-encuesta)\/(\d+)/i);
+    if (pathMatch?.[1]) return pathMatch[1];
+
+    const queryMatch = linkText.match(/[?&]partidoId=(\d+)/i);
+    if (queryMatch?.[1]) return queryMatch[1];
+
+    return null;
+  }, []);
   const resolveNotificationMatchId = useCallback((notification) => {
     if (!notification) return null;
     const data = notification.data || {};
@@ -142,17 +177,7 @@ export const NotificationProvider = ({ children }) => {
       rows
         .map((notification) => {
           const data = notification?.data || {};
-          const candidate = (
-            notification?.partido_id
-            ?? data?.partido_id
-            ?? data?.partidoId
-            ?? data?.match_id
-            ?? data?.matchId
-            ?? notification?.match_ref
-            ?? null
-          );
-          const normalized = String(candidate ?? '').trim();
-          return /^\d+$/.test(normalized) ? normalized : null;
+          return extractNumericInboxMatchId(notification);
         })
         .filter(Boolean),
     )];
@@ -216,16 +241,7 @@ export const NotificationProvider = ({ children }) => {
     return rows.map((notification) => {
       const teamMatchId = String(extractTeamMatchId(notification) || '').trim();
       const data = notification?.data || {};
-      const numericMatchCandidate = (
-        notification?.partido_id
-        ?? data?.partido_id
-        ?? data?.partidoId
-        ?? data?.match_id
-        ?? data?.matchId
-        ?? notification?.match_ref
-        ?? null
-      );
-      const normalizedMatchId = String(numericMatchCandidate ?? '').trim();
+      const normalizedMatchId = String(extractNumericInboxMatchId(notification) ?? '').trim();
       const resolvedStart =
         (teamMatchId ? teamMatchStartIsoById.get(teamMatchId) : null)
         || (/^\d+$/.test(normalizedMatchId) ? partidoStartIsoById.get(normalizedMatchId) : null)
@@ -247,7 +263,7 @@ export const NotificationProvider = ({ children }) => {
         },
       };
     });
-  }, []);
+  }, [extractNumericInboxMatchId]);
   const isAwardsReadyNotificationType = useCallback((notificationType) => (
     AWARDS_READY_NOTIFICATION_TYPES.has(String(notificationType || '').trim().toLowerCase())
   ), []);

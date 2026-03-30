@@ -5,13 +5,21 @@ import { parseLocalDateTime } from './dateLocal';
 export const normalizeInviteStatus = (status) => String(status || 'pending').trim().toLowerCase();
 const normalizeNotificationType = (notification) => String(notification?.type || '').trim().toLowerCase();
 const normalizeNotificationText = (value) => String(value || '').trim().toLowerCase();
-const POST_SURVEY_RESULTS_NOTIFICATION_TYPES = new Set(['awards_ready', 'award_won', 'survey_finished']);
+const POST_SURVEY_RESULTS_NOTIFICATION_TYPES = new Set([
+  'awards_ready',
+  'award_won',
+  'survey_finished',
+  'survey_results',
+  'survey_results_ready',
+]);
 const SURVEY_ACTIVE_NOTIFICATION_TYPES = new Set(['survey_start', 'post_match_survey', 'survey_reminder', 'survey_reminder_12h']);
-const FRIEND_ACCEPTED_WINDOW_MS = 3 * 24 * 60 * 60 * 1000;
+const SOCIAL_NOTIFICATION_TYPES = new Set(['friend_request', 'friend_accepted', 'friend_rejected']);
+const SOCIAL_NOTIFICATION_WINDOW_MS = 3 * 24 * 60 * 60 * 1000;
 const HIDE_AFTER_MATCH_START_TYPES = new Set([
   'match_invite',
   'match_join_request',
   'match_join_approved',
+  'match_reminder_1h',
   'call_to_vote',
   'pre_match_vote',
   'match_update',
@@ -257,10 +265,10 @@ export const filterNotificationsForInbox = (notifications = []) => {
       if ((nowMs - ts) > awardsNotificationWindowMs) return false;
     }
 
-    if (notificationType === 'friend_accepted') {
+    if (SOCIAL_NOTIFICATION_TYPES.has(notificationType)) {
       const ts = getNotificationTimestampMs(notification);
       if (!ts) return false;
-      if ((nowMs - ts) > FRIEND_ACCEPTED_WINDOW_MS) return false;
+      if ((nowMs - ts) > SOCIAL_NOTIFICATION_WINDOW_MS) return false;
     }
 
     if (SURVEY_ACTIVE_NOTIFICATION_TYPES.has(notificationType)) {
