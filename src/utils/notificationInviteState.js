@@ -1,10 +1,27 @@
 import { extractNotificationMatchId } from './notificationRoutes';
 import { awardsNotificationWindowMs } from './notificationRetentionPolicy';
+import { parseLocalDateTime } from './dateLocal';
 
 export const normalizeInviteStatus = (status) => String(status || 'pending').trim().toLowerCase();
 const normalizeNotificationType = (notification) => String(notification?.type || '').trim().toLowerCase();
 const normalizeNotificationText = (value) => String(value || '').trim().toLowerCase();
 const AWARDS_NOTIFICATION_TYPES = new Set(['awards_ready', 'award_won']);
+const HIDE_AFTER_MATCH_START_TYPES = new Set([
+  'match_invite',
+  'match_join_request',
+  'match_join_approved',
+  'call_to_vote',
+  'pre_match_vote',
+  'match_update',
+  'match_player_joined',
+  'match_player_left',
+  'match_today',
+  'match_tomorrow',
+  'falta_jugadores',
+  'challenge_accepted',
+  'team_match_created',
+  'challenge_squad_open',
+]);
 
 export const isPendingInviteStatus = (status) => normalizeInviteStatus(status) === 'pending';
 export const MATCH_CANCELLATION_KEEP_ALIVE_MS = 72 * 60 * 60 * 1000;
@@ -14,6 +31,34 @@ export const getNotificationTimestampMs = (notification) => {
   const raw = notification?.send_at || notification?.created_at || null;
   const parsed = Date.parse(raw || '');
   return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const parseNotificationStartMs = (notification) => {
+  const data = notification?.data || {};
+
+  const resolvedStart = notification?._resolved_match_start_at || data?._resolved_match_start_at || null;
+  const resolvedParsed = Date.parse(String(resolvedStart || ''));
+  if (Number.isFinite(resolvedParsed)) return resolvedParsed;
+
+  const parsedLocal = parseLocalDateTime(
+    data?.fecha || data?.match_date || data?.partido_fecha || null,
+    data?.hora || data?.match_time || data?.partido_hora || null,
+  );
+  if (parsedLocal instanceof Date && !Number.isNaN(parsedLocal.getTime())) {
+    return parsedLocal.getTime();
+  }
+
+  const rawIso = (
+    data?.scheduled_at
+    || data?.scheduledAt
+    || data?.match_start_at
+    || data?.match_starts_at
+    || data?.starts_at
+    || data?.start_at
+    || null
+  );
+  const parsedIso = Date.parse(String(rawIso || ''));
+  return Number.isFinite(parsedIso) ? parsedIso : 0;
 };
 
 export const getNotificationMatchIdText = (notification) => {
@@ -187,6 +232,13 @@ export const filterNotificationsForInbox = (notifications = []) => {
       const ts = getNotificationTimestampMs(notification);
       if (!ts) return false;
       if ((nowMs - ts) > awardsNotificationWindowMs) return false;
+    }
+
+    if (HIDE_AFTER_MATCH_START_TYPES.has(normalizeNotificationType(notification))) {
+      const startMs = parseNotificationStartMs(notification);
+      if (startMs > 0 && startMs <= nowMs) {
+        return false;
+      }
     }
 
     if (isMatchKickedNotification(notification)) {

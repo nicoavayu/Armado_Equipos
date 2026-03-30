@@ -111,6 +111,35 @@ describe('filterNotificationsForInbox cancellation handling', () => {
     expect(ids).not.toContain('award-old');
   });
 
+  test('oculta notificaciones operativas de desafío cuando ya pasó la hora del partido', () => {
+    const rows = [
+      {
+        id: 'challenge-old',
+        type: 'challenge_accepted',
+        created_at: '2026-03-09T13:00:00.000Z',
+        data: {
+          team_match_id: 'tm-1',
+          _resolved_match_start_at: '2026-03-09T14:20:00.000Z',
+        },
+      },
+      {
+        id: 'challenge-future',
+        type: 'challenge_accepted',
+        created_at: '2026-03-09T13:00:00.000Z',
+        data: {
+          team_match_id: 'tm-2',
+          _resolved_match_start_at: '2026-03-09T21:20:00.000Z',
+        },
+      },
+    ];
+
+    const filtered = filterNotificationsForInbox(rows);
+    const ids = filtered.map((row) => row.id);
+
+    expect(ids).toContain('challenge-future');
+    expect(ids).not.toContain('challenge-old');
+  });
+
   test('keeps latest kick visible while invalidating older invite for the same match', () => {
     const rows = [
       {

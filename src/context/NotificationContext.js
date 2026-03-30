@@ -17,7 +17,7 @@ import {
   quoteMatchName,
   resolveNotificationMatchName,
 } from '../utils/notificationText';
-import { isTeamChallengeNotification } from '../utils/notificationRoutes';
+import { extractTeamMatchId, isTeamChallengeNotification } from '../utils/notificationRoutes';
 import {
   filterNotificationsForInbox,
   isPlayerJoinedMatchUpdateNotification,
@@ -29,6 +29,7 @@ import {
   getNotificationsUiCutoffIso,
 } from '../utils/notificationRetentionPolicy';
 import { track } from '../utils/monitoring/analytics';
+import { parseLocalDateTime } from '../utils/dateLocal';
 
 const NotificationContext = createContext();
 
@@ -132,6 +133,109 @@ export const NotificationProvider = ({ children }) => {
     const link = data.link || data.resultsUrl || '';
     const match = String(link).match(/\/(?:encuesta|resultados-encuesta)\/(\d+)/);
     return match?.[1] || null;
+  }, []);
+  const enrichNotificationMatchStarts = useCallback(async (notificationsList = []) => {
+    const rows = Array.isArray(notificationsList) ? notificationsList : [];
+    if (rows.length === 0) return rows;
+
+    const numericMatchIds = [...new Set(
+      rows
+        .map((notification) => {
+          const data = notification?.data || {};
+          const candidate = (
+            notification?.partido_id
+            ?? data?.partido_id
+            ?? data?.partidoId
+            ?? data?.match_id
+            ?? data?.matchId
+            ?? notification?.match_ref
+            ?? null
+          );
+          const normalized = String(candidate ?? '').trim();
+          return /^\d+$/.test(normalized) ? normalized : null;
+        })
+        .filter(Boolean),
+    )];
+
+    const teamMatchIds = [...new Set(
+      rows
+        .map((notification) => {
+          const teamMatchId = extractTeamMatchId(notification);
+          const normalized = String(teamMatchId || '').trim();
+          return normalized || null;
+        })
+        .filter(Boolean),
+    )];
+
+    const partidoStartIsoById = new Map();
+    const teamMatchStartIsoById = new Map();
+
+    if (numericMatchIds.length > 0) {
+      try {
+        const { data: partidosRows, error: partidosError } = await supabase
+          .from('partidos')
+          .select('id, fecha, hora')
+          .in('id', numericMatchIds);
+        if (partidosError) throw partidosError;
+
+        (partidosRows || []).forEach((row) => {
+          const parsedLocal = parseLocalDateTime(row?.fecha || null, row?.hora || null);
+          if (!(parsedLocal instanceof Date) || Number.isNaN(parsedLocal.getTime())) return;
+          partidoStartIsoById.set(String(row.id), parsedLocal.toISOString());
+        });
+      } catch (error) {
+        logger.warn('[NOTIFICATIONS] Could not enrich partido start times for inbox filtering:', error);
+      }
+    }
+
+    if (teamMatchIds.length > 0) {
+      try {
+        const { data: teamMatchRows, error: teamMatchError } = await supabase
+          .from('team_matches')
+          .select('id, scheduled_at, played_at')
+          .in('id', teamMatchIds);
+        if (teamMatchError) throw teamMatchError;
+
+        (teamMatchRows || []).forEach((row) => {
+          const rawStart = row?.played_at || row?.scheduled_at || null;
+          const parsed = new Date(rawStart || '');
+          if (Number.isNaN(parsed.getTime())) return;
+          teamMatchStartIsoById.set(String(row.id), parsed.toISOString());
+        });
+      } catch (error) {
+        logger.warn('[NOTIFICATIONS] Could not enrich team match start times for inbox filtering:', error);
+      }
+    }
+
+    return rows.map((notification) => {
+      const teamMatchId = String(extractTeamMatchId(notification) || '').trim();
+      const data = notification?.data || {};
+      const numericMatchCandidate = (
+        notification?.partido_id
+        ?? data?.partido_id
+        ?? data?.partidoId
+        ?? data?.match_id
+        ?? data?.matchId
+        ?? notification?.match_ref
+        ?? null
+      );
+      const normalizedMatchId = String(numericMatchCandidate ?? '').trim();
+      const resolvedStart =
+        (teamMatchId ? teamMatchStartIsoById.get(teamMatchId) : null)
+        || (/^\d+$/.test(normalizedMatchId) ? partidoStartIsoById.get(normalizedMatchId) : null)
+        || null;
+
+      if (!resolvedStart) return notification;
+
+      return {
+        ...notification,
+        _resolved_match_start_at: resolvedStart,
+        data: {
+          ...data,
+          _resolved_match_start_at: resolvedStart,
+        },
+      };
+    });
   }, []);
   const isAwardsReadyNotificationType = useCallback((notificationType) => (
     AWARDS_READY_NOTIFICATION_TYPES.has(String(notificationType || '').trim().toLowerCase())
@@ -413,6 +517,7 @@ export const NotificationProvider = ({ children }) => {
         ...(Array.isArray(data) ? data : []),
         ...syntheticFriendRequestNotifications,
       ];
+      const enrichedData = await enrichNotificationMatchStarts(mergedData);
 
       setLastFetchAt(new Date().toISOString());
       setLastFetchCount((data && data.length) || 0);
@@ -423,7 +528,7 @@ export const NotificationProvider = ({ children }) => {
       const now = Date.now();
       const visibleRaw = [];
       const scheduledRaw = [];
-      for (const n of mergedData) {
+      for (const n of enrichedData) {
         try {
           const sendAt = n.send_at ? new Date(n.send_at).getTime() : null;
           if (!sendAt || sendAt <= now) visibleRaw.push(n);
@@ -451,7 +556,7 @@ export const NotificationProvider = ({ children }) => {
     } catch (error) {
       handleError(error, { showToast: false, onError: () => { } });
     }
-  }, [currentUserId, filterPrematureAwardsNotifications]);
+  }, [currentUserId, enrichNotificationMatchStarts, filterPrematureAwardsNotifications]);
 
   const refreshNotificationsSafely = useCallback(async ({ force = false } = {}) => {
     if (!currentUserId) return;
