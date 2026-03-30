@@ -5,7 +5,9 @@ import { parseLocalDateTime } from './dateLocal';
 export const normalizeInviteStatus = (status) => String(status || 'pending').trim().toLowerCase();
 const normalizeNotificationType = (notification) => String(notification?.type || '').trim().toLowerCase();
 const normalizeNotificationText = (value) => String(value || '').trim().toLowerCase();
-const AWARDS_NOTIFICATION_TYPES = new Set(['awards_ready', 'award_won']);
+const POST_SURVEY_RESULTS_NOTIFICATION_TYPES = new Set(['awards_ready', 'award_won', 'survey_finished']);
+const SURVEY_ACTIVE_NOTIFICATION_TYPES = new Set(['survey_start', 'post_match_survey', 'survey_reminder', 'survey_reminder_12h']);
+const FRIEND_ACCEPTED_WINDOW_MS = 3 * 24 * 60 * 60 * 1000;
 const HIDE_AFTER_MATCH_START_TYPES = new Set([
   'match_invite',
   'match_join_request',
@@ -55,6 +57,25 @@ const parseNotificationStartMs = (notification) => {
     || data?.match_starts_at
     || data?.starts_at
     || data?.start_at
+    || null
+  );
+  const parsedIso = Date.parse(String(rawIso || ''));
+  return Number.isFinite(parsedIso) ? parsedIso : 0;
+};
+
+const parseNotificationSurveyClosesAtMs = (notification) => {
+  const data = notification?.data || {};
+
+  const resolvedClosesAt = notification?._resolved_survey_closes_at || data?._resolved_survey_closes_at || null;
+  const resolvedParsed = Date.parse(String(resolvedClosesAt || ''));
+  if (Number.isFinite(resolvedParsed)) return resolvedParsed;
+
+  const rawIso = (
+    data?.survey_closes_at
+    || data?.surveyClosesAt
+    || data?.survey_deadline_at
+    || data?.surveyDeadlineAt
+    || notification?.survey_closes_at
     || null
   );
   const parsedIso = Date.parse(String(rawIso || ''));
@@ -228,13 +249,28 @@ export const filterNotificationsForInbox = (notifications = []) => {
       return false;
     }
 
-    if (AWARDS_NOTIFICATION_TYPES.has(normalizeNotificationType(notification))) {
+    const notificationType = normalizeNotificationType(notification);
+
+    if (POST_SURVEY_RESULTS_NOTIFICATION_TYPES.has(notificationType)) {
       const ts = getNotificationTimestampMs(notification);
       if (!ts) return false;
       if ((nowMs - ts) > awardsNotificationWindowMs) return false;
     }
 
-    if (HIDE_AFTER_MATCH_START_TYPES.has(normalizeNotificationType(notification))) {
+    if (notificationType === 'friend_accepted') {
+      const ts = getNotificationTimestampMs(notification);
+      if (!ts) return false;
+      if ((nowMs - ts) > FRIEND_ACCEPTED_WINDOW_MS) return false;
+    }
+
+    if (SURVEY_ACTIVE_NOTIFICATION_TYPES.has(notificationType)) {
+      const surveyClosesAtMs = parseNotificationSurveyClosesAtMs(notification);
+      if (surveyClosesAtMs > 0 && surveyClosesAtMs <= nowMs) {
+        return false;
+      }
+    }
+
+    if (HIDE_AFTER_MATCH_START_TYPES.has(notificationType)) {
       const startMs = parseNotificationStartMs(notification);
       if (startMs > 0 && startMs <= nowMs) {
         return false;

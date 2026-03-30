@@ -140,6 +140,95 @@ describe('filterNotificationsForInbox cancellation handling', () => {
     expect(ids).not.toContain('challenge-old');
   });
 
+  test('oculta notificaciones de encuesta cuando ya pasó survey_closes_at', () => {
+    const rows = [
+      {
+        id: 'survey-start-expired',
+        type: 'survey_start',
+        created_at: '2026-03-09T18:00:00.000Z',
+        data: {
+          match_id: 801,
+          survey_closes_at: '2026-03-09T19:00:00.000Z',
+        },
+      },
+      {
+        id: 'survey-reminder-active',
+        type: 'survey_reminder',
+        created_at: '2026-03-09T18:30:00.000Z',
+        data: {
+          match_id: 802,
+          survey_closes_at: '2026-03-09T21:00:00.000Z',
+        },
+      },
+    ];
+
+    const filtered = filterNotificationsForInbox(rows);
+    const ids = filtered.map((row) => row.id);
+
+    expect(ids).toContain('survey-reminder-active');
+    expect(ids).not.toContain('survey-start-expired');
+  });
+
+  test('mantiene notificaciones de encuesta si no tiene survey_closes_at para no ocultar por error', () => {
+    const rows = [
+      {
+        id: 'survey-start-no-deadline',
+        type: 'survey_start',
+        created_at: '2026-03-09T18:00:00.000Z',
+        data: { match_id: 803 },
+      },
+    ];
+
+    const filtered = filterNotificationsForInbox(rows);
+    expect(filtered.map((row) => row.id)).toContain('survey-start-no-deadline');
+  });
+
+  test('oculta survey_finished después de 24 horas', () => {
+    const rows = [
+      {
+        id: 'survey-finished-old',
+        type: 'survey_finished',
+        created_at: '2026-03-08T18:00:00.000Z',
+        data: { match_id: 804 },
+      },
+      {
+        id: 'survey-finished-fresh',
+        type: 'survey_finished',
+        created_at: '2026-03-09T19:30:00.000Z',
+        data: { match_id: 805 },
+      },
+    ];
+
+    const filtered = filterNotificationsForInbox(rows);
+    const ids = filtered.map((row) => row.id);
+
+    expect(ids).toContain('survey-finished-fresh');
+    expect(ids).not.toContain('survey-finished-old');
+  });
+
+  test('oculta friend_accepted después de 3 días', () => {
+    const rows = [
+      {
+        id: 'friend-old',
+        type: 'friend_accepted',
+        created_at: '2026-03-06T19:30:00.000Z',
+        data: {},
+      },
+      {
+        id: 'friend-fresh',
+        type: 'friend_accepted',
+        created_at: '2026-03-08T21:30:00.000Z',
+        data: {},
+      },
+    ];
+
+    const filtered = filterNotificationsForInbox(rows);
+    const ids = filtered.map((row) => row.id);
+
+    expect(ids).toContain('friend-fresh');
+    expect(ids).not.toContain('friend-old');
+  });
+
   test('keeps latest kick visible while invalidating older invite for the same match', () => {
     const rows = [
       {

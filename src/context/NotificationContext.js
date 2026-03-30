@@ -168,20 +168,26 @@ export const NotificationProvider = ({ children }) => {
     )];
 
     const partidoStartIsoById = new Map();
+    const partidoSurveyClosesAtById = new Map();
     const teamMatchStartIsoById = new Map();
 
     if (numericMatchIds.length > 0) {
       try {
         const { data: partidosRows, error: partidosError } = await supabase
           .from('partidos')
-          .select('id, fecha, hora')
+          .select('id, fecha, hora, survey_closes_at')
           .in('id', numericMatchIds);
         if (partidosError) throw partidosError;
 
         (partidosRows || []).forEach((row) => {
           const parsedLocal = parseLocalDateTime(row?.fecha || null, row?.hora || null);
-          if (!(parsedLocal instanceof Date) || Number.isNaN(parsedLocal.getTime())) return;
-          partidoStartIsoById.set(String(row.id), parsedLocal.toISOString());
+          const surveyClosesAt = Date.parse(String(row?.survey_closes_at || ''));
+          if (parsedLocal instanceof Date && !Number.isNaN(parsedLocal.getTime())) {
+            partidoStartIsoById.set(String(row.id), parsedLocal.toISOString());
+          }
+          if (Number.isFinite(surveyClosesAt)) {
+            partidoSurveyClosesAtById.set(String(row.id), new Date(surveyClosesAt).toISOString());
+          }
         });
       } catch (error) {
         logger.warn('[NOTIFICATIONS] Could not enrich partido start times for inbox filtering:', error);
@@ -224,15 +230,20 @@ export const NotificationProvider = ({ children }) => {
         (teamMatchId ? teamMatchStartIsoById.get(teamMatchId) : null)
         || (/^\d+$/.test(normalizedMatchId) ? partidoStartIsoById.get(normalizedMatchId) : null)
         || null;
+      const resolvedSurveyClosesAt = /^\d+$/.test(normalizedMatchId)
+        ? (partidoSurveyClosesAtById.get(normalizedMatchId) || null)
+        : null;
 
-      if (!resolvedStart) return notification;
+      if (!resolvedStart && !resolvedSurveyClosesAt) return notification;
 
       return {
         ...notification,
-        _resolved_match_start_at: resolvedStart,
+        ...(resolvedStart ? { _resolved_match_start_at: resolvedStart } : {}),
+        ...(resolvedSurveyClosesAt ? { _resolved_survey_closes_at: resolvedSurveyClosesAt } : {}),
         data: {
           ...data,
-          _resolved_match_start_at: resolvedStart,
+          ...(resolvedStart ? { _resolved_match_start_at: resolvedStart } : {}),
+          ...(resolvedSurveyClosesAt ? { _resolved_survey_closes_at: resolvedSurveyClosesAt } : {}),
         },
       };
     });
