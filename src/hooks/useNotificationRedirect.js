@@ -9,8 +9,9 @@ import supabase from '../supabase';
 import { resolveMatchInviteRoute } from '../utils/matchInviteRoute';
 import { isPendingMatchInviteNotification } from '../utils/notificationInviteState';
 import { track } from '../utils/monitoring/analytics';
-import { resolveAdminAwareNotificationRoute } from '../utils/notificationRoutes';
+import { isTeamChallengeNotification, resolveAdminAwareNotificationRoute } from '../utils/notificationRoutes';
 import {
+  openNotification,
   resolveNotificationActionability,
   resolveSurveyNotificationNavigation,
   shouldTreatNotificationAsSurveyForm,
@@ -136,6 +137,18 @@ export const useNotificationRedirect = () => {
       if (!route) return;
 
       const envelope = buildNotificationEnvelopeFromPayload({ payload, route });
+      if (isTeamChallengeNotification(envelope)) {
+        await openNotification(envelope, navigate, {
+          supabaseClient: supabase,
+          onActionBlocked: (actionability) => {
+            if (actionability?.message) {
+              notifyBlockingError(actionability.message);
+            }
+          },
+        });
+        return;
+      }
+
       const surveyNavigation = await resolveSurveyNavigationForEnvelope({ envelope, fallbackRoute: route });
       if (surveyNavigation.blocked) {
         if (surveyNavigation.message) notifyBlockingError(surveyNavigation.message);
@@ -172,6 +185,18 @@ export const useNotificationRedirect = () => {
           payload: event.data || {},
           route: event.data?.url,
         });
+        if (isTeamChallengeNotification(envelope)) {
+          await openNotification(envelope, navigate, {
+            supabaseClient: supabase,
+            onActionBlocked: (actionability) => {
+              if (actionability?.message) {
+                notifyBlockingError(actionability.message);
+              }
+            },
+          });
+          return;
+        }
+
         const surveyNavigation = await resolveSurveyNavigationForEnvelope({
           envelope,
           fallbackRoute: event.data?.url,

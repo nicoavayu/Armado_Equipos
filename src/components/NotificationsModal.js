@@ -7,6 +7,7 @@ import { useAuth } from './AuthProvider';
 import { useNotifications } from '../context/NotificationContext';
 import {
   buildAwardsResultsNavigationTarget,
+  openNotification,
   resolveNotificationActionability,
   resolveSurveyNotificationNavigation,
   shouldTreatNotificationAsSurveyForm,
@@ -145,6 +146,19 @@ const NotificationsModal = ({ isOpen, onClose }) => {
       // non-blocking
     }
 
+    if (isTeamChallengeNotification(notification)) {
+      await openNotification(notification, navigate, {
+        supabaseClient: supabase,
+        userId: user?.id || '',
+        onActionBlocked: (actionability) => {
+          if (actionability?.message) {
+            notifyBlockingError(actionability.message);
+          }
+        },
+      });
+      return;
+    }
+
     if (shouldTreatNotificationAsSurveyForm(notification)) {
       const surveyNavigation = await resolveSurveyNotificationNavigation({
         notification,
@@ -227,11 +241,6 @@ const NotificationsModal = ({ isOpen, onClose }) => {
     if (notification.type === 'team_captain_transfer') {
       const teamId = notification?.data?.team_id || notification?.data?.teamId || null;
       safeNavigate(notification, teamId ? `/desafios/equipos/${teamId}` : '/desafios');
-      return;
-    }
-
-    if (isTeamChallengeNotification(notification)) {
-      safeNavigate(notification, buildTeamChallengeRoute(notification));
       return;
     }
 

@@ -5,6 +5,7 @@ import { toBigIntId } from '../utils';
 import { resolveMatchInviteRoute } from '../utils/matchInviteRoute';
 import {
   buildAwardsResultsNavigationTarget,
+  openNotification,
   resolveNotificationActionability,
   resolveSurveyNotificationNavigation,
   shouldTreatNotificationAsSurveyForm,
@@ -33,7 +34,6 @@ import { filterNotificationsByCategory, getCategoryCount, NOTIFICATION_FILTER_OP
 import {
   buildNotificationFallbackRoute,
   buildTeamInviteRoute,
-  buildTeamChallengeRoute,
   extractNotificationMatchId,
   isTeamChallengeNotification,
   resolveAdminAwareMatchRoute,
@@ -134,6 +134,19 @@ const NotificationsView = () => {
       return;
     }
 
+    if (isTeamChallengeNotification(notification)) {
+      await openNotification(notification, navigate, {
+        supabaseClient: supabase,
+        userId: user?.id || '',
+        onActionBlocked: (actionability) => {
+          if (actionability?.message) {
+            notifyBlockingError(actionability.message);
+          }
+        },
+      });
+      return;
+    }
+
     const link = notification?.data?.link;
     const matchId = extractNotificationMatchId(notification);
 
@@ -224,12 +237,6 @@ const NotificationsView = () => {
         safeNavigate(notification, url, { replace: true });
         return;
       }
-    }
-
-    if (isTeamChallengeNotification(notification)) {
-      const challengeRoute = buildTeamChallengeRoute(notification);
-      safeNavigate(notification, challengeRoute, {}, 'No encontramos el destino de este desafío.');
-      return;
     }
 
     if (
