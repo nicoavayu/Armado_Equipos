@@ -6,6 +6,17 @@ import { MATCH_TIMEZONE_AR, parseDateTimeInTimeZone } from './dateLocal';
 
 const DEFAULT_ALIGNMENT_TOLERANCE_MS = 60 * 1000;
 
+export const isChallengeSurveyTeamMatch = (teamMatchRow = null) => {
+  const originType = String(teamMatchRow?.origin_type || '').trim().toLowerCase();
+  return originType === 'challenge' || Boolean(teamMatchRow?.challenge_id);
+};
+
+export const resolveSurveyStartDelayMs = ({ teamMatchRow = null } = {}) => (
+  isChallengeSurveyTeamMatch(teamMatchRow)
+    ? 0
+    : SURVEY_START_DELAY_MS
+);
+
 const toDateOrNull = (value) => {
   if (!value) return null;
   const parsed = value instanceof Date ? value : new Date(value);
@@ -77,6 +88,7 @@ export const resolveEffectiveSurveyWindow = ({
   scheduledAt = null,
   kickoffTimeZone = MATCH_TIMEZONE_AR,
   fallbackNowIso = null,
+  surveyStartDelayMs = SURVEY_START_DELAY_MS,
 } = {}) => {
   const canonicalWindow = deriveSurveyWindowFromMatch({
     fecha,
@@ -84,6 +96,7 @@ export const resolveEffectiveSurveyWindow = ({
     scheduledAt,
     kickoffTimeZone,
     fallbackNowIso,
+    surveyStartDelayMs,
   });
   const expectedOpenedAt = canonicalWindow.openedAtIso;
   const expectedClosesAt = canonicalWindow.closesAtIso;

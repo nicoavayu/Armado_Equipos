@@ -3,6 +3,7 @@ import { resolveChallengeSurveyEligibleUsers } from '../services/surveyEligibili
 import {
   resolveEffectiveSurveyWindow,
   resolveKickoffAtFromMatch,
+  resolveSurveyStartDelayMs,
 } from './surveyWindow';
 
 const normalizeIdentityToken = (value) => String(value || '').trim().toLowerCase();
@@ -149,12 +150,14 @@ export const resolveSurveyAccess = async ({ supabaseClient, matchId, userId }) =
     }
 
     const matchStartAt = resolveMatchStartAt({ partidoRow, teamMatchRow });
+    const surveyStartDelayMs = resolveSurveyStartDelayMs({ teamMatchRow });
     const surveyWindow = resolveEffectiveSurveyWindow({
       surveyOpenedAt: partidoRow?.survey_opened_at || null,
       surveyClosesAt: partidoRow?.survey_closes_at || null,
       fecha: partidoRow?.fecha || null,
       hora: partidoRow?.hora || null,
       scheduledAt: teamMatchRow?.scheduled_at || null,
+      surveyStartDelayMs,
     });
 
     const lifecycleBlock = resolveSurveyLifecycleBlock({

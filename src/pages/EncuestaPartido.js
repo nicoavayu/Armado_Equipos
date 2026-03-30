@@ -27,6 +27,7 @@ import { SURVEY_WINDOW_HOURS } from '../utils/surveyNotificationCopy';
 import {
   resolveEffectiveSurveyWindow,
   resolveKickoffAtFromMatch,
+  resolveSurveyStartDelayMs,
 } from '../utils/surveyWindow';
 import { resolvePostSubmitCompletionUiState } from '../utils/surveyPostSubmitUiState';
 import {
@@ -633,6 +634,7 @@ const resolveEffectiveSurveyWindowState = ({
   hora: partidoRow?.hora || null,
   scheduledAt: teamMatchRow?.scheduled_at || null,
   fallbackNowIso,
+  surveyStartDelayMs: resolveSurveyStartDelayMs({ teamMatchRow }),
 });
 
 const attachSurveyAliasPlayerIds = (player, playerIds = []) => {

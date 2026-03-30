@@ -213,6 +213,62 @@ describe('ensureSurveyWindowOpen', () => {
     expect(updateCalls[0].survey_closes_at).toBe('2026-03-21T02:00:00.000Z');
   });
 
+  test('uses scheduled_at as zero-delay survey opening for challenge matches and counts logged substitutes', async () => {
+    const lifecycleRow = {
+      survey_status: 'open',
+      survey_opened_at: '2026-03-30T01:19:00.000Z',
+      survey_closes_at: '2026-03-31T01:19:00.000Z',
+      survey_expected_voters: 0,
+      result_status: 'pending',
+      winner_team: null,
+      finished_at: '2026-03-30T01:19:00.000Z',
+      fecha: '2026-03-29',
+      hora: '22:19',
+    };
+
+    listChallengeApprovedSquad.mockResolvedValueOnce({
+      byTeamId: {
+        ta: [
+          { user_id: 'u1', jugador: { usuario_id: 'u1' } },
+          { user_id: 'u3', jugador: { usuario_id: 'u3' } },
+        ],
+        tb: [{ user_id: 'u2', jugador: { usuario_id: 'u2' } }],
+      },
+    });
+
+    const updateCalls = [];
+    mockFrom.mockImplementation(buildSupabaseFromMock({
+      rosterRows: [
+        { id: 1, usuario_id: 'u1', is_substitute: false },
+        { id: 2, usuario_id: 'u2', is_substitute: false },
+        { id: 3, usuario_id: 'u3', is_substitute: true },
+      ],
+      lifecycleRow,
+      rosterContextRow: lifecycleRow,
+      teamMatchRow: {
+        id: 'tm-477',
+        origin_type: 'challenge',
+        challenge_id: 'c-477',
+        team_a_id: 'ta',
+        team_b_id: 'tb',
+        scheduled_at: '2026-03-30T01:19:00.000Z',
+      },
+      surveyRows: [],
+      updateCalls,
+    }));
+
+    const result = await ensureSurveyWindowOpen(477, {
+      nowIso: '2026-03-30T01:20:00.000Z',
+    });
+
+    expect(result.openedAt).toBe('2026-03-30T01:19:00.000Z');
+    expect(result.closesAt).toBe('2026-03-31T01:19:00.000Z');
+    expect(result.expectedVoters).toBe(3);
+    expect(result.remainingVotes).toBe(3);
+    expect(updateCalls.length).toBe(1);
+    expect(updateCalls[0]).toMatchObject({ survey_expected_voters: 3 });
+  });
+
   test('does not rewrite canonical survey window when runtime TZ differs', async () => {
     const originalTz = process.env.TZ;
     try {

@@ -8,6 +8,7 @@ const {
   isSurveyWindowConsistentWithKickoff,
   isSurveyWindowInvalidForKickoff,
   resolveEffectiveSurveyWindow,
+  resolveSurveyStartDelayMs,
 } = require('../utils/surveyWindow');
 
 describe('surveyWindow kickoff anchoring', () => {
@@ -50,6 +51,17 @@ describe('surveyWindow kickoff anchoring', () => {
     expect(result.openedAtIso).toBe('2026-03-18T02:00:00.000Z');
     expect(result.closesAtIso).toBe('2026-03-19T02:00:00.000Z');
     expect(result.openedAtIso).not.toBe(fallbackNowIso);
+  });
+
+  test('supports zero-delay survey windows for challenge team matches', () => {
+    const result = deriveSurveyWindowFromMatch({
+      scheduledAt: '2026-03-30T01:19:00.000Z',
+      surveyStartDelayMs: 0,
+    });
+
+    expect(result.source).toBe('kickoff');
+    expect(result.openedAtIso).toBe('2026-03-30T01:19:00.000Z');
+    expect(result.closesAtIso).toBe('2026-03-31T01:19:00.000Z');
   });
 
   test('flags stale survey windows that do not match current kickoff', () => {
@@ -152,5 +164,33 @@ describe('surveyWindow kickoff anchoring', () => {
     } finally {
       process.env.TZ = originalTz;
     }
+  });
+
+  test('keeps a zero-delay challenge lifecycle window canonical', () => {
+    const result = resolveEffectiveSurveyWindow({
+      surveyOpenedAt: '2026-03-30T01:19:00.000Z',
+      surveyClosesAt: '2026-03-31T01:19:00.000Z',
+      scheduledAt: '2026-03-30T01:19:00.000Z',
+      surveyStartDelayMs: 0,
+    });
+
+    expect(result.source).toBe('stored');
+    expect(result.openedAtIso).toBe('2026-03-30T01:19:00.000Z');
+    expect(result.closesAtIso).toBe('2026-03-31T01:19:00.000Z');
+    expect(result.hasConsistentStoredWindow).toBe(true);
+  });
+
+  test('resolves zero survey start delay for challenge team matches', () => {
+    expect(resolveSurveyStartDelayMs({
+      teamMatchRow: { origin_type: 'challenge' },
+    })).toBe(0);
+
+    expect(resolveSurveyStartDelayMs({
+      teamMatchRow: { challenge_id: 'c1' },
+    })).toBe(0);
+
+    expect(resolveSurveyStartDelayMs({
+      teamMatchRow: { origin_type: 'individual' },
+    })).toBe(60 * 60 * 1000);
   });
 });

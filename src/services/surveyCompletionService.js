@@ -26,6 +26,7 @@ import {
   deriveSurveyWindowFromMatch,
   isSurveyWindowConsistentWithKickoff,
   isSurveyWindowInvalidForKickoff,
+  resolveSurveyStartDelayMs,
 } from '../utils/surveyWindow';
 
 const RESULT_STATUS_FINISHED = 'finished';
@@ -1025,12 +1026,14 @@ export async function ensureSurveyWindowOpen(partidoId, options = {}) {
   });
   const normalizedStatus = normalizeSurveyStatusValue(lifecycleRow?.survey_status);
   const scheduledAt = teamMatchRow?.scheduled_at || null;
+  const surveyStartDelayMs = resolveSurveyStartDelayMs({ teamMatchRow });
 
   const canonicalWindow = deriveSurveyWindowFromMatch({
     fecha: lifecycleRow?.fecha || null,
     hora: lifecycleRow?.hora || null,
     scheduledAt,
     fallbackNowIso: nowIso,
+    surveyStartDelayMs,
   });
   const expectedOpenedAt = canonicalWindow.openedAtIso;
   const expectedClosesAt = canonicalWindow.closesAtIso;

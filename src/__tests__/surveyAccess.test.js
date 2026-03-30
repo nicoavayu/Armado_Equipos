@@ -266,4 +266,61 @@ describe('surveyAccess lifecycle guards', () => {
     expect(access.allowed).toBe(false);
     expect(access.reason).toBe('user_not_participant');
   });
+
+  test('allows challenge surveys from scheduled_at for logged roster substitutes', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-03-30T01:20:00.000Z'));
+
+    listChallengeApprovedSquad.mockResolvedValueOnce({
+      byTeamId: {
+        ta: [
+          { user_id: 'u1', jugador: { usuario_id: 'u1' } },
+          { user_id: 'u3', jugador: { usuario_id: 'u3' } },
+        ],
+        tb: [{ user_id: 'u2', jugador: { usuario_id: 'u2' } }],
+      },
+    });
+
+    try {
+      const access = await resolveSurveyAccess({
+        supabaseClient: buildSupabaseClient({
+          partidoRow: {
+            id: 477,
+            fecha: '2026-03-29',
+            hora: '22:19',
+            estado: 'finalizado',
+            survey_status: 'open',
+            survey_opened_at: '2026-03-30T01:19:00.000Z',
+            survey_closes_at: '2026-03-31T01:19:00.000Z',
+            result_status: 'pending',
+            finished_at: '2026-03-30T01:19:00.000Z',
+            survey_team_a: [],
+            survey_team_b: [],
+            final_team_a: [],
+            final_team_b: [],
+          },
+          teamMatchRow: {
+            id: 'tm-477',
+            origin_type: 'challenge',
+            challenge_id: 'c-477',
+            team_a_id: 'ta',
+            team_b_id: 'tb',
+            scheduled_at: '2026-03-30T01:19:00.000Z',
+          },
+          rosterRows: [
+            { id: 1, usuario_id: 'u1', uuid: 'u1', nombre: 'Uno', is_substitute: false },
+            { id: 2, usuario_id: 'u2', uuid: 'u2', nombre: 'Dos', is_substitute: false },
+            { id: 3, usuario_id: 'u3', uuid: 'u3', nombre: 'Tres', is_substitute: true },
+          ],
+        }),
+        matchId: 477,
+        userId: 'u3',
+      });
+
+      expect(access.allowed).toBe(true);
+      expect(access.reason).toBe('ok');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });
