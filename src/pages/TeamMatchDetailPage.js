@@ -494,6 +494,11 @@ const TeamMatchDetailPage = () => {
     () => isCancelledTeamMatchStatus(match?.status),
     [match?.status],
   );
+  const isPastScheduledTeamMatch = useMemo(() => {
+    const scheduledAtMs = match?.scheduled_at ? new Date(match.scheduled_at).getTime() : NaN;
+    return Number.isFinite(scheduledAtMs) && scheduledAtMs <= Date.now();
+  }, [match?.scheduled_at]);
+  const isUnavailablePastChallengeMatch = isChallengeMatch && isPastScheduledTeamMatch;
 
   useEffect(() => {
     if (loading || !match || !isCancelledMatch || cancelledRedirectRef.current) return;
@@ -501,6 +506,13 @@ const TeamMatchDetailPage = () => {
     notifyBlockingError('Este partido fue cancelado y ya no está disponible.');
     navigate('/desafios', { replace: true });
   }, [isCancelledMatch, loading, match, navigate]);
+
+  useEffect(() => {
+    if (loading || !match || !isUnavailablePastChallengeMatch || cancelledRedirectRef.current) return;
+    cancelledRedirectRef.current = true;
+    notifyBlockingError('Este desafío ya pasó y ya no está disponible.');
+    navigate('/desafios', { replace: true });
+  }, [isUnavailablePastChallengeMatch, loading, match, navigate]);
 
   useEffect(() => {
     let ignore = false;
@@ -556,10 +568,6 @@ const TeamMatchDetailPage = () => {
     ),
     [challengeCreatorUserId, isChallengeMatch, user?.id],
   );
-  const isPastScheduledTeamMatch = useMemo(() => {
-    const scheduledAtMs = match?.scheduled_at ? new Date(match.scheduled_at).getTime() : NaN;
-    return Number.isFinite(scheduledAtMs) && scheduledAtMs <= Date.now();
-  }, [match?.scheduled_at]);
   const canShowEditAction = canEditMatchInfo
     && !isPastScheduledTeamMatch
     && match?.status !== 'cancelled'
@@ -1322,7 +1330,7 @@ const TeamMatchDetailPage = () => {
             </div>
           ) : null}
 
-          {!loading && match && !isCancelledMatch ? (
+          {!loading && match && !isCancelledMatch && !isUnavailablePastChallengeMatch ? (
             <>
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-2">
@@ -1710,6 +1718,12 @@ const TeamMatchDetailPage = () => {
               Este partido fue cancelado y ya no está disponible.
             </div>
           ) : null}
+
+          {!loading && match && !isCancelledMatch && isUnavailablePastChallengeMatch ? (
+            <div className="rounded-2xl border border-white/15 bg-white/5 p-4 text-center text-white/70">
+              Este desafío ya pasó y ya no está disponible.
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -1905,7 +1919,7 @@ const TeamMatchDetailPage = () => {
       </Modal>
 
       <ChatButton
-        partidoId={!isCancelledMatch ? (match?.id || null) : null}
+        partidoId={!isCancelledMatch && !isUnavailablePastChallengeMatch ? (match?.id || null) : null}
         isOpen={isChatOpen}
         onOpenChange={setIsChatOpen}
         onUnreadCountChange={setChatUnreadCount}
