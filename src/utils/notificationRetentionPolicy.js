@@ -14,6 +14,7 @@ export const ACTIVITY_WINDOW_DEFAULT_DAYS = 3;
 export const ACTIVITY_WINDOW_ACTIONABLE_UNREAD_DAYS = 5;
 export const ACTIVITY_WINDOW_ACTIONABLE_READ_DAYS = 3;
 export const ACTIVITY_WINDOW_SURVEY_LIKE_DAYS = 3;
+export const AWARDS_NOTIFICATION_WINDOW_DAYS = 1;
 
 // DB retention targets (documented here for consistency with SQL cleanup jobs)
 export const NOTIFICATIONS_DB_RETENTION_DAYS = 14;
@@ -24,6 +25,7 @@ export const activityWindowDefaultMs = ACTIVITY_WINDOW_DEFAULT_DAYS * DAY_MS;
 export const activityWindowActionableUnreadMs = ACTIVITY_WINDOW_ACTIONABLE_UNREAD_DAYS * DAY_MS;
 export const activityWindowActionableReadMs = ACTIVITY_WINDOW_ACTIONABLE_READ_DAYS * DAY_MS;
 export const activityWindowSurveyLikeMs = ACTIVITY_WINDOW_SURVEY_LIKE_DAYS * DAY_MS;
+export const awardsNotificationWindowMs = AWARDS_NOTIFICATION_WINDOW_DAYS * DAY_MS;
 
 export const getNotificationsUiCutoffIso = (nowMs = Date.now()) => {
   const cutoff = new Date(nowMs - notificationsUiWindowMs);

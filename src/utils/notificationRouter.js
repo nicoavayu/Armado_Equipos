@@ -7,6 +7,7 @@ import { resolveSurveyAccess } from './surveyAccess';
 import { parseLocalDateTime } from './dateLocal';
 import { isSurveyReminderActionRequired } from './surveyReminderEligibility';
 import { normalizeAwardsStatus } from './awardsReadiness';
+import { awardsNotificationWindowMs } from './notificationRetentionPolicy';
 import {
   buildTeamChallengeRoute,
   extractNotificationMatchId,
@@ -136,6 +137,14 @@ const toMillis = (value) => {
   const ms = value ? new Date(value).getTime() : NaN;
   return Number.isFinite(ms) ? ms : null;
 };
+
+const resolveAwardsNotificationReferenceMs = (notification = {}, partidoRow = null) => (
+  toMillis(notification?.send_at)
+  ?? toMillis(notification?.created_at)
+  ?? toMillis(partidoRow?.finished_at)
+  ?? toMillis(partidoRow?.survey_closes_at)
+  ?? null
+);
 
 const parseIsoDateTimeCandidate = (value) => {
   const raw = String(value || '').trim();
@@ -446,6 +455,18 @@ export const resolveNotificationActionability = async ({
         isActionable: false,
         reason: 'survey_reminder_stale',
         message: 'Esta encuesta ya cerró y esta notificación de recordatorio ya no tiene acciones disponibles.',
+        matchId,
+      };
+    }
+  }
+
+  if (AWARDS_NOTIFICATION_TYPES.has(type)) {
+    const referenceMs = resolveAwardsNotificationReferenceMs(notification, partidoRow);
+    if (referenceMs === null || (nowMs - referenceMs) > awardsNotificationWindowMs) {
+      return {
+        isActionable: false,
+        reason: 'awards_notification_expired',
+        message: 'Estos premios ya no están disponibles desde esta notificación.',
         matchId,
       };
     }

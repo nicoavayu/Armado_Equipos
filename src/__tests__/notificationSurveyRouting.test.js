@@ -559,6 +559,7 @@ describe('survey notification routing', () => {
     await openNotification({
       type: 'awards_ready',
       partido_id: 701,
+      created_at: new Date().toISOString(),
       data: {
         resultsUrl: '/resultados-encuesta/701',
       },
@@ -694,7 +695,7 @@ describe('survey notification routing', () => {
     expect(result.reason).toBe('ok');
   });
 
-  test('awards_ready sigue siendo consultable aunque el partido esté finalizado', async () => {
+  test('awards_ready sigue siendo consultable dentro de la ventana de 24h aunque el partido esté finalizado', async () => {
     const supabaseMock = createSupabaseMock({
       partidoRow: {
         id: 813,
@@ -710,6 +711,7 @@ describe('survey notification routing', () => {
       notification: {
         type: 'awards_ready',
         partido_id: 813,
+        created_at: '2025-01-01T23:00:00.000Z',
       },
       supabaseClient: supabaseMock,
       nowMs: Date.parse('2025-01-02T12:00:00.000Z'),
@@ -717,6 +719,32 @@ describe('survey notification routing', () => {
 
     expect(result.isActionable).toBe(true);
     expect(result.reason).toBe('consultable_notification');
+  });
+
+  test('award_won deja de ser accionable pasado un día', async () => {
+    const supabaseMock = createSupabaseMock({
+      partidoRow: {
+        id: 914,
+        fecha: '2025-01-01',
+        hora: '20:00',
+        estado: 'finalizado',
+        result_status: 'finished',
+        finished_at: '2025-01-01T22:30:00.000Z',
+      },
+    });
+
+    const result = await resolveNotificationActionability({
+      notification: {
+        type: 'award_won',
+        partido_id: 914,
+        created_at: '2025-01-01T23:00:00.000Z',
+      },
+      supabaseClient: supabaseMock,
+      nowMs: Date.parse('2025-01-03T00:30:01.000Z'),
+    });
+
+    expect(result.isActionable).toBe(false);
+    expect(result.reason).toBe('awards_notification_expired');
   });
 
   test('openNotification no navega en notificación operativa expirada', async () => {

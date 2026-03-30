@@ -88,6 +88,29 @@ describe('filterNotificationsForInbox cancellation handling', () => {
     expect(isPendingMatchInviteNotification(readPendingInvite)).toBe(false);
   });
 
+  test('oculta premios vencidos del inbox después de 24 horas', () => {
+    const rows = [
+      {
+        id: 'award-old',
+        type: 'award_won',
+        created_at: '2026-03-08T18:00:00.000Z',
+        data: { partido_id: 712 },
+      },
+      {
+        id: 'award-fresh',
+        type: 'awards_ready',
+        created_at: '2026-03-09T19:30:00.000Z',
+        data: { partido_id: 713 },
+      },
+    ];
+
+    const filtered = filterNotificationsForInbox(rows);
+    const ids = filtered.map((row) => row.id);
+
+    expect(ids).toContain('award-fresh');
+    expect(ids).not.toContain('award-old');
+  });
+
   test('keeps latest kick visible while invalidating older invite for the same match', () => {
     const rows = [
       {

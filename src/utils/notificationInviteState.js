@@ -1,8 +1,10 @@
 import { extractNotificationMatchId } from './notificationRoutes';
+import { awardsNotificationWindowMs } from './notificationRetentionPolicy';
 
 export const normalizeInviteStatus = (status) => String(status || 'pending').trim().toLowerCase();
 const normalizeNotificationType = (notification) => String(notification?.type || '').trim().toLowerCase();
 const normalizeNotificationText = (value) => String(value || '').trim().toLowerCase();
+const AWARDS_NOTIFICATION_TYPES = new Set(['awards_ready', 'award_won']);
 
 export const isPendingInviteStatus = (status) => normalizeInviteStatus(status) === 'pending';
 export const MATCH_CANCELLATION_KEEP_ALIVE_MS = 72 * 60 * 60 * 1000;
@@ -179,6 +181,12 @@ export const filterNotificationsForInbox = (notifications = []) => {
 
     if (isResolvedMatchJoinRequestNotification(notification)) {
       return false;
+    }
+
+    if (AWARDS_NOTIFICATION_TYPES.has(normalizeNotificationType(notification))) {
+      const ts = getNotificationTimestampMs(notification);
+      if (!ts) return false;
+      if ((nowMs - ts) > awardsNotificationWindowMs) return false;
     }
 
     if (isMatchKickedNotification(notification)) {
