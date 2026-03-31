@@ -6,6 +6,7 @@ import { autoCleanupDuplicates } from '../utils/duplicateCleanup';
 import { notifyAdminPlayerJoined, notifyAdminPlayerLeft } from '../services/matchJoinNotificationService';
 import { requestImmediatePushDispatchSafe } from '../services/pushDispatchService';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
+import { sanitizeNotificationMatchName } from '../utils/notificationText';
 
 const BLOCKED_INVITE_STATUSES = new Set([
   'declined',
@@ -658,17 +659,18 @@ export const useAdminPanelState = ({
             });
           }
 
+          const sanitizedMatchName = sanitizeNotificationMatchName(partidoActual?.nombre, 'este partido');
           const payload = {
             user_id: jugadorAEliminar.usuario_id,
             partido_id: Number(partidoActual.id),
             type: 'match_kicked',
             title: 'Expulsado del partido',
-            message: `Has sido expulsado del partido "${partidoActual.nombre || 'PARTIDO'}"`,
+            message: `Has sido expulsado del partido "${sanitizedMatchName}"`,
             data: {
               match_id: matchIdText,
               matchId: toBigIntId(partidoActual.id),
               partido_id: toBigIntId(partidoActual.id),
-              matchName: partidoActual.nombre,
+              matchName: sanitizedMatchName,
               kickedBy: user.id,
               status: 'kicked',
               kicked_at: kickedAt,
@@ -683,7 +685,7 @@ export const useAdminPanelState = ({
             {
               p_user_id: jugadorAEliminar.usuario_id,
               p_partido_id: Number(partidoActual.id),
-              p_match_name: partidoActual.nombre || null,
+              p_match_name: sanitizedMatchName,
               p_kicked_by: user?.id || null,
               p_kicked_at: kickedAt,
             },

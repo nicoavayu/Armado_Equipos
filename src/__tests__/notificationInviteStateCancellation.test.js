@@ -337,6 +337,56 @@ describe('filterNotificationsForInbox cancellation handling', () => {
     expect(ids).not.toContain('invite-before-kick');
   });
 
+  test('hides kicked notification when a later pending re-invite exists for the same match', () => {
+    const rows = [
+      {
+        id: 'kick-hidden',
+        type: 'match_kicked',
+        read: false,
+        created_at: '2026-03-09T18:00:00.000Z',
+        data: { match_id: 404 },
+      },
+      {
+        id: 'reinvite-pending',
+        type: 'match_invite',
+        read: false,
+        created_at: '2026-03-09T19:00:00.000Z',
+        data: { status: 'pending', match_id: 404 },
+      },
+    ];
+
+    const filtered = filterNotificationsForInbox(rows);
+    const ids = filtered.map((row) => row.id);
+
+    expect(ids).toContain('reinvite-pending');
+    expect(ids).not.toContain('kick-hidden');
+  });
+
+  test('hides kicked notification when a later join-approved notification exists for the same match', () => {
+    const rows = [
+      {
+        id: 'kick-hidden-by-approval',
+        type: 'match_kicked',
+        read: false,
+        created_at: '2026-03-09T18:00:00.000Z',
+        data: { match_id: 505 },
+      },
+      {
+        id: 'join-approved',
+        type: 'match_join_approved',
+        read: false,
+        created_at: '2026-03-09T19:00:00.000Z',
+        data: { match_id: 505 },
+      },
+    ];
+
+    const filtered = filterNotificationsForInbox(rows);
+    const ids = filtered.map((row) => row.id);
+
+    expect(ids).toContain('join-approved');
+    expect(ids).not.toContain('kick-hidden-by-approval');
+  });
+
   test('detects player joined match updates from payload and copy', () => {
     expect(isPlayerJoinedMatchUpdateNotification({
       type: 'match_update',

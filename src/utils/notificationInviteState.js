@@ -134,6 +134,29 @@ export const buildLatestKickTsByMatch = (notifications = []) => {
   return kickTsByMatch;
 };
 
+export const buildLatestReentryTsByMatch = (notifications = []) => {
+  const reentryTsByMatch = new Map();
+
+  (Array.isArray(notifications) ? notifications : []).forEach((notification) => {
+    const type = normalizeNotificationType(notification);
+    const isPendingReinvite = type === 'match_invite'
+      && normalizeInviteStatus(notification?.data?.status) === 'pending';
+    const isDirectReentry = type === 'match_join_approved';
+
+    if (!isPendingReinvite && !isDirectReentry) return;
+
+    const matchId = getNotificationMatchIdText(notification);
+    if (!matchId) return;
+    const ts = getNotificationTimestampMs(notification);
+    const current = reentryTsByMatch.get(matchId) || 0;
+    if (ts > current) {
+      reentryTsByMatch.set(matchId, ts);
+    }
+  });
+
+  return reentryTsByMatch;
+};
+
 export const buildLatestCancellationTsByMatch = (notifications = []) => {
   const cancellationTsByMatch = new Map();
 
@@ -245,6 +268,7 @@ export const isInviteInvalidatedByKick = (notification, kickTsByMatch) => {
 export const filterNotificationsForInbox = (notifications = []) => {
   const rows = Array.isArray(notifications) ? notifications : [];
   const kickTsByMatch = buildLatestKickTsByMatch(rows);
+  const reentryTsByMatch = buildLatestReentryTsByMatch(rows);
   const cancellationTsByMatch = buildLatestCancellationTsByMatch(rows);
   const nowMs = Date.now();
 
@@ -286,7 +310,9 @@ export const filterNotificationsForInbox = (notifications = []) => {
     }
 
     if (isMatchKickedNotification(notification)) {
-      return true;
+      if (!matchId) return true;
+      const latestReentryTs = reentryTsByMatch.get(matchId) || 0;
+      return latestReentryTs < getNotificationTimestampMs(notification);
     }
 
     if (isMatchCancellationNotification(notification)) {

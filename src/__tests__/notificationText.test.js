@@ -2,6 +2,7 @@ import {
   applyMatchNameQuotes,
   formatMatchReminderMessage,
   resolveNotificationMatchName,
+  sanitizeNotificationMatchName,
 } from '../utils/notificationText';
 
 describe('notificationText', () => {
@@ -18,6 +19,10 @@ describe('notificationText', () => {
     };
 
     expect(resolveNotificationMatchName(notification, 'este partido')).toBe('este partido');
+  });
+
+  test('falls back when persisted match name is numeric only', () => {
+    expect(sanitizeNotificationMatchName('1', 'este partido')).toBe('este partido');
   });
 
   test('formats match reminder message with the match name', () => {
