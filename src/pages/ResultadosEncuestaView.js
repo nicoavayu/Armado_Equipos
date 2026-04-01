@@ -1885,6 +1885,36 @@ const ResultadosEncuestaView = () => {
     penaltyListRef.current = absences.filter((jugador) => jugador?.penaltyApplied);
   }, [absences]);
 
+  useEffect(() => {
+    if (forceAwardsMode) return;
+    if (!results || !awardsReady) return;
+    if (showingBadgeAnimations || autoOpeningAwards) return;
+
+    const autoOpenKey = `${partidoId}:${location.key || location.search || 'results'}:${results?.updated_at || results?.created_at || 'ready'}`;
+    if (autoAwardsOpenedRef.current === autoOpenKey) return;
+
+    const slides = prepareCarouselSlides(results, jugadores);
+    if (!slides || slides.length === 0) return;
+
+    autoAwardsOpenedRef.current = autoOpenKey;
+    setPreviewPlayers(JSON.parse(JSON.stringify(jugadores)));
+    badgesApplied.current.clear();
+    liveApplied.current.clear();
+    setSlideStages({});
+    setCarouselSlides(slides);
+    setShowingBadgeAnimations(true);
+  }, [
+    awardsReady,
+    autoOpeningAwards,
+    forceAwardsMode,
+    jugadores,
+    location.key,
+    location.search,
+    partidoId,
+    results,
+    showingBadgeAnimations,
+  ]);
+
 
 
   const handleRetry = async () => {
@@ -2028,36 +2058,6 @@ const ResultadosEncuestaView = () => {
 
   // OVERLAY ANIMATION RENDER
   // Carousel state
-  useEffect(() => {
-    if (forceAwardsMode) return;
-    if (!results || !awardsReady) return;
-    if (showingBadgeAnimations || autoOpeningAwards) return;
-
-    const autoOpenKey = `${partidoId}:${location.key || location.search || 'results'}:${results?.updated_at || results?.created_at || 'ready'}`;
-    if (autoAwardsOpenedRef.current === autoOpenKey) return;
-
-    const slides = prepareCarouselSlides(results, jugadores);
-    if (!slides || slides.length === 0) return;
-
-    autoAwardsOpenedRef.current = autoOpenKey;
-    setPreviewPlayers(JSON.parse(JSON.stringify(jugadores)));
-    badgesApplied.current.clear();
-    liveApplied.current.clear();
-    setSlideStages({});
-    setCarouselSlides(slides);
-    setShowingBadgeAnimations(true);
-  }, [
-    awardsReady,
-    autoOpeningAwards,
-    forceAwardsMode,
-    jugadores,
-    location.key,
-    location.search,
-    partidoId,
-    results,
-    showingBadgeAnimations,
-  ]);
-
   if (showingBadgeAnimations && carouselSlides.length > 0) {
     return (
       <>
