@@ -328,7 +328,7 @@ export default function ArmarEquiposView({
     }
 
     params.set('returnTo', 'armar-equipos');
-    return `/?${params.toString()}`;
+    return `/votar-equipos?${params.toString()}`;
   };
 
   async function handleCallToVote() {
