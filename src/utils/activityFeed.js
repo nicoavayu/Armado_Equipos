@@ -1473,7 +1473,14 @@ export const buildActivityFeed = async (notifications = [], options = {}) => {
 
     if (type === 'survey_start') {
       if (!startsAt) return true;
-      return nowTs >= (startsAt.getTime() + SURVEY_START_DELAY_MS);
+      const challengeLikeSurvey = isTeamChallengeLikeMatch(
+        match || {
+          nombre: group?.notification?.data?.match_name || group?.notification?.data?.partido_nombre || '',
+          team_match_id: group?.teamMatchId || extractNotificationTeamMatchId(group?.notification) || null,
+        },
+      );
+      const surveyStartDelayMs = challengeLikeSurvey ? 0 : SURVEY_START_DELAY_MS;
+      return nowTs >= (startsAt.getTime() + surveyStartDelayMs);
     }
 
     if (PAST_MATCH_ALLOWED_NOTIFICATION_TYPES.has(type)) return true;
