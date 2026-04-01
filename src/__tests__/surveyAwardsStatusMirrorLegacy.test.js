@@ -78,4 +78,29 @@ describe('setMatchAwardsStatus legacy mirror behavior', () => {
       unsupported: true,
     }));
   });
+
+  test('writes awards_resolved_at when persisting a terminal status into partidos', async () => {
+    const partidosUpdate = jest.fn((payload) => {
+      expect(payload.awards_status).toBe('ready');
+      expect(typeof payload.awards_resolved_at).toBe('string');
+      return {
+        eq: jest.fn(async () => ({ error: null })),
+      };
+    });
+
+    mockFrom.mockImplementation((table) => {
+      if (table === 'survey_results') return { update: jest.fn(() => ({ eq: jest.fn(async () => ({ error: null })) })) };
+      if (table === 'partidos') return { update: partidosUpdate };
+      throw new Error(`Unexpected table ${table}`);
+    });
+
+    const result = await setMatchAwardsStatus(394, 'ready');
+
+    expect(result).toEqual(expect.objectContaining({
+      ok: true,
+      surveyResultsUpdated: true,
+      partidosUpdated: true,
+    }));
+    expect(partidosUpdate).toHaveBeenCalledTimes(1);
+  });
 });

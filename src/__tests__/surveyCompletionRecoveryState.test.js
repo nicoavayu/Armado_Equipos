@@ -11,10 +11,18 @@ jest.mock('../supabase', () => ({
   },
 }));
 
+jest.mock('../services/db/awards', () => ({
+  grantAwardsForMatch: jest.fn(),
+  notifyAwardWinnersForMatch: jest.fn(async () => ({ notified: [], skipped: [], error: null })),
+}));
+
 const {
   deriveClosedSurveyRecoveryState,
+  materializePersistedAwardsForMatch,
   resolveClosedAwardsTerminalState,
 } = require('../services/surveyCompletionService');
+const { supabase } = require('../supabase');
+const { grantAwardsForMatch } = require('../services/db/awards');
 
 describe('deriveClosedSurveyRecoveryState', () => {
   test('recovers when lifecycle is closed but survey_results row is missing', () => {
@@ -176,5 +184,89 @@ describe('resolveClosedAwardsTerminalState', () => {
       awardsSkipped: false,
       awardsError: true,
     });
+  });
+});
+
+describe('materializePersistedAwardsForMatch', () => {
+  beforeEach(() => {
+    supabase.from.mockReset();
+    grantAwardsForMatch.mockReset();
+  });
+
+  test('replays persisted awards for registered winners without changing refs in survey_results', async () => {
+    const eq = jest.fn(async () => ({
+      data: [
+        { id: 10, uuid: 'player-10', usuario_id: 'user-10' },
+        { id: 11, uuid: 'player-11', usuario_id: 'user-11' },
+      ],
+      error: null,
+    }));
+    const select = jest.fn(() => ({ eq }));
+    supabase.from.mockImplementation((table) => {
+      if (table !== 'jugadores') throw new Error(`Unexpected table ${table}`);
+      return { select };
+    });
+    grantAwardsForMatch.mockResolvedValue({
+      granted: ['mvp', 'best_gk'],
+      skipped: [],
+      error: null,
+      expectedRegisteredAwards: 2,
+      persistedRegisteredAwards: 2,
+    });
+
+    const result = await materializePersistedAwardsForMatch(483, {
+      awards: {
+        mvp: { player_id: 'user-10', votes: 2 },
+        best_gk: { player_id: 'player-11', votes: 2 },
+      },
+    });
+
+    expect(result).toEqual(expect.objectContaining({
+      ok: true,
+      reason: 'ok',
+      expectedRegisteredAwards: 2,
+      persistedRegisteredAwards: 2,
+    }));
+    expect(grantAwardsForMatch).toHaveBeenCalledWith(483, expect.objectContaining({
+      mvp: expect.objectContaining({ player_id: 10, votes: 2 }),
+      best_gk: expect.objectContaining({ player_id: 11, votes: 2 }),
+    }));
+  });
+
+  test('treats manual winners as successfully materialized without player_awards rows', async () => {
+    const eq = jest.fn(async () => ({
+      data: [
+        { id: 21, uuid: 'guest-21', usuario_id: null },
+      ],
+      error: null,
+    }));
+    const select = jest.fn(() => ({ eq }));
+    supabase.from.mockImplementation((table) => {
+      if (table !== 'jugadores') throw new Error(`Unexpected table ${table}`);
+      return { select };
+    });
+    grantAwardsForMatch.mockResolvedValue({
+      granted: [],
+      skipped: ['mvp (guest player)'],
+      error: null,
+      expectedRegisteredAwards: 0,
+      persistedRegisteredAwards: 0,
+    });
+
+    const result = await materializePersistedAwardsForMatch(483, {
+      awards: {
+        mvp: { player_id: 'guest-21', votes: 3 },
+      },
+    });
+
+    expect(result).toEqual(expect.objectContaining({
+      ok: true,
+      reason: 'ok',
+      expectedRegisteredAwards: 0,
+      persistedRegisteredAwards: 0,
+    }));
+    expect(grantAwardsForMatch).toHaveBeenCalledWith(483, expect.objectContaining({
+      mvp: expect.objectContaining({ player_id: 21, votes: 3 }),
+    }));
   });
 });

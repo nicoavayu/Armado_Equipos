@@ -375,13 +375,34 @@ export async function setMatchAwardsStatus(partidoId, status) {
 
   let partidosUpdated = false;
   let partidosMirrorError = null;
+  const isTerminalStatus = [
+    AWARDS_STATUS_READY,
+    AWARDS_STATUS_NOT_ELIGIBLE,
+    AWARDS_STATUS_ERROR,
+  ].includes(normalizedStatus);
+  const partidosUpdatePayload = isTerminalStatus
+    ? {
+      awards_status: normalizedStatus,
+      awards_resolved_at: new Date().toISOString(),
+    }
+    : { awards_status: normalizedStatus };
 
   // Best-effort mirror for any codepath still reading partidos.awards_status.
   try {
-    const { error: partidoError } = await supabase
+    let partidoError = null;
+    const mirrorAttempt = await supabase
       .from('partidos')
-      .update({ awards_status: normalizedStatus })
+      .update(partidosUpdatePayload)
       .eq('id', idNum);
+    partidoError = mirrorAttempt?.error || null;
+
+    if (partidoError && isTerminalStatus && isMissingColumnError(partidoError, ['awards_resolved_at'])) {
+      const retryWithoutResolvedAt = await supabase
+        .from('partidos')
+        .update({ awards_status: normalizedStatus })
+        .eq('id', idNum);
+      partidoError = retryWithoutResolvedAt?.error || null;
+    }
 
     if (!partidoError) {
       partidosUpdated = true;
@@ -671,6 +692,14 @@ const toNumericIdFromRef = (value, refToIdMap) => {
   return Number.isFinite(mapped) ? mapped : null;
 };
 
+const extractPersistedAwardEntries = (awards) => (
+  [
+    ['mvp', awards?.mvp],
+    ['best_gk', awards?.best_gk],
+    ['red_card', awards?.red_card],
+  ].filter(([, award]) => Boolean(award?.player_id ?? award?.jugador_id))
+);
+
 const resolveScorelineFromSurveys = (surveys = []) => {
   const scorelineCount = new Map();
   (surveys || []).forEach((survey) => {
@@ -715,6 +744,128 @@ const buildPlayerIdentityMapsForMatch = async (partidoId) => {
   });
 
   return { refToIdMap, idToPlayerRef };
+};
+
+export const materializePersistedAwardsForMatch = async (partidoId, awardsRow = null) => {
+  const idNum = Number(partidoId);
+  if (!Number.isFinite(idNum) || idNum <= 0) {
+    return {
+      ok: false,
+      reason: 'invalid_partido_id',
+      awardsCount: 0,
+    };
+  }
+
+  const persistedAwards = awardsRow?.awards && typeof awardsRow.awards === 'object'
+    ? awardsRow.awards
+    : null;
+  const persistedAwardEntries = extractPersistedAwardEntries(persistedAwards);
+  if (!persistedAwards || persistedAwardEntries.length === 0) {
+    return {
+      ok: false,
+      reason: 'no_persisted_awards',
+      awardsCount: 0,
+      awards: persistedAwards,
+    };
+  }
+
+  const { refToIdMap } = await buildPlayerIdentityMapsForMatch(idNum);
+  const unresolvedAwardTypes = [];
+  const numericAwards = {
+    mvp: null,
+    best_gk: null,
+    red_card: null,
+    totals: persistedAwards?.totals && typeof persistedAwards.totals === 'object'
+      ? persistedAwards.totals
+      : undefined,
+  };
+
+  persistedAwardEntries.forEach(([awardType, awardData]) => {
+    const numericPlayerId = toNumericIdFromRef(
+      awardData?.player_id ?? awardData?.jugador_id ?? null,
+      refToIdMap,
+    );
+
+    if (!Number.isFinite(numericPlayerId) || numericPlayerId <= 0) {
+      unresolvedAwardTypes.push(awardType);
+      return;
+    }
+
+    numericAwards[awardType] = {
+      ...awardData,
+      player_id: numericPlayerId,
+    };
+  });
+
+  const resolvedAwardEntries = extractAwardEntries(numericAwards);
+  if (resolvedAwardEntries.length === 0) {
+    return {
+      ok: false,
+      reason: 'awards_refs_unresolved',
+      awardsCount: 0,
+      awards: persistedAwards,
+      unresolvedAwardTypes,
+    };
+  }
+
+  let grantResult = null;
+  try {
+    grantResult = await grantAwardsForMatch(idNum, numericAwards);
+  } catch (error) {
+    return {
+      ok: false,
+      reason: 'player_awards_persist_failed',
+      awardsCount: resolvedAwardEntries.length,
+      awards: persistedAwards,
+      unresolvedAwardTypes,
+      error,
+    };
+  }
+
+  const expectedRegisteredAwards = Number(grantResult?.expectedRegisteredAwards || 0);
+  const persistedRegisteredAwards = Number(grantResult?.persistedRegisteredAwards || 0);
+  const skippedReasons = Array.isArray(grantResult?.skipped) ? grantResult.skipped : [];
+  const hasHardPersistError = Boolean(grantResult?.error)
+    || skippedReasons.some((reason) => String(reason || '').toLowerCase().includes('database error'));
+  const playerAwardsPersisted = expectedRegisteredAwards === 0
+    || (!hasHardPersistError && persistedRegisteredAwards >= expectedRegisteredAwards);
+
+  if (!playerAwardsPersisted) {
+    return {
+      ok: false,
+      reason: 'player_awards_incomplete',
+      awardsCount: resolvedAwardEntries.length,
+      awards: persistedAwards,
+      unresolvedAwardTypes,
+      grantResult,
+      expectedRegisteredAwards,
+      persistedRegisteredAwards,
+    };
+  }
+
+  if (unresolvedAwardTypes.length > 0) {
+    return {
+      ok: false,
+      reason: 'awards_refs_unresolved',
+      awardsCount: resolvedAwardEntries.length,
+      awards: persistedAwards,
+      unresolvedAwardTypes,
+      grantResult,
+      expectedRegisteredAwards,
+      persistedRegisteredAwards,
+    };
+  }
+
+  return {
+    ok: true,
+    reason: 'ok',
+    awardsCount: resolvedAwardEntries.length,
+    awards: persistedAwards,
+    unresolvedAwardTypes,
+    grantResult,
+    expectedRegisteredAwards,
+    persistedRegisteredAwards,
+  };
 };
 
 const mapTeamRefsToIdSet = (refs = [], refToIdMap) => {
@@ -1538,6 +1689,7 @@ export async function finalizeIfComplete(partidoId, options = {}) {
       console.info('[FINALIZE] skipping awards_status write because column is not available in survey_results');
     }
   } else {
+    let awardsMaterializationResult = null;
     try {
       const mvpOverridePlayerId = await resolvePlayerIdFromStableRef(idNum, results?.mvp);
       awardsPersistResult = await computeAndPersistAwards(idNum, {
@@ -1567,6 +1719,28 @@ export async function finalizeIfComplete(partidoId, options = {}) {
       console.error('[FINALIZE] could not refetch survey_results for awards validation', { partidoId: idNum, awardsRowErr });
     }
 
+    if (awardsRow?.results_ready === true && hasAnyAwardData(awardsRow)) {
+      try {
+        awardsMaterializationResult = await materializePersistedAwardsForMatch(idNum, awardsRow);
+        if (!awardsMaterializationResult?.ok) {
+          console.error('[FINALIZE] persisted awards recovery could not fully materialize', {
+            partidoId: idNum,
+            awardsMaterializationResult,
+          });
+        }
+      } catch (materializeErr) {
+        awardsMaterializationResult = {
+          ok: false,
+          reason: 'materialize_exception',
+          error: materializeErr,
+        };
+        console.error('[FINALIZE] persisted awards recovery exception', {
+          partidoId: idNum,
+          materializeErr,
+        });
+      }
+    }
+
     const resolvedAwardsState = resolveClosedAwardsTerminalState({
       awardsPersistResult,
       awardsRow,
@@ -1574,6 +1748,12 @@ export async function finalizeIfComplete(partidoId, options = {}) {
     finalAwardsStatus = resolvedAwardsState.awardsStatus;
     awardsSkipped = resolvedAwardsState.awardsSkipped;
     awardsError = resolvedAwardsState.awardsError;
+
+    if (finalAwardsStatus === AWARDS_STATUS_READY && awardsMaterializationResult && !awardsMaterializationResult.ok) {
+      finalAwardsStatus = AWARDS_STATUS_ERROR;
+      awardsSkipped = false;
+      awardsError = true;
+    }
 
     if (finalAwardsStatus === AWARDS_STATUS_NOT_ELIGIBLE) {
       try {
