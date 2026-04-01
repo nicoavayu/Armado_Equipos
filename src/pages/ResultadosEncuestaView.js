@@ -1504,46 +1504,6 @@ const ResultadosEncuestaView = () => {
     return slides;
   };
 
-  const prepareForceFallbackSlides = ({ notEligible = hasInsufficientVotesForAwards } = {}) => {
-    const matchInfo = partido || { nombre: `Partido ${partidoId}` };
-    const slideKey = notEligible ? 'awards-not-eligible' : 'awards-pending';
-    return [{
-      key: slideKey,
-      duration: 3200,
-      content: (
-        <div
-          className="relative w-full h-full flex flex-col items-center justify-center text-center py-10 md:py-14"
-          style={{
-            background: 'linear-gradient(135deg,#070B18 0%,#120B2A 45%,#070B18 100%)',
-            borderRadius: 28,
-            border: '1px solid rgba(255,255,255,0.10)',
-            boxShadow: '0 30px 120px rgba(0,0,0,0.55)',
-          }}
-        >
-          <div className="font-bebas-real text-[48px] md:text-[68px] leading-[0.9] text-white" style={{ textShadow: '0 0 22px rgba(14,169,198,0.5)' }}>
-            {notEligible ? 'RESULTADOS' : 'PREMIACIÓN'}
-          </div>
-          <div className="text-white/70 tracking-[0.35em] text-xs md:text-sm mt-2 mb-6">
-            {notEligible ? 'ENCUESTA CERRADA' : 'DEL PARTIDO'}
-          </div>
-          <div className="text-[#0EA9C6] text-lg md:text-xl font-bold mb-2">
-            {matchInfo.nombre || matchInfo.titulo || `Partido ${partidoId}`}
-          </div>
-          <div className="text-white/80 text-base md:text-lg">
-            {notEligible
-              ? 'No hubo suficientes votaciones para generar premios de este partido.'
-              : 'Estamos preparando la premiación final de este partido.'}
-          </div>
-          <div className="text-white/60 text-sm mt-2">
-            {notEligible
-              ? 'Podés revisar el resultado del partido, pero esta vez no habrá premiación.'
-              : 'Actualizando resultados…'}
-          </div>
-        </div>
-      ),
-    }];
-  };
-
   // Animation Styles encapsulated here to avoid external CSS
 
   // NO regenerar slides durante reproducción - content functions ya leen slideStages/previewPlayers en vivo
@@ -1779,7 +1739,6 @@ const ResultadosEncuestaView = () => {
       let openedStory = false;
       autoOpenGuardRef.current = setTimeout(() => {
         if (!cancelled) {
-          // Last check before giving up loading. In forced mode, always open a story fallback.
           const roster = ensurePlayersList(jugadores);
           const row = results;
           const maybeSlides = row && isAwardsReadyStatus(row) ? prepareCarouselSlides(row, roster) : [];
@@ -1789,14 +1748,6 @@ const ResultadosEncuestaView = () => {
             liveApplied.current.clear();
             setSlideStages({});
             setCarouselSlides(maybeSlides);
-            setShowingBadgeAnimations(true);
-            openedStory = true;
-          } else {
-            setPreviewPlayers([]);
-            badgesApplied.current.clear();
-            liveApplied.current.clear();
-            setSlideStages({});
-            setCarouselSlides(prepareForceFallbackSlides({ notEligible: isAwardsNotEligibleStatus(row) }));
             setShowingBadgeAnimations(true);
             openedStory = true;
           }
@@ -1844,16 +1795,6 @@ const ResultadosEncuestaView = () => {
 
         const slides = row && rowHasReadyAwards(row) ? prepareCarouselSlides(row, roster) : [];
         if (slides.length === 0) {
-          // Forced mode: always open story, even if awards are not ready yet.
-          setPreviewPlayers([]);
-          badgesApplied.current.clear();
-          liveApplied.current.clear();
-          setSlideStages({});
-          setCarouselSlides(prepareForceFallbackSlides({
-            notEligible: rowIsNotEligible(row),
-          }));
-          setShowingBadgeAnimations(true);
-          openedStory = true;
           return;
         }
 
@@ -1867,14 +1808,6 @@ const ResultadosEncuestaView = () => {
       } catch (e) {
         console.error('[RESULTADOS] ensureAwards failed', e);
         if (cancelled) return;
-        // Forced mode: keep UX in story flow even on transient errors.
-        setPreviewPlayers([]);
-        badgesApplied.current.clear();
-        liveApplied.current.clear();
-        setSlideStages({});
-        setCarouselSlides(prepareForceFallbackSlides({ notEligible: hasInsufficientVotesForAwards }));
-        setShowingBadgeAnimations(true);
-        openedStory = true;
       } finally {
         clearAutoOpenGuard();
         // Always release spinner lock when attempt finishes.
@@ -2195,7 +2128,7 @@ const ResultadosEncuestaView = () => {
   }
 
   // In force awards mode, never show the static results page before story is ready.
-  if (forceAwardsMode && !showingBadgeAnimations) {
+  if (forceAwardsMode && autoOpeningAwards && !showingBadgeAnimations) {
     return (
       <div className="min-h-[100dvh] w-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%)' }}>
         <LoadingSpinner size="large" fullScreen />
@@ -2297,13 +2230,11 @@ const ResultadosEncuestaView = () => {
         {shouldShowPendingResultsCard && (
           <div className="flex flex-col items-center mb-6">
             <EmptyStateCard
-              title={results ? 'PREMIOS EN PROCESO' : 'SIN RESULTADOS DISPONIBLES'}
+              title="SIN RESULTADOS DISPONIBLES"
               description={
-                results
-                  ? 'Los premios todavía se están procesando. Volvé a intentar en unos minutos.'
-                  : (isSurveyClosed
-                    ? 'No encontramos resultados finales para este partido por ahora.'
-                    : `La encuesta sigue abierta. Faltan ${remainingVotes} voto${remainingVotes === 1 ? '' : 's'} para cerrar.`)
+                isSurveyClosed
+                  ? 'No encontramos resultados finales para este partido por ahora.'
+                  : `La encuesta sigue abierta. Faltan ${remainingVotes} voto${remainingVotes === 1 ? '' : 's'} para cerrar.`
               }
               className="my-0 max-w-[620px]"
             />
