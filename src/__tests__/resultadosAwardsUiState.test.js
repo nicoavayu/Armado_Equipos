@@ -178,6 +178,21 @@ describe('Resultados awards UI state', () => {
     }));
   });
 
+  test('closed not_eligible state no longer renders the generic no-results card', () => {
+    const presentation = deriveAwardsPresentationState({
+      isSurveyClosed: true,
+      awardsStatus: 'not_eligible',
+      hasRenderableAwardsStory: false,
+      hasResults: false,
+    });
+
+    expect(presentation).toEqual(expect.objectContaining({
+      awardsStatusLabel: 'No elegible para premios',
+      shouldShowAwardsUnavailableState: false,
+      shouldShowPendingResultsCard: false,
+    }));
+  });
+
   test('error awards stay in a final unavailable state instead of pending bridge', () => {
     const uiState = deriveAwardsUiState({
       results: { awards_status: 'error', results_ready: true },

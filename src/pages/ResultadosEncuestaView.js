@@ -225,7 +225,7 @@ export const deriveAwardsPresentationState = ({
     unavailableDescription: isAwardsError
       ? 'Los resultados quedaron cerrados, pero la premiación no pudo resolverse correctamente.'
       : 'Los resultados se muestran sin una historia de premiación.',
-    shouldShowPendingResultsCard: !hasResults && !shouldShowAwardsUnavailableState,
+    shouldShowPendingResultsCard: !hasResults && !isSurveyClosed,
   };
 };
 
@@ -2100,7 +2100,6 @@ const ResultadosEncuestaView = () => {
     awardsStatusLabel,
     shouldShowAwardsUnavailableState,
     unavailableTitle,
-    unavailableDescription,
     shouldShowPendingResultsCard: shouldShowPendingResultsFallback,
   } = deriveAwardsPresentationState({
     isSurveyClosed,
@@ -2227,6 +2226,11 @@ const ResultadosEncuestaView = () => {
                   {awardsStatusLabel}
                 </span>
               </p>
+              {shouldShowAwardsUnavailableState && (
+                <p className={`mt-2 text-sm ${hasAwardsError ? 'text-red-200' : 'text-white/70'}`}>
+                  {unavailableTitle}
+                </p>
+              )}
               {hasInsufficientVotesForAwards && (
                 <p className="text-orange-300 mt-2 font-semibold text-sm">
                   No hubo suficientes votaciones para generar premios de este partido.
@@ -2235,28 +2239,6 @@ const ResultadosEncuestaView = () => {
             </>
           )}
         </div>
-
-        {isSurveyClosed && shouldShowAwardsUnavailableState && (
-          <div className="mb-6 rounded-xl border border-white/15 bg-black/20 p-4">
-            <p className="text-white text-lg font-semibold text-center">
-              {unavailableTitle}
-            </p>
-            <p className="text-white/70 text-sm text-center mt-2">
-              {unavailableDescription}
-            </p>
-          </div>
-        )}
-
-        {isSurveyClosed && hasInsufficientVotesForAwards && (
-          <div className="mb-6 rounded-xl border border-orange-300/35 bg-orange-950/20 p-4">
-            <p className="text-orange-200 text-lg font-semibold text-center">
-              No hubo suficientes votaciones para generar premios de este partido.
-            </p>
-            <p className="text-orange-100/80 text-sm text-center mt-2">
-              Los resultados del partido se mantienen como referencia, sin premiación.
-            </p>
-          </div>
-        )}
 
         {/* Results Summary */}
         {results && awardsReady && hasPrimaryAwardHighlights && (
