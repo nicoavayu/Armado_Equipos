@@ -938,7 +938,7 @@ const toActivityFromNotification = (group, match, currentUserId) => {
       icon: 'Trophy',
       title: resultsTitle,
       subtitle: fallbackSubtitle,
-      route: partidoId ? `/resultados-encuesta/${partidoId}?showAwards=1` : '/notifications',
+      route: partidoId ? `/resultados-encuesta/${partidoId}` : '/notifications',
     };
   }
 

@@ -5,6 +5,7 @@ import { toBigIntId } from '../utils';
 import { resolveMatchInviteRoute } from '../utils/matchInviteRoute';
 import {
   buildAwardsResultsNavigationTarget,
+  buildResultsNavigationTarget,
   openNotification,
   resolveNotificationActionability,
   resolveSurveyNotificationNavigation,
@@ -207,15 +208,21 @@ const NotificationsView = () => {
     }
 
     if (data.resultsUrl) {
-      const isAwardsResultsNotif = [
-        'survey_results',
-        'survey_results_ready',
-        'survey_finished',
+      const isForcedAwardsNotif = [
         'awards_ready',
         'award_won',
       ].includes(notification?.type);
-      if (isAwardsResultsNotif) {
+      if (isForcedAwardsNotif) {
         const target = buildAwardsResultsNavigationTarget(notification);
+        safeNavigate(notification, target.route, {
+          state: target.state,
+        });
+      } else if ([
+        'survey_results',
+        'survey_results_ready',
+        'survey_finished',
+      ].includes(notification?.type)) {
+        const target = buildResultsNavigationTarget(notification);
         safeNavigate(notification, target.route, {
           state: target.state,
         });
@@ -322,7 +329,7 @@ const NotificationsView = () => {
           fallbackToNotificationRoute(notification, 'No encontramos los resultados de esta notificación.');
           break;
         }
-        const target = buildAwardsResultsNavigationTarget(notification, toBigIntId(resultsMatchId));
+        const target = buildResultsNavigationTarget(notification, toBigIntId(resultsMatchId));
         safeNavigate(notification, target.route, {
           state: target.state,
         });
@@ -364,7 +371,7 @@ const NotificationsView = () => {
         // Robust matchId resolution
         const finalMatchId = notification.match_ref || notification.partido_id || data.match_id || data.matchId || data.partidoId;
         if (finalMatchId) {
-          const target = buildAwardsResultsNavigationTarget(notification, toBigIntId(finalMatchId));
+          const target = buildResultsNavigationTarget(notification, toBigIntId(finalMatchId));
           safeNavigate(notification, target.route, {
             state: target.state,
           });

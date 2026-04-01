@@ -7,6 +7,7 @@ import { useAuth } from './AuthProvider';
 import { useNotifications } from '../context/NotificationContext';
 import {
   buildAwardsResultsNavigationTarget,
+  buildResultsNavigationTarget,
   openNotification,
   resolveNotificationActionability,
   resolveSurveyNotificationNavigation,
@@ -282,7 +283,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
           fallbackToNotificationRoute(notification, 'No encontramos los resultados de esta notificación.');
           return;
         }
-        const target = buildAwardsResultsNavigationTarget(notification, matchId);
+        const target = buildResultsNavigationTarget(notification, matchId);
         safeNavigate(notification, target.route, {
           state: target.state,
         }, 'No encontramos la vista de resultados de este partido.');
@@ -314,7 +315,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
     if (notification.type === 'survey_finished') {
       const matchId = notification?.partido_id ?? notification?.data?.match_id ?? notification?.data?.matchId ?? notification?.match_ref ?? null;
       if (matchId || notification?.data?.resultsUrl || notification?.data?.link) {
-        const target = buildAwardsResultsNavigationTarget(notification, matchId);
+        const target = buildResultsNavigationTarget(notification, matchId);
         safeNavigate(notification, target.route, {
           state: target.state,
         });

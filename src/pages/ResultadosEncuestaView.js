@@ -201,7 +201,6 @@ const ResultadosEncuestaView = () => {
   const searchParams = new URLSearchParams(location.search);
   const forceAwardsMode =
     Boolean(location?.state?.forceAwards) ||
-    Boolean(location?.state?.fromNotification) ||
     searchParams.get('forceAwards') === 'true' ||
     searchParams.get('showAwards') === '1';
 
