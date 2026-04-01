@@ -187,6 +187,32 @@ export const shouldShowSecondaryResultsSections = ({
   Boolean(hasSecondaryResults) || normalizeAwardsStatus(awardsStatus) !== 'not_eligible'
 );
 
+export const deriveAwardsPresentationState = ({
+  isSurveyClosed = false,
+  awardsStatus = null,
+  hasRenderableAwardsStory = false,
+  hasResults = false,
+} = {}) => {
+  const normalizedAwardsStatus = normalizeAwardsStatus(awardsStatus) || 'pending';
+  const shouldShowAwardsUnavailableState = Boolean(
+    isSurveyClosed
+    && normalizedAwardsStatus === 'ready'
+    && !hasRenderableAwardsStory
+  );
+
+  const awardsStatusLabel = normalizedAwardsStatus === 'ready'
+    ? (shouldShowAwardsUnavailableState ? 'No disponible' : 'Listos para ver')
+    : normalizedAwardsStatus === 'not_eligible'
+      ? 'No elegible para premios'
+      : 'En progreso';
+
+  return {
+    awardsStatusLabel,
+    shouldShowAwardsUnavailableState,
+    shouldShowPendingResultsCard: !hasResults && !shouldShowAwardsUnavailableState,
+  };
+};
+
 // Context to broadcast live previewPlayers without recreating slides
 const PreviewPlayersContext = createContext([]);
 
@@ -238,7 +264,6 @@ const ResultadosEncuestaView = () => {
     awardsStatus,
     awardsReady,
     hasInsufficientVotesForAwards,
-    shouldShowPendingResultsCard,
   } = deriveAwardsUiState({
     results,
     partido,
@@ -2045,12 +2070,23 @@ const ResultadosEncuestaView = () => {
     awardsStatus,
     isSurveyClosed,
   });
+  const hasRenderableAwardsStory = Boolean(results && prepareCarouselSlides(results, jugadores).length > 0);
   const hasPrimaryAwardHighlights = Boolean(
     results?.mvp
     || results?.golden_glove
     || results?.dirty_player
     || (Array.isArray(results?.red_cards) && results.red_cards.length > 0),
   );
+  const {
+    awardsStatusLabel,
+    shouldShowAwardsUnavailableState,
+    shouldShowPendingResultsCard: shouldShowPendingResultsFallback,
+  } = deriveAwardsPresentationState({
+    isSurveyClosed,
+    awardsStatus,
+    hasRenderableAwardsStory,
+    hasResults: Boolean(results),
+  });
   const showSecondaryResultsSections = shouldShowSecondaryResultsSections({
     awardsStatus,
     hasSecondaryResults: absences.length > 0,
@@ -2167,7 +2203,7 @@ const ResultadosEncuestaView = () => {
               <p className="text-sm tracking-[0.01em] mt-2">
                 <span className="text-gray-400">Estado de los Premios: </span>
                 <span className={`${awardsStatusColorClass} font-bold`}>
-                  {awardsStatus === 'ready' ? 'Listos para ver' : awardsStatus === 'not_eligible' ? 'No elegible para premios' : 'En progreso'}
+                  {awardsStatusLabel}
                 </span>
               </p>
               {hasInsufficientVotesForAwards && (
@@ -2178,6 +2214,17 @@ const ResultadosEncuestaView = () => {
             </>
           )}
         </div>
+
+        {isSurveyClosed && shouldShowAwardsUnavailableState && (
+          <div className="mb-6 rounded-xl border border-white/15 bg-black/20 p-4">
+            <p className="text-white text-lg font-semibold text-center">
+              La premiación final no está disponible para este partido.
+            </p>
+            <p className="text-white/70 text-sm text-center mt-2">
+              Los resultados se muestran sin una historia de premiación.
+            </p>
+          </div>
+        )}
 
         {isSurveyClosed && hasInsufficientVotesForAwards && (
           <div className="mb-6 rounded-xl border border-orange-300/35 bg-orange-950/20 p-4">
@@ -2227,7 +2274,7 @@ const ResultadosEncuestaView = () => {
         )}
 
         {/* No Results Message */}
-        {shouldShowPendingResultsCard && (
+        {shouldShowPendingResultsFallback && (
           <div className="flex flex-col items-center mb-6">
             <EmptyStateCard
               title="SIN RESULTADOS DISPONIBLES"

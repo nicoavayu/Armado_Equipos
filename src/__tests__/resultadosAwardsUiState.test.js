@@ -31,6 +31,7 @@ jest.mock('react-router-dom', () => {
 
 const {
   deriveAwardsUiState,
+  deriveAwardsPresentationState,
   deriveAbsenceResultsFromSummary,
   shouldShowAwardsRetryAction,
   shouldShowSecondaryResultsSections,
@@ -160,6 +161,36 @@ describe('Resultados awards UI state', () => {
     });
 
     expect(shouldShowRetry).toBe(true);
+  });
+
+  test('ready awards without renderable story fall back to final unavailable state', () => {
+    const presentation = deriveAwardsPresentationState({
+      isSurveyClosed: true,
+      awardsStatus: 'ready',
+      hasRenderableAwardsStory: false,
+      hasResults: false,
+    });
+
+    expect(presentation).toEqual(expect.objectContaining({
+      awardsStatusLabel: 'No disponible',
+      shouldShowAwardsUnavailableState: true,
+      shouldShowPendingResultsCard: false,
+    }));
+  });
+
+  test('ready awards with renderable story keep the direct awards-ready state', () => {
+    const presentation = deriveAwardsPresentationState({
+      isSurveyClosed: true,
+      awardsStatus: 'ready',
+      hasRenderableAwardsStory: true,
+      hasResults: true,
+    });
+
+    expect(presentation).toEqual(expect.objectContaining({
+      awardsStatusLabel: 'Listos para ver',
+      shouldShowAwardsUnavailableState: false,
+      shouldShowPendingResultsCard: false,
+    }));
   });
 
   test('secondary result sections stay visible for not_eligible final state when there is real data to show', () => {
