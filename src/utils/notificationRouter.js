@@ -1,5 +1,6 @@
 import { supabase } from '../supabase';
 import { logger } from '../lib/logger';
+import { SURVEY_MIN_VOTERS_FOR_AWARDS } from '../config/surveyConfig';
 import { getResultsUrl } from './routes';
 import { resolveMatchInviteRoute } from './matchInviteRoute';
 import { isSurveyNotificationClosed } from './surveyNotificationCopy';
@@ -7,6 +8,12 @@ import { resolveSurveyAccess } from './surveyAccess';
 import { parseLocalDateTime } from './dateLocal';
 import { isSurveyReminderActionRequired } from './surveyReminderEligibility';
 import { awardsNotificationWindowMs } from './notificationRetentionPolicy';
+import {
+  AWARDS_STATUS_ERROR,
+  AWARDS_STATUS_NOT_ELIGIBLE,
+  hasAnyAwardData,
+  normalizeAwardsStatus,
+} from './awardsReadiness';
 import {
   buildTeamChallengeRoute,
   extractNotificationMatchId,
@@ -105,6 +112,15 @@ const CLOSED_MATCH_STATUS_TOKENS = new Set([
 const CLOSED_RESULT_STATUS_TOKENS = new Set([
   'finished',
   'draw',
+  'not_played',
+  'cancelled',
+  'cancelado',
+  'no_jugado',
+  'walkover',
+  'forfeit',
+]);
+
+const NO_AWARDS_RESULT_STATUS_TOKENS = new Set([
   'not_played',
   'cancelled',
   'cancelado',
@@ -269,7 +285,7 @@ const fetchMatchLifecycleRow = async ({ supabaseClient, matchId, nowMs }) => {
   try {
     const { data, error } = await supabaseClient
       .from('partidos')
-      .select('id, fecha, hora, estado, survey_status, survey_closes_at, result_status, awards_status, finished_at')
+      .select('id, fecha, hora, estado, survey_status, survey_closes_at, survey_expected_voters, result_status, awards_status, finished_at')
       .eq('id', matchId)
       .maybeSingle();
     if (error) return null;
@@ -278,6 +294,121 @@ const fetchMatchLifecycleRow = async ({ supabaseClient, matchId, nowMs }) => {
   } catch (_error) {
     return null;
   }
+};
+
+const fetchSurveyResultsRow = async ({ supabaseClient, matchId }) => {
+  if (!supabaseClient || !matchId) return null;
+
+  try {
+    const { data, error } = await supabaseClient
+      .from('survey_results')
+      .select('partido_id, results_ready, result_status, awards_status, awards, mvp, golden_glove, dirty_player, red_cards')
+      .eq('partido_id', matchId)
+      .maybeSingle();
+    if (error) return null;
+    return data || null;
+  } catch (_error) {
+    return null;
+  }
+};
+
+const buildAwardsUnavailableNotice = ({ partidoRow = null, surveyResultsRow = null } = {}) => {
+  const normalizedAwardsStatus = normalizeAwardsStatus(
+    surveyResultsRow?.awards_status ?? partidoRow?.awards_status,
+  );
+  const normalizedResultStatus = normalizeToken(
+    surveyResultsRow?.result_status ?? partidoRow?.result_status,
+  );
+  const expectedVoters = Number(partidoRow?.survey_expected_voters);
+
+  if (NO_AWARDS_RESULT_STATUS_TOKENS.has(normalizedResultStatus)) {
+    return {
+      title: 'Premiación no disponible',
+      message: 'Este partido figura como no jugado, por eso no hay premiación final.',
+    };
+  }
+
+  if (normalizedAwardsStatus === AWARDS_STATUS_NOT_ELIGIBLE) {
+    if (
+      Number.isFinite(expectedVoters)
+      && expectedVoters >= 0
+      && expectedVoters < Number(SURVEY_MIN_VOTERS_FOR_AWARDS)
+    ) {
+      return {
+        title: 'Premiación no disponible',
+        message: 'No hubo suficientes votos para calcular la premiación final de este partido.',
+      };
+    }
+
+    return {
+      title: 'Premiación no disponible',
+      message: 'No corresponde mostrar una premiación final para este partido.',
+    };
+  }
+
+  if (normalizedAwardsStatus === AWARDS_STATUS_ERROR) {
+    return {
+      title: 'Premiación no disponible',
+      message: 'No pudimos resolver la premiación final de este partido.',
+    };
+  }
+
+  return {
+    title: 'Premiación no disponible',
+    message: 'La premiación final no está disponible para este partido.',
+  };
+};
+
+export const resolveResultsNotificationEntry = async ({
+  notification = {},
+  supabaseClient = supabase,
+  nowMs = Date.now(),
+} = {}) => {
+  const matchId = extractLifecycleMatchId(notification);
+  const awardsTarget = buildAwardsResultsNavigationTarget(notification, matchId);
+
+  if (!matchId) {
+    return {
+      kind: 'modal',
+      ...buildAwardsUnavailableNotice(),
+      route: null,
+      state: null,
+      matchId: null,
+    };
+  }
+
+  const [partidoRow, surveyResultsRow] = await Promise.all([
+    fetchMatchLifecycleRow({
+      supabaseClient,
+      matchId,
+      nowMs,
+    }),
+    fetchSurveyResultsRow({
+      supabaseClient,
+      matchId,
+    }),
+  ]);
+
+  const hasRenderableAwardsStory = hasAnyAwardData(surveyResultsRow);
+  if (hasRenderableAwardsStory && awardsTarget.route) {
+    return {
+      kind: 'navigate',
+      route: awardsTarget.route,
+      state: awardsTarget.state,
+      matchId,
+    };
+  }
+
+  return {
+    kind: 'modal',
+    ...buildAwardsUnavailableNotice({
+      partidoRow,
+      surveyResultsRow,
+    }),
+    route: null,
+    state: null,
+    matchId,
+  };
 };
 
 const fetchTeamMatchLifecycleRow = async ({ supabaseClient, teamMatchId }) => {
@@ -603,12 +734,6 @@ export const buildResultsNavigationTarget = (notification = {}, fallbackMatchId 
   };
 };
 
-const shouldForceAwardsResultsNavigation = ({ notificationType } = {}) => {
-  const normalizedType = normalizeToken(notificationType);
-  if (AWARDS_NOTIFICATION_TYPES.has(normalizedType)) return true;
-  return false;
-};
-
 const isCanonicalSurveyClosed = ({ partidoRow = null, nowMs = Date.now() } = {}) => {
   const normalizedSurveyStatus = normalizeToken(partidoRow?.survey_status);
   const normalizedResultStatus = normalizeToken(partidoRow?.result_status);
@@ -799,13 +924,16 @@ export async function openNotification(n, navigate, options = {}) {
     if (!matchId) return;
 
     if (RESULTS_NOTIFICATION_TYPES.has(type)) {
-      const target = shouldForceAwardsResultsNavigation({
-        notificationType: type,
-      })
-        ? buildAwardsResultsNavigationTarget(n, matchId)
-        : buildResultsNavigationTarget(n, matchId);
-      if (target.route) {
-        navigate(target.route, { state: target.state });
+      const resolvedEntry = await resolveResultsNotificationEntry({
+        notification: n,
+        supabaseClient: options?.supabaseClient || supabase,
+      });
+      if (resolvedEntry.kind === 'modal') {
+        options?.onResultsUnavailable?.(resolvedEntry);
+        return;
+      }
+      if (resolvedEntry.route) {
+        navigate(resolvedEntry.route, { state: resolvedEntry.state });
       }
       return;
     }
@@ -819,13 +947,16 @@ export async function openNotification(n, navigate, options = {}) {
     }
 
     if (type === 'survey_finished') {
-      const target = shouldForceAwardsResultsNavigation({
-        notificationType: type,
-      })
-        ? buildAwardsResultsNavigationTarget(n, matchId)
-        : buildResultsNavigationTarget(n, matchId);
-      if (target.route) {
-        navigate(target.route, { state: target.state });
+      const resolvedEntry = await resolveResultsNotificationEntry({
+        notification: n,
+        supabaseClient: options?.supabaseClient || supabase,
+      });
+      if (resolvedEntry.kind === 'modal') {
+        options?.onResultsUnavailable?.(resolvedEntry);
+        return;
+      }
+      if (resolvedEntry.route) {
+        navigate(resolvedEntry.route, { state: resolvedEntry.state });
       }
       return;
     }

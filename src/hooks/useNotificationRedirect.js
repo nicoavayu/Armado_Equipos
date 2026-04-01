@@ -15,7 +15,6 @@ import {
   resolveNotificationActionability,
   resolveSurveyNotificationNavigation,
   shouldTreatNotificationAsSurveyForm,
-  stripShowAwardsParam,
 } from '../utils/notificationRouter';
 import { notifyBlockingError } from '../utils/notifyBlockingError';
 
@@ -165,6 +164,24 @@ export const useNotificationRedirect = () => {
       }
 
       const notificationType = resolveNotificationTypeToken(payload);
+      if (['survey_results_ready', 'survey_finished', 'survey_results'].includes(notificationType)) {
+        track('push_opened', {
+          notification_type: notificationType || undefined,
+          route,
+          opened_from_push: true,
+          source: 'native_push_redirect',
+        });
+        await openNotification(envelope, navigate, {
+          supabaseClient: supabase,
+          onResultsUnavailable: (notice) => {
+            if (notice?.message) {
+              notifyBlockingError(notice.message, { title: notice.title });
+            }
+          },
+        });
+        return;
+      }
+
       const targetRoute = await resolveNavigationRouteForEnvelope({
         envelope,
         fallbackRoute: surveyNavigation.route || route,
@@ -216,6 +233,24 @@ export const useNotificationRedirect = () => {
         }
 
         const notificationType = resolveNotificationTypeToken(event.data || {});
+        if (['survey_results_ready', 'survey_finished', 'survey_results'].includes(notificationType)) {
+          track('push_opened', {
+            notification_type: notificationType || undefined,
+            route: event.data?.url,
+            opened_from_push: true,
+            source: 'service_worker',
+          });
+          await openNotification(envelope, navigate, {
+            supabaseClient: supabase,
+            onResultsUnavailable: (notice) => {
+              if (notice?.message) {
+                notifyBlockingError(notice.message, { title: notice.title });
+              }
+            },
+          });
+          return;
+        }
+
         const targetRoute = await resolveNavigationRouteForEnvelope({
           envelope,
           fallbackRoute: surveyNavigation.route || event.data?.url,
@@ -319,8 +354,25 @@ export const useNotificationRedirect = () => {
     } else if (notification.data?.type === 'survey_results_ready') {
       const matchId = notification.data?.matchId ?? notification.data?.match_id ?? notification.data?.partido_id;
       const id = toBigIntId(matchId);
-      const url = notification.data?.resultsUrl || (id != null ? `/resultados-encuesta/${id}` : null);
-      if (url) navigate(stripShowAwardsParam(url));
+      const envelope = {
+        type: 'survey_results_ready',
+        partido_id: id || undefined,
+        data: {
+          ...notification.data,
+          resultsUrl: notification.data?.resultsUrl || (id != null ? `/resultados-encuesta/${id}` : null),
+          match_id: id || notification.data?.match_id || undefined,
+          matchId: id || notification.data?.matchId || undefined,
+          partido_id: id || notification.data?.partido_id || undefined,
+        },
+      };
+      await openNotification(envelope, navigate, {
+        supabaseClient: supabase,
+        onResultsUnavailable: (notice) => {
+          if (notice?.message) {
+            notifyBlockingError(notice.message, { title: notice.title });
+          }
+        },
+      });
     }
   };
 

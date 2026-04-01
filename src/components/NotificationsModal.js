@@ -189,6 +189,30 @@ const NotificationsModal = ({ isOpen, onClose }) => {
       return;
     }
 
+    if ([
+      'survey_results',
+      'survey_results_ready',
+      'survey_finished',
+      'awards_ready',
+      'award_won',
+    ].includes(notification?.type)) {
+      await openNotification(notification, navigate, {
+        supabaseClient: supabase,
+        userId: user?.id || '',
+        onActionBlocked: (blocked) => {
+          if (blocked?.message) {
+            notifyBlockingError(blocked.message);
+          }
+        },
+        onResultsUnavailable: (notice) => {
+          if (notice?.message) {
+            notifyBlockingError(notice.message, { title: notice.title });
+          }
+        },
+      });
+      return;
+    }
+
     if (notification.type === 'call_to_vote') {
       const { matchCode, matchId } = notification.data || {};
       if (matchCode) {

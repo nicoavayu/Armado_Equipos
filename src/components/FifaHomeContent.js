@@ -10,6 +10,8 @@ import { listMyTeamMatches } from '../services/db/teamChallenges';
 import { parseLocalDateTime } from '../utils/dateLocal';
 import { buildActivityFeed } from '../utils/activityFeed';
 import { AWARDS_READY_NOTIFICATION_TYPES, isAwardsReadyStatus } from '../utils/awardsReadiness';
+import { openNotification } from '../utils/notificationRouter';
+import { notifyBlockingError } from '../utils/notifyBlockingError';
 import ProximosPartidos from './ProximosPartidos';
 import NotificationsBell from './NotificationsBell';
 import { useRefreshOnVisibility } from '../hooks/useRefreshOnVisibility';
@@ -194,6 +196,32 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
       if (latestViewed && await openAwardsStoryFromNotification(latestViewed)) return;
     }
     toggleStatusDropdown(e);
+  };
+
+  const handleActivityItemClick = async (item) => {
+    if (!item?.route) return;
+
+    if (item.type === 'survey_results_ready' && item.partidoId) {
+      await openNotification({
+        type: 'survey_results_ready',
+        partido_id: item.partidoId,
+        data: {
+          resultsUrl: item.route,
+          match_id: item.partidoId,
+          match_name: item.title || null,
+        },
+      }, navigate, {
+        supabaseClient: supabase,
+        onResultsUnavailable: (notice) => {
+          if (notice?.message) {
+            notifyBlockingError(notice.message, { title: notice.title });
+          }
+        },
+      });
+      return;
+    }
+
+    navigate(item.route);
   };
 
   const cardClass = 'bg-white/10 border border-white/20 rounded-none p-4 cursor-pointer transition-[transform,background-color,border-color,box-shadow] duration-300 aspect-square relative overflow-hidden flex flex-col justify-start no-underline text-white backdrop-blur-[15px] z-[1] hover:-translate-y-1.5 hover:scale-[1.02] hover:bg-white/20 hover:border-white/40 active:translate-y-0 active:scale-100 sm:p-3.5 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]';
@@ -874,7 +902,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
                           disabled={!canNavigate}
                           onClick={() => {
                             if (!canNavigate) return;
-                            navigate(item.route);
+                            handleActivityItemClick(item);
                           }}
                           className={`w-full flex items-start gap-3 px-3.5 py-3 rounded-none border border-white/20 text-left bg-white/[0.025] transition-colors ${
                             canNavigate

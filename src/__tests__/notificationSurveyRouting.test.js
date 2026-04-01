@@ -1,6 +1,7 @@
 jest.mock('../config/surveyConfig', () => ({
   SURVEY_FINALIZE_DELAY_MS: 24 * 60 * 60 * 1000,
   SURVEY_START_DELAY_MS: 60 * 60 * 1000,
+  SURVEY_MIN_VOTERS_FOR_AWARDS: 3,
 }));
 
 const {
@@ -10,6 +11,7 @@ const {
 const {
   openNotification,
   resolveNotificationActionability,
+  resolveResultsNotificationEntry,
   resolveSurveyNotificationNavigation,
   resolveSurveyNotificationRoute,
   stripShowAwardsParam,
@@ -19,6 +21,7 @@ const createSupabaseMock = ({
   partidoRow = null,
   teamMatchRow = null,
   rosterRows = [],
+  surveyResultsRow = null,
 } = {}) => ({
   from: jest.fn((table) => {
     if (table === 'partidos') {
@@ -27,6 +30,19 @@ const createSupabaseMock = ({
           eq: jest.fn(() => ({
             maybeSingle: jest.fn(async () => ({
               data: partidoRow,
+              error: null,
+            })),
+          })),
+        })),
+      };
+    }
+
+    if (table === 'survey_results') {
+      return {
+        select: jest.fn(() => ({
+          eq: jest.fn(() => ({
+            maybeSingle: jest.fn(async () => ({
+              data: surveyResultsRow,
               error: null,
             })),
           })),
@@ -472,21 +488,38 @@ describe('survey notification routing', () => {
     expect(result.reason).toBe('survey_reminder_stale');
   });
 
-  test('survey_results_ready abre resultados normales aunque venga en link legacy', async () => {
+  test('survey_results_ready abre premiación cuando hay premios renderizables', async () => {
     const navigate = jest.fn();
+    const supabaseMock = createSupabaseMock({
+      partidoRow: {
+        id: 700,
+        survey_status: 'closed',
+        result_status: 'draw',
+        awards_status: 'ready',
+        finished_at: '2025-01-02T20:00:00.000Z',
+      },
+      surveyResultsRow: {
+        partido_id: 700,
+        results_ready: true,
+        awards_status: 'ready',
+        awards: { mvp: { player_id: '10' } },
+      },
+    });
     await openNotification({
       type: 'survey_results_ready',
       partido_id: 700,
       data: {
         resultsUrl: '/resultados-encuesta/700?showAwards=1&from=legacy',
       },
-    }, navigate);
+    }, navigate, {
+      supabaseClient: supabaseMock,
+    });
 
     expect(navigate).toHaveBeenCalledWith(
-      '/resultados-encuesta/700?from=legacy',
+      '/resultados-encuesta/700?showAwards=1&from=legacy',
       expect.objectContaining({
         state: expect.objectContaining({
-          fromNotification: true,
+          forceAwards: true,
         }),
       }),
     );
@@ -575,24 +608,77 @@ describe('survey notification routing', () => {
     );
   });
 
-  test('survey_finished navega a resultados normales', async () => {
+  test('survey_finished muestra modal y no navega cuando no corresponde premiación', async () => {
     const navigate = jest.fn();
+    const onResultsUnavailable = jest.fn();
+    const supabaseMock = createSupabaseMock({
+      partidoRow: {
+        id: 704,
+        survey_status: 'closed',
+        survey_expected_voters: 2,
+        result_status: 'finished',
+        awards_status: 'not_eligible',
+        finished_at: '2025-01-02T20:00:00.000Z',
+      },
+      surveyResultsRow: {
+        partido_id: 704,
+        results_ready: true,
+        awards_status: 'not_eligible',
+        awards: {},
+      },
+    });
     await openNotification({
       type: 'survey_finished',
       partido_id: 704,
       data: {
         resultsUrl: '/resultados-encuesta/704',
       },
-    }, navigate);
+    }, navigate, {
+      supabaseClient: supabaseMock,
+      onResultsUnavailable,
+    });
 
-    expect(navigate).toHaveBeenCalledWith(
-      '/resultados-encuesta/704',
-      expect.objectContaining({
-        state: expect.objectContaining({
-          fromNotification: true,
-        }),
-      }),
-    );
+    expect(navigate).not.toHaveBeenCalled();
+    expect(onResultsUnavailable).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'Premiación no disponible',
+      message: 'No hubo suficientes votos para calcular la premiación final de este partido.',
+    }));
+  });
+
+  test('resolveResultsNotificationEntry devuelve modal final cuando premios no son renderizables', async () => {
+    const supabaseMock = createSupabaseMock({
+      partidoRow: {
+        id: 483,
+        survey_status: 'closed',
+        survey_expected_voters: 3,
+        result_status: 'draw',
+        awards_status: 'error',
+        finished_at: '2026-04-01T00:00:00.000Z',
+      },
+      surveyResultsRow: {
+        partido_id: 483,
+        results_ready: true,
+        awards_status: 'error',
+        awards: {},
+      },
+    });
+
+    const result = await resolveResultsNotificationEntry({
+      notification: {
+        type: 'survey_results_ready',
+        partido_id: 483,
+        data: {
+          resultsUrl: '/resultados-encuesta/483',
+        },
+      },
+      supabaseClient: supabaseMock,
+    });
+
+    expect(result).toEqual(expect.objectContaining({
+      kind: 'modal',
+      title: 'Premiación no disponible',
+      message: 'No pudimos resolver la premiación final de este partido.',
+    }));
   });
 
   test('bloquea notificaciones operativas cuando el partido ya está finalizado', async () => {
@@ -814,9 +900,10 @@ describe('survey notification routing', () => {
     expect(onActionBlocked).not.toHaveBeenCalled();
   });
 
-  test('openNotification navega a resultados sin forzar premiación cuando survey_finished quedó not_eligible', async () => {
+  test('openNotification no navega a resultados cuando survey_finished quedó not_eligible', async () => {
     const navigate = jest.fn();
     const onActionBlocked = jest.fn();
+    const onResultsUnavailable = jest.fn();
     const supabaseMock = createSupabaseMock({
       partidoRow: {
         id: 816,
@@ -827,7 +914,14 @@ describe('survey notification routing', () => {
         survey_closes_at: '2025-01-02T20:00:00.000Z',
         result_status: 'finished',
         awards_status: 'not_eligible',
+        survey_expected_voters: 2,
         finished_at: '2025-01-02T20:00:00.000Z',
+      },
+      surveyResultsRow: {
+        partido_id: 816,
+        results_ready: true,
+        awards_status: 'not_eligible',
+        awards: {},
       },
     });
 
@@ -841,16 +935,14 @@ describe('survey notification routing', () => {
     }, navigate, {
       supabaseClient: supabaseMock,
       onActionBlocked,
+      onResultsUnavailable,
     });
 
-    expect(navigate).toHaveBeenCalledWith(
-      '/resultados-encuesta/816',
-      expect.objectContaining({
-        state: expect.objectContaining({
-          fromNotification: true,
-        }),
-      }),
-    );
+    expect(navigate).not.toHaveBeenCalled();
     expect(onActionBlocked).not.toHaveBeenCalled();
+    expect(onResultsUnavailable).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'Premiación no disponible',
+      message: 'No hubo suficientes votos para calcular la premiación final de este partido.',
+    }));
   });
 });

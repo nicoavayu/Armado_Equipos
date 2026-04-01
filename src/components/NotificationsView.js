@@ -182,6 +182,30 @@ const NotificationsView = () => {
       return;
     }
 
+    if ([
+      'survey_results',
+      'survey_results_ready',
+      'survey_finished',
+      'awards_ready',
+      'award_won',
+    ].includes(notification?.type)) {
+      await openNotification(notification, navigate, {
+        supabaseClient: supabase,
+        userId: user?.id || '',
+        onActionBlocked: (blocked) => {
+          if (blocked?.message) {
+            notifyBlockingError(blocked.message);
+          }
+        },
+        onResultsUnavailable: (notice) => {
+          if (notice?.message) {
+            notifyBlockingError(notice.message, { title: notice.title });
+          }
+        },
+      });
+      return;
+    }
+
     // Priority 1: Use link if available (for join requests and other notifications with direct links)
     if (link && notification?.type === 'match_join_request') {
       try { if (!notification.read) await markAsRead(notification.id); } catch (e) { /* Intentionally empty */ }
