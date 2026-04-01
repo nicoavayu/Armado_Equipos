@@ -61,6 +61,31 @@ describe('buildActivityFeed survey route guards', () => {
     expect(items[0].route).toBe('/encuesta/902');
   });
 
+  test('keeps challenge survey_start visible in activity even after notification is read', async () => {
+    const items = await buildActivityFeed([
+      {
+        id: 'notif-open-read-1',
+        type: 'survey_start',
+        read: true,
+        created_at: '2026-03-08T10:00:00.000Z',
+        partido_id: 904,
+        data: {
+          survey_deadline_at: '2026-03-09T11:00:00.000Z',
+          match_name: 'Desafío: Equipo 1 vs Equipo 2',
+        },
+      },
+    ], {
+      activeMatches: [],
+      currentUserId: 'user-1',
+      supabaseClient: null,
+    });
+
+    expect(items).toHaveLength(1);
+    expect(items[0].type).toBe('survey_start');
+    expect(items[0].route).toBe('/encuesta/904');
+    expect(items[0].unread).toBe(false);
+  });
+
   test('hides survey activity when match is already closed even with future deadline', async () => {
     const items = await buildActivityFeed([
       {

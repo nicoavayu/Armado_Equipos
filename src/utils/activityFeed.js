@@ -1185,10 +1185,16 @@ const shouldIncludeNotification = (notification, normalizedType) => {
   }
 
   const ageMs = Date.now() - ts;
-  const isSurveyLike = normalizedType === 'survey_start'
-    || normalizedType === 'survey_results_ready'
+  const isSurveyStart = normalizedType === 'survey_start';
+  const isSurveyLike = normalizedType === 'survey_results_ready'
     || normalizedType === 'call_to_vote'
     || normalizedType === 'awards_ready';
+
+  if (isSurveyStart) {
+    // survey_start remains actionable while the survey is still open, even if the
+    // underlying notification was already marked as read from notifications/push.
+    return ageMs <= activityWindowSurveyLikeMs;
+  }
 
   if (isSurveyLike) {
     // For survey/premios, keep the feed actionable: show only unread and recent.
