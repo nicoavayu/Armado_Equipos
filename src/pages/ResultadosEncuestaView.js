@@ -16,6 +16,7 @@ import EmptyStateCard from '../components/EmptyStateCard';
 import Logo from '../Logo.png';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import {
+  AWARDS_STATUS_ERROR,
   hasAnyAwardData,
   isAwardsNotEligibleStatus,
   isAwardsReadyStatus,
@@ -161,12 +162,14 @@ export const deriveAwardsUiState = ({
   }
   const hasInsufficientVotesForAwards = awardsStatus === 'not_eligible';
   const awardsReady = awardsStatus === 'ready';
-  const shouldShowPendingResultsCard = !results;
+  const hasAwardsError = awardsStatus === AWARDS_STATUS_ERROR;
+  const shouldShowPendingResultsCard = !results && !hasAwardsError;
 
   return {
     awardsStatus,
     awardsReady,
     hasInsufficientVotesForAwards,
+    hasAwardsError,
     shouldShowPendingResultsCard,
   };
 };
@@ -177,7 +180,9 @@ export const shouldShowAwardsRetryAction = ({
   isSurveyClosed = false,
 } = {}) => {
   const normalizedAwardsStatus = normalizeAwardsStatus(awardsStatus) || 'pending';
-  return Boolean(results) && Boolean(isSurveyClosed) && normalizedAwardsStatus === 'pending';
+  return Boolean(results)
+    && Boolean(isSurveyClosed)
+    && normalizedAwardsStatus === 'pending';
 };
 
 export const shouldShowSecondaryResultsSections = ({
@@ -194,21 +199,32 @@ export const deriveAwardsPresentationState = ({
   hasResults = false,
 } = {}) => {
   const normalizedAwardsStatus = normalizeAwardsStatus(awardsStatus) || 'pending';
+  const isAwardsError = normalizedAwardsStatus === AWARDS_STATUS_ERROR;
   const shouldShowAwardsUnavailableState = Boolean(
     isSurveyClosed
-    && normalizedAwardsStatus === 'ready'
-    && !hasRenderableAwardsStory
+    && (
+      isAwardsError
+      || (normalizedAwardsStatus === 'ready' && !hasRenderableAwardsStory)
+    )
   );
 
   const awardsStatusLabel = normalizedAwardsStatus === 'ready'
     ? (shouldShowAwardsUnavailableState ? 'No disponible' : 'Listos para ver')
     : normalizedAwardsStatus === 'not_eligible'
       ? 'No elegible para premios'
+      : isAwardsError
+        ? 'No disponible'
       : 'En progreso';
 
   return {
     awardsStatusLabel,
     shouldShowAwardsUnavailableState,
+    unavailableTitle: isAwardsError
+      ? 'No se pudo calcular la premiación final de este partido.'
+      : 'La premiación final no está disponible para este partido.',
+    unavailableDescription: isAwardsError
+      ? 'Los resultados quedaron cerrados, pero la premiación no pudo resolverse correctamente.'
+      : 'Los resultados se muestran sin una historia de premiación.',
     shouldShowPendingResultsCard: !hasResults && !shouldShowAwardsUnavailableState,
   };
 };
@@ -264,6 +280,7 @@ const ResultadosEncuestaView = () => {
     awardsStatus,
     awardsReady,
     hasInsufficientVotesForAwards,
+    hasAwardsError,
   } = deriveAwardsUiState({
     results,
     partido,
@@ -2064,6 +2081,8 @@ const ResultadosEncuestaView = () => {
     ? 'text-green-400'
     : awardsStatus === 'not_eligible'
       ? 'text-orange-300'
+      : hasAwardsError
+        ? 'text-red-300'
       : 'text-yellow-400';
   const showRetryAction = shouldShowAwardsRetryAction({
     results,
@@ -2080,6 +2099,8 @@ const ResultadosEncuestaView = () => {
   const {
     awardsStatusLabel,
     shouldShowAwardsUnavailableState,
+    unavailableTitle,
+    unavailableDescription,
     shouldShowPendingResultsCard: shouldShowPendingResultsFallback,
   } = deriveAwardsPresentationState({
     isSurveyClosed,
@@ -2218,10 +2239,10 @@ const ResultadosEncuestaView = () => {
         {isSurveyClosed && shouldShowAwardsUnavailableState && (
           <div className="mb-6 rounded-xl border border-white/15 bg-black/20 p-4">
             <p className="text-white text-lg font-semibold text-center">
-              La premiación final no está disponible para este partido.
+              {unavailableTitle}
             </p>
             <p className="text-white/70 text-sm text-center mt-2">
-              Los resultados se muestran sin una historia de premiación.
+              {unavailableDescription}
             </p>
           </div>
         )}

@@ -6,7 +6,6 @@ import { isSurveyNotificationClosed } from './surveyNotificationCopy';
 import { resolveSurveyAccess } from './surveyAccess';
 import { parseLocalDateTime } from './dateLocal';
 import { isSurveyReminderActionRequired } from './surveyReminderEligibility';
-import { normalizeAwardsStatus } from './awardsReadiness';
 import { awardsNotificationWindowMs } from './notificationRetentionPolicy';
 import {
   buildTeamChallengeRoute,
@@ -604,10 +603,10 @@ export const buildResultsNavigationTarget = (notification = {}, fallbackMatchId 
   };
 };
 
-const shouldForceAwardsResultsNavigation = ({ notificationType, awardsStatus } = {}) => {
+const shouldForceAwardsResultsNavigation = ({ notificationType } = {}) => {
   const normalizedType = normalizeToken(notificationType);
   if (AWARDS_NOTIFICATION_TYPES.has(normalizedType)) return true;
-  return normalizeAwardsStatus(awardsStatus) !== 'not_eligible';
+  return false;
 };
 
 const isCanonicalSurveyClosed = ({ partidoRow = null, nowMs = Date.now() } = {}) => {
@@ -799,20 +798,9 @@ export async function openNotification(n, navigate, options = {}) {
 
     if (!matchId) return;
 
-    let resultsLifecycleRow = null;
-    if (RESULTS_NOTIFICATION_TYPES.has(type) || AWARDS_NOTIFICATION_TYPES.has(type) || type === 'survey_finished') {
-      resultsLifecycleRow = await fetchMatchLifecycleRow({
-        supabaseClient: options?.supabaseClient || supabase,
-        matchId: String(matchId),
-        nowMs: Date.now(),
-      });
-    }
-
     if (RESULTS_NOTIFICATION_TYPES.has(type)) {
-      const awardsStatus = resultsLifecycleRow?.awards_status || n?.data?.awards_status || n?.data?.awardsStatus || null;
       const target = shouldForceAwardsResultsNavigation({
         notificationType: type,
-        awardsStatus,
       })
         ? buildAwardsResultsNavigationTarget(n, matchId)
         : buildResultsNavigationTarget(n, matchId);
@@ -831,10 +819,8 @@ export async function openNotification(n, navigate, options = {}) {
     }
 
     if (type === 'survey_finished') {
-      const awardsStatus = resultsLifecycleRow?.awards_status || n?.data?.awards_status || n?.data?.awardsStatus || null;
       const target = shouldForceAwardsResultsNavigation({
         notificationType: type,
-        awardsStatus,
       })
         ? buildAwardsResultsNavigationTarget(n, matchId)
         : buildResultsNavigationTarget(n, matchId);

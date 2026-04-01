@@ -16,6 +16,7 @@ import {
 } from '../config/surveyConfig';
 import { getSurveyResultsReadyMessage } from '../utils/surveyNotificationCopy';
 import {
+  AWARDS_STATUS_ERROR,
   AWARDS_STATUS_NOT_ELIGIBLE,
   AWARDS_STATUS_PENDING,
   AWARDS_STATUS_READY,
@@ -969,6 +970,43 @@ export const deriveClosedSurveyRecoveryState = ({
   };
 };
 
+export const isAwardsNotEligibleReason = (reason) => {
+  const token = String(reason || '').trim().toLowerCase();
+  return token === 'insufficient_voters' || token === 'no_valid_awards_generated';
+};
+
+export const resolveClosedAwardsTerminalState = ({
+  awardsPersistResult = null,
+  awardsRow = null,
+} = {}) => {
+  const hasPersistedAwardPayload = Boolean(
+    awardsRow?.results_ready === true
+    && hasAnyAwardData(awardsRow),
+  );
+
+  if (hasPersistedAwardPayload) {
+    return {
+      awardsStatus: AWARDS_STATUS_READY,
+      awardsSkipped: false,
+      awardsError: false,
+    };
+  }
+
+  if (isAwardsNotEligibleReason(awardsPersistResult?.reason)) {
+    return {
+      awardsStatus: AWARDS_STATUS_NOT_ELIGIBLE,
+      awardsSkipped: true,
+      awardsError: false,
+    };
+  }
+
+  return {
+    awardsStatus: AWARDS_STATUS_ERROR,
+    awardsSkipped: false,
+    awardsError: true,
+  };
+};
+
 const fetchSurveyRosterContextRow = async (partidoId) => {
   try {
     const { data, error } = await supabase
@@ -1455,6 +1493,7 @@ export async function finalizeIfComplete(partidoId, options = {}) {
 
   let awardsSkipped = false;
   let awardsPendingRetry = false;
+  let awardsError = false;
   let awardsPersistResult = null;
   let finalAwardsStatus = AWARDS_STATUS_PENDING;
   const clearAwardArtifactsForNotEligible = async () => {
@@ -1528,31 +1567,25 @@ export async function finalizeIfComplete(partidoId, options = {}) {
       console.error('[FINALIZE] could not refetch survey_results for awards validation', { partidoId: idNum, awardsRowErr });
     }
 
-    const awardsReadyNow = Boolean(
-      awardsPersistResult?.persisted === true
-      && awardsRow?.results_ready === true
-      && hasAnyAwardData(awardsRow),
-    );
-    const persistReason = String(awardsPersistResult?.reason || '').trim().toLowerCase();
-    const isNotEligibleReason = persistReason === 'insufficient_voters'
-      || persistReason === 'no_valid_awards_generated';
-    if (awardsReadyNow) {
-      finalAwardsStatus = AWARDS_STATUS_READY;
-      awardsSkipped = false;
-    } else if (isNotEligibleReason) {
-      finalAwardsStatus = AWARDS_STATUS_NOT_ELIGIBLE;
-      awardsSkipped = true;
+    const resolvedAwardsState = resolveClosedAwardsTerminalState({
+      awardsPersistResult,
+      awardsRow,
+    });
+    finalAwardsStatus = resolvedAwardsState.awardsStatus;
+    awardsSkipped = resolvedAwardsState.awardsSkipped;
+    awardsError = resolvedAwardsState.awardsError;
+
+    if (finalAwardsStatus === AWARDS_STATUS_NOT_ELIGIBLE) {
       try {
         await clearAwardArtifactsForNotEligible();
       } catch (clearErr) {
         console.warn('[FINALIZE] could not clear awards artifacts for not_eligible match', { partidoId: idNum, clearErr });
       }
-    } else {
-      finalAwardsStatus = AWARDS_STATUS_PENDING;
-      awardsPendingRetry = true;
-      console.warn('[FINALIZE] awards not ready after close; pending', {
+    } else if (finalAwardsStatus === AWARDS_STATUS_ERROR) {
+      console.error('[FINALIZE] awards resolution failed after close; marking error', {
         partidoId: idNum,
         persistResult: awardsPersistResult,
+        awardsRow,
       });
     }
 
@@ -1634,6 +1667,7 @@ export async function finalizeIfComplete(partidoId, options = {}) {
     deadlineAt: closesAt,
     awardsSkipped,
     awardsPendingRetry,
+    awards_error: awardsError,
     awards_status: finalAwardsStatus,
     awards_not_eligible: finalAwardsStatus === AWARDS_STATUS_NOT_ELIGIBLE,
     awardsPersisted: Boolean(awardsPersistResult?.persisted),

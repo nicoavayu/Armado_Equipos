@@ -1,8 +1,10 @@
 import {
   AWARDS_READY_NOTIFICATION_TYPES,
+  AWARDS_STATUS_ERROR,
   AWARDS_STATUS_NOT_ELIGIBLE,
   AWARDS_STATUS_PENDING,
   AWARDS_STATUS_READY,
+  isAwardsErrorStatus,
   isAwardsNotEligibleStatus,
   isAwardsReadyStatus,
   isAwardsTrulyReady,
@@ -23,6 +25,8 @@ describe('awardsReadiness', () => {
     expect(normalizeAwardsStatus('processing')).toBe(AWARDS_STATUS_PENDING);
     expect(normalizeAwardsStatus('insufficient')).toBe(AWARDS_STATUS_NOT_ELIGIBLE);
     expect(normalizeAwardsStatus('skipped_not_played')).toBe(AWARDS_STATUS_NOT_ELIGIBLE);
+    expect(normalizeAwardsStatus('error')).toBe(AWARDS_STATUS_ERROR);
+    expect(normalizeAwardsStatus('failed')).toBe(AWARDS_STATUS_ERROR);
   });
 
   test('premios listos dependen de estado explícito', () => {
@@ -34,6 +38,11 @@ describe('awardsReadiness', () => {
   test('estado not_eligible queda terminal', () => {
     expect(isAwardsNotEligibleStatus({ awards_status: 'not_eligible' })).toBe(true);
     expect(isAwardsNotEligibleStatus({ awards_status: 'pending' })).toBe(false);
+  });
+
+  test('estado error queda detectable como cierre fallido explícito', () => {
+    expect(isAwardsErrorStatus({ awards_status: 'error' })).toBe(true);
+    expect(isAwardsErrorStatus({ awards_status: 'pending' })).toBe(false);
   });
 
   test('isAwardsTrulyReady usa la misma regla fuerte de disponibilidad', () => {

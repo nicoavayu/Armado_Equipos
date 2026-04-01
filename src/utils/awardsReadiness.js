@@ -6,6 +6,7 @@ export const AWARDS_READY_NOTIFICATION_TYPES = new Set([
 export const AWARDS_STATUS_PENDING = 'pending';
 export const AWARDS_STATUS_READY = 'ready';
 export const AWARDS_STATUS_NOT_ELIGIBLE = 'not_eligible';
+export const AWARDS_STATUS_ERROR = 'error';
 
 export const hasAnyAwardData = (row) => Boolean(
   row?.mvp
@@ -53,6 +54,16 @@ export const normalizeAwardsStatus = (value) => {
     return AWARDS_STATUS_PENDING;
   }
 
+  if ([
+    AWARDS_STATUS_ERROR,
+    'failed',
+    'failure',
+    'errored',
+    'unresolved',
+  ].includes(token)) {
+    return AWARDS_STATUS_ERROR;
+  }
+
   return AWARDS_STATUS_PENDING;
 };
 
@@ -71,6 +82,15 @@ export const isAwardsNotEligibleStatus = (row) => (
 
 export const isAwardsPendingStatus = (row) => (
   normalizeAwardsStatus(row?.awards_status) === AWARDS_STATUS_PENDING
+);
+
+export const isAwardsErrorStatus = (row) => (
+  normalizeAwardsStatus(row?.awards_status) === AWARDS_STATUS_ERROR
+);
+
+export const isAwardsTerminalStatus = (row) => (
+  [AWARDS_STATUS_READY, AWARDS_STATUS_NOT_ELIGIBLE, AWARDS_STATUS_ERROR]
+    .includes(normalizeAwardsStatus(row?.awards_status))
 );
 
 export const isAwardsTrulyReady = (row) => isAwardsReadyStatus(row);

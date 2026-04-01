@@ -12,6 +12,9 @@ jest.mock('../services/surveyCompletionService', () => ({
   finalizeIfComplete: jest.fn(),
   computeAndPersistAwards: jest.fn(),
   computeResultsAverages: jest.fn(),
+  isAwardsNotEligibleReason: jest.fn((reason) => (
+    reason === 'insufficient_voters' || reason === 'no_valid_awards_generated'
+  )),
   setMatchAwardsStatus: jest.fn(),
 }));
 
@@ -20,6 +23,7 @@ jest.mock('../services/db/awards', () => ({
 }));
 
 const {
+  AWARDS_STATUS_ERROR,
   AWARDS_STATUS_NOT_ELIGIBLE,
   AWARDS_STATUS_READY,
 } = require('../utils/awardsReadiness');
@@ -123,5 +127,44 @@ describe('awardsService transitions', () => {
     expect(result?.notEligible).toBe(true);
     expect(surveyCompletion.computeAndPersistAwards).toHaveBeenCalledWith(101);
     expect(surveyCompletion.setMatchAwardsStatus).toHaveBeenCalledWith(101, AWARDS_STATUS_NOT_ELIGIBLE);
+  });
+
+  test('transitions pending -> error when closed results stay unresolved after retry', async () => {
+    surveyCompletion.finalizeIfComplete.mockResolvedValue({ done: true });
+    surveyCompletion.setMatchAwardsStatus.mockResolvedValue({ ok: true });
+    surveyCompletion.computeAndPersistAwards.mockResolvedValue({
+      persisted: false,
+      reason: 'compute_exception',
+      awardsCount: 0,
+    });
+
+    mockFrom.mockImplementation(buildSurveyResultsFromQueue([
+      {
+        partido_id: 102,
+        results_ready: true,
+        awards_status: 'pending',
+        awards: {},
+      },
+      {
+        partido_id: 102,
+        results_ready: true,
+        awards_status: 'pending',
+        awards: {},
+      },
+      {
+        partido_id: 102,
+        results_ready: true,
+        awards_status: 'error',
+        awards: {},
+      },
+    ]));
+
+    const result = await ensureAwards(102);
+
+    expect(result?.ok).toBe(true);
+    expect(result?.applied).toBe(false);
+    expect(result?.awardsError).toBe(true);
+    expect(surveyCompletion.computeAndPersistAwards).toHaveBeenCalledWith(102);
+    expect(surveyCompletion.setMatchAwardsStatus).toHaveBeenCalledWith(102, AWARDS_STATUS_ERROR);
   });
 });

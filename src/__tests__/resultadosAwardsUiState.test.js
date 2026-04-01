@@ -178,6 +178,29 @@ describe('Resultados awards UI state', () => {
     }));
   });
 
+  test('error awards stay in a final unavailable state instead of pending bridge', () => {
+    const uiState = deriveAwardsUiState({
+      results: { awards_status: 'error', results_ready: true },
+      partido: { awards_status: 'error', survey_status: 'closed' },
+      awardsSkippedByEnsure: false,
+    });
+    const presentation = deriveAwardsPresentationState({
+      isSurveyClosed: true,
+      awardsStatus: 'error',
+      hasRenderableAwardsStory: false,
+      hasResults: true,
+    });
+
+    expect(uiState.awardsStatus).toBe('error');
+    expect(uiState.hasAwardsError).toBe(true);
+    expect(uiState.shouldShowPendingResultsCard).toBe(false);
+    expect(presentation).toEqual(expect.objectContaining({
+      awardsStatusLabel: 'No disponible',
+      shouldShowAwardsUnavailableState: true,
+      shouldShowPendingResultsCard: false,
+    }));
+  });
+
   test('ready awards with renderable story keep the direct awards-ready state', () => {
     const presentation = deriveAwardsPresentationState({
       isSurveyClosed: true,

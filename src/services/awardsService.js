@@ -1,11 +1,18 @@
 import { supabase } from '../supabase';
-import { finalizeIfComplete, computeAndPersistAwards, computeResultsAverages, setMatchAwardsStatus } from './surveyCompletionService';
+import {
+  finalizeIfComplete,
+  computeAndPersistAwards,
+  computeResultsAverages,
+  setMatchAwardsStatus,
+} from './surveyCompletionService';
 import { notifyAwardWinnersForMatch } from './db/awards';
 import {
+  AWARDS_STATUS_ERROR,
   AWARDS_STATUS_NOT_ELIGIBLE,
   AWARDS_STATUS_PENDING,
   AWARDS_STATUS_READY,
   hasAnyAwardData,
+  isAwardsErrorStatus,
   isAwardsNotEligibleStatus,
   isAwardsReadyStatus,
   normalizeAwardsStatus,
@@ -39,6 +46,10 @@ export async function ensureAwards(partidoId) {
       if (token === 'open' || token === 'abierta') return 'open';
       return null;
     };
+    const isNotEligibleReason = (reason) => {
+      const token = normalizeToken(reason);
+      return token === 'insufficient_voters' || token === 'no_valid_awards_generated';
+    };
     const normalizeResultStatus = (value) => {
       const token = normalizeToken(value);
       if (!token) return null;
@@ -57,6 +68,9 @@ export async function ensureAwards(partidoId) {
 
     const resolveStatus = (row) => normalizeAwardsStatus(row?.awards_status);
     const isPendingStatus = (row) => resolveStatus(row) === AWARDS_STATUS_PENDING;
+    const withResolvedStatus = (row, status) => (
+      row ? { ...row, awards_status: status } : { awards_status: status }
+    );
 
     const fetchSurveyResultsRow = async () => {
       const res = await supabase
@@ -73,6 +87,23 @@ export async function ensureAwards(partidoId) {
         console.warn('[AWARDS] could not persist awards status', { partidoId: id, status, statusRes });
       }
       return statusRes || null;
+    };
+
+    const finalizeErrorReturn = async (row, extra = {}) => {
+      const statusRes = await persistAwardsStatus(AWARDS_STATUS_ERROR);
+      let failedRow = row || null;
+      if (statusRes?.ok) {
+        const refetchError = await fetchSurveyResultsRow();
+        failedRow = refetchError.row || failedRow;
+      }
+
+      return {
+        ok: true,
+        row: withResolvedStatus(failedRow, AWARDS_STATUS_ERROR),
+        applied: false,
+        awardsError: true,
+        ...extra,
+      };
     };
 
     const notifyAwardWinnersIfReady = async (row) => {
@@ -111,7 +142,7 @@ export async function ensureAwards(partidoId) {
 
       return {
         ok: true,
-        row: readyRow,
+        row: withResolvedStatus(readyRow, AWARDS_STATUS_READY),
         applied: true,
         ...extra,
       };
@@ -170,11 +201,17 @@ export async function ensureAwards(partidoId) {
       const refetchNotEligible = await fetchSurveyResultsRow();
       return {
         ok: true,
-        row: refetchNotEligible.row || after || null,
+        row: withResolvedStatus(refetchNotEligible.row || after || null, AWARDS_STATUS_NOT_ELIGIBLE),
         applied: false,
         awardsSkipped: true,
         notEligible: true,
       };
+    }
+
+    if (normalizeAwardsStatus(finalizeGate?.awards_status) === AWARDS_STATUS_ERROR) {
+      return finalizeErrorReturn(after, {
+        finalizeGate,
+      });
     }
 
     if (isAwardsNotEligibleStatus(after)) {
@@ -183,6 +220,15 @@ export async function ensureAwards(partidoId) {
         row: after || null,
         applied: false,
         notEligible: true,
+      };
+    }
+
+    if (isAwardsErrorStatus(after)) {
+      return {
+        ok: true,
+        row: after || null,
+        applied: false,
+        awardsError: true,
       };
     }
 
@@ -234,12 +280,12 @@ export async function ensureAwards(partidoId) {
         });
       }
 
-      if (after?.results_ready && !hasAnyAwardData(after)) {
+      if (after?.results_ready && isNotEligibleReason(retryResult?.reason)) {
         await persistAwardsStatus(AWARDS_STATUS_NOT_ELIGIBLE);
         const refetchNotEligible = await fetchSurveyResultsRow();
         return {
           ok: true,
-          row: refetchNotEligible.row || after || null,
+          row: withResolvedStatus(refetchNotEligible.row || after || null, AWARDS_STATUS_NOT_ELIGIBLE),
           applied: false,
           notEligible: true,
           retried: true,
@@ -310,29 +356,11 @@ export async function ensureAwards(partidoId) {
       });
     }
 
-    if (after?.results_ready && !hasAnyAwardData(after)) {
-      await persistAwardsStatus(AWARDS_STATUS_NOT_ELIGIBLE);
-      const refetchNotEligible = await fetchSurveyResultsRow();
-      return {
-        ok: true,
-        row: refetchNotEligible.row || after || null,
-        applied: false,
-        notEligible: true,
-        retried: Boolean(retryResult),
-        retryResult,
-      };
-    }
-
     if (after?.results_ready && !isAwardsReadyStatus(after) && !isAwardsNotEligibleStatus(after)) {
-      await persistAwardsStatus(AWARDS_STATUS_PENDING);
-      return {
-        ok: true,
-        row: after || null,
-        applied: false,
-        pending: true,
+      return finalizeErrorReturn(after, {
         retried: Boolean(retryResult),
         retryResult,
-      };
+      });
     }
 
     if (rpcErr && !after?.results_ready) {
