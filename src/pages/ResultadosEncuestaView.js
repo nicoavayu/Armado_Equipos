@@ -231,6 +231,7 @@ const ResultadosEncuestaView = () => {
   const liveApplied = useRef(new Set());
   const badgeTimers = useRef([]);
   const forceStoryOpenedRef = useRef(null);
+  const autoAwardsOpenedRef = useRef(null);
   const autoOpenGuardRef = useRef(null);
   const pendingRetryAttemptedRef = useRef(new Set());
   const {
@@ -2081,6 +2082,12 @@ const ResultadosEncuestaView = () => {
     awardsStatus,
     isSurveyClosed,
   });
+  const hasPrimaryAwardHighlights = Boolean(
+    results?.mvp
+    || results?.golden_glove
+    || results?.dirty_player
+    || (Array.isArray(results?.red_cards) && results.red_cards.length > 0),
+  );
   const showSecondaryResultsSections = shouldShowSecondaryResultsSections({
     awardsStatus,
     hasSecondaryResults: absences.length > 0,
@@ -2088,22 +2095,35 @@ const ResultadosEncuestaView = () => {
 
   // OVERLAY ANIMATION RENDER
   // Carousel state
+  useEffect(() => {
+    if (forceAwardsMode) return;
+    if (!results || !awardsReady) return;
+    if (showingBadgeAnimations || autoOpeningAwards) return;
 
+    const autoOpenKey = `${partidoId}:${location.key || location.search || 'results'}:${results?.updated_at || results?.created_at || 'ready'}`;
+    if (autoAwardsOpenedRef.current === autoOpenKey) return;
 
-  const handleAnimateBadges = () => {
-    // Initialize previewPlayers with current jugadores state
+    const slides = prepareCarouselSlides(results, jugadores);
+    if (!slides || slides.length === 0) return;
+
+    autoAwardsOpenedRef.current = autoOpenKey;
     setPreviewPlayers(JSON.parse(JSON.stringify(jugadores)));
     badgesApplied.current.clear();
     liveApplied.current.clear();
     setSlideStages({});
-
-    const slides = prepareCarouselSlides();
-    if (!slides || slides.length === 0) {
-      return;
-    }
     setCarouselSlides(slides);
     setShowingBadgeAnimations(true);
-  };
+  }, [
+    awardsReady,
+    autoOpeningAwards,
+    forceAwardsMode,
+    jugadores,
+    location.key,
+    location.search,
+    partidoId,
+    results,
+    showingBadgeAnimations,
+  ]);
 
   if (showingBadgeAnimations && carouselSlides.length > 0) {
     return (
@@ -2117,7 +2137,9 @@ const ResultadosEncuestaView = () => {
               badgesApplied.current.clear();
               liveApplied.current.clear();
               setSlideStages({});
-              navigate('/');
+              if (forceAwardsMode) {
+                navigate('/');
+              }
             }}
             onIndexChange={handleCarouselIndexChange}
           />
@@ -2236,7 +2258,7 @@ const ResultadosEncuestaView = () => {
         )}
 
         {/* Results Summary */}
-        {results && awardsReady && (
+        {results && awardsReady && hasPrimaryAwardHighlights && (
           <div className="bg-gradient-to-br from-white/10 to-white/5 rounded-xl p-5 mb-8 border border-white/10">
             <h3 className="text-xl text-white  mb-4 border-b border-white/10 pb-2">Destacados</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2303,45 +2325,6 @@ const ResultadosEncuestaView = () => {
               className="min-h-[52px] px-6 rounded-xl text-[18px] font-bebas tracking-[0.04em] uppercase text-white bg-[#0EA9C6] border border-[#38c7df] hover:bg-[#0c90a8] transition-all shadow-lg"
             >
               Reintentar
-            </button>
-          )}
-
-          {results && awardsReady && (
-            <button
-              onClick={handleAnimateBadges}
-              className="min-h-[52px] px-6 rounded-xl text-[18px] font-bebas tracking-[0.04em] uppercase text-black bg-[#FFD700] border border-[#ffe066] hover:bg-[#ffc800] transition-transform hover:scale-[1.03] shadow-[0_0_15px_rgba(255,215,0,0.4)] flex items-center justify-center gap-2"
-            >
-              <span>✨</span> Ver Premiación
-            </button>
-          )}
-
-          {!results && awardsStatus === 'ready' && (
-            <button
-              onClick={async () => {
-                try {
-                  setLoading(true);
-                  setAwardsSkippedByEnsure(false);
-                  const res = await ensureAwards(partidoId);
-                  setAwardsSkippedByEnsure(Boolean(res?.awardsSkipped));
-                  if (res?.ok && res.row && isAwardsReadyStatus(res.row)) {
-                    setResults(res.row);
-                    setPreviewPlayers(JSON.parse(JSON.stringify(jugadores)));
-                    badgesApplied.current.clear();
-                    const slides = prepareCarouselSlides(res.row, jugadores);
-                    if (slides.length > 0) {
-                      setCarouselSlides(slides);
-                      setShowingBadgeAnimations(true);
-                    }
-                  }
-                } catch (e) {
-                  console.error('[RESULTADOS] ensureAwards from CTA failed', e);
-                } finally {
-                  setLoading(false);
-                }
-              }}
-              className="min-h-[52px] px-6 rounded-xl text-[18px] font-bebas tracking-[0.04em] uppercase text-black bg-[#FFD700] border border-[#ffe066] hover:bg-[#ffc800] transition-transform hover:scale-[1.03] shadow-[0_0_15px_rgba(255,215,0,0.4)] flex items-center justify-center gap-2"
-            >
-              <span>✨</span> Ver Premiación
             </button>
           )}
         </div>
