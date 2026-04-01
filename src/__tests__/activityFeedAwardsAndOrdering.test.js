@@ -65,6 +65,30 @@ describe('buildActivityFeed awards + ordering', () => {
     expect(items[0].route).toBe('/resultados-encuesta/502?showAwards=1');
   });
 
+  test('incluye survey_finished usando el mismo card de resultados', async () => {
+    const items = await buildActivityFeed([
+      {
+        id: 'notif-finished-1',
+        type: 'survey_finished',
+        read: false,
+        created_at: '2026-03-12T17:57:00.000Z',
+        partido_id: 503,
+        data: {
+          match_id: '503',
+          match_name: 'Desafío cerrado',
+        },
+      },
+    ], {
+      activeMatches: [],
+      currentUserId: 'user-1',
+      supabaseClient: null,
+    });
+
+    expect(items).toHaveLength(1);
+    expect(items[0].type).toBe('survey_results_ready');
+    expect(items[0].route).toBe('/resultados-encuesta/503?showAwards=1');
+  });
+
   test('keeps unread notifications first in activity feed', async () => {
     const items = await buildActivityFeed([
       {

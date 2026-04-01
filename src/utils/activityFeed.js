@@ -35,6 +35,7 @@ const ACTIVITY_MAX_ITEMS = 5;
 const RELEVANT_TYPES = new Set([
   'survey_start',
   'post_match_survey',
+  'survey_finished',
   'call_to_vote',
   'survey_results_ready',
   'awards_ready',
@@ -137,6 +138,7 @@ const resolveMatchUpdateTemplateType = (message = '') => {
 
 const normalizeType = (type, message = '') => {
   if (type === 'survey_start' || type === 'post_match_survey') return 'survey_start';
+  if (type === 'survey_finished') return 'survey_results_ready';
   if (type === 'awards_ready' || type === 'award_won') return 'awards_ready';
   if (type === 'match_update') return resolveMatchUpdateTemplateType(message);
   return type;
