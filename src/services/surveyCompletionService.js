@@ -927,7 +927,7 @@ const fetchSurveyLifecycleRow = async (partidoId) => {
   try {
     const { data, error } = await supabase
       .from('partidos')
-      .select('survey_status, survey_opened_at, survey_closes_at, survey_expected_voters, result_status, winner_team, finished_at, fecha, hora, survey_team_a, survey_team_b, final_team_a, final_team_b')
+      .select('survey_status, survey_opened_at, survey_closes_at, survey_expected_voters, result_status, winner_team, finished_at, awards_status, fecha, hora, survey_team_a, survey_team_b, final_team_a, final_team_b')
       .eq('id', partidoId)
       .maybeSingle();
     if (error) throw error;
@@ -938,6 +938,35 @@ const fetchSurveyLifecycleRow = async (partidoId) => {
     }
     throw error;
   }
+};
+
+export const deriveClosedSurveyRecoveryState = ({
+  lifecycle = null,
+  surveyResultsRow = null,
+} = {}) => {
+  const surveyStatus = normalizeSurveyStatusValue(lifecycle?.survey_status);
+  const resultsReady = surveyResultsRow?.results_ready === true;
+  const awardsStatus = normalizeAwardsStatus(
+    surveyResultsRow?.awards_status
+      ?? lifecycle?.awards_status
+      ?? null,
+  );
+  const awardsTerminal = awardsStatus === AWARDS_STATUS_READY
+    || awardsStatus === AWARDS_STATUS_NOT_ELIGIBLE;
+
+  const shouldRecover = surveyStatus === SURVEY_STATUS_CLOSED && (
+    !surveyResultsRow
+    || !resultsReady
+    || !awardsTerminal
+  );
+
+  return {
+    shouldRecover,
+    surveyStatus,
+    resultsReady,
+    awardsStatus,
+    awardsTerminal,
+  };
 };
 
 const fetchSurveyRosterContextRow = async (partidoId) => {
@@ -1146,6 +1175,8 @@ export async function finalizeIfComplete(partidoId, options = {}) {
 
   const nowIso = new Date().toISOString();
   let partidoNombre = `partido ${idNum}`;
+  let shouldBackfillClosedLifecycle = false;
+  let lifecycleAfterClose = null;
 
   try {
     const { data: partidoMeta } = await supabase
@@ -1180,22 +1211,33 @@ export async function finalizeIfComplete(partidoId, options = {}) {
   } = surveyWindow;
 
   if (surveyStatus === SURVEY_STATUS_CLOSED) {
-    if (!SKIP_SIDE_EFFECTS) {
-      await ensureNoShowRankingSafe(idNum, { emitNotifications: false });
-    }
     const lifecycle = await fetchSurveyLifecycleRow(idNum);
-    return {
-      done: true,
-      alreadyClosed: true,
-      expectedVoters,
-      submissionsCount: submittedVoters,
-      remainingVotes: 0,
-      deadlineAt: closesAt,
-      closedAt: lifecycle?.finished_at || null,
-      result_status: normalizeResultStatusValue(lifecycle?.result_status) || RESULT_STATUS_PENDING,
-      winner_team: normalizeWinnerTeamValue(lifecycle?.winner_team) || null,
-      survey_status: SURVEY_STATUS_CLOSED,
-    };
+    const surveyResultsRow = await fetchSurveyResultsRowForMatch(idNum);
+    const recoveryState = deriveClosedSurveyRecoveryState({
+      lifecycle,
+      surveyResultsRow,
+    });
+
+    if (!recoveryState.shouldRecover) {
+      if (!SKIP_SIDE_EFFECTS) {
+        await ensureNoShowRankingSafe(idNum, { emitNotifications: false });
+      }
+      return {
+        done: true,
+        alreadyClosed: true,
+        expectedVoters,
+        submissionsCount: submittedVoters,
+        remainingVotes: 0,
+        deadlineAt: closesAt,
+        closedAt: lifecycle?.finished_at || null,
+        result_status: normalizeResultStatusValue(lifecycle?.result_status) || RESULT_STATUS_PENDING,
+        winner_team: normalizeWinnerTeamValue(lifecycle?.winner_team) || null,
+        survey_status: SURVEY_STATUS_CLOSED,
+      };
+    }
+
+    shouldBackfillClosedLifecycle = true;
+    lifecycleAfterClose = lifecycle;
   }
 
   if (!shouldFinalizeSurveyClosure({
@@ -1220,107 +1262,121 @@ export async function finalizeIfComplete(partidoId, options = {}) {
     ? null
     : (results?.finished_at || nowIso);
 
-  let closedByThisCall = false;
-  let lifecycleAfterClose = null;
-  try {
-    const rpcClose = await closeSurveyLifecycleViaRpc({
-      partidoId: idNum,
-      openedAt: openedAt || nowIso,
-      closesAt: closesAt || addDurationMs(nowIso, SURVEY_FINALIZE_DELAY_MS),
-      expectedVoters,
-      resultStatus: computedStatus,
-      winnerTeam: computedWinner,
-      finishedAt: computedFinishedAt,
-    });
+  let closedByThisCall = shouldBackfillClosedLifecycle;
+  if (!shouldBackfillClosedLifecycle) {
+    try {
+      const rpcClose = await closeSurveyLifecycleViaRpc({
+        partidoId: idNum,
+        openedAt: openedAt || nowIso,
+        closesAt: closesAt || addDurationMs(nowIso, SURVEY_FINALIZE_DELAY_MS),
+        expectedVoters,
+        resultStatus: computedStatus,
+        winnerTeam: computedWinner,
+        finishedAt: computedFinishedAt,
+      });
 
-    if (rpcClose?.supported === true) {
-      if (rpcClose?.success !== true) {
-        throw new Error(`finalize_match_survey_closure_failed:${rpcClose?.reason || 'unknown'}`);
-      }
-      closedByThisCall = rpcClose.closedByThisCall === true;
-      lifecycleAfterClose = rpcClose.lifecycle || null;
-    } else {
-      const closePayload = {
-        estado: resolveMatchStateFromResultStatus(computedStatus),
-        survey_status: SURVEY_STATUS_CLOSED,
-        survey_opened_at: openedAt || nowIso,
-        survey_closes_at: closesAt || addDurationMs(nowIso, SURVEY_FINALIZE_DELAY_MS),
-        survey_expected_voters: expectedVoters,
-        result_status: computedStatus,
-        winner_team: computedWinner,
-        finished_at: computedFinishedAt,
-      };
-
-      const { data: closeRow, error: closeErr } = await supabase
-        .from('partidos')
-        .update(closePayload)
-        .eq('id', idNum)
-        .eq('survey_status', SURVEY_STATUS_OPEN)
-        .select('id')
-        .maybeSingle();
-
-      if (closeErr) {
-        const missingLifecycleCols = isMissingColumnError(closeErr, [
-          'survey_status',
-          'survey_opened_at',
-          'survey_closes_at',
-          'survey_expected_voters',
-        ]);
-        if (!missingLifecycleCols) throw closeErr;
-
-        // Legacy fallback (non-atomic): keep closure fields coherent where new columns are unavailable.
-        const { error: legacyCloseErr } = await supabase
-          .from('partidos')
-          .update({
-            estado: resolveMatchStateFromResultStatus(computedStatus),
-            result_status: computedStatus,
-            winner_team: computedWinner,
-            finished_at: computedFinishedAt,
-          })
-          .eq('id', idNum)
-          .is('finished_at', null);
-        if (legacyCloseErr && !isMissingColumnError(legacyCloseErr, ['result_status', 'winner_team', 'finished_at'])) {
-          throw legacyCloseErr;
+      if (rpcClose?.supported === true) {
+        if (rpcClose?.success !== true) {
+          throw new Error(`finalize_match_survey_closure_failed:${rpcClose?.reason || 'unknown'}`);
         }
-        closedByThisCall = true;
+        closedByThisCall = rpcClose.closedByThisCall === true;
+        lifecycleAfterClose = rpcClose.lifecycle || null;
       } else {
-        closedByThisCall = Boolean(closeRow?.id);
+        const closePayload = {
+          estado: resolveMatchStateFromResultStatus(computedStatus),
+          survey_status: SURVEY_STATUS_CLOSED,
+          survey_opened_at: openedAt || nowIso,
+          survey_closes_at: closesAt || addDurationMs(nowIso, SURVEY_FINALIZE_DELAY_MS),
+          survey_expected_voters: expectedVoters,
+          result_status: computedStatus,
+          winner_team: computedWinner,
+          finished_at: computedFinishedAt,
+        };
+
+        const { data: closeRow, error: closeErr } = await supabase
+          .from('partidos')
+          .update(closePayload)
+          .eq('id', idNum)
+          .eq('survey_status', SURVEY_STATUS_OPEN)
+          .select('id')
+          .maybeSingle();
+
+        if (closeErr) {
+          const missingLifecycleCols = isMissingColumnError(closeErr, [
+            'survey_status',
+            'survey_opened_at',
+            'survey_closes_at',
+            'survey_expected_voters',
+          ]);
+          if (!missingLifecycleCols) throw closeErr;
+
+          // Legacy fallback (non-atomic): keep closure fields coherent where new columns are unavailable.
+          const { error: legacyCloseErr } = await supabase
+            .from('partidos')
+            .update({
+              estado: resolveMatchStateFromResultStatus(computedStatus),
+              result_status: computedStatus,
+              winner_team: computedWinner,
+              finished_at: computedFinishedAt,
+            })
+            .eq('id', idNum)
+            .is('finished_at', null);
+          if (legacyCloseErr && !isMissingColumnError(legacyCloseErr, ['result_status', 'winner_team', 'finished_at'])) {
+            throw legacyCloseErr;
+          }
+          closedByThisCall = true;
+        } else {
+          closedByThisCall = Boolean(closeRow?.id);
+        }
       }
+    } catch (error) {
+      console.error('[FINALIZE] close guard failed', { partidoId: idNum, error });
+      throw error;
     }
-  } catch (error) {
-    console.error('[FINALIZE] close guard failed', { partidoId: idNum, error });
-    throw error;
   }
 
   if (!closedByThisCall) {
     const lifecycle = lifecycleAfterClose || await fetchSurveyLifecycleRow(idNum);
     const latestStatus = normalizeSurveyStatusValue(lifecycle?.survey_status);
     if (latestStatus === SURVEY_STATUS_CLOSED) {
-      if (!SKIP_SIDE_EFFECTS) {
-        await ensureNoShowRankingSafe(idNum, { emitNotifications: false });
+      const surveyResultsRow = await fetchSurveyResultsRowForMatch(idNum);
+      const recoveryState = deriveClosedSurveyRecoveryState({
+        lifecycle,
+        surveyResultsRow,
+      });
+
+      if (!recoveryState.shouldRecover) {
+        if (!SKIP_SIDE_EFFECTS) {
+          await ensureNoShowRankingSafe(idNum, { emitNotifications: false });
+        }
+        return {
+          done: true,
+          alreadyClosed: true,
+          expectedVoters,
+          submissionsCount: submittedVoters,
+          remainingVotes: 0,
+          deadlineAt: closesAt,
+          closedAt: lifecycle?.finished_at || null,
+          result_status: normalizeResultStatusValue(lifecycle?.result_status) || RESULT_STATUS_PENDING,
+          winner_team: normalizeWinnerTeamValue(lifecycle?.winner_team) || null,
+          survey_status: SURVEY_STATUS_CLOSED,
+        };
       }
-      return {
-        done: true,
-        alreadyClosed: true,
-        expectedVoters,
-        submissionsCount: submittedVoters,
-        remainingVotes: 0,
-        deadlineAt: closesAt,
-        closedAt: lifecycle?.finished_at || null,
-        result_status: normalizeResultStatusValue(lifecycle?.result_status) || RESULT_STATUS_PENDING,
-        winner_team: normalizeWinnerTeamValue(lifecycle?.winner_team) || null,
-        survey_status: SURVEY_STATUS_CLOSED,
-      };
+
+      closedByThisCall = true;
+      lifecycleAfterClose = lifecycle;
     }
 
-    return {
-      done: false,
-      expectedVoters,
-      submissionsCount: submittedVoters,
-      remainingVotes,
-      deadlineAt: closesAt,
-      survey_status: SURVEY_STATUS_OPEN,
-    };
+    if (!closedByThisCall) {
+      return {
+        done: false,
+        expectedVoters,
+        submissionsCount: submittedVoters,
+        remainingVotes,
+        deadlineAt: closesAt,
+        survey_status: SURVEY_STATUS_OPEN,
+      };
+    }
   }
 
   // Persist survey_results closure payload after atomic close is won.
