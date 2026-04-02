@@ -828,6 +828,9 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
   });
   const [joinSuccessModal, setJoinSuccessModal] = useState({
     isOpen: false,
+    title: 'Te has unido!',
+    message: 'Podes acceder desde Mis partidos.',
+    confirmText: 'Aceptar',
     afterConfirm: null,
   });
   const [inlineNotice, setInlineNotice] = useState(null);
@@ -853,10 +856,23 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
     });
   };
 
-  const openJoinSuccessModal = (afterConfirm = null) => {
+  const openJoinSuccessModal = (configOrAfterConfirm = null) => {
+    const defaultConfig = {
+      title: 'Te has unido!',
+      message: 'Podes acceder desde Mis partidos.',
+      confirmText: 'Aceptar',
+      afterConfirm: null,
+    };
+    const resolvedConfig = typeof configOrAfterConfirm === 'function'
+      ? { ...defaultConfig, afterConfirm: configOrAfterConfirm }
+      : { ...defaultConfig, ...(configOrAfterConfirm || {}) };
+
     setJoinSuccessModal({
       isOpen: true,
-      afterConfirm,
+      title: resolvedConfig.title,
+      message: resolvedConfig.message,
+      confirmText: resolvedConfig.confirmText,
+      afterConfirm: resolvedConfig.afterConfirm,
     });
   };
 
@@ -864,6 +880,9 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
     const callback = joinSuccessModal.afterConfirm;
     setJoinSuccessModal({
       isOpen: false,
+      title: 'Te has unido!',
+      message: 'Podes acceder desde Mis partidos.',
+      confirmText: 'Aceptar',
       afterConfirm: null,
     });
     if (typeof callback === 'function') {
@@ -1910,7 +1929,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
         .maybeSingle();
 
       // Insertar jugador
-      const { error: insertError } = await supabase
+      const { data: insertedPlayer, error: insertError } = await supabase
         .from('jugadores')
         .insert([{
           partido_id: Number(partidoId),
@@ -1918,7 +1937,9 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           nombre: userData?.nombre || user.email?.split('@')[0] || 'Jugador',
           avatar_url: userData?.avatar_url || null,
           is_goalkeeper: false,
-        }]);
+        }])
+        .select('id, is_substitute, substitute_order')
+        .single();
 
       if (insertError) {
         throw insertError;
@@ -1935,6 +1956,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       }
 
       const resolvedName = userData?.nombre || user.email?.split('@')[0] || 'Jugador';
+      const joinedAsSubstitute = insertedPlayer?.is_substitute === true;
       await notifyAdminPlayerJoined({
         matchId: Number(partidoId),
         playerName: resolvedName,
@@ -1943,13 +1965,24 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
         adminUserId: partido?.creado_por || null,
       });
 
+      const joinSuccessConfig = joinedAsSubstitute
+        ? {
+          title: 'Entraste como suplente',
+          message: 'El plantel titular ya está completo. Si un titular se baja, podés pasar al plantel.',
+          confirmText: 'Entendido',
+        }
+        : null;
+
       if (mode === 'invite') {
-        openJoinSuccessModal(() => {
-          navigate(buildPostJoinRoute());
+        openJoinSuccessModal({
+          ...(joinSuccessConfig || {}),
+          afterConfirm: () => {
+            navigate(buildPostJoinRoute());
+          },
         });
       } else {
         setJoinStatus('approved');
-        openJoinSuccessModal();
+        openJoinSuccessModal(joinSuccessConfig || undefined);
       }
     } catch (err) {
       console.error('[PartidoInvitacion] Error sumando con cuenta:', err);
@@ -2060,7 +2093,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       if (result?.already_joined) {
         persistGuestJoinIdentity(storageKey, result?.guest_uuid || deviceGuestUuid, legacyStorageKey);
         setAlreadyJoined(true);
-        setGuestJoinSuccessType('starter');
+        setGuestJoinSuccessType(result?.jugador?.is_substitute === true ? 'substitute' : 'starter');
         setStep('already-joined');
         showInlineNotice('info', `${guestName}, ya estabas anotado.`);
         return;
@@ -2069,11 +2102,26 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       // Guardar en localStorage para idempotencia
       persistGuestJoinIdentity(storageKey, result?.guest_uuid || deviceGuestUuid, legacyStorageKey);
 
-      setGuestJoinSuccessType(willJoinAsSubstitute ? 'substitute' : 'starter');
-      setStep('success');
+      const joinedAsSubstitute = typeof result?.jugador?.is_substitute === 'boolean'
+        ? result.jugador.is_substitute
+        : willJoinAsSubstitute;
+
+      setGuestJoinSuccessType(joinedAsSubstitute ? 'substitute' : 'starter');
+      if (joinedAsSubstitute) {
+        openJoinSuccessModal({
+          title: 'Entraste como suplente',
+          message: 'El plantel titular ya está completo. Si un titular se baja, podés pasar al plantel.',
+          confirmText: 'Entendido',
+          afterConfirm: () => {
+            setStep('success');
+          },
+        });
+      } else {
+        setStep('success');
+      }
       showInlineNotice(
         'success',
-        willJoinAsSubstitute
+        joinedAsSubstitute
           ? `${guestName}, entraste como suplente.`
           : `${guestName}, te sumaste al partido.`,
       );
@@ -2170,9 +2218,9 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
         />
         <ConfirmModal
           isOpen={joinSuccessModal.isOpen}
-          title="Te has unido!"
-          message="Podes acceder desde Mis partidos."
-          confirmText="Aceptar"
+          title={joinSuccessModal.title}
+          message={joinSuccessModal.message}
+          confirmText={joinSuccessModal.confirmText}
           singleButton={true}
           onCancel={closeJoinSuccessModal}
           onConfirm={closeJoinSuccessModal}
@@ -2389,20 +2437,12 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           <div className="flex items-center justify-center mb-4">
             <CheckCircle2 className="w-12 h-12 text-emerald-300/90" />
           </div>
-          <h2 className="text-white text-2xl font-bold mb-2">{joinedAsSubstitute ? 'Entraste como suplente' : '¡Listo!'}</h2>
+          <h2 className="text-white text-2xl font-bold mb-2">¡Listo!</h2>
           <p className="text-white/70 mb-4">
-            {joinedAsSubstitute ? (
-              <>
-                Te sumaste al partido como <span className="font-bold text-white">{guestName}</span> y ocupaste un lugar de suplente.
-              </>
-            ) : (
-              <>
-                Te sumaste al partido como <span className="font-bold text-white">{guestName}</span>
-              </>
-            )}
+            Te sumaste al partido como <span className="font-bold text-white">{guestName}</span>
           </p>
           <p className="text-white/50 text-sm">
-            {joinedAsSubstitute ? 'El cupo principal ya estaba completo, pero todavía quedaban lugares de suplente.' : 'Podés cerrar esta ventana.'}
+            {joinedAsSubstitute ? 'Ya quedaste anotado. Podés cerrar esta ventana.' : 'Podés cerrar esta ventana.'}
           </p>
           </div>
         </div>

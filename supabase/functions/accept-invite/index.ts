@@ -215,6 +215,23 @@ serve(async (req) => {
     const status = row?.status || "invalid";
     const partidoId = row?.partido_id ?? null;
 
+    let joinedAsSubstitute = false;
+    let substituteOrder: number | null = null;
+
+    if ((status === "accepted" || status === "already_accepted") && partidoId) {
+      const { data: joinedPlayer } = await adminClient
+        .from("jugadores")
+        .select("id, is_substitute, substitute_order")
+        .eq("partido_id", Number(partidoId))
+        .eq("usuario_id", user.id)
+        .maybeSingle();
+
+      joinedAsSubstitute = joinedPlayer?.is_substitute === true;
+      substituteOrder = Number.isFinite(Number(joinedPlayer?.substitute_order))
+        ? Number(joinedPlayer?.substitute_order)
+        : null;
+    }
+
     if (status === "accepted" && partidoId) {
       const metadataName = user?.user_metadata?.nombre
         || user?.user_metadata?.name
@@ -239,7 +256,13 @@ serve(async (req) => {
 
     if (status === "accepted" || status === "already_accepted") {
       return new Response(
-        JSON.stringify({ ok: true, status, partido_id: partidoId }),
+        JSON.stringify({
+          ok: true,
+          status,
+          partido_id: partidoId,
+          joined_as_substitute: joinedAsSubstitute,
+          substitute_order: substituteOrder,
+        }),
         { status: 200, headers: { ...cors, "Content-Type": "application/json" } },
       );
     }

@@ -4,6 +4,7 @@ import { Browser } from '@capacitor/browser';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { useAuth } from './AuthProvider';
+import ConfirmModal from './ConfirmModal';
 import { setAuthReturnTo } from '../utils/authReturnTo';
 import { getAuthRedirectUrl } from '../utils/authRedirectUrl';
 
@@ -34,6 +35,8 @@ export default function InviteLanding() {
 
   const [accepting, setAccepting] = useState(false);
   const [acceptedLabel, setAcceptedLabel] = useState('');
+  const [substituteModalOpen, setSubstituteModalOpen] = useState(false);
+  const [pendingPartidoId, setPendingPartidoId] = useState(null);
 
   const returnTo = useMemo(() => `/i/${token}`, [token]);
 
@@ -76,7 +79,7 @@ export default function InviteLanding() {
     let cancelled = false;
 
     const acceptInvite = async () => {
-      if (!user || !inviteData || accepting) return;
+      if (!user || !inviteData || accepting || acceptedLabel) return;
 
       setAccepting(true);
       setInviteError('');
@@ -92,6 +95,14 @@ export default function InviteLanding() {
         setAcceptedLabel(status === 'already_accepted' ? 'Ya estabas en el partido' : 'Listo, estás adentro');
 
         const targetPartidoId = data.partido_id || inviteData.partido_id;
+        if (status === 'accepted' && data.joined_as_substitute === true) {
+          if (!cancelled) {
+            setPendingPartidoId(targetPartidoId);
+            setSubstituteModalOpen(true);
+          }
+          return;
+        }
+
         setTimeout(() => {
           if (!cancelled) {
             navigate(`/partido-publico/${targetPartidoId}`, { replace: true });
@@ -112,7 +123,7 @@ export default function InviteLanding() {
     return () => {
       cancelled = true;
     };
-  }, [user, authLoading, inviteData, token, navigate, accepting]);
+  }, [user, authLoading, inviteData, token, navigate, accepting, acceptedLabel]);
 
   const goGoogle = async () => {
     try {
@@ -177,52 +188,73 @@ export default function InviteLanding() {
   };
 
   return (
-    <div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center px-4">
-      <div className="w-full max-w-md rounded-2xl border border-white/20 bg-[#1a1f46]/90 p-6">
-        <h1 className="font-oswald text-4xl text-white font-semibold tracking-[0.01em]">Invitación a partido</h1>
+    <>
+      <div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center px-4">
+        <div className="w-full max-w-md rounded-2xl border border-white/20 bg-[#1a1f46]/90 p-6">
+          <h1 className="font-oswald text-4xl text-white font-semibold tracking-[0.01em]">Invitación a partido</h1>
 
-        {loadingInvite && <p className="mt-3 text-white/75">Validando invitación...</p>}
-        {!loadingInvite && inviteError && <p className="mt-4 text-[#ff8b8b]">Invitación inválida o expirada</p>}
+          {loadingInvite && <p className="mt-3 text-white/75">Validando invitación...</p>}
+          {!loadingInvite && inviteError && <p className="mt-4 text-[#ff8b8b]">Invitación inválida o expirada</p>}
 
-        {!loadingInvite && !inviteError && inviteData && (
-          <>
-            <div className="mt-4 rounded-xl border border-white/15 bg-[#10163a]/80 p-4 text-white/90 space-y-1">
-              <p className="font-oswald text-xl text-white">{inviteData.nombre || 'Partido'}</p>
-              <p className="text-sm">{formatDate(inviteData.fecha, inviteData.hora)}</p>
-              <p className="text-sm">{inviteData.sede || 'Sede a confirmar'}</p>
-              {inviteData.admin_nombre && <p className="text-sm text-white/70">Invita: {inviteData.admin_nombre}</p>}
-            </div>
-
-            {authLoading && <p className="mt-4 text-white/75">Cargando sesión...</p>}
-
-            {!authLoading && !user && (
-              <div className="mt-5 space-y-3">
-                <button
-                  type="button"
-                  onClick={goGoogle}
-                  className="w-full h-12 rounded-xl bg-white text-[#1a1f46] font-oswald text-xl"
-                >
-                  Entrar con Google
-                </button>
-                <button
-                  type="button"
-                  onClick={goEmail}
-                  className="w-full h-12 rounded-xl border border-white/25 bg-transparent text-white font-oswald text-xl"
-                >
-                  Continuar con email
-                </button>
+          {!loadingInvite && !inviteError && inviteData && (
+            <>
+              <div className="mt-4 rounded-xl border border-white/15 bg-[#10163a]/80 p-4 text-white/90 space-y-1">
+                <p className="font-oswald text-xl text-white">{inviteData.nombre || 'Partido'}</p>
+                <p className="text-sm">{formatDate(inviteData.fecha, inviteData.hora)}</p>
+                <p className="text-sm">{inviteData.sede || 'Sede a confirmar'}</p>
+                {inviteData.admin_nombre && <p className="text-sm text-white/70">Invita: {inviteData.admin_nombre}</p>}
               </div>
-            )}
 
-            {!authLoading && user && (
-              <div className="mt-5">
-                {accepting && <p className="text-white/80">Aplicando invitación...</p>}
-                {!accepting && acceptedLabel && <p className="text-[#6fe28d]">{acceptedLabel}</p>}
-              </div>
-            )}
-          </>
-        )}
+              {authLoading && <p className="mt-4 text-white/75">Cargando sesión...</p>}
+
+              {!authLoading && !user && (
+                <div className="mt-5 space-y-3">
+                  <button
+                    type="button"
+                    onClick={goGoogle}
+                    className="w-full h-12 rounded-xl bg-white text-[#1a1f46] font-oswald text-xl"
+                  >
+                    Entrar con Google
+                  </button>
+                  <button
+                    type="button"
+                    onClick={goEmail}
+                    className="w-full h-12 rounded-xl border border-white/25 bg-transparent text-white font-oswald text-xl"
+                  >
+                    Continuar con email
+                  </button>
+                </div>
+              )}
+
+              {!authLoading && user && (
+                <div className="mt-5">
+                  {accepting && <p className="text-white/80">Aplicando invitación...</p>}
+                  {!accepting && acceptedLabel && <p className="text-[#6fe28d]">{acceptedLabel}</p>}
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
-    </div>
+      <ConfirmModal
+        isOpen={substituteModalOpen}
+        title="Entraste como suplente"
+        message="El plantel titular ya está completo. Si un titular se baja, podés pasar al plantel."
+        confirmText="Entendido"
+        singleButton={true}
+        onCancel={() => {
+          setSubstituteModalOpen(false);
+          if (pendingPartidoId) {
+            navigate(`/partido-publico/${pendingPartidoId}`, { replace: true });
+          }
+        }}
+        onConfirm={() => {
+          setSubstituteModalOpen(false);
+          if (pendingPartidoId) {
+            navigate(`/partido-publico/${pendingPartidoId}`, { replace: true });
+          }
+        }}
+      />
+    </>
   );
 }

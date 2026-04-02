@@ -582,7 +582,7 @@ serve(async (req) => {
           avatar_url: avatarDataUrl,
         },
       ])
-      .select("id,nombre,uuid")
+      .select("id,nombre,uuid,is_substitute,substitute_order")
       .single()
 
     if (insertError) {
@@ -595,7 +595,7 @@ serve(async (req) => {
       if (insertError.code === "23505") {
         const { data: existingDuplicate } = await supabase
           .from("jugadores")
-          .select("id,nombre,uuid")
+          .select("id,nombre,uuid,is_substitute,substitute_order")
           .eq("partido_id", partidoIdNum)
           .eq("uuid", safeGuestUuid)
           .maybeSingle()

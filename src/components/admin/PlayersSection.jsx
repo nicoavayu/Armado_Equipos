@@ -1285,6 +1285,21 @@ const PlayersSection = ({
                 aria-pressed={!isTitularesView}
               >
                 <span>Suplentes</span>
+                {substitutePlayers.length > 0 && (
+                  <span
+                    className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-[999px] text-[10px] leading-none font-bold"
+                    style={{
+                      color: '#fdf1c7',
+                      background: 'rgba(121, 88, 20, 0.46)',
+                      border: '1px solid rgba(239, 194, 92, 0.5)',
+                      boxShadow: '0 0 0 1px rgba(255, 214, 102, 0.08)',
+                    }}
+                    aria-label={`${substitutePlayers.length} suplente${substitutePlayers.length === 1 ? '' : 's'} esperando`}
+                    title={`${substitutePlayers.length} suplente${substitutePlayers.length === 1 ? '' : 's'} esperando`}
+                  >
+                    {substitutePlayers.length}
+                  </span>
+                )}
                 {substituteOverflowCount > 0 && (
                   <span
                     className="inline-flex items-center justify-center px-1.5 h-[16px] rounded-[3px] text-[10px] leading-none font-bold"
