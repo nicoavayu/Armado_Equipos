@@ -78,4 +78,27 @@ describe('buildActivityFeed match_cancelled', () => {
     expect(items[0].type).toBe('match_cancelled');
     expect(items[0].subtitle).toContain('Partido Jueves');
   });
+
+  test('does not expose raw match ids when the cancellation lacks a visible match name', async () => {
+    const items = await buildActivityFeed([
+      {
+        id: 'notif-cancel-3',
+        type: 'match_cancelled',
+        read: false,
+        created_at: '2026-03-08T11:57:00.000Z',
+        data: {
+          match_id: 494,
+        },
+        message: 'Partido cancelado por el administrador',
+      },
+    ], {
+      activeMatches: [],
+      currentUserId: 'user-1',
+      supabaseClient: null,
+    });
+
+    expect(items).toHaveLength(1);
+    expect(items[0].subtitle).toBe('el partido fue cancelado por el administrador.');
+    expect(items[0].subtitle).not.toContain('#494');
+  });
 });

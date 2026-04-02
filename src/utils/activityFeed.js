@@ -946,11 +946,9 @@ const toActivityFromNotification = (group, match, currentUserId) => {
     const teamAName = compactText(notification?.data?.team_a_name || '', 22, '');
     const teamBName = compactText(notification?.data?.team_b_name || '', 22, '');
     const matchupLabel = [teamAName, teamBName].filter(Boolean).join(' vs ');
-    const resolvedMatchId = String(partidoId || '').trim();
     const matchIdentity = (
       matchupLabel
       || getQuotedMatchLabel(resolveHomeMatchName(notification, match))
-      || (resolvedMatchId ? `el partido #${resolvedMatchId}` : null)
       || 'el partido'
     );
     const subtitle = formatMatchCancelledMessage(notification, {

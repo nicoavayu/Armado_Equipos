@@ -1,5 +1,6 @@
 import {
   applyMatchNameQuotes,
+  formatMatchCancelledMessage,
   formatMatchReminderMessage,
   resolveNotificationMatchName,
   sanitizeNotificationMatchName,
@@ -33,5 +34,25 @@ describe('notificationText', () => {
     };
 
     expect(formatMatchReminderMessage(notification)).toBe('Futbol martes empieza en aproximadamente 1 hora.');
+  });
+
+  test('formats match cancellation with the persisted match name', () => {
+    const notification = {
+      data: {
+        match_name: 'Futbol jueves',
+      },
+    };
+
+    expect(formatMatchCancelledMessage(notification)).toBe('Futbol jueves fue cancelado por el administrador.');
+  });
+
+  test('does not leak numeric match ids when the match name is unavailable', () => {
+    const notification = {
+      data: {
+        match_id: 494,
+      },
+    };
+
+    expect(formatMatchCancelledMessage(notification, { fallbackLabel: 'el partido' })).toBe('el partido fue cancelado por el administrador.');
   });
 });

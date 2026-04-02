@@ -194,21 +194,26 @@ export const NotificationProvider = ({ children }) => {
 
     const partidoStartIsoById = new Map();
     const partidoSurveyClosesAtById = new Map();
+    const partidoNameById = new Map();
     const teamMatchStartIsoById = new Map();
 
     if (numericMatchIds.length > 0) {
       try {
         const { data: partidosRows, error: partidosError } = await supabase
           .from('partidos')
-          .select('id, fecha, hora, survey_closes_at')
+          .select('id, nombre, fecha, hora, survey_closes_at')
           .in('id', numericMatchIds);
         if (partidosError) throw partidosError;
 
         (partidosRows || []).forEach((row) => {
           const parsedLocal = parseLocalDateTime(row?.fecha || null, row?.hora || null);
+          const normalizedName = String(row?.nombre || '').trim();
           const surveyClosesAt = Date.parse(String(row?.survey_closes_at || ''));
           if (parsedLocal instanceof Date && !Number.isNaN(parsedLocal.getTime())) {
             partidoStartIsoById.set(String(row.id), parsedLocal.toISOString());
+          }
+          if (normalizedName) {
+            partidoNameById.set(String(row.id), normalizedName);
           }
           if (Number.isFinite(surveyClosesAt)) {
             partidoSurveyClosesAtById.set(String(row.id), new Date(surveyClosesAt).toISOString());
@@ -246,20 +251,33 @@ export const NotificationProvider = ({ children }) => {
         (teamMatchId ? teamMatchStartIsoById.get(teamMatchId) : null)
         || (/^\d+$/.test(normalizedMatchId) ? partidoStartIsoById.get(normalizedMatchId) : null)
         || null;
+      const resolvedMatchName = /^\d+$/.test(normalizedMatchId)
+        ? (partidoNameById.get(normalizedMatchId) || null)
+        : null;
       const resolvedSurveyClosesAt = /^\d+$/.test(normalizedMatchId)
         ? (partidoSurveyClosesAtById.get(normalizedMatchId) || null)
         : null;
+      const existingMatchName = String(
+        data?.partido_nombre
+        || data?.match_name
+        || data?.matchName
+        || notification?.partido_nombre
+        || notification?.match_name
+        || '',
+      ).trim();
 
-      if (!resolvedStart && !resolvedSurveyClosesAt) return notification;
+      if (!resolvedStart && !resolvedSurveyClosesAt && (!resolvedMatchName || existingMatchName)) return notification;
 
       return {
         ...notification,
         ...(resolvedStart ? { _resolved_match_start_at: resolvedStart } : {}),
         ...(resolvedSurveyClosesAt ? { _resolved_survey_closes_at: resolvedSurveyClosesAt } : {}),
+        ...(!existingMatchName && resolvedMatchName ? { partido_nombre: resolvedMatchName, match_name: resolvedMatchName } : {}),
         data: {
           ...data,
           ...(resolvedStart ? { _resolved_match_start_at: resolvedStart } : {}),
           ...(resolvedSurveyClosesAt ? { _resolved_survey_closes_at: resolvedSurveyClosesAt } : {}),
+          ...(!existingMatchName && resolvedMatchName ? { partido_nombre: resolvedMatchName, match_name: resolvedMatchName } : {}),
         },
       };
     });

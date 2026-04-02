@@ -583,11 +583,8 @@ const NotificationsModal = ({ isOpen, onClose }) => {
                 const isTeamChallengeAccepted = isTeamChallengeNotification(notification);
                 const matchName = resolveNotificationMatchName(notification, 'este partido');
                 const quotedMatchName = quoteMatchName(matchName, 'este partido');
-                const matchFallbackLabel = (() => {
-                  const matchId = String(extractNotificationMatchId(notification) || '').trim();
-                  if (matchId) return `el partido #${matchId}`;
-                  return quotedMatchName;
-                })();
+                const hasConcreteMatchName = matchName && matchName !== 'este partido';
+                const matchFallbackLabel = hasConcreteMatchName ? quotedMatchName : 'el partido';
                 const displayTitle = isSurveyStartLike
                   ? '¡Encuesta lista!'
                   : isSurveyReminder
