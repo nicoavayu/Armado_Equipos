@@ -550,6 +550,14 @@ export const useAdminPanelState = ({
         throw error;
       }
 
+      if (isAdmin && partidoActual?.id) {
+        requestImmediatePushDispatchSafe({
+          eventType: 'substitute_promoted',
+          matchId: Number(partidoActual.id),
+          limit: 5,
+        });
+      }
+
       if (esAutoEliminacion && jugadorAEliminar?.usuario_id) {
         try {
           const canAbandonSafely = canAbandonWithoutPenalty(

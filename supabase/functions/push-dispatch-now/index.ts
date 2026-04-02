@@ -7,6 +7,7 @@ type KickEventType =
   | "friend_request"
   | "match_join_request"
   | "match_join_approved"
+  | "substitute_promoted"
   | "match_player_joined"
   | "match_player_left"
   | "challenge_accepted"
@@ -56,6 +57,7 @@ const ALLOWED_EVENT_TYPES = new Set<KickEventType>([
   "friend_request",
   "match_join_request",
   "match_join_approved",
+  "substitute_promoted",
   "match_player_joined",
   "match_player_left",
   "challenge_accepted",
@@ -339,6 +341,7 @@ async function fetchQueuedCandidateRows(
       || eventType === "match_cancelled"
       || eventType === "match_join_request"
       || eventType === "match_join_approved"
+      || eventType === "substitute_promoted"
       || eventType === "match_player_joined"
       || eventType === "match_player_left"
       || eventType === "call_to_vote"
@@ -1308,6 +1311,114 @@ async function enqueueMatchPlayerLeftRows(
   return { inserted: rowsToInsert.length, error: null };
 }
 
+async function enqueueSubstitutePromotedRows(
+  supabase: ReturnType<typeof createClient>,
+  {
+    matchId,
+    recipientUserId,
+    windowStartIso,
+  }: {
+    matchId: number;
+    recipientUserId: string | null;
+    windowStartIso: string;
+  },
+): Promise<{ inserted: number; error: { message: string } | null }> {
+  let notificationsQuery = supabase
+    .from("notifications")
+    .select("id, user_id, partido_id, type, title, message, data, created_at")
+    .eq("type", "substitute_promoted")
+    .eq("partido_id", matchId)
+    .gte("created_at", windowStartIso)
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  if (recipientUserId) {
+    notificationsQuery = notificationsQuery.eq("user_id", recipientUserId);
+  }
+
+  const { data: notificationRows, error: notificationsError } = await notificationsQuery;
+  if (notificationsError) {
+    return { inserted: 0, error: { message: notificationsError.message } };
+  }
+
+  const matchingNotifications = ((notificationRows ?? []) as NotificationRow[])
+    .filter((row) => !isGuestOrInvalidRecipient(row.user_id));
+
+  if (matchingNotifications.length === 0) {
+    return { inserted: 0, error: null };
+  }
+
+  const recipientIds = Array.from(new Set(
+    matchingNotifications.map((row) => normalizeOptionalString(row.user_id)).filter(Boolean),
+  ));
+
+  let existingLogs: DeliveryLogRow[] = [];
+  if (recipientIds.length > 0) {
+    const { data: existingData, error: existingError } = await supabase
+      .from("notification_delivery_log")
+      .select("id, notification_type, user_id, partido_id, created_at, payload_json, status, error_text")
+      .eq("channel", "push")
+      .eq("notification_type", "substitute_promoted")
+      .eq("partido_id", matchId)
+      .gte("created_at", windowStartIso)
+      .in("user_id", recipientIds)
+      .limit(50);
+
+    if (existingError) {
+      return { inserted: 0, error: { message: existingError.message } };
+    }
+    existingLogs = (existingData ?? []) as DeliveryLogRow[];
+  }
+
+  const existingNotificationIds = new Set(
+    existingLogs
+      .filter((row) => row.status !== "skipped")
+      .map((row) => readPayloadString(row.payload_json, "notification_id"))
+      .filter(Boolean),
+  );
+
+  const rowsToInsert = matchingNotifications
+    .filter((row) => !existingNotificationIds.has(row.id))
+    .map((row) => {
+      const payload = row.data && typeof row.data === "object" ? row.data : {};
+      const route = readPayloadString(payload, "link", "route") ?? `/partido-publico/${matchId}`;
+      return {
+        partido_id: row.partido_id ?? matchId,
+        user_id: row.user_id,
+        notification_type: "substitute_promoted",
+        payload_json: {
+          ...payload,
+          event_channel: "REMINDER",
+          notification_id: row.id,
+          source_notification_type: row.type,
+          notification_type: "substitute_promoted",
+          title: row.title ?? "Ahora sos titular",
+          message: row.message ?? "Subiste de suplente a titular.",
+          partido_id: row.partido_id ?? matchId,
+          route,
+          link: route,
+          source: "push_dispatch_now_backfill",
+        },
+        channel: "push",
+        status: "queued",
+      };
+    });
+
+  if (rowsToInsert.length === 0) {
+    return { inserted: 0, error: null };
+  }
+
+  const { error: insertError } = await supabase
+    .from("notification_delivery_log")
+    .insert(rowsToInsert);
+
+  if (insertError) {
+    return { inserted: 0, error: { message: insertError.message } };
+  }
+
+  return { inserted: rowsToInsert.length, error: null };
+}
+
 function isEligibleRow(
   row: DeliveryLogRow,
   actorUserId: string,
@@ -1363,6 +1474,14 @@ function isEligibleRow(
       const payloadRequestId = readPayloadId(payload, "requestId", "request_id");
       if (!payloadRequestId || payloadRequestId !== requestId) return false;
     }
+    return true;
+  }
+
+  if (eventType === "substitute_promoted") {
+    if (matchId === null) return false;
+    if (row.partido_id !== null && row.partido_id !== matchId) return false;
+    const payloadMatchId = normalizeOptionalInt(payload.match_id ?? payload.matchId ?? payload.partido_id ?? payload.partidoId);
+    if (payloadMatchId !== null && payloadMatchId !== matchId) return false;
     return true;
   }
 
@@ -1467,6 +1586,7 @@ serve(async (req) => {
     || eventType === "match_cancelled"
     || eventType === "match_kicked"
     || eventType === "match_join_approved"
+    || eventType === "substitute_promoted"
   ) {
     if (matchId === null) {
       return jsonResponse({ ok: false, reason: "invalid_match_id" }, 400, cors);
@@ -1515,6 +1635,7 @@ serve(async (req) => {
     || eventType === "match_join_request"
     || (eventType === "match_player_joined" && matchId !== null)
     || (eventType === "match_join_approved" && matchId !== null && recipientUserId !== null)
+    || (eventType === "substitute_promoted" && matchId !== null)
     || (eventType === "call_to_vote" && matchId !== null)
     || (eventType === "match_player_left" && matchId !== null)
     || (eventType === "match_kicked" && matchId !== null && recipientUserId !== null);
@@ -1539,6 +1660,12 @@ serve(async (req) => {
           matchId,
           recipientUserId,
           requestId,
+          windowStartIso,
+        })
+      : eventType === "substitute_promoted"
+        ? await enqueueSubstitutePromotedRows(supabase, {
+          matchId: matchId as number,
+          recipientUserId,
           windowStartIso,
         })
       : eventType === "match_player_joined"

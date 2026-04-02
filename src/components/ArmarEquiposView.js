@@ -23,6 +23,7 @@ import normalizePartidoForHeader from '../utils/normalizePartidoForHeader';
 import { useAuth } from './AuthProvider';
 import { useNativeFeatures } from '../hooks/useNativeFeatures';
 import { sendVotingNotifications } from '../services/notificationService';
+import { requestImmediatePushDispatchSafe } from '../services/pushDispatchService';
 import ConfirmModal from '../components/ConfirmModal';
 import { buildBalancedTeams } from '../utils/teamBalancer';
 import { MoreVertical, RotateCcw } from 'lucide-react';
@@ -890,6 +891,12 @@ export default function ArmarEquiposView({
         .eq('partido_id', partidoActual.id);
 
       if (error) throw error;
+
+      requestImmediatePushDispatchSafe({
+        eventType: 'substitute_promoted',
+        matchId: Number(partidoActual.id),
+        limit: 5,
+      });
 
       // Refrescar datos
       const jugadoresPartido = await getJugadoresDelPartido(partidoActual.id);
