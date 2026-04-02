@@ -471,6 +471,7 @@ const PLACEHOLDER_NUMBER_STYLE = {
 };
 
 function PlayersReadOnly({ jugadores, partido, mode }) {
+  const [isTitularesView, setIsTitularesView] = useState(true);
   const requiredSlots = resolveSlotsFromMatchType(partido);
   const orderedPlayers = Array.isArray(jugadores) ? jugadores : [];
   const titularPlayers = orderedPlayers.filter((player) => player?.is_substitute !== true);
@@ -519,7 +520,20 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
     transform: `skewX(${skewX}deg)`,
   };
   const showSubstituteSection = substitutePlayers.length > 0;
+  const substituteProgressPct = MAX_SUBSTITUTES > 0
+    ? Math.max(0, Math.min((substitutePlayers.length / MAX_SUBSTITUTES) * 100, 100))
+    : 0;
+  const activeRosterCount = isTitularesView ? confirmedCount : substitutePlayers.length;
+  const activeRosterSlots = isTitularesView ? requiredSlots : MAX_SUBSTITUTES;
+  const activeRosterProgressPct = isTitularesView ? progressPct : substituteProgressPct;
+  const activeRosterProgressColor = isTitularesView ? INVITE_ACCEPT_BUTTON_VIOLET : 'rgba(239, 194, 92, 0.92)';
   let remainingSlotNumber = Math.max(0, requiredSlots - confirmedCount);
+
+  useEffect(() => {
+    if (!showSubstituteSection && !isTitularesView) {
+      setIsTitularesView(true);
+    }
+  }, [showSubstituteSection, isTitularesView]);
 
   const renderPlayerCard = (player, idx, kind = 'starter') => {
     if (isSoftVariant) {
@@ -587,6 +601,60 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
     );
   };
 
+  const renderTitularesGrid = () => (
+    <div className="grid grid-cols-2 gap-4 w-full max-w-[720px] mx-auto justify-items-center box-border">
+      {slotItems.map((player, idx) => {
+        if (!player) {
+          const visibleNumber = remainingSlotNumber > 0 ? remainingSlotNumber : Math.max(1, requiredSlots - idx);
+          remainingSlotNumber = Math.max(0, remainingSlotNumber - 1);
+
+          if (isSoftVariant) {
+            return (
+              <div
+                key={`slot-empty-${idx}`}
+                className={`rounded-none ${slotHeightClass} w-full overflow-hidden`}
+                style={softPlaceholderWrapperStyle}
+                aria-hidden="true"
+              >
+                <div
+                  className="h-full w-full p-2 flex items-center justify-center"
+                  style={skewCounterStyle}
+                >
+                  <span className="select-none pointer-events-none text-[28px]" style={PLACEHOLDER_NUMBER_STYLE}>
+                    {visibleNumber}
+                  </span>
+                </div>
+              </div>
+            );
+          }
+
+          return (
+            <div
+              key={`slot-empty-${idx}`}
+              className="flex items-center justify-center rounded-lg p-2 min-h-[36px] w-full border border-dashed border-white/[0.08] bg-white/[0.03]"
+              aria-hidden="true"
+            >
+              <UserRound size={16} className="text-white/20" />
+            </div>
+          );
+        }
+
+        return renderPlayerCard(player, idx, 'starter');
+      })}
+    </div>
+  );
+
+  const renderSubstitutesGrid = () => (
+    <>
+      <div className="grid grid-cols-2 gap-4 w-full max-w-[720px] mx-auto justify-items-center box-border">
+        {substitutePlayers.map((player, idx) => renderPlayerCard(player, idx, 'substitute'))}
+      </div>
+      <div className="mt-3 text-center text-[11px] text-amber-100/85 font-oswald tracking-wide leading-snug">
+        Si se libera un cupo titular, los suplentes pasan automáticamente a la nómina.
+      </div>
+    </>
+  );
+
   return (
     <div
       className={isSoftVariant ? 'w-full box-border' : 'w-full bg-white/10 border-2 border-white/20 rounded-xl p-3 box-border min-h-[120px]'}
@@ -598,72 +666,58 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
             Jugadores
           </div>
           <div className="font-oswald text-[13px] font-medium text-white/75 whitespace-nowrap">
-            {confirmedCount}/{requiredSlots}
+            {activeRosterCount}/{activeRosterSlots}
           </div>
         </div>
+
+        {showSubstituteSection && (
+          <div className="mt-4 font-oswald text-xl font-semibold tracking-[0.01em] flex items-center">
+            <button
+              type="button"
+              onClick={() => setIsTitularesView(true)}
+              className="bg-transparent border-0 p-0 m-0 text-left transition-colors duration-150"
+              style={{ color: isTitularesView ? '#ffffff' : 'rgba(255,255,255,0.55)' }}
+              aria-pressed={isTitularesView}
+            >
+              Titulares
+            </button>
+            <span className="mx-2 text-white/35 select-none pointer-events-none">|</span>
+            <button
+              type="button"
+              onClick={() => setIsTitularesView(false)}
+              className="bg-transparent border-0 p-0 m-0 text-left transition-colors duration-150 inline-flex items-center gap-1.5"
+              style={{ color: isTitularesView ? 'rgba(255,255,255,0.55)' : 'rgba(252, 230, 178, 0.95)' }}
+              aria-pressed={!isTitularesView}
+            >
+              <span>Suplentes</span>
+              {substitutePlayers.length > 0 && (
+                <span
+                  className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-[999px] text-[10px] leading-none font-bold"
+                  style={{
+                    color: '#fdf1c7',
+                    background: 'rgba(121, 88, 20, 0.46)',
+                    border: '1px solid rgba(239, 194, 92, 0.5)',
+                    boxShadow: '0 0 0 1px rgba(255, 214, 102, 0.08)',
+                  }}
+                  aria-label={`${substitutePlayers.length} suplente${substitutePlayers.length === 1 ? '' : 's'} esperando`}
+                  title={`${substitutePlayers.length} suplente${substitutePlayers.length === 1 ? '' : 's'} esperando`}
+                >
+                  {substitutePlayers.length}
+                </span>
+              )}
+            </button>
+          </div>
+        )}
+
         <div className="mt-2 h-[6px] w-full overflow-hidden rounded-[6px] bg-white/[0.08]">
           <div
             className="h-full rounded-[6px] transition-all duration-200"
-            style={{ width: `${progressPct}%`, backgroundColor: INVITE_ACCEPT_BUTTON_VIOLET, filter: 'saturate(1.05)' }}
+            style={{ width: `${activeRosterProgressPct}%`, backgroundColor: activeRosterProgressColor, filter: 'saturate(1.05)' }}
           />
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 w-full max-w-[720px] mx-auto justify-items-center box-border">
-        {slotItems.map((player, idx) => {
-          if (!player) {
-            const visibleNumber = remainingSlotNumber > 0 ? remainingSlotNumber : Math.max(1, requiredSlots - idx);
-            remainingSlotNumber = Math.max(0, remainingSlotNumber - 1);
-
-            if (isSoftVariant) {
-              return (
-                <div
-                  key={`slot-empty-${idx}`}
-                  className={`rounded-none ${slotHeightClass} w-full overflow-hidden`}
-                  style={softPlaceholderWrapperStyle}
-                  aria-hidden="true"
-                >
-                  <div
-                    className="h-full w-full p-2 flex items-center justify-center"
-                    style={skewCounterStyle}
-                  >
-                    <span className="select-none pointer-events-none text-[28px]" style={PLACEHOLDER_NUMBER_STYLE}>
-                      {visibleNumber}
-                    </span>
-                  </div>
-                </div>
-              );
-            }
-
-            return (
-              <div
-                key={`slot-empty-${idx}`}
-                className="flex items-center justify-center rounded-lg p-2 min-h-[36px] w-full border border-dashed border-white/[0.08] bg-white/[0.03]"
-                aria-hidden="true"
-              >
-                <UserRound size={16} className="text-white/20" />
-              </div>
-            );
-          }
-
-          return renderPlayerCard(player, idx, 'starter');
-        })}
-      </div>
-
-      {showSubstituteSection && (
-        <div className="mt-5 border border-amber-400/30 bg-amber-500/10 p-2.5">
-          <div className="flex items-center justify-between px-1 mb-2">
-            <span className="font-bebas text-sm tracking-wide text-amber-100 uppercase">Suplentes</span>
-            <span className="text-[11px] font-oswald text-amber-200/85">{substitutePlayers.length}/{MAX_SUBSTITUTES}</span>
-          </div>
-          <div className="grid grid-cols-2 gap-4 w-full max-w-[720px] mx-auto justify-items-center box-border">
-            {substitutePlayers.map((player, idx) => renderPlayerCard(player, idx, 'substitute'))}
-          </div>
-          <div className="mt-2 text-center text-[11px] text-amber-100/85 font-oswald tracking-wide leading-snug">
-            Si se libera un cupo titular, los suplentes pasan automáticamente a la nómina.
-          </div>
-        </div>
-      )}
+      {isTitularesView || !showSubstituteSection ? renderTitularesGrid() : renderSubstitutesGrid()}
     </div>
   );
 }
