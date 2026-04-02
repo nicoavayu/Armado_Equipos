@@ -1635,7 +1635,7 @@ serve(async (req) => {
     || eventType === "match_join_request"
     || (eventType === "match_player_joined" && matchId !== null)
     || (eventType === "match_join_approved" && matchId !== null && recipientUserId !== null)
-    || (eventType === "substitute_promoted" && matchId !== null)
+    || (eventType === "substitute_promoted" && matchId !== null && candidates.length === 0)
     || (eventType === "call_to_vote" && matchId !== null)
     || (eventType === "match_player_left" && matchId !== null)
     || (eventType === "match_kicked" && matchId !== null && recipientUserId !== null);
