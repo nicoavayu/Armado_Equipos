@@ -113,6 +113,12 @@ const resolvePublicJoinStatus = (value) => {
   return 'none';
 };
 
+const formatRetryAfterMinutes = (seconds) => {
+  const totalSeconds = Number(seconds);
+  if (!Number.isFinite(totalSeconds) || totalSeconds <= 0) return null;
+  return Math.max(1, Math.ceil(totalSeconds / 60));
+};
+
 const isMissingGuestInviteValidationRpcError = (error) => {
   const code = String(error?.code || '').trim();
   const message = String(error?.message || '').trim().toLowerCase();
@@ -466,12 +472,28 @@ const PLACEHOLDER_NUMBER_STYLE = {
 
 function PlayersReadOnly({ jugadores, partido, mode }) {
   const requiredSlots = resolveSlotsFromMatchType(partido);
-  const displayCount = jugadores?.length ?? 0;
-  const confirmedCount = Math.min(displayCount, requiredSlots);
+  const orderedPlayers = Array.isArray(jugadores) ? jugadores : [];
+  const titularPlayers = orderedPlayers.filter((player) => player?.is_substitute !== true);
+  const substitutePlayers = orderedPlayers
+    .filter((player) => player?.is_substitute === true)
+    .sort((a, b) => {
+      const orderA = Number.isFinite(Number(a?.substitute_order)) ? Number(a.substitute_order) : Number.MAX_SAFE_INTEGER;
+      const orderB = Number.isFinite(Number(b?.substitute_order)) ? Number(b.substitute_order) : Number.MAX_SAFE_INTEGER;
+      if (orderA !== orderB) return orderA - orderB;
+
+      const createdAtA = Date.parse(String(a?.created_at || ''));
+      const createdAtB = Date.parse(String(b?.created_at || ''));
+      if (Number.isFinite(createdAtA) && Number.isFinite(createdAtB) && createdAtA !== createdAtB) {
+        return createdAtA - createdAtB;
+      }
+
+      return String(a?.id || '').localeCompare(String(b?.id || ''));
+    });
+  const confirmedCount = Math.min(titularPlayers.length, requiredSlots);
   const progressPct = requiredSlots > 0
     ? Math.max(0, Math.min((confirmedCount / requiredSlots) * 100, 100))
     : 0;
-  const slotItems = Array.from({ length: requiredSlots }, (_, idx) => jugadores?.[idx] || null);
+  const slotItems = Array.from({ length: requiredSlots }, (_, idx) => titularPlayers[idx] || null);
   const isSoftVariant = mode === 'invite' || mode === 'public';
   const skewX = 0;
   const slotHeightClass = 'h-12';
@@ -496,7 +518,74 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
   const skewCounterStyle = {
     transform: `skewX(${skewX}deg)`,
   };
+  const showSubstituteSection = substitutePlayers.length > 0;
   let remainingSlotNumber = Math.max(0, requiredSlots - confirmedCount);
+
+  const renderPlayerCard = (player, idx, kind = 'starter') => {
+    if (isSoftVariant) {
+      return (
+        <PlayerCardTrigger key={player.uuid || player.id || `${kind}-player-${idx}`} profile={player} partidoActual={partido}>
+          <div
+            className={`PlayerCard PlayerCard--soft relative rounded-none ${slotHeightClass} w-full overflow-visible transition-all cursor-pointer hover:brightness-105`}
+            style={softCardWrapperStyle}
+          >
+            <div
+              className="h-full w-full p-2 flex items-center gap-1.5"
+              style={skewCounterStyle}
+            >
+              {player.foto_url || player.avatar_url ? (
+                <img
+                  src={player.foto_url || player.avatar_url}
+                  alt={player.nombre}
+                  className="w-8 h-8 rounded-full object-cover border border-slate-700 bg-slate-800 shrink-0"
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 border border-slate-700 flex items-center justify-center text-xs font-bold shrink-0 text-white">
+                  {getInitials(player.nombre)}
+                </div>
+              )}
+              <span className="flex-1 font-oswald text-sm font-semibold text-white tracking-wide min-w-0 truncate leading-tight">
+                {player.nombre || 'Jugador'}
+              </span>
+              {partido?.creado_por === player.usuario_id && (
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="16" height="16" fill="#FFD700" style={{ flexShrink: 0 }}>
+                  <path d="M345 151.2C354.2 143.9 360 132.6 360 120C360 97.9 342.1 80 320 80C297.9 80 280 97.9 280 120C280 132.6 285.9 143.9 295 151.2L226.6 258.8C216.6 274.5 195.3 278.4 180.4 267.2L120.9 222.7C125.4 216.3 128 208.4 128 200C128 177.9 110.1 160 88 160C65.9 160 48 177.9 48 200C48 221.8 65.5 239.6 87.2 240L119.8 457.5C124.5 488.8 151.4 512L183.1 512L456.9 512C488.6 512 515.5 488.8 520.2 457.5L552.8 240C574.5 239.6 592 221.8 592 200C592 177.9 574.1 160 552 160C529.9 160 512 177.9 512 200C512 208.4 514.6 216.3 519.1 222.7L459.7 267.3C444.8 278.5 423.5 274.6 413.5 258.9L345 151.2z" />
+                </svg>
+              )}
+            </div>
+          </div>
+        </PlayerCardTrigger>
+      );
+    }
+
+    return (
+      <PlayerCardTrigger key={player.uuid || player.id || `${kind}-player-${idx}`} profile={player} partidoActual={partido}>
+        <div
+          className="PlayerCard flex items-center gap-1.5 bg-slate-900 border border-slate-800 rounded-lg p-2 transition-all min-h-[36px] w-full hover:bg-slate-800 cursor-pointer"
+        >
+          {player.foto_url || player.avatar_url ? (
+            <img
+              src={player.foto_url || player.avatar_url}
+              alt={player.nombre}
+              className="w-8 h-8 rounded-full object-cover border border-slate-700 bg-slate-800 shrink-0"
+            />
+          ) : (
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 border border-slate-700 flex items-center justify-center text-xs font-bold shrink-0 text-white">
+              {getInitials(player.nombre)}
+            </div>
+          )}
+          <span className="flex-1 font-oswald text-sm font-semibold text-white tracking-wide min-w-0 break-words leading-tight">
+            {player.nombre || 'Jugador'}
+          </span>
+          {partido?.creado_por === player.usuario_id && (
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="16" height="16" fill="#FFD700" style={{ flexShrink: 0 }}>
+              <path d="M345 151.2C354.2 143.9 360 132.6 360 120C360 97.9 342.1 80 320 80C297.9 80 280 97.9 280 120C280 132.6 285.9 143.9 295 151.2L226.6 258.8C216.6 274.5 195.3 278.4 180.4 267.2L120.9 222.7C125.4 216.3 128 208.4 128 200C128 177.9 110.1 160 88 160C65.9 160 48 177.9 48 200C48 221.8 65.5 239.6 87.2 240L119.8 457.5C124.5 488.8 151.4 512L183.1 512L456.9 512C488.6 512 515.5 488.8 520.2 457.5L552.8 240C574.5 239.6 592 221.8 592 200C592 177.9 574.1 160 552 160C529.9 160 512 177.9 512 200C512 208.4 514.6 216.3 519.1 222.7L459.7 267.3C444.8 278.5 423.5 274.6 413.5 258.9L345 151.2z" />
+            </svg>
+          )}
+        </div>
+      </PlayerCardTrigger>
+    );
+  };
 
   return (
     <div
@@ -557,71 +646,24 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
             );
           }
 
-          if (isSoftVariant) {
-            return (
-              <PlayerCardTrigger key={player.uuid || player.id || `slot-player-${idx}`} profile={player} partidoActual={partido}>
-                <div
-                  className={`PlayerCard PlayerCard--soft relative rounded-none ${slotHeightClass} w-full overflow-visible transition-all cursor-pointer hover:brightness-105`}
-                  style={softCardWrapperStyle}
-                >
-                  <div
-                    className="h-full w-full p-2 flex items-center gap-1.5"
-                    style={skewCounterStyle}
-                  >
-                    {player.foto_url || player.avatar_url ? (
-                      <img
-                        src={player.foto_url || player.avatar_url}
-                        alt={player.nombre}
-                        className="w-8 h-8 rounded-full object-cover border border-slate-700 bg-slate-800 shrink-0"
-                      />
-                    ) : (
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 border border-slate-700 flex items-center justify-center text-xs font-bold shrink-0 text-white">
-                        {getInitials(player.nombre)}
-                      </div>
-                    )}
-                    <span className="flex-1 font-oswald text-sm font-semibold text-white tracking-wide min-w-0 truncate leading-tight">
-                      {player.nombre || 'Jugador'}
-                    </span>
-                    {partido?.creado_por === player.usuario_id && (
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="16" height="16" fill="#FFD700" style={{ flexShrink: 0 }}>
-                        <path d="M345 151.2C354.2 143.9 360 132.6 360 120C360 97.9 342.1 80 320 80C297.9 80 280 97.9 280 120C280 132.6 285.9 143.9 295 151.2L226.6 258.8C216.6 274.5 195.3 278.4 180.4 267.2L120.9 222.7C125.4 216.3 128 208.4 128 200C128 177.9 110.1 160 88 160C65.9 160 48 177.9 48 200C48 221.8 65.5 239.6 87.2 240L119.8 457.5C124.5 488.8 151.4 512 183.1 512L456.9 512C488.6 512 515.5 488.8 520.2 457.5L552.8 240C574.5 239.6 592 221.8 592 200C592 177.9 574.1 160 552 160C529.9 160 512 177.9 512 200C512 208.4 514.6 216.3 519.1 222.7L459.7 267.3C444.8 278.5 423.5 274.6 413.5 258.9L345 151.2z" />
-                      </svg>
-                    )}
-                  </div>
-                </div>
-              </PlayerCardTrigger>
-            );
-          }
-
-          return (
-            <PlayerCardTrigger key={player.uuid || player.id || `slot-player-${idx}`} profile={player} partidoActual={partido}>
-              <div
-                className="PlayerCard flex items-center gap-1.5 bg-slate-900 border border-slate-800 rounded-lg p-2 transition-all min-h-[36px] w-full hover:bg-slate-800 cursor-pointer"
-              >
-                {player.foto_url || player.avatar_url ? (
-                  <img
-                    src={player.foto_url || player.avatar_url}
-                    alt={player.nombre}
-                    className="w-8 h-8 rounded-full object-cover border border-slate-700 bg-slate-800 shrink-0"
-                  />
-                ) : (
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 border border-slate-700 flex items-center justify-center text-xs font-bold shrink-0 text-white">
-                    {getInitials(player.nombre)}
-                  </div>
-                )}
-                <span className="flex-1 font-oswald text-sm font-semibold text-white tracking-wide min-w-0 break-words leading-tight">
-                  {player.nombre || 'Jugador'}
-                </span>
-                {partido?.creado_por === player.usuario_id && (
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="16" height="16" fill="#FFD700" style={{ flexShrink: 0 }}>
-                    <path d="M345 151.2C354.2 143.9 360 132.6 360 120C360 97.9 342.1 80 320 80C297.9 80 280 97.9 280 120C280 132.6 285.9 143.9 295 151.2L226.6 258.8C216.6 274.5 195.3 278.4 180.4 267.2L120.9 222.7C125.4 216.3 128 208.4 128 200C128 177.9 110.1 160 88 160C65.9 160 48 177.9 48 200C48 221.8 65.5 239.6 87.2 240L119.8 457.5C124.5 488.8 151.4 512 183.1 512L456.9 512C488.6 512 515.5 488.8 520.2 457.5L552.8 240C574.5 239.6 592 221.8 592 200C592 177.9 574.1 160 552 160C529.9 160 512 177.9 512 200C512 208.4 514.6 216.3 519.1 222.7L459.7 267.3C444.8 278.5 423.5 274.6 413.5 258.9L345 151.2z" />
-                  </svg>
-                )}
-              </div>
-            </PlayerCardTrigger>
-          );
+          return renderPlayerCard(player, idx, 'starter');
         })}
       </div>
+
+      {showSubstituteSection && (
+        <div className="mt-5 border border-amber-400/30 bg-amber-500/10 p-2.5">
+          <div className="flex items-center justify-between px-1 mb-2">
+            <span className="font-bebas text-sm tracking-wide text-amber-100 uppercase">Suplentes</span>
+            <span className="text-[11px] font-oswald text-amber-200/85">{substitutePlayers.length}/{MAX_SUBSTITUTES}</span>
+          </div>
+          <div className="grid grid-cols-2 gap-4 w-full max-w-[720px] mx-auto justify-items-center box-border">
+            {substitutePlayers.map((player, idx) => renderPlayerCard(player, idx, 'substitute'))}
+          </div>
+          <div className="mt-2 text-center text-[11px] text-amber-100/85 font-oswald tracking-wide leading-snug">
+            Si se libera un cupo titular, los suplentes pasan automáticamente a la nómina.
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -811,10 +853,11 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
   const [partido, setPartido] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [step, setStep] = useState('invitation'); // 'invitation', 'choose-method', 'guest-form', 'success', 'already-joined', 'full'
+  const [step, setStep] = useState('invitation'); // 'invitation', 'choose-method', 'guest-form', 'success', 'already-joined', 'full', 'rate-limited'
   const [guestName, setGuestName] = useState('');
   const [guestPhotoDataUrl, setGuestPhotoDataUrl] = useState('');
   const [guestJoinSuccessType, setGuestJoinSuccessType] = useState('starter');
+  const [guestJoinRetryAfterSeconds, setGuestJoinRetryAfterSeconds] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [codigoValido, setCodigoValido] = useState(true); // Flag de validación de código
   const [alreadyJoined, setAlreadyJoined] = useState(false);
@@ -2075,8 +2118,10 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           setStep('full');
           return;
         }
-        if (reason === 'rate_limited') {
-          showInlineNotice('warning', 'Demasiados intentos seguidos. Esperá unos minutos y volvé a probar.');
+        if (response.status === 429 || reason === 'rate_limited') {
+          setInlineNotice(null);
+          setGuestJoinRetryAfterSeconds(Number(result?.retry_after_seconds || 0));
+          setStep('rate-limited');
           return;
         }
         if (reason === 'payload_too_large') {
@@ -2469,6 +2514,38 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
             <p className="text-white/70">
               Ya no hay más cupos disponibles.
             </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === 'rate-limited') {
+    const retryAfterMinutes = formatRetryAfterMinutes(guestJoinRetryAfterSeconds);
+
+    return (
+      <div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <div className="w-full flex justify-center mb-6">
+            <img
+              src={Logo}
+              alt="ARMA2"
+              className="h-[88px] w-auto drop-shadow-2xl"
+            />
+          </div>
+          <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6 w-full text-center">
+            <div className="flex items-center justify-center mb-4">
+              <CircleX className="w-12 h-12 text-red-300/90" />
+            </div>
+            <h2 className="text-white text-2xl font-bold mb-2">Demasiados intentos</h2>
+            <p className="text-white/70">
+              Esperá un momento e intentá de nuevo.
+            </p>
+            {retryAfterMinutes ? (
+              <p className="text-white/50 text-sm mt-3">
+                Probá otra vez en unos {retryAfterMinutes} minutos.
+              </p>
+            ) : null}
           </div>
         </div>
       </div>
