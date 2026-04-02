@@ -441,12 +441,12 @@ const PlayersSection = ({
     && Boolean(guestConfirmedTeams.isAvailable || guestConfirmedTeams.hasConfirmedFlag);
   const hasActivePendingInvite = pendingInvitation && invitationStatus === 'pending';
   const inviteRequiredSlots = resolveSlotsFromMatchType(partidoActual);
-  const inviteDisplayCount = jugadores?.length ?? 0;
+  const inviteDisplayCount = titularPlayers.length;
   const inviteConfirmedCount = Math.min(inviteDisplayCount, inviteRequiredSlots);
   const inviteProgressPct = inviteRequiredSlots > 0
     ? Math.max(0, Math.min((inviteConfirmedCount / inviteRequiredSlots) * 100, 100))
     : 0;
-  const inviteSlotItems = Array.from({ length: inviteRequiredSlots }, (_, idx) => jugadores?.[idx] || null);
+  const inviteSlotItems = Array.from({ length: inviteRequiredSlots }, (_, idx) => titularPlayers[idx] || null);
   const missingSlotsCount = Math.max(0, inviteRequiredSlots - inviteConfirmedCount);
   const visibleSubstitutePlayers = substitutePlayers.slice(0, 4);
   const substituteOverflowCount = Math.max(0, substitutePlayers.length - visibleSubstitutePlayers.length);
@@ -801,20 +801,67 @@ const PlayersSection = ({
     <div className="w-full box-border" style={invitePlayersBlockStyle}>
       <div className="px-1 mb-6">
         <div className="flex items-center justify-between gap-2">
-          <div className="font-oswald text-xl font-semibold text-white tracking-[0.01em]">
-            Jugadores ({inviteConfirmedCount}/{inviteRequiredSlots})
+          <div className="font-oswald text-xl font-semibold tracking-[0.01em] flex items-center min-w-0">
+            <button
+              type="button"
+              onClick={() => setIsTitularesView(true)}
+              className="bg-transparent border-0 p-0 m-0 text-left transition-colors duration-150"
+              style={{ color: isTitularesView ? '#ffffff' : 'rgba(255,255,255,0.55)' }}
+              aria-pressed={isTitularesView}
+            >
+              Titulares
+            </button>
+            <span className="mx-2 text-white/35 select-none pointer-events-none">|</span>
+            <button
+              type="button"
+              onClick={() => setIsTitularesView(false)}
+              className="bg-transparent border-0 p-0 m-0 text-left transition-colors duration-150 inline-flex items-center gap-1.5"
+              style={{ color: isTitularesView ? 'rgba(255,255,255,0.55)' : 'rgba(252, 230, 178, 0.95)' }}
+              aria-pressed={!isTitularesView}
+            >
+              <span>Suplentes</span>
+              {substitutePlayers.length > 0 && (
+                <span
+                  className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-[999px] text-[10px] leading-none font-bold"
+                  style={{
+                    color: '#fdf1c7',
+                    background: 'rgba(121, 88, 20, 0.46)',
+                    border: '1px solid rgba(239, 194, 92, 0.5)',
+                    boxShadow: '0 0 0 1px rgba(255, 214, 102, 0.08)',
+                  }}
+                  aria-label={`${substitutePlayers.length} suplente${substitutePlayers.length === 1 ? '' : 's'} esperando`}
+                  title={`${substitutePlayers.length} suplente${substitutePlayers.length === 1 ? '' : 's'} esperando`}
+                >
+                  {substitutePlayers.length}
+                </span>
+              )}
+              {substituteOverflowCount > 0 && (
+                <span
+                  className="inline-flex items-center justify-center px-1.5 h-[16px] rounded-[3px] text-[10px] leading-none font-bold"
+                  style={{
+                    color: '#f4d89a',
+                    background: 'rgba(121, 88, 20, 0.36)',
+                    border: '1px solid rgba(239, 194, 92, 0.45)',
+                  }}
+                  aria-label={`${substituteOverflowCount} suplentes extra`}
+                >
+                  +{substituteOverflowCount}
+                </span>
+              )}
+            </button>
           </div>
           {headerActions ? <div className="flex items-center gap-1.5 shrink-0">{headerActions}</div> : null}
         </div>
         <div className="mt-2 h-[6px] w-full overflow-hidden rounded-[6px] bg-white/[0.08]">
           <div
             className="h-full rounded-[6px] transition-all duration-200"
-            style={{ width: `${inviteProgressPct}%`, backgroundColor: INVITE_ACCEPT_BUTTON_VIOLET, filter: 'saturate(1.05)' }}
+            style={{ width: `${activeRosterProgressPct}%`, backgroundColor: activeRosterProgressColor, filter: 'saturate(1.05)' }}
           />
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 w-full max-w-[720px] mx-auto justify-items-center box-border px-1">
+      {false && (
+        <div className="grid grid-cols-2 gap-4 w-full max-w-[720px] mx-auto justify-items-center box-border px-1">
         {(() => {
           let slotNumber = missingSlotsCount;
           return inviteSlotItems.map((player, idx) => {
@@ -875,6 +922,20 @@ const PlayersSection = ({
             );
           });
         })()}
+        </div>
+      )}
+      <div style={{ minHeight: `${rosterViewportMinHeight}px` }}>
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={isTitularesView ? 'guest-roster-titulares' : 'guest-roster-suplentes'}
+            initial={{ opacity: 0, x: 8 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -8 }}
+            transition={{ duration: 0.16, ease: 'easeOut' }}
+          >
+            {isTitularesView ? renderAdminTitularesGrid() : renderAdminSubstitutesGrid()}
+          </motion.div>
+        </AnimatePresence>
       </div>
     </div>
   );
