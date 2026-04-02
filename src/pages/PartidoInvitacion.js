@@ -661,53 +661,42 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
       style={isSoftVariant ? invitePlayersBlockStyle : undefined}
     >
       <div className={`px-1 ${isSoftVariant ? 'mb-6' : 'mb-3 mt-1'}`}>
-        <div className="flex items-baseline gap-2">
-          <div className="font-oswald text-xl font-semibold text-white tracking-[0.01em]">
-            Jugadores
-          </div>
-          <div className="font-oswald text-[13px] font-medium text-white/75 whitespace-nowrap">
-            {activeRosterCount}/{activeRosterSlots}
-          </div>
+        <div className="font-oswald text-xl font-semibold tracking-[0.01em] flex items-center">
+          <button
+            type="button"
+            onClick={() => setIsTitularesView(true)}
+            className="bg-transparent border-0 p-0 m-0 text-left transition-colors duration-150"
+            style={{ color: isTitularesView ? '#ffffff' : 'rgba(255,255,255,0.55)' }}
+            aria-pressed={isTitularesView}
+          >
+            Titulares
+          </button>
+          <span className="mx-2 text-white/35 select-none pointer-events-none">|</span>
+          <button
+            type="button"
+            onClick={() => setIsTitularesView(false)}
+            className="bg-transparent border-0 p-0 m-0 text-left transition-colors duration-150 inline-flex items-center gap-1.5"
+            style={{ color: isTitularesView ? 'rgba(255,255,255,0.55)' : 'rgba(252, 230, 178, 0.95)' }}
+            aria-pressed={!isTitularesView}
+          >
+            <span>Suplentes</span>
+            {substitutePlayers.length > 0 && (
+              <span
+                className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-[999px] text-[10px] leading-none font-bold"
+                style={{
+                  color: '#fdf1c7',
+                  background: 'rgba(121, 88, 20, 0.46)',
+                  border: '1px solid rgba(239, 194, 92, 0.5)',
+                  boxShadow: '0 0 0 1px rgba(255, 214, 102, 0.08)',
+                }}
+                aria-label={`${substitutePlayers.length} suplente${substitutePlayers.length === 1 ? '' : 's'} esperando`}
+                title={`${substitutePlayers.length} suplente${substitutePlayers.length === 1 ? '' : 's'} esperando`}
+              >
+                {substitutePlayers.length}
+              </span>
+            )}
+          </button>
         </div>
-
-        {showSubstituteSection && (
-          <div className="mt-4 font-oswald text-xl font-semibold tracking-[0.01em] flex items-center">
-            <button
-              type="button"
-              onClick={() => setIsTitularesView(true)}
-              className="bg-transparent border-0 p-0 m-0 text-left transition-colors duration-150"
-              style={{ color: isTitularesView ? '#ffffff' : 'rgba(255,255,255,0.55)' }}
-              aria-pressed={isTitularesView}
-            >
-              Titulares
-            </button>
-            <span className="mx-2 text-white/35 select-none pointer-events-none">|</span>
-            <button
-              type="button"
-              onClick={() => setIsTitularesView(false)}
-              className="bg-transparent border-0 p-0 m-0 text-left transition-colors duration-150 inline-flex items-center gap-1.5"
-              style={{ color: isTitularesView ? 'rgba(255,255,255,0.55)' : 'rgba(252, 230, 178, 0.95)' }}
-              aria-pressed={!isTitularesView}
-            >
-              <span>Suplentes</span>
-              {substitutePlayers.length > 0 && (
-                <span
-                  className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-[999px] text-[10px] leading-none font-bold"
-                  style={{
-                    color: '#fdf1c7',
-                    background: 'rgba(121, 88, 20, 0.46)',
-                    border: '1px solid rgba(239, 194, 92, 0.5)',
-                    boxShadow: '0 0 0 1px rgba(255, 214, 102, 0.08)',
-                  }}
-                  aria-label={`${substitutePlayers.length} suplente${substitutePlayers.length === 1 ? '' : 's'} esperando`}
-                  title={`${substitutePlayers.length} suplente${substitutePlayers.length === 1 ? '' : 's'} esperando`}
-                >
-                  {substitutePlayers.length}
-                </span>
-              )}
-            </button>
-          </div>
-        )}
 
         <div className="mt-2 h-[6px] w-full overflow-hidden rounded-[6px] bg-white/[0.08]">
           <div
