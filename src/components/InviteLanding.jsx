@@ -8,6 +8,29 @@ import ConfirmModal from './ConfirmModal';
 import { setAuthReturnTo } from '../utils/authReturnTo';
 import { getAuthRedirectUrl } from '../utils/authRedirectUrl';
 
+function getSubstituteModalSeenKey(partidoId, userId) {
+  if (!partidoId || !userId) return null;
+  return `invite-substitute-modal-seen:${partidoId}:${userId}`;
+}
+
+function hasSeenSubstituteModal(key) {
+  if (!key) return false;
+  try {
+    return window.sessionStorage.getItem(key) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function markSubstituteModalSeen(key) {
+  if (!key) return;
+  try {
+    window.sessionStorage.setItem(key, '1');
+  } catch {
+    // Best effort only.
+  }
+}
+
 function formatDate(fecha, hora) {
   if (!fecha) return 'Fecha a confirmar';
   try {
@@ -95,8 +118,24 @@ export default function InviteLanding() {
         setAcceptedLabel(status === 'already_accepted' ? 'Ya estabas en el partido' : 'Listo, estás adentro');
 
         const targetPartidoId = data.partido_id || inviteData.partido_id;
-        if (status === 'accepted' && data.joined_as_substitute === true) {
+        let joinedAsSubstitute = data.joined_as_substitute === true;
+        if (!joinedAsSubstitute && targetPartidoId && user?.id) {
+          const { data: joinedPlayer, error: joinedPlayerError } = await supabase
+            .from('jugadores')
+            .select('is_substitute')
+            .eq('partido_id', Number(targetPartidoId))
+            .eq('usuario_id', user.id)
+            .maybeSingle();
+
+          if (!joinedPlayerError) {
+            joinedAsSubstitute = joinedPlayer?.is_substitute === true;
+          }
+        }
+
+        const modalSeenKey = getSubstituteModalSeenKey(targetPartidoId, user?.id);
+        if (joinedAsSubstitute && !hasSeenSubstituteModal(modalSeenKey)) {
           if (!cancelled) {
+            markSubstituteModalSeen(modalSeenKey);
             setPendingPartidoId(targetPartidoId);
             setSubstituteModalOpen(true);
           }
