@@ -91,4 +91,44 @@ describe('buildActivityFeed match_update routing', () => {
     expect(joinedItem).toBeTruthy();
     expect(joinedItem.route).toBe(`/partido-publico/${matchId}`);
   });
+
+  test('renders substitute promotion in recent activity with match route', async () => {
+    const matchId = 503;
+
+    const items = await buildActivityFeed([
+      {
+        id: 'notif-promoted-1',
+        type: 'substitute_promoted',
+        read: false,
+        created_at: '2026-03-08T11:57:00.000Z',
+        data: {
+          matchId,
+          match_name: 'Futbol jueves',
+          link: `/partido-publico/${matchId}`,
+        },
+        title: 'Ahora sos titular',
+        message: 'Subiste de suplente a titular en "Futbol jueves".',
+      },
+    ], {
+      activeMatches: [
+        {
+          id: matchId,
+          nombre: 'Futbol jueves',
+          fecha: '2026-03-10',
+          hora: '22:00',
+          sede: 'Ateneo Felix Marino',
+          creado_por: 'another-user',
+          cupo_jugadores: 12,
+          jugadores: [{ count: 11 }],
+        },
+      ],
+      currentUserId: 'user-player-1',
+      supabaseClient: null,
+    });
+
+    const promotedItem = items.find((item) => item.type === 'substitute_promoted');
+    expect(promotedItem).toBeTruthy();
+    expect(promotedItem.title).toBe('Ahora sos titular');
+    expect(promotedItem.route).toBe(`/partido-publico/${matchId}`);
+  });
 });

@@ -376,6 +376,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
       case 'match_cancelled': return XCircle;
       case 'match_join_request': return UserPlus;
       case 'match_join_approved': return CheckCircle;
+      case 'substitute_promoted': return CheckCircle;
       case 'match_kicked': return ShieldAlert;
       case 'no_show_penalty_applied': return ShieldAlert;
       case 'no_show_recovery_applied': return CheckCircle;

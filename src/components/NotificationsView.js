@@ -482,6 +482,8 @@ const NotificationsView = () => {
         return CalendarClock;
       case 'match_update':
         return Users;
+      case 'substitute_promoted':
+        return CheckCircle;
       case 'team_invite':
         return Users;
       case 'team_captain_transfer':

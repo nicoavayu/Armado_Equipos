@@ -13,6 +13,7 @@ const MATCH_TYPES = new Set([
   'match_kicked',
   'match_join_request',
   'match_join_approved',
+  'substitute_promoted',
   'call_to_vote',
   'pre_match_vote',
   'team_invite',

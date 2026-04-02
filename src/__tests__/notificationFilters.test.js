@@ -14,6 +14,7 @@ describe('notificationFilters', () => {
 
   test('classifies known notification types', () => {
     expect(getNotificationFilterKey('match_invite')).toBe('matches');
+    expect(getNotificationFilterKey('substitute_promoted')).toBe('matches');
     expect(getNotificationFilterKey('survey_start')).toBe('surveys');
     expect(getNotificationFilterKey('award_won')).toBe('rewards');
   });
@@ -31,4 +32,3 @@ describe('notificationFilters', () => {
     expect(getCategoryCount(notifications, 'rewards')).toBe(1);
   });
 });
-

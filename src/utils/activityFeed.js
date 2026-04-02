@@ -48,6 +48,7 @@ const RELEVANT_TYPES = new Set([
   'challenge_accepted',
   'team_match_created',
   'challenge_squad_open',
+  'substitute_promoted',
   'match_update',
   'match_today',
   'falta_jugadores',
@@ -68,6 +69,7 @@ const FEED_TEMPLATE_TYPES = new Set([
   'challenge_accepted',
   'team_match_created',
   'challenge_squad_open',
+  'substitute_promoted',
   'match_player_joined',
   'match_player_left',
   'friend_request',
@@ -86,6 +88,7 @@ const PRIORITY = {
   team_invite: 22,
   match_complete: 22,
   match_join_approved: 24,
+  substitute_promoted: 24,
   match_invite: 24,
   match_player_joined: 26,
   match_player_left: 27,
@@ -101,7 +104,7 @@ const PRIORITY = {
 const severityForType = (type) => {
   if (['match_today', 'falta_jugadores', 'call_to_vote', 'survey_start'].includes(type)) return 'urgent';
   if (['match_cancelled', 'match_join_request', 'match_invite', 'team_invite', 'match_player_joined', 'match_player_left', 'friend_request', 'match_tomorrow', 'challenge_accepted', 'team_match_created', 'challenge_squad_open'].includes(type)) return 'warning';
-  if (['survey_results_ready', 'awards_ready', 'match_complete', 'match_join_approved', 'friend_accepted'].includes(type)) return 'success';
+  if (['survey_results_ready', 'awards_ready', 'match_complete', 'match_join_approved', 'substitute_promoted', 'friend_accepted'].includes(type)) return 'success';
   return 'neutral';
 };
 
@@ -678,6 +681,15 @@ export const buildHomeNotificationText = (notification, match) => {
     };
   }
 
+  if (type === 'substitute_promoted') {
+    const subtitle = buildSubtitle(hourLabel || venueLabel);
+    if (!subtitle) return null;
+    return {
+      title: 'Ahora sos titular',
+      subtitle,
+    };
+  }
+
   return null;
 };
 
@@ -1027,6 +1039,23 @@ const toActivityFromNotification = (group, match, currentUserId) => {
       ...base,
       count: 1,
       icon: 'Users',
+      title: homeCopy.title,
+      subtitle: homeCopy.subtitle,
+      route: resolvePreferredMatchUpdateRoute({
+        notificationLink,
+        matchRoute,
+      }),
+    };
+  }
+
+  if (type === 'substitute_promoted') {
+    const homeCopy = buildHomeNotificationText(notification, match);
+    if (!homeCopy) return null;
+    const notificationLink = notification?.data?.link || null;
+    return {
+      ...base,
+      count: 1,
+      icon: 'CheckCircle',
       title: homeCopy.title,
       subtitle: homeCopy.subtitle,
       route: resolvePreferredMatchUpdateRoute({
