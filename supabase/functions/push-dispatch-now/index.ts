@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 type KickEventType =
   | "match_invite"
+  | "match_cancelled"
   | "friend_request"
   | "match_join_request"
   | "match_join_approved"
@@ -51,6 +52,7 @@ const MAX_LIMIT = 100;
 const DEFAULT_WINDOW_SECONDS = 180;
 const ALLOWED_EVENT_TYPES = new Set<KickEventType>([
   "match_invite",
+  "match_cancelled",
   "friend_request",
   "match_join_request",
   "match_join_approved",
@@ -334,6 +336,7 @@ async function fetchQueuedCandidateRows(
   if (
     (
       eventType === "match_invite"
+      || eventType === "match_cancelled"
       || eventType === "match_join_request"
       || eventType === "match_join_approved"
       || eventType === "match_player_joined"
@@ -1335,6 +1338,14 @@ function isEligibleRow(
     return payloadMatchId === matchId;
   }
 
+  if (eventType === "match_cancelled") {
+    if (matchId === null) return false;
+    if (row.partido_id !== null && row.partido_id !== matchId) return false;
+    const payloadMatchId = normalizeOptionalInt(payload.match_id ?? payload.matchId ?? payload.partido_id ?? payload.partidoId);
+    if (payloadMatchId !== null && payloadMatchId !== matchId) return false;
+    return true;
+  }
+
   if (eventType === "match_kicked") {
     if (matchId === null) return false;
     if (row.partido_id !== null && row.partido_id !== matchId) return false;
@@ -1451,7 +1462,12 @@ serve(async (req) => {
     }
   }
 
-  if (eventType === "call_to_vote" || eventType === "match_kicked" || eventType === "match_join_approved") {
+  if (
+    eventType === "call_to_vote"
+    || eventType === "match_cancelled"
+    || eventType === "match_kicked"
+    || eventType === "match_join_approved"
+  ) {
     if (matchId === null) {
       return jsonResponse({ ok: false, reason: "invalid_match_id" }, 400, cors);
     }

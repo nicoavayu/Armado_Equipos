@@ -1,6 +1,7 @@
 import { supabase } from '../../lib/supabaseClient';
 import { schedulePostMatchNotification } from '../notificationService';
 import { incrementPartidosAbandonados } from '../matchStatsService';
+import { requestImmediatePushDispatch } from '../pushDispatchService';
 
 const generateMatchCode = (length = 6) => {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -1625,6 +1626,16 @@ export const cancelPartidoWithNotification = async (partidoId, reason = 'Partido
   if (error) {
     console.error('[NOTIF_DEBUG] Error cancelling match:', error);
     throw error;
+  }
+
+  try {
+    await requestImmediatePushDispatch({
+      eventType: 'match_cancelled',
+      matchId: partidoId,
+      limit: 50,
+    });
+  } catch (dispatchError) {
+    console.error('[NOTIF_DEBUG] Error dispatching immediate cancellation push:', dispatchError);
   }
 
   console.log('[NOTIF_DEBUG] Match cancelled, notification result:', data);
