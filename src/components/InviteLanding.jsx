@@ -1,12 +1,19 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Capacitor } from '@capacitor/core';
-import { Browser } from '@capacitor/browser';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { useAuth } from './AuthProvider';
 import ConfirmModal from './ConfirmModal';
 import { setAuthReturnTo } from '../utils/authReturnTo';
-import { getAuthRedirectUrl } from '../utils/authRedirectUrl';
+import usePendingAuthFlow from '../hooks/usePendingAuthFlow';
+import {
+  consumeAuthFlowResult,
+  subscribeAuthFlowState,
+} from '../utils/authFlowState';
+import {
+  canShowAppleSignIn,
+  signInWithApple,
+  signInWithGoogle,
+} from '../services/auth/socialAuth';
 
 function getSubstituteModalSeenKey(partidoId, userId) {
   if (!partidoId || !userId) return null;
@@ -51,6 +58,7 @@ export default function InviteLanding() {
   const { token } = useParams();
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
+  const pendingAuthFlow = usePendingAuthFlow();
 
   const [loadingInvite, setLoadingInvite] = useState(true);
   const [inviteData, setInviteData] = useState(null);
@@ -62,6 +70,7 @@ export default function InviteLanding() {
   const [pendingPartidoId, setPendingPartidoId] = useState(null);
 
   const returnTo = useMemo(() => `/i/${token}`, [token]);
+  const authActionInFlight = authLoading || Boolean(pendingAuthFlow);
 
   useEffect(() => {
     let active = true;
@@ -164,64 +173,41 @@ export default function InviteLanding() {
     };
   }, [user, authLoading, inviteData, token, navigate, accepting, acceptedLabel]);
 
+  useEffect(() => {
+    const syncAuthResultMessage = () => {
+      const authResult = consumeAuthFlowResult();
+      if (!authResult?.message) return;
+      setInviteError(authResult.message);
+    };
+
+    syncAuthResultMessage();
+    return subscribeAuthFlowState(() => {
+      syncAuthResultMessage();
+    });
+  }, []);
+
   const goGoogle = async () => {
     try {
+      setInviteError('');
       setAuthReturnTo(returnTo);
-      const redirectTo = getAuthRedirectUrl();
-      const isNative = Capacitor.isNativePlatform();
-      const options = redirectTo ? { redirectTo } : {};
-      if (isNative) {
-        options.skipBrowserRedirect = true;
-      }
-
-      console.info('[AUTH] oauth_start', {
-        flow: 'invite_google_auth',
-        isNative,
-        redirectTo,
-        skipBrowserRedirect: options.skipBrowserRedirect === true,
-      });
-
-      const oauthOptions = Object.keys(options).length > 0 ? options : undefined;
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: oauthOptions,
-      });
-
-      console.info('[AUTH] oauth_response', {
-        flow: 'invite_google_auth',
-        redirectTo,
-        authUrl: data?.url || null,
-      });
-
-      if (error) throw error;
-
-      if (isNative) {
-        const authUrl = data?.url;
-        if (!authUrl) {
-          throw new Error('No se recibió URL de autenticación.');
-        }
-        try {
-          const parsedAuthUrl = new URL(authUrl);
-          console.info('[AUTH] browser_open', {
-            flow: 'invite_google_auth',
-            url: authUrl,
-            redirect_to: parsedAuthUrl.searchParams.get('redirect_to'),
-          });
-        } catch {
-          console.info('[AUTH] browser_open', {
-            flow: 'invite_google_auth',
-            url: authUrl,
-            redirect_to: null,
-          });
-        }
-        await Browser.open({ url: authUrl });
-      }
+      await signInWithGoogle({ source: 'invite_google_auth' });
     } catch (err) {
       setInviteError(err?.message || 'No pudimos iniciar sesión con Google.');
     }
   };
 
+  const goApple = async () => {
+    try {
+      setInviteError('');
+      setAuthReturnTo(returnTo);
+      await signInWithApple({ source: 'invite_apple_auth' });
+    } catch (err) {
+      setInviteError(err?.message || 'No pudimos iniciar sesión con Apple.');
+    }
+  };
+
   const goEmail = () => {
+    setInviteError('');
     setAuthReturnTo(returnTo);
     navigate(`/login/email?returnTo=${encodeURIComponent(returnTo)}`);
   };
@@ -233,9 +219,9 @@ export default function InviteLanding() {
           <h1 className="font-oswald text-4xl text-white font-semibold tracking-[0.01em]">Invitación a partido</h1>
 
           {loadingInvite && <p className="mt-3 text-white/75">Validando invitación...</p>}
-          {!loadingInvite && inviteError && <p className="mt-4 text-[#ff8b8b]">Invitación inválida o expirada</p>}
+          {!loadingInvite && !inviteData && inviteError && <p className="mt-4 text-[#ff8b8b]">{inviteError}</p>}
 
-          {!loadingInvite && !inviteError && inviteData && (
+          {!loadingInvite && inviteData && (
             <>
               <div className="mt-4 rounded-xl border border-white/15 bg-[#10163a]/80 p-4 text-white/90 space-y-1">
                 <p className="font-oswald text-xl text-white">{inviteData.nombre || 'Partido'}</p>
@@ -244,13 +230,26 @@ export default function InviteLanding() {
                 {inviteData.admin_nombre && <p className="text-sm text-white/70">Invita: {inviteData.admin_nombre}</p>}
               </div>
 
-              {authLoading && <p className="mt-4 text-white/75">Cargando sesión...</p>}
+              {inviteError && <p className="mt-4 text-[#ff8b8b]">{inviteError}</p>}
 
-              {!authLoading && !user && (
+              {authActionInFlight && <p className="mt-4 text-white/75">Cargando sesión...</p>}
+
+              {!authActionInFlight && !user && (
                 <div className="mt-5 space-y-3">
+                  {canShowAppleSignIn() && (
+                    <button
+                      type="button"
+                      onClick={goApple}
+                      disabled={authActionInFlight}
+                      className="w-full h-12 rounded-xl bg-[#111111] text-white font-oswald text-xl disabled:opacity-60"
+                    >
+                      Ingresar con Apple
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={goGoogle}
+                    disabled={authActionInFlight}
                     className="w-full h-12 rounded-xl bg-white text-[#1a1f46] font-oswald text-xl"
                   >
                     Entrar con Google
@@ -258,6 +257,7 @@ export default function InviteLanding() {
                   <button
                     type="button"
                     onClick={goEmail}
+                    disabled={authActionInFlight}
                     className="w-full h-12 rounded-xl border border-white/25 bg-transparent text-white font-oswald text-xl"
                   >
                     Continuar con email
@@ -265,7 +265,7 @@ export default function InviteLanding() {
                 </div>
               )}
 
-              {!authLoading && user && (
+              {!authActionInFlight && user && (
                 <div className="mt-5">
                   {accepting && <p className="text-white/80">Aplicando invitación...</p>}
                   {!accepting && acceptedLabel && <p className="text-[#6fe28d]">{acceptedLabel}</p>}

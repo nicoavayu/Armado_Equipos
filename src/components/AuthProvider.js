@@ -1,6 +1,7 @@
 import React, { useState, useEffect, createContext, useContext, useCallback, useRef } from 'react';
 import { supabase, getProfile, createOrUpdateProfile } from '../supabase';
 import LoadingSpinner from './LoadingSpinner';
+import { clearAuthFlowIfSessionSettled } from '../services/auth/socialAuth';
 import { clearSentryUser, setSentryUser } from '../utils/monitoring/sentry';
 
 const AuthContext = createContext();
@@ -218,6 +219,7 @@ const AuthProvider = ({ children }) => {
         if (!mounted) return;
 
         if (session?.user) {
+          clearAuthFlowIfSessionSettled();
           setUser(session.user);
           setLoading(false);
           Promise.resolve(fetchProfile(session.user)).catch((profileError) => {
@@ -271,6 +273,7 @@ const AuthProvider = ({ children }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!mounted) return;
       if (session?.user) {
+        clearAuthFlowIfSessionSettled();
         setUser(session.user);
         setLoading(false);
         Promise.resolve(fetchProfile(session.user)).catch((profileError) => {

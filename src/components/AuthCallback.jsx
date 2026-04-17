@@ -2,7 +2,15 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { consumeAuthReturnTo } from '../utils/authReturnTo';
+import {
+  clearPendingAuthFlow,
+  markPendingAuthSessionRestored,
+  readPendingAuthFlow,
+  setAuthFlowResult,
+} from '../utils/authFlowState';
 import { track } from '../utils/monitoring/analytics';
+
+const SESSION_RETRY_DELAYS_MS = [0, 250, 600, 1200];
 
 export default function AuthCallback() {
   const navigate = useNavigate();
@@ -20,7 +28,38 @@ export default function AuthCallback() {
   useEffect(() => {
     let mounted = true;
 
+    const waitForSession = async () => {
+      let lastSessionError = null;
+
+      for (const delayMs of SESSION_RETRY_DELAYS_MS) {
+        if (delayMs > 0) {
+          await new Promise((resolve) => window.setTimeout(resolve, delayMs));
+        }
+
+        const { data, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) {
+          lastSessionError = sessionError;
+          continue;
+        }
+
+        if (data?.session) {
+          return {
+            session: data.session,
+            sessionError: null,
+          };
+        }
+      }
+
+      return {
+        session: null,
+        sessionError: lastSessionError,
+      };
+    };
+
     const run = async () => {
+      const initialPendingFlow = readPendingAuthFlow();
+      const provider = initialPendingFlow?.provider || 'google';
+
       try {
         const currentUrl = window.location.href;
         logAuth('auth_callback_enter', {
@@ -28,19 +67,29 @@ export default function AuthCallback() {
           pathname: window.location.pathname,
           search: window.location.search,
           hash: window.location.hash,
+          provider,
         });
         const url = new URL(currentUrl);
         const code = url.searchParams.get('code');
+        let callbackError = null;
 
         if (code) {
           logAuth('auth_callback_code_detected', {
             codePresent: true,
+            provider,
           });
           const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-          if (exchangeError) throw exchangeError;
+          if (exchangeError) {
+            callbackError = exchangeError;
+            logAuth('auth_callback_exchange_failed', {
+              provider,
+              message: exchangeError.message,
+            });
+          }
         } else if (window.location.hash) {
           logAuth('auth_callback_hash_detected', {
             hash: window.location.hash,
+            provider,
           });
           const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
           const access_token = hash.get('access_token');
@@ -51,22 +100,45 @@ export default function AuthCallback() {
               access_token,
               refresh_token,
             });
-            if (setSessionError) throw setSessionError;
+            if (setSessionError) {
+              callbackError = setSessionError;
+              logAuth('auth_callback_set_session_failed', {
+                provider,
+                message: setSessionError.message,
+              });
+            }
           }
         }
 
-        const { data, error: sessionError } = await supabase.auth.getSession();
-        if (sessionError) throw sessionError;
-        if (!data?.session) throw new Error('No se pudo restaurar la sesión.');
+        const { session, sessionError } = await waitForSession();
+        if (sessionError && !session) throw sessionError;
+        if (!session) {
+          if (callbackError) throw callbackError;
+          throw new Error('No se pudo restaurar la sesión.');
+        }
+
+        if (callbackError) {
+          logAuth('auth_callback_session_restored_after_callback_error', {
+            provider,
+            message: callbackError.message,
+            userId: session.user?.id || null,
+          });
+        }
 
         logAuth('auth_callback_session_restored', {
-          hasSession: Boolean(data?.session),
-          userId: data.session.user?.id || null,
+          provider,
+          hasSession: true,
+          userId: session.user?.id || null,
+        });
+
+        markPendingAuthSessionRestored({
+          provider,
+          userId: session.user?.id || null,
         });
 
         track('login_success', {
-          provider: 'google',
-          user_id: data.session.user?.id,
+          provider,
+          user_id: session.user?.id,
           method: 'oauth_callback',
         });
 
@@ -74,8 +146,16 @@ export default function AuthCallback() {
         logAuth('auth_callback_navigate', { target });
         navigate(target, { replace: true });
       } catch (err) {
+        const currentProvider = readPendingAuthFlow()?.provider || provider;
         logAuth('auth_callback_error', {
+          provider: currentProvider,
           message: err?.message || String(err),
+        });
+        clearPendingAuthFlow();
+        setAuthFlowResult({
+          type: 'error',
+          provider: currentProvider,
+          message: err?.message || 'No pudimos completar el login.',
         });
         if (!mounted) return;
         setError(err?.message || 'No pudimos completar el login.');

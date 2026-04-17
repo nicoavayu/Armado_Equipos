@@ -3,7 +3,13 @@ import { Link, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthProvider';
 import { setAuthReturnTo } from '../utils/authReturnTo';
 import { getAuthRedirectUrl } from '../utils/authRedirectUrl';
+import AppleAuth from './AppleAuth';
 import GoogleAuth from './GoogleAuth';
+import usePendingAuthFlow from '../hooks/usePendingAuthFlow';
+import {
+  consumeAuthFlowResult,
+  subscribeAuthFlowState,
+} from '../utils/authFlowState';
 import { supabase } from '../supabase';
 import logo from '../Logo.png';
 
@@ -21,11 +27,13 @@ export default function AuthHome() {
   const [mode, setMode] = useState(location.pathname === '/login/email' ? 'email' : 'options');
   const [email, setEmail] = useState('');
   const [emailLoading, setEmailLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
   const [notice, setNotice] = useState({ type: '', message: '' });
   const [cooldown, setCooldown] = useState(0);
+  const pendingAuthFlow = usePendingAuthFlow();
 
   const returnTo = useMemo(() => getReturnTo(location.search), [location.search]);
+  const googleLoading = pendingAuthFlow?.provider === 'google';
+  const appleLoading = pendingAuthFlow?.provider === 'apple';
 
   useEffect(() => {
     console.info('[AUTH] login_route_enter', {
@@ -64,7 +72,23 @@ export default function AuthHome() {
     setMode(location.pathname === '/login/email' ? 'email' : 'options');
   }, [location.pathname]);
 
-  const sendingBlocked = emailLoading || googleLoading;
+  useEffect(() => {
+    const syncAuthResultNotice = () => {
+      const authResult = consumeAuthFlowResult();
+      if (!authResult?.message) return;
+      setNotice({
+        type: 'warning',
+        message: authResult.message,
+      });
+    };
+
+    syncAuthResultNotice();
+    return subscribeAuthFlowState(() => {
+      syncAuthResultNotice();
+    });
+  }, []);
+
+  const sendingBlocked = emailLoading || Boolean(pendingAuthFlow);
 
   const sendMagicLink = async () => {
     console.info('[AUTH] magic_link_submit', {
@@ -120,12 +144,29 @@ export default function AuthHome() {
 
         <div className="auth-premium-card rounded-none px-5 py-6 max-[480px]:px-4 max-[480px]:py-5">
           <div className="flex flex-col gap-3">
+            <AppleAuth
+              user={null}
+              disabled={sendingBlocked}
+              loading={appleLoading}
+              onError={(error) => {
+                setNotice({
+                  type: 'warning',
+                  message: error?.message || 'No pudimos iniciar sesión con Apple.',
+                });
+              }}
+              className="auth-btn h-12 w-full rounded-none border border-white bg-[#111111] px-4 text-base font-medium text-white transition-colors hover:bg-[#191919] disabled:opacity-60 max-[480px]:h-[46px] flex items-center justify-center gap-2"
+            />
+
             <GoogleAuth
               user={null}
               disabled={sendingBlocked}
               loading={googleLoading}
-              onStart={() => setGoogleLoading(true)}
-              onEnd={() => setGoogleLoading(false)}
+              onError={(error) => {
+                setNotice({
+                  type: 'warning',
+                  message: error?.message || 'No pudimos iniciar sesión con Google.',
+                });
+              }}
               className="auth-btn auth-btn-primary flex h-12 w-full items-center justify-center gap-2 rounded-none px-4 text-base font-medium max-[480px]:h-[46px]"
             />
 
@@ -196,6 +237,12 @@ export default function AuthHome() {
             )}
           </div>
         </div>
+
+        {mode === 'options' && notice.message ? (
+          <p className={`mt-4 text-center text-sm ${notice.type === 'success' ? 'text-[#76e7a0]' : 'text-[#ffadba]'}`}>
+            {notice.message}
+          </p>
+        ) : null}
 
         <p className="mx-auto mt-4 max-w-[340px] text-center text-[12px] leading-relaxed text-[rgba(255,255,255,0.72)]">
           Al continuar aceptás nuestros{' '}

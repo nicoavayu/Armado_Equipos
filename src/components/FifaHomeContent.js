@@ -14,6 +14,7 @@ import { openNotification } from '../utils/notificationRouter';
 import { notifyBlockingError } from '../utils/notifyBlockingError';
 import ProximosPartidos from './ProximosPartidos';
 import NotificationsBell from './NotificationsBell';
+import HomeWelcomeCard from './HomeWelcomeCard';
 import { useRefreshOnVisibility } from '../hooks/useRefreshOnVisibility';
 
 const activityIconMap = {
@@ -713,6 +714,8 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
 
   return (
     <div className="w-full bg-transparent shadow-none">
+      <HomeWelcomeCard />
+
       {/* Header elements - Avatar and Notifications */}
       {user && (
         <div className="relative left-1/2 right-1/2 ml-[-50vw] mr-[-50vw] w-screen mb-5 px-4 py-3 bg-white/5 border-y border-white/10 rounded-none ui-flat backdrop-blur-[20px] shadow-lg">

@@ -1,87 +1,21 @@
 import React from 'react';
-import { Capacitor } from '@capacitor/core';
-import { Browser } from '@capacitor/browser';
-import { supabase } from '../supabase';
-import { notifyBlockingError } from 'utils/notifyBlockingError';
-import { getAuthRedirectUrl } from '../utils/authRedirectUrl';
-import { track } from '../utils/monitoring/analytics';
+import { signInWithGoogle } from '../services/auth/socialAuth';
 
-const GoogleAuth = ({ user, className, disabled = false, loading = false, onStart, onEnd }) => {
-  const signInWithGoogle = async () => {
+const GoogleAuth = ({ user, className, disabled = false, loading = false, onError }) => {
+  const handleGoogleSignIn = async () => {
     if (disabled) return;
 
-    if (typeof onStart === 'function') onStart();
-    track('login_started', {
-      method: 'google',
-      source: 'auth_button',
-    });
-
     try {
-      const redirectTo = getAuthRedirectUrl();
-      const isNative = Capacitor.isNativePlatform();
-      const options = redirectTo ? { redirectTo } : {};
-      if (isNative) {
-        options.skipBrowserRedirect = true;
-      }
-
-      console.info('[AUTH] oauth_start', {
-        flow: 'google_auth',
-        isNative,
-        redirectTo,
-        skipBrowserRedirect: options.skipBrowserRedirect === true,
-      });
-
-      const oauthOptions = Object.keys(options).length > 0 ? options : undefined;
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: oauthOptions,
-      });
-
-      console.info('[AUTH] oauth_response', {
-        flow: 'google_auth',
-        redirectTo,
-        authUrl: data?.url || null,
-      });
-
-      if (error) {
-        notifyBlockingError(`Error al iniciar sesión con Google: ${error.message}`);
-        console.error('Error signing in with Google:', error);
-        return;
-      }
-
-      if (isNative) {
-        const authUrl = data?.url;
-        if (!authUrl) {
-          throw new Error('No se recibió URL de autenticación.');
-        }
-        try {
-          const parsedAuthUrl = new URL(authUrl);
-          console.info('[AUTH] browser_open', {
-            flow: 'google_auth',
-            url: authUrl,
-            redirect_to: parsedAuthUrl.searchParams.get('redirect_to'),
-          });
-        } catch {
-          console.info('[AUTH] browser_open', {
-            flow: 'google_auth',
-            url: authUrl,
-            redirect_to: null,
-          });
-        }
-        await Browser.open({ url: authUrl });
-      }
+      await signInWithGoogle({ source: 'auth_button' });
     } catch (error) {
-      notifyBlockingError(`Error inesperado: ${error.message}`);
-      console.error('Unexpected error:', error);
-    } finally {
-      if (typeof onEnd === 'function') onEnd();
+      if (typeof onError === 'function') onError(error);
     }
   };
 
   if (user) return null;
 
   return (
-    <button onClick={signInWithGoogle} className={className || 'google-sign-in-btn'} disabled={disabled}>
+    <button type="button" onClick={handleGoogleSignIn} className={className || 'google-sign-in-btn'} disabled={disabled}>
       <svg width="18" height="18" viewBox="0 0 18 18" style={{ marginRight: '8px' }}>
         <path fill="#4285F4" d="M16.51 8H8.98v3h4.3c-.18 1-.74 1.48-1.6 2.04v2.01h2.6a7.8 7.8 0 0 0 2.38-5.88c0-.57-.05-.66-.15-1.18z" />
         <path fill="#34A853" d="M8.98 17c2.16 0 3.97-.72 5.3-1.94l-2.6-2.04a4.8 4.8 0 0 1-7.18-2.53H1.83v2.07A8 8 0 0 0 8.98 17z" />

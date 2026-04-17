@@ -4,12 +4,18 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { AppAuthWrapper } from '../App';
 
 const mockUseAuth = jest.fn();
+const mockUsePendingAuthFlow = jest.fn();
 const mockSetAuthReturnTo = jest.fn();
 
 jest.mock('../components/AuthProvider', () => ({
   __esModule: true,
   default: ({ children }) => <>{children}</>,
   useAuth: () => mockUseAuth(),
+}));
+
+jest.mock('../hooks/usePendingAuthFlow', () => ({
+  __esModule: true,
+  default: () => mockUsePendingAuthFlow(),
 }));
 
 jest.mock('../utils/authReturnTo', () => ({
@@ -70,12 +76,14 @@ jest.mock('../utils/monitoring/analytics', () => ({
 describe('AppAuthWrapper', () => {
   beforeEach(() => {
     mockUseAuth.mockReset();
+    mockUsePendingAuthFlow.mockReset();
     mockSetAuthReturnTo.mockReset();
     mockUseAuth.mockReturnValue({
       user: null,
       loading: false,
       authResolved: true,
     });
+    mockUsePendingAuthFlow.mockReturnValue(null);
   });
 
   test('does not allow private routes to bypass auth with codigo query param', () => {
@@ -93,5 +101,27 @@ describe('AppAuthWrapper', () => {
     expect(screen.getByText('Login')).toBeInTheDocument();
     expect(screen.queryByText('Admin privada')).not.toBeInTheDocument();
     expect(mockSetAuthReturnTo).toHaveBeenCalledWith('/admin/123?codigo=QT97MX');
+  });
+
+  test('shows blocking spinner while auth callback is still settling', () => {
+    mockUsePendingAuthFlow.mockReturnValue({
+      provider: 'google',
+      status: 'session_restored',
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/admin/123']}>
+        <Routes>
+          <Route element={<AppAuthWrapper />}>
+            <Route path="/admin/:partidoId" element={<div>Admin privada</div>} />
+          </Route>
+          <Route path="/login" element={<div>Login</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText('Loading')).toBeInTheDocument();
+    expect(screen.queryByText('Login')).not.toBeInTheDocument();
+    expect(mockSetAuthReturnTo).not.toHaveBeenCalled();
   });
 });

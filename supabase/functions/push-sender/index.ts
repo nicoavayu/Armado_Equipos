@@ -17,6 +17,7 @@ type DeviceTokenRow = {
   provider: string;
   is_active: boolean;
   device_id: string | null;
+  last_seen_at?: string | null;
 };
 
 type ProviderFailureDetail = {
@@ -269,6 +270,7 @@ function defaultTitleForType(type: string): string {
     case "match_reminder_1h":
       return "Recordatorio de partido";
     case "survey_start":
+    case "survey_reminder_12h":
     case "survey_reminder":
     case "survey_finished":
       return "Actualizacion de encuesta";
@@ -292,18 +294,97 @@ function buildMatchReminderBody(payload: Record<string, unknown>): string {
   return "Tu partido empieza en aproximadamente 1 hora.";
 }
 
+function parseDateOrNull(value: unknown): Date | null {
+  if (!value) return null;
+  const parsed = new Date(String(value));
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed;
+}
+
+function sanitizeSurveyMatchName(rawValue: string | null): string {
+  const normalized = String(rawValue ?? "").trim();
+  if (!normalized) return "este partido";
+  if (/^\d+$/.test(normalized)) return "este partido";
+  return normalized;
+}
+
+function resolveSurveyMatchName(payload: Record<string, unknown>): string {
+  return sanitizeSurveyMatchName(
+    readString(payload, "match_name")
+    ?? readString(payload, "matchName")
+    ?? readString(payload, "partido_nombre"),
+  );
+}
+
+function buildSurveyPushMessage(
+  notificationType: string,
+  payload: Record<string, unknown>,
+): { title: string; body: string } | null {
+  const matchName = resolveSurveyMatchName(payload);
+
+  switch (notificationType) {
+    case "survey_start":
+      return {
+        title: "¡Encuesta lista!",
+        body: `La encuesta ya está lista para completar sobre el partido ${matchName}.`,
+      };
+    case "survey_reminder_12h":
+      return {
+        title: "Recordatorio de encuesta",
+        body: `Recordatorio: te quedan 12 horas para completar la encuesta del partido ${matchName}.`,
+      };
+    case "survey_reminder":
+      return {
+        title: "Recordatorio de encuesta",
+        body: `Recordatorio: te queda 1 hora para completar la encuesta del partido ${matchName}.`,
+      };
+    default:
+      return null;
+  }
+}
+
+function resolveSurveyDeadlineAt(payload: Record<string, unknown>): Date | null {
+  return (
+    parseDateOrNull(payload.survey_deadline_at)
+    ?? parseDateOrNull(payload.surveyDeadlineAt)
+    ?? parseDateOrNull(payload.deadline_at)
+    ?? parseDateOrNull(payload.deadlineAt)
+  );
+}
+
+function resolveStaleSurveySkip(log: DeliveryLogRow): { errorCode: string; errorText: string; deadlineAt: string } | null {
+  const notificationType = String(log.notification_type || "").toLowerCase();
+  if (notificationType !== "survey_reminder" && notificationType !== "survey_reminder_12h") {
+    return null;
+  }
+
+  const payload = log.payload_json && typeof log.payload_json === "object"
+    ? log.payload_json
+    : {};
+  const deadlineAt = resolveSurveyDeadlineAt(payload);
+  if (!deadlineAt) return null;
+  if (deadlineAt.getTime() > Date.now()) return null;
+
+  return {
+    errorCode: "stale_survey_deadline",
+    errorText: `Skipped stale ${notificationType} because survey_deadline_at has already passed`,
+    deadlineAt: deadlineAt.toISOString(),
+  };
+}
+
 function buildPushMessage(row: DeliveryLogRow) {
   const payload = row.payload_json && typeof row.payload_json === "object"
     ? row.payload_json
     : {};
 
   const notificationType = String(row.notification_type || "").toLowerCase();
+  const surveyMessage = buildSurveyPushMessage(notificationType, payload as Record<string, unknown>);
   const title = notificationType === "match_reminder_1h"
     ? "Recordatorio de partido"
-    : (readString(payload, "title") ?? defaultTitleForType(row.notification_type));
+    : (surveyMessage?.title ?? readString(payload, "title") ?? defaultTitleForType(row.notification_type));
   const body = notificationType === "match_reminder_1h"
     ? buildMatchReminderBody(payload as Record<string, unknown>)
-    : (readString(payload, "message") ?? readString(payload, "body") ?? "Tenes una actualizacion nueva.");
+    : (surveyMessage?.body ?? readString(payload, "message") ?? readString(payload, "body") ?? "Tenes una actualizacion nueva.");
 
   const data: Record<string, string> = {
     notification_type: safeString(row.notification_type, 120),
@@ -321,6 +402,12 @@ function buildPushMessage(row: DeliveryLogRow) {
     data[key] = normalized;
   }
 
+  if (surveyMessage) {
+    const matchName = resolveSurveyMatchName(payload as Record<string, unknown>);
+    data.match_name = matchName;
+    data.partido_nombre = matchName;
+  }
+
   return { title, body, data };
 }
 
@@ -335,6 +422,29 @@ function getTokenSuffix(token: string): string {
   const normalized = String(token || "").trim();
   if (!normalized) return "";
   return normalized.length > 8 ? normalized.slice(-8) : normalized;
+}
+
+function dedupeTokensByDevice(tokens: DeviceTokenRow[]): DeviceTokenRow[] {
+  const deduped: DeviceTokenRow[] = [];
+  const seenKeys = new Set<string>();
+
+  for (const tokenRow of tokens) {
+    const deviceId = String(tokenRow.device_id || "").trim();
+    const platform = String(tokenRow.platform || "").trim().toLowerCase();
+
+    if (!deviceId || !platform) {
+      deduped.push(tokenRow);
+      continue;
+    }
+
+    const dedupeKey = `${platform}:${deviceId}`;
+    if (seenKeys.has(dedupeKey)) continue;
+
+    seenKeys.add(dedupeKey);
+    deduped.push(tokenRow);
+  }
+
+  return deduped;
 }
 
 function buildProviderFailureDetail(
@@ -1011,9 +1121,27 @@ serve(async (req) => {
         continue;
       }
 
+      const staleSurveySkip = resolveStaleSurveySkip(log);
+      if (staleSurveySkip) {
+        await supabase.rpc("finalize_push_delivery_attempt", {
+          p_log_id: log.id,
+          p_status: "skipped",
+          p_error_code: staleSurveySkip.errorCode,
+          p_error_text: staleSurveySkip.errorText,
+          p_provider_response_json: {
+            provider: "push",
+            worker_id: workerId,
+            survey_deadline_at: staleSurveySkip.deadlineAt,
+          },
+        });
+        summary.skipped += 1;
+        summary.rows.push({ id: log.id, status: "skipped", reason: staleSurveySkip.errorCode });
+        continue;
+      }
+
       const { data: tokenRows, error: tokenError } = await supabase
         .from("device_tokens")
-        .select("id, token, platform, provider, is_active, device_id")
+        .select("id, token, platform, provider, is_active, device_id, last_seen_at")
         .eq("user_id", log.user_id)
         .eq("is_active", true)
         .order("last_seen_at", { ascending: false })
@@ -1061,9 +1189,11 @@ serve(async (req) => {
         continue;
       }
 
-      const sendableTokens = activeTokens.filter((tokenRow) => resolveTokenProvider(tokenRow) !== null);
-      const unsupportedTokenRows = activeTokens.filter((tokenRow) => resolveTokenProvider(tokenRow) === null);
+      const dedupedActiveTokens = dedupeTokensByDevice(activeTokens);
+      const sendableTokens = dedupedActiveTokens.filter((tokenRow) => resolveTokenProvider(tokenRow) !== null);
+      const unsupportedTokenRows = dedupedActiveTokens.filter((tokenRow) => resolveTokenProvider(tokenRow) === null);
       const unsupportedTokens = unsupportedTokenRows.length;
+      const dedupedTokenCount = dedupedActiveTokens.length;
       const providerAttemptedCounts = sendableTokens.reduce((acc, tokenRow) => {
         const provider = resolveTokenProvider(tokenRow);
         if (provider) acc[provider] = (acc[provider] ?? 0) + 1;
@@ -1080,6 +1210,7 @@ serve(async (req) => {
             provider: "push",
             worker_id: workerId,
             token_count: activeTokens.length,
+            deduped_token_count: dedupedTokenCount,
             unsupported_provider_count: unsupportedTokens,
           },
         });
@@ -1100,6 +1231,8 @@ serve(async (req) => {
             provider: "push",
             worker_id: workerId,
             tokens_attempted: sendableTokens.length,
+            token_count: activeTokens.length,
+            deduped_token_count: dedupedTokenCount,
             unsupported_provider_count: unsupportedTokens,
             providers_attempted: providerAttemptedCounts,
             title: message.title,
@@ -1254,7 +1387,7 @@ serve(async (req) => {
         nextRetryAt = computeNextRetryAt(log.attempt_count, config.initialBackoffSeconds, config.maxBackoffSeconds);
       } else {
         finalStatus = "failed";
-        if (invalidTokenCount === activeTokens.length) {
+        if (invalidTokenCount === dedupedTokenCount) {
           finalErrorCode = "all_tokens_invalid";
         } else {
           finalErrorCode = retryableCount > 0 ? "max_attempts_reached" : "provider_failed";
@@ -1273,6 +1406,7 @@ serve(async (req) => {
           provider: "push",
           worker_id: workerId,
           token_count: activeTokens.length,
+          deduped_token_count: dedupedTokenCount,
           sendable_token_count: sendableTokens.length,
           unsupported_provider_count: unsupportedTokens,
           providers_attempted: providerAttemptedCounts,
@@ -1297,6 +1431,7 @@ serve(async (req) => {
         status: finalStatus,
         sent_count: sentCount,
         token_count: activeTokens.length,
+        deduped_token_count: dedupedTokenCount,
         sendable_token_count: sendableTokens.length,
         providers_attempted: providerAttemptedCounts,
         retryable_count: retryableCount,

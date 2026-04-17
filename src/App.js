@@ -8,6 +8,7 @@ import { Browser } from '@capacitor/browser';
 import ErrorBoundary from './components/ErrorBoundary';
 import GlobalErrorBoundary from './components/GlobalErrorBoundary';
 import AuthProvider, { useAuth } from './components/AuthProvider';
+import usePendingAuthFlow from './hooks/usePendingAuthFlow';
 import LoadingSpinner from './components/LoadingSpinner';
 import GlobalNoticeModal from './components/GlobalNoticeModal';
 // NotificationsDebugPanel removed
@@ -17,6 +18,12 @@ import { initNativePushNotifications } from './hooks/useNativeFeatures';
 import { useNotificationRedirect } from './hooks/useNotificationRedirect';
 import { useRouteScrollReset } from './hooks/useScrollReset';
 import { setAuthReturnTo } from './utils/authReturnTo';
+import {
+  clearPendingAuthFlow,
+  markPendingAuthCallbackReceived,
+  readPendingAuthFlow,
+  setAuthFlowResult,
+} from './utils/authFlowState';
 import { track } from './utils/monitoring/analytics';
 
 
@@ -328,9 +335,17 @@ function NativeAuthDeepLinkBootstrap() {
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return undefined;
 
+    const BROWSER_CANCEL_GRACE_MS = 1200;
     let isDisposed = false;
     let listenerHandle = null;
+    let browserHandle = null;
+    let browserFinishedTimeoutId = null;
     const handledUrls = new Set();
+    const clearBrowserFinishedTimeout = () => {
+      if (browserFinishedTimeoutId === null) return;
+      window.clearTimeout(browserFinishedTimeoutId);
+      browserFinishedTimeoutId = null;
+    };
     const stringifyAuthDetails = (details) => {
       try {
         return JSON.stringify(details, (_key, value) => {
@@ -372,6 +387,9 @@ function NativeAuthDeepLinkBootstrap() {
         isOauthCallback,
         alreadyHandled,
       });
+      if (isOauthCallback) {
+        clearBrowserFinishedTimeout();
+      }
       if (!rawUrl || alreadyHandled) return;
 
       let parsed;
@@ -417,6 +435,7 @@ function NativeAuthDeepLinkBootstrap() {
       if (!isOauthCallback) return;
 
       handledUrls.add(rawUrl);
+      markPendingAuthCallbackReceived({ callbackUrl: rawUrl });
       logAuth('browser_close_requested', { rawUrl });
       try {
         Browser.close()
@@ -469,6 +488,56 @@ function NativeAuthDeepLinkBootstrap() {
 
     (async () => {
       try {
+        browserHandle = await Browser.addListener('browserFinished', () => {
+          if (isDisposed) return;
+
+          const pendingFlow = readPendingAuthFlow();
+          if (!pendingFlow) return;
+          if (pendingFlow.status === 'callback_received' || pendingFlow.status === 'session_restored') {
+            return;
+          }
+
+          clearBrowserFinishedTimeout();
+          warnAuth('browser_finished_waiting_for_callback', {
+            provider: pendingFlow.provider,
+            status: pendingFlow.status,
+          });
+          const pendingFlowId = pendingFlow.id;
+
+          browserFinishedTimeoutId = window.setTimeout(() => {
+            browserFinishedTimeoutId = null;
+            if (isDisposed) return;
+
+            const latestPendingFlow = readPendingAuthFlow();
+            if (!latestPendingFlow) return;
+            if (latestPendingFlow.id !== pendingFlowId) return;
+            if (
+              latestPendingFlow.status === 'callback_received'
+              || latestPendingFlow.status === 'session_restored'
+            ) {
+              return;
+            }
+
+            warnAuth('browser_finished_without_callback_after_grace', {
+              provider: latestPendingFlow.provider,
+              status: latestPendingFlow.status,
+              graceMs: BROWSER_CANCEL_GRACE_MS,
+            });
+            clearPendingAuthFlow();
+            setAuthFlowResult({
+              type: 'cancelled',
+              provider: latestPendingFlow.provider,
+              message: 'Inicio de sesión cancelado.',
+            });
+          }, BROWSER_CANCEL_GRACE_MS);
+        });
+      } catch (error) {
+        warnAuth('browser_listener_failed', {
+          message: error?.message || String(error),
+        });
+      }
+
+      try {
         logAuth('appUrlOpen_listener_ready');
         listenerHandle = await CapacitorApp.addListener('appUrlOpen', ({ url }) => {
           logAuth('appUrlOpen_received', { url: String(url || '') });
@@ -498,8 +567,12 @@ function NativeAuthDeepLinkBootstrap() {
 
     return () => {
       isDisposed = true;
+      clearBrowserFinishedTimeout();
       if (listenerHandle?.remove) {
         listenerHandle.remove();
+      }
+      if (browserHandle?.remove) {
+        browserHandle.remove();
       }
     };
   }, []);
@@ -511,11 +584,21 @@ function NativeAuthDeepLinkBootstrap() {
 export function AppAuthWrapper() {
   const { user, loading, authResolved } = useAuth();
   const location = useLocation();
+  const pendingAuthFlow = usePendingAuthFlow();
   const localEditMode = process.env.NODE_ENV === 'development' && process.env.REACT_APP_LOCAL_EDIT_MODE !== 'false';
   const shouldPassThroughWhileLoading = loading && process.env.NODE_ENV !== 'production';
+  const isCompletingAuth = Boolean(!user && pendingAuthFlow);
 
   if (shouldPassThroughWhileLoading) {
     return <Outlet />;
+  }
+
+  if (isCompletingAuth) {
+    return (
+      <div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center">
+        <LoadingSpinner size="large" />
+      </div>
+    );
   }
 
   // Local development shortcut: avoid external auth redirects while editing UI.
