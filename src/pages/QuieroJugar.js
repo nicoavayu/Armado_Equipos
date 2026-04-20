@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useDeferredValue, useCallback } from 'react';
+import { friendlyError } from '../utils/friendlyError';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { useAuth } from '../components/AuthProvider';
@@ -298,7 +299,7 @@ const QuieroJugar = ({
     } catch (error) {
       if (requestId !== matchesRequestRef.current) return;
       setMatchesError(error.message || 'No se pudieron cargar los partidos.');
-      notifyBlockingError('Error cargando partidos: ' + error.message);
+      notifyBlockingError(friendlyError(error, 'No se pudieron cargar los partidos. Intentá de nuevo.'));
     } finally {
       if (requestId === matchesRequestRef.current) {
         setLoading(false);

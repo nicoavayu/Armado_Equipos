@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthProvider';
 import { updateProfile, calculateProfileCompletion, uploadFoto, supabase } from '../supabase';
+import { friendlyError } from '../utils/friendlyError';
 import AvatarWithProgress from './AvatarWithProgress';
 import ModernToggle from './ModernToggle';
 import PartidosPendientesNotification from './PartidosPendientesNotification';
@@ -120,7 +121,7 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
 
     } catch (error) {
       console.error('Error uploading photo:', error);
-      notifyBlockingError('Error subiendo foto: ' + error.message);
+      notifyBlockingError(friendlyError(error, 'No se pudo subir la foto. Intentá de nuevo.'));
     } finally {
       setLoading(false);
     }
@@ -187,7 +188,7 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
 
       await refreshProfile();
     } catch (error) {
-      notifyBlockingError('Error actualizando perfil: ' + error.message);
+      notifyBlockingError(friendlyError(error, 'No se pudo actualizar el perfil. Intentá de nuevo.'));
     } finally {
       setLoading(false);
     }
@@ -251,7 +252,7 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
       onClose();
       navigate('/login', { replace: true });
     } catch (error) {
-      notifyBlockingError(`Error cerrando sesión: ${error?.message || 'desconocido'}`);
+      notifyBlockingError(friendlyError(error, 'No se pudo cerrar sesión. Intentá de nuevo.'));
     } finally {
       setLogoutInFlight(false);
     }

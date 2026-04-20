@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthProvider';
 import { updateProfile, calculateProfileCompletion, supabase } from '../supabase';
+import { friendlyError } from '../utils/friendlyError';
 import ProfileCard from './ProfileCard';
 import ConfirmModal from './ConfirmModal';
 import InlineNotice from './ui/InlineNotice';
@@ -772,7 +773,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
 
     } catch (error) {
       console.error('Error uploading photo:', error);
-      notifyBlockingError('Error subiendo foto: ' + error.message);
+      notifyBlockingError(friendlyError(error, 'No se pudo subir la foto. Intentá de nuevo.'));
 
       setLiveProfile((prev) => ({
         ...prev,
@@ -811,7 +812,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
       const updatedProfile = await updateProfile(user.id, profileDataToSave);
 
       if (updatedProfile?.error) {
-        notifyBlockingError('Error guardando perfil: ' + updatedProfile.error.message);
+        notifyBlockingError(friendlyError(updatedProfile.error, 'No se pudo guardar el perfil. Intentá de nuevo.'));
         return;
       }
 
@@ -826,7 +827,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
       setHasChanges(false);
       onClose();
     } catch (error) {
-      notifyBlockingError('Error guardando perfil: ' + error.message);
+      notifyBlockingError(friendlyError(error, 'No se pudo guardar el perfil. Intentá de nuevo.'));
     } finally {
       setLoading(false);
     }
@@ -875,7 +876,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
       onClose();
       navigate('/login', { replace: true });
     } catch (error) {
-      notifyBlockingError(`Error cerrando sesión: ${error.message}`);
+      notifyBlockingError(friendlyError(error, 'No se pudo cerrar sesión. Intentá de nuevo.'));
     } finally {
       setLoading(false);
     }
@@ -952,7 +953,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
       onClose();
       navigate('/login', { replace: true });
     } catch (error) {
-      notifyBlockingError(`Error eliminando cuenta: ${error.message}`);
+      notifyBlockingError(friendlyError(error, 'No se pudo eliminar la cuenta. Intentá de nuevo más tarde.'));
     } finally {
       setLoading(false);
     }

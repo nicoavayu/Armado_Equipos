@@ -1,4 +1,5 @@
 import { notifyBlockingError } from 'utils/notifyBlockingError';
+import { friendlyError } from 'utils/friendlyError';
 // src/components/ProfileCardModal.js
 import React, { useState, useEffect, useRef } from 'react';
 import Modal from './Modal';
@@ -460,7 +461,7 @@ const ProfileCardModal = ({
       // NO cerrar el modal, mantenerlo abierto para que vea los cambios
     } catch (error) {
       console.error('[MAKE_ADMIN] Error during admin transfer:', error);
-      notifyBlockingError('Error al asignar admin: ' + (error.message || 'intenta de nuevo'));
+      notifyBlockingError(friendlyError(error, 'No se pudo asignar el admin. Intentá de nuevo.'));
     } finally {
       setIsAdminLoading(false);
     }

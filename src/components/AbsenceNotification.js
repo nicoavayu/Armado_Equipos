@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { friendlyError } from '../utils/friendlyError';
 import { recordAbsenceNotification } from '../services/absenceService';
 import InlineNotice from './ui/InlineNotice';
 import useInlineNotice from '../hooks/useInlineNotice';
@@ -65,7 +66,7 @@ const AbsenceNotification = ({ userId, partidoId, onClose, onSuccess }) => {
       }
     } catch (error) {
       console.error('Error recording absence:', error);
-      notifyBlockingError('Error al registrar la ausencia: ' + error.message);
+      notifyBlockingError(friendlyError(error, 'No se pudo registrar la ausencia. Intentá de nuevo.'));
     } finally {
       setSubmitting(false);
     }

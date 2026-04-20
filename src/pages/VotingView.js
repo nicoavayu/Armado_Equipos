@@ -1,4 +1,5 @@
 import { notifyBlockingError } from 'utils/notifyBlockingError';
+import { friendlyError } from 'utils/friendlyError';
 // src/VotingView.js
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
@@ -875,7 +876,7 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
         setFotoPreview(fotoUrl);
         showInlineNotice('success', 'Foto cargada.');
       } catch (error) {
-        notifyBlockingError('Error al subir la foto: ' + error.message);
+        notifyBlockingError(friendlyError(error, 'No se pudo subir la foto. Intentá de nuevo.'));
       } finally {
         setSubiendoFoto(false);
         e.target.value = '';

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { friendlyError } from '../../utils/friendlyError';
 import { supabase } from '../../supabase';
 import LoadingSpinner from '../LoadingSpinner';
 import { Check, Loader2, X } from 'lucide-react';
@@ -175,7 +176,7 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted, onRequestResolve
 
             if (approvalError) {
                 console.error('[ACCEPT] approve-join-request error:', approvalError);
-                notifyBlockingError(`Error al aceptar: ${approvalError.message}`);
+                notifyBlockingError(friendlyError(approvalError, 'No se pudo aprobar la solicitud. Intentá de nuevo.'));
                 throw approvalError;
             }
 

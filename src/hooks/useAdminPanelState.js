@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { friendlyError } from '../utils/friendlyError';
 import { getVotantesIds, getVotantesConNombres, getJugadoresDelPartido, hasRecordedVotes, removePlayerVotesFromMatch, supabase } from '../supabase';
 import { toBigIntId } from '../utils';
 import { incrementMatchesAbandoned, canAbandonWithoutPenalty } from '../utils/matchStatsManager';
@@ -489,7 +490,7 @@ export const useAdminPanelState = ({
         return false;
       }
 
-      notifyBlockingError('Error agregando jugador: ' + error.message);
+      notifyBlockingError(friendlyError(error, 'No se pudo agregar el jugador. Intentá de nuevo.'));
       return false;
     } finally {
       setLoading(false);
@@ -738,7 +739,7 @@ export const useAdminPanelState = ({
       return true;
     } catch (error) {
       console.error('[LEAVE_MATCH] Unexpected error:', error);
-      notifyBlockingError('Error eliminando jugador: ' + error.message);
+      notifyBlockingError(friendlyError(error, 'No se pudo eliminar el jugador. Intentá de nuevo.'));
       return false;
     } finally {
       setLoading(false);
@@ -940,7 +941,7 @@ export const useAdminPanelState = ({
       if (error.message && error.message.includes('row-level security policy')) {
         console.warn('Suppressing RLS error during join sync (expected for non-admins):', error);
       } else {
-        notifyBlockingError('Error al unirse al partido: ' + error.message);
+        notifyBlockingError(friendlyError(error, 'No se pudo unir al partido. Intentá de nuevo.'));
       }
       return false;
     } finally {
@@ -994,7 +995,7 @@ export const useAdminPanelState = ({
       setInlineNotice('success', 'Te sumaste al partido');
     } catch (error) {
       console.error("Error uniéndose:", error);
-      notifyBlockingError("No se pudo unir: " + error.message);
+      notifyBlockingError(friendlyError(error, 'No se pudo unir al partido. Intentá de nuevo.'));
     } finally {
       setLoading(false);
     }
@@ -1052,7 +1053,7 @@ export const useAdminPanelState = ({
       onBackToHome();
 
     } catch (error) {
-      notifyBlockingError('Error al rechazar invitación: ' + error.message);
+      notifyBlockingError(friendlyError(error, 'No se pudo rechazar la invitación. Intentá de nuevo.'));
     } finally {
       setInvitationLoading(false);
     }
@@ -1116,7 +1117,7 @@ export const useAdminPanelState = ({
         'Partido cerrado a nuevos jugadores',
       );
     } catch (error) {
-      notifyBlockingError('Error al actualizar el partido: ' + error.message);
+      notifyBlockingError(friendlyError(error, 'No se pudo actualizar el partido. Intentá de nuevo.'));
     }
   };
 

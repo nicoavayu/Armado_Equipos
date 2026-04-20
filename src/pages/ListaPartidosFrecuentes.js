@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { friendlyError } from '../utils/friendlyError';
 import { useNavigate } from 'react-router-dom';
 import { crearPartido, supabase } from '../supabase';
 import PageTitle from '../components/PageTitle';
@@ -370,7 +371,7 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
         });
 
       } catch (error) {
-        notifyBlockingError('Error al cargar plantillas frecuentes: ' + (error?.message || error));
+        notifyBlockingError(friendlyError(error, 'No se pudieron cargar las plantillas. Intentá de nuevo.'));
       } finally {
         setLoading(false);
       }
@@ -455,7 +456,7 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
       });
     } catch (err) {
       console.error('[ELIMINAR HISTORIAL] unexpected error', err);
-      notifyBlockingError('Error al eliminar la plantilla: ' + (err?.message || String(err)));
+      notifyBlockingError(friendlyError(err, 'No se pudo eliminar la plantilla. Intentá de nuevo.'));
     } finally {
       setIsDeleting(false);
       setShowConfirmModal(false);

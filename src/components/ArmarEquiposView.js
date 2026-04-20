@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { friendlyError } from '../utils/friendlyError';
 import { useNavigate } from 'react-router-dom';
 import { getPublicBaseUrl } from '../utils/publicBaseUrl';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
@@ -358,7 +359,7 @@ export default function ArmarEquiposView({
 
       if (res?.error) {
         console.error('[Teams] sendVotingNotifications error result', res.error);
-        notifyBlockingError('No se pudo iniciar la votación: ' + (res.error.message || 'Error desconocido'));
+        notifyBlockingError(friendlyError(res.error, 'No se pudo iniciar la votación. Intentá de nuevo.'));
         return;
       }
 
@@ -422,7 +423,7 @@ export default function ArmarEquiposView({
 
     } catch (error) {
       console.error('[Teams] call-to-vote failed', error);
-      notifyBlockingError('No se pudo iniciar la votación: ' + (error.message || 'Error desconocido'));
+      notifyBlockingError(friendlyError(error, 'No se pudo iniciar la votación. Intentá de nuevo.'));
     } finally {
       setCalling(false);
     }
@@ -475,7 +476,7 @@ export default function ArmarEquiposView({
 
     } catch (error) {
       console.error('[Teams] reset-voting failed', error);
-      notifyBlockingError('No se pudo resetear la votación: ' + (error.message || 'Error desconocido'));
+      notifyBlockingError(friendlyError(error, 'No se pudo resetear la votación. Intentá de nuevo.'));
     } finally {
       setResetting(false);
     }
@@ -907,7 +908,7 @@ export default function ArmarEquiposView({
       onJugadoresChange(jugadoresPartido);
 
     } catch (error) {
-      notifyBlockingError('Error eliminando jugador: ' + error.message);
+      notifyBlockingError(friendlyError(error, 'No se pudo eliminar el jugador. Intentá de nuevo.'));
     } finally {
       setLoading(false);
     }

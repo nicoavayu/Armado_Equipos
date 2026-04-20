@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { friendlyError } from '../utils/friendlyError';
 import { useAuth } from '../components/AuthProvider';
 import AutocompleteSede from '../components/AutocompleteSede';
 import { crearPartido, supabase } from '../supabase';
@@ -291,7 +292,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
 
             if (insertError) {
               console.error('[CREAR_PARTIDO] Error insert jugador creador:', insertError);
-              notifyBlockingError('No pude agregarte como jugador: ' + insertError.message);
+              notifyBlockingError(friendlyError(insertError, 'No te pudimos agregar como jugador. Intentá de nuevo.'));
             }
           }
         } catch (err) {

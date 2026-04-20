@@ -1,4 +1,5 @@
 import { notifyBlockingError } from 'utils/notifyBlockingError';
+import { friendlyError } from 'utils/friendlyError';
 // src/components/InjuryModal.js
 import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
@@ -101,7 +102,7 @@ const InjuryModal = ({ isOpen, onClose, onSaved }) => {
       setActiveLesion(null);
     } catch (error) {
       console.error('Error marking as recovered:', error);
-      notifyBlockingError(`Error al marcar como recuperado: ${error.message}`);
+      notifyBlockingError(friendlyError(error, 'No se pudo registrar la recuperación. Intentá de nuevo.'));
     } finally {
       setLoading(false);
     }
