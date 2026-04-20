@@ -25,6 +25,67 @@ function corsHeaders(req: Request) {
   };
 }
 
+// Best-effort cleanup — logs but never throws.
+async function cleanupUserData(
+  // deno-lint-ignore no-explicit-any
+  adminClient: any,
+  userId: string,
+): Promise<void> {
+  const steps: Array<{ label: string; fn: () => Promise<unknown> }> = [
+    // Remove user from matches they were in (junction table)
+    {
+      label: "partidos_jugadores",
+      fn: () => adminClient.from("partidos_jugadores").delete().eq("jugador_id", userId),
+    },
+    // Remove player rows linked to user
+    {
+      label: "jugadores",
+      fn: () => adminClient.from("jugadores").delete().eq("usuario_id", userId),
+    },
+    // Remove votes cast by or about this user
+    {
+      label: "votos_votante",
+      fn: () => adminClient.from("votos").delete().eq("votante_id", userId),
+    },
+    {
+      label: "votos_votado",
+      fn: () => adminClient.from("votos").delete().eq("votado_id", userId),
+    },
+    // Remove friend relationships
+    {
+      label: "amigos_user",
+      fn: () => adminClient.from("amigos").delete().eq("user_id", userId),
+    },
+    {
+      label: "amigos_friend",
+      fn: () => adminClient.from("amigos").delete().eq("friend_id", userId),
+    },
+    // Orphan matches created by this user (preserve match data, remove user ref)
+    {
+      label: "partidos_creado_por",
+      fn: () => adminClient.from("partidos").update({ creado_por: null }).eq("creado_por", userId),
+    },
+    // Remove notifications
+    {
+      label: "notifications",
+      fn: () => adminClient.from("notifications").delete().eq("user_id", userId),
+    },
+    // Remove profiles row (Supabase default table)
+    {
+      label: "profiles",
+      fn: () => adminClient.from("profiles").delete().eq("id", userId),
+    },
+  ];
+
+  for (const step of steps) {
+    try {
+      await step.fn();
+    } catch (err) {
+      console.warn(`[delete-account] cleanup step "${step.label}" failed (non-fatal):`, err);
+    }
+  }
+}
+
 serve(async (req) => {
   const cors = corsHeaders(req);
 
@@ -92,7 +153,10 @@ serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // Best-effort cleanup of profile row and dependent relational data.
+    // Clean up dependent data before deleting the root row.
+    await cleanupUserData(adminClient, user.id);
+
+    // Delete main profile row.
     const { error: profileDeleteError } = await adminClient
       .from("usuarios")
       .delete()
@@ -109,6 +173,7 @@ serve(async (req) => {
       );
     }
 
+    // Delete the auth user last (cascades auth-referenced tables).
     const { error: deleteAuthError } = await adminClient.auth.admin.deleteUser(user.id);
     if (deleteAuthError) {
       return new Response(
