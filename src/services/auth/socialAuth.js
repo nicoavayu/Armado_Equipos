@@ -46,8 +46,8 @@ const createRandomToken = () => {
 };
 
 const createSha256Hex = async (value) => {
-  const cryptoApi = globalThis.crypto;
-  const textEncoder = globalThis.TextEncoder;
+  const cryptoApi = typeof crypto !== 'undefined' ? crypto : null;
+  const textEncoder = typeof TextEncoder !== 'undefined' ? TextEncoder : null;
 
   if (
     typeof cryptoApi === 'undefined'
@@ -82,10 +82,12 @@ const stringifyAuthDetails = (details) => {
 };
 
 const logAuth = (event, details = {}) => {
+  if (process.env.NODE_ENV === 'production') return;
   console.info(`[AUTH] ${event} ${stringifyAuthDetails(details)}`);
 };
 
 const warnAuth = (event, details = {}) => {
+  if (process.env.NODE_ENV === 'production') return;
   console.warn(`[AUTH] ${event} ${stringifyAuthDetails(details)}`);
 };
 
