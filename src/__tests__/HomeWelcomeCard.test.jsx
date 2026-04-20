@@ -1,7 +1,7 @@
-jest.mock('../Logo.png', () => 'logo-mock');
-
 import { fireEvent, render, screen } from '@testing-library/react';
 import HomeWelcomeCard, { HOME_WELCOME_CARD_SEEN_KEY } from '../components/HomeWelcomeCard';
+
+jest.mock('../Logo.png', () => 'logo-mock');
 
 describe('HomeWelcomeCard', () => {
   beforeEach(() => {
