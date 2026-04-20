@@ -935,7 +935,8 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
       }
 
       if (!data?.ok) {
-        throw new Error(data?.message || 'No se pudo eliminar la cuenta.');
+        const detail = [data?.details, data?.code, data?.hint].filter(Boolean).join(' | ');
+        throw new Error(`${data?.message || 'No se pudo eliminar la cuenta.'}${detail ? ` — ${detail}` : ''}`);
       }
 
       setShowDeleteAccountModal(false);

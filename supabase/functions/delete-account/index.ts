@@ -51,6 +51,20 @@ async function cleanupUserData(
       label: "votos_votado",
       fn: () => adminClient.from("votos").delete().eq("votado_id", userId),
     },
+    // Remove public votes
+    {
+      label: "votos_publicos_votante",
+      fn: () => adminClient.from("votos_publicos").delete().eq("votante_id", userId),
+    },
+    {
+      label: "votos_publicos_votado",
+      fn: () => adminClient.from("votos_publicos").delete().eq("votado_id", userId),
+    },
+    // Remove post-match surveys submitted by this user
+    {
+      label: "post_match_surveys",
+      fn: () => adminClient.from("post_match_surveys").delete().eq("votante_id", userId),
+    },
     // Remove friend relationships
     {
       label: "amigos_user",
@@ -69,6 +83,10 @@ async function cleanupUserData(
     {
       label: "notifications",
       fn: () => adminClient.from("notifications").delete().eq("user_id", userId),
+    },
+    {
+      label: "notifications_user_id",
+      fn: () => adminClient.from("notifications_ext").delete().eq("user_id", userId),
     },
     // Remove profiles row (Supabase default table)
     {
@@ -168,6 +186,8 @@ serve(async (req) => {
           ok: false,
           message: "profile_delete_failed",
           details: profileDeleteError.message,
+          code: profileDeleteError.code,
+          hint: profileDeleteError.hint,
         }),
         { status: 500, headers: { ...cors, "Content-Type": "application/json" } },
       );
@@ -181,6 +201,7 @@ serve(async (req) => {
           ok: false,
           message: "auth_delete_failed",
           details: deleteAuthError.message,
+          code: (deleteAuthError as { code?: string }).code,
         }),
         { status: 500, headers: { ...cors, "Content-Type": "application/json" } },
       );
