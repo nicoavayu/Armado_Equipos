@@ -931,7 +931,12 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
       });
 
       if (error) {
-        throw new Error(error.message || 'No se pudo eliminar la cuenta.');
+        let serverMsg = '';
+        try {
+          const body = await error.context?.json?.();
+          serverMsg = [body?.message, body?.details, body?.code, body?.hint].filter(Boolean).join(' | ');
+        } catch (_) {}
+        throw new Error(serverMsg || error.message || 'No se pudo eliminar la cuenta.');
       }
 
       if (!data?.ok) {
