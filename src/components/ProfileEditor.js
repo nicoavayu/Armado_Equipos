@@ -959,6 +959,8 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
       onClose();
       navigate('/login', { replace: true });
     } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('[DELETE_ACCOUNT] raw error:', error?.message, error);
       notifyBlockingError(friendlyError(error, 'No se pudo eliminar la cuenta. Intentá de nuevo más tarde.'));
     } finally {
       setLoading(false);
