@@ -18,6 +18,7 @@ import { initNativePushNotifications } from './hooks/useNativeFeatures';
 import { useNotificationRedirect } from './hooks/useNotificationRedirect';
 import { useRouteScrollReset } from './hooks/useScrollReset';
 import { setAuthReturnTo } from './utils/authReturnTo';
+import { warmLikelyRoutes } from './utils/routePrefetch';
 import {
   clearPendingAuthFlow,
   markPendingAuthCallbackReceived,
@@ -84,6 +85,7 @@ export default function App() {
                 <NativePushBootstrap />
                 <NotificationRedirectBootstrap />
                 <NativeAuthDeepLinkBootstrap />
+                <RoutePrefetchBootstrap />
                 <ScrollToTop />
                 <RouteAnalyticsTracker />
                 <Routes>
@@ -662,6 +664,23 @@ function HealthRoute() {
 
 function ScrollToTop() {
   useRouteScrollReset();
+  return null;
+}
+
+function RoutePrefetchBootstrap() {
+  const { user, authResolved } = useAuth();
+  const location = useLocation();
+
+  React.useEffect(() => {
+    if (!authResolved || !user?.id) return undefined;
+
+    const likelyRoutes = location.pathname === '/' || location.pathname === '/home'
+      ? ['/quiero-jugar', '/desafios', '/amigos', '/profile', '/notifications']
+      : ['/', '/notifications'];
+
+    return warmLikelyRoutes(likelyRoutes);
+  }, [authResolved, location.pathname, user?.id]);
+
   return null;
 }
 

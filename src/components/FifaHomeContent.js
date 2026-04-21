@@ -16,6 +16,7 @@ import ProximosPartidos from './ProximosPartidos';
 import NotificationsBell from './NotificationsBell';
 import HomeWelcomeCard from './HomeWelcomeCard';
 import { useRefreshOnVisibility } from '../hooks/useRefreshOnVisibility';
+import { prefetchRoute } from '../utils/routePrefetch';
 
 const activityIconMap = {
   Activity,
@@ -39,6 +40,7 @@ const severityIconClass = {
 
 const AWARDS_RING_WINDOW_MS = 24 * 60 * 60 * 1000;
 const HOME_ACTIVE_MATCHES_REFRESH_MS = 60000;
+const HOME_SNAPSHOT_STORAGE_PREFIX = 'home:snapshot:v1:';
 const normalizeNotificationType = (notificationType) => String(notificationType || '').trim().toLowerCase();
 export const isAwardsRingNotificationType = (notificationType) => (
   AWARDS_READY_NOTIFICATION_TYPES.has(normalizeNotificationType(notificationType))
@@ -81,6 +83,60 @@ const isCancelledChallengeStatus = (statusValue) => {
 };
 
 const isAwardsReadyAndVisible = (row) => isAwardsReadyStatus(row);
+
+const getHomeSnapshotStorageKey = (userId) => `${HOME_SNAPSHOT_STORAGE_PREFIX}${String(userId || '').trim()}`;
+
+const buildActiveMatchesSignature = (matches = []) => JSON.stringify(
+  (Array.isArray(matches) ? matches : []).map((match) => ({
+    id: match?.id ?? null,
+    partido_id: match?.partido_id ?? null,
+    source_type: match?.source_type ?? null,
+    status: match?.status ?? null,
+    team_match_status: match?.team_match_status ?? null,
+    fecha: match?.fecha ?? null,
+    hora: match?.hora ?? null,
+    scheduled_at: match?.scheduled_at ?? null,
+  })),
+);
+
+const readHomeSnapshot = (userId) => {
+  if (typeof window === 'undefined') return null;
+
+  const storageKey = getHomeSnapshotStorageKey(userId);
+  if (!storageKey.trim()) return null;
+
+  try {
+    const raw = window.localStorage.getItem(storageKey);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return null;
+
+    return {
+      activeMatches: Array.isArray(parsed.activeMatches) ? parsed.activeMatches : [],
+      activityItems: Array.isArray(parsed.activityItems) ? parsed.activityItems : [],
+    };
+  } catch {
+    return null;
+  }
+};
+
+const writeHomeSnapshot = (userId, snapshot) => {
+  if (typeof window === 'undefined') return;
+
+  const storageKey = getHomeSnapshotStorageKey(userId);
+  if (!storageKey.trim()) return;
+
+  try {
+    window.localStorage.setItem(storageKey, JSON.stringify({
+      activeMatches: Array.isArray(snapshot?.activeMatches) ? snapshot.activeMatches : [],
+      activityItems: Array.isArray(snapshot?.activityItems) ? snapshot.activityItems : [],
+      savedAt: new Date().toISOString(),
+    }));
+  } catch {
+    // Ignore quota/private mode failures.
+  }
+};
 
 const extractWinnerIds = (row) => {
   const awards = row?.awards || {};
@@ -138,6 +194,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
   const statusDropdownMenuRef = useRef(null);
   const activityLoadedRef = useRef(false);
   const activeMatchesRefreshInFlightRef = useRef(false);
+  const activeMatchesSignatureRef = useRef(buildActiveMatchesSignature([]));
 
   const nowTs = Date.now();
   const awardsCandidateNotifs = (notifications || [])
@@ -234,6 +291,41 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
   }, [location.pathname, location.state, navigate]);
 
   useEffect(() => {
+    activityLoadedRef.current = false;
+    activeMatchesSignatureRef.current = buildActiveMatchesSignature([]);
+
+    if (!user?.id) {
+      setActiveMatches([]);
+      setActivityItems([]);
+      setActivityLoading(false);
+      return;
+    }
+
+    const snapshot = readHomeSnapshot(user.id);
+    if (!snapshot) {
+      setActiveMatches([]);
+      setActivityItems([]);
+      setActivityLoading(true);
+      return;
+    }
+
+    activeMatchesSignatureRef.current = buildActiveMatchesSignature(snapshot.activeMatches);
+    setActiveMatches(snapshot.activeMatches);
+    setActivityItems(snapshot.activityItems);
+    activityLoadedRef.current = true;
+    setActivityLoading(false);
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id || !activityLoadedRef.current) return;
+
+    writeHomeSnapshot(user.id, {
+      activeMatches,
+      activityItems,
+    });
+  }, [activeMatches, activityItems, user?.id]);
+
+  useEffect(() => {
     let cancelled = false;
 
     const validateAwardsRing = async () => {
@@ -321,6 +413,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
 
   const fetchActiveMatches = useCallback(async () => {
     if (!user) {
+      activeMatchesSignatureRef.current = buildActiveMatchesSignature([]);
       setActiveMatches([]);
       return;
     }
@@ -332,41 +425,46 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
     activeMatchesRefreshInFlightRef.current = true;
 
     try {
-      // Usar la misma lógica que ProximosPartidos.js
-      const { data: jugadoresData, error: jugadoresError } = await supabase
-        .from('jugadores')
-        .select('partido_id')
-        .eq('usuario_id', user.id);
+      const [
+        jugadoresResponse,
+        partidosComoAdminResponse,
+        clearedMatchesResponse,
+        teamMatches,
+      ] = await Promise.all([
+        supabase
+          .from('jugadores')
+          .select('id, partido_id')
+          .eq('usuario_id', user.id),
+        supabase
+          .from('partidos')
+          .select('id')
+          .eq('creado_por', user.id),
+        supabase
+          .from('cleared_matches')
+          .select('partido_id')
+          .eq('user_id', user.id),
+        listMyTeamMatches(user.id, {
+          statuses: ['pending', 'confirmed'],
+        }),
+      ]);
 
-      if (jugadoresError) throw jugadoresError;
+      if (jugadoresResponse.error) throw jugadoresResponse.error;
+      if (partidosComoAdminResponse.error) throw partidosComoAdminResponse.error;
 
-      const partidosComoJugador = jugadoresData?.map((j) => j.partido_id) || [];
-
-      const { data: partidosComoAdmin, error: adminError } = await supabase
-        .from('partidos')
-        .select('id')
-        .eq('creado_por', user.id);
-
-      if (adminError) throw adminError;
-
-      const partidosAdminIds = partidosComoAdmin?.map((p) => p.id) || [];
+      const jugadoresData = jugadoresResponse.data || [];
+      const partidosComoJugador = jugadoresData.map((jugador) => jugador.partido_id);
+      const partidosAdminIds = (partidosComoAdminResponse.data || []).map((partido) => partido.id);
       const todosLosPartidosIds = Array.from(new Set([...partidosComoJugador, ...partidosAdminIds]))
         .filter((id) => id != null);
 
-      // Obtener cleared matches
       let clearedMatchIds = new Set();
       try {
-        const { data: clearedData, error: clearedError } = await supabase
-          .from('cleared_matches')
-          .select('partido_id')
-          .eq('user_id', user.id);
-
-        if (clearedError) {
+        if (clearedMatchesResponse.error) {
           const key = `cleared_matches_${user.id}`;
           const existing = JSON.parse(localStorage.getItem(key) || '[]');
           clearedMatchIds = new Set(existing.map((v) => String(v)));
         } else {
-          clearedMatchIds = new Set((clearedData?.map((c) => String(c.partido_id)) || []));
+          clearedMatchIds = new Set(((clearedMatchesResponse.data || []).map((row) => String(row.partido_id)) || []));
         }
       } catch (error) {
         const key = `cleared_matches_${user.id}`;
@@ -374,16 +472,10 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
         clearedMatchIds = new Set(existing.map((v) => String(v)));
       }
 
-      // Obtener completed surveys
       let completedSurveys = new Set();
       try {
-        const { data: userJugadorIdsData } = await supabase
-          .from('jugadores')
-          .select('id, partido_id')
-          .eq('usuario_id', user.id);
-
-        if (userJugadorIdsData?.length > 0) {
-          const jugadorIds = userJugadorIdsData.map((j) => j.id);
+        if (jugadoresData.length > 0) {
+          const jugadorIds = jugadoresData.map((jugador) => jugador.id).filter(Boolean);
           const { data: surveysData } = await supabase
             .from('post_match_surveys')
             .select('partido_id')
@@ -486,10 +578,6 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
       );
 
 
-      const teamMatches = await listMyTeamMatches(user.id, {
-        statuses: ['pending', 'confirmed'],
-      });
-
       const teamMatchesEnriquecidos = (teamMatches || []).map((match) => {
         if (isCancelledTeamMatchStatus(match?.status)) {
           return null;
@@ -553,7 +641,11 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
         return new Date() < parsed;
       });
 
-      setActiveMatches(visibleMatches);
+      const nextSignature = buildActiveMatchesSignature(visibleMatches);
+      if (activeMatchesSignatureRef.current !== nextSignature) {
+        activeMatchesSignatureRef.current = nextSignature;
+        setActiveMatches(visibleMatches);
+      }
     } catch (error) {
       console.error('Error fetching active matches:', error);
     } finally {
@@ -818,7 +910,13 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
 
       <div className="grid grid-cols-2 gap-3 mb-5 bg-transparent shadow-none">
         {/* Create New Match */}
-        <Link to="/nuevo-partido" className={cardClass}>
+        <Link
+          to="/nuevo-partido"
+          className={cardClass}
+          onMouseEnter={() => prefetchRoute('/nuevo-partido')}
+          onTouchStart={() => prefetchRoute('/nuevo-partido')}
+          onFocus={() => prefetchRoute('/nuevo-partido')}
+        >
           <div className="text-white font-oswald text-[18px] md:text-[20px] font-semibold leading-none drop-shadow-[0_2px_10px_rgba(129,120,229,0.5)] sm:text-[16px]">Partido<br />nuevo</div>
           <div className="absolute bottom-5 right-5 text-white/95 text-[28px] w-[52px] h-[52px] flex items-center justify-center sm:w-11 sm:h-11 sm:bottom-4 sm:right-4 sm:text-2xl">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" fill="currentColor" width={60} height={60}>
@@ -844,7 +942,13 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
         </div>
 
         {/* Frecuentes */}
-        <Link to="/frecuentes" className={cardClass}>
+        <Link
+          to="/frecuentes"
+          className={cardClass}
+          onMouseEnter={() => prefetchRoute('/frecuentes')}
+          onTouchStart={() => prefetchRoute('/frecuentes')}
+          onFocus={() => prefetchRoute('/frecuentes')}
+        >
           <div className="text-white font-oswald text-[18px] md:text-[20px] font-semibold leading-none drop-shadow-[0_2px_6px_rgba(0,0,0,0.11)] sm:text-[16px]">Frecuentes</div>
           <div className="absolute bottom-5 right-5 text-white/95 text-[28px] w-[52px] h-[52px] flex items-center justify-center sm:w-11 sm:h-11 sm:bottom-4 sm:right-4 sm:text-2xl">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" fill="currentColor" width={48} height={48}>
@@ -854,7 +958,13 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
         </Link>
 
         {/* Estadísticas */}
-        <Link to="/stats" className={cardClass}>
+        <Link
+          to="/stats"
+          className={cardClass}
+          onMouseEnter={() => prefetchRoute('/stats')}
+          onTouchStart={() => prefetchRoute('/stats')}
+          onFocus={() => prefetchRoute('/stats')}
+        >
           <div className="text-white font-oswald text-[18px] md:text-[20px] font-semibold leading-none drop-shadow-[0_2px_6px_rgba(0,0,0,0.11)] sm:text-[16px]">Estadísticas</div>
           <div className="absolute bottom-5 right-5 text-white/95 text-[28px] w-[52px] h-[52px] flex items-center justify-center sm:w-11 sm:h-11 sm:bottom-4 sm:right-4 sm:text-2xl">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" fill="currentColor" width={48} height={48}>
@@ -906,6 +1016,15 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
                           onClick={() => {
                             if (!canNavigate) return;
                             handleActivityItemClick(item);
+                          }}
+                          onMouseEnter={() => {
+                            if (canNavigate) prefetchRoute(item.route);
+                          }}
+                          onTouchStart={() => {
+                            if (canNavigate) prefetchRoute(item.route);
+                          }}
+                          onFocus={() => {
+                            if (canNavigate) prefetchRoute(item.route);
                           }}
                           className={`w-full flex items-start gap-3 px-3.5 py-3 rounded-none border border-white/20 text-left bg-white/[0.025] transition-colors ${
                             canNavigate

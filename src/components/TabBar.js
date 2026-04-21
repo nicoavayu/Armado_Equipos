@@ -13,6 +13,7 @@ import {
   IoPerson,
   IoPersonOutline,
 } from 'react-icons/io5';
+import { prefetchRoute } from '../utils/routePrefetch';
 
 const TabBar = ({ activeTab, onTabChange }) => {
   const navigate = useNavigate();
@@ -105,6 +106,9 @@ const TabBar = ({ activeTab, onTabChange }) => {
               type="button"
               aria-current={isActive ? 'page' : undefined}
               onClick={() => handleTabClick(tab)}
+              onMouseEnter={() => prefetchRoute(tab.href)}
+              onTouchStart={() => prefetchRoute(tab.href)}
+              onFocus={() => prefetchRoute(tab.href)}
               className={`group relative flex min-h-[42px] flex-1 flex-col items-center justify-center bg-transparent py-1.5 md:py-2 transition-[color,opacity,background-color] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 ${
                 index < tabs.length - 1 ? 'border-r border-white/10' : ''
               } ${isActive ? 'text-white' : 'text-white/70'}`}
