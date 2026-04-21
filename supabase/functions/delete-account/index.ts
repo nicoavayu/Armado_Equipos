@@ -62,9 +62,14 @@ function isMissingSchemaError(error: QueryError): boolean {
     || text.includes("schema cache");
 }
 
-function isMatchJoinRequestsFkError(error: QueryError): boolean {
+function isProfileDependencyFkError(error: QueryError): boolean {
   const text = describeQueryError(error).toLowerCase();
-  return error.code === "23503" && text.includes("match_join_requests");
+  return error.code === "23503"
+    && (
+      text.includes("match_join_requests")
+      || text.includes("jugadores")
+      || text.includes("amigos")
+    );
 }
 
 async function runCleanupStep(step: CleanupStep): Promise<void> {
@@ -141,15 +146,24 @@ async function cleanupUserData(
   userId: string,
 ): Promise<void> {
   const steps: CleanupStep[] = [
-    // Remove user from matches they were in (junction table)
+    // Preserve historical player rows, but remove the account link and identifying data.
     {
-      label: "partidos_jugadores",
-      fn: () => adminClient.from("partidos_jugadores").delete().eq("jugador_id", userId),
+      label: "jugadores_anonymize",
+      fn: () =>
+        adminClient
+          .from("jugadores")
+          .update({
+            usuario_id: null,
+            uuid: null,
+            nombre: "Usuario eliminado",
+            avatar_url: null,
+          })
+          .eq("usuario_id", userId),
     },
-    // Remove player rows linked to user
+    // Remove open availability rows for this auth user.
     {
-      label: "jugadores",
-      fn: () => adminClient.from("jugadores").delete().eq("usuario_id", userId),
+      label: "jugadores_sin_partido",
+      fn: () => adminClient.from("jugadores_sin_partido").delete().eq("user_id", userId),
     },
     // Remove votes cast by or about this user
     {
@@ -173,6 +187,15 @@ async function cleanupUserData(
     {
       label: "post_match_surveys",
       fn: () => adminClient.from("post_match_surveys").delete().eq("votante_id", userId),
+    },
+    // Preserve aggregate survey results while removing auth/user references.
+    {
+      label: "survey_results_user_id",
+      fn: () => adminClient.from("survey_results").update({ user_id: null }).eq("user_id", userId),
+    },
+    {
+      label: "survey_results_usuario_id",
+      fn: () => adminClient.from("survey_results").update({ usuario_id: null }).eq("usuario_id", userId),
     },
     // Remove friend relationships
     {
@@ -288,11 +311,11 @@ serve(async (req) => {
       profileDeleteError = error;
     }
 
-    if (profileDeleteError && isMatchJoinRequestsFkError(profileDeleteError)) {
+    if (profileDeleteError && isProfileDependencyFkError(profileDeleteError)) {
       console.warn(
-        `[delete-account] retrying profile delete after match_join_requests cleanup: ${describeQueryError(profileDeleteError)}`,
+        `[delete-account] retrying profile delete after dependency cleanup: ${describeQueryError(profileDeleteError)}`,
       );
-      await cleanupMatchJoinRequests(adminClient, user.id);
+      await cleanupUserData(adminClient, user.id);
 
       const { error } = await adminClient
         .from("usuarios")
