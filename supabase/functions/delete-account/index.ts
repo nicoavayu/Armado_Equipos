@@ -69,6 +69,9 @@ function isProfileDependencyFkError(error: QueryError): boolean {
       text.includes("match_join_requests")
       || text.includes("jugadores")
       || text.includes("amigos")
+      || text.includes("challenges")
+      || text.includes("teams")
+      || text.includes("partidos")
     );
 }
 
@@ -196,6 +199,47 @@ async function cleanupUserData(
     {
       label: "survey_results_usuario_id",
       fn: () => adminClient.from("survey_results").update({ usuario_id: null }).eq("usuario_id", userId),
+    },
+    // Preserve team/challenge history while removing auth references.
+    {
+      label: "challenges_accepted_by_user_id",
+      fn: () =>
+        adminClient
+          .from("challenges")
+          .update({ accepted_by_user_id: null })
+          .eq("accepted_by_user_id", userId),
+    },
+    {
+      label: "challenges_created_by_user_id",
+      fn: () =>
+        adminClient
+          .from("challenges")
+          .update({ created_by_user_id: null })
+          .eq("created_by_user_id", userId),
+    },
+    {
+      label: "teams_owner_user_id",
+      fn: () =>
+        adminClient
+          .from("teams")
+          .update({ owner_user_id: null, is_active: false })
+          .eq("owner_user_id", userId),
+    },
+    {
+      label: "partidos_final_teams_updated_by",
+      fn: () =>
+        adminClient
+          .from("partidos")
+          .update({ final_teams_updated_by: null })
+          .eq("final_teams_updated_by", userId),
+    },
+    {
+      label: "partidos_teams_locked_by_user_id",
+      fn: () =>
+        adminClient
+          .from("partidos")
+          .update({ teams_locked_by_user_id: null })
+          .eq("teams_locked_by_user_id", userId),
     },
     // Remove friend relationships
     {
@@ -338,7 +382,17 @@ serve(async (req) => {
     }
 
     // Delete the auth user last (cascades auth-referenced tables).
-    const { error: deleteAuthError } = await adminClient.auth.admin.deleteUser(user.id);
+    let { error: deleteAuthError } = await adminClient.auth.admin.deleteUser(user.id);
+    if (deleteAuthError) {
+      console.warn(
+        `[delete-account] retrying auth delete after dependency cleanup: ${deleteAuthError.message || "unknown_error"}`,
+      );
+      await cleanupUserData(adminClient, user.id);
+
+      const retryResult = await adminClient.auth.admin.deleteUser(user.id);
+      deleteAuthError = retryResult.error;
+    }
+
     if (deleteAuthError) {
       return new Response(
         JSON.stringify({
