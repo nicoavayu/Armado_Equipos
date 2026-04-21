@@ -1,6 +1,19 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
+type QueryError = {
+  message?: string;
+  details?: string | null;
+  hint?: string | null;
+  code?: string | null;
+};
+
+type CleanupStep = {
+  label: string;
+  fn: () => Promise<unknown>;
+  ignoreMissingSchema?: boolean;
+};
+
 function corsHeaders(req: Request) {
   const origin = req.headers.get("origin") ?? "*";
   const reqHeaders = req.headers.get("access-control-request-headers") ?? "";
@@ -25,13 +38,109 @@ function corsHeaders(req: Request) {
   };
 }
 
-// Best-effort cleanup — logs but never throws.
+function getQueryError(result: unknown): QueryError | null {
+  if (!result || typeof result !== "object" || !("error" in result)) return null;
+  return ((result as { error?: QueryError | null }).error) ?? null;
+}
+
+function describeQueryError(error: QueryError): string {
+  return [
+    error.message,
+    error.details,
+    error.code,
+    error.hint,
+  ].filter(Boolean).join(" | ");
+}
+
+function isMissingSchemaError(error: QueryError): boolean {
+  const code = String(error.code || "");
+  const text = describeQueryError(error).toLowerCase();
+
+  return ["42P01", "42703", "PGRST204", "PGRST205"].includes(code)
+    || text.includes("does not exist")
+    || text.includes("could not find")
+    || text.includes("schema cache");
+}
+
+function isMatchJoinRequestsFkError(error: QueryError): boolean {
+  const text = describeQueryError(error).toLowerCase();
+  return error.code === "23503" && text.includes("match_join_requests");
+}
+
+async function runCleanupStep(step: CleanupStep): Promise<void> {
+  try {
+    const result = await step.fn();
+    const error = getQueryError(result);
+
+    if (!error) return;
+
+    if (step.ignoreMissingSchema !== false && isMissingSchemaError(error)) {
+      console.warn(
+        `[delete-account] cleanup step "${step.label}" skipped: ${describeQueryError(error)}`,
+      );
+      return;
+    }
+
+    console.warn(
+      `[delete-account] cleanup step "${step.label}" failed (non-fatal): ${describeQueryError(error)}`,
+    );
+  } catch (err) {
+    console.warn(`[delete-account] cleanup step "${step.label}" failed (non-fatal):`, err);
+  }
+}
+
+async function runCleanupSteps(steps: CleanupStep[]): Promise<void> {
+  for (const step of steps) {
+    await runCleanupStep(step);
+  }
+}
+
+async function cleanupMatchJoinRequests(
+  // deno-lint-ignore no-explicit-any
+  adminClient: any,
+  userId: string,
+): Promise<void> {
+  await runCleanupSteps([
+    // Preserve historical requests where this user only resolved the request.
+    {
+      label: "match_join_requests_decided_by",
+      fn: () =>
+        adminClient
+          .from("match_join_requests")
+          .update({ decided_by: null })
+          .eq("decided_by", userId),
+    },
+    {
+      label: "match_join_requests_reconciled_decided_by",
+      fn: () =>
+        adminClient
+          .from("match_join_requests")
+          .update({ reconciled_decided_by: null })
+          .eq("reconciled_decided_by", userId),
+    },
+    // Delete requests made by this user. Extra legacy column names are tolerated.
+    {
+      label: "match_join_requests_user_id",
+      fn: () => adminClient.from("match_join_requests").delete().eq("user_id", userId),
+    },
+    {
+      label: "match_join_requests_usuario_id",
+      fn: () => adminClient.from("match_join_requests").delete().eq("usuario_id", userId),
+    },
+    {
+      label: "match_join_requests_requester_user_id",
+      fn: () => adminClient.from("match_join_requests").delete().eq("requester_user_id", userId),
+    },
+  ]);
+}
+
+// Best-effort cleanup — logs query errors and exceptions but never throws.
 async function cleanupUserData(
   // deno-lint-ignore no-explicit-any
   adminClient: any,
   userId: string,
 ): Promise<void> {
-  const steps: Array<{ label: string; fn: () => Promise<unknown> }> = [
+  const steps: CleanupStep[] = [
     // Remove user from matches they were in (junction table)
     {
       label: "partidos_jugadores",
@@ -79,11 +188,6 @@ async function cleanupUserData(
       label: "partidos_creado_por",
       fn: () => adminClient.from("partidos").update({ creado_por: null }).eq("creado_por", userId),
     },
-    // Remove all join requests involving this user (as requester or as decider)
-    {
-      label: "match_join_requests",
-      fn: () => adminClient.from("match_join_requests").delete().or(`user_id.eq.${userId},reconciled_decided_by.eq.${userId}`),
-    },
     // Remove notifications
     {
       label: "notifications",
@@ -100,13 +204,8 @@ async function cleanupUserData(
     },
   ];
 
-  for (const step of steps) {
-    try {
-      await step.fn();
-    } catch (err) {
-      console.warn(`[delete-account] cleanup step "${step.label}" failed (non-fatal):`, err);
-    }
-  }
+  await runCleanupSteps(steps);
+  await cleanupMatchJoinRequests(adminClient, userId);
 }
 
 serve(async (req) => {
@@ -180,10 +279,27 @@ serve(async (req) => {
     await cleanupUserData(adminClient, user.id);
 
     // Delete main profile row.
-    const { error: profileDeleteError } = await adminClient
-      .from("usuarios")
-      .delete()
-      .eq("id", user.id);
+    let profileDeleteError: QueryError | null = null;
+    {
+      const { error } = await adminClient
+        .from("usuarios")
+        .delete()
+        .eq("id", user.id);
+      profileDeleteError = error;
+    }
+
+    if (profileDeleteError && isMatchJoinRequestsFkError(profileDeleteError)) {
+      console.warn(
+        `[delete-account] retrying profile delete after match_join_requests cleanup: ${describeQueryError(profileDeleteError)}`,
+      );
+      await cleanupMatchJoinRequests(adminClient, user.id);
+
+      const { error } = await adminClient
+        .from("usuarios")
+        .delete()
+        .eq("id", user.id);
+      profileDeleteError = error;
+    }
 
     if (profileDeleteError) {
       return new Response(
