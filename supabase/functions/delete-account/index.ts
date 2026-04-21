@@ -79,6 +79,11 @@ async function cleanupUserData(
       label: "partidos_creado_por",
       fn: () => adminClient.from("partidos").update({ creado_por: null }).eq("creado_por", userId),
     },
+    // Remove all join requests involving this user (as requester or as decider)
+    {
+      label: "match_join_requests",
+      fn: () => adminClient.from("match_join_requests").delete().or(`user_id.eq.${userId},reconciled_decided_by.eq.${userId}`),
+    },
     // Remove notifications
     {
       label: "notifications",
