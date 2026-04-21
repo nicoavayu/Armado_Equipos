@@ -13,7 +13,9 @@ import { requestImmediatePushDispatch } from '../services/pushDispatchService';
 import LoadingSpinner from './LoadingSpinner';
 import PageTitle from './PageTitle';
 import ConfirmModal from './ConfirmModal';
+import EmptyStateCard from './EmptyStateCard';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
+import { CalendarDays } from 'lucide-react';
 
 import MatchCard from './MatchCard';
 
@@ -99,6 +101,8 @@ const isCancelledChallengeStatus = (statusValue) => {
   const normalized = normalizeTextToken(statusValue);
   return normalized === 'canceled' || normalized === 'cancelled' || normalized === 'cancelado';
 };
+
+const EMPTY_STATE_TITLE_CLASS = 'font-oswald text-[clamp(18px,5.6vw,22px)] font-semibold leading-tight text-white';
 
 const ProximosPartidos = ({ onClose }) => {
   const { user } = useAuth();
@@ -1105,9 +1109,14 @@ const ProximosPartidos = ({ onClose }) => {
             <LoadingSpinner size="medium" fullScreen />
           </div>
         ) : visiblePartidos.length === 0 ? (
-          <div className="text-center py-[60px] px-5 mt-[70px]">
-            <p className="text-[22px] font-bold mb-2 text-white text-center font-oswald">No tienes partidos próximos</p>
-            <span className="text-[15px] opacity-95 block text-center text-white/80">Crea un partido o únete a uno para verlo aquí</span>
+          <div className="w-full max-w-[500px] mx-auto mt-[70px]">
+            <EmptyStateCard
+              icon={CalendarDays}
+              title="No tienes partidos próximos"
+              titleClassName={EMPTY_STATE_TITLE_CLASS}
+              description="Crea un partido o únete a uno para verlo aquí."
+              className="my-0 p-5"
+            />
           </div>
         ) : (
           <>
