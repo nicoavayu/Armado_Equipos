@@ -89,6 +89,29 @@ export const signOutWithPushDeactivation = async ({
   };
 };
 
+export const clearLocalAuthSession = async () => {
+  try {
+    if (typeof supabase.auth._removeSession === 'function') {
+      await supabase.auth._removeSession();
+    } else {
+      const { error } = await supabase.auth.signOut({ scope: 'local' });
+      if (error) throw error;
+    }
+
+    clearSentryUser();
+
+    return {
+      success: true,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      reason: 'signout_failed',
+      error,
+    };
+  }
+};
+
 export const getLogoutErrorMessage = (result) => {
   if (!result || result.success) return '';
 

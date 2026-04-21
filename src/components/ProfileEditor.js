@@ -18,6 +18,7 @@ import {
   shouldRefresh,
 } from '../services/locationService';
 import {
+  clearLocalAuthSession,
   getLogoutErrorMessage,
   signOutWithPushDeactivation,
 } from '../services/authLogoutService';
@@ -948,11 +949,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
       setDeleteAccountConfirmation('');
       setShowLogoutConfirmModal(false);
       showInlineNotice('success', 'Cuenta eliminada correctamente.');
-      const logoutResult = await signOutWithPushDeactivation({
-        reason: 'account_deleted',
-        force: true,
-        maxDeactivateAttempts: 2,
-      });
+      const logoutResult = await clearLocalAuthSession();
       if (!logoutResult.success) {
         throw new Error(getLogoutErrorMessage(logoutResult));
       }
