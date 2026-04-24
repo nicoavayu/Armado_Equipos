@@ -12,7 +12,6 @@ import { ensureSurveyWindowOpen } from '../services/surveyCompletionService';
 import { listMatchNoShowSummary } from '../services/db/penalties';
 import { subscribeToMatchUpdates } from '../services/realtimeService';
 import { getProfile as getLiveProfile } from '../services/db/profiles';
-import EmptyStateCard from '../components/EmptyStateCard';
 import Logo from '../Logo.png';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import {
@@ -31,6 +30,11 @@ const ensurePlayersList = (players) => {
 };
 
 const DEFAULT_NO_SHOW_PENALTY_DELTA = 0.5;
+
+const isClosedSurveyStatus = (value) => {
+  const token = String(value || '').trim().toLowerCase();
+  return token === 'closed' || token === 'cerrada';
+};
 
 const normalizeAbsenceIdentityToken = (value) => {
   if (value === undefined || value === null) return null;
@@ -134,7 +138,7 @@ export const deriveAwardsUiState = ({
       || partido?.survey_status
       || '',
   ).trim().toLowerCase();
-  const isSurveyClosed = surveyStatusToken === 'closed' || surveyStatusToken === 'cerrada';
+  const isSurveyClosed = isClosedSurveyStatus(surveyStatusToken);
   const expectedVoters = toSafeCount(
     surveyProgress?.expectedVoters ?? partido?.survey_expected_voters,
   );
@@ -163,15 +167,38 @@ export const deriveAwardsUiState = ({
   const hasInsufficientVotesForAwards = awardsStatus === 'not_eligible';
   const awardsReady = awardsStatus === 'ready';
   const hasAwardsError = awardsStatus === AWARDS_STATUS_ERROR;
-  const shouldShowPendingResultsCard = !results && !hasAwardsError;
-
   return {
     awardsStatus,
     awardsReady,
     hasInsufficientVotesForAwards,
     hasAwardsError,
-    shouldShowPendingResultsCard,
+    shouldShowPendingResultsCard: false,
   };
+};
+
+export const deriveCanonicalResultsRow = ({
+  results = null,
+  surveyProgress = null,
+  partido = null,
+} = {}) => {
+  if (!results || results?.results_ready !== true) return null;
+
+  const surveyClosed = surveyProgress?.hasSurveyStatus
+    ? isClosedSurveyStatus(surveyProgress?.surveyStatus)
+    : (
+      isClosedSurveyStatus(partido?.survey_status)
+      || results?.results_ready === true
+    );
+
+  return surveyClosed ? results : null;
+};
+
+export const deriveCanShowResults = ({
+  results = null,
+  renderableSlidesCount = 0,
+} = {}) => {
+  const count = Number(renderableSlidesCount);
+  return Boolean(results) && Number.isFinite(count) && count > 0;
 };
 
 export const shouldShowAwardsRetryAction = ({
@@ -196,7 +223,6 @@ export const deriveAwardsPresentationState = ({
   isSurveyClosed = false,
   awardsStatus = null,
   hasRenderableAwardsStory = false,
-  hasResults = false,
 } = {}) => {
   const normalizedAwardsStatus = normalizeAwardsStatus(awardsStatus) || 'pending';
   const isAwardsError = normalizedAwardsStatus === AWARDS_STATUS_ERROR;
@@ -225,7 +251,7 @@ export const deriveAwardsPresentationState = ({
     unavailableDescription: isAwardsError
       ? 'Los resultados quedaron cerrados, pero la premiación no pudo resolverse correctamente.'
       : 'Los resultados se muestran sin una historia de premiación.',
-    shouldShowPendingResultsCard: !hasResults && !isSurveyClosed,
+    shouldShowPendingResultsCard: false,
   };
 };
 
@@ -276,11 +302,10 @@ const ResultadosEncuestaView = () => {
   const autoAwardsOpenedRef = useRef(null);
   const autoOpenGuardRef = useRef(null);
   const pendingRetryAttemptedRef = useRef(new Set());
+  const resultsGateRedirectRef = useRef(null);
   const {
     awardsStatus,
     awardsReady,
-    hasInsufficientVotesForAwards,
-    hasAwardsError,
   } = deriveAwardsUiState({
     results,
     partido,
@@ -1546,6 +1571,19 @@ const ResultadosEncuestaView = () => {
     return slides;
   };
 
+  const canonicalResults = deriveCanonicalResultsRow({
+    results,
+    surveyProgress,
+    partido,
+  });
+  const renderableResultsSlidesCount = canonicalResults
+    ? prepareCarouselSlides(canonicalResults, jugadores).length
+    : 0;
+  const canShowResults = deriveCanShowResults({
+    results: canonicalResults,
+    renderableSlidesCount: renderableResultsSlidesCount,
+  });
+
   // Animation Styles encapsulated here to avoid external CSS
 
   // NO regenerar slides durante reproducción - content functions ya leen slideStages/previewPlayers en vivo
@@ -1670,11 +1708,13 @@ const ResultadosEncuestaView = () => {
 
         if (!alive) return;
 
-        // If partidos.survey_status exists, closure is driven only by that field.
-        const shouldUseResults = Boolean(resultsData?.results_ready)
-          && (!progress?.hasSurveyStatus || progress?.surveyStatus === 'closed');
-        if (shouldUseResults) {
-          setResults(resultsData);
+        const nextCanonicalResults = deriveCanonicalResultsRow({
+          results: resultsData,
+          surveyProgress: progress,
+          partido: partidoData,
+        });
+        if (nextCanonicalResults) {
+          setResults(nextCanonicalResults);
           if (!progress?.hasSurveyStatus) {
             setSurveyProgress((prev) => ({
               ...prev,
@@ -1688,7 +1728,7 @@ const ResultadosEncuestaView = () => {
 
         const animations = [];
         const addedPlayers = new Set();
-        const finalResults = resultsData || null;
+        const finalResults = nextCanonicalResults;
 
         if (finalResults) {
           if (finalResults.mvp) {
@@ -1810,9 +1850,14 @@ const ResultadosEncuestaView = () => {
             setAwardsSkippedByEnsure(false);
           }
           const res = await ensureAwards(partidoId);
-          if (!cancelled && res?.ok && res.row) {
-            row = res.row;
-            setResults(res.row);
+          const nextCanonicalResults = deriveCanonicalResultsRow({
+            results: res?.row || null,
+            surveyProgress,
+            partido,
+          });
+          if (!cancelled) {
+            row = nextCanonicalResults;
+            setResults(nextCanonicalResults);
           }
           if (!cancelled) {
             setAwardsSkippedByEnsure(Boolean(res?.awardsSkipped));
@@ -1887,8 +1932,13 @@ const ResultadosEncuestaView = () => {
       try {
         const res = await ensureAwards(partidoId);
         if (cancelled) return;
-        if (res?.ok && res?.row) {
-          setResults(res.row);
+        if (res?.ok) {
+          const nextCanonicalResults = deriveCanonicalResultsRow({
+            results: res?.row || null,
+            surveyProgress,
+            partido,
+          });
+          setResults(nextCanonicalResults);
         }
       } catch (retryErr) {
         console.error('[RESULTADOS] pending awards ensureAwards failed', retryErr);
@@ -1899,7 +1949,7 @@ const ResultadosEncuestaView = () => {
     return () => {
       cancelled = true;
     };
-  }, [partidoId, results?.awards_status, results?.results_ready]);
+  }, [partido, partidoId, results?.awards_status, results?.results_ready, surveyProgress]);
 
   // If we entered in forced story mode and initially showed "awards-pending",
   // upgrade to real award slides as soon as results/roster become available.
@@ -1929,13 +1979,13 @@ const ResultadosEncuestaView = () => {
 
   useEffect(() => {
     if (forceAwardsMode) return;
-    if (!results || !awardsReady) return;
+    if (!canonicalResults || !awardsReady) return;
     if (showingBadgeAnimations || autoOpeningAwards) return;
 
-    const autoOpenKey = `${partidoId}:${location.key || location.search || 'results'}:${results?.updated_at || results?.created_at || 'ready'}`;
+    const autoOpenKey = `${partidoId}:${location.key || location.search || 'results'}:${canonicalResults?.updated_at || canonicalResults?.created_at || 'ready'}`;
     if (autoAwardsOpenedRef.current === autoOpenKey) return;
 
-    const slides = prepareCarouselSlides(results, jugadores);
+    const slides = prepareCarouselSlides(canonicalResults, jugadores);
     if (!slides || slides.length === 0) return;
 
     autoAwardsOpenedRef.current = autoOpenKey;
@@ -1948,12 +1998,40 @@ const ResultadosEncuestaView = () => {
   }, [
     awardsReady,
     autoOpeningAwards,
+    canonicalResults,
     forceAwardsMode,
     jugadores,
     location.key,
     location.search,
     partidoId,
-    results,
+    showingBadgeAnimations,
+  ]);
+
+  useEffect(() => {
+    if (loading || autoOpeningAwards || showingBadgeAnimations || !partido) return;
+    if (canShowResults) {
+      resultsGateRedirectRef.current = null;
+      return;
+    }
+
+    const redirectKey = `${partidoId}:${location.key || location.search || 'results'}`;
+    if (resultsGateRedirectRef.current === redirectKey) return;
+    resultsGateRedirectRef.current = redirectKey;
+
+    goBackSmart({
+      preferHistoryBack: true,
+      replaceBackTo: true,
+      replaceFallback: true,
+    });
+  }, [
+    autoOpeningAwards,
+    canShowResults,
+    goBackSmart,
+    loading,
+    location.key,
+    location.search,
+    partido,
+    partidoId,
     showingBadgeAnimations,
   ]);
 
@@ -1989,10 +2067,13 @@ const ResultadosEncuestaView = () => {
       });
       setSurveyProgress(progress);
 
-      const shouldUseResults = Boolean(resultsData?.results_ready)
-        && (!progress?.hasSurveyStatus || progress?.surveyStatus === 'closed');
-      if (shouldUseResults) {
-        setResults(resultsData);
+      const nextCanonicalResults = deriveCanonicalResultsRow({
+        results: resultsData,
+        surveyProgress: progress,
+        partido: partidoData || partido,
+      });
+      if (nextCanonicalResults) {
+        setResults(nextCanonicalResults);
         if (!progress?.hasSurveyStatus) {
           setSurveyProgress((prev) => ({ ...prev, surveyStatus: 'closed', remainingVotes: 0 }));
         }
@@ -2009,8 +2090,8 @@ const ResultadosEncuestaView = () => {
       // Note: In a full refactor, this logic should be extracted to a helper function.
 
       // MVP
-      if (resultsData?.mvp) {
-        const mvpVal = resultsData.mvp;
+      if (nextCanonicalResults?.mvp) {
+        const mvpVal = nextCanonicalResults.mvp;
         const player = roster.find((j) => sharesIdentity(j, mvpVal));
         if (player && !addedPlayers.has(player.uuid + '_mvp')) {
           animations.push({
@@ -2019,15 +2100,15 @@ const ResultadosEncuestaView = () => {
             badgeType: 'mvp',
             badgeText: 'MVP',
             badgeIcon: '🏆',
-            votes: resultsData.mvp_votes || 1,
+            votes: nextCanonicalResults.mvp_votes || 1,
           });
           addedPlayers.add(player.uuid + '_mvp');
         }
       }
 
       // Glove
-      if (resultsData?.golden_glove) {
-        const goldenGloveVal = resultsData.golden_glove;
+      if (nextCanonicalResults?.golden_glove) {
+        const goldenGloveVal = nextCanonicalResults.golden_glove;
         const player = roster.find((j) => sharesIdentity(j, goldenGloveVal));
         if (player && !addedPlayers.has(player.uuid + '_golden_glove')) {
           animations.push({
@@ -2036,7 +2117,7 @@ const ResultadosEncuestaView = () => {
             badgeType: 'golden_glove',
             badgeText: 'MEJOR ARQUERO',
             badgeIcon: '🥇',
-            votes: resultsData.golden_glove_votes || 1,
+            votes: nextCanonicalResults.golden_glove_votes || 1,
           });
           addedPlayers.add(player.uuid + '_golden_glove');
         }
@@ -2071,46 +2152,13 @@ const ResultadosEncuestaView = () => {
     return <div className="text-white text-center mt-20 text-xl">Partido no encontrado</div>;
   }
 
-  const isSurveyClosed = surveyProgress.hasSurveyStatus
-    ? surveyProgress.surveyStatus === 'closed'
-    : Boolean(results?.results_ready);
-  const remainingVotes = Number.isFinite(Number(surveyProgress.remainingVotes))
-    ? Math.max(0, Number(surveyProgress.remainingVotes))
-    : 0;
-  const awardsStatusColorClass = awardsStatus === 'ready'
-    ? 'text-green-400'
-    : awardsStatus === 'not_eligible'
-      ? 'text-orange-300'
-      : hasAwardsError
-        ? 'text-red-300'
-      : 'text-yellow-400';
-  const showRetryAction = shouldShowAwardsRetryAction({
-    results,
-    awardsStatus,
-    isSurveyClosed,
-  });
-  const hasRenderableAwardsStory = Boolean(results && prepareCarouselSlides(results, jugadores).length > 0);
   const hasPrimaryAwardHighlights = Boolean(
-    results?.mvp
-    || results?.golden_glove
-    || results?.dirty_player
-    || (Array.isArray(results?.red_cards) && results.red_cards.length > 0),
+    canonicalResults?.mvp
+    || canonicalResults?.golden_glove
+    || canonicalResults?.dirty_player
+    || (Array.isArray(canonicalResults?.red_cards) && canonicalResults.red_cards.length > 0),
   );
-  const {
-    awardsStatusLabel,
-    shouldShowAwardsUnavailableState,
-    unavailableTitle,
-    shouldShowPendingResultsCard: shouldShowPendingResultsFallback,
-  } = deriveAwardsPresentationState({
-    isSurveyClosed,
-    awardsStatus,
-    hasRenderableAwardsStory,
-    hasResults: Boolean(results),
-  });
-  const showSecondaryResultsSections = shouldShowSecondaryResultsSections({
-    awardsStatus,
-    hasSecondaryResults: absences.length > 0,
-  });
+  const showSecondaryResultsSections = absences.length > 0;
 
   // OVERLAY ANIMATION RENDER
   // Carousel state
@@ -2192,6 +2240,10 @@ const ResultadosEncuestaView = () => {
     );
   }
 
+  if (!canShowResults) {
+    return null;
+  }
+
   return (
     <div className="min-h-[100dvh] w-screen p-0 flex flex-col" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%)' }}>
       {/* Main Card Container */}
@@ -2207,87 +2259,41 @@ const ResultadosEncuestaView = () => {
           <p className="text-gray-300  text-lg mb-1">
             {new Date(partido.fecha).toLocaleString('es-ES', { dateStyle: 'full', timeStyle: 'short' })}
           </p>
-          <p className="text-sm tracking-[0.01em] mt-3">
-            <span className="text-gray-400">Estado de la encuesta: </span>
-            <span className={`${isSurveyClosed ? 'text-green-400' : 'text-yellow-400'} font-bold`}>
-              {isSurveyClosed ? 'Cerrada' : 'Abierta'}
-            </span>
-          </p>
-          {!isSurveyClosed && (
-            <p className="text-sm tracking-[0.01em] mt-2 text-yellow-200">
-              Esperando {remainingVotes} voto{remainingVotes === 1 ? '' : 's'} más ({surveyProgress.submissionsCount}/{surveyProgress.expectedVoters}).
-            </p>
-          )}
-          {isSurveyClosed && (
-            <>
-              <p className="text-sm tracking-[0.01em] mt-2">
-                <span className="text-gray-400">Estado de los Premios: </span>
-                <span className={`${awardsStatusColorClass} font-bold`}>
-                  {awardsStatusLabel}
-                </span>
-              </p>
-              {shouldShowAwardsUnavailableState && (
-                <p className={`mt-2 text-sm ${hasAwardsError ? 'text-red-200' : 'text-white/70'}`}>
-                  {unavailableTitle}
-                </p>
-              )}
-              {hasInsufficientVotesForAwards && (
-                <p className="text-orange-300 mt-2 font-semibold text-sm">
-                  No hubo suficientes votaciones para generar premios de este partido.
-                </p>
-              )}
-            </>
-          )}
         </div>
 
         {/* Results Summary */}
-        {results && awardsReady && hasPrimaryAwardHighlights && (
+        {canonicalResults && awardsReady && hasPrimaryAwardHighlights && (
           <div className="bg-gradient-to-br from-white/10 to-white/5 rounded-xl p-5 mb-8 border border-white/10">
             <h3 className="text-xl text-white  mb-4 border-b border-white/10 pb-2">Destacados</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {results.mvp && (
+              {canonicalResults.mvp && (
                 <div className="flex items-center gap-3 bg-black/20 p-3 rounded-lg">
                   <span className="text-2xl">🏆</span>
                   <div className="flex flex-col">
                     <span className="font-oswald text-lg text-gray-400 tracking-[0.01em] font-semibold">Mvp</span>
-                    <span className="text-lg text-white  text-shadow-sm">{results.mvp_nombre || '—'}</span>
+                    <span className="text-lg text-white  text-shadow-sm">{canonicalResults.mvp_nombre || '—'}</span>
                   </div>
                 </div>
               )}
-              {results.golden_glove && (
+              {canonicalResults.golden_glove && (
                 <div className="flex items-center gap-3 bg-black/20 p-3 rounded-lg">
                   <span className="text-2xl">🥇</span>
                   <div className="flex flex-col">
                     <span className="font-oswald text-lg text-gray-400 tracking-[0.01em] font-semibold">Mejor arquero</span>
-                    <span className="text-lg text-white  text-shadow-sm">{results.golden_glove_nombre || '—'}</span>
+                    <span className="text-lg text-white  text-shadow-sm">{canonicalResults.golden_glove_nombre || '—'}</span>
                   </div>
                 </div>
               )}
-              {(results.dirty_player || (Array.isArray(results.red_cards) && results.red_cards.length > 0)) && (
+              {(canonicalResults.dirty_player || (Array.isArray(canonicalResults.red_cards) && canonicalResults.red_cards.length > 0)) && (
                 <div className="flex items-center gap-3 bg-black/20 p-3 rounded-lg">
                   <span className="text-2xl">🟥</span>
                   <div className="flex flex-col">
                     <span className="font-bebas-real text-lg text-gray-400 uppercase tracking-wider">MÁS SUCIO</span>
-                    <span className="text-lg text-white  text-shadow-sm">{results.dirty_player_nombre || '—'}</span>
+                    <span className="text-lg text-white  text-shadow-sm">{canonicalResults.dirty_player_nombre || '—'}</span>
                   </div>
                 </div>
               )}
             </div>
-          </div>
-        )}
-
-        {/* No Results Message */}
-        {shouldShowPendingResultsFallback && (
-          <div className="flex flex-col items-center mb-6">
-            <EmptyStateCard
-              title="SIN RESULTADOS DISPONIBLES"
-              description={
-                isSurveyClosed
-                  ? 'No encontramos resultados finales para este partido por ahora.'
-                  : `La encuesta sigue abierta. Faltan ${remainingVotes} voto${remainingVotes === 1 ? '' : 's'} para cerrar.`
-              }
-              className="my-0 max-w-[620px]"
-            />
           </div>
         )}
 
@@ -2299,15 +2305,6 @@ const ResultadosEncuestaView = () => {
           >
             Volver
           </button>
-
-          {showRetryAction && (
-            <button
-              onClick={handleRetry}
-              className="min-h-[52px] px-6 rounded-xl text-[18px] font-bebas tracking-[0.04em] uppercase text-white bg-[#0EA9C6] border border-[#38c7df] hover:bg-[#0c90a8] transition-all shadow-lg"
-            >
-              Reintentar
-            </button>
-          )}
         </div>
 
         {/* Absences Section */}

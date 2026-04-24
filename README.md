@@ -32,11 +32,23 @@ Una aplicación web para organizar partidos de fútbol y crear equipos equilibra
    npm install
    ```
 
-3. Crea un archivo `.env` en la raíz del proyecto con las siguientes variables:
+3. Para desarrollo local, copiá `.env.example` a `.env.local` y completá las variables reales del proyecto:
+   ```bash
+   cp .env.example .env.local
+   ```
+
+   Variables mínimas para auth local:
    ```
    REACT_APP_SUPABASE_URL=tu_url_de_supabase
    REACT_APP_SUPABASE_ANON_KEY=tu_clave_anonima_de_supabase
+   REACT_APP_PUBLIC_APP_URL=http://localhost:3000
+   REACT_APP_AUTH_REDIRECT_URL=http://localhost:3000/auth/callback
    ```
+
+   Notas:
+   - `.env` queda versionado con placeholders seguros.
+   - `.env.local` no se versiona y es el archivo correcto para pruebas locales con credenciales reales.
+   - Si levantás la app en otro puerto, actualizá `REACT_APP_PUBLIC_APP_URL` y `REACT_APP_AUTH_REDIRECT_URL`.
 
 4. Inicia el servidor de desarrollo:
    ```bash

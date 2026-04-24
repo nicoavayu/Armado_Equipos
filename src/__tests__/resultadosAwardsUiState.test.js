@@ -33,6 +33,8 @@ const {
   deriveAwardsUiState,
   deriveAwardsPresentationState,
   deriveAbsenceResultsFromSummary,
+  deriveCanonicalResultsRow,
+  deriveCanShowResults,
   shouldShowAwardsRetryAction,
   shouldShowSecondaryResultsSections,
 } = require('../pages/ResultadosEncuestaView');
@@ -161,6 +163,43 @@ describe('Resultados awards UI state', () => {
     });
 
     expect(shouldShowRetry).toBe(true);
+  });
+
+  test('canonical results row ignores ready payloads while survey is still open', () => {
+    const canonicalRow = deriveCanonicalResultsRow({
+      results: {
+        results_ready: true,
+        awards_status: 'ready',
+        awards: { mvp: { player_id: '10' } },
+      },
+      surveyProgress: {
+        hasSurveyStatus: true,
+        surveyStatus: 'open',
+      },
+      partido: {
+        survey_status: 'open',
+      },
+    });
+
+    expect(canonicalRow).toBeNull();
+  });
+
+  test('results screen only renders when canonical results also have renderable content', () => {
+    expect(deriveCanShowResults({
+      results: {
+        results_ready: true,
+        awards_status: 'ready',
+      },
+      renderableSlidesCount: 0,
+    })).toBe(false);
+
+    expect(deriveCanShowResults({
+      results: {
+        results_ready: true,
+        awards_status: 'ready',
+      },
+      renderableSlidesCount: 3,
+    })).toBe(true);
   });
 
   test('ready awards without renderable story fall back to final unavailable state', () => {
