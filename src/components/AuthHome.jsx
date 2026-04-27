@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link, Navigate, useLocation } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthProvider';
-import { setAuthReturnTo } from '../utils/authReturnTo';
+import { consumeAuthReturnTo, setAuthReturnTo } from '../utils/authReturnTo';
 import { getAuthRedirectUrl } from '../utils/authRedirectUrl';
 import GoogleAuth from './GoogleAuth';
+import AppleAuth from './AppleAuth';
 import { supabase } from '../supabase';
 import logo from '../Logo.png';
 
@@ -17,15 +19,18 @@ function getReturnTo(search) {
 
 export default function AuthHome() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { user, loading } = useAuth();
   const [mode, setMode] = useState(location.pathname === '/login/email' ? 'email' : 'options');
   const [email, setEmail] = useState('');
   const [emailLoading, setEmailLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [appleLoading, setAppleLoading] = useState(false);
   const [notice, setNotice] = useState({ type: '', message: '' });
   const [cooldown, setCooldown] = useState(0);
 
   const returnTo = useMemo(() => getReturnTo(location.search), [location.search]);
+  const showAppleAuth = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios';
 
   useEffect(() => {
     if (returnTo) {
@@ -45,7 +50,13 @@ export default function AuthHome() {
     setMode(location.pathname === '/login/email' ? 'email' : 'options');
   }, [location.pathname]);
 
-  const sendingBlocked = emailLoading || googleLoading;
+  const authReturnTo = returnTo || '/home';
+  const sendingBlocked = emailLoading || googleLoading || (showAppleAuth && appleLoading);
+
+  const handleAppleSuccess = () => {
+    const target = consumeAuthReturnTo(authReturnTo);
+    navigate(target, { replace: true });
+  };
 
   const sendMagicLink = async () => {
     if (sendingBlocked) return;
@@ -98,10 +109,23 @@ export default function AuthHome() {
               user={null}
               disabled={sendingBlocked}
               loading={googleLoading}
+              returnTo={authReturnTo}
               onStart={() => setGoogleLoading(true)}
               onEnd={() => setGoogleLoading(false)}
               className="auth-btn auth-btn-primary flex h-12 w-full items-center justify-center gap-2 rounded-none px-4 text-base font-medium max-[480px]:h-[46px]"
             />
+
+            {showAppleAuth && (
+              <AppleAuth
+                disabled={sendingBlocked}
+                loading={appleLoading}
+                returnTo={authReturnTo}
+                onStart={() => setAppleLoading(true)}
+                onEnd={() => setAppleLoading(false)}
+                onSuccess={handleAppleSuccess}
+                className="auth-btn auth-btn-secondary flex h-12 w-full items-center justify-center gap-2 rounded-none px-4 text-base font-medium max-[480px]:h-[46px]"
+              />
+            )}
 
             {mode === 'options' ? (
               <button

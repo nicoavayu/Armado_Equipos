@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useAuth } from '../components/AuthProvider';
 import { useNotifications } from '../context/NotificationContext';
 import { supabase } from '../supabase';
+import { logger } from '../lib/logger';
 
 /**
  * Hook to automatically detect when matches finish and send notifications
@@ -39,15 +40,15 @@ export const useMatchFinishDetection = (partidos) => {
             if (existing && existing.length > 0) {
               // Mark as notified to avoid re-checking
               notifiedMatches.current.add(partido.id);
-              console.log(`Skipping client-side survey notification for match ${partido.id} because DB already has one.`);
+              logger.log(`Skipping client-side survey notification for match ${partido.id} because DB already has one.`);
               continue;
             }
 
             // --- CANONICAL MODE CHECK: prevent client creation when DB is canonical ---
-            const SURVEY_FANOUT_MODE = process.env.NEXT_PUBLIC_SURVEY_FANOUT_MODE || 'db';
+            const SURVEY_FANOUT_MODE = process.env.REACT_APP_SURVEY_FANOUT_MODE || 'db';
             if (SURVEY_FANOUT_MODE === 'db') {
               notifiedMatches.current.add(partido.id);
-              console.log(`Client-side skipped creating post_match_survey because SURVEY_FANOUT_MODE=db for match ${partido.id}`);
+              logger.log(`Client-side skipped creating post_match_survey because SURVEY_FANOUT_MODE=db for match ${partido.id}`);
               continue;
             }
                  
@@ -68,7 +69,7 @@ export const useMatchFinishDetection = (partidos) => {
             // Mark as notified
             notifiedMatches.current.add(partido.id);
              
-            console.log(`Sent survey notification for finished match ${partido.id}`);
+            logger.log(`Sent survey notification for finished match ${partido.id}`);
           } catch (error) {
             console.error('Error sending match finish notification:', error);
           }

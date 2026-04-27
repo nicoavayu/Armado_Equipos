@@ -12,7 +12,7 @@ export default function TermsPage() {
 
         <section className="space-y-3 text-white/90 leading-relaxed">
           <p>
-            Team Balancer es una plataforma para organizar partidos y coordinar jugadores. Al
+            Arma2 es una plataforma para organizar partidos y coordinar jugadores. Al
             usar la app aceptás estos términos.
           </p>
           <p>

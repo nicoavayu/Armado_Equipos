@@ -26,6 +26,9 @@ const VotarEquiposPage = () => {
     return '/';
   };
 
+  const currentParams = new URLSearchParams(location.search);
+  const hasVotingParams = currentParams.has('partidoId') || currentParams.has('codigo');
+
   const resetVotingShell = (targetRoute = resolveVotingExitRoute()) => {
     setShowVotingView(false);
     setPartidoActual(null);
@@ -88,7 +91,19 @@ const VotarEquiposPage = () => {
   }, [location.search, navigate]);
 
   if (!showVotingView) {
-    return null;
+    if (hasVotingParams) return null;
+
+    return (
+      <div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center px-4">
+        <NetworkStatus />
+        <div className="w-full max-w-md rounded-2xl border border-white/15 bg-[#1a1f46]/90 p-6 text-center text-white">
+          <h1 className="font-oswald text-3xl font-semibold tracking-[0.01em]">Link incompleto</h1>
+          <p className="mt-3 text-white/75">
+            No encontramos el partido para votar. Abrí el link original o pedile uno nuevo al organizador.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return (

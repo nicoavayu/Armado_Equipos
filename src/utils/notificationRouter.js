@@ -533,7 +533,7 @@ export async function openNotification(n, navigate, options = {}) {
       || n?.data?.link
       || null;
 
-    console.debug('[openNotification] opening notification', { id: n?.id, type, matchId, deepLink });
+    logger.log('[openNotification] opening notification', { id: n?.id, type, matchId, deepLink });
 
     if (!type) return;
 
@@ -559,7 +559,7 @@ export async function openNotification(n, navigate, options = {}) {
       });
 
       if (!surveyNavigation.canNavigate) {
-        console.debug('[openNotification] survey navigation blocked', {
+        logger.log('[openNotification] survey navigation blocked', {
           matchId,
           notificationId: n?.id,
           reason: surveyNavigation.reason,
@@ -567,7 +567,7 @@ export async function openNotification(n, navigate, options = {}) {
         return;
       }
 
-      console.debug('[openNotification] navigating to survey link', { surveyLink: surveyNavigation.route });
+      logger.log('[openNotification] navigating to survey link', { surveyLink: surveyNavigation.route });
       if (surveyNavigation.route) navigate(surveyNavigation.route);
       return;
     }

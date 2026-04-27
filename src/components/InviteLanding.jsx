@@ -4,8 +4,9 @@ import { Browser } from '@capacitor/browser';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { useAuth } from './AuthProvider';
-import { setAuthReturnTo } from '../utils/authReturnTo';
+import { consumeAuthReturnTo, setAuthReturnTo } from '../utils/authReturnTo';
 import { getAuthRedirectUrl } from '../utils/authRedirectUrl';
+import AppleAuth from './AppleAuth';
 
 function formatDate(fecha, hora) {
   if (!fecha) return 'Fecha a confirmar';
@@ -34,8 +35,11 @@ export default function InviteLanding() {
 
   const [accepting, setAccepting] = useState(false);
   const [acceptedLabel, setAcceptedLabel] = useState('');
+  const [appleLoading, setAppleLoading] = useState(false);
 
   const returnTo = useMemo(() => `/i/${token}`, [token]);
+  const showAppleAuth = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios';
+  const appleAuthInProgress = showAppleAuth && appleLoading;
 
   useEffect(() => {
     let active = true;
@@ -148,6 +152,11 @@ export default function InviteLanding() {
     navigate(`/login/email?returnTo=${encodeURIComponent(returnTo)}`);
   };
 
+  const handleAppleSuccess = () => {
+    const target = consumeAuthReturnTo(returnTo);
+    navigate(target, { replace: true });
+  };
+
   return (
     <div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center px-4">
       <div className="w-full max-w-md rounded-2xl border border-white/20 bg-[#1a1f46]/90 p-6">
@@ -172,13 +181,26 @@ export default function InviteLanding() {
                 <button
                   type="button"
                   onClick={goGoogle}
+                  disabled={appleAuthInProgress}
                   className="w-full h-12 rounded-xl bg-white text-[#1a1f46] font-oswald text-xl"
                 >
                   Entrar con Google
                 </button>
+                {showAppleAuth && (
+                  <AppleAuth
+                    disabled={appleAuthInProgress}
+                    loading={appleLoading}
+                    returnTo={returnTo}
+                    onStart={() => setAppleLoading(true)}
+                    onEnd={() => setAppleLoading(false)}
+                    onSuccess={handleAppleSuccess}
+                    className="w-full h-12 rounded-xl bg-black text-white font-oswald text-xl flex items-center justify-center"
+                  />
+                )}
                 <button
                   type="button"
                   onClick={goEmail}
+                  disabled={appleAuthInProgress}
                   className="w-full h-12 rounded-xl border border-white/25 bg-transparent text-white font-oswald text-xl"
                 >
                   Continuar con email

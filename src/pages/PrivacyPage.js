@@ -12,7 +12,7 @@ export default function PrivacyPage() {
 
         <section className="space-y-3 text-white/90 leading-relaxed">
           <p>
-            Team Balancer recopila y procesa datos para permitir el funcionamiento de la app:
+            Arma2 recopila y procesa datos para permitir el funcionamiento de la app:
             autenticación, perfil de jugador, partidos, invitaciones y notificaciones.
           </p>
           <p>

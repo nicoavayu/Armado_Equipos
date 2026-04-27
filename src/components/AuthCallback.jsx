@@ -16,12 +16,22 @@ export default function AuthCallback() {
         const currentUrl = window.location.href;
         const url = new URL(currentUrl);
         const code = url.searchParams.get('code');
+        const hash = window.location.hash
+          ? new URLSearchParams(window.location.hash.replace(/^#/, ''))
+          : null;
+        const oauthError = url.searchParams.get('error_description')
+          || url.searchParams.get('error')
+          || hash?.get('error_description')
+          || hash?.get('error');
+
+        if (oauthError) {
+          throw new Error(oauthError);
+        }
 
         if (code) {
           const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
           if (exchangeError) throw exchangeError;
-        } else if (window.location.hash) {
-          const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+        } else if (hash) {
           const access_token = hash.get('access_token');
           const refresh_token = hash.get('refresh_token');
 
@@ -38,8 +48,13 @@ export default function AuthCallback() {
         if (sessionError) throw sessionError;
         if (!data?.session) throw new Error('No se pudo restaurar la sesión.');
 
+        const providers = data.session.user?.app_metadata?.providers;
+        const provider = data.session.user?.app_metadata?.provider
+          || (Array.isArray(providers) ? providers[0] : null)
+          || 'oauth';
+
         track('login_success', {
-          provider: 'google',
+          provider,
           user_id: data.session.user?.id,
           method: 'oauth_callback',
         });

@@ -31,7 +31,7 @@ const GlobalHeader = ({ _onProfileClick }) => {
     return (
       <div className="fixed top-0 left-0 right-0 z-[1000] flex items-center justify-between min-h-[70px] w-screen px-2 pt-4 bg-white/25 backdrop-blur-md shadow-sm">
         <div className="flex items-center justify-center transform -translate-y-[5px] relative cursor-pointer pointer-events-auto">
-          <div className="text-white font-oswald text-sm ml-px opacity-90 shadow-sm text-shadow-sm">Team Balancer</div>
+          <div className="text-white font-oswald text-sm ml-px opacity-90 shadow-sm text-shadow-sm">Arma2</div>
         </div>
       </div>
     );

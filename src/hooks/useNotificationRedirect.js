@@ -16,6 +16,7 @@ import {
   stripShowAwardsParam,
 } from '../utils/notificationRouter';
 import { notifyBlockingError } from '../utils/notifyBlockingError';
+import { logger } from '../lib/logger';
 
 const extractMatchIdFromRoute = (route) => {
   const raw = String(route || '').trim();
@@ -173,7 +174,7 @@ export const useNotificationRedirect = () => {
           source: 'service_worker',
         });
         const targetRoute = surveyNavigation.route || event.data?.url;
-        console.log('Redirecting from push notification to:', targetRoute);
+        logger.log('Redirecting from push notification to:', targetRoute);
         if (targetRoute) navigate(targetRoute);
       }
     };
@@ -182,14 +183,14 @@ export const useNotificationRedirect = () => {
       void handleNativePushRedirect(event?.detail || {});
     };
 
+    // Agregar listener
+    navigator.serviceWorker?.addEventListener('message', handleMessage);
+    window.addEventListener(nativePushRedirectEventName, handleWindowNativePushRedirect);
+
     const pendingNativePushRedirect = consumePendingNativePushRedirect();
     if (pendingNativePushRedirect?.route) {
       void handleNativePushRedirect(pendingNativePushRedirect);
     }
-
-    // Agregar listener
-    navigator.serviceWorker?.addEventListener('message', handleMessage);
-    window.addEventListener(nativePushRedirectEventName, handleWindowNativePushRedirect);
 
     // Cleanup
     return () => {

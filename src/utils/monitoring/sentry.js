@@ -40,10 +40,14 @@ export const initSentry = async () => {
       return false;
     }
 
-    Sentry.init({
+    const release = String(process.env.REACT_APP_SENTRY_RELEASE || '').trim();
+    const sentryConfig = {
       dsn,
-      environment: process.env.NODE_ENV || 'development',
-    });
+      environment: process.env.REACT_APP_SENTRY_ENVIRONMENT || process.env.NODE_ENV || 'development',
+    };
+    if (release) sentryConfig.release = release;
+
+    Sentry.init(sentryConfig);
 
     sentryClient = Sentry;
     enabled = true;

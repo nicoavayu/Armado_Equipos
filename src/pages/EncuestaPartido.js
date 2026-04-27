@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { handleError, AppError, ERROR_CODES } from '../lib/errorHandler';
 import { useAuth } from '../components/AuthProvider';
@@ -12,6 +12,7 @@ import SurveyImportantDisclaimer from '../components/survey/SurveyImportantDiscl
 import { finalizeIfComplete } from '../services/surveyCompletionService';
 import { useAnimatedNavigation } from '../hooks/useAnimatedNavigation';
 import { useScrollResetOnChange } from '../hooks/useScrollReset';
+import { setAuthReturnTo } from '../utils/authReturnTo';
 import { clearMatchFromList } from '../services/matchFinishService';
 import { listChallengeApprovedSquad, listTeamMatchMembers } from '../services/db/teamChallenges';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
@@ -688,9 +689,10 @@ const ensureLinkedPlayerForSurvey = async ({ matchId, user }) => {
 const EncuestaPartido = () => {
   const { partidoId, matchId } = useParams();
   const id = partidoId ?? matchId;
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { fetchNotifications } = useNotifications();
   const navigate = useNavigate();
+  const location = useLocation();
   const { navigateWithAnimation: _navigateWithAnimation } = useAnimatedNavigation();
 
   const [loading, setLoading] = useState(true);
@@ -825,8 +827,17 @@ const EncuestaPartido = () => {
 
     const fetchPartidoData = async () => {
       try {
-        if (!id || !user) {
+        if (!id) {
           if (!cancelled) navigate('/');
+          return;
+        }
+
+        if (!user) {
+          if (!cancelled) {
+            const returnTo = `${location.pathname}${location.search}${location.hash}`;
+            setAuthReturnTo(returnTo);
+            navigate(`/login?returnTo=${encodeURIComponent(returnTo)}`, { replace: true });
+          }
           return;
         }
 
@@ -1371,8 +1382,15 @@ const EncuestaPartido = () => {
     };
 
     resetSurveyState();
-    if (id && user) {
+    if (authLoading) {
+      setLoading(true);
+    } else if (id && user) {
       fetchPartidoData();
+    } else if (id && !user) {
+      const returnTo = `${location.pathname}${location.search}${location.hash}`;
+      setAuthReturnTo(returnTo);
+      navigate(`/login?returnTo=${encodeURIComponent(returnTo)}`, { replace: true });
+      setLoading(false);
     } else {
       setLoading(false);
     }
@@ -1380,7 +1398,7 @@ const EncuestaPartido = () => {
     return () => {
       cancelled = true;
     };
-  }, [id, user, navigate]);
+  }, [id, user, authLoading, navigate, location.pathname, location.search, location.hash]);
 
   // Mark survey related notifications as read when entering survey page
   useEffect(() => {

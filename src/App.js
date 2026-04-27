@@ -97,19 +97,25 @@ export default function App() {
                     </Suspense>
                   } />
                   <Route path="/encuesta/:partidoId" element={
-                    <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
-                      <EncuestaPartido />
-                    </Suspense>
+                    <RequireAuth>
+                      <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
+                        <EncuestaPartido />
+                      </Suspense>
+                    </RequireAuth>
                   } />
                   <Route path="/resultados-encuesta/:partidoId" element={
-                    <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
-                      <ResultadosEncuestaView />
-                    </Suspense>
+                    <RequireAuth>
+                      <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
+                        <ResultadosEncuestaView />
+                      </Suspense>
+                    </RequireAuth>
                   } />
                   <Route path="/resultados/:partidoId" element={
-                    <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
-                      <ResultadosEncuestaView />
-                    </Suspense>
+                    <RequireAuth>
+                      <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
+                        <ResultadosEncuestaView />
+                      </Suspense>
+                    </RequireAuth>
                   } />
                   <Route path="/login" element={
                     <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
@@ -391,9 +397,26 @@ function NativeAuthDeepLinkBootstrap() {
   return null;
 }
 
+function RequireAuth({ children }) {
+  const { user, loading } = useAuth();
+  const location = useLocation();
+
+  if (loading) {
+    return <div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>;
+  }
+
+  if (!user) {
+    const returnTo = `${location.pathname}${location.search}${location.hash}`;
+    setAuthReturnTo(returnTo);
+    return <Navigate to={`/login?returnTo=${encodeURIComponent(returnTo)}`} replace />;
+  }
+
+  return children;
+}
+
 // Wrapper para controlar la autenticación en la ruta principal
 function AppAuthWrapper() {
-  const { user, loading, authResolved } = useAuth();
+  const { user, loading } = useAuth();
   const location = useLocation();
   const localEditMode = process.env.NODE_ENV === 'development' && process.env.REACT_APP_LOCAL_EDIT_MODE !== 'false';
   const shouldPassThroughWhileLoading = loading && process.env.NODE_ENV !== 'production';

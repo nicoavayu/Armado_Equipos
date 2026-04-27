@@ -21,6 +21,7 @@ import {
 } from '../utils/awardsReadiness';
 import { SURVEY_MIN_VOTERS_FOR_AWARDS } from '../config/surveyConfig';
 import { useSmartBackNavigation } from '../hooks/useSmartBackNavigation';
+import { setAuthReturnTo } from '../utils/authReturnTo';
 
 const ensurePlayersList = (players) => {
   if (players && players.length > 0) return players;
@@ -101,13 +102,14 @@ const PreviewPlayersContext = createContext([]);
 
 const ResultadosEncuestaView = () => {
   const { partidoId } = useParams();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const goBackSmart = useSmartBackNavigation({
     fallback: '/',
   });
   const searchParams = new URLSearchParams(location.search);
+  const authReturnTo = `${location.pathname}${location.search}${location.hash}`;
   const forceAwardsMode =
     Boolean(location?.state?.forceAwards) ||
     Boolean(location?.state?.fromNotification) ||
@@ -1432,12 +1434,21 @@ const ResultadosEncuestaView = () => {
         return;
       }
 
+      if (authLoading) {
+        if (alive) {
+          setLoading(true);
+        }
+        return;
+      }
+
       if (!user) {
         if (alive) {
+          setAuthReturnTo(authReturnTo);
           setPartido(null);
           setResults(null);
           setJugadores([]);
           setLoading(false);
+          navigate(`/login?returnTo=${encodeURIComponent(authReturnTo)}`, { replace: true });
         }
         return;
       }
@@ -1592,11 +1603,11 @@ const ResultadosEncuestaView = () => {
     return () => {
       alive = false;
     };
-  }, [partidoId, user, navigate, location.search, computeSurveyProgress]);
+  }, [partidoId, user, authLoading, navigate, authReturnTo, computeSurveyProgress]);
 
   // Realtime updates
   useEffect(() => {
-    if (!partidoId) return;
+    if (!partidoId || !user) return;
     const unsubscribe = subscribeToMatchUpdates(partidoId, (event) => {
       // Refetch on any significant change
       if (event.type === 'results_update' || event.type === 'votes_update' || event.type === 'match_update') {
@@ -1607,7 +1618,7 @@ const ResultadosEncuestaView = () => {
       }
     });
     return () => unsubscribe();
-  }, [partidoId]);
+  }, [partidoId, user]);
 
   // Force story-like awards entry from notification/ring/showAwards links.
   useEffect(() => {
