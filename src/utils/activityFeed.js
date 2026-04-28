@@ -4,8 +4,10 @@ import { resolveMatchInviteRoute } from './matchInviteRoute';
 import {
   formatMatchCancelledMessage,
   quoteMatchName,
+  resolveNotificationMatchName,
   resolveNotificationTeamName,
   resolveTeamInviteActorName,
+  sanitizeNotificationMatchName,
 } from './notificationText';
 import {
   getSurveyRemainingLabel,
@@ -508,12 +510,11 @@ const compactText = (value = '', maxChars = 42, fallback = '') => {
 
 const compactMatchName = (value, fallback = 'Partido') => compactText(value, 34, fallback);
 const hasUsableMatchName = (value) => {
-  const normalized = normalizeSpaces(String(value || '')).toLowerCase();
-  return Boolean(normalized) && normalized !== 'partido';
+  return Boolean(sanitizeNotificationMatchName(value, ''));
 };
 const getQuotedMatchLabel = (matchName) => (
   hasUsableMatchName(matchName)
-    ? quoteMatchName(matchName, 'este partido')
+    ? quoteMatchName(matchName, matchName)
     : null
 );
 
@@ -548,10 +549,7 @@ const resolveHomeMatchName = (notification, match) => (
     match?.nombre
     || match?.titulo
     || match?.name
-    || notification?.data?.match_name
-    || notification?.data?.partido_nombre
-    || notification?.match_name
-    || notification?.partido_nombre
+    || resolveNotificationMatchName(notification, '')
     || '',
     '',
   )
@@ -861,8 +859,9 @@ const toActivityFromNotification = (group, match, currentUserId) => {
   const teamMatchId = notification?.data?.team_match_id || notification?.data?.teamMatchId || null;
   const numericMatchId = Number(partidoId);
   const resolvedPartidoId = Number.isFinite(numericMatchId) && numericMatchId > 0 ? numericMatchId : undefined;
-  const notificationMatchName = notification?.data?.match_name || notification?.data?.partido_nombre || null;
-  const matchName = compactMatchName(getMatchDisplayName(match, notificationMatchName || 'Partido'), 'Partido');
+  const notificationMatchName = resolveNotificationMatchName(notification, '');
+  const rawMatchName = getMatchDisplayName(match, notificationMatchName || '');
+  const matchName = compactMatchName(sanitizeNotificationMatchName(rawMatchName, ''), 'Partido');
   const quotedMatchName = getQuotedMatchLabel(matchName);
   const dateLabel = formatMatchDate(match);
   const createdAt = notification?.created_at || new Date().toISOString();
