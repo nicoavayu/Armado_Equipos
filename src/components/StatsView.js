@@ -129,6 +129,8 @@ const StatsView = ({ onVolver }) => {
   });
   const [loading, setLoading] = useState(true);
   const [identityRefs, setIdentityRefs] = useState([]);
+  const [identityRefsReady, setIdentityRefsReady] = useState(false);
+  const loadStatsRequestRef = useRef(0);
 
   const getDefaultExtendedStats = () => ({
     asistencia: {
@@ -231,26 +233,36 @@ const StatsView = ({ onVolver }) => {
   };
 
   useEffect(() => {
-    if (user) {
+    if (user?.id && identityRefsReady) {
       loadStats();
     }
-  }, [user, identityRefs, period, selectedYear, selectedMonth, selectedWeek]);
+  }, [user?.id, identityRefsReady, identityRefs, period, selectedYear, selectedMonth, selectedWeek]);
 
   useEffect(() => {
     let cancelled = false;
 
     const loadIdentityRefs = async () => {
+      loadStatsRequestRef.current += 1;
+      setIdentityRefsReady(false);
+
       if (!user?.id) {
         setIdentityRefs([]);
+        setIdentityRefsReady(true);
         return;
       }
 
       try {
         const refs = await listRegisteredUserIdentityRefs(user.id);
-        if (!cancelled) setIdentityRefs(refs);
+        if (!cancelled) {
+          setIdentityRefs(refs);
+          setIdentityRefsReady(true);
+        }
       } catch (error) {
         console.warn('[STATS] Could not resolve historical identity aliases. Falling back to auth user.', error);
-        if (!cancelled) setIdentityRefs([user.id]);
+        if (!cancelled) {
+          setIdentityRefs([user.id]);
+          setIdentityRefsReady(true);
+        }
       }
     };
 
@@ -282,15 +294,193 @@ const StatsView = ({ onVolver }) => {
     };
   }, [showWeekDropdown, showMonthDropdown, showYearDropdown]);
 
+  const toDateOnlyRange = (range) => ({
+    start: String(range?.start || '').split('T')[0],
+    end: String(range?.end || '').split('T')[0],
+  });
+
+  const getRangeCacheKey = (range) => {
+    const { start, end } = toDateOnlyRange(range);
+    return `${start}|${end}`;
+  };
+
+  const createStatsLoadCache = () => ({
+    partidosByRange: new Map(),
+    manualMatchesByRange: new Map(),
+  });
+
+  const fetchPartidosForRange = async (dateRange, loadCache = null) => {
+    const { start, end } = toDateOnlyRange(dateRange);
+    const cacheKey = getRangeCacheKey(dateRange);
+    const cache = loadCache?.partidosByRange;
+
+    if (cache?.has(cacheKey)) {
+      return cache.get(cacheKey);
+    }
+
+    const queryPromise = (async () => {
+      const { data, error } = await supabase
+        .from('partidos_view')
+        .select('*')
+        .gte('fecha', start)
+        .lte('fecha', end);
+
+      if (error) throw error;
+      return data || [];
+    })();
+
+    cache?.set(cacheKey, queryPromise);
+    return queryPromise;
+  };
+
+  const fetchManualMatchesForRange = async (dateRange, loadCache = null) => {
+    const { start, end } = toDateOnlyRange(dateRange);
+    const cacheKey = getRangeCacheKey(dateRange);
+    const cache = loadCache?.manualMatchesByRange;
+
+    if (cache?.has(cacheKey)) {
+      return cache.get(cacheKey);
+    }
+
+    const queryPromise = (async () => {
+      const { data, error } = await supabase
+        .from('partidos_manuales')
+        .select('*')
+        .eq('usuario_id', user.id)
+        .gte('fecha', start)
+        .lte('fecha', end);
+
+      if (error) throw error;
+      return data || [];
+    })();
+
+    cache?.set(cacheKey, queryPromise);
+    return queryPromise;
+  };
+
+  const buildUserMatchesFromRows = (realRows = [], manualRows = []) => {
+    const closedRealMatches = dedupeMatchesById((realRows || []).filter((partido) => isMatchClosedForStats(partido)));
+    const userRealMatches = dedupeMatchesById(closedRealMatches.filter((partido) =>
+      partido.jugadores?.some((j) => isCurrentUserPlayer(j)),
+    ));
+
+    return {
+      real: userRealMatches,
+      manual: manualRows || [],
+      total: userRealMatches.length + (manualRows?.length || 0),
+    };
+  };
+
+  const chunkArray = (items = [], size = 100) => {
+    const chunks = [];
+    for (let index = 0; index < items.length; index += size) {
+      chunks.push(items.slice(index, index + size));
+    }
+    return chunks;
+  };
+
+  const getFallbackHistoricalMatchCount = (matches = []) => {
+    const closedMatches = dedupeMatchesById((matches || []).filter((partido) => isMatchClosedForStats(partido)));
+    return dedupeMatchesById(closedMatches.filter((partido) =>
+      partido.jugadores?.some((j) => isCurrentUserPlayer(j)),
+    )).length;
+  };
+
+  const fetchHistoricalRegisteredMatchIds = async () => {
+    if (!user?.id) return [];
+
+    const refs = Array.from(new Set([user.id, ...(identityRefs || [])].filter(Boolean)));
+    const uuidRefs = refs.filter((ref) => isUuidLike(ref));
+    const queryPromises = [
+      supabase
+        .from('jugadores')
+        .select('partido_id')
+        .eq('usuario_id', user.id),
+      ...chunkArray(uuidRefs).map((chunk) => (
+        supabase
+          .from('jugadores')
+          .select('partido_id')
+          .in('uuid', chunk)
+      )),
+    ];
+
+    const results = await Promise.all(queryPromises);
+    const firstError = results.find((result) => result.error)?.error;
+    if (firstError) throw firstError;
+
+    return [...new Set(
+      results
+        .flatMap((result) => result.data || [])
+        .map((row) => Number(row?.partido_id))
+        .filter((id) => Number.isFinite(id)),
+    )];
+  };
+
+  const fetchPartidoLifecycleRowsByIds = async (matchIds = []) => {
+    const ids = [...new Set((matchIds || []).map((id) => Number(id)).filter((id) => Number.isFinite(id)))];
+    if (ids.length === 0) return [];
+
+    const selectAttempts = [
+      'id, estado, winner_team, result_status, finished_at, survey_status',
+      'id, estado, winner_team, result_status, finished_at',
+      'id, estado',
+    ];
+
+    let lastError = null;
+    for (const selectColumns of selectAttempts) {
+      const results = await Promise.all(chunkArray(ids).map((chunk) => (
+        supabase
+          .from('partidos')
+          .select(selectColumns)
+          .in('id', chunk)
+      )));
+
+      const firstError = results.find((result) => result.error)?.error;
+      if (!firstError) {
+        return results.flatMap((result) => result.data || []);
+      }
+
+      lastError = firstError;
+    }
+
+    throw lastError;
+  };
+
+  const getHistoricalNormalMatchesCount = async (fallbackMatches = []) => {
+    try {
+      const matchIds = await fetchHistoricalRegisteredMatchIds();
+      if (matchIds.length === 0) {
+        return getFallbackHistoricalMatchCount(fallbackMatches);
+      }
+
+      const lifecycleRows = await fetchPartidoLifecycleRowsByIds(matchIds);
+      return new Set(
+        (lifecycleRows || [])
+          .filter((partido) => isMatchClosedForStats(partido))
+          .map((partido) => Number(partido?.id))
+          .filter((id) => Number.isFinite(id)),
+      ).size;
+    } catch (error) {
+      console.warn('[STATS] No se pudo calcular el histórico desde jugadores. Se usa fallback del rango actual.', error);
+      return getFallbackHistoricalMatchCount(fallbackMatches);
+    }
+  };
+
   const loadStats = async () => {
+    const requestId = loadStatsRequestRef.current + 1;
+    loadStatsRequestRef.current = requestId;
     setLoading(true);
     try {
       const dateRange = getDateRange(period);
-      const [partidosData, amigosData, partidosManualesData, lesionesData] = await Promise.all([
-        getPartidosStats(dateRange),
-        getAmigosStats(dateRange),
-        getPartidosManualesStats(dateRange),
+      const loadCache = createStatsLoadCache();
+      const [partidosRows, partidosManualesData, lesionesData] = await Promise.all([
+        fetchPartidosForRange(dateRange, loadCache),
+        getPartidosManualesStats(dateRange, loadCache),
         getLesionesStats(),
+      ]);
+      const [partidosData, amigosData] = await Promise.all([
+        getPartidosStats(dateRange, partidosRows, loadCache),
+        getAmigosStats(dateRange, partidosRows),
       ]);
       let extendedStats = getDefaultExtendedStats();
       try {
@@ -298,6 +488,9 @@ const StatsView = ({ onVolver }) => {
           dateRange,
           partidosData,
           partidosManualesData,
+          currentRangeMatches: partidosRows,
+          currentManualMatches: partidosManualesData.partidos,
+          loadCache,
         });
       } catch (extendedError) {
         console.warn('[STATS] No se pudieron cargar métricas extendidas, usando fallback.', extendedError);
@@ -309,6 +502,8 @@ const StatsView = ({ onVolver }) => {
       ]
         .sort((a, b) => Number(b?.ts || 0) - Number(a?.ts || 0))
         .slice(0, 5);
+
+      if (requestId !== loadStatsRequestRef.current) return;
 
       setStats({
         partidosJugados: partidosData.total + partidosManualesData.total,
@@ -340,9 +535,13 @@ const StatsView = ({ onVolver }) => {
         consistencia: extendedStats.consistencia,
       });
     } catch (error) {
-      console.error('Error loading stats:', error);
+      if (requestId === loadStatsRequestRef.current) {
+        console.error('Error loading stats:', error);
+      }
     } finally {
-      setLoading(false);
+      if (requestId === loadStatsRequestRef.current) {
+        setLoading(false);
+      }
     }
   };
 
@@ -371,15 +570,10 @@ const StatsView = ({ onVolver }) => {
     return { start: start.toISOString(), end: end.toISOString() };
   };
 
-  const getPartidosStats = async (dateRange) => {
-    const { data: partidos, error } = await supabase
-      .from('partidos_view')
-      .select('*')
-      .gte('fecha', dateRange.start.split('T')[0])
-      .lte('fecha', dateRange.end.split('T')[0]);
-
-    if (error) throw error;
-
+  const getPartidosStats = async (dateRange, partidosRows = null, loadCache = null) => {
+    const partidos = Array.isArray(partidosRows)
+      ? partidosRows
+      : await fetchPartidosForRange(dateRange, loadCache);
     const rawClosedMatches = (partidos || []).filter((partido) => isMatchClosedForStats(partido));
     const closedMatches = dedupeMatchesById(rawClosedMatches);
     const rawUserPartidos = rawClosedMatches.filter((partido) =>
@@ -394,7 +588,7 @@ const StatsView = ({ onVolver }) => {
     const promedioRating = ratings.length > 0 ? ratings.reduce((a, b) => a + b, 0) / ratings.length : 0;
 
     const chartData = generateChartData(userPartidos, period);
-    const logros = await calculateLogros(closedMatches);
+    const logros = await calculateLogros({ currentRangeMatches: partidos, loadCache });
     const surveyOutcomesResult = await getSurveyOutcomeStats(rawUserPartidos);
     const surveyOutcomes = {
       ganados: Number(surveyOutcomesResult?.ganados || 0),
@@ -512,15 +706,10 @@ const StatsView = ({ onVolver }) => {
     });
   };
 
-  const getAmigosStats = async (dateRange) => {
-    const { data: partidos, error } = await supabase
-      .from('partidos_view')
-      .select('*')
-      .gte('fecha', dateRange.start.split('T')[0])
-      .lte('fecha', dateRange.end.split('T')[0]);
-
-    if (error) throw error;
-
+  const getAmigosStats = async (dateRange, partidosRows = null, loadCache = null) => {
+    const partidos = Array.isArray(partidosRows)
+      ? partidosRows
+      : await fetchPartidosForRange(dateRange, loadCache);
     const closedMatches = dedupeMatchesById((partidos || []).filter((partido) => isMatchClosedForStats(partido)));
     const userPartidos = dedupeMatchesById(closedMatches.filter((partido) =>
       partido.jugadores?.some((j) => isCurrentUserPlayer(j)),
@@ -545,7 +734,15 @@ const StatsView = ({ onVolver }) => {
       });
     });
 
-    const userIds = [...new Set(Object.values(amigosInfo).map((a) => a.userId).filter((id) => isUuidLike(id)))];
+    const topFriendEntries = Object.entries(amigosCount)
+      .sort(([, countA], [, countB]) => countB - countA)
+      .slice(0, 5);
+    const topFriendKeys = new Set(topFriendEntries.map(([key]) => key));
+    const userIds = [...new Set(
+      topFriendEntries
+        .map(([key]) => amigosInfo[key]?.userId)
+        .filter((id) => isUuidLike(id)),
+    )];
     if (userIds.length > 0) {
       const { data: profiles } = await supabase
         .from('usuarios')
@@ -554,6 +751,7 @@ const StatsView = ({ onVolver }) => {
 
       profiles?.forEach((profile) => {
         Object.keys(amigosInfo).forEach((key) => {
+          if (!topFriendKeys.has(key)) return;
           if (amigosInfo[key]?.userId === profile.id) {
             amigosInfo[key].nombre = profile.nombre;
             amigosInfo[key].avatar = profile.avatar_url || '/profile.svg';
@@ -563,14 +761,13 @@ const StatsView = ({ onVolver }) => {
       });
     }
 
-    const topAmigos = Object.entries(amigosCount)
+    const topAmigos = topFriendEntries
       .map(([key, count]) => ({
         ...amigosInfo[key],
         partidos: count,
         color: getAvatarColor(amigosInfo[key].nombre),
       }))
-      .sort((a, b) => b.partidos - a.partidos)
-      .slice(0, 5);
+      .sort((a, b) => b.partidos - a.partidos);
 
     return {
       distintos: Object.keys(amigosCount).length,
@@ -578,37 +775,38 @@ const StatsView = ({ onVolver }) => {
     };
   };
 
-  const calculateLogros = async (allPartidos = []) => {
+  const calculateLogros = async ({ currentRangeMatches = [], loadCache = null } = {}) => {
     const annualLogros = [];
     const historicalLogros = [];
     const yearStart = `${selectedYear}-01-01`;
     const yearEnd = `${selectedYear}-12-31`;
+    const selectedYearRange = { start: yearStart, end: yearEnd };
 
-    const [yearMatchesRes, allMatchesRes, manualHistoryRes] = await Promise.all([
+    const [yearMatchesRes, totalPartidosNormales, manualHistoryRes] = await Promise.all([
+      fetchPartidosForRange(selectedYearRange, loadCache)
+        .then((data) => ({ data, error: null }))
+        .catch((error) => ({ data: null, error })),
+      getHistoricalNormalMatchesCount(currentRangeMatches),
       supabase
-        .from('partidos_view')
-        .select('*')
-        .gte('fecha', yearStart)
-        .lte('fecha', yearEnd),
-      supabase.from('partidos_view').select('*'),
-      supabase.from('partidos_manuales').select('*').eq('usuario_id', user.id),
+        .from('partidos_manuales')
+        .select('id', { count: 'exact', head: true })
+        .eq('usuario_id', user.id),
     ]);
 
-    const fallbackYearMatches = (allPartidos || []).filter((match) => {
+    const fallbackYearMatches = (currentRangeMatches || []).filter((match) => {
       const date = new Date(`${String(match?.fecha || '')}T00:00:00`);
       return !Number.isNaN(date.getTime()) && date.getFullYear() === selectedYear;
     });
+    if (yearMatchesRes.error) {
+      console.warn('[STATS] No se pudieron cargar partidos anuales para logros. Se usa fallback del rango actual.', yearMatchesRes.error);
+    }
     const rawYearMatches = yearMatchesRes.error ? fallbackYearMatches : (yearMatchesRes.data || []);
     const yearMatchesData = dedupeMatchesById(rawYearMatches.filter((match) => isMatchClosedForStats(match)));
     const userYearPartidos = dedupeMatchesById(yearMatchesData.filter((partido) =>
       partido.jugadores?.some((j) => isCurrentUserPlayer(j)),
     ));
 
-    const closedHistoricalMatches = dedupeMatchesById((allMatchesRes.data || []).filter((partido) => isMatchClosedForStats(partido)));
-    const totalPartidosNormales = dedupeMatchesById(closedHistoricalMatches.filter((partido) =>
-      partido.jugadores?.some((j) => isCurrentUserPlayer(j)),
-    )).length;
-    const totalPartidosManuales = manualHistoryRes.error ? 0 : (manualHistoryRes.data?.length || 0);
+    const totalPartidosManuales = manualHistoryRes.error ? 0 : Number(manualHistoryRes.count || 0);
     const totalHistorico = totalPartidosNormales + totalPartidosManuales;
 
     const registerAwardIfUser = (awardType, candidateRef, userRefsSet, awardCounts) => {
@@ -783,15 +981,8 @@ const StatsView = ({ onVolver }) => {
     return nombre.split(' ').map((word) => word.charAt(0)).join('').toUpperCase().slice(0, 2);
   };
 
-  const getPartidosManualesStats = async (dateRange) => {
-    const { data: partidosManuales, error } = await supabase
-      .from('partidos_manuales')
-      .select('*')
-      .eq('usuario_id', user.id)
-      .gte('fecha', dateRange.start.split('T')[0])
-      .lte('fecha', dateRange.end.split('T')[0]);
-
-    if (error) throw error;
+  const getPartidosManualesStats = async (dateRange, loadCache = null) => {
+    const partidosManuales = await fetchManualMatchesForRange(dateRange, loadCache);
 
     const amistosos = partidosManuales?.filter((p) => p.tipo_partido === 'amistoso').length || 0;
     const torneos = partidosManuales?.filter((p) => p.tipo_partido === 'torneo').length || 0;
@@ -937,34 +1128,13 @@ const StatsView = ({ onVolver }) => {
     };
   };
 
-  const getUserMatchesForRange = async ({ start, end }) => {
-    const [realRes, manualRes] = await Promise.all([
-      supabase
-        .from('partidos_view')
-        .select('*')
-        .gte('fecha', start)
-        .lte('fecha', end),
-      supabase
-        .from('partidos_manuales')
-        .select('*')
-        .eq('usuario_id', user.id)
-        .gte('fecha', start)
-        .lte('fecha', end),
+  const getUserMatchesForRange = async (dateRange, loadCache = null) => {
+    const [realRows, manualRows] = await Promise.all([
+      fetchPartidosForRange(dateRange, loadCache),
+      fetchManualMatchesForRange(dateRange, loadCache),
     ]);
 
-    if (realRes.error) throw realRes.error;
-    if (manualRes.error) throw manualRes.error;
-
-    const closedRealMatches = dedupeMatchesById((realRes.data || []).filter((partido) => isMatchClosedForStats(partido)));
-    const userRealMatches = dedupeMatchesById(closedRealMatches.filter((partido) =>
-      partido.jugadores?.some((j) => isCurrentUserPlayer(j)),
-    ));
-
-    return {
-      real: userRealMatches,
-      manual: manualRes.data || [],
-      total: userRealMatches.length + (manualRes.data?.length || 0),
-    };
+    return buildUserMatchesFromRows(realRows, manualRows);
   };
 
   const getNoShowPenaltyCountForMatches = async (matchIds = []) => {
@@ -1328,17 +1498,26 @@ const StatsView = ({ onVolver }) => {
     return best;
   };
 
-  const getConsistencyStats = async ({ dateRange, totalPeriodoActual }) => {
+  const getConsistencyStats = async ({
+    dateRange,
+    totalPeriodoActual,
+    currentRangeMatches = [],
+    currentManualMatches = [],
+    loadCache = null,
+  }) => {
     const previousRange = getPreviousDateRange(dateRange);
     const selectedYearRange = {
       start: `${selectedYear}-01-01`,
       end: `${selectedYear}-12-31`,
     };
     const monthLabelsShort = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    const selectedYearMatchesPromise = getRangeCacheKey(dateRange) === getRangeCacheKey(selectedYearRange)
+      ? Promise.resolve(buildUserMatchesFromRows(currentRangeMatches, currentManualMatches))
+      : getUserMatchesForRange(selectedYearRange, loadCache);
 
     const [previousMatches, selectedYearMatches] = await Promise.all([
-      getUserMatchesForRange(previousRange),
-      getUserMatchesForRange(selectedYearRange),
+      getUserMatchesForRange(previousRange, loadCache),
+      selectedYearMatchesPromise,
     ]);
 
     const totalPeriodoAnterior = previousMatches.total;
@@ -1388,7 +1567,14 @@ const StatsView = ({ onVolver }) => {
     };
   };
 
-  const getExtendedStats = async ({ dateRange, partidosData, partidosManualesData }) => {
+  const getExtendedStats = async ({
+    dateRange,
+    partidosData,
+    partidosManualesData,
+    currentRangeMatches = [],
+    currentManualMatches = [],
+    loadCache = null,
+  }) => {
     const userPartidos = partidosData?.partidos || [];
     const totalPeriodoActual = (partidosData?.total || 0) + (partidosManualesData?.total || 0);
     const defaultExtendedStats = getDefaultExtendedStats();
@@ -1405,7 +1591,13 @@ const StatsView = ({ onVolver }) => {
     const [attendanceRes, rankingRes, consistencyRes] = await Promise.allSettled([
       getAttendanceStats(userPartidos),
       getRankingTimelineStats({ dateRange, userPartidos }),
-      getConsistencyStats({ dateRange, totalPeriodoActual }),
+      getConsistencyStats({
+        dateRange,
+        totalPeriodoActual,
+        currentRangeMatches,
+        currentManualMatches,
+        loadCache,
+      }),
     ]);
 
     const attendanceStats = attendanceRes.status === 'fulfilled'
