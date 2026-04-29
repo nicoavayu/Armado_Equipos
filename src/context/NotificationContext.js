@@ -28,6 +28,7 @@ import {
   getNotificationDisplayTimestampMs,
   getNotificationsUiCutoffIso,
 } from '../utils/notificationRetentionPolicy';
+import { debugNotificationEvent } from '../utils/notificationRouter';
 import { track } from '../utils/monitoring/analytics';
 import { parseLocalDateTime } from '../utils/dateLocal';
 
@@ -977,25 +978,51 @@ export const NotificationProvider = ({ children }) => {
 
   // Mark notification as read
   const markAsRead = async (notificationId) => {
+    const normalizedNotificationId = String(notificationId ?? '').trim();
+    if (!normalizedNotificationId) {
+      debugNotificationEvent('NOTIFICATION_MARK_READ_SKIP', {
+        source: 'notification_context',
+        reason: 'missing_notification_id',
+        notification_id: null,
+      });
+      if (process.env.NODE_ENV !== 'production') {
+        logger.warn('[NOTIFICATIONS] Skipping markAsRead without notification id');
+      }
+      return;
+    }
+
     try {
+      debugNotificationEvent('NOTIFICATION_MARK_READ_START', {
+        source: 'notification_context',
+        notification_id: normalizedNotificationId,
+      });
       const { error } = await supabase
         .from('notifications')
         .update({ read: true })
-        .eq('id', notificationId);
+        .eq('id', normalizedNotificationId);
 
       if (error) throw error;
+      debugNotificationEvent('NOTIFICATION_MARK_READ_DONE', {
+        source: 'notification_context',
+        notification_id: normalizedNotificationId,
+      });
 
       // Update local state
       setNotifications((prev) =>
-        prev.map((n) => n.id === notificationId ? { ...n, read: true } : n),
+        prev.map((n) => n.id === normalizedNotificationId ? { ...n, read: true } : n),
       );
 
       // Update unread count
       const updatedNotifications = notifications.map((n) =>
-        n.id === notificationId ? { ...n, read: true } : n,
+        n.id === normalizedNotificationId ? { ...n, read: true } : n,
       );
       updateUnreadCount(updatedNotifications);
     } catch (error) {
+      debugNotificationEvent('NOTIFICATION_MARK_READ_ERROR', {
+        source: 'notification_context',
+        notification_id: normalizedNotificationId,
+        error: error?.message || String(error || ''),
+      });
       handleError(error, { showToast: false, onError: () => { } });
     }
   };

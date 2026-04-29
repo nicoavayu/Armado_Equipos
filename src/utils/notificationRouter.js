@@ -22,6 +22,16 @@ import {
   isTeamChallengeNotification,
   resolveTeamChallengeRouteFromMatchId,
 } from './notificationRoutes';
+import {
+  SURVEY_CHALLENGE_DISABLED_MESSAGE,
+  SURVEY_CHALLENGE_DISABLED_REASON,
+  SURVEY_CHALLENGE_DISABLED_TITLE,
+  buildSurveyChallengeDisabledNotice,
+  fetchChallengeTeamMatchForPartido,
+  isChallengeLikeTeamMatchRow,
+  isSurveyDisabledForChallengeNotification,
+  isSurveyRelatedNotificationType,
+} from './surveyChallengePolicy';
 
 const isSafeInternalPath = (path) => typeof path === 'string' && path.startsWith('/') && !path.startsWith('//');
 const isSurveyPath = (path) => /^\/encuesta\/[^/?#]+(?:\?.*)?$/i.test(path);
@@ -141,6 +151,56 @@ const LIFECYCLE_CACHE_TTL_MS = 60 * 1000;
 
 const lifecycleCacheByMatchId = new Map();
 
+const readNotificationDebugFlag = () => {
+  if (typeof window === 'undefined') return false;
+  try {
+    return window.localStorage?.getItem('arma2:debug:notifications') === '1';
+  } catch (_error) {
+    return false;
+  }
+};
+
+const readNotificationPlatform = (platformOverride = '') => {
+  if (platformOverride) return platformOverride;
+  if (typeof window === 'undefined') return 'unknown';
+  try {
+    return window.Capacitor?.getPlatform?.() || 'web';
+  } catch (_error) {
+    return 'web';
+  }
+};
+
+const isNotificationRouteDebugEnabled = () => (
+  process.env.NODE_ENV !== 'production' || readNotificationDebugFlag()
+);
+
+const readCurrentRoute = () => {
+  if (typeof window === 'undefined') return '';
+  try {
+    return `${window.location?.pathname || ''}${window.location?.search || ''}${window.location?.hash || ''}`;
+  } catch (_error) {
+    return '';
+  }
+};
+
+export const debugNotificationEvent = (tag, payload = {}) => {
+  if (!isNotificationRouteDebugEnabled()) return;
+  const label = String(tag || '').startsWith('[') ? String(tag) : `[${tag}]`;
+  console.debug(label, {
+    ...payload,
+    platform: readNotificationPlatform(payload?.platform),
+    current_route: payload?.current_route || readCurrentRoute(),
+    timestamp: new Date().toISOString(),
+  });
+};
+
+export const debugNotificationRoute = (eventName, payload = {}) => {
+  debugNotificationEvent('NOTIFICATION_ROUTE', {
+    event: eventName,
+    ...payload,
+  });
+};
+
 const normalizeToken = (value) => String(value || '').trim().toLowerCase();
 
 const REMINDER_TYPE_TOKENS = new Set([
@@ -180,7 +240,10 @@ const extractMatchIdFromPath = (rawPath) => {
   const path = String(rawPath || '').trim();
   if (!path) return null;
   const match = path.match(/\/(?:admin|partido-publico|partido|encuesta|resultados-encuesta|votar-equipos)\/(\d+)/i);
-  return match?.[1] || null;
+  if (match?.[1]) return match[1];
+
+  const queryMatch = path.match(/[?&](?:partidoId|partido_id|matchId|match_id)=(\d+)(?:&|$)/i);
+  return queryMatch?.[1] || null;
 };
 
 const extractLifecycleMatchId = (notification = {}) => {
@@ -194,7 +257,22 @@ const extractLifecycleMatchId = (notification = {}) => {
     || notification?.match_id
     || notification?.match_ref
     || notification?.target_params?.partido_id
-    || extractMatchIdFromPath(data?.link || data?.resultsUrl || notification?.deep_link || notification?.deepLink || null)
+    || extractMatchIdFromPath(
+      data?.resultsUrl
+      || data?.results_url
+      || data?.action_url
+      || data?.actionUrl
+      || data?.link
+      || data?.route
+      || data?.url
+      || data?.deep_link
+      || data?.deepLink
+      || notification?.action_url
+      || notification?.actionUrl
+      || notification?.deep_link
+      || notification?.deepLink
+      || null,
+    )
     || null
   );
   if (candidate === null || candidate === undefined) return null;
@@ -258,6 +336,12 @@ export const isSurveyReminderLikeNotification = (notification = {}) => {
 
 export const shouldTreatNotificationAsSurveyForm = (notification = {}) => (
   isSurveyFormNotificationType(notification) || isSurveyReminderLikeNotification(notification)
+);
+
+const shouldOpenAsTeamChallenge = (notification = {}) => (
+  isTeamChallengeNotification(notification)
+  && !shouldTreatNotificationAsSurveyForm(notification)
+  && !CONSULTABLE_NOTIFICATION_TYPES.has(normalizeToken(notification?.type))
 );
 
 const getCachedLifecycleRow = (matchId, nowMs) => {
@@ -359,6 +443,37 @@ const buildAwardsUnavailableNotice = ({ partidoRow = null, surveyResultsRow = nu
   };
 };
 
+const resolveSurveyChallengeDisabledNotice = async ({
+  notification = {},
+  matchId = null,
+  supabaseClient = supabase,
+} = {}) => {
+  if (!isSurveyRelatedNotificationType(notification)) return null;
+
+  if (isSurveyDisabledForChallengeNotification(notification)) {
+    return buildSurveyChallengeDisabledNotice({
+      matchId: matchId || extractNotificationMatchId(notification) || null,
+      teamMatchId: extractTeamMatchId(notification) || null,
+      source: 'notification_metadata',
+    });
+  }
+
+  const normalizedMatchId = String(matchId ?? extractNotificationMatchId(notification) ?? '').trim();
+  if (!normalizedMatchId) return null;
+
+  const teamMatchRow = await fetchChallengeTeamMatchForPartido({
+    supabaseClient,
+    partidoId: normalizedMatchId,
+  });
+  if (!isChallengeLikeTeamMatchRow(teamMatchRow)) return null;
+
+  return buildSurveyChallengeDisabledNotice({
+    matchId: normalizedMatchId,
+    teamMatchId: teamMatchRow?.id || null,
+    source: 'team_matches_lookup',
+  });
+};
+
 export const resolveResultsNotificationEntry = async ({
   notification = {},
   supabaseClient = supabase,
@@ -374,6 +489,23 @@ export const resolveResultsNotificationEntry = async ({
       route: null,
       state: null,
       matchId: null,
+    };
+  }
+
+  const challengeDisabled = await resolveSurveyChallengeDisabledNotice({
+    notification,
+    matchId,
+    supabaseClient,
+  });
+  if (challengeDisabled) {
+    return {
+      kind: 'modal',
+      title: SURVEY_CHALLENGE_DISABLED_TITLE,
+      message: SURVEY_CHALLENGE_DISABLED_MESSAGE,
+      route: null,
+      state: null,
+      matchId,
+      reason: SURVEY_CHALLENGE_DISABLED_REASON,
     };
   }
 
@@ -571,6 +703,22 @@ export const resolveNotificationActionability = async ({
     };
   }
 
+  const challengeDisabled = await resolveSurveyChallengeDisabledNotice({
+    notification,
+    matchId,
+    supabaseClient,
+  });
+  if (challengeDisabled) {
+    return {
+      isActionable: false,
+      reason: challengeDisabled.reason,
+      message: challengeDisabled.message,
+      title: challengeDisabled.title,
+      matchId,
+      teamMatchId: challengeDisabled.teamMatchId || null,
+    };
+  }
+
   if (reminderLike) {
     const reminderActionRequired = isSurveyReminderActionRequired({
       surveyStatus: partidoRow?.survey_status || notification?.data?.survey_status || notification?.data?.surveyStatus,
@@ -704,6 +852,9 @@ export const withShowAwardsParam = (rawPath) => {
 export const buildAwardsResultsNavigationTarget = (notification = {}, fallbackMatchId = null) => {
   const matchId = String(fallbackMatchId ?? extractNotificationMatchId(notification) ?? '').trim();
   const base = notification?.data?.resultsUrl
+    || notification?.data?.results_url
+    || notification?.data?.action_url
+    || notification?.data?.actionUrl
     || notification?.data?.link
     || (matchId ? getResultsUrl(Number(matchId)) : null)
     || (matchId ? `/resultados-encuesta/${matchId}` : null);
@@ -721,6 +872,9 @@ export const buildAwardsResultsNavigationTarget = (notification = {}, fallbackMa
 export const buildResultsNavigationTarget = (notification = {}, fallbackMatchId = null) => {
   const matchId = String(fallbackMatchId ?? extractNotificationMatchId(notification) ?? '').trim();
   const base = notification?.data?.resultsUrl
+    || notification?.data?.results_url
+    || notification?.data?.action_url
+    || notification?.data?.actionUrl
     || notification?.data?.link
     || (matchId ? getResultsUrl(Number(matchId)) : null)
     || (matchId ? `/resultados-encuesta/${matchId}` : null);
@@ -766,6 +920,21 @@ export const resolveSurveyNotificationNavigation = async ({
       route: null,
       reason: 'missing_match_id',
       message: 'No encontramos la encuesta de esta notificación.',
+    };
+  }
+
+  const challengeDisabled = await resolveSurveyChallengeDisabledNotice({
+    notification,
+    matchId,
+    supabaseClient,
+  });
+  if (challengeDisabled) {
+    return {
+      canNavigate: false,
+      route: null,
+      reason: challengeDisabled.reason,
+      title: challengeDisabled.title,
+      message: challengeDisabled.message,
     };
   }
 
@@ -853,30 +1022,165 @@ export const resolveSurveyNotificationNavigation = async ({
 export async function openNotification(n, navigate, options = {}) {
   try {
     const type = n?.type;
+    const notificationId = String(n?.id ?? '').trim() || null;
     const matchId = extractNotificationMatchId(n);
+    const lifecycleMatchId = extractLifecycleMatchId(n);
+    const resolvedMatchId = matchId || lifecycleMatchId;
+    const data = n?.data || {};
 
     // Prefer explicit deep links and fallback to the canonical survey route.
     const deepLink = n?.deep_link
       || n?.deepLink
+      || n?.action_url
+      || n?.actionUrl
+      || n?.data?.resultsUrl
+      || n?.data?.results_url
+      || n?.data?.action_url
+      || n?.data?.actionUrl
       || n?.data?.deep_link
       || n?.data?.deepLink
       || n?.data?.link
       || null;
 
-    console.debug('[openNotification] opening notification', { id: n?.id, type, matchId, deepLink });
+    const baseDebugPayload = {
+      notification_id: notificationId,
+      notification_type: type,
+      type,
+      match_id: resolvedMatchId || null,
+      extracted_match_id: matchId || null,
+      lifecycle_match_id: lifecycleMatchId || null,
+      partido_id: n?.partido_id || data?.partido_id || data?.partidoId || null,
+      team_match_id: data?.team_match_id || data?.teamMatchId || null,
+      survey_id: n?.survey_id || data?.survey_id || data?.surveyId || null,
+      action_url: n?.action_url || n?.actionUrl || data?.action_url || data?.actionUrl || null,
+      actionUrl: n?.actionUrl || data?.actionUrl || null,
+      resultsUrl: data?.resultsUrl || null,
+      results_url: data?.results_url || null,
+      route: data?.route || null,
+      url: data?.url || null,
+      link: data?.link || null,
+      deep_link: deepLink,
+      platform: options?.platform,
+    };
+
+    const navigateWithDebug = (route, navOptions = undefined, context = {}) => {
+      debugNotificationEvent('NOTIFICATION_ROUTE_RESOLVED', {
+        ...baseDebugPayload,
+        ...context,
+        final_route: route || null,
+        navigate_options: navOptions || null,
+      });
+      debugNotificationEvent('NOTIFICATION_NAVIGATE_START', {
+        ...baseDebugPayload,
+        ...context,
+        final_route: route || null,
+        navigate_options: navOptions || null,
+      });
+      try {
+        if (navOptions === undefined) {
+          navigate(route);
+        } else {
+          navigate(route, navOptions);
+        }
+        debugNotificationEvent('NOTIFICATION_NAVIGATE_DONE', {
+          ...baseDebugPayload,
+          ...context,
+          final_route: route || null,
+        });
+      } catch (error) {
+        debugNotificationEvent('NOTIFICATION_NAVIGATE_ERROR', {
+          ...baseDebugPayload,
+          ...context,
+          final_route: route || null,
+          error: error?.message || String(error || ''),
+        });
+        throw error;
+      }
+    };
+
+    debugNotificationRoute('open', {
+      ...baseDebugPayload,
+      raw_notification: n || null,
+    });
 
     if (!type) return;
 
     // Mark as read before navigation (best-effort)
-    (async () => {
-      try {
-        await supabase.from('notifications').update({ read: true, status: 'sent' }).eq('id', n.id);
-      } catch (err) {
-        // ignore errors for best-effort marking
-      }
-    })();
+    if (notificationId) {
+      debugNotificationEvent('NOTIFICATION_MARK_READ_START', {
+        ...baseDebugPayload,
+        source: 'openNotification',
+      });
+      debugNotificationRoute('mark_read_attempt', {
+        notification_id: notificationId,
+        type,
+        match_id: resolvedMatchId || null,
+        source: 'openNotification',
+        platform: options?.platform,
+      });
+      (async () => {
+        try {
+          const markReadClient = options?.supabaseClient || supabase;
+          await markReadClient.from('notifications').update({ read: true, status: 'sent' }).eq('id', notificationId);
+          debugNotificationEvent('NOTIFICATION_MARK_READ_DONE', {
+            ...baseDebugPayload,
+            source: 'openNotification',
+          });
+          debugNotificationRoute('mark_read_done', {
+            notification_id: notificationId,
+            type,
+            match_id: resolvedMatchId || null,
+            source: 'openNotification',
+            platform: options?.platform,
+          });
+        } catch (err) {
+          debugNotificationEvent('NOTIFICATION_MARK_READ_ERROR', {
+            ...baseDebugPayload,
+            source: 'openNotification',
+            error: err?.message || String(err || ''),
+          });
+          debugNotificationRoute('mark_read_failed', {
+            notification_id: notificationId,
+            type,
+            match_id: resolvedMatchId || null,
+            source: 'openNotification',
+            error: err?.message || String(err || ''),
+            platform: options?.platform,
+          });
+        }
+      })();
+    } else {
+      debugNotificationEvent('NOTIFICATION_MARK_READ_SKIP', {
+        ...baseDebugPayload,
+        source: 'openNotification',
+        reason: 'missing_notification_id',
+      });
+      debugNotificationRoute('mark_read_skipped_missing_id', {
+        notification_id: null,
+        type,
+        match_id: resolvedMatchId || null,
+        source: 'openNotification',
+        platform: options?.platform,
+      });
+    }
 
-    if (isTeamChallengeNotification(n)) {
+    const challengeDisabled = await resolveSurveyChallengeDisabledNotice({
+      notification: n,
+      matchId: resolvedMatchId,
+      supabaseClient: options?.supabaseClient || supabase,
+    });
+    if (challengeDisabled) {
+      debugNotificationRoute('survey_challenge_disabled', {
+        ...baseDebugPayload,
+        reason: challengeDisabled.reason,
+        message: challengeDisabled.message,
+        team_match_id: challengeDisabled.teamMatchId || baseDebugPayload.team_match_id || null,
+      });
+      options?.onActionBlocked?.(challengeDisabled);
+      return;
+    }
+
+    if (shouldOpenAsTeamChallenge(n)) {
       const teamChallengeActionability = await resolveTeamChallengeNotificationActionability({
         notification: n,
         supabaseClient: options?.supabaseClient || supabase,
@@ -887,7 +1191,9 @@ export async function openNotification(n, navigate, options = {}) {
         return;
       }
 
-      navigate(buildTeamChallengeRoute(n));
+      navigateWithDebug(buildTeamChallengeRoute(n), undefined, {
+        route_source: 'team_challenge',
+      });
       return;
     }
 
@@ -899,16 +1205,27 @@ export async function openNotification(n, navigate, options = {}) {
       });
 
       if (!surveyNavigation.canNavigate) {
-        console.debug('[openNotification] survey navigation blocked', {
-          matchId,
-          notificationId: n?.id,
+        debugNotificationRoute('survey_navigation_blocked', {
+          match_id: resolvedMatchId || null,
+          notificationId,
           reason: surveyNavigation.reason,
+          platform: options?.platform,
         });
         return;
       }
 
-      console.debug('[openNotification] navigating to survey link', { surveyLink: surveyNavigation.route });
-      if (surveyNavigation.route) navigate(surveyNavigation.route);
+      debugNotificationRoute('navigate', {
+        notification_id: notificationId,
+        type,
+        match_id: resolvedMatchId || null,
+        route: surveyNavigation.route,
+        platform: options?.platform,
+      });
+      if (surveyNavigation.route) {
+        navigateWithDebug(surveyNavigation.route, undefined, {
+          route_source: 'survey_form',
+        });
+      }
       return;
     }
 
@@ -917,11 +1234,31 @@ export async function openNotification(n, navigate, options = {}) {
       supabaseClient: options?.supabaseClient || supabase,
     });
     if (!actionability.isActionable) {
+      debugNotificationRoute('blocked', {
+        notification_id: notificationId,
+        type,
+        match_id: resolvedMatchId || null,
+        reason: actionability.reason,
+        message: actionability.message || '',
+        platform: options?.platform,
+      });
       options?.onActionBlocked?.(actionability);
       return;
     }
 
-    if (!matchId) return;
+    if (!resolvedMatchId) {
+      debugNotificationRoute('abort_missing_match_id', {
+        notification_id: notificationId,
+        type,
+        survey_id: n?.survey_id || n?.data?.survey_id || n?.data?.surveyId || null,
+        action_url: n?.action_url || n?.actionUrl || n?.data?.action_url || n?.data?.actionUrl || null,
+        results_url: n?.data?.resultsUrl || n?.data?.results_url || null,
+        link: n?.data?.link || null,
+        deep_link: deepLink,
+        platform: options?.platform,
+      });
+      return;
+    }
 
     if (RESULTS_NOTIFICATION_TYPES.has(type)) {
       const resolvedEntry = await resolveResultsNotificationEntry({
@@ -929,19 +1266,49 @@ export async function openNotification(n, navigate, options = {}) {
         supabaseClient: options?.supabaseClient || supabase,
       });
       if (resolvedEntry.kind === 'modal') {
+        debugNotificationRoute('results_unavailable', {
+          notification_id: notificationId,
+          type,
+          match_id: resolvedMatchId,
+          title: resolvedEntry.title,
+          message: resolvedEntry.message,
+          platform: options?.platform,
+        });
         options?.onResultsUnavailable?.(resolvedEntry);
         return;
       }
       if (resolvedEntry.route) {
-        navigate(resolvedEntry.route, { state: resolvedEntry.state });
+        debugNotificationRoute('navigate', {
+          notification_id: notificationId,
+          type,
+          match_id: resolvedMatchId,
+          route: resolvedEntry.route,
+          force_awards: Boolean(resolvedEntry.state?.forceAwards),
+          platform: options?.platform,
+        });
+        navigateWithDebug(resolvedEntry.route, { state: resolvedEntry.state }, {
+          route_source: 'results_notification',
+          force_awards: Boolean(resolvedEntry.state?.forceAwards),
+        });
       }
       return;
     }
 
     if (AWARDS_NOTIFICATION_TYPES.has(type)) {
-      const target = buildAwardsResultsNavigationTarget(n, matchId);
+      const target = buildAwardsResultsNavigationTarget(n, resolvedMatchId);
       if (target.route) {
-        navigate(target.route, { state: target.state });
+        debugNotificationRoute('navigate', {
+          notification_id: notificationId,
+          type,
+          match_id: resolvedMatchId,
+          route: target.route,
+          force_awards: Boolean(target.state?.forceAwards),
+          platform: options?.platform,
+        });
+        navigateWithDebug(target.route, { state: target.state }, {
+          route_source: 'awards_notification',
+          force_awards: Boolean(target.state?.forceAwards),
+        });
       }
       return;
     }
@@ -952,29 +1319,56 @@ export async function openNotification(n, navigate, options = {}) {
         supabaseClient: options?.supabaseClient || supabase,
       });
       if (resolvedEntry.kind === 'modal') {
+        debugNotificationRoute('results_unavailable', {
+          notification_id: notificationId,
+          type,
+          match_id: resolvedMatchId,
+          title: resolvedEntry.title,
+          message: resolvedEntry.message,
+          platform: options?.platform,
+        });
         options?.onResultsUnavailable?.(resolvedEntry);
         return;
       }
       if (resolvedEntry.route) {
-        navigate(resolvedEntry.route, { state: resolvedEntry.state });
+        debugNotificationRoute('navigate', {
+          notification_id: notificationId,
+          type,
+          match_id: resolvedMatchId,
+          route: resolvedEntry.route,
+          force_awards: Boolean(resolvedEntry.state?.forceAwards),
+          platform: options?.platform,
+        });
+        navigateWithDebug(resolvedEntry.route, { state: resolvedEntry.state }, {
+          route_source: 'survey_finished',
+          force_awards: Boolean(resolvedEntry.state?.forceAwards),
+        });
       }
       return;
     }
 
     if (type === 'match_join_request') {
       if (deepLink) {
-        navigate(deepLink);
+        navigateWithDebug(deepLink, undefined, {
+          route_source: 'match_join_request_deep_link',
+        });
       } else {
-        navigate(`/admin/${matchId}?tab=solicitudes`);
+        navigateWithDebug(`/admin/${resolvedMatchId}?tab=solicitudes`, undefined, {
+          route_source: 'match_join_request_fallback',
+        });
       }
       return;
     }
 
     if (type === 'match_join_approved') {
       if (deepLink) {
-        navigate(deepLink);
+        navigateWithDebug(deepLink, undefined, {
+          route_source: 'match_join_approved_deep_link',
+        });
       } else {
-        navigate(`/partido-publico/${matchId}`);
+        navigateWithDebug(`/partido-publico/${resolvedMatchId}`, undefined, {
+          route_source: 'match_join_approved_fallback',
+        });
       }
       return;
     }
@@ -996,41 +1390,62 @@ export async function openNotification(n, navigate, options = {}) {
       }
 
       const challengeRouteFromMatchId = await resolveTeamChallengeRouteFromMatchId({
-        supabaseClient: supabase,
-        matchId,
+        supabaseClient: options?.supabaseClient || supabase,
+        matchId: resolvedMatchId,
       });
       if (challengeRouteFromMatchId) {
-        navigate(challengeRouteFromMatchId);
+        navigateWithDebug(challengeRouteFromMatchId, undefined, {
+          route_source: 'match_invite_challenge_lookup',
+        });
         return;
       }
 
       const inviteRoute = resolveMatchInviteRoute(n);
       if (inviteRoute) {
-        navigate(inviteRoute);
+        navigateWithDebug(inviteRoute, undefined, {
+          route_source: 'match_invite',
+        });
       } else {
-        navigate(`/partido-publico/${matchId}`);
+        navigateWithDebug(`/partido-publico/${resolvedMatchId}`, undefined, {
+          route_source: 'match_invite_fallback',
+        });
       }
       return;
     }
 
     if (type === 'team_invite') {
-      navigate('/desafios?tab=mis-equipos');
+      navigateWithDebug('/desafios?tab=mis-equipos', undefined, {
+        route_source: 'team_invite',
+      });
       return;
     }
 
     if (type === 'team_captain_transfer') {
       const teamId = n?.data?.team_id || n?.data?.teamId || null;
       if (teamId) {
-        navigate(`/desafios/equipos/${teamId}`);
+        navigateWithDebug(`/desafios/equipos/${teamId}`, undefined, {
+          route_source: 'team_captain_transfer',
+        });
       } else {
-        navigate('/desafios');
+        navigateWithDebug('/desafios', undefined, {
+          route_source: 'team_captain_transfer_fallback',
+        });
       }
       return;
     }
 
     // default: home
-    navigate('/');
+    navigateWithDebug('/', undefined, {
+      route_source: 'default_fallback',
+    });
   } catch (e) {
+    debugNotificationEvent('NOTIFICATION_NAVIGATE_ERROR', {
+      notification_id: String(n?.id ?? '').trim() || null,
+      type: n?.type,
+      raw_notification: n || null,
+      error: e?.message || String(e || ''),
+      platform: options?.platform,
+    });
     logger.error('openNotification failed', e);
   }
 }

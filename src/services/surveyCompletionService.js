@@ -29,6 +29,10 @@ import {
   isSurveyWindowInvalidForKickoff,
   resolveSurveyStartDelayMs,
 } from '../utils/surveyWindow';
+import {
+  SURVEY_CHALLENGE_DISABLED_REASON,
+  isChallengeLikeTeamMatchRow,
+} from '../utils/surveyChallengePolicy';
 
 const RESULT_STATUS_FINISHED = 'finished';
 const RESULT_STATUS_DRAW = 'draw';
@@ -457,6 +461,17 @@ export async function computeAndPersistAwards(partidoId, options = {}) {
       error,
     };
   }
+
+  const teamMatchRow = await fetchSurveyTeamMatchContext(idNum);
+  if (isChallengeLikeTeamMatchRow(teamMatchRow)) {
+    return {
+      persisted: false,
+      reason: SURVEY_CHALLENGE_DISABLED_REASON,
+      disabledForChallenge: true,
+      awardsCount: 0,
+    };
+  }
+
   const uniqueVotersCount = new Set(
     (surveys || [])
       .map((survey) => Number(survey?.votante_id))
@@ -1231,6 +1246,22 @@ export async function ensureSurveyWindowOpen(partidoId, options = {}) {
   const lifecycleRow = await fetchSurveyLifecycleRow(idNum);
   const rosterContextRow = await fetchSurveyRosterContextRow(idNum);
   const teamMatchRow = await fetchSurveyTeamMatchContext(idNum);
+  if (isChallengeLikeTeamMatchRow(teamMatchRow)) {
+    return {
+      openedAt: null,
+      closesAt: null,
+      expectedVoters: 0,
+      submittedVoters: 0,
+      remainingVotes: 0,
+      surveyStatus: SURVEY_STATUS_CLOSED,
+      eligibleByPlayerId: new Map(),
+      deadlineReached: true,
+      allEligibleVoted: true,
+      disabledForChallenge: true,
+      reason: SURVEY_CHALLENGE_DISABLED_REASON,
+    };
+  }
+
   const confirmationRow = await fetchSurveyConfirmationRow(idNum);
   const eligibility = await resolveChallengeSurveyEligibleUsers({
     matchId: teamMatchRow?.id || null,
@@ -1360,6 +1391,19 @@ export async function finalizeIfComplete(partidoId, options = {}) {
   const idNum = Number(partidoId);
   if (!Number.isFinite(idNum) || idNum <= 0) {
     throw new Error('invalid_partido_id');
+  }
+
+  const teamMatchRow = await fetchSurveyTeamMatchContext(idNum);
+  if (isChallengeLikeTeamMatchRow(teamMatchRow)) {
+    return {
+      done: false,
+      disabledForChallenge: true,
+      reason: SURVEY_CHALLENGE_DISABLED_REASON,
+      expectedVoters: 0,
+      submissionsCount: 0,
+      remainingVotes: 0,
+      survey_status: SURVEY_STATUS_CLOSED,
+    };
   }
 
   const nowIso = new Date().toISOString();

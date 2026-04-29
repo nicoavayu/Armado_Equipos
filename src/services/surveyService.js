@@ -9,6 +9,7 @@ import { finalizeIfComplete } from './surveyCompletionService';
 import { ensureAwards } from './awardsService';
 import { isAwardsNotEligibleStatus, isAwardsReadyStatus } from '../utils/awardsReadiness';
 import { resolveChallengeSurveyEligibleUsers } from './surveyEligibilityService';
+import { isChallengeLikeTeamMatchRow } from '../utils/surveyChallengePolicy';
 
 /**
  * Creates post-match survey notifications for all players in a match
@@ -48,6 +49,7 @@ export const createPostMatchSurveyNotifications = async (partido) => {
     }
 
     let rosterMatchRow = partido || null;
+    let teamMatchRow = null;
     try {
       const { data } = await supabase
         .from('partidos')
@@ -61,11 +63,27 @@ export const createPostMatchSurveyNotifications = async (partido) => {
       // Non-blocking fallback.
     }
 
+    try {
+      const { data } = await supabase
+        .from('team_matches')
+        .select('id, origin_type, challenge_id')
+        .eq('partido_id', Number(partido.id))
+        .maybeSingle();
+      teamMatchRow = data || null;
+    } catch (_teamMatchError) {
+      teamMatchRow = null;
+    }
+
+    if (isChallengeLikeTeamMatchRow(teamMatchRow)) {
+      return [];
+    }
+
     const eligibility = await resolveChallengeSurveyEligibleUsers({
       matchId: Number(partido.id),
       rosterRows: partido.jugadores || [],
       matchRow: rosterMatchRow,
       confirmationRow,
+      teamMatchRow,
     });
     const eligibleUserIds = eligibility?.eligibleUserIds || new Set();
 

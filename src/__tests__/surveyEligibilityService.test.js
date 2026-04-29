@@ -4,9 +4,11 @@ jest.mock('../services/db/teamChallenges', () => ({
 }));
 
 const {
-  buildEligibleRosterMap,
   resolveChallengeSurveyEligibleUsers,
 } = require('../services/surveyEligibilityService');
+const {
+  SURVEY_CHALLENGE_DISABLED_REASON,
+} = require('../utils/surveyChallengePolicy');
 
 describe('survey challenge eligibility', () => {
   test('non-challenge fallback excludes substitutes from the effective survey roster', async () => {
@@ -75,7 +77,7 @@ describe('survey challenge eligibility', () => {
     expect(eligibility.excludeSubstitutesByDefault).toBe(false);
   });
 
-  test('approved squad is authoritative over extra registered roster users', async () => {
+  test('challenge/team_match rows are not survey eligible even with approved squad data', async () => {
     const eligibility = await resolveChallengeSurveyEligibleUsers({
       matchId: 55,
       rosterRows: [
@@ -100,21 +102,13 @@ describe('survey challenge eligibility', () => {
       },
     });
 
-    const eligibleRoster = buildEligibleRosterMap([
-      { id: 1, usuario_id: 'u1' },
-      { id: 2, usuario_id: 'u2' },
-      { id: 3, usuario_id: 'u3' },
-    ], {
-      eligibleUserIds: eligibility.eligibleUserIds,
-    });
-
-    expect(eligibility.source).toBe('approved_squad');
-    expect(Array.from(eligibility.eligibleUserIds).sort()).toEqual(['u1', 'u2']);
-    expect(eligibleRoster.expectedVoters).toBe(2);
-    expect(Array.from(eligibleRoster.byPlayerId.values()).sort()).toEqual(['u1', 'u2']);
+    expect(eligibility.source).toBe(SURVEY_CHALLENGE_DISABLED_REASON);
+    expect(eligibility.reason).toBe(SURVEY_CHALLENGE_DISABLED_REASON);
+    expect(eligibility.disabledForChallenge).toBe(true);
+    expect(Array.from(eligibility.eligibleUserIds)).toEqual([]);
   });
 
-  test('persisted teams are the next authority when approved squad is unavailable', async () => {
+  test('challenge/team_match rows ignore persisted survey teams', async () => {
     const eligibility = await resolveChallengeSurveyEligibleUsers({
       matchId: 99,
       rosterRows: [
@@ -137,7 +131,9 @@ describe('survey challenge eligibility', () => {
       },
     });
 
-    expect(eligibility.source).toBe('persisted_teams');
-    expect(Array.from(eligibility.eligibleUserIds).sort()).toEqual(['u10', 'u11']);
+    expect(eligibility.source).toBe(SURVEY_CHALLENGE_DISABLED_REASON);
+    expect(eligibility.reason).toBe(SURVEY_CHALLENGE_DISABLED_REASON);
+    expect(eligibility.disabledForChallenge).toBe(true);
+    expect(Array.from(eligibility.eligibleUserIds)).toEqual([]);
   });
 });

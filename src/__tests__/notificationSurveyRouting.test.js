@@ -541,6 +541,268 @@ describe('survey notification routing', () => {
     );
   });
 
+  test('survey_results_ready abre premiación aunque el match id venga solo en resultsUrl', async () => {
+    const navigate = jest.fn();
+    const supabaseMock = createSupabaseMock({
+      partidoRow: {
+        id: 706,
+        survey_status: 'closed',
+        result_status: 'finished',
+        awards_status: 'ready',
+        finished_at: '2026-04-29T12:53:10.123Z',
+      },
+      surveyResultsRow: {
+        partido_id: 706,
+        results_ready: true,
+        awards_status: 'ready',
+        awards: { mvp: { player_id: '10' } },
+      },
+    });
+
+    await openNotification({
+      id: 'route-only-results',
+      type: 'survey_results_ready',
+      data: {
+        resultsUrl: '/resultados-encuesta/706?from=challenge',
+      },
+    }, navigate, {
+      supabaseClient: supabaseMock,
+    });
+
+    expect(navigate).toHaveBeenCalledWith(
+      '/resultados-encuesta/706?from=challenge&showAwards=1',
+      expect.objectContaining({
+        state: expect.objectContaining({
+          forceAwards: true,
+        }),
+      }),
+    );
+  });
+
+  test('survey_results_ready sin id no intenta marcar notifications y navega igual', async () => {
+    const navigate = jest.fn();
+    const supabaseMock = createSupabaseMock({
+      partidoRow: {
+        id: 710,
+        survey_status: 'closed',
+        result_status: 'finished',
+        awards_status: 'ready',
+        finished_at: '2026-04-29T12:53:10.123Z',
+      },
+      surveyResultsRow: {
+        partido_id: 710,
+        results_ready: true,
+        awards_status: 'ready',
+        awards: { mvp: { player_id: '10' } },
+      },
+    });
+
+    await openNotification({
+      type: 'survey_results_ready',
+      data: {
+        resultsUrl: '/resultados-encuesta/710?from=challenge',
+      },
+    }, navigate, {
+      supabaseClient: supabaseMock,
+    });
+
+    expect(supabaseMock.from).not.toHaveBeenCalledWith('notifications');
+    expect(navigate).toHaveBeenCalledWith(
+      '/resultados-encuesta/710?from=challenge&showAwards=1',
+      expect.objectContaining({
+        state: expect.objectContaining({
+          forceAwards: true,
+        }),
+      }),
+    );
+  });
+
+  test('survey_results_ready vieja sin metadata de challenge se bloquea si el partido tiene team_match', async () => {
+    const navigate = jest.fn();
+    const onActionBlocked = jest.fn();
+    const supabaseMock = createSupabaseMock({
+      teamMatchRow: {
+        id: 'tm-711',
+        partido_id: 711,
+        origin_type: 'challenge',
+      },
+      partidoRow: {
+        id: 711,
+        survey_status: 'closed',
+        result_status: 'finished',
+        awards_status: 'ready',
+      },
+      surveyResultsRow: {
+        partido_id: 711,
+        results_ready: true,
+        awards_status: 'ready',
+        awards: { mvp: { player_id: '10' } },
+      },
+    });
+
+    await openNotification({
+      type: 'survey_results_ready',
+      data: {
+        resultsUrl: '/resultados-encuesta/711',
+      },
+    }, navigate, {
+      supabaseClient: supabaseMock,
+      onActionBlocked,
+    });
+
+    expect(navigate).not.toHaveBeenCalled();
+    expect(onActionBlocked).toHaveBeenCalledWith(expect.objectContaining({
+      reason: 'surveys_disabled_for_challenges',
+    }));
+  });
+
+  test('survey_start vieja con nombre Desafio queda no accionable aunque no tenga team_match_id', async () => {
+    const supabaseMock = createSupabaseMock({
+      partidoRow: {
+        id: 712,
+        survey_status: 'open',
+        result_status: 'pending',
+      },
+    });
+
+    const result = await resolveSurveyNotificationNavigation({
+      notification: {
+        type: 'survey_start',
+        partido_id: 712,
+        data: {
+          match_name: 'Desafío: FULBO 5A vs FULBO 5B',
+          link: '/encuesta/712',
+        },
+      },
+      supabaseClient: supabaseMock,
+      userId: 'user-1',
+    });
+
+    expect(result.canNavigate).toBe(false);
+    expect(result.reason).toBe('surveys_disabled_for_challenges');
+    expect(result.message).toBe('Las encuestas están disponibles solo para partidos amistosos.');
+  });
+
+  test('awards_ready navega aunque el match id venga solo en action_url', async () => {
+    const navigate = jest.fn();
+    const supabaseMock = createSupabaseMock({
+      partidoRow: {
+        id: 707,
+        survey_status: 'closed',
+        result_status: 'finished',
+        awards_status: 'ready',
+        finished_at: '2026-04-29T12:53:10.123Z',
+      },
+    });
+
+    await openNotification({
+      id: 'route-only-awards',
+      type: 'awards_ready',
+      created_at: new Date().toISOString(),
+      data: {
+        action_url: '/resultados-encuesta/707?from=challenge',
+      },
+    }, navigate, {
+      supabaseClient: supabaseMock,
+    });
+
+    expect(navigate).toHaveBeenCalledWith(
+      '/resultados-encuesta/707?from=challenge&showAwards=1',
+      expect.objectContaining({
+        state: expect.objectContaining({
+          forceAwards: true,
+        }),
+      }),
+    );
+  });
+
+  test('survey_results_ready de desafio viejo queda bloqueada y no navega a resultados', async () => {
+    const navigate = jest.fn();
+    const onActionBlocked = jest.fn();
+    const supabaseMock = createSupabaseMock({
+      teamMatchRow: {
+        id: 'tm-708',
+        status: 'played',
+        scheduled_at: '2026-04-29T10:00:00.000Z',
+        partido_id: 708,
+      },
+      partidoRow: {
+        id: 708,
+        survey_status: 'closed',
+        result_status: 'finished',
+        awards_status: 'ready',
+        finished_at: '2026-04-29T12:53:10.123Z',
+      },
+      surveyResultsRow: {
+        partido_id: 708,
+        results_ready: true,
+        awards_status: 'ready',
+        awards: { mvp: { player_id: '10' } },
+      },
+    });
+
+    await openNotification({
+      id: 'challenge-results',
+      type: 'survey_results_ready',
+      data: {
+        source: 'team_challenge',
+        team_match_id: 'tm-708',
+        resultsUrl: '/resultados-encuesta/708?from=challenge',
+      },
+    }, navigate, {
+      supabaseClient: supabaseMock,
+      onActionBlocked,
+    });
+
+    expect(navigate).not.toHaveBeenCalled();
+    expect(onActionBlocked).toHaveBeenCalledWith(expect.objectContaining({
+      isActionable: false,
+      reason: 'surveys_disabled_for_challenges',
+      message: 'Las encuestas están disponibles solo para partidos amistosos.',
+    }));
+  });
+
+  test('awards_ready de desafio viejo queda bloqueada y no navega a premios', async () => {
+    const navigate = jest.fn();
+    const onActionBlocked = jest.fn();
+    const supabaseMock = createSupabaseMock({
+      teamMatchRow: {
+        id: 'tm-709',
+        status: 'played',
+        scheduled_at: '2026-04-29T10:00:00.000Z',
+        partido_id: 709,
+      },
+      partidoRow: {
+        id: 709,
+        survey_status: 'closed',
+        result_status: 'finished',
+        awards_status: 'ready',
+        finished_at: '2026-04-29T12:53:10.123Z',
+      },
+    });
+
+    await openNotification({
+      id: 'challenge-awards',
+      type: 'awards_ready',
+      created_at: new Date().toISOString(),
+      data: {
+        source: 'team_challenge',
+        team_match_id: 'tm-709',
+        action_url: '/resultados-encuesta/709?from=challenge',
+      },
+    }, navigate, {
+      supabaseClient: supabaseMock,
+      onActionBlocked,
+    });
+
+    expect(navigate).not.toHaveBeenCalled();
+    expect(onActionBlocked).toHaveBeenCalledWith(expect.objectContaining({
+      isActionable: false,
+      reason: 'surveys_disabled_for_challenges',
+      message: 'Las encuestas están disponibles solo para partidos amistosos.',
+    }));
+  });
+
   test('survey_results_ready no depende de columnas opcionales de survey_results para abrir premios', async () => {
     const navigate = jest.fn();
     const supabaseMock = createSupabaseMock({
@@ -645,6 +907,15 @@ describe('survey notification routing', () => {
 
   test('awards_ready mantiene navegación forzada a premiación', async () => {
     const navigate = jest.fn();
+    const supabaseMock = createSupabaseMock({
+      partidoRow: {
+        id: 701,
+        survey_status: 'closed',
+        result_status: 'finished',
+        awards_status: 'ready',
+        finished_at: '2026-04-29T12:53:10.123Z',
+      },
+    });
     await openNotification({
       type: 'awards_ready',
       partido_id: 701,
@@ -652,7 +923,9 @@ describe('survey notification routing', () => {
       data: {
         resultsUrl: '/resultados-encuesta/701',
       },
-    }, navigate);
+    }, navigate, {
+      supabaseClient: supabaseMock,
+    });
 
     expect(navigate).toHaveBeenCalledWith(
       '/resultados-encuesta/701?showAwards=1',

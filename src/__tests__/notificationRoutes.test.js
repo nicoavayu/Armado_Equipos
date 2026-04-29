@@ -14,6 +14,23 @@ describe('notificationRoutes', () => {
     expect(extractNotificationMatchId({ match_ref: '111' })).toBe('111');
   });
 
+  test('extracts survey results match id from route-only payloads', () => {
+    expect(extractNotificationMatchId({
+      type: 'survey_results_ready',
+      data: {
+        resultsUrl: '/resultados-encuesta/503?showAwards=1',
+      },
+    })).toBe('503');
+
+    expect(extractNotificationMatchId({
+      type: 'awards_ready',
+      data: {
+        team_match_id: 'tm-503',
+        action_url: '/resultados-encuesta/504?showAwards=1',
+      },
+    })).toBe('504');
+  });
+
   test('builds fallback route to match when id exists', () => {
     const route = buildNotificationFallbackRoute({ data: { matchId: 42 } });
     expect(route).toBe('/partido-publico/42');
@@ -27,6 +44,20 @@ describe('notificationRoutes', () => {
     });
 
     expect(route).toBe('/encuesta/812');
+  });
+
+  test('keeps old challenge survey notifications non-actionable in fallback routing', () => {
+    const route = buildNotificationFallbackRoute({
+      type: 'survey_start',
+      partido_id: 812,
+      data: {
+        matchId: 812,
+        team_match_id: 'tm-812',
+        source: 'team_challenge',
+      },
+    });
+
+    expect(route).toBe('/notifications');
   });
 
   test('builds fallback route to activity feed when id is missing', () => {

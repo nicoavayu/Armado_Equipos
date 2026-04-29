@@ -8,6 +8,7 @@ import { useNotifications } from '../context/NotificationContext';
 import {
   buildAwardsResultsNavigationTarget,
   buildResultsNavigationTarget,
+  debugNotificationEvent,
   openNotification,
   resolveNotificationActionability,
   resolveSurveyNotificationNavigation,
@@ -45,6 +46,40 @@ import { filterNotificationsForInbox } from '../utils/notificationInviteState';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { track } from '../utils/monitoring/analytics';
 
+const RESULTS_OR_AWARDS_NOTIFICATION_TYPES = new Set([
+  'survey_results',
+  'survey_results_ready',
+  'survey_finished',
+  'awards_ready',
+  'award_won',
+]);
+
+const isResultsOrAwardsNotification = (notification = {}) => (
+  RESULTS_OR_AWARDS_NOTIFICATION_TYPES.has(String(notification?.type || '').trim().toLowerCase())
+);
+
+const shouldOpenAsTeamChallenge = (notification = {}) => (
+  isTeamChallengeNotification(notification)
+  && !isResultsOrAwardsNotification(notification)
+  && !shouldTreatNotificationAsSurveyForm(notification)
+);
+
+const getNotificationDebugPayload = (notification = {}) => ({
+  notification_id: String(notification?.id ?? '').trim() || null,
+  type: notification?.type,
+  match_id: extractNotificationMatchId(notification) || null,
+  partido_id: notification?.partido_id || notification?.data?.partido_id || notification?.data?.partidoId || null,
+  team_match_id: notification?.data?.team_match_id || notification?.data?.teamMatchId || null,
+  survey_id: notification?.survey_id || notification?.data?.survey_id || notification?.data?.surveyId || null,
+  action_url: notification?.action_url || notification?.actionUrl || notification?.data?.action_url || notification?.data?.actionUrl || null,
+  actionUrl: notification?.actionUrl || notification?.data?.actionUrl || null,
+  resultsUrl: notification?.data?.resultsUrl || null,
+  results_url: notification?.data?.results_url || null,
+  route: notification?.data?.route || null,
+  url: notification?.data?.url || null,
+  link: notification?.data?.link || null,
+});
+
 const NotificationsModal = ({ isOpen, onClose }) => {
   const { user } = useAuth();
   const { notifications, fetchNotifications: refreshNotifications, clearAllNotifications: clearNotificationsLocal } = useNotifications();
@@ -77,18 +112,40 @@ const NotificationsModal = ({ isOpen, onClose }) => {
   }, [isOpen, user?.id, refreshNotifications]);
 
   const markAsRead = async (notificationId) => {
+    const normalizedNotificationId = String(notificationId ?? '').trim();
+    if (!normalizedNotificationId) {
+      debugNotificationEvent('NOTIFICATION_MARK_READ_SKIP', {
+        source: 'notifications_modal',
+        reason: 'missing_notification_id',
+      });
+      return;
+    }
+
     try {
+      debugNotificationEvent('NOTIFICATION_MARK_READ_START', {
+        source: 'notifications_modal',
+        notification_id: normalizedNotificationId,
+      });
       const { error } = await supabase
         .from('notifications')
         .update({ read: true })
-        .eq('id', notificationId);
+        .eq('id', normalizedNotificationId);
 
       if (error) throw error;
+      debugNotificationEvent('NOTIFICATION_MARK_READ_DONE', {
+        source: 'notifications_modal',
+        notification_id: normalizedNotificationId,
+      });
 
       if (refreshNotifications) {
         await refreshNotifications();
       }
     } catch (error) {
+      debugNotificationEvent('NOTIFICATION_MARK_READ_ERROR', {
+        source: 'notifications_modal',
+        notification_id: normalizedNotificationId,
+        error: error?.message || String(error || ''),
+      });
       console.error('Error marking notification as read:', error);
     }
   };
@@ -122,6 +179,19 @@ const NotificationsModal = ({ isOpen, onClose }) => {
   };
 
   const handleNotificationClick = async (notification) => {
+    debugNotificationEvent('NOTIFICATION_TAP', {
+      ...getNotificationDebugPayload(notification),
+      source: 'notifications_modal',
+      raw_notification: notification || null,
+      current_route_before: `${location.pathname}${location.search}`,
+    });
+    debugNotificationEvent('NOTIFICATION_SELECTED', {
+      ...getNotificationDebugPayload(notification),
+      source: 'notifications_modal',
+      selected_notification_id: String(notification?.id ?? '').trim() || null,
+      selected_notification: notification || null,
+    });
+
     const trackOpened = (notificationItem) => {
       if (notificationItem?.type === 'match_invite') {
         track('match_invite_opened', {
@@ -147,7 +217,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
       // non-blocking
     }
 
-    if (isTeamChallengeNotification(notification)) {
+    if (shouldOpenAsTeamChallenge(notification)) {
       await openNotification(notification, navigate, {
         supabaseClient: supabase,
         userId: user?.id || '',
@@ -401,7 +471,19 @@ const NotificationsModal = ({ isOpen, onClose }) => {
   const fallbackToNotificationRoute = (notification, message = 'No encontramos ese destino. Te llevamos a tus partidos.') => {
     notifyBlockingError(message);
     const fallbackRoute = buildNotificationFallbackRoute(notification);
+    debugNotificationEvent('NOTIFICATION_NAVIGATE_START', {
+      ...getNotificationDebugPayload(notification),
+      source: 'notifications_modal_fallback',
+      final_route: fallbackRoute,
+      message,
+      current_route_before: `${location.pathname}${location.search}`,
+    });
     navigate(fallbackRoute);
+    debugNotificationEvent('NOTIFICATION_NAVIGATE_DONE', {
+      ...getNotificationDebugPayload(notification),
+      source: 'notifications_modal_fallback',
+      final_route: fallbackRoute,
+    });
   };
 
   const safeNavigate = (notification, route, options = {}, message) => {
@@ -410,6 +492,20 @@ const NotificationsModal = ({ isOpen, onClose }) => {
       return false;
     }
     try {
+      debugNotificationEvent('NOTIFICATION_ROUTE_RESOLVED', {
+        ...getNotificationDebugPayload(notification),
+        source: 'notifications_modal_safe_navigate',
+        final_route: route,
+        navigate_options: options,
+        current_route_before: `${location.pathname}${location.search}`,
+      });
+      debugNotificationEvent('NOTIFICATION_NAVIGATE_START', {
+        ...getNotificationDebugPayload(notification),
+        source: 'notifications_modal_safe_navigate',
+        final_route: route,
+        navigate_options: options,
+        current_route_before: `${location.pathname}${location.search}`,
+      });
       navigate(route, {
         ...options,
         state: {
@@ -417,8 +513,19 @@ const NotificationsModal = ({ isOpen, onClose }) => {
           backTo: `${location.pathname}${location.search}`,
         },
       });
+      debugNotificationEvent('NOTIFICATION_NAVIGATE_DONE', {
+        ...getNotificationDebugPayload(notification),
+        source: 'notifications_modal_safe_navigate',
+        final_route: route,
+      });
       return true;
     } catch (error) {
+      debugNotificationEvent('NOTIFICATION_NAVIGATE_ERROR', {
+        ...getNotificationDebugPayload(notification),
+        source: 'notifications_modal_safe_navigate',
+        final_route: route,
+        error: error?.message || String(error || ''),
+      });
       console.error('[NOTIFICATIONS_MODAL] navigation error', { route, error });
       fallbackToNotificationRoute(notification, message);
       return false;

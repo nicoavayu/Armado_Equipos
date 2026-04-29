@@ -30,4 +30,28 @@ describe('groupNotificationsByMatch', () => {
     expect(result[1].matchId).toBeNull();
     expect(result[1].count).toBe(1);
   });
+
+  it('agrupa resultados y premios aunque el partido venga solo en la ruta', () => {
+    const result = groupNotificationsByMatch([
+      {
+        id: 'results',
+        type: 'survey_results_ready',
+        created_at: '2026-02-19T12:00:00.000Z',
+        read: false,
+        data: { resultsUrl: '/resultados-encuesta/503' },
+      },
+      {
+        id: 'awards',
+        type: 'awards_ready',
+        created_at: '2026-02-19T12:01:00.000Z',
+        read: false,
+        data: { action_url: '/resultados-encuesta/503?showAwards=1' },
+      },
+    ]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].matchId).toBe('503');
+    expect(result[0].latest.id).toBe('awards');
+    expect(result[0].count).toBe(2);
+  });
 });

@@ -2,6 +2,7 @@ import { supabase } from '../supabase';
 import { handleError } from '../lib/errorHandler';
 import { requestImmediatePushDispatchSafe } from './pushDispatchService';
 import logger from '../utils/logger';
+import { isChallengeLikeTeamMatchRow } from '../utils/surveyChallengePolicy';
 
 /**
  * Get match invite notification for a user and match
@@ -168,6 +169,20 @@ export async function schedulePostMatchNotification(matchId) {
     const sendAt = new Date();
     sendAt.setHours(sendAt.getHours() + 2);
     const pidNumber = Number(matchId);
+    try {
+      const { data: teamMatchRow } = await supabase
+        .from('team_matches')
+        .select('id, origin_type, challenge_id')
+        .eq('partido_id', pidNumber)
+        .maybeSingle();
+      if (isChallengeLikeTeamMatchRow(teamMatchRow)) {
+        logger.log('[Notify] schedulePostMatchNotification skipped for challenge/team_match', { matchId: pidNumber });
+        return null;
+      }
+    } catch (_teamMatchError) {
+      // Non-blocking for legacy environments without team_matches.
+    }
+
     const { data, error } = await supabase
       .from('notifications')
       .insert({

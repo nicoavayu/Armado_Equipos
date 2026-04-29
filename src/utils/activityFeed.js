@@ -32,6 +32,10 @@ import {
   activityWindowDefaultMs,
   activityWindowSurveyLikeMs,
 } from './notificationRetentionPolicy';
+import {
+  isChallengeLikeTeamMatchRow,
+  isSurveyDisabledForChallengeNotification,
+} from './surveyChallengePolicy';
 
 const ACTIVITY_MAX_ITEMS = 5;
 
@@ -1249,6 +1253,53 @@ const shouldIncludeNotification = (notification, normalizedType) => {
   return ageMs <= activityWindowDefaultMs;
 };
 
+const isSurveyActivityType = (type) => (
+  type === 'survey_start'
+  || type === 'survey_results_ready'
+  || type === 'awards_ready'
+);
+
+const fetchSurveyDisabledChallengeMatchIds = async ({ groups, supabaseClient }) => {
+  const disabledMatchIds = new Set();
+  const matchIds = [];
+
+  (groups || []).forEach((group) => {
+    if (!isSurveyActivityType(group?.type)) return;
+    if (isSurveyDisabledForChallengeNotification(group?.notification)) {
+      const matchId = Number(group?.matchId);
+      if (Number.isFinite(matchId) && matchId > 0) disabledMatchIds.add(matchId);
+      return;
+    }
+
+    const matchId = Number(group?.matchId);
+    if (Number.isFinite(matchId) && matchId > 0) {
+      matchIds.push(matchId);
+    }
+  });
+
+  const uniqueMatchIds = [...new Set(matchIds)];
+  if (!supabaseClient || uniqueMatchIds.length === 0) return disabledMatchIds;
+
+  try {
+    const { data, error } = await supabaseClient
+      .from('team_matches')
+      .select('id, partido_id, origin_type, challenge_id')
+      .in('partido_id', uniqueMatchIds);
+    if (error) throw error;
+
+    (data || []).forEach((row) => {
+      const partidoId = Number(row?.partido_id);
+      if (Number.isFinite(partidoId) && partidoId > 0 && isChallengeLikeTeamMatchRow(row)) {
+        disabledMatchIds.add(partidoId);
+      }
+    });
+  } catch (error) {
+    console.warn('[ACTIVITY_FEED] challenge survey filter failed:', error);
+  }
+
+  return disabledMatchIds;
+};
+
 const groupNotifications = (notifications = []) => {
   const latestKickTsByMatch = buildLatestKickTsByMatch(notifications);
   const latestCancellationTsByMatch = buildLatestCancellationTsByMatch(notifications);
@@ -1463,8 +1514,15 @@ export const buildActivityFeed = async (notifications = [], options = {}) => {
 
   const activeMatchItems = buildActiveMatchItems(activeMatches, currentUserId);
   const groups = groupNotifications(notifications);
-  const completedActions = await fetchCompletedActionsByMatch({ groups, currentUserId, supabaseClient });
-  const pendingGroups = groups.filter((group) => {
+  const surveyDisabledChallengeMatchIds = await fetchSurveyDisabledChallengeMatchIds({ groups, supabaseClient });
+  const challengeFilteredGroups = groups.filter((group) => {
+    if (!isSurveyActivityType(group?.type)) return true;
+    if (isSurveyDisabledForChallengeNotification(group?.notification)) return false;
+    const pid = Number(group?.matchId || 0);
+    return !pid || !surveyDisabledChallengeMatchIds.has(pid);
+  });
+  const completedActions = await fetchCompletedActionsByMatch({ groups: challengeFilteredGroups, currentUserId, supabaseClient });
+  const pendingGroups = challengeFilteredGroups.filter((group) => {
     const pid = Number(group?.matchId || 0);
     if (!pid) return true;
     if (group.type === 'call_to_vote' && completedActions.votedMatchIds.has(pid)) return false;
