@@ -22,6 +22,7 @@ const createSupabaseMock = ({
   teamMatchRow = null,
   rosterRows = [],
   surveyResultsRow = null,
+  surveyResultsMissingColumns = [],
 } = {}) => ({
   from: jest.fn((table) => {
     if (table === 'partidos') {
@@ -39,12 +40,27 @@ const createSupabaseMock = ({
 
     if (table === 'survey_results') {
       return {
-        select: jest.fn(() => ({
+        select: jest.fn((columns = '*') => ({
           eq: jest.fn(() => ({
-            maybeSingle: jest.fn(async () => ({
-              data: surveyResultsRow,
-              error: null,
-            })),
+            maybeSingle: jest.fn(async () => {
+              const selectedColumns = String(columns || '*');
+              const missingColumn = (surveyResultsMissingColumns || [])
+                .find((column) => selectedColumns !== '*' && selectedColumns.includes(column));
+              if (missingColumn) {
+                return {
+                  data: null,
+                  error: {
+                    code: '42703',
+                    message: `column survey_results.${missingColumn} does not exist`,
+                  },
+                };
+              }
+
+              return {
+                data: surveyResultsRow,
+                error: null,
+              };
+            }),
           })),
         })),
       };
@@ -517,6 +533,46 @@ describe('survey notification routing', () => {
 
     expect(navigate).toHaveBeenCalledWith(
       '/resultados-encuesta/700?showAwards=1&from=legacy',
+      expect.objectContaining({
+        state: expect.objectContaining({
+          forceAwards: true,
+        }),
+      }),
+    );
+  });
+
+  test('survey_results_ready no depende de columnas opcionales de survey_results para abrir premios', async () => {
+    const navigate = jest.fn();
+    const supabaseMock = createSupabaseMock({
+      partidoRow: {
+        id: 705,
+        survey_status: 'closed',
+        result_status: 'finished',
+        awards_status: 'pending',
+        finished_at: '2026-04-29T12:53:10.123Z',
+      },
+      surveyResultsRow: {
+        partido_id: 705,
+        results_ready: true,
+        result_status: 'finished',
+        awards: { mvp: { player_id: '10' } },
+        mvp: '10',
+      },
+      surveyResultsMissingColumns: ['awards_status', 'dirty_player'],
+    });
+
+    await openNotification({
+      type: 'survey_results_ready',
+      partido_id: 705,
+      data: {
+        resultsUrl: '/resultados-encuesta/705',
+      },
+    }, navigate, {
+      supabaseClient: supabaseMock,
+    });
+
+    expect(navigate).toHaveBeenCalledWith(
+      '/resultados-encuesta/705?showAwards=1',
       expect.objectContaining({
         state: expect.objectContaining({
           forceAwards: true,

@@ -10,6 +10,7 @@ import {
   sanitizeNotificationMatchName,
 } from './notificationText';
 import {
+  getSurveyResultsReadyMessage,
   getSurveyRemainingLabel,
   isSurveyNotificationClosed,
   resolveSurveyDeadlineAt,
@@ -883,6 +884,7 @@ const toActivityFromNotification = (group, match, currentUserId) => {
     icon: 'Bell',
     title: '',
     subtitle: fallbackSubtitle,
+    matchName,
     priority: PRIORITY[type] ?? 99,
     severity: severityForType(type),
     source: 'notification',
@@ -941,9 +943,7 @@ const toActivityFromNotification = (group, match, currentUserId) => {
   }
 
   if (type === 'survey_results_ready') {
-    const resultsTitle = quotedMatchName
-      ? `Resultados listos para ${quotedMatchName}`
-      : 'Resultados listos';
+    const resultsTitle = getSurveyResultsReadyMessage({ matchName });
     return {
       ...base,
       icon: 'Trophy',
