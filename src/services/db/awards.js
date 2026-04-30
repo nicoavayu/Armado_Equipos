@@ -5,8 +5,26 @@ import {
   resolveRegisteredUserIdFromPlayerRef,
   resolveStablePlayerRef,
 } from './userIdentity';
+import {
+  SURVEY_CHALLENGE_DISABLED_REASON,
+  isChallengeLikeTeamMatchRow,
+} from '../../utils/surveyChallengePolicy';
 
 const AWARD_WON_NOTIFICATION_TYPE = 'award_won';
+
+const isChallengeSurveyDisabledMatch = async (matchId) => {
+  try {
+    const { data, error } = await supabase
+      .from('team_matches')
+      .select('id, origin_type, challenge_id')
+      .eq('partido_id', Number(matchId))
+      .maybeSingle();
+    if (error) return false;
+    return isChallengeLikeTeamMatchRow(data || null);
+  } catch (_error) {
+    return false;
+  }
+};
 
 const resolveMatchName = async (matchId) => {
   try {
@@ -257,6 +275,16 @@ export async function notifyAwardWinnersForMatch(matchId, awards) {
     const idNum = Number(matchId);
     if (!Number.isFinite(idNum) || idNum <= 0) {
       return { notified: [], skipped: [], error: 'Invalid match ID' };
+    }
+
+    if (await isChallengeSurveyDisabledMatch(idNum)) {
+      return {
+        notified: [],
+        skipped: [],
+        error: null,
+        disabledForChallenge: true,
+        reason: SURVEY_CHALLENGE_DISABLED_REASON,
+      };
     }
 
     const matchName = await resolveMatchName(idNum);

@@ -8,7 +8,7 @@ import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { Network } from '@capacitor/network';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { supabase } from '../supabase';
-import { resolveSurveyNotificationNavigation } from '../utils/notificationRouter';
+import { debugNotificationEvent, resolveSurveyNotificationNavigation } from '../utils/notificationRouter';
 import { buildNotificationFallbackRoute, isSurveyFormNotificationType } from '../utils/notificationRoutes';
 import { resolveMatchInviteRoute } from '../utils/matchInviteRoute';
 import { showGlobalNotice } from '../utils/globalNoticeModal';
@@ -32,6 +32,38 @@ const getTokenSuffix = (value) => {
 };
 
 const isSafeInternalPath = (path) => typeof path === 'string' && path.startsWith('/') && !path.startsWith('//');
+
+const resolveRouteFromPushData = (data = {}) => String(
+  data?.route
+  || data?.url
+  || data?.link
+  || data?.resultsUrl
+  || data?.results_url
+  || data?.action_url
+  || data?.actionUrl
+  || data?.target_route
+  || data?.targetUrl
+  || '',
+).trim();
+
+const getNativePushDebugPayload = ({ notificationType = '', data = {}, route = '', source = '', raw = null } = {}) => ({
+  source,
+  raw_notification: raw || null,
+  notification_id: data?.notification_id || data?.id || null,
+  type: notificationType || data?.type || data?.notification_type || null,
+  match_id: data?.match_id || data?.matchId || null,
+  partido_id: data?.partido_id || data?.partidoId || null,
+  team_match_id: data?.team_match_id || data?.teamMatchId || null,
+  survey_id: data?.survey_id || data?.surveyId || null,
+  action_url: data?.action_url || data?.actionUrl || null,
+  actionUrl: data?.actionUrl || null,
+  resultsUrl: data?.resultsUrl || null,
+  results_url: data?.results_url || null,
+  route: data?.route || route || null,
+  url: data?.url || null,
+  link: data?.link || null,
+  final_route: route || null,
+});
 
 const buildNotificationFromPushData = ({ notificationType, data }) => ({
   type: String(notificationType || '').trim(),
@@ -123,6 +155,11 @@ const queueNativePushRedirect = ({ route, notificationType }) => {
     route: normalizedRoute,
     notificationType: String(notificationType || '').trim(),
   };
+  debugNotificationEvent('NOTIFICATION_NAVIGATE_START', {
+    source: 'capacitor_push_queue_redirect',
+    type: detail.notificationType,
+    final_route: normalizedRoute,
+  });
 
   try {
     window.sessionStorage.setItem(PENDING_NATIVE_PUSH_REDIRECT_KEY, JSON.stringify(detail));
@@ -131,6 +168,11 @@ const queueNativePushRedirect = ({ route, notificationType }) => {
   }
 
   window.dispatchEvent(new CustomEvent(NATIVE_PUSH_REDIRECT_EVENT, { detail }));
+  debugNotificationEvent('NOTIFICATION_NAVIGATE_DONE', {
+    source: 'capacitor_push_queue_redirect',
+    type: detail.notificationType,
+    final_route: normalizedRoute,
+  });
 };
 
 export const consumePendingNativePushRedirect = () => {
@@ -172,14 +214,14 @@ export const initNativePushNotifications = async () => {
             || '',
           ).trim();
 
-          const route = String(
-            data?.route
-            || data?.url
-            || data?.link
-            || data?.target_route
-            || data?.targetUrl
-            || '',
-          ).trim();
+          const route = resolveRouteFromPushData(data);
+          debugNotificationEvent('NOTIFICATION_TAP', getNativePushDebugPayload({
+            notificationType,
+            data,
+            route,
+            source: 'capacitor_push_action',
+            raw: action || null,
+          }));
 
           track('push_opened', {
             notification_type: notificationType || undefined,
@@ -193,6 +235,13 @@ export const initNativePushNotifications = async () => {
             data,
             route,
           });
+          debugNotificationEvent('NOTIFICATION_ROUTE_RESOLVED', getNativePushDebugPayload({
+            notificationType,
+            data,
+            route: resolvedRoute,
+            source: 'capacitor_push_action',
+            raw: action || null,
+          }));
 
           if (isSafeInternalPath(resolvedRoute)) {
             queueNativePushRedirect({
@@ -212,14 +261,14 @@ export const initNativePushNotifications = async () => {
             || '',
           ).trim();
 
-          const route = String(
-            data?.route
-            || data?.url
-            || data?.link
-            || data?.target_route
-            || data?.targetUrl
-            || '',
-          ).trim();
+          const route = resolveRouteFromPushData(data);
+          debugNotificationEvent('NOTIFICATION_TAP', getNativePushDebugPayload({
+            notificationType,
+            data,
+            route,
+            source: 'capacitor_push_received',
+            raw: notification || null,
+          }));
 
           const title = String(notification?.title || data?.title || 'Nueva notificacion').trim();
           const body = String(notification?.body || data?.message || '').trim();

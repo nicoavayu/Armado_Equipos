@@ -13,21 +13,15 @@ export function getAuthRedirectUrl() {
     return NATIVE_AUTH_REDIRECT_FALLBACK;
   }
 
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return `${window.location.origin}/auth/callback`;
+  }
+
   if (envUrl && /^https?:\/\//i.test(envUrl)) return envUrl;
 
   if (process.env.NODE_ENV === 'production') {
     const canonicalOrigin = publicAppUrl || legacyPublicOrigin || 'https://arma2.vercel.app';
     return `${canonicalOrigin}/auth/callback`;
-  }
-
-  if (typeof window !== 'undefined' && window.location?.origin) {
-    if (process.env.NODE_ENV === 'development') {
-      return `${window.location.origin}/auth/callback`;
-    }
-  }
-
-  if (typeof window !== 'undefined' && window.location?.origin) {
-    return `${window.location.origin}/auth/callback`;
   }
 
   return undefined;

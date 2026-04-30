@@ -179,7 +179,6 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
   const notificationsCtx = useNotifications() || {};
   const unreadCount = notificationsCtx.unreadCount || { friends: 0, matches: 0, total: 0 };
   const notifications = notificationsCtx.notifications || [];
-  const markAsRead = notificationsCtx.markAsRead || (async () => {});
   const navigate = useNavigate();
   const location = useLocation();
   const { setIntervalSafe, clearIntervalSafe } = useInterval();
@@ -231,15 +230,27 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
   const openAwardsStoryFromNotification = async (notif) => {
     const matchId = resolveNotificationMatchId(notif);
     if (!matchId) return false;
-    if (!notif?.read && notif?.id) {
-      try { await markAsRead(notif.id); } catch (_) { /* non-blocking */ }
-    }
     const resultsUrl = notif?.data?.resultsUrl || `/resultados-encuesta/${matchId}`;
-    navigate(resultsUrl, {
-      state: {
-        forceAwards: true,
-        fromNotification: true,
-        matchName: notif?.data?.match_name || notif?.data?.partido_nombre || null,
+    await openNotification({
+      ...notif,
+      type: notif?.type || 'awards_ready',
+      partido_id: notif?.partido_id || matchId,
+      data: {
+        ...(notif?.data || {}),
+        resultsUrl,
+        match_id: notif?.data?.match_id || String(matchId),
+      },
+    }, navigate, {
+      supabaseClient: supabase,
+      onActionBlocked: (blocked) => {
+        if (blocked?.message) {
+          notifyBlockingError(blocked.message, { title: blocked.title });
+        }
+      },
+      onResultsUnavailable: (notice) => {
+        if (notice?.message) {
+          notifyBlockingError(notice.message, { title: notice.title });
+        }
       },
     });
     return true;

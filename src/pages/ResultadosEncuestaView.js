@@ -14,6 +14,11 @@ import { subscribeToMatchUpdates } from '../services/realtimeService';
 import { getProfile as getLiveProfile } from '../services/db/profiles';
 import Logo from '../Logo.png';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
+import { debugNotificationEvent } from '../utils/notificationRouter';
+import {
+  SURVEY_CHALLENGE_DISABLED_MESSAGE,
+  isChallengeLikeTeamMatchRow,
+} from '../utils/surveyChallengePolicy';
 import {
   AWARDS_STATUS_ERROR,
   hasAnyAwardData,
@@ -267,14 +272,28 @@ const ResultadosEncuestaView = () => {
     fallback: '/',
   });
   const searchParams = new URLSearchParams(location.search);
+  const showAwardsParam = searchParams.get('showAwards');
+  const forceAwardsParam = searchParams.get('forceAwards');
   const forceAwardsMode =
     Boolean(location?.state?.forceAwards) ||
-    searchParams.get('forceAwards') === 'true' ||
-    searchParams.get('showAwards') === '1';
+    forceAwardsParam === 'true' ||
+    showAwardsParam === '1';
+  const getResultsPageDebugPayload = useCallback((extra = {}) => ({
+    source: 'resultados_encuesta_view',
+    partido_id: partidoId || null,
+    match_id: partidoId || null,
+    force_awards_mode: forceAwardsMode,
+    showAwards: showAwardsParam || null,
+    forceAwards: forceAwardsParam || null,
+    current_route: `${location.pathname}${location.search}${location.hash || ''}`,
+    location_state: location?.state || null,
+    ...extra,
+  }), [forceAwardsMode, forceAwardsParam, location.hash, location.pathname, location.search, location?.state, partidoId, showAwardsParam]);
 
   const [loading, setLoading] = useState(true);
   const [partido, setPartido] = useState(null);
   const [results, setResults] = useState(null);
+  const [surveyUnavailableMessage, setSurveyUnavailableMessage] = useState('');
   const [jugadores, setJugadores] = useState([]);
   const [surveyProgress, setSurveyProgress] = useState({
     surveyStatus: 'open',
@@ -1579,10 +1598,11 @@ const ResultadosEncuestaView = () => {
   const renderableResultsSlidesCount = canonicalResults
     ? prepareCarouselSlides(canonicalResults, jugadores).length
     : 0;
-  const canShowResults = deriveCanShowResults({
+  const hasRenderableResultsContent = deriveCanShowResults({
     results: canonicalResults,
     renderableSlidesCount: renderableResultsSlidesCount,
   });
+  const canShowResults = hasRenderableResultsContent || (forceAwardsMode && Boolean(canonicalResults));
 
   // Animation Styles encapsulated here to avoid external CSS
 
@@ -1598,10 +1618,20 @@ const ResultadosEncuestaView = () => {
     let alive = true;
 
     const fetchResultsData = async () => {
+      debugNotificationEvent('RESULTS_PAGE_LOAD_START', getResultsPageDebugPayload({
+        stage: 'effect_start',
+        has_user: Boolean(user),
+        loading,
+      }));
       if (!partidoId) {
+        debugNotificationEvent('RESULTS_PAGE_LOAD_ERROR', getResultsPageDebugPayload({
+          stage: 'missing_partido_id',
+          reason: 'missing_partido_id',
+        }));
         if (alive) {
           setPartido(null);
           setResults(null);
+          setSurveyUnavailableMessage('');
           setJugadores([]);
           setAbsences([]);
           setLoading(false);
@@ -1610,6 +1640,10 @@ const ResultadosEncuestaView = () => {
       }
 
       if (!user) {
+        debugNotificationEvent('RESULTS_PAGE_LOAD_ERROR', getResultsPageDebugPayload({
+          stage: 'missing_user',
+          reason: 'missing_user',
+        }));
         if (alive) {
           setPartido(null);
           setResults(null);
@@ -1644,6 +1678,12 @@ const ResultadosEncuestaView = () => {
         try {
           partidoData = await db.fetchOne('partidos', { id: matchIdNum });
         } catch (error) {
+          debugNotificationEvent('RESULTS_PAGE_LOAD_ERROR', getResultsPageDebugPayload({
+            stage: 'partido_fetch_exception',
+            reason: 'partido_fetch_exception',
+            match_id_numeric: matchIdNum,
+            error: error?.message || String(error || ''),
+          }));
           if (alive) {
             notifyBlockingError('Partido no encontrado');
             navigate('/');
@@ -1652,6 +1692,11 @@ const ResultadosEncuestaView = () => {
         }
 
         if (!partidoData) {
+          debugNotificationEvent('RESULTS_PAGE_LOAD_ERROR', getResultsPageDebugPayload({
+            stage: 'partido_not_found',
+            reason: 'partido_not_found',
+            match_id_numeric: matchIdNum,
+          }));
           if (alive) {
             notifyBlockingError('Partido no encontrado');
             setLoading(false);
@@ -1662,11 +1707,44 @@ const ResultadosEncuestaView = () => {
         if (!alive) return;
         setPartido(partidoData);
 
+        let teamMatchRow = null;
+        try {
+          const { data } = await supabase
+            .from('team_matches')
+            .select('id, origin_type, challenge_id')
+            .eq('partido_id', matchIdNum)
+            .maybeSingle();
+          teamMatchRow = data || null;
+        } catch (_teamMatchError) {
+          teamMatchRow = null;
+        }
+
+        if (isChallengeLikeTeamMatchRow(teamMatchRow)) {
+          debugNotificationEvent('RESULTS_PAGE_LOAD_ERROR', getResultsPageDebugPayload({
+            stage: 'challenge_survey_disabled',
+            reason: 'surveys_disabled_for_challenges',
+            match_id_numeric: matchIdNum,
+            team_match_id: teamMatchRow?.id || null,
+          }));
+          if (alive) {
+            setSurveyUnavailableMessage(SURVEY_CHALLENGE_DISABLED_MESSAGE);
+            setResults(null);
+            setJugadores([]);
+            setAbsences([]);
+          }
+          return;
+        }
+
         // Fetch players explicitly
         const { data: playersData } = await supabase
           .from('jugadores')
           .select('*')
           .eq('partido_id', matchIdNum);
+        debugNotificationEvent('RESULTS_PAGE_LOAD_START', getResultsPageDebugPayload({
+          stage: 'players_loaded',
+          match_id_numeric: matchIdNum,
+          players_count: Array.isArray(playersData) ? playersData.length : null,
+        }));
 
         if (!alive) return;
 
@@ -1703,8 +1781,24 @@ const ResultadosEncuestaView = () => {
           .single();
 
         if (resultsError && resultsError.code !== 'PGRST116') {
+          debugNotificationEvent('RESULTS_PAGE_LOAD_ERROR', getResultsPageDebugPayload({
+            stage: 'survey_results_error',
+            reason: 'survey_results_error',
+            match_id_numeric: matchIdNum,
+            error: resultsError?.message || String(resultsError || ''),
+            code: resultsError?.code || null,
+          }));
           throw resultsError;
         }
+        debugNotificationEvent('RESULTS_PAGE_LOAD_START', getResultsPageDebugPayload({
+          stage: 'survey_results_loaded',
+          match_id_numeric: matchIdNum,
+          has_results_row: Boolean(resultsData),
+          results_error_code: resultsError?.code || null,
+          results_ready: resultsData?.results_ready ?? null,
+          awards_status: resultsData?.awards_status || null,
+          has_awards_payload: hasAnyAwardData(resultsData),
+        }));
 
         if (!alive) return;
 
@@ -1725,6 +1819,22 @@ const ResultadosEncuestaView = () => {
         } else {
           setResults(null);
         }
+        debugNotificationEvent('RESULTS_PAGE_LOAD_SUCCESS', getResultsPageDebugPayload({
+          stage: 'canonical_results_resolved',
+          match_id_numeric: matchIdNum,
+          has_partido: Boolean(partidoData),
+          has_results_row: Boolean(resultsData),
+          has_canonical_results: Boolean(nextCanonicalResults),
+          players_count: rosterPlayers.length,
+          absences_count: canonicalAbsences.length,
+          survey_status: progress?.surveyStatus || null,
+          survey_has_status: Boolean(progress?.hasSurveyStatus),
+          expected_voters: progress?.expectedVoters ?? null,
+          submissions_count: progress?.submissionsCount ?? null,
+          results_ready: nextCanonicalResults?.results_ready ?? null,
+          awards_status: nextCanonicalResults?.awards_status || null,
+          has_awards_payload: hasAnyAwardData(nextCanonicalResults),
+        }));
 
         const animations = [];
         const addedPlayers = new Set();
@@ -1767,6 +1877,11 @@ const ResultadosEncuestaView = () => {
         setBadgeAnimations(animations);
       } catch (error) {
         if (alive) {
+          debugNotificationEvent('RESULTS_PAGE_LOAD_ERROR', getResultsPageDebugPayload({
+            stage: 'fetch_results_data_catch',
+            reason: 'fetch_results_data_catch',
+            error: error?.message || String(error || ''),
+          }));
           console.error('Error fetching results data:', error);
           notifyBlockingError('Error al cargar los resultados');
         }
@@ -1781,7 +1896,7 @@ const ResultadosEncuestaView = () => {
     return () => {
       alive = false;
     };
-  }, [partidoId, user, navigate, location.search, computeCanonicalAbsences, computeSurveyProgress]);
+  }, [partidoId, user, navigate, location.search, computeCanonicalAbsences, computeSurveyProgress, getResultsPageDebugPayload]);
 
   // Realtime updates
   useEffect(() => {
@@ -1803,6 +1918,12 @@ const ResultadosEncuestaView = () => {
     const shouldForce = forceAwardsMode && partidoId;
     const forceKey = `${partidoId}:${location.key || location.search}`;
 
+    if (surveyUnavailableMessage) {
+      clearAutoOpenGuard();
+      setAutoOpeningAwards(false);
+      return;
+    }
+
     if (!shouldForce) {
       forceStoryOpenedRef.current = null;
       clearAutoOpenGuard();
@@ -1816,6 +1937,14 @@ const ResultadosEncuestaView = () => {
 
     let cancelled = false;
     const runForceAwards = async () => {
+      debugNotificationEvent('RESULTS_PAGE_LOAD_START', getResultsPageDebugPayload({
+        stage: 'force_awards_start',
+        has_results: Boolean(results),
+        players_count: Array.isArray(jugadores) ? jugadores.length : null,
+        awards_status: results?.awards_status || null,
+        results_ready: results?.results_ready ?? null,
+        has_awards_payload: hasAnyAwardData(results),
+      }));
       clearAutoOpenGuard();
       setAutoOpeningAwards(true);
       let openedStory = false;
@@ -1825,6 +1954,14 @@ const ResultadosEncuestaView = () => {
           const row = results;
           const maybeSlides = row && isAwardsReadyStatus(row) ? prepareCarouselSlides(row, roster) : [];
           if (maybeSlides.length > 0) {
+            debugNotificationEvent('RESULTS_PAGE_LOAD_SUCCESS', getResultsPageDebugPayload({
+              stage: 'force_awards_guard_open_slides',
+              slides_count: maybeSlides.length,
+              slide_keys: maybeSlides.map((slide) => slide?.key).filter(Boolean),
+              players_count: roster.length,
+              awards_status: row?.awards_status || null,
+              has_awards_payload: hasAnyAwardData(row),
+            }));
             setPreviewPlayers(JSON.parse(JSON.stringify(roster)));
             badgesApplied.current.clear();
             liveApplied.current.clear();
@@ -1832,6 +1969,16 @@ const ResultadosEncuestaView = () => {
             setCarouselSlides(maybeSlides);
             setShowingBadgeAnimations(true);
             openedStory = true;
+          }
+          if (maybeSlides.length === 0) {
+            debugNotificationEvent('RESULTS_PAGE_LOAD_ERROR', getResultsPageDebugPayload({
+              stage: 'force_awards_guard_no_slides',
+              reason: 'no_renderable_awards_slides',
+              players_count: roster.length,
+              awards_status: row?.awards_status || null,
+              results_ready: row?.results_ready ?? null,
+              has_awards_payload: hasAnyAwardData(row),
+            }));
           }
           setAutoOpeningAwards(false);
         }
@@ -1882,9 +2029,29 @@ const ResultadosEncuestaView = () => {
 
         const slides = row && rowHasReadyAwards(row) ? prepareCarouselSlides(row, roster) : [];
         if (slides.length === 0) {
+          debugNotificationEvent('RESULTS_PAGE_LOAD_ERROR', getResultsPageDebugPayload({
+            stage: 'force_awards_no_slides',
+            reason: 'no_renderable_awards_slides',
+            players_count: roster.length,
+            awards_status: row?.awards_status || null,
+            results_ready: row?.results_ready ?? null,
+            has_awards_payload: hasAnyAwardData(row),
+            mvp: row?.mvp || row?.awards?.mvp?.player_id || null,
+            golden_glove: row?.golden_glove || row?.awards?.best_gk?.player_id || null,
+            dirty_player: row?.dirty_player || row?.awards?.red_card?.player_id || null,
+          }));
           return;
         }
 
+        debugNotificationEvent('RESULTS_PAGE_LOAD_SUCCESS', getResultsPageDebugPayload({
+          stage: 'force_awards_open_slides',
+          slides_count: slides.length,
+          slide_keys: slides.map((slide) => slide?.key).filter(Boolean),
+          players_count: roster.length,
+          awards_status: row?.awards_status || null,
+          results_ready: row?.results_ready ?? null,
+          has_awards_payload: hasAnyAwardData(row),
+        }));
         setPreviewPlayers(JSON.parse(JSON.stringify(roster)));
         badgesApplied.current.clear();
         liveApplied.current.clear();
@@ -1893,6 +2060,11 @@ const ResultadosEncuestaView = () => {
         setShowingBadgeAnimations(true);
         openedStory = true;
       } catch (e) {
+        debugNotificationEvent('RESULTS_PAGE_LOAD_ERROR', getResultsPageDebugPayload({
+          stage: 'force_awards_catch',
+          reason: 'force_awards_catch',
+          error: e?.message || String(e || ''),
+        }));
         console.error('[RESULTADOS] ensureAwards failed', e);
         if (cancelled) return;
       } finally {
@@ -1910,7 +2082,7 @@ const ResultadosEncuestaView = () => {
       // Effect re-runs can cancel an in-flight attempt; never leave the spinner locked.
       setAutoOpeningAwards(false);
     };
-  }, [forceAwardsMode, partidoId, location.key, location.search, loading, jugadores, results, showingBadgeAnimations]);
+  }, [forceAwardsMode, partidoId, location.key, location.search, loading, jugadores, results, showingBadgeAnimations, getResultsPageDebugPayload, surveyUnavailableMessage]);
 
   useEffect(() => {
     return () => {
@@ -1921,6 +2093,7 @@ const ResultadosEncuestaView = () => {
   useEffect(() => {
     const matchKey = String(partidoId || '').trim();
     if (!matchKey) return;
+    if (surveyUnavailableMessage) return;
     if (!results?.results_ready) return;
     const awardsStatusToken = normalizeAwardsStatus(results?.awards_status);
     if (awardsStatusToken !== 'pending') return;
@@ -1949,7 +2122,7 @@ const ResultadosEncuestaView = () => {
     return () => {
       cancelled = true;
     };
-  }, [partido, partidoId, results?.awards_status, results?.results_ready, surveyProgress]);
+  }, [partido, partidoId, results?.awards_status, results?.results_ready, surveyProgress, surveyUnavailableMessage]);
 
   // If we entered in forced story mode and initially showed "awards-pending",
   // upgrade to real award slides as soon as results/roster become available.
@@ -2010,6 +2183,17 @@ const ResultadosEncuestaView = () => {
   useEffect(() => {
     if (loading || autoOpeningAwards || showingBadgeAnimations || !partido) return;
     if (canShowResults) {
+      debugNotificationEvent('RESULTS_PAGE_LOAD_SUCCESS', getResultsPageDebugPayload({
+        stage: 'gate_can_show_results',
+        can_show_results: canShowResults,
+        has_renderable_results_content: hasRenderableResultsContent,
+        force_awards_mode: forceAwardsMode,
+        has_canonical_results: Boolean(canonicalResults),
+        renderable_slides_count: renderableResultsSlidesCount,
+        awards_status: canonicalResults?.awards_status || null,
+        results_ready: canonicalResults?.results_ready ?? null,
+        has_awards_payload: hasAnyAwardData(canonicalResults),
+      }));
       resultsGateRedirectRef.current = null;
       return;
     }
@@ -2018,6 +2202,18 @@ const ResultadosEncuestaView = () => {
     if (resultsGateRedirectRef.current === redirectKey) return;
     resultsGateRedirectRef.current = redirectKey;
 
+    debugNotificationEvent('RESULTS_PAGE_LOAD_ERROR', getResultsPageDebugPayload({
+      stage: 'gate_redirect',
+      reason: 'can_show_results_false',
+      can_show_results: canShowResults,
+      has_renderable_results_content: hasRenderableResultsContent,
+      force_awards_mode: forceAwardsMode,
+      has_canonical_results: Boolean(canonicalResults),
+      renderable_slides_count: renderableResultsSlidesCount,
+      awards_status: canonicalResults?.awards_status || null,
+      results_ready: canonicalResults?.results_ready ?? null,
+      has_awards_payload: hasAnyAwardData(canonicalResults),
+    }));
     goBackSmart({
       preferHistoryBack: true,
       replaceBackTo: true,
@@ -2026,12 +2222,17 @@ const ResultadosEncuestaView = () => {
   }, [
     autoOpeningAwards,
     canShowResults,
+    hasRenderableResultsContent,
+    canonicalResults,
+    forceAwardsMode,
     goBackSmart,
     loading,
     location.key,
     location.search,
     partido,
     partidoId,
+    renderableResultsSlidesCount,
+    getResultsPageDebugPayload,
     showingBadgeAnimations,
   ]);
 
@@ -2050,6 +2251,24 @@ const ResultadosEncuestaView = () => {
       if (partidoErr) throw partidoErr;
       if (playersErr) throw playersErr;
       if (resultsError && resultsError.code !== 'PGRST116') throw resultsError;
+
+      try {
+        const { data: teamMatchRow } = await supabase
+          .from('team_matches')
+          .select('id, origin_type, challenge_id')
+          .eq('partido_id', matchIdNum)
+          .maybeSingle();
+        if (isChallengeLikeTeamMatchRow(teamMatchRow)) {
+          setPartido(partidoData || { id: matchIdNum });
+          setSurveyUnavailableMessage(SURVEY_CHALLENGE_DISABLED_MESSAGE);
+          setResults(null);
+          setJugadores([]);
+          setAbsences([]);
+          return;
+        }
+      } catch (_teamMatchError) {
+        // Non-blocking for legacy environments without team_matches.
+      }
 
       const rosterPlayers = await enrichRosterWithUserProfiles(playersData || []);
 
@@ -2150,6 +2369,27 @@ const ResultadosEncuestaView = () => {
 
   if (!partido) {
     return <div className="text-white text-center mt-20 text-xl">Partido no encontrado</div>;
+  }
+
+  if (surveyUnavailableMessage) {
+    return (
+      <div className="min-h-[100dvh] w-screen p-0 flex flex-col" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%)' }}>
+        <div className="w-[90vw] max-w-[720px] mt-[70px] mx-auto py-8 px-5 bg-card dark:bg-[#1a1a1a] shadow-fifa-card rounded-[20px] md:w-full md:mt-12 md:shadow-none md:rounded-none relative mb-20 text-center">
+          <h1 className="text-[30px] md:text-4xl leading-[1.05] text-white text-center mb-5 tracking-[0.01em] font-oswald font-semibold">
+            Resultados no disponibles
+          </h1>
+          <p className="text-gray-300 text-lg mb-8">
+            {surveyUnavailableMessage}
+          </p>
+          <button
+            onClick={handleBack}
+            className="min-h-[52px] px-6 rounded-xl text-[18px] font-bebas tracking-[0.04em] uppercase text-white bg-white/15 border border-white/25 hover:bg-white/25 transition-all shadow-lg"
+          >
+            Volver
+          </button>
+        </div>
+      </div>
+    );
   }
 
   const hasPrimaryAwardHighlights = Boolean(

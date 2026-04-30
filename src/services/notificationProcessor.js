@@ -137,10 +137,13 @@ export const getMatchResults = async (partidoId) => {
  */
 export const markResultsNotificationAsRead = async (notificationId) => {
   try {
+    const normalizedNotificationId = String(notificationId ?? '').trim();
+    if (!normalizedNotificationId) return;
+
     const { error } = await supabase
       .from('notifications')
       .update({ read: true })
-      .eq('id', notificationId);
+      .eq('id', normalizedNotificationId);
 
     if (error) throw error;
 

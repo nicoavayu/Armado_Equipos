@@ -1,4 +1,5 @@
 import { resolveMatchInviteRoute } from './matchInviteRoute';
+import { isSurveyDisabledForChallengeNotification } from './surveyChallengePolicy';
 
 const SURVEY_FORM_NOTIFICATION_TYPES = new Set([
   'survey',
@@ -51,6 +52,7 @@ export const extractNotificationMatchId = (notification = {}) => {
       || notification?.match_id
       || notification?.match_ref
       || notification?.target_params?.partido_id
+      || extractNotificationMatchIdFromRoute(notification)
       || null
     );
   }
@@ -66,6 +68,7 @@ export const extractNotificationMatchId = (notification = {}) => {
     || notification?.match_id
     || notification?.match_ref
     || notification?.target_params?.partido_id
+    || extractNotificationMatchIdFromRoute(notification)
     || null
   );
 };
@@ -80,8 +83,38 @@ const extractMatchIdFromPath = (rawPath) => {
   const path = String(rawPath || '').trim();
   if (!path) return null;
   const match = path.match(/\/(?:admin|partido-publico|partido|encuesta|resultados-encuesta|votar-equipos)\/(\d+)/i);
-  return match?.[1] || null;
+  if (match?.[1]) return match[1];
+
+  const queryMatch = path.match(/[?&](?:partidoId|partido_id|matchId|match_id)=(\d+)(?:&|$)/i);
+  return queryMatch?.[1] || null;
 };
+
+function extractNotificationMatchIdFromRoute(notification = {}) {
+  const data = notification?.data || {};
+  const candidates = [
+    data?.resultsUrl,
+    data?.results_url,
+    data?.action_url,
+    data?.actionUrl,
+    data?.link,
+    data?.route,
+    data?.url,
+    data?.deep_link,
+    data?.deepLink,
+    notification?.action_url,
+    notification?.actionUrl,
+    notification?.deep_link,
+    notification?.deepLink,
+  ];
+
+  for (const candidate of candidates) {
+    if (!isSafeInternalPath(candidate)) continue;
+    const matchId = extractMatchIdFromPath(candidate);
+    if (matchId) return matchId;
+  }
+
+  return null;
+}
 
 export const isAdminAwareMatchNotificationType = (notificationOrType = {}) => (
   ADMIN_AWARE_MATCH_NOTIFICATION_TYPES.has(normalizeNotificationType(notificationOrType))
@@ -195,6 +228,10 @@ export const buildNotificationFallbackRoute = (notification = {}, idMapper = (va
   const data = notification?.data || {};
   const type = String(notification?.type || '').trim().toLowerCase();
   const teamId = data?.team_id || data?.teamId || null;
+
+  if (isSurveyDisabledForChallengeNotification(notification)) {
+    return '/notifications';
+  }
 
   if (isSurveyFormNotificationType(type)) {
     const matchId = extractNotificationMatchId(notification);

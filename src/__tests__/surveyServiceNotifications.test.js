@@ -35,6 +35,7 @@ const { createPostMatchSurveyNotifications } = require('../services/surveyServic
 const buildSupabaseFromMock = ({
   confirmationRow = null,
   matchRow = null,
+  teamMatchRow = null,
   insertedPayloads = [],
 }) => (table) => {
   if (table === 'partido_team_confirmations') {
@@ -65,6 +66,16 @@ const buildSupabaseFromMock = ({
           select: jest.fn(async () => ({ data: payload, error: null })),
         };
       }),
+    };
+  }
+
+  if (table === 'team_matches') {
+    return {
+      select: jest.fn(() => ({
+        eq: jest.fn(() => ({
+          maybeSingle: jest.fn(async () => ({ data: teamMatchRow, error: null })),
+        })),
+      })),
     };
   }
 
@@ -185,5 +196,38 @@ describe('surveyService notification recipients', () => {
     const userIds = Array.from(new Set((notifications || []).map((row) => row.user_id))).sort();
     expect(userIds).toEqual(['u1', 'u2']);
     expect(Array.from(new Set(insertedPayloads.map((row) => row.user_id))).sort()).toEqual(['u1', 'u2']);
+  });
+
+  test('does not create survey notifications for challenge/team_match partidos', async () => {
+    const insertedPayloads = [];
+    mockFrom.mockImplementation(buildSupabaseFromMock({
+      confirmationRow: null,
+      matchRow: {
+        equipos_json: null,
+        equipos: null,
+        survey_team_a: [],
+        survey_team_b: [],
+        final_team_a: [],
+        final_team_b: [],
+      },
+      teamMatchRow: {
+        id: 'tm-504',
+        partido_id: 504,
+        origin_type: 'challenge',
+      },
+      insertedPayloads,
+    }));
+
+    const notifications = await createPostMatchSurveyNotifications({
+      id: 504,
+      nombre: 'Desafío: A vs B',
+      jugadores: [
+        { id: 1, usuario_id: 'u1', uuid: 'u1', nombre: 'Uno' },
+        { id: 2, usuario_id: 'u2', uuid: 'u2', nombre: 'Dos' },
+      ],
+    });
+
+    expect(notifications).toEqual([]);
+    expect(insertedPayloads).toEqual([]);
   });
 });

@@ -5,6 +5,12 @@ import {
   resolveKickoffAtFromMatch,
   resolveSurveyStartDelayMs,
 } from './surveyWindow';
+import {
+  SURVEY_CHALLENGE_DISABLED_MESSAGE,
+  SURVEY_CHALLENGE_DISABLED_REASON,
+  SURVEY_CHALLENGE_DISABLED_TITLE,
+  isChallengeLikeTeamMatchRow,
+} from './surveyChallengePolicy';
 
 const normalizeIdentityToken = (value) => String(value || '').trim().toLowerCase();
 const normalizeSurveyStatusToken = (value) => {
@@ -147,6 +153,15 @@ export const resolveSurveyAccess = async ({ supabaseClient, matchId, userId }) =
       teamMatchRow = data || null;
     } catch (_teamMatchError) {
       teamMatchRow = null;
+    }
+
+    if (isChallengeLikeTeamMatchRow(teamMatchRow)) {
+      return {
+        allowed: false,
+        title: SURVEY_CHALLENGE_DISABLED_TITLE,
+        message: SURVEY_CHALLENGE_DISABLED_MESSAGE,
+        reason: SURVEY_CHALLENGE_DISABLED_REASON,
+      };
     }
 
     const matchStartAt = resolveMatchStartAt({ partidoRow, teamMatchRow });

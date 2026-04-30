@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useAuth } from '../components/AuthProvider';
 import { useNotifications } from '../context/NotificationContext';
 import { supabase } from '../supabase';
+import { isChallengeLikeTeamMatchRow } from '../utils/surveyChallengePolicy';
 
 /**
  * Hook to automatically detect when matches finish and send notifications
@@ -25,6 +26,33 @@ export const useMatchFinishDetection = (partidos) => {
         // Check if match just finished
         if (isMatchJustFinished(partido, now)) {
           try {
+            const metadataLooksLikeChallenge = Boolean(
+              partido?.team_match_id
+              || partido?.teamMatchId
+              || partido?.challenge_id
+              || partido?.challengeId
+              || String(partido?.source_type || '').trim().toLowerCase() === 'team_match'
+              || String(partido?.origin_type || '').trim().toLowerCase() === 'challenge',
+            );
+            if (metadataLooksLikeChallenge) {
+              notifiedMatches.current.add(partido.id);
+              continue;
+            }
+
+            try {
+              const { data: teamMatchRow } = await supabase
+                .from('team_matches')
+                .select('id, origin_type, challenge_id')
+                .eq('partido_id', partido.id)
+                .maybeSingle();
+              if (isChallengeLikeTeamMatchRow(teamMatchRow)) {
+                notifiedMatches.current.add(partido.id);
+                continue;
+              }
+            } catch (_teamMatchLookupError) {
+              // Non-blocking for legacy environments without team_matches.
+            }
+
             // Avoid duplicate notifications: if DB already has a survey_start/post_match_survey for this partido, skip
             const { data: existing, error: existingError } = await supabase
               .from('notifications')
