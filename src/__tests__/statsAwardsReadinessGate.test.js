@@ -1,3 +1,9 @@
+jest.mock('@capacitor-community/apple-sign-in', () => ({
+  SignInWithApple: {
+    authorize: jest.fn(),
+  },
+}));
+
 import { shouldIncludeSurveyResultForAwardsStats } from '../components/StatsView';
 
 describe('Stats awards readiness gate', () => {

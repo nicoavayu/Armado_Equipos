@@ -191,14 +191,7 @@ describe('surveyAccess lifecycle guards', () => {
     }
   });
 
-  test('blocks a registered challenge roster user who is outside the approved squad', async () => {
-    listChallengeApprovedSquad.mockResolvedValueOnce({
-      byTeamId: {
-        ta: [{ user_id: 'u1', jugador: { usuario_id: 'u1' } }],
-        tb: [{ user_id: 'u2', jugador: { usuario_id: 'u2' } }],
-      },
-    });
-
+  test('blocks challenge survey access before checking the approved squad', async () => {
     const access = await resolveSurveyAccess({
       supabaseClient: buildSupabaseClient({
         partidoRow: {
@@ -235,7 +228,8 @@ describe('surveyAccess lifecycle guards', () => {
     });
 
     expect(access.allowed).toBe(false);
-    expect(access.reason).toBe('user_not_participant');
+    expect(access.reason).toBe('surveys_disabled_for_challenges');
+    expect(listChallengeApprovedSquad).not.toHaveBeenCalled();
   });
 
   test('blocks a substitute from post-match survey access when they never entered the effective roster', async () => {
@@ -267,19 +261,9 @@ describe('surveyAccess lifecycle guards', () => {
     expect(access.reason).toBe('user_not_participant');
   });
 
-  test('allows challenge surveys from scheduled_at for logged roster substitutes', async () => {
+  test('blocks challenge survey access even for logged roster substitutes', async () => {
     jest.useFakeTimers();
     jest.setSystemTime(new Date('2026-03-30T01:20:00.000Z'));
-
-    listChallengeApprovedSquad.mockResolvedValueOnce({
-      byTeamId: {
-        ta: [
-          { user_id: 'u1', jugador: { usuario_id: 'u1' } },
-          { user_id: 'u3', jugador: { usuario_id: 'u3' } },
-        ],
-        tb: [{ user_id: 'u2', jugador: { usuario_id: 'u2' } }],
-      },
-    });
 
     try {
       const access = await resolveSurveyAccess({
@@ -317,8 +301,9 @@ describe('surveyAccess lifecycle guards', () => {
         userId: 'u3',
       });
 
-      expect(access.allowed).toBe(true);
-      expect(access.reason).toBe('ok');
+      expect(access.allowed).toBe(false);
+      expect(access.reason).toBe('surveys_disabled_for_challenges');
+      expect(listChallengeApprovedSquad).not.toHaveBeenCalled();
     } finally {
       jest.useRealTimers();
     }
