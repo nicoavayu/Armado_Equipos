@@ -54,4 +54,39 @@ describe('groupNotificationsByMatch', () => {
     expect(result[0].latest.id).toBe('awards');
     expect(result[0].count).toBe(2);
   });
+
+  it('oculta notificaciones de encuesta de desafios antes de agrupar', () => {
+    const result = groupNotificationsByMatch([
+      {
+        id: 'challenge-survey',
+        type: 'survey_start',
+        created_at: '2026-02-19T12:00:00.000Z',
+        read: false,
+        partido_id: 700,
+        data: { match_name: 'Desafío: FULBO 5A vs FULBO 5B' },
+      },
+      {
+        id: 'challenge-award',
+        type: 'award_won',
+        created_at: '2026-02-19T12:01:00.000Z',
+        read: false,
+        data: {
+          team_match_id: 'tm-700',
+          action_url: '/resultados-encuesta/700?showAwards=1',
+        },
+      },
+      {
+        id: 'friendly-survey',
+        type: 'survey_start',
+        created_at: '2026-02-19T12:02:00.000Z',
+        read: false,
+        partido_id: 701,
+        data: { match_name: 'Amistoso FULBO 5A vs FULBO 5B' },
+      },
+    ]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].latest.id).toBe('friendly-survey');
+    expect(result[0].count).toBe(1);
+  });
 });

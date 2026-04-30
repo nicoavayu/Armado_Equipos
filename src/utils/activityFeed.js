@@ -35,6 +35,7 @@ import {
 import {
   isChallengeLikeTeamMatchRow,
   isSurveyDisabledForChallengeNotification,
+  isSurveyRelatedNotificationType,
 } from './surveyChallengePolicy';
 
 const ACTIVITY_MAX_ITEMS = 5;
@@ -1253,11 +1254,7 @@ const shouldIncludeNotification = (notification, normalizedType) => {
   return ageMs <= activityWindowDefaultMs;
 };
 
-const isSurveyActivityType = (type) => (
-  type === 'survey_start'
-  || type === 'survey_results_ready'
-  || type === 'awards_ready'
-);
+const isSurveyActivityType = (type) => isSurveyRelatedNotificationType(type);
 
 const fetchSurveyDisabledChallengeMatchIds = async ({ groups, supabaseClient }) => {
   const disabledMatchIds = new Set();

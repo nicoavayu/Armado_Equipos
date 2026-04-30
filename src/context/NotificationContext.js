@@ -31,6 +31,7 @@ import {
 import { debugNotificationEvent } from '../utils/notificationRouter';
 import { track } from '../utils/monitoring/analytics';
 import { parseLocalDateTime } from '../utils/dateLocal';
+import { filterSurveyChallengeNotificationsForDisplay } from '../utils/surveyChallengePolicy';
 
 const NotificationContext = createContext();
 
@@ -587,8 +588,16 @@ export const NotificationProvider = ({ children }) => {
 
       logger.log('[NOTIFICATIONS] Visible fetched:', visibleRaw.length, 'Scheduled fetched:', scheduledRaw.length);
 
+      // Hide legacy challenge survey notifications before they reach tabs, counters, or grouping.
+      const visibleSurveyFiltered = await filterSurveyChallengeNotificationsForDisplay(visibleRaw, {
+        supabaseClient: supabase,
+      });
+      const scheduledSurveyFiltered = await filterSurveyChallengeNotificationsForDisplay(scheduledRaw, {
+        supabaseClient: supabase,
+      });
+
       // Hide stale/false-positive awards-ready notifications unless awards are truly persisted.
-      const visibleAwardsValidated = await filterPrematureAwardsNotifications(visibleRaw);
+      const visibleAwardsValidated = await filterPrematureAwardsNotifications(visibleSurveyFiltered);
 
       // Hide stale invite/kick rows before dedupe so lists stay actionable.
       const visibleForDisplay = filterNotificationsForInbox(visibleAwardsValidated);
@@ -597,7 +606,7 @@ export const NotificationProvider = ({ children }) => {
       const dedupedVisible = dedupeNotificationsForDisplay(visibleForDisplay);
 
       setNotifications(dedupedVisible);
-      setScheduledNotifications(scheduledRaw);
+      setScheduledNotifications(scheduledSurveyFiltered);
       updateUnreadCount(dedupedVisible);
     } catch (error) {
       handleError(error, { showToast: false, onError: () => { } });
@@ -787,6 +796,18 @@ export const NotificationProvider = ({ children }) => {
       return;
     }
 
+    const displayRows = await filterSurveyChallengeNotificationsForDisplay([notification], {
+      supabaseClient: supabase,
+    });
+    if (displayRows.length === 0) {
+      logger.log('[NOTIFICATIONS] Suppressing challenge survey notification from inbox:', {
+        id: notification?.id,
+        type: notification?.type,
+      });
+      return;
+    }
+    notification = displayRows[0];
+
     const notificationType = String(notification?.type || '').trim();
     track('push_received', {
       notification_type: notificationType || undefined,
@@ -908,6 +929,42 @@ export const NotificationProvider = ({ children }) => {
 
     handleRealtimeNotificationSideEffects(notification);
     logger.log('[NOTIFICATIONS] Notification processed successfully');
+  };
+
+  const handleUpdatedNotification = async (notification) => {
+    const displayRows = await filterSurveyChallengeNotificationsForDisplay([notification], {
+      supabaseClient: supabase,
+    });
+
+    if (displayRows.length === 0) {
+      setNotifications((prev) => {
+        const updated = prev.filter((item) => item.id !== notification.id);
+        updateUnreadCount(updated);
+        return updated;
+      });
+      return;
+    }
+
+    const displayNotification = displayRows[0];
+    setNotifications((prev) => {
+      const updated = prev.map((item) => (
+        item.id === displayNotification.id
+          ? { ...item, ...displayNotification }
+          : item
+      ));
+
+      const visibleUpdated = filterNotificationsForInbox(updated);
+
+      try {
+        const deduped = dedupeNotificationsForDisplay(visibleUpdated);
+        updateUnreadCount(deduped);
+        return deduped;
+      } catch (error) {
+        logger.warn('[NOTIFICATIONS] Failed to re-dedupe updated notification. Using merged list.', error);
+        updateUnreadCount(visibleUpdated);
+        return visibleUpdated;
+      }
+    });
   };
 
   useEffect(() => {
@@ -1163,25 +1220,7 @@ export const NotificationProvider = ({ children }) => {
               return;
             }
 
-            setNotifications((prev) => {
-              const updated = prev.map((notification) => (
-                notification.id === payload.new.id
-                  ? { ...notification, ...payload.new }
-                  : notification
-              ));
-
-              const visibleUpdated = filterNotificationsForInbox(updated);
-
-              try {
-                const deduped = dedupeNotificationsForDisplay(visibleUpdated);
-                updateUnreadCount(deduped);
-                return deduped;
-              } catch (error) {
-                logger.warn('[NOTIFICATIONS] Failed to re-dedupe updated notification. Using merged list.', error);
-                updateUnreadCount(visibleUpdated);
-                return visibleUpdated;
-              }
-            });
+            handleUpdatedNotification(payload.new);
             return;
           }
 

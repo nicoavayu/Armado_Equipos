@@ -4,6 +4,10 @@ import {
   extractNotificationMatchId,
   isTeamChallengeNotification,
 } from '../utils/notificationRoutes';
+import {
+  filterSurveyChallengeNotificationsForDisplay,
+  isSurveyDisabledForChallengeNotification,
+} from '../utils/surveyChallengePolicy';
 
 describe('notificationRoutes', () => {
   test('extracts match id from supported payload fields', () => {
@@ -153,5 +157,56 @@ describe('notificationRoutes', () => {
 
     expect(isTeamChallengeNotification(notification)).toBe(true);
     expect(buildNotificationFallbackRoute(notification)).toBe('/desafios/equipos/partidos/tm-55');
+  });
+
+  test('detects legacy challenge survey notifications from copy and team-match routes', () => {
+    expect(isSurveyDisabledForChallengeNotification({
+      type: 'survey_reminder',
+      data: { match_name: 'Desafío: FULBO 5A vs FULBO 5B' },
+    })).toBe(true);
+
+    expect(isSurveyDisabledForChallengeNotification({
+      type: 'awards_ready',
+      data: { action_url: '/desafios/equipos/partidos/tm-55' },
+    })).toBe(true);
+  });
+
+  test('filters old challenge survey notifications through the team_matches bridge', async () => {
+    const supabaseMock = {
+      from: jest.fn(() => ({
+        select: jest.fn(() => ({
+          in: jest.fn(async () => ({
+            data: [
+              {
+                id: 'tm-812',
+                partido_id: 812,
+                origin_type: 'challenge',
+                challenge_id: 'challenge-812',
+              },
+            ],
+            error: null,
+          })),
+        })),
+      })),
+    };
+
+    const result = await filterSurveyChallengeNotificationsForDisplay([
+      {
+        id: 'challenge-survey',
+        type: 'survey_start',
+        partido_id: 812,
+        data: { match_name: 'FULBO 5A vs FULBO 5B' },
+      },
+      {
+        id: 'friendly-survey',
+        type: 'survey_start',
+        partido_id: 813,
+        data: { match_name: 'Amistoso FULBO 5A vs FULBO 5B' },
+      },
+    ], {
+      supabaseClient: supabaseMock,
+    });
+
+    expect(result.map((notification) => notification.id)).toEqual(['friendly-survey']);
   });
 });
