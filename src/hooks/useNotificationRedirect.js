@@ -11,6 +11,7 @@ import { isPendingMatchInviteNotification } from '../utils/notificationInviteSta
 import { track } from '../utils/monitoring/analytics';
 import { isTeamChallengeNotification, resolveAdminAwareNotificationRoute } from '../utils/notificationRoutes';
 import {
+  debugNotificationEvent,
   openNotification,
   resolveNotificationActionability,
   resolveSurveyNotificationNavigation,
@@ -25,6 +26,14 @@ const extractMatchIdFromRoute = (route) => {
   return match?.[1] || null;
 };
 
+const PUSH_RESULTS_NOTIFICATION_TYPES = new Set([
+  'survey_results_ready',
+  'survey_finished',
+  'survey_results',
+  'awards_ready',
+  'award_won',
+]);
+
 const resolveNotificationTypeToken = (payload = {}) => String(
   payload?.notificationType
   || payload?.notification_type
@@ -33,6 +42,32 @@ const resolveNotificationTypeToken = (payload = {}) => String(
   || payload?.data?.notification_type
   || '',
 ).trim();
+
+const isPushResultsNotificationType = (notificationType) => (
+  PUSH_RESULTS_NOTIFICATION_TYPES.has(String(notificationType || '').trim().toLowerCase())
+);
+
+const getRedirectDebugPayload = ({ payload = {}, route = '', source = '' } = {}) => {
+  const data = payload?.data && typeof payload.data === 'object' ? payload.data : payload;
+  return {
+    source,
+    raw_notification: payload || null,
+    notification_id: payload?.id || data?.id || null,
+    type: resolveNotificationTypeToken(payload),
+    match_id: data?.match_id || data?.matchId || null,
+    partido_id: payload?.partido_id || data?.partido_id || data?.partidoId || null,
+    team_match_id: data?.team_match_id || data?.teamMatchId || null,
+    survey_id: payload?.survey_id || data?.survey_id || data?.surveyId || null,
+    action_url: payload?.action_url || payload?.actionUrl || data?.action_url || data?.actionUrl || null,
+    actionUrl: payload?.actionUrl || data?.actionUrl || null,
+    resultsUrl: data?.resultsUrl || null,
+    results_url: data?.results_url || null,
+    route: data?.route || route || null,
+    url: data?.url || payload?.url || null,
+    link: data?.link || null,
+    final_route: route || null,
+  };
+};
 
 const buildNotificationEnvelopeFromPayload = ({ payload = {}, route = '' } = {}) => {
   const data = payload?.data && typeof payload.data === 'object' ? payload.data : {};
@@ -134,8 +169,17 @@ export const useNotificationRedirect = () => {
     const handleNativePushRedirect = async (payload) => {
       const route = String(payload?.route || '').trim();
       if (!route) return;
+      debugNotificationEvent('NOTIFICATION_TAP', getRedirectDebugPayload({
+        payload,
+        route,
+        source: 'native_push_redirect',
+      }));
 
       const envelope = buildNotificationEnvelopeFromPayload({ payload, route });
+      debugNotificationEvent('NOTIFICATION_SELECTED', {
+        ...getRedirectDebugPayload({ payload: envelope, route, source: 'native_push_redirect' }),
+        selected_notification: envelope,
+      });
       if (isTeamChallengeNotification(envelope)) {
         await openNotification(envelope, navigate, {
           supabaseClient: supabase,
@@ -164,7 +208,7 @@ export const useNotificationRedirect = () => {
       }
 
       const notificationType = resolveNotificationTypeToken(payload);
-      if (['survey_results_ready', 'survey_finished', 'survey_results'].includes(notificationType)) {
+      if (isPushResultsNotificationType(notificationType)) {
         track('push_opened', {
           notification_type: notificationType || undefined,
           route,
@@ -186,21 +230,53 @@ export const useNotificationRedirect = () => {
         envelope,
         fallbackRoute: surveyNavigation.route || route,
       });
+      debugNotificationEvent('NOTIFICATION_ROUTE_RESOLVED', {
+        ...getRedirectDebugPayload({ payload: envelope, route, source: 'native_push_redirect' }),
+        final_route: targetRoute || null,
+      });
       track('push_opened', {
         notification_type: notificationType || undefined,
         route,
         opened_from_push: true,
         source: 'native_push_redirect',
       });
-      if (targetRoute) navigate(targetRoute);
+      if (targetRoute) {
+        debugNotificationEvent('NOTIFICATION_NAVIGATE_START', {
+          ...getRedirectDebugPayload({ payload: envelope, route, source: 'native_push_redirect' }),
+          final_route: targetRoute,
+        });
+        try {
+          navigate(targetRoute);
+          debugNotificationEvent('NOTIFICATION_NAVIGATE_DONE', {
+            ...getRedirectDebugPayload({ payload: envelope, route, source: 'native_push_redirect' }),
+            final_route: targetRoute,
+          });
+        } catch (error) {
+          debugNotificationEvent('NOTIFICATION_NAVIGATE_ERROR', {
+            ...getRedirectDebugPayload({ payload: envelope, route, source: 'native_push_redirect' }),
+            final_route: targetRoute,
+            error: error?.message || String(error || ''),
+          });
+          throw error;
+        }
+      }
     };
 
     // Listener para mensajes del Service Worker
     const handleMessage = async (event) => {
       if (event.data?.type === 'NAVIGATE_TO' && event.data?.url) {
+        debugNotificationEvent('NOTIFICATION_TAP', getRedirectDebugPayload({
+          payload: event.data || {},
+          route: event.data?.url,
+          source: 'service_worker',
+        }));
         const envelope = buildNotificationEnvelopeFromPayload({
           payload: event.data || {},
           route: event.data?.url,
+        });
+        debugNotificationEvent('NOTIFICATION_SELECTED', {
+          ...getRedirectDebugPayload({ payload: envelope, route: event.data?.url, source: 'service_worker' }),
+          selected_notification: envelope,
         });
         if (isTeamChallengeNotification(envelope)) {
           await openNotification(envelope, navigate, {
@@ -233,7 +309,7 @@ export const useNotificationRedirect = () => {
         }
 
         const notificationType = resolveNotificationTypeToken(event.data || {});
-        if (['survey_results_ready', 'survey_finished', 'survey_results'].includes(notificationType)) {
+        if (isPushResultsNotificationType(notificationType)) {
           track('push_opened', {
             notification_type: notificationType || undefined,
             route: event.data?.url,
@@ -255,6 +331,10 @@ export const useNotificationRedirect = () => {
           envelope,
           fallbackRoute: surveyNavigation.route || event.data?.url,
         });
+        debugNotificationEvent('NOTIFICATION_ROUTE_RESOLVED', {
+          ...getRedirectDebugPayload({ payload: envelope, route: event.data?.url, source: 'service_worker' }),
+          final_route: targetRoute || null,
+        });
         track('push_opened', {
           notification_type: notificationType || undefined,
           route: event.data?.url,
@@ -262,7 +342,26 @@ export const useNotificationRedirect = () => {
           source: 'service_worker',
         });
         console.log('Redirecting from push notification to:', targetRoute);
-        if (targetRoute) navigate(targetRoute);
+        if (targetRoute) {
+          debugNotificationEvent('NOTIFICATION_NAVIGATE_START', {
+            ...getRedirectDebugPayload({ payload: envelope, route: event.data?.url, source: 'service_worker' }),
+            final_route: targetRoute,
+          });
+          try {
+            navigate(targetRoute);
+            debugNotificationEvent('NOTIFICATION_NAVIGATE_DONE', {
+              ...getRedirectDebugPayload({ payload: envelope, route: event.data?.url, source: 'service_worker' }),
+              final_route: targetRoute,
+            });
+          } catch (error) {
+            debugNotificationEvent('NOTIFICATION_NAVIGATE_ERROR', {
+              ...getRedirectDebugPayload({ payload: envelope, route: event.data?.url, source: 'service_worker' }),
+              final_route: targetRoute,
+              error: error?.message || String(error || ''),
+            });
+            throw error;
+          }
+        }
       }
     };
 
@@ -289,6 +388,11 @@ export const useNotificationRedirect = () => {
   // Función para manejar notificaciones cuando la app está abierta
   const handleForegroundNotification = async (notification) => {
     const notificationType = String(notification?.type || notification?.data?.type || '').trim();
+    debugNotificationEvent('NOTIFICATION_TAP', getRedirectDebugPayload({
+      payload: notification || {},
+      route: notification?.data?.url || notification?.data?.route || notification?.data?.link || '',
+      source: 'in_app_push',
+    }));
     const envelope = {
       ...notification,
       type: notificationType || notification?.type || '',
@@ -296,8 +400,16 @@ export const useNotificationRedirect = () => {
         ? notification.data
         : {},
     };
+    debugNotificationEvent('NOTIFICATION_SELECTED', {
+      ...getRedirectDebugPayload({ payload: envelope, route: '', source: 'in_app_push' }),
+      selected_notification: envelope,
+    });
 
-    const fallbackRoute = envelope?.data?.link || envelope?.data?.resultsUrl || '';
+    const fallbackRoute = envelope?.data?.link
+      || envelope?.data?.resultsUrl
+      || envelope?.data?.action_url
+      || envelope?.data?.actionUrl
+      || '';
     const surveyNavigation = await resolveSurveyNavigationForEnvelope({
       envelope,
       fallbackRoute,
@@ -315,7 +427,15 @@ export const useNotificationRedirect = () => {
           source: 'in_app_push',
         });
       }
+      debugNotificationEvent('NOTIFICATION_NAVIGATE_START', {
+        ...getRedirectDebugPayload({ payload: envelope, route: surveyNavigation.route, source: 'in_app_push' }),
+        final_route: surveyNavigation.route,
+      });
       navigate(surveyNavigation.route);
+      debugNotificationEvent('NOTIFICATION_NAVIGATE_DONE', {
+        ...getRedirectDebugPayload({ payload: envelope, route: surveyNavigation.route, source: 'in_app_push' }),
+        final_route: surveyNavigation.route,
+      });
       return;
     }
 
@@ -346,20 +466,41 @@ export const useNotificationRedirect = () => {
       }
       const inviteRoute = resolveMatchInviteRoute(invitePayload);
       if (inviteRoute) {
+        debugNotificationEvent('NOTIFICATION_NAVIGATE_START', {
+          ...getRedirectDebugPayload({ payload: invitePayload, route: inviteRoute, source: 'in_app_push' }),
+          final_route: inviteRoute,
+        });
         navigate(inviteRoute);
+        debugNotificationEvent('NOTIFICATION_NAVIGATE_DONE', {
+          ...getRedirectDebugPayload({ payload: invitePayload, route: inviteRoute, source: 'in_app_push' }),
+          final_route: inviteRoute,
+        });
       } else if (notification?.data?.matchId || notification?.data?.partido_id) {
         const fallbackMatchId = notification?.data?.matchId || notification?.data?.partido_id;
-        navigate(`/partido-publico/${fallbackMatchId}`);
+        const fallbackRoute = `/partido-publico/${fallbackMatchId}`;
+        debugNotificationEvent('NOTIFICATION_NAVIGATE_START', {
+          ...getRedirectDebugPayload({ payload: invitePayload, route: fallbackRoute, source: 'in_app_push' }),
+          final_route: fallbackRoute,
+        });
+        navigate(fallbackRoute);
+        debugNotificationEvent('NOTIFICATION_NAVIGATE_DONE', {
+          ...getRedirectDebugPayload({ payload: invitePayload, route: fallbackRoute, source: 'in_app_push' }),
+          final_route: fallbackRoute,
+        });
       }
-    } else if (notification.data?.type === 'survey_results_ready') {
+    } else if (isPushResultsNotificationType(notificationType)) {
       const matchId = notification.data?.matchId ?? notification.data?.match_id ?? notification.data?.partido_id;
       const id = toBigIntId(matchId);
       const envelope = {
-        type: 'survey_results_ready',
+        type: String(notification.data?.type || notificationType || '').trim() || 'survey_results_ready',
         partido_id: id || undefined,
         data: {
           ...notification.data,
-          resultsUrl: notification.data?.resultsUrl || (id != null ? `/resultados-encuesta/${id}` : null),
+          resultsUrl: notification.data?.resultsUrl
+            || notification.data?.action_url
+            || notification.data?.actionUrl
+            || notification.data?.link
+            || (id != null ? `/resultados-encuesta/${id}` : null),
           match_id: id || notification.data?.match_id || undefined,
           matchId: id || notification.data?.matchId || undefined,
           partido_id: id || notification.data?.partido_id || undefined,

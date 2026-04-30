@@ -43,7 +43,6 @@ jest.mock('../services/db/teamChallenges', () => ({
   listTeamMatchMembers: jest.fn(async () => ({})),
 }));
 
-const { listChallengeApprovedSquad } = require('../services/db/teamChallenges');
 const { ensureSurveyWindowOpen } = require('../services/surveyCompletionService');
 
 const buildSupabaseFromMock = ({
@@ -213,7 +212,7 @@ describe('ensureSurveyWindowOpen', () => {
     expect(updateCalls[0].survey_closes_at).toBe('2026-03-21T02:00:00.000Z');
   });
 
-  test('uses scheduled_at as zero-delay survey opening for challenge matches and counts logged substitutes', async () => {
+  test('does not open survey lifecycle for challenge/team_match partidos', async () => {
     const lifecycleRow = {
       survey_status: 'open',
       survey_opened_at: '2026-03-30T01:19:00.000Z',
@@ -225,16 +224,6 @@ describe('ensureSurveyWindowOpen', () => {
       fecha: '2026-03-29',
       hora: '22:19',
     };
-
-    listChallengeApprovedSquad.mockResolvedValueOnce({
-      byTeamId: {
-        ta: [
-          { user_id: 'u1', jugador: { usuario_id: 'u1' } },
-          { user_id: 'u3', jugador: { usuario_id: 'u3' } },
-        ],
-        tb: [{ user_id: 'u2', jugador: { usuario_id: 'u2' } }],
-      },
-    });
 
     const updateCalls = [];
     mockFrom.mockImplementation(buildSupabaseFromMock({
@@ -261,12 +250,13 @@ describe('ensureSurveyWindowOpen', () => {
       nowIso: '2026-03-30T01:20:00.000Z',
     });
 
-    expect(result.openedAt).toBe('2026-03-30T01:19:00.000Z');
-    expect(result.closesAt).toBe('2026-03-31T01:19:00.000Z');
-    expect(result.expectedVoters).toBe(3);
-    expect(result.remainingVotes).toBe(3);
-    expect(updateCalls.length).toBe(1);
-    expect(updateCalls[0]).toMatchObject({ survey_expected_voters: 3 });
+    expect(result.openedAt).toBeNull();
+    expect(result.closesAt).toBeNull();
+    expect(result.expectedVoters).toBe(0);
+    expect(result.remainingVotes).toBe(0);
+    expect(result.disabledForChallenge).toBe(true);
+    expect(result.reason).toBe('surveys_disabled_for_challenges');
+    expect(updateCalls.length).toBe(0);
   });
 
   test('does not rewrite canonical survey window when runtime TZ differs', async () => {
@@ -307,14 +297,7 @@ describe('ensureSurveyWindowOpen', () => {
     }
   });
 
-  test('counts only approved challenge squad users as expected voters', async () => {
-    listChallengeApprovedSquad.mockResolvedValueOnce({
-      byTeamId: {
-        ta: [{ user_id: 'u1', jugador: { usuario_id: 'u1' } }],
-        tb: [{ user_id: 'u2', jugador: { usuario_id: 'u2' } }],
-      },
-    });
-
+  test('skips approved challenge squad survey eligibility because challenges have no survey', async () => {
     const updateCalls = [];
     mockFrom.mockImplementation(buildSupabaseFromMock({
       rosterRows: [
@@ -353,12 +336,11 @@ describe('ensureSurveyWindowOpen', () => {
       nowIso: '2026-03-18T03:00:00.000Z',
     });
 
-    expect(result.expectedVoters).toBe(2);
-    expect(result.remainingVotes).toBe(2);
-    expect(Array.from(result.eligibleByPlayerId.keys()).sort((a, b) => a - b)).toEqual([1, 2]);
-    expect(updateCalls[0]).toMatchObject({
-      survey_expected_voters: 2,
-    });
+    expect(result.expectedVoters).toBe(0);
+    expect(result.remainingVotes).toBe(0);
+    expect(result.disabledForChallenge).toBe(true);
+    expect(Array.from(result.eligibleByPlayerId.keys())).toEqual([]);
+    expect(updateCalls).toEqual([]);
   });
 
   test('supports read-only progress checks without persisting lifecycle writes', async () => {

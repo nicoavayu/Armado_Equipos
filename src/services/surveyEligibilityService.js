@@ -1,5 +1,8 @@
-import { listChallengeApprovedSquad, listTeamMatchMembers } from './db/teamChallenges';
 import { normalizeIdentityRef, resolvePersistRef } from './surveyTeamsService';
+import {
+  SURVEY_CHALLENGE_DISABLED_REASON,
+  isChallengeLikeTeamMatchRow,
+} from '../utils/surveyChallengePolicy';
 
 const normalizeUserId = (value) => String(value || '').trim();
 const normalizeTeamId = (value) => String(value || '').trim();
@@ -13,8 +16,7 @@ const normalizeUserIdSetInput = (values = []) => {
 };
 
 export const isChallengeLikeSurveyMatch = (teamMatchRow) => {
-  const originType = String(teamMatchRow?.origin_type || '').trim().toLowerCase();
-  return originType === 'challenge' || Boolean(teamMatchRow?.challenge_id);
+  return isChallengeLikeTeamMatchRow(teamMatchRow);
 };
 
 export const buildEligibleRosterMap = (rows = [], options = {}) => {
@@ -326,80 +328,38 @@ export const resolveChallengeSurveyEligibleUsers = async ({
   approvedByTeamId = null,
   membersByTeamId = null,
 } = {}) => {
-  if (!isChallengeLikeSurveyMatch(teamMatchRow)) {
-    const confirmedEligibility = resolveConfirmedRosterEligibleUsers({
-      rosterRows,
-      confirmationRow,
-    });
-    if (confirmedEligibility) {
-      return {
-        ...confirmedEligibility,
-        approvedByTeamId: approvedByTeamId || null,
-        membersByTeamId: membersByTeamId || null,
-      };
-    }
-
-    const persistedMatchEligibility = resolvePersistedMatchRosterEligibleUsers({
-      rosterRows,
-      matchRow,
-    });
-    if (persistedMatchEligibility) {
-      return {
-        ...persistedMatchEligibility,
-        approvedByTeamId: approvedByTeamId || null,
-        membersByTeamId: membersByTeamId || null,
-      };
-    }
-
-    const persistedEligibility = resolvePersistedTeamEligibleUsers({
-      rosterRows,
-      matchRow,
-    });
-    if (persistedEligibility) {
-      return {
-        ...persistedEligibility,
-        approvedByTeamId: approvedByTeamId || null,
-        membersByTeamId: membersByTeamId || null,
-      };
-    }
-
-    const starterEligibility = resolveStarterRosterEligibleUsers({
-      rosterRows,
-    });
+  if (isChallengeLikeSurveyMatch(teamMatchRow)) {
     return {
-      ...starterEligibility,
+      source: 'surveys_disabled_for_challenges',
+      reason: SURVEY_CHALLENGE_DISABLED_REASON,
+      disabledForChallenge: true,
+      eligibleUserIds: new Set(),
+      rosterRefs: new Set(),
       approvedByTeamId: approvedByTeamId || null,
       membersByTeamId: membersByTeamId || null,
     };
   }
 
-  const teamIds = [
-    teamMatchRow?.team_a_id,
-    teamMatchRow?.team_b_id,
-  ].filter(Boolean);
-
-  let resolvedApprovedByTeamId = approvedByTeamId || null;
-  if (!resolvedApprovedByTeamId && teamMatchRow?.challenge_id && teamIds.length === 2) {
-    try {
-      const approvedSquad = await listChallengeApprovedSquad({
-        challengeId: teamMatchRow.challenge_id,
-        teamIds,
-      });
-      resolvedApprovedByTeamId = approvedSquad?.byTeamId || null;
-    } catch (_approvedSquadError) {
-      resolvedApprovedByTeamId = null;
-    }
+  const confirmedEligibility = resolveConfirmedRosterEligibleUsers({
+    rosterRows,
+    confirmationRow,
+  });
+  if (confirmedEligibility) {
+    return {
+      ...confirmedEligibility,
+      approvedByTeamId: approvedByTeamId || null,
+      membersByTeamId: membersByTeamId || null,
+    };
   }
 
-  const approvedEligibility = resolveApprovedSquadEligibleUsers({
-    approvedByTeamId: resolvedApprovedByTeamId,
-    teamAId: teamMatchRow?.team_a_id,
-    teamBId: teamMatchRow?.team_b_id,
+  const persistedMatchEligibility = resolvePersistedMatchRosterEligibleUsers({
+    rosterRows,
+    matchRow,
   });
-  if (approvedEligibility) {
+  if (persistedMatchEligibility) {
     return {
-      ...approvedEligibility,
-      approvedByTeamId: resolvedApprovedByTeamId,
+      ...persistedMatchEligibility,
+      approvedByTeamId: approvedByTeamId || null,
       membersByTeamId: membersByTeamId || null,
     };
   }
@@ -411,39 +371,17 @@ export const resolveChallengeSurveyEligibleUsers = async ({
   if (persistedEligibility) {
     return {
       ...persistedEligibility,
-      approvedByTeamId: resolvedApprovedByTeamId,
+      approvedByTeamId: approvedByTeamId || null,
       membersByTeamId: membersByTeamId || null,
     };
   }
 
-  let resolvedMembersByTeamId = membersByTeamId || null;
-  if (!resolvedMembersByTeamId && matchId && teamIds.length === 2) {
-    try {
-      resolvedMembersByTeamId = await listTeamMatchMembers({
-        matchId,
-        teamIds,
-      });
-    } catch (_membersError) {
-      resolvedMembersByTeamId = null;
-    }
-  }
-
-  const membersEligibility = resolveTeamMatchMemberEligibleUsers({
-    membersByTeamId: resolvedMembersByTeamId,
-    teamAId: teamMatchRow?.team_a_id,
-    teamBId: teamMatchRow?.team_b_id,
+  const starterEligibility = resolveStarterRosterEligibleUsers({
+    rosterRows,
   });
-  if (membersEligibility) {
-    return {
-      ...membersEligibility,
-      approvedByTeamId: resolvedApprovedByTeamId,
-      membersByTeamId: resolvedMembersByTeamId,
-    };
-  }
-
   return {
-    ...resolveStarterRosterEligibleUsers({ rosterRows }),
-    approvedByTeamId: resolvedApprovedByTeamId,
-    membersByTeamId: resolvedMembersByTeamId,
+    ...starterEligibility,
+    approvedByTeamId: approvedByTeamId || null,
+    membersByTeamId: membersByTeamId || null,
   };
 };

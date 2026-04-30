@@ -43,6 +43,10 @@ import {
   resolveNextResultGateStep,
   SURVEY_STEPS,
 } from '../utils/surveyFlow';
+import {
+  SURVEY_CHALLENGE_DISABLED_MESSAGE,
+  isChallengeLikeTeamMatchRow,
+} from '../utils/surveyChallengePolicy';
 
 // Styles are now directly in Tailwind
 // import './LegacyVoting.css'; // Removed
@@ -754,6 +758,7 @@ const EncuestaPartido = () => {
   const [loggedRosterCount, setLoggedRosterCount] = useState(0);
   const [surveyClosed, setSurveyClosed] = useState(false);
   const [surveyClosedAt, setSurveyClosedAt] = useState(null);
+  const [surveyUnavailableMessage, setSurveyUnavailableMessage] = useState('');
 
   const [formData, setFormData] = useState(DEFAULT_FORM_DATA);
   const [jugadores, setJugadores] = useState([]);
@@ -873,6 +878,7 @@ const EncuestaPartido = () => {
       setLoggedRosterCount(0);
       setSurveyClosed(false);
       setSurveyClosedAt(null);
+      setSurveyUnavailableMessage('');
       setSurveyExitRoute(null);
     };
 
@@ -889,6 +895,26 @@ const EncuestaPartido = () => {
         }
 
         setLoading(true);
+
+        let preflightTeamMatchRow = null;
+        try {
+          const { data: teamMatchRow } = await supabase
+            .from('team_matches')
+            .select('id, origin_type, challenge_id')
+            .eq('partido_id', matchIdNum)
+            .maybeSingle();
+          preflightTeamMatchRow = teamMatchRow || null;
+        } catch (_teamMatchPreflightError) {
+          preflightTeamMatchRow = null;
+        }
+
+        if (isChallengeLikeTeamMatchRow(preflightTeamMatchRow)) {
+          setSurveyUnavailableMessage(SURVEY_CHALLENGE_DISABLED_MESSAGE);
+          setPartido({ id: matchIdNum });
+          setJugadores([]);
+          setLoading(false);
+          return;
+        }
 
         // Ensure exactly one linked jugadores row for the authenticated user in this match.
         const currentUserPlayer = await ensureLinkedPlayerForSurvey({
@@ -966,11 +992,13 @@ const EncuestaPartido = () => {
         }
 
         try {
-          const { data: teamMatchRow, error: teamMatchError } = await supabase
-            .from('team_matches')
-            .select('id, team_a_id, team_b_id, challenge_id, origin_type, scheduled_at')
-            .eq('partido_id', matchIdNum)
-            .maybeSingle();
+          const { data: teamMatchRow, error: teamMatchError } = preflightTeamMatchRow?.id
+            ? { data: preflightTeamMatchRow, error: null }
+            : await supabase
+              .from('team_matches')
+              .select('id, team_a_id, team_b_id, challenge_id, origin_type, scheduled_at')
+              .eq('partido_id', matchIdNum)
+              .maybeSingle();
 
           if (!teamMatchError && teamMatchRow?.id) {
             const originType = normalizeIdentityToken(teamMatchRow?.origin_type);
@@ -2707,6 +2735,39 @@ const EncuestaPartido = () => {
                   description="Estamos preparando los datos del partido."
                 />
                 <SurveyFooterLogo />
+              </div>
+            </div>
+          </div>
+        </div>
+      </PageTransition>
+    );
+  }
+
+  if (surveyUnavailableMessage) {
+    return (
+      <PageTransition>
+        <div className="relative h-[100dvh] w-full overflow-hidden">
+          <div className="absolute inset-0 overflow-hidden" style={screenBackgroundStyle} />
+          <div className="relative z-[1] h-full w-full overflow-hidden" style={safeAreaStyle}>
+            <div className={cardClass}>
+              {renderExitSurveyButton({ immediate: true }) || <div className={progressGapClass} />}
+              <div className={`${centeredSummaryStackClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
+                <div className="w-full">
+                  <div className={titleClass}>
+                    ENCUESTA NO DISPONIBLE
+                  </div>
+                </div>
+                <div className="text-white text-[18px] md:text-[22px] font-oswald text-center font-normal tracking-wide leading-[1.25]">
+                  {surveyUnavailableMessage}
+                </div>
+                <div className={centeredSummaryButtonWrapClass}>
+                  <button className={btnClass} onClick={() => navigate('/')}>
+                    VOLVER AL INICIO
+                  </button>
+                </div>
+                <div className={logoRowClass}>
+                  <SurveyFooterLogo />
+                </div>
               </div>
             </div>
           </div>

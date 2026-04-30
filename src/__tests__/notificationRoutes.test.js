@@ -4,6 +4,10 @@ import {
   extractNotificationMatchId,
   isTeamChallengeNotification,
 } from '../utils/notificationRoutes';
+import {
+  filterSurveyChallengeNotificationsForDisplay,
+  isSurveyDisabledForChallengeNotification,
+} from '../utils/surveyChallengePolicy';
 
 describe('notificationRoutes', () => {
   test('extracts match id from supported payload fields', () => {
@@ -12,6 +16,23 @@ describe('notificationRoutes', () => {
     expect(extractNotificationMatchId({ data: { team_match_id: 'tm-1' } })).toBe('tm-1');
     expect(extractNotificationMatchId({ partido_id: 789 })).toBe(789);
     expect(extractNotificationMatchId({ match_ref: '111' })).toBe('111');
+  });
+
+  test('extracts survey results match id from route-only payloads', () => {
+    expect(extractNotificationMatchId({
+      type: 'survey_results_ready',
+      data: {
+        resultsUrl: '/resultados-encuesta/503?showAwards=1',
+      },
+    })).toBe('503');
+
+    expect(extractNotificationMatchId({
+      type: 'awards_ready',
+      data: {
+        team_match_id: 'tm-503',
+        action_url: '/resultados-encuesta/504?showAwards=1',
+      },
+    })).toBe('504');
   });
 
   test('builds fallback route to match when id exists', () => {
@@ -27,6 +48,20 @@ describe('notificationRoutes', () => {
     });
 
     expect(route).toBe('/encuesta/812');
+  });
+
+  test('keeps old challenge survey notifications non-actionable in fallback routing', () => {
+    const route = buildNotificationFallbackRoute({
+      type: 'survey_start',
+      partido_id: 812,
+      data: {
+        matchId: 812,
+        team_match_id: 'tm-812',
+        source: 'team_challenge',
+      },
+    });
+
+    expect(route).toBe('/notifications');
   });
 
   test('builds fallback route to activity feed when id is missing', () => {
@@ -122,5 +157,56 @@ describe('notificationRoutes', () => {
 
     expect(isTeamChallengeNotification(notification)).toBe(true);
     expect(buildNotificationFallbackRoute(notification)).toBe('/desafios/equipos/partidos/tm-55');
+  });
+
+  test('detects legacy challenge survey notifications from copy and team-match routes', () => {
+    expect(isSurveyDisabledForChallengeNotification({
+      type: 'survey_reminder',
+      data: { match_name: 'Desafío: FULBO 5A vs FULBO 5B' },
+    })).toBe(true);
+
+    expect(isSurveyDisabledForChallengeNotification({
+      type: 'awards_ready',
+      data: { action_url: '/desafios/equipos/partidos/tm-55' },
+    })).toBe(true);
+  });
+
+  test('filters old challenge survey notifications through the team_matches bridge', async () => {
+    const supabaseMock = {
+      from: jest.fn(() => ({
+        select: jest.fn(() => ({
+          in: jest.fn(async () => ({
+            data: [
+              {
+                id: 'tm-812',
+                partido_id: 812,
+                origin_type: 'challenge',
+                challenge_id: 'challenge-812',
+              },
+            ],
+            error: null,
+          })),
+        })),
+      })),
+    };
+
+    const result = await filterSurveyChallengeNotificationsForDisplay([
+      {
+        id: 'challenge-survey',
+        type: 'survey_start',
+        partido_id: 812,
+        data: { match_name: 'FULBO 5A vs FULBO 5B' },
+      },
+      {
+        id: 'friendly-survey',
+        type: 'survey_start',
+        partido_id: 813,
+        data: { match_name: 'Amistoso FULBO 5A vs FULBO 5B' },
+      },
+    ], {
+      supabaseClient: supabaseMock,
+    });
+
+    expect(result.map((notification) => notification.id)).toEqual(['friendly-survey']);
   });
 });

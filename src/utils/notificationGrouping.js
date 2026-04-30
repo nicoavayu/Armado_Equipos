@@ -1,4 +1,5 @@
 import { extractNotificationMatchId } from './notificationRoutes';
+import { isSurveyDisabledForChallengeNotification } from './surveyChallengePolicy';
 
 const toTimestamp = (value) => {
   const parsed = new Date(value || 0).getTime();
@@ -8,7 +9,9 @@ const toTimestamp = (value) => {
 export const groupNotificationsByMatch = (notifications = []) => {
   if (!Array.isArray(notifications) || notifications.length === 0) return [];
 
-  const sorted = [...notifications].sort((a, b) => toTimestamp(b?.created_at) - toTimestamp(a?.created_at));
+  const sorted = [...notifications]
+    .filter((notification) => !isSurveyDisabledForChallengeNotification(notification))
+    .sort((a, b) => toTimestamp(b?.created_at) - toTimestamp(a?.created_at));
   const groups = new Map();
 
   sorted.forEach((notification) => {

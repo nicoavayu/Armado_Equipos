@@ -6,6 +6,8 @@ import { resolveMatchInviteRoute } from '../utils/matchInviteRoute';
 import {
   buildAwardsResultsNavigationTarget,
   buildResultsNavigationTarget,
+  debugNotificationEvent,
+  debugNotificationRoute,
   openNotification,
   resolveNotificationActionability,
   resolveSurveyNotificationNavigation,
@@ -47,6 +49,65 @@ import supabase from '../supabase';
 import { track } from '../utils/monitoring/analytics';
 
 
+const RESULTS_OR_AWARDS_NOTIFICATION_TYPES = new Set([
+  'survey_results',
+  'survey_results_ready',
+  'survey_finished',
+  'awards_ready',
+  'award_won',
+]);
+
+const normalizeNotificationId = (notificationOrId) => {
+  const value = typeof notificationOrId === 'object'
+    ? notificationOrId?.id
+    : notificationOrId;
+  const id = String(value ?? '').trim();
+  return id || null;
+};
+
+const isResultsOrAwardsNotification = (notification = {}) => (
+  RESULTS_OR_AWARDS_NOTIFICATION_TYPES.has(String(notification?.type || '').trim().toLowerCase())
+);
+
+const shouldOpenAsTeamChallenge = (notification = {}) => (
+  isTeamChallengeNotification(notification)
+  && !isResultsOrAwardsNotification(notification)
+  && !shouldTreatNotificationAsSurveyForm(notification)
+);
+
+const getNotificationRouteDebugPayload = (notification = {}) => ({
+  notification_id: normalizeNotificationId(notification),
+  type: notification?.type,
+  match_id: extractNotificationMatchId(notification) || null,
+  partido_id: notification?.partido_id || notification?.data?.partido_id || notification?.data?.partidoId || null,
+  team_match_id: notification?.data?.team_match_id || notification?.data?.teamMatchId || null,
+  survey_id: notification?.survey_id || notification?.data?.survey_id || notification?.data?.surveyId || null,
+  action_url: notification?.action_url || notification?.actionUrl || notification?.data?.action_url || notification?.data?.actionUrl || null,
+  actionUrl: notification?.actionUrl || notification?.data?.actionUrl || null,
+  resultsUrl: notification?.data?.resultsUrl || null,
+  results_url: notification?.data?.resultsUrl || notification?.data?.results_url || null,
+  link: notification?.data?.link || null,
+  route: notification?.data?.route || null,
+  url: notification?.data?.url || null,
+});
+
+const resolveGroupedClickNotification = (group = {}) => {
+  const latest = group?.latest || null;
+  if (!latest || normalizeNotificationId(latest)) return latest;
+
+  const items = Array.isArray(group?.items) ? group.items : [];
+  const fallbackWithId = items.find((item) => (
+    normalizeNotificationId(item)
+    && String(item?.type || '') === String(latest?.type || '')
+  )) || items.find((item) => normalizeNotificationId(item));
+
+  if (!fallbackWithId) return latest;
+  return {
+    ...latest,
+    id: fallbackWithId.id,
+  };
+};
+
 const NotificationsView = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -79,7 +140,19 @@ const NotificationsView = () => {
   const fallbackToNotificationRoute = (notification, message = 'No encontramos ese destino. Te llevamos a tus partidos.') => {
     notifyBlockingError(message);
     const fallbackRoute = buildNotificationFallbackRoute(notification, toBigIntId);
+    debugNotificationEvent('NOTIFICATION_NAVIGATE_START', {
+      ...getNotificationRouteDebugPayload(notification),
+      source: 'notifications_view_fallback',
+      final_route: fallbackRoute,
+      message,
+      current_route_before: `${location.pathname}${location.search}`,
+    });
     navigate(fallbackRoute);
+    debugNotificationEvent('NOTIFICATION_NAVIGATE_DONE', {
+      ...getNotificationRouteDebugPayload(notification),
+      source: 'notifications_view_fallback',
+      final_route: fallbackRoute,
+    });
   };
 
   const safeNavigate = (notification, route, options = {}, message) => {
@@ -88,6 +161,24 @@ const NotificationsView = () => {
       return false;
     }
     try {
+      debugNotificationEvent('NOTIFICATION_ROUTE_RESOLVED', {
+        ...getNotificationRouteDebugPayload(notification),
+        source: 'notifications_view_safe_navigate',
+        final_route: route,
+        navigate_options: options,
+        current_route_before: `${location.pathname}${location.search}`,
+      });
+      debugNotificationRoute('view_navigate', {
+        ...getNotificationRouteDebugPayload(notification),
+        route,
+      });
+      debugNotificationEvent('NOTIFICATION_NAVIGATE_START', {
+        ...getNotificationRouteDebugPayload(notification),
+        source: 'notifications_view_safe_navigate',
+        final_route: route,
+        navigate_options: options,
+        current_route_before: `${location.pathname}${location.search}`,
+      });
       navigate(route, {
         ...options,
         state: {
@@ -95,8 +186,19 @@ const NotificationsView = () => {
           backTo: `${location.pathname}${location.search}`,
         },
       });
+      debugNotificationEvent('NOTIFICATION_NAVIGATE_DONE', {
+        ...getNotificationRouteDebugPayload(notification),
+        source: 'notifications_view_safe_navigate',
+        final_route: route,
+      });
       return true;
     } catch (error) {
+      debugNotificationEvent('NOTIFICATION_NAVIGATE_ERROR', {
+        ...getNotificationRouteDebugPayload(notification),
+        source: 'notifications_view_safe_navigate',
+        final_route: route,
+        error: error?.message || String(error || ''),
+      });
       console.error('[NOTIFICATION_CLICK] navigation error', { route, error });
       fallbackToNotificationRoute(notification, message);
       return false;
@@ -127,15 +229,81 @@ const NotificationsView = () => {
     }
   };
 
+  const markNotificationAsReadBestEffort = async (notification, source = 'unknown') => {
+    const notificationId = normalizeNotificationId(notification);
+    debugNotificationEvent('NOTIFICATION_MARK_READ_START', {
+      ...getNotificationRouteDebugPayload(notification),
+      source: `notifications_view:${source}`,
+      raw_notification: notification || null,
+    });
+    debugNotificationRoute('mark_read_attempt', {
+      ...getNotificationRouteDebugPayload(notification),
+      source,
+    });
+
+    if (!notificationId) {
+      debugNotificationEvent('NOTIFICATION_MARK_READ_SKIP', {
+        ...getNotificationRouteDebugPayload(notification),
+        source: `notifications_view:${source}`,
+        reason: 'missing_notification_id',
+        raw_notification: notification || null,
+      });
+      debugNotificationRoute('mark_read_skipped_missing_id', {
+        ...getNotificationRouteDebugPayload(notification),
+        source,
+        raw_notification: notification || null,
+      });
+      return;
+    }
+
+    try {
+      await markAsRead(notificationId);
+      debugNotificationEvent('NOTIFICATION_MARK_READ_DONE', {
+        ...getNotificationRouteDebugPayload(notification),
+        notification_id: notificationId,
+        source: `notifications_view:${source}`,
+      });
+      debugNotificationRoute('mark_read_done', {
+        ...getNotificationRouteDebugPayload(notification),
+        notification_id: notificationId,
+        source,
+      });
+    } catch (error) {
+      debugNotificationEvent('NOTIFICATION_MARK_READ_ERROR', {
+        ...getNotificationRouteDebugPayload(notification),
+        notification_id: notificationId,
+        source: `notifications_view:${source}`,
+        error: error?.message || String(error || ''),
+      });
+      debugNotificationRoute('mark_read_failed', {
+        ...getNotificationRouteDebugPayload(notification),
+        notification_id: notificationId,
+        source,
+        error: error?.message || String(error || ''),
+      });
+    }
+  };
+
   const handleNotificationClick = async (notification, e) => {
     if (e) { e.preventDefault?.(); e.stopPropagation?.(); }
+
+    debugNotificationEvent('NOTIFICATION_TAP', {
+      ...getNotificationRouteDebugPayload(notification),
+      source: 'notifications_view',
+      raw_notification: notification || null,
+      current_route_before: `${location.pathname}${location.search}`,
+    });
+    debugNotificationRoute('click', {
+      ...getNotificationRouteDebugPayload(notification),
+      raw_notification: notification || null,
+    });
 
     if (notification?.type === 'match_cancelled') {
       // Informative only.
       return;
     }
 
-    if (isTeamChallengeNotification(notification)) {
+    if (shouldOpenAsTeamChallenge(notification)) {
       await openNotification(notification, navigate, {
         supabaseClient: supabase,
         userId: user?.id || '',
@@ -152,7 +320,9 @@ const NotificationsView = () => {
     const matchId = extractNotificationMatchId(notification);
 
     if (shouldTreatNotificationAsSurveyForm(notification)) {
-      try { if (!notification.read) await markAsRead(notification.id); } catch (e) { /* Intentionally empty */ }
+      try {
+        if (!notification.read) await markNotificationAsReadBestEffort(notification, 'survey_form_click');
+      } catch (e) { /* Intentionally empty */ }
 
       const surveyNavigation = await resolveSurveyNotificationNavigation({
         notification,
@@ -208,13 +378,15 @@ const NotificationsView = () => {
 
     // Priority 1: Use link if available (for join requests and other notifications with direct links)
     if (link && notification?.type === 'match_join_request') {
-      try { if (!notification.read) await markAsRead(notification.id); } catch (e) { /* Intentionally empty */ }
+      try {
+        if (!notification.read) await markNotificationAsReadBestEffort(notification, 'match_join_request_click');
+      } catch (e) { /* Intentionally empty */ }
       safeNavigate(notification, link, { replace: false });
       return;
     }
 
     if (notification?.type !== 'match_invite' && !notification.read) {
-      markAsRead(notification.id);
+      markNotificationAsReadBestEffort(notification, 'generic_click');
     }
 
     const data = notification.data || {};
@@ -544,7 +716,7 @@ const NotificationsView = () => {
   const markGroupAsRead = async (group) => {
     const unreadItems = (group?.items || []).filter((item) => !item.read);
     if (unreadItems.length === 0) return;
-    await Promise.all(unreadItems.map((item) => markAsRead(item.id)));
+    await Promise.all(unreadItems.map((item) => markNotificationAsReadBestEffort(item, 'group_click')));
   };
 
   const isClosedSurveyNotification = (notification) => {
@@ -576,10 +748,50 @@ const NotificationsView = () => {
   };
 
   const handleGroupedNotificationClick = async (group, e) => {
-    const notification = group?.latest;
+    const notification = resolveGroupedClickNotification(group);
     if (!isNotificationInteractive(notification)) return;
+    debugNotificationEvent('NOTIFICATION_TAP', {
+      ...getNotificationRouteDebugPayload(group?.latest),
+      source: 'notifications_view_group',
+      group_key: group?.key,
+      group_match_id: group?.matchId,
+      group_count: group?.count,
+      grouped_notification_ids: (group?.items || []).map((item) => item?.id).filter(Boolean),
+      grouped_notification_types: (group?.items || []).map((item) => item?.type).filter(Boolean),
+      raw_notification: group?.latest || null,
+      raw_group: group || null,
+      current_route_before: `${location.pathname}${location.search}`,
+    });
+    debugNotificationEvent('NOTIFICATION_SELECTED', {
+      ...getNotificationRouteDebugPayload(notification),
+      source: 'notifications_view_group',
+      selected_notification_id: normalizeNotificationId(notification),
+      latest_notification_id: normalizeNotificationId(group?.latest),
+      group_key: group?.key,
+      group_match_id: group?.matchId,
+      group_count: group?.count,
+      selected_notification: notification || null,
+      raw_group: group || null,
+    });
+    debugNotificationRoute('group_click', {
+      notification_id: notification?.id,
+      selected_notification_id: normalizeNotificationId(notification),
+      latest_notification_id: normalizeNotificationId(group?.latest),
+      type: notification?.type,
+      group_key: group?.key,
+      group_match_id: group?.matchId,
+      group_count: group?.count,
+      match_id: extractNotificationMatchId(notification) || null,
+      survey_id: notification?.survey_id || notification?.data?.survey_id || notification?.data?.surveyId || null,
+      action_url: notification?.action_url || notification?.actionUrl || notification?.data?.action_url || notification?.data?.actionUrl || null,
+      results_url: notification?.data?.resultsUrl || notification?.data?.results_url || null,
+      link: notification?.data?.link || null,
+      grouped_notification_ids: (group?.items || []).map((item) => item?.id).filter(Boolean),
+      grouped_notification_types: (group?.items || []).map((item) => item?.type).filter(Boolean),
+      selected_notification: notification || null,
+    });
     if (notification?.type !== 'match_invite') {
-      await markGroupAsRead(group);
+      markGroupAsRead(group);
     }
     await handleNotificationClick(notification, e);
   };
