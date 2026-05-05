@@ -11,6 +11,10 @@ const LOCATION_ERROR_MESSAGES = {
   TIMEOUT: 'Tiempo agotado',
   UNAVAILABLE: 'Geolocalización no disponible',
 };
+const GEOLOCATION_PERMISSION = 'geolocation';
+const PROMPT_PERMISSION_STATES = new Set(['prompt', 'prompt-with-rationale']);
+const GRANTED_PERMISSION_STATES = new Set(['granted']);
+const DENIED_PERMISSION_STATES = new Set(['denied', 'restricted']);
 const DEV_LOCATION_OVERRIDE_SESSION_KEY = 'arma_dev_location_override';
 const DEV_LOCATION_OVERRIDE_LOCAL_KEY = 'arma_dev_location_override';
 const DEFAULT_DEV_LOCALHOST_LOCATION = {
@@ -90,6 +94,7 @@ const normalizeLocationError = (error) => {
   if (error.code === 1 || error.code === 'PERMISSION_DENIED' || error?.message?.toLowerCase?.().includes('denied')) {
     const permissionError = new Error(LOCATION_ERROR_MESSAGES.PERMISSION_DENIED);
     permissionError.code = 'PERMISSION_DENIED';
+    permissionError.permissionState = error?.permissionState || 'denied';
     return permissionError;
   }
 
@@ -107,7 +112,34 @@ const normalizeLocationError = (error) => {
 
   const fallbackError = new Error(error.message || LOCATION_ERROR_MESSAGES.UNAVAILABLE);
   fallbackError.code = error.code || 'UNAVAILABLE';
+  if (error?.permissionState) {
+    fallbackError.permissionState = error.permissionState;
+  }
   return fallbackError;
+};
+
+const normalizeNativePermissionState = (permission = {}) => {
+  const states = [permission?.location, permission?.coarseLocation]
+    .filter(Boolean)
+    .map((state) => String(state).toLowerCase());
+
+  if (!states.length) return 'prompt';
+  if (states.some((state) => GRANTED_PERMISSION_STATES.has(state))) return 'granted';
+  if (states.some((state) => PROMPT_PERMISSION_STATES.has(state))) return 'prompt';
+  if (states.every((state) => DENIED_PERMISSION_STATES.has(state))) return 'denied';
+
+  return 'prompt';
+};
+
+const getWebPermissionState = async () => {
+  if (typeof navigator === 'undefined' || !navigator.permissions?.query) return 'unknown';
+
+  try {
+    const status = await navigator.permissions.query({ name: GEOLOCATION_PERMISSION });
+    return status?.state || 'unknown';
+  } catch (_error) {
+    return 'unknown';
+  }
 };
 
 const toLocationResult = (position, source) => {
@@ -129,7 +161,7 @@ const toLocationResult = (position, source) => {
   };
 };
 
-const getWebPosition = (options) => new Promise((resolve, reject) => {
+const requestWebPosition = (options) => new Promise((resolve, reject) => {
   if (typeof navigator === 'undefined' || !navigator.geolocation) {
     reject(normalizeLocationError({ code: 'UNAVAILABLE' }));
     return;
@@ -148,15 +180,53 @@ const getWebPosition = (options) => new Promise((resolve, reject) => {
   );
 });
 
+const getWebPosition = async (options) => {
+  if (typeof navigator === 'undefined' || !navigator.geolocation) {
+    throw normalizeLocationError({ code: 'UNAVAILABLE' });
+  }
+
+  const permissionState = await getWebPermissionState();
+  if (permissionState === 'denied') {
+    throw normalizeLocationError({ code: 'PERMISSION_DENIED', permissionState });
+  }
+
+  return requestWebPosition(options);
+};
+
+const ensureNativeLocationPermission = async () => {
+  if (!CapacitorGeolocation?.checkPermissions && !CapacitorGeolocation?.requestPermissions) {
+    return 'granted';
+  }
+
+  const checkedPermission = CapacitorGeolocation?.checkPermissions
+    ? await CapacitorGeolocation.checkPermissions()
+    : null;
+  let permissionState = normalizeNativePermissionState(checkedPermission);
+
+  if (permissionState === 'denied') {
+    throw normalizeLocationError({ code: 'PERMISSION_DENIED', permissionState });
+  }
+
+  if (permissionState === 'prompt') {
+    if (!CapacitorGeolocation?.requestPermissions) {
+      throw normalizeLocationError({ code: 'PERMISSION_DENIED', permissionState });
+    }
+
+    const requestedPermission = await CapacitorGeolocation.requestPermissions();
+    permissionState = normalizeNativePermissionState(requestedPermission);
+
+    if (permissionState !== 'granted') {
+      throw normalizeLocationError({ code: 'PERMISSION_DENIED', permissionState });
+    }
+  }
+
+  return permissionState;
+};
+
 const getNativePosition = async (options) => {
   if (!Capacitor?.isNativePlatform?.() || !CapacitorGeolocation?.getCurrentPosition) return null;
 
-  if (CapacitorGeolocation?.requestPermissions) {
-    const permission = await CapacitorGeolocation.requestPermissions();
-    if (permission?.location === 'denied' || permission?.coarseLocation === 'denied') {
-      throw normalizeLocationError({ code: 'PERMISSION_DENIED' });
-    }
-  }
+  await ensureNativeLocationPermission();
 
   const position = await CapacitorGeolocation.getCurrentPosition(options);
   return toLocationResult(position, 'capacitor');
