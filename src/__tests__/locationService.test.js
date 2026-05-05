@@ -1,4 +1,5 @@
 const mockIsNativePlatform = jest.fn();
+const mockGetPlatform = jest.fn();
 const mockCheckPermissions = jest.fn();
 const mockRequestPermissions = jest.fn();
 const mockNativeGetCurrentPosition = jest.fn();
@@ -6,6 +7,7 @@ const mockNativeGetCurrentPosition = jest.fn();
 jest.mock('@capacitor/core', () => ({
   Capacitor: {
     isNativePlatform: (...args) => mockIsNativePlatform(...args),
+    getPlatform: (...args) => mockGetPlatform(...args),
   },
 }));
 
@@ -42,11 +44,13 @@ const setNavigatorValue = (key, value) => {
 describe('locationService', () => {
   beforeEach(() => {
     mockIsNativePlatform.mockReset();
+    mockGetPlatform.mockReset();
     mockCheckPermissions.mockReset();
     mockRequestPermissions.mockReset();
     mockNativeGetCurrentPosition.mockReset();
 
     mockIsNativePlatform.mockReturnValue(false);
+    mockGetPlatform.mockReturnValue('web');
     setNavigatorValue('geolocation', undefined);
     setNavigatorValue('permissions', undefined);
   });
@@ -118,8 +122,23 @@ describe('locationService', () => {
     expect(webGetCurrentPosition).toHaveBeenCalledTimes(1);
   });
 
-  test('web no dispara getCurrentPosition si permissions informa denied', async () => {
-    const webGetCurrentPosition = jest.fn();
+  test('web con permiso prompt llama getCurrentPosition para disparar el popup del navegador', async () => {
+    const webGetCurrentPosition = jest.fn((resolve) => resolve(makePosition()));
+    const query = jest.fn().mockResolvedValue({ state: 'prompt' });
+    setNavigatorValue('geolocation', {
+      getCurrentPosition: webGetCurrentPosition,
+    });
+    setNavigatorValue('permissions', { query });
+
+    await expect(getCurrentPosition()).resolves.toMatchObject({
+      source: 'web',
+    });
+    expect(query).toHaveBeenCalledWith({ name: 'geolocation' });
+    expect(webGetCurrentPosition).toHaveBeenCalledTimes(1);
+  });
+
+  test('web usa getCurrentPosition aunque permissions informe denied', async () => {
+    const webGetCurrentPosition = jest.fn((_resolve, reject) => reject({ code: 1 }));
     const query = jest.fn().mockResolvedValue({ state: 'denied' });
     setNavigatorValue('geolocation', {
       getCurrentPosition: webGetCurrentPosition,
@@ -130,6 +149,17 @@ describe('locationService', () => {
       code: 'PERMISSION_DENIED',
     });
     expect(query).toHaveBeenCalledWith({ name: 'geolocation' });
-    expect(webGetCurrentPosition).not.toHaveBeenCalled();
+    expect(webGetCurrentPosition).toHaveBeenCalledTimes(1);
+  });
+
+  test('usa plataforma nativa si getPlatform devuelve ios', async () => {
+    mockGetPlatform.mockReturnValue('ios');
+    mockCheckPermissions.mockResolvedValue({ location: 'granted' });
+    mockNativeGetCurrentPosition.mockResolvedValue(makePosition());
+
+    await expect(getCurrentPosition()).resolves.toMatchObject({
+      source: 'capacitor',
+    });
+    expect(mockNativeGetCurrentPosition).toHaveBeenCalledTimes(1);
   });
 });

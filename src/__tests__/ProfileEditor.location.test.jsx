@@ -1,10 +1,7 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import ProfileEditor, {
-  buildManualLocationPatch,
-  shouldAttemptProfileAutoLocation,
-} from '../components/ProfileEditor';
+import ProfileEditor, { shouldAttemptProfileAutoLocation } from '../components/ProfileEditor';
 
 const mockGetCurrentPosition = jest.fn();
 const mockReverseGeocode = jest.fn();
@@ -78,7 +75,7 @@ const baseUser = {
   user_metadata: {},
 };
 
-const baseProfile = {
+const makeProfile = (overrides = {}) => ({
   id: 'user-123',
   nombre: 'Nico',
   email: 'nico@example.com',
@@ -95,7 +92,8 @@ const baseProfile = {
   location_country: '',
   ranking: 5,
   acepta_invitaciones: true,
-};
+  ...overrides,
+});
 
 const renderProfileEditor = () => render(
   <MemoryRouter>
@@ -103,7 +101,7 @@ const renderProfileEditor = () => render(
   </MemoryRouter>,
 );
 
-describe('ProfileEditor location fallback', () => {
+describe('ProfileEditor geolocation flow', () => {
   let warnSpy;
 
   beforeEach(() => {
@@ -115,10 +113,10 @@ describe('ProfileEditor location fallback', () => {
     mockOnClose.mockReset();
 
     mockRefreshProfile.mockResolvedValue();
-    mockUpdateProfile.mockResolvedValue({ ...baseProfile });
+    mockUpdateProfile.mockResolvedValue(makeProfile());
     mockAuthValue = {
       user: baseUser,
-      profile: baseProfile,
+      profile: makeProfile(),
       refreshProfile: mockRefreshProfile,
       updateLocalProfile: mockUpdateLocalProfile,
       localEditMode: false,
@@ -131,76 +129,138 @@ describe('ProfileEditor location fallback', () => {
     warnSpy.mockRestore();
   });
 
-  test('muestra fallback manual y evita repetir geolocation cuando el permiso fue denegado', async () => {
-    const deniedError = Object.assign(new Error('Permiso denegado'), {
-      code: 'PERMISSION_DENIED',
+  test('detecta ubicación automáticamente y completa localidad cuando no hay ciudad previa', async () => {
+    mockGetCurrentPosition.mockResolvedValue({
+      lat: -34.6037347,
+      lng: -58.3815704,
+      accuracy_m: 30,
+      timestamp: '2026-05-05T12:00:00.000Z',
+      source: 'capacitor',
     });
-    mockGetCurrentPosition.mockRejectedValue(deniedError);
+    mockReverseGeocode.mockResolvedValue({
+      neighborhood: 'Palermo',
+      city: 'Buenos Aires',
+      state: 'CABA',
+      country: 'Argentina',
+    });
 
     renderProfileEditor();
-
-    await waitFor(() => {
-      expect(mockGetCurrentPosition).toHaveBeenCalledTimes(1);
-    });
-    expect(await screen.findByText(/No pudimos detectar tu ubicación/i)).toBeInTheDocument();
-    expect(await screen.findByPlaceholderText('Tu ciudad')).toBeInTheDocument();
-
-    await new Promise((resolve) => setTimeout(resolve, 25));
-    expect(mockGetCurrentPosition).toHaveBeenCalledTimes(1);
-  });
-
-  test('permite guardar una ciudad manual sin latitud ni longitud', async () => {
-    const deniedError = Object.assign(new Error('Permiso denegado'), {
-      code: 'PERMISSION_DENIED',
-    });
-    mockGetCurrentPosition.mockRejectedValue(deniedError);
-
-    renderProfileEditor();
-
-    const cityInput = await screen.findByPlaceholderText('Tu ciudad');
-    fireEvent.change(cityInput, { target: { value: 'Villa Devoto' } });
-    fireEvent.click(screen.getByRole('button', { name: /Guardar Cambios/i }));
 
     await waitFor(() => {
       expect(mockUpdateProfile).toHaveBeenCalledWith('user-123', expect.objectContaining({
-        localidad: 'Villa Devoto',
-        location_label: 'Villa Devoto',
-        location_city: 'Villa Devoto',
-        latitud: null,
-        longitud: null,
+        localidad: 'Palermo, CABA',
+        location_label: 'Palermo, CABA',
+        location_city: 'Buenos Aires',
+        location_state: 'CABA',
+        location_country: 'Argentina',
+        latitud: -34.6037347,
+        longitud: -58.3815704,
       }));
     });
+    expect(mockGetCurrentPosition).toHaveBeenCalledTimes(1);
+    expect(mockReverseGeocode).toHaveBeenCalledWith(-34.6037347, -58.3815704);
+  });
+
+  test('no ejecuta detección automática si el perfil ya tiene localidad', async () => {
+    mockAuthValue = {
+      ...mockAuthValue,
+      profile: makeProfile({
+        localidad: 'Villa Devoto',
+        location_label: 'Villa Devoto',
+      }),
+    };
+
+    renderProfileEditor();
+
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    expect(mockGetCurrentPosition).not.toHaveBeenCalled();
+  });
+
+  test('si el permiso está denegado muestra mensaje y el pin permite reintentar', async () => {
+    const deniedError = Object.assign(new Error('Permiso denegado'), {
+      code: 'PERMISSION_DENIED',
+    });
+    mockGetCurrentPosition.mockRejectedValueOnce(deniedError).mockResolvedValueOnce({
+      lat: -34.6037347,
+      lng: -58.3815704,
+      accuracy_m: 30,
+      timestamp: '2026-05-05T12:00:00.000Z',
+      source: 'web',
+    });
+    mockReverseGeocode.mockResolvedValue({
+      city: 'Buenos Aires',
+      state: 'CABA',
+      country: 'Argentina',
+    });
+
+    renderProfileEditor();
+
+    expect(await screen.findByText(/No pudimos detectar tu ubicación/i)).toBeInTheDocument();
+    expect(mockGetCurrentPosition).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByTitle(/Habilitar ubicación/i));
+
     await waitFor(() => {
-      expect(mockOnClose).toHaveBeenCalledTimes(1);
+      expect(mockGetCurrentPosition).toHaveBeenCalledTimes(2);
+    });
+    await waitFor(() => {
+      expect(mockUpdateProfile).toHaveBeenCalledWith('user-123', expect.objectContaining({
+        localidad: 'Buenos Aires',
+        latitud: -34.6037347,
+        longitud: -58.3815704,
+      }));
     });
   });
 
-  test('buildManualLocationPatch limpia coordenadas al editar ciudad manualmente', () => {
-    expect(buildManualLocationPatch('Rosario', { location_country: 'Argentina' })).toMatchObject({
-      localidad: 'Rosario',
-      location_label: 'Rosario',
-      location_city: 'Rosario',
-      location_country: 'Argentina',
-      latitud: null,
-      longitud: null,
-      location_accuracy_m: null,
-      location_updated_at: null,
+  test('si falla la detección conserva la localidad guardada visible', async () => {
+    mockAuthValue = {
+      ...mockAuthValue,
+      profile: makeProfile({
+        localidad: 'Villa Devoto',
+        location_label: 'Villa Devoto',
+      }),
+    };
+    const deniedError = Object.assign(new Error('Permiso denegado'), {
+      code: 'PERMISSION_DENIED',
     });
+    mockGetCurrentPosition.mockRejectedValue(deniedError);
+
+    renderProfileEditor();
+
+    fireEvent.click(screen.getAllByTitle(/Actualizar ubicación/i)[1]);
+
+    expect(await screen.findByText(/No pudimos detectar tu ubicación/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Villa Devoto' })).toBeInTheDocument();
   });
 
-  test('shouldAttemptProfileAutoLocation bloquea reintentos automáticos y permite retry manual', () => {
+  test('no muestra botones manuales extra', () => {
+    mockAuthValue = {
+      ...mockAuthValue,
+      profile: makeProfile({
+        localidad: 'Villa Devoto',
+        location_label: 'Villa Devoto',
+      }),
+    };
+
+    renderProfileEditor();
+
+    expect(screen.queryByRole('button', { name: /Usar mi ubicación/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Elegir ciudad manualmente/i })).not.toBeInTheDocument();
+  });
+
+  test('shouldAttemptProfileAutoLocation evita loops y permite retry manual', () => {
     expect(shouldAttemptProfileAutoLocation({ userId: 'user-123' })).toBe(true);
     expect(shouldAttemptProfileAutoLocation({
       alreadyAttempted: true,
       userId: 'user-123',
     })).toBe(false);
     expect(shouldAttemptProfileAutoLocation({
-      permissionDenied: true,
+      hasLocationLabel: true,
       userId: 'user-123',
     })).toBe(false);
     expect(shouldAttemptProfileAutoLocation({
       force: true,
-      permissionDenied: true,
+      hasLocationLabel: true,
       userId: 'user-123',
     })).toBe(true);
   });

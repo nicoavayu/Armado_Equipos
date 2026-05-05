@@ -142,6 +142,12 @@ const getWebPermissionState = async () => {
   }
 };
 
+const isNativeCapacitorPlatform = () => {
+  if (Capacitor?.isNativePlatform?.()) return true;
+  const platform = Capacitor?.getPlatform?.();
+  return platform === 'ios' || platform === 'android';
+};
+
 const toLocationResult = (position, source) => {
   const lat = normalizeNumber(position?.coords?.latitude);
   const lng = normalizeNumber(position?.coords?.longitude);
@@ -185,10 +191,7 @@ const getWebPosition = async (options) => {
     throw normalizeLocationError({ code: 'UNAVAILABLE' });
   }
 
-  const permissionState = await getWebPermissionState();
-  if (permissionState === 'denied') {
-    throw normalizeLocationError({ code: 'PERMISSION_DENIED', permissionState });
-  }
+  await getWebPermissionState();
 
   return requestWebPosition(options);
 };
@@ -224,7 +227,7 @@ const ensureNativeLocationPermission = async () => {
 };
 
 const getNativePosition = async (options) => {
-  if (!Capacitor?.isNativePlatform?.() || !CapacitorGeolocation?.getCurrentPosition) return null;
+  if (!isNativeCapacitorPlatform() || !CapacitorGeolocation?.getCurrentPosition) return null;
 
   await ensureNativeLocationPermission();
 

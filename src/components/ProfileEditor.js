@@ -25,36 +25,19 @@ import {
 
 const GEO_LOG_PREFIX = '[PROFILE_GEO]';
 const LOCATION_DISABLED_LABEL = 'Ubicación desactivada';
-const LOCATION_MANUAL_FALLBACK_MESSAGE = 'No pudimos detectar tu ubicación. Podés elegir tu ciudad manualmente.';
+const LOCATION_DETECTION_FAILED_MESSAGE = 'No pudimos detectar tu ubicación. Probá de nuevo desde el pin.';
 const normalizeLocationToken = (value) => String(value || '').trim().toLowerCase();
-
-export const buildManualLocationPatch = (value, previousLocation = {}) => {
-  const rawValue = String(value || '');
-  const trimmedValue = rawValue.trim();
-
-  return {
-    localidad: rawValue,
-    location_label: trimmedValue,
-    location_city: trimmedValue,
-    location_state: '',
-    location_country: previousLocation?.location_country || '',
-    latitud: null,
-    longitud: null,
-    location_accuracy_m: null,
-    location_updated_at: null,
-  };
-};
 
 export const shouldAttemptProfileAutoLocation = ({
   alreadyAttempted = false,
+  hasLocationLabel = false,
   force = false,
   loading = false,
-  permissionDenied = false,
   userId = null,
 } = {}) => {
   if (!userId || loading) return false;
   if (force) return true;
-  if (alreadyAttempted || permissionDenied) return false;
+  if (alreadyAttempted || hasLocationLabel) return false;
   return true;
 };
 
@@ -65,8 +48,6 @@ const ProfileEditorForm = ({
   user,
   formData,
   handleInputChange,
-  handleManualLocationChange,
-  handleChooseManualLocation,
   fileInputRef,
   handlePhotoChange,
   handleGeolocation,
@@ -90,7 +71,6 @@ const ProfileEditorForm = ({
   locationInputReadOnly,
   locationLoading,
   locationDisabled,
-  manualLocationMode,
   locationFallbackVisible,
   isLocalDevSession = false,
   isEmbedded = false,
@@ -229,8 +209,8 @@ const ProfileEditorForm = ({
               <button
                 type="button"
                 className={`${singleLineFieldClass} flex-1 text-left text-[16px] ${locationDisplayValue ? '' : '!text-white/45'} cursor-pointer`}
-                onClick={handleChooseManualLocation}
-                title="Elegir ciudad manualmente"
+                onClick={handleGeolocation}
+                title={locationDisabled ? 'Reintentar ubicación' : 'Actualizar ubicación'}
               >
                 {locationDisplayValue || (locationLoading ? 'Detectando…' : 'Tu ciudad')}
               </button>
@@ -238,8 +218,12 @@ const ProfileEditorForm = ({
               <input
                 className={`${singleLineFieldClass} flex-1 text-[16px]`}
                 type="text"
-                value={formData.localidad || ''}
-                onChange={(e) => handleManualLocationChange(e.target.value)}
+                value={locationDisplayValue}
+                onChange={(e) => {
+                  if (!locationInputReadOnly) {
+                    handleInputChange('localidad', e.target.value);
+                  }
+                }}
                 placeholder={locationLoading ? 'Detectando…' : 'Tu ciudad'}
                 readOnly={locationInputReadOnly}
               />
@@ -255,30 +239,9 @@ const ProfileEditorForm = ({
           </div>
           {locationFallbackVisible && (
             <p className="mt-2 text-xs leading-snug text-white/68">
-              {LOCATION_MANUAL_FALLBACK_MESSAGE}
+              {LOCATION_DETECTION_FAILED_MESSAGE}
             </p>
           )}
-          <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <button
-              type="button"
-              className="h-[38px] px-3 rounded-none border border-[#f4d03f]/65 bg-[#f4d03f]/12 text-[#f4d03f] text-[13px] font-semibold transition-all hover:bg-[#f4d03f]/20 disabled:opacity-50 disabled:cursor-not-allowed"
-              onClick={handleGeolocation}
-              disabled={locationLoading}
-            >
-              {locationLoading ? 'Detectando…' : 'Usar mi ubicación'}
-            </button>
-            <button
-              type="button"
-              className={`h-[38px] px-3 rounded-none border text-[13px] font-semibold transition-all ${
-                manualLocationMode
-                  ? 'border-[#7d5aff] bg-[#6a43ff]/24 text-white'
-                  : 'border-[rgba(89,107,168,0.45)] bg-[rgba(23,35,74,0.72)] text-white/86 hover:bg-[rgba(30,45,94,0.9)]'
-              }`}
-              onClick={handleChooseManualLocation}
-            >
-              Elegir ciudad manualmente
-            </button>
-          </div>
         </div>
 
         {/* Posición Field */}
@@ -511,11 +474,9 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
   const [locationLoading, setLocationLoading] = useState(false);
   const [locationDisabled, setLocationDisabled] = useState(false);
   const [locationDetectionFailed, setLocationDetectionFailed] = useState(false);
-  const [manualLocationMode, setManualLocationMode] = useState(false);
   const fileInputRef = useRef(null);
   const noticeRef = useRef({ type: '', message: '', ts: 0 });
   const initialAutoLocationRefreshDoneRef = useRef(false);
-  const locationPermissionDeniedRef = useRef(false);
   const lastLocationErrorLogRef = useRef({ key: '', ts: 0 });
 
   const cleanDate = (dateString) => dateString ? dateString.split('T')[0] : null;
@@ -610,18 +571,15 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
         user: user,
       });
       setHasChanges(false);
-      setLocationDisabled(locationPermissionDeniedRef.current);
-      setLocationDetectionFailed(locationPermissionDeniedRef.current);
-      setManualLocationMode(locationPermissionDeniedRef.current && !normalizedLocationLabel);
+      setLocationDisabled(false);
+      setLocationDetectionFailed(false);
     }
   }, [profile, user, refreshProfile, isLocalDevSession]);
 
   useEffect(() => {
     initialAutoLocationRefreshDoneRef.current = false;
-    locationPermissionDeniedRef.current = false;
     setLocationDisabled(false);
     setLocationDetectionFailed(false);
-    setManualLocationMode(false);
   }, [user?.id]);
 
   const MAX_NOMBRE = 12;
@@ -655,21 +613,6 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
     setLiveProfile((prev) => ({ ...(prev || {}), [field]: value }));
   }, [setFormData, setHasChanges, setLiveProfile]);
 
-  const handleChooseManualLocation = useCallback(() => {
-    setManualLocationMode(true);
-  }, []);
-
-  const handleManualLocationChange = useCallback((value) => {
-    setManualLocationMode(true);
-    const locationPatch = buildManualLocationPatch(value, {
-      location_country: formData.location_country,
-    });
-
-    setFormData((prev) => ({ ...prev, ...locationPatch }));
-    setLiveProfile((prev) => ({ ...(prev || {}), ...locationPatch }));
-    setHasChanges(true);
-  }, [formData.location_country]);
-
   const applyLocationPatch = useCallback((patch) => {
     setFormData((prev) => ({ ...prev, ...patch }));
     setLiveProfile((prev) => ({ ...(prev || {}), ...patch }));
@@ -697,7 +640,6 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
     if (!shouldAttemptProfileAutoLocation({
       force,
       loading: locationLoading,
-      permissionDenied: locationPermissionDeniedRef.current,
       userId: user?.id,
     })) {
       return;
@@ -731,8 +673,6 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
       if (!needsRefresh) {
         setLocationDisabled(false);
         setLocationDetectionFailed(false);
-        setManualLocationMode(false);
-        locationPermissionDeniedRef.current = false;
         if (showSuccessNotice) {
           showInlineNotice('success', 'Ubicación al día.');
         }
@@ -765,8 +705,6 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
       applyLocationPatch(locationPatch);
       setLocationDisabled(false);
       setLocationDetectionFailed(false);
-      setManualLocationMode(false);
-      locationPermissionDeniedRef.current = false;
 
       const movedDistanceM = distanceInMeters(
         previousLocation.lat,
@@ -791,16 +729,14 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
     } catch (error) {
       logLocationErrorOnce(error);
       setLocationDetectionFailed(true);
-      setManualLocationMode(true);
       if (isPermissionDeniedError(error)) {
-        locationPermissionDeniedRef.current = true;
         setLocationDisabled(true);
-        showInlineNotice('warning', LOCATION_MANUAL_FALLBACK_MESSAGE);
+        showInlineNotice('warning', LOCATION_DETECTION_FAILED_MESSAGE);
         return;
       }
 
       setLocationDisabled(false);
-      showInlineNotice('warning', LOCATION_MANUAL_FALLBACK_MESSAGE);
+      showInlineNotice('warning', LOCATION_DETECTION_FAILED_MESSAGE);
     } finally {
       setLocationLoading(false);
     }
@@ -1084,10 +1020,16 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
     }
 
     if (!profile) return;
+    const hasLocationLabel = Boolean(normalizeLocationToken(
+      formData.location_label
+      || formData.localidad
+      || profile?.location_label
+      || profile?.localidad,
+    ));
     if (!shouldAttemptProfileAutoLocation({
       alreadyAttempted: initialAutoLocationRefreshDoneRef.current,
+      hasLocationLabel,
       loading: locationLoading,
-      permissionDenied: locationPermissionDeniedRef.current,
       userId: user?.id,
     })) {
       return;
@@ -1095,7 +1037,15 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
 
     initialAutoLocationRefreshDoneRef.current = true;
     refreshProfileLocation({ force: false, showSuccessNotice: false });
-  }, [isOpen, locationLoading, profile, refreshProfileLocation, user?.id]);
+  }, [
+    formData.localidad,
+    formData.location_label,
+    isOpen,
+    locationLoading,
+    profile,
+    refreshProfileLocation,
+    user?.id,
+  ]);
 
   const positions = useMemo(() => [
     { key: 'ARQ', label: 'ARQ' },
@@ -1226,10 +1176,11 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
   const singleLineFieldClass = `${inputClass} h-[50px] py-0`;
   const labelClass = 'text-white/90 text-sm font-bold mb-2 block uppercase tracking-wider';
   const formGroupClass = 'flex flex-col w-full';
+  const savedLocationDisplayValue = formData.location_label || formData.localidad || '';
   const locationDisplayValue = locationLoading
     ? 'Detectando…'
-    : (formData.localidad || formData.location_label || (locationDisabled ? LOCATION_DISABLED_LABEL : ''));
-  const locationInputReadOnly = !manualLocationMode;
+    : (savedLocationDisplayValue || (locationDisabled ? LOCATION_DISABLED_LABEL : ''));
+  const locationInputReadOnly = true;
   const locationFallbackVisible = locationDetectionFailed || locationDisabled;
 
   if (isEmbedded) {
@@ -1244,8 +1195,6 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
           user={user}
           formData={formData}
           handleInputChange={handleInputChange}
-          handleManualLocationChange={handleManualLocationChange}
-          handleChooseManualLocation={handleChooseManualLocation}
           fileInputRef={fileInputRef}
           handlePhotoChange={handlePhotoChange}
           handleGeolocation={handleGeolocation}
@@ -1269,7 +1218,6 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
           locationInputReadOnly={locationInputReadOnly}
           locationLoading={locationLoading}
           locationDisabled={locationDisabled}
-          manualLocationMode={manualLocationMode}
           locationFallbackVisible={locationFallbackVisible}
           isLocalDevSession={isLocalDevSession}
           isEmbedded={true}
@@ -1438,8 +1386,8 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
                   <button
                     type="button"
                     className={`${singleLineFieldClass} flex-1 text-left text-[16px] ${locationDisplayValue ? '' : '!text-white/45'} cursor-pointer`}
-                    onClick={handleChooseManualLocation}
-                    title="Elegir ciudad manualmente"
+                    onClick={handleGeolocation}
+                    title={locationDisabled ? 'Reintentar ubicación' : 'Actualizar ubicación'}
                   >
                     {locationDisplayValue || (locationLoading ? 'Detectando…' : 'Tu ciudad')}
                   </button>
@@ -1447,8 +1395,12 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
                   <input
                     className={`${singleLineFieldClass} flex-1 text-[16px]`}
                     type="text"
-                    value={formData.localidad || ''}
-                    onChange={(e) => handleManualLocationChange(e.target.value)}
+                    value={locationDisplayValue}
+                    onChange={(e) => {
+                      if (!locationInputReadOnly) {
+                        handleInputChange('localidad', e.target.value);
+                      }
+                    }}
                     placeholder={locationLoading ? 'Detectando…' : 'Tu ciudad'}
                     readOnly={locationInputReadOnly}
                   />
@@ -1464,30 +1416,9 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
               </div>
               {locationFallbackVisible && (
                 <p className="mt-2 text-xs leading-snug text-white/68">
-                  {LOCATION_MANUAL_FALLBACK_MESSAGE}
+                  {LOCATION_DETECTION_FAILED_MESSAGE}
                 </p>
               )}
-              <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  className="h-[38px] px-3 rounded-none border border-[#f4d03f]/65 bg-[#f4d03f]/12 text-[#f4d03f] text-[13px] font-semibold transition-all hover:bg-[#f4d03f]/20 disabled:opacity-50 disabled:cursor-not-allowed"
-                  onClick={handleGeolocation}
-                  disabled={locationLoading}
-                >
-                  {locationLoading ? 'Detectando…' : 'Usar mi ubicación'}
-                </button>
-                <button
-                  type="button"
-                  className={`h-[38px] px-3 rounded-none border text-[13px] font-semibold transition-all ${
-                    manualLocationMode
-                      ? 'border-[#7d5aff] bg-[#6a43ff]/24 text-white'
-                      : 'border-[rgba(89,107,168,0.45)] bg-[rgba(23,35,74,0.72)] text-white/86 hover:bg-[rgba(30,45,94,0.9)]'
-                  }`}
-                  onClick={handleChooseManualLocation}
-                >
-                  Elegir ciudad manualmente
-                </button>
-              </div>
             </div>
 
             <div className={formGroupClass}>
