@@ -246,6 +246,22 @@ describe('ProfileEditor geolocation flow', () => {
     expect(await screen.findByText(/elegí tu localidad manualmente/i)).toBeInTheDocument();
   });
 
+  test('si Chrome deniega el origen web aunque permissions haya dicho granted muestra mensaje específico', async () => {
+    const browserDeniedError = Object.assign(new Error('Permiso denegado'), {
+      code: 'PERMISSION_DENIED',
+      platform: 'web',
+      source: 'web.navigator',
+      permissionBefore: 'granted',
+      permissionState: 'denied',
+      rawMessage: 'User denied Geolocation',
+    });
+    mockGetCurrentPosition.mockRejectedValue(browserDeniedError);
+
+    renderProfileEditor();
+
+    expect(await screen.findByText(/Chrome\/localhost sigue devolviendo permiso denegado/i)).toBeInTheDocument();
+  });
+
   test('no muestra botones manuales extra', () => {
     mockAuthValue = {
       ...mockAuthValue,

@@ -32,9 +32,20 @@ const LOCATION_DETECTION_FAILED_MESSAGE = 'No pudimos detectar tu ubicación. El
 const LOCATION_DETECTION_FAILED_WITH_MANUAL_MESSAGE = 'No pudimos actualizar por GPS. Mantenemos tu localidad cargada.';
 const LOCATION_PERMISSION_BLOCKED_MESSAGE = 'Permiso de ubicación bloqueado. Habilitá Ubicación desde Ajustes del navegador/app.';
 const LOCATION_PERMISSION_BLOCKED_WITH_MANUAL_MESSAGE = 'GPS bloqueado. Mantenemos tu localidad cargada; para actualizar por GPS habilitá Ubicación desde Ajustes.';
+const LOCATION_BROWSER_ORIGIN_DENIED_MESSAGE = 'Chrome/localhost sigue devolviendo permiso denegado aunque macOS tenga Ubicación habilitada. Revisá el permiso del sitio y probá de nuevo.';
+const LOCATION_BROWSER_ORIGIN_DENIED_WITH_MANUAL_MESSAGE = 'Chrome/localhost sigue denegando ubicación para este sitio. Mantenemos tu localidad cargada.';
 const LOCATION_SERVICES_DISABLED_MESSAGE = 'La ubicación del dispositivo está desactivada. Activala desde Ajustes o elegí tu localidad manualmente.';
 const LOCATION_SERVICES_DISABLED_WITH_MANUAL_MESSAGE = 'La ubicación del dispositivo está desactivada. Mantenemos tu localidad cargada.';
 const normalizeLocationToken = (value) => String(value || '').trim().toLowerCase();
+
+const isWebOriginPermissionDenied = (error) => (
+  isPermissionDeniedError(error)
+  && (
+    error?.platform === 'web'
+    || String(error?.source || '').startsWith('web.')
+    || error?.permissionBefore === 'granted'
+  )
+);
 
 const getLocationFailureMessage = (error, manualLocationLabel = '') => {
   const hasManualLocation = Boolean(normalizeLocationToken(manualLocationLabel));
@@ -43,6 +54,12 @@ const getLocationFailureMessage = (error, manualLocationLabel = '') => {
     return hasManualLocation
       ? LOCATION_SERVICES_DISABLED_WITH_MANUAL_MESSAGE
       : LOCATION_SERVICES_DISABLED_MESSAGE;
+  }
+
+  if (isWebOriginPermissionDenied(error)) {
+    return hasManualLocation
+      ? LOCATION_BROWSER_ORIGIN_DENIED_WITH_MANUAL_MESSAGE
+      : LOCATION_BROWSER_ORIGIN_DENIED_MESSAGE;
   }
 
   if (isPermissionDeniedError(error)) {
