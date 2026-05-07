@@ -39,7 +39,7 @@
 	<key>NSCameraUsageDescription</key>
 	<string>La app usa la camara para sacar y actualizar tu foto de perfil.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Arma2 usa tu ubicacion para recomendarte partidos cercanos.</string>
+	<string>Arma2 usa tu ubicación para detectar tu zona y recomendarte partidos cercanos.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>La app necesita acceso a tus fotos para elegir una imagen de perfil.</string>
 	<key>UILaunchStoryboardName</key>
