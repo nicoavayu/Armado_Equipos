@@ -5,6 +5,13 @@ export const LOCATION_REFRESH_MAX_AGE_MS = 15 * 60 * 1000;
 export const LOCATION_SIGNIFICANT_MOVE_M = 500;
 
 const ALLOWED_SHORT_LOCATION_CODES = new Set(['CABA']);
+const GENERIC_CABA_LOCALITY_TOKENS = new Set([
+  'ciudad autónoma de buenos aires',
+  'ciudad autonoma de buenos aires',
+  'autonomous city of buenos aires',
+  'buenos aires',
+  'caba',
+]);
 const LOCATION_ERROR_MESSAGES = {
   PERMISSION_DENIED: 'Permiso denegado',
   POSITION_UNAVAILABLE: 'Ubicación no disponible',
@@ -79,6 +86,16 @@ const sanitizeToken = (value) => {
   return cleaned;
 };
 
+const normalizeComparableToken = (value) => String(value || '')
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .trim()
+  .toLowerCase();
+
+const isComunaToken = (value) => /^comuna\s+\d+$/i.test(String(value || '').trim());
+
+const isGenericCabaToken = (value) => GENERIC_CABA_LOCALITY_TOKENS.has(normalizeComparableToken(value));
+
 const normalizeState = (value) => {
   const safeValue = sanitizeToken(value);
   if (!safeValue) return null;
@@ -130,6 +147,19 @@ export const isLocationDebugEnabled = () => {
 export const logLocationDebug = (event, details = {}) => {
   if (!isLocationDebugEnabled()) return;
   console.info('[PROFILE_GEO]', event, details);
+};
+
+const waitForGoogleMapsGeocoder = async ({ timeoutMs = 5000, intervalMs = 100 } = {}) => {
+  if (typeof window === 'undefined') return null;
+  if (window.google?.maps?.Geocoder) return window.google.maps.Geocoder;
+
+  const startedAt = Date.now();
+  while ((Date.now() - startedAt) < timeoutMs) {
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    if (window.google?.maps?.Geocoder) return window.google.maps.Geocoder;
+  }
+
+  return null;
 };
 
 const createLocationError = (message, code, error = {}, context = {}) => {
@@ -295,9 +325,16 @@ const getWebPosition = async (options) => {
       platform: getDetectedPlatform(),
       method: 'web navigator',
       source: position.source,
+      coords: {
+        latitude: position.lat,
+        longitude: position.lng,
+        accuracy: position.accuracy_m,
+        timestamp: position.timestamp,
+      },
       lat: position.lat,
       lng: position.lng,
       accuracy_m: position.accuracy_m,
+      timestamp: position.timestamp,
     });
     return {
       ...position,
@@ -414,9 +451,16 @@ const getNativePosition = async (options) => {
       method: 'Capacitor Geolocation',
       source: result.source,
       permissionState: permission.permissionAfter,
+      coords: {
+        latitude: result.lat,
+        longitude: result.lng,
+        accuracy: result.accuracy_m,
+        timestamp: result.timestamp,
+      },
       lat: result.lat,
       lng: result.lng,
       accuracy_m: result.accuracy_m,
+      timestamp: result.timestamp,
     });
     return {
       ...result,
@@ -603,10 +647,20 @@ export const reverseGeocode = async (lat, lng) => {
   }
 
   if (typeof window === 'undefined' || !window.google?.maps?.Geocoder) {
-    throw new Error('Google Maps Geocoder no disponible');
+    const Geocoder = await waitForGoogleMapsGeocoder();
+    if (!Geocoder) {
+      throw new Error('Google Maps Geocoder no disponible');
+    }
+
+    const geocoder = new Geocoder();
+    return reverseGeocodeWithGeocoder(geocoder, latitude, longitude);
   }
 
   const geocoder = new window.google.maps.Geocoder();
+  return reverseGeocodeWithGeocoder(geocoder, latitude, longitude);
+};
+
+const reverseGeocodeWithGeocoder = async (geocoder, latitude, longitude) => {
   const results = await new Promise((resolve, reject) => {
     geocoder.geocode({ location: { lat: latitude, lng: longitude } }, (geocodeResults, status) => {
       if (status === 'OK') {
@@ -647,12 +701,13 @@ export const reverseGeocode = async (lat, lng) => {
 };
 
 export const buildLabel = (location = {}) => {
-  const neighborhood = sanitizeToken(location?.neighborhood || location?.barrio);
+  const rawNeighborhood = sanitizeToken(location?.neighborhood || location?.barrio);
+  const neighborhood = rawNeighborhood && !isComunaToken(rawNeighborhood) ? rawNeighborhood : null;
   const city = sanitizeToken(location?.city || location?.ciudad);
   const state = normalizeState(location?.state || location?.provincia);
 
   let secondary = city || state || null;
-  if (state === 'CABA' && city && city.toLowerCase().includes('buenos aires')) {
+  if (state === 'CABA' && city && isGenericCabaToken(city)) {
     secondary = 'CABA';
   }
 
@@ -661,6 +716,10 @@ export const buildLabel = (location = {}) => {
       return `${neighborhood}, ${secondary}`;
     }
     return neighborhood;
+  }
+
+  if (state === 'CABA' && (!city || isGenericCabaToken(city))) {
+    return 'CABA';
   }
 
   return city || state || null;

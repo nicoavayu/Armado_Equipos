@@ -205,11 +205,61 @@ describe('ProfileEditor geolocation flow', () => {
     });
     await waitFor(() => {
       expect(mockUpdateProfile).toHaveBeenCalledWith('user-123', expect.objectContaining({
-        localidad: 'Buenos Aires',
+        localidad: 'CABA',
         latitud: -34.6037347,
         longitud: -58.3815704,
       }));
     });
+  });
+
+  test('GPS manual pisa localidad previa San Isidro cuando reverse geocode detecta Devoto/CABA', async () => {
+    mockAuthValue = {
+      ...mockAuthValue,
+      profile: makeProfile({
+        localidad: 'San Isidro',
+        location_label: 'San Isidro',
+        latitud: -34.4708,
+        longitud: -58.5286,
+        location_updated_at: '2026-05-05T12:00:00.000Z',
+      }),
+    };
+    mockGetCurrentPosition.mockResolvedValue({
+      lat: -34.6007,
+      lng: -58.5136,
+      accuracy_m: 22,
+      timestamp: '2026-05-07T14:20:00.000Z',
+      source: 'web',
+      platform: 'web',
+    });
+    mockReverseGeocode.mockResolvedValue({
+      neighborhood: 'Villa Devoto',
+      city: 'Buenos Aires',
+      state: 'CABA',
+      country: 'Argentina',
+    });
+
+    renderProfileEditor();
+
+    fireEvent.click(screen.getAllByTitle(/Actualizar ubicación/i)[1]);
+
+    await waitFor(() => {
+      expect(mockGetCurrentPosition).toHaveBeenCalledWith(expect.objectContaining({
+        enableHighAccuracy: true,
+        maximumAge: 0,
+        timeout: 15000,
+      }));
+    });
+    await waitFor(() => {
+      expect(mockUpdateProfile).toHaveBeenCalledWith('user-123', expect.objectContaining({
+        localidad: 'Villa Devoto, CABA',
+        location_label: 'Villa Devoto, CABA',
+        location_city: 'Buenos Aires',
+        location_state: 'CABA',
+        latitud: -34.6007,
+        longitud: -58.5136,
+      }));
+    });
+    expect(screen.getByRole('button', { name: 'Villa Devoto, CABA' })).toBeInTheDocument();
   });
 
   test('si falla la detección conserva la localidad guardada visible', async () => {
@@ -231,6 +281,38 @@ describe('ProfileEditor geolocation flow', () => {
 
     expect(await screen.findByText(/Mantenemos tu localidad cargada/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Villa Devoto' })).toBeInTheDocument();
+  });
+
+  test('si GPS funciona pero reverse geocode no devuelve localidad usable conserva San Isidro como fallback', async () => {
+    mockAuthValue = {
+      ...mockAuthValue,
+      profile: makeProfile({
+        localidad: 'San Isidro',
+        location_label: 'San Isidro',
+      }),
+    };
+    mockGetCurrentPosition.mockResolvedValue({
+      lat: -34.6007,
+      lng: -58.5136,
+      accuracy_m: 40,
+      timestamp: '2026-05-07T14:25:00.000Z',
+      source: 'web',
+    });
+    mockReverseGeocode.mockResolvedValue({});
+
+    renderProfileEditor();
+
+    fireEvent.click(screen.getAllByTitle(/Actualizar ubicación/i)[1]);
+
+    await waitFor(() => {
+      expect(mockUpdateProfile).toHaveBeenCalledWith('user-123', expect.objectContaining({
+        localidad: 'San Isidro',
+        location_label: 'San Isidro',
+        latitud: -34.6007,
+        longitud: -58.5136,
+      }));
+    });
+    expect(screen.getByRole('button', { name: 'San Isidro' })).toBeInTheDocument();
   });
 
   test('si el dispositivo tiene ubicación apagada y no hay localidad sugiere carga manual', async () => {

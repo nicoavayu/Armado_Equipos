@@ -36,6 +36,7 @@ const LOCATION_BROWSER_ORIGIN_DENIED_MESSAGE = 'Chrome/localhost sigue devolvien
 const LOCATION_BROWSER_ORIGIN_DENIED_WITH_MANUAL_MESSAGE = 'Chrome/localhost sigue denegando ubicación para este sitio. Mantenemos tu localidad cargada.';
 const LOCATION_SERVICES_DISABLED_MESSAGE = 'La ubicación del dispositivo está desactivada. Activala desde Ajustes o elegí tu localidad manualmente.';
 const LOCATION_SERVICES_DISABLED_WITH_MANUAL_MESSAGE = 'La ubicación del dispositivo está desactivada. Mantenemos tu localidad cargada.';
+const LOCATION_REVERSE_GEOCODE_FAILED_WITH_MANUAL_MESSAGE = 'Detectamos tu GPS, pero no pudimos resolver la localidad. Mantenemos tu localidad cargada.';
 const normalizeLocationToken = (value) => String(value || '').trim().toLowerCase();
 
 const isWebOriginPermissionDenied = (error) => (
@@ -717,26 +718,46 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
       ...getLocationPlatformInfo(),
       force,
       showSuccessNotice,
+      eventSource: force ? 'pin' : 'auto_profile_refresh',
       hasManualLocation: Boolean(normalizeLocationToken(manualLocationLabel)),
-      manualLocationLabel: manualLocationLabel || null,
+      previousManualLocality: manualLocationLabel || null,
+      previousManualLocalityNormalized: normalizeLocationToken(manualLocationLabel) || null,
     });
 
     setLocationLoading(true);
 
     try {
+      const positionOptions = force
+        ? {
+          enableHighAccuracy: true,
+          timeout: 15000,
+          maximumAge: 0,
+        }
+        : {
+          enableHighAccuracy: false,
+          timeout: 15000,
+          maximumAge: 600000,
+        };
+
       const currentPosition = await getCurrentPosition({
-        enableHighAccuracy: false,
-        timeout: 15000,
-        maximumAge: 600000,
+        ...positionOptions,
       });
 
       logLocationDebug('profile_position_received', {
         platform: currentPosition.platform || getLocationPlatformInfo().platform,
         source: currentPosition.source,
         permissionState: currentPosition.permissionState || null,
+        coords: {
+          latitude: currentPosition.lat,
+          longitude: currentPosition.lng,
+          accuracy: currentPosition.accuracy_m,
+          timestamp: currentPosition.timestamp,
+        },
         lat: currentPosition.lat,
         lng: currentPosition.lng,
         accuracy_m: currentPosition.accuracy_m,
+        timestamp: currentPosition.timestamp,
+        options: positionOptions,
       });
 
       const previousLocation = {
@@ -767,14 +788,55 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
 
       let geocodedLocation = {};
       try {
+        logLocationDebug('reverse_geocode_start', {
+          ...getLocationPlatformInfo(),
+          coords: {
+            latitude: currentPosition.lat,
+            longitude: currentPosition.lng,
+            accuracy: currentPosition.accuracy_m,
+            timestamp: currentPosition.timestamp,
+          },
+          previousManualLocality: manualLocationLabel || null,
+        });
         geocodedLocation = await reverseGeocode(currentPosition.lat, currentPosition.lng);
+        logLocationDebug('reverse_geocode_result', {
+          ...getLocationPlatformInfo(),
+          result: geocodedLocation,
+          detectedLocality: geocodedLocation?.neighborhood || geocodedLocation?.city || null,
+          detectedZone: geocodedLocation?.state || null,
+          previousManualLocality: manualLocationLabel || null,
+        });
       } catch (reverseError) {
         console.warn(`${GEO_LOG_PREFIX} reverse geocode failed`, reverseError);
+        logLocationDebug('reverse_geocode_error', {
+          ...getLocationPlatformInfo(),
+          message: reverseError?.message || String(reverseError),
+          previousManualLocality: manualLocationLabel || null,
+        });
       }
 
-      const label = buildLabel(geocodedLocation)
+      const detectedLocationLabel = buildLabel(geocodedLocation);
+      const usedManualFallback = !normalizeLocationToken(detectedLocationLabel);
+      const label = detectedLocationLabel
+        || manualLocationLabel
         || previousLocation.label
         || '';
+      const gpsOverrodeManualValue = Boolean(
+        normalizeLocationToken(detectedLocationLabel)
+        && normalizeLocationToken(manualLocationLabel)
+        && normalizeLocationToken(detectedLocationLabel) !== normalizeLocationToken(manualLocationLabel),
+      );
+
+      logLocationDebug('locality_resolution', {
+        ...getLocationPlatformInfo(),
+        detectedLocality: geocodedLocation?.neighborhood || geocodedLocation?.city || null,
+        detectedZone: geocodedLocation?.state || null,
+        detectedLocationLabel: detectedLocationLabel || null,
+        previousManualLocality: manualLocationLabel || null,
+        finalLocalityApplied: label || null,
+        whetherManualFallbackWasUsed: usedManualFallback,
+        whetherGpsResultOverrodeManualValue: gpsOverrodeManualValue,
+      });
 
       const locationPatch = {
         latitud: currentPosition.lat,
@@ -801,17 +863,22 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
       );
       const movedSignificantly = !Number.isFinite(movedDistanceM) || movedDistanceM > LOCATION_SIGNIFICANT_MOVE_M;
       const cityChanged = normalizeLocationToken(previousLocation.city) !== normalizeLocationToken(geocodedLocation?.city);
+      const labelChanged = normalizeLocationToken(previousLocation.label) !== normalizeLocationToken(label);
       const shouldPersistUpdate = !previousLocation.updated_at
         || !normalizeLocationToken(previousLocation.label)
         || movedSignificantly
-        || cityChanged;
+        || cityChanged
+        || labelChanged;
 
       if (shouldPersistUpdate) {
         await persistLocationPatch(locationPatch);
       }
 
       if (showSuccessNotice) {
-        showInlineNotice('success', 'Ubicación actualizada correctamente.');
+        showInlineNotice(
+          usedManualFallback ? 'warning' : 'success',
+          usedManualFallback ? LOCATION_REVERSE_GEOCODE_FAILED_WITH_MANUAL_MESSAGE : 'Ubicación actualizada correctamente.',
+        );
       }
     } catch (error) {
       logLocationErrorOnce(error);
@@ -1108,8 +1175,36 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
 
   const handleGeolocation = useCallback(() => {
     if (locationLoading) return;
+    const manualLocationLabel = formData.location_label
+      || formData.localidad
+      || profile?.location_label
+      || profile?.localidad
+      || '';
+    logLocationDebug('pin_click_start', {
+      ...getLocationPlatformInfo(),
+      previousManualLocality: manualLocationLabel || null,
+      previousManualLocalityNormalized: normalizeLocationToken(manualLocationLabel) || null,
+      currentCoordinates: {
+        latitude: formData.latitud ?? profile?.latitud ?? null,
+        longitude: formData.longitud ?? profile?.longitud ?? null,
+        updated_at: formData.location_updated_at || profile?.location_updated_at || null,
+      },
+    });
     refreshProfileLocation({ force: true, showSuccessNotice: true });
-  }, [locationLoading, refreshProfileLocation]);
+  }, [
+    formData.latitud,
+    formData.localidad,
+    formData.location_label,
+    formData.location_updated_at,
+    formData.longitud,
+    locationLoading,
+    profile?.latitud,
+    profile?.localidad,
+    profile?.location_label,
+    profile?.location_updated_at,
+    profile?.longitud,
+    refreshProfileLocation,
+  ]);
 
   useEffect(() => {
     if (!isOpen) {

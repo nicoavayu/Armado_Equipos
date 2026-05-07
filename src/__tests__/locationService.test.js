@@ -20,6 +20,7 @@ jest.mock('@capacitor/geolocation', () => ({
 }));
 
 const {
+  buildLabel,
   getCurrentPosition,
   isLocationServicesDisabledError,
   isPermissionDeniedError,
@@ -205,5 +206,21 @@ describe('locationService', () => {
       source: 'capacitor',
     });
     expect(mockNativeGetCurrentPosition).toHaveBeenCalledTimes(1);
+  });
+
+  test('buildLabel prioriza barrio de CABA cuando Google devuelve Villa Devoto', () => {
+    expect(buildLabel({
+      neighborhood: 'Villa Devoto',
+      city: 'Buenos Aires',
+      state: 'CABA',
+    })).toBe('Villa Devoto, CABA');
+  });
+
+  test('buildLabel normaliza localidad genérica de CABA sin conservar comuna', () => {
+    expect(buildLabel({
+      neighborhood: 'Comuna 11',
+      city: 'Buenos Aires',
+      state: 'Ciudad Autónoma de Buenos Aires',
+    })).toBe('CABA');
   });
 });
