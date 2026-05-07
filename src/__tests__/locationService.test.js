@@ -19,7 +19,11 @@ jest.mock('@capacitor/geolocation', () => ({
   },
 }));
 
-const { getCurrentPosition } = require('../services/locationService');
+const {
+  getCurrentPosition,
+  isLocationServicesDisabledError,
+  isPermissionDeniedError,
+} = require('../services/locationService');
 
 const makePosition = ({
   latitude = -34.6037347,
@@ -94,11 +98,51 @@ describe('locationService', () => {
 
     await expect(getCurrentPosition()).rejects.toMatchObject({
       code: 'PERMISSION_DENIED',
+      permissionBefore: 'denied',
+      permissionState: 'denied',
+      source: 'capacitor.checkPermissions',
     });
 
     expect(mockCheckPermissions).toHaveBeenCalledTimes(1);
     expect(mockRequestPermissions).not.toHaveBeenCalled();
     expect(mockNativeGetCurrentPosition).not.toHaveBeenCalled();
+  });
+
+  test('distingue servicios de ubicación apagados de permiso denegado nativo', async () => {
+    mockIsNativePlatform.mockReturnValue(true);
+    const nativeError = Object.assign(new Error('Location services are not enabled.'), {
+      code: 'OS-PLUG-GLOC-0007',
+    });
+    mockCheckPermissions.mockRejectedValue(nativeError);
+
+    await expect(getCurrentPosition()).rejects.toMatchObject({
+      code: 'LOCATION_SERVICES_DISABLED',
+      rawCode: 'OS-PLUG-GLOC-0007',
+      source: 'capacitor.checkPermissions',
+    });
+
+    try {
+      await getCurrentPosition();
+    } catch (error) {
+      expect(isLocationServicesDisabledError(error)).toBe(true);
+      expect(isPermissionDeniedError(error)).toBe(false);
+    }
+  });
+
+  test('preserva código crudo cuando getCurrentPosition nativo informa permiso denegado', async () => {
+    mockIsNativePlatform.mockReturnValue(true);
+    mockCheckPermissions.mockResolvedValue({ location: 'granted' });
+    mockNativeGetCurrentPosition.mockRejectedValue(Object.assign(new Error('Location permission request was denied.'), {
+      code: 'OS-PLUG-GLOC-0003',
+    }));
+
+    await expect(getCurrentPosition()).rejects.toMatchObject({
+      code: 'PERMISSION_DENIED',
+      rawCode: 'OS-PLUG-GLOC-0003',
+      source: 'capacitor.getCurrentPosition',
+      permissionBefore: 'granted',
+      permissionAfter: 'granted',
+    });
   });
 
   test('falla de forma controlada cuando geolocation web no existe', async () => {

@@ -195,7 +195,7 @@ describe('ProfileEditor geolocation flow', () => {
 
     renderProfileEditor();
 
-    expect(await screen.findByText(/No pudimos detectar tu ubicación/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Permiso de ubicación bloqueado/i)).toBeInTheDocument();
     expect(mockGetCurrentPosition).toHaveBeenCalledTimes(1);
 
     fireEvent.click(screen.getByTitle(/Habilitar ubicación/i));
@@ -229,8 +229,21 @@ describe('ProfileEditor geolocation flow', () => {
 
     fireEvent.click(screen.getAllByTitle(/Actualizar ubicación/i)[1]);
 
-    expect(await screen.findByText(/No pudimos detectar tu ubicación/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Mantenemos tu localidad cargada/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Villa Devoto' })).toBeInTheDocument();
+  });
+
+  test('si el dispositivo tiene ubicación apagada y no hay localidad sugiere carga manual', async () => {
+    const servicesDisabledError = Object.assign(new Error('Ubicación del dispositivo desactivada'), {
+      code: 'LOCATION_SERVICES_DISABLED',
+      rawCode: 'OS-PLUG-GLOC-0007',
+    });
+    mockGetCurrentPosition.mockRejectedValue(servicesDisabledError);
+
+    renderProfileEditor();
+
+    expect(await screen.findByText(/La ubicación del dispositivo está desactivada/i)).toBeInTheDocument();
+    expect(await screen.findByText(/elegí tu localidad manualmente/i)).toBeInTheDocument();
   });
 
   test('no muestra botones manuales extra', () => {
