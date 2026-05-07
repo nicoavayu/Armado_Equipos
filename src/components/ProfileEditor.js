@@ -36,8 +36,15 @@ const LOCATION_BROWSER_ORIGIN_DENIED_MESSAGE = 'Chrome/localhost sigue devolvien
 const LOCATION_BROWSER_ORIGIN_DENIED_WITH_MANUAL_MESSAGE = 'Chrome/localhost sigue denegando ubicación para este sitio. Mantenemos tu localidad cargada.';
 const LOCATION_SERVICES_DISABLED_MESSAGE = 'La ubicación del dispositivo está desactivada. Activala desde Ajustes o elegí tu localidad manualmente.';
 const LOCATION_SERVICES_DISABLED_WITH_MANUAL_MESSAGE = 'La ubicación del dispositivo está desactivada. Mantenemos tu localidad cargada.';
+const LOCATION_REVERSE_GEOCODE_FAILED_MESSAGE = 'Detectamos tu GPS, pero no pudimos resolver la localidad. Elegí tu localidad manualmente.';
 const LOCATION_REVERSE_GEOCODE_FAILED_WITH_MANUAL_MESSAGE = 'Detectamos tu GPS, pero no pudimos resolver la localidad. Mantenemos tu localidad cargada.';
 const normalizeLocationToken = (value) => String(value || '').trim().toLowerCase();
+
+const getReverseGeocodeFailureMessage = (manualLocationLabel = '') => (
+  normalizeLocationToken(manualLocationLabel)
+    ? LOCATION_REVERSE_GEOCODE_FAILED_WITH_MANUAL_MESSAGE
+    : LOCATION_REVERSE_GEOCODE_FAILED_MESSAGE
+);
 
 const isWebOriginPermissionDenied = (error) => (
   isPermissionDeniedError(error)
@@ -787,6 +794,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
       }
 
       let geocodedLocation = {};
+      let reverseGeocodeError = null;
       try {
         logLocationDebug('reverse_geocode_start', {
           ...getLocationPlatformInfo(),
@@ -807,6 +815,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
           previousManualLocality: manualLocationLabel || null,
         });
       } catch (reverseError) {
+        reverseGeocodeError = reverseError;
         console.warn(`${GEO_LOG_PREFIX} reverse geocode failed`, reverseError);
         logLocationDebug('reverse_geocode_error', {
           ...getLocationPlatformInfo(),
@@ -821,6 +830,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
         || manualLocationLabel
         || previousLocation.label
         || '';
+      const reverseGeocodeFallbackMessage = getReverseGeocodeFailureMessage(manualLocationLabel || previousLocation.label || '');
       const gpsOverrodeManualValue = Boolean(
         normalizeLocationToken(detectedLocationLabel)
         && normalizeLocationToken(manualLocationLabel)
@@ -836,7 +846,20 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
         finalLocalityApplied: label || null,
         whetherManualFallbackWasUsed: usedManualFallback,
         whetherGpsResultOverrodeManualValue: gpsOverrodeManualValue,
+        reverseGeocodeError: reverseGeocodeError?.message || null,
       });
+
+      if (usedManualFallback) {
+        logLocationDebug('manual_fallback', {
+          ...getLocationPlatformInfo(),
+          source: 'reverse_geocode',
+          usedManualFallback,
+          previousManualLocality: manualLocationLabel || null,
+          finalLocalityApplied: label || null,
+          reasonCode: reverseGeocodeError?.code || (reverseGeocodeError ? 'REVERSE_GEOCODE_ERROR' : 'REVERSE_GEOCODE_EMPTY_RESULT'),
+          message: reverseGeocodeError?.message || null,
+        });
+      }
 
       const locationPatch = {
         latitud: currentPosition.lat,
@@ -852,8 +875,13 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
 
       applyLocationPatch(locationPatch);
       setLocationDisabled(false);
-      setLocationDetectionFailed(false);
-      setLocationFallbackMessage('');
+      if (usedManualFallback) {
+        setLocationDetectionFailed(true);
+        setLocationFallbackMessage(reverseGeocodeFallbackMessage);
+      } else {
+        setLocationDetectionFailed(false);
+        setLocationFallbackMessage('');
+      }
 
       const movedDistanceM = distanceInMeters(
         previousLocation.lat,
@@ -877,7 +905,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
       if (showSuccessNotice) {
         showInlineNotice(
           usedManualFallback ? 'warning' : 'success',
-          usedManualFallback ? LOCATION_REVERSE_GEOCODE_FAILED_WITH_MANUAL_MESSAGE : 'Ubicación actualizada correctamente.',
+          usedManualFallback ? reverseGeocodeFallbackMessage : 'Ubicación actualizada correctamente.',
         );
       }
     } catch (error) {

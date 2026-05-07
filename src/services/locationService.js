@@ -1,5 +1,9 @@
 import { Capacitor } from '@capacitor/core';
 import { Geolocation as CapacitorGeolocation } from '@capacitor/geolocation';
+import {
+  getGoogleMapsLoaderState,
+  loadGoogleMapsScript,
+} from './googleMapsLoader';
 
 export const LOCATION_REFRESH_MAX_AGE_MS = 15 * 60 * 1000;
 export const LOCATION_SIGNIFICANT_MOVE_M = 500;
@@ -149,17 +153,95 @@ export const logLocationDebug = (event, details = {}) => {
   console.info('[PROFILE_GEO]', event, details);
 };
 
-const waitForGoogleMapsGeocoder = async ({ timeoutMs = 5000, intervalMs = 100 } = {}) => {
+const getImmediateGoogleMapsGeocoder = () => {
   if (typeof window === 'undefined') return null;
-  if (window.google?.maps?.Geocoder) return window.google.maps.Geocoder;
+  return window.google?.maps?.Geocoder || null;
+};
+
+const importGoogleMapsGeocoder = async () => {
+  if (typeof window === 'undefined' || !window.google?.maps?.importLibrary) return null;
+
+  const geocodingLibrary = await window.google.maps.importLibrary('geocoding');
+  return geocodingLibrary?.Geocoder || getImmediateGoogleMapsGeocoder();
+};
+
+const waitForGoogleMapsGeocoder = async ({ timeoutMs = 5000, intervalMs = 100 } = {}) => {
+  const immediateGeocoder = getImmediateGoogleMapsGeocoder();
+  if (immediateGeocoder) return immediateGeocoder;
 
   const startedAt = Date.now();
   while ((Date.now() - startedAt) < timeoutMs) {
     await new Promise((resolve) => setTimeout(resolve, intervalMs));
-    if (window.google?.maps?.Geocoder) return window.google.maps.Geocoder;
+    const Geocoder = getImmediateGoogleMapsGeocoder();
+    if (Geocoder) return Geocoder;
   }
 
   return null;
+};
+
+const createGoogleMapsGeocoderError = (message, code, cause = null) => {
+  const error = new Error(message);
+  error.code = code;
+  if (cause) error.cause = cause;
+  return error;
+};
+
+const resolveGoogleMapsGeocoder = async () => {
+  const immediateGeocoder = getImmediateGoogleMapsGeocoder();
+  if (immediateGeocoder) return immediateGeocoder;
+
+  let importError = null;
+  try {
+    const importedGeocoder = await importGoogleMapsGeocoder();
+    if (importedGeocoder) return importedGeocoder;
+  } catch (error) {
+    importError = error;
+  }
+
+  logLocationDebug('google_maps_loader_start', {
+    ...getLocationPlatformInfo(),
+    ...getGoogleMapsLoaderState(),
+    importError: importError?.message || null,
+  });
+
+  try {
+    await loadGoogleMapsScript();
+
+    let Geocoder = getImmediateGoogleMapsGeocoder();
+    if (!Geocoder) {
+      try {
+        Geocoder = await importGoogleMapsGeocoder();
+      } catch (error) {
+        importError = error;
+      }
+    }
+    if (!Geocoder) {
+      Geocoder = await waitForGoogleMapsGeocoder();
+    }
+
+    if (!Geocoder) {
+      throw createGoogleMapsGeocoderError(
+        importError?.message || 'Google Maps Geocoder no disponible tras cargar Google Maps JS API',
+        importError?.code || 'GOOGLE_MAPS_GEOCODER_UNAVAILABLE',
+        importError,
+      );
+    }
+
+    logLocationDebug('google_maps_loader_success', {
+      ...getLocationPlatformInfo(),
+      ...getGoogleMapsLoaderState(),
+    });
+
+    return Geocoder;
+  } catch (error) {
+    logLocationDebug('google_maps_loader_error', {
+      ...getLocationPlatformInfo(),
+      ...getGoogleMapsLoaderState(),
+      code: error?.code || null,
+      message: error?.message || String(error),
+    });
+    throw error;
+  }
 };
 
 const createLocationError = (message, code, error = {}, context = {}) => {
@@ -646,17 +728,15 @@ export const reverseGeocode = async (lat, lng) => {
     throw new Error('Coordenadas inválidas para reverse geocoding');
   }
 
-  if (typeof window === 'undefined' || !window.google?.maps?.Geocoder) {
-    const Geocoder = await waitForGoogleMapsGeocoder();
-    if (!Geocoder) {
-      throw new Error('Google Maps Geocoder no disponible');
-    }
-
-    const geocoder = new Geocoder();
-    return reverseGeocodeWithGeocoder(geocoder, latitude, longitude);
+  const Geocoder = await resolveGoogleMapsGeocoder();
+  if (!Geocoder) {
+    throw createGoogleMapsGeocoderError(
+      'Google Maps Geocoder no disponible',
+      'GOOGLE_MAPS_GEOCODER_UNAVAILABLE',
+    );
   }
 
-  const geocoder = new window.google.maps.Geocoder();
+  const geocoder = new Geocoder();
   return reverseGeocodeWithGeocoder(geocoder, latitude, longitude);
 };
 

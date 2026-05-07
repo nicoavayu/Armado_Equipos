@@ -9,6 +9,9 @@ const mockUpdateProfile = jest.fn();
 const mockRefreshProfile = jest.fn();
 const mockUpdateLocalProfile = jest.fn();
 const mockOnClose = jest.fn();
+const originalGoogleMapsApiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
+const originalGoogleMapsMobileApiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY_MOBILE;
+const originalProfileGeoDebug = process.env.REACT_APP_PROFILE_GEO_DEBUG;
 
 let mockAuthValue;
 
@@ -101,6 +104,33 @@ const renderProfileEditor = () => render(
   </MemoryRouter>,
 );
 
+const clearGoogleMapsRuntime = () => {
+  delete window.google;
+  document
+    .querySelectorAll('script[src*="maps.googleapis.com/maps/api/js"]')
+    .forEach((script) => script.remove());
+};
+
+const installMockGeocoder = (components) => {
+  window.google = {
+    maps: {
+      Geocoder: class MockGeocoder {
+        geocode(_request, callback) {
+          callback([{ address_components: components }], 'OK');
+        }
+      },
+    },
+  };
+};
+
+const restoreEnvValue = (key, value) => {
+  if (value === undefined) {
+    delete process.env[key];
+    return;
+  }
+  process.env[key] = value;
+};
+
 describe('ProfileEditor geolocation flow', () => {
   let warnSpy;
 
@@ -121,12 +151,22 @@ describe('ProfileEditor geolocation flow', () => {
       updateLocalProfile: mockUpdateLocalProfile,
       localEditMode: false,
     };
+    process.env.REACT_APP_GOOGLE_MAPS_API_KEY = '';
+    process.env.REACT_APP_GOOGLE_MAPS_API_KEY_MOBILE = '';
+    process.env.REACT_APP_PROFILE_GEO_DEBUG = '';
+    clearGoogleMapsRuntime();
 
     warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
   });
 
   afterEach(() => {
     warnSpy.mockRestore();
+  });
+
+  afterAll(() => {
+    restoreEnvValue('REACT_APP_GOOGLE_MAPS_API_KEY', originalGoogleMapsApiKey);
+    restoreEnvValue('REACT_APP_GOOGLE_MAPS_API_KEY_MOBILE', originalGoogleMapsMobileApiKey);
+    restoreEnvValue('REACT_APP_PROFILE_GEO_DEBUG', originalProfileGeoDebug);
   });
 
   test('detecta ubicación automáticamente y completa localidad cuando no hay ciudad previa', async () => {
@@ -159,6 +199,57 @@ describe('ProfileEditor geolocation flow', () => {
     });
     expect(mockGetCurrentPosition).toHaveBeenCalledTimes(1);
     expect(mockReverseGeocode).toHaveBeenCalledWith(-34.6037347, -58.3815704);
+  });
+
+  test('GPS exitoso con Geocoder ausente carga Google Maps y aplica localidad detectada', async () => {
+    process.env.REACT_APP_GOOGLE_MAPS_API_KEY = 'test-web-key';
+    process.env.REACT_APP_PROFILE_GEO_DEBUG = 'true';
+    const infoSpy = jest.spyOn(console, 'info').mockImplementation(() => {});
+    mockGetCurrentPosition.mockResolvedValue({
+      lat: -34.6007,
+      lng: -58.5136,
+      accuracy_m: 22,
+      timestamp: '2026-05-07T14:20:00.000Z',
+      source: 'web',
+      platform: 'web',
+    });
+    mockReverseGeocode.mockImplementation((...args) => (
+      jest.requireActual('../services/locationService').reverseGeocode(...args)
+    ));
+
+    renderProfileEditor();
+
+    await waitFor(() => {
+      expect(document.querySelector('script[src*="maps.googleapis.com/maps/api/js"]')).toBeTruthy();
+    });
+    const script = document.querySelector('script[src*="maps.googleapis.com/maps/api/js"]');
+    installMockGeocoder([
+      { long_name: 'Villa Devoto', short_name: 'Villa Devoto', types: ['neighborhood'] },
+      { long_name: 'Buenos Aires', short_name: 'Buenos Aires', types: ['locality'] },
+      { long_name: 'Ciudad Autónoma de Buenos Aires', short_name: 'CABA', types: ['administrative_area_level_1'] },
+      { long_name: 'Argentina', short_name: 'AR', types: ['country'] },
+    ]);
+    script.dispatchEvent(new Event('load'));
+
+    await waitFor(() => {
+      expect(mockUpdateProfile).toHaveBeenCalledWith('user-123', expect.objectContaining({
+        localidad: 'Villa Devoto, CABA',
+        location_label: 'Villa Devoto, CABA',
+        location_city: 'Buenos Aires',
+        location_state: 'CABA',
+        location_country: null,
+        latitud: -34.6007,
+        longitud: -58.5136,
+      }));
+    });
+    expect(infoSpy).toHaveBeenCalledWith('[PROFILE_GEO]', 'google_maps_loader_start', expect.objectContaining({
+      hasGeocoder: false,
+    }));
+    expect(infoSpy).toHaveBeenCalledWith('[PROFILE_GEO]', 'google_maps_loader_success', expect.objectContaining({
+      hasGeocoder: true,
+    }));
+
+    infoSpy.mockRestore();
   });
 
   test('no ejecuta detección automática si el perfil ya tiene localidad', async () => {
@@ -313,6 +404,52 @@ describe('ProfileEditor geolocation flow', () => {
       }));
     });
     expect(screen.getByRole('button', { name: 'San Isidro' })).toBeInTheDocument();
+  });
+
+  test('si GPS funciona pero Google Maps no carga conserva localidad manual y loguea fallback', async () => {
+    process.env.REACT_APP_PROFILE_GEO_DEBUG = 'true';
+    const infoSpy = jest.spyOn(console, 'info').mockImplementation(() => {});
+    mockAuthValue = {
+      ...mockAuthValue,
+      profile: makeProfile({
+        localidad: 'San Isidro',
+        location_label: 'San Isidro',
+      }),
+    };
+    mockGetCurrentPosition.mockResolvedValue({
+      lat: -34.6007,
+      lng: -58.5136,
+      accuracy_m: 40,
+      timestamp: '2026-05-07T14:25:00.000Z',
+      source: 'web',
+    });
+    mockReverseGeocode.mockImplementation((...args) => (
+      jest.requireActual('../services/locationService').reverseGeocode(...args)
+    ));
+
+    renderProfileEditor();
+
+    fireEvent.click(screen.getAllByTitle(/Actualizar ubicación/i)[1]);
+
+    await waitFor(() => {
+      expect(mockUpdateProfile).toHaveBeenCalledWith('user-123', expect.objectContaining({
+        localidad: 'San Isidro',
+        location_label: 'San Isidro',
+        latitud: -34.6007,
+        longitud: -58.5136,
+      }));
+    });
+    expect(await screen.findByText(/Detectamos tu GPS, pero no pudimos resolver la localidad/i)).toBeInTheDocument();
+    expect(infoSpy).toHaveBeenCalledWith('[PROFILE_GEO]', 'google_maps_loader_error', expect.objectContaining({
+      code: 'GOOGLE_MAPS_API_KEY_MISSING',
+    }));
+    expect(infoSpy).toHaveBeenCalledWith('[PROFILE_GEO]', 'manual_fallback', expect.objectContaining({
+      source: 'reverse_geocode',
+      finalLocalityApplied: 'San Isidro',
+      reasonCode: 'GOOGLE_MAPS_API_KEY_MISSING',
+    }));
+
+    infoSpy.mockRestore();
   });
 
   test('si el dispositivo tiene ubicación apagada y no hay localidad sugiere carga manual', async () => {
