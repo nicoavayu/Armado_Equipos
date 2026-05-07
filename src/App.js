@@ -26,6 +26,10 @@ import {
   setAuthFlowResult,
 } from './utils/authFlowState';
 import { track } from './utils/monitoring/analytics';
+import {
+  getGoogleMapsLoaderState,
+  loadGoogleMapsScript,
+} from './services/googleMapsLoader';
 
 
 import { NotificationProvider } from './context/NotificationContext';
@@ -267,51 +271,13 @@ export default function App() {
 
 function GoogleMapsScriptBootstrap() {
   useEffect(() => {
-    if (typeof window === 'undefined' || typeof document === 'undefined') return undefined;
-
-    const webKey = String(process.env.REACT_APP_GOOGLE_MAPS_API_KEY || '').trim();
-    const mobileKey = String(process.env.REACT_APP_GOOGLE_MAPS_API_KEY_MOBILE || '').trim();
-    const isNative = Capacitor?.isNativePlatform?.();
-    const selectedKey = (isNative ? mobileKey : webKey) || mobileKey || webKey;
-
-    if (!selectedKey) {
-      console.warn('[MAPS] Missing Google Maps API key (web/mobile).');
-      return undefined;
-    }
-
-    const desiredSrc = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(selectedKey)}&libraries=places&loading=async`;
-
-    const existingScript = Array.from(document.querySelectorAll('script[src]'))
-      .find((node) => String(node.src || '').includes('maps.googleapis.com/maps/api/js'));
-
-    if (existingScript) {
-      let currentKey = '';
-      try {
-        currentKey = String(new URL(existingScript.src).searchParams.get('key') || '');
-      } catch {
-        currentKey = '';
-      }
-
-      if (currentKey === selectedKey) {
-        return undefined;
-      }
-
-      existingScript.remove();
-    }
-
-    const script = document.createElement('script');
-    script.async = true;
-    script.defer = true;
-    script.src = desiredSrc;
-    script.setAttribute('data-google-maps-loader', 'runtime');
-    script.onerror = () => {
+    loadGoogleMapsScript().catch((error) => {
       console.warn('[MAPS] Failed to load Google Maps JS runtime script.', {
-        isNative,
-        usingMobileKey: isNative && Boolean(mobileKey),
+        ...getGoogleMapsLoaderState(),
+        code: error?.code || null,
+        message: error?.message || String(error),
       });
-    };
-
-    document.head.appendChild(script);
+    });
     return undefined;
   }, []);
 

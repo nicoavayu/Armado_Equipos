@@ -13,7 +13,10 @@ import {
   buildLabel,
   distanceInMeters,
   getCurrentPosition,
+  getLocationPlatformInfo,
   isPermissionDeniedError,
+  isLocationServicesDisabledError,
+  logLocationDebug,
   reverseGeocode,
   shouldRefresh,
 } from '../services/locationService';
@@ -25,8 +28,58 @@ import {
 
 const GEO_LOG_PREFIX = '[PROFILE_GEO]';
 const LOCATION_DISABLED_LABEL = 'Ubicación desactivada';
-const LOCATION_DETECTION_FAILED_MESSAGE = 'No pudimos detectar tu ubicación. Probá de nuevo desde el pin.';
+const LOCATION_DETECTION_FAILED_MESSAGE = 'No pudimos detectar tu ubicación. Elegí tu localidad manualmente o probá de nuevo desde el pin.';
+const LOCATION_DETECTION_FAILED_WITH_MANUAL_MESSAGE = 'No pudimos actualizar por GPS. Mantenemos tu localidad cargada.';
+const LOCATION_PERMISSION_BLOCKED_MESSAGE = 'Permiso de ubicación bloqueado. Habilitá Ubicación desde Ajustes del navegador/app.';
+const LOCATION_PERMISSION_BLOCKED_WITH_MANUAL_MESSAGE = 'GPS bloqueado. Mantenemos tu localidad cargada; para actualizar por GPS habilitá Ubicación desde Ajustes.';
+const LOCATION_BROWSER_ORIGIN_DENIED_MESSAGE = 'Chrome/localhost sigue devolviendo permiso denegado aunque macOS tenga Ubicación habilitada. Revisá el permiso del sitio y probá de nuevo.';
+const LOCATION_BROWSER_ORIGIN_DENIED_WITH_MANUAL_MESSAGE = 'Chrome/localhost sigue denegando ubicación para este sitio. Mantenemos tu localidad cargada.';
+const LOCATION_SERVICES_DISABLED_MESSAGE = 'La ubicación del dispositivo está desactivada. Activala desde Ajustes o elegí tu localidad manualmente.';
+const LOCATION_SERVICES_DISABLED_WITH_MANUAL_MESSAGE = 'La ubicación del dispositivo está desactivada. Mantenemos tu localidad cargada.';
+const LOCATION_REVERSE_GEOCODE_FAILED_MESSAGE = 'Detectamos tu GPS, pero no pudimos resolver la localidad. Elegí tu localidad manualmente.';
+const LOCATION_REVERSE_GEOCODE_FAILED_WITH_MANUAL_MESSAGE = 'Detectamos tu GPS, pero no pudimos resolver la localidad. Mantenemos tu localidad cargada.';
 const normalizeLocationToken = (value) => String(value || '').trim().toLowerCase();
+
+const getReverseGeocodeFailureMessage = (manualLocationLabel = '') => (
+  normalizeLocationToken(manualLocationLabel)
+    ? LOCATION_REVERSE_GEOCODE_FAILED_WITH_MANUAL_MESSAGE
+    : LOCATION_REVERSE_GEOCODE_FAILED_MESSAGE
+);
+
+const isWebOriginPermissionDenied = (error) => (
+  isPermissionDeniedError(error)
+  && (
+    error?.platform === 'web'
+    || String(error?.source || '').startsWith('web.')
+    || error?.permissionBefore === 'granted'
+  )
+);
+
+const getLocationFailureMessage = (error, manualLocationLabel = '') => {
+  const hasManualLocation = Boolean(normalizeLocationToken(manualLocationLabel));
+
+  if (isLocationServicesDisabledError(error)) {
+    return hasManualLocation
+      ? LOCATION_SERVICES_DISABLED_WITH_MANUAL_MESSAGE
+      : LOCATION_SERVICES_DISABLED_MESSAGE;
+  }
+
+  if (isWebOriginPermissionDenied(error)) {
+    return hasManualLocation
+      ? LOCATION_BROWSER_ORIGIN_DENIED_WITH_MANUAL_MESSAGE
+      : LOCATION_BROWSER_ORIGIN_DENIED_MESSAGE;
+  }
+
+  if (isPermissionDeniedError(error)) {
+    return hasManualLocation
+      ? LOCATION_PERMISSION_BLOCKED_WITH_MANUAL_MESSAGE
+      : LOCATION_PERMISSION_BLOCKED_MESSAGE;
+  }
+
+  return hasManualLocation
+    ? LOCATION_DETECTION_FAILED_WITH_MANUAL_MESSAGE
+    : LOCATION_DETECTION_FAILED_MESSAGE;
+};
 
 export const shouldAttemptProfileAutoLocation = ({
   alreadyAttempted = false,
@@ -72,6 +125,7 @@ const ProfileEditorForm = ({
   locationLoading,
   locationDisabled,
   locationFallbackVisible,
+  locationFallbackMessage,
   isLocalDevSession = false,
   isEmbedded = false,
 }) => {
@@ -239,7 +293,7 @@ const ProfileEditorForm = ({
           </div>
           {locationFallbackVisible && (
             <p className="mt-2 text-xs leading-snug text-white/68">
-              {LOCATION_DETECTION_FAILED_MESSAGE}
+              {locationFallbackMessage || LOCATION_DETECTION_FAILED_MESSAGE}
             </p>
           )}
         </div>
@@ -474,6 +528,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
   const [locationLoading, setLocationLoading] = useState(false);
   const [locationDisabled, setLocationDisabled] = useState(false);
   const [locationDetectionFailed, setLocationDetectionFailed] = useState(false);
+  const [locationFallbackMessage, setLocationFallbackMessage] = useState('');
   const fileInputRef = useRef(null);
   const noticeRef = useRef({ type: '', message: '', ts: 0 });
   const initialAutoLocationRefreshDoneRef = useRef(false);
@@ -573,6 +628,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
       setHasChanges(false);
       setLocationDisabled(false);
       setLocationDetectionFailed(false);
+      setLocationFallbackMessage('');
     }
   }, [profile, user, refreshProfile, isLocalDevSession]);
 
@@ -580,6 +636,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
     initialAutoLocationRefreshDoneRef.current = false;
     setLocationDisabled(false);
     setLocationDetectionFailed(false);
+    setLocationFallbackMessage('');
   }, [user?.id]);
 
   const MAX_NOMBRE = 12;
@@ -597,14 +654,27 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
   const clearInlineNotice = useCallback(() => setInlineNotice(null), []);
 
   const logLocationErrorOnce = useCallback((error) => {
-    const key = `${error?.code || 'UNKNOWN'}:${error?.message || ''}`;
+    const platformInfo = getLocationPlatformInfo();
+    const payload = {
+      platform: error?.platform || platformInfo.platform,
+      isNative: platformInfo.isNative,
+      permissionState: error?.permissionState || null,
+      permissionBefore: error?.permissionBefore || null,
+      permissionAfter: error?.permissionAfter || null,
+      source: error?.source || null,
+      code: error?.code || 'UNKNOWN',
+      rawCode: error?.rawCode || null,
+      rawMessage: error?.rawMessage || null,
+      message: error?.message || '',
+    };
+    const key = `${payload.platform}:${payload.source || 'unknown'}:${payload.code}:${payload.rawCode || ''}:${payload.message}`;
     const now = Date.now();
     const previous = lastLocationErrorLogRef.current;
     if (previous.key === key && now - previous.ts < 10000) {
       return;
     }
     lastLocationErrorLogRef.current = { key, ts: now };
-    console.warn(`${GEO_LOG_PREFIX} geolocation error`, error);
+    console.warn(`${GEO_LOG_PREFIX} geolocation error`, payload, error);
   }, []);
 
   const handleInputChange = useCallback((field, value) => {
@@ -645,13 +715,56 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
       return;
     }
 
+    const manualLocationLabel = formData.location_label
+      || formData.localidad
+      || profile?.location_label
+      || profile?.localidad
+      || '';
+
+    logLocationDebug('profile_refresh_start', {
+      ...getLocationPlatformInfo(),
+      force,
+      showSuccessNotice,
+      eventSource: force ? 'pin' : 'auto_profile_refresh',
+      hasManualLocation: Boolean(normalizeLocationToken(manualLocationLabel)),
+      previousManualLocality: manualLocationLabel || null,
+      previousManualLocalityNormalized: normalizeLocationToken(manualLocationLabel) || null,
+    });
+
     setLocationLoading(true);
 
     try {
+      const positionOptions = force
+        ? {
+          enableHighAccuracy: true,
+          timeout: 15000,
+          maximumAge: 0,
+        }
+        : {
+          enableHighAccuracy: false,
+          timeout: 15000,
+          maximumAge: 600000,
+        };
+
       const currentPosition = await getCurrentPosition({
-        enableHighAccuracy: false,
-        timeout: 15000,
-        maximumAge: 600000,
+        ...positionOptions,
+      });
+
+      logLocationDebug('profile_position_received', {
+        platform: currentPosition.platform || getLocationPlatformInfo().platform,
+        source: currentPosition.source,
+        permissionState: currentPosition.permissionState || null,
+        coords: {
+          latitude: currentPosition.lat,
+          longitude: currentPosition.lng,
+          accuracy: currentPosition.accuracy_m,
+          timestamp: currentPosition.timestamp,
+        },
+        lat: currentPosition.lat,
+        lng: currentPosition.lng,
+        accuracy_m: currentPosition.accuracy_m,
+        timestamp: currentPosition.timestamp,
+        options: positionOptions,
       });
 
       const previousLocation = {
@@ -673,6 +786,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
       if (!needsRefresh) {
         setLocationDisabled(false);
         setLocationDetectionFailed(false);
+        setLocationFallbackMessage('');
         if (showSuccessNotice) {
           showInlineNotice('success', 'Ubicación al día.');
         }
@@ -680,15 +794,72 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
       }
 
       let geocodedLocation = {};
+      let reverseGeocodeError = null;
       try {
+        logLocationDebug('reverse_geocode_start', {
+          ...getLocationPlatformInfo(),
+          coords: {
+            latitude: currentPosition.lat,
+            longitude: currentPosition.lng,
+            accuracy: currentPosition.accuracy_m,
+            timestamp: currentPosition.timestamp,
+          },
+          previousManualLocality: manualLocationLabel || null,
+        });
         geocodedLocation = await reverseGeocode(currentPosition.lat, currentPosition.lng);
+        logLocationDebug('reverse_geocode_result', {
+          ...getLocationPlatformInfo(),
+          result: geocodedLocation,
+          detectedLocality: geocodedLocation?.neighborhood || geocodedLocation?.city || null,
+          detectedZone: geocodedLocation?.state || null,
+          previousManualLocality: manualLocationLabel || null,
+        });
       } catch (reverseError) {
+        reverseGeocodeError = reverseError;
         console.warn(`${GEO_LOG_PREFIX} reverse geocode failed`, reverseError);
+        logLocationDebug('reverse_geocode_error', {
+          ...getLocationPlatformInfo(),
+          message: reverseError?.message || String(reverseError),
+          previousManualLocality: manualLocationLabel || null,
+        });
       }
 
-      const label = buildLabel(geocodedLocation)
+      const detectedLocationLabel = buildLabel(geocodedLocation);
+      const usedManualFallback = !normalizeLocationToken(detectedLocationLabel);
+      const label = detectedLocationLabel
+        || manualLocationLabel
         || previousLocation.label
         || '';
+      const reverseGeocodeFallbackMessage = getReverseGeocodeFailureMessage(manualLocationLabel || previousLocation.label || '');
+      const gpsOverrodeManualValue = Boolean(
+        normalizeLocationToken(detectedLocationLabel)
+        && normalizeLocationToken(manualLocationLabel)
+        && normalizeLocationToken(detectedLocationLabel) !== normalizeLocationToken(manualLocationLabel),
+      );
+
+      logLocationDebug('locality_resolution', {
+        ...getLocationPlatformInfo(),
+        detectedLocality: geocodedLocation?.neighborhood || geocodedLocation?.city || null,
+        detectedZone: geocodedLocation?.state || null,
+        detectedLocationLabel: detectedLocationLabel || null,
+        previousManualLocality: manualLocationLabel || null,
+        finalLocalityApplied: label || null,
+        whetherManualFallbackWasUsed: usedManualFallback,
+        whetherGpsResultOverrodeManualValue: gpsOverrodeManualValue,
+        reverseGeocodeError: reverseGeocodeError?.message || null,
+      });
+
+      if (usedManualFallback) {
+        logLocationDebug('manual_fallback', {
+          ...getLocationPlatformInfo(),
+          source: 'reverse_geocode',
+          usedManualFallback,
+          previousManualLocality: manualLocationLabel || null,
+          finalLocalityApplied: label || null,
+          reasonCode: reverseGeocodeError?.code || (reverseGeocodeError ? 'REVERSE_GEOCODE_ERROR' : 'REVERSE_GEOCODE_EMPTY_RESULT'),
+          message: reverseGeocodeError?.message || null,
+        });
+      }
 
       const locationPatch = {
         latitud: currentPosition.lat,
@@ -704,7 +875,13 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
 
       applyLocationPatch(locationPatch);
       setLocationDisabled(false);
-      setLocationDetectionFailed(false);
+      if (usedManualFallback) {
+        setLocationDetectionFailed(true);
+        setLocationFallbackMessage(reverseGeocodeFallbackMessage);
+      } else {
+        setLocationDetectionFailed(false);
+        setLocationFallbackMessage('');
+      }
 
       const movedDistanceM = distanceInMeters(
         previousLocation.lat,
@@ -714,29 +891,45 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
       );
       const movedSignificantly = !Number.isFinite(movedDistanceM) || movedDistanceM > LOCATION_SIGNIFICANT_MOVE_M;
       const cityChanged = normalizeLocationToken(previousLocation.city) !== normalizeLocationToken(geocodedLocation?.city);
+      const labelChanged = normalizeLocationToken(previousLocation.label) !== normalizeLocationToken(label);
       const shouldPersistUpdate = !previousLocation.updated_at
         || !normalizeLocationToken(previousLocation.label)
         || movedSignificantly
-        || cityChanged;
+        || cityChanged
+        || labelChanged;
 
       if (shouldPersistUpdate) {
         await persistLocationPatch(locationPatch);
       }
 
       if (showSuccessNotice) {
-        showInlineNotice('success', 'Ubicación actualizada correctamente.');
+        showInlineNotice(
+          usedManualFallback ? 'warning' : 'success',
+          usedManualFallback ? reverseGeocodeFallbackMessage : 'Ubicación actualizada correctamente.',
+        );
       }
     } catch (error) {
       logLocationErrorOnce(error);
+      const failureMessage = getLocationFailureMessage(error, manualLocationLabel);
+      const hasManualLocation = Boolean(normalizeLocationToken(manualLocationLabel));
       setLocationDetectionFailed(true);
+      setLocationFallbackMessage(failureMessage);
+      logLocationDebug('manual_fallback', {
+        ...getLocationPlatformInfo(),
+        usedManualFallback: hasManualLocation,
+        manualLocationLabel: manualLocationLabel || null,
+        reasonCode: error?.code || null,
+        rawCode: error?.rawCode || null,
+        source: error?.source || null,
+      });
       if (isPermissionDeniedError(error)) {
         setLocationDisabled(true);
-        showInlineNotice('warning', LOCATION_DETECTION_FAILED_MESSAGE);
+        showInlineNotice('warning', failureMessage);
         return;
       }
 
       setLocationDisabled(false);
-      showInlineNotice('warning', LOCATION_DETECTION_FAILED_MESSAGE);
+      showInlineNotice('warning', failureMessage);
     } finally {
       setLocationLoading(false);
     }
@@ -1010,8 +1203,36 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
 
   const handleGeolocation = useCallback(() => {
     if (locationLoading) return;
+    const manualLocationLabel = formData.location_label
+      || formData.localidad
+      || profile?.location_label
+      || profile?.localidad
+      || '';
+    logLocationDebug('pin_click_start', {
+      ...getLocationPlatformInfo(),
+      previousManualLocality: manualLocationLabel || null,
+      previousManualLocalityNormalized: normalizeLocationToken(manualLocationLabel) || null,
+      currentCoordinates: {
+        latitude: formData.latitud ?? profile?.latitud ?? null,
+        longitude: formData.longitud ?? profile?.longitud ?? null,
+        updated_at: formData.location_updated_at || profile?.location_updated_at || null,
+      },
+    });
     refreshProfileLocation({ force: true, showSuccessNotice: true });
-  }, [locationLoading, refreshProfileLocation]);
+  }, [
+    formData.latitud,
+    formData.localidad,
+    formData.location_label,
+    formData.location_updated_at,
+    formData.longitud,
+    locationLoading,
+    profile?.latitud,
+    profile?.localidad,
+    profile?.location_label,
+    profile?.location_updated_at,
+    profile?.longitud,
+    refreshProfileLocation,
+  ]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -1219,6 +1440,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
           locationLoading={locationLoading}
           locationDisabled={locationDisabled}
           locationFallbackVisible={locationFallbackVisible}
+          locationFallbackMessage={locationFallbackMessage}
           isLocalDevSession={isLocalDevSession}
           isEmbedded={true}
         />
@@ -1416,7 +1638,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
               </div>
               {locationFallbackVisible && (
                 <p className="mt-2 text-xs leading-snug text-white/68">
-                  {LOCATION_DETECTION_FAILED_MESSAGE}
+                  {locationFallbackMessage || LOCATION_DETECTION_FAILED_MESSAGE}
                 </p>
               )}
             </div>
