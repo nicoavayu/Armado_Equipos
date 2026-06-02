@@ -15,6 +15,10 @@ coverage/
 .temp/
 .cache/
 .eslintcache
+artifacts/
+ios/build/
+ios/DerivedData/
+android/app/build/
 
 # Logs
 logs/
