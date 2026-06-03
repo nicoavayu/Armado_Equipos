@@ -789,6 +789,7 @@ export const useAdminPanelState = ({
           matchId: toBigIntId(partidoActual.id),
           matchName: partidoActual.nombre,
           newAdminId: jugador.usuario_id,
+          link: `/admin/${toBigIntId(partidoActual.id)}`,
         },
         read: false,
       };
@@ -1072,6 +1073,9 @@ export const useAdminPanelState = ({
           matchId: toBigIntId(partidoActual.id),
           matchName: partidoActual.nombre,
           playerName: nombreJugador,
+          player_user_id: user?.id || null,
+          push_relevant: true,
+          link: `/partido-publico/${toBigIntId(partidoActual.id)}`,
         },
         read: false,
       }));

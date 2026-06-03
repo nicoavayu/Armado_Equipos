@@ -45,11 +45,33 @@ export const testUserNotifications = async () => {
   }
 };
 
+export const createPushTestNotification = async (type = 'friend_request', partidoId = null) => {
+  try {
+    const { data, error } = await supabase.rpc('create_push_test_notification', {
+      p_type: type,
+      p_partido_id: partidoId,
+    });
+
+    if (error) {
+      console.error('[TEST_PUSH] Error:', error);
+      return { ok: false, error };
+    }
+
+    console.log('[TEST_PUSH] Created test push notification:', data);
+    return { ok: true, data };
+  } catch (err) {
+    console.error('[TEST_PUSH] Exception:', err);
+    return { ok: false, error: err };
+  }
+};
+
 // Auto-run in development
 if (process.env.NODE_ENV === 'development') {
   // Run after a delay to ensure user is loaded
   setTimeout(() => {
     window.testNotifications = testUserNotifications;
+    window.testPushNotification = createPushTestNotification;
     console.log('[TEST_NOTIFICATIONS] Available as window.testNotifications()');
+    console.log('[TEST_PUSH] Available as window.testPushNotification(type, partidoId)');
   }, 2000);
 }
