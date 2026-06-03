@@ -43,6 +43,7 @@ type ApnsCredentials = {
   privateKey: string;
   topic: string;
   useSandbox: boolean;
+  allowEnvironmentFallback: boolean;
 };
 
 type PushProvider = "fcm" | "apns";
@@ -272,8 +273,22 @@ function defaultTitleForType(type: string): string {
     case "survey_start":
     case "survey_reminder_12h":
     case "survey_reminder":
-    case "survey_finished":
       return "Actualizacion de encuesta";
+    case "survey_finished":
+    case "survey_results_ready":
+      return "Resultados de encuesta listos";
+    case "awards_ready":
+      return "Premios listos";
+    case "admin_transfer":
+      return "Ahora sos admin";
+    case "team_captain_transfer":
+      return "Ahora sos capitan";
+    case "friend_accepted":
+      return "Solicitud aceptada";
+    case "friend_rejected":
+      return "Solicitud rechazada";
+    case "match_update":
+      return "Actualizacion de partido";
     default:
       return "Nueva notificacion";
   }
@@ -337,6 +352,17 @@ function buildSurveyPushMessage(
       return {
         title: "Recordatorio de encuesta",
         body: `Recordatorio: te queda 1 hora para completar la encuesta del partido ${matchName}.`,
+      };
+    case "survey_results_ready":
+    case "survey_finished":
+      return {
+        title: "Resultados de encuesta listos",
+        body: `Ya están listos los resultados de la encuesta del partido ${matchName}.`,
+      };
+    case "awards_ready":
+      return {
+        title: "Premios listos",
+        body: `Ya están disponibles los premios y destacados del partido ${matchName}.`,
       };
     default:
       return null;
@@ -569,6 +595,7 @@ function parseApnsCredentials(): ApnsCredentials {
   const topic = String(Deno.env.get("APNS_TOPIC") ?? "").trim()
     || String(Deno.env.get("IOS_BUNDLE_ID") ?? "").trim();
   const useSandbox = parseBooleanEnv(Deno.env.get("APNS_USE_SANDBOX"), false);
+  const allowEnvironmentFallback = parseBooleanEnv(Deno.env.get("APNS_ALLOW_ENV_FALLBACK"), true);
 
   if (!teamId || !keyId || !privateKey || !topic) {
     throw new Error("missing_apns_credentials");
@@ -580,6 +607,7 @@ function parseApnsCredentials(): ApnsCredentials {
     privateKey,
     topic,
     useSandbox,
+    allowEnvironmentFallback,
   };
 }
 
@@ -668,6 +696,23 @@ async function getApnsAuthToken(credentials: ApnsCredentials): Promise<string> {
   return jwt;
 }
 
+function readFcmErrorCode(parsed: Record<string, unknown> | null): string | null {
+  const errorObject = parsed?.error as Record<string, unknown> | undefined;
+  const details = Array.isArray(errorObject?.details) ? errorObject.details : [];
+
+  for (const detail of details) {
+    if (!detail || typeof detail !== "object") continue;
+    const typeUrl = String((detail as Record<string, unknown>)?.["@type"] ?? "").trim();
+    const errorCode = String((detail as Record<string, unknown>)?.errorCode ?? "").trim();
+    if (typeUrl.includes("google.firebase.fcm.v1.FcmError") && errorCode) {
+      return errorCode;
+    }
+  }
+
+  const status = String(errorObject?.status ?? "").trim();
+  return status || null;
+}
+
 function classifyFcmError(statusCode: number, errorCode: string | null, errorMessage: string | null) {
   const upperCode = (errorCode || "").toUpperCase();
   const msg = (errorMessage || "").toLowerCase();
@@ -679,6 +724,7 @@ function classifyFcmError(statusCode: number, errorCode: string | null, errorMes
 
   const invalidToken =
     upperCode === "UNREGISTERED" ||
+    (statusCode === 404 && upperCode === "NOT_FOUND" && msg.includes("requested entity was not found")) ||
     (upperCode === "INVALID_ARGUMENT" && msg.includes("registration token"));
 
   return { retryable, invalidToken };
@@ -764,7 +810,7 @@ async function sendFcmToToken(
   }
 
   const errorObject = parsed?.error as Record<string, unknown> | undefined;
-  const errorCode = String(errorObject?.status ?? `HTTP_${res.status}`).trim() || `HTTP_${res.status}`;
+  const errorCode = readFcmErrorCode(parsed) ?? `HTTP_${res.status}`;
   const errorMessage =
     String(errorObject?.message ?? responseText ?? `FCM request failed (${res.status})`).slice(0, 700) ||
     `FCM request failed (${res.status})`;
@@ -789,8 +835,9 @@ async function sendApnsToToken(
   title: string,
   body: string,
   data: Record<string, string>,
+  useSandbox = credentials.useSandbox,
 ): Promise<PushSendResult> {
-  const host = credentials.useSandbox ? APNS_SANDBOX_HOST : APNS_PRODUCTION_HOST;
+  const host = useSandbox ? APNS_SANDBOX_HOST : APNS_PRODUCTION_HOST;
   const url = `https://${host}/3/device/${encodeURIComponent(token)}`;
   const payload = {
     aps: {
@@ -832,7 +879,10 @@ async function sendApnsToToken(
       errorCode: null,
       errorMessage: null,
       providerMessageId: res.headers.get("apns-id")?.trim() ?? null,
-      responsePayload: parsed,
+      responsePayload: {
+        ...(parsed ?? {}),
+        apns_environment: useSandbox ? "sandbox" : "production",
+      },
     };
   }
 
@@ -850,7 +900,74 @@ async function sendApnsToToken(
     errorCode: reason,
     errorMessage,
     providerMessageId: res.headers.get("apns-id")?.trim() ?? null,
-    responsePayload: parsed,
+    responsePayload: {
+      ...(parsed ?? {}),
+      apns_environment: useSandbox ? "sandbox" : "production",
+    },
+  };
+}
+
+async function sendApnsToTokenWithFallback(
+  credentials: ApnsCredentials,
+  apnsJwt: string,
+  token: string,
+  title: string,
+  body: string,
+  data: Record<string, string>,
+): Promise<PushSendResult> {
+  const primarySandbox = credentials.useSandbox;
+  const primaryResult = await sendApnsToToken(
+    credentials,
+    apnsJwt,
+    token,
+    title,
+    body,
+    data,
+    primarySandbox,
+  );
+
+  if (
+    primaryResult.ok ||
+    !credentials.allowEnvironmentFallback ||
+    String(primaryResult.errorCode || "").trim().toUpperCase() !== "BADDEVICETOKEN"
+  ) {
+    return primaryResult;
+  }
+
+  const fallbackResult = await sendApnsToToken(
+    credentials,
+    apnsJwt,
+    token,
+    title,
+    body,
+    data,
+    !primarySandbox,
+  );
+
+  if (fallbackResult.ok) {
+    return {
+      ...fallbackResult,
+      responsePayload: {
+        ...(fallbackResult.responsePayload ?? {}),
+        apns_environment_fallback_used: true,
+        first_error_code: primaryResult.errorCode,
+        first_error_message: primaryResult.errorMessage,
+      },
+    };
+  }
+
+  return {
+    ...fallbackResult,
+    errorCode: fallbackResult.errorCode ?? primaryResult.errorCode,
+    errorMessage: clampErrorText(
+      `APNs ${primarySandbox ? "sandbox" : "production"} failed: ${primaryResult.errorCode ?? "unknown"}`
+      + `; fallback ${!primarySandbox ? "sandbox" : "production"} failed: ${fallbackResult.errorCode ?? "unknown"}`
+      + (fallbackResult.errorMessage ? ` - ${fallbackResult.errorMessage}` : ""),
+    ),
+    responsePayload: {
+      primary_attempt: primaryResult.responsePayload,
+      fallback_attempt: fallbackResult.responsePayload,
+    },
   };
 }
 
@@ -1174,6 +1291,12 @@ serve(async (req) => {
 
       const activeTokens = (tokenRows ?? []) as DeviceTokenRow[];
       if (activeTokens.length === 0) {
+        console.info("[push-sender] no active tokens", {
+          log_id: log.id,
+          notification_type: log.notification_type,
+          user_id: log.user_id,
+          partido_id: log.partido_id,
+        });
         await supabase.rpc("finalize_push_delivery_attempt", {
           p_log_id: log.id,
           p_status: "failed",
@@ -1199,6 +1322,18 @@ serve(async (req) => {
         if (provider) acc[provider] = (acc[provider] ?? 0) + 1;
         return acc;
       }, {} as Record<string, number>);
+
+      console.info("[push-sender] delivery attempt", {
+        log_id: log.id,
+        notification_type: log.notification_type,
+        user_id: log.user_id,
+        partido_id: log.partido_id,
+        token_count: activeTokens.length,
+        deduped_token_count: dedupedTokenCount,
+        sendable_token_count: sendableTokens.length,
+        unsupported_provider_count: unsupportedTokens,
+        providers_attempted: providerAttemptedCounts,
+      });
 
       if (sendableTokens.length === 0) {
         await supabase.rpc("finalize_push_delivery_attempt", {
@@ -1319,7 +1454,7 @@ serve(async (req) => {
               responsePayload: null,
             };
           } else {
-            sendRes = await sendApnsToToken(
+            sendRes = await sendApnsToTokenWithFallback(
               apnsCredentials,
               tokenState.authToken,
               tokenRow.token,
@@ -1425,6 +1560,24 @@ serve(async (req) => {
       if (finalStatus === "sent") summary.sent += 1;
       else if (finalStatus === "retryable_failed") summary.retryable_failed += 1;
       else summary.failed += 1;
+
+      console.info("[push-sender] delivery result", {
+        log_id: log.id,
+        notification_type: log.notification_type,
+        user_id: log.user_id,
+        partido_id: log.partido_id,
+        status: finalStatus,
+        sent_count: sentCount,
+        token_count: activeTokens.length,
+        deduped_token_count: dedupedTokenCount,
+        providers_attempted: providerAttemptedCounts,
+        providers_sent: providerSentCounts,
+        providers_failed: providerFailureCounts,
+        retryable_count: retryableCount,
+        invalid_token_count: invalidTokenCount,
+        unsupported_provider_count: unsupportedTokens,
+        error_codes: Array.from(errorCodes).slice(0, 10),
+      });
 
       summary.rows.push({
         id: log.id,
