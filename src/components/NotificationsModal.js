@@ -363,7 +363,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
       case 'survey_reminder_12h': return ClipboardList;
       case 'survey_results_ready': return Trophy;
       case 'awards_ready': return Trophy;
-      case 'survey_finished': return Trophy;
+      case 'survey_finished': return ClipboardList;
       case 'award_won': return Trophy;
       case 'friend_request': return UserPlus;
       case 'friend_accepted': return CheckCircle;
@@ -577,7 +577,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
                 const Icon = getNotificationIcon(notification.type) || User;
                 const isSurveyStartLike = notification.type === 'survey' || notification.type === 'survey_start' || notification.type === 'post_match_survey';
                 const isSurveyReminder = notification.type === 'survey_reminder' || notification.type === 'survey_reminder_12h';
-                const isSurveyResults = notification.type === 'survey_results_ready' || notification.type === 'survey_finished';
+                const isSurveyResults = notification.type === 'survey_results_ready';
                 const isMatchReminder = notification.type === 'match_reminder_1h';
                 const isTeamInvite = notification.type === 'team_invite';
                 const isMatchCancelled = notification.type === 'match_cancelled';
@@ -591,7 +591,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
                   : isSurveyReminder
                     ? 'Recordatorio de encuesta'
                     : isSurveyResults
-                      ? getSurveyResultsReadyMessage({ matchName: quotedMatchName })
+                      ? 'Resultados de encuesta listos'
                       : isMatchReminder
                         ? formatMatchReminderTitle(notification)
                       : isMatchCancelled
@@ -606,7 +606,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
                   : isSurveyReminder
                   ? getSurveyReminderMessage({ source: notification, matchName: quotedMatchName })
                   : isSurveyResults
-                    ? ''
+                    ? getSurveyResultsReadyMessage({ matchName: quotedMatchName })
                     : isMatchReminder
                       ? formatMatchReminderMessage(notification)
                     : isMatchCancelled

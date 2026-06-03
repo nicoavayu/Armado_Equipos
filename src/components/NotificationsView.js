@@ -502,8 +502,6 @@ const NotificationsView = () => {
       case 'call_to_vote':
         return Vote;
       case 'survey_results_ready':
-      case 'survey_finished':
-      case 'awards_ready':
         return Trophy;
       case 'award_won':
         return Trophy;
@@ -598,7 +596,7 @@ const NotificationsView = () => {
   const getDisplayCopy = (notification) => {
     const isSurveyStartLike = notification.type === 'survey' || notification.type === 'survey_start' || notification.type === 'post_match_survey';
     const isSurveyReminder = notification.type === 'survey_reminder' || notification.type === 'survey_reminder_12h';
-    const isSurveyResults = notification.type === 'survey_results_ready' || notification.type === 'survey_finished';
+    const isSurveyResults = notification.type === 'survey_results_ready';
     const isMatchReminder = notification.type === 'match_reminder_1h';
     const isTeamInvite = notification.type === 'team_invite';
     const isMatchCancelled = notification.type === 'match_cancelled';
@@ -612,7 +610,7 @@ const NotificationsView = () => {
       : isSurveyReminder
         ? 'Recordatorio de encuesta'
         : isSurveyResults
-          ? getSurveyResultsReadyMessage({ matchName: quotedMatchName })
+          ? 'Resultados de encuesta listos'
           : isMatchReminder
             ? formatMatchReminderTitle(notification)
           : isMatchCancelled
@@ -627,7 +625,7 @@ const NotificationsView = () => {
       : isSurveyReminder
         ? getSurveyReminderMessage({ source: notification, matchName: quotedMatchName })
         : isSurveyResults
-          ? ''
+          ? getSurveyResultsReadyMessage({ matchName: quotedMatchName })
           : isMatchReminder
             ? formatMatchReminderMessage(notification)
           : isMatchCancelled
@@ -789,7 +787,7 @@ const NotificationsView = () => {
                                 <ItemIcon size={11} />
                               </div>
                               <div className="min-w-0 flex-1">
-                                <div className="text-[12px] font-semibold text-white/90 leading-snug break-words">{title}</div>
+                                <div className="text-[12px] font-semibold text-white/90 leading-tight truncate">{title}</div>
                                 <div className="text-[11px] text-white/70 leading-snug line-clamp-2">{message}</div>
                                 <div className="text-[10px] text-white/50 mt-0.5">{formatDate(item.created_at)}</div>
                               </div>

@@ -302,7 +302,7 @@ const fetchSurveyResultsRow = async ({ supabaseClient, matchId }) => {
   try {
     const { data, error } = await supabaseClient
       .from('survey_results')
-      .select('*')
+      .select('partido_id, results_ready, result_status, awards_status, awards, mvp, golden_glove, dirty_player, red_cards')
       .eq('partido_id', matchId)
       .maybeSingle();
     if (error) return null;

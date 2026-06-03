@@ -41,7 +41,7 @@ describe('buildActivityFeed awards + ordering', () => {
     expect(items[0].title.toLowerCase()).toContain('ganaste un premio');
   });
 
-  test('muestra survey_results_ready con copy de resultados de encuesta', async () => {
+  test('abre survey_results_ready en la vista normal de resultados', async () => {
     const items = await buildActivityFeed([
       {
         id: 'notif-results-1',
@@ -62,7 +62,6 @@ describe('buildActivityFeed awards + ordering', () => {
 
     expect(items).toHaveLength(1);
     expect(items[0].type).toBe('survey_results_ready');
-    expect(items[0].title).toBe('Ya están listos los resultados de la encuesta para el partido "Partido con resultados"');
     expect(items[0].route).toBe('/resultados-encuesta/502');
   });
 

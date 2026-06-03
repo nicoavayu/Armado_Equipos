@@ -1,5 +1,5 @@
 import { SURVEY_FINALIZE_DELAY_MS } from '../config/surveyConfig';
-import { quoteMatchName, sanitizeNotificationMatchName } from './notificationText';
+import { quoteMatchName } from './notificationText';
 
 const HOUR_MS = 60 * 60 * 1000;
 const MINUTE_MS = 60 * 1000;
@@ -120,11 +120,5 @@ export const getSurveyReminderMessage = ({ source = {}, matchName = 'este partid
   return `Recordatorio: la encuesta del partido ${quoteMatchName(matchName, 'este partido')} sigue abierta por tiempo limitado.`;
 };
 
-export const getSurveyResultsReadyMessage = ({ matchName = 'este partido' } = {}) => {
-  const safeMatchName = sanitizeNotificationMatchName(matchName, '');
-  if (!safeMatchName) {
-    return 'Ya están listos los resultados de la encuesta para este partido';
-  }
-
-  return `Ya están listos los resultados de la encuesta para el partido ${quoteMatchName(safeMatchName, safeMatchName)}`;
-};
+export const getSurveyResultsReadyMessage = ({ matchName = 'este partido' } = {}) =>
+  `Ya están listos los resultados de la encuesta del partido ${quoteMatchName(matchName, 'este partido')}.`;

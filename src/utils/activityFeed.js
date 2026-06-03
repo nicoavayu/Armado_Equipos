@@ -4,13 +4,10 @@ import { resolveMatchInviteRoute } from './matchInviteRoute';
 import {
   formatMatchCancelledMessage,
   quoteMatchName,
-  resolveNotificationMatchName,
   resolveNotificationTeamName,
   resolveTeamInviteActorName,
-  sanitizeNotificationMatchName,
 } from './notificationText';
 import {
-  getSurveyResultsReadyMessage,
   getSurveyRemainingLabel,
   isSurveyNotificationClosed,
   resolveSurveyDeadlineAt,
@@ -511,11 +508,12 @@ const compactText = (value = '', maxChars = 42, fallback = '') => {
 
 const compactMatchName = (value, fallback = 'Partido') => compactText(value, 34, fallback);
 const hasUsableMatchName = (value) => {
-  return Boolean(sanitizeNotificationMatchName(value, ''));
+  const normalized = normalizeSpaces(String(value || '')).toLowerCase();
+  return Boolean(normalized) && normalized !== 'partido';
 };
 const getQuotedMatchLabel = (matchName) => (
   hasUsableMatchName(matchName)
-    ? quoteMatchName(matchName, matchName)
+    ? quoteMatchName(matchName, 'este partido')
     : null
 );
 
@@ -550,7 +548,10 @@ const resolveHomeMatchName = (notification, match) => (
     match?.nombre
     || match?.titulo
     || match?.name
-    || resolveNotificationMatchName(notification, '')
+    || notification?.data?.match_name
+    || notification?.data?.partido_nombre
+    || notification?.match_name
+    || notification?.partido_nombre
     || '',
     '',
   )
@@ -860,9 +861,8 @@ const toActivityFromNotification = (group, match, currentUserId) => {
   const teamMatchId = notification?.data?.team_match_id || notification?.data?.teamMatchId || null;
   const numericMatchId = Number(partidoId);
   const resolvedPartidoId = Number.isFinite(numericMatchId) && numericMatchId > 0 ? numericMatchId : undefined;
-  const notificationMatchName = resolveNotificationMatchName(notification, '');
-  const rawMatchName = getMatchDisplayName(match, notificationMatchName || '');
-  const matchName = compactMatchName(sanitizeNotificationMatchName(rawMatchName, ''), 'Partido');
+  const notificationMatchName = notification?.data?.match_name || notification?.data?.partido_nombre || null;
+  const matchName = compactMatchName(getMatchDisplayName(match, notificationMatchName || 'Partido'), 'Partido');
   const quotedMatchName = getQuotedMatchLabel(matchName);
   const dateLabel = formatMatchDate(match);
   const createdAt = notification?.created_at || new Date().toISOString();
@@ -884,7 +884,6 @@ const toActivityFromNotification = (group, match, currentUserId) => {
     icon: 'Bell',
     title: '',
     subtitle: fallbackSubtitle,
-    matchName,
     priority: PRIORITY[type] ?? 99,
     severity: severityForType(type),
     source: 'notification',
@@ -943,7 +942,9 @@ const toActivityFromNotification = (group, match, currentUserId) => {
   }
 
   if (type === 'survey_results_ready') {
-    const resultsTitle = getSurveyResultsReadyMessage({ matchName });
+    const resultsTitle = quotedMatchName
+      ? `Resultados listos para ${quotedMatchName}`
+      : 'Resultados listos';
     return {
       ...base,
       icon: 'Trophy',

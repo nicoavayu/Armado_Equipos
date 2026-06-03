@@ -266,7 +266,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
         data: {
           resultsUrl: item.route,
           match_id: item.partidoId,
-          match_name: item.matchName || null,
+          match_name: item.title || null,
         },
       }, navigate, {
         supabaseClient: supabase,
