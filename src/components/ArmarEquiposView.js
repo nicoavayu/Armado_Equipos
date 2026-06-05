@@ -26,7 +26,7 @@ import { useNativeFeatures } from '../hooks/useNativeFeatures';
 import { sendVotingNotifications } from '../services/notificationService';
 import { requestImmediatePushDispatchSafe } from '../services/pushDispatchService';
 import ConfirmModal from '../components/ConfirmModal';
-import { buildBalancedTeams } from '../utils/teamBalancer';
+import { buildBalancedTeams, splitMatchPlayersForVotingAndTeams } from '../utils/teamBalancer';
 import { MoreVertical, RotateCcw } from 'lucide-react';
 
 const INVITE_ACCEPT_BUTTON_VIOLET = '#644dff';
@@ -763,24 +763,29 @@ export default function ArmarEquiposView({
       return;
     }
 
-    if (!jugadores || jugadores.length === 0) {
+    const {
+      allPlayers,
+      teamPlayers,
+    } = splitMatchPlayersForVotingAndTeams(jugadores);
+
+    if (allPlayers.length === 0) {
       showInlineNotice('warning', 'No hay jugadores en el partido.');
       return;
     }
 
-    if (jugadores.length < 2) {
-      showInlineNotice('warning', 'Se necesitan al menos 2 jugadores.');
+    if (teamPlayers.length < 2) {
+      showInlineNotice('warning', 'Faltan jugadores titulares para armar equipos. Promové un suplente o agregá titulares.');
       return;
     }
 
-    if (jugadores.length % 2 !== 0) {
-      showInlineNotice('warning', 'Se necesita un número par de jugadores para formar equipos.');
+    if (teamPlayers.length % 2 !== 0) {
+      showInlineNotice('warning', 'Se necesita un número par de titulares para formar equipos.');
       return;
     }
 
-    const invalidPlayers = jugadores.filter((j) => !j.uuid);
+    const invalidPlayers = teamPlayers.filter((j) => !j.uuid);
     if (invalidPlayers.length > 0) {
-      showInlineNotice('warning', 'Hay jugadores sin ID válido.');
+      showInlineNotice('warning', 'Hay titulares sin ID válido.');
       return;
     }
 
@@ -801,8 +806,17 @@ export default function ArmarEquiposView({
         throw new Error('No se pudieron obtener los jugadores actualizados');
       }
 
-      const starterPlayers = (matchPlayers || []).filter((player) => player?.is_substitute !== true);
-      const playersForTeams = starterPlayers.length > 0 ? starterPlayers : matchPlayers;
+      const {
+        teamPlayers: playersForTeams,
+      } = splitMatchPlayersForVotingAndTeams(matchPlayers);
+
+      if (playersForTeams.length < 2) {
+        throw new Error('Faltan jugadores titulares para armar equipos. Promové un suplente o agregá titulares.');
+      }
+
+      if (playersForTeams.length % 2 !== 0) {
+        throw new Error('Se necesita un número par de titulares para formar equipos.');
+      }
 
       // Crear equipos balanceados
       const teams = armarEquipos(playersForTeams);

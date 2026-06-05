@@ -2,6 +2,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { schedulePostMatchNotification } from '../notificationService';
 import { incrementPartidosAbandonados } from '../matchStatsService';
 import { requestImmediatePushDispatch } from '../pushDispatchService';
+import { splitMatchPlayersForVotingAndTeams } from '../../utils/teamBalancer';
 
 const generateMatchCode = (length = 6) => {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -1060,8 +1061,10 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
       return { message: 'No hay jugadores para actualizar.' };
     }
 
-    const titulares = (jugadores || []).filter((jugador) => jugador?.is_substitute !== true);
-    const jugadoresComputables = titulares.length > 0 ? titulares : (jugadores || []);
+    const {
+      votablePlayers: jugadoresComputables,
+      voters,
+    } = splitMatchPlayersForVotingAndTeams(jugadores || []);
     const votesByPlayer = {};
     const goalkeepers = new Set();
     let totalValidVotes = 0;
@@ -1082,27 +1085,28 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
       .toLowerCase()
       .trim();
 
-    const starterIdentityRefs = new Set();
-    const starterNameRefs = new Set();
-    for (const jugador of jugadoresComputables || []) {
+    const voterIdentityRefs = new Set();
+    const voterNameRefs = new Set();
+    const voterIdentityMaps = buildMatchPlayerIdentityMaps(voters || []);
+    for (const jugador of voters || []) {
       const userId = normalizeIdentityValue(jugador?.usuario_id);
       const uuid = normalizeIdentityValue(jugador?.uuid);
       const numericId = normalizeIdentityValue(jugador?.id);
       const normalizedName = normalizeRosterName(jugador?.nombre);
-      if (userId) starterIdentityRefs.add(userId);
-      if (uuid) starterIdentityRefs.add(uuid);
-      if (numericId) starterIdentityRefs.add(numericId);
-      if (normalizedName) starterNameRefs.add(normalizedName);
+      if (userId) voterIdentityRefs.add(userId);
+      if (uuid) voterIdentityRefs.add(uuid);
+      if (numericId) voterIdentityRefs.add(numericId);
+      if (normalizedName) voterNameRefs.add(normalizedName);
     }
 
     const isEligibleAuthenticatedVoter = (rawVoterId) => {
       const voterId = normalizeIdentityValue(rawVoterId);
       if (!voterId) return false;
-      if (starterIdentityRefs.has(voterId)) return true;
-      if (identityMaps.byUuid.has(voterId)) return true;
-      if (identityMaps.byUserId.has(voterId)) return true;
+      if (voterIdentityRefs.has(voterId)) return true;
+      if (voterIdentityMaps.byUuid.has(voterId)) return true;
+      if (voterIdentityMaps.byUserId.has(voterId)) return true;
       const numericId = Number(voterId);
-      if (Number.isFinite(numericId) && identityMaps.byNumericId.has(numericId)) return true;
+      if (Number.isFinite(numericId) && voterIdentityMaps.byNumericId.has(numericId)) return true;
       return false;
     };
 
@@ -1115,7 +1119,7 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
         || '',
       );
       if (!normalizedName) return true;
-      return starterNameRefs.has(normalizedName);
+      return voterNameRefs.has(normalizedName);
     };
 
     // Process regular votes (uuid/user-id based)
@@ -1236,7 +1240,7 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
       );
     }
 
-    // Hard guard: only rows emitted by current starters are considered for blocking closure.
+    // Hard guard: only rows emitted by current active voters are considered for blocking closure.
     if (totalRelevantPersistedRows > 0 && totalValidVotes <= 0) {
       throw new Error(
         `No hay votos válidos guardados para cerrar la votación. ` +

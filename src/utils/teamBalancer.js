@@ -69,6 +69,8 @@ const normalizePlayers = ({
   const unique = [];
 
   (players || []).forEach((player) => {
+    if (player?.is_substitute === true) return;
+
     const rawKey = getPlayerKey(player);
     const normalizedKey = String(rawKey || '').trim();
     const nameKey = normalizeTextKey(getPlayerName(player));
@@ -236,5 +238,25 @@ export const buildBalancedTeams = ({
         score: teamBScore,
       },
     ],
+  };
+};
+
+export const splitMatchPlayersForVotingAndTeams = (players = []) => {
+  const allPlayers = Array.isArray(players) ? players : [];
+  const activePlayers = allPlayers.filter((player) => player?.is_substitute !== true);
+  const substitutePlayers = allPlayers.filter((player) => player?.is_substitute === true);
+  const droppedPlayers = [];
+  const voters = activePlayers;
+  const votablePlayers = allPlayers;
+  const teamPlayers = activePlayers;
+
+  return {
+    allPlayers,
+    activePlayers,
+    substitutePlayers,
+    droppedPlayers,
+    voters,
+    votablePlayers,
+    teamPlayers,
   };
 };
