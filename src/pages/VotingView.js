@@ -38,6 +38,7 @@ const DEBUG = false;
 const VOTE_CARD_BG_BLUE = '#07163b';
 const VOTE_CARD_STROKE_BLUE = 'rgba(41, 170, 255, 0.9)';
 const VOTE_CARD_GLOW_BLUE = '0 0 9px rgba(41, 170, 255, 0.24)';
+const SUBSTITUTE_VOTER_MESSAGE = 'Estás como suplente. Podés ser calificado por los titulares, pero no necesitás votar salvo que pases a la nómina titular.';
 
 
 export default function VotingView({ onReset, onCancel, jugadores, partidoActual }) {
@@ -691,9 +692,14 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
     }
 
     if (isPublicRoute) {
+      const selectedPublicPlayer = jugadoresIdentificacion.find((j) => j.nombre === nombre);
       const allowedNames = new Set(jugadoresIdentificacion.map((j) => j.nombre));
       if (!allowedNames.has(nombre)) {
         showInlineNotice('warning', 'Seleccioná un jugador invitado (sin cuenta).');
+        return;
+      }
+      if (selectedPublicPlayer?.is_substitute === true) {
+        showInlineNotice('info', SUBSTITUTE_VOTER_MESSAGE);
         return;
       }
 
@@ -1188,6 +1194,11 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
               if (hasAccess === false && !isPublicVoting) {
                 console.error('[Vote] error', { message: 'Access denied', code: ERROR_CODES.ACCESS_DENIED });
                 handleError(new AppError('No tienes permiso para votar en este partido.', ERROR_CODES.ACCESS_DENIED), { showToast: true, onError: () => { } });
+                return;
+              }
+
+              if (jugador?.is_substitute === true) {
+                showInlineNotice('info', SUBSTITUTE_VOTER_MESSAGE);
                 return;
               }
 

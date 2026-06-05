@@ -165,7 +165,7 @@ describe('closeVotingAndCalculateScores - suplentes', () => {
     mockSupabaseApi = buildSupabaseMock(state);
   });
 
-  test('suplente vota y no bloquea cierre', async () => {
+  test('voto emitido por suplente no pesa y no bloquea cierre', async () => {
     state.tables.jugadores = baseRoster({ sub3: true });
     state.tables.votos = [
       { id: 101, partido_id: 500, votante_id: 'user-3', votado_id: 'user-1', puntaje: 9 },
@@ -173,12 +173,14 @@ describe('closeVotingAndCalculateScores - suplentes', () => {
 
     const result = await closeVotingAndCalculateScores(500);
 
-    expect(result.playersTotal).toBe(2);
+    expect(result.playersTotal).toBe(3);
     expect(result.votesProcessed).toBe(0);
-    expect(state.updates.filter((u) => u.table === 'jugadores')).toHaveLength(2);
+    expect(state.updates.filter((u) => u.table === 'jugadores')).toHaveLength(3);
+    const titularUno = state.tables.jugadores.find((player) => player.uuid === 'uuid-1');
+    expect(titularUno.score).toBe(5);
   });
 
-  test('votos de suplentes no entran al score (solo titulares)', async () => {
+  test('votos emitidos por suplentes se ignoran aunque el destino sea titular', async () => {
     state.tables.jugadores = baseRoster({ sub3: true });
     state.tables.votos = [
       { id: 102, partido_id: 500, votante_id: 'user-2', votado_id: 'user-1', puntaje: 10 },
@@ -191,16 +193,16 @@ describe('closeVotingAndCalculateScores - suplentes', () => {
     expect(titularUno.score).toBe(10);
   });
 
-  test('jugador que pasa de titular a suplente deja de contar', async () => {
+  test('jugador suplente mantiene promedio disponible si fue votado', async () => {
     state.tables.jugadores = baseRoster({ sub2: true, sub3: true });
     state.tables.votos = [
-      { id: 104, partido_id: 500, votante_id: 'user-2', votado_id: 'user-1', puntaje: 8 },
+      { id: 104, partido_id: 500, votante_id: 'user-1', votado_id: 'user-2', puntaje: 8 },
     ];
 
     await closeVotingAndCalculateScores(500);
 
-    const titularUno = state.tables.jugadores.find((player) => player.uuid === 'uuid-1');
-    expect(titularUno.score).toBe(5);
+    const suplenteDos = state.tables.jugadores.find((player) => player.uuid === 'uuid-2');
+    expect(suplenteDos.score).toBe(8);
   });
 
   test('jugador que pasa de suplente a titular vuelve a contar', async () => {
