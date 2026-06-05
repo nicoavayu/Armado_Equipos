@@ -336,9 +336,15 @@ export const updateJugadoresPartido = async (partidoId, nuevosJugadores) => {
  * @returns {Promise<Object>}
  */
 export const crearPartido = async (partidoData) => {
+  const nombre = String(partidoData?.nombre ?? '').trim();
+  if (!nombre) {
+    throw new Error('Poné un nombre para el partido.');
+  }
+
   let attempts = 0;
   let payload = {
     ...partidoData,
+    nombre,
     codigo: String(partidoData?.codigo || '').trim() || generateMatchCode(),
   };
 

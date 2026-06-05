@@ -31,6 +31,8 @@ const SECONDARY_ACTION_BUTTON_CLASS = 'w-full h-[52px] mt-4 mb-0 rounded-none bo
 const SEGMENT_BUTTON_BASE_CLASS = 'h-[44px] px-2 text-[16px] font-semibold font-oswald rounded-none transition-all border flex items-center justify-center';
 const CONFIRM_ITEM_CLASS = 'bg-[linear-gradient(160deg,rgba(31,38,86,0.86),rgba(16,24,60,0.94))] border border-[rgba(108,126,196,0.46)] backdrop-blur-md rounded-none p-4 mb-3 flex justify-between items-center text-white font-sans shadow-[0_12px_24px_rgba(4,10,28,0.35)]';
 const EDIT_ITEM_BUTTON_CLASS = 'bg-[rgba(26,37,83,0.95)] border border-[rgba(106,126,202,0.52)] text-white px-3 py-1.5 rounded-none text-xs font-semibold cursor-pointer transition-all font-oswald hover:bg-[rgba(39,53,110,0.98)] hover:border-[rgba(140,158,228,0.7)]';
+const FORM_ERROR_CLASS = 'w-full border border-[#fbbf24]/70 bg-[#f59e0b]/15 text-[#fff7ed] text-sm font-sans px-3 py-2 mt-2';
+const MATCH_NAME_REQUIRED_MESSAGE = 'Poné un nombre para el partido.';
 const STEP_TITLE_STYLE = {
   color: '#fff',
   textAlign: 'left',
@@ -62,7 +64,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
   // NEW: optional campo para valor de cancha por persona (UI-only)
   const [valorCancha, setValorCancha] = useState('');
   const [loading, setLoading] = useState(false);
-  const [_error, setError] = useState('');
+  const [error, setError] = useState('');
   const [_animation, setAnimation] = useState('slide-in');
   const [editMode, setEditMode] = useState(false);
 
@@ -74,6 +76,8 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
   const progressCurrentStep = Math.min(Math.max(step, STEPS.NAME), STEPS.CONFIRM);
   const progressFillPercent = Math.round((progressCurrentStep / STEPS.CONFIRM) * 100);
   const [animatedProgressPercent, setAnimatedProgressPercent] = useState(progressFillPercent);
+  const trimmedNombrePartido = nombrePartido.trim();
+  const isMatchNameValid = Boolean(trimmedNombrePartido);
 
   useScrollResetOnChange(step);
 
@@ -213,6 +217,17 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
   };
 
   const handleSubmit = async () => {
+    if (!isMatchNameValid) {
+      setError(MATCH_NAME_REQUIRED_MESSAGE);
+      showInlineNotice({
+        key: 'new_match_missing_name',
+        type: 'warning',
+        message: MATCH_NAME_REQUIRED_MESSAGE,
+      });
+      setStep(STEPS.NAME);
+      return;
+    }
+
     setLoading(true);
     setError('');
     // Snapshot the toggle now to avoid stale closures — strict boolean check
@@ -231,7 +246,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
       const match_ref = uuidv4();
       const payload = {
         match_ref,
-        nombre: nombrePartido.trim(),
+        nombre: trimmedNombrePartido,
         fecha,
         hora: hora.trim(),
         ...buildMatchLocationFields({
@@ -376,9 +391,20 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
                 type="text"
                 placeholder="Ej: Partido del Viernes"
                 value={nombrePartido}
-                onChange={(e) => setNombrePartido(e.target.value)}
+                onChange={(e) => {
+                  setNombrePartido(e.target.value);
+                  if (error && e.target.value.trim()) setError('');
+                }}
+                autoComplete="off"
+                autoCorrect="off"
+                spellCheck={false}
                 autoFocus
               />
+              {error ? (
+                <div role="alert" className={FORM_ERROR_CLASS}>
+                  {error}
+                </div>
+              ) : null}
             </div>
 
             {/* Selector de modalidad */}
@@ -434,7 +460,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
             </div>
             <button
               className={`${PRIMARY_ACTION_BUTTON_CLASS} mb-3`}
-              disabled={!nombrePartido.trim()}
+              disabled={!isMatchNameValid}
               onClick={editMode ? saveAndReturn : nextStep}
             >
               {editMode ? 'Guardar' : 'Continuar'}
@@ -797,10 +823,28 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
             </div>
 
             <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
-              <button className={PRIMARY_ACTION_BUTTON_CLASS} onClick={handleSubmit} disabled={loading}>
+              <button className={PRIMARY_ACTION_BUTTON_CLASS} onClick={handleSubmit} disabled={loading || !isMatchNameValid}>
                 {loading ? 'Creando…' : 'Crear partido'}
               </button>
             </div>
+            {!isMatchNameValid ? (
+              <div role="alert" className={FORM_ERROR_CLASS}>
+                {MATCH_NAME_REQUIRED_MESSAGE}
+              </div>
+            ) : error ? (
+              <div role="alert" className={FORM_ERROR_CLASS}>
+                {error}
+              </div>
+            ) : notice?.message ? (
+              <div className="mt-2">
+                <InlineNotice
+                  type={notice?.type}
+                  message={notice?.message}
+                  autoHideMs={notice?.type === 'warning' ? null : 3000}
+                  onClose={clearInlineNotice}
+                />
+              </div>
+            ) : null}
           </div>
         </div>
       </div >
