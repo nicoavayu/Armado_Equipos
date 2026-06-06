@@ -46,6 +46,19 @@ const MATCH_STATE_CANCELLED = 'cancelado';
 
 const normalizeRef = (value) => String(value || '').trim().toLowerCase();
 
+const traceMeasure = async (trace, label, fn, details = {}) => {
+  if (trace && typeof trace.measure === 'function') {
+    return trace.measure(label, fn, details);
+  }
+  return fn();
+};
+
+const traceMark = (trace, label, details = {}) => {
+  if (trace && typeof trace.mark === 'function') {
+    trace.mark(label, details);
+  }
+};
+
 export const normalizeSurveyPlayerIds = (values = []) => {
   const input = Array.isArray(values) ? values : [values];
   return [...new Set(
@@ -1218,6 +1231,7 @@ const fetchSurveyConfirmationRow = async (partidoId) => {
 export async function ensureSurveyWindowOpen(partidoId, options = {}) {
   const idNum = Number(partidoId);
   const persistLifecycle = options?.persistLifecycle !== false;
+  const trace = options?.trace || null;
   if (!Number.isFinite(idNum) || idNum <= 0) {
     return {
       openedAt: null,
@@ -1233,19 +1247,35 @@ export async function ensureSurveyWindowOpen(partidoId, options = {}) {
   }
 
   const nowIso = options?.nowIso || new Date().toISOString();
-  const { data: rosterRows, error: rosterErr } = await supabase
-    .from('jugadores')
-    .select('id, usuario_id, uuid, nombre, is_substitute')
-    .eq('partido_id', idNum);
+  const { data: rosterRows, error: rosterErr } = await traceMeasure(
+    trace,
+    'finalize.ensureSurveyWindowOpen.fetch_roster',
+    () => supabase
+      .from('jugadores')
+      .select('id, usuario_id, uuid, nombre, is_substitute')
+      .eq('partido_id', idNum),
+  );
 
   if (rosterErr) {
     console.error('[FINALIZE] error fetching roster rows', { partidoId: idNum, rosterErr });
     throw rosterErr;
   }
 
-  const lifecycleRow = await fetchSurveyLifecycleRow(idNum);
-  const rosterContextRow = await fetchSurveyRosterContextRow(idNum);
-  const teamMatchRow = await fetchSurveyTeamMatchContext(idNum);
+  const lifecycleRow = await traceMeasure(
+    trace,
+    'finalize.ensureSurveyWindowOpen.fetch_lifecycle',
+    () => fetchSurveyLifecycleRow(idNum),
+  );
+  const rosterContextRow = await traceMeasure(
+    trace,
+    'finalize.ensureSurveyWindowOpen.fetch_roster_context',
+    () => fetchSurveyRosterContextRow(idNum),
+  );
+  const teamMatchRow = await traceMeasure(
+    trace,
+    'finalize.ensureSurveyWindowOpen.fetch_team_match',
+    () => fetchSurveyTeamMatchContext(idNum),
+  );
   if (isChallengeLikeTeamMatchRow(teamMatchRow)) {
     return {
       openedAt: null,
@@ -1262,14 +1292,22 @@ export async function ensureSurveyWindowOpen(partidoId, options = {}) {
     };
   }
 
-  const confirmationRow = await fetchSurveyConfirmationRow(idNum);
-  const eligibility = await resolveChallengeSurveyEligibleUsers({
-    matchId: teamMatchRow?.id || null,
-    rosterRows: rosterRows || [],
-    teamMatchRow,
-    matchRow: rosterContextRow ? { ...(lifecycleRow || {}), ...rosterContextRow } : lifecycleRow,
-    confirmationRow,
-  });
+  const confirmationRow = await traceMeasure(
+    trace,
+    'finalize.ensureSurveyWindowOpen.fetch_team_confirmation',
+    () => fetchSurveyConfirmationRow(idNum),
+  );
+  const eligibility = await traceMeasure(
+    trace,
+    'finalize.ensureSurveyWindowOpen.resolve_eligible_users',
+    () => resolveChallengeSurveyEligibleUsers({
+      matchId: teamMatchRow?.id || null,
+      rosterRows: rosterRows || [],
+      teamMatchRow,
+      matchRow: rosterContextRow ? { ...(lifecycleRow || {}), ...rosterContextRow } : lifecycleRow,
+      confirmationRow,
+    }),
+  );
   const eligibleRoster = buildEligibleRosterMap(rosterRows || [], {
     eligibleUserIds: eligibility?.eligibleUserIds || [],
   });
@@ -1324,16 +1362,20 @@ export async function ensureSurveyWindowOpen(partidoId, options = {}) {
 
   if (persistLifecycle && shouldPersistOpenWindow) {
     try {
-      await supabase
-        .from('partidos')
-        .update({
-          survey_status: SURVEY_STATUS_OPEN,
-          survey_opened_at: openedAt,
-          survey_closes_at: closesAt,
-          survey_expected_voters: expectedVoters,
-        })
-        .eq('id', idNum)
-        .neq('survey_status', SURVEY_STATUS_CLOSED);
+      await traceMeasure(
+        trace,
+        'finalize.ensureSurveyWindowOpen.persist_open_window',
+        () => supabase
+          .from('partidos')
+          .update({
+            survey_status: SURVEY_STATUS_OPEN,
+            survey_opened_at: openedAt,
+            survey_closes_at: closesAt,
+            survey_expected_voters: expectedVoters,
+          })
+          .eq('id', idNum)
+          .neq('survey_status', SURVEY_STATUS_CLOSED),
+      );
     } catch (_persistError) {
       // Non-blocking fallback for environments that don't have survey lifecycle columns yet.
     }
@@ -1345,20 +1387,29 @@ export async function ensureSurveyWindowOpen(partidoId, options = {}) {
     // Keep expected voters monotonic upward while open.
     // We never touch closes_at here and never decrease expected.
     try {
-      await supabase
-        .from('partidos')
-        .update({
-          survey_expected_voters: expectedVoters,
-        })
-        .eq('id', idNum)
-        .eq('survey_status', SURVEY_STATUS_OPEN)
-        .lt('survey_expected_voters', expectedVoters);
+      await traceMeasure(
+        trace,
+        'finalize.ensureSurveyWindowOpen.bump_expected_voters',
+        () => supabase
+          .from('partidos')
+          .update({
+            survey_expected_voters: expectedVoters,
+          })
+          .eq('id', idNum)
+          .eq('survey_status', SURVEY_STATUS_OPEN)
+          .lt('survey_expected_voters', expectedVoters),
+      );
     } catch (_bumpError) {
       // Non-blocking.
     }
   }
 
-  const submittedUsers = await getDistinctSubmittedEligibleVoters(idNum, eligibleRoster.byPlayerId);
+  const submittedUsers = await traceMeasure(
+    trace,
+    'finalize.ensureSurveyWindowOpen.fetch_submitted_voters',
+    () => getDistinctSubmittedEligibleVoters(idNum, eligibleRoster.byPlayerId),
+    { expectedVoters },
+  );
   const submittedVoters = submittedUsers.size;
   const remainingVotes = Math.max(expectedVoters - submittedVoters, 0);
   const closesAtMs = new Date(closesAt).getTime();
@@ -1388,12 +1439,21 @@ export async function ensureSurveyWindowOpen(partidoId, options = {}) {
 
 export async function finalizeIfComplete(partidoId, options = {}) {
   const SKIP_SIDE_EFFECTS = options.skipSideEffects === true;
+  const trace = options?.trace || null;
   const idNum = Number(partidoId);
   if (!Number.isFinite(idNum) || idNum <= 0) {
     throw new Error('invalid_partido_id');
   }
 
-  const teamMatchRow = await fetchSurveyTeamMatchContext(idNum);
+  traceMark(trace, 'finalize.start', {
+    skipSideEffects: SKIP_SIDE_EFFECTS,
+  });
+
+  const teamMatchRow = await traceMeasure(
+    trace,
+    'finalize.fetch_team_match_context',
+    () => fetchSurveyTeamMatchContext(idNum),
+  );
   if (isChallengeLikeTeamMatchRow(teamMatchRow)) {
     return {
       done: false,
@@ -1412,11 +1472,15 @@ export async function finalizeIfComplete(partidoId, options = {}) {
   let lifecycleAfterClose = null;
 
   try {
-    const { data: partidoMeta } = await supabase
-      .from('partidos')
-      .select('nombre')
-      .eq('id', idNum)
-      .maybeSingle();
+    const { data: partidoMeta } = await traceMeasure(
+      trace,
+      'finalize.fetch_partido_meta',
+      () => supabase
+        .from('partidos')
+        .select('nombre')
+        .eq('id', idNum)
+        .maybeSingle(),
+    );
     if (partidoMeta?.nombre) {
       partidoNombre = partidoMeta.nombre;
     }
@@ -1426,12 +1490,20 @@ export async function finalizeIfComplete(partidoId, options = {}) {
 
   // Phase 1 snapshot (best-effort): keep historical participants/equipos frozen as early as possible.
   try {
-    await ensureParticipantsSnapshot(idNum);
+    await traceMeasure(
+      trace,
+      'finalize.ensure_participants_snapshot',
+      () => ensureParticipantsSnapshot(idNum),
+    );
   } catch (_snapshotError) {
     // Non-blocking.
   }
 
-  const surveyWindow = await ensureSurveyWindowOpen(idNum, { nowIso });
+  const surveyWindow = await traceMeasure(
+    trace,
+    'finalize.ensure_survey_window_open',
+    () => ensureSurveyWindowOpen(idNum, { nowIso, trace }),
+  );
   const {
     openedAt,
     closesAt,
@@ -1442,10 +1514,27 @@ export async function finalizeIfComplete(partidoId, options = {}) {
     deadlineReached,
     allEligibleVoted,
   } = surveyWindow;
+  traceMark(trace, 'finalize.survey_window_state', {
+    expectedVoters,
+    submittedVoters,
+    remainingVotes,
+    surveyStatus,
+    deadlineReached,
+    allEligibleVoted,
+    lastVoterClosureCandidate: allEligibleVoted === true && deadlineReached !== true,
+  });
 
   if (surveyStatus === SURVEY_STATUS_CLOSED) {
-    const lifecycle = await fetchSurveyLifecycleRow(idNum);
-    const surveyResultsRow = await fetchSurveyResultsRowForMatch(idNum);
+    const lifecycle = await traceMeasure(
+      trace,
+      'finalize.closed_recovery.fetch_lifecycle',
+      () => fetchSurveyLifecycleRow(idNum),
+    );
+    const surveyResultsRow = await traceMeasure(
+      trace,
+      'finalize.closed_recovery.fetch_survey_results',
+      () => fetchSurveyResultsRowForMatch(idNum),
+    );
     const recoveryState = deriveClosedSurveyRecoveryState({
       lifecycle,
       surveyResultsRow,
@@ -1453,15 +1542,28 @@ export async function finalizeIfComplete(partidoId, options = {}) {
 
     if (!recoveryState.shouldRecover) {
       if (!SKIP_SIDE_EFFECTS) {
-        await ensureNoShowRankingSafe(idNum, { emitNotifications: false });
+        await traceMeasure(
+          trace,
+          'finalize.closed_recovery.ensure_no_show_ranking',
+          () => ensureNoShowRankingSafe(idNum, { emitNotifications: false }),
+          { emitNotifications: false },
+        );
       }
+      traceMark(trace, 'finalize.return_already_closed', {
+        expectedVoters,
+        submittedVoters,
+      });
       return {
         done: true,
         alreadyClosed: true,
+        closedByThisCall: false,
         expectedVoters,
         submissionsCount: submittedVoters,
         remainingVotes: 0,
         deadlineAt: closesAt,
+        deadlineReached,
+        allEligibleVoted,
+        triggeredByLastVoter: false,
         closedAt: lifecycle?.finished_at || null,
         result_status: normalizeResultStatusValue(lifecycle?.result_status) || RESULT_STATUS_PENDING,
         winner_team: normalizeWinnerTeamValue(lifecycle?.winner_team) || null,
@@ -1478,17 +1580,32 @@ export async function finalizeIfComplete(partidoId, options = {}) {
     expectedVoters,
     deadlineReached,
   })) {
+    traceMark(trace, 'finalize.return_open', {
+      expectedVoters,
+      submittedVoters,
+      remainingVotes,
+      deadlineReached,
+      allEligibleVoted,
+    });
     return {
       done: false,
       expectedVoters,
       submissionsCount: submittedVoters,
       remainingVotes,
       deadlineAt: closesAt,
+      deadlineReached,
+      allEligibleVoted,
+      closedByThisCall: false,
+      triggeredByLastVoter: false,
       survey_status: SURVEY_STATUS_OPEN,
     };
   }
 
-  const results = await computeResultsAverages(idNum);
+  const results = await traceMeasure(
+    trace,
+    'finalize.compute_results',
+    () => computeResultsAverages(idNum),
+  );
   const computedStatus = normalizeResultStatusValue(results?.result_status) || RESULT_STATUS_PENDING;
   const computedWinner = normalizeWinnerTeamValue(results?.winner_team) || null;
   const computedFinishedAt = computedStatus === RESULT_STATUS_PENDING
@@ -1497,82 +1614,97 @@ export async function finalizeIfComplete(partidoId, options = {}) {
 
   let closedByThisCall = shouldBackfillClosedLifecycle;
   if (!shouldBackfillClosedLifecycle) {
-    try {
-      const rpcClose = await closeSurveyLifecycleViaRpc({
-        partidoId: idNum,
-        openedAt: openedAt || nowIso,
-        closesAt: closesAt || addDurationMs(nowIso, SURVEY_FINALIZE_DELAY_MS),
-        expectedVoters,
-        resultStatus: computedStatus,
-        winnerTeam: computedWinner,
-        finishedAt: computedFinishedAt,
-      });
+    await traceMeasure(
+      trace,
+      'finalize.close_lifecycle',
+      async () => {
+        try {
+          const rpcClose = await closeSurveyLifecycleViaRpc({
+            partidoId: idNum,
+            openedAt: openedAt || nowIso,
+            closesAt: closesAt || addDurationMs(nowIso, SURVEY_FINALIZE_DELAY_MS),
+            expectedVoters,
+            resultStatus: computedStatus,
+            winnerTeam: computedWinner,
+            finishedAt: computedFinishedAt,
+          });
 
-      if (rpcClose?.supported === true) {
-        if (rpcClose?.success !== true) {
-          throw new Error(`finalize_match_survey_closure_failed:${rpcClose?.reason || 'unknown'}`);
-        }
-        closedByThisCall = rpcClose.closedByThisCall === true;
-        lifecycleAfterClose = rpcClose.lifecycle || null;
-      } else {
-        const closePayload = {
-          estado: resolveMatchStateFromResultStatus(computedStatus),
-          survey_status: SURVEY_STATUS_CLOSED,
-          survey_opened_at: openedAt || nowIso,
-          survey_closes_at: closesAt || addDurationMs(nowIso, SURVEY_FINALIZE_DELAY_MS),
-          survey_expected_voters: expectedVoters,
-          result_status: computedStatus,
-          winner_team: computedWinner,
-          finished_at: computedFinishedAt,
-        };
-
-        const { data: closeRow, error: closeErr } = await supabase
-          .from('partidos')
-          .update(closePayload)
-          .eq('id', idNum)
-          .eq('survey_status', SURVEY_STATUS_OPEN)
-          .select('id')
-          .maybeSingle();
-
-        if (closeErr) {
-          const missingLifecycleCols = isMissingColumnError(closeErr, [
-            'survey_status',
-            'survey_opened_at',
-            'survey_closes_at',
-            'survey_expected_voters',
-          ]);
-          if (!missingLifecycleCols) throw closeErr;
-
-          // Legacy fallback (non-atomic): keep closure fields coherent where new columns are unavailable.
-          const { error: legacyCloseErr } = await supabase
-            .from('partidos')
-            .update({
+          if (rpcClose?.supported === true) {
+            if (rpcClose?.success !== true) {
+              throw new Error(`finalize_match_survey_closure_failed:${rpcClose?.reason || 'unknown'}`);
+            }
+            closedByThisCall = rpcClose.closedByThisCall === true;
+            lifecycleAfterClose = rpcClose.lifecycle || null;
+          } else {
+            const closePayload = {
               estado: resolveMatchStateFromResultStatus(computedStatus),
+              survey_status: SURVEY_STATUS_CLOSED,
+              survey_opened_at: openedAt || nowIso,
+              survey_closes_at: closesAt || addDurationMs(nowIso, SURVEY_FINALIZE_DELAY_MS),
+              survey_expected_voters: expectedVoters,
               result_status: computedStatus,
               winner_team: computedWinner,
               finished_at: computedFinishedAt,
-            })
-            .eq('id', idNum)
-            .is('finished_at', null);
-          if (legacyCloseErr && !isMissingColumnError(legacyCloseErr, ['result_status', 'winner_team', 'finished_at'])) {
-            throw legacyCloseErr;
+            };
+
+            const { data: closeRow, error: closeErr } = await supabase
+              .from('partidos')
+              .update(closePayload)
+              .eq('id', idNum)
+              .eq('survey_status', SURVEY_STATUS_OPEN)
+              .select('id')
+              .maybeSingle();
+
+            if (closeErr) {
+              const missingLifecycleCols = isMissingColumnError(closeErr, [
+                'survey_status',
+                'survey_opened_at',
+                'survey_closes_at',
+                'survey_expected_voters',
+              ]);
+              if (!missingLifecycleCols) throw closeErr;
+
+              // Legacy fallback (non-atomic): keep closure fields coherent where new columns are unavailable.
+              const { error: legacyCloseErr } = await supabase
+                .from('partidos')
+                .update({
+                  estado: resolveMatchStateFromResultStatus(computedStatus),
+                  result_status: computedStatus,
+                  winner_team: computedWinner,
+                  finished_at: computedFinishedAt,
+                })
+                .eq('id', idNum)
+                .is('finished_at', null);
+              if (legacyCloseErr && !isMissingColumnError(legacyCloseErr, ['result_status', 'winner_team', 'finished_at'])) {
+                throw legacyCloseErr;
+              }
+              closedByThisCall = true;
+            } else {
+              closedByThisCall = Boolean(closeRow?.id);
+            }
           }
-          closedByThisCall = true;
-        } else {
-          closedByThisCall = Boolean(closeRow?.id);
+          return { closedByThisCall };
+        } catch (error) {
+          console.error('[FINALIZE] close guard failed', { partidoId: idNum, error });
+          throw error;
         }
       }
-    } catch (error) {
-      console.error('[FINALIZE] close guard failed', { partidoId: idNum, error });
-      throw error;
-    }
+    );
   }
 
   if (!closedByThisCall) {
-    const lifecycle = lifecycleAfterClose || await fetchSurveyLifecycleRow(idNum);
+    const lifecycle = lifecycleAfterClose || await traceMeasure(
+      trace,
+      'finalize.post_close.fetch_lifecycle',
+      () => fetchSurveyLifecycleRow(idNum),
+    );
     const latestStatus = normalizeSurveyStatusValue(lifecycle?.survey_status);
     if (latestStatus === SURVEY_STATUS_CLOSED) {
-      const surveyResultsRow = await fetchSurveyResultsRowForMatch(idNum);
+      const surveyResultsRow = await traceMeasure(
+        trace,
+        'finalize.post_close.fetch_survey_results',
+        () => fetchSurveyResultsRowForMatch(idNum),
+      );
       const recoveryState = deriveClosedSurveyRecoveryState({
         lifecycle,
         surveyResultsRow,
@@ -1580,15 +1712,28 @@ export async function finalizeIfComplete(partidoId, options = {}) {
 
       if (!recoveryState.shouldRecover) {
         if (!SKIP_SIDE_EFFECTS) {
-          await ensureNoShowRankingSafe(idNum, { emitNotifications: false });
+          await traceMeasure(
+            trace,
+            'finalize.post_close.ensure_no_show_ranking',
+            () => ensureNoShowRankingSafe(idNum, { emitNotifications: false }),
+            { emitNotifications: false },
+          );
         }
+        traceMark(trace, 'finalize.return_already_closed_after_race', {
+          expectedVoters,
+          submittedVoters,
+        });
         return {
           done: true,
           alreadyClosed: true,
+          closedByThisCall: false,
           expectedVoters,
           submissionsCount: submittedVoters,
           remainingVotes: 0,
           deadlineAt: closesAt,
+          deadlineReached,
+          allEligibleVoted,
+          triggeredByLastVoter: false,
           closedAt: lifecycle?.finished_at || null,
           result_status: normalizeResultStatusValue(lifecycle?.result_status) || RESULT_STATUS_PENDING,
           winner_team: normalizeWinnerTeamValue(lifecycle?.winner_team) || null,
@@ -1601,12 +1746,23 @@ export async function finalizeIfComplete(partidoId, options = {}) {
     }
 
     if (!closedByThisCall) {
+      traceMark(trace, 'finalize.return_open_after_close_race', {
+        expectedVoters,
+        submittedVoters,
+        remainingVotes,
+        deadlineReached,
+        allEligibleVoted,
+      });
       return {
         done: false,
         expectedVoters,
         submissionsCount: submittedVoters,
         remainingVotes,
         deadlineAt: closesAt,
+        deadlineReached,
+        allEligibleVoted,
+        closedByThisCall: false,
+        triggeredByLastVoter: false,
         survey_status: SURVEY_STATUS_OPEN,
       };
     }
@@ -1675,15 +1831,33 @@ export async function finalizeIfComplete(partidoId, options = {}) {
   ];
 
   let upsertRes = null;
-  for (const payload of payloadVariants) {
-    upsertRes = await safeUpsert(payload);
-    if (!upsertRes.error) break;
-  }
+  upsertRes = await traceMeasure(
+    trace,
+    'finalize.upsert_survey_results',
+    async () => {
+      let lastRes = null;
+      let attempt = 0;
+      for (const payload of payloadVariants) {
+        attempt += 1;
+        lastRes = await safeUpsert(payload);
+        if (!lastRes.error) {
+          traceMark(trace, 'finalize.upsert_survey_results_attempts', { attempts: attempt });
+          break;
+        }
+      }
+      return lastRes;
+    },
+  );
   if (upsertRes?.error) throw upsertRes.error;
 
   // Side effects run only for the process that successfully closed the survey.
   if (!SKIP_SIDE_EFFECTS) {
-    await ensureNoShowRankingSafe(idNum, { emitNotifications: true });
+    await traceMeasure(
+      trace,
+      'finalize.no_show_penalties_and_ranking',
+      () => ensureNoShowRankingSafe(idNum, { emitNotifications: true }),
+      { emitNotifications: true },
+    );
   }
 
   let awardsSkipped = false;
@@ -1712,7 +1886,11 @@ export async function finalizeIfComplete(partidoId, options = {}) {
     awardsSkipped = true;
     let surveyResultsRow = null;
     try {
-      surveyResultsRow = await fetchSurveyResultsRowForMatch(idNum);
+      surveyResultsRow = await traceMeasure(
+        trace,
+        'finalize.awards_not_eligible.fetch_survey_results',
+        () => fetchSurveyResultsRowForMatch(idNum),
+      );
     } catch (surveyResultsReadErr) {
       console.warn('[FINALIZE] could not read survey_results before awards status write', {
         partidoId: idNum,
@@ -1721,12 +1899,21 @@ export async function finalizeIfComplete(partidoId, options = {}) {
     }
 
     try {
-      await clearAwardArtifactsForNotEligible();
+      await traceMeasure(
+        trace,
+        'finalize.awards_not_eligible.clear_award_artifacts',
+        () => clearAwardArtifactsForNotEligible(),
+      );
     } catch (clearErr) {
       console.warn('[FINALIZE] could not clear awards artifacts for not_eligible match', { partidoId: idNum, clearErr });
     }
 
-    const statusRes = await setMatchAwardsStatus(idNum, finalAwardsStatus);
+    const statusRes = await traceMeasure(
+      trace,
+      'finalize.awards_not_eligible.set_awards_status',
+      () => setMatchAwardsStatus(idNum, finalAwardsStatus),
+      { awardsStatus: finalAwardsStatus },
+    );
     if (!statusRes?.ok && !statusRes?.unsupported) {
       console.warn('[FINALIZE] failed to persist not_eligible awards status', { partidoId: idNum, statusRes });
     } else if (statusRes?.unsupported || (surveyResultsRow && !hasSurveyResultsAwardsStatusColumn(surveyResultsRow))) {
@@ -1735,11 +1922,19 @@ export async function finalizeIfComplete(partidoId, options = {}) {
   } else {
     let awardsMaterializationResult = null;
     try {
-      const mvpOverridePlayerId = await resolvePlayerIdFromStableRef(idNum, results?.mvp);
-      awardsPersistResult = await computeAndPersistAwards(idNum, {
-        mvpOverridePlayerId,
-        skipMvp: false,
-      });
+      const mvpOverridePlayerId = await traceMeasure(
+        trace,
+        'finalize.awards.resolve_mvp_override_ref',
+        () => resolvePlayerIdFromStableRef(idNum, results?.mvp),
+      );
+      awardsPersistResult = await traceMeasure(
+        trace,
+        'finalize.awards.compute_and_persist_awards',
+        () => computeAndPersistAwards(idNum, {
+          mvpOverridePlayerId,
+          skipMvp: false,
+        }),
+      );
       if (awardsPersistResult?.persisted !== true) {
         console.error('[FINALIZE] computeAndPersistAwards returned non-persisted result', {
           partidoId: idNum,
@@ -1758,14 +1953,22 @@ export async function finalizeIfComplete(partidoId, options = {}) {
 
     let awardsRow = null;
     try {
-      awardsRow = await fetchSurveyResultsRowForMatch(idNum);
+      awardsRow = await traceMeasure(
+        trace,
+        'finalize.awards.fetch_survey_results_for_validation',
+        () => fetchSurveyResultsRowForMatch(idNum),
+      );
     } catch (awardsRowErr) {
       console.error('[FINALIZE] could not refetch survey_results for awards validation', { partidoId: idNum, awardsRowErr });
     }
 
     if (awardsRow?.results_ready === true && hasAnyAwardData(awardsRow)) {
       try {
-        awardsMaterializationResult = await materializePersistedAwardsForMatch(idNum, awardsRow);
+        awardsMaterializationResult = await traceMeasure(
+          trace,
+          'finalize.awards.materialize_persisted_awards',
+          () => materializePersistedAwardsForMatch(idNum, awardsRow),
+        );
         if (!awardsMaterializationResult?.ok) {
           console.error('[FINALIZE] persisted awards recovery could not fully materialize', {
             partidoId: idNum,
@@ -1801,7 +2004,11 @@ export async function finalizeIfComplete(partidoId, options = {}) {
 
     if (finalAwardsStatus === AWARDS_STATUS_NOT_ELIGIBLE) {
       try {
-        await clearAwardArtifactsForNotEligible();
+        await traceMeasure(
+          trace,
+          'finalize.awards.clear_not_eligible_artifacts',
+          () => clearAwardArtifactsForNotEligible(),
+        );
       } catch (clearErr) {
         console.warn('[FINALIZE] could not clear awards artifacts for not_eligible match', { partidoId: idNum, clearErr });
       }
@@ -1813,7 +2020,12 @@ export async function finalizeIfComplete(partidoId, options = {}) {
       });
     }
 
-    const statusRes = await setMatchAwardsStatus(idNum, finalAwardsStatus);
+    const statusRes = await traceMeasure(
+      trace,
+      'finalize.awards.set_awards_status',
+      () => setMatchAwardsStatus(idNum, finalAwardsStatus),
+      { awardsStatus: finalAwardsStatus },
+    );
     if (!statusRes?.ok && !statusRes?.unsupported) {
       console.warn('[FINALIZE] failed to persist awards status', { partidoId: idNum, finalAwardsStatus, statusRes });
     } else if (statusRes?.unsupported || (awardsRow && !hasSurveyResultsAwardsStatusColumn(awardsRow))) {
@@ -1821,74 +2033,104 @@ export async function finalizeIfComplete(partidoId, options = {}) {
     }
 
     if (finalAwardsStatus === AWARDS_STATUS_READY && statusRes?.ok) {
-      await notifyAwardWinnersSafe(
-        idNum,
-        awardsRow?.awards || awardsPersistResult?.awards || null,
+      await traceMeasure(
+        trace,
+        'finalize.awards.notify_award_winners',
+        () => notifyAwardWinnersSafe(
+          idNum,
+          awardsRow?.awards || awardsPersistResult?.awards || null,
+        ),
       );
     }
   }
 
   if (!SKIP_SIDE_EFFECTS) {
-    try {
-      const eligibleByPlayerId = surveyWindow?.eligibleByPlayerId instanceof Map
-        ? surveyWindow.eligibleByPlayerId
-        : new Map();
-      const eligibleUserIds = new Set(Array.from(eligibleByPlayerId.values()).filter(Boolean));
-      let jugadoresForNotifs = Array.from(eligibleUserIds).map((userId) => ({ usuario_id: userId }));
+    await traceMeasure(
+      trace,
+      'finalize.survey_finished_notifications',
+      async () => {
+        try {
+          const eligibleByPlayerId = surveyWindow?.eligibleByPlayerId instanceof Map
+            ? surveyWindow.eligibleByPlayerId
+            : new Map();
+          const eligibleUserIds = new Set(Array.from(eligibleByPlayerId.values()).filter(Boolean));
+          let jugadoresForNotifs = Array.from(eligibleUserIds).map((userId) => ({ usuario_id: userId }));
 
-      let existingNotifs = [];
-      try {
-        existingNotifs = await db.fetchMany('notifications', { partido_id: idNum, type: 'survey_finished' });
-      } catch (_notifReadErr) {
-        existingNotifs = [];
+          let existingNotifs = [];
+          try {
+            existingNotifs = await db.fetchMany('notifications', { partido_id: idNum, type: 'survey_finished' });
+          } catch (_notifReadErr) {
+            existingNotifs = [];
+          }
+
+          const alreadyNotifiedUserIds = new Set((existingNotifs || []).map((n) => n.user_id).filter(Boolean));
+          const jugadoresToInsert = (jugadoresForNotifs || []).filter((j) => !alreadyNotifiedUserIds.has(j.usuario_id));
+
+          if (jugadoresToInsert.length > 0) {
+            const notificationPayloads = jugadoresToInsert.map((j) => ({
+              user_id: j.usuario_id,
+              type: 'survey_finished',
+              title: 'Encuesta finalizada',
+              message: getSurveyResultsReadyMessage({ matchName: partidoNombre }),
+              partido_id: idNum,
+              data: {
+                match_id: String(idNum),
+                match_name: partidoNombre,
+                partido_nombre: partidoNombre,
+                link: `/resultados-encuesta/${idNum}`,
+                resultsUrl: `/resultados-encuesta/${idNum}`,
+              },
+              read: false,
+              created_at: nowIso,
+            }));
+
+            const { error: notifErr } = await supabase
+              .from('notifications')
+              .insert(notificationPayloads);
+            if (notifErr) throw notifErr;
+          }
+          return { inserted: jugadoresToInsert.length };
+        } catch (notifErr) {
+          console.error('[FINALIZE] notification side effects error', { partidoId: idNum, notifErr });
+          return { inserted: 0, error: notifErr };
+        }
       }
-
-      const alreadyNotifiedUserIds = new Set((existingNotifs || []).map((n) => n.user_id).filter(Boolean));
-      const jugadoresToInsert = (jugadoresForNotifs || []).filter((j) => !alreadyNotifiedUserIds.has(j.usuario_id));
-
-      if (jugadoresToInsert.length > 0) {
-        const notificationPayloads = jugadoresToInsert.map((j) => ({
-          user_id: j.usuario_id,
-          type: 'survey_finished',
-          title: 'Encuesta finalizada',
-          message: getSurveyResultsReadyMessage({ matchName: partidoNombre }),
-          partido_id: idNum,
-          data: {
-            match_id: String(idNum),
-            match_name: partidoNombre,
-            partido_nombre: partidoNombre,
-            link: `/resultados-encuesta/${idNum}`,
-            resultsUrl: `/resultados-encuesta/${idNum}`,
-          },
-          read: false,
-          created_at: nowIso,
-        }));
-
-        const { error: notifErr } = await supabase
-          .from('notifications')
-          .insert(notificationPayloads);
-        if (notifErr) throw notifErr;
-      }
-    } catch (notifErr) {
-      console.error('[FINALIZE] notification side effects error', { partidoId: idNum, notifErr });
-    }
+    );
   }
 
   try {
-    await ensureSurveyResultsSnapshot(idNum, {
-      encuestaCerradaAt: nowIso,
-      closedReason: allEligibleVoted ? 'all_voted' : 'deadline',
-    });
+    await traceMeasure(
+      trace,
+      'finalize.ensure_survey_results_snapshot',
+      () => ensureSurveyResultsSnapshot(idNum, {
+        encuestaCerradaAt: nowIso,
+        closedReason: allEligibleVoted ? 'all_voted' : 'deadline',
+      }),
+      { closedReason: allEligibleVoted ? 'all_voted' : 'deadline' },
+    );
   } catch (_snapshotError) {
     // Non-blocking.
   }
 
+  traceMark(trace, 'finalize.return_closed', {
+    expectedVoters,
+    submittedVoters,
+    closedByThisCall,
+    deadlineReached,
+    allEligibleVoted,
+    triggeredByLastVoter: closedByThisCall === true && allEligibleVoted === true && deadlineReached !== true,
+    awardsStatus: finalAwardsStatus,
+  });
   return {
     done: true,
+    closedByThisCall,
     expectedVoters,
     submissionsCount: submittedVoters,
     remainingVotes: 0,
     deadlineAt: closesAt,
+    deadlineReached,
+    allEligibleVoted,
+    triggeredByLastVoter: closedByThisCall === true && allEligibleVoted === true && deadlineReached !== true,
     awardsSkipped,
     awardsPendingRetry,
     awards_error: awardsError,

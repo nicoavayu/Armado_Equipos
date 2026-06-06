@@ -26,3 +26,18 @@ export const resolvePostSubmitCompletionUiState = ({
       : null,
   };
 };
+
+export const shouldRecheckPostSubmitSubmissionGate = (finalizeResult = null) => {
+  if (!finalizeResult) return true;
+
+  const finalizedSurveyStatus = normalizeSurveyStatusToken(finalizeResult?.survey_status);
+  if (finalizedSurveyStatus === 'closed') {
+    return false;
+  }
+
+  if (finalizeResult?.alreadyClosed === true) {
+    return false;
+  }
+
+  return true;
+};

@@ -29,7 +29,11 @@ import {
   resolveKickoffAtFromMatch,
   resolveSurveyStartDelayMs,
 } from '../utils/surveyWindow';
-import { resolvePostSubmitCompletionUiState } from '../utils/surveyPostSubmitUiState';
+import {
+  resolvePostSubmitCompletionUiState,
+  shouldRecheckPostSubmitSubmissionGate,
+} from '../utils/surveyPostSubmitUiState';
+import { createSurveySubmitTrace } from '../utils/surveySubmitPerformance';
 import {
   buildPlayerRefToKeyMap,
   buildSeededInitialTeams,
@@ -2120,17 +2124,37 @@ const EncuestaPartido = () => {
     return { seJugo: true, ganador: null, resultado: 'pending' };
   };
 
-  const continueSubmitFlow = async ({ skipPersistTeams = false } = {}) => {
+  const createSubmitTrace = (entrypoint, context = {}) => createSurveySubmitTrace({
+    scope: 'EncuestaPartido.submit',
+    partidoId: id,
+    context: {
+      entrypoint,
+      currentStep,
+      isTeamChallengeSurvey,
+      ...context,
+    },
+  });
+
+  const continueSubmitFlow = async ({ skipPersistTeams = false, trace: incomingTrace = null } = {}) => {
+    const trace = incomingTrace || createSubmitTrace('continueSubmitFlow', { skipPersistTeams });
+    let submitStatus = 'unknown';
     try {
+      trace.mark('flow_start', { skipPersistTeams });
+
       if (alreadySubmitted) {
         console.info('Ya completaste esta encuesta');
+        submitStatus = 'already_submitted';
         return;
       }
 
       const matchIdNum = Number(id);
-      const submissionGate = await ensureSurveyCanReceiveSubmission();
+      const submissionGate = await trace.measure(
+        'pre_validation.ensureSurveyCanReceiveSubmission',
+        () => ensureSurveyCanReceiveSubmission(),
+      );
       if (!submissionGate.canSubmit) {
         enforceSurveyClosedUiState(submissionGate.closedAt);
+        submitStatus = 'survey_closed_before_insert';
         return;
       }
 
@@ -2141,23 +2165,33 @@ const EncuestaPartido = () => {
       });
       if (!Number.isFinite(canonicalSurveyPlayerId) || canonicalSurveyPlayerId <= 0) {
         openSurveyModal('Solo jugadores con cuenta registrada pueden completar esta encuesta.', 'No podés completar la encuesta');
+        submitStatus = 'invalid_survey_player';
         return;
       }
-      const hasExistingResponse = await hasExistingSurveyResponse({
-        partidoId: matchIdNum,
-        playerIds: currentUserSurveyPlayerIds,
-      });
+      const hasExistingResponse = await trace.measure(
+        'pre_validation.hasExistingSurveyResponse',
+        () => hasExistingSurveyResponse({
+          partidoId: matchIdNum,
+          playerIds: currentUserSurveyPlayerIds,
+        }),
+        { playerIdsCount: currentUserSurveyPlayerIds.length },
+      );
       if (hasExistingResponse) {
         setAlreadySubmitted(true);
         setEncuestaFinalizada(true);
+        submitStatus = 'existing_response';
         return;
       }
 
       const outcome = resolveSurveyOutcome();
       if (outcome.seJugo && !skipPersistTeams && (!shouldDisableTeamReorganization || isTeamChallengeSurvey)) {
-        const persistResult = await persistSurveyTeamsDefinition();
+        const persistResult = await trace.measure(
+          'pre_validation.persistSurveyTeamsDefinition',
+          () => persistSurveyTeamsDefinition(),
+        );
         if (!persistResult.ok) {
           openSurveyModal(persistResult.message, 'No se pudieron guardar los equipos');
+          submitStatus = 'persist_teams_failed';
           return;
         }
       }
@@ -2194,18 +2228,36 @@ const EncuestaPartido = () => {
         created_at: new Date().toISOString(),
       };
 
-      let { error: insertError } = await supabase
-        .from('post_match_surveys')
-        .insert([surveyData]);
+      const insertResult = await trace.measure(
+        'db.insert_post_match_surveys',
+        () => supabase
+          .from('post_match_surveys')
+          .insert([surveyData]),
+        {
+          seJugo: outcome.seJugo,
+          absentCount: ausentesIds.length,
+          violentCount: violentosIds.length,
+        },
+      );
+      let insertError = insertResult.error || null;
+      let usedLegacySurveyInsert = false;
 
       // Backward-compatible fallback if DB doesn't have the new columns yet.
       if (insertError && /ganador|resultado/i.test(insertError.message || '')) {
         const legacySurveyData = { ...surveyData };
         delete legacySurveyData.ganador;
         delete legacySurveyData.resultado;
-        const legacyRes = await supabase.from('post_match_surveys').insert([legacySurveyData]);
+        usedLegacySurveyInsert = true;
+        const legacyRes = await trace.measure(
+          'db.insert_post_match_surveys_legacy_retry',
+          () => supabase.from('post_match_surveys').insert([legacySurveyData]),
+        );
         insertError = legacyRes.error || null;
       }
+      trace.mark('db.insert_post_match_surveys_result', {
+        ok: !insertError,
+        usedLegacySurveyInsert,
+      });
 
       if (insertError) {
         console.error('[ENCUESTA] post_match_surveys insert error full:', insertError);
@@ -2214,29 +2266,51 @@ const EncuestaPartido = () => {
 
       let finalizeResult = null;
       try {
-        finalizeResult = await finalizeIfComplete(parseInt(id));
+        finalizeResult = await trace.measure(
+          'finalizeIfComplete',
+          () => finalizeIfComplete(matchIdNum, { trace }),
+        );
+        trace.mark('finalizeIfComplete_result', {
+          done: finalizeResult?.done === true,
+          alreadyClosed: finalizeResult?.alreadyClosed === true,
+          closedByThisCall: finalizeResult?.closedByThisCall === true,
+          surveyStatus: finalizeResult?.survey_status || null,
+          expectedVoters: finalizeResult?.expectedVoters ?? null,
+          submissionsCount: finalizeResult?.submissionsCount ?? null,
+          remainingVotes: finalizeResult?.remainingVotes ?? null,
+          deadlineReached: finalizeResult?.deadlineReached === true,
+          allEligibleVoted: finalizeResult?.allEligibleVoted === true,
+          triggeredByLastVoter: finalizeResult?.triggeredByLastVoter === true,
+        });
       } catch (e) {
         console.warn('[finalizeIfComplete] non-blocking error:', e);
+        trace.mark('finalizeIfComplete_non_blocking_error', {
+          message: e?.message || String(e),
+          code: e?.code || null,
+        });
       }
 
       let postSubmitSubmissionGate = null;
-      try {
-        postSubmitSubmissionGate = await ensureSurveyCanReceiveSubmission();
-      } catch (_submissionGateError) {
-        postSubmitSubmissionGate = null;
+      if (shouldRecheckPostSubmitSubmissionGate(finalizeResult)) {
+        try {
+          postSubmitSubmissionGate = await trace.measure(
+            'post_validation.ensureSurveyCanReceiveSubmission',
+            () => ensureSurveyCanReceiveSubmission(),
+          );
+        } catch (_submissionGateError) {
+          postSubmitSubmissionGate = null;
+        }
+      } else {
+        trace.mark('post_validation.ensureSurveyCanReceiveSubmission_skipped', {
+          reason: 'finalize_result_definitive',
+          surveyStatus: finalizeResult?.survey_status || null,
+        });
       }
 
       const postSubmitUiState = resolvePostSubmitCompletionUiState({
         finalizeResult,
         submissionGate: postSubmitSubmissionGate,
       });
-
-      // NEW: ensure match disappears from Próximos Partidos for this user
-      try {
-        await clearMatchFromList(user.id, parseInt(id));
-      } catch (_e) {
-        // non-blocking
-      }
 
       setAlreadySubmitted(true);
       setSurveyClosed(postSubmitUiState.shouldMarkSurveyClosed);
@@ -2245,34 +2319,60 @@ const EncuestaPartido = () => {
       if (postSubmitUiState.shouldMarkSurveyClosed) {
         setCurrentStep(SURVEY_STEPS.DONE);
       }
+      trace.mark('visual_state_updated', {
+        shouldMarkSurveyClosed: postSubmitUiState.shouldMarkSurveyClosed,
+        closedAt: postSubmitUiState.closedAt || null,
+      });
+
+      // Keep upcoming-list cleanup best-effort so the survey completion UI does not wait on it.
+      void trace.measure(
+        'clearMatchFromList',
+        () => clearMatchFromList(user.id, matchIdNum),
+        { blockingVisualCompletion: false },
+      ).catch((clearError) => {
+        trace.mark('clearMatchFromList_non_blocking_error', {
+          message: clearError?.message || String(clearError),
+          code: clearError?.code || null,
+        });
+      });
+      trace.mark('clearMatchFromList_dispatched', { blockingVisualCompletion: false });
+      submitStatus = 'success';
 
     } catch (error) {
+      submitStatus = 'error';
       handleError(error, { showToast: true, onError: () => { } });
     } finally {
       setSubmitting(false);
+      trace.end({ status: submitStatus });
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const trace = createSubmitTrace('handleSubmit');
+    trace.mark('click_received');
 
     if (!user || !id) {
       notifyBlockingError('Debes iniciar sesión para calificar un partido');
+      trace.end({ status: 'blocked', reason: 'missing_user_or_match' });
       return;
     }
 
     if (surveyClosed) {
       enforceSurveyClosedUiState(surveyClosedAt, { showModal: true, exitRoute: '/' });
+      trace.end({ status: 'blocked', reason: 'survey_already_closed' });
       return;
     }
 
     if (alreadySubmitted) {
       console.info('Ya completaste esta encuesta');
+      trace.end({ status: 'blocked', reason: 'already_submitted' });
       return;
     }
 
     if (currentStep === SURVEY_STEPS.RESULT && !formData.ganador) {
       openSurveyModal('Elegí el resultado: Equipo A, Equipo B o Empate.', 'Falta seleccionar resultado');
+      trace.end({ status: 'blocked', reason: 'missing_result' });
       return;
     }
 
@@ -2280,15 +2380,17 @@ const EncuestaPartido = () => {
       && (formData.ganador === 'equipo_a' || formData.ganador === 'equipo_b');
     if (needsValidTeamsForResult && !finalTeamsValidation.ok) {
       openSurveyModal(finalTeamsValidation.message, 'Equipos incompletos');
+      trace.end({ status: 'blocked', reason: 'invalid_final_teams' });
       return;
     }
 
     if (submitting || encuestaFinalizada) {
+      trace.end({ status: 'blocked', reason: 'already_processing_or_finalized' });
       return;
     }
 
     setSubmitting(true);
-    await continueSubmitFlow();
+    await continueSubmitFlow({ trace });
   };
 
   const handleLockTeamsAndContinue = async () => {
@@ -2300,23 +2402,38 @@ const EncuestaPartido = () => {
     }
 
     const shouldSubmitFromHere = shouldShowWinnerSelectionInOrganizeStep;
+    const trace = shouldSubmitFromHere
+      ? createSubmitTrace('handleLockTeamsAndContinue', { skipPersistTeams: true })
+      : null;
+    trace?.mark('click_received');
 
     setSubmitting(true);
     try {
-      const persistResult = await persistSurveyTeamsDefinition({
-        deferTeamsFinalizedUi: shouldSubmitFromHere,
-      });
+      const persistResult = trace
+        ? await trace.measure(
+          'pre_submit.persistSurveyTeamsDefinition',
+          () => persistSurveyTeamsDefinition({
+            deferTeamsFinalizedUi: shouldSubmitFromHere,
+          }),
+        )
+        : await persistSurveyTeamsDefinition({
+          deferTeamsFinalizedUi: shouldSubmitFromHere,
+        });
       if (!persistResult.ok) {
         openSurveyModal(persistResult.message, 'No se pudieron guardar los equipos');
+        trace?.end({ status: 'blocked', reason: 'persist_teams_failed' });
         return;
       }
 
       if (shouldSubmitFromHere) {
-        await continueSubmitFlow({ skipPersistTeams: true });
+        await continueSubmitFlow({ skipPersistTeams: true, trace });
         return;
       }
 
       setCurrentStep(SURVEY_STEPS.RESULT);
+    } catch (error) {
+      trace?.end({ status: 'error', reason: 'persist_teams_exception' });
+      throw error;
     } finally {
       setSubmitting(false);
     }
@@ -2330,8 +2447,12 @@ const EncuestaPartido = () => {
       return;
     }
 
+    const trace = createSubmitTrace('handleNotPlayedPrimaryAction', {
+      selectedNotPlayedReason: selectedNotPlayedReason.value,
+    });
+    trace.mark('click_received');
     setSubmitting(true);
-    await continueSubmitFlow();
+    await continueSubmitFlow({ trace });
   };
 
   const formatFecha = (fechaStr) => {
