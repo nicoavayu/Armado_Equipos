@@ -93,8 +93,8 @@ const MatchCard = ({
         : (hasChallengeOrigin ? 'Desafio' : 'Amistoso');
     const isChallengeCard = String(originBadgeLabel || '').toLowerCase().includes('desafio');
     const cardToneClass = isChallengeCard
-        ? 'bg-[#262e44]/94 border-[#4b5563]'
-        : 'bg-[#1e293b]/92 border-[#334155]';
+        ? 'bg-[#2e1545]/94 border-[#5b2a7a]'
+        : 'bg-[#241036]/92 border-[#3a1f52]';
     const generoLabel = useTeamMatchPresentation
         ? (partido?.genero_partido || 'Masculino')
         : (partido?.tipo_partido || 'Masculino');
@@ -109,9 +109,9 @@ const MatchCard = ({
     return (
         <div
             onClick={onSelect}
-            className={`relative ${cardToneClass} backdrop-blur-sm rounded-none p-5 mb-3 min-h-[150px] border transition-all duration-200 shadow-[0_10px_24px_rgba(0,0,0,0.28)] sm:p-4 cursor-pointer
-      ${isFinished ? 'border-slate-700/70' : 'border-[rgba(88,107,170,0.46)]'}
-      ${isSelected ? 'border-[#29aaff] ring-1 ring-[#29aaff]/55' : 'hover:brightness-[1.03] hover:border-[#4a7ed6]'}
+            className={`relative ${cardToneClass} backdrop-blur-sm rounded-none p-5 mb-3 min-h-[150px] border transition-all duration-200 shadow-[0_12px_28px_rgba(8,3,16,0.4),inset_0_1px_0_rgba(255,255,255,0.04)] sm:p-4 cursor-pointer
+      ${isFinished ? 'border-slate-700/70' : 'border-[rgba(155,81,224,0.35)]'}
+      ${isSelected ? 'border-[#ec007d] ring-1 ring-[#ec007d]/55' : 'hover:brightness-[1.05] hover:border-[#b14de0]'}
       ${primaryAction ? '' : 'active:scale-95'}
     `}
         >

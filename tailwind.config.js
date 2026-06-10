@@ -19,7 +19,11 @@ module.exports = {
                 chip: 'var(--chip-bg)',
                 'chip-active': 'var(--chip-bg-active)',
                 border: 'var(--border)',
-                primary: '#8178e5', // Updated to match auth button
+                primary: '#ec007d', // Arma2 brand magenta
+                'primary-bright': '#ff1e94',
+                'primary-deep': '#c40068',
+                'brand-deep': '#271232',
+                'brand-violet': '#7b2ff7',
                 success: 'var(--btn-success)',
                 warning: 'var(--btn-warning)',
                 danger: 'var(--btn-danger)',
@@ -34,10 +38,14 @@ module.exports = {
             backgroundImage: {
                 'fifa-gradient': 'linear-gradient(135deg, #24c6dc 10%, #514a9d 100%)',
                 'auth-gradient': 'linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%)',
-                'app-gradient': 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%)',
+                'app-gradient': 'linear-gradient(160deg, #1b0c26 0%, #271232 42%, #1d0e2c 74%, #120818 100%)',
+                'cta-gradient': 'linear-gradient(180deg, #ff1e94 0%, #ec007d 55%, #d4006f 100%)',
             },
             boxShadow: {
                 'fifa-card': '0 2px 18px 0 rgb(34 40 80 / 10%)',
+                'glow-magenta': '0 0 18px rgba(236, 0, 125, 0.35)',
+                'glow-magenta-soft': '0 4px 14px rgba(236, 0, 125, 0.25)',
+                'card-premium': '0 18px 40px rgba(8, 3, 16, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
             },
             borderRadius: {
                 '4xl': '32px',

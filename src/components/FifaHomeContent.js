@@ -293,7 +293,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
     navigate(item.route);
   };
 
-  const cardClass = 'bg-white/10 border border-white/20 rounded-none p-4 cursor-pointer transition-[transform,background-color,border-color,box-shadow] duration-300 aspect-square relative overflow-hidden flex flex-col justify-start no-underline text-white backdrop-blur-[15px] z-[1] hover:-translate-y-1.5 hover:scale-[1.02] hover:bg-white/20 hover:border-white/40 active:translate-y-0 active:scale-100 sm:p-3.5 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]';
+  const cardClass = 'bg-[linear-gradient(165deg,rgba(58,27,78,0.55),rgba(30,14,44,0.85))] border border-white/15 rounded-none p-4 cursor-pointer transition-[transform,background-color,border-color,box-shadow] duration-300 aspect-square relative overflow-hidden flex flex-col justify-start no-underline text-white backdrop-blur-[15px] z-[1] hover:-translate-y-1.5 hover:scale-[1.02] hover:border-[#ec007d]/50 hover:shadow-[0_12px_36px_rgba(8,3,16,0.5),0_0_18px_rgba(236,0,125,0.18)] active:translate-y-0 active:scale-100 sm:p-3.5 shadow-[0_8px_32px_0_rgba(8,3,16,0.45),inset_0_1px_0_rgba(255,255,255,0.05)]';
 
   useEffect(() => {
     if (!location?.state?.openProximosPartidos) return;
@@ -872,7 +872,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
                 </div>
                 <div className="p-2.5 space-y-2">
                   <button
-                    className={`w-full text-left flex items-start gap-3 px-3.5 py-3 rounded-none cursor-pointer transition-[background-color,border-color,color] duration-200 text-white/95 border ${isAvailable ? 'bg-[#6a43ff] border-[#7d5aff] shadow-[0_0_14px_rgba(106,67,255,0.28)]' : 'bg-white/[0.03] border-white/20 hover:bg-white/[0.08]'}`}
+                    className={`w-full text-left flex items-start gap-3 px-3.5 py-3 rounded-none cursor-pointer transition-[background-color,border-color,color] duration-200 text-white/95 border ${isAvailable ? 'bg-[#ec007d] border-[#ff4da6] shadow-[0_0_14px_rgba(236,0,125,0.32)]' : 'bg-white/[0.03] border-white/20 hover:bg-white/[0.08]'}`}
                     onClick={() => updateAvailabilityStatus(true)}
                     type="button"
                   >
@@ -885,7 +885,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
                     </div>
                   </button>
                   <button
-                    className={`w-full text-left flex items-start gap-3 px-3.5 py-3 rounded-none cursor-pointer transition-[background-color,border-color,color] duration-200 text-white/95 border ${!isAvailable ? 'bg-[#6a43ff] border-[#7d5aff] shadow-[0_0_14px_rgba(106,67,255,0.28)]' : 'bg-white/[0.03] border-white/20 hover:bg-white/[0.08]'}`}
+                    className={`w-full text-left flex items-start gap-3 px-3.5 py-3 rounded-none cursor-pointer transition-[background-color,border-color,color] duration-200 text-white/95 border ${!isAvailable ? 'bg-[#ec007d] border-[#ff4da6] shadow-[0_0_14px_rgba(236,0,125,0.32)]' : 'bg-white/[0.03] border-white/20 hover:bg-white/[0.08]'}`}
                     onClick={() => updateAvailabilityStatus(false)}
                     type="button"
                   >
@@ -928,7 +928,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
           onTouchStart={() => prefetchRoute('/nuevo-partido')}
           onFocus={() => prefetchRoute('/nuevo-partido')}
         >
-          <div className="text-white font-oswald text-[18px] md:text-[20px] font-semibold leading-none drop-shadow-[0_2px_10px_rgba(129,120,229,0.5)] sm:text-[16px]">Partido<br />nuevo</div>
+          <div className="text-white font-oswald text-[18px] md:text-[20px] font-semibold leading-none drop-shadow-[0_2px_10px_rgba(236,0,125,0.45)] sm:text-[16px]">Partido<br />nuevo</div>
           <div className="absolute bottom-5 right-5 text-white/95 text-[28px] w-[52px] h-[52px] flex items-center justify-center sm:w-11 sm:h-11 sm:bottom-4 sm:right-4 sm:text-2xl">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" fill="currentColor" width={60} height={60}>
               <path d="M320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320C64 461.4 178.6 576 320 576zM296 408L296 344L232 344C218.7 344 208 333.3 208 320C208 306.7 218.7 296 232 296L296 296L296 232C296 218.7 306.7 208 320 208C333.3 208 344 218.7 344 232L344 296L408 296C421.3 296 432 306.7 432 320C432 333.3 421.3 344 408 344L344 344L344 408C344 421.3 333.3 432 320 432C306.7 432 296 421.3 296 408z" />

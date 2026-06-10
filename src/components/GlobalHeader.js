@@ -29,7 +29,7 @@ const GlobalHeader = ({ _onProfileClick }) => {
   // Si no hay usuario, mostrar solo el título
   if (!user) {
     return (
-      <div className="fixed top-0 left-0 right-0 z-[1000] flex items-center justify-between min-h-[70px] w-screen px-2 pt-4 bg-white/25 backdrop-blur-md shadow-sm">
+      <div className="fixed top-0 left-0 right-0 z-[1000] flex items-center justify-between min-h-[70px] w-screen px-2 pt-4 bg-[#271232]/80 backdrop-blur-xl border-b border-white/10 shadow-[0_8px_24px_rgba(8,3,16,0.35)]">
         <div className="flex items-center justify-center transform -translate-y-[5px] relative cursor-pointer pointer-events-auto">
           <div className="text-white font-oswald text-sm ml-px opacity-90 shadow-sm text-shadow-sm">Team Balancer</div>
         </div>
@@ -73,11 +73,11 @@ const GlobalHeader = ({ _onProfileClick }) => {
   };
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-[1000] flex items-center justify-between min-h-[70px] w-screen px-2 pt-4 bg-white/25 backdrop-blur-md shadow-sm md:px-4">
+    <div className="fixed top-0 left-0 right-0 z-[1000] flex items-center justify-between min-h-[70px] w-screen px-2 pt-4 bg-[#271232]/80 backdrop-blur-xl border-b border-white/10 shadow-[0_8px_24px_rgba(8,3,16,0.35)] md:px-4">
       {/* Left side - Avatar with status, greeting, name and status text */}
       <div className="flex flex-row items-center justify-center pointer-events-auto cursor-pointer transform -translate-y-[5px] relative" ref={statusDropdownRef}>
         <div className="relative ml-2 mr-4" onClick={toggleStatusDropdown}>
-          <div className="w-10 h-10 rounded-full overflow-hidden bg-white/20 flex items-center justify-center text-white font-bold text-base">
+          <div className="w-10 h-10 rounded-full overflow-hidden bg-white/15 ring-2 ring-[#ec007d]/60 flex items-center justify-center text-white font-bold text-base">
             {profile?.avatar_url ? (
               <img
                 src={profile.avatar_url}
@@ -103,7 +103,7 @@ const GlobalHeader = ({ _onProfileClick }) => {
 
         {/* Status dropdown */}
         {showStatusDropdown && (
-          <div className="absolute top-[60px] left-0 bg-black/70 rounded-xl w-[180px] z-[1000] overflow-hidden shadow-lg backdrop-blur-sm">
+          <div className="absolute top-[60px] left-0 bg-[#1d1130]/95 border border-white/10 rounded-xl w-[180px] z-[1000] overflow-hidden shadow-[0_16px_40px_rgba(8,3,16,0.6)] backdrop-blur-xl">
             <div className="px-4 py-2.5 font-semibold text-white border-b border-white/20 font-oswald">
               Status
             </div>

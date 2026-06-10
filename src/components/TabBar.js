@@ -61,7 +61,7 @@ const TabBar = ({ activeTab, onTabChange }) => {
 
   return (
     <div
-      className="app-tabbar fixed bottom-0 left-0 right-0 z-[1000] min-h-[62px] h-auto md:min-h-[70px] bg-white/5 backdrop-blur-md border-t border-white/10 shadow-[0_-8px_24px_rgba(0,0,0,0.16)] transition-[transform,opacity] duration-200"
+      className="app-tabbar fixed bottom-0 left-0 right-0 z-[1000] min-h-[62px] h-auto md:min-h-[70px] bg-[#1c0d29]/85 backdrop-blur-xl border-t border-white/10 shadow-[0_-10px_30px_rgba(8,3,16,0.45)] transition-[transform,opacity] duration-200"
       style={tabBarStyle}
     >
       <div className="relative grid w-full grid-cols-5">
@@ -73,9 +73,9 @@ const TabBar = ({ activeTab, onTabChange }) => {
             transition: 'transform 250ms ease-out, opacity 200ms ease-out',
           }}
         >
-          <span className="mx-3 block h-full rounded-full bg-[#6a43ff] shadow-[0_0_10px_rgba(106,67,255,0.4)] md:mx-4" />
+          <span className="mx-3 block h-full rounded-full bg-[#ec007d] shadow-[0_0_12px_rgba(236,0,125,0.55)] md:mx-4" />
         </div>
-        {tabs.map((tab, index) => {
+        {tabs.map((tab) => {
           const isActive = activeTab === tab.key;
           const showUnreadDot = (
             (tab.key === 'amigos' && (unreadCount?.friends || 0) > 0)
@@ -109,9 +109,9 @@ const TabBar = ({ activeTab, onTabChange }) => {
               onMouseEnter={() => prefetchRoute(tab.href)}
               onTouchStart={() => prefetchRoute(tab.href)}
               onFocus={() => prefetchRoute(tab.href)}
-              className={`group relative flex min-h-[42px] flex-1 flex-col items-center justify-center bg-transparent py-1.5 md:py-2 transition-[color,opacity,background-color] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 ${
-                index < tabs.length - 1 ? 'border-r border-white/10' : ''
-              } ${isActive ? 'text-white' : 'text-white/70'}`}
+              className={`group relative flex min-h-[42px] flex-1 flex-col items-center justify-center bg-transparent py-1.5 md:py-2 transition-[color,opacity,background-color] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ec007d]/50 ${
+                isActive ? 'text-white' : 'text-white/65'
+              }`}
             >
               <span className={`relative flex h-6 items-center justify-center ${showUnreadDot ? 'min-w-[34px] gap-1' : 'w-6'}`}>
                 <IconComponent {...iconProps} />

@@ -3,23 +3,38 @@
 @tailwind utilities;
 
 :root {
+  /* Arma2 brand tokens */
+  --brand-magenta: #ec007d;
+  --brand-magenta-bright: #ff1e94;
+  --brand-magenta-deep: #c40068;
+  --brand-deep: #271232;
+  --brand-deep-darker: #150a1e;
+  --brand-violet: #7b2ff7;
+  --brand-glow: rgba(236, 0, 125, 0.35);
+  --brand-glow-soft: rgba(236, 0, 125, 0.18);
+  --app-bg-gradient:
+    radial-gradient(1100px 700px at 88% -8%, rgba(236, 0, 125, 0.13), transparent 58%),
+    radial-gradient(900px 640px at -12% 36%, rgba(123, 47, 247, 0.11), transparent 55%),
+    linear-gradient(160deg, #1b0c26 0%, #271232 42%, #1d0e2c 74%, #120818 100%);
+  --shadow-card-premium: 0 18px 40px rgba(8, 3, 16, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+
   --bg: #f8f9fa;
   --fg: #232a32;
   --sidebar-bg: #f5f7f8;
   --card-bg: #fff;
   --chip-bg: rgba(255, 255, 255, 0.05);
-  --chip-bg-active: rgba(129, 120, 229, 0.3);
+  --chip-bg-active: rgba(236, 0, 125, 0.28);
   --border: rgba(255, 255, 255, 0.15);
   --shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
-  --btn-primary: #8178e5;
+  --btn-primary: #ec007d;
   --btn-success: #27ae60;
   --btn-warning: #e67e22;
   --btn-danger: #e74c3c;
   --muted: #babec4;
   --gray-txt: #888;
   --chip-radius: 13px;
-  --radius-standard: 5px;
-  --gradient-bg: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%);
+  --radius-standard: 10px;
+  --gradient-bg: linear-gradient(160deg, #1b0c26 0%, #271232 50%, #120818 100%);
 
   /* Safe Area Variables */
   --safe-top: env(safe-area-inset-top);
@@ -36,7 +51,7 @@ body,
   overflow-x: hidden;
   overflow-x: clip;
   overscroll-behavior-x: none;
-  background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+  background: var(--app-bg-gradient);
   background-attachment: fixed;
   min-height: 100dvh;
 }
@@ -80,7 +95,7 @@ html {
 body {
   margin: 0;
   font-family: 'Inter', sans-serif;
-  background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+  background: var(--app-bg-gradient);
   background-attachment: fixed;
   color: #f8f9fa;
   min-height: 100vh;
@@ -193,7 +208,7 @@ body {
 
 /* Ensure Suspense fallbacks use the same background as the rest of the app */
 .bg-fifa-gradient {
-  background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+  background: var(--app-bg-gradient);
   background-attachment: fixed;
 }
 
@@ -445,6 +460,20 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 16px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+/* --- ARMA2 PREMIUM SURFACES --- */
+.arma-card {
+  background: linear-gradient(165deg, rgba(58, 27, 78, 0.72), rgba(30, 14, 44, 0.92));
+  border: 1px solid rgba(236, 0, 125, 0.16);
+  border-radius: var(--radius-standard);
+  box-shadow: var(--shadow-card-premium);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.arma-glow-magenta {
+  box-shadow: 0 0 18px var(--brand-glow);
 }
 
 /* --- LAYOUT PRINCIPAL --- */
@@ -997,7 +1026,7 @@ body[data-theme="dark"] .shimmer-item {
 
 /* Focus indicators */
 *:focus {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid var(--brand-magenta-bright);
   outline-offset: 2px;
 }
 
@@ -1005,7 +1034,7 @@ button:focus,
 input:focus,
 select:focus,
 textarea:focus {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid var(--brand-magenta-bright);
   outline-offset: 2px;
 }
 
