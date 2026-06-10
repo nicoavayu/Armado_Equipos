@@ -61,21 +61,21 @@ const TabBar = ({ activeTab, onTabChange }) => {
 
   return (
     <div
-      className="app-tabbar fixed bottom-0 left-0 right-0 z-[1000] min-h-[62px] h-auto md:min-h-[70px] bg-white/5 backdrop-blur-md border-t border-white/10 shadow-[0_-8px_24px_rgba(0,0,0,0.16)] transition-[transform,opacity] duration-200"
+      className="app-tabbar fixed bottom-0 left-0 right-0 z-[1000] min-h-[60px] h-auto md:min-h-[66px] bg-[#15102c]/92 backdrop-blur-xl border-t border-white/[0.08] shadow-[0_-10px_28px_rgba(6,4,18,0.45)] transition-[transform,opacity] duration-200"
       style={tabBarStyle}
     >
       <div className="relative grid w-full grid-cols-5">
         <div
-          className="pointer-events-none absolute top-0 left-0 h-[3px]"
+          className="pointer-events-none absolute top-0 left-0 h-[2px]"
           style={{
             width: `calc(100% / ${tabs.length})`,
             transform: `translateX(${activeIndex * 100}%)`,
             transition: 'transform 250ms ease-out, opacity 200ms ease-out',
           }}
         >
-          <span className="mx-3 block h-full rounded-full bg-[#6a43ff] shadow-[0_0_10px_rgba(106,67,255,0.4)] md:mx-4" />
+          <span className="mx-5 block h-full rounded-full bg-[#ec007d] shadow-[0_0_8px_rgba(236,0,125,0.5)] md:mx-6" />
         </div>
-        {tabs.map((tab, index) => {
+        {tabs.map((tab) => {
           const isActive = activeTab === tab.key;
           const showUnreadDot = (
             (tab.key === 'amigos' && (unreadCount?.friends || 0) > 0)
@@ -84,9 +84,9 @@ const TabBar = ({ activeTab, onTabChange }) => {
           const IconComponent = isActive ? tab.ActiveIcon : tab.InactiveIcon;
           const useSimulatedActive = isActive && tab.simulatedActive;
           const iconProps = {
-            size: 24,
-            className: `h-6 w-6 transition-[opacity,transform,filter,color] duration-200 group-active:scale-95 ${
-              isActive ? 'scale-100 opacity-100' : 'scale-100 opacity-60'
+            size: 22,
+            className: `h-[22px] w-[22px] transition-[opacity,transform,filter,color] duration-200 group-active:scale-95 ${
+              isActive ? 'scale-100 opacity-100' : 'scale-100 opacity-55'
             } ${
               useSimulatedActive
                 ? 'drop-shadow-[0_2px_6px_rgba(255,255,255,0.25)]'
@@ -109,9 +109,9 @@ const TabBar = ({ activeTab, onTabChange }) => {
               onMouseEnter={() => prefetchRoute(tab.href)}
               onTouchStart={() => prefetchRoute(tab.href)}
               onFocus={() => prefetchRoute(tab.href)}
-              className={`group relative flex min-h-[42px] flex-1 flex-col items-center justify-center bg-transparent py-1.5 md:py-2 transition-[color,opacity,background-color] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 ${
-                index < tabs.length - 1 ? 'border-r border-white/10' : ''
-              } ${isActive ? 'text-white' : 'text-white/70'}`}
+              className={`group relative flex min-h-[42px] flex-1 flex-col items-center justify-center bg-transparent py-1.5 transition-[color,opacity,background-color] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 ${
+                isActive ? 'text-white' : 'text-white/65'
+              }`}
             >
               <span className={`relative flex h-6 items-center justify-center ${showUnreadDot ? 'min-w-[34px] gap-1' : 'w-6'}`}>
                 <IconComponent {...iconProps} />
@@ -123,8 +123,8 @@ const TabBar = ({ activeTab, onTabChange }) => {
                 )}
               </span>
               <span
-                className={`mt-1.5 whitespace-nowrap text-[12px] font-sans tracking-wide transition-[opacity,color,font-weight] duration-200 ${
-                  isActive ? 'font-bold text-white opacity-100' : 'font-semibold text-white/75 opacity-60'
+                className={`mt-1 whitespace-nowrap text-[11px] font-sans tracking-wide transition-[opacity,color,font-weight] duration-200 ${
+                  isActive ? 'font-semibold text-white opacity-100' : 'font-medium text-white/70 opacity-60'
                 }`}
               >
                 {tab.shortLabel ? (

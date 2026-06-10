@@ -3,6 +3,26 @@
 @tailwind utilities;
 
 :root {
+  /* Arma2 v2 visual system — deep violet/blue base, magenta as accent only */
+  --violet-primary: #6a43ff;
+  --violet-soft: #8b7cff;
+  --accent-magenta: #ec007d;
+  --accent-magenta-soft: rgba(236, 0, 125, 0.55);
+  --surface-0: #110e24;
+  --surface-1: #181334;
+  --surface-2: #201a44;
+  --surface-3: #2a2256;
+  --surface-border: rgba(255, 255, 255, 0.09);
+  --surface-border-strong: rgba(139, 124, 255, 0.32);
+  --surface-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --shadow-elev-1: 0 4px 14px rgba(6, 4, 18, 0.35);
+  --shadow-elev-2: 0 10px 28px rgba(6, 4, 18, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --shadow-elev-3: 0 22px 56px rgba(6, 4, 18, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --app-bg-gradient:
+    radial-gradient(1000px 620px at 50% -14%, rgba(106, 67, 255, 0.17), transparent 60%),
+    radial-gradient(760px 540px at 108% 112%, rgba(236, 0, 125, 0.06), transparent 55%),
+    linear-gradient(170deg, #141129 0%, #1d1742 46%, #161232 76%, #100d22 100%);
+
   --bg: #f8f9fa;
   --fg: #232a32;
   --sidebar-bg: #f5f7f8;
@@ -11,15 +31,15 @@
   --chip-bg-active: rgba(129, 120, 229, 0.3);
   --border: rgba(255, 255, 255, 0.15);
   --shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
-  --btn-primary: #8178e5;
+  --btn-primary: #6a43ff;
   --btn-success: #27ae60;
   --btn-warning: #e67e22;
   --btn-danger: #e74c3c;
   --muted: #babec4;
   --gray-txt: #888;
   --chip-radius: 13px;
-  --radius-standard: 5px;
-  --gradient-bg: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%);
+  --radius-standard: 12px;
+  --gradient-bg: linear-gradient(170deg, #141129 0%, #1d1742 50%, #100d22 100%);
 
   /* Safe Area Variables */
   --safe-top: env(safe-area-inset-top);
@@ -36,7 +56,7 @@ body,
   overflow-x: hidden;
   overflow-x: clip;
   overscroll-behavior-x: none;
-  background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+  background: var(--app-bg-gradient);
   background-attachment: fixed;
   min-height: 100dvh;
 }
@@ -80,7 +100,7 @@ html {
 body {
   margin: 0;
   font-family: 'Inter', sans-serif;
-  background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+  background: var(--app-bg-gradient);
   background-attachment: fixed;
   color: #f8f9fa;
   min-height: 100vh;
@@ -92,24 +112,24 @@ body {
 }
 
 .kebab-menu-btn {
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(75, 118, 206, 0.62);
-  border-radius: 4px;
-  background: #0f1838;
-  color: #7fd4ff;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 2px 8px rgba(0, 0, 0, 0.28);
+  border: 1px solid var(--surface-border-strong);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: #c3b8ff;
+  box-shadow: var(--surface-highlight), 0 2px 8px rgba(6, 4, 18, 0.3);
   transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
   flex-shrink: 0;
 }
 
 .kebab-menu-btn:hover:not(:disabled) {
-  background: #14204a;
-  border-color: rgba(90, 142, 236, 0.76);
-  color: #a7e6ff;
+  background: var(--surface-3);
+  border-color: rgba(139, 124, 255, 0.55);
+  color: #ddd6ff;
 }
 
 .kebab-menu-btn:active:not(:disabled) {
@@ -122,33 +142,34 @@ body {
 }
 
 .admin-action-menu {
-  border: 1px solid rgba(88, 107, 170, 0.46);
-  border-radius: 0;
-  background: rgba(15, 23, 42, 0.98);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--surface-border-strong);
+  border-radius: 12px;
+  background: rgba(24, 19, 52, 0.97);
+  box-shadow: var(--shadow-elev-3);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  overflow: hidden;
 }
 
 .admin-action-menu-item {
   width: 100%;
-  min-height: 46px;
+  min-height: 42px;
   padding: 0 12px;
   border: 0;
   display: flex;
   align-items: center;
   gap: 8px;
   text-align: left;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   color: #f1f5f9;
-  background: rgba(2, 6, 23, 0.42);
+  background: transparent;
   cursor: pointer;
   transition: background-color 160ms ease, color 160ms ease;
 }
 
 .admin-action-menu-item:hover:not(:disabled) {
-  background: rgba(30, 41, 59, 0.92);
+  background: rgba(106, 67, 255, 0.18);
 }
 
 .admin-action-menu-item:disabled {
@@ -193,7 +214,7 @@ body {
 
 /* Ensure Suspense fallbacks use the same background as the rest of the app */
 .bg-fifa-gradient {
-  background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+  background: var(--app-bg-gradient);
   background-attachment: fixed;
 }
 
@@ -445,6 +466,26 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 16px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+/* --- ARMA2 V2 SURFACES --- */
+/* Layered card surface: gradient depth + hairline border + top highlight. */
+.surface-card {
+  background: linear-gradient(168deg, rgba(42, 34, 86, 0.66), rgba(24, 19, 52, 0.92));
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-standard);
+  box-shadow: var(--shadow-elev-2);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.surface-card-interactive {
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.surface-card-interactive:hover {
+  border-color: var(--surface-border-strong);
+  box-shadow: var(--shadow-elev-2), 0 0 16px rgba(106, 67, 255, 0.16);
 }
 
 /* --- LAYOUT PRINCIPAL --- */
@@ -894,10 +935,10 @@ input::placeholder {
 
 .shimmer-item {
   height: 20px;
-  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background: linear-gradient(90deg, rgba(42, 34, 86, 0.55) 25%, rgba(58, 48, 110, 0.7) 50%, rgba(42, 34, 86, 0.55) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
-  border-radius: 4px;
+  border-radius: 8px;
 }
 
 .shimmer-item:nth-child(1) {
@@ -997,7 +1038,7 @@ body[data-theme="dark"] .shimmer-item {
 
 /* Focus indicators */
 *:focus {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid var(--violet-soft);
   outline-offset: 2px;
 }
 
@@ -1005,7 +1046,7 @@ button:focus,
 input:focus,
 select:focus,
 textarea:focus {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid var(--violet-soft);
   outline-offset: 2px;
 }
 

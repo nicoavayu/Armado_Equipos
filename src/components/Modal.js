@@ -76,7 +76,7 @@ const Modal = ({
   const modalContent = (
     <div
       data-modal-root="true"
-      className={`fixed inset-0 bg-black/75 backdrop-blur-[4px] z-[10001] flex justify-center overflow-y-auto ${disableEnterAnimation ? '' : 'animate-[fadeIn_0.2s_ease-out]'}`}
+      className={`fixed inset-0 bg-[#0a0718]/80 backdrop-blur-[5px] z-[10001] flex justify-center overflow-y-auto ${disableEnterAnimation ? '' : 'animate-[fadeIn_0.2s_ease-out]'}`}
       style={{
         alignItems: isKeyboardOpen ? 'flex-start' : 'center',
         paddingTop: 'max(1.25rem, env(safe-area-inset-top))',
@@ -91,14 +91,14 @@ const Modal = ({
     >
       <div
         ref={modalRef}
-        className={`bg-[#1a1a1a] rounded-[var(--radius-standard)] shadow-[0_20px_60px_rgba(0,0,0,0.8)] max-w-[95vw] max-h-full w-auto flex flex-col overflow-hidden border border-[#333] ${disableEnterAnimation ? '' : 'animate-[scaleIn_0.2s_ease-out]'} ${className}`}
+        className={`bg-[linear-gradient(170deg,#221b4a_0%,#181334_55%,#141029_100%)] rounded-2xl shadow-[0_22px_56px_rgba(6,4,18,0.7),inset_0_1px_0_rgba(255,255,255,0.07)] max-w-[95vw] max-h-full w-auto flex flex-col overflow-hidden border border-white/10 ${disableEnterAnimation ? '' : 'animate-[scaleIn_0.2s_ease-out]'} ${className}`}
         onClick={(e) => e.stopPropagation()}
       >
         {hasHeader && (
-          <div className={`flex items-center p-5 border-b border-[#333] shrink-0 ${title ? 'justify-between' : 'justify-end'}`}>
-            {title ? <h2 className="text-white text-xl font-semibold m-0">{title}</h2> : null}
+          <div className={`flex items-center px-5 py-4 border-b border-white/[0.08] shrink-0 ${title ? 'justify-between' : 'justify-end'}`}>
+            {title ? <h2 className="text-white text-lg font-semibold m-0 tracking-[0.01em]">{title}</h2> : null}
             <button
-              className="bg-transparent border-none text-[#999] text-2xl cursor-pointer p-0 w-8 h-8 flex items-center justify-center rounded-[var(--radius-standard)] transition-all duration-200 hover:text-white hover:bg-white/10 focus:outline-none focus:text-white focus:bg-white/10"
+              className="bg-white/[0.05] border border-white/10 text-white/60 text-xl cursor-pointer p-0 w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-200 hover:text-white hover:bg-white/10 focus:outline-none focus:text-white focus:bg-white/10"
               onClick={onClose}
               aria-label="Cerrar modal"
               type="button"
@@ -107,11 +107,11 @@ const Modal = ({
             </button>
           </div>
         )}
-        <div className={`p-6 overflow-y-auto flex-1 touch-pan-y ${classNameContent}`}>
+        <div className={`p-5 overflow-y-auto flex-1 touch-pan-y ${classNameContent}`}>
           {children}
         </div>
         {footer && (
-          <div className="p-6 border-t border-[#333] shrink-0">
+          <div className="px-5 py-4 border-t border-white/[0.08] shrink-0">
             {footer}
           </div>
         )}

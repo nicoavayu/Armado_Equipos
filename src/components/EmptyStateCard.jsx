@@ -12,19 +12,19 @@ const EmptyStateCard = ({
   titleClassName = '',
   actionClassName = '',
 }) => {
-  const defaultTitleClassName = 'font-oswald font-semibold text-[24px] leading-none tracking-[0.01em] text-white sm:text-[22px]';
-  const defaultActionClassName = 'mt-6 w-full max-w-[340px] mx-auto min-h-[44px] px-4 py-2.5 border border-[#7d5aff] bg-[#6a43ff] text-white font-bebas text-base tracking-[0.01em] rounded-none flex items-center justify-center text-center transition-all hover:bg-[#7550ff] active:opacity-95 shadow-[0_0_14px_rgba(106,67,255,0.3)] sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]';
+  const defaultTitleClassName = 'font-oswald font-semibold text-[19px] leading-tight tracking-[0.01em] text-white sm:text-[18px]';
+  const defaultActionClassName = 'mt-5 w-full max-w-[300px] mx-auto min-h-[42px] px-4 py-2 border border-white/15 bg-cta-gradient text-white font-bebas text-[15px] tracking-[0.04em] rounded-none flex items-center justify-center text-center transition-all hover:brightness-110 active:opacity-95 shadow-[0_4px_16px_rgba(106,67,255,0.3)] sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]';
   const normalizedTitle = toSentenceCase(title);
 
   return (
-    <div className={`w-full max-w-[500px] text-center my-8 p-8 rounded-none bg-[linear-gradient(160deg,rgba(31,38,86,0.86),rgba(16,24,60,0.94))] border border-[rgba(108,126,196,0.46)] shadow-[0_18px_38px_rgba(4,10,28,0.42)] ${className}`}>
-      <div className="mx-auto mb-4 w-12 h-12 rounded-none bg-[rgba(35,46,95,0.86)] border border-[rgba(118,137,204,0.5)] flex items-center justify-center">
-        <Icon size={22} className="text-white/72" />
+    <div className={`w-full max-w-[460px] text-center my-6 p-6 rounded-none bg-[linear-gradient(168deg,rgba(42,34,86,0.66),rgba(24,19,52,0.92))] border border-white/[0.09] shadow-[0_10px_28px_rgba(6,4,18,0.45),inset_0_1px_0_rgba(255,255,255,0.05)] ${className}`}>
+      <div className="mx-auto mb-3.5 w-11 h-11 rounded-xl bg-[rgba(106,67,255,0.14)] border border-[rgba(139,124,255,0.35)] flex items-center justify-center">
+        <Icon size={20} className="text-[#b3a6ff]" />
       </div>
       <h3 className={titleClassName || defaultTitleClassName}>
         {normalizedTitle}
       </h3>
-      <p className="mt-3 text-sm md:text-[15px] text-white/68 font-oswald leading-snug">
+      <p className="mt-2.5 text-[13px] md:text-sm text-white/60 font-oswald leading-snug max-w-[320px] mx-auto">
         {description}
       </p>
       {actionLabel && typeof onAction === 'function' && (

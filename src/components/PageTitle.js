@@ -44,7 +44,7 @@ const PageTitle = ({
 
   return (
     <div
-      className={`${position === 'sticky' ? 'sticky' : position === 'static' ? 'relative' : 'fixed'} top-0 left-0 right-0 z-[1000] p-[18px_16px] box-border shrink-0 bg-black/40 backdrop-blur-xl border-b border-white/10 md:p-[14px_12px]`}
+      className={`${position === 'sticky' ? 'sticky' : position === 'static' ? 'relative' : 'fixed'} top-0 left-0 right-0 z-[1000] p-[14px_16px] box-border shrink-0 bg-[#15102c]/88 backdrop-blur-xl border-b border-white/[0.08] md:p-[12px_12px]`}
       style={Object.keys(containerStyle).length > 0 ? containerStyle : undefined}
     >
       <div
@@ -55,18 +55,18 @@ const PageTitle = ({
       >
         {onBack && (
           <button
-            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/5 border border-white/10 text-white cursor-pointer py-2 px-3 rounded-2xl transition-all duration-200 min-w-[44px] min-h-[44px] flex items-center justify-center hover:bg-white/15 hover:scale-105 active:scale-95 group"
+            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/[0.06] border border-white/10 text-white cursor-pointer py-2 px-3 rounded-xl transition-all duration-200 min-w-[40px] min-h-[40px] flex items-center justify-center hover:bg-white/[0.12] hover:border-white/20 active:scale-95 group"
             onClick={(e) => {
               e.stopPropagation();
               onBack();
             }}
           >
-            <svg width="24" height="24" viewBox="0 0 32 32" fill="currentColor" className="transition-transform group-hover:-translate-x-1 md:w-5 md:h-5">
+            <svg width="20" height="20" viewBox="0 0 32 32" fill="currentColor" className="transition-transform group-hover:-translate-x-1 md:w-[18px] md:h-[18px]">
               <polygon points="22,4 10,15.999 22,28" />
             </svg>
           </button>
         )}
-        <h2 className="m-0 font-oswald font-semibold text-center text-white absolute top-1/2 left-0 -translate-y-1/2 w-full drop-shadow-lg px-[52px] text-[22px] whitespace-normal break-words md:text-[20px] xs:text-[18px]">
+        <h2 className="m-0 font-oswald font-semibold text-center text-white absolute top-1/2 left-0 -translate-y-1/2 w-full drop-shadow-md px-[52px] text-[19px] tracking-[0.01em] whitespace-normal break-words md:text-[18px] xs:text-[17px]">
           {normalizedTitle}
         </h2>
 
