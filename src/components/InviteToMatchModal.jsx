@@ -19,7 +19,7 @@ import {
 
 const SECTION_TITLE_CLASS = 'font-oswald text-[clamp(16px,4.4vw,20px)] font-semibold leading-tight tracking-[0.01em] text-white';
 const PRIMARY_ACTION_BUTTON_CLASS = 'w-full min-h-[44px] px-4 py-2.5 rounded-none border border-[#7d5aff] bg-[#6a43ff] text-white font-bebas text-base tracking-[0.01em] transition-all inline-flex items-center justify-center gap-2 hover:bg-[#7550ff] active:opacity-95 shadow-[0_0_14px_rgba(106,67,255,0.3)] disabled:bg-[rgba(106,67,255,0.55)] disabled:border-[rgba(125,90,255,0.5)] disabled:text-white/40 disabled:shadow-none disabled:cursor-not-allowed';
-const SECONDARY_ACTION_BUTTON_CLASS = 'w-full min-h-[44px] px-4 py-2.5 rounded-none border border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] text-white/92 font-bebas text-base tracking-[0.01em] transition-all inline-flex items-center justify-center gap-2 hover:bg-[rgba(30,45,94,0.95)] active:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed';
+const SECONDARY_ACTION_BUTTON_CLASS = 'w-full min-h-[44px] px-4 py-2.5 rounded-none border border-[rgba(148,134,255,0.28)] bg-white/[0.05] text-white/92 font-bebas text-base tracking-[0.01em] transition-all inline-flex items-center justify-center gap-2 hover:bg-white/[0.1] active:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed';
 const showInviteNotice = ({ title, message, confirmText = 'Entendido', danger = false }) => showGlobalNotice({
     title,
     message,
@@ -390,7 +390,7 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
             onClose={onClose}
             title=""
             footer={footerContent}
-            className="w-full max-w-[460px] !bg-[#101a35] border border-[rgba(98,117,184,0.58)]"
+            className="w-full max-w-[460px] !bg-[#101a35] border border-[rgba(148,134,255,0.28)]"
             classNameContent="p-4 overflow-x-hidden"
         >
             <div className="mb-3 px-1">
@@ -406,14 +406,14 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
             </div>
 
             {loading ? (
-                <div className="flex flex-col items-center justify-center py-12 gap-4 bg-[rgba(20,31,70,0.82)] rounded-none border border-[rgba(98,117,184,0.58)]">
+                <div className="flex flex-col items-center justify-center py-12 gap-4 bg-white/[0.05] rounded-none border border-[rgba(148,134,255,0.28)]">
                     <LoadingSpinner size="lg" />
                     <p className="text-white/40 text-[11px] font-oswald tracking-[0.01em] animate-pulse">
                         Buscando tus partidos...
                     </p>
                 </div>
             ) : matches.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-10 px-6 text-center bg-[rgba(20,31,70,0.82)] rounded-none border border-[rgba(98,117,184,0.58)] border-dashed">
+                <div className="flex flex-col items-center justify-center py-10 px-6 text-center bg-white/[0.05] rounded-none border border-[rgba(148,134,255,0.28)] border-dashed">
                     <p className="text-white/50 text-sm leading-relaxed mb-1">
                         No tenés partidos abiertos disponibles para invitar.
                     </p>

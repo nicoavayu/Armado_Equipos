@@ -293,7 +293,9 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
     navigate(item.route);
   };
 
-  const cardClass = 'bg-[linear-gradient(168deg,rgba(42,34,86,0.6),rgba(24,19,52,0.9))] border border-white/[0.09] rounded-none p-3.5 cursor-pointer transition-[transform,background-color,border-color,box-shadow] duration-300 aspect-[4/3] relative overflow-hidden flex flex-col justify-start no-underline text-white backdrop-blur-[15px] z-[1] hover:-translate-y-1 hover:border-[rgba(139,124,255,0.4)] hover:shadow-[0_12px_32px_rgba(6,4,18,0.5),0_0_16px_rgba(106,67,255,0.14)] active:translate-y-0 active:scale-100 sm:p-3 shadow-[0_8px_28px_rgba(6,4,18,0.45),inset_0_1px_0_rgba(255,255,255,0.05)]';
+  // Quick-access card: compact module with icon tile + label + chevron, layered violet surface.
+  const cardClass = 'group bg-[radial-gradient(300px_150px_at_14%_-26%,rgba(139,92,255,0.2),transparent_70%),linear-gradient(165deg,rgba(48,38,98,0.72),rgba(20,16,41,0.94))] border border-[rgba(148,134,255,0.16)] rounded-card p-4 cursor-pointer transition-[transform,background-color,border-color,box-shadow] duration-300 min-h-[118px] relative overflow-hidden flex flex-col justify-between gap-3 no-underline text-white backdrop-blur-[15px] z-[1] hover:-translate-y-0.5 hover:border-[rgba(148,134,255,0.45)] hover:shadow-[0_14px_36px_rgba(5,3,16,0.55),0_0_20px_rgba(106,67,255,0.18)] active:translate-y-0 active:scale-[0.985] sm:p-3.5 shadow-elev-2';
+  const cardHeroClass = 'group bg-[radial-gradient(320px_170px_at_16%_-30%,rgba(255,255,255,0.22),transparent_72%),linear-gradient(135deg,#8b5cff_0%,#6a43ff_56%,#5430e0_100%)] border border-white/20 rounded-card p-4 cursor-pointer transition-[transform,border-color,box-shadow] duration-300 min-h-[118px] relative overflow-hidden flex flex-col justify-between gap-3 no-underline text-white z-[1] hover:-translate-y-0.5 hover:brightness-105 hover:shadow-[0_16px_40px_rgba(84,48,224,0.5)] active:translate-y-0 active:scale-[0.985] sm:p-3.5 shadow-[0_12px_32px_rgba(84,48,224,0.42),inset_0_1px_0_rgba(255,255,255,0.25)]';
 
   useEffect(() => {
     if (!location?.state?.openProximosPartidos) return;
@@ -821,7 +823,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
 
       {/* Header elements - Avatar and Notifications */}
       {user && (
-        <div className="relative left-1/2 right-1/2 ml-[-50vw] mr-[-50vw] w-screen mb-5 px-4 py-2.5 bg-[#181334]/75 border-y border-white/[0.08] rounded-none ui-flat backdrop-blur-[20px] shadow-[0_6px_20px_rgba(6,4,18,0.35)]">
+        <div className="relative left-1/2 right-1/2 ml-[-50vw] mr-[-50vw] w-screen mb-6 px-4 py-3 bg-[#120e28]/85 border-y border-[rgba(148,134,255,0.14)] rounded-none ui-flat backdrop-blur-[20px] shadow-[0_10px_28px_rgba(5,3,16,0.4)] after:content-[''] after:absolute after:bottom-0 after:left-0 after:right-0 after:h-px after:bg-[linear-gradient(90deg,transparent_8%,rgba(139,92,255,0.5)_42%,rgba(236,0,125,0.35)_66%,transparent_92%)]">
           <div className="w-full max-w-[920px] mx-auto flex items-center justify-between">
             <div className="flex flex-row items-center justify-center cursor-pointer relative z-[10000]" ref={statusDropdownRef}>
             <div className="relative mr-4" onClick={handleAvatarClick}>
@@ -837,7 +839,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
                       : 'bg-transparent',
                 ].join(' ')}
               >
-                <div className="w-10 h-10 rounded-full overflow-hidden bg-white/20 flex items-center justify-center text-white font-bold text-base">
+                <div className="w-10 h-10 rounded-full overflow-hidden bg-[#1d1740] ring-1 ring-[rgba(148,134,255,0.4)] flex items-center justify-center text-white font-bold text-base">
                   {profile?.avatar_url ? (
                     <img
                       src={profile.avatar_url}
@@ -851,28 +853,31 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
                   )}
                 </div>
               </div>
-              <div className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white/80 ${isAvailable ? 'bg-[#4CAF50]' : 'bg-[#F44336]'}`}></div>
+              <div className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-[#120e28] ${isAvailable ? 'bg-[#4CAF50]' : 'bg-[#F44336]'}`}></div>
             </div>
 
             <div className="flex flex-col" onClick={toggleStatusDropdown}>
-              <div className="flex items-baseline">
-                <div className="text-white font-oswald text-sm mr-[5px] opacity-90 drop-shadow-[0_1px_2px_rgba(255,255,255,0.2)]">Hola,</div>
-                <div className="text-white font-oswald text-lg font-semibold drop-shadow-[0_1px_2px_rgba(255,255,255,0.2)]">{truncatedName}</div>
+              <div className="text-[10px] font-sans font-bold uppercase tracking-[0.16em] text-[#b0a0ff]/80 leading-none">Hola</div>
+              <div className="flex items-center gap-2 mt-1">
+                <div className="text-white font-oswald text-lg font-bold leading-tight tracking-[0.01em]">{truncatedName}</div>
+                <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-px text-[10px] font-semibold leading-tight mt-px ${isAvailable ? 'border-green-400/30 bg-green-400/10 text-green-300' : 'border-red-400/30 bg-red-400/10 text-red-300'}`}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${isAvailable ? 'bg-green-400' : 'bg-red-400'}`} />
+                  {statusText}
+                </span>
               </div>
-              <div className={`font-oswald text-xs mt-[2px] ${isAvailable ? 'text-[#4CAF50]' : 'text-[#F44336]'}`}>{statusText}</div>
             </div>
 
             {showStatusDropdown && createPortal(
               <div
                 ref={statusDropdownMenuRef}
-                className="fixed top-20 left-4 bg-[rgba(17,26,59,0.98)] rounded-none w-[290px] z-[2147483647] overflow-hidden shadow-[0_12px_36px_rgba(8,12,38,0.55)] border border-white/20 backdrop-blur-xl origin-top-left transition-all duration-200 animate-[dropdownSlideIn_0.2s_ease-out]"
+                className="fixed top-20 left-4 bg-[#141029]/97 rounded-2xl w-[290px] z-[2147483647] overflow-hidden shadow-[0_24px_64px_rgba(5,3,16,0.65)] border border-[rgba(148,134,255,0.28)] backdrop-blur-xl origin-top-left transition-all duration-200 animate-[dropdownSlideIn_0.2s_ease-out]"
               >
-                <div className="px-4 py-3 font-semibold text-white/90 border-b border-white/20 font-oswald tracking-wide text-xs">
+                <div className="px-4 py-3 font-bold text-[#b0a0ff]/85 border-b border-white/[0.08] font-sans uppercase tracking-[0.14em] text-[11px]">
                   Estado de disponibilidad
                 </div>
                 <div className="p-2.5 space-y-2">
                   <button
-                    className={`w-full text-left flex items-start gap-3 px-3.5 py-3 rounded-none cursor-pointer transition-[background-color,border-color,color] duration-200 text-white/95 border ${isAvailable ? 'bg-[#6a43ff] border-[#7d5aff] shadow-[0_0_14px_rgba(106,67,255,0.28)]' : 'bg-white/[0.03] border-white/20 hover:bg-white/[0.08]'}`}
+                    className={`w-full text-left flex items-start gap-3 px-3.5 py-3 rounded-xl cursor-pointer transition-[background-color,border-color,color] duration-200 text-white/95 border ${isAvailable ? 'bg-[#6a43ff] border-[#7d5aff] shadow-[0_0_14px_rgba(106,67,255,0.28)]' : 'bg-white/[0.03] border-white/15 hover:bg-white/[0.08]'}`}
                     onClick={() => updateAvailabilityStatus(true)}
                     type="button"
                   >
@@ -885,7 +890,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
                     </div>
                   </button>
                   <button
-                    className={`w-full text-left flex items-start gap-3 px-3.5 py-3 rounded-none cursor-pointer transition-[background-color,border-color,color] duration-200 text-white/95 border ${!isAvailable ? 'bg-[#6a43ff] border-[#7d5aff] shadow-[0_0_14px_rgba(106,67,255,0.28)]' : 'bg-white/[0.03] border-white/20 hover:bg-white/[0.08]'}`}
+                    className={`w-full text-left flex items-start gap-3 px-3.5 py-3 rounded-xl cursor-pointer transition-[background-color,border-color,color] duration-200 text-white/95 border ${!isAvailable ? 'bg-[#6a43ff] border-[#7d5aff] shadow-[0_0_14px_rgba(106,67,255,0.28)]' : 'bg-white/[0.03] border-white/15 hover:bg-white/[0.08]'}`}
                     onClick={() => updateAvailabilityStatus(false)}
                     type="button"
                   >
@@ -919,20 +924,31 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-2.5 mb-5 bg-transparent shadow-none">
-        {/* Create New Match */}
+      <div className="mb-3.5">
+        <span className="section-eyebrow">Tu juego</span>
+        <h3 className="section-title">Accesos rápidos</h3>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 mb-7 bg-transparent shadow-none">
+        {/* Create New Match — primary CTA card */}
         <Link
           to="/nuevo-partido"
-          className={cardClass}
+          className={cardHeroClass}
           onMouseEnter={() => prefetchRoute('/nuevo-partido')}
           onTouchStart={() => prefetchRoute('/nuevo-partido')}
           onFocus={() => prefetchRoute('/nuevo-partido')}
         >
-          <div className="text-white font-oswald text-[16px] md:text-[17px] font-semibold leading-none drop-shadow-[0_2px_8px_rgba(106,67,255,0.45)] sm:text-[16px]">Partido<br />nuevo</div>
-          <div className="absolute bottom-5 right-5 text-white/95 text-[28px] w-[52px] h-[52px] flex items-center justify-center sm:w-11 sm:h-11 sm:bottom-4 sm:right-4 sm:text-2xl">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" fill="currentColor" width={60} height={60}>
-              <path d="M320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320C64 461.4 178.6 576 320 576zM296 408L296 344L232 344C218.7 344 208 333.3 208 320C208 306.7 218.7 296 232 296L296 296L296 232C296 218.7 306.7 208 320 208C333.3 208 344 218.7 344 232L344 296L408 296C421.3 296 432 306.7 432 320C432 333.3 421.3 344 408 344L344 344L344 408C344 421.3 333.3 432 320 432C306.7 432 296 421.3 296 408z" />
-            </svg>
+          <div className="flex items-start justify-between">
+            <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 border border-white/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.3)]">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" fill="currentColor" width={22} height={22}>
+                <path d="M320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320C64 461.4 178.6 576 320 576zM296 408L296 344L232 344C218.7 344 208 333.3 208 320C208 306.7 218.7 296 232 296L296 296L296 232C296 218.7 306.7 208 320 208C333.3 208 344 218.7 344 232L344 296L408 296C421.3 296 432 306.7 432 320C432 333.3 421.3 344 408 344L344 344L344 408C344 421.3 333.3 432 320 432C306.7 432 296 421.3 296 408z" />
+              </svg>
+            </span>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 text-white/70 transition-transform duration-200 group-hover:translate-x-0.5"><path d="m9 18 6-6-6-6" /></svg>
+          </div>
+          <div>
+            <div className="text-white font-oswald text-[16px] font-bold leading-tight tracking-[0.01em]">Partido nuevo</div>
+            <div className="text-white/75 font-sans text-[11.5px] font-medium leading-tight mt-0.5">Armá y compartí</div>
           </div>
         </Link>
 
@@ -941,15 +957,22 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
           className={cardClass}
           onClick={() => user && setShowProximosPartidos(true)}
         >
-          <div className="text-white font-oswald text-[16px] md:text-[17px] font-semibold leading-none drop-shadow-[0_2px_6px_rgba(0,0,0,0.11)] sm:text-[16px]">Mis<br />partidos</div>
-          <div className="absolute bottom-5 right-5 text-white/95 text-[28px] w-[52px] h-[52px] flex items-center justify-center sm:w-11 sm:h-11 sm:bottom-4 sm:right-4 sm:text-2xl">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" fill="currentColor" width={48} height={48}>
-              <path d="M64 320C64 461.4 178.6 576 320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320zM305 441C295.6 450.4 280.4 450.4 271.1 441C261.8 431.6 261.7 416.4 271.1 407.1L358.1 320.1L271.1 233.1C261.7 223.7 261.7 208.5 271.1 199.2C280.5 189.9 295.7 189.8 305 199.2L409 303C418.4 312.4 418.4 327.6 409 336.9L305 441z" />
-            </svg>
+          <div className="flex items-start justify-between">
+            <span className="icon-tile h-10 w-10 rounded-xl">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" fill="currentColor" width={20} height={20}>
+                <path d="M64 320C64 461.4 178.6 576 320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320zM305 441C295.6 450.4 280.4 450.4 271.1 441C261.8 431.6 261.7 416.4 271.1 407.1L358.1 320.1L271.1 233.1C261.7 223.7 261.7 208.5 271.1 199.2C280.5 189.9 295.7 189.8 305 199.2L409 303C418.4 312.4 418.4 327.6 409 336.9L305 441z" />
+              </svg>
+            </span>
+            {activeMatches && activeMatches.length > 0 ? (
+              <span className="inline-flex min-w-[22px] h-[22px] items-center justify-center rounded-full bg-[#ec007d] px-1.5 text-[11px] font-bold text-white shadow-[0_0_12px_rgba(236,0,125,0.5)]">{activeMatches.length}</span>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 text-white/35 transition-transform duration-200 group-hover:translate-x-0.5"><path d="m9 18 6-6-6-6" /></svg>
+            )}
           </div>
-          {activeMatches && activeMatches.length > 0 && (
-            <div className="absolute top-3 right-3 bg-[#128BE9] text-white rounded-full w-5 h-5 flex items-center justify-center font-bold text-[11px] shadow-[0_2px_6px_rgba(0,0,0,0.18)] sm:w-[18px] sm:h-[18px] sm:text-[10px] sm:top-2.5 sm:right-2.5">{activeMatches.length}</div>
-          )}
+          <div>
+            <div className="text-white font-oswald text-[16px] font-bold leading-tight tracking-[0.01em]">Mis partidos</div>
+            <div className="text-white/55 font-sans text-[11.5px] font-medium leading-tight mt-0.5">Agenda y estado</div>
+          </div>
         </div>
 
         {/* Frecuentes */}
@@ -960,11 +983,17 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
           onTouchStart={() => prefetchRoute('/frecuentes')}
           onFocus={() => prefetchRoute('/frecuentes')}
         >
-          <div className="text-white font-oswald text-[16px] md:text-[17px] font-semibold leading-none drop-shadow-[0_2px_6px_rgba(0,0,0,0.11)] sm:text-[16px]">Frecuentes</div>
-          <div className="absolute bottom-5 right-5 text-white/95 text-[28px] w-[52px] h-[52px] flex items-center justify-center sm:w-11 sm:h-11 sm:bottom-4 sm:right-4 sm:text-2xl">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" fill="currentColor" width={48} height={48}>
-              <path d="M320 128C426 128 512 214 512 320C512 426 426 512 320 512C254.8 512 197.1 479.5 162.4 429.7C152.3 415.2 132.3 411.7 117.8 421.8C103.3 431.9 99.8 451.9 109.9 466.4C156.1 532.6 233 576 320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C234.3 64 158.5 106.1 112 170.7L112 144C112 126.3 97.7 112 80 112C62.3 112 48 126.3 48 144L48 256C48 273.7 62.3 288 80 288L104.6 288C105.1 288 105.6 288 106.1 288L192.1 288C209.8 288 224.1 273.7 224.1 256C224.1 238.3 209.8 224 192.1 224L153.8 224C186.9 166.6 249 128 320 128zM344 216C344 202.7 333.3 192 320 192C306.7 192 296 202.7 296 216L296 320C296 326.4 298.5 332.5 303 337L375 409C384.4 418.4 399.6 418.4 408.9 409C418.2 399.6 418.3 384.4 408.9 375.1L343.9 310.1L343.9 216z" />
-            </svg>
+          <div className="flex items-start justify-between">
+            <span className="icon-tile h-10 w-10 rounded-xl">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" fill="currentColor" width={20} height={20}>
+                <path d="M320 128C426 128 512 214 512 320C512 426 426 512 320 512C254.8 512 197.1 479.5 162.4 429.7C152.3 415.2 132.3 411.7 117.8 421.8C103.3 431.9 99.8 451.9 109.9 466.4C156.1 532.6 233 576 320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C234.3 64 158.5 106.1 112 170.7L112 144C112 126.3 97.7 112 80 112C62.3 112 48 126.3 48 144L48 256C48 273.7 62.3 288 80 288L104.6 288C105.1 288 105.6 288 106.1 288L192.1 288C209.8 288 224.1 273.7 224.1 256C224.1 238.3 209.8 224 192.1 224L153.8 224C186.9 166.6 249 128 320 128zM344 216C344 202.7 333.3 192 320 192C306.7 192 296 202.7 296 216L296 320C296 326.4 298.5 332.5 303 337L375 409C384.4 418.4 399.6 418.4 408.9 409C418.2 399.6 418.3 384.4 408.9 375.1L343.9 310.1L343.9 216z" />
+              </svg>
+            </span>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 text-white/35 transition-transform duration-200 group-hover:translate-x-0.5"><path d="m9 18 6-6-6-6" /></svg>
+          </div>
+          <div>
+            <div className="text-white font-oswald text-[16px] font-bold leading-tight tracking-[0.01em]">Frecuentes</div>
+            <div className="text-white/55 font-sans text-[11.5px] font-medium leading-tight mt-0.5">Tus plantillas</div>
           </div>
         </Link>
 
@@ -976,120 +1005,127 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
           onTouchStart={() => prefetchRoute('/stats')}
           onFocus={() => prefetchRoute('/stats')}
         >
-          <div className="text-white font-oswald text-[16px] md:text-[17px] font-semibold leading-none drop-shadow-[0_2px_6px_rgba(0,0,0,0.11)] sm:text-[16px]">Estadísticas</div>
-          <div className="absolute bottom-5 right-5 text-white/95 text-[28px] w-[52px] h-[52px] flex items-center justify-center sm:w-11 sm:h-11 sm:bottom-4 sm:right-4 sm:text-2xl">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" fill="currentColor" width={48} height={48}>
-              <path d="M256 144C256 117.5 277.5 96 304 96L336 96C362.5 96 384 117.5 384 144L384 496C384 522.5 362.5 544 336 544L304 544C277.5 544 256 522.5 256 496L256 144zM64 336C64 309.5 85.5 288 112 288L144 288C170.5 288 192 309.5 192 336L192 496C192 522.5 170.5 544 144 544L112 544C85.5 544 64 522.5 64 496L64 336zM496 160L528 160C554.5 160 576 181.5 576 208L576 496C576 522.5 554.5 544 528 544L496 544C469.5 544 448 522.5 448 496L448 208C448 181.5 469.5 160 496 160z" />
-            </svg>
+          <div className="flex items-start justify-between">
+            <span className="icon-tile icon-tile--accent h-10 w-10 rounded-xl">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" fill="currentColor" width={20} height={20}>
+                <path d="M256 144C256 117.5 277.5 96 304 96L336 96C362.5 96 384 117.5 384 144L384 496C384 522.5 362.5 544 336 544L304 544C277.5 544 256 522.5 256 496L256 144zM64 336C64 309.5 85.5 288 112 288L144 288C170.5 288 192 309.5 192 336L192 496C192 522.5 170.5 544 144 544L112 544C85.5 544 64 522.5 64 496L64 336zM496 160L528 160C554.5 160 576 181.5 576 208L576 496C576 522.5 554.5 544 528 544L496 544C469.5 544 448 522.5 448 496L448 208C448 181.5 469.5 160 496 160z" />
+              </svg>
+            </span>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 text-white/35 transition-transform duration-200 group-hover:translate-x-0.5"><path d="m9 18 6-6-6-6" /></svg>
+          </div>
+          <div>
+            <div className="text-white font-oswald text-[16px] font-bold leading-tight tracking-[0.01em]">Estadísticas</div>
+            <div className="text-white/55 font-sans text-[11.5px] font-medium leading-tight mt-0.5">Tu rendimiento</div>
           </div>
         </Link>
-
-
       </div>
 
       {/* Recent Activity */}
-      <section className="mt-5 mb-10">
-        <h3 className="font-oswald text-[20px] m-0 mb-3 text-white/90 font-semibold uppercase tracking-[0.01em]">Actividad reciente</h3>
+      <section className="mt-6 mb-10">
+        <div className="mb-3.5">
+          <span className="section-eyebrow">Al día</span>
+          <h3 className="section-title">Actividad reciente</h3>
+        </div>
 
-        <div className="relative left-1/2 right-1/2 ml-[-50vw] mr-[-50vw] w-screen">
-          <div className="px-4">
-            <div className="min-h-[340px]">
-              {activityLoading ? (
-                <div className="h-[340px] overflow-hidden">
-                  {Array.from({ length: 4 }).map((_, index) => (
-                    <div key={`activity-skeleton-${index}`} className="py-3">
-                      <div className="flex items-start gap-3 px-2.5">
-                        <div className="w-5 h-5 rounded-full bg-white/[0.14] animate-pulse mt-1" />
-                        <div className="min-w-0 flex-1">
-                          <div className="h-3.5 w-[82%] rounded bg-white/[0.13] animate-pulse" />
-                          <div className="h-3 mt-2 w-[52%] rounded bg-white/[0.08] animate-pulse" />
-                        </div>
+        <div className="surface-card rounded-card overflow-hidden">
+          <div className="min-h-[320px]">
+            {activityLoading ? (
+              <div className="h-[320px] overflow-hidden px-4 py-2">
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <div key={`activity-skeleton-${index}`} className="py-3">
+                    <div className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-white/[0.1] animate-pulse" />
+                      <div className="min-w-0 flex-1 pt-1">
+                        <div className="h-3.5 w-[82%] rounded-full bg-white/[0.13] animate-pulse" />
+                        <div className="h-3 mt-2 w-[52%] rounded-full bg-white/[0.08] animate-pulse" />
                       </div>
-                      {index < 3 && <div className="mt-3 h-px bg-white/[0.06]" />}
                     </div>
-                  ))}
-                </div>
-              ) : activityItems.length > 0 ? (
-                <div className="h-[340px] overflow-y-auto pr-0.5 custom-scrollbar">
-                  {activityItems.map((item, index) => {
-                    const Icon = activityIconMap[item.icon] || Bell;
-                    const iconColorClass = severityIconClass[item.severity] || severityIconClass.neutral;
-                    const subtitleParts = [item.subtitle];
-                    if (item.count > 1) subtitleParts.push(`x${item.count}`);
-                    const subtitleText = subtitleParts.filter(Boolean).join(' · ');
-                    const canNavigate = Boolean(item.route);
+                    {index < 3 && <div className="mt-3 h-px bg-white/[0.06]" />}
+                  </div>
+                ))}
+              </div>
+            ) : activityItems.length > 0 ? (
+              <div className="h-[320px] overflow-y-auto custom-scrollbar">
+                {activityItems.map((item, index) => {
+                  const Icon = activityIconMap[item.icon] || Bell;
+                  const iconColorClass = severityIconClass[item.severity] || severityIconClass.neutral;
+                  const subtitleParts = [item.subtitle];
+                  if (item.count > 1) subtitleParts.push(`x${item.count}`);
+                  const subtitleText = subtitleParts.filter(Boolean).join(' · ');
+                  const canNavigate = Boolean(item.route);
 
-                    return (
-                      <div key={item.id}>
-                        <button
-                          type="button"
-                          disabled={!canNavigate}
-                          onClick={() => {
-                            if (!canNavigate) return;
-                            handleActivityItemClick(item);
-                          }}
-                          onMouseEnter={() => {
-                            if (canNavigate) prefetchRoute(item.route);
-                          }}
-                          onTouchStart={() => {
-                            if (canNavigate) prefetchRoute(item.route);
-                          }}
-                          onFocus={() => {
-                            if (canNavigate) prefetchRoute(item.route);
-                          }}
-                          className={`w-full flex items-start gap-3 px-3.5 py-2.5 rounded-none border border-white/[0.09] text-left bg-[linear-gradient(168deg,rgba(42,34,86,0.4),rgba(24,19,52,0.7))] transition-colors ${
-                            canNavigate
-                              ? 'hover:brightness-[1.07] active:brightness-[1.1]'
-                              : 'opacity-85 cursor-default'
-                          }`}
-                        >
-                          <div className={`mt-1 shrink-0 ${iconColorClass}`}>
-                            <Icon size={17} />
+                  return (
+                    <div key={item.id}>
+                      <button
+                        type="button"
+                        disabled={!canNavigate}
+                        onClick={() => {
+                          if (!canNavigate) return;
+                          handleActivityItemClick(item);
+                        }}
+                        onMouseEnter={() => {
+                          if (canNavigate) prefetchRoute(item.route);
+                        }}
+                        onTouchStart={() => {
+                          if (canNavigate) prefetchRoute(item.route);
+                        }}
+                        onFocus={() => {
+                          if (canNavigate) prefetchRoute(item.route);
+                        }}
+                        className={`w-full flex items-start gap-3 px-4 py-3 text-left bg-transparent transition-colors ${
+                          canNavigate
+                            ? 'hover:bg-white/[0.05] active:bg-white/[0.08]'
+                            : 'opacity-85 cursor-default'
+                        }`}
+                      >
+                        <span className={`mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/[0.1] bg-white/[0.05] ${iconColorClass}`}>
+                          <Icon size={16} />
+                        </span>
+
+                        <div className="min-w-0 flex-1">
+                          <div
+                            className="text-white/92 text-[13.5px] leading-[1.25rem] font-medium"
+                            style={{
+                              display: '-webkit-box',
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: 'vertical',
+                              overflow: 'hidden',
+                            }}
+                          >
+                            {item.title}
                           </div>
-
-                          <div className="min-w-0 flex-1">
-                            <div
-                              className="text-white/92 text-[14px] leading-[1.25rem] font-medium"
-                              style={{
-                                display: '-webkit-box',
-                                WebkitLineClamp: 2,
-                                WebkitBoxOrient: 'vertical',
-                                overflow: 'hidden',
-                              }}
-                            >
-                              {item.title}
-                            </div>
-                            <div className="text-white/58 text-[12px] leading-4 mt-1 whitespace-pre-line break-words">
-                              {subtitleText}
-                            </div>
+                          <div className="text-white/50 text-[11.5px] leading-4 mt-0.5 whitespace-pre-line break-words">
+                            {subtitleText}
                           </div>
+                        </div>
 
-                          {canNavigate && (
-                            <div className="pt-1.5 shrink-0 text-white/30">
-                              <ChevronRight size={14} />
-                            </div>
-                          )}
-                        </button>
-
-                        {index < activityItems.length - 1 && (
-                          <div className="h-px bg-white/[0.06] my-0.5" />
+                        {canNavigate && (
+                          <div className="pt-2 shrink-0 text-white/30">
+                            <ChevronRight size={14} />
+                          </div>
                         )}
-                      </div>
-                    );
-                  })}
+                      </button>
+
+                      {index < activityItems.length - 1 && (
+                        <div className="h-px bg-white/[0.06] mx-4" />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="h-[320px] flex flex-col items-center justify-center text-center px-5">
+                <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-[linear-gradient(140deg,rgba(139,92,255,0.3),rgba(106,67,255,0.08))] border border-[rgba(148,134,255,0.35)] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]">
+                  <Bell size={24} className="text-[#cfc4ff]" />
                 </div>
-              ) : (
-                <div className="h-[340px] flex flex-col items-center justify-center text-center px-5">
-                  <Bell size={22} className="text-white/45 mb-3" />
-                  <div className="font-oswald text-[23px] sm:text-[22px] leading-tight tracking-[0.01em] text-white/90 font-semibold">
-                    Sin notificaciones
-                  </div>
-                  <div className="font-oswald text-[15px] text-white/60 mt-1.5 max-w-[360px]">
-                    Cuando haya actividad nueva en tus partidos, te va a aparecer acá.
-                  </div>
+                <div className="font-oswald text-[19px] leading-tight tracking-[0.01em] text-white font-bold">
+                  Sin notificaciones
                 </div>
-              )}
-            </div>
+                <div className="font-sans text-[13px] text-white/55 mt-1.5 max-w-[300px] leading-relaxed">
+                  Cuando haya actividad nueva en tus partidos, te va a aparecer acá.
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </section>

@@ -443,7 +443,7 @@ const DeleteAccountModal = ({
           <div className="flex flex-col sm:flex-row gap-3 justify-end">
             <button
               type="button"
-              className="h-[50px] min-w-[128px] px-6 rounded-[var(--radius-standard)] text-[16px] font-semibold tracking-[0.01em] font-oswald whitespace-nowrap cursor-pointer border bg-[rgba(23,35,74,0.72)] border-[rgba(88,107,170,0.46)] text-white hover:brightness-110 active:opacity-95 disabled:opacity-50 disabled:cursor-default transition-all"
+              className="h-[50px] min-w-[128px] px-6 rounded-[var(--radius-standard)] text-[16px] font-semibold tracking-[0.01em] font-oswald whitespace-nowrap cursor-pointer border bg-[rgba(23,35,74,0.72)] border-[rgba(148,134,255,0.2)] text-white hover:brightness-110 active:opacity-95 disabled:opacity-50 disabled:cursor-default transition-all"
               onClick={onClose}
               disabled={loading}
             >
@@ -493,7 +493,7 @@ const ProfileActionSection = ({
     </button>
 
     <button
-      className="w-full h-[50px] rounded-none border border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] text-white/90 text-base font-bebas tracking-[0.01em] normal-case cursor-pointer transition-all hover:bg-[rgba(30,45,94,0.95)] hover:text-white active:opacity-95 flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed"
+      className="w-full h-[50px] rounded-none border border-[rgba(148,134,255,0.28)] bg-white/[0.05] text-white/90 text-base font-bebas tracking-[0.01em] normal-case cursor-pointer transition-all hover:bg-white/[0.1] hover:text-white active:opacity-95 flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed"
       onClick={handleLogout}
       disabled={loading}
     >
@@ -1393,7 +1393,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
   if (!isOpen) return null;
 
   // Shared classes
-  const inputClass = 'w-full bg-[rgba(53,58,102,0.88)] border border-[rgba(133,149,208,0.5)] text-white px-4 py-3 rounded-none text-[15px] transition-all focus:outline-none focus:border-[#7f8dff] focus:bg-[rgba(62,67,114,0.95)] focus:ring-2 focus:ring-[#6f7dff]/30 placeholder:text-white/45 read-only:opacity-70 read-only:cursor-not-allowed shadow-inner backdrop-blur-sm';
+  const inputClass = 'w-full bg-[rgba(20,16,41,0.85)] border border-[rgba(148,134,255,0.25)] text-white px-4 py-3 rounded-none text-[15px] transition-all focus:outline-none focus:border-[#8b7cff] focus:bg-[rgba(62,67,114,0.95)] focus:ring-2 focus:ring-[#6a43ff]/30 placeholder:text-white/45 read-only:opacity-70 read-only:cursor-not-allowed shadow-inner backdrop-blur-sm';
   const singleLineFieldClass = `${inputClass} h-[50px] py-0`;
   const labelClass = 'text-white/90 text-sm font-bold mb-2 block uppercase tracking-wider';
   const formGroupClass = 'flex flex-col w-full';

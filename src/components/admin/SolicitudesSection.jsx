@@ -277,7 +277,7 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted, onRequestResolve
 
     if (requests.length === 0) {
         return (
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 w-full max-w-full mx-auto">
+            <div className="surface-card rounded-card p-8 w-full max-w-full mx-auto">
                 <div className="flex flex-col items-center justify-center text-center">
                     <div className="mb-4">
                         <EmptyRequestsMailboxIcon />
@@ -321,7 +321,7 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted, onRequestResolve
 
                     const cardContent = (
                         <div
-                            className={`bg-slate-900 border border-slate-800 rounded-xl p-4 flex items-center gap-3 ${hasLinkedAccount ? 'hover:bg-slate-800/80 hover:border-slate-700 transition-all' : ''}`}
+                            className={`bg-[linear-gradient(165deg,rgba(48,38,98,0.68),rgba(20,16,41,0.92))] border border-[rgba(148,134,255,0.18)] rounded-card shadow-elev-1 p-3.5 flex items-center gap-3 ${hasLinkedAccount ? 'hover:brightness-[1.06] hover:border-[rgba(148,134,255,0.45)] transition-all' : ''}`}
                         >
                             {/* Avatar */}
                             <div className="flex-shrink-0">
@@ -329,7 +329,7 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted, onRequestResolve
                                     <img
                                         src={avatarUrl}
                                         alt={userName}
-                                        className="w-12 h-12 rounded-full object-cover border-2 border-slate-700"
+                                        className="w-12 h-12 rounded-full object-cover border-2 border-[rgba(148,134,255,0.35)]"
                                     />
                                 ) : (
                                     <div className="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center text-white text-lg font-bold">
@@ -362,7 +362,7 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted, onRequestResolve
                             {/* Actions */}
                             <div className="flex items-center gap-2 flex-shrink-0">
                                 <button
-                                    className="h-11 w-11 rounded-none border border-[#7d5aff] bg-[#6a43ff] text-white shadow-[0_0_14px_rgba(106,67,255,0.3)] transition-all hover:bg-[#7550ff] hover:-translate-y-[1px] active:translate-y-0 active:scale-[0.96] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                                    className="h-11 w-11 rounded-full border border-[#7d5aff] bg-cta-gradient text-white shadow-[0_4px_14px_rgba(106,67,255,0.4)] transition-all hover:brightness-110 hover:-translate-y-[1px] active:translate-y-0 active:scale-[0.96] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         handleAccept(request);
@@ -378,7 +378,7 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted, onRequestResolve
                                     )}
                                 </button>
                                 <button
-                                    className="h-11 w-11 rounded-none border border-[rgba(88,107,170,0.46)] bg-[rgba(23,35,74,0.72)] text-[rgba(242,246,255,0.9)] transition-all hover:bg-[rgba(31,45,91,0.82)] hover:-translate-y-[1px] active:translate-y-0 active:scale-[0.96] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                                    className="h-11 w-11 rounded-full border border-[rgba(148,134,255,0.28)] bg-white/[0.05] text-white/85 transition-all hover:bg-white/[0.1] hover:-translate-y-[1px] active:translate-y-0 active:scale-[0.96] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         handleReject(request);

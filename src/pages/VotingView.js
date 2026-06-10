@@ -35,9 +35,9 @@ const clean = (value) => SANITIZE_ON ? DOMPurify.sanitize(String(value ?? '')) :
 
 // Debug logging
 const DEBUG = false;
-const VOTE_CARD_BG_BLUE = '#07163b';
-const VOTE_CARD_STROKE_BLUE = 'rgba(41, 170, 255, 0.9)';
-const VOTE_CARD_GLOW_BLUE = '0 0 9px rgba(41, 170, 255, 0.24)';
+const VOTE_CARD_BG_BLUE = '#1a1438';
+const VOTE_CARD_STROKE_BLUE = 'rgba(148, 134, 255, 0.55)';
+const VOTE_CARD_GLOW_BLUE = '0 0 12px rgba(106, 67, 255, 0.28)';
 const SUBSTITUTE_VOTER_MESSAGE = 'Estás como suplente. Podés ser calificado por los titulares, pero no necesitás votar salvo que pases a la nómina titular.';
 
 
@@ -457,20 +457,20 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
   const sectionTitleClass = 'font-bebas text-[31px] md:text-[46px] text-white tracking-[0.055em] font-bold text-center leading-[1.06] md:leading-[0.98] drop-shadow-lg';
   const voteStageTitleClass = 'font-bebas text-[clamp(2rem,8.8vw,3.15rem)] md:text-[42px] lg:text-[46px] text-white tracking-[0.045em] font-bold text-center leading-[1.04] md:leading-[0.98] drop-shadow-lg';
   const sectionSubtitleClass = 'font-oswald text-[18px] md:text-[21px] text-white/82 text-center leading-[1.22] tracking-[0.02em]';
-  const primaryVoteButtonClass = 'w-full h-[60px] min-h-[60px] px-4 border text-white font-oswald text-[20px] md:text-[22px] font-semibold tracking-[0.01em] normal-case rounded-none cursor-pointer transition-all duration-200 hover:brightness-110 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center';
+  const primaryVoteButtonClass = 'w-full h-[58px] min-h-[58px] px-4 border text-white font-oswald text-[19px] md:text-[21px] font-bold tracking-[0.02em] normal-case rounded-2xl cursor-pointer transition-all duration-200 hover:brightness-110 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center';
   const primaryVoteButtonStyle = {
-    background: 'linear-gradient(132deg, #291686 0%, #3f24ba 48%, #5638e6 100%)',
-    borderColor: 'rgba(132, 112, 255, 0.58)',
-    boxShadow: '0 0 22px rgba(86, 56, 230, 0.28)',
+    background: 'linear-gradient(135deg, #8b5cff 0%, #6a43ff 52%, #5430e0 100%)',
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    boxShadow: '0 8px 24px rgba(106, 67, 255, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.22)',
   };
   const neutralVoteButtonStyle = {
-    background: 'rgba(23, 35, 74, 0.72)',
-    borderColor: 'rgba(88, 107, 170, 0.46)',
+    background: 'rgba(255, 255, 255, 0.05)',
+    borderColor: 'rgba(148, 134, 255, 0.28)',
     boxShadow: 'none',
     color: 'rgba(255, 255, 255, 0.9)',
   };
   const voteCardHeaderStyle = {
-    backgroundColor: 'rgba(42, 56, 102, 0.86)',
+    backgroundColor: 'rgba(48, 38, 98, 0.9)',
     borderColor: VOTE_CARD_STROKE_BLUE,
     boxShadow: 'none',
   };

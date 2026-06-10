@@ -2472,7 +2472,7 @@ const EncuestaPartido = () => {
   // Helper classes for consistency
   const screenBackgroundStyle = {
     background:
-      'radial-gradient(circle at 50% -12%, rgba(94,128,255,0.34) 0%, rgba(36,30,128,0) 46%), radial-gradient(circle at 50% 50%, rgba(60,112,255,0.2) 0%, rgba(11,14,54,0) 60%), linear-gradient(160deg, #1f1c77 0%, #241466 38%, #19134f 100%)',
+      'radial-gradient(circle at 50% -12%, rgba(139,92,255,0.36) 0%, rgba(36,30,128,0) 48%), radial-gradient(circle at 88% 108%, rgba(236,0,125,0.1) 0%, rgba(11,14,54,0) 55%), linear-gradient(165deg, #241c52 0%, #1c1442 42%, #120e2e 100%)',
   };
   const isCompressedLayout = viewportHeight <= 860 || (viewportRatio >= 0.95 && viewportHeight <= 720);
   const isTightLayout = viewportHeight <= 760 || (viewportRatio >= 0.95 && viewportHeight <= 640);
@@ -2494,10 +2494,10 @@ const EncuestaPartido = () => {
   const playerActionRowClass = `w-full shrink-0 flex items-center justify-center ${isTightLayout ? 'pt-1.5 sm:pt-2' : isCompressedLayout ? 'pt-2 sm:pt-2.5' : 'pt-2.5 sm:pt-3.5'}`;
   const logoRowClass = 'hidden';
   const titleClass = `font-bebas text-white font-bold text-center uppercase drop-shadow-[0_8px_18px_rgba(6,9,36,0.42)] break-words w-full px-1 ${isTightLayout ? 'text-[clamp(24px,5.6vw,52px)] tracking-[0.04em] leading-[0.88]' : isCompressedLayout ? 'text-[clamp(28px,6vw,62px)] tracking-[0.048em] leading-[0.9]' : 'text-[clamp(30px,6.2vw,74px)] tracking-[0.055em] leading-[0.92]'}`;
-  const surveyBtnBaseClass = `w-full border border-white/35 bg-white/[0.10] text-white font-bebas text-center cursor-pointer transition-[opacity,background-color,border-color] duration-220 ease-out hover:bg-white/[0.16] flex items-center justify-center rounded-[5px] tracking-[0.08em] shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_12px_30px_rgba(10,10,45,0.28)] disabled:opacity-55 disabled:cursor-not-allowed ${isTightLayout ? 'text-[18px] sm:text-[20px] py-2 min-h-[46px]' : isCompressedLayout ? 'text-[19px] sm:text-[22px] py-2 min-h-[48px]' : 'text-[20px] sm:text-[24px] py-2.5 min-h-[52px]'}`;
+  const surveyBtnBaseClass = `w-full border border-[rgba(148,134,255,0.35)] bg-white/[0.08] text-white font-bebas text-center cursor-pointer transition-[opacity,background-color,border-color] duration-220 ease-out hover:bg-white/[0.14] flex items-center justify-center rounded-2xl tracking-[0.08em] shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_12px_30px_rgba(8,6,30,0.32)] disabled:opacity-55 disabled:cursor-not-allowed ${isTightLayout ? 'text-[18px] sm:text-[20px] py-2 min-h-[46px]' : isCompressedLayout ? 'text-[19px] sm:text-[22px] py-2 min-h-[48px]' : 'text-[20px] sm:text-[24px] py-2.5 min-h-[52px]'}`;
   const btnClass = `${surveyBtnBaseClass} font-bold uppercase`;
   const optionBtnClass = `${surveyBtnBaseClass} uppercase`;
-  const optionBtnSelectedClass = 'bg-white/[0.26] border-white/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_16px_30px_rgba(22,29,98,0.42)]';
+  const optionBtnSelectedClass = 'bg-[rgba(106,67,255,0.42)] border-[#a78bfa] shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_16px_30px_rgba(54,32,140,0.45),0_0_18px_rgba(106,67,255,0.3)]';
   const compactPrimaryBtnClass = `${btnClass} !w-auto ${isTightLayout ? '!min-w-[128px] sm:!min-w-[150px] !px-4 sm:!px-5' : isCompressedLayout ? '!min-w-[136px] sm:!min-w-[160px] !px-4 sm:!px-5' : '!min-w-[146px] sm:!min-w-[176px] !px-5 sm:!px-6'}`;
   const compactSecondaryBtnClass = `${optionBtnClass} !w-full !min-h-[50px] !py-2 !px-4 bg-white/[0.07] border-white/24 shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_8px_16px_rgba(7,10,35,0.22)]`;
   const resultSecondaryBtnClass = `${optionBtnClass} !w-auto ${isTightLayout ? '!min-h-[44px] !py-1.5 !px-4 sm:!px-5' : isCompressedLayout ? '!min-h-[46px] !py-2 !px-4 sm:!px-5' : '!min-h-[48px] !py-2 !px-5 sm:!px-6'}`;
@@ -2563,8 +2563,8 @@ const EncuestaPartido = () => {
             style={{
               width: `${animatedProgressPercent}%`,
               background:
-                'linear-gradient(90deg, rgba(93,236,255,0.82) 0%, rgba(123,180,255,0.82) 55%, rgba(132,242,255,0.84) 100%)',
-              boxShadow: '0 0 6px rgba(111,227,255,0.22)',
+                'linear-gradient(90deg, rgba(139,92,255,0.9) 0%, rgba(176,160,255,0.85) 55%, rgba(236,0,125,0.85) 100%)',
+              boxShadow: '0 0 8px rgba(139,92,255,0.35)',
             }}
           />
         </div>
@@ -2670,8 +2670,8 @@ const EncuestaPartido = () => {
   };
 
   const PlayerPhotoFallback = ({ silhouetteSizeClass }) => (
-    <div className="relative h-full w-full overflow-hidden bg-[linear-gradient(160deg,#2f3978_0%,#253066_45%,#1a2148_100%)]">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,rgba(196,209,247,0.24)_0%,rgba(37,44,90,0)_66%)]" />
+    <div className="relative h-full w-full overflow-hidden bg-[linear-gradient(160deg,#3b2f7a_0%,#2c2362_45%,#1c1644_100%)]">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,rgba(207,196,255,0.24)_0%,rgba(44,35,98,0)_66%)]" />
       <svg
         viewBox="0 0 160 160"
         aria-hidden="true"
@@ -2722,7 +2722,7 @@ const EncuestaPartido = () => {
               key={`${keyPrefix}${jugador.uuid}`}
               type="button"
               onClick={() => onSelect(jugador.uuid)}
-              className={`group relative h-full min-h-0 min-w-0 transform-gpu overflow-visible rounded-[8px] border bg-[linear-gradient(168deg,rgba(58,84,196,0.28),rgba(16,20,73,0.9))] transition-[transform,opacity,filter] duration-[260ms] ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 will-change-transform ${
+              className={`group relative h-full min-h-0 min-w-0 transform-gpu overflow-visible rounded-xl border bg-[linear-gradient(168deg,rgba(106,67,255,0.28),rgba(22,16,55,0.9))] transition-[transform,opacity,filter] duration-[260ms] ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 will-change-transform ${
                 selected
                   ? `z-20 -translate-y-[2px] ${isTightLayout ? 'scale-[1.015]' : isCompressedLayout ? 'scale-[1.022]' : 'scale-[1.035]'}`
                   : 'z-10 translate-y-0 scale-100'
@@ -2730,29 +2730,29 @@ const EncuestaPartido = () => {
                 hasSelection && !selected ? 'saturate-[0.74]' : ''
               }`}
               style={{
-                borderColor: selected ? 'rgba(229,243,255,0.82)' : 'rgba(255,255,255,0.24)',
+                borderColor: selected ? 'rgba(216,206,255,0.85)' : 'rgba(148,134,255,0.26)',
                 opacity: hasSelection && !selected ? 0.45 : 1,
                 boxShadow: selected
-                  ? '0 0 0 1px rgba(191,239,255,0.82), 0 0 20px rgba(92,236,255,0.28), 0 16px 26px rgba(7,10,35,0.48)'
-                  : '0 10px 18px rgba(8,12,44,0.36)',
+                  ? '0 0 0 1px rgba(199,184,255,0.85), 0 0 22px rgba(139,92,255,0.4), 0 16px 26px rgba(7,5,28,0.5)'
+                  : '0 10px 18px rgba(8,6,30,0.4)',
               }}
             >
               {selected ? (
-                <div className="pointer-events-none absolute -inset-1 rounded-[10px] bg-[radial-gradient(circle,rgba(121,241,255,0.48)_0%,rgba(121,241,255,0.16)_46%,rgba(121,241,255,0)_78%)] blur-[8px]" />
+                <div className="pointer-events-none absolute -inset-1 rounded-[12px] bg-[radial-gradient(circle,rgba(176,160,255,0.5)_0%,rgba(176,160,255,0.16)_46%,rgba(176,160,255,0)_78%)] blur-[8px]" />
               ) : null}
               <div
-                className="relative flex h-full w-full flex-col overflow-hidden rounded-[8px]"
+                className="relative flex h-full w-full flex-col overflow-hidden rounded-xl"
                 style={{
                   animation: 'cardIn 420ms cubic-bezier(0.22,1,0.36,1) both',
                   animationDelay: `${Math.min(index * 16, 160)}ms`,
                 }}
               >
-                <div className="relative h-[75%] w-full overflow-hidden bg-[#101544]">
+                <div className="relative h-[75%] w-full overflow-hidden bg-[#161038]">
                   {hasPhoto ? (
                     <img
                       src={jugador.avatar_url || jugador.foto_url}
                       alt={jugador.nombre}
-                      className="h-full w-full object-contain object-center bg-[#0f1544]"
+                      className="h-full w-full object-contain object-center bg-[#151037]"
                       loading="lazy"
                     />
                   ) : (
@@ -2760,9 +2760,9 @@ const EncuestaPartido = () => {
                       silhouetteSizeClass={gridConfig.silhouetteSizeClass}
                     />
                   )}
-                  <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[46%] bg-gradient-to-t from-[#060a2d]/94 via-[#09113d]/55 to-transparent" />
+                  <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[46%] bg-gradient-to-t from-[#0a0722]/94 via-[#120d33]/55 to-transparent" />
                 </div>
-                <div className="relative flex h-[25%] w-full items-center justify-center px-1.5 bg-[linear-gradient(180deg,rgba(16,24,86,0.96)_0%,rgba(12,17,66,0.98)_100%)]">
+                <div className="relative flex h-[25%] w-full items-center justify-center px-1.5 bg-[linear-gradient(180deg,rgba(34,26,74,0.96)_0%,rgba(22,16,52,0.98)_100%)]">
                   <span
                     className={`w-full truncate text-center font-oswald font-semibold tracking-[0.035em] text-white ${gridConfig.nameSizeClass}`}
                   >
@@ -3461,8 +3461,8 @@ const EncuestaPartido = () => {
                           w-full text-left rounded-[16px] border transition-all duration-200
                           ${isCompressedLayout ? 'px-4 py-4 sm:px-5 sm:py-4.5' : 'px-5 py-5 sm:px-6 sm:py-5.5'}
                           ${isSelected
-                            ? 'border-white/78 bg-white/[0.22] shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_16px_32px_rgba(17,22,86,0.32)]'
-                            : 'border-white/18 bg-white/[0.08] shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_10px_24px_rgba(8,10,42,0.2)] hover:bg-white/[0.13] hover:border-white/30'}
+                            ? 'border-[#a78bfa] bg-[rgba(106,67,255,0.35)] shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_16px_32px_rgba(54,32,140,0.4),0_0_18px_rgba(106,67,255,0.25)]'
+                            : 'border-[rgba(148,134,255,0.22)] bg-white/[0.06] shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_24px_rgba(8,6,30,0.25)] hover:bg-white/[0.1] hover:border-[rgba(148,134,255,0.4)]'}
                         `}
                         onClick={() => handleNotPlayedReasonSelect(option.value)}
                       >
@@ -3475,7 +3475,7 @@ const EncuestaPartido = () => {
                               {option.description}
                             </div>
                           </div>
-                          <div className={`mt-0.5 h-5 w-5 shrink-0 rounded-full border ${isSelected ? 'border-cyan-200 bg-cyan-200 shadow-[0_0_0_4px_rgba(103,232,249,0.12)]' : 'border-white/26 bg-transparent'}`} />
+                          <div className={`mt-0.5 h-5 w-5 shrink-0 rounded-full border ${isSelected ? 'border-[#ec007d] bg-[#ec007d] shadow-[0_0_0_4px_rgba(236,0,125,0.18)]' : 'border-white/26 bg-transparent'}`} />
                         </div>
                       </button>
                     );

@@ -12,19 +12,23 @@ const EmptyStateCard = ({
   titleClassName = '',
   actionClassName = '',
 }) => {
-  const defaultTitleClassName = 'font-oswald font-semibold text-[19px] leading-tight tracking-[0.01em] text-white sm:text-[18px]';
-  const defaultActionClassName = 'mt-5 w-full max-w-[300px] mx-auto min-h-[42px] px-4 py-2 border border-white/15 bg-cta-gradient text-white font-bebas text-[15px] tracking-[0.04em] rounded-none flex items-center justify-center text-center transition-all hover:brightness-110 active:opacity-95 shadow-[0_4px_16px_rgba(106,67,255,0.3)] sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]';
+  const defaultTitleClassName = 'font-oswald font-bold text-[18px] leading-tight tracking-[0.01em] text-white sm:text-[17px]';
+  const defaultActionClassName = 'mt-5 w-full max-w-[300px] mx-auto min-h-[44px] px-4 py-2 border border-white/15 bg-cta-gradient text-white font-bebas text-[15px] font-semibold tracking-[0.04em] rounded-2xl flex items-center justify-center text-center transition-all hover:brightness-110 active:opacity-95 shadow-cta sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[40px]';
   const normalizedTitle = toSentenceCase(title);
 
   return (
-    <div className={`w-full max-w-[460px] text-center my-6 p-6 rounded-none bg-[linear-gradient(168deg,rgba(42,34,86,0.66),rgba(24,19,52,0.92))] border border-white/[0.09] shadow-[0_10px_28px_rgba(6,4,18,0.45),inset_0_1px_0_rgba(255,255,255,0.05)] ${className}`}>
-      <div className="mx-auto mb-3.5 w-11 h-11 rounded-xl bg-[rgba(106,67,255,0.14)] border border-[rgba(139,124,255,0.35)] flex items-center justify-center">
-        <Icon size={20} className="text-[#b3a6ff]" />
+    <div className={`relative w-full max-w-[460px] text-center my-6 px-6 py-7 rounded-card overflow-hidden bg-[radial-gradient(380px_200px_at_50%_-40%,rgba(139,92,255,0.22),transparent_70%),linear-gradient(165deg,rgba(48,38,98,0.72),rgba(20,16,41,0.94))] border border-[rgba(148,134,255,0.18)] shadow-elev-2 ${className}`}>
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute top-0 left-0 right-0 h-px bg-[linear-gradient(90deg,transparent_6%,rgba(176,160,255,0.55)_38%,rgba(236,0,125,0.35)_66%,transparent_94%)]"
+      />
+      <div className="mx-auto mb-4 w-14 h-14 rounded-2xl bg-[linear-gradient(140deg,rgba(139,92,255,0.3),rgba(106,67,255,0.08))] border border-[rgba(148,134,255,0.35)] shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_6px_16px_rgba(5,3,16,0.4)] flex items-center justify-center">
+        <Icon size={24} className="text-[#cfc4ff]" />
       </div>
       <h3 className={titleClassName || defaultTitleClassName}>
         {normalizedTitle}
       </h3>
-      <p className="mt-2.5 text-[13px] md:text-sm text-white/60 font-oswald leading-snug max-w-[320px] mx-auto">
+      <p className="mt-2 text-[13px] md:text-sm text-white/55 font-sans leading-relaxed max-w-[320px] mx-auto">
         {description}
       </p>
       {actionLabel && typeof onAction === 'function' && (

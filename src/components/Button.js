@@ -21,18 +21,18 @@ const Button = ({
       case 'danger':
         return 'bg-fifa-accent border border-white/25 text-white shadow-elev-1';
       case 'secondary':
-        return 'bg-white/[0.06] border border-white/25 text-white/90 backdrop-blur-sm hover:bg-white/10 hover:border-white/50 hover:text-white';
+        return 'bg-white/[0.05] border border-[rgba(148,134,255,0.28)] text-white/90 backdrop-blur-sm hover:bg-white/[0.09] hover:border-[rgba(148,134,255,0.5)] hover:text-white';
       case 'primary':
       default:
-        return 'bg-cta-gradient border border-white/15 text-white shadow-[0_6px_18px_rgba(106,67,255,0.35),inset_0_1px_0_rgba(255,255,255,0.18)]';
+        return 'bg-cta-gradient border border-white/15 text-white shadow-cta hover:brightness-110';
     }
   };
 
   return (
     <motion.button
       className={`
-        w-full h-12 text-lg rounded-xl flex items-center justify-center gap-2
-        font-bebas tracking-[0.8px] uppercase transition-all duration-200
+        w-full h-12 text-lg rounded-2xl flex items-center justify-center gap-2
+        font-bebas font-semibold tracking-[0.8px] uppercase transition-all duration-200
         ${getVariantClasses()}
         ${className}
       `}

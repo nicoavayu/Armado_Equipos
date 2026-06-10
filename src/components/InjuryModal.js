@@ -10,8 +10,8 @@ import { useAuth } from './AuthProvider';
 // import './InjuryModal.css'; // REMOVED
 
 const SECTION_LABEL_CLASS = 'font-oswald text-xs font-medium text-white/70 uppercase tracking-widest pl-0.5';
-const FIELD_CLASS = 'h-[52px] w-full appearance-none rounded-none border border-[rgba(133,149,208,0.5)] bg-[rgba(53,58,102,0.88)] px-4 text-white font-oswald text-lg outline-none transition-all duration-300 focus:border-[#7f8dff] focus:ring-2 focus:ring-[#6f7dff]/30 backdrop-blur-md';
-const SECONDARY_ACTION_BUTTON_CLASS = 'flex-1 min-h-[44px] px-4 py-2.5 rounded-none border border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] text-white/92 font-bebas text-base tracking-[0.01em] transition-all inline-flex items-center justify-center hover:bg-[rgba(30,45,94,0.95)] active:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]';
+const FIELD_CLASS = 'h-[52px] w-full appearance-none rounded-none border border-[rgba(148,134,255,0.25)] bg-[rgba(20,16,41,0.85)] px-4 text-white font-oswald text-lg outline-none transition-all duration-300 focus:border-[#8b7cff] focus:ring-2 focus:ring-[#6a43ff]/30 backdrop-blur-md';
+const SECONDARY_ACTION_BUTTON_CLASS = 'flex-1 min-h-[44px] px-4 py-2.5 rounded-none border border-[rgba(148,134,255,0.28)] bg-white/[0.05] text-white/92 font-bebas text-base tracking-[0.01em] transition-all inline-flex items-center justify-center hover:bg-white/[0.1] active:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]';
 const PRIMARY_ACTION_BUTTON_CLASS = 'min-h-[44px] px-4 py-2.5 rounded-none border border-[#7d5aff] bg-[#6a43ff] text-white font-bebas text-base tracking-[0.01em] transition-all inline-flex items-center justify-center gap-2 hover:bg-[#7550ff] active:opacity-95 shadow-[0_0_14px_rgba(106,67,255,0.3)] disabled:bg-[rgba(106,67,255,0.55)] disabled:border-[rgba(125,90,255,0.5)] disabled:text-white/40 disabled:shadow-none disabled:cursor-not-allowed sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]';
 const INJURY_TYPES = [
   'Esguince',
@@ -167,7 +167,7 @@ const InjuryModal = ({ isOpen, onClose, onSaved }) => {
       onClick={onClose}
     >
       <motion.div
-        className="bg-[#1e293b]/96 rounded-none p-6 w-full max-w-[540px] border border-[rgba(88,107,170,0.46)] backdrop-blur-md max-h-[90vh] overflow-y-auto shadow-[0_20px_50px_rgba(3,10,32,0.55)]"
+        className="bg-[#1e293b]/96 rounded-none p-6 w-full max-w-[540px] border border-[rgba(148,134,255,0.2)] backdrop-blur-md max-h-[90vh] overflow-y-auto shadow-[0_20px_50px_rgba(3,10,32,0.55)]"
         initial={{ opacity: 0, scale: 0.96, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: 10 }}
@@ -178,7 +178,7 @@ const InjuryModal = ({ isOpen, onClose, onSaved }) => {
             {activeLesion ? 'Gestionar Lesión' : 'Registrar Lesión'}
           </h3>
           <button
-            className="bg-transparent border border-transparent text-white/80 cursor-pointer p-1.5 rounded-none transition-all hover:border-[rgba(98,117,184,0.58)] hover:bg-[rgba(20,31,70,0.82)] hover:text-white"
+            className="bg-transparent border border-transparent text-white/80 cursor-pointer p-1.5 rounded-none transition-all hover:border-[rgba(148,134,255,0.28)] hover:bg-white/[0.05] hover:text-white"
             onClick={onClose}
             type="button"
             aria-label="Cerrar modal"
@@ -188,7 +188,7 @@ const InjuryModal = ({ isOpen, onClose, onSaved }) => {
         </div>
 
         {activeLesion && (
-          <div className="bg-[rgba(15,24,56,0.72)] rounded-none p-4 mb-5 border border-[rgba(98,117,184,0.58)]">
+          <div className="bg-[rgba(20,16,41,0.8)] rounded-none p-4 mb-5 border border-[rgba(148,134,255,0.28)]">
             <div className="mb-3">
               <h4 className="text-white m-0 mb-3 text-base font-semibold flex items-center gap-2 font-oswald">
                 <CircleAlert size={20} className="text-[#ff8a8a]" />
@@ -212,12 +212,12 @@ const InjuryModal = ({ isOpen, onClose, onSaved }) => {
               )}
             </button>
             <div className="flex items-center gap-3 text-center text-white/70 text-sm my-4 font-oswald">
-              <div className="h-px bg-[rgba(98,117,184,0.58)] flex-1"></div>
+              <div className="h-px bg-[rgba(148,134,255,0.28)] flex-1"></div>
               <span className="inline-flex items-center gap-1.5 text-white/75">
                 <Plus size={16} />
                 O registrar nueva lesión
               </span>
-              <div className="h-px bg-[rgba(98,117,184,0.58)] flex-1"></div>
+              <div className="h-px bg-[rgba(148,134,255,0.28)] flex-1"></div>
             </div>
           </div>
         )}

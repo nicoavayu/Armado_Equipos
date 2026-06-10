@@ -82,7 +82,7 @@ const MiniFriendCard = ({ friend, onRequestRemoveClick, currentUserId }) => {
           />
           {/* Menú después (z-index mayor) */}
           <div
-            className="fixed z-[9999] w-48 rounded-xl border border-white/10 bg-[#1c1640]/97 shadow-[0_22px_56px_rgba(6,4,18,0.6)] backdrop-blur-xl overflow-hidden"
+            className="fixed z-[9999] w-48 rounded-2xl border border-[rgba(148,134,255,0.28)] bg-[#141029]/97 shadow-[0_24px_64px_rgba(5,3,16,0.65)] backdrop-blur-xl overflow-hidden"
             style={{
               top: `${menuPosition.top}px`,
               left: `${menuPosition.left}px`,
@@ -90,9 +90,9 @@ const MiniFriendCard = ({ friend, onRequestRemoveClick, currentUserId }) => {
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="py-1">
+            <div className="py-1.5">
               <button
-                className="w-full px-3 py-2 text-left text-sm font-medium text-slate-100 transition-colors hover:bg-[rgba(106,67,255,0.18)]"
+                className="w-full px-3.5 py-2.5 text-left text-sm font-medium text-slate-100 transition-colors hover:bg-[rgba(106,67,255,0.18)]"
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowInviteModal(true);
@@ -102,7 +102,7 @@ const MiniFriendCard = ({ friend, onRequestRemoveClick, currentUserId }) => {
                 Invitar a partido
               </button>
               <button
-                className="w-full px-3 py-2 text-left text-sm font-medium text-red-200 transition-colors hover:bg-[rgba(106,67,255,0.18)]"
+                className="w-full px-3.5 py-2.5 text-left text-sm font-medium text-red-300 transition-colors hover:bg-[rgba(244,63,94,0.14)]"
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowMenu(false);

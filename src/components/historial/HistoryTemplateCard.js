@@ -105,7 +105,7 @@ const HistoryTemplateCard = ({
       : (diaSemanaLabel || fechaCortaLabel || horaLabel || ''));
 
   return (
-    <div className="relative bg-[#1e293b]/92 backdrop-blur-sm rounded-none p-5 min-h-[150px] border border-[#334155] transition-all duration-200 shadow-[0_10px_24px_rgba(0,0,0,0.28)] hover:border-[#4a7ed6] hover:brightness-[1.03]">
+    <div className="relative bg-[#1e293b]/92 backdrop-blur-sm rounded-none p-5 min-h-[150px] border border-[#334155] transition-all duration-200 shadow-[0_10px_24px_rgba(0,0,0,0.28)] hover:border-[rgba(148,134,255,0.45)] hover:brightness-[1.03]">
       {/* Header */}
       <div className="flex justify-between items-start mb-4">
         <div className="flex items-center gap-2.5 min-w-0">
@@ -226,7 +226,7 @@ const HistoryTemplateCard = ({
         </button>
         {onHistory && (
           <button
-            className="flex-[1] font-bebas text-base px-4 py-2.5 border border-[rgba(125,90,255,0.58)] rounded-none cursor-pointer transition-all text-white/92 min-h-[44px] flex items-center justify-center text-center sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px] bg-[rgba(20,31,70,0.82)] hover:bg-[rgba(30,45,94,0.95)] hover:border-[rgba(125,90,255,0.7)]"
+            className="flex-[1] font-bebas text-base px-4 py-2.5 border border-[rgba(125,90,255,0.58)] rounded-none cursor-pointer transition-all text-white/92 min-h-[44px] flex items-center justify-center text-center sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px] bg-white/[0.05] hover:bg-white/[0.1] hover:border-[rgba(125,90,255,0.7)]"
             onClick={() => onHistory && onHistory(template)}
           >
             Historial

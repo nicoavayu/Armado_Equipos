@@ -653,39 +653,31 @@ const QuieroJugar = ({
             opacity: showSecondaryTabs ? 1 : 0.01,
           }}
         >
-          <div className="relative left-1/2 w-screen -translate-x-1/2">
-            <div className="flex h-[44px] w-full overflow-hidden border-y border-[rgba(106,126,202,0.40)] bg-[rgba(17,26,59,0.96)]">
-              <button
-                className={`relative flex-1 min-w-0 border px-0 py-0 font-bebas text-[0.95rem] uppercase tracking-[0.04em] transition-[background-color,border-color,color] duration-150 ${activeTab === 'matches'
-                  ? 'z-[2] border-[rgba(132,112,255,0.64)] bg-[#31239f] text-white shadow-[inset_0_0_0_1px_rgba(160,142,255,0.26)]'
-                  : 'z-[1] border-[rgba(106,126,202,0.40)] bg-[rgba(17,26,59,0.96)] text-white/65 hover:text-white/88 hover:bg-[rgba(26,37,83,0.98)]'
-                  }`}
-                onClick={() => {
-                  setActiveTab('matches');
-                  sessionStorage.setItem('quiero-jugar-tab', 'matches');
-                }}
-              >
-                {activeTab === 'matches' ? (
-                  <span className="pointer-events-none absolute left-0 top-0 h-[3px] w-full bg-[#644dff]" />
-                ) : null}
-                PARTIDOS
-              </button>
-              <button
-                className={`relative flex-1 min-w-0 border border-l-0 px-0 py-0 font-bebas text-[0.95rem] uppercase tracking-[0.04em] transition-[background-color,border-color,color] duration-150 ${activeTab === 'players'
-                  ? 'z-[2] border-[rgba(132,112,255,0.64)] bg-[#31239f] text-white shadow-[inset_0_0_0_1px_rgba(160,142,255,0.26)]'
-                  : 'z-[1] border-[rgba(106,126,202,0.40)] bg-[rgba(17,26,59,0.96)] text-white/65 hover:text-white/88 hover:bg-[rgba(26,37,83,0.98)]'
-                  }`}
-                onClick={() => {
-                  setActiveTab('players');
-                  sessionStorage.setItem('quiero-jugar-tab', 'players');
-                }}
-              >
-                {activeTab === 'players' ? (
-                  <span className="pointer-events-none absolute left-0 top-0 h-[3px] w-full bg-[#644dff]" />
-                ) : null}
-                JUGADORES
-              </button>
-            </div>
+          <div className="flex h-[44px] w-full max-w-[500px] mx-auto gap-1 p-1 overflow-hidden rounded-full border border-[rgba(148,134,255,0.22)] bg-[rgba(20,16,41,0.85)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_6px_16px_rgba(5,3,16,0.35)]">
+            <button
+              className={`relative flex-1 min-w-0 rounded-full px-0 py-0 font-sans font-semibold text-[12.5px] uppercase tracking-[0.04em] transition-[background-color,border-color,color] duration-150 ${activeTab === 'matches'
+                ? 'z-[2] bg-cta-gradient text-white shadow-[0_4px_14px_rgba(106,67,255,0.4),inset_0_1px_0_rgba(255,255,255,0.2)]'
+                : 'z-[1] bg-transparent text-white/60 hover:text-white/90 hover:bg-white/[0.06]'
+                }`}
+              onClick={() => {
+                setActiveTab('matches');
+                sessionStorage.setItem('quiero-jugar-tab', 'matches');
+              }}
+            >
+              PARTIDOS
+            </button>
+            <button
+              className={`relative flex-1 min-w-0 rounded-full px-0 py-0 font-sans font-semibold text-[12.5px] uppercase tracking-[0.04em] transition-[background-color,border-color,color] duration-150 ${activeTab === 'players'
+                ? 'z-[2] bg-cta-gradient text-white shadow-[0_4px_14px_rgba(106,67,255,0.4),inset_0_1px_0_rgba(255,255,255,0.2)]'
+                : 'z-[1] bg-transparent text-white/60 hover:text-white/90 hover:bg-white/[0.06]'
+                }`}
+              onClick={() => {
+                setActiveTab('players');
+                sessionStorage.setItem('quiero-jugar-tab', 'players');
+              }}
+            >
+              JUGADORES
+            </button>
           </div>
         </div>
 
@@ -708,15 +700,15 @@ const QuieroJugar = ({
             return (
               <>
                 {matchesError ? (
-                  <div className="w-full max-w-[500px] mt-2 mb-4 border border-[rgba(177,72,72,0.45)] bg-[rgba(73,20,20,0.4)] px-4 py-4 shadow-[0_10px_24px_rgba(0,0,0,0.24)]">
+                  <div className="w-full max-w-[500px] mt-2 mb-4 rounded-card border border-[rgba(244,63,94,0.4)] bg-[rgba(73,20,20,0.4)] px-4 py-4 shadow-elev-1">
                     <div className="font-oswald text-sm font-semibold text-red-100">
                       No pudimos actualizar el listado de partidos.
                     </div>
-                    <p className="mt-1 text-[12px] font-oswald text-red-100/80">
+                    <p className="mt-1 text-[12px] font-sans text-red-100/80">
                       {matchesError}
                     </p>
                     <button
-                      className="mt-3 inline-flex min-h-[40px] items-center justify-center border border-[rgba(255,255,255,0.18)] bg-[rgba(20,31,70,0.82)] px-3 py-2 font-bebas text-sm tracking-[0.01em] text-white/92 transition-all hover:bg-[rgba(30,45,94,0.95)]"
+                      className="mt-3 inline-flex min-h-[40px] items-center justify-center rounded-full border border-[rgba(148,134,255,0.28)] bg-white/[0.05] px-4 py-2 font-sans font-semibold text-sm tracking-[0.01em] text-white/92 transition-all hover:bg-white/[0.1]"
                       onClick={() => {
                         setLoading(true);
                         fetchPartidosAbiertos();
@@ -739,12 +731,12 @@ const QuieroJugar = ({
                   />
                 ) : null}
 
-                <div className="w-full max-w-[500px] mt-2 mb-4 border border-[rgba(88,107,170,0.46)] bg-[#1e293b]/92 px-3 py-3 shadow-[0_10px_24px_rgba(0,0,0,0.28)]">
+                <div className="w-full max-w-[500px] mt-2 mb-4 rounded-card surface-card px-4 py-3.5">
                   <div className="flex items-center justify-between gap-2 mb-2.5">
-                    <span className="font-bebas text-[0.9rem] uppercase tracking-[0.06em] text-white/85">
-                      Distancia maxima de partidos
+                    <span className="font-sans font-bold text-[11px] uppercase tracking-[0.12em] text-[#b0a0ff]/85">
+                      Distancia máxima de partidos
                     </span>
-                    <span className="font-oswald text-sm font-semibold text-[#9ed3ff]">
+                    <span className="font-sans text-sm font-bold text-white inline-flex items-center rounded-full border border-[rgba(148,134,255,0.3)] bg-[rgba(106,67,255,0.16)] px-2.5 py-0.5">
                       {maxMatchDistanceKm} km
                     </span>
                   </div>
@@ -766,26 +758,26 @@ const QuieroJugar = ({
                     aria-label="Distancia maxima de partidos"
                   />
 
-                  <p className="mt-2 text-[11px] font-oswald text-white/55">
+                  <p className="mt-2 text-[11px] font-sans text-white/50 leading-relaxed">
                     {canFilterByDistance
                       ? 'Con ubicacion activa mostramos solo partidos dentro del radio y con coordenadas persistidas.'
                       : 'Sin ubicacion disponible no filtramos por distancia y mostramos todos los partidos abiertos.'}
                   </p>
                   {!canFilterByDistance ? (
-                    <p className="mt-1 text-[11px] font-oswald text-white/40">
+                    <p className="mt-1 text-[11px] font-sans text-white/40 leading-relaxed">
                       Activá la ubicacion del navegador o completá tu ubicacion en Perfil para usar este filtro.
                     </p>
                   ) : null}
                 </div>
 
                 {visibleMatches.length === 0 ? (
-                  <div className="w-full max-w-[500px] border border-[rgba(88,107,170,0.46)] bg-[#1e293b]/92 p-6 text-center">
-                    <p className="text-white font-oswald text-base">
+                  <div className="w-full max-w-[500px] rounded-card surface-card p-6 text-center">
+                    <p className="text-white font-oswald font-bold text-base">
                       {canFilterByDistance
                         ? `No hay partidos elegibles dentro de ${maxMatchDistanceKm} km.`
                         : 'No hay partidos abiertos elegibles para mostrar en este momento.'}
                     </p>
-                    <p className="text-white/60 font-oswald text-sm mt-1">
+                    <p className="text-white/55 font-sans text-sm mt-1.5 leading-relaxed">
                       {canFilterByDistance
                         ? 'Proba aumentar la distancia maxima para ver mas opciones.'
                         : 'Cuando tengamos ubicacion disponible, el filtro por distancia se va a activar automaticamente.'}
@@ -811,52 +803,52 @@ const QuieroJugar = ({
                       return (
                         <div
                           key={partido.id}
-                          className="w-full max-w-[500px] bg-[#1e293b]/92 border border-[rgba(88,107,170,0.46)] p-5 mb-3 shadow-[0_10px_24px_rgba(0,0,0,0.28)] transition-all duration-200 hover:brightness-[1.03] hover:border-[#4a7ed6]"
+                          className="relative w-full max-w-[500px] overflow-hidden rounded-card bg-[radial-gradient(360px_180px_at_12%_-30%,rgba(139,92,255,0.18),transparent_70%),linear-gradient(165deg,rgba(48,38,98,0.72),rgba(20,16,41,0.94))] border border-[rgba(148,134,255,0.16)] p-4 pl-5 mb-3 shadow-elev-2 transition-all duration-200 hover:brightness-[1.05] hover:border-[rgba(148,134,255,0.42)] before:content-[''] before:absolute before:left-0 before:top-0 before:bottom-0 before:w-[3px] before:bg-[linear-gradient(180deg,#8b5cff,rgba(139,92,255,0.08))]"
                         >
                           <div className="flex justify-between items-start mb-3 gap-3">
                             <div className="flex items-center gap-2 min-w-0">
-                              <div className="inline-flex items-center gap-1.5 font-oswald text-[15px] font-bold text-white capitalize min-w-0">
-                                <Calendar size={14} className="text-white/80 shrink-0" />
+                              <div className="inline-flex items-center gap-1.5 font-oswald text-[14px] font-bold text-white capitalize min-w-0">
+                                <Calendar size={14} className="text-[#cfc4ff] shrink-0" />
                                 <span className="truncate">{formattedDate}</span>
-                                <span className="text-white/50">•</span>
-                                <Clock size={14} className="text-white/80 shrink-0" />
+                                <span className="text-white/40">•</span>
+                                <Clock size={14} className="text-[#cfc4ff] shrink-0" />
                                 <span>{partido.hora} hs</span>
                               </div>
                             </div>
                             <div className="shrink-0 flex items-center justify-end gap-2 flex-wrap">
                               {isComplete ? (
-                                <span className="px-2.5 py-1.5 rounded-none text-[11px] font-semibold shrink-0 whitespace-nowrap bg-[#165a2e] text-[#22c55e] border border-[#22c55e]">
+                                <span className="px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0 whitespace-nowrap border border-[#22c55e]/50 bg-[#22c55e]/12 text-[#86efac]">
                                   {titularesDisplayCount}/{cupoMaximo}
                                 </span>
                               ) : (
-                                <span className="px-2.5 py-1.5 rounded-none text-[11px] font-semibold shrink-0 whitespace-nowrap bg-slate-900 text-slate-300 border border-slate-700">
+                                <span className="px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0 whitespace-nowrap border border-white/[0.12] bg-[#0c0a1d]/80 text-white/70">
                                   {titularesDisplayCount}/{cupoMaximo}
                                 </span>
                               )}
                               {substitutesCount > 0 && (
-                                <span className="px-2.5 py-1.5 rounded-none text-[11px] font-semibold shrink-0 whitespace-nowrap border border-amber-400/30 bg-amber-500/10 text-amber-300">
+                                <span className="px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0 whitespace-nowrap border border-amber-400/35 bg-amber-500/10 text-amber-300">
                                   {substitutesCount}/{MAX_SUBSTITUTE_SLOTS}
                                 </span>
                               )}
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-2 mb-3 flex-wrap">
-                            <span className="font-oswald text-[11px] font-semibold px-2.5 py-1.5 rounded-none shrink-0 whitespace-nowrap bg-[#0f2f23] border-2 border-[#22c55e] text-[#dcfce7]">{partido.modalidad || 'F5'}</span>
-                            <span className="font-oswald text-[11px] font-semibold px-2.5 py-1.5 rounded-none shrink-0 whitespace-nowrap bg-[#213448] border-2 border-[#2dd4bf] text-[#ccfbf1]">{partido.tipo_partido || 'Mixto'}</span>
+                          <div className="flex items-center gap-1.5 mb-3 flex-wrap">
+                            <span className="font-sans text-[11px] font-bold px-2.5 py-[3px] rounded-full border shrink-0 whitespace-nowrap border-[#22c55e]/45 bg-[#22c55e]/10 text-[#86efac]">{partido.modalidad || 'F5'}</span>
+                            <span className="font-sans text-[11px] font-bold px-2.5 py-[3px] rounded-full border shrink-0 whitespace-nowrap border-[#2dd4bf]/45 bg-[#2dd4bf]/10 text-[#99f6e4]">{partido.tipo_partido || 'Mixto'}</span>
                             {isOwnerMatch ? (
-                              <span className="font-oswald px-2 py-1 rounded-none text-[10px] font-semibold shrink-0 whitespace-nowrap border border-[#8e7dff] bg-[rgba(106,67,255,0.16)] text-[#ddd7ff] uppercase tracking-[0.04em]">
+                              <span className="font-sans px-2.5 py-[3px] rounded-full text-[10px] font-bold shrink-0 whitespace-nowrap border border-[#8e7dff]/60 bg-[rgba(106,67,255,0.16)] text-[#ddd7ff] uppercase tracking-[0.04em]">
                                 Tu partido
                               </span>
                             ) : null}
                           </div>
 
-                          <div className="font-oswald text-sm font-medium text-white/90 flex items-center gap-2 min-w-0">
-                            <MapPin size={16} className="shrink-0 text-white/85" />
+                          <div className="font-sans text-[12.5px] font-medium text-white/65 flex items-center gap-1.5 min-w-0">
+                            <MapPin size={14} className="shrink-0 text-[#cfc4ff]" />
                             <span className="truncate whitespace-nowrap" title={locationLabel}>{locationLabel}</span>
                           </div>
                           {Number.isFinite(roundedDistanceKm) ? (
-                            <div className="mt-1 text-[12px] font-oswald flex items-center gap-1.5 text-[#9ed3ff]">
+                            <div className="mt-1 text-[12px] font-sans font-semibold flex items-center gap-1.5 text-[#b0a0ff]">
                               <MapPin size={12} />
                               {`A ${roundedDistanceKm} km`}
                             </div>
@@ -864,7 +856,7 @@ const QuieroJugar = ({
 
                           <div className="flex gap-2 mt-4">
                             <button
-                              className="flex-1 font-bebas text-base px-4 py-2.5 border border-[#7d5aff] rounded-none cursor-pointer transition-all text-white min-h-[44px] flex items-center justify-center text-center bg-[#6a43ff] shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:bg-[#7550ff]"
+                              className="flex-1 font-bebas font-semibold text-base px-4 py-2.5 border border-white/15 rounded-2xl cursor-pointer transition-all text-white min-h-[44px] flex items-center justify-center text-center bg-cta-gradient shadow-cta hover:brightness-110"
                               onClick={() => navigate(isOwnerMatch ? `/admin/${partido.id}` : `/partido-publico/${partido.id}`)}
                             >
                               Ver partido
@@ -892,29 +884,29 @@ const QuieroJugar = ({
               />
             ) : (
               <>
-                <div className="flex gap-2 mb-4 w-full max-w-[500px]">
+                <div className="flex gap-1.5 mb-4 w-full max-w-[500px]">
                   <button
-                    className={`flex-1 py-2 rounded-none text-[11px] font-bold tracking-wide cursor-pointer transition-all duration-300 uppercase border ${sortBy === 'distance'
-                      ? 'bg-white/10 text-white border-white/30'
-                      : 'bg-transparent text-white/40 border-white/10 hover:bg-white/5'
+                    className={`flex-1 py-2 rounded-full text-[11px] font-bold tracking-wide cursor-pointer transition-all duration-300 uppercase border ${sortBy === 'distance'
+                      ? 'bg-[rgba(106,67,255,0.25)] text-white border-[rgba(148,134,255,0.5)] shadow-[0_0_12px_rgba(106,67,255,0.2)]'
+                      : 'bg-white/[0.03] text-white/45 border-[rgba(148,134,255,0.14)] hover:bg-white/[0.06] hover:text-white/70'
                       }`}
                     onClick={() => setSortBy('distance')}
                   >
                     <span className="flex items-center gap-1.5 justify-center"><MapPin size={12} /> Distancia</span>
                   </button>
                   <button
-                    className={`flex-1 py-2 rounded-none text-[11px] font-bold tracking-wide cursor-pointer transition-all duration-300 uppercase border ${sortBy === 'rating'
-                      ? 'bg-white/10 text-white border-white/30'
-                      : 'bg-transparent text-white/40 border-white/10 hover:bg-white/5'
+                    className={`flex-1 py-2 rounded-full text-[11px] font-bold tracking-wide cursor-pointer transition-all duration-300 uppercase border ${sortBy === 'rating'
+                      ? 'bg-[rgba(106,67,255,0.25)] text-white border-[rgba(148,134,255,0.5)] shadow-[0_0_12px_rgba(106,67,255,0.2)]'
+                      : 'bg-white/[0.03] text-white/45 border-[rgba(148,134,255,0.14)] hover:bg-white/[0.06] hover:text-white/70'
                       }`}
                     onClick={() => setSortBy('rating')}
                   >
                     <span className="flex items-center gap-1.5 justify-center"><Star size={12} /> Rating</span>
                   </button>
                   <button
-                    className={`flex-1 py-2 rounded-none text-[11px] font-bold tracking-wide cursor-pointer transition-all duration-300 uppercase border ${sortBy === 'position'
-                      ? 'bg-white/10 text-white border-white/30'
-                      : 'bg-transparent text-white/40 border-white/10 hover:bg-white/5'
+                    className={`flex-1 py-2 rounded-full text-[11px] font-bold tracking-wide cursor-pointer transition-all duration-300 uppercase border ${sortBy === 'position'
+                      ? 'bg-[rgba(106,67,255,0.25)] text-white border-[rgba(148,134,255,0.5)] shadow-[0_0_12px_rgba(106,67,255,0.2)]'
+                      : 'bg-white/[0.03] text-white/45 border-[rgba(148,134,255,0.14)] hover:bg-white/[0.06] hover:text-white/70'
                       }`}
                     onClick={() => setSortBy('position')}
                   >

@@ -3,25 +3,27 @@
 @tailwind utilities;
 
 :root {
-  /* Arma2 v2 visual system — deep violet/blue base, magenta as accent only */
+  /* Arma2 v3 visual system — deep violet/blue base, magenta as accent only.
+     Direction: dark premium, gamer/sport, layered depth, generous radii. */
   --violet-primary: #6a43ff;
   --violet-soft: #8b7cff;
   --accent-magenta: #ec007d;
   --accent-magenta-soft: rgba(236, 0, 125, 0.55);
-  --surface-0: #110e24;
-  --surface-1: #181334;
-  --surface-2: #201a44;
-  --surface-3: #2a2256;
-  --surface-border: rgba(255, 255, 255, 0.09);
-  --surface-border-strong: rgba(139, 124, 255, 0.32);
-  --surface-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  --shadow-elev-1: 0 4px 14px rgba(6, 4, 18, 0.35);
-  --shadow-elev-2: 0 10px 28px rgba(6, 4, 18, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  --shadow-elev-3: 0 22px 56px rgba(6, 4, 18, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --surface-0: #0c0a1d;
+  --surface-1: #141029;
+  --surface-2: #1d1740;
+  --surface-3: #272050;
+  --surface-border: rgba(148, 134, 255, 0.14);
+  --surface-border-strong: rgba(148, 134, 255, 0.38);
+  --surface-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  --shadow-elev-1: 0 4px 14px rgba(5, 3, 16, 0.4);
+  --shadow-elev-2: 0 12px 32px rgba(5, 3, 16, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --shadow-elev-3: 0 24px 64px rgba(5, 3, 16, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.07);
   --app-bg-gradient:
-    radial-gradient(1000px 620px at 50% -14%, rgba(106, 67, 255, 0.17), transparent 60%),
-    radial-gradient(760px 540px at 108% 112%, rgba(236, 0, 125, 0.06), transparent 55%),
-    linear-gradient(170deg, #141129 0%, #1d1742 46%, #161232 76%, #100d22 100%);
+    radial-gradient(1100px 680px at 50% -16%, rgba(118, 78, 255, 0.22), transparent 62%),
+    radial-gradient(620px 460px at -12% 28%, rgba(64, 92, 255, 0.1), transparent 58%),
+    radial-gradient(720px 520px at 110% 108%, rgba(236, 0, 125, 0.075), transparent 55%),
+    linear-gradient(172deg, #131027 0%, #1b1540 40%, #131032 72%, #0b091c 100%);
 
   --bg: #f8f9fa;
   --fg: #232a32;
@@ -37,9 +39,9 @@
   --btn-danger: #e74c3c;
   --muted: #babec4;
   --gray-txt: #888;
-  --chip-radius: 13px;
-  --radius-standard: 12px;
-  --gradient-bg: linear-gradient(170deg, #141129 0%, #1d1742 50%, #100d22 100%);
+  --chip-radius: 999px;
+  --radius-standard: 16px;
+  --gradient-bg: linear-gradient(172deg, #131027 0%, #1b1540 50%, #0b091c 100%);
 
   /* Safe Area Variables */
   --safe-top: env(safe-area-inset-top);
@@ -118,7 +120,7 @@ body {
   align-items: center;
   justify-content: center;
   border: 1px solid var(--surface-border-strong);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--surface-2);
   color: #c3b8ff;
   box-shadow: var(--surface-highlight), 0 2px 8px rgba(6, 4, 18, 0.3);
@@ -143,8 +145,8 @@ body {
 
 .admin-action-menu {
   border: 1px solid var(--surface-border-strong);
-  border-radius: 12px;
-  background: rgba(24, 19, 52, 0.97);
+  border-radius: 14px;
+  background: rgba(20, 16, 41, 0.97);
   box-shadow: var(--shadow-elev-3);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -468,15 +470,15 @@ body {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
 }
 
-/* --- ARMA2 V2 SURFACES --- */
+/* --- ARMA2 V3 SURFACES --- */
 /* Layered card surface: gradient depth + hairline border + top highlight. */
 .surface-card {
-  background: linear-gradient(168deg, rgba(42, 34, 86, 0.66), rgba(24, 19, 52, 0.92));
+  background: linear-gradient(165deg, rgba(48, 38, 98, 0.72), rgba(20, 16, 41, 0.94));
   border: 1px solid var(--surface-border);
   border-radius: var(--radius-standard);
   box-shadow: var(--shadow-elev-2);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
 }
 
 .surface-card-interactive {
@@ -485,7 +487,113 @@ body {
 
 .surface-card-interactive:hover {
   border-color: var(--surface-border-strong);
-  box-shadow: var(--shadow-elev-2), 0 0 16px rgba(106, 67, 255, 0.16);
+  box-shadow: var(--shadow-elev-2), 0 0 20px rgba(122, 82, 255, 0.2);
+}
+
+/* Hero/featured card: stronger gradient + violet aura, for top-of-page modules. */
+.surface-hero {
+  position: relative;
+  background:
+    radial-gradient(420px 220px at 18% -30%, rgba(139, 92, 255, 0.28), transparent 70%),
+    linear-gradient(160deg, rgba(56, 44, 116, 0.85), rgba(22, 17, 46, 0.96));
+  border: 1px solid rgba(148, 134, 255, 0.22);
+  border-radius: 20px;
+  box-shadow: var(--shadow-elev-2);
+  overflow: hidden;
+}
+
+.surface-hero::after {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 4%, rgba(176, 160, 255, 0.55) 30%, rgba(236, 0, 125, 0.4) 70%, transparent 96%);
+  pointer-events: none;
+}
+
+/* Section header system: eyebrow + title with magenta tick. */
+.section-eyebrow {
+  display: block;
+  font-family: Inter, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(176, 160, 255, 0.78);
+  margin-bottom: 4px;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-family: Inter, sans-serif;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.015em;
+  color: rgba(255, 255, 255, 0.94);
+}
+
+.section-title::before {
+  content: '';
+  width: 4px;
+  height: 18px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #ec007d, #8b5cff);
+  box-shadow: 0 0 10px rgba(236, 0, 125, 0.45);
+  flex-shrink: 0;
+}
+
+/* Icon tile: rounded gradient square used in quick-access cards and lists. */
+.icon-tile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: linear-gradient(140deg, rgba(139, 92, 255, 0.32), rgba(106, 67, 255, 0.1));
+  border: 1px solid rgba(148, 134, 255, 0.32);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 4px 12px rgba(5, 3, 16, 0.35);
+  color: #cfc4ff;
+  flex-shrink: 0;
+}
+
+.icon-tile--accent {
+  background: linear-gradient(140deg, rgba(236, 0, 125, 0.3), rgba(236, 0, 125, 0.08));
+  border-color: rgba(236, 0, 125, 0.38);
+  color: #ffb1d8;
+}
+
+/* Pill chip: compact metadata chips used across cards. */
+.chip-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+  border: 1px solid rgba(148, 134, 255, 0.2);
+  background: rgba(20, 16, 41, 0.85);
+  color: rgba(255, 255, 255, 0.78);
+}
+
+/* Subtle scrollbar for inner scroll areas. */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(148, 134, 255, 0.3);
+  border-radius: 999px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 /* --- LAYOUT PRINCIPAL --- */

@@ -102,7 +102,7 @@ const MatchSelectionCard = ({
             className={`relative bg-[#1e293b]/92 backdrop-blur-sm rounded-none p-4 min-h-[140px] border transition-all duration-200 cursor-pointer shadow-[0_10px_24px_rgba(0,0,0,0.28)]
                 ${isSelected
                     ? 'border-[#29aaff] ring-1 ring-[#29aaff]/55'
-                    : `${isComplete || isInviteBlocked ? 'border-slate-700/70 opacity-85' : 'border-[rgba(88,107,170,0.46)] hover:brightness-[1.03] hover:border-[#4a7ed6]'}`
+                    : `${isComplete || isInviteBlocked ? 'border-slate-700/70 opacity-85' : 'border-[rgba(148,134,255,0.2)] hover:brightness-[1.03] hover:border-[rgba(148,134,255,0.45)]'}`
                 }
                 ${isInviteBlocked && !isSelected ? 'active:scale-100' : 'active:scale-[0.99]'}`}
         >

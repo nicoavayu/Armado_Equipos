@@ -44,7 +44,7 @@ const PageTitle = ({
 
   return (
     <div
-      className={`${position === 'sticky' ? 'sticky' : position === 'static' ? 'relative' : 'fixed'} top-0 left-0 right-0 z-[1000] p-[14px_16px] box-border shrink-0 bg-[#15102c]/88 backdrop-blur-xl border-b border-white/[0.08] md:p-[12px_12px]`}
+      className={`${position === 'sticky' ? 'sticky' : position === 'static' ? 'relative' : 'fixed'} top-0 left-0 right-0 z-[1000] p-[14px_16px] box-border shrink-0 bg-[#120e28]/92 backdrop-blur-2xl border-b border-[rgba(148,134,255,0.14)] shadow-[0_10px_28px_rgba(5,3,16,0.4)] after:content-[''] after:absolute after:bottom-0 after:left-0 after:right-0 after:h-px after:bg-[linear-gradient(90deg,transparent_8%,rgba(139,92,255,0.5)_40%,rgba(236,0,125,0.35)_64%,transparent_92%)] md:p-[12px_12px]`}
       style={Object.keys(containerStyle).length > 0 ? containerStyle : undefined}
     >
       <div
@@ -55,7 +55,7 @@ const PageTitle = ({
       >
         {onBack && (
           <button
-            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/[0.06] border border-white/10 text-white cursor-pointer py-2 px-3 rounded-xl transition-all duration-200 min-w-[40px] min-h-[40px] flex items-center justify-center hover:bg-white/[0.12] hover:border-white/20 active:scale-95 group"
+            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/[0.06] border border-[rgba(148,134,255,0.25)] text-white cursor-pointer py-2 px-3 rounded-full transition-all duration-200 min-w-[40px] min-h-[40px] flex items-center justify-center hover:bg-white/[0.12] hover:border-[rgba(148,134,255,0.45)] active:scale-95 group shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
             onClick={(e) => {
               e.stopPropagation();
               onBack();
@@ -66,7 +66,7 @@ const PageTitle = ({
             </svg>
           </button>
         )}
-        <h2 className="m-0 font-oswald font-semibold text-center text-white absolute top-1/2 left-0 -translate-y-1/2 w-full drop-shadow-md px-[52px] text-[19px] tracking-[0.01em] whitespace-normal break-words md:text-[18px] xs:text-[17px]">
+        <h2 className="m-0 font-oswald font-bold text-center text-white absolute top-1/2 left-0 -translate-y-1/2 w-full px-[52px] text-[17px] tracking-[0.08em] uppercase whitespace-normal break-words drop-shadow-[0_2px_10px_rgba(106,67,255,0.35)] md:text-[16px] xs:text-[15px]">
           {normalizedTitle}
         </h2>
 

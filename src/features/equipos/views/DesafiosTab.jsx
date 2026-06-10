@@ -28,12 +28,12 @@ import { useInterval } from '../../../hooks/useInterval';
 
 const publishActionBaseClass = '!w-full !h-auto !min-h-[44px] !px-4 !py-2.5 !rounded-none !font-bebas !text-base !tracking-[0.01em] !normal-case sm:!text-[13px] sm:!px-3 sm:!py-2 sm:!min-h-[36px]';
 const publishActionPrimaryClass = `${publishActionBaseClass} !border !border-[#7d5aff] !bg-[#6a43ff] !text-white !shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:!bg-[#7550ff]`;
-const challengeConfirmModalClass = 'w-full max-w-[520px] !rounded-none !border !border-[rgba(88,107,170,0.52)] !bg-[rgba(8,18,44,0.96)] !shadow-[0_26px_58px_rgba(0,0,0,0.62)]';
+const challengeConfirmModalClass = 'w-full max-w-[520px] !rounded-none !border !border-[rgba(148,134,255,0.3)] !bg-[rgba(18,14,38,0.97)] !shadow-[0_26px_58px_rgba(0,0,0,0.62)]';
 const challengeConfirmModalContentClass = 'p-4 sm:p-5 !font-oswald';
 const primaryCtaClass = 'flex-1 min-h-[44px] px-4 py-2.5 rounded-none border border-[#7d5aff] bg-[#6a43ff] text-white font-bebas text-base tracking-[0.01em] flex items-center justify-center text-center gap-2 transition-all hover:bg-[#7550ff] active:opacity-95 shadow-[0_0_14px_rgba(106,67,255,0.3)] sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]';
 const secondaryCtaClass = 'flex-1 min-h-[44px] px-4 py-2.5 rounded-none border font-bebas text-base tracking-[0.01em] flex items-center justify-center text-center gap-2 transition-all active:opacity-95 sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]';
 const compactSearchCtaClass = 'relative flex-none w-[72px] min-h-[44px] rounded-none border font-bebas text-base tracking-[0.01em] flex items-center justify-center text-center transition-all active:opacity-95 sm:w-[60px] sm:min-h-[36px]';
-const filterFieldClass = 'h-[44px] rounded-none bg-[rgba(15,24,56,0.72)] border border-[rgba(88,107,170,0.46)] px-3 text-[15px] text-white outline-none focus:border-[#6a43ff] focus:ring-1 focus:ring-[#6a43ff]/45';
+const filterFieldClass = 'h-[44px] rounded-none bg-[rgba(20,16,41,0.8)] border border-[rgba(148,134,255,0.2)] px-3 text-[15px] text-white outline-none focus:border-[#6a43ff] focus:ring-1 focus:ring-[#6a43ff]/45';
 const DESAFIOS_REFRESH_INTERVAL_MS = 30000;
 
 const formatMoneyAr = (value) => {
@@ -260,7 +260,7 @@ const DesafiosTab = ({
           onClick={() => setShowFilters((prev) => !prev)}
           className={`${compactSearchCtaClass} ${showFilters
             ? 'border-[#7d5aff] bg-[rgba(106,67,255,0.22)] text-white'
-            : 'border-[rgba(88,107,170,0.46)] bg-[rgba(15,24,56,0.72)] text-white/78 hover:border-[#4a7ed6] hover:text-white'
+            : 'border-[rgba(148,134,255,0.2)] bg-[rgba(20,16,41,0.8)] text-white/78 hover:border-[rgba(148,134,255,0.45)] hover:text-white'
             }`}
           aria-label="Buscar desafios"
           title="Buscar"
@@ -275,7 +275,7 @@ const DesafiosTab = ({
       </div>
 
       {showFilters ? (
-        <div className="mt-2.5 border border-[rgba(88,107,170,0.46)] bg-[rgba(15,24,56,0.72)] p-3">
+        <div className="mt-2.5 border border-[rgba(148,134,255,0.2)] bg-[rgba(20,16,41,0.8)] p-3">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <select
               value={filters.format}
@@ -320,7 +320,7 @@ const DesafiosTab = ({
         <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/45">
           Desafíos públicos
         </span>
-        <span className="h-px flex-1 bg-[rgba(88,107,170,0.46)]" />
+        <span className="h-px flex-1 bg-[rgba(148,134,255,0.2)]" />
       </div>
 
       {loading ? (

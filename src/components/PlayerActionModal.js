@@ -25,7 +25,7 @@ const getPosColor = (p) => POS_COLOR_MAP[p] || '#8178e5';
 const ACTION_BTN_BASE_CLASS = 'w-full min-w-0 h-[46px] px-4 rounded-none border font-bebas text-[15px] tracking-[0.01em] leading-tight transition-all inline-flex items-center justify-center text-center';
 const ACTION_BTN_COMPACT_CLASS = 'px-1.5 text-[13px] tracking-[0.005em] whitespace-nowrap';
 const ACTION_BTN_PRIMARY_CLASS = 'bg-[#6a43ff] border-[#7d5aff] text-white shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:bg-[#7550ff] active:opacity-95';
-const ACTION_BTN_SECONDARY_CLASS = 'bg-[rgba(20,31,70,0.82)] border-[rgba(98,117,184,0.58)] text-white/92 hover:bg-[rgba(30,45,94,0.95)] hover:text-white active:opacity-95';
+const ACTION_BTN_SECONDARY_CLASS = 'bg-white/[0.05] border-[rgba(148,134,255,0.28)] text-white/92 hover:bg-white/[0.1] hover:text-white active:opacity-95';
 
 const getFriendButtonConfig = (status, isSubmitting) => {
   if (isSubmitting) {

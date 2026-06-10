@@ -10,9 +10,9 @@ import { formatSkillLevelLabel } from '../utils/teamColors';
 import NeighborhoodAutocomplete from './NeighborhoodAutocomplete';
 
 const PRIMARY_ACTION_BUTTON_CLASS = 'inline-flex min-h-[44px] items-center justify-center gap-2 rounded-none border border-[#7d5aff] bg-[#6a43ff] px-4 py-2.5 font-bebas text-base tracking-[0.01em] text-white shadow-[0_0_14px_rgba(106,67,255,0.3)] transition-all hover:bg-[#7550ff] active:opacity-95 disabled:cursor-not-allowed disabled:border-[rgba(125,90,255,0.45)] disabled:bg-[rgba(106,67,255,0.55)] disabled:text-white/45 disabled:shadow-none';
-const SECONDARY_ACTION_BUTTON_CLASS = 'inline-flex min-h-[44px] items-center justify-center gap-2 rounded-none border border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] px-4 py-2.5 font-bebas text-base tracking-[0.01em] text-white/92 transition-all hover:bg-[rgba(30,45,94,0.95)] active:opacity-95 disabled:cursor-not-allowed disabled:opacity-50';
-const INPUT_CLASS = 'h-[52px] w-full rounded-none border border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] px-4 text-white font-oswald text-lg outline-none transition-all duration-300 focus:border-[#7f8dff] focus:bg-[rgba(30,45,94,0.95)] focus:ring-2 focus:ring-[#6f7dff]/30 placeholder:text-white/45 backdrop-blur-md';
-const INPUT_READONLY_CLASS = 'h-[52px] w-full rounded-none border border-[rgba(88,107,170,0.4)] bg-[rgba(26,35,76,0.58)] px-4 text-white/78 font-oswald text-lg outline-none';
+const SECONDARY_ACTION_BUTTON_CLASS = 'inline-flex min-h-[44px] items-center justify-center gap-2 rounded-none border border-[rgba(148,134,255,0.28)] bg-white/[0.05] px-4 py-2.5 font-bebas text-base tracking-[0.01em] text-white/92 transition-all hover:bg-white/[0.1] active:opacity-95 disabled:cursor-not-allowed disabled:opacity-50';
+const INPUT_CLASS = 'h-[52px] w-full rounded-none border border-[rgba(148,134,255,0.28)] bg-white/[0.05] px-4 text-white font-oswald text-lg outline-none transition-all duration-300 focus:border-[#8b7cff] focus:bg-[rgba(29,23,64,0.95)] focus:ring-2 focus:ring-[#6a43ff]/30 placeholder:text-white/45 backdrop-blur-md';
+const INPUT_READONLY_CLASS = 'h-[52px] w-full rounded-none border border-[rgba(148,134,255,0.18)] bg-[rgba(31,25,64,0.6)] px-4 text-white/78 font-oswald text-lg outline-none';
 const FIELD_LABEL_CLASS = 'mb-2 block text-sm text-white/70';
 
 const FORMAT_OPTIONS_LABEL = TEAM_FORMAT_OPTIONS.map((value) => `F${value}`).join(' · ');
@@ -145,7 +145,7 @@ const PublishChallengeModal = ({
       isOpen={isOpen}
       onClose={onClose}
       title={isEditMode ? 'Editar desafio' : 'Publicar desafio'}
-      className="w-full max-w-[620px] !bg-[#101a35] border border-[rgba(98,117,184,0.58)]"
+      className="w-full max-w-[620px] !bg-[#101a35] border border-[rgba(148,134,255,0.28)]"
       classNameContent="p-5"
       footer={(
         <div className="grid grid-cols-2 gap-2">

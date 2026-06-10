@@ -87,9 +87,9 @@ const sortFriendsByDistance = (friends = [], userLocation = null) => {
   return sortByDistanceThenName(friendsWithDistance);
 };
 
-const PRIMARY_TOGGLE_CONTAINER_CLASS = 'flex h-[44px] w-full overflow-hidden border-y border-[rgba(106,126,202,0.40)] bg-[rgba(17,26,59,0.96)]';
-const PRIMARY_TOGGLE_ACTIVE_CLASS = 'z-[2] border-[rgba(132,112,255,0.64)] bg-[#31239f] text-white shadow-[inset_0_0_0_1px_rgba(160,142,255,0.26)]';
-const PRIMARY_TOGGLE_INACTIVE_CLASS = 'z-[1] border-[rgba(106,126,202,0.40)] bg-[rgba(17,26,59,0.96)] text-white/65 hover:text-white/88 hover:bg-[rgba(26,37,83,0.98)]';
+const PRIMARY_TOGGLE_CONTAINER_CLASS = 'flex h-[44px] w-full max-w-[500px] mx-auto gap-1 p-1 overflow-hidden rounded-full border border-[rgba(148,134,255,0.22)] bg-[rgba(20,16,41,0.85)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_6px_16px_rgba(5,3,16,0.35)]';
+const PRIMARY_TOGGLE_ACTIVE_CLASS = 'z-[2] rounded-full border-transparent bg-cta-gradient text-white shadow-[0_4px_14px_rgba(106,67,255,0.4),inset_0_1px_0_rgba(255,255,255,0.2)]';
+const PRIMARY_TOGGLE_INACTIVE_CLASS = 'z-[1] rounded-full border-transparent bg-transparent text-white/60 hover:text-white/90 hover:bg-white/[0.06]';
 const EMPTY_STATE_TITLE_CLASS = 'font-oswald text-[clamp(18px,5.6vw,22px)] font-semibold leading-tight text-white';
 const normalizeAmigosTab = (value) => {
   const normalized = String(value || '').trim().toLowerCase();
@@ -722,10 +722,10 @@ const AmigosView = () => {
   }
 
   if (error) {
-    return <div className="text-center p-5 bg-red-500/10 border border-red-400/30 rounded-none text-red-300 mt-5">Error: {error}</div>;
+    return <div className="text-center p-5 bg-red-500/10 border border-red-400/30 rounded-card text-red-300 mt-5">Error: {error}</div>;
   }
 
-  const searchInputClass = 'w-full h-14 px-5 text-[15px] border border-[rgba(133,149,208,0.5)] rounded-none bg-[rgba(53,58,102,0.88)] text-white font-oswald box-border placeholder-white/40 focus:outline-none focus:border-[#7f8dff] focus:ring-2 focus:ring-[#6f7dff]/30 backdrop-blur-md';
+  const searchInputClass = 'w-full h-12 px-5 text-[14px] border border-[rgba(148,134,255,0.25)] !rounded-full bg-[rgba(20,16,41,0.85)] text-white font-sans box-border placeholder-white/35 focus:outline-none focus:border-[#8b7cff] focus:ring-2 focus:ring-[#6a43ff]/30 backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]';
 
   return (
     <div className="w-full m-0 pt-0 box-border">
@@ -741,58 +741,47 @@ const AmigosView = () => {
       )}
 
       <div className={`w-full ${activeTab === 'groups' ? 'mb-7' : 'mb-4'}`}>
-        <div className="relative left-1/2 w-screen -translate-x-1/2">
-          <div className={PRIMARY_TOGGLE_CONTAINER_CLASS}>
-            <button
-              type="button"
-              onClick={() => handleTabChange('friends')}
-              className={`relative flex-1 min-w-0 border px-0 py-0 font-bebas text-[0.95rem] tracking-[0.04em] transition-[background-color,border-color,color] duration-150 ${
-                activeTab === 'friends'
-                  ? PRIMARY_TOGGLE_ACTIVE_CLASS
-                  : PRIMARY_TOGGLE_INACTIVE_CLASS
-              }`}
-            >
-              {activeTab === 'friends' ? (
-                <span className="pointer-events-none absolute left-0 top-0 h-[3px] w-full bg-[#644dff]" />
-              ) : null}
-              AMIGOS
-            </button>
-            <button
-              type="button"
-              onClick={() => handleTabChange('groups')}
-              className={`relative flex-1 min-w-0 border border-l-0 px-0 py-0 font-bebas text-[0.95rem] tracking-[0.04em] transition-[background-color,border-color,color] duration-150 ${
-                activeTab === 'groups'
-                  ? PRIMARY_TOGGLE_ACTIVE_CLASS
-                  : PRIMARY_TOGGLE_INACTIVE_CLASS
-              }`}
-            >
-              {activeTab === 'groups' ? (
-                <span className="pointer-events-none absolute left-0 top-0 h-[3px] w-full bg-[#644dff]" />
-              ) : null}
-              GRUPOS
-            </button>
-            <button
-              type="button"
-              onClick={() => handleTabChange('discover')}
-              className={`relative flex-1 min-w-0 border border-l-0 px-0 py-0 font-bebas text-[0.95rem] tracking-[0.04em] transition-[background-color,border-color,color] duration-150 ${
-                activeTab === 'discover'
-                  ? PRIMARY_TOGGLE_ACTIVE_CLASS
-                  : PRIMARY_TOGGLE_INACTIVE_CLASS
-              }`}
-            >
-              {activeTab === 'discover' ? (
-                <span className="pointer-events-none absolute left-0 top-0 h-[3px] w-full bg-[#644dff]" />
-              ) : null}
-              <span className="inline-flex items-center justify-center gap-1.5">
-                <span>COMUNIDAD</span>
-                {pendingRequests.length > 0 && (
-                  <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 bg-[#128BE9] text-white text-[10px] font-bold rounded-none border border-white/25 shadow-[0_6px_16px_rgba(18,139,233,0.35)]">
-                    {pendingRequests.length}
-                  </span>
-                )}
-              </span>
-            </button>
-          </div>
+        <div className={PRIMARY_TOGGLE_CONTAINER_CLASS}>
+          <button
+            type="button"
+            onClick={() => handleTabChange('friends')}
+            className={`relative flex-1 min-w-0 border px-0 py-0 font-sans font-semibold text-[12.5px] tracking-[0.04em] transition-[background-color,border-color,color] duration-150 ${
+              activeTab === 'friends'
+                ? PRIMARY_TOGGLE_ACTIVE_CLASS
+                : PRIMARY_TOGGLE_INACTIVE_CLASS
+            }`}
+          >
+            AMIGOS
+          </button>
+          <button
+            type="button"
+            onClick={() => handleTabChange('groups')}
+            className={`relative flex-1 min-w-0 border px-0 py-0 font-sans font-semibold text-[12.5px] tracking-[0.04em] transition-[background-color,border-color,color] duration-150 ${
+              activeTab === 'groups'
+                ? PRIMARY_TOGGLE_ACTIVE_CLASS
+                : PRIMARY_TOGGLE_INACTIVE_CLASS
+            }`}
+          >
+            GRUPOS
+          </button>
+          <button
+            type="button"
+            onClick={() => handleTabChange('discover')}
+            className={`relative flex-1 min-w-0 border px-0 py-0 font-sans font-semibold text-[12.5px] tracking-[0.04em] transition-[background-color,border-color,color] duration-150 ${
+              activeTab === 'discover'
+                ? PRIMARY_TOGGLE_ACTIVE_CLASS
+                : PRIMARY_TOGGLE_INACTIVE_CLASS
+            }`}
+          >
+            <span className="inline-flex items-center justify-center gap-1.5">
+              <span>COMUNIDAD</span>
+              {pendingRequests.length > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 bg-[#ec007d] text-white text-[10px] font-bold rounded-full shadow-[0_0_10px_rgba(236,0,125,0.45)]">
+                  {pendingRequests.length}
+                </span>
+              )}
+            </span>
+          </button>
         </div>
       </div>
 
@@ -819,7 +808,7 @@ const AmigosView = () => {
             </p>
 
             {searchQuery && (
-              <div className="w-full max-w-[700px] mx-auto rounded-none absolute left-1/2 -translate-x-1/2 top-full bg-[rgba(4,31,89,0.98)] border border-[#12b5ff]/55 max-h-[300px] overflow-y-auto z-[1000] mt-1 sm:max-w-[98vw] shadow-[0_10px_24px_rgba(2,10,34,0.46)]">
+              <div className="w-full max-w-[700px] mx-auto rounded-2xl absolute left-1/2 -translate-x-1/2 top-full bg-[#141029]/98 border border-[rgba(148,134,255,0.3)] max-h-[300px] overflow-y-auto z-[1000] mt-2 sm:max-w-[98vw] shadow-[0_24px_64px_rgba(5,3,16,0.65)] backdrop-blur-xl custom-scrollbar">
                 {searchLoading ? (
                   <div className="flex items-center gap-2 p-4 text-white/70 text-sm">
                     <LoadingSpinner size="small" />
@@ -853,10 +842,13 @@ const AmigosView = () => {
           {/* Pending requests */}
           {pendingRequests.length > 0 && (
             <div className="flex flex-col items-center mb-5 md:mb-8 w-full max-w-[500px] mx-auto">
-              <h3 className="text-xl font-semibold my-[20px] mb-[15px] text-white">Solicitudes pendientes</h3>
+              <div className="w-full mt-5 mb-3.5">
+                <span className="section-eyebrow">Comunidad</span>
+                <h3 className="section-title">Solicitudes pendientes</h3>
+              </div>
               <div className="flex flex-col gap-2.5 w-full">
                 {pendingRequests.map((request) => (
-                  <div key={request.profile?.uuid || request.profile?.id || request.id} className="flex items-center gap-3 p-4 rounded-none bg-[rgba(4,31,89,0.95)] border border-[#12b5ff]/80 mb-3 w-full box-border min-h-[64px] transition-all duration-200 shadow-[0_0_0_1px_rgba(52,167,255,0.16),0_10px_22px_rgba(2,10,34,0.45)] hover:border-[#56d1ff] sm:p-3">
+                  <div key={request.profile?.uuid || request.profile?.id || request.id} className="flex items-center gap-3 p-3.5 rounded-card bg-[linear-gradient(165deg,rgba(48,38,98,0.68),rgba(20,16,41,0.92))] border border-[rgba(148,134,255,0.25)] mb-3 w-full box-border min-h-[64px] transition-all duration-200 shadow-elev-1 hover:border-[rgba(148,134,255,0.5)] sm:p-3">
                     <PlayerCardTrigger profile={request.profile}>
                       <div className="flex items-center gap-3 flex-1 min-w-0">
                         <img
@@ -874,7 +866,7 @@ const AmigosView = () => {
                     </PlayerCardTrigger>
                     <div className="flex gap-2 shrink-0">
                       <button
-                        className="h-11 w-11 rounded-none border border-[#7d5aff] bg-[#6a43ff] text-white shadow-[0_0_14px_rgba(106,67,255,0.3)] transition-all hover:bg-[#7550ff] hover:-translate-y-[1px] active:translate-y-0 active:scale-[0.96] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                        className="h-11 w-11 rounded-full border border-[#7d5aff] bg-cta-gradient text-white shadow-[0_4px_14px_rgba(106,67,255,0.4)] transition-all hover:brightness-110 hover:-translate-y-[1px] active:translate-y-0 active:scale-[0.96] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                         onClick={() => handleAcceptRequest(request.id)}
                         disabled={processingRequests.has(request.id)}
                         aria-label={processingRequests.has(request.id) && processingRequestAction[request.id] === 'accept' ? 'Aceptando solicitud' : 'Aceptar solicitud'}
@@ -887,7 +879,7 @@ const AmigosView = () => {
                         )}
                       </button>
                       <button
-                        className="h-11 w-11 rounded-none border border-[rgba(88,107,170,0.46)] bg-[rgba(23,35,74,0.72)] text-[rgba(242,246,255,0.9)] transition-all hover:bg-[rgba(31,45,91,0.82)] hover:-translate-y-[1px] active:translate-y-0 active:scale-[0.96] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                        className="h-11 w-11 rounded-full border border-[rgba(148,134,255,0.28)] bg-white/[0.05] text-white/85 transition-all hover:bg-white/[0.1] hover:-translate-y-[1px] active:translate-y-0 active:scale-[0.96] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                         onClick={() => handleRejectRequest(request.id)}
                         disabled={processingRequests.has(request.id)}
                         aria-label={processingRequests.has(request.id) && processingRequestAction[request.id] === 'reject' ? 'Rechazando solicitud' : 'Rechazar solicitud'}
@@ -908,10 +900,13 @@ const AmigosView = () => {
 
           {/* Suggestions */}
           <div className="flex flex-col items-center mb-10 w-full max-w-[500px] mx-auto">
-            <h3 className="text-xl font-semibold my-[20px] mb-[15px] text-white">Sugerencias de amistad</h3>
+            <div className="w-full mt-5 mb-3.5">
+              <span className="section-eyebrow">Para vos</span>
+              <h3 className="section-title">Sugerencias de amistad</h3>
+            </div>
 
             {suggestionsLoading ? (
-              <div className="w-full p-4 bg-[rgba(4,31,89,0.85)] border border-[#12b5ff]/55 rounded-none flex items-center justify-center gap-2 text-white/70">
+              <div className="w-full p-4 surface-card rounded-card flex items-center justify-center gap-2 text-white/70">
                 <LoadingSpinner size="small" />
                 <span className="text-sm">Buscando jugadores con los que compartiste partidos...</span>
               </div>
@@ -1090,13 +1085,13 @@ const SearchUserItem = ({
   };
 
   return (
-    <div className="flex items-center justify-between p-3 border border-[rgba(88,107,170,0.46)] rounded-none bg-[rgba(15,24,56,0.72)] transition-all duration-200 hover:border-[#4a7ed6] hover:brightness-[1.03]">
+    <div className="flex items-center justify-between p-3 border border-[rgba(148,134,255,0.16)] rounded-card bg-[linear-gradient(165deg,rgba(48,38,98,0.55),rgba(20,16,41,0.88))] shadow-[0_4px_12px_rgba(5,3,16,0.3),inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-[rgba(148,134,255,0.42)] hover:brightness-[1.05]">
       <PlayerCardTrigger profile={user}>
         <div className="flex items-center gap-3 flex-1 cursor-pointer min-w-0">
           <img
             src={user.avatar_url || '/profile.svg'}
             alt={user.nombre}
-            className="w-10 h-10 rounded-full object-cover"
+            className="w-10 h-10 rounded-full object-cover border-2 border-[rgba(148,134,255,0.35)]"
             onError={(e) => { e.target.src = '/profile.svg'; }}
           />
           <div className="flex-1 min-w-0">
@@ -1108,8 +1103,8 @@ const SearchUserItem = ({
 
       <button
         className={`
-          px-4 h-9 bg-[#6a43ff] text-white border border-[#7d5aff] rounded-none text-xs font-bebas tracking-[0.01em] cursor-pointer transition-all hover:bg-[#7550ff] whitespace-nowrap shadow-[0_0_14px_rgba(106,67,255,0.3)]
-          ${isButtonDisabled() ? 'bg-[rgba(106,67,255,0.55)] border-[rgba(125,90,255,0.5)] text-white/40 cursor-not-allowed hover:bg-[rgba(106,67,255,0.55)] shadow-none' : ''}
+          px-4 h-9 bg-cta-gradient text-white border border-[#7d5aff] rounded-full text-xs font-sans font-semibold tracking-[0.01em] cursor-pointer transition-all hover:brightness-110 whitespace-nowrap shadow-[0_4px_14px_rgba(106,67,255,0.35)]
+          ${isButtonDisabled() ? 'opacity-50 cursor-not-allowed hover:brightness-100 shadow-none' : ''}
         `}
         onClick={handleSendRequest}
         disabled={isButtonDisabled()}

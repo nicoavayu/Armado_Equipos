@@ -582,7 +582,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="bg-[#1a1a1a] rounded-b-[20px] md:rounded-b-2xl w-full max-w-[500px] max-h-[calc(100vh-102px)] md:max-h-[calc(100vh-84px)] shadow-[0_10px_40px_rgba(0,0,0,0.6)] flex flex-col relative overflow-hidden animate-[slideDownFromTop_0.3s_ease-out] mt-0">
+      <div className="bg-[linear-gradient(168deg,#241c52_0%,#171234_52%,#110d26_100%)] border border-t-0 border-[rgba(148,134,255,0.22)] rounded-b-[24px] md:rounded-b-3xl w-full max-w-[500px] max-h-[calc(100vh-102px)] md:max-h-[calc(100vh-84px)] shadow-[0_10px_40px_rgba(0,0,0,0.6)] flex flex-col relative overflow-hidden animate-[slideDownFromTop_0.3s_ease-out] mt-0">
         <style>
           {`
             @keyframes slideDownFromTop {
@@ -592,9 +592,9 @@ const NotificationsModal = ({ isOpen, onClose }) => {
           `}
         </style>
 
-        <div className="w-10 h-1 bg-[#666] rounded-sm mx-auto mt-2 mb-3 shrink-0"></div>
+        <div className="w-10 h-1 bg-white/25 rounded-full mx-auto mt-2 mb-3 shrink-0"></div>
 
-        <div className="flex justify-between items-center px-5 pb-4 md:px-4 md:pb-3 border-b border-[#333] shrink-0">
+        <div className="flex justify-between items-center px-5 pb-4 md:px-4 md:pb-3 border-b border-white/[0.08] shrink-0">
           <h3 className="text-white text-xl md:text-lg font-semibold m-0">Notificaciones</h3>
           <div className="flex items-center gap-3">
             {visibleNotifications.length > 0 && (
@@ -631,7 +631,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
 
         <div className="p-0 overflow-y-auto flex-1 touch-pan-y">
           {!loading && hasAnyNotifications && (
-            <div className="px-4 py-3 border-b border-[#2a2a2a] grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+            <div className="px-4 py-3 border-b border-white/[0.07] grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
               {NOTIFICATION_FILTER_OPTIONS.map((option) => {
                 const isActive = activeFilter === option.key;
                 const count = getCategoryCount(visibleNotifications, option.key);
@@ -642,8 +642,8 @@ const NotificationsModal = ({ isOpen, onClose }) => {
                     onClick={() => setActiveFilter(option.key)}
                     className={`w-full min-w-0 px-2.5 py-1.5 rounded-full border text-[11px] sm:w-auto sm:text-xs font-oswald transition-colors ${
                       isActive
-                        ? 'bg-primary/80 border-primary text-white'
-                        : 'bg-white/5 border-white/20 text-white/70 hover:bg-white/10 hover:text-white'
+                        ? 'bg-cta-gradient border-[#7d5aff] text-white shadow-[0_4px_14px_rgba(106,67,255,0.35)]'
+                        : 'bg-white/[0.04] border-[rgba(148,134,255,0.22)] text-white/65 hover:bg-white/[0.08] hover:text-white'
                     }`}
                   >
                     {option.label} {count > 0 ? `(${count})` : ''}
@@ -654,7 +654,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
           )}
 
           {loading ? (
-            <div className="text-center text-[#999] py-[60px] px-5 text-base">
+            <div className="text-center text-white/50 py-[60px] px-5 text-base">
               <LoadingSpinner size="medium" fullScreen />
             </div>
           ) : !hasAnyNotifications ? (
@@ -724,24 +724,24 @@ const NotificationsModal = ({ isOpen, onClose }) => {
 
                 const notificationContent = (
                   <>
-                    <div className="text-xl w-8 h-8 bg-[#333] rounded-full flex items-center justify-center shrink-0 md:w-7 md:h-7 md:text-lg text-white/85">
+                    <div className="w-9 h-9 rounded-xl border border-[rgba(148,134,255,0.3)] bg-[linear-gradient(140deg,rgba(139,92,255,0.28),rgba(106,67,255,0.08))] flex items-center justify-center shrink-0 md:w-8 md:h-8 text-[#cfc4ff]">
                       <Icon size={16} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-white text-base font-semibold mb-1 leading-tight md:text-[15px]">{displayTitle}</div>
-                      <div className="text-[#ccc] text-sm leading-snug mb-1.5 overflow-hidden line-clamp-2 md:text-[13px]">{displayMessage}</div>
-                      <div className="text-[#666] text-xs font-medium">{formatDate(notification.created_at)}</div>
+                      <div className="text-white/65 text-sm leading-snug mb-1.5 overflow-hidden line-clamp-2 md:text-[13px]">{displayMessage}</div>
+                      <div className="text-white/40 text-xs font-medium">{formatDate(notification.created_at)}</div>
                     </div>
-                    {!notification.read && <div className="w-2 h-2 bg-[#2196F3] rounded-full shrink-0 mt-1.5"></div>}
+                    {!notification.read && <div className="w-2 h-2 bg-[#ec007d] rounded-full shrink-0 mt-1.5 shadow-[0_0_8px_rgba(236,0,125,0.6)]"></div>}
                   </>
                 );
 
                 return (
                   <div
                     key={`${notification.id}:${notification.created_at}`}
-                    className={`block p-4 border-b border-[#2a2a2a] transition-all md:py-[14px] md:px-4
-                      ${!notification.read ? 'bg-[rgba(33,150,243,0.1)] border-l-[3px] border-l-[#2196F3]' : ''} 
-                      ${clickable ? 'cursor-pointer hover:bg-white/15 hover:scale-[1.01]' : 'cursor-default opacity-85'}
+                    className={`block p-4 border-b border-white/[0.06] transition-all md:py-[14px] md:px-4
+                      ${!notification.read ? 'bg-[rgba(106,67,255,0.12)] border-l-[3px] border-l-[#ec007d]' : ''} 
+                      ${clickable ? 'cursor-pointer hover:bg-white/[0.07]' : 'cursor-default opacity-85'}
                     `}
                     role={clickable ? 'button' : undefined}
                     tabIndex={clickable ? 0 : -1}

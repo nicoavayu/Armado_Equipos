@@ -25,7 +25,7 @@ const AdminActions = ({
   inputRef,
   onShareClick,
 }) => {
-  const iconAccent = '#29aaff';
+  const iconAccent = '#a78bfa';
   const iconGlowFilter = 'none';
   const [isManualOpen, setIsManualOpen] = useState(Boolean(String(nuevoNombre || '').trim()));
   const [showQuickActionsMenu, setShowQuickActionsMenu] = useState(false);
@@ -313,7 +313,7 @@ const AdminActions = ({
             <div className={`overflow-hidden transition-all duration-250 ${isManualOpen ? 'max-h-[76px] opacity-100' : 'max-h-0 opacity-0 pointer-events-none'}`}>
               <div className="flex gap-2 items-center w-full pt-0.5">
                 <input
-                  className="flex-1 h-11 min-h-[44px] max-h-[44px] text-[16px] rounded-[5px] m-0 bg-slate-800/90 border border-slate-600 text-white px-3 box-border font-oswald font-medium focus:border-[#644dff] focus:ring-1 focus:ring-[#644dff]/25 focus:outline-none placeholder:text-white/30 placeholder:text-sm"
+                  className="flex-1 h-11 min-h-[44px] max-h-[44px] text-[15px] !rounded-xl m-0 bg-[rgba(20,16,41,0.85)] border border-[rgba(148,134,255,0.25)] text-white px-3.5 box-border font-sans font-medium focus:border-[#8b7cff] focus:ring-2 focus:ring-[#6a43ff]/25 focus:outline-none placeholder:text-white/30 placeholder:text-sm"
                   type="text"
                   value={nuevoNombre}
                   onChange={(e) => setNuevoNombre(e.target.value)}

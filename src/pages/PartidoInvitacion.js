@@ -739,10 +739,10 @@ function SharedInviteLayout({
   const isSending = submitting && joinStatus === 'none';
   const isCancelling = joinCancelling && isPending;
   const matchPrimaryButtonClass = 'w-full font-bebas text-base px-4 py-2.5 border border-[#7d5aff] rounded-[5px] cursor-pointer transition-all text-white min-h-[44px] flex items-center justify-center text-center bg-[#6a43ff] shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:bg-[#7550ff] disabled:opacity-60 disabled:cursor-not-allowed';
-  const matchSecondaryButtonClass = 'w-full font-bebas text-base px-4 py-2.5 border border-[rgba(88,107,170,0.46)] rounded-[5px] cursor-pointer transition-all text-[rgba(242,246,255,0.9)] min-h-[44px] flex items-center justify-center text-center bg-[rgba(23,35,74,0.72)] hover:bg-[rgba(31,45,91,0.82)] disabled:opacity-60 disabled:cursor-not-allowed';
+  const matchSecondaryButtonClass = 'w-full font-bebas text-base px-4 py-2.5 border border-[rgba(148,134,255,0.2)] rounded-[5px] cursor-pointer transition-all text-[rgba(242,246,255,0.9)] min-h-[44px] flex items-center justify-center text-center bg-[rgba(23,35,74,0.72)] hover:bg-[rgba(31,45,91,0.82)] disabled:opacity-60 disabled:cursor-not-allowed';
   const publicCtaBaseClass = 'w-full font-bebas text-base px-4 py-2.5 border rounded-[5px] transition-all min-h-[44px] flex items-center justify-center text-center disabled:opacity-100';
   const publicCtaStateClass = joinStatus === 'checking'
-    ? 'border-[rgba(88,107,170,0.46)] bg-[rgba(23,35,74,0.72)] text-[rgba(242,246,255,0.9)] cursor-wait'
+    ? 'border-[rgba(148,134,255,0.2)] bg-[rgba(23,35,74,0.72)] text-[rgba(242,246,255,0.9)] cursor-wait'
     : isMatchFull
       ? 'border-[rgba(245,158,11,0.62)] bg-[rgba(146,64,14,0.74)] text-[#fff8eb] cursor-not-allowed'
       : isPendingSync

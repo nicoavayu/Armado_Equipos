@@ -43,7 +43,7 @@ const ProfilePage = () => {
       <div
         className="w-full min-h-full relative flex flex-col text-white selection:bg-primary/30 overflow-x-hidden"
         style={{
-          backgroundImage: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%)',
+          background: 'var(--app-bg-gradient)',
           backgroundAttachment: 'fixed',
           overflowX: 'clip',
         }}

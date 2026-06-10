@@ -93,9 +93,9 @@ const TeamSide = ({ team, fallbackText }) => {
           {teamName}
         </div>
 
-        <div className="mt-2 h-px w-full bg-[rgba(88,107,170,0.34)]" />
+        <div className="mt-2 h-px w-full bg-[rgba(148,134,255,0.16)]" />
 
-        <div className={`${CHIP_BASE_CLASS} mt-2 max-w-full inline-flex items-center gap-1 border border-[rgba(88,107,170,0.46)] bg-white/5 text-white/90 overflow-hidden text-ellipsis`}>
+        <div className={`${CHIP_BASE_CLASS} mt-2 max-w-full inline-flex items-center gap-1 border border-[rgba(148,134,255,0.2)] bg-white/5 text-white/90 overflow-hidden text-ellipsis`}>
           <MapPin size={11} /> {team.base_zone || 'Sin definir'}
         </div>
       </div>
@@ -143,8 +143,8 @@ const ChallengeCard = ({
   return (
     <div
       className={`relative w-full border backdrop-blur-sm p-4 shadow-[0_10px_24px_rgba(0,0,0,0.28)] font-oswald ${isOwnChallenge
-        ? 'border-[rgba(192,38,211,0.56)] bg-[#1e293b]/92'
-        : 'border-[rgba(88,107,170,0.46)] bg-[#1e293b]/92'
+        ? 'border-[rgba(192,38,211,0.56)] bg-[#1d1740]/92'
+        : 'border-[rgba(148,134,255,0.2)] bg-[#1d1740]/92'
         }`}
     >
       <div className="flex items-start justify-between gap-2 mb-3">

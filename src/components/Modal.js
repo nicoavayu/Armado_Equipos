@@ -91,14 +91,24 @@ const Modal = ({
     >
       <div
         ref={modalRef}
-        className={`bg-[linear-gradient(170deg,#221b4a_0%,#181334_55%,#141029_100%)] rounded-2xl shadow-[0_22px_56px_rgba(6,4,18,0.7),inset_0_1px_0_rgba(255,255,255,0.07)] max-w-[95vw] max-h-full w-auto flex flex-col overflow-hidden border border-white/10 ${disableEnterAnimation ? '' : 'animate-[scaleIn_0.2s_ease-out]'} ${className}`}
+        className={`relative bg-[linear-gradient(168deg,#241c52_0%,#171234_52%,#110d26_100%)] rounded-3xl shadow-[0_24px_64px_rgba(5,3,16,0.75),inset_0_1px_0_rgba(255,255,255,0.08)] max-w-[95vw] max-h-full w-auto flex flex-col overflow-hidden border border-[rgba(148,134,255,0.22)] ${disableEnterAnimation ? '' : 'animate-[scaleIn_0.2s_ease-out]'} ${className}`}
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Accent hairline: violet→magenta sweep along the top edge */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute top-0 left-0 right-0 h-[2px] bg-[linear-gradient(90deg,transparent_2%,rgba(139,92,255,0.85)_30%,rgba(236,0,125,0.7)_72%,transparent_98%)]"
+        />
         {hasHeader && (
-          <div className={`flex items-center px-5 py-4 border-b border-white/[0.08] shrink-0 ${title ? 'justify-between' : 'justify-end'}`}>
-            {title ? <h2 className="text-white text-lg font-semibold m-0 tracking-[0.01em]">{title}</h2> : null}
+          <div className={`flex items-center px-5 py-4 border-b border-white/[0.07] shrink-0 ${title ? 'justify-between' : 'justify-end'}`}>
+            {title ? (
+              <h2 className="text-white text-[17px] font-bold m-0 tracking-[0.01em] flex items-center gap-2.5">
+                <span aria-hidden="true" className="w-1 h-[18px] rounded-full bg-[linear-gradient(180deg,#ec007d,#8b5cff)] shadow-[0_0_10px_rgba(236,0,125,0.45)] shrink-0" />
+                {title}
+              </h2>
+            ) : null}
             <button
-              className="bg-white/[0.05] border border-white/10 text-white/60 text-xl cursor-pointer p-0 w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-200 hover:text-white hover:bg-white/10 focus:outline-none focus:text-white focus:bg-white/10"
+              className="bg-white/[0.06] border border-white/10 text-white/60 text-xl cursor-pointer p-0 w-8 h-8 flex items-center justify-center rounded-full transition-all duration-200 hover:text-white hover:bg-white/[0.12] focus:outline-none focus:text-white focus:bg-white/[0.12]"
               onClick={onClose}
               aria-label="Cerrar modal"
               type="button"
@@ -111,7 +121,7 @@ const Modal = ({
           {children}
         </div>
         {footer && (
-          <div className="px-5 py-4 border-t border-white/[0.08] shrink-0">
+          <div className="px-5 py-4 border-t border-white/[0.07] shrink-0 bg-[rgba(12,10,29,0.45)]">
             {footer}
           </div>
         )}

@@ -25,9 +25,9 @@ import {
 } from '../../services/db/privateFriendGroups';
 
 const PRIMARY_ACTION_BUTTON_CLASS = 'inline-flex min-h-[44px] items-center justify-center gap-2 rounded-none border border-[#7d5aff] bg-[#6a43ff] px-4 py-2.5 font-bebas text-base tracking-[0.01em] text-white shadow-[0_0_14px_rgba(106,67,255,0.3)] transition-all hover:bg-[#7550ff] active:opacity-95 disabled:cursor-not-allowed disabled:border-[rgba(125,90,255,0.45)] disabled:bg-[rgba(106,67,255,0.55)] disabled:text-white/45 disabled:shadow-none';
-const SECONDARY_ACTION_BUTTON_CLASS = 'inline-flex min-h-[44px] items-center justify-center gap-2 rounded-none border border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] px-4 py-2.5 font-bebas text-base tracking-[0.01em] text-white/92 transition-all hover:bg-[rgba(30,45,94,0.95)] active:opacity-95 disabled:cursor-not-allowed disabled:opacity-50';
-const INPUT_CLASS = 'h-[52px] w-full appearance-none rounded-none border border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] px-4 text-white font-oswald text-lg outline-none transition-all duration-300 focus:border-[#7f8dff] focus:bg-[rgba(30,45,94,0.95)] focus:ring-2 focus:ring-[#6f7dff]/30 placeholder:text-white/45 backdrop-blur-md';
-const GROUP_CARD_CLASS = 'w-full rounded-none border border-[rgba(88,107,170,0.46)] bg-[rgba(15,24,56,0.72)] p-4 text-left transition-all duration-200 hover:border-[#4a7ed6] hover:brightness-[1.03]';
+const SECONDARY_ACTION_BUTTON_CLASS = 'inline-flex min-h-[44px] items-center justify-center gap-2 rounded-none border border-[rgba(148,134,255,0.28)] bg-white/[0.05] px-4 py-2.5 font-bebas text-base tracking-[0.01em] text-white/92 transition-all hover:bg-white/[0.1] active:opacity-95 disabled:cursor-not-allowed disabled:opacity-50';
+const INPUT_CLASS = 'h-[52px] w-full appearance-none rounded-none border border-[rgba(148,134,255,0.28)] bg-white/[0.05] px-4 text-white font-oswald text-lg outline-none transition-all duration-300 focus:border-[#8b7cff] focus:bg-[rgba(29,23,64,0.95)] focus:ring-2 focus:ring-[#6a43ff]/30 placeholder:text-white/45 backdrop-blur-md';
+const GROUP_CARD_CLASS = 'w-full rounded-none border border-[rgba(148,134,255,0.2)] bg-[rgba(20,16,41,0.8)] p-4 text-left transition-all duration-200 hover:border-[rgba(148,134,255,0.45)] hover:brightness-[1.03]';
 const SECTION_TITLE_CLASS = 'font-oswald text-[clamp(16px,4.4vw,20px)] font-semibold leading-tight tracking-[0.01em] text-white';
 const SECTION_DIVIDER_LABEL_CLASS = 'text-[11px] font-semibold uppercase tracking-[0.14em] text-white/45 whitespace-nowrap';
 
@@ -101,7 +101,7 @@ const FriendSelectorList = ({
             className={`flex items-center gap-3 rounded-none border px-3 py-2 text-left transition-all ${
               isSelected
                 ? 'border-[#7d5aff] bg-[rgba(66,40,168,0.36)]'
-                : 'border-[rgba(88,107,170,0.46)] bg-[rgba(18,28,62,0.78)] hover:border-[#4a7ed6]'
+                : 'border-[rgba(148,134,255,0.2)] bg-[rgba(18,28,62,0.78)] hover:border-[rgba(148,134,255,0.45)]'
             }`}
           >
             <img
@@ -148,7 +148,7 @@ const GroupMembersList = ({
         return (
           <div
             key={member?.id || memberId}
-            className="flex items-center gap-3 rounded-none border border-[rgba(88,107,170,0.46)] bg-[rgba(12,22,52,0.86)] px-3 py-2"
+            className="flex items-center gap-3 rounded-none border border-[rgba(148,134,255,0.2)] bg-[rgba(12,22,52,0.86)] px-3 py-2"
           >
             <img
               src={member?.profile?.avatar_url || '/profile.svg'}
@@ -168,7 +168,7 @@ const GroupMembersList = ({
             </div>
             <button
               type="button"
-              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-none border border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] text-white/88 transition-all hover:bg-[rgba(30,45,94,0.95)] disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-none border border-[rgba(148,134,255,0.28)] bg-white/[0.05] text-white/88 transition-all hover:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-50"
               onClick={() => onRemove?.(member)}
               disabled={disabled || isRemoving}
               aria-label={`Quitar del grupo a ${member?.profile?.nombre || 'este amigo'}`}
@@ -214,7 +214,7 @@ const GroupCard = ({
           <button
             ref={buttonRef}
             type="button"
-            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-none border border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] text-white/82 transition-all hover:bg-[rgba(30,45,94,0.95)]"
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-none border border-[rgba(148,134,255,0.28)] bg-white/[0.05] text-white/82 transition-all hover:bg-white/[0.1]"
             onClick={(event) => {
               event.stopPropagation();
               if (buttonRef.current) {
@@ -358,7 +358,7 @@ const CreateGroupModal = ({
       onClose={onClose}
       title="Crear grupo"
       footer={footer}
-      className="w-full max-w-[620px] !bg-[#101a35] border border-[rgba(98,117,184,0.58)]"
+      className="w-full max-w-[620px] !bg-[#101a35] border border-[rgba(148,134,255,0.28)]"
       classNameContent="p-5"
     >
       <div className="flex flex-col gap-5">
@@ -377,7 +377,7 @@ const CreateGroupModal = ({
           />
         </div>
 
-        <div className="rounded-none border border-[rgba(88,107,170,0.46)] bg-[rgba(18,28,62,0.78)] p-4">
+        <div className="rounded-none border border-[rgba(148,134,255,0.2)] bg-[rgba(18,28,62,0.78)] p-4">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div className={SECTION_TITLE_CLASS}>Agregar amigos</div>
             <div className="text-xs text-white/55">
@@ -469,7 +469,7 @@ const EditGroupModal = ({
       onClose={onClose}
       title="Editar grupo"
       footer={footer}
-      className="w-full max-w-[520px] !bg-[#101a35] border border-[rgba(98,117,184,0.58)]"
+      className="w-full max-w-[520px] !bg-[#101a35] border border-[rgba(148,134,255,0.28)]"
       classNameContent="p-5"
     >
       <div className="flex flex-col gap-4">
@@ -572,11 +572,11 @@ const AddGroupMembersModal = ({
       onClose={onClose}
       title={`Agregar amigos${group?.name ? ` · ${group.name}` : ''}`}
       footer={footer}
-      className="w-full max-w-[620px] !bg-[#101a35] border border-[rgba(98,117,184,0.58)]"
+      className="w-full max-w-[620px] !bg-[#101a35] border border-[rgba(148,134,255,0.28)]"
       classNameContent="p-5"
     >
       <div className="flex flex-col gap-5">
-        <div className="rounded-none border border-[rgba(88,107,170,0.46)] bg-[rgba(18,28,62,0.78)] p-4">
+        <div className="rounded-none border border-[rgba(148,134,255,0.2)] bg-[rgba(18,28,62,0.78)] p-4">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div className={SECTION_TITLE_CLASS}>Agregar amigos</div>
             <div className="text-xs text-white/55">
@@ -646,7 +646,7 @@ const GroupDetailModal = ({
       isOpen={isOpen}
       onClose={onClose}
       title={group?.name || 'Grupo'}
-      className="w-full max-w-[860px] !bg-[#101a35] border border-[rgba(98,117,184,0.58)]"
+      className="w-full max-w-[860px] !bg-[#101a35] border border-[rgba(148,134,255,0.28)]"
       classNameContent="p-5"
     >
       <div className="flex flex-col gap-4">
@@ -667,7 +667,7 @@ const GroupDetailModal = ({
           ) : null}
         </div>
 
-        <div className="rounded-none border border-[rgba(88,107,170,0.46)] bg-[rgba(18,28,62,0.78)] p-4">
+        <div className="rounded-none border border-[rgba(148,134,255,0.2)] bg-[rgba(18,28,62,0.78)] p-4">
           <div className="mb-3 text-white">
             <div className={SECTION_TITLE_CLASS}>Integrantes del grupo</div>
           </div>
@@ -900,7 +900,7 @@ const PrivateGroupsTab = ({
           <span className={SECTION_DIVIDER_LABEL_CLASS}>
             TUS GRUPOS
           </span>
-          <span className="h-px flex-1 bg-[rgba(88,107,170,0.46)]" aria-hidden="true" />
+          <span className="h-px flex-1 bg-[rgba(148,134,255,0.2)]" aria-hidden="true" />
         </div>
       </div>
 
