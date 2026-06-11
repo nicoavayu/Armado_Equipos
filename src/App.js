@@ -63,9 +63,6 @@ const TemplateDetailsPage = lazy(() => import('./pages/TemplateDetailsPage'));
 const TemplateHistoryPage = lazy(() => import('./pages/TemplateHistoryPage'));
 const AdminPanelPage = lazy(() => import('./pages/AdminPanelPage'));
 const PartidoInvitacion = lazy(() => import('./pages/PartidoInvitacion'));
-const DesignReviewPage = process.env.NODE_ENV !== 'production'
-  ? lazy(() => import('./dev/DesignReviewPage'))
-  : null;
 
 // Dev-only diagnostics (excluded in production builds)
 if (process.env.NODE_ENV === 'development') {
@@ -81,29 +78,6 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 export default function App() {
-  const isDesignReviewRoute = process.env.NODE_ENV !== 'production'
-    && typeof window !== 'undefined'
-    && window.location.pathname === '/design-review';
-
-  if (isDesignReviewRoute) {
-    return (
-      <GlobalErrorBoundary>
-        <ErrorBoundary>
-          <Router>
-            <Routes>
-              <Route path="/design-review" element={
-                <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
-                  <DesignReviewPage />
-                </Suspense>
-              } />
-              <Route path="*" element={<Navigate to="/design-review" replace />} />
-            </Routes>
-          </Router>
-        </ErrorBoundary>
-      </GlobalErrorBoundary>
-    );
-  }
-
   return (
     <GlobalErrorBoundary>
       <ErrorBoundary>
