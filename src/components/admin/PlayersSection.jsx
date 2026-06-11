@@ -458,15 +458,14 @@ const PlayersSection = ({
   const rosterViewportMinHeight = (rosterViewportRows * 48) + (Math.max(0, rosterViewportRows - 1) * 16);
   const matchPrimaryButtonClass = 'w-full font-bebas font-semibold text-base px-4 py-2.5 border border-white/15 rounded-2xl cursor-pointer transition-all text-white min-h-[44px] flex items-center justify-center text-center bg-cta-gradient shadow-cta hover:brightness-110 disabled:opacity-60 disabled:cursor-not-allowed';
   const matchSecondaryButtonClass = 'w-full font-bebas font-semibold text-base px-4 py-2.5 border border-[rgba(148,134,255,0.28)] rounded-2xl cursor-pointer transition-all text-white/90 min-h-[44px] flex items-center justify-center text-center bg-white/[0.05] hover:bg-white/[0.1] disabled:opacity-60 disabled:cursor-not-allowed';
+  // Slots sit directly over the app background: no parent panel behind the grid.
   const invitePlayersBlockStyle = {
-    background: 'linear-gradient(180deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.01) 100%)',
     paddingTop: '16px',
     paddingBottom: '24px',
   };
   const inviteSoftCardWrapperStyle = {
     backgroundColor: '#1a1438',
     border: '1px solid rgba(148, 134, 255, 0.55)',
-    boxShadow: '0 0 10px rgba(106, 67, 255, 0.25)',
     transform: `skewX(-${SLOT_SKEW_X}deg)`,
     backfaceVisibility: 'hidden',
   };
@@ -890,7 +889,7 @@ const PlayersSection = ({
             return (
               <PlayerCardTrigger key={player.uuid || player.id || `slot-player-${idx}`} profile={player} partidoActual={partidoActual}>
                 <div
-                  className="PlayerCard PlayerCard--soft relative rounded-none h-12 w-full overflow-visible transition-all cursor-pointer hover:brightness-105"
+                  className="PlayerCard PlayerCard--soft relative rounded-none h-12 w-full overflow-visible transition-[filter] duration-150 cursor-pointer hover:brightness-105"
                   style={inviteSoftCardWrapperStyle}
                 >
                   <div
@@ -948,7 +947,6 @@ const PlayersSection = ({
     const cardStyle = {
       backgroundColor: '#1a1438',
       border: hasVoted ? '1px solid rgba(192, 160, 255, 0.94)' : '1px solid rgba(148, 134, 255, 0.55)',
-      boxShadow: hasVoted ? '0 0 11px rgba(106, 67, 255, 0.3)' : '0 0 9px rgba(106, 67, 255, 0.25)',
       transform: `skewX(-${SLOT_SKEW_X}deg)`,
       backfaceVisibility: 'hidden',
     };
@@ -961,7 +959,7 @@ const PlayersSection = ({
         onMakeAdmin={transferirAdmin}
       >
         <div
-          className="relative rounded-none h-12 w-full max-w-[660px] mx-auto overflow-visible transition-all cursor-pointer hover:brightness-105"
+          className="relative rounded-none h-12 w-full max-w-[660px] mx-auto overflow-visible transition-[filter] duration-150 cursor-pointer hover:brightness-105"
           style={cardStyle}
         >
           <div
@@ -1028,7 +1026,7 @@ const PlayersSection = ({
         onMakeAdmin={transferirAdmin}
       >
         <div
-          className="relative rounded-none h-12 w-full max-w-[660px] mx-auto overflow-visible transition-all cursor-pointer hover:brightness-105"
+          className="relative rounded-none h-12 w-full max-w-[660px] mx-auto overflow-visible transition-[filter] duration-150 cursor-pointer hover:brightness-105"
           style={{
             ...SUBSTITUTES_CARD_STYLE,
             transform: `skewX(-${SLOT_SKEW_X}deg)`,

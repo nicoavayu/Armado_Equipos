@@ -29,7 +29,7 @@ const GlobalHeader = ({ _onProfileClick }) => {
   // Si no hay usuario, mostrar solo el título
   if (!user) {
     return (
-      <div className="fixed top-0 left-0 right-0 z-[1000] flex items-center justify-between min-h-[64px] w-screen px-4 pt-4 bg-[#120e28]/90 backdrop-blur-2xl border-b border-[rgba(148,134,255,0.14)] shadow-[0_10px_28px_rgba(5,3,16,0.45)]">
+      <div className="fixed top-0 left-0 right-0 z-[1000] flex items-center justify-between min-h-[64px] w-screen px-4 pt-4 bg-[#120e28]/95 backdrop-blur-md border-b border-[rgba(148,134,255,0.14)] shadow-[0_10px_28px_rgba(5,3,16,0.45)]">
         <div className="flex items-center justify-center transform -translate-y-[5px] relative cursor-pointer pointer-events-auto">
           <div className="text-white font-oswald text-sm ml-px font-semibold tracking-[0.08em] uppercase opacity-90">Team Balancer</div>
         </div>
@@ -73,7 +73,7 @@ const GlobalHeader = ({ _onProfileClick }) => {
   };
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-[1000] flex items-center justify-between min-h-[64px] w-screen px-4 pt-4 bg-[#120e28]/90 backdrop-blur-2xl border-b border-[rgba(148,134,255,0.14)] shadow-[0_10px_28px_rgba(5,3,16,0.45)]">
+    <div className="fixed top-0 left-0 right-0 z-[1000] flex items-center justify-between min-h-[64px] w-screen px-4 pt-4 bg-[#120e28]/95 backdrop-blur-md border-b border-[rgba(148,134,255,0.14)] shadow-[0_10px_28px_rgba(5,3,16,0.45)]">
       {/* Left side - Avatar with status, greeting, name and status text */}
       <div className="flex flex-row items-center justify-center pointer-events-auto cursor-pointer transform -translate-y-[5px] relative" ref={statusDropdownRef}>
         <div className="relative ml-0.5 mr-3" onClick={toggleStatusDropdown}>

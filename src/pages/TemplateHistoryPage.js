@@ -135,8 +135,11 @@ const PlayerRow = ({ player }) => (
 );
 
 const TeamColumn = ({ title, team = [], resolvePlayer }) => (
-  <div className="bg-black/25 border border-[rgba(148,134,255,0.16)] rounded-2xl p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-    <div className="font-bebas text-base text-white uppercase tracking-wider mb-1.5">{title}</div>
+  <div className="relative bg-black/25 border border-[rgba(148,134,255,0.16)] rounded-2xl p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] overflow-hidden">
+    <div className="font-bebas text-base text-white uppercase tracking-wider mb-2 flex items-center gap-2">
+      <span aria-hidden="true" className="w-1 h-[14px] rounded-full bg-[linear-gradient(180deg,#ec007d,#8b5cff)] shrink-0" />
+      {title}
+    </div>
     {team.length === 0 ? (
       <div className="text-white/50 text-sm font-oswald">Sin equipos confirmados.</div>
     ) : (
@@ -150,11 +153,13 @@ const TeamColumn = ({ title, team = [], resolvePlayer }) => (
 );
 
 const AwardRow = ({ title, icon, playerName }) => (
-  <div className="flex items-center gap-2 bg-[rgba(20,16,41,0.8)] border border-[rgba(148,134,255,0.18)] rounded-xl px-2.5 py-2">
-    <img src={icon} alt={title} className="w-7 h-7 object-contain shrink-0" />
+  <div className="flex items-center gap-2.5 bg-[rgba(20,16,41,0.8)] border border-[rgba(148,134,255,0.18)] rounded-xl px-2.5 py-2">
+    <span className="inline-flex h-9 w-9 items-center justify-center rounded-[10px] bg-[linear-gradient(140deg,rgba(139,92,255,0.28),rgba(106,67,255,0.08))] border border-[rgba(148,134,255,0.3)] shrink-0">
+      <img src={icon} alt={title} className="w-6 h-6 object-contain" />
+    </span>
     <div className="min-w-0">
-      <div className="font-bebas text-[12px] text-white/70 uppercase tracking-wide leading-none">{title}</div>
-      <div className="font-oswald text-[13px] text-white mt-0.5 leading-tight break-words">{playerName || 'Sin dato'}</div>
+      <div className="font-sans text-[10px] font-bold text-[#b0a0ff]/85 uppercase tracking-[0.14em] leading-none">{title}</div>
+      <div className="font-oswald text-[14px] font-semibold text-white mt-1 leading-tight break-words">{playerName || 'Sin dato'}</div>
     </div>
   </div>
 );
@@ -454,13 +459,21 @@ const TemplateHistoryPage = () => {
         HISTORIAL
       </PageTitle>
 
-      <div className="relative w-full mt-1 rounded-card border border-[rgba(148,134,255,0.2)] bg-[radial-gradient(380px_180px_at_16%_-26%,rgba(139,92,255,0.14),transparent_70%),linear-gradient(165deg,rgba(48,38,98,0.65),rgba(20,16,41,0.94))] p-4 shadow-elev-2 overflow-hidden after:content-[''] after:absolute after:top-0 after:inset-x-0 after:h-px after:bg-[linear-gradient(90deg,transparent_6%,rgba(176,160,255,0.4)_50%,transparent_94%)] after:pointer-events-none">
+      <div className="relative w-full mt-1 rounded-card border border-[rgba(148,134,255,0.2)] bg-[linear-gradient(165deg,rgba(48,38,98,0.65),rgba(20,16,41,0.94))] p-4 shadow-elev-1 overflow-hidden after:content-[''] after:absolute after:top-0 after:inset-x-0 after:h-px after:bg-[linear-gradient(90deg,transparent_6%,rgba(176,160,255,0.45)_42%,rgba(236,0,125,0.3)_68%,transparent_94%)] after:pointer-events-none">
         {!isDetail && (
-          <>
-            <div className="font-oswald text-[20px] font-semibold leading-tight text-white truncate">
-              {formatSentenceCase(template?.nombre, 'Plantilla')}
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="font-sans text-[10px] font-bold uppercase tracking-[0.18em] text-[#b0a0ff]/80">Plantilla</div>
+              <div className="font-oswald text-[20px] font-semibold leading-tight text-white truncate mt-0.5">
+                {formatSentenceCase(template?.nombre, 'Plantilla')}
+              </div>
             </div>
-          </>
+            {matches.length > 0 && (
+              <span className="shrink-0 inline-flex items-center px-2.5 py-1 rounded-full border border-[rgba(148,134,255,0.3)] bg-[rgba(106,67,255,0.14)] font-sans text-[11px] font-bold text-[#cfc4ff] whitespace-nowrap">
+                {matches.length} {matches.length === 1 ? 'partido' : 'partidos'}
+              </span>
+            )}
+          </div>
         )}
 
         {loading ? (
@@ -483,12 +496,15 @@ const TemplateHistoryPage = () => {
                       type="button"
                       key={m.id}
                       onClick={() => setSelectedId(mid)}
-                      className="text-left rounded-2xl p-2.5 border border-[rgba(148,134,255,0.2)] bg-[linear-gradient(168deg,rgba(40,31,84,0.6),rgba(16,12,33,0.85))] hover:border-[rgba(148,134,255,0.5)] hover:shadow-[0_0_16px_rgba(106,67,255,0.18)] transition-all duration-200 active:scale-[0.985] min-h-[100px] overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+                      className="group text-left rounded-2xl p-3 border border-[rgba(148,134,255,0.2)] bg-[linear-gradient(168deg,rgba(40,31,84,0.6),rgba(16,12,33,0.85))] hover:border-[rgba(148,134,255,0.5)] transition-[border-color,transform] duration-150 active:scale-[0.985] min-h-[104px] overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
                     >
-                      <div className="w-full font-bebas text-[18px] text-white leading-6 text-center truncate">
-                        {fmtDateShort(m.fecha)}
+                      <div className="flex flex-col items-center gap-1">
+                        <span className="font-sans text-[9.5px] font-bold uppercase tracking-[0.18em] text-[#b0a0ff]/75">Fecha</span>
+                        <span className="w-full font-bebas text-[20px] text-white leading-6 text-center truncate">
+                          {fmtDateShort(m.fecha)}
+                        </span>
                       </div>
-                      <div className="mt-2 w-full">
+                      <div className="mt-2.5 w-full">
                         <div className="w-full flex">
                           <ResultStatusPill ready={ready} fullWidth />
                         </div>
@@ -498,19 +514,22 @@ const TemplateHistoryPage = () => {
                 })}
               </div>
             ) : (
-              <div className="mt-1 flex flex-col gap-2.5">
-                <div className="flex items-start">
-                  <div className="min-w-0 w-full">
-                    <div className="font-bebas text-[21px] leading-6 text-white uppercase tracking-wide whitespace-nowrap">
-                      {fmtDateLong(selectedMatch?.fecha)} · {fmtTime(selectedMatch?.hora)}
-                    </div>
-                    <div className="mt-0.5 text-white/70 text-[12px] font-oswald truncate normal-case">
-                      Sede: {compactVenueLabel(selectedMatch?.sede)}
-                    </div>
+              <div className="mt-1 flex flex-col gap-3">
+                <div className="relative rounded-2xl border border-[rgba(148,134,255,0.2)] bg-[linear-gradient(168deg,rgba(56,44,116,0.6),rgba(20,16,41,0.85))] px-3.5 py-3 overflow-hidden after:content-[''] after:absolute after:top-0 after:inset-x-0 after:h-px after:bg-[linear-gradient(90deg,transparent_6%,rgba(176,160,255,0.5)_42%,rgba(236,0,125,0.32)_68%,transparent_94%)] after:pointer-events-none">
+                  <div className="font-sans text-[10px] font-bold uppercase tracking-[0.18em] text-[#b0a0ff]/80">Ficha del partido</div>
+                  <div className="mt-1 font-bebas text-[24px] leading-7 text-white uppercase tracking-wide whitespace-nowrap">
+                    {fmtDateLong(selectedMatch?.fecha)} · {fmtTime(selectedMatch?.hora)}
+                  </div>
+                  <div className="mt-1 text-white/70 text-[12.5px] font-sans font-medium truncate normal-case flex items-center gap-1.5">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" width="12" height="12" fill="#cfc4ff" aria-hidden>
+                      <path d="M0 188.6C0 84.4 86 0 192 0S384 84.4 384 188.6c0 119.3-120.2 262.3-170.4 316.8-11.8 12.8-31.5 12.8-43.3 0-50.2-54.5-170.4-197.5-170.4-316.8zM192 256a64 64 0 1 0 0-128 64 64 0 1 0 0 128z" />
+                    </svg>
+                    <span className="truncate">{compactVenueLabel(selectedMatch?.sede)}</span>
                   </div>
                 </div>
 
-                <div className="font-bebas text-base text-white uppercase tracking-wider">
+                <div className="font-bebas text-base text-white uppercase tracking-wider flex items-center gap-2">
+                  <span aria-hidden="true" className="w-1 h-[14px] rounded-full bg-[linear-gradient(180deg,#ec007d,#8b5cff)] shrink-0" />
                   {teamsConfirmed ? 'Equipos confirmados' : 'Participantes'}
                 </div>
 
@@ -534,25 +553,39 @@ const TemplateHistoryPage = () => {
                 )}
 
                 <div className="grid grid-cols-2 gap-2 items-start">
-                  <div className="bg-black/25 border border-[rgba(148,134,255,0.16)] rounded-2xl p-2.5 self-start shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-                    <div className="font-bebas text-base text-white uppercase tracking-wider mb-1.5">Resultado</div>
+                  <div className="relative bg-black/25 border border-[rgba(148,134,255,0.16)] rounded-2xl p-2.5 self-start shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] overflow-hidden">
+                    <div className="font-bebas text-base text-white uppercase tracking-wider mb-2 flex items-center gap-2">
+                      <span aria-hidden="true" className="w-1 h-[14px] rounded-full bg-[linear-gradient(180deg,#ec007d,#8b5cff)] shrink-0" />
+                      Resultado
+                    </div>
                     {!resultsReady ? (
-                      <div className="grid grid-cols-1 gap-1 text-xs font-oswald text-white/80">
-                        <div>Estado: {displayMatchState}</div>
+                      <div className="grid grid-cols-1 gap-1.5 text-xs font-oswald text-white/80">
+                        <span className="inline-flex w-fit items-center gap-1.5 px-2 py-0.5 rounded-full border border-amber-300/35 bg-amber-500/10 text-amber-100 font-sans text-[10.5px] font-bold uppercase tracking-wide">{displayMatchState}</span>
                         <div className="text-white/60">Pendiente hasta cierre de encuesta.</div>
                       </div>
                     ) : (
-                      <div className="grid grid-cols-1 gap-1 text-xs font-oswald text-white/80">
-                        <div>Estado: {displayMatchState}</div>
-                        <div>Ganador: {winnerLabel(selectedResult?.winner_team || resultSnapshot?.winner_team)}</div>
-                        {hasScoreline ? <div>Marcador: {normalizedScoreline}</div> : null}
-                        <div>Ausentes: {ausentesCount}</div>
+                      <div className="grid grid-cols-1 gap-1.5">
+                        <span className="inline-flex w-fit items-center gap-1.5 px-2 py-0.5 rounded-full border border-emerald-300/35 bg-emerald-500/10 text-emerald-200 font-sans text-[10.5px] font-bold uppercase tracking-wide">{displayMatchState}</span>
+                        <div>
+                          <div className="font-sans text-[10px] font-bold text-[#b0a0ff]/80 uppercase tracking-[0.14em]">Ganador</div>
+                          <div className="font-bebas text-[20px] leading-6 text-white">{winnerLabel(selectedResult?.winner_team || resultSnapshot?.winner_team)}</div>
+                        </div>
+                        {hasScoreline ? (
+                          <div>
+                            <div className="font-sans text-[10px] font-bold text-[#b0a0ff]/80 uppercase tracking-[0.14em]">Marcador</div>
+                            <div className="font-bebas text-[20px] leading-6 text-white">{normalizedScoreline}</div>
+                          </div>
+                        ) : null}
+                        <div className="text-xs font-oswald text-white/70">Ausentes: {ausentesCount}</div>
                       </div>
                     )}
                   </div>
 
-                  <div className="bg-black/25 border border-[rgba(148,134,255,0.16)] rounded-2xl p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-                    <div className="font-bebas text-base text-white uppercase tracking-wider mb-1.5">Premios</div>
+                  <div className="relative bg-black/25 border border-[rgba(148,134,255,0.16)] rounded-2xl p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] overflow-hidden">
+                    <div className="font-bebas text-base text-white uppercase tracking-wider mb-2 flex items-center gap-2">
+                      <span aria-hidden="true" className="w-1 h-[14px] rounded-full bg-[linear-gradient(180deg,#ec007d,#8b5cff)] shrink-0" />
+                      Premios
+                    </div>
                     {!resultsReady ? (
                       <div className="text-white/60 text-xs font-oswald">Esperando resultados.</div>
                     ) : (

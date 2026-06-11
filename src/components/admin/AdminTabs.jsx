@@ -6,7 +6,7 @@ import React from 'react';
  */
 const AdminTabs = ({ activeTab, onTabChange, pendingCount = 0 }) => {
     return (
-        <div className="relative mb-3 overflow-visible px-4">
+        <div className="relative mt-4 mb-3 overflow-visible px-4">
             <style>{`
                 .admin-tabs-shell {
                     position: relative;

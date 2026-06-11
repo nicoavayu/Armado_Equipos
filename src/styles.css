@@ -232,41 +232,15 @@ body {
   background: var(--app-bg-gradient);
 }
 
-/* Premium auth surface */
+/* Premium auth surface — static violet glows (no animated 680px blurred layers: too costly). */
 .auth-premium-bg {
   position: relative;
   padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
-  background: linear-gradient(180deg, #1a1940 0%, #151438 38%, #131233 58%, #0c0b1e 100%);
+  background:
+    radial-gradient(900px 560px at 50% -14%, rgba(118, 78, 255, 0.22), transparent 62%),
+    radial-gradient(620px 480px at 110% 110%, rgba(236, 0, 125, 0.07), transparent 56%),
+    linear-gradient(172deg, #1b1540 0%, #171236 45%, #110d28 76%, #0b091c 100%);
   isolation: isolate;
-}
-
-.auth-premium-bg::before,
-.auth-premium-bg::after {
-  content: '';
-  position: absolute;
-  width: 680px;
-  height: 680px;
-  border-radius: 9999px;
-  filter: blur(140px);
-  will-change: transform;
-  pointer-events: none;
-  opacity: 0.16;
-  z-index: -2;
-}
-
-.auth-premium-bg::before {
-  left: -240px;
-  top: -220px;
-  background: radial-gradient(circle, rgb(113 122 255 / 44%) 0%, rgb(91 97 210 / 0%) 68%);
-  animation: authGlowDriftA 30s ease-in-out infinite;
-}
-
-.auth-premium-bg::after {
-  right: -250px;
-  bottom: -240px;
-  background: radial-gradient(circle, rgb(142 112 255 / 38%) 0%, rgb(112 89 214 / 0%) 70%);
-  opacity: 0.13;
-  animation: authGlowDriftB 34s ease-in-out infinite;
 }
 
 .auth-premium-noise {
@@ -289,14 +263,26 @@ body {
 }
 
 .auth-premium-card {
-  background: rgb(255 255 255 / 12%);
-  border: 1px solid rgb(255 255 255 / 22%);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(168deg, #241c52 0%, #171234 52%, #110d26 100%);
+  border: 1px solid rgba(148, 134, 255, 0.25);
   box-shadow:
-    0 20px 46px rgb(0 0 0 / 46%),
+    0 24px 56px rgb(5 3 16 / 60%),
     inset 0 1px 0 rgb(255 255 255 / 8%);
   animation: authCardIn 240ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Accent hairline: violet→magenta sweep along the card's top edge. */
+.auth-premium-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent 2%, rgba(139, 92, 255, 0.85) 30%, rgba(236, 0, 125, 0.7) 72%, transparent 98%);
+  pointer-events: none;
 }
 
 .auth-logo-block {
@@ -339,10 +325,11 @@ body {
 .auth-btn-primary {
   position: relative;
   color: #f3f6ff;
-  border: 1px solid #7d5aff;
-  background: #6a43ff;
+  border: 1px solid rgb(255 255 255 / 20%);
+  background: linear-gradient(135deg, #8b5cff 0%, #6a43ff 52%, #5430e0 100%);
   box-shadow:
-    0 0 14px rgb(106 67 255 / 30%);
+    0 8px 24px rgb(106 67 255 / 38%),
+    inset 0 1px 0 rgb(255 255 255 / 22%);
 }
 
 .auth-btn-primary::after {
@@ -361,9 +348,9 @@ body {
 
 .auth-btn-secondary {
   color: rgb(241 245 255 / 95%);
-  border: 1px solid rgb(98 117 184 / 58%);
-  background: rgb(20 31 70 / 82%);
-  box-shadow: none;
+  border: 1px solid rgba(148, 134, 255, 0.32);
+  background: rgb(255 255 255 / 5%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 6%);
 }
 
 .auth-btn-secondary:active {
@@ -372,14 +359,14 @@ body {
 }
 
 .auth-email-input {
-  border: 1px solid rgb(255 255 255 / 28%);
-  background: rgb(6 15 36 / 42%);
+  border: 1px solid rgba(148, 134, 255, 0.3);
+  background: rgba(12, 9, 30, 0.55);
   transition: border-color 180ms ease, background-color 180ms ease;
 }
 
 .auth-email-input:focus {
-  border-color: rgb(156 170 255 / 84%);
-  background: rgb(6 15 36 / 52%);
+  border-color: rgba(139, 124, 255, 0.85);
+  background: rgba(12, 9, 30, 0.7);
 }
 
 .auth-legal-link {
@@ -390,18 +377,6 @@ body {
 
 .auth-legal-link:hover {
   text-decoration: underline;
-}
-
-@keyframes authGlowDriftA {
-  0% { transform: translate3d(0, 0, 0); }
-  50% { transform: translate3d(24px, 20px, 0); }
-  100% { transform: translate3d(0, 0, 0); }
-}
-
-@keyframes authGlowDriftB {
-  0% { transform: translate3d(0, 0, 0); }
-  50% { transform: translate3d(-22px, -18px, 0); }
-  100% { transform: translate3d(0, 0, 0); }
 }
 
 @keyframes authCardIn {
@@ -449,8 +424,6 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .auth-premium-card,
   .auth-btn,
-  .auth-premium-bg::before,
-  .auth-premium-bg::after,
   .auth-logo-block,
   .auth-btn-primary::after {
     animation: none !important;

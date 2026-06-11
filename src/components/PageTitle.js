@@ -44,7 +44,7 @@ const PageTitle = ({
 
   return (
     <div
-      className={`${position === 'sticky' ? 'sticky' : position === 'static' ? 'relative' : 'fixed'} top-0 left-0 right-0 z-[1000] p-[14px_16px] box-border shrink-0 bg-[#120e28]/92 backdrop-blur-2xl border-b border-[rgba(148,134,255,0.14)] shadow-[0_10px_28px_rgba(5,3,16,0.4)] after:content-[''] after:absolute after:bottom-0 after:left-0 after:right-0 after:h-px after:bg-[linear-gradient(90deg,transparent_8%,rgba(139,92,255,0.5)_40%,rgba(236,0,125,0.35)_64%,transparent_92%)] md:p-[12px_12px]`}
+      className={`${position === 'sticky' ? 'sticky' : position === 'static' ? 'relative' : 'fixed'} top-0 left-0 right-0 z-[1000] p-[14px_16px] box-border shrink-0 bg-[#120e28]/95 backdrop-blur-md border-b border-[rgba(148,134,255,0.14)] shadow-[0_10px_28px_rgba(5,3,16,0.4)] after:content-[''] after:absolute after:bottom-0 after:left-0 after:right-0 after:h-px after:bg-[linear-gradient(90deg,transparent_8%,rgba(139,92,255,0.5)_40%,rgba(236,0,125,0.35)_64%,transparent_92%)] md:p-[12px_12px]`}
       style={Object.keys(containerStyle).length > 0 ? containerStyle : undefined}
     >
       <div

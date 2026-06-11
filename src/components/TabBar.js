@@ -63,7 +63,7 @@ const TabBar = ({ activeTab, onTabChange }) => {
       className="app-tabbar fixed bottom-0 left-0 right-0 z-[1000] px-3 pt-1.5 transition-[transform,opacity] duration-200"
       style={tabBarStyle}
     >
-      <div className="relative mx-auto grid w-full max-w-[560px] grid-cols-5 overflow-hidden rounded-[22px] border border-white/[0.1] bg-[#120e28]/95 shadow-[0_18px_44px_rgba(5,3,16,0.65),inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-2xl">
+      <div className="relative mx-auto grid w-full max-w-[560px] grid-cols-5 overflow-hidden rounded-[22px] border border-white/[0.1] bg-[#120e28]/95 shadow-[0_18px_44px_rgba(5,3,16,0.65),inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-md">
         {/* Active pill that glides behind the selected tab */}
         <div
           className="pointer-events-none absolute inset-y-1.5 left-0 p-0"
@@ -85,7 +85,7 @@ const TabBar = ({ activeTab, onTabChange }) => {
           const useSimulatedActive = isActive && tab.simulatedActive;
           const iconProps = {
             size: 21,
-            className: `h-[21px] w-[21px] transition-[opacity,transform,filter,color] duration-200 group-active:scale-95 ${
+            className: `h-[21px] w-[21px] transition-[opacity,transform,color] duration-200 group-active:scale-95 ${
               isActive ? 'scale-100 opacity-100' : 'scale-100 opacity-55'
             } ${
               useSimulatedActive

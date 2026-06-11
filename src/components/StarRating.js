@@ -14,7 +14,7 @@ const StarRating = ({ value, onChange, onRate, hovered, setHovered }) => {
 
   return (
     <div className="w-full max-w-full mx-auto">
-      <div className="w-full flex flex-nowrap items-stretch overflow-hidden rounded-[6px] border border-white/18 bg-[#161f42] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+      <div className="w-full flex flex-nowrap items-stretch overflow-hidden rounded-2xl border border-[rgba(148,134,255,0.32)] bg-[#16113a] shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_10px_24px_rgba(5,3,16,0.45)]">
         {RATING_BUTTONS.map((rating) => {
           const isActive = value === rating;
           const isHovered = hovered === rating;
@@ -24,14 +24,14 @@ const StarRating = ({ value, onChange, onRate, hovered, setHovered }) => {
             <button
               key={rating}
               className={`
-                relative flex-1 min-w-0 h-[42px] md:h-[44px] border-0 text-[14px] md:text-[15px] leading-none font-oswald font-bold text-center cursor-pointer
-                transition-[background-color,color,box-shadow,filter] duration-180 ease-out
-                border-r border-white/14 last:border-r-0
+                relative flex-1 min-w-0 h-[48px] md:h-[52px] border-0 text-[15px] md:text-[16px] leading-none font-oswald font-bold text-center cursor-pointer
+                transition-[background-color,color] duration-150 ease-out
+                border-r border-white/[0.09] last:border-r-0
                 ${isActive
-                  ? 'text-white bg-[linear-gradient(132deg,#291686_0%,#3f24ba_48%,#5638e6_100%)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.18),0_0_10px_rgba(86,56,230,0.22)]'
+                  ? 'text-white bg-[linear-gradient(135deg,#8b5cff_0%,#6a43ff_52%,#5430e0_100%)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.25)]'
                   : isFilled
-                    ? 'text-white/90 bg-[linear-gradient(132deg,rgba(41,22,134,0.56)_0%,rgba(63,36,186,0.46)_48%,rgba(86,56,230,0.40)_100%)]'
-                    : 'text-white/68 bg-transparent hover:bg-[#202b58] hover:text-white/86'}
+                    ? 'text-white/92 bg-[linear-gradient(135deg,rgba(139,92,255,0.42)_0%,rgba(106,67,255,0.34)_52%,rgba(84,48,224,0.3)_100%)]'
+                    : 'text-white/65 bg-transparent hover:bg-[#221a52] hover:text-white/90'}
                 ${isHovered && !isActive ? 'brightness-105' : ''}
                 active:brightness-110
                 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-inset
@@ -46,6 +46,10 @@ const StarRating = ({ value, onChange, onRate, hovered, setHovered }) => {
             </button>
           );
         })}
+      </div>
+      <div className="mt-2 flex items-center justify-between px-1 font-sans text-[10.5px] font-semibold uppercase tracking-[0.14em] text-white/40">
+        <span>1 · Flojo</span>
+        <span>10 · Crack</span>
       </div>
     </div>
   );

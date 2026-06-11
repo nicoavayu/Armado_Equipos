@@ -294,8 +294,8 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
   };
 
   // Quick-access card: compact module with icon tile + label + chevron, layered violet surface.
-  const cardClass = 'group bg-[radial-gradient(300px_150px_at_14%_-26%,rgba(139,92,255,0.2),transparent_70%),linear-gradient(165deg,rgba(48,38,98,0.72),rgba(20,16,41,0.94))] border border-[rgba(148,134,255,0.16)] rounded-card p-4 cursor-pointer transition-[transform,background-color,border-color,box-shadow] duration-300 min-h-[118px] relative overflow-hidden flex flex-col justify-between gap-3 no-underline text-white z-[1] hover:-translate-y-0.5 hover:border-[rgba(148,134,255,0.45)] hover:shadow-[0_14px_36px_rgba(5,3,16,0.55),0_0_20px_rgba(106,67,255,0.18)] active:translate-y-0 active:scale-[0.985] sm:p-3.5 shadow-elev-2';
-  const cardHeroClass = 'group bg-[radial-gradient(320px_170px_at_16%_-30%,rgba(255,255,255,0.22),transparent_72%),linear-gradient(135deg,#8b5cff_0%,#6a43ff_56%,#5430e0_100%)] border border-white/20 rounded-card p-4 cursor-pointer transition-[transform,border-color,box-shadow] duration-300 min-h-[118px] relative overflow-hidden flex flex-col justify-between gap-3 no-underline text-white z-[1] hover:-translate-y-0.5 hover:brightness-105 hover:shadow-[0_16px_40px_rgba(84,48,224,0.5)] active:translate-y-0 active:scale-[0.985] sm:p-3.5 shadow-[0_12px_32px_rgba(84,48,224,0.42),inset_0_1px_0_rgba(255,255,255,0.25)]';
+  const cardClass = 'group bg-[linear-gradient(165deg,rgba(48,38,98,0.78),rgba(20,16,41,0.94))] border border-[rgba(148,134,255,0.16)] rounded-card p-4 cursor-pointer transition-[transform,border-color] duration-200 min-h-[118px] relative overflow-hidden flex flex-col justify-between gap-3 no-underline text-white z-[1] hover:-translate-y-0.5 hover:border-[rgba(148,134,255,0.45)] active:translate-y-0 active:scale-[0.985] sm:p-3.5 shadow-elev-1';
+  const cardHeroClass = 'group bg-[linear-gradient(135deg,#8b5cff_0%,#6a43ff_56%,#5430e0_100%)] border border-white/20 rounded-card p-4 cursor-pointer transition-[transform,border-color] duration-200 min-h-[118px] relative overflow-hidden flex flex-col justify-between gap-3 no-underline text-white z-[1] hover:-translate-y-0.5 hover:brightness-105 active:translate-y-0 active:scale-[0.985] sm:p-3.5 shadow-[0_10px_26px_rgba(84,48,224,0.38),inset_0_1px_0_rgba(255,255,255,0.25)]';
 
   useEffect(() => {
     if (!location?.state?.openProximosPartidos) return;
@@ -945,7 +945,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
         </div>
       )}
 
-      <h3 className="section-title mb-3.5">Accesos rápidos</h3>
+      <h3 className="section-title mb-5">Accesos rápidos</h3>
 
       <div className="grid grid-cols-2 gap-3 mb-7 bg-transparent shadow-none">
         {/* Create New Match — primary CTA card */}
@@ -1032,7 +1032,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
 
       {/* Recent Activity */}
       <section className="mt-6 mb-10">
-        <h3 className="section-title mb-3.5">Actividad reciente</h3>
+        <h3 className="section-title mb-5">Actividad reciente</h3>
 
         <div className="surface-card rounded-card overflow-hidden">
           <div className="min-h-[320px]">

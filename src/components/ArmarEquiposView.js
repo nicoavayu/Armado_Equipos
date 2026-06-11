@@ -939,7 +939,6 @@ export default function ArmarEquiposView({
   const softCardWrapperStyle = {
     backgroundColor: '#07163b',
     border: '1px solid rgba(41, 170, 255, 0.9)',
-    boxShadow: '0 0 9px rgba(41, 170, 255, 0.24)',
     transform: `skewX(-${SLOT_SKEW_X}deg)`,
     backfaceVisibility: 'hidden',
   };
@@ -997,7 +996,7 @@ export default function ArmarEquiposView({
       <div className="w-[90vw] md:w-full max-w-[90vw] md:max-w-4xl mx-auto flex flex-col gap-3 overflow-x-hidden mt-0 pt-0 pb-[calc(var(--safe-bottom,0px)+14px)]">
         {/* Lista de jugadores */}
         <div ref={playersSectionRef} className="relative left-1/2 w-screen -translate-x-1/2 mt-0 box-border min-h-[120px]">
-          <div className="w-full box-border" style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.01) 100%)', paddingTop: '16px', paddingBottom: '24px' }}>
+          <div className="w-full box-border" style={{ paddingTop: '16px', paddingBottom: '24px' }}>
             <div className="w-[90vw] md:w-full max-w-[90vw] md:max-w-4xl mx-auto">
               <div className="px-1 mb-6">
                 <div className="flex items-center justify-between gap-2">
@@ -1096,7 +1095,6 @@ export default function ArmarEquiposView({
                     const cardStyle = {
                       ...softCardWrapperStyle,
                       border: hasVoted ? '1px solid rgba(74, 222, 128, 0.9)' : softCardWrapperStyle.border,
-                      boxShadow: hasVoted ? '0 0 11px rgba(74, 222, 128, 0.3)' : softCardWrapperStyle.boxShadow,
                     };
 
                     return (
@@ -1106,7 +1104,7 @@ export default function ArmarEquiposView({
                         partidoActual={partidoActual}
                       >
                         <div
-                          className="PlayerCard PlayerCard--soft relative rounded-none h-12 w-full overflow-visible transition-all cursor-pointer hover:brightness-105"
+                          className="PlayerCard PlayerCard--soft relative rounded-none h-12 w-full overflow-visible transition-[filter] duration-150 cursor-pointer hover:brightness-105"
                           style={cardStyle}
                         >
                           <div className="h-full w-full p-2 flex items-center gap-1.5" style={skewCounterStyle}>

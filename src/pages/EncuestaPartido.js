@@ -2722,7 +2722,7 @@ const EncuestaPartido = () => {
               key={`${keyPrefix}${jugador.uuid}`}
               type="button"
               onClick={() => onSelect(jugador.uuid)}
-              className={`group relative h-full min-h-0 min-w-0 transform-gpu overflow-visible rounded-xl border bg-[linear-gradient(168deg,rgba(106,67,255,0.28),rgba(22,16,55,0.9))] transition-[transform,opacity,filter] duration-[260ms] ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 will-change-transform ${
+              className={`group relative h-full min-h-0 min-w-0 transform-gpu overflow-visible rounded-xl border bg-[linear-gradient(168deg,rgba(106,67,255,0.28),rgba(22,16,55,0.9))] transition-[transform,opacity,filter] duration-[260ms] ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 ${
                 selected
                   ? `z-20 -translate-y-[2px] ${isTightLayout ? 'scale-[1.015]' : isCompressedLayout ? 'scale-[1.022]' : 'scale-[1.035]'}`
                   : 'z-10 translate-y-0 scale-100'
@@ -2738,7 +2738,7 @@ const EncuestaPartido = () => {
               }}
             >
               {selected ? (
-                <div className="pointer-events-none absolute -inset-1 rounded-[12px] bg-[radial-gradient(circle,rgba(176,160,255,0.5)_0%,rgba(176,160,255,0.16)_46%,rgba(176,160,255,0)_78%)] blur-[8px]" />
+                <div className="pointer-events-none absolute -inset-1.5 rounded-[14px] bg-[radial-gradient(circle,rgba(176,160,255,0.4)_0%,rgba(176,160,255,0.12)_50%,rgba(176,160,255,0)_76%)]" />
               ) : null}
               <div
                 className="relative flex h-full w-full flex-col overflow-hidden rounded-xl"
