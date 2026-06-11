@@ -112,7 +112,7 @@ const MatchCard = ({
     return (
         <div
             onClick={onSelect}
-            className={`relative ${cardToneClass} backdrop-blur-md rounded-card p-4 pl-5 mb-3 border overflow-hidden transition-all duration-200 shadow-elev-2 sm:p-3.5 sm:pl-4 cursor-pointer
+            className={`relative ${cardToneClass} rounded-card p-4 pl-5 mb-3 border overflow-hidden transition-all duration-200 shadow-elev-2 sm:p-3.5 sm:pl-4 cursor-pointer
       before:content-[''] before:absolute before:left-0 before:top-0 before:bottom-0 before:w-[3px] ${accentEdgeClass}
       ${isFinished ? 'border-white/[0.06] before:opacity-40' : 'border-[rgba(148,134,255,0.16)]'}
       ${isSelected ? 'border-[#ec007d]/80 ring-1 ring-[#ec007d]/45' : 'hover:brightness-[1.05] hover:border-[rgba(148,134,255,0.42)] hover:shadow-[0_12px_32px_rgba(5,3,16,0.5),0_0_20px_rgba(106,67,255,0.16)]'}

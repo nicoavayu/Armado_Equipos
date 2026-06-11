@@ -58,9 +58,23 @@ body,
   overflow-x: hidden;
   overflow-x: clip;
   overscroll-behavior-x: none;
-  background: var(--app-bg-gradient);
-  background-attachment: fixed;
+  background: transparent;
   min-height: 100dvh;
+}
+
+/* App background lives on a fixed layer instead of background-attachment: fixed,
+   which forces full-gradient repaints on every scroll frame in WebKit. */
+html {
+  background: #0c0a1d;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: var(--app-bg-gradient);
+  pointer-events: none;
 }
 
 html {
@@ -102,8 +116,7 @@ html {
 body {
   margin: 0;
   font-family: 'Inter', sans-serif;
-  background: var(--app-bg-gradient);
-  background-attachment: fixed;
+  background: transparent;
   color: #f8f9fa;
   min-height: 100vh;
   overflow-x: hidden;
@@ -217,7 +230,6 @@ body {
 /* Ensure Suspense fallbacks use the same background as the rest of the app */
 .bg-fifa-gradient {
   background: var(--app-bg-gradient);
-  background-attachment: fixed;
 }
 
 /* Premium auth surface */
@@ -477,8 +489,7 @@ body {
   border: 1px solid var(--surface-border);
   border-radius: var(--radius-standard);
   box-shadow: var(--shadow-elev-2);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  /* No backdrop blur: cards sit over the page gradient, the blur was invisible but costly. */
 }
 
 .surface-card-interactive {

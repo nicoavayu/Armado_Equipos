@@ -11,10 +11,10 @@ const CTA_BY_STATUS = {
   canceled: 'Cancelado',
 };
 
-const CHIP_BASE_CLASS = 'font-oswald text-[11px] font-semibold px-2.5 py-1.5 rounded-none shrink-0 whitespace-nowrap';
+const CHIP_BASE_CLASS = 'font-oswald text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0 whitespace-nowrap';
 
-const primaryCtaClass = 'w-full flex-1 font-bebas text-base px-4 py-2.5 border border-[#7d5aff] rounded-none cursor-pointer transition-all text-white min-h-[44px] flex items-center justify-center text-center bg-[#6a43ff] shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:bg-[#7550ff]';
-const secondaryCtaClass = 'w-full flex-1 font-bebas text-base px-4 py-2.5 border border-white/35 rounded-none cursor-pointer transition-all text-white min-h-[44px] flex items-center justify-center text-center bg-white/5 hover:bg-white/10';
+const primaryCtaClass = 'w-full flex-1 font-bebas text-[16px] tracking-[0.04em] px-4 py-2.5 border border-white/20 rounded-xl cursor-pointer transition-all duration-200 text-white min-h-[48px] flex items-center justify-center text-center bg-cta-gradient shadow-cta hover:brightness-105 active:scale-[0.985]';
+const secondaryCtaClass = 'w-full flex-1 font-bebas text-[16px] tracking-[0.04em] px-4 py-2.5 border border-[rgba(148,134,255,0.24)] rounded-xl cursor-pointer transition-all duration-200 text-white/90 min-h-[48px] flex items-center justify-center text-center bg-white/[0.04] hover:bg-white/[0.08] hover:border-[rgba(148,134,255,0.4)] active:scale-[0.985]';
 const menuButtonClass = 'kebab-menu-btn';
 
 const getFormatBadgeClass = (formatValue) => {
@@ -72,20 +72,20 @@ const TeamSide = ({ team, fallbackText }) => {
 
   if (!team) {
     return (
-      <div className="flex-1 min-w-0 h-[168px] rounded-[26px] border border-dashed border-white/20 bg-[rgba(15,24,56,0.45)] px-3 py-3 flex items-center justify-center">
-        <p className="font-oswald text-white/60 text-xs font-semibold tracking-wide uppercase">{fallbackText}</p>
+      <div className="flex-1 min-w-0 h-[168px] rounded-2xl border border-dashed border-[rgba(148,134,255,0.3)] bg-white/[0.025] px-3 py-3 flex items-center justify-center">
+        <p className="font-oswald text-white/55 text-xs font-semibold tracking-[0.1em] uppercase">{fallbackText}</p>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 min-w-0 h-[168px] rounded-[26px] border border-[rgba(41,170,255,0.4)] px-3 py-3 bg-[radial-gradient(circle_at_50%_0%,rgba(39,105,255,0.12),rgba(7,22,59,0.95)_48%),linear-gradient(180deg,#081338_0%,#060f2d_100%)] shadow-[0_16px_28px_rgba(3,8,28,0.45)]">
+    <div className="flex-1 min-w-0 h-[168px] rounded-2xl border border-[rgba(148,134,255,0.3)] px-3 py-3 bg-[radial-gradient(circle_at_50%_0%,rgba(139,92,255,0.18),rgba(20,16,41,0.95)_52%),linear-gradient(180deg,#221a4d_0%,#13102c_100%)] shadow-[0_14px_28px_rgba(5,3,16,0.45),inset_0_1px_0_rgba(255,255,255,0.07)]">
       <div className="h-full flex flex-col items-center text-center">
-        <div className="h-12 w-12 rounded-[16px] overflow-hidden border border-[#1c4ea8] bg-[#0e1b47] flex items-center justify-center shrink-0">
+        <div className="h-12 w-12 rounded-2xl overflow-hidden border border-[rgba(148,134,255,0.4)] bg-[#1d1740] flex items-center justify-center shrink-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]">
           {team.crest_url ? (
             <img src={team.crest_url} alt={teamName} className="h-full w-full object-cover" />
           ) : (
-            <Shield size={20} className="text-white/80" />
+            <Shield size={20} className="text-[#cfc4ff]" />
           )}
         </div>
 
@@ -93,9 +93,9 @@ const TeamSide = ({ team, fallbackText }) => {
           {teamName}
         </div>
 
-        <div className="mt-2 h-px w-full bg-[rgba(148,134,255,0.16)]" />
+        <div className="mt-2 h-px w-full bg-[linear-gradient(90deg,transparent,rgba(148,134,255,0.3),transparent)]" />
 
-        <div className={`${CHIP_BASE_CLASS} mt-2 max-w-full inline-flex items-center gap-1 border border-[rgba(148,134,255,0.2)] bg-white/5 text-white/90 overflow-hidden text-ellipsis`}>
+        <div className={`${CHIP_BASE_CLASS} mt-2 max-w-full inline-flex items-center gap-1 border border-[rgba(148,134,255,0.2)] bg-[rgba(20,16,41,0.85)] text-white/85 overflow-hidden text-ellipsis`}>
           <MapPin size={11} /> {team.base_zone || 'Sin definir'}
         </div>
       </div>
@@ -142,9 +142,9 @@ const ChallengeCard = ({
 
   return (
     <div
-      className={`relative w-full border backdrop-blur-sm p-4 shadow-[0_10px_24px_rgba(0,0,0,0.28)] font-oswald ${isOwnChallenge
-        ? 'border-[rgba(192,38,211,0.56)] bg-[#1d1740]/92'
-        : 'border-[rgba(148,134,255,0.2)] bg-[#1d1740]/92'
+      className={`relative w-full border rounded-card p-4 font-oswald overflow-hidden bg-[radial-gradient(380px_180px_at_16%_-28%,rgba(139,92,255,0.18),transparent_70%),linear-gradient(165deg,rgba(48,38,98,0.72),rgba(20,16,41,0.94))] shadow-elev-2 after:content-[''] after:absolute after:top-0 after:inset-x-0 after:h-px after:pointer-events-none ${isOwnChallenge
+        ? 'border-[rgba(236,0,125,0.4)] after:bg-[linear-gradient(90deg,transparent_6%,rgba(236,0,125,0.55)_50%,transparent_94%)]'
+        : 'border-[rgba(148,134,255,0.2)] after:bg-[linear-gradient(90deg,transparent_6%,rgba(176,160,255,0.45)_50%,transparent_94%)]'
         }`}
     >
       <div className="flex items-start justify-between gap-2 mb-3">
@@ -180,11 +180,11 @@ const ChallengeCard = ({
               <MoreVertical size={16} />
             </button>
             {menuOpen ? (
-              <div className="absolute right-0 mt-2 w-48 rounded-none border border-slate-700 bg-slate-900 shadow-lg z-20" onClick={(event) => event.stopPropagation()}>
+              <div className="admin-action-menu absolute right-0 mt-2 w-48 z-20" onClick={(event) => event.stopPropagation()}>
                 <div className="py-1">
                   <button
                     type="button"
-                    className="w-full h-[42px] px-3 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800"
+                    className="admin-action-menu-item"
                     onClick={() => {
                       setMenuOpen(false);
                       onEdit?.(challenge);
@@ -203,24 +203,24 @@ const ChallengeCard = ({
       <div className="grid grid-cols-[minmax(0,1fr)_30px_minmax(0,1fr)] sm:grid-cols-[minmax(0,1fr)_34px_minmax(0,1fr)] gap-1 items-center">
         <TeamSide team={challenge?.challenger_team} fallbackText={teamAFallbackText} />
         <div className="px-0.5 flex flex-col items-center justify-center gap-1.5">
-          <span className="h-1.5 w-1.5 rounded-full bg-[#3b9bff] shadow-[0_0_7px_rgba(59,155,255,0.75)]" />
-          <div className="text-white/72 font-oswald text-[14px] tracking-[0.055em] leading-none font-normal">VS</div>
-          <span className="h-1.5 w-1.5 rounded-full bg-[#7a42ff] shadow-[0_0_7px_rgba(122,66,255,0.75)]" />
+          <span className="h-px w-3 bg-[linear-gradient(90deg,transparent,rgba(139,92,255,0.7))]" />
+          <div className="text-white font-bebas text-[19px] tracking-[0.08em] leading-none drop-shadow-[0_0_10px_rgba(139,92,255,0.55)]">VS</div>
+          <span className="h-px w-3 bg-[linear-gradient(90deg,rgba(236,0,125,0.6),transparent)]" />
         </div>
         <TeamSide team={challenge?.accepted_team} fallbackText={teamBFallbackText} />
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <span className="inline-flex items-center gap-1 rounded-none border border-white/20 px-2.5 py-1.5 bg-white/5 text-xs text-white/75 font-oswald">
+        <span className="chip-pill text-white/80 font-oswald">
           <MapPin size={12} /> {locationLabel}
         </span>
-        <span className="inline-flex items-center gap-1 rounded-none border border-white/20 px-2.5 py-1.5 bg-white/5 text-xs text-white/75 font-oswald">
+        <span className="chip-pill text-white/80 font-oswald">
           {fieldPriceLabel ? `Cancha ${fieldPriceLabel}` : 'Sin precio'}
         </span>
       </div>
 
       {challenge?.notes ? (
-        <p className="mt-3 text-[13px] leading-snug text-white/75 break-words font-oswald">{challenge.notes}</p>
+        <p className="mt-3 text-[13px] leading-snug text-white/70 break-words font-sans border-l-2 border-[rgba(148,134,255,0.35)] pl-2.5">{challenge.notes}</p>
       ) : null}
 
       <div className="mt-4 flex gap-2">

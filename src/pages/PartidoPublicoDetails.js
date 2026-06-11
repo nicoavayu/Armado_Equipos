@@ -275,7 +275,7 @@ export default function PartidoPublicoDetails() {
           )}
           {joinStatus === 'none' && (
             <button
-              className="w-full max-w-[260px] py-3 rounded-xl text-xs font-bold bg-[#128BE9] hover:brightness-110 text-white tracking-wider shadow-lg active:scale-[0.98] transition-all"
+              className="w-full max-w-[280px] min-h-[50px] py-3 rounded-xl font-bebas text-[16px] tracking-[0.05em] border border-white/20 bg-cta-gradient hover:brightness-105 text-white shadow-cta active:scale-[0.985] transition-all duration-200"
               onClick={handleSolicitarUnirme}
             >
               Solicitar unirme
@@ -283,7 +283,7 @@ export default function PartidoPublicoDetails() {
           )}
           {(joinStatus === 'pending' || joinStatus === 'approved') && (
             <button
-              className="w-full max-w-[260px] py-3 rounded-xl text-xs font-bold bg-gray-400/80 text-white tracking-wider shadow-lg cursor-not-allowed"
+              className="w-full max-w-[280px] min-h-[50px] py-3 rounded-xl font-bebas text-[16px] tracking-[0.05em] border border-[rgba(148,134,255,0.24)] bg-[linear-gradient(165deg,rgba(48,38,98,0.6),rgba(20,16,41,0.9))] text-white/75 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] cursor-not-allowed"
               disabled={joinStatus === 'pending' || joinStatus === 'approved'}
             >
               {joinStatus === 'approved' ? 'Ya formás parte' : 'Solicitud enviada'}

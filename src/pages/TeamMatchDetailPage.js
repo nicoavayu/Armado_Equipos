@@ -1309,7 +1309,7 @@ const TeamMatchDetailPage = () => {
         Detalle partido
       </PageTitle>
 
-      <div className="w-full pb-8 pt-[80px]">
+      <div className="w-full pb-8 pt-[62px] sm:pt-[58px]">
         <div className="w-full overflow-visible">
           <MatchInfoSection
             partido={headerInfoPartido}

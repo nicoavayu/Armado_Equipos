@@ -2495,7 +2495,7 @@ const EncuestaPartido = () => {
   const logoRowClass = 'hidden';
   const titleClass = `font-bebas text-white font-bold text-center uppercase drop-shadow-[0_8px_18px_rgba(6,9,36,0.42)] break-words w-full px-1 ${isTightLayout ? 'text-[clamp(24px,5.6vw,52px)] tracking-[0.04em] leading-[0.88]' : isCompressedLayout ? 'text-[clamp(28px,6vw,62px)] tracking-[0.048em] leading-[0.9]' : 'text-[clamp(30px,6.2vw,74px)] tracking-[0.055em] leading-[0.92]'}`;
   const surveyBtnBaseClass = `w-full border border-[rgba(148,134,255,0.35)] bg-white/[0.08] text-white font-bebas text-center cursor-pointer transition-[opacity,background-color,border-color] duration-220 ease-out hover:bg-white/[0.14] flex items-center justify-center rounded-2xl tracking-[0.08em] shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_12px_30px_rgba(8,6,30,0.32)] disabled:opacity-55 disabled:cursor-not-allowed ${isTightLayout ? 'text-[18px] sm:text-[20px] py-2 min-h-[46px]' : isCompressedLayout ? 'text-[19px] sm:text-[22px] py-2 min-h-[48px]' : 'text-[20px] sm:text-[24px] py-2.5 min-h-[52px]'}`;
-  const btnClass = `${surveyBtnBaseClass} font-bold uppercase`;
+  const btnClass = `${surveyBtnBaseClass} font-bold uppercase !border-white/20 !bg-cta-gradient hover:!brightness-105 !shadow-cta`;
   const optionBtnClass = `${surveyBtnBaseClass} uppercase`;
   const optionBtnSelectedClass = 'bg-[rgba(106,67,255,0.42)] border-[#a78bfa] shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_16px_30px_rgba(54,32,140,0.45),0_0_18px_rgba(106,67,255,0.3)]';
   const compactPrimaryBtnClass = `${btnClass} !w-auto ${isTightLayout ? '!min-w-[128px] sm:!min-w-[150px] !px-4 sm:!px-5' : isCompressedLayout ? '!min-w-[136px] sm:!min-w-[160px] !px-4 sm:!px-5' : '!min-w-[146px] sm:!min-w-[176px] !px-5 sm:!px-6'}`;
@@ -2557,7 +2557,7 @@ const EncuestaPartido = () => {
   const renderStepProgress = () => (
     <div className={progressRowClass}>
       <div className="w-full">
-        <div className="h-[2px] w-full overflow-hidden rounded-full bg-white/18 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.16)]">
+        <div className="h-[3px] w-full overflow-hidden rounded-full bg-white/14 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]">
           <div
             className="h-full origin-left rounded-full transition-[width] duration-[280ms] ease-out"
             style={{

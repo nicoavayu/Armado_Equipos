@@ -44,9 +44,9 @@ const SafeWhatsappIcon = safeComp(WhatsappIcon, 'WhatsappIcon');
 const SafeLoadingSpinner = safeComp(LoadingSpinner, 'LoadingSpinner');
 const INVITE_ACCEPT_BUTTON_VIOLET = '#644dff';
 const INVITE_ACCEPT_BUTTON_VIOLET_DARK = '#4836bb';
-const CARD_BG_BLUE = '#07163b';
-const CARD_STROKE_BLUE = 'rgba(41, 170, 255, 0.9)';
-const CARD_GLOW_BLUE = '0 0 9px rgba(41, 170, 255, 0.24)';
+const CARD_BG_BLUE = '#181231';
+const CARD_STROKE_BLUE = 'rgba(148, 134, 255, 0.5)';
+const CARD_GLOW_BLUE = '0 0 9px rgba(122, 82, 255, 0.2)';
 const SYSTEM_ICON_BLUE = '#29aaff';
 const SYSTEM_ICON_BLUE_GLOW = 'drop-shadow(0 0 4px rgba(41, 170, 255, 0.78))';
 const TEAM_DISPLAY_HELP_SEEN_KEY = 'team_display_help_seen_v1';
@@ -1029,15 +1029,30 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
       {showInteractionsHelp ? (
         <div
           ref={helpPopoverRef}
-          className="fixed right-4 top-[72px] z-[1002] w-[min(280px,calc(100vw-32px))] rounded-[8px] border border-white/12 bg-[#141b47]/95 px-3 py-3 shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-sm"
+          className="fixed right-4 top-[72px] z-[1002] w-[min(300px,calc(100vw-32px))] rounded-2xl border border-[rgba(148,134,255,0.3)] bg-[radial-gradient(260px_120px_at_20%_-18%,rgba(139,92,255,0.2),transparent_70%),linear-gradient(168deg,rgba(38,30,80,0.98),rgba(16,12,33,0.99))] px-4 py-3.5 shadow-[0_24px_64px_rgba(5,3,16,0.65),inset_0_1px_0_rgba(255,255,255,0.08)] origin-top-right animate-[dropdownSlideIn_0.24s_cubic-bezier(0.16,1,0.3,1)] after:content-[''] after:absolute after:top-0 after:inset-x-0 after:h-px after:rounded-t-2xl after:bg-[linear-gradient(90deg,transparent_8%,rgba(139,92,255,0.55)_44%,rgba(236,0,125,0.35)_70%,transparent_94%)]"
           role="dialog"
           aria-label="Ayuda rápida"
         >
-          <div className="font-bebas text-[12px] tracking-[0.08em] text-white/88">Ayuda rápida</div>
-          <div className="mt-2 flex flex-col gap-2 text-[12px] font-oswald leading-snug text-white/72">
-            <div>Podés arrastrar jugadores entre equipos para rearmarlos.</div>
-            <div>Tocá una card para fijarla en su equipo.</div>
+          <div className="flex items-center gap-2">
+            <span className="inline-block w-1 h-3.5 rounded-full bg-[linear-gradient(180deg,#ec007d,#8b5cff)] shadow-[0_0_8px_rgba(236,0,125,0.4)]" />
+            <div className="font-bebas text-[14px] tracking-[0.1em] text-white">Ayuda rápida</div>
           </div>
+          <div className="mt-2.5 flex flex-col gap-2.5 text-[12.5px] font-sans leading-[1.5] text-white/72">
+            <div className="flex items-start gap-2">
+              <span className="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-[#8b7cff]" />
+              <span>Podés arrastrar jugadores entre equipos para rearmarlos.</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-[#8b7cff]" />
+              <span>Tocá una card para fijarla en su equipo.</span>
+            </div>
+          </div>
+          <style>{`
+            @keyframes dropdownSlideIn {
+              from { opacity: 0; transform: translateY(-10px) scale(0.94); }
+              to { opacity: 1; transform: translateY(0) scale(1); }
+            }
+          `}</style>
         </div>
       ) : null}
       <div className="relative left-1/2 w-screen -translate-x-1/2">
@@ -1075,14 +1090,14 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                     <div
                       ref={dropProvided.innerRef}
                       {...dropProvided.droppableProps}
-                      className={`relative border p-2 w-[calc(50%-6px)] box-border transition-all duration-150 ease-out flex flex-col min-h-0 rounded-[5px] ${
-                        dropSnapshot.isDraggingOver ? 'shadow-[0_0_0_1px_rgba(18,139,233,0.18)]' : ''
+                      className={`relative border p-2 w-[calc(50%-6px)] box-border transition-all duration-150 ease-out flex flex-col min-h-0 rounded-2xl ${
+                        dropSnapshot.isDraggingOver ? 'shadow-[0_0_0_1px_rgba(139,92,255,0.25),0_0_24px_rgba(106,67,255,0.2)]' : 'shadow-[0_12px_32px_rgba(5,3,16,0.4),inset_0_1px_0_rgba(255,255,255,0.05)]'
                       }`}
                       style={{
-                        borderColor: dropSnapshot.isDraggingOver ? 'rgba(18,139,233,0.55)' : 'rgba(255,255,255,0.09)',
+                        borderColor: dropSnapshot.isDraggingOver ? 'rgba(139,92,255,0.6)' : 'rgba(148,134,255,0.18)',
                         background: dropSnapshot.isDraggingOver
-                          ? 'linear-gradient(180deg, rgba(18,139,233,0.14) 0%, rgba(255,255,255,0.02) 100%)'
-                          : 'linear-gradient(180deg, rgba(255,255,255,0.028) 0%, rgba(255,255,255,0.012) 100%)',
+                          ? 'linear-gradient(180deg, rgba(106,67,255,0.16) 0%, rgba(20,16,41,0.6) 100%)'
+                          : 'linear-gradient(168deg, rgba(48,38,98,0.45) 0%, rgba(20,16,41,0.72) 100%)',
                       }}
                     >
                       {editingTeamId === team.id && isAdmin ? (
@@ -1137,7 +1152,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                         />
                       ) : (
                         <h3
-                          className="font-bebas text-xl text-white m-0 tracking-wide uppercase cursor-pointer px-0 py-2 rounded-[5px] transition-all bg-transparent break-words text-center block w-full mb-2 flex justify-center items-center"
+                          className="font-bebas text-[26px] leading-[1.05] text-white m-0 tracking-[0.07em] uppercase cursor-pointer px-0 py-2 rounded-[5px] transition-all bg-transparent break-words text-center block w-full mb-2 flex justify-center items-center drop-shadow-[0_2px_12px_rgba(106,67,255,0.45)]"
                           onClick={isAdmin ? () => {
                             if (isDragging) return;
                             if (teamsConfirmed) return;
@@ -1152,7 +1167,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
 
                       <div
                         className={`flex flex-col gap-1 mb-1 w-full flex-1 min-h-0 overflow-y-auto pr-0 rounded-[5px] transition-all duration-150 ease-out ${
-                          dropSnapshot.isDraggingOver ? 'bg-[#128BE9]/8' : ''
+                          dropSnapshot.isDraggingOver ? 'bg-[#8b5cff]/10' : ''
                         }`}
                         style={{ height: `${teamListHeightPx}px`, minHeight: `${teamListHeightPx}px`, maxHeight: `${teamListHeightPx}px` }}
                       >
@@ -1214,26 +1229,26 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                                     ${isLocked ? 'shadow-[0_0_8px_rgba(255,193,7,0.3)]' : ''}
                                     ${!isAdmin ? 'cursor-default pointer-events-none' : (teamsConfirmed || isLocked ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing')}
                                     ${dragSnapshot.isDragging ? 'scale-[1.02] z-20' : 'hover:bg-white/[0.04]'}
-                                    ${isReplacementTarget ? 'ring-2 ring-[#0EA9C6]/80 border-[#0EA9C6]/70' : ''}
-                                    ${isActiveDraggedPlayer ? 'shadow-[0_0_0_1px_rgba(14,169,198,0.45)]' : ''}
+                                    ${isReplacementTarget ? 'ring-2 ring-[#ec007d]/70 border-[#ec007d]/60' : ''}
+                                    ${isActiveDraggedPlayer ? 'shadow-[0_0_0_1px_rgba(139,92,255,0.5)]' : ''}
                                     ${hasVoted && !isReplacementTarget ? 'ring-1 ring-emerald-400/70' : ''}
                                   `}
                                   style={{
                                     ...(dragProvided.draggableProps.style || {}),
                                     backgroundColor: dragSnapshot.isDragging
-                                      ? 'rgba(18,139,233,0.18)'
+                                      ? 'rgba(106,67,255,0.24)'
                                       : (isReplacementTarget
-                                        ? 'rgba(14,169,198,0.15)'
+                                        ? 'rgba(236,0,125,0.14)'
                                         : (isLocked ? 'rgba(255,193,7,0.16)' : CARD_BG_BLUE)),
                                     borderColor: isReplacementTarget
-                                      ? 'rgba(14,169,198,0.7)'
+                                      ? 'rgba(236,0,125,0.65)'
                                       : (dragSnapshot.isDragging
-                                        ? 'rgba(18,139,233,0.65)'
+                                        ? 'rgba(139,92,255,0.75)'
                                         : (hasVoted
                                           ? 'rgba(74, 222, 128, 0.9)'
                                           : (isLocked ? 'rgba(255,193,7,0.74)' : CARD_STROKE_BLUE))),
                                     boxShadow: dragSnapshot.isDragging
-                                      ? '0 8px 24px rgba(18,139,233,0.35)'
+                                      ? '0 8px 24px rgba(106,67,255,0.4)'
                                       : (hasVoted
                                         ? '0 0 11px rgba(74, 222, 128, 0.3)'
                                         : (isLocked ? '0 0 10px rgba(255,193,7,0.28)' : CARD_GLOW_BLUE)),
@@ -1285,7 +1300,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                         {dropProvided.placeholder}
                       </div>
 
-                      <div className="relative text-center w-full box-border mt-2 h-[58px] overflow-hidden rounded-[5px]" style={{
+                      <div className="relative text-center w-full box-border mt-2 h-[68px] overflow-hidden rounded-xl" style={{
                         borderWidth: '1.5px',
                         borderStyle: 'solid',
                         borderColor: (() => {
@@ -1297,12 +1312,12 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                           if (diff <= 8) return '#F59E0B';
                           return '#EF4444';
                         })(),
-                        background: CARD_BG_BLUE,
-                        boxShadow: CARD_GLOW_BLUE,
+                        background: 'linear-gradient(168deg, rgba(40,31,84,0.9), rgba(16,12,33,0.96))',
+                        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08), 0 6px 18px rgba(5,3,16,0.45)',
                       }}>
                         <div className="w-full h-full flex flex-col items-center justify-center px-2">
-                          <div className="text-white/70 text-[11px] font-oswald uppercase tracking-wide mb-0.5">PUNTAJE</div>
-                          <div className="text-white font-bebas text-[32px] leading-none font-bold">{(team.score ?? 0).toFixed(1)}</div>
+                          <div className="text-[#b0a0ff]/85 text-[10px] font-sans font-bold uppercase tracking-[0.22em] mb-0.5">Puntaje</div>
+                          <div className="text-white font-bebas text-[38px] leading-none font-bold drop-shadow-[0_2px_10px_rgba(106,67,255,0.4)]">{(team.score ?? 0).toFixed(1)}</div>
                         </div>
                       </div>
                     </div>
@@ -1343,17 +1358,31 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
 
           return (
             <div
-              className="w-full border px-4 py-3 mt-2 rounded-none"
+              className="relative w-full border px-4 py-4 mt-2 rounded-2xl overflow-hidden"
               style={{
-                borderColor: `${balanceColor}cc`,
-                background: 'linear-gradient(180deg, rgba(7,22,59,0.96) 0%, rgba(9,20,58,0.88) 100%)',
-                boxShadow: '0 0 10px rgba(41, 170, 255, 0.16)',
+                borderColor: `${balanceColor}99`,
+                background: `radial-gradient(360px 150px at 50% -40%, ${balanceColor}24, transparent 70%), linear-gradient(168deg, rgba(40,31,84,0.88) 0%, rgba(16,12,33,0.96) 100%)`,
+                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.07), 0 12px 32px rgba(5,3,16,0.45)',
               }}
             >
+              <div
+                className="absolute inset-x-0 top-0 h-px"
+                style={{ background: `linear-gradient(90deg, transparent 8%, ${balanceColor}aa 50%, transparent 92%)` }}
+              />
               <div className="text-center">
-                <div className="font-bebas text-base text-white/90 tracking-wider mb-0.5">BALANCE DEL PARTIDO</div>
-                <div className="font-bebas text-2xl text-white font-bold mb-0.5">DIF: {diff.toFixed(1)}</div>
-                <div className="font-oswald text-xs font-semibold tracking-wide" style={{ color: balanceColor }}>{balanceStatus}</div>
+                <div className="font-sans font-bold text-[10.5px] text-[#b0a0ff]/85 uppercase tracking-[0.22em] mb-1">Balance del partido</div>
+                <div className="font-bebas text-[40px] leading-none text-white font-bold mb-2 drop-shadow-[0_2px_12px_rgba(106,67,255,0.4)]">DIF: {diff.toFixed(1)}</div>
+                <span
+                  className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 font-oswald text-[11px] font-semibold tracking-[0.08em]"
+                  style={{
+                    color: balanceColor,
+                    borderColor: `${balanceColor}66`,
+                    background: `${balanceColor}1a`,
+                  }}
+                >
+                  <span className="h-1.5 w-1.5 rounded-full" style={{ background: balanceColor, boxShadow: `0 0 8px ${balanceColor}` }} />
+                  {balanceStatus}
+                </span>
               </div>
             </div>
           );

@@ -1807,8 +1807,8 @@ const StatsView = ({ onVolver }) => {
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
     'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
   ];
-  const statsPanelClass = 'bg-[#1e293b]/92 border border-[rgba(148,134,255,0.2)] rounded-none backdrop-blur-md';
-  const statsSubPanelClass = 'rounded-none border border-[rgba(148,134,255,0.2)] bg-[rgba(20,16,41,0.8)]';
+  const statsPanelClass = 'bg-[linear-gradient(165deg,rgba(48,38,98,0.55),rgba(20,16,41,0.92))] border border-[rgba(148,134,255,0.18)] rounded-card shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_8px_22px_rgba(5,3,16,0.4)]';
+  const statsSubPanelClass = 'rounded-2xl border border-[rgba(148,134,255,0.2)] bg-[rgba(20,16,41,0.8)]';
 
   const getAvailableYears = () => {
     const currentYear = new Date().getFullYear();
@@ -1852,7 +1852,7 @@ const StatsView = ({ onVolver }) => {
       const total = amistosos + torneos;
 
       return (
-        <div className="bg-[#1e293b]/98 border border-[rgba(148,134,255,0.2)] rounded-none p-2 backdrop-blur-md">
+        <div className="bg-[#171231]/98 border border-[rgba(148,134,255,0.2)] rounded-2xl p-2 backdrop-blur-md">
           <p className="text-white/80 text-xs m-0 font-oswald">{`${label}`}</p>
           <p className="text-white text-sm font-semibold m-1 font-oswald">
             {`${total} partido${total !== 1 ? 's' : ''}`}
@@ -1884,7 +1884,7 @@ const StatsView = ({ onVolver }) => {
       <div className="pt-[81px] max-w-[100vw] m-0 box-border md:pt-[73px]">
         <motion.div
           ref={periodSelectorRef}
-          className="relative z-40 overflow-visible border-y border-[rgba(148,134,255,0.2)] bg-[#1e293b]/92"
+          className="relative z-40 overflow-visible border-y border-[rgba(148,134,255,0.2)] bg-[#171231]/92"
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
         >
@@ -1892,7 +1892,7 @@ const StatsView = ({ onVolver }) => {
             {['week', 'month', 'year'].map((p) => (
               <div key={p} className="relative min-w-0">
                 <button
-                  className={`relative w-full h-[44px] border-r border-[rgba(148,134,255,0.2)] last:border-r-0 px-2 font-bebas text-[0.95rem] tracking-[0.04em] transition-[background-color,color] duration-150 ${period === p ? 'bg-[#6a43ff] text-white shadow-[inset_0_0_0_1px_rgba(160,142,255,0.26)]' : 'bg-[#1e293b]/92 text-white/65 hover:text-white/88 hover:bg-[rgba(38,52,94,0.9)]'}`}
+                  className={`relative w-full h-[44px] border-r border-[rgba(148,134,255,0.2)] last:border-r-0 px-2 font-bebas text-[0.95rem] tracking-[0.04em] transition-[background-color,color] duration-150 ${period === p ? 'bg-[linear-gradient(135deg,#7d52ff_0%,#6a43ff_60%,#5832e6_100%)] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]' : 'bg-[#171231]/92 text-white/65 hover:text-white/88 hover:bg-[rgba(48,38,98,0.9)]'}`}
                   onClick={() => {
                     setPeriod(p);
                     if (p === 'year') setShowYearDropdown(!showYearDropdown);
@@ -1910,11 +1910,11 @@ const StatsView = ({ onVolver }) => {
                 </button>
 
                 {p === 'week' && showWeekDropdown && period === 'week' && (
-                  <div className="absolute top-full left-0 right-0 bg-[#1e293b]/98 rounded-none border border-[rgba(148,134,255,0.2)] z-[1200] mt-1 max-h-[240px] overflow-y-auto backdrop-blur-md md:max-h-[150px] shadow-[0_10px_24px_rgba(2,10,34,0.46)]">
+                  <div className="absolute top-full left-0 right-0 bg-[#171231]/98 rounded-2xl border border-[rgba(148,134,255,0.2)] z-[1200] mt-1 max-h-[240px] overflow-y-auto backdrop-blur-md md:max-h-[150px] shadow-[0_10px_24px_rgba(2,10,34,0.46)]">
                     {getAvailableWeeks().map((week) => (
                       <div
                         key={week.index}
-                        className={`px-4 py-3 text-white/80 cursor-pointer transition-all font-oswald text-sm hover:bg-[rgba(38,52,94,0.9)] hover:text-white ${selectedWeek === week.index ? 'bg-[rgba(106,67,255,0.22)] text-white font-semibold' : ''}`}
+                        className={`px-4 py-3 text-white/80 cursor-pointer transition-all font-oswald text-sm hover:bg-[rgba(48,38,98,0.9)] hover:text-white ${selectedWeek === week.index ? 'bg-[rgba(106,67,255,0.22)] text-white font-semibold' : ''}`}
                         onClick={() => {
                           setSelectedWeek(week.index);
                           setShowWeekDropdown(false);
@@ -1928,11 +1928,11 @@ const StatsView = ({ onVolver }) => {
                 )}
 
                 {p === 'year' && showYearDropdown && period === 'year' && (
-                  <div className="absolute top-full left-0 right-0 bg-[#1e293b]/98 rounded-none border border-[rgba(148,134,255,0.2)] z-[1200] mt-1 max-h-[200px] overflow-y-auto backdrop-blur-md md:max-h-[150px] shadow-[0_10px_24px_rgba(2,10,34,0.46)]">
+                  <div className="absolute top-full left-0 right-0 bg-[#171231]/98 rounded-2xl border border-[rgba(148,134,255,0.2)] z-[1200] mt-1 max-h-[200px] overflow-y-auto backdrop-blur-md md:max-h-[150px] shadow-[0_10px_24px_rgba(2,10,34,0.46)]">
                     {getAvailableYears().map((year) => (
                       <div
                         key={year}
-                        className={`px-4 py-3 text-white/80 cursor-pointer transition-all font-oswald text-sm hover:bg-[rgba(38,52,94,0.9)] hover:text-white ${selectedYear === year ? 'bg-[rgba(106,67,255,0.22)] text-white font-semibold' : ''}`}
+                        className={`px-4 py-3 text-white/80 cursor-pointer transition-all font-oswald text-sm hover:bg-[rgba(48,38,98,0.9)] hover:text-white ${selectedYear === year ? 'bg-[rgba(106,67,255,0.22)] text-white font-semibold' : ''}`}
                         onClick={() => {
                           setSelectedYear(year);
                           setShowYearDropdown(false);
@@ -1945,11 +1945,11 @@ const StatsView = ({ onVolver }) => {
                 )}
 
                 {p === 'month' && showMonthDropdown && period === 'month' && (
-                  <div className="absolute top-full left-0 right-0 bg-[#1e293b]/98 rounded-none border border-[rgba(148,134,255,0.2)] z-[1200] mt-1 max-h-[200px] overflow-y-auto backdrop-blur-md md:max-h-[150px] shadow-[0_10px_24px_rgba(2,10,34,0.46)]">
+                  <div className="absolute top-full left-0 right-0 bg-[#171231]/98 rounded-2xl border border-[rgba(148,134,255,0.2)] z-[1200] mt-1 max-h-[200px] overflow-y-auto backdrop-blur-md md:max-h-[150px] shadow-[0_10px_24px_rgba(2,10,34,0.46)]">
                     {monthNames.map((month, index) => (
                       <div
                         key={index}
-                        className={`px-4 py-3 text-white/80 cursor-pointer transition-all font-oswald text-sm hover:bg-[rgba(38,52,94,0.9)] hover:text-white ${selectedMonth === index ? 'bg-[rgba(106,67,255,0.22)] text-white font-semibold' : ''}`}
+                        className={`px-4 py-3 text-white/80 cursor-pointer transition-all font-oswald text-sm hover:bg-[rgba(48,38,98,0.9)] hover:text-white ${selectedMonth === index ? 'bg-[rgba(106,67,255,0.22)] text-white font-semibold' : ''}`}
                         onClick={() => {
                           setSelectedMonth(index);
                           setShowMonthDropdown(false);
@@ -1983,13 +1983,13 @@ const StatsView = ({ onVolver }) => {
                 transition={{ delay: 0.1 + idx * 0.08 }}
                 onClick={metric.key === 'lesiones' ? () => setShowLesionesDetalle((v) => !v) : undefined}
               >
-                <div className="mb-3 text-white/80">
-                  <Icon size={26} />
+                <div className="mb-3 text-[#cfc4ff]">
+                  <Icon size={28} />
                 </div>
-                <div className="font-oswald text-3xl font-bold text-white mb-1 leading-none md:text-[28px]">
+                <div className="font-bebas text-[34px] font-bold text-white mb-1 leading-none drop-shadow-[0_2px_10px_rgba(106,67,255,0.35)] md:text-[30px]">
                   <CountUp end={metric.value} decimals={metric.decimals} duration={1.2} />
                 </div>
-                <div className="font-oswald text-xs font-medium text-white/80 uppercase tracking-wide">{metric.label}</div>
+                <div className="font-sans text-[10.5px] font-bold text-white/55 uppercase tracking-[0.16em]">{metric.label}</div>
               </motion.div>
             );
           })}
@@ -2007,7 +2007,7 @@ const StatsView = ({ onVolver }) => {
             ) : (
               <div className="flex flex-col gap-2">
                 {stats.lesionesDetallePeriodo.map((lesion) => (
-                  <div key={lesion.id} className="bg-[rgba(20,16,41,0.8)] border border-[rgba(148,134,255,0.2)] rounded-none px-3 py-2">
+                  <div key={lesion.id} className="bg-[rgba(20,16,41,0.8)] border border-[rgba(148,134,255,0.2)] rounded-2xl px-3 py-2">
                     <div className="font-oswald text-sm text-white">{lesion.tipo_lesion}</div>
                     <div className="font-oswald text-xs text-white/65">
                       {new Date(lesion.fecha_inicio).toLocaleDateString('es-ES')} {lesion.fecha_fin ? `- ${new Date(lesion.fecha_fin).toLocaleDateString('es-ES')}` : '(activa)'}
@@ -2021,7 +2021,7 @@ const StatsView = ({ onVolver }) => {
 
         <div className="mb-3">
           <motion.button
-            className="w-full min-h-[44px] px-4 py-2.5 rounded-none border border-[#7d5aff] bg-[#6a43ff] text-white font-bebas text-base tracking-[0.01em] flex items-center justify-center gap-2 transition-all hover:bg-[#7550ff] shadow-[0_0_14px_rgba(106,67,255,0.3)] sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]"
+            className="w-full min-h-[44px] px-4 py-2.5 rounded-xl border border-white/20 bg-cta-gradient text-white font-bebas text-base tracking-[0.01em] flex items-center justify-center gap-2 transition-all duration-200 hover:brightness-105 active:scale-[0.985] shadow-cta sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]"
             onClick={() => setShowManualMatchModal(true)}
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
@@ -2068,7 +2068,7 @@ const StatsView = ({ onVolver }) => {
           </div>
           {injuryStatus?.type === 'active' && (
             <button
-              className="mt-3 w-full min-h-[44px] px-4 py-2.5 rounded-none border border-[#7d5aff] bg-[#6a43ff] text-white font-bebas text-base tracking-[0.01em] transition-all hover:bg-[#7550ff] active:opacity-95 shadow-[0_0_14px_rgba(106,67,255,0.3)] sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]"
+              className="mt-3 w-full min-h-[44px] px-4 py-2.5 rounded-xl border border-white/20 bg-cta-gradient text-white font-bebas text-base tracking-[0.01em] transition-all duration-200 hover:brightness-105 active:scale-[0.985] shadow-cta sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]"
               onClick={markActiveLesionAsRecovered}
             >
               Marcar recuperado
@@ -2077,7 +2077,7 @@ const StatsView = ({ onVolver }) => {
         </motion.div>
 
         <motion.button
-          className="w-full mb-6 min-h-[44px] px-4 py-2.5 rounded-none border border-[rgba(148,134,255,0.28)] bg-white/[0.05] text-white/92 font-bebas text-base tracking-[0.01em] flex items-center justify-center gap-2 transition-all hover:bg-white/[0.1] sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]"
+          className="w-full mb-6 min-h-[44px] px-4 py-2.5 rounded-xl border border-[rgba(148,134,255,0.28)] bg-white/[0.05] text-white/92 font-bebas text-base tracking-[0.01em] flex items-center justify-center gap-2 transition-all duration-200 hover:bg-white/[0.1] hover:border-[rgba(148,134,255,0.45)] sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]"
           onClick={() => setShowInjuryModal(true)}
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
@@ -2101,19 +2101,19 @@ const StatsView = ({ onVolver }) => {
               Todos tus partidos del período: manuales y partidos reales (con encuesta).
             </div>
             <div className="grid grid-cols-4 gap-2 sm:grid-cols-2">
-              <div className="rounded-none border border-emerald-300/25 bg-emerald-400/10 px-3 py-2 text-center min-h-[82px] flex flex-col items-center justify-center">
+              <div className="rounded-2xl border border-emerald-300/25 bg-emerald-400/10 px-3 py-2 text-center min-h-[82px] flex flex-col items-center justify-center">
                 <div className="font-oswald text-[11px] text-emerald-200/90">Ganados</div>
                 <div className="font-oswald text-xl font-bold text-emerald-100">{recapGanados}</div>
               </div>
-              <div className="rounded-none border border-amber-300/25 bg-amber-400/10 px-3 py-2 text-center min-h-[82px] flex flex-col items-center justify-center">
+              <div className="rounded-2xl border border-amber-300/25 bg-amber-400/10 px-3 py-2 text-center min-h-[82px] flex flex-col items-center justify-center">
                 <div className="font-oswald text-[11px] text-amber-100/90">Empatados</div>
                 <div className="font-oswald text-xl font-bold text-amber-50">{recapEmpatados}</div>
               </div>
-              <div className="rounded-none border border-rose-300/25 bg-rose-400/10 px-3 py-2 text-center min-h-[82px] flex flex-col items-center justify-center">
+              <div className="rounded-2xl border border-rose-300/25 bg-rose-400/10 px-3 py-2 text-center min-h-[82px] flex flex-col items-center justify-center">
                 <div className="font-oswald text-[11px] text-rose-100/90">Perdidos</div>
                 <div className="font-oswald text-xl font-bold text-rose-100">{recapPerdidos}</div>
               </div>
-              <div className="rounded-none border border-sky-300/25 bg-sky-400/10 px-3 py-2 text-center min-h-[82px] flex flex-col items-center justify-center">
+              <div className="rounded-2xl border border-sky-300/25 bg-sky-400/10 px-3 py-2 text-center min-h-[82px] flex flex-col items-center justify-center">
                 <div className="font-oswald text-[11px] text-sky-100/90">Pendientes</div>
                 <div className="font-oswald text-xl font-bold text-sky-100">{stats.encuestaPendientes}</div>
               </div>
@@ -2134,11 +2134,11 @@ const StatsView = ({ onVolver }) => {
                     ? `${fechaLabel} · ${partido.tipoLabel}`
                     : `${fechaLabel} · ${partido.nombre || 'Partido'} · ${partido.tipoLabel}`;
                   return (
-                    <div key={partido.id} className="flex items-center justify-between gap-2 rounded-none border border-[rgba(148,134,255,0.2)] bg-[rgba(20,16,41,0.8)] px-3 py-2">
+                    <div key={partido.id} className="flex items-center justify-between gap-2 rounded-2xl border border-[rgba(148,134,255,0.2)] bg-[rgba(20,16,41,0.8)] px-3 py-2">
                       <div className="font-oswald text-sm text-white/90">
                         {titleLabel}
                       </div>
-                      <span className={`px-2.5 py-1 rounded-none border text-xs font-oswald ${resultMeta.className}`}>
+                      <span className={`px-2.5 py-1 rounded-full border text-xs font-oswald ${resultMeta.className}`}>
                         {partido?.label || resultMeta.label}
                       </span>
                     </div>
@@ -2177,25 +2177,25 @@ const StatsView = ({ onVolver }) => {
                 <div className="font-oswald text-[11px] text-white/60">Sin encuesta</div>
                 <div className="font-oswald text-lg text-white font-semibold">{asistencia.partidosSinEncuesta || 0}</div>
               </div>
-              <div className="rounded-none border border-rose-300/25 bg-rose-400/10 px-3 py-2">
+              <div className="rounded-2xl border border-rose-300/25 bg-rose-400/10 px-3 py-2">
                 <div className="font-oswald text-[11px] text-rose-100/85">Faltas confirmadas</div>
                 <div className="font-oswald text-lg text-rose-100 font-semibold">{asistencia.faltasConfirmadas || 0}</div>
               </div>
-              <div className="rounded-none border border-emerald-300/25 bg-emerald-400/10 px-3 py-2">
+              <div className="rounded-2xl border border-emerald-300/25 bg-emerald-400/10 px-3 py-2">
                 <div className="font-oswald text-[11px] text-emerald-100/85">Asistencias</div>
                 <div className="font-oswald text-lg text-emerald-100 font-semibold">{asistencia.asistenciasConfirmadas || 0}</div>
               </div>
             </div>
             <div className="grid grid-cols-3 gap-2">
-              <div className="rounded-none border border-rose-300/20 bg-rose-400/5 px-2.5 py-2 text-center">
+              <div className="rounded-2xl border border-rose-300/20 bg-rose-400/5 px-2.5 py-2 text-center">
                 <div className="font-oswald text-[10px] text-rose-100/80">Sanciones</div>
                 <div className="font-oswald text-base font-semibold text-rose-100">{asistencia.sancionesPeriodo || 0}</div>
               </div>
-              <div className="rounded-none border border-sky-300/20 bg-sky-400/5 px-2.5 py-2 text-center">
+              <div className="rounded-2xl border border-sky-300/20 bg-sky-400/5 px-2.5 py-2 text-center">
                 <div className="font-oswald text-[10px] text-sky-100/80">Recuperaciones</div>
                 <div className="font-oswald text-base font-semibold text-sky-100">{asistencia.recuperacionesPeriodo || 0}</div>
               </div>
-              <div className="rounded-none border border-amber-300/20 bg-amber-400/5 px-2.5 py-2 text-center">
+              <div className="rounded-2xl border border-amber-300/20 bg-amber-400/5 px-2.5 py-2 text-center">
                 <div className="font-oswald text-[10px] text-amber-100/80">Deuda pend.</div>
                 <div className="font-oswald text-base font-semibold text-amber-100">
                   {Number(asistencia.deudaPendiente || 0).toFixed(1)}
@@ -2226,13 +2226,13 @@ const StatsView = ({ onVolver }) => {
                 <div className="font-oswald text-[11px] text-white/60">Pendientes</div>
                 <div className="font-oswald text-lg text-white font-semibold">{resultadosEfectivos.pendientes || 0}</div>
               </div>
-              <div className="rounded-none border border-emerald-300/25 bg-emerald-400/10 px-3 py-2">
+              <div className="rounded-2xl border border-emerald-300/25 bg-emerald-400/10 px-3 py-2">
                 <div className="font-oswald text-[11px] text-emerald-100/85">% Victorias</div>
                 <div className="font-oswald text-lg text-emerald-100 font-semibold">
                   {Number(resultadosEfectivos.winRate || 0).toFixed(1)}%
                 </div>
               </div>
-              <div className="rounded-none border border-sky-300/25 bg-sky-400/10 px-3 py-2">
+              <div className="rounded-2xl border border-sky-300/25 bg-sky-400/10 px-3 py-2">
                 <div className="font-oswald text-[11px] text-sky-100/85">% No perder</div>
                 <div className="font-oswald text-lg text-sky-100 font-semibold">
                   {Number(resultadosEfectivos.winDrawRate || 0).toFixed(1)}%
@@ -2375,7 +2375,7 @@ const StatsView = ({ onVolver }) => {
           {Array.isArray(rankingTimeline.movimientos) && rankingTimeline.movimientos.length > 0 ? (
             <div className="flex flex-col gap-2">
               {rankingTimeline.movimientos.slice(0, 6).map((mov) => (
-                <div key={mov.id} className="flex items-center justify-between gap-2 rounded-none border border-[rgba(148,134,255,0.2)] bg-[rgba(20,16,41,0.8)] px-3 py-2">
+                <div key={mov.id} className="flex items-center justify-between gap-2 rounded-2xl border border-[rgba(148,134,255,0.2)] bg-[rgba(20,16,41,0.8)] px-3 py-2">
                   <div className="min-w-0">
                     <div className="font-oswald text-sm text-white truncate">{mov.matchName}</div>
                     <div className="font-oswald text-[11px] text-white/60">
@@ -2491,13 +2491,13 @@ const StatsView = ({ onVolver }) => {
               {stats.topAmigos.map((amigo, index) => (
                 <motion.div
                   key={amigo.nombre}
-                  className="relative flex items-center gap-4 bg-[#1e293b]/92 rounded-none p-4 mb-3 backdrop-blur-md border border-[rgba(148,134,255,0.2)] transition-all hover:translate-x-2 hover:border-[rgba(148,134,255,0.45)] hover:brightness-[1.03] md:p-3 md:gap-3"
+                  className="relative flex items-center gap-4 bg-[#171231]/92 rounded-2xl p-4 mb-3 backdrop-blur-md border border-[rgba(148,134,255,0.2)] transition-all hover:translate-x-2 hover:border-[rgba(148,134,255,0.45)] hover:brightness-[1.03] md:p-3 md:gap-3"
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 1.3 + index * 0.1 }}
                 >
                   {index === 0 && (
-                    <div className="absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-none border border-[#ffd700]/30 bg-[#ffd700]/18 px-2.5 py-1 font-oswald text-[11px] font-semibold uppercase tracking-wide text-[#ffd700] md:right-2 md:top-2">
+                    <div className="absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-2xl border border-[#ffd700]/30 bg-[#ffd700]/18 px-2.5 py-1 font-oswald text-[11px] font-semibold uppercase tracking-wide text-[#ffd700] md:right-2 md:top-2">
                       <Trophy size={14} />
                       Top Friend
                     </div>
@@ -2527,7 +2527,7 @@ const StatsView = ({ onVolver }) => {
 
         {stats.partidosJugados === 0 && (
           <motion.div
-            className="text-center p-10 bg-[#1e293b]/92 rounded-none backdrop-blur-md border border-[rgba(148,134,255,0.2)]"
+            className="text-center p-10 bg-[#171231]/92 rounded-2xl backdrop-blur-md border border-[rgba(148,134,255,0.2)]"
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
           >

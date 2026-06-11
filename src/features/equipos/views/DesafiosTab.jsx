@@ -26,14 +26,14 @@ import { Flag, Search } from 'lucide-react';
 import { useRefreshOnVisibility } from '../../../hooks/useRefreshOnVisibility';
 import { useInterval } from '../../../hooks/useInterval';
 
-const publishActionBaseClass = '!w-full !h-auto !min-h-[44px] !px-4 !py-2.5 !rounded-none !font-bebas !text-base !tracking-[0.01em] !normal-case sm:!text-[13px] sm:!px-3 sm:!py-2 sm:!min-h-[36px]';
-const publishActionPrimaryClass = `${publishActionBaseClass} !border !border-[#7d5aff] !bg-[#6a43ff] !text-white !shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:!bg-[#7550ff]`;
-const challengeConfirmModalClass = 'w-full max-w-[520px] !rounded-none !border !border-[rgba(148,134,255,0.3)] !bg-[rgba(18,14,38,0.97)] !shadow-[0_26px_58px_rgba(0,0,0,0.62)]';
+const publishActionBaseClass = '!w-full !h-auto !min-h-[44px] !px-4 !py-2.5 !rounded-xl !font-bebas !text-base !tracking-[0.01em] !normal-case sm:!text-[13px] sm:!px-3 sm:!py-2 sm:!min-h-[36px]';
+const publishActionPrimaryClass = `${publishActionBaseClass} !border !border-white/20 !bg-cta-gradient !text-white !shadow-cta hover:!brightness-105`;
+const challengeConfirmModalClass = 'w-full max-w-[520px] !rounded-card !border !border-[rgba(148,134,255,0.3)] !bg-[rgba(18,14,38,0.97)] !shadow-[0_26px_58px_rgba(0,0,0,0.62)]';
 const challengeConfirmModalContentClass = 'p-4 sm:p-5 !font-oswald';
-const primaryCtaClass = 'flex-1 min-h-[44px] px-4 py-2.5 rounded-none border border-[#7d5aff] bg-[#6a43ff] text-white font-bebas text-base tracking-[0.01em] flex items-center justify-center text-center gap-2 transition-all hover:bg-[#7550ff] active:opacity-95 shadow-[0_0_14px_rgba(106,67,255,0.3)] sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]';
-const secondaryCtaClass = 'flex-1 min-h-[44px] px-4 py-2.5 rounded-none border font-bebas text-base tracking-[0.01em] flex items-center justify-center text-center gap-2 transition-all active:opacity-95 sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]';
-const compactSearchCtaClass = 'relative flex-none w-[72px] min-h-[44px] rounded-none border font-bebas text-base tracking-[0.01em] flex items-center justify-center text-center transition-all active:opacity-95 sm:w-[60px] sm:min-h-[36px]';
-const filterFieldClass = 'h-[44px] rounded-none bg-[rgba(20,16,41,0.8)] border border-[rgba(148,134,255,0.2)] px-3 text-[15px] text-white outline-none focus:border-[#6a43ff] focus:ring-1 focus:ring-[#6a43ff]/45';
+const primaryCtaClass = 'flex-1 min-h-[46px] px-4 py-2.5 rounded-xl border border-white/20 bg-cta-gradient text-white font-bebas text-base tracking-[0.02em] flex items-center justify-center text-center gap-2 transition-all duration-200 hover:brightness-105 active:scale-[0.985] shadow-cta sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]';
+const secondaryCtaClass = 'flex-1 min-h-[46px] px-4 py-2.5 rounded-xl border font-bebas text-base tracking-[0.02em] flex items-center justify-center text-center gap-2 transition-all duration-200 active:opacity-95 sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]';
+const compactSearchCtaClass = 'relative flex-none w-[72px] min-h-[46px] rounded-xl border font-bebas text-base tracking-[0.02em] flex items-center justify-center text-center transition-all duration-200 active:opacity-95 sm:w-[60px] sm:min-h-[36px]';
+const filterFieldClass = 'h-[44px] rounded-xl bg-[rgba(20,16,41,0.8)] border border-[rgba(148,134,255,0.2)] px-3 text-[15px] text-white outline-none focus:border-[#6a43ff] focus:ring-1 focus:ring-[#6a43ff]/45';
 const DESAFIOS_REFRESH_INTERVAL_MS = 30000;
 
 const formatMoneyAr = (value) => {
@@ -267,7 +267,7 @@ const DesafiosTab = ({
         >
           <Search size={18} />
           {activeFiltersCount > 0 ? (
-            <span className="absolute -right-1 -top-1 inline-flex h-5 min-w-[18px] items-center justify-center rounded-none bg-[#6a43ff] px-1 text-[11px] leading-none text-white border border-[#7d5aff]">
+            <span className="absolute -right-1 -top-1 inline-flex h-5 min-w-[18px] items-center justify-center rounded-full bg-[#ec007d] px-1 text-[11px] leading-none font-bold text-white shadow-[0_0_10px_rgba(236,0,125,0.5)]">
               {activeFiltersCount}
             </span>
           ) : null}
@@ -275,7 +275,7 @@ const DesafiosTab = ({
       </div>
 
       {showFilters ? (
-        <div className="mt-2.5 border border-[rgba(148,134,255,0.2)] bg-[rgba(20,16,41,0.8)] p-3">
+        <div className="mt-2.5 rounded-card border border-[rgba(148,134,255,0.2)] bg-[linear-gradient(165deg,rgba(48,38,98,0.5),rgba(20,16,41,0.9))] p-3 shadow-elev-1">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <select
               value={filters.format}

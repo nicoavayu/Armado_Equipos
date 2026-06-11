@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Activity, AlertTriangle, Bell, CalendarClock, CheckCircle, ChevronRight, ClipboardList, Trophy, UserPlus, Users, Vote } from 'lucide-react';
+import { Activity, AlertTriangle, Bell, CalendarClock, Check, CheckCircle, ChevronRight, ClipboardList, Trophy, UserPlus, Users, Vote } from 'lucide-react';
 import { useAuth } from './AuthProvider';
 import { useNotifications } from '../context/NotificationContext';
 import { useInterval } from '../hooks/useInterval';
@@ -294,7 +294,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
   };
 
   // Quick-access card: compact module with icon tile + label + chevron, layered violet surface.
-  const cardClass = 'group bg-[radial-gradient(300px_150px_at_14%_-26%,rgba(139,92,255,0.2),transparent_70%),linear-gradient(165deg,rgba(48,38,98,0.72),rgba(20,16,41,0.94))] border border-[rgba(148,134,255,0.16)] rounded-card p-4 cursor-pointer transition-[transform,background-color,border-color,box-shadow] duration-300 min-h-[118px] relative overflow-hidden flex flex-col justify-between gap-3 no-underline text-white backdrop-blur-[15px] z-[1] hover:-translate-y-0.5 hover:border-[rgba(148,134,255,0.45)] hover:shadow-[0_14px_36px_rgba(5,3,16,0.55),0_0_20px_rgba(106,67,255,0.18)] active:translate-y-0 active:scale-[0.985] sm:p-3.5 shadow-elev-2';
+  const cardClass = 'group bg-[radial-gradient(300px_150px_at_14%_-26%,rgba(139,92,255,0.2),transparent_70%),linear-gradient(165deg,rgba(48,38,98,0.72),rgba(20,16,41,0.94))] border border-[rgba(148,134,255,0.16)] rounded-card p-4 cursor-pointer transition-[transform,background-color,border-color,box-shadow] duration-300 min-h-[118px] relative overflow-hidden flex flex-col justify-between gap-3 no-underline text-white z-[1] hover:-translate-y-0.5 hover:border-[rgba(148,134,255,0.45)] hover:shadow-[0_14px_36px_rgba(5,3,16,0.55),0_0_20px_rgba(106,67,255,0.18)] active:translate-y-0 active:scale-[0.985] sm:p-3.5 shadow-elev-2';
   const cardHeroClass = 'group bg-[radial-gradient(320px_170px_at_16%_-30%,rgba(255,255,255,0.22),transparent_72%),linear-gradient(135deg,#8b5cff_0%,#6a43ff_56%,#5430e0_100%)] border border-white/20 rounded-card p-4 cursor-pointer transition-[transform,border-color,box-shadow] duration-300 min-h-[118px] relative overflow-hidden flex flex-col justify-between gap-3 no-underline text-white z-[1] hover:-translate-y-0.5 hover:brightness-105 hover:shadow-[0_16px_40px_rgba(84,48,224,0.5)] active:translate-y-0 active:scale-[0.985] sm:p-3.5 shadow-[0_12px_32px_rgba(84,48,224,0.42),inset_0_1px_0_rgba(255,255,255,0.25)]';
 
   useEffect(() => {
@@ -701,7 +701,6 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
   const userName = profile?.nombre || user?.email?.split('@')[0] || 'Usuario';
   const truncatedName = userName.length > 15 ? `${userName.substring(0, 15)}...` : userName;
   const isAvailable = profile?.acepta_invitaciones !== false;
-  const statusText = isAvailable ? 'Disponible' : 'Ocupado';
 
   const toggleStatusDropdown = (e) => {
     e.stopPropagation();
@@ -823,7 +822,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
 
       {/* Header elements - Avatar and Notifications */}
       {user && (
-        <div className="relative left-1/2 right-1/2 ml-[-50vw] mr-[-50vw] w-screen mb-6 px-4 py-3 bg-[#120e28]/85 border-y border-[rgba(148,134,255,0.14)] rounded-none ui-flat backdrop-blur-[20px] shadow-[0_10px_28px_rgba(5,3,16,0.4)] after:content-[''] after:absolute after:bottom-0 after:left-0 after:right-0 after:h-px after:bg-[linear-gradient(90deg,transparent_8%,rgba(139,92,255,0.5)_42%,rgba(236,0,125,0.35)_66%,transparent_92%)]">
+        <div className="relative left-1/2 right-1/2 ml-[-50vw] mr-[-50vw] w-screen mb-6 px-4 py-3 bg-[#120e28]/92 border-y border-[rgba(148,134,255,0.14)] rounded-none ui-flat shadow-[0_10px_28px_rgba(5,3,16,0.4)] after:content-[''] after:absolute after:bottom-0 after:left-0 after:right-0 after:h-px after:bg-[linear-gradient(90deg,transparent_8%,rgba(139,92,255,0.5)_42%,rgba(236,0,125,0.35)_66%,transparent_92%)]">
           <div className="w-full max-w-[920px] mx-auto flex items-center justify-between">
             <div className="flex flex-row items-center justify-center cursor-pointer relative z-[10000]" ref={statusDropdownRef}>
             <div className="relative mr-4" onClick={handleAvatarClick}>
@@ -860,56 +859,78 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
               <div className="text-[10px] font-sans font-bold uppercase tracking-[0.16em] text-[#b0a0ff]/80 leading-none">Hola</div>
               <div className="flex items-center gap-2 mt-1">
                 <div className="text-white font-oswald text-lg font-bold leading-tight tracking-[0.01em]">{truncatedName}</div>
-                <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-px text-[10px] font-semibold leading-tight mt-px ${isAvailable ? 'border-green-400/30 bg-green-400/10 text-green-300' : 'border-red-400/30 bg-red-400/10 text-red-300'}`}>
-                  <span className={`h-1.5 w-1.5 rounded-full ${isAvailable ? 'bg-green-400' : 'bg-red-400'}`} />
-                  {statusText}
-                </span>
               </div>
             </div>
 
             {showStatusDropdown && createPortal(
               <div
                 ref={statusDropdownMenuRef}
-                className="fixed top-20 left-4 bg-[#141029]/97 rounded-2xl w-[290px] z-[2147483647] overflow-hidden shadow-[0_24px_64px_rgba(5,3,16,0.65)] border border-[rgba(148,134,255,0.28)] backdrop-blur-xl origin-top-left transition-all duration-200 animate-[dropdownSlideIn_0.2s_ease-out]"
+                className="fixed top-20 left-4 rounded-2xl w-[300px] z-[2147483647] overflow-hidden border border-[rgba(148,134,255,0.3)] bg-[radial-gradient(280px_140px_at_18%_-20%,rgba(139,92,255,0.22),transparent_70%),linear-gradient(168deg,rgba(38,30,80,0.98),rgba(16,12,33,0.99))] shadow-[0_24px_64px_rgba(5,3,16,0.7),inset_0_1px_0_rgba(255,255,255,0.08)] origin-top-left animate-[dropdownSlideIn_0.26s_cubic-bezier(0.16,1,0.3,1)]"
               >
-                <div className="px-4 py-3 font-bold text-[#b0a0ff]/85 border-b border-white/[0.08] font-sans uppercase tracking-[0.14em] text-[11px]">
-                  Estado de disponibilidad
+                <div className="relative px-4 pt-3.5 pb-3 border-b border-white/[0.07]">
+                  <div className="font-sans font-bold text-[#b0a0ff]/85 uppercase tracking-[0.16em] text-[10.5px]">Tu estado</div>
+                  <div className="font-oswald text-white text-[17px] font-bold leading-tight mt-0.5">Disponibilidad</div>
+                  <div className="absolute inset-x-0 top-0 h-px bg-[linear-gradient(90deg,transparent_6%,rgba(139,92,255,0.55)_40%,rgba(236,0,125,0.35)_68%,transparent_94%)]" />
                 </div>
                 <div className="p-2.5 space-y-2">
-                  <button
-                    className={`w-full text-left flex items-start gap-3 px-3.5 py-3 rounded-xl cursor-pointer transition-[background-color,border-color,color] duration-200 text-white/95 border ${isAvailable ? 'bg-[#6a43ff] border-[#7d5aff] shadow-[0_0_14px_rgba(106,67,255,0.28)]' : 'bg-white/[0.03] border-white/15 hover:bg-white/[0.08]'}`}
-                    onClick={() => updateAvailabilityStatus(true)}
-                    type="button"
-                  >
-                    <div className="w-2.5 h-2.5 rounded-full bg-[#4CAF50] mt-1.5 shrink-0"></div>
-                    <div className="min-w-0">
-                      <div className="font-oswald text-base leading-none">Disponible</div>
-                      <div className="font-oswald text-[13px] leading-[1.25] text-white/70 mt-1">
-                        Te mostramos como jugador activo y te avisamos de partidos cerca.
-                      </div>
-                    </div>
-                  </button>
-                  <button
-                    className={`w-full text-left flex items-start gap-3 px-3.5 py-3 rounded-xl cursor-pointer transition-[background-color,border-color,color] duration-200 text-white/95 border ${!isAvailable ? 'bg-[#6a43ff] border-[#7d5aff] shadow-[0_0_14px_rgba(106,67,255,0.28)]' : 'bg-white/[0.03] border-white/15 hover:bg-white/[0.08]'}`}
-                    onClick={() => updateAvailabilityStatus(false)}
-                    type="button"
-                  >
-                    <div className="w-2.5 h-2.5 rounded-full bg-[#F44336] mt-1.5 shrink-0"></div>
-                    <div className="min-w-0">
-                      <div className="font-oswald text-base leading-none">No disponible</div>
-                      <div className="font-oswald text-[13px] leading-[1.25] text-white/70 mt-1">
-                        Pausamos tu visibilidad y dejamos de enviarte avisos de partidos cercanos.
-                      </div>
-                    </div>
-                  </button>
+                  {[
+                    {
+                      value: true,
+                      label: 'Disponible',
+                      detail: 'Te mostramos como jugador activo y te avisamos de partidos cerca.',
+                      dotClass: 'bg-[#4ade80] shadow-[0_0_8px_rgba(74,222,128,0.7)]',
+                    },
+                    {
+                      value: false,
+                      label: 'No disponible',
+                      detail: 'Pausamos tu visibilidad y dejamos de enviarte avisos de partidos cercanos.',
+                      dotClass: 'bg-[#f87171] shadow-[0_0_8px_rgba(248,113,113,0.6)]',
+                    },
+                  ].map((option, optionIndex) => {
+                    const isActive = isAvailable === option.value;
+                    return (
+                      <button
+                        key={option.label}
+                        className={`group/opt w-full text-left flex items-start gap-3 px-3.5 py-3 rounded-xl cursor-pointer transition-[background-color,border-color,box-shadow,transform] duration-200 text-white/95 border active:scale-[0.985] animate-[dropdownItemIn_0.3s_cubic-bezier(0.16,1,0.3,1)_both] ${
+                          isActive
+                            ? 'bg-[linear-gradient(135deg,#7d52ff_0%,#6a43ff_60%,#5832e6_100%)] border-[#8d6bff] shadow-[0_6px_18px_rgba(106,67,255,0.38),inset_0_1px_0_rgba(255,255,255,0.22)]'
+                            : 'bg-white/[0.03] border-white/10 hover:bg-white/[0.07] hover:border-white/20'
+                        }`}
+                        style={{ animationDelay: `${40 + optionIndex * 45}ms` }}
+                        onClick={() => updateAvailabilityStatus(option.value)}
+                        type="button"
+                      >
+                        <span className={`w-2.5 h-2.5 rounded-full mt-1.5 shrink-0 ${option.dotClass}`} />
+                        <span className="min-w-0 flex-1 block">
+                          <span className="font-oswald text-base leading-none block">{option.label}</span>
+                          <span className={`font-sans text-[12px] leading-[1.35] mt-1 block ${isActive ? 'text-white/85' : 'text-white/55'}`}>
+                            {option.detail}
+                          </span>
+                        </span>
+                        <span
+                          className={`mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition-all duration-200 ${
+                            isActive
+                              ? 'bg-white/25 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.3)]'
+                              : 'bg-transparent text-transparent border border-white/15'
+                          }`}
+                        >
+                          <Check size={12} strokeWidth={3} />
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>,
               document.body,
             )}
             <style>{`
               @keyframes dropdownSlideIn {
-                from { opacity: 0; transform: translateY(-10px) scale(0.95); }
+                from { opacity: 0; transform: translateY(-12px) scale(0.92); }
                 to { opacity: 1; transform: translateY(0) scale(1); }
+              }
+              @keyframes dropdownItemIn {
+                from { opacity: 0; transform: translateY(-6px); }
+                to { opacity: 1; transform: translateY(0); }
               }
             `}</style>
             </div>
@@ -924,10 +945,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
         </div>
       )}
 
-      <div className="mb-3.5">
-        <span className="section-eyebrow">Tu juego</span>
-        <h3 className="section-title">Accesos rápidos</h3>
-      </div>
+      <h3 className="section-title mb-3.5">Accesos rápidos</h3>
 
       <div className="grid grid-cols-2 gap-3 mb-7 bg-transparent shadow-none">
         {/* Create New Match — primary CTA card */}
@@ -939,11 +957,9 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
           onFocus={() => prefetchRoute('/nuevo-partido')}
         >
           <div className="flex items-start justify-between">
-            <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 border border-white/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.3)]">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" fill="currentColor" width={22} height={22}>
-                <path d="M320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320C64 461.4 178.6 576 320 576zM296 408L296 344L232 344C218.7 344 208 333.3 208 320C208 306.7 218.7 296 232 296L296 296L296 232C296 218.7 306.7 208 320 208C333.3 208 344 218.7 344 232L344 296L408 296C421.3 296 432 306.7 432 320C432 333.3 421.3 344 408 344L344 344L344 408C344 421.3 333.3 432 320 432C306.7 432 296 421.3 296 408z" />
-              </svg>
-            </span>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" fill="currentColor" width={30} height={30} className="text-white drop-shadow-[0_2px_6px_rgba(20,8,60,0.35)]">
+              <path d="M320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320C64 461.4 178.6 576 320 576zM296 408L296 344L232 344C218.7 344 208 333.3 208 320C208 306.7 218.7 296 232 296L296 296L296 232C296 218.7 306.7 208 320 208C333.3 208 344 218.7 344 232L344 296L408 296C421.3 296 432 306.7 432 320C432 333.3 421.3 344 408 344L344 344L344 408C344 421.3 333.3 432 320 432C306.7 432 296 421.3 296 408z" />
+            </svg>
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 text-white/70 transition-transform duration-200 group-hover:translate-x-0.5"><path d="m9 18 6-6-6-6" /></svg>
           </div>
           <div>
@@ -958,11 +974,9 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
           onClick={() => user && setShowProximosPartidos(true)}
         >
           <div className="flex items-start justify-between">
-            <span className="icon-tile h-10 w-10 rounded-xl">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" fill="currentColor" width={20} height={20}>
-                <path d="M64 320C64 461.4 178.6 576 320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320zM305 441C295.6 450.4 280.4 450.4 271.1 441C261.8 431.6 261.7 416.4 271.1 407.1L358.1 320.1L271.1 233.1C261.7 223.7 261.7 208.5 271.1 199.2C280.5 189.9 295.7 189.8 305 199.2L409 303C418.4 312.4 418.4 327.6 409 336.9L305 441z" />
-              </svg>
-            </span>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" fill="currentColor" width={28} height={28} className="text-[#cfc4ff]">
+              <path d="M64 320C64 461.4 178.6 576 320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320zM305 441C295.6 450.4 280.4 450.4 271.1 441C261.8 431.6 261.7 416.4 271.1 407.1L358.1 320.1L271.1 233.1C261.7 223.7 261.7 208.5 271.1 199.2C280.5 189.9 295.7 189.8 305 199.2L409 303C418.4 312.4 418.4 327.6 409 336.9L305 441z" />
+            </svg>
             {activeMatches && activeMatches.length > 0 ? (
               <span className="inline-flex min-w-[22px] h-[22px] items-center justify-center rounded-full bg-[#ec007d] px-1.5 text-[11px] font-bold text-white shadow-[0_0_12px_rgba(236,0,125,0.5)]">{activeMatches.length}</span>
             ) : (
@@ -984,11 +998,9 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
           onFocus={() => prefetchRoute('/frecuentes')}
         >
           <div className="flex items-start justify-between">
-            <span className="icon-tile h-10 w-10 rounded-xl">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" fill="currentColor" width={20} height={20}>
-                <path d="M320 128C426 128 512 214 512 320C512 426 426 512 320 512C254.8 512 197.1 479.5 162.4 429.7C152.3 415.2 132.3 411.7 117.8 421.8C103.3 431.9 99.8 451.9 109.9 466.4C156.1 532.6 233 576 320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C234.3 64 158.5 106.1 112 170.7L112 144C112 126.3 97.7 112 80 112C62.3 112 48 126.3 48 144L48 256C48 273.7 62.3 288 80 288L104.6 288C105.1 288 105.6 288 106.1 288L192.1 288C209.8 288 224.1 273.7 224.1 256C224.1 238.3 209.8 224 192.1 224L153.8 224C186.9 166.6 249 128 320 128zM344 216C344 202.7 333.3 192 320 192C306.7 192 296 202.7 296 216L296 320C296 326.4 298.5 332.5 303 337L375 409C384.4 418.4 399.6 418.4 408.9 409C418.2 399.6 418.3 384.4 408.9 375.1L343.9 310.1L343.9 216z" />
-              </svg>
-            </span>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" fill="currentColor" width={28} height={28} className="text-[#cfc4ff]">
+              <path d="M320 128C426 128 512 214 512 320C512 426 426 512 320 512C254.8 512 197.1 479.5 162.4 429.7C152.3 415.2 132.3 411.7 117.8 421.8C103.3 431.9 99.8 451.9 109.9 466.4C156.1 532.6 233 576 320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C234.3 64 158.5 106.1 112 170.7L112 144C112 126.3 97.7 112 80 112C62.3 112 48 126.3 48 144L48 256C48 273.7 62.3 288 80 288L104.6 288C105.1 288 105.6 288 106.1 288L192.1 288C209.8 288 224.1 273.7 224.1 256C224.1 238.3 209.8 224 192.1 224L153.8 224C186.9 166.6 249 128 320 128zM344 216C344 202.7 333.3 192 320 192C306.7 192 296 202.7 296 216L296 320C296 326.4 298.5 332.5 303 337L375 409C384.4 418.4 399.6 418.4 408.9 409C418.2 399.6 418.3 384.4 408.9 375.1L343.9 310.1L343.9 216z" />
+            </svg>
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 text-white/35 transition-transform duration-200 group-hover:translate-x-0.5"><path d="m9 18 6-6-6-6" /></svg>
           </div>
           <div>
@@ -1006,11 +1018,9 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
           onFocus={() => prefetchRoute('/stats')}
         >
           <div className="flex items-start justify-between">
-            <span className="icon-tile icon-tile--accent h-10 w-10 rounded-xl">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" fill="currentColor" width={20} height={20}>
-                <path d="M256 144C256 117.5 277.5 96 304 96L336 96C362.5 96 384 117.5 384 144L384 496C384 522.5 362.5 544 336 544L304 544C277.5 544 256 522.5 256 496L256 144zM64 336C64 309.5 85.5 288 112 288L144 288C170.5 288 192 309.5 192 336L192 496C192 522.5 170.5 544 144 544L112 544C85.5 544 64 522.5 64 496L64 336zM496 160L528 160C554.5 160 576 181.5 576 208L576 496C576 522.5 554.5 544 528 544L496 544C469.5 544 448 522.5 448 496L448 208C448 181.5 469.5 160 496 160z" />
-              </svg>
-            </span>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" fill="currentColor" width={28} height={28} className="text-[#cfc4ff]">
+              <path d="M256 144C256 117.5 277.5 96 304 96L336 96C362.5 96 384 117.5 384 144L384 496C384 522.5 362.5 544 336 544L304 544C277.5 544 256 522.5 256 496L256 144zM64 336C64 309.5 85.5 288 112 288L144 288C170.5 288 192 309.5 192 336L192 496C192 522.5 170.5 544 144 544L112 544C85.5 544 64 522.5 64 496L64 336zM496 160L528 160C554.5 160 576 181.5 576 208L576 496C576 522.5 554.5 544 528 544L496 544C469.5 544 448 522.5 448 496L448 208C448 181.5 469.5 160 496 160z" />
+            </svg>
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 text-white/35 transition-transform duration-200 group-hover:translate-x-0.5"><path d="m9 18 6-6-6-6" /></svg>
           </div>
           <div>
@@ -1022,10 +1032,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
 
       {/* Recent Activity */}
       <section className="mt-6 mb-10">
-        <div className="mb-3.5">
-          <span className="section-eyebrow">Al día</span>
-          <h3 className="section-title">Actividad reciente</h3>
-        </div>
+        <h3 className="section-title mb-3.5">Actividad reciente</h3>
 
         <div className="surface-card rounded-card overflow-hidden">
           <div className="min-h-[320px]">
@@ -1034,7 +1041,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
                 {Array.from({ length: 4 }).map((_, index) => (
                   <div key={`activity-skeleton-${index}`} className="py-3">
                     <div className="flex items-start gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-white/[0.1] animate-pulse" />
+                      <div className="w-6 h-6 rounded-full bg-white/[0.1] animate-pulse" />
                       <div className="min-w-0 flex-1 pt-1">
                         <div className="h-3.5 w-[82%] rounded-full bg-white/[0.13] animate-pulse" />
                         <div className="h-3 mt-2 w-[52%] rounded-full bg-white/[0.08] animate-pulse" />
@@ -1072,14 +1079,16 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
                         onFocus={() => {
                           if (canNavigate) prefetchRoute(item.route);
                         }}
-                        className={`w-full flex items-start gap-3 px-4 py-3 text-left bg-transparent transition-colors ${
+                        className={`w-full flex items-start gap-3 px-4 py-3 text-left transition-colors ${
+                          index % 2 === 1 ? 'bg-white/[0.025]' : 'bg-transparent'
+                        } ${
                           canNavigate
-                            ? 'hover:bg-white/[0.05] active:bg-white/[0.08]'
+                            ? 'hover:bg-white/[0.06] active:bg-white/[0.09]'
                             : 'opacity-85 cursor-default'
                         }`}
                       >
-                        <span className={`mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/[0.1] bg-white/[0.05] ${iconColorClass}`}>
-                          <Icon size={16} />
+                        <span className={`mt-1 inline-flex w-6 shrink-0 items-center justify-center ${iconColorClass}`}>
+                          <Icon size={19} />
                         </span>
 
                         <div className="min-w-0 flex-1">

@@ -136,7 +136,7 @@ export default function MatchInfoSection(props) {
     ? 'A definir'
     : (precioFieldExists && precioNumber !== null ? formatPriceCompact(precioNumber) : 'A definir');
 
-  const topOffset = topOffsetClassName || (!topOffsetStyle ? 'mt-[76px] sm:mt-[70px]' : '');
+  const topOffset = topOffsetClassName || (!topOffsetStyle ? 'mt-[62px] sm:mt-[58px]' : '');
 
   return (
     <div className="relative left-1/2 -translate-x-1/2 w-screen max-w-[100vw] px-0 mx-0 overflow-hidden box-border">

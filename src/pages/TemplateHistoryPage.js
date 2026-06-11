@@ -113,29 +113,29 @@ const resolveSnapshotPlayer = (value, resolveName) => {
 };
 
 const ResultStatusPill = ({ ready, fullWidth = false }) => (
-  <div className={`${fullWidth ? 'w-full justify-center' : 'inline-flex'} inline-flex items-center gap-1.5 px-2.5 py-1 rounded-none border whitespace-nowrap ${ready ? 'bg-emerald-500/10 border-emerald-300/35 text-emerald-200' : 'bg-amber-500/10 border-amber-300/35 text-amber-100'}`}>
+  <div className={`${fullWidth ? 'w-full justify-center' : 'inline-flex'} inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border whitespace-nowrap ${ready ? 'bg-emerald-500/10 border-emerald-300/35 text-emerald-200' : 'bg-amber-500/10 border-amber-300/35 text-amber-100'}`}>
     <span className={`w-1.5 h-1.5 rounded-full ${ready ? 'bg-emerald-300' : 'bg-amber-300'}`}></span>
     <span className="font-oswald text-[11px] uppercase tracking-wide leading-none">{ready ? 'Resultados listos' : 'Resultados pendientes'}</span>
   </div>
 );
 
 const PlayerRow = ({ player }) => (
-  <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-700 rounded-none px-2 py-1.5">
+  <div className="flex items-center gap-1.5 bg-[rgba(20,16,41,0.85)] border border-[rgba(148,134,255,0.18)] rounded-xl px-2 py-1.5">
     {player?.avatar_url ? (
       <img
         src={player.avatar_url}
         alt={player.nombre || 'Jugador'}
-        className="w-6 h-6 rounded-full object-cover border border-slate-700 bg-slate-800 shrink-0"
+        className="w-6 h-6 rounded-full object-cover border border-[rgba(148,134,255,0.3)] bg-[#1d1740] shrink-0"
       />
     ) : (
-      <AvatarFallback name={player?.nombre || 'Jugador'} size="w-6 h-6" className="text-[10px] bg-slate-700 border-slate-500" />
+      <AvatarFallback name={player?.nombre || 'Jugador'} size="w-6 h-6" className="text-[10px] bg-[#272050] border-[rgba(148,134,255,0.4)]" />
     )}
     <span className="font-oswald text-[13px] text-white/90 truncate">{player?.nombre || 'Jugador'}</span>
   </div>
 );
 
 const TeamColumn = ({ title, team = [], resolvePlayer }) => (
-  <div className="bg-black/20 border border-white/10 rounded-none p-2.5">
+  <div className="bg-black/25 border border-[rgba(148,134,255,0.16)] rounded-2xl p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
     <div className="font-bebas text-base text-white uppercase tracking-wider mb-1.5">{title}</div>
     {team.length === 0 ? (
       <div className="text-white/50 text-sm font-oswald">Sin equipos confirmados.</div>
@@ -150,7 +150,7 @@ const TeamColumn = ({ title, team = [], resolvePlayer }) => (
 );
 
 const AwardRow = ({ title, icon, playerName }) => (
-  <div className="flex items-center gap-2 bg-slate-900/80 border border-slate-700 rounded-none px-2.5 py-2">
+  <div className="flex items-center gap-2 bg-[rgba(20,16,41,0.8)] border border-[rgba(148,134,255,0.18)] rounded-xl px-2.5 py-2">
     <img src={icon} alt={title} className="w-7 h-7 object-contain shrink-0" />
     <div className="min-w-0">
       <div className="font-bebas text-[12px] text-white/70 uppercase tracking-wide leading-none">{title}</div>
@@ -454,7 +454,7 @@ const TemplateHistoryPage = () => {
         HISTORIAL
       </PageTitle>
 
-      <div className="w-full mt-1 bg-slate-900 border border-slate-800 rounded-none p-4 shadow-xl">
+      <div className="relative w-full mt-1 rounded-card border border-[rgba(148,134,255,0.2)] bg-[radial-gradient(380px_180px_at_16%_-26%,rgba(139,92,255,0.14),transparent_70%),linear-gradient(165deg,rgba(48,38,98,0.65),rgba(20,16,41,0.94))] p-4 shadow-elev-2 overflow-hidden after:content-[''] after:absolute after:top-0 after:inset-x-0 after:h-px after:bg-[linear-gradient(90deg,transparent_6%,rgba(176,160,255,0.4)_50%,transparent_94%)] after:pointer-events-none">
         {!isDetail && (
           <>
             <div className="font-oswald text-[20px] font-semibold leading-tight text-white truncate">
@@ -466,7 +466,7 @@ const TemplateHistoryPage = () => {
         {loading ? (
           <div className="py-14 flex items-center justify-center"><LoadingSpinner size="large" fullScreen /></div>
         ) : matches.length === 0 ? (
-          <div className="flex flex-col items-center text-center gap-3 py-10 border border-dashed border-white/10 rounded-none bg-slate-900/40 mt-5">
+          <div className="flex flex-col items-center text-center gap-3 py-10 border border-dashed border-[rgba(148,134,255,0.25)] rounded-2xl bg-white/[0.025] mt-5">
             <div className="text-white/70 font-oswald text-base">Todavía no hay partidos creados desde esta plantilla.</div>
           </div>
         ) : (
@@ -483,7 +483,7 @@ const TemplateHistoryPage = () => {
                       type="button"
                       key={m.id}
                       onClick={() => setSelectedId(mid)}
-                      className="text-left rounded-none p-2.5 border border-slate-700 bg-slate-800/60 hover:border-slate-500 transition-all min-h-[100px] overflow-hidden"
+                      className="text-left rounded-2xl p-2.5 border border-[rgba(148,134,255,0.2)] bg-[linear-gradient(168deg,rgba(40,31,84,0.6),rgba(16,12,33,0.85))] hover:border-[rgba(148,134,255,0.5)] hover:shadow-[0_0_16px_rgba(106,67,255,0.18)] transition-all duration-200 active:scale-[0.985] min-h-[100px] overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
                     >
                       <div className="w-full font-bebas text-[18px] text-white leading-6 text-center truncate">
                         {fmtDateShort(m.fecha)}
@@ -534,7 +534,7 @@ const TemplateHistoryPage = () => {
                 )}
 
                 <div className="grid grid-cols-2 gap-2 items-start">
-                  <div className="bg-black/20 border border-white/10 rounded-none p-2.5 self-start">
+                  <div className="bg-black/25 border border-[rgba(148,134,255,0.16)] rounded-2xl p-2.5 self-start shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
                     <div className="font-bebas text-base text-white uppercase tracking-wider mb-1.5">Resultado</div>
                     {!resultsReady ? (
                       <div className="grid grid-cols-1 gap-1 text-xs font-oswald text-white/80">
@@ -551,7 +551,7 @@ const TemplateHistoryPage = () => {
                     )}
                   </div>
 
-                  <div className="bg-black/20 border border-white/10 rounded-none p-2.5">
+                  <div className="bg-black/25 border border-[rgba(148,134,255,0.16)] rounded-2xl p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
                     <div className="font-bebas text-base text-white uppercase tracking-wider mb-1.5">Premios</div>
                     {!resultsReady ? (
                       <div className="text-white/60 text-xs font-oswald">Esperando resultados.</div>
