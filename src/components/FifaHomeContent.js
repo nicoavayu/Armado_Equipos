@@ -817,7 +817,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
   }
 
   return (
-    <div className="w-full bg-transparent shadow-none">
+    <div className="w-full bg-transparent shadow-none flex-1 flex flex-col">
       <HomeWelcomeCard />
 
       {/* Header elements - Avatar and Notifications */}
@@ -1031,13 +1031,14 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
       </div>
 
       {/* Recent Activity */}
-      <section className="mt-6 mb-10">
+      {/* Top spacing comes from the grid's mb-7; flex items don't collapse margins */}
+      <section className="mb-10 flex-1 flex flex-col">
         <h3 className="section-title" style={{ marginBottom: 20 }}>Actividad reciente</h3>
 
-        <div className="surface-card rounded-card overflow-hidden">
-          <div className="min-h-[320px]">
+        <div className="surface-card rounded-card overflow-hidden flex-1 flex flex-col">
+          <div className="min-h-[320px] flex-1 flex flex-col">
             {activityLoading ? (
-              <div className="h-[320px] overflow-hidden px-4 py-2">
+              <div className="min-h-[320px] flex-1 overflow-hidden px-4 py-2">
                 {Array.from({ length: 4 }).map((_, index) => (
                   <div key={`activity-skeleton-${index}`} className="py-3">
                     <div className="flex items-start gap-3">
@@ -1052,7 +1053,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
                 ))}
               </div>
             ) : activityItems.length > 0 ? (
-              <div className="h-[320px] overflow-y-auto custom-scrollbar">
+              <div className="min-h-[320px] flex-1 overflow-y-auto custom-scrollbar">
                 {activityItems.map((item, index) => {
                   const Icon = activityIconMap[item.icon] || Bell;
                   const iconColorClass = severityIconClass[item.severity] || severityIconClass.neutral;
@@ -1123,7 +1124,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
                 })}
               </div>
             ) : (
-              <div className="h-[320px] flex flex-col items-center justify-center text-center px-5">
+              <div className="min-h-[320px] flex-1 flex flex-col items-center justify-center text-center px-5">
                 <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-[linear-gradient(140deg,rgba(139,92,255,0.3),rgba(106,67,255,0.08))] border border-[rgba(148,134,255,0.35)] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]">
                   <Bell size={24} className="text-[#cfc4ff]" />
                 </div>
