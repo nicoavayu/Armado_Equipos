@@ -639,7 +639,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
     setLocationFallbackMessage('');
   }, [user?.id]);
 
-  const MAX_NOMBRE = 12;
+  const MAX_NOMBRE = 20;
 
   const showInlineNotice = useCallback((type, message) => {
     const now = Date.now();
