@@ -76,7 +76,7 @@ const Modal = ({
   const modalContent = (
     <div
       data-modal-root="true"
-      className={`fixed inset-0 bg-[#0a0718]/80 backdrop-blur-[5px] z-[10001] flex justify-center overflow-y-auto ${disableEnterAnimation ? '' : 'animate-[fadeIn_0.2s_ease-out]'}`}
+      className={`fixed inset-0 bg-[#0a0718]/85 z-[10001] flex justify-center overflow-y-auto ${disableEnterAnimation ? '' : 'animate-[fadeIn_0.2s_ease-out]'}`}
       style={{
         alignItems: isKeyboardOpen ? 'flex-start' : 'center',
         paddingTop: 'max(1.25rem, env(safe-area-inset-top))',

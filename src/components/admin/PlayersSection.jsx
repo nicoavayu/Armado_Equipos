@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { PlayerCardTrigger } from '../ProfileComponents';
@@ -939,11 +939,15 @@ const PlayersSection = ({
     </div>
   );
 
+  const votedNameSet = useMemo(() => new Set(
+    (votantesConNombres || [])
+      .map((v) => String(v?.nombre || '').toLowerCase().trim())
+      .filter(Boolean),
+  ), [votantesConNombres]);
+
   const renderPlayerCard = (j) => {
-    const hasVoted = votantesConNombres.some((v) => {
-      if (!v.nombre || !j.nombre) return false;
-      return v.nombre.toLowerCase().trim() === j.nombre.toLowerCase().trim();
-    }) || (votantes && (votantes.includes(j.uuid) || votantes.includes(j.usuario_id)));
+    const hasVoted = (j.nombre && votedNameSet.has(j.nombre.toLowerCase().trim()))
+      || (votantes && (votantes.includes(j.uuid) || votantes.includes(j.usuario_id)));
     const cardStyle = {
       backgroundColor: '#1a1438',
       border: hasVoted ? '1px solid rgba(192, 160, 255, 0.94)' : '1px solid rgba(148, 134, 255, 0.55)',

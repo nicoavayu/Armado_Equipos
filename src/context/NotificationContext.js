@@ -605,8 +605,15 @@ export const NotificationProvider = ({ children }) => {
       // Deduplicate only the visible notifications for display
       const dedupedVisible = dedupeNotificationsForDisplay(visibleForDisplay);
 
-      setNotifications(dedupedVisible);
-      setScheduledNotifications(scheduledSurveyFiltered);
+      // Keep previous array references when the fetched data is identical:
+      // downstream effects (e.g. Home's activity feed rebuild, which runs
+      // several queries) key off these references.
+      setNotifications((prev) => (
+        JSON.stringify(prev) === JSON.stringify(dedupedVisible) ? prev : dedupedVisible
+      ));
+      setScheduledNotifications((prev) => (
+        JSON.stringify(prev) === JSON.stringify(scheduledSurveyFiltered) ? prev : scheduledSurveyFiltered
+      ));
       updateUnreadCount(dedupedVisible);
     } catch (error) {
       handleError(error, { showToast: false, onError: () => { } });
@@ -1025,12 +1032,23 @@ export const NotificationProvider = ({ children }) => {
     const teamMatchCreated = unread.filter((n) => n.type === 'team_match_created').length;
     const challengeSquadOpen = unread.filter((n) => n.type === 'challenge_squad_open').length;
 
-    setUnreadCount({
+    const next = {
       friends: friendRequests,
       teamInvites,
       matches: matchInvites + matchUpdates + matchKicked + teamInvites + captainTransfers + matchJoinRequests + matchJoinApproved + callToVote + surveyStarts + postMatchSurveys + surveyReminders + surveyResults + awardsReady + awardWon + surveyFinished + noShowPenalty + noShowRecovery + challengeAccepted + teamMatchCreated + challengeSquadOpen,
       total: unread.length,
-    });
+    };
+    // Keep the previous object when counts are identical so consumers
+    // (TabBar, bell, Home) don't re-render on every background refresh.
+    setUnreadCount((prev) => (
+      prev
+      && prev.friends === next.friends
+      && prev.teamInvites === next.teamInvites
+      && prev.matches === next.matches
+      && prev.total === next.total
+        ? prev
+        : next
+    ));
   };
 
   // Mark notification as read

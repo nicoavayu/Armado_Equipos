@@ -90,7 +90,12 @@ const DesafiosTab = ({
     try {
       if (withLoading) setLoading(true);
       const openRows = await listOpenChallenges(filters);
-      setOpenChallenges(openRows || []);
+      // Keep the previous reference when the periodic refresh returns the same
+      // data so the whole card list doesn't re-render every 30s.
+      setOpenChallenges((prev) => {
+        const next = openRows || [];
+        return JSON.stringify(prev) === JSON.stringify(next) ? prev : next;
+      });
     } catch (error) {
       if (!silent) {
         notifyBlockingError(error.message || 'No se pudieron cargar los desafios');
@@ -109,7 +114,10 @@ const DesafiosTab = ({
 
     try {
       const manageable = await listMyManageableTeams(userId);
-      setManageableTeams(manageable || []);
+      setManageableTeams((prev) => {
+        const next = manageable || [];
+        return JSON.stringify(prev) === JSON.stringify(next) ? prev : next;
+      });
     } catch (error) {
       if (!silent) {
         notifyBlockingError(error.message || 'No se pudieron cargar tus equipos');

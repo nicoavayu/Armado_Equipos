@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Activity, AlertTriangle, Bell, CalendarClock, Check, CheckCircle, ChevronRight, ClipboardList, Trophy, UserPlus, Users, Vote } from 'lucide-react';
@@ -195,33 +195,40 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
   const activeMatchesRefreshInFlightRef = useRef(false);
   const activeMatchesSignatureRef = useRef(buildActiveMatchesSignature([]));
 
-  const nowTs = Date.now();
-  const awardsCandidateNotifs = (notifications || [])
-    .filter((n) => isAwardsRingNotificationType(n?.type))
-    .filter((n) => {
-      const createdTs = n?.created_at ? new Date(n.created_at).getTime() : 0;
-      return createdTs > 0 && (nowTs - createdTs) <= AWARDS_RING_WINDOW_MS;
-    })
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  const directAwardsRingMatchIds = getDirectAwardsRingMatchIds(awardsCandidateNotifs);
-  const awardsValidationMatchIds = Array.from(new Set(
+  const awardsCandidateNotifs = useMemo(() => {
+    const nowTs = Date.now();
+    return (notifications || [])
+      .filter((n) => isAwardsRingNotificationType(n?.type))
+      .filter((n) => {
+        const createdTs = n?.created_at ? new Date(n.created_at).getTime() : 0;
+        return createdTs > 0 && (nowTs - createdTs) <= AWARDS_RING_WINDOW_MS;
+      })
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }, [notifications]);
+  const directAwardsRingMatchIds = useMemo(
+    () => getDirectAwardsRingMatchIds(awardsCandidateNotifs),
+    [awardsCandidateNotifs],
+  );
+  const awardsValidationMatchIds = useMemo(() => Array.from(new Set(
     awardsCandidateNotifs
       .filter((notification) => !isDirectAwardsRingNotificationType(notification?.type))
       .map((notification) => resolveNotificationMatchId(notification))
       .filter((matchId) => matchId !== null && matchId !== undefined)
       .map((matchId) => String(matchId).trim())
       .filter(Boolean),
-  ));
+  )), [awardsCandidateNotifs]);
   const awardsCandidateMatchIdsKey = [
     directAwardsRingMatchIds.join(','),
     awardsValidationMatchIds.join(','),
   ].join('::');
-  const awardsReadyVisibleMatchIdSet = new Set((awardsReadyVisibleMatchIds || []).map((id) => String(id)));
-  const awardsStoryNotifs = awardsCandidateNotifs.filter((notif) => {
-    const matchId = resolveNotificationMatchId(notif);
-    if (!matchId) return false;
-    return awardsReadyVisibleMatchIdSet.has(String(matchId));
-  });
+  const awardsStoryNotifs = useMemo(() => {
+    const awardsReadyVisibleMatchIdSet = new Set((awardsReadyVisibleMatchIds || []).map((id) => String(id)));
+    return awardsCandidateNotifs.filter((notif) => {
+      const matchId = resolveNotificationMatchId(notif);
+      if (!matchId) return false;
+      return awardsReadyVisibleMatchIdSet.has(String(matchId));
+    });
+  }, [awardsCandidateNotifs, awardsReadyVisibleMatchIds]);
   const hasAwardsStoryPending = awardsStoryNotifs.some((n) => !n.read);
   const hasAwardsStoryViewed = !hasAwardsStoryPending && awardsStoryNotifs.some((n) => n.read);
   const awardsReadyAndVisible = awardsStoryNotifs.length > 0;
