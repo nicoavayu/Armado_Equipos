@@ -504,9 +504,9 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
     paddingBottom: '24px',
   };
   const softCardWrapperStyle = {
-    backgroundColor: '#07163b',
-    border: '1px solid rgba(41, 170, 255, 0.9)',
-    boxShadow: '0 0 10px rgba(41, 170, 255, 0.24)',
+    backgroundColor: '#181231',
+    border: '1px solid rgba(148, 134, 255, 0.46)',
+    boxShadow: '0 0 10px rgba(122, 82, 255, 0.18)',
     transform: `skewX(-${skewX}deg)`,
     backfaceVisibility: 'hidden',
   };

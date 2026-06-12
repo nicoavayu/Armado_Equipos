@@ -47,8 +47,8 @@ const INVITE_ACCEPT_BUTTON_VIOLET_DARK = '#4836bb';
 const CARD_BG_BLUE = '#181231';
 const CARD_STROKE_BLUE = 'rgba(148, 134, 255, 0.5)';
 const CARD_GLOW_BLUE = '0 0 9px rgba(122, 82, 255, 0.2)';
-const SYSTEM_ICON_BLUE = '#29aaff';
-const SYSTEM_ICON_BLUE_GLOW = 'drop-shadow(0 0 4px rgba(41, 170, 255, 0.78))';
+const SYSTEM_ICON_BLUE = '#9486ff';
+const SYSTEM_ICON_BLUE_GLOW = 'drop-shadow(0 0 5px rgba(148, 134, 255, 0.62))';
 const TEAM_DISPLAY_HELP_SEEN_KEY = 'team_display_help_seen_v1';
 
 const isUuid = (v) => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
@@ -1103,7 +1103,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                       {editingTeamId === team.id && isAdmin ? (
                         <input
                           type="text"
-                          className="font-bebas text-lg text-[#f5f7ff] bg-[#07163b] border border-[#29aaff] rounded-[5px] px-3 py-2 text-center tracking-widest uppercase w-full box-border md:text-xl lg:text-2xl"
+                          className="font-bebas text-lg text-[#f5f7ff] bg-[#181231] border border-[rgba(148,134,255,0.58)] rounded-xl px-3 py-2 text-center tracking-widest uppercase w-full box-border outline-none transition-colors focus:border-[#b6a8ff] focus:ring-2 focus:ring-[rgba(139,92,255,0.24)] md:text-xl lg:text-2xl"
                           value={editingTeamName}
                           onChange={(e) => setEditingTeamName(e.target.value)}
                           onBlur={async () => {

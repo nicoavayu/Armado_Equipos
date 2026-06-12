@@ -134,9 +134,9 @@ export default function AuthHome() {
   }
 
   return (
-    <div className="auth-premium-bg fixed inset-0 z-[9999] flex min-h-[100dvh] w-screen items-center justify-center overflow-hidden px-5">
+    <div className="auth-premium-bg fixed inset-0 z-[9999] flex min-h-[100dvh] w-full max-w-[100vw] items-center justify-center overflow-x-hidden overflow-y-hidden px-5 max-[420px]:px-4">
       <div className="auth-premium-noise" aria-hidden="true" />
-      <div className="w-full max-w-[380px]">
+      <div className="w-full max-w-[380px] min-w-0">
         <div className="auth-logo-block mb-10 text-center">
           <img src={logo} alt="ARMA2" className="auth-logo-mark mx-auto h-[122px] w-auto max-w-full object-contain" />
           <p className="mt-[14px] text-sm font-medium tracking-[0.3px] text-[rgba(255,255,255,0.9)]">Futbol amateur, nivel pro</p>
@@ -244,7 +244,7 @@ export default function AuthHome() {
           </p>
         ) : null}
 
-        <p className="mx-auto mt-4 max-w-[340px] text-center text-[12px] leading-relaxed text-[rgba(255,255,255,0.72)]">
+        <p className="mx-auto mt-4 box-border w-full max-w-[300px] px-2 text-center text-[12px] leading-relaxed text-[rgba(255,255,255,0.72)] break-words [overflow-wrap:anywhere] min-[421px]:max-w-[340px]">
           Al continuar aceptás nuestros{' '}
           <Link to="/terms" className="auth-legal-link">
             Términos

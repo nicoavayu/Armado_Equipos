@@ -31,8 +31,8 @@ import { MoreVertical, RotateCcw } from 'lucide-react';
 
 const INVITE_ACCEPT_BUTTON_VIOLET = '#644dff';
 const SLOT_SKEW_X = 0;
-const HEADER_ICON_COLOR = '#29aaff';
-const HEADER_ICON_GLOW = 'drop-shadow(0 0 4px rgba(41, 170, 255, 0.78))';
+const HEADER_ICON_COLOR = '#9486ff';
+const HEADER_ICON_GLOW = 'drop-shadow(0 0 5px rgba(148, 134, 255, 0.62))';
 const PLACEHOLDER_NUMBER_STYLE = {
   color: 'transparent',
   WebkitTextStroke: '2px rgba(104, 154, 255, 0.5)',
@@ -937,8 +937,8 @@ export default function ArmarEquiposView({
   const slotItems = Array.from({ length: requiredSlots }, (_, idx) => jugadores?.[idx] || null);
   const missingSlotsCount = Math.max(0, requiredSlots - confirmedCount);
   const softCardWrapperStyle = {
-    backgroundColor: '#07163b',
-    border: '1px solid rgba(41, 170, 255, 0.9)',
+    backgroundColor: '#181231',
+    border: '1px solid rgba(148, 134, 255, 0.46)',
     transform: `skewX(-${SLOT_SKEW_X}deg)`,
     backfaceVisibility: 'hidden',
   };
@@ -1130,7 +1130,7 @@ export default function ArmarEquiposView({
 
                             {j.usuario_id !== user?.id && (
                               <button
-                                className="w-5 h-5 bg-transparent border-0 p-0 cursor-pointer transition-colors inline-flex items-center justify-center shrink-0 hover:text-[#29aaff] disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="w-5 h-5 bg-transparent border-0 p-0 cursor-pointer transition-colors inline-flex items-center justify-center shrink-0 hover:text-[#b6a8ff] disabled:opacity-50 disabled:cursor-not-allowed"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setPlayerToRemove({ id: j.id, nombre: j.nombre });

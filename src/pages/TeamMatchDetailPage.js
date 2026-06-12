@@ -156,11 +156,11 @@ const isCancelledTeamMatchStatus = (statusValue) => {
   return normalized === 'cancelled' || normalized === 'canceled' || normalized === 'cancelado';
 };
 
-const modalActionButtonBaseClass = '!w-full !h-auto !min-h-[44px] !px-4 !py-2.5 !rounded-none !font-bebas !text-base !tracking-[0.01em] !normal-case sm:!text-[13px] sm:!px-3 sm:!py-2 sm:!min-h-[36px]';
-const modalActionPrimaryClass = `${modalActionButtonBaseClass} !border !border-[#7d5aff] !bg-[#6a43ff] !text-white !shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:!bg-[#7550ff]`;
+const modalActionButtonBaseClass = '!w-full !h-auto !min-h-[44px] !px-4 !py-2.5 !rounded-xl !font-bebas !text-base !tracking-[0.01em] !normal-case sm:!text-[13px] sm:!px-3 sm:!py-2 sm:!min-h-[36px]';
+const modalActionPrimaryClass = `${modalActionButtonBaseClass} !border !border-[#8f7bff] !bg-[linear-gradient(135deg,#7d5aff_0%,#5b3cff_58%,#ec007d_145%)] !text-white !shadow-[0_0_16px_rgba(139,92,255,0.26)] hover:!brightness-110`;
 const modalActionSecondaryClass = `${modalActionButtonBaseClass} !border !border-[rgba(148,134,255,0.28)] !bg-white/[0.05] !text-white/92 hover:!bg-[rgba(30,45,94,0.95)]`;
-const squadActionButtonBaseClass = 'min-h-[44px] px-4 py-2.5 rounded-none border font-bebas text-base tracking-[0.01em] transition-all inline-flex items-center justify-center text-center cursor-pointer sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]';
-const squadActionPrimaryClass = `${squadActionButtonBaseClass} border-[#7d5aff] bg-[#6a43ff] text-white shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:bg-[#7550ff] active:opacity-95 disabled:bg-[rgba(106,67,255,0.55)] disabled:border-[rgba(125,90,255,0.5)] disabled:text-white/40 disabled:shadow-none disabled:cursor-not-allowed`;
+const squadActionButtonBaseClass = 'min-h-[44px] px-4 py-2.5 rounded-xl border font-bebas text-base tracking-[0.01em] transition-all inline-flex items-center justify-center text-center cursor-pointer sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]';
+const squadActionPrimaryClass = `${squadActionButtonBaseClass} border-[#8f7bff] bg-[linear-gradient(135deg,#7d5aff_0%,#5b3cff_58%,#ec007d_145%)] text-white shadow-[0_0_16px_rgba(139,92,255,0.26)] hover:brightness-110 active:opacity-95 disabled:bg-[rgba(106,67,255,0.55)] disabled:border-[rgba(125,90,255,0.5)] disabled:text-white/40 disabled:shadow-none disabled:cursor-not-allowed`;
 const squadActionSecondaryClass = `${squadActionButtonBaseClass} border-[rgba(148,134,255,0.28)] bg-white/[0.05] text-white/92 hover:bg-white/[0.1] active:opacity-95 disabled:opacity-55 disabled:cursor-not-allowed`;
 
 const getPlayerProfile = (member) => {
