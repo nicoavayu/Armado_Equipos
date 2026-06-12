@@ -9,9 +9,9 @@ import { useAuth } from './AuthProvider';
 // import './ManualMatchModal.css'; // REMOVED
 
 const SECTION_LABEL_CLASS = 'font-oswald text-xs font-medium text-white/70 uppercase tracking-widest pl-0.5';
-const FIELD_CLASS = 'h-[52px] w-full appearance-none rounded-none border border-[rgba(133,149,208,0.5)] bg-[rgba(53,58,102,0.88)] px-4 text-white font-oswald text-lg outline-none transition-all duration-300 focus:border-[#7f8dff] focus:ring-2 focus:ring-[#6f7dff]/30 backdrop-blur-md';
-const SECONDARY_ACTION_BUTTON_CLASS = 'flex-1 min-h-[44px] px-4 py-2.5 rounded-none border border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] text-white/92 font-bebas text-base tracking-[0.01em] transition-all inline-flex items-center justify-center hover:bg-[rgba(30,45,94,0.95)] active:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]';
-const PRIMARY_ACTION_BUTTON_CLASS = 'flex-1 min-h-[44px] px-4 py-2.5 rounded-none border border-[#7d5aff] bg-[#6a43ff] text-white font-bebas text-base tracking-[0.01em] transition-all inline-flex items-center justify-center hover:bg-[#7550ff] active:opacity-95 shadow-[0_0_14px_rgba(106,67,255,0.3)] disabled:bg-[rgba(106,67,255,0.55)] disabled:border-[rgba(125,90,255,0.5)] disabled:text-white/40 disabled:shadow-none disabled:cursor-not-allowed sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]';
+const FIELD_CLASS = 'h-[52px] w-full appearance-none rounded-xl border border-[rgba(148,134,255,0.25)] bg-[rgba(20,16,41,0.85)] px-4 text-white font-oswald text-lg outline-none transition-all duration-300 focus:border-[#8b7cff] focus:ring-2 focus:ring-[#6a43ff]/30';
+const SECONDARY_ACTION_BUTTON_CLASS = 'flex-1 min-h-[44px] px-4 py-2.5 rounded-xl border border-[rgba(148,134,255,0.28)] bg-white/[0.05] text-white/92 font-bebas text-base tracking-[0.01em] transition-all duration-200 inline-flex items-center justify-center hover:bg-white/[0.1] hover:border-[rgba(148,134,255,0.45)] active:scale-[0.985] active:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]';
+const PRIMARY_ACTION_BUTTON_CLASS = 'flex-1 min-h-[44px] px-4 py-2.5 rounded-xl border border-white/20 bg-cta-gradient text-white font-bebas text-base tracking-[0.01em] transition-all duration-200 inline-flex items-center justify-center hover:brightness-105 active:scale-[0.985] shadow-cta disabled:bg-[rgba(106,67,255,0.55)] disabled:border-[rgba(125,90,255,0.5)] disabled:text-white/40 disabled:shadow-none disabled:cursor-not-allowed sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]';
 
 const ManualMatchModal = ({ isOpen, onClose, onSaved }) => {
   const { user } = useAuth();
@@ -67,16 +67,19 @@ const ManualMatchModal = ({ isOpen, onClose, onSaved }) => {
       onClick={onClose}
     >
       <motion.div
-        className="bg-[#1e293b]/96 rounded-none p-6 w-full max-w-[540px] border border-[rgba(88,107,170,0.46)] backdrop-blur-md max-h-[90vh] overflow-y-auto shadow-[0_20px_50px_rgba(3,10,32,0.55)]"
+        className="relative bg-[radial-gradient(420px_200px_at_18%_-20%,rgba(139,92,255,0.18),transparent_70%),linear-gradient(168deg,rgba(38,30,80,0.99),rgba(15,12,32,0.99))] rounded-card p-6 w-full max-w-[540px] border border-[rgba(148,134,255,0.28)] max-h-[90vh] overflow-y-auto custom-scrollbar shadow-[0_24px_64px_rgba(5,3,16,0.65),inset_0_1px_0_rgba(255,255,255,0.08)] after:content-[''] after:absolute after:top-0 after:inset-x-0 after:h-px after:rounded-t-card after:bg-[linear-gradient(90deg,transparent_6%,rgba(139,92,255,0.55)_42%,rgba(236,0,125,0.35)_68%,transparent_94%)]"
         initial={{ opacity: 0, scale: 0.96, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: 10 }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between items-center mb-6">
-          <h3 className="font-oswald text-2xl leading-none font-semibold tracking-[0.01em] text-white m-0">Sumar Partido Manual</h3>
+          <h3 className="font-oswald text-[22px] leading-none font-bold tracking-[0.01em] text-white m-0 flex items-center gap-2.5">
+            <span className="inline-block w-1 h-[18px] rounded-full bg-[linear-gradient(180deg,#ec007d,#8b5cff)] shadow-[0_0_10px_rgba(236,0,125,0.45)]" />
+            Sumar partido manual
+          </h3>
           <button
-            className="bg-transparent border border-transparent text-white/80 cursor-pointer p-1.5 rounded-none transition-all hover:border-[rgba(98,117,184,0.58)] hover:bg-[rgba(20,31,70,0.82)] hover:text-white"
+            className="bg-white/[0.05] border border-white/10 text-white/80 cursor-pointer p-1.5 rounded-full transition-all hover:border-[rgba(148,134,255,0.4)] hover:bg-white/[0.1] hover:text-white active:scale-95"
             onClick={onClose}
             type="button"
             aria-label="Cerrar modal"
@@ -112,9 +115,9 @@ const ManualMatchModal = ({ isOpen, onClose, onSaved }) => {
                   <button
                     key={option.value}
                     type="button"
-                    className={`min-h-[88px] flex flex-col items-center justify-center gap-1.5 px-2 py-3 rounded-none border text-white font-oswald transition-all sm:min-h-[52px] sm:flex-row sm:justify-center ${formData.resultado === option.value
-                      ? 'bg-[rgba(106,67,255,0.24)] border-[#7d5aff] shadow-[0_0_14px_rgba(106,67,255,0.25)]'
-                      : 'bg-[rgba(20,31,70,0.82)] border-[rgba(98,117,184,0.58)] hover:bg-[rgba(30,45,94,0.95)]'
+                    className={`min-h-[88px] flex flex-col items-center justify-center gap-1.5 px-2 py-3 rounded-xl border text-white font-oswald transition-all duration-200 active:scale-[0.985] sm:min-h-[52px] sm:flex-row sm:justify-center ${formData.resultado === option.value
+                      ? 'bg-[linear-gradient(135deg,rgba(125,82,255,0.4),rgba(84,48,224,0.3))] border-[#8d6bff] shadow-[0_0_16px_rgba(106,67,255,0.32),inset_0_1px_0_rgba(255,255,255,0.15)]'
+                      : 'bg-white/[0.05] border-[rgba(148,134,255,0.28)] hover:bg-white/[0.1]'
                     }`}
                     onClick={() => setFormData({ ...formData, resultado: option.value })}
                   >

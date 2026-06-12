@@ -862,16 +862,16 @@ const NotificationsView = () => {
     >
       <div className="w-full max-w-[600px] mx-auto">
         {hasAnyNotifications && (
-          <div data-notifications-first-block="true" className="mt-1 mb-3 flex items-center justify-between gap-3">
-            <div className="inline-flex items-center gap-2 rounded-none border border-[rgba(106,126,202,0.45)] bg-[rgba(17,26,59,0.96)] px-2.5 py-1.5">
-              <span className="text-[10px] leading-none uppercase tracking-[0.08em] font-oswald text-white/60">
+          <div data-notifications-first-block="true" className="mt-1 mb-3.5 flex items-center justify-between gap-3">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[rgba(148,134,255,0.25)] bg-[rgba(20,16,41,0.85)] px-3 py-1.5">
+              <span className="text-[10px] leading-none uppercase tracking-[0.12em] font-sans font-bold text-[#b0a0ff]/80">
                 No leídas
               </span>
               <span
-                className={`inline-flex min-w-[22px] h-[22px] px-1.5 items-center justify-center rounded-none border text-[12px] font-oswald font-semibold leading-none ${
+                className={`inline-flex min-w-[22px] h-[22px] px-1.5 items-center justify-center rounded-full border text-[12px] font-sans font-bold leading-none ${
                   hasUnreadNotifications
-                    ? 'border-[#644dff] bg-[#644dff] text-white'
-                    : 'border-[rgba(106,126,202,0.4)] bg-[rgba(26,35,76,0.58)] text-white/70'
+                    ? 'border-[#ec007d] bg-[#ec007d] text-white shadow-[0_0_10px_rgba(236,0,125,0.4)]'
+                    : 'border-[rgba(148,134,255,0.25)] bg-[rgba(39,32,80,0.6)] text-white/70'
                 }`}
               >
                 {unreadCount?.total || 0}
@@ -881,7 +881,7 @@ const NotificationsView = () => {
               type="button"
               onClick={handleMarkAllAsRead}
               disabled={!hasUnreadNotifications || markingAllAsRead}
-              className="shrink-0 h-[34px] px-3 rounded-none border text-[11px] font-oswald font-medium transition-colors bg-[rgba(20,31,70,0.82)] border-[rgba(98,117,184,0.58)] text-white/80 hover:bg-[rgba(30,45,94,0.95)] hover:text-white disabled:opacity-45 disabled:cursor-not-allowed"
+              className="shrink-0 h-[34px] px-3.5 rounded-full border text-[11px] font-sans font-semibold transition-colors bg-white/[0.05] border-[rgba(148,134,255,0.28)] text-white/80 hover:bg-white/[0.09] hover:text-white disabled:opacity-45 disabled:cursor-not-allowed"
             >
               {markingAllAsRead ? 'Marcando...' : 'Marcar todas como leídas'}
             </button>
@@ -889,7 +889,7 @@ const NotificationsView = () => {
         )}
 
         {hasAnyNotifications && (
-          <div className="mb-3 grid grid-cols-2 gap-2 pb-1 sm:flex sm:flex-wrap">
+          <div className="mb-4 grid grid-cols-2 gap-2 pb-1 sm:flex sm:flex-wrap">
             {NOTIFICATION_FILTER_OPTIONS.map((option) => {
               const isActive = activeFilter === option.key;
               const count = getCategoryCount(visibleNotifications, option.key);
@@ -898,10 +898,10 @@ const NotificationsView = () => {
                   key={option.key}
                   type="button"
                   onClick={() => setActiveFilter(option.key)}
-                  className={`w-full min-w-0 h-[38px] px-2.5 rounded-none border text-[11px] sm:w-auto sm:text-xs font-oswald transition-colors ${
+                  className={`w-full min-w-0 h-[36px] px-3.5 rounded-full border text-[11px] sm:w-auto sm:text-xs font-sans font-semibold transition-colors ${
                     isActive
-                      ? 'bg-[#644dff] border-[#644dff] text-white'
-                      : 'bg-[rgba(20,31,70,0.82)] border-[rgba(98,117,184,0.58)] text-white/72 hover:bg-[rgba(30,45,94,0.95)] hover:text-white'
+                      ? 'bg-cta-gradient border-[#7d5aff] text-white shadow-[0_4px_14px_rgba(106,67,255,0.35)]'
+                      : 'bg-white/[0.04] border-[rgba(148,134,255,0.22)] text-white/65 hover:bg-white/[0.08] hover:text-white'
                   }`}
                 >
                   {option.label} {count > 0 ? `(${count})` : ''}
@@ -948,8 +948,8 @@ const NotificationsView = () => {
                 key={group.key}
                 role={isInteractive ? 'button' : undefined}
                 tabIndex={isInteractive ? 0 : -1}
-                className={`flex p-3 bg-transparent rounded-none transition-all duration-200 relative border border-[rgba(88,107,170,0.46)] ${
-                  isInteractive ? 'cursor-pointer hover:border-[#4a7ed6]' : 'cursor-default opacity-85'
+                className={`flex p-3.5 rounded-card transition-all duration-200 relative border border-[rgba(148,134,255,0.16)] bg-[linear-gradient(165deg,rgba(48,38,98,0.55),rgba(20,16,41,0.88))] shadow-[0_6px_16px_rgba(5,3,16,0.3),inset_0_1px_0_rgba(255,255,255,0.04)] ${
+                  isInteractive ? 'cursor-pointer hover:border-[rgba(148,134,255,0.45)] hover:brightness-[1.06]' : 'cursor-default opacity-85'
                 }`}
                 onClick={(e) => {
                   if (!isInteractive) return;
@@ -961,12 +961,12 @@ const NotificationsView = () => {
                   }
                 }}
               >
-                <div className="text-2xl mr-3 flex items-center justify-center w-8 h-8 bg-transparent border-0 text-white/90">
-                  <Icon size={18} />
+                <div className="mr-3 mt-0.5 flex items-center justify-center w-9 h-9 shrink-0 rounded-xl border border-[rgba(148,134,255,0.3)] bg-[linear-gradient(140deg,rgba(139,92,255,0.28),rgba(106,67,255,0.08))] text-[#cfc4ff]">
+                  <Icon size={17} />
                 </div>
                 <div className="flex-1">
-                  <div className="font-bold text-white mb-1">{displayTitle}</div>
-                  <div className="text-white/80 text-sm mb-2">{displayMessage}</div>
+                  <div className="font-bold text-white text-[14px] leading-snug mb-1">{displayTitle}</div>
+                  <div className="text-white/65 text-[13px] leading-snug mb-2">{displayMessage}</div>
                   {groupedMatchInfo && (
                     <button
                       type="button"
@@ -978,7 +978,7 @@ const NotificationsView = () => {
                     </button>
                   )}
                   {isExpanded && groupedItems.length > 0 && (
-                    <div className="mb-2 rounded-none border border-[rgba(88,108,176,0.5)] bg-[rgba(10,21,52,0.85)] overflow-hidden">
+                    <div className="mb-2 rounded-xl border border-[rgba(148,134,255,0.2)] bg-[rgba(12,10,29,0.7)] overflow-hidden">
                       {groupedItems.map((item, index) => {
                         const ItemIcon = getNotificationIcon(item.type);
                         const { title, message } = getDisplayCopy(item);
@@ -988,8 +988,8 @@ const NotificationsView = () => {
                             key={`${group.key}-${item.id}-${index}`}
                             type="button"
                             disabled={!itemInteractive}
-                            className={`w-full px-2.5 py-2 text-left transition-colors border-b last:border-b-0 border-[rgba(88,108,176,0.4)] ${
-                              itemInteractive ? 'hover:bg-[rgba(30,45,94,0.9)]' : 'opacity-85 cursor-default'
+                            className={`w-full px-2.5 py-2 text-left transition-colors border-b last:border-b-0 border-white/[0.06] ${
+                              itemInteractive ? 'hover:bg-white/[0.06]' : 'opacity-85 cursor-default'
                             }`}
                             onClick={(e) => {
                               if (!itemInteractive) return;
@@ -1005,7 +1005,7 @@ const NotificationsView = () => {
                                 <div className="text-[11px] text-white/70 leading-snug line-clamp-2">{message}</div>
                                 <div className="text-[10px] text-white/50 mt-0.5">{formatDate(item.created_at)}</div>
                               </div>
-                              {!item.read && <div className="mt-1.5 w-1.5 h-1.5 bg-[#128BE9] rounded-full shrink-0"></div>}
+                              {!item.read && <div className="mt-1.5 w-1.5 h-1.5 bg-[#ec007d] rounded-full shrink-0"></div>}
                             </div>
                           </button>
                         );
@@ -1018,7 +1018,7 @@ const NotificationsView = () => {
                   {notification.type === 'friend_request' && !notification.read && (
                     <div className="flex gap-2 mt-2">
                       <button
-                        className="px-3 h-8 rounded-none border border-[#7d5aff] cursor-pointer text-xs font-bebas tracking-[0.01em] transition-all min-w-[92px] bg-[#6a43ff] text-white hover:bg-[#7550ff] shadow-[0_0_12px_rgba(106,67,255,0.28)] disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="px-3 h-8 rounded-full border border-[#7d5aff] cursor-pointer text-xs font-sans font-semibold tracking-[0.01em] transition-all min-w-[92px] bg-cta-gradient text-white hover:brightness-110 shadow-[0_4px_14px_rgba(106,67,255,0.35)] disabled:opacity-60 disabled:cursor-not-allowed"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleAcceptFriend(notification);
@@ -1028,7 +1028,7 @@ const NotificationsView = () => {
                         {processingRequests.has(notification.data?.requestId) ? 'Aceptando...' : 'Aceptar'}
                       </button>
                       <button
-                        className="px-3 h-8 rounded-none border border-[rgba(88,107,170,0.46)] cursor-pointer text-xs font-bebas tracking-[0.01em] transition-all min-w-[92px] bg-[rgba(23,35,74,0.72)] text-[rgba(242,246,255,0.9)] hover:bg-[rgba(31,45,91,0.82)] disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="px-3 h-8 rounded-full border border-[rgba(148,134,255,0.28)] cursor-pointer text-xs font-sans font-semibold tracking-[0.01em] transition-all min-w-[92px] bg-white/[0.05] text-white/85 hover:bg-white/[0.1] disabled:opacity-60 disabled:cursor-not-allowed"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleRejectFriend(notification);
@@ -1041,7 +1041,7 @@ const NotificationsView = () => {
                   )}
                 </div>
                 {group.unreadCount > 0 && (
-                  <div className="absolute top-3 right-3 w-2 h-2 bg-[#128BE9] rounded-full"></div>
+                  <div className="absolute top-3 right-3 w-2 h-2 bg-[#ec007d] rounded-full shadow-[0_0_8px_rgba(236,0,125,0.6)]"></div>
                 )}
               </div>
               );

@@ -34,8 +34,8 @@ import { useInterval } from '../../../hooks/useInterval';
 
 const modalActionButtonBaseClass = '!w-full !h-auto !min-h-[44px] !px-4 !py-2.5 !rounded-none !font-bebas !text-base !tracking-[0.01em] !normal-case sm:!text-[13px] sm:!px-3 sm:!py-2 sm:!min-h-[36px]';
 const modalPrimaryActionButtonClass = `${modalActionButtonBaseClass} !border !border-[#7d5aff] !bg-[#6a43ff] !text-white !shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:!bg-[#7550ff]`;
-const modalSecondaryActionButtonClass = `${modalActionButtonBaseClass} !border !border-[rgba(98,117,184,0.58)] !bg-[rgba(20,31,70,0.82)] !text-white/92 hover:!bg-[rgba(30,45,94,0.95)]`;
-const teamSectionModalShellClass = '!rounded-none !border !border-[rgba(88,107,170,0.52)] !bg-[rgba(8,18,44,0.96)] !shadow-[0_26px_58px_rgba(0,0,0,0.62)]';
+const modalSecondaryActionButtonClass = `${modalActionButtonBaseClass} !border !border-[rgba(148,134,255,0.28)] !bg-white/[0.05] !text-white/92 hover:!bg-white/[0.1]`;
+const teamSectionModalShellClass = '!rounded-none !border !border-[rgba(148,134,255,0.3)] !bg-[rgba(18,14,38,0.97)] !shadow-[0_26px_58px_rgba(0,0,0,0.62)]';
 const optionCardClass = 'w-full rounded-none border border-white/15 bg-white/5 p-3 text-left transition-all hover:bg-white/10';
 const disabledOptionCardClass = `${optionCardClass} disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none disabled:hover:bg-white/5`;
 const transparentMenuButtonClass = 'kebab-menu-btn relative z-10';
@@ -1072,19 +1072,19 @@ const EquipoDetalleView = ({ teamId, userId }) => {
     <>
       <div className="w-full pt-[80px] pb-6 md:pt-[72px]">
         <div className="relative left-1/2 w-screen -translate-x-1/2">
-          <div className="flex h-[44px] w-full overflow-hidden border-y border-[rgba(106,126,202,0.40)] bg-[rgba(17,26,59,0.96)]">
+          <div className="flex h-[44px] w-full max-w-[560px] mx-auto gap-1 p-1 overflow-hidden rounded-full border border-[rgba(148,134,255,0.22)] bg-[rgba(20,16,41,0.85)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_6px_16px_rgba(5,3,16,0.35)]">
             {DETAIL_TABS.map((tab, index) => (
               <button
                 key={tab.key}
                 type="button"
                 onClick={() => handleSelectDetailTab(tab.key)}
                 className={`relative flex-1 min-w-0 border px-0 py-0 font-bebas text-[0.95rem] tracking-[0.04em] transition-[background-color,border-color,color] duration-150 ${index > 0 ? 'border-l-0' : ''} ${selectedTabLabel === tab.key
-                  ? 'z-[2] border-[rgba(132,112,255,0.64)] bg-[#31239f] text-white shadow-[inset_0_0_0_1px_rgba(160,142,255,0.26)]'
-                  : 'z-[1] border-[rgba(106,126,202,0.40)] bg-[rgba(17,26,59,0.96)] text-white/65 hover:text-white/88 hover:bg-[rgba(26,37,83,0.98)]'
+                  ? 'z-[2] rounded-full border-transparent bg-cta-gradient text-white shadow-[0_4px_14px_rgba(106,67,255,0.4),inset_0_1px_0_rgba(255,255,255,0.2)]'
+                  : 'z-[1] rounded-full border-transparent bg-transparent text-white/60 hover:text-white/90 hover:bg-white/[0.06]'
                   }`}
               >
                 {selectedTabLabel === tab.key ? (
-                  <span className="pointer-events-none absolute left-0 top-0 h-[3px] w-full bg-[#644dff]" />
+                  <span className="hidden" />
                 ) : null}
                 {tab.label}
               </button>

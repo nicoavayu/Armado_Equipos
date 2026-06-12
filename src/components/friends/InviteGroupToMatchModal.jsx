@@ -18,7 +18,7 @@ import {
 import { QUIERO_JUGAR_OPEN_MATCHES_VIEW } from '../../services/db/openMatches';
 
 const PRIMARY_ACTION_BUTTON_CLASS = 'inline-flex min-h-[44px] items-center justify-center gap-2 rounded-none border border-[#7d5aff] bg-[#6a43ff] px-4 py-2.5 font-bebas text-base tracking-[0.01em] text-white shadow-[0_0_14px_rgba(106,67,255,0.3)] transition-all hover:bg-[#7550ff] active:opacity-95 disabled:cursor-not-allowed disabled:border-[rgba(125,90,255,0.45)] disabled:bg-[rgba(106,67,255,0.55)] disabled:text-white/45 disabled:shadow-none';
-const SECONDARY_ACTION_BUTTON_CLASS = 'inline-flex min-h-[44px] items-center justify-center gap-2 rounded-none border border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] px-4 py-2.5 font-bebas text-base tracking-[0.01em] text-white/92 transition-all hover:bg-[rgba(30,45,94,0.95)] active:opacity-95 disabled:cursor-not-allowed disabled:opacity-50';
+const SECONDARY_ACTION_BUTTON_CLASS = 'inline-flex min-h-[44px] items-center justify-center gap-2 rounded-none border border-[rgba(148,134,255,0.28)] bg-white/[0.05] px-4 py-2.5 font-bebas text-base tracking-[0.01em] text-white/92 transition-all hover:bg-white/[0.1] active:opacity-95 disabled:cursor-not-allowed disabled:opacity-50';
 const SECTION_TITLE_CLASS = 'font-oswald text-[clamp(16px,4.4vw,20px)] font-semibold leading-tight tracking-[0.01em] text-white';
 
 const normalizeUniqueCount = (values = []) => new Set(
@@ -408,11 +408,11 @@ const InviteGroupToMatchModal = ({
       onClose={onClose}
       title={`Invitar grupo${group?.name ? ` · ${group.name}` : ''}`}
       footer={footer}
-      className="w-full max-w-[720px] !bg-[#101a35] border border-[rgba(98,117,184,0.58)]"
+      className="w-full max-w-[720px] !bg-[#101a35] border border-[rgba(148,134,255,0.28)]"
       classNameContent="p-5"
     >
       <div className="flex flex-col gap-4">
-        <div className="rounded-none border border-[rgba(88,107,170,0.46)] bg-[rgba(18,28,62,0.78)] p-4">
+        <div className="rounded-none border border-[rgba(148,134,255,0.2)] bg-[rgba(18,28,62,0.78)] p-4">
           <div className="text-white">
             <div className={SECTION_TITLE_CLASS}>Elegí el partido</div>
           </div>

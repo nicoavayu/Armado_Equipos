@@ -555,7 +555,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                               left: 0,
                               right: 0,
                               bottom: 0,
-                              backgroundColor: adminState.faltanJugadoresState ? '#644dff' : '#ccc',
+                              backgroundColor: adminState.faltanJugadoresState ? '#6a43ff' : 'rgba(255,255,255,0.25)',
                               transition: '0.3s',
                               borderRadius: '24px',
                               opacity: isRosterFull ? 0.5 : 1,
@@ -585,13 +585,15 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                     {isAdmin && !adminState.pendingInvitation && activeTab === 'jugadores' && (
                       <div className="w-full max-w-full mx-auto mt-3 mb-8 flex flex-col items-center">
                         <button
-                          className="w-[90%] max-w-[620px] h-[60px] border text-white font-oswald text-[18px] px-4 transition-all disabled:opacity-45 disabled:cursor-not-allowed tracking-[0.045em] font-semibold"
+                          className="w-[90%] max-w-[620px] h-[58px] border text-white font-oswald text-[17px] px-4 transition-all disabled:opacity-45 disabled:cursor-not-allowed tracking-[0.06em] font-bold hover:brightness-110"
                           style={{
                             transform: 'none',
-                            borderRadius: 0,
-                            background: 'linear-gradient(132deg, #291686 0%, #3f24ba 48%, #5638e6 100%)',
-                            borderColor: 'rgba(132, 112, 255, 0.58)',
-                            boxShadow: canBuildBalancedTeams ? '0 0 22px rgba(86, 56, 230, 0.28)' : 'none',
+                            borderRadius: 18,
+                            background: 'linear-gradient(135deg, #8b5cff 0%, #6a43ff 52%, #5430e0 100%)',
+                            borderColor: 'rgba(255, 255, 255, 0.18)',
+                            boxShadow: canBuildBalancedTeams
+                              ? '0 8px 24px rgba(106, 67, 255, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.22)'
+                              : 'none',
                           }}
                           onClick={handleArmarEquipos}
                           disabled={!canBuildBalancedTeams}

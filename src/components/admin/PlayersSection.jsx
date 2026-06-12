@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { PlayerCardTrigger } from '../ProfileComponents';
@@ -18,7 +18,7 @@ import {
 
 const INVITE_ACCEPT_BUTTON_VIOLET = '#644dff';
 const SLOT_SKEW_X = 0;
-const HEADER_ICON_COLOR = '#29aaff';
+const HEADER_ICON_COLOR = '#a78bfa';
 const HEADER_ICON_GLOW = 'none';
 const PLACEHOLDER_NUMBER_STYLE = {
   color: 'transparent',
@@ -258,9 +258,9 @@ const GuestTeamsReadOnlyModal = ({
         key={key}
         className="border p-0 flex items-center gap-1.5 text-white h-12 relative w-full box-border overflow-visible select-none rounded-[4px]"
         style={{
-          backgroundColor: '#07163b',
-          borderColor: 'rgba(41, 170, 255, 0.9)',
-          boxShadow: '0 0 9px rgba(41, 170, 255, 0.24)',
+          backgroundColor: '#1a1438',
+          borderColor: 'rgba(148, 134, 255, 0.55)',
+          boxShadow: '0 0 9px rgba(106, 67, 255, 0.25)',
         }}
       >
         <div className="flex items-center gap-1.5 w-full h-full min-w-0 p-1.5">
@@ -268,10 +268,10 @@ const GuestTeamsReadOnlyModal = ({
             <img
               src={avatarUrl}
               alt={player?.nombre || 'Jugador'}
-              className="w-8 h-8 rounded-full object-cover border border-slate-700 bg-slate-800 shrink-0"
+              className="w-8 h-8 rounded-full object-cover border border-[rgba(148,134,255,0.3)] bg-[#1d1740] shrink-0"
             />
           ) : (
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 border border-slate-700 flex items-center justify-center text-xs font-bold shrink-0 text-white">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#8b5cff] to-[#6a43ff] border border-[rgba(148,134,255,0.3)] flex items-center justify-center text-xs font-bold shrink-0 text-white">
               {getInitials(player?.nombre || 'Jugador')}
             </div>
           )}
@@ -299,8 +299,8 @@ const GuestTeamsReadOnlyModal = ({
           borderWidth: '1.5px',
           borderStyle: 'solid',
           borderColor: '#19d7b6cc',
-          background: '#07163b',
-          boxShadow: '0 0 9px rgba(41, 170, 255, 0.24)',
+          background: '#1a1438',
+          boxShadow: '0 0 9px rgba(106, 67, 255, 0.25)',
         }}
       >
         <div className="w-full h-full flex flex-col items-center justify-center px-2">
@@ -330,7 +330,7 @@ const GuestTeamsReadOnlyModal = ({
           style={{
             borderColor: `${balanceColor}cc`,
             background: 'linear-gradient(180deg, rgba(7,22,59,0.96) 0%, rgba(9,20,58,0.88) 100%)',
-            boxShadow: '0 0 10px rgba(41, 170, 255, 0.16)',
+            boxShadow: '0 0 10px rgba(106, 67, 255, 0.18)',
           }}
         >
           <div className="text-center">
@@ -456,17 +456,16 @@ const PlayersSection = ({
   const activeRosterProgressColor = isTitularesView ? INVITE_ACCEPT_BUTTON_VIOLET : SUBSTITUTES_PROGRESS_COLOR;
   const rosterViewportRows = Math.max(1, Math.ceil(inviteRequiredSlots / 2));
   const rosterViewportMinHeight = (rosterViewportRows * 48) + (Math.max(0, rosterViewportRows - 1) * 16);
-  const matchPrimaryButtonClass = 'w-full font-bebas text-base px-4 py-2.5 border border-[#7d5aff] rounded-[5px] cursor-pointer transition-all text-white min-h-[44px] flex items-center justify-center text-center bg-[#6a43ff] shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:bg-[#7550ff] disabled:opacity-60 disabled:cursor-not-allowed';
-  const matchSecondaryButtonClass = 'w-full font-bebas text-base px-4 py-2.5 border border-[rgba(88,107,170,0.46)] rounded-[5px] cursor-pointer transition-all text-[rgba(242,246,255,0.9)] min-h-[44px] flex items-center justify-center text-center bg-[rgba(23,35,74,0.72)] hover:bg-[rgba(31,45,91,0.82)] disabled:opacity-60 disabled:cursor-not-allowed';
+  const matchPrimaryButtonClass = 'w-full font-bebas font-semibold text-base px-4 py-2.5 border border-white/15 rounded-2xl cursor-pointer transition-all text-white min-h-[44px] flex items-center justify-center text-center bg-cta-gradient shadow-cta hover:brightness-110 disabled:opacity-60 disabled:cursor-not-allowed';
+  const matchSecondaryButtonClass = 'w-full font-bebas font-semibold text-base px-4 py-2.5 border border-[rgba(148,134,255,0.28)] rounded-2xl cursor-pointer transition-all text-white/90 min-h-[44px] flex items-center justify-center text-center bg-white/[0.05] hover:bg-white/[0.1] disabled:opacity-60 disabled:cursor-not-allowed';
+  // Slots sit directly over the app background: no parent panel behind the grid.
   const invitePlayersBlockStyle = {
-    background: 'linear-gradient(180deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.01) 100%)',
     paddingTop: '16px',
     paddingBottom: '24px',
   };
   const inviteSoftCardWrapperStyle = {
-    backgroundColor: '#07163b',
-    border: '1px solid rgba(41, 170, 255, 0.9)',
-    boxShadow: '0 0 10px rgba(41, 170, 255, 0.24)',
+    backgroundColor: '#1a1438',
+    border: '1px solid rgba(148, 134, 255, 0.55)',
     transform: `skewX(-${SLOT_SKEW_X}deg)`,
     backfaceVisibility: 'hidden',
   };
@@ -479,7 +478,7 @@ const PlayersSection = ({
   const inviteSkewCounterStyle = {
     transform: `skewX(${SLOT_SKEW_X}deg)`,
   };
-  const headerActionIconButtonClass = 'h-8 w-8 inline-flex items-center justify-center bg-transparent border-0 p-0 text-[#29aaff]/80 hover:text-[#29aaff] transition-colors disabled:opacity-45 disabled:cursor-not-allowed';
+  const headerActionIconButtonClass = 'h-8 w-8 inline-flex items-center justify-center bg-transparent border-0 p-0 text-[#a78bfa]/80 hover:text-[#a78bfa] transition-colors disabled:opacity-45 disabled:cursor-not-allowed';
   const kebabMenuButtonClass = 'kebab-menu-btn';
 
   useEffect(() => () => {
@@ -890,7 +889,7 @@ const PlayersSection = ({
             return (
               <PlayerCardTrigger key={player.uuid || player.id || `slot-player-${idx}`} profile={player} partidoActual={partidoActual}>
                 <div
-                  className="PlayerCard PlayerCard--soft relative rounded-none h-12 w-full overflow-visible transition-all cursor-pointer hover:brightness-105"
+                  className="PlayerCard PlayerCard--soft relative rounded-none h-12 w-full overflow-visible transition-[filter] duration-150 cursor-pointer hover:brightness-105"
                   style={inviteSoftCardWrapperStyle}
                 >
                   <div
@@ -901,10 +900,10 @@ const PlayersSection = ({
                       <img
                         src={player.foto_url || player.avatar_url}
                         alt={player.nombre}
-                        className="w-8 h-8 rounded-full object-cover border border-slate-700 bg-slate-800 shrink-0"
+                        className="w-8 h-8 rounded-full object-cover border border-[rgba(148,134,255,0.3)] bg-[#1d1740] shrink-0"
                       />
                     ) : (
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 border border-slate-700 flex items-center justify-center text-xs font-bold shrink-0 text-white">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#8b5cff] to-[#6a43ff] border border-[rgba(148,134,255,0.3)] flex items-center justify-center text-xs font-bold shrink-0 text-white">
                         {getInitials(player.nombre)}
                       </div>
                     )}
@@ -940,15 +939,18 @@ const PlayersSection = ({
     </div>
   );
 
+  const votedNameSet = useMemo(() => new Set(
+    (votantesConNombres || [])
+      .map((v) => String(v?.nombre || '').toLowerCase().trim())
+      .filter(Boolean),
+  ), [votantesConNombres]);
+
   const renderPlayerCard = (j) => {
-    const hasVoted = votantesConNombres.some((v) => {
-      if (!v.nombre || !j.nombre) return false;
-      return v.nombre.toLowerCase().trim() === j.nombre.toLowerCase().trim();
-    }) || (votantes && (votantes.includes(j.uuid) || votantes.includes(j.usuario_id)));
+    const hasVoted = (j.nombre && votedNameSet.has(j.nombre.toLowerCase().trim()))
+      || (votantes && (votantes.includes(j.uuid) || votantes.includes(j.usuario_id)));
     const cardStyle = {
-      backgroundColor: '#07163b',
-      border: hasVoted ? '1px solid rgba(78, 196, 255, 0.94)' : '1px solid rgba(41, 170, 255, 0.9)',
-      boxShadow: hasVoted ? '0 0 11px rgba(41, 170, 255, 0.3)' : '0 0 9px rgba(41, 170, 255, 0.24)',
+      backgroundColor: '#1a1438',
+      border: hasVoted ? '1px solid rgba(192, 160, 255, 0.94)' : '1px solid rgba(148, 134, 255, 0.55)',
       transform: `skewX(-${SLOT_SKEW_X}deg)`,
       backfaceVisibility: 'hidden',
     };
@@ -961,7 +963,7 @@ const PlayersSection = ({
         onMakeAdmin={transferirAdmin}
       >
         <div
-          className="relative rounded-none h-12 w-full max-w-[660px] mx-auto overflow-visible transition-all cursor-pointer hover:brightness-105"
+          className="relative rounded-none h-12 w-full max-w-[660px] mx-auto overflow-visible transition-[filter] duration-150 cursor-pointer hover:brightness-105"
           style={cardStyle}
         >
           <div
@@ -972,10 +974,10 @@ const PlayersSection = ({
               <img
                 src={j.foto_url || j.avatar_url}
                 alt={j.nombre}
-                className="w-8 h-8 rounded-full object-cover border border-slate-700 bg-slate-800 shrink-0"
+                className="w-8 h-8 rounded-full object-cover border border-[rgba(148,134,255,0.3)] bg-[#1d1740] shrink-0"
               />
             ) : (
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 border border-slate-700 flex items-center justify-center text-xs font-bold shrink-0 text-white">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#8b5cff] to-[#6a43ff] border border-[rgba(148,134,255,0.3)] flex items-center justify-center text-xs font-bold shrink-0 text-white">
                 {getInitials(j.nombre)}
               </div>
             )}
@@ -1028,7 +1030,7 @@ const PlayersSection = ({
         onMakeAdmin={transferirAdmin}
       >
         <div
-          className="relative rounded-none h-12 w-full max-w-[660px] mx-auto overflow-visible transition-all cursor-pointer hover:brightness-105"
+          className="relative rounded-none h-12 w-full max-w-[660px] mx-auto overflow-visible transition-[filter] duration-150 cursor-pointer hover:brightness-105"
           style={{
             ...SUBSTITUTES_CARD_STYLE,
             transform: `skewX(-${SLOT_SKEW_X}deg)`,
@@ -1059,7 +1061,7 @@ const PlayersSection = ({
               <img
                 src={player.foto_url || player.avatar_url}
                 alt={player.nombre}
-                className="w-8 h-8 rounded-full object-cover border border-slate-700 bg-slate-800 shrink-0"
+                className="w-8 h-8 rounded-full object-cover border border-[rgba(148,134,255,0.3)] bg-[#1d1740] shrink-0"
               />
             ) : (
               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 border border-slate-700 flex items-center justify-center text-xs font-bold shrink-0 text-white">
@@ -1512,14 +1514,14 @@ const PlayersSection = ({
               {jugadores.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-8 gap-4 w-full">
                   <button
-                    className="w-full max-w-xs h-14 rounded-xl bg-[#128BE9] text-white font-oswald text-[18px] font-semibold tracking-[0.01em] shadow-[0_4px_14px_rgba(18,139,233,0.3)] hover:brightness-110 active:scale-95 transition-all"
+                    className="w-full max-w-xs h-14 rounded-2xl bg-cta-gradient text-white font-oswald text-[18px] font-semibold tracking-[0.01em] shadow-cta hover:brightness-110 active:scale-95 transition-all"
                     type="button"
                     onClick={() => setShowInviteModal(true)}
                   >
                     Invitar
                   </button>
                   <button
-                    className="w-full max-w-xs h-14 rounded-xl bg-slate-800 text-white font-oswald text-[18px] font-semibold tracking-[0.01em] border border-white/20 hover:bg-slate-700 active:scale-95 transition-all"
+                    className="w-full max-w-xs h-14 rounded-2xl bg-white/[0.06] text-white font-oswald text-[18px] font-semibold tracking-[0.01em] border border-[rgba(148,134,255,0.28)] hover:bg-white/[0.1] active:scale-95 transition-all"
                     type="button"
                     onClick={() => {
                       document.querySelector('input[placeholder="Agregar jugador manualmente"]')?.focus();

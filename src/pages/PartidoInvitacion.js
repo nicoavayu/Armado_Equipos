@@ -504,9 +504,9 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
     paddingBottom: '24px',
   };
   const softCardWrapperStyle = {
-    backgroundColor: '#07163b',
-    border: '1px solid rgba(41, 170, 255, 0.9)',
-    boxShadow: '0 0 10px rgba(41, 170, 255, 0.24)',
+    backgroundColor: '#181231',
+    border: '1px solid rgba(148, 134, 255, 0.46)',
+    boxShadow: '0 0 10px rgba(122, 82, 255, 0.18)',
     transform: `skewX(-${skewX}deg)`,
     backfaceVisibility: 'hidden',
   };
@@ -738,11 +738,11 @@ function SharedInviteLayout({
   const isPendingSync = joinStatus === 'approved_pending_sync';
   const isSending = submitting && joinStatus === 'none';
   const isCancelling = joinCancelling && isPending;
-  const matchPrimaryButtonClass = 'w-full font-bebas text-base px-4 py-2.5 border border-[#7d5aff] rounded-[5px] cursor-pointer transition-all text-white min-h-[44px] flex items-center justify-center text-center bg-[#6a43ff] shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:bg-[#7550ff] disabled:opacity-60 disabled:cursor-not-allowed';
-  const matchSecondaryButtonClass = 'w-full font-bebas text-base px-4 py-2.5 border border-[rgba(88,107,170,0.46)] rounded-[5px] cursor-pointer transition-all text-[rgba(242,246,255,0.9)] min-h-[44px] flex items-center justify-center text-center bg-[rgba(23,35,74,0.72)] hover:bg-[rgba(31,45,91,0.82)] disabled:opacity-60 disabled:cursor-not-allowed';
-  const publicCtaBaseClass = 'w-full font-bebas text-base px-4 py-2.5 border rounded-[5px] transition-all min-h-[44px] flex items-center justify-center text-center disabled:opacity-100';
+  const matchPrimaryButtonClass = 'w-full font-bebas text-[17px] tracking-[0.04em] px-4 py-2.5 border border-white/20 rounded-xl cursor-pointer transition-all duration-200 text-white min-h-[50px] flex items-center justify-center text-center bg-cta-gradient shadow-cta hover:brightness-105 active:scale-[0.985] disabled:opacity-60 disabled:cursor-not-allowed';
+  const matchSecondaryButtonClass = 'w-full font-bebas text-[17px] tracking-[0.04em] px-4 py-2.5 border border-[rgba(148,134,255,0.24)] rounded-xl cursor-pointer transition-all duration-200 text-[rgba(242,246,255,0.92)] min-h-[50px] flex items-center justify-center text-center bg-[linear-gradient(165deg,rgba(48,38,98,0.6),rgba(20,16,41,0.9))] shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_4px_14px_rgba(5,3,16,0.4)] hover:border-[rgba(148,134,255,0.45)] hover:bg-[linear-gradient(165deg,rgba(56,45,114,0.66),rgba(24,19,49,0.92))] active:scale-[0.985] disabled:opacity-60 disabled:cursor-not-allowed';
+  const publicCtaBaseClass = 'w-full font-bebas text-[17px] tracking-[0.04em] px-4 py-2.5 border rounded-xl transition-all duration-200 min-h-[50px] flex items-center justify-center text-center active:scale-[0.985] disabled:opacity-100 disabled:active:scale-100';
   const publicCtaStateClass = joinStatus === 'checking'
-    ? 'border-[rgba(88,107,170,0.46)] bg-[rgba(23,35,74,0.72)] text-[rgba(242,246,255,0.9)] cursor-wait'
+    ? 'border-[rgba(148,134,255,0.24)] bg-[linear-gradient(165deg,rgba(48,38,98,0.6),rgba(20,16,41,0.9))] text-[rgba(242,246,255,0.9)] cursor-wait'
     : isMatchFull
       ? 'border-[rgba(245,158,11,0.62)] bg-[rgba(146,64,14,0.74)] text-[#fff8eb] cursor-not-allowed'
       : isPendingSync
@@ -751,7 +751,7 @@ function SharedInviteLayout({
           ? 'border-[rgba(248,113,113,0.52)] bg-[rgba(127,29,29,0.84)] text-white hover:bg-[rgba(153,27,27,0.9)] shadow-[0_0_14px_rgba(248,113,113,0.14)]'
           : isApproved
             ? 'border-[rgba(125,90,255,0.52)] bg-[rgba(100,77,255,0.38)] text-white/85 cursor-not-allowed'
-          : 'border-[#7d5aff] bg-[#6a43ff] text-white hover:bg-[#7550ff] shadow-[0_0_14px_rgba(106,67,255,0.3)]';
+          : 'border-white/20 bg-cta-gradient text-white shadow-cta hover:brightness-105';
 
   const renderJoinedBlock = () => (
     <div className="flex flex-col gap-2 w-full">

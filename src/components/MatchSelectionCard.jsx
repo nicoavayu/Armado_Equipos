@@ -51,7 +51,7 @@ const INVITE_STATUS_META = {
     },
     roster_full: {
         label: 'Sin cupos',
-        tone: 'bg-slate-900 text-slate-300 border border-slate-700',
+        tone: 'bg-[rgba(20,16,41,0.85)] text-white/65 border border-[rgba(148,134,255,0.2)]',
         helper: 'La nómina del partido ya está completa.',
     },
 };
@@ -99,10 +99,10 @@ const MatchSelectionCard = ({
     return (
         <div
             onClick={onSelect}
-            className={`relative bg-[#1e293b]/92 backdrop-blur-sm rounded-none p-4 min-h-[140px] border transition-all duration-200 cursor-pointer shadow-[0_10px_24px_rgba(0,0,0,0.28)]
+            className={`relative bg-[linear-gradient(165deg,rgba(48,38,98,0.7),rgba(20,16,41,0.94))] rounded-card p-4 min-h-[140px] border transition-all duration-200 cursor-pointer shadow-elev-1
                 ${isSelected
-                    ? 'border-[#29aaff] ring-1 ring-[#29aaff]/55'
-                    : `${isComplete || isInviteBlocked ? 'border-slate-700/70 opacity-85' : 'border-[rgba(88,107,170,0.46)] hover:brightness-[1.03] hover:border-[#4a7ed6]'}`
+                    ? 'border-[#ec007d]/80 ring-1 ring-[#ec007d]/45'
+                    : `${isComplete || isInviteBlocked ? 'border-white/[0.08] opacity-85' : 'border-[rgba(148,134,255,0.2)] hover:brightness-[1.03] hover:border-[rgba(148,134,255,0.45)]'}`
                 }
                 ${isInviteBlocked && !isSelected ? 'active:scale-100' : 'active:scale-[0.99]'}`}
         >
@@ -113,16 +113,16 @@ const MatchSelectionCard = ({
                     <span className="font-semibold">{dateLabel}{timeLabel ? ` • ${timeLabel}` : ''}</span>
                 </div>
                 <div className="flex flex-col items-end gap-1.5">
-                    <div className={`shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-none text-[11px] font-semibold
+                    <div className={`shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold
                         ${isComplete
-                            ? 'bg-slate-900 text-slate-300 border border-slate-700'
-                            : 'bg-[#165a2e] text-[#22c55e] border border-[#22c55e]'
+                            ? 'bg-[rgba(20,16,41,0.85)] text-white/65 border border-[rgba(148,134,255,0.2)]'
+                            : 'bg-[rgba(34,197,94,0.16)] text-[#4ade80] border border-[rgba(34,197,94,0.5)]'
                         }`}>
                         <Users size={12} className={isComplete ? 'opacity-55' : 'opacity-90'} />
                         {jugadoresCount}/{cupoMaximo}
                     </div>
                     {inviteStatusMeta ? (
-                        <div className={`shrink-0 px-2.5 py-1 rounded-none text-[10px] font-semibold tracking-[0.02em] ${inviteStatusMeta.tone}`}>
+                        <div className={`shrink-0 px-2.5 py-1 rounded-full text-[10px] font-semibold tracking-[0.02em] ${inviteStatusMeta.tone}`}>
                             {inviteStatusMeta.label}
                         </div>
                     ) : null}
@@ -134,16 +134,16 @@ const MatchSelectionCard = ({
             </h4>
 
             <div className="flex flex-wrap items-center gap-2">
-                <span className={`font-oswald text-[11px] font-semibold px-2.5 py-1 rounded-none whitespace-nowrap ${getOriginClass(originBadgeLabel)}`}>
+                <span className={`font-oswald text-[11px] font-semibold px-2.5 py-1 rounded-2xl whitespace-nowrap ${getOriginClass(originBadgeLabel)}`}>
                     {originBadgeLabel}
                 </span>
-                <span className={`font-oswald text-[11px] font-semibold px-2.5 py-1 rounded-none whitespace-nowrap ${getModalidadClass(modalidadLabel)}`}>
+                <span className={`font-oswald text-[11px] font-semibold px-2.5 py-1 rounded-2xl whitespace-nowrap ${getModalidadClass(modalidadLabel)}`}>
                     {modalidadLabel}
                 </span>
-                <span className={`font-oswald text-[11px] font-semibold px-2.5 py-1 rounded-none whitespace-nowrap ${getGeneroClass(tipoLabel)}`}>
+                <span className={`font-oswald text-[11px] font-semibold px-2.5 py-1 rounded-2xl whitespace-nowrap ${getGeneroClass(tipoLabel)}`}>
                     {tipoLabel}
                 </span>
-                <span className="font-oswald text-[11px] font-semibold text-slate-200 px-2.5 py-1 rounded-none border border-slate-700 bg-slate-900 whitespace-nowrap">
+                <span className="chip-pill font-oswald text-white/80">
                     {precioLabel}
                 </span>
             </div>

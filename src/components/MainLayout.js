@@ -11,7 +11,7 @@ const MainLayout = () => {
     && (searchParams.has('codigo') || searchParams.has('partidoId'));
   const mainPaddingBottomClass = isVotingShellRoute
     ? 'pb-[env(safe-area-inset-bottom)] md:pb-[env(safe-area-inset-bottom)]'
-    : 'pb-[96px] md:pb-[104px]';
+    : 'pb-[104px] md:pb-[112px]';
   const mainPaddingTopClass = 'pt-[var(--safe-top,0px)]';
 
   // Determine active tab based on current route

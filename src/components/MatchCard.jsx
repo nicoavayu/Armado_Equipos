@@ -10,32 +10,32 @@ const normalizeToken = (value) => String(value || '')
 
 const getModalidadClass = (modalidad) => {
     const raw = normalizeToken(modalidad);
-    if (!raw) return 'bg-[#0f2f23] border-2 border-[#22c55e] text-[#dcfce7]';
+    if (!raw) return 'border-[#22c55e]/45 bg-[#22c55e]/10 text-[#86efac]';
 
-    if (raw.includes('11')) return 'bg-[#1a2450] border-2 border-[#818cf8] text-[#e0e7ff]';
-    if (raw.includes('9')) return 'bg-[#0f3b42] border-2 border-[#22d3ee] text-[#cffafe]';
-    if (raw.includes('8')) return 'bg-[#4a1a30] border-2 border-[#f43f5e] text-[#ffe4e6]';
-    if (raw.includes('7')) return 'bg-[#321d5a] border-2 border-[#a78bfa] text-[#ede9fe]';
-    if (raw.includes('6')) return 'bg-[#1b2f55] border-2 border-[#60a5fa] text-[#dbeafe]';
-    if (raw.includes('5')) return 'bg-[#0f2f23] border-2 border-[#22c55e] text-[#dcfce7]';
+    if (raw.includes('11')) return 'border-[#818cf8]/45 bg-[#818cf8]/10 text-[#c7d2fe]';
+    if (raw.includes('9')) return 'border-[#22d3ee]/45 bg-[#22d3ee]/10 text-[#a5f3fc]';
+    if (raw.includes('8')) return 'border-[#f43f5e]/45 bg-[#f43f5e]/10 text-[#fda4af]';
+    if (raw.includes('7')) return 'border-[#a78bfa]/45 bg-[#a78bfa]/10 text-[#ddd6fe]';
+    if (raw.includes('6')) return 'border-[#60a5fa]/45 bg-[#60a5fa]/10 text-[#bfdbfe]';
+    if (raw.includes('5')) return 'border-[#22c55e]/45 bg-[#22c55e]/10 text-[#86efac]';
 
-    return 'bg-slate-700 border-2 border-slate-500 text-white';
+    return 'border-slate-400/40 bg-slate-500/15 text-slate-200';
 };
 
 const getGeneroClass = (tipo) => {
-    if (!tipo) return 'bg-[#14344a] border-2 border-[#38bdf8] text-[#dbeafe]';
+    if (!tipo) return 'border-[#38bdf8]/45 bg-[#38bdf8]/10 text-[#bae6fd]';
     const tipoLower = normalizeToken(tipo);
-    if (tipoLower.includes('masculino')) return 'bg-[#14344a] border-2 border-[#38bdf8] text-[#dbeafe]';
-    if (tipoLower.includes('femenino')) return 'bg-[#4a1538] border-2 border-[#f472b6] text-[#fce7f3]';
-    if (tipoLower.includes('mixto')) return 'bg-[#213448] border-2 border-[#2dd4bf] text-[#ccfbf1]';
-    return 'bg-slate-700 border-2 border-slate-500 text-white';
+    if (tipoLower.includes('masculino')) return 'border-[#38bdf8]/45 bg-[#38bdf8]/10 text-[#bae6fd]';
+    if (tipoLower.includes('femenino')) return 'border-[#f472b6]/45 bg-[#f472b6]/10 text-[#fbcfe8]';
+    if (tipoLower.includes('mixto')) return 'border-[#2dd4bf]/45 bg-[#2dd4bf]/10 text-[#99f6e4]';
+    return 'border-slate-400/40 bg-slate-500/15 text-slate-200';
 };
 
 const getOriginClass = (originLabel) => {
     const value = normalizeToken(originLabel);
-    if (value.includes('desafio')) return 'bg-[#2b1d52] border-2 border-[#c084fc] text-[#f3e8ff]';
-    if (value.includes('amistoso')) return 'bg-[#3b3112] border-2 border-[#facc15] text-[#fef08a]';
-    return 'bg-[#334155] border-2 border-[#64748B] text-white';
+    if (value.includes('desafio')) return 'border-[#ec007d]/50 bg-[#ec007d]/12 text-[#ffb1d8]';
+    if (value.includes('amistoso')) return 'border-[#facc15]/40 bg-[#facc15]/10 text-[#fde68a]';
+    return 'border-slate-400/40 bg-slate-500/15 text-slate-200';
 };
 
 const MatchCard = ({
@@ -93,8 +93,11 @@ const MatchCard = ({
         : (hasChallengeOrigin ? 'Desafio' : 'Amistoso');
     const isChallengeCard = String(originBadgeLabel || '').toLowerCase().includes('desafio');
     const cardToneClass = isChallengeCard
-        ? 'bg-[#262e44]/94 border-[#4b5563]'
-        : 'bg-[#1e293b]/92 border-[#334155]';
+        ? 'bg-[radial-gradient(360px_180px_at_12%_-30%,rgba(236,0,125,0.14),transparent_70%),linear-gradient(165deg,rgba(56,44,116,0.82),rgba(22,17,46,0.95))]'
+        : 'bg-[radial-gradient(360px_180px_at_12%_-30%,rgba(139,92,255,0.18),transparent_70%),linear-gradient(165deg,rgba(48,38,98,0.72),rgba(20,16,41,0.94))]';
+    const accentEdgeClass = isChallengeCard
+        ? 'before:bg-[linear-gradient(180deg,#ec007d,rgba(236,0,125,0.1))]'
+        : 'before:bg-[linear-gradient(180deg,#8b5cff,rgba(139,92,255,0.08))]';
     const generoLabel = useTeamMatchPresentation
         ? (partido?.genero_partido || 'Masculino')
         : (partido?.tipo_partido || 'Masculino');
@@ -109,31 +112,41 @@ const MatchCard = ({
     return (
         <div
             onClick={onSelect}
-            className={`relative ${cardToneClass} backdrop-blur-sm rounded-none p-5 mb-3 min-h-[150px] border transition-all duration-200 shadow-[0_10px_24px_rgba(0,0,0,0.28)] sm:p-4 cursor-pointer
-      ${isFinished ? 'border-slate-700/70' : 'border-[rgba(88,107,170,0.46)]'}
-      ${isSelected ? 'border-[#29aaff] ring-1 ring-[#29aaff]/55' : 'hover:brightness-[1.03] hover:border-[#4a7ed6]'}
-      ${primaryAction ? '' : 'active:scale-95'}
+            className={`relative ${cardToneClass} rounded-card p-4 pl-5 mb-3 border overflow-hidden transition-all duration-200 shadow-elev-2 sm:p-3.5 sm:pl-4 cursor-pointer
+      before:content-[''] before:absolute before:left-0 before:top-0 before:bottom-0 before:w-[3px] ${accentEdgeClass}
+      ${isFinished ? 'border-white/[0.06] before:opacity-40' : 'border-[rgba(148,134,255,0.16)]'}
+      ${isSelected ? 'border-[#ec007d]/80 ring-1 ring-[#ec007d]/45' : 'hover:brightness-[1.05] hover:border-[rgba(148,134,255,0.42)] hover:shadow-[0_12px_32px_rgba(5,3,16,0.5),0_0_20px_rgba(106,67,255,0.16)]'}
+      ${primaryAction ? '' : 'active:scale-[0.985]'}
     `}
         >
             {/* Header: Fecha/Hora a la izquierda, Admin Badge a la derecha */}
             <div className="flex justify-between items-start mb-3">
-                    <div className={`flex items-center gap-2 ${isFinished ? 'opacity-70' : ''}`}>
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="20" height="20" fill="currentColor">
-                        <path d="M224 64C206.3 64 192 78.3 192 96L192 128L160 128C124.7 128 96 156.7 96 192L96 240L544 240L544 192C544 156.7 515.3 128 480 128L448 128L448 96C448 78.3 433.7 64 416 64C398.3 64 384 78.3 384 96L384 128L256 128L256 96C256 78.3 241.7 64 224 64zM96 288L96 480C96 515.3 124.7 544 160 544L480 544C515.3 544 544 515.3 544 480L544 288L96 288z" />
-                    </svg>
-                    <div className="font-oswald text-[18px] font-bold text-white capitalize">
-                        {dateLabel}{timeLabel ? ` • ${timeLabel}` : ''}
+                    <div className={`flex items-center gap-2.5 ${isFinished ? 'opacity-70' : ''}`}>
+                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-[10px] bg-[linear-gradient(140deg,rgba(139,92,255,0.3),rgba(106,67,255,0.08))] border border-[rgba(148,134,255,0.32)] shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="14" height="14" fill="#cfc4ff">
+                            <path d="M224 64C206.3 64 192 78.3 192 96L192 128L160 128C124.7 128 96 156.7 96 192L96 240L544 240L544 192C544 156.7 515.3 128 480 128L448 128L448 96C448 78.3 433.7 64 416 64C398.3 64 384 78.3 384 96L384 128L256 128L256 96C256 78.3 241.7 64 224 64zM96 288L96 480C96 515.3 124.7 544 160 544L480 544C515.3 544 544 515.3 544 480L544 288L96 288z" />
+                        </svg>
+                    </span>
+                    <div className="min-w-0">
+                        <div className="font-oswald text-[14px] font-bold text-white capitalize tracking-[0.01em] leading-tight">
+                            {dateLabel}
+                        </div>
+                        {timeLabel ? (
+                            <div className="font-sans text-[11px] font-semibold text-[#b0a0ff]/85 leading-tight mt-px">
+                                {timeLabel} hs
+                            </div>
+                        ) : null}
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
                     {isFinished ? (
-                        <div className="bg-[#4CAF50] text-white px-2 py-1 rounded-none text-[11px] font-semibold whitespace-nowrap flex items-center gap-1 shadow-sm">
+                        <div className="border border-[#22c55e]/45 bg-[#22c55e]/12 text-[#86efac] px-2.5 py-1 rounded-full text-[11px] font-bold whitespace-nowrap flex items-center gap-1">
                             ✓ Finalizado
                         </div>
                     ) : userRole === 'admin' ? (
-                        <div className="flex items-center gap-1 bg-slate-700 px-2 py-1 rounded-none text-[10px] font-semibold shrink-0 border border-[#0EA9C6]">
-                            <FaCrown size={10} color="#0EA9C6" style={{ marginRight: '1px' }} />
-                            <span className="font-semibold uppercase text-[#0EA9C6]">Admin</span>
+                        <div className="flex items-center gap-1 bg-[#0EA9C6]/10 px-2.5 py-1 rounded-full text-[10px] font-bold shrink-0 border border-[#0EA9C6]/50">
+                            <FaCrown size={10} color="#2fc5e2" style={{ marginRight: '1px' }} />
+                            <span className="font-bold uppercase tracking-[0.06em] text-[#7fdef0]">Admin</span>
                         </div>
                     ) : null}
 
@@ -200,24 +213,24 @@ const MatchCard = ({
             </div>
 
             {/* Tipo, Modalidad, Precio y Jugadores */}
-            <div className="flex flex-wrap items-center gap-2 mb-3">
+            <div className="flex flex-wrap items-center gap-1.5 mb-3">
                 {originBadgeLabel ? (
-                    <div className={`font-oswald text-[11px] font-semibold px-2.5 py-1.5 rounded-none shrink-0 whitespace-nowrap ${getOriginClass(originBadgeLabel)} ${isFinished ? 'opacity-70' : ''}`}>
+                    <div className={`font-sans text-[11px] font-bold px-2.5 py-[3px] rounded-full border shrink-0 whitespace-nowrap ${getOriginClass(originBadgeLabel)} ${isFinished ? 'opacity-70' : ''}`}>
                         {originBadgeLabel}
                     </div>
                 ) : null}
-                <div className={`font-oswald text-[11px] font-semibold px-2.5 py-1.5 rounded-none shrink-0 whitespace-nowrap ${getModalidadClass(partido.modalidad)} ${isFinished ? 'opacity-70' : ''}`}>
+                <div className={`font-sans text-[11px] font-bold px-2.5 py-[3px] rounded-full border shrink-0 whitespace-nowrap ${getModalidadClass(partido.modalidad)} ${isFinished ? 'opacity-70' : ''}`}>
                     {partido.modalidad || 'F5'}
                 </div>
-                <div className={`font-oswald text-[11px] font-semibold px-2.5 py-1.5 rounded-none shrink-0 whitespace-nowrap ${getGeneroClass(generoLabel)} ${isFinished ? 'opacity-70' : ''}`}>
+                <div className={`font-sans text-[11px] font-bold px-2.5 py-[3px] rounded-full border shrink-0 whitespace-nowrap ${getGeneroClass(generoLabel)} ${isFinished ? 'opacity-70' : ''}`}>
                     {generoLabel}
                 </div>
-                <div className={`font-oswald text-[11px] font-semibold text-slate-200 px-2.5 py-1.5 rounded-none border border-slate-700 bg-slate-900 shrink-0 whitespace-nowrap ${isFinished ? 'opacity-70' : ''}`}>
+                <div className={`font-sans text-[11px] font-semibold text-white/70 px-2.5 py-[3px] rounded-full border border-white/[0.12] bg-[#0c0a1d]/80 shrink-0 whitespace-nowrap ${isFinished ? 'opacity-70' : ''}`}>
                     {precioLabel}
                 </div>
-                <div className={`px-2.5 py-1.5 rounded-none text-[11px] font-semibold shrink-0 whitespace-nowrap ${!isTeamMatch && isComplete
-                        ? 'bg-[#165a2e] text-[#22c55e] border border-[#22c55e]'
-                        : 'bg-slate-900 text-slate-300 border border-slate-700'
+                <div className={`px-2.5 py-[3px] rounded-full text-[11px] font-bold shrink-0 whitespace-nowrap border ${!isTeamMatch && isComplete
+                        ? 'border-[#22c55e]/50 bg-[#22c55e]/12 text-[#86efac]'
+                        : 'border-white/[0.12] bg-[#0c0a1d]/80 text-white/70'
                         } ${isFinished ? 'opacity-70' : ''}`}>
                     <span className="inline-flex items-center gap-1">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="12" height="12" fill="currentColor">
@@ -227,7 +240,7 @@ const MatchCard = ({
                     </span>
                 </div>
                 {!useTeamMatchPresentation && substitutesCount > 0 ? (
-                    <div className={`px-2.5 py-1.5 rounded-none text-[11px] font-semibold shrink-0 whitespace-nowrap border border-amber-400/30 bg-amber-500/10 text-amber-300 ${isFinished ? 'opacity-70' : ''}`}>
+                    <div className={`px-2.5 py-[3px] rounded-full text-[11px] font-bold shrink-0 whitespace-nowrap border border-amber-400/35 bg-amber-500/10 text-amber-300 ${isFinished ? 'opacity-70' : ''}`}>
                         <span className="inline-flex items-center gap-1">
                             <UserRoundPlus size={12} />
                             {substitutesCount}/{MAX_SUBSTITUTE_SLOTS}
@@ -237,23 +250,23 @@ const MatchCard = ({
             </div>
 
             {useTeamMatchPresentation && teamsLabel ? (
-                <div className={`font-oswald text-sm font-medium text-white/85 mb-3 ${isFinished ? 'opacity-70' : ''}`}>
+                <div className={`font-oswald text-[14px] font-bold text-white/90 mb-2.5 ${isFinished ? 'opacity-70' : ''}`}>
                     {teamsLabel}
                 </div>
             ) : null}
 
             {/* Ubicación */}
-            <div className={`font-oswald text-sm font-medium text-white/90 flex items-center gap-2 ${primaryAction ? 'mb-5' : ''} overflow-hidden text-ellipsis ${isFinished ? 'opacity-70' : ''}`}>
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" width="16" height="16" fill="rgba(255, 255, 255, 0.9)">
+            <div className={`font-sans text-[12.5px] font-medium text-white/65 flex items-center gap-1.5 ${primaryAction ? 'mb-4' : ''} overflow-hidden text-ellipsis ${isFinished ? 'opacity-70' : ''}`}>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" width="13" height="13" fill="#cfc4ff">
                     <path d="M0 188.6C0 84.4 86 0 192 0S384 84.4 384 188.6c0 119.3-120.2 262.3-170.4 316.8-11.8 12.8-31.5 12.8-43.3 0-50.2-54.5-170.4-197.5-170.4-316.8zM192 256a64 64 0 1 0 0-128 64 64 0 1 0 0 128z" />
                 </svg>
                 <span className="truncate">{useTeamMatchPresentation ? (partido.sede || 'A coordinar') : partido.sede?.split(',')[0]}</span>
             </div>
 
             {primaryAction && (
-                <div className="flex gap-3 mt-4">
+                <div className="flex gap-3 mt-3">
                     <button
-                        className={`flex-1 font-bebas text-base px-4 py-2.5 border border-transparent rounded-none cursor-pointer transition-all text-white min-h-[44px] flex items-center justify-center text-center sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px] ${primaryAction.disabled ? 'bg-slate-700 text-slate-300 cursor-not-allowed border-slate-600' : primaryAction.className || 'bg-primary shadow-lg hover:brightness-110'} disabled:opacity-60`}
+                        className={`flex-1 font-bebas font-semibold text-[15px] px-4 py-2 border border-transparent rounded-2xl cursor-pointer transition-all text-white min-h-[42px] flex items-center justify-center text-center sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[38px] ${primaryAction.disabled ? 'bg-[#1d1740] text-white/40 cursor-not-allowed border-white/10' : primaryAction.className || 'bg-cta-gradient shadow-cta hover:brightness-110'} disabled:opacity-60`}
                         onClick={(e) => {
                             e.stopPropagation();
                             if (primaryAction.disabled) return;

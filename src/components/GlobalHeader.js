@@ -29,9 +29,9 @@ const GlobalHeader = ({ _onProfileClick }) => {
   // Si no hay usuario, mostrar solo el título
   if (!user) {
     return (
-      <div className="fixed top-0 left-0 right-0 z-[1000] flex items-center justify-between min-h-[70px] w-screen px-2 pt-4 bg-white/25 backdrop-blur-md shadow-sm">
+      <div className="fixed top-0 left-0 right-0 z-[1000] flex items-center justify-between min-h-[64px] w-screen px-4 pt-4 bg-[#120e28]/95 backdrop-blur-md border-b border-[rgba(148,134,255,0.14)] shadow-[0_10px_28px_rgba(5,3,16,0.45)]">
         <div className="flex items-center justify-center transform -translate-y-[5px] relative cursor-pointer pointer-events-auto">
-          <div className="text-white font-oswald text-sm ml-px opacity-90 shadow-sm text-shadow-sm">Team Balancer</div>
+          <div className="text-white font-oswald text-sm ml-px font-semibold tracking-[0.08em] uppercase opacity-90">Team Balancer</div>
         </div>
       </div>
     );
@@ -73,53 +73,60 @@ const GlobalHeader = ({ _onProfileClick }) => {
   };
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-[1000] flex items-center justify-between min-h-[70px] w-screen px-2 pt-4 bg-white/25 backdrop-blur-md shadow-sm md:px-4">
+    <div className="fixed top-0 left-0 right-0 z-[1000] flex items-center justify-between min-h-[64px] w-screen px-4 pt-4 bg-[#120e28]/95 backdrop-blur-md border-b border-[rgba(148,134,255,0.14)] shadow-[0_10px_28px_rgba(5,3,16,0.45)]">
       {/* Left side - Avatar with status, greeting, name and status text */}
       <div className="flex flex-row items-center justify-center pointer-events-auto cursor-pointer transform -translate-y-[5px] relative" ref={statusDropdownRef}>
-        <div className="relative ml-2 mr-4" onClick={toggleStatusDropdown}>
-          <div className="w-10 h-10 rounded-full overflow-hidden bg-white/20 flex items-center justify-center text-white font-bold text-base">
-            {profile?.avatar_url ? (
-              <img
-                src={profile.avatar_url}
-                alt="Profile"
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div>
-                {getInitial()}
-              </div>
-            )}
+        <div className="relative ml-0.5 mr-3" onClick={toggleStatusDropdown}>
+          <div className="rounded-full p-[2px] bg-[linear-gradient(140deg,rgba(139,92,255,0.7),rgba(106,67,255,0.2))]">
+            <div className="w-9 h-9 rounded-full overflow-hidden bg-[#1d1740] flex items-center justify-center text-white font-bold text-sm">
+              {profile?.avatar_url ? (
+                <img
+                  src={profile.avatar_url}
+                  alt="Profile"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div>
+                  {getInitial()}
+                </div>
+              )}
+            </div>
           </div>
-          <div className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white/80 ${isAvailable ? 'bg-green-500' : 'bg-red-500'}`}></div>
+          <div className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-[#120e28] ${isAvailable ? 'bg-green-500' : 'bg-red-500'}`}></div>
         </div>
 
         <div className="flex flex-col" onClick={toggleStatusDropdown}>
-          <div className="flex items-baseline">
-            <div className="text-white font-oswald text-sm mr-1.5 opacity-90 shadow-sm text-shadow-sm">Hola,</div>
-            <div className="text-white font-oswald text-lg font-semibold shadow-sm text-shadow-sm">{truncatedName}</div>
+          <div className="text-[10px] font-sans font-bold uppercase tracking-[0.14em] text-[#b0a0ff]/80 leading-none">Hola</div>
+          <div className="flex items-center gap-2 mt-0.5">
+            <div className="text-white font-oswald text-base font-bold tracking-[0.01em] leading-tight">{truncatedName}</div>
+            <span className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-px text-[10px] font-semibold leading-tight ${isAvailable ? 'border-green-400/30 bg-green-400/10 text-green-300' : 'border-red-400/30 bg-red-400/10 text-red-300'}`}>
+              <span className={`h-1.5 w-1.5 rounded-full ${isAvailable ? 'bg-green-400' : 'bg-red-400'}`} />
+              {statusText}
+            </span>
           </div>
-          <div className={`font-oswald text-xs mt-0.5 shadow-sm text-shadow-sm ${isAvailable ? 'text-green-500' : 'text-red-500'}`}>{statusText}</div>
         </div>
 
         {/* Status dropdown */}
         {showStatusDropdown && (
-          <div className="absolute top-[60px] left-0 bg-black/70 rounded-xl w-[180px] z-[1000] overflow-hidden shadow-lg backdrop-blur-sm">
-            <div className="px-4 py-2.5 font-semibold text-white border-b border-white/20 font-oswald">
-              Status
+          <div className="absolute top-[56px] left-0 bg-[#141029]/97 border border-[rgba(148,134,255,0.25)] rounded-2xl w-[200px] z-[1000] overflow-hidden shadow-elev-3 backdrop-blur-xl">
+            <div className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.12em] text-[#b0a0ff]/85 border-b border-white/[0.08] font-sans">
+              Estado
             </div>
-            <div
-              className={`flex items-center px-4 py-2.5 cursor-pointer transition-colors text-white hover:bg-white/10 ${isAvailable ? 'bg-white/20' : ''}`}
-              onClick={() => updateAvailabilityStatus(true)}
-            >
-              <div className="w-2.5 h-2.5 rounded-full mr-2.5 bg-green-500"></div>
-              <span>Available</span>
-            </div>
-            <div
-              className={`flex items-center px-4 py-2.5 cursor-pointer transition-colors text-white hover:bg-white/10 ${!isAvailable ? 'bg-white/20' : ''}`}
-              onClick={() => updateAvailabilityStatus(false)}
-            >
-              <div className="w-2.5 h-2.5 rounded-full mr-2.5 bg-red-500"></div>
-              <span>Unavailable</span>
+            <div className="p-1.5 space-y-1">
+              <div
+                className={`flex items-center px-3 py-2.5 text-sm rounded-xl cursor-pointer transition-colors text-white border ${isAvailable ? 'bg-[#6a43ff]/25 border-[rgba(148,134,255,0.4)]' : 'border-transparent hover:bg-white/[0.07]'}`}
+                onClick={() => updateAvailabilityStatus(true)}
+              >
+                <div className="w-2.5 h-2.5 rounded-full mr-2.5 bg-green-400"></div>
+                <span>Disponible</span>
+              </div>
+              <div
+                className={`flex items-center px-3 py-2.5 text-sm rounded-xl cursor-pointer transition-colors text-white border ${!isAvailable ? 'bg-[#6a43ff]/25 border-[rgba(148,134,255,0.4)]' : 'border-transparent hover:bg-white/[0.07]'}`}
+                onClick={() => updateAvailabilityStatus(false)}
+              >
+                <div className="w-2.5 h-2.5 rounded-full mr-2.5 bg-red-400"></div>
+                <span>No disponible</span>
+              </div>
             </div>
           </div>
         )}

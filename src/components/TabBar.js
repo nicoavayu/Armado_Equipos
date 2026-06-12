@@ -15,6 +15,28 @@ import {
 } from 'react-icons/io5';
 import { prefetchRoute } from '../utils/routePrefetch';
 
+const tabs = [
+  { key: 'home', label: 'Inicio', href: '/', ActiveIcon: IoHome, InactiveIcon: IoHomeOutline },
+  {
+    key: 'quiero-jugar',
+    label: 'Quiero Jugar',
+    shortLabel: 'Jugar',
+    href: '/quiero-jugar',
+    ActiveIcon: IoFootball,
+    InactiveIcon: IoFootballOutline,
+  },
+  {
+    key: 'desafios',
+    label: 'Desafíos',
+    href: '/desafios',
+    ActiveIcon: Swords,
+    InactiveIcon: Swords,
+    simulatedActive: true,
+  },
+  { key: 'amigos', label: 'Amigos', href: '/amigos', ActiveIcon: IoPeople, InactiveIcon: IoPeopleOutline },
+  { key: 'profile', label: 'Perfil', href: '/profile', ActiveIcon: IoPerson, InactiveIcon: IoPersonOutline },
+];
+
 const TabBar = ({ activeTab, onTabChange }) => {
   const navigate = useNavigate();
   const notificationsCtx = useNotifications() || {};
@@ -22,32 +44,9 @@ const TabBar = ({ activeTab, onTabChange }) => {
   const isAndroidNative = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android';
   const tabBarStyle = {
     paddingBottom: isAndroidNative
-      ? 'calc(max(var(--safe-bottom, 0px), 10px) + 8px)'
-      : 'max(env(safe-area-inset-bottom), 4px)',
-    paddingTop: isAndroidNative ? '2px' : '0px',
+      ? 'calc(max(var(--safe-bottom, 0px), 10px) + 6px)'
+      : 'max(env(safe-area-inset-bottom), 8px)',
   };
-
-  const tabs = [
-    { key: 'home', label: 'Inicio', href: '/', ActiveIcon: IoHome, InactiveIcon: IoHomeOutline },
-    {
-      key: 'quiero-jugar',
-      label: 'Quiero Jugar',
-      shortLabel: 'Jugar',
-      href: '/quiero-jugar',
-      ActiveIcon: IoFootball,
-      InactiveIcon: IoFootballOutline,
-    },
-    {
-      key: 'desafios',
-      label: 'Desafíos',
-      href: '/desafios',
-      ActiveIcon: Swords,
-      InactiveIcon: Swords,
-      simulatedActive: true,
-    },
-    { key: 'amigos', label: 'Amigos', href: '/amigos', ActiveIcon: IoPeople, InactiveIcon: IoPeopleOutline },
-    { key: 'profile', label: 'Perfil', href: '/profile', ActiveIcon: IoPerson, InactiveIcon: IoPersonOutline },
-  ];
 
   const handleTabClick = (tab) => {
     navigate(tab.href);
@@ -61,21 +60,23 @@ const TabBar = ({ activeTab, onTabChange }) => {
 
   return (
     <div
-      className="app-tabbar fixed bottom-0 left-0 right-0 z-[1000] min-h-[62px] h-auto md:min-h-[70px] bg-white/5 backdrop-blur-md border-t border-white/10 shadow-[0_-8px_24px_rgba(0,0,0,0.16)] transition-[transform,opacity] duration-200"
+      className="app-tabbar fixed bottom-0 left-0 right-0 z-[1000] px-3 pt-1.5 transition-[transform,opacity] duration-200"
       style={tabBarStyle}
     >
-      <div className="relative grid w-full grid-cols-5">
+      {/* Background is ~95% opaque, so the backdrop blur was invisible but kept the GPU re-blurring every frame under this fixed bar. */}
+      <div className="relative mx-auto grid w-full max-w-[560px] grid-cols-5 overflow-hidden rounded-[22px] border border-white/[0.1] bg-[#120e28]/95 shadow-[0_18px_44px_rgba(5,3,16,0.65),inset_0_1px_0_rgba(255,255,255,0.08)]">
+        {/* Active pill that glides behind the selected tab */}
         <div
-          className="pointer-events-none absolute top-0 left-0 h-[3px]"
+          className="pointer-events-none absolute inset-y-1.5 left-0 p-0"
           style={{
             width: `calc(100% / ${tabs.length})`,
             transform: `translateX(${activeIndex * 100}%)`,
-            transition: 'transform 250ms ease-out, opacity 200ms ease-out',
+            transition: 'transform 260ms cubic-bezier(0.22, 1, 0.36, 1)',
           }}
         >
-          <span className="mx-3 block h-full rounded-full bg-[#6a43ff] shadow-[0_0_10px_rgba(106,67,255,0.4)] md:mx-4" />
+          <span className="mx-1.5 flex h-full flex-col rounded-2xl bg-[linear-gradient(160deg,rgba(139,92,255,0.32),rgba(106,67,255,0.14))] border border-[rgba(148,134,255,0.35)] shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_0_18px_rgba(106,67,255,0.25)]" />
         </div>
-        {tabs.map((tab, index) => {
+        {tabs.map((tab) => {
           const isActive = activeTab === tab.key;
           const showUnreadDot = (
             (tab.key === 'amigos' && (unreadCount?.friends || 0) > 0)
@@ -84,14 +85,14 @@ const TabBar = ({ activeTab, onTabChange }) => {
           const IconComponent = isActive ? tab.ActiveIcon : tab.InactiveIcon;
           const useSimulatedActive = isActive && tab.simulatedActive;
           const iconProps = {
-            size: 24,
-            className: `h-6 w-6 transition-[opacity,transform,filter,color] duration-200 group-active:scale-95 ${
-              isActive ? 'scale-100 opacity-100' : 'scale-100 opacity-60'
+            size: 21,
+            className: `h-[21px] w-[21px] transition-[opacity,transform,color] duration-200 group-active:scale-95 ${
+              isActive ? 'scale-100 opacity-100' : 'scale-100 opacity-55'
             } ${
               useSimulatedActive
-                ? 'drop-shadow-[0_2px_6px_rgba(255,255,255,0.25)]'
+                ? 'drop-shadow-[0_0_8px_rgba(176,160,255,0.55)]'
                 : isActive
-                ? 'drop-shadow-[0_2px_4px_rgba(255,255,255,0.2)]'
+                ? 'drop-shadow-[0_0_6px_rgba(176,160,255,0.45)]'
                 : 'drop-shadow-none'
             }`,
           };
@@ -109,22 +110,22 @@ const TabBar = ({ activeTab, onTabChange }) => {
               onMouseEnter={() => prefetchRoute(tab.href)}
               onTouchStart={() => prefetchRoute(tab.href)}
               onFocus={() => prefetchRoute(tab.href)}
-              className={`group relative flex min-h-[42px] flex-1 flex-col items-center justify-center bg-transparent py-1.5 md:py-2 transition-[color,opacity,background-color] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 ${
-                index < tabs.length - 1 ? 'border-r border-white/10' : ''
-              } ${isActive ? 'text-white' : 'text-white/70'}`}
+              className={`group relative z-[1] flex min-h-[56px] flex-1 flex-col items-center justify-center bg-transparent py-1.5 transition-[color,opacity,background-color] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 ${
+                isActive ? 'text-white' : 'text-white/60'
+              }`}
             >
               <span className={`relative flex h-6 items-center justify-center ${showUnreadDot ? 'min-w-[34px] gap-1' : 'w-6'}`}>
                 <IconComponent {...iconProps} />
                 {showUnreadDot && (
                   <span
                     aria-hidden="true"
-                    className="h-2.5 w-2.5 shrink-0 rounded-full bg-[#128BE9] ring-2 ring-[#1f2747] shadow-[0_0_8px_rgba(18,139,233,0.5)]"
+                    className="h-2 w-2 shrink-0 rounded-full bg-[#ec007d] ring-2 ring-[#120e28] shadow-[0_0_8px_rgba(236,0,125,0.6)]"
                   />
                 )}
               </span>
               <span
-                className={`mt-1.5 whitespace-nowrap text-[12px] font-sans tracking-wide transition-[opacity,color,font-weight] duration-200 ${
-                  isActive ? 'font-bold text-white opacity-100' : 'font-semibold text-white/75 opacity-60'
+                className={`mt-0.5 whitespace-nowrap text-[10.5px] font-sans tracking-wide transition-[opacity,color,font-weight] duration-200 ${
+                  isActive ? 'font-semibold text-white opacity-100' : 'font-medium text-white/65 opacity-70'
                 }`}
               >
                 {tab.shortLabel ? (

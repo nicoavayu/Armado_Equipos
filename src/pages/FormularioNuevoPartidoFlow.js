@@ -25,13 +25,13 @@ const STEPS = {
   CONFIRM: 4,
 };
 
-const INPUT_MODERN_CLASS = 'appearance-none bg-[rgba(53,58,102,0.88)] border border-[rgba(133,149,208,0.5)] text-white font-sans text-lg px-4 py-3 rounded-none w-full h-12 transition-all focus:outline-none focus:border-[#7f8dff] focus:ring-2 focus:ring-[#6f7dff]/30 placeholder:text-white/45 focus:bg-[rgba(62,67,114,0.95)] mb-2 box-border shadow-none backdrop-blur-md';
-const PRIMARY_ACTION_BUTTON_CLASS = 'w-full min-h-[44px] mt-4 mb-0 px-4 py-2.5 rounded-none border border-[#7d5aff] bg-[#6a43ff] text-white font-bebas text-base tracking-[0.01em] flex items-center justify-center text-center transition-all hover:bg-[#7550ff] active:opacity-95 shadow-[0_0_14px_rgba(106,67,255,0.3)] sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px] disabled:bg-[rgba(106,67,255,0.55)] disabled:border-[rgba(125,90,255,0.5)] disabled:text-white/40 disabled:shadow-none disabled:cursor-not-allowed';
-const SECONDARY_ACTION_BUTTON_CLASS = 'w-full h-[52px] mt-4 mb-0 rounded-none border border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] text-white/92 font-bebas text-base tracking-[0.01em] transition-all hover:bg-[rgba(30,45,94,0.95)] active:opacity-95';
-const SEGMENT_BUTTON_BASE_CLASS = 'h-[44px] px-2 text-[16px] font-semibold font-oswald rounded-none transition-all border flex items-center justify-center';
-const CONFIRM_ITEM_CLASS = 'bg-[linear-gradient(160deg,rgba(31,38,86,0.86),rgba(16,24,60,0.94))] border border-[rgba(108,126,196,0.46)] backdrop-blur-md rounded-none p-4 mb-3 flex justify-between items-center text-white font-sans shadow-[0_12px_24px_rgba(4,10,28,0.35)]';
-const EDIT_ITEM_BUTTON_CLASS = 'bg-[rgba(26,37,83,0.95)] border border-[rgba(106,126,202,0.52)] text-white px-3 py-1.5 rounded-none text-xs font-semibold cursor-pointer transition-all font-oswald hover:bg-[rgba(39,53,110,0.98)] hover:border-[rgba(140,158,228,0.7)]';
-const FORM_ERROR_CLASS = 'w-full border border-[#fbbf24]/70 bg-[#f59e0b]/15 text-[#fff7ed] text-sm font-sans px-3 py-2 mt-2';
+const INPUT_MODERN_CLASS = 'appearance-none bg-[rgba(20,16,41,0.85)] border border-[rgba(148,134,255,0.25)] text-white font-sans text-base px-4 py-3 !rounded-xl w-full h-12 transition-all focus:outline-none focus:border-[#8b7cff] focus:ring-2 focus:ring-[#6a43ff]/30 placeholder:text-white/35 focus:bg-[rgba(29,23,64,0.95)] mb-2 box-border shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-md';
+const PRIMARY_ACTION_BUTTON_CLASS = 'w-full min-h-[48px] mt-4 mb-0 px-4 py-2.5 rounded-2xl border border-white/15 bg-cta-gradient text-white font-bebas font-semibold text-base tracking-[0.02em] flex items-center justify-center text-center transition-all hover:brightness-110 active:opacity-95 shadow-cta sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[40px] disabled:opacity-50 disabled:shadow-none disabled:cursor-not-allowed';
+const SECONDARY_ACTION_BUTTON_CLASS = 'w-full h-[50px] mt-4 mb-0 rounded-2xl border border-[rgba(148,134,255,0.28)] bg-white/[0.05] text-white/92 font-bebas font-semibold text-base tracking-[0.02em] transition-all hover:bg-white/[0.1] active:opacity-95';
+const SEGMENT_BUTTON_BASE_CLASS = 'h-[44px] px-2 text-[15px] font-semibold font-sans rounded-xl transition-all border flex items-center justify-center';
+const CONFIRM_ITEM_CLASS = 'bg-[linear-gradient(165deg,rgba(48,38,98,0.72),rgba(20,16,41,0.94))] border border-[rgba(148,134,255,0.18)] backdrop-blur-md rounded-card p-4 mb-3 flex justify-between items-center text-white font-sans shadow-elev-1';
+const EDIT_ITEM_BUTTON_CLASS = 'bg-white/[0.06] border border-[rgba(148,134,255,0.3)] text-white px-3.5 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-all font-sans hover:bg-white/[0.12] hover:border-[rgba(148,134,255,0.5)]';
+const FORM_ERROR_CLASS = 'w-full rounded-xl border border-[#fbbf24]/70 bg-[#f59e0b]/15 text-[#fff7ed] text-sm font-sans px-3 py-2 mt-2';
 const MATCH_NAME_REQUIRED_MESSAGE = 'Poné un nombre para el partido.';
 const STEP_TITLE_STYLE = {
   color: '#fff',
@@ -126,8 +126,8 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
   }, [progressFillPercent]);
 
   const getSegmentButtonClass = (isActive) => `${SEGMENT_BUTTON_BASE_CLASS} ${isActive
-    ? 'bg-[#6a43ff] border-[#7d5aff] text-white shadow-[0_8px_18px_rgba(106,67,255,0.34)]'
-    : 'bg-[rgba(23,35,74,0.74)] border-[rgba(89,107,168,0.45)] text-white/88 hover:bg-[rgba(30,45,94,0.92)] hover:border-[rgba(119,141,214,0.62)]'
+    ? 'bg-cta-gradient border-[#7d5aff] text-white shadow-[0_6px_18px_rgba(106,67,255,0.38),inset_0_1px_0_rgba(255,255,255,0.2)]'
+    : 'bg-white/[0.04] border-[rgba(148,134,255,0.2)] text-white/70 hover:bg-white/[0.08] hover:border-[rgba(148,134,255,0.4)] hover:text-white'
     }`;
 
   const parsedCanchaPrice = useMemo(() => {
@@ -786,7 +786,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
             </ul>
 
             {/* Toggle: Guardar como partido frecuente (placed just above main action) */}
-            <div className="bg-[linear-gradient(160deg,rgba(31,38,86,0.86),rgba(16,24,60,0.94))] border border-[rgba(108,126,196,0.46)] rounded-none p-3 mb-2" style={{ marginTop: 14, marginBottom: 12 }}>
+            <div className="bg-[linear-gradient(165deg,rgba(48,38,98,0.72),rgba(20,16,41,0.94))] border border-[rgba(148,134,255,0.18)] rounded-card shadow-elev-1 p-3.5 mb-2" style={{ marginTop: 14, marginBottom: 12 }}>
               <div className="save-frequent-block" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <label className="flex items-center gap-2 cursor-pointer select-none" aria-label="Guardar como partido frecuente">
                   <input

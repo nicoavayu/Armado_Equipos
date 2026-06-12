@@ -90,25 +90,25 @@ const QuieroJugarEquipos = ({
           }}
         >
           <div className="relative left-1/2 w-screen -translate-x-1/2">
-            <div className="flex h-[44px] w-full overflow-hidden border-y border-[rgba(106,126,202,0.40)] bg-[rgba(17,26,59,0.96)]">
+            <div className="flex h-[44px] w-full max-w-[560px] mx-auto gap-1 p-1 overflow-hidden rounded-full border border-[rgba(148,134,255,0.22)] bg-[rgba(20,16,41,0.85)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_6px_16px_rgba(5,3,16,0.35)]">
               {SUBTABS.map((tab, index) => (
                 <button
                   key={tab.key}
                   type="button"
                   onClick={() => setActiveSubtab(tab.key)}
                   className={`relative flex-1 min-w-0 border px-0 py-0 font-bebas text-[0.95rem] uppercase tracking-[0.04em] transition-[background-color,border-color,color] duration-150 ${index > 0 ? 'border-l-0' : ''} ${activeSubtab === tab.key
-                    ? 'z-[2] border-[rgba(132,112,255,0.64)] bg-[#31239f] text-white shadow-[inset_0_0_0_1px_rgba(160,142,255,0.26)]'
-                    : 'z-[1] border-[rgba(106,126,202,0.40)] bg-[rgba(17,26,59,0.96)] text-white/65 hover:text-white/88 hover:bg-[rgba(26,37,83,0.98)]'
+                    ? 'z-[2] rounded-full border-transparent bg-cta-gradient text-white shadow-[0_4px_14px_rgba(106,67,255,0.4),inset_0_1px_0_rgba(255,255,255,0.2)]'
+                    : 'z-[1] rounded-full border-transparent bg-transparent text-white/60 hover:text-white/90 hover:bg-white/[0.06]'
                     }`}
                 >
                   {activeSubtab === tab.key ? (
-                    <span className="pointer-events-none absolute left-0 top-0 h-[3px] w-full bg-[#644dff]" />
+                    <span className="hidden" />
                   ) : null}
                   {tab.key === 'mis-equipos' ? (
                     <span className="inline-flex items-center justify-center gap-2.5">
                       <span>{tab.label}</span>
                       {(unreadCount?.teamInvites || 0) > 0 && (
-                        <span className="inline-flex shrink-0 translate-y-[1px] items-center justify-center min-w-[18px] h-[18px] px-1 bg-[#128BE9] text-white text-[10px] font-bold rounded-[6px] border border-white/25 shadow-[0_6px_16px_rgba(18,139,233,0.35)]">
+                        <span className="inline-flex shrink-0 translate-y-[1px] items-center justify-center min-w-[18px] h-[18px] px-1 bg-[#ec007d] text-white text-[10px] font-bold rounded-full shadow-[0_0_10px_rgba(236,0,125,0.45)]">
                           {unreadCount.teamInvites}
                         </span>
                       )}

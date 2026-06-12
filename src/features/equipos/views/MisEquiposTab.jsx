@@ -23,9 +23,9 @@ import { useRefreshOnVisibility } from '../../../hooks/useRefreshOnVisibility';
 import { useSupabaseRealtime } from '../../../hooks/useSupabaseRealtime';
 import { useNotifications } from '../../../context/NotificationContext';
 
-const createTeamButtonClass = '!w-full !h-auto !min-h-[44px] !px-4 !py-2.5 !rounded-none !border !border-[#7d5aff] !bg-[#6a43ff] !text-white !font-bebas !text-base !tracking-[0.01em] !normal-case !shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:!bg-[#7550ff] sm:!text-[13px] sm:!px-3 sm:!py-2 sm:!min-h-[36px]';
-const invitationAcceptIconButtonClass = 'h-11 w-11 rounded-none border border-[#7d5aff] bg-[#6a43ff] text-white shadow-[0_0_14px_rgba(106,67,255,0.3)] transition-all hover:bg-[#7550ff] hover:-translate-y-[1px] active:translate-y-0 active:scale-[0.96] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center';
-const invitationRejectIconButtonClass = 'h-11 w-11 rounded-none border border-[rgba(88,107,170,0.46)] bg-[rgba(23,35,74,0.72)] text-[rgba(242,246,255,0.9)] transition-all hover:bg-[rgba(31,45,91,0.82)] hover:-translate-y-[1px] active:translate-y-0 active:scale-[0.96] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center';
+const createTeamButtonClass = '!w-full !h-auto !min-h-[44px] !px-4 !py-2.5 !rounded-xl !border !border-white/20 !bg-cta-gradient !text-white !font-bebas !text-base !tracking-[0.01em] !normal-case !shadow-cta hover:!brightness-105 sm:!text-[13px] sm:!px-3 sm:!py-2 sm:!min-h-[36px]';
+const invitationAcceptIconButtonClass = 'h-11 w-11 rounded-xl border border-white/20 bg-cta-gradient text-white shadow-cta transition-all hover:brightness-105 hover:-translate-y-[1px] active:translate-y-0 active:scale-[0.96] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center';
+const invitationRejectIconButtonClass = 'h-11 w-11 rounded-xl border border-[rgba(148,134,255,0.24)] bg-white/[0.05] text-[rgba(242,246,255,0.9)] transition-all hover:bg-white/[0.1] hover:border-[rgba(148,134,255,0.45)] hover:-translate-y-[1px] active:translate-y-0 active:scale-[0.96] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center';
 
 const MisEquiposTab = ({ userId }) => {
   const navigate = useNavigate();
@@ -313,10 +313,10 @@ const MisEquiposTab = ({ userId }) => {
                 return (
                   <div
                     key={invitation.id}
-                    className="flex items-center gap-3 p-4 rounded-none bg-[rgba(4,31,89,0.95)] border border-[#12b5ff]/80 mb-3 w-full box-border min-h-[64px] transition-all duration-200 shadow-[0_0_0_1px_rgba(52,167,255,0.16),0_10px_22px_rgba(2,10,34,0.45)] hover:border-[#56d1ff] sm:p-3"
+                    className="flex items-center gap-3 p-4 rounded-card bg-[linear-gradient(165deg,rgba(48,38,98,0.7),rgba(20,16,41,0.94))] border border-[rgba(148,134,255,0.4)] mb-3 w-full box-border min-h-[64px] transition-all duration-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_10px_22px_rgba(5,3,16,0.45)] hover:border-[rgba(148,134,255,0.65)] sm:p-3"
                   >
                     <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <div className="w-11 h-11 rounded-none overflow-hidden border border-white/20 bg-black/20 flex items-center justify-center shrink-0 sm:w-10 sm:h-10">
+                      <div className="w-11 h-11 rounded-xl overflow-hidden border border-[rgba(148,134,255,0.35)] bg-[#1d1740] flex items-center justify-center shrink-0 sm:w-10 sm:h-10">
                         {teamCrestUrl ? (
                           <img src={teamCrestUrl} alt={`Escudo ${teamName}`} className="h-full w-full object-cover" />
                         ) : (
@@ -371,7 +371,7 @@ const MisEquiposTab = ({ userId }) => {
           <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/45">
             Equipos creados
           </span>
-          <span className="h-px flex-1 bg-[rgba(88,107,170,0.46)]" />
+          <span className="h-px flex-1 bg-[rgba(148,134,255,0.2)]" />
         </div>
 
         {loading ? (

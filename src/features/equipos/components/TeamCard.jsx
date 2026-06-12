@@ -3,7 +3,7 @@ import { Shield, MapPin, Users } from 'lucide-react';
 import { resolveTeamRosterLimit } from '../config';
 import { formatSkillLevelLabel, getTeamAccent, getTeamBadgeStyle, getTeamProvidedColors } from '../utils/teamColors';
 
-const CHIP_CLASS = 'font-oswald text-[10px] font-bold text-white/40 border border-white/10 bg-white/5 px-2 py-0.5 rounded-none uppercase tracking-wider';
+const CHIP_CLASS = 'font-oswald text-[10px] font-bold text-white/50 border border-[rgba(148,134,255,0.2)] bg-[rgba(20,16,41,0.8)] px-2 py-0.5 rounded-full uppercase tracking-wider';
 
 const getStatValue = (stats, key) => {
   if (!stats || typeof stats !== 'object') return null;
@@ -30,7 +30,7 @@ const TeamCard = React.memo(({ team, stats, onClick, footer, className = '' }) =
     <button
       type="button"
       onClick={() => onClick?.(team)}
-      className={`relative w-full overflow-hidden rounded-none p-4 text-left border border-white/10 transition-all duration-300 bg-[#1e293b]/70 backdrop-blur-sm shadow-[0_8px_24px_rgba(0,0,0,0.35)] active:scale-[0.99] hover:border-white/20 font-oswald ${hasColorBand ? 'pl-7' : ''} ${className}`}
+      className={`relative w-full overflow-hidden rounded-card p-4 text-left border border-[rgba(148,134,255,0.18)] transition-all duration-300 bg-[linear-gradient(165deg,rgba(48,38,98,0.6),rgba(20,16,41,0.92))] shadow-elev-1 active:scale-[0.99] hover:border-[rgba(148,134,255,0.4)] font-oswald ${hasColorBand ? 'pl-7' : ''} ${className}`}
     >
       {hasColorBand ? (
         <span className="pointer-events-none absolute left-0 top-0 bottom-0 z-[1] w-[12px] overflow-hidden">
@@ -46,7 +46,7 @@ const TeamCard = React.memo(({ team, stats, onClick, footer, className = '' }) =
       ) : null}
 
       <div className="flex items-start gap-3">
-        <div className="h-14 w-14 rounded-none overflow-hidden border border-white/30 bg-black/20 flex items-center justify-center shrink-0">
+        <div className="h-14 w-14 rounded-2xl overflow-hidden border border-[rgba(148,134,255,0.35)] bg-[#1d1740] flex items-center justify-center shrink-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]">
           {team?.crest_url ? (
             <img src={team.crest_url} alt={`Escudo ${team?.name || 'equipo'}`} className="h-full w-full object-cover" />
           ) : (
@@ -75,19 +75,19 @@ const TeamCard = React.memo(({ team, stats, onClick, footer, className = '' }) =
 
       {(played !== null || won !== null || draw !== null || lost !== null) && (
         <div className="mt-3 grid grid-cols-4 gap-2">
-          <div className="rounded-none border border-white/15 bg-black/15 px-2 py-1.5 text-center">
+          <div className="rounded-xl border border-[rgba(148,134,255,0.16)] bg-black/25 px-2 py-1.5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
             <div className="font-oswald text-[10px] text-white/70">PJ</div>
             <div className="font-oswald text-sm font-bold text-white">{played ?? 0}</div>
           </div>
-          <div className="rounded-none border border-white/15 bg-black/15 px-2 py-1.5 text-center">
+          <div className="rounded-xl border border-[rgba(148,134,255,0.16)] bg-black/25 px-2 py-1.5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
             <div className="font-oswald text-[10px] text-white/70">PG</div>
             <div className="font-oswald text-sm font-bold" style={{ color: accent }}>{won ?? 0}</div>
           </div>
-          <div className="rounded-none border border-white/15 bg-black/15 px-2 py-1.5 text-center">
+          <div className="rounded-xl border border-[rgba(148,134,255,0.16)] bg-black/25 px-2 py-1.5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
             <div className="font-oswald text-[10px] text-white/70">PE</div>
             <div className="font-oswald text-sm font-bold text-white">{draw ?? 0}</div>
           </div>
-          <div className="rounded-none border border-white/15 bg-black/15 px-2 py-1.5 text-center">
+          <div className="rounded-xl border border-[rgba(148,134,255,0.16)] bg-black/25 px-2 py-1.5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
             <div className="font-oswald text-[10px] text-white/70">PP</div>
             <div className="font-oswald text-sm font-bold text-white">{lost ?? 0}</div>
           </div>

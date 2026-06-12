@@ -127,8 +127,16 @@ export const useAdminPanelState = ({
         getVotantesIds(partidoActual.id),
         getVotantesConNombres(partidoActual.id),
       ]);
-      setVotantes(votantesIds || []);
-      setVotantesConNombres(votantesNombres || []);
+      // Keep previous references when data is unchanged so the 2s poll
+      // doesn't re-render the whole admin screen for identical voter state.
+      setVotantes((prev) => {
+        const next = votantesIds || [];
+        return JSON.stringify(prev) === JSON.stringify(next) ? prev : next;
+      });
+      setVotantesConNombres((prev) => {
+        const next = votantesNombres || [];
+        return JSON.stringify(prev) === JSON.stringify(next) ? prev : next;
+      });
     } catch (error) {
       console.error('Error refreshing voter state:', error);
     } finally {
@@ -432,14 +440,6 @@ export const useAdminPanelState = ({
 
       if (error) throw error;
 
-      await notifyAdminPlayerJoined({
-        matchId: partidoActual.id,
-        playerName: nombre,
-        playerUserId: null,
-        joinedVia: 'manual_admin',
-        adminUserId: partidoActual?.creado_por || null,
-      });
-
       setNuevoNombre('');
 
       setTimeout(() => {
@@ -456,9 +456,18 @@ export const useAdminPanelState = ({
         }
       }, 1500);
 
-      const jugadoresPartido = await getJugadoresDelPartido(partidoActual.id);
-      const votantesIds = await getVotantesIds(partidoActual.id);
-      const votantesNombres = await getVotantesConNombres(partidoActual.id);
+      const [jugadoresPartido, votantesIds, votantesNombres] = await Promise.all([
+        getJugadoresDelPartido(partidoActual.id),
+        getVotantesIds(partidoActual.id),
+        getVotantesConNombres(partidoActual.id),
+        notifyAdminPlayerJoined({
+          matchId: partidoActual.id,
+          playerName: nombre,
+          playerUserId: null,
+          joinedVia: 'manual_admin',
+          adminUserId: partidoActual?.creado_por || null,
+        }),
+      ]);
       setVotantes(votantesIds || []);
       setVotantesConNombres(votantesNombres || []);
       onJugadoresChange(jugadoresPartido);

@@ -136,13 +136,13 @@ export default function MatchInfoSection(props) {
     ? 'A definir'
     : (precioFieldExists && precioNumber !== null ? formatPriceCompact(precioNumber) : 'A definir');
 
-  const topOffset = topOffsetClassName || (!topOffsetStyle ? 'mt-[76px] sm:mt-[70px]' : '');
+  const topOffset = topOffsetClassName || (!topOffsetStyle ? 'mt-[62px] sm:mt-[58px]' : '');
 
   return (
     <div className="relative left-1/2 -translate-x-1/2 w-screen max-w-[100vw] px-0 mx-0 overflow-hidden box-border">
       <div className="relative w-full flex justify-center items-start m-0 p-0">
         <div
-          className={`${topOffset} mb-0 p-3 relative w-full max-w-none box-border bg-white/[0.04] rounded-none ui-flat flex justify-center sm:max-w-full sm:p-[8px_10px] border-t border-b border-white/[0.08]`}
+          className={`${topOffset} mb-0 p-3 relative w-full max-w-none box-border bg-[linear-gradient(180deg,rgba(40,32,82,0.78),rgba(20,16,41,0.88))] rounded-none ui-flat flex justify-center sm:max-w-full sm:p-[8px_10px] border-t border-b border-[rgba(148,134,255,0.16)] after:content-[''] after:absolute after:bottom-0 after:left-0 after:right-0 after:h-px after:bg-[linear-gradient(90deg,transparent_8%,rgba(139,92,255,0.45)_42%,rgba(236,0,125,0.3)_66%,transparent_92%)]`}
           style={topOffsetStyle}
         >
           <div

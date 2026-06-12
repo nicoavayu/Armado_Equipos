@@ -43,9 +43,9 @@ const getBackgroundColor = (name) => {
 };
 
 const skinClasses = {
-  searching: 'bg-[rgba(15,24,56,0.72)] border-[rgba(88,107,170,0.46)] hover:border-[#4a7ed6] hover:brightness-[1.03] shadow-none',
-  friend: 'bg-[rgba(20,31,70,0.82)] border-[rgba(98,117,184,0.58)] hover:border-[rgba(124,142,210,0.62)] hover:bg-[rgba(30,45,94,0.95)] shadow-none',
-  friendSelf: 'bg-[rgba(20,31,70,0.82)] border-[rgba(98,117,184,0.58)] border-l-[3px] border-l-[#f4d37b] hover:border-[rgba(124,142,210,0.62)] hover:border-l-[#ffe39d] hover:bg-[rgba(30,45,94,0.95)] shadow-[inset_1px_0_0_rgba(244,211,123,0.45)]',
+  searching: 'bg-[linear-gradient(165deg,rgba(48,38,98,0.55),rgba(20,16,41,0.88))] border-[rgba(148,134,255,0.14)] hover:border-[rgba(148,134,255,0.42)] hover:brightness-[1.05] shadow-[0_6px_16px_rgba(5,3,16,0.35),inset_0_1px_0_rgba(255,255,255,0.05)]',
+  friend: 'bg-[linear-gradient(165deg,rgba(48,38,98,0.68),rgba(20,16,41,0.92))] border-[rgba(148,134,255,0.16)] hover:border-[rgba(148,134,255,0.42)] hover:brightness-[1.06] shadow-[0_6px_16px_rgba(5,3,16,0.35),inset_0_1px_0_rgba(255,255,255,0.05)]',
+  friendSelf: 'bg-[linear-gradient(165deg,rgba(48,38,98,0.68),rgba(20,16,41,0.92))] border-[rgba(148,134,255,0.16)] border-l-[3px] border-l-[#f4d37b] hover:border-[rgba(148,134,255,0.42)] hover:border-l-[#ffe39d] hover:brightness-[1.06] shadow-[inset_1px_0_0_rgba(244,211,123,0.45),0_6px_16px_rgba(5,3,16,0.35)]',
 };
 
 const PlayerMiniCard = ({
@@ -87,18 +87,18 @@ const PlayerMiniCard = ({
       : 'bg-[#FFD700]/10 border-[#FFD700]/30 text-[#FFD700]');
   const nameClass = 'text-white';
   const detailTextClass = variant === 'friend' ? 'text-white/72' : 'text-white/60';
-  const avatarBorderClass = isSelfFriendCard ? 'border-[#f4d37b]/60' : 'border-white/15';
+  const avatarBorderClass = isSelfFriendCard ? 'border-[#f4d37b]/60' : 'border-[rgba(148,134,255,0.35)]';
   const placeholderMenuClass = isSelfFriendCard
     ? 'text-[#d7e6ff]'
     : (variant === 'friend' ? 'text-[#d7e6ff]' : 'text-white/50');
-  const cardShapeClass = (variant === 'friend' || variant === 'searching') ? 'rounded-none' : 'rounded-xl';
+  const cardShapeClass = 'rounded-card';
 
   return (
     <div
       onClick={onClick}
-      className={`relative flex items-center gap-3 p-3.5 border transition-all duration-200 ${cardShapeClass} ${cardSkinClass} ${onClick ? 'cursor-pointer active:scale-[0.99]' : ''}`}
+      className={`relative flex items-center gap-3 px-3.5 py-3 border transition-all duration-200 ${cardShapeClass} ${cardSkinClass} ${onClick ? 'cursor-pointer active:scale-[0.99]' : ''}`}
     >
-      <div className={`w-12 h-12 rounded-full overflow-hidden shrink-0 border bg-slate-800 flex items-center justify-center ${avatarBorderClass}`}>
+      <div className={`w-11 h-11 rounded-full overflow-hidden shrink-0 border-2 bg-[#1d1740] flex items-center justify-center shadow-[0_3px_10px_rgba(5,3,16,0.45)] ${avatarBorderClass}`}>
         {avatarUrl ? (
           <img src={avatarUrl} alt={name} className="w-full h-full object-cover" />
         ) : (
@@ -113,7 +113,7 @@ const PlayerMiniCard = ({
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
-          <span className={`font-bebas text-lg tracking-wide leading-none truncate ${nameClass}`}>
+          <span className={`font-bebas text-[17px] tracking-wide leading-none truncate ${nameClass}`}>
             {name}
           </span>
           {metaBadge}
@@ -121,14 +121,14 @@ const PlayerMiniCard = ({
 
         <div className={`flex items-center gap-2.5 text-[11px] font-oswald uppercase tracking-wide ${detailTextClass}`}>
           {showRating ? (
-            <div className={`inline-flex items-center gap-1 px-2 py-1 rounded border font-bold normal-case ${ratingContainerClass}`}>
-              <Star size={12} fill="currentColor" />
+            <div className={`inline-flex items-center gap-1 px-2 py-[3px] rounded-full border font-bold normal-case ${ratingContainerClass}`}>
+              <Star size={11} fill="currentColor" />
               <span>{ratingStr}</span>
             </div>
           ) : null}
 
           <div
-            className="inline-flex items-center justify-center px-2 py-1 rounded text-[10px] font-bold text-white min-w-[34px] uppercase"
+            className="inline-flex items-center justify-center px-2 py-[3px] rounded-full text-[10px] font-bold text-white min-w-[36px] uppercase tracking-[0.04em]"
             style={{ backgroundColor: posColor }}
           >
             {posicion}

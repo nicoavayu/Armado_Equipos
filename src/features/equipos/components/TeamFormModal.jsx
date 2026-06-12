@@ -32,11 +32,11 @@ const normalizeHex = (value) => {
 };
 
 const PRIMARY_ACTION_BUTTON_CLASS = 'inline-flex min-h-[44px] items-center justify-center gap-2 rounded-none border border-[#7d5aff] bg-[#6a43ff] px-4 py-2.5 font-bebas text-base tracking-[0.01em] text-white shadow-[0_0_14px_rgba(106,67,255,0.3)] transition-all hover:bg-[#7550ff] active:opacity-95 disabled:cursor-not-allowed disabled:border-[rgba(125,90,255,0.45)] disabled:bg-[rgba(106,67,255,0.55)] disabled:text-white/45 disabled:shadow-none';
-const SECONDARY_ACTION_BUTTON_CLASS = 'inline-flex min-h-[44px] items-center justify-center gap-2 rounded-none border border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] px-4 py-2.5 font-bebas text-base tracking-[0.01em] text-white/92 transition-all hover:bg-[rgba(30,45,94,0.95)] active:opacity-95 disabled:cursor-not-allowed disabled:opacity-50';
-const INPUT_CLASS = 'h-[52px] w-full rounded-none border border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] px-4 text-white font-oswald text-lg outline-none transition-all duration-300 focus:border-[#7f8dff] focus:bg-[rgba(30,45,94,0.95)] focus:ring-2 focus:ring-[#6f7dff]/30 placeholder:text-white/45 backdrop-blur-md';
-const INPUT_SMALL_CLASS = 'w-full rounded-none border border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] px-3 py-2.5 text-white font-oswald text-base outline-none transition-all duration-300 focus:border-[#7f8dff] focus:bg-[rgba(30,45,94,0.95)] focus:ring-2 focus:ring-[#6f7dff]/30 placeholder:text-white/45 backdrop-blur-md';
+const SECONDARY_ACTION_BUTTON_CLASS = 'inline-flex min-h-[44px] items-center justify-center gap-2 rounded-none border border-[rgba(148,134,255,0.28)] bg-white/[0.05] px-4 py-2.5 font-bebas text-base tracking-[0.01em] text-white/92 transition-all hover:bg-white/[0.1] active:opacity-95 disabled:cursor-not-allowed disabled:opacity-50';
+const INPUT_CLASS = 'h-[52px] w-full rounded-none border border-[rgba(148,134,255,0.28)] bg-white/[0.05] px-4 text-white font-oswald text-lg outline-none transition-all duration-300 focus:border-[#8b7cff] focus:bg-[rgba(29,23,64,0.95)] focus:ring-2 focus:ring-[#6a43ff]/30 placeholder:text-white/45 backdrop-blur-md';
+const INPUT_SMALL_CLASS = 'w-full rounded-none border border-[rgba(148,134,255,0.28)] bg-white/[0.05] px-3 py-2.5 text-white font-oswald text-base outline-none transition-all duration-300 focus:border-[#8b7cff] focus:bg-[rgba(29,23,64,0.95)] focus:ring-2 focus:ring-[#6a43ff]/30 placeholder:text-white/45 backdrop-blur-md';
 const FIELD_LABEL_CLASS = 'mb-2 block text-sm text-white/70';
-const SECTION_CARD_CLASS = 'rounded-none border border-[rgba(88,107,170,0.46)] bg-[rgba(18,28,62,0.78)] p-4';
+const SECTION_CARD_CLASS = 'rounded-none border border-[rgba(148,134,255,0.2)] bg-[rgba(26,20,56,0.8)] p-4';
 const SECTION_TITLE_CLASS = 'font-oswald text-[clamp(16px,4.4vw,20px)] font-semibold leading-tight tracking-[0.01em] text-white';
 
 const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = false }) => {
@@ -109,7 +109,7 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
       isOpen={isOpen}
       onClose={onClose}
       title={title}
-      className="w-full max-w-[620px] !bg-[#101a35] border border-[rgba(98,117,184,0.58)]"
+      className="w-full max-w-[620px] !bg-[#101a35] border border-[rgba(148,134,255,0.28)]"
       classNameContent="p-5"
       footer={(
         <div className="grid grid-cols-2 gap-2">
@@ -239,7 +239,7 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
             <span
               className={`mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-none border transition-all ${addCurrentUserAsPlayer
                 ? 'border-[#8e7dff] bg-[#6a43ff] text-white shadow-[0_0_0_3px_rgba(106,67,255,0.22)]'
-                : 'border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] text-transparent'
+                : 'border-[rgba(148,134,255,0.28)] bg-white/[0.05] text-transparent'
                 }`}
             >
               <Check size={13} strokeWidth={3} />
@@ -258,7 +258,7 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
               type="button"
               disabled={colors.length >= 3}
               onClick={() => setColors((prev) => (prev.length >= 3 ? prev : [...prev, '#128BE9']))}
-              className="inline-flex items-center justify-center rounded-none border border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] p-2 text-[#9ED3FF] transition-all hover:bg-[rgba(30,45,94,0.95)] disabled:opacity-45 disabled:cursor-not-allowed"
+              className="inline-flex items-center justify-center rounded-none border border-[rgba(148,134,255,0.28)] bg-white/[0.05] p-2 text-[#9ED3FF] transition-all hover:bg-white/[0.1] disabled:opacity-45 disabled:cursor-not-allowed"
               title="Agregar color"
               aria-label="Agregar color"
             >
@@ -274,8 +274,8 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
             {colors.length === 0 ? (
               <p className="text-xs text-white/55">Sin colores personalizados.</p>
             ) : colors.map((color, index) => (
-              <div key={`${index}-${color}`} className="flex items-center gap-2 rounded-none border border-[rgba(88,107,170,0.46)] bg-[rgba(12,22,52,0.86)] px-2.5 py-2">
-                <div className="h-10 w-12 rounded-none border border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] p-1.5">
+              <div key={`${index}-${color}`} className="flex items-center gap-2 rounded-none border border-[rgba(148,134,255,0.2)] bg-[rgba(12,22,52,0.86)] px-2.5 py-2">
+                <div className="h-10 w-12 rounded-none border border-[rgba(148,134,255,0.28)] bg-white/[0.05] p-1.5">
                   <input
                     type="color"
                     value={normalizeHex(color) || '#128BE9'}
@@ -322,7 +322,7 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
                 crestFileRef.current.value = '';
                 crestFileRef.current.click();
               }}
-              className="h-14 w-14 rounded-none overflow-hidden border border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] flex items-center justify-center shrink-0 transition-all hover:border-[#9ED3FF]/45"
+              className="h-14 w-14 rounded-none overflow-hidden border border-[rgba(148,134,255,0.28)] bg-white/[0.05] flex items-center justify-center shrink-0 transition-all hover:border-[#9ED3FF]/45"
               title="Elegir escudo"
               aria-label="Elegir escudo"
             >
@@ -347,7 +347,7 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
                 crestFileRef.current.value = '';
                 crestFileRef.current.click();
               }}
-              className="flex-1 min-w-0 rounded-none border border-dashed border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.56)] px-3 py-3 text-left text-white/90 font-oswald text-[16px] transition-all hover:border-[#9ED3FF]/45 hover:text-white"
+              className="flex-1 min-w-0 rounded-none border border-dashed border-[rgba(148,134,255,0.28)] bg-[rgba(20,31,70,0.56)] px-3 py-3 text-left text-white/90 font-oswald text-[16px] transition-all hover:border-[#9ED3FF]/45 hover:text-white"
             >
               Elegir foto
             </button>

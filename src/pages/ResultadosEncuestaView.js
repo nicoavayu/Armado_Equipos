@@ -2357,7 +2357,7 @@ const ResultadosEncuestaView = () => {
 
   if (loading) {
     return (
-      <div className="min-h-[100dvh] w-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%)' }}>
+      <div className="min-h-[100dvh] w-screen flex items-center justify-center" style={{ background: 'var(--app-bg-gradient)' }}>
         <PageLoadingState
           title="CARGANDO RESULTADOS"
           description="Calculando estadísticas y premios del partido."
@@ -2373,8 +2373,8 @@ const ResultadosEncuestaView = () => {
 
   if (surveyUnavailableMessage) {
     return (
-      <div className="min-h-[100dvh] w-screen p-0 flex flex-col" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%)' }}>
-        <div className="w-[90vw] max-w-[720px] mt-[70px] mx-auto py-8 px-5 bg-card dark:bg-[#1a1a1a] shadow-fifa-card rounded-[20px] md:w-full md:mt-12 md:shadow-none md:rounded-none relative mb-20 text-center">
+      <div className="min-h-[100dvh] w-screen p-0 flex flex-col" style={{ background: 'var(--app-bg-gradient)' }}>
+        <div className="w-[90vw] max-w-[720px] mt-[70px] mx-auto py-8 px-5 bg-[linear-gradient(165deg,rgba(48,38,98,0.55),rgba(18,14,38,0.96))] border border-[rgba(148,134,255,0.16)] shadow-elev-2 backdrop-blur-md rounded-[20px] md:w-full md:mt-12 md:shadow-none md:rounded-none relative mb-20 text-center">
           <h1 className="text-[30px] md:text-4xl leading-[1.05] text-white text-center mb-5 tracking-[0.01em] font-oswald font-semibold">
             Resultados no disponibles
           </h1>
@@ -2383,7 +2383,7 @@ const ResultadosEncuestaView = () => {
           </p>
           <button
             onClick={handleBack}
-            className="min-h-[52px] px-6 rounded-xl text-[18px] font-bebas tracking-[0.04em] uppercase text-white bg-white/15 border border-white/25 hover:bg-white/25 transition-all shadow-lg"
+            className="min-h-[52px] px-6 rounded-2xl text-[18px] font-bebas font-semibold tracking-[0.04em] uppercase text-white bg-white/[0.07] border border-[rgba(148,134,255,0.3)] hover:bg-white/[0.12] transition-all shadow-elev-1"
           >
             Volver
           </button>
@@ -2474,7 +2474,7 @@ const ResultadosEncuestaView = () => {
   // In force awards mode, never show the static results page before story is ready.
   if (forceAwardsMode && autoOpeningAwards && !showingBadgeAnimations) {
     return (
-      <div className="min-h-[100dvh] w-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%)' }}>
+      <div className="min-h-[100dvh] w-screen flex items-center justify-center" style={{ background: 'var(--app-bg-gradient)' }}>
         <LoadingSpinner size="large" fullScreen />
       </div>
     );
@@ -2485,29 +2485,32 @@ const ResultadosEncuestaView = () => {
   }
 
   return (
-    <div className="min-h-[100dvh] w-screen p-0 flex flex-col" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%)' }}>
+    <div className="min-h-[100dvh] w-screen p-0 flex flex-col" style={{ background: 'var(--app-bg-gradient)' }}>
       {/* Main Card Container */}
-      <div className="w-[90vw] max-w-[1100px] mt-[70px] mx-auto py-6 px-4 pb-11 bg-card dark:bg-[#1a1a1a] shadow-fifa-card rounded-[20px] min-h-[82vh] md:w-full md:mt-12 md:shadow-none md:rounded-none relative mb-20">
+      <div className="w-[90vw] max-w-[1100px] mt-[70px] mx-auto py-6 px-4 pb-11 bg-[linear-gradient(165deg,rgba(48,38,98,0.55),rgba(18,14,38,0.96))] border border-[rgba(148,134,255,0.16)] shadow-elev-2 backdrop-blur-md rounded-[20px] min-h-[82vh] md:w-full md:mt-12 md:shadow-none md:rounded-none relative mb-20">
 
-        <h1 className="text-[30px] md:text-4xl leading-[1.05] text-white text-center mb-8 tracking-[0.01em] font-oswald font-semibold">Resultados de la encuesta</h1>
+        <div className="text-center mb-8">
+          <span className="section-eyebrow">Post partido</span>
+          <h1 className="text-[28px] md:text-4xl leading-[1.05] text-white text-center tracking-[0.01em] font-oswald font-bold m-0">Resultados de la encuesta</h1>
+        </div>
 
         {/* Partido Info */}
-        <div className="bg-white/5 rounded-xl p-5 mb-6 border border-white/10 text-center">
-          <h2 className="text-xl md:text-2xl text-[#0EA9C6] mb-3 tracking-[0.01em] font-oswald font-semibold">
+        <div className="surface-hero p-5 mb-6 text-center">
+          <h2 className="text-xl md:text-2xl text-[#cfc4ff] mb-2 tracking-[0.01em] font-oswald font-bold">
             {partido.nombre || partido.titulo || `Partido ${partidoId}`}
           </h2>
-          <p className="text-gray-300  text-lg mb-1">
+          <p className="text-white/60 text-base mb-1 font-sans">
             {new Date(partido.fecha).toLocaleString('es-ES', { dateStyle: 'full', timeStyle: 'short' })}
           </p>
         </div>
 
         {/* Results Summary */}
         {canonicalResults && awardsReady && hasPrimaryAwardHighlights && (
-          <div className="bg-gradient-to-br from-white/10 to-white/5 rounded-xl p-5 mb-8 border border-white/10">
-            <h3 className="text-xl text-white  mb-4 border-b border-white/10 pb-2">Destacados</h3>
+          <div className="surface-card rounded-card p-5 mb-8">
+            <h3 className="section-title text-xl mb-4 border-b border-white/10 pb-3">Destacados</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {canonicalResults.mvp && (
-                <div className="flex items-center gap-3 bg-black/20 p-3 rounded-lg">
+                <div className="flex items-center gap-3 bg-[rgba(12,10,29,0.6)] border border-[rgba(148,134,255,0.14)] p-3 rounded-xl">
                   <span className="text-2xl">🏆</span>
                   <div className="flex flex-col">
                     <span className="font-oswald text-lg text-gray-400 tracking-[0.01em] font-semibold">Mvp</span>
@@ -2516,7 +2519,7 @@ const ResultadosEncuestaView = () => {
                 </div>
               )}
               {canonicalResults.golden_glove && (
-                <div className="flex items-center gap-3 bg-black/20 p-3 rounded-lg">
+                <div className="flex items-center gap-3 bg-[rgba(12,10,29,0.6)] border border-[rgba(148,134,255,0.14)] p-3 rounded-xl">
                   <span className="text-2xl">🥇</span>
                   <div className="flex flex-col">
                     <span className="font-oswald text-lg text-gray-400 tracking-[0.01em] font-semibold">Mejor arquero</span>
@@ -2525,7 +2528,7 @@ const ResultadosEncuestaView = () => {
                 </div>
               )}
               {(canonicalResults.dirty_player || (Array.isArray(canonicalResults.red_cards) && canonicalResults.red_cards.length > 0)) && (
-                <div className="flex items-center gap-3 bg-black/20 p-3 rounded-lg">
+                <div className="flex items-center gap-3 bg-[rgba(12,10,29,0.6)] border border-[rgba(148,134,255,0.14)] p-3 rounded-xl">
                   <span className="text-2xl">🟥</span>
                   <div className="flex flex-col">
                     <span className="font-bebas-real text-lg text-gray-400 uppercase tracking-wider">MÁS SUCIO</span>
@@ -2541,7 +2544,7 @@ const ResultadosEncuestaView = () => {
         <div className="flex flex-col sm:flex-row gap-3 justify-center mb-10">
           <button
             onClick={handleBack}
-            className="min-h-[52px] px-6 rounded-xl text-[18px] font-bebas tracking-[0.04em] uppercase text-white bg-white/15 border border-white/25 hover:bg-white/25 transition-all shadow-lg"
+            className="min-h-[52px] px-6 rounded-2xl text-[18px] font-bebas font-semibold tracking-[0.04em] uppercase text-white bg-white/[0.07] border border-[rgba(148,134,255,0.3)] hover:bg-white/[0.12] transition-all shadow-elev-1"
           >
             Volver
           </button>
@@ -2556,7 +2559,7 @@ const ResultadosEncuestaView = () => {
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
               {absences.map((jugador) => (
-                <div key={jugador.uuid} className="bg-black/20 rounded-lg p-3 flex flex-col items-center">
+                <div key={jugador.uuid} className="bg-[rgba(12,10,29,0.6)] border border-[rgba(148,134,255,0.14)] rounded-xl p-3 flex flex-col items-center">
                   <div className="transform scale-90 mb-[-10px]">
                     <ProfileCard
                       profile={jugador}
