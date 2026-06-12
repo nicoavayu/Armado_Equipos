@@ -9,7 +9,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import GlobalErrorBoundary from './components/GlobalErrorBoundary';
 import AuthProvider, { useAuth } from './components/AuthProvider';
 import usePendingAuthFlow from './hooks/usePendingAuthFlow';
-import LoadingSpinner from './components/LoadingSpinner';
+import AppLoadingScreen from './components/AppLoadingScreen';
 import GlobalNoticeModal from './components/GlobalNoticeModal';
 // NotificationsDebugPanel removed
 
@@ -95,66 +95,66 @@ export default function App() {
                 <Routes>
                   <Route path="/health" element={<HealthRoute />} />
                   <Route path="/terms" element={
-                    <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
+                    <Suspense fallback={<AppLoadingScreen />}>
                       <TermsPage />
                     </Suspense>
                   } />
                   <Route path="/privacy" element={
-                    <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
+                    <Suspense fallback={<AppLoadingScreen />}>
                       <PrivacyPage />
                     </Suspense>
                   } />
                   <Route path="/account-deletion" element={
-                    <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
+                    <Suspense fallback={<AppLoadingScreen />}>
                       <AccountDeletionInfoPage />
                     </Suspense>
                   } />
                   <Route path="/encuesta/:partidoId" element={
-                    <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
+                    <Suspense fallback={<AppLoadingScreen />}>
                       <EncuestaPartido />
                     </Suspense>
                   } />
                   <Route path="/resultados-encuesta/:partidoId" element={
-                    <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
+                    <Suspense fallback={<AppLoadingScreen />}>
                       <ResultadosEncuestaView />
                     </Suspense>
                   } />
                   <Route path="/resultados/:partidoId" element={
-                    <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
+                    <Suspense fallback={<AppLoadingScreen />}>
                       <ResultadosEncuestaView />
                     </Suspense>
                   } />
                   <Route path="/login" element={
-                    <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
+                    <Suspense fallback={<AppLoadingScreen />}>
                       <AuthHome />
                     </Suspense>
                   } />
                   <Route path="/login/email" element={
-                    <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
+                    <Suspense fallback={<AppLoadingScreen />}>
                       <AuthHome />
                     </Suspense>
                   } />
                   <Route path="/auth/callback" element={
-                    <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
+                    <Suspense fallback={<AppLoadingScreen />}>
                       <AuthCallback />
                     </Suspense>
                   } />
                   <Route path="/i/:token" element={
-                    <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
+                    <Suspense fallback={<AppLoadingScreen />}>
                       <InviteLanding />
                     </Suspense>
                   } />
                   
                   {/* Ruta pública: invitación a partido (sin auth requerido) */}
                   <Route path="/partido/:partidoId/invitacion" element={
-                    <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
+                    <Suspense fallback={<AppLoadingScreen />}>
                       <PartidoInvitacion />
                     </Suspense>
                   } />
                   
                   {/* Ruta pública: votación de equipos (sin auth requerido) */}
                   <Route path="/votar-equipos" element={
-                    <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
+                    <Suspense fallback={<AppLoadingScreen />}>
                       <VotarEquiposPage />
                     </Suspense>
                   } />
@@ -162,38 +162,38 @@ export default function App() {
                   <Route path="/" element={<AppAuthWrapper />}>
                     <Route path="" element={<MainLayout />}>
                       <Route index element={
-                        <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
+                        <Suspense fallback={<AppLoadingScreen />}>
                           <HomePage />
                         </Suspense>
                       } />
                       <Route path="home" element={<Navigate to="/" replace />} />
                       <Route path="nuevo-partido" element={
-                        <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
+                        <Suspense fallback={<AppLoadingScreen />}>
                           <NuevoPartidoPage />
                         </Suspense>
                       } />
                       <Route path="quiero-jugar" element={
-                        <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
+                        <Suspense fallback={<AppLoadingScreen />}>
                           <QuieroJugarPage />
                         </Suspense>
                       } />
                       <Route path="desafios" element={
-                        <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
+                        <Suspense fallback={<AppLoadingScreen />}>
                           <DesafiosPage />
                         </Suspense>
                       } />
                       <Route path="desafios/equipos/:teamId" element={
-                        <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
+                        <Suspense fallback={<AppLoadingScreen />}>
                           <EquipoDetallePage />
                         </Suspense>
                       } />
                       <Route path="desafios/equipos/:teamId/chat" element={
-                        <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
+                        <Suspense fallback={<AppLoadingScreen />}>
                           <TeamChatPage />
                         </Suspense>
                       } />
                       <Route path="desafios/equipos/partidos/:matchId" element={
-                        <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
+                        <Suspense fallback={<AppLoadingScreen />}>
                           <TeamMatchDetailPage />
                         </Suspense>
                       } />
@@ -202,37 +202,37 @@ export default function App() {
                       <Route path="quiero-jugar/equipos/:teamId/chat" element={<LegacyTeamChatRedirect />} />
                       <Route path="quiero-jugar/equipos/partidos/:matchId" element={<LegacyTeamMatchRedirect />} />
                       <Route path="amigos" element={
-                        <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
+                        <Suspense fallback={<AppLoadingScreen />}>
                           <AmigosPage />
                         </Suspense>
                       } />
                       <Route path="profile" element={
-                        <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
+                        <Suspense fallback={<AppLoadingScreen />}>
                           <ProfilePage />
                         </Suspense>
                       } />
                       <Route path="notifications" element={
-                        <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
+                        <Suspense fallback={<AppLoadingScreen />}>
                           <NotificationsPage />
                         </Suspense>
                       } />
                       <Route path="stats" element={
-                        <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
+                        <Suspense fallback={<AppLoadingScreen />}>
                           <StatsPage />
                         </Suspense>
                       } />
                       <Route path="frecuentes" element={
-                        <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
+                        <Suspense fallback={<AppLoadingScreen />}>
                           <FrecuentesPage />
                         </Suspense>
                       } />
                       <Route path="frecuentes/:templateId" element={
-                        <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
+                        <Suspense fallback={<AppLoadingScreen />}>
                           <TemplateDetailsPage />
                         </Suspense>
                       } />
                       <Route path="frecuentes/:templateId/historial" element={
-                        <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
+                        <Suspense fallback={<AppLoadingScreen />}>
                           <TemplateHistoryPage />
                         </Suspense>
                       } />
@@ -241,17 +241,17 @@ export default function App() {
                       <Route path="historial/:templateId" element={<LegacyTemplateRedirect />} />
                       <Route path="historial/:templateId/historial" element={<LegacyTemplateHistoryRedirect />} />
                       <Route path="admin/:partidoId" element={
-                        <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
+                        <Suspense fallback={<AppLoadingScreen />}>
                           <AdminPanelPage />
                         </Suspense>
                       } />
                       <Route path="partido/:partidoId" element={
-                        <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
+                        <Suspense fallback={<AppLoadingScreen />}>
                           <AdminPanelPage />
                         </Suspense>
                       } />
                       <Route path="partido-publico/:partidoId" element={
-                        <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
+                        <Suspense fallback={<AppLoadingScreen />}>
                           <PartidoInvitacion mode="public" />
                         </Suspense>
                       } />
@@ -562,11 +562,7 @@ export function AppAuthWrapper() {
   }
 
   if (isCompletingAuth) {
-    return (
-      <div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center">
-        <LoadingSpinner size="large" />
-      </div>
-    );
+    return <AppLoadingScreen />;
   }
 
   // Local development shortcut: avoid external auth redirects while editing UI.
@@ -622,7 +618,7 @@ function HealthRoute() {
   }
 
   return (
-    <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
+    <Suspense fallback={<AppLoadingScreen />}>
       <HealthCheck />
     </Suspense>
   );

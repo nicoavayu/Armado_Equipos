@@ -1,6 +1,6 @@
 import React, { useState, useEffect, createContext, useContext, useCallback, useRef } from 'react';
 import { supabase, getProfile, createOrUpdateProfile } from '../supabase';
-import LoadingSpinner from './LoadingSpinner';
+import AppLoadingScreen from './AppLoadingScreen';
 import { clearAuthFlowIfSessionSettled } from '../services/auth/socialAuth';
 import { clearSentryUser, setSentryUser } from '../utils/monitoring/sentry';
 
@@ -315,11 +315,7 @@ const AuthProvider = ({ children }) => {
   };
 
   if (shouldShowBlockingSpinner) {
-    return (
-      <div className="voting-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
-        <LoadingSpinner size="large" fullScreen />
-      </div>
-    );
+    return <AppLoadingScreen />;
   }
 
   return (

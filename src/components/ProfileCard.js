@@ -99,6 +99,16 @@ const getLevelDotColor = (level) => {
   return map[level] || '#FFFFFF';
 };
 
+// Names up to 12 chars keep the current size; longer names shrink progressively
+// so they never overflow the card (max input length is 20, >20 falls back to ellipsis).
+const getNameFontScale = (name) => {
+  const len = String(name || '').length;
+  if (len <= 12) return 1;
+  if (len <= 15) return 0.88;
+  if (len <= 18) return 0.78;
+  return 0.7;
+};
+
 const getAvatar = (p) => {
   const src = p?.avatar_url || p?.foto_url || p?.user?.user_metadata?.avatar_url || p?.user?.user_metadata?.picture || p?.user_metadata?.avatar_url || p?.user_metadata?.picture;
   if (!src) return null;
@@ -628,7 +638,11 @@ const ProfileCardComponent = ({
           left: var(--pc-name-left);
           transform: translateX(var(--pc-name-translate-x));
           width: var(--pc-name-width);
+          /* Fixed slot height = full-size name line box, so scaled-down names
+             center vertically instead of staying anchored to the top. */
+          height: calc(clamp(28px, 9.6vw, 46px) * 1.75 + var(--pc-name-margin) * 2);
           display: flex;
+          align-items: center;
           justify-content: center;
         }
         .pc-name {
@@ -638,7 +652,7 @@ const ProfileCardComponent = ({
           text-overflow: ellipsis;
           white-space: nowrap;
           font-family: 'Bebas Neue', 'Bebas', 'Oswald', sans-serif;
-          font-size: clamp(28px, 9.6vw, 46px);
+          font-size: calc(clamp(28px, 9.6vw, 46px) * var(--pc-name-scale, 1));
           line-height: 1.75;
           font-weight: 900;
           letter-spacing: 0.01em;
@@ -978,8 +992,8 @@ const ProfileCardComponent = ({
 
                     <div className="pc-content-layer">
                       <div className="pc-name-wrap">
-                        <h3 className="pc-name" title={vm.name}>
-                          {vm.name.slice(0, 12)}
+                        <h3 className="pc-name" title={vm.name} style={{ '--pc-name-scale': getNameFontScale(vm.name) }}>
+                          {vm.name}
                         </h3>
                       </div>
 
