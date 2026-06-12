@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Flag, MoreVertical, Shield, Users } from 'lucide-react';
+import { ChevronLeft, Flag, MoreVertical, Shield, Users } from 'lucide-react';
 import { useAuth } from '../components/AuthProvider';
 import PageTitle from '../components/PageTitle';
 import PageTransition from '../components/PageTransition';
@@ -84,18 +84,18 @@ const statusLabelByValue = {
 
 const getOriginBadgeClass = (originType) => {
   if (String(originType || '').toLowerCase() === 'challenge') {
-    return 'bg-[#2b1d52] border-2 border-[#c084fc] text-[#f3e8ff]';
+    return 'bg-[#2b1d52]/75 border-[#c084fc]/35 text-[#ead9ff]';
   }
-  return 'bg-[#15344f] border-2 border-[#22d3ee] text-[#e0f2fe]';
+  return 'bg-[#15344f]/65 border-[#22d3ee]/30 text-[#dff3ff]';
 };
 
 const getStatusBadgeClass = (statusValue) => {
   const status = String(statusValue || '').trim().toLowerCase();
-  if (status === 'confirmed') return 'text-[#D6F8E2] border-[#5AD17B]/45 bg-[#2F9E44]/24';
-  if (status === 'pending') return 'text-[#FDE68A] border-[#FBBF24]/45 bg-[#B45309]/24';
-  if (status === 'played') return 'text-[#D4EBFF] border-[#9ED3FF]/45 bg-[#128BE9]/22';
-  if (status === 'cancelled') return 'text-[#E2E8F0] border-[#94A3B8]/45 bg-[#475569]/28';
-  return 'text-white/85 border-white/25 bg-white/10';
+  if (status === 'confirmed') return 'text-[#D6F8E2] border-[#5AD17B]/35 bg-[#2F9E44]/18';
+  if (status === 'pending') return 'text-[#FDE68A] border-[#FBBF24]/35 bg-[#B45309]/18';
+  if (status === 'played') return 'text-[#D4EBFF] border-[#9ED3FF]/35 bg-[#128BE9]/16';
+  if (status === 'cancelled') return 'text-[#E2E8F0] border-[#94A3B8]/35 bg-[#475569]/22';
+  return 'text-white/85 border-white/20 bg-white/[0.08]';
 };
 
 const SQUAD_STATUS_LABEL_BY_VALUE = {
@@ -131,11 +131,13 @@ const getAvailabilityStatusLabel = (status) => {
   return 'Pendiente';
 };
 
+// Sin glow por fila: la lista del plantel se repite por jugador y las sombras
+// repetidas pesan en el render mobile.
 const getAvailabilityIndicatorClass = (status) => {
   const normalized = String(status || '').trim().toLowerCase();
-  if (normalized === 'available') return 'bg-[#22c55e] shadow-[0_0_8px_rgba(34,197,94,0.6)]';
-  if (normalized === 'unavailable') return 'bg-[#ef4444] shadow-[0_0_8px_rgba(239,68,68,0.6)]';
-  return 'bg-[#fbbf24] shadow-[0_0_8px_rgba(251,191,36,0.6)]';
+  if (normalized === 'available') return 'bg-[#22c55e]';
+  if (normalized === 'unavailable') return 'bg-[#ef4444]';
+  return 'bg-[#fbbf24]';
 };
 
 const normalizeIdentityToken = (value) => String(value || '').trim();
@@ -217,11 +219,11 @@ const MatchupTeamSide = ({
       : 'text-[17px] sm:text-[19px] tracking-[0.015em]';
   const crestBorderClass = accent === 'violet'
     ? 'border-[#7d5aff]/55'
-    : 'border-[#38bdf8]/50';
+    : 'border-[#8aa6ff]/45';
 
   return (
     <div className="flex min-w-0 flex-col items-center text-center">
-      <div className={`h-14 w-14 sm:h-16 sm:w-16 rounded-[16px] overflow-hidden border bg-[#0e1b47] flex items-center justify-center shrink-0 ${crestBorderClass}`}>
+      <div className={`h-14 w-14 sm:h-16 sm:w-16 rounded-[16px] overflow-hidden border bg-[#151034] flex items-center justify-center shrink-0 ${crestBorderClass}`}>
         {team?.crest_url ? (
           <img src={team.crest_url} alt={teamName} className="h-full w-full object-cover" />
         ) : (
@@ -251,7 +253,7 @@ const MatchupTeamSide = ({
               key={`${member?.id || member?.jugador_id || name}`}
               type="button"
               onClick={() => onOpenProfile(getPlayerProfile(member))}
-              className="h-7 w-7 rounded-full border border-white/30 bg-slate-900/70 overflow-hidden flex items-center justify-center text-[9px] font-semibold text-white/90 shrink-0"
+              className="h-7 w-7 rounded-full border border-[rgba(168,152,255,0.35)] bg-[#151034]/85 overflow-hidden flex items-center justify-center text-[9px] font-semibold text-white/90 shrink-0"
               title={name}
               aria-label={`Ver perfil de ${name}`}
             >
@@ -270,7 +272,7 @@ const MatchupTeamSide = ({
           <button
             type="button"
             onClick={onOpenRoster}
-            className="h-7 w-7 rounded-full border border-white/30 bg-slate-900/70 text-[10px] text-white/85 font-oswald shrink-0 flex items-center justify-center"
+            className="h-7 w-7 rounded-full border border-[rgba(168,152,255,0.35)] bg-[#151034]/85 text-[10px] text-white/85 font-oswald shrink-0 flex items-center justify-center"
             aria-label={`Ver ${overflowCount} jugadores mas`}
             title="Ver plantilla completa"
           >
@@ -293,7 +295,7 @@ const MatchupHeroCard = ({
   className = '',
 }) => (
   <div
-    className={`relative overflow-hidden ${DETAIL_CARD_RADIUS_CLASS} border border-[rgba(41,170,255,0.4)] bg-[radial-gradient(circle_at_8%_0%,rgba(124,58,237,0.18),transparent_52%),radial-gradient(circle_at_92%_0%,rgba(56,189,248,0.14),transparent_52%),linear-gradient(180deg,#081338_0%,#060f2d_100%)] px-3 py-4 sm:px-5 sm:py-5 min-w-0 shadow-[0_16px_28px_rgba(3,8,28,0.45)] ${className}`}
+    className={`relative overflow-hidden ${DETAIL_CARD_RADIUS_CLASS} border border-[rgba(148,134,255,0.26)] bg-[radial-gradient(circle_at_10%_0%,rgba(124,58,237,0.22),transparent_55%),radial-gradient(circle_at_92%_100%,rgba(236,0,125,0.08),transparent_55%),linear-gradient(180deg,#1c1545_0%,#0d0a26_100%)] px-3 py-4 sm:px-5 sm:py-5 min-w-0 shadow-[0_16px_28px_rgba(5,3,18,0.45)] ${className}`}
   >
     <div className="relative grid grid-cols-[1fr_auto_1fr] items-stretch gap-2 sm:gap-3">
       <MatchupTeamSide
@@ -307,10 +309,10 @@ const MatchupHeroCard = ({
 
       <div className="flex flex-col items-center justify-center self-stretch px-0.5">
         <span className="w-px flex-1 bg-gradient-to-b from-transparent via-[rgba(148,134,255,0.35)] to-[rgba(148,134,255,0.12)]" />
-        <span className="my-1.5 flex h-9 w-9 rotate-45 items-center justify-center rounded-[10px] border border-white/25 bg-[linear-gradient(135deg,rgba(106,67,255,0.55),rgba(56,189,248,0.4))] shadow-[0_0_16px_rgba(106,67,255,0.3)]">
+        <span className="my-1.5 flex h-9 w-9 rotate-45 items-center justify-center rounded-[10px] border border-[rgba(202,182,255,0.4)] bg-[linear-gradient(150deg,#6a43ff_0%,#3a2480_55%,#221a4d_100%)] shadow-[0_6px_16px_rgba(8,5,24,0.5)]">
           <span className="-rotate-45 font-bebas text-[15px] leading-none tracking-[0.05em] text-white">VS</span>
         </span>
-        <span className="w-px flex-1 bg-gradient-to-t from-transparent via-[rgba(56,189,248,0.3)] to-[rgba(56,189,248,0.1)]" />
+        <span className="w-px flex-1 bg-gradient-to-t from-transparent via-[rgba(236,0,125,0.25)] to-[rgba(236,0,125,0.08)]" />
       </div>
 
       <MatchupTeamSide
@@ -1348,7 +1350,10 @@ const TeamMatchDetailPage = () => {
         Detalle partido
       </PageTitle>
 
-      <div className="w-full pb-8 pt-[62px] sm:pt-[58px]">
+      {/* El header fijo mide 72px (44px de contenido + 14px de padding vertical) y no
+          se desplaza con --safe-top, mientras que MainLayout sí lo suma al contenido:
+          el padding se calcula para que el match info siempre quede debajo del header. */}
+      <div className="w-full pb-8 pt-[max(8px,calc(76px-var(--safe-top,0px)))]">
         <div className="w-full overflow-visible">
           <MatchInfoSection
             partido={headerInfoPartido}
@@ -1374,10 +1379,10 @@ const TeamMatchDetailPage = () => {
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className={`inline-flex items-center gap-1 rounded-none border px-2 py-1 text-[11px] font-oswald uppercase tracking-wide ${getOriginBadgeClass(match?.origin_type)}`}>
-                      <Flag size={12} /> {match?.origin_type === 'challenge' ? 'Desafio' : 'Amistoso'}
+                    <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-[3px] text-[10px] leading-none font-oswald uppercase tracking-[0.08em] ${getOriginBadgeClass(match?.origin_type)}`}>
+                      <Flag size={10} /> {match?.origin_type === 'challenge' ? 'Desafio' : 'Amistoso'}
                     </span>
-                    <span className={`inline-flex items-center rounded-none border px-2 py-1 text-[11px] font-oswald uppercase tracking-wide ${getStatusBadgeClass(match?.status)}`}>
+                    <span className={`inline-flex items-center rounded-full border px-2.5 py-[3px] text-[10px] leading-none font-oswald uppercase tracking-[0.08em] ${getStatusBadgeClass(match?.status)}`}>
                       {statusLabelByValue[match?.status] || match?.status || 'Pendiente'}
                     </span>
                   </div>
@@ -1446,7 +1451,7 @@ const TeamMatchDetailPage = () => {
                 />
 
                 {isChallengeMatch && shouldRenderAmbiguousChallengeEntry ? (
-                  <div className={`${DETAIL_CARD_RADIUS_CLASS} border border-white/10 bg-white/[0.04] p-2.5 space-y-3`}>
+                  <div className={`${DETAIL_CARD_RADIUS_CLASS} border border-[rgba(148,134,255,0.18)] bg-[rgba(124,98,255,0.05)] p-2.5 space-y-3`}>
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <span className="text-white font-oswald text-[15px] truncate">
@@ -1456,7 +1461,7 @@ const TeamMatchDetailPage = () => {
                           Desafío compartido · gestionás solo tu equipo
                         </span>
                       </div>
-                      <span className={`inline-flex items-center rounded-none border px-2 py-1 text-[10px] font-oswald uppercase tracking-wide shrink-0 ${getSquadStatusBadgeClass(challengeSquadStatus)}`}>
+                      <span className={`inline-flex items-center rounded-full border px-2.5 py-[3px] text-[10px] leading-none font-oswald uppercase tracking-[0.08em] shrink-0 ${getSquadStatusBadgeClass(challengeSquadStatus)}`}>
                         {SQUAD_STATUS_LABEL_BY_VALUE[challengeSquadStatus] || 'No abierta'}
                       </span>
                     </div>
@@ -1471,7 +1476,7 @@ const TeamMatchDetailPage = () => {
                 ) : null}
 
                 {isChallengeMatch && canRenderPrivateChallengeSquad ? (
-                  <div className={`${DETAIL_CARD_RADIUS_CLASS} border border-white/10 bg-white/[0.04] p-2.5 space-y-3`}>
+                  <div className={`${DETAIL_CARD_RADIUS_CLASS} border border-[rgba(148,134,255,0.18)] bg-[rgba(124,98,255,0.05)] p-2.5 space-y-3`}>
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
@@ -1483,7 +1488,7 @@ const TeamMatchDetailPage = () => {
                           Desafío compartido · gestionás solo tu equipo
                         </span>
                       </div>
-                      <span className={`inline-flex items-center rounded-none border px-2 py-1 text-[10px] font-oswald uppercase tracking-wide shrink-0 ${getSquadStatusBadgeClass(challengeSquadStatus)}`}>
+                      <span className={`inline-flex items-center rounded-full border px-2.5 py-[3px] text-[10px] leading-none font-oswald uppercase tracking-[0.08em] shrink-0 ${getSquadStatusBadgeClass(challengeSquadStatus)}`}>
                         {SQUAD_STATUS_LABEL_BY_VALUE[challengeSquadStatus] || 'No abierta'}
                       </span>
                     </div>
@@ -1498,7 +1503,7 @@ const TeamMatchDetailPage = () => {
                       <p className="text-sm text-white/65 font-oswald">Cargando convocatoria...</p>
                     ) : (
                       <div className="space-y-3">
-                        <div className="rounded-none border border-white/10 bg-white/[0.02] p-2.5 space-y-2">
+                        <div className="rounded-[12px] border border-[rgba(148,134,255,0.14)] bg-white/[0.02] p-2.5 space-y-2">
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <span className="text-[16px] text-white font-oswald">¿Jugás este partido?</span>
                           </div>
@@ -1554,19 +1559,20 @@ const TeamMatchDetailPage = () => {
                               <div className="flex min-w-0 items-center gap-2">
                                 <button
                                   type="button"
-                                  className="rounded-none border border-white/25 bg-white/5 px-2.5 py-1 text-[10px] font-oswald uppercase tracking-wide text-white/80 hover:bg-white/10"
+                                  className="inline-flex items-center gap-0.5 rounded-[10px] border border-[rgba(148,134,255,0.3)] bg-white/[0.06] py-1.5 pl-1.5 pr-2.5 text-[11px] leading-none font-oswald uppercase tracking-[0.06em] text-white/85 transition-colors hover:bg-white/[0.12] hover:border-[rgba(148,134,255,0.5)] active:scale-[0.97]"
                                   onClick={() => setIsSquadRosterViewOpen(false)}
                                 >
+                                  <ChevronLeft size={13} className="shrink-0" />
                                   Volver
                                 </button>
-                                <span className="text-white font-oswald text-[13px] uppercase tracking-[0.04em]">Mi plantel</span>
+                                <span className="text-white font-oswald font-semibold text-[14px] uppercase tracking-[0.08em]">Mi plantel</span>
                               </div>
                               <div className="flex shrink-0 items-center gap-1.5">
-                                <span className="inline-flex items-center gap-1 rounded-none border border-[#7d5aff]/40 bg-[#6a43ff]/15 px-2 py-0.5 text-[10px] font-oswald uppercase tracking-[0.04em] text-white/80">
+                                <span className="inline-flex items-center gap-1 rounded-full border border-[#7d5aff]/35 bg-[#6a43ff]/12 px-2.5 py-1 text-[10px] leading-none font-oswald uppercase tracking-[0.05em] text-white/75">
                                   Titulares
                                   <span className="font-semibold text-white">{myChallengeSquadCounters.starters}/{challengeSquadLimits.starters}</span>
                                 </span>
-                                <span className="inline-flex items-center gap-1 rounded-none border border-[#38bdf8]/35 bg-[#128BE9]/15 px-2 py-0.5 text-[10px] font-oswald uppercase tracking-[0.04em] text-white/80">
+                                <span className="inline-flex items-center gap-1 rounded-full border border-[#8aa6ff]/30 bg-[#3b5bff]/12 px-2.5 py-1 text-[10px] leading-none font-oswald uppercase tracking-[0.05em] text-white/75">
                                   Suplentes
                                   <span className="font-semibold text-white">{myChallengeSquadCounters.substitutes}/{challengeSquadLimits.substitutes}</span>
                                 </span>
@@ -1579,7 +1585,7 @@ const TeamMatchDetailPage = () => {
                               </p>
                             ) : null}
 
-                            <div className="rounded-none border border-white/10 bg-white/[0.03] px-2 py-1">
+                            <div className="rounded-[12px] border border-[rgba(148,134,255,0.14)] bg-white/[0.03] px-2 py-1">
                               {myChallengeSquadRows.length === 0 ? (
                                 <p className="py-1.5 text-[12px] text-white/60 font-oswald">
                                   Todavía no hay jugadores en el plantel.
@@ -1601,7 +1607,7 @@ const TeamMatchDetailPage = () => {
                                         className="flex items-center gap-2 py-1.5"
                                       >
                                         <div className="relative shrink-0">
-                                          <div className="h-8 w-8 rounded-full border border-white/20 bg-slate-900/70 overflow-hidden flex items-center justify-center text-[9px] font-semibold text-white/90">
+                                          <div className="h-8 w-8 rounded-full border border-[rgba(168,152,255,0.3)] bg-[#151034]/85 overflow-hidden flex items-center justify-center text-[9px] font-semibold text-white/90">
                                             {getPlayerAvatar(entry) ? (
                                               <img src={getPlayerAvatar(entry)} alt={getPlayerName(entry)} className="h-full w-full object-cover" />
                                             ) : (
@@ -1617,29 +1623,29 @@ const TeamMatchDetailPage = () => {
                                           <span className="block truncate text-white font-oswald text-[12px] leading-tight">{getPlayerName(entry)}</span>
                                           <span className="block text-[10px] leading-tight text-white/50 font-oswald">{availabilityLabel}</span>
                                         </div>
-                                        <div className="inline-flex shrink-0 items-stretch rounded-[10px] border border-white/12 bg-white/[0.04] p-0.5">
+                                        <div className="inline-flex shrink-0 items-stretch rounded-full border border-[rgba(148,134,255,0.22)] bg-[#100c2e]/90 p-[3px]">
                                           {[{
                                             key: 'starter',
                                             label: 'Titular',
                                             active: isStarter,
-                                            activeClass: 'bg-[#6a43ff] text-white',
+                                            activeClass: 'bg-[linear-gradient(135deg,#7c4dff,#5b2fe0)] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.16)]',
                                           }, {
                                             key: 'substitute',
                                             label: 'Suplente',
                                             active: isSubstitute,
-                                            activeClass: 'bg-[#128BE9]/80 text-white',
+                                            activeClass: 'bg-[#3d56e0] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14)]',
                                           }, {
                                             key: 'not_selected',
                                             label: 'Afuera',
                                             active: isOut,
-                                            activeClass: 'bg-white/[0.14] text-white/95',
+                                            activeClass: 'bg-[#352a63] text-white/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]',
                                           }].map((action) => (
                                             <button
                                               key={`${entry?.id || entry?.jugador_id}-${action.key}`}
                                               type="button"
-                                              className={`min-h-[30px] rounded-[8px] px-1.5 text-[10px] font-oswald uppercase tracking-[0.03em] leading-none transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed ${action.active
+                                              className={`min-h-[30px] rounded-full px-2 text-[10px] font-oswald uppercase tracking-[0.03em] leading-none transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed ${action.active
                                                 ? action.activeClass
-                                                : 'text-white/60 hover:text-white/90'
+                                                : 'text-white/55 hover:text-white/90'
                                                 }`}
                                               onClick={() => handleChangeSelection({
                                                 teamId: myChallengeTeamId,
@@ -1693,7 +1699,7 @@ const TeamMatchDetailPage = () => {
               </div>
 
               {isChallengeMatch && showChallengeHeadToHead ? (
-                <div className={`mt-2 h-16 ${DETAIL_CARD_RADIUS_CLASS} border border-white/10 bg-white/[0.04] px-[14px] py-[10px]`}>
+                <div className={`mt-2 h-16 ${DETAIL_CARD_RADIUS_CLASS} border border-[rgba(148,134,255,0.18)] bg-[rgba(124,98,255,0.05)] px-[14px] py-[10px]`}>
                   {challengeHeadToHeadLoading ? (
                     <div className="grid h-full grid-cols-4 gap-2">
                       {Array.from({ length: 4 }).map((_, index) => (
