@@ -638,7 +638,11 @@ const ProfileCardComponent = ({
           left: var(--pc-name-left);
           transform: translateX(var(--pc-name-translate-x));
           width: var(--pc-name-width);
+          /* Fixed slot height = full-size name line box, so scaled-down names
+             center vertically instead of staying anchored to the top. */
+          height: calc(clamp(28px, 9.6vw, 46px) * 1.75 + var(--pc-name-margin) * 2);
           display: flex;
+          align-items: center;
           justify-content: center;
         }
         .pc-name {
