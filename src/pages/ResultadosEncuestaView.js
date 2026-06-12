@@ -2368,7 +2368,11 @@ const ResultadosEncuestaView = () => {
   }
 
   if (!partido) {
-    return <div className="text-white text-center mt-20 text-xl">Partido no encontrado</div>;
+    return (
+      <div className="min-h-[100dvh] w-screen flex items-start justify-center" style={{ background: 'var(--app-bg-gradient)' }}>
+        <div className="text-white text-center mt-20 text-xl">Partido no encontrado</div>
+      </div>
+    );
   }
 
   if (surveyUnavailableMessage) {
