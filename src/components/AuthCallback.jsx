@@ -9,6 +9,7 @@ import {
   setAuthFlowResult,
 } from '../utils/authFlowState';
 import { track } from '../utils/monitoring/analytics';
+import AppLoadingScreen from './AppLoadingScreen';
 
 const SESSION_RETRY_DELAYS_MS = [0, 250, 600, 1200];
 
@@ -169,13 +170,17 @@ export default function AuthCallback() {
     };
   }, [navigate]);
 
-  return (
-    <div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center px-4">
-      <div className="w-full max-w-md rounded-2xl border border-white/20 bg-[#1a1f46]/90 p-6 text-center">
-        <h1 className="font-oswald text-4xl text-white font-semibold tracking-[0.01em]">Ingresando...</h1>
-        {!error && <p className="text-white/70 mt-3">Estamos validando tu sesión.</p>}
-        {error && <p className="text-[#ff7b7b] mt-4">{error}</p>}
+  if (error) {
+    return (
+      <div className="auth-premium-bg fixed inset-0 z-[1200] flex min-h-[100dvh] w-full flex-col items-center justify-center overflow-hidden px-6">
+        <div className="auth-premium-noise" aria-hidden="true" />
+        <div className="w-full max-w-md rounded-2xl border border-[rgba(148,134,255,0.16)] bg-[linear-gradient(165deg,rgba(48,38,98,0.55),rgba(18,14,38,0.96))] p-6 text-center shadow-elev-2 backdrop-blur-md">
+          <h1 className="font-oswald text-3xl font-semibold tracking-[0.01em] text-white">No pudimos ingresar</h1>
+          <p className="mt-4 text-[#ff7b7b]">{error}</p>
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  return <AppLoadingScreen message="Ingresando..." />;
 }
