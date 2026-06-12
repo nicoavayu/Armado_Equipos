@@ -816,7 +816,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
   }
 
   return (
-    <div className="w-full bg-transparent shadow-none">
+    <div className="w-full bg-transparent shadow-none flex-1 flex flex-col">
       <HomeWelcomeCard />
 
       {/* Header elements - Avatar and Notifications */}
@@ -988,14 +988,15 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
       </div>
 
       {/* Recent Activity */}
-      <section className="mt-5 mb-10">
+      {/* Top spacing comes from the grid's mb-5; flex items don't collapse margins */}
+      <section className="mb-10 flex-1 flex flex-col">
         <h3 className="font-oswald text-[28px] m-0 mb-4 text-white/90 font-semibold tracking-[0.01em]">Actividad reciente</h3>
 
-        <div className="relative left-1/2 right-1/2 ml-[-50vw] mr-[-50vw] w-screen">
-          <div className="px-4">
-            <div className="min-h-[340px]">
+        <div className="relative left-1/2 right-1/2 ml-[-50vw] mr-[-50vw] w-screen flex-1 flex flex-col">
+          <div className="px-4 flex-1 flex flex-col">
+            <div className="min-h-[340px] flex-1 flex flex-col">
               {activityLoading ? (
-                <div className="h-[340px] overflow-hidden">
+                <div className="min-h-[340px] flex-1 overflow-hidden">
                   {Array.from({ length: 4 }).map((_, index) => (
                     <div key={`activity-skeleton-${index}`} className="py-3">
                       <div className="flex items-start gap-3 px-2.5">
@@ -1010,7 +1011,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
                   ))}
                 </div>
               ) : activityItems.length > 0 ? (
-                <div className="h-[340px] overflow-y-auto pr-0.5 custom-scrollbar">
+                <div className="min-h-[340px] flex-1 overflow-y-auto pr-0.5 custom-scrollbar">
                   {activityItems.map((item, index) => {
                     const Icon = activityIconMap[item.icon] || Bell;
                     const iconColorClass = severityIconClass[item.severity] || severityIconClass.neutral;
@@ -1079,7 +1080,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
                   })}
                 </div>
               ) : (
-                <div className="h-[340px] flex flex-col items-center justify-center text-center px-5">
+                <div className="min-h-[340px] flex-1 flex flex-col items-center justify-center text-center px-5">
                   <Bell size={22} className="text-white/45 mb-3" />
                   <div className="font-oswald text-[23px] sm:text-[22px] leading-tight tracking-[0.01em] text-white/90 font-semibold">
                     Sin notificaciones
