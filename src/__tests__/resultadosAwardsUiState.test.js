@@ -30,11 +30,13 @@ jest.mock('react-router-dom', () => {
 });
 
 const {
+  buildForcedAwardsFallback,
   deriveAwardsUiState,
   deriveAwardsPresentationState,
   deriveAbsenceResultsFromSummary,
   deriveCanonicalResultsRow,
   deriveCanShowResults,
+  deriveShouldBlockStaticResultsForAwards,
   shouldShowAwardsRetryAction,
   shouldShowSecondaryResultsSections,
 } = require('../pages/ResultadosEncuestaView');
@@ -294,6 +296,62 @@ describe('Resultados awards UI state', () => {
     });
 
     expect(shouldShowSections).toBe(true);
+  });
+
+  test('forced awards mode blocks static results before story or fallback resolve', () => {
+    expect(deriveShouldBlockStaticResultsForAwards({
+      forceAwardsMode: true,
+      showingBadgeAnimations: false,
+      forcedAwardsFallback: null,
+    })).toBe(true);
+
+    expect(deriveShouldBlockStaticResultsForAwards({
+      forceAwardsMode: true,
+      showingBadgeAnimations: true,
+      forcedAwardsFallback: null,
+    })).toBe(false);
+
+    expect(deriveShouldBlockStaticResultsForAwards({
+      forceAwardsMode: true,
+      showingBadgeAnimations: false,
+      forcedAwardsFallback: { title: 'Premiación no disponible' },
+    })).toBe(false);
+
+    expect(deriveShouldBlockStaticResultsForAwards({
+      forceAwardsMode: false,
+      showingBadgeAnimations: false,
+      forcedAwardsFallback: null,
+    })).toBe(false);
+  });
+
+  test('forced awards fallback resolves no-slide states without returning to static results', () => {
+    expect(buildForcedAwardsFallback({
+      row: {
+        results_ready: true,
+        awards_status: 'not_eligible',
+      },
+      reason: 'force_awards_no_slides',
+    })).toEqual(expect.objectContaining({
+      title: 'Premiación no disponible',
+      reason: 'force_awards_no_slides',
+    }));
+
+    expect(buildForcedAwardsFallback({
+      row: {
+        results_ready: true,
+        awards_status: 'error',
+      },
+    })).toEqual(expect.objectContaining({
+      title: 'Premiación no disponible',
+      reason: 'awards_error',
+    }));
+
+    expect(buildForcedAwardsFallback({
+      row: null,
+    })).toEqual(expect.objectContaining({
+      title: 'Premiación no disponible',
+      reason: 'results_not_ready',
+    }));
   });
 
   test('absence results only use canonical no-show summary rows', () => {
