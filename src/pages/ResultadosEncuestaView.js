@@ -260,6 +260,54 @@ export const deriveAwardsPresentationState = ({
   };
 };
 
+export const deriveShouldBlockStaticResultsForAwards = ({
+  forceAwardsMode = false,
+  showingBadgeAnimations = false,
+  forcedAwardsFallback = null,
+} = {}) => Boolean(
+  forceAwardsMode
+  && !showingBadgeAnimations
+  && !forcedAwardsFallback
+);
+
+export const buildForcedAwardsFallback = ({
+  row = null,
+  reason = '',
+} = {}) => {
+  const normalizedAwardsStatus = normalizeAwardsStatus(row?.awards_status) || 'pending';
+  const normalizedReason = String(reason || '').trim();
+
+  if (normalizedAwardsStatus === 'not_eligible') {
+    return {
+      title: 'Premiación no disponible',
+      message: 'No hubo suficientes votos o no corresponde mostrar una premiación final para este partido.',
+      reason: normalizedReason || 'not_eligible',
+    };
+  }
+
+  if (normalizedAwardsStatus === AWARDS_STATUS_ERROR) {
+    return {
+      title: 'Premiación no disponible',
+      message: 'Los resultados cerraron, pero no pudimos resolver la premiación final de este partido.',
+      reason: normalizedReason || 'awards_error',
+    };
+  }
+
+  if (!row || row?.results_ready !== true) {
+    return {
+      title: 'Premiación no disponible',
+      message: 'La premiación final todavía no está disponible para este partido.',
+      reason: normalizedReason || 'results_not_ready',
+    };
+  }
+
+  return {
+    title: 'Premiación no disponible',
+    message: 'La premiación final no tiene contenido disponible para mostrar.',
+    reason: normalizedReason || 'no_renderable_awards_slides',
+  };
+};
+
 // Context to broadcast live previewPlayers without recreating slides
 const PreviewPlayersContext = createContext([]);
 
@@ -305,6 +353,7 @@ const ResultadosEncuestaView = () => {
   });
   const [showingBadgeAnimations, setShowingBadgeAnimations] = useState(false);
   const [autoOpeningAwards, setAutoOpeningAwards] = useState(false);
+  const [forcedAwardsFallback, setForcedAwardsFallback] = useState(null);
   const [awardsSkippedByEnsure, setAwardsSkippedByEnsure] = useState(false);
   const [_badgeAnimations, setBadgeAnimations] = useState([]);
   const [_currentAnimationIndex, _setCurrentAnimationIndex] = useState(0);
@@ -1603,6 +1652,11 @@ const ResultadosEncuestaView = () => {
     renderableSlidesCount: renderableResultsSlidesCount,
   });
   const canShowResults = hasRenderableResultsContent || (forceAwardsMode && Boolean(canonicalResults));
+  const shouldBlockStaticResultsForAwards = deriveShouldBlockStaticResultsForAwards({
+    forceAwardsMode,
+    showingBadgeAnimations,
+    forcedAwardsFallback,
+  });
 
   // Animation Styles encapsulated here to avoid external CSS
 
@@ -1658,6 +1712,7 @@ const ResultadosEncuestaView = () => {
         if (alive) {
           setLoading(true);
           setAwardsSkippedByEnsure(false);
+          setForcedAwardsFallback(null);
           setPartido(null);
           setResults(null);
           setJugadores([]);
@@ -1921,6 +1976,7 @@ const ResultadosEncuestaView = () => {
     if (surveyUnavailableMessage) {
       clearAutoOpenGuard();
       setAutoOpeningAwards(false);
+      setForcedAwardsFallback(null);
       return;
     }
 
@@ -1928,6 +1984,7 @@ const ResultadosEncuestaView = () => {
       forceStoryOpenedRef.current = null;
       clearAutoOpenGuard();
       setAutoOpeningAwards(false);
+      setForcedAwardsFallback(null);
       return;
     }
 
@@ -1946,6 +2003,7 @@ const ResultadosEncuestaView = () => {
         has_awards_payload: hasAnyAwardData(results),
       }));
       clearAutoOpenGuard();
+      setForcedAwardsFallback(null);
       setAutoOpeningAwards(true);
       let openedStory = false;
       autoOpenGuardRef.current = setTimeout(() => {
@@ -1978,6 +2036,10 @@ const ResultadosEncuestaView = () => {
               awards_status: row?.awards_status || null,
               results_ready: row?.results_ready ?? null,
               has_awards_payload: hasAnyAwardData(row),
+            }));
+            setForcedAwardsFallback(buildForcedAwardsFallback({
+              row,
+              reason: 'force_awards_guard_no_slides',
             }));
           }
           setAutoOpeningAwards(false);
@@ -2040,6 +2102,10 @@ const ResultadosEncuestaView = () => {
             golden_glove: row?.golden_glove || row?.awards?.best_gk?.player_id || null,
             dirty_player: row?.dirty_player || row?.awards?.red_card?.player_id || null,
           }));
+          setForcedAwardsFallback(buildForcedAwardsFallback({
+            row,
+            reason: 'force_awards_no_slides',
+          }));
           return;
         }
 
@@ -2067,6 +2133,10 @@ const ResultadosEncuestaView = () => {
         }));
         console.error('[RESULTADOS] ensureAwards failed', e);
         if (cancelled) return;
+        setForcedAwardsFallback(buildForcedAwardsFallback({
+          row: results,
+          reason: 'force_awards_catch',
+        }));
       } finally {
         clearAutoOpenGuard();
         // Always release spinner lock when attempt finishes.
@@ -2473,6 +2543,35 @@ const ResultadosEncuestaView = () => {
 
   // In force awards mode, never show the static results page before story is ready.
   if (forceAwardsMode && autoOpeningAwards && !showingBadgeAnimations) {
+    return (
+      <div className="min-h-[100dvh] w-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%)' }}>
+        <LoadingSpinner size="large" fullScreen />
+      </div>
+    );
+  }
+
+  if (forceAwardsMode && forcedAwardsFallback && !showingBadgeAnimations) {
+    return (
+      <div className="min-h-[100dvh] w-screen p-0 flex flex-col" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%)' }}>
+        <div className="w-[90vw] max-w-[720px] mt-[70px] mx-auto py-8 px-5 bg-card dark:bg-[#1a1a1a] shadow-fifa-card rounded-[20px] md:w-full md:mt-12 md:shadow-none md:rounded-none relative mb-20 text-center">
+          <h1 className="text-[30px] md:text-4xl leading-[1.05] text-white text-center mb-5 tracking-[0.01em] font-oswald font-semibold">
+            {forcedAwardsFallback.title}
+          </h1>
+          <p className="text-gray-300 text-lg mb-8">
+            {forcedAwardsFallback.message}
+          </p>
+          <button
+            onClick={handleBack}
+            className="min-h-[52px] px-6 rounded-xl text-[18px] font-bebas tracking-[0.04em] uppercase text-white bg-white/15 border border-white/25 hover:bg-white/25 transition-all shadow-lg"
+          >
+            Volver
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (shouldBlockStaticResultsForAwards) {
     return (
       <div className="min-h-[100dvh] w-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%)' }}>
         <LoadingSpinner size="large" fullScreen />
