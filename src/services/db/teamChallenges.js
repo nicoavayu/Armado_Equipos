@@ -425,6 +425,24 @@ const isChallengeOwnerOnlyInsertError = (error) => (
   normalizeMessage(error).includes('solo owner del challenger_team puede crear el challenge')
 );
 
+const isChallengeFormatMismatchError = (error) => {
+  const message = normalizeMessage(error);
+  return (
+    message.includes('team_matches.format debe coincidir con challenges.format')
+    || message.includes('challenge.format debe coincidir con teams.format')
+    || (
+      message.includes('formato invalido para aceptar challenge')
+      && message.includes('mismo formato')
+    )
+    || (
+      message.includes('ambos equipos')
+      && message.includes('formato')
+    )
+  );
+};
+
+const CHALLENGE_FORMAT_EDIT_ERROR_MESSAGE = 'No se pudo actualizar el formato del desafio. Revisa que el desafio siga editable e intenta nuevamente.';
+
 const isTeamMatchSelectCompatibilityError = (error) => (
   isOrderedSetModeError(error)
   || hasAnyMissingColumns(error, [
@@ -2354,6 +2372,10 @@ export const createChallenge = async (userId, payload) => {
     throw new Error('No se pudo publicar: falta aplicar la migración 20260304103000_allow_captain_create_challenge.sql en Supabase para habilitar capitanes.');
   }
 
+  if (isChallengeFormatMismatchError(response?.error)) {
+    throw new Error(CHALLENGE_FORMAT_EDIT_ERROR_MESSAGE);
+  }
+
   throw new Error(response?.error?.message || 'No se pudo publicar el desafio');
 };
 
@@ -2431,6 +2453,10 @@ export const updateChallenge = async (userId, challengeId, payload) => {
     }
 
     if (!isSkillLevelConstraintError(response.error)) break;
+  }
+
+  if (isChallengeFormatMismatchError(response?.error)) {
+    throw new Error(CHALLENGE_FORMAT_EDIT_ERROR_MESSAGE);
   }
 
   throw new Error(response?.error?.message || 'No se pudo editar el desafio');
@@ -3082,6 +3108,9 @@ export const updateTeamMatchDetails = async ({
     const rawMessage = String(response.error?.message || '').trim();
     if (rawMessage === 'MATCH_FULL_WITH_SUBSTITUTES') {
       throw new Error('No se puede editar este partido porque ya tiene titulares y suplentes confirmados.');
+    }
+    if (isChallengeFormatMismatchError(response.error)) {
+      throw new Error(CHALLENGE_FORMAT_EDIT_ERROR_MESSAGE);
     }
     throw new Error(response.error.message || 'No se pudo actualizar el partido');
   }
