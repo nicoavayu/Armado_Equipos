@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.teambalancer.app',
-  appName: 'Team Balancer',
+  appName: 'Arma2',
   webDir: 'build',
   // Match the app's dark base so the native WebView never flashes white
   // while a lazy route chunk loads or before the web content composites.
