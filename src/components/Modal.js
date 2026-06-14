@@ -1,6 +1,9 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
+import { Capacitor } from '@capacitor/core';
 import { useKeyboard } from '../hooks/useKeyboard';
+
+const FOCUSABLE_FIELD_SELECTOR = 'input, textarea, select, [contenteditable="true"]';
 
 const Modal = ({
   isOpen,
@@ -16,7 +19,36 @@ const Modal = ({
   disableEnterAnimation = false,
 }) => {
   const modalRef = useRef(null);
+  const focusScrollTimeoutRef = useRef(null);
   const { keyboardHeight, isKeyboardOpen } = useKeyboard();
+  const [viewportMetrics, setViewportMetrics] = useState({
+    top: '0px',
+    height: '100dvh',
+    isViewportReducedByKeyboard: false,
+  });
+
+  const scrollElementIntoModalView = useCallback((element, delay = 90) => {
+    if (!(element instanceof HTMLElement)) return;
+
+    window.clearTimeout(focusScrollTimeoutRef.current);
+    focusScrollTimeoutRef.current = window.setTimeout(() => {
+      if (!modalRef.current || !modalRef.current.contains(element)) return;
+
+      const modalRect = modalRef.current.getBoundingClientRect();
+      const elementRect = element.getBoundingClientRect();
+      const topLimit = modalRect.top + 72;
+      const bottomLimit = modalRect.bottom - 88;
+      const needsScroll = elementRect.top < topLimit || elementRect.bottom > bottomLimit;
+
+      if (!needsScroll) return;
+
+      try {
+        element.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
+      } catch {
+        element.scrollIntoView();
+      }
+    }, delay);
+  }, []);
 
   useEffect(() => {
     if (!isOpen) return undefined;
@@ -37,13 +69,70 @@ const Modal = ({
 
     const timeoutId = window.setTimeout(() => {
       const activeElement = document.activeElement;
-      if (!(activeElement instanceof HTMLElement)) return;
-      if (!modalRef.current || !modalRef.current.contains(activeElement)) return;
-      activeElement.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
+      scrollElementIntoModalView(activeElement, 0);
     }, 90);
 
     return () => {
       window.clearTimeout(timeoutId);
+    };
+  }, [isKeyboardOpen, isOpen, keyboardHeight, scrollElementIntoModalView]);
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+
+    const modalNode = modalRef.current;
+    if (!modalNode) return undefined;
+
+    const handleFocusIn = (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      if (!target.matches(FOCUSABLE_FIELD_SELECTOR)) return;
+      scrollElementIntoModalView(target, isKeyboardOpen ? 120 : 180);
+    };
+
+    modalNode.addEventListener('focusin', handleFocusIn);
+
+    return () => {
+      modalNode.removeEventListener('focusin', handleFocusIn);
+      window.clearTimeout(focusScrollTimeoutRef.current);
+    };
+  }, [isKeyboardOpen, isOpen, scrollElementIntoModalView]);
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+
+    const syncViewportMetrics = () => {
+      const fallbackHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+      const visualViewport = window.visualViewport;
+      const viewportTop = Math.max(0, visualViewport?.offsetTop || 0);
+      const viewportHeight = Math.max(280, visualViewport?.height || fallbackHeight || 0);
+      const reducedViewportGap = Math.max(0, fallbackHeight - viewportHeight);
+      const reducedViewportThreshold = Math.min(120, Math.max(48, (keyboardHeight || 0) * 0.35));
+
+      setViewportMetrics({
+        top: `${viewportTop}px`,
+        height: `${viewportHeight}px`,
+        isViewportReducedByKeyboard: Boolean(
+          isKeyboardOpen
+          && keyboardHeight > 0
+          && reducedViewportGap > reducedViewportThreshold
+        ),
+      });
+    };
+
+    syncViewportMetrics();
+
+    const visualViewport = window.visualViewport;
+    visualViewport?.addEventListener('resize', syncViewportMetrics);
+    visualViewport?.addEventListener('scroll', syncViewportMetrics);
+    window.addEventListener('resize', syncViewportMetrics);
+    window.addEventListener('orientationchange', syncViewportMetrics);
+
+    return () => {
+      visualViewport?.removeEventListener('resize', syncViewportMetrics);
+      visualViewport?.removeEventListener('scroll', syncViewportMetrics);
+      window.removeEventListener('resize', syncViewportMetrics);
+      window.removeEventListener('orientationchange', syncViewportMetrics);
     };
   }, [isKeyboardOpen, isOpen, keyboardHeight]);
 
@@ -71,13 +160,20 @@ const Modal = ({
 
   if (!isOpen) return null;
   const hasHeader = Boolean(title) || showCloseButton;
-  const keyboardInsetPx = Math.max(0, keyboardHeight || 0);
+  const platform = Capacitor.getPlatform();
+  const shouldApplyKeyboardInset = isKeyboardOpen
+    && platform !== 'android'
+    && !viewportMetrics.isViewportReducedByKeyboard;
+  const keyboardInsetPx = shouldApplyKeyboardInset ? Math.max(0, keyboardHeight || 0) : 0;
 
   const modalContent = (
     <div
       data-modal-root="true"
-      className={`fixed inset-0 bg-[#0a0718]/85 z-[10001] flex justify-center overflow-y-auto ${disableEnterAnimation ? '' : 'animate-[fadeIn_0.2s_ease-out]'}`}
+      className={`fixed left-0 right-0 top-0 bg-[#0a0718]/85 z-[10001] flex justify-center overflow-y-auto overscroll-contain ${disableEnterAnimation ? '' : 'animate-[fadeIn_0.2s_ease-out]'}`}
       style={{
+        top: viewportMetrics.top,
+        height: viewportMetrics.height,
+        '--keyboard-height': `${Math.max(0, keyboardHeight || 0)}px`,
         alignItems: isKeyboardOpen ? 'flex-start' : 'center',
         paddingTop: 'max(1.25rem, env(safe-area-inset-top))',
         paddingRight: 'max(1.25rem, env(safe-area-inset-right))',
@@ -91,7 +187,7 @@ const Modal = ({
     >
       <div
         ref={modalRef}
-        className={`relative bg-[linear-gradient(168deg,#241c52_0%,#171234_52%,#110d26_100%)] rounded-3xl shadow-[0_24px_64px_rgba(5,3,16,0.75),inset_0_1px_0_rgba(255,255,255,0.08)] max-w-[95vw] max-h-full w-auto flex flex-col overflow-hidden border border-[rgba(148,134,255,0.22)] ${disableEnterAnimation ? '' : 'animate-[scaleIn_0.2s_ease-out]'} ${className}`}
+        className={`relative min-h-0 bg-[linear-gradient(168deg,#241c52_0%,#171234_52%,#110d26_100%)] rounded-3xl shadow-[0_24px_64px_rgba(5,3,16,0.75),inset_0_1px_0_rgba(255,255,255,0.08)] max-w-[95vw] max-h-full w-auto flex flex-col overflow-hidden border border-[rgba(148,134,255,0.22)] ${disableEnterAnimation ? '' : 'animate-[scaleIn_0.2s_ease-out]'} ${className}`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Accent hairline: violet→magenta sweep along the top edge */}
@@ -117,7 +213,7 @@ const Modal = ({
             </button>
           </div>
         )}
-        <div className={`p-5 overflow-y-auto flex-1 touch-pan-y ${classNameContent}`}>
+        <div className={`min-h-0 p-5 overflow-y-auto flex-1 touch-pan-y overscroll-contain ${classNameContent}`}>
           {children}
         </div>
         {footer && (
