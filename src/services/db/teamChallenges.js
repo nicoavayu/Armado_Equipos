@@ -193,6 +193,10 @@ const TEAM_MATCH_SELECT = `
   score_a,
   score_b,
   status,
+  result_status,
+  result_reported_by_team_id,
+  result_reported_at,
+  result_updated_at,
   is_format_combined,
   created_at,
   updated_at,
@@ -460,6 +464,10 @@ const isTeamMatchSelectCompatibilityError = (error) => (
     'max_substitutes_per_team',
     'max_selected_per_team',
     'max_roster_size',
+    'result_status',
+    'result_reported_by_team_id',
+    'result_reported_at',
+    'result_updated_at',
   ])
 );
 
@@ -2616,6 +2624,29 @@ export const completeChallenge = async ({ challengeId, scoreA, scoreB, playedAt 
   return matchRow;
 };
 
+// Manual challenge result (Ganamos / Empatamos / Perdimos). resultStatus is the
+// absolute outcome relative to the match orientation (team_a = challenger team,
+// team_b = accepted team): 'team_a_win' | 'team_b_win' | 'draw'.
+export const reportChallengeResult = async ({ challengeId, resultStatus }) => {
+  if (!challengeId) {
+    throw new Error('Desafio invalido para cargar resultado');
+  }
+  if (!['team_a_win', 'team_b_win', 'draw'].includes(resultStatus)) {
+    throw new Error('Resultado invalido');
+  }
+
+  const response = await supabase.rpc('rpc_report_challenge_result', {
+    p_challenge_id: challengeId,
+    p_result_status: resultStatus,
+  });
+
+  if (response.error) {
+    throw new Error(response.error.message || 'No se pudo cargar el resultado del desafio');
+  }
+
+  return response.data || null;
+};
+
 export const getChallengeById = async (challengeId) => {
   const response = await runChallengeSelectWithFallback(
     (selectClause) => supabase
@@ -3259,48 +3290,25 @@ export const listMyTeamMatches = async (userId, options = {}) => {
     });
 };
 
-export const listTeamHistoryByRival = async (teamId) => {
-  const response = await supabase.rpc('rpc_team_history_by_rival', {
-    p_team_id: teamId,
-  });
-
-  if (response.error) {
-    throw new Error(response.error.message || 'No se pudo cargar el historial del equipo');
-  }
-
-  return (response.data || []).map((row) => ({
-    rivalId: row.rival_id,
-    rivalTeam: {
-      id: row.rival_id,
-      name: row.rival_name,
-      format: row.rival_format,
-      base_zone: row.rival_base_zone,
-      skill_level: row.rival_skill_level,
-      crest_url: row.rival_crest_url,
-      color_primary: row.rival_color_primary,
-      color_secondary: row.rival_color_secondary,
-      color_accent: row.rival_color_accent,
-    },
-    matches: [],
-    summary: {
-      played: Number(row.played || 0),
-      won: Number(row.won || 0),
-      draw: Number(row.draw || 0),
-      lost: Number(row.lost || 0),
-    },
-    lastPlayedAt: row.last_played_at || null,
-  }));
-};
-
-export const getChallengeHeadToHeadStats = async ({ teamAId, teamBId }) => {
+export const getChallengeHeadToHeadStats = async ({ teamAId, teamBId, excludeMatchId = null }) => {
   if (!teamAId || !teamBId) {
     throw new Error('Equipos invalidos para historial');
   }
 
-  const response = await supabase.rpc('rpc_get_challenge_head_to_head_stats', {
+  let response = await supabase.rpc('rpc_get_challenge_head_to_head_stats', {
     p_team_a_id: teamAId,
     p_team_b_id: teamBId,
+    p_exclude_match_id: excludeMatchId || null,
   });
+
+  // Backward compatibility: before the manual-results migration is applied the
+  // RPC only accepts two arguments and returns the legacy column shape.
+  if (response.error && isMissingFunctionError(response.error, 'rpc_get_challenge_head_to_head_stats')) {
+    response = await supabase.rpc('rpc_get_challenge_head_to_head_stats', {
+      p_team_a_id: teamAId,
+      p_team_b_id: teamBId,
+    });
+  }
 
   if (response.error) {
     throw new Error(response.error.message || 'No se pudo cargar el historial entre equipos');
@@ -3308,40 +3316,89 @@ export const getChallengeHeadToHeadStats = async ({ teamAId, teamBId }) => {
 
   const row = Array.isArray(response.data) ? (response.data[0] || {}) : (response.data || {});
 
+  const winsTeamA = Number(row?.winsTeamA ?? row?.wins_team_a ?? 0) || 0;
+  const winsTeamB = Number(row?.winsTeamB ?? row?.wins_team_b ?? 0) || 0;
+  const draws = Number(row?.draws ?? 0) || 0;
+
+  // Legacy fallback: "scheduled" counted every encounter; played count is only
+  // available as wins+draws when the new column is absent.
+  const totalMatchesPlayed = Number(
+    row?.totalMatchesPlayed
+    ?? row?.total_matches_played
+    ?? (winsTeamA + winsTeamB + draws),
+  ) || 0;
+  const totalEncounters = Number(
+    row?.totalEncounters
+    ?? row?.total_encounters
+    ?? row?.totalMatchesScheduled
+    ?? row?.total_matches_scheduled
+    ?? totalMatchesPlayed,
+  ) || 0;
+
   return {
-    totalMatchesScheduled: Number(
-      row?.totalMatchesScheduled
-      ?? row?.total_matches_scheduled
-      ?? 0,
-    ) || 0,
-    lastMatchScheduledAt: row?.lastMatchScheduledAt || row?.last_match_scheduled_at || null,
+    totalEncounters,
+    totalMatchesPlayed,
+    lastEncounterAt: row?.lastEncounterAt
+      || row?.last_encounter_at
+      || row?.lastMatchScheduledAt
+      || row?.last_match_scheduled_at
+      || null,
+    lastResultAt: row?.lastResultAt || row?.last_result_at || null,
     lastWinnerTeamId: row?.lastWinnerTeamId || row?.last_winner_team_id || null,
-    winsTeamA: Number(row?.winsTeamA ?? row?.wins_team_a ?? 0) || 0,
-    winsTeamB: Number(row?.winsTeamB ?? row?.wins_team_b ?? 0) || 0,
+    lastResultStatus: row?.lastResultStatus || row?.last_result_status || null,
+    winsTeamA,
+    winsTeamB,
+    draws,
   };
+};
+
+const TEAM_MATCH_HISTORY_SELECT = (resultColumns) => `
+  id,
+  team_a_id,
+  team_b_id,
+  played_at,
+  location_name,
+  score_a,
+  score_b,
+  status,
+  created_at,${resultColumns}
+  team_a:teams!team_matches_team_a_id_fkey(${TEAM_SELECT_LEGACY}),
+  team_b:teams!team_matches_team_b_id_fkey(${TEAM_SELECT_LEGACY})
+`;
+
+// Manual result is the source of truth; legacy scores are only a fallback for
+// rows that predate the backfill. We never invent a winner when neither exists.
+const resolveTeamMatchResult = ({ isTeamA, resultStatus, scoreFor, scoreAgainst }) => {
+  if (resultStatus === 'draw') return 'D';
+  if (resultStatus === 'team_a_win') return isTeamA ? 'W' : 'L';
+  if (resultStatus === 'team_b_win') return isTeamA ? 'L' : 'W';
+  if (Number.isFinite(scoreFor) && Number.isFinite(scoreAgainst)) {
+    if (scoreFor > scoreAgainst) return 'W';
+    if (scoreFor < scoreAgainst) return 'L';
+    return 'D';
+  }
+  return null;
 };
 
 export const listTeamMatchHistory = async (teamId) => {
   if (!teamId) return [];
 
-  const response = await supabase
+  let response = await supabase
     .from('team_matches')
-    .select(`
-      id,
-      team_a_id,
-      team_b_id,
-      played_at,
-      location_name,
-      score_a,
-      score_b,
-      status,
-      created_at,
-      team_a:teams!team_matches_team_a_id_fkey(${TEAM_SELECT_LEGACY}),
-      team_b:teams!team_matches_team_b_id_fkey(${TEAM_SELECT_LEGACY})
-    `)
+    .select(TEAM_MATCH_HISTORY_SELECT('\n  result_status,\n  result_reported_at,'))
     .or(`team_a_id.eq.${teamId},team_b_id.eq.${teamId}`)
     .eq('status', 'played')
     .order('played_at', { ascending: false });
+
+  // Graceful fallback if the manual-results migration is not applied yet.
+  if (response.error && isMissingColumnError(response.error, 'result_status')) {
+    response = await supabase
+      .from('team_matches')
+      .select(TEAM_MATCH_HISTORY_SELECT(''))
+      .or(`team_a_id.eq.${teamId},team_b_id.eq.${teamId}`)
+      .eq('status', 'played')
+      .order('played_at', { ascending: false });
+  }
 
   if (response.error) {
     throw new Error(response.error.message || 'No se pudo cargar el historial de partidos');
@@ -3351,20 +3408,113 @@ export const listTeamMatchHistory = async (teamId) => {
 
   return (response.data || []).map((row) => {
     const isTeamA = String(row?.team_a_id) === targetTeamId;
-    const goalsFor = Number(isTeamA ? row?.score_a : row?.score_b) || 0;
-    const goalsAgainst = Number(isTeamA ? row?.score_b : row?.score_a) || 0;
-    const result = goalsFor > goalsAgainst ? 'W' : goalsFor < goalsAgainst ? 'L' : 'D';
+    const scoreFor = Number(isTeamA ? row?.score_a : row?.score_b);
+    const scoreAgainst = Number(isTeamA ? row?.score_b : row?.score_a);
+    const result = resolveTeamMatchResult({
+      isTeamA,
+      resultStatus: row?.result_status || null,
+      scoreFor,
+      scoreAgainst,
+    });
 
     return {
       id: row.id,
-      playedAt: row.played_at || null,
+      playedAt: row.result_reported_at || row.played_at || null,
       createdAt: row.created_at || null,
       locationName: row.location || row.location_name || null,
-      scoreFor: goalsFor,
-      scoreAgainst: goalsAgainst,
+      resultStatus: row?.result_status || null,
       result,
       status: row.status || 'played',
       opponentTeam: isTeamA ? row?.team_b || null : row?.team_a || null,
+    };
+  });
+};
+
+// Group played matches per rival on the client when the grouped RPC is not
+// available yet (e.g. before the manual-results migration is applied).
+const groupTeamHistoryByRival = (matches = []) => {
+  const byRival = new Map();
+
+  matches.forEach((match) => {
+    const rival = match?.opponentTeam || null;
+    const rivalId = rival?.id ? String(rival.id) : null;
+    if (!rivalId) return;
+
+    const entry = byRival.get(rivalId) || {
+      rivalId,
+      rival,
+      played: 0,
+      won: 0,
+      draw: 0,
+      lost: 0,
+      lastPlayedAt: null,
+    };
+
+    entry.played += 1;
+    if (match.result === 'W') entry.won += 1;
+    else if (match.result === 'D') entry.draw += 1;
+    else if (match.result === 'L') entry.lost += 1;
+
+    const playedAt = match.playedAt || null;
+    if (playedAt && (!entry.lastPlayedAt || new Date(playedAt) > new Date(entry.lastPlayedAt))) {
+      entry.lastPlayedAt = playedAt;
+    }
+
+    byRival.set(rivalId, entry);
+  });
+
+  return Array.from(byRival.values())
+    .map((entry) => ({
+      ...entry,
+      winRate: entry.played > 0 ? Math.round((entry.won / entry.played) * 100) : 0,
+    }))
+    .sort((a, b) => {
+      const aTime = a.lastPlayedAt ? new Date(a.lastPlayedAt).getTime() : 0;
+      const bTime = b.lastPlayedAt ? new Date(b.lastPlayedAt).getTime() : 0;
+      return bTime - aTime;
+    });
+};
+
+export const listTeamHistoryByRival = async (teamId) => {
+  if (!teamId) return [];
+
+  const response = await supabase.rpc('rpc_team_history_by_rival', {
+    p_team_id: teamId,
+  });
+
+  if (response.error) {
+    if (isMissingFunctionError(response.error, 'rpc_team_history_by_rival')) {
+      const matches = await listTeamMatchHistory(teamId);
+      return groupTeamHistoryByRival(matches);
+    }
+    throw new Error(response.error.message || 'No se pudo cargar el historial vs rivales');
+  }
+
+  return (response.data || []).map((row) => {
+    const played = Number(row?.played) || 0;
+    const won = Number(row?.won) || 0;
+    const draw = Number(row?.draw) || 0;
+    const lost = Number(row?.lost) || 0;
+
+    return {
+      rivalId: row?.rival_id || null,
+      rival: {
+        id: row?.rival_id || null,
+        name: row?.rival_name || null,
+        format: row?.rival_format ?? null,
+        base_zone: row?.rival_base_zone || null,
+        skill_level: row?.rival_skill_level || null,
+        crest_url: row?.rival_crest_url || null,
+        color_primary: row?.rival_color_primary || null,
+        color_secondary: row?.rival_color_secondary || null,
+        color_accent: row?.rival_color_accent || null,
+      },
+      played,
+      won,
+      draw,
+      lost,
+      winRate: played > 0 ? Math.round((won / played) * 100) : 0,
+      lastPlayedAt: row?.last_played_at || null,
     };
   });
 };

@@ -13,7 +13,7 @@ import {
   addTeamMember,
   ensureLocalTeamPlayerByName,
   listAccessibleTeams,
-  listTeamMatchHistory,
+  listTeamHistoryByRival,
   listTeamMembers,
   listTeamPendingInvitations,
   removeTeamMember,
@@ -180,17 +180,11 @@ const formatPlayedDate = (playedAt) => {
   });
 };
 
-const getMatchResultBadgeClass = (result) => {
-  if (result === 'W') return 'border-emerald-300/35 bg-emerald-500/20 text-emerald-100';
-  if (result === 'L') return 'border-rose-300/35 bg-rose-500/20 text-rose-100';
-  return 'border-white/30 bg-white/10 text-white';
-};
-
-const summarizeTeamFromMatches = (matches = []) => matches.reduce((acc, match) => {
-  acc.played += 1;
-  if (match.result === 'W') acc.won += 1;
-  if (match.result === 'D') acc.draw += 1;
-  if (match.result === 'L') acc.lost += 1;
+const summarizeTeamFromRivals = (rivals = []) => rivals.reduce((acc, rival) => {
+  acc.played += Number(rival?.played) || 0;
+  acc.won += Number(rival?.won) || 0;
+  acc.draw += Number(rival?.draw) || 0;
+  acc.lost += Number(rival?.lost) || 0;
   return acc;
 }, { played: 0, won: 0, draw: 0, lost: 0 });
 
@@ -212,7 +206,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
 
   const [selectedTeam, setSelectedTeam] = useState(null);
   const [members, setMembers] = useState([]);
-  const [teamMatchHistory, setTeamMatchHistory] = useState([]);
+  const [rivalHistory, setRivalHistory] = useState([]);
   const [teamPendingInvitations, setTeamPendingInvitations] = useState([]);
 
   const [detailActionsMenuOpen, setDetailActionsMenuOpen] = useState(false);
@@ -298,12 +292,12 @@ const EquipoDetalleView = ({ teamId, userId }) => {
       const [teamMembers, pendingInvitations, history] = await Promise.all([
         listTeamMembers(team.id),
         listTeamPendingInvitations(team.id),
-        includeHistory ? listTeamMatchHistory(team.id) : Promise.resolve(null),
+        includeHistory ? listTeamHistoryByRival(team.id) : Promise.resolve(null),
       ]);
       setMembers(teamMembers || []);
       setTeamPendingInvitations(pendingInvitations || []);
       if (includeHistory) {
-        setTeamMatchHistory(history || []);
+        setRivalHistory(history || []);
       }
     } catch (error) {
       if (!silent) {
@@ -334,7 +328,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
       if (!found) {
         setSelectedTeam(null);
         setMembers([]);
-        setTeamMatchHistory([]);
+        setRivalHistory([]);
         setTeamPendingInvitations([]);
         return;
       }
@@ -523,7 +517,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
     [filteredFriends, selectedFriendUserId],
   );
 
-  const summaryStats = useMemo(() => summarizeTeamFromMatches(teamMatchHistory), [teamMatchHistory]);
+  const summaryStats = useMemo(() => summarizeTeamFromRivals(rivalHistory), [rivalHistory]);
   const selectedRoleOption = useMemo(() => getRoleOption(newMember.role), [newMember.role]);
   const isEditingRegisteredMember = useMemo(
     () => memberModalMode === 'edit' && Boolean(memberEditing?.user_id || memberEditing?.jugador?.usuario_id),
@@ -1390,41 +1384,41 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                 <p className="text-sm text-white/65 mt-3">Cargando historial...</p>
               ) : null}
 
-              {!detailLoading && teamMatchHistory.length === 0 ? (
-                <p className="text-sm text-white/65 mt-3">Todavia no hay partidos registrados para este equipo.</p>
+              {!detailLoading && rivalHistory.length === 0 ? (
+                <p className="text-sm text-white/65 mt-3">Todavía no hay desafíos jugados contra otros equipos.</p>
               ) : null}
 
-              {!detailLoading && teamMatchHistory.length > 0 ? (
+              {!detailLoading && rivalHistory.length > 0 ? (
                 <div className="mt-3 space-y-2">
-                  {teamMatchHistory.map((match) => (
-                    <button
-                      key={match.id}
-                      type="button"
-                      className="w-full rounded-none border border-white/10 bg-white/5 p-3 text-left transition-all hover:bg-white/10"
+                  {rivalHistory.map((rival) => (
+                    <div
+                      key={rival.rivalId}
+                      className="w-full rounded-none border border-white/10 bg-white/5 p-3"
                     >
                       <div className="flex items-center gap-3">
                         <div className="h-11 w-11 rounded-none overflow-hidden border border-white/20 bg-black/20 flex items-center justify-center shrink-0">
-                          {match?.opponentTeam?.crest_url ? (
-                            <img src={match.opponentTeam.crest_url} alt={`Escudo ${match?.opponentTeam?.name || 'rival'}`} className="h-full w-full object-cover" />
+                          {rival?.rival?.crest_url ? (
+                            <img src={rival.rival.crest_url} alt={`Escudo ${rival?.rival?.name || 'rival'}`} className="h-full w-full object-cover" />
                           ) : (
                             <Users size={16} className="text-white/60" />
                           )}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="text-white font-oswald text-[17px] truncate">{match?.opponentTeam?.name || 'Rival'}</p>
+                          <p className="text-white font-oswald text-[17px] truncate">{rival?.rival?.name || 'Rival'}</p>
                           <p className="text-[12px] text-white/65">
-                            {formatPlayedDate(match.playedAt)}
-                            {match.locationName ? ` · ${match.locationName}` : ''}
+                            {rival.lastPlayedAt ? `Último: ${formatPlayedDate(rival.lastPlayedAt)}` : 'Sin fecha'}
                           </p>
                         </div>
                         <div className="text-right shrink-0">
-                          <p className="text-white font-oswald text-[18px] leading-none">{match.scoreFor} - {match.scoreAgainst}</p>
-                          <span className={`mt-1 inline-flex min-w-[36px] items-center justify-center rounded-md border px-1.5 py-0.5 text-[10px] font-semibold ${getMatchResultBadgeClass(match.result)}`}>
-                            {match.result}
-                          </span>
+                          <p className="text-white font-oswald text-[16px] leading-none">
+                            {rival.played} PJ
+                          </p>
+                          <p className="mt-1 text-[12px] text-white/75">
+                            {rival.won}G · {rival.draw}E · {rival.lost}P
+                          </p>
                         </div>
                       </div>
-                    </button>
+                    </div>
                   ))}
                 </div>
               ) : null}

@@ -21,9 +21,13 @@ import {
   getViewerChallengeTeam,
   resolveChallengeSquadViewState,
 } from '../features/equipos/utils/challengeViewer';
+import { buildChallengeHeadToHeadView } from '../features/equipos/utils/challengeHeadToHead';
+import { resultStatusToOutcome } from '../features/equipos/utils/challengeResult';
+import ReportChallengeResultModal from '../features/equipos/components/ReportChallengeResultModal';
 import normalizePartidoForHeader from '../utils/normalizePartidoForHeader';
 import {
   getChallengeHeadToHeadStats,
+  reportChallengeResult,
   getTeamMatchById,
   listChallengeTeamSquad,
   setChallengeAvailability,
@@ -40,11 +44,15 @@ import { useInterval } from '../hooks/useInterval';
 const DETAIL_CARD_RADIUS_CLASS = 'rounded-[18px]';
 const TEAM_MATCH_LIVE_REFRESH_INTERVAL_MS = 5000;
 const EMPTY_CHALLENGE_HEAD_TO_HEAD = Object.freeze({
-  totalMatchesScheduled: 0,
-  lastMatchScheduledAt: null,
+  totalEncounters: 0,
+  totalMatchesPlayed: 0,
+  lastEncounterAt: null,
+  lastResultAt: null,
   lastWinnerTeamId: null,
+  lastResultStatus: null,
   winsTeamA: 0,
   winsTeamB: 0,
+  draws: 0,
 });
 
 const toDateTimeLocalValue = (isoDate) => {
@@ -356,6 +364,9 @@ const TeamMatchDetailPage = () => {
   const [challengeHeadToHead, setChallengeHeadToHead] = useState(EMPTY_CHALLENGE_HEAD_TO_HEAD);
   const [challengeHeadToHeadLoading, setChallengeHeadToHeadLoading] = useState(false);
   const [showChallengeHeadToHead, setShowChallengeHeadToHead] = useState(false);
+  const [headToHeadReloadKey, setHeadToHeadReloadKey] = useState(0);
+  const [resultModalOpen, setResultModalOpen] = useState(false);
+  const [resultModalSubmitting, setResultModalSubmitting] = useState(false);
   const [isSquadRosterViewOpen, setIsSquadRosterViewOpen] = useState(false);
   const [ambiguousTeamDecision, setAmbiguousTeamDecision] = useState(null);
   const [ambiguousTeamModalOpen, setAmbiguousTeamModalOpen] = useState(false);
@@ -574,7 +585,11 @@ const TeamMatchDetailPage = () => {
       setChallengeHeadToHeadLoading(true);
 
       try {
-        const stats = await getChallengeHeadToHeadStats({ teamAId, teamBId });
+        const stats = await getChallengeHeadToHeadStats({
+          teamAId,
+          teamBId,
+          excludeMatchId: match?.id || null,
+        });
         if (ignore) return;
         setChallengeHeadToHead({
           ...EMPTY_CHALLENGE_HEAD_TO_HEAD,
@@ -595,7 +610,7 @@ const TeamMatchDetailPage = () => {
     return () => {
       ignore = true;
     };
-  }, [isChallengeMatch, match?.team_a_id, match?.team_b_id]);
+  }, [isChallengeMatch, match?.id, match?.team_a_id, match?.team_b_id, headToHeadReloadKey]);
 
   const challengeCreatorUserId = useMemo(
     () => match?.challenge?.created_by_user_id || null,
@@ -1193,36 +1208,70 @@ const TeamMatchDetailPage = () => {
   const challengeHeadToHeadView = useMemo(() => {
     if (!match) return null;
 
-    const stats = challengeHeadToHead || EMPTY_CHALLENGE_HEAD_TO_HEAD;
-    const teamAId = String(match?.team_a_id || '');
-    const teamBId = String(match?.team_b_id || '');
-    const totalMatchesScheduled = Number(stats.totalMatchesScheduled || 0);
-    const hasScheduledHistory = totalMatchesScheduled > 0;
-    const winsTeamA = Number(stats.winsTeamA || 0);
-    const winsTeamB = Number(stats.winsTeamB || 0);
-
-    const winnerTeamId = String(stats.lastWinnerTeamId || '');
-    const isWinnerTeamA = winnerTeamId && winnerTeamId === teamAId;
-    const isWinnerTeamB = winnerTeamId && winnerTeamId === teamBId;
-    const lastWinnerName = isWinnerTeamA
-      ? String(match?.team_a?.name || '').trim()
-      : isWinnerTeamB
-        ? String(match?.team_b?.name || '').trim()
-        : '';
-
-    const perspectiveIsTeamB = Boolean(currentUserTeamId && currentUserTeamId === teamBId);
-    const wins = perspectiveIsTeamB ? winsTeamB : winsTeamA;
-    const losses = perspectiveIsTeamB ? winsTeamA : winsTeamB;
-    const historialValue = `${wins}V - ${losses}D`;
+    const view = buildChallengeHeadToHeadView({
+      stats: challengeHeadToHead || EMPTY_CHALLENGE_HEAD_TO_HEAD,
+      teamAId: match?.team_a_id,
+      teamBId: match?.team_b_id,
+      currentUserTeamId,
+      teamAName: match?.team_a?.name,
+      teamBName: match?.team_b?.name,
+    });
 
     return {
-      hasScheduledHistory,
-      totalMatchesScheduled,
-      lastMatchDateText: formatHeadToHeadDate(stats.lastMatchScheduledAt),
-      lastWinnerText: lastWinnerName || '—',
-      historialValue,
+      ...view,
+      lastResultDateText: formatHeadToHeadDate(view.lastResultAt),
     };
   }, [challengeHeadToHead, currentUserTeamId, match]);
+
+  const challengeStatusValue = useMemo(
+    () => String(match?.challenge?.status || '').trim().toLowerCase(),
+    [match?.challenge?.status],
+  );
+
+  // team_a is always the challenger team, team_b the accepted (rival) team.
+  const perspectiveIsChallenger = useMemo(() => {
+    const teamAId = String(match?.team_a_id || '').trim();
+    return Boolean(currentUserTeamId) && String(currentUserTeamId).trim() === teamAId;
+  }, [currentUserTeamId, match?.team_a_id]);
+
+  const canReportChallengeResult = Boolean(
+    isChallengeMatch
+    && canManageMyChallengeSquad
+    && myChallengeTeamId
+    && !isAmbiguousChallengeViewer
+    && (challengeStatusValue === 'confirmed' || challengeStatusValue === 'completed'),
+  );
+
+  const resultAlreadyLoaded = challengeStatusValue === 'completed' || Boolean(match?.result_status);
+
+  const resultInitialOutcome = useMemo(() => {
+    if (!match?.result_status) return null;
+    return resultStatusToOutcome(match.result_status, { perspectiveIsChallenger });
+  }, [match?.result_status, perspectiveIsChallenger]);
+
+  const resultModalChallenge = useMemo(() => {
+    if (!match?.challenge_id) return null;
+    return {
+      id: match.challenge_id,
+      challenger_team: match?.team_a || null,
+      accepted_team: match?.team_b || null,
+    };
+  }, [match?.challenge_id, match?.team_a, match?.team_b]);
+
+  const handleSubmitChallengeResult = useCallback(async ({ challengeId, resultStatus }) => {
+    if (!challengeId || !resultStatus) return;
+    try {
+      setResultModalSubmitting(true);
+      await reportChallengeResult({ challengeId, resultStatus });
+      setResultModalOpen(false);
+      await refreshMatchView({ withLoading: false, silent: false });
+      setHeadToHeadReloadKey((value) => value + 1);
+    } catch (error) {
+      notifyBlockingError(error.message || 'No se pudo cargar el resultado del desafío');
+    } finally {
+      setResultModalSubmitting(false);
+    }
+  }, [refreshMatchView]);
 
   const getSafeMenuPosition = useCallback((rect) => {
     const menuWidth = 192; // w-48
@@ -1701,9 +1750,9 @@ const TeamMatchDetailPage = () => {
               </div>
 
               {isChallengeMatch && showChallengeHeadToHead ? (
-                <div className={`mt-2 h-16 ${DETAIL_CARD_RADIUS_CLASS} border border-[rgba(148,134,255,0.18)] bg-[rgba(124,98,255,0.05)] px-[14px] py-[10px]`}>
+                <div className={`mt-2 min-h-16 ${DETAIL_CARD_RADIUS_CLASS} border border-[rgba(148,134,255,0.18)] bg-[rgba(124,98,255,0.05)] px-[14px] py-[10px]`}>
                   {challengeHeadToHeadLoading ? (
-                    <div className="grid h-full grid-cols-4 gap-2">
+                    <div className="grid h-16 grid-cols-4 gap-2">
                       {Array.from({ length: 4 }).map((_, index) => (
                         <div key={`challenge-history-skeleton-${index}`} className="min-w-0 flex flex-col items-center justify-center gap-1">
                           <div className="h-2.5 w-[75%] rounded bg-white/12" />
@@ -1711,22 +1760,22 @@ const TeamMatchDetailPage = () => {
                         </div>
                       ))}
                     </div>
-                  ) : challengeHeadToHeadView?.hasScheduledHistory ? (
-                    <div className="grid h-full grid-cols-4 gap-2">
+                  ) : challengeHeadToHeadView?.hasPlayedHistory ? (
+                    <div className="grid h-16 grid-cols-4 gap-2">
                       <div className="min-w-0 flex flex-col items-center justify-center text-center leading-none">
                         <div className="w-full truncate text-[10px] sm:text-[11px] uppercase tracking-[0.06em] text-white/65">
                           ULTIMA VEZ
                         </div>
                         <div className="mt-1 w-full truncate text-[14px] sm:text-[16px] font-oswald font-semibold text-white">
-                          {challengeHeadToHeadView.lastMatchDateText}
+                          {challengeHeadToHeadView.lastResultDateText}
                         </div>
                       </div>
                       <div className="min-w-0 flex flex-col items-center justify-center text-center leading-none">
                         <div className="w-full truncate text-[10px] sm:text-[11px] uppercase tracking-[0.06em] text-white/65">
-                          PARTIDOS
+                          JUGADOS
                         </div>
                         <div className="mt-1 w-full truncate text-[14px] sm:text-[16px] font-oswald font-semibold text-white">
-                          {challengeHeadToHeadView.totalMatchesScheduled}
+                          {challengeHeadToHeadView.playedCount}
                         </div>
                       </div>
                       <div className="min-w-0 flex flex-col items-center justify-center text-center leading-none">
@@ -1747,11 +1796,23 @@ const TeamMatchDetailPage = () => {
                       </div>
                     </div>
                   ) : (
-                    <div className="flex h-full items-center justify-center text-center text-[14px] font-oswald font-medium text-white/85">
-                      Primera vez que se enfrentan
+                    <div className="flex h-16 items-center justify-center text-center text-[14px] font-oswald font-medium text-white/85">
+                      {challengeHeadToHeadView?.emptyStateText || 'Primera vez que se enfrentan'}
                     </div>
                   )}
                 </div>
+              ) : null}
+
+              {canReportChallengeResult ? (
+                <Button
+                  type="button"
+                  variant={resultAlreadyLoaded ? 'secondary' : 'primary'}
+                  className="mt-2 h-12 w-full rounded-xl text-[17px] font-oswald font-semibold !normal-case"
+                  onClick={() => setResultModalOpen(true)}
+                  data-preserve-button-case="true"
+                >
+                  {resultAlreadyLoaded ? 'Editar resultado' : 'Cargar resultado'}
+                </Button>
               ) : null}
 
             </>
@@ -1974,6 +2035,16 @@ const TeamMatchDetailPage = () => {
         isOpen={Boolean(selectedPlayerProfile)}
         onClose={() => setSelectedPlayerProfile(null)}
         profile={selectedPlayerProfile}
+      />
+
+      <ReportChallengeResultModal
+        isOpen={resultModalOpen}
+        challenge={resultModalChallenge}
+        perspectiveIsChallenger={perspectiveIsChallenger}
+        initialOutcome={resultInitialOutcome}
+        isSubmitting={resultModalSubmitting}
+        onClose={() => setResultModalOpen(false)}
+        onSubmit={handleSubmitChallengeResult}
       />
     </PageTransition>
   );
