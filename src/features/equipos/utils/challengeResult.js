@@ -26,6 +26,8 @@ const normalizeToken = (value) => String(value ?? '').trim().toLowerCase();
 
 const RESULT_ACTION_CHALLENGE_STATES = new Set(['confirmed', 'completed']);
 const RESULT_ACTION_MATCH_STATES = new Set(['confirmed', 'played']);
+const RESULT_BLOCKED_CHALLENGE_STATES = new Set(['canceled', 'cancelled', 'rejected', 'rechazado', 'cancelado']);
+const RESULT_BLOCKED_MATCH_STATES = new Set(['canceled', 'cancelled', 'rejected', 'rechazado', 'cancelado']);
 
 export const isChallengeResultLoaded = (resultStatus) => (
   resultStatus === RESULT_STATUS.TEAM_A_WIN
@@ -50,6 +52,13 @@ export const isChallengeResultActionState = ({
   const normalizedMatchStatus = normalizeToken(matchStatus);
   const scheduledAtMs = scheduledAt ? new Date(scheduledAt).getTime() : NaN;
   const isPastScheduled = Number.isFinite(scheduledAtMs) && scheduledAtMs <= Date.now();
+
+  if (
+    RESULT_BLOCKED_CHALLENGE_STATES.has(normalizedChallengeStatus)
+    || RESULT_BLOCKED_MATCH_STATES.has(normalizedMatchStatus)
+  ) {
+    return false;
+  }
 
   if (RESULT_ACTION_CHALLENGE_STATES.has(normalizedChallengeStatus)) return true;
   if (normalizedChallengeStatus === 'accepted') {

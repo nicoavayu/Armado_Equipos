@@ -2629,7 +2629,7 @@ export const completeChallenge = async ({ challengeId, scoreA, scoreB, playedAt 
 // team_b = accepted team): 'team_a_win' | 'team_b_win' | 'draw'.
 export const reportChallengeResult = async ({ challengeId, resultStatus }) => {
   if (!challengeId) {
-    throw new Error('Desafio invalido para cargar resultado');
+    throw new Error('Desafio invalido para responder resultado');
   }
   if (!['team_a_win', 'team_b_win', 'draw'].includes(resultStatus)) {
     throw new Error('Resultado invalido');
@@ -2641,7 +2641,7 @@ export const reportChallengeResult = async ({ challengeId, resultStatus }) => {
   });
 
   if (response.error) {
-    throw new Error(response.error.message || 'No se pudo cargar el resultado del desafio');
+    throw new Error(response.error.message || 'No se pudo guardar la respuesta del desafio');
   }
 
   return response.data || null;

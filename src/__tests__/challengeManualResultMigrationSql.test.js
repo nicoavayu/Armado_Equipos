@@ -44,10 +44,14 @@ describe('challenge manual results migration', () => {
     expect(normalizedSql).toContain("WHERE lower(COALESCE(status, '')) = 'played' AND result_status IS NULL");
   });
 
-  test('reporting RPC enforces permissions and an accepted rival', () => {
+  test('reporting RPC enforces owner/admin/captain permissions and an accepted rival', () => {
     expect(normalizedFollowupSql).toContain('CREATE OR REPLACE FUNCTION public.rpc_report_challenge_result(');
     expect(normalizedFollowupSql).toContain('public.team_user_is_admin_or_owner(v_challenge.challenger_team_id, v_uid)');
     expect(normalizedFollowupSql).toContain('public.team_user_is_admin_or_owner(v_challenge.accepted_team_id, v_uid)');
+    expect(normalizedFollowupSql).toContain('public.team_user_is_captain_or_owner(v_challenge.challenger_team_id, v_uid)');
+    expect(normalizedFollowupSql).toContain('public.team_user_is_captain_or_owner(v_challenge.accepted_team_id, v_uid)');
+    expect(normalizedFollowupSql).toContain('Solo owner/capitan/admin involucrado puede responder el resultado');
+    expect(normalizedFollowupSql).toContain('No se pudo identificar un unico equipo para responder el resultado');
     expect(normalizedFollowupSql).toContain('Challenge sin equipo rival');
     expect(normalizedFollowupSql).toContain("v_challenge.status NOT IN ('accepted', 'confirmed', 'completed')");
     expect(normalizedFollowupSql).toContain("v_challenge.status = 'accepted'");

@@ -33,6 +33,8 @@ DECLARE
   v_challenge public.challenges%ROWTYPE;
   v_match public.team_matches%ROWTYPE;
   v_reporter_team_id uuid;
+  v_can_report_for_challenger boolean := false;
+  v_can_report_for_accepted boolean := false;
 BEGIN
   IF v_uid IS NULL THEN
     RAISE EXCEPTION 'Usuario no autenticado';
@@ -57,25 +59,31 @@ BEGIN
   END IF;
 
   IF v_challenge.status NOT IN ('accepted', 'confirmed', 'completed') THEN
-    RAISE EXCEPTION 'Solo se puede cargar el resultado en desafios confirmados';
+    RAISE EXCEPTION 'Solo se puede responder el resultado en desafios confirmados';
   END IF;
 
   IF v_challenge.status = 'accepted'
      AND (v_challenge.scheduled_at IS NULL OR v_challenge.scheduled_at > now()) THEN
-    RAISE EXCEPTION 'Solo se puede cargar el resultado cuando el desafio ya se jugo';
+    RAISE EXCEPTION 'Solo se puede responder el resultado cuando el desafio ya se jugo';
   END IF;
 
-  IF NOT (
-    public.team_user_is_admin_or_owner(v_challenge.challenger_team_id, v_uid)
-    OR public.team_user_is_admin_or_owner(v_challenge.accepted_team_id, v_uid)
-  ) THEN
-    RAISE EXCEPTION 'Solo owner/capitan/admin involucrado puede cargar el resultado';
+  v_can_report_for_challenger := public.team_user_is_admin_or_owner(v_challenge.challenger_team_id, v_uid)
+    OR public.team_user_is_captain_or_owner(v_challenge.challenger_team_id, v_uid);
+  v_can_report_for_accepted := public.team_user_is_admin_or_owner(v_challenge.accepted_team_id, v_uid)
+    OR public.team_user_is_captain_or_owner(v_challenge.accepted_team_id, v_uid);
+
+  IF NOT (v_can_report_for_challenger OR v_can_report_for_accepted) THEN
+    RAISE EXCEPTION 'Solo owner/capitan/admin involucrado puede responder el resultado';
+  END IF;
+
+  IF v_can_report_for_challenger AND v_can_report_for_accepted THEN
+    RAISE EXCEPTION 'No se pudo identificar un unico equipo para responder el resultado';
   END IF;
 
   -- Determine which side reported the result (metadata only; nullable).
-  IF public.team_user_is_admin_or_owner(v_challenge.challenger_team_id, v_uid) THEN
+  IF v_can_report_for_challenger THEN
     v_reporter_team_id := v_challenge.challenger_team_id;
-  ELSIF public.team_user_is_admin_or_owner(v_challenge.accepted_team_id, v_uid) THEN
+  ELSIF v_can_report_for_accepted THEN
     v_reporter_team_id := v_challenge.accepted_team_id;
   ELSE
     v_reporter_team_id := NULL;

@@ -262,12 +262,16 @@ const MisDesafiosTab = ({
           matchStatus: relatedMatch?.status,
           scheduledAt: relatedMatch?.scheduled_at || challenge?.scheduled_at,
         });
-        const canLoadOrEditResult = allowManage && resultActionEligible;
         const perspective = resolveChallengePerspective({
           challenge,
           manageableTeamIds,
           userId,
         });
+        const canRespondResult = allowManage
+          && resultActionEligible
+          && perspective.canIdentifyTeam
+          && Boolean(perspective.myTeamId);
+        const canEditResult = canRespondResult;
         const resultLabel = resultAlreadyLoaded
           ? getChallengeResultOutcomeLabel(relatedMatch?.result_status, {
             perspectiveIsChallenger: perspective.perspectiveIsChallenger,
@@ -280,8 +284,8 @@ const MisDesafiosTab = ({
         if (challenge.status === 'open') {
           primaryLabel = 'Compartir';
           primaryAction = () => handleShare(challenge);
-        } else if (canLoadOrEditResult) {
-          primaryLabel = resultAlreadyLoaded ? 'Editar resultado' : 'Cargar resultado';
+        } else if (canRespondResult || (resultAlreadyLoaded && canEditResult)) {
+          primaryLabel = resultAlreadyLoaded ? 'Editar respuesta' : 'Responder';
           primaryAction = () => openResultModal(challenge, { isEditing: resultAlreadyLoaded });
         } else if (challenge.status === 'accepted' || challenge.status === 'confirmed' || challenge.status === 'completed') {
           primaryLabel = 'Ver detalle';
@@ -297,6 +301,7 @@ const MisDesafiosTab = ({
             primaryLabel={primaryLabel}
             onPrimaryAction={primaryAction}
             resultLabel={resultLabel}
+            showResultPending={canRespondResult && !resultAlreadyLoaded}
             onCancel={async () => {
               if (!allowManage) return;
 
@@ -354,7 +359,7 @@ const MisDesafiosTab = ({
             setResultModal(null);
             await loadData();
           } catch (error) {
-            notifyBlockingError(error.message || 'No se pudo cargar el resultado del desafio');
+            notifyBlockingError(error.message || 'No se pudo guardar la respuesta del desafio');
           } finally {
             setIsSubmitting(false);
           }

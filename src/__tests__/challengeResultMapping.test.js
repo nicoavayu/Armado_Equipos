@@ -117,6 +117,9 @@ describe('challenge manual result mapping', () => {
       expect(isChallengeResultActionState({ challengeStatus: 'accepted', scheduledAt: '2026-06-14T20:00:00.000Z' })).toBe(true);
       expect(isChallengeResultActionState({ challengeStatus: 'accepted', matchStatus: 'confirmed', scheduledAt: '2999-06-14T20:00:00.000Z' })).toBe(false);
       expect(isChallengeResultActionState({ challengeStatus: 'open', scheduledAt: '2999-06-14T20:00:00.000Z' })).toBe(false);
+      expect(isChallengeResultActionState({ challengeStatus: 'canceled', scheduledAt: '2026-06-14T20:00:00.000Z' })).toBe(false);
+      expect(isChallengeResultActionState({ challengeStatus: 'rejected', scheduledAt: '2026-06-14T20:00:00.000Z' })).toBe(false);
+      expect(isChallengeResultActionState({ matchStatus: 'cancelled', scheduledAt: '2026-06-14T20:00:00.000Z' })).toBe(false);
     });
   });
 });

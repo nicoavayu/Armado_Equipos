@@ -66,12 +66,14 @@ const ReportChallengeResultModal = ({
               onSubmit({ challengeId: challenge.id, resultStatus, outcome });
             }}
           >
-            Guardar resultado
+            Guardar respuesta
           </Button>
         </div>
       )}
     >
-      <p className="text-white/75 font-oswald text-[18px] mb-4">Vs {rivalName}</p>
+      <p className="text-white/75 font-oswald text-[18px] mb-4">
+        ¿Cómo salió el desafío contra {rivalName}?
+      </p>
 
       <div className="space-y-2">
         {CHALLENGE_OUTCOME_OPTIONS.map((option) => (

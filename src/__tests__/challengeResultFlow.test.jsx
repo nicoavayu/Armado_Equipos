@@ -72,10 +72,12 @@ describe('challenge result flow UI', () => {
     jest.clearAllMocks();
   });
 
-  test('aparece CTA "Cargar resultado" cuando hay rival y no hay resultado', async () => {
+  test('aparece encuesta pendiente cuando hay rival y no hay resultado', async () => {
     await renderMisDesafios();
 
-    expect(await screen.findByRole('button', { name: /cargar resultado/i })).toBeInTheDocument();
+    expect(await screen.findByText('Resultado pendiente')).toBeInTheDocument();
+    expect(screen.getByText('¿Cómo salió el desafío contra Bico?')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /responder/i })).toBeInTheDocument();
   });
 
   test('no aparece CTA si no hay rival aceptado', async () => {
@@ -88,17 +90,62 @@ describe('challenge result flow UI', () => {
       teamMatch: null,
     });
 
-    await waitFor(() => expect(screen.queryByRole('button', { name: /cargar resultado/i })).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText('Resultado pendiente')).not.toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: /responder/i })).not.toBeInTheDocument();
   });
 
-  test('usuario sin permiso no puede cargar ni editar resultado', async () => {
+  test('no pide resultado si el desafío aceptado es futuro', async () => {
+    await renderMisDesafios({
+      challenge: {
+        ...baseChallenge,
+        status: 'accepted',
+        scheduled_at: '2999-06-14T20:00:00.000Z',
+      },
+      teamMatch: {
+        ...baseTeamMatch,
+        status: 'confirmed',
+        scheduled_at: '2999-06-14T20:00:00.000Z',
+      },
+    });
+
+    await waitFor(() => expect(screen.queryByText('Resultado pendiente')).not.toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: /responder/i })).not.toBeInTheDocument();
+  });
+
+  test('no pide resultado si el desafío está cancelado', async () => {
+    await renderMisDesafios({
+      challenge: {
+        ...baseChallenge,
+        status: 'canceled',
+      },
+      teamMatch: {
+        ...baseTeamMatch,
+        status: 'cancelled',
+      },
+    });
+
+    await waitFor(() => expect(screen.queryByText('Resultado pendiente')).not.toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: /responder/i })).not.toBeInTheDocument();
+  });
+
+  test('usuario no autorizado no puede responder ni editar resultado', async () => {
     await renderMisDesafios({
       manageableTeams: [],
       userId: 'random-user',
     });
 
-    await waitFor(() => expect(screen.queryByRole('button', { name: /cargar resultado/i })).not.toBeInTheDocument());
-    expect(screen.queryByRole('button', { name: /editar resultado/i })).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('button', { name: /responder/i })).not.toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: /editar respuesta/i })).not.toBeInTheDocument();
+  });
+
+  test('jugador involucrado sin rol de gestión queda como follow-up, no responde en MVP', async () => {
+    await renderMisDesafios({
+      manageableTeams: [],
+      userId: 'member-user',
+    });
+
+    await waitFor(() => expect(screen.queryByText('Resultado pendiente')).not.toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: /responder/i })).not.toBeInTheDocument();
   });
 
   test('muestra resultado cargado y permite editar si el usuario tiene permiso', async () => {
@@ -115,10 +162,10 @@ describe('challenge result flow UI', () => {
     });
 
     expect(await screen.findByText('Resultado cargado: Ganamos')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /editar resultado/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /editar respuesta/i })).toBeInTheDocument();
   });
 
-  test('card visible de detalle muestra la entrada clara para cargar resultado', () => {
+  test('card visible de detalle muestra la encuesta pendiente', () => {
     render(
       <ChallengeResultCtaCard
         rivalName="Bico"
@@ -126,9 +173,9 @@ describe('challenge result flow UI', () => {
       />,
     );
 
-    expect(screen.getByText('Registrar resultado del desafío')).toBeInTheDocument();
-    expect(screen.getByText('¿Cómo salió contra Bico?')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /cargar resultado/i })).toBeInTheDocument();
+    expect(screen.getByText('Resultado pendiente')).toBeInTheDocument();
+    expect(screen.getByText('¿Cómo salió el desafío contra Bico?')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /responder/i })).toBeInTheDocument();
   });
 
   test('modal muestra Ganamos / Empatamos / Perdimos y guarda desde la perspectiva del usuario', () => {
@@ -145,7 +192,7 @@ describe('challenge result flow UI', () => {
     );
 
     expect(screen.getByRole('heading', { name: '¿Cómo salió el desafío?' })).toBeInTheDocument();
-    expect(screen.getByText('Vs Bico')).toBeInTheDocument();
+    expect(screen.getByText('¿Cómo salió el desafío contra Bico?')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Ganamos' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Empatamos' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Perdimos' })).toBeInTheDocument();
@@ -154,7 +201,7 @@ describe('challenge result flow UI', () => {
     expect(screen.queryByText(/mvp/i)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Ganamos' }));
-    fireEvent.click(screen.getByRole('button', { name: /guardar resultado/i }));
+    fireEvent.click(screen.getByRole('button', { name: /guardar respuesta/i }));
 
     expect(onSubmit).toHaveBeenCalledWith({
       challengeId: 'challenge-1',
@@ -171,9 +218,9 @@ describe('challenge result flow UI', () => {
     reportChallengeResult.mockResolvedValueOnce({ id: 'match-1', result_status: expectedStatus });
     await renderMisDesafios();
 
-    fireEvent.click(await screen.findByRole('button', { name: /cargar resultado/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /responder/i }));
     fireEvent.click(await screen.findByRole('button', { name: label }));
-    fireEvent.click(screen.getByRole('button', { name: /guardar resultado/i }));
+    fireEvent.click(screen.getByRole('button', { name: /guardar respuesta/i }));
 
     await waitFor(() => expect(reportChallengeResult).toHaveBeenCalledWith({
       challengeId: 'challenge-1',

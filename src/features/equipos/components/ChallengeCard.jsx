@@ -117,6 +117,7 @@ const ChallengeCard = ({
   canEdit = false,
   onEdit = null,
   resultLabel = null,
+  showResultPending = false,
 }) => {
   const status = (challenge?.status || 'open').toLowerCase();
   const cta = primaryLabel || CTA_BY_STATUS[status] || 'Ver detalle';
@@ -237,6 +238,15 @@ const ChallengeCard = ({
       {resultLabel ? (
         <div className="mt-3 rounded-xl border border-[#8f7bff]/25 bg-white/[0.055] px-3 py-2.5 text-center font-oswald text-[15px] font-semibold text-white">
           Resultado cargado: {resultLabel}
+        </div>
+      ) : showResultPending ? (
+        <div className="mt-3 rounded-xl border border-[#8f7bff]/25 bg-white/[0.055] px-3 py-2.5 text-center">
+          <div className="font-oswald text-[15px] font-semibold text-white">
+            Resultado pendiente
+          </div>
+          <div className="mt-0.5 text-[12px] leading-snug text-white/65">
+            ¿Cómo salió el desafío contra {challenge?.accepted_team?.name || 'el rival'}?
+          </div>
         </div>
       ) : null}
 

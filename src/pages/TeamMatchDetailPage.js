@@ -1301,7 +1301,7 @@ const TeamMatchDetailPage = () => {
       await refreshMatchView({ withLoading: false, silent: false });
       setHeadToHeadReloadKey((value) => value + 1);
     } catch (error) {
-      notifyBlockingError(error.message || 'No se pudo cargar el resultado del desafío');
+      notifyBlockingError(error.message || 'No se pudo guardar la respuesta del desafío');
     } finally {
       setResultModalSubmitting(false);
     }

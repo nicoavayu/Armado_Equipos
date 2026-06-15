@@ -28,17 +28,17 @@ const ChallengeResultCtaCard = ({
               onClick={onLoad}
               data-preserve-button-case="true"
             >
-              Editar resultado
+              Editar respuesta
             </Button>
           ) : null}
         </>
       ) : (
         <>
           <p className="font-oswald text-[19px] font-semibold text-white">
-            Registrar resultado del desafío
+            Resultado pendiente
           </p>
           <p className="mt-1 text-[14px] leading-snug text-white/72">
-            ¿Cómo salió contra {safeRivalName}?
+            ¿Cómo salió el desafío contra {safeRivalName}?
           </p>
           <Button
             type="button"
@@ -46,7 +46,7 @@ const ChallengeResultCtaCard = ({
             onClick={onLoad}
             data-preserve-button-case="true"
           >
-            Cargar resultado
+            Responder
           </Button>
         </>
       )}
