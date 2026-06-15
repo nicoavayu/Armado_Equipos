@@ -46,13 +46,17 @@ export const isChallengeResultActionState = ({
   matchStatus = null,
   scheduledAt = null,
 } = {}) => {
-  if (RESULT_ACTION_CHALLENGE_STATES.has(normalizeToken(challengeStatus))) return true;
-  if (RESULT_ACTION_MATCH_STATES.has(normalizeToken(matchStatus))) return true;
+  const normalizedChallengeStatus = normalizeToken(challengeStatus);
+  const normalizedMatchStatus = normalizeToken(matchStatus);
+  const scheduledAtMs = scheduledAt ? new Date(scheduledAt).getTime() : NaN;
+  const isPastScheduled = Number.isFinite(scheduledAtMs) && scheduledAtMs <= Date.now();
 
-  if (scheduledAt) {
-    const scheduledAtMs = new Date(scheduledAt).getTime();
-    if (Number.isFinite(scheduledAtMs) && scheduledAtMs <= Date.now()) return true;
+  if (RESULT_ACTION_CHALLENGE_STATES.has(normalizedChallengeStatus)) return true;
+  if (normalizedChallengeStatus === 'accepted') {
+    return normalizedMatchStatus === 'played' || isPastScheduled;
   }
+  if (RESULT_ACTION_MATCH_STATES.has(normalizedMatchStatus)) return true;
+  if (isPastScheduled) return true;
 
   return false;
 };

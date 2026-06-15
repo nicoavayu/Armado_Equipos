@@ -9,9 +9,19 @@ const migrationPath = path.join(
   'migrations',
   '20260615120000_challenge_manual_results.sql',
 );
+const followupMigrationPath = path.join(
+  __dirname,
+  '..',
+  '..',
+  'supabase',
+  'migrations',
+  '20260615222854_challenge_manual_results_followup.sql',
+);
 
 const sql = fs.readFileSync(migrationPath, 'utf8');
 const normalizedSql = sql.replace(/\s+/g, ' ').trim();
+const followupSql = fs.readFileSync(followupMigrationPath, 'utf8');
+const normalizedFollowupSql = followupSql.replace(/\s+/g, ' ').trim();
 
 describe('challenge manual results migration', () => {
   test('adds explicit manual-result columns to team_matches', () => {
@@ -35,17 +45,17 @@ describe('challenge manual results migration', () => {
   });
 
   test('reporting RPC enforces permissions and an accepted rival', () => {
-    expect(normalizedSql).toContain('CREATE OR REPLACE FUNCTION public.rpc_report_challenge_result(');
-    expect(normalizedSql).toContain('public.team_user_is_admin_or_owner(v_challenge.challenger_team_id, v_uid)');
-    expect(normalizedSql).toContain('public.team_user_is_admin_or_owner(v_challenge.accepted_team_id, v_uid)');
-    expect(normalizedSql).toContain('Challenge sin equipo rival');
-    expect(normalizedSql).toContain("v_challenge.status NOT IN ('accepted', 'confirmed', 'completed')");
-    expect(normalizedSql).toContain("v_challenge.status = 'accepted'");
-    expect(normalizedSql).toContain('v_challenge.scheduled_at > now()');
-    expect(normalizedSql).toContain("status = 'played'");
+    expect(normalizedFollowupSql).toContain('CREATE OR REPLACE FUNCTION public.rpc_report_challenge_result(');
+    expect(normalizedFollowupSql).toContain('public.team_user_is_admin_or_owner(v_challenge.challenger_team_id, v_uid)');
+    expect(normalizedFollowupSql).toContain('public.team_user_is_admin_or_owner(v_challenge.accepted_team_id, v_uid)');
+    expect(normalizedFollowupSql).toContain('Challenge sin equipo rival');
+    expect(normalizedFollowupSql).toContain("v_challenge.status NOT IN ('accepted', 'confirmed', 'completed')");
+    expect(normalizedFollowupSql).toContain("v_challenge.status = 'accepted'");
+    expect(normalizedFollowupSql).toContain('v_challenge.scheduled_at IS NULL OR v_challenge.scheduled_at > now()');
+    expect(normalizedFollowupSql).toContain("status = 'played'");
     // Never writes a fabricated scoreline.
-    expect(normalizedSql).not.toContain('score_a = 1');
-    expect(normalizedSql).not.toContain('p_score_a');
+    expect(normalizedFollowupSql).not.toContain('score_a = 1');
+    expect(normalizedFollowupSql).not.toContain('p_score_a');
   });
 
   test('head-to-head exposes played vs encounters and derives winner from result_status', () => {

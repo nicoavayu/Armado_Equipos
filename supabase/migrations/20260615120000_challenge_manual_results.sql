@@ -105,21 +105,12 @@ BEGIN
     RAISE EXCEPTION 'Challenge sin equipo rival';
   END IF;
 
-  IF v_challenge.status NOT IN ('accepted', 'confirmed', 'completed') THEN
+  IF v_challenge.status NOT IN ('confirmed', 'completed') THEN
     RAISE EXCEPTION 'Solo se puede cargar el resultado en desafios confirmados';
   END IF;
 
-  IF v_challenge.status = 'accepted'
-     AND v_challenge.scheduled_at IS NOT NULL
-     AND v_challenge.scheduled_at > now() THEN
-    RAISE EXCEPTION 'Solo se puede cargar el resultado cuando el desafio ya se jugo';
-  END IF;
-
-  IF NOT (
-    public.team_user_is_admin_or_owner(v_challenge.challenger_team_id, v_uid)
-    OR public.team_user_is_admin_or_owner(v_challenge.accepted_team_id, v_uid)
-  ) THEN
-    RAISE EXCEPTION 'Solo owner/capitan/admin involucrado puede cargar el resultado';
+  IF NOT public.challenge_user_is_owner_or_captain(p_challenge_id, v_uid) THEN
+    RAISE EXCEPTION 'Solo owner/capitan involucrado puede cargar el resultado';
   END IF;
 
   -- Determine which side reported the result (metadata only; nullable).
