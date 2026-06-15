@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import ChallengeCard from '../components/ChallengeCard';
 import PublishChallengeModal from '../components/PublishChallengeModal';
 import AcceptChallengeModal from '../components/AcceptChallengeModal';
-import CompleteChallengeModal from '../components/CompleteChallengeModal';
 import NeighborhoodAutocomplete from '../components/NeighborhoodAutocomplete';
 import Modal from '../../../components/Modal';
 import ConfirmModal from '../../../components/ConfirmModal';
@@ -12,7 +11,6 @@ import { TEAM_FORMAT_OPTIONS, TEAM_SKILL_OPTIONS } from '../config';
 import {
   acceptChallenge,
   cancelChallenge,
-  completeChallenge,
   createChallenge,
   getTeamMatchByChallengeId,
   listMyManageableTeams,
@@ -76,7 +74,6 @@ const DesafiosTab = ({
   const [acceptingChallenge, setAcceptingChallenge] = useState(null);
   const [selectedAcceptTeamId, setSelectedAcceptTeamId] = useState('');
   const [cancelConfirmChallenge, setCancelConfirmChallenge] = useState(null);
-  const [completeTarget, setCompleteTarget] = useState(null);
   const [inlineNotice, setInlineNotice] = useState({ type: '', message: '' });
   const [acceptBlockedMessage, setAcceptBlockedMessage] = useState('');
   const { setIntervalSafe, clearIntervalSafe } = useInterval();
@@ -539,25 +536,6 @@ const DesafiosTab = ({
           {acceptBlockedMessage}
         </p>
       </Modal>
-
-      <CompleteChallengeModal
-        isOpen={Boolean(completeTarget)}
-        challenge={completeTarget}
-        onClose={() => setCompleteTarget(null)}
-        isSubmitting={isSubmitting}
-        onSubmit={async ({ challengeId, scoreA, scoreB, playedAt }) => {
-          try {
-            setIsSubmitting(true);
-            await completeChallenge({ challengeId, scoreA, scoreB, playedAt });
-            setCompleteTarget(null);
-            await refreshDesafiosBoard({ withLoading: false, silent: false });
-          } catch (error) {
-            notifyBlockingError(error.message || 'No se pudo finalizar el desafio');
-          } finally {
-            setIsSubmitting(false);
-          }
-        }}
-      />
     </div>
   );
 };

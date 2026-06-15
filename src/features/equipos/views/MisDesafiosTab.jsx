@@ -1,16 +1,17 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ChallengeCard from '../components/ChallengeCard';
-import CompleteChallengeModal from '../components/CompleteChallengeModal';
+import ReportChallengeResultModal from '../components/ReportChallengeResultModal';
 import PublishChallengeModal from '../components/PublishChallengeModal';
 import {
   cancelChallenge,
-  completeChallenge,
+  reportChallengeResult,
   getTeamMatchByChallengeId,
   listMyManageableTeams,
   listMyChallenges,
   updateChallenge,
 } from '../../../services/db/teamChallenges';
+import { resolveChallengePerspective, resultStatusToOutcome } from '../utils/challengeResult';
 import { notifyBlockingError } from '../../../utils/notifyBlockingError';
 import EmptyStateCard from '../../../components/EmptyStateCard';
 import { Flag } from 'lucide-react';
@@ -58,7 +59,7 @@ const MisDesafiosTab = ({
   const [myChallenges, setMyChallenges] = useState([]);
   const [manageableTeams, setManageableTeams] = useState([]);
   const [editingChallenge, setEditingChallenge] = useState(null);
-  const [completeTarget, setCompleteTarget] = useState(null);
+  const [resultModal, setResultModal] = useState(null);
 
   const loadData = async () => {
     if (!userId) return;
@@ -150,6 +151,36 @@ const MisDesafiosTab = ({
     }
   }, [navigate]);
 
+  const openResultModal = useCallback(async (challenge, { isEditing = false } = {}) => {
+    if (!challenge?.id) return;
+
+    const perspective = resolveChallengePerspective({
+      challenge,
+      manageableTeamIds,
+      userId,
+    });
+
+    let initialOutcome = null;
+    if (isEditing) {
+      try {
+        const match = await getTeamMatchByChallengeId(challenge.id);
+        if (match?.result_status) {
+          initialOutcome = resultStatusToOutcome(match.result_status, {
+            perspectiveIsChallenger: perspective.perspectiveIsChallenger,
+          });
+        }
+      } catch (_error) {
+        // Non-blocking: open the modal without a pre-selected outcome.
+      }
+    }
+
+    setResultModal({
+      challenge,
+      perspectiveIsChallenger: perspective.perspectiveIsChallenger,
+      initialOutcome,
+    });
+  }, [manageableTeamIds, userId]);
+
   return (
     <div className="w-full max-w-[560px] flex flex-col gap-3">
       <div className="rounded-2xl border border-white/15 bg-white/5 p-3">
@@ -201,13 +232,15 @@ const MisDesafiosTab = ({
           primaryLabel = 'Ver partido';
           primaryAction = () => openChallengeMatch(challenge);
         } else if (challenge.status === 'confirmed') {
-          primaryLabel = allowManage ? 'Finalizar' : 'Ver detalle';
+          primaryLabel = allowManage ? 'Cargar resultado' : 'Ver detalle';
           primaryAction = allowManage
-            ? () => setCompleteTarget(challenge)
+            ? () => openResultModal(challenge)
             : () => handleShare(challenge);
         } else if (challenge.status === 'completed') {
-          primaryLabel = 'Compartir';
-          primaryAction = () => handleShare(challenge);
+          primaryLabel = allowManage ? 'Editar resultado' : 'Compartir';
+          primaryAction = allowManage
+            ? () => openResultModal(challenge, { isEditing: true })
+            : () => handleShare(challenge);
         }
 
         return (
@@ -261,19 +294,21 @@ const MisDesafiosTab = ({
         }}
       />
 
-      <CompleteChallengeModal
-        isOpen={Boolean(completeTarget)}
-        challenge={completeTarget}
-        onClose={() => setCompleteTarget(null)}
+      <ReportChallengeResultModal
+        isOpen={Boolean(resultModal)}
+        challenge={resultModal?.challenge || null}
+        perspectiveIsChallenger={resultModal?.perspectiveIsChallenger ?? true}
+        initialOutcome={resultModal?.initialOutcome || null}
+        onClose={() => setResultModal(null)}
         isSubmitting={isSubmitting}
-        onSubmit={async ({ challengeId, scoreA, scoreB, playedAt }) => {
+        onSubmit={async ({ challengeId, resultStatus }) => {
           try {
             setIsSubmitting(true);
-            await completeChallenge({ challengeId, scoreA, scoreB, playedAt });
-            setCompleteTarget(null);
+            await reportChallengeResult({ challengeId, resultStatus });
+            setResultModal(null);
             await loadData();
           } catch (error) {
-            notifyBlockingError(error.message || 'No se pudo finalizar el desafio');
+            notifyBlockingError(error.message || 'No se pudo cargar el resultado del desafio');
           } finally {
             setIsSubmitting(false);
           }
