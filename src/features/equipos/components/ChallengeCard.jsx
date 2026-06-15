@@ -116,6 +116,7 @@ const ChallengeCard = ({
   isOwnChallenge = false,
   canEdit = false,
   onEdit = null,
+  resultLabel = null,
 }) => {
   const status = (challenge?.status || 'open').toLowerCase();
   const cta = primaryLabel || CTA_BY_STATUS[status] || 'Ver detalle';
@@ -231,6 +232,12 @@ const ChallengeCard = ({
 
       {challenge?.notes ? (
         <p className="mt-3 text-[13px] leading-snug text-white/70 break-words font-sans border-l-2 border-[rgba(148,134,255,0.35)] pl-2.5">{challenge.notes}</p>
+      ) : null}
+
+      {resultLabel ? (
+        <div className="mt-3 rounded-xl border border-[#8f7bff]/25 bg-white/[0.055] px-3 py-2.5 text-center font-oswald text-[15px] font-semibold text-white">
+          Resultado cargado: {resultLabel}
+        </div>
       ) : null}
 
       <div className="mt-4 flex gap-2">

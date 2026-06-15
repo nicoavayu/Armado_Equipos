@@ -4,6 +4,8 @@ import {
   outcomeToResultStatus,
   resultStatusToOutcome,
   resolveChallengePerspective,
+  challengeHasAcceptedRival,
+  isChallengeResultActionState,
 } from '../features/equipos/utils/challengeResult';
 
 describe('challenge manual result mapping', () => {
@@ -92,6 +94,27 @@ describe('challenge manual result mapping', () => {
       });
       expect(perspective.canIdentifyTeam).toBe(false);
       expect(perspective.perspectiveIsChallenger).toBe(true);
+    });
+  });
+
+  describe('CTA eligibility', () => {
+    test('requires a real accepted rival', () => {
+      expect(challengeHasAcceptedRival({
+        challenger_team_id: 'team-a',
+        accepted_team_id: null,
+      })).toBe(false);
+      expect(challengeHasAcceptedRival({
+        team_a_id: 'team-a',
+        team_b_id: 'team-b',
+      })).toBe(true);
+    });
+
+    test('allows confirmed, completed, played or past challenges', () => {
+      expect(isChallengeResultActionState({ challengeStatus: 'confirmed' })).toBe(true);
+      expect(isChallengeResultActionState({ challengeStatus: 'completed' })).toBe(true);
+      expect(isChallengeResultActionState({ matchStatus: 'played' })).toBe(true);
+      expect(isChallengeResultActionState({ scheduledAt: '2026-06-14T20:00:00.000Z' })).toBe(true);
+      expect(isChallengeResultActionState({ challengeStatus: 'open', scheduledAt: '2999-06-14T20:00:00.000Z' })).toBe(false);
     });
   });
 });

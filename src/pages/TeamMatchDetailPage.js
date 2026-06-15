@@ -22,8 +22,15 @@ import {
   resolveChallengeSquadViewState,
 } from '../features/equipos/utils/challengeViewer';
 import { buildChallengeHeadToHeadView } from '../features/equipos/utils/challengeHeadToHead';
-import { resultStatusToOutcome } from '../features/equipos/utils/challengeResult';
+import {
+  challengeHasAcceptedRival,
+  getChallengeResultOutcomeLabel,
+  isChallengeResultActionState,
+  isChallengeResultLoaded,
+  resultStatusToOutcome,
+} from '../features/equipos/utils/challengeResult';
 import ReportChallengeResultModal from '../features/equipos/components/ReportChallengeResultModal';
+import ChallengeResultCtaCard from '../features/equipos/components/ChallengeResultCtaCard';
 import normalizePartidoForHeader from '../utils/normalizePartidoForHeader';
 import {
   getChallengeHeadToHeadStats,
@@ -552,7 +559,13 @@ const TeamMatchDetailPage = () => {
     const scheduledAtMs = match?.scheduled_at ? new Date(match.scheduled_at).getTime() : NaN;
     return Number.isFinite(scheduledAtMs) && scheduledAtMs <= Date.now();
   }, [match?.scheduled_at]);
-  const isUnavailablePastChallengeMatch = isChallengeMatch && isPastScheduledTeamMatch;
+  const hasChallengeAcceptedRival = useMemo(
+    () => isChallengeMatch && challengeHasAcceptedRival(match),
+    [isChallengeMatch, match],
+  );
+  const isUnavailablePastChallengeMatch = isChallengeMatch
+    && isPastScheduledTeamMatch
+    && !hasChallengeAcceptedRival;
 
   useEffect(() => {
     if (loading || !match || !isCancelledMatch || cancelledRedirectRef.current) return;
@@ -1236,18 +1249,39 @@ const TeamMatchDetailPage = () => {
 
   const canReportChallengeResult = Boolean(
     isChallengeMatch
+    && hasChallengeAcceptedRival
     && canManageMyChallengeSquad
     && myChallengeTeamId
     && !isAmbiguousChallengeViewer
-    && (challengeStatusValue === 'confirmed' || challengeStatusValue === 'completed'),
+    && isChallengeResultActionState({
+      challengeStatus: challengeStatusValue,
+      matchStatus: match?.status,
+      scheduledAt: match?.scheduled_at,
+    }),
   );
 
-  const resultAlreadyLoaded = challengeStatusValue === 'completed' || Boolean(match?.result_status);
+  const resultAlreadyLoaded = isChallengeResultLoaded(match?.result_status);
 
   const resultInitialOutcome = useMemo(() => {
     if (!match?.result_status) return null;
     return resultStatusToOutcome(match.result_status, { perspectiveIsChallenger });
   }, [match?.result_status, perspectiveIsChallenger]);
+
+  const resultOutcomeLabel = useMemo(() => (
+    getChallengeResultOutcomeLabel(match?.result_status, { perspectiveIsChallenger })
+  ), [match?.result_status, perspectiveIsChallenger]);
+
+  const challengeResultRivalName = useMemo(() => {
+    if (perspectiveIsChallenger) return match?.team_b?.name || 'el rival';
+    return match?.team_a?.name || 'el rival';
+  }, [match?.team_a?.name, match?.team_b?.name, perspectiveIsChallenger]);
+
+  const showChallengeResultCard = Boolean(
+    isChallengeMatch
+    && hasChallengeAcceptedRival
+    && myChallengeTeamId
+    && (canReportChallengeResult || resultAlreadyLoaded),
+  );
 
   const resultModalChallenge = useMemo(() => {
     if (!match?.challenge_id) return null;
@@ -1803,16 +1837,13 @@ const TeamMatchDetailPage = () => {
                 </div>
               ) : null}
 
-              {canReportChallengeResult ? (
-                <Button
-                  type="button"
-                  variant={resultAlreadyLoaded ? 'secondary' : 'primary'}
-                  className="mt-2 h-12 w-full rounded-xl text-[17px] font-oswald font-semibold !normal-case"
-                  onClick={() => setResultModalOpen(true)}
-                  data-preserve-button-case="true"
-                >
-                  {resultAlreadyLoaded ? 'Editar resultado' : 'Cargar resultado'}
-                </Button>
+              {showChallengeResultCard ? (
+                <ChallengeResultCtaCard
+                  rivalName={challengeResultRivalName}
+                  resultLabel={resultAlreadyLoaded ? resultOutcomeLabel : null}
+                  canEdit={canReportChallengeResult && resultAlreadyLoaded}
+                  onLoad={() => setResultModalOpen(true)}
+                />
               ) : null}
 
             </>

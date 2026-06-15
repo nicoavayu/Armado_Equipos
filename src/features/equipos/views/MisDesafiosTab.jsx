@@ -11,7 +11,14 @@ import {
   listMyChallenges,
   updateChallenge,
 } from '../../../services/db/teamChallenges';
-import { resolveChallengePerspective, resultStatusToOutcome } from '../utils/challengeResult';
+import {
+  challengeHasAcceptedRival,
+  getChallengeResultOutcomeLabel,
+  isChallengeResultActionState,
+  isChallengeResultLoaded,
+  resolveChallengePerspective,
+  resultStatusToOutcome,
+} from '../utils/challengeResult';
 import { notifyBlockingError } from '../../../utils/notifyBlockingError';
 import EmptyStateCard from '../../../components/EmptyStateCard';
 import { Flag } from 'lucide-react';
@@ -70,7 +77,24 @@ const MisDesafiosTab = ({
         listMyChallenges(userId),
         listMyManageableTeams(userId),
       ]);
-      setMyChallenges(rows);
+
+      const hydratedRows = await Promise.all((rows || []).map(async (challenge) => {
+        if (!challengeHasAcceptedRival(challenge)) return challenge;
+        const status = String(challenge?.status || '').trim().toLowerCase();
+        if (status === 'open' || status === 'canceled') return challenge;
+
+        try {
+          const teamMatch = await getTeamMatchByChallengeId(challenge.id);
+          return {
+            ...challenge,
+            team_match: teamMatch || null,
+          };
+        } catch (_error) {
+          return challenge;
+        }
+      }));
+
+      setMyChallenges(hydratedRows);
       setManageableTeams(manageable || []);
     } catch (error) {
       notifyBlockingError(error.message || 'No se pudieron cargar tus desafios');
@@ -134,7 +158,12 @@ const MisDesafiosTab = ({
     }
   };
 
-  const canManage = (challenge) => challenge.created_by_user_id === userId || challenge.accepted_by_user_id === userId;
+  const canManage = useCallback((challenge) => {
+    if (!challenge) return false;
+    if (challenge.created_by_user_id === userId || challenge.accepted_by_user_id === userId) return true;
+    return manageableTeamIds.has(challenge.challenger_team_id)
+      || manageableTeamIds.has(challenge.accepted_team_id);
+  }, [manageableTeamIds, userId]);
 
   const openChallengeMatch = useCallback(async (challenge) => {
     if (!challenge?.id) return;
@@ -160,17 +189,21 @@ const MisDesafiosTab = ({
       userId,
     });
 
+    let teamMatch = challenge?.team_match || null;
+    if (!teamMatch) {
+      try {
+        teamMatch = await getTeamMatchByChallengeId(challenge.id);
+      } catch (_error) {
+        teamMatch = null;
+      }
+    }
+
     let initialOutcome = null;
     if (isEditing) {
-      try {
-        const match = await getTeamMatchByChallengeId(challenge.id);
-        if (match?.result_status) {
-          initialOutcome = resultStatusToOutcome(match.result_status, {
-            perspectiveIsChallenger: perspective.perspectiveIsChallenger,
-          });
-        }
-      } catch (_error) {
-        // Non-blocking: open the modal without a pre-selected outcome.
+      if (teamMatch?.result_status) {
+        initialOutcome = resultStatusToOutcome(teamMatch.result_status, {
+          perspectiveIsChallenger: perspective.perspectiveIsChallenger,
+        });
       }
     }
 
@@ -221,26 +254,38 @@ const MisDesafiosTab = ({
         const allowManage = canManage(challenge);
         const canEditChallenge = challenge.status === 'open'
           && manageableTeamIds.has(challenge.challenger_team_id);
+        const relatedMatch = challenge?.team_match || null;
+        const hasAcceptedRival = challengeHasAcceptedRival(challenge) || challengeHasAcceptedRival(relatedMatch);
+        const resultAlreadyLoaded = isChallengeResultLoaded(relatedMatch?.result_status);
+        const resultActionEligible = hasAcceptedRival && isChallengeResultActionState({
+          challengeStatus: challenge?.status,
+          matchStatus: relatedMatch?.status,
+          scheduledAt: relatedMatch?.scheduled_at || challenge?.scheduled_at,
+        });
+        const canLoadOrEditResult = allowManage && resultActionEligible;
+        const perspective = resolveChallengePerspective({
+          challenge,
+          manageableTeamIds,
+          userId,
+        });
+        const resultLabel = resultAlreadyLoaded
+          ? getChallengeResultOutcomeLabel(relatedMatch?.result_status, {
+            perspectiveIsChallenger: perspective.perspectiveIsChallenger,
+          })
+          : null;
 
         let primaryLabel = 'Ver detalle';
-        let primaryAction = () => handleShare(challenge);
+        let primaryAction = () => openChallengeMatch(challenge);
 
         if (challenge.status === 'open') {
           primaryLabel = 'Compartir';
           primaryAction = () => handleShare(challenge);
-        } else if (challenge.status === 'accepted') {
-          primaryLabel = 'Ver partido';
+        } else if (canLoadOrEditResult) {
+          primaryLabel = resultAlreadyLoaded ? 'Editar resultado' : 'Cargar resultado';
+          primaryAction = () => openResultModal(challenge, { isEditing: resultAlreadyLoaded });
+        } else if (challenge.status === 'accepted' || challenge.status === 'confirmed' || challenge.status === 'completed') {
+          primaryLabel = 'Ver detalle';
           primaryAction = () => openChallengeMatch(challenge);
-        } else if (challenge.status === 'confirmed') {
-          primaryLabel = allowManage ? 'Cargar resultado' : 'Ver detalle';
-          primaryAction = allowManage
-            ? () => openResultModal(challenge)
-            : () => handleShare(challenge);
-        } else if (challenge.status === 'completed') {
-          primaryLabel = allowManage ? 'Editar resultado' : 'Compartir';
-          primaryAction = allowManage
-            ? () => openResultModal(challenge, { isEditing: true })
-            : () => handleShare(challenge);
         }
 
         return (
@@ -251,6 +296,7 @@ const MisDesafiosTab = ({
             onEdit={(targetChallenge) => setEditingChallenge(targetChallenge)}
             primaryLabel={primaryLabel}
             onPrimaryAction={primaryAction}
+            resultLabel={resultLabel}
             onCancel={async () => {
               if (!allowManage) return;
 
