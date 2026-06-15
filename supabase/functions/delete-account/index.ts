@@ -71,6 +71,11 @@ function isProfileDependencyFkError(error: QueryError): boolean {
       || text.includes("amigos")
       || text.includes("challenges")
       || text.includes("teams")
+      || text.includes("team_members")
+      || text.includes("team_matches")
+      || text.includes("team_chat")
+      || text.includes("team_invitations")
+      || text.includes("challenge_team_squad")
       || text.includes("partidos")
     );
 }
@@ -224,6 +229,30 @@ async function cleanupUserData(
           .from("teams")
           .update({ owner_user_id: null, is_active: false })
           .eq("owner_user_id", userId),
+    },
+    // Detach the user from the teams/challenges/team_matches module while keeping
+    // teams, team_matches and challenge history alive so other users' head-to-head
+    // and per-rival history is preserved. team_matches itself has no user column;
+    // it stays valid because we never delete the user's teams (only orphan them).
+    {
+      label: "team_members_user_id",
+      fn: () => adminClient.from("team_members").update({ user_id: null }).eq("user_id", userId),
+    },
+    {
+      label: "team_chat_messages_user_id",
+      fn: () => adminClient.from("team_chat_messages").update({ user_id: null }).eq("user_id", userId),
+    },
+    {
+      label: "challenge_team_squad_selected_by",
+      fn: () => adminClient.from("challenge_team_squad").update({ selected_by: null }).eq("selected_by", userId),
+    },
+    {
+      label: "team_invitations_invited_user_id",
+      fn: () => adminClient.from("team_invitations").delete().eq("invited_user_id", userId),
+    },
+    {
+      label: "team_invitations_invited_by_user_id",
+      fn: () => adminClient.from("team_invitations").delete().eq("invited_by_user_id", userId),
     },
     {
       label: "partidos_final_teams_updated_by",
