@@ -58,21 +58,33 @@ describe('challenge manual results migration', () => {
     expect(normalizedFollowupSql).not.toContain('p_score_a');
   });
 
+  test('follow-up clears fabricated scoreless backfills', () => {
+    expect(normalizedFollowupSql).toContain('UPDATE public.team_matches tm');
+    expect(normalizedFollowupSql).toContain('tm.result_reported_by_team_id IS NULL');
+    expect(normalizedFollowupSql).toContain('tm.score_a IS NULL OR tm.score_b IS NULL');
+    expect(normalizedFollowupSql).toContain('result_status = NULL');
+  });
+
   test('head-to-head exposes played vs encounters and derives winner from result_status', () => {
-    expect(normalizedSql).toContain('CREATE OR REPLACE FUNCTION public.rpc_get_challenge_head_to_head_stats(');
-    expect(normalizedSql).toContain('"totalEncounters" bigint');
-    expect(normalizedSql).toContain('"totalMatchesPlayed" bigint');
-    expect(normalizedSql).toContain('"draws" bigint');
-    expect(normalizedSql).toContain('p_exclude_match_id uuid DEFAULT NULL');
-    expect(normalizedSql).toContain("WHEN e.result_status = 'team_a_win' THEN e.team_a_id");
-    expect(normalizedSql).toContain("lower(COALESCE(sm.status, '')) <> 'cancelled'");
+    expect(normalizedFollowupSql).toContain('CREATE OR REPLACE FUNCTION public.rpc_get_challenge_head_to_head_stats(');
+    expect(normalizedFollowupSql).toContain('"totalEncounters" bigint');
+    expect(normalizedFollowupSql).toContain('"totalMatchesPlayed" bigint');
+    expect(normalizedFollowupSql).toContain('"draws" bigint');
+    expect(normalizedFollowupSql).toContain('p_exclude_match_id uuid DEFAULT NULL');
+    expect(normalizedFollowupSql).toContain("WHEN e.result_status = 'team_a_win' THEN e.team_a_id");
+    expect(normalizedFollowupSql).toContain("lower(COALESCE(sm.status, '')) <> 'cancelled'");
+    expect(normalizedFollowupSql).toContain("e.result_status IN ('team_a_win', 'team_b_win', 'draw')");
+    expect(normalizedFollowupSql).toContain('e.score_a IS NOT NULL AND e.score_b IS NOT NULL');
   });
 
   test('per-rival history uses manual result with a legacy score fallback', () => {
-    expect(normalizedSql).toContain('CREATE OR REPLACE FUNCTION public.rpc_team_history_by_rival(');
-    expect(normalizedSql).toContain("WHEN tm.result_status = 'team_a_win'");
-    expect(normalizedSql).toContain("WHEN tm.result_status = 'draw' THEN 'draw'");
-    expect(normalizedSql).toContain("WHEN tm.result_status = 'team_b_win'");
-    expect(normalizedSql).toContain("lower(COALESCE(tm.status, '')) = 'played'");
+    expect(normalizedFollowupSql).toContain('CREATE OR REPLACE FUNCTION public.rpc_team_history_by_rival(');
+    expect(normalizedFollowupSql).toContain("WHEN tm.result_status = 'team_a_win'");
+    expect(normalizedFollowupSql).toContain("WHEN tm.result_status = 'draw' THEN 'draw'");
+    expect(normalizedFollowupSql).toContain("WHEN tm.result_status = 'team_b_win'");
+    expect(normalizedFollowupSql).toContain("lower(COALESCE(tm.status, '')) = 'played'");
+    expect(normalizedFollowupSql).toContain("tm.result_status IN ('team_a_win', 'team_b_win', 'draw')");
+    expect(normalizedFollowupSql).toContain('tm.score_a IS NOT NULL AND tm.score_b IS NOT NULL');
+    expect(normalizedFollowupSql).not.toContain('COALESCE(tm.score_a, 0) = COALESCE(tm.score_b, 0)');
   });
 });

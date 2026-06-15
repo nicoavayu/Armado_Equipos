@@ -3436,6 +3436,8 @@ const groupTeamHistoryByRival = (matches = []) => {
   const byRival = new Map();
 
   matches.forEach((match) => {
+    if (!match?.result) return;
+
     const rival = match?.opponentTeam || null;
     const rivalId = rival?.id ? String(rival.id) : null;
     if (!rivalId) return;
