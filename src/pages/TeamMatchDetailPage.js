@@ -1454,19 +1454,30 @@ const TeamMatchDetailPage = () => {
       {/* El header fijo mide 72px (44px de contenido + 14px de padding vertical) y no
           se desplaza con --safe-top, mientras que MainLayout sí lo suma al contenido:
           el padding se calcula para que el contenido quede debajo del header fijo.
+          Se deja ~16px de aire extra (88px en vez de 72px) para que los iconos del
+          Match Info Header no queden pegados/cortados contra la barra fija; con sólo
+          4px de margen cualquier variación de safe-area o de alto del header los
+          recortaba en iPhone y Android.
           El Match Info Header (MatchInfoSection) ya no va aquí arriba: se renderiza
           dentro del bloque del partido, debajo de los chips y pegado arriba de la
           card VS, igual que en el partido común/amistoso. */}
-      <div className="w-full pb-8 pt-[max(8px,calc(76px-var(--safe-top,0px)))]">
+      <div className="w-full pb-8 pt-[max(20px,calc(88px-var(--safe-top,0px)))]">
         <div className="mx-auto w-full max-w-[560px] space-y-3 px-4">
+          {/* Cuando loading/no-match son el único contenido, son el primer hijo del
+              bloque. El header fijo (PageTitle) queda contenido por el transform de
+              PageTransition (translate-x-0), así que se posiciona a partir de
+              --safe-top y su borde inferior cae en safe-top+72px. El padding del
+              bloque resta --safe-top, por lo que ese primer hijo quedaba tapado por
+              el header. Se compensa con mt=--safe-top para que estas cajas
+              transitorias se vean completas (el layout cargado no se toca). */}
           {loading ? (
-            <div className="rounded-2xl border border-white/15 bg-white/5 p-4 text-center text-white/70">
+            <div className="mt-[var(--safe-top,0px)] rounded-2xl border border-white/15 bg-white/5 p-4 text-center text-white/70">
               Cargando partido...
             </div>
           ) : null}
 
           {!loading && !match ? (
-            <div className="rounded-2xl border border-white/15 bg-white/5 p-4 text-center text-white/70">
+            <div className="mt-[var(--safe-top,0px)] rounded-2xl border border-white/15 bg-white/5 p-4 text-center text-white/70">
               No encontramos este partido o no tenes acceso.
             </div>
           ) : null}
