@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import TeamMatchDetailPage from '../pages/TeamMatchDetailPage';
 import {
@@ -6,6 +6,7 @@ import {
   listTeamMatchMembers,
   listChallengeTeamSquad,
   getChallengeHeadToHeadStats,
+  updateTeamMatchDetails,
 } from '../services/db/teamChallenges';
 
 jest.mock('../config/surveyConfig', () => ({
@@ -37,6 +38,21 @@ jest.mock('../components/AuthProvider', () => ({
 }));
 
 jest.mock('../components/ProfileCardModal', () => () => null);
+
+// LocationAutocomplete arrastra dependencias de geocoding; lo reemplazamos por
+// un input controlado simple para poder editar la sede dentro del modal.
+jest.mock('../features/equipos/components/LocationAutocomplete', () => {
+  const ReactLib = require('react');
+  return {
+    __esModule: true,
+    default: ({ value, onChange, placeholder }) => ReactLib.createElement('input', {
+      'aria-label': 'sede-input',
+      placeholder,
+      value: value || '',
+      onChange: (event) => onChange(event.target.value),
+    }),
+  };
+});
 
 jest.mock('../utils/notifyBlockingError', () => ({
   notifyBlockingError: jest.fn(),
@@ -109,5 +125,82 @@ describe('detalle de desafío - menú de acciones (tres puntitos)', () => {
       squadChallenge: { id: 'challenge-1', created_by_user_id: 'creator-user', status: 'accepted' },
     });
     expect(await screen.findByRole('button', { name: 'Mas acciones' })).toBeInTheDocument();
+  });
+
+  // Regresión del bug reportado: el desafío ya aceptado/confirmado cuyo horario
+  // original ya pasó debe seguir mostrando el menú para poder reprogramar,
+  // mientras no haya resultado cargado ni esté cancelado/cerrado.
+  test('el creador ve los tres puntitos aunque el horario ya haya pasado (sin resultado)', async () => {
+    mockUserId.current = 'creator-user';
+    await renderDetail({
+      match: buildMatch({ scheduled_at: '2020-01-01T20:00:00.000Z' }),
+    });
+    expect(screen.getByRole('button', { name: 'Mas acciones' })).toBeInTheDocument();
+  });
+
+  test('no muestra los tres puntitos cuando ya hay result_status cargado', async () => {
+    mockUserId.current = 'creator-user';
+    await renderDetail({
+      match: buildMatch({ result_status: 'team_a_win' }),
+    });
+    expect(screen.queryByRole('button', { name: 'Mas acciones' })).not.toBeInTheDocument();
+  });
+
+  test('al tocar los tres puntitos aparece "Editar partido" y abre el modal existente', async () => {
+    mockUserId.current = 'creator-user';
+    await renderDetail();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mas acciones' }));
+    const editItem = await screen.findByRole('button', { name: 'Editar partido' });
+    expect(editItem).toBeInTheDocument();
+
+    fireEvent.click(editItem);
+    expect(await screen.findByText('Editar datos del partido')).toBeInTheDocument();
+  });
+
+  test('permite editar sede y fecha/hora y actualiza el Match Info Header al guardar', async () => {
+    mockUserId.current = 'creator-user';
+    await renderDetail();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mas acciones' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Editar partido' }));
+    await screen.findByText('Editar datos del partido');
+
+    // El header arranca mostrando la sede original ("Parque Chas").
+    const headerBefore = within(screen.getByTestId('match-info-section'));
+    expect(headerBefore.getByText('Parque')).toBeInTheDocument();
+
+    // Editar sede.
+    const sedeInput = screen.getByLabelText('sede-input');
+    fireEvent.change(sedeInput, { target: { value: 'Cancha Nueva' } });
+
+    // Editar fecha/hora.
+    const fechaInput = screen.getByLabelText('Fecha y hora');
+    fireEvent.change(fechaInput, { target: { value: '2099-02-02T12:30' } });
+
+    const updatedMatch = buildMatch({
+      location: 'Cancha Nueva',
+      location_name: 'Cancha Nueva',
+      scheduled_at: '2099-02-02T15:30:00.000Z',
+    });
+    updateTeamMatchDetails.mockResolvedValue(updatedMatch);
+    // La hidratación posterior al guardado vuelve a leer el partido actualizado.
+    getTeamMatchById.mockResolvedValue(updatedMatch);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+
+    await waitFor(() => expect(updateTeamMatchDetails).toHaveBeenCalledWith(
+      expect.objectContaining({
+        matchId: 'match-1',
+        location: 'Cancha Nueva',
+        scheduledAt: new Date('2099-02-02T12:30').toISOString(),
+      }),
+    ));
+
+    // El Match Info Header refleja la nueva sede.
+    await waitFor(() => {
+      const headerAfter = within(screen.getByTestId('match-info-section'));
+      expect(headerAfter.getByText('Cancha')).toBeInTheDocument();
+    });
   });
 });
