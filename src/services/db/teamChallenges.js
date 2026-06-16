@@ -194,6 +194,9 @@ const TEAM_MATCH_SELECT = `
   score_b,
   status,
   result_status,
+  result_confirmed,
+  result_conflict,
+  result_conflict_at,
   result_reported_by_team_id,
   result_reported_at,
   result_updated_at,
@@ -465,6 +468,9 @@ const isTeamMatchSelectCompatibilityError = (error) => (
     'max_selected_per_team',
     'max_roster_size',
     'result_status',
+    'result_confirmed',
+    'result_conflict',
+    'result_conflict_at',
     'result_reported_by_team_id',
     'result_reported_at',
     'result_updated_at',
@@ -2649,14 +2655,33 @@ export const reportChallengeResult = async ({ challengeId, resultStatus }) => {
   try {
     const clauses = [`data->>challenge_id.eq.${challengeId}`];
     if (teamMatchId) clauses.push(`data->>team_match_id.eq.${teamMatchId}`);
-    await supabase
+    const hasConfirmedField = Object.prototype.hasOwnProperty.call(savedMatch || {}, 'result_confirmed');
+    const isResolvedForEveryone = Boolean(savedMatch?.result_conflict)
+      || (hasConfirmedField ? savedMatch?.result_confirmed === true : Boolean(savedMatch?.result_status));
+    let currentUserId = null;
+    if (!isResolvedForEveryone) {
+      try {
+        const authResponse = await supabase.auth?.getUser?.();
+        currentUserId = authResponse?.data?.user?.id || null;
+      } catch (_authError) {
+        currentUserId = null;
+      }
+    }
+
+    let notificationUpdate = supabase
       .from('notifications')
       .update({
         read: true,
         status: 'resolved',
       })
-      .eq('type', 'challenge_result_survey')
-      .or(clauses.join(','));
+      .eq('type', 'challenge_result_survey');
+
+    if (!isResolvedForEveryone) {
+      if (!currentUserId) return savedMatch;
+      notificationUpdate = notificationUpdate.eq('user_id', currentUserId);
+    }
+
+    await notificationUpdate.or(clauses.join(','));
   } catch (error) {
     console.warn('[TEAM_CHALLENGES] challenge result notification cleanup failed', {
       challengeId,
@@ -3389,7 +3414,17 @@ const TEAM_MATCH_HISTORY_SELECT = (resultColumns) => `
 
 // Manual result is the source of truth; legacy scores are only a fallback for
 // rows that predate the backfill. We never invent a winner when neither exists.
-const resolveTeamMatchResult = ({ isTeamA, resultStatus, scoreFor, scoreAgainst }) => {
+const resolveTeamMatchResult = ({
+  isTeamA,
+  resultStatus,
+  resultConfirmed = true,
+  resultConflict = false,
+  scoreFor,
+  scoreAgainst,
+}) => {
+  if (resultConflict) return null;
+  const hasManualResult = resultStatus === 'draw' || resultStatus === 'team_a_win' || resultStatus === 'team_b_win';
+  if (hasManualResult && !resultConfirmed) return null;
   if (resultStatus === 'draw') return 'D';
   if (resultStatus === 'team_a_win') return isTeamA ? 'W' : 'L';
   if (resultStatus === 'team_b_win') return isTeamA ? 'L' : 'W';
@@ -3406,13 +3441,13 @@ export const listTeamMatchHistory = async (teamId) => {
 
   let response = await supabase
     .from('team_matches')
-    .select(TEAM_MATCH_HISTORY_SELECT('\n  result_status,\n  result_reported_at,'))
+    .select(TEAM_MATCH_HISTORY_SELECT('\n  result_status,\n  result_confirmed,\n  result_conflict,\n  result_reported_at,'))
     .or(`team_a_id.eq.${teamId},team_b_id.eq.${teamId}`)
     .eq('status', 'played')
     .order('played_at', { ascending: false });
 
   // Graceful fallback if the manual-results migration is not applied yet.
-  if (response.error && isMissingColumnError(response.error, 'result_status')) {
+  if (response.error && hasAnyMissingColumns(response.error, ['result_status', 'result_confirmed', 'result_conflict'])) {
     response = await supabase
       .from('team_matches')
       .select(TEAM_MATCH_HISTORY_SELECT(''))
@@ -3434,6 +3469,10 @@ export const listTeamMatchHistory = async (teamId) => {
     const result = resolveTeamMatchResult({
       isTeamA,
       resultStatus: row?.result_status || null,
+      resultConfirmed: Object.prototype.hasOwnProperty.call(row || {}, 'result_confirmed')
+        ? row?.result_confirmed === true
+        : true,
+      resultConflict: Boolean(row?.result_conflict),
       scoreFor,
       scoreAgainst,
     });

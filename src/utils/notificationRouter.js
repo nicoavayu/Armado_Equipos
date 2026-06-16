@@ -557,13 +557,20 @@ const fetchTeamMatchLifecycleRow = async ({ supabaseClient, teamMatchId }) => {
   if (!supabaseClient || !teamMatchId) return null;
 
   try {
-    const { data, error } = await supabaseClient
+    let response = await supabaseClient
       .from('team_matches')
-      .select('id, status, scheduled_at, partido_id, result_status')
+      .select('id, status, scheduled_at, partido_id, result_status, result_confirmed, result_conflict')
       .eq('id', teamMatchId)
       .maybeSingle();
-    if (error) return null;
-    return data || null;
+    if (response.error) {
+      response = await supabaseClient
+        .from('team_matches')
+        .select('id, status, scheduled_at, partido_id, result_status')
+        .eq('id', teamMatchId)
+        .maybeSingle();
+    }
+    if (response.error) return null;
+    return response.data || null;
   } catch (_error) {
     return null;
   }
@@ -601,11 +608,16 @@ const resolveTeamChallengeNotificationActionability = async ({
 
   if (isChallengeResultNotificationType(notification)) {
     const normalizedResultStatus = normalizeToken(teamMatchRow?.result_status);
-    if (['team_a_win', 'team_b_win', 'draw'].includes(normalizedResultStatus)) {
+    const resultConfirmed = Object.prototype.hasOwnProperty.call(teamMatchRow || {}, 'result_confirmed')
+      ? teamMatchRow?.result_confirmed === true
+      : ['team_a_win', 'team_b_win', 'draw'].includes(normalizedResultStatus);
+    if (teamMatchRow?.result_conflict || resultConfirmed) {
       return {
         isActionable: false,
-        reason: 'challenge_result_already_reported',
-        message: 'Este resultado ya fue respondido.',
+        reason: teamMatchRow?.result_conflict ? 'challenge_result_conflict' : 'challenge_result_already_reported',
+        message: teamMatchRow?.result_conflict
+          ? 'Este resultado quedo en conflicto.'
+          : 'Este resultado ya fue respondido.',
         teamMatchId,
       };
     }

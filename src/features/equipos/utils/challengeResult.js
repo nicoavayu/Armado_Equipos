@@ -15,6 +15,8 @@ export const RESULT_STATUS = Object.freeze({
   DRAW: 'draw',
 });
 
+export const RESULT_CONFLICT_STATUS = 'conflict';
+
 export const CHALLENGE_OUTCOME_OPTIONS = [
   { value: CHALLENGE_OUTCOME.WON, label: 'Ganamos' },
   { value: CHALLENGE_OUTCOME.DRAW, label: 'Empatamos' },
@@ -34,6 +36,46 @@ export const isChallengeResultLoaded = (resultStatus) => (
   || resultStatus === RESULT_STATUS.TEAM_B_WIN
   || resultStatus === RESULT_STATUS.DRAW
 );
+
+export const isChallengeResultConflict = (teamMatchOrStatus) => {
+  if (teamMatchOrStatus && typeof teamMatchOrStatus === 'object') {
+    return Boolean(teamMatchOrStatus.result_conflict)
+      || normalizeToken(teamMatchOrStatus.result_status) === RESULT_CONFLICT_STATUS
+      || normalizeToken(teamMatchOrStatus.result_status) === 'disputed';
+  }
+  const token = normalizeToken(teamMatchOrStatus);
+  return token === RESULT_CONFLICT_STATUS || token === 'disputed';
+};
+
+export const isChallengeResultConfirmed = (teamMatchOrStatus) => {
+  if (teamMatchOrStatus && typeof teamMatchOrStatus === 'object') {
+    const resultStatus = teamMatchOrStatus.result_status;
+    if (!isChallengeResultLoaded(resultStatus)) return false;
+    if (Object.prototype.hasOwnProperty.call(teamMatchOrStatus, 'result_confirmed')) {
+      return teamMatchOrStatus.result_confirmed === true;
+    }
+    return true;
+  }
+  return isChallengeResultLoaded(teamMatchOrStatus);
+};
+
+export const isChallengeResultFinal = (teamMatchOrStatus) => (
+  isChallengeResultConflict(teamMatchOrStatus)
+  || isChallengeResultConfirmed(teamMatchOrStatus)
+);
+
+export const hasTeamReportedChallengeResult = (teamMatch, teamId) => {
+  const normalizedTeamId = normalizeId(teamId);
+  if (!normalizedTeamId) return false;
+  const reportingTeamId = normalizeId(teamMatch?.result_reported_by_team_id);
+  return Boolean(reportingTeamId && reportingTeamId === normalizedTeamId);
+};
+
+export const canTeamReportChallengeResult = (teamMatch, teamId) => {
+  if (isChallengeResultConflict(teamMatch)) return false;
+  if (isChallengeResultConfirmed(teamMatch)) return false;
+  return !hasTeamReportedChallengeResult(teamMatch, teamId);
+};
 
 // Automatic prompt timing. The survey prompt (push / in-app notification /
 // activity) must only be generated 60 minutes after the scheduled kickoff, and
@@ -96,7 +138,9 @@ export const isChallengeResultPending = ({
   scheduledAt = null,
 } = {}) => {
   const resultStatus = teamMatch?.result_status ?? challenge?.result_status ?? null;
-  if (isChallengeResultLoaded(resultStatus)) return false;
+  const resultState = teamMatch || challenge || null;
+  if (isChallengeResultConflict(resultState)) return false;
+  if (isChallengeResultLoaded(resultStatus) && isChallengeResultConfirmed(resultState || resultStatus)) return false;
 
   return Boolean(
     (challengeHasAcceptedRival(challenge) || challengeHasAcceptedRival(teamMatch))

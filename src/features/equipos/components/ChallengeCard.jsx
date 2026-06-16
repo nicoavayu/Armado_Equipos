@@ -117,6 +117,7 @@ const ChallengeCard = ({
   canEdit = false,
   onEdit = null,
   resultLabel = null,
+  resultConflict = false,
   showResultPending = false,
 }) => {
   const status = (challenge?.status || 'open').toLowerCase();
@@ -235,7 +236,16 @@ const ChallengeCard = ({
         <p className="mt-3 text-[13px] leading-snug text-white/70 break-words font-sans border-l-2 border-[rgba(148,134,255,0.35)] pl-2.5">{challenge.notes}</p>
       ) : null}
 
-      {resultLabel ? (
+      {resultConflict ? (
+        <div className="mt-3 rounded-xl border border-[#f59e0b]/35 bg-[#f59e0b]/10 px-3 py-2.5 text-center">
+          <div className="font-oswald text-[15px] font-semibold text-white">
+            Resultado en conflicto
+          </div>
+          <div className="mt-0.5 text-[12px] leading-snug text-white/70">
+            Los equipos cargaron resultados distintos. Revisá el resultado.
+          </div>
+        </div>
+      ) : resultLabel ? (
         <div className="mt-3 rounded-xl border border-[#8f7bff]/25 bg-white/[0.055] px-3 py-2.5 text-center font-oswald text-[15px] font-semibold text-white">
           Resultado cargado: {resultLabel}
         </div>

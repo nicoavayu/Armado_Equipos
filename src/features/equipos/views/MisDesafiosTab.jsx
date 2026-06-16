@@ -12,9 +12,12 @@ import {
   updateChallenge,
 } from '../../../services/db/teamChallenges';
 import {
+  canTeamReportChallengeResult,
   challengeHasAcceptedRival,
   getChallengeResultOutcomeLabel,
   isChallengeResultActionState,
+  isChallengeResultConflict,
+  isChallengeResultConfirmed,
   isChallengeResultLoaded,
   isChallengeResultPending,
   resolveChallengePerspective,
@@ -136,7 +139,9 @@ const MisDesafiosTab = ({
     const allowManage = canManage(challenge);
     const relatedMatch = challenge?.team_match || null;
     const hasAcceptedRival = challengeHasAcceptedRival(challenge) || challengeHasAcceptedRival(relatedMatch);
-    const resultAlreadyLoaded = isChallengeResultLoaded(relatedMatch?.result_status);
+    const resultConflict = isChallengeResultConflict(relatedMatch);
+    const resultConfirmed = isChallengeResultConfirmed(relatedMatch);
+    const hasLoadedResultStatus = isChallengeResultLoaded(relatedMatch?.result_status);
     const resultActionEligible = hasAcceptedRival && isChallengeResultActionState({
       challengeStatus: challenge?.status,
       matchStatus: relatedMatch?.status,
@@ -154,10 +159,13 @@ const MisDesafiosTab = ({
     });
     const canRespondResult = allowManage
       && resultActionEligible
-      && !resultAlreadyLoaded
+      && !resultConflict
+      && !resultConfirmed
+      && canTeamReportChallengeResult(relatedMatch, perspective.myTeamId)
       && perspective.canIdentifyTeam
       && Boolean(perspective.myTeamId);
-    const resultLabel = resultAlreadyLoaded
+    const resultAlreadyLoaded = resultConfirmed || (hasLoadedResultStatus && !canRespondResult);
+    const resultLabel = hasLoadedResultStatus
       ? getChallengeResultOutcomeLabel(relatedMatch?.result_status, {
         perspectiveIsChallenger: perspective.perspectiveIsChallenger,
       })
@@ -166,6 +174,8 @@ const MisDesafiosTab = ({
     return {
       allowManage,
       canRespondResult,
+      resultConflict,
+      resultConfirmed,
       resultAlreadyLoaded,
       resultLabel,
       resultPending,
@@ -255,7 +265,11 @@ const MisDesafiosTab = ({
       }
     }
 
-    if (teamMatch?.result_status) {
+    if (
+      isChallengeResultConflict(teamMatch)
+      || isChallengeResultConfirmed(teamMatch)
+      || !canTeamReportChallengeResult(teamMatch, perspective.myTeamId)
+    ) {
       return;
     }
 
@@ -307,7 +321,8 @@ const MisDesafiosTab = ({
                   challenge={challenge}
                   primaryLabel="Responder"
                   onPrimaryAction={() => openResultModal(challenge)}
-                  resultLabel={state.resultLabel}
+                  resultLabel={state.canRespondResult ? null : state.resultLabel}
+                  resultConflict={state.resultConflict}
                   showResultPending
                   disabled={isSubmitting}
                 />
@@ -331,6 +346,7 @@ const MisDesafiosTab = ({
           allowManage,
           canRespondResult,
           resultAlreadyLoaded,
+          resultConflict,
           resultLabel,
         } = getChallengeResultViewState(challenge);
         const canEditChallenge = challenge.status === 'open'
@@ -358,7 +374,8 @@ const MisDesafiosTab = ({
             onEdit={(targetChallenge) => setEditingChallenge(targetChallenge)}
             primaryLabel={primaryLabel}
             onPrimaryAction={primaryAction}
-            resultLabel={resultLabel}
+            resultLabel={canRespondResult ? null : resultLabel}
+            resultConflict={resultConflict}
             showResultPending={canRespondResult && !resultAlreadyLoaded}
             onCancel={async () => {
               if (!allowManage) return;

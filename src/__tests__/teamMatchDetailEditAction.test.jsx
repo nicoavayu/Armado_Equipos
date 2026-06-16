@@ -80,9 +80,9 @@ const buildMatch = (overrides = {}) => ({
   ...overrides,
 });
 
-const renderDetail = async ({ match = buildMatch(), squadChallenge = null } = {}) => {
+const renderDetail = async ({ match = buildMatch(), squadChallenge = null, membersByTeamId = {} } = {}) => {
   getTeamMatchById.mockResolvedValue(match);
-  listTeamMatchMembers.mockResolvedValue({});
+  listTeamMatchMembers.mockResolvedValue(membersByTeamId);
   listChallengeTeamSquad.mockResolvedValue({ byTeamId: {}, challenge: squadChallenge });
   getChallengeHeadToHeadStats.mockResolvedValue({});
 
@@ -106,6 +106,37 @@ describe('detalle de desafío - menú de acciones (tres puntitos)', () => {
   test('el creador ve los tres puntitos en un desafío futuro', async () => {
     mockUserId.current = 'creator-user';
     await renderDetail();
+    expect(screen.getByRole('button', { name: 'Mas acciones' })).toBeInTheDocument();
+  });
+
+  test('el creador ve los tres puntitos en un desafío confirmed sin resultado', async () => {
+    mockUserId.current = 'creator-user';
+    await renderDetail({
+      match: buildMatch({
+        status: 'confirmed',
+        result_status: null,
+        challenge: { id: 'challenge-1', created_by_user_id: 'creator-user', status: 'confirmed' },
+      }),
+    });
+    expect(screen.getByRole('button', { name: 'Mas acciones' })).toBeInTheDocument();
+  });
+
+  test('un admin del equipo ve los tres puntitos aunque no sea el creador', async () => {
+    mockUserId.current = 'admin-user';
+    await renderDetail({
+      match: buildMatch({
+        challenge: { id: 'challenge-1', created_by_user_id: 'creator-user', status: 'accepted' },
+      }),
+      membersByTeamId: {
+        'team-a': [{
+          id: 'member-admin',
+          team_id: 'team-a',
+          user_id: 'admin-user',
+          permissions_role: 'admin',
+          is_captain: false,
+        }],
+      },
+    });
     expect(screen.getByRole('button', { name: 'Mas acciones' })).toBeInTheDocument();
   });
 
@@ -134,6 +165,20 @@ describe('detalle de desafío - menú de acciones (tres puntitos)', () => {
     mockUserId.current = 'creator-user';
     await renderDetail({
       match: buildMatch({ scheduled_at: '2020-01-01T20:00:00.000Z' }),
+    });
+    expect(screen.getByRole('button', { name: 'Mas acciones' })).toBeInTheDocument();
+  });
+
+  test('el creador ve los tres puntitos si el match esta played pero sin resultado', async () => {
+    mockUserId.current = 'creator-user';
+    await renderDetail({
+      match: buildMatch({
+        status: 'played',
+        scheduled_at: '2020-01-01T20:00:00.000Z',
+        result_status: null,
+        result_confirmed: false,
+        result_conflict: false,
+      }),
     });
     expect(screen.getByRole('button', { name: 'Mas acciones' })).toBeInTheDocument();
   });

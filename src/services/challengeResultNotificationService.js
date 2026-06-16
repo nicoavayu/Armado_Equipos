@@ -1,7 +1,8 @@
 import { supabase } from '../supabase';
 import {
+  canTeamReportChallengeResult,
   isChallengeResultActionState,
-  isChallengeResultLoaded,
+  isChallengeResultFinal,
   isChallengeResultPromptEligible,
 } from '../features/equipos/utils/challengeResult';
 import { listMyManageableTeams, listMyTeamMatches } from './db/teamChallenges';
@@ -41,6 +42,7 @@ const resolveRivalForUser = (match, manageableTeamIds = new Set()) => {
     return {
       rivalTeamId: teamBId,
       rivalName: match?.team_b?.name || 'el rival',
+      managedTeamId: teamAId,
       challengerTeamId: teamAId,
       acceptedTeamId: teamBId,
     };
@@ -49,6 +51,7 @@ const resolveRivalForUser = (match, manageableTeamIds = new Set()) => {
   return {
     rivalTeamId: teamAId,
     rivalName: match?.team_a?.name || 'el rival',
+    managedTeamId: teamBId,
     challengerTeamId: teamAId,
     acceptedTeamId: teamBId,
   };
@@ -57,7 +60,7 @@ const resolveRivalForUser = (match, manageableTeamIds = new Set()) => {
 const buildNotificationPayload = ({ match, userId, manageableTeamIds }) => {
   const teamMatchId = normalizeId(match?.id);
   const challengeId = normalizeId(match?.challenge_id);
-  const { rivalTeamId, rivalName, challengerTeamId, acceptedTeamId } = resolveRivalForUser(match, manageableTeamIds);
+  const { rivalTeamId, rivalName, managedTeamId, challengerTeamId, acceptedTeamId } = resolveRivalForUser(match, manageableTeamIds);
   const route = `/desafios/equipos/partidos/${encodeURIComponent(teamMatchId)}?action=open_challenge_result_modal`;
 
   return {
@@ -79,6 +82,8 @@ const buildNotificationPayload = ({ match, userId, manageableTeamIds }) => {
       challengeId: challengeId,
       partido_id: match?.partido_id || null,
       partidoId: match?.partido_id || null,
+      managed_team_id: managedTeamId || null,
+      reporting_team_id: managedTeamId || null,
       challenger_team_id: challengerTeamId || null,
       accepted_team_id: acceptedTeamId || null,
       rival_team_id: rivalTeamId || null,
@@ -92,10 +97,21 @@ const buildNotificationPayload = ({ match, userId, manageableTeamIds }) => {
   };
 };
 
-const isEligiblePendingResultMatch = (match) => {
+const resolveManagedTeamIdForMatch = (match, manageableTeamIds = new Set()) => {
+  const teamAId = normalizeId(match?.team_a_id);
+  const teamBId = normalizeId(match?.team_b_id);
+  if (teamAId && manageableTeamIds.has(teamAId) && !(teamBId && manageableTeamIds.has(teamBId))) return teamAId;
+  if (teamBId && manageableTeamIds.has(teamBId) && !(teamAId && manageableTeamIds.has(teamAId))) return teamBId;
+  return teamAId && manageableTeamIds.has(teamAId) ? teamAId : null;
+};
+
+const isEligiblePendingResultMatch = (match, manageableTeamIds = new Set()) => {
   if (!isAcceptedChallengeMatch(match)) return false;
   if (!match?.canManage) return false;
-  if (isChallengeResultLoaded(match?.result_status)) return false;
+  if (isChallengeResultFinal(match)) return false;
+
+  const managedTeamId = resolveManagedTeamIdForMatch(match, manageableTeamIds);
+  if (!managedTeamId || !canTeamReportChallengeResult(match, managedTeamId)) return false;
 
   const scheduledAt = match?.scheduled_at || match?.played_at;
 
@@ -157,7 +173,9 @@ export const ensureChallengeResultSurveyNotificationsForUser = async (userId, { 
     listMyManageableTeams(normalizedUserId),
   ]);
   const manageableTeamIds = new Set((manageableTeams || []).map((team) => normalizeId(team?.id)).filter(Boolean));
-  const pendingMatches = (matches || []).filter(isEligiblePendingResultMatch);
+  const pendingMatches = (matches || []).filter((match) => (
+    isEligiblePendingResultMatch(match, manageableTeamIds)
+  ));
   if (pendingMatches.length === 0) return { inserted: 0, skipped: true, reason: 'none_pending' };
 
   const matchIds = pendingMatches.map((match) => normalizeId(match?.id)).filter(Boolean);
@@ -215,15 +233,21 @@ export const filterResolvedChallengeResultSurveyNotifications = async (
   if (!supabaseClient || candidateIds.length === 0) return rows;
 
   try {
-    const { data, error } = await supabaseClient
+    let response = await supabaseClient
       .from('team_matches')
-      .select('id, result_status')
+      .select('id, result_status, result_confirmed, result_conflict')
       .in('id', candidateIds);
-    if (error) throw error;
+    if (response.error) {
+      response = await supabaseClient
+        .from('team_matches')
+        .select('id, result_status')
+        .in('id', candidateIds);
+    }
+    if (response.error) throw response.error;
 
     const loadedIds = new Set(
-      (data || [])
-        .filter((row) => isChallengeResultLoaded(row?.result_status))
+      (response.data || [])
+        .filter((row) => isChallengeResultFinal(row))
         .map((row) => normalizeId(row?.id))
         .filter(Boolean),
     );

@@ -23,9 +23,12 @@ import {
 } from '../features/equipos/utils/challengeViewer';
 import { buildChallengeHeadToHeadView } from '../features/equipos/utils/challengeHeadToHead';
 import {
+  canTeamReportChallengeResult,
   challengeHasAcceptedRival,
   getChallengeResultOutcomeLabel,
   isChallengeResultActionState,
+  isChallengeResultConflict,
+  isChallengeResultConfirmed,
   isChallengeResultLoaded,
   resultStatusToOutcome,
 } from '../features/equipos/utils/challengeResult';
@@ -640,25 +643,49 @@ const TeamMatchDetailPage = () => {
     [match?.challenge?.created_by_user_id, challengeSquadMeta?.created_by_user_id],
   );
 
-  const canEditMatchInfo = useMemo(
-    () => (
-      isChallengeMatch
-      && Boolean(user?.id)
-      && Boolean(challengeCreatorUserId)
-      && String(user.id) === String(challengeCreatorUserId)
-    ),
-    [challengeCreatorUserId, isChallengeMatch, user?.id],
-  );
-  // El creador/admin del desafío puede editar el partido mientras el desafío
-  // siga "abierto": sin resultado cargado, sin cancelar y sin cerrarse (played).
-  // El horario ya pasado NO bloquea la edición; justamente queremos permitir
+  const canEditMatchInfo = useMemo(() => {
+    const userIdToken = String(user?.id || '').trim();
+    if (!isChallengeMatch || !userIdToken) return false;
+
+    if (challengeCreatorUserId && userIdToken === String(challengeCreatorUserId).trim()) {
+      return true;
+    }
+
+    const userManagesTeam = (teamId, team) => {
+      const teamIdToken = String(teamId || '').trim();
+      if (!teamIdToken) return false;
+      if (String(team?.owner_user_id || '').trim() === userIdToken) return true;
+
+      const members = teamMembersByTeamId?.[teamIdToken] || [];
+      const currentMember = members.find((member) => (
+        String(member?.user_id || member?.jugador?.usuario_id || '').trim() === userIdToken
+      )) || null;
+      if (!currentMember) return false;
+      if (Boolean(currentMember?.is_captain)) return true;
+
+      const permissionsRole = String(currentMember?.permissions_role || '').trim().toLowerCase();
+      return permissionsRole === 'admin' || permissionsRole === 'owner';
+    };
+
+    return userManagesTeam(match?.team_a_id, match?.team_a)
+      || userManagesTeam(match?.team_b_id, match?.team_b);
+  }, [
+    challengeCreatorUserId,
+    isChallengeMatch,
+    match?.team_a,
+    match?.team_a_id,
+    match?.team_b,
+    match?.team_b_id,
+    teamMembersByTeamId,
+    user?.id,
+  ]);
+  // El creador/admin del desafío puede editar el partido mientras no haya
+  // resultado cargado ni conflicto. El horario ya pasado no bloquea la edición;
   // reprogramar fecha/hora/sede aunque el rival ya haya aceptado y la hora
-  // original haya pasado. El backend (rpc_update_team_match_details) solo
-  // rechaza estados 'played'/'cancelled', así que la regla acá la replica.
-  const hasChallengeResultLoaded = isChallengeResultLoaded(match?.result_status);
+  // original haya pasado.
+  const hasChallengeResultLoaded = isChallengeResultLoaded(match?.result_status) || isChallengeResultConflict(match);
   const canShowEditAction = canEditMatchInfo
     && !isCancelledMatch
-    && match?.status !== 'played'
     && !hasChallengeResultLoaded;
 
   const teamMemberByPlayerByTeamId = useMemo(() => {
@@ -1270,6 +1297,7 @@ const TeamMatchDetailPage = () => {
     && canManageMyChallengeSquad
     && myChallengeTeamId
     && !isAmbiguousChallengeViewer
+    && canTeamReportChallengeResult(match, myChallengeTeamId)
     && isChallengeResultActionState({
       challengeStatus: challengeStatusValue,
       matchStatus: match?.status,
@@ -1277,12 +1305,15 @@ const TeamMatchDetailPage = () => {
     }),
   );
 
-  const resultAlreadyLoaded = isChallengeResultLoaded(match?.result_status);
+  const resultConflict = isChallengeResultConflict(match);
+  const resultConfirmed = isChallengeResultConfirmed(match);
+  const hasLoadedResultStatus = isChallengeResultLoaded(match?.result_status);
+  const resultAlreadyLoaded = resultConfirmed || (hasLoadedResultStatus && !canReportChallengeResult);
 
   const resultInitialOutcome = useMemo(() => {
-    if (!match?.result_status) return null;
+    if (!match?.result_status || resultConflict) return null;
     return resultStatusToOutcome(match.result_status, { perspectiveIsChallenger });
-  }, [match?.result_status, perspectiveIsChallenger]);
+  }, [match?.result_status, perspectiveIsChallenger, resultConflict]);
 
   const resultOutcomeLabel = useMemo(() => (
     getChallengeResultOutcomeLabel(match?.result_status, { perspectiveIsChallenger })
@@ -1297,7 +1328,7 @@ const TeamMatchDetailPage = () => {
     isChallengeMatch
     && hasChallengeAcceptedRival
     && myChallengeTeamId
-    && (canReportChallengeResult || resultAlreadyLoaded),
+    && (canReportChallengeResult || resultAlreadyLoaded || resultConflict),
   );
 
   const resultModalChallenge = useMemo(() => {
@@ -1399,7 +1430,7 @@ const TeamMatchDetailPage = () => {
       notifyBlockingError('No autorizado');
       return;
     }
-    if (match?.status === 'played' || isCancelledMatch || hasChallengeResultLoaded) {
+    if (isCancelledMatch || hasChallengeResultLoaded) {
       notifyBlockingError('No se puede editar un partido con resultado cargado');
       return;
     }
@@ -1887,8 +1918,9 @@ const TeamMatchDetailPage = () => {
                 <ChallengeResultCtaCard
                   rivalName={challengeResultRivalName}
                   resultLabel={resultAlreadyLoaded ? resultOutcomeLabel : null}
+                  resultConflict={resultConflict}
                   onLoad={() => {
-                    if (resultAlreadyLoaded) return;
+                    if (resultAlreadyLoaded || resultConflict || !canReportChallengeResult) return;
                     setResultModalOpen(true);
                   }}
                 />

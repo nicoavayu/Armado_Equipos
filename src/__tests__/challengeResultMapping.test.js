@@ -3,11 +3,15 @@ import {
   RESULT_STATUS,
   CHALLENGE_RESULT_PROMPT_DELAY_MS,
   CHALLENGE_RESULT_PROMPT_WINDOW_MS,
+  canTeamReportChallengeResult,
   outcomeToResultStatus,
   resultStatusToOutcome,
   resolveChallengePerspective,
   challengeHasAcceptedRival,
   isChallengeResultActionState,
+  isChallengeResultConflict,
+  isChallengeResultConfirmed,
+  isChallengeResultFinal,
   isChallengeResultPromptEligible,
   isChallengeResultPending,
 } from '../features/equipos/utils/challengeResult';
@@ -124,6 +128,51 @@ describe('challenge manual result mapping', () => {
       expect(isChallengeResultActionState({ challengeStatus: 'canceled', scheduledAt: '2026-06-14T20:00:00.000Z' })).toBe(false);
       expect(isChallengeResultActionState({ challengeStatus: 'rejected', scheduledAt: '2026-06-14T20:00:00.000Z' })).toBe(false);
       expect(isChallengeResultActionState({ matchStatus: 'cancelled', scheduledAt: '2026-06-14T20:00:00.000Z' })).toBe(false);
+    });
+  });
+
+  describe('confirmation and conflict state', () => {
+    test('treats legacy loaded statuses as final when no confirmation field exists', () => {
+      expect(isChallengeResultConfirmed({ result_status: RESULT_STATUS.TEAM_A_WIN })).toBe(true);
+      expect(isChallengeResultFinal({ result_status: RESULT_STATUS.TEAM_A_WIN })).toBe(true);
+    });
+
+    test('keeps a one-team report pending until confirmed by the rival', () => {
+      const teamMatch = {
+        status: 'played',
+        result_status: RESULT_STATUS.TEAM_A_WIN,
+        result_confirmed: false,
+        result_conflict: false,
+        result_reported_by_team_id: 'team-a',
+      };
+
+      expect(isChallengeResultConfirmed(teamMatch)).toBe(false);
+      expect(isChallengeResultFinal(teamMatch)).toBe(false);
+      expect(canTeamReportChallengeResult(teamMatch, 'team-a')).toBe(false);
+      expect(canTeamReportChallengeResult(teamMatch, 'team-b')).toBe(true);
+      expect(isChallengeResultPending({
+        challenge: { status: 'confirmed', accepted_team_id: 'team-b' },
+        teamMatch,
+        scheduledAt: '2026-06-14T20:00:00.000Z',
+      })).toBe(true);
+    });
+
+    test('conflict blocks further automatic result actions', () => {
+      const teamMatch = {
+        status: 'played',
+        result_status: null,
+        result_confirmed: false,
+        result_conflict: true,
+      };
+
+      expect(isChallengeResultConflict(teamMatch)).toBe(true);
+      expect(isChallengeResultFinal(teamMatch)).toBe(true);
+      expect(canTeamReportChallengeResult(teamMatch, 'team-a')).toBe(false);
+      expect(isChallengeResultPending({
+        challenge: { status: 'confirmed', accepted_team_id: 'team-b' },
+        teamMatch,
+        scheduledAt: '2026-06-14T20:00:00.000Z',
+      })).toBe(false);
     });
   });
 

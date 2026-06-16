@@ -8,9 +8,10 @@ describe('push-sender challenge result stale handling', () => {
   test('skips challenge result pushes when the team match already has a result', () => {
     expect(source).toContain('async function resolveStaleChallengeResultSkip');
     expect(source).toContain('notificationType !== "challenge_result_survey" && notificationType !== "challenge_result_pending"');
-    expect(source).toContain('.from("team_matches") .select("id, result_status") .eq("id", teamMatchId) .maybeSingle()');
-    expect(source).toContain('if (!resultStatus) return null');
+    expect(source).toContain('.from("team_matches") .select("id, result_status, result_confirmed, result_conflict") .eq("id", teamMatchId) .maybeSingle()');
+    expect(source).toContain('if (!resultConflict && !resultConfirmed) return null');
     expect(source).toContain('stale_challenge_result_loaded');
+    expect(source).toContain('stale_challenge_result_conflict');
     expect(source).toContain('const staleChallengeResultSkip = await resolveStaleChallengeResultSkip(supabase, log)');
     expect(source).toContain('p_status: "skipped"');
   });
