@@ -187,7 +187,7 @@ describe('StatsView challenge result recap', () => {
 
     expect(await screen.findByRole('heading', { name: '¿Cómo salió el desafío?' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Ganamos' }));
-    fireEvent.click(screen.getByRole('button', { name: /guardar respuesta/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Aceptar' }));
 
     await waitFor(() => expect(reportChallengeResult).toHaveBeenCalledWith({
       challengeId: 'challenge-120',

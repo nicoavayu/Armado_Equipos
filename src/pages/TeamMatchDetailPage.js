@@ -1854,8 +1854,10 @@ const TeamMatchDetailPage = () => {
                 <ChallengeResultCtaCard
                   rivalName={challengeResultRivalName}
                   resultLabel={resultAlreadyLoaded ? resultOutcomeLabel : null}
-                  canEdit={canReportChallengeResult && resultAlreadyLoaded}
-                  onLoad={() => setResultModalOpen(true)}
+                  onLoad={() => {
+                    if (resultAlreadyLoaded) return;
+                    setResultModalOpen(true);
+                  }}
                 />
               ) : null}
 

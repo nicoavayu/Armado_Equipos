@@ -18,7 +18,6 @@ import {
   isChallengeResultLoaded,
   isChallengeResultPending,
   resolveChallengePerspective,
-  resultStatusToOutcome,
 } from '../utils/challengeResult';
 import { notifyBlockingError } from '../../../utils/notifyBlockingError';
 import EmptyStateCard from '../../../components/EmptyStateCard';
@@ -155,9 +154,9 @@ const MisDesafiosTab = ({
     });
     const canRespondResult = allowManage
       && resultActionEligible
+      && !resultAlreadyLoaded
       && perspective.canIdentifyTeam
       && Boolean(perspective.myTeamId);
-    const canEditResult = canRespondResult;
     const resultLabel = resultAlreadyLoaded
       ? getChallengeResultOutcomeLabel(relatedMatch?.result_status, {
         perspectiveIsChallenger: perspective.perspectiveIsChallenger,
@@ -166,7 +165,6 @@ const MisDesafiosTab = ({
 
     return {
       allowManage,
-      canEditResult,
       canRespondResult,
       resultAlreadyLoaded,
       resultLabel,
@@ -239,7 +237,7 @@ const MisDesafiosTab = ({
     }
   }, [navigate]);
 
-  const openResultModal = useCallback(async (challenge, { isEditing = false } = {}) => {
+  const openResultModal = useCallback(async (challenge) => {
     if (!challenge?.id) return;
 
     const perspective = resolveChallengePerspective({
@@ -257,19 +255,14 @@ const MisDesafiosTab = ({
       }
     }
 
-    let initialOutcome = null;
-    if (isEditing) {
-      if (teamMatch?.result_status) {
-        initialOutcome = resultStatusToOutcome(teamMatch.result_status, {
-          perspectiveIsChallenger: perspective.perspectiveIsChallenger,
-        });
-      }
+    if (teamMatch?.result_status) {
+      return;
     }
 
     setResultModal({
       challenge,
       perspectiveIsChallenger: perspective.perspectiveIsChallenger,
-      initialOutcome,
+      initialOutcome: null,
     });
   }, [manageableTeamIds, userId]);
 
@@ -336,7 +329,6 @@ const MisDesafiosTab = ({
       {!loading ? visibleFiltered.map((challenge) => {
         const {
           allowManage,
-          canEditResult,
           canRespondResult,
           resultAlreadyLoaded,
           resultLabel,
@@ -350,9 +342,9 @@ const MisDesafiosTab = ({
         if (challenge.status === 'open') {
           primaryLabel = 'Compartir';
           primaryAction = () => handleShare(challenge);
-        } else if (canRespondResult || (resultAlreadyLoaded && canEditResult)) {
-          primaryLabel = resultAlreadyLoaded ? 'Editar respuesta' : 'Responder';
-          primaryAction = () => openResultModal(challenge, { isEditing: resultAlreadyLoaded });
+        } else if (canRespondResult) {
+          primaryLabel = 'Responder';
+          primaryAction = () => openResultModal(challenge);
         } else if (challenge.status === 'accepted' || challenge.status === 'confirmed' || challenge.status === 'completed') {
           primaryLabel = 'Ver detalle';
           primaryAction = () => openChallengeMatch(challenge);

@@ -4,7 +4,6 @@ import Button from '../../../components/Button';
 const ChallengeResultCtaCard = ({
   rivalName,
   resultLabel = null,
-  canEdit = false,
   onLoad,
 }) => {
   const safeRivalName = String(rivalName || 'el rival').trim() || 'el rival';
@@ -20,17 +19,6 @@ const ChallengeResultCtaCard = ({
           <p className="font-oswald text-[18px] font-semibold text-white">
             Resultado cargado: {resultLabel}
           </p>
-          {canEdit ? (
-            <Button
-              type="button"
-              variant="secondary"
-              className="mt-3 h-11 w-full rounded-xl text-[16px] font-oswald font-semibold !normal-case"
-              onClick={onLoad}
-              data-preserve-button-case="true"
-            >
-              Editar respuesta
-            </Button>
-          ) : null}
         </>
       ) : (
         <>

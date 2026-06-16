@@ -66,7 +66,7 @@ const ReportChallengeResultModal = ({
               onSubmit({ challengeId: challenge.id, resultStatus, outcome });
             }}
           >
-            Guardar respuesta
+            Aceptar
           </Button>
         </div>
       )}

@@ -17,11 +17,21 @@ const followupMigrationPath = path.join(
   'migrations',
   '20260615222854_challenge_manual_results_followup.sql',
 );
+const acceptedStatusFixMigrationPath = path.join(
+  __dirname,
+  '..',
+  '..',
+  'supabase',
+  'migrations',
+  '20260616121000_fix_challenge_result_accepted_status.sql',
+);
 
 const sql = fs.readFileSync(migrationPath, 'utf8');
 const normalizedSql = sql.replace(/\s+/g, ' ').trim();
 const followupSql = fs.readFileSync(followupMigrationPath, 'utf8');
 const normalizedFollowupSql = followupSql.replace(/\s+/g, ' ').trim();
+const acceptedStatusFixSql = fs.readFileSync(acceptedStatusFixMigrationPath, 'utf8');
+const normalizedAcceptedStatusFixSql = acceptedStatusFixSql.replace(/\s+/g, ' ').trim();
 
 describe('challenge manual results migration', () => {
   test('adds explicit manual-result columns to team_matches', () => {
@@ -60,6 +70,18 @@ describe('challenge manual results migration', () => {
     // Never writes a fabricated scoreline.
     expect(normalizedFollowupSql).not.toContain('score_a = 1');
     expect(normalizedFollowupSql).not.toContain('p_score_a');
+  });
+
+  test('accepted-status fix reports result without completing the challenge', () => {
+    expect(normalizedAcceptedStatusFixSql).toContain('CREATE OR REPLACE FUNCTION public.rpc_report_challenge_result(');
+    expect(normalizedAcceptedStatusFixSql).toContain("v_challenge.status NOT IN ('accepted', 'confirmed', 'completed')");
+    expect(normalizedAcceptedStatusFixSql).toContain("v_challenge.status = 'accepted'");
+    expect(normalizedAcceptedStatusFixSql).toContain('v_challenge.scheduled_at IS NULL OR v_challenge.scheduled_at > now()');
+    expect(normalizedAcceptedStatusFixSql).toContain("status = 'played'");
+    expect(normalizedAcceptedStatusFixSql).toContain('IF v_match.result_status IS NOT NULL THEN');
+    expect(normalizedAcceptedStatusFixSql).toContain('El resultado del desafio ya fue cargado');
+    expect(normalizedAcceptedStatusFixSql).not.toContain("SET status = 'completed'");
+    expect(normalizedAcceptedStatusFixSql).not.toContain('UPDATE public.challenges c SET');
   });
 
   test('follow-up clears fabricated scoreless backfills', () => {

@@ -148,7 +148,7 @@ describe('challenge result flow UI', () => {
     expect(screen.queryByRole('button', { name: /responder/i })).not.toBeInTheDocument();
   });
 
-  test('muestra resultado cargado y permite editar si el usuario tiene permiso', async () => {
+  test('muestra resultado cargado sin accion de edición', async () => {
     await renderMisDesafios({
       challenge: {
         ...baseChallenge,
@@ -162,7 +162,7 @@ describe('challenge result flow UI', () => {
     });
 
     expect(await screen.findByText('Resultado cargado: Ganamos')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /editar respuesta/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /editar respuesta/i })).not.toBeInTheDocument();
   });
 
   test('card visible de detalle muestra la encuesta pendiente', () => {
@@ -201,7 +201,11 @@ describe('challenge result flow UI', () => {
     expect(screen.queryByText(/mvp/i)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Ganamos' }));
-    fireEvent.click(screen.getByRole('button', { name: /guardar respuesta/i }));
+    expect(screen.getByRole('button', { name: 'Cancelar' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Aceptar' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /guardar respuesta/i })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Aceptar' }));
 
     expect(onSubmit).toHaveBeenCalledWith({
       challengeId: 'challenge-1',
@@ -220,7 +224,7 @@ describe('challenge result flow UI', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: /responder/i }));
     fireEvent.click(await screen.findByRole('button', { name: label }));
-    fireEvent.click(screen.getByRole('button', { name: /guardar respuesta/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Aceptar' }));
 
     await waitFor(() => expect(reportChallengeResult).toHaveBeenCalledWith({
       challengeId: 'challenge-1',
@@ -228,4 +232,26 @@ describe('challenge result flow UI', () => {
     }));
     await waitFor(() => expect(listMyChallenges).toHaveBeenCalledTimes(2));
   });
+
+  test.each([
+    ['Ganamos', RESULT_STATUS.TEAM_B_WIN],
+    ['Empatamos', RESULT_STATUS.DRAW],
+    ['Perdimos', RESULT_STATUS.TEAM_A_WIN],
+  ])('desde accepted team %s persiste el resultado inverso correcto', async (label, expectedStatus) => {
+    reportChallengeResult.mockResolvedValueOnce({ id: 'match-1', result_status: expectedStatus });
+    await renderMisDesafios({
+      manageableTeams: [{ id: 'team-b', name: 'Bico' }],
+      userId: 'accepted-user',
+    });
+
+    fireEvent.click(await screen.findByRole('button', { name: /responder/i }));
+    fireEvent.click(await screen.findByRole('button', { name: label }));
+    fireEvent.click(screen.getByRole('button', { name: 'Aceptar' }));
+
+    await waitFor(() => expect(reportChallengeResult).toHaveBeenCalledWith({
+      challengeId: 'challenge-1',
+      resultStatus: expectedStatus,
+    }));
+  });
+
 });

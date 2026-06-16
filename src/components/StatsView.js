@@ -53,7 +53,7 @@ import {
   reportChallengeResult,
 } from '../services/db/teamChallenges';
 import {
-  resultStatusToOutcome,
+  isChallengeResultLoaded,
 } from '../features/equipos/utils/challengeResult';
 
 export const shouldIncludeSurveyResultForAwardsStats = (row) => (
@@ -1925,12 +1925,13 @@ const StatsView = ({ onVolver }) => {
     const challengeMeta = recapItem?.challenge || null;
     const challenge = challengeMeta?.challenge || null;
     if (!challenge?.id || !challengeMeta?.viewer_team_id) return;
+    if (isChallengeResultLoaded(challengeMeta?.result_status)) return;
 
     const perspectiveIsChallenger = String(challengeMeta.viewer_team_id) === String(challengeMeta.team_a_id);
     setChallengeResultModal({
       challenge,
       perspectiveIsChallenger,
-      initialOutcome: resultStatusToOutcome(challengeMeta.result_status, { perspectiveIsChallenger }),
+      initialOutcome: null,
     });
   }, []);
 
