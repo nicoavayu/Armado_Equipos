@@ -69,6 +69,8 @@ jest.mock('../components/ManualMatchModal', () => () => null);
 jest.mock('../components/InjuryModal', () => () => null);
 
 let challengeResultStatus;
+let challengeResultConfirmed;
+let challengeResultConflict;
 
 const periodMatch = {
   id: 120,
@@ -95,6 +97,9 @@ const challengeTeamMatch = () => ({
   played_at: null,
   status: challengeResultStatus ? 'played' : 'pending',
   result_status: challengeResultStatus,
+  result_confirmed: challengeResultConfirmed,
+  result_conflict: challengeResultConflict,
+  result_reported_by_team_id: challengeResultStatus ? 'team-a' : null,
   result_reported_at: challengeResultStatus ? '2026-06-16T05:00:00Z' : null,
   team_a: { id: 'team-a', name: 'Equipo a', owner_user_id: 'owner-a' },
   team_b: { id: 'team-b', name: 'Equipo b', owner_user_id: 'owner-b' },
@@ -164,11 +169,14 @@ const resolveTable = (table, options = {}) => {
 describe('StatsView challenge result recap', () => {
   beforeEach(() => {
     challengeResultStatus = null;
+    challengeResultConfirmed = false;
+    challengeResultConflict = false;
     supabase.from.mockImplementation((table) => new QueryBuilder(table));
     listMyManageableTeams.mockResolvedValue([{ id: 'team-a', name: 'Equipo a' }]);
     reportChallengeResult.mockImplementation(async ({ resultStatus }) => {
       challengeResultStatus = resultStatus;
-      return { id: 'tm-120', result_status: resultStatus };
+      challengeResultConfirmed = false;
+      return { id: 'tm-120', result_status: resultStatus, result_confirmed: false };
     });
   });
 
@@ -176,7 +184,7 @@ describe('StatsView challenge result recap', () => {
     jest.clearAllMocks();
   });
 
-  test('opens result modal from pending recap row and refreshes counts after winning', async () => {
+  test('keeps recap pending after a one-team provisional result report', async () => {
     render(<StatsView onVolver={jest.fn()} />);
 
     const recap = await screen.findByText('Recap de resultados');
@@ -193,7 +201,7 @@ describe('StatsView challenge result recap', () => {
       challengeId: 'challenge-120',
       resultStatus: 'team_a_win',
     }));
-    await waitFor(() => expect(within(recapPanel).getByText('Ganados').nextSibling).toHaveTextContent('1'));
-    expect(within(recapPanel).getByText('Pendientes').nextSibling).toHaveTextContent('0');
+    await waitFor(() => expect(within(recapPanel).getByText('Ganados').nextSibling).toHaveTextContent('0'));
+    expect(within(recapPanel).getByText('Pendientes').nextSibling).toHaveTextContent('1');
   });
 });

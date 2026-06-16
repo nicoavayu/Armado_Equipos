@@ -53,7 +53,8 @@ import {
   reportChallengeResult,
 } from '../services/db/teamChallenges';
 import {
-  isChallengeResultLoaded,
+  canTeamReportChallengeResult,
+  isChallengeResultFinal,
 } from '../features/equipos/utils/challengeResult';
 
 export const shouldIncludeSurveyResultForAwardsStats = (row) => (
@@ -502,9 +503,7 @@ const StatsView = ({ onVolver }) => {
     if (ids.length === 0) return [];
 
     try {
-      const { data, error } = await supabase
-        .from('team_matches')
-        .select(`
+      const challengeResultSelect = `
           id,
           partido_id,
           origin_type,
@@ -515,17 +514,48 @@ const StatsView = ({ onVolver }) => {
           played_at,
           status,
           result_status,
+          result_confirmed,
+          result_conflict,
+          result_reported_by_team_id,
           result_reported_at,
           team_a:teams!team_matches_team_a_id_fkey(id,name,owner_user_id,crest_url,base_zone,format,skill_level,color_primary,color_secondary,color_accent),
           team_b:teams!team_matches_team_b_id_fkey(id,name,owner_user_id,crest_url,base_zone,format,skill_level,color_primary,color_secondary,color_accent),
           challenge:challenges!team_matches_challenge_id_fkey(id,created_by_user_id,accepted_by_user_id,challenger_team_id,accepted_team_id,status,scheduled_at)
-        `)
+        `;
+      const legacyChallengeResultSelect = `
+          id,
+          partido_id,
+          origin_type,
+          challenge_id,
+          team_a_id,
+          team_b_id,
+          scheduled_at,
+          played_at,
+          status,
+          result_status,
+          result_reported_by_team_id,
+          result_reported_at,
+          team_a:teams!team_matches_team_a_id_fkey(id,name,owner_user_id,crest_url,base_zone,format,skill_level,color_primary,color_secondary,color_accent),
+          team_b:teams!team_matches_team_b_id_fkey(id,name,owner_user_id,crest_url,base_zone,format,skill_level,color_primary,color_secondary,color_accent),
+          challenge:challenges!team_matches_challenge_id_fkey(id,created_by_user_id,accepted_by_user_id,challenger_team_id,accepted_team_id,status,scheduled_at)
+        `;
+      let response = await supabase
+        .from('team_matches')
+        .select(challengeResultSelect)
         .in('partido_id', ids)
         .not('challenge_id', 'is', null);
 
-      if (error) throw error;
+      if (response.error) {
+        response = await supabase
+          .from('team_matches')
+          .select(legacyChallengeResultSelect)
+          .in('partido_id', ids)
+          .not('challenge_id', 'is', null);
+      }
 
-      return (data || []).map((row) => {
+      if (response.error) throw response.error;
+
+      return (response.data || []).map((row) => {
         const teamAId = String(row?.team_a_id || '').trim();
         const teamBId = String(row?.team_b_id || '').trim();
         const viewerTeamId = manageableTeamIds.has(teamAId)
@@ -548,6 +578,11 @@ const StatsView = ({ onVolver }) => {
           status: row?.status || null,
           challenge_status: challengeStatus,
           result_status: row?.result_status || null,
+          result_confirmed: Object.prototype.hasOwnProperty.call(row || {}, 'result_confirmed')
+            ? row?.result_confirmed === true
+            : true,
+          result_conflict: Boolean(row?.result_conflict),
+          result_reported_by_team_id: row?.result_reported_by_team_id || null,
           result_reported_at: row?.result_reported_at || null,
           viewer_team_id: viewerTeamId,
           team_a: row?.team_a || null,
@@ -1925,7 +1960,8 @@ const StatsView = ({ onVolver }) => {
     const challengeMeta = recapItem?.challenge || null;
     const challenge = challengeMeta?.challenge || null;
     if (!challenge?.id || !challengeMeta?.viewer_team_id) return;
-    if (isChallengeResultLoaded(challengeMeta?.result_status)) return;
+    if (isChallengeResultFinal(challengeMeta)) return;
+    if (!canTeamReportChallengeResult(challengeMeta, challengeMeta.viewer_team_id)) return;
 
     const perspectiveIsChallenger = String(challengeMeta.viewer_team_id) === String(challengeMeta.team_a_id);
     setChallengeResultModal({

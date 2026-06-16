@@ -165,6 +165,52 @@ describe('challenge result flow UI', () => {
     expect(screen.queryByRole('button', { name: /editar respuesta/i })).not.toBeInTheDocument();
   });
 
+  test('permite al otro equipo responder un resultado provisorio', async () => {
+    reportChallengeResult.mockResolvedValueOnce({
+      id: 'match-1',
+      result_status: RESULT_STATUS.TEAM_A_WIN,
+      result_confirmed: true,
+    });
+    await renderMisDesafios({
+      manageableTeams: [{ id: 'team-b', name: 'Bico' }],
+      teamMatch: {
+        ...baseTeamMatch,
+        status: 'played',
+        result_status: RESULT_STATUS.TEAM_A_WIN,
+        result_confirmed: false,
+        result_conflict: false,
+        result_reported_by_team_id: 'team-a',
+      },
+      userId: 'accepted-user',
+    });
+
+    expect(await screen.findByText('Resultado pendiente')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /responder/i }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Perdimos' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Aceptar' }));
+
+    await waitFor(() => expect(reportChallengeResult).toHaveBeenCalledWith({
+      challengeId: 'challenge-1',
+      resultStatus: RESULT_STATUS.TEAM_A_WIN,
+    }));
+  });
+
+  test('muestra resultado en conflicto sin accion de respuesta', async () => {
+    await renderMisDesafios({
+      teamMatch: {
+        ...baseTeamMatch,
+        status: 'played',
+        result_status: null,
+        result_confirmed: false,
+        result_conflict: true,
+      },
+    });
+
+    expect(await screen.findByText('Resultado en conflicto')).toBeInTheDocument();
+    expect(screen.getByText('Los equipos cargaron resultados distintos. Revisá el resultado.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /responder/i })).not.toBeInTheDocument();
+  });
+
   test('card visible de detalle muestra la encuesta pendiente', () => {
     render(
       <ChallengeResultCtaCard

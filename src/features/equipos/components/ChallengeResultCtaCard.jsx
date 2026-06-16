@@ -4,6 +4,7 @@ import Button from '../../../components/Button';
 const ChallengeResultCtaCard = ({
   rivalName,
   resultLabel = null,
+  resultConflict = false,
   onLoad,
 }) => {
   const safeRivalName = String(rivalName || 'el rival').trim() || 'el rival';
@@ -14,7 +15,16 @@ const ChallengeResultCtaCard = ({
       className="mt-3 rounded-[18px] border border-[#8f7bff]/35 bg-[linear-gradient(160deg,rgba(139,92,255,0.16),rgba(255,255,255,0.045))] p-4 shadow-[0_18px_34px_rgba(7,4,22,0.26)]"
       aria-label="Resultado del desafío"
     >
-      {hasResult ? (
+      {resultConflict ? (
+        <>
+          <p className="font-oswald text-[18px] font-semibold text-white">
+            Resultado en conflicto
+          </p>
+          <p className="mt-1 text-[14px] leading-snug text-white/72">
+            Los equipos cargaron resultados distintos. Revisá el resultado.
+          </p>
+        </>
+      ) : hasResult ? (
         <>
           <p className="font-oswald text-[18px] font-semibold text-white">
             Resultado cargado: {resultLabel}

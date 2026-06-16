@@ -683,4 +683,90 @@ describe('stats outcome assignment', () => {
     expect(result.pendientes).toBe(0);
     expect(result.recientes[0]?.label).toBe(expected.label);
   });
+
+  test('challenge result reported by one team stays pending and does not count as a win', () => {
+    const rawUserMatches = [
+      makeMatch({
+        id: 123,
+        nombre: 'Desafío provisorio',
+        jugadores: [{ id: 74, usuario_id: 'owner-a' }],
+        result_status: 'pending',
+      }),
+    ];
+    const challengeRows = [{
+      partido_id: 123,
+      team_match_id: 'tm-123',
+      challenge_id: 'challenge-123',
+      team_a_id: 'team-a',
+      team_b_id: 'team-b',
+      accepted_team_id: 'team-b',
+      scheduled_at: '2000-03-11T21:00:00Z',
+      status: 'played',
+      challenge_status: 'confirmed',
+      result_status: 'team_a_win',
+      result_confirmed: false,
+      result_conflict: false,
+      viewer_team_id: 'team-a',
+      challenge: { id: 'challenge-123' },
+    }];
+
+    const result = buildSurveyOutcomeStats({
+      rawUserMatches,
+      surveyRows: [],
+      teamRows: [],
+      lifecycleRows: [{ id: 123, result_status: 'pending', winner_team: null }],
+      challengeRows,
+      ...makeUserContext('owner-a'),
+    });
+
+    expect(result.ganados).toBe(0);
+    expect(result.empatados).toBe(0);
+    expect(result.perdidos).toBe(0);
+    expect(result.pendientes).toBe(1);
+    expect(result.recientes[0]?.label).toBe('Pendiente');
+  });
+
+  test('challenge result conflict is excluded from win/draw/loss and pending stats', () => {
+    const rawUserMatches = [
+      makeMatch({
+        id: 124,
+        nombre: 'Desafío en conflicto',
+        jugadores: [{ id: 75, usuario_id: 'owner-a' }],
+        result_status: 'pending',
+      }),
+    ];
+    const challengeRows = [{
+      partido_id: 124,
+      team_match_id: 'tm-124',
+      challenge_id: 'challenge-124',
+      team_a_id: 'team-a',
+      team_b_id: 'team-b',
+      accepted_team_id: 'team-b',
+      scheduled_at: '2000-03-11T21:00:00Z',
+      status: 'played',
+      challenge_status: 'confirmed',
+      result_status: null,
+      result_confirmed: false,
+      result_conflict: true,
+      viewer_team_id: 'team-a',
+      challenge: { id: 'challenge-124' },
+    }];
+
+    const result = buildSurveyOutcomeStats({
+      rawUserMatches,
+      surveyRows: [],
+      teamRows: [],
+      lifecycleRows: [{ id: 124, result_status: 'pending', winner_team: null }],
+      challengeRows,
+      includeDebug: true,
+      ...makeUserContext('owner-a'),
+    });
+
+    expect(result.ganados).toBe(0);
+    expect(result.empatados).toBe(0);
+    expect(result.perdidos).toBe(0);
+    expect(result.pendientes).toBe(0);
+    expect(result.recientes).toHaveLength(0);
+    expect(result.debugEntries[0]?.result_application?.excluded_reason).toBe('challenge_result_conflict');
+  });
 });

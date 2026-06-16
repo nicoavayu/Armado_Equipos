@@ -404,7 +404,7 @@ function resolveStaleSurveySkip(log: DeliveryLogRow): { errorCode: string; error
 async function resolveStaleChallengeResultSkip(
   supabase: ReturnType<typeof createClient>,
   log: DeliveryLogRow,
-): Promise<{ errorCode: string; errorText: string; teamMatchId: string; resultStatus: string } | null> {
+): Promise<{ errorCode: string; errorText: string; teamMatchId: string; resultStatus: string; resultConflict: boolean } | null> {
   const notificationType = String(log.notification_type || "").toLowerCase();
   if (notificationType !== "challenge_result_survey" && notificationType !== "challenge_result_pending") {
     return null;
@@ -418,7 +418,7 @@ async function resolveStaleChallengeResultSkip(
 
   const { data, error } = await supabase
     .from("team_matches")
-    .select("id, result_status")
+    .select("id, result_status, result_confirmed, result_conflict")
     .eq("id", teamMatchId)
     .maybeSingle();
 
@@ -432,7 +432,10 @@ async function resolveStaleChallengeResultSkip(
   }
 
   const resultStatus = String(data?.result_status ?? "").trim();
-  if (!resultStatus) return null;
+  const resultConflict = data?.result_conflict === true;
+  const resultConfirmed = data?.result_confirmed === true
+    || (!("result_confirmed" in (data ?? {})) && Boolean(resultStatus));
+  if (!resultConflict && !resultConfirmed) return null;
 
   const notificationId = readString(payload, "notification_id");
   if (notificationId) {
@@ -450,10 +453,13 @@ async function resolveStaleChallengeResultSkip(
   }
 
   return {
-    errorCode: "stale_challenge_result_loaded",
-    errorText: `Skipped stale challenge_result_survey because team_match ${teamMatchId} already has result_status=${resultStatus}`,
+    errorCode: resultConflict ? "stale_challenge_result_conflict" : "stale_challenge_result_loaded",
+    errorText: resultConflict
+      ? `Skipped stale challenge_result_survey because team_match ${teamMatchId} has a result conflict`
+      : `Skipped stale challenge_result_survey because team_match ${teamMatchId} already has result_status=${resultStatus}`,
     teamMatchId,
     resultStatus,
+    resultConflict,
   };
 }
 
@@ -1329,6 +1335,7 @@ serve(async (req) => {
             worker_id: workerId,
             team_match_id: staleChallengeResultSkip.teamMatchId,
             result_status: staleChallengeResultSkip.resultStatus,
+            result_conflict: staleChallengeResultSkip.resultConflict,
           },
         });
         summary.skipped += 1;

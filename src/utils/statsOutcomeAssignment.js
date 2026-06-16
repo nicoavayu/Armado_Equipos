@@ -112,6 +112,17 @@ const normalizeChallengeResultStatus = (value) => {
   return null;
 };
 
+const isChallengeResultConflict = (row) => Boolean(row?.result_conflict)
+  || ['conflict', 'disputed'].includes(normalizeIdentity(row?.result_status));
+
+const isChallengeResultConfirmed = (row) => {
+  if (!normalizeChallengeResultStatus(row?.result_status)) return false;
+  if (Object.prototype.hasOwnProperty.call(row || {}, 'result_confirmed')) {
+    return row?.result_confirmed === true;
+  }
+  return true;
+};
+
 const normalizeChallengeLifecycleStatus = (value) => normalizeIdentity(value);
 
 const isChallengeStatusBlocked = (value) => (
@@ -131,7 +142,8 @@ const challengeHasAcceptedRival = (row) => Boolean(
 const isChallengePendingRespondable = (row) => {
   if (!row) return false;
   if (!challengeHasAcceptedRival(row)) return false;
-  if (normalizeChallengeResultStatus(row?.result_status)) return false;
+  if (isChallengeResultConflict(row)) return false;
+  if (normalizeChallengeResultStatus(row?.result_status) && isChallengeResultConfirmed(row)) return false;
   if (isChallengeStatusBlocked(row?.status) || isChallengeStatusBlocked(row?.challenge_status)) return false;
   if (isPastDateTime(row?.scheduled_at)) return true;
   return ['played', 'confirmed', 'completed'].includes(normalizeChallengeLifecycleStatus(row?.status))
@@ -139,6 +151,7 @@ const isChallengePendingRespondable = (row) => {
 };
 
 const resolveChallengeAppliedOutcome = ({ challengeRow, userTeamId }) => {
+  if (isChallengeResultConflict(challengeRow) || !isChallengeResultConfirmed(challengeRow)) return null;
   const resultStatus = normalizeChallengeResultStatus(challengeRow?.result_status);
   if (!resultStatus) return null;
   if (resultStatus === 'draw') return 'draw';
@@ -578,7 +591,10 @@ export const buildSurveyOutcomeStats = ({
     let appliedOutcome = 'excluded';
     let excludedReason = null;
 
-    if (challengeAppliedOutcome === 'draw') {
+    if (challengeRow && isChallengeResultConflict(challengeRow)) {
+      appliedOutcome = 'conflict';
+      excludedReason = 'challenge_result_conflict';
+    } else if (challengeAppliedOutcome === 'draw') {
       empatados += 1;
       countedAsPlayed = true;
       appliedOutcome = 'draw';
@@ -769,6 +785,10 @@ export const buildSurveyOutcomeStats = ({
           accepted_team_id: challengeRow.accepted_team_id || null,
           status: challengeRow.status || null,
           challenge_status: challengeRow.challenge_status || null,
+          result_confirmed: Object.prototype.hasOwnProperty.call(challengeRow || {}, 'result_confirmed')
+            ? challengeRow.result_confirmed
+            : null,
+          result_conflict: Boolean(challengeRow.result_conflict),
           viewer_team_id: challengeRow.viewer_team_id || null,
         } : null,
         team_selection: {
