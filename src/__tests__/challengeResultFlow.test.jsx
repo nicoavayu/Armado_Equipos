@@ -206,7 +206,9 @@ describe('challenge result flow UI', () => {
       },
     });
 
-    expect(await screen.findByText('Resultado en conflicto')).toBeInTheDocument();
+    // "Resultado en conflicto" now appears as both the section heading and the
+    // card banner once the match lands in the dedicated conflict section.
+    expect((await screen.findAllByText('Resultado en conflicto')).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('Los equipos cargaron resultados distintos. Revisá el resultado.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /responder/i })).not.toBeInTheDocument();
   });

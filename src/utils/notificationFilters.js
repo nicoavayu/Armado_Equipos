@@ -35,6 +35,7 @@ const SURVEY_TYPES = new Set([
   'survey_results_ready',
   'challenge_result_survey',
   'challenge_result_pending',
+  'challenge_result_conflict',
 ]);
 
 const REWARD_TYPES = new Set([
