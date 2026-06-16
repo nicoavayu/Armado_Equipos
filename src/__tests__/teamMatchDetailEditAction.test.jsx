@@ -109,6 +109,19 @@ describe('detalle de desafío - menú de acciones (tres puntitos)', () => {
     expect(screen.getByRole('button', { name: 'Mas acciones' })).toBeInTheDocument();
   });
 
+  // Regresión del bug del teléfono: el kebab debe vivir en la barra fija
+  // superior (junto al botón de chat), NO como primer hijo del contenido. En
+  // dispositivos con notch/safe-area ese primer hijo queda detrás del header
+  // fijo y el usuario no veía los tres puntitos aunque los tests (safe-top=0)
+  // pasaran. Comprobamos que comparten contenedor con el botón de chat.
+  test('los tres puntitos viven en el header, junto al chat (no en un contenedor del contenido que el header tapa)', async () => {
+    mockUserId.current = 'creator-user';
+    await renderDetail();
+    const kebab = screen.getByRole('button', { name: 'Mas acciones' });
+    const chat = screen.getByRole('button', { name: 'Abrir chat' });
+    expect(kebab.parentElement).toBe(chat.parentElement);
+  });
+
   test('el creador ve los tres puntitos en un desafío confirmed sin resultado', async () => {
     mockUserId.current = 'creator-user';
     await renderDetail({

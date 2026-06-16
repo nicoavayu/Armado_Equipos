@@ -70,7 +70,29 @@ const PageTitle = ({
           {normalizedTitle}
         </h2>
 
-        {rightActions ? (
+        {rightActions && showChatButton ? (
+          // Caso combinado (p. ej. Detalle partido): acciones + chat juntos en la
+          // barra fija superior. El kebab vive aquí, no como primer hijo del
+          // contenido, que en notch/safe-area queda tapado por este header fijo.
+          <div className="absolute right-0 top-1/2 -translate-y-1/2 z-10 flex items-center gap-1.5">
+            {rightActions}
+            <button
+              className="relative text-white cursor-pointer p-2 transition-all duration-200 min-w-[44px] min-h-[44px] flex items-center justify-center hover:text-white/90 active:scale-95"
+              onClick={(e) => {
+                e.stopPropagation();
+                onChatClick?.();
+              }}
+              aria-label="Abrir chat"
+            >
+              <HiMiniChatBubbleOvalLeft className="w-6 h-6 md:w-5 md:h-5" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-[#128BE9] text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5 shadow-lg">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
+            </button>
+          </div>
+        ) : rightActions ? (
           <div className="absolute right-0 top-1/2 -translate-y-1/2 z-10 flex items-center">
             {rightActions}
           </div>
