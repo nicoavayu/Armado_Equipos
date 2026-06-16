@@ -16,6 +16,7 @@ import {
   getChallengeResultOutcomeLabel,
   isChallengeResultActionState,
   isChallengeResultLoaded,
+  isChallengeResultPending,
   resolveChallengePerspective,
   resultStatusToOutcome,
 } from '../utils/challengeResult';
@@ -125,6 +126,71 @@ const MisDesafiosTab = ({
     [manageableTeams],
   );
 
+  const canManage = useCallback((challenge) => {
+    if (!challenge) return false;
+    if (challenge.created_by_user_id === userId || challenge.accepted_by_user_id === userId) return true;
+    return manageableTeamIds.has(challenge.challenger_team_id)
+      || manageableTeamIds.has(challenge.accepted_team_id);
+  }, [manageableTeamIds, userId]);
+
+  const getChallengeResultViewState = useCallback((challenge) => {
+    const allowManage = canManage(challenge);
+    const relatedMatch = challenge?.team_match || null;
+    const hasAcceptedRival = challengeHasAcceptedRival(challenge) || challengeHasAcceptedRival(relatedMatch);
+    const resultAlreadyLoaded = isChallengeResultLoaded(relatedMatch?.result_status);
+    const resultActionEligible = hasAcceptedRival && isChallengeResultActionState({
+      challengeStatus: challenge?.status,
+      matchStatus: relatedMatch?.status,
+      scheduledAt: relatedMatch?.scheduled_at || challenge?.scheduled_at,
+    });
+    const resultPending = isChallengeResultPending({
+      challenge,
+      teamMatch: relatedMatch,
+      scheduledAt: relatedMatch?.scheduled_at || challenge?.scheduled_at,
+    });
+    const perspective = resolveChallengePerspective({
+      challenge,
+      manageableTeamIds,
+      userId,
+    });
+    const canRespondResult = allowManage
+      && resultActionEligible
+      && perspective.canIdentifyTeam
+      && Boolean(perspective.myTeamId);
+    const canEditResult = canRespondResult;
+    const resultLabel = resultAlreadyLoaded
+      ? getChallengeResultOutcomeLabel(relatedMatch?.result_status, {
+        perspectiveIsChallenger: perspective.perspectiveIsChallenger,
+      })
+      : null;
+
+    return {
+      allowManage,
+      canEditResult,
+      canRespondResult,
+      resultAlreadyLoaded,
+      resultLabel,
+      resultPending,
+    };
+  }, [canManage, manageableTeamIds, userId]);
+
+  const pendingChallenges = useMemo(() => (
+    myChallenges.filter((challenge) => {
+      const state = getChallengeResultViewState(challenge);
+      return state.resultPending && state.canRespondResult && !state.resultAlreadyLoaded;
+    })
+  ), [getChallengeResultViewState, myChallenges]);
+
+  const pendingChallengeIds = useMemo(
+    () => new Set(pendingChallenges.map((challenge) => challenge.id).filter(Boolean)),
+    [pendingChallenges],
+  );
+
+  const visibleFiltered = useMemo(
+    () => filtered.filter((challenge) => !pendingChallengeIds.has(challenge.id)),
+    [filtered, pendingChallengeIds],
+  );
+
   useEffect(() => {
     if (myChallenges.length === 0) return;
     if (myChallenges.some((challenge) => challenge.status === statusTab)) return;
@@ -157,13 +223,6 @@ const MisDesafiosTab = ({
       notifyBlockingError('No se pudo compartir el desafio');
     }
   };
-
-  const canManage = useCallback((challenge) => {
-    if (!challenge) return false;
-    if (challenge.created_by_user_id === userId || challenge.accepted_by_user_id === userId) return true;
-    return manageableTeamIds.has(challenge.challenger_team_id)
-      || manageableTeamIds.has(challenge.accepted_team_id);
-  }, [manageableTeamIds, userId]);
 
   const openChallengeMatch = useCallback(async (challenge) => {
     if (!challenge?.id) return;
@@ -241,7 +300,31 @@ const MisDesafiosTab = ({
         </div>
       ) : null}
 
-      {!loading && filtered.length === 0 ? (
+      {!loading && pendingChallenges.length > 0 ? (
+        <section className="rounded-2xl border border-[#8f7bff]/30 bg-white/[0.045] p-3">
+          <div className="mb-2">
+            <h4 className="font-oswald text-[17px] font-semibold text-white">Resultados pendientes</h4>
+          </div>
+          <div className="flex flex-col gap-3">
+            {pendingChallenges.map((challenge) => {
+              const state = getChallengeResultViewState(challenge);
+              return (
+                <ChallengeCard
+                  key={`pending-${challenge.id}`}
+                  challenge={challenge}
+                  primaryLabel="Responder"
+                  onPrimaryAction={() => openResultModal(challenge)}
+                  resultLabel={state.resultLabel}
+                  showResultPending
+                  disabled={isSubmitting}
+                />
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
+
+      {!loading && visibleFiltered.length === 0 && pendingChallenges.length === 0 ? (
         <EmptyStateCard
           icon={Flag}
           title="Sin desafíos"
@@ -250,33 +333,16 @@ const MisDesafiosTab = ({
         />
       ) : null}
 
-      {!loading ? filtered.map((challenge) => {
-        const allowManage = canManage(challenge);
+      {!loading ? visibleFiltered.map((challenge) => {
+        const {
+          allowManage,
+          canEditResult,
+          canRespondResult,
+          resultAlreadyLoaded,
+          resultLabel,
+        } = getChallengeResultViewState(challenge);
         const canEditChallenge = challenge.status === 'open'
           && manageableTeamIds.has(challenge.challenger_team_id);
-        const relatedMatch = challenge?.team_match || null;
-        const hasAcceptedRival = challengeHasAcceptedRival(challenge) || challengeHasAcceptedRival(relatedMatch);
-        const resultAlreadyLoaded = isChallengeResultLoaded(relatedMatch?.result_status);
-        const resultActionEligible = hasAcceptedRival && isChallengeResultActionState({
-          challengeStatus: challenge?.status,
-          matchStatus: relatedMatch?.status,
-          scheduledAt: relatedMatch?.scheduled_at || challenge?.scheduled_at,
-        });
-        const perspective = resolveChallengePerspective({
-          challenge,
-          manageableTeamIds,
-          userId,
-        });
-        const canRespondResult = allowManage
-          && resultActionEligible
-          && perspective.canIdentifyTeam
-          && Boolean(perspective.myTeamId);
-        const canEditResult = canRespondResult;
-        const resultLabel = resultAlreadyLoaded
-          ? getChallengeResultOutcomeLabel(relatedMatch?.result_status, {
-            perspectiveIsChallenger: perspective.perspectiveIsChallenger,
-          })
-          : null;
 
         let primaryLabel = 'Ver detalle';
         let primaryAction = () => openChallengeMatch(challenge);

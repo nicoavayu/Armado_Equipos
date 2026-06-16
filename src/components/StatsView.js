@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import CountUp from 'react-countup';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from 'recharts';
@@ -47,6 +47,14 @@ import LoadingSpinner from './LoadingSpinner';
 import PageTitle from './PageTitle';
 import ManualMatchModal from './ManualMatchModal';
 import InjuryModal from './InjuryModal';
+import ReportChallengeResultModal from '../features/equipos/components/ReportChallengeResultModal';
+import {
+  listMyManageableTeams,
+  reportChallengeResult,
+} from '../services/db/teamChallenges';
+import {
+  resultStatusToOutcome,
+} from '../features/equipos/utils/challengeResult';
 
 export const shouldIncludeSurveyResultForAwardsStats = (row) => (
   isAwardsReadyStatus(row)
@@ -130,6 +138,10 @@ const StatsView = ({ onVolver }) => {
   const [loading, setLoading] = useState(true);
   const [identityRefs, setIdentityRefs] = useState([]);
   const [identityRefsReady, setIdentityRefsReady] = useState(false);
+  const [manageableTeams, setManageableTeams] = useState([]);
+  const [manageableTeamsReady, setManageableTeamsReady] = useState(false);
+  const [challengeResultModal, setChallengeResultModal] = useState(null);
+  const [challengeResultSubmitting, setChallengeResultSubmitting] = useState(false);
   const loadStatsRequestRef = useRef(0);
 
   const getDefaultExtendedStats = () => ({
@@ -232,11 +244,16 @@ const StatsView = ({ onVolver }) => {
     return false;
   };
 
+  const manageableTeamIds = useMemo(
+    () => new Set((manageableTeams || []).map((team) => String(team?.id || '').trim()).filter(Boolean)),
+    [manageableTeams],
+  );
+
   useEffect(() => {
-    if (user?.id && identityRefsReady) {
+    if (user?.id && identityRefsReady && manageableTeamsReady) {
       loadStats();
     }
-  }, [user?.id, identityRefsReady, identityRefs, period, selectedYear, selectedMonth, selectedWeek]);
+  }, [user?.id, identityRefsReady, manageableTeamsReady, identityRefs, manageableTeams, period, selectedYear, selectedMonth, selectedWeek]);
 
   useEffect(() => {
     let cancelled = false;
@@ -267,6 +284,40 @@ const StatsView = ({ onVolver }) => {
     };
 
     loadIdentityRefs();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadManageableTeams = async () => {
+      setManageableTeamsReady(false);
+
+      if (!user?.id) {
+        setManageableTeams([]);
+        setManageableTeamsReady(true);
+        return;
+      }
+
+      try {
+        const teams = await listMyManageableTeams(user.id);
+        if (!cancelled) {
+          setManageableTeams(teams || []);
+          setManageableTeamsReady(true);
+        }
+      } catch (error) {
+        console.warn('[STATS] No se pudieron cargar equipos gestionables para resultados de desafio.', error);
+        if (!cancelled) {
+          setManageableTeams([]);
+          setManageableTeamsReady(true);
+        }
+      }
+    };
+
+    loadManageableTeams();
 
     return () => {
       cancelled = true;
@@ -444,6 +495,82 @@ const StatsView = ({ onVolver }) => {
     }
 
     throw lastError;
+  };
+
+  const fetchChallengeResultRowsByPartidoIds = async (matchIds = []) => {
+    const ids = [...new Set((matchIds || []).map((id) => Number(id)).filter((id) => Number.isFinite(id)))];
+    if (ids.length === 0) return [];
+
+    try {
+      const { data, error } = await supabase
+        .from('team_matches')
+        .select(`
+          id,
+          partido_id,
+          origin_type,
+          challenge_id,
+          team_a_id,
+          team_b_id,
+          scheduled_at,
+          played_at,
+          status,
+          result_status,
+          result_reported_at,
+          team_a:teams!team_matches_team_a_id_fkey(id,name,owner_user_id,crest_url,base_zone,format,skill_level,color_primary,color_secondary,color_accent),
+          team_b:teams!team_matches_team_b_id_fkey(id,name,owner_user_id,crest_url,base_zone,format,skill_level,color_primary,color_secondary,color_accent),
+          challenge:challenges!team_matches_challenge_id_fkey(id,created_by_user_id,accepted_by_user_id,challenger_team_id,accepted_team_id,status,scheduled_at)
+        `)
+        .in('partido_id', ids)
+        .not('challenge_id', 'is', null);
+
+      if (error) throw error;
+
+      return (data || []).map((row) => {
+        const teamAId = String(row?.team_a_id || '').trim();
+        const teamBId = String(row?.team_b_id || '').trim();
+        const viewerTeamId = manageableTeamIds.has(teamAId)
+          ? teamAId
+          : (manageableTeamIds.has(teamBId) ? teamBId : null);
+        const challengeStatus = row?.challenge?.status || null;
+        const scheduledAt = row?.scheduled_at || row?.challenge?.scheduled_at || null;
+
+        return {
+          partido_id: Number(row?.partido_id),
+          team_match_id: row?.id || null,
+          challenge_id: row?.challenge_id || null,
+          origin_type: row?.origin_type || null,
+          team_a_id: row?.team_a_id || null,
+          team_b_id: row?.team_b_id || null,
+          challenger_team_id: row?.team_a_id || row?.challenge?.challenger_team_id || null,
+          accepted_team_id: row?.team_b_id || row?.challenge?.accepted_team_id || null,
+          scheduled_at: scheduledAt,
+          played_at: row?.played_at || null,
+          status: row?.status || null,
+          challenge_status: challengeStatus,
+          result_status: row?.result_status || null,
+          result_reported_at: row?.result_reported_at || null,
+          viewer_team_id: viewerTeamId,
+          team_a: row?.team_a || null,
+          team_b: row?.team_b || null,
+          challenger_team: row?.team_a || null,
+          accepted_team: row?.team_b || null,
+          challenge: {
+            id: row?.challenge_id || row?.challenge?.id || null,
+            created_by_user_id: row?.challenge?.created_by_user_id || null,
+            accepted_by_user_id: row?.challenge?.accepted_by_user_id || null,
+            challenger_team_id: row?.team_a_id || row?.challenge?.challenger_team_id || null,
+            accepted_team_id: row?.team_b_id || row?.challenge?.accepted_team_id || null,
+            scheduled_at: scheduledAt,
+            status: challengeStatus,
+            challenger_team: row?.team_a || null,
+            accepted_team: row?.team_b || null,
+          },
+        };
+      });
+    } catch (error) {
+      console.warn('[STATS] No se pudieron cargar resultados manuales de desafio para recap.', error);
+      return [];
+    }
   };
 
   const getHistoricalNormalMatchesCount = async (fallbackMatches = []) => {
@@ -695,11 +822,14 @@ const StatsView = ({ onVolver }) => {
       lifecycleRows = [];
     }
 
+    const challengeRows = await fetchChallengeResultRowsByPartidoIds(uniqueMatchIds);
+
     return buildSurveyOutcomeStats({
       rawUserMatches: normalizedRawMatches,
       surveyRows,
       teamRows,
       lifecycleRows,
+      challengeRows,
       userIdentitySet: getUserIdentitySet(),
       isCurrentUserPlayer,
       getPlayerIdentityCandidates,
@@ -1791,6 +1921,33 @@ const StatsView = ({ onVolver }) => {
     loadStats();
   };
 
+  const openChallengeResultFromRecap = useCallback((recapItem) => {
+    const challengeMeta = recapItem?.challenge || null;
+    const challenge = challengeMeta?.challenge || null;
+    if (!challenge?.id || !challengeMeta?.viewer_team_id) return;
+
+    const perspectiveIsChallenger = String(challengeMeta.viewer_team_id) === String(challengeMeta.team_a_id);
+    setChallengeResultModal({
+      challenge,
+      perspectiveIsChallenger,
+      initialOutcome: resultStatusToOutcome(challengeMeta.result_status, { perspectiveIsChallenger }),
+    });
+  }, []);
+
+  const handleSubmitChallengeResult = useCallback(async ({ challengeId, resultStatus }) => {
+    if (!challengeId || !resultStatus) return;
+    try {
+      setChallengeResultSubmitting(true);
+      await reportChallengeResult({ challengeId, resultStatus });
+      setChallengeResultModal(null);
+      await loadStats();
+    } catch (error) {
+      notifyBlockingError(error.message || 'No se pudo guardar la respuesta del desafío');
+    } finally {
+      setChallengeResultSubmitting(false);
+    }
+  }, [loadStats]);
+
   const handleInjurySaved = () => {
     loadStats();
     // Force refresh of profile data
@@ -2133,15 +2290,34 @@ const StatsView = ({ onVolver }) => {
                   const titleLabel = partido?.source === 'manual'
                     ? `${fechaLabel} · ${partido.tipoLabel}`
                     : `${fechaLabel} · ${partido.nombre || 'Partido'} · ${partido.tipoLabel}`;
+                  const canResolveChallengeResult = Boolean(
+                    partido?.source === 'challenge'
+                    && partido?.resultKey === 'pendiente'
+                    && partido?.challenge?.challenge?.id
+                    && partido?.challenge?.viewer_team_id,
+                  );
+                  const RowTag = canResolveChallengeResult ? 'button' : 'div';
                   return (
-                    <div key={partido.id} className="flex items-center justify-between gap-2 rounded-2xl border border-[rgba(148,134,255,0.2)] bg-[rgba(20,16,41,0.8)] px-3 py-2">
+                    <RowTag
+                      key={partido.id}
+                      type={canResolveChallengeResult ? 'button' : undefined}
+                      onClick={canResolveChallengeResult ? () => openChallengeResultFromRecap(partido) : undefined}
+                      className={`flex w-full items-center justify-between gap-2 rounded-2xl border border-[rgba(148,134,255,0.2)] bg-[rgba(20,16,41,0.8)] px-3 py-2 text-left ${canResolveChallengeResult ? 'cursor-pointer transition-colors hover:border-sky-300/40 hover:bg-sky-400/10 focus:outline-none focus:ring-2 focus:ring-sky-300/35' : ''}`}
+                    >
                       <div className="font-oswald text-sm text-white/90">
                         {titleLabel}
                       </div>
-                      <span className={`px-2.5 py-1 rounded-full border text-xs font-oswald ${resultMeta.className}`}>
-                        {partido?.label || resultMeta.label}
-                      </span>
-                    </div>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <span className={`px-2.5 py-1 rounded-full border text-xs font-oswald ${resultMeta.className}`}>
+                          {partido?.label || resultMeta.label}
+                        </span>
+                        {canResolveChallengeResult ? (
+                          <span className="rounded-full border border-sky-300/30 bg-sky-400/10 px-2.5 py-1 text-xs font-oswald text-sky-100">
+                            Responder
+                          </span>
+                        ) : null}
+                      </div>
+                    </RowTag>
                   );
                 })}
               </div>
@@ -2561,6 +2737,16 @@ const StatsView = ({ onVolver }) => {
         isOpen={showInjuryModal}
         onClose={() => setShowInjuryModal(false)}
         onSaved={handleInjurySaved}
+      />
+
+      <ReportChallengeResultModal
+        isOpen={Boolean(challengeResultModal)}
+        challenge={challengeResultModal?.challenge || null}
+        perspectiveIsChallenger={challengeResultModal?.perspectiveIsChallenger ?? true}
+        initialOutcome={challengeResultModal?.initialOutcome || null}
+        onClose={() => setChallengeResultModal(null)}
+        isSubmitting={challengeResultSubmitting}
+        onSubmit={handleSubmitChallengeResult}
       />
     </div>
   );

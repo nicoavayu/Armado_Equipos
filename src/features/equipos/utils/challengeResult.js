@@ -70,6 +70,24 @@ export const isChallengeResultActionState = ({
   return false;
 };
 
+export const isChallengeResultPending = ({
+  challenge = null,
+  teamMatch = null,
+  scheduledAt = null,
+} = {}) => {
+  const resultStatus = teamMatch?.result_status ?? challenge?.result_status ?? null;
+  if (isChallengeResultLoaded(resultStatus)) return false;
+
+  return Boolean(
+    (challengeHasAcceptedRival(challenge) || challengeHasAcceptedRival(teamMatch))
+    && isChallengeResultActionState({
+      challengeStatus: challenge?.status,
+      matchStatus: teamMatch?.status,
+      scheduledAt: scheduledAt || teamMatch?.scheduled_at || challenge?.scheduled_at,
+    }),
+  );
+};
+
 // Translate the viewer's outcome into the absolute stored result_status.
 export const outcomeToResultStatus = (outcome, { perspectiveIsChallenger }) => {
   if (outcome === CHALLENGE_OUTCOME.DRAW) return RESULT_STATUS.DRAW;
