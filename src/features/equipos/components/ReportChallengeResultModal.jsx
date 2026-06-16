@@ -49,6 +49,7 @@ const ReportChallengeResultModal = ({
             onClick={onClose}
             variant="secondary"
             className={actionButtonClass}
+            data-preserve-button-case="true"
             disabled={isSubmitting}
           >
             Cancelar
@@ -56,6 +57,7 @@ const ReportChallengeResultModal = ({
           <Button
             type="button"
             className={actionButtonClass}
+            data-preserve-button-case="true"
             loading={isSubmitting}
             loadingText="Guardando..."
             disabled={!outcome || isSubmitting}
