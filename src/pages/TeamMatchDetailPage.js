@@ -626,9 +626,18 @@ const TeamMatchDetailPage = () => {
     };
   }, [isChallengeMatch, match?.id, match?.team_a_id, match?.team_b_id, headToHeadReloadKey]);
 
+  // El creador del desafío puede venir embebido en el match
+  // (match.challenge.created_by_user_id) o, si ese embed llega sin el dato,
+  // en el challenge que la pantalla ya carga aparte para la convocatoria
+  // (challengeSquadMeta). Tomamos el primero disponible para que el creador no
+  // pierda el acceso de edición cuando falta el embed.
   const challengeCreatorUserId = useMemo(
-    () => match?.challenge?.created_by_user_id || null,
-    [match?.challenge?.created_by_user_id],
+    () => (
+      match?.challenge?.created_by_user_id
+      || challengeSquadMeta?.created_by_user_id
+      || null
+    ),
+    [match?.challenge?.created_by_user_id, challengeSquadMeta?.created_by_user_id],
   );
 
   const canEditMatchInfo = useMemo(
