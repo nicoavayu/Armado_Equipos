@@ -31,10 +31,6 @@ const ReportChallengeResultModal = ({
     setOutcome(initialOutcome);
   }, [isOpen, initialOutcome]);
 
-  const isEditing = Boolean(initialOutcome);
-  const myTeamName = perspectiveIsChallenger
-    ? (challenge?.challenger_team?.name || 'Tu equipo')
-    : (challenge?.accepted_team?.name || 'Tu equipo');
   const rivalName = perspectiveIsChallenger
     ? (challenge?.accepted_team?.name || 'el rival')
     : (challenge?.challenger_team?.name || 'el rival');
@@ -43,7 +39,7 @@ const ReportChallengeResultModal = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={isEditing ? 'Editar resultado' : 'Cargar resultado'}
+      title="¿Cómo salió el desafío?"
       className="w-full max-w-[480px]"
       classNameContent="p-4 sm:p-5"
       footer={(
@@ -53,6 +49,7 @@ const ReportChallengeResultModal = ({
             onClick={onClose}
             variant="secondary"
             className={actionButtonClass}
+            data-preserve-button-case="true"
             disabled={isSubmitting}
           >
             Cancelar
@@ -60,6 +57,7 @@ const ReportChallengeResultModal = ({
           <Button
             type="button"
             className={actionButtonClass}
+            data-preserve-button-case="true"
             loading={isSubmitting}
             loadingText="Guardando..."
             disabled={!outcome || isSubmitting}
@@ -70,15 +68,14 @@ const ReportChallengeResultModal = ({
               onSubmit({ challengeId: challenge.id, resultStatus, outcome });
             }}
           >
-            Guardar
+            Aceptar
           </Button>
         </div>
       )}
     >
-      <p className="text-sm text-white/70 mb-1">
-        {myTeamName} vs {rivalName}
+      <p className="text-white/75 font-oswald text-[18px] mb-4">
+        ¿Cómo salió el desafío contra {rivalName}?
       </p>
-      <p className="text-white font-oswald text-[20px] mb-3">¿Cómo salió el desafío?</p>
 
       <div className="space-y-2">
         {CHALLENGE_OUTCOME_OPTIONS.map((option) => (

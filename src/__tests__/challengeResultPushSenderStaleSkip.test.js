@@ -1,0 +1,23 @@
+const fs = require('fs');
+const path = require('path');
+
+const edgeFunctionPath = path.join(process.cwd(), 'supabase/functions/push-sender/index.ts');
+const source = fs.readFileSync(edgeFunctionPath, 'utf8').replace(/\s+/g, ' ').trim();
+
+describe('push-sender challenge result stale handling', () => {
+  test('skips challenge result pushes when the team match already has a result', () => {
+    expect(source).toContain('async function resolveStaleChallengeResultSkip');
+    expect(source).toContain('notificationType !== "challenge_result_survey" && notificationType !== "challenge_result_pending"');
+    expect(source).toContain('.from("team_matches") .select("id, result_status") .eq("id", teamMatchId) .maybeSingle()');
+    expect(source).toContain('if (!resultStatus) return null');
+    expect(source).toContain('stale_challenge_result_loaded');
+    expect(source).toContain('const staleChallengeResultSkip = await resolveStaleChallengeResultSkip(supabase, log)');
+    expect(source).toContain('p_status: "skipped"');
+  });
+
+  test('resolves the internal notification before skipping a stale challenge result push', () => {
+    expect(source).toContain('.from("notifications") .update({ read: true, status: "resolved" }) .eq("id", notificationId)');
+    expect(source).toContain('.eq("type", "challenge_result_survey")');
+    expect(source).toContain('data->>team_match_id.eq.${teamMatchId},data->>teamMatchId.eq.${teamMatchId}');
+  });
+});

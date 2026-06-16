@@ -15,7 +15,7 @@ import {
   isSurveyNotificationClosed,
   resolveSurveyDeadlineAt,
 } from './surveyNotificationCopy';
-import { buildTeamInviteRoute } from './notificationRoutes';
+import { buildTeamInviteRoute, CHALLENGE_RESULT_NOTIFICATION_TYPES } from './notificationRoutes';
 import { formatVenueShort } from './venueFormat';
 import {
   buildLatestCancellationTsByMatch,
@@ -56,6 +56,8 @@ const RELEVANT_TYPES = new Set([
   'challenge_accepted',
   'team_match_created',
   'challenge_squad_open',
+  'challenge_result_survey',
+  'challenge_result_pending',
   'substitute_promoted',
   'match_update',
   'match_today',
@@ -77,6 +79,8 @@ const FEED_TEMPLATE_TYPES = new Set([
   'challenge_accepted',
   'team_match_created',
   'challenge_squad_open',
+  'challenge_result_survey',
+  'challenge_result_pending',
   'substitute_promoted',
   'match_player_joined',
   'match_player_left',
@@ -105,12 +109,14 @@ const PRIORITY = {
   challenge_accepted: 18,
   team_match_created: 18,
   challenge_squad_open: 18,
+  challenge_result_survey: 8,
+  challenge_result_pending: 8,
   match_tomorrow: 34,
   insight_weekly_matches: 40,
 };
 
 const severityForType = (type) => {
-  if (['match_today', 'falta_jugadores', 'call_to_vote', 'survey_start'].includes(type)) return 'urgent';
+  if (['match_today', 'falta_jugadores', 'call_to_vote', 'survey_start', 'challenge_result_survey', 'challenge_result_pending'].includes(type)) return 'urgent';
   if (['match_cancelled', 'match_join_request', 'match_invite', 'team_invite', 'match_player_joined', 'match_player_left', 'friend_request', 'match_tomorrow', 'challenge_accepted', 'team_match_created', 'challenge_squad_open'].includes(type)) return 'warning';
   if (['survey_results_ready', 'awards_ready', 'match_complete', 'match_join_approved', 'substitute_promoted', 'friend_accepted'].includes(type)) return 'success';
   return 'neutral';
@@ -283,6 +289,8 @@ const formatActivityDateTimeShort = (isoValue) => {
 const PAST_MATCH_ALLOWED_NOTIFICATION_TYPES = new Set([
   'survey_results_ready',
   'awards_ready',
+  'challenge_result_survey',
+  'challenge_result_pending',
 ]);
 
 const resolveActivityMatchStartAt = ({ notification, match }) => {
@@ -1069,6 +1077,20 @@ const toActivityFromNotification = (group, match, currentUserId) => {
     };
   }
 
+  if (CHALLENGE_RESULT_NOTIFICATION_TYPES.has(type)) {
+    const rivalName = compactText(notification?.data?.rival_name || notification?.data?.rivalName || 'el rival', 28, 'el rival');
+    const route = teamMatchId
+      ? `/desafios/equipos/partidos/${teamMatchId}?action=open_challenge_result_modal`
+      : (notification?.data?.link || notification?.data?.route || '/desafios');
+    return {
+      ...base,
+      icon: 'ClipboardList',
+      title: 'Resultado pendiente',
+      subtitle: `¿Cómo salió el desafío vs ${rivalName}?`,
+      route,
+    };
+  }
+
   if (type === 'challenge_accepted' || type === 'team_match_created' || type === 'challenge_squad_open') {
     const teamsLabel = resolveChallengeTeamsLabelForFeed(notification);
     const primaryLine = resolveChallengePrimaryLineForFeed(notification, {
@@ -1217,14 +1239,20 @@ const shouldIncludeNotification = (notification, normalizedType) => {
 
   const ageMs = Date.now() - ts;
   const isSurveyStart = normalizedType === 'survey_start';
+  const isChallengeResultPending = CHALLENGE_RESULT_NOTIFICATION_TYPES.has(normalizedType);
   const isSurveyLike = normalizedType === 'survey_results_ready'
     || normalizedType === 'call_to_vote'
-    || normalizedType === 'awards_ready';
+    || normalizedType === 'awards_ready'
+    || isChallengeResultPending;
 
   if (isSurveyStart) {
     // survey_start remains actionable while the survey is still open, even if the
     // underlying notification was already marked as read from notifications/push.
     return ageMs <= activityWindowSurveyLikeMs;
+  }
+
+  if (isChallengeResultPending) {
+    return ageMs <= activityWindowActionableUnreadMs;
   }
 
   if (isSurveyLike) {

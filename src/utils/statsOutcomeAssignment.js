@@ -106,6 +106,60 @@ export const normalizeSurveyResultStatus = (value) => {
   return null;
 };
 
+const normalizeChallengeResultStatus = (value) => {
+  const token = normalizeIdentity(value);
+  if (token === 'team_a_win' || token === 'team_b_win' || token === 'draw') return token;
+  return null;
+};
+
+const normalizeChallengeLifecycleStatus = (value) => normalizeIdentity(value);
+
+const isChallengeStatusBlocked = (value) => (
+  ['canceled', 'cancelled', 'cancelado', 'rejected', 'rechazado'].includes(normalizeChallengeLifecycleStatus(value))
+);
+
+const isPastDateTime = (value) => {
+  const ms = value ? new Date(value).getTime() : NaN;
+  return Number.isFinite(ms) && ms <= Date.now();
+};
+
+const challengeHasAcceptedRival = (row) => Boolean(
+  normalizeIdentity(row?.accepted_team_id)
+  || (normalizeIdentity(row?.team_a_id) && normalizeIdentity(row?.team_b_id))
+);
+
+const isChallengePendingRespondable = (row) => {
+  if (!row) return false;
+  if (!challengeHasAcceptedRival(row)) return false;
+  if (normalizeChallengeResultStatus(row?.result_status)) return false;
+  if (isChallengeStatusBlocked(row?.status) || isChallengeStatusBlocked(row?.challenge_status)) return false;
+  if (isPastDateTime(row?.scheduled_at)) return true;
+  return ['played', 'confirmed', 'completed'].includes(normalizeChallengeLifecycleStatus(row?.status))
+    || ['confirmed', 'completed'].includes(normalizeChallengeLifecycleStatus(row?.challenge_status));
+};
+
+const resolveChallengeAppliedOutcome = ({ challengeRow, userTeamId }) => {
+  const resultStatus = normalizeChallengeResultStatus(challengeRow?.result_status);
+  if (!resultStatus) return null;
+  if (resultStatus === 'draw') return 'draw';
+
+  const userTeamToken = normalizeIdentity(userTeamId);
+  const teamAToken = normalizeIdentity(challengeRow?.team_a_id);
+  const teamBToken = normalizeIdentity(challengeRow?.team_b_id);
+  if (!userTeamToken) return null;
+
+  if (resultStatus === 'team_a_win') {
+    if (userTeamToken === teamAToken) return 'win';
+    if (userTeamToken === teamBToken) return 'loss';
+  }
+  if (resultStatus === 'team_b_win') {
+    if (userTeamToken === teamBToken) return 'win';
+    if (userTeamToken === teamAToken) return 'loss';
+  }
+
+  return null;
+};
+
 export const isNotPlayedOutcomeToken = (value) => {
   const token = normalizeIdentity(value);
   if (!token) return false;
@@ -354,6 +408,7 @@ export const buildSurveyOutcomeStats = ({
   surveyRows = [],
   teamRows = [],
   lifecycleRows = [],
+  challengeRows = [],
   userIdentitySet = new Set(),
   isCurrentUserPlayer = () => false,
   getPlayerIdentityCandidates = () => [],
@@ -380,6 +435,7 @@ export const buildSurveyOutcomeStats = ({
   const bySurvey = new Map((surveyRows || []).map((row) => [Number(row?.partido_id), row]));
   const byTeams = new Map((teamRows || []).map((row) => [Number(row?.partido_id), row]));
   const byLifecycle = new Map((lifecycleRows || []).map((row) => [Number(row?.id), row]));
+  const byChallenge = new Map((challengeRows || []).map((row) => [Number(row?.partido_id), row]));
 
   let ganados = 0;
   let empatados = 0;
@@ -396,10 +452,16 @@ export const buildSurveyOutcomeStats = ({
     const survey = bySurvey.get(matchId);
     const teamConfirm = byTeams.get(matchId);
     const lifecycle = byLifecycle.get(matchId);
+    const challengeRow = byChallenge.get(matchId) || null;
     const winnerRaw = survey?.winner_team ?? lifecycle?.winner_team ?? match?.winner_team ?? null;
     const resultStatus = normalizeSurveyResultStatus(
       survey?.result_status ?? lifecycle?.result_status ?? match?.result_status,
     );
+    const challengeResultStatus = normalizeChallengeResultStatus(challengeRow?.result_status);
+    const challengeAppliedOutcome = resolveChallengeAppliedOutcome({
+      challengeRow,
+      userTeamId: challengeRow?.viewer_team_id || null,
+    });
     const winner = normalizeSurveyWinner(winnerRaw);
     const hasWinner = winner === 'equipo_a' || winner === 'equipo_b' || winner === 'empate';
 
@@ -516,8 +578,71 @@ export const buildSurveyOutcomeStats = ({
     let appliedOutcome = 'excluded';
     let excludedReason = null;
 
-    if (resultStatus === 'not_played' || isNotPlayedOutcomeToken(winnerRaw)) {
+    if (challengeAppliedOutcome === 'draw') {
+      empatados += 1;
+      countedAsPlayed = true;
+      appliedOutcome = 'draw';
+      recientes.push({
+        id: `challenge-${challengeRow?.team_match_id || matchId}`,
+        ts: match?.fecha ? new Date(`${match.fecha}T${String(match?.hora || '00:00').slice(0, 5)}`).getTime() : 0,
+        fecha: match?.fecha || null,
+        tipoLabel: match?.tipo_partido || match?.modalidad || 'Desafío',
+        nombre: match?.nombre || 'Desafío',
+        source: 'challenge',
+        resultKey: 'empate',
+        label: 'Empate',
+        challenge: challengeRow || null,
+      });
+    } else if (challengeAppliedOutcome === 'win') {
+      ganados += 1;
+      countedAsPlayed = true;
+      appliedOutcome = 'win';
+      recientes.push({
+        id: `challenge-${challengeRow?.team_match_id || matchId}`,
+        ts: match?.fecha ? new Date(`${match.fecha}T${String(match?.hora || '00:00').slice(0, 5)}`).getTime() : 0,
+        fecha: match?.fecha || null,
+        tipoLabel: match?.tipo_partido || match?.modalidad || 'Desafío',
+        nombre: match?.nombre || 'Desafío',
+        source: 'challenge',
+        resultKey: 'ganaste',
+        label: 'Ganaste',
+        challenge: challengeRow || null,
+      });
+    } else if (challengeAppliedOutcome === 'loss') {
+      perdidos += 1;
+      countedAsPlayed = true;
+      appliedOutcome = 'loss';
+      recientes.push({
+        id: `challenge-${challengeRow?.team_match_id || matchId}`,
+        ts: match?.fecha ? new Date(`${match.fecha}T${String(match?.hora || '00:00').slice(0, 5)}`).getTime() : 0,
+        fecha: match?.fecha || null,
+        tipoLabel: match?.tipo_partido || match?.modalidad || 'Desafío',
+        nombre: match?.nombre || 'Desafío',
+        source: 'challenge',
+        resultKey: 'perdiste',
+        label: 'Perdiste',
+        challenge: challengeRow || null,
+      });
+    } else if (resultStatus === 'not_played' || isNotPlayedOutcomeToken(winnerRaw)) {
       excludedReason = 'not_played';
+    } else if (challengeRow && isChallengePendingRespondable(challengeRow)) {
+      pendientes += 1;
+      recientes.push({
+        id: `challenge-${challengeRow?.team_match_id || matchId}`,
+        ts: match?.fecha ? new Date(`${match.fecha}T${String(match?.hora || '00:00').slice(0, 5)}`).getTime() : 0,
+        fecha: match?.fecha || null,
+        tipoLabel: match?.tipo_partido || match?.modalidad || 'Desafío',
+        nombre: match?.nombre || 'Desafío',
+        source: 'challenge',
+        resultKey: 'pendiente',
+        label: 'Pendiente',
+        challenge: challengeRow,
+      });
+      appliedOutcome = 'pending';
+      excludedReason = 'challenge_result_pending';
+    } else if (challengeRow && !closedPlayed && !hasWinner) {
+      appliedOutcome = 'excluded';
+      excludedReason = 'challenge_not_respondable';
     } else if (!closedPlayed && !hasWinner) {
       pendientes += 1;
       recientes.push({
@@ -546,6 +671,9 @@ export const buildSurveyOutcomeStats = ({
         resultKey: 'empate',
         label: 'Empate',
       });
+    } else if (challengeRow) {
+      appliedOutcome = 'excluded';
+      excludedReason = 'challenge_not_respondable';
     } else if (!hasWinner) {
       pendientes += 1;
       appliedOutcome = 'pending';
@@ -632,8 +760,17 @@ export const buildSurveyOutcomeStats = ({
         estado: match?.estado ?? null,
         survey_status: match?.survey_status ?? lifecycle?.survey_status ?? null,
         result_status: resultStatus || null,
+        challenge_result_status: challengeResultStatus || null,
         winner_team: winnerRaw ?? null,
         finished_at: finishedAt ?? null,
+        challenge: challengeRow ? {
+          team_match_id: challengeRow.team_match_id || null,
+          challenge_id: challengeRow.challenge_id || null,
+          accepted_team_id: challengeRow.accepted_team_id || null,
+          status: challengeRow.status || null,
+          challenge_status: challengeRow.challenge_status || null,
+          viewer_team_id: challengeRow.viewer_team_id || null,
+        } : null,
         team_selection: {
           selected_source: selectedTeams.source || null,
           selected_reason: selectedTeams.reason || null,

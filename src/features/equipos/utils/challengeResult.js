@@ -22,6 +22,91 @@ export const CHALLENGE_OUTCOME_OPTIONS = [
 ];
 
 const normalizeId = (value) => String(value ?? '').trim();
+const normalizeToken = (value) => String(value ?? '').trim().toLowerCase();
+
+const RESULT_ACTION_CHALLENGE_STATES = new Set(['confirmed', 'completed']);
+const RESULT_ACTION_MATCH_STATES = new Set(['confirmed', 'played']);
+const RESULT_BLOCKED_CHALLENGE_STATES = new Set(['canceled', 'cancelled', 'rejected', 'rechazado', 'cancelado']);
+const RESULT_BLOCKED_MATCH_STATES = new Set(['canceled', 'cancelled', 'rejected', 'rechazado', 'cancelado']);
+
+export const isChallengeResultLoaded = (resultStatus) => (
+  resultStatus === RESULT_STATUS.TEAM_A_WIN
+  || resultStatus === RESULT_STATUS.TEAM_B_WIN
+  || resultStatus === RESULT_STATUS.DRAW
+);
+
+// Automatic prompt timing. The survey prompt (push / in-app notification /
+// activity) must only be generated 60 minutes after the scheduled kickoff, and
+// only while the match is still "recent" so the backend cron never spams fresh
+// pushes for very old unreported matches (anti-backfill window). Old matches
+// stay answerable through the Recap / Mis Desafíos / detail fallbacks, which
+// rely on isChallengeResultPending (kept broad on purpose) instead.
+export const CHALLENGE_RESULT_PROMPT_DELAY_MS = 60 * 60 * 1000;
+export const CHALLENGE_RESULT_PROMPT_WINDOW_MS = 48 * 60 * 60 * 1000;
+
+export const isChallengeResultPromptEligible = ({
+  scheduledAt = null,
+  now = Date.now(),
+} = {}) => {
+  const scheduledMs = scheduledAt ? new Date(scheduledAt).getTime() : NaN;
+  if (!Number.isFinite(scheduledMs)) return false;
+  const elapsed = now - scheduledMs;
+  return elapsed >= CHALLENGE_RESULT_PROMPT_DELAY_MS
+    && elapsed <= CHALLENGE_RESULT_PROMPT_WINDOW_MS;
+};
+
+export const challengeHasAcceptedRival = (challengeOrMatch) => Boolean(
+  normalizeId(challengeOrMatch?.accepted_team_id)
+  || (
+    normalizeId(challengeOrMatch?.team_a_id)
+    && normalizeId(challengeOrMatch?.team_b_id)
+  )
+);
+
+export const isChallengeResultActionState = ({
+  challengeStatus = null,
+  matchStatus = null,
+  scheduledAt = null,
+} = {}) => {
+  const normalizedChallengeStatus = normalizeToken(challengeStatus);
+  const normalizedMatchStatus = normalizeToken(matchStatus);
+  const scheduledAtMs = scheduledAt ? new Date(scheduledAt).getTime() : NaN;
+  const isPastScheduled = Number.isFinite(scheduledAtMs) && scheduledAtMs <= Date.now();
+
+  if (
+    RESULT_BLOCKED_CHALLENGE_STATES.has(normalizedChallengeStatus)
+    || RESULT_BLOCKED_MATCH_STATES.has(normalizedMatchStatus)
+  ) {
+    return false;
+  }
+
+  if (RESULT_ACTION_CHALLENGE_STATES.has(normalizedChallengeStatus)) return true;
+  if (normalizedChallengeStatus === 'accepted') {
+    return normalizedMatchStatus === 'played' || isPastScheduled;
+  }
+  if (RESULT_ACTION_MATCH_STATES.has(normalizedMatchStatus)) return true;
+  if (isPastScheduled) return true;
+
+  return false;
+};
+
+export const isChallengeResultPending = ({
+  challenge = null,
+  teamMatch = null,
+  scheduledAt = null,
+} = {}) => {
+  const resultStatus = teamMatch?.result_status ?? challenge?.result_status ?? null;
+  if (isChallengeResultLoaded(resultStatus)) return false;
+
+  return Boolean(
+    (challengeHasAcceptedRival(challenge) || challengeHasAcceptedRival(teamMatch))
+    && isChallengeResultActionState({
+      challengeStatus: challenge?.status,
+      matchStatus: teamMatch?.status,
+      scheduledAt: scheduledAt || teamMatch?.scheduled_at || challenge?.scheduled_at,
+    }),
+  );
+};
 
 // Translate the viewer's outcome into the absolute stored result_status.
 export const outcomeToResultStatus = (outcome, { perspectiveIsChallenger }) => {
@@ -50,6 +135,11 @@ export const resultStatusToOutcome = (resultStatus, { perspectiveIsChallenger })
 export const outcomeLabel = (outcome) => {
   const match = CHALLENGE_OUTCOME_OPTIONS.find((option) => option.value === outcome);
   return match ? match.label : null;
+};
+
+export const getChallengeResultOutcomeLabel = (resultStatus, { perspectiveIsChallenger }) => {
+  const outcome = resultStatusToOutcome(resultStatus, { perspectiveIsChallenger });
+  return outcomeLabel(outcome);
 };
 
 // Resolve which side of the challenge the viewer manages, so the modal can map

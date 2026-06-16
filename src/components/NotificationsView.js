@@ -663,6 +663,8 @@ const NotificationsView = () => {
       case 'challenge_accepted':
       case 'team_match_created':
       case 'challenge_squad_open':
+      case 'challenge_result_survey':
+      case 'challenge_result_pending':
         return CalendarClock;
       case 'survey':
       case 'post_match_survey':
@@ -811,6 +813,7 @@ const NotificationsView = () => {
     const isSurveyStartLike = notification.type === 'survey' || notification.type === 'survey_start' || notification.type === 'post_match_survey';
     const isSurveyReminder = notification.type === 'survey_reminder' || notification.type === 'survey_reminder_12h';
     const isSurveyResults = notification.type === 'survey_results_ready' || notification.type === 'survey_finished';
+    const isChallengeResultPending = notification.type === 'challenge_result_survey' || notification.type === 'challenge_result_pending';
     const isMatchReminder = notification.type === 'match_reminder_1h';
     const isTeamInvite = notification.type === 'team_invite';
     const isMatchCancelled = notification.type === 'match_cancelled';
@@ -819,7 +822,9 @@ const NotificationsView = () => {
     const quotedMatchName = quoteMatchName(matchName, 'este partido');
     const hasConcreteMatchName = matchName && matchName !== 'este partido';
     const matchFallbackLabel = hasConcreteMatchName ? quotedMatchName : 'el partido';
-    const title = isSurveyStartLike
+    const title = isChallengeResultPending
+      ? 'Resultado pendiente'
+      : isSurveyStartLike
       ? '¡Encuesta lista!'
       : isSurveyReminder
         ? 'Recordatorio de encuesta'
@@ -834,7 +839,9 @@ const NotificationsView = () => {
           : isTeamInvite
             ? (notification.title || 'Invitacion de equipo')
           : applyMatchNameQuotes(notification.title || 'Notificación', matchName);
-    const message = isSurveyStartLike
+    const message = isChallengeResultPending
+      ? (notification.message || `¿Cómo salió el desafío vs ${notification?.data?.rival_name || 'el rival'}?`)
+      : isSurveyStartLike
       ? getSurveyStartMessage({ source: notification, matchName: quotedMatchName })
       : isSurveyReminder
         ? getSurveyReminderMessage({ source: notification, matchName: quotedMatchName })

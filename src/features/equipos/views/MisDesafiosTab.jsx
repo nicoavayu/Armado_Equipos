@@ -11,7 +11,14 @@ import {
   listMyChallenges,
   updateChallenge,
 } from '../../../services/db/teamChallenges';
-import { resolveChallengePerspective, resultStatusToOutcome } from '../utils/challengeResult';
+import {
+  challengeHasAcceptedRival,
+  getChallengeResultOutcomeLabel,
+  isChallengeResultActionState,
+  isChallengeResultLoaded,
+  isChallengeResultPending,
+  resolveChallengePerspective,
+} from '../utils/challengeResult';
 import { notifyBlockingError } from '../../../utils/notifyBlockingError';
 import EmptyStateCard from '../../../components/EmptyStateCard';
 import { Flag } from 'lucide-react';
@@ -70,7 +77,24 @@ const MisDesafiosTab = ({
         listMyChallenges(userId),
         listMyManageableTeams(userId),
       ]);
-      setMyChallenges(rows);
+
+      const hydratedRows = await Promise.all((rows || []).map(async (challenge) => {
+        if (!challengeHasAcceptedRival(challenge)) return challenge;
+        const status = String(challenge?.status || '').trim().toLowerCase();
+        if (status === 'open' || status === 'canceled') return challenge;
+
+        try {
+          const teamMatch = await getTeamMatchByChallengeId(challenge.id);
+          return {
+            ...challenge,
+            team_match: teamMatch || null,
+          };
+        } catch (_error) {
+          return challenge;
+        }
+      }));
+
+      setMyChallenges(hydratedRows);
       setManageableTeams(manageable || []);
     } catch (error) {
       notifyBlockingError(error.message || 'No se pudieron cargar tus desafios');
@@ -99,6 +123,70 @@ const MisDesafiosTab = ({
   const manageableTeamIds = useMemo(
     () => new Set((manageableTeams || []).map((team) => team.id).filter(Boolean)),
     [manageableTeams],
+  );
+
+  const canManage = useCallback((challenge) => {
+    if (!challenge) return false;
+    if (challenge.created_by_user_id === userId || challenge.accepted_by_user_id === userId) return true;
+    return manageableTeamIds.has(challenge.challenger_team_id)
+      || manageableTeamIds.has(challenge.accepted_team_id);
+  }, [manageableTeamIds, userId]);
+
+  const getChallengeResultViewState = useCallback((challenge) => {
+    const allowManage = canManage(challenge);
+    const relatedMatch = challenge?.team_match || null;
+    const hasAcceptedRival = challengeHasAcceptedRival(challenge) || challengeHasAcceptedRival(relatedMatch);
+    const resultAlreadyLoaded = isChallengeResultLoaded(relatedMatch?.result_status);
+    const resultActionEligible = hasAcceptedRival && isChallengeResultActionState({
+      challengeStatus: challenge?.status,
+      matchStatus: relatedMatch?.status,
+      scheduledAt: relatedMatch?.scheduled_at || challenge?.scheduled_at,
+    });
+    const resultPending = isChallengeResultPending({
+      challenge,
+      teamMatch: relatedMatch,
+      scheduledAt: relatedMatch?.scheduled_at || challenge?.scheduled_at,
+    });
+    const perspective = resolveChallengePerspective({
+      challenge,
+      manageableTeamIds,
+      userId,
+    });
+    const canRespondResult = allowManage
+      && resultActionEligible
+      && !resultAlreadyLoaded
+      && perspective.canIdentifyTeam
+      && Boolean(perspective.myTeamId);
+    const resultLabel = resultAlreadyLoaded
+      ? getChallengeResultOutcomeLabel(relatedMatch?.result_status, {
+        perspectiveIsChallenger: perspective.perspectiveIsChallenger,
+      })
+      : null;
+
+    return {
+      allowManage,
+      canRespondResult,
+      resultAlreadyLoaded,
+      resultLabel,
+      resultPending,
+    };
+  }, [canManage, manageableTeamIds, userId]);
+
+  const pendingChallenges = useMemo(() => (
+    myChallenges.filter((challenge) => {
+      const state = getChallengeResultViewState(challenge);
+      return state.resultPending && state.canRespondResult && !state.resultAlreadyLoaded;
+    })
+  ), [getChallengeResultViewState, myChallenges]);
+
+  const pendingChallengeIds = useMemo(
+    () => new Set(pendingChallenges.map((challenge) => challenge.id).filter(Boolean)),
+    [pendingChallenges],
+  );
+
+  const visibleFiltered = useMemo(
+    () => filtered.filter((challenge) => !pendingChallengeIds.has(challenge.id)),
+    [filtered, pendingChallengeIds],
   );
 
   useEffect(() => {
@@ -134,8 +222,6 @@ const MisDesafiosTab = ({
     }
   };
 
-  const canManage = (challenge) => challenge.created_by_user_id === userId || challenge.accepted_by_user_id === userId;
-
   const openChallengeMatch = useCallback(async (challenge) => {
     if (!challenge?.id) return;
 
@@ -151,7 +237,7 @@ const MisDesafiosTab = ({
     }
   }, [navigate]);
 
-  const openResultModal = useCallback(async (challenge, { isEditing = false } = {}) => {
+  const openResultModal = useCallback(async (challenge) => {
     if (!challenge?.id) return;
 
     const perspective = resolveChallengePerspective({
@@ -160,24 +246,23 @@ const MisDesafiosTab = ({
       userId,
     });
 
-    let initialOutcome = null;
-    if (isEditing) {
+    let teamMatch = challenge?.team_match || null;
+    if (!teamMatch) {
       try {
-        const match = await getTeamMatchByChallengeId(challenge.id);
-        if (match?.result_status) {
-          initialOutcome = resultStatusToOutcome(match.result_status, {
-            perspectiveIsChallenger: perspective.perspectiveIsChallenger,
-          });
-        }
+        teamMatch = await getTeamMatchByChallengeId(challenge.id);
       } catch (_error) {
-        // Non-blocking: open the modal without a pre-selected outcome.
+        teamMatch = null;
       }
+    }
+
+    if (teamMatch?.result_status) {
+      return;
     }
 
     setResultModal({
       challenge,
       perspectiveIsChallenger: perspective.perspectiveIsChallenger,
-      initialOutcome,
+      initialOutcome: null,
     });
   }, [manageableTeamIds, userId]);
 
@@ -208,7 +293,31 @@ const MisDesafiosTab = ({
         </div>
       ) : null}
 
-      {!loading && filtered.length === 0 ? (
+      {!loading && pendingChallenges.length > 0 ? (
+        <section className="rounded-2xl border border-[#8f7bff]/30 bg-white/[0.045] p-3">
+          <div className="mb-2">
+            <h4 className="font-oswald text-[17px] font-semibold text-white">Resultados pendientes</h4>
+          </div>
+          <div className="flex flex-col gap-3">
+            {pendingChallenges.map((challenge) => {
+              const state = getChallengeResultViewState(challenge);
+              return (
+                <ChallengeCard
+                  key={`pending-${challenge.id}`}
+                  challenge={challenge}
+                  primaryLabel="Responder"
+                  onPrimaryAction={() => openResultModal(challenge)}
+                  resultLabel={state.resultLabel}
+                  showResultPending
+                  disabled={isSubmitting}
+                />
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
+
+      {!loading && visibleFiltered.length === 0 && pendingChallenges.length === 0 ? (
         <EmptyStateCard
           icon={Flag}
           title="Sin desafíos"
@@ -217,30 +326,28 @@ const MisDesafiosTab = ({
         />
       ) : null}
 
-      {!loading ? filtered.map((challenge) => {
-        const allowManage = canManage(challenge);
+      {!loading ? visibleFiltered.map((challenge) => {
+        const {
+          allowManage,
+          canRespondResult,
+          resultAlreadyLoaded,
+          resultLabel,
+        } = getChallengeResultViewState(challenge);
         const canEditChallenge = challenge.status === 'open'
           && manageableTeamIds.has(challenge.challenger_team_id);
 
         let primaryLabel = 'Ver detalle';
-        let primaryAction = () => handleShare(challenge);
+        let primaryAction = () => openChallengeMatch(challenge);
 
         if (challenge.status === 'open') {
           primaryLabel = 'Compartir';
           primaryAction = () => handleShare(challenge);
-        } else if (challenge.status === 'accepted') {
-          primaryLabel = 'Ver partido';
+        } else if (canRespondResult) {
+          primaryLabel = 'Responder';
+          primaryAction = () => openResultModal(challenge);
+        } else if (challenge.status === 'accepted' || challenge.status === 'confirmed' || challenge.status === 'completed') {
+          primaryLabel = 'Ver detalle';
           primaryAction = () => openChallengeMatch(challenge);
-        } else if (challenge.status === 'confirmed') {
-          primaryLabel = allowManage ? 'Cargar resultado' : 'Ver detalle';
-          primaryAction = allowManage
-            ? () => openResultModal(challenge)
-            : () => handleShare(challenge);
-        } else if (challenge.status === 'completed') {
-          primaryLabel = allowManage ? 'Editar resultado' : 'Compartir';
-          primaryAction = allowManage
-            ? () => openResultModal(challenge, { isEditing: true })
-            : () => handleShare(challenge);
         }
 
         return (
@@ -251,6 +358,8 @@ const MisDesafiosTab = ({
             onEdit={(targetChallenge) => setEditingChallenge(targetChallenge)}
             primaryLabel={primaryLabel}
             onPrimaryAction={primaryAction}
+            resultLabel={resultLabel}
+            showResultPending={canRespondResult && !resultAlreadyLoaded}
             onCancel={async () => {
               if (!allowManage) return;
 
@@ -308,7 +417,7 @@ const MisDesafiosTab = ({
             setResultModal(null);
             await loadData();
           } catch (error) {
-            notifyBlockingError(error.message || 'No se pudo cargar el resultado del desafio');
+            notifyBlockingError(error.message || 'No se pudo guardar la respuesta del desafio');
           } finally {
             setIsSubmitting(false);
           }

@@ -16,6 +16,7 @@ describe('notificationFilters', () => {
     expect(getNotificationFilterKey('match_invite')).toBe('matches');
     expect(getNotificationFilterKey('substitute_promoted')).toBe('matches');
     expect(getNotificationFilterKey('survey_start')).toBe('surveys');
+    expect(getNotificationFilterKey('challenge_result_survey')).toBe('surveys');
     expect(getNotificationFilterKey('award_won')).toBe('rewards');
   });
 

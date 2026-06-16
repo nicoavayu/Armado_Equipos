@@ -279,6 +279,9 @@ function defaultTitleForType(type: string): string {
       return "Resultados de encuesta listos";
     case "awards_ready":
       return "Premios listos";
+    case "challenge_result_survey":
+    case "challenge_result_pending":
+      return "Resultado pendiente";
     case "admin_transfer":
       return "Ahora sos admin";
     case "team_captain_transfer":
@@ -398,6 +401,62 @@ function resolveStaleSurveySkip(log: DeliveryLogRow): { errorCode: string; error
   };
 }
 
+async function resolveStaleChallengeResultSkip(
+  supabase: ReturnType<typeof createClient>,
+  log: DeliveryLogRow,
+): Promise<{ errorCode: string; errorText: string; teamMatchId: string; resultStatus: string } | null> {
+  const notificationType = String(log.notification_type || "").toLowerCase();
+  if (notificationType !== "challenge_result_survey" && notificationType !== "challenge_result_pending") {
+    return null;
+  }
+
+  const payload = log.payload_json && typeof log.payload_json === "object"
+    ? log.payload_json
+    : {};
+  const teamMatchId = readString(payload, "team_match_id") ?? readString(payload, "teamMatchId");
+  if (!teamMatchId) return null;
+
+  const { data, error } = await supabase
+    .from("team_matches")
+    .select("id, result_status")
+    .eq("id", teamMatchId)
+    .maybeSingle();
+
+  if (error) {
+    console.warn("[push-sender] stale challenge result lookup failed", {
+      log_id: log.id,
+      team_match_id: teamMatchId,
+      message: error.message,
+    });
+    return null;
+  }
+
+  const resultStatus = String(data?.result_status ?? "").trim();
+  if (!resultStatus) return null;
+
+  const notificationId = readString(payload, "notification_id");
+  if (notificationId) {
+    await supabase
+      .from("notifications")
+      .update({ read: true, status: "resolved" })
+      .eq("id", notificationId);
+  } else if (log.user_id) {
+    await supabase
+      .from("notifications")
+      .update({ read: true, status: "resolved" })
+      .eq("user_id", log.user_id)
+      .eq("type", "challenge_result_survey")
+      .or(`data->>team_match_id.eq.${teamMatchId},data->>teamMatchId.eq.${teamMatchId}`);
+  }
+
+  return {
+    errorCode: "stale_challenge_result_loaded",
+    errorText: `Skipped stale challenge_result_survey because team_match ${teamMatchId} already has result_status=${resultStatus}`,
+    teamMatchId,
+    resultStatus,
+  };
+}
+
 function buildPushMessage(row: DeliveryLogRow) {
   const payload = row.payload_json && typeof row.payload_json === "object"
     ? row.payload_json
@@ -410,7 +469,9 @@ function buildPushMessage(row: DeliveryLogRow) {
     : (surveyMessage?.title ?? readString(payload, "title") ?? defaultTitleForType(row.notification_type));
   const body = notificationType === "match_reminder_1h"
     ? buildMatchReminderBody(payload as Record<string, unknown>)
-    : (surveyMessage?.body ?? readString(payload, "message") ?? readString(payload, "body") ?? "Tenes una actualizacion nueva.");
+    : notificationType === "challenge_result_survey" || notificationType === "challenge_result_pending"
+      ? (readString(payload, "message") ?? readString(payload, "body") ?? "Respondé cómo salió el desafío.")
+      : (surveyMessage?.body ?? readString(payload, "message") ?? readString(payload, "body") ?? "Tenes una actualizacion nueva.");
 
   const data: Record<string, string> = {
     notification_type: safeString(row.notification_type, 120),
@@ -1253,6 +1314,25 @@ serve(async (req) => {
         });
         summary.skipped += 1;
         summary.rows.push({ id: log.id, status: "skipped", reason: staleSurveySkip.errorCode });
+        continue;
+      }
+
+      const staleChallengeResultSkip = await resolveStaleChallengeResultSkip(supabase, log);
+      if (staleChallengeResultSkip) {
+        await supabase.rpc("finalize_push_delivery_attempt", {
+          p_log_id: log.id,
+          p_status: "skipped",
+          p_error_code: staleChallengeResultSkip.errorCode,
+          p_error_text: staleChallengeResultSkip.errorText,
+          p_provider_response_json: {
+            provider: "push",
+            worker_id: workerId,
+            team_match_id: staleChallengeResultSkip.teamMatchId,
+            result_status: staleChallengeResultSkip.resultStatus,
+          },
+        });
+        summary.skipped += 1;
+        summary.rows.push({ id: log.id, status: "skipped", reason: staleChallengeResultSkip.errorCode });
         continue;
       }
 

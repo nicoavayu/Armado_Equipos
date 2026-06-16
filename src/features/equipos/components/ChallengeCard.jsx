@@ -72,11 +72,11 @@ const TeamSide = ({ team, fallbackText }) => {
 
   if (!team) {
     return (
-      <div className="flex-1 min-w-0 h-[196px] rounded-2xl border border-dashed border-[rgba(148,134,255,0.28)] bg-[radial-gradient(circle_at_50%_28%,rgba(139,92,255,0.07),transparent_62%),rgba(255,255,255,0.015)] px-3 py-3 flex flex-col items-center justify-center gap-3">
-        <div className="relative flex items-center justify-center">
+      <div className="flex-1 min-w-0 h-[196px] rounded-2xl border border-dashed border-[rgba(148,134,255,0.28)] bg-[radial-gradient(circle_at_50%_28%,rgba(139,92,255,0.07),transparent_62%),rgba(255,255,255,0.015)] px-3 py-3 flex flex-col items-center justify-center gap-3 text-center">
+        <div className="flex items-center justify-center">
           <ShieldQuestion size={58} strokeWidth={1.1} className="text-[#9486ff]/30" />
         </div>
-        <p className="font-bebas text-white/45 text-[15px] font-semibold tracking-[0.18em] uppercase">{fallbackText}</p>
+        <p className="w-full text-center font-bebas text-white/45 text-[15px] font-semibold tracking-[0.18em] uppercase [text-indent:0.18em]">{fallbackText}</p>
       </div>
     );
   }
@@ -116,6 +116,8 @@ const ChallengeCard = ({
   isOwnChallenge = false,
   canEdit = false,
   onEdit = null,
+  resultLabel = null,
+  showResultPending = false,
 }) => {
   const status = (challenge?.status || 'open').toLowerCase();
   const cta = primaryLabel || CTA_BY_STATUS[status] || 'Ver detalle';
@@ -231,6 +233,21 @@ const ChallengeCard = ({
 
       {challenge?.notes ? (
         <p className="mt-3 text-[13px] leading-snug text-white/70 break-words font-sans border-l-2 border-[rgba(148,134,255,0.35)] pl-2.5">{challenge.notes}</p>
+      ) : null}
+
+      {resultLabel ? (
+        <div className="mt-3 rounded-xl border border-[#8f7bff]/25 bg-white/[0.055] px-3 py-2.5 text-center font-oswald text-[15px] font-semibold text-white">
+          Resultado cargado: {resultLabel}
+        </div>
+      ) : showResultPending ? (
+        <div className="mt-3 rounded-xl border border-[#8f7bff]/25 bg-white/[0.055] px-3 py-2.5 text-center">
+          <div className="font-oswald text-[15px] font-semibold text-white">
+            Resultado pendiente
+          </div>
+          <div className="mt-0.5 text-[12px] leading-snug text-white/65">
+            ¿Cómo salió el desafío contra {challenge?.accepted_team?.name || 'el rival'}?
+          </div>
+        </div>
       ) : null}
 
       <div className="mt-4 flex gap-2">

@@ -16,6 +16,7 @@ import {
 } from './awardsReadiness';
 import {
   buildTeamChallengeRoute,
+  CHALLENGE_RESULT_NOTIFICATION_TYPES,
   extractNotificationMatchId,
   extractTeamMatchId,
   isSurveyFormNotificationType,
@@ -344,6 +345,15 @@ const shouldOpenAsTeamChallenge = (notification = {}) => (
   && !CONSULTABLE_NOTIFICATION_TYPES.has(normalizeToken(notification?.type))
 );
 
+const isChallengeResultNotificationType = (notificationOrType = {}) => {
+  const type = normalizeToken(
+    typeof notificationOrType === 'string'
+      ? notificationOrType
+      : notificationOrType?.type,
+  );
+  return CHALLENGE_RESULT_NOTIFICATION_TYPES.has(type);
+};
+
 const getCachedLifecycleRow = (matchId, nowMs) => {
   const cacheEntry = lifecycleCacheByMatchId.get(matchId);
   if (!cacheEntry) return undefined;
@@ -549,7 +559,7 @@ const fetchTeamMatchLifecycleRow = async ({ supabaseClient, teamMatchId }) => {
   try {
     const { data, error } = await supabaseClient
       .from('team_matches')
-      .select('id, status, scheduled_at, partido_id')
+      .select('id, status, scheduled_at, partido_id, result_status')
       .eq('id', teamMatchId)
       .maybeSingle();
     if (error) return null;
@@ -588,6 +598,35 @@ const resolveTeamChallengeNotificationActionability = async ({
   }
 
   const normalizedTeamMatchStatus = normalizeToken(teamMatchRow?.status);
+
+  if (isChallengeResultNotificationType(notification)) {
+    const normalizedResultStatus = normalizeToken(teamMatchRow?.result_status);
+    if (['team_a_win', 'team_b_win', 'draw'].includes(normalizedResultStatus)) {
+      return {
+        isActionable: false,
+        reason: 'challenge_result_already_reported',
+        message: 'Este resultado ya fue respondido.',
+        teamMatchId,
+      };
+    }
+
+    if (['cancelled', 'canceled', 'cancelado'].includes(normalizedTeamMatchStatus)) {
+      return {
+        isActionable: false,
+        reason: 'team_match_cancelled',
+        message: 'Este desafío fue cancelado.',
+        teamMatchId,
+      };
+    }
+
+    return {
+      isActionable: true,
+      reason: 'challenge_result_pending',
+      message: '',
+      teamMatchId,
+    };
+  }
+
   if (CLOSED_TEAM_MATCH_STATUS_TOKENS.has(normalizedTeamMatchStatus)) {
     return {
       isActionable: false,

@@ -23,6 +23,11 @@ const ADMIN_AWARE_MATCH_NOTIFICATION_TYPES = new Set([
   'match_player_left',
 ]);
 
+export const CHALLENGE_RESULT_NOTIFICATION_TYPES = new Set([
+  'challenge_result_survey',
+  'challenge_result_pending',
+]);
+
 const normalizeNotificationType = (notificationOrType = {}) => {
   if (typeof notificationOrType === 'string') {
     return String(notificationOrType || '').trim().toLowerCase();
@@ -192,7 +197,12 @@ export const isTeamChallengeNotification = (notification = {}) => {
   const source = String(data?.source || '').trim().toLowerCase();
   const title = String(notification?.title || '').trim().toLowerCase();
 
-  if (type === 'challenge_accepted' || type === 'team_match_created' || type === 'challenge_squad_open') return true;
+  if (
+    type === 'challenge_accepted'
+    || type === 'team_match_created'
+    || type === 'challenge_squad_open'
+    || CHALLENGE_RESULT_NOTIFICATION_TYPES.has(type)
+  ) return true;
   if (source === 'team_challenge') return true;
   if (data?.team_match_id || data?.teamMatchId || data?.challenge_id || data?.challengeId) return true;
   if (type === 'match_update' && title.includes('desafio aceptado')) return true;
@@ -215,9 +225,15 @@ export const extractTeamMatchId = (notification = {}) => {
 };
 
 export const buildTeamChallengeRoute = (notification = {}) => {
+  const type = String(notification?.type || '').trim().toLowerCase();
+  const action = String(notification?.data?.action || '').trim().toLowerCase();
   const teamMatchId = extractTeamMatchId(notification);
   if (teamMatchId !== null && teamMatchId !== undefined && String(teamMatchId).trim() !== '') {
-    return `/desafios/equipos/partidos/${teamMatchId}`;
+    const route = `/desafios/equipos/partidos/${teamMatchId}`;
+    if (CHALLENGE_RESULT_NOTIFICATION_TYPES.has(type) || action === 'open_challenge_result_modal') {
+      return `${route}?action=open_challenge_result_modal`;
+    }
+    return route;
   }
   return '/desafios';
 };

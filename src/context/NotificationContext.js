@@ -32,6 +32,10 @@ import { debugNotificationEvent } from '../utils/notificationRouter';
 import { track } from '../utils/monitoring/analytics';
 import { parseLocalDateTime } from '../utils/dateLocal';
 import { filterSurveyChallengeNotificationsForDisplay } from '../utils/surveyChallengePolicy';
+import {
+  ensureChallengeResultSurveyNotificationsForUser,
+  filterResolvedChallengeResultSurveyNotifications,
+} from '../services/challengeResultNotificationService';
 
 const NotificationContext = createContext();
 
@@ -458,6 +462,12 @@ export const NotificationProvider = ({ children }) => {
 
     logger.log('[NOTIFICATIONS] Fetching notifications for user:', currentUserId);
     try {
+      try {
+        await ensureChallengeResultSurveyNotificationsForUser(currentUserId);
+      } catch (pendingResultError) {
+        logger.warn('[NOTIFICATIONS] Could not ensure challenge result notifications:', pendingResultError);
+      }
+
       // Only fetch notifications from the recent UI window to keep the inbox lightweight.
       const cutoffISO = getNotificationsUiCutoffIso();
 
@@ -595,9 +605,15 @@ export const NotificationProvider = ({ children }) => {
       const scheduledSurveyFiltered = await filterSurveyChallengeNotificationsForDisplay(scheduledRaw, {
         supabaseClient: supabase,
       });
+      const visibleChallengeResultFiltered = await filterResolvedChallengeResultSurveyNotifications(visibleSurveyFiltered, {
+        supabaseClient: supabase,
+      });
+      const scheduledChallengeResultFiltered = await filterResolvedChallengeResultSurveyNotifications(scheduledSurveyFiltered, {
+        supabaseClient: supabase,
+      });
 
       // Hide stale/false-positive awards-ready notifications unless awards are truly persisted.
-      const visibleAwardsValidated = await filterPrematureAwardsNotifications(visibleSurveyFiltered);
+      const visibleAwardsValidated = await filterPrematureAwardsNotifications(visibleChallengeResultFiltered);
 
       // Hide stale invite/kick rows before dedupe so lists stay actionable.
       const visibleForDisplay = filterNotificationsForInbox(visibleAwardsValidated);
@@ -612,7 +628,7 @@ export const NotificationProvider = ({ children }) => {
         JSON.stringify(prev) === JSON.stringify(dedupedVisible) ? prev : dedupedVisible
       ));
       setScheduledNotifications((prev) => (
-        JSON.stringify(prev) === JSON.stringify(scheduledSurveyFiltered) ? prev : scheduledSurveyFiltered
+        JSON.stringify(prev) === JSON.stringify(scheduledChallengeResultFiltered) ? prev : scheduledChallengeResultFiltered
       ));
       updateUnreadCount(dedupedVisible);
     } catch (error) {
@@ -806,14 +822,17 @@ export const NotificationProvider = ({ children }) => {
     const displayRows = await filterSurveyChallengeNotificationsForDisplay([notification], {
       supabaseClient: supabase,
     });
-    if (displayRows.length === 0) {
+    const resultDisplayRows = await filterResolvedChallengeResultSurveyNotifications(displayRows, {
+      supabaseClient: supabase,
+    });
+    if (resultDisplayRows.length === 0) {
       logger.log('[NOTIFICATIONS] Suppressing challenge survey notification from inbox:', {
         id: notification?.id,
         type: notification?.type,
       });
       return;
     }
-    notification = displayRows[0];
+    notification = resultDisplayRows[0];
 
     const notificationType = String(notification?.type || '').trim();
     track('push_received', {
@@ -942,8 +961,11 @@ export const NotificationProvider = ({ children }) => {
     const displayRows = await filterSurveyChallengeNotificationsForDisplay([notification], {
       supabaseClient: supabase,
     });
+    const resultDisplayRows = await filterResolvedChallengeResultSurveyNotifications(displayRows, {
+      supabaseClient: supabase,
+    });
 
-    if (displayRows.length === 0) {
+    if (resultDisplayRows.length === 0) {
       setNotifications((prev) => {
         const updated = prev.filter((item) => item.id !== notification.id);
         updateUnreadCount(updated);
@@ -952,7 +974,7 @@ export const NotificationProvider = ({ children }) => {
       return;
     }
 
-    const displayNotification = displayRows[0];
+    const displayNotification = resultDisplayRows[0];
     setNotifications((prev) => {
       const updated = prev.map((item) => (
         item.id === displayNotification.id

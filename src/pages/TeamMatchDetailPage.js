@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ChevronLeft, Flag, MoreVertical, Shield, Users } from 'lucide-react';
 import { useAuth } from '../components/AuthProvider';
 import PageTitle from '../components/PageTitle';
@@ -22,8 +22,15 @@ import {
   resolveChallengeSquadViewState,
 } from '../features/equipos/utils/challengeViewer';
 import { buildChallengeHeadToHeadView } from '../features/equipos/utils/challengeHeadToHead';
-import { resultStatusToOutcome } from '../features/equipos/utils/challengeResult';
+import {
+  challengeHasAcceptedRival,
+  getChallengeResultOutcomeLabel,
+  isChallengeResultActionState,
+  isChallengeResultLoaded,
+  resultStatusToOutcome,
+} from '../features/equipos/utils/challengeResult';
 import ReportChallengeResultModal from '../features/equipos/components/ReportChallengeResultModal';
+import ChallengeResultCtaCard from '../features/equipos/components/ChallengeResultCtaCard';
 import normalizePartidoForHeader from '../utils/normalizePartidoForHeader';
 import {
   getChallengeHeadToHeadStats,
@@ -168,7 +175,7 @@ const modalActionButtonBaseClass = '!w-full !h-auto !min-h-[44px] !px-4 !py-2.5 
 const modalActionPrimaryClass = `${modalActionButtonBaseClass} !border !border-[#8f7bff] !bg-[linear-gradient(135deg,#7d5aff_0%,#5b3cff_58%,#ec007d_145%)] !text-white !shadow-[0_0_16px_rgba(139,92,255,0.26)] hover:!brightness-110`;
 const modalActionSecondaryClass = `${modalActionButtonBaseClass} !border !border-[rgba(148,134,255,0.28)] !bg-white/[0.05] !text-white/92 hover:!bg-[rgba(30,45,94,0.95)]`;
 const squadActionButtonBaseClass = 'min-h-[44px] px-4 py-2.5 rounded-xl border font-bebas text-base tracking-[0.01em] transition-all inline-flex items-center justify-center text-center cursor-pointer sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]';
-const squadActionPrimaryClass = `${squadActionButtonBaseClass} border-[#8f7bff] bg-[linear-gradient(135deg,#7d5aff_0%,#5b3cff_58%,#ec007d_145%)] text-white shadow-[0_0_16px_rgba(139,92,255,0.26)] hover:brightness-110 active:opacity-95 disabled:bg-[rgba(106,67,255,0.55)] disabled:border-[rgba(125,90,255,0.5)] disabled:text-white/40 disabled:shadow-none disabled:cursor-not-allowed`;
+const squadActionPrimaryClass = `${squadActionButtonBaseClass} border-white/20 bg-cta-gradient text-white shadow-cta hover:brightness-105 active:scale-[0.985] disabled:opacity-45 disabled:shadow-none disabled:cursor-not-allowed`;
 const squadActionSecondaryClass = `${squadActionButtonBaseClass} border-[rgba(148,134,255,0.28)] bg-white/[0.05] text-white/92 hover:bg-white/[0.1] active:opacity-95 disabled:opacity-55 disabled:cursor-not-allowed`;
 const participationActionPrimaryClass = `${squadActionButtonBaseClass} border-white/20 bg-cta-gradient text-white shadow-cta hover:brightness-105 active:scale-[0.985] disabled:opacity-45 disabled:shadow-none disabled:cursor-not-allowed`;
 const participationActionSecondaryClass = `${squadActionButtonBaseClass} border-[rgba(148,134,255,0.24)] bg-white/[0.04] text-white/90 hover:bg-white/[0.08] hover:border-[rgba(148,134,255,0.4)] active:scale-[0.985] disabled:opacity-45 disabled:cursor-not-allowed`;
@@ -339,6 +346,7 @@ const MatchupHeroCard = ({
 
 const TeamMatchDetailPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const goBackSmart = useSmartBackNavigation({
     fallback: '/desafios',
   });
@@ -552,7 +560,13 @@ const TeamMatchDetailPage = () => {
     const scheduledAtMs = match?.scheduled_at ? new Date(match.scheduled_at).getTime() : NaN;
     return Number.isFinite(scheduledAtMs) && scheduledAtMs <= Date.now();
   }, [match?.scheduled_at]);
-  const isUnavailablePastChallengeMatch = isChallengeMatch && isPastScheduledTeamMatch;
+  const hasChallengeAcceptedRival = useMemo(
+    () => isChallengeMatch && challengeHasAcceptedRival(match),
+    [isChallengeMatch, match],
+  );
+  const isUnavailablePastChallengeMatch = isChallengeMatch
+    && isPastScheduledTeamMatch
+    && !hasChallengeAcceptedRival;
 
   useEffect(() => {
     if (loading || !match || !isCancelledMatch || cancelledRedirectRef.current) return;
@@ -1236,18 +1250,39 @@ const TeamMatchDetailPage = () => {
 
   const canReportChallengeResult = Boolean(
     isChallengeMatch
+    && hasChallengeAcceptedRival
     && canManageMyChallengeSquad
     && myChallengeTeamId
     && !isAmbiguousChallengeViewer
-    && (challengeStatusValue === 'confirmed' || challengeStatusValue === 'completed'),
+    && isChallengeResultActionState({
+      challengeStatus: challengeStatusValue,
+      matchStatus: match?.status,
+      scheduledAt: match?.scheduled_at,
+    }),
   );
 
-  const resultAlreadyLoaded = challengeStatusValue === 'completed' || Boolean(match?.result_status);
+  const resultAlreadyLoaded = isChallengeResultLoaded(match?.result_status);
 
   const resultInitialOutcome = useMemo(() => {
     if (!match?.result_status) return null;
     return resultStatusToOutcome(match.result_status, { perspectiveIsChallenger });
   }, [match?.result_status, perspectiveIsChallenger]);
+
+  const resultOutcomeLabel = useMemo(() => (
+    getChallengeResultOutcomeLabel(match?.result_status, { perspectiveIsChallenger })
+  ), [match?.result_status, perspectiveIsChallenger]);
+
+  const challengeResultRivalName = useMemo(() => {
+    if (perspectiveIsChallenger) return match?.team_b?.name || 'el rival';
+    return match?.team_a?.name || 'el rival';
+  }, [match?.team_a?.name, match?.team_b?.name, perspectiveIsChallenger]);
+
+  const showChallengeResultCard = Boolean(
+    isChallengeMatch
+    && hasChallengeAcceptedRival
+    && myChallengeTeamId
+    && (canReportChallengeResult || resultAlreadyLoaded),
+  );
 
   const resultModalChallenge = useMemo(() => {
     if (!match?.challenge_id) return null;
@@ -1267,11 +1302,23 @@ const TeamMatchDetailPage = () => {
       await refreshMatchView({ withLoading: false, silent: false });
       setHeadToHeadReloadKey((value) => value + 1);
     } catch (error) {
-      notifyBlockingError(error.message || 'No se pudo cargar el resultado del desafío');
+      notifyBlockingError(error.message || 'No se pudo guardar la respuesta del desafío');
     } finally {
       setResultModalSubmitting(false);
     }
   }, [refreshMatchView]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search || '');
+    if (params.get('action') !== 'open_challenge_result_modal') return;
+    if (!canReportChallengeResult || resultAlreadyLoaded || !resultModalChallenge) return;
+    setResultModalOpen(true);
+  }, [
+    canReportChallengeResult,
+    location.search,
+    resultAlreadyLoaded,
+    resultModalChallenge,
+  ]);
 
   const getSafeMenuPosition = useCallback((rect) => {
     const menuWidth = 192; // w-48
@@ -1308,7 +1355,10 @@ const TeamMatchDetailPage = () => {
       hora: hora || 'A definir',
       modalidad: match?.format ? `F${match.format}` : 'A definir',
       tipo_partido: match?.mode || 'A definir',
-      sede: match?.location || match?.location_name || 'A definir',
+      // Dejar null cuando no hay sede para que MatchInfoSection aplique el mismo
+      // fallback ("A definir") que el partido común/amistoso, en lugar de recortar
+      // "A definir" a su primera palabra ("A").
+      sede: match?.location || match?.location_name || null,
       precio: match?.cancha_cost == null ? 'A definir' : match.cancha_cost,
       valor_cancha: match?.cancha_cost == null ? 'A definir' : match.cancha_cost,
     });
@@ -1403,24 +1453,31 @@ const TeamMatchDetailPage = () => {
 
       {/* El header fijo mide 72px (44px de contenido + 14px de padding vertical) y no
           se desplaza con --safe-top, mientras que MainLayout sí lo suma al contenido:
-          el padding se calcula para que el match info siempre quede debajo del header. */}
-      <div className="w-full pb-8 pt-[max(8px,calc(76px-var(--safe-top,0px)))]">
-        <div className="w-full overflow-visible">
-          <MatchInfoSection
-            partido={headerInfoPartido}
-            topOffsetClassName="mt-0"
-          />
-        </div>
-
-        <div className="mx-auto mt-3 w-full max-w-[560px] space-y-3 px-4">
+          el padding se calcula para que el contenido quede debajo del header fijo.
+          Se deja ~16px de aire extra (88px en vez de 72px) para que los iconos del
+          Match Info Header no queden pegados/cortados contra la barra fija; con sólo
+          4px de margen cualquier variación de safe-area o de alto del header los
+          recortaba en iPhone y Android.
+          El Match Info Header (MatchInfoSection) ya no va aquí arriba: se renderiza
+          dentro del bloque del partido, debajo de los chips y pegado arriba de la
+          card VS, igual que en el partido común/amistoso. */}
+      <div className="w-full pb-8 pt-[max(20px,calc(88px-var(--safe-top,0px)))]">
+        <div className="mx-auto w-full max-w-[560px] space-y-3 px-4">
+          {/* Cuando loading/no-match son el único contenido, son el primer hijo del
+              bloque. El header fijo (PageTitle) queda contenido por el transform de
+              PageTransition (translate-x-0), así que se posiciona a partir de
+              --safe-top y su borde inferior cae en safe-top+72px. El padding del
+              bloque resta --safe-top, por lo que ese primer hijo quedaba tapado por
+              el header. Se compensa con mt=--safe-top para que estas cajas
+              transitorias se vean completas (el layout cargado no se toca). */}
           {loading ? (
-            <div className="rounded-2xl border border-white/15 bg-white/5 p-4 text-center text-white/70">
+            <div className="mt-[var(--safe-top,0px)] rounded-2xl border border-white/15 bg-white/5 p-4 text-center text-white/70">
               Cargando partido...
             </div>
           ) : null}
 
           {!loading && !match ? (
-            <div className="rounded-2xl border border-white/15 bg-white/5 p-4 text-center text-white/70">
+            <div className="mt-[var(--safe-top,0px)] rounded-2xl border border-white/15 bg-white/5 p-4 text-center text-white/70">
               No encontramos este partido o no tenes acceso.
             </div>
           ) : null}
@@ -1489,6 +1546,13 @@ const TeamMatchDetailPage = () => {
                     </div>
                   ) : null}
                 </div>
+
+                {/* Match Info Header: mismo componente que el partido común/amistoso,
+                    debajo de los chips y pegado arriba de la card VS. */}
+                <MatchInfoSection
+                  partido={headerInfoPartido}
+                  topOffsetClassName="mt-0"
+                />
 
                 <MatchupHeroCard
                   teamA={match?.team_a}
@@ -1803,16 +1867,15 @@ const TeamMatchDetailPage = () => {
                 </div>
               ) : null}
 
-              {canReportChallengeResult ? (
-                <Button
-                  type="button"
-                  variant={resultAlreadyLoaded ? 'secondary' : 'primary'}
-                  className="mt-2 h-12 w-full rounded-xl text-[17px] font-oswald font-semibold !normal-case"
-                  onClick={() => setResultModalOpen(true)}
-                  data-preserve-button-case="true"
-                >
-                  {resultAlreadyLoaded ? 'Editar resultado' : 'Cargar resultado'}
-                </Button>
+              {showChallengeResultCard ? (
+                <ChallengeResultCtaCard
+                  rivalName={challengeResultRivalName}
+                  resultLabel={resultAlreadyLoaded ? resultOutcomeLabel : null}
+                  onLoad={() => {
+                    if (resultAlreadyLoaded) return;
+                    setResultModalOpen(true);
+                  }}
+                />
               ) : null}
 
             </>
