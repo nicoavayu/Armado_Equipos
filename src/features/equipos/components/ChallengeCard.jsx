@@ -72,11 +72,11 @@ const TeamSide = ({ team, fallbackText }) => {
 
   if (!team) {
     return (
-      <div className="flex-1 min-w-0 h-[196px] rounded-2xl border border-dashed border-[rgba(148,134,255,0.28)] bg-[radial-gradient(circle_at_50%_28%,rgba(139,92,255,0.07),transparent_62%),rgba(255,255,255,0.015)] px-3 py-3 flex flex-col items-center justify-center gap-3">
-        <div className="relative flex items-center justify-center">
+      <div className="flex-1 min-w-0 h-[196px] rounded-2xl border border-dashed border-[rgba(148,134,255,0.28)] bg-[radial-gradient(circle_at_50%_28%,rgba(139,92,255,0.07),transparent_62%),rgba(255,255,255,0.015)] px-3 py-3 flex flex-col items-center justify-center gap-3 text-center">
+        <div className="flex items-center justify-center">
           <ShieldQuestion size={58} strokeWidth={1.1} className="text-[#9486ff]/30" />
         </div>
-        <p className="font-bebas text-white/45 text-[15px] font-semibold tracking-[0.18em] uppercase">{fallbackText}</p>
+        <p className="w-full text-center font-bebas text-white/45 text-[15px] font-semibold tracking-[0.18em] uppercase [text-indent:0.18em]">{fallbackText}</p>
       </div>
     );
   }

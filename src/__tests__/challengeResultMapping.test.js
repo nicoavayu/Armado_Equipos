@@ -1,11 +1,15 @@
 import {
   CHALLENGE_OUTCOME,
   RESULT_STATUS,
+  CHALLENGE_RESULT_PROMPT_DELAY_MS,
+  CHALLENGE_RESULT_PROMPT_WINDOW_MS,
   outcomeToResultStatus,
   resultStatusToOutcome,
   resolveChallengePerspective,
   challengeHasAcceptedRival,
   isChallengeResultActionState,
+  isChallengeResultPromptEligible,
+  isChallengeResultPending,
 } from '../features/equipos/utils/challengeResult';
 
 describe('challenge manual result mapping', () => {
@@ -120,6 +124,47 @@ describe('challenge manual result mapping', () => {
       expect(isChallengeResultActionState({ challengeStatus: 'canceled', scheduledAt: '2026-06-14T20:00:00.000Z' })).toBe(false);
       expect(isChallengeResultActionState({ challengeStatus: 'rejected', scheduledAt: '2026-06-14T20:00:00.000Z' })).toBe(false);
       expect(isChallengeResultActionState({ matchStatus: 'cancelled', scheduledAt: '2026-06-14T20:00:00.000Z' })).toBe(false);
+    });
+  });
+
+  describe('isChallengeResultPromptEligible (automatic 60-min + recent window)', () => {
+    const now = new Date('2026-06-16T12:00:00.000Z').getTime();
+    const at = (msAgo) => new Date(now - msAgo).toISOString();
+
+    test('eligible once 60 minutes past the scheduled kickoff', () => {
+      expect(isChallengeResultPromptEligible({ scheduledAt: at(CHALLENGE_RESULT_PROMPT_DELAY_MS), now })).toBe(true);
+      expect(isChallengeResultPromptEligible({ scheduledAt: at(90 * 60 * 1000), now })).toBe(true);
+    });
+
+    test('not eligible before the 60-minute delay', () => {
+      expect(isChallengeResultPromptEligible({ scheduledAt: at(30 * 60 * 1000), now })).toBe(false);
+      expect(isChallengeResultPromptEligible({ scheduledAt: at(59 * 60 * 1000), now })).toBe(false);
+    });
+
+    test('not eligible for a future match', () => {
+      expect(isChallengeResultPromptEligible({ scheduledAt: at(-60 * 60 * 1000), now })).toBe(false);
+    });
+
+    test('not eligible past the anti-backfill window (very old match)', () => {
+      expect(isChallengeResultPromptEligible({ scheduledAt: at(CHALLENGE_RESULT_PROMPT_WINDOW_MS + 60 * 1000), now })).toBe(false);
+      expect(isChallengeResultPromptEligible({ scheduledAt: at(7 * 24 * 60 * 60 * 1000), now })).toBe(false);
+    });
+
+    test('returns false for a missing or invalid scheduled time', () => {
+      expect(isChallengeResultPromptEligible({ scheduledAt: null, now })).toBe(false);
+      expect(isChallengeResultPromptEligible({ scheduledAt: 'not-a-date', now })).toBe(false);
+    });
+
+    test('old matches stay answerable: pending stays broad even outside the prompt window', () => {
+      const veryOld = at(7 * 24 * 60 * 60 * 1000);
+      // The automatic prompt is suppressed for very old matches...
+      expect(isChallengeResultPromptEligible({ scheduledAt: veryOld, now })).toBe(false);
+      // ...but they remain actionable in Recap / Mis Desafíos / detail.
+      expect(isChallengeResultPending({
+        challenge: { status: 'confirmed', accepted_team_id: 'team-b' },
+        teamMatch: { status: 'confirmed', result_status: null },
+        scheduledAt: veryOld,
+      })).toBe(true);
     });
   });
 });

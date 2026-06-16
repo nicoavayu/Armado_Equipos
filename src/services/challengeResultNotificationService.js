@@ -1,5 +1,9 @@
 import { supabase } from '../supabase';
-import { isChallengeResultActionState, isChallengeResultLoaded } from '../features/equipos/utils/challengeResult';
+import {
+  isChallengeResultActionState,
+  isChallengeResultLoaded,
+  isChallengeResultPromptEligible,
+} from '../features/equipos/utils/challengeResult';
 import { listMyManageableTeams, listMyTeamMatches } from './db/teamChallenges';
 import { requestImmediatePushDispatchSafe } from './pushDispatchService';
 
@@ -93,10 +97,17 @@ const isEligiblePendingResultMatch = (match) => {
   if (!match?.canManage) return false;
   if (isChallengeResultLoaded(match?.result_status)) return false;
 
+  const scheduledAt = match?.scheduled_at || match?.played_at;
+
+  // Foreground fanout mirrors the backend cron: only auto-create a prompt once
+  // the match is 60 minutes past kickoff and still inside the recent window, so
+  // opening the app never re-creates fresh notifications for very old matches.
+  if (!isChallengeResultPromptEligible({ scheduledAt })) return false;
+
   return isChallengeResultActionState({
     challengeStatus: match?.challenge?.status,
     matchStatus: match?.status,
-    scheduledAt: match?.scheduled_at || match?.played_at,
+    scheduledAt,
   });
 };
 

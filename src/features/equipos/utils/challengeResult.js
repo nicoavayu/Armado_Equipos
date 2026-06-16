@@ -35,6 +35,26 @@ export const isChallengeResultLoaded = (resultStatus) => (
   || resultStatus === RESULT_STATUS.DRAW
 );
 
+// Automatic prompt timing. The survey prompt (push / in-app notification /
+// activity) must only be generated 60 minutes after the scheduled kickoff, and
+// only while the match is still "recent" so the backend cron never spams fresh
+// pushes for very old unreported matches (anti-backfill window). Old matches
+// stay answerable through the Recap / Mis Desafíos / detail fallbacks, which
+// rely on isChallengeResultPending (kept broad on purpose) instead.
+export const CHALLENGE_RESULT_PROMPT_DELAY_MS = 60 * 60 * 1000;
+export const CHALLENGE_RESULT_PROMPT_WINDOW_MS = 48 * 60 * 60 * 1000;
+
+export const isChallengeResultPromptEligible = ({
+  scheduledAt = null,
+  now = Date.now(),
+} = {}) => {
+  const scheduledMs = scheduledAt ? new Date(scheduledAt).getTime() : NaN;
+  if (!Number.isFinite(scheduledMs)) return false;
+  const elapsed = now - scheduledMs;
+  return elapsed >= CHALLENGE_RESULT_PROMPT_DELAY_MS
+    && elapsed <= CHALLENGE_RESULT_PROMPT_WINDOW_MS;
+};
+
 export const challengeHasAcceptedRival = (challengeOrMatch) => Boolean(
   normalizeId(challengeOrMatch?.accepted_team_id)
   || (
