@@ -96,17 +96,23 @@ describe('detalle de desafío - Match Info Header', () => {
     expect(screen.getByTestId('match-info-section')).toBeInTheDocument();
   });
 
-  test('el header aparece ANTES de la card VS (MatchupHeroCard)', async () => {
+  test('el header aparece debajo de los chips y ANTES de la card VS', async () => {
     await renderDetail();
 
+    const chip = screen.getByText('Desafio');
     const header = screen.getByTestId('match-info-section');
     const vs = screen.getByText('VS');
 
-    // DOCUMENT_POSITION_FOLLOWING => `vs` viene después de `header` en el DOM.
+    // Orden esperado en el DOM: chip "Desafio" -> header -> card VS.
+    // eslint-disable-next-line no-bitwise
+    const chipBeforeHeader = Boolean(
+      chip.compareDocumentPosition(header) & Node.DOCUMENT_POSITION_FOLLOWING,
+    );
     // eslint-disable-next-line no-bitwise
     const headerBeforeVs = Boolean(
       header.compareDocumentPosition(vs) & Node.DOCUMENT_POSITION_FOLLOWING,
     );
+    expect(chipBeforeHeader).toBe(true);
     expect(headerBeforeVs).toBe(true);
   });
 

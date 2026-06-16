@@ -1453,16 +1453,12 @@ const TeamMatchDetailPage = () => {
 
       {/* El header fijo mide 72px (44px de contenido + 14px de padding vertical) y no
           se desplaza con --safe-top, mientras que MainLayout sí lo suma al contenido:
-          el padding se calcula para que el match info siempre quede debajo del header. */}
+          el padding se calcula para que el contenido quede debajo del header fijo.
+          El Match Info Header (MatchInfoSection) ya no va aquí arriba: se renderiza
+          dentro del bloque del partido, debajo de los chips y pegado arriba de la
+          card VS, igual que en el partido común/amistoso. */}
       <div className="w-full pb-8 pt-[max(8px,calc(76px-var(--safe-top,0px)))]">
-        <div className="w-full overflow-visible">
-          <MatchInfoSection
-            partido={headerInfoPartido}
-            topOffsetClassName="mt-0"
-          />
-        </div>
-
-        <div className="mx-auto mt-3 w-full max-w-[560px] space-y-3 px-4">
+        <div className="mx-auto w-full max-w-[560px] space-y-3 px-4">
           {loading ? (
             <div className="rounded-2xl border border-white/15 bg-white/5 p-4 text-center text-white/70">
               Cargando partido...
@@ -1539,6 +1535,13 @@ const TeamMatchDetailPage = () => {
                     </div>
                   ) : null}
                 </div>
+
+                {/* Match Info Header: mismo componente que el partido común/amistoso,
+                    debajo de los chips y pegado arriba de la card VS. */}
+                <MatchInfoSection
+                  partido={headerInfoPartido}
+                  topOffsetClassName="mt-0"
+                />
 
                 <MatchupHeroCard
                   teamA={match?.team_a}
