@@ -2,16 +2,19 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ChallengeCard from '../components/ChallengeCard';
 import ReportChallengeResultModal from '../components/ReportChallengeResultModal';
+import ResolveChallengeResultModal from '../components/ResolveChallengeResultModal';
 import PublishChallengeModal from '../components/PublishChallengeModal';
 import {
   cancelChallenge,
   reportChallengeResult,
+  resolveChallengeResult,
   getTeamMatchByChallengeId,
   listMyManageableTeams,
   listMyChallenges,
   updateChallenge,
 } from '../../../services/db/teamChallenges';
 import {
+  canResolveChallengeResult,
   canTeamReportChallengeResult,
   challengeHasAcceptedRival,
   getChallengeResultOutcomeLabel,
@@ -70,6 +73,7 @@ const MisDesafiosTab = ({
   const [manageableTeams, setManageableTeams] = useState([]);
   const [editingChallenge, setEditingChallenge] = useState(null);
   const [resultModal, setResultModal] = useState(null);
+  const [resolveModal, setResolveModal] = useState(null);
 
   const loadData = async () => {
     if (!userId) return;
@@ -170,10 +174,16 @@ const MisDesafiosTab = ({
         perspectiveIsChallenger: perspective.perspectiveIsChallenger,
       })
       : null;
+    // Conflicts are resolved ONLY by the challenge creator.
+    const canResolveResult = canResolveChallengeResult(relatedMatch, {
+      userId,
+      challengeCreatorUserId: challenge?.created_by_user_id,
+    });
 
     return {
       allowManage,
       canRespondResult,
+      canResolveResult,
       resultConflict,
       resultConfirmed,
       resultAlreadyLoaded,
@@ -194,9 +204,20 @@ const MisDesafiosTab = ({
     [pendingChallenges],
   );
 
+  const conflictChallenges = useMemo(() => (
+    myChallenges.filter((challenge) => getChallengeResultViewState(challenge).resultConflict)
+  ), [getChallengeResultViewState, myChallenges]);
+
+  const conflictChallengeIds = useMemo(
+    () => new Set(conflictChallenges.map((challenge) => challenge.id).filter(Boolean)),
+    [conflictChallenges],
+  );
+
   const visibleFiltered = useMemo(
-    () => filtered.filter((challenge) => !pendingChallengeIds.has(challenge.id)),
-    [filtered, pendingChallengeIds],
+    () => filtered.filter((challenge) => (
+      !pendingChallengeIds.has(challenge.id) && !conflictChallengeIds.has(challenge.id)
+    )),
+    [filtered, pendingChallengeIds, conflictChallengeIds],
   );
 
   useEffect(() => {
@@ -280,6 +301,17 @@ const MisDesafiosTab = ({
     });
   }, [manageableTeamIds, userId]);
 
+  const openResolveModal = useCallback((challenge) => {
+    if (!challenge?.id) return;
+    if (!canResolveChallengeResult(challenge?.team_match || null, {
+      userId,
+      challengeCreatorUserId: challenge?.created_by_user_id,
+    })) {
+      return;
+    }
+    setResolveModal({ challenge });
+  }, [userId]);
+
   return (
     <div className="w-full max-w-[560px] flex flex-col gap-3">
       <div className="rounded-2xl border border-white/15 bg-white/5 p-3">
@@ -332,7 +364,34 @@ const MisDesafiosTab = ({
         </section>
       ) : null}
 
-      {!loading && visibleFiltered.length === 0 && pendingChallenges.length === 0 ? (
+      {!loading && conflictChallenges.length > 0 ? (
+        <section className="rounded-2xl border border-[#f59e0b]/30 bg-white/[0.045] p-3">
+          <div className="mb-2">
+            <h4 className="font-oswald text-[17px] font-semibold text-white">Resultado en conflicto</h4>
+          </div>
+          <div className="flex flex-col gap-3">
+            {conflictChallenges.map((challenge) => {
+              const state = getChallengeResultViewState(challenge);
+              return (
+                <ChallengeCard
+                  key={`conflict-${challenge.id}`}
+                  challenge={challenge}
+                  primaryLabel={state.canResolveResult ? 'Resolver resultado' : 'Ver detalle'}
+                  onPrimaryAction={() => (
+                    state.canResolveResult
+                      ? openResolveModal(challenge)
+                      : openChallengeMatch(challenge)
+                  )}
+                  resultConflict
+                  disabled={isSubmitting}
+                />
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
+
+      {!loading && visibleFiltered.length === 0 && pendingChallenges.length === 0 && conflictChallenges.length === 0 ? (
         <EmptyStateCard
           icon={Flag}
           title="Sin desafíos"
@@ -435,6 +494,27 @@ const MisDesafiosTab = ({
             await loadData();
           } catch (error) {
             notifyBlockingError(error.message || 'No se pudo guardar la respuesta del desafio');
+          } finally {
+            setIsSubmitting(false);
+          }
+        }}
+      />
+
+      <ResolveChallengeResultModal
+        isOpen={Boolean(resolveModal)}
+        challenge={resolveModal?.challenge || null}
+        teamAName={resolveModal?.challenge?.challenger_team?.name || null}
+        teamBName={resolveModal?.challenge?.accepted_team?.name || null}
+        onClose={() => setResolveModal(null)}
+        isSubmitting={isSubmitting}
+        onSubmit={async ({ challengeId, resultStatus }) => {
+          try {
+            setIsSubmitting(true);
+            await resolveChallengeResult({ challengeId, resultStatus });
+            setResolveModal(null);
+            await loadData();
+          } catch (error) {
+            notifyBlockingError(error.message || 'No se pudo resolver el resultado del desafio');
           } finally {
             setIsSubmitting(false);
           }

@@ -606,6 +606,23 @@ const resolveTeamChallengeNotificationActionability = async ({
 
   const normalizedTeamMatchStatus = normalizeToken(teamMatchRow?.status);
 
+  if (normalizeToken(notification?.type) === 'challenge_result_conflict') {
+    if (teamMatchRow?.result_conflict) {
+      return {
+        isActionable: true,
+        reason: 'challenge_result_conflict_pending',
+        message: '',
+        teamMatchId,
+      };
+    }
+    return {
+      isActionable: false,
+      reason: 'challenge_result_conflict_resolved',
+      message: 'Este resultado ya fue resuelto.',
+      teamMatchId,
+    };
+  }
+
   if (isChallengeResultNotificationType(notification)) {
     const normalizedResultStatus = normalizeToken(teamMatchRow?.result_status);
     const resultConfirmed = Object.prototype.hasOwnProperty.call(teamMatchRow || {}, 'result_confirmed')

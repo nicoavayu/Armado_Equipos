@@ -282,6 +282,8 @@ function defaultTitleForType(type: string): string {
     case "challenge_result_survey":
     case "challenge_result_pending":
       return "Resultado pendiente";
+    case "challenge_result_conflict":
+      return "Resultado en conflicto";
     case "admin_transfer":
       return "Ahora sos admin";
     case "team_captain_transfer":
@@ -406,7 +408,12 @@ async function resolveStaleChallengeResultSkip(
   log: DeliveryLogRow,
 ): Promise<{ errorCode: string; errorText: string; teamMatchId: string; resultStatus: string; resultConflict: boolean } | null> {
   const notificationType = String(log.notification_type || "").toLowerCase();
-  if (notificationType !== "challenge_result_survey" && notificationType !== "challenge_result_pending") {
+  const isConflictPrompt = notificationType === "challenge_result_conflict";
+  if (
+    notificationType !== "challenge_result_survey"
+    && notificationType !== "challenge_result_pending"
+    && !isConflictPrompt
+  ) {
     return null;
   }
 
@@ -435,7 +442,12 @@ async function resolveStaleChallengeResultSkip(
   const resultConflict = data?.result_conflict === true;
   const resultConfirmed = data?.result_confirmed === true
     || (!("result_confirmed" in (data ?? {})) && Boolean(resultStatus));
-  if (!resultConflict && !resultConfirmed) return null;
+
+  // Report prompts are stale once the result is confirmed OR in conflict.
+  // Conflict prompts are stale once the conflict has been resolved (no longer
+  // in conflict), which is the inverted condition.
+  const isStale = isConflictPrompt ? !resultConflict : (resultConflict || resultConfirmed);
+  if (!isStale) return null;
 
   const notificationId = readString(payload, "notification_id");
   if (notificationId) {
@@ -448,8 +460,18 @@ async function resolveStaleChallengeResultSkip(
       .from("notifications")
       .update({ read: true, status: "resolved" })
       .eq("user_id", log.user_id)
-      .eq("type", "challenge_result_survey")
+      .eq("type", notificationType)
       .or(`data->>team_match_id.eq.${teamMatchId},data->>teamMatchId.eq.${teamMatchId}`);
+  }
+
+  if (isConflictPrompt) {
+    return {
+      errorCode: "stale_challenge_result_resolved",
+      errorText: `Skipped stale challenge_result_conflict because team_match ${teamMatchId} is no longer in conflict`,
+      teamMatchId,
+      resultStatus,
+      resultConflict,
+    };
   }
 
   return {
@@ -477,7 +499,9 @@ function buildPushMessage(row: DeliveryLogRow) {
     ? buildMatchReminderBody(payload as Record<string, unknown>)
     : notificationType === "challenge_result_survey" || notificationType === "challenge_result_pending"
       ? (readString(payload, "message") ?? readString(payload, "body") ?? "Respondé cómo salió el desafío.")
-      : (surveyMessage?.body ?? readString(payload, "message") ?? readString(payload, "body") ?? "Tenes una actualizacion nueva.");
+      : notificationType === "challenge_result_conflict"
+        ? (readString(payload, "message") ?? readString(payload, "body") ?? "Los capitanes cargaron resultados distintos. Resolvé el resultado.")
+        : (surveyMessage?.body ?? readString(payload, "message") ?? readString(payload, "body") ?? "Tenes una actualizacion nueva.");
 
   const data: Record<string, string> = {
     notification_type: safeString(row.notification_type, 120),

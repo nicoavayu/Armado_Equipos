@@ -200,6 +200,8 @@ const TEAM_MATCH_SELECT = `
   result_reported_by_team_id,
   result_reported_at,
   result_updated_at,
+  result_resolved_by_user_id,
+  result_resolved_at,
   is_format_combined,
   created_at,
   updated_at,
@@ -474,6 +476,8 @@ const isTeamMatchSelectCompatibilityError = (error) => (
     'result_reported_by_team_id',
     'result_reported_at',
     'result_updated_at',
+    'result_resolved_by_user_id',
+    'result_resolved_at',
   ])
 );
 
@@ -2684,6 +2688,47 @@ export const reportChallengeResult = async ({ challengeId, resultStatus }) => {
     await notificationUpdate.or(clauses.join(','));
   } catch (error) {
     console.warn('[TEAM_CHALLENGES] challenge result notification cleanup failed', {
+      challengeId,
+      teamMatchId,
+      message: error?.message || String(error),
+    });
+  }
+
+  return savedMatch;
+};
+
+export const resolveChallengeResult = async ({ challengeId, resultStatus }) => {
+  if (!challengeId) {
+    throw new Error('Desafio invalido para resolver resultado');
+  }
+  if (!['team_a_win', 'team_b_win', 'draw'].includes(resultStatus)) {
+    throw new Error('Resultado invalido');
+  }
+
+  const response = await supabase.rpc('rpc_resolve_challenge_result', {
+    p_challenge_id: challengeId,
+    p_result_status: resultStatus,
+  });
+
+  if (response.error) {
+    throw new Error(response.error.message || 'No se pudo resolver el resultado del desafio');
+  }
+
+  const savedMatch = response.data || null;
+  const teamMatchId = savedMatch?.id || null;
+
+  // Resolving makes the result final for everyone, so clear any pending
+  // report/conflict prompts across all recipients (not just the resolver).
+  try {
+    const clauses = [`data->>challenge_id.eq.${challengeId}`];
+    if (teamMatchId) clauses.push(`data->>team_match_id.eq.${teamMatchId}`);
+    await supabase
+      .from('notifications')
+      .update({ read: true, status: 'resolved' })
+      .in('type', ['challenge_result_survey', 'challenge_result_pending', 'challenge_result_conflict'])
+      .or(clauses.join(','));
+  } catch (error) {
+    console.warn('[TEAM_CHALLENGES] challenge result resolution notification cleanup failed', {
       challengeId,
       teamMatchId,
       message: error?.message || String(error),

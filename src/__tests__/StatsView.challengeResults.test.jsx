@@ -204,4 +204,31 @@ describe('StatsView challenge result recap', () => {
     await waitFor(() => expect(within(recapPanel).getByText('Ganados').nextSibling).toHaveTextContent('0'));
     expect(within(recapPanel).getByText('Pendientes').nextSibling).toHaveTextContent('1');
   });
+
+  // Test 8 / 15: a confirmed result finally counts towards statistics.
+  test('counts a confirmed challenge result as a win', async () => {
+    challengeResultStatus = 'team_a_win';
+    challengeResultConfirmed = true;
+    challengeResultConflict = false;
+
+    render(<StatsView onVolver={jest.fn()} />);
+
+    const recap = await screen.findByText('Recap de resultados');
+    const recapPanel = recap.closest('div[class*="rounded-card"]');
+    await waitFor(() => expect(within(recapPanel).getByText('Ganados').nextSibling).toHaveTextContent('1'));
+    expect(within(recapPanel).getByText('Pendientes').nextSibling).toHaveTextContent('0');
+  });
+
+  // Test 10: a result in conflict never credits a win/draw/loss. The only match
+  // is in conflict, so it is excluded from the stats recap entirely.
+  test('does not count a result in conflict', async () => {
+    challengeResultStatus = null;
+    challengeResultConfirmed = false;
+    challengeResultConflict = true;
+
+    render(<StatsView onVolver={jest.fn()} />);
+
+    await waitFor(() => expect(screen.queryByText('Cargando...')).not.toBeInTheDocument());
+    expect(screen.queryByText('Recap de resultados')).not.toBeInTheDocument();
+  });
 });

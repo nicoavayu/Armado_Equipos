@@ -230,6 +230,9 @@ export const buildTeamChallengeRoute = (notification = {}) => {
   const teamMatchId = extractTeamMatchId(notification);
   if (teamMatchId !== null && teamMatchId !== undefined && String(teamMatchId).trim() !== '') {
     const route = `/desafios/equipos/partidos/${teamMatchId}`;
+    if (type === 'challenge_result_conflict' || action === 'open_challenge_resolve_modal') {
+      return `${route}?action=open_challenge_resolve_modal`;
+    }
     if (CHALLENGE_RESULT_NOTIFICATION_TYPES.has(type) || action === 'open_challenge_result_modal') {
       return `${route}?action=open_challenge_result_modal`;
     }

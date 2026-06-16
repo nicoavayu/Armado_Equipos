@@ -5,6 +5,8 @@ const ChallengeResultCtaCard = ({
   rivalName,
   resultLabel = null,
   resultConflict = false,
+  canResolve = false,
+  onResolve,
   onLoad,
 }) => {
   const safeRivalName = String(rivalName || 'el rival').trim() || 'el rival';
@@ -21,8 +23,18 @@ const ChallengeResultCtaCard = ({
             Resultado en conflicto
           </p>
           <p className="mt-1 text-[14px] leading-snug text-white/72">
-            Los equipos cargaron resultados distintos. Revisá el resultado.
+            Los capitanes cargaron resultados distintos.
           </p>
+          {canResolve ? (
+            <Button
+              type="button"
+              className="mt-3 h-12 w-full rounded-xl text-[17px] font-oswald font-semibold !normal-case"
+              onClick={onResolve}
+              data-preserve-button-case="true"
+            >
+              Resolver resultado
+            </Button>
+          ) : null}
         </>
       ) : hasResult ? (
         <>

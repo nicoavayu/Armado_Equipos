@@ -23,6 +23,7 @@ import {
 } from '../features/equipos/utils/challengeViewer';
 import { buildChallengeHeadToHeadView } from '../features/equipos/utils/challengeHeadToHead';
 import {
+  canResolveChallengeResult,
   canTeamReportChallengeResult,
   challengeHasAcceptedRival,
   getChallengeResultOutcomeLabel,
@@ -33,11 +34,13 @@ import {
   resultStatusToOutcome,
 } from '../features/equipos/utils/challengeResult';
 import ReportChallengeResultModal from '../features/equipos/components/ReportChallengeResultModal';
+import ResolveChallengeResultModal from '../features/equipos/components/ResolveChallengeResultModal';
 import ChallengeResultCtaCard from '../features/equipos/components/ChallengeResultCtaCard';
 import normalizePartidoForHeader from '../utils/normalizePartidoForHeader';
 import {
   getChallengeHeadToHeadStats,
   reportChallengeResult,
+  resolveChallengeResult,
   getTeamMatchById,
   listChallengeTeamSquad,
   setChallengeAvailability,
@@ -378,6 +381,8 @@ const TeamMatchDetailPage = () => {
   const [headToHeadReloadKey, setHeadToHeadReloadKey] = useState(0);
   const [resultModalOpen, setResultModalOpen] = useState(false);
   const [resultModalSubmitting, setResultModalSubmitting] = useState(false);
+  const [resolveModalOpen, setResolveModalOpen] = useState(false);
+  const [resolveModalSubmitting, setResolveModalSubmitting] = useState(false);
   const [isSquadRosterViewOpen, setIsSquadRosterViewOpen] = useState(false);
   const [ambiguousTeamDecision, setAmbiguousTeamDecision] = useState(null);
   const [ambiguousTeamModalOpen, setAmbiguousTeamModalOpen] = useState(false);
@@ -1310,6 +1315,13 @@ const TeamMatchDetailPage = () => {
   const hasLoadedResultStatus = isChallengeResultLoaded(match?.result_status);
   const resultAlreadyLoaded = resultConfirmed || (hasLoadedResultStatus && !canReportChallengeResult);
 
+  // Conflicts are resolved ONLY by the challenge creator.
+  const canResolveResult = isChallengeMatch
+    && canResolveChallengeResult(match, {
+      userId: user?.id,
+      challengeCreatorUserId: challengeCreatorUserId,
+    });
+
   const resultInitialOutcome = useMemo(() => {
     if (!match?.result_status || resultConflict) return null;
     return resultStatusToOutcome(match.result_status, { perspectiveIsChallenger });
@@ -1327,8 +1339,10 @@ const TeamMatchDetailPage = () => {
   const showChallengeResultCard = Boolean(
     isChallengeMatch
     && hasChallengeAcceptedRival
-    && myChallengeTeamId
-    && (canReportChallengeResult || resultAlreadyLoaded || resultConflict),
+    && (
+      (myChallengeTeamId && (canReportChallengeResult || resultAlreadyLoaded || resultConflict))
+      || canResolveResult
+    ),
   );
 
   const resultModalChallenge = useMemo(() => {
@@ -1355,6 +1369,21 @@ const TeamMatchDetailPage = () => {
     }
   }, [refreshMatchView]);
 
+  const handleResolveChallengeResult = useCallback(async ({ challengeId, resultStatus }) => {
+    if (!challengeId || !resultStatus) return;
+    try {
+      setResolveModalSubmitting(true);
+      await resolveChallengeResult({ challengeId, resultStatus });
+      setResolveModalOpen(false);
+      await refreshMatchView({ withLoading: false, silent: false });
+      setHeadToHeadReloadKey((value) => value + 1);
+    } catch (error) {
+      notifyBlockingError(error.message || 'No se pudo resolver el resultado del desafío');
+    } finally {
+      setResolveModalSubmitting(false);
+    }
+  }, [refreshMatchView]);
+
   useEffect(() => {
     const params = new URLSearchParams(location.search || '');
     if (params.get('action') !== 'open_challenge_result_modal') return;
@@ -1364,6 +1393,17 @@ const TeamMatchDetailPage = () => {
     canReportChallengeResult,
     location.search,
     resultAlreadyLoaded,
+    resultModalChallenge,
+  ]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search || '');
+    if (params.get('action') !== 'open_challenge_resolve_modal') return;
+    if (!canResolveResult || !resultModalChallenge) return;
+    setResolveModalOpen(true);
+  }, [
+    canResolveResult,
+    location.search,
     resultModalChallenge,
   ]);
 
@@ -1926,6 +1966,11 @@ const TeamMatchDetailPage = () => {
                   rivalName={challengeResultRivalName}
                   resultLabel={resultAlreadyLoaded ? resultOutcomeLabel : null}
                   resultConflict={resultConflict}
+                  canResolve={canResolveResult}
+                  onResolve={() => {
+                    if (!canResolveResult) return;
+                    setResolveModalOpen(true);
+                  }}
                   onLoad={() => {
                     if (resultAlreadyLoaded || resultConflict || !canReportChallengeResult) return;
                     setResultModalOpen(true);
@@ -2163,6 +2208,16 @@ const TeamMatchDetailPage = () => {
         isSubmitting={resultModalSubmitting}
         onClose={() => setResultModalOpen(false)}
         onSubmit={handleSubmitChallengeResult}
+      />
+
+      <ResolveChallengeResultModal
+        isOpen={resolveModalOpen}
+        challenge={resultModalChallenge}
+        teamAName={match?.team_a?.name || null}
+        teamBName={match?.team_b?.name || null}
+        isSubmitting={resolveModalSubmitting}
+        onClose={() => setResolveModalOpen(false)}
+        onSubmit={handleResolveChallengeResult}
       />
     </PageTransition>
   );

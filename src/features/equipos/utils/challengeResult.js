@@ -23,6 +23,18 @@ export const CHALLENGE_OUTCOME_OPTIONS = [
   { value: CHALLENGE_OUTCOME.LOST, label: 'Perdimos' },
 ];
 
+// Conflict resolution uses absolute outcomes (the challenge creator is neutral),
+// so the options map straight to result_status with real team names as labels.
+export const getChallengeResolveOptions = ({ teamAName, teamBName } = {}) => {
+  const safeTeamA = String(teamAName || 'Equipo A').trim() || 'Equipo A';
+  const safeTeamB = String(teamBName || 'Equipo B').trim() || 'Equipo B';
+  return [
+    { value: RESULT_STATUS.TEAM_A_WIN, label: `Ganó ${safeTeamA}` },
+    { value: RESULT_STATUS.DRAW, label: 'Empataron' },
+    { value: RESULT_STATUS.TEAM_B_WIN, label: `Ganó ${safeTeamB}` },
+  ];
+};
+
 const normalizeId = (value) => String(value ?? '').trim();
 const normalizeToken = (value) => String(value ?? '').trim().toLowerCase();
 
@@ -75,6 +87,18 @@ export const canTeamReportChallengeResult = (teamMatch, teamId) => {
   if (isChallengeResultConflict(teamMatch)) return false;
   if (isChallengeResultConfirmed(teamMatch)) return false;
   return !hasTeamReportedChallengeResult(teamMatch, teamId);
+};
+
+// Conflicts are resolved ONLY by the challenge creator (challenges.created_by_user_id),
+// never by team captains/admins or common players. Requires an active conflict.
+export const canResolveChallengeResult = (
+  teamMatchOrChallenge,
+  { userId, challengeCreatorUserId } = {},
+) => {
+  if (!isChallengeResultConflict(teamMatchOrChallenge)) return false;
+  const userToken = normalizeId(userId);
+  const creatorToken = normalizeId(challengeCreatorUserId);
+  return Boolean(userToken && creatorToken && userToken === creatorToken);
 };
 
 // Automatic prompt timing. The survey prompt (push / in-app notification /

@@ -23,6 +23,7 @@ const ACTIONABLE_UNREAD_TYPES = new Set([
   'challenge_squad_open',
   'challenge_result_survey',
   'challenge_result_pending',
+  'challenge_result_conflict',
 ]);
 
 const TERMINAL_DELIVERY_LOG_STATUS = new Set(['sent', 'failed', 'skipped']);
