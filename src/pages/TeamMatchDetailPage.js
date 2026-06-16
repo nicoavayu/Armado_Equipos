@@ -1480,6 +1480,61 @@ const TeamMatchDetailPage = () => {
     }
   };
 
+  // El kebab de edición vive en la barra fija superior (junto al chat), no como
+  // primer hijo del contenido: en dispositivos con notch/safe-area ese primer
+  // hijo queda detras del header fijo (PageTransition crea el contenedor del
+  // `fixed`), por eso antes "no se veía" aunque los tests pasaran (safe-top=0).
+  const headerEditAction = canShowEditAction ? (
+    <>
+      <button
+        ref={actionsMenuButtonRef}
+        type="button"
+        aria-label="Mas acciones"
+        title="Mas acciones"
+        className="kebab-menu-btn"
+        onClick={() => {
+          if (actionsMenuButtonRef.current) {
+            const rect = actionsMenuButtonRef.current.getBoundingClientRect();
+            setActionsMenuPosition(getSafeMenuPosition(rect));
+          }
+          setActionsMenuOpen((prev) => !prev);
+        }}
+      >
+        <MoreVertical size={15} />
+      </button>
+      {actionsMenuOpen && ReactDOM.createPortal(
+        <>
+          <div
+            className="fixed inset-0 z-[9998] bg-transparent"
+            onClick={() => setActionsMenuOpen(false)}
+          />
+          <div
+            className="fixed z-[9999] w-48 rounded-none border border-slate-700 bg-slate-900 shadow-lg"
+            style={{
+              top: `${actionsMenuPosition.top}px`,
+              left: `${actionsMenuPosition.left}px`,
+            }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="py-1">
+              <button
+                type="button"
+                className="w-full px-3 py-2 text-left text-sm font-medium text-slate-100 transition-colors hover:bg-slate-800"
+                onClick={() => {
+                  setActionsMenuOpen(false);
+                  setEditModalOpen(true);
+                }}
+              >
+                Editar partido
+              </button>
+            </div>
+          </div>
+        </>,
+        document.body,
+      )}
+    </>
+  ) : null;
+
   return (
     <PageTransition>
       <PageTitle
@@ -1494,6 +1549,7 @@ const TeamMatchDetailPage = () => {
         showChatButton
         onChatClick={() => setIsChatOpen(true)}
         unreadCount={chatUnreadCount}
+        rightActions={headerEditAction}
       >
         Detalle partido
       </PageTitle>
@@ -1541,57 +1597,8 @@ const TeamMatchDetailPage = () => {
                       {statusLabelByValue[match?.status] || match?.status || 'Pendiente'}
                     </span>
                   </div>
-
-                  {canShowEditAction ? (
-                    <div className="relative shrink-0">
-                      <button
-                        ref={actionsMenuButtonRef}
-                        type="button"
-                        aria-label="Mas acciones"
-                        title="Mas acciones"
-                        className="kebab-menu-btn"
-                        onClick={() => {
-                          if (actionsMenuButtonRef.current) {
-                            const rect = actionsMenuButtonRef.current.getBoundingClientRect();
-                            setActionsMenuPosition(getSafeMenuPosition(rect));
-                          }
-                          setActionsMenuOpen((prev) => !prev);
-                        }}
-                      >
-                        <MoreVertical size={15} />
-                      </button>
-                      {actionsMenuOpen && ReactDOM.createPortal(
-                        <>
-                          <div
-                            className="fixed inset-0 z-[9998] bg-transparent"
-                            onClick={() => setActionsMenuOpen(false)}
-                          />
-                          <div
-                            className="fixed z-[9999] w-48 rounded-none border border-slate-700 bg-slate-900 shadow-lg"
-                            style={{
-                              top: `${actionsMenuPosition.top}px`,
-                              left: `${actionsMenuPosition.left}px`,
-                            }}
-                            onClick={(event) => event.stopPropagation()}
-                          >
-                            <div className="py-1">
-                              <button
-                                type="button"
-                                className="w-full px-3 py-2 text-left text-sm font-medium text-slate-100 transition-colors hover:bg-slate-800"
-                                onClick={() => {
-                                  setActionsMenuOpen(false);
-                                  setEditModalOpen(true);
-                                }}
-                              >
-                                Editar partido
-                              </button>
-                            </div>
-                          </div>
-                        </>,
-                        document.body,
-                      )}
-                    </div>
-                  ) : null}
+                  {/* El kebab de edición se renderiza en la barra fija superior
+                      (PageTitle rightActions), no aquí: ver headerEditAction. */}
                 </div>
 
                 {/* Match Info Header: mismo componente que el partido común/amistoso,
