@@ -1355,7 +1355,10 @@ const TeamMatchDetailPage = () => {
       hora: hora || 'A definir',
       modalidad: match?.format ? `F${match.format}` : 'A definir',
       tipo_partido: match?.mode || 'A definir',
-      sede: match?.location || match?.location_name || 'A definir',
+      // Dejar null cuando no hay sede para que MatchInfoSection aplique el mismo
+      // fallback ("A definir") que el partido común/amistoso, en lugar de recortar
+      // "A definir" a su primera palabra ("A").
+      sede: match?.location || match?.location_name || null,
       precio: match?.cancha_cost == null ? 'A definir' : match.cancha_cost,
       valor_cancha: match?.cancha_cost == null ? 'A definir' : match.cancha_cost,
     });
