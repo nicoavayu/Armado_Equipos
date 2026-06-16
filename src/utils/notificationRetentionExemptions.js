@@ -21,6 +21,8 @@ const ACTIONABLE_UNREAD_TYPES = new Set([
   'survey_reminder',
   'survey_reminder_12h',
   'challenge_squad_open',
+  'challenge_result_survey',
+  'challenge_result_pending',
 ]);
 
 const TERMINAL_DELIVERY_LOG_STATUS = new Set(['sent', 'failed', 'skipped']);

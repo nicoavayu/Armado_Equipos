@@ -64,6 +64,20 @@ describe('notificationRoutes', () => {
     expect(route).toBe('/notifications');
   });
 
+  test('routes challenge result survey notifications to the result modal action', () => {
+    const notification = {
+      type: 'challenge_result_survey',
+      data: {
+        team_match_id: 'tm-812',
+        action: 'open_challenge_result_modal',
+      },
+    };
+
+    expect(isTeamChallengeNotification(notification)).toBe(true);
+    expect(buildTeamChallengeRoute(notification)).toBe('/desafios/equipos/partidos/tm-812?action=open_challenge_result_modal');
+    expect(buildNotificationFallbackRoute(notification)).toBe('/desafios/equipos/partidos/tm-812?action=open_challenge_result_modal');
+  });
+
   test('builds fallback route to activity feed when id is missing', () => {
     const route = buildNotificationFallbackRoute({});
     expect(route).toBe('/quiero-jugar');

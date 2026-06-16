@@ -11,6 +11,7 @@ type KickEventType =
   | "match_player_joined"
   | "match_player_left"
   | "challenge_accepted"
+  | "challenge_result_survey"
   | "team_invite"
   | "call_to_vote"
   | "match_kicked";
@@ -61,6 +62,7 @@ const ALLOWED_EVENT_TYPES = new Set<KickEventType>([
   "match_player_joined",
   "match_player_left",
   "challenge_accepted",
+  "challenge_result_survey",
   "team_invite",
   "call_to_vote",
   "match_kicked",
@@ -280,6 +282,32 @@ async function isAuthorizedChallengeActor(
   return data === true;
 }
 
+async function isAuthorizedTeamMatchChallengeActor(
+  supabase: ReturnType<typeof createClient>,
+  teamMatchId: string,
+  actorUserId: string,
+): Promise<boolean> {
+  const { data: matchRow, error: matchError } = await supabase
+    .from("team_matches")
+    .select("challenge_id")
+    .eq("id", teamMatchId)
+    .maybeSingle();
+
+  if (matchError) {
+    console.error("[push-dispatch-now] challenge result team_match authorization failed", {
+      teamMatchId,
+      actorUserId,
+      message: matchError.message,
+    });
+    return false;
+  }
+
+  const challengeId = normalizeOptionalString(matchRow?.challenge_id);
+  if (!challengeId) return false;
+
+  return isAuthorizedChallengeActor(supabase, challengeId, actorUserId);
+}
+
 async function isAuthorizedTeamInviteActor(
   supabase: ReturnType<typeof createClient>,
   invitationId: string,
@@ -438,6 +466,113 @@ async function enqueueChallengeAcceptedRows(
           title: row.title ?? "Desafio aceptado",
           message: row.message ?? "Tu desafío fue aceptado.",
           partido_id: row.partido_id,
+          source: "push_dispatch_now_backfill",
+        },
+        channel: "push",
+        status: "queued",
+      };
+    });
+
+  if (rowsToInsert.length === 0) {
+    return { inserted: 0, error: null };
+  }
+
+  const { error: insertError } = await supabase
+    .from("notification_delivery_log")
+    .insert(rowsToInsert);
+
+  if (insertError) {
+    return { inserted: 0, error: { message: insertError.message } };
+  }
+
+  return { inserted: rowsToInsert.length, error: null };
+}
+
+async function enqueueChallengeResultSurveyRows(
+  supabase: ReturnType<typeof createClient>,
+  {
+    teamMatchId,
+    recipientUserId,
+    windowStartIso,
+  }: {
+    teamMatchId: string;
+    recipientUserId: string | null;
+    windowStartIso: string;
+  },
+): Promise<{ inserted: number; error: { message: string } | null }> {
+  let notificationsQuery = supabase
+    .from("notifications")
+    .select("id, user_id, partido_id, type, title, message, data, created_at")
+    .eq("type", "challenge_result_survey")
+    .gte("created_at", windowStartIso)
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  if (recipientUserId) {
+    notificationsQuery = notificationsQuery.eq("user_id", recipientUserId);
+  }
+
+  const { data: notificationRows, error: notificationsError } = await notificationsQuery;
+  if (notificationsError) {
+    return { inserted: 0, error: { message: notificationsError.message } };
+  }
+
+  const matchingNotifications = ((notificationRows ?? []) as NotificationRow[])
+    .filter((row) => !isGuestOrInvalidRecipient(row.user_id))
+    .filter((row) => readPayloadString(row.data, "team_match_id", "teamMatchId") === teamMatchId);
+
+  if (matchingNotifications.length === 0) {
+    return { inserted: 0, error: null };
+  }
+
+  const recipientIds = Array.from(new Set(
+    matchingNotifications.map((row) => normalizeOptionalString(row.user_id)).filter(Boolean),
+  ));
+
+  let existingLogs: DeliveryLogRow[] = [];
+  if (recipientIds.length > 0) {
+    const { data: existingData, error: existingError } = await supabase
+      .from("notification_delivery_log")
+      .select("id, notification_type, user_id, partido_id, created_at, payload_json, status, error_text")
+      .eq("channel", "push")
+      .eq("notification_type", "challenge_result_survey")
+      .gte("created_at", windowStartIso)
+      .in("user_id", recipientIds)
+      .limit(50);
+
+    if (existingError) {
+      return { inserted: 0, error: { message: existingError.message } };
+    }
+    existingLogs = (existingData ?? []) as DeliveryLogRow[];
+  }
+
+  const existingNotificationIds = new Set(
+    existingLogs
+      .filter((row) => row.status !== "skipped")
+      .map((row) => readPayloadString(row.payload_json, "notification_id"))
+      .filter(Boolean),
+  );
+
+  const rowsToInsert = matchingNotifications
+    .filter((row) => !existingNotificationIds.has(row.id))
+    .map((row) => {
+      const payload = row.data && typeof row.data === "object" ? row.data : {};
+      const route = readPayloadString(payload, "link", "route", "target_path")
+        || `/desafios/equipos/partidos/${teamMatchId}?action=open_challenge_result_modal`;
+      return {
+        partido_id: row.partido_id,
+        user_id: row.user_id,
+        notification_type: "challenge_result_survey",
+        payload_json: {
+          ...payload,
+          event_channel: "ACTION",
+          notification_id: row.id,
+          source_notification_type: row.type,
+          notification_type: "challenge_result_survey",
+          title: row.title ?? "Resultado pendiente",
+          message: row.message ?? "Respondé cómo salió el desafío.",
+          route,
+          link: route,
           source: "push_dispatch_now_backfill",
         },
         channel: "push",
@@ -1442,6 +1577,12 @@ function isEligibleRow(
     return Boolean(payloadInvitationId && payloadInvitationId === invitationId);
   }
 
+  if (eventType === "challenge_result_survey") {
+    if (!requestId) return false;
+    const payloadTeamMatchId = readPayloadString(payload, "team_match_id", "teamMatchId");
+    return Boolean(payloadTeamMatchId && payloadTeamMatchId === requestId);
+  }
+
   if (eventType === "call_to_vote") {
     if (matchId === null) return false;
     if (row.partido_id !== null) return row.partido_id === matchId;
@@ -1581,6 +1722,17 @@ serve(async (req) => {
     }
   }
 
+  if (eventType === "challenge_result_survey") {
+    if (!requestId) {
+      return jsonResponse({ ok: false, reason: "invalid_team_match_id" }, 400, cors);
+    }
+
+    const isAllowedActor = await isAuthorizedTeamMatchChallengeActor(supabase, requestId, actorUserId);
+    if (!isAllowedActor) {
+      return jsonResponse({ ok: false, reason: "forbidden" }, 403, cors);
+    }
+  }
+
   if (
     eventType === "call_to_vote"
     || eventType === "match_cancelled"
@@ -1631,6 +1783,7 @@ serve(async (req) => {
   let candidates = candidateRows;
   const shouldBackfill =
     (eventType === "challenge_accepted" && candidates.length === 0 && challengeId)
+    || (eventType === "challenge_result_survey" && candidates.length === 0 && requestId)
     || (eventType === "team_invite" && candidates.length === 0 && invitationId)
     || eventType === "match_join_request"
     || (eventType === "match_player_joined" && matchId !== null)
@@ -1647,6 +1800,12 @@ serve(async (req) => {
         recipientUserId,
         windowStartIso,
       })
+      : eventType === "challenge_result_survey"
+        ? await enqueueChallengeResultSurveyRows(supabase, {
+          teamMatchId: requestId as string,
+          recipientUserId,
+          windowStartIso,
+        })
       : eventType === "match_join_request"
         ? await enqueueMatchJoinRequestRows(supabase, {
           matchId,

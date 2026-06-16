@@ -443,6 +443,8 @@ const NotificationsModal = ({ isOpen, onClose }) => {
       case 'challenge_accepted': return CalendarClock;
       case 'team_match_created': return CalendarClock;
       case 'challenge_squad_open': return CalendarClock;
+      case 'challenge_result_survey': return CalendarClock;
+      case 'challenge_result_pending': return CalendarClock;
       case 'match_cancelled': return XCircle;
       case 'match_join_request': return UserPlus;
       case 'match_join_approved': return CheckCircle;
@@ -685,6 +687,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
                 const isSurveyStartLike = notification.type === 'survey' || notification.type === 'survey_start' || notification.type === 'post_match_survey';
                 const isSurveyReminder = notification.type === 'survey_reminder' || notification.type === 'survey_reminder_12h';
                 const isSurveyResults = notification.type === 'survey_results_ready' || notification.type === 'survey_finished';
+                const isChallengeResultPending = notification.type === 'challenge_result_survey' || notification.type === 'challenge_result_pending';
                 const isMatchReminder = notification.type === 'match_reminder_1h';
                 const isTeamInvite = notification.type === 'team_invite';
                 const isMatchCancelled = notification.type === 'match_cancelled';
@@ -693,7 +696,9 @@ const NotificationsModal = ({ isOpen, onClose }) => {
                 const quotedMatchName = quoteMatchName(matchName, 'este partido');
                 const hasConcreteMatchName = matchName && matchName !== 'este partido';
                 const matchFallbackLabel = hasConcreteMatchName ? quotedMatchName : 'el partido';
-                const displayTitle = isSurveyStartLike
+                const displayTitle = isChallengeResultPending
+                  ? 'Resultado pendiente'
+                  : isSurveyStartLike
                   ? '¡Encuesta lista!'
                   : isSurveyReminder
                     ? 'Recordatorio de encuesta'
@@ -708,7 +713,9 @@ const NotificationsModal = ({ isOpen, onClose }) => {
                       : isTeamInvite
                         ? (notification.title || 'Invitacion de equipo')
                       : applyMatchNameQuotes(notification.title || 'Notificación', matchName);
-                const displayMessage = isSurveyStartLike
+                const displayMessage = isChallengeResultPending
+                  ? (notification.message || `¿Cómo salió el desafío vs ${notification?.data?.rival_name || 'el rival'}?`)
+                  : isSurveyStartLike
                   ? getSurveyStartMessage({ source: notification, matchName: quotedMatchName })
                   : isSurveyReminder
                   ? getSurveyReminderMessage({ source: notification, matchName: quotedMatchName })

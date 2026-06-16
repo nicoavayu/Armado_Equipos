@@ -2644,7 +2644,28 @@ export const reportChallengeResult = async ({ challengeId, resultStatus }) => {
     throw new Error(response.error.message || 'No se pudo guardar la respuesta del desafio');
   }
 
-  return response.data || null;
+  const savedMatch = response.data || null;
+  const teamMatchId = savedMatch?.id || null;
+  try {
+    const clauses = [`data->>challenge_id.eq.${challengeId}`];
+    if (teamMatchId) clauses.push(`data->>team_match_id.eq.${teamMatchId}`);
+    await supabase
+      .from('notifications')
+      .update({
+        read: true,
+        status: 'resolved',
+      })
+      .eq('type', 'challenge_result_survey')
+      .or(clauses.join(','));
+  } catch (error) {
+    console.warn('[TEAM_CHALLENGES] challenge result notification cleanup failed', {
+      challengeId,
+      teamMatchId,
+      message: error?.message || String(error),
+    });
+  }
+
+  return savedMatch;
 };
 
 export const getChallengeById = async (challengeId) => {

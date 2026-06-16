@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ChevronLeft, Flag, MoreVertical, Shield, Users } from 'lucide-react';
 import { useAuth } from '../components/AuthProvider';
 import PageTitle from '../components/PageTitle';
@@ -346,6 +346,7 @@ const MatchupHeroCard = ({
 
 const TeamMatchDetailPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const goBackSmart = useSmartBackNavigation({
     fallback: '/desafios',
   });
@@ -1306,6 +1307,18 @@ const TeamMatchDetailPage = () => {
       setResultModalSubmitting(false);
     }
   }, [refreshMatchView]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search || '');
+    if (params.get('action') !== 'open_challenge_result_modal') return;
+    if (!canReportChallengeResult || resultAlreadyLoaded || !resultModalChallenge) return;
+    setResultModalOpen(true);
+  }, [
+    canReportChallengeResult,
+    location.search,
+    resultAlreadyLoaded,
+    resultModalChallenge,
+  ]);
 
   const getSafeMenuPosition = useCallback((rect) => {
     const menuWidth = 192; // w-48
