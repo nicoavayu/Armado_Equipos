@@ -649,10 +649,17 @@ const TeamMatchDetailPage = () => {
     ),
     [challengeCreatorUserId, isChallengeMatch, user?.id],
   );
+  // El creador/admin del desafío puede editar el partido mientras el desafío
+  // siga "abierto": sin resultado cargado, sin cancelar y sin cerrarse (played).
+  // El horario ya pasado NO bloquea la edición; justamente queremos permitir
+  // reprogramar fecha/hora/sede aunque el rival ya haya aceptado y la hora
+  // original haya pasado. El backend (rpc_update_team_match_details) solo
+  // rechaza estados 'played'/'cancelled', así que la regla acá la replica.
+  const hasChallengeResultLoaded = isChallengeResultLoaded(match?.result_status);
   const canShowEditAction = canEditMatchInfo
-    && !isPastScheduledTeamMatch
-    && match?.status !== 'cancelled'
-    && match?.status !== 'played';
+    && !isCancelledMatch
+    && match?.status !== 'played'
+    && !hasChallengeResultLoaded;
 
   const teamMemberByPlayerByTeamId = useMemo(() => {
     const byTeamId = {};
@@ -1392,8 +1399,8 @@ const TeamMatchDetailPage = () => {
       notifyBlockingError('No autorizado');
       return;
     }
-    if (isPastScheduledTeamMatch) {
-      notifyBlockingError('No se puede editar un partido pasado');
+    if (match?.status === 'played' || isCancelledMatch || hasChallengeResultLoaded) {
+      notifyBlockingError('No se puede editar un partido con resultado cargado');
       return;
     }
 
