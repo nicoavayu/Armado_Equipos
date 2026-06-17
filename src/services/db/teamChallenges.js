@@ -1,6 +1,7 @@
 import { supabase } from '../../lib/supabaseClient';
 import { requestImmediatePushDispatchSafe } from '../pushDispatchService';
 import {
+  normalizeTeamCountryCode,
   normalizeTeamMode,
   normalizeTeamSkillLevel,
   resolveChallengeSquadLimits,
@@ -22,7 +23,7 @@ const TEAM_SELECT_LEGACY = [
   'created_at',
   'updated_at',
 ].join(',');
-const TEAM_SELECT = `${TEAM_SELECT_LEGACY},max_roster_size`;
+const TEAM_SELECT = `${TEAM_SELECT_LEGACY},max_roster_size,country_code`;
 const TEAM_SELECT_WITH_MODE = `${TEAM_SELECT},mode`;
 const TEAM_SELECT_LEGACY_WITH_MODE = `${TEAM_SELECT_LEGACY},mode`;
 
@@ -30,6 +31,7 @@ const CHALLENGE_SELECT_BASE = `
   id,
   created_by_user_id,
   challenger_team_id,
+  challenged_team_id,
   status,
   accepted_team_id,
   accepted_by_user_id,
@@ -49,16 +51,19 @@ const CHALLENGE_SELECT_BASE = `
   squad_opened_at,
   squad_closed_at,
   notes,
+  expires_at,
   created_at,
   updated_at,
   challenger_team:teams!challenges_challenger_team_id_fkey(${TEAM_SELECT_LEGACY}),
-  accepted_team:teams!challenges_accepted_team_id_fkey(${TEAM_SELECT_LEGACY})
+  accepted_team:teams!challenges_accepted_team_id_fkey(${TEAM_SELECT_LEGACY}),
+  challenged_team:teams!challenges_challenged_team_id_fkey(${TEAM_SELECT_LEGACY})
 `;
 
 const CHALLENGE_SELECT_WITH_PRICING = `
   id,
   created_by_user_id,
   challenger_team_id,
+  challenged_team_id,
   status,
   accepted_team_id,
   accepted_by_user_id,
@@ -80,10 +85,12 @@ const CHALLENGE_SELECT_WITH_PRICING = `
   price_per_team,
   field_price,
   notes,
+  expires_at,
   created_at,
   updated_at,
   challenger_team:teams!challenges_challenger_team_id_fkey(${TEAM_SELECT_LEGACY}),
-  accepted_team:teams!challenges_accepted_team_id_fkey(${TEAM_SELECT_LEGACY})
+  accepted_team:teams!challenges_accepted_team_id_fkey(${TEAM_SELECT_LEGACY}),
+  challenged_team:teams!challenges_challenged_team_id_fkey(${TEAM_SELECT_LEGACY})
 `;
 
 const CHALLENGE_SELECT_LEGACY = `
@@ -298,6 +305,10 @@ const CHALLENGE_STATUS_ALIASES = {
   canceled: 'canceled',
   cancelled: 'canceled',
   cancelado: 'canceled',
+  rejected: 'rejected',
+  rechazado: 'rejected',
+  expired: 'expired',
+  vencido: 'expired',
  };
 
 const TEAM_MATCH_STATUS_ALIASES = {
@@ -410,6 +421,8 @@ const isChallengeSelectCompatibilityError = (error) => (
     'squad_opened_at',
     'squad_closed_at',
     'max_roster_size',
+    'challenged_team_id',
+    'expires_at',
   ])
 );
 
@@ -482,7 +495,7 @@ const isTeamMatchSelectCompatibilityError = (error) => (
 );
 
 const isTeamSelectCompatibilityError = (error) => (
-  hasAnyMissingColumns(error, ['mode', 'max_roster_size'])
+  hasAnyMissingColumns(error, ['mode', 'max_roster_size', 'country_code'])
 );
 
 const runChallengeSelectWithFallback = async (queryFactory, preferred = CHALLENGE_SELECT_WITH_PRICING) => {
@@ -664,6 +677,9 @@ const resolveChallengeMatchStatus = (row, fallbackStatus) => {
 const withChallengeCompatibility = (row) => ({
   ...row,
   status: normalizeChallengeStatus(row?.status),
+  challenged_team_id: row?.challenged_team_id ?? null,
+  challenged_team: row?.challenged_team ?? null,
+  expires_at: row?.expires_at ?? null,
   mode: row?.mode ?? null,
   location: row?.location ?? row?.location_name ?? null,
   cancha_cost: row?.cancha_cost ?? row?.field_price ?? null,
@@ -709,6 +725,7 @@ const withTeamCompatibility = (row) => ({
   ...row,
   mode: normalizeTeamMode(row?.mode),
   max_roster_size: resolveTeamRosterLimit(row?.format, row?.max_roster_size),
+  country_code: normalizeTeamCountryCode(row?.country_code),
 });
 
 const teamMatchesRequestedUpdate = (team, requestedUpdatePayload) => {
@@ -1005,6 +1022,7 @@ export const createTeam = async (userId, payload) => {
   const skillCandidates = getSkillCandidates(payload.skill_level);
   let response = null;
   const teamMode = normalizeTeamMode(payload?.mode);
+  const teamCountryCode = normalizeTeamCountryCode(payload?.country_code);
 
   for (const skillCandidate of skillCandidates) {
     const baseInsertPayload = {
@@ -1020,20 +1038,24 @@ export const createTeam = async (userId, payload) => {
       is_active: payload.is_active ?? true,
     };
 
-    const runInsert = (includeMode) => runTeamSelectWithModeFallback(
+    const runInsert = (includeMode, includeCountry) => runTeamSelectWithModeFallback(
       (selectClause) => supabase
         .from('teams')
         .insert({
           ...baseInsertPayload,
           ...(includeMode ? { mode: teamMode } : {}),
+          ...(includeCountry ? { country_code: teamCountryCode } : {}),
         })
         .select(selectClause)
         .single(),
     );
 
-    response = await runInsert(true);
+    response = await runInsert(true, true);
+    if (response.error && isMissingColumnError(response.error, 'country_code')) {
+      response = await runInsert(true, false);
+    }
     if (response.error && isMissingColumnError(response.error, 'mode')) {
-      response = await runInsert(false);
+      response = await runInsert(false, false);
     }
 
     if (!response.error) break;
@@ -1048,6 +1070,7 @@ export const updateTeam = async (teamId, payload) => {
   if ('name' in payload) updatePayloadBase.name = payload.name;
   if ('format' in payload) updatePayloadBase.format = payload.format;
   if ('mode' in payload) updatePayloadBase.mode = normalizeTeamMode(payload.mode);
+  if ('country_code' in payload) updatePayloadBase.country_code = normalizeTeamCountryCode(payload.country_code);
   if ('base_zone' in payload) updatePayloadBase.base_zone = payload.base_zone || null;
   if ('crest_url' in payload) updatePayloadBase.crest_url = payload.crest_url || null;
   if ('color_primary' in payload) updatePayloadBase.color_primary = payload.color_primary || null;
@@ -1079,9 +1102,16 @@ export const updateTeam = async (teamId, payload) => {
     );
 
     response = await runUpdate(updatePayload);
+    if (response.error && isMissingColumnError(response.error, 'country_code') && 'country_code' in updatePayload) {
+      const countryLessPayload = { ...updatePayload };
+      delete countryLessPayload.country_code;
+      requestedUpdatePayload = { ...countryLessPayload };
+      response = await runUpdate(countryLessPayload);
+    }
     if (response.error && isMissingColumnError(response.error, 'mode') && 'mode' in updatePayload) {
       const modeLessPayload = { ...updatePayload };
       delete modeLessPayload.mode;
+      delete modeLessPayload.country_code;
       requestedUpdatePayload = { ...modeLessPayload };
       response = await runUpdate(modeLessPayload);
     }
@@ -2260,6 +2290,9 @@ export const listOpenChallenges = async ({ format, zone, skillLevel } = {}) => {
   }
 
   let rows = (response.data || []).map(withChallengeCompatibility);
+  // Los desafíos dirigidos (challenged_team_id) NO van al feed público: se ven
+  // solo en "Te desafiaron" (rival) / "Desafíos enviados" (challenger).
+  rows = rows.filter((row) => !row?.challenged_team_id);
   const nowMs = Date.now();
   rows = rows.filter((row) => {
     if (!row?.scheduled_at) return true;
@@ -2493,6 +2526,153 @@ export const cancelChallenge = async (challengeId) => {
   return withChallengeCompatibility(unwrapSingle(response, 'No se pudo cancelar el desafio'));
 };
 
+// Desafío DIRIGIDO (Equipo A -> Equipo B). Las reglas (≤2 abiertos, ≤1 por día,
+// sin duplicar al mismo rival, sin desafiarse a sí mismo, mismo formato) se
+// validan en el RPC (backend). El RPC devuelve mensajes claros que se propagan.
+export const createDirectedChallenge = async ({
+  challengerTeamId,
+  challengedTeamId,
+  scheduledAt = null,
+  locationName = null,
+  notes = null,
+} = {}) => {
+  if (!challengerTeamId || !challengedTeamId) {
+    throw new Error('Faltan datos para enviar el desafío');
+  }
+
+  const response = await supabase.rpc('rpc_create_directed_challenge', {
+    p_challenger_team_id: challengerTeamId,
+    p_challenged_team_id: challengedTeamId,
+    p_scheduled_at: scheduledAt || null,
+    p_location_name: locationName || null,
+    p_notes: notes || null,
+  });
+
+  if (response.error) {
+    if (isMissingFunctionError(response.error, 'rpc_create_directed_challenge')) {
+      throw new Error('No se pudo enviar el desafío: falta aplicar la migración de desafíos dirigidos en Supabase.');
+    }
+    throw new Error(response.error.message || 'No se pudo enviar el desafío');
+  }
+
+  const row = Array.isArray(response.data) ? response.data[0] : response.data;
+  return withChallengeCompatibility(row || {});
+};
+
+// Rechazo de un desafío dirigido. Solo el equipo desafiado puede rechazar
+// (validado en el RPC + trigger). Notifica al creador (team_challenge_rejected).
+export const rejectDirectedChallenge = async (challengeId) => {
+  if (!challengeId) {
+    throw new Error('No se pudo identificar el desafío a rechazar');
+  }
+
+  const response = await supabase.rpc('rpc_reject_directed_challenge', {
+    p_challenge_id: challengeId,
+  });
+
+  if (response.error) {
+    if (isMissingFunctionError(response.error, 'rpc_reject_directed_challenge')) {
+      throw new Error('No se pudo rechazar: falta aplicar la migración de desafíos dirigidos en Supabase.');
+    }
+    throw new Error(response.error.message || 'No se pudo rechazar el desafío');
+  }
+
+  const row = Array.isArray(response.data) ? response.data[0] : response.data;
+  return withChallengeCompatibility(row || {});
+};
+
+// Desafíos dirigidos OPEN en los que participo, separados en:
+//   incoming  -> me desafiaron (mi equipo es el challenged_team)
+//   outgoing  -> yo desafié (mi equipo es el challenger / lo creé yo)
+export const listMyDirectedChallenges = async (userId) => {
+  assertAuthenticatedUser(userId);
+
+  // Barrido oportunista de vencidos (best-effort; nunca bloquea la carga).
+  try {
+    await supabase.rpc('expire_stale_directed_challenges');
+  } catch (_) {
+    // ignore: el cron también barre, y si falta el RPC seguimos igual.
+  }
+
+  const myTeams = await listMyManageableTeams(userId).catch(() => []);
+  const myTeamIds = (myTeams || []).map((team) => team?.id).filter(Boolean);
+  const myTeamIdSet = new Set(myTeamIds.map((id) => String(id)));
+
+  const queryBuilders = [
+    (query) => query.eq('created_by_user_id', userId).not('challenged_team_id', 'is', null),
+  ];
+  if (myTeamIds.length > 0) {
+    queryBuilders.push((query) => query.in('challenger_team_id', myTeamIds).not('challenged_team_id', 'is', null));
+    queryBuilders.push((query) => query.in('challenged_team_id', myTeamIds));
+  }
+
+  const responses = await Promise.all(queryBuilders.map(async (buildQuery) => {
+    const queryFactory = (selectClause) => buildQuery(
+      supabase.from('challenges').select(selectClause).eq('status', 'open'),
+    );
+    return runChallengeSelectWithFallback(queryFactory);
+  }));
+
+  const merged = responses
+    .filter((response) => !response.error)
+    .flatMap((response) => (response.data || []).map(withChallengeCompatibility));
+
+  const dedup = new Map();
+  merged.forEach((row) => {
+    if (!row?.id || !row?.challenged_team_id) return;
+    if (row.status !== 'open') return;
+    dedup.set(row.id, row);
+  });
+
+  const all = Array.from(dedup.values()).sort((a, b) => (
+    new Date(b?.created_at || 0).getTime() - new Date(a?.created_at || 0).getTime()
+  ));
+
+  const incoming = all.filter((row) => myTeamIdSet.has(String(row.challenged_team_id)));
+  const outgoing = all.filter((row) => (
+    !myTeamIdSet.has(String(row.challenged_team_id))
+    && (myTeamIdSet.has(String(row.challenger_team_id)) || row.created_by_user_id === userId)
+  ));
+
+  return { incoming, outgoing, all };
+};
+
+// IDs de equipos a los que ya tengo un desafío dirigido OPEN (para el directorio:
+// mostrar "Desafío pendiente" en vez del botón "Desafiar").
+export const listMyPendingChallengedTeamIds = async (userId) => {
+  assertAuthenticatedUser(userId);
+
+  const myTeams = await listMyManageableTeams(userId).catch(() => []);
+  const myTeamIds = (myTeams || []).map((team) => team?.id).filter(Boolean);
+
+  const queryBuilders = [
+    (query) => query.eq('created_by_user_id', userId),
+  ];
+  if (myTeamIds.length > 0) {
+    queryBuilders.push((query) => query.in('challenger_team_id', myTeamIds));
+  }
+
+  const responses = await Promise.all(queryBuilders.map(async (buildQuery) => (
+    buildQuery(
+      supabase
+        .from('challenges')
+        .select('challenged_team_id, status')
+        .eq('status', 'open')
+        .not('challenged_team_id', 'is', null),
+    )
+  )));
+
+  const ids = new Set();
+  responses.forEach((response) => {
+    if (response.error) return;
+    (response.data || []).forEach((row) => {
+      if (row?.challenged_team_id) ids.add(String(row.challenged_team_id));
+    });
+  });
+
+  return Array.from(ids);
+};
+
 export const acceptChallenge = async (challengeId, acceptedTeamId, _options = {}) => {
   const response = await supabase.rpc('rpc_accept_challenge', {
     p_challenge_id: challengeId,
@@ -2545,6 +2725,40 @@ export const acceptChallenge = async (challengeId, acceptedTeamId, _options = {}
       challengeId,
       message: error?.message || String(error),
     });
+  }
+
+  // Desafío dirigido: avisar al creador con un push dedicado (type =
+  // team_challenge_accepted). El RPC no se toca, así que insertamos la
+  // notificación acá; el trigger de notifications se encarga del push.
+  if (challenge?.challenged_team_id && challenge?.created_by_user_id) {
+    try {
+      const rivalName = String(
+        challenge?.accepted_team?.name
+        || challenge?.challenged_team?.name
+        || 'El equipo rival',
+      ).trim();
+      await supabase.from('notifications').insert({
+        user_id: challenge.created_by_user_id,
+        type: 'team_challenge_accepted',
+        title: 'Desafío aceptado',
+        message: `${rivalName} aceptó el desafío`,
+        data: {
+          challenge_id: challenge.id,
+          challenger_team_id: challenge.challenger_team_id,
+          challenged_team_id: challenge.challenged_team_id,
+          team_match_id: matchId,
+          source: 'team_challenge',
+          link: matchId ? `/desafios/equipos/partidos/${matchId}` : '/desafios',
+        },
+        read: false,
+        created_at: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.warn('[TEAM_CHALLENGES] team_challenge_accepted notification failed', {
+        challengeId,
+        message: error?.message || String(error),
+      });
+    }
   }
 
   if (challenge?.id && challenge?.created_by_user_id) {

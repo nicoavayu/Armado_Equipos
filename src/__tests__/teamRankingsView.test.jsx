@@ -7,6 +7,11 @@ jest.mock('../services/db/teamRankings', () => ({
   searchChallengeableTeams: jest.fn(),
 }));
 
+jest.mock('../services/db/teamChallenges', () => ({
+  createDirectedChallenge: jest.fn().mockResolvedValue({}),
+  listMyPendingChallengedTeamIds: jest.fn().mockResolvedValue([]),
+}));
+
 jest.mock('../utils/notifyBlockingError', () => ({
   notifyBlockingError: jest.fn(),
 }));
@@ -263,6 +268,65 @@ describe('TeamRankingsView — Equipos (directorio)', () => {
     expect(screen.getAllByText('🇦🇷').length).toBeGreaterThan(0);
 
     // the premature publish CTA is gone from the directory as well
+    expect(screen.queryByText('Publicar desafío')).not.toBeInTheDocument();
+  });
+});
+
+describe('TeamRankingsView — filtro por país', () => {
+  const multiCountryRanking = [
+    {
+      team_id: 'ar1', team_name: 'River', format: 5, zone: 'CABA', country_code: 'AR', played_count: 5, wins: 3, draws: 1, losses: 1, win_rate: 60,
+    },
+    {
+      team_id: 'uy1', team_name: 'Peñarol', format: 5, zone: 'Montevideo', country_code: 'UY', played_count: 4, wins: 2, draws: 1, losses: 1, win_rate: 50,
+    },
+  ];
+
+  test('país filter lives in the Filtros panel and filters the ranking table', async () => {
+    getTeamChallengeRankings.mockResolvedValue(multiCountryRanking);
+    renderView();
+    await waitFor(() => expect(screen.getByText('River')).toBeInTheDocument());
+    expect(screen.getByText('Peñarol')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Filtros/ }));
+    const uyOption = screen.getByRole('option', { name: /Uruguay/ });
+    const countrySelect = uyOption.closest('select');
+    fireEvent.change(countrySelect, { target: { value: 'UY' } });
+
+    expect(screen.queryByText('River')).not.toBeInTheDocument();
+    expect(screen.getByText('Peñarol')).toBeInTheDocument();
+  });
+
+  test('país filter affects the Equipos directory cards', async () => {
+    searchChallengeableTeams.mockResolvedValue(multiCountryRanking);
+    renderView();
+    await waitFor(() => expect(screen.getByText('Mi Equipo')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'EQUIPOS' }));
+    await waitFor(() => expect(screen.getByText('Peñarol')).toBeInTheDocument());
+    expect(screen.getByText('River')).toBeInTheDocument();
+
+    const arOption = screen.getByRole('option', { name: /Argentina/ });
+    const countrySelect = arOption.closest('select');
+    fireEvent.change(countrySelect, { target: { value: 'AR' } });
+
+    expect(screen.getByText('River')).toBeInTheDocument();
+    expect(screen.queryByText('Peñarol')).not.toBeInTheDocument();
+  });
+});
+
+describe('TeamRankingsView — Desafiar', () => {
+  test('clicking "Desafiar" on a rival card opens the modal with the rival name', async () => {
+    renderView({ myTeams: [{ id: 't1', name: 'Fulbo FC', format: 5, is_active: true }] });
+    await waitFor(() => expect(screen.getByText('Mi Equipo')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'EQUIPOS' }));
+    await waitFor(() => expect(screen.getByText('Nuevo FC')).toBeInTheDocument());
+
+    const card = screen.getByText('Nuevo FC').closest('.rounded-card');
+    fireEvent.click(within(card).getByRole('button', { name: /Desafiar/ }));
+
+    expect(screen.getByText('Desafiar a Nuevo FC')).toBeInTheDocument();
     expect(screen.queryByText('Publicar desafío')).not.toBeInTheDocument();
   });
 });

@@ -167,6 +167,7 @@ const QuieroJugarEquipos = ({
           <TeamRankingsView
             userId={user?.id}
             ownTeamIds={ownTeamIds}
+            myTeams={manageableTeams}
           />
         ) : null}
 
