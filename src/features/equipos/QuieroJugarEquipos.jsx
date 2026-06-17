@@ -1,15 +1,21 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import PageTitle from '../../components/PageTitle';
+import ConfirmModal from '../../components/ConfirmModal';
 import { useAuth } from '../../components/AuthProvider';
 import { useNotifications } from '../../context/NotificationContext';
 import DesafiosTab from './views/DesafiosTab';
 import MisEquiposTab from './views/MisEquiposTab';
+import TeamRankingsView from './views/TeamRankingsView';
 import { QUIERO_JUGAR_EQUIPOS_SUBTAB_STORAGE_KEY } from './config';
+import { listMyManageableTeams } from '../../services/db/teamChallenges';
+import { formatFormatLabel } from './utils/teamRanking';
+import { notifyBlockingError } from '../../utils/notifyBlockingError';
 import { useSmartBackNavigation } from '../../hooks/useSmartBackNavigation';
 
 const SUBTABS = [
   { key: 'desafios', label: 'DESAFIOS' },
+  { key: 'ranking', label: 'RANKING' },
   { key: 'mis-equipos', label: 'MIS EQUIPOS' },
 ];
 
@@ -41,10 +47,76 @@ const QuieroJugarEquipos = ({
   const [showSecondaryTabs, setShowSecondaryTabs] = useState(false);
 
   const [prefilledTeamId, setPrefilledTeamId] = useState(null);
+  const [manageableTeams, setManageableTeams] = useState([]);
+  const [publishIntent, setPublishIntent] = useState(null);
 
   useEffect(() => {
     sessionStorage.setItem(QUIERO_JUGAR_EQUIPOS_SUBTAB_STORAGE_KEY, activeSubtab);
   }, [activeSubtab]);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setManageableTeams([]);
+      return;
+    }
+    let cancelled = false;
+    listMyManageableTeams(user.id)
+      .then((teams) => {
+        if (!cancelled) setManageableTeams(teams || []);
+      })
+      .catch((error) => {
+        // Non-blocking: the ranking/directory still render; only the own-team
+        // guard and CTA prefill depend on this list.
+        console.warn('[RANKING] No se pudieron cargar tus equipos manejables', error);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
+  const ownTeamIds = useMemo(
+    () => new Set((manageableTeams || []).map((team) => String(team?.id)).filter(Boolean)),
+    [manageableTeams],
+  );
+
+  // Honest "Publicar desafío" entry from a ranking/directory card: we do NOT
+  // support direct team-vs-team invites yet, so this publishes an OPEN challenge
+  // with the matching format and asks for confirmation first to avoid implying a
+  // direct challenge to that specific rival.
+  const requestPublishChallenge = useCallback((targetTeam) => {
+    if (!user?.id) return;
+
+    if (ownTeamIds.has(String(targetTeam?.team_id || ''))) {
+      notifyBlockingError('No podés desafiar a tu propio equipo.');
+      return;
+    }
+
+    if ((manageableTeams || []).length === 0) {
+      notifyBlockingError('Necesitás ser owner/capitán de un equipo para publicar un desafío.');
+      return;
+    }
+
+    setPublishIntent(targetTeam);
+  }, [manageableTeams, ownTeamIds, user?.id]);
+
+  const confirmPublishChallenge = useCallback(() => {
+    const target = publishIntent;
+    setPublishIntent(null);
+    if (!target) return;
+
+    const targetFormat = Number(target?.format);
+    const sameFormatTeam = (manageableTeams || []).find(
+      (team) => Number(team?.format) === targetFormat,
+    );
+    const chosenTeam = sameFormatTeam || manageableTeams[0];
+    if (!chosenTeam?.id) {
+      notifyBlockingError('Necesitás ser owner/capitán de un equipo para publicar un desafío.');
+      return;
+    }
+
+    setPrefilledTeamId(chosenTeam.id);
+    setActiveSubtab('desafios');
+  }, [manageableTeams, publishIntent]);
 
   useEffect(() => {
     const queryTab = normalizeEquiposSubtab(new URLSearchParams(location.search).get('tab'));
@@ -132,10 +204,36 @@ const QuieroJugarEquipos = ({
           />
         ) : null}
 
+        {activeSubtab === 'ranking' ? (
+          <TeamRankingsView
+            userId={user?.id}
+            ownTeamIds={ownTeamIds}
+            onPublishChallenge={requestPublishChallenge}
+          />
+        ) : null}
+
         {activeSubtab === 'mis-equipos' ? (
           <MisEquiposTab userId={user?.id} />
         ) : null}
       </div>
+
+      <ConfirmModal
+        isOpen={Boolean(publishIntent)}
+        title={`Publicar desafío ${formatFormatLabel(publishIntent?.format)}`}
+        message={(
+          <>
+            Vas a publicar un desafío abierto {formatFormatLabel(publishIntent?.format)}.
+            {' '}
+            Equipos como <strong>{publishIntent?.team_name || 'este'}</strong> van a poder aceptarlo.
+            <br />
+            El desafío directo a un equipo puntual llega pronto.
+          </>
+        )}
+        onConfirm={confirmPublishChallenge}
+        onCancel={() => setPublishIntent(null)}
+        confirmText="Publicar desafío"
+        cancelText="Cancelar"
+      />
     </>
   );
 };
