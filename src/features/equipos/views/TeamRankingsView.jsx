@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Trophy, Users } from 'lucide-react';
+import { SlidersHorizontal, Trophy, Users } from 'lucide-react';
 import EmptyStateCard from '../../../components/EmptyStateCard';
 import NeighborhoodAutocomplete from '../components/NeighborhoodAutocomplete';
 import TeamRankingCard from '../components/TeamRankingCard';
@@ -66,6 +66,11 @@ const TeamRankingsView = ({
   const [rankingZone, setRankingZone] = useState('');
   const [rankingRows, setRankingRows] = useState([]);
   const [rankingLoading, setRankingLoading] = useState(true);
+  // Secondary ranking filters (zona + período) live behind a collapsible panel
+  // to keep the toolbar light. The state itself is unchanged — only its
+  // visibility is toggled here.
+  const [rankingFiltersOpen, setRankingFiltersOpen] = useState(false);
+  const rankingActiveFilters = (rankingZone ? 1 : 0) + (rankingPeriod !== 'all' ? 1 : 0);
 
   // Equipos (directory) tab state
   const [dirQuery, setDirQuery] = useState('');
@@ -137,11 +142,6 @@ const TeamRankingsView = ({
 
   return (
     <div className="w-full max-w-[560px] flex flex-col gap-3">
-      <div className="rounded-card border border-[rgba(148,134,255,0.18)] bg-[linear-gradient(165deg,rgba(48,38,98,0.45),rgba(20,16,41,0.85))] px-4 py-3 shadow-elev-1">
-        <h2 className="font-bebas text-[20px] tracking-[0.03em] text-white leading-none">Ranking de equipos</h2>
-        <p className="mt-1 text-[12px] text-white/55 font-oswald">Los equipos más activos y ganadores</p>
-      </div>
-
       <SegmentedTabs
         tabs={[{ key: 'ranking', label: 'RANKING' }, { key: 'equipos', label: 'EQUIPOS' }]}
         value={activeTab}
@@ -167,27 +167,57 @@ const TeamRankingsView = ({
             </button>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            <FormatSelect value={rankingFormat} onChange={setRankingFormat} />
-            <ZoneFilter value={rankingZone} onChange={setRankingZone} />
+          <div className="flex gap-2">
+            <div className="min-w-0 flex-1">
+              <FormatSelect value={rankingFormat} onChange={setRankingFormat} />
+            </div>
+            <button
+              type="button"
+              onClick={() => setRankingFiltersOpen((open) => !open)}
+              aria-expanded={rankingFiltersOpen}
+              className={`relative h-[44px] shrink-0 inline-flex items-center gap-1.5 rounded-xl border px-3.5 font-oswald text-[14px] font-semibold tracking-wide transition-all duration-150 ${
+                rankingFiltersOpen || rankingActiveFilters > 0
+                  ? 'border-[#7d5aff] bg-[rgba(106,67,255,0.22)] text-white'
+                  : 'border-[rgba(148,134,255,0.2)] bg-[rgba(20,16,41,0.8)] text-white/65 hover:text-white'
+              }`}
+            >
+              <SlidersHorizontal size={15} />
+              Filtros
+              {rankingActiveFilters > 0 ? (
+                <span className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#ec007d] px-1 text-[10px] font-bold text-white shadow-[0_0_10px_rgba(236,0,125,0.45)]">
+                  {rankingActiveFilters}
+                </span>
+              ) : null}
+            </button>
           </div>
 
-          <div className="flex gap-1.5">
-            <button
-              type="button"
-              onClick={() => setRankingPeriod('all')}
-              className={`${togglePillBase} ${rankingPeriod === 'all' ? togglePillActive : togglePillIdle}`}
-            >
-              Todo el tiempo
-            </button>
-            <button
-              type="button"
-              onClick={() => setRankingPeriod('90d')}
-              className={`${togglePillBase} ${rankingPeriod === '90d' ? togglePillActive : togglePillIdle}`}
-            >
-              Últimos 90 días
-            </button>
-          </div>
+          {rankingFiltersOpen ? (
+            <div className="flex flex-col gap-2.5 rounded-xl border border-[rgba(148,134,255,0.2)] bg-[rgba(20,16,41,0.6)] p-3">
+              <div className="flex flex-col gap-1.5">
+                <span className="font-oswald text-[11px] uppercase tracking-wider text-white/45">Zona / barrio</span>
+                <ZoneFilter value={rankingZone} onChange={setRankingZone} />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <span className="font-oswald text-[11px] uppercase tracking-wider text-white/45">Período</span>
+                <div className="flex gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setRankingPeriod('all')}
+                    className={`${togglePillBase} ${rankingPeriod === 'all' ? togglePillActive : togglePillIdle}`}
+                  >
+                    Todo el tiempo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRankingPeriod('90d')}
+                    className={`${togglePillBase} ${rankingPeriod === '90d' ? togglePillActive : togglePillIdle}`}
+                  >
+                    Últimos 90 días
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
 
           {rankingLoading ? (
             <div className="rounded-2xl border border-white/15 bg-white/5 p-4 text-center text-white/70 font-oswald">

@@ -115,6 +115,37 @@ describe('TeamRankingsView', () => {
     // win rate computed from confirmed stats
     expect(screen.getByText('67%')).toBeInTheDocument();
     expect(screen.getByText('56%')).toBeInTheDocument();
+
+    // compact one-line PJ/G/E/P stats (Test 9)
+    expect(screen.getByText('12 PJ')).toBeInTheDocument();
+    expect(screen.getByText('8G')).toBeInTheDocument();
+    expect(screen.getByText('2E')).toBeInTheDocument();
+    expect(screen.getByText('2P')).toBeInTheDocument();
+  });
+
+  // Compact ranking toolbar: zona + período live behind a "Filtros" panel,
+  // but stay fully functional once opened.
+  test('ranking secondary filters live behind the "Filtros" panel', async () => {
+    renderView();
+
+    await waitFor(() => expect(screen.getByText('Mi Equipo')).toBeInTheDocument());
+
+    // Hidden until the user opens "Filtros".
+    expect(screen.queryByLabelText('zone-filter')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Últimos 90 días' })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Filtros/ }));
+
+    expect(screen.getByLabelText('zone-filter')).toBeInTheDocument();
+    const period90 = screen.getByRole('button', { name: 'Últimos 90 días' });
+    expect(period90).toBeInTheDocument();
+
+    getTeamChallengeRankings.mockClear();
+    fireEvent.click(period90);
+
+    await waitFor(() => expect(getTeamChallengeRankings).toHaveBeenCalledWith(
+      expect.objectContaining({ period: '90d' }),
+    ));
   });
 
   // Tests 15-17: cannot challenge own team; can publish for a rival.
