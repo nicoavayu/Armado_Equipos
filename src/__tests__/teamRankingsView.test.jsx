@@ -206,18 +206,51 @@ describe('TeamRankingsView — Ranking (tabla deportiva)', () => {
     expect(rankingOrder()).toEqual(['Fulbo', 'Mi Equipo']);
   });
 
-  // Test 7: no "Publicar desafío" CTA in Ranking; own team is a compact badge,
-  // not a big button.
-  test('no "Publicar desafío" CTA; own team shown as a badge', async () => {
+  // Test 7: no "Publicar desafío" CTA in Ranking; "my team" is communicated by
+  // the row, not by a visible badge that competes with the name.
+  test('no "Publicar desafío" CTA; own team flagged for a11y, not as a button', async () => {
     renderView();
     await waitFor(() => expect(screen.getByText('Mi Equipo')).toBeInTheDocument());
 
     expect(screen.queryByText('Publicar desafío')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Publicar desafío' })).not.toBeInTheDocument();
 
-    // "Tu equipo" appears for the own team, and it is not a button.
+    // "Tu equipo" is present for the own team (screen-reader label), not a button.
     expect(screen.getByText('Tu equipo')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Tu equipo' })).not.toBeInTheDocument();
+  });
+
+  // Test 1/3: the own-team row is highlighted as a whole (data-own-team) and the
+  // team name is never covered by a visible badge inside its cell.
+  test('own-team row is highlighted and its name is not covered by a badge', async () => {
+    renderView();
+    await waitFor(() => expect(screen.getByText('Mi Equipo')).toBeInTheDocument());
+
+    const me = rowFor('Mi Equipo');
+    const fulbo = rowFor('Fulbo');
+    expect(me).toHaveAttribute('data-own-team', 'true');
+    expect(fulbo).not.toHaveAttribute('data-own-team');
+
+    // The "Tu equipo" marker in the own row is screen-reader-only (.sr-only),
+    // so it occupies no layout next to the name.
+    const marker = within(me).getByText('Tu equipo');
+    expect(marker).toHaveClass('sr-only');
+    // The name renders in full (truncates via CSS, never replaced/hidden).
+    expect(within(me).getByText('Mi Equipo')).toBeVisible();
+  });
+
+  // Test 3: the format dropdown still filters the ranking via the RPC.
+  test('format dropdown filters the ranking (RPC called with the format)', async () => {
+    renderView();
+    await waitFor(() => expect(screen.getByText('Mi Equipo')).toBeInTheDocument());
+
+    getTeamChallengeRankings.mockClear();
+    const formatOption = screen.getByRole('option', { name: 'F7' });
+    fireEvent.change(formatOption.closest('select'), { target: { value: '7' } });
+
+    await waitFor(() => expect(getTeamChallengeRankings).toHaveBeenCalledWith(
+      expect.objectContaining({ format: '7' }),
+    ));
   });
 
   // Compact ranking toolbar: zona + período live behind a "Filtros" panel.
@@ -315,16 +348,42 @@ describe('TeamRankingsView — filtro por país', () => {
   });
 });
 
-describe('TeamRankingsView — Desafiar', () => {
-  test('clicking "Desafiar" on a rival card opens the modal with the rival name', async () => {
+describe('TeamRankingsView — Equipos (orden y acciones)', () => {
+  test('mis equipos aparecen primero, luego el resto alfabético', async () => {
+    renderView({
+      ownTeamIds: new Set(['newbie']),
+      myTeams: [{ id: 't1', name: 'Fulbo FC', format: 5, is_active: true }],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'EQUIPOS' }));
+    await waitFor(() => expect(screen.getByText('Nuevo FC')).toBeInTheDocument());
+
+    // "Nuevo FC" (mine) is rendered before "Fulbo" (rival).
+    const nuevo = screen.getByText('Nuevo FC');
+    const fulbo = screen.getByText('Fulbo');
+    expect(nuevo.compareDocumentPosition(fulbo) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    // My team has no actions menu; the rival exposes the ⋮ overflow menu.
+    const nuevoCard = nuevo.closest('.rounded-card');
+    const fulboCard = fulbo.closest('.rounded-card');
+    expect(within(nuevoCard).queryByRole('button', { name: 'Acciones' })).not.toBeInTheDocument();
+    expect(within(nuevoCard).getByText('Tu equipo')).toBeInTheDocument();
+    expect(within(fulboCard).getByRole('button', { name: 'Acciones' })).toBeInTheDocument();
+  });
+
+  test('the ⋮ overflow menu opens the challenge modal with the rival name', async () => {
     renderView({ myTeams: [{ id: 't1', name: 'Fulbo FC', format: 5, is_active: true }] });
     await waitFor(() => expect(screen.getByText('Mi Equipo')).toBeInTheDocument());
 
     fireEvent.click(screen.getByRole('button', { name: 'EQUIPOS' }));
     await waitFor(() => expect(screen.getByText('Nuevo FC')).toBeInTheDocument());
 
+    // No big "Desafiar" button on the card — the action lives behind ⋮.
     const card = screen.getByText('Nuevo FC').closest('.rounded-card');
-    fireEvent.click(within(card).getByRole('button', { name: /Desafiar/ }));
+    expect(within(card).queryByRole('button', { name: /Desafiar/ })).not.toBeInTheDocument();
+
+    fireEvent.click(within(card).getByRole('button', { name: 'Acciones' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /Desafiar/ }));
 
     expect(screen.getByText('Desafiar a Nuevo FC')).toBeInTheDocument();
     expect(screen.queryByText('Publicar desafío')).not.toBeInTheDocument();

@@ -11,6 +11,7 @@ import {
   getTeamFlag,
   hasDefinedZone,
   nextSort,
+  sortDirectoryRows,
   sortRankingRows,
 } from '../features/equipos/utils/teamRanking';
 
@@ -168,6 +169,43 @@ describe('teamRanking utils', () => {
 
     test('unknown sort key returns a stable copy', () => {
       expect(ids(sortRankingRows(rows, 'nope', 'desc'))).toEqual(['z', 'a', 'm']);
+    });
+  });
+
+  describe('sortDirectoryRows (Equipos: mis equipos primero, luego A-Z)', () => {
+    const rows = [
+      { team_id: 'r-zeta', team_name: 'Zeta FC' },
+      { team_id: 'mine-b', team_name: 'Bravos' },
+      { team_id: 'r-alfa', team_name: 'Alfa' },
+      { team_id: 'mine-a', team_name: 'Águilas' },
+    ];
+    const isMine = (team) => String(team?.team_id || '').startsWith('mine-');
+    const ids = (sorted) => sorted.map((r) => r.team_id);
+
+    test('mis equipos primero (A-Z), después el resto (A-Z)', () => {
+      expect(ids(sortDirectoryRows(rows, isMine))).toEqual([
+        'mine-a', // Águilas
+        'mine-b', // Bravos
+        'r-alfa', // Alfa
+        'r-zeta', // Zeta FC
+      ]);
+    });
+
+    test('si no soy de ningún equipo, queda todo alfabético', () => {
+      // Águilas, Alfa, Bravos, Zeta FC
+      expect(ids(sortDirectoryRows(rows, () => false))).toEqual([
+        'mine-a', 'r-alfa', 'mine-b', 'r-zeta',
+      ]);
+    });
+
+    test('no muta el input y tolera entradas inválidas', () => {
+      const copy = [...rows];
+      sortDirectoryRows(rows, isMine);
+      expect(rows).toEqual(copy);
+      expect(sortDirectoryRows(null, isMine)).toEqual([]);
+      expect(sortDirectoryRows(rows, undefined).map((r) => r.team_id)).toEqual([
+        'mine-a', 'r-alfa', 'mine-b', 'r-zeta',
+      ]);
     });
   });
 });

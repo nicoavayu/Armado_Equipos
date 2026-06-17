@@ -202,3 +202,26 @@ export const nextSort = (current, key) => {
   }
   return { key, dir: defaultSortDir(key) };
 };
+
+// ---------------------------------------------------------------------------
+// Ordenamiento del directorio "Equipos"
+// ---------------------------------------------------------------------------
+// MIS equipos primero (los que detecta isOwnTeam: jugador/capitán/owner/admin),
+// luego el resto. Dentro de cada grupo, alfabético por nombre. Es 100%
+// client-side sobre las filas ya cargadas: no toca RPC, backend ni filtros.
+const compareByName = (a, b) => String(a?.team_name || '').localeCompare(
+  String(b?.team_name || ''),
+  'es',
+  { sensitivity: 'base', numeric: true },
+);
+
+export const sortDirectoryRows = (rows, isOwnTeam) => {
+  if (!Array.isArray(rows)) return [];
+  const own = typeof isOwnTeam === 'function' ? isOwnTeam : () => false;
+  return [...rows].sort((a, b) => {
+    const aOwn = own(a) ? 0 : 1;
+    const bOwn = own(b) ? 0 : 1;
+    if (aOwn !== bOwn) return aOwn - bOwn;
+    return compareByName(a, b);
+  });
+};
