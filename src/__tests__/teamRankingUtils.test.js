@@ -1,12 +1,20 @@
 import {
   ZONE_UNDEFINED_LABEL,
   computeWinRate,
+  countryCodeToFlag,
+  defaultSortDir,
   formatFormatLabel,
   formatStatsLine,
   formatZoneLabel,
   getRankAccent,
+  getTeamCountryCode,
+  getTeamFlag,
   hasDefinedZone,
+  nextSort,
+  sortRankingRows,
 } from '../features/equipos/utils/teamRanking';
+
+const AR_FLAG = '🇦🇷';
 
 describe('teamRanking utils', () => {
   describe('computeWinRate (Test 10 / metric)', () => {
@@ -73,6 +81,93 @@ describe('teamRanking utils', () => {
       expect(getRankAccent(3)).toBeTruthy();
       expect(getRankAccent(4)).toBeNull();
       expect(getRankAccent(50)).toBeNull();
+    });
+  });
+
+  describe('country / flag (Test 6)', () => {
+    test('countryCodeToFlag maps ISO codes to emoji flags', () => {
+      expect(countryCodeToFlag('AR')).toBe(AR_FLAG);
+      expect(countryCodeToFlag('uy')).toBe('🇺🇾');
+      expect(countryCodeToFlag('BR')).toBe('🇧🇷');
+    });
+
+    test('countryCodeToFlag is safe on bad input', () => {
+      expect(countryCodeToFlag('')).toBe('');
+      expect(countryCodeToFlag(null)).toBe('');
+      expect(countryCodeToFlag('ARG')).toBe('');
+      expect(countryCodeToFlag('1')).toBe('');
+    });
+
+    test('getTeamCountryCode reads team data and falls back to AR', () => {
+      expect(getTeamCountryCode({ country_code: 'UY' })).toBe('UY');
+      expect(getTeamCountryCode({ countryCode: 'br' })).toBe('BR');
+      expect(getTeamCountryCode({ country: 'cl' })).toBe('CL');
+      expect(getTeamCountryCode({})).toBe('AR');
+      expect(getTeamCountryCode(null)).toBe('AR');
+      expect(getTeamCountryCode({ country: 'Argentina' })).toBe('AR'); // not a 2-letter code
+    });
+
+    test('getTeamFlag never disappears (AR fallback)', () => {
+      expect(getTeamFlag({})).toBe(AR_FLAG);
+      expect(getTeamFlag({ country_code: 'UY' })).toBe('🇺🇾');
+    });
+  });
+
+  describe('sorting (Tests 4)', () => {
+    const rows = [
+      { team_id: 'z', team_name: 'Zeta', format: 5, played_count: 3, wins: 1, draws: 0, losses: 2 }, // 33%
+      { team_id: 'a', team_name: 'Alfa', format: 11, played_count: 10, wins: 7, draws: 1, losses: 2 }, // 70%
+      { team_id: 'm', team_name: 'Mid', format: 7, played_count: 10, wins: 3, draws: 3, losses: 4 }, // 30%
+    ];
+    const ids = (sorted) => sorted.map((r) => r.team_id);
+
+    test('defaultSortDir: stats start desc, text/format start asc', () => {
+      expect(defaultSortDir('played')).toBe('desc');
+      expect(defaultSortDir('wins')).toBe('desc');
+      expect(defaultSortDir('winRate')).toBe('desc');
+      expect(defaultSortDir('name')).toBe('asc');
+      expect(defaultSortDir('format')).toBe('asc');
+    });
+
+    test('nextSort activates new column at its default dir, toggles the active one', () => {
+      expect(nextSort({ key: 'played', dir: 'desc' }, 'wins')).toEqual({ key: 'wins', dir: 'desc' });
+      expect(nextSort({ key: 'wins', dir: 'desc' }, 'wins')).toEqual({ key: 'wins', dir: 'asc' });
+      expect(nextSort({ key: 'wins', dir: 'asc' }, 'wins')).toEqual({ key: 'wins', dir: 'desc' });
+      expect(nextSort(null, 'name')).toEqual({ key: 'name', dir: 'asc' });
+    });
+
+    test('sortRankingRows does not mutate the input', () => {
+      const copy = [...rows];
+      sortRankingRows(rows, 'played', 'desc');
+      expect(rows).toEqual(copy);
+    });
+
+    test('sort by played (PJ): desc and asc, with win-rate tie-break', () => {
+      // a & m both played 10 -> tie broken by higher win rate (a 70% > m 30%).
+      expect(ids(sortRankingRows(rows, 'played', 'desc'))).toEqual(['a', 'm', 'z']);
+      expect(ids(sortRankingRows(rows, 'played', 'asc'))).toEqual(['z', 'a', 'm']);
+    });
+
+    test('sort by wins (G)', () => {
+      expect(ids(sortRankingRows(rows, 'wins', 'desc'))).toEqual(['a', 'm', 'z']);
+    });
+
+    test('sort by winRate (%)', () => {
+      expect(ids(sortRankingRows(rows, 'winRate', 'desc'))).toEqual(['a', 'z', 'm']);
+    });
+
+    test('sort by format (F)', () => {
+      expect(ids(sortRankingRows(rows, 'format', 'asc'))).toEqual(['z', 'm', 'a']);
+      expect(ids(sortRankingRows(rows, 'format', 'desc'))).toEqual(['a', 'm', 'z']);
+    });
+
+    test('sort by name (Equipo), alphabetical', () => {
+      expect(ids(sortRankingRows(rows, 'name', 'asc'))).toEqual(['a', 'm', 'z']);
+      expect(ids(sortRankingRows(rows, 'name', 'desc'))).toEqual(['z', 'm', 'a']);
+    });
+
+    test('unknown sort key returns a stable copy', () => {
+      expect(ids(sortRankingRows(rows, 'nope', 'desc'))).toEqual(['z', 'a', 'm']);
     });
   });
 });

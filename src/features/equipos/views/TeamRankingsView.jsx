@@ -2,9 +2,10 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { SlidersHorizontal, Trophy, Users } from 'lucide-react';
 import EmptyStateCard from '../../../components/EmptyStateCard';
 import NeighborhoodAutocomplete from '../components/NeighborhoodAutocomplete';
-import TeamRankingCard from '../components/TeamRankingCard';
+import TeamRankingTable from '../components/TeamRankingTable';
 import ChallengeableTeamCard from '../components/ChallengeableTeamCard';
 import { TEAM_FORMAT_OPTIONS } from '../config';
+import { sortRankingRows, nextSort } from '../utils/teamRanking';
 import { getTeamChallengeRankings, searchChallengeableTeams } from '../../../services/db/teamRankings';
 import { notifyBlockingError } from '../../../utils/notifyBlockingError';
 
@@ -17,6 +18,8 @@ const segmentIdle = 'z-[1] bg-transparent text-white/60 hover:text-white/90 hove
 const togglePillBase = 'flex-1 min-w-0 rounded-lg px-3 py-2 font-oswald text-[13px] font-semibold tracking-wide transition-all duration-150 border';
 const togglePillActive = 'border-[#7d5aff] bg-[rgba(106,67,255,0.22)] text-white';
 const togglePillIdle = 'border-[rgba(148,134,255,0.2)] bg-[rgba(20,16,41,0.8)] text-white/65 hover:text-white';
+
+const DEFAULT_RANKING_SORT = { key: 'played', dir: 'desc' };
 
 const SegmentedTabs = ({ tabs, value, onChange }) => (
   <div className="flex h-[42px] w-full gap-1 p-1 overflow-hidden rounded-full border border-[rgba(148,134,255,0.22)] bg-[rgba(20,16,41,0.85)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_6px_16px_rgba(5,3,16,0.35)]">
@@ -54,13 +57,14 @@ const ZoneFilter = ({ value, onChange }) => (
 const TeamRankingsView = ({
   userId,
   ownTeamIds = null,
-  onPublishChallenge,
-  ctaDisabled = false,
 }) => {
   const [activeTab, setActiveTab] = useState('ranking');
 
   // Ranking tab state
-  const [rankingSort, setRankingSort] = useState('played');
+  // Sort is applied on the client over the rows the RPC returns, so every
+  // column (PJ/G/E/P/%/F/Equipo) can be ordered asc/desc without touching the
+  // backend. The RPC is still fetched once per format/zone/period change.
+  const [rankingSort, setRankingSort] = useState(DEFAULT_RANKING_SORT);
   const [rankingPeriod, setRankingPeriod] = useState('all');
   const [rankingFormat, setRankingFormat] = useState('');
   const [rankingZone, setRankingZone] = useState('');
@@ -89,6 +93,15 @@ const TeamRankingsView = ({
     [ownIdSet],
   );
 
+  const handleSort = useCallback((key) => {
+    setRankingSort((current) => nextSort(current, key));
+  }, []);
+
+  const sortedRankingRows = useMemo(
+    () => sortRankingRows(rankingRows, rankingSort.key, rankingSort.dir),
+    [rankingRows, rankingSort],
+  );
+
   const loadRanking = useCallback(async () => {
     if (!userId) return;
     try {
@@ -96,7 +109,6 @@ const TeamRankingsView = ({
       const rows = await getTeamChallengeRankings({
         format: rankingFormat,
         zone: rankingZone,
-        sort: rankingSort,
         period: rankingPeriod,
         limit: 50,
       });
@@ -106,7 +118,7 @@ const TeamRankingsView = ({
     } finally {
       setRankingLoading(false);
     }
-  }, [rankingFormat, rankingZone, rankingSort, rankingPeriod, userId]);
+  }, [rankingFormat, rankingZone, rankingPeriod, userId]);
 
   const loadDirectory = useCallback(async () => {
     if (!userId) return;
@@ -150,23 +162,6 @@ const TeamRankingsView = ({
 
       {activeTab === 'ranking' ? (
         <>
-          <div className="flex gap-1.5">
-            <button
-              type="button"
-              onClick={() => setRankingSort('played')}
-              className={`${togglePillBase} ${rankingSort === 'played' ? togglePillActive : togglePillIdle}`}
-            >
-              Más jugaron
-            </button>
-            <button
-              type="button"
-              onClick={() => setRankingSort('wins')}
-              className={`${togglePillBase} ${rankingSort === 'wins' ? togglePillActive : togglePillIdle}`}
-            >
-              Más ganaron
-            </button>
-          </div>
-
           <div className="flex gap-2">
             <div className="min-w-0 flex-1">
               <FormatSelect value={rankingFormat} onChange={setRankingFormat} />
@@ -223,7 +218,7 @@ const TeamRankingsView = ({
             <div className="rounded-2xl border border-white/15 bg-white/5 p-4 text-center text-white/70 font-oswald">
               Cargando ranking...
             </div>
-          ) : rankingRows.length === 0 ? (
+          ) : sortedRankingRows.length === 0 ? (
             <EmptyStateCard
               icon={Trophy}
               title="No hay partidos confirmados todavía"
@@ -231,16 +226,12 @@ const TeamRankingsView = ({
               className="my-0 p-5"
             />
           ) : (
-            rankingRows.map((team, index) => (
-              <TeamRankingCard
-                key={team.team_id || index}
-                team={team}
-                position={index + 1}
-                isOwnTeam={isOwnTeam(team)}
-                onPublishChallenge={onPublishChallenge}
-                disabled={ctaDisabled}
-              />
-            ))
+            <TeamRankingTable
+              rows={sortedRankingRows}
+              sort={rankingSort}
+              onSort={handleSort}
+              isOwnTeam={isOwnTeam}
+            />
           )}
         </>
       ) : (
@@ -275,8 +266,6 @@ const TeamRankingsView = ({
                 key={team.team_id || index}
                 team={team}
                 isOwnTeam={isOwnTeam(team)}
-                onPublishChallenge={onPublishChallenge}
-                disabled={ctaDisabled}
               />
             ))
           )}
