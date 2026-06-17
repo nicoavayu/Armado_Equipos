@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ChallengeCard from '../components/ChallengeCard';
+import DirectedChallengeCard from '../components/DirectedChallengeCard';
 import PublishChallengeModal from '../components/PublishChallengeModal';
 import AcceptChallengeModal from '../components/AcceptChallengeModal';
 import NeighborhoodAutocomplete from '../components/NeighborhoodAutocomplete';
@@ -13,8 +14,10 @@ import {
   cancelChallenge,
   createChallenge,
   getTeamMatchByChallengeId,
+  listMyDirectedChallenges,
   listMyManageableTeams,
   listOpenChallenges,
+  rejectDirectedChallenge,
   updateChallenge,
 } from '../../../services/db/teamChallenges';
 import { notifyBlockingError } from '../../../utils/notifyBlockingError';
@@ -66,6 +69,8 @@ const DesafiosTab = ({
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [openChallenges, setOpenChallenges] = useState([]);
+  const [directedIncoming, setDirectedIncoming] = useState([]);
+  const [directedOutgoing, setDirectedOutgoing] = useState([]);
   const [manageableTeams, setManageableTeams] = useState([]);
   const [filters, setFilters] = useState({ format: '', zone: '', skillLevel: '' });
   const [showFilters, setShowFilters] = useState(false);
@@ -124,6 +129,30 @@ const DesafiosTab = ({
     }
   }, [userId]);
 
+  const loadDirectedChallenges = useCallback(async ({
+    silent = false,
+  } = {}) => {
+    if (!userId) return;
+
+    try {
+      const { incoming, outgoing } = await listMyDirectedChallenges(userId);
+      setDirectedIncoming((prev) => {
+        const next = incoming || [];
+        return JSON.stringify(prev) === JSON.stringify(next) ? prev : next;
+      });
+      setDirectedOutgoing((prev) => {
+        const next = outgoing || [];
+        return JSON.stringify(prev) === JSON.stringify(next) ? prev : next;
+      });
+    } catch (error) {
+      if (!silent) {
+        notifyBlockingError(error.message || 'No se pudieron cargar tus desafíos dirigidos');
+      } else {
+        console.warn('[DESAFIOS] refresh de desafíos dirigidos fallido', error);
+      }
+    }
+  }, [userId]);
+
   const refreshDesafiosBoard = useCallback(async ({
     withLoading = false,
     silent = true,
@@ -131,8 +160,9 @@ const DesafiosTab = ({
     await Promise.all([
       loadMyTeamsData({ silent }),
       loadChallenges({ withLoading, silent }),
+      loadDirectedChallenges({ silent }),
     ]);
-  }, [loadChallenges, loadMyTeamsData]);
+  }, [loadChallenges, loadDirectedChallenges, loadMyTeamsData]);
 
   useEffect(() => {
     if (!userId) return;
@@ -143,6 +173,11 @@ const DesafiosTab = ({
     if (!userId) return;
     loadChallenges({ withLoading: true, silent: false });
   }, [loadChallenges, userId]);
+
+  useEffect(() => {
+    if (!userId) return;
+    loadDirectedChallenges({ silent: false });
+  }, [loadDirectedChallenges, userId]);
 
   useEffect(() => {
     if (!prefilledTeamId) return;
@@ -221,6 +256,54 @@ const DesafiosTab = ({
       notifyBlockingError(error.message || 'No se pudo abrir el partido del desafío.');
     }
   }, [navigate]);
+
+  const handleAcceptDirected = useCallback(async (challenge) => {
+    if (!challenge?.id || !challenge?.challenged_team_id) return;
+    try {
+      setIsSubmitting(true);
+      const result = await acceptChallenge(challenge.id, challenge.challenged_team_id, {
+        currentUserId: userId,
+      });
+      await refreshDesafiosBoard({ withLoading: false, silent: false });
+      if (result?.matchId) {
+        navigate(`/desafios/equipos/partidos/${result.matchId}`);
+      } else {
+        setInlineNotice({ type: 'success', message: 'Desafío aceptado. Ya podés verlo en Mis partidos.' });
+      }
+    } catch (error) {
+      notifyBlockingError(error.message || 'No se pudo aceptar el desafío');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [navigate, refreshDesafiosBoard, userId]);
+
+  const handleRejectDirected = useCallback(async (challenge) => {
+    if (!challenge?.id) return;
+    try {
+      setIsSubmitting(true);
+      await rejectDirectedChallenge(challenge.id);
+      await refreshDesafiosBoard({ withLoading: false, silent: false });
+      setInlineNotice({ type: 'success', message: 'Desafío rechazado.' });
+    } catch (error) {
+      notifyBlockingError(error.message || 'No se pudo rechazar el desafío');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [refreshDesafiosBoard]);
+
+  const handleCancelDirected = useCallback(async (challenge) => {
+    if (!challenge?.id) return;
+    try {
+      setIsSubmitting(true);
+      await cancelChallenge(challenge.id);
+      await refreshDesafiosBoard({ withLoading: false, silent: false });
+      setInlineNotice({ type: 'success', message: 'Desafío cancelado.' });
+    } catch (error) {
+      notifyBlockingError(error.message || 'No se pudo cancelar el desafío');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [refreshDesafiosBoard]);
 
   const handleShare = async (challenge) => {
     try {
@@ -319,6 +402,50 @@ const DesafiosTab = ({
             </button>
           </div>
         </div>
+      ) : null}
+
+      {directedIncoming.length > 0 ? (
+        <section className="flex flex-col gap-2.5">
+          <div className="mt-1 flex items-center gap-2.5 px-1">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#cdbcff]">
+              Te desafiaron
+            </span>
+            <span className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#ec007d] px-1 text-[10px] font-bold text-white shadow-[0_0_10px_rgba(236,0,125,0.45)]">
+              {directedIncoming.length}
+            </span>
+            <span className="h-px flex-1 bg-[rgba(148,134,255,0.2)]" />
+          </div>
+          {directedIncoming.map((challenge) => (
+            <DirectedChallengeCard
+              key={`in-${challenge.id}`}
+              challenge={challenge}
+              variant="incoming"
+              onAccept={handleAcceptDirected}
+              onReject={handleRejectDirected}
+              disabled={isSubmitting}
+            />
+          ))}
+        </section>
+      ) : null}
+
+      {directedOutgoing.length > 0 ? (
+        <section className="flex flex-col gap-2.5">
+          <div className="mt-1 flex items-center gap-2.5 px-1">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/45">
+              Desafíos enviados
+            </span>
+            <span className="h-px flex-1 bg-[rgba(148,134,255,0.2)]" />
+          </div>
+          {directedOutgoing.map((challenge) => (
+            <DirectedChallengeCard
+              key={`out-${challenge.id}`}
+              challenge={challenge}
+              variant="outgoing"
+              onCancel={handleCancelDirected}
+              disabled={isSubmitting}
+            />
+          ))}
+        </section>
       ) : null}
 
       <div className="mt-1 mb-0.5 flex items-center gap-2.5 px-1">

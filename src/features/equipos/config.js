@@ -35,6 +35,30 @@ export const TEAM_SKILL_OPTIONS = [
   { value: 'elite', label: 'Elite' },
 ];
 
+// País del equipo (ISO 3166-1 alpha-2). El producto es AR-first, por eso el
+// default es 'AR'. La lista se usa en el formulario de equipo; el filtro por
+// país arma sus opciones con los países realmente presentes en los datos.
+export const DEFAULT_TEAM_COUNTRY_CODE = 'AR';
+
+export const TEAM_COUNTRY_OPTIONS = [
+  { value: 'AR', label: 'Argentina' },
+  { value: 'UY', label: 'Uruguay' },
+  { value: 'BR', label: 'Brasil' },
+  { value: 'CL', label: 'Chile' },
+  { value: 'PY', label: 'Paraguay' },
+  { value: 'BO', label: 'Bolivia' },
+  { value: 'PE', label: 'Perú' },
+  { value: 'CO', label: 'Colombia' },
+  { value: 'MX', label: 'México' },
+  { value: 'ES', label: 'España' },
+];
+
+// Normaliza a alpha-2 mayúscula. Si no es válido, cae a AR (AR-first).
+export const normalizeTeamCountryCode = (value) => {
+  const normalized = String(value || '').trim().toUpperCase();
+  return /^[A-Z]{2}$/.test(normalized) ? normalized : DEFAULT_TEAM_COUNTRY_CODE;
+};
+
 const LEGACY_SKILL_MAP = {
   easy: 'inicial',
   normal: 'intermedio',

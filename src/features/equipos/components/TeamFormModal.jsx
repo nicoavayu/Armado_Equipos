@@ -2,9 +2,11 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, Loader2 } from 'lucide-react';
 import Modal from '../../../components/Modal';
 import {
+  TEAM_COUNTRY_OPTIONS,
   TEAM_FORMAT_OPTIONS,
   TEAM_MODE_OPTIONS,
   TEAM_SKILL_OPTIONS,
+  normalizeTeamCountryCode,
   normalizeTeamMode,
   normalizeTeamSkillLevel,
   resolveTeamRosterLimit,
@@ -17,6 +19,7 @@ const EMPTY_FORM = {
   mode: 'Masculino',
   base_zone: '',
   skill_level: 'sin_definir',
+  country_code: 'AR',
 };
 
 const toInitialColors = (team) => [team?.color_primary, team?.color_secondary, team?.color_accent]
@@ -56,6 +59,7 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
       mode: normalizeTeamMode(initialTeam?.mode),
       base_zone: initialTeam?.base_zone || '',
       skill_level: normalizeTeamSkillLevel(initialTeam?.skill_level),
+      country_code: normalizeTeamCountryCode(initialTeam?.country_code),
     };
 
     setForm(nextForm);
@@ -150,6 +154,7 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
             ...form,
             name: form.name.trim(),
             base_zone: form.base_zone.trim() || null,
+            country_code: normalizeTeamCountryCode(form.country_code),
             crest_url: crestPreview && !crestPreview.startsWith('blob:') ? crestPreview : null,
             color_primary: normalizedColors[0] || null,
             color_secondary: normalizedColors[1] || null,
@@ -203,18 +208,33 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
           </label>
         </div>
 
-        <label className="block">
-          <span className={FIELD_LABEL_CLASS}>Género</span>
-          <select
-            value={form.mode}
-            onChange={(event) => setForm((prev) => ({ ...prev, mode: event.target.value }))}
-            className={INPUT_CLASS}
-          >
-            {TEAM_MODE_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
-        </label>
+        <div className="grid grid-cols-2 gap-3">
+          <label className="block">
+            <span className={FIELD_LABEL_CLASS}>Género</span>
+            <select
+              value={form.mode}
+              onChange={(event) => setForm((prev) => ({ ...prev, mode: event.target.value }))}
+              className={INPUT_CLASS}
+            >
+              {TEAM_MODE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </label>
+
+          <label className="block">
+            <span className={FIELD_LABEL_CLASS}>País</span>
+            <select
+              value={form.country_code}
+              onChange={(event) => setForm((prev) => ({ ...prev, country_code: event.target.value }))}
+              className={INPUT_CLASS}
+            >
+              {TEAM_COUNTRY_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </label>
+        </div>
 
         <label className="block">
           <span className={FIELD_LABEL_CLASS}>Zona base</span>

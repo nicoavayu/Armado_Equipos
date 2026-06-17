@@ -27,6 +27,7 @@ const normalizeTeamRankingRow = (row) => ({
   avatar_url: row?.avatar_url || null,
   format: row?.format ?? null,
   zone: row?.zone || null,
+  country_code: row?.country_code || null,
   skill_level: row?.skill_level || null,
   color_primary: row?.color_primary || null,
   color_secondary: row?.color_secondary || null,

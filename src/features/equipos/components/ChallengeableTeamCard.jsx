@@ -1,5 +1,5 @@
 import React from 'react';
-import { MapPin } from 'lucide-react';
+import { Clock, MapPin, Swords } from 'lucide-react';
 import TeamShieldAvatar from './TeamShieldAvatar';
 import { getTeamBadgeStyle } from '../utils/teamColors';
 import {
@@ -12,14 +12,18 @@ import {
 
 const CHIP_CLASS = 'font-oswald text-[10px] font-bold text-white/55 border border-[rgba(148,134,255,0.2)] bg-[rgba(20,16,41,0.8)] px-2 py-0.5 rounded-full uppercase tracking-wider inline-flex items-center gap-1';
 
-// Exploratory directory card for the "Equipos" tab. Stays more visual/airy than
-// a ranking row: escudo, name, format + flag/zone chips, and a stats strip.
-// No "Publicar desafío" CTA yet — direct team-vs-team challenges are not wired,
-// so we don't surface a button that promises an action we can't fulfil. The
-// "Desafiar" CTA slot lives at the bottom of the card for when that lands.
+// Directory card for the "Equipos" tab. Escudo, name, format + flag/zone chips,
+// a stats strip, and a real CTA at the bottom:
+//   - mi propio equipo  -> badge "Tu equipo" (sin botón)
+//   - ya hay un desafío dirigido pendiente -> "Desafío pendiente" (deshabilitado)
+//   - rival              -> botón "Desafiar" (abre el modal de desafío dirigido)
+// Nunca "Publicar desafío": la acción queda asociada al equipo elegido.
 const ChallengeableTeamCard = ({
   team,
   isOwnTeam = false,
+  isPendingChallenge = false,
+  canChallenge = true,
+  onChallenge,
 }) => {
   const badgeStyle = getTeamBadgeStyle(team);
   const played = Number(team?.played_count) || 0;
@@ -69,6 +73,23 @@ const ChallengeableTeamCard = ({
           <span className="font-oswald text-[12px] text-white/55">Sin partidos confirmados</span>
         </div>
       )}
+
+      {isOwnTeam ? null : isPendingChallenge ? (
+        <div className="mt-3 flex items-center justify-center rounded-xl border border-[rgba(148,134,255,0.28)] bg-[rgba(106,67,255,0.12)] px-3 py-2.5">
+          <span className="inline-flex items-center gap-1.5 font-bebas text-[15px] tracking-[0.02em] text-[#cdbcff]">
+            <Clock size={14} /> Desafío pendiente
+          </span>
+        </div>
+      ) : canChallenge ? (
+        <button
+          type="button"
+          onClick={() => onChallenge?.(team)}
+          className="mt-3 inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-white/20 bg-cta-gradient px-4 py-2.5 font-bebas text-[16px] tracking-[0.02em] text-white shadow-cta transition-all hover:brightness-105 active:opacity-95"
+          data-preserve-button-case="true"
+        >
+          <Swords size={16} /> Desafiar
+        </button>
+      ) : null}
     </div>
   );
 };

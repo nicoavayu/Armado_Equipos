@@ -78,6 +78,47 @@ export const getTeamCountryCode = (team) => {
 // line in the cards/rows reads "🇦🇷 Devoto" / "🇦🇷 Zona no definida".
 export const getTeamFlag = (team) => countryCodeToFlag(getTeamCountryCode(team));
 
+// Nombres legibles por código ISO, para las opciones del filtro por país.
+export const COUNTRY_NAMES = Object.freeze({
+  AR: 'Argentina',
+  UY: 'Uruguay',
+  BR: 'Brasil',
+  CL: 'Chile',
+  PY: 'Paraguay',
+  BO: 'Bolivia',
+  PE: 'Perú',
+  CO: 'Colombia',
+  MX: 'México',
+  ES: 'España',
+});
+
+export const getCountryName = (code) => {
+  const normalized = String(code ?? '').trim().toUpperCase();
+  return COUNTRY_NAMES[normalized] || normalized || '';
+};
+
+// Lista de países PRESENTES en las filas (dato real), ordenada por nombre.
+// Cada fila resuelve su país con getTeamCountryCode (fallback AR), así el filtro
+// nunca ofrece países que no existen en los datos cargados.
+export const listCountriesFromRows = (rows) => {
+  if (!Array.isArray(rows)) return [];
+  const codes = new Set();
+  rows.forEach((row) => {
+    const code = getTeamCountryCode(row);
+    if (code) codes.add(code);
+  });
+  return Array.from(codes)
+    .map((code) => ({ code, name: getCountryName(code), flag: countryCodeToFlag(code) }))
+    .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
+};
+
+// ¿La fila pertenece al país seleccionado? '' / null = todos.
+export const matchesCountry = (row, countryCode) => {
+  const selected = String(countryCode ?? '').trim().toUpperCase();
+  if (!selected) return true;
+  return getTeamCountryCode(row) === selected;
+};
+
 // ---------------------------------------------------------------------------
 // Ordenamiento client-side de la tabla de Ranking
 // ---------------------------------------------------------------------------

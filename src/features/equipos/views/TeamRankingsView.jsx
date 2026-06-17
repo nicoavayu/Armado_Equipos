@@ -1,12 +1,22 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { SlidersHorizontal, Trophy, Users } from 'lucide-react';
+import { Check, SlidersHorizontal, Trophy, Users } from 'lucide-react';
 import EmptyStateCard from '../../../components/EmptyStateCard';
 import NeighborhoodAutocomplete from '../components/NeighborhoodAutocomplete';
 import TeamRankingTable from '../components/TeamRankingTable';
 import ChallengeableTeamCard from '../components/ChallengeableTeamCard';
+import ChallengeTeamModal from '../components/ChallengeTeamModal';
 import { TEAM_FORMAT_OPTIONS } from '../config';
-import { sortRankingRows, nextSort } from '../utils/teamRanking';
+import {
+  listCountriesFromRows,
+  matchesCountry,
+  nextSort,
+  sortRankingRows,
+} from '../utils/teamRanking';
 import { getTeamChallengeRankings, searchChallengeableTeams } from '../../../services/db/teamRankings';
+import {
+  createDirectedChallenge,
+  listMyPendingChallengedTeamIds,
+} from '../../../services/db/teamChallenges';
 import { notifyBlockingError } from '../../../utils/notifyBlockingError';
 
 const filterFieldClass = 'h-[44px] w-full rounded-xl bg-[rgba(20,16,41,0.8)] border border-[rgba(148,134,255,0.2)] px-3 text-[15px] text-white outline-none focus:border-[#6a43ff] focus:ring-1 focus:ring-[#6a43ff]/45';
@@ -54,34 +64,53 @@ const ZoneFilter = ({ value, onChange }) => (
   />
 );
 
+// País se filtra client-side (igual que el sort), sobre las filas que ya trajo
+// el RPC. Las opciones se arman con los países REALMENTE presentes en los datos.
+const CountrySelect = ({ value, onChange, countries }) => (
+  <select value={value} onChange={(event) => onChange(event.target.value)} className={filterFieldClass}>
+    <option value="">Todos los países</option>
+    {countries.map((country) => (
+      <option key={country.code} value={country.code}>
+        {`${country.flag ? `${country.flag} ` : ''}${country.name}`}
+      </option>
+    ))}
+  </select>
+);
+
 const TeamRankingsView = ({
   userId,
   ownTeamIds = null,
+  myTeams = [],
 }) => {
   const [activeTab, setActiveTab] = useState('ranking');
 
   // Ranking tab state
-  // Sort is applied on the client over the rows the RPC returns, so every
-  // column (PJ/G/E/P/%/F/Equipo) can be ordered asc/desc without touching the
-  // backend. The RPC is still fetched once per format/zone/period change.
   const [rankingSort, setRankingSort] = useState(DEFAULT_RANKING_SORT);
   const [rankingPeriod, setRankingPeriod] = useState('all');
   const [rankingFormat, setRankingFormat] = useState('');
   const [rankingZone, setRankingZone] = useState('');
+  const [rankingCountry, setRankingCountry] = useState('');
   const [rankingRows, setRankingRows] = useState([]);
   const [rankingLoading, setRankingLoading] = useState(true);
-  // Secondary ranking filters (zona + período) live behind a collapsible panel
-  // to keep the toolbar light. The state itself is unchanged — only its
-  // visibility is toggled here.
   const [rankingFiltersOpen, setRankingFiltersOpen] = useState(false);
-  const rankingActiveFilters = (rankingZone ? 1 : 0) + (rankingPeriod !== 'all' ? 1 : 0);
+  const rankingActiveFilters = (rankingZone ? 1 : 0)
+    + (rankingPeriod !== 'all' ? 1 : 0)
+    + (rankingCountry ? 1 : 0);
 
   // Equipos (directory) tab state
   const [dirQuery, setDirQuery] = useState('');
   const [dirFormat, setDirFormat] = useState('');
   const [dirZone, setDirZone] = useState('');
+  const [dirCountry, setDirCountry] = useState('');
   const [dirRows, setDirRows] = useState([]);
   const [dirLoading, setDirLoading] = useState(true);
+
+  // Directed challenge state
+  const [challengeTarget, setChallengeTarget] = useState(null);
+  const [challengeSubmitting, setChallengeSubmitting] = useState(false);
+  const [challengeError, setChallengeError] = useState('');
+  const [pendingChallengedTeamIds, setPendingChallengedTeamIds] = useState(() => new Set());
+  const [successMessage, setSuccessMessage] = useState('');
 
   const ownIdSet = useMemo(() => {
     if (ownTeamIds instanceof Set) return ownTeamIds;
@@ -93,13 +122,44 @@ const TeamRankingsView = ({
     [ownIdSet],
   );
 
+  // Puedo desafiar si manejo al menos un equipo (capitán/owner). El modal filtra
+  // por formato y avisa si no tengo ninguno del formato del rival.
+  const canChallenge = (myTeams || []).length > 0;
+
   const handleSort = useCallback((key) => {
     setRankingSort((current) => nextSort(current, key));
   }, []);
 
+  const refreshPending = useCallback(async () => {
+    if (!userId) return;
+    try {
+      const ids = await listMyPendingChallengedTeamIds(userId);
+      setPendingChallengedTeamIds(new Set((ids || []).map((id) => String(id))));
+    } catch (error) {
+      console.warn('[RANKING] No se pudieron cargar desafíos pendientes', error);
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    refreshPending();
+  }, [refreshPending]);
+
   const sortedRankingRows = useMemo(
     () => sortRankingRows(rankingRows, rankingSort.key, rankingSort.dir),
     [rankingRows, rankingSort],
+  );
+
+  const rankingCountries = useMemo(() => listCountriesFromRows(rankingRows), [rankingRows]);
+  const dirCountries = useMemo(() => listCountriesFromRows(dirRows), [dirRows]);
+
+  const visibleRankingRows = useMemo(
+    () => sortedRankingRows.filter((row) => matchesCountry(row, rankingCountry)),
+    [sortedRankingRows, rankingCountry],
+  );
+
+  const visibleDirRows = useMemo(
+    () => dirRows.filter((row) => matchesCountry(row, dirCountry)),
+    [dirRows, dirCountry],
   );
 
   const loadRanking = useCallback(async () => {
@@ -152,6 +212,59 @@ const TeamRankingsView = ({
     return () => window.clearTimeout(timeoutId);
   }, [activeTab, loadDirectory]);
 
+  // Reset the country filter if the selected country is no longer present.
+  useEffect(() => {
+    if (rankingCountry && !rankingCountries.some((c) => c.code === rankingCountry)) {
+      setRankingCountry('');
+    }
+  }, [rankingCountries, rankingCountry]);
+
+  useEffect(() => {
+    if (dirCountry && !dirCountries.some((c) => c.code === dirCountry)) {
+      setDirCountry('');
+    }
+  }, [dirCountries, dirCountry]);
+
+  useEffect(() => {
+    if (!successMessage) return undefined;
+    const timeoutId = window.setTimeout(() => setSuccessMessage(''), 3600);
+    return () => window.clearTimeout(timeoutId);
+  }, [successMessage]);
+
+  const openChallengeModal = useCallback((team) => {
+    setChallengeError('');
+    setChallengeTarget(team);
+  }, []);
+
+  const closeChallengeModal = useCallback(() => {
+    if (challengeSubmitting) return;
+    setChallengeTarget(null);
+    setChallengeError('');
+  }, [challengeSubmitting]);
+
+  const handleChallengeSubmit = useCallback(async (payload) => {
+    setChallengeSubmitting(true);
+    setChallengeError('');
+    try {
+      await createDirectedChallenge(payload);
+      const rivalName = challengeTarget?.team_name || 'el equipo rival';
+      if (payload?.challengedTeamId) {
+        setPendingChallengedTeamIds((prev) => {
+          const next = new Set(prev);
+          next.add(String(payload.challengedTeamId));
+          return next;
+        });
+      }
+      setChallengeTarget(null);
+      setSuccessMessage(`Desafío enviado a ${rivalName}.`);
+      refreshPending();
+    } catch (error) {
+      setChallengeError(error.message || 'No se pudo enviar el desafío');
+    } finally {
+      setChallengeSubmitting(false);
+    }
+  }, [challengeTarget, refreshPending]);
+
   return (
     <div className="w-full max-w-[560px] flex flex-col gap-3">
       <SegmentedTabs
@@ -159,6 +272,13 @@ const TeamRankingsView = ({
         value={activeTab}
         onChange={setActiveTab}
       />
+
+      {successMessage ? (
+        <div className="flex items-center gap-2 rounded-xl border border-[#5cf2a6]/35 bg-[#5cf2a6]/10 px-3 py-2.5 font-oswald text-[13px] text-[#baf7d8]">
+          <Check size={15} className="shrink-0" />
+          <span>{successMessage}</span>
+        </div>
+      ) : null}
 
       {activeTab === 'ranking' ? (
         <>
@@ -189,6 +309,10 @@ const TeamRankingsView = ({
           {rankingFiltersOpen ? (
             <div className="flex flex-col gap-2.5 rounded-xl border border-[rgba(148,134,255,0.2)] bg-[rgba(20,16,41,0.6)] p-3">
               <div className="flex flex-col gap-1.5">
+                <span className="font-oswald text-[11px] uppercase tracking-wider text-white/45">País</span>
+                <CountrySelect value={rankingCountry} onChange={setRankingCountry} countries={rankingCountries} />
+              </div>
+              <div className="flex flex-col gap-1.5">
                 <span className="font-oswald text-[11px] uppercase tracking-wider text-white/45">Zona / barrio</span>
                 <ZoneFilter value={rankingZone} onChange={setRankingZone} />
               </div>
@@ -218,7 +342,7 @@ const TeamRankingsView = ({
             <div className="rounded-2xl border border-white/15 bg-white/5 p-4 text-center text-white/70 font-oswald">
               Cargando ranking...
             </div>
-          ) : sortedRankingRows.length === 0 ? (
+          ) : visibleRankingRows.length === 0 ? (
             <EmptyStateCard
               icon={Trophy}
               title="No hay partidos confirmados todavía"
@@ -227,7 +351,7 @@ const TeamRankingsView = ({
             />
           ) : (
             <TeamRankingTable
-              rows={sortedRankingRows}
+              rows={visibleRankingRows}
               sort={rankingSort}
               onSort={handleSort}
               isOwnTeam={isOwnTeam}
@@ -248,29 +372,46 @@ const TeamRankingsView = ({
             <FormatSelect value={dirFormat} onChange={setDirFormat} />
             <ZoneFilter value={dirZone} onChange={setDirZone} />
           </div>
+          <CountrySelect value={dirCountry} onChange={setDirCountry} countries={dirCountries} />
 
           {dirLoading ? (
             <div className="rounded-2xl border border-white/15 bg-white/5 p-4 text-center text-white/70 font-oswald">
               Cargando equipos...
             </div>
-          ) : dirRows.length === 0 ? (
+          ) : visibleDirRows.length === 0 ? (
             <EmptyStateCard
               icon={Users}
               title="No encontramos equipos"
-              description="Probá con otro nombre, formato o zona."
+              description="Probá con otro nombre, formato, zona o país."
               className="my-0 p-5"
             />
           ) : (
-            dirRows.map((team, index) => (
-              <ChallengeableTeamCard
-                key={team.team_id || index}
-                team={team}
-                isOwnTeam={isOwnTeam(team)}
-              />
-            ))
+            visibleDirRows.map((team, index) => {
+              const own = isOwnTeam(team);
+              return (
+                <ChallengeableTeamCard
+                  key={team.team_id || index}
+                  team={team}
+                  isOwnTeam={own}
+                  isPendingChallenge={!own && pendingChallengedTeamIds.has(String(team.team_id))}
+                  canChallenge={canChallenge}
+                  onChallenge={openChallengeModal}
+                />
+              );
+            })
           )}
         </>
       )}
+
+      <ChallengeTeamModal
+        isOpen={Boolean(challengeTarget)}
+        challengedTeam={challengeTarget}
+        myTeams={myTeams}
+        isSubmitting={challengeSubmitting}
+        errorMessage={challengeError}
+        onClose={closeChallengeModal}
+        onSubmit={handleChallengeSubmit}
+      />
     </div>
   );
 };

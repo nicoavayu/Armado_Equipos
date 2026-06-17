@@ -201,6 +201,9 @@ export const isTeamChallengeNotification = (notification = {}) => {
     type === 'challenge_accepted'
     || type === 'team_match_created'
     || type === 'challenge_squad_open'
+    || type === 'team_challenge_received'
+    || type === 'team_challenge_accepted'
+    || type === 'team_challenge_rejected'
     || CHALLENGE_RESULT_NOTIFICATION_TYPES.has(type)
   ) return true;
   if (source === 'team_challenge') return true;
