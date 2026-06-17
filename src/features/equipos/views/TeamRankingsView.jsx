@@ -10,6 +10,7 @@ import {
   listCountriesFromRows,
   matchesCountry,
   nextSort,
+  sortDirectoryRows,
   sortRankingRows,
 } from '../utils/teamRanking';
 import { getTeamChallengeRankings, searchChallengeableTeams } from '../../../services/db/teamRankings';
@@ -157,9 +158,12 @@ const TeamRankingsView = ({
     [sortedRankingRows, rankingCountry],
   );
 
+  // Filtramos por país (client-side) y después ordenamos: MIS equipos primero,
+  // luego el resto, ambos grupos alfabéticos. La búsqueda/formato/zona ya vienen
+  // aplicados desde el RPC, así que el orden no altera qué filas se muestran.
   const visibleDirRows = useMemo(
-    () => dirRows.filter((row) => matchesCountry(row, dirCountry)),
-    [dirRows, dirCountry],
+    () => sortDirectoryRows(dirRows.filter((row) => matchesCountry(row, dirCountry)), isOwnTeam),
+    [dirRows, dirCountry, isOwnTeam],
   );
 
   const loadRanking = useCallback(async () => {
