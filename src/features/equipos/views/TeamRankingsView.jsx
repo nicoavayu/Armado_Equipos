@@ -456,12 +456,18 @@ const TeamRankingsView = ({
               className="my-0 p-5"
             />
           ) : (
-            <TeamRankingTable
-              rows={visibleRankingRows}
-              sort={rankingSort}
-              onSort={handleSort}
-              isOwnTeam={isOwnTeam}
-            />
+            // Edge-to-edge only for the ranking table: pull it out of the page's
+            // px-4 gutter on phones (leaving a hair of safe margin), then snap
+            // back to the centered max-w container at >=560px so it never
+            // overflows on tablets/desktop.
+            <div className="-mx-3 min-[560px]:mx-0">
+              <TeamRankingTable
+                rows={visibleRankingRows}
+                sort={rankingSort}
+                onSort={handleSort}
+                isOwnTeam={isOwnTeam}
+              />
+            </div>
           )}
         </>
       ) : (

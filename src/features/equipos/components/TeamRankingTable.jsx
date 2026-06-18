@@ -5,13 +5,14 @@ import TeamRankingCard from './TeamRankingCard';
 // Premium compact "tabla de posiciones". The column headers ARE the sort
 // controls (no big "Más jugaron / Más ganaron" buttons): tapping a stat header
 // sorts by it, tapping again flips asc <-> desc. The grid template is shared
-// with every row so columns stay aligned. PJ/G/E/P share one width so the
-// numeric block scans cleanly; F (F11) and % (100) get a touch more room.
-export const RANKING_GRID_TEMPLATE = '20px minmax(0,1fr) 32px 26px 26px 26px 26px 40px';
+// with every row so columns stay aligned. PJ is intentionally NOT shown (G/E/P
+// already convey it); dropping it gives the team-name column more room. G/E/P
+// share one width so the numeric block scans cleanly; F (F11) and % (100) get a
+// touch more room.
+export const RANKING_GRID_TEMPLATE = '20px minmax(0,1fr) 32px 26px 26px 26px 40px';
 
 const STAT_COLUMNS = [
   { key: 'format', label: 'F', aria: 'Formato' },
-  { key: 'played', label: 'PJ', aria: 'Partidos jugados' },
   { key: 'wins', label: 'G', aria: 'Ganados' },
   { key: 'draws', label: 'E', aria: 'Empatados' },
   { key: 'losses', label: 'P', aria: 'Perdidos' },
