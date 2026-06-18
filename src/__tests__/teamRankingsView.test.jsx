@@ -187,18 +187,32 @@ describe('TeamRankingsView — Ranking (tabla deportiva)', () => {
     expect(screen.getByAltText('Escudo Fulbo')).toBeInTheDocument();
     expect(screen.getByText('ME')).toBeInTheDocument();
 
-    // per-row format + PJ/G/E/P/% cells (scoped so the format <select> options
-    // and the other row do not collide).
+    // per-row format + G/E/P/% cells (scoped so the format <select> options
+    // and the other row do not collide). PJ is intentionally not a column.
     const me = rowFor('Mi Equipo');
     expect(within(me).getByText('F5')).toBeInTheDocument();
-    expect(within(me).getByText('12')).toBeInTheDocument(); // PJ
     expect(within(me).getByText('8')).toBeInTheDocument(); // G
     expect(within(me).getAllByText('2')).toHaveLength(2); // E + P
     expect(within(me).getByText('67')).toBeInTheDocument(); // %
+    expect(within(me).queryByText('12')).not.toBeInTheDocument(); // PJ removed
 
     const fulbo = rowFor('Fulbo');
     expect(within(fulbo).getByText('F7')).toBeInTheDocument();
     expect(within(fulbo).getByText('56')).toBeInTheDocument();
+  });
+
+  // The PJ (partidos jugados) column/sort is intentionally removed: G/E/P/%
+  // already convey it and dropping it gives the team name more room.
+  test('does not render the PJ column/sort but keeps F, G, E, P and %', async () => {
+    renderView();
+    await waitFor(() => expect(screen.getByText('Mi Equipo')).toBeInTheDocument());
+
+    expect(screen.queryByRole('columnheader', { name: 'PJ' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: 'Partidos jugados' })).not.toBeInTheDocument();
+
+    ['F', 'G', 'E', 'P', '%'].forEach((label) => {
+      expect(header(label)).toBeInTheDocument();
+    });
   });
 
   // Test 3: the big "Más jugaron" / "Más ganaron" buttons are gone.
@@ -216,9 +230,9 @@ describe('TeamRankingsView — Ranking (tabla deportiva)', () => {
     renderView();
     await waitFor(() => expect(screen.getByText('Mi Equipo')).toBeInTheDocument());
 
-    // Default order is "más jugaron" (PJ desc): Mi Equipo (12) before Fulbo (9).
+    // Default order is "más jugaron" (played desc, kept internally): Mi Equipo
+    // (12) before Fulbo (9). PJ is no longer a visible/sortable column.
     expect(rankingOrder()).toEqual(['Mi Equipo', 'Fulbo']);
-    expect(header('PJ')).toHaveAttribute('aria-sort', 'descending');
 
     // First tap on Equipo -> ascending (A→Z): Fulbo before Mi Equipo.
     fireEvent.click(header('Equipo'));

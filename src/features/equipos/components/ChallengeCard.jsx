@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { CalendarClock, CircleDollarSign, Flag, MapPin, MoreVertical, Pencil, Shield, ShieldQuestion, XCircle } from 'lucide-react';
+import AutoFitText from '../../../components/AutoFitText';
 import { normalizeTeamSkillLevel } from '../config';
 import { formatSkillLevelLabel } from '../utils/teamColors';
 
@@ -63,12 +64,6 @@ const formatMoneyAr = (value) => {
 
 const TeamSide = ({ team, fallbackText }) => {
   const teamName = String(team?.name || 'Equipo').trim() || 'Equipo';
-  const teamNameLength = teamName.length;
-  const teamNameSizeClass = teamNameLength >= 20
-    ? 'text-[clamp(15px,2.3vw,19px)] tracking-[0.02em]'
-    : teamNameLength >= 15
-      ? 'text-[clamp(16px,2.6vw,21px)] tracking-[0.03em]'
-      : 'text-[clamp(19px,3.2vw,25px)] tracking-[0.04em]';
 
   if (!team) {
     return (
@@ -92,8 +87,17 @@ const TeamSide = ({ team, fallbackText }) => {
           )}
         </div>
 
-        <div className={`mt-3 w-full min-w-0 flex items-center justify-center px-1 text-white font-bebas font-bold uppercase leading-none whitespace-nowrap overflow-hidden text-ellipsis ${teamNameSizeClass}`}>
-          {teamName}
+        {/* Team name always renders in full: AutoFitText shrinks the font (and
+            tracking) to fit on one line, and only wraps — never clips/ellipsis —
+            if an extreme name can't fit even at the minimum size. */}
+        <div className="mt-3 w-full min-w-0 px-1 text-white font-bebas font-bold uppercase">
+          <AutoFitText
+            text={teamName}
+            maxFontPx={25}
+            minFontPx={14}
+            maxTrackingEm={0.04}
+            minTrackingEm={0.005}
+          />
         </div>
 
         <div className="mt-2 h-[2px] w-7 rounded-full bg-[linear-gradient(90deg,rgba(236,0,125,0.85),rgba(139,92,255,0.6))]" />
