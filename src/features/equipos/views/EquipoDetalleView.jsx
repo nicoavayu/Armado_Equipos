@@ -1105,7 +1105,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
         <div className="w-full flex justify-center px-4 pt-3">
           <div className="w-full max-w-[560px] space-y-3">
             <div
-              className="relative overflow-hidden rounded-none border border-white/15 bg-[#0f172acc] p-4 shadow-[0_8px_24px_rgba(0,0,0,0.35)]"
+              className="relative overflow-visible rounded-none border border-white/15 bg-[#0f172acc] p-4 shadow-[0_8px_24px_rgba(0,0,0,0.35)]"
             >
             {selectedTeamBandColors.length > 0 ? (
               <span className="pointer-events-none absolute left-0 top-0 bottom-0 z-[1] w-[12px] overflow-hidden">
@@ -1150,7 +1150,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
 
               {detailActionsMenuOpen ? (
                 <div
-                  className="absolute right-0 top-10 z-20 w-48 rounded-xl border border-slate-700 bg-slate-900 shadow-lg"
+                  className="absolute right-0 top-10 z-[100] w-48 overflow-hidden rounded-xl border border-slate-700 bg-slate-900 shadow-lg"
                   onClick={(event) => event.stopPropagation()}
                 >
                   <button
