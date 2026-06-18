@@ -88,6 +88,8 @@ export default function AutocompleteSede({
 }) {
   const { user } = useAuth();
   const placesServiceRef = useRef(null);
+  const containerRef = useRef(null);
+  const probeRequestIdRef = useRef(0);
   const suggestionMetadataCacheRef = useRef(new Map());
   const [serviceSuggestions, setServiceSuggestions] = useState([]);
   const [hasUserEdited, setHasUserEdited] = useState(false);
@@ -123,19 +125,27 @@ export default function AutocompleteSede({
   const runPlacesProbe = useCallback((rawQuery) => {
     const query = String(rawQuery || '').trim();
     if (query.length < MIN_AUTOCOMPLETE_CHARS) {
+      probeRequestIdRef.current += 1;
       setServiceSuggestions([]);
       return;
     }
 
     if (!initPlacesService() || !placesServiceRef.current) {
+      probeRequestIdRef.current += 1;
       setServiceSuggestions([]);
       return;
     }
+
+    probeRequestIdRef.current += 1;
+    const requestId = probeRequestIdRef.current;
 
     const runRequest = (requestOptions, stage = 'primary') => {
       placesServiceRef.current.getPlacePredictions(
         requestOptions,
         (predictions, serviceStatus) => {
+          // Drop stale responses so an older query (or a selection) can't repopulate.
+          if (requestId !== probeRequestIdRef.current) return;
+
           const normalizedStatus = String(serviceStatus || 'UNKNOWN');
           const safePredictions = Array.isArray(predictions) ? predictions : [];
 
@@ -299,6 +309,29 @@ export default function AutocompleteSede({
     };
   }, [suggestions]);
 
+  const closeSuggestions = useCallback(() => {
+    setHasUserEdited(false);
+    probeRequestIdRef.current += 1;
+    clearSuggestions();
+    setServiceSuggestions([]);
+  }, [clearSuggestions]);
+
+  // Close when tapping/clicking outside the field.
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined;
+    const handlePointerDown = (event) => {
+      if (containerRef.current && !containerRef.current.contains(event.target)) {
+        closeSuggestions();
+      }
+    };
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('touchstart', handlePointerDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('touchstart', handlePointerDown);
+    };
+  }, [closeSuggestions]);
+
   const containerMarginBottom = dense ? 8 : 24;
   const inputMarginBottomClass = dense ? 'mb-1' : 'mb-2';
   const inputClassName = rectangular
@@ -306,7 +339,7 @@ export default function AutocompleteSede({
     : `appearance-none bg-white/10 border-2 border-white/30 text-white font-oswald text-lg px-4 py-3 rounded-lg w-full h-12 transition-all focus:outline-none focus:border-[#0ea9c6cc] focus:shadow-[0_0_0_2px_rgba(14,169,198,0.2)] placeholder:text-white/60 focus:bg-white/10 box-border shadow-none ${inputMarginBottomClass}`;
 
   return (
-    <div style={{ position: 'relative', marginBottom: containerMarginBottom, width: '100%', boxSizing: 'border-box' }}>
+    <div ref={containerRef} style={{ position: 'relative', marginBottom: containerMarginBottom, width: '100%', boxSizing: 'border-box' }}>
       <input
         className={inputClassName}
         type="text"
@@ -320,6 +353,12 @@ export default function AutocompleteSede({
         }}
         onBlur={() => {
           window.setTimeout(() => clearSuggestions(), 120);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') {
+            e.stopPropagation();
+            closeSuggestions();
+          }
         }}
         style={{ width: '100%', boxSizing: 'border-box' }}
       />
@@ -357,6 +396,7 @@ export default function AutocompleteSede({
                   onClick={async () => {
                     const description = String(s.description || '').trim();
                     setHasUserEdited(false);
+                    probeRequestIdRef.current += 1;
                     setValue(description, false);
                     clearSuggestions();
                     setServiceSuggestions([]);

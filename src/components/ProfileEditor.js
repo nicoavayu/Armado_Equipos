@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthProvider';
 import { updateProfile, calculateProfileCompletion, supabase } from '../supabase';
 import { friendlyError } from '../utils/friendlyError';
+import { prepareImageForUpload } from '../utils/imageUpload';
 import ProfileCard from './ProfileCard';
 import ConfirmModal from './ConfirmModal';
 import InlineNotice from './ui/InlineNotice';
@@ -955,15 +956,23 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
   ]);
 
   const handlePhotoChange = useCallback(async (e) => {
-    const file = e.target.files[0];
+    const inputEl = e.target;
+    const file = inputEl?.files?.[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      showInlineNotice('warning', 'La imagen debe ser menor a 5MB.');
+    let normalizedFile;
+    try {
+      // Normalize phone photos (HEIC/HEIF, oversized JPEGs, EXIF orientation) so the
+      // preview renders and the uploaded avatar is web-displayable everywhere.
+      const prepared = await prepareImageForUpload(file);
+      normalizedFile = prepared.file;
+    } catch (error) {
+      showInlineNotice('warning', error?.message || 'No pudimos procesar esa imagen. Probá con otra foto JPG o PNG.');
+      if (inputEl) inputEl.value = '';
       return;
     }
 
-    const localPreviewUrl = URL.createObjectURL(file);
+    const localPreviewUrl = URL.createObjectURL(normalizedFile);
 
     setLiveProfile((prev) => ({
       ...prev,
@@ -974,17 +983,22 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
       updateLocalProfile({ avatar_url: localPreviewUrl });
       setHasChanges(true);
       showInlineNotice('success', 'Foto actualizada en modo local.');
+      if (inputEl) inputEl.value = '';
       return;
     }
 
     setLoading(true);
     try {
-      const fileExt = file.name.split('.').pop() || 'jpg';
+      const fileExt = normalizedFile.name.split('.').pop() || 'jpg';
       const fileName = `${user.id}_${Date.now()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
         .from('jugadores-fotos')
-        .upload(fileName, file, { upsert: true, cacheControl: '0' });
+        .upload(fileName, normalizedFile, {
+          upsert: true,
+          cacheControl: '0',
+          contentType: normalizedFile.type || undefined,
+        });
 
       if (uploadError) throw uploadError;
 
@@ -1019,6 +1033,8 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
       }));
     } finally {
       setLoading(false);
+      // Reset so re-selecting the same file fires onChange again.
+      if (inputEl) inputEl.value = '';
     }
   }, [user, profile, setLiveProfile, setLoading, setHasChanges, showInlineNotice, isLocalDevSession, updateLocalProfile]);
 

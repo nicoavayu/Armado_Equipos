@@ -22,6 +22,7 @@ export const uploadTeamCrest = async ({ file, userId, teamId }) => {
     .upload(path, file, {
       upsert: true,
       cacheControl: '3600',
+      contentType: file.type || undefined,
     });
 
   if (uploadError) {
@@ -51,6 +52,7 @@ export const uploadTeamMemberPhoto = async ({ file, userId, teamId, memberId = '
     .upload(path, file, {
       upsert: true,
       cacheControl: '3600',
+      contentType: file.type || undefined,
     });
 
   if (uploadError) {
