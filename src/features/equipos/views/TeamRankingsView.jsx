@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Check, SlidersHorizontal, Trophy, Users } from 'lucide-react';
+import Button from '../../../components/Button';
 import EmptyStateCard from '../../../components/EmptyStateCard';
 import NeighborhoodAutocomplete from '../components/NeighborhoodAutocomplete';
 import TeamRankingTable from '../components/TeamRankingTable';
@@ -13,7 +14,12 @@ import {
   sortDirectoryRows,
   sortRankingRows,
 } from '../utils/teamRanking';
-import { getTeamChallengeRankings, searchChallengeableTeams } from '../../../services/db/teamRankings';
+import {
+  getTeamChallengeRankings,
+  searchChallengeableTeams,
+  TEAM_DIRECTORY_PAGE_SIZE,
+  TEAM_RANKING_LIMIT,
+} from '../../../services/db/teamRankings';
 import {
   createDirectedChallenge,
   listMyPendingChallengedTeamIds,
@@ -31,6 +37,39 @@ const togglePillActive = 'border-[#7d5aff] bg-[rgba(106,67,255,0.22)] text-white
 const togglePillIdle = 'border-[rgba(148,134,255,0.2)] bg-[rgba(20,16,41,0.8)] text-white/65 hover:text-white';
 
 const DEFAULT_RANKING_SORT = { key: 'played', dir: 'desc' };
+const TEAM_DIRECTORY_MAX_FETCH = 100;
+
+const normalizeDirectoryTeam = (team) => ({
+  team_id: team?.team_id || team?.id || null,
+  team_name: team?.team_name || team?.name || 'Equipo',
+  avatar_url: team?.avatar_url || team?.crest_url || null,
+  format: team?.format ?? null,
+  zone: team?.zone || team?.base_zone || null,
+  country_code: team?.country_code || null,
+  skill_level: team?.skill_level || null,
+  color_primary: team?.color_primary || null,
+  color_secondary: team?.color_secondary || null,
+  color_accent: team?.color_accent || null,
+  played_count: Number(team?.played_count) || 0,
+  wins: Number(team?.wins) || 0,
+  draws: Number(team?.draws) || 0,
+  losses: Number(team?.losses) || 0,
+  win_rate: Number(team?.win_rate) || 0,
+  last_played_at: team?.last_played_at || null,
+});
+
+const matchesDirectoryRpcFilters = (team, { query, format, zone }) => {
+  const normalizedQuery = String(query || '').trim().toLocaleLowerCase('es');
+  const normalizedFormat = String(format || '').replace(/\D/g, '');
+  const normalizedZone = String(zone || '').trim().toLocaleLowerCase('es');
+  const teamName = String(team?.team_name || '').toLocaleLowerCase('es');
+  const teamFormat = String(team?.format || '').replace(/\D/g, '');
+  const teamZone = String(team?.zone || '').toLocaleLowerCase('es');
+
+  return (!normalizedQuery || teamName.includes(normalizedQuery))
+    && (!normalizedFormat || teamFormat === normalizedFormat)
+    && (!normalizedZone || teamZone.includes(normalizedZone));
+};
 
 const SegmentedTabs = ({ tabs, value, onChange }) => (
   <div className="flex h-[42px] w-full gap-1 p-1 overflow-hidden rounded-full border border-[rgba(148,134,255,0.22)] bg-[rgba(20,16,41,0.85)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_6px_16px_rgba(5,3,16,0.35)]">
@@ -105,6 +144,8 @@ const TeamRankingsView = ({
   const [dirCountry, setDirCountry] = useState('');
   const [dirRows, setDirRows] = useState([]);
   const [dirLoading, setDirLoading] = useState(true);
+  const [dirLoadingMore, setDirLoadingMore] = useState(false);
+  const [dirPage, setDirPage] = useState(1);
 
   // Directed challenge state
   const [challengeTarget, setChallengeTarget] = useState(null);
@@ -114,9 +155,12 @@ const TeamRankingsView = ({
   const [successMessage, setSuccessMessage] = useState('');
 
   const ownIdSet = useMemo(() => {
-    if (ownTeamIds instanceof Set) return ownTeamIds;
-    return new Set((ownTeamIds || []).map((id) => String(id)).filter(Boolean));
-  }, [ownTeamIds]);
+    const ids = ownTeamIds instanceof Set ? Array.from(ownTeamIds) : (ownTeamIds || []);
+    return new Set([
+      ...ids,
+      ...(myTeams || []).map((team) => team?.id || team?.team_id),
+    ].map((id) => String(id)).filter(Boolean));
+  }, [myTeams, ownTeamIds]);
 
   const isOwnTeam = useCallback(
     (team) => ownIdSet.has(String(team?.team_id || '')),
@@ -146,25 +190,71 @@ const TeamRankingsView = ({
   }, [refreshPending]);
 
   const sortedRankingRows = useMemo(
-    () => sortRankingRows(rankingRows, rankingSort.key, rankingSort.dir),
+    () => sortRankingRows(rankingRows, rankingSort.key, rankingSort.dir).slice(0, TEAM_RANKING_LIMIT),
     [rankingRows, rankingSort],
   );
 
   const rankingCountries = useMemo(() => listCountriesFromRows(rankingRows), [rankingRows]);
-  const dirCountries = useMemo(() => listCountriesFromRows(dirRows), [dirRows]);
+
+  const normalizedMyTeams = useMemo(
+    () => (myTeams || []).map(normalizeDirectoryTeam).filter((team) => team.team_id),
+    [myTeams],
+  );
+
+  const dirCountries = useMemo(
+    () => listCountriesFromRows([...dirRows, ...normalizedMyTeams]),
+    [dirRows, normalizedMyTeams],
+  );
 
   const visibleRankingRows = useMemo(
     () => sortedRankingRows.filter((row) => matchesCountry(row, rankingCountry)),
     [sortedRankingRows, rankingCountry],
   );
 
-  // Filtramos por país (client-side) y después ordenamos: MIS equipos primero,
-  // luego el resto, ambos grupos alfabéticos. La búsqueda/formato/zona ya vienen
-  // aplicados desde el RPC, así que el orden no altera qué filas se muestran.
-  const visibleDirRows = useMemo(
-    () => sortDirectoryRows(dirRows.filter((row) => matchesCountry(row, dirCountry)), isOwnTeam),
-    [dirRows, dirCountry, isOwnTeam],
-  );
+  const directoryGeneralLimit = dirPage * TEAM_DIRECTORY_PAGE_SIZE;
+
+  // MIS equipos siempre se construyen desde myTeams y se enriquecen con la fila
+  // del directorio cuando está disponible. El Map evita duplicarlos en la lista
+  // general. La búsqueda/formato/zona conservan exactamente la semántica del RPC;
+  // país sigue siendo el mismo filtro client-side que ya existía.
+  const directoryData = useMemo(() => {
+    const ownById = new Map();
+    normalizedMyTeams.forEach((team) => ownById.set(String(team.team_id), team));
+    dirRows.forEach((team) => {
+      if (isOwnTeam(team)) ownById.set(String(team.team_id), team);
+    });
+
+    const ownRows = sortDirectoryRows(
+      Array.from(ownById.values()).filter((team) => (
+        matchesDirectoryRpcFilters(team, { query: dirQuery, format: dirFormat, zone: dirZone })
+        && matchesCountry(team, dirCountry)
+      )),
+      isOwnTeam,
+    );
+
+    const allGeneralRows = dirRows.filter((team) => !isOwnTeam(team));
+    const visibleGeneralRows = sortDirectoryRows(
+      allGeneralRows.filter((team) => matchesCountry(team, dirCountry)),
+      isOwnTeam,
+    ).slice(0, directoryGeneralLimit);
+
+    return {
+      rows: [...ownRows, ...visibleGeneralRows],
+      hasMore: allGeneralRows.length > directoryGeneralLimit,
+    };
+  }, [
+    dirCountry,
+    dirFormat,
+    directoryGeneralLimit,
+    dirQuery,
+    dirRows,
+    dirZone,
+    isOwnTeam,
+    normalizedMyTeams,
+  ]);
+
+  const visibleDirRows = directoryData.rows;
+  const dirHasMore = directoryData.hasMore;
 
   const loadRanking = useCallback(async () => {
     if (!userId) return;
@@ -174,7 +264,7 @@ const TeamRankingsView = ({
         format: rankingFormat,
         zone: rankingZone,
         period: rankingPeriod,
-        limit: 50,
+        limit: TEAM_RANKING_LIMIT,
       });
       setRankingRows(rows || []);
     } catch (error) {
@@ -186,21 +276,33 @@ const TeamRankingsView = ({
 
   const loadDirectory = useCallback(async () => {
     if (!userId) return;
+    const loadingMore = dirPage > 1;
     try {
-      setDirLoading(true);
+      if (loadingMore) setDirLoadingMore(true);
+      else setDirLoading(true);
+      const requestedLimit = Math.min(
+        (dirPage * TEAM_DIRECTORY_PAGE_SIZE) + ownIdSet.size + 1,
+        TEAM_DIRECTORY_MAX_FETCH,
+      );
       const rows = await searchChallengeableTeams({
         query: dirQuery,
         format: dirFormat,
         zone: dirZone,
-        limit: 50,
+        limit: requestedLimit,
       });
       setDirRows(rows || []);
     } catch (error) {
       notifyBlockingError(error.message || 'No se pudo cargar el directorio');
     } finally {
-      setDirLoading(false);
+      if (loadingMore) setDirLoadingMore(false);
+      else setDirLoading(false);
     }
-  }, [dirQuery, dirFormat, dirZone, userId]);
+  }, [dirFormat, dirPage, dirQuery, dirZone, ownIdSet.size, userId]);
+
+  const resetDirectoryPage = useCallback(() => {
+    setDirPage(1);
+    setDirLoadingMore(false);
+  }, []);
 
   useEffect(() => {
     if (activeTab !== 'ranking') return;
@@ -367,16 +469,38 @@ const TeamRankingsView = ({
           <input
             type="text"
             value={dirQuery}
-            onChange={(event) => setDirQuery(event.target.value)}
+            onChange={(event) => {
+              resetDirectoryPage();
+              setDirQuery(event.target.value);
+            }}
             placeholder="Buscar equipo por nombre"
             className={filterFieldClass}
           />
 
           <div className="grid grid-cols-2 gap-2">
-            <FormatSelect value={dirFormat} onChange={setDirFormat} />
-            <ZoneFilter value={dirZone} onChange={setDirZone} />
+            <FormatSelect
+              value={dirFormat}
+              onChange={(value) => {
+                resetDirectoryPage();
+                setDirFormat(value);
+              }}
+            />
+            <ZoneFilter
+              value={dirZone}
+              onChange={(value) => {
+                resetDirectoryPage();
+                setDirZone(value);
+              }}
+            />
           </div>
-          <CountrySelect value={dirCountry} onChange={setDirCountry} countries={dirCountries} />
+          <CountrySelect
+            value={dirCountry}
+            onChange={(value) => {
+              resetDirectoryPage();
+              setDirCountry(value);
+            }}
+            countries={dirCountries}
+          />
 
           {dirLoading ? (
             <div className="rounded-2xl border border-white/15 bg-white/5 p-4 text-center text-white/70 font-oswald">
@@ -390,19 +514,35 @@ const TeamRankingsView = ({
               className="my-0 p-5"
             />
           ) : (
-            visibleDirRows.map((team, index) => {
-              const own = isOwnTeam(team);
-              return (
-                <ChallengeableTeamCard
-                  key={team.team_id || index}
-                  team={team}
-                  isOwnTeam={own}
-                  isPendingChallenge={!own && pendingChallengedTeamIds.has(String(team.team_id))}
-                  canChallenge={canChallenge}
-                  onChallenge={openChallengeModal}
-                />
-              );
-            })
+            <>
+              {visibleDirRows.map((team, index) => {
+                const own = isOwnTeam(team);
+                return (
+                  <ChallengeableTeamCard
+                    key={team.team_id || index}
+                    team={team}
+                    isOwnTeam={own}
+                    isPendingChallenge={!own && pendingChallengedTeamIds.has(String(team.team_id))}
+                    canChallenge={canChallenge}
+                    onChallenge={openChallengeModal}
+                  />
+                );
+              })}
+              {dirHasMore || dirLoadingMore ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  loading={dirLoadingMore}
+                  loadingText="Cargando..."
+                  onClick={() => {
+                    setDirLoadingMore(true);
+                    setDirPage((page) => page + 1);
+                  }}
+                >
+                  Cargar más
+                </Button>
+              ) : null}
+            </>
           )}
         </>
       )}

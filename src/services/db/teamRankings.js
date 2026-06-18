@@ -45,20 +45,28 @@ const cleanParam = (value) => {
   return normalized || null;
 };
 
+export const TEAM_RANKING_LIMIT = 20;
+export const TEAM_DIRECTORY_PAGE_SIZE = 20;
+
+const normalizeLimit = (value, fallback, max) => {
+  const parsed = Math.trunc(toNumber(value, fallback));
+  return Math.min(Math.max(parsed, 1), max);
+};
+
 // p_sort: 'played' (mas jugaron) | 'wins' (mas ganaron).
 // p_period: 'all' | '90d'.
 export const getTeamChallengeRankings = async ({
   format = null,
   zone = null,
   sort = 'played',
-  limit = 50,
+  limit = TEAM_RANKING_LIMIT,
   period = 'all',
 } = {}) => {
   const { data, error } = await supabase.rpc('rpc_get_team_challenge_rankings', {
     p_format: cleanParam(format),
     p_zone: cleanParam(zone),
     p_sort: sort === 'wins' ? 'wins' : 'played',
-    p_limit: limit,
+    p_limit: normalizeLimit(limit, TEAM_RANKING_LIMIT, TEAM_RANKING_LIMIT),
     p_period: period === '90d' ? '90d' : 'all',
   });
 
@@ -67,20 +75,22 @@ export const getTeamChallengeRankings = async ({
     throw new Error(error.message || 'No se pudo cargar el ranking de equipos');
   }
 
-  return (data || []).map(normalizeTeamRankingRow);
+  return (data || [])
+    .slice(0, TEAM_RANKING_LIMIT)
+    .map(normalizeTeamRankingRow);
 };
 
 export const searchChallengeableTeams = async ({
   query = null,
   format = null,
   zone = null,
-  limit = 50,
+  limit = TEAM_DIRECTORY_PAGE_SIZE,
 } = {}) => {
   const { data, error } = await supabase.rpc('rpc_search_challengeable_teams', {
     p_query: cleanParam(query),
     p_format: cleanParam(format),
     p_zone: cleanParam(zone),
-    p_limit: limit,
+    p_limit: normalizeLimit(limit, TEAM_DIRECTORY_PAGE_SIZE, 100),
   });
 
   if (error) {
