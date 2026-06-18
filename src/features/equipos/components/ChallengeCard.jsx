@@ -90,11 +90,11 @@ const TeamSide = ({ team, fallbackText }) => {
         {/* Team name always renders in full: AutoFitText shrinks the font (and
             tracking) to fit on one line, and only wraps — never clips/ellipsis —
             if an extreme name can't fit even at the minimum size. */}
-        <div className="mt-3 w-full min-w-0 px-1 text-white font-bebas font-bold uppercase">
+        <div className="mt-3 w-full min-w-0 px-1 text-white font-bebas font-bold uppercase overflow-hidden">
           <AutoFitText
             text={teamName}
-            maxFontPx={25}
-            minFontPx={14}
+            maxFontPx={22}
+            minFontPx={12}
             maxTrackingEm={0.04}
             minTrackingEm={0.005}
           />

@@ -6,8 +6,11 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 // instead of clipping letters or showing an ellipsis. Used for team names that
 // must always render in full (e.g. the challenge cards / VS matchups).
 //
-// It measures the visible node itself (no duplicated text), so what you read in
-// the DOM is exactly what renders — handy for tests and screen readers alike.
+// The visible text node is controlled purely by React state — it is never
+// mutated imperatively. Width is measured on a throwaway, off-screen probe node
+// that is created and removed within a single measure() call, so the rendered
+// text always reflects the fitted size (no leaked measuring font-size) and the
+// container never resizes from our own work (no ResizeObserver feedback loop).
 export default function AutoFitText({
   text,
   maxFontPx,
@@ -18,23 +21,35 @@ export default function AutoFitText({
   style = {},
 }) {
   const containerRef = useRef(null);
-  const textRef = useRef(null);
-  const lastRef = useRef(null);
   const [fit, setFit] = useState({ fontPx: maxFontPx, trackingEm: maxTrackingEm, wrap: false });
 
   const measure = useCallback(() => {
     const container = containerRef.current;
-    const el = textRef.current;
-    if (!container || !el) return;
+    if (!container) return;
 
     const available = container.clientWidth;
     if (!available) return; // not laid out yet (e.g. jsdom) — keep full text at max size
 
-    // Measure the natural single-line width at the maximum font size.
-    el.style.whiteSpace = 'nowrap';
-    el.style.fontSize = `${maxFontPx}px`;
-    el.style.letterSpacing = `${maxTrackingEm}em`;
-    const neededAtMax = el.scrollWidth;
+    // Measure the natural single-line width at the maximum font size using a
+    // detached, invisible probe. It inherits font-family/weight/text-transform
+    // from the real container, so its metrics match the rendered glyphs.
+    const probe = document.createElement('span');
+    probe.textContent = text;
+    probe.style.cssText = [
+      'position:absolute',
+      'left:-9999px',
+      'top:0',
+      'visibility:hidden',
+      'pointer-events:none',
+      'white-space:nowrap',
+      `font-size:${maxFontPx}px`,
+      `letter-spacing:${maxTrackingEm}em`,
+    ].join(';');
+    container.appendChild(probe);
+    const neededAtMax = probe.scrollWidth;
+    container.removeChild(probe);
+
+    if (!neededAtMax) return;
 
     let next;
     if (neededAtMax <= available) {
@@ -56,24 +71,35 @@ export default function AutoFitText({
       }
     }
 
-    const last = lastRef.current;
-    if (last && last.fontPx === next.fontPx && last.trackingEm === next.trackingEm && last.wrap === next.wrap) {
-      return;
-    }
-    lastRef.current = next;
-    setFit(next);
-  }, [maxFontPx, minFontPx, maxTrackingEm, minTrackingEm]);
+    setFit((prev) => (
+      prev.fontPx === next.fontPx && prev.trackingEm === next.trackingEm && prev.wrap === next.wrap
+        ? prev
+        : next
+    ));
+  }, [text, maxFontPx, minFontPx, maxTrackingEm, minTrackingEm]);
 
   useEffect(() => {
     measure();
     let ro;
+    let raf;
+    // Defer the re-measure to the next frame: it breaks the synchronous
+    // observe→measure→observe chain that otherwise surfaces as the benign
+    // "ResizeObserver loop completed with undelivered notifications" warning.
+    const schedule = () => {
+      if (typeof window === 'undefined' || !window.requestAnimationFrame) {
+        measure();
+        return;
+      }
+      if (raf) window.cancelAnimationFrame(raf);
+      raf = window.requestAnimationFrame(() => measure());
+    };
     if (typeof ResizeObserver !== 'undefined') {
-      ro = new ResizeObserver(() => measure());
+      ro = new ResizeObserver(schedule);
       // Only the container width matters; observing it (not the text) avoids a
       // re-measure loop when the font-size we set changes the text's own box.
       if (containerRef.current) ro.observe(containerRef.current);
     } else if (typeof window !== 'undefined') {
-      window.addEventListener('resize', measure);
+      window.addEventListener('resize', schedule);
     }
     // Re-fit once web fonts (Bebas/Oswald) finish loading so the measurement
     // uses the real glyph metrics, not the fallback font.
@@ -83,15 +109,15 @@ export default function AutoFitText({
     }
     return () => {
       cancelled = true;
+      if (raf && typeof window !== 'undefined' && window.cancelAnimationFrame) window.cancelAnimationFrame(raf);
       if (ro && ro.disconnect) ro.disconnect();
-      else if (typeof window !== 'undefined') window.removeEventListener('resize', measure);
+      else if (typeof window !== 'undefined') window.removeEventListener('resize', schedule);
     };
-  }, [measure, text]);
+  }, [measure]);
 
   return (
     <div ref={containerRef} className={className} style={{ width: '100%', ...style }}>
       <div
-        ref={textRef}
         style={{
           fontSize: `${fit.fontPx}px`,
           letterSpacing: `${fit.trackingEm}em`,
