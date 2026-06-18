@@ -8,6 +8,7 @@ import useInlineNotice from '../hooks/useInlineNotice';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { todayYmdLocal } from '../utils/frequentTemplateDate';
 import { buildFrequentMatchLocationFields, extractPersistedLocation } from '../utils/matchLocation';
+import { prepareImageForUpload } from '../utils/imageUpload';
 
 const SECTION_LABEL_CLASS = 'text-white/60 font-medium block font-oswald text-xs uppercase tracking-widest pl-1 mb-2';
 const INPUT_CLASS = 'appearance-none bg-[rgba(20,16,41,0.85)] border border-[rgba(148,134,255,0.25)] text-white font-oswald text-lg px-4 py-3 rounded-none w-full box-border h-[52px] transition-all duration-300 focus:outline-none focus:border-[#8b7cff] focus:ring-2 focus:ring-[#6a43ff]/30 backdrop-blur-md placeholder:text-white/30';
@@ -36,10 +37,31 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
   const [modalidad, setModalidad] = useState(partido.modalidad || 'F5');
   const { notice, showInlineNotice, clearInlineNotice } = useInlineNotice();
 
-  const handleFile = (e) => {
-    if (e.target && e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
-      try { setFotoPreview(URL.createObjectURL(e.target.files[0])); } catch (_) { /* ignore */ }
+  const handleFile = async (e) => {
+    const inputEl = e.target;
+    const selected = inputEl?.files?.[0];
+    if (!selected) return;
+
+    try {
+      // Normalize phone photos (HEIC/HEIF, oversized JPEGs) so the preview renders
+      // and the uploaded image is web-displayable.
+      const { file: normalized } = await prepareImageForUpload(selected);
+      setFile(normalized);
+      setFotoPreview((prev) => {
+        if (prev && typeof prev === 'string' && prev.startsWith('blob:')) {
+          try { URL.revokeObjectURL(prev); } catch (_) { /* ignore */ }
+        }
+        return URL.createObjectURL(normalized);
+      });
+    } catch (error) {
+      showInlineNotice({
+        key: 'edit_frequent_image_error',
+        type: 'warning',
+        message: error?.message || 'No pudimos procesar esa imagen. Probá con otra foto JPG o PNG.',
+      });
+    } finally {
+      // Reset so re-selecting the same file fires onChange again.
+      if (inputEl) inputEl.value = '';
     }
   };
 
@@ -234,12 +256,12 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
       // Upload image if provided (do this once, then include in updatesFrecuente if uploaded)
       let uploadedImageUrl = null;
       if (file) {
-        const fileExt = file.name.split('.').pop();
+        const fileExt = file.name.split('.').pop() || 'jpg';
         const fileName = `partido_${Date.now()}.${fileExt}`;
 
         const { error: uploadError } = await supabase.storage
           .from('jugadores-fotos')
-          .upload(fileName, file, { upsert: true });
+          .upload(fileName, file, { upsert: true, contentType: file.type || undefined });
 
         if (uploadError) throw uploadError;
 

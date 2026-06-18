@@ -38,6 +38,15 @@ describe('ChallengeTeamModal', () => {
     expect(screen.getByText(/Fulbo FC/)).toBeInTheDocument();
   });
 
+  test('renders the simplified challenge CTA without an icon or wrapping', () => {
+    renderModal();
+    const submit = screen.getByRole('button', { name: 'Desafiar' });
+
+    expect(submit).not.toHaveTextContent('Enviar');
+    expect(submit.querySelector('svg')).toBeNull();
+    expect(submit).toHaveClass('whitespace-nowrap');
+  });
+
   test('confirming calls onSubmit with my team, rival, date, format-matched team and message', () => {
     const onSubmit = jest.fn();
     renderModal({ onSubmit });
@@ -79,7 +88,7 @@ describe('ChallengeTeamModal', () => {
     );
 
     expect(screen.getByText(/No tenés un equipo F7 para desafiar/)).toBeInTheDocument();
-    const submit = screen.getByRole('button', { name: /Enviar desafío/ });
+    const submit = screen.getByRole('button', { name: 'Desafiar' });
     expect(submit).toBeDisabled();
   });
 

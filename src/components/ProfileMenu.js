@@ -69,17 +69,9 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
   };
 
   const handlePhotoChange = async (e) => {
-    const file = e.target.files[0];
+    const inputEl = e.target;
+    const file = inputEl?.files?.[0];
     if (!file) return;
-
-    if (file.size > 5 * 1024 * 1024) {
-      showInlineNotice({
-        key: 'profile_menu_image_too_large',
-        type: 'warning',
-        message: 'La imagen debe ser menor a 5MB.',
-      });
-      return;
-    }
 
     if (isLocalDevSession) {
       const localPreviewUrl = URL.createObjectURL(file);
@@ -94,11 +86,14 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
         type: 'success',
         message: 'Foto actualizada en modo local.',
       });
+      if (inputEl) inputEl.value = '';
       return;
     }
 
     setLoading(true);
     try {
+      // uploadFoto normalizes phone photos (HEIC/HEIF, oversized JPEGs) and throws a
+      // clear error if the image can't be processed, so no silent failures here.
       const fotoUrl = await uploadFoto(file, { uuid: user.id });
       // Add a cache buster parameter so clients reload the new image immediately
       const cacheBusted = fotoUrl ? `${fotoUrl}${fotoUrl.includes('?') ? '&' : '?'}cb=${Date.now()}` : fotoUrl;
@@ -124,6 +119,8 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
       notifyBlockingError(friendlyError(error, 'No se pudo subir la foto. Intentá de nuevo.'));
     } finally {
       setLoading(false);
+      // Reset so re-selecting the same file fires onChange again.
+      if (inputEl) inputEl.value = '';
     }
   };
 

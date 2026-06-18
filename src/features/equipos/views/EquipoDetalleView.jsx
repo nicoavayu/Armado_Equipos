@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Camera, ChevronDown, Crown, Eye, MoreVertical, Pencil, Trash2, Users } from 'lucide-react';
+import { Camera, ChevronDown, Crown, Eye, Loader2, MoreVertical, Pencil, Trash2, Users } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Modal from '../../../components/Modal';
 import ConfirmModal from '../../../components/ConfirmModal';
@@ -26,6 +26,7 @@ import {
 import { getAmigos } from '../../../services/db/friends';
 import { uploadTeamCrest, uploadTeamMemberPhoto } from '../../../services/storage/teamCrests';
 import { notifyBlockingError } from '../../../utils/notifyBlockingError';
+import { prepareImageForUpload } from '../../../utils/imageUpload';
 import { formatSkillLevelLabel, getTeamProvidedColors } from '../utils/teamColors';
 import { QUIERO_JUGAR_EQUIPOS_SUBTAB_STORAGE_KEY, resolveTeamRosterLimit } from '../config';
 import { useSupabaseRealtime } from '../../../hooks/useSupabaseRealtime';
@@ -229,6 +230,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
   const [selectedFriendUserId, setSelectedFriendUserId] = useState('');
   const [memberPhotoFile, setMemberPhotoFile] = useState(null);
   const [memberPhotoPreview, setMemberPhotoPreview] = useState(null);
+  const [memberPhotoProcessing, setMemberPhotoProcessing] = useState(false);
   const [removeMemberPhoto, setRemoveMemberPhoto] = useState(false);
   const [showProfilePositionHint, setShowProfilePositionHint] = useState(false);
 
@@ -669,17 +671,31 @@ const EquipoDetalleView = ({ teamId, userId }) => {
     setMemberModalOpen(true);
   };
 
-  const handleSelectMemberPhoto = (file) => {
+  const handleSelectMemberPhoto = async (file) => {
     if (!file) return;
 
-    setMemberPhotoFile(file);
-    setRemoveMemberPhoto(false);
-    setMemberPhotoPreview((prev) => {
-      if (prev && prev.startsWith('blob:')) {
-        URL.revokeObjectURL(prev);
+    setMemberPhotoProcessing(true);
+    try {
+      // Normalize phone photos (HEIC/HEIF, oversized JPEGs) so the preview renders
+      // and the uploaded file is web-displayable.
+      const { file: normalized } = await prepareImageForUpload(file);
+
+      setMemberPhotoFile(normalized);
+      setRemoveMemberPhoto(false);
+      setMemberPhotoPreview((prev) => {
+        if (prev && prev.startsWith('blob:')) {
+          URL.revokeObjectURL(prev);
+        }
+        return URL.createObjectURL(normalized);
+      });
+    } catch (error) {
+      notifyBlockingError(error?.message || 'No pudimos procesar esa imagen. Probá con otra foto JPG o PNG.');
+      if (memberPhotoInputRef.current) {
+        memberPhotoInputRef.current.value = '';
       }
-      return URL.createObjectURL(file);
-    });
+    } finally {
+      setMemberPhotoProcessing(false);
+    }
   };
 
   const handleClearMemberPhoto = () => {
@@ -1089,7 +1105,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
         <div className="w-full flex justify-center px-4 pt-3">
           <div className="w-full max-w-[560px] space-y-3">
             <div
-              className="relative overflow-hidden rounded-none border border-white/15 bg-[#0f172acc] p-4 shadow-[0_8px_24px_rgba(0,0,0,0.35)]"
+              className="relative overflow-visible rounded-none border border-white/15 bg-[#0f172acc] p-4 shadow-[0_8px_24px_rgba(0,0,0,0.35)]"
             >
             {selectedTeamBandColors.length > 0 ? (
               <span className="pointer-events-none absolute left-0 top-0 bottom-0 z-[1] w-[12px] overflow-hidden">
@@ -1134,7 +1150,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
 
               {detailActionsMenuOpen ? (
                 <div
-                  className="absolute right-0 top-10 z-20 w-48 rounded-xl border border-slate-700 bg-slate-900 shadow-lg"
+                  className="absolute right-0 top-10 z-[100] w-48 overflow-hidden rounded-xl border border-slate-700 bg-slate-900 shadow-lg"
                   onClick={(event) => event.stopPropagation()}
                 >
                   <button
@@ -1715,8 +1731,18 @@ const EquipoDetalleView = ({ teamId, userId }) => {
               <span className="text-xs text-white/80 tracking-wide">Foto (Opcional)</span>
               <div className="mt-2 flex items-center gap-3">
                 <div className="h-12 w-12 rounded-full overflow-hidden border border-white/20 bg-black/20 flex items-center justify-center shrink-0">
-                  {memberPhotoDisplay ? (
-                    <img src={memberPhotoDisplay} alt="Preview jugador" className="h-full w-full object-cover" />
+                  {memberPhotoProcessing ? (
+                    <Loader2 size={16} className="animate-spin text-[#9ED3FF]" />
+                  ) : memberPhotoDisplay ? (
+                    <img
+                      src={memberPhotoDisplay}
+                      alt="Preview jugador"
+                      className="h-full w-full object-cover"
+                      onError={() => {
+                        handleClearMemberPhoto();
+                        notifyBlockingError('No pudimos mostrar esa imagen. Probá con otra foto JPG o PNG.');
+                      }}
+                    />
                   ) : (
                     <span className="text-white/40">
                       <Camera size={16} />
@@ -1732,22 +1758,25 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                       memberPhotoInputRef.current.value = '';
                       memberPhotoInputRef.current.click();
                     }}
-                    className="w-full inline-flex items-center gap-2 text-left text-sm text-white/90 hover:text-white"
+                    disabled={memberPhotoProcessing}
+                    className="w-full inline-flex items-center gap-2 text-left text-sm text-white/90 hover:text-white disabled:cursor-wait disabled:opacity-70"
                   >
                     <span className="inline-flex h-7 w-7 items-center justify-center rounded-none border border-[#9ED3FF]/40 bg-[#128BE9]/15 text-[#9ED3FF] shrink-0">
-                      <Camera size={14} />
+                      {memberPhotoProcessing ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
                     </span>
-                    <span className="font-semibold">{memberPhotoFile ? 'Cambiar foto' : 'Subir foto'}</span>
+                    <span className="font-semibold">
+                      {memberPhotoProcessing ? 'Procesando…' : (memberPhotoFile ? 'Cambiar foto' : 'Subir foto')}
+                    </span>
                   </button>
 
                   <p className="mt-1 text-xs text-white/60 truncate">
-                    {memberPhotoDisplay ? 'Foto lista' : 'PNG, JPG, WEBP o SVG'}
+                    {memberPhotoDisplay ? 'Foto lista' : 'PNG, JPG, WEBP, HEIC o SVG'}
                   </p>
 
                   <input
                     ref={memberPhotoInputRef}
                     type="file"
-                    accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                    accept="image/png,image/jpeg,image/webp,image/svg+xml,image/heic,image/heif,.heic,.heif"
                     onChange={(event) => {
                       const file = event.target.files?.[0];
                       if (file) handleSelectMemberPhoto(file);

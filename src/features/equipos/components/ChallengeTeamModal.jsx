@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle, Loader2, Swords } from 'lucide-react';
+import { AlertCircle, Loader2 } from 'lucide-react';
 import Modal from '../../../components/Modal';
 import NeighborhoodAutocomplete from './NeighborhoodAutocomplete';
 
@@ -95,12 +95,12 @@ const ChallengeTeamModal = ({
           <button
             type="submit"
             form="challenge-team-form"
-            className={`${PRIMARY_ACTION_BUTTON_CLASS} w-full min-w-0`}
+            className={`${PRIMARY_ACTION_BUTTON_CLASS} w-full min-w-0 whitespace-nowrap`}
             disabled={!canSubmit}
             data-preserve-button-case="true"
           >
-            {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <Swords size={16} />}
-            {isSubmitting ? 'Enviando...' : 'Enviar desafío'}
+            {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : null}
+            {isSubmitting ? 'Enviando...' : 'Desafiar'}
           </button>
         </div>
       )}

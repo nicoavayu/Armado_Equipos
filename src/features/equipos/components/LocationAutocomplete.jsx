@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import usePlacesAutocomplete from 'use-places-autocomplete';
 
 const isArgentinaSuggestion = (suggestion) => String(suggestion?.description || '')
@@ -21,6 +21,9 @@ const LocationAutocomplete = ({
   limit = 8,
   disabled = false,
 }) => {
+  const containerRef = useRef(null);
+  const inputRef = useRef(null);
+
   const {
     ready,
     value: query,
@@ -38,6 +41,22 @@ const LocationAutocomplete = ({
   useEffect(() => {
     setValue(value || '', false);
   }, [setValue, value]);
+
+  // Close when tapping/clicking outside the field.
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined;
+    const handlePointerDown = (event) => {
+      if (containerRef.current && !containerRef.current.contains(event.target)) {
+        clearSuggestions();
+      }
+    };
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('touchstart', handlePointerDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('touchstart', handlePointerDown);
+    };
+  }, [clearSuggestions]);
 
   const suggestions = useMemo(() => {
     if (status !== 'OK') return [];
@@ -63,6 +82,7 @@ const LocationAutocomplete = ({
     const label = buildLabel(suggestion);
     setValue(label, false);
     clearSuggestions();
+    inputRef.current?.blur();
     onChange(label);
   };
 
@@ -89,8 +109,9 @@ const LocationAutocomplete = ({
   const inputDisabled = disabled || !ready;
 
   return (
-    <div className="relative">
+    <div className="relative" ref={containerRef}>
       <input
+        ref={inputRef}
         type="text"
         value={query}
         onChange={(event) => {
@@ -99,6 +120,12 @@ const LocationAutocomplete = ({
           onChange(nextValue);
         }}
         onBlur={handleBlur}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') {
+            event.stopPropagation();
+            clearSuggestions();
+          }
+        }}
         placeholder={ready ? placeholder : 'Cargando ubicaciones...'}
         disabled={inputDisabled}
         className={inputClassName}

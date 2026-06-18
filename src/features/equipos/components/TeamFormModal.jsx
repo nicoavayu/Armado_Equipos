@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, Loader2 } from 'lucide-react';
 import Modal from '../../../components/Modal';
+import { prepareImageForUpload } from '../../../utils/imageUpload';
+import { notifyBlockingError } from '../../../utils/notifyBlockingError';
 import {
   TEAM_COUNTRY_OPTIONS,
   TEAM_FORMAT_OPTIONS,
@@ -48,6 +50,8 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
   const [colors, setColors] = useState([]);
   const [crestFile, setCrestFile] = useState(null);
   const [crestPreview, setCrestPreview] = useState(null);
+  const [crestProcessing, setCrestProcessing] = useState(false);
+  const [crestError, setCrestError] = useState(null);
   const [addCurrentUserAsPlayer, setAddCurrentUserAsPlayer] = useState(true);
 
   useEffect(() => {
@@ -66,6 +70,8 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
     setColors(toInitialColors(initialTeam));
     setCrestFile(null);
     setCrestPreview(initialTeam?.crest_url || null);
+    setCrestProcessing(false);
+    setCrestError(null);
     setAddCurrentUserAsPlayer(!initialTeam);
   }, [initialTeam, isOpen]);
 
@@ -75,20 +81,40 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
     }
   }, [crestPreview]);
 
-  const handleCrestChange = (file) => {
+  const handleCrestChange = async (file) => {
     if (!file) return;
 
-    setCrestFile(file);
+    setCrestError(null);
+    setCrestProcessing(true);
 
-    if (crestPreview && crestPreview.startsWith('blob:')) {
-      URL.revokeObjectURL(crestPreview);
+    try {
+      // Normalize phone photos (HEIC/HEIF, oversized JPEGs, EXIF orientation) so the
+      // preview is always renderable and the uploaded file is web-displayable.
+      const { file: normalized } = await prepareImageForUpload(file);
+
+      setCrestFile(normalized);
+
+      if (crestPreview && crestPreview.startsWith('blob:')) {
+        URL.revokeObjectURL(crestPreview);
+      }
+
+      setCrestPreview(URL.createObjectURL(normalized));
+    } catch (error) {
+      const message = error?.message || 'No pudimos procesar esa imagen. Probá con otra foto JPG o PNG.';
+      setCrestError(message);
+      notifyBlockingError(message);
+      // Reset the input so the user can re-pick the same (or a different) file.
+      if (crestFileRef.current) {
+        crestFileRef.current.value = '';
+      }
+    } finally {
+      setCrestProcessing(false);
     }
-
-    setCrestPreview(URL.createObjectURL(file));
   };
 
   const handleClearCrest = () => {
     setCrestFile(null);
+    setCrestError(null);
 
     if (crestPreview && crestPreview.startsWith('blob:')) {
       URL.revokeObjectURL(crestPreview);
@@ -129,7 +155,7 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
           <button
             type="submit"
             form="team-form-modal"
-            disabled={isSubmitting || form.name.trim().length === 0}
+            disabled={isSubmitting || crestProcessing || form.name.trim().length === 0}
             className={`${PRIMARY_ACTION_BUTTON_CLASS} w-full min-w-0`}
             data-preserve-button-case="true"
           >
@@ -244,6 +270,7 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
               onChange={(nextZone) => setForm((prev) => ({ ...prev, base_zone: nextZone }))}
               placeholder="Ej: Palermo"
               inputClassName={`${INPUT_CLASS} disabled:opacity-60 disabled:cursor-not-allowed`}
+              country={form.country_code}
             />
           </div>
         </label>
@@ -342,12 +369,23 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
                 crestFileRef.current.value = '';
                 crestFileRef.current.click();
               }}
-              className="h-14 w-14 rounded-none overflow-hidden border border-[rgba(148,134,255,0.28)] bg-white/[0.05] flex items-center justify-center shrink-0 transition-all hover:border-[#9ED3FF]/45"
+              disabled={crestProcessing}
+              className="h-14 w-14 rounded-none overflow-hidden border border-[rgba(148,134,255,0.28)] bg-white/[0.05] flex items-center justify-center shrink-0 transition-all hover:border-[#9ED3FF]/45 disabled:cursor-wait"
               title="Elegir escudo"
               aria-label="Elegir escudo"
             >
-              {crestPreview ? (
-                <img src={crestPreview} alt="Escudo" className="h-full w-full object-cover" />
+              {crestProcessing ? (
+                <Loader2 size={18} className="animate-spin text-[#9ED3FF]" />
+              ) : crestPreview ? (
+                <img
+                  src={crestPreview}
+                  alt="Escudo"
+                  className="h-full w-full object-cover"
+                  onError={() => {
+                    handleClearCrest();
+                    setCrestError('No pudimos mostrar esa imagen. Probá con otra foto JPG o PNG.');
+                  }}
+                />
               ) : (
                 <span className="inline-flex h-8 w-8 items-center justify-center rounded-none border border-[#9ED3FF]/40 bg-[#128BE9]/15 text-[#9ED3FF]">
                   <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
@@ -367,15 +405,16 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
                 crestFileRef.current.value = '';
                 crestFileRef.current.click();
               }}
-              className="flex-1 min-w-0 rounded-none border border-dashed border-[rgba(148,134,255,0.28)] bg-[rgba(20,31,70,0.56)] px-3 py-3 text-left text-white/90 font-oswald text-[16px] transition-all hover:border-[#9ED3FF]/45 hover:text-white"
+              disabled={crestProcessing}
+              className="flex-1 min-w-0 rounded-none border border-dashed border-[rgba(148,134,255,0.28)] bg-[rgba(20,31,70,0.56)] px-3 py-3 text-left text-white/90 font-oswald text-[16px] transition-all hover:border-[#9ED3FF]/45 hover:text-white disabled:cursor-wait disabled:opacity-70"
             >
-              Elegir foto
+              {crestProcessing ? 'Procesando foto…' : 'Elegir foto'}
             </button>
 
             <input
               ref={crestFileRef}
               type="file"
-              accept="image/png,image/jpeg,image/webp,image/svg+xml"
+              accept="image/png,image/jpeg,image/webp,image/svg+xml,image/heic,image/heif,.heic,.heif"
               onChange={(event) => {
                 const file = event.target.files?.[0];
                 if (file) handleCrestChange(file);
@@ -383,7 +422,7 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
               className="hidden"
             />
 
-            {crestPreview ? (
+            {crestPreview && !crestProcessing ? (
               <button
                 type="button"
                 onClick={handleClearCrest}
@@ -397,6 +436,10 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
               </button>
             ) : null}
           </div>
+
+          {crestError ? (
+            <p className="mt-2 text-xs text-red-300" role="alert">{crestError}</p>
+          ) : null}
         </div>
       </form>
     </Modal>
