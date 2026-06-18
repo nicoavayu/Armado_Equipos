@@ -5,6 +5,8 @@ import { getTeamChallengeRankings, searchChallengeableTeams } from '../services/
 jest.mock('../services/db/teamRankings', () => ({
   getTeamChallengeRankings: jest.fn(),
   searchChallengeableTeams: jest.fn(),
+  TEAM_RANKING_LIMIT: 20,
+  TEAM_DIRECTORY_PAGE_SIZE: 20,
 }));
 
 jest.mock('../services/db/teamChallenges', () => ({
@@ -83,6 +85,20 @@ const directoryRows = [
   },
 ];
 
+const makeTeamRows = (prefix, count, format = 5) => Array.from({ length: count }, (_, index) => ({
+  team_id: `${prefix}-${index + 1}`,
+  team_name: `${prefix} ${String(index + 1).padStart(2, '0')}`,
+  avatar_url: null,
+  format,
+  zone: 'CABA',
+  country_code: 'AR',
+  played_count: count - index,
+  wins: Math.max(0, count - index - 2),
+  draws: 1,
+  losses: 1,
+  win_rate: 50,
+}));
+
 const renderView = (props = {}) => render(
   <TeamRankingsView
     userId="user-1"
@@ -109,6 +125,47 @@ beforeEach(() => {
 });
 
 describe('TeamRankingsView — Ranking (tabla deportiva)', () => {
+  test('shows at most the global top 20 and never renders Cargar más', async () => {
+    getTeamChallengeRankings.mockResolvedValue(makeTeamRows('Global', 25));
+    renderView();
+
+    await waitFor(() => expect(screen.getByText('Global 01')).toBeInTheDocument());
+    const table = screen.getByRole('table', { name: 'Ranking de equipos' });
+    expect(within(table).getAllByRole('row')).toHaveLength(21); // header + 20 teams
+    expect(screen.getByText('Global 20')).toBeInTheDocument();
+    expect(screen.queryByText('Global 21')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Cargar más' })).not.toBeInTheDocument();
+    expect(getTeamChallengeRankings).toHaveBeenCalledWith(
+      expect.objectContaining({ format: '', limit: 20 }),
+    );
+  });
+
+  test('format filter fetches and shows at most the top 20 for that format', async () => {
+    const rows = [
+      ...makeTeamRows('Cinco', 25, 5),
+      ...makeTeamRows('Ocho', 25, 8),
+    ];
+    getTeamChallengeRankings.mockImplementation(({ format, limit }) => Promise.resolve(
+      rows
+        .filter((team) => !format || String(team.format) === String(format))
+        .slice(0, limit),
+    ));
+    renderView();
+    await waitFor(() => expect(screen.getByText('Cinco 01')).toBeInTheDocument());
+
+    const formatOption = screen.getByRole('option', { name: 'F8' });
+    fireEvent.change(formatOption.closest('select'), { target: { value: '8' } });
+
+    await waitFor(() => expect(screen.getByText('Ocho 01')).toBeInTheDocument());
+    const table = screen.getByRole('table', { name: 'Ranking de equipos' });
+    expect(within(table).getAllByRole('row')).toHaveLength(21);
+    expect(screen.getByText('Ocho 20')).toBeInTheDocument();
+    expect(screen.queryByText('Ocho 21')).not.toBeInTheDocument();
+    expect(getTeamChallengeRankings).toHaveBeenCalledWith(
+      expect.objectContaining({ format: '8', limit: 20 }),
+    );
+  });
+
   // Tests 11-14 + 6: escudo/fallback, name, format, flag, zone and stats render.
   test('renders the ranking table with name, format, flag, zone and stats', async () => {
     renderView();
@@ -286,6 +343,56 @@ describe('TeamRankingsView — Ranking (tabla deportiva)', () => {
 });
 
 describe('TeamRankingsView — Equipos (directorio)', () => {
+  test('shows own teams first, then 20 general teams, without duplicates, and loads the next page', async () => {
+    const ownTeam = {
+      team_id: 'own-team',
+      team_name: 'Mi Equipo',
+      format: 5,
+      zone: 'CABA',
+      country_code: 'AR',
+      played_count: 2,
+      wins: 1,
+      draws: 0,
+      losses: 1,
+      win_rate: 50,
+    };
+    const allRows = [
+      ownTeam,
+      ...makeTeamRows('General', 25),
+    ];
+    searchChallengeableTeams.mockImplementation(({ limit }) => Promise.resolve(
+      allRows.slice(0, limit),
+    ));
+    renderView({
+      ownTeamIds: new Set(['own-team']),
+      myTeams: [{ id: 'own-team', name: 'Mi Equipo', format: 5, base_zone: 'CABA', is_active: true }],
+    });
+
+    await waitFor(() => expect(screen.getByText('Mi Equipo')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: 'EQUIPOS' }));
+
+    await waitFor(() => expect(screen.getByText('General 20')).toBeInTheDocument());
+    expect(screen.getAllByText('Mi Equipo')).toHaveLength(1);
+    expect(screen.queryByText('General 21')).not.toBeInTheDocument();
+
+    const own = screen.getByText('Mi Equipo');
+    const firstGeneral = screen.getByText('General 01');
+    expect(own.compareDocumentPosition(firstGeneral) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    const loadMore = screen.getByRole('button', { name: 'Cargar más' });
+    expect(searchChallengeableTeams).toHaveBeenCalledWith(
+      expect.objectContaining({ limit: 22 }),
+    );
+    fireEvent.click(loadMore);
+
+    await waitFor(() => expect(searchChallengeableTeams).toHaveBeenCalledWith(
+      expect.objectContaining({ limit: 42 }),
+    ));
+    await waitFor(() => expect(screen.getByText('General 21')).toBeInTheDocument());
+    expect(screen.getByText('General 25')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Cargar más' })).not.toBeInTheDocument();
+  });
+
   // Tests 8/9: exploratory cards, flag/zone, no premature CTA.
   test('directory shows visual cards with flag/zone and no "Publicar desafío" CTA', async () => {
     renderView();
