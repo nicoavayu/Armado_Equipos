@@ -48,6 +48,35 @@ export function isBlockedInDebug(dateStr, timeStr, graceMs = 60_000) {
   return match.getTime() < (now.getTime() - graceMs);
 }
 
+// --- Allowed booking window -------------------------------------------------
+// Matches can only be scheduled within sane hours: from 07:00 up to and
+// including midnight (00:00). Anything strictly between 00:01 and 06:59 is
+// rejected so nobody can accidentally create a 3 AM match. Midnight (00:00) is
+// treated as the upper boundary ("hasta las 00:00") and is allowed.
+
+/** First selectable time-of-day (minutes from midnight): 07:00. */
+export const MATCH_TIME_MIN = '07:00';
+/** Last 15-min slot before midnight, used as the <input type="time"> max. */
+export const MATCH_TIME_MAX = '23:59';
+/** User-facing message when a time falls outside the allowed window. */
+export const MATCH_TIME_RANGE_MESSAGE = 'Elegí un horario entre las 07:00 y las 00:00.';
+
+/**
+ * Whether a time-of-day is inside the allowed booking window (07:00–00:00).
+ * Midnight (00:00) counts as the closing boundary and is allowed; 00:01–06:59
+ * are blocked.
+ * @param {string} timeStr - Time in "HH:mm" or "HH:mm:ss" format
+ * @returns {boolean} - True if allowed, false otherwise
+ */
+export function isAllowedMatchTime(timeStr) {
+  const normalized = normalizeTimeHHmm(timeStr);
+  if (!normalized) return false;
+  const [hh, mm] = normalized.split(':').map(Number);
+  const minutes = hh * 60 + mm;
+  if (minutes === 0) return true; // 00:00 = midnight boundary
+  return minutes >= 7 * 60; // 07:00 onwards
+}
+
 /**
  * Get debug info for logging (temporary)
  * @param {string} dateStr - Date in "YYYY-MM-DD" format

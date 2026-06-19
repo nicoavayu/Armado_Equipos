@@ -8,7 +8,7 @@ import HistoryTemplateCard from '../components/historial/HistoryTemplateCard';
 import ConfirmModal from '../components/ConfirmModal';
 import EmptyStateCard from '../components/EmptyStateCard';
 import InlineNotice from '../components/ui/InlineNotice';
-import { normalizeTimeHHmm, isBlockedInDebug, getDebugInfo } from '../lib/matchDateDebug';
+import { normalizeTimeHHmm, isBlockedInDebug, getDebugInfo, isAllowedMatchTime, MATCH_TIME_RANGE_MESSAGE, MATCH_TIME_MIN, MATCH_TIME_MAX } from '../lib/matchDateDebug';
 import { buildMatchLocationFields } from '../utils/matchLocation';
 import { CalendarDays } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
@@ -76,7 +76,16 @@ function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
       });
       return;
     }
-    
+
+    if (!isAllowedMatchTime(timeToUse)) {
+      showInlineNotice({
+        key: 'use_template_time_out_of_range',
+        type: 'warning',
+        message: MATCH_TIME_RANGE_MESSAGE,
+      });
+      return;
+    }
+
     if (isBlockedInDebug(selectedDate, timeToUse)) {
       notifyBlockingError(
         'La fecha y hora elegidas ya pasaron. Elegí un día y horario posteriores al momento actual para crear el partido.',
@@ -233,6 +242,8 @@ function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
               <label className="text-white/50 text-[10px] uppercase font-bold tracking-widest block mb-3 font-[Oswald,sans-serif]">Nueva Hora</label>
               <input
                 type="time"
+                min={MATCH_TIME_MIN}
+                max={MATCH_TIME_MAX}
                 value={selectedTime}
                 onChange={(e) => setSelectedTime(e.target.value)}
                 className="w-full bg-[rgba(20,16,41,0.85)] border border-[rgba(148,134,255,0.25)] rounded-xl p-3 text-white focus:outline-none focus:ring-2 focus:ring-[#6a43ff]/30 focus:border-[#8b7cff] font-[Oswald,sans-serif]"
