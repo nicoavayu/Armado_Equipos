@@ -14,50 +14,66 @@ import { prefetchRoute } from '../utils/routePrefetch';
 // pixels. So the gesture is fully owned by us via Pointer Events.
 //
 // Looping / continuity (no empty gaps at the extremes):
-//  - We render the 4 *real* items plus 2 visual clones on each side:
-//      [c(n-2) c(n-1)  r0 r1 r2 r3  c0 c1]
+//  - We render the real items plus CLONES visual clones on each side:
+//      [..clones..  r0 r1 r2 r3  ..clones..]
 //    so the first real card always has a (cloned) "previous" peeking on its left
-//    and the last real card a (cloned) "next" peeking on its right. The lead/tail
+//    and the last real card a (cloned) "next" peeking on its right, and a single
+//    gesture can travel several cards before reaching a wall. The lead/tail
 //    spacers shrink to a single gap, so the extremes are never blank.
 //  - Clones are inert: plain <div>s, aria-hidden, no Link/onClick/prefetch, so
-//    they never duplicate navigation or analytics. The dots also map to the 4
-//    real items only.
+//    they never duplicate navigation or analytics. The dots also map to the real
+//    items only.
 //  - When a settle lands on a clone slot we instantly reposition scrollLeft to
 //    the equivalent *real* slot (±one full set) in the same synchronous frame.
-//    Because only the active card is wide and the on-screen window (centre card +
-//    the two peeks) is content-identical at the wrap point, the swap is pixel-for
-//    -pixel invisible — a seamless infinite carousel.
+//    The on-screen window is content-identical at the wrap point, so the swap is
+//    pixel-for-pixel invisible — a seamless infinite carousel.
 //
-// Sensitivity (no "card flies off" on a quick flick):
-//  - During the drag we drive el.scrollLeft 1:1 with the finger (slow drag stays
-//    proportional). On release we do NOT project momentum into a far-away card.
-//    Instead we look at dragDistance (how far the finger travelled) and velocity
-//    (how fast it left) *separately* and advance AT MOST one card:
-//      • travelled past DISTANCE_THRESHOLD → move one card in that direction;
-//      • short but fast (a flick) → still only one card;
-//      • tiny move / tap → stay put (a clean tap still activates the card).
-//    The settle then glides to that single neighbour with a controlled ease.
+// Feel (premium carousel, two-state model):
+//  - REAL state  (`activeSlotRef` / consolidated `activeIndex`): the card that is
+//    settled and wide. Drives the dots and a11y.
+//  - VISUAL state (`--qa-p` / `--qa-a` CSS vars, set every drag/settle frame):
+//    a continuous activation per card derived from its distance to the viewport
+//    centre. As a card nears the centre it *progressively* grows, brightens, its
+//    violet hero fades in, the glow/ring rise, the icon and title gain presence;
+//    cards drifting away compress and dim. This happens while the finger is down,
+//    not only on release, so you always see "which card you're on".
+//  - Mid-drag we never change a card's real width (no reflow → no jank). Only the
+//    layout-free vars move. The width morph happens on settle.
 //
-// Card *widths are real* (active ~182px, inactive ~108px) but only change on
-// settle (finger up), never mid-drag, so dragging never reflows. Mid-drag we only
-// give layout-free feedback (transform/opacity, coverflow-style).
+// Release / sensitivity:
+//  - During the drag we drive el.scrollLeft 1:1 with the finger. On release the
+//    destination is simply the card *nearest the viewport centre* — so a long
+//    drag genuinely travels several cards (no "max one card" clamp), a short drag
+//    lands on the neighbour, and a tap stays put. Velocity adds only a small,
+//    hard-capped momentum nudge (≤ ~one card) so a quick flick can carry one more
+//    card but never flies away. The settle then glides scroll + widths together
+//    with a controlled ease whose duration scales gently with the travel.
 
 const ACTIVE_W = 182; // px, dominant active card width (within the 170–185 brief)
 const INACTIVE_W = 108; // px, collapsed sibling width (within the 96–118 brief)
-const CARD_H = 190; // px, fixed height (taller than before, better use of space)
+const CARD_H = 204; // px, fixed height (+14 vs before — a touch taller, fills the lower space)
 const GAP = 10; // px, matches the flex gap below
-const SETTLE_MS = 320; // settle duration (260–340 brief) — controlled, not snappy
 const IDLE_MS = 110; // "scrolling has stopped" debounce (wheel/trackpad path)
 const DRAG_THRESHOLD = 5; // px of horizontal travel before a touch becomes a drag
-const CLONES = 2; // visual clones rendered on each side for the loop illusion
+const CLONES = 3; // visual clones per side — enough headroom to drag several cards in one go
 const EASE = 'cubic-bezier(0.22,1,0.36,1)';
 
-// Release tuning — distance and velocity are judged independently so a fast flick
-// never overshoots and a tiny drag never changes card.
-const DISTANCE_THRESHOLD = 46; // px the finger must travel to commit a card change
-const VELOCITY_THRESHOLD = 0.5; // px/ms release speed that counts as a flick
-const FLICK_MIN_DISTANCE = 10; // px — a flick still needs *some* travel (not a tap)
-const VELOCITY_CLAMP = 2.0; // px/ms — hard cap so a violent flick can't run away
+// Settle timing scales with how far we travel, so a single-card snap stays quick
+// while a multi-card glide takes a little longer without ever feeling sluggish.
+const SETTLE_MIN = 240; // ms (single card / pure width morph)
+const SETTLE_MAX = 440; // ms (several cards)
+const SETTLE_PER_PX = 0.42; // ms added per px of scroll travel
+
+// Release tuning — distance dragged decides the destination; velocity only adds a
+// small, capped momentum nudge so a flick can carry at most ~one extra card.
+const VELOCITY_CLAMP = 2.2; // px/ms — hard cap so a violent flick can't run away
+const MOMENTUM_FACTOR = 78; // px of glide projected per px/ms of release speed
+const MAX_FLICK_PX = 150; // px — hard cap on the flick nudge (~one card)
+
+// Activation falloff: how close to the viewport centre a card must be (in px)
+// before its violet hero / glow / icon start lighting up. Tight (≈ one collapsed
+// slot) so neighbours stay subdued at rest and only light as they approach centre.
+const ACT_RANGE = INACTIVE_W + GAP; // 118px
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
@@ -138,10 +154,12 @@ const PITCH_VARIANTS = [
   ),
 ];
 
-const PitchLines = ({ variant = 0, isActive }) => (
+// Opacity rides the per-card --qa-a activation var so the markings strengthen
+// progressively as the card nears the centre (no discrete on/off pop).
+const PitchLines = ({ variant = 0 }) => (
   <svg
-    className="pointer-events-none absolute inset-x-0 bottom-0 h-[72%] w-full mix-blend-screen transition-opacity duration-300"
-    style={{ opacity: isActive ? 0.18 : 0.07 }}
+    className="pointer-events-none absolute inset-x-0 bottom-0 h-[72%] w-full mix-blend-screen"
+    style={{ opacity: 'calc(0.07 + 0.12 * var(--qa-a, 0))' }}
     viewBox="0 0 160 120"
     fill="none"
     stroke="currentColor"
@@ -161,81 +179,108 @@ const QuickAccessCard = React.forwardRef(({ item, isActive, isClone, variant }, 
     if (prefetch) prefetchRoute(prefetch);
   }, [prefetch]);
 
-  // Layout width + transform/opacity are driven imperatively by the rail, never
-  // by class names here, so re-renders (e.g. a badge update) never clobber an
-  // in-flight animation. Class names only carry the *appearance* (which itself
-  // cross-fades via the gradient overlay + transitions below).
+  // Appearance is driven *continuously* by two CSS custom properties the rail sets
+  // imperatively each frame:
+  //   --qa-p  broad proximity (0→1) → gentle scale + opacity for every card
+  //   --qa-a  tight activation (0→1) → violet hero, glow, ring, icon/title presence
+  // Using calc(var()) here (not class toggles) means a React re-render — e.g. a
+  // badge update or the dots' preview index flipping — never clobbers an in-flight
+  // animation, and the activation can sit at any fractional value mid-drag.
   const cardClass = [
     'qa-card group relative flex-none flex flex-col items-center justify-center text-center',
-    'origin-center overflow-hidden rounded-card no-underline text-white outline-none cursor-pointer',
-    'border transition-[border-color,box-shadow,color] duration-300',
+    'origin-center overflow-hidden rounded-card no-underline text-white outline-none cursor-pointer border',
     'focus-visible:ring-2 focus-visible:ring-[rgba(190,170,255,0.7)] focus-visible:ring-offset-0',
-    isActive
-      ? 'z-[3] border-[rgba(196,178,255,0.6)] shadow-[0_16px_38px_rgba(84,48,224,0.5),0_0_0_1px_rgba(196,178,255,0.22),inset_0_1px_0_rgba(255,255,255,0.24)]'
-      : 'z-[1] border-[rgba(148,134,255,0.16)] shadow-elev-1',
+    isActive ? 'z-[3]' : 'z-[1]',
   ].join(' ');
 
+  // Layout-free, var-driven styling. width is set separately/imperatively by the
+  // rail (and animated on settle), so it is intentionally absent here.
+  const cardStyle = {
+    height: `${CARD_H}px`,
+    transform: 'scale(calc(0.9 + 0.1 * var(--qa-p, 0)))',
+    opacity: 'calc(0.55 + 0.45 * var(--qa-p, 0))',
+    borderColor: 'rgba(196,178,255, calc(0.16 + 0.44 * var(--qa-a, 0)))',
+    boxShadow: [
+      '0 4px 14px rgba(5,3,16, calc(0.4 - 0.12 * var(--qa-a, 0)))',
+      '0 16px 38px rgba(84,48,224, calc(0.5 * var(--qa-a, 0)))',
+      '0 0 0 1px rgba(196,178,255, calc(0.22 * var(--qa-a, 0)))',
+      'inset 0 1px 0 rgba(255,255,255, calc(0.24 * var(--qa-a, 0)))',
+    ].join(', '),
+  };
+
   // Glass base sits underneath; the violet hero gradient is a separate overlay
-  // whose opacity transitions (CSS can't tween between two gradients directly).
+  // whose opacity rides --qa-a (CSS can't tween between two gradients directly).
   const baseBg =
     'absolute inset-0 rounded-card bg-[linear-gradient(165deg,rgba(48,38,98,0.72),rgba(20,16,41,0.94))]';
   const heroBg =
-    'absolute inset-0 rounded-card transition-opacity duration-300 bg-[linear-gradient(135deg,#8b5cff_0%,#6a43ff_56%,#5430e0_100%)]';
+    'absolute inset-0 rounded-card bg-[linear-gradient(135deg,#8b5cff_0%,#6a43ff_56%,#5430e0_100%)]';
 
-  const iconBadgeClass = [
-    'relative inline-flex items-center justify-center rounded-full',
-    'transition-[width,height,background-color,border-color] duration-300',
-    isActive
-      ? 'h-[54px] w-[54px] bg-white/[0.16] border border-white/30 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.32),0_6px_16px_rgba(20,8,60,0.35)]'
-      : 'h-11 w-11 bg-[rgba(139,92,255,0.14)] border border-[rgba(148,134,255,0.28)] text-[#cfc4ff]',
-  ].join(' ');
-
-  const titleClass = [
-    'font-oswald font-bold leading-tight tracking-[0.01em] text-white transition-[font-size] duration-300 line-clamp-2 px-1',
-    isActive ? 'text-[15px]' : 'text-[12.5px]',
-  ].join(' ');
-
-  // Badge mirrors the card's active state: on the wide active card it sits full
-  // size with a soft glow; when the card collapses it scales down and dims so it
-  // stays visually anchored to the shrinking container instead of floating.
-  const badgeClass = [
-    'absolute top-2.5 right-2.5 z-[4] inline-flex min-w-[20px] h-5 items-center justify-center',
-    'rounded-full bg-[#ec007d] px-1.5 text-[10px] font-bold text-white origin-top-right',
-    'transition-[transform,opacity,box-shadow] duration-300',
-    isActive
-      ? 'scale-100 opacity-100 shadow-[0_0_10px_rgba(236,0,125,0.5)]'
-      : 'scale-[0.78] opacity-90 shadow-[0_0_4px_rgba(236,0,125,0.3)]',
-  ].join(' ');
+  // Badge mirrors the card's activation: it scales up + brightens as the card
+  // centres, and stays compressed/dimmed while collapsed — all continuous so it
+  // never pops between states on settle.
+  const badgeClass =
+    'absolute top-2.5 right-2.5 z-[4] inline-flex min-w-[20px] h-5 items-center justify-center rounded-full bg-[#ec007d] px-1.5 text-[10px] font-bold text-white origin-top-right';
+  const badgeStyle = {
+    transform: 'scale(calc(0.78 + 0.22 * var(--qa-a, 0)))',
+    opacity: 'calc(0.9 + 0.1 * var(--qa-a, 0))',
+    boxShadow: '0 0 calc(4px + 6px * var(--qa-a, 0)) rgba(236,0,125, calc(0.3 + 0.2 * var(--qa-a, 0)))',
+  };
 
   const inner = (
     <>
       <span aria-hidden className={baseBg} />
-      <span aria-hidden className={heroBg} style={{ opacity: isActive ? 1 : 0 }} />
+      <span aria-hidden className={heroBg} style={{ opacity: 'var(--qa-a, 0)' }} />
       <span aria-hidden className="absolute inset-0 text-white">
-        <PitchLines variant={variant} isActive={isActive} />
+        <PitchLines variant={variant} />
       </span>
 
-      {badge > 0 && <span className={badgeClass}>{badge}</span>}
+      {badge > 0 && (
+        <span className={badgeClass} style={badgeStyle}>
+          {badge}
+        </span>
+      )}
 
       <span className="relative z-[2] flex flex-col items-center gap-3 px-2">
-        <span className={iconBadgeClass}>
-          <span className="inline-flex items-center justify-center [&>svg]:h-[26px] [&>svg]:w-[26px]">
+        {/* Icon badge: the active ring/bg cross-fades in over the inactive one and
+            the whole badge scales up as the card centres → "el icono gana presencia". */}
+        <span
+          className="relative inline-flex h-11 w-11 items-center justify-center rounded-full"
+          style={{ transform: 'scale(calc(1 + 0.22 * var(--qa-a, 0)))' }}
+        >
+          <span
+            aria-hidden
+            className="absolute inset-0 rounded-full bg-[rgba(139,92,255,0.14)] border border-[rgba(148,134,255,0.28)]"
+            style={{ opacity: 'calc(1 - var(--qa-a, 0))' }}
+          />
+          <span
+            aria-hidden
+            className="absolute inset-0 rounded-full bg-white/[0.16] border border-white/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.32),0_6px_16px_rgba(20,8,60,0.35)]"
+            style={{ opacity: 'var(--qa-a, 0)' }}
+          />
+          <span className="relative z-[1] inline-flex items-center justify-center text-white [&>svg]:h-[26px] [&>svg]:w-[26px]">
             {icon}
           </span>
           {showPlus && (
-            <span className="absolute -top-1 -right-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-white text-[#6a43ff] shadow-[0_3px_8px_rgba(20,8,60,0.4)]">
+            <span className="absolute -top-1 -right-1 z-[2] inline-flex h-5 w-5 items-center justify-center rounded-full bg-white text-[#6a43ff] shadow-[0_3px_8px_rgba(20,8,60,0.4)]">
               <Plus size={13} strokeWidth={3} />
             </span>
           )}
         </span>
 
         <span className="flex flex-col items-center gap-0.5">
-          <span className={titleClass}>{title}</span>
-          {/* Subtitle is revealed only on the wide active card; the card clips
+          {/* Title scales (not font-size) so it never reflows / rewraps mid-drag:
+              ~12.6px collapsed → 15px at full activation. */}
+          <span
+            className="font-oswald font-bold leading-tight tracking-[0.01em] text-white line-clamp-2 px-1 text-[15px]"
+            style={{ transform: 'scale(calc(0.84 + 0.16 * var(--qa-a, 0)))' }}
+          >
+            {title}
+          </span>
+          {/* Subtitle is revealed only as the card activates; the card clips
               overflow so it never breaks the narrow sibling layout. */}
           <span
-            className="font-sans font-medium leading-tight text-[11px] text-white/80 whitespace-nowrap transition-opacity duration-300"
-            style={{ opacity: isActive ? 1 : 0 }}
+            className="font-sans font-medium leading-tight text-[11px] text-white/80 whitespace-nowrap"
+            style={{ opacity: 'var(--qa-a, 0)' }}
           >
             {subtitle}
           </span>
@@ -247,9 +292,9 @@ const QuickAccessCard = React.forwardRef(({ item, isActive, isClone, variant }, 
   const sharedProps = {
     ref,
     className: cardClass,
-    // width is driven imperatively (and animated on settle); only height is
-    // React-controlled so a re-render (e.g. badge update) can't reset the width.
-    style: { height: `${CARD_H}px` },
+    // width is driven imperatively (and animated on settle); only the var-driven
+    // appearance + height live here so a re-render can't reset the width.
+    style: cardStyle,
     // dragging is handled entirely by the parent gesture zone; the card itself
     // must never start a native drag/selection that would fight the thumb.
     draggable: false,
@@ -303,7 +348,8 @@ const QuickAccessRail = ({ items = [] }) => {
   const scrollRaf = useRef(0);
   const idleTimer = useRef(0);
   const settlingRef = useRef(false);
-  const activeSlotRef = useRef(0); // currently focused *slot* (may be a clone)
+  const activeSlotRef = useRef(0); // consolidated (settled) *slot* (may be a clone)
+  const previewRealRef = useRef(0); // real index currently nearest the centre (drag preview)
 
   // --- custom pointer-drag state ---
   const pointerActiveRef = useRef(false); // a pointer is down and being tracked
@@ -313,7 +359,6 @@ const QuickAccessRail = ({ items = [] }) => {
   const startXRef = useRef(0);
   const startYRef = useRef(0);
   const startScrollRef = useRef(0);
-  const startSlotRef = useRef(0); // active slot when the gesture began
   const lastXRef = useRef(0);
   const lastTRef = useRef(0);
   const velocityRef = useRef(0); // px/ms of pointer X, smoothed (for the flick)
@@ -365,21 +410,27 @@ const QuickAccessRail = ({ items = [] }) => {
     });
   }, []);
 
-  // Layout-free live feedback: cards near the centre are full size/opacity,
-  // cards toward the edges shrink/dim. Pure transform+opacity, so it can run
-  // every drag frame without ever reflowing.
+  // Continuous, layout-free activation. For every card we measure its centre's
+  // distance to the viewport centre and publish two vars the card's CSS consumes:
+  //   --qa-p broad proximity (gentle scale/opacity coverflow falloff)
+  //   --qa-a tight activation (violet hero / glow / icon — smoothstepped so
+  //          neighbours stay ~0 until they actually approach the centre)
+  // Pure custom-property writes, so it can run every drag frame without reflow.
   const updateVisuals = useCallback((scrollLeft) => {
     const railW = railWidthRef.current || 1;
     const viewCenter = scrollLeft + railW / 2;
-    cardRefs.current.forEach((node) => {
-      if (!node) return;
+    const nodes = cardRefs.current;
+    for (let i = 0; i < nodes.length; i += 1) {
+      const node = nodes[i];
+      if (!node) continue; // eslint-disable-line no-continue
       const center = node.offsetLeft + node.offsetWidth / 2;
-      const norm = clamp(Math.abs(center - viewCenter) / (railW * 0.55), 0, 1);
-      const scale = 1 - 0.1 * norm; // 1.0 → 0.90
-      const opacity = 1 - 0.45 * norm; // 1.0 → 0.55
-      node.style.transform = `scale(${scale.toFixed(3)})`;
-      node.style.opacity = opacity.toFixed(3);
-    });
+      const d = Math.abs(center - viewCenter);
+      const prox = clamp(1 - d / (railW * 0.55), 0, 1);
+      let a = clamp(1 - d / ACT_RANGE, 0, 1);
+      a = a * a * (3 - 2 * a); // smoothstep
+      node.style.setProperty('--qa-p', prox.toFixed(3));
+      node.style.setProperty('--qa-a', a.toFixed(3));
+    }
   }, []);
 
   const centerScrollFor = useCallback((slot) => {
@@ -390,8 +441,8 @@ const QuickAccessRail = ({ items = [] }) => {
     return clamp(center - railWidthRef.current / 2, 0, el.scrollWidth - el.clientWidth);
   }, []);
 
-  // Nearest slot to a given scroll position (used both for the drag-release
-  // settle and for the wheel/trackpad idle settle).
+  // Nearest slot to a given scroll position (used for the drag-release settle, the
+  // live drag preview, and the wheel/trackpad idle settle).
   const nearestSlotForScroll = useCallback((scrollLeft) => {
     const viewCenter = scrollLeft + railWidthRef.current / 2;
     let best = 0;
@@ -414,9 +465,9 @@ const QuickAccessRail = ({ items = [] }) => {
   }, [nearestSlotForScroll]);
 
   // Snap the layout into its resting state instantly (mount / resize / reduced
-  // motion / loop reposition): correct widths, focused slot centred, visuals
-  // applied. No animation. Done synchronously in one frame so a reposition after
-  // a settle is pixel-identical and therefore invisible.
+  // motion / loop reposition): correct widths, focused slot centred, vars applied.
+  // No animation. Done synchronously in one frame so a reposition after a settle is
+  // pixel-identical and therefore invisible.
   const applyResting = useCallback(
     (slot) => {
       const el = scrollRef.current;
@@ -441,11 +492,13 @@ const QuickAccessRail = ({ items = [] }) => {
     [loop, lead, count],
   );
 
-  // Settle to `slot`: lerp widths active↔inactive while pinning the chosen card's
-  // centre to the viewport centre each frame, so it stays still while its siblings
-  // collapse/expand around it. Finger is up, so we own scrollLeft.
+  // Settle to `slot`: glide BOTH scrollLeft and the card widths to their resting
+  // values with one eased timeline. We measure the destination scroll at the final
+  // widths up front, so even a several-card settle glides straight there with no
+  // first-frame jump. updateVisuals runs each frame, so the activation the user saw
+  // mid-drag stays coherent right through the settle.
   const settleTo = useCallback(
-    (slot) => {
+    (slot, opts) => {
       const el = scrollRef.current;
       if (!el || count === 0) return;
       // Never settle onto the outermost clones (they have no outer neighbour to
@@ -457,7 +510,9 @@ const QuickAccessRail = ({ items = [] }) => {
       if (settleRaf.current) cancelAnimationFrame(settleRaf.current);
       settlingRef.current = true;
       activeSlotRef.current = target;
-      setActiveIndex(realIndexOfSlot(target)); // cross-fades the hero gradient/glow
+      const targetReal = realIndexOfSlot(target);
+      previewRealRef.current = targetReal;
+      setActiveIndex(targetReal); // consolidates dots + a11y
 
       if (prefersReducedMotion()) {
         const final = wrapSlot(target);
@@ -469,19 +524,30 @@ const QuickAccessRail = ({ items = [] }) => {
 
       const startW = [...widthsRef.current];
       const endW = targetWidths(target);
+      const railW = railWidthRef.current;
+      const startScroll = el.scrollLeft;
+
+      // Measure the resting scroll for `target` at its FINAL widths so we can glide
+      // straight there (no jump when travelling several cards). Mutating + restoring
+      // widths is synchronous within this frame, so nothing paints in between.
+      setWidths(endW);
+      const endNode = cardRefs.current[target];
+      const endCenter = endNode ? endNode.offsetLeft + endNode.offsetWidth / 2 : startScroll + railW / 2;
+      const endMax = el.scrollWidth - el.clientWidth;
+      const endScroll = clamp(endCenter - railW / 2, 0, endMax);
+      setWidths(startW);
+
+      const travel = Math.abs(endScroll - startScroll);
+      const dur =
+        (opts && opts.duration) || clamp(SETTLE_MIN + travel * SETTLE_PER_PX, SETTLE_MIN, SETTLE_MAX);
       const begin = performance.now();
 
       const step = (now) => {
-        const raw = clamp((now - begin) / SETTLE_MS, 0, 1);
+        const raw = clamp((now - begin) / dur, 0, 1);
         const t = ease(raw);
         setWidths(startW.map((s, i) => s + (endW[i] - s) * t));
-
-        const node = cardRefs.current[target];
-        if (node) {
-          const center = node.offsetLeft + node.offsetWidth / 2;
-          el.scrollLeft = clamp(center - railWidthRef.current / 2, 0, el.scrollWidth - el.clientWidth);
-          updateVisuals(el.scrollLeft);
-        }
+        el.scrollLeft = startScroll + (endScroll - startScroll) * t;
+        updateVisuals(el.scrollLeft);
 
         if (raw < 1) {
           settleRaf.current = requestAnimationFrame(step);
@@ -552,13 +618,13 @@ const QuickAccessRail = ({ items = [] }) => {
       startXRef.current = e.clientX;
       startYRef.current = e.clientY;
       startScrollRef.current = el.scrollLeft;
-      startSlotRef.current = activeSlotRef.current;
+      previewRealRef.current = realIndexOfSlot(activeSlotRef.current);
       lastXRef.current = e.clientX;
       lastTRef.current = performance.now();
       velocityRef.current = 0;
-      cancelSettle(); // hand control to the finger immediately
+      cancelSettle(); // hand control to the finger immediately (cancels any glide)
     },
-    [cancelSettle],
+    [cancelSettle, realIndexOfSlot],
   );
 
   const handlePointerMove = useCallback(
@@ -591,7 +657,8 @@ const QuickAccessRail = ({ items = [] }) => {
         }
       }
 
-      // 1:1 with the finger — slow drags stay perfectly proportional.
+      // 1:1 with the finger — slow drags stay perfectly proportional, and a long
+      // drag genuinely moves the viewport centre across several cards.
       const max = el.scrollWidth - el.clientWidth;
       el.scrollLeft = clamp(startScrollRef.current - dx, 0, max);
 
@@ -606,8 +673,16 @@ const QuickAccessRail = ({ items = [] }) => {
       }
 
       updateVisuals(el.scrollLeft);
+
+      // Live "which card am I on" → drive the dots + a11y preview without waiting
+      // for release (kept cheap: only re-render when the nearest real card flips).
+      const nr = realIndexOfSlot(nearestSlotForScroll(el.scrollLeft));
+      if (nr !== previewRealRef.current) {
+        previewRealRef.current = nr;
+        setActiveIndex(nr);
+      }
     },
-    [updateVisuals],
+    [nearestSlotForScroll, realIndexOfSlot, updateVisuals],
   );
 
   const handlePointerUp = useCallback(() => {
@@ -629,26 +704,17 @@ const QuickAccessRail = ({ items = [] }) => {
     const el = scrollRef.current;
     if (!el) return;
 
-    // Judge distance and velocity *independently* and advance at most one card:
-    //  - travelled past the distance threshold → commit one card;
-    //  - short but fast (a real flick) → still just one card;
-    //  - otherwise → snap back to where we started.
-    const dragDistance = el.scrollLeft - startScrollRef.current; // +: moved toward next
+    // Destination = the card nearest the viewport centre AFTER a small, capped
+    // momentum nudge. The distance the finger travelled already moved scrollLeft
+    // (so a long drag lands several cards away — no "max one card" clamp), while
+    // velocity only adds a limited glide so a quick flick carries at most ~one
+    // extra card and never flies off.
     const velocity = clamp(velocityRef.current, -VELOCITY_CLAMP, VELOCITY_CLAMP);
-    const absDist = Math.abs(dragDistance);
-    const movedEnough = absDist > DISTANCE_THRESHOLD;
-    const flicked = Math.abs(velocity) > VELOCITY_THRESHOLD && absDist > FLICK_MIN_DISTANCE;
-
-    const startSlot = startSlotRef.current;
-    let target = startSlot;
-    if (movedEnough || flicked) {
-      // direction primarily from travel; fall back to flick direction
-      const dir = dragDistance !== 0 ? Math.sign(dragDistance) : -Math.sign(velocity);
-      target = startSlot + dir;
-    }
-    target = clamp(target, startSlot - 1, startSlot + 1);
-    settleTo(target);
-  }, [settleTo]);
+    const momentum = clamp(-velocity * MOMENTUM_FACTOR, -MAX_FLICK_PX, MAX_FLICK_PX);
+    const max = el.scrollWidth - el.clientWidth;
+    const projected = clamp(el.scrollLeft + momentum, 0, max);
+    settleTo(nearestSlotForScroll(projected));
+  }, [nearestSlotForScroll, settleTo]);
 
   // Capture-phase: if the finger dragged, swallow the click before it reaches
   // the card's Link/button so a scroll never navigates by accident.
@@ -675,6 +741,7 @@ const QuickAccessRail = ({ items = [] }) => {
   // Initial layout (before paint, so there's no flash of equal-width cards).
   useLayoutEffect(() => {
     activeSlotRef.current = slotForReal(0);
+    previewRealRef.current = 0;
     measure();
     applyResting(activeSlotRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -714,7 +781,7 @@ const QuickAccessRail = ({ items = [] }) => {
         }
         .qa-rail::-webkit-scrollbar { display: none; }
         .qa-card {
-          will-change: width, transform;
+          will-change: width, transform, opacity;
           touch-action: pan-y;
           -webkit-user-drag: none;
           -webkit-user-select: none;
@@ -753,7 +820,7 @@ const QuickAccessRail = ({ items = [] }) => {
           <div ref={tailRef} aria-hidden className="flex-none" />
         </div>
 
-        {/* Dots represent the 4 real items only — clones are never counted. Kept
+        {/* Dots represent the real items only — clones are never counted. Kept
             small/dim/glow-free so they read as a position hint, not a CTA. */}
         {count > 1 && (
           <div className="mt-0.5 flex items-center justify-center gap-1.5 px-4 pb-1.5">
