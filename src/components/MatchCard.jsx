@@ -51,6 +51,8 @@ const MatchCard = ({
     primaryAction = null,
     isSelected = false,
     onSelect = () => { },
+    isPostMatch = false,
+    postMatchInfo = null,
 }) => {
     const MAX_SUBSTITUTE_SLOTS = 4;
     const matchName = String(partido?.nombre || partido?.titulo || partido?.name || '').trim();
@@ -139,7 +141,11 @@ const MatchCard = ({
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
-                    {isFinished ? (
+                    {isPostMatch ? (
+                        <div className="border border-[#8b5cff]/50 bg-[#8b5cff]/12 text-[#cfc4ff] px-2.5 py-1 rounded-full text-[11px] font-bold whitespace-nowrap flex items-center gap-1">
+                            Post partido
+                        </div>
+                    ) : isFinished ? (
                         <div className="border border-[#22c55e]/45 bg-[#22c55e]/12 text-[#86efac] px-2.5 py-1 rounded-full text-[11px] font-bold whitespace-nowrap flex items-center gap-1">
                             ✓ Finalizado
                         </div>
@@ -256,14 +262,44 @@ const MatchCard = ({
             ) : null}
 
             {/* Ubicación */}
-            <div className={`font-sans text-[12.5px] font-medium text-white/65 flex items-center gap-1.5 ${primaryAction ? 'mb-4' : ''} overflow-hidden text-ellipsis ${isFinished ? 'opacity-70' : ''}`}>
+            <div className={`font-sans text-[12.5px] font-medium text-white/65 flex items-center gap-1.5 ${(primaryAction || (isPostMatch && postMatchInfo)) ? 'mb-4' : ''} overflow-hidden text-ellipsis ${isFinished ? 'opacity-70' : ''}`}>
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" width="13" height="13" fill="#cfc4ff">
                     <path d="M0 188.6C0 84.4 86 0 192 0S384 84.4 384 188.6c0 119.3-120.2 262.3-170.4 316.8-11.8 12.8-31.5 12.8-43.3 0-50.2-54.5-170.4-197.5-170.4-316.8zM192 256a64 64 0 1 0 0-128 64 64 0 1 0 0 128z" />
                 </svg>
                 <span className="truncate">{useTeamMatchPresentation ? (partido.sede || 'A coordinar') : partido.sede?.split(',')[0]}</span>
             </div>
 
-            {primaryAction && (
+            {isPostMatch && postMatchInfo ? (
+                <div className="mt-1">
+                    <div className="flex flex-col gap-0.5 mb-3">
+                        {postMatchInfo.encuestaLabel ? (
+                            <div className="font-sans text-[12.5px] font-medium text-white/75">{postMatchInfo.encuestaLabel}</div>
+                        ) : null}
+                        {postMatchInfo.pagoLabel ? (
+                            <div className="font-sans text-[12.5px] font-medium text-white/75">{postMatchInfo.pagoLabel}</div>
+                        ) : null}
+                    </div>
+                    <div className="flex gap-3">
+                        {[postMatchInfo.encuestaAction, postMatchInfo.pagosAction].filter(Boolean).map((action, idx) => (
+                            <button
+                                key={idx}
+                                className={`flex-1 font-bebas font-semibold text-[15px] px-4 py-2 border rounded-2xl cursor-pointer transition-all text-white min-h-[42px] flex items-center justify-center text-center sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[38px] ${action.disabled
+                                    ? 'bg-[#1d1740] text-white/40 cursor-not-allowed border-white/10'
+                                    : action.primary
+                                        ? 'bg-[#6a43ff] border-[#7d5aff] hover:bg-[#7550ff] shadow-[0_0_14px_rgba(106,67,255,0.3)]'
+                                        : 'bg-white/[0.06] border-[rgba(148,134,255,0.28)] hover:bg-white/[0.12]'}`}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (action.disabled) return;
+                                    action.onClick?.(e);
+                                }}
+                            >
+                                {action.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            ) : primaryAction ? (
                 <div className="flex gap-3 mt-3">
                     <button
                         className={`flex-1 font-bebas font-semibold text-[15px] px-4 py-2 border border-transparent rounded-2xl cursor-pointer transition-all text-white min-h-[42px] flex items-center justify-center text-center sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[38px] ${primaryAction.disabled ? 'bg-[#1d1740] text-white/40 cursor-not-allowed border-white/10' : primaryAction.className || 'bg-cta-gradient shadow-cta hover:brightness-110'} disabled:opacity-60`}
@@ -276,7 +312,7 @@ const MatchCard = ({
                         {primaryAction.label}
                     </button>
                 </div>
-            )}
+            ) : null}
         </div>
     );
 };

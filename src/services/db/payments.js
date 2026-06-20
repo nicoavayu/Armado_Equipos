@@ -229,6 +229,32 @@ export const getMyPaymentRowsForMatches = async (userId, partidoIds = []) => {
 };
 
 /**
+ * Batch: payment settings keyed by match id (amount + closed flag) for the
+ * Mis partidos post-match cards. RLS returns only matches the user belongs to.
+ * @returns {Promise<Object<string, Object>>}
+ */
+export const getPaymentSettingsForMatches = async (partidoIds = []) => {
+  const ids = [...new Set((partidoIds || [])
+    .map((value) => Number(value))
+    .filter((value) => Number.isFinite(value) && value > 0))];
+  if (ids.length === 0) return {};
+
+  const { data, error } = await supabase
+    .from('match_payment_settings')
+    .select('partido_id, amount_per_player, is_closed')
+    .in('partido_id', ids);
+
+  if (error) {
+    console.warn('[PAYMENTS] getPaymentSettingsForMatches failed', { message: error.message });
+    return {};
+  }
+
+  const byMatch = {};
+  (data || []).forEach((row) => { byMatch[String(row.partido_id)] = row; });
+  return byMatch;
+};
+
+/**
  * Batch: payment rows grouped by match id (for admin post-match counts).
  * Caller runs summarizePayments() on each list.
  * @returns {Promise<Object<string,Array<{status:string}>>>}
