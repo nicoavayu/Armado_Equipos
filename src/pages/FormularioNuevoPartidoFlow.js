@@ -7,7 +7,7 @@ import { insertPartidoFrecuenteFromPartido } from '../services/db/frequentMatche
 import { formatLocalDateShort } from '../utils/dateLocal';
 import { useTimeout } from '../hooks/useTimeout';
 import { useScrollResetOnChange } from '../hooks/useScrollReset';
-import { normalizeTimeHHmm, isBlockedInDebug, getDebugInfo } from '../lib/matchDateDebug';
+import { normalizeTimeHHmm, isBlockedInDebug, getDebugInfo, isAllowedMatchTime, MATCH_TIME_RANGE_MESSAGE } from '../lib/matchDateDebug';
 import { buildMatchLocationFields, extractPersistedLocation } from '../utils/matchLocation';
 import { v4 as uuidv4 } from 'uuid';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
@@ -101,16 +101,19 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
   const [cupo, setCupo] = useState(modalidadToCupo['F5']);
   const [tipoPartido, setTipoPartido] = useState('Masculino');
   useEffect(() => { setCupo(modalidadToCupo[modalidad]); }, [modalidad, modalidadToCupo]);
-  const timeOptions = useMemo(
-    () => Array.from({ length: 24 * 4 }, (_, index) => {
-      const totalMinutes = index * 15;
+  // Only allowed booking hours (07:00–23:45 in 15-min steps). Late-night slots
+  // (00:01–06:59) are intentionally excluded — see MATCH_TIME_RANGE_MESSAGE.
+  const timeOptions = useMemo(() => {
+    const START_SLOT = 7 * 4; // 07:00
+    const END_SLOT = 24 * 4; // 24:00 (exclusive → last is 23:45)
+    return Array.from({ length: END_SLOT - START_SLOT }, (_, index) => {
+      const totalMinutes = (START_SLOT + index) * 15;
       const hours = String(Math.floor(totalMinutes / 60)).padStart(2, '0');
       const minutes = String(totalMinutes % 60).padStart(2, '0');
       const value = `${hours}:${minutes}`;
       return { value, label: value };
-    }),
-    [],
-  );
+    });
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined' || typeof window.requestAnimationFrame !== 'function') {
@@ -590,6 +593,15 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
                       key: 'new_match_invalid_time_step',
                       type: 'warning',
                       message: 'Elegí un horario en intervalos de 15 minutos.',
+                    });
+                    return;
+                  }
+
+                  if (!isAllowedMatchTime(hora)) {
+                    showInlineNotice({
+                      key: 'new_match_time_out_of_range',
+                      type: 'warning',
+                      message: MATCH_TIME_RANGE_MESSAGE,
                     });
                     return;
                   }

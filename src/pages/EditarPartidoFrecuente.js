@@ -3,6 +3,7 @@ import { updatePartidoFrecuente, supabase } from '../supabase';
 import AutocompleteSede from '../components/AutocompleteSede';
 import PageTitle from '../components/PageTitle';
 import { parseLocalDateTime, weekdayFromYMD } from '../utils/dateLocal';
+import { isAllowedMatchTime, MATCH_TIME_RANGE_MESSAGE, MATCH_TIME_MIN, MATCH_TIME_MAX } from '../lib/matchDateDebug';
 import InlineNotice from '../components/ui/InlineNotice';
 import useInlineNotice from '../hooks/useInlineNotice';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
@@ -251,6 +252,15 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
         return;
       }
 
+      if (!isAllowedMatchTime(time24)) {
+        showInlineNotice({
+          key: 'edit_frequent_time_out_of_range',
+          type: 'warning',
+          message: MATCH_TIME_RANGE_MESSAGE,
+        });
+        return;
+      }
+
       setLoading(true);
 
       // Upload image if provided (do this once, then include in updatesFrecuente if uploaded)
@@ -429,6 +439,8 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
             <input
               className={INPUT_CLASS}
               type="time"
+              min={MATCH_TIME_MIN}
+              max={MATCH_TIME_MAX}
               value={hora}
               onChange={(e) => setHora(e.target.value)}
             />

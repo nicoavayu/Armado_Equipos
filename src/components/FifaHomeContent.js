@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Activity, AlertTriangle, Bell, CalendarClock, Check, CheckCircle, ChevronRight, ClipboardList, Trophy, UserPlus, Users, Vote } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { Activity, AlertTriangle, BarChart3, Bell, CalendarClock, CalendarDays, Check, CheckCircle, ChevronRight, ClipboardList, History, Trophy, UserPlus, Users, Vote } from 'lucide-react';
 import { useAuth } from './AuthProvider';
 import { useNotifications } from '../context/NotificationContext';
 import { useInterval } from '../hooks/useInterval';
@@ -15,8 +15,18 @@ import { notifyBlockingError } from '../utils/notifyBlockingError';
 import ProximosPartidos from './ProximosPartidos';
 import NotificationsBell from './NotificationsBell';
 import HomeWelcomeCard from './HomeWelcomeCard';
+import QuickAccessRail from './QuickAccessRail';
 import { useRefreshOnVisibility } from '../hooks/useRefreshOnVisibility';
 import { prefetchRoute } from '../utils/routePrefetch';
+
+// Line-style soccer ball icon for the "Partido nuevo" quick-access hero card.
+const SoccerBallIcon = (props) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 6.6l3.6 2.6-1.4 4.2H9.8L8.4 9.2 12 6.6z" />
+    <path d="M12 6.6V3.1M15.6 9.2L19 8M14.2 13.4l2.5 3.2M9.8 13.4l-2.5 3.2M8.4 9.2L5 8" />
+  </svg>
+);
 
 const activityIconMap = {
   Activity,
@@ -299,10 +309,6 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
 
     navigate(item.route);
   };
-
-  // Quick-access card: compact module with icon tile + label + chevron, layered violet surface.
-  const cardClass = 'group bg-[linear-gradient(165deg,rgba(48,38,98,0.78),rgba(20,16,41,0.94))] border border-[rgba(148,134,255,0.16)] rounded-card p-4 cursor-pointer transition-[transform,border-color] duration-200 min-h-[118px] relative overflow-hidden flex flex-col justify-between gap-3 no-underline text-white z-[1] hover:-translate-y-0.5 hover:border-[rgba(148,134,255,0.45)] active:translate-y-0 active:scale-[0.985] sm:p-3.5 shadow-elev-1';
-  const cardHeroClass = 'group bg-[linear-gradient(135deg,#8b5cff_0%,#6a43ff_56%,#5430e0_100%)] border border-white/20 rounded-card p-4 cursor-pointer transition-[transform,border-color] duration-200 min-h-[118px] relative overflow-hidden flex flex-col justify-between gap-3 no-underline text-white z-[1] hover:-translate-y-0.5 hover:brightness-105 active:translate-y-0 active:scale-[0.985] sm:p-3.5 shadow-[0_10px_26px_rgba(84,48,224,0.38),inset_0_1px_0_rgba(255,255,255,0.25)]';
 
   useEffect(() => {
     if (!location?.state?.openProximosPartidos) return;
@@ -823,6 +829,43 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
     );
   }
 
+  // Quick-access rail items — same 4 destinations/behaviours as the old 2x2 grid.
+  const quickAccessItems = [
+    {
+      key: 'nuevo-partido',
+      to: '/nuevo-partido',
+      prefetch: '/nuevo-partido',
+      icon: <SoccerBallIcon />,
+      title: 'Partido nuevo',
+      subtitle: 'Armá y compartí',
+      showPlus: true,
+    },
+    {
+      key: 'mis-partidos',
+      onClick: () => user && setShowProximosPartidos(true),
+      icon: <CalendarDays />,
+      title: 'Mis partidos',
+      subtitle: 'Agenda y estado',
+      badge: activeMatches?.length || 0,
+    },
+    {
+      key: 'frecuentes',
+      to: '/frecuentes',
+      prefetch: '/frecuentes',
+      icon: <History />,
+      title: 'Frecuentes',
+      subtitle: 'Tus plantillas',
+    },
+    {
+      key: 'estadisticas',
+      to: '/stats',
+      prefetch: '/stats',
+      icon: <BarChart3 />,
+      title: 'Estadísticas',
+      subtitle: 'Tu rendimiento',
+    },
+  ];
+
   return (
     <div className="w-full bg-transparent shadow-none flex-1 flex flex-col">
       <HomeWelcomeCard />
@@ -952,90 +995,9 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
         </div>
       )}
 
-      <h3 className="section-title" style={{ marginBottom: 20 }}>Accesos rápidos</h3>
+      <h3 className="section-title" style={{ marginBottom: 14 }}>Accesos rápidos</h3>
 
-      <div className="grid grid-cols-2 gap-3 mb-7 bg-transparent shadow-none">
-        {/* Create New Match — primary CTA card */}
-        <Link
-          to="/nuevo-partido"
-          className={cardHeroClass}
-          onMouseEnter={() => prefetchRoute('/nuevo-partido')}
-          onTouchStart={() => prefetchRoute('/nuevo-partido')}
-          onFocus={() => prefetchRoute('/nuevo-partido')}
-        >
-          <div className="flex items-start justify-between">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" fill="currentColor" width={30} height={30} className="text-white drop-shadow-[0_2px_6px_rgba(20,8,60,0.35)]">
-              <path d="M320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320C64 461.4 178.6 576 320 576zM296 408L296 344L232 344C218.7 344 208 333.3 208 320C208 306.7 218.7 296 232 296L296 296L296 232C296 218.7 306.7 208 320 208C333.3 208 344 218.7 344 232L344 296L408 296C421.3 296 432 306.7 432 320C432 333.3 421.3 344 408 344L344 344L344 408C344 421.3 333.3 432 320 432C306.7 432 296 421.3 296 408z" />
-            </svg>
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 text-white/70 transition-transform duration-200 group-hover:translate-x-0.5"><path d="m9 18 6-6-6-6" /></svg>
-          </div>
-          <div>
-            <div className="text-white font-oswald text-[16px] font-bold leading-tight tracking-[0.01em]">Partido nuevo</div>
-            <div className="text-white/75 font-sans text-[11.5px] font-medium leading-tight mt-0.5">Armá y compartí</div>
-          </div>
-        </Link>
-
-        {/* Próximos Partidos */}
-        <div
-          className={cardClass}
-          onClick={() => user && setShowProximosPartidos(true)}
-        >
-          <div className="flex items-start justify-between">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" fill="currentColor" width={28} height={28} className="text-[#cfc4ff]">
-              <path d="M64 320C64 461.4 178.6 576 320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320zM305 441C295.6 450.4 280.4 450.4 271.1 441C261.8 431.6 261.7 416.4 271.1 407.1L358.1 320.1L271.1 233.1C261.7 223.7 261.7 208.5 271.1 199.2C280.5 189.9 295.7 189.8 305 199.2L409 303C418.4 312.4 418.4 327.6 409 336.9L305 441z" />
-            </svg>
-            {activeMatches && activeMatches.length > 0 ? (
-              <span className="inline-flex min-w-[22px] h-[22px] items-center justify-center rounded-full bg-[#ec007d] px-1.5 text-[11px] font-bold text-white shadow-[0_0_12px_rgba(236,0,125,0.5)]">{activeMatches.length}</span>
-            ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 text-white/35 transition-transform duration-200 group-hover:translate-x-0.5"><path d="m9 18 6-6-6-6" /></svg>
-            )}
-          </div>
-          <div>
-            <div className="text-white font-oswald text-[16px] font-bold leading-tight tracking-[0.01em]">Mis partidos</div>
-            <div className="text-white/55 font-sans text-[11.5px] font-medium leading-tight mt-0.5">Agenda y estado</div>
-          </div>
-        </div>
-
-        {/* Frecuentes */}
-        <Link
-          to="/frecuentes"
-          className={cardClass}
-          onMouseEnter={() => prefetchRoute('/frecuentes')}
-          onTouchStart={() => prefetchRoute('/frecuentes')}
-          onFocus={() => prefetchRoute('/frecuentes')}
-        >
-          <div className="flex items-start justify-between">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" fill="currentColor" width={28} height={28} className="text-[#cfc4ff]">
-              <path d="M320 128C426 128 512 214 512 320C512 426 426 512 320 512C254.8 512 197.1 479.5 162.4 429.7C152.3 415.2 132.3 411.7 117.8 421.8C103.3 431.9 99.8 451.9 109.9 466.4C156.1 532.6 233 576 320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C234.3 64 158.5 106.1 112 170.7L112 144C112 126.3 97.7 112 80 112C62.3 112 48 126.3 48 144L48 256C48 273.7 62.3 288 80 288L104.6 288C105.1 288 105.6 288 106.1 288L192.1 288C209.8 288 224.1 273.7 224.1 256C224.1 238.3 209.8 224 192.1 224L153.8 224C186.9 166.6 249 128 320 128zM344 216C344 202.7 333.3 192 320 192C306.7 192 296 202.7 296 216L296 320C296 326.4 298.5 332.5 303 337L375 409C384.4 418.4 399.6 418.4 408.9 409C418.2 399.6 418.3 384.4 408.9 375.1L343.9 310.1L343.9 216z" />
-            </svg>
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 text-white/35 transition-transform duration-200 group-hover:translate-x-0.5"><path d="m9 18 6-6-6-6" /></svg>
-          </div>
-          <div>
-            <div className="text-white font-oswald text-[16px] font-bold leading-tight tracking-[0.01em]">Frecuentes</div>
-            <div className="text-white/55 font-sans text-[11.5px] font-medium leading-tight mt-0.5">Tus plantillas</div>
-          </div>
-        </Link>
-
-        {/* Estadísticas */}
-        <Link
-          to="/stats"
-          className={cardClass}
-          onMouseEnter={() => prefetchRoute('/stats')}
-          onTouchStart={() => prefetchRoute('/stats')}
-          onFocus={() => prefetchRoute('/stats')}
-        >
-          <div className="flex items-start justify-between">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" fill="currentColor" width={28} height={28} className="text-[#cfc4ff]">
-              <path d="M256 144C256 117.5 277.5 96 304 96L336 96C362.5 96 384 117.5 384 144L384 496C384 522.5 362.5 544 336 544L304 544C277.5 544 256 522.5 256 496L256 144zM64 336C64 309.5 85.5 288 112 288L144 288C170.5 288 192 309.5 192 336L192 496C192 522.5 170.5 544 144 544L112 544C85.5 544 64 522.5 64 496L64 336zM496 160L528 160C554.5 160 576 181.5 576 208L576 496C576 522.5 554.5 544 528 544L496 544C469.5 544 448 522.5 448 496L448 208C448 181.5 469.5 160 496 160z" />
-            </svg>
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 text-white/35 transition-transform duration-200 group-hover:translate-x-0.5"><path d="m9 18 6-6-6-6" /></svg>
-          </div>
-          <div>
-            <div className="text-white font-oswald text-[16px] font-bold leading-tight tracking-[0.01em]">Estadísticas</div>
-            <div className="text-white/55 font-sans text-[11.5px] font-medium leading-tight mt-0.5">Tu rendimiento</div>
-          </div>
-        </Link>
-      </div>
+      <QuickAccessRail items={quickAccessItems} />
 
       {/* Recent Activity */}
       {/* Top spacing comes from the grid's mb-7; flex items don't collapse margins */}
