@@ -1144,7 +1144,9 @@ const ProximosPartidos = ({ onClose }) => {
   const getPrimaryCtaButtonClass = (primaryCtaKind) => {
     switch (primaryCtaKind) {
       default:
-        return 'bg-[#6a43ff] border border-[#7d5aff] text-white hover:bg-[#7550ff] shadow-[0_0_14px_rgba(106,67,255,0.3)]';
+        // Mismo lenguaje premium que "Publicar desafío" / "Confirmar plantel" y
+        // los botones de pagos: gradiente CTA + sombra CTA, sin saltar a 2 líneas.
+        return 'bg-cta-gradient border-white/20 text-white shadow-cta hover:brightness-105 active:scale-[0.985] whitespace-nowrap';
     }
   };
 

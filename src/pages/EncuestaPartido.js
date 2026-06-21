@@ -19,7 +19,6 @@ import { resolveChallengeSurveyEligibleUsers } from '../services/surveyEligibili
 import { useAnimatedNavigation } from '../hooks/useAnimatedNavigation';
 import { useScrollResetOnChange } from '../hooks/useScrollReset';
 import { useSmartBackNavigation } from '../hooks/useSmartBackNavigation';
-import { clearMatchFromList } from '../services/matchFinishService';
 import { listChallengeApprovedSquad, listTeamMatchMembers } from '../services/db/teamChallenges';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { SURVEY_START_DELAY_MS } from '../config/surveyConfig';
@@ -2324,18 +2323,14 @@ const EncuestaPartido = () => {
         closedAt: postSubmitUiState.closedAt || null,
       });
 
-      // Keep upcoming-list cleanup best-effort so the survey completion UI does not wait on it.
-      void trace.measure(
-        'clearMatchFromList',
-        () => clearMatchFromList(user.id, matchIdNum),
-        { blockingVisualCompletion: false },
-      ).catch((clearError) => {
-        trace.mark('clearMatchFromList_non_blocking_error', {
-          message: clearError?.message || String(clearError),
-          code: clearError?.code || null,
-        });
-      });
-      trace.mark('clearMatchFromList_dispatched', { blockingVisualCompletion: false });
+      // NO auto-limpiamos el partido de "Mis partidos" al completar la encuesta.
+      // La tarjeta post-partido ahora tiene su propio ciclo de vida (pagos): la
+      // visibilidad la decide shouldShowPostMatchCard. Para el admin la tarjeta
+      // debe seguir visible hasta que cierre los pagos/partido desde la pantalla
+      // de pagos (o se cumpla la ventana de 7 días); para el jugador, sigue
+      // visible si tiene un pago pendiente. Limpiar acá ocultaba la gestión de
+      // pagos del admin apenas completaba su propia encuesta (bug crítico).
+      trace.mark('clearMatchFromList_skipped_post_match_card_owns_lifecycle');
       submitStatus = 'success';
 
     } catch (error) {

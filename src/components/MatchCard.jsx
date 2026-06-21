@@ -302,7 +302,7 @@ const MatchCard = ({
             ) : primaryAction ? (
                 <div className="flex gap-3 mt-3">
                     <button
-                        className={`flex-1 font-bebas font-semibold text-[15px] px-4 py-2 border border-transparent rounded-2xl cursor-pointer transition-all text-white min-h-[42px] flex items-center justify-center text-center sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[38px] ${primaryAction.disabled ? 'bg-[#1d1740] text-white/40 cursor-not-allowed border-white/10' : primaryAction.className || 'bg-cta-gradient shadow-cta hover:brightness-110'} disabled:opacity-60`}
+                        className={`flex-1 min-w-0 whitespace-nowrap font-bebas font-semibold text-[15px] px-4 py-2 border border-transparent rounded-xl cursor-pointer transition-all text-white min-h-[44px] flex items-center justify-center text-center sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[40px] ${primaryAction.disabled ? 'bg-[#1d1740] text-white/40 cursor-not-allowed border-white/10' : primaryAction.className || 'bg-cta-gradient shadow-cta hover:brightness-110'} disabled:opacity-60`}
                         onClick={(e) => {
                             e.stopPropagation();
                             if (primaryAction.disabled) return;

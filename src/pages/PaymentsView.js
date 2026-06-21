@@ -114,6 +114,7 @@ const PaymentsView = () => {
   const [busyRow, setBusyRow] = useState(null); // jugador_id being mutated
   const [actionBusy, setActionBusy] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [aliasPayHint, setAliasPayHint] = useState(false);
 
   const [showEdit, setShowEdit] = useState(false);
   const [editForm, setEditForm] = useState({ amount: '', name: '', alias: '', link: '', collectorUserId: '' });
@@ -290,8 +291,37 @@ const PaymentsView = () => {
       await navigator.clipboard.writeText(collectorAlias);
       setCopied(true);
       setTimeout(() => setCopied(false), 1600);
+      return true;
     } catch (error) {
       notifyBlockingError('No se pudo copiar el alias');
+      return false;
+    }
+  };
+
+  // URL oficial de Mercado Pago. En dispositivos con la app instalada y universal
+  // links configurados puede abrir la app; si no, abre la web oficial. Es un
+  // destino seguro y documentado: NO usamos esquemas mercadopago:// no oficiales
+  // ni deep links de transferencia no documentados (ver docs/PAYMENTS_MERCADOPAGO.md).
+  const openMercadoPago = async () => {
+    const url = 'https://www.mercadopago.com.ar/';
+    try {
+      await Browser.open({ url });
+    } catch (error) {
+      try { window.open(url, '_blank', 'noopener'); } catch (_) { /* noop */ }
+    }
+  };
+
+  // "Pagar": 1) link oficial si existe; 2) si solo hay alias, copiamos el alias,
+  // avisamos y abrimos Mercado Pago (no hay deep link oficial que precargue el alias).
+  const handlePay = async () => {
+    if (collectorLink) {
+      await handlePayLink();
+      return;
+    }
+    if (collectorAlias) {
+      const ok = await handleCopyAlias();
+      if (ok) setAliasPayHint(true);
+      await openMercadoPago();
     }
   };
 
@@ -378,15 +408,20 @@ const PaymentsView = () => {
                 <div className="text-[13px] text-[#bae6fd] font-semibold">Estás exento de este pago</div>
               ) : hasCollector ? (
                 <div className="flex flex-col gap-2.5">
-                  {collectorLink ? (
-                    <button type="button" className={`${PRIMARY_BTN} w-full`} onClick={handlePayLink}>
-                      <ExternalLink size={16} /> Pagar con Mercado Pago
-                    </button>
-                  ) : null}
+                  <button type="button" className={`${PRIMARY_BTN} w-full`} onClick={handlePay}>
+                    {collectorLink
+                      ? <><ExternalLink size={16} /> Pagar con Mercado Pago</>
+                      : <><Wallet size={16} /> Pagar</>}
+                  </button>
                   {collectorAlias ? (
                     <button type="button" className={`${SECONDARY_BTN} w-full`} onClick={handleCopyAlias}>
                       {copied ? <><Check size={16} /> ¡Copiado!</> : <><Copy size={16} /> Copiar alias</>}
                     </button>
+                  ) : null}
+                  {aliasPayHint && !collectorLink ? (
+                    <p className="text-[11.5px] text-[#cfc4ff]/80 leading-snug text-center px-1">
+                      Alias copiado. Abrí Mercado Pago y transferí a este alias.
+                    </p>
                   ) : null}
                   <button type="button" className={`${SECONDARY_BTN} w-full`} disabled={actionBusy} onClick={handleReportMine}>
                     Ya pagué
@@ -468,11 +503,14 @@ const PaymentsView = () => {
                     <Bell size={16} /> Recordar pendientes
                   </button>
                   <button type="button" className={`${PRIMARY_BTN} w-full`} disabled={actionBusy} onClick={handleCloseClick}>
-                    <Lock size={16} /> Cerrar pagos
+                    <Lock size={16} /> Cerrar partido
                   </button>
+                  <p className="text-center text-[11.5px] text-white/45 leading-snug px-2">
+                    Se cierran los pagos y el partido sale de Mis partidos.
+                  </p>
                 </>
               ) : (
-                <div className="text-center text-[13px] text-white/55 py-1">Los pagos de este partido están cerrados.</div>
+                <div className="text-center text-[13px] text-white/55 py-1">El partido está cerrado. Ya no aparece en Mis partidos.</div>
               )}
             </div>
           ) : null}
@@ -534,8 +572,8 @@ const PaymentsView = () => {
       {/* Confirmar cierre con pendientes */}
       <ConfirmModal
         isOpen={showCloseConfirm}
-        title="Cerrar pagos"
-        message="Todavía hay jugadores pendientes. ¿Querés cerrar pagos igual?"
+        title="Cerrar partido"
+        message="Todavía hay jugadores con el pago pendiente. ¿Querés cerrar el partido igual?"
         onConfirm={() => { setShowCloseConfirm(false); doClose(true); }}
         onCancel={() => setShowCloseConfirm(false)}
         confirmText="Cerrar igual"
