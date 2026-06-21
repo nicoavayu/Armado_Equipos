@@ -284,11 +284,16 @@ const GuestTeamsReadOnlyModal = ({
       : 'border-[#38bdf8]/45 bg-[#38bdf8]/12 text-[#bae6fd]';
     return (
       <div className="min-w-0 flex flex-col">
-        <div className="flex items-center justify-between gap-2 mb-2.5">
-          <span className="font-bebas text-[19px] leading-none text-white uppercase tracking-[0.03em] truncate">
-            {teamName}
-          </span>
-          <span className={`shrink-0 inline-flex items-center rounded-full border px-2 py-[3px] font-oswald text-[12px] font-bold leading-none ${scoreChipClass}`}>
+        <div className="mb-2.5 min-w-0">
+          {/* Nombre del equipo: prioridad visual, hasta 2 líneas, nunca recortado feo */}
+          <div className="min-h-[2.3rem] flex items-end">
+            <span className="w-full font-bebas text-[18px] leading-[1.06] text-white uppercase tracking-[0.03em] line-clamp-2 break-words">
+              {teamName}
+            </span>
+          </div>
+          {/* Puntaje como chip secundario debajo, sin competir con el nombre */}
+          <span className={`mt-1.5 inline-flex items-center gap-1 rounded-full border px-2 py-[2px] font-oswald text-[11px] font-bold leading-none ${scoreChipClass}`}>
+            <span className="text-[8.5px] font-semibold tracking-[0.08em] opacity-70">PTS</span>
             {Number(score || 0).toFixed(1)}
           </span>
         </div>

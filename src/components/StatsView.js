@@ -2046,18 +2046,20 @@ const StatsView = ({ onVolver }) => {
       const total = amistosos + torneos;
 
       return (
-        <div className="bg-[#171231]/98 border border-[rgba(148,134,255,0.2)] rounded-2xl p-2 backdrop-blur-md">
-          <p className="text-white/80 text-xs m-0 font-oswald">{`${label}`}</p>
-          <p className="text-white text-sm font-semibold m-1 font-oswald">
+        <div className="bg-[#171231]/98 border border-[rgba(148,134,255,0.25)] rounded-xl px-3 py-2 backdrop-blur-md shadow-[0_10px_24px_rgba(2,10,34,0.5)]">
+          <p className="text-white/55 text-[10px] m-0 font-sans font-bold uppercase tracking-[0.12em]">{`${label}`}</p>
+          <p className="text-white text-[15px] font-bold m-0 mt-0.5 font-oswald tabular-nums">
             {`${total} partido${total !== 1 ? 's' : ''}`}
           </p>
           {amistosos > 0 && (
-            <p className="text-white/80 text-xs font-normal m-0.5 font-oswald">
+            <p className="flex items-center gap-1.5 text-white/75 text-[11px] m-0 mt-1 font-oswald">
+              <span className="h-2 w-2 rounded-full bg-[#8B5CFF]" />
               {`${amistosos} amistoso${amistosos !== 1 ? 's' : ''}`}
             </p>
           )}
           {torneos > 0 && (
-            <p className="text-white/80 text-xs font-normal m-0.5 font-oswald">
+            <p className="flex items-center gap-1.5 text-white/75 text-[11px] m-0 mt-0.5 font-oswald">
+              <span className="h-2 w-2 rounded-full bg-[#EC007D]" />
               {`${torneos} torneo${torneos !== 1 ? 's' : ''}`}
             </p>
           )}
@@ -2177,13 +2179,13 @@ const StatsView = ({ onVolver }) => {
                 transition={{ delay: 0.1 + idx * 0.08 }}
                 onClick={metric.key === 'lesiones' ? () => setShowLesionesDetalle((v) => !v) : undefined}
               >
-                <div className="mb-3 text-[#cfc4ff]">
-                  <Icon size={28} />
+                <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[rgba(148,134,255,0.3)] bg-[linear-gradient(140deg,rgba(139,92,255,0.28),rgba(106,67,255,0.08))] text-[#cfc4ff] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+                  <Icon size={20} />
                 </div>
-                <div className="font-bebas text-[34px] font-bold text-white mb-1 leading-none drop-shadow-[0_2px_10px_rgba(106,67,255,0.35)] md:text-[30px]">
+                <div className="font-bebas text-[38px] font-bold text-white mb-0.5 leading-none tabular-nums drop-shadow-[0_2px_10px_rgba(106,67,255,0.35)] md:text-[32px]">
                   <CountUp end={metric.value} decimals={metric.decimals} duration={1.2} />
                 </div>
-                <div className="font-sans text-[10.5px] font-bold text-white/55 uppercase tracking-[0.16em]">{metric.label}</div>
+                <div className="font-sans text-[10.5px] font-bold text-white/50 uppercase tracking-[0.16em]">{metric.label}</div>
               </motion.div>
             );
           })}
@@ -2290,7 +2292,10 @@ const StatsView = ({ onVolver }) => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.26 }}
           >
-            <div className="font-oswald text-base font-semibold text-white mb-1">Recap de resultados</div>
+            <div className="mb-1 flex items-center gap-2">
+              <span className="h-3.5 w-1 shrink-0 rounded-full bg-[linear-gradient(180deg,#ec007d,#8b5cff)]" />
+              <span className="font-oswald text-base font-semibold text-white">Recap de resultados</span>
+            </div>
             <div className="font-oswald text-[11px] text-white/65 mb-3">
               Todos tus partidos del período: manuales y partidos reales (con encuesta).
             </div>
@@ -2312,6 +2317,24 @@ const StatsView = ({ onVolver }) => {
                 <div className="font-oswald text-xl font-bold text-sky-100">{stats.encuestaPendientes}</div>
               </div>
             </div>
+            {(() => {
+              const totalResueltos = recapGanados + recapEmpatados + recapPerdidos;
+              if (!totalResueltos) return null;
+              const pct = (n) => `${(n / totalResueltos) * 100}%`;
+              return (
+                <div className="mt-3.5">
+                  <div className="flex h-2 w-full overflow-hidden rounded-full bg-white/[0.06]">
+                    <div className="h-full bg-emerald-400/70 transition-[width] duration-500" style={{ width: pct(recapGanados) }} />
+                    <div className="h-full bg-amber-400/70 transition-[width] duration-500" style={{ width: pct(recapEmpatados) }} />
+                    <div className="h-full bg-rose-400/70 transition-[width] duration-500" style={{ width: pct(recapPerdidos) }} />
+                  </div>
+                  <div className="mt-1.5 flex items-center justify-between font-sans text-[10.5px] font-semibold uppercase tracking-[0.12em] text-white/50">
+                    <span>{totalResueltos} con resultado</span>
+                    <span className="text-emerald-200/90">{Math.round((recapGanados / totalResueltos) * 100)}% victorias</span>
+                  </div>
+                </div>
+              );
+            })()}
             {stats.encuestaSinEquipoDetectado > 0 && (
               <div className="font-oswald text-[11px] text-white/55 mt-2">
                 {stats.encuestaSinEquipoDetectado} partido(s) con resultado pero sin equipo detectable.
@@ -2613,24 +2636,27 @@ const StatsView = ({ onVolver }) => {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.8 }}
           >
-            <h3 className="font-oswald text-lg font-semibold text-white mb-4 text-center">Partidos por {periodLabels[period]}</h3>
+            <div className="mb-4 flex items-center justify-center gap-2">
+              <span className="h-3.5 w-1 rounded-full bg-[linear-gradient(180deg,#ec007d,#8b5cff)]" />
+              <h3 className="font-oswald text-[15px] font-semibold uppercase tracking-[0.12em] text-white/90">Partidos por {periodLabels[period]}</h3>
+            </div>
             <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={stats.chartData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.08)" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'rgba(255,255,255,0.8)', fontSize: 12 }} />
+              <BarChart data={stats.chartData} barGap={4} barCategoryGap="28%">
+                <CartesianGrid strokeDasharray="2 6" vertical={false} stroke="rgba(255,255,255,0.07)" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'rgba(255,255,255,0.7)', fontSize: 11 }} dy={4} />
                 <YAxis hide />
-                <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="amistosos" fill="#7D74E8" radius={[6, 6, 0, 0]} />
-                <Bar dataKey="torneos" fill="#24C4E8" radius={[6, 6, 0, 0]} />
+                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(139,92,255,0.08)' }} />
+                <Bar dataKey="amistosos" fill="#8B5CFF" radius={[5, 5, 0, 0]} maxBarSize={38} />
+                <Bar dataKey="torneos" fill="#EC007D" radius={[5, 5, 0, 0]} maxBarSize={38} />
               </BarChart>
             </ResponsiveContainer>
             <div className="flex justify-center gap-5 mt-3 sm:flex-col sm:gap-2 sm:items-center">
               <div className="flex items-center gap-1.5 font-oswald text-xs text-white/80">
-                <div className="w-3 h-3 rounded-[2px] bg-[#7D74E8]"></div>
+                <div className="w-3 h-3 rounded-[3px] bg-[#8B5CFF]"></div>
                 <span>Amistosos</span>
               </div>
               <div className="flex items-center gap-1.5 font-oswald text-xs text-white/80">
-                <div className="w-3 h-3 rounded-[2px] bg-[#24C4E8]"></div>
+                <div className="w-3 h-3 rounded-[3px] bg-[#EC007D]"></div>
                 <span>Torneos</span>
               </div>
             </div>
@@ -2643,7 +2669,10 @@ const StatsView = ({ onVolver }) => {
           animate={{ opacity: 1 }}
           transition={{ delay: 1.0 }}
         >
-          <h3 className="font-oswald text-xl font-semibold text-white mb-4 text-center">Logros</h3>
+          <div className="mb-4 flex items-center justify-center gap-2">
+            <span className="h-3.5 w-1 rounded-full bg-[linear-gradient(180deg,#ec007d,#8b5cff)]" />
+            <h3 className="m-0 font-oswald text-[15px] font-semibold uppercase tracking-[0.12em] text-white/90">Logros</h3>
+          </div>
 
           <div className="mb-3 text-white/70 font-oswald text-xs uppercase tracking-wide">Anuales</div>
           <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3 mt-2 md:grid-cols-2 sm:grid-cols-1">
@@ -2699,7 +2728,10 @@ const StatsView = ({ onVolver }) => {
             animate={{ opacity: 1 }}
             transition={{ delay: 1.2 }}
           >
-            <h3 className="font-oswald text-xl font-semibold text-white mb-4 text-center">Amigos con los que más jugaste</h3>
+            <div className="mb-4 flex items-center justify-center gap-2">
+              <span className="h-3.5 w-1 shrink-0 rounded-full bg-[linear-gradient(180deg,#ec007d,#8b5cff)]" />
+              <h3 className="m-0 font-oswald text-[15px] font-semibold uppercase tracking-[0.12em] text-white/90 text-center">Amigos con los que más jugaste</h3>
+            </div>
             <AnimatePresence>
               {stats.topAmigos.map((amigo, index) => (
                 <motion.div

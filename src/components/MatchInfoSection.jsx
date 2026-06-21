@@ -97,6 +97,7 @@ export default function MatchInfoSection(props) {
     rightActions,
     topOffsetClassName,
     topOffsetStyle,
+    flushTop = false,
   } = props;
   const partidoObj = props.partido || {};
 
@@ -142,7 +143,7 @@ export default function MatchInfoSection(props) {
     <div data-testid="match-info-section" className="relative left-1/2 -translate-x-1/2 w-screen max-w-[100vw] px-0 mx-0 overflow-hidden box-border">
       <div className="relative w-full flex justify-center items-start m-0 p-0">
         <div
-          className={`${topOffset} mb-0 p-3 relative w-full max-w-none box-border bg-[linear-gradient(180deg,rgba(40,32,82,0.78),rgba(20,16,41,0.88))] rounded-none ui-flat flex justify-center sm:max-w-full sm:p-[8px_10px] border-t border-b border-[rgba(148,134,255,0.16)] after:content-[''] after:absolute after:bottom-0 after:left-0 after:right-0 after:h-px after:bg-[linear-gradient(90deg,transparent_8%,rgba(139,92,255,0.45)_42%,rgba(236,0,125,0.3)_66%,transparent_92%)]`}
+          className={`${topOffset} mb-0 p-3 relative w-full max-w-none box-border bg-[linear-gradient(180deg,rgba(40,32,82,0.78),rgba(20,16,41,0.88))] rounded-none ui-flat flex justify-center sm:max-w-full sm:p-[8px_10px] ${flushTop ? '' : 'border-t '}border-b border-[rgba(148,134,255,0.16)] after:content-[''] after:absolute after:bottom-0 after:left-0 after:right-0 after:h-px after:bg-[linear-gradient(90deg,transparent_8%,rgba(139,92,255,0.45)_42%,rgba(236,0,125,0.3)_66%,transparent_92%)]`}
           style={topOffsetStyle}
         >
           <div

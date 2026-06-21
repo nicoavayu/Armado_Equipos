@@ -133,7 +133,7 @@ export default function ConfirmModal({
             <button
               ref={cancelRef}
               data-preserve-button-case="true"
-              className="inline-flex h-[52px] min-w-[128px] items-center justify-center px-6 rounded-[var(--radius-standard)] text-center text-[16px] font-semibold tracking-[0.01em] font-oswald whitespace-nowrap cursor-pointer border bg-[rgba(23,35,74,0.72)] border-[rgba(148,134,255,0.2)] text-white hover:brightness-110 active:opacity-95 disabled:opacity-50 disabled:cursor-default transition-all"
+              className="a2-press inline-flex h-[52px] min-w-[128px] items-center justify-center px-6 rounded-[var(--radius-standard)] text-center text-[16px] font-semibold tracking-[0.01em] font-oswald whitespace-nowrap cursor-pointer border bg-[rgba(23,35,74,0.72)] border-[rgba(148,134,255,0.2)] text-white hover:brightness-110 active:opacity-95 disabled:opacity-50 disabled:cursor-default transition-all"
               onMouseDown={handleCancelClick}
               onClick={handleCancelClick}
               disabled={false}
@@ -145,7 +145,7 @@ export default function ConfirmModal({
           <button
             ref={confirmRef}
             data-preserve-button-case="true"
-            className={`inline-flex h-[52px] min-w-[132px] items-center justify-center px-6 rounded-[var(--radius-standard)] text-center text-[16px] font-semibold tracking-[0.01em] font-oswald whitespace-nowrap cursor-pointer border text-white hover:brightness-110 active:opacity-95 disabled:opacity-50 disabled:cursor-default transition-all ${
+            className={`a2-press inline-flex h-[52px] min-w-[132px] items-center justify-center px-6 rounded-[var(--radius-standard)] text-center text-[16px] font-semibold tracking-[0.01em] font-oswald whitespace-nowrap cursor-pointer border text-white hover:brightness-110 active:opacity-95 disabled:opacity-50 disabled:cursor-default transition-all ${
               danger
                 ? 'bg-[linear-gradient(132deg,#b91c1c_0%,#dc2626_50%,#ef4444_100%)] border-red-300/40'
                 : 'bg-[linear-gradient(132deg,#291686_0%,#3f24ba_48%,#5638e6_100%)] border-[rgba(132,112,255,0.58)] shadow-[0_0_14px_rgba(86,56,230,0.22)]'

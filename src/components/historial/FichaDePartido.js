@@ -180,9 +180,9 @@ const FichaDePartido = ({ partido, onBack, onClose }) => {
 
                 return (
                   <div key={equipo.id || index} className="bg-[rgba(4,48,106,0.22)] rounded-[10px] p-[15px]">
-                    <div className="flex justify-between items-center mb-[15px] pb-[10px] border-b border-[#444]">
-                      <h4 className="m-0 text-[#8178e5] text-[1.1rem]">{equipo.name || `Equipo ${index + 1}`}</h4>
-                      <span className="bg-[#8178e5] text-white py-1 px-2 rounded-[15px] text-[0.9rem] font-semibold">
+                    <div className="flex justify-between items-center gap-2 mb-[15px] pb-[10px] border-b border-[#444]">
+                      <h4 className="m-0 min-w-0 break-words text-[#8178e5] text-[1.1rem]">{equipo.name || `Equipo ${index + 1}`}</h4>
+                      <span className="shrink-0 bg-[#8178e5] text-white py-1 px-2 rounded-[15px] text-[0.9rem] font-semibold">
                         {(equipo.score ?? 0).toFixed(1)}
                       </span>
                     </div>

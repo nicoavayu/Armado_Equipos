@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback, useMemo, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useCallback, useMemo, useState } from 'react';
 
 // --- Pure Helper Functions (Outside Component) ---
 const clamp = (v, min = 0, max = 100) => Math.min(Math.max(v, min), max);
@@ -99,15 +99,113 @@ const getLevelDotColor = (level) => {
   return map[level] || '#FFFFFF';
 };
 
-// Names up to 12 chars keep the current size; longer names shrink progressively
-// so they never overflow the card (max input length is 20, >20 falls back to ellipsis).
-const getNameFontScale = (name) => {
-  const len = String(name || '').length;
-  if (len <= 12) return 1;
-  if (len <= 15) return 0.88;
-  if (len <= 18) return 0.78;
-  return 0.7;
-};
+// Measured auto-fit for the player name. The old version scaled by character
+// count, which can't account for real glyph width — so the same name looked
+// fine on Android but crept to the edges on iOS WebKit (different Bebas Neue
+// metrics / font-load timing). Here we measure the rendered width with a hidden
+// probe inside the same card slot and derive a continuous scale
+// so the name fits identically on every platform, leaving a small safe margin so
+// it never touches the card edges. Falls back to full size when there is no
+// layout yet (jsdom/SSR).
+function FittedName({ text }) {
+  const ref = useRef(null);
+  const probeRef = useRef(null);
+  const [scale, setScale] = useState(1);
+  const nameLength = String(text || '').trim().length;
+  const tracking = nameLength >= 18
+    ? '-0.02em'
+    : nameLength >= 15
+      ? '-0.01em'
+      : nameLength >= 11
+        ? '0em'
+        : '0.01em';
+
+  const getFontSizeVars = (fontScale) => ({
+    '--pc-name-font-min': `${round(28 * fontScale)}px`,
+    '--pc-name-font-fluid': `${round(9.6 * fontScale)}vw`,
+    '--pc-name-font-max': `${round(46 * fontScale)}px`,
+  });
+
+  const measure = useCallback(() => {
+    const el = ref.current;
+    const wrap = el?.parentElement;
+    const probe = probeRef.current;
+    if (!el || !wrap || !probe) return;
+    const available = wrap.clientWidth;
+    if (!available) return; // not laid out yet — keep full size
+
+    // This probe lives in the same name slot and uses the exact same class/font.
+    // That avoids differences between an off-screen body probe and the real card
+    // in iOS WebKit, including synthetic weight and letter-spacing metrics.
+    const needed = probe.getBoundingClientRect().width;
+    if (!needed) return;
+
+    // Reserve 28% of the configured name slot. The artwork narrows near the top,
+    // so the safe width must follow the visible blue frame, not the card's outer
+    // rectangle. This also absorbs WebKit font and subpixel rounding differences.
+    // The lower floor handles the 20-character editor limit without edge contact.
+    const safe = Math.max(1, Math.min(available * 0.72, available - 28));
+    const measuredScale = (safe / needed) * 0.96;
+    const next = Math.min(1, Math.max(0.24, measuredScale));
+    setScale((prev) => (Math.abs(prev - next) < 0.005 ? prev : next));
+  }, []);
+
+  useLayoutEffect(() => {
+    measure();
+    let ro;
+    let raf;
+    const schedule = () => {
+      if (typeof window === 'undefined' || !window.requestAnimationFrame) {
+        measure();
+        return;
+      }
+      if (raf) window.cancelAnimationFrame(raf);
+      raf = window.requestAnimationFrame(() => measure());
+    };
+    const wrap = ref.current?.parentElement;
+    if (typeof ResizeObserver !== 'undefined' && wrap) {
+      ro = new ResizeObserver(schedule);
+      ro.observe(wrap);
+    } else if (typeof window !== 'undefined') {
+      window.addEventListener('resize', schedule);
+    }
+    // Re-fit once Bebas Neue actually loads so we measure real glyph metrics.
+    let cancelled = false;
+    const fontSet = typeof document !== 'undefined' ? document.fonts : null;
+    if (fontSet?.ready) {
+      fontSet.ready.then(() => { if (!cancelled) schedule(); }).catch(() => {});
+      fontSet.addEventListener?.('loadingdone', schedule);
+    }
+    return () => {
+      cancelled = true;
+      if (raf && typeof window !== 'undefined' && window.cancelAnimationFrame) window.cancelAnimationFrame(raf);
+      if (ro && ro.disconnect) ro.disconnect();
+      else if (typeof window !== 'undefined') window.removeEventListener('resize', schedule);
+      fontSet?.removeEventListener?.('loadingdone', schedule);
+    };
+  }, [measure, text, tracking]);
+
+  return (
+    <>
+      <h3
+        ref={ref}
+        className="pc-name"
+        title={text}
+        style={{ ...getFontSizeVars(scale), '--pc-name-tracking': tracking }}
+      >
+        {text}
+      </h3>
+      <h3
+        ref={probeRef}
+        aria-hidden="true"
+        className="pc-name pc-name-probe"
+        style={{ ...getFontSizeVars(1), '--pc-name-tracking': tracking }}
+      >
+        {text}
+      </h3>
+    </>
+  );
+}
 
 const getAvatar = (p) => {
   const src = p?.avatar_url || p?.foto_url || p?.user?.user_metadata?.avatar_url || p?.user?.user_metadata?.picture || p?.user_metadata?.avatar_url || p?.user_metadata?.picture;
@@ -644,20 +742,44 @@ const ProfileCardComponent = ({
           display: flex;
           align-items: center;
           justify-content: center;
+          overflow: visible;
         }
         .pc-name {
-          margin: var(--pc-name-margin);
-          max-width: 100%;
-          overflow: hidden;
-          text-overflow: ellipsis;
+          flex: 0 0 auto;
+          margin-block: var(--pc-name-margin);
+          margin-inline: 0;
+          min-width: 0;
+          max-width: none;
+          overflow: visible;
+          text-overflow: clip;
           white-space: nowrap;
+          text-align: center;
           font-family: 'Bebas Neue', 'Bebas', 'Oswald', sans-serif;
-          font-size: calc(clamp(28px, 9.6vw, 46px) * var(--pc-name-scale, 1));
+          font-size: clamp(
+            var(--pc-name-font-min, 28px),
+            var(--pc-name-font-fluid, 9.6vw),
+            var(--pc-name-font-max, 46px)
+          );
           line-height: 1.75;
           font-weight: 900;
-          letter-spacing: 0.01em;
+          letter-spacing: var(--pc-name-tracking, 0.01em);
           color: #fff;
-          text-shadow: 0 2px 8px rgba(0,0,0,0.8), 0 0 20px rgba(63, 169, 255, 0.3);
+          /* Premium soft shadow: keeps contrast over the photo without the hard
+             edge the old 0.8/8px black offset showed on iOS WebKit. */
+          text-shadow:
+            0 1px 2px rgba(0, 0, 0, 0.35),
+            0 3px 14px rgba(0, 0, 0, 0.4),
+            0 0 22px rgba(63, 169, 255, 0.25);
+        }
+        .pc-name-probe {
+          position: absolute;
+          width: max-content;
+          max-width: none;
+          margin: 0;
+          overflow: visible;
+          visibility: hidden;
+          pointer-events: none;
+          text-overflow: clip;
         }
         .pc-right-stats {
           position: absolute;
@@ -992,9 +1114,7 @@ const ProfileCardComponent = ({
 
                     <div className="pc-content-layer">
                       <div className="pc-name-wrap">
-                        <h3 className="pc-name" title={vm.name} style={{ '--pc-name-scale': getNameFontScale(vm.name) }}>
-                          {vm.name}
-                        </h3>
+                        <FittedName text={vm.name} />
                       </div>
 
                       <div className="pc-right-stats">

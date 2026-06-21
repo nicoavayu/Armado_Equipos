@@ -161,7 +161,41 @@ body {
   overflow-x: clip;
   overflow-y: scroll;
   overscroll-behavior-x: none;
-  touch-action: pan-y pinch-zoom;
+  /* Horizontal rails need pan-x to remain available through the ancestor chain. */
+  touch-action: pan-x pan-y pinch-zoom;
+}
+
+/* Home is a fixed dashboard. Lock the document only while that route is active;
+   every other screen keeps the existing document scroll behavior. */
+html.home-dashboard-active,
+body.home-dashboard-active {
+  height: 100%;
+  min-height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+.home-activity-scroll {
+  touch-action: pan-y;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.notification-filter-rail,
+.notification-filter-chip {
+  /* Vertical gestures stay native; horizontal gestures are handled by the rail
+     so dragging works even when the pointer starts on a button. */
+  touch-action: pan-y;
+}
+
+.notification-filter-rail {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: auto;
+}
+
+.notification-filter-chip {
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .kebab-menu-btn {
@@ -605,6 +639,12 @@ body {
 }
 
 /* Subtle scrollbar for inner scroll areas. */
+.custom-scrollbar {
+  /* Native momentum + keep the inner scroll from chaining to the page (Home dashboard). */
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
 .custom-scrollbar::-webkit-scrollbar {
   width: 4px;
 }
@@ -1197,6 +1237,61 @@ textarea:focus {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* --- ARMA2 MICROINTERACTIONS ---------------------------------------------
+   Premium, short, deportivas. CSS-only (opacity/transform), no heavy libs.
+   All covered by the prefers-reduced-motion block above + explicit reset below. */
+@keyframes a2RiseIn {
+  from { opacity: 0; transform: translateY(8px); }
+  /* End at `none` (not translateY(0)) so no transform persists with fill:both —
+     a lingering transform would create a containing block that can offset
+     position:fixed descendants (e.g. react-beautiful-dnd drag clones). */
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes a2PopIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes a2SuccessGlow {
+  0% { box-shadow: 0 0 0 0 rgba(106, 67, 255, 0); }
+  35% { box-shadow: 0 0 18px 2px rgba(122, 82, 255, 0.45); }
+  100% { box-shadow: 0 0 0 0 rgba(106, 67, 255, 0); }
+}
+
+/* Entrance: subtle rise+fade for cards/panels when they appear. */
+.a2-rise { animation: a2RiseIn 240ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+/* Appearance: gentle scale-in for chips / VS badge / inline bits. */
+.a2-pop { animation: a2PopIn 200ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+/* One-shot success pulse (votos enviados, pago marcado, etc.). */
+.a2-success-glow { animation: a2SuccessGlow 900ms ease-out 1; }
+
+/* Tap feedback for primary buttons/chips: short press, no caricature bounce. */
+.a2-press {
+  transition: transform 120ms cubic-bezier(0.16, 1, 0.3, 1), filter 140ms ease, box-shadow 140ms ease;
+}
+.a2-press:active { transform: scale(0.97); }
+
+/* Stagger helper for SMALL lists only (cap ~6 children). */
+.a2-stagger > * { animation: a2RiseIn 260ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+.a2-stagger > *:nth-child(1) { animation-delay: 20ms; }
+.a2-stagger > *:nth-child(2) { animation-delay: 55ms; }
+.a2-stagger > *:nth-child(3) { animation-delay: 90ms; }
+.a2-stagger > *:nth-child(4) { animation-delay: 125ms; }
+.a2-stagger > *:nth-child(5) { animation-delay: 160ms; }
+.a2-stagger > *:nth-child(6) { animation-delay: 195ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .a2-rise,
+  .a2-pop,
+  .a2-success-glow,
+  .a2-stagger > * { animation: none !important; }
+  .a2-press { transition: none !important; }
+  .a2-press:active { transform: none !important; }
 }
 
 /* Share button container */

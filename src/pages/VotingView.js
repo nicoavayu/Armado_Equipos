@@ -454,9 +454,7 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
   const wrapperClass = 'notranslate min-h-[100dvh] w-screen p-0 flex flex-col relative';
   const cardClass = 'w-[90vw] max-w-[520px] mx-auto flex flex-col items-center justify-center min-h-[calc(100dvh-120px)] p-5';
   const titleClass = 'font-bebas text-[40px] md:text-[64px] text-white tracking-[0.08em] font-bold mb-10 text-center leading-[0.98] uppercase drop-shadow-lg';
-  const sectionTitleClass = 'font-bebas text-[31px] md:text-[46px] text-white tracking-[0.055em] font-bold text-center leading-[1.06] md:leading-[0.98] drop-shadow-lg';
   const voteStageTitleClass = 'font-bebas text-[clamp(2rem,8.8vw,3.15rem)] md:text-[42px] lg:text-[46px] text-white tracking-[0.045em] font-bold text-center leading-[1.04] md:leading-[0.98] drop-shadow-lg';
-  const sectionSubtitleClass = 'font-oswald text-[18px] md:text-[21px] text-white/82 text-center leading-[1.22] tracking-[0.02em]';
   const primaryVoteButtonClass = 'w-full h-[58px] min-h-[58px] px-4 border text-white font-oswald text-[19px] md:text-[21px] font-bold tracking-[0.02em] normal-case rounded-2xl cursor-pointer transition-all duration-200 hover:brightness-110 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center';
   const primaryVoteButtonStyle = {
     background: 'linear-gradient(135deg, #8b5cff 0%, #6a43ff 52%, #5430e0 100%)',
@@ -509,7 +507,7 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
   // Guard: Check if should show final screen (happy path or already voted)
   const shouldShowFinal = publicAlreadyVoted || usuarioYaVoto || finalizado;
   const publicVotingFinalLogo = isPublicRoute ? (
-    <div className="mb-6 flex justify-center">
+    <div className="mb-6 flex justify-center a2-pop">
       <img
         src={Logo}
         alt="ARMA2"
@@ -1156,39 +1154,40 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
           ref={summaryScrollResetRef}
           className="w-[90vw] max-w-[520px] mx-auto flex-1 min-h-0 flex flex-col items-center overflow-y-auto px-3 pb-3"
           style={{
-            paddingTop: 'max(26px, calc(env(safe-area-inset-top) + 28px))',
-            paddingBottom: 'max(16px, calc(env(safe-area-inset-bottom) + 12px))',
+            paddingTop: 'max(16px, calc(env(safe-area-inset-top) + 16px))',
+            paddingBottom: 'max(14px, calc(env(safe-area-inset-bottom) + 10px))',
           }}
         >
-          <div className="w-full mb-5 px-2 text-center">
+          <div className="w-full mb-3 px-2 text-center shrink-0 a2-rise">
+
             <div className="max-w-[370px] mx-auto">
-              <div className={sectionTitleClass}>
+              <div className="font-bebas text-[28px] md:text-[38px] text-white tracking-[0.05em] font-bold text-center leading-[1.02] uppercase drop-shadow-lg">
                 CONFIRMÁ TUS VOTOS
               </div>
-              <div className={`${sectionSubtitleClass} mt-2`}>
+              <div className="font-oswald text-[14px] md:text-[16px] text-white/72 text-center leading-[1.2] tracking-[0.02em] mt-1">
                 Revisá los puntajes antes de enviarlos.
               </div>
             </div>
           </div>
-          <div className="w-full max-w-full mx-auto mb-4 p-0 list-none">
+          <div className="w-full max-w-full mx-auto mb-3 p-0 list-none">
             {jugadoresParaVotar.map((j, idx) => (
               <div
                 key={j.uuid}
-                className="flex items-center gap-2.5 mb-2 p-2.5 border rounded-xl transition-[filter] duration-150 hover:brightness-105"
+                className="flex items-center gap-2 mb-1.5 px-2.5 py-1.5 border rounded-xl transition-[filter] duration-150 hover:brightness-105"
                 style={{ backgroundColor: VOTE_CARD_BG_BLUE, borderColor: VOTE_CARD_STROKE_BLUE }}
               >
-                <div className="w-10 h-10 rounded-full overflow-hidden shrink-0">
+                <div className="w-9 h-9 rounded-full overflow-hidden shrink-0">
                   {j.avatar_url ?
                     <img src={j.avatar_url} alt="foto" className="w-full h-full object-cover" />
-                    : <AvatarFallback name={j.nombre} size="w-10 h-10" />
+                    : <AvatarFallback name={j.nombre} size="w-9 h-9" />
                   }
                 </div>
-                <span className="flex-grow font-bold text-base md:text-lg font-oswald text-white tracking-wide truncate drop-shadow-sm">{clean(j.nombre)}</span>
-                <span className={`text-white text-lg md:text-xl font-black min-w-[60px] text-right font-bebas shrink-0 drop-shadow-sm tracking-wide ${!votos[j.uuid] ? 'opacity-70 font-normal text-sm' : ''}`}>
+                <span className="flex-grow min-w-0 font-bold text-[15px] md:text-base font-oswald text-white tracking-wide truncate drop-shadow-sm">{clean(j.nombre)}</span>
+                <span className={`text-white text-base md:text-lg font-black min-w-[50px] text-right font-bebas shrink-0 drop-shadow-sm tracking-wide ${!votos[j.uuid] ? 'opacity-70 font-normal text-[13px]' : ''}`}>
                   {votos[j.uuid] ? votos[j.uuid] + '/10' : 'No calif.'}
                 </span>
                 <button
-                  className="border px-3 py-1 text-[0.85em] text-white font-oswald font-semibold normal-case rounded-lg ml-1.5 transition-[filter] duration-150 hover:brightness-110 shrink-0"
+                  className="border px-2.5 py-1 text-[0.78em] text-white font-oswald font-semibold normal-case rounded-md ml-1 transition-[filter] duration-150 hover:brightness-110 shrink-0"
                   style={neutralVoteButtonStyle}
                   onClick={() => setEditandoIdx(idx)}
                 >
@@ -1203,7 +1202,7 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
             </div>
           )}
           <button
-            className={`${primaryVoteButtonClass} mt-auto`}
+            className={`${primaryVoteButtonClass} mt-auto a2-press`}
             style={primaryVoteButtonStyle}
             disabled={isSubmitting || hasAccess === false || hasAccess === null}
             onClick={async () => {

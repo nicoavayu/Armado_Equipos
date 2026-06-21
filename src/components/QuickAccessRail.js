@@ -202,7 +202,9 @@ const QuickAccessCard = React.forwardRef(({ item, isActive, isClone, variant }, 
     borderColor: 'rgba(196,178,255, calc(0.16 + 0.44 * var(--qa-a, 0)))',
     boxShadow: [
       '0 4px 14px rgba(5,3,16, calc(0.4 - 0.12 * var(--qa-a, 0)))',
-      '0 16px 38px rgba(84,48,224, calc(0.5 * var(--qa-a, 0)))',
+      // Softer, longer-reaching violet glow so it tapers out gracefully in the
+      // extra bottom room rather than ending abruptly.
+      '0 18px 46px rgba(84,48,224, calc(0.42 * var(--qa-a, 0)))',
       '0 0 0 1px rgba(196,178,255, calc(0.22 * var(--qa-a, 0)))',
       'inset 0 1px 0 rgba(255,255,255, calc(0.24 * var(--qa-a, 0)))',
     ].join(', '),
@@ -802,7 +804,12 @@ const QuickAccessRail = ({ items = [] }) => {
         <div
           ref={scrollRef}
           onScroll={handleScroll}
-          className="qa-rail relative flex items-center gap-2.5 overflow-x-auto py-4"
+          // overflow-x:auto forces overflow-y to clip too, which used to cut the
+          // active card's downward glow into a hard horizontal line ~16px below the
+          // card. We give the shadow generous room to fade out inside the (clipped)
+          // padding box and pull the following content back up with a matching
+          // negative margin, so the glow falls naturally without growing the layout.
+          className="qa-rail relative flex items-center gap-2.5 overflow-x-auto pt-4 pb-14 -mb-10"
         >
           <div ref={leadRef} aria-hidden className="flex-none" />
           {slots.map((slot, index) => (

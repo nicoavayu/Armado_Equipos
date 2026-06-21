@@ -1,8 +1,10 @@
 export const NOTIFICATION_FILTER_OPTIONS = [
   { key: 'all', label: 'Todo' },
+  { key: 'unread', label: 'No leídas' },
   { key: 'matches', label: 'Partidos' },
   { key: 'surveys', label: 'Encuestas' },
-  { key: 'rewards', label: 'Premios/Sanciones' },
+  { key: 'rewards', label: 'Premios' },
+  { key: 'payments', label: 'Pagos' },
 ];
 
 const MATCH_TYPES = new Set([
@@ -45,10 +47,17 @@ const REWARD_TYPES = new Set([
   'no_show_recovery_applied',
 ]);
 
+// Post-match payment notifications (kept in sync with src/services/db/payments.js).
+const PAYMENT_TYPES = new Set([
+  'payment_reminder',
+  'payment_reported',
+]);
+
 export const getNotificationFilterKey = (type) => {
   const normalizedType = String(type || '').trim();
   if (SURVEY_TYPES.has(normalizedType)) return 'surveys';
   if (REWARD_TYPES.has(normalizedType)) return 'rewards';
+  if (PAYMENT_TYPES.has(normalizedType)) return 'payments';
   if (MATCH_TYPES.has(normalizedType)) return 'matches';
   return 'matches';
 };
@@ -56,6 +65,8 @@ export const getNotificationFilterKey = (type) => {
 export const filterNotificationsByCategory = (notifications = [], category = 'all') => {
   if (!Array.isArray(notifications)) return [];
   if (category === 'all') return notifications;
+  // "No leídas" is a status filter, not a type category.
+  if (category === 'unread') return notifications.filter((notification) => !notification?.read);
   return notifications.filter((notification) => getNotificationFilterKey(notification?.type) === category);
 };
 

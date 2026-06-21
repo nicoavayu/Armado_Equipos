@@ -867,7 +867,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
   ];
 
   return (
-    <div className="w-full bg-transparent shadow-none flex-1 flex flex-col">
+    <div className="w-full bg-transparent shadow-none flex-1 flex flex-col min-h-0 overflow-hidden">
       <HomeWelcomeCard />
 
       {/* Header elements - Avatar and Notifications */}
@@ -1001,12 +1001,13 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
 
       {/* Recent Activity */}
       {/* Top spacing comes from the grid's mb-7; flex items don't collapse margins */}
-      <section className="mb-2 flex-1 flex flex-col">
+      <section className="mb-2 flex-1 flex flex-col min-h-0">
         <h3 className="section-title" style={{ marginBottom: 20 }}>Actividad reciente</h3>
 
-        <div className="surface-card rounded-card overflow-hidden flex-1 flex flex-col">
-          {/* Low floor so the panel shrinks (list scrolls inside) before the page ever scrolls */}
-          <div className="min-h-[140px] flex-1 flex flex-col">
+        <div className="surface-card rounded-card overflow-hidden flex-1 flex flex-col min-h-0 relative">
+          {/* min-h-0 is required here: on short iPhones the panel must shrink to
+              the remaining viewport instead of pushing/clipping the dashboard. */}
+          <div className="min-h-0 flex-1 flex flex-col overflow-hidden">
             {activityLoading ? (
               <div className="min-h-0 flex-1 overflow-hidden px-4 py-2">
                 {Array.from({ length: 4 }).map((_, index) => (
@@ -1023,7 +1024,10 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
                 ))}
               </div>
             ) : activityItems.length > 0 ? (
-              <div className="min-h-0 flex-1 overflow-y-auto custom-scrollbar">
+              <div
+                className="home-activity-scroll min-h-0 flex-1 overflow-y-auto custom-scrollbar pb-7"
+                data-home-activity-scroll="true"
+              >
                 {activityItems.map((item, index) => {
                   const Icon = activityIconMap[item.icon] || Bell;
                   const iconColorClass = severityIconClass[item.severity] || severityIconClass.neutral;
@@ -1107,6 +1111,13 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
               </div>
             )}
           </div>
+          {/* Fade sutil al pie: sugiere que el panel scrollea sin parecer una cajita web */}
+          {!activityLoading && activityItems.length > 0 && (
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 bottom-0 h-7 rounded-b-card bg-[linear-gradient(to_top,rgba(16,12,33,0.96),rgba(16,12,33,0.5)_45%,transparent)] z-[1]"
+            />
+          )}
         </div>
       </section>
 
