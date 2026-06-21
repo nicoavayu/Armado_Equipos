@@ -38,6 +38,7 @@ import { BadgeProvider } from './context/BadgeContext';
 // Lazy load pages
 const EncuestaPartido = lazy(() => import('./pages/EncuestaPartido'));
 const ResultadosEncuestaView = lazy(() => import('./pages/ResultadosEncuestaView'));
+const PaymentsView = lazy(() => import('./pages/PaymentsView'));
 const HealthCheck = lazy(() => import('./pages/HealthCheck'));
 const TermsPage = lazy(() => import('./pages/TermsPage'));
 const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
@@ -122,6 +123,11 @@ export default function App() {
                   <Route path="/resultados/:partidoId" element={
                     <Suspense fallback={<AppLoadingScreen />}>
                       <ResultadosEncuestaView />
+                    </Suspense>
+                  } />
+                  <Route path="/pagos/:partidoId" element={
+                    <Suspense fallback={<AppLoadingScreen />}>
+                      <PaymentsView />
                     </Suspense>
                   } />
                   <Route path="/login" element={

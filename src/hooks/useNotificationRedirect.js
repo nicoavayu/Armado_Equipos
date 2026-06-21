@@ -22,7 +22,7 @@ import { notifyBlockingError } from '../utils/notifyBlockingError';
 const extractMatchIdFromRoute = (route) => {
   const raw = String(route || '').trim();
   if (!raw) return null;
-  const match = raw.match(/\/(?:admin|partido-publico|partido|encuesta|resultados-encuesta)\/(\d+)/i);
+  const match = raw.match(/\/(?:admin|partido-publico|partido|encuesta|resultados-encuesta|pagos)\/(\d+)/i);
   return match?.[1] || null;
 };
 

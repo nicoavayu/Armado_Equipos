@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { PlayerCardTrigger } from '../ProfileComponents';
 import LoadingSpinner from '../LoadingSpinner';
 import ConfirmModal from '../ConfirmModal';
-import { LogOut, MoreVertical, UserPlus } from 'lucide-react';
+import { LogOut, MoreVertical, UserPlus, X } from 'lucide-react';
 import WhatsappIcon from '../WhatsappIcon';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { openMatchCalendarInvite } from '../../utils/calendarInvite';
@@ -252,91 +252,104 @@ const GuestTeamsReadOnlyModal = ({
 
   const renderTeamPlayerRow = (player, teamToken, index) => {
     const avatarUrl = player?.foto_url || player?.avatar_url || '';
-    const key = `${teamToken}-${resolvePlayerKey(player) || player?.usuario_id || player?.id || player?.nombre || index}`;
+    const name = player?.nombre || 'Jugador';
+    const key = `${teamToken}-${resolvePlayerKey(player) || player?.usuario_id || player?.id || name || index}`;
     return (
       <div
         key={key}
-        className="border p-0 flex items-center gap-1.5 text-white h-12 relative w-full box-border overflow-visible select-none rounded-[4px]"
-        style={{
-          backgroundColor: '#1a1438',
-          borderColor: 'rgba(148, 134, 255, 0.55)',
-          boxShadow: '0 0 9px rgba(106, 67, 255, 0.25)',
-        }}
+        className="flex items-center gap-2 rounded-[11px] border border-[rgba(148,134,255,0.14)] bg-white/[0.045] px-2 py-1.5 min-w-0"
       >
-        <div className="flex items-center gap-1.5 w-full h-full min-w-0 p-1.5">
-          {avatarUrl ? (
-            <img
-              src={avatarUrl}
-              alt={player?.nombre || 'Jugador'}
-              className="w-8 h-8 rounded-full object-cover border border-[rgba(148,134,255,0.3)] bg-[#1d1740] shrink-0"
-            />
-          ) : (
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#8b5cff] to-[#6a43ff] border border-[rgba(148,134,255,0.3)] flex items-center justify-center text-xs font-bold shrink-0 text-white">
-              {getInitials(player?.nombre || 'Jugador')}
-            </div>
-          )}
-          <span className="font-oswald text-sm font-semibold text-white flex-1 tracking-wide min-w-0 leading-tight pr-1 overflow-hidden text-ellipsis whitespace-nowrap">
-            {player?.nombre || 'Jugador'}
+        {avatarUrl ? (
+          <img
+            src={avatarUrl}
+            alt={name}
+            className="h-8 w-8 rounded-full object-cover border border-[rgba(168,152,255,0.4)] bg-[#151034] shrink-0"
+          />
+        ) : (
+          <div className="h-8 w-8 rounded-full bg-gradient-to-br from-[#8b5cff] to-[#6a43ff] border border-[rgba(168,152,255,0.4)] flex items-center justify-center text-[11px] font-bold text-white shrink-0">
+            {getInitials(name)}
+          </div>
+        )}
+        <span className="font-oswald text-[13.5px] font-semibold text-white/90 tracking-wide truncate">
+          {name}
+        </span>
+      </div>
+    );
+  };
+
+  const renderTeamColumn = (teamName, players, score, token) => {
+    const isA = token === 'team-a';
+    const scoreChipClass = isA
+      ? 'border-[#7d5aff]/50 bg-[#6a43ff]/15 text-[#cbb8ff]'
+      : 'border-[#38bdf8]/45 bg-[#38bdf8]/12 text-[#bae6fd]';
+    return (
+      <div className="min-w-0 flex flex-col">
+        <div className="flex items-center justify-between gap-2 mb-2.5">
+          <span className="font-bebas text-[19px] leading-none text-white uppercase tracking-[0.03em] truncate">
+            {teamName}
           </span>
+          <span className={`shrink-0 inline-flex items-center rounded-full border px-2 py-[3px] font-oswald text-[12px] font-bold leading-none ${scoreChipClass}`}>
+            {Number(score || 0).toFixed(1)}
+          </span>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          {players.length > 0 ? players.map((player, index) => renderTeamPlayerRow(player, token, index)) : (
+            <div className="text-white/50 text-[12px] font-oswald text-center py-3">Sin jugadores</div>
+          )}
         </div>
       </div>
     );
   };
 
-  const renderTeamColumn = (teamName, players, score, token) => (
-    <div className="bg-[#1b214e] border border-white/10 rounded-[6px] p-2.5">
-      <div className="font-bebas text-xl leading-tight text-white uppercase tracking-[0.04em] text-center mb-2">
-        {teamName}
-      </div>
-      <div className="flex flex-col gap-1.5">
-        {players.length > 0 ? players.map((player, index) => renderTeamPlayerRow(player, token, index)) : (
-          <div className="text-white/55 text-sm font-oswald text-center py-2">Sin jugadores</div>
-        )}
-      </div>
-      <div
-        className="relative text-center w-full box-border mt-2 h-[58px] overflow-hidden rounded-[4px]"
-        style={{
-          borderWidth: '1.5px',
-          borderStyle: 'solid',
-          borderColor: '#19d7b6cc',
-          background: '#1a1438',
-          boxShadow: '0 0 9px rgba(106, 67, 255, 0.25)',
-        }}
-      >
-        <div className="w-full h-full flex flex-col items-center justify-center px-2">
-          <div className="text-white/75 text-[11px] font-oswald uppercase tracking-wide mb-0.5">PUNTAJE</div>
-          <div className="text-white font-bebas text-[32px] leading-none font-bold">{Number(score || 0).toFixed(1)}</div>
-        </div>
-      </div>
-    </div>
-  );
-
   return (
     <div
-      className="fixed inset-0 z-[10050] bg-black/70 flex items-center justify-center px-4"
+      className="fixed inset-0 z-[10050] bg-black/75 backdrop-blur-[2px] flex items-center justify-center px-4"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-[760px] rounded-[8px] border border-white/20 bg-[#181d48] shadow-[0_20px_60px_rgba(0,0,0,0.55)] p-4 sm:p-5"
+        className="relative w-full max-w-[640px] overflow-hidden rounded-[22px] border border-[rgba(148,134,255,0.26)] bg-[radial-gradient(circle_at_10%_0%,rgba(124,58,237,0.22),transparent_55%),radial-gradient(circle_at_92%_100%,rgba(236,0,125,0.08),transparent_55%),linear-gradient(180deg,#1c1545_0%,#0d0a26_100%)] shadow-[0_24px_70px_rgba(5,3,18,0.65)] p-4 sm:p-5"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="grid grid-cols-2 gap-3">
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Cerrar"
+          className="absolute right-3 top-3 z-10 inline-flex h-8 w-8 items-center justify-center rounded-full border border-[rgba(148,134,255,0.28)] bg-white/[0.06] text-white/70 hover:bg-white/[0.12] hover:text-white transition-colors"
+        >
+          <X size={16} />
+        </button>
+
+        <div className="mb-3.5 text-center">
+          <div className="font-bebas text-[13px] tracking-[0.16em] text-[#b0a0ff]/85 uppercase">
+            Equipos del partido
+          </div>
+        </div>
+
+        <div className="grid grid-cols-[1fr_auto_1fr] items-stretch gap-2 sm:gap-3">
           {renderTeamColumn(teamAName, teamAPlayers, teamAScore, 'team-a')}
+
+          <div className="flex flex-col items-center justify-center self-stretch px-0.5">
+            <span className="w-px flex-1 bg-gradient-to-b from-transparent via-[rgba(148,134,255,0.35)] to-[rgba(148,134,255,0.12)]" />
+            <span className="my-1.5 flex h-8 w-8 rotate-45 items-center justify-center rounded-[10px] border border-[rgba(202,182,255,0.4)] bg-[linear-gradient(150deg,#6a43ff_0%,#3a2480_55%,#221a4d_100%)] shadow-[0_6px_16px_rgba(8,5,24,0.5)]">
+              <span className="-rotate-45 font-bebas text-[13px] leading-none tracking-[0.05em] text-white">VS</span>
+            </span>
+            <span className="w-px flex-1 bg-gradient-to-t from-transparent via-[rgba(236,0,125,0.25)] to-[rgba(236,0,125,0.08)]" />
+          </div>
+
           {renderTeamColumn(teamBName, teamBPlayers, teamBScore, 'team-b')}
         </div>
 
         <div
-          className="w-full border px-4 py-3 mt-2 rounded-[6px]"
+          className="mt-4 rounded-[14px] border px-4 py-3 text-center"
           style={{
-            borderColor: `${balanceColor}cc`,
-            background: 'linear-gradient(180deg, rgba(7,22,59,0.96) 0%, rgba(9,20,58,0.88) 100%)',
-            boxShadow: '0 0 10px rgba(106, 67, 255, 0.18)',
+            borderColor: `${balanceColor}66`,
+            background: 'linear-gradient(180deg, rgba(124,58,237,0.10) 0%, rgba(13,10,38,0.55) 100%)',
           }}
         >
-          <div className="text-center">
-            <div className="font-bebas text-base text-white/90 tracking-wider mb-0.5">BALANCE DEL PARTIDO</div>
-            <div className="font-bebas text-2xl text-white font-bold mb-0.5">DIF: {Number(balanceDiff || 0).toFixed(1)}</div>
-            <div className="font-oswald text-xs font-semibold tracking-wide" style={{ color: balanceColor }}>{balanceLabel}</div>
+          <div className="font-bebas text-[12.5px] tracking-[0.12em] text-white/70 uppercase mb-1">Balance del partido</div>
+          <div className="flex items-center justify-center gap-2 flex-wrap">
+            <span className="font-bebas text-[26px] leading-none text-white font-bold">DIF {Number(balanceDiff || 0).toFixed(1)}</span>
+            <span className="font-oswald text-[12px] font-semibold tracking-wide" style={{ color: balanceColor }}>{balanceLabel}</span>
           </div>
         </div>
       </div>

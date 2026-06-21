@@ -87,7 +87,7 @@ const isSafeInternalPath = (path) => {
 const extractMatchIdFromPath = (rawPath) => {
   const path = String(rawPath || '').trim();
   if (!path) return null;
-  const match = path.match(/\/(?:admin|partido-publico|partido|encuesta|resultados-encuesta|votar-equipos)\/(\d+)/i);
+  const match = path.match(/\/(?:admin|partido-publico|partido|encuesta|resultados-encuesta|votar-equipos|pagos)\/(\d+)/i);
   if (match?.[1]) return match[1];
 
   const queryMatch = path.match(/[?&](?:partidoId|partido_id|matchId|match_id)=(\d+)(?:&|$)/i);
@@ -265,6 +265,16 @@ export const buildNotificationFallbackRoute = (notification = {}, idMapper = (va
 
   if (isTeamChallengeNotification(notification)) {
     return buildTeamChallengeRoute(notification);
+  }
+
+  if (type === 'payment_reminder' || type === 'payment_reported') {
+    const safeLink = isSafeInternalPath(data?.link) ? String(data.link).trim() : null;
+    if (safeLink) return safeLink;
+    const matchId = extractNotificationMatchId(notification);
+    if (matchId !== null && matchId !== undefined && String(matchId).trim() !== '') {
+      return `/pagos/${idMapper(matchId)}`;
+    }
+    return '/notifications';
   }
 
   if (type === 'match_invite') {

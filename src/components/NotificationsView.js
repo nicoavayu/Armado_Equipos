@@ -385,6 +385,15 @@ const NotificationsView = () => {
       return;
     }
 
+    // Pagos post partido: abrir la vista de pagos del partido.
+    if (link && (notification?.type === 'payment_reminder' || notification?.type === 'payment_reported')) {
+      try {
+        if (!notification.read) await markNotificationAsReadBestEffort(notification, 'payment_click');
+      } catch (e) { /* Intentionally empty */ }
+      safeNavigate(notification, link, { replace: false });
+      return;
+    }
+
     if (notification?.type !== 'match_invite' && !notification.read) {
       markNotificationAsReadBestEffort(notification, 'generic_click');
     }

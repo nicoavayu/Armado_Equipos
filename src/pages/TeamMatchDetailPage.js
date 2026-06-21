@@ -315,11 +315,20 @@ const MatchupHeroCard = ({
   onOpenProfile,
   onOpenRosterA,
   onOpenRosterB,
+  cornerAction = null,
   className = '',
 }) => (
   <div
+    data-testid="matchup-hero-card"
     className={`relative overflow-hidden ${DETAIL_CARD_RADIUS_CLASS} border border-[rgba(148,134,255,0.26)] bg-[radial-gradient(circle_at_10%_0%,rgba(124,58,237,0.22),transparent_55%),radial-gradient(circle_at_92%_100%,rgba(236,0,125,0.08),transparent_55%),linear-gradient(180deg,#1c1545_0%,#0d0a26_100%)] px-3 py-4 sm:px-5 sm:py-5 min-w-0 shadow-[0_16px_28px_rgba(5,3,18,0.45)] ${className}`}
   >
+    {/* Acción de edición del partido (kebab): vive en la esquina sup. derecha del
+        panel VS, asociada al bloque del partido (no en el header general). */}
+    {cornerAction ? (
+      <div className="absolute right-1.5 top-1.5 z-20">
+        {cornerAction}
+      </div>
+    ) : null}
     <div className="relative grid grid-cols-[1fr_auto_1fr] items-stretch gap-2 sm:gap-3">
       <MatchupTeamSide
         team={teamA}
@@ -1520,10 +1529,10 @@ const TeamMatchDetailPage = () => {
     }
   };
 
-  // El kebab de edición vive en la barra fija superior (junto al chat), no como
-  // primer hijo del contenido: en dispositivos con notch/safe-area ese primer
-  // hijo queda detras del header fijo (PageTransition crea el contenedor del
-  // `fixed`), por eso antes "no se veía" aunque los tests pasaran (safe-top=0).
+  // El kebab de edición vive en la esquina superior derecha del panel VS
+  // (MatchupHeroCard cornerAction), para que editar datos del partido se sienta
+  // asociado al bloque del partido y no al header general. El menú se posiciona
+  // con portal a partir del rect del botón, así que funciona en cualquier ubicación.
   const headerEditAction = canShowEditAction ? (
     <>
       <button
@@ -1589,7 +1598,6 @@ const TeamMatchDetailPage = () => {
         showChatButton
         onChatClick={() => setIsChatOpen(true)}
         unreadCount={chatUnreadCount}
-        rightActions={headerEditAction}
       >
         Detalle partido
       </PageTitle>
@@ -1637,8 +1645,8 @@ const TeamMatchDetailPage = () => {
                       {statusLabelByValue[match?.status] || match?.status || 'Pendiente'}
                     </span>
                   </div>
-                  {/* El kebab de edición se renderiza en la barra fija superior
-                      (PageTitle rightActions), no aquí: ver headerEditAction. */}
+                  {/* El kebab de edición se renderiza en la esquina sup. derecha del
+                      panel VS (MatchupHeroCard cornerAction): ver headerEditAction. */}
                 </div>
 
                 {/* Match Info Header: mismo componente que el partido común/amistoso,
@@ -1656,6 +1664,7 @@ const TeamMatchDetailPage = () => {
                   onOpenProfile={setSelectedPlayerProfile}
                   onOpenRosterA={() => setRosterTeamId(match?.team_a_id)}
                   onOpenRosterB={() => setRosterTeamId(match?.team_b_id)}
+                  cornerAction={headerEditAction}
                   className="mx-auto w-full max-w-[520px]"
                 />
 

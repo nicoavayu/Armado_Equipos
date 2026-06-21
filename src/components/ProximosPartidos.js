@@ -16,8 +16,45 @@ import ConfirmModal from './ConfirmModal';
 import EmptyStateCard from './EmptyStateCard';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { CalendarDays } from 'lucide-react';
+import {
+  getMyPaymentRowsForMatches,
+  getPaymentSummariesForMatches,
+  getPaymentSettingsForMatches,
+} from '../services/db/payments';
+import {
+  shouldShowPostMatchCard,
+  summarizePayments,
+  resolvePaymentAmount,
+  formatPaymentAmount,
+} from '../utils/paymentStatus';
 
 import MatchCard from './MatchCard';
+
+// Post-match cleanup windows (kept in sync with utils/paymentStatus).
+const POST_MATCH_PLAYER_WINDOW_MS = 72 * 60 * 60 * 1000; // 72h
+const POST_MATCH_ADMIN_WINDOW_MS = 7 * 24 * 60 * 60 * 1000; // 7 días
+
+// One batched count of survey responses per match (admin post-match cards).
+const fetchSurveyCountsByMatch = async (matchIds = []) => {
+  const ids = (matchIds || []).map((value) => Number(value)).filter((value) => Number.isFinite(value) && value > 0);
+  if (ids.length === 0) return {};
+  try {
+    const { data, error } = await supabase
+      .from('post_match_surveys')
+      .select('partido_id')
+      .in('partido_id', ids);
+    if (error) throw error;
+    const byMatch = {};
+    (data || []).forEach((row) => {
+      const key = String(row.partido_id);
+      byMatch[key] = (byMatch[key] || 0) + 1;
+    });
+    return byMatch;
+  } catch (error) {
+    console.warn('[PROXIMOS] survey counts lookup failed', { message: error?.message || String(error) });
+    return {};
+  }
+};
 
 const toLocalDateParts = (isoValue) => {
   if (!isoValue) return { fecha: null, hora: null };
@@ -114,6 +151,12 @@ const ProximosPartidos = ({ onClose }) => {
   const [_completedSurveys, setCompletedSurveys] = useState(new Set());
   const [_userJugadorIds, setUserJugadorIds] = useState([]);
   const [userJugadorIdByMatch, setUserJugadorIdByMatch] = useState({});
+  const [postMatchData, setPostMatchData] = useState({
+    myStatusByMatch: {},
+    settingsByMatch: {},
+    summaryRowsByMatch: {},
+    surveyCountByMatch: {},
+  });
 
   const [menuOpenId, setMenuOpenId] = useState(null);
 
@@ -152,7 +195,11 @@ const ProximosPartidos = ({ onClose }) => {
         if (!expectedVotanteId) return;
         if (String(votante_id) !== String(expectedVotanteId)) return; // solo mi encuesta para ese partido
         setCompletedSurveys((prev) => { const s = new Set(prev); s.add(matchKey); return s; });
-        setPartidos((prev) => prev.filter((p) => String(p.id) !== matchKey && String(p?.partido_id || '') !== matchKey)); // limpia inmediatamente
+        // No se elimina la card: pasa a "Encuesta completada" y la visibilidad
+        // post-partido decide si sigue por pagos pendientes.
+        setPartidos((prev) => prev.map((p) => (
+          String(p.id) === matchKey ? { ...p, hasCompletedSurvey: true } : p
+        )));
       });
     return () => { supabase.removeChannel(channel); };
   }, [user?.id, userJugadorIdByMatch]);
@@ -302,10 +349,9 @@ const ProximosPartidos = ({ onClose }) => {
           return false;
         }
 
-        // Filter out matches with completed surveys (el partido desaparece cuando el usuario completa la encuesta)
-        if (localCompletedSurveys.has(String(partido.id))) {
-          return false;
-        }
+        // NOTA: ya no se oculta acá por encuesta completada. Tras la hora del
+        // partido la card pasa a "Post partido" y la visibilidad final la decide
+        // shouldShowPostMatchCard (encuesta + pago, o ventana 72h/7d).
 
         if (!partido.fecha || !partido.hora) {
           return true;
@@ -314,9 +360,11 @@ const ProximosPartidos = ({ onClose }) => {
         try {
           const partidoDateTime = parseLocalDateTime(partido.fecha, partido.hora);
           if (!partidoDateTime) return true;
-          // Show match until 1 hour after it started, then it becomes finished
-          const partidoMasUnaHora = new Date(partidoDateTime.getTime() + 60 * 60 * 1000);
-          return now <= partidoMasUnaHora;
+          // Mantener próximos + post-partido dentro de la ventana de limpieza
+          // (jugador 72h, admin 7 días). Después se archiva y deja de listarse.
+          const isAdminMatch = partidosAdminIds.includes(partido.id);
+          const windowMs = isAdminMatch ? POST_MATCH_ADMIN_WINDOW_MS : POST_MATCH_PLAYER_WINDOW_MS;
+          return now.getTime() <= partidoDateTime.getTime() + windowMs;
         } catch (error) {
           return true;
         }
@@ -741,7 +789,41 @@ const ProximosPartidos = ({ onClose }) => {
         (partido) => !linkedPartidoIds.has(String(partido?.id || '')),
       );
 
-      setPartidos([...partidosEnriquecidosSinDuplicados, ...teamMatchesEnriquecidos]);
+      const finalList = [...partidosEnriquecidosSinDuplicados, ...teamMatchesEnriquecidos];
+      setPartidos(finalList);
+
+      // Datos post-partido (solo partidos legacy; los desafíos quedan excluidos).
+      try {
+        const postMatchCandidates = finalList.filter((partido) => {
+          if (partido?.source_type === 'team_match') return false;
+          if (!partido?.fecha || !partido?.hora) return false;
+          const dt = parseLocalDateTime(partido.fecha, partido.hora);
+          return dt && now.getTime() >= dt.getTime();
+        });
+        const postMatchIds = postMatchCandidates
+          .map((partido) => Number(partido.id))
+          .filter((id) => Number.isFinite(id) && id > 0);
+        const adminPostMatchIds = postMatchCandidates
+          .filter((partido) => partidosAdminIds.includes(partido.id))
+          .map((partido) => Number(partido.id))
+          .filter((id) => Number.isFinite(id) && id > 0);
+
+        if (postMatchIds.length > 0) {
+          const [myStatusByMatch, settingsByMatch, summaryRowsByMatch, surveyCountByMatch] = await Promise.all([
+            getMyPaymentRowsForMatches(user.id, postMatchIds),
+            getPaymentSettingsForMatches(postMatchIds),
+            adminPostMatchIds.length ? getPaymentSummariesForMatches(adminPostMatchIds) : Promise.resolve({}),
+            adminPostMatchIds.length ? fetchSurveyCountsByMatch(adminPostMatchIds) : Promise.resolve({}),
+          ]);
+          setPostMatchData({ myStatusByMatch, settingsByMatch, summaryRowsByMatch, surveyCountByMatch });
+        } else {
+          setPostMatchData({ myStatusByMatch: {}, settingsByMatch: {}, summaryRowsByMatch: {}, surveyCountByMatch: {} });
+        }
+      } catch (postMatchError) {
+        console.warn('[PROXIMOS] post-match data load failed', {
+          message: postMatchError?.message || String(postMatchError),
+        });
+      }
 
     } catch (error) {
       console.error('Error fetching matches:', error);
@@ -1062,7 +1144,9 @@ const ProximosPartidos = ({ onClose }) => {
   const getPrimaryCtaButtonClass = (primaryCtaKind) => {
     switch (primaryCtaKind) {
       default:
-        return 'bg-[#6a43ff] border border-[#7d5aff] text-white hover:bg-[#7550ff] shadow-[0_0_14px_rgba(106,67,255,0.3)]';
+        // Mismo lenguaje premium que "Publicar desafío" / "Confirmar plantel" y
+        // los botones de pagos: gradiente CTA + sombra CTA, sin saltar a 2 líneas.
+        return 'bg-cta-gradient border-white/20 text-white shadow-cta hover:brightness-105 active:scale-[0.985] whitespace-nowrap';
     }
   };
 
@@ -1089,7 +1173,86 @@ const ProximosPartidos = ({ onClose }) => {
     });
   };
 
-  const visiblePartidos = getSortedPartidos().filter((partido) => !isMatchFinished(partido));
+  // Una card es "post partido" cuando es un partido legacy (no desafío) ya
+  // empezado. Los desafíos / team_matches conservan el comportamiento actual.
+  const isPostMatchCandidate = (partido) => (
+    partido?.source_type !== 'team_match' && isMatchFinished(partido)
+  );
+
+  const resolvePostMatchContext = (partido) => {
+    const matchKey = String(partido.id);
+    const isAdmin = partido.userRole === 'admin';
+    const settings = postMatchData.settingsByMatch[matchKey] || null;
+    const amount = resolvePaymentAmount(settings, partido);
+    const myStatus = postMatchData.myStatusByMatch[matchKey];
+    const paymentStatus = myStatus || (amount && amount > 0 ? 'pending' : null);
+    const hasCompletedSurvey = _completedSurveys.has(matchKey) || Boolean(partido.hasCompletedSurvey);
+    const startsAt = (partido.fecha && partido.hora) ? parseLocalDateTime(partido.fecha, partido.hora) : null;
+    return { matchKey, isAdmin, settings, amount, paymentStatus, hasCompletedSurvey, startsAt };
+  };
+
+  const isPostMatchVisible = (partido) => {
+    const ctx = resolvePostMatchContext(partido);
+    return shouldShowPostMatchCard({
+      isAdmin: ctx.isAdmin,
+      startsAt: ctx.startsAt,
+      hasCompletedSurvey: ctx.hasCompletedSurvey,
+      myPaymentStatus: ctx.paymentStatus,
+      paymentsConfigured: ctx.paymentStatus != null,
+      isClosed: Boolean(ctx.settings?.is_closed),
+    });
+  };
+
+  const buildPostMatchInfo = (partido) => {
+    const ctx = resolvePostMatchContext(partido);
+    const amountLabel = formatPaymentAmount(ctx.amount, 'A definir');
+    const goEncuesta = () => { onClose(); navigate(`/encuesta/${partido.id}`, { state: detailNavigationState }); };
+    const goPagos = () => { onClose(); navigate(`/pagos/${partido.id}`, { state: detailNavigationState }); };
+
+    if (ctx.isAdmin) {
+      const rows = postMatchData.summaryRowsByMatch[ctx.matchKey] || [];
+      const summary = summarizePayments(rows);
+      const surveyCount = postMatchData.surveyCountByMatch[ctx.matchKey] || 0;
+      const rosterCount = Array.isArray(partido.jugadores)
+        ? partido.jugadores.filter((j) => !j?.is_substitute).length
+        : 0;
+      return {
+        encuestaLabel: rosterCount > 0 ? `Encuesta ${surveyCount}/${rosterCount}` : `Encuesta · ${surveyCount} respondieron`,
+        pagoLabel: summary.total > 0
+          ? `Pagos ${summary.paid}/${summary.total}${summary.reported ? ` · ${summary.reported} a confirmar` : ''}`
+          : 'Pagos · administrar',
+        encuestaAction: { label: 'Encuesta', onClick: goEncuesta },
+        pagosAction: { label: 'Pagos', primary: true, onClick: goPagos },
+      };
+    }
+
+    let pagoLabel = null;
+    if (ctx.paymentStatus === 'paid') pagoLabel = 'Pago confirmado';
+    else if (ctx.paymentStatus === 'reported_paid') pagoLabel = 'Avisaste que pagaste';
+    else if (ctx.paymentStatus === 'exempt') pagoLabel = 'Exento';
+    else if (ctx.paymentStatus === 'pending') pagoLabel = `Pago pendiente · ${amountLabel}`;
+
+    return {
+      encuestaLabel: ctx.hasCompletedSurvey ? 'Encuesta completada' : 'Encuesta pendiente',
+      pagoLabel,
+      encuestaAction: ctx.hasCompletedSurvey
+        ? { label: 'Completada', disabled: true }
+        : { label: 'Completar', onClick: goEncuesta },
+      pagosAction: ctx.paymentStatus
+        ? {
+          label: ctx.paymentStatus === 'pending' ? 'Pagar' : 'Ver pagos',
+          primary: ctx.paymentStatus === 'pending',
+          onClick: goPagos,
+        }
+        : null,
+    };
+  };
+
+  const visiblePartidos = getSortedPartidos().filter((partido) => {
+    if (!isMatchFinished(partido)) return true;
+    if (!isPostMatchCandidate(partido)) return false; // desafío finalizado: comportamiento actual
+    return isPostMatchVisible(partido);
+  });
 
 
   return (
@@ -1124,6 +1287,8 @@ const ProximosPartidos = ({ onClose }) => {
             <div className="flex flex-col gap-[1px] w-full box-border">
               {visiblePartidos.map((partido) => {
                 const matchFinished = isMatchFinished(partido);
+                const isPostMatch = matchFinished && isPostMatchCandidate(partido);
+                const postMatchInfo = isPostMatch ? buildPostMatchInfo(partido) : null;
                 const primaryCta = getPrimaryCta(partido);
 
                 return (
@@ -1134,6 +1299,8 @@ const ProximosPartidos = ({ onClose }) => {
                       fecha_display: partido?.fecha ? formatDate(partido.fecha) : 'A coordinar',
                     }}
                     isFinished={matchFinished}
+                    isPostMatch={isPostMatch}
+                    postMatchInfo={postMatchInfo}
                     userRole={partido.userRole}
                     userJoined={partido.userJoined}
                     onMenuToggle={(id) => setMenuOpenId((prev) => prev === id ? null : id)}
@@ -1141,7 +1308,7 @@ const ProximosPartidos = ({ onClose }) => {
                     onAbandon={partido?.source_type === 'team_match' ? null : handleAbandonMatch}
                     onCancel={partido?.source_type === 'team_match' ? (partido?.can_manage ? handleCancelMatch : null) : handleCancelMatch}
                     onClear={partido?.source_type === 'team_match' ? null : _handleClearMatch}
-                    primaryAction={{
+                    primaryAction={isPostMatch ? null : {
                       label: primaryCta.label,
                       disabled: primaryCta.disabled,
                       className: getPrimaryCtaButtonClass(primaryCta.kind),
