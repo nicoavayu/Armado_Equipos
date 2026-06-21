@@ -9,7 +9,8 @@ import { useScrollResetOnChange } from '../hooks/useScrollReset';
 import { supabase } from '../supabase';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { canAbandonWithoutPenalty, incrementMatchesAbandoned } from '../utils/matchStatsManager';
-import { cancelPartidoWithNotification, leaveOwnedMatchWithTransfer } from '../services/db/matches';
+import { cancelPartidoWithNotification, leaveOwnedMatchWithTransfer, getJugadoresDelPartido, resetVotacion } from '../services/db/matches';
+import { getTeamsFromDatabase } from '../services/db/teams';
 import { requestImmediatePushDispatch } from '../services/pushDispatchService';
 
 import 'react-lazy-load-image-component/src/effects/blur.css';
@@ -60,6 +61,37 @@ const resolveSlotsFromMatchType = (match = {}) => {
   };
 
   return fallbackByType[normalized] || 10;
+};
+
+// Teams are persisted as a 2-item array ([equipoA, equipoB]) either inline on the
+// match (equipos_json/equipos) or in the DB. These mirror ArmarEquiposView so we
+// can detect "already armed" at the AdminPanel level and skip the intermediate.
+const normalizeTeamsPayload = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (typeof payload === 'string') {
+    try {
+      const parsed = JSON.parse(payload);
+      return Array.isArray(parsed) ? parsed : null;
+    } catch (_error) {
+      return null;
+    }
+  }
+  return null;
+};
+
+const hasExpectedTeamShape = (teams) => (
+  Array.isArray(teams) &&
+  teams.length === 2 &&
+  teams.find((t) => t?.id === 'equipoA') &&
+  teams.find((t) => t?.id === 'equipoB')
+);
+
+const resolveInlineTeams = (match) => {
+  for (const candidate of [match?.equipos_json, match?.equipos]) {
+    const normalized = normalizeTeamsPayload(candidate);
+    if (hasExpectedTeamShape(normalized)) return normalized;
+  }
+  return null;
 };
 
 /**
@@ -166,6 +198,79 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
     ? `Necesitás completar el plantel para armar los equipos (${displayedJugadores.length}/${balancedTeamsRequiredPlayers}).`
     : 'Necesitás completar el plantel para armar los equipos.';
   const buildTeamsHelperText = 'Disponible cuando el plantel esté completo';
+
+  // --- "Equipos ya armados" shortcut ------------------------------------------------
+  // When teams already exist, the main admin button jumps straight to the final
+  // EQUIPOS ARMADOS view (TeamDisplay) instead of routing through the intermediate
+  // ARMAR EQUIPOS / voting screen ("dos toques" → uno).
+  const [existingTeams, setExistingTeams] = useState(() => resolveInlineTeams(partidoActual));
+
+  useEffect(() => {
+    let cancelled = false;
+    const detectTeams = async () => {
+      const matchId = partidoActual?.id;
+      if (!matchId) {
+        if (!cancelled) setExistingTeams(null);
+        return;
+      }
+      const inline = resolveInlineTeams(partidoActual);
+      if (inline) {
+        if (!cancelled) setExistingTeams(inline);
+        return;
+      }
+      if (partidoActual?.estado !== 'equipos_formados') {
+        if (!cancelled) setExistingTeams(null);
+        return;
+      }
+      try {
+        const persisted = normalizeTeamsPayload(await getTeamsFromDatabase(matchId));
+        if (!cancelled) setExistingTeams(hasExpectedTeamShape(persisted) ? persisted : null);
+      } catch (_error) {
+        if (!cancelled) setExistingTeams(null);
+      }
+    };
+    detectTeams();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [partidoActual?.id, partidoActual?.estado, partidoActual?.equipos_json, partidoActual?.equipos]);
+
+  const teamsAlreadyFormed = hasExpectedTeamShape(existingTeams) || partidoActual?.estado === 'equipos_formados';
+
+  const handleViewExistingTeams = async () => {
+    let teams = hasExpectedTeamShape(existingTeams) ? existingTeams : resolveInlineTeams(partidoActual);
+    if (!hasExpectedTeamShape(teams) && partidoActual?.id) {
+      try {
+        teams = normalizeTeamsPayload(await getTeamsFromDatabase(partidoActual.id));
+      } catch (_error) {
+        teams = null;
+      }
+    }
+    if (!hasExpectedTeamShape(teams)) {
+      // No persisted teams found — fall back to the regular build/voting flow.
+      handleArmarEquipos();
+      return;
+    }
+    let matchPlayers = displayedJugadores.length > 0 ? displayedJugadores : null;
+    if (!matchPlayers && partidoActual?.id) {
+      matchPlayers = await getJugadoresDelPartido(partidoActual.id);
+    }
+    handleTeamsFormed(teams, matchPlayers || displayedJugadores || []);
+  };
+
+  // Reset triggered from the final EQUIPOS ARMADOS view: wipe votes/teams and drop
+  // the admin back into the intermediate voting screen so they can re-arm.
+  const handleResetVotingFromTeams = async () => {
+    if (!partidoActual?.id) return;
+    await resetVotacion(partidoActual.id);
+    setExistingTeams(null);
+    adminState.setShowTeamView(false);
+    adminState.setShowArmarEquiposView(true);
+    try {
+      await adminState.fetchJugadores?.();
+    } catch (_error) {
+      // non-blocking
+    }
+  };
   const canOpenChatFromHeader = Boolean(isAdmin || adminState.isPlayerInMatch);
   const invitationsOpen = Boolean(
     partidoActual?.invitations_open
@@ -438,7 +543,8 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                 modalidad={partidoActual?.modalidad}
                 tipo={partidoActual?.tipo_partido}
                 precio={partidoActual?.valor_cancha || partidoActual?.valorCancha || partidoActual?.valor || partidoActual?.precio}
-                topOffsetClassName="mt-[62px] sm:mt-[58px]"
+                topOffsetClassName="mt-[52px] md:mt-[48px]"
+                flushTop
               />
             </div>
           )}
@@ -463,6 +569,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                   onBackToHome={onBackToHome}
                   isAdmin={isAdmin}
                   partidoActual={partidoActual}
+                  onResetVoting={handleResetVotingFromTeams}
                 />
               )}
               <div className={`w-full max-w-full mx-auto flex flex-col gap-3 overflow-visible min-w-0 ${isAdmin ? 'pt-3' : 'pt-0'}`}>
@@ -581,7 +688,9 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                       </div>
                     )}
 
-                    {/* Botón ARMAR EQUIPOS PAREJOS - only on Jugadores tab */}
+                    {/* Botón principal - only on Jugadores tab.
+                        Si los equipos ya están armados → "VER EQUIPOS" directo a la
+                        vista final; si no → "ARMAR EQUIPOS" (flujo de votación). */}
                     {isAdmin && !adminState.pendingInvitation && activeTab === 'jugadores' && (
                       <div className="w-full max-w-full mx-auto mt-3 mb-8 flex flex-col items-center">
                         <button
@@ -591,22 +700,26 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                             borderRadius: 18,
                             background: 'linear-gradient(135deg, #8b5cff 0%, #6a43ff 52%, #5430e0 100%)',
                             borderColor: 'rgba(255, 255, 255, 0.18)',
-                            boxShadow: canBuildBalancedTeams
+                            boxShadow: (teamsAlreadyFormed || canBuildBalancedTeams)
                               ? '0 8px 24px rgba(106, 67, 255, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.22)'
                               : 'none',
                           }}
-                          onClick={handleArmarEquipos}
-                          disabled={!canBuildBalancedTeams}
-                          title={!canBuildBalancedTeams ? buildTeamsLockedMessage : ''}
+                          onClick={teamsAlreadyFormed ? handleViewExistingTeams : handleArmarEquipos}
+                          disabled={teamsAlreadyFormed ? false : !canBuildBalancedTeams}
+                          title={(!teamsAlreadyFormed && !canBuildBalancedTeams) ? buildTeamsLockedMessage : ''}
                         >
                           <span
                             className="w-full inline-flex items-center justify-center"
                             style={{ transform: 'none' }}
                           >
-                            ARMAR EQUIPOS
+                            {teamsAlreadyFormed ? 'VER EQUIPOS' : 'ARMAR EQUIPOS'}
                           </span>
                         </button>
-                        {!canBuildBalancedTeams && (
+                        {teamsAlreadyFormed ? (
+                          <div className="text-[11px] text-white/50 mt-2 leading-snug">
+                            Mirá los equipos ya armados de este partido
+                          </div>
+                        ) : !canBuildBalancedTeams && (
                           <div className="text-[11px] text-white/50 mt-2 leading-snug">
                             {buildTeamsHelperText}
                           </div>

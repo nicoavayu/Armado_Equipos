@@ -13,6 +13,7 @@ const TeamsPanel = ({
   onBackToHome,
   isAdmin,
   partidoActual,
+  onResetVoting,
 }) => {
   if (!showTeams) return null;
 
@@ -24,6 +25,8 @@ const TeamsPanel = ({
       onBackToHome={onBackToHome}
       isAdmin={isAdmin}
       partidoId={partidoActual?.id}
+      partido={partidoActual}
+      onResetVoting={onResetVoting}
       nombre={partidoActual?.nombre}
       fecha={partidoActual?.fecha}
       hora={partidoActual?.hora}

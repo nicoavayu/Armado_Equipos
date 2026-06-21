@@ -786,6 +786,7 @@ function SharedInviteLayout({
           tipo={partido?.tipo_partido}
           precio={partido?.precio || partido?.valor_cancha || partido?.valor}
           topOffsetClassName="mt-0"
+          flushTop
         />
 
         <main className="pt-0">

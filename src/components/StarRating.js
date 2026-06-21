@@ -33,6 +33,7 @@ const StarRating = ({ value, onChange, onRate, hovered, setHovered }) => {
                     ? 'text-white/92 bg-[linear-gradient(135deg,rgba(139,92,255,0.42)_0%,rgba(106,67,255,0.34)_52%,rgba(84,48,224,0.3)_100%)]'
                     : 'text-white/65 bg-transparent hover:bg-[#221a52] hover:text-white/90'}
                 ${isHovered && !isActive ? 'brightness-105' : ''}
+                ${isActive ? 'a2-pop' : ''}
                 active:brightness-110
                 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-inset
               `}

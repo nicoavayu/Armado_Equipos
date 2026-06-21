@@ -24,6 +24,10 @@ import InlineNotice from './ui/InlineNotice';
 import useInlineNotice from '../hooks/useInlineNotice';
 import ConfirmModal from './ConfirmModal';
 import { buildBalancedTeams } from '../utils/teamBalancer';
+import { shareVotingLink } from '../utils/shareVotingLink';
+import { useAuth } from './AuthProvider';
+import { useNativeFeatures } from '../hooks/useNativeFeatures';
+import { MoreVertical, RotateCcw } from 'lucide-react';
 
 // Safe wrappers to prevent runtime crashes if any import resolves undefined
 const safeComp = (Comp, name) => {
@@ -80,8 +84,15 @@ const persistMatchTeamsConfirmedState = async ({ partidoId, confirmed }) => {
   throw preferredRes.error;
 };
 
-const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = false, partidoId = null, nombre: _nombre, fecha, hora, sede, modalidad, tipo }) => {
+const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = false, partidoId = null, partido = null, onResetVoting, nombre: _nombre, fecha, hora, sede, modalidad, tipo }) => {
+  const { user } = useAuth();
+  const { isNative } = useNativeFeatures();
   const [showAverages, setShowAverages] = useState(false);
+  const [adminMenuOpen, setAdminMenuOpen] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const adminMenuRef = useRef(null);
+  const adminMenuButtonRef = useRef(null);
   const [helpSeen, setHelpSeen] = useState(() => {
     if (typeof window === 'undefined') return false;
     try {
@@ -401,6 +412,58 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
       }
     }
     setShowInteractionsHelp(nextOpen);
+  };
+
+  // Admin tools menu (⋯): close on outside click / Escape.
+  useEffect(() => {
+    if (!adminMenuOpen) return undefined;
+
+    const handlePointerDown = (event) => {
+      if (adminMenuRef.current?.contains(event.target)) return;
+      if (adminMenuButtonRef.current?.contains(event.target)) return;
+      setAdminMenuOpen(false);
+    };
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') setAdminMenuOpen(false);
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('touchstart', handlePointerDown);
+    document.addEventListener('keydown', handleEscape);
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('touchstart', handlePointerDown);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [adminMenuOpen]);
+
+  // Full match object for the voting-link share (needs codigo); falls back to the id.
+  const matchForShare = partido || (typeof partidoId === 'object' ? partidoId : { id: partidoId });
+
+  const handleShareVotingLink = async () => {
+    setAdminMenuOpen(false);
+    const { ok, reason } = await shareVotingLink({ partido: matchForShare, user, isNative });
+    if (!ok && reason === 'no-code') {
+      showInlineNotice('warning', 'No se pudo obtener el código del partido para compartir.');
+    }
+  };
+
+  const handleConfirmReset = async () => {
+    if (resetting) return;
+    setResetting(true);
+    try {
+      if (typeof onResetVoting === 'function') {
+        await onResetVoting();
+      }
+      setShowResetConfirm(false);
+    } catch (error) {
+      console.error('[TeamDisplay] reset voting failed', error);
+      notifyBlockingError('No se pudo resetear la votación. Intentá de nuevo.');
+    } finally {
+      setResetting(false);
+    }
   };
 
   // Robust player array extraction from team object
@@ -1006,22 +1069,24 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
       <SafePageTitle
         onBack={onBackToHome}
         rightActions={(
-          <button
-            ref={helpButtonRef}
-            type="button"
-            className={`h-8 w-8 inline-flex items-center justify-center rounded-full border transition-colors ${highlightHelp ? 'team-help-btn--attention' : ''}`}
-            style={{
-              borderColor: highlightHelp ? 'rgba(247, 197, 72, 0.72)' : 'rgba(255,255,255,0.14)',
-              background: highlightHelp ? 'rgba(247, 197, 72, 0.18)' : 'rgba(255,255,255,0.05)',
-              color: highlightHelp ? '#f6d768' : 'rgba(255,255,255,0.88)',
-              boxShadow: highlightHelp ? '0 0 16px rgba(247,197,72,0.16)' : 'none',
-            }}
-            aria-label="Ayuda sobre equipos armados"
-            aria-expanded={showInteractionsHelp}
-            onClick={handleHelpToggle}
-          >
-            <span className="font-bebas text-[15px] leading-none">!</span>
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              ref={helpButtonRef}
+              type="button"
+              className={`h-8 w-8 inline-flex items-center justify-center rounded-full border transition-colors ${highlightHelp ? 'team-help-btn--attention' : ''}`}
+              style={{
+                borderColor: highlightHelp ? 'rgba(247, 197, 72, 0.72)' : 'rgba(255,255,255,0.14)',
+                background: highlightHelp ? 'rgba(247, 197, 72, 0.18)' : 'rgba(255,255,255,0.05)',
+                color: highlightHelp ? '#f6d768' : 'rgba(255,255,255,0.88)',
+                boxShadow: highlightHelp ? '0 0 16px rgba(247,197,72,0.16)' : 'none',
+              }}
+              aria-label="Ayuda sobre equipos armados"
+              aria-expanded={showInteractionsHelp}
+              onClick={handleHelpToggle}
+            >
+              <span className="font-bebas text-[15px] leading-none">!</span>
+            </button>
+          </div>
         )}
       >
         EQUIPOS ARMADOS
@@ -1065,7 +1130,8 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
           tipo={tipo}
           precio={(typeof partidoId === 'object' && partidoId?.valor_cancha) ? partidoId?.valor_cancha : undefined}
           rightActions={null}
-          topOffsetClassName="mt-[62px] sm:mt-[58px]"
+          topOffsetClassName="mt-[52px] md:mt-[48px]"
+          flushTop
         />
       </div>
 
@@ -1076,7 +1142,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
           onDragUpdate={handleDragUpdate}
           onDragEnd={handleDragEnd}
         >
-          <div className="flex flex-row gap-3 w-full mb-0 box-border">
+          <div className="flex flex-row gap-3 w-full mb-0 box-border a2-rise">
             {realtimeTeams.map((team) => {
               const teamPlayerKeys = getNormalizedTeamPlayers(team);
 
@@ -1152,7 +1218,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                         />
                       ) : (
                         <h3
-                          className="font-bebas text-[26px] leading-[1.05] text-white m-0 tracking-[0.07em] uppercase cursor-pointer px-0 py-2 rounded-[5px] transition-all bg-transparent break-words text-center block w-full mb-2 flex justify-center items-center drop-shadow-[0_2px_12px_rgba(106,67,255,0.45)]"
+                          className="font-bebas text-[24px] leading-[1.04] text-white m-0 tracking-[0.06em] uppercase cursor-pointer px-1 py-1 rounded-[5px] transition-all bg-transparent text-center w-full mb-1.5 min-h-[3.05rem] flex justify-center items-center drop-shadow-[0_2px_12px_rgba(106,67,255,0.45)]"
                           onClick={isAdmin ? () => {
                             if (isDragging) return;
                             if (teamsConfirmed) return;
@@ -1161,7 +1227,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                           } : undefined}
                           style={{ cursor: isAdmin ? 'pointer' : 'default' }}
                         >
-                          {team.name}
+                          <span className="w-full line-clamp-2 break-words">{team.name}</span>
                         </h3>
                       )}
 
@@ -1274,16 +1340,18 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                                       )}
                                     </div>
                                     <span
-                                      className="font-oswald text-sm font-semibold text-white flex-1 tracking-wide min-w-0 leading-tight pr-1 overflow-hidden text-ellipsis whitespace-nowrap"
+                                      className="font-oswald text-[13.5px] font-semibold text-white flex-1 tracking-wide min-w-0 leading-[1.12] pr-1 line-clamp-2 break-words"
                                     >
                                       {player.nombre}
                                     </span>
 
                                     {showAverages && isAdmin && (
                                       <span
-                                        className="font-bebas text-xs font-bold text-white bg-slate-800 px-2 py-1 rounded-none border border-slate-700 shrink-0 whitespace-nowrap"
+                                        className="a2-pop font-bebas text-[11px] font-bold text-white px-1.5 py-0.5 shrink-0 whitespace-nowrap leading-none"
                                         style={{
                                           background: getScoreColor(player.score),
+                                          borderWidth: '1px',
+                                          borderStyle: 'solid',
                                           borderColor: getScoreColor(player.score).replace('0.9', '0.5'),
                                           borderRadius: 5,
                                         }}
@@ -1300,7 +1368,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                         {dropProvided.placeholder}
                       </div>
 
-                      <div className="relative text-center w-full box-border mt-2 h-[68px] overflow-hidden rounded-xl" style={{
+                      <div className="relative text-center w-full box-border mt-2 h-[54px] overflow-hidden rounded-xl" style={{
                         borderWidth: '1.5px',
                         borderStyle: 'solid',
                         borderColor: (() => {
@@ -1315,9 +1383,9 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                         background: 'linear-gradient(168deg, rgba(40,31,84,0.9), rgba(16,12,33,0.96))',
                         boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08), 0 6px 18px rgba(5,3,16,0.45)',
                       }}>
-                        <div className="w-full h-full flex flex-col items-center justify-center px-2">
-                          <div className="text-[#b0a0ff]/85 text-[10px] font-sans font-bold uppercase tracking-[0.22em] mb-0.5">Puntaje</div>
-                          <div className="text-white font-bebas text-[38px] leading-none font-bold drop-shadow-[0_2px_10px_rgba(106,67,255,0.4)]">{(team.score ?? 0).toFixed(1)}</div>
+                        <div className="w-full h-full flex items-center justify-center gap-2 px-2">
+                          <div className="text-[#b0a0ff]/85 text-[10px] font-sans font-bold uppercase tracking-[0.18em]">Puntaje</div>
+                          <div className="text-white font-bebas text-[30px] leading-none font-bold drop-shadow-[0_2px_10px_rgba(106,67,255,0.4)]">{(team.score ?? 0).toFixed(1)}</div>
                         </div>
                       </div>
                     </div>
@@ -1358,7 +1426,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
 
           return (
             <div
-              className="relative w-full border px-4 py-4 mt-2 rounded-2xl overflow-hidden"
+              className="relative w-full border px-4 py-3 mt-2 rounded-2xl overflow-hidden a2-rise"
               style={{
                 borderColor: `${balanceColor}99`,
                 background: `radial-gradient(360px 150px at 50% -40%, ${balanceColor}24, transparent 70%), linear-gradient(168deg, rgba(40,31,84,0.88) 0%, rgba(16,12,33,0.96) 100%)`,
@@ -1369,11 +1437,13 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                 className="absolute inset-x-0 top-0 h-px"
                 style={{ background: `linear-gradient(90deg, transparent 8%, ${balanceColor}aa 50%, transparent 92%)` }}
               />
-              <div className="text-center">
-                <div className="font-sans font-bold text-[10.5px] text-[#b0a0ff]/85 uppercase tracking-[0.22em] mb-1">Balance del partido</div>
-                <div className="font-bebas text-[40px] leading-none text-white font-bold mb-2 drop-shadow-[0_2px_12px_rgba(106,67,255,0.4)]">DIF: {diff.toFixed(1)}</div>
+              {/* Compact, horizontal layout: still the hero of the screen but no longer
+                  a giant stacked block — aligned with the non-admin teams view. */}
+              <div className="font-sans font-bold text-[10px] text-[#b0a0ff]/85 uppercase tracking-[0.2em] mb-1.5">Balance del partido</div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="font-bebas text-[32px] leading-none text-white font-bold drop-shadow-[0_2px_12px_rgba(106,67,255,0.4)] whitespace-nowrap">DIF {diff.toFixed(1)}</span>
                 <span
-                  className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 font-oswald text-[11px] font-semibold tracking-[0.08em]"
+                  className="shrink-0 inline-flex items-center gap-1.5 rounded-full border px-3 py-1 font-oswald text-[11px] font-semibold tracking-[0.06em]"
                   style={{
                     color: balanceColor,
                     borderColor: `${balanceColor}66`,
@@ -1389,7 +1459,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
         })()}
 
         {/* Botones de acción con helper copy (mobile-first) */}
-        <div className="w-full mt-0.5 box-border flex flex-col gap-2">
+        <div className="w-full mt-0.5 box-border flex flex-col gap-3">
           {notice?.message ? (
             <div className="w-full">
               <InlineNotice
@@ -1401,10 +1471,10 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
             </div>
           ) : null}
           {isAdmin && (
-            <>
-              <div className="flex flex-col gap-3">
-                {/* Row 1: Randomizar + Promedios */}
-                <div className="grid grid-cols-2 gap-2 w-full px-1">
+            <div className="flex flex-col gap-2.5">
+              {/* Herramientas de armado (secundarias, agrupadas) */}
+              {!teamsConfirmed ? (
+                <div className="grid grid-cols-2 gap-2 w-full">
                   <button
                     className="invite-cta-btn invite-cta-btn--compact"
                     style={{
@@ -1426,45 +1496,50 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                     }}
                     onClick={() => setShowAverages(!showAverages)}
                   >
-                    <span>{showAverages ? 'Ocultar' : 'Promedios'}</span>
+                    <span>{showAverages ? 'Ocultar promedios' : 'Promedios'}</span>
                   </button>
                 </div>
-                <div className="grid grid-cols-2 gap-2 w-full px-1">
-                  <div className="text-white/55 text-xs font-oswald text-center leading-tight px-1 min-h-[36px] flex items-start justify-center">
-                    Recalcula los equipos para dejarlos lo más parejos posible.
-                  </div>
-                  <div className="text-white/55 text-xs font-oswald text-center leading-tight px-1 min-h-[36px] flex items-start justify-center">
-                    Mirá los promedios usados para armar los equipos.
-                  </div>
-                </div>
+              ) : (
+                <button
+                  className="invite-cta-btn invite-cta-btn--compact w-full"
+                  style={{
+                    '--btn': 'rgba(14, 24, 56, 0.88)',
+                    '--btn-dark': 'rgba(71, 119, 194, 0.42)',
+                    '--btn-text': 'rgba(242, 246, 255, 0.9)',
+                  }}
+                  onClick={() => setShowAverages(!showAverages)}
+                >
+                  <span>{showAverages ? 'Ocultar promedios' : 'Promedios'}</span>
+                </button>
+              )}
 
-                {/* Row 2: Confirmar/Editar full width */}
-                <div className="w-full flex flex-col gap-1">
-                  <button
-                    className="invite-cta-btn"
-                    style={{
-                      '--btn': `linear-gradient(90deg, ${INVITE_ACCEPT_BUTTON_VIOLET_DARK} 0%, ${INVITE_ACCEPT_BUTTON_VIOLET} 100%)`,
-                      '--btn-dark': 'rgba(144, 118, 255, 0.86)',
-                      '--btn-text': '#ffffff',
-                      '--btn-shadow': '0 8px 18px rgba(76, 58, 196, 0.34)',
-                    }}
-                    onClick={teamsConfirmed ? unconfirmTeams : confirmTeams}
-                    disabled={confirming || unconfirming}
-                  >
-                    <span>{teamsConfirmed ? (unconfirming ? 'Desconfirmando…' : 'Editar equipos') : (confirming ? 'Confirmando…' : 'Confirmar equipos')}</span>
-                  </button>
-                  {!teamsConfirmed ? (
-                    <div className="text-white/50 text-xs font-oswald text-center leading-tight px-1 min-h-[18px] w-[90%] mx-auto">
-                      Guarda los equipos de este partido y bloquea cambios.
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-            </>
+              {/* CTA principal: Confirmar / Editar */}
+              <button
+                className="invite-cta-btn"
+                style={{
+                  '--btn': `linear-gradient(90deg, ${INVITE_ACCEPT_BUTTON_VIOLET_DARK} 0%, ${INVITE_ACCEPT_BUTTON_VIOLET} 100%)`,
+                  '--btn-dark': 'rgba(144, 118, 255, 0.86)',
+                  '--btn-text': '#ffffff',
+                  '--btn-shadow': '0 8px 18px rgba(76, 58, 196, 0.34)',
+                }}
+                onClick={teamsConfirmed ? unconfirmTeams : confirmTeams}
+                disabled={confirming || unconfirming}
+              >
+                <span>{teamsConfirmed ? (unconfirming ? 'Desconfirmando…' : 'Editar equipos') : (confirming ? 'Confirmando…' : 'Confirmar equipos')}</span>
+              </button>
+            </div>
           )}
 
-          {/* Share button with helper */}
-          <div className="flex flex-col gap-2">
+          {/* Separador entre acciones de armado y compartir */}
+          {isAdmin ? (
+            <div
+              className="h-px w-[90%] mx-auto"
+              style={{ background: 'linear-gradient(90deg, transparent 4%, rgba(148,134,255,0.22) 50%, transparent 96%)' }}
+            />
+          ) : null}
+
+          {/* Compartir equipos por WhatsApp (terciaria) */}
+          <div className="flex flex-col gap-1">
             <button
               className="invite-cta-btn invite-cta-btn--compact"
               style={{
@@ -1479,11 +1554,76 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
             >
               <span>
                 <SafeWhatsappIcon size={16} color={SYSTEM_ICON_BLUE} style={{ marginRight: 8, filter: SYSTEM_ICON_BLUE_GLOW }} />
-                Compartir
+                Compartir equipos
               </span>
             </button>
-            <div className="text-white/50 text-xs font-oswald text-center leading-tight px-1 w-[90%] mx-auto">Comparte los equipos armados al grupo de WhatsApp.</div>
+            {isAdmin ? (
+              <div className="text-white/45 text-[11px] font-oswald text-center leading-snug px-1 w-[90%] mx-auto">
+                {teamsConfirmed
+                  ? 'Compartí los equipos al grupo de WhatsApp.'
+                  : 'Confirmá para guardar y bloquear los equipos antes de compartir.'}
+              </div>
+            ) : null}
           </div>
+
+          {/* Herramientas de administración (secundarias, contextuales) */}
+          {isAdmin && typeof onResetVoting === 'function' ? (
+            <div className="relative w-[90%] max-w-[560px] mx-auto mt-1">
+              <div
+                className="flex items-center justify-between gap-3 rounded-2xl border px-3.5 py-2"
+                style={{
+                  borderColor: 'rgba(148,134,255,0.18)',
+                  background: 'linear-gradient(168deg, rgba(40,31,84,0.5) 0%, rgba(16,12,33,0.74) 100%)',
+                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+                }}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="inline-block w-1 h-3.5 rounded-full bg-[linear-gradient(180deg,#8b5cff,#644dff)] shadow-[0_0_8px_rgba(139,92,255,0.4)]" />
+                  <span className="font-sans font-bold text-[10px] uppercase tracking-[0.2em] text-[#b0a0ff]/85">Herramientas</span>
+                </div>
+                <button
+                  ref={adminMenuButtonRef}
+                  type="button"
+                  className="h-8 w-8 inline-flex items-center justify-center rounded-full border transition-colors hover:bg-white/10"
+                  style={{ borderColor: 'rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.05)' }}
+                  aria-label="Herramientas de administración"
+                  aria-haspopup="menu"
+                  aria-expanded={adminMenuOpen}
+                  onClick={() => setAdminMenuOpen((open) => !open)}
+                >
+                  <MoreVertical size={16} style={{ color: SYSTEM_ICON_BLUE, filter: SYSTEM_ICON_BLUE_GLOW }} />
+                </button>
+              </div>
+              {adminMenuOpen ? (
+                <div
+                  ref={adminMenuRef}
+                  className="admin-action-menu absolute bottom-full right-0 mb-2 z-[1003] w-64 origin-bottom-right animate-[adminMenuSlideUp_0.2s_cubic-bezier(0.16,1,0.3,1)]"
+                  role="menu"
+                  aria-label="Herramientas de administración"
+                >
+                  <button className="admin-action-menu-item whitespace-nowrap" type="button" role="menuitem" onClick={handleShareVotingLink}>
+                    <SafeWhatsappIcon size={15} color="#25D366" />
+                    <span>Enviar link de votación</span>
+                  </button>
+                  <button
+                    className="admin-action-menu-item admin-action-menu-item--danger whitespace-nowrap"
+                    type="button"
+                    role="menuitem"
+                    onClick={() => { setAdminMenuOpen(false); setShowResetConfirm(true); }}
+                  >
+                    <RotateCcw size={15} />
+                    <span>Resetear votación</span>
+                  </button>
+                  <style>{`
+                    @keyframes adminMenuSlideUp {
+                      from { opacity: 0; transform: translateY(10px) scale(0.94); }
+                      to { opacity: 1; transform: translateY(0) scale(1); }
+                    }
+                  `}</style>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </div>
       <ConfirmModal
@@ -1503,6 +1643,17 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
         confirmText="Aceptar"
         onConfirm={() => setShowTeamsConfirmedModal(false)}
         onCancel={() => setShowTeamsConfirmedModal(false)}
+      />
+      <ConfirmModal
+        isOpen={showResetConfirm}
+        title="Resetear votación"
+        message="Se borran los votos y los equipos armados, y el partido vuelve al estado de votación para volver a armar. ¿Querés continuar?"
+        confirmText={resetting ? 'Reseteando…' : 'Resetear'}
+        cancelText="Cancelar"
+        danger
+        isDeleting={resetting}
+        onConfirm={handleConfirmReset}
+        onCancel={() => { if (!resetting) setShowResetConfirm(false); }}
       />
     </SafeTeamDisplayContext.Provider>
   );

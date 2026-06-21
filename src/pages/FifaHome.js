@@ -27,7 +27,7 @@ export default function FifaHome({ onModoSeleccionado }) {
   }
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
       {/* FIFA-style menu content - Siempre mostramos el contenido porque la autenticación se maneja en App.js */}
       <FifaHomeContent
         onCreateMatch={() => onModoSeleccionado('votacion')}

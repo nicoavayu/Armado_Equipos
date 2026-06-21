@@ -108,9 +108,9 @@ const HomePage = () => {
 
   return (
     <>
-      <div className="w-full overflow-x-hidden flex-1 flex flex-col">
+      <div className="w-full overflow-hidden flex-1 flex flex-col min-h-0">
         <div
-          className="w-full max-w-[800px] mx-auto px-4 box-border flex-1 flex flex-col"
+          className="w-full max-w-[800px] mx-auto px-4 box-border flex-1 flex flex-col min-h-0 overflow-hidden"
           style={{ paddingTop: isAndroidNative ? '0.25rem' : '1.25rem' }}
         >
           <FifaHome onModoSeleccionado={(modo) => {

@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Bell, CalendarClock, CheckCircle, ChevronDown, ChevronUp, ClipboardList, Trophy, UserPlus, Users, Vote, XCircle } from 'lucide-react';
+import { Bell, CalendarClock, CheckCircle, ChevronDown, ClipboardList, Trophy, UserPlus, Users, Vote, XCircle } from 'lucide-react';
 import { toBigIntId } from '../utils';
 import { resolveMatchInviteRoute } from '../utils/matchInviteRoute';
 import {
@@ -127,6 +127,138 @@ const NotificationsView = () => {
   const [activeFilter, setActiveFilter] = useState('all');
   const [markingAllAsRead, setMarkingAllAsRead] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState(new Set());
+  const filterRailRef = useRef(null);
+  const filterGestureRef = useRef({
+    pointerId: null,
+    startX: 0,
+    startY: 0,
+    startScrollLeft: 0,
+    lastX: 0,
+    lastTime: 0,
+    velocity: 0,
+    didDrag: false,
+  });
+  const filterGestureResetTimerRef = useRef(null);
+  const filterMomentumFrameRef = useRef(null);
+
+  useEffect(() => () => {
+    if (filterGestureResetTimerRef.current) {
+      window.clearTimeout(filterGestureResetTimerRef.current);
+    }
+    if (filterMomentumFrameRef.current) {
+      window.cancelAnimationFrame(filterMomentumFrameRef.current);
+    }
+  }, []);
+
+  const stopFilterMomentum = () => {
+    if (!filterMomentumFrameRef.current) return;
+    window.cancelAnimationFrame(filterMomentumFrameRef.current);
+    filterMomentumFrameRef.current = null;
+  };
+
+  const startFilterMomentum = (initialVelocity) => {
+    const rail = filterRailRef.current;
+    if (!rail || Math.abs(initialVelocity) < 0.02) return;
+
+    let velocity = Math.max(-2.4, Math.min(2.4, initialVelocity));
+    let previousTime = performance.now();
+    const step = (time) => {
+      const elapsed = Math.min(time - previousTime, 32);
+      previousTime = time;
+      const previousScrollLeft = rail.scrollLeft;
+      rail.scrollLeft += velocity * elapsed;
+      const reachedEdge = Math.abs(rail.scrollLeft - previousScrollLeft) < 0.1;
+      velocity *= Math.pow(0.92, elapsed / 16.67);
+
+      if (!reachedEdge && Math.abs(velocity) >= 0.02) {
+        filterMomentumFrameRef.current = window.requestAnimationFrame(step);
+      } else {
+        filterMomentumFrameRef.current = null;
+      }
+    };
+
+    filterMomentumFrameRef.current = window.requestAnimationFrame(step);
+  };
+
+  const handleFilterPointerDown = (event) => {
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    const rail = filterRailRef.current || event.currentTarget;
+    stopFilterMomentum();
+    if (filterGestureResetTimerRef.current) {
+      window.clearTimeout(filterGestureResetTimerRef.current);
+      filterGestureResetTimerRef.current = null;
+    }
+    filterGestureRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      startScrollLeft: rail.scrollLeft,
+      lastX: event.clientX,
+      lastTime: event.timeStamp,
+      velocity: 0,
+      didDrag: false,
+    };
+  };
+
+  const handleFilterPointerMove = (event) => {
+    const gesture = filterGestureRef.current;
+    if (gesture.pointerId !== event.pointerId) return;
+    const rail = filterRailRef.current;
+    if (!rail) return;
+    const deltaX = Math.abs(event.clientX - gesture.startX);
+    const deltaY = Math.abs(event.clientY - gesture.startY);
+
+    if (!gesture.didDrag && deltaX >= 7 && deltaX > deltaY) {
+      gesture.didDrag = true;
+      rail.setPointerCapture?.(event.pointerId);
+    }
+    if (!gesture.didDrag) return;
+
+    if (event.cancelable) event.preventDefault();
+    rail.scrollLeft = gesture.startScrollLeft - (event.clientX - gesture.startX);
+
+    const elapsed = Math.max(event.timeStamp - gesture.lastTime, 1);
+    const instantaneousVelocity = (gesture.lastX - event.clientX) / elapsed;
+    gesture.velocity = (gesture.velocity * 0.65) + (instantaneousVelocity * 0.35);
+    gesture.lastX = event.clientX;
+    gesture.lastTime = event.timeStamp;
+  };
+
+  const handleFilterPointerUp = (event) => {
+    const gesture = filterGestureRef.current;
+    if (gesture.pointerId !== event.pointerId) return;
+    const rail = filterRailRef.current;
+    if (rail?.hasPointerCapture?.(event.pointerId)) {
+      rail.releasePointerCapture(event.pointerId);
+    }
+    gesture.pointerId = null;
+
+    if (gesture.didDrag) {
+      startFilterMomentum(gesture.velocity);
+      // Keep the guard alive through WebKit's delayed synthetic click.
+      filterGestureResetTimerRef.current = window.setTimeout(() => {
+        filterGestureRef.current.didDrag = false;
+        filterGestureResetTimerRef.current = null;
+      }, 450);
+    }
+  };
+
+  const handleFilterPointerCancel = (event) => {
+    if (filterGestureRef.current.pointerId !== event.pointerId) return;
+    filterGestureRef.current.pointerId = null;
+    filterGestureRef.current.didDrag = false;
+  };
+
+  const handleFilterClickCapture = (event) => {
+    if (!filterGestureRef.current.didDrag) return;
+    event.preventDefault();
+    event.stopPropagation();
+    filterGestureRef.current.didDrag = false;
+    if (filterGestureResetTimerRef.current) {
+      window.clearTimeout(filterGestureResetTimerRef.current);
+      filterGestureResetTimerRef.current = null;
+    }
+  };
 
   useEffect(() => {
     fetchNotifications();
@@ -905,22 +1037,42 @@ const NotificationsView = () => {
         )}
 
         {hasAnyNotifications && (
-          <div className="mb-4 grid grid-cols-2 gap-2 pb-1 sm:flex sm:flex-wrap">
+          <div
+            ref={filterRailRef}
+            className="notification-filter-rail -mx-4 mb-4 flex gap-2 overflow-x-auto overscroll-x-contain px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            onPointerDown={handleFilterPointerDown}
+            onPointerMove={handleFilterPointerMove}
+            onPointerUp={handleFilterPointerUp}
+            onPointerCancel={handleFilterPointerCancel}
+            onClickCapture={handleFilterClickCapture}
+          >
             {NOTIFICATION_FILTER_OPTIONS.map((option) => {
               const isActive = activeFilter === option.key;
-              const count = getCategoryCount(visibleNotifications, option.key);
+              const count = option.key === 'all'
+                ? visibleNotifications.length
+                : getCategoryCount(visibleNotifications, option.key);
               return (
                 <button
                   key={option.key}
                   type="button"
+                  aria-pressed={isActive}
                   onClick={() => setActiveFilter(option.key)}
-                  className={`w-full min-w-0 h-[36px] px-3.5 rounded-full border text-[11px] sm:w-auto sm:text-xs font-sans font-semibold transition-colors ${
+                  className={`notification-filter-chip a2-press shrink-0 inline-flex items-center gap-1.5 h-[34px] pl-3.5 ${count > 0 ? 'pr-2' : 'pr-3.5'} rounded-full border text-[12px] font-sans font-semibold whitespace-nowrap transition-colors ${
                     isActive
-                      ? 'bg-cta-gradient border-[#7d5aff] text-white shadow-[0_4px_14px_rgba(106,67,255,0.35)]'
-                      : 'bg-white/[0.04] border-[rgba(148,134,255,0.22)] text-white/65 hover:bg-white/[0.08] hover:text-white'
+                      ? 'bg-cta-gradient border-[#7d5aff] text-white shadow-[0_4px_14px_rgba(106,67,255,0.32)]'
+                      : 'bg-white/[0.04] border-[rgba(148,134,255,0.2)] text-white/60 hover:bg-white/[0.08] hover:text-white'
                   }`}
                 >
-                  {option.label} {count > 0 ? `(${count})` : ''}
+                  <span>{option.label}</span>
+                  {count > 0 && (
+                    <span
+                      className={`inline-flex min-w-[18px] h-[18px] px-1 items-center justify-center rounded-full text-[10px] leading-none font-bold ${
+                        isActive ? 'bg-white/25 text-white' : 'bg-white/[0.08] text-white/70'
+                      }`}
+                    >
+                      {count}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -948,15 +1100,14 @@ const NotificationsView = () => {
             />
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-3">
+          <div className="grid grid-cols-1 gap-3 a2-rise">
             {groupedNotifications.map((group) => {
               const notification = group.latest;
               const Icon = getNotificationIcon(notification.type);
               const { title: displayTitle, message: displayMessage } = getDisplayCopy(notification);
-              const groupedMatchInfo = group.matchId && group.count > 1
-                ? `+${group.count - 1} más de este partido`
-                : null;
               const groupedItems = group.items.slice(1);
+              const hasGroupedActivity = Boolean(group.matchId) && group.count > 1 && groupedItems.length > 0;
+              const groupedActivityLabel = `${group.count} eventos de este partido`;
               const isExpanded = expandedGroups.has(group.key);
               const isInteractive = isNotificationInteractive(notification);
               return (
@@ -964,7 +1115,9 @@ const NotificationsView = () => {
                 key={group.key}
                 role={isInteractive ? 'button' : undefined}
                 tabIndex={isInteractive ? 0 : -1}
-                className={`flex p-3.5 rounded-card transition-all duration-200 relative border border-[rgba(148,134,255,0.16)] bg-[linear-gradient(165deg,rgba(48,38,98,0.55),rgba(20,16,41,0.88))] shadow-[0_6px_16px_rgba(5,3,16,0.3),inset_0_1px_0_rgba(255,255,255,0.04)] ${
+                className={`a2-press flex p-3.5 rounded-card transition-all duration-200 relative border bg-[linear-gradient(165deg,rgba(48,38,98,0.55),rgba(20,16,41,0.88))] shadow-[0_6px_16px_rgba(5,3,16,0.3),inset_0_1px_0_rgba(255,255,255,0.04)] ${
+                  group.unreadCount > 0 ? 'border-[rgba(236,0,125,0.28)]' : 'border-[rgba(148,134,255,0.16)]'
+                } ${
                   isInteractive ? 'cursor-pointer hover:border-[rgba(148,134,255,0.45)] hover:brightness-[1.06]' : 'cursor-default opacity-85'
                 }`}
                 onClick={(e) => {
@@ -983,49 +1136,58 @@ const NotificationsView = () => {
                 <div className="flex-1">
                   <div className="font-bold text-white text-[14px] leading-snug mb-1">{displayTitle}</div>
                   <div className="text-white/65 text-[13px] leading-snug mb-2">{displayMessage}</div>
-                  {groupedMatchInfo && (
+                  {hasGroupedActivity && (
                     <button
                       type="button"
-                      className="mb-1 inline-flex items-center gap-1 text-[11px] text-white/65 hover:text-white transition-colors"
+                      className="a2-press mb-1 inline-flex items-center gap-1 text-[11.5px] font-semibold text-[#b9aaff] hover:text-white transition-colors"
+                      aria-expanded={isExpanded}
                       onClick={(e) => toggleGroupExpanded(group.key, e)}
                     >
-                      {groupedMatchInfo}
-                      {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                      {isExpanded ? 'Ocultar actividad' : groupedActivityLabel}
+                      <ChevronDown
+                        size={13}
+                        className={`transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+                      />
                     </button>
                   )}
-                  {isExpanded && groupedItems.length > 0 && (
-                    <div className="mb-2 rounded-xl border border-[rgba(148,134,255,0.2)] bg-[rgba(12,10,29,0.7)] overflow-hidden">
-                      {groupedItems.map((item, index) => {
-                        const ItemIcon = getNotificationIcon(item.type);
-                        const { title, message } = getDisplayCopy(item);
-                        const itemInteractive = isNotificationInteractive(item);
-                        return (
-                          <button
-                            key={`${group.key}-${item.id}-${index}`}
-                            type="button"
-                            disabled={!itemInteractive}
-                            className={`w-full px-2.5 py-2 text-left transition-colors border-b last:border-b-0 border-white/[0.06] ${
-                              itemInteractive ? 'hover:bg-white/[0.06]' : 'opacity-85 cursor-default'
-                            }`}
-                            onClick={(e) => {
-                              if (!itemInteractive) return;
-                              handleNotificationClick(item, e);
-                            }}
-                          >
-                            <div className="flex items-start gap-2">
-                              <div className="mt-0.5 flex h-5 w-5 items-center justify-center text-white/80 shrink-0">
-                                <ItemIcon size={11} />
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <div className="text-[12px] font-semibold text-white/90 leading-snug break-words">{title}</div>
-                                <div className="text-[11px] text-white/70 leading-snug line-clamp-2">{message}</div>
-                                <div className="text-[10px] text-white/50 mt-0.5">{formatDate(item.created_at)}</div>
-                              </div>
-                              {!item.read && <div className="mt-1.5 w-1.5 h-1.5 bg-[#ec007d] rounded-full shrink-0"></div>}
-                            </div>
-                          </button>
-                        );
-                      })}
+                  {hasGroupedActivity && isExpanded && (
+                    <div className="relative mt-1.5 mb-1.5">
+                      {/* Timeline integrada: línea + nodos, sin card anidada */}
+                      <span aria-hidden className="absolute left-[5px] top-2 bottom-2 w-px bg-[rgba(148,134,255,0.22)]" />
+                      <div className="flex flex-col">
+                        {groupedItems.map((item, index) => {
+                          const { title, message } = getDisplayCopy(item);
+                          const itemInteractive = isNotificationInteractive(item);
+                          return (
+                            <button
+                              key={`${group.key}-${item.id}-${index}`}
+                              type="button"
+                              disabled={!itemInteractive}
+                              className={`relative flex items-start gap-3 w-full text-left py-1.5 pr-1 rounded-md transition-colors ${
+                                itemInteractive ? 'hover:bg-white/[0.04]' : 'opacity-85 cursor-default'
+                              }`}
+                              onClick={(e) => {
+                                if (!itemInteractive) return;
+                                handleNotificationClick(item, e);
+                              }}
+                            >
+                              <span
+                                aria-hidden
+                                className={`relative z-[1] mt-[5px] ml-[1px] h-2 w-2 shrink-0 rounded-full ring-2 ring-[#1a1430] ${
+                                  item.read ? 'bg-[rgba(148,134,255,0.55)]' : 'bg-[#ec007d] shadow-[0_0_6px_rgba(236,0,125,0.6)]'
+                                }`}
+                              />
+                              <span className="min-w-0 flex-1">
+                                <span className="block text-[12.5px] font-semibold text-white/90 leading-snug break-words">{title}</span>
+                                {message ? (
+                                  <span className="block text-[11.5px] text-white/60 leading-snug line-clamp-1">{message}</span>
+                                ) : null}
+                                <span className="block text-[10.5px] text-white/45 mt-0.5">{formatDate(item.created_at)}</span>
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
                   <div className="text-xs text-white/60">{formatDate(notification.created_at)}</div>
@@ -1034,7 +1196,7 @@ const NotificationsView = () => {
                   {notification.type === 'friend_request' && !notification.read && (
                     <div className="flex gap-2 mt-2">
                       <button
-                        className="px-3 h-8 rounded-full border border-[#7d5aff] cursor-pointer text-xs font-sans font-semibold tracking-[0.01em] transition-all min-w-[92px] bg-cta-gradient text-white hover:brightness-110 shadow-[0_4px_14px_rgba(106,67,255,0.35)] disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="a2-press px-3 h-8 rounded-full border border-[#7d5aff] cursor-pointer text-xs font-sans font-semibold tracking-[0.01em] transition-all min-w-[92px] bg-cta-gradient text-white hover:brightness-110 shadow-[0_4px_14px_rgba(106,67,255,0.35)] disabled:opacity-60 disabled:cursor-not-allowed"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleAcceptFriend(notification);
@@ -1044,7 +1206,7 @@ const NotificationsView = () => {
                         {processingRequests.has(notification.data?.requestId) ? 'Aceptando...' : 'Aceptar'}
                       </button>
                       <button
-                        className="px-3 h-8 rounded-full border border-[rgba(148,134,255,0.28)] cursor-pointer text-xs font-sans font-semibold tracking-[0.01em] transition-all min-w-[92px] bg-white/[0.05] text-white/85 hover:bg-white/[0.1] disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="a2-press px-3 h-8 rounded-full border border-[rgba(148,134,255,0.28)] cursor-pointer text-xs font-sans font-semibold tracking-[0.01em] transition-all min-w-[92px] bg-white/[0.05] text-white/85 hover:bg-white/[0.1] disabled:opacity-60 disabled:cursor-not-allowed"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleRejectFriend(notification);
