@@ -1219,8 +1219,8 @@ const ProximosPartidos = ({ onClose }) => {
         pagoLabel: summary.total > 0
           ? `Pagos ${summary.paid}/${summary.total}${summary.reported ? ` · ${summary.reported} a confirmar` : ''}`
           : 'Pagos · administrar',
-        encuestaAction: { label: 'Ver encuesta', onClick: goEncuesta },
-        pagosAction: { label: 'Administrar pagos', primary: true, onClick: goPagos },
+        encuestaAction: { label: 'Encuesta', onClick: goEncuesta },
+        pagosAction: { label: 'Pagos', primary: true, onClick: goPagos },
       };
     }
 
@@ -1234,8 +1234,8 @@ const ProximosPartidos = ({ onClose }) => {
       encuestaLabel: ctx.hasCompletedSurvey ? 'Encuesta completada' : 'Encuesta pendiente',
       pagoLabel,
       encuestaAction: ctx.hasCompletedSurvey
-        ? { label: 'Encuesta completada', disabled: true }
-        : { label: 'Completar encuesta', onClick: goEncuesta },
+        ? { label: 'Completada', disabled: true }
+        : { label: 'Completar', onClick: goEncuesta },
       pagosAction: ctx.paymentStatus
         ? {
           label: ctx.paymentStatus === 'pending' ? 'Pagar' : 'Ver pagos',

@@ -283,10 +283,10 @@ const MatchCard = ({
                         {[postMatchInfo.encuestaAction, postMatchInfo.pagosAction].filter(Boolean).map((action, idx) => (
                             <button
                                 key={idx}
-                                className={`flex-1 font-bebas font-semibold text-[15px] px-4 py-2 border rounded-2xl cursor-pointer transition-all text-white min-h-[42px] flex items-center justify-center text-center sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[38px] ${action.disabled
+                                className={`flex-1 min-w-0 whitespace-nowrap truncate font-bebas font-semibold text-[15px] tracking-[0.02em] px-3 py-2 border rounded-xl cursor-pointer transition-all text-white min-h-[44px] flex items-center justify-center text-center sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[40px] ${action.disabled
                                     ? 'bg-[#1d1740] text-white/40 cursor-not-allowed border-white/10'
                                     : action.primary
-                                        ? 'bg-[#6a43ff] border-[#7d5aff] hover:bg-[#7550ff] shadow-[0_0_14px_rgba(106,67,255,0.3)]'
+                                        ? 'bg-cta-gradient border-white/20 shadow-cta hover:brightness-105 active:scale-[0.985]'
                                         : 'bg-white/[0.06] border-[rgba(148,134,255,0.28)] hover:bg-white/[0.12]'}`}
                                 onClick={(e) => {
                                     e.stopPropagation();
