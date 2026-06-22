@@ -86,6 +86,35 @@ describe('adminRemindPending', () => {
     expect(mockInsertCalls).toHaveLength(0);
   });
 
+  test('never reminds/pushes the admin running the action (no self-reminder)', async () => {
+    mockUserId = 'admin-uuid';
+    mockRpc = jest.fn().mockResolvedValue({
+      data: [
+        { user_id: 'admin-uuid', player_name: 'Admin' },
+        { user_id: 'u2', player_name: 'Fede' },
+      ],
+      error: null,
+    });
+    const res = await adminRemindPending(123, { matchName: 'X' });
+    expect(res.notified).toBe(1);
+    expect(mockInsertCalls).toHaveLength(1);
+    const payload = mockInsertCalls[0];
+    expect(payload).toHaveLength(1);
+    expect(payload[0].user_id).toBe('u2');
+    expect(payload.some((n) => n.user_id === 'admin-uuid')).toBe(false);
+  });
+
+  test('inserts nothing when the only pending recipient is the admin themselves', async () => {
+    mockUserId = 'admin-uuid';
+    mockRpc = jest.fn().mockResolvedValue({
+      data: [{ user_id: 'admin-uuid', player_name: 'Admin' }],
+      error: null,
+    });
+    const res = await adminRemindPending(123, { matchName: 'X' });
+    expect(res.notified).toBe(0);
+    expect(mockInsertCalls).toHaveLength(0);
+  });
+
   test('throws when the RPC fails', async () => {
     mockRpc = jest.fn().mockResolvedValue({ data: null, error: { message: 'not_match_admin' } });
     await expect(adminRemindPending(123, { matchName: 'X' })).rejects.toBeTruthy();

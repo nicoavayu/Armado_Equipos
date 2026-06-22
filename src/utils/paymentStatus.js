@@ -27,10 +27,10 @@ const STATUS_META = {
   },
   pending: {
     key: 'pending',
-    label: 'Pendiente',
-    // gris
-    pillClass: 'border-white/[0.12] bg-[#0c0a1d]/80 text-white/70',
-    dotClass: 'bg-white/40',
+    label: 'Debe',
+    // rojo: deuda pendiente (debe / no pagó)
+    pillClass: 'border-[#f43f5e]/55 bg-[#f43f5e]/14 text-[#fda4af]',
+    dotClass: 'bg-[#f43f5e]',
   },
 };
 

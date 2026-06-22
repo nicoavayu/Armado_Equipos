@@ -941,9 +941,14 @@ const ProximosPartidos = ({ onClose }) => {
     setShowConfirm(true);
   };
 
-  const _handleClearMatch = (e, partido) => {
-    if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+  // MatchCard invoca onClear(partido) con un único argumento (igual que onAbandon
+  // y onCancel). Antes este handler estaba firmado (e, partido), así que recibía el
+  // partido en `e` y dejaba `partido` (y por ende partidoTarget) en undefined: el
+  // modal abría pero handleConfirmAction hacía early-return y la card nunca se
+  // ocultaba. Firmamos (partido) para alinear con el contrato de MatchCard.
+  const _handleClearMatch = (partido) => {
     console.log('[PROXIMOS] click LIMPIAR', partido?.id);
+    setMenuOpenId(null);
     setPartidoTarget(partido);
     setActionType('clean');
     setShowConfirm(true);
@@ -1236,8 +1241,8 @@ const ProximosPartidos = ({ onClose }) => {
       encuestaLabel: ctx.hasCompletedSurvey ? 'Encuesta completada' : 'Encuesta pendiente',
       pagoLabel,
       encuestaAction: ctx.hasCompletedSurvey
-        ? { label: 'Completada', disabled: true }
-        : { label: 'Completar', onClick: goEncuesta },
+        ? { label: 'Respondida', disabled: true }
+        : { label: 'Encuesta', onClick: goEncuesta },
       pagosAction: ctx.paymentStatus
         ? {
           label: ctx.paymentStatus === 'pending' ? 'Pagar' : 'Ver pagos',
@@ -1344,7 +1349,7 @@ const ProximosPartidos = ({ onClose }) => {
                 Esta acción no se puede deshacer.
               </>
             : actionType === 'clean'
-              ? '¿Estás seguro de que deseas limpiar este partido de tu lista? Podrás volver a verlo en "Partidos finalizados".'
+              ? 'Este partido se va a ocultar de tu lista. No afecta al resto de los jugadores ni borra los datos del partido.'
               : actionType === 'abandon'
                 ? (
                   partidoTarget?.userRole === 'admin' || partidoTarget?.creado_por === user?.id
@@ -1358,7 +1363,7 @@ const ProximosPartidos = ({ onClose }) => {
         isDeleting={isProcessing}
         confirmText={
           actionType === 'cancel' ? 'Aceptar' :
-            actionType === 'clean' ? 'Limpiar partido' :
+            actionType === 'clean' ? 'Limpiar' :
               'Abandonar'
         }
         cancelText="Volver"

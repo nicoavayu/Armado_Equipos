@@ -12,7 +12,7 @@ describe('getPaymentStatusMeta', () => {
   test('returns label per status', () => {
     expect(getPaymentStatusMeta('paid').label).toBe('Pagado');
     expect(getPaymentStatusMeta('reported_paid').label).toBe('Avisó pago');
-    expect(getPaymentStatusMeta('pending').label).toBe('Pendiente');
+    expect(getPaymentStatusMeta('pending').label).toBe('Debe');
     expect(getPaymentStatusMeta('exempt').label).toBe('Exento');
   });
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { FaCrown } from 'react-icons/fa';
-import { MoreVertical, LogOut, UserRoundPlus, XCircle } from 'lucide-react';
+import { MoreVertical, LogOut, UserRoundPlus, XCircle, EyeOff } from 'lucide-react';
 
 const normalizeToken = (value) => String(value || '')
     .normalize('NFD')
@@ -67,7 +67,13 @@ const MatchCard = ({
     );
     const isTeamMatch = partido?.source_type === 'team_match';
     const useTeamMatchPresentation = isTeamMatch || isChallengeLikeOrigin;
-    const showMenu = (userJoined || userRole === 'admin' || isFinished) && (onAbandon || onCancel || onClear);
+    // En partidos legacy ya jugados / post-partido NO tiene sentido abandonar ni
+    // cancelar: la única acción honesta es "Limpiar partido" (ocultar la card de mi
+    // lista). Los desafíos (team_match) conservan su comportamiento actual.
+    const canAbandon = !isFinished && userJoined && !!onAbandon;
+    const canCancel = userRole === 'admin' && !!onCancel && (isTeamMatch || !isFinished);
+    const canClear = isFinished && !!onClear;
+    const showMenu = canAbandon || canCancel || canClear;
 
     const precioRaw = (partido?.precio_cancha_por_persona ?? partido?.precio_cancha ?? partido?.precio ?? partido?.valor_cancha);
     let precioNumber = null;
@@ -177,7 +183,7 @@ const MatchCard = ({
                                     onClick={(e) => e.stopPropagation()}
                                 >
                                     <div className="py-1">
-                                        {userJoined && onAbandon && (
+                                        {canAbandon && (
                                             <button
                                                 type="button"
                                                 className="admin-action-menu-item admin-action-menu-item--danger"
@@ -188,7 +194,7 @@ const MatchCard = ({
                                                 <span>Abandonar partido</span>
                                             </button>
                                         )}
-                                        {userRole === 'admin' && onCancel && (
+                                        {canCancel && (
                                             <button
                                                 type="button"
                                                 className="admin-action-menu-item admin-action-menu-item--danger"
@@ -199,15 +205,15 @@ const MatchCard = ({
                                                 <span>Cancelar partido</span>
                                             </button>
                                         )}
-                                        {isFinished && onClear && (
+                                        {canClear && (
                                             <button
                                                 type="button"
                                                 className="admin-action-menu-item"
                                                 onMouseDown={(e) => e.stopPropagation()}
                                                 onClick={(e) => { e.stopPropagation(); onClear(partido); }}
                                             >
-                                                <XCircle size={16} />
-                                                <span>Borrar partido</span>
+                                                <EyeOff size={16} />
+                                                <span>Limpiar partido</span>
                                             </button>
                                         )}
                                     </div>
