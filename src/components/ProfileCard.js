@@ -434,9 +434,9 @@ const ProfileCardComponent = ({
     '--pc-left-awards-shift-right': layoutConfig.leftAwardsShiftRight,
   };
   const sideAwards = [
-    { key: 'mvp', count: Number(vm.mvp) || 0, image: '/mvp_award.png', ref: mvpRef },
-    { key: 'gk', count: Number(vm.gk) || 0, image: '/goalkeeper_award.png', ref: gkRef },
-    { key: 'red', count: Number(vm.red) || 0, image: '/redcard_award.png', ref: redRef },
+    { key: 'mvp', count: Number(vm.mvp) || 0, image: '/mvp_award.webp', ref: mvpRef },
+    { key: 'gk', count: Number(vm.gk) || 0, image: '/goalkeeper_award.webp', ref: gkRef },
+    { key: 'red', count: Number(vm.red) || 0, image: '/redcard_award.webp', ref: redRef },
   ].filter((award) => award.count > 0);
 
   return (
@@ -1050,15 +1050,15 @@ const ProfileCardComponent = ({
             {showAwardsRail ? (
               <aside className="pc-awards-rail" aria-label="Premios del jugador">
                 <div className="pc-award-tile">
-                  <img className="pc-award-image" src="/mvp_award.png" alt="Premio MVP" loading="lazy" decoding="async" />
+                  <img className="pc-award-image" src="/mvp_award.webp" alt="Premio MVP" loading="lazy" decoding="async" />
                   <span ref={mvpRef} className="pc-badge-count pc-award-count">{vm.mvp}</span>
                 </div>
                 <div className="pc-award-tile">
-                  <img className="pc-award-image" src="/goalkeeper_award.png" alt="Premio arquero" loading="lazy" decoding="async" />
+                  <img className="pc-award-image" src="/goalkeeper_award.webp" alt="Premio arquero" loading="lazy" decoding="async" />
                   <span ref={gkRef} className="pc-badge-count pc-award-count">{vm.gk}</span>
                 </div>
                 <div className="pc-award-tile">
-                  <img className="pc-award-image" src="/redcard_award.png" alt="Premio tarjeta roja" loading="lazy" decoding="async" />
+                  <img className="pc-award-image" src="/redcard_award.webp" alt="Premio tarjeta roja" loading="lazy" decoding="async" />
                   <span ref={redRef} className="pc-badge-count pc-award-count">{vm.red}</span>
                 </div>
               </aside>
@@ -1107,7 +1107,7 @@ const ProfileCardComponent = ({
                     </div>
 
                     <img
-                      src="/card_mockup.png"
+                      src="/card_mockup.webp"
                       alt=""
                       className="pc-card-frame"
                     />

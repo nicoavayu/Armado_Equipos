@@ -590,9 +590,9 @@ const TemplateHistoryPage = () => {
                       <div className="text-white/60 text-xs font-oswald">Esperando resultados.</div>
                     ) : (
                       <div className="flex flex-col gap-2">
-                        <AwardRow title="MVP" icon="/mvp.png" playerName={resolveSnapshotPlayer(resultSnapshot?.mvp, resolveName)} />
-                        <AwardRow title="Mejor arquero" icon="/glove.png" playerName={resolveSnapshotPlayer(resultSnapshot?.golden_glove, resolveName)} />
-                        <AwardRow title="Más sucio" icon="/red_card.png" playerName={resolveSnapshotPlayer(resultSnapshot?.mas_sucio, resolveName)} />
+                        <AwardRow title="MVP" icon="/mvp.webp" playerName={resolveSnapshotPlayer(resultSnapshot?.mvp, resolveName)} />
+                        <AwardRow title="Mejor arquero" icon="/glove.webp" playerName={resolveSnapshotPlayer(resultSnapshot?.golden_glove, resolveName)} />
+                        <AwardRow title="Más sucio" icon="/red_card.webp" playerName={resolveSnapshotPlayer(resultSnapshot?.mas_sucio, resolveName)} />
                       </div>
                     )}
                   </div>

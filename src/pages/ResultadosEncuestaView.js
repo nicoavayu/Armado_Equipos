@@ -1394,7 +1394,7 @@ const ResultadosEncuestaView = () => {
           content: (
             <AwardStory
               kind="mvp"
-              icon="/mvp_award.png"
+              icon="/mvp_award.webp"
               title="MVP"
               subtitle={null}
               accent="rgba(255,215,0,0.65)"
@@ -1420,7 +1420,7 @@ const ResultadosEncuestaView = () => {
           content: (
             <AwardStory
               kind="glove"
-              icon="/goalkeeper_award.png"
+              icon="/goalkeeper_award.webp"
               title="MEJOR ARQUERO"
               subtitle={null}
               accent="rgba(34,211,238,0.55)"
@@ -1449,7 +1449,7 @@ const ResultadosEncuestaView = () => {
           content: (
             <AwardStory
               kind="dirty"
-              icon="/redcard_award.png"
+              icon="/redcard_award.webp"
               title="MÁS SUCIO"
               subtitle={null}
               accent="rgba(248,113,113,0.55)"
@@ -1488,7 +1488,7 @@ const ResultadosEncuestaView = () => {
         content: (
           <AwardStory
             kind="penalty"
-            icon="/penalizacion.png"
+            icon="/penalizacion.webp"
             title="PENALIZACIÓN"
             subtitle={null}
             accent="rgba(251,146,60,0.55)"
@@ -1510,7 +1510,7 @@ const ResultadosEncuestaView = () => {
       summaryAwards.push({
         awardName: 'MVP',
         playerName: mvpPlayer.nombre,
-        icon: '/mvp_award.png',
+        icon: '/mvp_award.webp',
         color: '#FFD700',
       });
     }
@@ -1520,7 +1520,7 @@ const ResultadosEncuestaView = () => {
       summaryAwards.push({
         awardName: 'MEJOR ARQUERO',
         playerName: glovePlayer.nombre,
-        icon: '/goalkeeper_award.png',
+        icon: '/goalkeeper_award.webp',
         color: '#22d3ee',
       });
     }
@@ -1530,7 +1530,7 @@ const ResultadosEncuestaView = () => {
       summaryAwards.push({
         awardName: 'MÁS SUCIO',
         playerName: dirtyPlayer.nombre,
-        icon: '/redcard_award.png',
+        icon: '/redcard_award.webp',
         color: '#f87171',
       });
     }
@@ -1539,7 +1539,7 @@ const ResultadosEncuestaView = () => {
       summaryAwards.push({
         awardName: 'PENALIZACIÓN',
         playerName: penalized.player.nombre,
-        icon: '/penalizacion.png',
+        icon: '/penalizacion.webp',
         color: '#FDBA74',
       });
     }
