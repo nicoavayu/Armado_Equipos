@@ -26,6 +26,9 @@ import useInlineNotice from '../hooks/useInlineNotice';
 import ConfirmModal from './ConfirmModal';
 import { buildBalancedTeams } from '../utils/teamBalancer';
 import { shareVotingLink } from '../utils/shareVotingLink';
+import buildTeamsShareCardData from '../utils/buildTeamsShareCardData';
+import ShareableTeamsCard from './share/ShareableTeamsCard';
+import { useShareTeamsCard } from '../hooks/useShareTeamsCard';
 import { useAuth } from './AuthProvider';
 import { useNativeFeatures } from '../hooks/useNativeFeatures';
 import { MoreVertical, RotateCcw } from 'lucide-react';
@@ -88,6 +91,12 @@ const persistMatchTeamsConfirmedState = async ({ partidoId, confirmed }) => {
 const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = false, partidoId = null, partido = null, onResetVoting, nombre: _nombre, fecha, hora, sede, modalidad, tipo }) => {
   const { user } = useAuth();
   const { isNative } = useNativeFeatures();
+  const {
+    isSharing: isSharingTeamsImage,
+    shareTeamsCard,
+    cardData: shareCardData,
+    cardRef: shareCardRef,
+  } = useShareTeamsCard({ isNative });
   const [showAverages, setShowAverages] = useState(false);
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -964,15 +973,26 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
     persistTeams(nextTeams);
   };
 
-  const handleWhatsAppShare = () => {
+  // Shares the formed teams as a designed image (instead of plain text).
+  const handleShareTeams = async () => {
+    if (isSharingTeamsImage) return;
     if (!teamsConfirmed) {
       setShowShareRequiresConfirmModal(true);
       return;
     }
 
-    const teamA = realtimeTeams.find((t) => t.id === 'equipoA');
-    const teamB = realtimeTeams.find((t) => t.id === 'equipoB');
-    if (!teamA || !teamB) {
+    const cardData = buildTeamsShareCardData(
+      {
+        modalidad: modalidad ?? partido?.modalidad,
+        fecha: fecha ?? partido?.fecha,
+        hora: hora ?? partido?.hora,
+        sede: sede ?? partido?.sede,
+      },
+      realtimeTeams,
+      { resolvePlayerName: (pId) => getPlayerDetails(pId)?.nombre },
+    );
+
+    if (!cardData.isShareable) {
       showInlineNotice({
         key: 'teams_share_missing_data',
         type: 'warning',
@@ -981,23 +1001,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
       return;
     }
 
-    const playersToText = (team) =>
-      (team.players || [])
-        .map((pId) => `- ${getPlayerDetails(pId).nombre}`)
-        .join('\n');
-
-    const resolveShareTeamName = (team, fallbackName) => {
-      const candidate = String(team?.name || '').trim();
-      return candidate || fallbackName;
-    };
-
-    const teamAText = `*${resolveShareTeamName(teamA, 'Equipo A')}* (Puntaje: ${(teamA.score ?? 0).toFixed(2)})\n${playersToText(teamA)}`;
-    const teamBText = `*${resolveShareTeamName(teamB, 'Equipo B')}* (Puntaje: ${(teamB.score ?? 0).toFixed(2)})\n${playersToText(teamB)}`;
-
-    // WhatsApp friendly: no header, clear spacing, real line breaks.
-    const message = `${teamAText}\n\n${teamBText}`;
-
-    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
+    await shareTeamsCard(cardData);
   };
 
   return (
@@ -1543,7 +1547,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
             />
           ) : null}
 
-          {/* Compartir equipos por WhatsApp (terciaria) */}
+          {/* Compartir equipos como imagen (terciaria) */}
           <div className="flex flex-col gap-1">
             <button
               className="invite-cta-btn invite-cta-btn--compact"
@@ -1555,17 +1559,19 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                 maxWidth: '560px',
                 marginInline: 'auto',
               }}
-              onClick={handleWhatsAppShare}
+              onClick={handleShareTeams}
+              disabled={isSharingTeamsImage}
+              aria-busy={isSharingTeamsImage}
             >
               <span>
                 <SafeWhatsappIcon size={16} color={SYSTEM_ICON_BLUE} style={{ marginRight: 8, filter: SYSTEM_ICON_BLUE_GLOW }} />
-                Compartir equipos
+                {isSharingTeamsImage ? 'Generando…' : 'Compartir equipos'}
               </span>
             </button>
             {isAdmin ? (
               <div className="text-white/45 text-[11px] font-oswald text-center leading-snug px-1 w-[90%] mx-auto">
                 {teamsConfirmed
-                  ? 'Compartí los equipos al grupo de WhatsApp.'
+                  ? 'Compartí una imagen con los equipos armados.'
                   : 'Confirmá para guardar y bloquear los equipos antes de compartir.'}
               </div>
             ) : null}
@@ -1634,7 +1640,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
       <ConfirmModal
         isOpen={showShareRequiresConfirmModal}
         title="Confirmá los equipos"
-        message="Antes de compartir por WhatsApp, tenés que confirmar los equipos."
+        message="Antes de compartir los equipos, tenés que confirmarlos."
         singleButton
         confirmText="Entendido"
         onConfirm={() => setShowShareRequiresConfirmModal(false)}
@@ -1660,6 +1666,21 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
         onConfirm={handleConfirmReset}
         onCancel={() => { if (!resetting) setShowResetConfirm(false); }}
       />
+      {/* Off-screen render used only to capture the shareable teams image. */}
+      {shareCardData ? (
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'fixed',
+            left: '-99999px',
+            top: 0,
+            pointerEvents: 'none',
+            zIndex: -1,
+          }}
+        >
+          <ShareableTeamsCard ref={shareCardRef} data={shareCardData} />
+        </div>
+      ) : null}
     </SafeTeamDisplayContext.Provider>
   );
 };

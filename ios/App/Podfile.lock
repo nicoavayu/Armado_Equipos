@@ -10,6 +10,9 @@ PODS:
   - CapacitorCommunityAppleSignIn (7.1.0):
     - Capacitor
   - CapacitorCordova (7.4.5)
+  - CapacitorFilesystem (7.1.8):
+    - Capacitor
+    - IONFilesystemLib (~> 1.1.1)
   - CapacitorGeolocation (7.1.7):
     - Capacitor
     - IONGeolocationLib (= 1.0.1)
@@ -131,6 +134,7 @@ PODS:
   - GoogleUtilities/UserDefaults (8.1.0):
     - GoogleUtilities/Logger
     - GoogleUtilities/Privacy
+  - IONFilesystemLib (1.1.2)
   - IONGeolocationLib (1.0.1)
   - nanopb (3.30910.0):
     - nanopb/decode (= 3.30910.0)
@@ -148,6 +152,7 @@ DEPENDENCIES:
   - "CapacitorCamera (from `../../node_modules/@capacitor/camera`)"
   - "CapacitorCommunityAppleSignIn (from `../../node_modules/@capacitor-community/apple-sign-in`)"
   - "CapacitorCordova (from `../../node_modules/@capacitor/ios`)"
+  - "CapacitorFilesystem (from `../../node_modules/@capacitor/filesystem`)"
   - "CapacitorGeolocation (from `../../node_modules/@capacitor/geolocation`)"
   - "CapacitorHaptics (from `../../node_modules/@capacitor/haptics`)"
   - "CapacitorKeyboard (from `../../node_modules/@capacitor/keyboard`)"
@@ -173,6 +178,7 @@ SPEC REPOS:
     - GoogleAppMeasurement
     - GoogleDataTransport
     - GoogleUtilities
+    - IONFilesystemLib
     - IONGeolocationLib
     - nanopb
     - PromisesObjC
@@ -191,6 +197,8 @@ EXTERNAL SOURCES:
     :path: "../../node_modules/@capacitor-community/apple-sign-in"
   CapacitorCordova:
     :path: "../../node_modules/@capacitor/ios"
+  CapacitorFilesystem:
+    :path: "../../node_modules/@capacitor/filesystem"
   CapacitorGeolocation:
     :path: "../../node_modules/@capacitor/geolocation"
   CapacitorHaptics:
@@ -213,6 +221,7 @@ SPEC CHECKSUMS:
   CapacitorCamera: 6746827d82376f31cea9224945c0458c9fd0b0b2
   CapacitorCommunityAppleSignIn: 271cb2860576fd2961508bbfa7a82117d93eadca
   CapacitorCordova: 31bbe4466000c6b86d9b7f1181ee286cff0205aa
+  CapacitorFilesystem: c63fc54df41e5a6761785a7f3c49dc696c22e296
   CapacitorGeolocation: bb6f441b53393984f1c4e8b7e4a826fe3e133309
   CapacitorHaptics: ce15be8f287fa2c61c7d2d9e958885b90cf0bebc
   CapacitorKeyboard: 5660c760113bfa48962817a785879373cf5339c3
@@ -232,11 +241,12 @@ SPEC CHECKSUMS:
   GoogleAppMeasurement: 700dce7541804bec33db590a5c496b663fbe2539
   GoogleDataTransport: aae35b7ea0c09004c3797d53c8c41f66f219d6a7
   GoogleUtilities: 00c88b9a86066ef77f0da2fab05f65d7768ed8e1
+  IONFilesystemLib: 21a63377696b2d8fab5632ecfb7d2ac67bddb68a
   IONGeolocationLib: 20f9d0248a0b5264511fb57a37e25dd2badf797a
   nanopb: fad817b59e0457d11a5dfbde799381cd727c1275
   PromisesObjC: f5707f49cb48b9636751c5b2e7d227e43fba9f47
   PromisesSwift: 9d77319bbe72ebf6d872900551f7eeba9bce2851
 
-PODFILE CHECKSUM: 226d6487495bdd165319a9c69596cad5adbe864a
+PODFILE CHECKSUM: a736b55ff0ef8fe6b9743eb187b8de3ad875dcf1
 
 COCOAPODS: 1.16.2
