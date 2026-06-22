@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { Browser } from '@capacitor/browser';
-import { Wallet, Copy, Check, ExternalLink, Bell, Lock } from 'lucide-react';
+import { Wallet, Copy, Check, Bell, Lock } from 'lucide-react';
 import { useAuth } from '../components/AuthProvider';
 import PageTitle from '../components/PageTitle';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -61,7 +60,7 @@ const STATUS_TEXT = {
   paid: 'text-[#86efac]',
   reported_paid: 'text-amber-300',
   exempt: 'text-[#bae6fd]',
-  pending: 'text-white/55',
+  pending: 'text-[#fda4af]',
 };
 
 const StatusPill = ({ status }) => {
@@ -114,7 +113,6 @@ const PaymentsView = () => {
   const [busyRow, setBusyRow] = useState(null); // jugador_id being mutated
   const [actionBusy, setActionBusy] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [aliasPayHint, setAliasPayHint] = useState(false);
 
   const [showEdit, setShowEdit] = useState(false);
   const [editForm, setEditForm] = useState({ amount: '', name: '', alias: '', link: '', collectorUserId: '' });
@@ -186,8 +184,10 @@ const PaymentsView = () => {
   const isClosed = Boolean(settings?.is_closed);
   const collectorName = (settings?.collector_name || '').trim();
   const collectorAlias = (settings?.collector_alias || '').trim();
+  // collectorLink se conserva tal cual en el guardado (no se expone ni se abre):
+  // este MVP no abre Mercado Pago web. El pago se hace copiando el alias.
   const collectorLink = (settings?.collector_payment_link || '').trim();
-  const hasCollector = Boolean(collectorAlias || collectorLink);
+  const hasCollector = Boolean(collectorAlias);
   const matchName = (partido?.nombre || '').trim() || 'el partido';
   const pendingCount = summary.pending + summary.reported;
 
@@ -276,15 +276,6 @@ const PaymentsView = () => {
     }
   };
 
-  const handlePayLink = async () => {
-    if (!collectorLink) return;
-    try {
-      await Browser.open({ url: collectorLink });
-    } catch (error) {
-      window.open(collectorLink, '_blank', 'noopener');
-    }
-  };
-
   const handleCopyAlias = async () => {
     if (!collectorAlias) return;
     try {
@@ -295,33 +286,6 @@ const PaymentsView = () => {
     } catch (error) {
       notifyBlockingError('No se pudo copiar el alias');
       return false;
-    }
-  };
-
-  // URL oficial de Mercado Pago. En dispositivos con la app instalada y universal
-  // links configurados puede abrir la app; si no, abre la web oficial. Es un
-  // destino seguro y documentado: NO usamos esquemas mercadopago:// no oficiales
-  // ni deep links de transferencia no documentados (ver docs/PAYMENTS_MERCADOPAGO.md).
-  const openMercadoPago = async () => {
-    const url = 'https://www.mercadopago.com.ar/';
-    try {
-      await Browser.open({ url });
-    } catch (error) {
-      try { window.open(url, '_blank', 'noopener'); } catch (_) { /* noop */ }
-    }
-  };
-
-  // "Pagar": 1) link oficial si existe; 2) si solo hay alias, copiamos el alias,
-  // avisamos y abrimos Mercado Pago (no hay deep link oficial que precargue el alias).
-  const handlePay = async () => {
-    if (collectorLink) {
-      await handlePayLink();
-      return;
-    }
-    if (collectorAlias) {
-      const ok = await handleCopyAlias();
-      if (ok) setAliasPayHint(true);
-      await openMercadoPago();
     }
   };
 
@@ -375,7 +339,6 @@ const PaymentsView = () => {
                   <div className="flex flex-col gap-0.5">
                     {collectorName ? <div className="text-[14px] text-white font-semibold">Cobra: {collectorName}</div> : null}
                     {collectorAlias ? <div className="text-[13px] text-white/75">Alias: <span className="font-semibold text-white">{collectorAlias}</span></div> : null}
-                    {collectorLink ? <div className="text-[13px] text-white/75 truncate">Link de Mercado Pago disponible</div> : null}
                   </div>
                 ) : (
                   <div className="text-[13px] text-white/60">El admin todavía no configuró a quién pagarle.</div>
@@ -406,29 +369,25 @@ const PaymentsView = () => {
                 <div className="text-[13px] text-[#86efac] font-semibold flex items-center gap-1.5"><Check size={14} /> Pago confirmado</div>
               ) : myRow.status === 'exempt' ? (
                 <div className="text-[13px] text-[#bae6fd] font-semibold">Estás exento de este pago</div>
-              ) : hasCollector ? (
+              ) : collectorAlias ? (
                 <div className="flex flex-col gap-2.5">
-                  <button type="button" className={`${PRIMARY_BTN} w-full`} onClick={handlePay}>
-                    {collectorLink
-                      ? <><ExternalLink size={16} /> Pagar con Mercado Pago</>
-                      : <><Wallet size={16} /> Pagar</>}
+                  <button type="button" className={`${PRIMARY_BTN} w-full`} onClick={handleCopyAlias}>
+                    {copied ? <><Check size={16} /> ¡Copiado!</> : <><Copy size={16} /> Copiar alias</>}
                   </button>
-                  {collectorAlias ? (
-                    <button type="button" className={`${SECONDARY_BTN} w-full`} onClick={handleCopyAlias}>
-                      {copied ? <><Check size={16} /> ¡Copiado!</> : <><Copy size={16} /> Copiar alias</>}
-                    </button>
-                  ) : null}
-                  {aliasPayHint && !collectorLink ? (
-                    <p className="text-[11.5px] text-[#cfc4ff]/80 leading-snug text-center px-1">
-                      Alias copiado. Abrí Mercado Pago y transferí a este alias.
-                    </p>
-                  ) : null}
+                  <p className="text-[11.5px] text-[#cfc4ff]/80 leading-snug text-center px-1">
+                    Copiá el alias y pagá desde tu app de preferencia.
+                  </p>
                   <button type="button" className={`${SECONDARY_BTN} w-full`} disabled={actionBusy} onClick={handleReportMine}>
                     Ya pagué
                   </button>
                 </div>
               ) : (
-                <div className="text-[13px] text-white/60">El admin todavía no configuró a quién pagarle.</div>
+                <div className="flex flex-col gap-2.5">
+                  <div className="text-[13px] text-white/60">Alias no configurado.</div>
+                  <button type="button" className={`${SECONDARY_BTN} w-full`} disabled={actionBusy} onClick={handleReportMine}>
+                    Ya pagué
+                  </button>
+                </div>
               )}
             </div>
           ) : null}
@@ -452,8 +411,14 @@ const PaymentsView = () => {
                     const meta = getPaymentStatusMeta(row.status);
                     const name = (row.player_name || '').trim() || 'Jugador';
                     const editable = isAdmin && !isClosed;
+                    // Deudor (debe / no pagó): realce rojo sutil — barra izq + tinte
+                    // muy bajo, sin desplazar el layout ni romper el resto de estados.
+                    const isDebt = row.status === 'pending';
                     return (
-                      <div key={row.id} className="flex items-center gap-2.5 py-2.5">
+                      <div
+                        key={row.id}
+                        className={`flex items-center gap-2.5 py-2.5 ${isDebt ? 'bg-[#f43f5e]/[0.06] shadow-[inset_3px_0_0_0_rgba(244,63,94,0.6)]' : ''}`}
+                      >
                         <PlayerAvatar name={name} dotClass={meta.dotClass} />
                         <div className="min-w-0 flex-1">
                           <span className="block truncate text-white font-oswald text-[14px] leading-tight">{name}</span>
@@ -560,11 +525,9 @@ const PaymentsView = () => {
             <SectionLabel>Alias de Mercado Pago</SectionLabel>
             <input className={INPUT_CLASS} placeholder="Ej: nico.mp" value={editForm.alias}
               onChange={(e) => setEditForm((f) => ({ ...f, alias: e.target.value }))} />
-          </div>
-          <div>
-            <SectionLabel>Link de Mercado Pago (opcional)</SectionLabel>
-            <input className={INPUT_CLASS} placeholder="https://..." value={editForm.link}
-              onChange={(e) => setEditForm((f) => ({ ...f, link: e.target.value }))} />
+            <p className="mt-1.5 text-[11.5px] text-white/45 leading-snug">
+              Los jugadores copian el alias y pagan desde su app de preferencia.
+            </p>
           </div>
         </div>
       </Modal>

@@ -164,9 +164,17 @@ export const adminRemindPending = async (partidoId, { matchName = '' } = {}) => 
   const { data, error } = await supabase.rpc('admin_remind_pending_payments', { p_partido_id: matchId });
   if (error) throw error;
 
+  // No self-reminder: el admin que ejecuta la acción nunca se notifica/pushea a
+  // sí mismo, aunque figure como pendiente (puede deber legítimamente). El push
+  // se encola al insertar la notificación 'payment_reminder', así que excluirlo
+  // de los destinatarios evita tanto el push como la notificación interna propia.
+  const { data: authData } = await supabase.auth.getUser();
+  const me = String(authData?.user?.id || '').trim();
+
   const recipients = [...new Set((data || [])
     .map((row) => String(row?.user_id || '').trim())
-    .filter(Boolean))];
+    .filter(Boolean))]
+    .filter((uid) => !me || uid !== me);
   if (recipients.length === 0) return { ok: true, notified: 0 };
 
   let name = matchName;

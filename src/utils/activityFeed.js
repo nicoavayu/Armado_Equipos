@@ -921,7 +921,7 @@ const toActivityFromNotification = (group, match, currentUserId) => {
       ...base,
       icon: 'ClipboardList',
       title: surveyTitle,
-      subtitle: compactText(surveySubtitle || matchName, 46, 'Completá tu encuesta'),
+      subtitle: compactText(surveySubtitle || matchName, 46, 'Respondé la encuesta'),
       route: surveyRoute,
     };
   }

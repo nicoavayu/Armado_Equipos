@@ -1339,21 +1339,25 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                                         </span>
                                       )}
                                     </div>
+                                    {/* Nombre SIEMPRE en una línea (nunca 2): truncate elegante.
+                                        Con promedios visibles reservamos el rincón inferior derecho
+                                        para el chip, así no se pisan. */}
                                     <span
-                                      className="font-oswald text-[13.5px] font-semibold text-white flex-1 tracking-wide min-w-0 leading-[1.12] pr-1 line-clamp-2 break-words"
+                                      className={`font-oswald text-[13.5px] font-semibold text-white flex-1 tracking-wide min-w-0 leading-[1.12] truncate ${showAverages && isAdmin ? 'pr-7' : 'pr-1'}`}
                                     >
                                       {player.nombre}
                                     </span>
 
+                                    {/* Promedio: metadata secundaria, chip chico anclado abajo a la
+                                        derecha de la card (pointer-events-none: no interfiere drag). */}
                                     {showAverages && isAdmin && (
                                       <span
-                                        className="a2-pop font-bebas text-[11px] font-bold text-white px-1.5 py-0.5 shrink-0 whitespace-nowrap leading-none"
+                                        className="a2-pop pointer-events-none absolute bottom-1 right-1.5 font-bebas text-[10px] font-bold text-white px-1.5 py-[1px] whitespace-nowrap leading-none rounded-[5px] shadow-[0_1px_3px_rgba(0,0,0,0.4)]"
                                         style={{
                                           background: getScoreColor(player.score),
                                           borderWidth: '1px',
                                           borderStyle: 'solid',
                                           borderColor: getScoreColor(player.score).replace('0.9', '0.5'),
-                                          borderRadius: 5,
                                         }}
                                       >
                                         {(player.score || 0).toFixed(1)}

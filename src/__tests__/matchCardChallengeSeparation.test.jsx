@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import MatchCard from '../components/MatchCard';
 
 const basePartido = {
@@ -57,5 +57,43 @@ describe('MatchCard challenge/friendly separation', () => {
     );
 
     expect(screen.getByText('Amistoso')).toBeInTheDocument();
+  });
+});
+
+describe('MatchCard "Limpiar partido" contract', () => {
+  // Regresión: el handler de ProximosPartidos espera recibir el partido como
+  // PRIMER argumento (onClear(partido)). Si MatchCard cambia a onClear(e, partido)
+  // el partidoTarget queda undefined, el modal abre pero la card nunca se oculta.
+  test('clicking "Limpiar partido" calls onClear with the partido as the first arg', () => {
+    const onClear = jest.fn();
+    const partido = { ...basePartido, id: 42, source_type: 'legacy_match' };
+
+    render(
+      <MatchCard
+        partido={partido}
+        isFinished
+        isMenuOpen
+        onClear={onClear}
+      />,
+    );
+
+    fireEvent.click(screen.getByText('Limpiar partido'));
+
+    expect(onClear).toHaveBeenCalledTimes(1);
+    expect(onClear.mock.calls[0][0]).toBe(partido);
+  });
+
+  test('does not render "Limpiar partido" for unfinished matches', () => {
+    const onClear = jest.fn();
+
+    render(
+      <MatchCard
+        partido={{ ...basePartido, id: 7, source_type: 'legacy_match' }}
+        isMenuOpen
+        onClear={onClear}
+      />,
+    );
+
+    expect(screen.queryByText('Limpiar partido')).not.toBeInTheDocument();
   });
 });
