@@ -29,7 +29,7 @@ const ShareButton = ({
 
   const shareWhatsApp = () => {
     const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(url)}`;
-    window.open(whatsappUrl, '_blank');
+    window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
   };
 
   return (
