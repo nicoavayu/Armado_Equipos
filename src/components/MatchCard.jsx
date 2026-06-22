@@ -1,6 +1,5 @@
 import React from 'react';
-import { FaCrown } from 'react-icons/fa';
-import { MoreVertical, LogOut, UserRoundPlus, XCircle, EyeOff } from 'lucide-react';
+import { MoreVertical, LogOut, UserRoundPlus, XCircle, EyeOff, Crown } from 'lucide-react';
 
 const normalizeToken = (value) => String(value || '')
     .normalize('NFD')
@@ -157,7 +156,7 @@ const MatchCard = ({
                         </div>
                     ) : userRole === 'admin' ? (
                         <div className="flex items-center gap-1 bg-[#0EA9C6]/10 px-2.5 py-1 rounded-full text-[10px] font-bold shrink-0 border border-[#0EA9C6]/50">
-                            <FaCrown size={10} color="#2fc5e2" style={{ marginRight: '1px' }} />
+                            <Crown size={10} color="#2fc5e2" style={{ marginRight: '1px' }} />
                             <span className="font-bold uppercase tracking-[0.06em] text-[#7fdef0]">Admin</span>
                         </div>
                     ) : null}

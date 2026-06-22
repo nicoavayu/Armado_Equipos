@@ -1,4 +1,4 @@
-import { HiMiniChatBubbleOvalLeft } from 'react-icons/hi2';
+import { MessageCircle } from 'lucide-react';
 import { toSentenceCase } from '../utils/textCase';
 
 /**
@@ -84,7 +84,7 @@ const PageTitle = ({
               }}
               aria-label="Abrir chat"
             >
-              <HiMiniChatBubbleOvalLeft className="w-6 h-6 md:w-5 md:h-5" />
+              <MessageCircle className="w-6 h-6 md:w-5 md:h-5" />
               {unreadCount > 0 && (
                 <span className="absolute -top-1 -right-1 bg-[#128BE9] text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5 shadow-lg">
                   {unreadCount > 99 ? '99+' : unreadCount}
@@ -105,7 +105,7 @@ const PageTitle = ({
             }}
             aria-label="Abrir chat"
           >
-            <HiMiniChatBubbleOvalLeft className="w-6 h-6 md:w-5 md:h-5" />
+            <MessageCircle className="w-6 h-6 md:w-5 md:h-5" />
 
             {/* Badge de mensajes sin leer */}
             {unreadCount > 0 && (
