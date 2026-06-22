@@ -1,3 +1,4 @@
+import logger from '../../utils/logger';
 import { supabase } from '../../lib/supabaseClient';
 
 const isValidUUID = (value) => {
@@ -41,7 +42,7 @@ const pickBestAvatarUrl = (...candidates) => {
 export const getAmigos = async (userId) => {
   if (!userId) return [];
 
-  console.log('[GET_AMIGOS] Fetching friends for user:', userId);
+  logger.log('[GET_AMIGOS] Fetching friends for user:', userId);
 
   try {
     // 1. Traer relaciones donde user_id = userId y status = "accepted"
@@ -78,10 +79,10 @@ export const getAmigos = async (userId) => {
       }
     }
 
-    console.log('[GET_AMIGOS] userId:', userId, 'friendCount:', uniqueFriendMappings.length);
+    logger.log('[GET_AMIGOS] userId:', userId, 'friendCount:', uniqueFriendMappings.length);
 
     if (uniqueFriendMappings.length === 0) {
-      console.log('[GET_AMIGOS] No friends found');
+      logger.log('[GET_AMIGOS] No friends found');
       return [];
     }
 
@@ -91,7 +92,7 @@ export const getAmigos = async (userId) => {
       .filter((id) => isValidUUID(String(id || '')));
 
     if (friendIds.length === 0) {
-      console.warn('[GET_AMIGOS] No valid UUID friend IDs found in mappings');
+      logger.warn('[GET_AMIGOS] No valid UUID friend IDs found in mappings');
       return [];
     }
 
@@ -135,10 +136,10 @@ export const getAmigos = async (userId) => {
 
     if (usersError) throw usersError;
     if (profilesError) {
-      console.warn('[GET_AMIGOS] Error fetching profiles avatar fallback:', profilesError);
+      logger.warn('[GET_AMIGOS] Error fetching profiles avatar fallback:', profilesError);
     }
     if (jugadoresError) {
-      console.warn('[GET_AMIGOS] Error fetching jugadores avatar fallback:', jugadoresError);
+      logger.warn('[GET_AMIGOS] Error fetching jugadores avatar fallback:', jugadoresError);
     }
 
     const userById = new Map((users || []).map((u) => [u.id, u]));
@@ -175,12 +176,12 @@ export const getAmigos = async (userId) => {
     }).filter(f => f !== null && f.id);
 
     const withAvatar = friendsWithRelationships.filter((friend) => Boolean(friend.avatar_url)).length;
-    console.log('[GET_AMIGOS] Returning friends with relationship IDs:', friendsWithRelationships.length, 'with avatar:', withAvatar);
+    logger.log('[GET_AMIGOS] Returning friends with relationship IDs:', friendsWithRelationships.length, 'with avatar:', withAvatar);
 
     return friendsWithRelationships || [];
 
   } catch (err) {
-    console.error('[GET_AMIGOS] Error fetching friends:', err);
+    logger.error('[GET_AMIGOS] Error fetching friends:', err);
     throw err;
   }
 };
@@ -219,7 +220,7 @@ export const getRelationshipStatus = async (userId, friendId) => {
 
     return reverseData;
   } catch (err) {
-    console.error('Error getting relationship status:', err);
+    logger.error('Error getting relationship status:', err);
     return null;
   }
 };
@@ -257,7 +258,7 @@ export const sendFriendRequest = async (userId, friendId) => {
 
     return { success: true, data };
   } catch (err) {
-    console.error('Error sending friend request:', err);
+    logger.error('Error sending friend request:', err);
     return { success: false, message: err.message };
   }
 };
@@ -280,7 +281,7 @@ export const acceptFriendRequest = async (requestId) => {
 
     return { success: true, data };
   } catch (err) {
-    console.error('Error accepting friend request:', err);
+    logger.error('Error accepting friend request:', err);
     return { success: false, message: err.message };
   }
 };
@@ -303,7 +304,7 @@ export const rejectFriendRequest = async (requestId) => {
 
     return { success: true, data };
   } catch (err) {
-    console.error('Error rejecting friend request:', err);
+    logger.error('Error rejecting friend request:', err);
     return { success: false, message: err.message };
   }
 };
@@ -315,7 +316,7 @@ export const rejectFriendRequest = async (requestId) => {
  */
 export const removeFriend = async (friendshipId) => {
   try {
-    console.log('[REMOVE_FRIEND] Attempting to delete friendship with ID:', friendshipId);
+    logger.log('[REMOVE_FRIEND] Attempting to delete friendship with ID:', friendshipId);
 
     // Primero obtener la relación para saber quiénes son user_id y friend_id
     const { data: relationship, error: fetchError } = await supabase
@@ -325,16 +326,16 @@ export const removeFriend = async (friendshipId) => {
       .single();
 
     if (fetchError) {
-      console.error('[REMOVE_FRIEND] Error fetching relationship:', fetchError);
+      logger.error('[REMOVE_FRIEND] Error fetching relationship:', fetchError);
       throw fetchError;
     }
 
     if (!relationship) {
-      console.error('[REMOVE_FRIEND] Relationship not found');
+      logger.error('[REMOVE_FRIEND] Relationship not found');
       throw new Error('Relación de amistad no encontrada');
     }
 
-    console.log('[REMOVE_FRIEND] Found relationship:', {
+    logger.log('[REMOVE_FRIEND] Found relationship:', {
       userId: relationship.user_id,
       friendId: relationship.friend_id,
     });
@@ -347,11 +348,11 @@ export const removeFriend = async (friendshipId) => {
       .select();
 
     if (deleteError) {
-      console.error('[REMOVE_FRIEND] Error deleting relationships:', deleteError);
+      logger.error('[REMOVE_FRIEND] Error deleting relationships:', deleteError);
       throw deleteError;
     }
 
-    console.log('[REMOVE_FRIEND] Delete operation result:', {
+    logger.log('[REMOVE_FRIEND] Delete operation result:', {
       deletedCount: deletedData?.length || 0,
       deletedRecords: deletedData,
     });
@@ -363,15 +364,15 @@ export const removeFriend = async (friendshipId) => {
       .or(`and(user_id.eq.${relationship.user_id},friend_id.eq.${relationship.friend_id}),and(user_id.eq.${relationship.friend_id},friend_id.eq.${relationship.user_id})`);
 
     if (checkError) {
-      console.error('[REMOVE_FRIEND] Error checking deletion:', checkError);
+      logger.error('[REMOVE_FRIEND] Error checking deletion:', checkError);
     } else {
-      console.log('[REMOVE_FRIEND] Verification check - records still exist:', stillExists?.length || 0, stillExists);
+      logger.log('[REMOVE_FRIEND] Verification check - records still exist:', stillExists?.length || 0, stillExists);
     }
 
-    console.log('[REMOVE_FRIEND] Successfully deleted all relationships between users');
+    logger.log('[REMOVE_FRIEND] Successfully deleted all relationships between users');
     return { success: true };
   } catch (err) {
-    console.error('[REMOVE_FRIEND] Error removing friend:', err);
+    logger.error('[REMOVE_FRIEND] Error removing friend:', err);
     return { success: false, message: err.message };
   }
 };
@@ -406,7 +407,7 @@ export const getPendingRequests = async (userId) => {
       profile: item.jugadores,
     }));
   } catch (err) {
-    console.error('Error fetching pending requests:', err);
+    logger.error('Error fetching pending requests:', err);
     return [];
   }
 };

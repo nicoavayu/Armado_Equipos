@@ -1,3 +1,4 @@
+import logger from './logger';
 import { supabase } from '../supabase';
 
 /**
@@ -54,7 +55,7 @@ export const createCallToVoteNotifications = async (matchData) => {
     if (error) throw error;
     return data || [];
   } catch (error) {
-    console.error('Error creando notificaciones de llamado a votar:', error);
+    logger.error('Error creando notificaciones de llamado a votar:', error);
     return [];
   }
 };
@@ -92,7 +93,7 @@ export const schedulePostMatchSurveyNotifications = async (matchData) => {
     
     return true;
   } catch (error) {
-    console.error('Error programando notificaciones de encuesta post-partido:', error);
+    logger.error('Error programando notificaciones de encuesta post-partido:', error);
     return false;
   }
 };

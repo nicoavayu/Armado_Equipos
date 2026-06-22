@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 // src/components/MatchChat.js
 import React, { useCallback, useState, useEffect, useRef } from 'react';
@@ -382,7 +383,7 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
         setTeamColorByAuthorName(nameColorMap);
       } catch (error) {
         if (!active) return;
-        console.warn('[MATCH_CHAT] No se pudieron resolver colores por equipo. Fallback por jugador.', error);
+        logger.warn('[MATCH_CHAT] No se pudieron resolver colores por equipo. Fallback por jugador.', error);
         setTeamColorByUserId({});
         setTeamColorByAuthorName({});
       }
@@ -459,7 +460,7 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
 
       return await loadPromiseRef.current;
     } catch (error) {
-      console.error('Error fetching messages:', error);
+      logger.error('Error fetching messages:', error);
       if (!silent) {
         notifyBlockingError('No se pudieron cargar los mensajes del chat.');
       }
@@ -588,7 +589,7 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
             result,
           });
         } catch (broadcastError) {
-          console.warn('Match chat broadcast send failed', broadcastError);
+          logger.warn('Match chat broadcast send failed', broadcastError);
         }
       }
 

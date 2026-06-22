@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import { supabase } from '../supabase';
 import {
   canTeamReportChallengeResult,
@@ -260,7 +261,7 @@ export const filterResolvedChallengeResultSurveyNotifications = async (
       return !loadedIds.has(teamMatchId);
     });
   } catch (error) {
-    console.warn('[CHALLENGE_RESULT_NOTIFICATIONS] resolved filter failed:', error);
+    logger.warn('[CHALLENGE_RESULT_NOTIFICATIONS] resolved filter failed:', error);
     return rows;
   }
 };

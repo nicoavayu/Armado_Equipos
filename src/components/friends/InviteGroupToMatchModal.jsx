@@ -1,3 +1,4 @@
+import logger from '../../utils/logger';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import Modal from '../Modal';
@@ -196,7 +197,7 @@ const InviteGroupToMatchModal = ({
           setSelectedMatchId(firstAvailable.id);
         }
       } catch (error) {
-        console.error('[PRIVATE_GROUPS] Error loading admin matches:', error);
+        logger.error('[PRIVATE_GROUPS] Error loading admin matches:', error);
         if (cancelled) return;
         setLoadError(error?.message || 'No se pudieron cargar tus partidos.');
         setMatches([]);
@@ -371,7 +372,7 @@ const InviteGroupToMatchModal = ({
         onClose?.();
       }
     } catch (error) {
-      console.error('[PRIVATE_GROUPS] Error inviting group to match:', error);
+      logger.error('[PRIVATE_GROUPS] Error inviting group to match:', error);
       handleInviteRpcError(error);
     } finally {
       setInviting(false);

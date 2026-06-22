@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../supabase';
@@ -438,7 +439,7 @@ const getOrCreateGuestJoinIdentity = (matchId) => {
       persisted: true,
     };
   } catch (error) {
-    console.warn('[INVITE] guest identity storage unavailable', error);
+    logger.warn('[INVITE] guest identity storage unavailable', error);
     return {
       storageKey,
       legacyStorageKey,
@@ -456,7 +457,7 @@ const persistGuestJoinIdentity = (storageKey, guestUuid, legacyStorageKey = null
       localStorage.setItem(legacyStorageKey, guestUuid);
     }
   } catch (error) {
-    console.warn('[INVITE] guest identity persist failed', error);
+    logger.warn('[INVITE] guest identity persist failed', error);
   }
 };
 const PLACEHOLDER_NUMBER_STYLE = {
@@ -1022,7 +1023,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       }
       setGuestPhotoDataUrl(dataUrl);
     } catch (err) {
-      console.error('[INVITE] photo parse error:', err);
+      logger.error('[INVITE] photo parse error:', err);
       showInlineNotice('warning', 'No se pudo procesar la foto.');
     } finally {
       event.target.value = '';
@@ -1111,7 +1112,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
     });
 
     if (latestRequestError) {
-      console.error('Public match realtime refresh error', latestRequestError);
+      logger.error('Public match realtime refresh error', latestRequestError);
       return previousStatus;
     }
 
@@ -1258,7 +1259,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
             // Check if this request is stale
             if (reqId !== reqIdRef.current) return;
 
-            if (reqErr) console.error('[INVITE_PUBLIC] request check error', reqErr);
+            if (reqErr) logger.error('[INVITE_PUBLIC] request check error', reqErr);
 
             const requestStatus = normalizeJoinRequestStatus(request?.status);
 
@@ -1312,7 +1313,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
             return;
           }
         } catch (inviteValidationError) {
-          console.error('[INVITE] guest invite prevalidation failed', inviteValidationError);
+          logger.error('[INVITE] guest invite prevalidation failed', inviteValidationError);
         }
       }
 
@@ -1382,7 +1383,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
 
           setLoading(false);
         } catch (err) {
-          console.error('Invite no-code fallback failed', err);
+          logger.error('Invite no-code fallback failed', err);
           if (reqId === reqIdRef.current) {
             setError('Partido no encontrado');
             setLoading(false);
@@ -1641,7 +1642,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
     try {
       await openMatchCalendarInvite(partido);
     } catch (error) {
-      console.error('[CALENDAR_ICS] Error creating calendar file', error);
+      logger.error('[CALENDAR_ICS] Error creating calendar file', error);
       notifyBlockingError('No se pudo agregar el partido al calendario');
     }
   };
@@ -1779,7 +1780,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           limit: 20,
         });
       } catch (dispatchError) {
-        console.error('[JOIN_REQUEST] immediate dispatch failed after DB notification insert', {
+        logger.error('[JOIN_REQUEST] immediate dispatch failed after DB notification insert', {
           matchId: Number(partidoId),
           requestId: newRequest?.id || null,
           adminUserId: partido?.creado_por || null,
@@ -1893,7 +1894,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       await refreshPublicJoinStateFromBackend();
     } catch (err) {
       suppressRejectedJoinNoticeRef.current = false;
-      console.error('[CANCELAR_SOLICITUD] Error canceling pending request:', {
+      logger.error('[CANCELAR_SOLICITUD] Error canceling pending request:', {
         code: err?.code,
         message: err?.message,
         details: err?.details,
@@ -1906,7 +1907,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
   };
 
   const handleSumarseConCuenta = async (skipScheduleWarning = false) => {
-    console.info('[AUTH] invite_account_cta', {
+    logger.info('[AUTH] invite_account_cta', {
       source: 'PartidoInvitacion',
       hasUser: Boolean(user),
       partidoId: Number(partidoId),
@@ -1918,7 +1919,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
     if (!user) {
       // Redirigir a login y volver a esta URL después
       const currentUrl = window.location.pathname + window.location.search;
-      console.info('[AUTH] invite_account_cta_redirect_login', {
+      logger.info('[AUTH] invite_account_cta_redirect_login', {
         source: 'PartidoInvitacion',
         currentUrl,
         targetLoginRoute: `/login?returnTo=${encodeURIComponent(currentUrl)}`,
@@ -1951,7 +1952,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           return;
         }
       } catch (inviteAccessError) {
-        console.error('[SUMARSE_CON_CUENTA] invite access check failed:', inviteAccessError);
+        logger.error('[SUMARSE_CON_CUENTA] invite access check failed:', inviteAccessError);
       }
     }
 
@@ -1975,7 +1976,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
         return;
       }
     } catch (err) {
-      console.error('[SUMARSE_CON_CUENTA] schedule check error', err);
+      logger.error('[SUMARSE_CON_CUENTA] schedule check error', err);
       showInlineNotice('warning', 'No se pudo validar el conflicto de horario.');
       return;
     }
@@ -1998,7 +1999,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
             status: 'accepted',
           });
         } catch (markInviteError) {
-          console.error('[SUMARSE_CON_CUENTA] Error marking existing invite as accepted:', markInviteError);
+          logger.error('[SUMARSE_CON_CUENTA] Error marking existing invite as accepted:', markInviteError);
         }
         if (mode === 'invite') {
           navigate(buildPostJoinRoute());
@@ -2039,7 +2040,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           status: 'accepted',
         });
       } catch (markInviteError) {
-        console.error('[SUMARSE_CON_CUENTA] Error marking invite as accepted:', markInviteError);
+        logger.error('[SUMARSE_CON_CUENTA] Error marking invite as accepted:', markInviteError);
       }
 
       const resolvedName = userData?.nombre || user.email?.split('@')[0] || 'Jugador';
@@ -2072,7 +2073,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
         openJoinSuccessModal(joinSuccessConfig || undefined);
       }
     } catch (err) {
-      console.error('[PartidoInvitacion] Error sumando con cuenta:', err);
+      logger.error('[PartidoInvitacion] Error sumando con cuenta:', err);
       notifyBlockingError('No se pudo sumar al partido');
     } finally {
       setSubmitting(false);
@@ -2102,7 +2103,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
     const anonKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
     if (!supabaseUrl || !anonKey) {
       if (process.env.NODE_ENV === 'development') {
-        console.error('[INVITE] Missing env', { supabaseUrl: !!supabaseUrl, anonKey: !!anonKey });
+        logger.error('[INVITE] Missing env', { supabaseUrl: !!supabaseUrl, anonKey: !!anonKey });
       }
       showInlineNotice('warning', 'No se pudo validar la invitación. Reintentá en unos minutos.');
       return;
@@ -2142,7 +2143,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
 
       if (!response.ok) {
         // Log completo para debug
-        console.error('[INVITE] join-match-guest error', { status: response.status, result });
+        logger.error('[INVITE] join-match-guest error', { status: response.status, result });
         const reason = String(result?.reason || result?.code || '').toLowerCase();
         if (reason === 'invalid_code' || reason === 'invalidcode') {
           showInlineNotice('warning', 'Código inválido o vencido.');
@@ -2215,7 +2216,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           : `${guestName}, te sumaste al partido.`,
       );
     } catch (err) {
-      console.error('[PartidoInvitacion] Error sumando como invitado:', err);
+      logger.error('[PartidoInvitacion] Error sumando como invitado:', err);
       notifyBlockingError(err.message || 'No se pudo sumar al partido');
     } finally {
       setSubmitting(false);

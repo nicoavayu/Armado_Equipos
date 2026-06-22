@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import { supabase } from '../supabase';
 
 /**
@@ -50,7 +51,7 @@ export const recordAbsenceNotification = async (userId, partidoId, reason = '', 
 
     if (error) throw error;
 
-    console.log('[ABSENCE] Recorded absence notification:', {
+    logger.log('[ABSENCE] Recorded absence notification:', {
       userId,
       partidoId,
       notifiedInTime,
@@ -66,7 +67,7 @@ export const recordAbsenceNotification = async (userId, partidoId, reason = '', 
     };
 
   } catch (error) {
-    console.error('[ABSENCE] Error recording absence:', error);
+    logger.error('[ABSENCE] Error recording absence:', error);
     throw error;
   }
 };
@@ -95,7 +96,7 @@ export const getPlayerAbsenceData = async (userId, partidoId) => {
     return data;
 
   } catch (error) {
-    console.error('[ABSENCE] Error getting absence data:', error);
+    logger.error('[ABSENCE] Error getting absence data:', error);
     return null;
   }
 };
@@ -119,7 +120,7 @@ export const shouldApplyAbsencePenalty = async (userId, partidoId) => {
     return !absenceData.notified_in_time && !absenceData.found_replacement;
 
   } catch (error) {
-    console.error('[ABSENCE] Error checking penalty eligibility:', error);
+    logger.error('[ABSENCE] Error checking penalty eligibility:', error);
     // Default to applying penalty if we can't determine
     return true;
   }
@@ -154,7 +155,7 @@ export const getAbsenceDataForSurveyProcessing = async (partidoId, absentPlayerI
     return absenceData;
 
   } catch (error) {
-    console.error('[ABSENCE] Error getting absence data for survey processing:', error);
+    logger.error('[ABSENCE] Error getting absence data for survey processing:', error);
     // Return default penalty data if we can't get absence info
     const defaultData = {};
     absentPlayerIds.forEach((playerId) => {

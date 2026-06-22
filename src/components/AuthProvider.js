@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useState, useEffect, createContext, useContext, useCallback, useRef } from 'react';
 import { supabase, getProfile, createOrUpdateProfile } from '../supabase';
 import AppLoadingScreen from './AppLoadingScreen';
@@ -150,25 +151,25 @@ const AuthProvider = ({ children }) => {
           ]);
 
           if (updateUsuarioError) {
-            console.warn('[AUTH] Could not hydrate usuarios.avatar_url from metadata:', updateUsuarioError);
+            logger.warn('[AUTH] Could not hydrate usuarios.avatar_url from metadata:', updateUsuarioError);
           } else {
             profileData = { ...profileData, avatar_url: metadataAvatar };
           }
 
           if (updateProfileError) {
-            console.warn('[AUTH] Could not hydrate profiles.avatar_url from metadata:', updateProfileError);
+            logger.warn('[AUTH] Could not hydrate profiles.avatar_url from metadata:', updateProfileError);
           }
         }
       } catch (error) {
         // Only create profile when PostgREST returned "no rows" (PGRST116).
         // For any other error (SQL, missing column 42703, network, etc.) log and stop.
-        console.error('Error fetching profile from getProfile:', error);
+        logger.error('Error fetching profile from getProfile:', error);
         const code = error?.code || error?.status || null;
         if (code === 'PGRST116' || code === 116) {
           profileData = await createOrUpdateProfile(currentUser);
         } else {
           // Unexpected error: do NOT try to create a profile or continue — stop to avoid loops/rate limits.
-          console.error('Unexpected error fetching profile, aborting profile creation to avoid loops:', error);
+          logger.error('Unexpected error fetching profile, aborting profile creation to avoid loops:', error);
           setProfile(null);
           return;
         }
@@ -176,7 +177,7 @@ const AuthProvider = ({ children }) => {
 
       setProfile(profileData);
     } catch (error) {
-      console.error('Error with profile:', error);
+      logger.error('Error with profile:', error);
       setProfile(null);
     }
   };
@@ -223,7 +224,7 @@ const AuthProvider = ({ children }) => {
           setUser(session.user);
           setLoading(false);
           Promise.resolve(fetchProfile(session.user)).catch((profileError) => {
-            console.error('[AUTH] Error fetching profile during init:', profileError);
+            logger.error('[AUTH] Error fetching profile during init:', profileError);
           });
         } else if (LOCAL_EDIT_MODE) {
           let activated = false;
@@ -234,14 +235,14 @@ const AuthProvider = ({ children }) => {
               setUser(data.user);
               setLoading(false);
               Promise.resolve(fetchProfile(data.user)).catch((profileError) => {
-                console.error('[AUTH] Error fetching anonymous profile:', profileError);
+                logger.error('[AUTH] Error fetching anonymous profile:', profileError);
               });
               activated = true;
             } else if (error) {
-              console.warn('[AUTH] Anonymous sign-in unavailable:', error.message);
+              logger.warn('[AUTH] Anonymous sign-in unavailable:', error.message);
             }
           } catch (anonError) {
-            console.warn('[AUTH] Anonymous sign-in failed:', anonError);
+            logger.warn('[AUTH] Anonymous sign-in failed:', anonError);
           }
           if (!mounted) return;
           if (!activated) {
@@ -254,7 +255,7 @@ const AuthProvider = ({ children }) => {
           setLoading(false);
         }
       } catch (error) {
-        console.error('[AUTH] Error getting initial session:', error);
+        logger.error('[AUTH] Error getting initial session:', error);
         if (!mounted) return;
         if (LOCAL_EDIT_MODE) {
           activateLocalDevSession();
@@ -277,7 +278,7 @@ const AuthProvider = ({ children }) => {
         setUser(session.user);
         setLoading(false);
         Promise.resolve(fetchProfile(session.user)).catch((profileError) => {
-          console.error('[AUTH] Error fetching profile on auth change:', profileError);
+          logger.error('[AUTH] Error fetching profile on auth change:', profileError);
         });
       } else if (LOCAL_EDIT_MODE) {
         activateLocalDevSession();

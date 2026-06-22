@@ -1,3 +1,4 @@
+import logger from './logger';
 import { supabase } from '../supabase';
 import { getPublicBaseUrl } from './publicBaseUrl';
 
@@ -27,12 +28,12 @@ export const resolveMatchCode = async (partido) => {
       .eq('id', matchId)
       .maybeSingle();
     if (error) {
-      console.error('[shareVotingLink] Could not fetch match code from DB:', error);
+      logger.error('[shareVotingLink] Could not fetch match code from DB:', error);
       return null;
     }
     return normalizeMatchCode(data?.codigo);
   } catch (error) {
-    console.error('[shareVotingLink] Unexpected error resolving match code:', error);
+    logger.error('[shareVotingLink] Unexpected error resolving match code:', error);
     return null;
   }
 };
@@ -52,7 +53,7 @@ export const ensurePublicVotingMarker = async ({ matchId, adminUserId, matchCode
       .limit(1);
 
     if (lookupError) {
-      console.warn('[shareVotingLink] Could not check public voting marker:', lookupError);
+      logger.warn('[shareVotingLink] Could not check public voting marker:', lookupError);
     }
 
     if (existingRows && existingRows.length > 0) {
@@ -77,10 +78,10 @@ export const ensurePublicVotingMarker = async ({ matchId, adminUserId, matchCode
       }]);
 
     if (insertError) {
-      console.warn('[shareVotingLink] Could not create public voting marker:', insertError);
+      logger.warn('[shareVotingLink] Could not create public voting marker:', insertError);
     }
   } catch (error) {
-    console.warn('[shareVotingLink] Unexpected error creating public voting marker:', error);
+    logger.warn('[shareVotingLink] Unexpected error creating public voting marker:', error);
   }
 };
 

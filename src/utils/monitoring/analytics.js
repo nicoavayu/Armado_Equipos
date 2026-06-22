@@ -1,3 +1,4 @@
+import logger from '../logger';
 import posthog from 'posthog-js';
 
 const isBrowser = typeof window !== 'undefined';
@@ -24,7 +25,7 @@ let enabled = false;
 const debugLog = (...args) => {
   if (!isDebug) return;
   // eslint-disable-next-line no-console
-  console.info('[monitoring:analytics]', ...args);
+  logger.info('[monitoring:analytics]', ...args);
 };
 
 const cleanProps = (props = {}) => {
@@ -94,7 +95,7 @@ export const track = (event, props = {}) => {
   const payload = cleanProps(props);
   if (isDebug) {
     // eslint-disable-next-line no-console
-    console.info('[monitoring:analytics:track]', event, payload);
+    logger.info('[monitoring:analytics:track]', event, payload);
   }
   posthogClient.capture(event, payload);
 };

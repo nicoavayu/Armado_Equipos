@@ -1,3 +1,4 @@
+import logger from '../../utils/logger';
 /**
  * Supabase API Client (Unified)
  *
@@ -68,7 +69,7 @@ export const subscribeToChanges = (callback) => {
     .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
       try {
         // eslint-disable-next-line no-console
-        console.log('[SUPABASE_CHANGE]', payload);
+        logger.log('[SUPABASE_CHANGE]', payload);
       } catch {
         // Log failed, continue anyway
       }

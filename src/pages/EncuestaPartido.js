@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
@@ -1551,7 +1552,7 @@ const EncuestaPartido = () => {
           // Intentionally ignored: notification refresh failure shouldn't block survey.
         }
       } catch (error) {
-        console.error('[MARK_NOTIF_READ] Error:', error);
+        logger.error('[MARK_NOTIF_READ] Error:', error);
       }
     };
 
@@ -1795,7 +1796,7 @@ const EncuestaPartido = () => {
       }
 
       if (updateError) {
-        console.error('[SURVEY_TEAMS] Direct update fallback failed', {
+        logger.error('[SURVEY_TEAMS] Direct update fallback failed', {
           code: updateError?.code || null,
           message: updateError?.message || null,
           details: updateError?.details || null,
@@ -1803,7 +1804,7 @@ const EncuestaPartido = () => {
         });
       }
     } catch (fallbackUpdateError) {
-      console.error('[SURVEY_TEAMS] Direct update fallback exception', fallbackUpdateError);
+      logger.error('[SURVEY_TEAMS] Direct update fallback exception', fallbackUpdateError);
     }
 
     try {
@@ -1837,7 +1838,7 @@ const EncuestaPartido = () => {
         }
       }
     } catch (fallbackReadError) {
-      console.error('[SURVEY_TEAMS] Fallback read check failed', fallbackReadError);
+      logger.error('[SURVEY_TEAMS] Fallback read check failed', fallbackReadError);
     }
 
     return { ok: false, reason: 'direct_fallback_failed' };
@@ -1897,7 +1898,7 @@ const EncuestaPartido = () => {
     const teamBCompatRefs = buildPersistRefs(finalTeams.teamB, { includeAliases: true });
 
     if (teamARefs.length === 0 || teamBRefs.length === 0) {
-      console.warn('[SURVEY_TEAMS] Persist blocked: missing refs', {
+      logger.warn('[SURVEY_TEAMS] Persist blocked: missing refs', {
         matchId: Number(id),
         teamARefsCount: teamARefs.length,
         teamBRefsCount: teamBRefs.length,
@@ -1961,7 +1962,7 @@ const EncuestaPartido = () => {
         teamBRefs,
       });
     } catch (rpcError) {
-      console.error('[SURVEY_TEAMS] save_match_final_teams RPC error', {
+      logger.error('[SURVEY_TEAMS] save_match_final_teams RPC error', {
         code: rpcError?.code || null,
         message: rpcError?.message || null,
         details: rpcError?.details || null,
@@ -1985,10 +1986,10 @@ const EncuestaPartido = () => {
         if (retryLockResult.ok) {
           lockResult = retryLockResult;
         } else {
-          console.warn('[SURVEY_TEAMS] save_match_final_teams compat retry non-ok response', retryLockResult);
+          logger.warn('[SURVEY_TEAMS] save_match_final_teams compat retry non-ok response', retryLockResult);
         }
       } catch (retryRpcError) {
-        console.error('[SURVEY_TEAMS] save_match_final_teams compat retry RPC error', {
+        logger.error('[SURVEY_TEAMS] save_match_final_teams compat retry RPC error', {
           code: retryRpcError?.code || null,
           message: retryRpcError?.message || null,
           details: retryRpcError?.details || null,
@@ -1998,7 +1999,7 @@ const EncuestaPartido = () => {
     }
 
     if (!lockResult.ok) {
-      console.warn('[SURVEY_TEAMS] save_match_final_teams non-ok response', lockResult);
+      logger.warn('[SURVEY_TEAMS] save_match_final_teams non-ok response', lockResult);
       const fallbackResult = await persistTeamsDirectFallback({ matchIdNum, teamARefs, teamBRefs });
       if (!fallbackResult.ok) {
         const reason = String(lockResult?.reason || fallbackResult?.reason || 'desconocido');
@@ -2141,7 +2142,7 @@ const EncuestaPartido = () => {
       trace.mark('flow_start', { skipPersistTeams });
 
       if (alreadySubmitted) {
-        console.info('Ya completaste esta encuesta');
+        logger.info('Ya completaste esta encuesta');
         submitStatus = 'already_submitted';
         return;
       }
@@ -2259,7 +2260,7 @@ const EncuestaPartido = () => {
       });
 
       if (insertError) {
-        console.error('[ENCUESTA] post_match_surveys insert error full:', insertError);
+        logger.error('[ENCUESTA] post_match_surveys insert error full:', insertError);
         throw insertError;
       }
 
@@ -2282,7 +2283,7 @@ const EncuestaPartido = () => {
           triggeredByLastVoter: finalizeResult?.triggeredByLastVoter === true,
         });
       } catch (e) {
-        console.warn('[finalizeIfComplete] non-blocking error:', e);
+        logger.warn('[finalizeIfComplete] non-blocking error:', e);
         trace.mark('finalizeIfComplete_non_blocking_error', {
           message: e?.message || String(e),
           code: e?.code || null,
@@ -2360,7 +2361,7 @@ const EncuestaPartido = () => {
     }
 
     if (alreadySubmitted) {
-      console.info('Ya completaste esta encuesta');
+      logger.info('Ya completaste esta encuesta');
       trace.end({ status: 'blocked', reason: 'already_submitted' });
       return;
     }

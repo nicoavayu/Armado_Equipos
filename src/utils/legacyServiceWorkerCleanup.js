@@ -1,3 +1,4 @@
+import logger from './logger';
 const SW_CLEANUP_RELOAD_KEY = '__arma2_sw_cleanup_reload_ts__';
 const SW_CLEANUP_WINDOW_MS = 45 * 1000;
 const STALE_CACHE_NAME_PATTERN = /(workbox|precache|team-balancer|arma2|react-app)/i;
@@ -73,7 +74,7 @@ export const cleanupLegacyServiceWorkers = async () => {
     window.location.replace(url.toString());
     return true;
   } catch (error) {
-    console.warn('[SW_CLEANUP] Could not cleanup legacy service workers:', error);
+    logger.warn('[SW_CLEANUP] Could not cleanup legacy service workers:', error);
     return false;
   }
 };

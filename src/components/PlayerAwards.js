@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { useBadges } from '../context/BadgeContext';
@@ -7,12 +8,12 @@ import LoadingSpinner from './LoadingSpinner';
 
 // Test function for debugging
 window['testBadgeInsert'] = async () => {
-  console.log('🧪 Testing badge insertion...');
+  logger.log('🧪 Testing badge insertion...');
 
   try {
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
-      console.error('❌ No authenticated user');
+      logger.error('❌ No authenticated user');
       return;
     }
 
@@ -22,7 +23,7 @@ window['testBadgeInsert'] = async () => {
       .limit(1);
 
     if (partidoError || !partidos?.length) {
-      console.error('❌ No partidos found');
+      logger.error('❌ No partidos found');
       return;
     }
 
@@ -33,7 +34,7 @@ window['testBadgeInsert'] = async () => {
       otorgado_por: user.id,
     };
 
-    console.log('📝 Inserting test badge:', testBadge);
+    logger.log('📝 Inserting test badge:', testBadge);
 
     const { data, error } = await supabase
       .from('player_awards')
@@ -41,13 +42,13 @@ window['testBadgeInsert'] = async () => {
       .select();
 
     if (error) {
-      console.error('❌ Insert error:', error);
+      logger.error('❌ Insert error:', error);
     } else {
-      console.log('✅ Badge inserted successfully:', data);
+      logger.log('✅ Badge inserted successfully:', data);
     }
 
   } catch (error) {
-    console.error('❌ Test failed:', error);
+    logger.error('❌ Test failed:', error);
   }
 };
 
@@ -78,7 +79,7 @@ const PlayerAwards = ({ playerId }) => {
   useEffect(() => {
     if (playerId) {
       setIntervalSafe(() => {
-        console.log('[PLAYER_AWARDS] Auto-refreshing awards...');
+        logger.log('[PLAYER_AWARDS] Auto-refreshing awards...');
         setRefreshKey((prev) => prev + 1);
       }, 30000);
     }
@@ -88,7 +89,7 @@ const PlayerAwards = ({ playerId }) => {
   const fetchPlayerAwards = async () => {
     if (!playerId) return;
 
-    console.log('[PLAYER_AWARDS] Fetching awards for playerId:', playerId);
+    logger.log('[PLAYER_AWARDS] Fetching awards for playerId:', playerId);
     setLoading(true);
     try {
       const resolvedCounts = await fetchAwardCountsForPlayerRef(playerId);
@@ -98,18 +99,18 @@ const PlayerAwards = ({ playerId }) => {
         tarjeta_roja: Number(resolvedCounts?.tarjetas_rojas || 0),
       };
 
-      console.log('[PLAYER_AWARDS] Counts:', counts);
+      logger.log('[PLAYER_AWARDS] Counts:', counts);
       setAwards(counts);
     } catch (error) {
-      console.error('Error fetching player awards:', error);
+      logger.error('Error fetching player awards:', error);
     } finally {
       setLoading(false);
     }
   };
 
   // Always show for debugging
-  console.log('[PLAYER_AWARDS] Rendering with awards:', awards, 'loading:', loading, 'playerId:', playerId);
-  console.log('[PLAYER_AWARDS] Run testBadgeInsert() in console to test badge insertion');
+  logger.log('[PLAYER_AWARDS] Rendering with awards:', awards, 'loading:', loading, 'playerId:', playerId);
+  logger.log('[PLAYER_AWARDS] Run testBadgeInsert() in console to test badge insertion');
 
   const hasAnyAwards = awards.mvp > 0 || awards.guante_dorado > 0 || awards.tarjeta_roja > 0;
 
@@ -147,23 +148,23 @@ const PlayerAwards = ({ playerId }) => {
             Refrescar
           </button>
           <button onClick={async () => {
-            console.log('🔥 DIRECT TEST - No cache');
+            logger.log('🔥 DIRECT TEST - No cache');
             try {
               const { data: { user } } = await supabase.auth.getUser();
               const { data: partidos } = await supabase.from('partidos').select('id').limit(1);
               if (!partidos?.length) {
-                console.log('🔥 No partidos found');
+                logger.log('🔥 No partidos found');
                 return;
               }
               const badge = { jugador_id: user.id, partido_id: partidos[0].id, award_type: normalizeAwardType('mvp') };
-              console.log('🔥 DIRECT INSERT:', badge);
+              logger.log('🔥 DIRECT INSERT:', badge);
               const { data, error } = await supabase.from('player_awards').insert([badge]).select();
-              if (error) console.error('🔥 ERROR:', error);
+              if (error) logger.error('🔥 ERROR:', error);
               else {
-                console.log('🔥 SUCCESS:', data);
+                logger.log('🔥 SUCCESS:', data);
                 setRefreshKey((prev) => prev + 1); // Refresh after insert
               }
-            } catch (e) { console.error('🔥 FAIL:', e); }
+            } catch (e) { logger.error('🔥 FAIL:', e); }
           }} style={{
             padding: '4px 8px',
             fontSize: '10px',

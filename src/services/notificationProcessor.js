@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import { supabase } from '../supabase';
 import { normalizeAwardType } from './db/userIdentity';
 
@@ -17,7 +18,7 @@ export const processScheduledNotifications = async () => {
       .lte('created_at', now); // Notificaciones cuyo tiempo ya llegó
 
     if (fetchError) {
-      console.error('[NOTIFICATION_PROCESSOR] Error fetching scheduled notifications:', fetchError);
+      logger.error('[NOTIFICATION_PROCESSOR] Error fetching scheduled notifications:', fetchError);
       return;
     }
 
@@ -25,7 +26,7 @@ export const processScheduledNotifications = async () => {
       return;
     }
 
-    console.log('[NOTIFICATION_PROCESSOR] Found', scheduledNotifications.length, 'ready notifications');
+    logger.log('[NOTIFICATION_PROCESSOR] Found', scheduledNotifications.length, 'ready notifications');
 
     // Agrupar por partido para evitar duplicados
     const notificationsByMatch = {};
@@ -45,7 +46,7 @@ export const processScheduledNotifications = async () => {
     }
 
   } catch (error) {
-    console.error('[NOTIFICATION_PROCESSOR] Error processing scheduled notifications:', error);
+    logger.error('[NOTIFICATION_PROCESSOR] Error processing scheduled notifications:', error);
   }
 };
 
@@ -61,12 +62,12 @@ const processMatchResultsNotifications = async (partidoId, notifications) => {
       .eq('partido_id', partidoId);
 
     if (awardsError) {
-      console.error('[MATCH_RESULTS] Error fetching awards:', awardsError);
+      logger.error('[MATCH_RESULTS] Error fetching awards:', awardsError);
       return;
     }
 
     if (!awards || awards.length === 0) {
-      console.log('[MATCH_RESULTS] No awards found for partido:', partidoId);
+      logger.log('[MATCH_RESULTS] No awards found for partido:', partidoId);
       // Marcar notificaciones como leídas si no hay resultados
       const notificationIds = notifications.map((n) => n.id);
       await supabase
@@ -83,10 +84,10 @@ const processMatchResultsNotifications = async (partidoId, notifications) => {
     }));
 
     // Las notificaciones ya están en la base de datos, solo necesitamos que el frontend las procese
-    console.log('[MATCH_RESULTS] Results ready for partido:', partidoId, 'awards:', awards.length);
+    logger.log('[MATCH_RESULTS] Results ready for partido:', partidoId, 'awards:', awards.length);
 
   } catch (error) {
-    console.error('[MATCH_RESULTS] Error processing match results:', error);
+    logger.error('[MATCH_RESULTS] Error processing match results:', error);
   }
 };
 
@@ -127,7 +128,7 @@ export const getMatchResults = async (partidoId) => {
     return results;
 
   } catch (error) {
-    console.error('[GET_MATCH_RESULTS] Error:', error);
+    logger.error('[GET_MATCH_RESULTS] Error:', error);
     return null;
   }
 };
@@ -148,6 +149,6 @@ export const markResultsNotificationAsRead = async (notificationId) => {
     if (error) throw error;
 
   } catch (error) {
-    console.error('[MARK_NOTIFICATION_READ] Error:', error);
+    logger.error('[MARK_NOTIFICATION_READ] Error:', error);
   }
 };

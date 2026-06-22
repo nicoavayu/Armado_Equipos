@@ -1,3 +1,4 @@
+import logger from '../../utils/logger';
 import { supabase } from '../../lib/supabaseClient';
 
 /**
@@ -8,7 +9,7 @@ import { supabase } from '../../lib/supabaseClient';
 export const getTeamsFromDatabase = async (partidoId) => {
   const pid = Number(partidoId);
   if (!pid || Number.isNaN(pid)) {
-    console.error('getTeamsFromDatabase: Invalid match ID', partidoId);
+    logger.error('getTeamsFromDatabase: Invalid match ID', partidoId);
     return null;
   }
 
@@ -19,7 +20,7 @@ export const getTeamsFromDatabase = async (partidoId) => {
     .single();
 
   if (error) {
-    console.error('Error fetching teams:', error);
+    logger.error('Error fetching teams:', error);
     return null;
   }
 

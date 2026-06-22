@@ -1,3 +1,4 @@
+import logger from '../../../utils/logger';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ChallengeCard from '../components/ChallengeCard';
@@ -102,7 +103,7 @@ const DesafiosTab = ({
       if (!silent) {
         notifyBlockingError(error.message || 'No se pudieron cargar los desafios');
       } else {
-        console.warn('[DESAFIOS] refresh de desafios fallido', error);
+        logger.warn('[DESAFIOS] refresh de desafios fallido', error);
       }
     } finally {
       if (withLoading) setLoading(false);
@@ -124,7 +125,7 @@ const DesafiosTab = ({
       if (!silent) {
         notifyBlockingError(error.message || 'No se pudieron cargar tus equipos');
       } else {
-        console.warn('[DESAFIOS] refresh de equipos manejables fallido', error);
+        logger.warn('[DESAFIOS] refresh de equipos manejables fallido', error);
       }
     }
   }, [userId]);
@@ -148,7 +149,7 @@ const DesafiosTab = ({
       if (!silent) {
         notifyBlockingError(error.message || 'No se pudieron cargar tus desafíos dirigidos');
       } else {
-        console.warn('[DESAFIOS] refresh de desafíos dirigidos fallido', error);
+        logger.warn('[DESAFIOS] refresh de desafíos dirigidos fallido', error);
       }
     }
   }, [userId]);

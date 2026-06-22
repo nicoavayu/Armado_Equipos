@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useEffect, useLayoutEffect, useRef, useCallback, useMemo, useState } from 'react';
 
 // --- Pure Helper Functions (Outside Component) ---
@@ -314,7 +315,7 @@ const ProfileCardComponent = ({
       injured: !!profile.lesion_activa,
       available: profile.acepta_invitaciones !== false,
     };
-    // console.log(`🎨 ProfileCard vm recalculated: mvp=${result.mvp}, gk=${result.gk}, red=${result.red}`);
+    // logger.log(`🎨 ProfileCard vm recalculated: mvp=${result.mvp}, gk=${result.gk}, red=${result.red}`);
     return result;
   }, [profile]);
 

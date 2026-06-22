@@ -5,7 +5,7 @@ import { supabase } from '../supabase';
 import { useAuth } from '../components/AuthProvider';
 import { flushPendingPushToken, getPushTokenSyncState } from '../services/pushTokenService';
 import { handleError } from '../lib/errorHandler';
-import { logger } from '../lib/logger';
+import logger from '../utils/logger';
 import { useRefreshOnVisibility } from '../hooks/useRefreshOnVisibility';
 import { useSupabaseRealtime } from '../hooks/useSupabaseRealtime';
 import { getSurveyReminderMessage, getSurveyResultsReadyMessage, getSurveyStartMessage } from '../utils/surveyNotificationCopy';
@@ -393,7 +393,7 @@ export const NotificationProvider = ({ children }) => {
 
     (async () => {
       const state = await getPushTokenSyncState();
-      console.info('[PUSH] auth_ready', {
+      logger.info('[PUSH] auth_ready', {
         source,
         authResolved,
         userId: user.id,
@@ -403,7 +403,7 @@ export const NotificationProvider = ({ children }) => {
       });
       await flushPendingPushToken({ source });
     })().catch((error) => {
-      console.warn('[PUSH] auth_ready flush failed', {
+      logger.warn('[PUSH] auth_ready flush failed', {
         source,
         userId: user.id,
         message: error?.message || String(error || 'unknown_error'),
@@ -422,7 +422,7 @@ export const NotificationProvider = ({ children }) => {
       Promise.resolve()
         .then(async () => {
           const state = await getPushTokenSyncState();
-          console.info('[PUSH] auth_ready', {
+          logger.info('[PUSH] auth_ready', {
             source: 'app_resume',
             authResolved: authResolvedRef.current,
             userId: pushUserIdRef.current,
@@ -433,7 +433,7 @@ export const NotificationProvider = ({ children }) => {
           await flushPendingPushToken({ source: 'app_resume' });
         })
         .catch((error) => {
-          console.warn('[PUSH] app_resume flush failed', {
+          logger.warn('[PUSH] app_resume flush failed', {
             userId: pushUserIdRef.current,
             message: error?.message || String(error || 'unknown_error'),
           });
@@ -443,7 +443,7 @@ export const NotificationProvider = ({ children }) => {
         listenerHandle = handle;
       })
       .catch((error) => {
-        console.warn('[PUSH] Failed to attach app resume listener', error);
+        logger.warn('[PUSH] Failed to attach app resume listener', error);
       });
 
     return () => {
@@ -1297,7 +1297,7 @@ export const NotificationProvider = ({ children }) => {
 
       // If this is a survey_start or post_match_survey we require a partido_id to avoid creating null-match rows
       if ((type === 'survey_start' || type === 'post_match_survey') && pidNumber == null) {
-        console.error('[NOTIFICATIONS] Attempt to create survey_start/post_match_survey without partido_id. Aborting insert.', { type, data, partidoId });
+        logger.error('[NOTIFICATIONS] Attempt to create survey_start/post_match_survey without partido_id. Aborting insert.', { type, data, partidoId });
         return { ok: false, error: { message: 'missing_partido_id_for_survey_notification' } };
       }
 

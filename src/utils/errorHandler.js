@@ -1,3 +1,4 @@
+import logger from './logger';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 // eslint-disable-next-line global-require
 
@@ -33,7 +34,7 @@ const normalizeToError = (err, fallbackMessage = 'Ha ocurrido un error') => {
 
 export const handleError = (error, userMessage = 'Ha ocurrido un error') => {
   const normalized = normalizeToError(error, userMessage);
-  console.error('Error:', normalized);
+  logger.error('Error:', normalized);
   const message = normalized?.message || userMessage;
   notifyBlockingError(message, {
     position: 'top-right',
@@ -47,7 +48,7 @@ export const handleError = (error, userMessage = 'Ha ocurrido un error') => {
 };
 
 export const handleSuccess = (message) => {
-  console.info(message, {
+  logger.info(message, {
     position: 'top-right',
     autoClose: 3000,
     hideProgressBar: false,
@@ -58,7 +59,7 @@ export const handleSuccess = (message) => {
 };
 
 export const handleWarning = (message) => {
-  console.warn(message, {
+  logger.warn(message, {
     position: 'top-right',
     autoClose: 4000,
     hideProgressBar: false,

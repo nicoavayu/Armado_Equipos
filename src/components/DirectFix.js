@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import { useEffect } from 'react';
 import { supabase } from '../supabase';
 
@@ -24,7 +25,7 @@ const DirectFix = () => {
         const avatarUrl = user.user_metadata?.avatar_url || user.user_metadata?.picture;
         
         if (avatarUrl) {
-          console.log('Fixing avatar URL:', { 
+          logger.log('Fixing avatar URL:', { 
             current: profile.avatar_url,
             new: avatarUrl,
           });
@@ -34,10 +35,10 @@ const DirectFix = () => {
             .update({ avatar_url: avatarUrl })
             .eq('id', user.id);
             
-          console.log('Avatar URL fixed successfully');
+          logger.log('Avatar URL fixed successfully');
         }
       } catch (error) {
-        console.error('Error fixing avatar URL:', error);
+        logger.error('Error fixing avatar URL:', error);
       }
     };
     

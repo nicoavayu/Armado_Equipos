@@ -1,3 +1,4 @@
+import logger from '../../utils/logger';
 import { supabase } from '../../lib/supabaseClient';
 import {
   getAwardCounterField,
@@ -227,7 +228,7 @@ export async function grantAwardsForMatch(matchId, awards) {
         .select('id');
 
       if (insertError) {
-        console.error(`Error inserting ${awardType} award (ON CONFLICT):`, insertError);
+        logger.error(`Error inserting ${awardType} award (ON CONFLICT):`, insertError);
         skipped.push(`${awardType} (database error)`);
         continue;
       }
@@ -245,7 +246,7 @@ export async function grantAwardsForMatch(matchId, awards) {
         try {
           await incrementUsuarioCounter(playerInfo.user_id, counterField);
         } catch (counterError) {
-          console.error(`Error updating ${counterField} in usuarios:`, counterError);
+          logger.error(`Error updating ${counterField} in usuarios:`, counterError);
         }
       }
 
@@ -255,7 +256,7 @@ export async function grantAwardsForMatch(matchId, awards) {
 
     return { granted, skipped, error: null, expectedRegisteredAwards, persistedRegisteredAwards };
   } catch (error) {
-    console.error('Error granting awards:', error);
+    logger.error('Error granting awards:', error);
     return {
       granted: [],
       skipped: [],
@@ -305,7 +306,7 @@ export async function notifyAwardWinnersForMatch(matchId, awards) {
           playersMap,
         });
       } catch (resolveError) {
-        console.error('[AWARDS] Error resolving award winner user:', {
+        logger.error('[AWARDS] Error resolving award winner user:', {
           matchId: idNum,
           awardType,
           playerRef,
@@ -327,14 +328,14 @@ export async function notifyAwardWinnersForMatch(matchId, awards) {
         });
         notified.push(awardType);
       } catch (notificationError) {
-        console.error(`[AWARDS] Error creating private award notification for ${awardType}:`, notificationError);
+        logger.error(`[AWARDS] Error creating private award notification for ${awardType}:`, notificationError);
         skipped.push(`${awardType} (notification error)`);
       }
     }
 
     return { notified, skipped, error: null };
   } catch (error) {
-    console.error('[AWARDS] Error notifying award winners:', error);
+    logger.error('[AWARDS] Error notifying award winners:', error);
     return { notified: [], skipped: [], error: error.message };
   }
 }

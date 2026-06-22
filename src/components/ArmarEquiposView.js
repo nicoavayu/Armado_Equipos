@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { friendlyError } from '../utils/friendlyError';
 import { useNavigate } from 'react-router-dom';
@@ -191,7 +192,7 @@ export default function ArmarEquiposView({
       setVotantes(votantesIds || []);
       setVotantesConNombres(votantesNombres || []);
     } catch (error) {
-      console.error('Error loading votantes:', error);
+      logger.error('Error loading votantes:', error);
     } finally {
       voterRefreshInFlightRef.current = false;
     }
@@ -303,12 +304,12 @@ export default function ArmarEquiposView({
           .eq('partido_id', pidNumber)
           .limit(1);
         if (error) {
-          console.warn('[VotingState] notifications lookup failed', error);
+          logger.warn('[VotingState] notifications lookup failed', error);
           return;
         }
         setVotingStarted(Boolean(data && data.length > 0));
       } catch (e) {
-        console.warn('[VotingState] failed', e);
+        logger.warn('[VotingState] failed', e);
       }
     };
     fetchVotingState();
@@ -335,7 +336,7 @@ export default function ArmarEquiposView({
 
   async function handleCallToVote() {
     if (calling) {
-      console.debug('[Teams] call-to-vote blocked: already running');
+      logger.debug('[Teams] call-to-vote blocked: already running');
       return;
     }
 
@@ -345,7 +346,7 @@ export default function ArmarEquiposView({
     }
 
     setCalling(true);
-    console.debug('[Teams] call-to-vote start', { partidoId: partidoActual?.id });
+    logger.debug('[Teams] call-to-vote start', { partidoId: partidoActual?.id });
 
     try {
       // Call service (notify players with app accounts)
@@ -355,10 +356,10 @@ export default function ArmarEquiposView({
         type: 'call_to_vote',
       });
 
-      console.debug('[Teams] notifications sent result', res);
+      logger.debug('[Teams] notifications sent result', res);
 
       if (res?.error) {
-        console.error('[Teams] sendVotingNotifications error result', res.error);
+        logger.error('[Teams] sendVotingNotifications error result', res.error);
         notifyBlockingError(friendlyError(res.error, 'No se pudo iniciar la votación. Intentá de nuevo.'));
         return;
       }
@@ -422,7 +423,7 @@ export default function ArmarEquiposView({
       }
 
     } catch (error) {
-      console.error('[Teams] call-to-vote failed', error);
+      logger.error('[Teams] call-to-vote failed', error);
       notifyBlockingError(friendlyError(error, 'No se pudo iniciar la votación. Intentá de nuevo.'));
     } finally {
       setCalling(false);
@@ -431,7 +432,7 @@ export default function ArmarEquiposView({
 
   async function handleResetVotacion() {
     if (resetting) {
-      console.debug('[Teams] reset blocked: already running');
+      logger.debug('[Teams] reset blocked: already running');
       return;
     }
 
@@ -441,11 +442,11 @@ export default function ArmarEquiposView({
     }
 
     setResetting(true);
-    console.debug('[Teams] reset-voting start', { partidoId: partidoActual?.id });
+    logger.debug('[Teams] reset-voting start', { partidoId: partidoActual?.id });
 
     try {
       const result = await resetVotacion(partidoActual.id);
-      console.debug('[Teams] reset result', result);
+      logger.debug('[Teams] reset result', result);
 
       showInlineNotice('success', 'Votación reseteada. Cuando quieras, volvé a llamar a votar.');
 
@@ -461,7 +462,7 @@ export default function ArmarEquiposView({
       try {
         clearGuestSession(partidoActual.id);
       } catch (e) {
-        console.warn('[Teams] error clearing guest session', e);
+        logger.warn('[Teams] error clearing guest session', e);
       }
 
       // Refrescar votantes desde DB para confirmar estado limpio
@@ -471,11 +472,11 @@ export default function ArmarEquiposView({
         setVotantes(votantesIds || []);
         setVotantesConNombres(votantesNombres || []);
       } catch (e) {
-        console.warn('[Teams] error refreshing voters after reset', e);
+        logger.warn('[Teams] error refreshing voters after reset', e);
       }
 
     } catch (error) {
-      console.error('[Teams] reset-voting failed', error);
+      logger.error('[Teams] reset-voting failed', error);
       notifyBlockingError(friendlyError(error, 'No se pudo resetear la votación. Intentá de nuevo.'));
     } finally {
       setResetting(false);
@@ -582,7 +583,7 @@ export default function ArmarEquiposView({
       onTeamsFormed(teams, matchPlayers || []);
       return true;
     } catch (error) {
-      console.error('[Teams] openTeamsFormedView failed', error);
+      logger.error('[Teams] openTeamsFormedView failed', error);
       if (!silent) notifyBlockingError('No se pudieron abrir los equipos guardados.');
       return false;
     }
@@ -627,10 +628,10 @@ export default function ArmarEquiposView({
         }
 
         // Navigate to voting using partidoId (codigo may not be loaded)
-        console.log('[Teams] Navigating to voting for match:', partidoActual.id);
+        logger.log('[Teams] Navigating to voting for match:', partidoActual.id);
         navigate(buildVotingRoute({ partidoId: partidoActual.id }));
       } catch (error) {
-        console.warn('[Teams] failed to verify local voter status, allowing access to voting', error);
+        logger.warn('[Teams] failed to verify local voter status, allowing access to voting', error);
         navigate(buildVotingRoute({ partidoId: partidoActual.id }));
       } finally {
         setCheckingVoteStatus(false);
@@ -659,12 +660,12 @@ export default function ArmarEquiposView({
         .eq('id', Number(partidoActual.id))
         .maybeSingle();
       if (error) {
-        console.error('[Teams] Could not fetch match code from DB:', error);
+        logger.error('[Teams] Could not fetch match code from DB:', error);
         return null;
       }
       return normalizeMatchCode(data?.codigo);
     } catch (error) {
-      console.error('[Teams] Unexpected error resolving match code:', error);
+      logger.error('[Teams] Unexpected error resolving match code:', error);
       return null;
     }
   };
@@ -685,7 +686,7 @@ export default function ArmarEquiposView({
         .limit(1);
 
       if (lookupError) {
-        console.warn('[Teams] Could not check public voting marker:', lookupError);
+        logger.warn('[Teams] Could not check public voting marker:', lookupError);
       }
 
       if (existingRows && existingRows.length > 0) {
@@ -710,10 +711,10 @@ export default function ArmarEquiposView({
         }]);
 
       if (insertError) {
-        console.warn('[Teams] Could not create public voting marker:', insertError);
+        logger.warn('[Teams] Could not create public voting marker:', insertError);
       }
     } catch (error) {
-      console.warn('[Teams] Unexpected error creating public voting marker:', error);
+      logger.warn('[Teams] Unexpected error creating public voting marker:', error);
     }
   };
 
@@ -737,7 +738,7 @@ export default function ArmarEquiposView({
     const whatsappAppUrl = `whatsapp://send?text=${encodedText}`;
     const isMobileWeb = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
 
-    console.debug('[Teams] share link', { partidoId: partidoActual?.id, matchCode });
+    logger.debug('[Teams] share link', { partidoId: partidoActual?.id, matchCode });
 
     // En native/mobile priorizamos deep-link directo a WhatsApp.
     if (isNative || isMobileWeb) {
@@ -896,7 +897,7 @@ export default function ArmarEquiposView({
       try {
         await removePlayerVotesFromMatch(partidoActual.id, jugadorAEliminar);
       } catch (cleanupError) {
-        console.warn('[Teams] remove player vote cleanup failed (non-blocking)', cleanupError);
+        logger.warn('[Teams] remove player vote cleanup failed (non-blocking)', cleanupError);
       }
 
       const { error } = await supabase

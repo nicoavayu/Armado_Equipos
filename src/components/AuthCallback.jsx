@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
@@ -18,9 +19,9 @@ export default function AuthCallback() {
   const [error, setError] = useState('');
   const logAuth = (event, details = {}) => {
     try {
-      console.info(`[AUTH] ${event} ${JSON.stringify(details)}`);
+      logger.info(`[AUTH] ${event} ${JSON.stringify(details)}`);
     } catch (serializationError) {
-      console.info(`[AUTH] ${event} ${JSON.stringify({
+      logger.info(`[AUTH] ${event} ${JSON.stringify({
         serializationError: serializationError?.message || String(serializationError),
       })}`);
     }

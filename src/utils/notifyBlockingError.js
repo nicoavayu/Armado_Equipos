@@ -1,3 +1,4 @@
+import logger from './logger';
 
 import { captureException, captureMessage } from './monitoring/sentry';
 import { showGlobalNotice } from './globalNoticeModal';
@@ -75,7 +76,7 @@ export const notifyBlockingError = (message, options = {}) => {
 
   if (isDevOrTest) {
     // eslint-disable-next-line no-console
-    console.error('[notifyBlockingError:fallback]', normalizedMessage);
+    logger.error('[notifyBlockingError:fallback]', normalizedMessage);
   }
   return null;
 };

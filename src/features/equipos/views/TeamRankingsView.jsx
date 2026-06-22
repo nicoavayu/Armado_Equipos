@@ -1,3 +1,4 @@
+import logger from '../../../utils/logger';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Check, SlidersHorizontal, Trophy, Users } from 'lucide-react';
 import Button from '../../../components/Button';
@@ -181,7 +182,7 @@ const TeamRankingsView = ({
       const ids = await listMyPendingChallengedTeamIds(userId);
       setPendingChallengedTeamIds(new Set((ids || []).map((id) => String(id))));
     } catch (error) {
-      console.warn('[RANKING] No se pudieron cargar desafíos pendientes', error);
+      logger.warn('[RANKING] No se pudieron cargar desafíos pendientes', error);
     }
   }, [userId]);
 

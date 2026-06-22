@@ -1,7 +1,8 @@
 module.exports = {
   extends: ['react-app'],
   rules: {
-    'no-console': 'off',
+    // Use the centralized logger (src/utils/logger) instead of console.* in app code.
+    'no-console': 'error',
     'max-len': 'off',
     'react-hooks/exhaustive-deps': 'off',
     'no-unused-vars': 'off',
@@ -52,6 +53,13 @@ module.exports = {
       },
     },
     {
+      // The logger is the one place allowed to touch console.* directly.
+      files: ['src/utils/logger.js'],
+      rules: {
+        'no-console': 'off',
+      },
+    },
+    {
       files: [
         '**/*.test.js',
         '**/*.test.jsx',
@@ -65,6 +73,7 @@ module.exports = {
       rules: {
         // Allow test/story/tooling imports when needed; call-site restrictions still apply.
         'no-restricted-imports': 'off',
+        'no-console': 'off',
       },
     },
   ],

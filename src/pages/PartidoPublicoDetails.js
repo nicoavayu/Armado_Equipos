@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 // ARCHIVO ELIMINADO: Todo el flujo está unificado en PartidoInvitacion.js
 import React, { useState, useEffect } from 'react';
@@ -37,7 +38,7 @@ export default function PartidoPublicoDetails() {
       .maybeSingle();
 
     if (error) {
-      console.error('[PartidoPublicoDetails] Error fetching partido:', {
+      logger.error('[PartidoPublicoDetails] Error fetching partido:', {
         code: error.code,
         message: error.message,
         details: error.details,
@@ -57,7 +58,7 @@ export default function PartidoPublicoDetails() {
   }
 
   async function checkJoinStatus() {
-    console.log('[PUBLIC_MATCH] checkJoinStatus start', {
+    logger.log('[PUBLIC_MATCH] checkJoinStatus start', {
       partidoId: matchId,
       currentUserUuid: user?.id
     });
@@ -66,11 +67,11 @@ export default function PartidoPublicoDetails() {
     const { isMember, jugadorRow, error } = await isUserMemberOfMatch(user.id, matchId);
 
     if (error) {
-      console.error('[PUBLIC_MATCH] Membership check failed', error);
+      logger.error('[PUBLIC_MATCH] Membership check failed', error);
     }
 
     if (isMember) {
-      console.log('[PUBLIC_MATCH] setting status: joined', { jugadorRow });
+      logger.log('[PUBLIC_MATCH] setting status: joined', { jugadorRow });
       setJoinStatus('joined');
       return;
     }
@@ -86,14 +87,14 @@ export default function PartidoPublicoDetails() {
       .maybeSingle();
 
     if (requestError) {
-      console.error('[PartidoPublicoDetails] Error checking join requests:', {
+      logger.error('[PartidoPublicoDetails] Error checking join requests:', {
         code: requestError.code,
         message: requestError.message,
         details: requestError.details,
         hint: requestError.hint,
       });
     } else if (requestData) {
-      console.log('[PUBLIC_MATCH] join_request found', {
+      logger.log('[PUBLIC_MATCH] join_request found', {
         requestId: requestData.id,
         status: requestData.status,
         settingStatus: requestData.status
@@ -113,7 +114,7 @@ export default function PartidoPublicoDetails() {
       .maybeSingle();
 
     if (partidoError) {
-      console.error('[PartidoPublicoDetails] Error fetching partido data:', {
+      logger.error('[PartidoPublicoDetails] Error fetching partido data:', {
         code: partidoError.code,
         message: partidoError.message,
         details: partidoError.details,
@@ -123,19 +124,19 @@ export default function PartidoPublicoDetails() {
 
     const { count } = await supabase.from('jugadores').select('*', { count: 'exact', head: true }).eq('partido_id', matchId);
     if (partidoData && count >= partidoData.cupo_jugadores) {
-      console.log('[PUBLIC_MATCH] setting status: full');
+      logger.log('[PUBLIC_MATCH] setting status: full');
       setJoinStatus('full');
       return;
     }
 
     // 4. ¿Cerrado?
     if (partido && !['active', 'activo'].includes(String(partido.estado || '').toLowerCase())) {
-      console.log('[PUBLIC_MATCH] setting status: closed');
+      logger.log('[PUBLIC_MATCH] setting status: closed');
       setJoinStatus('closed');
       return;
     }
 
-    console.log('[PUBLIC_MATCH] setting status: none');
+    logger.log('[PUBLIC_MATCH] setting status: none');
     setJoinStatus('none');
   }
 
@@ -161,7 +162,7 @@ export default function PartidoPublicoDetails() {
           return;
         }
       } catch (err) {
-        console.error('[PartidoPublicoDetails] schedule conflict check failed:', err);
+        logger.error('[PartidoPublicoDetails] schedule conflict check failed:', err);
       }
     }
 
@@ -179,7 +180,7 @@ export default function PartidoPublicoDetails() {
       .maybeSingle();
 
     if (existingError) {
-      console.error('[PartidoPublicoDetails] Error checking existing request:', {
+      logger.error('[PartidoPublicoDetails] Error checking existing request:', {
         code: existingError.code,
         message: existingError.message,
         details: existingError.details,
@@ -189,7 +190,7 @@ export default function PartidoPublicoDetails() {
 
     if (existing) {
       if (existing.status === 'pending') {
-        console.info('Solicitud enviada');
+        logger.info('Solicitud enviada');
         setJoinStatus('pending');
       } else if (existing.status === 'approved') {
         setJoinStatus('approved');
@@ -203,7 +204,7 @@ export default function PartidoPublicoDetails() {
       .insert({ match_id: matchId, user_id: user.id, status: 'pending' });
 
     if (error) {
-      console.error('[PartidoPublicoDetails] Error creating join request:', {
+      logger.error('[PartidoPublicoDetails] Error creating join request:', {
         code: error.code,
         message: error.message,
         details: error.details,
@@ -220,14 +221,14 @@ export default function PartidoPublicoDetails() {
           limit: 20,
         });
       } catch (dispatchError) {
-        console.error('[PartidoPublicoDetails] immediate join request dispatch failed', {
+        logger.error('[PartidoPublicoDetails] immediate join request dispatch failed', {
           matchId,
           adminUserId: partido?.creado_por || null,
           message: dispatchError?.message || String(dispatchError),
         });
       }
       setJoinStatus('pending');
-      console.info('Solicitud enviada');
+      logger.info('Solicitud enviada');
     }
 
     setLoading(false);

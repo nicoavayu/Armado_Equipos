@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
@@ -84,7 +85,7 @@ const HomePage = () => {
         setIsLoading(false);
       })
       .catch((err) => {
-        console.error('[VOTING] Unexpected error:', err);
+        logger.error('[VOTING] Unexpected error:', err);
         handleMatchResolutionError('Error inesperado al cargar el partido', navigate);
         setPartidoActual(null);
         setIsLoading(false);

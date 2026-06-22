@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React from 'react';
 import { isChunkLoadError, recoverFromChunkLoadError } from '../utils/chunkLoadRecovery';
 import { captureException } from '../utils/monitoring/sentry';
@@ -23,7 +24,7 @@ class GlobalErrorBoundary extends React.Component {
       componentStack,
     ].join('::');
 
-    console.error('GlobalErrorBoundary caught error:', error, componentStack);
+    logger.error('GlobalErrorBoundary caught error:', error, componentStack);
 
     if (this.lastReportedErrorSignature !== errorSignature) {
       this.lastReportedErrorSignature = errorSignature;

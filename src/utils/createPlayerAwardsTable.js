@@ -1,3 +1,4 @@
+import logger from './logger';
 import { supabase } from '../supabase';
 
 export const createPlayerAwardsTable = async () => {
@@ -40,10 +41,10 @@ export const createPlayerAwardsTable = async () => {
 
     if (policyError) throw policyError;
 
-    console.log('✅ player_awards table created successfully');
+    logger.log('✅ player_awards table created successfully');
     return { success: true };
   } catch (error) {
-    console.error('❌ Error creating player_awards table:', error);
+    logger.error('❌ Error creating player_awards table:', error);
     return { success: false, error };
   }
 };

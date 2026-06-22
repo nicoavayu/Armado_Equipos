@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAmigos } from '../hooks/useAmigos';
@@ -294,7 +295,7 @@ const AmigosView = () => {
         setUserLocation(null);
       }
     } catch (locationError) {
-      console.error('[AMIGOS] Error loading user location:', locationError);
+      logger.error('[AMIGOS] Error loading user location:', locationError);
       setUserLocation(null);
     }
   }, []);
@@ -417,7 +418,7 @@ const AmigosView = () => {
 
       setSuggestions(mappedSuggestions);
     } catch (suggestionsError) {
-      console.error('[AMIGOS] Error loading friend suggestions:', suggestionsError);
+      logger.error('[AMIGOS] Error loading friend suggestions:', suggestionsError);
       setSuggestions([]);
     } finally {
       if (!silent) {
@@ -442,7 +443,7 @@ const AmigosView = () => {
       const { data: { user: authUser }, error: authError } = await getUser();
 
       if (authError) {
-        console.error('[AMIGOS] Error getting current user:', authError);
+        logger.error('[AMIGOS] Error getting current user:', authError);
         return;
       }
 
@@ -686,7 +687,7 @@ const AmigosView = () => {
       if (searchError) throw searchError;
       setSearchResults(data || []);
     } catch (searchError) {
-      console.error('Error searching users:', searchError);
+      logger.error('Error searching users:', searchError);
       setSearchResults([]);
     } finally {
       setSearchLoading(false);

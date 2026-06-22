@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import { supabase } from '../supabase';
 import {
   SURVEY_FINALIZE_DELAY_MS,
@@ -21,7 +22,7 @@ export const createPostMatchSurveyNotifications = async (partido) => {
   // To enable JS fanout for local/dev testing set USE_JS_FANOUT=1 in the environment.
   const useJsFanout = typeof process !== 'undefined' && process.env && process.env.USE_JS_FANOUT === '1';
   if (!useJsFanout) {
-    console.warn('[DEPRECATED] createPostMatchSurveyNotifications is disabled in production. Use DB cron fanout_survey_start_notifications(). To enable JS fanout for dev set USE_JS_FANOUT=1');
+    logger.warn('[DEPRECATED] createPostMatchSurveyNotifications is disabled in production. Use DB cron fanout_survey_start_notifications(). To enable JS fanout for dev set USE_JS_FANOUT=1');
     return [];
   }
 
@@ -189,10 +190,10 @@ export const createPostMatchSurveyNotifications = async (partido) => {
 
     if (error) throw error;
 
-    console.log(`Creadas ${data?.length || 0} notificaciones de encuesta post-partido`);
+    logger.log(`Creadas ${data?.length || 0} notificaciones de encuesta post-partido`);
     return data || [];
   } catch (error) {
-    console.error('Error creating post-match survey notifications:', error);
+    logger.error('Error creating post-match survey notifications:', error);
     return [];
   }
 };
@@ -236,7 +237,7 @@ export const checkPendingSurveys = async (userId) => {
         .single();
 
       if (surveyError && surveyError.code !== 'PGRST116') {
-        console.error('Error checking existing survey:', surveyError);
+        logger.error('Error checking existing survey:', surveyError);
         continue;
       }
 
@@ -257,7 +258,7 @@ export const checkPendingSurveys = async (userId) => {
 
     return pendingSurveys;
   } catch (error) {
-    console.error('Error checking pending surveys:', error);
+    logger.error('Error checking pending surveys:', error);
     return [];
   }
 };
@@ -286,7 +287,7 @@ export const processSurveyResults = async (partidoId) => {
 
     const ensureRes = await ensureAwards(idNum);
     if (!ensureRes?.ok) {
-      console.warn('[SURVEY_SERVICE] ensureAwards failed after finalizeIfComplete', {
+      logger.warn('[SURVEY_SERVICE] ensureAwards failed after finalizeIfComplete', {
         partidoId: idNum,
         ensureRes,
       });
@@ -297,7 +298,7 @@ export const processSurveyResults = async (partidoId) => {
     const awardsNotEligible = isAwardsNotEligibleStatus(ensureRes?.row) || ensureRes?.notEligible === true;
     return Boolean(awardsReady || awardsNotEligible);
   } catch (error) {
-    console.error('[SURVEY_SERVICE] processSurveyResults compatibility flow failed:', error);
+    logger.error('[SURVEY_SERVICE] processSurveyResults compatibility flow failed:', error);
     return false;
   }
 };

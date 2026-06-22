@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 /**
  * Sistema centralizado de manejo de errores
  * 
@@ -89,12 +90,12 @@ export const handleError = (error, options = {}) => {
   // Dev-only marker so we can identify which handler is being called
   if (process.env.NODE_ENV === 'development') {
     // eslint-disable-next-line no-console
-    console.warn('[handleError:lib] called', { message: normalizedError?.message });
+    logger.warn('[handleError:lib] called', { message: normalizedError?.message });
     // eslint-disable-next-line no-console
-    console.warn('[handleError:lib] stack', new Error('handleError:lib').stack);
+    logger.warn('[handleError:lib] stack', new Error('handleError:lib').stack);
   }
 
-  console.error('[ERROR]', normalizedError);
+  logger.error('[ERROR]', normalizedError);
 
   let message = ERROR_MESSAGES[ERROR_CODES.UNKNOWN];
 

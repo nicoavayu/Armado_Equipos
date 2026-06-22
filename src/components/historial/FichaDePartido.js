@@ -1,3 +1,4 @@
+import logger from '../../utils/logger';
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabase';
 import { normalizeAwardType } from '../../services/db/userIdentity';
@@ -89,7 +90,7 @@ const FichaDePartido = ({ partido, onBack, onClose }) => {
           ausentes: ausentesData,
         });
       } catch (err) {
-        console.error('Error al cargar detalles del partido:', err);
+        logger.error('Error al cargar detalles del partido:', err);
         setError('No se pudieron cargar los detalles del partido');
       } finally {
         setLoading(false);

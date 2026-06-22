@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import { supabase } from '../lib/supabaseClient';
 
 const DEFAULT_LIMIT = 20;
@@ -80,7 +81,7 @@ export const requestImmediatePushDispatch = async ({
 
 export const requestImmediatePushDispatchSafe = (params) => {
   requestImmediatePushDispatch(params).catch((error) => {
-    console.warn('[PUSH_DISPATCH] immediate dispatch kick failed:', {
+    logger.warn('[PUSH_DISPATCH] immediate dispatch kick failed:', {
       message: error?.message || String(error),
       eventType: params?.eventType || null,
     });

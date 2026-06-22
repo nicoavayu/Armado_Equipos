@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useState, useEffect, useMemo } from 'react';
 import { friendlyError } from '../utils/friendlyError';
 import { useAuth } from '../components/AuthProvider';
@@ -199,7 +200,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
       setTipoPartido(partidoFrecuente?.tipo_partido || 'Masculino');
       setValorCancha(partidoFrecuente?.precio_cancha !== undefined && partidoFrecuente?.precio_cancha !== null ? String(partidoFrecuente.precio_cancha) : '');
     } catch (e) {
-      console.error('Error preloading partido frecuente into form', e);
+      logger.error('Error preloading partido frecuente into form', e);
     } finally {
       showInlineNotice({
         key: 'new_match_template_applied',
@@ -309,12 +310,12 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
               .insert([jugadorRow]);
 
             if (insertError) {
-              console.error('[CREAR_PARTIDO] Error insert jugador creador:', insertError);
+              logger.error('[CREAR_PARTIDO] Error insert jugador creador:', insertError);
               notifyBlockingError(friendlyError(insertError, 'No te pudimos agregar como jugador. Intentá de nuevo.'));
             }
           }
         } catch (err) {
-          console.error('[CREAR_PARTIDO] Error checking/adding creator:', err);
+          logger.error('[CREAR_PARTIDO] Error checking/adding creator:', err);
         }
       }
 
@@ -328,7 +329,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
             message: 'Plantilla guardada.',
           });
         } catch (err) {
-          console.error('[Guardar frecuente] error inserting frequent template:', err);
+          logger.error('[Guardar frecuente] error inserting frequent template:', err);
           showInlineNotice({
             key: 'new_match_template_save_failed',
             type: 'warning',

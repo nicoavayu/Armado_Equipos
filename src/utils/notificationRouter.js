@@ -1,5 +1,5 @@
 import { supabase } from '../supabase';
-import { logger } from '../lib/logger';
+import logger from './logger';
 import { SURVEY_MIN_VOTERS_FOR_AWARDS } from '../config/surveyConfig';
 import { getResultsUrl } from './routes';
 import { resolveMatchInviteRoute } from './matchInviteRoute';
@@ -187,7 +187,7 @@ const readCurrentRoute = () => {
 export const debugNotificationEvent = (tag, payload = {}) => {
   if (!isNotificationRouteDebugEnabled()) return;
   const label = String(tag || '').startsWith('[') ? String(tag) : `[${tag}]`;
-  console.debug(label, {
+  logger.debug(label, {
     ...payload,
     platform: readNotificationPlatform(payload?.platform),
     current_route: payload?.current_route || readCurrentRoute(),

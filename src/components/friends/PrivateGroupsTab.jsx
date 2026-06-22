@@ -1,3 +1,4 @@
+import logger from '../../utils/logger';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
 import {
@@ -768,7 +769,7 @@ const PrivateGroupsTab = ({
       setLoadError(null);
       setGroups(sortGroupsByUpdatedAt(nextGroups || []));
     } catch (error) {
-      console.error('[PRIVATE_GROUPS] Error loading groups:', error);
+      logger.error('[PRIVATE_GROUPS] Error loading groups:', error);
       setLoadError(error?.message || 'No se pudieron cargar tus grupos.');
       setGroups([]);
     } finally {

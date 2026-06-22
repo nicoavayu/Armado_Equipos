@@ -1,3 +1,4 @@
+import logger from '../../utils/logger';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { friendlyError } from '../../utils/friendlyError';
 import { supabase } from '../../supabase';
@@ -98,7 +99,7 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted, onRequestResolve
 
             setRequests(enrichedRequests);
         } catch (error) {
-            console.error('Error fetching requests:', error);
+            logger.error('Error fetching requests:', error);
             if (!silent) {
                 notifyBlockingError('Error al cargar solicitudes');
             }
@@ -175,7 +176,7 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted, onRequestResolve
             });
 
             if (approvalError) {
-                console.error('[ACCEPT] approve-join-request error:', approvalError);
+                logger.error('[ACCEPT] approve-join-request error:', approvalError);
                 notifyBlockingError(friendlyError(approvalError, 'No se pudo aprobar la solicitud. Intentá de nuevo.'));
                 throw approvalError;
             }
@@ -206,7 +207,7 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted, onRequestResolve
                 onRequestResolved();
             }
         } catch (error) {
-            console.error('[ACCEPT_REQUEST_RPC_ERROR]', {
+            logger.error('[ACCEPT_REQUEST_RPC_ERROR]', {
                 code: error.code,
                 message: error.message,
                 details: error.details,
@@ -251,7 +252,7 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted, onRequestResolve
                 onRequestResolved();
             }
         } catch (error) {
-            console.error('Error rejecting request:', error);
+            logger.error('Error rejecting request:', error);
             notifyBlockingError('Error al rechazar solicitud');
         } finally {
             setProcessing(prev => {

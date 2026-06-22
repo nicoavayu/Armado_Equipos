@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getPartidosPendientesCalificacion, supabase } from '../supabase';
@@ -35,9 +36,9 @@ const PartidosPendientesNotification = ({ userId }) => {
         setPartidosPendientes(partidos || []);
 
         // Mostrar en consola para testing
-        console.log('IDs de partidos para testing:', (partidos || []).map((p) => p.id));
+        logger.log('IDs de partidos para testing:', (partidos || []).map((p) => p.id));
       } catch (error) {
-        console.error('Error cargando partidos pendientes:', error);
+        logger.error('Error cargando partidos pendientes:', error);
       } finally {
         setLoading(false);
       }

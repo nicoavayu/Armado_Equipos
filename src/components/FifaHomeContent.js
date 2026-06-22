@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -419,7 +420,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
           ])));
         }
       } catch (error) {
-        console.warn('[AWARDS_RING] Could not validate awards visibility:', error);
+        logger.warn('[AWARDS_RING] Could not validate awards visibility:', error);
         if (!cancelled) {
           setAwardsReadyVisibleMatchIds(trustedMatchIds);
         }
@@ -509,7 +510,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
           completedSurveys = new Set((surveysData?.map((s) => String(s.partido_id)) || []));
         }
       } catch (error) {
-        console.error('Error fetching completed surveys:', error);
+        logger.error('Error fetching completed surveys:', error);
       }
 
       let partidosData = [];
@@ -595,7 +596,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
               .filter(Boolean),
           );
         } catch (bridgeLookupError) {
-          console.warn('[HOME] team_matches cancellation bridge lookup failed:', bridgeLookupError);
+          logger.warn('[HOME] team_matches cancellation bridge lookup failed:', bridgeLookupError);
         }
       }
 
@@ -673,7 +674,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
         setActiveMatches(visibleMatches);
       }
     } catch (error) {
-      console.error('Error fetching active matches:', error);
+      logger.error('Error fetching active matches:', error);
     } finally {
       activeMatchesRefreshInFlightRef.current = false;
     }
@@ -752,7 +753,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
       await refreshProfile();
       setShowStatusDropdown(false);
     } catch (error) {
-      console.error('Error updating availability status:', error);
+      logger.error('Error updating availability status:', error);
     }
   };
 

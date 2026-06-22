@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { friendlyError } from 'utils/friendlyError';
 // src/VotingView.js
@@ -159,7 +160,7 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
         const { partidoId, error } = await resolveMatchIdFromQueryParams(urlParams);
 
         if (error || !partidoId) {
-          console.warn('[VOTING] Cannot check vote status:', error);
+          logger.warn('[VOTING] Cannot check vote status:', error);
           return setCargandoVotoUsuario(false);
         }
 
@@ -217,7 +218,7 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
               matchPlayer = jugadoresPartido?.find((j) => j.usuario_id === user.id);
             }
           } catch (err) {
-            console.warn('[VOTING] Check roster failed', err);
+            logger.warn('[VOTING] Check roster failed', err);
           }
         } else {
           setAuthenticatedUserId(null);
@@ -233,7 +234,7 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
           try {
             return await isMatchVotingOpen(matchId);
           } catch (gateError) {
-            console.warn('[VOTING] voting gate validation failed, denying access', gateError);
+            logger.warn('[VOTING] voting gate validation failed, denying access', gateError);
             return false;
           }
         };
@@ -254,13 +255,13 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
               .limit(1);
 
             if (notificationsError) {
-              console.warn('[VOTING] call_to_vote access lookup failed, denying access', notificationsError);
+              logger.warn('[VOTING] call_to_vote access lookup failed, denying access', notificationsError);
               return false;
             }
 
             return Boolean(data && data.length > 0);
           } catch (notificationsError) {
-            console.warn('[VOTING] call_to_vote access lookup threw, denying access', notificationsError);
+            logger.warn('[VOTING] call_to_vote access lookup threw, denying access', notificationsError);
             return false;
           }
         };
@@ -367,7 +368,7 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
   useEffect(() => {
     if (!partidoActual?.id) return;
     const unsubscribe = subscribeToMatchUpdates(partidoActual.id, (event) => {
-      console.debug('[RT] Voting update:', event);
+      logger.debug('[RT] Voting update:', event);
       if (event.type === 'match_update' && event.payload.new) {
         // Force reload on any significant change to catch resets or status transitions
         const newStatus = event.payload.new.estado || event.payload.new.status;
@@ -376,7 +377,7 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
         const oldUpdate = partidoActual.updated_at;
 
         if (newStatus !== oldStatus || (newUpdate && newUpdate !== oldUpdate)) {
-          if (DEBUG) console.debug('[RT] Reloading due to match update:', { newStatus, newUpdate });
+          if (DEBUG) logger.debug('[RT] Reloading due to match update:', { newStatus, newUpdate });
           window.location.reload();
         }
       }
@@ -426,7 +427,7 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
     if (publicAlreadyVoted || usuarioYaVoto || finalizado) {
       if (!lockedRef.current) {
         lockedRef.current = true;
-        if (DEBUG) console.debug('[Guard] Voter locked - already voted');
+        if (DEBUG) logger.debug('[Guard] Voter locked - already voted');
       }
     }
   }, [publicAlreadyVoted, usuarioYaVoto, finalizado]);
@@ -608,7 +609,7 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
 
   // ============ EARLY GUARD: Return final screen if already voted ============
   if (lockedRef.current || publicAlreadyVoted || usuarioYaVoto || finalizado) {
-    if (DEBUG) console.debug('[Guard] Rendering final screen - voter locked or already voted', { publicAlreadyVoted, usuarioYaVoto, finalizado, locked: lockedRef.current });
+    if (DEBUG) logger.debug('[Guard] Rendering final screen - voter locked or already voted', { publicAlreadyVoted, usuarioYaVoto, finalizado, locked: lockedRef.current });
     return (
       <div className={wrapperClass}>
         {noticeSlot}
@@ -634,7 +635,7 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
 
   // ============ EARLY GUARD: Return final screen if already voted or voted successfully ============
   if (shouldShowFinal) {
-    if (DEBUG) console.debug('[Guard] Rendering final screen', { publicAlreadyVoted, usuarioYaVoto, finalizado });
+    if (DEBUG) logger.debug('[Guard] Rendering final screen', { publicAlreadyVoted, usuarioYaVoto, finalizado });
     return (
       <div className={wrapperClass}>
         {noticeSlot}
@@ -678,7 +679,7 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
       const codigo = codigoParam || partidoActual.codigo;
       window.location.href = `/?codigo=${codigo}`;
     } else {
-      console.error('[VOTING] No partidoId or codigo available');
+      logger.error('[VOTING] No partidoId or codigo available');
       showInlineNotice('warning', 'No se pudo abrir la votación.');
     }
   };
@@ -686,7 +687,7 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
   const handleConfirmNombre = async () => {
     // Guard: Check if already locked/voted
     if (lockedRef.current) {
-      if (DEBUG) console.debug('[Guard] handleConfirmNombre blocked - voter locked');
+      if (DEBUG) logger.debug('[Guard] handleConfirmNombre blocked - voter locked');
       return;
     }
 
@@ -725,7 +726,7 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
         } else if (data === true) {
           lockedRef.current = true;
           setPublicAlreadyVoted(true);
-          if (DEBUG) console.debug('[Guard] handleConfirmNombre detected duplicate - locked');
+          if (DEBUG) logger.debug('[Guard] handleConfirmNombre detected duplicate - locked');
           return;
         }
       } catch (err) {
@@ -1208,12 +1209,12 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
             onClick={async () => {
               // Anti-double submit guard
               if (isSubmitting) {
-                console.debug('[Vote] blocked: submitting');
+                logger.debug('[Vote] blocked: submitting');
                 return;
               }
 
               if (hasAccess === false && !isPublicVoting) {
-                console.error('[Vote] error', { message: 'Access denied', code: ERROR_CODES.ACCESS_DENIED });
+                logger.error('[Vote] error', { message: 'Access denied', code: ERROR_CODES.ACCESS_DENIED });
                 handleError(new AppError('No tienes permiso para votar en este partido.', ERROR_CODES.ACCESS_DENIED), { showToast: true, onError: () => { } });
                 return;
               }
@@ -1240,7 +1241,7 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
                   // Get codigo from URL or from partidoActual (already loaded in memory)
                   let codigo = codigoParam ? codigoParam.trim().toUpperCase() : null;
 
-                  console.log('[VOTING] Codigo resolution:', {
+                  logger.log('[VOTING] Codigo resolution:', {
                     codigoParam,
                     codigo,
                     partidoActualCodigo: partidoActual?.codigo,
@@ -1249,18 +1250,18 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
 
                   if (!codigo && partidoActual?.codigo) {
                     codigo = partidoActual.codigo;
-                    console.log('[VOTING] Using codigo from partidoActual:', codigo);
+                    logger.log('[VOTING] Using codigo from partidoActual:', codigo);
                   }
 
                   // Fallback: generate codigo from partidoId if missing
                   if (!codigo && partidoId) {
                     codigo = `M${partidoId}`;
-                    console.log('[VOTING] Generated fallback codigo:', codigo);
+                    logger.log('[VOTING] Generated fallback codigo:', codigo);
                   }
 
                   // codigo is still required for RPC calls
                   if (!codigo) {
-                    console.error('[VOTING] No codigo available:', {
+                    logger.error('[VOTING] No codigo available:', {
                       codigoParam,
                       partidoActualCodigo: partidoActual?.codigo,
                       partidoActualKeys: partidoActual ? Object.keys(partidoActual) : [],
@@ -1285,18 +1286,18 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
                   const ratedPlayerIds = Object.keys(votos).filter(k => votos[k] !== undefined && votos[k] !== null);
 
                   if (ratedPlayerIds.length === 0) {
-                    console.debug('[VOTING] No players rated, aborting public submit');
+                    logger.debug('[VOTING] No players rated, aborting public submit');
                     showInlineNotice('warning', 'Debes calificar al menos a un jugador.');
                     setIsSubmitting(false);
                     setConfirmando(false);
                     return;
                   }
 
-                  console.debug('[VOTING] Starting public submit', { playerIds: ratedPlayerIds, voterName: nombre });
+                  logger.debug('[VOTING] Starting public submit', { playerIds: ratedPlayerIds, voterName: nombre });
 
                   for (const j of jugadoresParaVotar) {
                     if (!j?.id) {
-                      console.error('[VOTING] Missing numeric player id for public vote', {
+                      logger.error('[VOTING] Missing numeric player id for public vote', {
                         jugadorNombre: j?.nombre,
                         jugadorUuid: j?.uuid,
                         partidoId,
@@ -1331,7 +1332,7 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
                         lockedRef.current = true;
                         setPublicAlreadyVoted(true);
                         notifyAlreadyVoted();
-                        if (DEBUG) console.debug('[Guard] First RPC detected duplicate - locked');
+                        if (DEBUG) logger.debug('[Guard] First RPC detected duplicate - locked');
                         return;
                       }
                       if (result === 'voting_not_open') {
@@ -1350,7 +1351,7 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
                         resultados.ok += 1;
                         continue;
                       }
-                      console.warn('[VOTING] Unexpected public_submit_no_lo_conozco result', { result, partidoId, jugadorId: j.id });
+                      logger.warn('[VOTING] Unexpected public_submit_no_lo_conozco result', { result, partidoId, jugadorId: j.id });
                       resultados.invalid += 1;
                       continue;
                     }
@@ -1370,7 +1371,7 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
                     });
 
                     if (error) {
-                      console.error('[VOTING] public_submit_player_rating error:', {
+                      logger.error('[VOTING] public_submit_player_rating error:', {
                         error,
                         errorMessage: error.message,
                         errorDetails: error.details,
@@ -1398,7 +1399,7 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
                       lockedRef.current = true;
                       setPublicAlreadyVoted(true);
                       notifyAlreadyVoted();
-                      if (DEBUG) console.debug('[Guard] Second RPC detected duplicate - locked');
+                      if (DEBUG) logger.debug('[Guard] Second RPC detected duplicate - locked');
                       return;
                     }
                     if (result === 'voting_not_open') {
@@ -1418,7 +1419,7 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
                       resultados.ok += 1;
                       continue;
                     }
-                    console.warn('[VOTING] Unexpected public_submit_player_rating result', {
+                    logger.warn('[VOTING] Unexpected public_submit_player_rating result', {
                       result,
                       partidoId,
                       jugadorId: j.id,
@@ -1427,7 +1428,7 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
                     resultados.invalid += 1;
                   }
 
-                  console.debug('[Vote] public submit result (before completion mark)', resultados);
+                  logger.debug('[Vote] public submit result (before completion mark)', resultados);
 
                   // Evita falso positivo: no marcar "votó" si no hubo ningún voto válido persistido.
                   if (resultados.ok <= 0) {
@@ -1443,7 +1444,7 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
                   });
 
                   if (doneError) {
-                    console.warn('[Vote] could not mark completed', doneError);
+                    logger.warn('[Vote] could not mark completed', doneError);
                   } else {
                     const r = doneData?.result || doneData;
                     if (r === 'voting_not_open') {
@@ -1454,7 +1455,7 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
                       lockedRef.current = true;
                       setPublicAlreadyVoted(true);
                       notifyAlreadyVoted();
-                      if (DEBUG) console.debug('[Guard] Mark completed detected duplicate - locked');
+                      if (DEBUG) logger.debug('[Guard] Mark completed detected duplicate - locked');
                       return;
                     }
                   }
@@ -1466,19 +1467,19 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
                   } else {
                     showInlineNotice('success', 'Votos enviados.');
                   }
-                  console.debug('[Vote] public submit result (final)', resultados);
+                  logger.debug('[Vote] public submit result (final)', resultados);
                   lockedRef.current = true;
                   setFinalizado(true);
                 } else {
                   // Validate payload
                   const voteCount = Object.keys(votos).filter((k) => votos[k]).length;
                   if (voteCount === 0) {
-                    console.debug('[Vote] invalid payload, abort');
+                    logger.debug('[Vote] invalid payload, abort');
                     showInlineNotice('warning', 'Debes calificar al menos a un jugador.');
                     return;
                   }
 
-                  console.debug('[Vote] start', { matchId: partidoActual?.id, playerId: jugador?.uuid, voteCount });
+                  logger.debug('[Vote] start', { matchId: partidoActual?.id, playerId: jugador?.uuid, voteCount });
 
                   // GUARD: Use cached matchId if available, avoid re-resolution
                   let partidoId = resolvedMatchIdRef.current;
@@ -1501,20 +1502,20 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
                     voteCount,
                     hasNombre: !!jugador?.nombre,
                   };
-                  console.debug('[Vote] build payload', safePayload);
-                  console.debug('[Vote] submit sending');
+                  logger.debug('[Vote] build payload', safePayload);
+                  logger.debug('[Vote] submit sending');
 
                   await submitVotos(votos, jugador?.uuid, partidoId, jugador?.nombre, jugador?.avatar_url);
 
-                  console.debug('[Vote] submit result', { ok: true });
+                  logger.debug('[Vote] submit result', { ok: true });
 
-                  console.debug('[Vote] step change', { from: 3, to: 'finalizado' });
+                  logger.debug('[Vote] step change', { from: 3, to: 'finalizado' });
                   lockedRef.current = true;
                   setFinalizado(true);
                 }
               } catch (error) {
-                console.error('[Vote] error', { message: error?.message, code: error?.code });
-                console.debug('[Vote] submit result', { ok: false });
+                logger.error('[Vote] error', { message: error?.message, code: error?.code });
+                logger.debug('[Vote] submit result', { ok: false });
                 if (isPublicVoting) {
                   notifyBlockingError('No se pudo enviar tus votos');
                 } else {

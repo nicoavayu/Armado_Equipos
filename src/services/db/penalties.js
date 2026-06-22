@@ -1,3 +1,4 @@
+import logger from '../../utils/logger';
 import { supabase } from '../../lib/supabaseClient';
 
 const ABSENCE_CONFIRMATION_THRESHOLD = 2;
@@ -237,15 +238,15 @@ export async function applyNoShowPenalties(matchId, options = {}) {
         p_id: uid,
         p_amount: rankingDelta,
       });
-      console.log('[NO_SHOW_PENALTY] applied', { partidoId: id, userId: uid });
+      logger.log('[NO_SHOW_PENALTY] applied', { partidoId: id, userId: uid });
     } catch (rpcError) {
       try {
         const { data: curr } = await supabase.from(table).select('ranking').eq('id', uid).single();
         const newVal = Number(curr?.ranking ?? 0) - rankingDelta;
         await supabase.from(table).update({ ranking: newVal }).eq('id', uid);
-        console.log('[NO_SHOW_PENALTY] applied', { partidoId: id, userId: uid });
+        logger.log('[NO_SHOW_PENALTY] applied', { partidoId: id, userId: uid });
       } catch (updateErr) {
-        console.error('[NO_SHOW_PENALTY] failed to apply ranking for', uid, updateErr);
+        logger.error('[NO_SHOW_PENALTY] failed to apply ranking for', uid, updateErr);
       }
     }
     // Also increment partidos_abandonados on usuarios for this user (only when penalty was newly applied)
@@ -257,16 +258,16 @@ export async function applyNoShowPenalties(matchId, options = {}) {
         p_id: uid,
         p_amount: 1,
       });
-      console.log('[NO_SHOW_PENALTY] incremented partidos_abandonados', { partidoId: id, userId: uid });
+      logger.log('[NO_SHOW_PENALTY] incremented partidos_abandonados', { partidoId: id, userId: uid });
     } catch (incRpcErr) {
       try {
         // Fallback: read current value and update
         const { data: currU } = await supabase.from('usuarios').select('partidos_abandonados').eq('id', uid).single();
         const newValU = (currU?.partidos_abandonados ?? 0) + 1;
         await supabase.from('usuarios').update({ partidos_abandonados: newValU }).eq('id', uid);
-        console.log('[NO_SHOW_PENALTY] incremented partidos_abandonados', { partidoId: id, userId: uid });
+        logger.log('[NO_SHOW_PENALTY] incremented partidos_abandonados', { partidoId: id, userId: uid });
       } catch (incErr) {
-        console.error('[NO_SHOW_PENALTY] failed to increment partidos_abandonados for', uid, incErr);
+        logger.error('[NO_SHOW_PENALTY] failed to increment partidos_abandonados for', uid, incErr);
       }
     }
 
@@ -281,7 +282,7 @@ export async function applyNoShowPenalties(matchId, options = {}) {
           amount: -rankingDelta,
         });
       } catch (notificationErr) {
-        console.error('[NO_SHOW_PENALTY] failed to insert private notification for', uid, notificationErr);
+        logger.error('[NO_SHOW_PENALTY] failed to insert private notification for', uid, notificationErr);
       }
     }
   }));
@@ -289,7 +290,7 @@ export async function applyNoShowPenalties(matchId, options = {}) {
   // 8) log skips for users already applied
   (adjustments || []).forEach((a) => {
     if (alreadyAppliedSet.has(a.user_id)) {
-      console.log('[NO_SHOW_PENALTY] skipped (already applied)', { partidoId: id, userId: a.user_id });
+      logger.log('[NO_SHOW_PENALTY] skipped (already applied)', { partidoId: id, userId: a.user_id });
     }
   });
 
@@ -349,7 +350,7 @@ export async function applyNoShowRecoveries(matchId, options = {}) {
       // upsert reset
       const { error: upsertErr } = await upsertRecoveryStreak(userId, 0);
       if (upsertErr) return { data: applied, error: upsertErr };
-      console.log('[NO_SHOW_RECOVERY] reset streak', { userId });
+      logger.log('[NO_SHOW_RECOVERY] reset streak', { userId });
       continue;
     }
 
@@ -407,7 +408,7 @@ export async function applyNoShowRecoveries(matchId, options = {}) {
       .limit(1);
     if (existsErr) return { data: applied, error: existsErr };
     if (existsRows && existsRows.length > 0) {
-      console.log('[NO_SHOW_RECOVERY] skipped (already applied)', { partidoId: id, userId });
+      logger.log('[NO_SHOW_RECOVERY] skipped (already applied)', { partidoId: id, userId });
       continue;
     }
 
@@ -431,7 +432,7 @@ export async function applyNoShowRecoveries(matchId, options = {}) {
     if (insErr) return { data: applied, error: insErr };
     if (!insRes || !Array.isArray(insRes) || !insRes[0]) {
       // insertion didn't create a row (possible conflict)
-      console.log('[NO_SHOW_RECOVERY] skipped (already applied)', { partidoId: id, userId });
+      logger.log('[NO_SHOW_RECOVERY] skipped (already applied)', { partidoId: id, userId });
       continue;
     }
 
@@ -450,7 +451,7 @@ export async function applyNoShowRecoveries(matchId, options = {}) {
         const newVal = Number(curr?.ranking ?? 0) + recoverAmount;
         await supabase.from(table).update({ ranking: newVal }).eq('id', userId);
       } catch (updateErr) {
-        console.error('[NO_SHOW_RECOVERY] failed to apply rating increment for', userId, updateErr);
+        logger.error('[NO_SHOW_RECOVERY] failed to apply rating increment for', userId, updateErr);
       }
     }
 
@@ -465,11 +466,11 @@ export async function applyNoShowRecoveries(matchId, options = {}) {
           amount: recoverAmount,
         });
       } catch (notificationErr) {
-        console.error('[NO_SHOW_RECOVERY] failed to insert private notification for', userId, notificationErr);
+        logger.error('[NO_SHOW_RECOVERY] failed to insert private notification for', userId, notificationErr);
       }
     }
 
-    console.log('[NO_SHOW_RECOVERY] applied', { userId, cycle_index: cycleIndex });
+    logger.log('[NO_SHOW_RECOVERY] applied', { userId, cycle_index: cycleIndex });
     applied.push(userId);
   }
 

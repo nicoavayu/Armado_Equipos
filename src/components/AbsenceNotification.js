@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useState } from 'react';
 import { friendlyError } from '../utils/friendlyError';
 import { recordAbsenceNotification } from '../services/absenceService';
@@ -59,13 +60,13 @@ const AbsenceNotification = ({ userId, partidoId, onClose, onSuccess }) => {
           ? ' No se aplicará penalización a tu rating.'
           : ' Se aplicará una penalización de -0.5 puntos a tu rating.';
 
-        console.info(`Ausencia registrada. ${timeMessage}${penaltyMessage}`);
+        logger.info(`Ausencia registrada. ${timeMessage}${penaltyMessage}`);
 
         if (onSuccess) onSuccess(result);
         if (onClose) onClose();
       }
     } catch (error) {
-      console.error('Error recording absence:', error);
+      logger.error('Error recording absence:', error);
       notifyBlockingError(friendlyError(error, 'No se pudo registrar la ausencia. Intentá de nuevo.'));
     } finally {
       setSubmitting(false);

@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../components/AuthProvider';
 import { useAdminPanelState } from '../hooks/useAdminPanelState';
@@ -306,11 +307,11 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
     }
 
     if (adminState.pendingInvitation && !adminState.isPlayerInMatch) {
-      console.info('Aceptá la invitación para habilitar el chat del partido.');
+      logger.info('Aceptá la invitación para habilitar el chat del partido.');
       return;
     }
 
-    console.info('Sumate al partido para usar el chat.');
+    logger.info('Sumate al partido para usar el chat.');
   };
 
   const handleAbandon = async () => {
@@ -325,7 +326,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
             partidoActual.id,
             'Partido cancelado porque el admin abandonó y no había otro jugador conectado para transferir la administración',
           );
-          console.info('No había otro jugador conectado. El partido fue cancelado.');
+          logger.info('No había otro jugador conectado. El partido fue cancelado.');
         } else {
           try {
             await requestImmediatePushDispatch({
@@ -334,7 +335,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
               limit: 20,
             });
           } catch (dispatchError) {
-            console.error('[ADMIN_LEAVE] Error dispatching immediate admin-leave push:', dispatchError);
+            logger.error('[ADMIN_LEAVE] Error dispatching immediate admin-leave push:', dispatchError);
           }
 
           try {
@@ -346,10 +347,10 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
               await incrementMatchesAbandoned(user.id);
             }
           } catch (abandonError) {
-            console.error('[ADMIN_LEAVE] Error incrementing abandonment counter:', abandonError);
+            logger.error('[ADMIN_LEAVE] Error incrementing abandonment counter:', abandonError);
           }
 
-          console.info('Abandonaste el partido y la administración fue transferida.');
+          logger.info('Abandonaste el partido y la administración fue transferida.');
         }
 
         setTimeout(() => onBackToHome?.(), 1000);
@@ -359,7 +360,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
       // Must pass the numerical ID (PK) of the player, not the UUID
       const playerId = adminState.currentPlayerInMatch?.id;
       if (!playerId) {
-        console.error('Cannot abandon: No player ID found for current user');
+        logger.error('Cannot abandon: No player ID found for current user');
         return;
       }
 
@@ -385,7 +386,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
     });
 
     if (inviteErr || !inviteRows?.[0]?.token) {
-      console.error('[SHARE_INVITE] create_guest_match_invite failed', inviteErr);
+      logger.error('[SHARE_INVITE] create_guest_match_invite failed', inviteErr);
       const rawMessage = String(inviteErr?.message || '').toLowerCase();
       if (rawMessage.includes('match_already_started')) {
         notifyBlockingError('El partido ya empezó. El link de invitación venció.');
@@ -418,7 +419,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
         await shareContent(title, payloadText, undefined);
         return true;
       } catch (nativeShareError) {
-        console.warn('[WHATSAPP_SHARE] Native share failed, fallback to wa.me', nativeShareError);
+        logger.warn('[WHATSAPP_SHARE] Native share failed, fallback to wa.me', nativeShareError);
       }
     }
 
@@ -451,7 +452,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
         url,
       });
     } catch (err) {
-      console.error('Error sharing:', err);
+      logger.error('Error sharing:', err);
       notifyBlockingError('No se pudo abrir WhatsApp');
     }
   };
@@ -468,7 +469,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
         latestPlayers = refreshedPlayers;
       }
     } catch (error) {
-      console.warn('[SHARE_ROSTER] Using local players after refresh error', error);
+      logger.warn('[SHARE_ROSTER] Using local players after refresh error', error);
     }
 
     let joinLink = null;
@@ -494,7 +495,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
       });
       return true;
     } catch (error) {
-      console.error('[SHARE_ROSTER] Error sharing update', error);
+      logger.error('[SHARE_ROSTER] Error sharing update', error);
       notifyBlockingError('No se pudo compartir el update por WhatsApp');
       return false;
     }

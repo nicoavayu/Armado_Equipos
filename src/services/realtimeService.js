@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import { supabase } from '../supabase';
 
 const channels = {};
@@ -19,7 +20,7 @@ const getExistingChannel = (key) => {
 const registerChannel = (key, channel) => {
   if (channels[key]) {
     // If overwriting, ensure old one is cleaned? usually we check exists first.
-    console.warn(`[RT] Overwriting channel key: ${key}`);
+    logger.warn(`[RT] Overwriting channel key: ${key}`);
   }
   channels[key] = channel;
 };
@@ -43,7 +44,7 @@ export const subscribeToNotifications = (userId, onEvent) => {
   if (!userId) return () => { };
 
   if (getExistingChannel(key)) {
-    console.debug(`[RT] Reusing existing notification channel for ${userId}`);
+    logger.debug(`[RT] Reusing existing notification channel for ${userId}`);
     // Limitations: reusing channel means we can't easily attach a NEW callback 
     // if the component remounted with a different closure. 
     // For simplicity in this architecture, we will assume one subscriber (Context).
@@ -51,7 +52,7 @@ export const subscribeToNotifications = (userId, onEvent) => {
     return () => { };
   }
 
-  console.debug(`[RT] Subscribing to notifications for ${userId}`);
+  logger.debug(`[RT] Subscribing to notifications for ${userId}`);
   const channel = supabase
     .channel(key)
     .on(
@@ -67,13 +68,13 @@ export const subscribeToNotifications = (userId, onEvent) => {
       },
     )
     .subscribe((status) => {
-      console.debug(`[RT] Notifications status for ${userId}:`, status);
+      logger.debug(`[RT] Notifications status for ${userId}:`, status);
     });
 
   registerChannel(key, channel);
 
   return () => {
-    console.debug(`[RT] Unsubscribing notifications for ${userId}`);
+    logger.debug(`[RT] Unsubscribing notifications for ${userId}`);
     supabase.removeChannel(channel);
     unregisterChannel(key);
   };
@@ -103,13 +104,13 @@ export const subscribeToMatchChat = (matchId, onInsert) => {
   // Ideally, cleanup is called before new subscribe.
   if (getExistingChannel(key)) {
     // Force cleanup old to ensure new callback is attached
-    console.debug(`[RT] Cleaning stale chat channel ${key} before resubscribe`);
+    logger.debug(`[RT] Cleaning stale chat channel ${key} before resubscribe`);
     const old = channels[key];
     supabase.removeChannel(old);
     unregisterChannel(key);
   }
 
-  console.debug(`[RT] Subscribing to chat ${matchId}`);
+  logger.debug(`[RT] Subscribing to chat ${matchId}`);
   const channel = supabase
     .channel(key)
     .on(
@@ -129,7 +130,7 @@ export const subscribeToMatchChat = (matchId, onInsert) => {
   registerChannel(key, channel);
 
   return () => {
-    console.debug(`[RT] Unsubscribing chat ${matchId}`);
+    logger.debug(`[RT] Unsubscribing chat ${matchId}`);
     supabase.removeChannel(channel);
     unregisterChannel(key);
   };
@@ -146,13 +147,13 @@ export const subscribeToTeamChat = (teamId, onInsert) => {
   if (!teamId) return () => { };
 
   if (getExistingChannel(key)) {
-    console.debug(`[RT] Cleaning stale team chat channel ${key} before resubscribe`);
+    logger.debug(`[RT] Cleaning stale team chat channel ${key} before resubscribe`);
     const old = channels[key];
     supabase.removeChannel(old);
     unregisterChannel(key);
   }
 
-  console.debug(`[RT] Subscribing to team chat ${teamId}`);
+  logger.debug(`[RT] Subscribing to team chat ${teamId}`);
   const channel = supabase
     .channel(key)
     .on(
@@ -172,7 +173,7 @@ export const subscribeToTeamChat = (teamId, onInsert) => {
   registerChannel(key, channel);
 
   return () => {
-    console.debug(`[RT] Unsubscribing team chat ${teamId}`);
+    logger.debug(`[RT] Unsubscribing team chat ${teamId}`);
     supabase.removeChannel(channel);
     unregisterChannel(key);
   };
@@ -194,7 +195,7 @@ export const subscribeToMatchUpdates = (matchId, onUpdate) => {
     unregisterChannel(key);
   }
 
-  console.debug(`[RT] Subscribing to match updates ${matchId}`);
+  logger.debug(`[RT] Subscribing to match updates ${matchId}`);
   const channel = supabase
     .channel(key)
   // Listen for match status changes (e.g. voting_closed)
@@ -236,7 +237,7 @@ export const subscribeToMatchUpdates = (matchId, onUpdate) => {
   registerChannel(key, channel);
 
   return () => {
-    console.debug(`[RT] Unsubscribing match updates ${matchId}`);
+    logger.debug(`[RT] Unsubscribing match updates ${matchId}`);
     supabase.removeChannel(channel);
     unregisterChannel(key);
   };

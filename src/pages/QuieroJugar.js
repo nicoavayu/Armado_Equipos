@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useState, useEffect, useMemo, useRef, useDeferredValue, useCallback } from 'react';
 import { friendlyError } from '../utils/friendlyError';
 import { useNavigate } from 'react-router-dom';
@@ -215,7 +216,7 @@ const QuieroJugar = ({
       .eq('id', user.id);
 
     if (error) {
-      console.warn('[QUIERO_JUGAR_LOCATION] persist failed', error);
+      logger.warn('[QUIERO_JUGAR_LOCATION] persist failed', error);
     }
   }, [user?.id]);
 
@@ -357,7 +358,7 @@ const QuieroJugar = ({
         .filter((player) => player.acepta_invitaciones !== false);
       setFreePlayers(players);
     } catch (error) {
-      handleError(error, { showToast: false, onError: () => console.error(error) });
+      handleError(error, { showToast: false, onError: () => logger.error(error) });
     }
   }, []);
 

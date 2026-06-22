@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Bell, CalendarClock, CheckCircle, ChevronDown, ClipboardList, Trophy, UserPlus, Users, Vote, XCircle } from 'lucide-react';
@@ -331,7 +332,7 @@ const NotificationsView = () => {
         final_route: route,
         error: error?.message || String(error || ''),
       });
-      console.error('[NOTIFICATION_CLICK] navigation error', { route, error });
+      logger.error('[NOTIFICATION_CLICK] navigation error', { route, error });
       fallbackToNotificationRoute(notification, message);
       return false;
     }

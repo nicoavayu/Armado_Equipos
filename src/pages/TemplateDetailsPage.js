@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import PageTitle from '../components/PageTitle';
@@ -64,7 +65,7 @@ const TemplateDetailsPage = () => {
         .single();
       if (!isMounted) return;
       if (error) {
-        console.warn('[TemplateDetails] No se pudo cargar plantilla', error);
+        logger.warn('[TemplateDetails] No se pudo cargar plantilla', error);
         return;
       }
       setTemplate(data);

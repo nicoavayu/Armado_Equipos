@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useState, useRef, useEffect } from 'react';
 import { updatePartidoFrecuente, supabase } from '../supabase';
 import AutocompleteSede from '../components/AutocompleteSede';
@@ -317,7 +318,7 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
           if (!isFechaColumnError) throw err;
           const fallbackUpdates = { ...updatesFrecuente };
           delete fallbackUpdates.fecha;
-          console.warn('[EditarPartidoFrecuente] retry without fecha column', { message: err?.message });
+          logger.warn('[EditarPartidoFrecuente] retry without fecha column', { message: err?.message });
           resFrecuente = await updatePartidoFrecuente(partido.id, fallbackUpdates);
         }
         if (resFrecuente && typeof resFrecuente === 'object' && 'error' in resFrecuente && resFrecuente.error) {
@@ -361,11 +362,11 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
       const lower = (mensajeCorto || '').toLowerCase();
       if (lower.includes('precio_cancha') && (lower.includes('does not exist') || lower.includes('no existe') || lower.includes('column'))) {
         const sql = 'ALTER TABLE public.partidos_frecuentes ADD COLUMN precio_cancha numeric;';
-        console.error('SQL to add column precio_cancha (recommended type numeric):\n' + sql);
+        logger.error('SQL to add column precio_cancha (recommended type numeric):\n' + sql);
         notifyBlockingError('Falta correr el SQL: ' + sql);
       } else {
         // Log helpful SQL for debugging (kept for other errors)
-        console.error('SQL to add column precio_cancha (recommended type numeric):\nALTER TABLE partidos_frecuentes ADD COLUMN precio_cancha numeric;\n-- or, if you use the main partidos table: ALTER TABLE partidos ADD COLUMN precio_cancha numeric;');
+        logger.error('SQL to add column precio_cancha (recommended type numeric):\nALTER TABLE partidos_frecuentes ADD COLUMN precio_cancha numeric;\n-- or, if you use the main partidos table: ALTER TABLE partidos ADD COLUMN precio_cancha numeric;');
 
         notifyBlockingError('Error al guardar la plantilla: ' + (mensajeCorto || 'Error desconocido'));
       }

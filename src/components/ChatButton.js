@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import MatchChat from './MatchChat';
@@ -41,12 +42,12 @@ export default function ChatButton({ partidoId, isOpen: externalIsOpen, onOpenCh
       try {
         // Validate partidoId before query
         if (!partidoId || partidoId === 'undefined' || partidoId === 'null') {
-          console.warn('[CHAT_BUTTON] Invalid partidoId, cannot check invitation');
+          logger.warn('[CHAT_BUTTON] Invalid partidoId, cannot check invitation');
           setCanAccessChat(false);
           return;
         }
 
-        console.log('[CHAT_BUTTON] Checking chat access for match:', partidoId);
+        logger.log('[CHAT_BUTTON] Checking chat access for match:', partidoId);
 
         // Verificar si el usuario está en la nómina del partido
         const { data: jugadoresPartido } = await supabase
@@ -82,7 +83,7 @@ export default function ChatButton({ partidoId, isOpen: externalIsOpen, onOpenCh
           .maybeSingle();
 
         if (invitationError) {
-          console.warn('[CHAT_BUTTON] invitation lookup failed, denying chat', invitationError);
+          logger.warn('[CHAT_BUTTON] invitation lookup failed, denying chat', invitationError);
           setCanAccessChat(false);
           return;
         }
@@ -97,7 +98,7 @@ export default function ChatButton({ partidoId, isOpen: externalIsOpen, onOpenCh
 
         setCanAccessChat(false);
       } catch (error) {
-        console.error('Error checking chat access:', error);
+        logger.error('Error checking chat access:', error);
         setCanAccessChat(false);
       }
     }
@@ -157,7 +158,7 @@ export default function ChatButton({ partidoId, isOpen: externalIsOpen, onOpenCh
         onUnreadCountChange(count);
       }
     } catch (error) {
-      console.error('Error checking unread messages:', error);
+      logger.error('Error checking unread messages:', error);
     }
   };
 

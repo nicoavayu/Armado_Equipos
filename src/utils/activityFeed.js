@@ -1,3 +1,4 @@
+import logger from './logger';
 import { parseLocalDateTime } from './dateLocal';
 import { SURVEY_START_DELAY_MS } from '../config/surveyConfig';
 import { resolveMatchInviteRoute } from './matchInviteRoute';
@@ -860,7 +861,7 @@ const buildWeeklyInsightItem = async ({ currentUserId, supabaseClient }) => {
       unread: false,
     };
   } catch (error) {
-    console.error('[ACTIVITY_FEED] weekly insight failed:', error);
+    logger.error('[ACTIVITY_FEED] weekly insight failed:', error);
     return null;
   }
 };
@@ -1319,7 +1320,7 @@ const fetchSurveyDisabledChallengeMatchIds = async ({ groups, supabaseClient }) 
       }
     });
   } catch (error) {
-    console.warn('[ACTIVITY_FEED] challenge survey filter failed:', error);
+    logger.warn('[ACTIVITY_FEED] challenge survey filter failed:', error);
   }
 
   return disabledMatchIds;
@@ -1383,7 +1384,7 @@ const fetchMissingMatches = async ({ groups, activeMatchMap, supabaseClient }) =
     (data || []).forEach((match) => map.set(Number(match.id), match));
     return map;
   } catch (error) {
-    console.error('[ACTIVITY_FEED] match enrichment failed:', error);
+    logger.error('[ACTIVITY_FEED] match enrichment failed:', error);
     return new Map();
   }
 };
@@ -1418,7 +1419,7 @@ const fetchTeamMatchStartByIds = async ({ groups, supabaseClient }) => {
       map.set(id, parsed);
     });
   } catch (error) {
-    console.warn('[ACTIVITY_FEED] team match schedule enrichment failed:', error);
+    logger.warn('[ACTIVITY_FEED] team match schedule enrichment failed:', error);
   }
 
   return map;
@@ -1451,7 +1452,7 @@ const fetchCompletedActionsByMatch = async ({ groups, currentUserId, supabaseCli
       if (pid) votedMatchIds.add(pid);
     });
   } catch (error) {
-    console.error('[ACTIVITY_FEED] failed to resolve completed votes:', error);
+    logger.error('[ACTIVITY_FEED] failed to resolve completed votes:', error);
   }
 
   try {
@@ -1476,7 +1477,7 @@ const fetchCompletedActionsByMatch = async ({ groups, currentUserId, supabaseCli
       });
     }
   } catch (error) {
-    console.error('[ACTIVITY_FEED] failed to resolve completed surveys:', error);
+    logger.error('[ACTIVITY_FEED] failed to resolve completed surveys:', error);
   }
 
   return { votedMatchIds, surveyedMatchIds };
@@ -1523,7 +1524,7 @@ const fetchSurveyIneligibleMatchIds = async ({ groups, currentUserId, supabaseCl
       }
     });
   } catch (error) {
-    console.error('[ACTIVITY_FEED] failed to resolve survey eligibility:', error);
+    logger.error('[ACTIVITY_FEED] failed to resolve survey eligibility:', error);
   }
 
   return ineligible;

@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthProvider';
@@ -36,7 +37,7 @@ export default function AuthHome() {
   const appleLoading = pendingAuthFlow?.provider === 'apple';
 
   useEffect(() => {
-    console.info('[AUTH] login_route_enter', {
+    logger.info('[AUTH] login_route_enter', {
       pathname: location.pathname,
       search: location.search,
       returnTo,
@@ -49,7 +50,7 @@ export default function AuthHome() {
   useEffect(() => {
     if (returnTo) {
       setAuthReturnTo(returnTo);
-      console.info('[AUTH] login_return_to_stored', {
+      logger.info('[AUTH] login_return_to_stored', {
         pathname: location.pathname,
         returnTo,
       });
@@ -65,7 +66,7 @@ export default function AuthHome() {
   }, [mode, cooldown]);
 
   useEffect(() => {
-    console.info('[AUTH] login_mode_sync', {
+    logger.info('[AUTH] login_mode_sync', {
       pathname: location.pathname,
       nextMode: location.pathname === '/login/email' ? 'email' : 'options',
     });
@@ -91,7 +92,7 @@ export default function AuthHome() {
   const sendingBlocked = emailLoading || Boolean(pendingAuthFlow);
 
   const sendMagicLink = async () => {
-    console.info('[AUTH] magic_link_submit', {
+    logger.info('[AUTH] magic_link_submit', {
       pathname: location.pathname,
       returnTo: returnTo || '/home',
       hasEmail: Boolean(email.trim()),
@@ -174,7 +175,7 @@ export default function AuthHome() {
               <button
                 type="button"
                 onClick={() => {
-                  console.info('[AUTH] login_show_email_mode', {
+                  logger.info('[AUTH] login_show_email_mode', {
                     pathname: location.pathname,
                     returnTo,
                   });
@@ -222,7 +223,7 @@ export default function AuthHome() {
                 <button
                   type="button"
                   onClick={() => {
-                    console.info('[AUTH] login_back_to_options', {
+                    logger.info('[AUTH] login_back_to_options', {
                       pathname: location.pathname,
                     });
                     setMode('options');

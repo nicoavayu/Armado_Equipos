@@ -1,3 +1,4 @@
+import logger from './utils/logger';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './styles.css';
@@ -43,7 +44,7 @@ if (typeof window !== 'undefined' && 'ontouchstart' in window) {
 // Herramientas de debug solo en desarrollo.
 if (process.env.NODE_ENV !== 'production') {
   import('./utils/debugNotifications').catch((error) => {
-    console.warn('[DEBUG] Could not load debugNotifications:', error);
+    logger.warn('[DEBUG] Could not load debugNotifications:', error);
   });
 
   if (process.env.REACT_APP_NETLOG !== 'false') {
@@ -52,7 +53,7 @@ if (process.env.NODE_ENV !== 'production') {
         initNetworkLogger();
       })
       .catch((error) => {
-        console.warn('[DEBUG] Could not initialize network logger:', error);
+        logger.warn('[DEBUG] Could not initialize network logger:', error);
       });
   }
 }
@@ -73,10 +74,10 @@ root.render(
 //   window.addEventListener('load', () => {
 //     navigator.serviceWorker.register('/sw.js')
 //       .then((registration) => {
-//         console.log('SW registered: ', registration);
+//         logger.log('SW registered: ', registration);
 //       })
 //       .catch((registrationError) => {
-//         console.log('SW registration failed: ', registrationError);
+//         logger.log('SW registration failed: ', registrationError);
 //       });
 //   });
 // }

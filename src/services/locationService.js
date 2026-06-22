@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import { Capacitor } from '@capacitor/core';
 import { Geolocation as CapacitorGeolocation } from '@capacitor/geolocation';
 import {
@@ -150,7 +151,7 @@ export const isLocationDebugEnabled = () => {
 
 export const logLocationDebug = (event, details = {}) => {
   if (!isLocationDebugEnabled()) return;
-  console.info('[PROFILE_GEO]', event, details);
+  logger.info('[PROFILE_GEO]', event, details);
 };
 
 const getImmediateGoogleMapsGeocoder = () => {

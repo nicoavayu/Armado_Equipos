@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useState, useEffect } from 'react';
 import { friendlyError } from '../utils/friendlyError';
 import { useNavigate } from 'react-router-dom';
@@ -174,7 +175,7 @@ function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
           }
         }
       } catch (e) {
-        console.warn('[USAR PLANTILLA] roster prefill failed (non-blocking)', e);
+        logger.warn('[USAR PLANTILLA] roster prefill failed (non-blocking)', e);
       }
 
       showInlineNotice({
@@ -184,7 +185,7 @@ function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
       });
       onUse && onUse(partido);
     } catch (err) {
-      console.error('[USAR PLANTILLA] error', err);
+      logger.error('[USAR PLANTILLA] error', err);
       notifyBlockingError('No se pudo crear el partido');
       setCreating(false);
     }
@@ -378,7 +379,7 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
             const refreshed = await getPartidosFrecuentes();
             setPartidosFrecuentes(refreshed || []);
           } catch (err) {
-            console.error('[ListaPartidosFrecuentes] Error refreshing after realtime event:', err);
+            logger.error('[ListaPartidosFrecuentes] Error refreshing after realtime event:', err);
           }
         });
 
@@ -398,7 +399,7 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
         const partidos = await getPartidosFrecuentes();
         setPartidosFrecuentes(partidos || []);
       } catch (err) {
-        console.error('[ListaPartidosFrecuentes] Error refreshing after template creation event:', err);
+        logger.error('[ListaPartidosFrecuentes] Error refreshing after template creation event:', err);
       }
     };
     window.addEventListener('partido-frecuente-creado', handleTemplateCreated);
@@ -410,7 +411,7 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
         }
         window.removeEventListener('partido-frecuente-creado', handleTemplateCreated);
       } catch (err) {
-        console.warn('Error cleaning up realtime subscription', err);
+        logger.warn('Error cleaning up realtime subscription', err);
       }
     };
   }, []);
@@ -467,7 +468,7 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
         message: 'Plantilla eliminada correctamente.',
       });
     } catch (err) {
-      console.error('[ELIMINAR HISTORIAL] unexpected error', err);
+      logger.error('[ELIMINAR HISTORIAL] unexpected error', err);
       notifyBlockingError(friendlyError(err, 'No se pudo eliminar la plantilla. Intentá de nuevo.'));
     } finally {
       setIsDeleting(false);

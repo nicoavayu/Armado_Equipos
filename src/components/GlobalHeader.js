@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from './AuthProvider';
 import { useNotifications } from '../context/NotificationContext';
@@ -68,7 +69,7 @@ const GlobalHeader = ({ _onProfileClick }) => {
       await refreshProfile();
       setShowStatusDropdown(false);
     } catch (error) {
-      console.error('Error updating availability status:', error);
+      logger.error('Error updating availability status:', error);
     }
   };
 

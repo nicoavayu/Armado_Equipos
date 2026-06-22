@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthProvider';
@@ -51,7 +52,7 @@ const fetchSurveyCountsByMatch = async (matchIds = []) => {
     });
     return byMatch;
   } catch (error) {
-    console.warn('[PROXIMOS] survey counts lookup failed', { message: error?.message || String(error) });
+    logger.warn('[PROXIMOS] survey counts lookup failed', { message: error?.message || String(error) });
     return {};
   }
 };
@@ -315,7 +316,7 @@ const ProximosPartidos = ({ onClose }) => {
           }
         }
       } catch (error) {
-        console.error('Error fetching completed surveys:', error);
+        logger.error('Error fetching completed surveys:', error);
       }
 
       let partidosData = [];
@@ -334,8 +335,8 @@ const ProximosPartidos = ({ onClose }) => {
         partidosData = legacyMatchesResponse.data || [];
       }
 
-      console.log('[PROXIMOS] Fetched matches IDs:', todosLosPartidosIds);
-      console.log('[PROXIMOS] Returned matches from DB:', partidosData?.length);
+      logger.log('[PROXIMOS] Fetched matches IDs:', todosLosPartidosIds);
+      logger.log('[PROXIMOS] Returned matches from DB:', partidosData?.length);
 
       const now = new Date();
       const partidosFiltrados = partidosData.filter((partido) => {
@@ -396,7 +397,7 @@ const ProximosPartidos = ({ onClose }) => {
               .filter(Boolean),
           );
         } catch (statusLookupError) {
-          console.warn('[PROXIMOS] team_matches live status lookup failed', {
+          logger.warn('[PROXIMOS] team_matches live status lookup failed', {
             message: statusLookupError?.message || String(statusLookupError),
           });
         }
@@ -482,7 +483,7 @@ const ProximosPartidos = ({ onClose }) => {
           .in('partido_id', partidoIdsForBridgeLookup);
 
         if (bridgeError) {
-          console.warn('[PROXIMOS] team_matches bridge lookup failed', {
+          logger.warn('[PROXIMOS] team_matches bridge lookup failed', {
             code: bridgeError?.code,
             message: bridgeError?.message,
           });
@@ -504,7 +505,7 @@ const ProximosPartidos = ({ onClose }) => {
           .in('id', explicitTeamMatchIdsForBridgeLookup);
 
         if (explicitIdError) {
-          console.warn('[PROXIMOS] team_matches explicit-id lookup failed', {
+          logger.warn('[PROXIMOS] team_matches explicit-id lookup failed', {
             code: explicitIdError?.code,
             message: explicitIdError?.message,
           });
@@ -532,7 +533,7 @@ const ProximosPartidos = ({ onClose }) => {
           .in('challenge_id', explicitChallengeIdsForBridgeLookup);
 
         if (challengeRowsError) {
-          console.warn('[PROXIMOS] team_matches challenge-id lookup failed', {
+          logger.warn('[PROXIMOS] team_matches challenge-id lookup failed', {
             code: challengeRowsError?.code,
             message: challengeRowsError?.message,
           });
@@ -596,7 +597,7 @@ const ProximosPartidos = ({ onClose }) => {
             if (teamMatchId) cancelledBridgeTeamMatchIds.add(teamMatchId);
           });
         } catch (challengeStatusLookupError) {
-          console.warn('[PROXIMOS] challenge status lookup failed', {
+          logger.warn('[PROXIMOS] challenge status lookup failed', {
             message: challengeStatusLookupError?.message || String(challengeStatusLookupError),
           });
         }
@@ -820,13 +821,13 @@ const ProximosPartidos = ({ onClose }) => {
           setPostMatchData({ myStatusByMatch: {}, settingsByMatch: {}, summaryRowsByMatch: {}, surveyCountByMatch: {} });
         }
       } catch (postMatchError) {
-        console.warn('[PROXIMOS] post-match data load failed', {
+        logger.warn('[PROXIMOS] post-match data load failed', {
           message: postMatchError?.message || String(postMatchError),
         });
       }
 
     } catch (error) {
-      console.error('Error fetching matches:', error);
+      logger.error('Error fetching matches:', error);
     } finally {
       setLoading(false);
     }
@@ -847,7 +848,7 @@ const ProximosPartidos = ({ onClose }) => {
           return challengeMatchId;
         }
       } catch (error) {
-        console.warn('[PROXIMOS] resolveTeamMatchId challenge lookup failed', {
+        logger.warn('[PROXIMOS] resolveTeamMatchId challenge lookup failed', {
           challengeId,
           message: error?.message || String(error),
         });
@@ -882,7 +883,7 @@ const ProximosPartidos = ({ onClose }) => {
       for (const executeLookup of lookupAttempts) {
         const { data, error } = await executeLookup();
         if (error) {
-          console.warn('[PROXIMOS] resolveTeamMatchId partido lookup failed', {
+          logger.warn('[PROXIMOS] resolveTeamMatchId partido lookup failed', {
             partidoId,
             code: error?.code,
             message: error?.message,
@@ -947,7 +948,7 @@ const ProximosPartidos = ({ onClose }) => {
   // modal abría pero handleConfirmAction hacía early-return y la card nunca se
   // ocultaba. Firmamos (partido) para alinear con el contrato de MatchCard.
   const _handleClearMatch = (partido) => {
-    console.log('[PROXIMOS] click LIMPIAR', partido?.id);
+    logger.log('[PROXIMOS] click LIMPIAR', partido?.id);
     setMenuOpenId(null);
     setPartidoTarget(partido);
     setActionType('clean');
@@ -978,7 +979,7 @@ const ProximosPartidos = ({ onClose }) => {
           await cancelPartidoWithNotification(partidoTarget.id, 'Partido cancelado por el administrador');
         }
 
-        console.info('Partido cancelado');
+        logger.info('Partido cancelado');
 
         setPartidos((prev) => prev.filter((p) => p.id !== partidoTarget.id));
         setProcessingDeleteId(null);
@@ -994,7 +995,7 @@ const ProximosPartidos = ({ onClose }) => {
               partidoTarget.id,
               'Partido cancelado porque el admin abandonó y no había otro jugador conectado para transferir la administración',
             );
-            console.info('No había otro jugador conectado. El partido fue cancelado.');
+            logger.info('No había otro jugador conectado. El partido fue cancelado.');
           } else {
             try {
               await requestImmediatePushDispatch({
@@ -1003,7 +1004,7 @@ const ProximosPartidos = ({ onClose }) => {
                 limit: 20,
               });
             } catch (dispatchError) {
-              console.error('[LEAVE_MATCH] Error dispatching immediate admin-leave push:', dispatchError);
+              logger.error('[LEAVE_MATCH] Error dispatching immediate admin-leave push:', dispatchError);
             }
 
             try {
@@ -1015,13 +1016,13 @@ const ProximosPartidos = ({ onClose }) => {
                 await incrementMatchesAbandoned(user.id);
               }
             } catch (abandonError) {
-              console.error('[LEAVE_MATCH] Error incrementing abandonment counter:', abandonError);
+              logger.error('[LEAVE_MATCH] Error incrementing abandonment counter:', abandonError);
             }
 
-            console.info('Abandonaste el partido y la administración fue transferida.');
+            logger.info('Abandonaste el partido y la administración fue transferida.');
           }
         } else {
-          console.log('[LEAVE_MATCH] Deleting player from match:', {
+          logger.log('[LEAVE_MATCH] Deleting player from match:', {
             matchId: partidoTarget.id,
             userId: user.id
           });
@@ -1033,7 +1034,7 @@ const ProximosPartidos = ({ onClose }) => {
             .eq('usuario_id', user.id);
 
           if (error) {
-            console.error('[LEAVE_MATCH] Error:', {
+            logger.error('[LEAVE_MATCH] Error:', {
               code: error.code,
               message: error.message,
               details: error.details,
@@ -1042,7 +1043,7 @@ const ProximosPartidos = ({ onClose }) => {
             throw error;
           }
 
-          console.log('[LEAVE_MATCH] Deleted successfully');
+          logger.log('[LEAVE_MATCH] Deleted successfully');
 
           if (user?.id && partidoTarget?.creado_por && partidoTarget.creado_por !== user.id) {
             try {
@@ -1054,7 +1055,7 @@ const ProximosPartidos = ({ onClose }) => {
                 adminUserId: partidoTarget.creado_por,
               });
             } catch (leaveNotificationError) {
-              console.error('[LEAVE_MATCH] Error notifying admin about player leaving:', leaveNotificationError);
+              logger.error('[LEAVE_MATCH] Error notifying admin about player leaving:', leaveNotificationError);
             }
           }
 
@@ -1067,10 +1068,10 @@ const ProximosPartidos = ({ onClose }) => {
               await incrementMatchesAbandoned(user.id);
             }
           } catch (abandonError) {
-            console.error('[LEAVE_MATCH] Error incrementing abandonment counter:', abandonError);
+            logger.error('[LEAVE_MATCH] Error incrementing abandonment counter:', abandonError);
           }
 
-          console.info('Abandonaste el partido');
+          logger.info('Abandonaste el partido');
         }
 
         setPartidos((prev) => prev.filter((p) => p.id !== partidoTarget.id));
@@ -1081,14 +1082,14 @@ const ProximosPartidos = ({ onClose }) => {
         if (success) {
           setPartidos((prev) => prev.filter((p) => p.id !== partidoTarget.id));
           setClearedMatches((prev) => { const s = new Set(prev); s.add(partidoTarget.id); return s; });
-          console.info('Partido limpiado');
+          logger.info('Partido limpiado');
         } else {
           notifyBlockingError('No se pudo limpiar el partido');
         }
         setProcessingClearId(null);
       }
     } catch (error) {
-      console.error('[PROXIMOS] confirm action error', error);
+      logger.error('[PROXIMOS] confirm action error', error);
       notifyBlockingError('Ocurrió un error al procesar la acción');
     } finally {
       confirmActionLockRef.current = false;
@@ -1123,7 +1124,7 @@ const ProximosPartidos = ({ onClose }) => {
 
       return now >= partidoDateTime;
     } catch (error) {
-      console.error('Error checking match finish:', error);
+      logger.error('Error checking match finish:', error);
       return false;
     }
   };

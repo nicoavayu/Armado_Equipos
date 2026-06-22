@@ -51,13 +51,13 @@ export async function sendVotingNotifications(partidoId, meta = {}) {
         .single();
 
       if (partidoMetaError) {
-        console.error('[Notifications] error fetching partido metadata', partidoMetaError);
+        logger.error('[Notifications] error fetching partido metadata', partidoMetaError);
         throw partidoMetaError;
       }
 
       partidoMeta = { codigo: partidoData?.codigo ?? null };
     } catch (partidoMetaError) {
-      console.error('[Notifications] fallback partido query failed', partidoMetaError);
+      logger.error('[Notifications] fallback partido query failed', partidoMetaError);
       partidoMeta = { codigo: null };
     }
 
@@ -71,7 +71,7 @@ export async function sendVotingNotifications(partidoId, meta = {}) {
       .limit(1);
 
     if (existingError) {
-      console.error('[Notifications] error checking existing survey notifications', existingError);
+      logger.error('[Notifications] error checking existing survey notifications', existingError);
       throw existingError;
     }
 
@@ -108,7 +108,7 @@ export async function sendVotingNotifications(partidoId, meta = {}) {
         });
         return { inserted: 0, alreadyExists: true };
       }
-      console.error('[Notifications] RPC error', rpcError);
+      logger.error('[Notifications] RPC error', rpcError);
       throw rpcError;
     }
 
@@ -143,7 +143,7 @@ export async function sendVotingNotifications(partidoId, meta = {}) {
       };
     }
   } catch (err) {
-    console.error('[CallToVote] failed', err);
+    logger.error('[CallToVote] failed', err);
     handleError(err, { showToast: true, onError: () => { } });
     // Return a failure object so caller can handle it instead of only throwing
     return { inserted: 0, error: err };
@@ -198,7 +198,7 @@ export async function schedulePostMatchNotification(matchId) {
     if (error) throw error;
     return data;
   } catch (err) {
-    console.error('[Notify] schedulePostMatchNotification failed', err);
+    logger.error('[Notify] schedulePostMatchNotification failed', err);
     throw err;
   }
 }

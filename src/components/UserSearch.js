@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { useAmigos } from '../hooks/useAmigos';
@@ -42,7 +43,7 @@ const UserSearch = ({ onClose }) => {
         setRelationshipStatuses(statuses);
       }
     } catch (error) {
-      console.error('Error searching users:', error);
+      logger.error('Error searching users:', error);
       notifyBlockingError('Error al buscar usuarios');
     } finally {
       setLoading(false);
@@ -62,7 +63,7 @@ const UserSearch = ({ onClose }) => {
     try {
       const result = await sendFriendRequest(targetUserId);
       if (result.success) {
-        console.info('Solicitud de amistad enviada');
+        logger.info('Solicitud de amistad enviada');
         // Update relationship status
         setRelationshipStatuses((prev) => ({
           ...prev,

@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 // src/components/ManualMatchModal.js
 import React, { useState } from 'react';
@@ -40,7 +41,7 @@ const ManualMatchModal = ({ isOpen, onClose, onSaved }) => {
 
       if (error) throw error;
 
-      console.info('Partido agregado exitosamente');
+      logger.info('Partido agregado exitosamente');
       onSaved();
       onClose();
 
@@ -51,7 +52,7 @@ const ManualMatchModal = ({ isOpen, onClose, onSaved }) => {
         fecha: new Date().toISOString().split('T')[0],
       });
     } catch (error) {
-      console.error('Error saving manual match:', error);
+      logger.error('Error saving manual match:', error);
       notifyBlockingError('Error al guardar el partido');
     } finally {
       setLoading(false);

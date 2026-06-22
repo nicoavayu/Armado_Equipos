@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { useLocation, useParams } from 'react-router-dom';
@@ -143,7 +144,7 @@ const TeamChatPage = () => {
         if (!silent) {
           notifyBlockingError(error.message || 'No se pudo cargar el chat del equipo');
         } else {
-          console.warn('Team chat message refresh failed', error);
+          logger.warn('Team chat message refresh failed', error);
         }
         throw error;
       })
@@ -189,7 +190,7 @@ const TeamChatPage = () => {
         setCanAccess(false);
         setMessages([]);
       } else {
-        console.warn('Team chat refresh failed', error);
+        logger.warn('Team chat refresh failed', error);
       }
     } finally {
       if (withLoading) setLoading(false);
@@ -593,7 +594,7 @@ const TeamChatPage = () => {
             result,
           });
         } catch (broadcastError) {
-          console.warn('Team chat broadcast send failed', broadcastError);
+          logger.warn('Team chat broadcast send failed', broadcastError);
         }
       }
 

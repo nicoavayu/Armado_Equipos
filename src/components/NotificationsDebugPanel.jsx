@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../services/api/supabase';
 import './NotificationsDebugPanel.css';
@@ -21,7 +22,7 @@ const NotificationsDebugPanel = ({ partidoId = null }) => {
 
     const fetchLogs = async () => {
         setLoading(true);
-        console.log('[NOTIF_DEBUG] Fetching delivery logs with filters:', filters);
+        logger.log('[NOTIF_DEBUG] Fetching delivery logs with filters:', filters);
 
         try {
             let query = supabase
@@ -43,14 +44,14 @@ const NotificationsDebugPanel = ({ partidoId = null }) => {
             const { data, error } = await query;
 
             if (error) {
-                console.error('[NOTIF_DEBUG] Error fetching logs:', error);
+                logger.error('[NOTIF_DEBUG] Error fetching logs:', error);
                 return;
             }
 
-            console.log('[NOTIF_DEBUG] Fetched logs:', data?.length || 0);
+            logger.log('[NOTIF_DEBUG] Fetched logs:', data?.length || 0);
             setLogs(data || []);
         } catch (err) {
-            console.error('[NOTIF_DEBUG] Exception:', err);
+            logger.error('[NOTIF_DEBUG] Exception:', err);
         } finally {
             setLoading(false);
         }

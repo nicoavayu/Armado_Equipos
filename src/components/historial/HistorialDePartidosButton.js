@@ -1,3 +1,4 @@
+import logger from '../../utils/logger';
 import React, { useState } from 'react';
 import { supabase } from '../../supabase';
 import LoadingSpinner from '../LoadingSpinner';
@@ -23,7 +24,7 @@ const HistorialDePartidosButton = ({ partidoFrecuente, className }) => {
 
       if (res.error) {
         // Si el error sugiere que no existe created_at, reintentar por id
-        console.debug('created_at no existe o error al ordenar, reintentando por id', res.error.message || res.error);
+        logger.debug('created_at no existe o error al ordenar, reintentando por id', res.error.message || res.error);
         res = await supabase
           .from('partidos_frecuentes')
           .select('*')
@@ -46,7 +47,7 @@ const HistorialDePartidosButton = ({ partidoFrecuente, className }) => {
 
       setHistorialPartidos(data);
     } catch (err) {
-      console.error('Error al cargar historial de plantillas:', err);
+      logger.error('Error al cargar historial de plantillas:', err);
       setError('No se pudo cargar el historial de plantillas');
       setHistorialPartidos([]);
     } finally {

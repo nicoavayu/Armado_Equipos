@@ -1,3 +1,4 @@
+import logger from './logger';
 import { supabase } from '../lib/supabaseClient';
 
 export async function checkNotificationsView() {
@@ -6,6 +7,6 @@ export async function checkNotificationsView() {
     .select('id, match_id_text')
     .limit(1);
   
-  console.debug('[CHECK_VIEW]', { data, error });
+  logger.debug('[CHECK_VIEW]', { data, error });
   return { data, error };
 }

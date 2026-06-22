@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React from 'react';
 import { useAnimatedNavigation } from '../hooks/useAnimatedNavigation';
 import FormularioNuevoPartidoFlow from './FormularioNuevoPartidoFlow';
@@ -7,7 +8,7 @@ const NuevoPartidoPage = () => {
   return (
     <FormularioNuevoPartidoFlow
       onConfirmar={async (partido) => {
-        console.log('Match created:', partido.id);
+        logger.log('Match created:', partido.id);
         navigateWithAnimation(`/admin/${partido.id}`);
         return partido;
       }}

@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import { useEffect, useRef } from 'react';
 import { useAuth } from '../components/AuthProvider';
 import { useNotifications } from '../context/NotificationContext';
@@ -62,12 +63,12 @@ export const useMatchFinishDetection = (partidos) => {
               .limit(1);
 
             if (existingError) {
-              console.error('Error checking existing notifications for partido', partido.id, existingError);
+              logger.error('Error checking existing notifications for partido', partido.id, existingError);
             }
             if (existing && existing.length > 0) {
               // Mark as notified to avoid re-checking
               notifiedMatches.current.add(partido.id);
-              console.log(`Skipping client-side survey notification for match ${partido.id} because DB already has one.`);
+              logger.log(`Skipping client-side survey notification for match ${partido.id} because DB already has one.`);
               continue;
             }
 
@@ -78,7 +79,7 @@ export const useMatchFinishDetection = (partidos) => {
               || 'db';
             if (SURVEY_FANOUT_MODE === 'db') {
               notifiedMatches.current.add(partido.id);
-              console.log(`Client-side skipped creating post_match_survey because SURVEY_FANOUT_MODE=db for match ${partido.id}`);
+              logger.log(`Client-side skipped creating post_match_survey because SURVEY_FANOUT_MODE=db for match ${partido.id}`);
               continue;
             }
                  
@@ -99,9 +100,9 @@ export const useMatchFinishDetection = (partidos) => {
             // Mark as notified
             notifiedMatches.current.add(partido.id);
              
-            console.log(`Sent survey notification for finished match ${partido.id}`);
+            logger.log(`Sent survey notification for finished match ${partido.id}`);
           } catch (error) {
-            console.error('Error sending match finish notification:', error);
+            logger.error('Error sending match finish notification:', error);
           }
         }
       }
@@ -153,7 +154,7 @@ const isMatchJustFinished = (partido, now) => {
     const timeDiff = now - partidoDateTime;
     return timeDiff >= 0 && timeDiff <= 5 * 60 * 1000;
   } catch (error) {
-    console.error('Error checking match finish time:', error);
+    logger.error('Error checking match finish time:', error);
     return false;
   }
 };

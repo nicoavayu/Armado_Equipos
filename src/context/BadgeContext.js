@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { createContext, useContext, useState } from 'react';
 
 const BadgeContext = createContext();
@@ -14,7 +15,7 @@ export const BadgeProvider = ({ children }) => {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const triggerBadgeRefresh = () => {
-    console.log('[BADGE_CONTEXT] Triggering badge refresh');
+    logger.log('[BADGE_CONTEXT] Triggering badge refresh');
     setRefreshTrigger((prev) => prev + 1);
   };
 

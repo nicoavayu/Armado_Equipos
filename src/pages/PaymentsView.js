@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Wallet, Copy, Check, Bell, Lock } from 'lucide-react';
@@ -138,7 +139,7 @@ const PaymentsView = () => {
         setAccessError(false);
       }
     } catch (error) {
-      console.warn('[PaymentsView] load failed', { message: error?.message || String(error) });
+      logger.warn('[PaymentsView] load failed', { message: error?.message || String(error) });
       setAccessError(true);
       setState(null);
     } finally {
@@ -229,7 +230,7 @@ const PaymentsView = () => {
     try {
       const res = await adminRemindPending(partido.id, { matchName });
       await load();
-      if (res?.notified > 0) console.info(`Recordatorio enviado a ${res.notified} jugador(es)`);
+      if (res?.notified > 0) logger.info(`Recordatorio enviado a ${res.notified} jugador(es)`);
     } catch (error) {
       notifyBlockingError('No se pudo enviar el recordatorio');
     } finally {
