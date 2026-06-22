@@ -1,3 +1,4 @@
+import logger from '../../utils/logger';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import PageTitle from '../../components/PageTitle';
@@ -63,7 +64,7 @@ const QuieroJugarEquipos = ({
       .catch((error) => {
         // Non-blocking: the ranking/directory still render; only the own-team
         // guard and CTA prefill depend on this list.
-        console.warn('[RANKING] No se pudieron cargar tus equipos manejables', error);
+        logger.warn('[RANKING] No se pudieron cargar tus equipos manejables', error);
       });
     return () => {
       cancelled = true;

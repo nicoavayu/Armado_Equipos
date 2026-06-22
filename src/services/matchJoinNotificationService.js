@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import { supabase } from '../supabase';
 import { requestImmediatePushDispatch } from './pushDispatchService';
 
@@ -63,7 +64,7 @@ const resolveNotificationRecipients = async ({
       recipients.add(recipientId);
     });
   } catch (error) {
-    console.warn('[JOIN_NOTIFICATIONS] resolveNotificationRecipients failed', {
+    logger.warn('[JOIN_NOTIFICATIONS] resolveNotificationRecipients failed', {
       matchId: matchIdNumber,
       includeParticipants,
       includeAdmin,
@@ -106,7 +107,7 @@ const directInsertNotifications = async ({
       .insert(notifications);
 
     if (error) {
-      console.warn('[JOIN_NOTIFICATIONS] direct insert fallback failed', {
+      logger.warn('[JOIN_NOTIFICATIONS] direct insert fallback failed', {
         matchId: matchIdNumber,
         type,
         recipients: recipients.length,
@@ -118,7 +119,7 @@ const directInsertNotifications = async ({
 
     return { ok: true, reason: 'direct_insert' };
   } catch (error) {
-    console.warn('[JOIN_NOTIFICATIONS] direct insert fallback exception', {
+    logger.warn('[JOIN_NOTIFICATIONS] direct insert fallback exception', {
       matchId: matchIdNumber,
       type,
       recipients: recipients.length,
@@ -149,7 +150,7 @@ const enqueueAdminNotification = async ({
     });
 
     if (error) {
-      console.warn('[JOIN_NOTIFICATIONS] enqueue_partido_notification failed', {
+      logger.warn('[JOIN_NOTIFICATIONS] enqueue_partido_notification failed', {
         matchId: matchIdNumber,
         type,
         code: error.code,
@@ -181,7 +182,7 @@ const enqueueAdminNotification = async ({
 
     return { ok: true };
   } catch (error) {
-    console.warn('[JOIN_NOTIFICATIONS] unexpected error', {
+    logger.warn('[JOIN_NOTIFICATIONS] unexpected error', {
       matchId: matchIdNumber,
       type,
       error: error?.message || String(error),
@@ -287,7 +288,7 @@ const enqueueParticipantNotification = async ({
     });
 
     if (error) {
-      console.warn('[JOIN_NOTIFICATIONS] enqueue_match_participant_notification failed', {
+      logger.warn('[JOIN_NOTIFICATIONS] enqueue_match_participant_notification failed', {
         matchId: matchIdNumber,
         type,
         code: error.code,
@@ -298,7 +299,7 @@ const enqueueParticipantNotification = async ({
 
     return { ok: true };
   } catch (error) {
-    console.warn('[JOIN_NOTIFICATIONS] unexpected participant notification error', {
+    logger.warn('[JOIN_NOTIFICATIONS] unexpected participant notification error', {
       matchId: matchIdNumber,
       type,
       error: error?.message || String(error),
@@ -345,7 +346,7 @@ export const notifyAdminJoinRequest = async ({
         limit: 20,
       });
     } catch (error) {
-      console.error('[JOIN_NOTIFICATIONS] immediate join request push dispatch failed', {
+      logger.error('[JOIN_NOTIFICATIONS] immediate join request push dispatch failed', {
         matchId: matchIdNumber,
         requestId: requestId || null,
         adminUserId: adminUserId || null,
@@ -394,7 +395,7 @@ export const notifyAdminPlayerJoined = async ({
         limit: 20,
       });
     } catch (error) {
-      console.error('[JOIN_NOTIFICATIONS] immediate player joined push dispatch failed', {
+      logger.error('[JOIN_NOTIFICATIONS] immediate player joined push dispatch failed', {
         matchId: matchIdNumber,
         playerUserId,
         message: error?.message || String(error),
@@ -441,7 +442,7 @@ export const notifyAdminPlayerLeft = async ({
         limit: 5,
       });
     } catch (error) {
-      console.error('[JOIN_NOTIFICATIONS] immediate player left push dispatch failed', {
+      logger.error('[JOIN_NOTIFICATIONS] immediate player left push dispatch failed', {
         matchId: matchIdNumber,
         adminUserId: adminUserId || null,
         message: error?.message || String(error),

@@ -1,3 +1,4 @@
+import logger from '../../utils/logger';
 import React, { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../../supabase';
 import LoadingSpinner from '../LoadingSpinner';
@@ -312,7 +313,7 @@ export default function TemplateStatsModal({ isOpen, template, onClose }) {
         setResults(resMap);
         setCounts(cntMap);
       } catch (e) {
-        console.error('[TemplateStatsModal] load error', e);
+        logger.error('[TemplateStatsModal] load error', e);
         if (alive) {
           setMatches([]);
           setSnapshots(new Map());

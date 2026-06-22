@@ -1,3 +1,4 @@
+import logger from '../../utils/logger';
 import { supabase } from '../../lib/supabaseClient';
 
 /**
@@ -19,7 +20,7 @@ export async function getMatchPlayers(partidoId) {
  * @deprecated Use fanout_survey_start_notifications() SQL function instead
  */
 export async function scheduleSurveyReminderForMatch(_partidoId, _partidoFechaISO, _partidoHoraHHmm) {
-  console.warn('[DEPRECATED] scheduleSurveyReminderForMatch is deprecated. Survey notifications are handled by cron job.');
+  logger.warn('[DEPRECATED] scheduleSurveyReminderForMatch is deprecated. Survey notifications are handled by cron job.');
   return { data: [], error: null };
 }
 

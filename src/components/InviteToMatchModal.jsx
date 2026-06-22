@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { formatLocalDateShort } from '../utils/dateLocal';
@@ -264,7 +265,7 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
                 setSelectedMatchId(availableMatches[0].id);
             }
         } catch (error) {
-            console.error('[INVITE_MODAL] Error fetching matches:', error);
+            logger.error('[INVITE_MODAL] Error fetching matches:', error);
             notifyBlockingError('Error al cargar los partidos');
         } finally {
             setLoading(false);
@@ -350,7 +351,7 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
             });
             await fetchUserMatches();
         } catch (error) {
-            console.error('[INVITE_MODAL] Error sending invitation:', error);
+            logger.error('[INVITE_MODAL] Error sending invitation:', error);
             handleInviteRpcError(error);
         } finally {
             setInviting(false);

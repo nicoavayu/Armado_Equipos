@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { resolveMatchIdFromQueryParams, fetchMatchById, handleMatchResolutionError } from '../utils/matchResolver';
@@ -94,7 +95,7 @@ const VotarEquiposPage = () => {
         setIsLoading(false);
       })
       .catch((err) => {
-        console.error('[VOTING] Unexpected error:', err);
+        logger.error('[VOTING] Unexpected error:', err);
         handlePublicVotingError('Error inesperado al cargar el partido');
       });
   }, [location.search, navigate]);

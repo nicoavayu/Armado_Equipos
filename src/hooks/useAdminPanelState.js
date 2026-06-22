@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { friendlyError } from '../utils/friendlyError';
 import { getVotantesIds, getVotantesConNombres, getJugadoresDelPartido, hasRecordedVotes, removePlayerVotesFromMatch, supabase } from '../supabase';
@@ -138,7 +139,7 @@ export const useAdminPanelState = ({
         return JSON.stringify(prev) === JSON.stringify(next) ? prev : next;
       });
     } catch (error) {
-      console.error('Error refreshing voter state:', error);
+      logger.error('Error refreshing voter state:', error);
     } finally {
       voterRefreshInFlightRef.current = false;
     }
@@ -299,7 +300,7 @@ export const useAdminPanelState = ({
       setJugadoresLocal(jugadoresPartido || []);
       return jugadoresPartido || [];
     } catch (error) {
-      console.error('Error loading initial data:', error);
+      logger.error('Error loading initial data:', error);
       return [];
     }
   };
@@ -539,7 +540,7 @@ export const useAdminPanelState = ({
         try {
           await removePlayerVotesFromMatch(partidoActual.id, jugadorAEliminar);
         } catch (cleanupError) {
-          console.warn('[LEAVE_MATCH] vote cleanup failed (non-blocking)', cleanupError);
+          logger.warn('[LEAVE_MATCH] vote cleanup failed (non-blocking)', cleanupError);
         }
       }
 
@@ -551,7 +552,7 @@ export const useAdminPanelState = ({
         .eq('partido_id', partidoActual.id);
 
       if (error) {
-        console.error('Error deleting player from match:', {
+        logger.error('Error deleting player from match:', {
           code: error.code,
           message: error.message,
           details: error.details,
@@ -578,7 +579,7 @@ export const useAdminPanelState = ({
             await incrementMatchesAbandoned(jugadorAEliminar.usuario_id);
           }
         } catch (abandonError) {
-          console.error('[LEAVE_MATCH] Error incrementing abandonment counter:', abandonError);
+          logger.error('[LEAVE_MATCH] Error incrementing abandonment counter:', abandonError);
         }
       }
 
@@ -593,7 +594,7 @@ export const useAdminPanelState = ({
               adminUserId: partidoActual.creado_por,
             });
           } catch (leaveNotificationError) {
-            console.error('[LEAVE_MATCH] Error notifying admin about player leaving:', leaveNotificationError);
+            logger.error('[LEAVE_MATCH] Error notifying admin about player leaving:', leaveNotificationError);
           }
         }
 
@@ -625,7 +626,7 @@ export const useAdminPanelState = ({
             .eq('match_id_text', matchIdText);
 
           if (extInviteErr && extInviteErr.code !== '42P01') {
-            console.error('[LEAVE_MATCH] Error querying notifications_ext invites to invalidate:', extInviteErr);
+            logger.error('[LEAVE_MATCH] Error querying notifications_ext invites to invalidate:', extInviteErr);
           }
 
           if (Array.isArray(extInviteRows) && extInviteRows.length > 0) {
@@ -643,7 +644,7 @@ export const useAdminPanelState = ({
 
             const { data: rawInviteRows, error: rawInviteErr } = await inviteQuery;
             if (rawInviteErr) {
-              console.error('[LEAVE_MATCH] Error querying notifications invites to invalidate:', rawInviteErr);
+              logger.error('[LEAVE_MATCH] Error querying notifications invites to invalidate:', rawInviteErr);
             } else {
               inviteNotifications = rawInviteRows || [];
             }
@@ -669,7 +670,7 @@ export const useAdminPanelState = ({
 
             updateResults.forEach((result, index) => {
               if (result?.error) {
-                console.error('[LEAVE_MATCH] Error invalidating match invite after kick:', {
+                logger.error('[LEAVE_MATCH] Error invalidating match invite after kick:', {
                   inviteId: inviteNotifications[index]?.id,
                   error: result.error,
                 });
@@ -712,14 +713,14 @@ export const useAdminPanelState = ({
           if (kickNotificationError && isMissingRpcFunctionError(kickNotificationError)) {
             const { error: fallbackInsertError } = await supabase.from('notifications').insert([payload]);
             if (fallbackInsertError) {
-              console.error('[LEAVE_MATCH] Error creating kick notification:', fallbackInsertError);
+              logger.error('[LEAVE_MATCH] Error creating kick notification:', fallbackInsertError);
             } else {
               shouldKickPushImmediately = true;
             }
           } else if (kickNotificationError) {
-            console.error('[LEAVE_MATCH] Error sending kick notification via RPC:', kickNotificationError);
+            logger.error('[LEAVE_MATCH] Error sending kick notification via RPC:', kickNotificationError);
           } else if (kickNotificationResult?.success === false) {
-            console.error('[LEAVE_MATCH] Kick notification RPC returned failure:', kickNotificationResult);
+            logger.error('[LEAVE_MATCH] Kick notification RPC returned failure:', kickNotificationResult);
           } else {
             shouldKickPushImmediately = true;
           }
@@ -733,7 +734,7 @@ export const useAdminPanelState = ({
             });
           }
         } catch (notifError) {
-          console.error('[LEAVE_MATCH] Error sending kick notification:', notifError);
+          logger.error('[LEAVE_MATCH] Error sending kick notification:', notifError);
         }
       }
 
@@ -747,7 +748,7 @@ export const useAdminPanelState = ({
       }
       return true;
     } catch (error) {
-      console.error('[LEAVE_MATCH] Unexpected error:', error);
+      logger.error('[LEAVE_MATCH] Unexpected error:', error);
       notifyBlockingError(friendlyError(error, 'No se pudo eliminar el jugador. Intentá de nuevo.'));
       return false;
     } finally {
@@ -758,7 +759,7 @@ export const useAdminPanelState = ({
   const transferirAdmin = async (jugadorId) => {
     if (!isAdmin) {
       const msg = 'Solo el creador puede transferir el rol de admin';
-      console.error('[TRANSFER_ADMIN]', msg);
+      logger.error('[TRANSFER_ADMIN]', msg);
       throw new Error(msg);
     }
 
@@ -766,13 +767,13 @@ export const useAdminPanelState = ({
 
     if (!jugador || !jugador.usuario_id) {
       const msg = 'El jugador debe tener una cuenta para ser admin';
-      console.error('[TRANSFER_ADMIN]', msg);
+      logger.error('[TRANSFER_ADMIN]', msg);
       throw new Error(msg);
     }
 
     if (jugador.usuario_id === user.id) {
       const msg = 'Ya eres el admin del partido';
-      console.error('[TRANSFER_ADMIN]', msg);
+      logger.error('[TRANSFER_ADMIN]', msg);
       throw new Error(msg);
     }
 
@@ -783,7 +784,7 @@ export const useAdminPanelState = ({
         .eq('id', partidoActual.id);
 
       if (error) {
-        console.error('[TRANSFER_ADMIN] Supabase update error:', error);
+        logger.error('[TRANSFER_ADMIN] Supabase update error:', error);
         throw error;
       }
 
@@ -821,7 +822,7 @@ export const useAdminPanelState = ({
       }, 2000);
 
     } catch (error) {
-      console.error('[TRANSFER_ADMIN] Catch block error:', error);
+      logger.error('[TRANSFER_ADMIN] Catch block error:', error);
       throw error;
     }
   };
@@ -841,7 +842,7 @@ export const useAdminPanelState = ({
         return false;
       }
     } catch (inviteStateError) {
-      console.error('[ACCEPT_INVITE] Error checking invite access state:', inviteStateError);
+      logger.error('[ACCEPT_INVITE] Error checking invite access state:', inviteStateError);
       return false;
     }
 
@@ -925,7 +926,7 @@ export const useAdminPanelState = ({
 
         markResults.forEach((result, index) => {
           if (result?.error) {
-            console.error('[ACCEPT_INVITE] Error marking invite as accepted:', {
+            logger.error('[ACCEPT_INVITE] Error marking invite as accepted:', {
               notificationId: matchedInviteRows[index]?.id,
               error: result.error,
             });
@@ -949,7 +950,7 @@ export const useAdminPanelState = ({
 
     } catch (error) {
       if (error.message && error.message.includes('row-level security policy')) {
-        console.warn('Suppressing RLS error during join sync (expected for non-admins):', error);
+        logger.warn('Suppressing RLS error during join sync (expected for non-admins):', error);
       } else {
         notifyBlockingError(friendlyError(error, 'No se pudo unir al partido. Intentá de nuevo.'));
       }
@@ -1004,7 +1005,7 @@ export const useAdminPanelState = ({
 
       setInlineNotice('success', 'Te sumaste al partido');
     } catch (error) {
-      console.error("Error uniéndose:", error);
+      logger.error("Error uniéndose:", error);
       notifyBlockingError(friendlyError(error, 'No se pudo unir al partido. Intentá de nuevo.'));
     } finally {
       setLoading(false);
@@ -1044,7 +1045,7 @@ export const useAdminPanelState = ({
 
         markResults.forEach((result, index) => {
           if (result?.error) {
-            console.error('[DECLINE_INVITE] Error marking invite as declined:', {
+            logger.error('[DECLINE_INVITE] Error marking invite as declined:', {
               notificationId: matchedInviteRows[index]?.id,
               error: result.error,
             });

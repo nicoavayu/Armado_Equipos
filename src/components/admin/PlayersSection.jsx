@@ -1,3 +1,4 @@
+import logger from '../../utils/logger';
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -713,7 +714,7 @@ const PlayersSection = ({
         setPlayerToRemove(null);
         return;
       }
-      console.info(`${playerToRemove.nombre || 'Jugador'} fue expulsado del partido`);
+      logger.info(`${playerToRemove.nombre || 'Jugador'} fue expulsado del partido`);
       setPlayerToRemove(null);
     } catch (error) {
       notifyBlockingError(error?.message || 'No se pudo expulsar al jugador');
@@ -733,7 +734,7 @@ const PlayersSection = ({
     try {
       await openMatchCalendarInvite(partidoActual);
     } catch (error) {
-      console.error('[CALENDAR_ICS] Error creating calendar file', error);
+      logger.error('[CALENDAR_ICS] Error creating calendar file', error);
       notifyBlockingError('No se pudo agregar el partido al calendario');
     }
   };

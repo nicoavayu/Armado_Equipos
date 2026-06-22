@@ -1,3 +1,4 @@
+import logger from '../../../utils/logger';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Camera, ChevronDown, Crown, Eye, Loader2, MoreVertical, Pencil, Trash2, Users } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -305,7 +306,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
       if (!silent) {
         notifyBlockingError(error.message || 'No se pudo cargar el detalle del equipo');
       } else {
-        console.warn('[TEAM_DETAIL] refresh de colecciones fallido', error);
+        logger.warn('[TEAM_DETAIL] refresh de colecciones fallido', error);
       }
     } finally {
       if (withDetailLoading) setDetailLoading(false);
@@ -346,7 +347,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
         notifyBlockingError(error.message || 'No se pudo cargar el equipo');
         setSelectedTeam(null);
       } else {
-        console.warn('[TEAM_DETAIL] refresh del equipo fallido', error);
+        logger.warn('[TEAM_DETAIL] refresh del equipo fallido', error);
       }
     } finally {
       if (withLoading) setLoading(false);

@@ -1,3 +1,4 @@
+import logger from '../../utils/logger';
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabase';
 import LoadingSpinner from '../LoadingSpinner';
@@ -24,7 +25,7 @@ const ListaDeFechasModal = ({ partidosFrecuentes, onClose, nombrePartido, error,
     const handler = (e) => {
       const t = e.target;
       try {
-        console.log('[CLICK SPY]', {
+        logger.log('[CLICK SPY]', {
           type: e.type,
           targetTag: t?.tagName,
           targetClass: t?.className,
@@ -63,7 +64,7 @@ const ListaDeFechasModal = ({ partidosFrecuentes, onClose, nombrePartido, error,
             playersData[partido.id] = jugadores;
           }
         } catch (err) {
-          console.error('Error loading players for match:', partido.id, err);
+          logger.error('Error loading players for match:', partido.id, err);
         }
       }
 
@@ -88,7 +89,7 @@ const ListaDeFechasModal = ({ partidosFrecuentes, onClose, nombrePartido, error,
 
   // Borrado simplificado: pedir confirmación nativa y ejecutar DELETE
   const handleDelete = async (partidoId, e) => {
-    console.log('🗑️ ENTER handleDelete', partidoId);
+    logger.log('🗑️ ENTER handleDelete', partidoId);
     if (e && e.stopPropagation) e.stopPropagation();
     try {
       // This modal only manages plantillas (partidos_frecuentes)
@@ -97,7 +98,7 @@ const ListaDeFechasModal = ({ partidosFrecuentes, onClose, nombrePartido, error,
       const confirmed = window.confirm(confirmMsg);
       if (!confirmed) return;
 
-      console.log('[Historial] delete requested for', 'plantilla', partidoId);
+      logger.log('[Historial] delete requested for', 'plantilla', partidoId);
       setDeletingId(partidoId);
 
       // Force delete against partidos_frecuentes only
@@ -107,11 +108,11 @@ const ListaDeFechasModal = ({ partidosFrecuentes, onClose, nombrePartido, error,
         .eq('id', partidoId);
 
       // Log full response for debugging
-      console.log('[Historial] DELETE RESPONSE', { partidoId, deleteError, deleteData });
+      logger.log('[Historial] DELETE RESPONSE', { partidoId, deleteError, deleteData });
 
       if (deleteError) {
         const { code, message, details, hint } = deleteError || {};
-        console.error('[Historial] DELETE FAILED', {
+        logger.error('[Historial] DELETE FAILED', {
           partidoId,
           code,
           message,
@@ -123,14 +124,14 @@ const ListaDeFechasModal = ({ partidosFrecuentes, onClose, nombrePartido, error,
         return;
       }
 
-      console.log('[Historial] DELETE OK', partidoId);
+      logger.log('[Historial] DELETE OK', partidoId);
 
       // Optimistic update: remover partido (plantilla) de la lista local
       setDisplayedPartidos((prev) => prev.filter((p) => p.id !== partidoId));
       if (selectedPartido && selectedPartido.id === partidoId) setSelectedPartido(null);
-      console.log('[Historial] delete successful for', partidoId);
+      logger.log('[Historial] delete successful for', partidoId);
     } catch (err) {
-      console.error('Error deleting item:', err);
+      logger.error('Error deleting item:', err);
     } finally {
       setDeletingId(null);
     }
@@ -235,9 +236,9 @@ const ListaDeFechasModal = ({ partidosFrecuentes, onClose, nombrePartido, error,
                               type="button"
                               className="bg-none border-none text-[#ff6b6b] text-[18px] cursor-pointer p-1.5 rounded-none pointer-events-auto relative z-[11] hover:bg-[#ff6b6b]/10"
                               style={{ position: 'relative', zIndex: 9999, pointerEvents: 'auto' }}
-                              onPointerDown={(e) => { console.log('[Historial] pointerdown delete', partido.id, e.type); if (e && e.stopPropagation) e.stopPropagation(); }}
-                              onTouchStart={(e) => { console.log('[Historial] touchstart delete', partido.id); if (e && e.stopPropagation) e.stopPropagation(); }}
-                              onClick={(e) => { console.log('🗑️ CLICK DELETE BUTTON', partido.id); console.log('[Historial] delete button click', partido.id, e.type); if (e && e.stopPropagation) e.stopPropagation(); handleDelete(partido.id, e); }}
+                              onPointerDown={(e) => { logger.log('[Historial] pointerdown delete', partido.id, e.type); if (e && e.stopPropagation) e.stopPropagation(); }}
+                              onTouchStart={(e) => { logger.log('[Historial] touchstart delete', partido.id); if (e && e.stopPropagation) e.stopPropagation(); }}
+                              onClick={(e) => { logger.log('🗑️ CLICK DELETE BUTTON', partido.id); logger.log('[Historial] delete button click', partido.id, e.type); if (e && e.stopPropagation) e.stopPropagation(); handleDelete(partido.id, e); }}
                               disabled={isDeleting}
                               aria-label={`Eliminar plantilla ${partido.id}`}
                             >

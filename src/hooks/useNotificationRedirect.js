@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toBigIntId } from '../utils';
@@ -341,7 +342,7 @@ export const useNotificationRedirect = () => {
           opened_from_push: true,
           source: 'service_worker',
         });
-        console.log('Redirecting from push notification to:', targetRoute);
+        logger.log('Redirecting from push notification to:', targetRoute);
         if (targetRoute) {
           debugNotificationEvent('NOTIFICATION_NAVIGATE_START', {
             ...getRedirectDebugPayload({ payload: envelope, route: event.data?.url, source: 'service_worker' }),

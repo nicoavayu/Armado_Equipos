@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
@@ -482,7 +483,7 @@ const TeamMatchDetailPage = () => {
         setChallengeSquadMeta(null);
         notifyBlockingError(error.message || 'No se pudo cargar la convocatoria del desafío');
       } else {
-        console.warn('[TEAM MATCH DETAIL] refresh silencioso de convocatoria fallido', error);
+        logger.warn('[TEAM MATCH DETAIL] refresh silencioso de convocatoria fallido', error);
       }
     } finally {
       setChallengeSquadLoading(false);
@@ -509,7 +510,7 @@ const TeamMatchDetailPage = () => {
       if (!silent) {
         notifyBlockingError(error.message || 'No se pudo cargar el partido');
       } else {
-        console.warn('[TEAM MATCH DETAIL] refresh silencioso del partido fallido', error);
+        logger.warn('[TEAM MATCH DETAIL] refresh silencioso del partido fallido', error);
       }
     } finally {
       if (withLoading) setLoading(false);

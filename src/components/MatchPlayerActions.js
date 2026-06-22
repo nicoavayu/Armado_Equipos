@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useState } from 'react';
 import AbsenceNotification from './AbsenceNotification';
 import { useAuth } from './AuthProvider';
@@ -20,7 +21,7 @@ const MatchPlayerActions = ({ partidoId, onPlayerRemoved }) => {
   };
 
   const handleAbsenceSuccess = (result) => {
-    console.log('Absence notification successful:', result);
+    logger.log('Absence notification successful:', result);
     // Optionally remove player from match if they're absent
     if (onPlayerRemoved) {
       onPlayerRemoved(user.id);

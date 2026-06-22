@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import { useNavigate } from 'react-router-dom';
@@ -576,7 +577,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
       ) {
         updateProfile(user.id, { avatar_url: avatarUrl })
           .then(() => refreshProfile())
-          .catch((err) => console.error('Error updating profile with avatar:', err));
+          .catch((err) => logger.error('Error updating profile with avatar:', err));
       }
 
       const parseLevel = (value) => {
@@ -675,7 +676,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
       return;
     }
     lastLocationErrorLogRef.current = { key, ts: now };
-    console.warn(`${GEO_LOG_PREFIX} geolocation error`, payload, error);
+    logger.warn(`${GEO_LOG_PREFIX} geolocation error`, payload, error);
   }, []);
 
   const handleInputChange = useCallback((field, value) => {
@@ -817,7 +818,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
         });
       } catch (reverseError) {
         reverseGeocodeError = reverseError;
-        console.warn(`${GEO_LOG_PREFIX} reverse geocode failed`, reverseError);
+        logger.warn(`${GEO_LOG_PREFIX} reverse geocode failed`, reverseError);
         logLocationDebug('reverse_geocode_error', {
           ...getLocationPlatformInfo(),
           message: reverseError?.message || String(reverseError),
@@ -1024,7 +1025,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
       showInlineNotice('success', 'Foto actualizada correctamente.');
 
     } catch (error) {
-      console.error('Error uploading photo:', error);
+      logger.error('Error uploading photo:', error);
       notifyBlockingError(friendlyError(error, 'No se pudo subir la foto. Intentá de nuevo.'));
 
       setLiveProfile((prev) => ({
@@ -1210,7 +1211,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
       navigate('/login', { replace: true });
     } catch (error) {
       // eslint-disable-next-line no-console
-      console.error('[DELETE_ACCOUNT] raw error:', error?.message, error);
+      logger.error('[DELETE_ACCOUNT] raw error:', error?.message, error);
       notifyBlockingError(friendlyError(error, 'No se pudo eliminar la cuenta. Intentá de nuevo más tarde.'));
     } finally {
       setLoading(false);

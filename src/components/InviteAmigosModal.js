@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   getAmigos,
@@ -348,7 +349,7 @@ const InviteAmigosModal = ({
         .filter(Boolean);
 
       if (unresolvedFriends.length > 0) {
-        console.warn('[MODAL_AMIGOS] Friends dropped because no UUID recipient could be resolved', unresolvedFriends);
+        logger.warn('[MODAL_AMIGOS] Friends dropped because no UUID recipient could be resolved', unresolvedFriends);
       }
 
       const filteredFriends = normalizedFriends.filter((friend) => {
@@ -375,7 +376,7 @@ const InviteAmigosModal = ({
 
       if (partidoActual?.id) {
         if (partidoActual.id === 'undefined' || partidoActual.id === 'null') {
-          console.warn('[MODAL_AMIGOS] Invalid partidoActual.id, skipping invitation check');
+          logger.warn('[MODAL_AMIGOS] Invalid partidoActual.id, skipping invitation check');
           setInvitedFriends(cachedBlockedIds);
           writeCachedInvitedFriendIds(partidoActual?.id, cachedBlockedIds);
         } else {
@@ -427,7 +428,7 @@ const InviteAmigosModal = ({
         writeCachedInvitedFriendIds(partidoActual?.id, cachedBlockedIds);
       }
     } catch (error) {
-      console.error('[MODAL_AMIGOS] Error fetching friends:', error);
+      logger.error('[MODAL_AMIGOS] Error fetching friends:', error);
       setFriendsError(error?.message || 'No se pudieron cargar tus amigos.');
       setAmigos([]);
       const cachedBlockedIds = readCachedInvitedFriendIds(partidoActual?.id);
@@ -444,7 +445,7 @@ const InviteAmigosModal = ({
       setGroupsError(null);
       setGroups(groupRows || []);
     } catch (error) {
-      console.error('[MODAL_AMIGOS] Error fetching groups:', error);
+      logger.error('[MODAL_AMIGOS] Error fetching groups:', error);
       setGroupsError(error?.message || 'No se pudieron cargar tus grupos.');
       setGroups([]);
     } finally {
@@ -556,7 +557,7 @@ const InviteAmigosModal = ({
   const sendInviteToFriend = async (amigo, inviteContext) => {
     const recipientUserId = resolveFriendUserId(amigo);
     if (!recipientUserId) {
-      console.error('[MODAL_AMIGOS] Could not resolve recipient UUID for invite', {
+      logger.error('[MODAL_AMIGOS] Could not resolve recipient UUID for invite', {
         rawFriendId: amigo?.id,
         relationshipId: amigo?.relationshipId,
         friendUserId: amigo?.friend_user_id,
@@ -590,7 +591,7 @@ const InviteAmigosModal = ({
 
     const invalidSelectedFriend = selectedFriends.find((friend) => !resolveFriendUserId(friend));
     if (invalidSelectedFriend) {
-      console.error('[MODAL_AMIGOS] Could not resolve recipient UUID for selected invite', {
+      logger.error('[MODAL_AMIGOS] Could not resolve recipient UUID for selected invite', {
         rawFriendId: invalidSelectedFriend?.id,
         relationshipId: invalidSelectedFriend?.relationshipId,
         friendUserId: invalidSelectedFriend?.friend_user_id,
@@ -670,7 +671,7 @@ const InviteAmigosModal = ({
         isRequestJoinMode,
       });
     } catch (error) {
-      console.error('[MODAL_AMIGOS] Error sending selected invites:', error);
+      logger.error('[MODAL_AMIGOS] Error sending selected invites:', error);
       handleInviteRpcError(error);
     } finally {
       setInviting(false);
@@ -821,7 +822,7 @@ const InviteAmigosModal = ({
         ineligibleCount: normalizeUniqueCount(ineligibleIds),
       });
     } catch (error) {
-      console.error('[MODAL_AMIGOS] Error sending group invites:', error);
+      logger.error('[MODAL_AMIGOS] Error sending group invites:', error);
       handleInviteRpcError(error);
     } finally {
       setInviting(false);

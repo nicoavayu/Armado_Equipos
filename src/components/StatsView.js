@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import CountUp from 'react-countup';
@@ -276,7 +277,7 @@ const StatsView = ({ onVolver }) => {
           setIdentityRefsReady(true);
         }
       } catch (error) {
-        console.warn('[STATS] Could not resolve historical identity aliases. Falling back to auth user.', error);
+        logger.warn('[STATS] Could not resolve historical identity aliases. Falling back to auth user.', error);
         if (!cancelled) {
           setIdentityRefs([user.id]);
           setIdentityRefsReady(true);
@@ -310,7 +311,7 @@ const StatsView = ({ onVolver }) => {
           setManageableTeamsReady(true);
         }
       } catch (error) {
-        console.warn('[STATS] No se pudieron cargar equipos gestionables para resultados de desafio.', error);
+        logger.warn('[STATS] No se pudieron cargar equipos gestionables para resultados de desafio.', error);
         if (!cancelled) {
           setManageableTeams([]);
           setManageableTeamsReady(true);
@@ -603,7 +604,7 @@ const StatsView = ({ onVolver }) => {
         };
       });
     } catch (error) {
-      console.warn('[STATS] No se pudieron cargar resultados manuales de desafio para recap.', error);
+      logger.warn('[STATS] No se pudieron cargar resultados manuales de desafio para recap.', error);
       return [];
     }
   };
@@ -623,7 +624,7 @@ const StatsView = ({ onVolver }) => {
           .filter((id) => Number.isFinite(id)),
       ).size;
     } catch (error) {
-      console.warn('[STATS] No se pudo calcular el histórico desde jugadores. Se usa fallback del rango actual.', error);
+      logger.warn('[STATS] No se pudo calcular el histórico desde jugadores. Se usa fallback del rango actual.', error);
       return getFallbackHistoricalMatchCount(fallbackMatches);
     }
   };
@@ -655,7 +656,7 @@ const StatsView = ({ onVolver }) => {
           loadCache,
         });
       } catch (extendedError) {
-        console.warn('[STATS] No se pudieron cargar métricas extendidas, usando fallback.', extendedError);
+        logger.warn('[STATS] No se pudieron cargar métricas extendidas, usando fallback.', extendedError);
       }
 
       const recapRecientes = [
@@ -698,7 +699,7 @@ const StatsView = ({ onVolver }) => {
       });
     } catch (error) {
       if (requestId === loadStatsRequestRef.current) {
-        console.error('Error loading stats:', error);
+        logger.error('Error loading stats:', error);
       }
     } finally {
       if (requestId === loadStatsRequestRef.current) {
@@ -812,7 +813,7 @@ const StatsView = ({ onVolver }) => {
       if (query.error) throw query.error;
       surveyRows = query.data || [];
     } catch (error) {
-      console.warn('[STATS] No se pudieron cargar resultados de encuesta para recap', error);
+      logger.warn('[STATS] No se pudieron cargar resultados de encuesta para recap', error);
       surveyRows = [];
     }
 
@@ -963,7 +964,7 @@ const StatsView = ({ onVolver }) => {
       return !Number.isNaN(date.getTime()) && date.getFullYear() === selectedYear;
     });
     if (yearMatchesRes.error) {
-      console.warn('[STATS] No se pudieron cargar partidos anuales para logros. Se usa fallback del rango actual.', yearMatchesRes.error);
+      logger.warn('[STATS] No se pudieron cargar partidos anuales para logros. Se usa fallback del rango actual.', yearMatchesRes.error);
     }
     const rawYearMatches = yearMatchesRes.error ? fallbackYearMatches : (yearMatchesRes.data || []);
     const yearMatchesData = dedupeMatchesById(rawYearMatches.filter((match) => isMatchClosedForStats(match)));
@@ -1018,7 +1019,7 @@ const StatsView = ({ onVolver }) => {
           registerAwardIfUser(row?.award_type, row?.jugador_id, refs, awardCounts);
         });
       } catch (playerAwardsError) {
-        console.warn('[STATS] No se pudo leer player_awards para logros anuales. Se usa fallback.', playerAwardsError);
+        logger.warn('[STATS] No se pudo leer player_awards para logros anuales. Se usa fallback.', playerAwardsError);
       }
 
       if (!usedPlayerAwards) {
@@ -1056,7 +1057,7 @@ const StatsView = ({ onVolver }) => {
             });
           });
         } catch (surveyResultsError) {
-          console.warn('[STATS] No se pudo leer survey_results para logros anuales.', surveyResultsError);
+          logger.warn('[STATS] No se pudo leer survey_results para logros anuales.', surveyResultsError);
         }
       }
     }
@@ -1322,7 +1323,7 @@ const StatsView = ({ onVolver }) => {
         .map((row) => Number(row?.partido_id))
         .filter((id) => Number.isFinite(id))).size;
     } catch (error) {
-      console.warn('[STATS] No se pudieron cargar penalizaciones por inasistencia para fallback.', error);
+      logger.warn('[STATS] No se pudieron cargar penalizaciones por inasistencia para fallback.', error);
       return 0;
     }
   };
@@ -1353,7 +1354,7 @@ const StatsView = ({ onVolver }) => {
       rows = data || [];
     } catch (error) {
       surveyResultsQueryFailed = true;
-      console.warn('[STATS] No se pudo usar survey_results como fallback de asistencia.', error);
+      logger.warn('[STATS] No se pudo usar survey_results como fallback de asistencia.', error);
     }
 
     let lifecycleRows = [];
@@ -1458,7 +1459,7 @@ const StatsView = ({ onVolver }) => {
       if (error) throw error;
       surveysRows = data || [];
     } catch (surveysErr) {
-      console.warn('[STATS] No se pudo leer post_match_surveys para asistencia. Se usa fallback.', surveysErr);
+      logger.warn('[STATS] No se pudo leer post_match_surveys para asistencia. Se usa fallback.', surveysErr);
       return getAttendanceStatsFromSurveyResults(matchIds);
     }
 
@@ -1776,13 +1777,13 @@ const StatsView = ({ onVolver }) => {
       : defaultExtendedStats.consistencia;
 
     if (attendanceRes.status === 'rejected') {
-      console.warn('[STATS] attendance metrics failed, using fallback.', attendanceRes.reason);
+      logger.warn('[STATS] attendance metrics failed, using fallback.', attendanceRes.reason);
     }
     if (rankingRes.status === 'rejected') {
-      console.warn('[STATS] ranking metrics failed, using fallback.', rankingRes.reason);
+      logger.warn('[STATS] ranking metrics failed, using fallback.', rankingRes.reason);
     }
     if (consistencyRes.status === 'rejected') {
-      console.warn('[STATS] consistency metrics failed, using fallback.', consistencyRes.reason);
+      logger.warn('[STATS] consistency metrics failed, using fallback.', consistencyRes.reason);
     }
 
     return {
@@ -1821,7 +1822,7 @@ const StatsView = ({ onVolver }) => {
 
       await loadStats();
     } catch (error) {
-      console.error('Error marking lesion as recovered:', error);
+      logger.error('Error marking lesion as recovered:', error);
       notifyBlockingError('No se pudo marcar la lesión como recuperada');
     }
   };

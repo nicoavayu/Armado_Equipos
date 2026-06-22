@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import { supabase } from '../supabase';
 import { db } from '../api/supabaseWrapper';
 import { handleError } from '../lib/errorHandler';
@@ -19,7 +20,7 @@ class MatchScheduler {
   start() {
     if (this.isRunning) return;
 
-    console.log('[MATCH_SCHEDULER] Starting match scheduler');
+    logger.log('[MATCH_SCHEDULER] Starting match scheduler');
     this.isRunning = true;
 
     // Verificar cada minuto
@@ -37,7 +38,7 @@ class MatchScheduler {
   stop() {
     if (!this.isRunning) return;
 
-    console.log('[MATCH_SCHEDULER] Stopping match scheduler');
+    logger.log('[MATCH_SCHEDULER] Stopping match scheduler');
     this.isRunning = false;
 
     if (this.checkInterval) {
@@ -64,7 +65,7 @@ class MatchScheduler {
           processed: false,
         });
 
-        console.log('[MATCH_SCHEDULER] Scheduled match:', {
+        logger.log('[MATCH_SCHEDULER] Scheduled match:', {
           partidoId,
           matchDateTime: matchDateTime.toISOString(),
           timeUntilMatch: Math.round((matchDateTime - now) / (1000 * 60)) + ' minutes',
@@ -86,7 +87,7 @@ class MatchScheduler {
 
       // Si ya pasó la hora del partido
       if (now >= matchInfo.matchDateTime) {
-        console.log('[MATCH_SCHEDULER] Processing match start:', partidoId);
+        logger.log('[MATCH_SCHEDULER] Processing match start:', partidoId);
 
         try {
           await this.processMatchStart(partidoId);
@@ -111,26 +112,26 @@ class MatchScheduler {
    */
   async processMatchStart(partidoId) {
     try {
-      console.log('[MATCH_SCHEDULER] Match started, incrementing played matches for:', partidoId);
+      logger.log('[MATCH_SCHEDULER] Match started, incrementing played matches for:', partidoId);
 
       // Verificar que el partido existe y obtener jugadores
       let partido;
       try {
         partido = await db.fetchOne('partidos_view', { id: partidoId });
       } catch (partidoError) {
-        console.error('[MATCH_SCHEDULER] Error getting match:', partidoError);
+        logger.error('[MATCH_SCHEDULER] Error getting match:', partidoError);
         return;
       }
 
       if (!partido || !partido.jugadores) {
-        console.log('[MATCH_SCHEDULER] No players found for match:', partidoId);
+        logger.log('[MATCH_SCHEDULER] No players found for match:', partidoId);
         return;
       }
 
       // Incrementar partidos_jugados para todos los jugadores
       await incrementMatchesPlayed(partidoId);
 
-      console.log('[MATCH_SCHEDULER] Successfully processed match start for:', partidoId);
+      logger.log('[MATCH_SCHEDULER] Successfully processed match start for:', partidoId);
 
     } catch (error) {
       handleError(error, { showToast: false });
@@ -156,12 +157,12 @@ class MatchScheduler {
         .not('hora', 'is', null);
 
       if (error) {
-        console.error('[MATCH_SCHEDULER] Error loading active matches:', error);
+        logger.error('[MATCH_SCHEDULER] Error loading active matches:', error);
         return;
       }
 
       if (partidos && partidos.length > 0) {
-        console.log('[MATCH_SCHEDULER] Loading', partidos.length, 'active matches');
+        logger.log('[MATCH_SCHEDULER] Loading', partidos.length, 'active matches');
 
         partidos.forEach((partido) => {
           this.scheduleMatch(partido.id, partido.fecha, partido.hora);
@@ -169,7 +170,7 @@ class MatchScheduler {
       }
 
     } catch (error) {
-      console.error('[MATCH_SCHEDULER] Error in loadActiveMatches:', error);
+      logger.error('[MATCH_SCHEDULER] Error in loadActiveMatches:', error);
     }
   }
 }

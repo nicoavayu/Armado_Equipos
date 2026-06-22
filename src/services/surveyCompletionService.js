@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import { supabase } from '../supabase';
 import { db } from '../api/supabaseWrapper';
 import { grantAwardsForMatch, notifyAwardWinnersForMatch } from './db/awards';
@@ -119,7 +120,7 @@ const ensureNoShowRankingSafe = async (partidoId, options = {}) => {
     if (ensureRes?.error) throw ensureRes.error;
     return ensureRes;
   } catch (error) {
-    console.error('[FINALIZE] ensureNoShowRanking error', {
+    logger.error('[FINALIZE] ensureNoShowRanking error', {
       partidoId: Number(partidoId),
       replayMode: options.emitNotifications === false,
       error,
@@ -136,13 +137,13 @@ const notifyAwardWinnersSafe = async (partidoId, awards) => {
   try {
     const notifyRes = await notifyAwardWinnersForMatch(partidoId, awards);
     if (notifyRes?.error) {
-      console.warn('[AWARDS] notifyAwardWinnersForMatch returned error', {
+      logger.warn('[AWARDS] notifyAwardWinnersForMatch returned error', {
         partidoId: Number(partidoId),
         notifyRes,
       });
     }
   } catch (error) {
-    console.warn('[AWARDS] notifyAwardWinnersForMatch failed', {
+    logger.warn('[AWARDS] notifyAwardWinnersForMatch failed', {
       partidoId: Number(partidoId),
       error,
     });
@@ -425,11 +426,11 @@ export async function setMatchAwardsStatus(partidoId, status) {
       partidosUpdated = true;
     } else if (!isMissingColumnError(partidoError, ['awards_status'])) {
       partidosMirrorError = partidoError;
-      console.warn('[AWARDS_STATUS] could not mirror status into partidos', { partidoId: idNum, normalizedStatus, partidoError });
+      logger.warn('[AWARDS_STATUS] could not mirror status into partidos', { partidoId: idNum, normalizedStatus, partidoError });
     }
   } catch (partidoMirrorErr) {
     partidosMirrorError = partidoMirrorErr;
-    console.warn('[AWARDS_STATUS] partidos mirror failed', { partidoId: idNum, normalizedStatus, partidoMirrorErr });
+    logger.warn('[AWARDS_STATUS] partidos mirror failed', { partidoId: idNum, normalizedStatus, partidoMirrorErr });
   }
 
   if (!surveyResultsUpdated && surveyResultsUnsupported && !partidosUpdated) {
@@ -689,7 +690,7 @@ export async function computeAndPersistAwards(partidoId, options = {}) {
   try {
     await db.update('survey_results', { partido_id: idNum }, { awards_status: 'applied', awards_applied_at: new Date().toISOString(), updated_at: new Date().toISOString() });
   } catch (err) {
-    console.warn('[AWARDS] could not mark survey_results awards as applied', err);
+    logger.warn('[AWARDS] could not mark survey_results awards as applied', err);
   }
   */
 
@@ -1087,7 +1088,7 @@ const getDistinctSubmittedEligibleVoters = async (partidoId, eligibleByPlayerId 
     .eq('partido_id', partidoId);
 
   if (surveysErr) {
-    console.error('[FINALIZE] error fetching surveysRows', { partidoId, surveysErr });
+    logger.error('[FINALIZE] error fetching surveysRows', { partidoId, surveysErr });
     throw surveysErr;
   }
 
@@ -1257,7 +1258,7 @@ export async function ensureSurveyWindowOpen(partidoId, options = {}) {
   );
 
   if (rosterErr) {
-    console.error('[FINALIZE] error fetching roster rows', { partidoId: idNum, rosterErr });
+    logger.error('[FINALIZE] error fetching roster rows', { partidoId: idNum, rosterErr });
     throw rosterErr;
   }
 
@@ -1685,7 +1686,7 @@ export async function finalizeIfComplete(partidoId, options = {}) {
           }
           return { closedByThisCall };
         } catch (error) {
-          console.error('[FINALIZE] close guard failed', { partidoId: idNum, error });
+          logger.error('[FINALIZE] close guard failed', { partidoId: idNum, error });
           throw error;
         }
       }
@@ -1892,7 +1893,7 @@ export async function finalizeIfComplete(partidoId, options = {}) {
         () => fetchSurveyResultsRowForMatch(idNum),
       );
     } catch (surveyResultsReadErr) {
-      console.warn('[FINALIZE] could not read survey_results before awards status write', {
+      logger.warn('[FINALIZE] could not read survey_results before awards status write', {
         partidoId: idNum,
         surveyResultsReadErr,
       });
@@ -1905,7 +1906,7 @@ export async function finalizeIfComplete(partidoId, options = {}) {
         () => clearAwardArtifactsForNotEligible(),
       );
     } catch (clearErr) {
-      console.warn('[FINALIZE] could not clear awards artifacts for not_eligible match', { partidoId: idNum, clearErr });
+      logger.warn('[FINALIZE] could not clear awards artifacts for not_eligible match', { partidoId: idNum, clearErr });
     }
 
     const statusRes = await traceMeasure(
@@ -1915,9 +1916,9 @@ export async function finalizeIfComplete(partidoId, options = {}) {
       { awardsStatus: finalAwardsStatus },
     );
     if (!statusRes?.ok && !statusRes?.unsupported) {
-      console.warn('[FINALIZE] failed to persist not_eligible awards status', { partidoId: idNum, statusRes });
+      logger.warn('[FINALIZE] failed to persist not_eligible awards status', { partidoId: idNum, statusRes });
     } else if (statusRes?.unsupported || (surveyResultsRow && !hasSurveyResultsAwardsStatusColumn(surveyResultsRow))) {
-      console.info('[FINALIZE] skipping awards_status write because column is not available in survey_results');
+      logger.info('[FINALIZE] skipping awards_status write because column is not available in survey_results');
     }
   } else {
     let awardsMaterializationResult = null;
@@ -1936,13 +1937,13 @@ export async function finalizeIfComplete(partidoId, options = {}) {
         }),
       );
       if (awardsPersistResult?.persisted !== true) {
-        console.error('[FINALIZE] computeAndPersistAwards returned non-persisted result', {
+        logger.error('[FINALIZE] computeAndPersistAwards returned non-persisted result', {
           partidoId: idNum,
           awardsPersistResult,
         });
       }
     } catch (awardErr) {
-      console.error('[FINALIZE] computeAndPersistAwards exception', { partidoId: idNum, awardErr });
+      logger.error('[FINALIZE] computeAndPersistAwards exception', { partidoId: idNum, awardErr });
       handleError(awardErr, { showToast: false, onError: () => { } });
       awardsPersistResult = {
         persisted: false,
@@ -1959,7 +1960,7 @@ export async function finalizeIfComplete(partidoId, options = {}) {
         () => fetchSurveyResultsRowForMatch(idNum),
       );
     } catch (awardsRowErr) {
-      console.error('[FINALIZE] could not refetch survey_results for awards validation', { partidoId: idNum, awardsRowErr });
+      logger.error('[FINALIZE] could not refetch survey_results for awards validation', { partidoId: idNum, awardsRowErr });
     }
 
     if (awardsRow?.results_ready === true && hasAnyAwardData(awardsRow)) {
@@ -1970,7 +1971,7 @@ export async function finalizeIfComplete(partidoId, options = {}) {
           () => materializePersistedAwardsForMatch(idNum, awardsRow),
         );
         if (!awardsMaterializationResult?.ok) {
-          console.error('[FINALIZE] persisted awards recovery could not fully materialize', {
+          logger.error('[FINALIZE] persisted awards recovery could not fully materialize', {
             partidoId: idNum,
             awardsMaterializationResult,
           });
@@ -1981,7 +1982,7 @@ export async function finalizeIfComplete(partidoId, options = {}) {
           reason: 'materialize_exception',
           error: materializeErr,
         };
-        console.error('[FINALIZE] persisted awards recovery exception', {
+        logger.error('[FINALIZE] persisted awards recovery exception', {
           partidoId: idNum,
           materializeErr,
         });
@@ -2010,10 +2011,10 @@ export async function finalizeIfComplete(partidoId, options = {}) {
           () => clearAwardArtifactsForNotEligible(),
         );
       } catch (clearErr) {
-        console.warn('[FINALIZE] could not clear awards artifacts for not_eligible match', { partidoId: idNum, clearErr });
+        logger.warn('[FINALIZE] could not clear awards artifacts for not_eligible match', { partidoId: idNum, clearErr });
       }
     } else if (finalAwardsStatus === AWARDS_STATUS_ERROR) {
-      console.error('[FINALIZE] awards resolution failed after close; marking error', {
+      logger.error('[FINALIZE] awards resolution failed after close; marking error', {
         partidoId: idNum,
         persistResult: awardsPersistResult,
         awardsRow,
@@ -2027,9 +2028,9 @@ export async function finalizeIfComplete(partidoId, options = {}) {
       { awardsStatus: finalAwardsStatus },
     );
     if (!statusRes?.ok && !statusRes?.unsupported) {
-      console.warn('[FINALIZE] failed to persist awards status', { partidoId: idNum, finalAwardsStatus, statusRes });
+      logger.warn('[FINALIZE] failed to persist awards status', { partidoId: idNum, finalAwardsStatus, statusRes });
     } else if (statusRes?.unsupported || (awardsRow && !hasSurveyResultsAwardsStatusColumn(awardsRow))) {
-      console.info('[FINALIZE] skipping awards_status write because column is not available in survey_results');
+      logger.info('[FINALIZE] skipping awards_status write because column is not available in survey_results');
     }
 
     if (finalAwardsStatus === AWARDS_STATUS_READY && statusRes?.ok) {
@@ -2091,7 +2092,7 @@ export async function finalizeIfComplete(partidoId, options = {}) {
           }
           return { inserted: jugadoresToInsert.length };
         } catch (notifErr) {
-          console.error('[FINALIZE] notification side effects error', { partidoId: idNum, notifErr });
+          logger.error('[FINALIZE] notification side effects error', { partidoId: idNum, notifErr });
           return { inserted: 0, error: notifErr };
         }
       }

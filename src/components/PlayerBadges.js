@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useState, useEffect } from 'react';
 import { fetchAwardCountsForPlayerRef, normalizeAwardType } from '../services/db/userIdentity';
 
@@ -135,7 +136,7 @@ const PlayerBadges = ({ playerId, size = 'small' }) => {
           red_card: Number(badgeCounts?.tarjetas_rojas || 0),
         });
       } catch (error) {
-        console.error('Error fetching badges:', error);
+        logger.error('Error fetching badges:', error);
       } finally {
         setLoading(false);
       }

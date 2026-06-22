@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import { supabase } from '../supabase';
 import { resolveStablePlayerRef } from './db/userIdentity';
 
@@ -192,7 +193,7 @@ export async function ensureParticipantsSnapshot(partidoId) {
 
     return { ok: true, changed: true };
   } catch (error) {
-    console.warn('[HISTORY_SNAPSHOT] ensureParticipantsSnapshot failed', { partidoId: id, error });
+    logger.warn('[HISTORY_SNAPSHOT] ensureParticipantsSnapshot failed', { partidoId: id, error });
     return { ok: false, reason: 'exception', error };
   }
 }
@@ -260,7 +261,7 @@ export async function ensureSurveyResultsSnapshot(partidoId, meta = {}) {
 
     return { ok: true, changed: true, snapshot };
   } catch (error) {
-    console.warn('[HISTORY_SNAPSHOT] ensureSurveyResultsSnapshot failed', { partidoId: id, error });
+    logger.warn('[HISTORY_SNAPSHOT] ensureSurveyResultsSnapshot failed', { partidoId: id, error });
     return { ok: false, reason: 'exception', error };
   }
 }

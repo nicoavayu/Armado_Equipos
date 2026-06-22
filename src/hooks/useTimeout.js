@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import { useEffect, useRef, useCallback } from 'react';
 
 /**
@@ -10,7 +11,7 @@ import { useEffect, useRef, useCallback } from 'react';
  * const { setTimeoutSafe, clearTimeoutSafe } = useTimeout();
  * 
  * setTimeoutSafe(() => {
- *   console.log('Ejecutado después de 1 segundo');
+ *   logger.log('Ejecutado después de 1 segundo');
  * }, 1000);
  */
 export const useTimeout = () => {

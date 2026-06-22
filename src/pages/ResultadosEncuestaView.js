@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useCallback, useEffect, useRef, useState, createContext, useContext } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../supabase';
@@ -871,7 +872,7 @@ const ResultadosEncuestaView = () => {
         noShowSummary: data || [],
       });
     } catch (error) {
-      console.warn('[RESULTADOS] canonical no-show summary unavailable', error);
+      logger.warn('[RESULTADOS] canonical no-show summary unavailable', error);
       return [];
     }
   }, []);
@@ -1937,7 +1938,7 @@ const ResultadosEncuestaView = () => {
             reason: 'fetch_results_data_catch',
             error: error?.message || String(error || ''),
           }));
-          console.error('Error fetching results data:', error);
+          logger.error('Error fetching results data:', error);
           notifyBlockingError('Error al cargar los resultados');
         }
       } finally {
@@ -2131,7 +2132,7 @@ const ResultadosEncuestaView = () => {
           reason: 'force_awards_catch',
           error: e?.message || String(e || ''),
         }));
-        console.error('[RESULTADOS] ensureAwards failed', e);
+        logger.error('[RESULTADOS] ensureAwards failed', e);
         if (cancelled) return;
         setForcedAwardsFallback(buildForcedAwardsFallback({
           row: results,
@@ -2184,7 +2185,7 @@ const ResultadosEncuestaView = () => {
           setResults(nextCanonicalResults);
         }
       } catch (retryErr) {
-        console.error('[RESULTADOS] pending awards ensureAwards failed', retryErr);
+        logger.error('[RESULTADOS] pending awards ensureAwards failed', retryErr);
       }
     };
 
@@ -2414,7 +2415,7 @@ const ResultadosEncuestaView = () => {
 
       setBadgeAnimations(animations);
     } catch (error) {
-      console.error('Error fetching results data:', error);
+      logger.error('Error fetching results data:', error);
       notifyBlockingError('Error al cargar los resultados');
     } finally {
       setLoading(false);

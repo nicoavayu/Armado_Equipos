@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import { useState, useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { Share } from '@capacitor/share';
@@ -304,7 +305,7 @@ export const initNativePushNotifications = async () => {
           try {
             const previousToken = lastRegistrationToken || await getLastKnownNativePushToken();
             lastRegistrationToken = currentToken;
-            console.info('[PUSH] registration_received', {
+            logger.info('[PUSH] registration_received', {
               source: 'registration',
               tokenSuffix: getTokenSuffix(currentToken),
               previousTokenSuffix: getTokenSuffix(previousToken),
@@ -314,12 +315,12 @@ export const initNativePushNotifications = async () => {
               source: 'registration',
             });
           } catch (error) {
-            console.warn('[PUSH] Failed to sync native registration token', error);
+            logger.warn('[PUSH] Failed to sync native registration token', error);
           }
         });
 
         await PushNotifications.addListener('registrationError', (error) => {
-          console.warn('[PUSH] Native registration error', error);
+          logger.warn('[PUSH] Native registration error', error);
         });
 
         pushListenersAttached = true;
@@ -327,13 +328,13 @@ export const initNativePushNotifications = async () => {
 
       const permission = await PushNotifications.requestPermissions();
       if (permission.receive !== 'granted') {
-        console.info('[PUSH] Permission not granted');
+        logger.info('[PUSH] Permission not granted');
         return;
       }
 
       await PushNotifications.register();
     })().catch((error) => {
-      console.warn('[PUSH] bootstrapNativePush failed', error);
+      logger.warn('[PUSH] bootstrapNativePush failed', error);
     });
   }
 
@@ -356,7 +357,7 @@ export const useNativeFeatures = () => {
         networkListenerHandle = handle;
       })
       .catch((error) => {
-        console.warn('[NATIVE] Failed to attach network listener', error);
+        logger.warn('[NATIVE] Failed to attach network listener', error);
       });
 
     initNativePushNotifications();
@@ -391,7 +392,7 @@ export const useNativeFeatures = () => {
       });
       return image.dataUrl;
     } catch (error) {
-      console.log('Camera not available');
+      logger.log('Camera not available');
       return null;
     }
   };
@@ -419,7 +420,7 @@ export const useNativeFeatures = () => {
       const coordinates = await Geolocation.getCurrentPosition();
       return coordinates;
     } catch (error) {
-      console.log('Geolocation not available');
+      logger.log('Geolocation not available');
       return null;
     }
   };

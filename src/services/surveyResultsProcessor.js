@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import { finalizeIfComplete } from './surveyCompletionService';
 import { ensureAwards } from './awardsService';
 import { isAwardsNotEligibleStatus, isAwardsReadyStatus } from '../utils/awardsReadiness';
@@ -21,7 +22,7 @@ export const processSurveyResults = async (partidoId) => {
     const awardsNotEligible = isAwardsNotEligibleStatus(ensureRes?.row) || ensureRes?.notEligible === true;
     return Boolean(ensureRes?.ok && (awardsReady || awardsNotEligible));
   } catch (error) {
-    console.error('[SURVEY_RESULTS] compatibility processing failed:', error);
+    logger.error('[SURVEY_RESULTS] compatibility processing failed:', error);
     return false;
   }
 };
@@ -42,7 +43,7 @@ export const scheduleSurveyResultsProcessing = (partidoId, partidoFecha, partido
         processSurveyResults(partidoId);
       }, timeUntilProcessing);
 
-      console.log('[SURVEY_RESULTS] Scheduled compatibility processing:', {
+      logger.log('[SURVEY_RESULTS] Scheduled compatibility processing:', {
         partidoId,
         minutesUntil: Math.round(timeUntilProcessing / 1000 / 60),
       });
@@ -51,6 +52,6 @@ export const scheduleSurveyResultsProcessing = (partidoId, partidoFecha, partido
 
     processSurveyResults(partidoId);
   } catch (error) {
-    console.error('[SURVEY_RESULTS] Error scheduling compatibility processing:', error);
+    logger.error('[SURVEY_RESULTS] Error scheduling compatibility processing:', error);
   }
 };

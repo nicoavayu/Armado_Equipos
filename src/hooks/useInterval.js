@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import { useEffect, useRef, useCallback } from 'react';
 
 /**
@@ -11,7 +12,7 @@ import { useEffect, useRef, useCallback } from 'react';
  * const { setIntervalSafe, clearIntervalSafe } = useInterval();
  * 
  * setIntervalSafe(() => {
- *   console.log('Ejecutado cada segundo');
+ *   logger.log('Ejecutado cada segundo');
  * }, 1000);
  */
 export const useInterval = () => {

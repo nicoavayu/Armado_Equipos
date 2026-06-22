@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 // src/components/TeamDisplay.js
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -32,7 +33,7 @@ import { MoreVertical, RotateCcw } from 'lucide-react';
 // Safe wrappers to prevent runtime crashes if any import resolves undefined
 const safeComp = (Comp, name) => {
   if (!Comp) {
-    console.error(`[TeamDisplay] Undefined component: ${name}`);
+    logger.error(`[TeamDisplay] Undefined component: ${name}`);
     const Fallback = ({ children }) => <>{children ?? null}</>;
     Fallback.displayName = `SafeFallback(${name})`;
     return Fallback;
@@ -141,7 +142,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
       try {
         const savedTeams = await getTeamsFromDatabase(partidoId);
         if (savedTeams && Array.isArray(savedTeams) && savedTeams.length === 2) {
-          console.log('[TEAMS_LOAD] Loading teams from database:', savedTeams);
+          logger.log('[TEAMS_LOAD] Loading teams from database:', savedTeams);
           setRealtimeTeams(savedTeams);
           onTeamsChange(savedTeams);
         } else {
@@ -149,7 +150,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
           setRealtimeTeams(teams);
         }
       } catch (error) {
-        console.error('[TEAMS_LOAD] Error loading teams:', error);
+        logger.error('[TEAMS_LOAD] Error loading teams:', error);
         setRealtimeTeams(teams);
       }
     };
@@ -208,12 +209,12 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
             .maybeSingle();
 
           if (confirmationError) {
-            console.warn('[TEAMS_CONFIRM] could not load confirmation snapshot (non-blocking)', confirmationError?.message || confirmationError);
+            logger.warn('[TEAMS_CONFIRM] could not load confirmation snapshot (non-blocking)', confirmationError?.message || confirmationError);
           } else {
             hasConfirmationSnapshot = Boolean(confirmationRow?.partido_id);
           }
         } catch (snapshotError) {
-          console.warn('[TEAMS_CONFIRM] could not load confirmation snapshot (non-blocking)', snapshotError?.message || snapshotError);
+          logger.warn('[TEAMS_CONFIRM] could not load confirmation snapshot (non-blocking)', snapshotError?.message || snapshotError);
         }
 
         const matchFlagConfirmed = Boolean(data?.teams_confirmed);
@@ -226,12 +227,12 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
           try {
             await persistMatchTeamsConfirmedState({ partidoId, confirmed: true });
           } catch (syncError) {
-            console.warn('[TEAMS_CONFIRM] could not sync teams_confirmed from snapshot (non-blocking)', syncError?.message || syncError);
+            logger.warn('[TEAMS_CONFIRM] could not sync teams_confirmed from snapshot (non-blocking)', syncError?.message || syncError);
           }
         }
       } catch (e) {
         // Older DBs may not have these columns yet.
-        console.warn('[TEAMS_CONFIRM] could not load teams_confirmed/template_id (non-blocking)', e?.message || e);
+        logger.warn('[TEAMS_CONFIRM] could not load teams_confirmed/template_id (non-blocking)', e?.message || e);
       }
     };
     loadConfirmState();
@@ -252,7 +253,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
     if (!partidoId) return;
 
     const subscription = subscribeToTeamsChanges(partidoId, (newTeams) => {
-      console.log('[TEAMS_REALTIME] Received team update:', newTeams);
+      logger.log('[TEAMS_REALTIME] Received team update:', newTeams);
       if (newTeams && Array.isArray(newTeams) && newTeams.length === 2) {
         setRealtimeTeams(newTeams);
         onTeamsChange(newTeams);
@@ -338,7 +339,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
         setVotantesConNombres(Array.isArray(names) ? names : []);
       } catch (error) {
         if (!isMounted) return;
-        console.warn('[TeamDisplay] Error loading voters', error);
+        logger.warn('[TeamDisplay] Error loading voters', error);
       }
     };
 
@@ -459,7 +460,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
       }
       setShowResetConfirm(false);
     } catch (error) {
-      console.error('[TeamDisplay] reset voting failed', error);
+      logger.error('[TeamDisplay] reset voting failed', error);
       notifyBlockingError('No se pudo resetear la votación. Intentá de nuevo.');
     } finally {
       setResetting(false);
@@ -508,7 +509,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
       window.setTimeout(() => {
         saveTeamsToDatabase(partidoId, newTeams)
           .catch((error) => {
-            console.error('[TEAMS_SAVE] Error saving teams:', error);
+            logger.error('[TEAMS_SAVE] Error saving teams:', error);
           });
       }, 0);
     }
@@ -747,7 +748,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
       setTeamsConfirmed(true);
       setShowTeamsConfirmedModal(true);
     } catch (e) {
-      console.error('[TEAMS_CONFIRM] confirmTeams error', e);
+      logger.error('[TEAMS_CONFIRM] confirmTeams error', e);
       notifyBlockingError('No se pudieron confirmar los equipos');
     } finally {
       setConfirming(false);
@@ -778,7 +779,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
       clearInlineNotice();
       setTeamsConfirmed(false);
     } catch (e) {
-      console.error('[TEAMS_CONFIRM] unconfirmTeams error', e);
+      logger.error('[TEAMS_CONFIRM] unconfirmTeams error', e);
       notifyBlockingError('No se pudo desconfirmar');
     } finally {
       setUnconfirming(false);
@@ -1185,7 +1186,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                                 try {
                                   await saveTeamsToDatabase(partidoId, newTeams);
                                 } catch (error) {
-                                  console.error('[TEAMS_SAVE] Error saving teams:', error);
+                                  logger.error('[TEAMS_SAVE] Error saving teams:', error);
                                 }
                               }
                             }
@@ -1205,7 +1206,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                                   try {
                                     await saveTeamsToDatabase(partidoId, newTeams);
                                   } catch (error) {
-                                    console.error('[TEAMS_SAVE] Error saving teams:', error);
+                                    logger.error('[TEAMS_SAVE] Error saving teams:', error);
                                   }
                                 }
                               }

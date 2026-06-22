@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import PageTitle from '../components/PageTitle';
@@ -370,7 +371,7 @@ const TemplateHistoryPage = () => {
         setFallbackAbsentCountByMatch(absentCountMap);
         setCounts(cntMap);
       } catch (error) {
-        console.error('[TemplateHistoryPage] load error', error);
+        logger.error('[TemplateHistoryPage] load error', error);
         if (!alive) return;
         setMatches([]);
         setResults(new Map());

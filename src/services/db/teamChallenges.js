@@ -1,3 +1,4 @@
+import logger from '../../utils/logger';
 import { supabase } from '../../lib/supabaseClient';
 import { requestImmediatePushDispatchSafe } from '../pushDispatchService';
 import {
@@ -825,14 +826,14 @@ export const upsertChallengeAcceptedNotifications = async ({
       .from('notifications')
       .insert(Array.from(uniqueByRecipient.values()));
     if (error) {
-      console.warn('[TEAM_CHALLENGES] notification insert failed', {
+      logger.warn('[TEAM_CHALLENGES] notification insert failed', {
         challengeId,
         code: error.code,
         message: error.message,
       });
     }
   } catch (error) {
-    console.warn('[TEAM_CHALLENGES] notification insert exception', {
+    logger.warn('[TEAM_CHALLENGES] notification insert exception', {
       challengeId,
       message: error?.message || String(error),
     });
@@ -1199,7 +1200,7 @@ const cancelPendingChallengesForTeam = async (teamId) => {
       .not('challenge_id', 'is', null);
 
     if (teamMatchChallenges.error) {
-      console.warn('[TEAM_CHALLENGES] No se pudieron cargar challenge_id desde team_matches en cleanup de equipo:', teamMatchChallenges.error);
+      logger.warn('[TEAM_CHALLENGES] No se pudieron cargar challenge_id desde team_matches en cleanup de equipo:', teamMatchChallenges.error);
       return 0;
     }
 
@@ -1208,7 +1209,7 @@ const cancelPendingChallengesForTeam = async (teamId) => {
         (teamMatchChallenges.data || []).map((row) => row?.challenge_id),
       );
     } catch (error) {
-      console.warn('[TEAM_CHALLENGES] Fallback de cancelacion de desafios por challenge_id fallo; se continua con borrado de equipo:', error);
+      logger.warn('[TEAM_CHALLENGES] Fallback de cancelacion de desafios por challenge_id fallo; se continua con borrado de equipo:', error);
       return 0;
     }
   }
@@ -1647,7 +1648,7 @@ export const listTeamMembers = async (teamId) => {
           .map((profile) => [String(profile.id), profile]),
       );
     } else {
-      console.warn('[TEAM_MEMBERS] No se pudieron cargar perfiles de usuarios para avatares:', profileResponse.error);
+      logger.warn('[TEAM_MEMBERS] No se pudieron cargar perfiles de usuarios para avatares:', profileResponse.error);
     }
   }
 
@@ -1688,7 +1689,7 @@ const enrichTeamMatchMembersWithProfileAvatars = async (byTeamId = {}) => {
     .in('id', userIds);
 
   if (profileResponse.error) {
-    console.warn('[TEAM_MATCH_MEMBERS] No se pudo resolver avatar_url desde perfiles:', profileResponse.error);
+    logger.warn('[TEAM_MATCH_MEMBERS] No se pudo resolver avatar_url desde perfiles:', profileResponse.error);
     return byTeamId;
   }
 
@@ -2088,7 +2089,7 @@ export const addCurrentUserAsTeamMember = async ({
         .maybeSingle();
 
       if (syncResponse.error && !isMissingColumnError(syncResponse.error, 'user_id')) {
-        console.warn('[TEAM_MEMBERS] No se pudo sincronizar user_id en miembro existente:', syncResponse.error);
+        logger.warn('[TEAM_MEMBERS] No se pudo sincronizar user_id en miembro existente:', syncResponse.error);
       }
     }
 
@@ -2344,7 +2345,7 @@ export const listMyChallenges = async (userId) => {
 
   const failedResponses = responses.filter((response) => response.error);
   if (failedResponses.length > 0) {
-    console.warn('[TEAM_CHALLENGES] Some listMyChallenges queries failed', failedResponses.map((response) => ({
+    logger.warn('[TEAM_CHALLENGES] Some listMyChallenges queries failed', failedResponses.map((response) => ({
       code: response.error?.code,
       message: response.error?.message,
     })));
@@ -2721,7 +2722,7 @@ export const acceptChallenge = async (challengeId, acceptedTeamId, _options = {}
   try {
     await maybePrepareChallengeTeamSquad(challenge?.id || challengeId, true);
   } catch (error) {
-    console.warn('[TEAM_CHALLENGES] prepare_challenge_team_squad after accept failed', {
+    logger.warn('[TEAM_CHALLENGES] prepare_challenge_team_squad after accept failed', {
       challengeId,
       message: error?.message || String(error),
     });
@@ -2754,7 +2755,7 @@ export const acceptChallenge = async (challengeId, acceptedTeamId, _options = {}
         created_at: new Date().toISOString(),
       });
     } catch (error) {
-      console.warn('[TEAM_CHALLENGES] team_challenge_accepted notification failed', {
+      logger.warn('[TEAM_CHALLENGES] team_challenge_accepted notification failed', {
         challengeId,
         message: error?.message || String(error),
       });
@@ -2789,7 +2790,7 @@ export const confirmChallenge = async (challengeId) => {
   try {
     await maybePrepareChallengeTeamSquad(challenge?.id || challengeId, true);
   } catch (error) {
-    console.warn('[TEAM_CHALLENGES] prepare_challenge_team_squad after confirm failed', {
+    logger.warn('[TEAM_CHALLENGES] prepare_challenge_team_squad after confirm failed', {
       challengeId,
       message: error?.message || String(error),
     });
@@ -2822,7 +2823,7 @@ export const completeChallenge = async ({ challengeId, scoreA, scoreB, playedAt 
 
     if (bridgeResponse.error) {
       if (!isMissingFunctionError(bridgeResponse.error, 'sync_team_match_to_partido')) {
-        console.warn('[TEAM_CHALLENGES] sync_team_match_to_partido failed', {
+        logger.warn('[TEAM_CHALLENGES] sync_team_match_to_partido failed', {
           matchId,
           code: bridgeResponse.error.code,
           message: bridgeResponse.error.message,
@@ -2839,7 +2840,7 @@ export const completeChallenge = async ({ challengeId, scoreA, scoreB, playedAt 
       };
     }
   } catch (error) {
-    console.warn('[TEAM_CHALLENGES] sync_team_match_to_partido exception', {
+    logger.warn('[TEAM_CHALLENGES] sync_team_match_to_partido exception', {
       matchId,
       message: error?.message || String(error),
     });
@@ -2901,7 +2902,7 @@ export const reportChallengeResult = async ({ challengeId, resultStatus }) => {
 
     await notificationUpdate.or(clauses.join(','));
   } catch (error) {
-    console.warn('[TEAM_CHALLENGES] challenge result notification cleanup failed', {
+    logger.warn('[TEAM_CHALLENGES] challenge result notification cleanup failed', {
       challengeId,
       teamMatchId,
       message: error?.message || String(error),
@@ -2942,7 +2943,7 @@ export const resolveChallengeResult = async ({ challengeId, resultStatus }) => {
       .in('type', ['challenge_result_survey', 'challenge_result_pending', 'challenge_result_conflict'])
       .or(clauses.join(','));
   } catch (error) {
-    console.warn('[TEAM_CHALLENGES] challenge result resolution notification cleanup failed', {
+    logger.warn('[TEAM_CHALLENGES] challenge result resolution notification cleanup failed', {
       challengeId,
       teamMatchId,
       message: error?.message || String(error),
@@ -3545,7 +3546,7 @@ export const listMyTeamMatches = async (userId, options = {}) => {
 
         if (bridgeResponse.error) {
           if (!isMissingFunctionError(bridgeResponse.error, 'sync_team_match_to_partido')) {
-            console.warn('[TEAM_CHALLENGES] listMyTeamMatches sync_team_match_to_partido failed', {
+            logger.warn('[TEAM_CHALLENGES] listMyTeamMatches sync_team_match_to_partido failed', {
               matchId: match.id,
               code: bridgeResponse.error.code,
               message: bridgeResponse.error.message,
@@ -3562,7 +3563,7 @@ export const listMyTeamMatches = async (userId, options = {}) => {
           };
         }
       } catch (error) {
-        console.warn('[TEAM_CHALLENGES] listMyTeamMatches sync_team_match_to_partido exception', {
+        logger.warn('[TEAM_CHALLENGES] listMyTeamMatches sync_team_match_to_partido exception', {
           matchId: match.id,
           message: error?.message || String(error),
         });

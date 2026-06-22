@@ -1,3 +1,4 @@
+import logger from '../../utils/logger';
 /**
  * Player Service
  * 
@@ -16,7 +17,7 @@ import { prepareImageForUpload } from '../../utils/imageUpload';
  * @returns {Promise<Array>} List of players
  */
 export const getJugadores = async () => {
-  console.log('📊 SUPABASE: Fetching all players with scores');
+  logger.log('📊 SUPABASE: Fetching all players with scores');
 
   try {
     const { data, error } = await supabase
@@ -25,11 +26,11 @@ export const getJugadores = async () => {
       .order('nombre', { ascending: true });
 
     if (error) {
-      console.error('❌ SUPABASE: Error fetching players:', error);
+      logger.error('❌ SUPABASE: Error fetching players:', error);
       throw new Error(`Error fetching players: ${error.message}`);
     }
 
-    console.log('✅ SUPABASE: Players fetched successfully:', {
+    logger.log('✅ SUPABASE: Players fetched successfully:', {
       count: data?.length || 0,
       playersWithScores: data?.filter((p) => p.score !== null && p.score !== undefined).length || 0,
       sample: data?.slice(0, 3).map((p) => ({
@@ -42,7 +43,7 @@ export const getJugadores = async () => {
     return data || [];
 
   } catch (error) {
-    console.error('❌ SUPABASE: getJugadores failed:', error);
+    logger.error('❌ SUPABASE: getJugadores failed:', error);
     throw error;
   }
 };
@@ -98,7 +99,7 @@ export const uploadFoto = async (file, jugador) => {
 
   const fotoUrl = data?.publicUrl;
   if (!fotoUrl) throw new Error('No se pudo obtener la URL pública de la foto.');
-  console.log('uploadFoto updating:', { jugador: jugador.uuid, fotoUrl });
+  logger.log('uploadFoto updating:', { jugador: jugador.uuid, fotoUrl });
 
   // Add cache buster so clients always receive the newest image
   const cacheBusted = `${fotoUrl}${fotoUrl.includes('?') ? '&' : '?'}cb=${Date.now()}`;
@@ -110,7 +111,7 @@ export const uploadFoto = async (file, jugador) => {
     .eq('id', jugador.uuid);
 
   if (updateError) {
-    console.error('uploadFoto update error:', updateError);
+    logger.error('uploadFoto update error:', updateError);
     throw updateError;
   }
 
@@ -121,7 +122,7 @@ export const uploadFoto = async (file, jugador) => {
     .eq('usuario_id', jugador.uuid);
 
   if (updateJugadorError) {
-    console.error('uploadFoto update jugador error:', updateJugadorError);
+    logger.error('uploadFoto update jugador error:', updateJugadorError);
     // No lanzamos el error, solo lo logueamos
   }
 
@@ -130,13 +131,13 @@ export const uploadFoto = async (file, jugador) => {
     await supabase.auth.updateUser({
       data: { avatar_url: cacheBusted },
     });
-    console.log('Updated user metadata with avatar_url:', cacheBusted);
+    logger.log('Updated user metadata with avatar_url:', cacheBusted);
   } catch (error) {
-    console.error('Error updating user metadata:', error);
+    logger.error('Error updating user metadata:', error);
     // Continue even if this fails
   }
 
-  console.log('uploadFoto success:', cacheBusted);
+  logger.log('uploadFoto success:', cacheBusted);
   return cacheBusted;
 };
 
@@ -146,7 +147,7 @@ export const uploadFoto = async (file, jugador) => {
  * @returns {Promise<Object>} User profile
  */
 export const getProfile = async (userId) => {
-  console.log('getProfile called for userId:', userId);
+  logger.log('getProfile called for userId:', userId);
   const { data, error } = await supabase
     .from('usuarios')
     .select('*')
@@ -154,11 +155,11 @@ export const getProfile = async (userId) => {
     .single();
 
   if (error) {
-    console.error('getProfile error:', error);
+    logger.error('getProfile error:', error);
     throw error;
   }
 
-  console.log('getProfile result:', {
+  logger.log('getProfile result:', {
     data: data,
     avatar_url: data?.avatar_url,
     foto_url: data?.foto_url,
@@ -239,9 +240,9 @@ export const createOrUpdateProfile = async (user) => {
       await supabase.auth.updateUser({
         data: { avatar_url: avatarUrl },
       });
-      console.log('Updated user metadata with avatar_url:', avatarUrl);
+      logger.log('Updated user metadata with avatar_url:', avatarUrl);
     } catch (error) {
-      console.error('Error updating user metadata:', error);
+      logger.error('Error updating user metadata:', error);
     }
   }
 
@@ -253,11 +254,11 @@ export const createOrUpdateProfile = async (user) => {
     .single();
 
   if (error) {
-    console.error('Error upserting user profile:', error);
+    logger.error('Error upserting user profile:', error);
     throw error;
   }
 
-  console.log('createOrUpdateProfile OK:', data);
+  logger.log('createOrUpdateProfile OK:', data);
   return data;
 };
 
@@ -302,14 +303,14 @@ export const addFreePlayer = async () => {
       throw new Error('User must be authenticated');
     }
 
-    console.log('Adding free player for user:', user.id);
+    logger.log('Adding free player for user:', user.id);
 
     // Get user profile
     const profile = await getProfile(user.id);
-    console.log('User profile:', profile);
+    logger.log('User profile:', profile);
 
     if (!profile) {
-      console.warn('Profile not found, creating minimal profile');
+      logger.warn('Profile not found, creating minimal profile');
       // Create a minimal profile if none exists
       const minimalProfile = {
         nombre: user.email?.split('@')[0] || 'Usuario',
@@ -324,17 +325,17 @@ export const addFreePlayer = async () => {
         .eq('disponible', true);
 
       if (checkError) {
-        console.error('Error checking existing free player:', checkError);
+        logger.error('Error checking existing free player:', checkError);
         throw checkError;
       }
 
       if (existing && existing.length > 0) {
-        console.log('User already registered as free player');
+        logger.log('User already registered as free player');
         throw new Error('Ya estás anotado como disponible');
       }
 
       // Add to free players with minimal profile
-      console.log('Inserting free player with minimal profile:', minimalProfile);
+      logger.log('Inserting free player with minimal profile:', minimalProfile);
       const { error: insertError } = await supabase
         .from('jugadores_sin_partido')
         .insert([{
@@ -344,7 +345,7 @@ export const addFreePlayer = async () => {
         }]);
 
       if (insertError) {
-        console.error('Error inserting free player:', insertError);
+        logger.error('Error inserting free player:', insertError);
         throw insertError;
       }
 
@@ -359,17 +360,17 @@ export const addFreePlayer = async () => {
       .eq('disponible', true);
 
     if (checkError) {
-      console.error('Error checking existing free player:', checkError);
+      logger.error('Error checking existing free player:', checkError);
       throw checkError;
     }
 
     if (existing && existing.length > 0) {
-      console.log('User already registered as free player');
+      logger.log('User already registered as free player');
       throw new Error('Ya estás anotado como disponible');
     }
 
     // Add to free players
-    console.log('Inserting free player with profile:', {
+    logger.log('Inserting free player with profile:', {
       nombre: profile.nombre,
       localidad: profile.localidad,
     });
@@ -383,11 +384,11 @@ export const addFreePlayer = async () => {
       }]);
 
     if (insertError) {
-      console.error('Error inserting free player:', insertError);
+      logger.error('Error inserting free player:', insertError);
       throw insertError;
     }
   } catch (error) {
-    console.error('addFreePlayer failed:', error);
+    logger.error('addFreePlayer failed:', error);
     throw error;
   }
 };
@@ -500,7 +501,7 @@ export const getAmigos = async (userId) => {
 
     return formattedAmigos;
   } catch (err) {
-    console.error('Error fetching friends:', err);
+    logger.error('Error fetching friends:', err);
     throw err;
   }
 };
@@ -539,7 +540,7 @@ export const getRelationshipStatus = async (userId, friendId) => {
 
     return reverseData;
   } catch (err) {
-    console.error('Error getting relationship status:', err);
+    logger.error('Error getting relationship status:', err);
     return null;
   }
 };
@@ -577,7 +578,7 @@ export const sendFriendRequest = async (userId, friendId) => {
 
     return { success: true, data };
   } catch (err) {
-    console.error('Error sending friend request:', err);
+    logger.error('Error sending friend request:', err);
     return { success: false, message: err.message };
   }
 };
@@ -600,7 +601,7 @@ export const acceptFriendRequest = async (requestId) => {
 
     return { success: true, data };
   } catch (err) {
-    console.error('Error accepting friend request:', err);
+    logger.error('Error accepting friend request:', err);
     return { success: false, message: err.message };
   }
 };
@@ -623,7 +624,7 @@ export const rejectFriendRequest = async (requestId) => {
 
     return { success: true, data };
   } catch (err) {
-    console.error('Error rejecting friend request:', err);
+    logger.error('Error rejecting friend request:', err);
     return { success: false, message: err.message };
   }
 };
@@ -644,7 +645,7 @@ export const removeFriend = async (friendshipId) => {
 
     return { success: true };
   } catch (err) {
-    console.error('Error removing friend:', err);
+    logger.error('Error removing friend:', err);
     return { success: false, message: err.message };
   }
 };
@@ -679,7 +680,7 @@ export const getPendingRequests = async (userId) => {
       profile: item.jugadores,
     }));
   } catch (err) {
-    console.error('Error fetching pending requests:', err);
+    logger.error('Error fetching pending requests:', err);
     return [];
   }
 };

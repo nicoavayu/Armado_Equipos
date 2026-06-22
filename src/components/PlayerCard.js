@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React from 'react';
 import ReactCountryFlag from 'react-country-flag';
 import PlayerAwards from './PlayerAwards';
@@ -18,11 +19,11 @@ const PlayerCard = ({ profile, user, isVisible }) => {
   const playerPhoto = profile?.avatar_url || user?.user_metadata?.avatar_url;
   const playerNumber = profile?.numero || 10;
   const playerName = profile?.nombre || 'LIONEL MESSI';
-  console.log('[AMIGOS] Processing position field in PlayerCard:', { posicion: profile?.posicion });
+  logger.log('[AMIGOS] Processing position field in PlayerCard:', { posicion: profile?.posicion });
   const position = getPositionAbbr(profile?.posicion);
   const email = profile?.email || user?.email;
   const countryCode = profile?.pais_codigo || 'AR';
-  console.log('[AMIGOS] Processing ranking field in PlayerCard:', { ranking: profile?.ranking, calificacion: profile?.calificacion });
+  logger.log('[AMIGOS] Processing ranking field in PlayerCard:', { ranking: profile?.ranking, calificacion: profile?.calificacion });
   const rating = profile?.ranking || profile?.calificacion || 5; // Support both ranking and calificacion for backward compatibility
   const matchesPlayed = profile?.partidos_jugados || 28;
   const ageRange = profile?.rango_edad || '31-45';

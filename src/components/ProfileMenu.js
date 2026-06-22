@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthProvider';
@@ -112,10 +113,10 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
       setHasChanges(true);
       // Refresh global profile so other components reflect the change
       await refreshProfile();
-      console.info('Foto actualizada correctamente');
+      logger.info('Foto actualizada correctamente');
 
     } catch (error) {
-      console.error('Error uploading photo:', error);
+      logger.error('Error uploading photo:', error);
       notifyBlockingError(friendlyError(error, 'No se pudo subir la foto. Intentá de nuevo.'));
     } finally {
       setLoading(false);
@@ -141,9 +142,9 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
         await removeFreePlayer();
       }
       await refreshProfile();
-      console.info(value ? 'Ahora estás disponible' : 'Ahora estás no disponible');
+      logger.info(value ? 'Ahora estás disponible' : 'Ahora estás no disponible');
     } catch (err) {
-      console.error('Error updating availability from ProfileMenu:', err);
+      logger.error('Error updating availability from ProfileMenu:', err);
       notifyBlockingError('Error actualizando estado');
     }
   };
@@ -178,9 +179,9 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
 
       const completion = calculateProfileCompletion(updatedProfile);
       if (completion === 100 && (profile?.profile_completion || 0) < 100) {
-        console.info('Perfil completado al 100%');
+        logger.info('Perfil completado al 100%');
       } else {
-        console.info('Perfil actualizado');
+        logger.info('Perfil actualizado');
       }
 
       await refreshProfile();
@@ -263,11 +264,11 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
   ];
 
   if (!isOpen) {
-    console.log('ProfileMenu not open, returning null');
+    logger.log('ProfileMenu not open, returning null');
     return null;
   }
 
-  console.log('ProfileMenu rendering with profile:', profile);
+  logger.log('ProfileMenu rendering with profile:', profile);
 
   return (
     <>

@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import { supabase } from '../supabase';
 import { toBigIntId } from '../utils';
 import { parseLocalDateTime } from '../utils/dateLocal';
@@ -167,7 +168,7 @@ const scheduleSurveyReminderNotifications = async ({
     .in('type', SURVEY_REMINDER_PLANS.map((plan) => plan.type));
 
   if (existingRemindersError) {
-    console.warn('[MATCH_FINISH] Could not check existing survey reminders:', existingRemindersError);
+    logger.warn('[MATCH_FINISH] Could not check existing survey reminders:', existingRemindersError);
   }
 
   const existingReminderKeys = new Set(
@@ -237,7 +238,7 @@ const scheduleSurveyReminderNotifications = async ({
 
   // Duplicate races are fine (another worker/client already inserted).
   if (bulkInsertError.code === '23505' || String(bulkInsertError.message || '').toLowerCase().includes('duplicate key')) {
-    console.warn('[MATCH_FINISH] survey_reminder duplicate detected, skipping duplicates');
+    logger.warn('[MATCH_FINISH] survey_reminder duplicate detected, skipping duplicates');
     return { inserted: 0 };
   }
 
@@ -296,7 +297,7 @@ export const checkAndNotifyMatchFinish = async (partido) => {
       .limit(5);
 
     if (existingError) {
-      console.warn('[MATCH_FINISH] Could not check existing survey notifications:', existingError);
+      logger.warn('[MATCH_FINISH] Could not check existing survey notifications:', existingError);
     } else if ((existingNotifications || []).length > 0) {
       const types = new Set((existingNotifications || []).map((n) => n.type));
       const hasSurveyStart = types.has('survey_start') || types.has('post_match_survey');
@@ -316,7 +317,7 @@ export const checkAndNotifyMatchFinish = async (partido) => {
               nowIso,
             });
           } catch (reminderError) {
-            console.warn('[MATCH_FINISH] Could not backfill survey reminder:', reminderError);
+            logger.warn('[MATCH_FINISH] Could not backfill survey reminder:', reminderError);
           }
         }
       }
@@ -359,14 +360,14 @@ export const checkAndNotifyMatchFinish = async (partido) => {
             nowIso,
           });
         } catch (reminderError) {
-          console.warn('[MATCH_FINISH] survey reminder scheduling failed after RPC success:', reminderError);
+          logger.warn('[MATCH_FINISH] survey reminder scheduling failed after RPC success:', reminderError);
         }
       }
       return recipients > 0;
     }
 
     if (rpcError?.code === '23505' || String(rpcError?.message || '').toLowerCase().includes('duplicate key')) {
-      console.warn('[MATCH_FINISH] survey_start notification already exists, skipping fallback', rpcError);
+      logger.warn('[MATCH_FINISH] survey_start notification already exists, skipping fallback', rpcError);
       try {
         await scheduleSurveyReminderNotifications({
           partidoId,
@@ -375,12 +376,12 @@ export const checkAndNotifyMatchFinish = async (partido) => {
           nowIso,
         });
       } catch (reminderError) {
-        console.warn('[MATCH_FINISH] survey reminder scheduling failed on duplicate race:', reminderError);
+        logger.warn('[MATCH_FINISH] survey reminder scheduling failed on duplicate race:', reminderError);
       }
       return false;
     }
 
-    console.warn('[MATCH_FINISH] enqueue_partido_notification failed, using direct insert fallback:', rpcError);
+    logger.warn('[MATCH_FINISH] enqueue_partido_notification failed, using direct insert fallback:', rpcError);
 
     const recipientIds = await fetchEffectiveMatchRecipientIds(partidoId, { partido });
     if (recipientIds.length === 0) return false;
@@ -416,7 +417,7 @@ export const checkAndNotifyMatchFinish = async (partido) => {
       .insert(notifications);
 
     if (!insertError) {
-      console.log(`Sent ${notifications.length} survey notifications for finished match ${partidoId}`);
+      logger.log(`Sent ${notifications.length} survey notifications for finished match ${partidoId}`);
       try {
         await scheduleSurveyReminderNotifications({
           partidoId,
@@ -425,14 +426,14 @@ export const checkAndNotifyMatchFinish = async (partido) => {
           nowIso,
         });
       } catch (reminderError) {
-        console.warn('[MATCH_FINISH] survey reminder scheduling failed after fallback bulk insert:', reminderError);
+        logger.warn('[MATCH_FINISH] survey reminder scheduling failed after fallback bulk insert:', reminderError);
       }
       return true;
     }
 
     if (!isForeignKeyError(insertError)) throw insertError;
 
-    console.warn('[MATCH_FINISH] Bulk notification insert failed due FK, retrying one by one:', insertError);
+    logger.warn('[MATCH_FINISH] Bulk notification insert failed due FK, retrying one by one:', insertError);
 
     let sentCount = 0;
     let skippedCount = 0;
@@ -455,11 +456,11 @@ export const checkAndNotifyMatchFinish = async (partido) => {
     }
 
     if (skippedCount > 0) {
-      console.warn(`[MATCH_FINISH] Skipped ${skippedCount} recipients due missing auth user/profile linkage`);
+      logger.warn(`[MATCH_FINISH] Skipped ${skippedCount} recipients due missing auth user/profile linkage`);
     }
 
     if (sentCount > 0) {
-      console.log(`Sent ${sentCount} survey notifications for finished match ${partidoId}`);
+      logger.log(`Sent ${sentCount} survey notifications for finished match ${partidoId}`);
       try {
         await scheduleSurveyReminderNotifications({
           partidoId,
@@ -468,7 +469,7 @@ export const checkAndNotifyMatchFinish = async (partido) => {
           nowIso,
         });
       } catch (reminderError) {
-        console.warn('[MATCH_FINISH] survey reminder scheduling failed after fallback single inserts:', reminderError);
+        logger.warn('[MATCH_FINISH] survey reminder scheduling failed after fallback single inserts:', reminderError);
       }
       return true;
     }
@@ -476,7 +477,7 @@ export const checkAndNotifyMatchFinish = async (partido) => {
     return false;
     
   } catch (error) {
-    console.error('Error checking and notifying match finish:', error);
+    logger.error('Error checking and notifying match finish:', error);
     return false;
   }
 };
@@ -500,7 +501,7 @@ export const clearMatchFromList = async (userId, partidoId) => {
       
     if (error) {
       // Fallback to localStorage if table doesn't exist
-      console.log('Using localStorage fallback for cleared matches');
+      logger.log('Using localStorage fallback for cleared matches');
       const key = `cleared_matches_${userId}`;
       const existing = JSON.parse(localStorage.getItem(key) || '[]');
       if (!existing.includes(partidoId)) {
@@ -510,11 +511,11 @@ export const clearMatchFromList = async (userId, partidoId) => {
       return true;
     }
     
-    console.log(`Match ${partidoId} cleared from user ${userId}'s list`);
+    logger.log(`Match ${partidoId} cleared from user ${userId}'s list`);
     return true;
     
   } catch (error) {
-    console.error('Error clearing match from list, using localStorage fallback:', error);
+    logger.error('Error clearing match from list, using localStorage fallback:', error);
     // Fallback to localStorage
     const key = `cleared_matches_${userId}`;
     const existing = JSON.parse(localStorage.getItem(key) || '[]');
@@ -548,7 +549,7 @@ export const isMatchCleared = async (userId, partidoId) => {
     return !!data;
     
   } catch (error) {
-    console.error('Error checking if match is cleared:', error);
+    logger.error('Error checking if match is cleared:', error);
     return false;
   }
 };

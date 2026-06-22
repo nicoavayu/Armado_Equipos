@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../components/AuthProvider';
@@ -71,7 +72,7 @@ const AdminPanelPage = () => {
         try {
           jugadores = await refreshJugadoresPartido(matchId);
         } catch (refreshError) {
-          console.error('Error refreshing players:', refreshError);
+          logger.error('Error refreshing players:', refreshError);
         }
       }
 
@@ -85,7 +86,7 @@ const AdminPanelPage = () => {
         };
       });
     } catch (error) {
-      console.error('Error loading match bundle:', error);
+      logger.error('Error loading match bundle:', error);
       if (allowRedirect) {
         notifyBlockingError('Error al cargar el partido');
         navigate('/');

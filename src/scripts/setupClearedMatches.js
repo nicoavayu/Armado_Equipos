@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import { supabase } from '../supabase';
 
 /**
@@ -5,7 +6,7 @@ import { supabase } from '../supabase';
  */
 const setupClearedMatchesTable = async () => {
   try {
-    console.log('Setting up cleared_matches table...');
+    logger.log('Setting up cleared_matches table...');
     
     // Read the SQL file content
     const sqlContent = `
@@ -51,15 +52,15 @@ const setupClearedMatchesTable = async () => {
     const { error } = await supabase.rpc('exec_sql', { sql: sqlContent });
     
     if (error) {
-      console.error('Error setting up cleared_matches table:', error);
+      logger.error('Error setting up cleared_matches table:', error);
       return false;
     }
     
-    console.log('✅ cleared_matches table setup completed successfully');
+    logger.log('✅ cleared_matches table setup completed successfully');
     return true;
     
   } catch (error) {
-    console.error('Error in setupClearedMatchesTable:', error);
+    logger.error('Error in setupClearedMatchesTable:', error);
     return false;
   }
 };
@@ -69,15 +70,15 @@ if (typeof window === 'undefined') {
   setupClearedMatchesTable()
     .then((success) => {
       if (success) {
-        console.log('Database setup completed successfully');
+        logger.log('Database setup completed successfully');
         process.exit(0);
       } else {
-        console.error('Database setup failed');
+        logger.error('Database setup failed');
         process.exit(1);
       }
     })
     .catch((error) => {
-      console.error('Unexpected error:', error);
+      logger.error('Unexpected error:', error);
       process.exit(1);
     });
 }

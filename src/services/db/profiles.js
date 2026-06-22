@@ -60,7 +60,7 @@ export const uploadFoto = async (file, jugador) => {
     .eq('id', jugador.uuid);
 
   if (updateError) {
-    console.error('uploadFoto update error:', updateError);
+    logger.error('uploadFoto update error:', updateError);
     throw updateError;
   }
 
@@ -71,7 +71,7 @@ export const uploadFoto = async (file, jugador) => {
     .eq('usuario_id', jugador.uuid);
 
   if (updateJugadorError) {
-    console.error('uploadFoto update jugador error:', updateJugadorError);
+    logger.error('uploadFoto update jugador error:', updateJugadorError);
     // No lanzamos el error, solo lo logueamos
   }
 
@@ -99,7 +99,7 @@ export const getProfile = async (userId) => {
     .single();
 
   if (error) {
-    console.error('getProfile error:', error);
+    logger.error('getProfile error:', error);
     throw error;
   }
 
@@ -129,7 +129,7 @@ export const getProfile = async (userId) => {
       derivedBadgeCounts.guantes_dorados = Number(resolvedCounts?.guantes_dorados || 0);
       derivedBadgeCounts.tarjetas_rojas = Number(resolvedCounts?.tarjetas_rojas || 0);
     } catch (badgeError) {
-      console.error('[GET_PROFILE] Error fetching badges:', badgeError);
+      logger.error('[GET_PROFILE] Error fetching badges:', badgeError);
       // Continue using usuarios counters if there's an error
     }
 
@@ -196,7 +196,7 @@ export const getProfile = async (userId) => {
         total: data.partidos_jugados,
       });
     } catch (matchesError) {
-      console.error('[GET_PROFILE] Error recalculating partidos_jugados:', matchesError);
+      logger.error('[GET_PROFILE] Error recalculating partidos_jugados:', matchesError);
       // keep existing field value if recalculation fails
     }
   }
@@ -433,7 +433,7 @@ export const updateProfile = async (userId, profileData) => {
         .eq('usuario_id', userId);
       logger.log('[UPDATE_PROFILE] Updated player name in all matches');
     } catch (updateError) {
-      console.error('[UPDATE_PROFILE] Error updating player names:', updateError);
+      logger.error('[UPDATE_PROFILE] Error updating player names:', updateError);
       // No lanzar error, solo loguearlo
     }
   }
@@ -463,7 +463,7 @@ export const createOrUpdateProfile = async (user) => {
     .maybeSingle();
 
   if (existingCheckError) {
-    console.error('[PROFILE_BOOTSTRAP] Error checking existing user:', existingCheckError);
+    logger.error('[PROFILE_BOOTSTRAP] Error checking existing user:', existingCheckError);
     throw existingCheckError;
   }
 
@@ -529,7 +529,7 @@ export const createOrUpdateProfile = async (user) => {
     .single();
 
   if (error) {
-    console.error('[PROFILE_BOOTSTRAP] Error upserting user profile to usuarios:', error);
+    logger.error('[PROFILE_BOOTSTRAP] Error upserting user profile to usuarios:', error);
     throw error;
   }
 
@@ -557,7 +557,7 @@ export const createOrUpdateProfile = async (user) => {
       .upsert(profilesData, { onConflict: 'id' });
 
     if (profilesError) {
-      console.error('[PROFILE_BOOTSTRAP] Error upserting to profiles table:', {
+      logger.error('[PROFILE_BOOTSTRAP] Error upserting to profiles table:', {
         code: profilesError.code,
         message: profilesError.message,
         details: profilesError.details,
@@ -572,7 +572,7 @@ export const createOrUpdateProfile = async (user) => {
       });
     }
   } catch (profilesError) {
-    console.error('[PROFILE_BOOTSTRAP] Unexpected error upserting to profiles:', profilesError);
+    logger.error('[PROFILE_BOOTSTRAP] Unexpected error upserting to profiles:', profilesError);
     // Don't throw - continue with usuarios data
   }
 
@@ -614,7 +614,7 @@ export const addFreePlayer = async () => {
         .eq('disponible', true);
 
       if (checkError) {
-        console.error('Error checking existing free player:', checkError);
+        logger.error('Error checking existing free player:', checkError);
         throw checkError;
       }
 
@@ -634,7 +634,7 @@ export const addFreePlayer = async () => {
         }]);
 
       if (insertError) {
-        console.error('Error inserting free player:', insertError);
+        logger.error('Error inserting free player:', insertError);
         throw insertError;
       }
 
@@ -649,7 +649,7 @@ export const addFreePlayer = async () => {
       .eq('disponible', true);
 
     if (checkError) {
-      console.error('Error checking existing free player:', checkError);
+      logger.error('Error checking existing free player:', checkError);
       throw checkError;
     }
 
@@ -673,11 +673,11 @@ export const addFreePlayer = async () => {
       }]);
 
     if (insertError) {
-      console.error('Error inserting free player:', insertError);
+      logger.error('Error inserting free player:', insertError);
       throw insertError;
     }
   } catch (error) {
-    console.error('Error registering free player:', error);
+    logger.error('Error registering free player:', error);
     throw error;
   }
 };

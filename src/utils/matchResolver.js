@@ -1,3 +1,4 @@
+import logger from './logger';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 // src/utils/matchResolver.js
 import { supabase } from '../supabase';
@@ -50,7 +51,7 @@ export async function resolveMatchIdFromQueryParams(params) {
     const codigoParam = params.get('codigo') || params.get('CODIGO');
 
     if (IS_DEV) {
-        console.log('[VOTING] Resolving match with params:', { partidoIdParam, codigoParam });
+        logger.log('[VOTING] Resolving match with params:', { partidoIdParam, codigoParam });
     }
 
     // No parameters provided
@@ -65,7 +66,7 @@ export async function resolveMatchIdFromQueryParams(params) {
             return { partidoId: null, error: 'Invalid partidoId format', source: null };
         }
         if (IS_DEV) {
-            console.log('[VOTING] Using partidoId:', partidoId);
+            logger.log('[VOTING] Using partidoId:', partidoId);
         }
         return { partidoId, error: null, source: 'partidoId' };
     }
@@ -82,7 +83,7 @@ export async function resolveMatchIdFromQueryParams(params) {
         }
 
         if (IS_DEV) {
-            console.log('[VOTING] Resolving codigo:', codigo);
+            logger.log('[VOTING] Resolving codigo:', codigo);
         }
 
         try {
@@ -95,7 +96,7 @@ export async function resolveMatchIdFromQueryParams(params) {
                 const partidoId = Math.abs(parseInt(rpcId, 10));
                 if (!Number.isNaN(partidoId) && partidoId > 0) {
                     if (IS_DEV) {
-                        console.log('[VOTING] Resolved codigo -> partidoId via RPC:', partidoId);
+                        logger.log('[VOTING] Resolved codigo -> partidoId via RPC:', partidoId);
                     }
                     return { partidoId, error: null, source: 'codigo' };
                 }
@@ -112,7 +113,7 @@ export async function resolveMatchIdFromQueryParams(params) {
                 const partidoId = Math.abs(parseInt(viewRow.id, 10));
                 if (!Number.isNaN(partidoId) && partidoId > 0) {
                     if (IS_DEV) {
-                        console.log('[VOTING] Resolved codigo -> partidoId via partidos_view:', partidoId);
+                        logger.log('[VOTING] Resolved codigo -> partidoId via partidos_view:', partidoId);
                     }
                     return { partidoId, error: null, source: 'codigo' };
                 }
@@ -129,14 +130,14 @@ export async function resolveMatchIdFromQueryParams(params) {
                 const partidoId = Math.abs(parseInt(directRow.id, 10));
                 if (!Number.isNaN(partidoId) && partidoId > 0) {
                     if (IS_DEV) {
-                        console.log('[VOTING] Resolved codigo -> partidoId via partidos:', partidoId);
+                        logger.log('[VOTING] Resolved codigo -> partidoId via partidos:', partidoId);
                     }
                     return { partidoId, error: null, source: 'codigo' };
                 }
             }
 
             if (IS_DEV) {
-                console.error('[VOTING] resolve by codigo failed details:', {
+                logger.error('[VOTING] resolve by codigo failed details:', {
                     rpcError,
                     viewError,
                     directError,
@@ -144,12 +145,12 @@ export async function resolveMatchIdFromQueryParams(params) {
                 });
             }
             if (!rpcId && !viewRow?.id && !directRow?.id) {
-                console.error('[VOTING] No match found for codigo:', codigo);
+                logger.error('[VOTING] No match found for codigo:', codigo);
                 return { partidoId: null, error: `No se encontró partido con código: ${codigo}`, source: null };
             }
             return { partidoId: null, error: 'No se pudo resolver el código del partido', source: null };
         } catch (error) {
-            console.error('[VOTING] Error resolving codigo:', error);
+            logger.error('[VOTING] Error resolving codigo:', error);
             return { partidoId: null, error: 'Error al buscar partido por código', source: null };
         }
     }
@@ -171,7 +172,7 @@ export async function fetchMatchById(partidoId) {
             .single();
 
         if (error || !partido) {
-            console.error('[VOTING] Error fetching match by ID:', error);
+            logger.error('[VOTING] Error fetching match by ID:', error);
             return { partido: null, error: 'No se pudo cargar el partido' };
         }
 
@@ -179,7 +180,7 @@ export async function fetchMatchById(partidoId) {
         const { data: jugadoresData, error: jugadoresError } = await fetchMatchPlayers(partidoId);
 
         if (jugadoresError) {
-            console.warn('[VOTING] Could not fetch jugadores table for match:', {
+            logger.warn('[VOTING] Could not fetch jugadores table for match:', {
                 partidoId,
                 error: jugadoresError,
             });
@@ -194,7 +195,7 @@ export async function fetchMatchById(partidoId) {
         };
 
         if (IS_DEV) {
-            console.log('[VOTING] Match loaded:', {
+            logger.log('[VOTING] Match loaded:', {
                 id: partido.id,
                 jugadoresFromTable: jugadoresData?.length || 0,
                 jugadoresFinal: mergedPartido.jugadores?.length || 0,
@@ -202,7 +203,7 @@ export async function fetchMatchById(partidoId) {
         }
         return { partido: mergedPartido, error: null };
     } catch (err) {
-        console.error('[VOTING] Exception fetching match:', err);
+        logger.error('[VOTING] Exception fetching match:', err);
         return { partido: null, error: 'Error al cargar el partido' };
     }
 }
@@ -213,7 +214,7 @@ export async function fetchMatchById(partidoId) {
  * @param {Function} navigate - Navigate function (optional)
  */
 export function handleMatchResolutionError(error, navigate = null) {
-    console.error('[VOTING] Match resolution error:', error);
+    logger.error('[VOTING] Match resolution error:', error);
     notifyBlockingError(error || 'No se pudo cargar el partido');
 
     if (navigate) {

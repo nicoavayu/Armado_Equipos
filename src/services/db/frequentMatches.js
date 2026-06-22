@@ -1,3 +1,4 @@
+import logger from '../../utils/logger';
 import { supabase } from '../../lib/supabaseClient';
 import { weekdayFromYMD } from '../../utils/dateLocal';
 import {
@@ -95,7 +96,7 @@ export const getPartidosFrecuentes = async () => {
       .select('*');
 
     if (allError) {
-      console.error('Error fetching all frequent matches:', allError);
+      logger.error('Error fetching all frequent matches:', allError);
     }
 
     // Now get only enabled ones
@@ -106,8 +107,8 @@ export const getPartidosFrecuentes = async () => {
       .order('creado_en', { ascending: false });
 
     if (error) {
-      console.error('Error fetching enabled frequent matches:', error);
-      console.error('Error details:', {
+      logger.error('Error fetching enabled frequent matches:', error);
+      logger.error('Error details:', {
         code: error.code,
         message: error.message,
         details: error.details,
@@ -118,7 +119,7 @@ export const getPartidosFrecuentes = async () => {
     return data || [];
 
   } catch (err) {
-    console.error('Exception in getPartidosFrecuentes:', err);
+    logger.error('Exception in getPartidosFrecuentes:', err);
     throw err;
   }
 };
@@ -260,7 +261,7 @@ export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha, modalidad =
       break;
     } catch (err) {
       lastCreateError = err;
-      console.warn('[crearPartidoDesdeFrec] create attempt failed', {
+      logger.warn('[crearPartidoDesdeFrec] create attempt failed', {
         variant: i + 1,
         message: err?.message,
         details: err?.details,
@@ -293,11 +294,11 @@ export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha, modalidad =
       }
 
       if (res?.error) {
-        console.warn('[crearPartidoDesdeFrec] could not link template columns (non-fatal)', res.error);
+        logger.warn('[crearPartidoDesdeFrec] could not link template columns (non-fatal)', res.error);
       }
     }
   } catch (linkErr) {
-    console.warn('[crearPartidoDesdeFrec] could not link template columns (non-fatal)', linkErr);
+    logger.warn('[crearPartidoDesdeFrec] could not link template columns (non-fatal)', linkErr);
   }
 
   partido.frequent_match_name = partidoFrecuente.nombre;
@@ -350,12 +351,12 @@ export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha, modalidad =
           }]);
 
         if (creatorInsertError) {
-          console.warn('[crearPartidoDesdeFrec] could not auto-add creator', creatorInsertError);
+          logger.warn('[crearPartidoDesdeFrec] could not auto-add creator', creatorInsertError);
         }
       }
     }
   } catch (creatorErr) {
-    console.warn('[crearPartidoDesdeFrec] creator auto-add failed (non-fatal)', creatorErr);
+    logger.warn('[crearPartidoDesdeFrec] creator auto-add failed (non-fatal)', creatorErr);
   }
 
   return partido;
@@ -398,7 +399,7 @@ export const checkPartidosFrecuentesSchema = async () => {
       .single();
 
     if (error) {
-      console.error('Schema check failed:', error);
+      logger.error('Schema check failed:', error);
       return { success: false, error };
     }
 
@@ -413,7 +414,7 @@ export const checkPartidosFrecuentesSchema = async () => {
     return { success: true, data };
 
   } catch (err) {
-    console.error('Exception during schema check:', err);
+    logger.error('Exception during schema check:', err);
     return { success: false, error: err };
   }
 };
@@ -428,7 +429,7 @@ export const getPartidosActivosUsuario = async () => {
   try {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
-      console.warn('[getPartidosActivosUsuario] No authenticated user found');
+      logger.warn('[getPartidosActivosUsuario] No authenticated user found');
       return [];
     }
 
@@ -438,7 +439,7 @@ export const getPartidosActivosUsuario = async () => {
       .order('kickoff_at', { ascending: true });
 
     if (error) {
-      console.error('[getPartidosActivosUsuario] Error fetching matches:', error);
+      logger.error('[getPartidosActivosUsuario] Error fetching matches:', error);
       return [];
     }
 
@@ -467,7 +468,7 @@ export const getPartidosActivosUsuario = async () => {
 
     return partidasDelUsuario;
   } catch (err) {
-    console.error('[getPartidosActivosUsuario] Exception:', err);
+    logger.error('[getPartidosActivosUsuario] Exception:', err);
     return [];
   }
 };
@@ -487,7 +488,7 @@ export const subscribeToPartidosChanges = (callback) => {
 
     return channel;
   } catch (err) {
-    console.error('[subscribeToPartidosChanges] Failed to create subscription:', err);
+    logger.error('[subscribeToPartidosChanges] Failed to create subscription:', err);
     return null;
   }
 };
@@ -552,7 +553,7 @@ export const insertPartidoFrecuenteFromPartido = async (partidoRef) => {
       .select('*')
       .eq('partido_id', partido.id);
     if (jugadoresError) {
-      console.warn('[TEMPLATE_UPSERT] Could not load jugadores for template suggestion (non-fatal)', jugadoresError);
+      logger.warn('[TEMPLATE_UPSERT] Could not load jugadores for template suggestion (non-fatal)', jugadoresError);
     } else {
       jugadores_frecuentes = (jugadoresRows || [])
         .map((j) => ({
@@ -563,7 +564,7 @@ export const insertPartidoFrecuenteFromPartido = async (partidoRef) => {
         .filter((j) => j.nombre);
     }
   } catch (playersErr) {
-    console.warn('[TEMPLATE_UPSERT] Unexpected error loading jugadores (non-fatal)', playersErr);
+    logger.warn('[TEMPLATE_UPSERT] Unexpected error loading jugadores (non-fatal)', playersErr);
   }
 
   const templateKey = {
@@ -588,7 +589,7 @@ export const insertPartidoFrecuenteFromPartido = async (partidoRef) => {
     .maybeSingle();
 
   if (findErr) {
-    console.warn('[TEMPLATE_UPSERT] lookup failed, will insert new template', findErr);
+    logger.warn('[TEMPLATE_UPSERT] lookup failed, will insert new template', findErr);
   }
 
   let templateRow = null;
@@ -610,7 +611,7 @@ export const insertPartidoFrecuenteFromPartido = async (partidoRef) => {
     try {
       templateRow = await updatePartidoFrecuente(existing.id, updates);
     } catch (e) {
-      console.warn('[TEMPLATE_UPSERT] update failed, will insert new template', e?.message || e);
+      logger.warn('[TEMPLATE_UPSERT] update failed, will insert new template', e?.message || e);
       templateRow = null;
     }
   }
@@ -658,11 +659,11 @@ export const insertPartidoFrecuenteFromPartido = async (partidoRef) => {
       }
 
       if (res?.error) {
-        console.warn('[TEMPLATE_UPSERT] could not link partido -> template (non-fatal)', res.error);
+        logger.warn('[TEMPLATE_UPSERT] could not link partido -> template (non-fatal)', res.error);
       }
     }
   } catch (linkErr) {
-    console.warn('[TEMPLATE_UPSERT] could not link partido -> template', linkErr);
+    logger.warn('[TEMPLATE_UPSERT] could not link partido -> template', linkErr);
   }
 
   return templateRow;
@@ -683,7 +684,7 @@ export const subscribeToPartidosFrecuentesChanges = (callback) => {
 
     return channel;
   } catch (err) {
-    console.error('[subscribeToPartidosFrecuentesChanges] Failed to create subscription:', err);
+    logger.error('[subscribeToPartidosFrecuentesChanges] Failed to create subscription:', err);
     return null;
   }
 };

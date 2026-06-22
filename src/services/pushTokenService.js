@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import { Capacitor } from '@capacitor/core';
 import { Preferences } from '@capacitor/preferences';
 import { supabase } from './api/supabase';
@@ -107,7 +108,7 @@ const enqueueSync = (task) => {
     .catch(() => null)
     .then(task)
     .catch((error) => {
-      console.warn('[PUSH] token sync failed', error);
+      logger.warn('[PUSH] token sync failed', error);
       return null;
     });
 
@@ -119,7 +120,7 @@ const savePendingToken = async (token, source, reason) => {
   if (!cleanToken) return;
 
   await setStorageValue(PUSH_PENDING_TOKEN_KEY, cleanToken);
-  console.info('[PUSH] pending_saved', {
+  logger.info('[PUSH] pending_saved', {
     source,
     reason,
     tokenSuffix: getTokenSuffix(cleanToken),
@@ -127,7 +128,7 @@ const savePendingToken = async (token, source, reason) => {
 };
 
 const logSyncStart = ({ source, userId, token, deviceId, platform, provider, rpcName }) => {
-  console.info('[PUSH] sync_start', {
+  logger.info('[PUSH] sync_start', {
     source,
     userId,
     tokenSuffix: getTokenSuffix(token),
@@ -139,7 +140,7 @@ const logSyncStart = ({ source, userId, token, deviceId, platform, provider, rpc
 };
 
 const logSyncResult = ({ source, ok, userId, token, tokenId = null, reason = null }) => {
-  console.info('[PUSH] sync_result', {
+  logger.info('[PUSH] sync_result', {
     source,
     ok,
     userId,
@@ -150,7 +151,7 @@ const logSyncResult = ({ source, ok, userId, token, tokenId = null, reason = nul
 };
 
 const logSyncError = ({ source, userId, token, error }) => {
-  console.warn('[PUSH] sync_error', {
+  logger.warn('[PUSH] sync_error', {
     source,
     userId,
     tokenSuffix: getTokenSuffix(token),
@@ -320,7 +321,7 @@ export const deactivateCurrentDevicePushToken = async (reason = 'user_logout') =
   });
 
   if (error) {
-    console.warn('[PUSH] deactivate_device_token failed', error);
+    logger.warn('[PUSH] deactivate_device_token failed', error);
     return { success: false, error };
   }
 

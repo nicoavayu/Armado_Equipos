@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../components/AuthProvider';
 import { checkPendingSurveys, processSurveyResults } from '../services/surveyService';
@@ -40,7 +41,7 @@ export const useSurveys = () => {
         setCurrentSurvey(null);
       }
     } catch (error) {
-      console.error('Error fetching pending surveys:', error);
+      logger.error('Error fetching pending surveys:', error);
     } finally {
       setLoading(false);
     }
@@ -79,7 +80,7 @@ export const useSurveys = () => {
         setCurrentSurvey(null);
       }
     } catch (error) {
-      console.error('Error handling survey submission:', error);
+      logger.error('Error handling survey submission:', error);
     }
   };
 

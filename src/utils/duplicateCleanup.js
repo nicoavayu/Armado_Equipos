@@ -1,6 +1,6 @@
 // Utilidad para detectar y limpiar jugadores duplicados automáticamente
 import { supabase } from '../supabase';
-import { logger } from '../lib/logger';
+import logger from './logger';
 
 /**
  * Detecta jugadores duplicados en un partido

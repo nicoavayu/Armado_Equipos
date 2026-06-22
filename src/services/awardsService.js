@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import { supabase } from '../supabase';
 import {
   finalizeIfComplete,
@@ -84,7 +85,7 @@ export async function ensureAwards(partidoId) {
     const persistAwardsStatus = async (status) => {
       const statusRes = await setMatchAwardsStatus(id, status);
       if (!statusRes?.ok && !statusRes?.unsupported) {
-        console.warn('[AWARDS] could not persist awards status', { partidoId: id, status, statusRes });
+        logger.warn('[AWARDS] could not persist awards status', { partidoId: id, status, statusRes });
       }
       return statusRes || null;
     };
@@ -115,13 +116,13 @@ export async function ensureAwards(partidoId) {
           buildAwardNotificationPayloadFromRow(row),
         );
         if (notifyRes?.error) {
-          console.warn('[AWARDS] notifyAwardWinnersForMatch returned error', {
+          logger.warn('[AWARDS] notifyAwardWinnersForMatch returned error', {
             partidoId: id,
             notifyRes,
           });
         }
       } catch (notificationError) {
-        console.warn('[AWARDS] notifyAwardWinnersForMatch failed', {
+        logger.warn('[AWARDS] notifyAwardWinnersForMatch failed', {
           partidoId: id,
           notificationError,
         });

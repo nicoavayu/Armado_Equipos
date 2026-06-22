@@ -1,3 +1,4 @@
+import logger from './logger';
 import { supabase } from '../supabase';
 
 export const updateExistingMatches = async () => {
@@ -9,11 +10,11 @@ export const updateExistingMatches = async () => {
       .or('partido_frecuente_id.is.null,es_frecuente.is.null');
 
     if (fetchError) {
-      console.error('Error al obtener partidos:', fetchError);
+      logger.error('Error al obtener partidos:', fetchError);
       return { success: false, error: fetchError };
     }
 
-    console.log(`Encontrados ${partidos?.length || 0} partidos para actualizar`);
+    logger.log(`Encontrados ${partidos?.length || 0} partidos para actualizar`);
 
     if (!partidos || partidos.length === 0) {
       return { success: true, message: 'No hay partidos para actualizar', updated: 0 };
@@ -35,7 +36,7 @@ export const updateExistingMatches = async () => {
     const errors = results.filter((res) => res.error);
 
     if (errors.length > 0) {
-      console.error(`Errores al actualizar ${errors.length} partidos:`, errors);
+      logger.error(`Errores al actualizar ${errors.length} partidos:`, errors);
       return {
         success: false,
         message: `Se actualizaron ${partidos.length - errors.length} partidos, pero hubo ${errors.length} errores`,
@@ -50,24 +51,24 @@ export const updateExistingMatches = async () => {
       updated: partidos.length,
     };
   } catch (error) {
-    console.error('Error al actualizar partidos existentes:', error);
+    logger.error('Error al actualizar partidos existentes:', error);
     return { success: false, error };
   }
 };
 
 // Función para ejecutar la actualización desde la consola del navegador
 export const runUpdateFromConsole = () => {
-  console.log('Iniciando actualización de partidos existentes...');
+  logger.log('Iniciando actualización de partidos existentes...');
   updateExistingMatches()
     .then((result) => {
-      console.log('Resultado de la actualización:', result);
+      logger.log('Resultado de la actualización:', result);
       if (result.success) {
-        console.log(`✅ ${result.message}`);
+        logger.log(`✅ ${result.message}`);
       } else {
-        console.error(`❌ Error: ${result.message}`);
+        logger.error(`❌ Error: ${result.message}`);
       }
     })
     .catch((err) => {
-      console.error('Error al ejecutar la actualización:', err);
+      logger.error('Error al ejecutar la actualización:', err);
     });
 };

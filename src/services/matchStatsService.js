@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import { supabase } from '../supabase';
 
 const incrementNumericColumn = async (table, column, userId, amount = 1) => {
@@ -29,7 +30,7 @@ const incrementNumericColumn = async (table, column, userId, amount = 1) => {
 // Process match stats 1 hour after match end
 export const processMatchStats = async (partidoId) => {
   try {
-    console.log('[MATCH_STATS] Processing stats for match:', partidoId);
+    logger.log('[MATCH_STATS] Processing stats for match:', partidoId);
     
     // Get match players
     const { data: jugadores, error: playersError } = await supabase
@@ -83,16 +84,16 @@ export const processMatchStats = async (partidoId) => {
       const errors = results.filter((r) => r.error);
       
       if (errors.length > 0) {
-        console.error('[MATCH_STATS] Update errors:', errors);
+        logger.error('[MATCH_STATS] Update errors:', errors);
         throw new Error(`Failed to update ${errors.length} player stats`);
       }
     }
     
-    console.log('[MATCH_STATS] Updated stats for', updates.length, 'players');
+    logger.log('[MATCH_STATS] Updated stats for', updates.length, 'players');
     return { playersUpdated: updates.length };
     
   } catch (error) {
-    console.error('[MATCH_STATS] Error processing match stats:', error);
+    logger.error('[MATCH_STATS] Error processing match stats:', error);
     throw error;
   }
 };
@@ -101,10 +102,10 @@ export const processMatchStats = async (partidoId) => {
 export const incrementPartidosAbandonados = async (userId) => {
   try {
     await incrementNumericColumn('usuarios', 'partidos_abandonados', userId, 1);
-    console.log('[MATCH_STATS] Incremented partidos_abandonados for user:', userId);
+    logger.log('[MATCH_STATS] Incremented partidos_abandonados for user:', userId);
     
   } catch (error) {
-    console.error('[MATCH_STATS] Error incrementing partidos_abandonados:', error);
+    logger.error('[MATCH_STATS] Error incrementing partidos_abandonados:', error);
     throw error;
   }
 };

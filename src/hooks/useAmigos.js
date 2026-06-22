@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import { useState, useEffect, useCallback } from 'react';
 import { supabase, getAmigos as getAmigosFromSupabase } from '../supabase';
 import { useNotifications } from '../context/NotificationContext';
@@ -81,7 +82,7 @@ export const useAmigos = (currentUserId) => {
       setAmigos(formattedAmigos);
       return formattedAmigos;
     } catch (err) {
-      console.error('[HOOK_AMIGOS] Error fetching friends:', err);
+      logger.error('[HOOK_AMIGOS] Error fetching friends:', err);
       if (!silent) {
         setError(err.message);
         setAmigos([]);
@@ -102,7 +103,7 @@ export const useAmigos = (currentUserId) => {
 
     // Validate UUID formats
     if (!isValidUUID(currentUserId) || !isValidUUID(playerId)) {
-      console.error('[AMIGOS] Invalid UUID format detected', {
+      logger.error('[AMIGOS] Invalid UUID format detected', {
         currentUserIdValid: isValidUUID(currentUserId),
         playerIdValid: isValidUUID(playerId),
         currentUserId,
@@ -120,7 +121,7 @@ export const useAmigos = (currentUserId) => {
         .maybeSingle();
 
       if (error) {
-        console.error('[AMIGOS] Error checking relationship as user_id:', error);
+        logger.error('[AMIGOS] Error checking relationship as user_id:', error);
         return null;
       }
 
@@ -135,13 +136,13 @@ export const useAmigos = (currentUserId) => {
         .maybeSingle();
 
       if (reverseError) {
-        console.error('[AMIGOS] Error checking relationship as friend_id:', reverseError);
+        logger.error('[AMIGOS] Error checking relationship as friend_id:', reverseError);
         return null;
       }
 
       return reverseData || null;
     } catch (err) {
-      console.error('[AMIGOS] Error getting relationship status:', err);
+      logger.error('[AMIGOS] Error getting relationship status:', err);
       return null;
     }
   }, [currentUserId]);
@@ -149,7 +150,7 @@ export const useAmigos = (currentUserId) => {
   // Send friend request
   const sendFriendRequest = useCallback(async (friendId) => {
     if (!currentUserId || !friendId) {
-      console.error('[AMIGOS] sendFriendRequest: Missing parameters', { currentUserId, friendId });
+      logger.error('[AMIGOS] sendFriendRequest: Missing parameters', { currentUserId, friendId });
       return { success: false, message: 'Faltan parámetros necesarios' };
     }
 
@@ -159,7 +160,7 @@ export const useAmigos = (currentUserId) => {
 
     // Validate UUID formats
     if (!isValidUUID(currentUserId) || !isValidUUID(friendId)) {
-      console.error('[AMIGOS] Invalid UUID format in sendFriendRequest', {
+      logger.error('[AMIGOS] Invalid UUID format in sendFriendRequest', {
         currentUserIdValid: isValidUUID(currentUserId),
         friendIdValid: isValidUUID(friendId),
         currentUserId,
@@ -202,7 +203,7 @@ export const useAmigos = (currentUserId) => {
             .select('id');
 
           if (deleteError) {
-            console.error('[AMIGOS] Error deleting rejected relationship:', deleteError);
+            logger.error('[AMIGOS] Error deleting rejected relationship:', deleteError);
             throw deleteError;
           }
 
@@ -219,14 +220,14 @@ export const useAmigos = (currentUserId) => {
 
           data = await createPendingRequest();
         } else if (existingRelation.status === 'pending') {
-          console.warn('[AMIGOS] Relationship exists with status pending');
+          logger.warn('[AMIGOS] Relationship exists with status pending');
           return { success: false, message: 'Ya existe una solicitud pendiente con este jugador' };
         } else if (existingRelation.status === 'accepted') {
-          console.warn('[AMIGOS] Relationship exists with status accepted');
+          logger.warn('[AMIGOS] Relationship exists with status accepted');
           return { success: false, message: 'Ya son amigos' };
         } else {
           // Other statuses (pending, accepted) should not allow new requests
-          console.warn('[AMIGOS] Relationship exists with status:', existingRelation.status);
+          logger.warn('[AMIGOS] Relationship exists with status:', existingRelation.status);
           return { success: false, message: 'Ya existe una relación con este jugador' };
         }
       } else {
@@ -249,7 +250,7 @@ export const useAmigos = (currentUserId) => {
 
       return { success: true, data };
     } catch (err) {
-      console.error('[AMIGOS] Error sending friend request:', err);
+      logger.error('[AMIGOS] Error sending friend request:', err);
 
       // Return friendly error message based on error type
       if (err.message && err.message.includes('UUID')) {
@@ -282,7 +283,7 @@ export const useAmigos = (currentUserId) => {
         .single();
 
       if (error) {
-        console.error('[AMIGOS] Error updating friend request status:', error);
+        logger.error('[AMIGOS] Error updating friend request status:', error);
         throw error;
       }
 
@@ -312,7 +313,7 @@ export const useAmigos = (currentUserId) => {
             created_at: new Date().toISOString(),
           }]);
       } catch (notifError) {
-        console.error('[AMIGOS] Error creating notification:', notifError);
+        logger.error('[AMIGOS] Error creating notification:', notifError);
         // Continue even if notification creation fails
       }
 
@@ -320,7 +321,7 @@ export const useAmigos = (currentUserId) => {
       getAmigos();
       return { success: true, data };
     } catch (err) {
-      console.error('[AMIGOS] Error accepting friend request:', err);
+      logger.error('[AMIGOS] Error accepting friend request:', err);
       return { success: false, message: err.message };
     }
   }, [getAmigos]);
@@ -343,7 +344,7 @@ export const useAmigos = (currentUserId) => {
         .single();
 
       if (error) {
-        console.error('[AMIGOS] Error updating friend request status:', error);
+        logger.error('[AMIGOS] Error updating friend request status:', error);
         throw error;
       }
 
@@ -362,13 +363,13 @@ export const useAmigos = (currentUserId) => {
             created_at: new Date().toISOString(),
           }]);
       } catch (notifError) {
-        console.error('[AMIGOS] Error creating notification:', notifError);
+        logger.error('[AMIGOS] Error creating notification:', notifError);
         // Continue even if notification creation fails
       }
 
       return { success: true, data };
     } catch (err) {
-      console.error('[AMIGOS] Error rejecting friend request:', err);
+      logger.error('[AMIGOS] Error rejecting friend request:', err);
       return { success: false, message: err.message };
     }
   }, []);
@@ -388,13 +389,13 @@ export const useAmigos = (currentUserId) => {
         .select('id'); // Clave para saber si borró algo
 
       if (error) {
-        console.error('[AMIGOS] Error removing friendship:', error);
+        logger.error('[AMIGOS] Error removing friendship:', error);
         throw error;
       }
 
       if (!data || data.length === 0) {
         // Si no borró nada, es porque relationshipId no existe o RLS bloqueó el delete
-        console.warn('[AMIGOS] Delete returned 0 rows. Relationship not deleted.', {
+        logger.warn('[AMIGOS] Delete returned 0 rows. Relationship not deleted.', {
           relationshipId,
           currentUserId,
         });
@@ -405,7 +406,7 @@ export const useAmigos = (currentUserId) => {
 
       return { success: true };
     } catch (err) {
-      console.error('[AMIGOS] Error removing friend:', err);
+      logger.error('[AMIGOS] Error removing friend:', err);
       return { success: false, message: err.message };
     }
   }, [currentUserId, getAmigos]);
@@ -427,7 +428,7 @@ export const useAmigos = (currentUserId) => {
         .eq('status', 'pending');
 
       if (requestsError) {
-        console.error('[AMIGOS] Error fetching pending requests:', requestsError);
+        logger.error('[AMIGOS] Error fetching pending requests:', requestsError);
         throw requestsError;
       }
 
@@ -473,14 +474,14 @@ export const useAmigos = (currentUserId) => {
       const usuariosError = usuariosResponse.error;
 
       if (profilesError) {
-        console.warn('[AMIGOS] Error fetching profiles fallback for pending requests:', profilesError);
+        logger.warn('[AMIGOS] Error fetching profiles fallback for pending requests:', profilesError);
       }
       if (usuariosError) {
-        console.error('[AMIGOS] Error fetching usuarios for pending requests:', usuariosError);
+        logger.error('[AMIGOS] Error fetching usuarios for pending requests:', usuariosError);
         throw usuariosError;
       }
       if (jugadoresError) {
-        console.warn('[AMIGOS] Error fetching jugadores avatar fallback for pending requests:', jugadoresError);
+        logger.warn('[AMIGOS] Error fetching jugadores avatar fallback for pending requests:', jugadoresError);
       }
 
       const latestJugadorAvatarMap = new Map();
@@ -516,7 +517,7 @@ export const useAmigos = (currentUserId) => {
       });
       return formattedRequests;
     } catch (err) {
-      console.error('[AMIGOS] Error fetching pending requests:', err);
+      logger.error('[AMIGOS] Error fetching pending requests:', err);
       return [];
     }
   }, [currentUserId]);

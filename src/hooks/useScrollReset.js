@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import { useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 
@@ -67,7 +68,7 @@ const notifyResetListeners = (version) => {
     try {
       listener(version);
     } catch (error) {
-      console.error('[SCROLL_RESET] listener failed', error);
+      logger.error('[SCROLL_RESET] listener failed', error);
     }
   });
 };

@@ -1,3 +1,4 @@
+import logger from './logger';
 // src/utils/membershipCheck.js
 import { supabase } from '../supabase';
 
@@ -11,7 +12,7 @@ import { supabase } from '../supabase';
  */
 export async function isUserMemberOfMatch(userUuid, matchId) {
     if (!userUuid || !matchId) {
-        console.warn('[MEMBERSHIP_CHECK] Missing parameters', { userUuid, matchId });
+        logger.warn('[MEMBERSHIP_CHECK] Missing parameters', { userUuid, matchId });
         return { isMember: false, jugadorRow: null, error: 'Missing parameters' };
     }
 
@@ -23,7 +24,7 @@ export async function isUserMemberOfMatch(userUuid, matchId) {
             .eq('usuario_id', userUuid)
             .maybeSingle();
 
-        console.log('[MEMBERSHIP_CHECK] DB query result', {
+        logger.log('[MEMBERSHIP_CHECK] DB query result', {
             userUuid,
             matchId,
             found: !!data,
@@ -32,7 +33,7 @@ export async function isUserMemberOfMatch(userUuid, matchId) {
         });
 
         if (error) {
-            console.error('[MEMBERSHIP_CHECK] DB error', {
+            logger.error('[MEMBERSHIP_CHECK] DB error', {
                 code: error.code,
                 message: error.message,
                 details: error.details,
@@ -43,7 +44,7 @@ export async function isUserMemberOfMatch(userUuid, matchId) {
 
         return { isMember: !!data, jugadorRow: data, error: null };
     } catch (err) {
-        console.error('[MEMBERSHIP_CHECK] Exception', err);
+        logger.error('[MEMBERSHIP_CHECK] Exception', err);
         return { isMember: false, jugadorRow: null, error: err };
     }
 }
@@ -61,7 +62,7 @@ export function clearGuestMembership(partidoId) {
     const existingValue = localStorage.getItem(storageKey);
 
     if (existingValue) {
-        console.log('[MEMBERSHIP_CHECK] Clearing guest localStorage', { partidoId, storageKey });
+        logger.log('[MEMBERSHIP_CHECK] Clearing guest localStorage', { partidoId, storageKey });
         localStorage.removeItem(storageKey);
     }
 }

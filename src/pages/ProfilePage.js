@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useEffect } from 'react';
 import { useAnimatedNavigation } from '../hooks/useAnimatedNavigation';
 import PageTransition from '../components/PageTransition';
@@ -24,8 +25,8 @@ const ProfilePage = () => {
           }
         });
         if (offenders.length > 0) {
-          console.warn('⚠️ Horizontal Overflow Detected:', offenders.length, 'offenders');
-          console.table(offenders);
+          logger.warn('⚠️ Horizontal Overflow Detected:', offenders.length, 'offenders');
+          logger.table(offenders);
         }
       };
 

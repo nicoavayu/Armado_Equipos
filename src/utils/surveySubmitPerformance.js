@@ -1,3 +1,4 @@
+import logger from './logger';
 const STORAGE_FLAG = 'survey_submit_perf_debug';
 const ENABLED_VALUES = new Set(['1', 'true', 'yes', 'on']);
 
@@ -39,7 +40,7 @@ export const createSurveySubmitTrace = ({
 
   const log = (event, payload = {}) => {
     if (!enabled) return;
-    console.info('[SURVEY_SUBMIT_PERF]', {
+    logger.info('[SURVEY_SUBMIT_PERF]', {
       traceId,
       scope,
       event,

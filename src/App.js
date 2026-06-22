@@ -1,3 +1,4 @@
+import logger from './utils/logger';
 // import './HomeStyleKit.css'; // Removed in Tailwind migration
 import React, { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useParams, Outlet } from 'react-router-dom';
@@ -278,7 +279,7 @@ export default function App() {
 function GoogleMapsScriptBootstrap() {
   useEffect(() => {
     loadGoogleMapsScript().catch((error) => {
-      console.warn('[MAPS] Failed to load Google Maps JS runtime script.', {
+      logger.warn('[MAPS] Failed to load Google Maps JS runtime script.', {
         ...getGoogleMapsLoaderState(),
         code: error?.code || null,
         message: error?.message || String(error),
@@ -293,7 +294,7 @@ function GoogleMapsScriptBootstrap() {
 function NativePushBootstrap() {
   useEffect(() => {
     initNativePushNotifications().catch((error) => {
-      console.warn('[PUSH] NativePushBootstrap init failed', error);
+      logger.warn('[PUSH] NativePushBootstrap init failed', error);
     });
   }, []);
 
@@ -339,10 +340,10 @@ function NativeAuthDeepLinkBootstrap() {
       }
     };
     const logAuth = (event, details = {}) => {
-      console.info(`[AUTH] ${event} ${stringifyAuthDetails(details)}`);
+      logger.info(`[AUTH] ${event} ${stringifyAuthDetails(details)}`);
     };
     const warnAuth = (event, details = {}) => {
-      console.warn(`[AUTH] ${event} ${stringifyAuthDetails(details)}`);
+      logger.warn(`[AUTH] ${event} ${stringifyAuthDetails(details)}`);
     };
 
     const handleUrl = (incomingUrl) => {
@@ -579,7 +580,7 @@ export function AppAuthWrapper() {
   if (!user) {
     const returnTo = `${location.pathname}${location.search}${location.hash}`;
     setAuthReturnTo(returnTo);
-    console.info('[AUTH] app_auth_wrapper_redirect_login', {
+    logger.info('[AUTH] app_auth_wrapper_redirect_login', {
       pathname: location.pathname,
       search: location.search,
       hash: location.hash,

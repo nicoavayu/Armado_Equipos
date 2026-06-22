@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { useAuth } from '../components/AuthProvider';
@@ -87,7 +88,7 @@ export default function HealthCheck() {
           reason = error.message;
         }
         
-        console.error('[Health] Supabase check failed:', { status, message: error.message, ms });
+        logger.error('[Health] Supabase check failed:', { status, message: error.message, ms });
         setChecks((prev) => ({
           ...prev,
           supabase: {
@@ -118,7 +119,7 @@ export default function HealthCheck() {
         reason = err.message;
       }
       
-      console.error('[Health] Supabase check failed:', { message: err.message, ms });
+      logger.error('[Health] Supabase check failed:', { message: err.message, ms });
       setChecks((prev) => ({
         ...prev,
         supabase: {
@@ -143,7 +144,7 @@ export default function HealthCheck() {
       
       if (error) {
         const reason = error.message || 'Auth error';
-        console.error('[Health] Auth check failed:', { message: error.message, ms });
+        logger.error('[Health] Auth check failed:', { message: error.message, ms });
         setChecks((prev) => ({
           ...prev,
           auth: {
@@ -175,7 +176,7 @@ export default function HealthCheck() {
     } catch (err) {
       const ms = Math.round(performance.now() - authStart);
       const reason = err.message === 'TIMEOUT' ? 'Timeout' : (err.message || 'Auth error');
-      console.error('[Health] Auth check failed:', { message: err.message, ms });
+      logger.error('[Health] Auth check failed:', { message: err.message, ms });
       setChecks((prev) => ({
         ...prev,
         auth: {
@@ -203,7 +204,7 @@ export default function HealthCheck() {
       
       if (error) {
         const reason = status === 401 ? 'FAIL(401)' : status === 403 ? 'FAIL(403)' : status >= 500 ? `FAIL(${status})` : 'FAIL';
-        console.error('[Health] Notifications check failed:', { status, error: error.message });
+        logger.error('[Health] Notifications check failed:', { status, error: error.message });
         setChecks((prev) => ({
           ...prev,
           notifications: {
@@ -225,7 +226,7 @@ export default function HealthCheck() {
     } catch (err) {
       const ms = Math.round(performance.now() - notifStart);
       const reason = err.message === 'TIMEOUT' ? 'FAIL(TIMEOUT)' : 'FAIL';
-      console.error('[Health] Notifications check failed:', err.message);
+      logger.error('[Health] Notifications check failed:', err.message);
       setChecks((prev) => ({
         ...prev,
         notifications: {

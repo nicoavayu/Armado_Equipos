@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 
 import { buildBalancedTeams } from '../utils/teamBalancer';
 
@@ -33,7 +34,7 @@ export const useTeamFormation = () => {
 
   const handleArmarEquipos = (jugadores, setShowArmarEquiposView) => {
     if (jugadores.length < 8) {
-      console.warn('Necesitás al menos 8 jugadores para armar los equipos.');
+      logger.warn('Necesitás al menos 8 jugadores para armar los equipos.');
       return;
     }
     setShowArmarEquiposView(true);

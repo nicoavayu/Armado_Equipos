@@ -1,3 +1,4 @@
+import logger from '../logger';
 import * as Sentry from '@sentry/react';
 
 const isBrowser = typeof window !== 'undefined';
@@ -11,7 +12,7 @@ let initState = 'idle';
 const debugLog = (...args) => {
   if (!isDebug) return;
   // eslint-disable-next-line no-console
-  console.info('[monitoring:sentry]', ...args);
+  logger.info('[monitoring:sentry]', ...args);
 };
 
 const cleanContext = (context = {}) => {

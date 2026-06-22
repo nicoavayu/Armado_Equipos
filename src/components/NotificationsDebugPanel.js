@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useState } from 'react';
 import { useNotifications } from '../context/NotificationContext';
 import { supabase } from '../supabase';
@@ -58,7 +59,7 @@ const NotificationsDebugPanel = () => {
       } else {
         setLastRawFetch({ ok: true, rows: res.data, error: null });
       }
-      console.log('[DEBUG PANEL] Fetch raw latest result:', res);
+      logger.log('[DEBUG PANEL] Fetch raw latest result:', res);
     } catch (err) {
       setLastRawFetch({ ok: false, rows: null, error: { message: String(err) } });
     }
@@ -133,20 +134,20 @@ const NotificationsDebugPanel = () => {
             } else {
               setLastTestRead({ ok: true, rows: res.data, error: null });
             }
-            console.log('[DEBUG PANEL] Test Read result:', res);
+            logger.log('[DEBUG PANEL] Test Read result:', res);
           } catch (err) {
             setLastTestRead({ ok: false, rows: null, error: { message: String(err) } });
-            console.log('[DEBUG PANEL] Test Read exception:', err);
+            logger.log('[DEBUG PANEL] Test Read exception:', err);
           }
         }} style={{ flex: 1 }}>Test Read</button>
         <button onClick={async () => {
           try {
             const { data, error } = await supabase.auth.getUser();
             setAuthCheck({ user: data?.user?.id || null, error: error ? { message: error.message, code: error.code } : null });
-            console.log('[DEBUG PANEL] auth.getUser result:', data, error);
+            logger.log('[DEBUG PANEL] auth.getUser result:', data, error);
           } catch (err) {
             setAuthCheck({ user: null, error: { message: String(err) } });
-            console.log('[DEBUG PANEL] auth.getUser error:', err);
+            logger.log('[DEBUG PANEL] auth.getUser error:', err);
           }
         }} style={{ flex: 1 }}>RE-CHECK AUTH</button>
       </div>

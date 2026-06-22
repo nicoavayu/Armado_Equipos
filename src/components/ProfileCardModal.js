@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { friendlyError } from 'utils/friendlyError';
 // src/components/ProfileCardModal.js
@@ -269,7 +270,7 @@ const ProfileCardModal = ({
         if (!isCancelled) {
           setHasPersistedUserProfile(Boolean(registeredUserId));
         }
-        console.warn('[PROFILE_MODAL] Could not refresh latest profile from canonical resolver:', error);
+        logger.warn('[PROFILE_MODAL] Could not refresh latest profile from canonical resolver:', error);
       }
     };
 
@@ -293,7 +294,7 @@ const ProfileCardModal = ({
       const { data: { user }, error } = await supabase.auth.getUser();
 
       if (error) {
-        console.error('[PROFILE_MODAL] Error getting current user:', error);
+        logger.error('[PROFILE_MODAL] Error getting current user:', error);
         return;
       }
 
@@ -411,7 +412,7 @@ const ProfileCardModal = ({
       if (relationshipCacheKey) {
         relationshipCacheRef.current.set(relationshipCacheKey, nextStatus);
       }
-      console.info('Solicitud de amistad enviada');
+      logger.info('Solicitud de amistad enviada');
     } else {
       notifyBlockingError(result.message || 'Error al enviar solicitud');
     }
@@ -436,7 +437,7 @@ const ProfileCardModal = ({
   // Handle make admin action
   const handleMakeAdmin = async () => {
     const adminTargetId = profile?.id || profile?.usuario_id || registeredUserId;
-    console.log('[MAKE_ADMIN] Opening confirmation modal', { playerId: adminTargetId, playerName: profile?.nombre });
+    logger.log('[MAKE_ADMIN] Opening confirmation modal', { playerId: adminTargetId, playerName: profile?.nombre });
     setShowAdminConfirm(true);
   };
 
@@ -444,23 +445,23 @@ const ProfileCardModal = ({
   const handleConfirmAdmin = async () => {
     const adminTargetId = profile?.id || profile?.usuario_id || registeredUserId;
     if (!adminTargetId || !partidoActual?.id || !onMakeAdmin) {
-      console.error('[MAKE_ADMIN] Missing required data', { profileId: adminTargetId, partidoId: partidoActual?.id, hasOnMakeAdmin: !!onMakeAdmin });
+      logger.error('[MAKE_ADMIN] Missing required data', { profileId: adminTargetId, partidoId: partidoActual?.id, hasOnMakeAdmin: !!onMakeAdmin });
       notifyBlockingError('Error: datos incompletos');
       setShowAdminConfirm(false);
       return;
     }
 
-    console.log('[MAKE_ADMIN] Confirming admin transfer for', { playerId: adminTargetId, playerName: profile?.nombre });
+    logger.log('[MAKE_ADMIN] Confirming admin transfer for', { playerId: adminTargetId, playerName: profile?.nombre });
     setIsAdminLoading(true);
 
     try {
       await onMakeAdmin(adminTargetId);
-      console.log('[MAKE_ADMIN] Admin transfer completed successfully');
-      console.info('Admin asignado correctamente');
+      logger.log('[MAKE_ADMIN] Admin transfer completed successfully');
+      logger.info('Admin asignado correctamente');
       setShowAdminConfirm(false);
       // NO cerrar el modal, mantenerlo abierto para que vea los cambios
     } catch (error) {
-      console.error('[MAKE_ADMIN] Error during admin transfer:', error);
+      logger.error('[MAKE_ADMIN] Error during admin transfer:', error);
       notifyBlockingError(friendlyError(error, 'No se pudo asignar el admin. Intentá de nuevo.'));
     } finally {
       setIsAdminLoading(false);
@@ -469,10 +470,10 @@ const ProfileCardModal = ({
 
   // Handle contact player action
   const handleContactPlayer = async () => {
-    console.log('[CONTACT] Starting contact player action', { profileId: registeredUserId, currentUserId });
+    logger.log('[CONTACT] Starting contact player action', { profileId: registeredUserId, currentUserId });
 
     if (!registeredUserId || !currentUserId) {
-      console.log('[CONTACT] Missing profile ID or current user ID');
+      logger.log('[CONTACT] Missing profile ID or current user ID');
       return;
     }
 
@@ -482,17 +483,17 @@ const ProfileCardModal = ({
       (partidoActual?.admins && partidoActual.admins.includes(currentUserId))
     );
 
-    console.log('[CONTACT] Admin check', { isCurrentUserAdmin, partidoCreador: partidoActual?.creado_por, currentUserId });
+    logger.log('[CONTACT] Admin check', { isCurrentUserAdmin, partidoCreador: partidoActual?.creado_por, currentUserId });
 
     if (!isCurrentUserAdmin) {
-      console.log('[CONTACT] User is not admin');
+      logger.log('[CONTACT] User is not admin');
       notifyBlockingError('Solo los admins pueden ver información de contacto');
       return;
     }
 
     try {
       const userId = registeredUserId;
-      console.log('[CONTACT] Fetching phone for user:', { userId, profileId: profile?.id, usuarioId: profile?.usuario_id });
+      logger.log('[CONTACT] Fetching phone for user:', { userId, profileId: profile?.id, usuarioId: profile?.usuario_id });
 
       const { data: userData, error } = await supabase
         .from('usuarios')
@@ -500,17 +501,17 @@ const ProfileCardModal = ({
         .eq('id', userId)
         .single();
 
-      console.log('[CONTACT] Query result:', { userData, error });
+      logger.log('[CONTACT] Query result:', { userData, error });
 
       if (error) throw error;
 
       const phone = userData?.telefono || null;
-      console.log('[CONTACT] Setting phone:', phone);
+      logger.log('[CONTACT] Setting phone:', phone);
 
       setPlayerPhone(phone);
       setShowContactInfo(true);
     } catch (error) {
-      console.error('[CONTACT] Error fetching contact info:', error);
+      logger.error('[CONTACT] Error fetching contact info:', error);
       notifyBlockingError('Error al obtener información de contacto');
     }
   };

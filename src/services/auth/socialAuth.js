@@ -1,3 +1,4 @@
+import logger from '../../utils/logger';
 import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
 import { SignInWithApple } from '@capacitor-community/apple-sign-in';
@@ -83,12 +84,12 @@ const stringifyAuthDetails = (details) => {
 
 const logAuth = (event, details = {}) => {
   if (process.env.NODE_ENV === 'production') return;
-  console.info(`[AUTH] ${event} ${stringifyAuthDetails(details)}`);
+  logger.info(`[AUTH] ${event} ${stringifyAuthDetails(details)}`);
 };
 
 const warnAuth = (event, details = {}) => {
   if (process.env.NODE_ENV === 'production') return;
-  console.warn(`[AUTH] ${event} ${stringifyAuthDetails(details)}`);
+  logger.warn(`[AUTH] ${event} ${stringifyAuthDetails(details)}`);
 };
 
 export class AuthCancelledError extends Error {

@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useState, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -146,7 +147,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
         notification_id: normalizedNotificationId,
         error: error?.message || String(error || ''),
       });
-      console.error('Error marking notification as read:', error);
+      logger.error('Error marking notification as read:', error);
     }
   };
 
@@ -170,7 +171,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
         await refreshNotifications();
       }
     } catch (error) {
-      console.error('Error marking notifications as read:', error);
+      logger.error('Error marking notifications as read:', error);
       alert('Error al marcar notificaciones como leídas.');
       await refreshNotifications?.();
     } finally {
@@ -207,7 +208,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
       try {
         await markAsRead(notification.id);
       } catch (e) {
-        console.error('[NOTIFICATION_CLICK] markAsRead error at start:', e);
+        logger.error('[NOTIFICATION_CLICK] markAsRead error at start:', e);
       }
     }
 
@@ -382,7 +383,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
           state: target.state,
         }, 'No encontramos la vista de resultados de este partido.');
       } catch (err) {
-        console.error('[NOTIFICATION_CLICK] survey_results unexpected error:', err);
+        logger.error('[NOTIFICATION_CLICK] survey_results unexpected error:', err);
         fallbackToNotificationRoute(notification, 'No pudimos abrir los resultados de esta notificación.');
       }
       return;
@@ -400,7 +401,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
           state: target.state,
         }, 'No encontramos la vista de resultados de este partido.');
       } catch (err) {
-        console.error('[NOTIFICATION_CLICK] results/awards unexpected error:', err);
+        logger.error('[NOTIFICATION_CLICK] results/awards unexpected error:', err);
         fallbackToNotificationRoute(notification, 'No pudimos abrir los resultados de esta notificación.');
       }
       return;
@@ -528,7 +529,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
         final_route: route,
         error: error?.message || String(error || ''),
       });
-      console.error('[NOTIFICATIONS_MODAL] navigation error', { route, error });
+      logger.error('[NOTIFICATIONS_MODAL] navigation error', { route, error });
       fallbackToNotificationRoute(notification, message);
       return false;
     }

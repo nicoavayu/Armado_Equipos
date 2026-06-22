@@ -1,7 +1,8 @@
+import logger from '../utils/logger';
 import { supabase } from '../supabase';
 
 const setupPlayerAwardsTable = async () => {
-  console.log('🚀 Setting up player_awards table...');
+  logger.log('🚀 Setting up player_awards table...');
   
   try {
     // Create table directly with SQL
@@ -31,15 +32,15 @@ const setupPlayerAwardsTable = async () => {
     const { error } = await supabase.rpc('exec_sql', { sql: createTableSQL });
     
     if (error) {
-      console.error('❌ Error:', error);
+      logger.error('❌ Error:', error);
       return;
     }
     
-    console.log('✅ player_awards table created successfully!');
-    console.log('🎉 Database setup complete. You can now use badges in your app.');
+    logger.log('✅ player_awards table created successfully!');
+    logger.log('🎉 Database setup complete. You can now use badges in your app.');
     
   } catch (error) {
-    console.error('❌ Setup failed:', error);
+    logger.error('❌ Setup failed:', error);
   }
 };
 

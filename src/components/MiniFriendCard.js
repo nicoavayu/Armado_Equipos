@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useState, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { MoreVertical } from 'lucide-react';
@@ -76,7 +77,7 @@ const MiniFriendCard = ({ friend, onRequestRemoveClick, currentUserId }) => {
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              console.log('[MINI_FRIEND_CARD] Menu overlay clicked');
+              logger.log('[MINI_FRIEND_CARD] Menu overlay clicked');
               setShowMenu(false);
             }}
           />

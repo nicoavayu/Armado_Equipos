@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useRef, useState } from 'react';
 import { useAnimatedNavigation } from '../hooks/useAnimatedNavigation';
 import { useScrollResetOnChange } from '../hooks/useScrollReset';
@@ -135,7 +136,7 @@ const FrecuentesPage = () => {
       try {
         await updatePartidoFrecuente(partidoFrecuente.id, { fecha: fechaObjetivo });
       } catch (updateTemplateError) {
-        console.warn('[FRECUENTES] No se pudo actualizar la fecha de referencia en la plantilla:', updateTemplateError);
+        logger.warn('[FRECUENTES] No se pudo actualizar la fecha de referencia en la plantilla:', updateTemplateError);
       }
     }
 

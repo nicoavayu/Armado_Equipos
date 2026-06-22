@@ -1,3 +1,4 @@
+import logger from './logger';
 import { supabase } from '../supabase';
 
 /**
@@ -5,35 +6,35 @@ import { supabase } from '../supabase';
  * Run in browser console: window.debugNotifications()
  */
 window.debugNotifications = async () => {
-  console.log('=== NOTIFICATION DEBUG START ===');
+  logger.log('=== NOTIFICATION DEBUG START ===');
   
   // 1. Get current user
   const { data: { user }, error: userError } = await supabase.auth.getUser();
   if (userError) {
-    console.error('❌ Error getting user:', userError);
+    logger.error('❌ Error getting user:', userError);
     return;
   }
-  console.log('✅ Current user:', user.id);
+  logger.log('✅ Current user:', user.id);
   
   // 2. Try direct query WITHOUT RLS (as service role would)
-  console.log('\n--- Test 1: Direct query with user_id filter ---');
+  logger.log('\n--- Test 1: Direct query with user_id filter ---');
   const { data: test1, error: error1, count: count1 } = await supabase
     .from('notifications')
     .select('*', { count: 'exact' })
     .eq('user_id', user.id);
   
-  console.log('Result:', { count: count1, data: test1, error: error1 });
+  logger.log('Result:', { count: count1, data: test1, error: error1 });
   
   // 3. Try query without any filter
-  console.log('\n--- Test 2: Query ALL notifications (no filter) ---');
+  logger.log('\n--- Test 2: Query ALL notifications (no filter) ---');
   const { data: test2, error: error2, count: count2 } = await supabase
     .from('notifications')
     .select('*', { count: 'exact' });
   
-  console.log('Result:', { count: count2, data: test2, error: error2 });
+  logger.log('Result:', { count: count2, data: test2, error: error2 });
   
   // 4. Try to insert a test notification
-  console.log('\n--- Test 3: Insert test notification ---');
+  logger.log('\n--- Test 3: Insert test notification ---');
   const testNotif = {
     user_id: user.id,
     type: 'test',
@@ -50,20 +51,20 @@ window.debugNotifications = async () => {
     .select()
     .single();
   
-  console.log('Insert result:', { data: test3, error: error3 });
+  logger.log('Insert result:', { data: test3, error: error3 });
   
   // 5. Check RLS policies
-  console.log('\n--- Test 4: Check if RLS is blocking ---');
-  console.log('If Test 1 returns 0 but Test 2 returns data, RLS is blocking SELECT');
-  console.log('If Test 3 fails, RLS is blocking INSERT');
+  logger.log('\n--- Test 4: Check if RLS is blocking ---');
+  logger.log('If Test 1 returns 0 but Test 2 returns data, RLS is blocking SELECT');
+  logger.log('If Test 3 fails, RLS is blocking INSERT');
   
-  console.log('\n=== NOTIFICATION DEBUG END ===');
-  console.log('\n📋 NEXT STEPS:');
-  console.log('1. If Test 1 returns 0 but notifications exist → RLS SELECT policy is wrong');
-  console.log('2. If Test 2 fails → Table permissions issue');
-  console.log('3. If Test 3 fails → RLS INSERT policy is wrong');
-  console.log('\n💡 To fix RLS, run this in Supabase SQL Editor:');
-  console.log(`
+  logger.log('\n=== NOTIFICATION DEBUG END ===');
+  logger.log('\n📋 NEXT STEPS:');
+  logger.log('1. If Test 1 returns 0 but notifications exist → RLS SELECT policy is wrong');
+  logger.log('2. If Test 2 fails → Table permissions issue');
+  logger.log('3. If Test 3 fails → RLS INSERT policy is wrong');
+  logger.log('\n💡 To fix RLS, run this in Supabase SQL Editor:');
+  logger.log(`
 -- Drop all existing policies
 DROP POLICY IF EXISTS "notifications_select_policy" ON notifications;
 DROP POLICY IF EXISTS "notifications_insert_policy" ON notifications;
@@ -89,4 +90,4 @@ USING (user_id = auth.uid());
   `);
 };
 
-console.log('✅ Debug utility loaded. Run: window.debugNotifications()');
+logger.log('✅ Debug utility loaded. Run: window.debugNotifications()');

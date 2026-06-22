@@ -1,3 +1,4 @@
+import logger from '../../utils/logger';
 import { supabase } from '../../lib/supabaseClient';
 
 // Internal notification types for post-match payments.
@@ -23,7 +24,7 @@ export const getMatchPaymentsState = async (partidoId) => {
   const { error: ensureError } = await supabase.rpc('ensure_match_payments', { p_partido_id: matchId });
   if (ensureError) {
     // Non-fatal: existing rows (if any) can still be read below.
-    console.warn('[PAYMENTS] ensure_match_payments failed', { matchId, message: ensureError.message });
+    logger.warn('[PAYMENTS] ensure_match_payments failed', { matchId, message: ensureError.message });
   }
 
   const [partidoRes, settingsRes, rowsRes, authRes] = await Promise.all([
@@ -95,7 +96,7 @@ export const reportMyPayment = async (partidoId, { matchName = '', reporterName 
       });
     }
   } catch (notifyError) {
-    console.warn('[PAYMENTS] reportMyPayment notify admin failed', {
+    logger.warn('[PAYMENTS] reportMyPayment notify admin failed', {
       matchId,
       message: notifyError?.message || String(notifyError),
     });
@@ -201,7 +202,7 @@ export const adminRemindPending = async (partidoId, { matchName = '' } = {}) => 
 
   const { error: insertError } = await supabase.from('notifications').insert(notifications);
   if (insertError) {
-    console.warn('[PAYMENTS] reminder notifications insert failed', { matchId, message: insertError.message });
+    logger.warn('[PAYMENTS] reminder notifications insert failed', { matchId, message: insertError.message });
     return { ok: true, notified: 0, notifyError: insertError.message };
   }
 
@@ -227,7 +228,7 @@ export const getMyPaymentRowsForMatches = async (userId, partidoIds = []) => {
     .in('partido_id', ids);
 
   if (error) {
-    console.warn('[PAYMENTS] getMyPaymentRowsForMatches failed', { message: error.message });
+    logger.warn('[PAYMENTS] getMyPaymentRowsForMatches failed', { message: error.message });
     return {};
   }
 
@@ -253,7 +254,7 @@ export const getPaymentSettingsForMatches = async (partidoIds = []) => {
     .in('partido_id', ids);
 
   if (error) {
-    console.warn('[PAYMENTS] getPaymentSettingsForMatches failed', { message: error.message });
+    logger.warn('[PAYMENTS] getPaymentSettingsForMatches failed', { message: error.message });
     return {};
   }
 
@@ -279,7 +280,7 @@ export const getPaymentSummariesForMatches = async (partidoIds = []) => {
     .in('partido_id', ids);
 
   if (error) {
-    console.warn('[PAYMENTS] getPaymentSummariesForMatches failed', { message: error.message });
+    logger.warn('[PAYMENTS] getPaymentSummariesForMatches failed', { message: error.message });
     return {};
   }
 

@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { fetchPendingMatchJoinRequests } from '../services/db/matchJoinRequests';
 import { useRefreshOnVisibility } from './useRefreshOnVisibility';
@@ -32,7 +33,7 @@ export const usePendingRequestsCount = (matchId) => {
             const requests = await fetchPendingMatchJoinRequests(matchId);
             setCount(requests.length);
         } catch (error) {
-            console.error('Error fetching requests count:', error);
+            logger.error('Error fetching requests count:', error);
             setCount(0);
         } finally {
             fetchInFlightRef.current = false;

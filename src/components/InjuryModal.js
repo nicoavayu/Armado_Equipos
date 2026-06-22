@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { friendlyError } from 'utils/friendlyError';
 // src/components/InjuryModal.js
@@ -61,7 +62,7 @@ const InjuryModal = ({ isOpen, onClose, onSaved }) => {
       if (error) throw error;
       setActiveLesion(data?.[0] || null);
     } catch (error) {
-      console.error('Error loading active lesion:', error);
+      logger.error('Error loading active lesion:', error);
     }
   };
 
@@ -72,36 +73,36 @@ const InjuryModal = ({ isOpen, onClose, onSaved }) => {
     try {
       const fechaFin = new Date().toISOString().split('T')[0];
 
-      console.log('Updating lesion:', activeLesion.id, 'with fecha_fin:', fechaFin);
+      logger.log('Updating lesion:', activeLesion.id, 'with fecha_fin:', fechaFin);
       const { error } = await supabase
         .from('lesiones')
         .update({ fecha_fin: fechaFin })
         .eq('id', activeLesion.id);
 
       if (error) {
-        console.error('Error updating lesion:', error);
+        logger.error('Error updating lesion:', error);
         throw error;
       }
 
       // Actualizar el campo lesion_activa en usuarios
-      console.log('Updating user lesion_activa for user:', user.id);
+      logger.log('Updating user lesion_activa for user:', user.id);
       const { error: updateError } = await supabase
         .from('usuarios')
         .update({ lesion_activa: false })
         .eq('id', user.id);
 
       if (updateError) {
-        console.error('Error updating user lesion_activa:', updateError);
+        logger.error('Error updating user lesion_activa:', updateError);
         // Si falla la actualización del usuario, continuar igual
-        console.warn('Failed to update lesion_activa field, but lesion was marked as recovered');
+        logger.warn('Failed to update lesion_activa field, but lesion was marked as recovered');
       }
 
-      console.info('Lesión marcada como recuperada');
+      logger.info('Lesión marcada como recuperada');
       onSaved();
       onClose();
       setActiveLesion(null);
     } catch (error) {
-      console.error('Error marking as recovered:', error);
+      logger.error('Error marking as recovered:', error);
       notifyBlockingError(friendlyError(error, 'No se pudo registrar la recuperación. Intentá de nuevo.'));
     } finally {
       setLoading(false);
@@ -128,19 +129,19 @@ const InjuryModal = ({ isOpen, onClose, onSaved }) => {
 
       // Actualizar el campo lesion_activa en la tabla usuarios
       const lesionActiva = !formData.fecha_fin; // Si no hay fecha_fin, está activa
-      console.log('Updating user lesion_activa to:', lesionActiva, 'for user:', user.id);
+      logger.log('Updating user lesion_activa to:', lesionActiva, 'for user:', user.id);
       const { error: updateError } = await supabase
         .from('usuarios')
         .update({ lesion_activa: lesionActiva })
         .eq('id', user.id);
 
       if (updateError) {
-        console.error('Error updating user lesion_activa:', updateError);
+        logger.error('Error updating user lesion_activa:', updateError);
         // Si falla la actualización del usuario, continuar igual
-        console.warn('Failed to update lesion_activa field, but injury was registered');
+        logger.warn('Failed to update lesion_activa field, but injury was registered');
       }
 
-      console.info('Lesión registrada exitosamente');
+      logger.info('Lesión registrada exitosamente');
       onSaved();
       onClose();
 
@@ -151,7 +152,7 @@ const InjuryModal = ({ isOpen, onClose, onSaved }) => {
         fecha_fin: '',
       });
     } catch (error) {
-      console.error('Error saving injury:', error);
+      logger.error('Error saving injury:', error);
       notifyBlockingError('Error al registrar la lesión');
     } finally {
       setLoading(false);

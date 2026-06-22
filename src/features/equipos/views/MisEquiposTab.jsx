@@ -1,3 +1,4 @@
+import logger from '../../../utils/logger';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Check, Loader2, MoreVertical, Shield, Trash2, Users, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -66,7 +67,7 @@ const MisEquiposTab = ({ userId }) => {
           };
         });
       } catch (countError) {
-        console.warn('[MIS_EQUIPOS] No se pudo cargar la cantidad de jugadores por equipo:', countError);
+        logger.warn('[MIS_EQUIPOS] No se pudo cargar la cantidad de jugadores por equipo:', countError);
       }
 
       setTeams(enrichedRows);
@@ -75,7 +76,7 @@ const MisEquiposTab = ({ userId }) => {
       if (!silent) {
         notifyBlockingError(error.message || 'No se pudieron cargar tus equipos');
       } else {
-        console.warn('[MIS_EQUIPOS] refresh de equipos fallido', error);
+        logger.warn('[MIS_EQUIPOS] refresh de equipos fallido', error);
       }
     } finally {
       if (withLoading) setLoading(false);
@@ -94,7 +95,7 @@ const MisEquiposTab = ({ userId }) => {
       if (!silent) {
         notifyBlockingError(error.message || 'No se pudieron cargar tus invitaciones de equipo');
       } else {
-        console.warn('[MIS_EQUIPOS] refresh de invitaciones fallido', error);
+        logger.warn('[MIS_EQUIPOS] refresh de invitaciones fallido', error);
       }
     }
   }, [userId]);
@@ -201,7 +202,7 @@ const MisEquiposTab = ({ userId }) => {
               isCaptain: true,
             });
           } catch (autoAddError) {
-            console.warn('[MIS_EQUIPOS] Equipo creado, pero no se pudo auto-agregar al usuario:', autoAddError);
+            logger.warn('[MIS_EQUIPOS] Equipo creado, pero no se pudo auto-agregar al usuario:', autoAddError);
             notifyBlockingError('Equipo creado, pero no pudimos agregarte automaticamente a la plantilla');
           }
         }

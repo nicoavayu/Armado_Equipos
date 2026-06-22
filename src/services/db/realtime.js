@@ -1,3 +1,4 @@
+import logger from '../../utils/logger';
 import { supabase } from '../../lib/supabaseClient';
 
 /**
@@ -9,7 +10,7 @@ export const subscribeToChanges = (callback) => {
   const subscription = supabase
     .channel('public-changes')
     .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
-      console.log('Change received!', payload);
+      logger.log('Change received!', payload);
       callback(payload);
     })
     .subscribe();

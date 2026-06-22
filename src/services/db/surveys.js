@@ -1,3 +1,4 @@
+import logger from '../../utils/logger';
 import { supabase } from '../../lib/supabaseClient';
 
 /**
@@ -16,7 +17,7 @@ export const checkSurveysProcessed = async (partidoId) => {
     if (error) throw error;
     return !!data?.surveys_processed;
   } catch (error) {
-    console.error('Error checking surveys processed:', error);
+    logger.error('Error checking surveys processed:', error);
     return false;
   }
 };
@@ -35,7 +36,7 @@ export const markSurveysAsProcessed = async (partidoId) => {
 
     if (error) throw error;
   } catch (error) {
-    console.error('Error marking surveys as processed:', error);
+    logger.error('Error marking surveys as processed:', error);
     throw error;
   }
 };
@@ -50,7 +51,7 @@ export const processPostMatchSurveys = async (partidoId) => {
     throw new Error('Match ID is required');
   }
 
-  console.log('[POST_MATCH] Processing surveys for match:', partidoId);
+  logger.log('[POST_MATCH] Processing surveys for match:', partidoId);
 
   try {
     // Get all surveys for this match
@@ -62,11 +63,11 @@ export const processPostMatchSurveys = async (partidoId) => {
     if (surveysError) throw surveysError;
 
     if (!surveys || surveys.length === 0) {
-      console.log('[POST_MATCH] No surveys found for match:', partidoId);
+      logger.log('[POST_MATCH] No surveys found for match:', partidoId);
       return { message: 'No surveys to process' };
     }
 
-    console.log('[POST_MATCH] Found', surveys.length, 'surveys');
+    logger.log('[POST_MATCH] Found', surveys.length, 'surveys');
 
     // Get match players
     const { getJugadoresDelPartido } = await import('./matches');
@@ -113,7 +114,7 @@ export const processPostMatchSurveys = async (partidoId) => {
       Array.from(absentPlayersSet),
     );
 
-    console.log('[POST_MATCH] Vote counts:', {
+    logger.log('[POST_MATCH] Vote counts:', {
       mvpVotes,
       violentVotes,
       absentPlayersData,
@@ -149,7 +150,7 @@ export const processPostMatchSurveys = async (partidoId) => {
       }
     });
 
-    console.log('[POST_MATCH] Winners:', {
+    logger.log('[POST_MATCH] Winners:', {
       mvpPlayerId,
       maxMvpVotes,
       violentPlayerId,
@@ -163,7 +164,7 @@ export const processPostMatchSurveys = async (partidoId) => {
     if (mvpPlayerId && maxMvpVotes > 0) {
       const mvpPlayer = matchPlayers.find((p) => p.uuid === mvpPlayerId || p.usuario_id === mvpPlayerId);
       if (mvpPlayer?.usuario_id) {
-        console.log('[POST_MATCH] Updating MVP for player:', mvpPlayer.nombre);
+        logger.log('[POST_MATCH] Updating MVP for player:', mvpPlayer.nombre);
         updates.push(
           supabase
             .from('usuarios')
@@ -177,7 +178,7 @@ export const processPostMatchSurveys = async (partidoId) => {
     if (violentPlayerId && maxViolentVotes > 0) {
       const violentPlayer = matchPlayers.find((p) => p.uuid === violentPlayerId || p.usuario_id === violentPlayerId);
       if (violentPlayer?.usuario_id) {
-        console.log('[POST_MATCH] Updating red card for player:', violentPlayer.nombre);
+        logger.log('[POST_MATCH] Updating red card for player:', violentPlayer.nombre);
         updates.push(
           supabase
             .from('usuarios')
@@ -192,7 +193,7 @@ export const processPostMatchSurveys = async (partidoId) => {
       const absentPlayer = matchPlayers.find((p) => p.uuid === playerId || p.usuario_id === playerId);
       if (absentPlayer?.usuario_id) {
         if (data.shouldApplyPenalty) {
-          console.log('[POST_MATCH] Applying rating penalty for absent player:', absentPlayer.nombre, {
+          logger.log('[POST_MATCH] Applying rating penalty for absent player:', absentPlayer.nombre, {
             notifiedInTime: data.notifiedInTime,
             foundReplacement: data.foundReplacement,
           });
@@ -205,7 +206,7 @@ export const processPostMatchSurveys = async (partidoId) => {
               .eq('id', absentPlayer.usuario_id),
           );
         } else {
-          console.log('[POST_MATCH] Skipping rating penalty for player:', absentPlayer.nombre, {
+          logger.log('[POST_MATCH] Skipping rating penalty for player:', absentPlayer.nombre, {
             reason: data.notifiedInTime ? 'notified in time' : 'found replacement',
           });
         }
@@ -214,12 +215,12 @@ export const processPostMatchSurveys = async (partidoId) => {
 
     // Execute all updates
     if (updates.length > 0) {
-      console.log('[POST_MATCH] Executing', updates.length, 'updates');
+      logger.log('[POST_MATCH] Executing', updates.length, 'updates');
       const results = await Promise.all(updates);
 
       const errors = results.filter((r) => r.error);
       if (errors.length > 0) {
-        console.error('[POST_MATCH] Update errors:', errors);
+        logger.error('[POST_MATCH] Update errors:', errors);
         throw new Error(`Failed to update ${errors.length} player stats`);
       }
     }
@@ -232,11 +233,11 @@ export const processPostMatchSurveys = async (partidoId) => {
       updatesExecuted: updates.length,
     };
 
-    console.log('[POST_MATCH] Processing completed:', result);
+    logger.log('[POST_MATCH] Processing completed:', result);
     return result;
 
   } catch (error) {
-    console.error('[POST_MATCH] Error processing surveys:', error);
+    logger.error('[POST_MATCH] Error processing surveys:', error);
     throw error;
   }
 };
@@ -257,7 +258,7 @@ export const checkPartidoCalificado = async (partidoId, userId) => {
     const currentUserPlayer = jugadores.find((j) => j.usuario_id === userId);
 
     if (!currentUserPlayer) {
-      console.log('Usuario no encontrado en el partido:', userId);
+      logger.log('Usuario no encontrado en el partido:', userId);
       return false;
     }
 
@@ -269,14 +270,14 @@ export const checkPartidoCalificado = async (partidoId, userId) => {
       .maybeSingle();
 
     if (error) {
-      console.error('Error verificando calificación:', error);
+      logger.error('Error verificando calificación:', error);
       return false;
     }
 
     return !!data;
 
   } catch (error) {
-    console.error('Error en checkPartidoCalificado:', error);
+    logger.error('Error en checkPartidoCalificado:', error);
     return false;
   }
 };
@@ -307,7 +308,7 @@ export const getPartidosPendientesCalificacion = async (userId) => {
       .limit(20); // Limit to recent matches
 
     if (matchesError) {
-      console.error('Error fetching finished matches:', matchesError);
+      logger.error('Error fetching finished matches:', matchesError);
       return [];
     }
 
@@ -334,7 +335,7 @@ export const getPartidosPendientesCalificacion = async (userId) => {
     return pendingMatches;
 
   } catch (error) {
-    console.error('Error getting pending qualification matches:', error);
+    logger.error('Error getting pending qualification matches:', error);
     return [];
   }
 };
