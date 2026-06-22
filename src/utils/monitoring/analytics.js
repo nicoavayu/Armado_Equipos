@@ -1,5 +1,4 @@
 import logger from '../logger';
-import posthog from 'posthog-js';
 
 const isBrowser = typeof window !== 'undefined';
 const isDev = process.env.NODE_ENV !== 'production';
@@ -55,6 +54,10 @@ export const initAnalytics = async () => {
   const host = String(process.env.REACT_APP_POSTHOG_HOST || '').trim() || 'https://app.posthog.com';
 
   try {
+    // Lazy-load posthog-js so the SDK stays out of the initial bundle and only
+    // downloads/parses when analytics actually initializes (off the cold-start path).
+    const { default: posthog } = await import('posthog-js');
+
     if (!posthog || typeof posthog.init !== 'function') {
       debugLog('module loaded without init function');
       enabled = false;

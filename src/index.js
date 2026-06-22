@@ -8,8 +8,6 @@ import './utils/updateExistingMatches'; // Importar script para actualizar parti
 import { initSentry } from 'utils/monitoring/sentry';
 import { cleanupLegacyServiceWorkers } from './utils/legacyServiceWorkerCleanup';
 
-initSentry();
-
 // Global mobile guard: prevent accidental horizontal drag/side-scroll.
 if (typeof window !== 'undefined' && 'ontouchstart' in window) {
   let startX = 0;
@@ -68,6 +66,15 @@ root.render(
     <App />
   </React.StrictMode>,
 );
+
+// Init Sentry off the synchronous startup path: the SDK is lazy-loaded and
+// kicked off after the first paint. captureException/setSentryUser calls made
+// before it's ready are buffered and flushed on init, so no early error is lost.
+if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+  window.requestAnimationFrame(() => initSentry());
+} else {
+  initSentry();
+}
 
 // Service worker deshabilitado temporalmente para evitar conflictos
 // if ('serviceWorker' in navigator) {
