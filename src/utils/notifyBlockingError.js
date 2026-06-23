@@ -49,13 +49,16 @@ export const notifyBlockingError = (message, options = {}) => {
     title,
     confirmText,
     danger,
+    extra,
   } = options || {};
   const composedKey = screen && action ? `${screen}:${action}:${normalizedMessage}` : null;
   const resolvedKey = dedupeKey || key || composedKey || normalizedMessage;
   if (shouldSkip(resolvedKey)) return null;
 
+  const safeExtra = extra && typeof extra === 'object' ? extra : {};
   const context = Object.fromEntries(
-    Object.entries({ screen, action, match_id, user_id }).filter(([, value]) => value !== undefined && value !== null && value !== ''),
+    Object.entries({ ...safeExtra, screen, action, match_id, user_id })
+      .filter(([, value]) => value !== undefined && value !== null && value !== ''),
   );
   if (error) {
     captureException(error, context);

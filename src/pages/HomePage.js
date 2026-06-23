@@ -2,7 +2,13 @@ import logger from '../utils/logger';
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
-import { resolveMatchIdFromQueryParams, fetchMatchById, handleMatchResolutionError } from '../utils/matchResolver';
+import {
+  MATCH_RESOLUTION_STATUS,
+  resolveMatchIdFromQueryParams,
+  fetchMatchById,
+  handleMatchResolutionError,
+  isExpectedMatchResolution,
+} from '../utils/matchResolver';
 import NetworkStatus from '../components/NetworkStatus';
 import VotingView from './VotingView';
 import FifaHome from './FifaHome';
@@ -64,18 +70,25 @@ const HomePage = () => {
     setIsLoading(true);
 
     resolveMatchIdFromQueryParams(params)
-      .then(async ({ partidoId: resolvedId, error }) => {
+      .then(async (resolution) => {
+        const { partidoId: resolvedId, error } = resolution;
         if (error || !resolvedId) {
-          handleMatchResolutionError(error, navigate);
           setPartidoActual(null);
           setIsLoading(false);
+          if (isExpectedMatchResolution(resolution)) {
+            setShowVotingView(false);
+            navigate('/', { replace: true });
+            return;
+          }
+          handleMatchResolutionError(resolution, navigate);
           return;
         }
 
         // Fetch match data
-        const { partido, error: fetchError } = await fetchMatchById(resolvedId);
+        const matchResult = await fetchMatchById(resolvedId);
+        const { partido, error: fetchError } = matchResult;
         if (fetchError || !partido) {
-          handleMatchResolutionError(fetchError, navigate);
+          handleMatchResolutionError(matchResult, navigate);
           setPartidoActual(null);
           setIsLoading(false);
           return;
@@ -86,7 +99,13 @@ const HomePage = () => {
       })
       .catch((err) => {
         logger.error('[VOTING] Unexpected error:', err);
-        handleMatchResolutionError('Error inesperado al cargar el partido', navigate);
+        handleMatchResolutionError({
+          error: 'Error inesperado al cargar el partido',
+          status: MATCH_RESOLUTION_STATUS.ERROR,
+          shouldReport: true,
+          cause: err,
+          context: { action: 'load_home_voting' },
+        }, navigate);
         setPartidoActual(null);
         setIsLoading(false);
       });

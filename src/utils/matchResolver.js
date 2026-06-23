@@ -4,6 +4,79 @@ import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { supabase } from '../supabase';
 
 const IS_DEV = process.env.NODE_ENV === 'development';
+export const MATCH_RESOLUTION_STATUS = Object.freeze({
+    OK: 'ok',
+    MISSING_PARAMS: 'missingParams',
+    INVALID_PARAMS: 'invalidParams',
+    NOT_FOUND: 'notFound',
+    ERROR: 'error',
+});
+
+const EXPECTED_STATUSES = new Set([
+    MATCH_RESOLUTION_STATUS.MISSING_PARAMS,
+    MATCH_RESOLUTION_STATUS.INVALID_PARAMS,
+    MATCH_RESOLUTION_STATUS.NOT_FOUND,
+]);
+
+const createResolutionResult = ({
+    partidoId = null,
+    error = null,
+    source = null,
+    status = MATCH_RESOLUTION_STATUS.OK,
+    shouldReport = false,
+    cause = null,
+    context = {},
+} = {}) => ({
+    partidoId,
+    error,
+    source,
+    status,
+    shouldReport,
+    cause,
+    context,
+});
+
+const createExpectedResolution = (status, error, extras = {}) => createResolutionResult({
+    status,
+    error,
+    shouldReport: false,
+    ...extras,
+});
+
+const createReportableResolution = (error, cause, extras = {}) => createResolutionResult({
+    status: MATCH_RESOLUTION_STATUS.ERROR,
+    error,
+    shouldReport: true,
+    cause,
+    ...extras,
+});
+
+export const isExpectedMatchResolution = (resolution) => (
+    Boolean(resolution)
+    && resolution.shouldReport === false
+    && EXPECTED_STATUSES.has(resolution.status)
+);
+
+const toError = (value, fallbackMessage = 'Unexpected voting error') => {
+    if (value instanceof Error) return value;
+    const message = String(value?.message || value || fallbackMessage).trim() || fallbackMessage;
+    const error = new Error(message);
+    if (value?.code) error.code = value.code;
+    return error;
+};
+
+const parsePartidoId = (value) => {
+    if (value === null || value === undefined || value === '') return null;
+    const id = Number(value);
+    if (!Number.isInteger(id) || id <= 0) return null;
+    return Math.abs(id);
+};
+
+const getCodeContext = (codigo) => ({
+    has_codigo: Boolean(codigo),
+    codigo_length: String(codigo || '').length,
+});
+
 const isMissingColumnError = (error) => {
     const code = String(error?.code || '').trim();
     if (code === '42703') return true;
@@ -44,7 +117,7 @@ const fetchMatchPlayers = async (partidoId) => {
  * Priority: partidoId > codigo
  * 
  * @param {URLSearchParams} params - URL search params
- * @returns {Promise<{ partidoId: number|null, error: string|null, source: 'partidoId'|'codigo'|null }>}
+ * @returns {Promise<{ partidoId: number|null, error: string|null, source: 'partidoId'|'codigo'|null, status: string, shouldReport: boolean, cause?: Error|null }>}
  */
 export async function resolveMatchIdFromQueryParams(params) {
     const partidoIdParam = params.get('partidoId');
@@ -56,19 +129,26 @@ export async function resolveMatchIdFromQueryParams(params) {
 
     // No parameters provided
     if (!partidoIdParam && !codigoParam) {
-        return { partidoId: null, error: 'No partidoId or codigo provided', source: null };
+        return createExpectedResolution(
+            MATCH_RESOLUTION_STATUS.MISSING_PARAMS,
+            'El link de votación no tiene código de partido.',
+        );
     }
 
     // Priority 1: Use partidoId directly
     if (partidoIdParam) {
-        const partidoId = Math.abs(parseInt(partidoIdParam, 10));
-        if (isNaN(partidoId) || partidoId <= 0) {
-            return { partidoId: null, error: 'Invalid partidoId format', source: null };
+        const partidoId = parsePartidoId(partidoIdParam);
+        if (!partidoId) {
+            return createExpectedResolution(
+                MATCH_RESOLUTION_STATUS.INVALID_PARAMS,
+                'El link de votación no es válido.',
+                { source: 'partidoId' },
+            );
         }
         if (IS_DEV) {
             logger.log('[VOTING] Using partidoId:', partidoId);
         }
-        return { partidoId, error: null, source: 'partidoId' };
+        return createResolutionResult({ partidoId, error: null, source: 'partidoId' });
     }
 
     // Priority 2: Resolve codigo to partidoId
@@ -79,7 +159,11 @@ export async function resolveMatchIdFromQueryParams(params) {
         const token = rawCodigo.match(/[A-Za-z0-9]+/)?.[0] || '';
         const codigo = token.toUpperCase();
         if (!codigo) {
-            return { partidoId: null, error: 'Empty codigo after trim', source: null };
+            return createExpectedResolution(
+                MATCH_RESOLUTION_STATUS.INVALID_PARAMS,
+                'Ingresá un código de partido para votar.',
+                { source: 'codigo' },
+            );
         }
 
         if (IS_DEV) {
@@ -93,13 +177,25 @@ export async function resolveMatchIdFromQueryParams(params) {
             });
 
             if (!rpcError && rpcId) {
-                const partidoId = Math.abs(parseInt(rpcId, 10));
-                if (!Number.isNaN(partidoId) && partidoId > 0) {
+                const partidoId = parsePartidoId(rpcId);
+                if (partidoId) {
                     if (IS_DEV) {
                         logger.log('[VOTING] Resolved codigo -> partidoId via RPC:', partidoId);
                     }
-                    return { partidoId, error: null, source: 'codigo' };
+                    return createResolutionResult({ partidoId, error: null, source: 'codigo' });
                 }
+                return createReportableResolution(
+                    'No pudimos validar el código del partido. Intentá de nuevo en unos minutos.',
+                    new Error('Invalid match id returned by resolve_match_by_code'),
+                    {
+                        source: 'codigo',
+                        context: {
+                            action: 'resolve_match_by_code',
+                            response_source: 'rpc',
+                            ...getCodeContext(codigo),
+                        },
+                    },
+                );
             }
 
             // Fallback 1: partidos_view (if readable in current environment)
@@ -110,13 +206,25 @@ export async function resolveMatchIdFromQueryParams(params) {
                 .maybeSingle();
 
             if (!viewError && viewRow?.id) {
-                const partidoId = Math.abs(parseInt(viewRow.id, 10));
-                if (!Number.isNaN(partidoId) && partidoId > 0) {
+                const partidoId = parsePartidoId(viewRow.id);
+                if (partidoId) {
                     if (IS_DEV) {
                         logger.log('[VOTING] Resolved codigo -> partidoId via partidos_view:', partidoId);
                     }
-                    return { partidoId, error: null, source: 'codigo' };
+                    return createResolutionResult({ partidoId, error: null, source: 'codigo' });
                 }
+                return createReportableResolution(
+                    'No pudimos validar el código del partido. Intentá de nuevo en unos minutos.',
+                    new Error('Invalid match id returned by partidos_view'),
+                    {
+                        source: 'codigo',
+                        context: {
+                            action: 'resolve_match_by_code',
+                            response_source: 'partidos_view',
+                            ...getCodeContext(codigo),
+                        },
+                    },
+                );
             }
 
             // Fallback 2: direct table lookup (may fail on anon RLS in some envs)
@@ -127,17 +235,31 @@ export async function resolveMatchIdFromQueryParams(params) {
                 .maybeSingle();
 
             if (!directError && directRow?.id) {
-                const partidoId = Math.abs(parseInt(directRow.id, 10));
-                if (!Number.isNaN(partidoId) && partidoId > 0) {
+                const partidoId = parsePartidoId(directRow.id);
+                if (partidoId) {
                     if (IS_DEV) {
                         logger.log('[VOTING] Resolved codigo -> partidoId via partidos:', partidoId);
                     }
-                    return { partidoId, error: null, source: 'codigo' };
+                    return createResolutionResult({ partidoId, error: null, source: 'codigo' });
                 }
+                return createReportableResolution(
+                    'No pudimos validar el código del partido. Intentá de nuevo en unos minutos.',
+                    new Error('Invalid match id returned by partidos'),
+                    {
+                        source: 'codigo',
+                        context: {
+                            action: 'resolve_match_by_code',
+                            response_source: 'partidos',
+                            ...getCodeContext(codigo),
+                        },
+                    },
+                );
             }
 
+            const successfulEmptyLookup = !rpcError || !viewError || !directError;
+
             if (IS_DEV) {
-                logger.error('[VOTING] resolve by codigo failed details:', {
+                logger.warn('[VOTING] resolve by codigo details:', {
                     rpcError,
                     viewError,
                     directError,
@@ -145,17 +267,64 @@ export async function resolveMatchIdFromQueryParams(params) {
                 });
             }
             if (!rpcId && !viewRow?.id && !directRow?.id) {
-                logger.error('[VOTING] No match found for codigo:', codigo);
-                return { partidoId: null, error: `No se encontró partido con código: ${codigo}`, source: null };
+                if (successfulEmptyLookup) {
+                    if (IS_DEV) {
+                        logger.warn('[VOTING] No match found for codigo:', codigo);
+                    }
+                    return createExpectedResolution(
+                        MATCH_RESOLUTION_STATUS.NOT_FOUND,
+                        'No encontramos ese partido. Revisá el código o pedí un link nuevo.',
+                        {
+                            source: 'codigo',
+                            context: getCodeContext(codigo),
+                        },
+                    );
+                }
+
+                const cause = toError(rpcError || viewError || directError, 'No successful lookup while resolving match code');
+                return createReportableResolution(
+                    'No pudimos validar el código del partido. Intentá de nuevo en unos minutos.',
+                    cause,
+                    {
+                        source: 'codigo',
+                        context: {
+                            action: 'resolve_match_by_code',
+                            ...getCodeContext(codigo),
+                        },
+                    },
+                );
             }
-            return { partidoId: null, error: 'No se pudo resolver el código del partido', source: null };
+            return createReportableResolution(
+                'No pudimos validar el código del partido. Intentá de nuevo en unos minutos.',
+                new Error('Unexpected match code resolution state'),
+                {
+                    source: 'codigo',
+                    context: {
+                        action: 'resolve_match_by_code',
+                        ...getCodeContext(codigo),
+                    },
+                },
+            );
         } catch (error) {
             logger.error('[VOTING] Error resolving codigo:', error);
-            return { partidoId: null, error: 'Error al buscar partido por código', source: null };
+            return createReportableResolution(
+                'No pudimos validar el código del partido. Intentá de nuevo en unos minutos.',
+                toError(error, 'Error resolving match code'),
+                {
+                    source: 'codigo',
+                    context: {
+                        action: 'resolve_match_by_code',
+                        ...getCodeContext(codigo),
+                    },
+                },
+            );
         }
     }
 
-    return { partidoId: null, error: 'Unexpected state', source: null };
+    return createReportableResolution(
+        'No pudimos cargar la votación.',
+        new Error('Unexpected match resolution state'),
+    );
 }
 
 /**
@@ -173,7 +342,17 @@ export async function fetchMatchById(partidoId) {
 
         if (error || !partido) {
             logger.error('[VOTING] Error fetching match by ID:', error);
-            return { partido: null, error: 'No se pudo cargar el partido' };
+            return {
+                partido: null,
+                error: 'No se pudo cargar el partido',
+                status: MATCH_RESOLUTION_STATUS.ERROR,
+                shouldReport: true,
+                cause: toError(error || 'Match row missing after resolving ID', 'Error fetching match by ID'),
+                context: {
+                    action: 'fetch_match_by_id',
+                    match_id: partidoId,
+                },
+            };
         }
 
         // Ensure voting flow always has numeric player IDs (required by public vote RPCs)
@@ -201,10 +380,20 @@ export async function fetchMatchById(partidoId) {
                 jugadoresFinal: mergedPartido.jugadores?.length || 0,
             });
         }
-        return { partido: mergedPartido, error: null };
+        return { partido: mergedPartido, error: null, status: MATCH_RESOLUTION_STATUS.OK, shouldReport: false };
     } catch (err) {
         logger.error('[VOTING] Exception fetching match:', err);
-        return { partido: null, error: 'Error al cargar el partido' };
+        return {
+            partido: null,
+            error: 'Error al cargar el partido',
+            status: MATCH_RESOLUTION_STATUS.ERROR,
+            shouldReport: true,
+            cause: toError(err, 'Exception fetching match'),
+            context: {
+                action: 'fetch_match_by_id',
+                match_id: partidoId,
+            },
+        };
     }
 }
 
@@ -214,8 +403,48 @@ export async function fetchMatchById(partidoId) {
  * @param {Function} navigate - Navigate function (optional)
  */
 export function handleMatchResolutionError(error, navigate = null) {
-    logger.error('[VOTING] Match resolution error:', error);
-    notifyBlockingError(error || 'No se pudo cargar el partido');
+    const resolution = typeof error === 'object' && error !== null
+        ? error
+        : createReportableResolution(
+            String(error || 'No se pudo cargar el partido'),
+            toError(error || 'No se pudo cargar el partido'),
+        );
+    const message = resolution.error || 'No se pudo cargar el partido';
+
+    if (isExpectedMatchResolution(resolution)) {
+        if (IS_DEV) {
+            logger.warn('[VOTING] Match resolution expected state:', {
+                status: resolution.status,
+                source: resolution.source,
+            });
+        }
+    } else {
+        const cause = toError(resolution.cause || message, message);
+        const {
+            action,
+            match_id,
+            ...safeContext
+        } = resolution.context || {};
+        logger.error('[VOTING] Match resolution error:', {
+            message,
+            status: resolution.status,
+            source: resolution.source,
+            cause: cause.message,
+        });
+        notifyBlockingError(message, {
+            screen: 'public_voting',
+            action: action || 'match_resolution',
+            match_id,
+            error: cause,
+            title: 'No se pudo cargar la votación',
+            danger: true,
+            extra: {
+                status: resolution.status,
+                source: resolution.source,
+                ...safeContext,
+            },
+        });
+    }
 
     if (navigate) {
         setTimeout(() => {
