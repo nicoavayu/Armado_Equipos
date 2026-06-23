@@ -448,10 +448,16 @@ export default function ArmarEquiposView({
       const result = await resetVotacion(partidoActual.id);
       logger.debug('[Teams] reset result', result);
 
-      showInlineNotice('success', 'Votación reseteada. Cuando quieras, volvé a llamar a votar.');
+      const notificationsRebuilt = Number(result?.notificationsRebuilt || 0);
+      showInlineNotice(
+        'success',
+        notificationsRebuilt > 0
+          ? `Votación reseteada. Notificación enviada a ${notificationsRebuilt} jugador${notificationsRebuilt === 1 ? '' : 'es'}.`
+          : 'Votación reseteada. El link/código de votación sigue habilitado.'
+      );
 
       // Limpiar estado local inmediato para reflejar reset (sin esperar re-fetch)
-      setVotingStarted(false);
+      setVotingStarted(notificationsRebuilt > 0);
       setVotantes([]);
       setVotantesConNombres([]);
       setHasPersistedTeams(false);
