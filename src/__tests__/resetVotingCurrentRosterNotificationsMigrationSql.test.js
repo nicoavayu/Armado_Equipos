@@ -1,17 +1,24 @@
 const fs = require('fs');
 const path = require('path');
 
-const migrationPath = path.join(
+const migrationsDir = path.join(
   __dirname,
   '..',
   '..',
   'supabase',
   'migrations',
-  '20260623120000_reset_voting_rebuild_current_roster_notifications.sql',
 );
 
+const migrationPath = path.join(
+  migrationsDir,
+  '20260623120000_reset_voting_rebuild_current_roster_notifications.sql',
+);
+const notificationDedupeIndexPath = path.join(migrationsDir, 'add_surveys_sent_column.sql');
+
 const sql = fs.readFileSync(migrationPath, 'utf8');
+const notificationDedupeIndexSql = fs.readFileSync(notificationDedupeIndexPath, 'utf8');
 const normalized = sql.replace(/\s+/g, ' ').trim();
+const normalizedNotificationDedupeIndexSql = notificationDedupeIndexSql.replace(/\s+/g, ' ').trim();
 const code = sql
   .split('\n')
   .filter((line) => !line.trim().startsWith('--'))
@@ -62,6 +69,13 @@ describe('reset_votacion current-roster notification rebuild migration', () => {
   test('does not duplicate reset notifications when reset runs repeatedly', () => {
     expect(normalized).toContain("ON CONFLICT (user_id, (data ->> 'match_id'), type)");
     expect(normalized).toContain('DO UPDATE SET title = EXCLUDED.title, message = EXCLUDED.message, partido_id = EXCLUDED.partido_id, data = EXCLUDED.data, read = false, send_at = now()');
+  });
+
+  test('has the unique JSONB expression index required by the ON CONFLICT target', () => {
+    expect(normalizedNotificationDedupeIndexSql).toMatch(
+      /CREATE UNIQUE INDEX IF NOT EXISTS uniq_notif_user_match_type ON public\.notifications \(user_id, \(data\s*->>\s*'match_id'\), type\)/i,
+    );
+    expect(normalized).toContain("ON CONFLICT (user_id, (data ->> 'match_id'), type)");
   });
 
   test('keeps public voting link/code open without changing public guest RPCs', () => {
