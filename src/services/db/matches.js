@@ -1363,17 +1363,29 @@ export const resetVotacion = async (partidoId) => {
     let deletedCount = 0;
     let rpcTried = false;
     let rpcSucceeded = false;
+    const isResetAuthorizationError = (error) => {
+      const message = String(error?.message || error?.details || '').toLowerCase();
+      return error?.code === '42501'
+        || message.includes('not_authorized')
+        || message.includes('solo el admin');
+    };
 
     try {
       rpcTried = true;
       const { error: rpcError } = await supabase.rpc('reset_votacion', { match_id: pidNumber });
       if (rpcError) {
+        if (isResetAuthorizationError(rpcError)) {
+          throw rpcError;
+        }
         logger.warn('⚠️ SUPABASE: reset_votacion RPC falló, se usará fallback manual:', rpcError);
       } else {
         rpcSucceeded = true;
         logger.log('✅ SUPABASE: reset_votacion RPC ejecutada');
       }
     } catch (rpcErr) {
+      if (isResetAuthorizationError(rpcErr)) {
+        throw rpcErr;
+      }
       logger.warn('⚠️ SUPABASE: reset_votacion RPC throw, usando fallback manual', rpcErr);
     }
 
@@ -1495,10 +1507,41 @@ export const resetVotacion = async (partidoId) => {
       logger.warn('⚠️ SUPABASE: Error verificando votos restantes', verifyError);
     }
 
+    let rebuiltNotificationCount = 0;
+    try {
+      const { data: notificationRows, error: notificationCountError } = await supabase
+        .from('notifications')
+        .select('id')
+        .eq('type', 'call_to_vote')
+        .eq('partido_id', pidNumber)
+        .limit(100);
+
+      if (notificationCountError) {
+        logger.warn('⚠️ SUPABASE: No se pudo verificar notificaciones reconstruidas', notificationCountError);
+      } else {
+        rebuiltNotificationCount = notificationRows?.length || 0;
+      }
+    } catch (notificationCountError) {
+      logger.warn('⚠️ SUPABASE: Error verificando notificaciones reconstruidas', notificationCountError);
+    }
+
+    if (rebuiltNotificationCount > 0) {
+      try {
+        await requestImmediatePushDispatch({
+          eventType: 'call_to_vote',
+          matchId: pidNumber,
+          limit: 100,
+        });
+      } catch (dispatchError) {
+        logger.warn('⚠️ SUPABASE: No se pudo disparar push inmediato de reset de votación', dispatchError);
+      }
+    }
+
     const result = {
       message: 'Votación reseteada exitosamente',
       votesDeleted: deletedCount || 0,
       playersReset: jugadores?.length || 0,
+      notificationsRebuilt: rebuiltNotificationCount,
     };
 
     logger.log('🎉 SUPABASE: resetVotacion completed successfully:', result);
