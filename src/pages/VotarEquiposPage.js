@@ -1,10 +1,21 @@
-import logger from '../utils/logger';
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { resolveMatchIdFromQueryParams, fetchMatchById, handleMatchResolutionError } from '../utils/matchResolver';
+import {
+  MATCH_RESOLUTION_STATUS,
+  resolveMatchIdFromQueryParams,
+  fetchMatchById,
+  handleMatchResolutionError,
+  isExpectedMatchResolution,
+} from '../utils/matchResolver';
 import NetworkStatus from '../components/NetworkStatus';
 import VotingView from './VotingView';
-import { CircleX } from 'lucide-react';
+import { ArrowLeft, CircleX, Search } from 'lucide-react';
+
+const normalizeCodigoInput = (value) => {
+  const rawValue = String(value || '').trim();
+  const token = rawValue.match(/[A-Za-z0-9]+/)?.[0] || '';
+  return token.toUpperCase();
+};
 
 const VotarEquiposPage = () => {
   const location = useLocation();
@@ -13,6 +24,7 @@ const VotarEquiposPage = () => {
   const [showVotingView, setShowVotingView] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [terminalError, setTerminalError] = useState(null);
+  const [manualCodigo, setManualCodigo] = useState('');
 
   // Prevent double-fetch with ref to track last processed search
   const lastSearchRef = useRef('');
@@ -33,21 +45,55 @@ const VotarEquiposPage = () => {
     setShowVotingView(false);
     setPartidoActual(null);
     setTerminalError(null);
+    setManualCodigo('');
     lastSearchRef.current = '';
     navigate(targetRoute, { replace: true });
   };
 
-  const handlePublicVotingError = (error) => {
-    handleMatchResolutionError(error);
+  const handlePublicVotingError = (result) => {
+    const resolution = typeof result === 'object' && result !== null
+      ? result
+      : {
+        error: result || 'No se pudo cargar la votación.',
+        status: MATCH_RESOLUTION_STATUS.ERROR,
+        shouldReport: true,
+        cause: result,
+      };
+
+    if (!isExpectedMatchResolution(resolution)) {
+      handleMatchResolutionError(resolution);
+    }
+
     setShowVotingView(true);
     setPartidoActual(null);
     setIsLoading(false);
-    setTerminalError(error || 'No se pudo cargar la votación.');
+    setTerminalError({
+      message: resolution.error || 'No se pudo cargar la votación.',
+      status: resolution.status || MATCH_RESOLUTION_STATUS.ERROR,
+    });
+    setManualCodigo('');
   };
 
-  const terminalErrorTitle = String(terminalError || '').includes('No se encontró partido con código')
-    ? 'Link inválido'
-    : 'No se pudo cargar la votación';
+  const terminalErrorMessage = terminalError?.message || '';
+  const terminalErrorTitle = terminalError?.status === MATCH_RESOLUTION_STATUS.NOT_FOUND
+    ? 'No encontramos ese partido'
+    : terminalError?.status === MATCH_RESOLUTION_STATUS.INVALID_PARAMS
+      ? 'Link inválido'
+      : 'No se pudo cargar la votación';
+  const canRetryWithCode = [
+    MATCH_RESOLUTION_STATUS.NOT_FOUND,
+    MATCH_RESOLUTION_STATUS.INVALID_PARAMS,
+    MATCH_RESOLUTION_STATUS.MISSING_PARAMS,
+  ].includes(terminalError?.status);
+
+  const handleManualCodigoSubmit = (event) => {
+    event.preventDefault();
+    const codigo = normalizeCodigoInput(manualCodigo);
+    if (!codigo) return;
+
+    lastSearchRef.current = '';
+    navigate(`/votar-equipos?codigo=${encodeURIComponent(codigo)}`, { replace: true });
+  };
 
   useEffect(() => {
     const currentSearch = location.search;
@@ -77,16 +123,18 @@ const VotarEquiposPage = () => {
     setTerminalError(null);
 
     resolveMatchIdFromQueryParams(params)
-      .then(async ({ partidoId: resolvedId, error }) => {
+      .then(async (resolution) => {
+        const { partidoId: resolvedId, error } = resolution;
         if (error || !resolvedId) {
-          handlePublicVotingError(error);
+          handlePublicVotingError(resolution);
           return;
         }
 
         // Fetch match data
-        const { partido, error: fetchError } = await fetchMatchById(resolvedId);
+        const matchResult = await fetchMatchById(resolvedId);
+        const { partido, error: fetchError } = matchResult;
         if (fetchError || !partido) {
-          handlePublicVotingError(fetchError);
+          handlePublicVotingError(matchResult);
           return;
         }
 
@@ -95,8 +143,13 @@ const VotarEquiposPage = () => {
         setIsLoading(false);
       })
       .catch((err) => {
-        logger.error('[VOTING] Unexpected error:', err);
-        handlePublicVotingError('Error inesperado al cargar el partido');
+        handlePublicVotingError({
+          error: 'Error inesperado al cargar el partido',
+          status: MATCH_RESOLUTION_STATUS.ERROR,
+          shouldReport: true,
+          cause: err,
+          context: { action: 'load_public_voting' },
+        });
       });
   }, [location.search, navigate]);
 
@@ -114,7 +167,36 @@ const VotarEquiposPage = () => {
               <CircleX className="w-12 h-12 text-red-300/90" />
             </div>
             <h1 className="text-white text-2xl font-bold mb-3">{terminalErrorTitle}</h1>
-            <p className="text-white/70">{terminalError}</p>
+            <p className="text-white/70">{terminalErrorMessage}</p>
+            {canRetryWithCode ? (
+              <form className="mt-5 space-y-3" onSubmit={handleManualCodigoSubmit}>
+                <label className="sr-only" htmlFor="voting-code-retry">Código del partido</label>
+                <input
+                  id="voting-code-retry"
+                  value={manualCodigo}
+                  onChange={(event) => setManualCodigo(event.target.value)}
+                  placeholder="Código del partido"
+                  autoComplete="off"
+                  className="w-full rounded-lg border border-white/20 bg-white/10 px-4 py-3 text-center text-white placeholder:text-white/45 outline-none focus:border-white/50"
+                />
+                <button
+                  type="submit"
+                  className="w-full min-h-[44px] rounded-lg bg-white text-[#15152d] font-semibold inline-flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={!normalizeCodigoInput(manualCodigo)}
+                >
+                  <Search size={18} aria-hidden="true" />
+                  <span>Buscar</span>
+                </button>
+              </form>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => resetVotingShell('/')}
+              className="mt-3 w-full min-h-[44px] rounded-lg border border-white/20 text-white font-semibold inline-flex items-center justify-center gap-2 hover:bg-white/10"
+            >
+              <ArrowLeft size={18} aria-hidden="true" />
+              <span>Volver al inicio</span>
+            </button>
           </div>
         </div>
       ) : (
