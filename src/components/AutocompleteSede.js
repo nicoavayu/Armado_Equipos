@@ -85,6 +85,7 @@ export default function AutocompleteSede({
   onChange,
   dense = false,
   rectangular = false,
+  wizard = false,
 }) {
   const { user } = useAuth();
   const placesServiceRef = useRef(null);
@@ -334,16 +335,30 @@ export default function AutocompleteSede({
 
   const containerMarginBottom = dense ? 8 : 24;
   const inputMarginBottomClass = dense ? 'mb-1' : 'mb-2';
-  const inputClassName = rectangular
-    ? `appearance-none bg-[rgba(53,58,102,0.88)] border border-[rgba(133,149,208,0.5)] text-white font-sans text-lg px-4 py-3 rounded-none w-full h-12 transition-all focus:outline-none focus:border-[#7f8dff] focus:ring-2 focus:ring-[#6f7dff]/30 placeholder:text-white/45 focus:bg-[rgba(62,67,114,0.95)] box-border shadow-none ${inputMarginBottomClass}`
-    : `appearance-none bg-white/10 border-2 border-white/30 text-white font-oswald text-lg px-4 py-3 rounded-lg w-full h-12 transition-all focus:outline-none focus:border-[#0ea9c6cc] focus:shadow-[0_0_0_2px_rgba(14,169,198,0.2)] placeholder:text-white/60 focus:bg-white/10 box-border shadow-none ${inputMarginBottomClass}`;
+  const usesDarkPanel = rectangular || wizard;
+  const inputClassName = wizard
+    ? `appearance-none bg-[rgba(13,10,30,0.78)] border border-[rgba(148,134,255,0.34)] text-white font-oswald text-[17px] px-4 py-3 rounded-2xl w-full h-[54px] transition-all focus:outline-none focus:border-[#8b7cff] focus:ring-2 focus:ring-[#6a43ff]/25 placeholder:text-white/32 focus:bg-[rgba(22,17,48,0.94)] box-border shadow-none ${inputMarginBottomClass}`
+    : rectangular
+      ? `appearance-none bg-[rgba(53,58,102,0.88)] border border-[rgba(133,149,208,0.5)] text-white font-sans text-lg px-4 py-3 rounded-none w-full h-12 transition-all focus:outline-none focus:border-[#7f8dff] focus:ring-2 focus:ring-[#6f7dff]/30 placeholder:text-white/45 focus:bg-[rgba(62,67,114,0.95)] box-border shadow-none ${inputMarginBottomClass}`
+      : `appearance-none bg-white/10 border-2 border-white/30 text-white font-oswald text-lg px-4 py-3 rounded-lg w-full h-12 transition-all focus:outline-none focus:border-[#0ea9c6cc] focus:shadow-[0_0_0_2px_rgba(14,169,198,0.2)] placeholder:text-white/60 focus:bg-white/10 box-border shadow-none ${inputMarginBottomClass}`;
 
   return (
-    <div ref={containerRef} style={{ position: 'relative', marginBottom: containerMarginBottom, width: '100%', boxSizing: 'border-box' }}>
+    <div
+      ref={containerRef}
+      data-testid={wizard ? 'wizard-venue-autocomplete' : undefined}
+      style={{
+        position: 'relative',
+        zIndex: wizard ? 200 : 'auto',
+        marginBottom: containerMarginBottom,
+        width: '100%',
+        boxSizing: 'border-box',
+      }}
+    >
       <input
         className={inputClassName}
         type="text"
-        placeholder={ready ? 'Sede, club o direccion' : 'Sede, club o direccion (cargando sugerencias...)'}
+        aria-label="Sede, club o dirección"
+        placeholder={ready ? 'Sede, club o dirección' : 'Sede, club o dirección (cargando sugerencias...)'}
         value={inputValue}
         onChange={(e) => {
           const nextValue = e.target.value;
@@ -364,16 +379,17 @@ export default function AutocompleteSede({
       />
       {suggestions.length > 0 && (
         <div
+          data-testid={wizard ? 'wizard-venue-suggestions' : undefined}
           style={{
             position: 'absolute',
-            background: rectangular ? 'rgba(13,22,53,0.98)' : '#fff',
-            zIndex: 120,
+            background: usesDarkPanel ? 'rgba(13,10,30,0.98)' : '#fff',
+            zIndex: wizard ? 240 : 120,
             left: 0,
             right: 0,
-            boxShadow: rectangular ? '0 8px 22px rgba(0,0,0,0.38)' : '0 2px 8px 0 #0001',
-            borderRadius: 0,
-            border: rectangular ? '1px solid rgba(118,137,204,0.45)' : '1px solid #eceaf1',
-            top: 48,
+            boxShadow: usesDarkPanel ? '0 14px 30px rgba(0,0,0,0.48)' : '0 2px 8px 0 #0001',
+            borderRadius: wizard ? 16 : 0,
+            border: usesDarkPanel ? '1px solid rgba(148,134,255,0.34)' : '1px solid #eceaf1',
+            top: wizard ? 56 : 48,
             padding: '3px 0',
             maxHeight: 220,
             overflowY: 'auto',
@@ -416,22 +432,22 @@ export default function AutocompleteSede({
                     padding: '8px 18px',
                     cursor: 'pointer',
                     fontSize: 18,
-                    borderBottom: rectangular ? '1px solid rgba(101,122,192,0.35)' : '1px solid #eceaf1',
-                    background: rectangular ? 'rgba(17,30,66,0.86)' : '#fff',
+                    borderBottom: usesDarkPanel ? '1px solid rgba(148,134,255,0.18)' : '1px solid #eceaf1',
+                    background: usesDarkPanel ? 'rgba(20,16,41,0.92)' : '#fff',
                     display: 'flex',
                     flexDirection: 'column',
                     gap: 4,
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-                    <span style={{ fontWeight: 700, color: rectangular ? 'rgba(248,250,255,0.94)' : '#2a2a2a', fontSize: 18, flex: 1, minWidth: 0 }}>
+                    <span style={{ fontWeight: 700, color: usesDarkPanel ? 'rgba(248,250,255,0.94)' : '#2a2a2a', fontSize: 18, flex: 1, minWidth: 0 }}>
                       {s.structured_formatting?.main_text || s.description}
                     </span>
                     <span
                       style={{
                         minWidth: 56,
                         textAlign: 'right',
-                        color: rectangular ? 'rgba(158,211,255,0.92)' : '#4b5563',
+                        color: usesDarkPanel ? 'rgba(190,174,255,0.92)' : '#4b5563',
                         fontSize: 14,
                         fontWeight: 600,
                         visibility: distanceLabel ? 'visible' : 'hidden',
@@ -443,7 +459,7 @@ export default function AutocompleteSede({
                   {secondaryText ? (
                     <span
                       style={{
-                        color: rectangular ? 'rgba(221,230,255,0.7)' : '#6b7280',
+                        color: usesDarkPanel ? 'rgba(221,216,255,0.7)' : '#6b7280',
                         fontSize: 14,
                         lineHeight: 1.2,
                       }}
