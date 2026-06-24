@@ -9,7 +9,8 @@ const MainLayout = () => {
   const searchParams = new URLSearchParams(location.search);
   const isVotingShellRoute = (location.pathname === '/' || location.pathname === '/home')
     && (searchParams.has('codigo') || searchParams.has('partidoId'));
-  const mainPaddingBottomClass = isVotingShellRoute
+  const isImmersiveNewMatchRoute = location.pathname === '/nuevo-partido';
+  const mainPaddingBottomClass = isVotingShellRoute || isImmersiveNewMatchRoute
     ? 'pb-[env(safe-area-inset-bottom)] md:pb-[env(safe-area-inset-bottom)]'
     : 'pb-[104px] md:pb-[112px]';
   const mainPaddingTopClass = 'pt-[var(--safe-top,0px)]';
@@ -68,7 +69,7 @@ const MainLayout = () => {
         <Outlet />
       </main>
 
-      {!isVotingShellRoute && (
+      {!isVotingShellRoute && !isImmersiveNewMatchRoute && (
         <TabBar
           activeTab={getActiveTab()}
           onTabChange={handleTabChange}
