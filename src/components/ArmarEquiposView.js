@@ -29,6 +29,7 @@ import { requestImmediatePushDispatchSafe } from '../services/pushDispatchServic
 import ConfirmModal from '../components/ConfirmModal';
 import { buildBalancedTeams, splitMatchPlayersForVotingAndTeams } from '../utils/teamBalancer';
 import { MoreVertical, RotateCcw } from 'lucide-react';
+import { analyzeTeamsAgainstRoster } from '../utils/teamRosterValidity';
 
 const INVITE_ACCEPT_BUTTON_VIOLET = '#644dff';
 const SLOT_SKEW_X = 0;
@@ -96,6 +97,7 @@ export default function ArmarEquiposView({
   const [estadoOverride, setEstadoOverride] = useState(null); // Override local para estado después de reset
   const [playerToRemove, setPlayerToRemove] = useState(null); // Para modal de eliminación
   const [hasPersistedTeams, setHasPersistedTeams] = useState(false);
+  const [hasStalePersistedTeams, setHasStalePersistedTeams] = useState(false);
   const playersSectionRef = React.useRef(null);
   const voterRefreshInFlightRef = React.useRef(false);
   const actionsMenuRef = React.useRef(null);
@@ -461,6 +463,7 @@ export default function ArmarEquiposView({
       setVotantes([]);
       setVotantesConNombres([]);
       setHasPersistedTeams(false);
+      setHasStalePersistedTeams(false);
       setActionsMenuOpen(false);
       setEstadoOverride('votacion'); // Forzar UI a salir de "equipos_formados" mientras se actualiza partidoActual
 
@@ -490,6 +493,7 @@ export default function ArmarEquiposView({
   }
 
   const primaryLabel = (() => {
+    if (hasStalePersistedTeams) return 'Resetear votación';
     const estado = estadoOverride || partidoActual?.estado;
     if (estado === 'equipos_formados') return 'Ir a equipos armados';
     if (hasPersistedTeams) return 'Ir a equipos armados';
@@ -530,11 +534,15 @@ export default function ArmarEquiposView({
     return null;
   };
 
-  const isTeamsFormed = (estadoOverride || partidoActual?.estado) === 'equipos_formados' || hasPersistedTeams;
+  const isTeamsFormed = !hasStalePersistedTeams && (
+    (estadoOverride || partidoActual?.estado) === 'equipos_formados'
+    || hasPersistedTeams
+  );
 
   const refreshPersistedTeamsState = useCallback(async () => {
     if (!partidoActual?.id) {
       setHasPersistedTeams(false);
+      setHasStalePersistedTeams(false);
       return false;
     }
     try {
@@ -542,17 +550,19 @@ export default function ArmarEquiposView({
       const persistedTeams = normalizeTeamsPayload(persistedTeamsRaw);
       const matchFallbackTeams = resolveMatchFallbackTeams();
       const teams = hasExpectedTeamShape(persistedTeams) ? persistedTeams : matchFallbackTeams;
-      const hasTeams = hasExpectedTeamShape(teams);
-      setHasPersistedTeams(hasTeams);
-      if (hasTeams) {
+      const teamsAnalysis = analyzeTeamsAgainstRoster(teams, jugadores);
+      setHasStalePersistedTeams(teamsAnalysis.isStale);
+      setHasPersistedTeams(teamsAnalysis.isValid);
+      if (teamsAnalysis.isValid) {
         setEstadoOverride('equipos_formados');
       }
-      return hasTeams;
+      return teamsAnalysis.isValid;
     } catch (_e) {
       setHasPersistedTeams(false);
+      setHasStalePersistedTeams(false);
       return false;
     }
-  }, [partidoActual?.id, partidoActual?.estado, partidoActual?.equipos_json, partidoActual?.equipos, estadoOverride]);
+  }, [jugadores, partidoActual?.id, partidoActual?.estado, partidoActual?.equipos_json, partidoActual?.equipos, estadoOverride]);
 
   useEffect(() => {
     refreshPersistedTeamsState();
@@ -575,6 +585,7 @@ export default function ArmarEquiposView({
 
       if (!hasExpectedTeamIds) {
         setHasPersistedTeams(false);
+        setHasStalePersistedTeams(false);
         if (!silent) showInlineNotice('warning', 'No se encontraron equipos guardados para este partido.');
         return false;
       }
@@ -584,6 +595,17 @@ export default function ArmarEquiposView({
         matchPlayers = await getJugadoresDelPartido(partidoActual.id);
       }
 
+      const teamsAnalysis = analyzeTeamsAgainstRoster(teams, matchPlayers || []);
+      if (teamsAnalysis.isStale) {
+        setHasPersistedTeams(false);
+        setHasStalePersistedTeams(true);
+        if (!silent) {
+          showInlineNotice('warning', 'Los equipos quedaron desactualizados. Reseteá la votación para volver a armar.');
+        }
+        return false;
+      }
+
+      setHasStalePersistedTeams(false);
       setHasPersistedTeams(true);
       setEstadoOverride('equipos_formados');
       onTeamsFormed(teams, matchPlayers || []);
@@ -603,6 +625,11 @@ export default function ArmarEquiposView({
   }, [isClosing, openTeamsFormedView]);
 
   const handlePrimaryClick = async () => {
+    if (hasStalePersistedTeams) {
+      setConfirmConfig({ open: true, action: 'reset' });
+      return;
+    }
+
     const opened = await openTeamsFormedView({ silent: true });
     if (opened) return;
 
@@ -1181,11 +1208,29 @@ export default function ArmarEquiposView({
             <div className="text-[11px] text-white/50 leading-snug text-center px-1 mt-0.5 w-[90%] mx-auto">
               {isTeamsFormed
                 ? 'Abrí los equipos ya armados para este partido'
-                : 'Notifica a los jugadores que ya tienen la app'}
+                : hasStalePersistedTeams
+                  ? 'El plantel cambió. Reseteá antes de volver a armar.'
+                  : 'Notifica a los jugadores que ya tienen la app'}
             </div>
           </div>
 
-          {!isTeamsFormed && (
+          {hasStalePersistedTeams ? (
+            <div
+              className="w-[90%] max-w-[520px] mx-auto rounded-xl border px-4 py-3 text-center"
+              style={{
+                borderColor: 'rgba(245, 158, 11, 0.52)',
+                background: 'rgba(120, 53, 15, 0.18)',
+              }}
+              role="status"
+            >
+              <div className="font-oswald text-sm font-semibold text-amber-200">
+                Los equipos quedaron desactualizados
+              </div>
+              <div className="mt-1 text-[12px] leading-snug text-white/70">
+                El plantel actual ya no coincide con los equipos guardados.
+              </div>
+            </div>
+          ) : !isTeamsFormed && (
             <div className="w-full flex flex-col gap-1.5 mt-3 pt-2 border-t border-slate-700/50">
               <button
                 type="button"

@@ -32,6 +32,10 @@ import { useShareTeamsCard } from '../hooks/useShareTeamsCard';
 import { useAuth } from './AuthProvider';
 import { useNativeFeatures } from '../hooks/useNativeFeatures';
 import { MoreVertical, RotateCcw } from 'lucide-react';
+import {
+  analyzeTeamsAgainstRoster,
+  findRosterPlayerByTeamReference,
+} from '../utils/teamRosterValidity';
 
 // Safe wrappers to prevent runtime crashes if any import resolves undefined
 const safeComp = (Comp, name) => {
@@ -279,24 +283,13 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
   // Helper functions for player key normalization and matching
   const normalizeKey = (v) => {
     if (v == null) return null;
-    if (typeof v === 'object') return String(v.uuid ?? v.id ?? v.player_id ?? v.user_id ?? '');
+    if (typeof v === 'object') return String(v.key ?? v.uuid ?? v.id ?? v.player_id ?? v.usuario_id ?? v.user_id ?? '');
     const s = String(v).trim();
     return s ? s : null;
   };
 
-  const matchesKey = (p, key) => {
-    if (!p || !key) return false;
-    return (
-      String(p.uuid ?? '') === key ||
-      String(p.id ?? '') === key ||
-      String(p.player_id ?? '') === key
-    );
-  };
-
   const getPlayerDetails = (raw) => {
-    const key = normalizeKey(raw);
-    if (!key) return {};
-    return realtimePlayers.find((p) => matchesKey(p, key)) || {};
+    return findRosterPlayerByTeamReference(realtimePlayers, raw) || {};
   };
 
   const normalizeIdentity = (value) => {
@@ -535,6 +528,10 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
     if (!Array.isArray(realtimeTeams) || realtimeTeams.length === 0) return 1;
     return Math.max(1, ...realtimeTeams.map((team) => getNormalizedTeamPlayers(team).length));
   }, [realtimeTeams]);
+  const teamsRosterAnalysis = useMemo(
+    () => analyzeTeamsAgainstRoster(realtimeTeams, realtimePlayers),
+    [realtimeTeams, realtimePlayers],
+  );
   const teamListHeightPx = Math.max(198, (maxPlayersPerTeam * 48) + ((maxPlayersPerTeam - 1) * 4));
 
   if (
@@ -547,6 +544,79 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
       <div className="min-h-[60dvh] w-full flex items-center justify-center">
         <SafeLoadingSpinner size="large" fullScreen />
       </div>
+    );
+  }
+
+  if (teamsRosterAnalysis.isStale) {
+    return (
+      <SafeTeamDisplayContext.Provider value={true}>
+        <SafeChatButton partidoId={partidoId} hideTrigger={true} />
+        <SafePageTitle onBack={onBackToHome}>EQUIPOS DESACTUALIZADOS</SafePageTitle>
+        <div className="relative left-1/2 w-screen -translate-x-1/2">
+          <SafeMatchInfoSection
+            partido={normalizePartidoForHeader(partido)}
+            fecha={fecha}
+            hora={hora}
+            sede={sede}
+            modalidad={modalidad}
+            tipo={tipo}
+            rightActions={null}
+            topOffsetClassName="mt-[52px] md:mt-[48px]"
+            flushTop
+          />
+        </div>
+        <div className="w-[90vw] max-w-[560px] mx-auto mt-6 pb-8">
+          <div
+            className="rounded-2xl border px-5 py-6 text-center"
+            style={{
+              borderColor: 'rgba(245, 158, 11, 0.52)',
+              background: 'linear-gradient(168deg, rgba(120,53,15,0.22), rgba(16,12,33,0.96))',
+            }}
+            role="status"
+          >
+            <div className="font-bebas text-[26px] tracking-[0.05em] text-amber-200">
+              Los equipos quedaron desactualizados
+            </div>
+            <div className="mt-2 font-oswald text-sm leading-relaxed text-white/72">
+              El plantel cambió desde el último armado. Los equipos anteriores se ocultaron para evitar mostrar jugadores incorrectos.
+            </div>
+            {isAdmin && typeof onResetVoting === 'function' ? (
+              <>
+                <button
+                  type="button"
+                  className="mt-5 mx-auto flex min-h-[48px] w-full max-w-[420px] items-center justify-center rounded-xl border px-5 font-oswald text-base font-bold tracking-[0.04em] text-white transition-all hover:brightness-110 disabled:opacity-55"
+                  style={{
+                    background: `linear-gradient(90deg, ${INVITE_ACCEPT_BUTTON_VIOLET_DARK} 0%, ${INVITE_ACCEPT_BUTTON_VIOLET} 100%)`,
+                    borderColor: 'rgba(144, 118, 255, 0.86)',
+                    boxShadow: '0 8px 18px rgba(76, 58, 196, 0.34)',
+                  }}
+                  onClick={() => setShowResetConfirm(true)}
+                >
+                  <span>Resetear votación</span>
+                </button>
+                <div className="mt-2 text-[11px] leading-snug text-white/50">
+                  Se usarán los jugadores actuales al volver a armar.
+                </div>
+              </>
+            ) : (
+              <div className="mt-4 text-sm font-oswald text-white/65">
+                Esperá a que el administrador resetee la votación y vuelva a armar.
+              </div>
+            )}
+          </div>
+        </div>
+        <ConfirmModal
+          isOpen={showResetConfirm}
+          title="Resetear votación"
+          message="Se borran los votos y los equipos anteriores. Después podrás volver a armar con el plantel actual. ¿Querés continuar?"
+          confirmText={resetting ? 'Reseteando…' : 'Resetear'}
+          cancelText="Cancelar"
+          danger
+          isDeleting={resetting}
+          onConfirm={handleConfirmReset}
+          onCancel={() => { if (!resetting) setShowResetConfirm(false); }}
+        />
+      </SafeTeamDisplayContext.Provider>
     );
   }
 
@@ -1258,24 +1328,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                             dragTarget.index === _index;
                           const isActiveDraggedPlayer = activeDragId === draggableId;
 
-                          if (!player?.nombre) {
-                            return (
-                              <div
-                                key={`missing-${team.id}-${playerKey}-${_index}`}
-                                className="border p-2 text-white/70"
-                                style={{
-                                  backgroundColor: CARD_BG_BLUE,
-                                  border: `1px solid ${CARD_STROKE_BLUE}`,
-                                  boxShadow: CARD_GLOW_BLUE,
-                                  borderRadius: 5,
-                                }}
-                              >
-                                <span style={{ display: 'block' }}>
-                                  Jugador desconocido ({playerKey})
-                                </span>
-                              </div>
-                            );
-                          }
+                          if (!player?.nombre) return null;
 
                           return (
                             <Draggable
