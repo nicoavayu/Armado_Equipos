@@ -1,5 +1,5 @@
 import logger from '../utils/logger';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../components/AuthProvider';
 import { useAdminPanelState } from '../hooks/useAdminPanelState';
 import { useTeamFormation } from '../hooks/useTeamFormation';
@@ -28,6 +28,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import { getPublicBaseUrl } from '../utils/publicBaseUrl';
 import { parseLocalDate } from '../utils/dateLocal';
 import { buildWhatsAppRosterMessage } from '../utils/buildWhatsAppRosterMessage';
+import { analyzeTeamsAgainstRoster } from '../utils/teamRosterValidity';
 
 import AdminActions from '../components/admin/AdminActions';
 import PlayersSection from '../components/admin/PlayersSection';
@@ -187,6 +188,9 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
   const handleArmarEquipos = () => {
     handleArmarEquiposUtil(jugadores, adminState.setShowArmarEquiposView);
   };
+  const handleReviewStaleTeams = () => {
+    adminState.setShowArmarEquiposView(true);
+  };
   const displayedJugadores = Array.isArray(adminState.jugadoresActuales)
     ? adminState.jugadoresActuales
     : (Array.isArray(jugadores) ? jugadores : []);
@@ -235,7 +239,12 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [partidoActual?.id, partidoActual?.estado, partidoActual?.equipos_json, partidoActual?.equipos]);
 
-  const teamsAlreadyFormed = hasExpectedTeamShape(existingTeams) || partidoActual?.estado === 'equipos_formados';
+  const existingTeamsAnalysis = useMemo(
+    () => analyzeTeamsAgainstRoster(existingTeams, displayedJugadores),
+    [existingTeams, displayedJugadores],
+  );
+  const staleTeamsDetected = existingTeamsAnalysis.hasTeamShape && existingTeamsAnalysis.isStale;
+  const teamsAlreadyFormed = existingTeamsAnalysis.isValid;
 
   const handleViewExistingTeams = async () => {
     let teams = hasExpectedTeamShape(existingTeams) ? existingTeams : resolveInlineTeams(partidoActual);
@@ -705,18 +714,36 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                               ? '0 8px 24px rgba(106, 67, 255, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.22)'
                               : 'none',
                           }}
-                          onClick={teamsAlreadyFormed ? handleViewExistingTeams : handleArmarEquipos}
-                          disabled={teamsAlreadyFormed ? false : !canBuildBalancedTeams}
-                          title={(!teamsAlreadyFormed && !canBuildBalancedTeams) ? buildTeamsLockedMessage : ''}
+                          onClick={staleTeamsDetected
+                            ? handleReviewStaleTeams
+                            : (teamsAlreadyFormed ? handleViewExistingTeams : handleArmarEquipos)}
+                          disabled={staleTeamsDetected ? false : (teamsAlreadyFormed ? false : !canBuildBalancedTeams)}
+                          title={(!staleTeamsDetected && !teamsAlreadyFormed && !canBuildBalancedTeams) ? buildTeamsLockedMessage : ''}
                         >
                           <span
                             className="w-full inline-flex items-center justify-center"
                             style={{ transform: 'none' }}
                           >
-                            {teamsAlreadyFormed ? 'VER EQUIPOS' : 'ARMAR EQUIPOS'}
+                            {staleTeamsDetected ? 'REVISAR VOTACIÓN' : (teamsAlreadyFormed ? 'VER EQUIPOS' : 'ARMAR EQUIPOS')}
                           </span>
                         </button>
-                        {teamsAlreadyFormed ? (
+                        {staleTeamsDetected ? (
+                          <div
+                            className="w-[90%] max-w-[620px] mt-3 rounded-xl border px-4 py-3 text-center"
+                            style={{
+                              borderColor: 'rgba(245, 158, 11, 0.52)',
+                              background: 'rgba(120, 53, 15, 0.18)',
+                            }}
+                            role="status"
+                          >
+                            <div className="font-oswald text-sm font-semibold text-amber-200">
+                              Los equipos quedaron desactualizados
+                            </div>
+                            <div className="mt-1 text-[12px] leading-snug text-white/70">
+                              El plantel cambió. Reseteá la votación para volver a armar con los jugadores actuales.
+                            </div>
+                          </div>
+                        ) : teamsAlreadyFormed ? (
                           <div className="text-[11px] text-white/50 mt-2 leading-snug">
                             Mirá los equipos ya armados de este partido
                           </div>
