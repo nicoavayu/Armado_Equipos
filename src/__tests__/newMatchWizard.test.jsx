@@ -65,6 +65,7 @@ const EXPECTED_CREATE_PAYLOAD_KEYS = [
   'match_ref',
   'modalidad',
   'nombre',
+  'player_invites_enabled',
   'precio_cancha_por_persona',
   'sede',
   'sedeMaps',
@@ -316,7 +317,7 @@ describe('nuevo partido gamer wizard', () => {
     expect(screen.getByLabelText('Nombre del partido')).toHaveValue('Fútbol del barrio');
   });
 
-  test('el paso de cupo conserva la convocatoria sin permisos de invitación nuevos', async () => {
+  test('el paso de cupo muestra convocatoria e invitaciones de jugadores separadas', async () => {
     const user = userEvent;
     renderWizard();
 
@@ -330,13 +331,17 @@ describe('nuevo partido gamer wizard', () => {
     await clickAndFinishTransition(user, screen.getByRole('button', { name: 'Siguiente' }));
 
     const openCallToggle = screen.getByRole('checkbox', { name: /Abrir convocatoria/i });
+    const playerInvitesToggle = screen.getByRole('checkbox', { name: /Permitir que jugadores inviten/i });
     expect(openCallToggle).not.toBeChecked();
-    expect(screen.queryByRole('checkbox', { name: /Permitir invitados/i })).not.toBeInTheDocument();
+    expect(playerInvitesToggle).not.toBeChecked();
     await user.click(openCallToggle);
+    await user.click(playerInvitesToggle);
     expect(openCallToggle).toBeChecked();
+    expect(playerInvitesToggle).toBeChecked();
 
     await clickAndFinishTransition(user, screen.getByRole('button', { name: 'Siguiente' }));
-    expect(screen.getByText('Abierta')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Editar convocatoria' })).toHaveTextContent('Activada');
+    expect(screen.getByRole('button', { name: 'Editar invitaciones de jugadores' })).toHaveTextContent('Activada');
   });
 
   test('el resumen final muestra los datos correctos y permite editarlos', async () => {
@@ -388,6 +393,7 @@ describe('nuevo partido gamer wizard', () => {
         hora: '21:30',
         sede: 'Cancha Devoto Fútbol',
         falta_jugadores: false,
+        player_invites_enabled: false,
       }));
       expect(Object.keys(crearPartido.mock.calls[0][0]).sort()).toEqual(EXPECTED_CREATE_PAYLOAD_KEYS);
       expect(insertPartidoFrecuenteFromPartido).toHaveBeenCalledWith('created-match-ref');
@@ -406,7 +412,7 @@ describe('nuevo partido gamer wizard', () => {
     expect(insertPartidoFrecuenteFromPartido).not.toHaveBeenCalled();
   });
 
-  test('la convocatoria impacta el payload final sin agregar permisos de invitación', async () => {
+  test('la convocatoria impacta el payload final sin activar invitaciones de jugadores', async () => {
     const user = userEvent;
     renderWizard();
     await advanceToReview(user);
@@ -421,6 +427,28 @@ describe('nuevo partido gamer wizard', () => {
     await waitFor(() => {
       expect(crearPartido).toHaveBeenCalledWith(expect.objectContaining({
         falta_jugadores: true,
+        player_invites_enabled: false,
+      }));
+      expect(Object.keys(crearPartido.mock.calls[0][0]).sort()).toEqual(EXPECTED_CREATE_PAYLOAD_KEYS);
+    });
+  });
+
+  test('las invitaciones de jugadores impactan el payload final cuando se activan', async () => {
+    const user = userEvent;
+    renderWizard();
+    await advanceToReview(user);
+
+    await user.click(screen.getByRole('button', { name: 'Editar invitaciones de jugadores' }));
+    finishTransition();
+    await user.click(screen.getByRole('checkbox', { name: /Permitir que jugadores inviten/i }));
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+    finishTransition();
+    await user.click(screen.getByRole('button', { name: 'Crear partido' }));
+
+    await waitFor(() => {
+      expect(crearPartido).toHaveBeenCalledWith(expect.objectContaining({
+        falta_jugadores: false,
+        player_invites_enabled: true,
       }));
       expect(Object.keys(crearPartido.mock.calls[0][0]).sort()).toEqual(EXPECTED_CREATE_PAYLOAD_KEYS);
     });

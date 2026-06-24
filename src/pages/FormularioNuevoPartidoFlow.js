@@ -12,6 +12,7 @@ import {
   Repeat2,
   Trophy,
   Type as TypeIcon,
+  UserPlus,
   UserRound,
   UsersRound,
 } from 'lucide-react';
@@ -326,6 +327,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
   const [valorCancha, setValorCancha] = useState('');
   const [willPlay, setWillPlay] = useState(true);
   const [openCall, setOpenCall] = useState(false);
+  const [playerInvitesEnabled, setPlayerInvitesEnabled] = useState(false);
   const [saveAsFrequent, setSaveAsFrequent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -527,6 +529,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
         modalidad,
         cupo_jugadores: Number(suggestedCupo),
         falta_jugadores: openCall,
+        player_invites_enabled: playerInvitesEnabled,
         tipo_partido: tipoPartido,
         creado_por: user?.id,
         precio_cancha_por_persona: precioVal,
@@ -906,8 +909,16 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
                 checked={openCall}
                 icon={<Megaphone />}
                 title="Abrir convocatoria"
-                description="Cualquiera puede sumarse"
+                description="Cualquiera puede pedir sumarse"
                 onChange={setOpenCall}
+              />
+              <ToggleCard
+                id="player-invites-enabled"
+                checked={playerInvitesEnabled}
+                icon={<UserPlus />}
+                title="Permitir que jugadores inviten"
+                description="Los jugadores confirmados pueden invitar usuarios registrados"
+                onChange={setPlayerInvitesEnabled}
               />
             </div>
           </div>
@@ -964,10 +975,17 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
             />
             <ReviewRow
               icon={<Megaphone />}
-              label="Convocatoria"
-              value={openCall ? 'Abierta' : 'Cerrada'}
+              label="Abrir convocatoria"
+              value={openCall ? 'Activada' : 'Desactivada'}
               onEdit={() => editField(NEW_MATCH_STEPS.CAPACITY)}
               editLabel="Editar convocatoria"
+            />
+            <ReviewRow
+              icon={<UserPlus />}
+              label="Permitir que jugadores inviten"
+              value={playerInvitesEnabled ? 'Activada' : 'Desactivada'}
+              onEdit={() => editField(NEW_MATCH_STEPS.CAPACITY)}
+              editLabel="Editar invitaciones de jugadores"
             />
             <ReviewRow
               icon={<CircleDollarSign />}

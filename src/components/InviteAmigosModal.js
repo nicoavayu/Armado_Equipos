@@ -232,6 +232,14 @@ const handleInviteRpcError = (error) => {
     notifyBlockingError('El partido no está abierto para sugerencias.');
     return;
   }
+  if (rawMessage.includes('player_invites_disabled')) {
+    notifyBlockingError('El organizador no habilitó invitaciones de jugadores.');
+    return;
+  }
+  if (rawMessage.includes('match_not_open_for_invites')) {
+    notifyBlockingError('Este partido ya no recibe invitaciones.');
+    return;
+  }
   if (rawMessage.includes('guest_direct_invite_forbidden')) {
     notifyBlockingError('Solo podés enviar sugerencias para solicitar unirme.');
     return;

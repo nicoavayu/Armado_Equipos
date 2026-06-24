@@ -289,6 +289,11 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
     ?? partidoActual?.faltan_jugadores
     ?? false,
   );
+  const playerDirectInvitesEnabled = Boolean(
+    !isAdmin
+    && adminState.isPlayerInMatch
+    && partidoActual?.player_invites_enabled === true
+  );
 
   const formatInviteDateTime = (fechaRaw, horaRaw) => {
     const fecha = String(fechaRaw || '').trim().slice(0, 10);
@@ -767,7 +772,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
             partidoActual={partidoActual}
             user={user}
             jugadores={jugadores}
-            inviteMode={isAdmin ? 'direct' : 'request_join'}
+            inviteMode={(isAdmin || playerDirectInvitesEnabled) ? 'direct' : 'request_join'}
             invitationsOpen={invitationsOpen}
           />
         </>
