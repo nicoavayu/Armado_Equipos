@@ -11,6 +11,7 @@ import MatchInfoSection from '../components/MatchInfoSection';
 import TabBar from '../components/TabBar';
 import normalizePartidoForHeader from '../utils/normalizePartidoForHeader';
 import { PlayerCardTrigger } from '../components/ProfileComponents';
+import InviteAmigosModal from '../components/InviteAmigosModal';
 import ConfirmModal from '../components/ConfirmModal';
 import InlineNotice from '../components/ui/InlineNotice';
 import { Camera, UserRound, CircleX, Zap, LockKeyhole, CheckCircle2, Calendar, Clock, MapPin } from 'lucide-react';
@@ -29,6 +30,7 @@ import {
   getNotificationTimestampMs,
   hasPendingMatchInviteStatus,
 } from '../utils/notificationInviteState';
+import { resolvePlayerInvitePermission } from '../utils/matchInvitePermissions';
 
 /**
  * Pantalla pública de invitación a un partido
@@ -322,6 +324,32 @@ async function validateGuestInviteLink({ matchId, codigo, inviteToken }) {
     reason: String(row?.reason || '').trim().toLowerCase() || null,
     unsupported: false,
   };
+}
+
+async function hydratePlayerInvitesEnabled(partidoData, matchId) {
+  if (!partidoData) return partidoData;
+  if (typeof partidoData.player_invites_enabled === 'boolean') return partidoData;
+
+  try {
+    const { data, error } = await supabase
+      .from('partidos')
+      .select('player_invites_enabled')
+      .eq('id', Number(matchId))
+      .maybeSingle();
+
+    if (error) {
+      logger.warn('[INVITE] player_invites_enabled fallback unavailable', error);
+      return { ...partidoData, player_invites_enabled: false };
+    }
+
+    return {
+      ...partidoData,
+      player_invites_enabled: data?.player_invites_enabled === true,
+    };
+  } catch (error) {
+    logger.warn('[INVITE] player_invites_enabled fallback failed', error);
+    return { ...partidoData, player_invites_enabled: false };
+  }
 }
 
 async function markOwnMatchInviteAs({ userId, matchId, status }) {
@@ -731,6 +759,8 @@ function SharedInviteLayout({
   onClearInlineNotice,
   onAddToCalendar,
   onCancelJoinRequest,
+  showPlayerInviteButton = false,
+  onInviteFriends,
   showBottomNav = false,
 }) {
   const isEmbeddedInMainLayout = mode === 'public';
@@ -756,7 +786,21 @@ function SharedInviteLayout({
 
   const renderJoinedBlock = () => (
     <div className="flex flex-col gap-2 w-full">
+      {showPlayerInviteButton && (
+        <button
+          type="button"
+          onClick={onInviteFriends}
+          className={matchSecondaryButtonClass}
+          aria-label="Invitar amigos"
+        >
+          <span className="inline-flex items-center justify-center gap-2">
+            <UserRound size={18} strokeWidth={2.1} />
+            <span>Invitar amigos</span>
+          </span>
+        </button>
+      )}
       <button
+        type="button"
         onClick={onAddToCalendar}
         className={matchPrimaryButtonClass}
       >
@@ -921,6 +965,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
     confirmText: 'Aceptar',
     afterConfirm: null,
   });
+  const [showPlayerInviteModal, setShowPlayerInviteModal] = useState(false);
   const [inlineNotice, setInlineNotice] = useState(null);
   const pendingContinueRef = useRef(null);
   const guestPhotoInputRef = useRef(null);
@@ -1068,10 +1113,12 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       .select('*', { count: 'exact' })
       .eq('partido_id', partidoId);
 
-    setPartido({ ...partidoData, jugadoresCount: count || 0 });
+    const hydratedPartido = await hydratePlayerInvitesEnabled(partidoData, partidoId);
+
+    setPartido({ ...hydratedPartido, jugadoresCount: count || 0 });
     setJugadores(jugadoresData || []);
 
-    if (isMatchClosed(partidoData)) {
+    if (isMatchClosed(hydratedPartido)) {
       setError('Este partido fue cancelado o cerrado.');
       if (showClosedNotice) {
         showInlineNotice('warning', 'Este partido fue cancelado o cerrado.');
@@ -1085,7 +1132,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
     }
 
     return {
-      partidoData,
+      partidoData: hydratedPartido,
       jugadoresData: jugadoresData || [],
       jugadoresCount: count || 0,
     };
@@ -1215,6 +1262,10 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
             return;
           }
 
+          const partidoData = await hydratePlayerInvitesEnabled(data, partidoId);
+
+          if (reqId !== reqIdRef.current) return;
+
           const { data: jugadoresData, count } = await supabase
             .from('jugadores')
             .select('*', { count: 'exact' })
@@ -1223,10 +1274,10 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           // Check if this request is stale
           if (reqId !== reqIdRef.current) return;
 
-          setPartido({ ...data, jugadoresCount: count || 0 });
+          setPartido({ ...partidoData, jugadoresCount: count || 0 });
           setJugadores(jugadoresData || []);
 
-          if (isMatchClosed(data)) {
+          if (isMatchClosed(partidoData)) {
             setError('Este partido fue cancelado o cerrado.');
             setJoinStatus('none');
             setLoading(false);
@@ -1364,6 +1415,10 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
             return;
           }
 
+          const partidoWithInviteFlag = await hydratePlayerInvitesEnabled(partidoData, partidoId);
+
+          if (reqId !== reqIdRef.current) return;
+
           const { data: jugadoresData, count } = await supabase
             .from('jugadores')
             .select('*', { count: 'exact' })
@@ -1371,11 +1426,11 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
 
           if (reqId !== reqIdRef.current) return;
 
-          setPartido({ ...partidoData, jugadoresCount: count || 0 });
+          setPartido({ ...partidoWithInviteFlag, jugadoresCount: count || 0 });
           setJugadores(jugadoresData || []);
           setInviteValidatedByNotification(true);
 
-          if (isMatchClosed(partidoData)) {
+          if (isMatchClosed(partidoWithInviteFlag)) {
             setError('Este partido fue cancelado o cerrado.');
             setLoading(false);
             return;
@@ -1437,7 +1492,10 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           setLoading(false);
           return;
         }
-        const partidoData = data[0];
+        const partidoData = await hydratePlayerInvitesEnabled(data[0], partidoId);
+
+        if (reqId !== reqIdRef.current) return;
+
         const { data: jugadoresData, count } = await supabase
           .from('jugadores')
           .select('*', { count: 'exact' })
@@ -2258,6 +2316,23 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
 
   const maxRoster = getMaxRosterSlots(partido);
   const isMatchFull = maxRoster > 0 && jugadores.length >= maxRoster;
+  const playerInvitePermission = resolvePlayerInvitePermission({
+    match: partido,
+    currentUserId: user?.id,
+    membershipRows: jugadores,
+  });
+  const canShowRegisteredPlayerInviteButton = Boolean(
+    joinStatus === 'approved'
+    && playerInvitePermission.canInvite
+    && playerInvitePermission.isPlayer
+    && !playerInvitePermission.isAdmin
+    && playerInvitePermission.playerInvitesEnabled
+    && !playerInvitePermission.isClosed,
+  );
+  const handleOpenRegisteredPlayerInviteModal = () => {
+    if (!canShowRegisteredPlayerInviteButton) return;
+    setShowPlayerInviteModal(true);
+  };
 
   // Pantalla 1: Invitación inicial o público
   if (step === 'invitation') {
@@ -2287,8 +2362,20 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           onClearInlineNotice={() => setInlineNotice(null)}
           onAddToCalendar={handleAddToCalendar}
           onCancelJoinRequest={handleCancelarSolicitud}
+          showPlayerInviteButton={isPublic && canShowRegisteredPlayerInviteButton}
+          onInviteFriends={handleOpenRegisteredPlayerInviteModal}
           showBottomNav={showBottomNav}
         />
+        {isPublic && canShowRegisteredPlayerInviteButton && partido?.id && (
+          <InviteAmigosModal
+            isOpen={showPlayerInviteModal}
+            onClose={() => setShowPlayerInviteModal(false)}
+            currentUserId={user?.id}
+            partidoActual={partido}
+            jugadores={jugadores}
+            mode="direct"
+          />
+        )}
         <ConfirmModal
           isOpen={scheduleWarning.isOpen}
           title="Conflicto de horario"
