@@ -16,7 +16,7 @@ import {
   readCachedInvitedGroupIds,
   rememberCachedInvitedGroupIds,
 } from '../../utils/groupInviteCache';
-import { QUIERO_JUGAR_OPEN_MATCHES_VIEW } from '../../services/db/openMatches';
+import { resolvePlayerInvitePermission } from '../../utils/matchInvitePermissions';
 
 const PRIMARY_ACTION_BUTTON_CLASS = 'inline-flex min-h-[44px] items-center justify-center gap-2 rounded-none border border-[#7d5aff] bg-[#6a43ff] px-4 py-2.5 font-bebas text-base tracking-[0.01em] text-white shadow-[0_0_14px_rgba(106,67,255,0.3)] transition-all hover:bg-[#7550ff] active:opacity-95 disabled:cursor-not-allowed disabled:border-[rgba(125,90,255,0.45)] disabled:bg-[rgba(106,67,255,0.55)] disabled:text-white/45 disabled:shadow-none';
 const SECONDARY_ACTION_BUTTON_CLASS = 'inline-flex min-h-[44px] items-center justify-center gap-2 rounded-none border border-[rgba(148,134,255,0.28)] bg-white/[0.05] px-4 py-2.5 font-bebas text-base tracking-[0.01em] text-white/92 transition-all hover:bg-white/[0.1] active:opacity-95 disabled:cursor-not-allowed disabled:opacity-50';
@@ -86,6 +86,14 @@ const handleInviteRpcError = (error) => {
     notifyBlockingError('El partido no está abierto para invitaciones en este momento.');
     return;
   }
+  if (rawMessage.includes('player_invites_disabled')) {
+    notifyBlockingError('El organizador no habilitó invitaciones de jugadores.');
+    return;
+  }
+  if (rawMessage.includes('match_not_open_for_invites')) {
+    notifyBlockingError('Este partido ya no recibe invitaciones.');
+    return;
+  }
   if (rawMessage.includes('guest_direct_invite_forbidden')) {
     notifyBlockingError('Solo el organizador puede enviar esta invitación directa.');
     return;
@@ -105,6 +113,34 @@ const showGroupAlreadyInvitedNotice = (matchName) => {
   showInviteNotice({
     title: 'Grupo ya invitado',
     message: `Este grupo ya fue invitado a "${matchName || 'este partido'}".`,
+  });
+};
+
+const showMatchUnavailableNotice = (match) => {
+  if (match?.inviteStatus === 'player_invites_disabled') {
+    showInviteNotice({
+      title: 'Sólo el organizador puede invitar',
+      message: 'El organizador no habilitó invitaciones de jugadores para este partido.',
+    });
+    return;
+  }
+
+  if (match?.inviteStatus === 'group_already_invited') {
+    showGroupAlreadyInvitedNotice(match?.nombre);
+    return;
+  }
+
+  if (match?.inviteStatus === 'match_closed') {
+    showInviteNotice({
+      title: 'Partido cerrado',
+      message: `"${match?.nombre || 'Este partido'}" ya no recibe invitaciones.`,
+    });
+    return;
+  }
+
+  showInviteNotice({
+    title: 'Partido sin cupos',
+    message: `Ya no hay cupos disponibles en "${match?.nombre || 'este partido'}".`,
   });
 };
 
@@ -146,15 +182,41 @@ const InviteGroupToMatchModal = ({
       setSelectedMatchId(null);
 
       try {
-        const { data: adminMatches, error: matchesError } = await supabase
-          .from(QUIERO_JUGAR_OPEN_MATCHES_VIEW)
-          .select('id, nombre, fecha, hora, sede, modalidad, cupo_jugadores, tipo_partido')
-          .eq('creado_por', currentUserId)
-          .order('kickoff_at', { ascending: true });
+        const { data: myPlayerRows, error: myPlayerRowsError } = await supabase
+          .from('jugadores')
+          .select('partido_id, usuario_id')
+          .eq('usuario_id', currentUserId);
+
+        if (myPlayerRowsError) throw myPlayerRowsError;
+
+        const { data: myAdminRows, error: myAdminRowsError } = await supabase
+          .from('partidos')
+          .select('id')
+          .eq('creado_por', currentUserId);
+
+        if (myAdminRowsError) throw myAdminRowsError;
+
+        const myMatchIds = Array.from(new Set([
+          ...(myPlayerRows || []).map((row) => row.partido_id),
+          ...(myAdminRows || []).map((row) => row.id),
+        ].filter(Boolean)));
+
+        if (myMatchIds.length === 0) {
+          if (cancelled) return;
+          setMatches([]);
+          return;
+        }
+
+        const { data: userMatches, error: matchesError } = await supabase
+          .from('partidos')
+          .select('id, nombre, fecha, hora, sede, modalidad, cupo_jugadores, tipo_partido, creado_por, estado, deleted_at, survey_status, result_status, finished_at, player_invites_enabled')
+          .in('id', myMatchIds)
+          .order('fecha', { ascending: true })
+          .order('hora', { ascending: true });
 
         if (matchesError) throw matchesError;
 
-        const matchIds = (adminMatches || []).map((match) => match?.id).filter(Boolean);
+        const matchIds = (userMatches || []).map((match) => match?.id).filter(Boolean);
         let playerRows = [];
         if (matchIds.length > 0) {
           const { data, error } = await supabase
@@ -165,25 +227,35 @@ const InviteGroupToMatchModal = ({
           playerRows = data || [];
         }
 
-        const nextMatches = (adminMatches || [])
+        const nextMatches = (userMatches || [])
           .map((match) => {
+            const permission = resolvePlayerInvitePermission({
+              match,
+              currentUserId,
+              membershipRows: myPlayerRows || [],
+            });
+            if (permission.inviteStatus === 'match_closed') return null;
+
             const playersInMatch = playerRows.filter((row) => row?.partido_id === match.id);
             const starterCapacity = Number(match?.cupo_jugadores || 20);
             const maxRosterSlots = starterCapacity > 0 ? starterCapacity + 4 : 0;
             const isRosterFull = maxRosterSlots > 0 && playersInMatch.length >= maxRosterSlots;
             const isGroupAlreadyInvited = readCachedInvitedGroupIds(match.id).has(String(group?.id || '').trim());
-            const inviteStatus = isGroupAlreadyInvited
-              ? 'group_already_invited'
-              : (isRosterFull ? 'roster_full' : 'available');
+            let inviteStatus = 'available';
+            if (!permission.canInvite) inviteStatus = permission.inviteStatus;
+            else if (isGroupAlreadyInvited) inviteStatus = 'group_already_invited';
+            else if (isRosterFull) inviteStatus = 'roster_full';
 
             return {
               ...match,
               jugadores_count: playersInMatch.length,
+              invitePermission: permission,
               inviteStatus,
-              canInvite: inviteStatus === 'available',
+              canInvite: permission.canInvite && inviteStatus === 'available',
               fecha_display: match?.fecha ? formatLocalDateShort(match.fecha) : '',
             };
           })
+          .filter(Boolean)
           .sort((left, right) => {
             if (left.canInvite === right.canInvite) return 0;
             return left.canInvite ? -1 : 1;
@@ -227,14 +299,7 @@ const InviteGroupToMatchModal = ({
     }
 
     if (!selectedMatch?.canInvite) {
-      if (selectedMatch?.inviteStatus === 'group_already_invited') {
-        showGroupAlreadyInvitedNotice(selectedMatch?.nombre);
-        return;
-      }
-      showInviteNotice({
-        title: 'Partido sin cupos',
-        message: `Ya no hay cupos disponibles en "${selectedMatch?.nombre || 'este partido'}".`,
-      });
+      showMatchUnavailableNotice(selectedMatch);
       return;
     }
 
@@ -443,7 +508,11 @@ const InviteGroupToMatchModal = ({
                 isSelected={String(selectedMatchId) === String(match.id)}
                 onSelect={() => {
                   if (inviting) return;
-                  setSelectedMatchId(match.id);
+                  if (match.canInvite) {
+                    setSelectedMatchId(match.id);
+                    return;
+                  }
+                  showMatchUnavailableNotice(match);
                 }}
                 inviteStatus={match?.inviteStatus}
               />

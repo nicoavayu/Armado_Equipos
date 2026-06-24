@@ -54,6 +54,21 @@ const INVITE_STATUS_META = {
         tone: 'bg-[rgba(20,16,41,0.85)] text-white/65 border border-[rgba(148,134,255,0.2)]',
         helper: 'La nómina del partido ya está completa.',
     },
+    player_invites_disabled: {
+        label: 'Sólo organizador',
+        tone: 'bg-[rgba(20,16,41,0.85)] text-white/65 border border-[rgba(148,134,255,0.2)]',
+        helper: 'El organizador no habilitó invitaciones de jugadores.',
+    },
+    match_closed: {
+        label: 'Cerrado',
+        tone: 'bg-[rgba(20,16,41,0.85)] text-white/65 border border-[rgba(148,134,255,0.2)]',
+        helper: 'Este partido ya no recibe invitaciones.',
+    },
+    not_in_match: {
+        label: 'Sin permiso',
+        tone: 'bg-[rgba(20,16,41,0.85)] text-white/65 border border-[rgba(148,134,255,0.2)]',
+        helper: 'Sólo jugadores confirmados del partido pueden invitar.',
+    },
 };
 
 const MatchSelectionCard = ({

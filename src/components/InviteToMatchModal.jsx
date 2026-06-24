@@ -10,13 +10,13 @@ import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { showGlobalNotice } from '../utils/globalNoticeModal';
 import { requestImmediatePushDispatchSafe } from '../services/pushDispatchService';
 import { track } from '../utils/monitoring/analytics';
-import { QUIERO_JUGAR_OPEN_MATCHES_VIEW } from '../services/db/openMatches';
 import {
     buildInviteStateByMatch,
     EMPTY_MATCH_INVITE_STATE,
     normalizeSendMatchInviteResult,
     resolveNotificationMatchIdText,
 } from '../utils/matchInviteState';
+import { resolvePlayerInvitePermission } from '../utils/matchInvitePermissions';
 
 const SECTION_TITLE_CLASS = 'font-oswald text-[clamp(16px,4.4vw,20px)] font-semibold leading-tight tracking-[0.01em] text-white';
 const PRIMARY_ACTION_BUTTON_CLASS = 'w-full min-h-[44px] px-4 py-2.5 rounded-none border border-[#7d5aff] bg-[#6a43ff] text-white font-bebas text-base tracking-[0.01em] transition-all inline-flex items-center justify-center gap-2 hover:bg-[#7550ff] active:opacity-95 shadow-[0_0_14px_rgba(106,67,255,0.3)] disabled:bg-[rgba(106,67,255,0.55)] disabled:border-[rgba(125,90,255,0.5)] disabled:text-white/40 disabled:shadow-none disabled:cursor-not-allowed';
@@ -41,6 +41,30 @@ const showMatchAvailabilityNotice = (match, targetName) => {
         showInviteNotice({
             title: 'Partido sin cupos',
             message: `Ya no hay cupos disponibles en "${match?.nombre || 'este partido'}".`,
+        });
+        return;
+    }
+
+    if (match?.inviteStatus === 'player_invites_disabled') {
+        showInviteNotice({
+            title: 'Sólo el organizador puede invitar',
+            message: 'El organizador no habilitó invitaciones de jugadores para este partido.',
+        });
+        return;
+    }
+
+    if (match?.inviteStatus === 'match_closed') {
+        showInviteNotice({
+            title: 'Partido cerrado',
+            message: `"${match?.nombre || 'Este partido'}" ya no recibe invitaciones.`,
+        });
+        return;
+    }
+
+    if (match?.inviteStatus === 'not_in_match') {
+        showInviteNotice({
+            title: 'No formás parte del partido',
+            message: 'Sólo jugadores confirmados del partido pueden invitar.',
         });
         return;
     }
@@ -98,6 +122,14 @@ const handleInviteRpcError = (error) => {
         notifyBlockingError('El partido no está abierto para invitaciones en este momento.');
         return;
     }
+    if (rawMessage.includes('player_invites_disabled')) {
+        notifyBlockingError('El organizador no habilitó invitaciones de jugadores.');
+        return;
+    }
+    if (rawMessage.includes('match_not_open_for_invites')) {
+        notifyBlockingError('Este partido ya no recibe invitaciones.');
+        return;
+    }
     if (rawMessage.includes('guest_direct_invite_forbidden')) {
         notifyBlockingError('Solo el organizador puede enviar esta invitación directa.');
         return;
@@ -141,7 +173,7 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
 
             const { data: myPlayerRows, error: myPlayerRowsError } = await supabase
                 .from('jugadores')
-                .select('partido_id')
+                .select('partido_id, usuario_id')
                 .eq('usuario_id', currentUserId);
 
             if (myPlayerRowsError) throw myPlayerRowsError;
@@ -170,10 +202,11 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
             const clearedIds = new Set((clearedRows || []).map((r) => String(r.partido_id)));
 
             const { data: partidosData, error: partidosError } = await supabase
-                .from(QUIERO_JUGAR_OPEN_MATCHES_VIEW)
-                .select('id, nombre, fecha, hora, sede, modalidad, cupo_jugadores, tipo_partido, creado_por, codigo')
+                .from('partidos')
+                .select('id, nombre, fecha, hora, sede, modalidad, cupo_jugadores, tipo_partido, creado_por, codigo, estado, deleted_at, survey_status, result_status, finished_at, player_invites_enabled, falta_jugadores')
                 .in('id', myMatchIds)
-                .order('kickoff_at', { ascending: true });
+                .order('fecha', { ascending: true })
+                .order('hora', { ascending: true });
 
             if (partidosError) throw partidosError;
 
@@ -229,6 +262,13 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
                     return true;
                 })
                 .map((match) => {
+                    const permission = resolvePlayerInvitePermission({
+                        match,
+                        currentUserId,
+                        membershipRows: myPlayerRows || [],
+                    });
+                    if (permission.inviteStatus === 'match_closed') return null;
+
                     const playersInMatch = (jugadoresData || []).filter((j) => j.partido_id === match.id);
                     const isParticipating = playersInMatch.some((j) => j.usuario_id === targetUserId);
                     if (isParticipating) return null;
@@ -238,16 +278,18 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
                     const maxRosterSlots = starterCapacity > 0 ? starterCapacity + 4 : 0;
                     const isRosterFull = maxRosterSlots > 0 && playersInMatch.length >= maxRosterSlots;
                     let inviteStatus = 'available';
-                    if (inviteState.hasPendingInvite) inviteStatus = 'already_pending';
+                    if (!permission.canInvite) inviteStatus = permission.inviteStatus;
+                    else if (inviteState.hasPendingInvite) inviteStatus = 'already_pending';
                     else if (isRosterFull) inviteStatus = 'roster_full';
 
                     return {
                         ...match,
                         jugadores_count: playersInMatch.length,
                         inviteState,
+                        invitePermission: permission,
                         isRosterFull,
                         inviteStatus,
-                        canInvite: inviteStatus === 'available',
+                        canInvite: permission.canInvite && inviteStatus === 'available',
                         fecha_display: formatLocalDateShort(match.fecha),
                     };
                 })
