@@ -7,7 +7,6 @@ import { updateProfile, calculateProfileCompletion, supabase } from '../supabase
 import { friendlyError } from '../utils/friendlyError';
 import { prepareImageForUpload } from '../utils/imageUpload';
 import ProfileCard from './ProfileCard';
-import { APP_PAGE_TITLE_TREATMENT_CLASS } from './PageTitle';
 import ConfirmModal from './ConfirmModal';
 import InlineNotice from './ui/InlineNotice';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
@@ -1506,9 +1505,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
         {/* Right Side - Edit Menu */}
         <div className="flex-1 flex flex-col bg-white/5 min-h-0">
           <div className="p-[12px_16px] md:p-[20px_30px] border-b border-white/20 flex justify-between items-center">
-            <h2 className={`${APP_PAGE_TITLE_TREATMENT_CLASS} text-left`}>
-              Editar Perfil
-            </h2>
+            <h2 className="text-white text-xl md:text-2xl font-semibold font-oswald m-0">Editar Perfil</h2>
             <button
               className="bg-transparent border-none text-white text-[32px] cursor-pointer w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/20 transition-colors"
               onClick={onClose}
