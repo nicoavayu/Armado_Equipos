@@ -36,6 +36,45 @@ const swipe = (target, { pointerId = 1, from = 220, to, fromY = 20, toY = 22 }) 
   });
 };
 
+const androidWebViewSwipe = (target) => {
+  firePointerEvent(target, 'pointerdown', {
+    pointerId: 3,
+    clientX: 220,
+    clientY: 20,
+    timeStamp: 0,
+  });
+  firePointerEvent(target, 'pointermove', {
+    pointerId: 3,
+    clientX: 190,
+    clientY: 20,
+    timeStamp: 20,
+  });
+  firePointerEvent(target, 'lostpointercapture', {
+    pointerId: 3,
+    clientX: 170,
+    clientY: 20,
+    timeStamp: 30,
+  });
+  firePointerEvent(window, 'pointermove', {
+    pointerId: 3,
+    clientX: 120,
+    clientY: 20,
+    timeStamp: 50,
+  });
+  firePointerEvent(window, 'pointermove', {
+    pointerId: 3,
+    clientX: 40,
+    clientY: 20,
+    timeStamp: 70,
+  });
+  firePointerEvent(window, 'pointerup', {
+    pointerId: 3,
+    clientX: 40,
+    clientY: 20,
+    timeStamp: 90,
+  });
+};
+
 const verticalDrag = (target) => {
   firePointerEvent(target, 'pointerdown', {
     pointerId: 2,
@@ -102,6 +141,18 @@ describe('SwipeDismissibleActivityItem', () => {
     expect(row.parentElement).toHaveStyle('transform: translate3d(0px, 0, 0) rotate(0deg)');
   });
 
+  test('half-width swipe returns instead of dismissing', () => {
+    const onDismiss = jest.fn();
+    render(<SingleItemHarness onDismiss={onDismiss} />);
+
+    swipe(screen.getByRole('button', { name: /nueva solicitud/i }), {
+      from: 240,
+      to: 80,
+    });
+
+    expect(onDismiss).not.toHaveBeenCalled();
+  });
+
   test('sufficient left swipe dismisses directly', () => {
     const onDismiss = jest.fn();
     render(<SingleItemHarness onDismiss={onDismiss} />);
@@ -116,6 +167,15 @@ describe('SwipeDismissibleActivityItem', () => {
     render(<SingleItemHarness onDismiss={onDismiss} />);
 
     swipe(screen.getByRole('button', { name: /nueva solicitud/i }), { from: 40, to: 220 });
+
+    expect(onDismiss).toHaveBeenCalledWith('activity-one');
+  });
+
+  test('keeps tracking after Android WebView drops pointer capture', () => {
+    const onDismiss = jest.fn();
+    render(<SingleItemHarness onDismiss={onDismiss} />);
+
+    androidWebViewSwipe(screen.getByRole('button', { name: /nueva solicitud/i }));
 
     expect(onDismiss).toHaveBeenCalledWith('activity-one');
   });

@@ -1,7 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
-const DISMISS_THRESHOLD_RATIO = 0.45;
-const DISMISS_THRESHOLD_MAX = 140;
+const DISMISS_THRESHOLD_RATIO = 0.55;
+const DISMISS_THRESHOLD_MAX = 220;
 const INTENT_THRESHOLD = 12;
 const VERTICAL_INTENT_THRESHOLD = 10;
 const HORIZONTAL_INTENT_RATIO = 1.35;
@@ -163,14 +163,6 @@ const SwipeDismissibleActivityItem = ({
       gesture.moved = true;
       blockClickRef.current = true;
       setIsDragging(true);
-
-      if (typeof event.currentTarget.setPointerCapture === 'function') {
-        try {
-          event.currentTarget.setPointerCapture(event.pointerId);
-        } catch {
-          // Some WebViews can throw if capture was already released.
-        }
-      }
     }
 
     if (gesture.mode !== 'horizontal') return;
@@ -192,7 +184,7 @@ const SwipeDismissibleActivityItem = ({
       const threshold = getDismissThreshold(gesture.width);
       const shouldDismiss = (
         Math.abs(dx) >= threshold
-        || (Math.abs(dx) >= threshold * 0.85 && Math.abs(velocity) > 0.9)
+        || (Math.abs(dx) >= threshold * 0.95 && Math.abs(velocity) > 1)
       );
 
       blockClickRef.current = true;
@@ -231,6 +223,18 @@ const SwipeDismissibleActivityItem = ({
     blockClickRef.current = false;
   };
 
+  useEffect(() => {
+    window.addEventListener('pointermove', handlePointerMove, { passive: false });
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerCancel);
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerCancel);
+    };
+  });
+
   return (
     <div
       ref={rootRef}
@@ -245,10 +249,6 @@ const SwipeDismissibleActivityItem = ({
       <div
         className="relative"
         onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerCancel}
-        onLostPointerCapture={handlePointerCancel}
         onClickCapture={handleClickCapture}
         style={{
           touchAction: disabled ? 'auto' : 'pan-y',
