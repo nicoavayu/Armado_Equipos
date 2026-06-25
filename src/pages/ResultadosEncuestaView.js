@@ -8,6 +8,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import PageLoadingState from '../components/PageLoadingState';
 import ProfileCard from '../components/ProfileCard';
 import StoryLikeCarousel from '../components/StoryLikeCarousel';
+import { APP_PAGE_TITLE_BASE_CLASS } from '../components/PageTitle';
 import { ensureAwards } from '../services/awardsService';
 import { ensureSurveyWindowOpen } from '../services/surveyCompletionService';
 import { listMatchNoShowSummary } from '../services/db/penalties';
@@ -2450,7 +2451,7 @@ const ResultadosEncuestaView = () => {
     return (
       <div className="min-h-[100dvh] w-screen p-0 flex flex-col" style={{ background: 'var(--app-bg-gradient)' }}>
         <div className="w-[90vw] max-w-[720px] mt-[70px] mx-auto py-8 px-5 bg-[linear-gradient(165deg,rgba(48,38,98,0.55),rgba(18,14,38,0.96))] border border-[rgba(148,134,255,0.16)] shadow-elev-2 backdrop-blur-md rounded-[20px] md:w-full md:mt-12 md:shadow-none md:rounded-none relative mb-20 text-center">
-          <h1 className="text-[30px] md:text-4xl leading-[1.05] text-white text-center mb-5 tracking-[0.01em] font-oswald font-semibold">
+          <h1 className={`${APP_PAGE_TITLE_BASE_CLASS} mb-5`}>
             Resultados no disponibles
           </h1>
           <p className="text-gray-300 text-lg mb-8">
@@ -2559,7 +2560,7 @@ const ResultadosEncuestaView = () => {
     return (
       <div className="min-h-[100dvh] w-screen p-0 flex flex-col" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%)' }}>
         <div className="w-[90vw] max-w-[720px] mt-[70px] mx-auto py-8 px-5 bg-card dark:bg-[#1a1a1a] shadow-fifa-card rounded-[20px] md:w-full md:mt-12 md:shadow-none md:rounded-none relative mb-20 text-center">
-          <h1 className="text-[30px] md:text-4xl leading-[1.05] text-white text-center mb-5 tracking-[0.01em] font-oswald font-semibold">
+          <h1 className={`${APP_PAGE_TITLE_BASE_CLASS} mb-5`}>
             {forcedAwardsFallback.title}
           </h1>
           <p className="text-gray-300 text-lg mb-8">
@@ -2595,7 +2596,7 @@ const ResultadosEncuestaView = () => {
 
         <div className="text-center mb-8">
           <span className="section-eyebrow">Post partido</span>
-          <h1 className="text-[28px] md:text-4xl leading-[1.05] text-white text-center tracking-[0.01em] font-oswald font-bold m-0">Resultados de la encuesta</h1>
+          <h1 className={APP_PAGE_TITLE_BASE_CLASS}>Resultados de la encuesta</h1>
         </div>
 
         {/* Partido Info */}

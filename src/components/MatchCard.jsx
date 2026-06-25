@@ -101,9 +101,13 @@ const MatchCard = ({
     const isChallengeCard = String(originBadgeLabel || '').toLowerCase().includes('desafio');
     const cardToneClass = isChallengeCard
         ? 'bg-[radial-gradient(360px_180px_at_12%_-30%,rgba(236,0,125,0.14),transparent_70%),linear-gradient(165deg,rgba(56,44,116,0.82),rgba(22,17,46,0.95))]'
+        : isPostMatch
+            ? 'bg-[radial-gradient(360px_180px_at_12%_-30%,rgba(255,88,120,0.16),transparent_72%),linear-gradient(165deg,rgba(72,35,62,0.74),rgba(22,16,42,0.96))]'
         : 'bg-[radial-gradient(360px_180px_at_12%_-30%,rgba(139,92,255,0.18),transparent_70%),linear-gradient(165deg,rgba(48,38,98,0.72),rgba(20,16,41,0.94))]';
     const accentEdgeClass = isChallengeCard
         ? 'before:bg-[linear-gradient(180deg,#ec007d,rgba(236,0,125,0.1))]'
+        : isPostMatch
+            ? 'before:bg-[linear-gradient(180deg,#ff5878,rgba(255,88,120,0.08))]'
         : 'before:bg-[linear-gradient(180deg,#8b5cff,rgba(139,92,255,0.08))]';
     const generoLabel = useTeamMatchPresentation
         ? (partido?.genero_partido || 'Masculino')
@@ -119,9 +123,10 @@ const MatchCard = ({
     return (
         <div
             onClick={onSelect}
-            className={`relative ${cardToneClass} rounded-card p-4 pl-5 mb-3 border overflow-hidden transition-all duration-200 shadow-elev-2 sm:p-3.5 sm:pl-4 cursor-pointer
+            data-post-match={isPostMatch ? 'true' : undefined}
+            className={`relative ${isPostMatch ? 'match-card-post-match' : ''} ${cardToneClass} rounded-card p-4 pl-5 mb-3 border overflow-hidden transition-all duration-200 shadow-elev-2 sm:p-3.5 sm:pl-4 cursor-pointer
       before:content-[''] before:absolute before:left-0 before:top-0 before:bottom-0 before:w-[3px] ${accentEdgeClass}
-      ${isFinished ? 'border-white/[0.06] before:opacity-40' : 'border-[rgba(148,134,255,0.16)]'}
+      ${isPostMatch ? 'border-[#ff5878]/24 ring-1 ring-[#ff5878]/10 before:opacity-90 shadow-[0_14px_36px_rgba(5,3,16,0.52),0_0_22px_rgba(255,88,120,0.10),inset_0_1px_0_rgba(255,255,255,0.06)]' : isFinished ? 'border-white/[0.06] before:opacity-40' : 'border-[rgba(148,134,255,0.16)]'}
       ${isSelected ? 'border-[#ec007d]/80 ring-1 ring-[#ec007d]/45' : 'hover:brightness-[1.05] hover:border-[rgba(148,134,255,0.42)] hover:shadow-[0_12px_32px_rgba(5,3,16,0.5),0_0_20px_rgba(106,67,255,0.16)]'}
       ${primaryAction ? '' : 'active:scale-[0.985]'}
     `}
@@ -147,8 +152,8 @@ const MatchCard = ({
                 </div>
                 <div className="flex items-center gap-2">
                     {isPostMatch ? (
-                        <div className="border border-[#8b5cff]/50 bg-[#8b5cff]/12 text-[#cfc4ff] px-2.5 py-1 rounded-full text-[11px] font-bold whitespace-nowrap flex items-center gap-1">
-                            Post partido
+                        <div className="border border-[#ff5878]/45 bg-[#ff5878]/12 text-[#ffb4c3] px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-[0.06em] whitespace-nowrap flex items-center gap-1">
+                            POST PARTIDO
                         </div>
                     ) : isFinished ? (
                         <div className="border border-[#22c55e]/45 bg-[#22c55e]/12 text-[#86efac] px-2.5 py-1 rounded-full text-[11px] font-bold whitespace-nowrap flex items-center gap-1">

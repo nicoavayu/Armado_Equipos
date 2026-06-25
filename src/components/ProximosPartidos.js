@@ -28,6 +28,7 @@ import {
   resolvePaymentAmount,
   formatPaymentAmount,
 } from '../utils/paymentStatus';
+import { buildMyMatchSections } from '../utils/myMatchesSections';
 
 import MatchCard from './MatchCard';
 
@@ -141,6 +142,15 @@ const isCancelledChallengeStatus = (statusValue) => {
 };
 
 const EMPTY_STATE_TITLE_CLASS = 'font-oswald text-[clamp(18px,5.6vw,22px)] font-semibold leading-tight text-white';
+
+const MyMatchesSectionHeader = ({ title, tone }) => (
+  <div className={`my-matches-section-heading flex items-center gap-3 px-1 pt-1 pb-2 ${tone === 'post-match' ? 'my-matches-section-heading--post' : ''}`}>
+    <span className={`font-oswald text-[11px] font-semibold uppercase leading-none tracking-[0.16em] ${tone === 'post-match' ? 'text-[#ffb4c3]' : 'text-[#c8baff]'}`}>
+      {title}
+    </span>
+    <span className={`h-px flex-1 ${tone === 'post-match' ? 'bg-[linear-gradient(90deg,rgba(255,88,120,0.44),rgba(139,92,255,0.12),transparent)]' : 'bg-[linear-gradient(90deg,rgba(139,92,255,0.44),rgba(236,0,125,0.16),transparent)]'}`} aria-hidden="true" />
+  </div>
+);
 
 const ProximosPartidos = ({ onClose }) => {
   const { user } = useAuth();
@@ -1163,22 +1173,6 @@ const ProximosPartidos = ({ onClose }) => {
     return () => document.removeEventListener('click', onDocClick);
   }, []);
 
-  const getSortedPartidos = () => {
-    const partidosCopy = [...partidos];
-    // Sort by temporal proximity (earliest upcoming first)
-    return partidosCopy.sort((a, b) => {
-      const dateA = a?.source_type === 'team_match'
-        ? (a?.scheduled_at ? new Date(a.scheduled_at) : null)
-        : parseLocalDateTime(a.fecha, a.hora);
-      const dateB = b?.source_type === 'team_match'
-        ? (b?.scheduled_at ? new Date(b.scheduled_at) : null)
-        : parseLocalDateTime(b.fecha, b.hora);
-      const ta = dateA && !Number.isNaN(dateA.getTime()) ? dateA.getTime() : Number.MAX_SAFE_INTEGER;
-      const tb = dateB && !Number.isNaN(dateB.getTime()) ? dateB.getTime() : Number.MAX_SAFE_INTEGER;
-      return ta - tb;
-    });
-  };
-
   // Una card es "post partido" cuando es un partido legacy (no desafío) ya
   // empezado. Los desafíos / team_matches conservan el comportamiento actual.
   const isPostMatchCandidate = (partido) => (
@@ -1254,11 +1248,49 @@ const ProximosPartidos = ({ onClose }) => {
     };
   };
 
-  const visiblePartidos = getSortedPartidos().filter((partido) => {
-    if (!isMatchFinished(partido)) return true;
-    if (!isPostMatchCandidate(partido)) return false; // desafío finalizado: comportamiento actual
-    return isPostMatchVisible(partido);
+  const matchSections = buildMyMatchSections(partidos, {
+    isMatchFinished,
+    isPostMatchCandidate,
+    isPostMatchVisible,
   });
+  const hasVisiblePartidos = matchSections.length > 0;
+
+  const renderMatchCard = (partido) => {
+    const matchFinished = isMatchFinished(partido);
+    const isPostMatch = matchFinished && isPostMatchCandidate(partido);
+    const postMatchInfo = isPostMatch ? buildPostMatchInfo(partido) : null;
+    const primaryCta = getPrimaryCta(partido);
+
+    return (
+      <MatchCard
+        key={partido.id}
+        partido={{
+          ...partido,
+          fecha_display: partido?.fecha ? formatDate(partido.fecha) : 'A coordinar',
+        }}
+        isFinished={matchFinished}
+        isPostMatch={isPostMatch}
+        postMatchInfo={postMatchInfo}
+        userRole={partido.userRole}
+        userJoined={partido.userJoined}
+        onMenuToggle={(id) => setMenuOpenId((prev) => prev === id ? null : id)}
+        isMenuOpen={menuOpenId === partido.id}
+        onAbandon={partido?.source_type === 'team_match' ? null : handleAbandonMatch}
+        onCancel={partido?.source_type === 'team_match' ? (partido?.can_manage ? handleCancelMatch : null) : handleCancelMatch}
+        onClear={partido?.source_type === 'team_match' ? null : _handleClearMatch}
+        primaryAction={isPostMatch ? null : {
+          label: primaryCta.label,
+          disabled: primaryCta.disabled,
+          className: getPrimaryCtaButtonClass(primaryCta.kind),
+          onClick: (e) => {
+            if (typeof primaryCta.onClick === 'function') {
+              primaryCta.onClick(e);
+            }
+          }
+        }}
+      />
+    );
+  };
 
 
   return (
@@ -1277,7 +1309,7 @@ const ProximosPartidos = ({ onClose }) => {
           <div className="text-center py-[60px] px-5">
             <LoadingSpinner size="medium" fullScreen />
           </div>
-        ) : visiblePartidos.length === 0 ? (
+        ) : !hasVisiblePartidos ? (
           <div className="w-full max-w-[500px] mx-auto mt-[70px]">
             <EmptyStateCard
               icon={CalendarDays}
@@ -1290,43 +1322,22 @@ const ProximosPartidos = ({ onClose }) => {
         ) : (
           <>
             {/* Sorting controls removed: always sorted by proximity */}
-            <div className="flex flex-col gap-[1px] w-full box-border">
-              {visiblePartidos.map((partido) => {
-                const matchFinished = isMatchFinished(partido);
-                const isPostMatch = matchFinished && isPostMatchCandidate(partido);
-                const postMatchInfo = isPostMatch ? buildPostMatchInfo(partido) : null;
-                const primaryCta = getPrimaryCta(partido);
-
-                return (
-                  <MatchCard
-                    key={partido.id}
-                    partido={{
-                      ...partido,
-                      fecha_display: partido?.fecha ? formatDate(partido.fecha) : 'A coordinar',
-                    }}
-                    isFinished={matchFinished}
-                    isPostMatch={isPostMatch}
-                    postMatchInfo={postMatchInfo}
-                    userRole={partido.userRole}
-                    userJoined={partido.userJoined}
-                    onMenuToggle={(id) => setMenuOpenId((prev) => prev === id ? null : id)}
-                    isMenuOpen={menuOpenId === partido.id}
-                    onAbandon={partido?.source_type === 'team_match' ? null : handleAbandonMatch}
-                    onCancel={partido?.source_type === 'team_match' ? (partido?.can_manage ? handleCancelMatch : null) : handleCancelMatch}
-                    onClear={partido?.source_type === 'team_match' ? null : _handleClearMatch}
-                    primaryAction={isPostMatch ? null : {
-                      label: primaryCta.label,
-                      disabled: primaryCta.disabled,
-                      className: getPrimaryCtaButtonClass(primaryCta.kind),
-                      onClick: (e) => {
-                        if (typeof primaryCta.onClick === 'function') {
-                          primaryCta.onClick(e);
-                        }
-                      }
-                    }}
-                  />
-                );
-              })}
+            <div className="my-matches-sections flex w-full max-w-[500px] flex-col gap-4 box-border mx-auto">
+              {matchSections.map((section) => (
+                <section
+                  key={section.key}
+                  className={`my-matches-section ${section.tone === 'post-match' ? 'my-matches-section--post' : ''}`}
+                  aria-labelledby={`my-matches-section-${section.key}`}
+                >
+                  <MyMatchesSectionHeader title={section.title} tone={section.tone} />
+                  <h3 id={`my-matches-section-${section.key}`} className="sr-only">
+                    {section.title}
+                  </h3>
+                  <div className="flex flex-col gap-[1px] w-full box-border">
+                    {section.partidos.map(renderMatchCard)}
+                  </div>
+                </section>
+              ))}
             </div>
           </>
         )}

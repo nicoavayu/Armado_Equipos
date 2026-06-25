@@ -97,3 +97,33 @@ describe('MatchCard "Limpiar partido" contract', () => {
     expect(screen.queryByText('Limpiar partido')).not.toBeInTheDocument();
   });
 });
+
+describe('MatchCard post-match presentation', () => {
+  test('uses a differentiated post-match class and keeps survey/payment actions working', () => {
+    const onSurvey = jest.fn();
+    const onPayment = jest.fn();
+
+    const { container } = render(
+      <MatchCard
+        partido={{ ...basePartido, id: 88, source_type: 'legacy_match' }}
+        isFinished
+        isPostMatch
+        postMatchInfo={{
+          encuestaLabel: 'Encuesta pendiente',
+          pagoLabel: 'Pago pendiente · $1.500',
+          encuestaAction: { label: 'Encuesta', onClick: onSurvey },
+          pagosAction: { label: 'Pagar', primary: true, onClick: onPayment },
+        }}
+      />,
+    );
+
+    expect(screen.getByText('POST PARTIDO')).toBeInTheDocument();
+    expect(container.querySelector('.match-card-post-match')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Encuesta' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Pagar' }));
+
+    expect(onSurvey).toHaveBeenCalledTimes(1);
+    expect(onPayment).toHaveBeenCalledTimes(1);
+  });
+});

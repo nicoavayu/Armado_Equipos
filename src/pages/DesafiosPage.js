@@ -6,7 +6,7 @@ const DesafiosPage = () => {
   return (
     <PageTransition>
       <QuieroJugarEquipos
-        pageTitle="DESAFIOS"
+        pageTitle="DESAFÍOS"
         secondaryTabsTop={80}
       />
     </PageTransition>
