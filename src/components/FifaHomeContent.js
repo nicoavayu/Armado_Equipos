@@ -17,8 +17,14 @@ import ProximosPartidos from './ProximosPartidos';
 import NotificationsBell from './NotificationsBell';
 import HomeWelcomeCard from './HomeWelcomeCard';
 import QuickAccessRail from './QuickAccessRail';
+import SwipeDismissibleActivityItem from './SwipeDismissibleActivityItem';
 import { useRefreshOnVisibility } from '../hooks/useRefreshOnVisibility';
 import { prefetchRoute } from '../utils/routePrefetch';
+import {
+  dismissRecentActivityItem,
+  filterDismissedRecentActivityItems,
+  getRecentActivityItemKey,
+} from '../utils/recentActivityDismissals';
 
 // Line-style soccer ball icon for the "Partido nuevo" quick-access hero card.
 const SoccerBallIcon = (props) => (
@@ -52,6 +58,7 @@ const severityIconClass = {
 const AWARDS_RING_WINDOW_MS = 24 * 60 * 60 * 1000;
 const HOME_ACTIVE_MATCHES_REFRESH_MS = 60000;
 const HOME_SNAPSHOT_STORAGE_PREFIX = 'home:snapshot:v1:';
+const RECENT_ACTIVITY_DISMISS_EXIT_MS = 240;
 const normalizeNotificationType = (notificationType) => String(notificationType || '').trim().toLowerCase();
 export const isAwardsRingNotificationType = (notificationType) => (
   AWARDS_READY_NOTIFICATION_TYPES.has(normalizeNotificationType(notificationType))
@@ -196,6 +203,8 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
   const [activeMatches, setActiveMatches] = useState([]);
   const [activityLoading, setActivityLoading] = useState(true);
   const [activityItems, setActivityItems] = useState([]);
+  const [openActivityItemKey, setOpenActivityItemKey] = useState(null);
+  const [dismissingActivityKeys, setDismissingActivityKeys] = useState(() => new Set());
   const [showProximosPartidos, setShowProximosPartidos] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [awardsReadyVisibleMatchIds, setAwardsReadyVisibleMatchIds] = useState([]);
@@ -205,6 +214,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
   const activityLoadedRef = useRef(false);
   const activeMatchesRefreshInFlightRef = useRef(false);
   const activeMatchesSignatureRef = useRef(buildActiveMatchesSignature([]));
+  const activityDismissTimeoutsRef = useRef(new Map());
 
   const awardsCandidateNotifs = useMemo(() => {
     const nowTs = Date.now();
@@ -311,6 +321,56 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
     navigate(item.route);
   };
 
+  const handleRequestOpenActivityItem = useCallback((itemKey) => {
+    setOpenActivityItemKey(itemKey);
+  }, []);
+
+  const handleRequestCloseActivityItem = useCallback((itemKey) => {
+    setOpenActivityItemKey((currentItemKey) => (
+      currentItemKey === itemKey ? null : currentItemKey
+    ));
+  }, []);
+
+  const handleDismissActivityItem = useCallback((itemKey) => {
+    const normalizedItemKey = String(itemKey || '').trim();
+    if (!normalizedItemKey) return;
+
+    dismissRecentActivityItem(user?.id, normalizedItemKey);
+    setOpenActivityItemKey(null);
+    setDismissingActivityKeys((currentKeys) => {
+      const nextKeys = new Set(currentKeys);
+      nextKeys.add(normalizedItemKey);
+      return nextKeys;
+    });
+
+    const existingTimeout = activityDismissTimeoutsRef.current.get(normalizedItemKey);
+    if (existingTimeout) {
+      window.clearTimeout(existingTimeout);
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setActivityItems((currentItems) => (
+        filterDismissedRecentActivityItems(currentItems, user?.id)
+          .filter((item) => getRecentActivityItemKey(item) !== normalizedItemKey)
+      ));
+      setDismissingActivityKeys((currentKeys) => {
+        const nextKeys = new Set(currentKeys);
+        nextKeys.delete(normalizedItemKey);
+        return nextKeys;
+      });
+      activityDismissTimeoutsRef.current.delete(normalizedItemKey);
+    }, RECENT_ACTIVITY_DISMISS_EXIT_MS);
+
+    activityDismissTimeoutsRef.current.set(normalizedItemKey, timeoutId);
+  }, [user?.id]);
+
+  useEffect(() => () => {
+    activityDismissTimeoutsRef.current.forEach((timeoutId) => {
+      window.clearTimeout(timeoutId);
+    });
+    activityDismissTimeoutsRef.current.clear();
+  }, []);
+
   useEffect(() => {
     if (!location?.state?.openProximosPartidos) return;
     setShowProximosPartidos(true);
@@ -324,9 +384,14 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
     if (!user?.id) {
       setActiveMatches([]);
       setActivityItems([]);
+      setOpenActivityItemKey(null);
+      setDismissingActivityKeys(new Set());
       setActivityLoading(false);
       return;
     }
+
+    setOpenActivityItemKey(null);
+    setDismissingActivityKeys(new Set());
 
     const snapshot = readHomeSnapshot(user.id);
     if (!snapshot) {
@@ -338,7 +403,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
 
     activeMatchesSignatureRef.current = buildActiveMatchesSignature(snapshot.activeMatches);
     setActiveMatches(snapshot.activeMatches);
-    setActivityItems(snapshot.activityItems);
+    setActivityItems(filterDismissedRecentActivityItems(snapshot.activityItems, user.id));
     activityLoadedRef.current = true;
     setActivityLoading(false);
   }, [user?.id]);
@@ -808,7 +873,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
       });
 
       if (!cancelled) {
-        setActivityItems(items);
+        setActivityItems(filterDismissedRecentActivityItems(items, user.id));
         activityLoadedRef.current = true;
         setActivityLoading(false);
       }
@@ -1030,6 +1095,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
                 data-home-activity-scroll="true"
               >
                 {activityItems.map((item, index) => {
+                  const itemKey = getRecentActivityItemKey(item);
                   const Icon = activityIconMap[item.icon] || Bell;
                   const iconColorClass = severityIconClass[item.severity] || severityIconClass.neutral;
                   const subtitleParts = [item.subtitle];
@@ -1038,10 +1104,18 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
                   const canNavigate = Boolean(item.route);
 
                   return (
-                    <div key={item.id}>
+                    <SwipeDismissibleActivityItem
+                      key={itemKey}
+                      itemKey={itemKey}
+                      isOpen={openActivityItemKey === itemKey}
+                      isDismissing={dismissingActivityKeys.has(itemKey)}
+                      onRequestOpen={handleRequestOpenActivityItem}
+                      onRequestClose={handleRequestCloseActivityItem}
+                      onDismiss={handleDismissActivityItem}
+                    >
                       <button
                         type="button"
-                        disabled={!canNavigate}
+                        aria-disabled={!canNavigate}
                         onClick={() => {
                           if (!canNavigate) return;
                           handleActivityItemClick(item);
@@ -1094,7 +1168,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
                       {index < activityItems.length - 1 && (
                         <div className="h-px bg-white/[0.06] mx-4" />
                       )}
-                    </div>
+                    </SwipeDismissibleActivityItem>
                   );
                 })}
               </div>
