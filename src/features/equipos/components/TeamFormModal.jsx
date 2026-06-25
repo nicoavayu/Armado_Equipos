@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, Loader2 } from 'lucide-react';
 import Modal from '../../../components/Modal';
+import { APP_PAGE_TITLE_TREATMENT_CLASS } from '../../../components/PageTitle';
 import { prepareImageForUpload } from '../../../utils/imageUpload';
 import { notifyBlockingError } from '../../../utils/notifyBlockingError';
 import {
@@ -139,6 +140,7 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
       isOpen={isOpen}
       onClose={onClose}
       title={title}
+      titleClassName={`${APP_PAGE_TITLE_TREATMENT_CLASS} flex-1 pr-3 text-left`}
       className="w-full max-w-[620px] !bg-[#101a35] border border-[rgba(148,134,255,0.28)]"
       classNameContent="p-5"
       footer={(

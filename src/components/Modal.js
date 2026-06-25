@@ -10,6 +10,7 @@ const Modal = ({
   onClose,
   children,
   title,
+  titleClassName = '',
   footer,
   className = '',
   classNameContent = '',
@@ -198,8 +199,10 @@ const Modal = ({
         {hasHeader && (
           <div className={`flex items-center px-5 py-4 border-b border-white/[0.07] shrink-0 ${title ? 'justify-between' : 'justify-end'}`}>
             {title ? (
-              <h2 className="text-white text-[17px] font-bold m-0 tracking-[0.01em] flex items-center gap-2.5">
-                <span aria-hidden="true" className="w-1 h-[18px] rounded-full bg-[linear-gradient(180deg,#ec007d,#8b5cff)] shadow-[0_0_10px_rgba(236,0,125,0.45)] shrink-0" />
+              <h2 className={titleClassName || 'text-white text-[17px] font-bold m-0 tracking-[0.01em] flex items-center gap-2.5'}>
+                {!titleClassName ? (
+                  <span aria-hidden="true" className="w-1 h-[18px] rounded-full bg-[linear-gradient(180deg,#ec007d,#8b5cff)] shadow-[0_0_10px_rgba(236,0,125,0.45)] shrink-0" />
+                ) : null}
                 {title}
               </h2>
             ) : null}

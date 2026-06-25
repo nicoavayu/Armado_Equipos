@@ -1,7 +1,9 @@
 import { MessageCircle } from 'lucide-react';
 import { toSentenceCase } from '../utils/textCase';
 
-export const APP_PAGE_TITLE_TEXT_CLASS = 'app-page-title-text m-0 absolute left-0 top-1/2 w-full -translate-y-1/2 px-[52px] text-center font-oswald text-[clamp(14px,3.8vw,16px)] font-semibold uppercase leading-[1.18] tracking-[0.14em] text-white/90 drop-shadow-[0_2px_12px_rgba(106,67,255,0.36)] whitespace-normal break-words';
+export const APP_PAGE_TITLE_TREATMENT_CLASS = 'app-page-title-text m-0 font-oswald text-[clamp(14px,3.8vw,16px)] font-semibold uppercase leading-[1.18] tracking-[0.14em] text-white/90 drop-shadow-[0_2px_12px_rgba(106,67,255,0.36)] whitespace-normal break-words';
+export const APP_PAGE_TITLE_BASE_CLASS = `${APP_PAGE_TITLE_TREATMENT_CLASS} text-center`;
+export const APP_PAGE_TITLE_TEXT_CLASS = `${APP_PAGE_TITLE_BASE_CLASS} absolute left-0 top-1/2 w-full -translate-y-1/2 px-[52px]`;
 
 /**
  * @param {Object} props

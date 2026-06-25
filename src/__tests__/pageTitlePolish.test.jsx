@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import PageTitle from '../components/PageTitle';
+import Modal from '../components/Modal';
+import PageTitle, { APP_PAGE_TITLE_TREATMENT_CLASS } from '../components/PageTitle';
 
 describe('PageTitle visual polish', () => {
   test('uses the shared Nuevo partido title treatment on screen titles', () => {
@@ -31,5 +32,21 @@ describe('PageTitle visual polish', () => {
 
     expect(screen.getByRole('heading', { name: 'Mis partidos' })).toHaveClass('app-page-title-text');
     expect(screen.getByRole('heading', { name: 'Próximos partidos' })).not.toHaveClass('app-page-title-text');
+  });
+
+  test('allows internal screen titles to reuse the treatment without styling modal body text', () => {
+    render(
+      <Modal
+        isOpen
+        onClose={() => {}}
+        title="Crear equipo"
+        titleClassName={APP_PAGE_TITLE_TREATMENT_CLASS}
+      >
+        <h3>Colores opcionales</h3>
+      </Modal>,
+    );
+
+    expect(screen.getByRole('heading', { name: 'Crear equipo' })).toHaveClass('app-page-title-text');
+    expect(screen.getByRole('heading', { name: 'Colores opcionales' })).not.toHaveClass('app-page-title-text');
   });
 });
