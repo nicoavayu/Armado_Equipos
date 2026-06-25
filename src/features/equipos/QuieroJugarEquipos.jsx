@@ -12,7 +12,7 @@ import { listMyManageableTeams } from '../../services/db/teamChallenges';
 import { useSmartBackNavigation } from '../../hooks/useSmartBackNavigation';
 
 const SUBTABS = [
-  { key: 'desafios', label: 'DESAFIOS' },
+  { key: 'desafios', label: 'DESAFÍOS' },
   { key: 'ranking', label: 'RANKING' },
   { key: 'mis-equipos', label: 'MIS EQUIPOS' },
 ];
@@ -22,7 +22,7 @@ const normalizeEquiposSubtab = (value) => (
 );
 
 const QuieroJugarEquipos = ({
-  pageTitle = 'DESAFIOS',
+  pageTitle = 'DESAFÍOS',
   secondaryTabsTop = 80,
   secondaryTabsDirection = 'right',
   secondaryTabsTransitionKey = 'equipos',

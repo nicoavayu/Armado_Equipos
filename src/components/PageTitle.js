@@ -1,6 +1,8 @@
 import { MessageCircle } from 'lucide-react';
 import { toSentenceCase } from '../utils/textCase';
 
+export const APP_PAGE_TITLE_TEXT_CLASS = 'app-page-title-text m-0 absolute left-0 top-1/2 w-full -translate-y-1/2 px-[52px] text-center font-oswald text-[clamp(14px,3.8vw,16px)] font-semibold uppercase leading-[1.18] tracking-[0.14em] text-white/90 drop-shadow-[0_2px_12px_rgba(106,67,255,0.36)] whitespace-normal break-words';
+
 /**
  * @param {Object} props
  * @param {React.ReactNode} [props.children]
@@ -66,7 +68,7 @@ const PageTitle = ({
             </svg>
           </button>
         )}
-        <h2 className="m-0 font-oswald font-bold text-center text-white absolute top-1/2 left-0 -translate-y-1/2 w-full px-[52px] text-[17px] tracking-[0.08em] uppercase whitespace-normal break-words drop-shadow-[0_2px_10px_rgba(106,67,255,0.35)] md:text-[16px] xs:text-[15px]">
+        <h2 className={APP_PAGE_TITLE_TEXT_CLASS}>
           {normalizedTitle}
         </h2>
 
