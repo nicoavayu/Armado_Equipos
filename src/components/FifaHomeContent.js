@@ -203,7 +203,6 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
   const [activeMatches, setActiveMatches] = useState([]);
   const [activityLoading, setActivityLoading] = useState(true);
   const [activityItems, setActivityItems] = useState([]);
-  const [openActivityItemKey, setOpenActivityItemKey] = useState(null);
   const [dismissingActivityKeys, setDismissingActivityKeys] = useState(() => new Set());
   const [showProximosPartidos, setShowProximosPartidos] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
@@ -321,22 +320,11 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
     navigate(item.route);
   };
 
-  const handleRequestOpenActivityItem = useCallback((itemKey) => {
-    setOpenActivityItemKey(itemKey);
-  }, []);
-
-  const handleRequestCloseActivityItem = useCallback((itemKey) => {
-    setOpenActivityItemKey((currentItemKey) => (
-      currentItemKey === itemKey ? null : currentItemKey
-    ));
-  }, []);
-
   const handleDismissActivityItem = useCallback((itemKey) => {
     const normalizedItemKey = String(itemKey || '').trim();
     if (!normalizedItemKey) return;
 
     dismissRecentActivityItem(user?.id, normalizedItemKey);
-    setOpenActivityItemKey(null);
     setDismissingActivityKeys((currentKeys) => {
       const nextKeys = new Set(currentKeys);
       nextKeys.add(normalizedItemKey);
@@ -384,13 +372,11 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
     if (!user?.id) {
       setActiveMatches([]);
       setActivityItems([]);
-      setOpenActivityItemKey(null);
       setDismissingActivityKeys(new Set());
       setActivityLoading(false);
       return;
     }
 
-    setOpenActivityItemKey(null);
     setDismissingActivityKeys(new Set());
 
     const snapshot = readHomeSnapshot(user.id);
@@ -1107,10 +1093,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
                     <SwipeDismissibleActivityItem
                       key={itemKey}
                       itemKey={itemKey}
-                      isOpen={openActivityItemKey === itemKey}
                       isDismissing={dismissingActivityKeys.has(itemKey)}
-                      onRequestOpen={handleRequestOpenActivityItem}
-                      onRequestClose={handleRequestCloseActivityItem}
                       onDismiss={handleDismissActivityItem}
                     >
                       <button

@@ -146,24 +146,24 @@ const firePointerEvent = (target, type, { pointerId, pointerType = 'touch', clie
   fireEvent(target, event);
 };
 
-const swipeLeft = (target, pointerId = 1) => {
+const swipe = (target, { pointerId = 1, from = 220, to, fromY = 20, toY = 22 }) => {
   firePointerEvent(target, 'pointerdown', {
     pointerId,
     pointerType: 'touch',
-    clientX: 220,
-    clientY: 20,
+    clientX: from,
+    clientY: fromY,
   });
   firePointerEvent(target, 'pointermove', {
     pointerId,
     pointerType: 'touch',
-    clientX: 140,
-    clientY: 22,
+    clientX: to,
+    clientY: toY,
   });
   firePointerEvent(target, 'pointerup', {
     pointerId,
     pointerType: 'touch',
-    clientX: 140,
-    clientY: 22,
+    clientX: to,
+    clientY: toY,
   });
 };
 
@@ -200,19 +200,20 @@ describe('FifaHomeContent recent activity dismiss', () => {
 
     expect(await screen.findByText('Nueva solicitud de amistad')).toBeInTheDocument();
     expect(screen.getByText('Jugás hoy 21:00')).toBeInTheDocument();
+    expect(screen.queryByText(/Eliminar/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Eliminar/i })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /jugás hoy 21:00/i }));
 
     expect(mockNavigate).toHaveBeenCalledWith('/partido-publico/9');
   });
 
-  test('swipe reveal then trash tap removes only the Home activity item and persists it', async () => {
+  test('sufficient left swipe removes only the Home activity item and persists it', async () => {
     await renderHome();
     const firstItem = await screen.findByRole('button', { name: /nueva solicitud de amistad/i });
     jest.useFakeTimers();
 
-    swipeLeft(firstItem);
-    fireEvent.click(screen.getByRole('button', { name: /eliminar de actividad reciente/i }));
+    swipe(firstItem, { to: 40 });
 
     expect(window.localStorage.getItem('arma2_recent_activity_dismissed_user-1')).toBe(
       JSON.stringify(['activity-friend_request-user-2']),
@@ -230,6 +231,27 @@ describe('FifaHomeContent recent activity dismiss', () => {
     expect(mockSupabaseFrom.mock.calls.map(([table]) => table)).not.toContain('notifications');
   });
 
+  test('sufficient right swipe also dismisses and persists', async () => {
+    await renderHome();
+    const firstItem = await screen.findByRole('button', { name: /nueva solicitud de amistad/i });
+    jest.useFakeTimers();
+
+    swipe(firstItem, { from: 40, to: 220 });
+
+    expect(window.localStorage.getItem('arma2_recent_activity_dismissed_user-1')).toBe(
+      JSON.stringify(['activity-friend_request-user-2']),
+    );
+
+    act(() => {
+      jest.advanceTimersByTime(260);
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByText('Nueva solicitud de amistad')).not.toBeInTheDocument();
+    });
+    expect(screen.getByText('Jugás hoy 21:00')).toBeInTheDocument();
+  });
+
   test('does not show dismissed items on a fresh render and hides the correct grouped key', async () => {
     window.localStorage.setItem(
       'arma2_recent_activity_dismissed_user-1',
@@ -242,7 +264,7 @@ describe('FifaHomeContent recent activity dismiss', () => {
     expect(screen.queryByText('Jugás hoy 21:00')).not.toBeInTheDocument();
   });
 
-  test('vertical scroll gesture does not reveal the delete action', async () => {
+  test('vertical scroll gesture does not dismiss recent activity', async () => {
     await renderHome();
     const firstItem = await screen.findByRole('button', { name: /nueva solicitud de amistad/i });
 
@@ -265,17 +287,19 @@ describe('FifaHomeContent recent activity dismiss', () => {
       clientY: 96,
     });
 
-    expect(screen.queryByRole('button', { name: /eliminar de actividad reciente/i })).not.toBeInTheDocument();
+    expect(screen.getByText('Nueva solicitud de amistad')).toBeInTheDocument();
     expect(window.localStorage.getItem('arma2_recent_activity_dismissed_user-1')).toBeNull();
   });
 
-  test('only one recent activity item can be open at a time', async () => {
+  test('short horizontal swipe returns without dismissing or navigating', async () => {
     await renderHome();
+    const firstItem = await screen.findByRole('button', { name: /nueva solicitud de amistad/i });
 
-    swipeLeft(await screen.findByRole('button', { name: /nueva solicitud de amistad/i }), 8);
-    expect(screen.getAllByRole('button', { name: /eliminar de actividad reciente/i })).toHaveLength(1);
+    swipe(firstItem, { pointerId: 8, to: 172 });
+    fireEvent.click(firstItem);
 
-    swipeLeft(screen.getByRole('button', { name: /jugás hoy 21:00/i }), 9);
-    expect(screen.getAllByRole('button', { name: /eliminar de actividad reciente/i })).toHaveLength(1);
+    expect(screen.getByText('Nueva solicitud de amistad')).toBeInTheDocument();
+    expect(window.localStorage.getItem('arma2_recent_activity_dismissed_user-1')).toBeNull();
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 });

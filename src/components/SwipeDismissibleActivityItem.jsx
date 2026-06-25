@@ -1,14 +1,20 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Trash2 } from 'lucide-react';
 
-const ACTION_WIDTH = 88;
-const OPEN_THRESHOLD = 46;
-const INTENT_THRESHOLD = 8;
-const HORIZONTAL_INTENT_RATIO = 1.2;
+const DISMISS_THRESHOLD_RATIO = 0.45;
+const DISMISS_THRESHOLD_MAX = 140;
+const INTENT_THRESHOLD = 12;
+const VERTICAL_INTENT_THRESHOLD = 10;
+const HORIZONTAL_INTENT_RATIO = 1.35;
 const EXIT_FALLBACK_HEIGHT = 104;
+const FALLBACK_WIDTH = 320;
 const MOTION_CURVE = 'cubic-bezier(0.22, 1, 0.36, 1)';
 
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+const getDismissThreshold = (width) => Math.min(
+  (width > 0 ? width : FALLBACK_WIDTH) * DISMISS_THRESHOLD_RATIO,
+  DISMISS_THRESHOLD_MAX,
+);
 
 const isSamePointer = (gesture, event) => (
   gesture.pointerId === null
@@ -44,82 +50,90 @@ const SwipeDismissibleActivityItem = ({
   itemKey,
   children,
   onDismiss,
-  onRequestOpen,
-  onRequestClose,
-  isOpen = false,
   isDismissing = false,
   disabled = false,
 }) => {
   const rootRef = useRef(null);
-  const dragXRef = useRef(null);
   const blockClickRef = useRef(false);
+  const blockClickTimeoutRef = useRef(null);
   const gestureRef = useRef({
     pointerId: null,
     startX: 0,
     startY: 0,
+    startAt: 0,
+    width: FALLBACK_WIDTH,
     mode: 'idle',
-    lastTranslateX: 0,
+    moved: false,
   });
-  const [dragX, setDragXState] = useState(null);
+  const [dragX, setDragX] = useState(0);
+  const [exitX, setExitX] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [measuredHeight, setMeasuredHeight] = useState(EXIT_FALLBACK_HEIGHT);
   const prefersReducedMotion = usePrefersReducedMotion();
-  const isActionVisible = isOpen || isDragging || (dragX !== null && dragX < -1);
-  const translateX = dragX !== null ? dragX : (isOpen ? -ACTION_WIDTH : 0);
-  const transition = prefersReducedMotion || isDragging
+  const activeWidth = rootRef.current?.getBoundingClientRect?.().width || FALLBACK_WIDTH;
+  const dragProgress = Math.min(Math.abs(dragX) / getDismissThreshold(activeWidth), 1);
+  const rotation = isDragging ? clamp(dragX / 90, -1.2, 1.2) : 0;
+  const contentTransform = isDismissing
+    ? `translate3d(${exitX || 0}px, 0, 0)`
+    : `translate3d(${dragX}px, 0, 0) rotate(${rotation}deg)`;
+  const contentTransition = prefersReducedMotion || isDragging
     ? 'none'
-    : `transform 220ms ${MOTION_CURVE}, opacity 160ms ease`;
+    : `transform 220ms ${MOTION_CURVE}, opacity 190ms ease`;
   const wrapperTransition = prefersReducedMotion
     ? 'none'
-    : `max-height 220ms ${MOTION_CURVE}, opacity 160ms ease, transform 200ms ${MOTION_CURVE}`;
-
-  const setDragX = (value) => {
-    dragXRef.current = value;
-    setDragXState(value);
-  };
+    : `max-height 230ms ${MOTION_CURVE}, opacity 190ms ease`;
 
   useLayoutEffect(() => {
     if (!rootRef.current || isDismissing) return;
     setMeasuredHeight(Math.max(rootRef.current.scrollHeight, EXIT_FALLBACK_HEIGHT));
   }, [children, isDismissing]);
 
-  useEffect(() => {
-    if (!isOpen || disabled) return undefined;
+  useEffect(() => () => {
+    if (blockClickTimeoutRef.current) {
+      window.clearTimeout(blockClickTimeoutRef.current);
+    }
+  }, []);
 
-    const handlePointerDownOutside = (event) => {
-      if (rootRef.current?.contains(event.target)) return;
-      onRequestClose?.(itemKey);
-    };
+  const releaseBlockedClickSoon = () => {
+    if (blockClickTimeoutRef.current) {
+      window.clearTimeout(blockClickTimeoutRef.current);
+    }
+    blockClickTimeoutRef.current = window.setTimeout(() => {
+      blockClickRef.current = false;
+      blockClickTimeoutRef.current = null;
+    }, 260);
+  };
 
-    document.addEventListener('pointerdown', handlePointerDownOutside, true);
-    return () => {
-      document.removeEventListener('pointerdown', handlePointerDownOutside, true);
-    };
-  }, [disabled, isOpen, itemKey, onRequestClose]);
-
-  const resetGesture = () => {
+  const resetGesture = ({ keepPosition = false } = {}) => {
     gestureRef.current = {
       pointerId: null,
       startX: 0,
       startY: 0,
+      startAt: 0,
+      width: FALLBACK_WIDTH,
       mode: 'idle',
-      lastTranslateX: 0,
+      moved: false,
     };
     setIsDragging(false);
-    setDragX(null);
+    if (!keepPosition) setDragX(0);
   };
 
   const handlePointerDown = (event) => {
     if (disabled || isDismissing) return;
     if (event.pointerType === 'mouse' && event.button !== 0) return;
 
+    const width = rootRef.current?.getBoundingClientRect?.().width || FALLBACK_WIDTH;
     gestureRef.current = {
       pointerId: event.pointerId,
       startX: event.clientX,
       startY: event.clientY,
+      startAt: event.timeStamp || Date.now(),
+      width,
       mode: 'pending',
-      lastTranslateX: isOpen ? -ACTION_WIDTH : 0,
+      moved: false,
     };
+    setExitX(0);
+    setDragX(0);
   };
 
   const handlePointerMove = (event) => {
@@ -131,20 +145,24 @@ const SwipeDismissibleActivityItem = ({
     const absX = Math.abs(dx);
     const absY = Math.abs(dy);
 
+    if (gesture.mode === 'vertical') return;
+
     if (gesture.mode === 'pending') {
-      if (absY > INTENT_THRESHOLD && absY > absX * 1.1) {
+      if (absY > VERTICAL_INTENT_THRESHOLD && absY > absX * 1.15) {
         gesture.mode = 'vertical';
+        gesture.moved = true;
+        blockClickRef.current = true;
         return;
       }
 
-      if (absX <= INTENT_THRESHOLD || absX <= absY * HORIZONTAL_INTENT_RATIO) {
+      if (absX < INTENT_THRESHOLD || absX < absY * HORIZONTAL_INTENT_RATIO) {
         return;
       }
 
       gesture.mode = 'horizontal';
+      gesture.moved = true;
       blockClickRef.current = true;
       setIsDragging(true);
-      onRequestOpen?.(itemKey);
 
       if (typeof event.currentTarget.setPointerCapture === 'function') {
         try {
@@ -158,59 +176,59 @@ const SwipeDismissibleActivityItem = ({
     if (gesture.mode !== 'horizontal') return;
 
     event.preventDefault();
-    const baseX = isOpen ? -ACTION_WIDTH : 0;
-    const nextTranslateX = clamp(baseX + dx, -ACTION_WIDTH, 0);
-    gesture.lastTranslateX = nextTranslateX;
-    setDragX(nextTranslateX);
+    setDragX(clamp(dx, -gesture.width * 0.95, gesture.width * 0.95));
   };
 
   const handlePointerUp = (event) => {
     const gesture = gestureRef.current;
     if (gesture.mode === 'idle' || !isSamePointer(gesture, event)) return;
 
+    const dx = event.clientX - gesture.startX;
+
     if (gesture.mode === 'horizontal') {
       event.preventDefault();
-      const finalTranslateX = dragXRef.current ?? gesture.lastTranslateX;
-      const shouldOpen = finalTranslateX <= -OPEN_THRESHOLD;
-
-      if (shouldOpen) {
-        onRequestOpen?.(itemKey);
-      } else {
-        onRequestClose?.(itemKey);
-      }
+      const elapsedMs = Math.max((event.timeStamp || Date.now()) - gesture.startAt, 1);
+      const velocity = dx / elapsedMs;
+      const threshold = getDismissThreshold(gesture.width);
+      const shouldDismiss = (
+        Math.abs(dx) >= threshold
+        || (Math.abs(dx) >= threshold * 0.85 && Math.abs(velocity) > 0.9)
+      );
 
       blockClickRef.current = true;
-      window.setTimeout(() => {
-        blockClickRef.current = false;
-      }, 260);
+
+      if (shouldDismiss) {
+        const direction = dx === 0 ? 1 : Math.sign(dx);
+        setExitX(direction * (gesture.width + 48));
+        setDragX(dx);
+        resetGesture({ keepPosition: true });
+        onDismiss?.(itemKey);
+        return;
+      }
+    }
+
+    if (gesture.mode === 'horizontal' || gesture.moved || Math.abs(dx) > 4) {
+      blockClickRef.current = true;
+      releaseBlockedClickSoon();
     }
 
     resetGesture();
   };
 
   const handlePointerCancel = () => {
+    const gesture = gestureRef.current;
+    if (gesture.mode === 'horizontal' || gesture.moved) {
+      blockClickRef.current = true;
+      releaseBlockedClickSoon();
+    }
     resetGesture();
   };
 
   const handleClickCapture = (event) => {
-    if (blockClickRef.current) {
-      event.preventDefault();
-      event.stopPropagation();
-      blockClickRef.current = false;
-      return;
-    }
-
-    if (isOpen) {
-      event.preventDefault();
-      event.stopPropagation();
-      onRequestClose?.(itemKey);
-    }
-  };
-
-  const handleDismissClick = (event) => {
+    if (!blockClickRef.current) return;
     event.preventDefault();
     event.stopPropagation();
-    onDismiss?.(itemKey);
+    blockClickRef.current = false;
   };
 
   return (
@@ -221,40 +239,23 @@ const SwipeDismissibleActivityItem = ({
       style={{
         maxHeight: isDismissing ? 0 : measuredHeight,
         opacity: isDismissing ? 0 : 1,
-        transform: isDismissing ? 'translateY(-4px) scale(0.985)' : 'translateY(0) scale(1)',
         transition: wrapperTransition,
       }}
     >
       <div
-        aria-hidden={!isActionVisible}
-        className="absolute inset-y-0 right-0 z-0 flex w-[88px] items-stretch justify-end"
-      >
-        <button
-          type="button"
-          tabIndex={isActionVisible ? 0 : -1}
-          onClick={handleDismissClick}
-          className="m-1.5 flex w-[76px] flex-col items-center justify-center gap-1 rounded-[7px] border border-[rgba(255,88,120,0.35)] bg-[linear-gradient(145deg,rgba(255,88,120,0.24),rgba(255,88,120,0.14))] text-white shadow-[0_12px_32px_rgba(255,88,120,0.18),inset_0_1px_0_rgba(255,255,255,0.16)] outline-none transition-[transform,background,border-color] duration-200 ease-out hover:bg-[linear-gradient(145deg,rgba(255,88,120,0.32),rgba(255,88,120,0.18))] focus-visible:ring-2 focus-visible:ring-[rgba(255,135,160,0.55)] active:scale-[0.97]"
-          aria-label="Eliminar de Actividad reciente"
-          title="Eliminar de Actividad reciente"
-        >
-          <Trash2 size={18} strokeWidth={2.25} />
-          <span className="text-[10.5px] font-semibold leading-none text-white/90">Eliminar</span>
-        </button>
-      </div>
-
-      <div
-        className="relative z-[1]"
+        className="relative"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerCancel}
+        onLostPointerCapture={handlePointerCancel}
         onClickCapture={handleClickCapture}
         style={{
           touchAction: disabled ? 'auto' : 'pan-y',
-          transform: `translate3d(${translateX}px, 0, 0)`,
-          transition,
-          willChange: isDragging ? 'transform' : 'auto',
-          boxShadow: translateX < -2 ? '10px 0 24px rgba(0,0,0,0.18)' : 'none',
+          transform: contentTransform,
+          opacity: isDismissing ? 0 : 1 - (dragProgress * 0.14),
+          transition: contentTransition,
+          willChange: isDragging || isDismissing ? 'transform, opacity' : 'auto',
         }}
       >
         {children}

@@ -1,10 +1,8 @@
-import React, { useState } from 'react';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import React from 'react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import SwipeDismissibleActivityItem from '../components/SwipeDismissibleActivityItem';
 
-const DELETE_ACTION_NAME = /eliminar de actividad reciente/i;
-
-const firePointerEvent = (target, type, { pointerId, pointerType = 'touch', clientX, clientY }) => {
+const firePointerEvent = (target, type, { pointerId, pointerType = 'touch', clientX, clientY, timeStamp = 0 }) => {
   const event = new MouseEvent(type, {
     bubbles: true,
     cancelable: true,
@@ -13,107 +11,74 @@ const firePointerEvent = (target, type, { pointerId, pointerType = 'touch', clie
   });
   Object.defineProperty(event, 'pointerId', { value: pointerId });
   Object.defineProperty(event, 'pointerType', { value: pointerType });
+  Object.defineProperty(event, 'timeStamp', { value: timeStamp });
   fireEvent(target, event);
 };
 
-const swipeLeft = (target, pointerId = 1) => {
+const swipe = (target, { pointerId = 1, from = 220, to, fromY = 20, toY = 22 }) => {
   firePointerEvent(target, 'pointerdown', {
     pointerId,
-    pointerType: 'touch',
-    clientX: 220,
-    clientY: 20,
+    clientX: from,
+    clientY: fromY,
+    timeStamp: 0,
   });
   firePointerEvent(target, 'pointermove', {
     pointerId,
-    pointerType: 'touch',
-    clientX: 140,
-    clientY: 22,
+    clientX: to,
+    clientY: toY,
+    timeStamp: 40,
   });
   firePointerEvent(target, 'pointerup', {
     pointerId,
-    pointerType: 'touch',
-    clientX: 140,
-    clientY: 22,
+    clientX: to,
+    clientY: toY,
+    timeStamp: 80,
   });
 };
 
 const verticalDrag = (target) => {
   firePointerEvent(target, 'pointerdown', {
     pointerId: 2,
-    pointerType: 'touch',
     clientX: 220,
     clientY: 20,
   });
   firePointerEvent(target, 'pointermove', {
     pointerId: 2,
-    pointerType: 'touch',
     clientX: 224,
     clientY: 92,
   });
   firePointerEvent(target, 'pointerup', {
     pointerId: 2,
-    pointerType: 'touch',
     clientX: 224,
     clientY: 92,
   });
 };
 
-const SingleItemHarness = ({ onNavigate = jest.fn(), onDismiss = jest.fn() }) => {
-  const [openKey, setOpenKey] = useState(null);
-
-  return (
-    <SwipeDismissibleActivityItem
-      itemKey="activity-one"
-      isOpen={openKey === 'activity-one'}
-      onRequestOpen={setOpenKey}
-      onRequestClose={() => setOpenKey(null)}
-      onDismiss={onDismiss}
-    >
-      <button type="button" onClick={onNavigate}>
-        Nueva solicitud
-      </button>
-    </SwipeDismissibleActivityItem>
-  );
-};
-
-const TwoItemHarness = () => {
-  const [openKey, setOpenKey] = useState(null);
-
-  return (
-    <>
-      {['activity-one', 'activity-two'].map((itemKey) => (
-        <SwipeDismissibleActivityItem
-          key={itemKey}
-          itemKey={itemKey}
-          isOpen={openKey === itemKey}
-          onRequestOpen={setOpenKey}
-          onRequestClose={() => setOpenKey(null)}
-          onDismiss={jest.fn()}
-        >
-          <button type="button">{itemKey}</button>
-        </SwipeDismissibleActivityItem>
-      ))}
-    </>
-  );
-};
+const SingleItemHarness = ({ onNavigate = jest.fn(), onDismiss = jest.fn(), isDismissing = false }) => (
+  <SwipeDismissibleActivityItem
+    itemKey="activity-one"
+    onDismiss={onDismiss}
+    isDismissing={isDismissing}
+  >
+    <button type="button" onClick={onNavigate}>
+      Nueva solicitud
+    </button>
+  </SwipeDismissibleActivityItem>
+);
 
 describe('SwipeDismissibleActivityItem', () => {
   afterEach(() => {
     jest.useRealTimers();
   });
 
-  test('reveals the delete action after a horizontal swipe from the item body', () => {
+  test('does not render a visible delete action', () => {
     render(<SingleItemHarness />);
 
-    const row = screen.getByRole('button', { name: /nueva solicitud/i });
-    expect(screen.queryByRole('button', { name: DELETE_ACTION_NAME })).not.toBeInTheDocument();
-
-    swipeLeft(row);
-
-    expect(screen.getByRole('button', { name: DELETE_ACTION_NAME })).toBeInTheDocument();
+    expect(screen.queryByText(/eliminar/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /eliminar/i })).not.toBeInTheDocument();
   });
 
-  test('keeps normal tap behavior when the item is closed', () => {
+  test('keeps normal tap behavior when there is no swipe', () => {
     const onNavigate = jest.fn();
     render(<SingleItemHarness onNavigate={onNavigate} />);
 
@@ -122,37 +87,45 @@ describe('SwipeDismissibleActivityItem', () => {
     expect(onNavigate).toHaveBeenCalledTimes(1);
   });
 
-  test('does not treat vertical scrolling as a swipe', () => {
-    render(<SingleItemHarness />);
+  test('short horizontal swipe returns and blocks accidental click', () => {
+    jest.useFakeTimers();
+    const onNavigate = jest.fn();
+    const onDismiss = jest.fn();
+    render(<SingleItemHarness onNavigate={onNavigate} onDismiss={onDismiss} />);
+
+    const row = screen.getByRole('button', { name: /nueva solicitud/i });
+    swipe(row, { to: 170 });
+    fireEvent.click(row);
+
+    expect(onDismiss).not.toHaveBeenCalled();
+    expect(onNavigate).not.toHaveBeenCalled();
+    expect(row.parentElement).toHaveStyle('transform: translate3d(0px, 0, 0) rotate(0deg)');
+  });
+
+  test('sufficient left swipe dismisses directly', () => {
+    const onDismiss = jest.fn();
+    render(<SingleItemHarness onDismiss={onDismiss} />);
+
+    swipe(screen.getByRole('button', { name: /nueva solicitud/i }), { to: 40 });
+
+    expect(onDismiss).toHaveBeenCalledWith('activity-one');
+  });
+
+  test('sufficient right swipe dismisses directly', () => {
+    const onDismiss = jest.fn();
+    render(<SingleItemHarness onDismiss={onDismiss} />);
+
+    swipe(screen.getByRole('button', { name: /nueva solicitud/i }), { from: 40, to: 220 });
+
+    expect(onDismiss).toHaveBeenCalledWith('activity-one');
+  });
+
+  test('does not treat vertical scrolling as a dismiss gesture', () => {
+    const onDismiss = jest.fn();
+    render(<SingleItemHarness onDismiss={onDismiss} />);
 
     verticalDrag(screen.getByRole('button', { name: /nueva solicitud/i }));
 
-    expect(screen.queryByRole('button', { name: DELETE_ACTION_NAME })).not.toBeInTheDocument();
-  });
-
-  test('tapping opened content closes it instead of firing the child click', () => {
-    jest.useFakeTimers();
-    const onNavigate = jest.fn();
-    render(<SingleItemHarness onNavigate={onNavigate} />);
-
-    const row = screen.getByRole('button', { name: /nueva solicitud/i });
-    swipeLeft(row);
-    act(() => {
-      jest.advanceTimersByTime(260);
-    });
-    fireEvent.click(row);
-
-    expect(onNavigate).not.toHaveBeenCalled();
-    expect(screen.queryByRole('button', { name: DELETE_ACTION_NAME })).not.toBeInTheDocument();
-  });
-
-  test('allows only one item to remain open at a time', () => {
-    render(<TwoItemHarness />);
-
-    swipeLeft(screen.getByRole('button', { name: 'activity-one' }), 3);
-    expect(screen.getAllByRole('button', { name: DELETE_ACTION_NAME })).toHaveLength(1);
-
-    swipeLeft(screen.getByRole('button', { name: 'activity-two' }), 4);
-    expect(screen.getAllByRole('button', { name: DELETE_ACTION_NAME })).toHaveLength(1);
+    expect(onDismiss).not.toHaveBeenCalled();
   });
 });
