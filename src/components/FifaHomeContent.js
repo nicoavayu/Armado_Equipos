@@ -52,6 +52,12 @@ const severityIconClass = {
 const AWARDS_RING_WINDOW_MS = 24 * 60 * 60 * 1000;
 const HOME_ACTIVE_MATCHES_REFRESH_MS = 60000;
 const HOME_SNAPSHOT_STORAGE_PREFIX = 'home:snapshot:v1:';
+export const RECENT_ACTIVITY_DISMISSED_STORAGE_PREFIX = 'arma2_recent_activity_dismissed_';
+const ACTIVITY_SWIPE_INTENT_PX = 12;
+const ACTIVITY_VERTICAL_INTENT_PX = 10;
+const ACTIVITY_EXIT_ANIMATION_MS = 230;
+const ACTIVITY_SETTLE_ANIMATION_MS = 210;
+const ACTIVITY_DISMISS_FALLBACK_WIDTH = 320;
 const normalizeNotificationType = (notificationType) => String(notificationType || '').trim().toLowerCase();
 export const isAwardsRingNotificationType = (notificationType) => (
   AWARDS_READY_NOTIFICATION_TYPES.has(normalizeNotificationType(notificationType))
@@ -96,6 +102,47 @@ const isCancelledChallengeStatus = (statusValue) => {
 const isAwardsReadyAndVisible = (row) => isAwardsReadyStatus(row);
 
 const getHomeSnapshotStorageKey = (userId) => `${HOME_SNAPSHOT_STORAGE_PREFIX}${String(userId || '').trim()}`;
+export const getRecentActivityDismissedStorageKey = (userId) => {
+  const normalizedUserId = String(userId || '').trim();
+  if (!normalizedUserId) return null;
+  return `${RECENT_ACTIVITY_DISMISSED_STORAGE_PREFIX}${normalizedUserId}`;
+};
+
+const normalizeActivityDismissId = (id) => String(id || '').trim();
+
+const readRecentActivityDismissedIds = (userId) => {
+  if (typeof window === 'undefined') return new Set();
+
+  const storageKey = getRecentActivityDismissedStorageKey(userId);
+  if (!storageKey) return new Set();
+
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(storageKey) || '[]');
+    if (!Array.isArray(parsed)) return new Set();
+    return new Set(parsed.map(normalizeActivityDismissId).filter(Boolean));
+  } catch {
+    return new Set();
+  }
+};
+
+const writeRecentActivityDismissedIds = (userId, dismissedIds) => {
+  if (typeof window === 'undefined') return;
+
+  const storageKey = getRecentActivityDismissedStorageKey(userId);
+  if (!storageKey) return;
+
+  try {
+    window.localStorage.setItem(storageKey, JSON.stringify(
+      Array.from(dismissedIds || []).map(normalizeActivityDismissId).filter(Boolean),
+    ));
+  } catch {
+    // Ignore quota/private mode failures.
+  }
+};
+
+const filterDismissedActivityItems = (items = [], dismissedIds = new Set()) => (
+  (Array.isArray(items) ? items : []).filter((item) => !dismissedIds.has(normalizeActivityDismissId(item?.id)))
+);
 
 const buildActiveMatchesSignature = (matches = []) => JSON.stringify(
   (Array.isArray(matches) ? matches : []).map((match) => ({
@@ -185,6 +232,306 @@ const hasRenderableWinnerInRoster = (row, roster = []) => {
   });
 };
 
+const prefersReducedMotion = () => (
+  typeof window !== 'undefined'
+  && typeof window.matchMedia === 'function'
+  && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+);
+
+const getDismissThreshold = (width) => Math.min(
+  (width > 0 ? width : ACTIVITY_DISMISS_FALLBACK_WIDTH) * 0.45,
+  140,
+);
+
+const SwipeDismissActivityItem = ({
+  item,
+  index,
+  isLast,
+  icon: Icon,
+  iconColorClass,
+  subtitleText,
+  canNavigate,
+  onDismiss,
+  onNavigate,
+  onPrefetch,
+}) => {
+  const rowRef = useRef(null);
+  const animationFrameRef = useRef(null);
+  const timeoutRef = useRef(null);
+  const gestureRef = useRef(null);
+  const suppressClickRef = useRef(false);
+  const [dragX, setDragX] = useState(0);
+  const [phase, setPhase] = useState('idle');
+  const [measuredHeight, setMeasuredHeight] = useState(null);
+
+  const clearMotionTimers = useCallback(() => {
+    if (animationFrameRef.current) {
+      window.cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+    if (timeoutRef.current) {
+      window.clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => clearMotionTimers, [clearMotionTimers]);
+
+  const resetSuppressedClickSoon = useCallback(() => {
+    window.setTimeout(() => {
+      suppressClickRef.current = false;
+    }, 0);
+  }, []);
+
+  const finishReturn = useCallback(() => {
+    const reducedMotion = prefersReducedMotion();
+    setPhase('settling');
+    setDragX(0);
+
+    if (reducedMotion) {
+      setPhase('idle');
+      return;
+    }
+
+    timeoutRef.current = window.setTimeout(() => {
+      timeoutRef.current = null;
+      setPhase('idle');
+    }, ACTIVITY_SETTLE_ANIMATION_MS);
+  }, []);
+
+  const finishDismiss = useCallback((direction, currentX = 0) => {
+    const width = rowRef.current?.getBoundingClientRect?.().width || ACTIVITY_DISMISS_FALLBACK_WIDTH;
+    const height = rowRef.current?.getBoundingClientRect?.().height || rowRef.current?.offsetHeight || 0;
+    const reducedMotion = prefersReducedMotion();
+    const exitX = direction * (width + 48);
+
+    clearMotionTimers();
+    suppressClickRef.current = true;
+    setMeasuredHeight(height);
+    setPhase('pre-dismiss');
+    setDragX(currentX);
+
+    const complete = () => {
+      timeoutRef.current = null;
+      onDismiss(item.id);
+    };
+
+    if (reducedMotion) {
+      setPhase('dismissing');
+      setDragX(exitX);
+      complete();
+      return;
+    }
+
+    animationFrameRef.current = window.requestAnimationFrame(() => {
+      animationFrameRef.current = null;
+      setPhase('dismissing');
+      setDragX(exitX);
+      timeoutRef.current = window.setTimeout(complete, ACTIVITY_EXIT_ANIMATION_MS);
+    });
+  }, [clearMotionTimers, item.id, onDismiss]);
+
+  const handlePointerDown = useCallback((event) => {
+    if (event.button != null && event.button !== 0) return;
+    if (phase === 'dismissing' || phase === 'pre-dismiss') return;
+
+    clearMotionTimers();
+
+    const width = rowRef.current?.getBoundingClientRect?.().width || ACTIVITY_DISMISS_FALLBACK_WIDTH;
+    gestureRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      lastX: event.clientX,
+      lastAt: event.timeStamp || Date.now(),
+      width,
+      horizontal: false,
+      vertical: false,
+      moved: false,
+    };
+    setMeasuredHeight(null);
+    setPhase('idle');
+    setDragX(0);
+  }, [clearMotionTimers, phase]);
+
+  const handlePointerMove = useCallback((event) => {
+    const gesture = gestureRef.current;
+    if (!gesture || (gesture.pointerId != null && event.pointerId !== gesture.pointerId)) return;
+
+    const dx = event.clientX - gesture.startX;
+    const dy = event.clientY - gesture.startY;
+    const absX = Math.abs(dx);
+    const absY = Math.abs(dy);
+
+    if (gesture.vertical) return;
+
+    if (!gesture.horizontal) {
+      if (absY > ACTIVITY_VERTICAL_INTENT_PX && absY > absX * 1.15) {
+        gesture.vertical = true;
+        gesture.moved = true;
+        suppressClickRef.current = true;
+        return;
+      }
+
+      if (absX < ACTIVITY_SWIPE_INTENT_PX || absX < absY * 1.35) {
+        return;
+      }
+
+      gesture.horizontal = true;
+      gesture.moved = true;
+      suppressClickRef.current = true;
+      setPhase('dragging');
+    }
+
+    const dampedX = Math.max(Math.min(dx, gesture.width * 0.95), -gesture.width * 0.95);
+    gesture.lastX = event.clientX;
+    gesture.lastAt = event.timeStamp || Date.now();
+    setDragX(dampedX);
+  }, []);
+
+  const handlePointerEnd = useCallback((event) => {
+    const gesture = gestureRef.current;
+    if (!gesture || (gesture.pointerId != null && event.pointerId !== gesture.pointerId)) return;
+
+    const dx = event.clientX - gesture.startX;
+    const elapsedMs = Math.max((event.timeStamp || Date.now()) - gesture.lastAt, 1);
+    const tailVelocity = (event.clientX - gesture.lastX) / elapsedMs;
+    const threshold = getDismissThreshold(gesture.width);
+    const direction = dx === 0 ? 1 : Math.sign(dx);
+    const conservativeFlick = Math.abs(dx) >= threshold * 0.85 && Math.abs(tailVelocity) > 0.9;
+
+    if (gesture.horizontal && (Math.abs(dx) >= threshold || conservativeFlick)) {
+      finishDismiss(direction, dragX || dx);
+    } else {
+      if (gesture.horizontal || gesture.moved || Math.abs(dx) > 4) {
+        suppressClickRef.current = true;
+        finishReturn();
+      }
+      resetSuppressedClickSoon();
+    }
+
+    gestureRef.current = null;
+  }, [dragX, finishDismiss, finishReturn, resetSuppressedClickSoon]);
+
+  const handlePointerCancel = useCallback(() => {
+    const gesture = gestureRef.current;
+    if (gesture?.horizontal) {
+      suppressClickRef.current = true;
+      finishReturn();
+    }
+    if (gesture?.moved) {
+      suppressClickRef.current = true;
+      resetSuppressedClickSoon();
+    }
+    gestureRef.current = null;
+  }, [finishReturn, resetSuppressedClickSoon]);
+
+  const handleClick = useCallback((event) => {
+    if (suppressClickRef.current) {
+      event.preventDefault();
+      event.stopPropagation();
+      suppressClickRef.current = false;
+      return;
+    }
+    if (!canNavigate) return;
+    onNavigate(item);
+  }, [canNavigate, item, onNavigate]);
+
+  const absDrag = Math.abs(dragX);
+  const threshold = getDismissThreshold(rowRef.current?.getBoundingClientRect?.().width || ACTIVITY_DISMISS_FALLBACK_WIDTH);
+  const dragProgress = Math.min(absDrag / threshold, 1);
+  const rotation = phase === 'dragging' ? Math.max(Math.min(dragX / 90, 1.2), -1.2) : 0;
+  const rowStyle = {
+    height: phase === 'pre-dismiss'
+      ? (measuredHeight ? `${measuredHeight}px` : undefined)
+      : (phase === 'dismissing' ? 0 : undefined),
+    opacity: phase === 'dismissing' ? 0 : 1,
+    overflow: phase === 'pre-dismiss' || phase === 'dismissing' ? 'hidden' : undefined,
+    transition: prefersReducedMotion()
+      ? 'none'
+      : 'height 230ms cubic-bezier(0.22, 1, 0.36, 1), opacity 190ms ease, margin 230ms cubic-bezier(0.22, 1, 0.36, 1)',
+  };
+  const cardStyle = {
+    transform: `translate3d(${dragX}px, 0, 0) rotate(${rotation}deg)`,
+    opacity: phase === 'dismissing' ? 0 : 1 - (dragProgress * 0.14),
+    transition: phase === 'dragging' || phase === 'idle'
+      ? 'none'
+      : (prefersReducedMotion() ? 'none' : 'transform 220ms cubic-bezier(0.22, 1, 0.36, 1), opacity 190ms ease'),
+    touchAction: 'pan-y',
+    willChange: phase === 'idle' ? undefined : 'transform, opacity',
+  };
+
+  return (
+    <div
+      ref={rowRef}
+      style={rowStyle}
+      data-testid={`recent-activity-row-${item.id}`}
+      data-swipe-phase={phase}
+    >
+      <button
+        type="button"
+        aria-disabled={!canNavigate}
+        tabIndex={canNavigate ? 0 : -1}
+        onClick={handleClick}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerEnd}
+        onPointerCancel={handlePointerCancel}
+        onLostPointerCapture={handlePointerCancel}
+        onMouseEnter={() => {
+          if (canNavigate) onPrefetch(item.route);
+        }}
+        onTouchStart={() => {
+          if (canNavigate) onPrefetch(item.route);
+        }}
+        onFocus={() => {
+          if (canNavigate) onPrefetch(item.route);
+        }}
+        className={`w-full flex items-start gap-3 px-4 py-3 text-left transition-colors ${
+          index % 2 === 1 ? 'bg-white/[0.025]' : 'bg-transparent'
+        } ${
+          canNavigate
+            ? 'hover:bg-white/[0.06] active:bg-white/[0.09]'
+            : 'opacity-85 cursor-default'
+        }`}
+        style={cardStyle}
+        data-testid={`recent-activity-item-${item.id}`}
+      >
+        <span className={`mt-1 inline-flex w-6 shrink-0 items-center justify-center ${iconColorClass}`}>
+          <Icon size={19} />
+        </span>
+
+        <div className="min-w-0 flex-1">
+          <div
+            className="text-white/92 text-[13.5px] leading-[1.25rem] font-medium"
+            style={{
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+            }}
+          >
+            {item.title}
+          </div>
+          <div className="text-white/50 text-[11.5px] leading-4 mt-0.5 whitespace-pre-line break-words">
+            {subtitleText}
+          </div>
+        </div>
+
+        {canNavigate && (
+          <div className="pt-2 shrink-0 text-white/30">
+            <ChevronRight size={14} />
+          </div>
+        )}
+      </button>
+
+      {!isLast && (
+        <div className="h-px bg-white/[0.06] mx-4" />
+      )}
+    </div>
+  );
+};
+
 const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _onViewActivePlayers }) => {
   const { user, profile, refreshProfile } = useAuth();
   const notificationsCtx = useNotifications() || {};
@@ -196,6 +543,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
   const [activeMatches, setActiveMatches] = useState([]);
   const [activityLoading, setActivityLoading] = useState(true);
   const [activityItems, setActivityItems] = useState([]);
+  const [dismissedActivityIds, setDismissedActivityIds] = useState(() => readRecentActivityDismissedIds(user?.id));
   const [showProximosPartidos, setShowProximosPartidos] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [awardsReadyVisibleMatchIds, setAwardsReadyVisibleMatchIds] = useState([]);
@@ -324,9 +672,13 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
     if (!user?.id) {
       setActiveMatches([]);
       setActivityItems([]);
+      setDismissedActivityIds(new Set());
       setActivityLoading(false);
       return;
     }
+
+    const dismissedIds = readRecentActivityDismissedIds(user.id);
+    setDismissedActivityIds(dismissedIds);
 
     const snapshot = readHomeSnapshot(user.id);
     if (!snapshot) {
@@ -338,7 +690,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
 
     activeMatchesSignatureRef.current = buildActiveMatchesSignature(snapshot.activeMatches);
     setActiveMatches(snapshot.activeMatches);
-    setActivityItems(snapshot.activityItems);
+    setActivityItems(filterDismissedActivityItems(snapshot.activityItems, dismissedIds));
     activityLoadedRef.current = true;
     setActivityLoading(false);
   }, [user?.id]);
@@ -808,7 +1160,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
       });
 
       if (!cancelled) {
-        setActivityItems(items);
+        setActivityItems(filterDismissedActivityItems(items, dismissedActivityIds));
         activityLoadedRef.current = true;
         setActivityLoading(false);
       }
@@ -819,7 +1171,20 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
     return () => {
       cancelled = true;
     };
-  }, [activeMatches, notifications, user?.id]);
+  }, [activeMatches, dismissedActivityIds, notifications, user?.id]);
+
+  const handleDismissActivityItem = useCallback((itemId) => {
+    const normalizedItemId = normalizeActivityDismissId(itemId);
+    if (!normalizedItemId || !user?.id) return;
+
+    setDismissedActivityIds((current) => {
+      const next = new Set(current);
+      next.add(normalizedItemId);
+      writeRecentActivityDismissedIds(user.id, next);
+      return next;
+    });
+    setActivityItems((current) => filterDismissedActivityItems(current, new Set([normalizedItemId])));
+  }, [user?.id]);
 
   // Mostrar ProximosPartidos si está activo
   if (showProximosPartidos) {
@@ -1038,63 +1403,19 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
                   const canNavigate = Boolean(item.route);
 
                   return (
-                    <div key={item.id}>
-                      <button
-                        type="button"
-                        disabled={!canNavigate}
-                        onClick={() => {
-                          if (!canNavigate) return;
-                          handleActivityItemClick(item);
-                        }}
-                        onMouseEnter={() => {
-                          if (canNavigate) prefetchRoute(item.route);
-                        }}
-                        onTouchStart={() => {
-                          if (canNavigate) prefetchRoute(item.route);
-                        }}
-                        onFocus={() => {
-                          if (canNavigate) prefetchRoute(item.route);
-                        }}
-                        className={`w-full flex items-start gap-3 px-4 py-3 text-left transition-colors ${
-                          index % 2 === 1 ? 'bg-white/[0.025]' : 'bg-transparent'
-                        } ${
-                          canNavigate
-                            ? 'hover:bg-white/[0.06] active:bg-white/[0.09]'
-                            : 'opacity-85 cursor-default'
-                        }`}
-                      >
-                        <span className={`mt-1 inline-flex w-6 shrink-0 items-center justify-center ${iconColorClass}`}>
-                          <Icon size={19} />
-                        </span>
-
-                        <div className="min-w-0 flex-1">
-                          <div
-                            className="text-white/92 text-[13.5px] leading-[1.25rem] font-medium"
-                            style={{
-                              display: '-webkit-box',
-                              WebkitLineClamp: 2,
-                              WebkitBoxOrient: 'vertical',
-                              overflow: 'hidden',
-                            }}
-                          >
-                            {item.title}
-                          </div>
-                          <div className="text-white/50 text-[11.5px] leading-4 mt-0.5 whitespace-pre-line break-words">
-                            {subtitleText}
-                          </div>
-                        </div>
-
-                        {canNavigate && (
-                          <div className="pt-2 shrink-0 text-white/30">
-                            <ChevronRight size={14} />
-                          </div>
-                        )}
-                      </button>
-
-                      {index < activityItems.length - 1 && (
-                        <div className="h-px bg-white/[0.06] mx-4" />
-                      )}
-                    </div>
+                    <SwipeDismissActivityItem
+                      key={item.id}
+                      item={item}
+                      index={index}
+                      isLast={index >= activityItems.length - 1}
+                      icon={Icon}
+                      iconColorClass={iconColorClass}
+                      subtitleText={subtitleText}
+                      canNavigate={canNavigate}
+                      onDismiss={handleDismissActivityItem}
+                      onNavigate={handleActivityItemClick}
+                      onPrefetch={prefetchRoute}
+                    />
                   );
                 })}
               </div>
