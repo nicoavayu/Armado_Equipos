@@ -1,5 +1,5 @@
 import logger from '../utils/logger';
-import React, { useState, useEffect, useMemo, useRef, useDeferredValue, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useDeferredValue, useCallback, Suspense, lazy } from 'react';
 import { friendlyError } from '../utils/friendlyError';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
@@ -17,7 +17,7 @@ import PlayerMiniCard from '../components/PlayerMiniCard';
 import PlayerBadges from '../components/PlayerBadges';
 import EmptyStateCard from '../components/EmptyStateCard';
 import { handleError } from '../lib/errorHandler';
-import { Calendar, Clock, MapPin, MapPinOff, Star, ListOrdered, Users, CalendarX2 } from 'lucide-react';
+import { Calendar, Clock, MapPin, MapPinOff, Star, ListOrdered, Users, CalendarX2, List, Map as MapIcon } from 'lucide-react';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { hasValidCoordinates, toCoordinateNumber } from '../utils/matchLocation';
 import {
@@ -35,7 +35,12 @@ import { useSmartBackNavigation } from '../hooks/useSmartBackNavigation';
 import { useRefreshOnVisibility } from '../hooks/useRefreshOnVisibility';
 import { useSupabaseRealtime } from '../hooks/useSupabaseRealtime';
 
+// Lazy so the MapLibre engine + tiles only load when the user opens the Mapa view.
+const MatchesMapView = lazy(() => import('../components/jugar/MatchesMapView'));
+
 const containerClass = 'flex flex-col items-center w-full pb-6 px-4 box-border font-oswald';
+
+const PARTIDOS_VIEW_STORAGE_KEY = 'quiero-jugar-partidos-view';
 
 const normalizeLocationToken = (value) => String(value || '').replace(/\s+/g, ' ').trim();
 
@@ -112,6 +117,10 @@ const QuieroJugar = ({
     const savedTab = sessionStorage.getItem('quiero-jugar-tab');
     return savedTab === 'players' || savedTab === 'matches' ? savedTab : 'matches';
   });
+  // Internal PARTIDOS sub-view. Lista is the default; the choice persists per session.
+  const [partidosView, setPartidosView] = useState(() => (
+    sessionStorage.getItem(PARTIDOS_VIEW_STORAGE_KEY) === 'mapa' ? 'mapa' : 'lista'
+  ));
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState(null);
   const [actionPlayer, setActionPlayer] = useState(null);
@@ -130,6 +139,19 @@ const QuieroJugar = ({
   const handleMatchDistanceChange = (event) => {
     setMaxMatchDistanceKm(clampMatchDistanceKm(Number(event.target.value)));
   };
+
+  const selectPartidosView = (nextView) => {
+    setPartidosView(nextView);
+    sessionStorage.setItem(PARTIDOS_VIEW_STORAGE_KEY, nextView);
+  };
+
+  // Shared navigation for both Lista cards and the Mapa bottom sheet — no
+  // duplicated join logic: owner → /admin/:id, otherwise → /partido-publico/:id.
+  const handleOpenMatch = useCallback((match, meta = {}) => {
+    if (!match?.id) return;
+    const owner = meta.isOwner ?? Boolean(user?.id && String(match?.creado_por || '') === String(user.id));
+    navigate(owner ? `/admin/${match.id}` : `/partido-publico/${match.id}`);
+  }, [navigate, user?.id]);
 
   useEffect(() => {
     sessionStorage.setItem(MATCH_DISTANCE_STORAGE_KEY, String(maxMatchDistanceKm));
@@ -771,7 +793,34 @@ const QuieroJugar = ({
                   ) : null}
                 </div>
 
-                {visibleMatches.length === 0 ? (
+                {/* Lista / Mapa sub-view toggle — PARTIDOS only. Lista is the default. */}
+                <div className="w-full max-w-[500px] mb-4 flex h-[40px] gap-1 p-1 overflow-hidden rounded-full border border-[rgba(148,134,255,0.22)] bg-[rgba(20,16,41,0.85)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+                  <button
+                    type="button"
+                    aria-pressed={partidosView === 'lista'}
+                    className={`flex flex-1 min-w-0 items-center justify-center gap-1.5 rounded-full font-sans text-[12px] font-bold uppercase tracking-[0.04em] transition-[background-color,color] duration-150 ${partidosView === 'lista'
+                      ? 'bg-cta-gradient text-white shadow-[0_4px_14px_rgba(106,67,255,0.4)]'
+                      : 'bg-transparent text-white/55 hover:text-white/85 hover:bg-white/[0.06]'
+                      }`}
+                    onClick={() => selectPartidosView('lista')}
+                  >
+                    <List size={14} /> Lista
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={partidosView === 'mapa'}
+                    className={`flex flex-1 min-w-0 items-center justify-center gap-1.5 rounded-full font-sans text-[12px] font-bold uppercase tracking-[0.04em] transition-[background-color,color] duration-150 ${partidosView === 'mapa'
+                      ? 'bg-cta-gradient text-white shadow-[0_4px_14px_rgba(106,67,255,0.4)]'
+                      : 'bg-transparent text-white/55 hover:text-white/85 hover:bg-white/[0.06]'
+                      }`}
+                    onClick={() => selectPartidosView('mapa')}
+                  >
+                    <MapIcon size={14} /> Mapa
+                  </button>
+                </div>
+
+                {partidosView === 'lista' ? (
+                  visibleMatches.length === 0 ? (
                   <div className="w-full max-w-[500px] rounded-card surface-card p-6 text-center">
                     <p className="text-white font-oswald font-bold text-base">
                       {canFilterByDistance
@@ -867,6 +916,22 @@ const QuieroJugar = ({
                       );
                     })}
                   </>
+                  )
+                ) : (
+                  <Suspense
+                    fallback={(
+                      <div className="w-full max-w-[520px] h-[66vh] min-h-[420px] rounded-card surface-card flex items-center justify-center">
+                        <p className="font-oswald text-base font-bold text-white/70">Cargando mapa…</p>
+                      </div>
+                    )}
+                  >
+                    <MatchesMapView
+                      matches={visibleMatches}
+                      userLocation={userLocation}
+                      currentUserId={user?.id}
+                      onSelectMatch={handleOpenMatch}
+                    />
+                  </Suspense>
                 )}
               </>
             );
