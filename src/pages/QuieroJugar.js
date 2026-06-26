@@ -35,6 +35,8 @@ import { useSmartBackNavigation } from '../hooks/useSmartBackNavigation';
 import { useRefreshOnVisibility } from '../hooks/useRefreshOnVisibility';
 import { useSupabaseRealtime } from '../hooks/useSupabaseRealtime';
 
+import DistanceSlider from '../components/jugar/DistanceSlider';
+
 // Lazy so the MapLibre engine + tiles only load when the user opens the Mapa view.
 const MatchesMapView = lazy(() => import('../components/jugar/MatchesMapView'));
 
@@ -80,7 +82,6 @@ const MAX_MATCH_DISTANCE_KM = 30;
 const DEFAULT_MATCH_DISTANCE_KM = 30;
 const QUIERO_JUGAR_MATCHES_POLL_MS = 20000;
 const QUIERO_JUGAR_PLAYERS_POLL_MS = 30000;
-const MATCH_DISTANCE_SLIDER_CLASS = 'quiero-jugar-distance-slider w-full';
 
 const clampMatchDistanceKm = (value) => {
   if (!Number.isFinite(value)) return DEFAULT_MATCH_DISTANCE_KM;
@@ -139,8 +140,8 @@ const QuieroJugar = ({
 
   useScrollResetOnChange(activeTab);
 
-  const handleMatchDistanceChange = (event) => {
-    setMaxMatchDistanceKm(clampMatchDistanceKm(Number(event.target.value)));
+  const handleMatchDistanceChange = (nextKm) => {
+    setMaxMatchDistanceKm(clampMatchDistanceKm(Number(nextKm)));
   };
 
   const selectPartidosView = (nextView) => {
@@ -550,9 +551,6 @@ const QuieroJugar = ({
   const canFilterByDistance = Boolean(userLocation);
   const visibleMatches = partidosAbiertos;
   const shouldShowLocationHelp = !canFilterByDistance && (locationStatus === 'denied' || locationStatus === 'unavailable');
-  const matchDistanceProgressPercent = (
-    ((maxMatchDistanceKm - MIN_MATCH_DISTANCE_KM) / (MAX_MATCH_DISTANCE_KM - MIN_MATCH_DISTANCE_KM)) * 100
-  );
 
   if (loading) {
     return (
@@ -568,95 +566,6 @@ const QuieroJugar = ({
 
   return (
     <>
-      <style>{`
-        /* Premium slim Arma2 range. The element stays a tall (44px) hit target
-           for reliable touch while the visible track is slim (6px). touch-action
-           pan-y lets the page scroll vertically but hands horizontal drags to the
-           thumb, so the slider never feels sticky on iOS Safari / Android WebView. */
-        .quiero-jugar-distance-slider {
-          -webkit-appearance: none;
-          appearance: none;
-          width: 100%;
-          height: 44px;
-          margin: 0;
-          padding: 0;
-          background: transparent;
-          touch-action: pan-y;
-          -webkit-tap-highlight-color: transparent;
-        }
-        .quiero-jugar-distance-slider:focus {
-          outline: none;
-        }
-        .quiero-jugar-distance-slider::-webkit-slider-runnable-track {
-          height: 6px;
-          border-radius: 999px;
-          background:
-            linear-gradient(
-              to right,
-              #7c5cff 0%,
-              #9a7bff var(--match-distance-progress, 100%),
-              rgba(124, 92, 255, 0.16) var(--match-distance-progress, 100%),
-              rgba(124, 92, 255, 0.16) 100%
-            );
-          box-shadow: inset 0 0 0 1px rgba(148, 134, 255, 0.18);
-        }
-        .quiero-jugar-distance-slider::-webkit-slider-thumb {
-          -webkit-appearance: none;
-          appearance: none;
-          width: 20px;
-          height: 20px;
-          margin-top: -7px;
-          border-radius: 999px;
-          border: 2px solid #efe9ff;
-          background: radial-gradient(circle at 32% 28%, #cbbcff 0%, #7c5cff 55%, #5a39e0 100%);
-          box-shadow: 0 2px 8px rgba(5, 3, 16, 0.45);
-          transition: transform 120ms ease-out, box-shadow 140ms ease-out;
-        }
-        .quiero-jugar-distance-slider:active::-webkit-slider-thumb,
-        .quiero-jugar-distance-slider:focus-visible::-webkit-slider-thumb {
-          transform: scale(1.12);
-          box-shadow:
-            0 0 0 7px rgba(106, 67, 255, 0.18),
-            0 4px 12px rgba(5, 3, 16, 0.5);
-        }
-        .quiero-jugar-distance-slider::-moz-range-track {
-          height: 6px;
-          border: none;
-          border-radius: 999px;
-          background: rgba(124, 92, 255, 0.16);
-          box-shadow: inset 0 0 0 1px rgba(148, 134, 255, 0.18);
-        }
-        .quiero-jugar-distance-slider::-moz-range-progress {
-          height: 6px;
-          border-radius: 999px;
-          background: linear-gradient(to right, #7c5cff 0%, #9a7bff 100%);
-        }
-        .quiero-jugar-distance-slider::-moz-range-thumb {
-          width: 20px;
-          height: 20px;
-          border: 2px solid #efe9ff;
-          border-radius: 999px;
-          background: radial-gradient(circle at 32% 28%, #cbbcff 0%, #7c5cff 55%, #5a39e0 100%);
-          box-shadow: 0 2px 8px rgba(5, 3, 16, 0.45);
-          transition: transform 120ms ease-out, box-shadow 140ms ease-out;
-        }
-        .quiero-jugar-distance-slider:active::-moz-range-thumb,
-        .quiero-jugar-distance-slider:focus-visible::-moz-range-thumb {
-          transform: scale(1.12);
-          box-shadow:
-            0 0 0 7px rgba(106, 67, 255, 0.18),
-            0 4px 12px rgba(5, 3, 16, 0.5);
-        }
-        .quiero-jugar-distance-slider:disabled {
-          cursor: not-allowed;
-        }
-        .quiero-jugar-distance-slider:disabled::-webkit-slider-thumb,
-        .quiero-jugar-distance-slider:disabled::-moz-range-thumb {
-          box-shadow: none;
-          filter: grayscale(0.4);
-        }
-      `}</style>
-
       <PageTitle title="QUIERO JUGAR" onBack={onVolver}>QUIERO JUGAR</PageTitle>
 
       <div className={containerClass} style={{ paddingTop: `${secondaryTabsTop}px` }}>
@@ -750,11 +659,11 @@ const QuieroJugar = ({
                 ) : null}
 
                 {/* Compact premium distance filter — label + value pill on one
-                    row, slim slider below. No explanatory paragraph (keeps the
-                    map tall): the location-help empty state above already covers
-                    the "no location" case. */}
-                <div className="w-full max-w-[500px] mt-2 mb-3 rounded-card surface-card px-4 py-2.5">
-                  <div className="flex items-center justify-between gap-2 mb-1">
+                    row, precise pointer-driven slider below. No explanatory
+                    paragraph (keeps the map tall): the location-help empty state
+                    above already covers the "no location" case. */}
+                <div className="w-full max-w-[500px] mt-1.5 mb-2.5 rounded-card surface-card px-3.5 py-2">
+                  <div className="flex items-center justify-between gap-2 mb-0.5">
                     <span className="font-sans font-bold text-[11px] uppercase tracking-[0.14em] text-[#b0a0ff]/85">
                       Distancia
                     </span>
@@ -763,22 +672,15 @@ const QuieroJugar = ({
                     </span>
                   </div>
 
-                  <input
-                    data-allow-horizontal-scroll="true"
-                    type="range"
+                  <DistanceSlider
                     min={MIN_MATCH_DISTANCE_KM}
                     max={MAX_MATCH_DISTANCE_KM}
                     step={1}
-                    disabled={!canFilterByDistance}
                     value={maxMatchDistanceKm}
-                    onInput={handleMatchDistanceChange}
+                    disabled={!canFilterByDistance}
                     onChange={handleMatchDistanceChange}
-                    className={`${MATCH_DISTANCE_SLIDER_CLASS} ${canFilterByDistance ? 'cursor-pointer' : 'cursor-not-allowed opacity-45'}`}
-                    style={{
-                      '--match-distance-progress': `${matchDistanceProgressPercent}%`,
-                    }}
-                    aria-label="Distancia máxima de partidos"
-                    aria-valuetext={`${maxMatchDistanceKm} km`}
+                    ariaLabel="Distancia máxima de partidos"
+                    valueText={`${maxMatchDistanceKm} km`}
                   />
                 </div>
 
@@ -842,9 +744,9 @@ const QuieroJugar = ({
                       return (
                         <div
                           key={partido.id}
-                          className="relative w-full max-w-[500px] overflow-hidden rounded-card bg-[radial-gradient(360px_180px_at_12%_-30%,rgba(139,92,255,0.18),transparent_70%),linear-gradient(165deg,rgba(48,38,98,0.72),rgba(20,16,41,0.94))] border border-[rgba(148,134,255,0.16)] p-4 pl-5 mb-3 shadow-elev-2 transition-all duration-200 hover:brightness-[1.05] hover:border-[rgba(148,134,255,0.42)] before:content-[''] before:absolute before:left-0 before:top-0 before:bottom-0 before:w-[3px] before:bg-[linear-gradient(180deg,#8b5cff,rgba(139,92,255,0.08))]"
+                          className="relative w-full max-w-[500px] overflow-hidden rounded-card bg-[radial-gradient(360px_180px_at_12%_-30%,rgba(139,92,255,0.18),transparent_70%),linear-gradient(165deg,rgba(48,38,98,0.72),rgba(20,16,41,0.94))] border border-[rgba(148,134,255,0.16)] p-3.5 pl-4 mb-2.5 shadow-elev-2 transition-all duration-200 hover:brightness-[1.05] hover:border-[rgba(148,134,255,0.42)] before:content-[''] before:absolute before:left-0 before:top-0 before:bottom-0 before:w-[3px] before:bg-[linear-gradient(180deg,#8b5cff,rgba(139,92,255,0.08))]"
                         >
-                          <div className="flex justify-between items-start mb-3 gap-3">
+                          <div className="flex justify-between items-start mb-2 gap-3">
                             <div className="flex items-center gap-2 min-w-0">
                               <div className="inline-flex items-center gap-1.5 font-oswald text-[14px] font-bold text-white capitalize min-w-0">
                                 <Calendar size={14} className="text-[#cfc4ff] shrink-0" />
@@ -872,7 +774,7 @@ const QuieroJugar = ({
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-1.5 mb-3 flex-wrap">
+                          <div className="flex items-center gap-1.5 mb-2 flex-wrap">
                             <span className="font-sans text-[11px] font-bold px-2.5 py-[3px] rounded-full border shrink-0 whitespace-nowrap border-[#22c55e]/45 bg-[#22c55e]/10 text-[#86efac]">{partido.modalidad || 'F5'}</span>
                             <span className="font-sans text-[11px] font-bold px-2.5 py-[3px] rounded-full border shrink-0 whitespace-nowrap border-[#2dd4bf]/45 bg-[#2dd4bf]/10 text-[#99f6e4]">{partido.tipo_partido || 'Mixto'}</span>
                             {isOwnerMatch ? (
@@ -893,9 +795,9 @@ const QuieroJugar = ({
                             </div>
                           ) : null}
 
-                          <div className="flex gap-2 mt-4">
+                          <div className="flex gap-2 mt-3">
                             <button
-                              className="flex-1 font-bebas font-semibold text-base px-4 py-2.5 border border-white/15 rounded-2xl cursor-pointer transition-all text-white min-h-[44px] flex items-center justify-center text-center bg-cta-gradient shadow-cta hover:brightness-110"
+                              className="flex-1 font-bebas font-semibold text-base px-4 py-2 border border-white/15 rounded-2xl cursor-pointer transition-all text-white min-h-[44px] flex items-center justify-center text-center bg-cta-gradient shadow-cta hover:brightness-110"
                               onClick={() => navigate(isOwnerMatch ? `/admin/${partido.id}` : `/partido-publico/${partido.id}`)}
                             >
                               Ver partido

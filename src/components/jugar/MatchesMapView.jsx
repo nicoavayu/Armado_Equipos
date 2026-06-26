@@ -10,13 +10,15 @@ import VenueMatchesSheet from './VenueMatchesSheet';
 // MapLibre map for Jugar > PARTIDOS "Mapa". Loaded only via React.lazy so the
 // ~map engine stays off the cold-start bundle and out of the test runner.
 //
-// Tiles/style: OpenFreeMap keyless "dark" style (attribution embedded in the
-// style + kept visible via MapLibre's AttributionControl). Custom violet/neon
-// clusters whose number is the SUM of active matches (not venue count), premium
-// single pins, and a premium bottom sheet on tap.
+// Tiles/style: OpenFreeMap keyless "dark" style. The style's vector source
+// (openmaptiles → /planet TileJSON) already carries the legally required,
+// properly-linked attribution ("OpenFreeMap © OpenMapTiles Data from
+// OpenStreetMap"), which MapLibre's AttributionControl surfaces automatically —
+// so we must NOT also pass a customAttribution, or the same credit renders
+// twice. Custom violet/neon clusters whose number is the SUM of active matches
+// (not venue count), premium single pins, and a premium bottom sheet on tap.
 
 const OPENFREEMAP_DARK_STYLE = 'https://tiles.openfreemap.org/styles/dark';
-const OPENFREEMAP_ATTRIBUTION = 'OpenFreeMap © OpenMapTiles Data from OpenStreetMap';
 // Buenos Aires / CABA — default center when no user location is available.
 const DEFAULT_CENTER = [-58.3816, -34.6037];
 const DEFAULT_ZOOM = 10.5;
@@ -155,13 +157,14 @@ const MatchesMapView = ({
 
     mapRef.current = map;
 
-    // Attribution is legally required (the OpenFreeMap style ships no embedded
-    // attribution, so this custom string is the only credit). `compact: false`
+    // Attribution is legally required and comes straight from the style's
+    // source TileJSON (a single, properly-linked credit) — we intentionally add
+    // NO customAttribution here so it never renders twice. `compact: false`
     // keeps it always visible without a tap; the `arma2-map-card` scoped styles
     // below shrink it into a subtle, on-brand corner pill instead of MapLibre's
     // default white badge.
     map.addControl(
-      new maplibregl.AttributionControl({ compact: false, customAttribution: OPENFREEMAP_ATTRIBUTION }),
+      new maplibregl.AttributionControl({ compact: false }),
       'bottom-right',
     );
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');

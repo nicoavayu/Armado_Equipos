@@ -109,21 +109,28 @@ describe('QuieroJugar — compact distance filter', () => {
   test('renderiza la UI compacta de distancia con el valor actual', async () => {
     renderPage();
     const slider = await screen.findByLabelText('Distancia máxima de partidos');
-    // Compact label + default value pill present.
+    // Custom accessible slider exposes its value via ARIA, not a form value.
+    expect(slider).toHaveAttribute('role', 'slider');
     expect(screen.getByText('Distancia')).toBeInTheDocument();
     expect(screen.getByText('30 km')).toBeInTheDocument();
-    expect(slider).toHaveValue('30');
+    expect(slider).toHaveAttribute('aria-valuenow', '30');
+    expect(slider).toHaveAttribute('aria-valuetext', '30 km');
   });
 
-  test('cambiar el slider actualiza el valor mostrado', async () => {
+  test('el teclado actualiza el valor mostrado', async () => {
     renderPage();
     const slider = await screen.findByLabelText('Distancia máxima de partidos');
-    expect(slider).not.toBeDisabled();
+    expect(slider).not.toHaveAttribute('aria-disabled');
 
-    fireEvent.change(slider, { target: { value: '12' } });
+    // ArrowDown steps the value down by 1 km.
+    fireEvent.keyDown(slider, { key: 'ArrowDown' });
+    expect(slider).toHaveAttribute('aria-valuenow', '29');
+    expect(screen.getByText('29 km')).toBeInTheDocument();
 
-    expect(slider).toHaveValue('12');
-    expect(screen.getByText('12 km')).toBeInTheDocument();
+    // Home jumps to the minimum.
+    fireEvent.keyDown(slider, { key: 'Home' });
+    expect(slider).toHaveAttribute('aria-valuenow', '1');
+    expect(screen.getByText('1 km')).toBeInTheDocument();
   });
 
   test('ya no muestra el párrafo explicativo largo', async () => {

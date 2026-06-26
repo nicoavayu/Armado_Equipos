@@ -804,9 +804,6 @@ const AmigosView = () => {
               }}
               className={searchInputClass}
             />
-            <p className="mt-2 px-1 text-xs text-white/55">
-              Esta busqueda incluye a todos los usuarios registrados.
-            </p>
 
             {searchQuery && (
               <div className="w-full max-w-[700px] mx-auto rounded-2xl absolute left-1/2 -translate-x-1/2 top-full bg-[#141029]/98 border border-[rgba(148,134,255,0.3)] max-h-[300px] overflow-y-auto z-[1000] mt-2 sm:max-w-[98vw] shadow-[0_24px_64px_rgba(5,3,16,0.65)] backdrop-blur-xl custom-scrollbar">
@@ -956,9 +953,6 @@ const AmigosView = () => {
               onChange={(e) => setFriendSearchQuery(e.target.value)}
               className={searchInputClass}
             />
-            <p className="mt-2 px-1 text-xs text-white/55">
-              Este campo filtra solo tu lista actual.
-            </p>
           </div>
 
           {Array.isArray(amigos) && amigos.length > 0 ? (
