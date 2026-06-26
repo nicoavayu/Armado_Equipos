@@ -1,5 +1,5 @@
 import logger from '../utils/logger';
-import React, { useState, useEffect, useMemo, useRef, useDeferredValue, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useDeferredValue, useCallback, Suspense, lazy } from 'react';
 import { friendlyError } from '../utils/friendlyError';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
@@ -17,7 +17,7 @@ import PlayerMiniCard from '../components/PlayerMiniCard';
 import PlayerBadges from '../components/PlayerBadges';
 import EmptyStateCard from '../components/EmptyStateCard';
 import { handleError } from '../lib/errorHandler';
-import { Calendar, Clock, MapPin, MapPinOff, Star, ListOrdered, Users, CalendarX2 } from 'lucide-react';
+import { Calendar, Clock, MapPin, MapPinOff, Star, ListOrdered, Users, CalendarX2, List, Map as MapIcon } from 'lucide-react';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { hasValidCoordinates, toCoordinateNumber } from '../utils/matchLocation';
 import {
@@ -35,7 +35,14 @@ import { useSmartBackNavigation } from '../hooks/useSmartBackNavigation';
 import { useRefreshOnVisibility } from '../hooks/useRefreshOnVisibility';
 import { useSupabaseRealtime } from '../hooks/useSupabaseRealtime';
 
+import DistanceSlider from '../components/jugar/DistanceSlider';
+
+// Lazy so the MapLibre engine + tiles only load when the user opens the Mapa view.
+const MatchesMapView = lazy(() => import('../components/jugar/MatchesMapView'));
+
 const containerClass = 'flex flex-col items-center w-full pb-6 px-4 box-border font-oswald';
+
+const PARTIDOS_VIEW_STORAGE_KEY = 'quiero-jugar-partidos-view';
 
 const normalizeLocationToken = (value) => String(value || '').replace(/\s+/g, ' ').trim();
 
@@ -75,7 +82,6 @@ const MAX_MATCH_DISTANCE_KM = 30;
 const DEFAULT_MATCH_DISTANCE_KM = 30;
 const QUIERO_JUGAR_MATCHES_POLL_MS = 20000;
 const QUIERO_JUGAR_PLAYERS_POLL_MS = 30000;
-const MATCH_DISTANCE_SLIDER_CLASS = 'quiero-jugar-distance-slider w-full';
 
 const clampMatchDistanceKm = (value) => {
   if (!Number.isFinite(value)) return DEFAULT_MATCH_DISTANCE_KM;
@@ -105,13 +111,20 @@ const QuieroJugar = ({
   const [openMatchesBaseCount, setOpenMatchesBaseCount] = useState(0);
   const [matchesError, setMatchesError] = useState('');
   const [maxMatchDistanceKm, setMaxMatchDistanceKm] = useState(() => {
-    const saved = Number(sessionStorage.getItem(MATCH_DISTANCE_STORAGE_KEY));
+    // A missing/empty stored value must fall back to DEFAULT (Number(null) === 0
+    // is finite and would otherwise clamp to the 1 km minimum on first load).
+    const rawSaved = sessionStorage.getItem(MATCH_DISTANCE_STORAGE_KEY);
+    const saved = rawSaved == null || rawSaved === '' ? NaN : Number(rawSaved);
     return clampMatchDistanceKm(saved);
   });
   const [activeTab, setActiveTab] = useState(() => {
     const savedTab = sessionStorage.getItem('quiero-jugar-tab');
     return savedTab === 'players' || savedTab === 'matches' ? savedTab : 'matches';
   });
+  // Internal PARTIDOS sub-view. Lista is the default; the choice persists per session.
+  const [partidosView, setPartidosView] = useState(() => (
+    sessionStorage.getItem(PARTIDOS_VIEW_STORAGE_KEY) === 'mapa' ? 'mapa' : 'lista'
+  ));
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState(null);
   const [actionPlayer, setActionPlayer] = useState(null);
@@ -127,9 +140,27 @@ const QuieroJugar = ({
 
   useScrollResetOnChange(activeTab);
 
-  const handleMatchDistanceChange = (event) => {
-    setMaxMatchDistanceKm(clampMatchDistanceKm(Number(event.target.value)));
+  const handleMatchDistanceChange = (nextKm) => {
+    setMaxMatchDistanceKm(clampMatchDistanceKm(Number(nextKm)));
   };
+
+  const selectPartidosView = (nextView) => {
+    setPartidosView(nextView);
+    sessionStorage.setItem(PARTIDOS_VIEW_STORAGE_KEY, nextView);
+    // Entering the map: scroll the page to the top so the map gets full
+    // protagonism and its computed height measures from a stable offset.
+    if (nextView === 'mapa' && typeof window !== 'undefined') {
+      window.requestAnimationFrame(() => window.scrollTo({ top: 0 }));
+    }
+  };
+
+  // Shared navigation for both Lista cards and the Mapa bottom sheet — no
+  // duplicated join logic: owner → /admin/:id, otherwise → /partido-publico/:id.
+  const handleOpenMatch = useCallback((match, meta = {}) => {
+    if (!match?.id) return;
+    const owner = meta.isOwner ?? Boolean(user?.id && String(match?.creado_por || '') === String(user.id));
+    navigate(owner ? `/admin/${match.id}` : `/partido-publico/${match.id}`);
+  }, [navigate, user?.id]);
 
   useEffect(() => {
     sessionStorage.setItem(MATCH_DISTANCE_STORAGE_KEY, String(maxMatchDistanceKm));
@@ -520,9 +551,6 @@ const QuieroJugar = ({
   const canFilterByDistance = Boolean(userLocation);
   const visibleMatches = partidosAbiertos;
   const shouldShowLocationHelp = !canFilterByDistance && (locationStatus === 'denied' || locationStatus === 'unavailable');
-  const matchDistanceProgressPercent = (
-    ((maxMatchDistanceKm - MIN_MATCH_DISTANCE_KM) / (MAX_MATCH_DISTANCE_KM - MIN_MATCH_DISTANCE_KM)) * 100
-  );
 
   if (loading) {
     return (
@@ -538,108 +566,6 @@ const QuieroJugar = ({
 
   return (
     <>
-      <style>{`
-        .quiero-jugar-distance-slider {
-          -webkit-appearance: none;
-          appearance: none;
-          width: 100%;
-          min-height: 42px;
-          margin: 0;
-          padding: 10px 0;
-          background: transparent;
-          touch-action: pan-x;
-          -webkit-tap-highlight-color: transparent;
-        }
-        .quiero-jugar-distance-slider:focus {
-          outline: none;
-        }
-        .quiero-jugar-distance-slider::-webkit-slider-runnable-track {
-          height: 12px;
-          border-radius: 999px;
-          background:
-            linear-gradient(
-              to right,
-              #6a43ff 0%,
-              #7c5cff var(--match-distance-progress, 100%),
-              rgba(255, 255, 255, 0.96) var(--match-distance-progress, 100%),
-              rgba(255, 255, 255, 0.96) 100%
-            );
-          box-shadow: inset 0 0 0 2px rgba(111, 125, 255, 0.28);
-        }
-        .quiero-jugar-distance-slider::-webkit-slider-thumb {
-          -webkit-appearance: none;
-          appearance: none;
-          width: 24px;
-          height: 24px;
-          margin-top: -6px;
-          border-radius: 999px;
-          border: 3px solid #efe9ff;
-          background: radial-gradient(circle at 30% 30%, #a48dff 0%, #6a43ff 58%, #5132d5 100%);
-          box-shadow:
-            0 0 0 6px rgba(106, 67, 255, 0.16),
-            0 6px 16px rgba(0, 0, 0, 0.28);
-          transition: transform 120ms ease-out, box-shadow 120ms ease-out;
-        }
-        .quiero-jugar-distance-slider:active::-webkit-slider-thumb {
-          transform: scale(1.08);
-          box-shadow:
-            0 0 0 8px rgba(106, 67, 255, 0.2),
-            0 8px 18px rgba(0, 0, 0, 0.32);
-        }
-        .quiero-jugar-distance-slider::-moz-range-track {
-          height: 12px;
-          border: none;
-          border-radius: 999px;
-          background: rgba(255, 255, 255, 0.96);
-          box-shadow: inset 0 0 0 2px rgba(111, 125, 255, 0.28);
-        }
-        .quiero-jugar-distance-slider::-moz-range-progress {
-          height: 12px;
-          border-radius: 999px;
-          background: linear-gradient(to right, #6a43ff 0%, #7c5cff 100%);
-        }
-        .quiero-jugar-distance-slider::-moz-range-thumb {
-          width: 24px;
-          height: 24px;
-          border: 3px solid #efe9ff;
-          border-radius: 999px;
-          background: radial-gradient(circle at 30% 30%, #a48dff 0%, #6a43ff 58%, #5132d5 100%);
-          box-shadow:
-            0 0 0 6px rgba(106, 67, 255, 0.16),
-            0 6px 16px rgba(0, 0, 0, 0.28);
-          transition: transform 120ms ease-out, box-shadow 120ms ease-out;
-        }
-        .quiero-jugar-distance-slider:active::-moz-range-thumb {
-          transform: scale(1.08);
-          box-shadow:
-            0 0 0 8px rgba(106, 67, 255, 0.2),
-            0 8px 18px rgba(0, 0, 0, 0.32);
-        }
-        .quiero-jugar-distance-slider:disabled::-webkit-slider-thumb,
-        .quiero-jugar-distance-slider:disabled::-moz-range-thumb {
-          box-shadow: none;
-        }
-        @media (max-width: 640px) {
-          .quiero-jugar-distance-slider {
-            min-height: 48px;
-            padding: 12px 0;
-          }
-          .quiero-jugar-distance-slider::-webkit-slider-runnable-track,
-          .quiero-jugar-distance-slider::-moz-range-track,
-          .quiero-jugar-distance-slider::-moz-range-progress {
-            height: 14px;
-          }
-          .quiero-jugar-distance-slider::-webkit-slider-thumb,
-          .quiero-jugar-distance-slider::-moz-range-thumb {
-            width: 28px;
-            height: 28px;
-          }
-          .quiero-jugar-distance-slider::-webkit-slider-thumb {
-            margin-top: -7px;
-          }
-        }
-      `}</style>
-
       <PageTitle title="QUIERO JUGAR" onBack={onVolver}>QUIERO JUGAR</PageTitle>
 
       <div className={containerClass} style={{ paddingTop: `${secondaryTabsTop}px` }}>
@@ -732,46 +658,60 @@ const QuieroJugar = ({
                   />
                 ) : null}
 
-                <div className="w-full max-w-[500px] mt-2 mb-4 rounded-card surface-card px-4 py-3.5">
-                  <div className="flex items-center justify-between gap-2 mb-2.5">
-                    <span className="font-sans font-bold text-[11px] uppercase tracking-[0.12em] text-[#b0a0ff]/85">
-                      Distancia máxima de partidos
+                {/* Compact premium distance filter — label + value pill on one
+                    row, precise pointer-driven slider below. No explanatory
+                    paragraph (keeps the map tall): the location-help empty state
+                    above already covers the "no location" case. */}
+                <div className="w-full max-w-[500px] mt-1.5 mb-2.5 rounded-card surface-card px-3.5 py-2">
+                  <div className="flex items-center justify-between gap-2 mb-0.5">
+                    <span className="font-sans font-bold text-[11px] uppercase tracking-[0.14em] text-[#b0a0ff]/85">
+                      Distancia
                     </span>
-                    <span className="font-sans text-sm font-bold text-white inline-flex items-center rounded-full border border-[rgba(148,134,255,0.3)] bg-[rgba(106,67,255,0.16)] px-2.5 py-0.5">
+                    <span className="font-sans text-[13px] font-bold text-white inline-flex items-center rounded-full border border-[rgba(148,134,255,0.3)] bg-[rgba(106,67,255,0.16)] px-2.5 py-0.5 leading-none">
                       {maxMatchDistanceKm} km
                     </span>
                   </div>
 
-                  <input
-                    data-allow-horizontal-scroll="true"
-                    type="range"
+                  <DistanceSlider
                     min={MIN_MATCH_DISTANCE_KM}
                     max={MAX_MATCH_DISTANCE_KM}
                     step={1}
-                    disabled={!canFilterByDistance}
                     value={maxMatchDistanceKm}
-                    onInput={handleMatchDistanceChange}
+                    disabled={!canFilterByDistance}
                     onChange={handleMatchDistanceChange}
-                    className={`${MATCH_DISTANCE_SLIDER_CLASS} ${canFilterByDistance ? 'cursor-pointer' : 'cursor-not-allowed opacity-45'}`}
-                    style={{
-                      '--match-distance-progress': `${matchDistanceProgressPercent}%`,
-                    }}
-                    aria-label="Distancia maxima de partidos"
+                    ariaLabel="Distancia máxima de partidos"
+                    valueText={`${maxMatchDistanceKm} km`}
                   />
-
-                  <p className="mt-2 text-[11px] font-sans text-white/50 leading-relaxed">
-                    {canFilterByDistance
-                      ? 'Con ubicacion activa mostramos solo partidos dentro del radio y con coordenadas persistidas.'
-                      : 'Sin ubicacion disponible no filtramos por distancia y mostramos todos los partidos abiertos.'}
-                  </p>
-                  {!canFilterByDistance ? (
-                    <p className="mt-1 text-[11px] font-sans text-white/40 leading-relaxed">
-                      Activá la ubicacion del navegador o completá tu ubicacion en Perfil para usar este filtro.
-                    </p>
-                  ) : null}
                 </div>
 
-                {visibleMatches.length === 0 ? (
+                {/* Lista / Mapa sub-view toggle — PARTIDOS only. Lista is the default. */}
+                <div className="w-full max-w-[500px] mb-3 flex h-[40px] gap-1 p-1 overflow-hidden rounded-full border border-[rgba(148,134,255,0.22)] bg-[rgba(20,16,41,0.85)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+                  <button
+                    type="button"
+                    aria-pressed={partidosView === 'lista'}
+                    className={`flex flex-1 min-w-0 items-center justify-center gap-1.5 rounded-full font-sans text-[12px] font-bold uppercase tracking-[0.04em] transition-[background-color,color] duration-150 ${partidosView === 'lista'
+                      ? 'bg-cta-gradient text-white shadow-[0_4px_14px_rgba(106,67,255,0.4)]'
+                      : 'bg-transparent text-white/55 hover:text-white/85 hover:bg-white/[0.06]'
+                      }`}
+                    onClick={() => selectPartidosView('lista')}
+                  >
+                    <List size={14} /> Lista
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={partidosView === 'mapa'}
+                    className={`flex flex-1 min-w-0 items-center justify-center gap-1.5 rounded-full font-sans text-[12px] font-bold uppercase tracking-[0.04em] transition-[background-color,color] duration-150 ${partidosView === 'mapa'
+                      ? 'bg-cta-gradient text-white shadow-[0_4px_14px_rgba(106,67,255,0.4)]'
+                      : 'bg-transparent text-white/55 hover:text-white/85 hover:bg-white/[0.06]'
+                      }`}
+                    onClick={() => selectPartidosView('mapa')}
+                  >
+                    <MapIcon size={14} /> Mapa
+                  </button>
+                </div>
+
+                {partidosView === 'lista' ? (
+                  visibleMatches.length === 0 ? (
                   <div className="w-full max-w-[500px] rounded-card surface-card p-6 text-center">
                     <p className="text-white font-oswald font-bold text-base">
                       {canFilterByDistance
@@ -804,9 +744,9 @@ const QuieroJugar = ({
                       return (
                         <div
                           key={partido.id}
-                          className="relative w-full max-w-[500px] overflow-hidden rounded-card bg-[radial-gradient(360px_180px_at_12%_-30%,rgba(139,92,255,0.18),transparent_70%),linear-gradient(165deg,rgba(48,38,98,0.72),rgba(20,16,41,0.94))] border border-[rgba(148,134,255,0.16)] p-4 pl-5 mb-3 shadow-elev-2 transition-all duration-200 hover:brightness-[1.05] hover:border-[rgba(148,134,255,0.42)] before:content-[''] before:absolute before:left-0 before:top-0 before:bottom-0 before:w-[3px] before:bg-[linear-gradient(180deg,#8b5cff,rgba(139,92,255,0.08))]"
+                          className="relative w-full max-w-[500px] overflow-hidden rounded-card bg-[radial-gradient(360px_180px_at_12%_-30%,rgba(139,92,255,0.18),transparent_70%),linear-gradient(165deg,rgba(48,38,98,0.72),rgba(20,16,41,0.94))] border border-[rgba(148,134,255,0.16)] p-3.5 pl-4 mb-2.5 shadow-elev-2 transition-all duration-200 hover:brightness-[1.05] hover:border-[rgba(148,134,255,0.42)] before:content-[''] before:absolute before:left-0 before:top-0 before:bottom-0 before:w-[3px] before:bg-[linear-gradient(180deg,#8b5cff,rgba(139,92,255,0.08))]"
                         >
-                          <div className="flex justify-between items-start mb-3 gap-3">
+                          <div className="flex justify-between items-start mb-2 gap-3">
                             <div className="flex items-center gap-2 min-w-0">
                               <div className="inline-flex items-center gap-1.5 font-oswald text-[14px] font-bold text-white capitalize min-w-0">
                                 <Calendar size={14} className="text-[#cfc4ff] shrink-0" />
@@ -834,7 +774,7 @@ const QuieroJugar = ({
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-1.5 mb-3 flex-wrap">
+                          <div className="flex items-center gap-1.5 mb-2 flex-wrap">
                             <span className="font-sans text-[11px] font-bold px-2.5 py-[3px] rounded-full border shrink-0 whitespace-nowrap border-[#22c55e]/45 bg-[#22c55e]/10 text-[#86efac]">{partido.modalidad || 'F5'}</span>
                             <span className="font-sans text-[11px] font-bold px-2.5 py-[3px] rounded-full border shrink-0 whitespace-nowrap border-[#2dd4bf]/45 bg-[#2dd4bf]/10 text-[#99f6e4]">{partido.tipo_partido || 'Mixto'}</span>
                             {isOwnerMatch ? (
@@ -855,9 +795,9 @@ const QuieroJugar = ({
                             </div>
                           ) : null}
 
-                          <div className="flex gap-2 mt-4">
+                          <div className="flex gap-2 mt-3">
                             <button
-                              className="flex-1 font-bebas font-semibold text-base px-4 py-2.5 border border-white/15 rounded-2xl cursor-pointer transition-all text-white min-h-[44px] flex items-center justify-center text-center bg-cta-gradient shadow-cta hover:brightness-110"
+                              className="flex-1 font-bebas font-semibold text-base px-4 py-2 border border-white/15 rounded-2xl cursor-pointer transition-all text-white min-h-[44px] flex items-center justify-center text-center bg-cta-gradient shadow-cta hover:brightness-110"
                               onClick={() => navigate(isOwnerMatch ? `/admin/${partido.id}` : `/partido-publico/${partido.id}`)}
                             >
                               Ver partido
@@ -867,6 +807,22 @@ const QuieroJugar = ({
                       );
                     })}
                   </>
+                  )
+                ) : (
+                  <Suspense
+                    fallback={(
+                      <div className="w-full max-w-[520px] h-[62vh] min-h-[360px] rounded-card surface-card flex items-center justify-center">
+                        <p className="font-oswald text-base font-bold text-white/70">Cargando mapa…</p>
+                      </div>
+                    )}
+                  >
+                    <MatchesMapView
+                      matches={visibleMatches}
+                      userLocation={userLocation}
+                      currentUserId={user?.id}
+                      onSelectMatch={handleOpenMatch}
+                    />
+                  </Suspense>
                 )}
               </>
             );
@@ -915,7 +871,7 @@ const QuieroJugar = ({
                   </button>
                 </div>
 
-                <div className="w-full max-w-[500px] flex flex-col gap-2.5">
+                <div className="w-full max-w-[500px] flex flex-col gap-2">
                   {otherPlayers.map((player) => (
                     <PlayerMiniCard
                       key={player.uuid || player.id}

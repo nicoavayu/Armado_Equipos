@@ -96,9 +96,9 @@ const PlayerMiniCard = ({
   return (
     <div
       onClick={onClick}
-      className={`relative flex items-center gap-3 px-3.5 py-3 border transition-all duration-200 ${cardShapeClass} ${cardSkinClass} ${onClick ? 'cursor-pointer active:scale-[0.99]' : ''}`}
+      className={`relative flex items-center gap-2.5 px-3.5 py-2.5 border transition-all duration-200 ${cardShapeClass} ${cardSkinClass} ${onClick ? 'cursor-pointer active:scale-[0.99]' : ''}`}
     >
-      <div className={`w-11 h-11 rounded-full overflow-hidden shrink-0 border-2 bg-[#1d1740] flex items-center justify-center shadow-[0_3px_10px_rgba(5,3,16,0.45)] ${avatarBorderClass}`}>
+      <div className={`w-10 h-10 rounded-full overflow-hidden shrink-0 border-2 bg-[#1d1740] flex items-center justify-center shadow-[0_3px_10px_rgba(5,3,16,0.45)] ${avatarBorderClass}`}>
         {avatarUrl ? (
           <img src={avatarUrl} alt={name} className="w-full h-full object-cover" />
         ) : (
@@ -112,14 +112,14 @@ const PlayerMiniCard = ({
       </div>
 
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1">
+        <div className="flex items-center gap-2 mb-0.5">
           <span className={`font-bebas text-[17px] tracking-wide leading-none truncate ${nameClass}`}>
             {name}
           </span>
           {metaBadge}
         </div>
 
-        <div className={`flex items-center gap-2.5 text-[11px] font-oswald uppercase tracking-wide ${detailTextClass}`}>
+        <div className={`flex items-center gap-2 text-[11px] font-oswald uppercase tracking-wide ${detailTextClass}`}>
           {showRating ? (
             <div className={`inline-flex items-center gap-1 px-2 py-[3px] rounded-full border font-bold normal-case ${ratingContainerClass}`}>
               <Star size={11} fill="currentColor" />
