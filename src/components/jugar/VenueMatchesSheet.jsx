@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { Calendar, Clock, MapPin, Users, X } from 'lucide-react';
+import { getMissingPlayerCount } from '../../utils/venuesFromOpenMatches';
 
 // Premium bottom sheet for the Jugar > PARTIDOS "Mapa" view.
 //
@@ -23,11 +24,6 @@ const getSlots = (match) => {
   return { taken, capacity };
 };
 
-const getMissingPlayers = (match) => {
-  const falta = Number(match?.falta_jugadores);
-  return Number.isFinite(falta) && falta > 0 ? falta : null;
-};
-
 const isOwnerMatch = (match, currentUserId) => (
   Boolean(currentUserId) && String(match?.creado_por || '') === String(currentUserId)
 );
@@ -35,7 +31,7 @@ const isOwnerMatch = (match, currentUserId) => (
 const MatchRow = ({ match, currentUserId, onSelectMatch }) => {
   const owner = isOwnerMatch(match, currentUserId);
   const { taken, capacity } = getSlots(match);
-  const missing = getMissingPlayers(match);
+  const missing = getMissingPlayerCount(match);
   const dateLabel = formatMatchDate(match?.fecha);
 
   return (
@@ -71,10 +67,10 @@ const MatchRow = ({ match, currentUserId, onSelectMatch }) => {
         ) : null}
       </div>
 
-      {missing ? (
+      {missing > 0 ? (
         <div className="mt-2 inline-flex items-center gap-1.5 text-[12px] font-sans font-semibold text-amber-300">
           <Users size={12} />
-          {`Faltan ${missing} ${missing === 1 ? 'jugador' : 'jugadores'}`}
+          {`${missing === 1 ? 'Falta' : 'Faltan'} ${missing} ${missing === 1 ? 'jugador' : 'jugadores'}`}
         </div>
       ) : null}
 

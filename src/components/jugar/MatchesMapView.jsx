@@ -155,8 +155,13 @@ const MatchesMapView = ({
 
     mapRef.current = map;
 
+    // Attribution is legally required (the OpenFreeMap style ships no embedded
+    // attribution, so this custom string is the only credit). `compact: false`
+    // keeps it always visible without a tap; the `arma2-map-card` scoped styles
+    // below shrink it into a subtle, on-brand corner pill instead of MapLibre's
+    // default white badge.
     map.addControl(
-      new maplibregl.AttributionControl({ compact: true, customAttribution: OPENFREEMAP_ATTRIBUTION }),
+      new maplibregl.AttributionControl({ compact: false, customAttribution: OPENFREEMAP_ATTRIBUTION }),
       'bottom-right',
     );
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
@@ -373,7 +378,7 @@ const MatchesMapView = ({
 
       <div
         ref={cardRef}
-        className="relative overflow-hidden rounded-card border border-[rgba(148,134,255,0.18)] shadow-elev-2"
+        className="arma2-map-card relative overflow-hidden rounded-card border border-[rgba(148,134,255,0.18)] shadow-elev-2"
         style={mapHeight ? { height: `${mapHeight}px` } : undefined}
       >
         <div
@@ -387,6 +392,42 @@ const MatchesMapView = ({
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 rounded-card shadow-[inset_0_0_120px_rgba(106,67,255,0.18)]"
         />
+
+        {/* Reshape MapLibre's default white attribution badge into a subtle,
+            on-brand corner pill. It stays always visible (legally required) and
+            never uses display:none — just quieter, smaller and integrated. */}
+        <style>{`
+          .arma2-map-card .maplibregl-ctrl-bottom-right {
+            right: 7px;
+            bottom: 7px;
+          }
+          .arma2-map-card .maplibregl-ctrl-attrib {
+            margin: 0;
+            min-height: 0;
+            padding: 1px 8px;
+            border-radius: 9999px;
+            background: rgba(10, 8, 24, 0.5);
+            -webkit-backdrop-filter: blur(6px);
+            backdrop-filter: blur(6px);
+            border: 1px solid rgba(148, 134, 255, 0.16);
+            box-shadow: 0 2px 10px rgba(5, 3, 16, 0.32);
+          }
+          .arma2-map-card .maplibregl-ctrl-attrib .maplibregl-ctrl-attrib-inner {
+            font-size: 9.5px;
+            font-weight: 500;
+            line-height: 1.55;
+            letter-spacing: 0.01em;
+            color: rgba(226, 220, 255, 0.52);
+          }
+          .arma2-map-card .maplibregl-ctrl-attrib .maplibregl-ctrl-attrib-inner a {
+            color: rgba(226, 220, 255, 0.66);
+            text-decoration: none;
+          }
+          .arma2-map-card .maplibregl-ctrl-attrib .maplibregl-ctrl-attrib-inner a:hover {
+            color: rgba(226, 220, 255, 0.92);
+            text-decoration: underline;
+          }
+        `}</style>
 
         {mapError ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[#0c0a1d]/92 px-6 text-center">

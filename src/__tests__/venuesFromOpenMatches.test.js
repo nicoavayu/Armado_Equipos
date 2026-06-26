@@ -1,6 +1,7 @@
 import {
   buildVenuesGeoJSON,
   countActiveMatchesForVenues,
+  getMissingPlayerCount,
   getVenueKey,
   groupVenuesFromOpenMatches,
   matchNeedsGoalkeeper,
@@ -100,6 +101,30 @@ describe('venuesFromOpenMatches', () => {
     geojson.features.forEach((feature) => {
       expect(feature.geometry.type).toBe('Point');
       expect(feature.geometry.coordinates).toHaveLength(2);
+    });
+  });
+
+  describe('getMissingPlayerCount', () => {
+    test('deriva del cupo y el roster, no del booleano falta_jugadores', () => {
+      // 1/10 → faltan 9, aunque falta_jugadores sea el booleano true (Number(true) === 1).
+      expect(getMissingPlayerCount({ cupo_jugadores: 10, jugadores_count: 1, falta_jugadores: true })).toBe(9);
+      expect(getMissingPlayerCount({ cupo_jugadores: 10, jugadores_count: 9, falta_jugadores: true })).toBe(1);
+    });
+
+    test('prefiere la longitud del array de jugadores cuando existe', () => {
+      const match = { cupo_jugadores: 10, jugadores: [{ id: 1 }, { id: 2 }, { id: 3 }], jugadores_count: 99 };
+      expect(getMissingPlayerCount(match)).toBe(7);
+    });
+
+    test('nunca es negativo (completo o sobre-cupo → 0)', () => {
+      expect(getMissingPlayerCount({ cupo_jugadores: 10, jugadores_count: 10 })).toBe(0);
+      expect(getMissingPlayerCount({ cupo_jugadores: 10, jugadores_count: 12 })).toBe(0);
+    });
+
+    test('sin cupo conocido → 0 (no se asume faltante)', () => {
+      expect(getMissingPlayerCount({ cupo_jugadores: 0, jugadores_count: 0, falta_jugadores: true })).toBe(0);
+      expect(getMissingPlayerCount({})).toBe(0);
+      expect(getMissingPlayerCount(null)).toBe(0);
     });
   });
 

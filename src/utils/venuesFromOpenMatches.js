@@ -72,6 +72,28 @@ export const matchNeedsGoalkeeper = (match) => (
   match?.busca_arquero === true || match?.necesita_arquero === true
 );
 
+/**
+ * Number of players still missing for an open match, derived from the REAL
+ * capacity/roster — never from `falta_jugadores`.
+ *
+ * `falta_jugadores` is a boolean/open-call flag in the open-match payload, so
+ * `Number(true) === 1` would make every open match read "Faltan 1 jugador"
+ * regardless of how many spots are actually free. We compute the honest count
+ * from `cupo_jugadores` minus the current roster (the `jugadores` array length
+ * when present, else `jugadores_count`), clamped at 0 so a full/over-booked or
+ * capacity-unknown match yields 0 (no warning).
+ *
+ * @param {object} match
+ * @returns {number}
+ */
+export const getMissingPlayerCount = (match) => {
+  const capacity = Number(match?.cupo_jugadores) || 0;
+  const roster = Array.isArray(match?.jugadores)
+    ? match.jugadores.length
+    : Number(match?.jugadores_count) || 0;
+  return Math.max(capacity - roster, 0);
+};
+
 const buildVenue = (key, matches) => {
   const mappable = matches.filter((match) => getMatchCoordinates(match));
   const first = mappable[0] || matches[0];
