@@ -218,6 +218,14 @@ export default function AutocompleteSede({
   useEffect(() => {
     let cancelled = false;
 
+    // The wizard ("Crear partido") venue picker is intentionally NOT a "nearby"
+    // experience: it never shows distance, so we skip loading the user's
+    // reference location entirely.
+    if (wizard) {
+      setReferenceLocation(null);
+      return undefined;
+    }
+
     const loadReferenceLocation = async () => {
       if (!user?.id) {
         if (!cancelled) setReferenceLocation(null);
@@ -254,10 +262,15 @@ export default function AutocompleteSede({
     return () => {
       cancelled = true;
     };
-  }, [user?.id]);
+  }, [user?.id, wizard]);
 
   useEffect(() => {
     let cancelled = false;
+
+    // For the wizard venue picker the suggestion list shows only name + address
+    // (no distance), so we skip the per-suggestion geocode hydration whose sole
+    // remaining purpose was the distance label.
+    if (wizard) return undefined;
 
     const targetSuggestions = suggestions
       .slice(0, SUGGESTION_METADATA_LIMIT)
@@ -308,7 +321,7 @@ export default function AutocompleteSede({
     return () => {
       cancelled = true;
     };
-  }, [suggestions]);
+  }, [suggestions, wizard]);
 
   const closeSuggestions = useCallback(() => {
     setHasUserEdited(false);
@@ -336,6 +349,13 @@ export default function AutocompleteSede({
   const containerMarginBottom = dense ? 8 : 24;
   const inputMarginBottomClass = dense ? 'mb-1' : 'mb-2';
   const usesDarkPanel = rectangular || wizard;
+  // The wizard venue picker uses a clean, action-oriented label and never shows
+  // distances; other variants keep the descriptive "Sede, club o dirección".
+  const showDistanceLabels = !wizard;
+  const fieldLabel = wizard ? 'Buscar cancha o lugar' : 'Sede, club o dirección';
+  const placeholderText = wizard
+    ? fieldLabel
+    : (ready ? fieldLabel : `${fieldLabel} (cargando sugerencias...)`);
   const inputClassName = wizard
     ? `appearance-none bg-[rgba(13,10,30,0.78)] border border-[rgba(148,134,255,0.34)] text-white font-oswald text-[17px] px-4 py-3 rounded-2xl w-full h-[54px] transition-all focus:outline-none focus:border-[#8b7cff] focus:ring-2 focus:ring-[#6a43ff]/25 placeholder:text-white/32 focus:bg-[rgba(22,17,48,0.94)] box-border shadow-none ${inputMarginBottomClass}`
     : rectangular
@@ -357,8 +377,8 @@ export default function AutocompleteSede({
       <input
         className={inputClassName}
         type="text"
-        aria-label="Sede, club o dirección"
-        placeholder={ready ? 'Sede, club o dirección' : 'Sede, club o dirección (cargando sugerencias...)'}
+        aria-label={fieldLabel}
+        placeholder={placeholderText}
         value={inputValue}
         onChange={(e) => {
           const nextValue = e.target.value;
@@ -401,7 +421,7 @@ export default function AutocompleteSede({
             (() => {
               const metadata = suggestionMetadata[s.place_id] || suggestionMetadataCacheRef.current.get(s.place_id) || null;
               const secondaryText = metadata?.areaLabel || extractFallbackSecondaryText(s);
-              const distanceLabel = metadata
+              const distanceLabel = (showDistanceLabels && metadata)
                 ? formatDistanceLabel(referenceLocation, metadata)
                 : null;
 
@@ -418,14 +438,31 @@ export default function AutocompleteSede({
                     setServiceSuggestions([]);
                     onChange?.(description);
 
+                    const mainText = String(s.structured_formatting?.main_text || description).trim();
+                    const secondaryDescription = extractFallbackSecondaryText(s);
+
                     try {
                       const results = await getGeocode({ placeId: s.place_id });
                       const firstResult = Array.isArray(results) ? results[0] : null;
                       if (!firstResult) throw new Error('Missing geocode result');
                       const { lat, lng } = await getLatLng(firstResult);
-                      onSelect({ description, place_id: s.place_id, lat, lng });
+                      onSelect({
+                        description,
+                        place_id: s.place_id,
+                        lat,
+                        lng,
+                        mainText,
+                        secondaryText: secondaryDescription,
+                      });
                     } catch {
-                      onSelect({ description, place_id: s.place_id, lat: null, lng: null });
+                      onSelect({
+                        description,
+                        place_id: s.place_id,
+                        lat: null,
+                        lng: null,
+                        mainText,
+                        secondaryText: secondaryDescription,
+                      });
                     }
                   }}
                   style={{
@@ -443,18 +480,20 @@ export default function AutocompleteSede({
                     <span style={{ fontWeight: 700, color: usesDarkPanel ? 'rgba(248,250,255,0.94)' : '#2a2a2a', fontSize: 18, flex: 1, minWidth: 0 }}>
                       {s.structured_formatting?.main_text || s.description}
                     </span>
-                    <span
-                      style={{
-                        minWidth: 56,
-                        textAlign: 'right',
-                        color: usesDarkPanel ? 'rgba(190,174,255,0.92)' : '#4b5563',
-                        fontSize: 14,
-                        fontWeight: 600,
-                        visibility: distanceLabel ? 'visible' : 'hidden',
-                      }}
-                    >
-                      {distanceLabel || '0 km'}
-                    </span>
+                    {showDistanceLabels ? (
+                      <span
+                        style={{
+                          minWidth: 56,
+                          textAlign: 'right',
+                          color: usesDarkPanel ? 'rgba(190,174,255,0.92)' : '#4b5563',
+                          fontSize: 14,
+                          fontWeight: 600,
+                          visibility: distanceLabel ? 'visible' : 'hidden',
+                        }}
+                      >
+                        {distanceLabel || '0 km'}
+                      </span>
+                    ) : null}
                   </div>
                   {secondaryText ? (
                     <span
