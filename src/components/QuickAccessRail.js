@@ -20,9 +20,10 @@ import { prefetchRoute } from '../utils/routePrefetch';
 //    and the last real card a (cloned) "next" peeking on its right, and a single
 //    gesture can travel several cards before reaching a wall. The lead/tail
 //    spacers shrink to a single gap, so the extremes are never blank.
-//  - Clones are inert: plain <div>s, aria-hidden, no Link/onClick/prefetch, so
-//    they never duplicate navigation or analytics. The dots also map to the real
-//    items only.
+//  - Clones mirror a real item and stay pointer-tappable with the same
+//    to/onClick/prefetch (a clone always peeks at an extreme, so it must navigate
+//    when tapped), but are aria-hidden + tabIndex -1 so a11y/keyboard and the dots
+//    only ever see the real items. One tap = one navigation, never double-counted.
 //  - When a settle lands on a clone slot we instantly reposition scrollLeft to
 //    the equivalent *real* slot (±one full set) in the same synchronous frame.
 //    The on-screen window is content-identical at the wrap point, so the swap is
@@ -303,22 +304,22 @@ const QuickAccessCard = React.forwardRef(({ item, isActive, isClone, variant }, 
     onDragStart: (e) => e.preventDefault(),
   };
 
-  // Clones are purely decorative: inert <div>s with no link/handler/prefetch and
-  // hidden from a11y, so they never double up navigation or analytics.
-  if (isClone) {
-    return (
-      <div {...sharedProps} aria-hidden="true" tabIndex={-1}>
-        {inner}
-      </div>
-    );
-  }
-
+  // Clones are visual duplicates of real items. They stay OUT of the a11y tree and
+  // tab order (aria-hidden + tabIndex -1) so screen readers / keyboard only ever
+  // traverse the real cards + the dots and never see doubles. But they remain
+  // genuinely pointer-tappable and carry the same `to`/`onClick`/prefetch as the
+  // item they mirror: a clone always peeks at one of the extremes (e.g. the cloned
+  // "Estadísticas" sitting left of the active "Partido nuevo"), and a card that
+  // looks like a button must navigate when tapped. A single tap fires exactly one
+  // navigation, so routing/analytics are never double-counted.
   const interactiveProps = {
     ...sharedProps,
     onMouseEnter: handlePrefetch,
     onTouchStart: handlePrefetch,
     onFocus: handlePrefetch,
-    'aria-current': isActive ? 'true' : undefined,
+    ...(isClone
+      ? { 'aria-hidden': 'true', tabIndex: -1 }
+      : { 'aria-current': isActive ? 'true' : undefined }),
   };
 
   if (to) {
