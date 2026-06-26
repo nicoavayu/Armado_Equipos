@@ -114,5 +114,8 @@
     "webpack": "^5.92.0",
     "webpack-cli": "^5.1.4",
     "webpack-dev-server": "^5.0.4"
+  },
+  "overrides": {
+    "@mapbox/jsonlint-lines-primitives": "2.0.2"
   }
 }
