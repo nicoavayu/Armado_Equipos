@@ -69,9 +69,11 @@ const MatchesMapView = ({
   onSelectMatch,
 }) => {
   const containerRef = useRef(null);
+  const cardRef = useRef(null);
   const mapRef = useRef(null);
   const didFitRef = useRef(false);
   const [mapError, setMapError] = useState(false);
+  const [mapHeight, setMapHeight] = useState(null);
   const [selectedVenue, setSelectedVenue] = useState(null);
 
   const [onlyToday, setOnlyToday] = useState(false);
@@ -90,6 +92,38 @@ const MatchesMapView = ({
 
   const { venues, unmappableCount } = useVenuesFromOpenMatches(filteredMatches);
   const geojson = useMemo(() => buildVenuesGeoJSON(venues), [venues]);
+
+  // Size the map to fill from the card's top down to just above the fixed
+  // TabBar (safe-area aware) so the map gets protagonism while its bottom edge
+  // and zoom controls always stay clear of the bottom navigation.
+  useEffect(() => {
+    const computeHeight = () => {
+      const el = cardRef.current;
+      if (!el) return;
+      const viewport = window.visualViewport?.height || window.innerHeight || 0;
+      const { top } = el.getBoundingClientRect();
+      // Matches MainLayout's reserved bottom padding (~104px) for the TabBar,
+      // plus a small gap so the card clearly ends above the bar.
+      const TAB_BAR_CLEARANCE = 116;
+      const next = Math.round(viewport - top - TAB_BAR_CLEARANCE);
+      setMapHeight(Math.max(340, next));
+    };
+
+    computeHeight();
+    const raf = window.requestAnimationFrame(computeHeight);
+    window.addEventListener('resize', computeHeight);
+    window.addEventListener('orientationchange', computeHeight);
+    return () => {
+      window.cancelAnimationFrame(raf);
+      window.removeEventListener('resize', computeHeight);
+      window.removeEventListener('orientationchange', computeHeight);
+    };
+  }, []);
+
+  // Keep the MapLibre canvas in sync with the computed height.
+  useEffect(() => {
+    mapRef.current?.resize?.();
+  }, [mapHeight]);
 
   // Keep an up-to-date venue lookup for click handlers without re-binding them.
   const venuesByKeyRef = useRef(new Map());
@@ -196,17 +230,19 @@ const MatchesMapView = ({
           'circle-radius': 20,
         },
       });
-      // Single venue core.
+      // Single venue core — Arma2 violet (a brighter violet when the venue holds
+      // more than one open match). No green: keeps the pin on-brand over the
+      // dark map with a light violet/white halo.
       map.addLayer({
         id: 'venue-point-core',
         type: 'circle',
         source: SOURCE_ID,
         filter: ['!', ['has', 'point_count']],
         paint: {
-          'circle-color': ['case', ['>', ['get', 'matchCount'], 1], '#8b5cff', '#22c55e'],
+          'circle-color': ['case', ['>', ['get', 'matchCount'], 1], '#a855f7', '#7c5cff'],
           'circle-radius': 12,
           'circle-stroke-width': 2,
-          'circle-stroke-color': 'rgba(239, 233, 255, 0.9)',
+          'circle-stroke-color': 'rgba(239, 233, 255, 0.92)',
         },
       });
       // Single venue count — only when the venue holds more than one match.
@@ -309,9 +345,11 @@ const MatchesMapView = ({
 
   return (
     <div className="w-full max-w-[520px]">
-      {/* Filters — kept simple & honest. "Falta arquero" is prepared but disabled
-          until a real match-level field exists, so it never shows a false state. */}
-      <div className="mb-3 flex flex-wrap items-center gap-2">
+      {/* Filters — kept simple & honest. A goalkeeper filter is intentionally NOT
+          shown in Phase A: there is no real match-level "needs GK" field yet
+          (the matchNeedsGoalkeeper helper stays defensive/false), so the UI never
+          surfaces a fabricated state. */}
+      <div className="mb-2 flex flex-wrap items-center gap-2">
         <FilterChip active={onlyToday} onClick={() => setOnlyToday((value) => !value)}>
           Hoy
         </FilterChip>
@@ -331,15 +369,16 @@ const MatchesMapView = ({
             ))}
           </>
         ) : null}
-        <FilterChip disabled hint="pronto">
-          Falta arquero
-        </FilterChip>
       </div>
 
-      <div className="relative overflow-hidden rounded-card border border-[rgba(148,134,255,0.18)] shadow-elev-2">
+      <div
+        ref={cardRef}
+        className="relative overflow-hidden rounded-card border border-[rgba(148,134,255,0.18)] shadow-elev-2"
+        style={mapHeight ? { height: `${mapHeight}px` } : undefined}
+      >
         <div
           ref={containerRef}
-          className="h-[66vh] min-h-[420px] w-full bg-[#0c0a1d]"
+          className={`w-full bg-[#0c0a1d] ${mapHeight ? 'h-full' : 'h-[62vh] min-h-[360px]'}`}
           aria-label="Mapa de partidos abiertos"
         />
 

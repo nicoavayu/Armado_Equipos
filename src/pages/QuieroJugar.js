@@ -110,7 +110,10 @@ const QuieroJugar = ({
   const [openMatchesBaseCount, setOpenMatchesBaseCount] = useState(0);
   const [matchesError, setMatchesError] = useState('');
   const [maxMatchDistanceKm, setMaxMatchDistanceKm] = useState(() => {
-    const saved = Number(sessionStorage.getItem(MATCH_DISTANCE_STORAGE_KEY));
+    // A missing/empty stored value must fall back to DEFAULT (Number(null) === 0
+    // is finite and would otherwise clamp to the 1 km minimum on first load).
+    const rawSaved = sessionStorage.getItem(MATCH_DISTANCE_STORAGE_KEY);
+    const saved = rawSaved == null || rawSaved === '' ? NaN : Number(rawSaved);
     return clampMatchDistanceKm(saved);
   });
   const [activeTab, setActiveTab] = useState(() => {
@@ -143,6 +146,11 @@ const QuieroJugar = ({
   const selectPartidosView = (nextView) => {
     setPartidosView(nextView);
     sessionStorage.setItem(PARTIDOS_VIEW_STORAGE_KEY, nextView);
+    // Entering the map: scroll the page to the top so the map gets full
+    // protagonism and its computed height measures from a stable offset.
+    if (nextView === 'mapa' && typeof window !== 'undefined') {
+      window.requestAnimationFrame(() => window.scrollTo({ top: 0 }));
+    }
   };
 
   // Shared navigation for both Lista cards and the Mapa bottom sheet — no
@@ -561,104 +569,91 @@ const QuieroJugar = ({
   return (
     <>
       <style>{`
+        /* Premium slim Arma2 range. The element stays a tall (44px) hit target
+           for reliable touch while the visible track is slim (6px). touch-action
+           pan-y lets the page scroll vertically but hands horizontal drags to the
+           thumb, so the slider never feels sticky on iOS Safari / Android WebView. */
         .quiero-jugar-distance-slider {
           -webkit-appearance: none;
           appearance: none;
           width: 100%;
-          min-height: 42px;
+          height: 44px;
           margin: 0;
-          padding: 10px 0;
+          padding: 0;
           background: transparent;
-          touch-action: pan-x;
+          touch-action: pan-y;
           -webkit-tap-highlight-color: transparent;
         }
         .quiero-jugar-distance-slider:focus {
           outline: none;
         }
         .quiero-jugar-distance-slider::-webkit-slider-runnable-track {
-          height: 12px;
+          height: 6px;
           border-radius: 999px;
           background:
             linear-gradient(
               to right,
-              #6a43ff 0%,
-              #7c5cff var(--match-distance-progress, 100%),
-              rgba(255, 255, 255, 0.96) var(--match-distance-progress, 100%),
-              rgba(255, 255, 255, 0.96) 100%
+              #7c5cff 0%,
+              #9a7bff var(--match-distance-progress, 100%),
+              rgba(124, 92, 255, 0.16) var(--match-distance-progress, 100%),
+              rgba(124, 92, 255, 0.16) 100%
             );
-          box-shadow: inset 0 0 0 2px rgba(111, 125, 255, 0.28);
+          box-shadow: inset 0 0 0 1px rgba(148, 134, 255, 0.18);
         }
         .quiero-jugar-distance-slider::-webkit-slider-thumb {
           -webkit-appearance: none;
           appearance: none;
-          width: 24px;
-          height: 24px;
-          margin-top: -6px;
+          width: 20px;
+          height: 20px;
+          margin-top: -7px;
           border-radius: 999px;
-          border: 3px solid #efe9ff;
-          background: radial-gradient(circle at 30% 30%, #a48dff 0%, #6a43ff 58%, #5132d5 100%);
-          box-shadow:
-            0 0 0 6px rgba(106, 67, 255, 0.16),
-            0 6px 16px rgba(0, 0, 0, 0.28);
-          transition: transform 120ms ease-out, box-shadow 120ms ease-out;
+          border: 2px solid #efe9ff;
+          background: radial-gradient(circle at 32% 28%, #cbbcff 0%, #7c5cff 55%, #5a39e0 100%);
+          box-shadow: 0 2px 8px rgba(5, 3, 16, 0.45);
+          transition: transform 120ms ease-out, box-shadow 140ms ease-out;
         }
-        .quiero-jugar-distance-slider:active::-webkit-slider-thumb {
-          transform: scale(1.08);
+        .quiero-jugar-distance-slider:active::-webkit-slider-thumb,
+        .quiero-jugar-distance-slider:focus-visible::-webkit-slider-thumb {
+          transform: scale(1.12);
           box-shadow:
-            0 0 0 8px rgba(106, 67, 255, 0.2),
-            0 8px 18px rgba(0, 0, 0, 0.32);
+            0 0 0 7px rgba(106, 67, 255, 0.18),
+            0 4px 12px rgba(5, 3, 16, 0.5);
         }
         .quiero-jugar-distance-slider::-moz-range-track {
-          height: 12px;
+          height: 6px;
           border: none;
           border-radius: 999px;
-          background: rgba(255, 255, 255, 0.96);
-          box-shadow: inset 0 0 0 2px rgba(111, 125, 255, 0.28);
+          background: rgba(124, 92, 255, 0.16);
+          box-shadow: inset 0 0 0 1px rgba(148, 134, 255, 0.18);
         }
         .quiero-jugar-distance-slider::-moz-range-progress {
-          height: 12px;
+          height: 6px;
           border-radius: 999px;
-          background: linear-gradient(to right, #6a43ff 0%, #7c5cff 100%);
+          background: linear-gradient(to right, #7c5cff 0%, #9a7bff 100%);
         }
         .quiero-jugar-distance-slider::-moz-range-thumb {
-          width: 24px;
-          height: 24px;
-          border: 3px solid #efe9ff;
+          width: 20px;
+          height: 20px;
+          border: 2px solid #efe9ff;
           border-radius: 999px;
-          background: radial-gradient(circle at 30% 30%, #a48dff 0%, #6a43ff 58%, #5132d5 100%);
-          box-shadow:
-            0 0 0 6px rgba(106, 67, 255, 0.16),
-            0 6px 16px rgba(0, 0, 0, 0.28);
-          transition: transform 120ms ease-out, box-shadow 120ms ease-out;
+          background: radial-gradient(circle at 32% 28%, #cbbcff 0%, #7c5cff 55%, #5a39e0 100%);
+          box-shadow: 0 2px 8px rgba(5, 3, 16, 0.45);
+          transition: transform 120ms ease-out, box-shadow 140ms ease-out;
         }
-        .quiero-jugar-distance-slider:active::-moz-range-thumb {
-          transform: scale(1.08);
+        .quiero-jugar-distance-slider:active::-moz-range-thumb,
+        .quiero-jugar-distance-slider:focus-visible::-moz-range-thumb {
+          transform: scale(1.12);
           box-shadow:
-            0 0 0 8px rgba(106, 67, 255, 0.2),
-            0 8px 18px rgba(0, 0, 0, 0.32);
+            0 0 0 7px rgba(106, 67, 255, 0.18),
+            0 4px 12px rgba(5, 3, 16, 0.5);
+        }
+        .quiero-jugar-distance-slider:disabled {
+          cursor: not-allowed;
         }
         .quiero-jugar-distance-slider:disabled::-webkit-slider-thumb,
         .quiero-jugar-distance-slider:disabled::-moz-range-thumb {
           box-shadow: none;
-        }
-        @media (max-width: 640px) {
-          .quiero-jugar-distance-slider {
-            min-height: 48px;
-            padding: 12px 0;
-          }
-          .quiero-jugar-distance-slider::-webkit-slider-runnable-track,
-          .quiero-jugar-distance-slider::-moz-range-track,
-          .quiero-jugar-distance-slider::-moz-range-progress {
-            height: 14px;
-          }
-          .quiero-jugar-distance-slider::-webkit-slider-thumb,
-          .quiero-jugar-distance-slider::-moz-range-thumb {
-            width: 28px;
-            height: 28px;
-          }
-          .quiero-jugar-distance-slider::-webkit-slider-thumb {
-            margin-top: -7px;
-          }
+          filter: grayscale(0.4);
         }
       `}</style>
 
@@ -754,12 +749,16 @@ const QuieroJugar = ({
                   />
                 ) : null}
 
-                <div className="w-full max-w-[500px] mt-2 mb-4 rounded-card surface-card px-4 py-3.5">
-                  <div className="flex items-center justify-between gap-2 mb-2.5">
-                    <span className="font-sans font-bold text-[11px] uppercase tracking-[0.12em] text-[#b0a0ff]/85">
-                      Distancia máxima de partidos
+                {/* Compact premium distance filter — label + value pill on one
+                    row, slim slider below. No explanatory paragraph (keeps the
+                    map tall): the location-help empty state above already covers
+                    the "no location" case. */}
+                <div className="w-full max-w-[500px] mt-2 mb-3 rounded-card surface-card px-4 py-2.5">
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <span className="font-sans font-bold text-[11px] uppercase tracking-[0.14em] text-[#b0a0ff]/85">
+                      Distancia
                     </span>
-                    <span className="font-sans text-sm font-bold text-white inline-flex items-center rounded-full border border-[rgba(148,134,255,0.3)] bg-[rgba(106,67,255,0.16)] px-2.5 py-0.5">
+                    <span className="font-sans text-[13px] font-bold text-white inline-flex items-center rounded-full border border-[rgba(148,134,255,0.3)] bg-[rgba(106,67,255,0.16)] px-2.5 py-0.5 leading-none">
                       {maxMatchDistanceKm} km
                     </span>
                   </div>
@@ -778,23 +777,13 @@ const QuieroJugar = ({
                     style={{
                       '--match-distance-progress': `${matchDistanceProgressPercent}%`,
                     }}
-                    aria-label="Distancia maxima de partidos"
+                    aria-label="Distancia máxima de partidos"
+                    aria-valuetext={`${maxMatchDistanceKm} km`}
                   />
-
-                  <p className="mt-2 text-[11px] font-sans text-white/50 leading-relaxed">
-                    {canFilterByDistance
-                      ? 'Con ubicacion activa mostramos solo partidos dentro del radio y con coordenadas persistidas.'
-                      : 'Sin ubicacion disponible no filtramos por distancia y mostramos todos los partidos abiertos.'}
-                  </p>
-                  {!canFilterByDistance ? (
-                    <p className="mt-1 text-[11px] font-sans text-white/40 leading-relaxed">
-                      Activá la ubicacion del navegador o completá tu ubicacion en Perfil para usar este filtro.
-                    </p>
-                  ) : null}
                 </div>
 
                 {/* Lista / Mapa sub-view toggle — PARTIDOS only. Lista is the default. */}
-                <div className="w-full max-w-[500px] mb-4 flex h-[40px] gap-1 p-1 overflow-hidden rounded-full border border-[rgba(148,134,255,0.22)] bg-[rgba(20,16,41,0.85)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+                <div className="w-full max-w-[500px] mb-3 flex h-[40px] gap-1 p-1 overflow-hidden rounded-full border border-[rgba(148,134,255,0.22)] bg-[rgba(20,16,41,0.85)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
                   <button
                     type="button"
                     aria-pressed={partidosView === 'lista'}
@@ -920,7 +909,7 @@ const QuieroJugar = ({
                 ) : (
                   <Suspense
                     fallback={(
-                      <div className="w-full max-w-[520px] h-[66vh] min-h-[420px] rounded-card surface-card flex items-center justify-center">
+                      <div className="w-full max-w-[520px] h-[62vh] min-h-[360px] rounded-card surface-card flex items-center justify-center">
                         <p className="font-oswald text-base font-bold text-white/70">Cargando mapa…</p>
                       </div>
                     )}
@@ -980,7 +969,7 @@ const QuieroJugar = ({
                   </button>
                 </div>
 
-                <div className="w-full max-w-[500px] flex flex-col gap-2.5">
+                <div className="w-full max-w-[500px] flex flex-col gap-2">
                   {otherPlayers.map((player) => (
                     <PlayerMiniCard
                       key={player.uuid || player.id}
