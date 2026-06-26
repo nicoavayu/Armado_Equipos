@@ -3,11 +3,13 @@ import { notifyBlockingError } from 'utils/notifyBlockingError';
 // src/components/MatchChat.js
 import React, { useCallback, useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
+import { Capacitor } from '@capacitor/core';
 import { supabase } from '../supabase';
 import { useAuth } from './AuthProvider';
 import { useKeyboard } from '../hooks/useKeyboard';
 // import './MatchChat.css'; // REMOVED
 
+const MIN_CHAT_VIEWPORT_HEIGHT = 280;
 const AUTHOR_COLORS = [
   '#38bdf8', '#22c55e', '#f59e0b', '#ef4444', '#a78bfa', '#14b8a6',
   '#f97316', '#60a5fa', '#84cc16', '#e879f9', '#f43f5e', '#10b981',
@@ -17,6 +19,46 @@ const AUTHOR_COLORS = [
 const TEAM_CHAT_SIDE_COLORS = ['#A78BFA', '#22D3EE'];
 const normalizeAuthorKey = (value) => String(value || '').trim().toLowerCase();
 const logMatchChat = () => {};
+
+export const resolveMatchChatViewportMetrics = ({
+  fallbackHeight = 0,
+  visualViewportHeight = null,
+  visualViewportOffsetTop = 0,
+  isCompactLayout = false,
+  isKeyboardOpen = false,
+  keyboardHeight = 0,
+  platform = 'web',
+} = {}) => {
+  const normalizedFallbackHeight = Math.max(0, Number(fallbackHeight) || 0);
+  const normalizedKeyboardHeight = Math.max(0, Number(keyboardHeight) || 0);
+  const viewportHeightSource = Number(visualViewportHeight) || normalizedFallbackHeight;
+  const viewportHeight = Math.max(MIN_CHAT_VIEWPORT_HEIGHT, viewportHeightSource);
+  const viewportTop = Math.max(0, Number(visualViewportOffsetTop) || 0);
+  const reducedViewportGap = Math.max(0, normalizedFallbackHeight - viewportHeight);
+  const reducedViewportThreshold = Math.min(120, Math.max(48, normalizedKeyboardHeight * 0.35));
+  const isViewportReducedByKeyboard = Boolean(
+    isKeyboardOpen
+    && normalizedKeyboardHeight > 0
+    && reducedViewportGap > reducedViewportThreshold
+  );
+  const shouldSubtractKeyboard = Boolean(
+    isCompactLayout
+    && isKeyboardOpen
+    && normalizedKeyboardHeight > 0
+    && platform !== 'android'
+    && !isViewportReducedByKeyboard
+  );
+  const resolvedHeight = shouldSubtractKeyboard
+    ? Math.max(MIN_CHAT_VIEWPORT_HEIGHT, normalizedFallbackHeight - normalizedKeyboardHeight)
+    : viewportHeight;
+
+  return {
+    top: `${viewportTop}px`,
+    height: `${Math.max(MIN_CHAT_VIEWPORT_HEIGHT, resolvedHeight)}px`,
+    isViewportReducedByKeyboard,
+    shouldSubtractKeyboard,
+  };
+};
 
 const normalizeChatMessage = (row = {}) => ({
   ...row,
@@ -269,24 +311,19 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
     const syncViewport = () => {
       const fallbackHeight = window.innerHeight || document.documentElement.clientHeight || 0;
       const vv = window.visualViewport;
-      const viewportTop = Math.max(0, vv?.offsetTop || 0);
-      const viewportHeight = Math.max(280, vv?.height || fallbackHeight);
-      const keyboardAdjustedHeight = isCompactLayout && isKeyboardOpen && keyboardHeight > 0
-        ? Math.max(280, fallbackHeight - keyboardHeight)
-        : viewportHeight;
-      const resolvedHeight = Math.min(viewportHeight, keyboardAdjustedHeight);
-
-      if (!vv) {
-        setViewportStyle({
-          top: '0px',
-          height: `${keyboardAdjustedHeight}px`,
-        });
-        return;
-      }
+      const viewportMetrics = resolveMatchChatViewportMetrics({
+        fallbackHeight,
+        visualViewportHeight: vv?.height,
+        visualViewportOffsetTop: vv?.offsetTop,
+        isCompactLayout,
+        isKeyboardOpen,
+        keyboardHeight,
+        platform: Capacitor.getPlatform(),
+      });
 
       setViewportStyle({
-        top: `${viewportTop}px`,
-        height: `${resolvedHeight}px`,
+        top: viewportMetrics.top,
+        height: viewportMetrics.height,
       });
     };
 
@@ -660,11 +697,13 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
   const chatModal = (
     <div
       data-modal-root="true"
+      data-match-chat-root="true"
       className="fixed inset-x-0 top-0 h-[100dvh] bg-black/70 flex items-end sm:items-center justify-center z-[10000] p-0 sm:p-[15px]"
       style={viewportStyle}
       onClick={handleClose}
     >
       <div
+      data-testid="match-chat-panel"
       className="bg-slate-900 border-x border-t border-white/20 w-full h-full min-h-0 max-h-none rounded-none flex flex-col shadow-[0_30px_120px_rgba(0,0,0,0.55)] overflow-hidden sm:border-2 sm:max-w-[500px] sm:h-[75vh] sm:max-h-[600px] sm:rounded-xl"
       onClick={(e) => e.stopPropagation()}
     >
@@ -684,7 +723,7 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 min-h-0 touch-pan-y sm:p-3 bg-slate-900">
+        <div data-testid="match-chat-messages" className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 min-h-0 touch-pan-y sm:p-3 bg-slate-900">
           {messages.length === 0 ? (
             <div className="flex flex-1 min-h-[180px] items-center justify-center text-white/50 text-sm font-oswald">
               Todavía no hay mensajes.
@@ -705,7 +744,7 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
           <div ref={messagesEndRef} />
         </div>
 
-        <div className="flex pt-3 px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] border-t border-white/10 gap-2 bg-slate-800 min-h-[64px] items-center sm:p-3 sm:relative sm:z-10 sm:shrink-0">
+        <div data-testid="match-chat-composer" className="flex shrink-0 pt-3 px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] border-t border-white/10 gap-2 bg-slate-800 min-h-[64px] items-center sm:p-3 sm:relative sm:z-10">
           <input
             type="text"
             value={newMessage}
