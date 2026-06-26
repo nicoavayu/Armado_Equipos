@@ -20,7 +20,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { friendlyError } from '../utils/friendlyError';
 import { useAuth } from '../components/AuthProvider';
-import AutocompleteSede from '../components/AutocompleteSede';
+import VenuePicker from '../components/VenuePicker';
 import { crearPartido, supabase } from '../supabase';
 import { insertPartidoFrecuenteFromPartido } from '../services/db/frequentMatches';
 import { formatLocalDateShort } from '../utils/dateLocal';
@@ -822,8 +822,9 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
                 <MapPin size={16} className="text-[#9d82ff]" />
                 Cancha, sede o dirección
               </div>
-              <AutocompleteSede
+              <VenuePicker
                 value={sede}
+                info={sedeInfo}
                 onChange={(nextValue) => {
                   setSede(nextValue);
                   setSedeInfo((currentInfo) => {
@@ -838,8 +839,10 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
                   setSede(info.description);
                   setSedeInfo(info);
                 }}
-                wizard
-                dense
+                onClear={() => {
+                  setSede('');
+                  setSedeInfo(null);
+                }}
               />
             </div>
 
