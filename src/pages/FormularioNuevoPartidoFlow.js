@@ -748,7 +748,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
                   ref={dateInputRef}
                   id="new-match-date"
                   aria-label="Fecha personalizada"
-                  className="mx-auto mt-2 block h-8 max-w-[190px] rounded-lg border border-[#8b7cff]/30 bg-[#0d0a1e]/75 px-2 text-center font-oswald text-[13px] text-white outline-none [color-scheme:dark] focus:border-[#8b7cff]"
+                  className="mx-auto mt-2 block h-8 max-w-[190px] rounded-lg border border-[#8b7cff]/35 bg-[#161130] px-2 text-center font-oswald text-[13px] text-white outline-none [color-scheme:dark] focus:border-[#8b7cff]"
                   type="date"
                   min={today}
                   value={fecha}
@@ -767,7 +767,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
                 <select
                   id="new-match-hour"
                   aria-label="Hora"
-                  className="h-[52px] appearance-none rounded-xl border border-[#8b7cff]/30 bg-[#0d0a1e]/78 px-2 text-center font-bebas-real text-[28px] text-white outline-none [color-scheme:dark] focus:border-[#8b7cff]"
+                  className="h-[52px] appearance-none rounded-xl border border-[#8b7cff]/35 bg-[#161130] [&>option]:bg-[#161130] [&>option]:text-white px-2 text-center font-bebas-real text-[28px] text-white outline-none [color-scheme:dark] focus:border-[#8b7cff]"
                   value={timeParts.hour}
                   onChange={(event) => handleTimePartChange('hour', event.target.value)}
                 >
@@ -780,7 +780,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
                 <select
                   id="new-match-minute"
                   aria-label="Minutos"
-                  className="h-[52px] appearance-none rounded-xl border border-[#8b7cff]/30 bg-[#0d0a1e]/78 px-2 text-center font-bebas-real text-[28px] text-white outline-none [color-scheme:dark] focus:border-[#8b7cff]"
+                  className="h-[52px] appearance-none rounded-xl border border-[#8b7cff]/35 bg-[#161130] [&>option]:bg-[#161130] [&>option]:text-white px-2 text-center font-bebas-real text-[28px] text-white outline-none [color-scheme:dark] focus:border-[#8b7cff]"
                   value={timeParts.minute}
                   onChange={(event) => handleTimePartChange('minute', event.target.value)}
                 >
@@ -793,7 +793,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
                 <select
                   id="new-match-period"
                   aria-label="AM o PM"
-                  className="h-[52px] appearance-none rounded-xl border border-[#8b7cff]/30 bg-[#0d0a1e]/78 px-2 text-center font-bebas-real text-[24px] text-[#c8baff] outline-none [color-scheme:dark] focus:border-[#8b7cff]"
+                  className="h-[52px] appearance-none rounded-xl border border-[#8b7cff]/35 bg-[#161130] [&>option]:bg-[#161130] [&>option]:text-white px-2 text-center font-bebas-real text-[24px] text-[#c8baff] outline-none [color-scheme:dark] focus:border-[#8b7cff]"
                   value={timeParts.period}
                   onChange={(event) => handleTimePartChange('period', event.target.value)}
                 >
@@ -1155,6 +1155,22 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
           .new-match-step-heading {
             margin-top: 4px;
           }
+        }
+
+        /* Step 1 ("Poné nombre al partido") vertically centres its heading + input
+           at EVERY height — including when the Android soft keyboard shrinks the
+           viewport below the tall-screen breakpoint, which previously dropped the
+           centring and left the title cramped against the top. The min-height:760px
+           rule below overrides the bottom bias on iPhone-class / taller screens, so
+           their layout is unchanged. (safe center keeps the top reachable if the
+           keyboard ever makes the content overflow.) */
+        .new-match-name-step {
+          display: flex;
+          min-height: 100%;
+          flex-direction: column;
+          justify-content: center;
+          justify-content: safe center;
+          padding-bottom: min(14vh, 120px);
         }
 
         @media (min-height: 760px) {
