@@ -127,6 +127,49 @@ export const deriveAbsenceResultsFromSummary = ({
   }).filter(Boolean);
 };
 
+/**
+ * Single source of truth for the penalty slide's "before → after" rating.
+ *
+ * The story resolves the on-screen player through previewPlayers (a roster
+ * clone) which does NOT carry prePenaltyRanking/penaltyRanking — those fields
+ * live on the absences entry passed to the slide. Reading the transition from
+ * the wrong object made the pill show "5.0 → 5.0" while the bottom label said
+ * "5.5 → 5.0". Both now derive from here: penalty fields first (absences
+ * entry, then live player), falling back to the live current rating.
+ */
+export const resolvePenaltyRatingTransition = ({
+  penaltyPlayer = null,
+  livePlayer = null,
+  fallbackRating = 5.0,
+} = {}) => {
+  const pickFinite = (...values) => {
+    for (const value of values) {
+      if (value === undefined || value === null || value === '') continue;
+      const parsed = Number(value);
+      if (Number.isFinite(parsed)) return parsed;
+    }
+    return null;
+  };
+
+  const current = pickFinite(
+    penaltyPlayer?.penaltyRanking,
+    livePlayer?.penaltyRanking,
+    livePlayer?.ranking,
+    livePlayer?.calificacion,
+    penaltyPlayer?.ranking,
+    penaltyPlayer?.calificacion,
+  ) ?? fallbackRating;
+
+  const from = pickFinite(penaltyPlayer?.prePenaltyRanking, livePlayer?.prePenaltyRanking) ?? current;
+  const to = pickFinite(penaltyPlayer?.penaltyRanking, livePlayer?.penaltyRanking) ?? from;
+
+  return {
+    from,
+    to,
+    delta: Number(Math.max(0, from - to).toFixed(1)),
+  };
+};
+
 export const deriveAwardsUiState = ({
   results = null,
   partido = null,
@@ -972,17 +1015,17 @@ const ResultadosEncuestaView = () => {
         flashTimerRef.current = null;
       }
 
-      // Precompute animation values per slide
+      // Precompute animation values per slide. The penalty fields come from
+      // the absences entry (player prop); resolvedPlayer is only the live
+      // roster copy and does not carry them.
       if (kind === 'penalty') {
-        const base = Number.isFinite(Number(resolvedPlayer?.prePenaltyRanking))
-          ? Number(resolvedPlayer.prePenaltyRanking)
-          : toRating(resolvedPlayer, 5.0);
-        const next = Number.isFinite(Number(resolvedPlayer?.penaltyRanking))
-          ? Number(resolvedPlayer.penaltyRanking)
-          : base;
-        setPenaltyFrom(clamp1(base));
-        setPenaltyTo(clamp1(next));
-        setPenaltyNow(clamp1(base));
+        const { from, to } = resolvePenaltyRatingTransition({
+          penaltyPlayer: player,
+          livePlayer: resolvedPlayer,
+        });
+        setPenaltyFrom(clamp1(from));
+        setPenaltyTo(clamp1(to));
+        setPenaltyNow(clamp1(from));
       } else {
         // For MVP, GLOVE, DIRTY: no rating change, only award count change
         setPenaltyFrom(null);
@@ -1169,7 +1212,13 @@ const ResultadosEncuestaView = () => {
                     </span>
                   )}
                   <span className="text-white font-bold">
-                    {kind === 'penalty' ? '-0.5' : '+1'}
+                    {kind === 'penalty'
+                      ? `-${fmt1(
+                        penaltyFrom != null && penaltyTo != null && penaltyFrom - penaltyTo > 0
+                          ? penaltyFrom - penaltyTo
+                          : DEFAULT_NO_SHOW_PENALTY_DELTA,
+                      )}`
+                      : '+1'}
                   </span>
                 </div>
               </div>
@@ -1489,12 +1538,9 @@ const ResultadosEncuestaView = () => {
     })();
 
     if (penalized?.player) {
-      const base = Number.isFinite(Number(penalized.player?.prePenaltyRanking))
-        ? Number(penalized.player.prePenaltyRanking)
-        : toRating(penalized.player, 5.0);
-      const next = Number.isFinite(Number(penalized.player?.penaltyRanking))
-        ? Number(penalized.player.penaltyRanking)
-        : base;
+      // Same source as the animated pill inside the slide, so label and pill
+      // can never disagree.
+      const { from, to, delta } = resolvePenaltyRatingTransition({ penaltyPlayer: penalized.player });
       slides.push({
         key: 'penalty',
         duration: 4500,
@@ -1508,7 +1554,7 @@ const ResultadosEncuestaView = () => {
             border="#FDBA74"
             player={penalized.player}
             playerId={penalized.playerId}
-            bottomLabel={`Penalización ${fmt1(Math.abs(Number(penalized.player?.penaltyAmount || 0)))} • Rating: ${fmt1(base)} → ${fmt1(next)}`}
+            bottomLabel={`Penalización ${fmt1(delta > 0 ? delta : Math.abs(Number(penalized.player?.penaltyAmount || 0)))} • Rating: ${fmt1(from)} → ${fmt1(to)}`}
             onApply={() => applyLiveAward('penalty', penalized.playerId)}
           />
         ),

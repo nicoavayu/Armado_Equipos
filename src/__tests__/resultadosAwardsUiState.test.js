@@ -37,6 +37,7 @@ const {
   deriveCanonicalResultsRow,
   deriveCanShowResults,
   deriveShouldBlockStaticResultsForAwards,
+  resolvePenaltyRatingTransition,
   shouldShowAwardsRetryAction,
   shouldShowSecondaryResultsSections,
 } = require('../pages/ResultadosEncuestaView');
@@ -433,5 +434,70 @@ describe('Resultados awards UI state', () => {
         penaltyRanking: 5.8,
       }),
     ]);
+  });
+});
+
+describe('resolvePenaltyRatingTransition', () => {
+  test('with a penalty the rating actually drops (before > after)', () => {
+    const transition = resolvePenaltyRatingTransition({
+      penaltyPlayer: {
+        prePenaltyRanking: 5.5,
+        penaltyRanking: 5.0,
+        penaltyAmount: -0.5,
+      },
+    });
+
+    expect(transition).toEqual({ from: 5.5, to: 5.0, delta: 0.5 });
+  });
+
+  test('uses the absences entry even when the live roster copy lacks penalty fields', () => {
+    // Regression: the story resolved the player through previewPlayers (a
+    // roster clone with only `ranking`), which made the pill show "5.0 → 5.0"
+    // while the label below said "5.5 → 5.0".
+    const transition = resolvePenaltyRatingTransition({
+      penaltyPlayer: {
+        prePenaltyRanking: 5.5,
+        penaltyRanking: 5.0,
+      },
+      livePlayer: {
+        ranking: '5.0',
+        nombre: 'Clon del roster',
+      },
+    });
+
+    expect(transition.from).toBe(5.5);
+    expect(transition.to).toBe(5.0);
+    expect(transition.delta).toBe(0.5);
+  });
+
+  test('without penalty fields it falls back to the current rating with no fake drop', () => {
+    const transition = resolvePenaltyRatingTransition({
+      penaltyPlayer: null,
+      livePlayer: { ranking: 6.2 },
+    });
+
+    expect(transition).toEqual({ from: 6.2, to: 6.2, delta: 0 });
+  });
+
+  test('shown transition matches the persisted-derived absences data end to end', () => {
+    const [absence] = deriveAbsenceResultsFromSummary({
+      rosterPlayers: [{ id: 9, usuario_id: 'user-9', nombre: 'Penalizado', ranking: 4.5 }],
+      noShowSummary: [{
+        playerId: 9,
+        userId: 'user-9',
+        confirmationCount: 2,
+        penaltyApplied: true,
+        penaltyAmount: -0.5,
+        recoveryApplied: false,
+      }],
+    });
+
+    const transition = resolvePenaltyRatingTransition({
+      penaltyPlayer: absence,
+      livePlayer: { ranking: 4.5 },
+    });
+
+    // persisted (current) rating is 4.5 → shown as 5.0 → 4.5
+    expect(transition).toEqual({ from: 5.0, to: 4.5, delta: 0.5 });
   });
 });
