@@ -59,6 +59,26 @@ describe('buildTeamsShareCardData', () => {
     expect(data.venue).toBe('Club Sur');
   });
 
+  test('shortens long venue addresses to the place name block', () => {
+    const data = buildTeamsShareCardData(
+      { sede: 'La Terraza Fútbol 5, Av. Siempreviva 742, C1406 CABA, Buenos Aires, Argentina' },
+      makeTeams(),
+      { resolvePlayerName: nameById },
+    );
+
+    expect(data.venue).toBe('La Terraza Fútbol 5');
+  });
+
+  test('prefers an explicit venue name over the address', () => {
+    const data = buildTeamsShareCardData(
+      { venue_name: 'Ateneo Félix Marino', sede: 'Av. Directorio 2454, CABA, Argentina' },
+      makeTeams(),
+      { resolvePlayerName: nameById },
+    );
+
+    expect(data.venue).toBe('Ateneo Félix Marino');
+  });
+
   test('tolerates empty date, time, venue and format (null, never throws)', () => {
     const data = buildTeamsShareCardData(
       { modalidad: '', fecha: '', hora: '', sede: '' },
