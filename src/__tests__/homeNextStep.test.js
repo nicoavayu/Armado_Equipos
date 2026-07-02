@@ -77,7 +77,8 @@ describe('getNextHomeAction', () => {
       validatedResultsMatchIds: ['7'],
     });
     expect(action.type).toBe('survey_results_ready');
-    expect(action.title).toBe('Los resultados ya están listos');
+    expect(action.title).toBe('Resultados listos');
+    expect(action.description).toBe('Mirá cómo salió "Jueves F5"');
     expect(action.ctaLabel).toBe('Ver resumen');
     expect(action.isResultsAction).toBe(true);
   });

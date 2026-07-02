@@ -102,7 +102,10 @@ const isCancelledChallengeStatus = (statusValue) => {
   return normalized === 'canceled' || normalized === 'cancelled' || normalized === 'cancelado';
 };
 
-const isAwardsReadyAndVisible = (row) => isAwardsReadyStatus(row);
+// Mirrors the results page gate (deriveCanonicalResultsRow): a "results ready"
+// entry point must be backed by a row the page will actually render, otherwise
+// the CTA would land on "no hubo suficientes votos".
+const isAwardsReadyAndVisible = (row) => isAwardsReadyStatus(row) && row?.results_ready === true;
 
 const getHomeSnapshotStorageKey = (userId) => `${HOME_SNAPSHOT_STORAGE_PREFIX}${String(userId || '').trim()}`;
 
@@ -490,7 +493,11 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
         return;
       }
 
-      const normalizedNumericIds = candidateMatchIds
+      // "Trusted" (award_won) ids are validated too when we can query: awards
+      // can be reset after the notification was sent, and a stale id here means
+      // Home offering results that no longer exist. They only pass unvalidated
+      // as a fallback when the validation query itself fails.
+      const normalizedNumericIds = Array.from(new Set([...trustedMatchIds, ...candidateMatchIds]))
         .map((id) => Number(id))
         .filter((id) => Number.isFinite(id));
 
@@ -533,10 +540,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
           .map((row) => String(row.partido_id));
 
         if (!cancelled) {
-          setAwardsReadyVisibleMatchIds(Array.from(new Set([
-            ...trustedMatchIds,
-            ...readyMatchIds,
-          ])));
+          setAwardsReadyVisibleMatchIds(Array.from(new Set(readyMatchIds)));
         }
       } catch (error) {
         logger.warn('[AWARDS_RING] Could not validate awards visibility:', error);
@@ -1115,11 +1119,11 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
         </div>
       )}
 
-      <h3 className="section-title" style={{ marginBottom: 14 }}>Accesos rápidos</h3>
+      <h3 className="section-title" style={{ marginBottom: 8 }}>Accesos rápidos</h3>
 
       <QuickAccessRail items={quickAccessItems} />
 
-      {/* Tu próximo paso — only when a real, valid pending action exists */}
+      {/* Next-action card — only when a real, valid pending action exists */}
       <HomeNextStepCard
         action={nextStepAction}
         onOpen={handleNextStepClick}

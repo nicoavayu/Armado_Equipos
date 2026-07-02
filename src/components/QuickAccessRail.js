@@ -43,7 +43,9 @@ import { prefetchRoute } from '../utils/routePrefetch';
 
 const CARD_W = 170; // px, dominant active card width (within the 170–185 brief)
 const CARD_H = 204; // px, fixed card height
-const VIEWPORT_H = 252; // px, fixed stage height (keeps Home vertical spacing stable)
+// The stage hugs the card (small symmetric slack) so the rail sits closer to its
+// section title and leaves more room for the next-action card below it.
+const VIEWPORT_H = 224; // px, fixed stage height
 const DRAG_THRESHOLD = 5; // px of horizontal travel before the ring starts following the finger
 // Past this much travel the gesture is unambiguously a drag: we capture the pointer
 // and suppress the click. BELOW it a tiny wobble while tapping a small side-card
@@ -610,7 +612,7 @@ const QuickAccessRail = ({ items = [] }) => {
   );
 
   return (
-    <div className="-mx-4 mb-4">
+    <div className="-mx-4 mb-3">
       <style>{`
         .qa-gesture-zone {
           /* keep vertical page scroll, but the horizontal axis is ours */

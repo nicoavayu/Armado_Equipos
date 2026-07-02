@@ -49,15 +49,15 @@ const buildCopyForItem = (item) => {
       };
     case 'call_to_vote':
       return {
-        title: 'Faltan votos para armar equipos',
-        description: item.subtitle || (matchLabel ? `Votá en ${matchLabel}` : 'Calificá a los jugadores para armar equipos parejos'),
+        title: 'Faltan votos',
+        description: item.subtitle || (matchLabel ? `Votá en ${matchLabel} para armar equipos parejos` : 'Calificá a los jugadores para armar equipos parejos'),
         ctaLabel: 'Ir a votar',
         icon: 'Vote',
       };
     case 'match_invite':
       return {
-        title: 'Tenés una invitación pendiente',
-        description: item.title || (matchLabel ? `Invitación a ${matchLabel}` : 'Confirmá tu asistencia'),
+        title: 'Invitación pendiente',
+        description: item.title || (matchLabel ? `Te invitaron a ${matchLabel}` : 'Confirmá tu asistencia'),
         ctaLabel: 'Responder',
         icon: 'CalendarClock',
       };
@@ -85,15 +85,15 @@ const buildCopyForItem = (item) => {
       };
     case 'survey_start':
       return {
-        title: 'Completá la encuesta del último partido',
-        description: matchLabel || item.subtitle || 'Tu voto define premios y promedios',
+        title: 'Encuesta pendiente',
+        description: matchLabel ? `Completá la encuesta de ${matchLabel}` : (item.subtitle || 'Tu voto define premios y promedios'),
         ctaLabel: 'Responder ahora',
         icon: 'ClipboardList',
       };
     case 'survey_results_ready':
     case 'awards_ready':
       return {
-        title: 'Los resultados ya están listos',
+        title: 'Resultados listos',
         description: matchLabel ? `Mirá cómo salió ${matchLabel}` : (item.subtitle || 'Premios y resumen del partido'),
         ctaLabel: 'Ver resumen',
         icon: 'Trophy',
