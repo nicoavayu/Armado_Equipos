@@ -627,7 +627,15 @@ const QuickAccessRail = ({ items = [] }) => {
           perspective: 1100px;
           perspective-origin: 50% 50%;
         }
-        .qa-stage { transform-style: preserve-3d; }
+        .qa-stage {
+          transform-style: preserve-3d;
+          /* The stage plane sits at z=0 while the side cards recede to negative
+             translateZ — i.e. BEHIND the (transparent) stage — so the stage
+             itself would swallow their taps and only the front card stayed
+             clickable. Let hits pass through; each card re-enables its own
+             pointer-events imperatively in applyTransforms. */
+          pointer-events: none;
+        }
         .qa-card {
           transform-origin: center center;
           -webkit-backface-visibility: hidden;

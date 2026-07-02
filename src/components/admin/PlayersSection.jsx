@@ -1057,22 +1057,6 @@ const PlayersSection = ({
           }}
         >
           <div
-            className="absolute top-1 z-[2] min-w-[20px] h-[18px] px-1 rounded-[3px] inline-flex items-center justify-center text-[11px] font-bold leading-none"
-            style={{
-              right: isCreator ? '32px' : '6px',
-              color: '#f4deaa',
-              background: 'rgba(116, 84, 19, 0.46)',
-              border: '1px solid rgba(239, 194, 92, 0.58)',
-              fontFamily: '"Roboto Mono", "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", monospace',
-              letterSpacing: '0.01em',
-            }}
-            aria-label={`Posición en cola ${queuePosition}`}
-            title={`Posición en cola ${queuePosition}`}
-          >
-            {queuePosition}
-          </div>
-
-          <div
             className="h-full w-full p-2 flex items-center gap-1.5"
             style={inviteSkewCounterStyle}
           >
@@ -1099,7 +1083,7 @@ const PlayersSection = ({
 
             {isAdmin && player.usuario_id !== user?.id ? (
               <button
-                className="w-5 h-5 bg-transparent border-0 p-0 cursor-pointer transition-colors inline-flex items-center justify-center shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="relative w-5 h-5 bg-transparent border-0 p-0 cursor-pointer transition-colors inline-flex items-center justify-center shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={(e) => {
                   e.stopPropagation();
                   setPlayerToRemove({ id: player.id, nombre: player.nombre, isOwnPlayer: false });
@@ -1110,6 +1094,8 @@ const PlayersSection = ({
                 disabled={isClosing}
                 title="Eliminar jugador"
               >
+                {/* invisible hit-area extension: 20px visual → 40px touch target */}
+                <span aria-hidden className="absolute -inset-2.5" />
                 <span
                   className="leading-none text-[15px]"
                   style={{ color: '#f4cf7e' }}

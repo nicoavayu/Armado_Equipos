@@ -7,6 +7,7 @@ import { updateProfile, calculateProfileCompletion, supabase } from '../supabase
 import { friendlyError } from '../utils/friendlyError';
 import { prepareImageForUpload } from '../utils/imageUpload';
 import ProfileCard from './ProfileCard';
+import AvatarCropModal from './AvatarCropModal';
 import ConfirmModal from './ConfirmModal';
 import InlineNotice from './ui/InlineNotice';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
@@ -531,6 +532,9 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
   const [locationDisabled, setLocationDisabled] = useState(false);
   const [locationDetectionFailed, setLocationDetectionFailed] = useState(false);
   const [locationFallbackMessage, setLocationFallbackMessage] = useState('');
+  // Object URL of the just-picked (normalized) photo while the "Ajustar foto"
+  // modal is open; null when closed.
+  const [cropSourceUrl, setCropSourceUrl] = useState(null);
   const fileInputRef = useRef(null);
   const noticeRef = useRef({ type: '', message: '', ts: 0 });
   const initialAutoLocationRefreshDoneRef = useRef(false);
@@ -959,21 +963,37 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
   const handlePhotoChange = useCallback(async (e) => {
     const inputEl = e.target;
     const file = inputEl?.files?.[0];
+    // Reset right away so re-selecting the same file fires onChange again.
+    if (inputEl) inputEl.value = '';
     if (!file) return;
 
-    let normalizedFile;
     try {
       // Normalize phone photos (HEIC/HEIF, oversized JPEGs, EXIF orientation) so the
-      // preview renders and the uploaded avatar is web-displayable everywhere.
+      // crop preview renders and the exported avatar is web-displayable everywhere.
       const prepared = await prepareImageForUpload(file);
-      normalizedFile = prepared.file;
+      // Hand the image to the "Ajustar foto" modal; the upload happens on confirm.
+      setCropSourceUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return URL.createObjectURL(prepared.file);
+      });
     } catch (error) {
       showInlineNotice('warning', error?.message || 'No pudimos procesar esa imagen. Probá con otra foto JPG o PNG.');
-      if (inputEl) inputEl.value = '';
-      return;
     }
+  }, [showInlineNotice]);
 
-    const localPreviewUrl = URL.createObjectURL(normalizedFile);
+  const closeCropModal = useCallback(() => {
+    setCropSourceUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+  }, []);
+
+  // The crop modal hands back a square JPEG blob of exactly what its circular
+  // preview showed; from here on the flow matches the previous direct upload.
+  const handleCropConfirm = useCallback(async (croppedBlob) => {
+    closeCropModal();
+
+    const localPreviewUrl = URL.createObjectURL(croppedBlob);
 
     setLiveProfile((prev) => ({
       ...prev,
@@ -984,21 +1004,19 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
       updateLocalProfile({ avatar_url: localPreviewUrl });
       setHasChanges(true);
       showInlineNotice('success', 'Foto actualizada en modo local.');
-      if (inputEl) inputEl.value = '';
       return;
     }
 
     setLoading(true);
     try {
-      const fileExt = normalizedFile.name.split('.').pop() || 'jpg';
-      const fileName = `${user.id}_${Date.now()}.${fileExt}`;
+      const fileName = `${user.id}_${Date.now()}.jpg`;
 
       const { error: uploadError } = await supabase.storage
         .from('jugadores-fotos')
-        .upload(fileName, normalizedFile, {
+        .upload(fileName, croppedBlob, {
           upsert: true,
           cacheControl: '0',
-          contentType: normalizedFile.type || undefined,
+          contentType: 'image/jpeg',
         });
 
       if (uploadError) throw uploadError;
@@ -1034,10 +1052,8 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
       }));
     } finally {
       setLoading(false);
-      // Reset so re-selecting the same file fires onChange again.
-      if (inputEl) inputEl.value = '';
     }
-  }, [user, profile, setLiveProfile, setLoading, setHasChanges, showInlineNotice, isLocalDevSession, updateLocalProfile]);
+  }, [closeCropModal, user, profile, setLiveProfile, setLoading, setHasChanges, showInlineNotice, isLocalDevSession, updateLocalProfile]);
 
   const handleSave = useCallback(async () => {
     if (!formData.nombre.trim()) {
@@ -1461,6 +1477,12 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
           isLocalDevSession={isLocalDevSession}
           isEmbedded={true}
         />
+        <AvatarCropModal
+          isOpen={!!cropSourceUrl}
+          imageUrl={cropSourceUrl}
+          onCancel={closeCropModal}
+          onConfirm={handleCropConfirm}
+        />
         <DeleteAccountModal
           isOpen={showDeleteAccountModal}
           loading={loading}
@@ -1738,6 +1760,12 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
             />
           </div>
         </div>
+        <AvatarCropModal
+          isOpen={!!cropSourceUrl}
+          imageUrl={cropSourceUrl}
+          onCancel={closeCropModal}
+          onConfirm={handleCropConfirm}
+        />
         <DeleteAccountModal
           isOpen={showDeleteAccountModal}
           loading={loading}
