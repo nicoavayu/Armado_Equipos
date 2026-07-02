@@ -289,7 +289,7 @@ const MatchCard = ({
                             <div className="font-sans text-[12.5px] font-medium text-white/75">{postMatchInfo.pagoLabel}</div>
                         ) : null}
                     </div>
-                    <div className="flex gap-3">
+                    <div className="flex flex-wrap gap-3">
                         {[postMatchInfo.encuestaAction, postMatchInfo.pagosAction].filter(Boolean).map((action, idx) => (
                             <button
                                 key={idx}
@@ -307,6 +307,20 @@ const MatchCard = ({
                                 {action.label}
                             </button>
                         ))}
+                        {postMatchInfo.shareAction ? (
+                            <button
+                                className={`basis-full whitespace-nowrap truncate font-bebas font-semibold text-[15px] tracking-[0.02em] px-3 py-2 border rounded-xl transition-all text-white min-h-[44px] flex items-center justify-center text-center sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[40px] ${postMatchInfo.shareAction.disabled
+                                    ? 'bg-[#1d1740] text-white/40 cursor-not-allowed border-white/10'
+                                    : 'cursor-pointer bg-white/[0.06] border-[rgba(148,134,255,0.28)] hover:bg-white/[0.12] active:scale-[0.985]'}`}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (postMatchInfo.shareAction.disabled) return;
+                                    postMatchInfo.shareAction.onClick?.(e);
+                                }}
+                            >
+                                {postMatchInfo.shareAction.label}
+                            </button>
+                        ) : null}
                     </div>
                 </div>
             ) : primaryAction ? (
