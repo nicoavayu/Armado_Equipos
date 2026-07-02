@@ -11,11 +11,13 @@ import { listMyTeamMatches } from '../services/db/teamChallenges';
 import { parseLocalDateTime } from '../utils/dateLocal';
 import { buildActivityFeed } from '../utils/activityFeed';
 import { AWARDS_READY_NOTIFICATION_TYPES, isAwardsReadyStatus } from '../utils/awardsReadiness';
+import { getNextHomeAction, resolvePaymentsNextStepAction } from '../utils/homeNextStep';
 import { openNotification } from '../utils/notificationRouter';
 import { notifyBlockingError } from '../utils/notifyBlockingError';
 import ProximosPartidos from './ProximosPartidos';
 import NotificationsBell from './NotificationsBell';
 import HomeWelcomeCard from './HomeWelcomeCard';
+import HomeNextStepCard from './HomeNextStepCard';
 import QuickAccessRail from './QuickAccessRail';
 import SwipeDismissibleActivityItem from './SwipeDismissibleActivityItem';
 import { useRefreshOnVisibility } from '../hooks/useRefreshOnVisibility';
@@ -208,6 +210,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [awardsReadyVisibleMatchIds, setAwardsReadyVisibleMatchIds] = useState([]);
   const [awardsRingLoading, setAwardsRingLoading] = useState(false);
+  const [paymentsNextStepAction, setPaymentsNextStepAction] = useState(null);
   const statusDropdownRef = useRef(null);
   const statusDropdownMenuRef = useRef(null);
   const activityLoadedRef = useRef(false);
@@ -319,6 +322,71 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
 
     navigate(item.route);
   };
+
+  // "Tu próximo paso": one truly valid pending action, or nothing.
+  const nextStepAction = useMemo(() => getNextHomeAction({
+    activityItems,
+    validatedResultsMatchIds: awardsReadyVisibleMatchIds,
+    resultsValidationLoading: awardsRingLoading,
+    paymentAction: paymentsNextStepAction,
+  }), [activityItems, awardsReadyVisibleMatchIds, awardsRingLoading, paymentsNextStepAction]);
+
+  const handleNextStepClick = async (action) => {
+    if (!action?.route) return;
+
+    // Results CTAs go through the notification router so the "results
+    // unavailable" guard applies even if state changed after validation.
+    if (action.isResultsAction && action.partidoId) {
+      await openNotification({
+        type: 'survey_results_ready',
+        partido_id: action.partidoId,
+        data: {
+          resultsUrl: action.route,
+          match_id: String(action.partidoId),
+          match_name: action.matchName || null,
+        },
+      }, navigate, {
+        supabaseClient: supabase,
+        onResultsUnavailable: (notice) => {
+          if (notice?.message) {
+            notifyBlockingError(notice.message, { title: notice.title });
+          }
+        },
+      });
+      return;
+    }
+
+    navigate(action.route);
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadPaymentsNextStep = async () => {
+      if (!user?.id) {
+        if (!cancelled) setPaymentsNextStepAction(null);
+        return;
+      }
+
+      try {
+        const action = await resolvePaymentsNextStepAction({
+          supabaseClient: supabase,
+          userId: user.id,
+          notifications,
+        });
+        if (!cancelled) setPaymentsNextStepAction(action);
+      } catch (error) {
+        logger.warn('[HOME] payments next-step lookup failed:', error);
+        if (!cancelled) setPaymentsNextStepAction(null);
+      }
+    };
+
+    loadPaymentsNextStep();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [notifications, user?.id]);
 
   const handleDismissActivityItem = useCallback((itemKey) => {
     const normalizedItemKey = String(itemKey || '').trim();
@@ -1050,6 +1118,15 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
       <h3 className="section-title" style={{ marginBottom: 14 }}>Accesos rápidos</h3>
 
       <QuickAccessRail items={quickAccessItems} />
+
+      {/* Tu próximo paso — only when a real, valid pending action exists */}
+      <HomeNextStepCard
+        action={nextStepAction}
+        onOpen={handleNextStepClick}
+        onPrefetch={(action) => {
+          if (action?.route) prefetchRoute(action.route);
+        }}
+      />
 
       {/* Recent Activity */}
       {/* Top spacing comes from the grid's mb-7; flex items don't collapse margins */}

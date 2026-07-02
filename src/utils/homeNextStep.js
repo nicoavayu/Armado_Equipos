@@ -295,4 +295,68 @@ export const buildPaymentsNextStepAction = ({
   return null;
 };
 
+/**
+ * Async orchestrator: derives payment candidates from notifications and
+ * verifies them against real payment rows before building an action.
+ * The supabase client is injected (same pattern as buildActivityFeed) so this
+ * module stays import-safe for unit tests.
+ *
+ * @returns {Promise<Object|null>} candidate for getNextHomeAction's paymentAction
+ */
+export const resolvePaymentsNextStepAction = async ({
+  supabaseClient = null,
+  userId = null,
+  notifications = [],
+  now = Date.now(),
+} = {}) => {
+  if (!supabaseClient || !userId) return null;
+
+  const { adminMatchIds, playerMatchIds } = derivePaymentNotificationCandidates(notifications, { now });
+  if (adminMatchIds.length === 0 && playerMatchIds.length === 0) return null;
+
+  const allIds = [...new Set([...adminMatchIds, ...playerMatchIds])];
+
+  const [adminRowsRes, myRowsRes, settingsRes] = await Promise.all([
+    adminMatchIds.length
+      ? supabaseClient.from('match_player_payments').select('partido_id, status').in('partido_id', adminMatchIds)
+      : Promise.resolve({ data: [] }),
+    playerMatchIds.length
+      ? supabaseClient.from('match_player_payments').select('partido_id, status').eq('user_id', userId).in('partido_id', playerMatchIds)
+      : Promise.resolve({ data: [] }),
+    supabaseClient.from('match_payment_settings').select('partido_id, is_closed').in('partido_id', allIds),
+  ]);
+
+  if (adminRowsRes?.error) throw adminRowsRes.error;
+  if (myRowsRes?.error) throw myRowsRes.error;
+  if (settingsRes?.error) throw settingsRes.error;
+
+  const adminRowsByMatch = {};
+  (adminRowsRes?.data || []).forEach((row) => {
+    const key = String(row?.partido_id ?? '');
+    if (!key) return;
+    if (!adminRowsByMatch[key]) adminRowsByMatch[key] = [];
+    adminRowsByMatch[key].push({ status: row?.status });
+  });
+
+  const myStatusByMatch = {};
+  (myRowsRes?.data || []).forEach((row) => {
+    const key = String(row?.partido_id ?? '');
+    if (key) myStatusByMatch[key] = row?.status;
+  });
+
+  const settingsByMatch = {};
+  (settingsRes?.data || []).forEach((row) => {
+    const key = String(row?.partido_id ?? '');
+    if (key) settingsByMatch[key] = row;
+  });
+
+  return buildPaymentsNextStepAction({
+    adminMatchIds,
+    playerMatchIds,
+    adminRowsByMatch,
+    myStatusByMatch,
+    settingsByMatch,
+  });
+};
+
 export default getNextHomeAction;
