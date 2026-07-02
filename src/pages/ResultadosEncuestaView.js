@@ -30,6 +30,10 @@ import {
 } from '../utils/awardsReadiness';
 import { SURVEY_MIN_VOTERS_FOR_AWARDS } from '../config/surveyConfig';
 import { useSmartBackNavigation } from '../hooks/useSmartBackNavigation';
+import { useNativeFeatures } from '../hooks/useNativeFeatures';
+import { useShareTeamsCard } from '../hooks/useShareTeamsCard';
+import { buildMatchSummaryShareCardData } from '../utils/matchSummaryShare';
+import ShareableMatchSummaryCard from '../components/share/ShareableMatchSummaryCard';
 
 const ensurePlayersList = (players) => {
   if (players && players.length > 0) return players;
@@ -321,6 +325,13 @@ const ResultadosEncuestaView = () => {
   const goBackSmart = useSmartBackNavigation({
     fallback: '/',
   });
+  const { isNative } = useNativeFeatures();
+  const {
+    isSharing: isSharingSummary,
+    shareTeamsCard: shareSummaryCard,
+    cardData: summaryShareCardData,
+    cardRef: summaryShareCardRef,
+  } = useShareTeamsCard({ isNative });
   const searchParams = new URLSearchParams(location.search);
   const showAwardsParam = searchParams.get('showAwards');
   const forceAwardsParam = searchParams.get('forceAwards');
@@ -2427,6 +2438,33 @@ const ResultadosEncuestaView = () => {
     goBackSmart();
   };
 
+  // "Compartir resumen" only exists when the survey produced real results
+  // (ready awards + renderable content). With few votes (not_eligible) the
+  // gate below stays false and the button is never rendered.
+  const canShareSummary = Boolean(canonicalResults) && awardsReady && hasRenderableResultsContent;
+
+  const handleShareSummary = async () => {
+    if (isSharingSummary || !canShareSummary) return;
+
+    const summaryData = buildMatchSummaryShareCardData({
+      partido,
+      results: canonicalResults,
+      jugadores,
+    });
+
+    if (!summaryData.isShareable) {
+      notifyBlockingError('El resumen todavía no está disponible para compartir.');
+      return;
+    }
+
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+    await shareSummaryCard(summaryData, {
+      fileName: `resumen-arma2-${stamp}.png`,
+      title: 'Resumen del partido',
+      text: 'Resumen del partido con Arma2 ⚽️',
+    });
+  };
+
   if (loading) {
     return (
       <div className="min-h-[100dvh] w-screen flex items-center justify-center" style={{ background: 'var(--app-bg-gradient)' }}>
@@ -2647,6 +2685,15 @@ const ResultadosEncuestaView = () => {
 
         {/* Actions */}
         <div className="flex flex-col sm:flex-row gap-3 justify-center mb-10">
+          {canShareSummary && (
+            <button
+              onClick={handleShareSummary}
+              disabled={isSharingSummary}
+              className="min-h-[52px] px-6 rounded-2xl text-[18px] font-bebas font-semibold tracking-[0.04em] uppercase text-white bg-cta-gradient border border-white/20 shadow-cta hover:brightness-105 active:scale-[0.985] transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {isSharingSummary ? 'Generando…' : 'Compartir resumen'}
+            </button>
+          )}
           <button
             onClick={handleBack}
             className="min-h-[52px] px-6 rounded-2xl text-[18px] font-bebas font-semibold tracking-[0.04em] uppercase text-white bg-white/[0.07] border border-[rgba(148,134,255,0.3)] hover:bg-white/[0.12] transition-all shadow-elev-1"
@@ -2686,6 +2733,22 @@ const ResultadosEncuestaView = () => {
           </div>
         )}
       </div>
+
+      {/* Off-screen render used only while capturing the shareable summary */}
+      {summaryShareCardData ? (
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'fixed',
+            left: '-99999px',
+            top: 0,
+            pointerEvents: 'none',
+            zIndex: -1,
+          }}
+        >
+          <ShareableMatchSummaryCard ref={summaryShareCardRef} data={summaryShareCardData} />
+        </div>
+      ) : null}
     </div>
   );
 };
