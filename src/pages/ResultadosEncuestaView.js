@@ -1563,12 +1563,17 @@ const ResultadosEncuestaView = () => {
 
     slides.push({
       key: 'summary',
-      duration: 5000,
+      duration: 9000,
       content: (
         <div
-          className="relative w-full h-full flex flex-col items-center justify-center px-6 md:px-10 py-10 md:py-14"
+          className="relative w-full h-full flex flex-col items-center px-6 md:px-10"
           style={{
             background: 'linear-gradient(135deg,#070B18 0%,#0F1419 50%,#070B18 100%)',
+            // Same chrome rule as the award slides: the title always clears the
+            // progress bars / close button instead of centering underneath them.
+            paddingTop: 'max(52px, calc(env(safe-area-inset-top) + 30px))',
+            // Bottom room for the "Compartir resumen" CTA + home indicator.
+            paddingBottom: 'max(92px, calc(env(safe-area-inset-bottom) + 84px))',
           }}
         >
           {/* glow */}
@@ -1582,8 +1587,8 @@ const ResultadosEncuestaView = () => {
             }}
           />
 
-          <div className="relative z-10 w-full flex flex-col items-center">
-            <div className="text-center mb-8">
+          <div className="relative z-10 w-full flex-1 min-h-0 flex flex-col items-center">
+            <div className="text-center mb-5 shrink-0">
               <div className="font-bebas-real text-[52px] md:text-[72px] leading-[0.9] text-white" style={{ animation: 'eaTitleIn 760ms cubic-bezier(.2,.9,.2,1) both', textShadow: '0 0 22px rgba(14,169,198,0.5)' }}>
                 RESUMEN
               </div>
@@ -1592,42 +1597,46 @@ const ResultadosEncuestaView = () => {
               </div>
             </div>
 
-            <div className="w-full max-w-[680px] grid grid-cols-1 md:grid-cols-2 gap-4">
-              {summaryAwards.map((award, idx) => (
-                <div
-                  key={idx}
-                  className="flex flex-col items-center justify-center px-5 py-6 rounded-xl"
-                  style={{
-                    background: 'rgba(255,255,255,0.05)',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    animation: `slideInUp 650ms ease-out ${idx * 80}ms both`,
-                  }}
-                >
-                  {typeof award.icon === 'string' && award.icon.startsWith('/') ? (
-                    <img
-                      src={award.icon}
-                      alt={award.awardName}
-                      width={38}
-                      height={38}
-                      draggable={false}
-                      style={{ filter: `drop-shadow(0 0 12px ${award.color})` }}
-                      className="mb-3"
-                    />
-                  ) : (
-                    <span className="text-4xl mb-3" style={{ filter: `drop-shadow(0 0 12px ${award.color})` }}>
-                      {award.icon}
-                    </span>
-                  )}
-                  <div className="text-center">
-                    <div className="font-bebas-real text-lg text-white/60 uppercase tracking-wider mb-1">
-                      {award.awardName}
-                    </div>
-                    <div className="text-base md:text-lg text-white font-bold">
-                      {award.playerName}
+            {/* Compact rows so the whole recap fits under the pinned title on
+                short phones (the title must never get pushed into the bars). */}
+            <div className="w-full max-w-[680px] flex-1 min-h-0 flex flex-col justify-center">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {summaryAwards.map((award, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-center gap-3.5 px-4 py-3 rounded-xl"
+                    style={{
+                      background: 'rgba(255,255,255,0.05)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      animation: `slideInUp 650ms ease-out ${idx * 80}ms both`,
+                    }}
+                  >
+                    {typeof award.icon === 'string' && award.icon.startsWith('/') ? (
+                      <img
+                        src={award.icon}
+                        alt={award.awardName}
+                        width={34}
+                        height={34}
+                        draggable={false}
+                        className="shrink-0"
+                        style={{ filter: `drop-shadow(0 0 12px ${award.color})` }}
+                      />
+                    ) : (
+                      <span className="text-3xl shrink-0" style={{ filter: `drop-shadow(0 0 12px ${award.color})` }}>
+                        {award.icon}
+                      </span>
+                    )}
+                    <div className="min-w-0 text-left">
+                      <div className="font-bebas-real text-[15px] text-white/60 uppercase tracking-wider leading-tight">
+                        {award.awardName}
+                      </div>
+                      <div className="text-[15px] md:text-base text-white font-bold leading-tight truncate">
+                        {award.playerName}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
 
@@ -2522,6 +2531,18 @@ const ResultadosEncuestaView = () => {
         <PreviewPlayersContext.Provider value={previewPlayers}>
           <StoryLikeCarousel
             slides={carouselSlides}
+            paused={isSharingSummary}
+            endFooter={canShareSummary ? (
+              <button
+                type="button"
+                onClick={handleShareSummary}
+                disabled={isSharingSummary}
+                aria-busy={isSharingSummary}
+                className="min-h-[52px] w-full max-w-[360px] px-6 rounded-full text-[17px] font-bebas font-semibold tracking-[0.06em] uppercase text-white bg-cta-gradient border border-white/25 shadow-cta hover:brightness-105 active:scale-[0.985] transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {isSharingSummary ? 'Generando…' : 'Compartir resumen'}
+              </button>
+            ) : null}
             onClose={() => {
               clearTimers();
               setShowingBadgeAnimations(false);
@@ -2535,6 +2556,22 @@ const ResultadosEncuestaView = () => {
             onIndexChange={handleCarouselIndexChange}
           />
         </PreviewPlayersContext.Provider>
+
+        {/* Off-screen render used only while capturing the shareable summary */}
+        {summaryShareCardData ? (
+          <div
+            aria-hidden="true"
+            style={{
+              position: 'fixed',
+              left: '-99999px',
+              top: 0,
+              pointerEvents: 'none',
+              zIndex: -1,
+            }}
+          >
+            <ShareableMatchSummaryCard ref={summaryShareCardRef} data={summaryShareCardData} />
+          </div>
+        ) : null}
 
         <style>{`
           @keyframes awardDropIn {
