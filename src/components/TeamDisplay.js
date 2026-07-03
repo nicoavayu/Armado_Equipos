@@ -25,13 +25,11 @@ import InlineNotice from './ui/InlineNotice';
 import useInlineNotice from '../hooks/useInlineNotice';
 import ConfirmModal from './ConfirmModal';
 import { buildBalancedTeams } from '../utils/teamBalancer';
-import { shareVotingLink } from '../utils/shareVotingLink';
 import buildTeamsShareCardData from '../utils/buildTeamsShareCardData';
 import ShareableTeamsCard from './share/ShareableTeamsCard';
 import { useShareTeamsCard } from '../hooks/useShareTeamsCard';
-import { useAuth } from './AuthProvider';
 import { useNativeFeatures } from '../hooks/useNativeFeatures';
-import { MoreVertical, RotateCcw } from 'lucide-react';
+import { BarChart3, GripVertical, MoreVertical, RotateCcw, Shuffle } from 'lucide-react';
 import {
   analyzeTeamsAgainstRoster,
   findRosterPlayerByTeamReference,
@@ -57,7 +55,7 @@ const SafeLoadingSpinner = safeComp(LoadingSpinner, 'LoadingSpinner');
 const INVITE_ACCEPT_BUTTON_VIOLET = '#644dff';
 const INVITE_ACCEPT_BUTTON_VIOLET_DARK = '#4836bb';
 const CARD_BG_BLUE = '#181231';
-const CARD_STROKE_BLUE = 'rgba(148, 134, 255, 0.5)';
+const CARD_STROKE_BLUE = 'rgba(148, 134, 255, 0.3)';
 const CARD_GLOW_BLUE = '0 0 9px rgba(122, 82, 255, 0.2)';
 const SYSTEM_ICON_BLUE = '#9486ff';
 const SYSTEM_ICON_BLUE_GLOW = 'drop-shadow(0 0 5px rgba(148, 134, 255, 0.62))';
@@ -93,7 +91,6 @@ const persistMatchTeamsConfirmedState = async ({ partidoId, confirmed }) => {
 };
 
 const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = false, partidoId = null, partido = null, onResetVoting, nombre: _nombre, fecha, hora, sede, modalidad, tipo }) => {
-  const { user } = useAuth();
   const { isNative } = useNativeFeatures();
   const {
     isSharing: isSharingTeamsImage,
@@ -442,17 +439,6 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
     };
   }, [adminMenuOpen]);
 
-  // Full match object for the voting-link share (needs codigo); falls back to the id.
-  const matchForShare = partido || (typeof partidoId === 'object' ? partidoId : { id: partidoId });
-
-  const handleShareVotingLink = async () => {
-    setAdminMenuOpen(false);
-    const { ok, reason } = await shareVotingLink({ partido: matchForShare, user, isNative });
-    if (!ok && reason === 'no-code') {
-      showInlineNotice('warning', 'No se pudo obtener el código del partido para compartir.');
-    }
-  };
-
   const handleConfirmReset = async () => {
     if (resetting) return;
     setResetting(true);
@@ -532,7 +518,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
     () => analyzeTeamsAgainstRoster(realtimeTeams, realtimePlayers),
     [realtimeTeams, realtimePlayers],
   );
-  const teamListHeightPx = Math.max(198, (maxPlayersPerTeam * 48) + ((maxPlayersPerTeam - 1) * 4));
+  const teamListHeightPx = Math.max(198, (maxPlayersPerTeam * 48) + ((maxPlayersPerTeam - 1) * 8));
 
   if (
     !Array.isArray(realtimeTeams) ||
@@ -1097,7 +1083,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
           color: var(--btn-text, #fff);
           background: var(--btn);
           border: 1.5px solid var(--btn-dark);
-          border-radius: var(--radius-standard, 5px);
+          border-radius: 18px;
           box-shadow: var(--btn-shadow, none);
           transform: none;
           transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease;
@@ -1211,6 +1197,51 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
       </div>
 
       <div data-debug="TEAMDISPLAY_ACTIVE" className="w-[90vw] max-w-[90vw] mx-auto flex flex-col gap-3 overflow-x-visible mt-4 pb-6">
+        {/* Section header: "Equipos" + kebab (single entry point for admin tools) */}
+        <div className="flex items-center justify-between w-full">
+          <h3 className="section-title">Equipos</h3>
+          {isAdmin && typeof onResetVoting === 'function' ? (
+            <div className="relative">
+              <button
+                ref={adminMenuButtonRef}
+                type="button"
+                className="h-9 w-9 inline-flex items-center justify-center rounded-full border transition-colors hover:bg-white/10"
+                style={{ borderColor: 'rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.05)' }}
+                aria-label="Opciones de equipos"
+                aria-haspopup="menu"
+                aria-expanded={adminMenuOpen}
+                onClick={() => setAdminMenuOpen((open) => !open)}
+              >
+                <MoreVertical size={17} style={{ color: SYSTEM_ICON_BLUE, filter: SYSTEM_ICON_BLUE_GLOW }} />
+              </button>
+              {adminMenuOpen ? (
+                <div
+                  ref={adminMenuRef}
+                  className="admin-action-menu absolute top-full right-0 mt-2 z-[1003] w-56 origin-top-right animate-[teamsMenuSlideDown_0.2s_cubic-bezier(0.16,1,0.3,1)]"
+                  role="menu"
+                  aria-label="Opciones de equipos"
+                >
+                  <button
+                    className="admin-action-menu-item admin-action-menu-item--danger whitespace-nowrap"
+                    type="button"
+                    role="menuitem"
+                    onClick={() => { setAdminMenuOpen(false); setShowResetConfirm(true); }}
+                  >
+                    <RotateCcw size={15} />
+                    <span>Resetear votación</span>
+                  </button>
+                  <style>{`
+                    @keyframes teamsMenuSlideDown {
+                      from { opacity: 0; transform: translateY(-10px) scale(0.94); }
+                      to { opacity: 1; transform: translateY(0) scale(1); }
+                    }
+                  `}</style>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+
         {/* Team cards */}
         <DragDropContext
           onDragStart={handleDragStart}
@@ -1231,11 +1262,11 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                     <div
                       ref={dropProvided.innerRef}
                       {...dropProvided.droppableProps}
-                      className={`relative border p-2 w-[calc(50%-6px)] box-border transition-all duration-150 ease-out flex flex-col min-h-0 rounded-2xl ${
+                      className={`relative border p-2.5 pt-3 w-[calc(50%-6px)] box-border transition-all duration-150 ease-out flex flex-col min-h-0 rounded-[20px] ${
                         dropSnapshot.isDraggingOver ? 'shadow-[0_0_0_1px_rgba(139,92,255,0.25),0_0_24px_rgba(106,67,255,0.2)]' : 'shadow-[0_12px_32px_rgba(5,3,16,0.4),inset_0_1px_0_rgba(255,255,255,0.05)]'
                       }`}
                       style={{
-                        borderColor: dropSnapshot.isDraggingOver ? 'rgba(139,92,255,0.6)' : 'rgba(148,134,255,0.18)',
+                        borderColor: dropSnapshot.isDraggingOver ? 'rgba(139,92,255,0.6)' : 'rgba(148,134,255,0.28)',
                         background: dropSnapshot.isDraggingOver
                           ? 'linear-gradient(180deg, rgba(106,67,255,0.16) 0%, rgba(20,16,41,0.6) 100%)'
                           : 'linear-gradient(168deg, rgba(48,38,98,0.45) 0%, rgba(20,16,41,0.72) 100%)',
@@ -1293,7 +1324,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                         />
                       ) : (
                         <h3
-                          className="font-bebas text-[24px] leading-[1.04] text-white m-0 tracking-[0.06em] uppercase cursor-pointer px-1 py-1 rounded-[5px] transition-all bg-transparent text-center w-full mb-1.5 min-h-[3.05rem] flex justify-center items-center drop-shadow-[0_2px_12px_rgba(106,67,255,0.45)]"
+                          className="font-sans text-[13px] font-bold leading-tight text-[#cfc4ff] m-0 tracking-[0.26em] uppercase cursor-pointer px-1 pt-0.5 rounded-[5px] transition-all bg-transparent text-center w-full mb-1 flex justify-center items-center"
                           onClick={isAdmin ? () => {
                             if (isDragging) return;
                             if (teamsConfirmed) return;
@@ -1306,8 +1337,18 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                         </h3>
                       )}
 
+                      {/* Big score under the team name, like the reference: 26.5 PTS */}
+                      <div className="flex items-end justify-center gap-1.5 mb-2.5">
+                        <span className="font-bebas text-[38px] leading-none text-white drop-shadow-[0_2px_12px_rgba(106,67,255,0.45)]">
+                          {(team.score ?? 0).toFixed(1)}
+                        </span>
+                        <span className="font-sans text-[11px] font-bold tracking-[0.14em] text-[#10B981] pb-[5px]">
+                          PTS
+                        </span>
+                      </div>
+
                       <div
-                        className={`flex flex-col gap-1 mb-1 w-full flex-1 min-h-0 overflow-y-auto pr-0 rounded-[5px] transition-all duration-150 ease-out ${
+                        className={`flex flex-col gap-2 mb-1 w-full flex-1 min-h-0 overflow-y-auto pr-0 rounded-[5px] transition-all duration-150 ease-out ${
                           dropSnapshot.isDraggingOver ? 'bg-[#8b5cff]/10' : ''
                         }`}
                         style={{ height: `${teamListHeightPx}px`, minHeight: `${teamListHeightPx}px`, maxHeight: `${teamListHeightPx}px` }}
@@ -1349,7 +1390,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                                     if (Date.now() - lastDragEndAtRef.current < 200) return;
                                     togglePlayerLock(playerKey);
                                   } : undefined}
-                                  className={`group border p-0 flex items-center gap-1.5 text-white transition-all duration-150 ease-out h-12 relative w-full box-border overflow-visible select-none rounded-[5px]
+                                  className={`group border p-0 flex items-center gap-1.5 text-white transition-all duration-150 ease-out h-12 relative w-full box-border overflow-visible select-none rounded-xl
                                     ${isLocked ? 'shadow-[0_0_8px_rgba(255,193,7,0.3)]' : ''}
                                     ${!isAdmin ? 'cursor-default pointer-events-none' : (teamsConfirmed || isLocked ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing')}
                                     ${dragSnapshot.isDragging ? 'scale-[1.02] z-20' : 'hover:bg-white/[0.04]'}
@@ -1406,6 +1447,11 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                                       {player.nombre}
                                     </span>
 
+                                    {/* Drag affordance (visual only: the whole row is the handle) */}
+                                    {isAdmin && !teamsConfirmed && !isLocked ? (
+                                      <GripVertical size={15} className="shrink-0 text-white/30 pointer-events-none" aria-hidden="true" />
+                                    ) : null}
+
                                     {/* Promedio: metadata secundaria, chip chico anclado abajo a la
                                         derecha de la card (pointer-events-none: no interfiere drag). */}
                                     {showAverages && isAdmin && (
@@ -1430,26 +1476,6 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                         {dropProvided.placeholder}
                       </div>
 
-                      <div className="relative text-center w-full box-border mt-2 h-[54px] overflow-hidden rounded-xl" style={{
-                        borderWidth: '1.5px',
-                        borderStyle: 'solid',
-                        borderColor: (() => {
-                          const teamA = realtimeTeams.find((t) => t.id === 'equipoA');
-                          const teamB = realtimeTeams.find((t) => t.id === 'equipoB');
-                          const diff = Math.abs((teamA?.score ?? 0) - (teamB?.score ?? 0));
-                          if (diff === 0 || diff <= 2) return '#10B981';
-                          if (diff <= 5) return '#84CC16';
-                          if (diff <= 8) return '#F59E0B';
-                          return '#EF4444';
-                        })(),
-                        background: 'linear-gradient(168deg, rgba(40,31,84,0.9), rgba(16,12,33,0.96))',
-                        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08), 0 6px 18px rgba(5,3,16,0.45)',
-                      }}>
-                        <div className="w-full h-full flex items-center justify-center gap-2 px-2">
-                          <div className="text-[#b0a0ff]/85 text-[10px] font-sans font-bold uppercase tracking-[0.18em]">Puntaje</div>
-                          <div className="text-white font-bebas text-[30px] leading-none font-bold drop-shadow-[0_2px_10px_rgba(106,67,255,0.4)]">{(team.score ?? 0).toFixed(1)}</div>
-                        </div>
-                      </div>
                     </div>
                   )}
                 </Droppable>
@@ -1457,6 +1483,13 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
             })}
           </div>
         </DragDropContext>
+
+        {/* Drag hint: subtle, centered, between team cards and balance */}
+        {isAdmin && !teamsConfirmed ? (
+          <div className="text-center text-white/40 font-sans text-[11.5px] leading-snug -mt-0.5">
+            Arrastrá un jugador al otro equipo para intercambiarlo
+          </div>
+        ) : null}
 
         {/* Balance summary block - placed after team cards */}
         {(() => {
@@ -1499,13 +1532,12 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                 className="absolute inset-x-0 top-0 h-px"
                 style={{ background: `linear-gradient(90deg, transparent 8%, ${balanceColor}aa 50%, transparent 92%)` }}
               />
-              {/* Compact, horizontal layout: still the hero of the screen but no longer
-                  a giant stacked block — aligned with the non-admin teams view. */}
-              <div className="font-sans font-bold text-[10px] text-[#b0a0ff]/85 uppercase tracking-[0.2em] mb-1.5">Balance del partido</div>
-              <div className="flex items-center justify-between gap-3">
-                <span className="font-bebas text-[32px] leading-none text-white font-bold drop-shadow-[0_2px_12px_rgba(106,67,255,0.4)] whitespace-nowrap">DIF {diff.toFixed(1)}</span>
+              {/* Single horizontal row, like the reference: BALANCE · DIF X.X · pill */}
+              <div className="flex items-center gap-3">
+                <span className="font-sans font-bold text-[10px] text-[#b0a0ff]/85 uppercase tracking-[0.2em] shrink-0">Balance</span>
+                <span className="font-bebas text-[28px] leading-none text-white font-bold drop-shadow-[0_2px_12px_rgba(106,67,255,0.4)] whitespace-nowrap">DIF {diff.toFixed(1)}</span>
                 <span
-                  className="shrink-0 inline-flex items-center gap-1.5 rounded-full border px-3 py-1 font-oswald text-[11px] font-semibold tracking-[0.06em]"
+                  className="ml-auto shrink-0 inline-flex items-center gap-1.5 rounded-full border px-3 py-1 font-oswald text-[11px] font-semibold tracking-[0.06em]"
                   style={{
                     color: balanceColor,
                     borderColor: `${balanceColor}66`,
@@ -1536,42 +1568,51 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
             <div className="flex flex-col gap-2.5">
               {/* Herramientas de armado (secundarias, agrupadas) */}
               {!teamsConfirmed ? (
-                <div className="grid grid-cols-2 gap-2 w-full">
+                <div className="grid grid-cols-2 gap-2.5 w-full">
                   <button
                     className="invite-cta-btn invite-cta-btn--compact"
                     style={{
-                      '--btn': 'linear-gradient(90deg, rgba(100, 77, 255, 0.74) 0%, rgba(123, 97, 255, 0.84) 100%)',
-                      '--btn-dark': 'rgba(122, 104, 255, 0.72)',
+                      '--btn': 'linear-gradient(168deg, rgba(40,31,84,0.62) 0%, rgba(16,12,33,0.9) 100%)',
+                      '--btn-dark': 'rgba(148, 134, 255, 0.42)',
                       '--btn-text': '#f4f6ff',
                     }}
                     onClick={randomizeTeams}
                     disabled={teamsConfirmed}
                   >
-                    <span>Randomizar</span>
+                    <span>
+                      <Shuffle size={16} style={{ marginRight: 8, color: SYSTEM_ICON_BLUE, filter: SYSTEM_ICON_BLUE_GLOW }} />
+                      Randomizar
+                    </span>
                   </button>
                   <button
                     className="invite-cta-btn invite-cta-btn--compact"
                     style={{
-                      '--btn': 'rgba(14, 24, 56, 0.88)',
-                      '--btn-dark': 'rgba(71, 119, 194, 0.42)',
-                      '--btn-text': 'rgba(242, 246, 255, 0.9)',
+                      '--btn': 'linear-gradient(168deg, rgba(40,31,84,0.62) 0%, rgba(16,12,33,0.9) 100%)',
+                      '--btn-dark': 'rgba(148, 134, 255, 0.42)',
+                      '--btn-text': '#f4f6ff',
                     }}
                     onClick={() => setShowAverages(!showAverages)}
                   >
-                    <span>{showAverages ? 'Ocultar promedios' : 'Promedios'}</span>
+                    <span>
+                      <BarChart3 size={16} style={{ marginRight: 8, color: SYSTEM_ICON_BLUE, filter: SYSTEM_ICON_BLUE_GLOW }} />
+                      {showAverages ? 'Ocultar promedios' : 'Promedios'}
+                    </span>
                   </button>
                 </div>
               ) : (
                 <button
                   className="invite-cta-btn invite-cta-btn--compact w-full"
                   style={{
-                    '--btn': 'rgba(14, 24, 56, 0.88)',
-                    '--btn-dark': 'rgba(71, 119, 194, 0.42)',
-                    '--btn-text': 'rgba(242, 246, 255, 0.9)',
+                    '--btn': 'linear-gradient(168deg, rgba(40,31,84,0.62) 0%, rgba(16,12,33,0.9) 100%)',
+                    '--btn-dark': 'rgba(148, 134, 255, 0.42)',
+                    '--btn-text': '#f4f6ff',
                   }}
                   onClick={() => setShowAverages(!showAverages)}
                 >
-                  <span>{showAverages ? 'Ocultar promedios' : 'Promedios'}</span>
+                  <span>
+                    <BarChart3 size={16} style={{ marginRight: 8, color: SYSTEM_ICON_BLUE, filter: SYSTEM_ICON_BLUE_GLOW }} />
+                    {showAverages ? 'Ocultar promedios' : 'Promedios'}
+                  </span>
                 </button>
               )}
 
@@ -1605,9 +1646,9 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
             <button
               className="invite-cta-btn invite-cta-btn--compact"
               style={{
-                '--btn': 'rgba(14, 24, 56, 0.88)',
-                '--btn-dark': 'rgba(71, 119, 194, 0.42)',
-                '--btn-text': 'rgba(242, 246, 255, 0.9)',
+                '--btn': 'linear-gradient(168deg, rgba(40,31,84,0.62) 0%, rgba(16,12,33,0.9) 100%)',
+                '--btn-dark': 'rgba(148, 134, 255, 0.42)',
+                '--btn-text': '#f4f6ff',
                 width: '90%',
                 maxWidth: '560px',
                 marginInline: 'auto',
@@ -1617,7 +1658,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
               aria-busy={isSharingTeamsImage}
             >
               <span>
-                <SafeWhatsappIcon size={16} color={SYSTEM_ICON_BLUE} style={{ marginRight: 8, filter: SYSTEM_ICON_BLUE_GLOW }} />
+                <SafeWhatsappIcon size={16} color="#25D366" style={{ marginRight: 8, filter: 'drop-shadow(0 0 5px rgba(37, 211, 102, 0.45))' }} />
                 {isSharingTeamsImage ? 'Generando…' : 'Compartir equipos'}
               </span>
             </button>
@@ -1629,65 +1670,6 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
               </div>
             ) : null}
           </div>
-
-          {/* Herramientas de administración (secundarias, contextuales) */}
-          {isAdmin && typeof onResetVoting === 'function' ? (
-            <div className="relative w-[90%] max-w-[560px] mx-auto mt-1">
-              <div
-                className="flex items-center justify-between gap-3 rounded-2xl border px-3.5 py-2"
-                style={{
-                  borderColor: 'rgba(148,134,255,0.18)',
-                  background: 'linear-gradient(168deg, rgba(40,31,84,0.5) 0%, rgba(16,12,33,0.74) 100%)',
-                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
-                }}
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="inline-block w-1 h-3.5 rounded-full bg-[linear-gradient(180deg,#8b5cff,#644dff)] shadow-[0_0_8px_rgba(139,92,255,0.4)]" />
-                  <span className="font-sans font-bold text-[10px] uppercase tracking-[0.2em] text-[#b0a0ff]/85">Herramientas</span>
-                </div>
-                <button
-                  ref={adminMenuButtonRef}
-                  type="button"
-                  className="h-8 w-8 inline-flex items-center justify-center rounded-full border transition-colors hover:bg-white/10"
-                  style={{ borderColor: 'rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.05)' }}
-                  aria-label="Herramientas de administración"
-                  aria-haspopup="menu"
-                  aria-expanded={adminMenuOpen}
-                  onClick={() => setAdminMenuOpen((open) => !open)}
-                >
-                  <MoreVertical size={16} style={{ color: SYSTEM_ICON_BLUE, filter: SYSTEM_ICON_BLUE_GLOW }} />
-                </button>
-              </div>
-              {adminMenuOpen ? (
-                <div
-                  ref={adminMenuRef}
-                  className="admin-action-menu absolute bottom-full right-0 mb-2 z-[1003] w-64 origin-bottom-right animate-[adminMenuSlideUp_0.2s_cubic-bezier(0.16,1,0.3,1)]"
-                  role="menu"
-                  aria-label="Herramientas de administración"
-                >
-                  <button className="admin-action-menu-item whitespace-nowrap" type="button" role="menuitem" onClick={handleShareVotingLink}>
-                    <SafeWhatsappIcon size={15} color="#25D366" />
-                    <span>Enviar link de votación</span>
-                  </button>
-                  <button
-                    className="admin-action-menu-item admin-action-menu-item--danger whitespace-nowrap"
-                    type="button"
-                    role="menuitem"
-                    onClick={() => { setAdminMenuOpen(false); setShowResetConfirm(true); }}
-                  >
-                    <RotateCcw size={15} />
-                    <span>Resetear votación</span>
-                  </button>
-                  <style>{`
-                    @keyframes adminMenuSlideUp {
-                      from { opacity: 0; transform: translateY(10px) scale(0.94); }
-                      to { opacity: 1; transform: translateY(0) scale(1); }
-                    }
-                  `}</style>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
         </div>
       </div>
       <ConfirmModal

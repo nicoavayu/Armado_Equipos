@@ -248,14 +248,16 @@ describe('listMatchNoShowSummary', () => {
     mockSupabaseApi = buildSupabaseMock(state);
   });
 
-  test('resume la ausencia confirmada y la penalidad aplicada para el partido', async () => {
+  test('resume la ausencia confirmada con la transición persistida (5.0 → 4.5)', async () => {
     state = baseState([
       { partido_id: 10, votante_id: 1, se_jugo: true, motivo_no_jugado: null, jugadores_ausentes: [3] },
       { partido_id: 10, votante_id: 2, se_jugo: true, motivo_no_jugado: null, jugadores_ausentes: [3] },
     ]);
     state.tables.rating_adjustments = [
-      { user_id: 'user-3', partido_id: 10, type: 'no_show_penalty', amount: -0.5 },
+      { user_id: 'user-3', partido_id: 10, type: 'no_show_penalty', amount: -0.5, created_at: '2026-07-01T12:00:00.000Z' },
     ];
+    // El ranking persistido YA refleja la penalización aplicada (5.0 - 0.5).
+    state.tables.usuarios.find((row) => row.id === 'user-3').ranking = 4.5;
     mockSupabaseApi = buildSupabaseMock(state);
 
     const result = await listMatchNoShowSummary(10);
@@ -269,8 +271,54 @@ describe('listMatchNoShowSummary', () => {
         penaltyApplied: true,
         penaltyAmount: -0.5,
         recoveryApplied: false,
+        currentRanking: 4.5,
+        prePenaltyRanking: 5.0,
+        postPenaltyRanking: 4.5,
       },
     ]);
+  });
+
+  test('una fila inconsistente en el ledger se normaliza a la transición válida 5.0 → 4.5', async () => {
+    state = baseState([
+      { partido_id: 10, votante_id: 1, se_jugo: true, motivo_no_jugado: null, jugadores_ausentes: [3] },
+      { partido_id: 10, votante_id: 2, se_jugo: true, motivo_no_jugado: null, jugadores_ausentes: [3] },
+    ]);
+    state.tables.rating_adjustments = [
+      { user_id: 'user-3', partido_id: 10, type: 'no_show_penalty', amount: -0.5, created_at: '2026-07-01T12:00:00.000Z' },
+    ];
+    state.tables.usuarios.find((row) => row.id === 'user-3').ranking = 5.0;
+    mockSupabaseApi = buildSupabaseMock(state);
+
+    const result = await listMatchNoShowSummary(10);
+
+    expect(result.data[0]).toMatchObject({
+      prePenaltyRanking: 5.0,
+      postPenaltyRanking: 4.5,
+    });
+  });
+
+  test('recuperaciones posteriores no distorsionan el before/after de este partido', async () => {
+    state = baseState([
+      { partido_id: 10, votante_id: 1, se_jugo: true, motivo_no_jugado: null, jugadores_ausentes: [3] },
+      { partido_id: 10, votante_id: 2, se_jugo: true, motivo_no_jugado: null, jugadores_ausentes: [3] },
+    ]);
+    state.tables.rating_adjustments = [
+      { user_id: 'user-3', partido_id: 10, type: 'no_show_penalty', amount: -0.5, created_at: '2026-07-01T12:00:00.000Z' },
+      // Recuperación gradual en un partido posterior: parte del 4.5 penalizado.
+      { user_id: 'user-3', partido_id: 11, type: 'no_show_recovery', amount: 0.2, created_at: '2026-07-08T12:00:00.000Z' },
+    ];
+    // Persistido hoy: 5.0 - 0.5 + 0.2 = 4.7.
+    state.tables.usuarios.find((row) => row.id === 'user-3').ranking = 4.7;
+    mockSupabaseApi = buildSupabaseMock(state);
+
+    const result = await listMatchNoShowSummary(10);
+
+    // La slide de ESTE partido sigue mostrando 5.0 → 4.5.
+    expect(result.data[0]).toMatchObject({
+      currentRanking: 4.7,
+      prePenaltyRanking: 5.0,
+      postPenaltyRanking: 4.5,
+    });
   });
 
   test('no devuelve ausencias si el partido no fue elegible para penalidad', async () => {

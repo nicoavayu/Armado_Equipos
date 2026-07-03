@@ -11,11 +11,17 @@ import { listMyTeamMatches } from '../services/db/teamChallenges';
 import { parseLocalDateTime } from '../utils/dateLocal';
 import { buildActivityFeed } from '../utils/activityFeed';
 import { AWARDS_READY_NOTIFICATION_TYPES, isAwardsReadyStatus } from '../utils/awardsReadiness';
+import {
+  getNextHomeAction,
+  resolvePaymentsNextStepAction,
+  validateNextHomeAction,
+} from '../utils/homeNextStep';
 import { openNotification } from '../utils/notificationRouter';
 import { notifyBlockingError } from '../utils/notifyBlockingError';
 import ProximosPartidos from './ProximosPartidos';
 import NotificationsBell from './NotificationsBell';
 import HomeWelcomeCard from './HomeWelcomeCard';
+import HomeNextStepCard from './HomeNextStepCard';
 import QuickAccessRail from './QuickAccessRail';
 import SwipeDismissibleActivityItem from './SwipeDismissibleActivityItem';
 import { useRefreshOnVisibility } from '../hooks/useRefreshOnVisibility';
@@ -100,7 +106,10 @@ const isCancelledChallengeStatus = (statusValue) => {
   return normalized === 'canceled' || normalized === 'cancelled' || normalized === 'cancelado';
 };
 
-const isAwardsReadyAndVisible = (row) => isAwardsReadyStatus(row);
+// Mirrors the results page gate (deriveCanonicalResultsRow): a "results ready"
+// entry point must be backed by a row the page will actually render, otherwise
+// the CTA would land on "no hubo suficientes votos".
+const isAwardsReadyAndVisible = (row) => isAwardsReadyStatus(row) && row?.results_ready === true;
 
 const getHomeSnapshotStorageKey = (userId) => `${HOME_SNAPSHOT_STORAGE_PREFIX}${String(userId || '').trim()}`;
 
@@ -203,14 +212,18 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
   const [activeMatches, setActiveMatches] = useState([]);
   const [activityLoading, setActivityLoading] = useState(true);
   const [activityItems, setActivityItems] = useState([]);
+  const [activityHasFreshValidation, setActivityHasFreshValidation] = useState(false);
+  const [activityRefreshNonce, setActivityRefreshNonce] = useState(0);
   const [dismissingActivityKeys, setDismissingActivityKeys] = useState(() => new Set());
   const [showProximosPartidos, setShowProximosPartidos] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [awardsReadyVisibleMatchIds, setAwardsReadyVisibleMatchIds] = useState([]);
   const [awardsRingLoading, setAwardsRingLoading] = useState(false);
+  const [paymentsNextStepAction, setPaymentsNextStepAction] = useState(null);
   const statusDropdownRef = useRef(null);
   const statusDropdownMenuRef = useRef(null);
   const activityLoadedRef = useRef(false);
+  const nextStepValidationInFlightRef = useRef(false);
   const activeMatchesRefreshInFlightRef = useRef(false);
   const activeMatchesSignatureRef = useRef(buildActiveMatchesSignature([]));
   const activityDismissTimeoutsRef = useRef(new Map());
@@ -320,6 +333,105 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
     navigate(item.route);
   };
 
+  // "Tu próximo paso": one truly valid pending action, or nothing.
+  const nextStepAction = useMemo(() => getNextHomeAction({
+    activityItems: activityHasFreshValidation ? activityItems : [],
+    validatedResultsMatchIds: awardsReadyVisibleMatchIds,
+    resultsValidationLoading: awardsRingLoading,
+    paymentAction: paymentsNextStepAction,
+  }), [
+    activityHasFreshValidation,
+    activityItems,
+    awardsReadyVisibleMatchIds,
+    awardsRingLoading,
+    paymentsNextStepAction,
+  ]);
+
+  // The next-step card is the richer version of the activity item it was
+  // promoted from, so that exact row is hidden in Recent Activity (other
+  // events of the same match still show).
+  const visibleActivityItems = useMemo(() => {
+    if (!nextStepAction?.sourceActivityId) return activityItems;
+    return activityItems.filter((item) => item?.id !== nextStepAction.sourceActivityId);
+  }, [activityItems, nextStepAction]);
+
+  const handleNextStepClick = async (action) => {
+    if (!action?.route || nextStepValidationInFlightRef.current) return;
+
+    nextStepValidationInFlightRef.current = true;
+    const isCurrent = await validateNextHomeAction({
+      action,
+      supabaseClient: supabase,
+      userId: user?.id,
+    });
+    nextStepValidationInFlightRef.current = false;
+
+    if (!isCurrent) {
+      setActivityItems((currentItems) => (
+        action?.sourceActivityId
+          ? currentItems.filter((item) => item?.id !== action.sourceActivityId)
+          : currentItems
+      ));
+      setActivityHasFreshValidation(false);
+      setActivityRefreshNonce((current) => current + 1);
+      fetchActiveMatches();
+      return;
+    }
+
+    // Results CTAs go through the notification router so the "results
+    // unavailable" guard applies even if state changed after validation.
+    if (action.isResultsAction && action.partidoId) {
+      await openNotification({
+        type: 'survey_results_ready',
+        partido_id: action.partidoId,
+        data: {
+          resultsUrl: action.route,
+          match_id: String(action.partidoId),
+          match_name: action.matchName || null,
+        },
+      }, navigate, {
+        supabaseClient: supabase,
+        onResultsUnavailable: (notice) => {
+          if (notice?.message) {
+            notifyBlockingError(notice.message, { title: notice.title });
+          }
+        },
+      });
+      return;
+    }
+
+    navigate(action.route);
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadPaymentsNextStep = async () => {
+      if (!user?.id) {
+        if (!cancelled) setPaymentsNextStepAction(null);
+        return;
+      }
+
+      try {
+        const action = await resolvePaymentsNextStepAction({
+          supabaseClient: supabase,
+          userId: user.id,
+          notifications,
+        });
+        if (!cancelled) setPaymentsNextStepAction(action);
+      } catch (error) {
+        logger.warn('[HOME] payments next-step lookup failed:', error);
+        if (!cancelled) setPaymentsNextStepAction(null);
+      }
+    };
+
+    loadPaymentsNextStep();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [notifications, user?.id]);
+
   const handleDismissActivityItem = useCallback((itemKey) => {
     const normalizedItemKey = String(itemKey || '').trim();
     if (!normalizedItemKey) return;
@@ -367,6 +479,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
 
   useEffect(() => {
     activityLoadedRef.current = false;
+    setActivityHasFreshValidation(false);
     activeMatchesSignatureRef.current = buildActiveMatchesSignature([]);
 
     if (!user?.id) {
@@ -422,7 +535,11 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
         return;
       }
 
-      const normalizedNumericIds = candidateMatchIds
+      // "Trusted" (award_won) ids are validated too when we can query: awards
+      // can be reset after the notification was sent, and a stale id here means
+      // Home offering results that no longer exist. They only pass unvalidated
+      // as a fallback when the validation query itself fails.
+      const normalizedNumericIds = Array.from(new Set([...trustedMatchIds, ...candidateMatchIds]))
         .map((id) => Number(id))
         .filter((id) => Number.isFinite(id));
 
@@ -465,10 +582,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
           .map((row) => String(row.partido_id));
 
         if (!cancelled) {
-          setAwardsReadyVisibleMatchIds(Array.from(new Set([
-            ...trustedMatchIds,
-            ...readyMatchIds,
-          ])));
+          setAwardsReadyVisibleMatchIds(Array.from(new Set(readyMatchIds)));
         }
       } catch (error) {
         logger.warn('[AWARDS_RING] Could not validate awards visibility:', error);
@@ -752,6 +866,8 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
   useRefreshOnVisibility(
     () => {
       fetchActiveMatches();
+      setActivityHasFreshValidation(false);
+      setActivityRefreshNonce((current) => current + 1);
     },
     {
       enabled: Boolean(user?.id),
@@ -844,6 +960,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
       if (!user?.id) {
         if (!cancelled) {
           setActivityItems([]);
+          setActivityHasFreshValidation(false);
           setActivityLoading(false);
         }
         return;
@@ -860,6 +977,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
 
       if (!cancelled) {
         setActivityItems(filterDismissedRecentActivityItems(items, user.id));
+        setActivityHasFreshValidation(true);
         activityLoadedRef.current = true;
         setActivityLoading(false);
       }
@@ -870,7 +988,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
     return () => {
       cancelled = true;
     };
-  }, [activeMatches, notifications, user?.id]);
+  }, [activeMatches, activityRefreshNonce, notifications, user?.id]);
 
   // Mostrar ProximosPartidos si está activo
   if (showProximosPartidos) {
@@ -1047,9 +1165,18 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
         </div>
       )}
 
-      <h3 className="section-title" style={{ marginBottom: 14 }}>Accesos rápidos</h3>
+      <h3 className="section-title" style={{ marginBottom: 8 }}>Accesos rápidos</h3>
 
       <QuickAccessRail items={quickAccessItems} />
+
+      {/* Next-action card — only when a real, valid pending action exists */}
+      <HomeNextStepCard
+        action={nextStepAction}
+        onOpen={handleNextStepClick}
+        onPrefetch={(action) => {
+          if (action?.route) prefetchRoute(action.route);
+        }}
+      />
 
       {/* Recent Activity */}
       {/* Top spacing comes from the grid's mb-7; flex items don't collapse margins */}
@@ -1075,12 +1202,12 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
                   </div>
                 ))}
               </div>
-            ) : activityItems.length > 0 ? (
+            ) : visibleActivityItems.length > 0 ? (
               <div
                 className="home-activity-scroll min-h-0 flex-1 overflow-y-auto custom-scrollbar pb-7"
                 data-home-activity-scroll="true"
               >
-                {activityItems.map((item, index) => {
+                {visibleActivityItems.map((item, index) => {
                   const itemKey = getRecentActivityItemKey(item);
                   const Icon = activityIconMap[item.icon] || Bell;
                   const iconColorClass = severityIconClass[item.severity] || severityIconClass.neutral;
@@ -1148,7 +1275,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
                         )}
                       </button>
 
-                      {index < activityItems.length - 1 && (
+                      {index < visibleActivityItems.length - 1 && (
                         <div className="h-px bg-white/[0.06] mx-4" />
                       )}
                     </SwipeDismissibleActivityItem>
@@ -1170,7 +1297,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
             )}
           </div>
           {/* Fade sutil al pie: sugiere que el panel scrollea sin parecer una cajita web */}
-          {!activityLoading && activityItems.length > 0 && (
+          {!activityLoading && visibleActivityItems.length > 0 && (
             <div
               aria-hidden
               className="pointer-events-none absolute inset-x-0 bottom-0 h-7 rounded-b-card bg-[linear-gradient(to_top,rgba(16,12,33,0.96),rgba(16,12,33,0.5)_45%,transparent)] z-[1]"

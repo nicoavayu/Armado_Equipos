@@ -7,9 +7,11 @@
 // data to be worth sharing via `isShareable`.
 
 import { parseLocalDate } from './dateLocal';
+import { formatVenueShort } from './venueFormat';
 
 export const SHARE_CARD_TITLE = 'EQUIPOS ARMADOS';
 export const SHARE_CARD_WEBSITE = 'arma2.com.ar';
+export const SHARE_CARD_VENUE_MAX_LEN = 30;
 
 const DEFAULT_TEAM_A_NAME = 'Equipo A';
 const DEFAULT_TEAM_B_NAME = 'Equipo B';
@@ -90,7 +92,12 @@ export function buildTeamsShareCardData(match = {}, teams = [], options = {}) {
   const format = cleanText(matchObj.modalidad ?? matchObj.format) || null;
   const date = formatShareDate(matchObj.fecha ?? matchObj.date);
   const time = cleanText(matchObj.hora ?? matchObj.time) || null;
-  const venue = cleanText(matchObj.sede ?? matchObj.venue) || null;
+  // Short venue label: long addresses used to overflow the share image, so we
+  // prefer the place name / first meaningful block and never the full address.
+  const venue = formatVenueShort({
+    name: cleanText(matchObj.venue_name ?? matchObj.place_name ?? ''),
+    formattedAddress: cleanText(matchObj.sede ?? matchObj.venue ?? ''),
+  }, { maxLen: SHARE_CARD_VENUE_MAX_LEN }) || null;
 
   const totalPlayers = teamA.players.length + teamB.players.length;
   const maxTeamSize = Math.max(teamA.players.length, teamB.players.length);

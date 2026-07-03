@@ -243,13 +243,18 @@ describe('PartidoInvitacion registered player invites', () => {
     expect(screen.getByRole('button', { name: /Agregar al calendario/i })).toBeInTheDocument();
   });
 
-  test('admin no recibe el botón de jugador en la vista pública', async () => {
+  test('admin también puede abrir el flujo de invitar desde la vista pública', async () => {
     mockAuthUser = { id: ADMIN_ID, email: 'admin@example.com' };
     mockPlayersRows = [buildPlayerRow(ADMIN_ID), buildPlayerRow(PLAYER_ID)];
 
     await renderPublicMatch();
 
-    expect(screen.queryByRole('button', { name: 'Invitar amigos' })).not.toBeInTheDocument();
+    const inviteButton = screen.getByRole('button', { name: 'Invitar amigos' });
+    expect(inviteButton).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Agregar al calendario/i })).toBeInTheDocument();
+
+    fireEvent.click(inviteButton);
+
+    expect(await screen.findByTestId('registered-invite-modal')).toHaveAttribute('data-mode', 'direct');
   });
 });

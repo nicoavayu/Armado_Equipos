@@ -29,6 +29,10 @@ import {
   formatPaymentAmount,
 } from '../utils/paymentStatus';
 import { buildMyMatchSections } from '../utils/myMatchesSections';
+import { buildMatchSummaryShareCardData } from '../utils/matchSummaryShare';
+import { useShareTeamsCard } from '../hooks/useShareTeamsCard';
+import { useNativeFeatures } from '../hooks/useNativeFeatures';
+import ShareableMatchSummaryCard from './share/ShareableMatchSummaryCard';
 
 import MatchCard from './MatchCard';
 
@@ -54,6 +58,28 @@ const fetchSurveyCountsByMatch = async (matchIds = []) => {
     return byMatch;
   } catch (error) {
     logger.warn('[PROXIMOS] survey counts lookup failed', { message: error?.message || String(error) });
+    return {};
+  }
+};
+
+// One batched read of survey_results per post-match card: gates the
+// "Compartir resumen" action on real results (never on notifications alone).
+const fetchSurveyResultsByMatch = async (matchIds = []) => {
+  const ids = (matchIds || []).map((value) => Number(value)).filter((value) => Number.isFinite(value) && value > 0);
+  if (ids.length === 0) return {};
+  try {
+    const { data, error } = await supabase
+      .from('survey_results')
+      .select('*')
+      .in('partido_id', ids);
+    if (error) throw error;
+    const byMatch = {};
+    (data || []).forEach((row) => {
+      byMatch[String(row.partido_id)] = row;
+    });
+    return byMatch;
+  } catch (error) {
+    logger.warn('[PROXIMOS] survey results lookup failed', { message: error?.message || String(error) });
     return {};
   }
 };
@@ -167,7 +193,15 @@ const ProximosPartidos = ({ onClose }) => {
     settingsByMatch: {},
     summaryRowsByMatch: {},
     surveyCountByMatch: {},
+    resultsByMatch: {},
   });
+  const { isNative } = useNativeFeatures();
+  const {
+    isSharing: isSharingSummary,
+    shareTeamsCard: shareSummaryCard,
+    cardData: summaryShareCardData,
+    cardRef: summaryShareCardRef,
+  } = useShareTeamsCard({ isNative });
 
   const [menuOpenId, setMenuOpenId] = useState(null);
 
@@ -820,15 +854,16 @@ const ProximosPartidos = ({ onClose }) => {
           .filter((id) => Number.isFinite(id) && id > 0);
 
         if (postMatchIds.length > 0) {
-          const [myStatusByMatch, settingsByMatch, summaryRowsByMatch, surveyCountByMatch] = await Promise.all([
+          const [myStatusByMatch, settingsByMatch, summaryRowsByMatch, surveyCountByMatch, resultsByMatch] = await Promise.all([
             getMyPaymentRowsForMatches(user.id, postMatchIds),
             getPaymentSettingsForMatches(postMatchIds),
             adminPostMatchIds.length ? getPaymentSummariesForMatches(adminPostMatchIds) : Promise.resolve({}),
             adminPostMatchIds.length ? fetchSurveyCountsByMatch(adminPostMatchIds) : Promise.resolve({}),
+            fetchSurveyResultsByMatch(postMatchIds),
           ]);
-          setPostMatchData({ myStatusByMatch, settingsByMatch, summaryRowsByMatch, surveyCountByMatch });
+          setPostMatchData({ myStatusByMatch, settingsByMatch, summaryRowsByMatch, surveyCountByMatch, resultsByMatch });
         } else {
-          setPostMatchData({ myStatusByMatch: {}, settingsByMatch: {}, summaryRowsByMatch: {}, surveyCountByMatch: {} });
+          setPostMatchData({ myStatusByMatch: {}, settingsByMatch: {}, summaryRowsByMatch: {}, surveyCountByMatch: {}, resultsByMatch: {} });
         }
       } catch (postMatchError) {
         logger.warn('[PROXIMOS] post-match data load failed', {
@@ -1203,11 +1238,67 @@ const ProximosPartidos = ({ onClose }) => {
     });
   };
 
+  // Direct share from the post-match card. The button was gated on a payload
+  // built with the SAME helper (see buildPostMatchInfo), so by the time this
+  // runs there is always something shareable: the roster fetch only enriches
+  // names/avatars and silently falls back to the gate payload if it fails.
+  const handleShareMatchSummary = async (partido, resultsRow, gateSummaryData = null) => {
+    if (isSharingSummary) return;
+    let summaryData = gateSummaryData;
+    try {
+      const { data: rosterRows, error: rosterError } = await supabase
+        .from('jugadores')
+        .select('*')
+        .eq('partido_id', Number(partido.id));
+      if (rosterError) throw rosterError;
+
+      const enriched = buildMatchSummaryShareCardData({
+        partido,
+        results: resultsRow,
+        jugadores: rosterRows || [],
+      });
+      if (enriched.isShareable) summaryData = enriched;
+    } catch (error) {
+      logger.warn('[PROXIMOS] share roster lookup failed, using gate payload', error);
+    }
+
+    if (!summaryData?.isShareable) return;
+
+    try {
+      const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+      await shareSummaryCard(summaryData, {
+        fileName: `resumen-arma2-${stamp}.png`,
+        title: 'Resumen del partido',
+        text: 'Resumen del partido con Arma2 ⚽️',
+      });
+    } catch (error) {
+      logger.error('[PROXIMOS] share summary failed', error);
+      notifyBlockingError('No pudimos generar el resumen para compartir.');
+    }
+  };
+
   const buildPostMatchInfo = (partido) => {
     const ctx = resolvePostMatchContext(partido);
     const amountLabel = formatPaymentAmount(ctx.amount, 'A definir');
     const goEncuesta = () => { onClose(); navigate(`/encuesta/${partido.id}`, { state: detailNavigationState }); };
     const goPagos = () => { onClose(); navigate(`/pagos/${partido.id}`, { state: detailNavigationState }); };
+
+    // "Compartir resumen" solo cuando el MISMO payload que se compartiría ya
+    // es generable (mismo helper que el handler): si el botón aparece,
+    // compartir funciona; si falta data, el botón no se renderiza.
+    const resultsRow = postMatchData.resultsByMatch[ctx.matchKey] || null;
+    const gateSummaryData = buildMatchSummaryShareCardData({
+      partido,
+      results: resultsRow,
+      jugadores: [],
+    });
+    const shareAction = gateSummaryData.isShareable
+      ? {
+        label: isSharingSummary ? 'Generando…' : 'Compartir resumen',
+        disabled: isSharingSummary,
+        onClick: () => handleShareMatchSummary(partido, resultsRow, gateSummaryData),
+      }
+      : null;
 
     if (ctx.isAdmin) {
       const rows = postMatchData.summaryRowsByMatch[ctx.matchKey] || [];
@@ -1223,6 +1314,7 @@ const ProximosPartidos = ({ onClose }) => {
           : 'Pagos · administrar',
         encuestaAction: { label: 'Encuesta', onClick: goEncuesta },
         pagosAction: { label: 'Pagos', primary: true, onClick: goPagos },
+        shareAction,
       };
     }
 
@@ -1245,6 +1337,7 @@ const ProximosPartidos = ({ onClose }) => {
           onClick: goPagos,
         }
         : null,
+      shareAction,
     };
   };
 
@@ -1381,6 +1474,22 @@ const ProximosPartidos = ({ onClose }) => {
         cancelText="Volver"
         danger={actionType === 'cancel'}
       />
+
+      {/* Off-screen render used only while capturing the shareable summary */}
+      {summaryShareCardData ? (
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'fixed',
+            left: '-99999px',
+            top: 0,
+            pointerEvents: 'none',
+            zIndex: -1,
+          }}
+        >
+          <ShareableMatchSummaryCard ref={summaryShareCardRef} data={summaryShareCardData} />
+        </div>
+      ) : null}
     </div>
   );
 };

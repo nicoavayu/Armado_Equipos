@@ -6,6 +6,12 @@ const StoryLikeCarousel = ({
   onIndexChange,
   autoAdvance = true,
   duration = 5000,
+  // Freezes auto-advance (e.g. while a share sheet generated from the story
+  // is open) so the story doesn't close itself mid-action.
+  paused = false,
+  // Optional CTA rendered above the tap zones on the LAST slide only,
+  // anchored to the bottom safe area (e.g. "Compartir resumen").
+  endFooter = null,
 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [progress, setProgress] = useState(0);
@@ -53,6 +59,11 @@ const StoryLikeCarousel = ({
   // Auto-advance (stable)
   useEffect(() => {
     if (!autoAdvance || !safeSlides.length) return;
+    if (paused) {
+      // Hold the current slide; when unpaused the slide restarts its window.
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      return;
+    }
 
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     startRef.current = performance.now();
@@ -75,9 +86,11 @@ const StoryLikeCarousel = ({
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
     // IMPORTANT: depend only on index + duration, not the full slides object
-  }, [currentIndex, autoAdvance, slideDuration, safeSlides.length]);
+  }, [currentIndex, autoAdvance, slideDuration, safeSlides.length, paused]);
 
   if (!currentSlide) return null;
+
+  const isLastSlide = currentIndex === safeSlides.length - 1;
 
   const node =
     typeof currentSlide.content === 'function'
@@ -143,10 +156,31 @@ const StoryLikeCarousel = ({
 
       {/* Slide */}
       <div className="relative z-10 w-full h-full flex items-center justify-center px-0 md:px-0 pt-0 pb-0">
-        <div className="w-full h-full flex items-center justify-center">
+        <div
+          key={currentSlide?.key || currentIndex}
+          className="w-full h-full flex items-center justify-center"
+          data-story-slide-key={currentSlide?.key || currentIndex}
+        >
           {node}
         </div>
       </div>
+
+      {/* Closing CTA: above the tap zones so it's actually tappable; the strip
+          itself lets taps through (pointer-events) so side taps still navigate. */}
+      {isLastSlide && endFooter ? (
+        <div
+          className="absolute inset-x-0 bottom-0 z-50 flex justify-center pointer-events-none"
+          style={{
+            paddingBottom: 'max(20px, calc(env(safe-area-inset-bottom) + 14px))',
+            paddingLeft: horizontalChromeInset,
+            paddingRight: rightChromeInset,
+          }}
+        >
+          <div className="pointer-events-auto w-full max-w-[420px] flex justify-center">
+            {endFooter}
+          </div>
+        </div>
+      ) : null}
 
       <style>{`
         @keyframes grain {

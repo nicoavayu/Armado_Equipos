@@ -531,7 +531,13 @@ export const resolveResultsNotificationEntry = async ({
     }),
   ]);
 
-  const hasRenderableAwardsStory = hasAnyAwardData(surveyResultsRow);
+  // Award data alone is not enough: after a voting reset (or with too few
+  // votes) the row can keep stale award fields while the results page will
+  // refuse to render them. Mirror its gate so we never navigate into a
+  // "no hubo suficientes votos" dead end.
+  const hasRenderableAwardsStory = hasAnyAwardData(surveyResultsRow)
+    && surveyResultsRow?.results_ready === true
+    && normalizeAwardsStatus(surveyResultsRow?.awards_status) !== AWARDS_STATUS_NOT_ELIGIBLE;
   if (hasRenderableAwardsStory && awardsTarget.route) {
     return {
       kind: 'navigate',

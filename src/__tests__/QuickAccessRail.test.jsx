@@ -86,6 +86,18 @@ describe('QuickAccessRail — every card is actionable (orbital ring, one node p
     expect(current[0].textContent).toContain('Partido nuevo');
   });
 
+  test('the 3D stage lets hits pass through to the side cards', () => {
+    // The side cards sit at negative translateZ — behind the (transparent) stage
+    // plane — so in a real browser the stage swallowed their taps and only the
+    // front card was clickable. The stage must keep pointer-events: none (each
+    // card re-enables its own pointer-events imperatively).
+    const { container } = renderRail();
+    const css = Array.from(container.querySelectorAll('style'))
+      .map((s) => s.textContent)
+      .join('\n');
+    expect(css).toMatch(/\.qa-stage\s*\{[^}]*pointer-events:\s*none/);
+  });
+
   test('dots mirror the real items with accessible labels', () => {
     const { container } = renderRail();
     const dots = Array.from(container.querySelectorAll('button[aria-label^="Ir a "]'));

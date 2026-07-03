@@ -1,5 +1,6 @@
 import { supabase } from '../supabase';
 import logger from './logger';
+import { applyPlayerRatingDelta } from './playerRating';
 
 /**
  * Incrementa partidos_jugados cuando empieza un partido
@@ -84,7 +85,7 @@ export const processAbsenceWithoutNotice = async (userId, partidoId, voterId) =>
 
     const newMatchesPlayed = Math.max(0, (user.partidos_jugados || 0) - 1);
     const newMatchesAbandoned = (user.partidos_abandonados || 0) + 1;
-    const newRanking = Math.max(1.0, Math.min(10.0, (user.ranking || 5.0) - 0.3));
+    const newRanking = applyPlayerRatingDelta(user.ranking || 5.0, -0.3, { min: 1.0 });
 
     // Actualizar stats
     const { error: updateError } = await supabase

@@ -68,7 +68,13 @@ export const shareImageNative = async ({ dataUrl, fileName, title, text }) => {
  * image in a new tab so the user can save/share it manually.
  * @returns {Promise<{ok:boolean, reason?:string}>}
  */
-export const shareImageWeb = async ({ dataUrl, fileName, title, text }) => {
+export const shareImageWeb = async ({
+  dataUrl,
+  fileName,
+  title,
+  text,
+  fallbackWindow = null,
+}) => {
   try {
     const res = await fetch(dataUrl);
     const blob = await res.blob();
@@ -76,6 +82,11 @@ export const shareImageWeb = async ({ dataUrl, fileName, title, text }) => {
 
     if (navigator.canShare?.({ files: [file] }) && navigator.share) {
       await navigator.share({ title, text, files: [file] });
+      try {
+        fallbackWindow?.close?.();
+      } catch (_error) {
+        // Non-fatal: the OS share already completed.
+      }
       return { ok: true };
     }
   } catch (error) {
@@ -83,10 +94,39 @@ export const shareImageWeb = async ({ dataUrl, fileName, title, text }) => {
   }
 
   // Fallback: surface the image so the user can long-press / save it.
-  const opened = typeof window !== 'undefined'
-    ? window.open(dataUrl, '_blank', 'noopener,noreferrer')
-    : null;
+  const opened = fallbackWindow || (
+    typeof window !== 'undefined'
+      ? window.open(dataUrl, '_blank', 'noopener,noreferrer')
+      : null
+  );
   if (!opened) return { ok: false, reason: 'share-unavailable' };
+
+  if (fallbackWindow) {
+    try {
+      const doc = fallbackWindow.document;
+      doc.title = title || 'Resumen Arma2';
+      doc.body.textContent = '';
+      doc.body.style.cssText = [
+        'margin:0',
+        'min-height:100vh',
+        'display:flex',
+        'align-items:center',
+        'justify-content:center',
+        'background:#0d0820',
+      ].join(';');
+      const image = doc.createElement('img');
+      image.src = dataUrl;
+      image.alt = title || 'Resumen Arma2';
+      image.style.cssText = 'display:block;max-width:100%;height:auto;';
+      doc.body.appendChild(image);
+    } catch (_error) {
+      try {
+        fallbackWindow.location.href = dataUrl;
+      } catch (_locationError) {
+        return { ok: false, reason: 'share-unavailable' };
+      }
+    }
+  }
   return { ok: true, reason: 'fallback-open' };
 };
 
@@ -108,6 +148,7 @@ export const exportAndShareTeamsCard = async ({
   fileName,
   title = DEFAULT_TITLE,
   text = DEFAULT_TEXT,
+  fallbackWindow = null,
 } = {}) => {
   const name = fileName || buildFileName() || DEFAULT_FILE_NAME;
   try {
@@ -115,7 +156,13 @@ export const exportAndShareTeamsCard = async ({
     if (isNative) {
       return await shareImageNative({ dataUrl, fileName: name, title, text });
     }
-    return await shareImageWeb({ dataUrl, fileName: name, title, text });
+    return await shareImageWeb({
+      dataUrl,
+      fileName: name,
+      title,
+      text,
+      fallbackWindow,
+    });
   } catch (error) {
     // A user cancelling the native share sheet is not an error.
     const message = String(error?.message || error || '').toLowerCase();

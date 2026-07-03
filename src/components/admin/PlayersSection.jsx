@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { PlayerCardTrigger } from '../ProfileComponents';
 import LoadingSpinner from '../LoadingSpinner';
 import ConfirmModal from '../ConfirmModal';
-import { LogOut, MoreVertical, UserPlus, X } from 'lucide-react';
+import { LogOut, MoreVertical, UserPlus, UserRound, X } from 'lucide-react';
 import WhatsappIcon from '../WhatsappIcon';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { openMatchCalendarInvite } from '../../utils/calendarInvite';
@@ -16,6 +16,7 @@ import {
   resolvePlayerKey,
   toPlayerKeysFromRefs,
 } from '../../services/surveyTeamsService';
+import { resolvePlayerInvitePermission } from '../../utils/matchInvitePermissions';
 
 const INVITE_ACCEPT_BUTTON_VIOLET = '#644dff';
 const SLOT_SKEW_X = 0;
@@ -422,6 +423,7 @@ const PlayersSection = ({
   processingAction: _processingAction,
   handleAbandon: _handleAbandon,
   invitationStatus,
+  onInviteFriends,
   onShareClick,
   onShareRosterUpdate,
   unirseAlPartido,
@@ -456,6 +458,17 @@ const PlayersSection = ({
   const previousCompleteRef = useRef(isTitularesComplete);
   const showInviteStylePostJoin = !isAdmin && isPlayerInMatch;
   const showInviteStyleRoster = !isAdmin;
+  const playerInvitePermission = resolvePlayerInvitePermission({
+    match: partidoActual,
+    currentUserId: user?.id,
+    membershipRows: jugadores,
+  });
+  const canInviteFriends = Boolean(
+    showInviteStylePostJoin
+    && playerInvitePermission.canInvite
+    && !playerInvitePermission.isClosed
+    && typeof onInviteFriends === 'function',
+  );
   const showViewTeamsButton = showInviteStylePostJoin
     && Boolean(guestConfirmedTeams.isAvailable || guestConfirmedTeams.hasConfirmedFlag);
   const hasActivePendingInvite = pendingInvitation && invitationStatus === 'pending';
@@ -1057,22 +1070,6 @@ const PlayersSection = ({
           }}
         >
           <div
-            className="absolute top-1 z-[2] min-w-[20px] h-[18px] px-1 rounded-[3px] inline-flex items-center justify-center text-[11px] font-bold leading-none"
-            style={{
-              right: isCreator ? '32px' : '6px',
-              color: '#f4deaa',
-              background: 'rgba(116, 84, 19, 0.46)',
-              border: '1px solid rgba(239, 194, 92, 0.58)',
-              fontFamily: '"Roboto Mono", "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", monospace',
-              letterSpacing: '0.01em',
-            }}
-            aria-label={`Posición en cola ${queuePosition}`}
-            title={`Posición en cola ${queuePosition}`}
-          >
-            {queuePosition}
-          </div>
-
-          <div
             className="h-full w-full p-2 flex items-center gap-1.5"
             style={inviteSkewCounterStyle}
           >
@@ -1099,7 +1096,7 @@ const PlayersSection = ({
 
             {isAdmin && player.usuario_id !== user?.id ? (
               <button
-                className="w-5 h-5 bg-transparent border-0 p-0 cursor-pointer transition-colors inline-flex items-center justify-center shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="relative w-5 h-5 bg-transparent border-0 p-0 cursor-pointer transition-colors inline-flex items-center justify-center shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={(e) => {
                   e.stopPropagation();
                   setPlayerToRemove({ id: player.id, nombre: player.nombre, isOwnPlayer: false });
@@ -1110,6 +1107,8 @@ const PlayersSection = ({
                 disabled={isClosing}
                 title="Eliminar jugador"
               >
+                {/* invisible hit-area extension: 20px visual → 40px touch target */}
+                <span aria-hidden className="absolute -inset-2.5" />
                 <span
                   className="leading-none text-[15px]"
                   style={{ color: '#f4cf7e' }}
@@ -1516,7 +1515,7 @@ const PlayersSection = ({
   if (!isAdmin) {
     return (
       <>
-        <div className="w-full flex flex-col pb-32">
+        <div className="w-full flex min-h-[calc(100dvh-345px)] flex-col pb-6">
           {showInviteStyleRoster ? (
             <div className="relative w-full max-w-full mx-auto mt-2 box-border min-h-[120px] min-w-0">
               {renderInviteStyleRoster(renderGuestActionsMenu())}
@@ -1564,7 +1563,7 @@ const PlayersSection = ({
             </div>
           )}
 
-          <div className={`w-full relative z-10 text-center ${showInviteStyleRoster ? 'px-2 mt-5' : 'px-4 mt-6'}`}>
+          <div className={`w-full relative z-10 text-center ${showInviteStyleRoster ? 'px-2 mt-auto pt-5' : 'px-4 mt-auto pt-6'}`}>
             {!showInviteStyleRoster && (!partidoActual.cupo_jugadores || (remainingTitularSlots !== null && remainingTitularSlots > 0)) && (
               <div className="mb-4 text-white/60 font-oswald text-sm">
                 {capacity
@@ -1576,6 +1575,19 @@ const PlayersSection = ({
             {showInviteStylePostJoin ? (
               <div className="w-full max-w-[340px] mx-auto px-2 sm:px-0 flex flex-col gap-2">
                 <div className="w-full border-t border-white/15 mb-1" aria-hidden="true" />
+                {canInviteFriends && (
+                  <button
+                    type="button"
+                    className={matchSecondaryButtonClass}
+                    onClick={onInviteFriends}
+                    aria-label="Invitar amigos"
+                  >
+                    <span className="inline-flex items-center justify-center gap-2">
+                      <UserRound size={18} strokeWidth={2.1} />
+                      <span>Invitar amigos</span>
+                    </span>
+                  </button>
+                )}
                 {showViewTeamsButton && (
                   <button
                     className={matchPrimaryButtonClass}

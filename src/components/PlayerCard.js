@@ -2,6 +2,7 @@ import logger from '../utils/logger';
 import React from 'react';
 import ReactCountryFlag from 'react-country-flag';
 import PlayerAwards from './PlayerAwards';
+import { clampPlayerRating } from '../utils/playerRating';
 
 
 const PlayerCard = ({ profile, user, isVisible }) => {
@@ -24,7 +25,7 @@ const PlayerCard = ({ profile, user, isVisible }) => {
   const email = profile?.email || user?.email;
   const countryCode = profile?.pais_codigo || 'AR';
   logger.log('[AMIGOS] Processing ranking field in PlayerCard:', { ranking: profile?.ranking, calificacion: profile?.calificacion });
-  const rating = profile?.ranking || profile?.calificacion || 5; // Support both ranking and calificacion for backward compatibility
+  const rating = clampPlayerRating(profile?.ranking ?? profile?.calificacion ?? 5);
   const matchesPlayed = profile?.partidos_jugados || 28;
   const ageRange = profile?.rango_edad || '31-45';
   const social = profile?.social || '@leomessi';

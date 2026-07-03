@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import { User, X, Star } from 'lucide-react';
+import { clampPlayerRating } from '../utils/playerRating';
 
 const POS_MAP = {
   ARQ: 'ARQ',
@@ -71,9 +72,10 @@ const PlayerActionModal = ({
 }) => {
   if (!isOpen || !player) return null;
 
-  const rating = typeof player.rating === 'number'
+  const rawRating = typeof player.rating === 'number'
     ? player.rating
     : (typeof player.ranking === 'number' ? player.ranking : 5.0);
+  const rating = clampPlayerRating(rawRating);
   const position = getPos(player.posicion || player.rol_favorito || 'DEF');
   const positionColor = getPosColor(position);
   const friendBtn = getFriendButtonConfig(friendStatus, isSubmittingFriend);

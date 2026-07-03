@@ -1,5 +1,6 @@
 import logger from '../utils/logger';
 import React, { useEffect, useLayoutEffect, useRef, useCallback, useMemo, useState } from 'react';
+import { clampPlayerRating, formatPlayerRating } from '../utils/playerRating';
 
 // --- Pure Helper Functions (Outside Component) ---
 const clamp = (v, min = 0, max = 100) => Math.min(Math.max(v, min), max);
@@ -299,7 +300,7 @@ const ProfileCardComponent = ({
       name: profile.nombre || 'JUGADOR',
       handle: profile.social?.replace('@', '') || 'jugador',
       avatarUrl: getAvatar(profile),
-      rating: parseFloat(profile.ranking || profile.calificacion || 5.0).toFixed(1),
+      rating: formatPlayerRating(profile.ranking ?? profile.calificacion ?? 5.0),
       pj: profile.partidos_jugados || 0,
       pa: profile.partidos_abandonados || 0,
       pos: getPos(profile.posicion || profile.rol_favorito),
@@ -1204,7 +1205,7 @@ const ProfileCardComponent = ({
                               </div>
                             </div>
                             <span className={performanceMode ? 'rating-value--perf' : 'rating-value'} style={{ color: '#FFD700' }}>
-                              {ratingOverride !== null ? ratingOverride.toFixed(1) : vm.rating}
+                              {ratingOverride !== null ? formatPlayerRating(clampPlayerRating(ratingOverride)) : vm.rating}
                             </span>
                           </div>
                         </div>

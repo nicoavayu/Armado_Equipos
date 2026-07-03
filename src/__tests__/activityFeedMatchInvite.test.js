@@ -54,4 +54,25 @@ describe('buildActivityFeed match_invite copy', () => {
     expect(items[0].title).toBe('Invitación a partido');
     expect(items[0].title).not.toContain('"este partido"');
   });
+
+  test('drops a stale pending invite when real roster state says the user already joined', async () => {
+    const query = {
+      select: jest.fn(() => query),
+      eq: jest.fn(() => query),
+      in: jest.fn(async () => ({
+        data: [{ partido_id: 987 }],
+        error: null,
+      })),
+    };
+
+    const items = await buildActivityFeed([buildInviteNotification({
+      matchName: 'Fulbito martes',
+    })], {
+      activeMatches: [],
+      currentUserId: 'user-1',
+      supabaseClient: { from: jest.fn(() => query) },
+    });
+
+    expect(items).toEqual([]);
+  });
 });

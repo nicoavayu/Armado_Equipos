@@ -22,6 +22,7 @@ import {
   normalizeSurveyResultStatus,
 } from '../utils/statsOutcomeAssignment';
 import { isAwardsReadyStatus } from '../utils/awardsReadiness';
+import { clampPlayerRating } from '../utils/playerRating';
 import {
   Activity,
   AlertCircle,
@@ -1640,7 +1641,7 @@ const StatsView = ({ onVolver }) => {
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     return {
-      rankingActual: Number(rankingRes.data?.ranking ?? 0),
+      rankingActual: clampPlayerRating(rankingRes.data?.ranking ?? 0),
       balancePeriodo,
       sancionesPeriodo,
       recuperacionesPeriodo,

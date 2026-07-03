@@ -1713,6 +1713,38 @@ export const leaveOwnedMatchWithTransfer = async (partidoId) => {
   return data;
 };
 
+export const transferMatchAdmin = async ({ partidoId, newAdminUserId }) => {
+  const matchId = Number(partidoId);
+  const targetUserId = normalizeIdentityValue(newAdminUserId);
+
+  if (!Number.isFinite(matchId) || matchId <= 0 || !targetUserId) {
+    throw new Error('Faltan datos para transferir la administración');
+  }
+
+  const { data, error } = await supabase.rpc('transfer_match_admin', {
+    p_partido_id: matchId,
+    p_new_admin_user_id: targetUserId,
+  });
+
+  if (error) {
+    logger.error('[TRANSFER_MATCH_ADMIN] RPC failed:', error);
+    throw error;
+  }
+
+  if (!data?.success) {
+    const reasonMessages = {
+      not_authenticated: 'Iniciá sesión para transferir la administración',
+      match_not_found: 'El partido ya no está disponible',
+      not_match_admin: 'Solo el admin actual puede transferir la administración',
+      target_not_eligible: 'El jugador debe tener una cuenta y pertenecer al partido',
+      already_match_admin: 'Ese jugador ya administra el partido',
+    };
+    throw new Error(reasonMessages[data?.reason] || 'No se pudo transferir la administración');
+  }
+
+  return data;
+};
+
 /**
  * Delete a match with notifications
  * Sends notifications before marking as deleted

@@ -42,6 +42,10 @@ const MetaChip = ({ children }) => (
       fontSize: 30,
       letterSpacing: '0.04em',
       whiteSpace: 'nowrap',
+      // Hard guard: a long value must never push past the card margins.
+      maxWidth: 900,
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
     }}
   >
     {children}
