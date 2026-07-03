@@ -14,6 +14,42 @@ import { summarizePayments } from './paymentStatus';
 
 export const NEXT_STEP_RESULTS_TYPES = new Set(['survey_results_ready', 'awards_ready']);
 
+// "Faltan lugares" urgency gate. A half-empty roster is information, not an
+// action, so it only earns the highlighted card when the user can actually do
+// something about it NOW:
+//  - the match is today or tomorrow (further out it stays in Recent Activity),
+//  - AND the user is the match admin (can invite/complete the roster) OR the
+//    roster is nearly complete (anyone sharing the invite can realistically
+//    close the gap).
+// Items without structured urgency meta (e.g. generic backend notifications)
+// never qualify: they keep living in Recent Activity / Mis partidos.
+export const FALTA_JUGADORES_MAX_DAY_OFFSET = 1;
+export const FALTA_JUGADORES_NEAR_COMPLETE_THRESHOLD = 2;
+
+export const resolveFaltaJugadoresUrgency = (item, { now = new Date() } = {}) => {
+  const meta = item?.nextStepMeta;
+  if (!meta || typeof meta !== 'object') return null;
+
+  const missing = Number(meta.missingCount);
+  if (!Number.isFinite(missing) || missing <= 0) return null;
+
+  const startsAt = meta.startsAtIso ? new Date(meta.startsAtIso) : null;
+  if (!startsAt || !Number.isFinite(startsAt.getTime())) return null;
+
+  const nowDate = now instanceof Date ? now : new Date(now);
+  if (startsAt.getTime() <= nowDate.getTime()) return null;
+
+  const startOfToday = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate());
+  const startOfMatchDay = new Date(startsAt.getFullYear(), startsAt.getMonth(), startsAt.getDate());
+  const dayOffset = Math.round((startOfMatchDay.getTime() - startOfToday.getTime()) / (24 * 60 * 60 * 1000));
+  if (dayOffset > FALTA_JUGADORES_MAX_DAY_OFFSET) return null;
+
+  const isAdmin = meta.isMatchAdmin === true;
+  if (!isAdmin && missing > FALTA_JUGADORES_NEAR_COMPLETE_THRESHOLD) return null;
+
+  return { missing, isAdmin, dayOffset };
+};
+
 // Lower number = more urgent. Mirrors the product priority:
 // 1) immediate match actions, 2) post-match (survey/payments), 3) results.
 const NEXT_STEP_PRIORITY = {
@@ -36,17 +72,45 @@ const quoted = (value) => {
   return text ? `"${text}"` : '';
 };
 
-const buildCopyForItem = (item) => {
+// "faltan N lugares" / "falta 1 lugar" — the count is part of the card copy.
+const missingSpotsLabel = (missing) => (
+  missing === 1 ? 'falta 1 lugar' : `faltan ${missing} lugares`
+);
+
+const buildFaltaJugadoresCopy = (item, urgency) => {
+  const matchLabel = quoted(item?.matchName);
+  // The feed subtitle already carries `"Nombre" · hoy 19:30`; the card adds the
+  // missing count / implicit action so it always answers "¿qué hago ahora?".
+  const context = String(item?.subtitle || '').trim() || matchLabel;
+
+  if (urgency.isAdmin) {
+    return {
+      title: 'Completá el partido',
+      description: context
+        ? `${context} · ${missingSpotsLabel(urgency.missing)}`
+        : missingSpotsLabel(urgency.missing),
+      ctaLabel: 'Invitar',
+      icon: 'Users',
+    };
+  }
+
+  return {
+    title: urgency.missing === 1 ? 'Falta 1 para completar' : 'Faltan jugadores',
+    description: context
+      ? `${context} · compartí la invitación`
+      : 'Compartí la invitación para completar el partido',
+    ctaLabel: 'Compartir',
+    icon: 'Users',
+  };
+};
+
+const buildCopyForItem = (item, { faltaJugadoresUrgency = null } = {}) => {
   const matchLabel = quoted(item?.matchName);
 
   switch (item?.type) {
     case 'falta_jugadores':
-      return {
-        title: item.title || 'Quedan lugares en tu partido',
-        description: item.subtitle || matchLabel || 'Invitá jugadores para completar el partido',
-        ctaLabel: 'Completar',
-        icon: 'Users',
-      };
+      if (!faltaJugadoresUrgency) return null;
+      return buildFaltaJugadoresCopy(item, faltaJugadoresUrgency);
     case 'call_to_vote':
       return {
         title: 'Faltan votos',
@@ -106,6 +170,7 @@ const buildCopyForItem = (item) => {
 const toCandidateFromActivityItem = (item, {
   validatedResultsMatchIdSet,
   resultsValidationLoading,
+  now,
 }) => {
   if (!item || !item.route) return null;
   const priority = NEXT_STEP_PRIORITY[item.type];
@@ -121,7 +186,13 @@ const toCandidateFromActivityItem = (item, {
     if (!matchKey || !validatedResultsMatchIdSet.has(matchKey)) return null;
   }
 
-  const copy = buildCopyForItem(item);
+  let faltaJugadoresUrgency = null;
+  if (item.type === 'falta_jugadores') {
+    faltaJugadoresUrgency = resolveFaltaJugadoresUrgency(item, { now });
+    if (!faltaJugadoresUrgency) return null;
+  }
+
+  const copy = buildCopyForItem(item, { faltaJugadoresUrgency });
   if (!copy) return null;
 
   return {
@@ -155,6 +226,7 @@ export const getNextHomeAction = ({
   validatedResultsMatchIds = [],
   resultsValidationLoading = false,
   paymentAction = null,
+  now = new Date(),
 } = {}) => {
   const validatedResultsMatchIdSet = new Set(
     (Array.isArray(validatedResultsMatchIds) ? validatedResultsMatchIds : [])
@@ -166,6 +238,7 @@ export const getNextHomeAction = ({
     .map((item) => toCandidateFromActivityItem(item, {
       validatedResultsMatchIdSet,
       resultsValidationLoading,
+      now,
     }))
     .filter(Boolean);
 

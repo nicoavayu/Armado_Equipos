@@ -1211,6 +1211,19 @@ const buildActiveMatchItems = (activeMatches = [], currentUserId) => {
         severity: severityForType('falta_jugadores'),
         source: 'active',
         unread: false,
+        matchName: String(match?.nombre || match?.titulo || '').trim() || null,
+        // Structured urgency signals for the Home next-step card. Only items
+        // built from verified active matches carry this; generic notifications
+        // never get promoted to the highlighted card.
+        nextStepMeta: {
+          missingCount: missing,
+          isMatchAdmin: Boolean(
+            currentUserId
+            && match?.creado_por
+            && String(match.creado_por) === String(currentUserId),
+          ),
+          startsAtIso: matchDate.toISOString(),
+        },
       });
     } else {
       const completeCopy = buildHomeNotificationText({ type: 'match_complete', data: {} }, match);

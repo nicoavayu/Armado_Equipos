@@ -15,6 +15,20 @@ const item = (type, overrides = {}) => ({
   ...overrides,
 });
 
+const NOW = new Date('2026-07-02T12:00:00');
+
+// Urgent variant: verified active match, today, user is the admin.
+const faltaItem = (overrides = {}, metaOverrides = {}) => item('falta_jugadores', {
+  subtitle: '"Jueves F5" · hoy 19:30',
+  nextStepMeta: {
+    missingCount: 5,
+    isMatchAdmin: true,
+    startsAtIso: '2026-07-02T19:30:00',
+    ...metaOverrides,
+  },
+  ...overrides,
+});
+
 describe('getNextHomeAction', () => {
   test('returns null when there is nothing actionable', () => {
     expect(getNextHomeAction()).toBeNull();
@@ -33,12 +47,13 @@ describe('getNextHomeAction', () => {
     expect(action).toBeNull();
   });
 
-  test('picks a single action by priority: missing players beats survey', () => {
+  test('picks a single action by priority: urgent missing players beats survey', () => {
     const action = getNextHomeAction({
       activityItems: [
         item('survey_start'),
-        item('falta_jugadores'),
+        faltaItem(),
       ],
+      now: NOW,
     });
     expect(action.type).toBe('falta_jugadores');
     expect(action.route).toBe('/route/falta_jugadores');
@@ -46,9 +61,66 @@ describe('getNextHomeAction', () => {
 
   test('carries the source activity item id so Home can hide that row', () => {
     const action = getNextHomeAction({
-      activityItems: [item('falta_jugadores')],
+      activityItems: [faltaItem()],
+      now: NOW,
     });
     expect(action.sourceActivityId).toBe('activity-falta_jugadores-1');
+  });
+
+  test('generic "faltan lugares" without urgency meta never becomes the card', () => {
+    expect(getNextHomeAction({
+      activityItems: [item('falta_jugadores')],
+      now: NOW,
+    })).toBeNull();
+
+    // Falls back to the next actionable item instead of promoting noise.
+    const action = getNextHomeAction({
+      activityItems: [item('falta_jugadores'), item('survey_start')],
+      now: NOW,
+    });
+    expect(action.type).toBe('survey_start');
+  });
+
+  test('admin + match today: card copy includes match, day/hour and missing count', () => {
+    const action = getNextHomeAction({
+      activityItems: [faltaItem()],
+      now: NOW,
+    });
+    expect(action.title).toBe('Completá el partido');
+    expect(action.description).toBe('"Jueves F5" · hoy 19:30 · faltan 5 lugares');
+    expect(action.ctaLabel).toBe('Invitar');
+  });
+
+  test('non-admin with many missing spots stays out of the card', () => {
+    expect(getNextHomeAction({
+      activityItems: [faltaItem({}, { isMatchAdmin: false, missingCount: 5 })],
+      now: NOW,
+    })).toBeNull();
+  });
+
+  test('non-admin but nearly complete roster is actionable (share the invite)', () => {
+    const action = getNextHomeAction({
+      activityItems: [faltaItem({}, { isMatchAdmin: false, missingCount: 1 })],
+      now: NOW,
+    });
+    expect(action.title).toBe('Falta 1 para completar');
+    expect(action.description).toBe('"Jueves F5" · hoy 19:30 · compartí la invitación');
+    expect(action.ctaLabel).toBe('Compartir');
+  });
+
+  test('matches beyond tomorrow never produce the missing-players card', () => {
+    expect(getNextHomeAction({
+      activityItems: [faltaItem({}, { startsAtIso: '2026-07-05T19:30:00' })],
+      now: NOW,
+    })).toBeNull();
+
+    // Tomorrow still qualifies.
+    const action = getNextHomeAction({
+      activityItems: [faltaItem({ subtitle: '"Jueves F5" · mañana 19:30' }, { startsAtIso: '2026-07-03T19:30:00' })],
+      now: NOW,
+    });
+    expect(action.type).toBe('falta_jugadores');
+    expect(action.description).toBe('"Jueves F5" · mañana 19:30 · faltan 5 lugares');
   });
 
   test('votes beat surveys, surveys beat results', () => {

@@ -83,6 +83,13 @@ jest.mock('../components/ProximosPartidos', () => function MockProximosPartidos(
 const FifaHomeContent = require('../components/FifaHomeContent').default;
 const { buildActivityFeed } = require('../utils/activityFeed');
 
+// A match later today so the urgency gate (today/tomorrow) always passes.
+const startsAtToday = (() => {
+  const d = new Date();
+  d.setHours(23, 58, 0, 0);
+  return d.toISOString();
+})();
+
 const activityItems = [
   {
     id: 'activity-falta_jugadores-9',
@@ -97,6 +104,12 @@ const activityItems = [
     severity: 'urgent',
     source: 'active',
     unread: false,
+    matchName: 'Yumi',
+    nextStepMeta: {
+      missingCount: 5,
+      isMatchAdmin: true,
+      startsAtIso: startsAtToday,
+    },
   },
   {
     id: 'activity-match_player_joined-9',
@@ -155,11 +168,33 @@ describe('FifaHomeContent next-step card vs recent activity dedup', () => {
 
     await screen.findByText('Actividad reciente');
 
-    // The card renders the promoted action (whole-card button with rich label)…
-    expect(await screen.findByRole('button', { name: /Quedan 5 lugares\. "Yumi" · hoy 19:30/ })).toBeInTheDocument();
-    // …and that copy appears exactly once: the activity row was hidden.
-    expect(screen.getAllByText('Quedan 5 lugares')).toHaveLength(1);
+    // The card renders the promoted action with the richer copy (match +
+    // day/hour + missing count)…
+    expect(await screen.findByRole('button', { name: /Completá el partido\. "Yumi" · hoy 19:30 · faltan 5 lugares/ })).toBeInTheDocument();
+    // …and the promoted activity row was hidden (no duplicated info below).
+    expect(screen.queryByText('Quedan 5 lugares')).not.toBeInTheDocument();
     // Other events of the same match still show in Recent Activity.
     expect(screen.getByText('Cami se sumó')).toBeInTheDocument();
+  });
+
+  test('a generic "faltan lugares" without urgency stays only in recent activity', async () => {
+    buildActivityFeed.mockResolvedValue([
+      { ...activityItems[0], nextStepMeta: { ...activityItems[0].nextStepMeta, isMatchAdmin: false } },
+      activityItems[1],
+    ]);
+
+    render(
+      <MemoryRouter>
+        <FifaHomeContent />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText('Actividad reciente');
+
+    // No highlighted card (5 missing spots, not admin, no concrete action)…
+    expect(screen.queryByText('Completá el partido')).not.toBeInTheDocument();
+    expect(screen.queryByText(/faltan 5 lugares/)).not.toBeInTheDocument();
+    // …but the info is still available as a normal activity row.
+    expect(await screen.findByText('Quedan 5 lugares')).toBeInTheDocument();
   });
 });
