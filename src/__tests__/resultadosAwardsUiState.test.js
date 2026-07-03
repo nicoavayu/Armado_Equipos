@@ -402,6 +402,68 @@ describe('Resultados awards UI state', () => {
     });
   });
 
+  test('persisted transition wins over a stale roster snapshot (no invented 5.5)', () => {
+    // Bug: the roster still said 5.0 (pre-penalty snapshot) so the slide
+    // invented "5.5 → 5.0". With the persisted transition from the summary the
+    // slide shows the real "5.0 → 4.5".
+    const absences = deriveAbsenceResultsFromSummary({
+      rosterPlayers: [{ id: 7, usuario_id: 'user-7', nombre: 'Base 5', ranking: 5.0 }],
+      noShowSummary: [{
+        playerId: 7,
+        userId: 'user-7',
+        confirmationCount: 2,
+        penaltyApplied: true,
+        penaltyAmount: -0.5,
+        recoveryApplied: false,
+        currentRanking: 4.5,
+        prePenaltyRanking: 5.0,
+        postPenaltyRanking: 4.5,
+      }],
+    });
+
+    expect(absences[0]).toMatchObject({ prePenaltyRanking: 5.0, penaltyRanking: 4.5 });
+    expect(resolvePenaltyRatingTransition({ penaltyPlayer: absences[0] }))
+      .toEqual({ from: 5.0, to: 4.5, delta: 0.5 });
+  });
+
+  test('persisted transition supports other penalty amounts (5.0 - 0.3 = 4.7)', () => {
+    const absences = deriveAbsenceResultsFromSummary({
+      rosterPlayers: [{ id: 8, usuario_id: 'user-8', nombre: 'Delta chico', ranking: 5.0 }],
+      noShowSummary: [{
+        playerId: 8,
+        userId: 'user-8',
+        confirmationCount: 2,
+        penaltyApplied: true,
+        penaltyAmount: -0.3,
+        recoveryApplied: false,
+        currentRanking: 4.7,
+        prePenaltyRanking: 5.0,
+        postPenaltyRanking: 4.7,
+      }],
+    });
+
+    expect(absences[0]).toMatchObject({ prePenaltyRanking: 5.0, penaltyRanking: 4.7 });
+  });
+
+  test('a real persisted 5.5 before the penalty is allowed to show 5.5 → 5.0', () => {
+    const absences = deriveAbsenceResultsFromSummary({
+      rosterPlayers: [{ id: 9, usuario_id: 'user-9', nombre: 'Previo real', ranking: 5.0 }],
+      noShowSummary: [{
+        playerId: 9,
+        userId: 'user-9',
+        confirmationCount: 2,
+        penaltyApplied: true,
+        penaltyAmount: -0.5,
+        recoveryApplied: false,
+        currentRanking: 5.0,
+        prePenaltyRanking: 5.5,
+        postPenaltyRanking: 5.0,
+      }],
+    });
+
+    expect(absences[0]).toMatchObject({ prePenaltyRanking: 5.5, penaltyRanking: 5.0 });
+  });
+
   test('absence summary falls back to confirmed absence without inventing a penalty', () => {
     const absences = deriveAbsenceResultsFromSummary({
       rosterPlayers: [

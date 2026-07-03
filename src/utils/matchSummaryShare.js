@@ -172,6 +172,15 @@ const AWARD_DEFINITIONS = [
   },
 ];
 
+const resolvePlayerAvatarUrl = (player) => (
+  cleanText(player?.avatar_url) || cleanText(player?.foto_url) || null
+);
+
+const playerInitialFor = (name) => {
+  const first = cleanText(name).charAt(0);
+  return first ? first.toUpperCase() : '?';
+};
+
 const resolveAwards = (results, rosterIndex) => AWARD_DEFINITIONS
   .map((definition) => {
     const winnerId = definition.winnerId(results);
@@ -185,6 +194,28 @@ const resolveAwards = (results, rosterIndex) => AWARD_DEFINITIONS
       icon: definition.icon,
       color: definition.color,
       playerName,
+      playerAvatarUrl: resolvePlayerAvatarUrl(player),
+      playerInitial: playerInitialFor(playerName),
+    };
+  })
+  .filter(Boolean);
+
+// No-show sanctions rendered as one more block of the awards mosaic. Only
+// entries that really carry an applied penalty (and a name) produce a block.
+const resolvePenaltyBlocks = (penalized, rosterIndex) => (Array.isArray(penalized) ? penalized : [])
+  .map((entry) => {
+    if (!entry || entry.penaltyApplied !== true) return null;
+    const player = findPlayerByRef(rosterIndex, entry.usuario_id ?? entry.uuid ?? entry.id) || entry;
+    const playerName = cleanText(entry.nombre) || cleanText(player?.nombre);
+    if (!playerName) return null;
+    return {
+      kind: 'penalty',
+      label: 'PENALIZACIÓN',
+      icon: '/penalizacion.webp',
+      color: '#FDBA74',
+      playerName,
+      playerAvatarUrl: resolvePlayerAvatarUrl(entry) || resolvePlayerAvatarUrl(player),
+      playerInitial: playerInitialFor(playerName),
     };
   })
   .filter(Boolean);
@@ -199,8 +230,9 @@ const resolveAwards = (results, rosterIndex) => AWARD_DEFINITIONS
  * @param {Object} params.partido - partidos row (nombre/fecha/hora/modalidad/sede/teams)
  * @param {Object} params.results - survey_results row (canonical, results_ready)
  * @param {Array}  params.jugadores - roster rows (id/uuid/usuario_id/nombre)
+ * @param {Array}  [params.penalized] - absence entries with penaltyApplied (optional)
  */
-export function buildMatchSummaryShareCardData({ partido = {}, results = null, jugadores = [] } = {}) {
+export function buildMatchSummaryShareCardData({ partido = {}, results = null, jugadores = [], penalized = [] } = {}) {
   const rosterIndex = buildRosterIndex(jugadores);
 
   const matchName = cleanText(partido?.nombre || partido?.titulo) || null;
@@ -244,13 +276,18 @@ export function buildMatchSummaryShareCardData({ partido = {}, results = null, j
     };
   }
 
-  const awards = resolveAwards(results, rosterIndex);
+  const awards = [
+    ...resolveAwards(results, rosterIndex),
+    ...resolvePenaltyBlocks(penalized, rosterIndex),
+  ];
   const maxTeamSize = teams
     ? Math.max(teams.teamA.players.length, teams.teamB.players.length)
     : 0;
 
+  // The social piece leads with result + award blocks (no roster listing), so
+  // a summary is only worth generating when at least one of those exists.
   const isShareable = canShareMatchSummary(results)
-    && (Boolean(result) || awards.length > 0 || hasTeams);
+    && (Boolean(result) || awards.length > 0);
 
   return {
     title: MATCH_SUMMARY_CARD_TITLE,

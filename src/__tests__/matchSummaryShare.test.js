@@ -248,4 +248,66 @@ describe('buildMatchSummaryShareCardData', () => {
     expect(data.teams).toBeNull();
     expect(data.awards).toEqual([]);
   });
+
+  test('awards carry avatar url when the roster has one, initial fallback otherwise', () => {
+    const data = buildMatchSummaryShareCardData({
+      partido: basePartido(),
+      results: readyResults(),
+      jugadores: [
+        { ...roster[0], avatar_url: 'https://cdn/avatars/nico.png' },
+        ...roster.slice(1),
+      ],
+    });
+
+    const mvp = data.awards.find((a) => a.kind === 'mvp');
+    expect(mvp.playerAvatarUrl).toBe('https://cdn/avatars/nico.png');
+    expect(mvp.playerInitial).toBe('N');
+
+    const glove = data.awards.find((a) => a.kind === 'glove');
+    expect(glove.playerAvatarUrl).toBeNull();
+    expect(glove.playerInitial).toBe('R');
+  });
+
+  test('applied penalties join the awards mosaic as PENALIZACIÓN blocks', () => {
+    const data = buildMatchSummaryShareCardData({
+      partido: basePartido(),
+      results: readyResults(),
+      jugadores: roster,
+      penalized: [
+        { penaltyApplied: true, nombre: 'Tomi', usuario_id: 'user-4', avatar_url: null },
+        { penaltyApplied: false, nombre: 'Lucho', usuario_id: 'user-3' },
+      ],
+    });
+
+    const penaltyBlocks = data.awards.filter((a) => a.kind === 'penalty');
+    expect(penaltyBlocks).toHaveLength(1);
+    expect(penaltyBlocks[0]).toEqual(expect.objectContaining({
+      label: 'PENALIZACIÓN',
+      playerName: 'Tomi',
+      playerInitial: 'T',
+    }));
+  });
+
+  test('teams alone no longer make the piece shareable (social layout leads with result/awards)', () => {
+    const data = buildMatchSummaryShareCardData({
+      partido: basePartido(),
+      results: readyResults({
+        mvp: null,
+        mvp_nombre: null,
+        golden_glove: null,
+        golden_glove_nombre: null,
+        result_status: 'pending',
+        winner_team: null,
+        // hasAnyAwardData still true via red_cards, but nothing resolves.
+        red_cards: [],
+        awards_generated: true,
+      }),
+      jugadores: roster,
+    });
+
+    expect(data.teams).not.toBeNull();
+    expect(data.awards).toEqual([]);
+    expect(data.result).toBeNull();
+    expect(data.isShareable).toBe(false);
+  });
 });

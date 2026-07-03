@@ -32,7 +32,11 @@ import { SURVEY_MIN_VOTERS_FOR_AWARDS } from '../config/surveyConfig';
 import { useSmartBackNavigation } from '../hooks/useSmartBackNavigation';
 import { useNativeFeatures } from '../hooks/useNativeFeatures';
 import { useShareTeamsCard } from '../hooks/useShareTeamsCard';
-import { buildMatchSummaryShareCardData } from '../utils/matchSummaryShare';
+import {
+  buildMatchSummaryShareCardData,
+  normalizeResultStatus,
+  normalizeWinnerTeam,
+} from '../utils/matchSummaryShare';
 import ShareableMatchSummaryCard from '../components/share/ShareableMatchSummaryCard';
 
 const ensurePlayersList = (players) => {
@@ -106,6 +110,22 @@ export const deriveAbsenceResultsFromSummary = ({
       ? Math.abs(rawPenaltyAmount)
       : (entry?.penaltyApplied ? DEFAULT_NO_SHOW_PENALTY_DELTA : 0);
 
+    // Preferred source: the persisted transition reconstructed by
+    // listMatchNoShowSummary from usuarios.ranking + rating_adjustments
+    // (base 5.0 penalized by 0.5 shows 5.0 → 4.5). The roster-based guess
+    // (current + delta) only remains as fallback for legacy payloads, where
+    // a stale roster snapshot could otherwise invent a "before" rating.
+    const persistedPre = Number(entry?.prePenaltyRanking);
+    const persistedPost = Number(entry?.postPenaltyRanking);
+    const hasPersistedTransition = Boolean(entry?.penaltyApplied)
+      && Number.isFinite(persistedPre)
+      && Number.isFinite(persistedPost);
+
+    const fromRating = hasPersistedTransition
+      ? persistedPre
+      : (entry?.penaltyApplied ? currentRating + penaltyDelta : currentRating);
+    const toRating = hasPersistedTransition ? persistedPost : currentRating;
+
     return {
       ...rosterPlayer,
       confirmedAbsent: true,
@@ -115,14 +135,8 @@ export const deriveAbsenceResultsFromSummary = ({
       recoveryApplied: Boolean(entry?.recoveryApplied),
       penaltyAmount: penaltyDelta > 0 ? -penaltyDelta : 0,
       ausenciasCount: Math.max(0, Number(rosterPlayer?.partidos_abandonados ?? rosterPlayer?.pa ?? 0)),
-      prePenaltyRanking: Number(
-        (
-          Boolean(entry?.penaltyApplied)
-            ? currentRating + penaltyDelta
-            : currentRating
-        ).toFixed(1),
-      ),
-      penaltyRanking: Number(currentRating.toFixed(1)),
+      prePenaltyRanking: Number(fromRating.toFixed(1)),
+      penaltyRanking: Number(toRating.toFixed(1)),
     };
   }).filter(Boolean);
 };
@@ -355,6 +369,156 @@ export const buildForcedAwardsFallback = ({
     message: 'La premiación final no tiene contenido disponible para mostrar.',
     reason: normalizedReason || 'no_renderable_awards_slides',
   };
+};
+
+// --- Final "RESUMEN" slide, aligned with the shareable plaque -----------------
+// Same adaptive language as ShareableMatchSummaryCard: 1 award = hero block,
+// 2 = stacked rows, 3 = hero + pair, 4 = 2x2 grid. Pure render, no hooks.
+
+const summaryAccent = (color, alpha) => {
+  const token = String(color || '').replace('#', '');
+  if (token.length !== 6) return `rgba(139,92,255,${alpha})`;
+  const r = parseInt(token.slice(0, 2), 16);
+  const g = parseInt(token.slice(2, 4), 16);
+  const b = parseInt(token.slice(4, 6), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+};
+
+const SummaryAvatarDisc = ({ award, sizeClass, textClass }) => (
+  <div
+    className={`relative ${sizeClass} rounded-full overflow-hidden flex items-center justify-center shrink-0`}
+    style={{
+      border: `2px solid ${summaryAccent(award.color, 0.7)}`,
+      background: 'linear-gradient(160deg, rgba(139,92,255,0.35), rgba(20,16,41,0.9))',
+      boxShadow: `0 0 16px ${summaryAccent(award.color, 0.3)}`,
+    }}
+  >
+    {award.avatarUrl ? (
+      <img src={award.avatarUrl} alt="" draggable={false} className="w-full h-full object-cover" />
+    ) : (
+      <span className={`font-bebas-real text-white ${textClass}`}>{award.initial || '?'}</span>
+    )}
+  </div>
+);
+
+const SummaryAwardPanel = ({ award, layout, index }) => {
+  const panelStyle = {
+    border: `1.5px solid ${summaryAccent(award.color, 0.4)}`,
+    background: `radial-gradient(240px 120px at 50% -20%, ${summaryAccent(award.color, 0.14)}, transparent 70%), linear-gradient(168deg, rgba(40,31,84,0.66), rgba(16,12,33,0.9))`,
+    animation: `slideInUp 650ms ease-out ${index * 90}ms both`,
+  };
+
+  if (layout === 'hero') {
+    return (
+      <div className="flex flex-col items-center text-center gap-2 rounded-2xl px-5 py-5" style={panelStyle}>
+        <div className="relative">
+          <SummaryAvatarDisc award={award} sizeClass="w-20 h-20" textClass="text-[34px]" />
+          <img
+            src={award.icon}
+            alt=""
+            width={36}
+            height={36}
+            draggable={false}
+            className="absolute -right-2.5 -bottom-1"
+            style={{ filter: `drop-shadow(0 0 10px ${award.color})` }}
+          />
+        </div>
+        <div className="font-bebas-real text-[17px] tracking-[0.14em] leading-none mt-1" style={{ color: award.color }}>
+          {award.awardName}
+        </div>
+        <div className="text-[20px] text-white font-bold leading-tight truncate max-w-full">
+          {award.playerName}
+        </div>
+      </div>
+    );
+  }
+
+  if (layout === 'row') {
+    return (
+      <div className="flex items-center gap-3.5 rounded-2xl px-4 py-3.5" style={panelStyle}>
+        <SummaryAvatarDisc award={award} sizeClass="w-14 h-14" textClass="text-[24px]" />
+        <div className="min-w-0 flex-1 text-left">
+          <div className="font-bebas-real text-[14px] tracking-[0.12em] leading-none" style={{ color: award.color }}>
+            {award.awardName}
+          </div>
+          <div className="text-[17px] text-white font-bold leading-tight truncate mt-1">
+            {award.playerName}
+          </div>
+        </div>
+        <img
+          src={award.icon}
+          alt=""
+          width={34}
+          height={34}
+          draggable={false}
+          className="shrink-0"
+          style={{ filter: `drop-shadow(0 0 10px ${award.color})` }}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center text-center gap-1.5 rounded-2xl px-3 py-3.5 min-w-0" style={panelStyle}>
+      <div className="relative">
+        <SummaryAvatarDisc award={award} sizeClass="w-12 h-12" textClass="text-[20px]" />
+        <img
+          src={award.icon}
+          alt=""
+          width={24}
+          height={24}
+          draggable={false}
+          className="absolute -right-1.5 -bottom-0.5"
+          style={{ filter: `drop-shadow(0 0 8px ${award.color})` }}
+        />
+      </div>
+      <div className="font-bebas-real text-[12.5px] tracking-[0.1em] leading-none mt-0.5" style={{ color: award.color }}>
+        {award.awardName}
+      </div>
+      <div className="text-[14.5px] text-white font-bold leading-tight truncate w-full">
+        {award.playerName}
+      </div>
+    </div>
+  );
+};
+
+const SummaryAwardsMosaic = ({ awards }) => {
+  const blocks = (awards || []).slice(0, 4);
+  if (blocks.length === 0) return null;
+
+  if (blocks.length === 1) {
+    return <SummaryAwardPanel award={blocks[0]} layout="hero" index={0} />;
+  }
+
+  if (blocks.length === 2) {
+    return (
+      <div className="flex flex-col gap-3">
+        {blocks.map((award, index) => (
+          <SummaryAwardPanel key={award.awardName} award={award} layout="row" index={index} />
+        ))}
+      </div>
+    );
+  }
+
+  if (blocks.length === 3) {
+    return (
+      <div className="flex flex-col gap-3">
+        <SummaryAwardPanel award={blocks[0]} layout="hero" index={0} />
+        <div className="grid grid-cols-2 gap-3">
+          <SummaryAwardPanel award={blocks[1]} layout="tile" index={1} />
+          <SummaryAwardPanel award={blocks[2]} layout="tile" index={2} />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      {blocks.map((award, index) => (
+        <SummaryAwardPanel key={award.awardName} award={award} layout="tile" index={index} />
+      ))}
+    </div>
+  );
 };
 
 // Context to broadcast live previewPlayers without recreating slides
@@ -1562,50 +1726,47 @@ const ResultadosEncuestaView = () => {
     }
 
     // RESUMEN FINAL: Última slide siempre
+    const summaryBlockFor = (player, awardName, icon, color) => ({
+      awardName,
+      playerName: player?.nombre || 'Jugador',
+      icon,
+      color,
+      avatarUrl: player?.avatar_url || player?.foto_url || null,
+      initial: (String(player?.nombre || '').trim().charAt(0) || '?').toUpperCase(),
+    });
+
     const summaryAwards = [];
 
     const mvpPlayer = mvpWinnerId ? findP(mvpWinnerId) : null;
     if (mvpPlayer) {
-      summaryAwards.push({
-        awardName: 'MVP',
-        playerName: mvpPlayer.nombre,
-        icon: '/mvp_award.webp',
-        color: '#FFD700',
-      });
+      summaryAwards.push(summaryBlockFor(mvpPlayer, 'MVP', '/mvp_award.webp', '#FFD700'));
     }
 
     const glovePlayer = gloveWinnerId ? findP(gloveWinnerId) : null;
     if (glovePlayer) {
-      summaryAwards.push({
-        awardName: 'MEJOR ARQUERO',
-        playerName: glovePlayer.nombre,
-        icon: '/goalkeeper_award.webp',
-        color: '#22d3ee',
-      });
+      summaryAwards.push(summaryBlockFor(glovePlayer, 'MEJOR ARQUERO', '/goalkeeper_award.webp', '#22d3ee'));
     }
 
     const dirtyPlayer = dirtyId ? findP(dirtyId) : null;
     if (dirtyPlayer) {
-      summaryAwards.push({
-        awardName: 'MÁS SUCIO',
-        playerName: dirtyPlayer.nombre,
-        icon: '/redcard_award.webp',
-        color: '#f87171',
-      });
+      summaryAwards.push(summaryBlockFor(dirtyPlayer, 'MÁS SUCIO', '/redcard_award.webp', '#f87171'));
     }
 
     if (penalized?.player) {
-      summaryAwards.push({
-        awardName: 'PENALIZACIÓN',
-        playerName: penalized.player.nombre,
-        icon: '/penalizacion.webp',
-        color: '#FDBA74',
-      });
+      summaryAwards.push(summaryBlockFor(penalized.player, 'PENALIZACIÓN', '/penalizacion.webp', '#FDBA74'));
     }
 
     if (summaryAwards.length === 0) {
       return [];
     }
+
+    // Real recorded result only (never invented): compact chip under the title.
+    const summaryResultStatus = normalizeResultStatus(currentResults?.result_status);
+    const summaryWinnerTeam = normalizeWinnerTeam(currentResults?.winner_team);
+    const summaryResultLabel = summaryResultStatus === 'finished' && summaryWinnerTeam
+      ? `GANÓ EQUIPO ${summaryWinnerTeam}`
+      : (summaryResultStatus === 'draw' ? 'EMPATE' : null);
+    const summaryMatchName = String(matchInfo?.nombre || matchInfo?.titulo || '').trim();
 
     slides.push({
       key: 'summary',
@@ -1634,55 +1795,40 @@ const ResultadosEncuestaView = () => {
           />
 
           <div className="relative z-10 w-full flex-1 min-h-0 flex flex-col items-center">
-            <div className="text-center mb-5 shrink-0">
+            <div className="text-center mb-4 shrink-0">
               <div className="font-bebas-real text-[52px] md:text-[72px] leading-[0.9] text-white" style={{ animation: 'eaTitleIn 760ms cubic-bezier(.2,.9,.2,1) both', textShadow: '0 0 22px rgba(14,169,198,0.5)' }}>
                 RESUMEN
               </div>
               <div className="text-white/70 tracking-[0.35em] text-xs md:text-sm mt-2" style={{ animation: 'eaSubIn 680ms ease-out both' }}>
                 DEL PARTIDO
               </div>
+              {summaryMatchName ? (
+                <div className="text-[#cfc4ff] text-[15px] md:text-base font-oswald font-bold mt-2 truncate max-w-[78vw] mx-auto" style={{ animation: 'eaSubIn 680ms ease-out 120ms both' }}>
+                  {summaryMatchName}
+                </div>
+              ) : null}
+              {summaryResultLabel ? (
+                <div
+                  className="inline-flex items-center px-4 py-1.5 mt-2.5 rounded-full font-bebas-real text-[16px] tracking-[0.08em]"
+                  style={{
+                    color: '#f5c451',
+                    border: '1px solid rgba(245,196,81,0.45)',
+                    background: 'rgba(245,196,81,0.1)',
+                    textShadow: '0 0 14px rgba(245,196,81,0.4)',
+                    animation: 'eaSubIn 680ms ease-out 180ms both',
+                  }}
+                >
+                  {summaryResultLabel}
+                </div>
+              ) : null}
             </div>
 
-            {/* Compact rows so the whole recap fits under the pinned title on
+            {/* Placa-style mosaic (mirrors the shareable piece): hero for one
+                award, stacked rows for two, hero + pair for three, 2x2 grid
+                for four. Compact enough to fit under the pinned title on
                 short phones (the title must never get pushed into the bars). */}
             <div className="w-full max-w-[680px] flex-1 min-h-0 flex flex-col justify-center">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {summaryAwards.map((award, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center gap-3.5 px-4 py-3 rounded-xl"
-                    style={{
-                      background: 'rgba(255,255,255,0.05)',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      animation: `slideInUp 650ms ease-out ${idx * 80}ms both`,
-                    }}
-                  >
-                    {typeof award.icon === 'string' && award.icon.startsWith('/') ? (
-                      <img
-                        src={award.icon}
-                        alt={award.awardName}
-                        width={34}
-                        height={34}
-                        draggable={false}
-                        className="shrink-0"
-                        style={{ filter: `drop-shadow(0 0 12px ${award.color})` }}
-                      />
-                    ) : (
-                      <span className="text-3xl shrink-0" style={{ filter: `drop-shadow(0 0 12px ${award.color})` }}>
-                        {award.icon}
-                      </span>
-                    )}
-                    <div className="min-w-0 text-left">
-                      <div className="font-bebas-real text-[15px] text-white/60 uppercase tracking-wider leading-tight">
-                        {award.awardName}
-                      </div>
-                      <div className="text-[15px] md:text-base text-white font-bold leading-tight truncate">
-                        {award.playerName}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <SummaryAwardsMosaic awards={summaryAwards} />
             </div>
           </div>
 
@@ -2493,27 +2639,23 @@ const ResultadosEncuestaView = () => {
     goBackSmart();
   };
 
-  // "Compartir resumen" only exists when the survey produced real results
-  // (ready awards + renderable content). With few votes (not_eligible) the
-  // gate below stays false and the button is never rendered.
-  const canShareSummary = Boolean(canonicalResults) && awardsReady && hasRenderableResultsContent;
+  // "Compartir resumen": the render condition and the share handler use the
+  // exact same payload (same helper, same inputs). If the button is visible,
+  // the share works; if the summary can't be generated, the button never
+  // renders — there is no "not available" dead end anymore.
+  const shareableSummaryData = buildMatchSummaryShareCardData({
+    partido,
+    results: canonicalResults,
+    jugadores,
+    penalized: absences,
+  });
+  const canShareSummary = shareableSummaryData.isShareable;
 
   const handleShareSummary = async () => {
     if (isSharingSummary || !canShareSummary) return;
 
-    const summaryData = buildMatchSummaryShareCardData({
-      partido,
-      results: canonicalResults,
-      jugadores,
-    });
-
-    if (!summaryData.isShareable) {
-      notifyBlockingError('El resumen todavía no está disponible para compartir.');
-      return;
-    }
-
     const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
-    await shareSummaryCard(summaryData, {
+    await shareSummaryCard(shareableSummaryData, {
       fileName: `resumen-arma2-${stamp}.png`,
       title: 'Resumen del partido',
       text: 'Resumen del partido con Arma2 ⚽️',
