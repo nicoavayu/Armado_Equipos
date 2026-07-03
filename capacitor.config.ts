@@ -18,8 +18,12 @@ const config: CapacitorConfig = {
       permissions: ["location"]
     },
     Keyboard: {
-      resize: "ionic",
-      resizeOnFullScreen: true
+      // iOS-only knob; Android resizing is handled by windowSoftInputMode.
+      resize: "ionic"
+      // resizeOnFullScreen intentionally NOT set: this app is not fullscreen,
+      // and on Android that flag force-resizes the webview content on top of
+      // the window's own adjustResize — that double resize is what painted a
+      // huge gray band between the app and the keyboard.
     }
   }
 };

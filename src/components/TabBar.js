@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { Swords } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
+import { useKeyboard } from '../hooks/useKeyboard';
 import {
   IoFootball,
   IoFootballOutline,
@@ -41,6 +42,9 @@ const TabBar = ({ activeTab, onTabChange }) => {
   const navigate = useNavigate();
   const notificationsCtx = useNotifications() || {};
   const unreadCount = notificationsCtx.unreadCount || { friends: 0, teamInvites: 0, matches: 0, total: 0 };
+  // With the soft keyboard open the webview shrinks, so a fixed bottom bar
+  // would end up floating right on top of the keyboard. Slide it out instead.
+  const { isKeyboardOpen } = useKeyboard();
   const isAndroidNative = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android';
   const tabBarStyle = {
     paddingBottom: isAndroidNative
@@ -60,7 +64,10 @@ const TabBar = ({ activeTab, onTabChange }) => {
 
   return (
     <div
-      className="app-tabbar fixed bottom-0 left-0 right-0 z-[1000] px-3 pt-1.5 transition-[transform,opacity] duration-200"
+      className={`app-tabbar fixed bottom-0 left-0 right-0 z-[1000] px-3 pt-1.5 transition-[transform,opacity] duration-200 ${
+        isKeyboardOpen ? 'translate-y-[130%] opacity-0 pointer-events-none' : ''
+      }`}
+      aria-hidden={isKeyboardOpen ? 'true' : undefined}
       style={tabBarStyle}
     >
       {/* Background is ~95% opaque, so the backdrop blur was invisible but kept the GPU re-blurring every frame under this fixed bar. */}
