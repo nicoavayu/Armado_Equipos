@@ -1,5 +1,10 @@
 import logger from '../../utils/logger';
 import { supabase } from '../../lib/supabaseClient';
+import {
+  applyPlayerRatingDelta,
+  clampPlayerRating,
+  MAX_PLAYER_RATING,
+} from '../../utils/playerRating';
 
 const ABSENCE_CONFIRMATION_THRESHOLD = 2;
 const NO_SHOW_PENALTY_AMOUNT = -0.5;
@@ -412,7 +417,18 @@ export async function applyNoShowRecoveries(matchId, options = {}) {
       continue;
     }
 
-    const recoverAmount = Number(Math.min(NO_SHOW_RECOVERY_STEP, remainingDebt).toFixed(2));
+    const { data: currentUserRow, error: currentUserError } = await supabase
+      .from('usuarios')
+      .select('ranking')
+      .eq('id', userId)
+      .single();
+    if (currentUserError) return { data: applied, error: currentUserError };
+
+    const currentRating = clampPlayerRating(currentUserRow?.ranking);
+    const ratingHeadroom = Math.max(0, MAX_PLAYER_RATING - currentRating);
+    const recoverAmount = Number(
+      Math.min(NO_SHOW_RECOVERY_STEP, remainingDebt, ratingHeadroom).toFixed(2),
+    );
     if (recoverAmount <= 0) continue;
 
     // attempt insert
@@ -448,7 +464,7 @@ export async function applyNoShowRecoveries(matchId, options = {}) {
     } catch (rpcError) {
       try {
         const { data: curr } = await supabase.from(table).select('ranking').eq('id', userId).single();
-        const newVal = Number(curr?.ranking ?? 0) + recoverAmount;
+        const newVal = applyPlayerRatingDelta(curr?.ranking ?? 0, recoverAmount);
         await supabase.from(table).update({ ranking: newVal }).eq('id', userId);
       } catch (updateErr) {
         logger.error('[NO_SHOW_RECOVERY] failed to apply rating increment for', userId, updateErr);
@@ -541,7 +557,9 @@ export async function listMatchNoShowSummary(matchId) {
     (usersRes.data || []).forEach((row) => {
       const userId = String(row?.id || '').trim();
       const ranking = Number(row?.ranking);
-      if (userId && Number.isFinite(ranking)) userRankingById.set(userId, ranking);
+      if (userId && Number.isFinite(ranking)) {
+        userRankingById.set(userId, clampPlayerRating(ranking));
+      }
     });
   }
 
@@ -582,9 +600,14 @@ export async function listMatchNoShowSummary(matchId) {
         if (!Number.isFinite(rowAt) || rowAt <= penaltyAt) return sum;
         return sum + Number(row?.amount || 0);
       }, 0);
-      postPenaltyRanking = Number((currentRanking - laterDelta).toFixed(2));
       const penaltyAmountAbs = Math.abs(Number(penaltyRow?.amount ?? NO_SHOW_PENALTY_AMOUNT));
-      prePenaltyRanking = Number((postPenaltyRanking + penaltyAmountAbs).toFixed(2));
+      const reconstructedPost = currentRanking - laterDelta;
+      postPenaltyRanking = Number(clampPlayerRating(
+        Math.min(reconstructedPost, MAX_PLAYER_RATING - penaltyAmountAbs),
+      ).toFixed(2));
+      prePenaltyRanking = Number(clampPlayerRating(
+        postPenaltyRanking + penaltyAmountAbs,
+      ).toFixed(2));
     }
 
     return {
@@ -679,7 +702,7 @@ const captureNoShowUserAggregateBases = async (userIds) => {
     const currentAbandoned = Number(row?.partidos_abandonados ?? 0);
 
     baseMap.set(userId, {
-      ranking: Number((currentRanking - summary.delta).toFixed(2)),
+      ranking: Number(clampPlayerRating(currentRanking - summary.delta).toFixed(2)),
       partidosAbandonados: Math.max(0, currentAbandoned - summary.penaltyCount),
     });
   });
@@ -878,7 +901,9 @@ export async function reconcileNoShowUserAggregates(userIds, options = {}) {
   for (const userId of ids) {
     const base = baseSnapshot.get(userId) || { ranking: 0, partidosAbandonados: 0 };
     const summary = adjustmentsByUser.get(userId) || { delta: 0, penaltyCount: 0 };
-    const nextRanking = Number((Number(base.ranking || 0) + Number(summary.delta || 0)).toFixed(2));
+    const nextRanking = Number(clampPlayerRating(
+      Number(base.ranking || 0) + Number(summary.delta || 0),
+    ).toFixed(2));
     const nextAbandonados = Math.max(0, Number(base.partidosAbandonados || 0) + Number(summary.penaltyCount || 0));
 
     const { error: updateErr } = await supabase

@@ -1,6 +1,7 @@
 import getNextHomeAction, {
   buildPaymentsNextStepAction,
   derivePaymentNotificationCandidates,
+  validateNextHomeAction,
 } from '../utils/homeNextStep';
 
 const item = (type, overrides = {}) => ({
@@ -277,5 +278,43 @@ describe('buildPaymentsNextStepAction', () => {
       myStatusByMatch: { 6: 'pending' },
       settingsByMatch: { 6: { is_closed: true } },
     })).toBeNull();
+  });
+});
+
+describe('validateNextHomeAction', () => {
+  const buildClient = (rows = [], error = null) => {
+    const query = {
+      select: jest.fn(() => query),
+      eq: jest.fn(() => query),
+      limit: jest.fn(async () => ({ data: rows, error })),
+    };
+    return { from: jest.fn(() => query) };
+  };
+
+  test('a pending invitation remains actionable while the user is not in the roster', async () => {
+    const valid = await validateNextHomeAction({
+      action: item('match_invite'),
+      supabaseClient: buildClient([]),
+      userId: 'user-1',
+    });
+    expect(valid).toBe(true);
+  });
+
+  test('an accepted stale invitation is hidden and does not navigate', async () => {
+    const valid = await validateNextHomeAction({
+      action: item('match_invite'),
+      supabaseClient: buildClient([{ id: 99 }]),
+      userId: 'user-1',
+    });
+    expect(valid).toBe(false);
+  });
+
+  test('invite verification fails closed', async () => {
+    const valid = await validateNextHomeAction({
+      action: item('match_invite'),
+      supabaseClient: buildClient([], new Error('offline')),
+      userId: 'user-1',
+    });
+    expect(valid).toBe(false);
   });
 });

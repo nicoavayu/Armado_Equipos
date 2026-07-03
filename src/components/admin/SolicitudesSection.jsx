@@ -11,6 +11,7 @@ import { useRefreshOnVisibility } from '../../hooks/useRefreshOnVisibility';
 import { useSupabaseRealtime } from '../../hooks/useSupabaseRealtime';
 import { useInterval } from '../../hooks/useInterval';
 import { fetchPendingMatchJoinRequests } from '../../services/db/matchJoinRequests';
+import { formatPlayerRating } from '../../utils/playerRating';
 
 const EmptyRequestsMailboxIcon = () => (
     <svg
@@ -348,7 +349,7 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted, onRequestResolve
                                     <div className="flex items-center gap-3 text-xs text-white/60 mt-0.5">
                                         {rating && (
                                             <span className="flex items-center gap-1">
-                                                ⭐ {typeof rating === 'number' ? rating.toFixed(1) : rating}
+                                                ⭐ {formatPlayerRating(rating)}
                                             </span>
                                         )}
                                         {pj && (

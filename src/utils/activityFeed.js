@@ -1551,6 +1551,48 @@ const fetchSurveyIneligibleMatchIds = async ({ groups, currentUserId, supabaseCl
   return ineligible;
 };
 
+const validatePendingMatchInviteGroups = async ({
+  groups,
+  currentUserId,
+  supabaseClient,
+}) => {
+  const inviteMatchIds = [...new Set(
+    (groups || [])
+      .filter((group) => group?.type === 'match_invite')
+      .map((group) => Number(group?.matchId))
+      .filter((id) => Number.isFinite(id) && id > 0),
+  )];
+
+  if (inviteMatchIds.length === 0) {
+    return { attempted: false, failed: false, joinedMatchIds: new Set() };
+  }
+  if (!currentUserId || !supabaseClient) {
+    return { attempted: false, failed: false, joinedMatchIds: new Set() };
+  }
+
+  try {
+    const { data, error } = await supabaseClient
+      .from('jugadores')
+      .select('partido_id')
+      .eq('usuario_id', currentUserId)
+      .in('partido_id', inviteMatchIds);
+    if (error) throw error;
+
+    return {
+      attempted: true,
+      failed: false,
+      joinedMatchIds: new Set(
+        (data || [])
+          .map((row) => Number(row?.partido_id))
+          .filter((id) => Number.isFinite(id) && id > 0),
+      ),
+    };
+  } catch (error) {
+    logger.warn('[ACTIVITY_FEED] match invite validation failed:', error);
+    return { attempted: true, failed: true, joinedMatchIds: new Set() };
+  }
+};
+
 export const buildActivityFeed = async (notifications = [], options = {}) => {
   const { activeMatches = [], currentUserId = null, supabaseClient = null } = options;
   const activeMatchMap = new Map(
@@ -1587,11 +1629,21 @@ export const buildActivityFeed = async (notifications = [], options = {}) => {
     if (!pid) return true;
     return !ineligibleSurveyMatchIds.has(pid);
   });
-  const fetchedMatchMap = await fetchMissingMatches({ groups: eligibleGroups, activeMatchMap, supabaseClient });
-  const teamMatchStartMap = await fetchTeamMatchStartByIds({ groups: eligibleGroups, supabaseClient });
+  const inviteValidation = await validatePendingMatchInviteGroups({
+    groups: eligibleGroups,
+    currentUserId,
+    supabaseClient,
+  });
+  const stateValidatedGroups = eligibleGroups.filter((group) => {
+    if (group?.type !== 'match_invite' || !inviteValidation.attempted) return true;
+    if (inviteValidation.failed) return false;
+    return !inviteValidation.joinedMatchIds.has(Number(group?.matchId));
+  });
+  const fetchedMatchMap = await fetchMissingMatches({ groups: stateValidatedGroups, activeMatchMap, supabaseClient });
+  const teamMatchStartMap = await fetchTeamMatchStartByIds({ groups: stateValidatedGroups, supabaseClient });
   const nowTs = Date.now();
 
-  const timingEligibleGroups = eligibleGroups.filter((group) => {
+  const timingEligibleGroups = stateValidatedGroups.filter((group) => {
     const type = group?.type || '';
     const matchIdNum = Number(group?.matchId);
     const match = Number.isFinite(matchIdNum) && matchIdNum > 0

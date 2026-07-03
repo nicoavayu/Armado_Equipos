@@ -8,7 +8,8 @@
 //    be in the validated results list (real survey_results with enough votes),
 //  - payment actions are only built from verified payment rows, never from a
 //    notification alone.
-// No DB access here: everything is injected so it can be unit-tested.
+// Selection remains pure; the exported click guard receives its DB client
+// explicitly so the final state check is still isolated and unit-testable.
 
 import { summarizePayments } from './paymentStatus';
 
@@ -261,6 +262,39 @@ export const getNextHomeAction = ({
   });
 
   return candidates[0];
+};
+
+/**
+ * Last-moment guard for notification-backed Home actions.
+ * A pending match invitation stops being actionable as soon as the user has a
+ * real roster row, even if the notification payload/cache still says pending.
+ */
+export const validateNextHomeAction = async ({
+  action = null,
+  supabaseClient = null,
+  userId = null,
+} = {}) => {
+  if (!action?.route) return false;
+  if (action.type !== 'match_invite') return true;
+
+  const matchId = Number(action?.partidoId);
+  if (!supabaseClient || !userId || !Number.isFinite(matchId) || matchId <= 0) {
+    return false;
+  }
+
+  try {
+    const { data, error } = await supabaseClient
+      .from('jugadores')
+      .select('id')
+      .eq('partido_id', matchId)
+      .eq('usuario_id', userId)
+      .limit(1);
+    if (error) throw error;
+    return !Array.isArray(data) || data.length === 0;
+  } catch (_error) {
+    // Fail closed: a highlighted Home action must be verified before routing.
+    return false;
+  }
 };
 
 const PAYMENT_CANDIDATE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000; // matches admin post-match window

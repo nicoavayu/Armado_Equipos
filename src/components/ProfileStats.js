@@ -1,4 +1,5 @@
 import React from 'react';
+import { clampPlayerRating } from '../utils/playerRating';
 
 const ProfileStats = ({ profile }) => {
   if (!profile) return null;
@@ -7,7 +8,7 @@ const ProfileStats = ({ profile }) => {
   const partidosAbandonados = profile.partidos_abandonados || 0;
   const mvps = profile.mvps || 0;
   const tarjetasRojas = profile.tarjetas_rojas || 0;
-  const rating = profile.rating || 5.0;
+  const rating = clampPlayerRating(profile.rating ?? profile.ranking ?? 5.0);
 
   return (
     <div className="bg-white rounded-lg shadow p-4">

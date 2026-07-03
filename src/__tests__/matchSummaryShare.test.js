@@ -2,6 +2,7 @@ import buildMatchSummaryShareCardData, {
   MATCH_SUMMARY_CARD_TITLE,
   canShareMatchSummary,
   canShowSurveyResultsSummary,
+  getWinnerDisplayLabel,
   getShortVenueLabel,
   normalizeResultStatus,
   normalizeWinnerTeam,
@@ -54,8 +55,12 @@ describe('canShareMatchSummary', () => {
     expect(canShareMatchSummary(readyResults({ awards_status: 'insufficient_voters', awards_generated: false }))).toBe(false);
   });
 
-  test('false while awards are still pending or errored', () => {
-    expect(canShareMatchSummary(readyResults({ awards_status: 'pending', awards_generated: false }))).toBe(false);
+  test('valid persisted awards remain shareable when the optional status lags', () => {
+    expect(canShareMatchSummary(readyResults({ awards_status: 'pending', awards_generated: false }))).toBe(true);
+    expect(canShareMatchSummary(readyResults({ awards_status: null, awards_generated: false }))).toBe(true);
+  });
+
+  test('errored awards are not shareable', () => {
     expect(canShareMatchSummary(readyResults({ awards_status: 'failed', awards_generated: false }))).toBe(false);
   });
 
@@ -105,6 +110,27 @@ describe('getShortVenueLabel', () => {
   });
 });
 
+describe('getWinnerDisplayLabel', () => {
+  test('prefers a real persisted team name', () => {
+    expect(getWinnerDisplayLabel({
+      equipos_json: [
+        { id: 'equipoA', name: 'Aston Birra', players: ['uuid-1'] },
+        { id: 'equipoB', name: 'Los Troncos', players: ['uuid-3'] },
+      ],
+    }, 'B', roster)).toBe('Ganó Los Troncos');
+  });
+
+  test('falls back to the first winning player, never Equipo A/B', () => {
+    const label = getWinnerDisplayLabel(basePartido(), 'B', roster);
+    expect(label).toBe('Victoria del equipo de Lucho');
+    expect(label).not.toMatch(/equipo [ab]$/i);
+  });
+
+  test('uses a human fallback when the winning roster is unavailable', () => {
+    expect(getWinnerDisplayLabel({}, 'A', [])).toBe('Victoria confirmada');
+  });
+});
+
 describe('buildMatchSummaryShareCardData', () => {
   test('builds a full shareable summary (winner, teams, awards, short venue)', () => {
     const data = buildMatchSummaryShareCardData({
@@ -123,7 +149,7 @@ describe('buildMatchSummaryShareCardData', () => {
     expect(data.result).toEqual({
       outcome: 'winner',
       winnerTeam: 'A',
-      label: 'GANÓ EQUIPO A',
+      label: 'Victoria del equipo de Nico',
       scoreline: '3-2',
     });
 
@@ -187,6 +213,44 @@ describe('buildMatchSummaryShareCardData', () => {
 
     expect(data.teams.teamA.players).toEqual(['Nico', 'Lucho']);
     expect(data.teams.teamB.players).toEqual(['Rama', 'Tomi']);
+  });
+
+  test('real team names are used in the share headline and secondary team labels', () => {
+    const data = buildMatchSummaryShareCardData({
+      partido: basePartido({
+        equipos_json: [
+          { id: 'equipoA', name: 'Aston Birra', players: ['uuid-1', 'uuid-2'] },
+          { id: 'equipoB', name: 'Los Troncos', players: ['uuid-3', 'uuid-4'] },
+        ],
+      }),
+      results: readyResults({ winner_team: 'B' }),
+      jugadores: roster,
+    });
+
+    expect(data.result.label).toBe('Ganó Los Troncos');
+    expect(data.teams.teamA.name).toBe('Aston Birra');
+    expect(data.teams.teamB.name).toBe('Los Troncos');
+  });
+
+  test('optional match metadata and photos do not block sharing', () => {
+    const data = buildMatchSummaryShareCardData({
+      partido: basePartido({
+        nombre: null,
+        fecha: null,
+        hora: null,
+        modalidad: null,
+        sede: null,
+      }),
+      results: readyResults({ awards_status: 'pending', awards_generated: false }),
+      jugadores: roster.map((player) => ({ ...player, avatar_url: null })),
+    });
+
+    expect(data.isShareable).toBe(true);
+    expect(data.awards[0]).toEqual(expect.objectContaining({
+      playerName: 'Nico',
+      playerAvatarUrl: null,
+      playerInitial: 'N',
+    }));
   });
 
   test('teams section omitted when no split exists (no fake rosters)', () => {

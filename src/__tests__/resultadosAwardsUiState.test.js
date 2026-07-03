@@ -402,10 +402,9 @@ describe('Resultados awards UI state', () => {
     });
   });
 
-  test('persisted transition wins over a stale roster snapshot (no invented 5.5)', () => {
-    // Bug: the roster still said 5.0 (pre-penalty snapshot) so the slide
-    // invented "5.5 → 5.0". With the persisted transition from the summary the
-    // slide shows the real "5.0 → 4.5".
+  test('persisted transition wins over a stale roster snapshot', () => {
+    // The roster still says 5.0 (pre-penalty snapshot); the persisted
+    // transition keeps the slide at the real "5.0 → 4.5".
     const absences = deriveAbsenceResultsFromSummary({
       rosterPlayers: [{ id: 7, usuario_id: 'user-7', nombre: 'Base 5', ranking: 5.0 }],
       noShowSummary: [{
@@ -445,7 +444,7 @@ describe('Resultados awards UI state', () => {
     expect(absences[0]).toMatchObject({ prePenaltyRanking: 5.0, penaltyRanking: 4.7 });
   });
 
-  test('a real persisted 5.5 before the penalty is allowed to show 5.5 → 5.0', () => {
+  test('an invalid persisted value above the ceiling is clamped before rendering', () => {
     const absences = deriveAbsenceResultsFromSummary({
       rosterPlayers: [{ id: 9, usuario_id: 'user-9', nombre: 'Previo real', ranking: 5.0 }],
       noShowSummary: [{
@@ -455,13 +454,13 @@ describe('Resultados awards UI state', () => {
         penaltyApplied: true,
         penaltyAmount: -0.5,
         recoveryApplied: false,
-        currentRanking: 5.0,
-        prePenaltyRanking: 5.5,
-        postPenaltyRanking: 5.0,
+        currentRanking: 4.5,
+        prePenaltyRanking: Number.MAX_SAFE_INTEGER,
+        postPenaltyRanking: 4.5,
       }],
     });
 
-    expect(absences[0]).toMatchObject({ prePenaltyRanking: 5.5, penaltyRanking: 5.0 });
+    expect(absences[0]).toMatchObject({ prePenaltyRanking: 5.0, penaltyRanking: 4.5 });
   });
 
   test('absence summary falls back to confirmed absence without inventing a penalty', () => {
@@ -471,7 +470,7 @@ describe('Resultados awards UI state', () => {
           id: 3,
           usuario_id: 'user-3',
           nombre: 'Confirmado sin penalidad',
-          ranking: 5.8,
+          ranking: Number.MAX_SAFE_INTEGER,
           partidos_abandonados: 0,
         },
       ],
@@ -492,8 +491,8 @@ describe('Resultados awards UI state', () => {
         id: 3,
         confirmationCount: 2,
         penaltyApplied: false,
-        prePenaltyRanking: 5.8,
-        penaltyRanking: 5.8,
+        prePenaltyRanking: 5.0,
+        penaltyRanking: 5.0,
       }),
     ]);
   });
@@ -503,23 +502,23 @@ describe('resolvePenaltyRatingTransition', () => {
   test('with a penalty the rating actually drops (before > after)', () => {
     const transition = resolvePenaltyRatingTransition({
       penaltyPlayer: {
-        prePenaltyRanking: 5.5,
-        penaltyRanking: 5.0,
+        prePenaltyRanking: 5.0,
+        penaltyRanking: 4.5,
         penaltyAmount: -0.5,
       },
     });
 
-    expect(transition).toEqual({ from: 5.5, to: 5.0, delta: 0.5 });
+    expect(transition).toEqual({ from: 5.0, to: 4.5, delta: 0.5 });
   });
 
   test('uses the absences entry even when the live roster copy lacks penalty fields', () => {
     // Regression: the story resolved the player through previewPlayers (a
-    // roster clone with only `ranking`), which made the pill show "5.0 → 5.0"
-    // while the label below said "5.5 → 5.0".
+    // roster clone with only `ranking`), which made the pill disagree with the
+    // persisted penalty transition.
     const transition = resolvePenaltyRatingTransition({
       penaltyPlayer: {
-        prePenaltyRanking: 5.5,
-        penaltyRanking: 5.0,
+        prePenaltyRanking: 5.0,
+        penaltyRanking: 4.5,
       },
       livePlayer: {
         ranking: '5.0',
@@ -527,18 +526,18 @@ describe('resolvePenaltyRatingTransition', () => {
       },
     });
 
-    expect(transition.from).toBe(5.5);
-    expect(transition.to).toBe(5.0);
+    expect(transition.from).toBe(5.0);
+    expect(transition.to).toBe(4.5);
     expect(transition.delta).toBe(0.5);
   });
 
   test('without penalty fields it falls back to the current rating with no fake drop', () => {
     const transition = resolvePenaltyRatingTransition({
       penaltyPlayer: null,
-      livePlayer: { ranking: 6.2 },
+      livePlayer: { ranking: Number.MAX_SAFE_INTEGER },
     });
 
-    expect(transition).toEqual({ from: 6.2, to: 6.2, delta: 0 });
+    expect(transition).toEqual({ from: 5.0, to: 5.0, delta: 0 });
   });
 
   test('shown transition matches the persisted-derived absences data end to end', () => {

@@ -1,5 +1,6 @@
 import React from 'react';
 import { MapPin, MoreVertical, Star, User } from 'lucide-react';
+import { clampPlayerRating } from '../utils/playerRating';
 
 const POS_MAP = {
   ARQ: 'ARQ',
@@ -68,9 +69,7 @@ const PlayerMiniCard = ({
     : (typeof profile?.ranking === 'number'
       ? profile.ranking
       : (typeof profile?.calificacion === 'number' ? profile.calificacion : 5));
-  const normalizedRating = Number.isFinite(rawRatingCandidate) && rawRatingCandidate > 0
-    ? rawRatingCandidate
-    : 5;
+  const normalizedRating = clampPlayerRating(rawRatingCandidate);
   const ratingStr = normalizedRating.toFixed(1);
   const posicion = getPos(profile?.posicion || profile?.rol_favorito || 'DEF');
   const posColor = getPosColor(posicion);

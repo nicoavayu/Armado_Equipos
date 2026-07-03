@@ -132,4 +132,31 @@ describe('exportAndShareTeamsCard (web)', () => {
     expect(window.open).toHaveBeenCalledWith(PNG_DATA_URL, '_blank', 'noopener,noreferrer');
     expect(Filesystem.writeFile).not.toHaveBeenCalled();
   });
+
+  test('reuses a tab reserved by the original user tap after async capture', async () => {
+    toPng.mockResolvedValue(PNG_DATA_URL);
+    global.fetch = jest.fn().mockRejectedValue(new Error('no fetch'));
+    window.open = jest.fn();
+    const fallbackDocument = document.implementation.createHTMLDocument('Generando');
+    const fallbackWindow = {
+      document: fallbackDocument,
+      close: jest.fn(),
+    };
+
+    const node = document.createElement('div');
+    const result = await exportAndShareTeamsCard({
+      node,
+      isNative: false,
+      fileName: 'resumen.png',
+      title: 'Resumen del partido',
+      fallbackWindow,
+    });
+
+    expect(result).toEqual({ ok: true, reason: 'fallback-open' });
+    expect(window.open).not.toHaveBeenCalled();
+    const image = fallbackDocument.querySelector('img');
+    expect(image).not.toBeNull();
+    expect(image.src).toContain('data:image/png;base64,QUJD');
+    expect(image.alt).toBe('Resumen del partido');
+  });
 });

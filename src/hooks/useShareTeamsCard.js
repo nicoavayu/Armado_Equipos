@@ -27,9 +27,17 @@ export const useShareTeamsCard = ({ isNative = false } = {}) => {
   const [cardData, setCardData] = useState(null);
   const cardRef = useRef(null);
   const shareOptionsRef = useRef({});
+  const fallbackWindowRef = useRef(null);
   const isMountedRef = useRef(true);
 
-  useEffect(() => () => { isMountedRef.current = false; }, []);
+  useEffect(() => () => {
+    isMountedRef.current = false;
+    try {
+      fallbackWindowRef.current?.close?.();
+    } catch (_error) {
+      // Ignore a browser-owned/cross-origin window that can no longer be closed.
+    }
+  }, []);
 
   const shareTeamsCard = useCallback(async (data, options = {}) => {
     if (isSharing) return false;
@@ -37,11 +45,39 @@ export const useShareTeamsCard = ({ isNative = false } = {}) => {
       notifyBlockingError('Todavía no hay equipos para compartir.');
       return false;
     }
-    shareOptionsRef.current = options;
+
+    let fallbackWindow = null;
+    if (!isNative && typeof window !== 'undefined') {
+      try {
+        // The PNG capture is asynchronous, so opening the fallback after it
+        // finishes loses the original user activation and mobile browsers block
+        // it. Reserve the tab synchronously in this tap and populate it later.
+        fallbackWindow = window.open('', '_blank');
+        if (fallbackWindow) {
+          fallbackWindow.opener = null;
+          fallbackWindow.document.title = 'Generando resumen…';
+          fallbackWindow.document.body.style.cssText = [
+            'margin:0',
+            'min-height:100vh',
+            'display:flex',
+            'align-items:center',
+            'justify-content:center',
+            'background:#0d0820',
+            'color:#fff',
+            'font-family:system-ui,sans-serif',
+          ].join(';');
+          fallbackWindow.document.body.textContent = 'Generando imagen para compartir…';
+        }
+      } catch (_error) {
+        fallbackWindow = null;
+      }
+    }
+    fallbackWindowRef.current = fallbackWindow;
+    shareOptionsRef.current = { ...options, fallbackWindow };
     setIsSharing(true);
     setCardData(data);
     return true;
-  }, [isSharing]);
+  }, [isNative, isSharing]);
 
   // Once the off-screen card has painted, capture + share it.
   useEffect(() => {
@@ -61,6 +97,15 @@ export const useShareTeamsCard = ({ isNative = false } = {}) => {
       if (!result.ok && result.reason !== 'cancelled') {
         notifyBlockingError('No pudimos generar la imagen para compartir. Intentá de nuevo.');
       }
+
+      if (!result.ok || result.reason !== 'fallback-open') {
+        try {
+          fallbackWindowRef.current?.close?.();
+        } catch (_error) {
+          // Ignore window lifecycle errors.
+        }
+      }
+      fallbackWindowRef.current = null;
 
       if (isMountedRef.current) {
         setCardData(null);

@@ -11,7 +11,11 @@ import { listMyTeamMatches } from '../services/db/teamChallenges';
 import { parseLocalDateTime } from '../utils/dateLocal';
 import { buildActivityFeed } from '../utils/activityFeed';
 import { AWARDS_READY_NOTIFICATION_TYPES, isAwardsReadyStatus } from '../utils/awardsReadiness';
-import { getNextHomeAction, resolvePaymentsNextStepAction } from '../utils/homeNextStep';
+import {
+  getNextHomeAction,
+  resolvePaymentsNextStepAction,
+  validateNextHomeAction,
+} from '../utils/homeNextStep';
 import { openNotification } from '../utils/notificationRouter';
 import { notifyBlockingError } from '../utils/notifyBlockingError';
 import ProximosPartidos from './ProximosPartidos';
@@ -208,6 +212,8 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
   const [activeMatches, setActiveMatches] = useState([]);
   const [activityLoading, setActivityLoading] = useState(true);
   const [activityItems, setActivityItems] = useState([]);
+  const [activityHasFreshValidation, setActivityHasFreshValidation] = useState(false);
+  const [activityRefreshNonce, setActivityRefreshNonce] = useState(0);
   const [dismissingActivityKeys, setDismissingActivityKeys] = useState(() => new Set());
   const [showProximosPartidos, setShowProximosPartidos] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
@@ -217,6 +223,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
   const statusDropdownRef = useRef(null);
   const statusDropdownMenuRef = useRef(null);
   const activityLoadedRef = useRef(false);
+  const nextStepValidationInFlightRef = useRef(false);
   const activeMatchesRefreshInFlightRef = useRef(false);
   const activeMatchesSignatureRef = useRef(buildActiveMatchesSignature([]));
   const activityDismissTimeoutsRef = useRef(new Map());
@@ -328,11 +335,17 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
 
   // "Tu próximo paso": one truly valid pending action, or nothing.
   const nextStepAction = useMemo(() => getNextHomeAction({
-    activityItems,
+    activityItems: activityHasFreshValidation ? activityItems : [],
     validatedResultsMatchIds: awardsReadyVisibleMatchIds,
     resultsValidationLoading: awardsRingLoading,
     paymentAction: paymentsNextStepAction,
-  }), [activityItems, awardsReadyVisibleMatchIds, awardsRingLoading, paymentsNextStepAction]);
+  }), [
+    activityHasFreshValidation,
+    activityItems,
+    awardsReadyVisibleMatchIds,
+    awardsRingLoading,
+    paymentsNextStepAction,
+  ]);
 
   // The next-step card is the richer version of the activity item it was
   // promoted from, so that exact row is hidden in Recent Activity (other
@@ -343,7 +356,27 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
   }, [activityItems, nextStepAction]);
 
   const handleNextStepClick = async (action) => {
-    if (!action?.route) return;
+    if (!action?.route || nextStepValidationInFlightRef.current) return;
+
+    nextStepValidationInFlightRef.current = true;
+    const isCurrent = await validateNextHomeAction({
+      action,
+      supabaseClient: supabase,
+      userId: user?.id,
+    });
+    nextStepValidationInFlightRef.current = false;
+
+    if (!isCurrent) {
+      setActivityItems((currentItems) => (
+        action?.sourceActivityId
+          ? currentItems.filter((item) => item?.id !== action.sourceActivityId)
+          : currentItems
+      ));
+      setActivityHasFreshValidation(false);
+      setActivityRefreshNonce((current) => current + 1);
+      fetchActiveMatches();
+      return;
+    }
 
     // Results CTAs go through the notification router so the "results
     // unavailable" guard applies even if state changed after validation.
@@ -446,6 +479,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
 
   useEffect(() => {
     activityLoadedRef.current = false;
+    setActivityHasFreshValidation(false);
     activeMatchesSignatureRef.current = buildActiveMatchesSignature([]);
 
     if (!user?.id) {
@@ -832,6 +866,8 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
   useRefreshOnVisibility(
     () => {
       fetchActiveMatches();
+      setActivityHasFreshValidation(false);
+      setActivityRefreshNonce((current) => current + 1);
     },
     {
       enabled: Boolean(user?.id),
@@ -924,6 +960,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
       if (!user?.id) {
         if (!cancelled) {
           setActivityItems([]);
+          setActivityHasFreshValidation(false);
           setActivityLoading(false);
         }
         return;
@@ -940,6 +977,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
 
       if (!cancelled) {
         setActivityItems(filterDismissedRecentActivityItems(items, user.id));
+        setActivityHasFreshValidation(true);
         activityLoadedRef.current = true;
         setActivityLoading(false);
       }
@@ -950,7 +988,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
     return () => {
       cancelled = true;
     };
-  }, [activeMatches, notifications, user?.id]);
+  }, [activeMatches, activityRefreshNonce, notifications, user?.id]);
 
   // Mostrar ProximosPartidos si está activo
   if (showProximosPartidos) {

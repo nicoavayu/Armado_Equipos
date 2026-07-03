@@ -34,9 +34,11 @@ import { useNativeFeatures } from '../hooks/useNativeFeatures';
 import { useShareTeamsCard } from '../hooks/useShareTeamsCard';
 import {
   buildMatchSummaryShareCardData,
+  getWinnerDisplayLabel,
   normalizeResultStatus,
   normalizeWinnerTeam,
 } from '../utils/matchSummaryShare';
+import { clampPlayerRating } from '../utils/playerRating';
 import ShareableMatchSummaryCard from '../components/share/ShareableMatchSummaryCard';
 
 const ensurePlayersList = (players) => {
@@ -59,7 +61,7 @@ const normalizeAbsenceIdentityToken = (value) => {
 
 const resolveAbsencePlayerRating = (player, fallback = 5.0) => {
   const parsed = Number.parseFloat(player?.ranking ?? player?.calificacion ?? fallback);
-  return Number.isFinite(parsed) ? parsed : fallback;
+  return clampPlayerRating(Number.isFinite(parsed) ? parsed : fallback, { fallback });
 };
 
 export const deriveAbsenceResultsFromSummary = ({
@@ -121,10 +123,10 @@ export const deriveAbsenceResultsFromSummary = ({
       && Number.isFinite(persistedPre)
       && Number.isFinite(persistedPost);
 
-    const fromRating = hasPersistedTransition
+    const fromRating = clampPlayerRating(hasPersistedTransition
       ? persistedPre
-      : (entry?.penaltyApplied ? currentRating + penaltyDelta : currentRating);
-    const toRating = hasPersistedTransition ? persistedPost : currentRating;
+      : (entry?.penaltyApplied ? currentRating + penaltyDelta : currentRating));
+    const toRating = clampPlayerRating(hasPersistedTransition ? persistedPost : currentRating);
 
     return {
       ...rosterPlayer,
@@ -148,8 +150,9 @@ export const deriveAbsenceResultsFromSummary = ({
  * clone) which does NOT carry prePenaltyRanking/penaltyRanking — those fields
  * live on the absences entry passed to the slide. Reading the transition from
  * the wrong object made the pill show "5.0 → 5.0" while the bottom label said
- * "5.5 → 5.0". Both now derive from here: penalty fields first (absences
- * entry, then live player), falling back to the live current rating.
+ * an impossible above-cap transition. Both now derive from here: penalty
+ * fields first (absences entry, then live player), falling back to the live
+ * current rating and always respecting the 5.0 ceiling.
  */
 export const resolvePenaltyRatingTransition = ({
   penaltyPlayer = null,
@@ -174,8 +177,12 @@ export const resolvePenaltyRatingTransition = ({
     penaltyPlayer?.calificacion,
   ) ?? fallbackRating;
 
-  const from = pickFinite(penaltyPlayer?.prePenaltyRanking, livePlayer?.prePenaltyRanking) ?? current;
-  const to = pickFinite(penaltyPlayer?.penaltyRanking, livePlayer?.penaltyRanking) ?? from;
+  const from = clampPlayerRating(
+    pickFinite(penaltyPlayer?.prePenaltyRanking, livePlayer?.prePenaltyRanking) ?? current,
+  );
+  const to = clampPlayerRating(
+    pickFinite(penaltyPlayer?.penaltyRanking, livePlayer?.penaltyRanking) ?? from,
+  );
 
   return {
     from,
@@ -681,7 +688,7 @@ const ResultadosEncuestaView = () => {
     return Number.isFinite(n) ? n : fallback;
   };
 
-  const clamp1 = (v) => Math.max(0, Math.min(10, v)); // si tu rating es 0..10
+  const clamp1 = (v) => clampPlayerRating(v);
   const fmt1 = (v) => (Number.isFinite(v) ? v.toFixed(1) : '0.0');
 
   const normalizeBadges = (p) => {
@@ -920,7 +927,7 @@ const ResultadosEncuestaView = () => {
       ) || null,
       partidos_jugados: livePj ?? 0,
       partidos_abandonados: livePa ?? 0,
-      ranking: liveRanking ?? 5.0,
+      ranking: clampPlayerRating(liveRanking ?? 5.0),
       pais_codigo: liveCountry,
       pierna_habil: liveFoot,
       nivel: liveLevel ?? null,
@@ -1764,7 +1771,7 @@ const ResultadosEncuestaView = () => {
     const summaryResultStatus = normalizeResultStatus(currentResults?.result_status);
     const summaryWinnerTeam = normalizeWinnerTeam(currentResults?.winner_team);
     const summaryResultLabel = summaryResultStatus === 'finished' && summaryWinnerTeam
-      ? `GANÓ EQUIPO ${summaryWinnerTeam}`
+      ? getWinnerDisplayLabel(matchInfo, summaryWinnerTeam, roster)
       : (summaryResultStatus === 'draw' ? 'EMPATE' : null);
     const summaryMatchName = String(matchInfo?.nombre || matchInfo?.titulo || '').trim();
 

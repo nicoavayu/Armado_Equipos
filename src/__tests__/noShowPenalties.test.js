@@ -278,7 +278,7 @@ describe('listMatchNoShowSummary', () => {
     ]);
   });
 
-  test('un rating previo real de 5.5 produce 5.5 → 5.0 (no se inventa el antes)', async () => {
+  test('una fila inconsistente en el ledger se normaliza a la transición válida 5.0 → 4.5', async () => {
     state = baseState([
       { partido_id: 10, votante_id: 1, se_jugo: true, motivo_no_jugado: null, jugadores_ausentes: [3] },
       { partido_id: 10, votante_id: 2, se_jugo: true, motivo_no_jugado: null, jugadores_ausentes: [3] },
@@ -292,8 +292,8 @@ describe('listMatchNoShowSummary', () => {
     const result = await listMatchNoShowSummary(10);
 
     expect(result.data[0]).toMatchObject({
-      prePenaltyRanking: 5.5,
-      postPenaltyRanking: 5.0,
+      prePenaltyRanking: 5.0,
+      postPenaltyRanking: 4.5,
     });
   });
 

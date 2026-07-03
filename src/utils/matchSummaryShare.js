@@ -5,10 +5,16 @@
 // results view, Mis partidos and Home without duplicating visibility rules.
 //
 // The share/visibility gate is intentionally strict: a summary only "exists"
-// when the survey produced real results (results_ready) AND the awards flow
-// reached "ready" (not_eligible means there were not enough votes).
+// when the survey produced real results (results_ready) and contains a real
+// award payload. The persisted awards status may lag behind that payload, but
+// explicit error/not_eligible states still block sharing.
 
-import { isAwardsReadyStatus, hasAnyAwardData } from './awardsReadiness';
+import {
+  AWARDS_STATUS_ERROR,
+  AWARDS_STATUS_NOT_ELIGIBLE,
+  hasAnyAwardData,
+  normalizeAwardsStatus,
+} from './awardsReadiness';
 import { formatVenueShort } from './venueFormat';
 import { SHARE_CARD_WEBSITE } from './buildTeamsShareCardData';
 import { parseLocalDate } from './dateLocal';
@@ -50,8 +56,11 @@ export const normalizeResultStatus = (value) => {
 export const canShareMatchSummary = (resultsRow) => Boolean(
   resultsRow
   && resultsRow.results_ready === true
-  && isAwardsReadyStatus(resultsRow)
-  && hasAnyAwardData(resultsRow),
+  && hasAnyAwardData(resultsRow)
+  && ![
+    AWARDS_STATUS_ERROR,
+    AWARDS_STATUS_NOT_ELIGIBLE,
+  ].includes(normalizeAwardsStatus(resultsRow?.awards_status)),
 );
 
 /**
@@ -108,6 +117,12 @@ const buildRosterIndex = (jugadores = []) => {
 };
 
 const findPlayerByRef = (rosterIndex, ref) => {
+  if (ref && typeof ref === 'object') {
+    const matched = identityTokensFor(ref)
+      .map((token) => rosterIndex.get(token))
+      .find(Boolean);
+    return matched || ref;
+  }
   const token = normalizeToken(ref);
   if (!token) return null;
   return rosterIndex.get(token) || null;
@@ -128,6 +143,44 @@ const resolveTeamPlayerNames = (refs, rosterIndex) => {
   return names;
 };
 
+const parseTeamsPayload = (value) => {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== 'string') return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (_error) {
+    return [];
+  }
+};
+
+const resolvePersistedTeams = (partido = {}) => {
+  for (const payload of [partido?.equipos_json, partido?.equipos]) {
+    const teams = parseTeamsPayload(payload);
+    if (teams.length >= 2) return teams;
+  }
+  return [];
+};
+
+const getPersistedTeam = (partido, teamKey) => {
+  const teams = resolvePersistedTeams(partido);
+  const expectedId = teamKey === 'A' ? 'equipoa' : 'equipob';
+  return teams.find((team) => normalizeToken(team?.id).replace(/[^a-z0-9]/g, '') === expectedId)
+    || teams[teamKey === 'A' ? 0 : 1]
+    || null;
+};
+
+const teamRefsFromPersistedTeam = (team) => {
+  const candidates = [
+    team?.players,
+    team?.jugadores,
+    team?.playerIds,
+    team?.player_ids,
+    team?.roster,
+  ];
+  return candidates.find(Array.isArray) || [];
+};
+
 const resolveTeamRefs = (partido = {}) => {
   const surveyA = Array.isArray(partido?.survey_team_a) ? partido.survey_team_a : [];
   const surveyB = Array.isArray(partido?.survey_team_b) ? partido.survey_team_b : [];
@@ -137,7 +190,105 @@ const resolveTeamRefs = (partido = {}) => {
   const finalB = Array.isArray(partido?.final_team_b) ? partido.final_team_b : [];
   if (finalA.length > 0 && finalB.length > 0) return { teamARefs: finalA, teamBRefs: finalB };
 
+  const persistedA = teamRefsFromPersistedTeam(getPersistedTeam(partido, 'A'));
+  const persistedB = teamRefsFromPersistedTeam(getPersistedTeam(partido, 'B'));
+  if (persistedA.length > 0 && persistedB.length > 0) {
+    return { teamARefs: persistedA, teamBRefs: persistedB };
+  }
+
   return { teamARefs: [], teamBRefs: [] };
+};
+
+const normalizeComparableLabel = (value) => normalizeToken(value)
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .replace(/\s+/g, ' ');
+
+const isGenericTeamLabel = (value) => [
+  'equipo a',
+  'equipo b',
+  'team a',
+  'team b',
+].includes(normalizeComparableLabel(value));
+
+const resolveRealTeamName = (partido, teamKey, persistedTeam) => {
+  const directCandidates = teamKey === 'A'
+    ? [
+      partido?.team_a_name,
+      partido?.teamAName,
+      partido?.equipo_a_nombre,
+      partido?.equipoAName,
+    ]
+    : [
+      partido?.team_b_name,
+      partido?.teamBName,
+      partido?.equipo_b_nombre,
+      partido?.equipoBName,
+    ];
+  const candidates = [
+    ...directCandidates,
+    persistedTeam?.name,
+    persistedTeam?.nombre,
+    persistedTeam?.label,
+  ];
+  return candidates
+    .map(cleanText)
+    .find((candidate) => candidate && !isGenericTeamLabel(candidate)) || null;
+};
+
+const rosterForTeam = (rosters, teamKey) => {
+  if (Array.isArray(rosters)) return rosters;
+  if (!rosters || typeof rosters !== 'object') return [];
+  const candidates = teamKey === 'A'
+    ? [rosters.teamA, rosters.team_a, rosters.equipoA, rosters.equipo_a]
+    : [rosters.teamB, rosters.team_b, rosters.equipoB, rosters.equipo_b];
+  return candidates.find(Array.isArray) || [];
+};
+
+/**
+ * Human winner headline for results/stories/share cards.
+ * Generic internal labels (Equipo A/B) are never returned as the headline.
+ */
+export const getWinnerDisplayLabel = (match = {}, winnerTeamValue = null, rosters = []) => {
+  const winnerTeam = normalizeWinnerTeam(winnerTeamValue);
+  if (!winnerTeam) return 'Victoria confirmada';
+
+  const persistedTeam = getPersistedTeam(match, winnerTeam);
+  const realTeamName = resolveRealTeamName(match, winnerTeam, persistedTeam);
+  if (realTeamName) return `Ganó ${realTeamName}`;
+
+  const rosterIndex = buildRosterIndex(Array.isArray(rosters) ? rosters : [
+    ...rosterForTeam(rosters, 'A'),
+    ...rosterForTeam(rosters, 'B'),
+  ]);
+  const { teamARefs, teamBRefs } = resolveTeamRefs(match);
+  const winnerRefs = winnerTeam === 'A' ? teamARefs : teamBRefs;
+  const explicitRoster = rosterForTeam(rosters, winnerTeam);
+  const winnerPlayers = winnerRefs
+    .map((ref) => findPlayerByRef(rosterIndex, ref))
+    .filter(Boolean);
+  const teamPlayers = winnerPlayers.length > 0 ? winnerPlayers : explicitRoster;
+
+  const captainCandidate = (
+    persistedTeam?.captain
+    ?? persistedTeam?.capitan
+    ?? persistedTeam?.captain_id
+    ?? persistedTeam?.capitan_id
+    ?? null
+  );
+  const captainPlayer = findPlayerByRef(rosterIndex, captainCandidate);
+  const captainName = cleanText(
+    persistedTeam?.captain_name
+    || persistedTeam?.capitan_nombre
+    || captainPlayer?.nombre
+    || teamPlayers.find((player) => player?.is_captain || player?.es_capitan)?.nombre,
+  );
+  if (captainName) return `Victoria del equipo de ${captainName}`;
+
+  const firstPlayerName = cleanText(teamPlayers[0]?.nombre || teamPlayers[0]?.name);
+  if (firstPlayerName) return `Victoria del equipo de ${firstPlayerName}`;
+
+  return 'Victoria confirmada';
 };
 
 const AWARD_DEFINITIONS = [
@@ -245,11 +396,13 @@ export function buildMatchSummaryShareCardData({ partido = {}, results = null, j
   const { teamARefs, teamBRefs } = resolveTeamRefs(partido);
   const teamAPlayers = resolveTeamPlayerNames(teamARefs, rosterIndex);
   const teamBPlayers = resolveTeamPlayerNames(teamBRefs, rosterIndex);
+  const persistedTeamA = getPersistedTeam(partido, 'A');
+  const persistedTeamB = getPersistedTeam(partido, 'B');
   const hasTeams = teamAPlayers.length > 0 && teamBPlayers.length > 0;
   const teams = hasTeams
     ? {
-      teamA: { name: 'Equipo A', players: teamAPlayers },
-      teamB: { name: 'Equipo B', players: teamBPlayers },
+      teamA: { name: resolveRealTeamName(partido, 'A', persistedTeamA) || 'Equipo A', players: teamAPlayers },
+      teamB: { name: resolveRealTeamName(partido, 'B', persistedTeamB) || 'Equipo B', players: teamBPlayers },
     }
     : null;
 
@@ -264,7 +417,7 @@ export function buildMatchSummaryShareCardData({ partido = {}, results = null, j
     result = {
       outcome: 'winner',
       winnerTeam,
-      label: `GANÓ EQUIPO ${winnerTeam}`,
+      label: getWinnerDisplayLabel(partido, winnerTeam, jugadores),
       scoreline,
     };
   } else if (resultStatus === 'draw') {
