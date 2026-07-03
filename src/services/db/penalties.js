@@ -516,26 +516,44 @@ export async function listMatchNoShowSummary(matchId) {
     (jugadoresRows || []).map((row) => row?.usuario_id).filter(Boolean),
   );
 
-  let adjustmentRows = [];
+  // Full no-show ledger + current persisted rankings for the involved users.
+  // The slide's "before → after" must mirror what was actually persisted, so
+  // it is reconstructed from usuarios.ranking and the rating_adjustments rows
+  // instead of guessing from a (possibly stale) roster snapshot.
+  let allAdjustmentRows = [];
+  const userRankingById = new Map();
   if (registeredUserIds.length > 0) {
-    const { data, error } = await supabase
-      .from('rating_adjustments')
-      .select('user_id, type')
-      .eq('partido_id', id)
-      .in('user_id', registeredUserIds)
-      .in('type', ['no_show_penalty', 'no_show_recovery']);
-    if (error) return { data: [], error };
-    adjustmentRows = data || [];
+    const [adjustmentsRes, usersRes] = await Promise.all([
+      supabase
+        .from('rating_adjustments')
+        .select('user_id, partido_id, type, amount, created_at')
+        .in('user_id', registeredUserIds)
+        .in('type', ['no_show_penalty', 'no_show_recovery']),
+      supabase
+        .from('usuarios')
+        .select('id, ranking')
+        .in('id', registeredUserIds),
+    ]);
+    if (adjustmentsRes.error) return { data: [], error: adjustmentsRes.error };
+    if (usersRes.error) return { data: [], error: usersRes.error };
+
+    allAdjustmentRows = adjustmentsRes.data || [];
+    (usersRes.data || []).forEach((row) => {
+      const userId = String(row?.id || '').trim();
+      const ranking = Number(row?.ranking);
+      if (userId && Number.isFinite(ranking)) userRankingById.set(userId, ranking);
+    });
   }
 
-  const penalizedUserIds = new Set(
-    (adjustmentRows || [])
+  const thisMatchRows = allAdjustmentRows.filter((row) => Number(row?.partido_id) === id);
+  const penaltyRowByUser = new Map(
+    thisMatchRows
       .filter((row) => row?.type === 'no_show_penalty')
-      .map((row) => String(row?.user_id || '').trim())
-      .filter(Boolean),
+      .map((row) => [String(row?.user_id || '').trim(), row])
+      .filter(([userId]) => Boolean(userId)),
   );
   const recoveredUserIds = new Set(
-    (adjustmentRows || [])
+    thisMatchRows
       .filter((row) => row?.type === 'no_show_recovery')
       .map((row) => String(row?.user_id || '').trim())
       .filter(Boolean),
@@ -546,13 +564,41 @@ export async function listMatchNoShowSummary(matchId) {
     const userId = String(playerRow?.usuario_id || '').trim() || null;
     const confirmationCount = (absentConfirmMap.get(playerId) || new Set()).size;
 
+    const penaltyRow = userId ? (penaltyRowByUser.get(userId) || null) : null;
+    const penaltyApplied = Boolean(penaltyRow);
+    const currentRanking = userId && userRankingById.has(userId) ? userRankingById.get(userId) : null;
+
+    // Persisted transition for THIS match's penalty: today's ranking minus
+    // every no-show adjustment applied after it gives the post-penalty value;
+    // adding back the penalty amount gives the real pre-penalty value.
+    let prePenaltyRanking = null;
+    let postPenaltyRanking = null;
+    if (penaltyApplied && Number.isFinite(currentRanking)) {
+      const penaltyAt = new Date(penaltyRow?.created_at || 0).getTime();
+      const laterDelta = allAdjustmentRows.reduce((sum, row) => {
+        if (row === penaltyRow) return sum;
+        if (String(row?.user_id || '').trim() !== userId) return sum;
+        const rowAt = new Date(row?.created_at || 0).getTime();
+        if (!Number.isFinite(rowAt) || rowAt <= penaltyAt) return sum;
+        return sum + Number(row?.amount || 0);
+      }, 0);
+      postPenaltyRanking = Number((currentRanking - laterDelta).toFixed(2));
+      const penaltyAmountAbs = Math.abs(Number(penaltyRow?.amount ?? NO_SHOW_PENALTY_AMOUNT));
+      prePenaltyRanking = Number((postPenaltyRanking + penaltyAmountAbs).toFixed(2));
+    }
+
     return {
       playerId,
       userId,
       confirmationCount,
-      penaltyApplied: Boolean(userId && penalizedUserIds.has(userId)),
-      penaltyAmount: Boolean(userId && penalizedUserIds.has(userId)) ? NO_SHOW_PENALTY_AMOUNT : 0,
+      penaltyApplied,
+      penaltyAmount: penaltyApplied
+        ? Number(penaltyRow?.amount ?? NO_SHOW_PENALTY_AMOUNT)
+        : 0,
       recoveryApplied: Boolean(userId && recoveredUserIds.has(userId)),
+      currentRanking,
+      prePenaltyRanking,
+      postPenaltyRanking,
     };
   });
 
