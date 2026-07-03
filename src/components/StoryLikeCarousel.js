@@ -156,7 +156,11 @@ const StoryLikeCarousel = ({
 
       {/* Slide */}
       <div className="relative z-10 w-full h-full flex items-center justify-center px-0 md:px-0 pt-0 pb-0">
-        <div className="w-full h-full flex items-center justify-center">
+        <div
+          key={currentSlide?.key || currentIndex}
+          className="w-full h-full flex items-center justify-center"
+          data-story-slide-key={currentSlide?.key || currentIndex}
+        >
           {node}
         </div>
       </div>

@@ -414,16 +414,21 @@ export function buildMatchSummaryShareCardData({ partido = {}, results = null, j
   // explicit draw) produces a result block.
   let result = null;
   if (resultStatus === 'finished' && winnerTeam) {
+    const winnerPlayers = winnerTeam === 'A' ? teamAPlayers : teamBPlayers;
     result = {
       outcome: 'winner',
       winnerTeam,
-      label: getWinnerDisplayLabel(partido, winnerTeam, jugadores),
+      heading: winnerPlayers.length > 0 ? 'EQUIPO GANADOR' : null,
+      players: winnerPlayers,
+      label: winnerPlayers.length > 0 ? winnerPlayers.join(' · ') : 'Victoria confirmada',
       scoreline,
     };
   } else if (resultStatus === 'draw') {
     result = {
       outcome: 'draw',
       winnerTeam: null,
+      heading: null,
+      players: [],
       label: 'EMPATE',
       scoreline,
     };

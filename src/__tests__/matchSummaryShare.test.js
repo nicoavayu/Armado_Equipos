@@ -149,7 +149,9 @@ describe('buildMatchSummaryShareCardData', () => {
     expect(data.result).toEqual({
       outcome: 'winner',
       winnerTeam: 'A',
-      label: 'Victoria del equipo de Nico',
+      heading: 'EQUIPO GANADOR',
+      players: ['Nico', 'Rama'],
+      label: 'Nico · Rama',
       scoreline: '3-2',
     });
 
@@ -174,6 +176,8 @@ describe('buildMatchSummaryShareCardData', () => {
     expect(data.result).toEqual({
       outcome: 'draw',
       winnerTeam: null,
+      heading: null,
+      players: [],
       label: 'EMPATE',
       scoreline: null,
     });
@@ -215,7 +219,7 @@ describe('buildMatchSummaryShareCardData', () => {
     expect(data.teams.teamB.players).toEqual(['Rama', 'Tomi']);
   });
 
-  test('real team names are used in the share headline and secondary team labels', () => {
+  test('the share result lists winning players even when the team has a real name', () => {
     const data = buildMatchSummaryShareCardData({
       partido: basePartido({
         equipos_json: [
@@ -227,9 +231,47 @@ describe('buildMatchSummaryShareCardData', () => {
       jugadores: roster,
     });
 
-    expect(data.result.label).toBe('Ganó Los Troncos');
+    expect(data.result.label).toBe('Lucho · Tomi');
+    expect(data.result.players).toEqual(['Lucho', 'Tomi']);
     expect(data.teams.teamA.name).toBe('Aston Birra');
     expect(data.teams.teamB.name).toBe('Los Troncos');
+  });
+
+  test('keeps five winning names in roster order for the wrapped result block', () => {
+    const extendedRoster = [
+      ...roster,
+      { id: 5, uuid: 'uuid-5', usuario_id: 'user-5', nombre: 'Fede' },
+      { id: 6, uuid: 'uuid-6', usuario_id: 'user-6', nombre: 'Juan Pablo Largo' },
+      { id: 7, uuid: 'uuid-7', usuario_id: 'user-7', nombre: 'Mati' },
+    ];
+    const data = buildMatchSummaryShareCardData({
+      partido: basePartido({
+        survey_team_a: ['uuid-1', 'uuid-2', 'uuid-5', 'uuid-6', 'uuid-7'],
+        survey_team_b: ['uuid-3', 'uuid-4'],
+      }),
+      results: readyResults(),
+      jugadores: extendedRoster,
+    });
+
+    expect(data.result.players).toEqual(['Nico', 'Rama', 'Fede', 'Juan Pablo Largo', 'Mati']);
+    expect(data.result.label).toBe('Nico · Rama · Fede · Juan Pablo Largo · Mati');
+  });
+
+  test('uses a human fallback when the winning roster is unavailable', () => {
+    const data = buildMatchSummaryShareCardData({
+      partido: basePartido({ survey_team_a: [], survey_team_b: [] }),
+      results: readyResults(),
+      jugadores: roster,
+    });
+
+    expect(data.result).toEqual({
+      outcome: 'winner',
+      winnerTeam: 'A',
+      heading: null,
+      players: [],
+      label: 'Victoria confirmada',
+      scoreline: '3-2',
+    });
   });
 
   test('optional match metadata and photos do not block sharing', () => {

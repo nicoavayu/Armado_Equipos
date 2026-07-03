@@ -100,7 +100,13 @@ const resolveInlineTeams = (match) => {
  * Main AdminPanel component for match management
  * @param {Object} props - Component props
  */
-export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange, partidoActual }) {
+export default function AdminPanel({
+  onBackToHome,
+  jugadores,
+  onJugadoresChange,
+  onMatchChange,
+  partidoActual,
+}) {
   // Rebuild trace
   const { user } = useAuth();
   const isAdmin = user?.id && partidoActual?.creado_por === user.id;
@@ -112,6 +118,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
     user,
     isAdmin,
     onBackToHome,
+    onMatchChange,
   });
 
   const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
@@ -290,8 +297,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
     ?? false,
   );
   const playerDirectInvitesEnabled = Boolean(
-    !isAdmin
-    && adminState.isPlayerInMatch
+    adminState.isPlayerInMatch
     && partidoActual?.player_invites_enabled === true
   );
 

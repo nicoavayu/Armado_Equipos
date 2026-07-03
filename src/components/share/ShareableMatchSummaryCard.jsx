@@ -277,68 +277,120 @@ const AwardsMosaic = ({ awards }) => {
   );
 };
 
-const ResultBlock = ({ result }) => (
-  <div
-    style={{
-      position: 'relative',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      gap: 16,
-      padding: '34px 28px',
-      borderRadius: 28,
-      border: `2px solid ${result.outcome === 'winner' ? 'rgba(245,196,81,0.5)' : 'rgba(148,134,255,0.34)'}`,
-      background: result.outcome === 'winner'
-        ? 'radial-gradient(460px 180px at 50% -40%, rgba(245,196,81,0.18), transparent 70%), linear-gradient(168deg, rgba(40,31,84,0.62), rgba(16,12,33,0.85))'
-        : 'linear-gradient(168deg, rgba(40,31,84,0.62), rgba(16,12,33,0.85))',
-    }}
-  >
-    <span
+const ResultBlock = ({ result }) => {
+  const winnerPlayers = Array.isArray(result.players) ? result.players : [];
+  const hasWinnerRoster = result.outcome === 'winner' && winnerPlayers.length > 0;
+  const winnerFontSize = winnerPlayers.length >= 5 ? 42 : (winnerPlayers.length >= 3 ? 48 : 54);
+
+  return (
+    <div
       style={{
-        color: 'rgba(244,246,255,0.55)',
-        fontFamily: bodyFont,
-        fontWeight: 700,
-        fontSize: 24,
-        letterSpacing: '0.3em',
+        position: 'relative',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 14,
+        padding: '30px 34px 34px',
+        borderRadius: 28,
+        border: `2px solid ${result.outcome === 'winner' ? 'rgba(245,196,81,0.5)' : 'rgba(148,134,255,0.34)'}`,
+        background: result.outcome === 'winner'
+          ? 'radial-gradient(460px 180px at 50% -40%, rgba(245,196,81,0.18), transparent 70%), linear-gradient(168deg, rgba(40,31,84,0.62), rgba(16,12,33,0.85))'
+          : 'linear-gradient(168deg, rgba(40,31,84,0.62), rgba(16,12,33,0.85))',
       }}
     >
-      RESULTADO
-    </span>
-    <span
-      style={{
-        color: result.outcome === 'winner' ? GOLD : '#ffffff',
-        fontFamily: headFont,
-        fontSize: 88,
-        lineHeight: 1,
-        letterSpacing: '0.03em',
-        textShadow: result.outcome === 'winner'
-          ? '0 0 30px rgba(245,196,81,0.45)'
-          : '0 0 24px rgba(139,92,255,0.5)',
-        whiteSpace: 'nowrap',
-      }}
-    >
-      {result.label}
-    </span>
-    {result.scoreline ? (
       <span
         style={{
-          padding: '10px 26px',
-          borderRadius: 999,
-          border: '1px solid rgba(255,255,255,0.16)',
-          background: 'rgba(12,10,29,0.7)',
-          color: '#ffffff',
-          fontFamily: headFont,
-          fontSize: 52,
-          lineHeight: 1,
-          letterSpacing: '0.08em',
-          whiteSpace: 'nowrap',
+          color: 'rgba(244,246,255,0.55)',
+          fontFamily: bodyFont,
+          fontWeight: 700,
+          fontSize: 24,
+          letterSpacing: '0.3em',
         }}
       >
-        {result.scoreline}
+        RESULTADO
       </span>
-    ) : null}
-  </div>
-);
+      {hasWinnerRoster ? (
+        <>
+          <span
+            style={{
+              color: GOLD,
+              fontFamily: headFont,
+              fontSize: 42,
+              lineHeight: 1,
+              letterSpacing: '0.1em',
+              textShadow: '0 0 24px rgba(245,196,81,0.4)',
+            }}
+          >
+            {result.heading || 'EQUIPO GANADOR'}
+          </span>
+          <div
+            style={{
+              width: '100%',
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              justifyContent: 'center',
+              columnGap: 12,
+              rowGap: 4,
+              color: '#ffffff',
+              fontFamily: bodyFont,
+              fontWeight: 700,
+              fontSize: winnerFontSize,
+              lineHeight: 1.16,
+              letterSpacing: '0.01em',
+              textAlign: 'center',
+              overflowWrap: 'anywhere',
+            }}
+          >
+            {winnerPlayers.map((name, index) => (
+              <React.Fragment key={`${name}-${index}`}>
+                <span>{name}</span>
+                {index < winnerPlayers.length - 1 ? (
+                  <span aria-hidden="true" style={{ color: 'rgba(245,196,81,0.7)' }}>·</span>
+                ) : null}
+              </React.Fragment>
+            ))}
+          </div>
+        </>
+      ) : (
+        <span
+          style={{
+            maxWidth: '100%',
+            color: result.outcome === 'winner' ? GOLD : '#ffffff',
+            fontFamily: headFont,
+            fontSize: result.outcome === 'draw' ? 78 : 64,
+            lineHeight: 1,
+            letterSpacing: '0.04em',
+            textAlign: 'center',
+            textShadow: result.outcome === 'winner'
+              ? '0 0 30px rgba(245,196,81,0.45)'
+              : '0 0 24px rgba(139,92,255,0.5)',
+          }}
+        >
+          {result.label}
+        </span>
+      )}
+      {result.scoreline ? (
+        <span
+          style={{
+            padding: '8px 24px',
+            borderRadius: 999,
+            border: '1px solid rgba(255,255,255,0.16)',
+            background: 'rgba(12,10,29,0.7)',
+            color: '#ffffff',
+            fontFamily: headFont,
+            fontSize: 46,
+            lineHeight: 1,
+            letterSpacing: '0.08em',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {result.scoreline}
+        </span>
+      ) : null}
+    </div>
+  );
+};
 
 const ShareableMatchSummaryCard = forwardRef(({ data }, ref) => {
   if (!data) return null;
@@ -377,12 +429,6 @@ const ShareableMatchSummaryCard = forwardRef(({ data }, ref) => {
 
       {/* Header */}
       <div style={{ position: 'relative', textAlign: 'center', marginBottom: 26 }}>
-        <img
-          src={logo}
-          alt="Arma2"
-          crossOrigin="anonymous"
-          style={{ height: 64, width: 'auto', objectFit: 'contain', marginBottom: 22 }}
-        />
         <div
           style={{
             color: '#ffffff',

@@ -184,6 +184,11 @@ const AdminPanelPage = () => {
     }
   };
 
+  const handleMatchChange = (updates) => {
+    if (!updates || typeof updates !== 'object') return;
+    setPartidoActual((prev) => (prev ? { ...prev, ...updates } : prev));
+  };
+
   if (loading) {
     return (
       <div className="min-h-[100dvh] w-full max-w-full overflow-x-clip flex items-center justify-center content-with-tabbar">
@@ -211,6 +216,7 @@ const AdminPanelPage = () => {
             partidoActual={partidoActual}
             jugadores={jugadoresDelPartido}
             onJugadoresChange={handleJugadoresChange}
+            onMatchChange={handleMatchChange}
             onBackToHome={() => goBackSmart({ fallback: '/' })}
           />
         </div>

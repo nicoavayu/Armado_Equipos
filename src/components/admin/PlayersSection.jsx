@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { PlayerCardTrigger } from '../ProfileComponents';
 import LoadingSpinner from '../LoadingSpinner';
 import ConfirmModal from '../ConfirmModal';
-import { LogOut, MoreVertical, UserPlus, X } from 'lucide-react';
+import { LogOut, MoreVertical, UserPlus, UserRound, X } from 'lucide-react';
 import WhatsappIcon from '../WhatsappIcon';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { openMatchCalendarInvite } from '../../utils/calendarInvite';
@@ -16,6 +16,7 @@ import {
   resolvePlayerKey,
   toPlayerKeysFromRefs,
 } from '../../services/surveyTeamsService';
+import { resolvePlayerInvitePermission } from '../../utils/matchInvitePermissions';
 
 const INVITE_ACCEPT_BUTTON_VIOLET = '#644dff';
 const SLOT_SKEW_X = 0;
@@ -422,6 +423,7 @@ const PlayersSection = ({
   processingAction: _processingAction,
   handleAbandon: _handleAbandon,
   invitationStatus,
+  onInviteFriends,
   onShareClick,
   onShareRosterUpdate,
   unirseAlPartido,
@@ -456,6 +458,17 @@ const PlayersSection = ({
   const previousCompleteRef = useRef(isTitularesComplete);
   const showInviteStylePostJoin = !isAdmin && isPlayerInMatch;
   const showInviteStyleRoster = !isAdmin;
+  const playerInvitePermission = resolvePlayerInvitePermission({
+    match: partidoActual,
+    currentUserId: user?.id,
+    membershipRows: jugadores,
+  });
+  const canInviteFriends = Boolean(
+    showInviteStylePostJoin
+    && playerInvitePermission.canInvite
+    && !playerInvitePermission.isClosed
+    && typeof onInviteFriends === 'function',
+  );
   const showViewTeamsButton = showInviteStylePostJoin
     && Boolean(guestConfirmedTeams.isAvailable || guestConfirmedTeams.hasConfirmedFlag);
   const hasActivePendingInvite = pendingInvitation && invitationStatus === 'pending';
@@ -1502,7 +1515,7 @@ const PlayersSection = ({
   if (!isAdmin) {
     return (
       <>
-        <div className="w-full flex flex-col pb-32">
+        <div className="w-full flex min-h-[calc(100dvh-345px)] flex-col pb-6">
           {showInviteStyleRoster ? (
             <div className="relative w-full max-w-full mx-auto mt-2 box-border min-h-[120px] min-w-0">
               {renderInviteStyleRoster(renderGuestActionsMenu())}
@@ -1550,7 +1563,7 @@ const PlayersSection = ({
             </div>
           )}
 
-          <div className={`w-full relative z-10 text-center ${showInviteStyleRoster ? 'px-2 mt-5' : 'px-4 mt-6'}`}>
+          <div className={`w-full relative z-10 text-center ${showInviteStyleRoster ? 'px-2 mt-auto pt-5' : 'px-4 mt-auto pt-6'}`}>
             {!showInviteStyleRoster && (!partidoActual.cupo_jugadores || (remainingTitularSlots !== null && remainingTitularSlots > 0)) && (
               <div className="mb-4 text-white/60 font-oswald text-sm">
                 {capacity
@@ -1562,6 +1575,19 @@ const PlayersSection = ({
             {showInviteStylePostJoin ? (
               <div className="w-full max-w-[340px] mx-auto px-2 sm:px-0 flex flex-col gap-2">
                 <div className="w-full border-t border-white/15 mb-1" aria-hidden="true" />
+                {canInviteFriends && (
+                  <button
+                    type="button"
+                    className={matchSecondaryButtonClass}
+                    onClick={onInviteFriends}
+                    aria-label="Invitar amigos"
+                  >
+                    <span className="inline-flex items-center justify-center gap-2">
+                      <UserRound size={18} strokeWidth={2.1} />
+                      <span>Invitar amigos</span>
+                    </span>
+                  </button>
+                )}
                 {showViewTeamsButton && (
                   <button
                     className={matchPrimaryButtonClass}

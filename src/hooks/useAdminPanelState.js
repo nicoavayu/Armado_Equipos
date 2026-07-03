@@ -9,6 +9,7 @@ import { notifyAdminPlayerJoined, notifyAdminPlayerLeft } from '../services/matc
 import { requestImmediatePushDispatchSafe } from '../services/pushDispatchService';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { sanitizeNotificationMatchName } from '../utils/notificationText';
+import { transferMatchAdmin } from '../services/db/matches';
 
 const BLOCKED_INVITE_STATUSES = new Set([
   'declined',
@@ -79,6 +80,7 @@ export const useAdminPanelState = ({
   user,
   isAdmin,
   onBackToHome,
+  onMatchChange,
 }) => {
   const [votantes, setVotantes] = useState([]);
   const [votantesConNombres, setVotantesConNombres] = useState([]);
@@ -778,49 +780,16 @@ export const useAdminPanelState = ({
     }
 
     try {
-      const { error } = await supabase
-        .from('partidos')
-        .update({ creado_por: jugador.usuario_id })
-        .eq('id', partidoActual.id);
+      await transferMatchAdmin({
+        partidoId: partidoActual.id,
+        newAdminUserId: jugador.usuario_id,
+      });
 
-      if (error) {
-        logger.error('[TRANSFER_ADMIN] Supabase update error:', error);
-        throw error;
-      }
-
-      partidoActual.creado_por = jugador.usuario_id;
-
-      const payload = {
-        user_id: jugador.usuario_id,
-        type: 'admin_transfer',
-        title: 'Eres el nuevo admin',
-        message: `Ahora eres admin del partido "${partidoActual.nombre || 'PARTIDO'}".`,
-        data: {
-          matchId: toBigIntId(partidoActual.id),
-          matchName: partidoActual.nombre,
-          newAdminId: jugador.usuario_id,
-          link: `/admin/${toBigIntId(partidoActual.id)}`,
-        },
-        read: false,
-      };
-
-      await supabase.from('notifications').insert([payload]);
-
-      // Trigger a minimal update to refresh admin panel (updated_at handled by trigger)
-      await supabase
-        .from('partidos')
-        .update({ creado_por: jugador.usuario_id })
-        .eq('id', partidoActual.id);
-
+      onMatchChange?.({ creado_por: jugador.usuario_id });
       onJugadoresChange([...jugadores]);
 
       setInlineNotice('success', `${jugador.nombre || 'El jugador'} ahora es admin del partido`);
-
-      // Don't reload page, let the modal stay open to show changes
-      setTimeout(() => {
-        window.location.reload();
-      }, 2000);
-
+      return true;
     } catch (error) {
       logger.error('[TRANSFER_ADMIN] Catch block error:', error);
       throw error;

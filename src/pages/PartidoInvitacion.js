@@ -2324,9 +2324,6 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
   const canShowRegisteredPlayerInviteButton = Boolean(
     joinStatus === 'approved'
     && playerInvitePermission.canInvite
-    && playerInvitePermission.isPlayer
-    && !playerInvitePermission.isAdmin
-    && playerInvitePermission.playerInvitesEnabled
     && !playerInvitePermission.isClosed,
   );
   const handleOpenRegisteredPlayerInviteModal = () => {
