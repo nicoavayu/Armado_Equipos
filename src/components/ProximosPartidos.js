@@ -29,7 +29,7 @@ import {
   formatPaymentAmount,
 } from '../utils/paymentStatus';
 import { buildMyMatchSections } from '../utils/myMatchesSections';
-import { canShareMatchSummary, buildMatchSummaryShareCardData } from '../utils/matchSummaryShare';
+import { buildMatchSummaryShareCardData } from '../utils/matchSummaryShare';
 import { useShareTeamsCard } from '../hooks/useShareTeamsCard';
 import { useNativeFeatures } from '../hooks/useNativeFeatures';
 import ShareableMatchSummaryCard from './share/ShareableMatchSummaryCard';
@@ -1238,28 +1238,33 @@ const ProximosPartidos = ({ onClose }) => {
     });
   };
 
-  // Direct share from the post-match card: fetches the roster on demand and
-  // reuses the same summary card + share flow as the results view.
-  const handleShareMatchSummary = async (partido, resultsRow) => {
+  // Direct share from the post-match card. The button was gated on a payload
+  // built with the SAME helper (see buildPostMatchInfo), so by the time this
+  // runs there is always something shareable: the roster fetch only enriches
+  // names/avatars and silently falls back to the gate payload if it fails.
+  const handleShareMatchSummary = async (partido, resultsRow, gateSummaryData = null) => {
     if (isSharingSummary) return;
+    let summaryData = gateSummaryData;
     try {
       const { data: rosterRows, error: rosterError } = await supabase
         .from('jugadores')
-        .select('id, uuid, usuario_id, nombre')
+        .select('*')
         .eq('partido_id', Number(partido.id));
       if (rosterError) throw rosterError;
 
-      const summaryData = buildMatchSummaryShareCardData({
+      const enriched = buildMatchSummaryShareCardData({
         partido,
         results: resultsRow,
         jugadores: rosterRows || [],
       });
+      if (enriched.isShareable) summaryData = enriched;
+    } catch (error) {
+      logger.warn('[PROXIMOS] share roster lookup failed, using gate payload', error);
+    }
 
-      if (!summaryData.isShareable) {
-        notifyBlockingError('El resumen todavía no está disponible para compartir.');
-        return;
-      }
+    if (!summaryData?.isShareable) return;
 
+    try {
       const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
       await shareSummaryCard(summaryData, {
         fileName: `resumen-arma2-${stamp}.png`,
@@ -1278,14 +1283,20 @@ const ProximosPartidos = ({ onClose }) => {
     const goEncuesta = () => { onClose(); navigate(`/encuesta/${partido.id}`, { state: detailNavigationState }); };
     const goPagos = () => { onClose(); navigate(`/pagos/${partido.id}`, { state: detailNavigationState }); };
 
-    // "Compartir resumen" solo cuando existen resultados reales de encuesta
-    // (results_ready + premios listos). Sin votos suficientes no hay acción.
+    // "Compartir resumen" solo cuando el MISMO payload que se compartiría ya
+    // es generable (mismo helper que el handler): si el botón aparece,
+    // compartir funciona; si falta data, el botón no se renderiza.
     const resultsRow = postMatchData.resultsByMatch[ctx.matchKey] || null;
-    const shareAction = canShareMatchSummary(resultsRow)
+    const gateSummaryData = buildMatchSummaryShareCardData({
+      partido,
+      results: resultsRow,
+      jugadores: [],
+    });
+    const shareAction = gateSummaryData.isShareable
       ? {
         label: isSharingSummary ? 'Generando…' : 'Compartir resumen',
         disabled: isSharingSummary,
-        onClick: () => handleShareMatchSummary(partido, resultsRow),
+        onClick: () => handleShareMatchSummary(partido, resultsRow, gateSummaryData),
       }
       : null;
 
