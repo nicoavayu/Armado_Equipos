@@ -44,6 +44,13 @@ describe('getNextHomeAction', () => {
     expect(action.route).toBe('/route/falta_jugadores');
   });
 
+  test('carries the source activity item id so Home can hide that row', () => {
+    const action = getNextHomeAction({
+      activityItems: [item('falta_jugadores')],
+    });
+    expect(action.sourceActivityId).toBe('activity-falta_jugadores-1');
+  });
+
   test('votes beat surveys, surveys beat results', () => {
     const action = getNextHomeAction({
       activityItems: [

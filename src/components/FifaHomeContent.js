@@ -334,6 +334,14 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
     paymentAction: paymentsNextStepAction,
   }), [activityItems, awardsReadyVisibleMatchIds, awardsRingLoading, paymentsNextStepAction]);
 
+  // The next-step card is the richer version of the activity item it was
+  // promoted from, so that exact row is hidden in Recent Activity (other
+  // events of the same match still show).
+  const visibleActivityItems = useMemo(() => {
+    if (!nextStepAction?.sourceActivityId) return activityItems;
+    return activityItems.filter((item) => item?.id !== nextStepAction.sourceActivityId);
+  }, [activityItems, nextStepAction]);
+
   const handleNextStepClick = async (action) => {
     if (!action?.route) return;
 
@@ -1156,12 +1164,12 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
                   </div>
                 ))}
               </div>
-            ) : activityItems.length > 0 ? (
+            ) : visibleActivityItems.length > 0 ? (
               <div
                 className="home-activity-scroll min-h-0 flex-1 overflow-y-auto custom-scrollbar pb-7"
                 data-home-activity-scroll="true"
               >
-                {activityItems.map((item, index) => {
+                {visibleActivityItems.map((item, index) => {
                   const itemKey = getRecentActivityItemKey(item);
                   const Icon = activityIconMap[item.icon] || Bell;
                   const iconColorClass = severityIconClass[item.severity] || severityIconClass.neutral;
@@ -1229,7 +1237,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
                         )}
                       </button>
 
-                      {index < activityItems.length - 1 && (
+                      {index < visibleActivityItems.length - 1 && (
                         <div className="h-px bg-white/[0.06] mx-4" />
                       )}
                     </SwipeDismissibleActivityItem>
@@ -1251,7 +1259,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
             )}
           </div>
           {/* Fade sutil al pie: sugiere que el panel scrollea sin parecer una cajita web */}
-          {!activityLoading && activityItems.length > 0 && (
+          {!activityLoading && visibleActivityItems.length > 0 && (
             <div
               aria-hidden
               className="pointer-events-none absolute inset-x-0 bottom-0 h-7 rounded-b-card bg-[linear-gradient(to_top,rgba(16,12,33,0.96),rgba(16,12,33,0.5)_45%,transparent)] z-[1]"

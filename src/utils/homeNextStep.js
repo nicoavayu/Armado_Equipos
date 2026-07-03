@@ -127,6 +127,9 @@ const toCandidateFromActivityItem = (item, {
   return {
     key: `next-step-${item.type}-${item.partidoId ?? item.id}`,
     type: item.type,
+    // Id of the activity item this action was promoted from, so Home can hide
+    // that exact row in Recent Activity (the card is the richer version of it).
+    sourceActivityId: item.id ?? null,
     partidoId: item.partidoId ?? null,
     route: item.route,
     createdAt: item.createdAt || null,

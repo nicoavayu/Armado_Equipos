@@ -643,7 +643,15 @@ export const buildHomeNotificationText = (notification, match) => {
   }
 
   if (type === 'falta_jugadores') {
-    const subtitle = buildSubtitle(hourLabel || venueLabel);
+    // Prefix the hour with the relative day ("hoy 19:30") when the match date
+    // is actually parseable — this line doubles as the next-step card copy.
+    const parsedDate = parseLocalDateTime(
+      match?.fecha || notification?.data?.fecha || notification?.fecha,
+      match?.hora || notification?.data?.hora || notification?.hora,
+    );
+    const dayLabel = parsedDate ? resolveRelativeDayLabel(match, notification, type) : '';
+    const hourWithDay = hourLabel && dayLabel ? `${dayLabel} ${hourLabel}` : hourLabel;
+    const subtitle = buildSubtitle(hourWithDay || venueLabel);
     if (!subtitle) return null;
 
     const missingRaw = notification?.data?.missingPlayers
