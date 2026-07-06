@@ -1042,7 +1042,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
 
       {/* Header elements - Avatar and Notifications */}
       {user && (
-        <div className="relative left-1/2 right-1/2 ml-[-50vw] mr-[-50vw] w-screen mb-3 px-4 py-3 bg-[#120e28]/92 border-y border-[rgba(148,134,255,0.14)] rounded-none ui-flat shadow-[0_10px_28px_rgba(5,3,16,0.4)] after:content-[''] after:absolute after:bottom-0 after:left-0 after:right-0 after:h-px after:bg-[linear-gradient(90deg,transparent_8%,rgba(139,92,255,0.5)_42%,rgba(236,0,125,0.35)_66%,transparent_92%)]">
+        <div className="relative left-1/2 right-1/2 ml-[-50vw] mr-[-50vw] w-screen shrink-0 mb-3 px-4 py-3 bg-[#120e28]/92 border-y border-[rgba(148,134,255,0.14)] rounded-none ui-flat shadow-[0_10px_28px_rgba(5,3,16,0.4)] after:content-[''] after:absolute after:bottom-0 after:left-0 after:right-0 after:h-px after:bg-[linear-gradient(90deg,transparent_8%,rgba(139,92,255,0.5)_42%,rgba(236,0,125,0.35)_66%,transparent_92%)]">
           <div className="w-full max-w-[920px] mx-auto flex items-center justify-between">
             <div className="flex flex-row items-center justify-center cursor-pointer relative z-[10000]" ref={statusDropdownRef}>
             <div className="relative mr-4" onClick={handleAvatarClick}>
@@ -1165,8 +1165,6 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
         </div>
       )}
 
-      <h3 className="section-title" style={{ marginBottom: 8 }}>Accesos rápidos</h3>
-
       <QuickAccessRail items={quickAccessItems} />
 
       {/* Next-action card — only when a real, valid pending action exists */}
@@ -1180,7 +1178,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
 
       {/* Recent Activity */}
       {/* Top spacing comes from the grid's mb-7; flex items don't collapse margins */}
-      <section className="mb-2 flex-1 flex flex-col min-h-0">
+      <section className="mb-2 flex-auto flex flex-col min-h-0">
         <h3 className="section-title" style={{ marginBottom: 20 }}>Actividad reciente</h3>
 
         <div className="surface-card rounded-card overflow-hidden flex-1 flex flex-col min-h-0 relative">
