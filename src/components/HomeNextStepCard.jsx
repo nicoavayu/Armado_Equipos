@@ -36,7 +36,7 @@ const HomeNextStepCard = ({ action, onOpen, onPrefetch }) => {
   };
 
   return (
-    <section className="mb-4 a2-rise">
+    <section className="mb-4 shrink-0 a2-rise">
       <button
         type="button"
         onClick={() => onOpen?.(action)}

@@ -612,7 +612,7 @@ const QuickAccessRail = ({ items = [] }) => {
   );
 
   return (
-    <div className="-mx-4 mb-3">
+    <div className="-mx-4 mb-3 shrink-0">
       <style>{`
         .qa-gesture-zone {
           /* keep vertical page scroll, but the horizontal axis is ours */
