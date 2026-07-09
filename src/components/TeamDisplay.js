@@ -24,7 +24,11 @@ import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import InlineNotice from './ui/InlineNotice';
 import useInlineNotice from '../hooks/useInlineNotice';
 import ConfirmModal from './ConfirmModal';
-import { buildBalancedTeams } from '../utils/teamBalancer';
+import {
+  buildBalancedTeams,
+  resolveFixedGoalkeepers,
+  shouldExcludeGoalkeeperScores,
+} from '../utils/teamBalancer';
 import buildTeamsShareCardData from '../utils/buildTeamsShareCardData';
 import ShareableTeamsCard from './share/ShareableTeamsCard';
 import { useShareTeamsCard } from '../hooks/useShareTeamsCard';
@@ -484,6 +488,28 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
       return acc + (Number.isFinite(numericScore) ? numericScore : 0);
     }, 0);
 
+  const isGoalkeeperKey = (playerKey) => Boolean(getPlayerDetails(playerKey)?.is_goalkeeper);
+
+  // Misma regla del armado: con un arquero por equipo, sus puntajes quedan
+  // fuera del score de cada equipo; si quedan juntos, cálculo normal.
+  const applyGoalkeeperAwareScores = (teams) => {
+    const teamA = teams.find((team) => team.id === 'equipoA');
+    const teamB = teams.find((team) => team.id === 'equipoB');
+    const excludeGoalkeepers = shouldExcludeGoalkeeperScores({
+      teamAKeys: getNormalizedTeamPlayers(teamA),
+      teamBKeys: getNormalizedTeamPlayers(teamB),
+      isGoalkeeper: isGoalkeeperKey,
+    });
+    return teams.map((team) => {
+      if (team.id !== 'equipoA' && team.id !== 'equipoB') return team;
+      const playerKeys = getNormalizedTeamPlayers(team);
+      const scoredKeys = excludeGoalkeepers
+        ? playerKeys.filter((key) => !isGoalkeeperKey(key))
+        : playerKeys;
+      return { ...team, score: calculateTeamScore(scoredKeys) };
+    });
+  };
+
   const persistTeams = (newTeams) => {
     flushSync(() => {
       setRealtimeTeams(newTeams);
@@ -696,6 +722,11 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
           score: getPlayerDetails(playerKey)?.score,
         })),
         lockedAssignments: lockedPlayersMap,
+        fixedGoalkeepers: resolveFixedGoalkeepers({
+          playerKeys: allPlayers,
+          isGoalkeeper: isGoalkeeperKey,
+          lockedAssignments: lockedPlayersMap,
+        }),
         teamAName: teamA.name || 'Equipo A',
         teamBName: teamB.name || 'Equipo B',
         getPlayerKey: (player) => player?.key,
@@ -959,7 +990,6 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
         nextTeams[i] = {
           ...nextTeams[i],
           players: reordered,
-          score: calculateTeamScore(reordered),
         };
       }
     } else {
@@ -987,13 +1017,11 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
           nextTeams[i] = {
             ...nextTeams[i],
             players: nextSourcePlayers,
-            score: calculateTeamScore(nextSourcePlayers),
           };
         } else if (nextTeams[i].id === destinationTeamId) {
           nextTeams[i] = {
             ...nextTeams[i],
             players: nextTargetPlayers,
-            score: calculateTeamScore(nextTargetPlayers),
           };
         }
       }
@@ -1026,7 +1054,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
       }
     }
 
-    persistTeams(nextTeams);
+    persistTeams(applyGoalkeeperAwareScores(nextTeams));
   };
 
   // Shares the formed teams as a designed image (instead of plain text).

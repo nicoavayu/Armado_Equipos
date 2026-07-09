@@ -264,6 +264,41 @@ export const buildBalancedTeams = ({
   };
 };
 
+// Regla de arqueros para Randomizar en TeamDisplay: se activa solo con
+// exactamente 2 arqueros marcados. Si el admin bloqueó a los dos en el mismo
+// equipo, el lock manda y se randomiza con el comportamiento normal.
+export const resolveFixedGoalkeepers = ({
+  playerKeys = [],
+  isGoalkeeper = () => false,
+  lockedAssignments = {},
+} = {}) => {
+  const goalkeeperKeys = Array.from(new Set(
+    (playerKeys || [])
+      .map((key) => String(key || '').trim())
+      .filter(Boolean),
+  )).filter((key) => Boolean(isGoalkeeper(key)));
+  if (goalkeeperKeys.length !== 2) return [];
+
+  const lockedByKey = normalizeLockedAssignments(lockedAssignments);
+  const lockedTeams = goalkeeperKeys.map((key) => lockedByKey.get(key));
+  if (lockedTeams[0] && lockedTeams[0] === lockedTeams[1]) return [];
+
+  return goalkeeperKeys;
+};
+
+// La diferencia visual excluye a los arqueros solo mientras quede uno por
+// equipo; si un movimiento manual los junta, vuelve el cálculo normal.
+export const shouldExcludeGoalkeeperScores = ({
+  teamAKeys = [],
+  teamBKeys = [],
+  isGoalkeeper = () => false,
+} = {}) => {
+  const countGoalkeepers = (keys) => (keys || [])
+    .filter((key) => Boolean(isGoalkeeper(key)))
+    .length;
+  return countGoalkeepers(teamAKeys) === 1 && countGoalkeepers(teamBKeys) === 1;
+};
+
 export const splitMatchPlayersForVotingAndTeams = (players = []) => {
   const allPlayers = Array.isArray(players) ? players : [];
   const activePlayers = allPlayers.filter((player) => player?.is_substitute !== true);
