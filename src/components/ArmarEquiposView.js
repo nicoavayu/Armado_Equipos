@@ -27,6 +27,7 @@ import { useNativeFeatures } from '../hooks/useNativeFeatures';
 import { sendVotingNotifications } from '../services/notificationService';
 import { requestImmediatePushDispatchSafe } from '../services/pushDispatchService';
 import ConfirmModal from '../components/ConfirmModal';
+import GoalkeeperSelectModal from '../components/GoalkeeperSelectModal';
 import { buildBalancedTeams, splitMatchPlayersForVotingAndTeams } from '../utils/teamBalancer';
 import { MoreVertical, RotateCcw } from 'lucide-react';
 import { analyzeTeamsAgainstRoster } from '../utils/teamRosterValidity';
@@ -93,6 +94,7 @@ export default function ArmarEquiposView({
   const [resetting, setResetting] = useState(false);
   const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
   const [confirmConfig, setConfirmConfig] = useState({ open: false, action: null });
+  const [goalkeeperModalOpen, setGoalkeeperModalOpen] = useState(false);
   const [votingStarted, setVotingStarted] = useState(false);
   const [estadoOverride, setEstadoOverride] = useState(null); // Override local para estado después de reset
   const [playerToRemove, setPlayerToRemove] = useState(null); // Para modal de eliminación
@@ -785,7 +787,7 @@ export default function ArmarEquiposView({
     window.location.href = whatsappWebUrl;
   }
 
-  async function handleCerrarVotacion() {
+  async function handleCerrarVotacion(fixedGoalkeepers = []) {
     if (isClosing) {
       showInlineNotice('info', 'Operación en progreso, esperá un momento.');
       return;
@@ -833,6 +835,25 @@ export default function ArmarEquiposView({
         throw new Error('No se recibió respuesta del cierre de votación');
       }
 
+      // Persistir arqueros marcados por el admin (arquero "en este partido").
+      // Va después del cierre porque closeVotingAndCalculateScores reescribe
+      // is_goalkeeper a partir de los votos.
+      const goalkeeperUuids = (fixedGoalkeepers || [])
+        .map((player) => String(player?.uuid || '').trim())
+        .filter(Boolean);
+      if (goalkeeperUuids.length > 0) {
+        try {
+          const { error: gkError } = await supabase
+            .from('jugadores')
+            .update({ is_goalkeeper: true })
+            .eq('partido_id', partidoActual.id)
+            .in('uuid', goalkeeperUuids);
+          if (gkError) throw gkError;
+        } catch (gkPersistError) {
+          logger.warn('[Teams] could not persist fixed goalkeepers (non-blocking)', gkPersistError);
+        }
+      }
+
       // Obtener jugadores actualizados
       const matchPlayers = await getJugadoresDelPartido(partidoActual.id);
 
@@ -852,8 +873,12 @@ export default function ArmarEquiposView({
         throw new Error('Se necesita un número par de titulares para formar equipos.');
       }
 
-      // Crear equipos balanceados
-      const teams = armarEquipos(playersForTeams);
+      // Crear equipos balanceados (la regla de arqueros fijos solo se activa
+      // dentro del balanceador cuando hay exactamente 2 seleccionados)
+      const fixedGoalkeeperKeys = (fixedGoalkeepers || [])
+        .map((player) => String(player?.uuid || player?.id || player?.usuario_id || '').trim())
+        .filter(Boolean);
+      const teams = armarEquipos(playersForTeams, fixedGoalkeeperKeys);
 
       if (!teams || teams.length !== 2) {
         throw new Error('Error al crear los equipos');
@@ -909,9 +934,10 @@ export default function ArmarEquiposView({
   }
 
   // Función para armar equipos (copiada del AdminPanel original)
-  function armarEquipos(jugadores) {
+  function armarEquipos(jugadores, fixedGoalkeepers = []) {
     const result = buildBalancedTeams({
       players: jugadores,
+      fixedGoalkeepers,
       getPlayerKey: (player) => String(player?.uuid || player?.id || player?.usuario_id || '').trim(),
       getPlayerScore: (player) => player?.score,
       getPlayerName: (player) => player?.nombre,
@@ -1284,12 +1310,23 @@ export default function ArmarEquiposView({
             : 'No se detectaron votos. Los equipos se formarán con puntajes por defecto.'}
           onConfirm={() => {
             setConfirmConfig({ open: false, action: null });
-            handleCerrarVotacion();
+            setGoalkeeperModalOpen(true);
           }}
           onCancel={() => setConfirmConfig({ open: false, action: null })}
           confirmText={'Confirmar'}
           cancelText={'Cancelar'}
           isDeleting={isClosing}
+        />
+
+        <GoalkeeperSelectModal
+          isOpen={goalkeeperModalOpen}
+          players={splitMatchPlayersForVotingAndTeams(jugadores).teamPlayers}
+          onDismiss={() => setGoalkeeperModalOpen(false)}
+          onConfirm={(selectedGoalkeepers) => {
+            setGoalkeeperModalOpen(false);
+            handleCerrarVotacion(selectedGoalkeepers);
+          }}
+          isProcessing={isClosing}
         />
 
         <ConfirmModal
