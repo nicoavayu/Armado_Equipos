@@ -1447,6 +1447,13 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                                       {player.nombre}
                                     </span>
 
+                                    {/* Arquero de este partido: chip chico y sobrio */}
+                                    {Boolean(player.is_goalkeeper) && (
+                                      <span className="shrink-0 pointer-events-none font-bebas text-[10px] font-bold tracking-[0.08em] leading-none text-[#FDB022] px-1.5 py-[3px] rounded-[5px] border border-[#FDB022]/55 bg-[#FDB022]/10 shadow-[0_0_6px_rgba(253,176,34,0.25)]">
+                                        ARQ
+                                      </span>
+                                    )}
+
                                     {/* Drag affordance (visual only: the whole row is the handle) */}
                                     {isAdmin && !teamsConfirmed && !isLocked ? (
                                       <GripVertical size={15} className="shrink-0 text-white/30 pointer-events-none" aria-hidden="true" />
