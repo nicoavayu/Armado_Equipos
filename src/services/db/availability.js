@@ -41,7 +41,6 @@ export const saveMyAvailability = async (input) => {
     p_latitude: normalized.latitude,
     p_longitude: normalized.longitude,
   });
-
   if (error) throw error;
   return data;
 };
@@ -53,7 +52,6 @@ export const cancelMyAvailability = async () => {
 
 export const getMyActiveAvailability = async (userId) => {
   if (!userId) return null;
-
   const { data, error } = await supabase
     .from('player_availability')
     .select('*')
@@ -62,19 +60,46 @@ export const getMyActiveAvailability = async (userId) => {
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
-
   if (error) throw error;
   return data || null;
 };
 
 export const findMyAvailabilityMatches = async (limit = 30) => {
   const safeLimit = Math.max(1, Math.min(100, Math.round(Number(limit) || 30)));
-  const { data, error } = await supabase.rpc('find_my_availability_matches', {
-    p_limit: safeLimit,
-  });
-
+  const { data, error } = await supabase.rpc('find_my_availability_matches', { p_limit: safeLimit });
   if (error) throw error;
   return data || [];
+};
+
+export const createMyAutoMatchProposal = async (format) => {
+  const normalized = String(format || '').toUpperCase();
+  if (!ALLOWED_FORMATS.includes(normalized)) throw new Error('Elegí un formato válido.');
+  const { data, error } = await supabase.rpc('create_my_auto_match_proposal', { p_format: normalized });
+  if (error) throw error;
+  return data;
+};
+
+export const respondToAutoMatchProposal = async (proposalId, response) => {
+  const normalized = String(response || '').toLowerCase();
+  if (!['accepted', 'declined'].includes(normalized)) throw new Error('Respuesta inválida.');
+  const { data, error } = await supabase.rpc('respond_to_auto_match_proposal', {
+    p_proposal_id: Number(proposalId),
+    p_response: normalized,
+  });
+  if (error) throw error;
+  return data;
+};
+
+export const getMyActiveProposals = async (userId) => {
+  if (!userId) return [];
+  const { data: memberships, error: membershipError } = await supabase
+    .from('auto_match_proposal_members')
+    .select('proposal_id, response, auto_match_proposals(*)')
+    .eq('user_id', userId);
+  if (membershipError) throw membershipError;
+  return (memberships || [])
+    .map((row) => ({ ...row.auto_match_proposals, my_response: row.response }))
+    .filter((proposal) => proposal?.id && ['collecting', 'ready'].includes(proposal.status));
 };
 
 export const buildMatchOpportunitySummary = (matches = [], preferredFormats = []) => {
@@ -86,7 +111,7 @@ export const buildMatchOpportunitySummary = (matches = [], preferredFormats = []
   }
 
   const formats = [...new Set(preferredFormats)].filter((format) => ALLOWED_FORMATS.includes(format));
-  const candidates = formats.map((format) => {
+  return formats.map((format) => {
     const playersNeeded = Number(format.slice(1)) * 2;
     const compatiblePlayers = (countsByFormat.get(format) || 0) + 1;
     return {
@@ -96,9 +121,7 @@ export const buildMatchOpportunitySummary = (matches = [], preferredFormats = []
       missingPlayers: Math.max(0, playersNeeded - compatiblePlayers),
       ready: compatiblePlayers >= playersNeeded,
     };
-  });
-
-  return candidates.sort((a, b) => (
+  }).sort((a, b) => (
     Number(b.ready) - Number(a.ready)
     || a.missingPlayers - b.missingPlayers
     || a.playersNeeded - b.playersNeeded
