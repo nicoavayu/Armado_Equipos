@@ -9,22 +9,39 @@ const toCoordinate = (value) => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
+// ISO weekdays: 1 = lunes … 7 = domingo.
+const ALLOWED_DAYS = [1, 2, 3, 4, 5, 6, 7];
+
+// 'HH:MM' -> minutes since midnight. '24:00' is a valid end-of-day bound.
+const timeToMinutes = (value) => {
+  const match = /^([01]?\d|2[0-4]):([0-5]\d)$/.exec(String(value || '').trim());
+  if (!match) return null;
+  const minutes = Number(match[1]) * 60 + Number(match[2]);
+  return minutes > 24 * 60 ? null : minutes;
+};
+
 export const normalizeAvailabilityInput = (input = {}) => {
-  const startsAt = new Date(input.startsAt);
-  const endsAt = new Date(input.endsAt);
+  const days = [...new Set((input.days || []).map((value) => Number(value)))]
+    .filter((value) => ALLOWED_DAYS.includes(value))
+    .sort((a, b) => a - b);
+  const timeStart = timeToMinutes(input.timeStart);
+  const timeEnd = timeToMinutes(input.timeEnd);
   const formats = [...new Set((input.formats || []).map((value) => String(value).toUpperCase()))]
     .filter((value) => ALLOWED_FORMATS.includes(value));
   const maxDistanceKm = Math.max(1, Math.min(50, Math.round(Number(input.maxDistanceKm) || 8)));
   const latitude = toCoordinate(input.latitude);
   const longitude = toCoordinate(input.longitude);
 
-  if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) {
-    throw new Error('Elegí un día y horario válidos.');
+  if (days.length === 0) {
+    throw new Error('Elegí al menos un día de la semana.');
   }
-  if (endsAt <= startsAt) {
+  if (timeStart === null || timeEnd === null) {
+    throw new Error('Elegí un rango horario válido.');
+  }
+  if (timeEnd <= timeStart) {
     throw new Error('El horario de finalización debe ser posterior al inicio.');
   }
-  if (endsAt.getTime() - startsAt.getTime() < 60 * 60 * 1000) {
+  if (timeEnd - timeStart < 60) {
     // The whole matching pipeline requires 60 shared minutes, so shorter
     // windows could never produce a match.
     throw new Error('La franja tiene que durar al menos una hora.');
@@ -34,8 +51,9 @@ export const normalizeAvailabilityInput = (input = {}) => {
   }
 
   return {
-    startsAt: startsAt.toISOString(),
-    endsAt: endsAt.toISOString(),
+    days,
+    timeStart: String(input.timeStart).trim(),
+    timeEnd: String(input.timeEnd).trim(),
     formats,
     maxDistanceKm,
     latitude,
@@ -46,8 +64,9 @@ export const normalizeAvailabilityInput = (input = {}) => {
 export const saveMyAvailability = async (input) => {
   const normalized = normalizeAvailabilityInput(input);
   const { data, error } = await supabase.rpc('upsert_my_availability', {
-    p_starts_at: normalized.startsAt,
-    p_ends_at: normalized.endsAt,
+    p_days: normalized.days,
+    p_time_start: normalized.timeStart,
+    p_time_end: normalized.timeEnd,
     p_formats: normalized.formats,
     p_max_distance_km: normalized.maxDistanceKm,
     p_latitude: normalized.latitude,

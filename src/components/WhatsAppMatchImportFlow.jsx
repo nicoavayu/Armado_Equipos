@@ -175,30 +175,33 @@ export default function WhatsAppMatchImportFlow({ onCreated, onBack }) {
   };
 
   return (
-    <div className="relative min-h-[100dvh] overflow-hidden pb-10 text-white">
+    // -mt cancels MainLayout's safe-top padding: this view owns the full offset
+    // (fixed header + content padding), so the safe area is never counted twice.
+    <div className="relative mt-[calc(var(--safe-top,0px)*-1)] min-h-[100dvh] overflow-hidden pb-10 text-white">
       <ImportBackground />
-      <PageTitle title="IMPORTAR DESDE WHATSAPP" onBack={onBack}>IMPORTAR DESDE WHATSAPP</PageTitle>
+      <PageTitle respectSafeArea title="IMPORTAR DESDE WHATSAPP" onBack={onBack}>IMPORTAR DESDE WHATSAPP</PageTitle>
 
-      <main className="relative z-10 mx-auto w-full max-w-[560px] px-4 pb-[max(28px,var(--safe-bottom,0px))] pt-24 font-oswald">
+      <main className="relative z-10 mx-auto w-full max-w-[560px] px-4 pb-[max(28px,var(--safe-bottom,0px))] pt-[calc(var(--safe-top,0px)+92px)] font-oswald">
         {!draft ? (
-          <section className={`${CARD} overflow-hidden p-4 sm:p-5`}>
-            <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
-            <div className="mb-5 text-center">
+          <section>
+            <div className="mb-6 text-center">
               <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border border-[#9b7bff]/30 bg-[#6a43ff]/16 text-[#c8baff] shadow-[0_12px_34px_rgba(70,35,175,0.32)]">
                 <MessageCircle size={23} strokeWidth={1.8} />
               </div>
               <p className="font-oswald text-[10px] font-semibold uppercase tracking-[0.22em] text-[#a98cff]">Asistente de creación</p>
-              <h2 className="mt-1 font-bebas-real text-[36px] leading-none tracking-[0.035em] text-white">PEGÁ LA CONVERSACIÓN</h2>
+              <h2 className="mt-1 font-bebas-real text-[clamp(34px,9.5vw,42px)] leading-[0.95] tracking-[0.035em] text-white drop-shadow-[0_8px_26px_rgba(5,2,20,0.7)]">
+                PEGÁ LA CONVERSACIÓN
+              </h2>
               <p className="mx-auto mt-2 max-w-[410px] font-oswald text-[12.5px] leading-relaxed text-white/52">
                 Arma2 detecta la información principal y prepara un borrador. Nada se crea sin tu revisión.
               </p>
             </div>
 
-            <div className="rounded-2xl border border-[rgba(148,134,255,0.22)] bg-[#090715]/88 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]">
+            <div className="rounded-2xl border border-[rgba(148,134,255,0.26)] bg-[#090715]/88 p-1 shadow-[0_16px_44px_rgba(5,2,22,0.34),inset_0_1px_0_rgba(255,255,255,0.035)]">
               <textarea
                 value={rawText}
                 onChange={(event) => setRawText(event.target.value)}
-                rows={12}
+                rows={11}
                 placeholder={'Ejemplo:\nJueves 22 en La Terraza, F7. Sale 10 lucas.\nNico: Voy\nSeba: Estoy en duda'}
                 className="w-full resize-none rounded-[14px] border-0 bg-transparent p-3 font-sans text-[13px] leading-relaxed text-white outline-none placeholder:text-white/23"
                 aria-label="Mensajes de WhatsApp"
@@ -220,7 +223,7 @@ export default function WhatsAppMatchImportFlow({ onCreated, onBack }) {
               type="button"
               onClick={analyze}
               disabled={!rawText.trim()}
-              className={`${PRIMARY_CTA_BUTTON_CLASS} mt-4 !min-h-[50px] !rounded-2xl !font-bebas-real !text-[18px] !tracking-[0.04em]`}
+              className={`${PRIMARY_CTA_BUTTON_CLASS} mt-4 !min-h-[50px]`}
             >
               <Sparkles size={18} className="mr-2" />
               Analizar mensajes
@@ -346,7 +349,7 @@ export default function WhatsAppMatchImportFlow({ onCreated, onBack }) {
                 type="button"
                 disabled={loading}
                 onClick={createImportedMatch}
-                className={`${PRIMARY_CTA_BUTTON_CLASS} !min-h-[50px] !rounded-2xl !font-bebas-real !text-[18px] !tracking-[0.04em]`}
+                className={`${PRIMARY_CTA_BUTTON_CLASS} !min-h-[50px]`}
               >
                 {loading ? 'Creando…' : 'Crear partido'}
               </button>

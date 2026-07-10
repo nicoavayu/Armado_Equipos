@@ -4,69 +4,73 @@ import {
 } from '../services/db/availability';
 
 describe('availability MVP', () => {
-  test('normalizes formats, distance and coordinates', () => {
+  const base = {
+    days: [1, 3, 5],
+    timeStart: '20:00',
+    timeEnd: '23:00',
+    formats: ['F5'],
+  };
+
+  test('normalizes days, formats, distance and coordinates', () => {
     const result = normalizeAvailabilityInput({
-      startsAt: '2026-07-11T20:00:00-03:00',
-      endsAt: '2026-07-11T23:00:00-03:00',
+      days: ['5', 1, 1, 3, 9],
+      timeStart: '20:00',
+      timeEnd: '23:00',
       formats: ['f5', 'F7', 'F7', 'unknown'],
       maxDistanceKm: 90,
       latitude: '-34.6037',
       longitude: '-58.3816',
     });
 
+    expect(result.days).toEqual([1, 3, 5]);
+    expect(result.timeStart).toBe('20:00');
+    expect(result.timeEnd).toBe('23:00');
     expect(result.formats).toEqual(['F5', 'F7']);
     expect(result.maxDistanceKm).toBe(50);
     expect(result.latitude).toBe(-34.6037);
     expect(result.longitude).toBe(-58.3816);
   });
 
-  test('rejects an invalid time window', () => {
-    expect(() => normalizeAvailabilityInput({
-      startsAt: '2026-07-11T23:00:00-03:00',
-      endsAt: '2026-07-11T20:00:00-03:00',
-      formats: ['F5'],
-    })).toThrow('posterior al inicio');
+  test('accepts 24:00 as an end-of-day bound', () => {
+    const result = normalizeAvailabilityInput({ ...base, timeStart: '22:00', timeEnd: '24:00' });
+    expect(result.timeEnd).toBe('24:00');
   });
 
-  test('rejects unparseable dates', () => {
-    expect(() => normalizeAvailabilityInput({
-      startsAt: 'no es una fecha',
-      endsAt: '2026-07-11T23:00:00-03:00',
-      formats: ['F5'],
-    })).toThrow('día y horario válidos');
+  test('rejects empty or invalid day lists', () => {
+    expect(() => normalizeAvailabilityInput({ ...base, days: [] })).toThrow('al menos un día');
+    expect(() => normalizeAvailabilityInput({ ...base, days: [0, 8] })).toThrow('al menos un día');
+  });
+
+  test('rejects an inverted time range', () => {
+    expect(() => normalizeAvailabilityInput({ ...base, timeStart: '23:00', timeEnd: '20:00' }))
+      .toThrow('posterior al inicio');
+  });
+
+  test('rejects unparseable times', () => {
+    expect(() => normalizeAvailabilityInput({ ...base, timeStart: 'no es hora' }))
+      .toThrow('rango horario válido');
+    expect(() => normalizeAvailabilityInput({ ...base, timeEnd: '24:30' }))
+      .toThrow('rango horario válido');
   });
 
   test('rejects windows shorter than one hour', () => {
-    expect(() => normalizeAvailabilityInput({
-      startsAt: '2026-07-11T20:00:00-03:00',
-      endsAt: '2026-07-11T20:30:00-03:00',
-      formats: ['F5'],
-    })).toThrow('al menos una hora');
+    expect(() => normalizeAvailabilityInput({ ...base, timeStart: '20:00', timeEnd: '20:30' }))
+      .toThrow('al menos una hora');
   });
 
   test('rejects empty or unknown-only format lists', () => {
-    expect(() => normalizeAvailabilityInput({
-      startsAt: '2026-07-11T20:00:00-03:00',
-      endsAt: '2026-07-11T23:00:00-03:00',
-      formats: ['F4', 'F12'],
-    })).toThrow('al menos un formato');
+    expect(() => normalizeAvailabilityInput({ ...base, formats: ['F4', 'F12'] }))
+      .toThrow('al menos un formato');
   });
 
   test('clamps distance to the minimum and defaults NaN', () => {
-    const base = {
-      startsAt: '2026-07-11T20:00:00-03:00',
-      endsAt: '2026-07-11T23:00:00-03:00',
-      formats: ['F5'],
-    };
     expect(normalizeAvailabilityInput({ ...base, maxDistanceKm: 0.4 }).maxDistanceKm).toBe(1);
     expect(normalizeAvailabilityInput({ ...base, maxDistanceKm: 'nada' }).maxDistanceKm).toBe(8);
   });
 
   test('treats empty or invalid coordinates as missing, never 0,0', () => {
     const result = normalizeAvailabilityInput({
-      startsAt: '2026-07-11T20:00:00-03:00',
-      endsAt: '2026-07-11T23:00:00-03:00',
-      formats: ['F5'],
+      ...base,
       latitude: '',
       longitude: 'NaN',
     });

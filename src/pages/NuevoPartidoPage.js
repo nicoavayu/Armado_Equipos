@@ -1,14 +1,13 @@
 import logger from '../utils/logger';
 import React, { useState } from 'react';
 import {
-  ArrowLeft,
   ChevronRight,
   MessageCircle,
   PencilLine,
-  Sparkles,
 } from 'lucide-react';
 import { useAnimatedNavigation } from '../hooks/useAnimatedNavigation';
 import FormularioNuevoPartidoFlow from './FormularioNuevoPartidoFlow';
+import PageTitle from '../components/PageTitle';
 import WhatsAppMatchImportFlow from '../components/WhatsAppMatchImportFlow';
 
 const PickerBackground = () => (
@@ -47,7 +46,7 @@ const MethodCard = ({ icon, eyebrow, title, description, badge, onClick, feature
             </span>
           ) : null}
         </span>
-        <strong className="mt-1 block font-bebas-real text-[27px] leading-none tracking-[0.035em] text-white">
+        <strong className="mt-1 block font-oswald text-[16.5px] font-bold uppercase leading-[1.2] tracking-[0.05em] text-white">
           {title}
         </strong>
         <span className="mt-2 block max-w-[390px] font-oswald text-[12.5px] leading-[1.35] text-white/52">
@@ -63,31 +62,15 @@ const MethodCard = ({ icon, eyebrow, title, description, badge, onClick, feature
 );
 
 const NewMatchMethodPicker = ({ onManual, onWhatsApp, onBack }) => (
-  <div className="relative min-h-[100dvh] overflow-hidden font-oswald text-white">
+  // -mt cancels MainLayout's safe-top padding: this view owns the full offset
+  // (fixed header + content padding), so the safe area is never counted twice.
+  <div className="relative mt-[calc(var(--safe-top,0px)*-1)] min-h-[100dvh] overflow-hidden font-oswald text-white">
     <PickerBackground />
 
-    <header className="relative z-30 border-b border-[rgba(148,134,255,0.14)] bg-[#0d0a1f]/88 px-[max(16px,var(--safe-left,0px))] pb-2.5 pt-[max(10px,var(--safe-top,0px))] backdrop-blur-xl">
-      <div className="relative mx-auto flex min-h-10 w-full max-w-[560px] items-center justify-between">
-        <button
-          type="button"
-          onClick={onBack}
-          className="relative z-10 flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white transition-all hover:bg-white/10 active:scale-95"
-          aria-label="Volver al inicio"
-        >
-          <ArrowLeft size={20} strokeWidth={2.2} />
-        </button>
-        <h1 className="absolute inset-x-12 m-0 text-center font-oswald text-[15px] font-semibold uppercase tracking-[0.14em] text-white/90">
-          Nuevo partido
-        </h1>
-        <span className="h-10 w-10" aria-hidden="true" />
-      </div>
-    </header>
+    <PageTitle respectSafeArea title="NUEVO PARTIDO" onBack={onBack}>NUEVO PARTIDO</PageTitle>
 
-    <main className="relative z-10 mx-auto flex min-h-[calc(100dvh-64px)] w-full max-w-[560px] flex-col justify-center px-4 pb-[max(34px,var(--safe-bottom,0px))] pt-8 sm:pt-10">
-      <div className="mb-7 text-center">
-        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border border-[#9b7bff]/30 bg-[#6a43ff]/15 text-[#c8baff] shadow-[0_12px_35px_rgba(64,32,160,0.3)]">
-          <Sparkles size={22} strokeWidth={1.8} />
-        </div>
+    <main className="relative z-10 mx-auto w-full max-w-[560px] px-4 pb-[max(34px,var(--safe-bottom,0px))] pt-[calc(var(--safe-top,0px)+96px)]">
+      <div className="mb-6 text-center">
         <p className="font-oswald text-[10px] font-semibold uppercase tracking-[0.23em] text-[#a98cff]">
           Elegí el punto de partida
         </p>
