@@ -2,9 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
-  CalendarClock,
   Check,
-  ChevronRight,
   Clock3,
   MapPin,
   Search,
@@ -221,7 +219,6 @@ export default function AvailabilityOpportunityCard() {
     () => buildMatchOpportunitySummary(matches, availability?.formats || formats),
     [availability?.formats, formats, matches],
   );
-  const best = opportunities[0] || null;
   // A proposal the user already declined shouldn't block creating a new one.
   const hasBlockingProposal = proposals.some((proposal) => proposal.my_response !== 'declined');
 
@@ -321,31 +318,14 @@ export default function AvailabilityOpportunityCard() {
 
   const endOptions = END_HOURS.filter((option) => toMinutes(option) - toMinutes(timeStart) >= 60);
 
+  // The flow opens only via the Home carousel deep link (/quiero-jugar?auto=1);
+  // the Jugar tab no longer shows its own floating trigger.
+  if (!open) return null;
+
   // Portal to body: PageTransition keeps a transform on its wrapper, which
   // turns it into the containing block for position:fixed descendants.
   return ReactDOM.createPortal(
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="fixed bottom-[calc(84px+var(--safe-bottom,0px))] right-4 z-30 flex min-h-[48px] max-w-[calc(100vw-32px)] items-center gap-2.5 overflow-hidden rounded-full border border-[#9b7bff]/35 bg-[radial-gradient(130px_60px_at_12%_-30%,rgba(255,255,255,0.18),transparent_72%),linear-gradient(135deg,rgba(106,67,255,0.97),rgba(58,27,143,0.98))] px-3.5 pr-4 text-left text-white shadow-[0_16px_42px_rgba(41,18,112,0.58),inset_0_1px_0_rgba(255,255,255,0.2)] transition-all active:scale-[0.97]"
-      >
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/10">
-          {availability ? <Search size={16} /> : <CalendarClock size={16} />}
-        </span>
-        <span className="min-w-0">
-          <span className="block font-oswald text-[9px] font-semibold uppercase tracking-[0.13em] text-white/58">
-            Partido automático
-          </span>
-          <span className="block truncate font-oswald text-[12.5px] font-bold leading-tight text-white">
-            {availability
-              ? (best ? `${best.compatiblePlayers}/${best.playersNeeded} para ${best.format}` : 'Disponibilidad activa')
-              : 'Estoy disponible'}
-          </span>
-        </span>
-        <ChevronRight size={16} className="shrink-0 text-white/55" />
-      </button>
-
       {open ? (
         <div
           role="dialog"

@@ -12,6 +12,7 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 
 import PageTitle from './PageTitle';
+import VenuePicker from './VenuePicker';
 import { useAuth } from './AuthProvider';
 import { crearPartido, supabase } from '../supabase';
 import logger from '../utils/logger';
@@ -23,11 +24,11 @@ import {
   MATCH_TIME_RANGE_MESSAGE,
 } from '../lib/matchDateDebug';
 import { PRIMARY_CTA_BUTTON_CLASS } from '../styles/buttonClasses';
+import { AUTH_REQUIRED_MESSAGE } from '../services/db/availability';
 import { parseWhatsAppMatchText, WHATSAPP_ALLOWED_FORMATS } from '../utils/whatsappMatchParser';
 
 const CUPOS = { F5: 10, F6: 12, F7: 14, F8: 16, F9: 18, F11: 22 };
 const INPUT = 'h-[50px] w-full rounded-2xl border border-[rgba(148,134,255,0.3)] bg-[rgba(13,10,30,0.82)] px-4 font-oswald text-[16px] text-white outline-none backdrop-blur-md transition-all placeholder:text-white/30 focus:border-[#8b7cff] focus:bg-[rgba(22,17,48,0.95)] focus:ring-2 focus:ring-[#6a43ff]/20';
-const CARD = 'rounded-card border border-[rgba(148,134,255,0.2)] bg-[linear-gradient(160deg,rgba(42,32,89,0.74),rgba(13,10,30,0.94))] shadow-[0_18px_50px_rgba(4,2,16,0.38),inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-md';
 
 const namesToRows = (value) => String(value || '')
   .split(/[,\n]/)
@@ -72,6 +73,7 @@ export default function WhatsAppMatchImportFlow({ onCreated, onBack }) {
   const { user, profile } = useAuth();
   const [rawText, setRawText] = useState('');
   const [draft, setDraft] = useState(null);
+  const [sedeInfo, setSedeInfo] = useState(null);
   const [confirmedText, setConfirmedText] = useState('');
   const [doubtfulText, setDoubtfulText] = useState('');
   const [error, setError] = useState('');
@@ -85,6 +87,7 @@ export default function WhatsAppMatchImportFlow({ onCreated, onBack }) {
     try {
       const parsed = parseWhatsAppMatchText(rawText);
       setDraft(parsed);
+      setSedeInfo(null);
       setConfirmedText(parsed.confirmedPlayers.join(', '));
       setDoubtfulText(parsed.doubtfulPlayers.join(', '));
       setError('');
@@ -119,12 +122,20 @@ export default function WhatsAppMatchImportFlow({ onCreated, onBack }) {
     setLoading(true);
     setError('');
     try {
+      // partidos INSERT is RLS-gated to authenticated sessions; a missing or
+      // expired token would surface as a raw "row-level security" error.
+      const { data: { session } = {} } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        setError(AUTH_REQUIRED_MESSAGE);
+        return;
+      }
+
       const partido = await crearPartido({
         match_ref: uuidv4(),
         nombre: draft.nombre.trim(),
         fecha: draft.fecha,
         hora,
-        ...buildMatchLocationFields({ locationText: draft.sede, locationInfo: null }),
+        ...buildMatchLocationFields({ locationText: draft.sede, locationInfo: sedeInfo }),
         modalidad: draft.modalidad,
         cupo_jugadores: CUPOS[draft.modalidad] || 10,
         falta_jugadores: true,
@@ -168,7 +179,10 @@ export default function WhatsAppMatchImportFlow({ onCreated, onBack }) {
         source: 'whatsapp_text',
       });
     } catch (err) {
-      setError(err.message || 'No se pudo crear el partido importado.');
+      const message = String(err?.message || '');
+      setError(/row-level security|permission denied|jwt/i.test(message)
+        ? AUTH_REQUIRED_MESSAGE
+        : (message || 'No se pudo crear el partido importado.'));
     } finally {
       setLoading(false);
     }
@@ -181,7 +195,7 @@ export default function WhatsAppMatchImportFlow({ onCreated, onBack }) {
       <ImportBackground />
       <PageTitle respectSafeArea title="IMPORTAR DESDE WHATSAPP" onBack={onBack}>IMPORTAR DESDE WHATSAPP</PageTitle>
 
-      <main className="relative z-10 mx-auto w-full max-w-[560px] px-4 pb-[max(28px,var(--safe-bottom,0px))] pt-[calc(var(--safe-top,0px)+92px)] font-oswald">
+      <main className="relative z-10 mx-auto w-full max-w-[560px] px-4 pb-[max(28px,var(--safe-bottom,0px))] pt-[calc(var(--safe-top,0px)+80px)] font-oswald">
         {!draft ? (
           <section>
             <div className="mb-6 text-center">
@@ -231,85 +245,101 @@ export default function WhatsAppMatchImportFlow({ onCreated, onBack }) {
           </section>
         ) : (
           <section className="space-y-3">
-            <div className={`${CARD} relative overflow-hidden p-4 sm:p-5`}>
-              <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
-              <div className="mb-4 flex items-start justify-between gap-3">
-                <div>
-                  <div className="flex items-center gap-2 font-oswald text-[10px] font-semibold uppercase tracking-[0.18em] text-[#aa94ff]">
-                    <CheckCircle2 size={15} /> Borrador detectado
-                  </div>
-                  <h2 className="mt-1 font-bebas-real text-[32px] leading-none tracking-[0.035em] text-white">REVISÁ EL PARTIDO</h2>
-                  <p className="mt-1.5 font-oswald text-[11.5px] leading-relaxed text-white/48">Corregí cualquier dato antes de crear.</p>
-                </div>
-                <span className="rounded-full border border-[#9b7bff]/25 bg-[#6a43ff]/12 px-2.5 py-1 font-sans text-[9px] font-bold uppercase tracking-[0.1em] text-[#cfc4ff]">
-                  Editable
-                </span>
+            <div className="mb-4">
+              <div className="flex items-center gap-2 font-oswald text-[10px] font-semibold uppercase tracking-[0.18em] text-[#aa94ff]">
+                <CheckCircle2 size={15} /> Borrador detectado
+              </div>
+              <h2 className="mt-1 font-bebas-real text-[clamp(34px,9.5vw,42px)] leading-[0.95] tracking-[0.035em] text-white drop-shadow-[0_8px_26px_rgba(5,2,20,0.7)]">
+                REVISÁ EL PARTIDO
+              </h2>
+              <p className="mt-1.5 font-oswald text-[12px] leading-relaxed text-white/48">Corregí cualquier dato antes de crear.</p>
+            </div>
+
+            <DetectedSummary
+              draft={draft}
+              confirmedCount={confirmedNames.length}
+              doubtfulCount={doubtfulNames.length}
+            />
+
+            <div className="grid grid-cols-1 gap-3 pt-2 sm:grid-cols-2">
+              <label className="sm:col-span-2">
+                <FieldLabel>Nombre</FieldLabel>
+                <input className={INPUT} value={draft.nombre} onChange={(event) => updateDraft('nombre', event.target.value)} />
+              </label>
+              <label>
+                <FieldLabel>Fecha</FieldLabel>
+                <input type="date" className={INPUT} value={draft.fecha} onChange={(event) => updateDraft('fecha', event.target.value)} />
+              </label>
+              <label>
+                <FieldLabel>Hora</FieldLabel>
+                <input type="time" className={INPUT} value={draft.hora} onChange={(event) => updateDraft('hora', event.target.value)} />
+              </label>
+
+              <div className="relative z-20 overflow-visible sm:col-span-2">
+                <FieldLabel>Cancha o lugar</FieldLabel>
+                <VenuePicker
+                  value={draft.sede}
+                  info={sedeInfo}
+                  onChange={(nextValue) => {
+                    updateDraft('sede', nextValue);
+                    setSedeInfo((currentInfo) => {
+                      if (!nextValue.trim()) return null;
+                      const currentDescription = String(currentInfo?.description || '').trim();
+                      return currentDescription && currentDescription === nextValue.trim()
+                        ? currentInfo
+                        : null;
+                    });
+                  }}
+                  onSelect={(info) => {
+                    updateDraft('sede', info.description);
+                    setSedeInfo(info);
+                  }}
+                  onClear={() => {
+                    updateDraft('sede', '');
+                    setSedeInfo(null);
+                  }}
+                />
               </div>
 
-              <DetectedSummary
-                draft={draft}
-                confirmedCount={confirmedNames.length}
-                doubtfulCount={doubtfulNames.length}
-              />
-
-              <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <label className="sm:col-span-2">
-                  <FieldLabel>Nombre</FieldLabel>
-                  <input className={INPUT} value={draft.nombre} onChange={(event) => updateDraft('nombre', event.target.value)} />
-                </label>
-                <label>
-                  <FieldLabel>Fecha</FieldLabel>
-                  <input type="date" className={INPUT} value={draft.fecha} onChange={(event) => updateDraft('fecha', event.target.value)} />
-                </label>
-                <label>
-                  <FieldLabel>Hora</FieldLabel>
-                  <input type="time" className={INPUT} value={draft.hora} onChange={(event) => updateDraft('hora', event.target.value)} />
-                </label>
-                <label className="sm:col-span-2">
-                  <FieldLabel>Cancha o lugar</FieldLabel>
-                  <input className={INPUT} value={draft.sede} onChange={(event) => updateDraft('sede', event.target.value)} />
-                </label>
-
-                <div className="sm:col-span-2">
-                  <FieldLabel>Formato</FieldLabel>
-                  <div className="grid grid-cols-6 gap-1.5">
-                    {WHATSAPP_ALLOWED_FORMATS.map((format) => {
-                      const active = draft.modalidad === format;
-                      return (
-                        <button
-                          type="button"
-                          key={format}
-                          onClick={() => updateDraft('modalidad', format)}
-                          className={`min-h-11 rounded-xl border font-oswald text-[13px] font-bold transition-all active:scale-[0.98] ${active
-                            ? 'border-[#9b7bff] bg-[linear-gradient(145deg,rgba(112,48,255,0.62),rgba(57,24,132,0.8))] text-white shadow-[0_8px_22px_rgba(75,38,180,0.3)]'
-                            : 'border-white/10 bg-white/[0.035] text-white/45 hover:border-[#9b7bff]/35 hover:text-white/70'}`}
-                        >
-                          {format}
-                        </button>
-                      );
-                    })}
-                  </div>
+              <div className="sm:col-span-2">
+                <FieldLabel>Formato</FieldLabel>
+                <div className="grid grid-cols-6 gap-1.5">
+                  {WHATSAPP_ALLOWED_FORMATS.map((format) => {
+                    const active = draft.modalidad === format;
+                    return (
+                      <button
+                        type="button"
+                        key={format}
+                        onClick={() => updateDraft('modalidad', format)}
+                        className={`min-h-11 rounded-xl border font-oswald text-[13px] font-bold transition-all active:scale-[0.98] ${active
+                          ? 'border-[#9b7bff] bg-[linear-gradient(145deg,rgba(112,48,255,0.62),rgba(57,24,132,0.8))] text-white shadow-[0_8px_22px_rgba(75,38,180,0.3)]'
+                          : 'border-white/10 bg-white/[0.035] text-white/45 hover:border-[#9b7bff]/35 hover:text-white/70'}`}
+                      >
+                        {format}
+                      </button>
+                    );
+                  })}
                 </div>
-
-                <label className="sm:col-span-2">
-                  <FieldLabel>Precio por persona</FieldLabel>
-                  <input
-                    inputMode="numeric"
-                    className={INPUT}
-                    value={draft.precioPorPersona || ''}
-                    placeholder="Opcional"
-                    onChange={(event) => updateDraft('precioPorPersona', Number(event.target.value) || null)}
-                  />
-                </label>
-                <label className="sm:col-span-2">
-                  <FieldLabel>Confirmados</FieldLabel>
-                  <textarea rows={3} className={`${INPUT} h-auto min-h-[92px] py-3`} value={confirmedText} onChange={(event) => setConfirmedText(event.target.value)} />
-                </label>
-                <label className="sm:col-span-2">
-                  <FieldLabel>En duda</FieldLabel>
-                  <textarea rows={2} className={`${INPUT} h-auto min-h-[72px] py-3`} value={doubtfulText} onChange={(event) => setDoubtfulText(event.target.value)} />
-                </label>
               </div>
+
+              <label className="sm:col-span-2">
+                <FieldLabel>Precio por persona</FieldLabel>
+                <input
+                  inputMode="numeric"
+                  className={INPUT}
+                  value={draft.precioPorPersona || ''}
+                  placeholder="Opcional"
+                  onChange={(event) => updateDraft('precioPorPersona', Number(event.target.value) || null)}
+                />
+              </label>
+              <label className="sm:col-span-2">
+                <FieldLabel>Confirmados</FieldLabel>
+                <textarea rows={3} className={`${INPUT} h-auto min-h-[92px] py-3`} value={confirmedText} onChange={(event) => setConfirmedText(event.target.value)} />
+              </label>
+              <label className="sm:col-span-2">
+                <FieldLabel>En duda</FieldLabel>
+                <textarea rows={2} className={`${INPUT} h-auto min-h-[72px] py-3`} value={doubtfulText} onChange={(event) => setDoubtfulText(event.target.value)} />
+              </label>
             </div>
 
             {warnings.length ? (

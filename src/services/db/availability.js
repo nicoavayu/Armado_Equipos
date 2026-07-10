@@ -2,6 +2,25 @@ import { supabase } from '../../lib/supabaseClient';
 
 const ALLOWED_FORMATS = ['F5', 'F6', 'F7', 'F8', 'F9', 'F11'];
 
+export const AUTH_REQUIRED_MESSAGE = 'Necesitás una sesión activa. Volvé a iniciar sesión e intentá de nuevo.';
+
+// The backend RPCs are granted to `authenticated` only. If the local session
+// is missing/expired the request goes out as `anon` and Postgres answers with
+// "permission denied" / RLS violations; surface that as a re-login prompt
+// instead of a raw database error.
+const requireSession = async () => {
+  const { data: { session } = {} } = await supabase.auth.getSession();
+  if (!session?.access_token) throw new Error(AUTH_REQUIRED_MESSAGE);
+};
+
+const mapAuthError = (error) => {
+  const message = String(error?.message || '');
+  if (error?.code === '42501' || /permission denied|row-level security|jwt|not_authenticated/i.test(message)) {
+    return new Error(AUTH_REQUIRED_MESSAGE);
+  }
+  return error;
+};
+
 const toCoordinate = (value) => {
   // Number('') and Number(null) are 0, which would pin the user to 0,0.
   if (value === null || value === undefined || value === '') return null;
@@ -63,6 +82,7 @@ export const normalizeAvailabilityInput = (input = {}) => {
 
 export const saveMyAvailability = async (input) => {
   const normalized = normalizeAvailabilityInput(input);
+  await requireSession();
   const { data, error } = await supabase.rpc('upsert_my_availability', {
     p_days: normalized.days,
     p_time_start: normalized.timeStart,
@@ -72,13 +92,14 @@ export const saveMyAvailability = async (input) => {
     p_latitude: normalized.latitude,
     p_longitude: normalized.longitude,
   });
-  if (error) throw error;
+  if (error) throw mapAuthError(error);
   return data;
 };
 
 export const cancelMyAvailability = async () => {
+  await requireSession();
   const { error } = await supabase.rpc('cancel_my_availability');
-  if (error) throw error;
+  if (error) throw mapAuthError(error);
 };
 
 export const getMyActiveAvailability = async (userId) => {
@@ -97,27 +118,30 @@ export const getMyActiveAvailability = async (userId) => {
 
 export const findMyAvailabilityMatches = async (limit = 30) => {
   const safeLimit = Math.max(1, Math.min(100, Math.round(Number(limit) || 30)));
+  await requireSession();
   const { data, error } = await supabase.rpc('find_my_availability_matches', { p_limit: safeLimit });
-  if (error) throw error;
+  if (error) throw mapAuthError(error);
   return data || [];
 };
 
 export const createMyAutoMatchProposal = async (format) => {
   const normalized = String(format || '').toUpperCase();
   if (!ALLOWED_FORMATS.includes(normalized)) throw new Error('Elegí un formato válido.');
+  await requireSession();
   const { data, error } = await supabase.rpc('create_my_auto_match_proposal', { p_format: normalized });
-  if (error) throw error;
+  if (error) throw mapAuthError(error);
   return data;
 };
 
 export const respondToAutoMatchProposal = async (proposalId, response) => {
   const normalized = String(response || '').toLowerCase();
   if (!['accepted', 'declined'].includes(normalized)) throw new Error('Respuesta inválida.');
+  await requireSession();
   const { data, error } = await supabase.rpc('respond_to_auto_match_proposal', {
     p_proposal_id: Number(proposalId),
     p_response: normalized,
   });
-  if (error) throw error;
+  if (error) throw mapAuthError(error);
   return data;
 };
 

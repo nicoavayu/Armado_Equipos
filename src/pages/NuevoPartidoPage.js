@@ -71,10 +71,7 @@ const NewMatchMethodPicker = ({ onManual, onWhatsApp, onBack }) => (
 
     <main className="relative z-10 mx-auto w-full max-w-[560px] px-4 pb-[max(34px,var(--safe-bottom,0px))] pt-[calc(var(--safe-top,0px)+96px)]">
       <div className="mb-6 text-center">
-        <p className="font-oswald text-[10px] font-semibold uppercase tracking-[0.23em] text-[#a98cff]">
-          Elegí el punto de partida
-        </p>
-        <h2 className="mt-1 font-bebas-real text-[clamp(38px,11vw,54px)] leading-[0.9] tracking-[0.035em] text-white drop-shadow-[0_8px_26px_rgba(5,2,20,0.7)]">
+        <h2 className="font-bebas-real text-[clamp(38px,11vw,54px)] leading-[0.9] tracking-[0.035em] text-white drop-shadow-[0_8px_26px_rgba(5,2,20,0.7)]">
           ¿CÓMO QUERÉS CREARLO?
         </h2>
         <p className="mx-auto mt-3 max-w-[420px] font-oswald text-[13px] leading-relaxed text-white/52">
@@ -85,19 +82,18 @@ const NewMatchMethodPicker = ({ onManual, onWhatsApp, onBack }) => (
       <div className="space-y-3">
         <MethodCard
           featured
-          icon={<MessageCircle />}
-          eyebrow="Asistente de creación"
-          title="IMPORTAR DESDE WHATSAPP"
-          description="Pegá la conversación. Arma2 detecta los datos principales y te deja revisar todo antes de crear."
-          badge="Nuevo"
-          onClick={onWhatsApp}
-        />
-        <MethodCard
           icon={<PencilLine />}
           eyebrow="Flujo clásico"
           title="CREAR MANUALMENTE"
           description="Completá nombre, modalidad, fecha, lugar y cupo con el recorrido paso a paso."
           onClick={onManual}
+        />
+        <MethodCard
+          icon={<MessageCircle />}
+          eyebrow="Asistente de creación"
+          title="IMPORTAR DESDE WHATSAPP"
+          description="Pegá la conversación. Arma2 detecta los datos principales y te deja revisar todo antes de crear."
+          onClick={onWhatsApp}
         />
       </div>
 
