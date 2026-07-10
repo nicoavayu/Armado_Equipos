@@ -30,15 +30,17 @@ const parseSpeakerLine = (line) => {
   const cleaned = normalizeSpaces(line)
     .replace(/^\[[^\]]+\]\s*/, '')
     .replace(/^\d{1,2}\/\d{1,2}\/\d{2,4},?\s+\d{1,2}:\d{2}(?::\d{2})?\s*(?:-|–)?\s*/, '');
-  const match = cleaned.match(/^([^:]{2,40}):\s*(.+)$/);
-  if (!match) return { speaker: null, message: cleaned };
-  return { speaker: normalizeSpaces(match[1]), message: normalizeSpaces(match[2]) };
+  // WhatsApp always puts a space after the speaker colon; requiring it keeps
+  // clock times like "jueves 22:00" from being read as "speaker: message".
+  const match = cleaned.match(/^([^:]{2,40}):\s+(.+)$/);
+  if (!match) return { speaker: null, message: cleaned, cleaned };
+  return { speaker: normalizeSpaces(match[1]), message: normalizeSpaces(match[2]), cleaned };
 };
 
 const nextWeekday = (now, weekdayIndex) => {
   const result = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0, 0);
-  let daysAhead = (weekdayIndex - result.getDay() + 7) % 7;
-  if (daysAhead === 0) daysAhead = 7;
+  // "jueves" written on a Thursday means today; the draft stays editable anyway.
+  const daysAhead = (weekdayIndex - result.getDay() + 7) % 7;
   result.setDate(result.getDate() + daysAhead);
   return result;
 };
@@ -55,7 +57,7 @@ const parseDate = (normalizedText, now) => {
     return { value: toYmd(base), confidence: 'high' };
   }
 
-  const numeric = lower.match(/\b(\d{1,2})[\/-](\d{1,2})(?:[\/-](\d{2,4}))?\b/);
+  const numeric = lower.match(/\b(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?\b/);
   if (numeric) {
     const day = Number(numeric[1]);
     const month = Number(numeric[2]) - 1;
@@ -94,25 +96,36 @@ const normalizeHour = (hour, minute, period) => {
   let normalizedHour = Number(hour);
   if (!Number.isFinite(normalizedHour) || normalizedHour > 23 || Number(minute) > 59) return '';
   const normalizedPeriod = stripAccents(period || '').toLowerCase();
-  if (normalizedPeriod === 'pm' && normalizedHour < 12) normalizedHour += 12;
-  if (normalizedPeriod === 'am' && normalizedHour === 12) normalizedHour = 0;
+  const isAm = normalizedPeriod === 'am' || /\bmanana\b/.test(normalizedPeriod);
+  const isPm = normalizedPeriod === 'pm' || /\b(?:tarde|noche)\b/.test(normalizedPeriod);
+  if (isPm && normalizedHour < 12) normalizedHour += 12;
+  if (isAm && normalizedHour === 12) normalizedHour = 0;
+  // Without am/pm context, a bare 7-11 in a football chat almost always means
+  // evening ("a las 9" = 21:00). The draft form lets the user correct it.
   if (!normalizedPeriod && normalizedHour >= 7 && normalizedHour <= 11) normalizedHour += 12;
   return `${pad2(normalizedHour)}:${pad2(Number(minute) || 0)}`;
 };
 
+const TIME_PERIOD = '(am|pm|hs?|h|de\\s+la\\s+(?:manana|tarde|noche))';
+
 const parseTime = (normalizedText) => {
   const lower = stripAccents(normalizedText).toLowerCase();
-  const explicit = lower.match(/(?:a\s+las\s+|tipo\s+)?\b(\d{1,2})[:.](\d{2})\s*(am|pm|hs?|h)?\b/);
+  const explicit = lower.match(new RegExp(`(?:a\\s+las\\s+|tipo\\s+)?\\b(\\d{1,2})[:.](\\d{2})\\s*${TIME_PERIOD}?\\b`));
   if (explicit) {
     return { value: normalizeHour(explicit[1], explicit[2], explicit[3]), confidence: 'high' };
   }
-  const half = lower.match(/(?:a\s+las\s+|tipo\s+)\b(\d{1,2})\s+y\s+media\b/);
+  const half = lower.match(new RegExp(`(?:a\\s+las\\s+|tipo\\s+)\\b(\\d{1,2})\\s+y\\s+media\\s*${TIME_PERIOD}?\\b`));
   if (half) {
-    return { value: normalizeHour(half[1], 30, ''), confidence: 'medium' };
+    return { value: normalizeHour(half[1], 30, half[2]), confidence: 'medium' };
   }
-  const bare = lower.match(/(?:a\s+las\s+|tipo\s+)\b(\d{1,2})\s*(am|pm|hs?|h)?\b/);
+  const bare = lower.match(new RegExp(`(?:a\\s+las\\s+|tipo\\s+)\\b(\\d{1,2})\\s*${TIME_PERIOD}?\\b`));
   if (bare) {
     return { value: normalizeHour(bare[1], 0, bare[2]), confidence: bare[2] ? 'high' : 'medium' };
+  }
+  // "21 hs" / "22hs" without "a las": the suffix alone is explicit enough.
+  const suffixed = lower.match(/\b(\d{1,2})\s*(hs|h)\b/);
+  if (suffixed) {
+    return { value: normalizeHour(suffixed[1], 0, suffixed[2]), confidence: 'medium' };
   }
   return { value: '', confidence: 'missing' };
 };
@@ -133,11 +146,16 @@ const parsePrice = (normalizedText) => {
   return null;
 };
 
+const VENUE_STATUS_LINE = /\b(?:en\s+duda|dudosos?|no\s+(?:van|pueden|voy|puedo)|se\s+bajan?|confirmados?|me\s+bajo)\b/i;
+
 const parseVenue = (normalizedText) => {
   const candidates = normalizedText.split(/\n|\.|;/).map(normalizeSpaces).filter(Boolean);
   for (const candidate of candidates) {
-    const match = candidate.match(/\ben\s+([^,]+?)(?=\s+(?:f(?:utbol)?\s*\d+|sale|somos|a\s+las|\d{1,2}[:.]\d{2}|$))/i);
-    if (match && normalizeSpaces(match[1]).length >= 3) return normalizeSpaces(match[1]);
+    if (VENUE_STATUS_LINE.test(stripAccents(candidate))) continue;
+    const match = candidate.match(/\ben\s+([^,]+?)(?=\s+(?:f(?:utbol)?\s*\d+|sale|somos|a\s+las|\d{1,2}[:.]\d{2})|\s*,|\s*$)/i);
+    if (!match) continue;
+    const venue = normalizeSpaces(match[1]).replace(/[.!?…]+$/, '');
+    if (venue.length >= 3 && !/^\d+$/.test(venue)) return venue;
   }
   return '';
 };
@@ -145,8 +163,12 @@ const parseVenue = (normalizedText) => {
 const splitNames = (value) => String(value || '')
   .replace(/\b(?:y|e)\b/gi, ',')
   .split(/[,;\n]/)
-  .map((name) => normalizeSpaces(name.replace(/^(?:van|somos|confirmados?|se\s+suman?|sum[aá]|agreg[aá])\s*:?(?:\s+a)?\s*/i, '')))
-  .filter((name) => name.length >= 2 && name.length <= 45);
+  .map((name) => normalizeSpaces(
+    name
+      .replace(/^(?:van|somos|confirmados?|se\s+suman?|sum[aá]|agreg[aá])\s*:?(?:\s+a)?\s*/i, '')
+      .replace(/[.!?…]+$/, ''),
+  ))
+  .filter((name) => name.length >= 2 && name.length <= 45 && !/^\d+$/.test(name));
 
 const uniqueNames = (values) => {
   const seen = new Set();
@@ -164,23 +186,25 @@ const parsePlayers = (lines) => {
   const declined = [];
 
   lines.forEach((line) => {
-    const { speaker, message } = parseSpeakerLine(line);
+    const { speaker, message, cleaned } = parseSpeakerLine(line);
     const lower = stripAccents(message).toLowerCase();
 
     if (speaker && /^(voy|me\s+sumo|confirmo|estoy|cuenten\s+conmigo)\b/.test(lower)) confirmed.push(speaker);
     if (speaker && /^(no\s+voy|no\s+puedo|me\s+bajo|baja)\b/.test(lower)) declined.push(speaker);
     if (speaker && /^(en\s+duda|veo|te\s+confirmo|quizas|puede\s+ser)\b/.test(lower)) doubtful.push(speaker);
 
-    const confirmedGroup = message.match(/\b(?:van|somos|confirmados?|se\s+suman?)\s*:?[\s-]+(.+)/i);
+    // Group lists keep their keyword before the colon ("Confirmados: Nico y
+    // Pato"), so they must be matched against the whole line, not the message.
+    const confirmedGroup = cleaned.match(/\b(?:van|somos|confirmados?|se\s+suman?)\s*:?[\s-]+(.+)/i);
     if (confirmedGroup) confirmed.push(...splitNames(confirmedGroup[1]));
 
-    const addOne = message.match(/\b(?:suma|sumá|agrega|agregá|anota|anotá)\s+a\s+(.+)/i);
+    const addOne = cleaned.match(/\b(?:suma|sumá|agrega|agregá|anota|anotá)\s+a\s+(.+)/i);
     if (addOne) confirmed.push(...splitNames(addOne[1]));
 
-    const doubtGroup = message.match(/\b(?:en\s+duda|dudosos?)\s*:?[\s-]+(.+)/i);
+    const doubtGroup = cleaned.match(/\b(?:en\s+duda|dudosos?)\s*:?[\s-]+(.+)/i);
     if (doubtGroup) doubtful.push(...splitNames(doubtGroup[1]));
 
-    const declinedGroup = message.match(/\b(?:no\s+pueden|no\s+van|se\s+bajan?)\s*:?[\s-]+(.+)/i);
+    const declinedGroup = cleaned.match(/\b(?:no\s+pueden|no\s+van|se\s+bajan?)\s*:?[\s-]+(.+)/i);
     if (declinedGroup) declined.push(...splitNames(declinedGroup[1]));
   });
 
@@ -219,6 +243,7 @@ export const parseWhatsAppMatchText = (rawText, options = {}) => {
   if (!date.value) warnings.push('No encontramos una fecha clara.');
   if (!time.value) warnings.push('No encontramos un horario claro.');
   if (!venue) warnings.push('No encontramos una cancha o lugar claro.');
+  if (format.confidence === 'low') warnings.push('No encontramos el formato; asumimos F5.');
   if (players.confirmed.length === 0) warnings.push('No encontramos jugadores confirmados con suficiente seguridad.');
 
   return {

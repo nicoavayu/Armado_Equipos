@@ -14,7 +14,14 @@ import { v4 as uuidv4 } from 'uuid';
 import PageTitle from './PageTitle';
 import { useAuth } from './AuthProvider';
 import { crearPartido, supabase } from '../supabase';
+import logger from '../utils/logger';
 import { buildMatchLocationFields } from '../utils/matchLocation';
+import {
+  isAllowedMatchTime,
+  isBlockedInDebug,
+  normalizeTimeHHmm,
+  MATCH_TIME_RANGE_MESSAGE,
+} from '../lib/matchDateDebug';
 import { PRIMARY_CTA_BUTTON_CLASS } from '../styles/buttonClasses';
 import { parseWhatsAppMatchText, WHATSAPP_ALLOWED_FORMATS } from '../utils/whatsappMatchParser';
 
@@ -94,6 +101,21 @@ export default function WhatsAppMatchImportFlow({ onCreated, onBack }) {
       return;
     }
 
+    // Same rules as the manual wizard: sane hours and no past matches.
+    const hora = normalizeTimeHHmm(draft.hora);
+    if (!hora) {
+      setError('El horario no es válido. Usá el formato HH:MM.');
+      return;
+    }
+    if (!isAllowedMatchTime(hora)) {
+      setError(MATCH_TIME_RANGE_MESSAGE);
+      return;
+    }
+    if (isBlockedInDebug(draft.fecha, hora)) {
+      setError('La fecha y hora elegidas ya pasaron. Elegí un día y horario posteriores.');
+      return;
+    }
+
     setLoading(true);
     setError('');
     try {
@@ -101,7 +123,7 @@ export default function WhatsAppMatchImportFlow({ onCreated, onBack }) {
         match_ref: uuidv4(),
         nombre: draft.nombre.trim(),
         fecha: draft.fecha,
-        hora: draft.hora,
+        hora,
         ...buildMatchLocationFields({ locationText: draft.sede, locationInfo: null }),
         modalidad: draft.modalidad,
         cupo_jugadores: CUPOS[draft.modalidad] || 10,
@@ -128,7 +150,6 @@ export default function WhatsAppMatchImportFlow({ onCreated, onBack }) {
           partido_id: partido.id,
           match_ref: partido.match_ref,
           usuario_id: null,
-          uuid: uuidv4(),
           nombre,
           avatar_url: null,
           score: 5,
@@ -136,7 +157,11 @@ export default function WhatsAppMatchImportFlow({ onCreated, onBack }) {
         })),
       ];
       const { error: playersError } = await supabase.from('jugadores').insert(rows);
-      if (playersError) throw playersError;
+      if (playersError) {
+        // The match already exists; failing here would strand it invisible.
+        // Continue to the admin screen, where players can be re-added.
+        logger.error('[WHATSAPP_IMPORT] Error inserting players:', playersError);
+      }
 
       await onCreated(partido, {
         doubtfulPlayers: doubtfulNames,

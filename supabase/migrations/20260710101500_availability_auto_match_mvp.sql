@@ -20,7 +20,9 @@ create table if not exists public.player_availability (
   constraint player_availability_formats_check check (
     cardinality(formats) > 0
     and formats <@ array['F5','F6','F7','F8','F9','F11']::text[]
-  )
+  ),
+  constraint player_availability_latitude_check check (latitude is null or latitude between -90 and 90),
+  constraint player_availability_longitude_check check (longitude is null or longitude between -180 and 180)
 );
 
 create unique index if not exists player_availability_one_active_per_user
@@ -63,11 +65,9 @@ alter table public.player_availability enable row level security;
 alter table public.auto_match_proposals enable row level security;
 alter table public.auto_match_proposal_members enable row level security;
 
-drop policy if exists player_availability_select_authenticated on public.player_availability;
-create policy player_availability_select_authenticated
-  on public.player_availability for select to authenticated
-  using (status = 'active' or user_id = auth.uid());
-
+-- Privacy: availabilities carry exact coordinates, so no cross-user SELECT.
+-- Matching happens only through find_my_availability_matches (security
+-- definer), which returns distance but never another player's coordinates.
 drop policy if exists player_availability_manage_own on public.player_availability;
 create policy player_availability_manage_own
   on public.player_availability for all to authenticated
@@ -84,22 +84,16 @@ create policy auto_match_proposals_select_members
     )
   );
 
+-- Own rows only: a self-referencing policy on this table would recurse
+-- (42P17). Widening visibility to co-members later requires a security
+-- definer helper, not a subquery on the same table.
 drop policy if exists auto_match_members_select_members on public.auto_match_proposal_members;
 create policy auto_match_members_select_members
   on public.auto_match_proposal_members for select to authenticated
-  using (
-    user_id = auth.uid()
-    or exists (
-      select 1 from public.auto_match_proposal_members mine
-      where mine.proposal_id = proposal_id and mine.user_id = auth.uid()
-    )
-  );
+  using (user_id = auth.uid());
 
-drop policy if exists auto_match_members_update_own on public.auto_match_proposal_members;
-create policy auto_match_members_update_own
-  on public.auto_match_proposal_members for update to authenticated
-  using (user_id = auth.uid())
-  with check (user_id = auth.uid());
+-- Responses go through respond_to_auto_match_proposal (security definer);
+-- no direct UPDATE policy so members can't skip its state checks.
 
 create or replace function public.upsert_my_availability(
   p_starts_at timestamptz,
@@ -119,8 +113,12 @@ declare
 begin
   if auth.uid() is null then raise exception 'not_authenticated'; end if;
   if p_ends_at <= p_starts_at then raise exception 'invalid_time_window'; end if;
+  if p_ends_at < p_starts_at + interval '60 minutes' then raise exception 'window_too_short'; end if;
   if p_starts_at < now() - interval '5 minutes' then raise exception 'availability_in_past'; end if;
+  if p_ends_at > now() + interval '30 days' then raise exception 'window_too_far'; end if;
   if p_max_distance_km not between 1 and 50 then raise exception 'invalid_distance'; end if;
+  if p_latitude is not null and p_latitude not between -90 and 90 then raise exception 'invalid_latitude'; end if;
+  if p_longitude is not null and p_longitude not between -180 and 180 then raise exception 'invalid_longitude'; end if;
   if cardinality(p_formats) = 0 or not (p_formats <@ array['F5','F6','F7','F8','F9','F11']::text[]) then
     raise exception 'invalid_formats';
   end if;
@@ -170,17 +168,17 @@ set search_path = public
 as $$
   with mine as (
     select * from public.player_availability
-    where user_id = auth.uid() and status = 'active'
+    where user_id = auth.uid() and status = 'active' and ends_at > now()
     order by created_at desc limit 1
   )
   select
-    other.id,
-    other.user_id,
-    u.nombre,
-    u.avatar_url,
-    greatest(mine.starts_at, other.starts_at),
-    least(mine.ends_at, other.ends_at),
-    array(select unnest(mine.formats) intersect select unnest(other.formats)),
+    other.id as availability_id,
+    other.user_id as user_id,
+    u.nombre as nombre,
+    u.avatar_url as avatar_url,
+    greatest(mine.starts_at, other.starts_at) as starts_at,
+    least(mine.ends_at, other.ends_at) as ends_at,
+    array(select unnest(mine.formats) intersect select unnest(other.formats)) as shared_formats,
     case
       when mine.latitude is null or mine.longitude is null or other.latitude is null or other.longitude is null then null
       else 6371 * 2 * asin(sqrt(
@@ -188,11 +186,12 @@ as $$
         + cos(radians(mine.latitude)) * cos(radians(other.latitude))
         * power(sin(radians(other.longitude - mine.longitude) / 2), 2)
       ))
-    end,
-    floor(extract(epoch from (least(mine.ends_at, other.ends_at) - greatest(mine.starts_at, other.starts_at))) / 60)::integer
+    end as distance_km,
+    floor(extract(epoch from (least(mine.ends_at, other.ends_at) - greatest(mine.starts_at, other.starts_at))) / 60)::integer as overlap_minutes
   from mine
   join public.player_availability other
     on other.status = 'active'
+   and other.ends_at > now()
    and other.user_id <> mine.user_id
    and other.starts_at < mine.ends_at
    and other.ends_at > mine.starts_at
@@ -211,6 +210,10 @@ as $$
   order by overlap_minutes desc, distance_km asc nulls last
   limit greatest(1, least(coalesce(p_limit, 30), 100));
 $$;
+
+revoke execute on function public.upsert_my_availability(timestamptz,timestamptz,text[],integer,double precision,double precision) from public, anon;
+revoke execute on function public.cancel_my_availability() from public, anon;
+revoke execute on function public.find_my_availability_matches(integer) from public, anon;
 
 grant execute on function public.upsert_my_availability(timestamptz,timestamptz,text[],integer,double precision,double precision) to authenticated;
 grant execute on function public.cancel_my_availability() to authenticated;

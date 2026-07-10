@@ -2,20 +2,32 @@ import { supabase } from '../../lib/supabaseClient';
 
 const ALLOWED_FORMATS = ['F5', 'F6', 'F7', 'F8', 'F9', 'F11'];
 
+const toCoordinate = (value) => {
+  // Number('') and Number(null) are 0, which would pin the user to 0,0.
+  if (value === null || value === undefined || value === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
 export const normalizeAvailabilityInput = (input = {}) => {
   const startsAt = new Date(input.startsAt);
   const endsAt = new Date(input.endsAt);
   const formats = [...new Set((input.formats || []).map((value) => String(value).toUpperCase()))]
     .filter((value) => ALLOWED_FORMATS.includes(value));
   const maxDistanceKm = Math.max(1, Math.min(50, Math.round(Number(input.maxDistanceKm) || 8)));
-  const latitude = Number.isFinite(Number(input.latitude)) ? Number(input.latitude) : null;
-  const longitude = Number.isFinite(Number(input.longitude)) ? Number(input.longitude) : null;
+  const latitude = toCoordinate(input.latitude);
+  const longitude = toCoordinate(input.longitude);
 
   if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) {
     throw new Error('Elegí un día y horario válidos.');
   }
   if (endsAt <= startsAt) {
     throw new Error('El horario de finalización debe ser posterior al inicio.');
+  }
+  if (endsAt.getTime() - startsAt.getTime() < 60 * 60 * 1000) {
+    // The whole matching pipeline requires 60 shared minutes, so shorter
+    // windows could never produce a match.
+    throw new Error('La franja tiene que durar al menos una hora.');
   }
   if (formats.length === 0) {
     throw new Error('Elegí al menos un formato de partido.');

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import ReactDOM from 'react-dom';
 import {
   CalendarClock,
   Check,
@@ -192,6 +193,8 @@ export default function AvailabilityOpportunityCard() {
     [availability?.formats, formats, matches],
   );
   const best = opportunities[0] || null;
+  // A proposal the user already declined shouldn't block creating a new one.
+  const hasBlockingProposal = proposals.some((proposal) => proposal.my_response !== 'declined');
 
   const toggleFormat = (format) => {
     setFormats((current) => current.includes(format)
@@ -271,7 +274,9 @@ export default function AvailabilityOpportunityCard() {
 
   if (!user?.id) return null;
 
-  return (
+  // Portal to body: PageTransition keeps a transform on its wrapper, which
+  // turns it into the containing block for position:fixed descendants.
+  return ReactDOM.createPortal(
     <>
       <button
         type="button"
@@ -296,7 +301,12 @@ export default function AvailabilityOpportunityCard() {
 
       {open ? (
         <div className="fixed inset-0 z-[90] flex items-end justify-center bg-[#05030d]/78 p-0 backdrop-blur-md sm:items-center sm:p-4">
-          <section className="relative max-h-[92dvh] w-full max-w-[560px] overflow-hidden rounded-t-[28px] border border-[rgba(148,134,255,0.24)] bg-[linear-gradient(180deg,rgba(25,18,57,0.99),rgba(11,8,27,0.99))] shadow-[0_-24px_80px_rgba(2,1,10,0.6),inset_0_1px_0_rgba(255,255,255,0.07)] sm:rounded-[28px]">
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-label="Partido automático"
+            className="relative max-h-[92dvh] w-full max-w-[560px] overflow-hidden rounded-t-[28px] border border-[rgba(148,134,255,0.24)] bg-[linear-gradient(180deg,rgba(25,18,57,0.99),rgba(11,8,27,0.99))] shadow-[0_-24px_80px_rgba(2,1,10,0.6),inset_0_1px_0_rgba(255,255,255,0.07)] sm:rounded-[28px]"
+          >
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(420px_180px_at_18%_-12%,rgba(118,78,255,0.22),transparent_72%)]" />
             <div className="relative max-h-[92dvh] overflow-y-auto p-4 pb-[max(26px,var(--safe-bottom,0px))] sm:p-5">
               <header className="mb-5 flex items-start justify-between gap-3">
@@ -359,7 +369,7 @@ export default function AvailabilityOpportunityCard() {
                           <p className="mt-2 font-oswald text-[10.5px] text-white/44">
                             {item.ready ? 'Ya hay suficientes jugadores compatibles.' : `Faltan ${item.missingPlayers}. Arma2 sigue buscando.`}
                           </p>
-                          {item.ready && proposals.length === 0 ? (
+                          {item.ready && !hasBlockingProposal ? (
                             <button
                               type="button"
                               disabled={loading}
@@ -469,6 +479,7 @@ export default function AvailabilityOpportunityCard() {
           </section>
         </div>
       ) : null}
-    </>
+    </>,
+    document.body,
   );
 }
