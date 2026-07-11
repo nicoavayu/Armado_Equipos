@@ -1016,7 +1016,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
       prefetch: '/quiero-jugar',
       icon: <CalendarClock />,
       title: 'Partido automático',
-      subtitle: 'Decí cuándo jugás',
+      subtitle: 'Decidí cuando jugar',
     },
     {
       key: 'mis-partidos',
