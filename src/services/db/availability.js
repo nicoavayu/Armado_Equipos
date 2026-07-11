@@ -1,25 +1,24 @@
 import { supabase } from '../../lib/supabaseClient';
+import {
+  AUTH_REQUIRED_MESSAGE,
+  describeDbAccessError,
+  getUsableSession,
+} from './dbErrors';
 
 const ALLOWED_FORMATS = ['F5', 'F6', 'F7', 'F8', 'F9', 'F11'];
 
-export const AUTH_REQUIRED_MESSAGE = 'Necesitás una sesión activa. Volvé a iniciar sesión e intentá de nuevo.';
+export { AUTH_REQUIRED_MESSAGE, PERMISSION_DENIED_MESSAGE } from './dbErrors';
 
-// The backend RPCs are granted to `authenticated` only. If the local session
-// is missing/expired the request goes out as `anon` and Postgres answers with
-// "permission denied" / RLS violations; surface that as a re-login prompt
-// instead of a raw database error.
+// The backend RPCs are granted to `authenticated` only; without a usable
+// session every call would fail as `anon`, so surface a re-login prompt
+// before making the request.
 const requireSession = async () => {
-  const { data: { session } = {} } = await supabase.auth.getSession();
-  if (!session?.access_token) throw new Error(AUTH_REQUIRED_MESSAGE);
+  const session = await getUsableSession();
+  if (!session) throw new Error(AUTH_REQUIRED_MESSAGE);
+  return session;
 };
 
-const mapAuthError = (error) => {
-  const message = String(error?.message || '');
-  if (error?.code === '42501' || /permission denied|row-level security|jwt|not_authenticated/i.test(message)) {
-    return new Error(AUTH_REQUIRED_MESSAGE);
-  }
-  return error;
-};
+const describeAvailabilityDbError = describeDbAccessError;
 
 const toCoordinate = (value) => {
   // Number('') and Number(null) are 0, which would pin the user to 0,0.
@@ -82,7 +81,7 @@ export const normalizeAvailabilityInput = (input = {}) => {
 
 export const saveMyAvailability = async (input) => {
   const normalized = normalizeAvailabilityInput(input);
-  await requireSession();
+  const session = await requireSession();
   const { data, error } = await supabase.rpc('upsert_my_availability', {
     p_days: normalized.days,
     p_time_start: normalized.timeStart,
@@ -92,14 +91,22 @@ export const saveMyAvailability = async (input) => {
     p_latitude: normalized.latitude,
     p_longitude: normalized.longitude,
   });
-  if (error) throw mapAuthError(error);
+  if (error) {
+    throw describeAvailabilityDbError(error, {
+      operation: 'saveMyAvailability', target: 'rpc:upsert_my_availability', userId: session.user?.id,
+    });
+  }
   return data;
 };
 
 export const cancelMyAvailability = async () => {
-  await requireSession();
+  const session = await requireSession();
   const { error } = await supabase.rpc('cancel_my_availability');
-  if (error) throw mapAuthError(error);
+  if (error) {
+    throw describeAvailabilityDbError(error, {
+      operation: 'cancelMyAvailability', target: 'rpc:cancel_my_availability', userId: session.user?.id,
+    });
+  }
 };
 
 export const getMyActiveAvailability = async (userId) => {
@@ -118,30 +125,42 @@ export const getMyActiveAvailability = async (userId) => {
 
 export const findMyAvailabilityMatches = async (limit = 30) => {
   const safeLimit = Math.max(1, Math.min(100, Math.round(Number(limit) || 30)));
-  await requireSession();
+  const session = await requireSession();
   const { data, error } = await supabase.rpc('find_my_availability_matches', { p_limit: safeLimit });
-  if (error) throw mapAuthError(error);
+  if (error) {
+    throw describeAvailabilityDbError(error, {
+      operation: 'findMyAvailabilityMatches', target: 'rpc:find_my_availability_matches', userId: session.user?.id,
+    });
+  }
   return data || [];
 };
 
 export const createMyAutoMatchProposal = async (format) => {
   const normalized = String(format || '').toUpperCase();
   if (!ALLOWED_FORMATS.includes(normalized)) throw new Error('Elegí un formato válido.');
-  await requireSession();
+  const session = await requireSession();
   const { data, error } = await supabase.rpc('create_my_auto_match_proposal', { p_format: normalized });
-  if (error) throw mapAuthError(error);
+  if (error) {
+    throw describeAvailabilityDbError(error, {
+      operation: 'createMyAutoMatchProposal', target: 'rpc:create_my_auto_match_proposal', userId: session.user?.id,
+    });
+  }
   return data;
 };
 
 export const respondToAutoMatchProposal = async (proposalId, response) => {
   const normalized = String(response || '').toLowerCase();
   if (!['accepted', 'declined'].includes(normalized)) throw new Error('Respuesta inválida.');
-  await requireSession();
+  const session = await requireSession();
   const { data, error } = await supabase.rpc('respond_to_auto_match_proposal', {
     p_proposal_id: Number(proposalId),
     p_response: normalized,
   });
-  if (error) throw mapAuthError(error);
+  if (error) {
+    throw describeAvailabilityDbError(error, {
+      operation: 'respondToAutoMatchProposal', target: 'rpc:respond_to_auto_match_proposal', userId: session.user?.id,
+    });
+  }
   return data;
 };
 
@@ -152,9 +171,14 @@ export const getMyActiveProposals = async (userId) => {
     .select('proposal_id, response, auto_match_proposals(*)')
     .eq('user_id', userId);
   if (membershipError) throw membershipError;
+  const now = Date.now();
   return (memberships || [])
     .map((row) => ({ ...row.auto_match_proposals, my_response: row.response }))
-    .filter((proposal) => proposal?.id && ['collecting', 'ready'].includes(proposal.status));
+    .filter((proposal) => proposal?.id && ['collecting', 'ready'].includes(proposal.status))
+    // Nothing flips status when expires_at passes (there is no cron): a stale
+    // 'collecting' proposal would otherwise stay on screen forever, and
+    // responding to it can only fail with proposal_not_open.
+    .filter((proposal) => !proposal.expires_at || new Date(proposal.expires_at).getTime() > now);
 };
 
 export const buildMatchOpportunitySummary = (matches = [], preferredFormats = []) => {

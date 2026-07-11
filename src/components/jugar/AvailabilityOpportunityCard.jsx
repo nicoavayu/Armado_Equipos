@@ -308,7 +308,13 @@ export default function AvailabilityOpportunityCard() {
       setNotice(response === 'accepted' ? 'Te sumaste a la propuesta.' : 'Rechazaste la propuesta.');
       await load();
     } catch (err) {
-      setError(err.message || 'No pudimos guardar tu respuesta.');
+      const message = err?.message || '';
+      if (/proposal_not_open|proposal_not_found|proposal_member_not_found/.test(message)) {
+        setError('Esta propuesta ya no está disponible.');
+        await load();
+      } else {
+        setError(message || 'No pudimos guardar tu respuesta.');
+      }
     } finally {
       setLoading(false);
     }

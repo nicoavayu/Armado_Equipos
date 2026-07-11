@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   CalendarDays,
@@ -14,8 +14,7 @@ import { v4 as uuidv4 } from 'uuid';
 import PageTitle from './PageTitle';
 import VenuePicker from './VenuePicker';
 import { useAuth } from './AuthProvider';
-import { crearPartido, supabase } from '../supabase';
-import logger from '../utils/logger';
+import { crearPartido } from '../supabase';
 import { buildMatchLocationFields } from '../utils/matchLocation';
 import {
   isAllowedMatchTime,
@@ -24,7 +23,8 @@ import {
   MATCH_TIME_RANGE_MESSAGE,
 } from '../lib/matchDateDebug';
 import { PRIMARY_CTA_BUTTON_CLASS } from '../styles/buttonClasses';
-import { AUTH_REQUIRED_MESSAGE } from '../services/db/availability';
+import { AUTH_REQUIRED_MESSAGE, describeDbAccessError, getUsableSession } from '../services/db/dbErrors';
+import { buildImportedPlayerRows, saveImportedPlayers } from '../services/db/importedMatchPlayers';
 import { parseWhatsAppMatchText, WHATSAPP_ALLOWED_FORMATS } from '../utils/whatsappMatchParser';
 
 const CUPOS = { F5: 10, F6: 12, F7: 14, F8: 16, F9: 18, F11: 22 };
@@ -78,6 +78,13 @@ export default function WhatsAppMatchImportFlow({ onCreated, onBack }) {
   const [doubtfulText, setDoubtfulText] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  // Partial result after the match exists: { failedNames, creatorFailed,
+  // verified }. Rendered as its own screen with retry / continue options.
+  const [importIssue, setImportIssue] = useState(null);
+  // Synchronous double-tap guard (state updates are async) + the created
+  // match, so a retry never creates a second partido.
+  const creatingRef = useRef(false);
+  const createdMatchRef = useRef(null);
 
   const warnings = useMemo(() => draft?.warnings || [], [draft]);
   const confirmedNames = useMemo(() => namesToRows(confirmedText), [confirmedText]);
@@ -119,73 +126,84 @@ export default function WhatsAppMatchImportFlow({ onCreated, onBack }) {
       return;
     }
 
+    if (creatingRef.current) return;
+    creatingRef.current = true;
     setLoading(true);
     setError('');
     try {
-      // partidos INSERT is RLS-gated to authenticated sessions; a missing or
-      // expired token would surface as a raw "row-level security" error.
-      const { data: { session } = {} } = await supabase.auth.getSession();
-      if (!session?.access_token) {
+      // partidos INSERT is RLS-gated to authenticated sessions; make sure the
+      // session is usable (refreshing if expired) before touching the backend.
+      const session = await getUsableSession();
+      if (!session) {
         setError(AUTH_REQUIRED_MESSAGE);
         return;
       }
 
-      const partido = await crearPartido({
-        match_ref: uuidv4(),
-        nombre: draft.nombre.trim(),
-        fecha: draft.fecha,
-        hora,
-        ...buildMatchLocationFields({ locationText: draft.sede, locationInfo: sedeInfo }),
-        modalidad: draft.modalidad,
-        cupo_jugadores: CUPOS[draft.modalidad] || 10,
-        falta_jugadores: true,
-        player_invites_enabled: true,
-        tipo_partido: draft.tipoPartido || 'Masculino',
-        creado_por: user?.id,
-        precio_cancha_por_persona: draft.precioPorPersona || null,
-      });
-
-      const creatorName = profile?.nombre || user?.email?.split('@')[0] || 'Organizador';
-      const importedNames = confirmedNames.filter((name) => name.toLowerCase() !== creatorName.toLowerCase());
-      const rows = [
-        {
-          partido_id: partido.id,
-          match_ref: partido.match_ref,
-          usuario_id: user.id,
-          nombre: creatorName,
-          avatar_url: profile?.avatar_url || null,
-          score: 5,
-          is_goalkeeper: false,
-        },
-        ...importedNames.map((nombre) => ({
-          partido_id: partido.id,
-          match_ref: partido.match_ref,
-          usuario_id: null,
-          nombre,
-          avatar_url: null,
-          score: 5,
-          is_goalkeeper: false,
-        })),
-      ];
-      const { error: playersError } = await supabase.from('jugadores').insert(rows);
-      if (playersError) {
-        // The match already exists; failing here would strand it invisible.
-        // Continue to the admin screen, where players can be re-added.
-        logger.error('[WHATSAPP_IMPORT] Error inserting players:', playersError);
+      // A retry after a partial failure reuses the already created match.
+      const isRetry = Boolean(createdMatchRef.current);
+      let partido = createdMatchRef.current;
+      if (!partido) {
+        partido = await crearPartido({
+          match_ref: uuidv4(),
+          nombre: draft.nombre.trim(),
+          fecha: draft.fecha,
+          hora,
+          ...buildMatchLocationFields({ locationText: draft.sede, locationInfo: sedeInfo }),
+          modalidad: draft.modalidad,
+          cupo_jugadores: CUPOS[draft.modalidad] || 10,
+          falta_jugadores: true,
+          player_invites_enabled: true,
+          tipo_partido: draft.tipoPartido || 'Masculino',
+          creado_por: user?.id,
+          precio_cancha_por_persona: draft.precioPorPersona || null,
+        });
+        createdMatchRef.current = partido;
       }
 
-      await onCreated(partido, {
-        doubtfulPlayers: doubtfulNames,
-        source: 'whatsapp_text',
+      const creatorName = profile?.nombre || user?.email?.split('@')[0] || 'Organizador';
+      const rows = buildImportedPlayerRows({
+        partido,
+        userId: user.id,
+        creatorName,
+        creatorAvatarUrl: profile?.avatar_url || null,
+        confirmedNames,
+      });
+      const result = await saveImportedPlayers({ partidoId: partido.id, rows, retry: isRetry });
+
+      if (result.failedRows.length === 0) {
+        await onCreated(partido, {
+          doubtfulPlayers: doubtfulNames,
+          source: 'whatsapp_text',
+        });
+        return;
+      }
+
+      // The match exists but part of the confirmed roster didn't land:
+      // never navigate as if everything imported fine.
+      setImportIssue({
+        failedNames: result.failedRows.filter((row) => !row.usuario_id).map((row) => row.nombre),
+        creatorFailed: result.failedRows.some((row) => row.usuario_id),
+        verified: result.verified,
       });
     } catch (err) {
-      const message = String(err?.message || '');
-      setError(/row-level security|permission denied|jwt/i.test(message)
-        ? AUTH_REQUIRED_MESSAGE
-        : (message || 'No se pudo crear el partido importado.'));
+      const friendly = describeDbAccessError(err, {
+        operation: 'createImportedMatch',
+        target: 'partidos/jugadores',
+        userId: user?.id,
+      });
+      setError(friendly?.message || 'No se pudo crear el partido importado.');
     } finally {
+      creatingRef.current = false;
       setLoading(false);
     }
+  };
+
+  const goToMatchAnyway = async () => {
+    if (!createdMatchRef.current) return;
+    await onCreated(createdMatchRef.current, {
+      doubtfulPlayers: doubtfulNames,
+      source: 'whatsapp_text',
+    });
   };
 
   return (
@@ -196,7 +214,69 @@ export default function WhatsAppMatchImportFlow({ onCreated, onBack }) {
       <PageTitle respectSafeArea title="IMPORTAR DESDE WHATSAPP" onBack={onBack}>IMPORTAR DESDE WHATSAPP</PageTitle>
 
       <main className="relative z-10 mx-auto w-full max-w-[560px] px-4 pb-[max(28px,var(--safe-bottom,0px))] pt-[calc(var(--safe-top,0px)+80px)] font-oswald">
-        {!draft ? (
+        {importIssue ? (
+          <section className="space-y-3">
+            <div className="mb-4">
+              <div className="flex items-center gap-2 font-oswald text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-200/90">
+                <AlertTriangle size={15} /> Importación incompleta
+              </div>
+              <h2 className="mt-1 font-bebas-real text-[clamp(34px,9.5vw,42px)] leading-[0.95] tracking-[0.035em] text-white drop-shadow-[0_8px_26px_rgba(5,2,20,0.7)]">
+                EL PARTIDO SE CREÓ
+              </h2>
+              <p className="mt-1.5 font-oswald text-[13px] leading-relaxed text-white/62">
+                {importIssue.verified
+                  ? `Pero no pudimos agregar a ${importIssue.failedNames.length + (importIssue.creatorFailed ? 1 : 0)} jugador${importIssue.failedNames.length + (importIssue.creatorFailed ? 1 : 0) === 1 ? '' : 'es'}. Podés reintentar o sumarlos manualmente desde el panel.`
+                  : 'Pero no pudimos confirmar si los jugadores se guardaron (¿problemas de conexión?). Reintentá antes de continuar.'}
+              </p>
+            </div>
+
+            {importIssue.creatorFailed ? (
+              <div className="rounded-xl border border-amber-400/25 bg-amber-400/10 px-3 py-2.5 font-sans text-[12px] leading-relaxed text-amber-100">
+                Tu propio jugador (organizador) tampoco se pudo agregar.
+              </div>
+            ) : null}
+
+            {importIssue.failedNames.length ? (
+              <div className="rounded-2xl border border-white/[0.075] bg-black/15 p-3.5">
+                <p className="mb-2 font-oswald text-[10px] font-semibold uppercase tracking-[0.14em] text-white/45">
+                  No se pudieron agregar
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {importIssue.failedNames.map((name) => (
+                    <span key={name} className="rounded-full border border-amber-400/25 bg-amber-400/[0.08] px-2.5 py-1 font-oswald text-[12px] text-amber-50">
+                      {name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {error ? (
+              <div className="rounded-xl border border-amber-400/25 bg-amber-400/10 px-3 py-2.5 text-sm text-amber-100">
+                {error}
+              </div>
+            ) : null}
+
+            <div className="grid grid-cols-1 gap-2">
+              <button
+                type="button"
+                disabled={loading}
+                onClick={createImportedMatch}
+                className={`${PRIMARY_CTA_BUTTON_CLASS} !min-h-[50px]`}
+              >
+                {loading ? 'Reintentando…' : 'Reintentar jugadores faltantes'}
+              </button>
+              <button
+                type="button"
+                disabled={loading}
+                onClick={goToMatchAnyway}
+                className="min-h-[50px] rounded-2xl border border-[rgba(148,134,255,0.22)] bg-white/[0.04] px-3 font-oswald text-[13px] font-semibold text-white/68 transition-all hover:bg-white/[0.075] active:scale-[0.98]"
+              >
+                Ir al partido y sumarlos manualmente
+              </button>
+            </div>
+          </section>
+        ) : !draft ? (
           <section>
             <div className="mb-6 text-center">
               <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border border-[#9b7bff]/30 bg-[#6a43ff]/16 text-[#c8baff] shadow-[0_12px_34px_rgba(70,35,175,0.32)]">
