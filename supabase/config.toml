@@ -12,3 +12,8 @@ verify_jwt = true
 
 [functions.push-dispatch-now]
 verify_jwt = true
+
+# push-auto-match-now trusts the JWT sub without verifying the signature
+# itself, so the platform gateway MUST verify it. Never set this to false.
+[functions.push-auto-match-now]
+verify_jwt = true
