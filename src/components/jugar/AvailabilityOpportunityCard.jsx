@@ -83,6 +83,9 @@ const formatDeadline = (value) => new Date(value).toLocaleString('es-AR', {
   minute: '2-digit',
 });
 
+// Se anuncia solo a lectores de pantalla: el botón "Activar búsqueda" ya comunica el estado visualmente.
+const DEACTIVATED_NOTICE = 'Disponibilidad desactivada.';
+
 const CANCELLED_REASONS = {
   member_declined: 'Una persona no pudo sumarse y se reorganizó la búsqueda.',
   below_threshold: 'Se bajaron varios jugadores y no hubo reemplazos disponibles.',
@@ -489,7 +492,7 @@ export default function AvailabilityOpportunityCard() {
       await cancelMyAvailability();
       setAvailability(null);
       setMatches([]);
-      setNotice('Disponibilidad desactivada.');
+      setNotice(DEACTIVATED_NOTICE);
     } catch (err) {
       setError(err.message || 'No se pudo desactivar.');
     } finally {
@@ -578,9 +581,6 @@ export default function AvailabilityOpportunityCard() {
         <div className="mb-5 text-center">
           <p className="font-oswald text-[10px] font-semibold uppercase tracking-[0.22em] text-[#a98cff]">Arma2 busca y coordina</p>
           <h2 className="mt-1 font-bebas-real text-[clamp(36px,10vw,46px)] leading-[0.92] tracking-[0.035em] text-white drop-shadow-[0_8px_26px_rgba(5,2,20,0.7)]">QUIERO JUGAR</h2>
-          <p className="mx-auto mt-2 max-w-[400px] font-oswald text-[12.5px] leading-relaxed text-white/52">
-            Cuando aparece un grupo viable, todos reciben la misma propuesta y pueden seguir cómo se completa.
-          </p>
         </div>
 
         {proposals.length > 0 ? (
@@ -669,8 +669,8 @@ export default function AvailabilityOpportunityCard() {
             </button>
           </div>
         ) : (
-          <div className="rounded-card border border-[rgba(148,134,255,0.2)] bg-[linear-gradient(155deg,rgba(37,29,80,0.74),rgba(13,10,31,0.94))] p-4 shadow-[0_18px_46px_rgba(4,2,16,0.32),inset_0_1px_0_rgba(255,255,255,0.055)]">
-            <p className="mb-4 font-oswald text-[12.5px] leading-relaxed text-white/56">
+          <div>
+            <p className="mb-5 font-oswald text-[12.5px] leading-relaxed text-white/56">
               Elegí cuándo podés jugar. La búsqueda queda activa hasta que la desactives y Arma2 se ocupa de agrupar a los compatibles.
             </p>
 
@@ -696,7 +696,7 @@ export default function AvailabilityOpportunityCard() {
               </div>
             </div>
 
-            <div className="mt-4 rounded-2xl border border-white/[0.075] bg-black/15 px-3.5 py-3">
+            <div className="mt-5 rounded-2xl border border-white/[0.075] bg-black/15 px-3.5 py-3">
               <div className="mb-2 flex items-center gap-1.5 font-oswald text-[9px] font-semibold uppercase tracking-[0.14em] text-white/40">
                 <Clock3 size={13} className="text-[#9d82ff]" /> Rango horario
               </div>
@@ -717,7 +717,7 @@ export default function AvailabilityOpportunityCard() {
               </div>
             </div>
 
-            <div className="mt-4">
+            <div className="mt-5">
               <p className="mb-2 font-oswald text-[9px] font-semibold uppercase tracking-[0.14em] text-white/40">Formatos aceptados</p>
               <div className="grid grid-cols-6 gap-1.5">
                 {ALLOWED_FORMATS.map((format) => {
@@ -738,7 +738,7 @@ export default function AvailabilityOpportunityCard() {
               </div>
             </div>
 
-            <div className="mt-4 rounded-2xl border border-white/[0.075] bg-black/15 px-3.5 py-3">
+            <div className="mt-5 rounded-2xl border border-white/[0.075] bg-black/15 px-3.5 py-3">
               <div className="mb-1 flex items-center justify-between gap-2">
                 <span className="font-oswald text-[9px] font-semibold uppercase tracking-[0.14em] text-white/40">Distancia máxima</span>
                 <span className="rounded-full border border-[#9b7bff]/25 bg-[#6a43ff]/12 px-2.5 py-1 font-sans text-[10px] font-bold text-[#c8baff]">{distance} km</span>
@@ -758,7 +758,7 @@ export default function AvailabilityOpportunityCard() {
               type="button"
               onClick={() => setCanOrganize((current) => !current)}
               aria-pressed={canOrganize}
-              className={`mt-4 flex w-full items-center gap-3 rounded-2xl border px-3.5 py-3 text-left transition-all active:scale-[0.99] motion-reduce:transition-none ${canOrganize
+              className={`mt-5 flex w-full items-center gap-3 rounded-2xl border px-3.5 py-3 text-left transition-all active:scale-[0.99] motion-reduce:transition-none ${canOrganize
                 ? 'border-[#fdb022]/45 bg-[#fdb022]/[0.09]'
                 : 'border-white/[0.075] bg-black/15 hover:border-[#fdb022]/25'}`}
             >
@@ -795,14 +795,15 @@ export default function AvailabilityOpportunityCard() {
               type="button"
               disabled={loading || formats.length === 0 || days.length === 0}
               onClick={save}
-              className={`${PRIMARY_CTA_BUTTON_CLASS} mt-4 !min-h-[50px]`}
+              className={`${PRIMARY_CTA_BUTTON_CLASS} mt-5 !min-h-[50px]`}
             >
               <Users size={18} className="mr-2" /> Activar búsqueda
             </button>
           </div>
         )}
 
-        {notice ? (
+        <p className="sr-only" role="status" aria-live="polite">{notice}</p>
+        {notice && notice !== DEACTIVATED_NOTICE ? (
           <p className="mt-3 rounded-xl border border-[#2dd4bf]/20 bg-[#2dd4bf]/8 px-3 py-2.5 font-oswald text-[11.5px] text-[#b8fff2]">{notice}</p>
         ) : null}
         {error ? (

@@ -18,7 +18,7 @@ const PickerBackground = () => (
   </div>
 );
 
-const MethodCard = ({ icon, eyebrow, title, description, badge, onClick, featured = false }) => (
+const MethodCard = ({ icon, eyebrow, title, badge, onClick, featured = false }) => (
   <button
     type="button"
     onClick={onClick}
@@ -49,9 +49,6 @@ const MethodCard = ({ icon, eyebrow, title, description, badge, onClick, feature
         <strong className="mt-1 block font-oswald text-[16.5px] font-bold uppercase leading-[1.2] tracking-[0.05em] text-white">
           {title}
         </strong>
-        <span className="mt-2 block max-w-[390px] font-oswald text-[12.5px] leading-[1.35] text-white/52">
-          {description}
-        </span>
       </span>
 
       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/45 transition-all duration-200 group-hover:border-[#9b7bff]/35 group-hover:bg-[#6a43ff]/13 group-hover:text-[#c8baff] group-hover:translate-x-0.5">
@@ -74,9 +71,6 @@ const NewMatchMethodPicker = ({ onManual, onWhatsApp, onBack }) => (
         <h2 className="font-bebas-real text-[clamp(38px,11vw,54px)] leading-[0.9] tracking-[0.035em] text-white drop-shadow-[0_8px_26px_rgba(5,2,20,0.7)]">
           ¿CÓMO QUERÉS CREARLO?
         </h2>
-        <p className="mx-auto mt-3 max-w-[420px] font-oswald text-[13px] leading-relaxed text-white/52">
-          Usá el flujo habitual o convertí los mensajes del grupo en un borrador editable.
-        </p>
       </div>
 
       <div className="space-y-3">
@@ -85,21 +79,15 @@ const NewMatchMethodPicker = ({ onManual, onWhatsApp, onBack }) => (
           icon={<PencilLine />}
           eyebrow="Flujo clásico"
           title="CREAR MANUALMENTE"
-          description="Completá nombre, modalidad, fecha, lugar y cupo con el recorrido paso a paso."
           onClick={onManual}
         />
         <MethodCard
           icon={<MessageCircle />}
           eyebrow="Asistente de creación"
           title="IMPORTAR DESDE WHATSAPP"
-          description="Pegá la conversación. Arma2 detecta los datos principales y te deja revisar todo antes de crear."
           onClick={onWhatsApp}
         />
       </div>
-
-      <p className="mt-5 text-center font-sans text-[10.5px] leading-relaxed text-white/32">
-        Nada se crea ni se modifica sin tu confirmación.
-      </p>
     </main>
   </div>
 );

@@ -5,7 +5,6 @@ import {
   CheckCircle2,
   Clock3,
   MapPin,
-  MessageCircle,
   Sparkles,
   Users,
 } from 'lucide-react';
@@ -279,9 +278,6 @@ export default function WhatsAppMatchImportFlow({ onCreated, onBack }) {
         ) : !draft ? (
           <section>
             <div className="mb-6 text-center">
-              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border border-[#9b7bff]/30 bg-[#6a43ff]/16 text-[#c8baff] shadow-[0_12px_34px_rgba(70,35,175,0.32)]">
-                <MessageCircle size={23} strokeWidth={1.8} />
-              </div>
               <p className="font-oswald text-[10px] font-semibold uppercase tracking-[0.22em] text-[#a98cff]">Asistente de creación</p>
               <h2 className="mt-1 font-bebas-real text-[clamp(34px,9.5vw,42px)] leading-[0.95] tracking-[0.035em] text-white drop-shadow-[0_8px_26px_rgba(5,2,20,0.7)]">
                 PEGÁ LA CONVERSACIÓN
