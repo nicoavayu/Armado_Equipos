@@ -132,6 +132,11 @@ const renderHome = async (items = activityItems) => {
   );
 
   await screen.findByText('Actividad reciente');
+  // Drain the Home's pending async loads (feed revalidation, payments card…)
+  // before any gesture: a re-render replacing the activity list mid-swipe
+  // detaches the item node and the gesture is silently lost — the source of
+  // the parallel-mode flakiness this suite used to have.
+  await act(async () => {});
 };
 
 const firePointerEvent = (target, type, { pointerId, pointerType = 'touch', clientX, clientY }) => {
@@ -211,7 +216,6 @@ describe('FifaHomeContent recent activity dismiss', () => {
   test('sufficient left swipe removes only the Home activity item and persists it', async () => {
     await renderHome();
     const firstItem = await screen.findByRole('button', { name: /nueva solicitud de amistad/i });
-    jest.useFakeTimers();
 
     swipe(firstItem, { to: 40 });
 
@@ -219,10 +223,10 @@ describe('FifaHomeContent recent activity dismiss', () => {
       JSON.stringify(['activity-friend_request-user-2']),
     );
 
-    act(() => {
-      jest.advanceTimersByTime(260);
-    });
-
+    // Real timers on purpose: installing fake timers mid-test (they also fake
+    // Date/performance/microtasks) while Home async work is still in flight
+    // was a flakiness source in parallel runs. The exit animation is ~230ms,
+    // well within waitFor's default timeout.
     await waitFor(() => {
       expect(screen.queryByText('Nueva solicitud de amistad')).not.toBeInTheDocument();
     });
@@ -234,17 +238,12 @@ describe('FifaHomeContent recent activity dismiss', () => {
   test('sufficient right swipe also dismisses and persists', async () => {
     await renderHome();
     const firstItem = await screen.findByRole('button', { name: /nueva solicitud de amistad/i });
-    jest.useFakeTimers();
 
     swipe(firstItem, { from: 40, to: 220 });
 
     expect(window.localStorage.getItem('arma2_recent_activity_dismissed_user-1')).toBe(
       JSON.stringify(['activity-friend_request-user-2']),
     );
-
-    act(() => {
-      jest.advanceTimersByTime(260);
-    });
 
     await waitFor(() => {
       expect(screen.queryByText('Nueva solicitud de amistad')).not.toBeInTheDocument();

@@ -1,41 +1,72 @@
 import { supabase } from '../../lib/supabaseClient';
+import { requestImmediatePushDispatchSafe } from '../pushDispatchService';
+import {
+  AUTH_REQUIRED_MESSAGE,
+  describeDbAccessError,
+  getUsableSession,
+} from './dbErrors';
 
 const ALLOWED_FORMATS = ['F5', 'F6', 'F7', 'F8', 'F9', 'F11'];
+const AUTO_MATCH_PUSH_TYPES = [
+  'auto_match_gestating',
+  'auto_match_almost_full',
+  'auto_match_ready',
+  'auto_match_cancelled',
+];
+
+export { AUTH_REQUIRED_MESSAGE, PERMISSION_DENIED_MESSAGE } from './dbErrors';
+
+const requireSession = async () => {
+  const session = await getUsableSession();
+  if (!session) throw new Error(AUTH_REQUIRED_MESSAGE);
+  return session;
+};
+
+const describeAvailabilityDbError = describeDbAccessError;
+
+const kickAutoMatchPushes = () => {
+  AUTO_MATCH_PUSH_TYPES.forEach((eventType) => {
+    requestImmediatePushDispatchSafe({ eventType, limit: 100 });
+  });
+};
 
 const toCoordinate = (value) => {
-  // Number('') and Number(null) are 0, which would pin the user to 0,0.
   if (value === null || value === undefined || value === '') return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
 };
 
+const ALLOWED_DAYS = [1, 2, 3, 4, 5, 6, 7];
+
+const timeToMinutes = (value) => {
+  const match = /^([01]?\d|2[0-4]):([0-5]\d)$/.exec(String(value || '').trim());
+  if (!match) return null;
+  const minutes = Number(match[1]) * 60 + Number(match[2]);
+  return minutes > 24 * 60 ? null : minutes;
+};
+
 export const normalizeAvailabilityInput = (input = {}) => {
-  const startsAt = new Date(input.startsAt);
-  const endsAt = new Date(input.endsAt);
+  const days = [...new Set((input.days || []).map((value) => Number(value)))]
+    .filter((value) => ALLOWED_DAYS.includes(value))
+    .sort((a, b) => a - b);
+  const timeStart = timeToMinutes(input.timeStart);
+  const timeEnd = timeToMinutes(input.timeEnd);
   const formats = [...new Set((input.formats || []).map((value) => String(value).toUpperCase()))]
     .filter((value) => ALLOWED_FORMATS.includes(value));
   const maxDistanceKm = Math.max(1, Math.min(50, Math.round(Number(input.maxDistanceKm) || 8)));
   const latitude = toCoordinate(input.latitude);
   const longitude = toCoordinate(input.longitude);
 
-  if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) {
-    throw new Error('Elegí un día y horario válidos.');
-  }
-  if (endsAt <= startsAt) {
-    throw new Error('El horario de finalización debe ser posterior al inicio.');
-  }
-  if (endsAt.getTime() - startsAt.getTime() < 60 * 60 * 1000) {
-    // The whole matching pipeline requires 60 shared minutes, so shorter
-    // windows could never produce a match.
-    throw new Error('La franja tiene que durar al menos una hora.');
-  }
-  if (formats.length === 0) {
-    throw new Error('Elegí al menos un formato de partido.');
-  }
+  if (days.length === 0) throw new Error('Elegí al menos un día de la semana.');
+  if (timeStart === null || timeEnd === null) throw new Error('Elegí un rango horario válido.');
+  if (timeEnd <= timeStart) throw new Error('El horario de finalización debe ser posterior al inicio.');
+  if (timeEnd - timeStart < 60) throw new Error('La franja tiene que durar al menos una hora.');
+  if (formats.length === 0) throw new Error('Elegí al menos un formato de partido.');
 
   return {
-    startsAt: startsAt.toISOString(),
-    endsAt: endsAt.toISOString(),
+    days,
+    timeStart: String(input.timeStart).trim(),
+    timeEnd: String(input.timeEnd).trim(),
     formats,
     maxDistanceKm,
     latitude,
@@ -45,21 +76,33 @@ export const normalizeAvailabilityInput = (input = {}) => {
 
 export const saveMyAvailability = async (input) => {
   const normalized = normalizeAvailabilityInput(input);
+  const session = await requireSession();
   const { data, error } = await supabase.rpc('upsert_my_availability', {
-    p_starts_at: normalized.startsAt,
-    p_ends_at: normalized.endsAt,
+    p_days: normalized.days,
+    p_time_start: normalized.timeStart,
+    p_time_end: normalized.timeEnd,
     p_formats: normalized.formats,
     p_max_distance_km: normalized.maxDistanceKm,
     p_latitude: normalized.latitude,
     p_longitude: normalized.longitude,
   });
-  if (error) throw error;
+  if (error) {
+    throw describeAvailabilityDbError(error, {
+      operation: 'saveMyAvailability', target: 'rpc:upsert_my_availability', userId: session.user?.id,
+    });
+  }
+  kickAutoMatchPushes();
   return data;
 };
 
 export const cancelMyAvailability = async () => {
+  const session = await requireSession();
   const { error } = await supabase.rpc('cancel_my_availability');
-  if (error) throw error;
+  if (error) {
+    throw describeAvailabilityDbError(error, {
+      operation: 'cancelMyAvailability', target: 'rpc:cancel_my_availability', userId: session.user?.id,
+    });
+  }
 };
 
 export const getMyActiveAvailability = async (userId) => {
@@ -78,40 +121,69 @@ export const getMyActiveAvailability = async (userId) => {
 
 export const findMyAvailabilityMatches = async (limit = 30) => {
   const safeLimit = Math.max(1, Math.min(100, Math.round(Number(limit) || 30)));
+  const session = await requireSession();
   const { data, error } = await supabase.rpc('find_my_availability_matches', { p_limit: safeLimit });
-  if (error) throw error;
+  if (error) {
+    throw describeAvailabilityDbError(error, {
+      operation: 'findMyAvailabilityMatches', target: 'rpc:find_my_availability_matches', userId: session.user?.id,
+    });
+  }
+  return data || [];
+};
+
+export const syncMyAutoMatchGestations = async () => {
+  const session = await requireSession();
+  const { data, error } = await supabase.rpc('sync_my_auto_match_gestations');
+  if (error) {
+    throw describeAvailabilityDbError(error, {
+      operation: 'syncMyAutoMatchGestations', target: 'rpc:sync_my_auto_match_gestations', userId: session.user?.id,
+    });
+  }
+  kickAutoMatchPushes();
   return data || [];
 };
 
 export const createMyAutoMatchProposal = async (format) => {
   const normalized = String(format || '').toUpperCase();
   if (!ALLOWED_FORMATS.includes(normalized)) throw new Error('Elegí un formato válido.');
+  const session = await requireSession();
   const { data, error } = await supabase.rpc('create_my_auto_match_proposal', { p_format: normalized });
-  if (error) throw error;
+  if (error) {
+    throw describeAvailabilityDbError(error, {
+      operation: 'createMyAutoMatchProposal', target: 'rpc:create_my_auto_match_proposal', userId: session.user?.id,
+    });
+  }
+  kickAutoMatchPushes();
   return data;
 };
 
 export const respondToAutoMatchProposal = async (proposalId, response) => {
   const normalized = String(response || '').toLowerCase();
   if (!['accepted', 'declined'].includes(normalized)) throw new Error('Respuesta inválida.');
+  const session = await requireSession();
   const { data, error } = await supabase.rpc('respond_to_auto_match_proposal', {
     p_proposal_id: Number(proposalId),
     p_response: normalized,
   });
-  if (error) throw error;
+  if (error) {
+    throw describeAvailabilityDbError(error, {
+      operation: 'respondToAutoMatchProposal', target: 'rpc:respond_to_auto_match_proposal', userId: session.user?.id,
+    });
+  }
+  kickAutoMatchPushes();
   return data;
 };
 
 export const getMyActiveProposals = async (userId) => {
   if (!userId) return [];
-  const { data: memberships, error: membershipError } = await supabase
-    .from('auto_match_proposal_members')
-    .select('proposal_id, response, auto_match_proposals(*)')
-    .eq('user_id', userId);
-  if (membershipError) throw membershipError;
-  return (memberships || [])
-    .map((row) => ({ ...row.auto_match_proposals, my_response: row.response }))
-    .filter((proposal) => proposal?.id && ['collecting', 'ready'].includes(proposal.status));
+  const session = await requireSession();
+  const { data, error } = await supabase.rpc('get_my_auto_match_proposals');
+  if (error) {
+    throw describeAvailabilityDbError(error, {
+      operation: 'getMyActiveProposals', target: 'rpc:get_my_auto_match_proposals', userId: session.user?.id,
+    });
+  }
+  return data || [];
 };
 
 export const buildMatchOpportunitySummary = (matches = [], preferredFormats = []) => {
@@ -132,9 +204,12 @@ export const buildMatchOpportunitySummary = (matches = [], preferredFormats = []
       compatiblePlayers,
       missingPlayers: Math.max(0, playersNeeded - compatiblePlayers),
       ready: compatiblePlayers >= playersNeeded,
+      gestationThreshold: Math.max(4, Math.ceil(playersNeeded * 0.4)),
+      gestating: compatiblePlayers >= Math.max(4, Math.ceil(playersNeeded * 0.4)),
     };
   }).sort((a, b) => (
-    Number(b.ready) - Number(a.ready)
+    Number(b.gestating) - Number(a.gestating)
+    || Number(b.ready) - Number(a.ready)
     || a.missingPlayers - b.missingPlayers
     || a.playersNeeded - b.playersNeeded
   ));
