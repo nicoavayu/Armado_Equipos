@@ -92,6 +92,8 @@ describe('availability MVP', () => {
       compatiblePlayers: 10,
       missingPlayers: 0,
       ready: true,
+      gestationThreshold: 4,
+      gestating: true,
     });
     expect(summary[1]).toEqual({
       format: 'F7',
@@ -99,10 +101,41 @@ describe('availability MVP', () => {
       compatiblePlayers: 14,
       missingPlayers: 0,
       ready: true,
+      gestationThreshold: 6,
+      gestating: true,
     });
   });
 
-  test('orders opportunities: ready first, then fewest missing players', () => {
+  test('marks a format as gestating before the full cupo is reached', () => {
+    const matches = Array.from({ length: 3 }, (_, index) => ({
+      user_id: `user-${index}`,
+      shared_formats: ['F5'],
+    }));
+
+    expect(buildMatchOpportunitySummary(matches, ['F5'])[0]).toMatchObject({
+      compatiblePlayers: 4,
+      playersNeeded: 10,
+      gestationThreshold: 4,
+      gestating: true,
+      ready: false,
+    });
+  });
+
+  test('does not mark gestation before the threshold', () => {
+    const matches = Array.from({ length: 2 }, (_, index) => ({
+      user_id: `user-${index}`,
+      shared_formats: ['F7'],
+    }));
+
+    expect(buildMatchOpportunitySummary(matches, ['F7'])[0]).toMatchObject({
+      compatiblePlayers: 3,
+      gestationThreshold: 6,
+      gestating: false,
+      ready: false,
+    });
+  });
+
+  test('orders opportunities: gestating first, then ready and fewest missing players', () => {
     const matches = [
       { user_id: 'a', shared_formats: ['F5', 'F7'] },
       ...Array.from({ length: 13 }, (_, index) => ({
@@ -126,6 +159,8 @@ describe('availability MVP', () => {
       compatiblePlayers: 1,
       missingPlayers: 9,
       ready: false,
+      gestationThreshold: 4,
+      gestating: false,
     }]);
   });
 });
