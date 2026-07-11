@@ -11,6 +11,8 @@ const AUTO_MATCH_PUSH_TYPES = [
   'auto_match_gestating',
   'auto_match_almost_full',
   'auto_match_ready',
+  'auto_match_organizing',
+  'auto_match_created',
   'auto_match_cancelled',
 ];
 
@@ -56,6 +58,7 @@ export const normalizeAvailabilityInput = (input = {}) => {
   const maxDistanceKm = Math.max(1, Math.min(50, Math.round(Number(input.maxDistanceKm) || 8)));
   const latitude = toCoordinate(input.latitude);
   const longitude = toCoordinate(input.longitude);
+  const canOrganize = input.canOrganize === true;
 
   if (days.length === 0) throw new Error('Elegí al menos un día de la semana.');
   if (timeStart === null || timeEnd === null) throw new Error('Elegí un rango horario válido.');
@@ -71,6 +74,7 @@ export const normalizeAvailabilityInput = (input = {}) => {
     maxDistanceKm,
     latitude,
     longitude,
+    canOrganize,
   };
 };
 
@@ -85,6 +89,7 @@ export const saveMyAvailability = async (input) => {
     p_max_distance_km: normalized.maxDistanceKm,
     p_latitude: normalized.latitude,
     p_longitude: normalized.longitude,
+    p_can_organize: normalized.canOrganize,
   });
   if (error) {
     throw describeAvailabilityDbError(error, {
@@ -157,13 +162,14 @@ export const createMyAutoMatchProposal = async (format) => {
   return data;
 };
 
-export const respondToAutoMatchProposal = async (proposalId, response) => {
+export const respondToAutoMatchProposal = async (proposalId, response, { canOrganize = false } = {}) => {
   const normalized = String(response || '').toLowerCase();
   if (!['accepted', 'declined'].includes(normalized)) throw new Error('Respuesta inválida.');
   const session = await requireSession();
   const { data, error } = await supabase.rpc('respond_to_auto_match_proposal', {
     p_proposal_id: Number(proposalId),
     p_response: normalized,
+    p_can_organize: canOrganize === true,
   });
   if (error) {
     throw describeAvailabilityDbError(error, {
@@ -172,6 +178,82 @@ export const respondToAutoMatchProposal = async (proposalId, response) => {
   }
   kickAutoMatchPushes();
   return data;
+};
+
+export const claimAutoMatchOrganizer = async (proposalId) => {
+  const session = await requireSession();
+  const { data, error } = await supabase.rpc('claim_auto_match_organizer', {
+    p_proposal_id: Number(proposalId),
+  });
+  if (error) {
+    throw describeAvailabilityDbError(error, {
+      operation: 'claimAutoMatchOrganizer', target: 'rpc:claim_auto_match_organizer', userId: session.user?.id,
+    });
+  }
+  kickAutoMatchPushes();
+  return data;
+};
+
+const toNullableTrimmed = (value) => {
+  const normalized = String(value ?? '').trim();
+  return normalized.length > 0 ? normalized : null;
+};
+
+export const finalizeAutoMatchProposal = async (proposalId, {
+  nombre,
+  fecha = null,
+  hora = null,
+  tipoPartido = 'Masculino',
+  precio = null,
+  sede = null,
+  sedePlaceId = null,
+  sedeDireccion = null,
+  sedeLatitud = null,
+  sedeLongitud = null,
+} = {}) => {
+  const normalizedNombre = toNullableTrimmed(nombre);
+  if (!normalizedNombre) throw new Error('Poné un nombre para el partido.');
+  const normalizedPrecio = precio === null || precio === undefined || precio === ''
+    ? null
+    : Number(precio);
+  if (normalizedPrecio !== null && (!Number.isFinite(normalizedPrecio) || normalizedPrecio < 0)) {
+    throw new Error('El precio no es válido.');
+  }
+
+  const session = await requireSession();
+  const { data, error } = await supabase.rpc('finalize_auto_match_proposal', {
+    p_proposal_id: Number(proposalId),
+    p_nombre: normalizedNombre,
+    p_fecha: toNullableTrimmed(fecha),
+    p_hora: toNullableTrimmed(hora),
+    p_tipo_partido: toNullableTrimmed(tipoPartido) || 'Masculino',
+    p_precio: normalizedPrecio,
+    p_sede: toNullableTrimmed(sede),
+    p_sede_place_id: toNullableTrimmed(sedePlaceId),
+    p_sede_direccion: toNullableTrimmed(sedeDireccion),
+    p_sede_latitud: toCoordinate(sedeLatitud),
+    p_sede_longitud: toCoordinate(sedeLongitud),
+  });
+  if (error) {
+    throw describeAvailabilityDbError(error, {
+      operation: 'finalizeAutoMatchProposal', target: 'rpc:finalize_auto_match_proposal', userId: session.user?.id,
+    });
+  }
+  kickAutoMatchPushes();
+  return data;
+};
+
+export const getAutoMatchProposalMembers = async (proposalId) => {
+  const session = await requireSession();
+  const { data, error } = await supabase.rpc('get_auto_match_proposal_members', {
+    p_proposal_id: Number(proposalId),
+  });
+  if (error) {
+    throw describeAvailabilityDbError(error, {
+      operation: 'getAutoMatchProposalMembers', target: 'rpc:get_auto_match_proposal_members', userId: session.user?.id,
+    });
+  }
+  return data || [];
 };
 
 export const getMyActiveProposals = async (userId) => {

@@ -3,7 +3,9 @@ import ReactDOM from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Check,
+  ClipboardList,
   Clock3,
+  Crown,
   MapPin,
   RefreshCw,
   Search,
@@ -12,6 +14,7 @@ import {
 } from 'lucide-react';
 
 import { useAuth } from '../AuthProvider';
+import AutoMatchOrganizeSheet from './AutoMatchOrganizeSheet';
 import DistanceSlider from './DistanceSlider';
 import PageTitle from '../PageTitle';
 import { supabase } from '../../lib/supabaseClient';
@@ -21,7 +24,9 @@ import {
   ALLOWED_FORMATS,
   buildMatchOpportunitySummary,
   cancelMyAvailability,
+  claimAutoMatchOrganizer,
   findMyAvailabilityMatches,
+  getAutoMatchProposalMembers,
   getMyActiveAvailability,
   getMyActiveProposals,
   respondToAutoMatchProposal,
@@ -72,14 +77,92 @@ const formatProposalDate = (value) => new Date(value).toLocaleString('es-AR', {
   minute: '2-digit',
 });
 
-const ProposalCard = ({ proposal, loading, onRespond }) => {
-  const ready = proposal.status === 'ready';
+const formatDeadline = (value) => new Date(value).toLocaleString('es-AR', {
+  weekday: 'short',
+  hour: '2-digit',
+  minute: '2-digit',
+});
+
+const CANCELLED_REASONS = {
+  member_declined: 'Una persona no pudo sumarse y se reorganizó la búsqueda.',
+  below_threshold: 'Se bajaron varios jugadores y no hubo reemplazos disponibles.',
+  no_organizer: 'Nadie tomó la organización a tiempo.',
+  expired: 'No se llegó a completar a tiempo.',
+  duplicate_slot: 'Se unificó con otra propuesta del mismo horario.',
+};
+
+// Estado visible de la propuesta para la UI. Exportado para tests.
+export const resolveProposalStage = (proposal) => {
+  const status = String(proposal?.status || '');
+  if (status === 'created') return { key: 'created', label: 'Partido creado' };
+  if (status === 'cancelled' || status === 'expired') return { key: 'cancelled', label: 'Cancelado' };
+  if (status === 'ready') {
+    return proposal?.organizer_id
+      ? { key: 'organizing', label: 'Organizando' }
+      : { key: 'needs_organizer', label: 'Falta organizador' };
+  }
+  const memberCount = Number(proposal?.member_count || 0);
+  const maxPlayers = Number(proposal?.max_players || 0);
+  return memberCount >= maxPlayers && maxPlayers > 0
+    ? { key: 'waiting', label: 'Esperando respuestas' }
+    : { key: 'searching', label: 'Buscando jugadores' };
+};
+
+const STAGE_BADGE = {
+  searching: 'border-[#9b7bff]/25 bg-[#6a43ff]/12 text-[#cfc4ff]',
+  waiting: 'border-[#9b7bff]/25 bg-[#6a43ff]/12 text-[#cfc4ff]',
+  needs_organizer: 'border-amber-400/30 bg-amber-400/10 text-amber-100',
+  organizing: 'border-[#2dd4bf]/30 bg-[#2dd4bf]/10 text-[#99f6e4]',
+  created: 'border-[#2dd4bf]/30 bg-[#2dd4bf]/10 text-[#99f6e4]',
+  cancelled: 'border-white/12 bg-white/[0.05] text-white/50',
+};
+
+const RESPONSE_DOT = {
+  accepted: 'bg-[#2dd4bf]',
+  pending: 'bg-amber-300',
+  declined: 'bg-rose-400/70',
+};
+
+const MemberChip = ({ member }) => (
+  <span
+    className={`flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-black/20 py-1 pl-1 pr-2.5 ${member.response === 'declined' ? 'opacity-45' : ''}`}
+  >
+    {member.avatar_url ? (
+      <img src={member.avatar_url} alt="" className="h-5 w-5 rounded-full object-cover" />
+    ) : (
+      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#6a43ff]/25 font-sans text-[9px] font-bold text-[#c8baff]">
+        {String(member.nombre || '?').trim().charAt(0).toUpperCase()}
+      </span>
+    )}
+    <span className="max-w-[92px] truncate font-sans text-[10px] text-white/70">{member.nombre}</span>
+    {member.is_organizer ? <Crown size={11} className="shrink-0 text-[#fdb022]" /> : (
+      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${RESPONSE_DOT[member.response] || 'bg-white/30'}`} />
+    )}
+  </span>
+);
+
+const ProposalCard = ({
+  proposal,
+  members,
+  userId,
+  loading,
+  onRespond,
+  onClaim,
+  onOrganize,
+  onOpenMatch,
+}) => {
+  const stage = resolveProposalStage(proposal);
   const pending = proposal.my_response === 'pending';
   const accepted = Number(proposal.accepted_count || 0);
   const total = Number(proposal.max_players || 0);
   const memberCount = Number(proposal.member_count || 0);
   const missing = Math.max(0, total - accepted);
   const progress = total > 0 ? Math.min(100, (accepted / total) * 100) : 0;
+  const iAmOrganizer = Boolean(proposal.organizer_id) && proposal.organizer_id === userId;
+  const iAccepted = proposal.my_response === 'accepted';
+  const active = stage.key !== 'created' && stage.key !== 'cancelled';
+  const visibleMembers = (members || []).filter((member) => member.response !== 'declined');
+  const declinedMembers = (members || []).filter((member) => member.response === 'declined');
 
   return (
     <article className="relative mb-3 overflow-hidden rounded-[20px] border border-[rgba(148,134,255,0.24)] bg-[radial-gradient(260px_100px_at_8%_-20%,rgba(139,92,255,0.22),transparent_72%),linear-gradient(150deg,rgba(39,30,85,0.84),rgba(13,10,31,0.96))] p-3.5 shadow-[0_14px_38px_rgba(5,2,20,0.3),inset_0_1px_0_rgba(255,255,255,0.055)]">
@@ -97,14 +180,14 @@ const ProposalCard = ({ proposal, loading, onRespond }) => {
           </div>
           <p className="mt-2 font-oswald text-[12px] text-white/52">{formatProposalDate(proposal.proposed_starts_at)}</p>
           <p className="mt-1 flex items-center gap-1.5 font-sans text-[10px] text-white/38">
-            <MapPin size={12} className="text-[#aa94ff]" /> Zona compatible con el radio de todos
+            <MapPin size={12} className="text-[#aa94ff]" />
+            {stage.key === 'created'
+              ? 'La cancha está definida en el partido'
+              : 'La cancha la define quien organiza'}
           </p>
         </div>
-        <span className={`shrink-0 rounded-full border px-2.5 py-1 font-sans text-[9px] font-bold uppercase tracking-[0.08em] ${ready
-          ? 'border-[#2dd4bf]/30 bg-[#2dd4bf]/10 text-[#99f6e4]'
-          : 'border-[#9b7bff]/25 bg-[#6a43ff]/12 text-[#cfc4ff]'}`}
-        >
-          {ready ? 'Cupo completo' : 'Gestándose'}
+        <span className={`shrink-0 rounded-full border px-2.5 py-1 font-sans text-[9px] font-bold uppercase tracking-[0.08em] ${STAGE_BADGE[stage.key]}`}>
+          {stage.label}
         </span>
       </div>
 
@@ -116,18 +199,41 @@ const ProposalCard = ({ proposal, loading, onRespond }) => {
           </div>
           <div className="text-right font-sans text-[10px] text-white/40">
             <p>{memberCount} convocados</p>
-            <p>{ready ? 'Ya están todos' : `Faltan ${missing}`}</p>
+            <p>{missing === 0 ? 'Ya están todos' : `Faltan ${missing}`}</p>
           </div>
         </div>
         <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10">
           <div
-            className="h-full rounded-full bg-[linear-gradient(90deg,#6a43ff,#a78bfa,#2dd4bf)] shadow-[0_0_12px_rgba(139,92,255,0.45)] transition-[width] duration-500"
+            className="h-full rounded-full bg-[linear-gradient(90deg,#6a43ff,#a78bfa,#2dd4bf)] shadow-[0_0_12px_rgba(139,92,255,0.45)] transition-[width] duration-500 motion-reduce:transition-none"
             style={{ width: `${progress}%` }}
           />
         </div>
+
+        {visibleMembers.length > 0 ? (
+          <div className="mt-3 flex flex-wrap gap-1.5" data-testid="proposal-roster">
+            {visibleMembers.map((member) => <MemberChip key={member.user_id} member={member} />)}
+            {declinedMembers.map((member) => <MemberChip key={member.user_id} member={member} />)}
+          </div>
+        ) : null}
+        {visibleMembers.length > 0 ? (
+          <p className="mt-2 font-sans text-[9px] text-white/30">
+            <span className="mr-2"><span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-[#2dd4bf]" />confirmado</span>
+            <span className="mr-2"><span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-amber-300" />pendiente</span>
+            {declinedMembers.length > 0 ? (
+              <span><span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-rose-400/70" />no juega</span>
+            ) : null}
+          </p>
+        ) : null}
       </div>
 
-      {pending ? (
+      {proposal.organizer_id ? (
+        <div className="mt-3 flex items-center gap-2 rounded-xl border border-[#fdb022]/20 bg-[#fdb022]/[0.07] px-3 py-2 font-oswald text-[11px] font-semibold text-[#ffe1a6]">
+          <Crown size={14} className="shrink-0 text-[#fdb022]" />
+          {iAmOrganizer ? 'Vos organizás este partido.' : `Organiza ${proposal.organizer_nombre || 'un jugador'}.`}
+        </div>
+      ) : null}
+
+      {pending && active ? (
         <div className="mt-3">
           <p className="mb-2 font-oswald text-[11px] text-white/58">¿Te sumás a esta oportunidad?</p>
           <div className="grid grid-cols-2 gap-2">
@@ -135,7 +241,7 @@ const ProposalCard = ({ proposal, loading, onRespond }) => {
               type="button"
               disabled={loading}
               onClick={() => onRespond(proposal.id, 'declined')}
-              className="min-h-11 rounded-xl border border-white/12 bg-white/[0.035] font-oswald text-[13px] font-semibold text-white/58 transition-all hover:bg-white/[0.07] active:scale-[0.98]"
+              className="min-h-11 rounded-xl border border-white/12 bg-white/[0.035] font-oswald text-[13px] font-semibold text-white/58 transition-all hover:bg-white/[0.07] active:scale-[0.98] motion-reduce:transition-none"
             >
               Esta vez no
             </button>
@@ -143,24 +249,81 @@ const ProposalCard = ({ proposal, loading, onRespond }) => {
               type="button"
               disabled={loading}
               onClick={() => onRespond(proposal.id, 'accepted')}
-              className="min-h-11 rounded-xl border border-white/15 bg-cta-gradient font-oswald text-[13px] font-bold text-white shadow-[0_7px_22px_rgba(106,67,255,0.3)] transition-all active:scale-[0.98]"
+              className="min-h-11 rounded-xl border border-white/15 bg-cta-gradient font-oswald text-[13px] font-bold text-white shadow-[0_7px_22px_rgba(106,67,255,0.3)] transition-all active:scale-[0.98] motion-reduce:transition-none"
             >
               <Check size={15} className="mr-1 inline" /> Me sumo
             </button>
           </div>
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() => onRespond(proposal.id, 'accepted', { canOrganize: true })}
+            className="mt-2 min-h-11 w-full rounded-xl border border-[#fdb022]/25 bg-[#fdb022]/[0.08] font-oswald text-[13px] font-semibold text-[#ffe1a6] transition-all hover:bg-[#fdb022]/[0.13] active:scale-[0.98] motion-reduce:transition-none"
+          >
+            <Crown size={14} className="mr-1.5 inline" /> Me sumo y puedo organizar
+          </button>
         </div>
-      ) : (
-        <div className="mt-3 rounded-xl border border-white/[0.075] bg-black/15 px-3 py-2 font-sans text-[10.5px] leading-relaxed text-white/46">
-          {proposal.my_response === 'accepted'
-            ? 'Ya confirmaste. Arma2 te avisará cuando cambie el estado.'
-            : 'No participás de esta combinación. Tu búsqueda general sigue activa.'}
-        </div>
-      )}
+      ) : null}
 
-      {ready ? (
-        <div className="mt-3 flex items-center gap-2 rounded-xl border border-[#2dd4bf]/20 bg-[#2dd4bf]/8 px-3 py-2.5 font-oswald text-[11px] font-semibold text-[#b8fff2]">
-          <Check size={15} className="shrink-0" />
-          Ya están todos. El próximo paso será elegir quién organiza, cancha y precio.
+      {stage.key === 'needs_organizer' ? (
+        <div className="mt-3 rounded-xl border border-amber-400/20 bg-amber-400/[0.06] p-3">
+          <p className="font-oswald text-[11.5px] font-semibold text-amber-100">
+            Ya están todos los jugadores. Falta que alguien organice el partido.
+          </p>
+          {proposal.organizer_deadline_at ? (
+            <p className="mt-1 font-sans text-[10px] text-amber-100/60">
+              Reservado hasta {formatDeadline(proposal.organizer_deadline_at)}. Si nadie lo toma, se cancela.
+            </p>
+          ) : null}
+          {iAccepted ? (
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => onClaim(proposal.id)}
+              className={`${PRIMARY_CTA_BUTTON_CLASS} mt-3 !min-h-[46px]`}
+            >
+              <Crown size={16} className="mr-2" /> Yo lo organizo
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
+      {stage.key === 'organizing' && iAmOrganizer ? (
+        <button
+          type="button"
+          disabled={loading}
+          onClick={() => onOrganize(proposal)}
+          className={`${PRIMARY_CTA_BUTTON_CLASS} mt-3 !min-h-[46px]`}
+        >
+          <ClipboardList size={16} className="mr-2" /> Completar datos del partido
+        </button>
+      ) : null}
+
+      {stage.key === 'organizing' && !iAmOrganizer && iAccepted ? (
+        <div className="mt-3 rounded-xl border border-white/[0.075] bg-black/15 px-3 py-2 font-sans text-[10.5px] leading-relaxed text-white/46">
+          {proposal.organizer_nombre || 'Quien organiza'} está definiendo cancha, hora exacta y precio. Te avisamos al confirmarse.
+        </div>
+      ) : null}
+
+      {stage.key === 'created' && proposal.partido_id ? (
+        <button
+          type="button"
+          onClick={() => onOpenMatch(proposal.partido_id, iAmOrganizer)}
+          className={`${PRIMARY_CTA_BUTTON_CLASS} mt-3 !min-h-[46px]`}
+        >
+          <Check size={16} className="mr-2" /> Ver el partido
+        </button>
+      ) : null}
+
+      {stage.key === 'cancelled' ? (
+        <div className="mt-3 rounded-xl border border-white/[0.075] bg-black/15 px-3 py-2 font-sans text-[10.5px] leading-relaxed text-white/46">
+          {CANCELLED_REASONS[proposal.cancelled_reason] || 'La propuesta no siguió adelante.'} Tu disponibilidad sigue activa.
+        </div>
+      ) : null}
+
+      {active && iAccepted && stage.key !== 'needs_organizer' && stage.key !== 'organizing' ? (
+        <div className="mt-3 rounded-xl border border-white/[0.075] bg-black/15 px-3 py-2 font-sans text-[10.5px] leading-relaxed text-white/46">
+          Ya confirmaste. Arma2 te avisará cuando cambie el estado.
         </div>
       ) : null}
     </article>
@@ -175,12 +338,15 @@ export default function AvailabilityOpportunityCard() {
   const [availability, setAvailability] = useState(null);
   const [matches, setMatches] = useState([]);
   const [proposals, setProposals] = useState([]);
+  const [membersByProposal, setMembersByProposal] = useState({});
   const [profileLocation, setLocation] = useState(null);
   const [days, setDays] = useState([]);
   const [timeStart, setTimeStart] = useState('20:00');
   const [timeEnd, setTimeEnd] = useState('23:00');
   const [formats, setFormats] = useState(['F5', 'F7']);
   const [distance, setDistance] = useState(8);
+  const [canOrganize, setCanOrganize] = useState(false);
+  const [organizingProposal, setOrganizingProposal] = useState(null);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
@@ -214,6 +380,17 @@ export default function AvailabilityOpportunityCard() {
     }
   }, [user?.id]);
 
+  const loadMembers = useCallback(async (proposalRows) => {
+    const entries = await Promise.all((proposalRows || []).map(async (proposal) => {
+      try {
+        return [proposal.id, await getAutoMatchProposalMembers(proposal.id)];
+      } catch (_error) {
+        return [proposal.id, []];
+      }
+    }));
+    setMembersByProposal(Object.fromEntries(entries));
+  }, []);
+
   const load = useCallback(async ({ sync = false } = {}) => {
     if (!user?.id) return;
     try {
@@ -225,6 +402,7 @@ export default function AvailabilityOpportunityCard() {
         setTimeEnd(String(active.time_end).slice(0, 5));
         setFormats(active.formats || ['F5']);
         setDistance(active.max_distance_km || 8);
+        setCanOrganize(Boolean(active.can_organize));
         if (sync) await syncMyAutoMatchGestations();
         const [nextMatches, nextProposals] = await Promise.all([
           findMyAvailabilityMatches(),
@@ -232,14 +410,17 @@ export default function AvailabilityOpportunityCard() {
         ]);
         setMatches(nextMatches);
         setProposals(nextProposals);
+        await loadMembers(nextProposals);
       } else {
         setMatches([]);
-        setProposals(await getMyActiveProposals(user.id));
+        const nextProposals = await getMyActiveProposals(user.id);
+        setProposals(nextProposals);
+        await loadMembers(nextProposals);
       }
     } catch (err) {
       setError(err.message || 'No pudimos cargar tu disponibilidad.');
     }
-  }, [user?.id]);
+  }, [loadMembers, user?.id]);
 
   useEffect(() => {
     load({ sync: true });
@@ -290,6 +471,7 @@ export default function AvailabilityOpportunityCard() {
         maxDistanceKm: distance,
         latitude: profileLocation?.lat,
         longitude: profileLocation?.lng,
+        canOrganize,
       });
       setNotice('Búsqueda activada. Si ya hay una combinación viable, Arma2 creará la gestación y avisará a todos.');
       await load({ sync: true });
@@ -326,19 +508,22 @@ export default function AvailabilityOpportunityCard() {
     }
   };
 
-  const respond = async (proposalId, response) => {
+  const respond = async (proposalId, response, { canOrganize: respondCanOrganize = false } = {}) => {
     setLoading(true);
     setError('');
     try {
-      await respondToAutoMatchProposal(proposalId, response);
+      await respondToAutoMatchProposal(proposalId, response, { canOrganize: respondCanOrganize });
       setNotice(response === 'accepted'
         ? 'Te sumaste. Arma2 te avisará cuando se complete.'
-        : 'Esta combinación se cancelará y Arma2 buscará otra sin perder tu disponibilidad.');
+        : 'Saliste de esta propuesta. El grupo sigue y buscamos un reemplazo; tu disponibilidad queda activa.');
       await load({ sync: false });
     } catch (err) {
       const message = err?.message || '';
-      if (/proposal_not_open|proposal_not_found|proposal_member_not_found/.test(message)) {
+      if (/proposal_not_open|proposal_not_found|proposal_member_not_found|proposal_member_declined/.test(message)) {
         setError('Esta propuesta ya no está disponible.');
+        await load({ sync: false });
+      } else if (/proposal_full/.test(message)) {
+        setError('El cupo ya se completó sin tu lugar. Tu disponibilidad sigue activa.');
         await load({ sync: false });
       } else {
         setError(message || 'No pudimos guardar tu respuesta.');
@@ -347,6 +532,33 @@ export default function AvailabilityOpportunityCard() {
       setLoading(false);
     }
   };
+
+  const claim = async (proposalId) => {
+    setLoading(true);
+    setError('');
+    try {
+      await claimAutoMatchOrganizer(proposalId);
+      setNotice('¡La organización es tuya! Completá cancha, hora y precio.');
+      await load({ sync: false });
+    } catch (err) {
+      const message = err?.message || '';
+      if (/organizer_already_assigned/.test(message)) {
+        setError('Otra persona tomó la organización primero.');
+        await load({ sync: false });
+      } else if (/proposal_not_open|proposal_not_found|proposal_member_not_found/.test(message)) {
+        setError('Esta propuesta ya no está esperando organización.');
+        await load({ sync: false });
+      } else {
+        setError(message || 'No pudimos asignarte la organización.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openMatch = useCallback((partidoId, asAdmin) => {
+    navigate(asAdmin ? `/admin/${partidoId}` : `/partido-publico/${partidoId}`);
+  }, [navigate]);
 
   if (!user?.id || !open) return null;
 
@@ -381,11 +593,21 @@ export default function AvailabilityOpportunityCard() {
                 onClick={refresh}
                 className="flex min-h-9 items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.035] px-3 font-oswald text-[10px] font-semibold text-white/56"
               >
-                <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} /> Actualizar
+                <RefreshCw size={13} className={refreshing ? 'animate-spin motion-reduce:animate-none' : ''} /> Actualizar
               </button>
             </div>
             {proposals.map((proposal) => (
-              <ProposalCard key={proposal.id} proposal={proposal} loading={loading} onRespond={respond} />
+              <ProposalCard
+                key={proposal.id}
+                proposal={proposal}
+                members={membersByProposal[proposal.id] || []}
+                userId={user.id}
+                loading={loading}
+                onRespond={respond}
+                onClaim={claim}
+                onOrganize={setOrganizingProposal}
+                onOpenMatch={openMatch}
+              />
             ))}
           </section>
         ) : null}
@@ -398,6 +620,11 @@ export default function AvailabilityOpportunityCard() {
                   <Search size={16} className="text-[#b39cff]" /> Tu búsqueda está activa
                 </div>
                 <p className="mt-1 font-oswald text-[11.5px] text-white/48">{formatWindow(availability)}</p>
+                {availability.can_organize ? (
+                  <p className="mt-1 flex items-center gap-1.5 font-sans text-[10px] text-[#ffe1a6]/80">
+                    <Crown size={11} className="text-[#fdb022]" /> Te ofreciste para organizar
+                  </p>
+                ) : null}
               </div>
               <span className="rounded-full border border-[#9b7bff]/25 bg-[#6a43ff]/12 px-2.5 py-1 font-sans text-[9px] font-bold text-[#c8baff]">
                 {availability.formats.join(' · ')}
@@ -436,7 +663,7 @@ export default function AvailabilityOpportunityCard() {
               type="button"
               disabled={loading}
               onClick={cancel}
-              className="mt-4 min-h-11 w-full rounded-xl border border-rose-400/20 bg-rose-400/[0.07] font-oswald text-[12px] font-semibold text-rose-100/80 transition-all hover:bg-rose-400/10 active:scale-[0.985]"
+              className="mt-4 min-h-11 w-full rounded-xl border border-rose-400/20 bg-rose-400/[0.07] font-oswald text-[12px] font-semibold text-rose-100/80 transition-all hover:bg-rose-400/10 active:scale-[0.985] motion-reduce:transition-none"
             >
               Dejar de buscar
             </button>
@@ -458,7 +685,7 @@ export default function AvailabilityOpportunityCard() {
                       key={day.value}
                       onClick={() => toggleDay(day.value)}
                       aria-pressed={active}
-                      className={`min-h-11 rounded-xl border font-oswald text-[11.5px] font-bold transition-all active:scale-[0.95] ${active
+                      className={`min-h-11 rounded-xl border font-oswald text-[11.5px] font-bold transition-all active:scale-[0.95] motion-reduce:transition-none ${active
                         ? 'border-[#9b7bff] bg-[linear-gradient(145deg,rgba(112,48,255,0.62),rgba(57,24,132,0.8))] text-white shadow-[0_8px_22px_rgba(75,38,180,0.28)]'
                         : 'border-white/10 bg-white/[0.035] text-white/42 hover:border-[#9b7bff]/32 hover:text-white/68'}`}
                     >
@@ -500,7 +727,7 @@ export default function AvailabilityOpportunityCard() {
                       type="button"
                       key={format}
                       onClick={() => toggleFormat(format)}
-                      className={`min-h-11 rounded-xl border font-oswald text-[12.5px] font-bold transition-all active:scale-[0.97] ${active
+                      className={`min-h-11 rounded-xl border font-oswald text-[12.5px] font-bold transition-all active:scale-[0.97] motion-reduce:transition-none ${active
                         ? 'border-[#9b7bff] bg-[linear-gradient(145deg,rgba(112,48,255,0.62),rgba(57,24,132,0.8))] text-white shadow-[0_8px_22px_rgba(75,38,180,0.28)]'
                         : 'border-white/10 bg-white/[0.035] text-white/42 hover:border-[#9b7bff]/32 hover:text-white/68'}`}
                     >
@@ -527,6 +754,36 @@ export default function AvailabilityOpportunityCard() {
               />
             </div>
 
+            <button
+              type="button"
+              onClick={() => setCanOrganize((current) => !current)}
+              aria-pressed={canOrganize}
+              className={`mt-4 flex w-full items-center gap-3 rounded-2xl border px-3.5 py-3 text-left transition-all active:scale-[0.99] motion-reduce:transition-none ${canOrganize
+                ? 'border-[#fdb022]/45 bg-[#fdb022]/[0.09]'
+                : 'border-white/[0.075] bg-black/15 hover:border-[#fdb022]/25'}`}
+            >
+              <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border ${canOrganize
+                ? 'border-[#fdb022]/40 bg-[#fdb022]/15 text-[#fdb022]'
+                : 'border-white/10 bg-white/[0.04] text-white/40'}`}
+              >
+                <Crown size={16} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block font-oswald text-[12.5px] font-semibold text-white">Puedo organizar el partido</span>
+                <span className="mt-0.5 block font-sans text-[10px] leading-relaxed text-white/40">
+                  Opcional. Si el grupo se completa, podés quedar como organizador para definir cancha y precio.
+                </span>
+              </span>
+              <span
+                aria-hidden="true"
+                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border ${canOrganize
+                  ? 'border-[#fdb022] bg-[#fdb022] text-[#241a02]'
+                  : 'border-white/20 bg-transparent text-transparent'}`}
+              >
+                <Check size={15} strokeWidth={3} />
+              </span>
+            </button>
+
             <div className="mt-3 flex items-start gap-2 rounded-xl border border-white/[0.075] bg-white/[0.03] px-3 py-2.5 font-sans text-[10.5px] leading-relaxed text-white/42">
               <MapPin size={15} className="mt-0.5 shrink-0 text-[#aa94ff]" />
               {profileLocation
@@ -552,6 +809,17 @@ export default function AvailabilityOpportunityCard() {
           <p className="mt-3 rounded-xl border border-amber-400/24 bg-amber-400/10 px-3 py-2.5 font-oswald text-[11.5px] text-amber-100">{error}</p>
         ) : null}
       </main>
+
+      {organizingProposal ? (
+        <AutoMatchOrganizeSheet
+          proposal={organizingProposal}
+          onClose={() => setOrganizingProposal(null)}
+          onFinalized={(partidoId) => {
+            setOrganizingProposal(null);
+            navigate(`/admin/${partidoId}`);
+          }}
+        />
+      ) : null}
     </div>,
     document.body,
   );

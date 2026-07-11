@@ -84,6 +84,33 @@ const isSafeInternalPath = (path) => {
   return raw.startsWith('/') && !raw.startsWith('//');
 };
 
+const AUTO_MATCH_NOTIFICATION_TYPES = new Set([
+  'auto_match_gestating',
+  'auto_match_almost_full',
+  'auto_match_ready',
+  'auto_match_organizing',
+  'auto_match_created',
+  'auto_match_cancelled',
+]);
+
+export const isAutoMatchNotificationType = (notificationOrType = {}) => (
+  AUTO_MATCH_NOTIFICATION_TYPES.has(normalizeNotificationType(notificationOrType))
+);
+
+// Gestación automática: "partido creado" abre el partido real; el resto de
+// las transiciones abren la pantalla de gestación (data.route ya la trae).
+export const buildAutoMatchNotificationRoute = (notification = {}) => {
+  const data = notification?.data || {};
+  const matchId = data?.match_id || data?.matchId || data?.partido_id || notification?.partido_id || null;
+  if (normalizeNotificationType(notification) === 'auto_match_created'
+    && matchId !== null && matchId !== undefined && /^\d+$/.test(String(matchId).trim())) {
+    return `/partido-publico/${String(matchId).trim()}`;
+  }
+  const link = String(data?.route || data?.link || '').trim();
+  if (link && isSafeInternalPath(link)) return link;
+  return '/quiero-jugar?auto=1';
+};
+
 const extractMatchIdFromPath = (rawPath) => {
   const path = String(rawPath || '').trim();
   if (!path) return null;
@@ -253,6 +280,10 @@ export const buildNotificationFallbackRoute = (notification = {}, idMapper = (va
 
   if (isSurveyDisabledForChallengeNotification(notification)) {
     return '/notifications';
+  }
+
+  if (isAutoMatchNotificationType(notification)) {
+    return buildAutoMatchNotificationRoute(notification);
   }
 
   if (isSurveyFormNotificationType(type)) {

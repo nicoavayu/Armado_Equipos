@@ -2,7 +2,7 @@ import logger from '../utils/logger';
 import React, { useState, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Bell, CalendarClock, CheckCircle, ClipboardList, ShieldAlert, Trophy, User, UserPlus, Users, Vote, XCircle } from 'lucide-react';
+import { Bell, CalendarClock, CheckCircle, ClipboardList, ShieldAlert, Sparkles, Trophy, User, UserPlus, Users, Vote, XCircle } from 'lucide-react';
 import supabase from '../supabase';
 import { useAuth } from './AuthProvider';
 import { useNotifications } from '../context/NotificationContext';
@@ -35,10 +35,12 @@ import {
 } from '../utils/notificationText';
 import { filterNotificationsByCategory, getCategoryCount, NOTIFICATION_FILTER_OPTIONS } from '../utils/notificationFilters';
 import {
+  buildAutoMatchNotificationRoute,
   buildNotificationFallbackRoute,
   buildTeamInviteRoute,
   buildTeamChallengeRoute,
   extractNotificationMatchId,
+  isAutoMatchNotificationType,
   isTeamChallengeNotification,
   resolveAdminAwareMatchRoute,
   resolveTeamChallengeRouteFromMatchId,
@@ -249,6 +251,11 @@ const NotificationsModal = ({ isOpen, onClose }) => {
       return;
     }
 
+    if (isAutoMatchNotificationType(notification)) {
+      safeNavigate(notification, buildAutoMatchNotificationRoute(notification));
+      return;
+    }
+
     const actionability = await resolveNotificationActionability({
       notification,
       supabaseClient: supabase,
@@ -424,6 +431,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
   };
 
   const getNotificationIcon = (type) => {
+    if (isAutoMatchNotificationType(type)) return Sparkles;
     switch (type) {
       case 'match_invite': return CalendarClock;
       case 'call_to_vote': return Vote;

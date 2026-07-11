@@ -78,6 +78,13 @@ describe('availability MVP', () => {
     expect(result.longitude).toBeNull();
   });
 
+  test('canOrganize is opt-in and only true on an explicit boolean true', () => {
+    expect(normalizeAvailabilityInput(base).canOrganize).toBe(false);
+    expect(normalizeAvailabilityInput({ ...base, canOrganize: 'yes' }).canOrganize).toBe(false);
+    expect(normalizeAvailabilityInput({ ...base, canOrganize: 1 }).canOrganize).toBe(false);
+    expect(normalizeAvailabilityInput({ ...base, canOrganize: true }).canOrganize).toBe(true);
+  });
+
   test('detects when a format has enough compatible players', () => {
     const matches = Array.from({ length: 13 }, (_, index) => ({
       user_id: `user-${index}`,

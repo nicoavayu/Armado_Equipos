@@ -14,6 +14,8 @@ const ALLOWED_TYPES = new Set([
   "auto_match_gestating",
   "auto_match_almost_full",
   "auto_match_ready",
+  "auto_match_organizing",
+  "auto_match_created",
   "auto_match_cancelled",
 ]);
 
