@@ -24,13 +24,14 @@ const MIGRATIONS = [
   '20260711150000_fix_auto_match_gestation_sync.sql',
   '20260711210000_auto_match_organizer_flow.sql',
   '20260712120000_auto_match_proposal_chat.sql',
+  '20260712220000_auto_match_overbooking_confirmation_order.sql',
 ];
 
 const PORT = 54300 + Math.floor(Math.random() * 500);
 const DB_NAME = 'arma2_auto_match';
 const DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'arma2-embedded-pg-'));
 
-const USERS = Array.from({ length: 12 }, (_, index) => ({
+const USERS = Array.from({ length: 16 }, (_, index) => ({
   id: `00000000-0000-4000-8000-0000000000${String(index + 1).padStart(2, '0')}`,
   nombre: `Jugador ${index + 1}`,
 }));
@@ -106,13 +107,16 @@ const val = async (client, sql, params = []) => {
 };
 const num = async (client, sql, params = []) => Number(await val(client, sql, params));
 
-const activate = async (uid, { canOrganize = false, formats = ['F5'] } = {}) => {
+// Por defecto la disponibilidad es de UN día (sábado): así los escenarios que
+// asumen "un solo slot" siguen valiendo. El sync multi-día se prueba aparte
+// pasando `days` con varias jornadas.
+const activate = async (uid, { canOrganize = false, formats = ['F5'], days = [6] } = {}) => {
   const client = await asUser(uid);
   return one(
     client,
     `select * from public.upsert_my_availability(
        $1::smallint[], $2::time, $3::time, $4::text[], 8, null, null, $5::boolean)`,
-    [[1, 2, 3, 4, 5, 6, 7], '20:00', '23:00', formats, canOrganize],
+    [days, '20:00', '23:00', formats, canOrganize],
   );
 };
 
@@ -254,12 +258,18 @@ async function scenarioFullLifecycle() {
   for (const uid of pendings.slice(0, 8)) await respond(uid, proposal.id, 'accepted');
   const holdout = pendings[8];
 
-  // user11 compatible: con el cupo convocado lleno no puede entrar todavía.
+  // Sobreconvocatoria: con capacity 15 (>10 titulares), un 11.º compatible SÍ
+  // entra como convocado pendiente.
   await activate(USERS[10].id);
   eq(
     await num(admin, 'select count(*) from public.auto_match_proposal_members where proposal_id=$1 and user_id=$2', [proposal.id, USERS[10].id]),
-    0,
-    'un 11.º compatible no entra mientras el roster está lleno',
+    1,
+    'sobreconvocatoria: un 11.º compatible entra como convocado',
+  );
+  eq(
+    await val(admin, 'select response from public.auto_match_proposal_members where proposal_id=$1 and user_id=$2', [proposal.id, USERS[10].id]),
+    'pending',
+    'el 11.º entra como pendiente',
   );
 
   // Rechazo: sale solo esa persona, entra el reemplazo, la propuesta sigue.
@@ -279,9 +289,9 @@ async function scenarioFullLifecycle() {
   eq(
     await val(admin, 'select response from public.auto_match_proposal_members where proposal_id=$1 and user_id=$2', [proposal.id, USERS[10].id]),
     'pending',
-    'el reemplazo compatible fue invitado automáticamente',
+    'el 11.º convocado sigue pendiente tras el rechazo',
   );
-  eq(await notifCount('auto_match_gestating', USERS[10].id), 1, 'el reemplazo recibió exactamente 1 notificación');
+  eq(await notifCount('auto_match_gestating', USERS[10].id), 1, 'el 11.º convocado tiene una sola notificación de convocatoria');
 
   // Bloqueo por ocurrencia: mismo slot bloqueado hasta que pase; otro día no.
   const slot = afterDecline.proposed_starts_at;
@@ -655,6 +665,259 @@ async function scenarioProposalChat() {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Escenario 6: VARIAS gestaciones simultáneas. Una disponibilidad sáb+dom
+// genera una gestación el sábado Y otra el domingo; el mismo jugador está en
+// ambas. Una propuesta no bloquea la otra (causa concreta del bug anterior).
+// ---------------------------------------------------------------------------
+async function scenarioMultipleProposals() {
+  console.log('\nEscenario 6: varias gestaciones simultáneas (multi-día)');
+  await resetData();
+
+  for (const user of USERS.slice(0, 6)) await activate(user.id, { days: [6, 7] });
+
+  eq(
+    await num(admin, "select count(*) from public.auto_match_proposals where status in ('collecting','ready')"),
+    2,
+    'una disponibilidad sáb+dom produce exactamente 2 gestaciones (una por día)',
+  );
+  eq(
+    await num(admin, "select count(*) from public.auto_match_proposals where status in ('collecting','ready') and extract(isodow from (proposed_starts_at at time zone 'America/Argentina/Buenos_Aires')) = 6"),
+    1,
+    'exactamente una gestación el sábado (sin duplicar la sala)',
+  );
+  eq(
+    await num(admin, "select count(*) from public.auto_match_proposals where status in ('collecting','ready') and extract(isodow from (proposed_starts_at at time zone 'America/Argentina/Buenos_Aires')) = 7"),
+    1,
+    'exactamente una gestación el domingo',
+  );
+  eq(
+    await num(admin, 'select count(distinct proposal_id) from public.auto_match_proposal_members where user_id=$1 and response<>$2', [USERS[0].id, 'declined']),
+    2,
+    'el mismo jugador participa de las 2 gestaciones (una no bloquea la otra)',
+  );
+
+  // Distinto FORMATO tampoco se bloquea entre sí: agrego F7 a la disponibilidad.
+  await resetData();
+  for (const user of USERS.slice(0, 6)) await activate(user.id, { days: [6], formats: ['F5', 'F7'] });
+  const formatsSeen = (await admin.query(
+    "select distinct format from public.auto_match_proposals where status in ('collecting','ready') order by format",
+  )).rows.map((row) => row.format);
+  ok(formatsSeen.includes('F5') && formatsSeen.includes('F7'), 'se gestan F5 y F7 en paralelo (distinto formato no bloquea)', JSON.stringify(formatsSeen));
+}
+
+// ---------------------------------------------------------------------------
+// Escenario 7: sobreconvocatoria (capacity 15 para F5) + orden de confirmación
+// (primeros 10 titulares, resto suplentes) por confirmed_at del servidor.
+// ---------------------------------------------------------------------------
+async function scenarioOverbookingAndOrder() {
+  console.log('\nEscenario 7: sobreconvocatoria + orden de confirmación');
+  await resetData();
+
+  eq(await num(admin, "select public.auto_match_invitation_capacity('F5')"), 15, 'capacity F5 = ceil(10*1.5) = 15');
+  eq(await num(admin, "select public.auto_match_invitation_capacity('F7')"), 21, 'capacity F7 = ceil(14*1.5) = 21');
+
+  for (const user of USERS.slice(0, 15)) await activate(user.id);
+  const proposal = await activeProposal();
+  eq(
+    await num(admin, 'select count(*) from public.auto_match_proposal_members where proposal_id=$1 and response<>$2', [proposal.id, 'declined']),
+    15,
+    'la sala convoca hasta 15 (capacity), no se corta en 10',
+  );
+
+  // El 16.º compatible ya no entra: la sala llegó a su capacidad.
+  await activate(USERS[15].id);
+  eq(
+    await num(admin, 'select count(*) from public.auto_match_proposal_members where proposal_id=$1 and user_id=$2', [proposal.id, USERS[15].id]),
+    0,
+    'un 16.º compatible no entra: capacity llena',
+  );
+
+  // Confirman todos, en orden. El creador ya estaba confirmado (rank 1).
+  const roster = await members(proposal.id);
+  const creatorId = roster.find((row) => row.response === 'accepted').user_id;
+  const pendings = roster.filter((row) => row.response === 'pending').map((row) => row.user_id);
+  const confirmOrder = [creatorId];
+  for (const uid of pendings) { await respond(uid, proposal.id, 'accepted'); confirmOrder.push(uid); }
+
+  const memberClient = await asUser(creatorId);
+  const seatRows = (await memberClient.query(
+    'select user_id, seat, confirmed_at from public.get_auto_match_proposal_members($1) where response=$2 order by confirmed_at asc nulls last, user_id',
+    [proposal.id, 'accepted'],
+  )).rows;
+  eq(seatRows.filter((row) => row.seat === 'titular').length, 10, 'exactamente 10 titulares (formato*2)');
+  eq(seatRows.filter((row) => row.seat === 'suplente').length, 5, 'los otros 5 confirmados son suplentes');
+  eq(String(seatRows[0].user_id), String(creatorId), 'el primero en confirmar (creador) es titular #1');
+  eq(seatRows[9].seat, 'titular', 'la confirmación 10 es titular');
+  eq(seatRows[10].seat, 'suplente', 'la confirmación 11 pasa a suplente');
+}
+
+// ---------------------------------------------------------------------------
+// Escenario 8: confirmaciones simultáneas nunca producen 11 titulares.
+// ---------------------------------------------------------------------------
+async function scenarioConcurrentConfirmations() {
+  console.log('\nEscenario 8: confirmaciones simultáneas');
+  await resetData();
+
+  for (const user of USERS.slice(0, 12)) await activate(user.id);
+  const proposal = await activeProposal();
+  const roster = await members(proposal.id);
+  const creatorId = roster.find((row) => row.response === 'accepted').user_id;
+  const pendings = roster.filter((row) => row.response === 'pending').map((row) => row.user_id);
+
+  // Llega a 9 confirmados (creador + 8).
+  for (const uid of pendings.slice(0, 8)) await respond(uid, proposal.id, 'accepted');
+  eq(
+    await num(admin, "select count(*) from public.auto_match_proposal_members where proposal_id=$1 and response='accepted'", [proposal.id]),
+    9,
+    '9 confirmados antes de la carrera',
+  );
+
+  // Dos confirman EXACTAMENTE a la vez: el 10.º y el 11.º.
+  const [c1, c2] = await Promise.allSettled([
+    respond(pendings[8], proposal.id, 'accepted'),
+    respond(pendings[9], proposal.id, 'accepted'),
+  ]);
+  ok(c1.status === 'fulfilled' && c2.status === 'fulfilled', 'ninguna confirmación simultánea falla con error genérico');
+  eq(
+    await num(admin, "select count(*) from public.auto_match_proposal_members where proposal_id=$1 and response='accepted'", [proposal.id]),
+    11,
+    'quedan 11 confirmados',
+  );
+
+  const memberClient = await asUser(creatorId);
+  const seats = (await memberClient.query(
+    "select seat, count(*)::int as n from public.get_auto_match_proposal_members($1) where response='accepted' group by seat",
+    [proposal.id],
+  )).rows;
+  const titulares = Number(seats.find((row) => row.seat === 'titular')?.n || 0);
+  const suplentes = Number(seats.find((row) => row.seat === 'suplente')?.n || 0);
+  eq(titulares, 10, 'nunca hay 11 titulares: exactamente 10');
+  eq(suplentes, 1, 'el 11.º confirmado queda suplente');
+}
+
+// ---------------------------------------------------------------------------
+// Escenario 9: vencimiento individual de la invitación (backend, sin app).
+// ---------------------------------------------------------------------------
+async function scenarioInviteExpiry() {
+  console.log('\nEscenario 9: vencimiento individual de invitaciones');
+  await resetData();
+
+  // La fecha límite es min(invited+10h, kickoff-2h).
+  {
+    const farKickoff = await one(admin, "select public.auto_match_invite_deadline(now(), now() + interval '20 hours') as d, now() + interval '10 hours' as ref");
+    ok(Math.abs(new Date(farKickoff.d).getTime() - new Date(farKickoff.ref).getTime()) < 90 * 1000, 'partido lejano => vence a las 10 h de invitado');
+    const soonKickoff = await one(admin, "select public.auto_match_invite_deadline(now(), now() + interval '5 hours') as d, now() + interval '3 hours' as ref");
+    ok(Math.abs(new Date(soonKickoff.d).getTime() - new Date(soonKickoff.ref).getTime()) < 90 * 1000, 'partido próximo => vence 2 h antes del comienzo (límite menor)');
+  }
+
+  for (const user of USERS.slice(0, 5)) await activate(user.id);
+  const proposal = await activeProposal();
+  const roster = await members(proposal.id);
+  const pending = roster.find((row) => row.response === 'pending').user_id;
+
+  // Una invitación vigente permite confirmar; se comprueba antes de vencer.
+  const stillValid = roster.filter((row) => row.response === 'pending').map((row) => row.user_id)[1];
+  await respond(stillValid, proposal.id, 'accepted');
+  eq(
+    await val(admin, "select response from public.auto_match_proposal_members where proposal_id=$1 and user_id=$2", [proposal.id, stillValid]),
+    'accepted',
+    'invitación vigente permite confirmar',
+  );
+
+  // Vence la invitación de `pending` (sin pantalla abierta: barrido backend).
+  await admin.query(
+    "update public.auto_match_proposal_members set invite_expires_at = now() - interval '1 minute' where proposal_id=$1 and user_id=$2",
+    [proposal.id, pending],
+  );
+  const expiredCount = await num(admin, 'select public.expire_stale_auto_match_invites()');
+  ok(expiredCount >= 1, 'el barrido backend vence al menos una invitación');
+  eq(
+    await val(admin, 'select response from public.auto_match_proposal_members where proposal_id=$1 and user_id=$2', [proposal.id, pending]),
+    'expired',
+    'la invitación vencida queda en estado expired (no declined)',
+  );
+  eq(
+    await val(admin, 'select public.user_declined_auto_match_slot($1, $2, $3::timestamptz)', [pending, 'F5', proposal.proposed_starts_at]),
+    false,
+    'un vencimiento no cuenta como rechazo voluntario (no bloquea el slot)',
+  );
+  eq(
+    await val(admin, 'select public.auto_match_user_in_proposal($1, $2)', [proposal.id, pending]),
+    false,
+    'el vencido pierde acceso al chat de la gestación',
+  );
+  await expectError(
+    (await asUser(pending)).query('select * from public.respond_to_auto_match_proposal($1,$2,$3)', [proposal.id, 'accepted', false]),
+    /proposal_member_expired/,
+    'una invitación vencida no permite confirmar después',
+  );
+  eq(await notifCount('auto_match_invite_expired', pending), 1, 'el vencido recibe una única notificación de vencimiento');
+}
+
+// ---------------------------------------------------------------------------
+// Escenario 10: superposición al confirmar. Un jugador pendiente en dos
+// propuestas que se pisan (mismo horario, distinto formato) es retirado de la
+// otra al confirmar una. Estado armado a mano para forzar el doble-pendiente.
+// ---------------------------------------------------------------------------
+async function scenarioOverlapWithdrawal() {
+  console.log('\nEscenario 10: retiro de propuestas superpuestas al confirmar');
+  await resetData();
+
+  const avail = {};
+  for (const user of USERS.slice(0, 6)) {
+    avail[user.id] = await val(
+      admin,
+      "insert into public.player_availability (user_id, days_of_week, time_start, time_end, formats, status) values ($1, '{6}', '20:00', '23:00', '{F5,F7}', 'active') returning id",
+      [user.id],
+    );
+  }
+
+  const slot = await val(admin, "select date_trunc('minute', now() + interval '3 days')");
+  const p1 = await val(
+    admin,
+    "insert into public.auto_match_proposals (format, proposed_starts_at, max_players, status, expires_at, gestation_started_at, gestation_threshold) values ('F5', $1, 10, 'collecting', $1::timestamptz - interval '30 minutes', now(), 4) returning id",
+    [slot],
+  );
+  const p2 = await val(
+    admin,
+    "insert into public.auto_match_proposals (format, proposed_starts_at, max_players, status, expires_at, gestation_started_at, gestation_threshold) values ('F7', $1, 14, 'collecting', $1::timestamptz - interval '30 minutes', now(), 4) returning id",
+    [slot],
+  );
+
+  // USERS[0] pendiente en ambas; USERS[1..4] confirmados en ambas (para que P2
+  // siga por encima del umbral cuando USERS[0] se retire).
+  for (const pid of [p1, p2]) {
+    await admin.query(
+      "insert into public.auto_match_proposal_members (proposal_id, availability_id, user_id, response, invite_expires_at) values ($1, $2, $3, 'pending', now() + interval '9 hours')",
+      [pid, avail[USERS[0].id], USERS[0].id],
+    );
+    for (const user of USERS.slice(1, 5)) {
+      await admin.query(
+        "insert into public.auto_match_proposal_members (proposal_id, availability_id, user_id, response, confirmed_at) values ($1, $2, $3, 'accepted', now())",
+        [pid, avail[user.id], user.id],
+      );
+    }
+  }
+
+  await respond(USERS[0].id, p1, 'accepted');
+  eq(
+    await val(admin, 'select response from public.auto_match_proposal_members where proposal_id=$1 and user_id=$2', [p1, USERS[0].id]),
+    'accepted',
+    'confirma la propuesta elegida',
+  );
+  eq(
+    await val(admin, 'select response from public.auto_match_proposal_members where proposal_id=$1 and user_id=$2', [p2, USERS[0].id]),
+    'declined',
+    'es retirado automáticamente de la propuesta superpuesta',
+  );
+  eq(
+    await val(admin, 'select status from public.auto_match_proposals where id=$1', [p2]),
+    'collecting',
+    'la propuesta superpuesta sigue viva para el resto',
+  );
+}
+
 async function main() {
   console.log(`Iniciando Postgres embebido en :${PORT} (${DATA_DIR})`);
   await postgres.initialise();
@@ -682,6 +945,11 @@ async function main() {
   await scenarioVolunteersAndExpiry();
   await scenarioPrivacy();
   await scenarioProposalChat();
+  await scenarioMultipleProposals();
+  await scenarioOverbookingAndOrder();
+  await scenarioConcurrentConfirmations();
+  await scenarioInviteExpiry();
+  await scenarioOverlapWithdrawal();
 
   console.log(`\n${checks} chequeos, ${failures} fallas`);
   if (failures > 0) process.exitCode = 1;

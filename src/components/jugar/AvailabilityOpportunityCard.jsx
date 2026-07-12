@@ -223,7 +223,7 @@ export const CompactProposalCard = ({ proposal, onOpen }) => {
           <span className={`rounded-full border px-2 py-0.5 font-sans text-[8.5px] font-bold uppercase tracking-[0.06em] ${STAGE_BADGE[stage.key]}`}>
             {stage.label}
           </span>
-          <span className="font-sans text-[10.5px] font-semibold text-white/55">{accepted}/{total} jugadores</span>
+          <span className="font-sans text-[10.5px] font-semibold text-white/55">{accepted}/{total} confirmados</span>
         </div>
         <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/10">
           <div
@@ -255,7 +255,10 @@ export const ProposalDetail = ({
   const accepted = Number(proposal.accepted_count || 0);
   const total = Number(proposal.max_players || 0);
   const memberCount = Number(proposal.member_count || 0);
-  const missing = Math.max(0, total - accepted);
+  const capacity = Number(proposal.invitation_capacity || total);
+  const missing = Math.max(0, Number(proposal.titular_slots_left ?? (total - accepted)));
+  const mySeat = proposal.my_seat || null;
+  const inviteDeadline = proposal.my_invite_expires_at || null;
   const progress = total > 0 ? Math.min(100, (accepted / total) * 100) : 0;
   const iAmOrganizer = Boolean(proposal.organizer_id) && proposal.organizer_id === userId;
   const iAccepted = proposal.my_response === 'accepted';
@@ -329,8 +332,8 @@ export const ProposalDetail = ({
             <strong className="font-bebas-real text-[40px] leading-none text-white">{accepted}/{total}</strong>
           </div>
           <div className="text-right font-sans text-[11px] text-white/45">
-            <p>{memberCount} convocados</p>
-            <p>{missing === 0 ? 'Ya están todos' : `Faltan ${missing}`}</p>
+            <p>{memberCount} convocados{capacity > total ? ` · hasta ${capacity}` : ''}</p>
+            <p>{missing === 0 ? 'Titulares completos' : `Quedan ${missing} lugar${missing === 1 ? '' : 'es'} titular${missing === 1 ? '' : 'es'}`}</p>
           </div>
         </div>
         <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
@@ -339,6 +342,20 @@ export const ProposalDetail = ({
             style={{ width: `${progress}%` }}
           />
         </div>
+        <p className="mt-2 font-sans text-[9.5px] text-white/32">Los lugares titulares se asignan por orden de confirmación.</p>
+        {iAccepted && mySeat ? (
+          <p
+            data-testid="my-seat"
+            className={`mt-1.5 inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 font-sans text-[10px] font-bold uppercase tracking-[0.05em] ${mySeat === 'titular' ? 'border-[#2dd4bf]/30 bg-[#2dd4bf]/10 text-[#99f6e4]' : 'border-amber-400/30 bg-amber-400/10 text-amber-100'}`}
+          >
+            {mySeat === 'titular' ? 'Quedaste titular' : 'Quedaste suplente'}
+          </p>
+        ) : null}
+        {pending && active && inviteDeadline ? (
+          <p className="mt-1.5 flex items-center gap-1.5 font-sans text-[10px] text-white/45">
+            <Clock3 size={12} className="text-[#aa94ff]" /> Podés responder hasta {formatDeadline(inviteDeadline)}
+          </p>
+        ) : null}
       </div>
 
       {orderedMembers.length > 0 ? (
@@ -633,6 +650,18 @@ export default function AvailabilityOpportunityCard() {
   const orderedProposals = useMemo(
     () => sortProposalsForList(proposals, user?.id),
     [proposals, user?.id],
+  );
+
+  // La lista "Tus partidos en gestación" muestra solo propuestas activas: las
+  // materializadas (created), canceladas o vencidas no se acumulan como cards
+  // eternas (siguen accesibles por deep link / notificación para redirigir al
+  // partido real o explicar el cierre).
+  const visibleProposals = useMemo(
+    () => orderedProposals.filter((proposal) => {
+      const key = resolveProposalStage(proposal).key;
+      return key !== 'created' && key !== 'cancelled';
+    }),
+    [orderedProposals],
   );
 
   const detailProposal = useMemo(() => {
@@ -948,13 +977,13 @@ export default function AvailabilityOpportunityCard() {
         </section>
 
         {/* Lista compacta de gestaciones: siempre debajo de la búsqueda. */}
-        {orderedProposals.length > 0 || listNotice ? (
+        {visibleProposals.length > 0 || listNotice ? (
           <section aria-label="Tus partidos en gestación" data-testid="gestation-list-section" className="mt-7">
             <p className="mb-2 font-oswald text-[10px] font-semibold uppercase tracking-[0.16em] text-white/44">Tus partidos en gestación</p>
             {listNotice ? (
               <p className="mb-2 font-sans text-[10.5px] text-white/40">{listNotice}</p>
             ) : null}
-            {orderedProposals.map((proposal) => (
+            {visibleProposals.map((proposal) => (
               <CompactProposalCard key={proposal.id} proposal={proposal} onOpen={openProposal} />
             ))}
           </section>

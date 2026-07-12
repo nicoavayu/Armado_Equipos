@@ -221,8 +221,8 @@ describe('compact gestation list', () => {
     expect(cards[0]).toHaveAttribute('data-testid', 'gestation-card-22');
     expect(cards[1]).toHaveAttribute('data-testid', 'gestation-card-11');
 
-    expect(within(cards[0]).getByText('9/14 jugadores')).toBeInTheDocument();
-    expect(within(cards[1]).getByText('4/10 jugadores')).toBeInTheDocument();
+    expect(within(cards[0]).getByText('9/14 confirmados')).toBeInTheDocument();
+    expect(within(cards[1]).getByText('4/10 confirmados')).toBeInTheDocument();
     expect(within(listSection).queryByTestId('proposal-roster')).toBeNull();
     expect(within(listSection).queryByText('Me sumo')).toBeNull();
   });
@@ -286,5 +286,63 @@ describe('proposal deep links', () => {
     expect(screen.getByText('Esa gestación ya no está disponible.')).toBeInTheDocument();
     expect(screen.queryByText(/No encontramos ese destino/)).toBeNull();
     expect(screen.getByTestId('gestation-card-11')).toBeInTheDocument();
+  });
+});
+
+describe('overbooking and confirmation-order in the detail', () => {
+  const OVERBOOKED = {
+    id: 55,
+    format: 'F5',
+    proposed_starts_at: '2026-07-20T21:00:00-03:00',
+    max_players: 10,
+    invitation_capacity: 15,
+    status: 'collecting',
+    member_count: 12,
+    accepted_count: 6,
+    pending_count: 6,
+    titular_slots_left: 4,
+    my_response: 'accepted',
+    my_seat: 'suplente',
+    organizer_id: null,
+  };
+
+  test('shows convocados/capacity, titular slots left, order note and my seat', async () => {
+    currentAvailability = ACTIVE_AVAILABILITY;
+    currentProposals = [OVERBOOKED];
+    renderScreen('/quiero-jugar?auto=1&proposal=55');
+
+    const detail = await screen.findByTestId('gestation-detail-screen');
+    await waitFor(() => expect(within(detail).getByText('6/10')).toBeInTheDocument());
+    expect(within(detail).getByText('12 convocados · hasta 15')).toBeInTheDocument();
+    expect(within(detail).getByText('Quedan 4 lugares titulares')).toBeInTheDocument();
+    expect(within(detail).getByText(/Los lugares titulares se asignan por orden de confirmación/)).toBeInTheDocument();
+    expect(within(detail).getByTestId('my-seat')).toHaveTextContent('Quedaste suplente');
+  });
+
+  test('a pending invite shows the response deadline', async () => {
+    currentAvailability = ACTIVE_AVAILABILITY;
+    const soon = new Date(Date.now() + 6 * 3600 * 1000).toISOString();
+    currentProposals = [{ ...OVERBOOKED, my_response: 'pending', my_seat: null, my_invite_expires_at: soon }];
+    renderScreen('/quiero-jugar?auto=1&proposal=55');
+
+    const detail = await screen.findByTestId('gestation-detail-screen');
+    await waitFor(() => expect(within(detail).getByText(/Podés responder hasta/)).toBeInTheDocument());
+  });
+});
+
+describe('gestation list visibility (§13)', () => {
+  test('created and cancelled proposals do not appear as gestation cards', async () => {
+    currentAvailability = ACTIVE_AVAILABILITY;
+    currentProposals = [
+      { id: 11, format: 'F5', proposed_starts_at: '2026-07-20T21:00:00-03:00', max_players: 10, status: 'collecting', member_count: 6, accepted_count: 4, my_response: 'accepted', organizer_id: null },
+      { id: 33, format: 'F5', proposed_starts_at: '2026-07-20T21:00:00-03:00', max_players: 10, status: 'created', partido_id: 900, member_count: 10, accepted_count: 10, my_response: 'accepted', organizer_id: 'me' },
+      { id: 44, format: 'F5', proposed_starts_at: '2026-07-20T21:00:00-03:00', max_players: 10, status: 'cancelled', cancelled_reason: 'expired', member_count: 3, accepted_count: 3, my_response: 'accepted', organizer_id: null },
+    ];
+    renderScreen();
+
+    const listSection = await screen.findByTestId('gestation-list-section');
+    expect(within(listSection).getByTestId('gestation-card-11')).toBeInTheDocument();
+    expect(within(listSection).queryByTestId('gestation-card-33')).toBeNull();
+    expect(within(listSection).queryByTestId('gestation-card-44')).toBeNull();
   });
 });

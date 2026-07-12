@@ -91,6 +91,7 @@ const AUTO_MATCH_NOTIFICATION_TYPES = new Set([
   'auto_match_organizing',
   'auto_match_created',
   'auto_match_cancelled',
+  'auto_match_invite_expired',
 ]);
 
 export const isAutoMatchNotificationType = (notificationOrType = {}) => (

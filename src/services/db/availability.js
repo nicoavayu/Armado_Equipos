@@ -7,6 +7,10 @@ import {
 } from './dbErrors';
 
 const ALLOWED_FORMATS = ['F5', 'F6', 'F7', 'F8', 'F9', 'F11'];
+// Tipos con push inmediato tras un RPC de cliente. El vencimiento individual
+// (auto_match_invite_expired) NO va acá: lo genera el barrido de backend (cron)
+// y se entrega como notificación in-app + cola de delivery, sin depender del
+// dispatcher inmediato (así no hace falta redeplegar la Edge Function).
 const AUTO_MATCH_PUSH_TYPES = [
   'auto_match_gestating',
   'auto_match_almost_full',
@@ -15,6 +19,14 @@ const AUTO_MATCH_PUSH_TYPES = [
   'auto_match_created',
   'auto_match_cancelled',
 ];
+
+// Sobreconvocatoria y umbral centralizados (mismo criterio que el backend en
+// auto_match_invitation_capacity / auto_match_min_candidates). Un solo lugar
+// para el factor 1.5 y el mínimo de compatibles: no repetir números mágicos.
+export const AUTO_MATCH_MIN_CANDIDATES = 4;
+export const AUTO_MATCH_OVERBOOK_FACTOR = 1.5;
+export const autoMatchRequiredPlayers = (format) => Number(String(format || '').slice(1)) * 2;
+export const autoMatchInvitationCapacity = (format) => Math.ceil(autoMatchRequiredPlayers(format) * AUTO_MATCH_OVERBOOK_FACTOR);
 
 export { AUTH_REQUIRED_MESSAGE, PERMISSION_DENIED_MESSAGE } from './dbErrors';
 
@@ -278,16 +290,18 @@ export const buildMatchOpportunitySummary = (matches = [], preferredFormats = []
 
   const formats = [...new Set(preferredFormats)].filter((format) => ALLOWED_FORMATS.includes(format));
   return formats.map((format) => {
-    const playersNeeded = Number(format.slice(1)) * 2;
+    const playersNeeded = autoMatchRequiredPlayers(format);
+    const invitationCapacity = autoMatchInvitationCapacity(format);
     const compatiblePlayers = (countsByFormat.get(format) || 0) + 1;
     return {
       format,
       playersNeeded,
+      invitationCapacity,
       compatiblePlayers,
       missingPlayers: Math.max(0, playersNeeded - compatiblePlayers),
       ready: compatiblePlayers >= playersNeeded,
-      gestationThreshold: Math.max(4, Math.ceil(playersNeeded * 0.4)),
-      gestating: compatiblePlayers >= Math.max(4, Math.ceil(playersNeeded * 0.4)),
+      gestationThreshold: AUTO_MATCH_MIN_CANDIDATES,
+      gestating: compatiblePlayers >= AUTO_MATCH_MIN_CANDIDATES,
     };
   }).sort((a, b) => (
     Number(b.gestating) - Number(a.gestating)
