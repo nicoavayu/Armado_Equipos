@@ -46,6 +46,13 @@ jest.mock('../services/db/availability', () => ({
   getAutoMatchProposalMembers: (...args) => mockGetMembers(...args),
 }));
 
+// El detalle envuelve cada jugador en PlayerCardTrigger; su árbol real
+// (ProfileCardModal → useAmigos → surveyConfig con import.meta) no carga bajo
+// Jest, así que se stubea igual que en el resto de la suite.
+jest.mock('../components/ProfileComponents', () => ({
+  PlayerCardTrigger: ({ children }) => children,
+}));
+
 jest.mock('../components/jugar/AutoMatchOrganizeSheet', () => () => null);
 jest.mock('../components/jugar/DistanceSlider', () => (props) => (
   <input

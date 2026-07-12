@@ -13,6 +13,11 @@ jest.mock('../supabase', () => ({
   default: {},
   supabase: {},
 }));
+// Importar AvailabilityOpportunityCard arrastra PlayerCardTrigger; su árbol
+// real (ProfileCardModal → surveyConfig con import.meta) no carga bajo Jest.
+jest.mock('../components/ProfileComponents', () => ({
+  PlayerCardTrigger: ({ children }) => children,
+}));
 
 // eslint-disable-next-line import/first
 import { resolveProposalStage } from '../components/jugar/AvailabilityOpportunityCard';

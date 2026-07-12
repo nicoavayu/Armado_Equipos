@@ -8,6 +8,7 @@ import {
   Clock3,
   Crown,
   MapPin,
+  MessageCircle,
   Search,
   Sparkles,
   Users,
@@ -17,6 +18,7 @@ import { useAuth } from '../AuthProvider';
 import AutoMatchOrganizeSheet from './AutoMatchOrganizeSheet';
 import DistanceSlider from './DistanceSlider';
 import PageTitle from '../PageTitle';
+import { PlayerCardTrigger } from '../ProfileComponents';
 import { supabase } from '../../lib/supabaseClient';
 import { PRIMARY_CTA_BUTTON_CLASS } from '../../styles/buttonClasses';
 import { hasValidCoordinates, toCoordinateNumber } from '../../utils/matchLocation';
@@ -31,6 +33,10 @@ import {
   saveMyAvailability,
   syncMyAutoMatchGestations,
 } from '../../services/db/availability';
+
+// El chat arrastra Capacitor Keyboard y la infra de realtime: se carga recién
+// cuando el jugador abre la ventana de chat de la gestación.
+const MatchChat = React.lazy(() => import('../MatchChat'));
 
 const DAY_OPTIONS = [
   { value: 1, short: 'LU', label: 'Lun' },
@@ -132,28 +138,64 @@ const STAGE_BADGE = {
   cancelled: 'border-white/12 bg-white/[0.05] text-white/50',
 };
 
-const RESPONSE_DOT = {
-  accepted: 'bg-[#2dd4bf]',
-  pending: 'bg-amber-300',
-  declined: 'bg-rose-400/70',
+// El roster de la gestación expone user_id/nombre/avatar_url; el ProfileCard
+// resuelve la cuenta real desde usuario_id/user_id/id y trae reputación,
+// premios y acciones sociales al abrirse.
+const memberToProfile = (member) => ({
+  id: member.user_id,
+  usuario_id: member.user_id,
+  user_id: member.user_id,
+  nombre: member.nombre,
+  avatar_url: member.avatar_url,
+  foto_url: member.avatar_url,
+});
+
+const MemberStatusLine = ({ member }) => {
+  if (member.is_organizer) {
+    return (
+      <span className="mt-0.5 flex items-center gap-1 font-sans text-[9.5px] font-semibold text-[#ffe1a6]/85">
+        <Crown size={10} className="text-[#fdb022]" /> Organiza
+      </span>
+    );
+  }
+  if (member.response === 'declined') {
+    return <span className="mt-0.5 block font-sans text-[9.5px] text-white/40">No juega</span>;
+  }
+  if (member.response === 'accepted') {
+    return (
+      <span className="mt-0.5 flex items-center gap-1 font-sans text-[9.5px] text-white/50">
+        <span className="h-1.5 w-1.5 rounded-full bg-[#2dd4bf]" /> Confirmado
+      </span>
+    );
+  }
+  return (
+    <span className="mt-0.5 flex items-center gap-1 font-sans text-[9.5px] text-white/50">
+      <span className="h-1.5 w-1.5 rounded-full bg-amber-300" /> Pendiente
+    </span>
+  );
 };
 
-const MemberChip = ({ member }) => (
-  <span
-    className={`flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-black/20 py-1 pl-1 pr-2.5 ${member.response === 'declined' ? 'opacity-45' : ''}`}
-  >
-    {member.avatar_url ? (
-      <img src={member.avatar_url} alt="" className="h-5 w-5 rounded-full object-cover" />
-    ) : (
-      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#6a43ff]/25 font-sans text-[9px] font-bold text-[#c8baff]">
-        {String(member.nombre || '?').trim().charAt(0).toUpperCase()}
+// Tile de jugador tappable: abre el ProfileCard del jugador (reputación,
+// premios, solicitar amistad). Se apoya en PlayerCardTrigger.
+const PlayerTile = ({ member }) => (
+  <PlayerCardTrigger profile={memberToProfile(member)}>
+    <div
+      data-testid={`gestation-player-${member.user_id}`}
+      className={`flex h-full items-center gap-2.5 rounded-2xl border border-white/[0.08] bg-black/20 px-3 py-2.5 transition-all hover:border-[#9b7bff]/40 hover:bg-black/30 ${member.response === 'declined' ? 'opacity-45' : ''}`}
+    >
+      {member.avatar_url ? (
+        <img src={member.avatar_url} alt="" className="h-9 w-9 shrink-0 rounded-full object-cover" />
+      ) : (
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#6a43ff]/25 font-sans text-[13px] font-bold text-[#c8baff]">
+          {String(member.nombre || '?').trim().charAt(0).toUpperCase()}
+        </span>
+      )}
+      <span className="min-w-0 flex-1">
+        <span className="block truncate font-oswald text-[13px] font-semibold text-white">{member.nombre || 'Jugador'}</span>
+        <MemberStatusLine member={member} />
       </span>
-    )}
-    <span className="max-w-[92px] truncate font-sans text-[10px] text-white/70">{member.nombre}</span>
-    {member.is_organizer ? <Crown size={11} className="shrink-0 text-[#fdb022]" /> : (
-      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${RESPONSE_DOT[member.response] || 'bg-white/30'}`} />
-    )}
-  </span>
+    </div>
+  </PlayerCardTrigger>
 );
 
 // Variante compacta para la lista: solo lo esencial y toda el área tocable.
@@ -195,7 +237,9 @@ export const CompactProposalCard = ({ proposal, onOpen }) => {
   );
 };
 
-// Variante completa: el desglose que se muestra en la pantalla de detalle.
+// Variante completa: el desglose de la pantalla de detalle. Sin card exterior:
+// los elementos van directo sobre el fondo de la vista (el título de la
+// pantalla ya anuncia "Partido en gestación").
 export const ProposalDetail = ({
   proposal,
   members,
@@ -218,24 +262,56 @@ export const ProposalDetail = ({
   const active = stage.key !== 'created' && stage.key !== 'cancelled';
   const visibleMembers = (members || []).filter((member) => member.response !== 'declined');
   const declinedMembers = (members || []).filter((member) => member.response === 'declined');
+  const orderedMembers = [...visibleMembers, ...declinedMembers];
+  // Solo los jugadores que ya forman parte (no declinados) usan el chat.
+  const iAmActiveMember = Boolean(proposal.my_response) && proposal.my_response !== 'declined';
+  // El envío se corta cuando la gestación se cierra (materializada, cancelada,
+  // vencida o pasado expires_at): el historial queda de solo lectura, igual que
+  // lo que impone la RPC. El botón de chat sigue disponible para leer.
+  const chatCanSend = active
+    && (!proposal.expires_at || new Date(proposal.expires_at).getTime() > Date.now());
+
+  const proposalId = proposal.id;
+  const chatReadKey = `chat_read_proposal:${proposalId}`;
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatUnread, setChatUnread] = useState(0);
+
+  // Contador de no leídos (best-effort): mismo criterio que ChatButton, con
+  // scope por proposal_id. Si la consulta falla, simplemente no hay badge.
+  useEffect(() => {
+    if (!proposalId || chatOpen || !iAmActiveMember) return undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        const lastRead = localStorage.getItem(chatReadKey);
+        const lastReadTime = lastRead ? new Date(parseInt(lastRead, 10)) : new Date(0);
+        const { data, error } = await supabase
+          .from('mensajes_partido')
+          .select('id')
+          .eq('proposal_id', proposalId)
+          .gt('timestamp', lastReadTime.toISOString());
+        if (error || cancelled) return;
+        setChatUnread(data?.length || 0);
+      } catch (_error) {
+        // best-effort: sin badge si falla
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [proposalId, chatOpen, chatReadKey, iAmActiveMember]);
 
   return (
-    <article className="relative overflow-hidden rounded-[20px] border border-[rgba(148,134,255,0.24)] bg-[radial-gradient(260px_100px_at_8%_-20%,rgba(139,92,255,0.22),transparent_72%),linear-gradient(150deg,rgba(39,30,85,0.84),rgba(13,10,31,0.96))] p-3.5 shadow-[0_14px_38px_rgba(5,2,20,0.3),inset_0_1px_0_rgba(255,255,255,0.055)]">
-      <span className="absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-white/25 to-transparent" />
+    <div className="pb-1">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl border border-[#9b7bff]/25 bg-[#6a43ff]/15 text-[#c8baff]">
-              <Sparkles size={15} />
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[#9b7bff]/25 bg-[#6a43ff]/15 text-[#c8baff]">
+              <Sparkles size={18} />
             </span>
-            <div>
-              <p className="font-oswald text-[9px] font-semibold uppercase tracking-[0.16em] text-[#aa94ff]">Partido en gestación</p>
-              <h3 className="font-bebas-real text-[24px] leading-none tracking-[0.035em] text-white">PARTIDO {proposal.format}</h3>
-            </div>
+            <h3 className="font-bebas-real text-[34px] leading-none tracking-[0.03em] text-white">PARTIDO {proposal.format}</h3>
           </div>
-          <p className="mt-2 font-oswald text-[12px] text-white/52">{formatProposalDate(proposal.proposed_starts_at)}</p>
-          <p className="mt-1 flex items-center gap-1.5 font-sans text-[10px] text-white/38">
-            <MapPin size={12} className="text-[#aa94ff]" />
+          <p className="mt-2.5 font-oswald text-[13px] capitalize text-white/62">{formatProposalDate(proposal.proposed_starts_at)}</p>
+          <p className="mt-1 flex items-center gap-1.5 font-sans text-[11px] text-white/42">
+            <MapPin size={13} className="text-[#aa94ff]" />
             {stage.key === 'created'
               ? 'La cancha está definida en el partido'
               : 'La cancha la define quien organiza'}
@@ -246,43 +322,70 @@ export const ProposalDetail = ({
         </span>
       </div>
 
-      <div className="mt-3 rounded-2xl border border-white/[0.075] bg-black/15 p-3">
+      <div className="mt-5">
         <div className="flex items-end justify-between gap-3">
           <div>
-            <p className="font-oswald text-[9px] font-semibold uppercase tracking-[0.14em] text-white/36">Confirmados</p>
-            <strong className="font-bebas-real text-[28px] leading-none text-white">{accepted}/{total}</strong>
+            <p className="font-oswald text-[10px] font-semibold uppercase tracking-[0.14em] text-white/40">Confirmados</p>
+            <strong className="font-bebas-real text-[40px] leading-none text-white">{accepted}/{total}</strong>
           </div>
-          <div className="text-right font-sans text-[10px] text-white/40">
+          <div className="text-right font-sans text-[11px] text-white/45">
             <p>{memberCount} convocados</p>
             <p>{missing === 0 ? 'Ya están todos' : `Faltan ${missing}`}</p>
           </div>
         </div>
-        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10">
+        <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
           <div
             className="h-full rounded-full bg-[linear-gradient(90deg,#6a43ff,#a78bfa,#2dd4bf)] shadow-[0_0_12px_rgba(139,92,255,0.45)] transition-[width] duration-500 motion-reduce:transition-none"
             style={{ width: `${progress}%` }}
           />
         </div>
-
-        {visibleMembers.length > 0 ? (
-          <div className="mt-3 flex flex-wrap gap-1.5" data-testid="proposal-roster">
-            {visibleMembers.map((member) => <MemberChip key={member.user_id} member={member} />)}
-            {declinedMembers.map((member) => <MemberChip key={member.user_id} member={member} />)}
-          </div>
-        ) : null}
-        {visibleMembers.length > 0 ? (
-          <p className="mt-2 font-sans text-[9px] text-white/30">
-            <span className="mr-2"><span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-[#2dd4bf]" />confirmado</span>
-            <span className="mr-2"><span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-amber-300" />pendiente</span>
-            {declinedMembers.length > 0 ? (
-              <span><span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-rose-400/70" />no juega</span>
-            ) : null}
-          </p>
-        ) : null}
       </div>
 
+      {orderedMembers.length > 0 ? (
+        <div className="mt-6">
+          <div className="mb-2.5 flex items-baseline justify-between gap-2">
+            <p className="font-oswald text-[11px] font-semibold uppercase tracking-[0.16em] text-white/50">Jugadores</p>
+            <p className="font-sans text-[10px] text-white/35">Tocá un jugador para ver su perfil</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2" data-testid="proposal-roster">
+            {orderedMembers.map((member) => <PlayerTile key={member.user_id} member={member} />)}
+          </div>
+          <p className="mt-2.5 font-sans text-[9.5px] text-white/32">
+            <span className="mr-3"><span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-[#2dd4bf]" />confirmado</span>
+            <span className="mr-3"><span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-amber-300" />pendiente</span>
+            {declinedMembers.length > 0 ? (
+              <span><span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-white/40" />no juega</span>
+            ) : null}
+          </p>
+        </div>
+      ) : null}
+
+      {iAmActiveMember ? (
+        <button
+          type="button"
+          onClick={() => { setChatOpen(true); setChatUnread(0); }}
+          data-testid="gestation-chat-button"
+          className="mt-6 flex w-full items-center gap-3 rounded-2xl border border-[#0EA9C6]/25 bg-[#0EA9C6]/[0.08] px-3.5 py-3 text-left transition-all hover:bg-[#0EA9C6]/[0.14] active:scale-[0.99] motion-reduce:transition-none"
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#0EA9C6]/35 bg-[#0EA9C6]/15 text-[#7fe3f5]">
+            <MessageCircle size={18} />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-oswald text-[13.5px] font-semibold text-white">Chat del grupo</span>
+            <span className="mt-0.5 block font-sans text-[10.5px] text-white/45">Coordiná con los jugadores de esta gestación</span>
+          </span>
+          {chatUnread > 0 ? (
+            <span className="flex h-5 min-w-[20px] shrink-0 items-center justify-center rounded-full bg-[#0EA9C6] px-1.5 font-sans text-[10px] font-bold text-white">
+              {chatUnread > 99 ? '99+' : chatUnread}
+            </span>
+          ) : (
+            <ChevronRight size={18} className="shrink-0 text-white/35" aria-hidden="true" />
+          )}
+        </button>
+      ) : null}
+
       {proposal.organizer_id ? (
-        <div className="mt-3 flex items-center gap-2 rounded-xl border border-[#fdb022]/20 bg-[#fdb022]/[0.07] px-3 py-2 font-oswald text-[11px] font-semibold text-[#ffe1a6]">
+        <div className="mt-4 flex items-center gap-2 rounded-xl border border-[#fdb022]/20 bg-[#fdb022]/[0.07] px-3 py-2.5 font-oswald text-[11.5px] font-semibold text-[#ffe1a6]">
           <Crown size={14} className="shrink-0 text-[#fdb022]" />
           {iAmOrganizer ? 'Vos organizás este partido.' : `Organiza ${proposal.organizer_nombre || 'un jugador'}.`}
         </div>
@@ -381,7 +484,19 @@ export const ProposalDetail = ({
           Ya confirmaste. Arma2 te avisará cuando cambie el estado.
         </div>
       ) : null}
-    </article>
+
+      {chatOpen ? (
+        <React.Suspense fallback={null}>
+          <MatchChat
+            proposalId={proposalId}
+            isOpen
+            title="Chat de la gestación"
+            canSend={chatCanSend}
+            onClose={() => setChatOpen(false)}
+          />
+        </React.Suspense>
+      ) : null}
+    </div>
   );
 };
 

@@ -23,6 +23,7 @@ const MIGRATIONS = [
   '20260711034500_auto_match_gestation_mvp.sql',
   '20260711150000_fix_auto_match_gestation_sync.sql',
   '20260711210000_auto_match_organizer_flow.sql',
+  '20260712120000_auto_match_proposal_chat.sql',
 ];
 
 const PORT = 54300 + Math.floor(Math.random() * 500);
@@ -535,6 +536,125 @@ async function scenarioPrivacy() {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Escenario 5: chat de la gestación. Confirmados, pendientes y organizador
+// (miembros no declinados) leen (RLS) y escriben (RPC); rechazados y ajenos no.
+// Al pasar de pendiente a rechazado se pierde el acceso al instante. Una
+// gestación cerrada (cancelada/vencida) conserva el historial pero corta el
+// envío. El partido regular sigue legible.
+// ---------------------------------------------------------------------------
+async function scenarioProposalChat() {
+  console.log('\nEscenario 5: chat de la gestación (RLS + RPC)');
+  await resetData();
+
+  for (const user of USERS.slice(0, 6)) await activate(user.id);
+  const proposal = await activeProposal();
+  const roster = await members(proposal.id);
+  const memberA = roster.find((row) => row.response === 'accepted').user_id;
+  const memberB = roster.find((row) => row.response === 'pending').user_id;
+  const outsiderId = USERS[11].id;
+
+  const aClient = await asUser(memberA);
+  const bClient = await asUser(memberB);
+  const outsider = await asUser(outsiderId);
+
+  await aClient.query(
+    'select public.send_auto_match_proposal_chat_message($1, $2, $3)',
+    [proposal.id, 'Jugador A', 'Hola equipo'],
+  );
+  eq(
+    await num(aClient, 'select count(*) from public.mensajes_partido where proposal_id=$1', [proposal.id]),
+    1,
+    'un miembro escribe y lee el chat de su gestación',
+  );
+  eq(
+    await num(bClient, 'select count(*) from public.mensajes_partido where proposal_id=$1', [proposal.id]),
+    1,
+    'otro miembro ve el mismo mensaje',
+  );
+  eq(
+    await num(outsider, 'select count(*) from public.mensajes_partido where proposal_id=$1', [proposal.id]),
+    0,
+    'RLS: un no-miembro no ve el chat de la gestación',
+  );
+  await expectError(
+    outsider.query('select public.send_auto_match_proposal_chat_message($1,$2,$3)', [proposal.id, 'Intruso', 'déjenme entrar']),
+    /Sin permiso para enviar mensajes en esta gestación/i,
+    'RPC: un no-miembro no puede escribir',
+  );
+
+  // Un pendiente (todavía sin responder) también forma parte: lee y escribe.
+  await bClient.query(
+    'select public.send_auto_match_proposal_chat_message($1, $2, $3)',
+    [proposal.id, 'Jugador B', '¿A qué hora jugamos?'],
+  );
+  eq(
+    await num(bClient, 'select count(*) from public.mensajes_partido where proposal_id=$1', [proposal.id]),
+    2,
+    'un miembro pendiente puede escribir en el chat',
+  );
+  eq(
+    await num(aClient, 'select count(*) from public.mensajes_partido where proposal_id=$1', [proposal.id]),
+    2,
+    'los demás miembros reciben el mensaje del pendiente',
+  );
+
+  // Quien rechaza pierde acceso de lectura y escritura al instante.
+  await respond(memberB, proposal.id, 'declined');
+  eq(
+    await num(bClient, 'select count(*) from public.mensajes_partido where proposal_id=$1', [proposal.id]),
+    0,
+    'quien rechazó deja de ver el chat',
+  );
+  await expectError(
+    bClient.query('select public.send_auto_match_proposal_chat_message($1,$2,$3)', [proposal.id, 'Jugador B', '¿sigo?']),
+    /Sin permiso para enviar mensajes en esta gestación/i,
+    'quien rechazó no puede escribir',
+  );
+
+  // Gestación cerrada = solo lectura: se conserva el historial para los
+  // miembros vivos, pero se corta el envío de mensajes nuevos.
+  await admin.query("update public.auto_match_proposals set status='cancelled' where id=$1", [proposal.id]);
+  eq(
+    await num(aClient, 'select count(*) from public.mensajes_partido where proposal_id=$1', [proposal.id]),
+    2,
+    'una gestación cancelada conserva el historial para sus miembros',
+  );
+  await expectError(
+    aClient.query('select public.send_auto_match_proposal_chat_message($1,$2,$3)', [proposal.id, 'Jugador A', '¿seguimos?']),
+    /ya no admite mensajes nuevos/i,
+    'RPC: una gestación cancelada no admite mensajes nuevos',
+  );
+
+  // Vencida (status 'expired') o pasada la ventana expires_at: mismo bloqueo.
+  await admin.query("update public.auto_match_proposals set status='expired' where id=$1", [proposal.id]);
+  await expectError(
+    aClient.query('select public.send_auto_match_proposal_chat_message($1,$2,$3)', [proposal.id, 'Jugador A', 'último intento']),
+    /ya no admite mensajes nuevos/i,
+    'RPC: una gestación vencida no admite mensajes nuevos',
+  );
+  await admin.query("update public.auto_match_proposals set status='collecting', expires_at=now() - interval '1 minute' where id=$1", [proposal.id]);
+  await expectError(
+    aClient.query('select public.send_auto_match_proposal_chat_message($1,$2,$3)', [proposal.id, 'Jugador A', 'fuera de hora']),
+    /ya no admite mensajes nuevos/i,
+    'RPC: pasado expires_at no se envía aunque el estado siga collecting',
+  );
+  eq(
+    await num(aClient, 'select count(*) from public.mensajes_partido where proposal_id=$1', [proposal.id]),
+    2,
+    'el historial permanece legible para el miembro en la gestación cerrada',
+  );
+
+  // El chat de partido regular (proposal_id + team_match_id en NULL) sigue legible.
+  await admin.query(
+    "insert into public.mensajes_partido (partido_id, autor, mensaje) values (999, 'Sistema', 'partido regular')",
+  );
+  ok(
+    (await num(outsider, 'select count(*) from public.mensajes_partido where partido_id=999')) >= 1,
+    'los mensajes de partido regular siguen siendo legibles',
+  );
+}
+
 async function main() {
   console.log(`Iniciando Postgres embebido en :${PORT} (${DATA_DIR})`);
   await postgres.initialise();
@@ -561,6 +681,7 @@ async function main() {
   await scenarioFullLifecycle();
   await scenarioVolunteersAndExpiry();
   await scenarioPrivacy();
+  await scenarioProposalChat();
 
   console.log(`\n${checks} chequeos, ${failures} fallas`);
   if (failures > 0) process.exitCode = 1;

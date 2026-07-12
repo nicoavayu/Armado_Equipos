@@ -90,7 +90,7 @@ const mergeChatMessages = (...groups) => {
   return Array.from(dedup.values()).sort(compareChatMessageOrder);
 };
 
-export default function MatchChat({ partidoId, isOpen, onClose }) {
+export default function MatchChat({ partidoId, proposalId = null, title = 'Chat del partido', canSend = true, isOpen, onClose }) {
   const { user, profile } = useAuth();
   const { keyboardHeight, isKeyboardOpen } = useKeyboard();
   const [messages, setMessages] = useState([]);
@@ -108,8 +108,18 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
   const broadcastChannelRef = useRef(null);
   const loadRequestSeqRef = useRef(0);
   const loadPromiseRef = useRef(null);
+  // El chat tiene tres scopes que comparten tabla (mensajes_partido):
+  // partido regular (partido_id numérico), partido de equipos (team_match_id
+  // uuid) y partido en gestación (proposal_id). El scope de gestación se pide
+  // explícito con la prop proposalId para no chocar con los ids numéricos.
+  const normalizedProposalId = String(proposalId || '').trim();
+  const isProposalChat = normalizedProposalId !== '';
   const normalizedMatchId = String(partidoId || '').trim();
-  const isTeamMatchChat = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(normalizedMatchId);
+  const isTeamMatchChat = !isProposalChat
+    && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(normalizedMatchId);
+  // Clave de scope para canales realtime y localStorage de "leído". El prefijo
+  // evita colisiones entre una propuesta y un partido con el mismo número.
+  const scopeKey = isProposalChat ? `proposal:${normalizedProposalId}` : normalizedMatchId;
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -132,7 +142,7 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
   }, []);
 
   useEffect(() => {
-    if (!isOpen || !partidoId) return undefined;
+    if (!isOpen || (!partidoId && !isProposalChat)) return undefined;
     logMatchChat('PAGE_MOUNT', {
       pathname: window.location.pathname,
       partidoId,
@@ -144,10 +154,12 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
     fetchMessages({ silent: true }).catch(() => {});
     markAsRead();
 
-    const postgresChannelName = `match-chat-postgres:${normalizedMatchId}`;
-    const postgresFilter = isTeamMatchChat
-      ? `team_match_id=eq.${normalizedMatchId}`
-      : `partido_id=eq.${Number(normalizedMatchId)}`;
+    const postgresChannelName = `match-chat-postgres:${scopeKey}`;
+    const postgresFilter = isProposalChat
+      ? `proposal_id=eq.${Number(normalizedProposalId)}`
+      : isTeamMatchChat
+        ? `team_match_id=eq.${normalizedMatchId}`
+        : `partido_id=eq.${Number(normalizedMatchId)}`;
 
     const postgresChannel = supabase
       .channel(postgresChannelName)
@@ -189,7 +201,7 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
 
     postgresChannelRef.current = postgresChannel;
 
-    const broadcastChannelName = `match-chat-sync:${normalizedMatchId}`;
+    const broadcastChannelName = `match-chat-sync:${scopeKey}`;
     const broadcastChannel = supabase.channel(broadcastChannelName, {
       config: {
         broadcast: {
@@ -252,7 +264,7 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
       supabase.removeChannel(postgresChannel);
       supabase.removeChannel(broadcastChannel);
     };
-  }, [isOpen, isTeamMatchChat, normalizedMatchId, partidoId, user?.id]);
+  }, [isOpen, isProposalChat, isTeamMatchChat, normalizedMatchId, normalizedProposalId, scopeKey, partidoId, user?.id]);
 
   useEffect(() => {
     if (!isOpen) return undefined;
@@ -438,7 +450,7 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
   }, [messages]);
 
   const fetchMessages = useCallback(async ({ silent = false } = {}) => {
-    if (!normalizedMatchId) return [];
+    if (!isProposalChat && !normalizedMatchId) return [];
     if (loadPromiseRef.current) {
       logMatchChat('loadMessages:reuse-inflight', { partidoId, normalizedMatchId });
       return loadPromiseRef.current;
@@ -460,7 +472,14 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
         .select('*')
         .order('timestamp', { ascending: true });
 
-      if (isTeamMatchChat) {
+      if (isProposalChat) {
+        const numericProposalId = Number(normalizedProposalId);
+        if (!Number.isFinite(numericProposalId)) {
+          setMessages([]);
+          return;
+        }
+        query = query.eq('proposal_id', numericProposalId);
+      } else if (isTeamMatchChat) {
         query = query.eq('team_match_id', normalizedMatchId);
       } else {
         const numericMatchId = Number(normalizedMatchId);
@@ -505,10 +524,10 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
     } finally {
       loadPromiseRef.current = null;
     }
-  }, [isTeamMatchChat, normalizedMatchId, partidoId]);
+  }, [isProposalChat, isTeamMatchChat, normalizedMatchId, normalizedProposalId, partidoId]);
 
   const markAsRead = () => {
-    localStorage.setItem(`chat_read_${partidoId}`, Date.now().toString());
+    localStorage.setItem(`chat_read_${scopeKey}`, Date.now().toString());
   };
 
   const scrollToBottom = () => {
@@ -533,6 +552,9 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
 
   const handleSendMessage = async () => {
     if (!newMessage.trim()) return;
+    // Historial de solo lectura: gestación cerrada (cancelada/vencida/creada).
+    // El backend igual rechaza el INSERT; acá evitamos el intento y el error.
+    if (!canSend) return;
 
     const userInfo = getUserInfo();
     if (!userInfo) {
@@ -550,19 +572,29 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
         userId: user?.id || null,
         messagePreview: trimmedMessage.slice(0, 80),
       });
-      const { error: rpcError } = isTeamMatchChat
-        ? await supabase.rpc('send_team_match_chat_message', {
-          p_team_match_id: normalizedMatchId,
+      const { error: rpcError } = isProposalChat
+        ? await supabase.rpc('send_auto_match_proposal_chat_message', {
+          p_proposal_id: Number(normalizedProposalId),
           p_autor: userInfo.name,
           p_mensaje: trimmedMessage,
         })
-        : await supabase.rpc('send_match_chat_message', {
-          p_partido_id: Number(normalizedMatchId),
-          p_autor: userInfo.name,
-          p_mensaje: trimmedMessage,
-        });
+        : isTeamMatchChat
+          ? await supabase.rpc('send_team_match_chat_message', {
+            p_team_match_id: normalizedMatchId,
+            p_autor: userInfo.name,
+            p_mensaje: trimmedMessage,
+          })
+          : await supabase.rpc('send_match_chat_message', {
+            p_partido_id: Number(normalizedMatchId),
+            p_autor: userInfo.name,
+            p_mensaje: trimmedMessage,
+          });
 
       if (rpcError) {
+        // El scope de gestación no tiene ruta de compatibilidad: la RPC es la
+        // única vía (INSERT directo bloqueado por RLS), así que se propaga.
+        if (isProposalChat) throw rpcError;
+
         const missingFn = rpcError.code === '42883'
           || String(rpcError.message || '').toLowerCase().includes(isTeamMatchChat ? 'send_team_match_chat_message' : 'send_match_chat_message');
         if (!missingFn) throw rpcError;
@@ -712,7 +744,7 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
         style={mobileHeaderStyle}
       >
           <div className="flex justify-between items-center gap-3">
-            <h3 className="m-0 font-oswald text-xl font-semibold text-white tracking-[0.01em]">Chat del partido</h3>
+            <h3 className="m-0 font-oswald text-xl font-semibold text-white tracking-[0.01em]">{title}</h3>
             <button
               className="bg-transparent border-none text-white/70 text-2xl cursor-pointer p-0 w-8 h-8 flex items-center justify-center rounded-full transition-colors hover:bg-white/10 hover:text-white"
               onClick={handleClose}
@@ -744,31 +776,40 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
           <div ref={messagesEndRef} />
         </div>
 
-        <div data-testid="match-chat-composer" className="flex shrink-0 pt-3 px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] border-t border-white/10 gap-2 bg-slate-800 min-h-[64px] items-center sm:p-3 sm:relative sm:z-10">
-          <input
-            type="text"
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            placeholder="Escribí un mensaje…"
-            className="flex-1 py-3 px-4 border border-slate-700 rounded-xl outline-none font-oswald text-base transition-all focus:border-[#0EA9C6] focus:ring-2 focus:ring-[#0EA9C6]/20 sm:text-base sm:relative sm:z-20 bg-slate-900 text-white placeholder:text-white/40"
-            onKeyPress={(e) => e.key === 'Enter' && !loading && newMessage.trim() && handleSendMessage()}
-            onFocus={() => {
-              window.setTimeout(() => {
-                messagesEndRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' });
-              }, 120);
-            }}
-            disabled={loading}
-            ref={inputRef}
-          />
-          <button
-            onClick={handleSendMessage}
-            className="bg-[#0EA9C6] border-none rounded-xl w-11 h-11 text-white text-lg cursor-pointer flex items-center justify-center transition-all hover:bg-[#0c94a8] active:scale-95 disabled:opacity-35 disabled:cursor-not-allowed"
-            disabled={loading || !newMessage.trim()}
-            aria-label="Enviar mensaje"
+        {canSend ? (
+          <div data-testid="match-chat-composer" className="flex shrink-0 pt-3 px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] border-t border-white/10 gap-2 bg-slate-800 min-h-[64px] items-center sm:p-3 sm:relative sm:z-10">
+            <input
+              type="text"
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              placeholder="Escribí un mensaje…"
+              className="flex-1 py-3 px-4 border border-slate-700 rounded-xl outline-none font-oswald text-base transition-all focus:border-[#0EA9C6] focus:ring-2 focus:ring-[#0EA9C6]/20 sm:text-base sm:relative sm:z-20 bg-slate-900 text-white placeholder:text-white/40"
+              onKeyPress={(e) => e.key === 'Enter' && !loading && newMessage.trim() && handleSendMessage()}
+              onFocus={() => {
+                window.setTimeout(() => {
+                  messagesEndRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' });
+                }, 120);
+              }}
+              disabled={loading}
+              ref={inputRef}
+            />
+            <button
+              onClick={handleSendMessage}
+              className="bg-[#0EA9C6] border-none rounded-xl w-11 h-11 text-white text-lg cursor-pointer flex items-center justify-center transition-all hover:bg-[#0c94a8] active:scale-95 disabled:opacity-35 disabled:cursor-not-allowed"
+              disabled={loading || !newMessage.trim()}
+              aria-label="Enviar mensaje"
+            >
+              {loading ? '...' : '➤'}
+            </button>
+          </div>
+        ) : (
+          <div
+            data-testid="match-chat-readonly"
+            className="flex shrink-0 items-center justify-center pt-3 px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] border-t border-white/10 bg-slate-800 min-h-[64px] text-center font-oswald text-sm text-white/55 sm:p-3"
           >
-            {loading ? '...' : '➤'}
-          </button>
-        </div>
+            Esta gestación se cerró. Podés leer el historial, pero ya no se pueden enviar mensajes.
+          </div>
+        )}
       </div>
     </div>
   );
