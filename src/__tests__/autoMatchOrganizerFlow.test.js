@@ -93,10 +93,32 @@ describe('auto match notification routing', () => {
     })).toBe('/partido-publico/128');
   });
 
-  test('other transitions open the gestation screen from data.route', () => {
+  test('transitions with proposal_id deep-link to that gestation detail', () => {
+    expect(buildAutoMatchNotificationRoute({
+      type: 'auto_match_ready',
+      data: { proposal_id: 42, route: '/quiero-jugar?auto=1' },
+    })).toBe('/quiero-jugar?auto=1&proposal=42');
+    expect(buildAutoMatchNotificationRoute({
+      type: 'auto_match_gestating',
+      data: { proposalId: '7' },
+    })).toBe('/quiero-jugar?auto=1&proposal=7');
+  });
+
+  test('created ignores proposal deep link and opens the real match route', () => {
+    expect(buildAutoMatchNotificationRoute({
+      type: 'auto_match_created',
+      data: { proposal_id: 42, route: '/partido-publico/128' },
+    })).toBe('/partido-publico/128');
+  });
+
+  test('legacy notifications without proposal_id keep opening the gestation screen', () => {
     expect(buildAutoMatchNotificationRoute({
       type: 'auto_match_ready',
       data: { route: '/quiero-jugar?auto=1' },
+    })).toBe('/quiero-jugar?auto=1');
+    expect(buildAutoMatchNotificationRoute({
+      type: 'auto_match_ready',
+      data: { proposal_id: 'abc', route: '/quiero-jugar?auto=1' },
     })).toBe('/quiero-jugar?auto=1');
   });
 

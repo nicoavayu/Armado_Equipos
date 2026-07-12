@@ -98,17 +98,23 @@ export const isAutoMatchNotificationType = (notificationOrType = {}) => (
 );
 
 // Gestación automática: "partido creado" abre el partido real; el resto de
-// las transiciones abren la pantalla de gestación (data.route ya la trae).
+// las transiciones abren el detalle de la gestación cuando el payload trae
+// proposal_id, y si no (notificaciones anteriores) la pantalla general.
 export const buildAutoMatchNotificationRoute = (notification = {}) => {
   const data = notification?.data || {};
   const matchId = data?.match_id || data?.matchId || data?.partido_id || notification?.partido_id || null;
-  if (normalizeNotificationType(notification) === 'auto_match_created'
-    && matchId !== null && matchId !== undefined && /^\d+$/.test(String(matchId).trim())) {
+  const isCreated = normalizeNotificationType(notification) === 'auto_match_created';
+  if (isCreated && matchId !== null && matchId !== undefined && /^\d+$/.test(String(matchId).trim())) {
     return `/partido-publico/${String(matchId).trim()}`;
   }
   const link = String(data?.route || data?.link || '').trim();
-  if (link && isSafeInternalPath(link)) return link;
-  return '/quiero-jugar?auto=1';
+  const safeLink = link && isSafeInternalPath(link) ? link : null;
+  if (isCreated) return safeLink || '/quiero-jugar?auto=1';
+  const proposalId = data?.proposal_id ?? data?.proposalId ?? null;
+  if (proposalId !== null && proposalId !== undefined && /^\d+$/.test(String(proposalId).trim())) {
+    return `/quiero-jugar?auto=1&proposal=${String(proposalId).trim()}`;
+  }
+  return safeLink || '/quiero-jugar?auto=1';
 };
 
 const extractMatchIdFromPath = (rawPath) => {
