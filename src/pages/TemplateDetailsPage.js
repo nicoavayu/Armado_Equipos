@@ -187,7 +187,13 @@ const TemplateDetailsPage = () => {
 
   return (
     <>
-      <div className="w-full max-w-[600px] mx-auto flex flex-col items-center pt-24 pb-32 px-4 box-border">
+      <div
+        className="w-full max-w-[600px] mx-auto flex flex-col items-center pt-24 pb-32 px-4 box-border"
+        // Containing block for the fixed PageTitle (same trick as
+        // TemplateHistoryPage): keeps the title inside MainLayout's
+        // safe-area padding instead of escaping to the viewport top.
+        style={{ transform: 'translateZ(0)' }}
+      >
         <PageTitle title="PLANTILLA" onBack={() => goBackSmart()}>PLANTILLA</PageTitle>
 
         <div className="w-full mt-8 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">

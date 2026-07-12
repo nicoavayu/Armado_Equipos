@@ -84,6 +84,39 @@ const isSafeInternalPath = (path) => {
   return raw.startsWith('/') && !raw.startsWith('//');
 };
 
+const AUTO_MATCH_NOTIFICATION_TYPES = new Set([
+  'auto_match_gestating',
+  'auto_match_almost_full',
+  'auto_match_ready',
+  'auto_match_organizing',
+  'auto_match_created',
+  'auto_match_cancelled',
+]);
+
+export const isAutoMatchNotificationType = (notificationOrType = {}) => (
+  AUTO_MATCH_NOTIFICATION_TYPES.has(normalizeNotificationType(notificationOrType))
+);
+
+// Gestación automática: "partido creado" abre el partido real; el resto de
+// las transiciones abren el detalle de la gestación cuando el payload trae
+// proposal_id, y si no (notificaciones anteriores) la pantalla general.
+export const buildAutoMatchNotificationRoute = (notification = {}) => {
+  const data = notification?.data || {};
+  const matchId = data?.match_id || data?.matchId || data?.partido_id || notification?.partido_id || null;
+  const isCreated = normalizeNotificationType(notification) === 'auto_match_created';
+  if (isCreated && matchId !== null && matchId !== undefined && /^\d+$/.test(String(matchId).trim())) {
+    return `/partido-publico/${String(matchId).trim()}`;
+  }
+  const link = String(data?.route || data?.link || '').trim();
+  const safeLink = link && isSafeInternalPath(link) ? link : null;
+  if (isCreated) return safeLink || '/quiero-jugar?auto=1';
+  const proposalId = data?.proposal_id ?? data?.proposalId ?? null;
+  if (proposalId !== null && proposalId !== undefined && /^\d+$/.test(String(proposalId).trim())) {
+    return `/quiero-jugar?auto=1&proposal=${String(proposalId).trim()}`;
+  }
+  return safeLink || '/quiero-jugar?auto=1';
+};
+
 const extractMatchIdFromPath = (rawPath) => {
   const path = String(rawPath || '').trim();
   if (!path) return null;
@@ -253,6 +286,10 @@ export const buildNotificationFallbackRoute = (notification = {}, idMapper = (va
 
   if (isSurveyDisabledForChallengeNotification(notification)) {
     return '/notifications';
+  }
+
+  if (isAutoMatchNotificationType(notification)) {
+    return buildAutoMatchNotificationRoute(notification);
   }
 
   if (isSurveyFormNotificationType(type)) {

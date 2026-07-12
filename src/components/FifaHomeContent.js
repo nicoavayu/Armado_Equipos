@@ -999,7 +999,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
     );
   }
 
-  // Quick-access rail items — same 4 destinations/behaviours as the old 2x2 grid.
+  // Quick-access rail items — the old 2x2 grid destinations + partido automático.
   const quickAccessItems = [
     {
       key: 'nuevo-partido',
@@ -1009,6 +1009,14 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
       title: 'Partido nuevo',
       subtitle: 'Armá y compartí',
       showPlus: true,
+    },
+    {
+      key: 'partido-automatico',
+      to: '/quiero-jugar?auto=1',
+      prefetch: '/quiero-jugar',
+      icon: <CalendarClock />,
+      title: 'Partido automático',
+      subtitle: 'Decidí cuando jugar',
     },
     {
       key: 'mis-partidos',
