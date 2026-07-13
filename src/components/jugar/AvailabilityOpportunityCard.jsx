@@ -96,16 +96,12 @@ const CANCELLED_REASONS = {
   duplicate_slot: 'Se unificó con otra propuesta del mismo horario.',
 };
 
-// Estado visible de la propuesta para la UI. Exportado para tests.
+// Estado visible de la GESTACIÓN para la UI. Una propuesta ya materializada
+// ('created') no es una gestación: se resuelve aparte como invitación al partido
+// real (ver isMatchInvite) o como redirección al partido. Exportado para tests.
 export const resolveProposalStage = (proposal) => {
   const status = String(proposal?.status || '');
-  if (status === 'created') {
-    // §10/§12: partido ya creado y todavía me queda una invitación de suplente
-    // pendiente → no es una card muerta, es una acción ("¿sumarte como suplente?").
-    return proposal?.my_response === 'pending' && proposal?.partido_id
-      ? { key: 'substitute', label: 'Te invitan de suplente' }
-      : { key: 'created', label: 'Partido creado' };
-  }
+  if (status === 'created') return { key: 'created', label: 'Partido creado' };
   if (status === 'cancelled' || status === 'expired') return { key: 'cancelled', label: 'Cancelado' };
   if (status === 'ready') {
     return proposal?.organizer_id
@@ -119,7 +115,25 @@ export const resolveProposalStage = (proposal) => {
     : { key: 'searching', label: 'Buscando jugadores' };
 };
 
-// La propuesta pide algo del usuario: responder, tomar la organización o
+// Una GESTACIÓN viva (collecting/ready): las únicas que aparecen en "Tus
+// partidos en gestación" y las únicas con chat. Exportado para tests.
+export const isLiveGestation = (proposal) => (
+  ['searching', 'waiting', 'needs_organizer', 'organizing'].includes(resolveProposalStage(proposal).key)
+);
+
+// Invitación a un partido YA creado (el plantel se materializó y me quedó una
+// invitación pendiente). No es una gestación revivida: es una invitación al
+// partido real. Exportado para tests.
+export const isMatchInvite = (proposal) => (
+  String(proposal?.status || '') === 'created'
+  && proposal?.my_response === 'pending'
+  && Boolean(proposal?.partido_id)
+);
+
+// §6: vacante de titular vs banco de suplente. El backend expone roster_slot_kind.
+export const inviteSlotKind = (proposal) => (proposal?.roster_slot_kind === 'titular' ? 'titular' : 'suplente');
+
+// La gestación pide algo del usuario: responder, tomar la organización o
 // completar los datos del partido. Exportado para tests.
 export const proposalNeedsAction = (proposal, userId) => {
   const stage = resolveProposalStage(proposal);
@@ -245,6 +259,37 @@ export const CompactProposalCard = ({ proposal, onOpen }) => {
   );
 };
 
+// Card de invitación a un partido ya creado (§6/§10/§12). Estética propia
+// (acento teal/dorado), distinta de la gestación: es una invitación al partido
+// real, no una sala revivida.
+export const MatchInviteCard = ({ proposal, onOpen }) => {
+  const isTitular = inviteSlotKind(proposal) === 'titular';
+  return (
+    <button
+      type="button"
+      data-testid={`match-invite-card-${proposal.id}`}
+      onClick={() => onOpen(proposal.id)}
+      className="mb-2 flex w-full items-center gap-3 rounded-2xl border border-[rgba(45,212,191,0.28)] bg-[linear-gradient(150deg,rgba(17,58,55,0.66),rgba(11,20,30,0.94))] px-3.5 py-3 text-left shadow-[0_8px_24px_rgba(2,14,16,0.24),inset_0_1px_0_rgba(255,255,255,0.05)] transition-all hover:border-[rgba(45,212,191,0.5)] active:scale-[0.99] motion-reduce:transition-none"
+    >
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[#2dd4bf]/30 bg-[#2dd4bf]/15 text-[#99f6e4]">
+        <Check size={18} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="font-oswald text-[8.5px] font-semibold uppercase tracking-[0.16em] text-[#8fe9d8]">Te invitan a un partido</p>
+        <p className="mt-0.5 truncate font-oswald text-[13.5px] font-bold text-white">
+          {proposal.format}
+          <span className="mx-1.5 font-normal text-white/35">·</span>
+          <span className="font-semibold capitalize text-white/80">{formatProposalDate(proposal.proposed_starts_at)}</span>
+        </p>
+        <span className={`mt-1 inline-block rounded-full border px-2 py-0.5 font-sans text-[8.5px] font-bold uppercase tracking-[0.06em] ${isTitular ? 'border-[#2dd4bf]/30 bg-[#2dd4bf]/10 text-[#99f6e4]' : 'border-[#fdb022]/30 bg-[#fdb022]/10 text-[#ffe1a6]'}`}>
+          {isTitular ? 'Hay un lugar' : 'De suplente'}
+        </span>
+      </div>
+      <ChevronRight size={17} className="shrink-0 text-white/35" aria-hidden="true" />
+    </button>
+  );
+};
+
 // Variante completa: el desglose de la pantalla de detalle. Sin card exterior:
 // los elementos van directo sobre el fondo de la vista (el título de la
 // pantalla ya anuncia "Partido en gestación").
@@ -254,7 +299,6 @@ export const ProposalDetail = ({
   userId,
   loading,
   onRespond,
-  onRespondSubstitute,
   onClaim,
   onOrganize,
   onOpenMatch,
@@ -275,20 +319,29 @@ export const ProposalDetail = ({
   const visibleMembers = (members || []).filter((member) => member.response !== 'declined');
   const declinedMembers = (members || []).filter((member) => member.response === 'declined');
   const orderedMembers = [...visibleMembers, ...declinedMembers];
-  // Solo los jugadores que ya forman parte (no declinados) usan el chat.
-  const iAmActiveMember = Boolean(proposal.my_response) && proposal.my_response !== 'declined';
-  // El envío solo está vivo mientras la gestación está abierta (collecting/
-  // ready). Materializada (incluida la invitación de suplente), cancelada,
-  // vencida o pasado expires_at: el historial queda de solo lectura, igual que
-  // lo que impone la RPC. El botón de chat sigue disponible para leer.
-  const liveGestation = ['searching', 'waiting', 'needs_organizer', 'organizing'].includes(stage.key);
-  const chatCanSend = liveGestation
+  // El chat de la gestación existe SOLO mientras la gestación está viva
+  // (collecting/ready y dentro de expires_at). Una vez materializado el partido,
+  // cancelado o vencido, el chat se cierra definitivamente: NO hay modo lectura.
+  // Las comunicaciones futuras van al partido real. Al cerrarse se corta el
+  // acceso y la suscripción realtime del canal anterior.
+  const liveGestation = isLiveGestation(proposal);
+  const chatAvailable = liveGestation
     && (!proposal.expires_at || new Date(proposal.expires_at).getTime() > Date.now());
+  const iAmActiveMember = Boolean(proposal.my_response)
+    && proposal.my_response !== 'declined'
+    && chatAvailable;
 
   const proposalId = proposal.id;
   const chatReadKey = `chat_read_proposal:${proposalId}`;
   const [chatOpen, setChatOpen] = useState(false);
   const [chatUnread, setChatUnread] = useState(0);
+
+  // Si la gestación deja de estar disponible mientras el chat está abierto (se
+  // materializó por una condición de carrera), se cierra el chat de inmediato:
+  // desmonta MatchChat y con él las suscripciones realtime del canal anterior.
+  useEffect(() => {
+    if (chatOpen && !chatAvailable) setChatOpen(false);
+  }, [chatOpen, chatAvailable]);
 
   // Contador de no leídos (best-effort): mismo criterio que ChatButton, con
   // scope por proposal_id. Si la consulta falla, simplemente no hay badge.
@@ -419,33 +472,7 @@ export const ProposalDetail = ({
         </div>
       ) : null}
 
-      {stage.key === 'substitute' ? (
-        <div className="mt-3">
-          <p className="mb-2 font-oswald text-[11.5px] font-semibold text-[#ffe1a6]">
-            Los titulares ya están completos. ¿Querés sumarte como suplente?
-          </p>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              disabled={loading}
-              onClick={() => onRespondSubstitute(proposal.id, 'declined')}
-              className="min-h-11 rounded-xl border border-white/12 bg-white/[0.035] font-oswald text-[13px] font-semibold text-white/58 transition-all hover:bg-white/[0.07] active:scale-[0.98] motion-reduce:transition-none"
-            >
-              No, gracias
-            </button>
-            <button
-              type="button"
-              disabled={loading}
-              onClick={() => onRespondSubstitute(proposal.id, 'accepted')}
-              className="min-h-11 rounded-xl border border-[#fdb022]/30 bg-[#fdb022]/[0.12] font-oswald text-[13px] font-bold text-[#ffe1a6] transition-all active:scale-[0.98] motion-reduce:transition-none"
-            >
-              <Check size={15} className="mr-1 inline" /> Sumarme de suplente
-            </button>
-          </div>
-        </div>
-      ) : null}
-
-      {pending && active && stage.key !== 'substitute' ? (
+      {pending && active ? (
         <div className="mt-3">
           <p className="mb-2 font-oswald text-[11px] text-white/58">¿Te sumás a esta oportunidad?</p>
           <div className="grid grid-cols-2 gap-2">
@@ -518,13 +545,18 @@ export const ProposalDetail = ({
       ) : null}
 
       {stage.key === 'created' && proposal.partido_id ? (
-        <button
-          type="button"
-          onClick={() => onOpenMatch(proposal.partido_id, iAmOrganizer)}
-          className={`${PRIMARY_CTA_BUTTON_CLASS} mt-3 !min-h-[46px]`}
-        >
-          <Check size={16} className="mr-2" /> Ver el partido
-        </button>
+        <div className="mt-3">
+          <p className="mb-2 font-oswald text-[12px] font-semibold text-[#99f6e4]">
+            El partido ya fue creado. Las comunicaciones siguen en el partido.
+          </p>
+          <button
+            type="button"
+            onClick={() => onOpenMatch(proposal.partido_id, iAmOrganizer)}
+            className={`${PRIMARY_CTA_BUTTON_CLASS} !min-h-[46px]`}
+          >
+            <Check size={16} className="mr-2" /> Ir al partido
+          </button>
+        </div>
       ) : null}
 
       {stage.key === 'cancelled' ? (
@@ -539,17 +571,89 @@ export const ProposalDetail = ({
         </div>
       ) : null}
 
-      {chatOpen ? (
+      {chatOpen && chatAvailable ? (
         <React.Suspense fallback={null}>
           <MatchChat
             proposalId={proposalId}
             isOpen
             title="Chat de la gestación"
-            canSend={chatCanSend}
+            canSend
             onClose={() => setChatOpen(false)}
           />
         </React.Suspense>
       ) : null}
+    </div>
+  );
+};
+
+// Invitación a un partido YA creado (§6/§10/§12). NO es una gestación revivida
+// ni tiene chat: es una invitación al partido real. El texto y el CTA
+// distinguen una vacante de titular ("hay un lugar, ¿te sumás?") de una de
+// suplente ("los titulares están completos, ¿de suplente?").
+export const MatchInviteView = ({ proposal, loading, onRespondSubstitute }) => {
+  const slotKind = inviteSlotKind(proposal);
+  const isTitular = slotKind === 'titular';
+  const deadline = proposal.my_invite_expires_at || null;
+
+  return (
+    <div className="pb-1" data-testid="match-invite-view">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[#2dd4bf]/25 bg-[#2dd4bf]/15 text-[#99f6e4]">
+              <Check size={18} />
+            </span>
+            <h3 className="font-bebas-real text-[34px] leading-none tracking-[0.03em] text-white">PARTIDO {proposal.format}</h3>
+          </div>
+          <p className="mt-2.5 font-oswald text-[13px] capitalize text-white/62">{formatProposalDate(proposal.proposed_starts_at)}</p>
+          <p className="mt-1 flex items-center gap-1.5 font-sans text-[11px] text-white/42">
+            <MapPin size={13} className="text-[#2dd4bf]" /> El partido ya tiene cancha definida
+          </p>
+        </div>
+        <span className={`shrink-0 rounded-full border px-2.5 py-1 font-sans text-[9px] font-bold uppercase tracking-[0.08em] ${isTitular ? 'border-[#2dd4bf]/30 bg-[#2dd4bf]/10 text-[#99f6e4]' : 'border-[#fdb022]/30 bg-[#fdb022]/10 text-[#ffe1a6]'}`}>
+          {isTitular ? 'Te invitan a jugar' : 'Te invitan de suplente'}
+        </span>
+      </div>
+
+      <div className="mt-6 rounded-2xl border border-white/[0.08] bg-black/20 px-4 py-4">
+        <p className="font-oswald text-[14px] font-semibold text-white">
+          {isTitular
+            ? 'Hay un lugar disponible. ¿Querés sumarte al partido?'
+            : 'Los titulares ya están completos. ¿Querés sumarte como suplente?'}
+        </p>
+        <p className="mt-1.5 font-sans text-[11px] leading-relaxed text-white/45">
+          {isTitular
+            ? 'Al aceptar entrás al partido como titular y accedés a su chat.'
+            : 'Al aceptar entrás al banco de suplentes y accedés al chat del partido.'}
+        </p>
+        {deadline ? (
+          <p className="mt-2 flex items-center gap-1.5 font-sans text-[10px] text-white/45">
+            <Clock3 size={12} className="text-[#aa94ff]" /> Podés responder hasta {formatDeadline(deadline)}
+          </p>
+        ) : null}
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          disabled={loading}
+          onClick={() => onRespondSubstitute(proposal.id, 'declined')}
+          className="min-h-11 rounded-xl border border-white/12 bg-white/[0.035] font-oswald text-[13px] font-semibold text-white/58 transition-all hover:bg-white/[0.07] active:scale-[0.98] motion-reduce:transition-none"
+        >
+          No, gracias
+        </button>
+        <button
+          type="button"
+          disabled={loading}
+          onClick={() => onRespondSubstitute(proposal.id, 'accepted')}
+          data-testid="match-invite-accept"
+          className={`min-h-11 rounded-xl border font-oswald text-[13px] font-bold transition-all active:scale-[0.98] motion-reduce:transition-none ${isTitular
+            ? 'border-white/15 bg-cta-gradient text-white shadow-[0_7px_22px_rgba(106,67,255,0.3)]'
+            : 'border-[#fdb022]/30 bg-[#fdb022]/[0.12] text-[#ffe1a6]'}`}
+        >
+          <Check size={15} className="mr-1 inline" /> {isTitular ? 'Sumarme al partido' : 'Sumarme de suplente'}
+        </button>
+      </div>
     </div>
   );
 };
@@ -581,15 +685,22 @@ export default function AvailabilityOpportunityCard() {
     [location.search],
   );
 
+  // Invitación a un partido ya creado (vacante de titular o de suplente). Abre
+  // una vista de invitación asociada al partido, no el detalle de la gestación.
+  const inviteParam = useMemo(
+    () => new URLSearchParams(location.search).get('invite'),
+    [location.search],
+  );
+
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    if (params.get('auto') || params.get('proposal')) setOpen(true);
+    if (params.get('auto') || params.get('proposal') || params.get('invite')) setOpen(true);
   }, [location.search]);
 
   const close = useCallback(() => {
     setOpen(false);
     const params = new URLSearchParams(location.search);
-    if (params.get('auto') || params.get('proposal')) {
+    if (params.get('auto') || params.get('proposal') || params.get('invite')) {
       navigate(location.pathname, { replace: true });
     }
   }, [location.pathname, location.search, navigate]);
@@ -607,6 +718,11 @@ export default function AvailabilityOpportunityCard() {
   const openProposal = useCallback((proposalId) => {
     setListNotice('');
     navigate(`${location.pathname}?auto=1&proposal=${proposalId}`, { state: { fromAutoList: true } });
+  }, [location.pathname, navigate]);
+
+  const openInvite = useCallback((proposalId) => {
+    setListNotice('');
+    navigate(`${location.pathname}?auto=1&invite=${proposalId}`, { state: { fromAutoList: true } });
   }, [location.pathname, navigate]);
 
   const loadLocation = useCallback(async () => {
@@ -673,31 +789,24 @@ export default function AvailabilityOpportunityCard() {
     return () => window.clearInterval(timer);
   }, [load, open]);
 
-  // Deep link a una propuesta que ya no existe: volver a la lista con un
-  // aviso discreto en lugar del error genérico de destino.
-  useEffect(() => {
-    if (!open || !proposalParam || !proposalsLoaded) return;
-    const exists = proposals.some((proposal) => String(proposal.id) === String(proposalParam));
-    if (!exists) {
-      setListNotice('Esa gestación ya no está disponible.');
-      navigate(`${location.pathname}?auto=1`, { replace: true });
-    }
-  }, [location.pathname, navigate, open, proposalParam, proposals, proposalsLoaded]);
-
   const orderedProposals = useMemo(
     () => sortProposalsForList(proposals, user?.id),
     [proposals, user?.id],
   );
 
-  // La lista "Tus partidos en gestación" muestra solo propuestas activas: las
-  // materializadas (created), canceladas o vencidas no se acumulan como cards
-  // eternas (siguen accesibles por deep link / notificación para redirigir al
-  // partido real o explicar el cierre).
+  // La lista "Tus partidos en gestación" muestra SOLO gestaciones vivas
+  // (collecting/ready). Una propuesta materializada (created) desaparece de la
+  // lista: si me toca, aparece en "Invitaciones a partidos" (isMatchInvite) o
+  // se resuelve como redirección al partido real. Canceladas/vencidas tampoco
+  // se acumulan como cards eternas.
   const visibleProposals = useMemo(
-    () => orderedProposals.filter((proposal) => {
-      const key = resolveProposalStage(proposal).key;
-      return key !== 'created' && key !== 'cancelled';
-    }),
+    () => orderedProposals.filter(isLiveGestation),
+    [orderedProposals],
+  );
+
+  // §10/§12: invitaciones a partidos ya creados (vacante de titular o suplente).
+  const matchInvites = useMemo(
+    () => orderedProposals.filter(isMatchInvite),
     [orderedProposals],
   );
 
@@ -705,6 +814,51 @@ export default function AvailabilityOpportunityCard() {
     if (!proposalParam) return null;
     return proposals.find((proposal) => String(proposal.id) === String(proposalParam)) || null;
   }, [proposalParam, proposals]);
+
+  const inviteProposal = useMemo(() => {
+    if (!inviteParam) return null;
+    return proposals.find((proposal) => String(proposal.id) === String(inviteParam)) || null;
+  }, [inviteParam, proposals]);
+
+  // Deep link viejo a ?proposal= que ya se materializó: la gestación (y su chat)
+  // se cerraron. Se resuelve de forma controlada, sin reabrir el chat viejo ni
+  // mostrar un error genérico:
+  //  - si pertenezco al plantel (accepted) → al partido real;
+  //  - si tengo una invitación pendiente → a la vista de invitación (?invite=);
+  //  - si quedé fuera (no figura en mis propuestas) → aviso de estado final.
+  useEffect(() => {
+    if (!open || !proposalParam || !proposalsLoaded) return;
+    const proposal = proposals.find((row) => String(row.id) === String(proposalParam));
+    if (!proposal) {
+      setListNotice('Esa gestación ya no está disponible.');
+      navigate(`${location.pathname}?auto=1`, { replace: true });
+      return;
+    }
+    if (String(proposal.status || '') === 'created' && proposal.partido_id) {
+      if (proposal.my_response === 'pending') {
+        navigate(`${location.pathname}?auto=1&invite=${proposal.id}`, { replace: true });
+      } else {
+        setNotice('El partido ya fue creado. Te llevamos al partido.');
+        navigate(`/partido-publico/${proposal.partido_id}`, { replace: true });
+      }
+    }
+  }, [location.pathname, navigate, open, proposalParam, proposals, proposalsLoaded]);
+
+  // Deep link a ?invite= que ya no corresponde (aceptado, rechazado, vencido o
+  // el plantel se completó): volver a la lista con un aviso de estado final.
+  useEffect(() => {
+    if (!open || !inviteParam || !proposalsLoaded) return;
+    const proposal = proposals.find((row) => String(row.id) === String(inviteParam));
+    if (!proposal) {
+      setListNotice('Esa invitación ya no está disponible.');
+      navigate(`${location.pathname}?auto=1`, { replace: true });
+      return;
+    }
+    // Si ya soy parte del plantel (acepté), voy directo al partido.
+    if (String(proposal.status || '') === 'created' && proposal.my_response === 'accepted' && proposal.partido_id) {
+      navigate(`/partido-publico/${proposal.partido_id}`, { replace: true });
+    }
+  }, [location.pathname, navigate, open, inviteParam, proposals, proposalsLoaded]);
 
   const toggleDay = (day) => {
     setDays((current) => current.includes(day)
@@ -793,26 +947,30 @@ export default function AvailabilityOpportunityCard() {
     }
   };
 
-  // §10/§12: aceptar/rechazar la invitación de suplente. Al aceptar, el backend
-  // suma al partido real y devuelve su id → redirige al partido. Al rechazar,
-  // la card desaparece (deja de ser miembro activo).
+  // §6/§10/§12: aceptar/rechazar la invitación a un partido ya creado. Al
+  // aceptar, el backend suma al partido real y devuelve su id → redirige al
+  // partido. Al rechazar, la invitación desaparece.
   const respondSubstitute = async (proposalId, response) => {
     setLoading(true);
     setError('');
     try {
+      const invited = proposals.find((row) => String(row.id) === String(proposalId));
+      const isTitular = invited?.roster_slot_kind === 'titular';
       const partidoId = await respondToAutoMatchSubstitute(proposalId, response);
       if (response === 'accepted' && partidoId) {
-        setNotice('¡Entraste como suplente! Te llevamos al partido.');
+        setNotice(isTitular
+          ? '¡Entraste al partido! Te llevamos ahí.'
+          : '¡Entraste como suplente! Te llevamos al partido.');
         navigate(`/partido-publico/${partidoId}`);
         return;
       }
       setNotice('Listo, no te sumás a este partido.');
-      if (String(proposalParam || '') === String(proposalId)) backFromDetail();
+      if (String(inviteParam || '') === String(proposalId)) backFromDetail();
       await load({ sync: false });
     } catch (err) {
       const message = err?.message || '';
       if (/match_roster_full/.test(message)) {
-        setError('El banco de suplentes ya está completo.');
+        setError('El lugar ya se ocupó. Tu disponibilidad sigue activa.');
         await load({ sync: false });
       } else if (/match_already_started/.test(message)) {
         setError('El partido ya empezó.');
@@ -1048,6 +1206,16 @@ export default function AvailabilityOpportunityCard() {
           )}
         </section>
 
+        {/* Invitaciones a partidos ya creados: sección propia (no es gestación). */}
+        {matchInvites.length > 0 ? (
+          <section aria-label="Invitaciones a partidos" data-testid="match-invite-list-section" className="mt-7">
+            <p className="mb-2 font-oswald text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8fe9d8]">Invitaciones a partidos</p>
+            {matchInvites.map((proposal) => (
+              <MatchInviteCard key={proposal.id} proposal={proposal} onOpen={openInvite} />
+            ))}
+          </section>
+        ) : null}
+
         {/* Lista compacta de gestaciones: siempre debajo de la búsqueda. */}
         {visibleProposals.length > 0 || listNotice ? (
           <section aria-label="Tus partidos en gestación" data-testid="gestation-list-section" className="mt-7">
@@ -1085,13 +1253,39 @@ export default function AvailabilityOpportunityCard() {
                 userId={user.id}
                 loading={loading}
                 onRespond={respond}
-                onRespondSubstitute={respondSubstitute}
                 onClaim={claim}
                 onOrganize={setOrganizingProposal}
                 onOpenMatch={openMatch}
               />
             ) : (
               <p className="mt-6 text-center font-oswald text-[13px] text-white/50">Cargando gestación…</p>
+            )}
+            {errorBanner}
+          </main>
+        </div>
+      ) : null}
+
+      {/* Vista de invitación a un partido creado: capa propia, sin chat y sin
+          el marco de "gestación". */}
+      {inviteParam ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Invitación a un partido"
+          data-testid="match-invite-screen"
+          className="fixed inset-0 z-[1250] overflow-y-auto bg-[linear-gradient(180deg,#141031_0%,#100b26_46%,#090715_100%)] text-white"
+        >
+          <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_50%_-8%,rgba(45,212,191,0.16),transparent_48%)]" />
+          <PageTitle respectSafeArea onBack={backFromDetail}>INVITACIÓN AL PARTIDO</PageTitle>
+          <main className="relative z-10 mx-auto w-full max-w-[560px] px-4 pb-[max(34px,var(--safe-bottom,0px))] pt-[calc(var(--safe-top,0px)+92px)] font-oswald">
+            {inviteProposal ? (
+              <MatchInviteView
+                proposal={inviteProposal}
+                loading={loading}
+                onRespondSubstitute={respondSubstitute}
+              />
+            ) : (
+              <p className="mt-6 text-center font-oswald text-[13px] text-white/50">Cargando invitación…</p>
             )}
             {errorBanner}
           </main>

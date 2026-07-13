@@ -208,30 +208,34 @@ describe('gestation detail — group chat', () => {
     expect(within(detail).queryByTestId('gestation-chat-button')).toBeNull();
   });
 
-  test('a cancelled proposal opens the chat read-only', async () => {
+  // Spec §1: una gestación cerrada NO abre el chat, ni siquiera en modo lectura.
+  // El chat de la gestación se cierra definitivamente; las comunicaciones siguen
+  // en el partido real.
+  test('a cancelled proposal does NOT expose the gestation chat (no read-only)', async () => {
     currentProposals = [baseProposal({ my_response: 'accepted', status: 'cancelled' })];
     renderDetail();
-    const { chat } = await openChat();
-    // El historial se puede abrir, pero el envío queda bloqueado.
-    expect(chat).toHaveTextContent('chat abierto');
-    expect(chat).toHaveAttribute('data-can-send', 'false');
+    const detail = await screen.findByTestId('gestation-detail-screen');
+    await within(detail).findByText('PARTIDO F5');
+    expect(within(detail).queryByTestId('gestation-chat-button')).toBeNull();
   });
 
-  test('an expired proposal opens the chat read-only', async () => {
+  test('an expired proposal does NOT expose the gestation chat', async () => {
     currentProposals = [baseProposal({ my_response: 'accepted', status: 'expired' })];
     renderDetail();
-    const { chat } = await openChat();
-    expect(chat).toHaveAttribute('data-can-send', 'false');
+    const detail = await screen.findByTestId('gestation-detail-screen');
+    await within(detail).findByText('PARTIDO F5');
+    expect(within(detail).queryByTestId('gestation-chat-button')).toBeNull();
   });
 
-  test('a proposal past its expires_at window opens read-only even while collecting', async () => {
+  test('a proposal past its expires_at window does NOT expose the chat even while collecting', async () => {
     currentProposals = [baseProposal({
       my_response: 'accepted',
       status: 'collecting',
       expires_at: '2020-01-01T00:00:00-03:00',
     })];
     renderDetail();
-    const { chat } = await openChat();
-    expect(chat).toHaveAttribute('data-can-send', 'false');
+    const detail = await screen.findByTestId('gestation-detail-screen');
+    await within(detail).findByText('PARTIDO F5');
+    expect(within(detail).queryByTestId('gestation-chat-button')).toBeNull();
   });
 });

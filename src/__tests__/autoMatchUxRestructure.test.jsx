@@ -350,7 +350,7 @@ describe('gestation list visibility (§13)', () => {
   });
 });
 
-describe('substitute invite (§10/§12)', () => {
+describe('match invite after materialization (§6/§10/§12)', () => {
   const SUBSTITUTE = {
     id: 77,
     format: 'F5',
@@ -361,47 +361,81 @@ describe('substitute invite (§10/§12)', () => {
     member_count: 12,
     accepted_count: 10,
     my_response: 'pending',
+    roster_slot_kind: 'suplente',
     organizer_id: 'someone',
   };
+  const STARTER = { ...SUBSTITUTE, id: 78, roster_slot_kind: 'titular', partido_id: 901 };
 
-  test('a materialised proposal where I am still pending shows a substitute-invite card, not a dead created card', async () => {
+  test('a materialised proposal where I am still pending shows a MATCH-INVITE card, not a gestation card', async () => {
     currentAvailability = ACTIVE_AVAILABILITY;
     currentProposals = [SUBSTITUTE];
     renderScreen();
 
-    const listSection = await screen.findByTestId('gestation-list-section');
-    expect(within(listSection).getByTestId('gestation-card-77')).toBeInTheDocument();
-    expect(within(listSection).getByText(/Te invitan de suplente/)).toBeInTheDocument();
+    const inviteSection = await screen.findByTestId('match-invite-list-section');
+    expect(within(inviteSection).getByTestId('match-invite-card-77')).toBeInTheDocument();
+    // No aparece como card de gestación.
+    expect(screen.queryByTestId('gestation-card-77')).toBeNull();
+    expect(screen.queryByTestId('gestation-list-section')).toBeNull();
   });
 
-  test('accepting the substitute invite joins the match and redirects to it', async () => {
+  test('a stale ?proposal= deep link to a materialised proposal redirects to the match-invite view (never the gestation chat)', async () => {
     currentAvailability = ACTIVE_AVAILABILITY;
     currentProposals = [SUBSTITUTE];
     renderScreen('/quiero-jugar?auto=1&proposal=77');
 
-    const detail = await screen.findByTestId('gestation-detail-screen');
-    await within(detail).findByText(/Los titulares ya están completos/);
-    // No aparece el flujo regular de "Me sumo" (esa RPC fallaría en created).
-    expect(within(detail).queryByText('Me sumo')).toBeNull();
+    await waitFor(() => {
+      expect(screen.getByTestId('location-probe')).toHaveTextContent('/quiero-jugar?auto=1&invite=77');
+    });
+    // Nunca abre el detalle/chat de la gestación.
+    expect(screen.queryByTestId('gestation-detail-screen')).toBeNull();
+  });
+
+  test('a stale ?proposal= deep link where I am already in the roster redirects to the real match', async () => {
+    currentAvailability = ACTIVE_AVAILABILITY;
+    currentProposals = [{ ...SUBSTITUTE, my_response: 'accepted' }];
+    renderScreen('/quiero-jugar?auto=1&proposal=77');
+
+    await waitFor(() => {
+      expect(screen.getByTestId('location-probe')).toHaveTextContent('/partido-publico/900');
+    });
+  });
+
+  test('the suplente invite view differentiates the CTA and accepting redirects to the match', async () => {
+    currentAvailability = ACTIVE_AVAILABILITY;
+    currentProposals = [SUBSTITUTE];
+    renderScreen('/quiero-jugar?auto=1&invite=77');
+
+    const invite = await screen.findByTestId('match-invite-screen');
+    await within(invite).findByText(/Los titulares ya están completos/);
+    expect(within(invite).queryByText('Me sumo')).toBeNull();
 
     await act(async () => {
-      fireEvent.click(within(detail).getByText('Sumarme de suplente'));
+      fireEvent.click(within(invite).getByTestId('match-invite-accept'));
     });
-
     expect(mockRespondSub).toHaveBeenCalledWith(77, 'accepted');
     await waitFor(() => {
       expect(screen.getByTestId('location-probe')).toHaveTextContent('/partido-publico/900');
     });
   });
 
-  test('declining the substitute invite calls the service with declined', async () => {
+  test('the titular vacancy invite uses the "hay un lugar" wording (differentiated from suplente)', async () => {
+    currentAvailability = ACTIVE_AVAILABILITY;
+    currentProposals = [STARTER];
+    renderScreen('/quiero-jugar?auto=1&invite=78');
+
+    const invite = await screen.findByTestId('match-invite-screen');
+    await within(invite).findByText(/Hay un lugar disponible/);
+    expect(within(invite).getByTestId('match-invite-accept')).toHaveTextContent('Sumarme al partido');
+  });
+
+  test('declining the invite calls the service with declined', async () => {
     currentAvailability = ACTIVE_AVAILABILITY;
     mockRespondSub.mockImplementation(async () => null);
     currentProposals = [SUBSTITUTE];
-    renderScreen('/quiero-jugar?auto=1&proposal=77');
+    renderScreen('/quiero-jugar?auto=1&invite=77');
 
-    const detail = await screen.findByTestId('gestation-detail-screen');
-    const declineBtn = await within(detail).findByText('No, gracias');
+    const invite = await screen.findByTestId('match-invite-screen');
+    const declineBtn = await within(invite).findByText('No, gracias');
     await act(async () => {
       fireEvent.click(declineBtn);
     });

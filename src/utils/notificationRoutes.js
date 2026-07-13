@@ -95,35 +95,64 @@ const AUTO_MATCH_NOTIFICATION_TYPES = new Set([
   'auto_match_substitute_invite',
   'auto_match_substitute_joined',
   'auto_match_vacancy_reopened',
+  'auto_match_waitlisted',
+  'auto_match_starter_invite',
+  'auto_match_promoted',
 ]);
 
-// Tipos que abren el PARTIDO real (no la gestación): partido creado y los
-// avisos al organizador sobre el partido ya materializado.
+// Tipos que abren el PARTIDO real (no la gestación): partido creado, promoción
+// de suplente a titular y los avisos al organizador sobre el partido ya
+// materializado. El destinatario ya forma parte del plantel (o lo será).
 const AUTO_MATCH_MATCH_ROUTED_TYPES = new Set([
   'auto_match_created',
   'auto_match_substitute_joined',
   'auto_match_vacancy_reopened',
+  'auto_match_promoted',
+]);
+
+// Invitación a un partido YA creado (vacante de titular o de suplente): abre la
+// vista de invitación asociada al partido, nunca el detalle de la gestación
+// (que ya se cerró). El proposal_id viaja solo para resolver la RPC de acepción.
+const AUTO_MATCH_INVITE_ROUTED_TYPES = new Set([
+  'auto_match_substitute_invite',
+  'auto_match_starter_invite',
 ]);
 
 export const isAutoMatchNotificationType = (notificationOrType = {}) => (
   AUTO_MATCH_NOTIFICATION_TYPES.has(normalizeNotificationType(notificationOrType))
 );
 
-// Gestación automática: "partido creado" abre el partido real; el resto de
-// las transiciones abren el detalle de la gestación cuando el payload trae
-// proposal_id, y si no (notificaciones anteriores) la pantalla general.
+// Gestación automática:
+//  - "partido creado" / promoción / avisos del partido => partido real.
+//  - invitación a un partido creado (suplente o titular) => vista de invitación
+//    asociada al partido (?invite=), NO el detalle de la gestación.
+//  - lista de espera => pantalla general (el usuario ya no es miembro).
+//  - resto de las transiciones vivas => detalle de la gestación por proposal_id.
 export const buildAutoMatchNotificationRoute = (notification = {}) => {
   const data = notification?.data || {};
+  const type = normalizeNotificationType(notification);
   const matchId = data?.match_id || data?.matchId || data?.partido_id || notification?.partido_id || null;
-  const isMatchRouted = AUTO_MATCH_MATCH_ROUTED_TYPES.has(normalizeNotificationType(notification));
+  const link = String(data?.route || data?.link || '').trim();
+  const safeLink = link && isSafeInternalPath(link) ? link : null;
+  const proposalId = data?.proposal_id ?? data?.proposalId ?? null;
+  const hasProposal = proposalId !== null && proposalId !== undefined && /^\d+$/.test(String(proposalId).trim());
+
+  const isMatchRouted = AUTO_MATCH_MATCH_ROUTED_TYPES.has(type);
   if (isMatchRouted && matchId !== null && matchId !== undefined && /^\d+$/.test(String(matchId).trim())) {
     return `/partido-publico/${String(matchId).trim()}`;
   }
-  const link = String(data?.route || data?.link || '').trim();
-  const safeLink = link && isSafeInternalPath(link) ? link : null;
   if (isMatchRouted) return safeLink || '/quiero-jugar?auto=1';
-  const proposalId = data?.proposal_id ?? data?.proposalId ?? null;
-  if (proposalId !== null && proposalId !== undefined && /^\d+$/.test(String(proposalId).trim())) {
+
+  if (AUTO_MATCH_INVITE_ROUTED_TYPES.has(type)) {
+    if (hasProposal) return `/quiero-jugar?auto=1&invite=${String(proposalId).trim()}`;
+    return safeLink || '/quiero-jugar?auto=1';
+  }
+
+  // Lista de espera: el usuario quedó fuera del plantel, no se lo lleva a un
+  // detalle de gestación cerrada.
+  if (type === 'auto_match_waitlisted') return safeLink || '/quiero-jugar?auto=1';
+
+  if (hasProposal) {
     return `/quiero-jugar?auto=1&proposal=${String(proposalId).trim()}`;
   }
   return safeLink || '/quiero-jugar?auto=1';

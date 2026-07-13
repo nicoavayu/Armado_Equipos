@@ -670,7 +670,13 @@ export default function MatchChat({ partidoId, proposalId = null, title = 'Chat 
       }, 10);
     } catch (error) {
       const msg = String(error?.message || '');
-      if (msg.toLowerCase().includes('row-level security')) {
+      // Condición de carrera: la gestación se materializó (o cerró) justo cuando
+      // se enviaba. En vez de un error técnico, se avisa de forma controlada y se
+      // cierra el chat; las comunicaciones siguen en el partido real.
+      if (isProposalChat && /no admite mensajes nuevos|sin permiso para enviar/i.test(msg)) {
+        notifyBlockingError('Este partido ya fue creado. Las comunicaciones siguen en el partido.');
+        onClose?.();
+      } else if (msg.toLowerCase().includes('row-level security')) {
         notifyBlockingError('No tenés permiso para escribir en este chat todavía.');
       } else {
         notifyBlockingError('Error enviando mensaje: ' + msg);
