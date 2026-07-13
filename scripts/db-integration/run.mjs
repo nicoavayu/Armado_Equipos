@@ -25,6 +25,7 @@ const MIGRATIONS = [
   '20260711210000_auto_match_organizer_flow.sql',
   '20260712120000_auto_match_proposal_chat.sql',
   '20260712220000_auto_match_overbooking_confirmation_order.sql',
+  '20260712230000_auto_match_substitutes.sql',
 ];
 
 const PORT = 54300 + Math.floor(Math.random() * 500);
@@ -132,6 +133,11 @@ const respond = async (uid, proposalId, response, canOrganize = false) => {
 const sync = async (uid) => {
   const client = await asUser(uid);
   return (await client.query('select * from public.sync_my_auto_match_gestations()')).rows;
+};
+
+const respondSub = async (uid, proposalId, response) => {
+  const client = await asUser(uid);
+  return val(client, 'select public.respond_to_auto_match_substitute($1, $2)', [proposalId, response]);
 };
 
 const claim = async (uid, proposalId) => {
@@ -918,6 +924,81 @@ async function scenarioOverlapWithdrawal() {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Escenario 11: §10 convocados pendientes al materializar reciben invitación de
+// suplente (no entran solos); §12 reapertura de vacante del partido creado.
+// ---------------------------------------------------------------------------
+async function scenarioSubstitutes() {
+  console.log('\nEscenario 11: pendientes → suplentes + reapertura de vacante');
+  await resetData();
+
+  for (const user of USERS.slice(0, 12)) await activate(user.id, { canOrganize: true });
+  const proposal = await activeProposal();
+  const roster = await members(proposal.id);
+  const creatorId = roster.find((row) => row.response === 'accepted').user_id;
+  const pendings = roster.filter((row) => row.response === 'pending').map((row) => row.user_id);
+
+  // 9 confirman => 10 titulares (creador + 9). Quedan 2 pendientes.
+  for (const uid of pendings.slice(0, 9)) await respond(uid, proposal.id, 'accepted');
+  const leftPending = pendings.slice(9);
+  eq(leftPending.length, 2, 'quedan 2 convocados pendientes');
+
+  const ready = await one(admin, 'select * from public.auto_match_proposals where id=$1', [proposal.id]);
+  eq(ready.status, 'ready', 'con 10 confirmados => ready');
+  eq(String(ready.organizer_id), String(creatorId), 'el creador (voluntario, titular #1) organiza');
+
+  // Materializa.
+  const done = await finalize(creatorId, proposal.id);
+  const partidoId = Number(done.partido_id);
+  ok(Boolean(partidoId), 'se creó el partido');
+  eq(await num(admin, 'select count(*) from public.jugadores where partido_id=$1', [partidoId]), 10, 'entran solo los 10 titulares confirmados');
+  for (const uid of leftPending) {
+    eq(await num(admin, 'select count(*) from public.jugadores where partido_id=$1 and usuario_id=$2', [partidoId, uid]), 0, 'un pendiente NO se vuelve suplente automático');
+    eq(await notifCount('auto_match_substitute_invite', uid), 1, 'el pendiente recibe la invitación de suplente');
+  }
+
+  // §10: aceptar la invitación de suplente => entra al partido.
+  const subA = leftPending[0];
+  const subB = leftPending[1];
+  const returned = await respondSub(subA, proposal.id, 'accepted');
+  eq(String(returned), String(partidoId), 'aceptar suplente devuelve el partido');
+  eq(await num(admin, 'select count(*) from public.jugadores where partido_id=$1', [partidoId]), 11, 'el suplente que aceptó entra al partido');
+  eq(await val(admin, 'select response from public.auto_match_proposal_members where proposal_id=$1 and user_id=$2', [proposal.id, subA]), 'accepted', 'su membresía queda accepted');
+  eq(await notifCount('auto_match_substitute_joined', creatorId), 1, 'el organizador es avisado del suplente');
+
+  // Rechazar => no entra y no puede reconfirmar.
+  await respondSub(subB, proposal.id, 'declined');
+  eq(await num(admin, 'select count(*) from public.jugadores where partido_id=$1 and usuario_id=$2', [partidoId, subB]), 0, 'el que rechaza no entra al partido');
+  await expectError(
+    (await asUser(subB)).query('select public.respond_to_auto_match_substitute($1,$2)', [proposal.id, 'accepted']),
+    /substitute_invite_closed/,
+    'un suplente que rechazó no puede reconfirmar',
+  );
+
+  // §12: se abre una vacante (bajan un suplente y un titular => 9 < cupo 10) y
+  // no quedan pendientes => la reapertura invita un compatible NUEVO.
+  await admin.query('delete from public.jugadores where partido_id=$1 and usuario_id=$2', [partidoId, subA]);
+  await admin.query('delete from public.jugadores where id = (select id from public.jugadores where partido_id=$1 order by created_at asc limit 1)', [partidoId]);
+  eq(await num(admin, 'select count(*) from public.jugadores where partido_id=$1', [partidoId]), 9, 'quedó una vacante (9 < cupo 10)');
+
+  // Compatible nuevo insertado directo (sin gestar su propia propuesta).
+  await admin.query(
+    "insert into public.player_availability (user_id, days_of_week, time_start, time_end, formats, status) values ($1, '{6}', '20:00', '23:00', '{F5}', 'active')",
+    [USERS[12].id],
+  );
+  await val(admin, 'select public.reopen_auto_match_vacancies()');
+  eq(
+    await val(admin, 'select response from public.auto_match_proposal_members where proposal_id=$1 and user_id=$2', [proposal.id, USERS[12].id]),
+    'pending',
+    'la reapertura invita un compatible nuevo como suplente',
+  );
+  eq(await notifCount('auto_match_substitute_invite', USERS[12].id), 1, 'el nuevo compatible recibe la invitación de suplente');
+  eq(await notifCount('auto_match_vacancy_reopened', creatorId), 1, 'el organizador es avisado de la reapertura');
+
+  await respondSub(USERS[12].id, proposal.id, 'accepted');
+  eq(await num(admin, 'select count(*) from public.jugadores where partido_id=$1 and usuario_id=$2', [partidoId, USERS[12].id]), 1, 'el nuevo suplente cubre la vacante');
+}
+
 async function main() {
   console.log(`Iniciando Postgres embebido en :${PORT} (${DATA_DIR})`);
   await postgres.initialise();
@@ -950,6 +1031,7 @@ async function main() {
   await scenarioConcurrentConfirmations();
   await scenarioInviteExpiry();
   await scenarioOverlapWithdrawal();
+  await scenarioSubstitutes();
 
   console.log(`\n${checks} chequeos, ${failures} fallas`);
   if (failures > 0) process.exitCode = 1;

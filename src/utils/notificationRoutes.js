@@ -92,6 +92,17 @@ const AUTO_MATCH_NOTIFICATION_TYPES = new Set([
   'auto_match_created',
   'auto_match_cancelled',
   'auto_match_invite_expired',
+  'auto_match_substitute_invite',
+  'auto_match_substitute_joined',
+  'auto_match_vacancy_reopened',
+]);
+
+// Tipos que abren el PARTIDO real (no la gestación): partido creado y los
+// avisos al organizador sobre el partido ya materializado.
+const AUTO_MATCH_MATCH_ROUTED_TYPES = new Set([
+  'auto_match_created',
+  'auto_match_substitute_joined',
+  'auto_match_vacancy_reopened',
 ]);
 
 export const isAutoMatchNotificationType = (notificationOrType = {}) => (
@@ -104,13 +115,13 @@ export const isAutoMatchNotificationType = (notificationOrType = {}) => (
 export const buildAutoMatchNotificationRoute = (notification = {}) => {
   const data = notification?.data || {};
   const matchId = data?.match_id || data?.matchId || data?.partido_id || notification?.partido_id || null;
-  const isCreated = normalizeNotificationType(notification) === 'auto_match_created';
-  if (isCreated && matchId !== null && matchId !== undefined && /^\d+$/.test(String(matchId).trim())) {
+  const isMatchRouted = AUTO_MATCH_MATCH_ROUTED_TYPES.has(normalizeNotificationType(notification));
+  if (isMatchRouted && matchId !== null && matchId !== undefined && /^\d+$/.test(String(matchId).trim())) {
     return `/partido-publico/${String(matchId).trim()}`;
   }
   const link = String(data?.route || data?.link || '').trim();
   const safeLink = link && isSafeInternalPath(link) ? link : null;
-  if (isCreated) return safeLink || '/quiero-jugar?auto=1';
+  if (isMatchRouted) return safeLink || '/quiero-jugar?auto=1';
   const proposalId = data?.proposal_id ?? data?.proposalId ?? null;
   if (proposalId !== null && proposalId !== undefined && /^\d+$/.test(String(proposalId).trim())) {
     return `/quiero-jugar?auto=1&proposal=${String(proposalId).trim()}`;

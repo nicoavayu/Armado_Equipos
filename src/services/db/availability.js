@@ -192,6 +192,26 @@ export const respondToAutoMatchProposal = async (proposalId, response, { canOrga
   return data;
 };
 
+// §10/§12: aceptar o rechazar la invitación de suplente sobre un partido ya
+// materializado. Devuelve el partido_id al aceptar (para redirigir), null al
+// rechazar.
+export const respondToAutoMatchSubstitute = async (proposalId, response) => {
+  const normalized = String(response || '').toLowerCase();
+  if (!['accepted', 'declined'].includes(normalized)) throw new Error('Respuesta inválida.');
+  const session = await requireSession();
+  const { data, error } = await supabase.rpc('respond_to_auto_match_substitute', {
+    p_proposal_id: Number(proposalId),
+    p_response: normalized,
+  });
+  if (error) {
+    throw describeAvailabilityDbError(error, {
+      operation: 'respondToAutoMatchSubstitute', target: 'rpc:respond_to_auto_match_substitute', userId: session.user?.id,
+    });
+  }
+  kickAutoMatchPushes();
+  return data;
+};
+
 export const claimAutoMatchOrganizer = async (proposalId) => {
   const session = await requireSession();
   const { data, error } = await supabase.rpc('claim_auto_match_organizer', {

@@ -12,6 +12,7 @@ let membersById = {};
 const mockSave = jest.fn(async () => { });
 const mockCancel = jest.fn(async () => { currentAvailability = null; });
 const mockRespond = jest.fn(async () => { });
+const mockRespondSub = jest.fn(async () => 900);
 const mockClaim = jest.fn(async () => { });
 const mockSync = jest.fn(async () => []);
 const mockGetAvailability = jest.fn(async () => currentAvailability);
@@ -39,6 +40,7 @@ jest.mock('../services/db/availability', () => ({
   saveMyAvailability: (...args) => mockSave(...args),
   cancelMyAvailability: (...args) => mockCancel(...args),
   respondToAutoMatchProposal: (...args) => mockRespond(...args),
+  respondToAutoMatchSubstitute: (...args) => mockRespondSub(...args),
   claimAutoMatchOrganizer: (...args) => mockClaim(...args),
   syncMyAutoMatchGestations: (...args) => mockSync(...args),
   getMyActiveAvailability: (...args) => mockGetAvailability(...args),
@@ -133,6 +135,7 @@ beforeEach(() => {
   mockSave.mockImplementation(async () => { });
   mockCancel.mockImplementation(async () => { currentAvailability = null; });
   mockRespond.mockImplementation(async () => { });
+  mockRespondSub.mockImplementation(async () => 900);
   mockClaim.mockImplementation(async () => { });
   mockSync.mockImplementation(async () => []);
   mockGetAvailability.mockImplementation(async () => currentAvailability);
@@ -344,5 +347,64 @@ describe('gestation list visibility (§13)', () => {
     expect(within(listSection).getByTestId('gestation-card-11')).toBeInTheDocument();
     expect(within(listSection).queryByTestId('gestation-card-33')).toBeNull();
     expect(within(listSection).queryByTestId('gestation-card-44')).toBeNull();
+  });
+});
+
+describe('substitute invite (§10/§12)', () => {
+  const SUBSTITUTE = {
+    id: 77,
+    format: 'F5',
+    proposed_starts_at: '2026-07-20T21:00:00-03:00',
+    max_players: 10,
+    status: 'created',
+    partido_id: 900,
+    member_count: 12,
+    accepted_count: 10,
+    my_response: 'pending',
+    organizer_id: 'someone',
+  };
+
+  test('a materialised proposal where I am still pending shows a substitute-invite card, not a dead created card', async () => {
+    currentAvailability = ACTIVE_AVAILABILITY;
+    currentProposals = [SUBSTITUTE];
+    renderScreen();
+
+    const listSection = await screen.findByTestId('gestation-list-section');
+    expect(within(listSection).getByTestId('gestation-card-77')).toBeInTheDocument();
+    expect(within(listSection).getByText(/Te invitan de suplente/)).toBeInTheDocument();
+  });
+
+  test('accepting the substitute invite joins the match and redirects to it', async () => {
+    currentAvailability = ACTIVE_AVAILABILITY;
+    currentProposals = [SUBSTITUTE];
+    renderScreen('/quiero-jugar?auto=1&proposal=77');
+
+    const detail = await screen.findByTestId('gestation-detail-screen');
+    await within(detail).findByText(/Los titulares ya están completos/);
+    // No aparece el flujo regular de "Me sumo" (esa RPC fallaría en created).
+    expect(within(detail).queryByText('Me sumo')).toBeNull();
+
+    await act(async () => {
+      fireEvent.click(within(detail).getByText('Sumarme de suplente'));
+    });
+
+    expect(mockRespondSub).toHaveBeenCalledWith(77, 'accepted');
+    await waitFor(() => {
+      expect(screen.getByTestId('location-probe')).toHaveTextContent('/partido-publico/900');
+    });
+  });
+
+  test('declining the substitute invite calls the service with declined', async () => {
+    currentAvailability = ACTIVE_AVAILABILITY;
+    mockRespondSub.mockImplementation(async () => null);
+    currentProposals = [SUBSTITUTE];
+    renderScreen('/quiero-jugar?auto=1&proposal=77');
+
+    const detail = await screen.findByTestId('gestation-detail-screen');
+    const declineBtn = await within(detail).findByText('No, gracias');
+    await act(async () => {
+      fireEvent.click(declineBtn);
+    });
+    expect(mockRespondSub).toHaveBeenCalledWith(77, 'declined');
   });
 });

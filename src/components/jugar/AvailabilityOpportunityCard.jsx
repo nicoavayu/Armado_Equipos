@@ -30,6 +30,7 @@ import {
   getMyActiveAvailability,
   getMyActiveProposals,
   respondToAutoMatchProposal,
+  respondToAutoMatchSubstitute,
   saveMyAvailability,
   syncMyAutoMatchGestations,
 } from '../../services/db/availability';
@@ -98,7 +99,13 @@ const CANCELLED_REASONS = {
 // Estado visible de la propuesta para la UI. Exportado para tests.
 export const resolveProposalStage = (proposal) => {
   const status = String(proposal?.status || '');
-  if (status === 'created') return { key: 'created', label: 'Partido creado' };
+  if (status === 'created') {
+    // §10/§12: partido ya creado y todavía me queda una invitación de suplente
+    // pendiente → no es una card muerta, es una acción ("¿sumarte como suplente?").
+    return proposal?.my_response === 'pending' && proposal?.partido_id
+      ? { key: 'substitute', label: 'Te invitan de suplente' }
+      : { key: 'created', label: 'Partido creado' };
+  }
   if (status === 'cancelled' || status === 'expired') return { key: 'cancelled', label: 'Cancelado' };
   if (status === 'ready') {
     return proposal?.organizer_id
@@ -135,6 +142,7 @@ const STAGE_BADGE = {
   needs_organizer: 'border-amber-400/30 bg-amber-400/10 text-amber-100',
   organizing: 'border-[#2dd4bf]/30 bg-[#2dd4bf]/10 text-[#99f6e4]',
   created: 'border-[#2dd4bf]/30 bg-[#2dd4bf]/10 text-[#99f6e4]',
+  substitute: 'border-[#fdb022]/30 bg-[#fdb022]/10 text-[#ffe1a6]',
   cancelled: 'border-white/12 bg-white/[0.05] text-white/50',
 };
 
@@ -246,6 +254,7 @@ export const ProposalDetail = ({
   userId,
   loading,
   onRespond,
+  onRespondSubstitute,
   onClaim,
   onOrganize,
   onOpenMatch,
@@ -268,10 +277,12 @@ export const ProposalDetail = ({
   const orderedMembers = [...visibleMembers, ...declinedMembers];
   // Solo los jugadores que ya forman parte (no declinados) usan el chat.
   const iAmActiveMember = Boolean(proposal.my_response) && proposal.my_response !== 'declined';
-  // El envío se corta cuando la gestación se cierra (materializada, cancelada,
-  // vencida o pasado expires_at): el historial queda de solo lectura, igual que
+  // El envío solo está vivo mientras la gestación está abierta (collecting/
+  // ready). Materializada (incluida la invitación de suplente), cancelada,
+  // vencida o pasado expires_at: el historial queda de solo lectura, igual que
   // lo que impone la RPC. El botón de chat sigue disponible para leer.
-  const chatCanSend = active
+  const liveGestation = ['searching', 'waiting', 'needs_organizer', 'organizing'].includes(stage.key);
+  const chatCanSend = liveGestation
     && (!proposal.expires_at || new Date(proposal.expires_at).getTime() > Date.now());
 
   const proposalId = proposal.id;
@@ -408,7 +419,33 @@ export const ProposalDetail = ({
         </div>
       ) : null}
 
-      {pending && active ? (
+      {stage.key === 'substitute' ? (
+        <div className="mt-3">
+          <p className="mb-2 font-oswald text-[11.5px] font-semibold text-[#ffe1a6]">
+            Los titulares ya están completos. ¿Querés sumarte como suplente?
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => onRespondSubstitute(proposal.id, 'declined')}
+              className="min-h-11 rounded-xl border border-white/12 bg-white/[0.035] font-oswald text-[13px] font-semibold text-white/58 transition-all hover:bg-white/[0.07] active:scale-[0.98] motion-reduce:transition-none"
+            >
+              No, gracias
+            </button>
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => onRespondSubstitute(proposal.id, 'accepted')}
+              className="min-h-11 rounded-xl border border-[#fdb022]/30 bg-[#fdb022]/[0.12] font-oswald text-[13px] font-bold text-[#ffe1a6] transition-all active:scale-[0.98] motion-reduce:transition-none"
+            >
+              <Check size={15} className="mr-1 inline" /> Sumarme de suplente
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {pending && active && stage.key !== 'substitute' ? (
         <div className="mt-3">
           <p className="mb-2 font-oswald text-[11px] text-white/58">¿Te sumás a esta oportunidad?</p>
           <div className="grid grid-cols-2 gap-2">
@@ -756,6 +793,41 @@ export default function AvailabilityOpportunityCard() {
     }
   };
 
+  // §10/§12: aceptar/rechazar la invitación de suplente. Al aceptar, el backend
+  // suma al partido real y devuelve su id → redirige al partido. Al rechazar,
+  // la card desaparece (deja de ser miembro activo).
+  const respondSubstitute = async (proposalId, response) => {
+    setLoading(true);
+    setError('');
+    try {
+      const partidoId = await respondToAutoMatchSubstitute(proposalId, response);
+      if (response === 'accepted' && partidoId) {
+        setNotice('¡Entraste como suplente! Te llevamos al partido.');
+        navigate(`/partido-publico/${partidoId}`);
+        return;
+      }
+      setNotice('Listo, no te sumás a este partido.');
+      if (String(proposalParam || '') === String(proposalId)) backFromDetail();
+      await load({ sync: false });
+    } catch (err) {
+      const message = err?.message || '';
+      if (/match_roster_full/.test(message)) {
+        setError('El banco de suplentes ya está completo.');
+        await load({ sync: false });
+      } else if (/match_already_started/.test(message)) {
+        setError('El partido ya empezó.');
+        await load({ sync: false });
+      } else if (/substitute_invite_closed|proposal_member_not_found|proposal_not_materialized/.test(message)) {
+        setError('Esta invitación ya no está disponible.');
+        await load({ sync: false });
+      } else {
+        setError(message || 'No pudimos guardar tu respuesta.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const claim = async (proposalId) => {
     setLoading(true);
     setError('');
@@ -1013,6 +1085,7 @@ export default function AvailabilityOpportunityCard() {
                 userId={user.id}
                 loading={loading}
                 onRespond={respond}
+                onRespondSubstitute={respondSubstitute}
                 onClaim={claim}
                 onOrganize={setOrganizingProposal}
                 onOpenMatch={openMatch}
