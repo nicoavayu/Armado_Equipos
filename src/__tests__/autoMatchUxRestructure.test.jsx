@@ -12,6 +12,7 @@ let membersById = {};
 const mockSave = jest.fn(async () => { });
 const mockCancel = jest.fn(async () => { currentAvailability = null; });
 const mockRespond = jest.fn(async () => { });
+const mockRespondSub = jest.fn(async () => 900);
 const mockClaim = jest.fn(async () => { });
 const mockSync = jest.fn(async () => []);
 const mockGetAvailability = jest.fn(async () => currentAvailability);
@@ -39,11 +40,19 @@ jest.mock('../services/db/availability', () => ({
   saveMyAvailability: (...args) => mockSave(...args),
   cancelMyAvailability: (...args) => mockCancel(...args),
   respondToAutoMatchProposal: (...args) => mockRespond(...args),
+  respondToAutoMatchSubstitute: (...args) => mockRespondSub(...args),
   claimAutoMatchOrganizer: (...args) => mockClaim(...args),
   syncMyAutoMatchGestations: (...args) => mockSync(...args),
   getMyActiveAvailability: (...args) => mockGetAvailability(...args),
   getMyActiveProposals: (...args) => mockGetProposals(...args),
   getAutoMatchProposalMembers: (...args) => mockGetMembers(...args),
+}));
+
+// El detalle envuelve cada jugador en PlayerCardTrigger; su árbol real
+// (ProfileCardModal → useAmigos → surveyConfig con import.meta) no carga bajo
+// Jest, así que se stubea igual que en el resto de la suite.
+jest.mock('../components/ProfileComponents', () => ({
+  PlayerCardTrigger: ({ children }) => children,
 }));
 
 jest.mock('../components/jugar/AutoMatchOrganizeSheet', () => () => null);
@@ -126,6 +135,7 @@ beforeEach(() => {
   mockSave.mockImplementation(async () => { });
   mockCancel.mockImplementation(async () => { currentAvailability = null; });
   mockRespond.mockImplementation(async () => { });
+  mockRespondSub.mockImplementation(async () => 900);
   mockClaim.mockImplementation(async () => { });
   mockSync.mockImplementation(async () => []);
   mockGetAvailability.mockImplementation(async () => currentAvailability);
@@ -214,8 +224,8 @@ describe('compact gestation list', () => {
     expect(cards[0]).toHaveAttribute('data-testid', 'gestation-card-22');
     expect(cards[1]).toHaveAttribute('data-testid', 'gestation-card-11');
 
-    expect(within(cards[0]).getByText('9/14 jugadores')).toBeInTheDocument();
-    expect(within(cards[1]).getByText('4/10 jugadores')).toBeInTheDocument();
+    expect(within(cards[0]).getByText('9/14 confirmados')).toBeInTheDocument();
+    expect(within(cards[1]).getByText('4/10 confirmados')).toBeInTheDocument();
     expect(within(listSection).queryByTestId('proposal-roster')).toBeNull();
     expect(within(listSection).queryByText('Me sumo')).toBeNull();
   });
@@ -279,5 +289,156 @@ describe('proposal deep links', () => {
     expect(screen.getByText('Esa gestación ya no está disponible.')).toBeInTheDocument();
     expect(screen.queryByText(/No encontramos ese destino/)).toBeNull();
     expect(screen.getByTestId('gestation-card-11')).toBeInTheDocument();
+  });
+});
+
+describe('overbooking and confirmation-order in the detail', () => {
+  const OVERBOOKED = {
+    id: 55,
+    format: 'F5',
+    proposed_starts_at: '2026-07-20T21:00:00-03:00',
+    max_players: 10,
+    invitation_capacity: 15,
+    status: 'collecting',
+    member_count: 12,
+    accepted_count: 6,
+    pending_count: 6,
+    titular_slots_left: 4,
+    my_response: 'accepted',
+    my_seat: 'suplente',
+    organizer_id: null,
+  };
+
+  test('shows convocados/capacity, titular slots left, order note and my seat', async () => {
+    currentAvailability = ACTIVE_AVAILABILITY;
+    currentProposals = [OVERBOOKED];
+    renderScreen('/quiero-jugar?auto=1&proposal=55');
+
+    const detail = await screen.findByTestId('gestation-detail-screen');
+    await waitFor(() => expect(within(detail).getByText('6/10')).toBeInTheDocument());
+    expect(within(detail).getByText('12 convocados · hasta 15')).toBeInTheDocument();
+    expect(within(detail).getByText('Quedan 4 lugares titulares')).toBeInTheDocument();
+    expect(within(detail).getByText(/Los lugares titulares se asignan por orden de confirmación/)).toBeInTheDocument();
+    expect(within(detail).getByTestId('my-seat')).toHaveTextContent('Quedaste suplente');
+  });
+
+  test('a pending invite shows the response deadline', async () => {
+    currentAvailability = ACTIVE_AVAILABILITY;
+    const soon = new Date(Date.now() + 6 * 3600 * 1000).toISOString();
+    currentProposals = [{ ...OVERBOOKED, my_response: 'pending', my_seat: null, my_invite_expires_at: soon }];
+    renderScreen('/quiero-jugar?auto=1&proposal=55');
+
+    const detail = await screen.findByTestId('gestation-detail-screen');
+    await waitFor(() => expect(within(detail).getByText(/Podés responder hasta/)).toBeInTheDocument());
+  });
+});
+
+describe('gestation list visibility (§13)', () => {
+  test('created and cancelled proposals do not appear as gestation cards', async () => {
+    currentAvailability = ACTIVE_AVAILABILITY;
+    currentProposals = [
+      { id: 11, format: 'F5', proposed_starts_at: '2026-07-20T21:00:00-03:00', max_players: 10, status: 'collecting', member_count: 6, accepted_count: 4, my_response: 'accepted', organizer_id: null },
+      { id: 33, format: 'F5', proposed_starts_at: '2026-07-20T21:00:00-03:00', max_players: 10, status: 'created', partido_id: 900, member_count: 10, accepted_count: 10, my_response: 'accepted', organizer_id: 'me' },
+      { id: 44, format: 'F5', proposed_starts_at: '2026-07-20T21:00:00-03:00', max_players: 10, status: 'cancelled', cancelled_reason: 'expired', member_count: 3, accepted_count: 3, my_response: 'accepted', organizer_id: null },
+    ];
+    renderScreen();
+
+    const listSection = await screen.findByTestId('gestation-list-section');
+    expect(within(listSection).getByTestId('gestation-card-11')).toBeInTheDocument();
+    expect(within(listSection).queryByTestId('gestation-card-33')).toBeNull();
+    expect(within(listSection).queryByTestId('gestation-card-44')).toBeNull();
+  });
+});
+
+describe('match invite after materialization (§6/§10/§12)', () => {
+  const SUBSTITUTE = {
+    id: 77,
+    format: 'F5',
+    proposed_starts_at: '2026-07-20T21:00:00-03:00',
+    max_players: 10,
+    status: 'created',
+    partido_id: 900,
+    member_count: 12,
+    accepted_count: 10,
+    my_response: 'pending',
+    roster_slot_kind: 'suplente',
+    organizer_id: 'someone',
+  };
+  const STARTER = { ...SUBSTITUTE, id: 78, roster_slot_kind: 'titular', partido_id: 901 };
+
+  test('a materialised proposal where I am still pending shows a MATCH-INVITE card, not a gestation card', async () => {
+    currentAvailability = ACTIVE_AVAILABILITY;
+    currentProposals = [SUBSTITUTE];
+    renderScreen();
+
+    const inviteSection = await screen.findByTestId('match-invite-list-section');
+    expect(within(inviteSection).getByTestId('match-invite-card-77')).toBeInTheDocument();
+    // No aparece como card de gestación.
+    expect(screen.queryByTestId('gestation-card-77')).toBeNull();
+    expect(screen.queryByTestId('gestation-list-section')).toBeNull();
+  });
+
+  test('a stale ?proposal= deep link to a materialised proposal redirects to the match-invite view (never the gestation chat)', async () => {
+    currentAvailability = ACTIVE_AVAILABILITY;
+    currentProposals = [SUBSTITUTE];
+    renderScreen('/quiero-jugar?auto=1&proposal=77');
+
+    await waitFor(() => {
+      expect(screen.getByTestId('location-probe')).toHaveTextContent('/quiero-jugar?auto=1&invite=77');
+    });
+    // Nunca abre el detalle/chat de la gestación.
+    expect(screen.queryByTestId('gestation-detail-screen')).toBeNull();
+  });
+
+  test('a stale ?proposal= deep link where I am already in the roster redirects to the real match', async () => {
+    currentAvailability = ACTIVE_AVAILABILITY;
+    currentProposals = [{ ...SUBSTITUTE, my_response: 'accepted' }];
+    renderScreen('/quiero-jugar?auto=1&proposal=77');
+
+    await waitFor(() => {
+      expect(screen.getByTestId('location-probe')).toHaveTextContent('/partido-publico/900');
+    });
+  });
+
+  test('the suplente invite view differentiates the CTA and accepting redirects to the match', async () => {
+    currentAvailability = ACTIVE_AVAILABILITY;
+    currentProposals = [SUBSTITUTE];
+    renderScreen('/quiero-jugar?auto=1&invite=77');
+
+    const invite = await screen.findByTestId('match-invite-screen');
+    await within(invite).findByText(/Los titulares ya están completos/);
+    expect(within(invite).queryByText('Me sumo')).toBeNull();
+
+    await act(async () => {
+      fireEvent.click(within(invite).getByTestId('match-invite-accept'));
+    });
+    expect(mockRespondSub).toHaveBeenCalledWith(77, 'accepted');
+    await waitFor(() => {
+      expect(screen.getByTestId('location-probe')).toHaveTextContent('/partido-publico/900');
+    });
+  });
+
+  test('the titular vacancy invite uses the "hay un lugar" wording (differentiated from suplente)', async () => {
+    currentAvailability = ACTIVE_AVAILABILITY;
+    currentProposals = [STARTER];
+    renderScreen('/quiero-jugar?auto=1&invite=78');
+
+    const invite = await screen.findByTestId('match-invite-screen');
+    await within(invite).findByText(/Hay un lugar disponible/);
+    expect(within(invite).getByTestId('match-invite-accept')).toHaveTextContent('Sumarme al partido');
+  });
+
+  test('declining the invite calls the service with declined', async () => {
+    currentAvailability = ACTIVE_AVAILABILITY;
+    mockRespondSub.mockImplementation(async () => null);
+    currentProposals = [SUBSTITUTE];
+    renderScreen('/quiero-jugar?auto=1&invite=77');
+
+    const invite = await screen.findByTestId('match-invite-screen');
+    const declineBtn = await within(invite).findByText('No, gracias');
+    await act(async () => {
+      fireEvent.click(declineBtn);
+    });
+    expect(mockRespondSub).toHaveBeenCalledWith(77, 'declined');
   });
 });

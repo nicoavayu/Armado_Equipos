@@ -11,7 +11,7 @@ import { useAuth } from './AuthProvider';
 import { useAmigos } from '../hooks/useAmigos';
 import { supabase } from '../supabase';
 import { getProfile } from '../services/db/profiles';
-import { Phone, PhoneOff } from 'lucide-react';
+import { Phone, PhoneOff, UserPlus, Check, Clock3, ShieldPlus } from 'lucide-react';
 // import './ProfileCardModal.css'; // REMOVED
 
 /**
@@ -128,10 +128,22 @@ const buildRelationshipCacheKey = (currentUserId, otherUserId) => (
   currentUserId && otherUserId ? `${currentUserId}:${otherUserId}` : null
 );
 
-const PROFILE_ACTION_BUTTON_BASE = 'w-full min-w-0 h-[44px] px-2.5 rounded-none border font-bebas text-[13px] tracking-[0.01em] leading-tight cursor-pointer transition-all inline-flex items-center justify-center text-center disabled:opacity-60 disabled:cursor-not-allowed';
-const PROFILE_ACTION_BUTTON_PRIMARY = 'bg-[#6a43ff] border-[#7d5aff] text-white shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:bg-[#7550ff] active:opacity-95';
-const PROFILE_ACTION_BUTTON_INFO = 'bg-[rgba(15,64,98,0.45)] border-[rgba(65,179,255,0.55)] text-[#d3efff] hover:bg-[rgba(15,72,112,0.62)] hover:text-white active:opacity-95';
-const PROFILE_ACTION_BUTTON_WARNING = 'bg-[rgba(94,73,28,0.45)] border-[rgba(236,201,104,0.55)] text-[#ffe7a8] hover:bg-[rgba(116,89,33,0.62)] hover:text-white active:opacity-95';
+// Botonera inferior de la profile card. Una sola fila, sin textos a dos líneas
+// (whitespace-nowrap), misma base premium sobre superficie oscura y diferencias
+// SEMÁNTICAS sutiles por acción (no tres diseños distintos): amistad = violeta,
+// contacto = neutro, admin = dorado discreto. Altura, radio, tipografía y
+// padding uniformes; iconos pequeños; respeta prefers-reduced-motion.
+const PROFILE_ACTION_BUTTON_BASE = 'w-full min-w-0 h-11 px-2 rounded-xl border font-oswald text-[12px] font-semibold tracking-[0.01em] leading-none whitespace-nowrap cursor-pointer transition-all inline-flex items-center justify-center gap-1.5 text-center disabled:opacity-55 disabled:cursor-not-allowed active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100';
+// Amistad: acento violeta (acción principal social).
+const PROFILE_ACTION_BUTTON_PRIMARY = 'border-[#8b7cff]/45 bg-[#6a43ff]/15 text-[#d8ccff] hover:bg-[#6a43ff]/25 hover:border-[#8b7cff]/65';
+// Contacto: secundario y limpio, sin color fuerte.
+const PROFILE_ACTION_BUTTON_INFO = 'border-white/15 bg-white/[0.05] text-white/85 hover:bg-white/[0.09] hover:border-white/25';
+// Administración: dorado discreto (nada del marrón anterior).
+const PROFILE_ACTION_BUTTON_WARNING = 'border-[#fdb022]/40 bg-[#fdb022]/12 text-[#ffe1a6] hover:bg-[#fdb022]/20 hover:border-[#fdb022]/60';
+// Estados no accionables (pendiente / ya amigos): neutros y sin hover.
+const PROFILE_ACTION_BUTTON_PENDING = 'border-[#8b7cff]/30 bg-[#6a43ff]/10 text-[#cfc2ff]/85 cursor-default';
+const PROFILE_ACTION_BUTTON_FRIENDS = 'border-[#22c55e]/40 bg-[#22c55e]/12 text-[#c7f4d6] cursor-default';
+const PROFILE_ACTION_ICON = 14;
 
 /**
  * Reusable modal component for displaying a player's ProfileCard
@@ -552,7 +564,8 @@ const ProfileCardModal = ({
         onClick={handleMakeAdmin}
         disabled={isAdminLoading}
       >
-        <span>{isAdminLoading ? 'Procesando...' : 'Hacer admin'}</span>
+        <ShieldPlus size={PROFILE_ACTION_ICON} aria-hidden="true" />
+        <span>{isAdminLoading ? 'Dando…' : 'Dar admin'}</span>
       </button>
     );
   };
@@ -580,6 +593,7 @@ const ProfileCardModal = ({
         className={`${PROFILE_ACTION_BUTTON_BASE} ${PROFILE_ACTION_BUTTON_INFO}`}
         onClick={handleContactPlayer}
       >
+        <Phone size={PROFILE_ACTION_ICON} aria-hidden="true" />
         <span>Contactar</span>
       </button>
     );
@@ -605,50 +619,41 @@ const ProfileCardModal = ({
     if (isRelationshipLoading && !relationshipStatus) {
       return (
         <button
-          className={`${PROFILE_ACTION_BUTTON_BASE} bg-[rgba(255,255,255,0.06)] border-white/10 text-white/55 cursor-wait`}
+          className={`${PROFILE_ACTION_BUTTON_BASE} ${PROFILE_ACTION_BUTTON_PENDING} cursor-wait`}
           disabled
         >
-          <span>Cargando...</span>
+          <span>Cargando…</span>
         </button>
       );
     }
 
-    if (!relationshipStatus) {
+    if (!relationshipStatus || relationshipStatus.status === 'rejected') {
       return (
         <button
-          className={`${PROFILE_ACTION_BUTTON_BASE} ${PROFILE_ACTION_BUTTON_PRIMARY} ${isLoading ? 'opacity-60 cursor-not-allowed hover:bg-[#6a43ff]' : ''}`}
+          className={`${PROFILE_ACTION_BUTTON_BASE} ${PROFILE_ACTION_BUTTON_PRIMARY}`}
           onClick={handleAddFriend}
           disabled={isLoading}
         >
-          <span>{isLoading ? 'Enviando...' : 'Solicitar amistad'}</span>
+          <UserPlus size={PROFILE_ACTION_ICON} aria-hidden="true" />
+          <span>{isLoading ? 'Enviando…' : 'Agregar'}</span>
         </button>
       );
     }
 
     if (relationshipStatus.status === 'pending') {
       return (
-        <button className={`${PROFILE_ACTION_BUTTON_BASE} bg-[rgba(106,67,255,0.18)] border-[rgba(125,90,255,0.55)] text-[#cfc2ff] cursor-not-allowed`} disabled>
-          <span>Solicitud Pendiente</span>
+        <button className={`${PROFILE_ACTION_BUTTON_BASE} ${PROFILE_ACTION_BUTTON_PENDING}`} disabled>
+          <Clock3 size={PROFILE_ACTION_ICON} aria-hidden="true" />
+          <span>Enviada</span>
         </button>
       );
     }
 
     if (relationshipStatus.status === 'accepted') {
       return (
-        <button className={`${PROFILE_ACTION_BUTTON_BASE} bg-[rgba(22,90,46,0.45)] border-[rgba(34,197,94,0.58)] text-[#dcfce7] cursor-not-allowed`} disabled>
-          <span>Ya son amigos</span>
-        </button>
-      );
-    }
-
-    if (relationshipStatus.status === 'rejected') {
-      return (
-        <button
-          className={`${PROFILE_ACTION_BUTTON_BASE} ${PROFILE_ACTION_BUTTON_PRIMARY} ${isLoading ? 'opacity-60 cursor-not-allowed hover:bg-[#6a43ff]' : ''}`}
-          onClick={handleAddFriend}
-          disabled={isLoading}
-        >
-          <span>{isLoading ? 'Enviando...' : 'Solicitar amistad'}</span>
+        <button className={`${PROFILE_ACTION_BUTTON_BASE} ${PROFILE_ACTION_BUTTON_FRIENDS}`} disabled>
+          <Check size={PROFILE_ACTION_ICON} aria-hidden="true" />
+          <span>Amigos</span>
         </button>
       );
     }

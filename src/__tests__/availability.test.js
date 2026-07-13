@@ -96,6 +96,7 @@ describe('availability MVP', () => {
     expect(summary[0]).toEqual({
       format: 'F5',
       playersNeeded: 10,
+      invitationCapacity: 15,
       compatiblePlayers: 10,
       missingPlayers: 0,
       ready: true,
@@ -105,10 +106,11 @@ describe('availability MVP', () => {
     expect(summary[1]).toEqual({
       format: 'F7',
       playersNeeded: 14,
+      invitationCapacity: 21,
       compatiblePlayers: 14,
       missingPlayers: 0,
       ready: true,
-      gestationThreshold: 6,
+      gestationThreshold: 4,
       gestating: true,
     });
   });
@@ -136,7 +138,7 @@ describe('availability MVP', () => {
 
     expect(buildMatchOpportunitySummary(matches, ['F7'])[0]).toMatchObject({
       compatiblePlayers: 3,
-      gestationThreshold: 6,
+      gestationThreshold: 4,
       gestating: false,
       ready: false,
     });
@@ -163,6 +165,7 @@ describe('availability MVP', () => {
     expect(summary).toEqual([{
       format: 'F5',
       playersNeeded: 10,
+      invitationCapacity: 15,
       compatiblePlayers: 1,
       missingPlayers: 9,
       ready: false,
