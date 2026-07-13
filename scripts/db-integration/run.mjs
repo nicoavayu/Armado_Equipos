@@ -27,21 +27,29 @@ const MIGRATIONS = [
   '20260712220000_auto_match_overbooking_confirmation_order.sql',
   '20260712230000_auto_match_substitutes.sql',
   '20260713120000_auto_match_roster_cap_and_promotion.sql',
+  '20260713190000_auto_match_progressive_cohorts.sql',
 ];
 
 const PORT = 54300 + Math.floor(Math.random() * 500);
 const DB_NAME = 'arma2_auto_match';
 const DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'arma2-embedded-pg-'));
 
-// 34 usuarios: alcanzan para F11 (capacity 33) en los escenarios de plantel.
-const USERS = Array.from({ length: 34 }, (_, index) => ({
-  id: `00000000-0000-4000-8000-0000000000${String(index + 1).padStart(2, '0')}`,
+// 100 usuarios: alcanzan para el escenario de cohortes progresivas (100
+// compatibles para el mismo slot) y para F11 (capacity 33) en los de plantel.
+const USERS = Array.from({ length: 100 }, (_, index) => ({
+  id: `00000000-0000-4000-8000-000000000${String(index + 1).padStart(3, '0')}`,
   nombre: `Jugador ${index + 1}`,
 }));
 
 let failures = 0;
 let checks = 0;
 const clients = [];
+
+// Día ISO usado por los escenarios de cohortes. Se fija en main() a un día
+// SIEMPRE ≥2 días en el futuro (independiente de cuándo corra la suite) para que
+// el slot no caiga en la ventana de 90 min–2 h donde auto_match_invite_deadline
+// (kickoff − 2 h) ya venció. Equivale al "mismo lunes 20:00" del pedido.
+let COHORT_DAYS = [1];
 
 const ok = (condition, label, extra = '') => {
   checks += 1;
@@ -1169,6 +1177,300 @@ async function scenarioNoThrottle() {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Helpers de cohortes progresivas.
+// ---------------------------------------------------------------------------
+
+// Siembra una disponibilidad activa directa (rápida, sin correr sync). Sin
+// coords => sin filtro de distancia (todos compatibles).
+const seedAvailability = async (uid, {
+  formats = ['F5'], days = [1], start = '20:00', end = '23:00',
+  lat = null, lng = null, maxKm = 8, canOrganize = false,
+} = {}) => val(
+  admin,
+  `insert into public.player_availability
+     (user_id, days_of_week, time_start, time_end, formats, max_distance_km, latitude, longitude, can_organize, status)
+   values ($1, $2::smallint[], $3::time, $4::time, $5::text[], $6, $7, $8, $9, 'active')
+   returning id`,
+  [uid, days, start, end, formats, maxKm, lat, lng, canOrganize],
+);
+
+const activeRooms = (format = null) => admin
+  .query(
+    `select * from public.auto_match_proposals
+     where status in ('collecting','ready') and ($1::text is null or format = $1)
+     order by id asc`,
+    [format],
+  )
+  .then((res) => res.rows);
+
+// Convocados vivos de una sala (los que cuentan para capacity y para el chat).
+const activeMembers = (pid) => admin
+  .query(
+    `select * from public.auto_match_proposal_members
+     where proposal_id = $1 and response not in ('declined','expired','waitlisted')
+     order by user_id`,
+    [pid],
+  )
+  .then((res) => res.rows);
+
+// ---------------------------------------------------------------------------
+// Escenario 15: COHORTES PROGRESIVAS. 100 compatibles para F5, lunes 20:00. La
+// primera sala convoca 15; al completar sus 10 titulares se habilita SOLA la
+// segunda con otros 15; al completar esa, la tercera. Sin organizador, sin sync
+// manual, sin duplicar usuarios ni salas, sin 100 pushes juntos.
+// ---------------------------------------------------------------------------
+async function scenarioProgressiveCohorts() {
+  console.log('\nEscenario 15: cohortes progresivas (100 compatibles, F5 lunes 20:00)');
+  await resetData();
+
+  // 100 disponibles idénticos (nadie organiza: la sala 1 quedará "falta
+  // organizador", que NO debe frenar la cascada).
+  for (const user of USERS) await seedAvailability(user.id, { formats: ['F5'], days: COHORT_DAYS });
+
+  // Un solo sync arma la sala 1 (convoca hasta invitation_capacity = 15).
+  await sync(USERS[0].id);
+  const cap = await num(admin, "select public.auto_match_invitation_capacity('F5')");
+  eq(cap, 15, 'invitation_capacity F5 = 15');
+
+  let rooms = await activeRooms('F5');
+  eq(rooms.length, 1, '1) al principio existe UNA sola sala buscando titulares');
+  const room1 = rooms[0];
+  const room1Members = await activeMembers(room1.id);
+  eq(room1Members.length, 15, '2) esa sala tiene como máximo 15 convocados');
+  eq(await num(admin, "select count(distinct user_id) from public.notifications where type='auto_match_gestating'"), 15,
+    '3) solamente esos 15 reciben notificación');
+  eq(await num(admin, "select count(*) from public.player_availability where status='active'"), 100,
+    '4) los otros 85 continúan disponibles');
+  eq(await num(admin, 'select count(distinct user_id) from public.auto_match_proposal_members'), 15,
+    'nadie más fue convocado todavía');
+
+  // Confirman 9 de los 14 pendientes => con el creador, 10 titulares.
+  const pend1 = room1Members.filter((m) => m.response === 'pending').map((m) => m.user_id);
+  eq(pend1.length, 14, 'la sala 1 tiene 1 creador confirmado + 14 pendientes');
+  for (const uid of pend1.slice(0, 9)) await respond(uid, room1.id, 'accepted');
+
+  // 5) la segunda sala quedó habilitada AUTOMÁTICAMENTE (sin sync manual: solo
+  // corrieron confirmaciones).
+  rooms = await activeRooms('F5');
+  eq(rooms.length, 2, '5) al confirmar 10 titulares se habilita automáticamente la segunda sala');
+  const room1After = await one(admin, 'select * from public.auto_match_proposals where id=$1', [room1.id]);
+  eq(room1After.status, 'ready', 'la sala 1 quedó ready (titulares completos)');
+  ok(room1After.titulares_completed_at !== null, 'la sala 1 quedó latcheada (titulares completos)');
+  ok(room1After.organizer_id === null, '13) la sala 1 sin organizador no bloquea la siguiente');
+  eq(await num(admin, "select public.auto_match_final_roster_capacity('F5')"), 14,
+    '8) el plantel final de la sala 1 se topea en 14 (10 titulares + 4 suplentes)');
+
+  const room2 = rooms.find((r) => String(r.id) !== String(room1.id));
+  const room2Members = await activeMembers(room2.id);
+  eq(room2Members.length, 15, '9) la segunda sala convoca como máximo a 15');
+  const dupRoom2 = room2Members.filter((m) => room1Members.some((x) => x.user_id === m.user_id));
+  eq(dupRoom2.length, 0, '6) la segunda sala usa candidatos diferentes (0 solapados con la primera)');
+  eq(room2Members.filter((m) => m.response === 'accepted').length, 0,
+    '7) la segunda sala nace sin miembro auto-confirmado: sus 15 entran pendientes');
+  eq(await num(admin, "select count(distinct user_id) from public.notifications where type='auto_match_gestating'"), 30,
+    '16) no se generan 100 pushes: 30 en total (15 + 15), uno por convocado');
+
+  // 10) al completar la segunda (10 confirmaciones), se habilita la tercera.
+  const pend2 = room2Members.map((m) => m.user_id);
+  for (const uid of pend2.slice(0, 10)) await respond(uid, room2.id, 'accepted');
+  rooms = await activeRooms('F5');
+  eq(rooms.length, 3, '10) al completar la segunda se habilita la tercera');
+  const room3 = rooms.find((r) => String(r.id) !== String(room1.id) && String(r.id) !== String(room2.id));
+  eq((await activeMembers(room3.id)).length, 15, 'la tercera vuelve a convocar hasta 15');
+
+  // 11) el proceso continúa sin duplicar usuarios ni salas.
+  const memberRows = await num(admin, 'select count(*) from public.auto_match_proposal_members');
+  const distinctMembers = await num(admin, 'select count(distinct user_id) from public.auto_match_proposal_members');
+  eq(memberRows, distinctMembers, '11) ningún usuario aparece en dos salas (filas = usuarios distintos)');
+  eq(distinctMembers, 45, '11) exactamente 45 convocados (15 × 3 salas) sin duplicar');
+  eq(await num(admin, "select count(distinct user_id) from public.notifications where type='auto_match_gestating'"), 45,
+    'cada convocado recibió exactamente un push de convocatoria');
+}
+
+// ---------------------------------------------------------------------------
+// Escenario 16: la cascada es a prueba de carreras. Dos confirmaciones que
+// cruzan el umbral a la vez NO crean dos "segundas salas". (Punto 12.)
+// ---------------------------------------------------------------------------
+async function scenarioCohortConcurrency() {
+  console.log('\nEscenario 16: dos confirmaciones concurrentes no duplican la segunda sala');
+  await resetData();
+
+  for (const user of USERS.slice(0, 40)) await seedAvailability(user.id, { formats: ['F5'], days: COHORT_DAYS });
+  await sync(USERS[0].id);
+  const room1 = (await activeRooms('F5'))[0];
+  const pend = (await activeMembers(room1.id)).filter((m) => m.response === 'pending').map((m) => m.user_id);
+
+  // Creador + 8 confirmados = 9. Faltando uno para el umbral.
+  for (const uid of pend.slice(0, 8)) await respond(uid, room1.id, 'accepted');
+  eq(await num(admin, "select count(*) from public.auto_match_proposal_members where proposal_id=$1 and response='accepted'", [room1.id]), 9,
+    '9 confirmados antes de la carrera');
+
+  // El 10.º y el 11.º confirman EXACTAMENTE a la vez: ambos cruzan el umbral.
+  const [c1, c2] = await Promise.allSettled([
+    respond(pend[8], room1.id, 'accepted'),
+    respond(pend[9], room1.id, 'accepted'),
+  ]);
+  ok(c1.status === 'fulfilled' && c2.status === 'fulfilled', 'ninguna confirmación concurrente falla');
+
+  const rooms = await activeRooms('F5');
+  eq(rooms.length, 2, '12) dos confirmaciones concurrentes crean EXACTAMENTE una segunda sala (no dos)');
+  const room2 = rooms.find((r) => String(r.id) !== String(room1.id));
+  eq((await activeMembers(room2.id)).length, 15, 'la única segunda sala convoca 15');
+}
+
+// ---------------------------------------------------------------------------
+// Escenario 17: rechazos y vencimientos liberan capacidad y suman reemplazos,
+// sin re-invitar al que se fue ni mandarle una invitación equivalente inmediata
+// (nada de spam). El que rechazó tampoco entra a la segunda sala. (Punto 15.)
+// ---------------------------------------------------------------------------
+async function scenarioCohortReplacements() {
+  console.log('\nEscenario 17: rechazo/vencimiento libera capacidad y suma reemplazo (sin spam)');
+  await resetData();
+
+  for (const user of USERS.slice(0, 40)) await seedAvailability(user.id, { formats: ['F5'], days: COHORT_DAYS });
+  await sync(USERS[0].id);
+  const room1 = (await activeRooms('F5'))[0];
+  const before = await activeMembers(room1.id);
+  const decliner = before.find((m) => m.response === 'pending').user_id;
+
+  // Rechaza: sale solo esa persona y entra un reemplazo compatible nuevo.
+  await respond(decliner, room1.id, 'declined');
+  const after = await activeMembers(room1.id);
+  eq(after.length, 15, 'la sala vuelve a 15 convocados: el reemplazo cubrió la vacante');
+  ok(!after.some((m) => m.user_id === decliner), 'quien rechazó no sigue como convocado vivo');
+  const replacement = after.find((m) => !before.some((b) => b.user_id === m.user_id));
+  ok(Boolean(replacement), 'entró un reemplazo compatible que no estaba antes');
+  eq(await notifCount('auto_match_gestating', decliner), 1,
+    'al que rechazó no se le reenvía la convocatoria de esa sala (una sola, la original)');
+
+  // Vencimiento de otro pendiente: mismo comportamiento por vía del barrido.
+  const toExpire = after.find((m) => m.response === 'pending' && m.user_id !== replacement.user_id).user_id;
+  await admin.query(
+    "update public.auto_match_proposal_members set invite_expires_at = now() - interval '1 minute' where proposal_id=$1 and user_id=$2",
+    [room1.id, toExpire],
+  );
+  await val(admin, 'select public.expire_stale_auto_match_invites()');
+  eq(await val(admin, 'select response from public.auto_match_proposal_members where proposal_id=$1 and user_id=$2', [room1.id, toExpire]), 'expired',
+    'el vencido queda expired');
+  eq((await activeMembers(room1.id)).length, 15, 'el vencimiento también se reemplaza (sigue en 15)');
+
+  // Completa titulares => segunda sala. Ni el que rechazó ni el que venció son
+  // re-invitados a una sala equivalente inmediata.
+  const pend = (await activeMembers(room1.id)).filter((m) => m.response === 'pending').map((m) => m.user_id);
+  const accepted = await num(admin, "select count(*) from public.auto_match_proposal_members where proposal_id=$1 and response='accepted'", [room1.id]);
+  for (const uid of pend.slice(0, Math.max(0, 10 - accepted))) await respond(uid, room1.id, 'accepted');
+  const room2 = (await activeRooms('F5')).find((r) => String(r.id) !== String(room1.id));
+  ok(Boolean(room2), 'se habilitó la segunda sala');
+  const room2Ids = (await activeMembers(room2.id)).map((m) => m.user_id);
+  ok(!room2Ids.includes(decliner), 'el que rechazó NO recibe una invitación equivalente inmediata (excluido de la 2.ª sala)');
+  ok(!room2Ids.includes(toExpire), 'el que venció tampoco recibe una invitación equivalente inmediata');
+}
+
+// ---------------------------------------------------------------------------
+// Escenario 18: variantes. F7 (cap 21) y F11 (cap 33); distintos horarios del
+// mismo día y misma hora con formatos distintos = cohortes independientes; el
+// umbral de 4 compatibles corta la cascada; sync repetido es idempotente.
+// ---------------------------------------------------------------------------
+async function scenarioCohortVariants() {
+  console.log('\nEscenario 18: variantes de cohorte (F7/F11, horarios/formatos, umbral, idempotencia)');
+
+  // F7 => invitation_capacity 21.
+  await resetData();
+  for (const user of USERS.slice(0, 60)) await seedAvailability(user.id, { formats: ['F7'], days: COHORT_DAYS });
+  await sync(USERS[0].id);
+  eq(await num(admin, "select public.auto_match_invitation_capacity('F7')"), 21, 'invitation_capacity F7 = 21');
+  let room = (await activeRooms('F7'))[0];
+  eq((await activeMembers(room.id)).length, 21, 'F7: la primera sala convoca 21');
+  let pend = (await activeMembers(room.id)).filter((m) => m.response === 'pending').map((m) => m.user_id);
+  for (const uid of pend.slice(0, 13)) await respond(uid, room.id, 'accepted'); // +13 => 14 titulares
+  eq((await activeRooms('F7')).length, 2, 'F7: al completar 14 titulares se habilita la segunda sala');
+  eq((await activeMembers((await activeRooms('F7')).find((r) => String(r.id) !== String(room.id)).id)).length, 21,
+    'F7: la segunda sala también convoca 21');
+
+  // F11 => invitation_capacity 33.
+  await resetData();
+  for (const user of USERS.slice(0, 80)) await seedAvailability(user.id, { formats: ['F11'], days: COHORT_DAYS });
+  await sync(USERS[0].id);
+  eq(await num(admin, "select public.auto_match_invitation_capacity('F11')"), 33, 'invitation_capacity F11 = 33');
+  room = (await activeRooms('F11'))[0];
+  eq((await activeMembers(room.id)).length, 33, 'F11: la primera sala convoca 33');
+  pend = (await activeMembers(room.id)).filter((m) => m.response === 'pending').map((m) => m.user_id);
+  for (const uid of pend.slice(0, 21)) await respond(uid, room.id, 'accepted'); // +21 => 22 titulares
+  eq((await activeRooms('F11')).length, 2, 'F11: al completar 22 titulares se habilita la segunda sala');
+
+  // Distintos horarios del mismo día = cohortes INDEPENDIENTES (no se pisan).
+  await resetData();
+  for (const user of USERS.slice(0, 8)) await seedAvailability(user.id, { formats: ['F5'], days: COHORT_DAYS, start: '18:00', end: '20:00' });
+  for (const user of USERS.slice(8, 16)) await seedAvailability(user.id, { formats: ['F5'], days: COHORT_DAYS, start: '21:00', end: '23:00' });
+  await sync(USERS[0].id);
+  await sync(USERS[8].id);
+  eq((await activeRooms('F5')).length, 2, 'distintos horarios del mismo día gestan 2 salas independientes (no dedup)');
+
+  // Misma hora, formatos distintos = cohortes INDEPENDIENTES (grupos disjuntos).
+  await resetData();
+  for (const user of USERS.slice(0, 8)) await seedAvailability(user.id, { formats: ['F5'], days: COHORT_DAYS });
+  for (const user of USERS.slice(8, 16)) await seedAvailability(user.id, { formats: ['F7'], days: COHORT_DAYS });
+  await sync(USERS[0].id);
+  await sync(USERS[8].id);
+  const formatsSeen = (await admin.query("select distinct format from public.auto_match_proposals where status in ('collecting','ready') order by format")).rows.map((r) => r.format);
+  ok(formatsSeen.includes('F5') && formatsSeen.includes('F7'), 'misma hora con formatos distintos = cohortes separadas (F5 y F7)');
+  eq((await activeRooms()).length, 2, 'misma hora, formatos distintos: 2 salas independientes');
+
+  // Umbral de 4 compatibles: 18 disponibles => sala 1 (15) + 3 sobran (<4) => NO
+  // hay segunda sala. 19 => sala 1 (15) + 4 => SÍ hay segunda (con 4).
+  for (const [total, expectRooms, label] of [[18, 1, '18 => 3 sobran (<4): no hay segunda sala'], [19, 2, '19 => 4 sobran: sí hay segunda sala']]) {
+    await resetData();
+    for (const user of USERS.slice(0, total)) await seedAvailability(user.id, { formats: ['F5'], days: COHORT_DAYS });
+    await sync(USERS[0].id);
+    const r1 = (await activeRooms('F5'))[0];
+    const p1 = (await activeMembers(r1.id)).filter((m) => m.response === 'pending').map((m) => m.user_id);
+    for (const uid of p1.slice(0, 9)) await respond(uid, r1.id, 'accepted');
+    eq((await activeRooms('F5')).length, expectRooms, label);
+    if (expectRooms === 2) {
+      const r2 = (await activeRooms('F5')).find((r) => String(r.id) !== String(r1.id));
+      eq((await activeMembers(r2.id)).length, 4, 'la segunda sala del borde convoca a los 4 restantes');
+    }
+  }
+
+  // Idempotencia: repetir el sync/backfill no duplica salas ni convocados.
+  await resetData();
+  for (const user of USERS.slice(0, 30)) await seedAvailability(user.id, { formats: ['F5'], days: COHORT_DAYS });
+  await sync(USERS[0].id);
+  const r1 = (await activeRooms('F5'))[0];
+  const p1 = (await activeMembers(r1.id)).filter((m) => m.response === 'pending').map((m) => m.user_id);
+  for (const uid of p1.slice(0, 9)) await respond(uid, r1.id, 'accepted');
+  const roomsAfterFirst = (await activeRooms('F5')).length;
+  const membersAfterFirst = await num(admin, 'select count(*) from public.auto_match_proposal_members');
+  await val(admin, 'select public.auto_match_scheduled_sweep()');
+  await val(admin, 'select public.auto_match_scheduled_sweep()');
+  eq((await activeRooms('F5')).length, roomsAfterFirst, 'el barrido repetido no duplica salas de la cohorte');
+  eq(await num(admin, 'select count(*) from public.auto_match_proposal_members'), membersAfterFirst,
+    'el barrido repetido no re-convoca ni duplica miembros');
+}
+
+// ---------------------------------------------------------------------------
+// Escenario 19: la distancia se respeta al formar la sala. Un compatible fuera
+// del radio NO es convocado. (Variante "distintos radios de distancia".)
+// ---------------------------------------------------------------------------
+async function scenarioCohortDistance() {
+  console.log('\nEscenario 19: la distancia excluye a los que están fuera del radio');
+  await resetData();
+
+  // 6 cerca (mismo punto) + 1 lejos (~15 km, fuera del radio de 8 km).
+  for (const user of USERS.slice(0, 6)) {
+    await seedAvailability(user.id, { formats: ['F5'], days: COHORT_DAYS, lat: -34.60, lng: -58.40, maxKm: 8 });
+  }
+  const farUser = USERS[6].id;
+  await seedAvailability(farUser, { formats: ['F5'], days: COHORT_DAYS, lat: -34.73, lng: -58.40, maxKm: 8 });
+
+  await sync(USERS[0].id);
+  const room = (await activeRooms('F5'))[0];
+  ok(Boolean(room), 'se gestó la sala con los compatibles cercanos');
+  eq(await num(admin, 'select count(*) from public.auto_match_proposal_members where proposal_id=$1 and user_id=$2', [room.id, farUser]), 0,
+    'el compatible fuera del radio NO es convocado a la sala');
+}
+
 async function main() {
   console.log(`Iniciando Postgres embebido en :${PORT} (${DATA_DIR})`);
   await postgres.initialise();
@@ -1205,6 +1507,17 @@ async function main() {
   await scenarioRosterCap();
   await scenarioPromotion();
   await scenarioNoThrottle();
+
+  // Día de cohortes: siempre ≥2 días adelante (evita la ventana de vencimiento
+  // inmediato de invitaciones cuando el slot cae hoy dentro de 90 min–2 h).
+  const nowDow = await num(admin, 'select extract(isodow from now())');
+  COHORT_DAYS = [((nowDow + 1) % 7) + 1];
+
+  await scenarioProgressiveCohorts();
+  await scenarioCohortConcurrency();
+  await scenarioCohortReplacements();
+  await scenarioCohortVariants();
+  await scenarioCohortDistance();
 
   console.log(`\n${checks} chequeos, ${failures} fallas`);
   if (failures > 0) process.exitCode = 1;
