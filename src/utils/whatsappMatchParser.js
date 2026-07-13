@@ -218,6 +218,165 @@ const parsePlayers = (lines) => {
   };
 };
 
+// --- Deterministic roster-list parser (fallback) ---------------------------
+// The conversational parser above only understands chat turns ("Nico: voy") and
+// inline groups ("Confirmados: Nico y Pato"). The single most common WhatsApp
+// format — a numbered/bulleted roster — produced zero players. This parser
+// recognises those structured lists without requiring the word "confirmado".
+
+// Strip decorative emoji (and the ZWJ/variation-selector/keycap glue) from a
+// name while keeping accented Latin letters, dots and normal punctuation.
+const stripEmoji = (value) => String(value || '')
+  .replace(/[\u{1F000}-\u{1FFFF}]/gu, '')
+  .replace(/[\u{2190}-\u{2BFF}]/gu, '')
+  .replace(/[\u{FE00}-\u{FE0F}‍⃣]/gu, '');
+
+// Convert keycap-emoji digits ("1️⃣" = 31 FE0F 20E3) into a plain "1." marker so
+// the numbered matcher below can read them like any other list index.
+const KEYCAP_DIGIT_RE = /([0-9]{1,2})️?⃣/g;
+
+const NUMBERED_MARKER_RE = /^\s*(\d{1,2})\s*[-.):]\s*(.+)$/;
+const BULLET_MARKER_RE = /^\s*[-•*]\s+(.+)$/;
+
+// Drop an export prefix ("[12/3/24, 21:05] " / "12/3/24, 21:05 - ") and, only
+// when a roster marker follows, a leading "Sender: " so exported lists parse.
+const stripListExportPrefix = (line) => {
+  let value = normalizeSpaces(line)
+    .replace(KEYCAP_DIGIT_RE, '$1. ')
+    .replace(/^\[[^\]]+\]\s*/, '')
+    .replace(/^\d{1,2}\/\d{1,2}\/\d{2,4},?\s+\d{1,2}:\d{2}(?::\d{2})?\s*(?:-|–)?\s*/, '');
+  const sender = value.match(/^([^:]{2,40}):\s+(.+)$/);
+  if (sender && NUMBERED_MARKER_RE.test(sender[2])) value = sender[2];
+  return value;
+};
+
+// A roster line is only a player if what remains after the marker reads like a
+// name — never a bare number, a clock time, a phone number or a score.
+const isPlausiblePlayerName = (name) => {
+  const value = normalizeSpaces(name);
+  if (value.length < 2 || value.length > 45) return false;
+  if (/^\d+$/.test(value)) return false; // "10", a score half, etc.
+  if (/^\+?\d[\d\s().-]{5,}$/.test(value)) return false; // phone number
+  if (/\d{1,2}[:.]\d{2}/.test(value)) return false; // 21:00 / 9.30
+  if (/^\d{1,2}\s*(?:hs?|h)\b/i.test(value)) return false; // "21 hs"
+  if (stripAccents(stripEmoji(value)).replace(/[^a-zA-Z]/g, '').length < 2) return false;
+  return true;
+};
+
+const rosterEntry = (namePortion) => {
+  const raw = normalizeSpaces(namePortion);
+  const name = normalizeSpaces(stripEmoji(namePortion));
+  return { raw, name };
+};
+
+// Status glyphs / words that flip a roster line out of "confirmed".
+const DECLINE_MARK = /[❌\u{1F6AB}]/u;
+const DOUBT_MARK = /[❓❔\u{1F914}]/u;
+
+// Numbered rosters need a coherent sequence: several entries, starting low and
+// mostly increasing. This is what separates "1- Eze / 2- Nacho / 3- Nico" from
+// an unrelated line that merely begins with a digit and a dash.
+const isCoherentNumberedSequence = (items) => {
+  if (items.length < 3) return false;
+  if (items[0].n > 2) return false;
+  let increasing = 0;
+  for (let i = 1; i < items.length; i += 1) {
+    if (items[i].n > items[i - 1].n) increasing += 1;
+  }
+  return increasing >= items.length - 2; // tolerate a single out-of-order hiccup
+};
+
+const longestContiguousRun = (items) => {
+  let best = [];
+  let current = [];
+  items.forEach((item, index) => {
+    if (index > 0 && item.pos === items[index - 1].pos + 1) {
+      current.push(item);
+    } else {
+      current = [item];
+    }
+    if (current.length > best.length) best = current.slice();
+  });
+  return best;
+};
+
+const parseRosterList = (lines) => {
+  const numbered = [];
+  const bullets = [];
+
+  // Every marker is recorded (even ones whose payload is a time/phone/score) so
+  // the coherence check sees the real "1,2,3,…" sequence; the non-name payloads
+  // are dropped from the output via the `valid` flag, not from the sequence.
+  lines.forEach((line, pos) => {
+    const cleaned = stripListExportPrefix(line);
+    const numMatch = cleaned.match(NUMBERED_MARKER_RE);
+    if (numMatch) {
+      const entry = rosterEntry(numMatch[2]);
+      numbered.push({ pos, n: Number(numMatch[1]), valid: isPlausiblePlayerName(entry.name), ...entry });
+      return;
+    }
+    const bulletMatch = cleaned.match(BULLET_MARKER_RE);
+    if (bulletMatch) {
+      const entry = rosterEntry(bulletMatch[1]);
+      bullets.push({ pos, valid: isPlausiblePlayerName(entry.name), ...entry });
+    }
+  });
+
+  const chosen = [];
+  if (isCoherentNumberedSequence(numbered)) chosen.push(...numbered.filter((item) => item.valid));
+  const bulletRun = longestContiguousRun(bullets);
+  if (bulletRun.length >= 3) chosen.push(...bulletRun.filter((item) => item.valid));
+
+  const confirmed = [];
+  const doubtful = [];
+  const declined = [];
+  chosen.forEach((item) => {
+    if (DECLINE_MARK.test(item.raw)) declined.push(item);
+    else if (DOUBT_MARK.test(item.raw)) doubtful.push(item);
+    else confirmed.push(item);
+  });
+
+  return { confirmed, doubtful, declined };
+};
+
+// Dedup a stream of {name, raw} entries keeping first-seen order. The key uses
+// the raw text (emoji kept) so "Nico" and "nico 🙌" survive as two people, while
+// truly identical lines collapse. Returns display names (emoji stripped).
+const dedupEntries = (entries) => {
+  const seen = new Set();
+  const out = [];
+  entries.forEach((entry) => {
+    const key = stripAccents(entry.raw).toLowerCase().replace(/\s+/g, ' ').trim();
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    out.push(entry.name);
+  });
+  return out;
+};
+
+const asEntries = (names) => names.map((name) => ({ name, raw: name }));
+
+// Merge the conversational result with the deterministic roster. Conversational
+// hits keep their order first; the roster fills in the rest, its own order
+// preserved. Declined/doubtful always win over confirmed.
+const combinePlayers = (conversational, roster) => {
+  const declinedEntries = [...asEntries(conversational.declined), ...roster.declined];
+  const doubtfulEntries = [...asEntries(conversational.doubtful), ...roster.doubtful];
+  const confirmedEntries = [...asEntries(conversational.confirmed), ...roster.confirmed];
+
+  const declined = dedupEntries(declinedEntries);
+  const declinedKeys = new Set(declined.map((name) => stripAccents(stripEmoji(name)).toLowerCase()));
+  const doubtful = dedupEntries(doubtfulEntries)
+    .filter((name) => !declinedKeys.has(stripAccents(stripEmoji(name)).toLowerCase()));
+  const doubtfulKeys = new Set(doubtful.map((name) => stripAccents(stripEmoji(name)).toLowerCase()));
+  const confirmed = dedupEntries(confirmedEntries).filter((name) => {
+    const key = stripAccents(stripEmoji(name)).toLowerCase();
+    return !declinedKeys.has(key) && !doubtfulKeys.has(key);
+  });
+
+  return { confirmed, doubtful, declined };
+};
+
 const inferType = (normalizedText) => {
   const lower = stripAccents(normalizedText).toLowerCase();
   if (/\bmixto\b/.test(lower)) return 'Mixto';
@@ -235,7 +394,13 @@ export const parseWhatsAppMatchText = (rawText, options = {}) => {
   const date = parseDate(joined, now);
   const time = parseTime(joined);
   const format = parseFormat(joined);
-  const players = parsePlayers(lines);
+  const conversational = parsePlayers(lines);
+  const roster = parseRosterList(lines);
+  // The conversational parser is unchanged when there's no structured list; the
+  // deterministic roster only augments (or, when conversation found nobody,
+  // takes over) so numbered/bulleted lists stop coming back empty.
+  const hasRoster = roster.confirmed.length + roster.doubtful.length + roster.declined.length > 0;
+  const players = hasRoster ? combinePlayers(conversational, roster) : conversational;
   const venue = parseVenue(joined);
   const price = parsePrice(joined);
   const warnings = [];
