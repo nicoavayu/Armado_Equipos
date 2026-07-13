@@ -9,6 +9,7 @@ import { useInterval } from '../hooks/useInterval';
 import { supabase, updateProfile, addFreePlayer, removeFreePlayer } from '../supabase';
 import { listMyTeamMatches } from '../services/db/teamChallenges';
 import { parseLocalDateTime } from '../utils/dateLocal';
+import { firstName } from '../utils/displayName';
 import { buildActivityFeed } from '../utils/activityFeed';
 import { AWARDS_READY_NOTIFICATION_TYPES, isAwardsReadyStatus } from '../utils/awardsReadiness';
 import {
@@ -879,8 +880,13 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
     return profile?.nombre?.charAt(0) || user?.email?.charAt(0) || '?';
   };
 
+  // Bienvenida de Home: solo el primer nombre (evita "Juanito ferreri…"
+  // cortado con puntos suspensivos). No cambia el nombre en perfiles ni en el
+  // resto de la app. El recorte responsivo queda como salvaguarda por si el
+  // primer nombre fuera excepcionalmente largo.
   const userName = profile?.nombre || user?.email?.split('@')[0] || 'Usuario';
-  const truncatedName = userName.length > 15 ? `${userName.substring(0, 15)}...` : userName;
+  const welcomeFirstName = firstName(userName, 'Usuario');
+  const truncatedName = welcomeFirstName.length > 15 ? `${welcomeFirstName.substring(0, 15)}...` : welcomeFirstName;
   const isAvailable = profile?.acepta_invitaciones !== false;
 
   const toggleStatusDropdown = (e) => {
