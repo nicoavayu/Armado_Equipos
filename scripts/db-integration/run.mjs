@@ -26,13 +26,15 @@ const MIGRATIONS = [
   '20260712120000_auto_match_proposal_chat.sql',
   '20260712220000_auto_match_overbooking_confirmation_order.sql',
   '20260712230000_auto_match_substitutes.sql',
+  '20260713120000_auto_match_roster_cap_and_promotion.sql',
 ];
 
 const PORT = 54300 + Math.floor(Math.random() * 500);
 const DB_NAME = 'arma2_auto_match';
 const DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'arma2-embedded-pg-'));
 
-const USERS = Array.from({ length: 16 }, (_, index) => ({
+// 34 usuarios: alcanzan para F11 (capacity 33) en los escenarios de plantel.
+const USERS = Array.from({ length: 34 }, (_, index) => ({
   id: `00000000-0000-4000-8000-0000000000${String(index + 1).padStart(2, '0')}`,
   nombre: `Jugador ${index + 1}`,
 }));
@@ -163,6 +165,44 @@ const finalize = async (uid, proposalId, overrides = {}) => {
       overrides.lng ?? -58.4,
     ],
   );
+};
+
+// Siembra una propuesta 'ready' con N confirmados (orden de confirmación
+// determinista) y opcionalmente algunos pendientes, lista para materializar.
+// El organizador es USERS[0] (confirmado #1). Se usa para probar el tope del
+// plantel (required + 4) sin la danza de activaciones reales.
+const seedReadyProposal = async (format, acceptedCount, { pending = 0 } = {}) => {
+  await resetData();
+  const required = Number(format.slice(1)) * 2;
+  const slot = await val(admin, "select date_trunc('minute', now() + interval '3 days')");
+  const pid = await val(
+    admin,
+    `insert into public.auto_match_proposals
+       (format, proposed_starts_at, max_players, status, expires_at, gestation_started_at, gestation_threshold, organizer_id)
+     values ($1, $2, $3, 'ready', $2::timestamptz - interval '30 minutes', now(), 4, $4) returning id`,
+    [format, slot, required, USERS[0].id],
+  );
+  for (let i = 0; i < acceptedCount + pending; i += 1) {
+    const availId = await val(
+      admin,
+      "insert into public.player_availability (user_id, days_of_week, time_start, time_end, formats, status) values ($1, '{6}', '20:00', '23:00', $2, 'active') returning id",
+      [USERS[i].id, `{${format}}`],
+    );
+    if (i < acceptedCount) {
+      await admin.query(
+        `insert into public.auto_match_proposal_members (proposal_id, availability_id, user_id, response, responded_at, confirmed_at, can_organize)
+         values ($1, $2, $3, 'accepted', now(), now() + make_interval(secs => $4::double precision), $5)`,
+        [pid, availId, USERS[i].id, i * 0.01, i === 0],
+      );
+    } else {
+      await admin.query(
+        `insert into public.auto_match_proposal_members (proposal_id, availability_id, user_id, response, invite_expires_at)
+         values ($1, $2, $3, 'pending', now() + interval '5 hours')`,
+        [pid, availId, USERS[i].id],
+      );
+    }
+  }
+  return { pid, slot, required };
 };
 
 const activeProposal = () => one(
@@ -990,13 +1030,143 @@ async function scenarioSubstitutes() {
   eq(
     await val(admin, 'select response from public.auto_match_proposal_members where proposal_id=$1 and user_id=$2', [proposal.id, USERS[12].id]),
     'pending',
-    'la reapertura invita un compatible nuevo como suplente',
+    'la reapertura invita un compatible nuevo',
   );
-  eq(await notifCount('auto_match_substitute_invite', USERS[12].id), 1, 'el nuevo compatible recibe la invitación de suplente');
+  // La vacante es de TITULAR (9 < cupo 10): la invitación se diferencia como
+  // "hay un lugar en el partido" (starter_invite), no "sumate de suplente".
+  eq(await notifCount('auto_match_starter_invite', USERS[12].id), 1, 'el nuevo compatible recibe la invitación de titular (vacante de titular)');
+  eq(await notifCount('auto_match_substitute_invite', USERS[12].id), 0, 'no se le ofrece de suplente: es una vacante de titular');
   eq(await notifCount('auto_match_vacancy_reopened', creatorId), 1, 'el organizador es avisado de la reapertura');
 
   await respondSub(USERS[12].id, proposal.id, 'accepted');
   eq(await num(admin, 'select count(*) from public.jugadores where partido_id=$1 and usuario_id=$2', [partidoId, USERS[12].id]), 1, 'el nuevo suplente cubre la vacante');
+}
+
+// ---------------------------------------------------------------------------
+// Escenario 12: plantel final acotado a required + 4. Los confirmados que
+// exceden quedan en lista de espera (waitlisted): no entran al partido ni al
+// chat, no se marcan como rechazados y siguen disponibles. F5/F7/F11.
+// ---------------------------------------------------------------------------
+async function scenarioRosterCap() {
+  console.log('\nEscenario 12: plantel final = required + 4 + lista de espera');
+
+  eq(await num(admin, "select public.auto_match_final_roster_capacity('F5')"), 14, 'final_roster_capacity F5 = 10 + 4');
+  eq(await num(admin, "select public.auto_match_final_roster_capacity('F7')"), 18, 'final_roster_capacity F7 = 14 + 4');
+  eq(await num(admin, "select public.auto_match_final_roster_capacity('F11')"), 26, 'final_roster_capacity F11 = 22 + 4');
+
+  for (const [format, confirmed, roster, waitlisted] of [
+    ['F5', 15, 14, 1],
+    ['F7', 21, 18, 3],
+    ['F11', 33, 26, 7],
+  ]) {
+    const { pid } = await seedReadyProposal(format, confirmed);
+    const done = await finalize(USERS[0].id, pid);
+    const partidoId = Number(done.partido_id);
+    const required = Number(format.slice(1)) * 2;
+
+    eq(await num(admin, 'select count(*) from public.jugadores where partido_id=$1', [partidoId]), roster,
+      `${format}: ${confirmed} confirmados => ${roster} jugadores (${required} titulares + 4 suplentes)`);
+    eq(await num(admin, "select count(*) from public.auto_match_proposal_members where proposal_id=$1 and response='waitlisted'", [pid]), waitlisted,
+      `${format}: ${waitlisted} confirmados excedentes en lista de espera`);
+
+    // El último en confirmar (mayor confirmed_at) es el primero que queda afuera.
+    const lastConfirmed = USERS[confirmed - 1].id;
+    eq(await val(admin, 'select response from public.auto_match_proposal_members where proposal_id=$1 and user_id=$2', [pid, lastConfirmed]), 'waitlisted',
+      `${format}: el último en confirmar queda en lista de espera`);
+    eq(await num(admin, 'select count(*) from public.jugadores where partido_id=$1 and usuario_id=$2', [partidoId, lastConfirmed]), 0,
+      `${format}: el excedente NO entra al partido`);
+    eq(await val(admin, 'select public.auto_match_user_in_proposal($1,$2)', [pid, lastConfirmed]), false,
+      `${format}: el excedente no accede al chat del partido/gestación`);
+    eq(await val(admin, 'select public.user_declined_auto_match_slot($1,$2,(select proposed_starts_at from public.auto_match_proposals where id=$3))', [lastConfirmed, format, pid]), false,
+      `${format}: el excedente sigue disponible (la lista de espera no bloquea)`);
+    eq(await num(admin, "select count(*) from public.player_availability where user_id=$1 and status='active'", [lastConfirmed]), 1,
+      `${format}: el excedente mantiene su disponibilidad activa`);
+    eq(await notifCount('auto_match_waitlisted', lastConfirmed), 1, `${format}: el excedente recibe "el plantel se completó"`);
+    eq(await notifCount('auto_match_created', lastConfirmed), 0, `${format}: el excedente NO recibe "partido confirmado"`);
+
+    const wlClient = await asUser(lastConfirmed);
+    eq((await wlClient.query('select * from public.get_my_auto_match_proposals()')).rows.length, 0,
+      `${format}: el excedente no queda con card de gestación`);
+  }
+
+  // Pendientes al materializar con banco lleno => lista de espera, sin
+  // invitación de suplente imposible de aceptar.
+  {
+    const { pid } = await seedReadyProposal('F5', 14, { pending: 2 });
+    const done = await finalize(USERS[0].id, pid);
+    eq(await num(admin, 'select count(*) from public.jugadores where partido_id=$1', [Number(done.partido_id)]), 14, 'banco lleno: 14 jugadores');
+    eq(await num(admin, "select count(*) from public.auto_match_proposal_members where proposal_id=$1 and response='pending'", [pid]), 0, 'no quedan pendientes con una invitación imposible');
+    eq(await num(admin, "select count(*) from public.auto_match_proposal_members where proposal_id=$1 and response='waitlisted'", [pid]), 2, 'los pendientes van a lista de espera cuando el banco está lleno');
+    eq(await notifCount('auto_match_substitute_invite', USERS[15].id), 0, 'un pendiente con banco lleno NO recibe invitación de suplente');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Escenario 13: promoción de suplente a titular (§5). Bajar un titular por
+// CUALQUIER camino (delete directo) asciende al primer suplente y avisa al
+// promovido y al organizador. Bajar un suplente no promueve.
+// ---------------------------------------------------------------------------
+async function scenarioPromotion() {
+  console.log('\nEscenario 13: promoción de suplente a titular + aviso');
+
+  const { pid } = await seedReadyProposal('F5', 12); // 10 titulares + 2 suplentes
+  const done = await finalize(USERS[0].id, pid);
+  const partidoId = Number(done.partido_id);
+  eq(await num(admin, 'select count(*) from public.jugadores where partido_id=$1', [partidoId]), 12, '12 confirmados => 12 jugadores (10 titulares + 2 suplentes)');
+
+  const firstSub = USERS[10].id; // confirmó 11.º => primer suplente
+  eq(await num(admin, 'select count(*) from public.jugadores where partido_id=$1 and usuario_id=$2', [partidoId, firstSub]), 1, 'el primer suplente está en el partido');
+
+  // Baja un TITULAR distinto del organizador (USERS[1], asiento 2).
+  await admin.query('delete from public.jugadores where partido_id=$1 and usuario_id=$2', [partidoId, USERS[1].id]);
+  eq(await notifCount('auto_match_promoted', firstSub), 1, 'el primer suplente recibe "pasaste a titular"');
+  eq(await notifCount('auto_match_promoted', USERS[0].id), 1, 'el organizador es avisado de la promoción');
+  eq(
+    await val(admin, "select data->>'route' from public.notifications where type='auto_match_promoted' and user_id=$1 limit 1", [firstSub]),
+    `/partido-publico/${partidoId}`,
+    'el aviso de promoción deep-linkea al partido real',
+  );
+
+  // Bajar un SUPLENTE (el último) no genera una nueva promoción del mismo.
+  await admin.query('delete from public.jugadores where partido_id=$1 and usuario_id=$2', [partidoId, USERS[11].id]);
+  eq(await notifCount('auto_match_promoted', firstSub), 1, 'bajar un suplente no vuelve a notificar la promoción');
+
+  // Idempotencia: un partido cancelado no promueve al bajar jugadores.
+  await admin.query("update public.partidos set estado='cancelado' where id=$1", [partidoId]);
+  const before = await notifCount('auto_match_promoted');
+  await admin.query('delete from public.jugadores where partido_id=$1 and usuario_id=$2', [partidoId, USERS[2].id]);
+  eq(await notifCount('auto_match_promoted'), before, 'un partido cancelado no dispara promociones');
+}
+
+// ---------------------------------------------------------------------------
+// Escenario 14: sin throttle por formato. Una sola corrida de sync (una
+// activación) suma al jugador a TODAS las combinaciones día×formato, sin
+// depender de reabrir la pantalla ni reactivar la disponibilidad.
+// ---------------------------------------------------------------------------
+async function scenarioNoThrottle() {
+  console.log('\nEscenario 14: una activación gesta varios días/formatos (sin throttle)');
+  await resetData();
+
+  for (const user of USERS.slice(0, 6)) await activate(user.id, { days: [6, 7], formats: ['F5', 'F7'] });
+
+  eq(
+    await num(admin, "select count(*) from public.auto_match_proposals where status in ('collecting','ready')"),
+    4,
+    '6 disponibles sáb+dom para F5+F7 gestan 4 salas (2 días × 2 formatos)',
+  );
+  // La última activación se sumó a las 4 salas en su ÚNICA corrida de sync.
+  eq(
+    await num(admin, 'select count(distinct proposal_id) from public.auto_match_proposal_members where user_id=$1 and response not in ($2,$3,$4)', [USERS[5].id, 'declined', 'expired', 'waitlisted']),
+    4,
+    'la última activación participa de las 4 gestaciones sin intervención adicional',
+  );
+  // Y un sync explícito posterior no duplica salas equivalentes.
+  await sync(USERS[5].id);
+  eq(
+    await num(admin, "select count(*) from public.auto_match_proposals where status in ('collecting','ready')"),
+    4,
+    're-sync no duplica salas equivalentes',
+  );
 }
 
 async function main() {
@@ -1032,6 +1202,9 @@ async function main() {
   await scenarioInviteExpiry();
   await scenarioOverlapWithdrawal();
   await scenarioSubstitutes();
+  await scenarioRosterCap();
+  await scenarioPromotion();
+  await scenarioNoThrottle();
 
   console.log(`\n${checks} chequeos, ${failures} fallas`);
   if (failures > 0) process.exitCode = 1;
