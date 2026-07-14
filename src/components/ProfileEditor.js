@@ -15,6 +15,7 @@ import {
   LOCATION_SIGNIFICANT_MOVE_M,
   buildLabel,
   distanceInMeters,
+  geocodeManualLocation,
   getCurrentPosition,
   getLocationPlatformInfo,
   isPermissionDeniedError,
@@ -23,6 +24,7 @@ import {
   reverseGeocode,
   shouldRefresh,
 } from '../services/locationService';
+import { openNativeLocationSettings } from '../utils/locationSettings';
 import {
   clearLocalAuthSession,
   getLogoutErrorMessage,
@@ -30,13 +32,13 @@ import {
 } from '../services/authLogoutService';
 
 const GEO_LOG_PREFIX = '[PROFILE_GEO]';
-const LOCATION_DISABLED_LABEL = 'Ubicación desactivada';
+const LOCATION_DISABLED_LABEL = 'Ubicación pendiente';
 const LOCATION_DETECTION_FAILED_MESSAGE = 'No pudimos detectar tu ubicación. Elegí tu localidad manualmente o probá de nuevo desde el pin.';
 const LOCATION_DETECTION_FAILED_WITH_MANUAL_MESSAGE = 'No pudimos actualizar por GPS. Mantenemos tu localidad cargada.';
-const LOCATION_PERMISSION_BLOCKED_MESSAGE = 'Permiso de ubicación bloqueado. Habilitá Ubicación desde Ajustes del navegador/app.';
-const LOCATION_PERMISSION_BLOCKED_WITH_MANUAL_MESSAGE = 'GPS bloqueado. Mantenemos tu localidad cargada; para actualizar por GPS habilitá Ubicación desde Ajustes.';
-const LOCATION_BROWSER_ORIGIN_DENIED_MESSAGE = 'Chrome/localhost sigue devolviendo permiso denegado aunque macOS tenga Ubicación habilitada. Revisá el permiso del sitio y probá de nuevo.';
-const LOCATION_BROWSER_ORIGIN_DENIED_WITH_MANUAL_MESSAGE = 'Chrome/localhost sigue denegando ubicación para este sitio. Mantenemos tu localidad cargada.';
+const LOCATION_PERMISSION_BLOCKED_MESSAGE = 'No pudimos acceder a tu ubicación. Podés habilitarla o elegir una localidad manualmente.';
+const LOCATION_PERMISSION_BLOCKED_WITH_MANUAL_MESSAGE = 'No pudimos acceder a tu ubicación. Conservamos la anterior; podés habilitarla o elegir una localidad manualmente.';
+const LOCATION_BROWSER_ORIGIN_DENIED_MESSAGE = LOCATION_PERMISSION_BLOCKED_MESSAGE;
+const LOCATION_BROWSER_ORIGIN_DENIED_WITH_MANUAL_MESSAGE = LOCATION_PERMISSION_BLOCKED_WITH_MANUAL_MESSAGE;
 const LOCATION_SERVICES_DISABLED_MESSAGE = 'La ubicación del dispositivo está desactivada. Activala desde Ajustes o elegí tu localidad manualmente.';
 const LOCATION_SERVICES_DISABLED_WITH_MANUAL_MESSAGE = 'La ubicación del dispositivo está desactivada. Mantenemos tu localidad cargada.';
 const LOCATION_REVERSE_GEOCODE_FAILED_MESSAGE = 'Detectamos tu GPS, pero no pudimos resolver la localidad. Elegí tu localidad manualmente.';
@@ -129,6 +131,11 @@ const ProfileEditorForm = ({
   locationDisabled,
   locationFallbackVisible,
   locationFallbackMessage,
+  manualLocationInput,
+  onManualLocationInputChange,
+  onSaveManualLocation,
+  onOpenLocationSettings,
+  locationIncomplete,
   isLocalDevSession = false,
   isEmbedded = false,
 }) => {
@@ -298,6 +305,23 @@ const ProfileEditorForm = ({
             <p className="mt-2 text-xs leading-snug text-white/68">
               {locationFallbackMessage || LOCATION_DETECTION_FAILED_MESSAGE}
             </p>
+          )}
+          {locationIncomplete && (
+            <p className="mt-2 text-xs leading-snug text-[#f4d03f]">Actualizá tu ubicación para buscar jugadores cerca tuyo.</p>
+          )}
+          <div className="mt-2 flex gap-2">
+            <input
+              className={`${singleLineFieldClass} flex-1 text-[14px]`}
+              value={manualLocationInput}
+              onChange={(event) => onManualLocationInputChange(event.target.value)}
+              placeholder="Localidad, provincia"
+            />
+            <button type="button" className="px-3 border border-white/30 text-white text-xs" onClick={onSaveManualLocation}>
+              {locationIncomplete ? 'Agregar ubicación' : 'Elegir manual'}
+            </button>
+          </div>
+          {locationDisabled && getLocationPlatformInfo().isNative && (
+            <button type="button" className="mt-2 text-left text-xs text-[#f4d03f] underline" onClick={onOpenLocationSettings}>Abrir ajustes</button>
           )}
         </div>
 
@@ -532,6 +556,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
   const [locationDisabled, setLocationDisabled] = useState(false);
   const [locationDetectionFailed, setLocationDetectionFailed] = useState(false);
   const [locationFallbackMessage, setLocationFallbackMessage] = useState('');
+  const [manualLocationInput, setManualLocationInput] = useState('');
   // Object URL of the just-picked (normalized) photo while the "Ajustar foto"
   // modal is open; null when closed.
   const [cropSourceUrl, setCropSourceUrl] = useState(null);
@@ -708,6 +733,37 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
     }
     return updated;
   }, [isLocalDevSession, updateLocalProfile, user?.id]);
+
+  const saveManualLocation = useCallback(async () => {
+    if (locationLoading) return;
+    setLocationLoading(true);
+    try {
+      const resolved = await geocodeManualLocation(manualLocationInput);
+      const timestamp = new Date().toISOString();
+      const patch = {
+        localidad: resolved.label,
+        location_label: resolved.label,
+        latitud: resolved.lat,
+        longitud: resolved.lng,
+        location_accuracy_m: null,
+        location_updated_at: timestamp,
+        location_city: resolved.city || null,
+        location_state: resolved.state || null,
+        location_country: resolved.country || null,
+      };
+      applyLocationPatch(patch);
+      await persistLocationPatch(patch);
+      setManualLocationInput('');
+      setLocationDisabled(false);
+      setLocationDetectionFailed(false);
+      setLocationFallbackMessage('');
+      showInlineNotice('success', 'Ubicación actualizada correctamente.');
+    } catch (error) {
+      showInlineNotice('warning', error?.message || 'No encontramos esa localidad. Probá con ciudad y provincia.');
+    } finally {
+      setLocationLoading(false);
+    }
+  }, [applyLocationPatch, locationLoading, manualLocationInput, persistLocationPatch, showInlineNotice]);
 
   const refreshProfileLocation = useCallback(async ({
     force = false,
@@ -1431,6 +1487,10 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
   const labelClass = 'text-white/90 text-sm font-bold mb-2 block uppercase tracking-wider';
   const formGroupClass = 'flex flex-col w-full';
   const savedLocationDisplayValue = formData.location_label || formData.localidad || '';
+  const hasValidSavedCoordinates = Number.isFinite(Number(formData.latitud))
+    && Number.isFinite(Number(formData.longitud))
+    && !(Math.abs(Number(formData.latitud)) < 0.0001 && Math.abs(Number(formData.longitud)) < 0.0001);
+  const locationIncomplete = Boolean(savedLocationDisplayValue) && !hasValidSavedCoordinates;
   const locationDisplayValue = locationLoading
     ? 'Detectando…'
     : (savedLocationDisplayValue || (locationDisabled ? LOCATION_DISABLED_LABEL : ''));
@@ -1474,6 +1534,11 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
           locationDisabled={locationDisabled}
           locationFallbackVisible={locationFallbackVisible}
           locationFallbackMessage={locationFallbackMessage}
+          manualLocationInput={manualLocationInput}
+          onManualLocationInputChange={setManualLocationInput}
+          onSaveManualLocation={saveManualLocation}
+          onOpenLocationSettings={openNativeLocationSettings}
+          locationIncomplete={locationIncomplete}
           isLocalDevSession={isLocalDevSession}
           isEmbedded={true}
         />
@@ -1679,6 +1744,23 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
                 <p className="mt-2 text-xs leading-snug text-white/68">
                   {locationFallbackMessage || LOCATION_DETECTION_FAILED_MESSAGE}
                 </p>
+              )}
+              {locationIncomplete && (
+                <p className="mt-2 text-xs leading-snug text-[#f4d03f]">Actualizá tu ubicación para buscar jugadores cerca tuyo.</p>
+              )}
+              <div className="mt-2 flex gap-2">
+                <input
+                  className={`${singleLineFieldClass} flex-1 text-[14px]`}
+                  value={manualLocationInput}
+                  onChange={(event) => setManualLocationInput(event.target.value)}
+                  placeholder="Localidad, provincia"
+                />
+                <button type="button" className="px-3 border border-white/30 text-white text-xs" onClick={saveManualLocation}>
+                  {locationIncomplete ? 'Agregar ubicación' : 'Elegir manual'}
+                </button>
+              </div>
+              {locationDisabled && getLocationPlatformInfo().isNative && (
+                <button type="button" className="mt-2 text-left text-xs text-[#f4d03f] underline" onClick={openNativeLocationSettings}>Abrir ajustes</button>
               )}
             </div>
 

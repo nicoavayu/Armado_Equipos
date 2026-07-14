@@ -1,12 +1,11 @@
-// Canonical public base URL for shared links.
-// On Vercel, `window.location.origin` may be a preview URL that is protected (asks users to log in).
-// Use `REACT_APP_PUBLIC_APP_URL` to force the production domain when generating share links.
+import { PUBLIC_APP_ORIGIN } from './publicAppUrl';
 
 export function getPublicBaseUrl() {
+  if (process.env.NODE_ENV === 'production') return PUBLIC_APP_ORIGIN;
   const envUrl = String(process.env.REACT_APP_PUBLIC_APP_URL || '').trim();
   const legacyOrigin = String(process.env.REACT_APP_PUBLIC_APP_ORIGIN || '').trim();
   if (envUrl) return envUrl.replace(/\/+$/, '');
   if (legacyOrigin) return legacyOrigin.replace(/\/+$/, '');
   if (typeof window !== 'undefined' && window.location?.origin) return window.location.origin;
-  return '';
+  return PUBLIC_APP_ORIGIN;
 }
