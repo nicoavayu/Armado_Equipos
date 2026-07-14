@@ -5,6 +5,7 @@ import ProfileEditor, { shouldAttemptProfileAutoLocation } from '../components/P
 
 const mockGetCurrentPosition = jest.fn();
 const mockReverseGeocode = jest.fn();
+const mockGeocodeManualLocation = jest.fn();
 const mockUpdateProfile = jest.fn();
 const mockRefreshProfile = jest.fn();
 const mockUpdateLocalProfile = jest.fn();
@@ -38,6 +39,7 @@ jest.mock('../services/locationService', () => {
   return {
     ...actual,
     getCurrentPosition: (...args) => mockGetCurrentPosition(...args),
+    geocodeManualLocation: (...args) => mockGeocodeManualLocation(...args),
     reverseGeocode: (...args) => mockReverseGeocode(...args),
   };
 });
@@ -137,6 +139,7 @@ describe('ProfileEditor geolocation flow', () => {
   beforeEach(() => {
     mockGetCurrentPosition.mockReset();
     mockReverseGeocode.mockReset();
+    mockGeocodeManualLocation.mockReset();
     mockUpdateProfile.mockReset();
     mockRefreshProfile.mockReset();
     mockUpdateLocalProfile.mockReset();
@@ -286,7 +289,7 @@ describe('ProfileEditor geolocation flow', () => {
 
     renderProfileEditor();
 
-    expect(await screen.findByText(/Permiso de ubicación bloqueado/i)).toBeInTheDocument();
+    expect(await screen.findByText(/No pudimos acceder a tu ubicación/i)).toBeInTheDocument();
     expect(mockGetCurrentPosition).toHaveBeenCalledTimes(1);
 
     fireEvent.click(screen.getByTitle(/Habilitar ubicación/i));
@@ -370,7 +373,7 @@ describe('ProfileEditor geolocation flow', () => {
 
     fireEvent.click(screen.getAllByTitle(/Actualizar ubicación/i)[1]);
 
-    expect(await screen.findByText(/Mantenemos tu localidad cargada/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Conservamos la anterior/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Villa Devoto' })).toBeInTheDocument();
   });
 
@@ -465,7 +468,7 @@ describe('ProfileEditor geolocation flow', () => {
     expect(await screen.findByText(/elegí tu localidad manualmente/i)).toBeInTheDocument();
   });
 
-  test('si Chrome deniega el origen web aunque permissions haya dicho granted muestra mensaje específico', async () => {
+  test('si el origen web está denegado muestra mensaje de producto sin nombres técnicos', async () => {
     const browserDeniedError = Object.assign(new Error('Permiso denegado'), {
       code: 'PERMISSION_DENIED',
       platform: 'web',
@@ -478,10 +481,11 @@ describe('ProfileEditor geolocation flow', () => {
 
     renderProfileEditor();
 
-    expect(await screen.findByText(/Chrome\/localhost sigue devolviendo permiso denegado/i)).toBeInTheDocument();
+    expect(await screen.findByText(/No pudimos acceder a tu ubicación/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Chrome\/localhost/i)).not.toBeInTheDocument();
   });
 
-  test('no muestra botones manuales extra', () => {
+  test('ofrece fallback manual y guarda nombre visible con latitud y longitud', async () => {
     mockAuthValue = {
       ...mockAuthValue,
       profile: makeProfile({
@@ -492,8 +496,23 @@ describe('ProfileEditor geolocation flow', () => {
 
     renderProfileEditor();
 
-    expect(screen.queryByRole('button', { name: /Usar mi ubicación/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Elegir ciudad manualmente/i })).not.toBeInTheDocument();
+    mockGeocodeManualLocation.mockResolvedValue({
+      label: 'Villa Urquiza, CABA',
+      lat: -34.5732,
+      lng: -58.4869,
+      city: 'Buenos Aires',
+      state: 'CABA',
+      country: 'Argentina',
+    });
+    fireEvent.change(screen.getByPlaceholderText('Localidad, provincia'), { target: { value: 'Villa Urquiza' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar ubicación' }));
+
+    await waitFor(() => expect(mockUpdateProfile).toHaveBeenCalledWith('user-123', expect.objectContaining({
+      localidad: 'Villa Urquiza, CABA',
+      location_label: 'Villa Urquiza, CABA',
+      latitud: -34.5732,
+      longitud: -58.4869,
+    })));
   });
 
   test('shouldAttemptProfileAutoLocation evita loops y permite retry manual', () => {
