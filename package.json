@@ -52,7 +52,8 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "GENERATE_SOURCEMAP=${GENERATE_SOURCEMAP:-false} REACT_APP_AUTH_REDIRECT_URL=com.teambalancer.app://auth/callback react-scripts build",
+    "prebuild": "node scripts/validate-build-env.mjs",
+    "build": "GENERATE_SOURCEMAP=${GENERATE_SOURCEMAP:-false} REACT_APP_AUTH_REDIRECT_URL=com.teambalancer.app://auth/callback react-scripts build && node scripts/write-build-info.mjs",
     "build:mobile:release": "npm run build",
     "build:web:release": "GENERATE_SOURCEMAP=true npm run build",
     "sentry:web:sourcemaps:upload": "node scripts/upload_sentry_sourcemaps.mjs",
