@@ -72,52 +72,55 @@ export const shouldAttemptProfileAutoLocation = ({
   return true;
 };
 
-const LocationStatus = ({
-  hasCoordinates,
+const AutomaticLocationField = ({
+  value,
   loading,
   blocked,
   failureMessage,
   isNative,
+  singleLineFieldClass,
   onRefresh,
   onOpenSettings,
 }) => {
-  const status = loading
-    ? 'Obteniendo ubicación…'
-    : (hasCoordinates ? 'Ubicación lista' : 'Necesitamos acceso a tu ubicación');
-  const actionLabel = hasCoordinates
-    ? 'Actualizar ubicación'
-    : ((blocked || failureMessage) ? 'Volver a intentar' : 'Usar mi ubicación');
+  const displayValue = loading
+    ? (value || 'Detectando…')
+    : (value || 'Detectar mi ubicación');
+  const refreshLabel = value ? 'Actualizar ubicación' : 'Detectar mi ubicación';
+  const showSettingsAction = blocked && isNative;
 
   return (
     <div className="flex flex-col gap-2" aria-live="polite">
-      <div className="flex min-h-[50px] items-center justify-between gap-3 border border-[rgba(148,134,255,0.25)] bg-[rgba(20,16,41,0.85)] px-4 shadow-inner backdrop-blur-sm">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <span
-            aria-hidden="true"
-            className={`h-2.5 w-2.5 shrink-0 rounded-full ${hasCoordinates ? 'bg-emerald-400' : 'bg-[#f4d03f]'}`}
-          />
-          <span className="truncate text-[14px] font-medium text-white/90">{status}</span>
+      <div className="flex gap-2 items-center">
+        <div
+          aria-label="Localidad detectada automáticamente"
+          aria-readonly="true"
+          className={`${singleLineFieldClass} flex flex-1 min-w-0 items-center text-[16px] ${value ? '' : '!text-white/45'}`}
+          role="textbox"
+        >
+          <span className="truncate">{displayValue}</span>
         </div>
         <button
           type="button"
-          className="min-h-[44px] shrink-0 px-3 text-xs font-bold text-[#f4d03f] transition-colors hover:bg-[#f4d03f]/10 focus:outline-none focus:ring-2 focus:ring-[#f4d03f]/50 disabled:cursor-wait disabled:opacity-60"
+          aria-label={refreshLabel}
+          className="h-[42px] min-w-[42px] px-3 rounded-none border border-[#f4d03f] bg-[#f4d03f]/15 text-[#f4d03f] text-base cursor-pointer transition-all hover:bg-[#f4d03f]/25 focus:outline-none focus:ring-2 focus:ring-[#f4d03f]/50 disabled:cursor-wait disabled:opacity-60 flex items-center justify-center"
           onClick={onRefresh}
           disabled={loading}
+          title={refreshLabel}
         >
-          {actionLabel}
+          <span aria-hidden="true">{loading ? '…' : '📍'}</span>
         </button>
       </div>
       {failureMessage && (
-        <p className="text-xs leading-snug text-white/72">{failureMessage}</p>
-      )}
-      {blocked && isNative && (
-        <button
-          type="button"
-          className="min-h-[44px] self-start text-left text-xs font-semibold text-[#f4d03f] underline underline-offset-4"
-          onClick={onOpenSettings}
-        >
-          Abrir ajustes
-        </button>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-snug text-white/72">
+          <span>{failureMessage}</span>
+          <button
+            type="button"
+            className="font-semibold text-[#f4d03f] underline underline-offset-4"
+            onClick={showSettingsAction ? onOpenSettings : onRefresh}
+          >
+            {showSettingsAction ? 'Abrir ajustes' : 'Volver a intentar'}
+          </button>
+        </div>
       )}
     </div>
   );
@@ -149,7 +152,6 @@ const ProfileEditorForm = ({
   singleLineFieldClass,
   inlineNotice,
   onClearInlineNotice,
-  hasValidSavedCoordinates,
   locationLoading,
   locationDisabled,
   locationFallbackMessage,
@@ -283,15 +285,16 @@ const ProfileEditorForm = ({
           </select>
         </div>
 
-        {/* Automatic location status */}
+        {/* Automatic, read-only Localidad field */}
         <div className={formGroupClass}>
-          <label className={labelClass}>Ubicación</label>
-          <LocationStatus
-            hasCoordinates={hasValidSavedCoordinates}
+          <label className={labelClass}>Localidad</label>
+          <AutomaticLocationField
+            value={formData.location_label || formData.localidad || ''}
             loading={locationLoading}
             blocked={locationDisabled}
             failureMessage={locationFallbackMessage}
             isNative={getLocationPlatformInfo().isNative}
+            singleLineFieldClass={singleLineFieldClass}
             onRefresh={handleGeolocation}
             onOpenSettings={onOpenLocationSettings}
           />
@@ -1413,8 +1416,6 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
   const singleLineFieldClass = `${inputClass} h-[50px] py-0`;
   const labelClass = 'text-white/90 text-sm font-bold mb-2 block uppercase tracking-wider';
   const formGroupClass = 'flex flex-col w-full';
-  const hasValidSavedCoordinates = hasValidCoordinates(formData.latitud, formData.longitud);
-
   if (isEmbedded) {
     return (
       <div
@@ -1446,7 +1447,6 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
           singleLineFieldClass={singleLineFieldClass}
           inlineNotice={inlineNotice}
           onClearInlineNotice={clearInlineNotice}
-          hasValidSavedCoordinates={hasValidSavedCoordinates}
           locationLoading={locationLoading}
           locationDisabled={locationDisabled}
           locationFallbackMessage={locationFallbackMessage}
@@ -1618,13 +1618,14 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
             </div>
 
             <div className={formGroupClass}>
-              <label className={labelClass}>Ubicación</label>
-              <LocationStatus
-                hasCoordinates={hasValidSavedCoordinates}
+              <label className={labelClass}>Localidad</label>
+              <AutomaticLocationField
+                value={formData.location_label || formData.localidad || ''}
                 loading={locationLoading}
                 blocked={locationDisabled}
                 failureMessage={locationFallbackMessage}
                 isNative={getLocationPlatformInfo().isNative}
+                singleLineFieldClass={singleLineFieldClass}
                 onRefresh={handleGeolocation}
                 onOpenSettings={openNativeLocationSettings}
               />

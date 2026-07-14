@@ -171,13 +171,29 @@ describe('ProfileEditor automatic geolocation flow', () => {
     warnSpy.mockRestore();
   });
 
-  test('no muestra un campo editable de localidad ni opciones manuales', () => {
+  test('muestra la zona detectada en el control de Localidad sin edición ni opciones manuales', () => {
+    setProfile(makeProfile({
+      localidad: 'Villa Devoto, CABA',
+      location_label: 'Villa Devoto, CABA',
+      latitud: -34.6007,
+      longitud: -58.5136,
+      location_updated_at: '2026-07-14T11:00:00.000Z',
+    }));
+
     renderProfileEditor();
 
-    expect(screen.queryByText(/^Localidad$/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/^Localidad$/i)).toBeInTheDocument();
+    expect(screen.getByText('Villa Devoto, CABA')).toBeInTheDocument();
     expect(screen.queryByPlaceholderText(/Localidad, provincia/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Elegir manualmente|Elegir manual|Agregar ubicación/i)).not.toBeInTheDocument();
-    expect(screen.getByText('Ubicación lista')).toBeInTheDocument();
+    expect(screen.queryByText(/Ubicación lista|Actualizar ubicación$/i)).not.toBeInTheDocument();
+
+    const localityControl = screen.getByRole('textbox', { name: 'Localidad detectada automáticamente' });
+    expect(localityControl.tagName).toBe('DIV');
+    expect(localityControl).toHaveAttribute('aria-readonly', 'true');
+    expect(localityControl).not.toHaveAttribute('contenteditable');
+    fireEvent.click(localityControl);
+    expect(mockGetCurrentPosition).not.toHaveBeenCalled();
   });
 
   test('permiso concedido guarda automáticamente latitud y longitud', async () => {
@@ -196,7 +212,7 @@ describe('ProfileEditor automatic geolocation flow', () => {
     });
     expect(mockGetCurrentPosition).toHaveBeenCalledTimes(1);
     expect(mockReverseGeocode).toHaveBeenCalledWith(-34.6037347, -58.3815704);
-    expect(await screen.findByText('Ubicación lista')).toBeInTheDocument();
+    expect(await screen.findByText('Palermo, CABA')).toBeInTheDocument();
   });
 
   test('un perfil histórico con localidad escrita pero sin coordenadas solicita GPS', async () => {
@@ -303,7 +319,7 @@ describe('ProfileEditor automatic geolocation flow', () => {
         location_label: '',
       }),
     ));
-    expect(await screen.findByText('Ubicación lista')).toBeInTheDocument();
+    expect(await screen.findByText('Detectar mi ubicación')).toBeInTheDocument();
     expect(screen.queryByText(/Failed to fetch|Elegir manual/i)).not.toBeInTheDocument();
   });
 
@@ -315,7 +331,7 @@ describe('ProfileEditor automatic geolocation flow', () => {
 
     expect(screen.getByTestId('profile-card')).toBeInTheDocument();
     expect(screen.getByRole('combobox')).toBeInTheDocument();
-    expect(screen.getByText('Obteniendo ubicación…')).toBeInTheDocument();
+    expect(screen.getByText('Detectando…')).toBeInTheDocument();
   });
 
   test('no vuelve a pedir ubicación automáticamente con coordenadas válidas', async () => {
