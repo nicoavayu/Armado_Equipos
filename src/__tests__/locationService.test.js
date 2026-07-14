@@ -25,7 +25,6 @@ jest.mock('@capacitor/geolocation', () => ({
 const {
   buildLabel,
   getCurrentPosition,
-  geocodeManualLocation,
   isLocationServicesDisabledError,
   isPermissionDeniedError,
   reverseGeocode,
@@ -106,6 +105,16 @@ describe('locationService', () => {
     restoreEnvValue('REACT_APP_GOOGLE_MAPS_API_KEY', originalGoogleMapsApiKey);
     restoreEnvValue('REACT_APP_GOOGLE_MAPS_API_KEY_MOBILE', originalGoogleMapsMobileApiKey);
     restoreEnvValue('REACT_APP_PROFILE_GEO_DEBUG', originalProfileGeoDebug);
+  });
+
+  test('importar el servicio no solicita permisos ni ejecuta geolocalización', () => {
+    jest.isolateModules(() => {
+      require('../services/locationService');
+    });
+
+    expect(mockCheckPermissions).not.toHaveBeenCalled();
+    expect(mockRequestPermissions).not.toHaveBeenCalled();
+    expect(mockNativeGetCurrentPosition).not.toHaveBeenCalled();
   });
 
   test('usa geolocalización nativa cuando el permiso ya está concedido', async () => {
@@ -228,33 +237,6 @@ describe('locationService', () => {
     });
     expect(query).toHaveBeenCalledWith({ name: 'geolocation' });
     expect(webGetCurrentPosition).toHaveBeenCalledTimes(1);
-  });
-
-  test('selección manual siempre devuelve nombre visible y coordenadas válidas', async () => {
-    window.google = {
-      maps: {
-        Geocoder: class MockManualGeocoder {
-          geocode(request, callback) {
-            expect(request).toEqual({ address: 'Villa Devoto, CABA' });
-            callback([{
-              formatted_address: 'Villa Devoto, CABA, Argentina',
-              geometry: { location: { lat: () => -34.6007, lng: () => -58.5144 } },
-              address_components: [
-                { long_name: 'Villa Devoto', types: ['neighborhood'] },
-                { long_name: 'Ciudad Autónoma de Buenos Aires', types: ['administrative_area_level_1'] },
-                { long_name: 'Argentina', types: ['country'] },
-              ],
-            }], 'OK');
-          }
-        },
-      },
-    };
-
-    await expect(geocodeManualLocation('Villa Devoto, CABA')).resolves.toMatchObject({
-      label: 'Villa Devoto, CABA',
-      lat: -34.6007,
-      lng: -58.5144,
-    });
   });
 
   test('web usa getCurrentPosition aunque permissions informe denied', async () => {

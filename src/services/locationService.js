@@ -742,43 +742,6 @@ export const reverseGeocode = async (lat, lng) => {
   return reverseGeocodeWithGeocoder(geocoder, latitude, longitude);
 };
 
-export const geocodeManualLocation = async (query) => {
-  const address = String(query || '').replace(/\s+/g, ' ').trim();
-  if (address.length < 3) {
-    throw createGoogleMapsGeocoderError('Ingresá una localidad válida.', 'INVALID_MANUAL_LOCATION');
-  }
-
-  const Geocoder = await resolveGoogleMapsGeocoder();
-  const geocoder = new Geocoder();
-  const result = await new Promise((resolve, reject) => {
-    geocoder.geocode({ address }, (results, status) => {
-      if (status !== 'OK' || !results?.[0]) {
-        reject(createGoogleMapsGeocoderError('No encontramos esa localidad. Probá con ciudad y provincia.', 'MANUAL_LOCATION_NOT_FOUND'));
-        return;
-      }
-      resolve(results[0]);
-    });
-  });
-
-  const lat = normalizeNumber(result?.geometry?.location?.lat?.());
-  const lng = normalizeNumber(result?.geometry?.location?.lng?.());
-  if (!isValidCoordinates(lat, lng)) {
-    throw createGoogleMapsGeocoderError('No encontramos coordenadas válidas para esa localidad.', 'MANUAL_LOCATION_INVALID_COORDINATES');
-  }
-
-  const addressComponents = Array.isArray(result?.address_components) ? result.address_components : [];
-  const parsed = {
-    neighborhood: getAddressComponent(addressComponents, [
-      'neighborhood', 'sublocality_level_1', 'sublocality', 'administrative_area_level_3',
-    ]),
-    city: getAddressComponent(addressComponents, ['locality', 'administrative_area_level_2']),
-    state: normalizeState(getAddressComponent(addressComponents, ['administrative_area_level_1'])),
-    country: getAddressComponent(addressComponents, ['country']),
-  };
-  const label = buildLabel(parsed) || sanitizeToken(result?.formatted_address) || address;
-  return { ...parsed, label, lat, lng };
-};
-
 const reverseGeocodeWithGeocoder = async (geocoder, latitude, longitude) => {
   const results = await new Promise((resolve, reject) => {
     geocoder.geocode({ location: { lat: latitude, lng: longitude } }, (geocodeResults, status) => {
