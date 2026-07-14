@@ -8,6 +8,7 @@ const mockUser = { id: 'me' };
 let currentAvailability = null;
 let currentProposals = [];
 let membersById = {};
+let mockProfileLocation = { latitud: -34.60, longitud: -58.40 };
 
 const mockSave = jest.fn(async () => { });
 const mockCancel = jest.fn(async () => { currentAvailability = null; });
@@ -15,9 +16,11 @@ const mockRespond = jest.fn(async () => { });
 const mockRespondSub = jest.fn(async () => 900);
 const mockClaim = jest.fn(async () => { });
 const mockSync = jest.fn(async () => []);
+const mockSyncLocation = jest.fn(async () => currentAvailability);
 const mockGetAvailability = jest.fn(async () => currentAvailability);
 const mockGetProposals = jest.fn(async () => currentProposals);
 const mockGetMembers = jest.fn(async (proposalId) => membersById[proposalId] || []);
+const mockCaptureException = jest.fn();
 
 jest.mock('../components/AuthProvider', () => ({
   useAuth: () => ({ user: mockUser }),
@@ -28,7 +31,7 @@ jest.mock('../lib/supabaseClient', () => ({
     from: () => ({
       select: () => ({
         eq: () => ({
-          maybeSingle: async () => ({ data: null, error: null }),
+          maybeSingle: async () => ({ data: mockProfileLocation, error: null }),
         }),
       }),
     }),
@@ -43,9 +46,14 @@ jest.mock('../services/db/availability', () => ({
   respondToAutoMatchSubstitute: (...args) => mockRespondSub(...args),
   claimAutoMatchOrganizer: (...args) => mockClaim(...args),
   syncMyAutoMatchGestations: (...args) => mockSync(...args),
+  syncMyAutoMatchLocationFromProfile: (...args) => mockSyncLocation(...args),
   getMyActiveAvailability: (...args) => mockGetAvailability(...args),
   getMyActiveProposals: (...args) => mockGetProposals(...args),
   getAutoMatchProposalMembers: (...args) => mockGetMembers(...args),
+}));
+
+jest.mock('../utils/monitoring/sentry', () => ({
+  captureException: (...args) => mockCaptureException(...args),
 }));
 
 // El detalle envuelve cada jugador en PlayerCardTrigger; su árbol real
@@ -80,11 +88,14 @@ import AvailabilityOpportunityCard from '../components/jugar/AvailabilityOpportu
 import { sortProposalsForList, proposalNeedsAction } from '../components/jugar/AvailabilityOpportunityCard';
 
 const ACTIVE_AVAILABILITY = {
+  id: 101,
   days_of_week: [1, 3],
   time_start: '20:00:00',
   time_end: '23:00:00',
   formats: ['F5'],
   max_distance_km: 8,
+  latitude: -34.60,
+  longitude: -58.40,
   can_organize: true,
 };
 
@@ -132,15 +143,18 @@ beforeEach(() => {
   currentAvailability = null;
   currentProposals = [];
   membersById = {};
+  mockProfileLocation = { latitud: -34.60, longitud: -58.40 };
   mockSave.mockImplementation(async () => { });
   mockCancel.mockImplementation(async () => { currentAvailability = null; });
   mockRespond.mockImplementation(async () => { });
   mockRespondSub.mockImplementation(async () => 900);
   mockClaim.mockImplementation(async () => { });
   mockSync.mockImplementation(async () => []);
+  mockSyncLocation.mockImplementation(async () => currentAvailability);
   mockGetAvailability.mockImplementation(async () => currentAvailability);
   mockGetProposals.mockImplementation(async () => currentProposals);
   mockGetMembers.mockImplementation(async (proposalId) => membersById[proposalId] || []);
+  mockCaptureException.mockClear();
 });
 
 describe('sortProposalsForList', () => {
@@ -186,16 +200,73 @@ describe('main screen structure', () => {
   test('inactive search keeps the same structure and CTA label', async () => {
     renderScreen();
     const searchSection = await screen.findByTestId('auto-search-section');
-    expect(within(searchSection).getByText('Activar búsqueda')).toBeInTheDocument();
+    expect(await within(searchSection).findByText('Activar búsqueda')).toBeInTheDocument();
     expect(screen.queryByTestId('search-active-summary')).toBeNull();
     expect(searchSection.querySelector('.rounded-card')).toBeNull();
     // Sin gestaciones no hay una gran card vacía: la sección no se muestra.
     expect(screen.queryByTestId('gestation-list-section')).toBeNull();
   });
 
+  test('without a profile location it asks to add one instead of pretending the search can start', async () => {
+    mockProfileLocation = null;
+    renderScreen();
+
+    const searchSection = await screen.findByTestId('auto-search-section');
+    expect(within(searchSection).getByText('Agregar ubicación')).toBeInTheDocument();
+    expect(within(searchSection).queryByText('Activar búsqueda')).toBeNull();
+    expect(within(searchSection).getByText(/Sin ella, la búsqueda no participa/)).toBeInTheDocument();
+
+    fireEvent.click(within(searchSection).getByText('Agregar ubicación'));
+    await waitFor(() => {
+      expect(screen.getByTestId('location-probe')).toHaveTextContent('/profile');
+    });
+  });
+
+  test('an existing availability without coordinates stays saved but is marked incomplete', async () => {
+    mockProfileLocation = null;
+    currentAvailability = {
+      ...ACTIVE_AVAILABILITY,
+      latitude: null,
+      longitude: null,
+    };
+    renderScreen();
+
+    const incomplete = await screen.findByTestId('search-incomplete-summary');
+    expect(within(incomplete).getByText('Tu búsqueda necesita ubicación')).toBeInTheDocument();
+    expect(within(incomplete).getByText('Agregá una ubicación para buscar jugadores cerca tuyo.')).toBeInTheDocument();
+    expect(screen.queryByText('Tu búsqueda está activa')).toBeNull();
+    expect(screen.getByText('Dejar de buscar')).toBeInTheDocument();
+    expect(mockSync).not.toHaveBeenCalled();
+  });
+
+  test('a newly saved profile location updates the same search and makes it eligible', async () => {
+    currentAvailability = {
+      ...ACTIVE_AVAILABILITY,
+      id: 707,
+      latitude: null,
+      longitude: null,
+    };
+    mockSyncLocation.mockImplementationOnce(async () => {
+      currentAvailability = {
+        ...currentAvailability,
+        latitude: mockProfileLocation.latitud,
+        longitude: mockProfileLocation.longitud,
+      };
+      return currentAvailability;
+    });
+    renderScreen();
+
+    const active = await screen.findByTestId('search-active-summary');
+    expect(within(active).getByText('Tu búsqueda está activa')).toBeInTheDocument();
+    expect(currentAvailability.id).toBe(707);
+    expect(mockSyncLocation).toHaveBeenCalledTimes(1);
+    expect(mockSync).toHaveBeenCalledTimes(1);
+  });
+
   test('activating the search never shows the green confirmation block', async () => {
     renderScreen();
     await screen.findByTestId('auto-search-section');
+    await screen.findByText('Activar búsqueda');
 
     fireEvent.click(screen.getByText('LU'));
     mockSave.mockImplementationOnce(async () => { currentAvailability = ACTIVE_AVAILABILITY; });
@@ -208,6 +279,74 @@ describe('main screen structure', () => {
     const status = screen.getByRole('status');
     expect(status).toHaveClass('sr-only');
     expect(status).toHaveTextContent('Búsqueda activada.');
+  });
+});
+
+describe('safe refresh failures and retry', () => {
+  test('identifies the failed request, preserves the active search and never renders the raw TypeError', async () => {
+    currentAvailability = ACTIVE_AVAILABILITY;
+    mockSync.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    renderScreen();
+
+    const searchSection = await screen.findByTestId('auto-search-section');
+    expect(await within(searchSection).findByText('Dejar de buscar')).toBeInTheDocument();
+    expect(await screen.findByText(/No pudimos actualizar la búsqueda/)).toBeInTheDocument();
+    expect(screen.getByText(/Tu búsqueda sigue activa/)).toBeInTheDocument();
+    expect(screen.queryByText(/TypeError|Failed to fetch/)).toBeNull();
+    expect(mockCaptureException).toHaveBeenCalledWith(
+      expect.any(TypeError),
+      expect.objectContaining({
+        operation: 'sync_gestations',
+        target: 'rpc:sync_my_auto_match_gestations',
+        method: 'POST',
+        source: 'initial_load',
+      }),
+    );
+  });
+
+  test('a manual retry clears the safe warning after the requests recover', async () => {
+    currentAvailability = ACTIVE_AVAILABILITY;
+    mockGetProposals
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      .mockImplementation(async () => currentProposals);
+    renderScreen();
+
+    expect(await screen.findByText(/No pudimos actualizar la búsqueda/)).toBeInTheDocument();
+    expect(mockCaptureException).toHaveBeenCalledWith(
+      expect.any(TypeError),
+      expect.objectContaining({
+        operation: 'load_active_proposals',
+        target: 'rpc:get_my_auto_match_proposals',
+        method: 'POST',
+      }),
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Reintentar'));
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByText(/No pudimos actualizar la búsqueda/)).toBeNull();
+    });
+    expect(mockGetProposals).toHaveBeenCalledTimes(2);
+  });
+
+  test('cancel failure keeps the search active and uses a product message', async () => {
+    currentAvailability = ACTIVE_AVAILABILITY;
+    mockCancel.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    renderScreen();
+
+    fireEvent.click(await screen.findByText('Dejar de buscar'));
+    expect(await screen.findByText('No pudimos detener la búsqueda. Tu búsqueda sigue activa.')).toBeInTheDocument();
+    expect(screen.getByText('Dejar de buscar')).toBeInTheDocument();
+    expect(screen.queryByText(/TypeError|Failed to fetch/)).toBeNull();
+    expect(mockCaptureException).toHaveBeenCalledWith(
+      expect.any(TypeError),
+      expect.objectContaining({
+        operation: 'cancel_availability',
+        target: 'rpc:cancel_my_availability',
+      }),
+    );
   });
 });
 

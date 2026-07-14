@@ -68,14 +68,17 @@ describe('availability MVP', () => {
     expect(normalizeAvailabilityInput({ ...base, maxDistanceKm: 'nada' }).maxDistanceKm).toBe(8);
   });
 
-  test('treats empty or invalid coordinates as missing, never 0,0', () => {
-    const result = normalizeAvailabilityInput({
-      ...base,
-      latitude: '',
-      longitude: 'NaN',
-    });
-    expect(result.latitude).toBeNull();
-    expect(result.longitude).toBeNull();
+  test('allows a fully missing historical location but rejects partial, invalid and 0,0 pairs', () => {
+    expect(normalizeAvailabilityInput({ ...base, latitude: '', longitude: '' }))
+      .toMatchObject({ latitude: null, longitude: null });
+    expect(() => normalizeAvailabilityInput({ ...base, latitude: '', longitude: '-58.4' }))
+      .toThrow('ubicación válida');
+    expect(() => normalizeAvailabilityInput({ ...base, latitude: '-34.6', longitude: 'NaN' }))
+      .toThrow('ubicación válida');
+    expect(() => normalizeAvailabilityInput({ ...base, latitude: 91, longitude: -58.4 }))
+      .toThrow('ubicación válida');
+    expect(() => normalizeAvailabilityInput({ ...base, latitude: 0, longitude: 0 }))
+      .toThrow('ubicación válida');
   });
 
   test('canOrganize is opt-in and only true on an explicit boolean true', () => {

@@ -28,6 +28,7 @@ const MIGRATIONS = [
   '20260712230000_auto_match_substitutes.sql',
   '20260713120000_auto_match_roster_cap_and_promotion.sql',
   '20260713190000_auto_match_progressive_cohorts.sql',
+  '20260714030000_auto_match_backend_initial_sweep.sql',
 ];
 
 const PORT = 54300 + Math.floor(Math.random() * 500);
@@ -121,13 +122,20 @@ const num = async (client, sql, params = []) => Number(await val(client, sql, pa
 // Por defecto la disponibilidad es de UN día (sábado): así los escenarios que
 // asumen "un solo slot" siguen valiendo. El sync multi-día se prueba aparte
 // pasando `days` con varias jornadas.
-const activate = async (uid, { canOrganize = false, formats = ['F5'], days = [6] } = {}) => {
+const activate = async (uid, {
+  canOrganize = false,
+  formats = ['F5'],
+  days = [6],
+  lat = -34.60,
+  lng = -58.40,
+  maxKm = 8,
+} = {}) => {
   const client = await asUser(uid);
   return one(
     client,
     `select * from public.upsert_my_availability(
-       $1::smallint[], $2::time, $3::time, $4::text[], 8, null, null, $5::boolean)`,
-    [days, '20:00', '23:00', formats, canOrganize],
+       $1::smallint[], $2::time, $3::time, $4::text[], $5, $6, $7, $8::boolean)`,
+    [days, '20:00', '23:00', formats, maxKm, lat, lng, canOrganize],
   );
 };
 
@@ -193,7 +201,7 @@ const seedReadyProposal = async (format, acceptedCount, { pending = 0 } = {}) =>
   for (let i = 0; i < acceptedCount + pending; i += 1) {
     const availId = await val(
       admin,
-      "insert into public.player_availability (user_id, days_of_week, time_start, time_end, formats, status) values ($1, '{6}', '20:00', '23:00', $2, 'active') returning id",
+      "insert into public.player_availability (user_id, days_of_week, time_start, time_end, formats, latitude, longitude, status) values ($1, '{6}', '20:00', '23:00', $2, -34.60, -58.40, 'active') returning id",
       [USERS[i].id, `{${format}}`],
     );
     if (i < acceptedCount) {
@@ -922,7 +930,7 @@ async function scenarioOverlapWithdrawal() {
   for (const user of USERS.slice(0, 6)) {
     avail[user.id] = await val(
       admin,
-      "insert into public.player_availability (user_id, days_of_week, time_start, time_end, formats, status) values ($1, '{6}', '20:00', '23:00', '{F5,F7}', 'active') returning id",
+      "insert into public.player_availability (user_id, days_of_week, time_start, time_end, formats, latitude, longitude, status) values ($1, '{6}', '20:00', '23:00', '{F5,F7}', -34.60, -58.40, 'active') returning id",
       [user.id],
     );
   }
@@ -1031,7 +1039,7 @@ async function scenarioSubstitutes() {
 
   // Compatible nuevo insertado directo (sin gestar su propia propuesta).
   await admin.query(
-    "insert into public.player_availability (user_id, days_of_week, time_start, time_end, formats, status) values ($1, '{6}', '20:00', '23:00', '{F5}', 'active')",
+    "insert into public.player_availability (user_id, days_of_week, time_start, time_end, formats, latitude, longitude, status) values ($1, '{6}', '20:00', '23:00', '{F5}', -34.60, -58.40, 'active')",
     [USERS[12].id],
   );
   await val(admin, 'select public.reopen_auto_match_vacancies()');
@@ -1182,10 +1190,11 @@ async function scenarioNoThrottle() {
 // ---------------------------------------------------------------------------
 
 // Siembra una disponibilidad activa directa (rápida, sin correr sync). Sin
-// coords => sin filtro de distancia (todos compatibles).
+// Por defecto todos usan un punto válido común. Los escenarios de ubicación
+// incompleta pasan null explícitamente.
 const seedAvailability = async (uid, {
   formats = ['F5'], days = [1], start = '20:00', end = '23:00',
-  lat = null, lng = null, maxKm = 8, canOrganize = false,
+  lat = -34.60, lng = -58.40, maxKm = 8, canOrganize = false,
 } = {}) => val(
   admin,
   `insert into public.player_availability
@@ -1215,13 +1224,207 @@ const activeMembers = (pid) => admin
   .then((res) => res.rows);
 
 // ---------------------------------------------------------------------------
-// Escenario 15: COHORTES PROGRESIVAS. 100 compatibles para F5, lunes 20:00. La
+// Escenario 15: elegibilidad por ubicación/cuenta y radios simétricos.
+// ---------------------------------------------------------------------------
+async function scenarioStrictLocationAndAccountEligibility() {
+  console.log('\nEscenario 15: ubicación obligatoria, radios simétricos y cuentas vigentes');
+
+  // 3 válidos + 1 sin latitud: el incompleto no cuenta para el mínimo.
+  await resetData();
+  for (const user of USERS.slice(0, 3)) await seedAvailability(user.id, { days: COHORT_DAYS });
+  const missingLatId = await seedAvailability(USERS[3].id, {
+    days: COHORT_DAYS, lat: null, lng: -58.40,
+  });
+  await val(admin, 'select public.auto_match_scheduled_sweep()');
+  eq((await activeRooms('F5')).length, 0, '3 válidos + 1 sin latitud no alcanzan el mínimo');
+  eq(await val(admin, 'select public.auto_match_availability_is_eligible($1)', [missingLatId]), false,
+    'una disponibilidad sin latitud queda incompleta');
+  eq(await notifCount('auto_match_gestating', USERS[3].id), 0,
+    'la disponibilidad incompleta no recibe push de propuesta');
+
+  // Sin longitud y 0,0 también son incompletos; cuatro incompletos no crean.
+  await resetData();
+  const invalidIds = [
+    await seedAvailability(USERS[0].id, { days: COHORT_DAYS, lat: -34.60, lng: null }),
+    await seedAvailability(USERS[1].id, { days: COHORT_DAYS, lat: 0, lng: 0 }),
+    await seedAvailability(USERS[2].id, { days: COHORT_DAYS, lat: null, lng: null }),
+    await seedAvailability(USERS[3].id, { days: COHORT_DAYS, lat: null, lng: null }),
+  ];
+  const incompleteSweep = await one(admin, 'select * from public.sync_active_auto_match_gestations()');
+  eq(Number(incompleteSweep.processed_count), 0, 'cuatro incompletos son ignorados por el barrido');
+  eq(Number(incompleteSweep.failed_count), 0, 'filas incompletas no abortan ni cuentan como fallas');
+  eq((await activeRooms('F5')).length, 0, 'cuatro búsquedas sin coordenadas válidas no crean sala');
+  for (const availabilityId of invalidIds) {
+    eq(await val(admin, 'select public.auto_match_availability_is_eligible($1)', [availabilityId]), false,
+      'cada variante de coordenada incompleta queda fuera del matcher');
+  }
+
+  const invalidClient = await asUser(USERS[4].id);
+  await expectError(
+    invalidClient.query(
+      `select * from public.upsert_my_availability(
+        $1::smallint[], '20:00'::time, '23:00'::time, '{F5}'::text[], 8, 91, -58.4, false)`,
+      [COHORT_DAYS],
+    ),
+    /invalid_coordinates/,
+    'una latitud fuera de rango es rechazada',
+  );
+  await expectError(
+    invalidClient.query(
+      `select * from public.upsert_my_availability(
+        $1::smallint[], '20:00'::time, '23:00'::time, '{F5}'::text[], 8, 'NaN'::double precision, -58.4, false)`,
+      [COHORT_DAYS],
+    ),
+    /invalid_coordinates/,
+    'NaN es rechazado antes de guardar',
+  );
+
+  // A acepta 10 km, B sólo 3 km y están a ~7 km: incompatible en ambos
+  // órdenes y no se crea una sala con tres cercanos + B.
+  await resetData();
+  const nearIds = [];
+  for (const user of USERS.slice(0, 3)) {
+    nearIds.push(await seedAvailability(user.id, {
+      days: COHORT_DAYS, lat: -34.60, lng: -58.40, maxKm: 10,
+    }));
+  }
+  const shortRadiusId = await seedAvailability(USERS[3].id, {
+    days: COHORT_DAYS, lat: -34.663, lng: -58.40, maxKm: 3,
+  });
+  eq(await val(admin, 'select public.auto_match_availabilities_are_compatible($1,$2)', [nearIds[0], shortRadiusId]), false,
+    'A→B respeta también el radio corto de B');
+  eq(await val(admin, 'select public.auto_match_availabilities_are_compatible($1,$2)', [shortRadiusId, nearIds[0]]), false,
+    'B→A produce el mismo resultado simétrico');
+  await sync(USERS[0].id);
+  await sync(USERS[3].id);
+  eq((await activeRooms('F5')).length, 0, 'el orden de sync no convierte radios incompatibles en una sala');
+
+  // usuarios.is_active=false es presencia, no lifecycle: sigue siendo válido.
+  // Una cuenta realmente suspendida (auth.users.banned_until) sí queda fuera.
+  await resetData();
+  const validPresenceFalseIds = [];
+  for (const user of USERS.slice(0, 3)) {
+    validPresenceFalseIds.push(await seedAvailability(user.id, { days: COHORT_DAYS }));
+  }
+  await admin.query("update auth.users set banned_until = now() + interval '1 day' where id=$1", [USERS[3].id]);
+  const bannedAvailability = await seedAvailability(USERS[3].id, { days: COHORT_DAYS });
+  eq(await val(admin, 'select is_active from public.usuarios where id=$1', [USERS[0].id]), false,
+    'usuarios.is_active=false conserva su significado de presencia');
+  eq(await val(admin, 'select public.auto_match_availability_is_eligible($1)', [validPresenceFalseIds[0]]), true,
+    'usuarios.is_active=false no excluye una cuenta válida');
+  eq(await val(admin, 'select public.auto_match_availability_is_eligible($1)', [bannedAvailability]), false,
+    'una cuenta suspendida en auth.users no es elegible');
+  await val(admin, 'select public.auto_match_scheduled_sweep()');
+  eq((await activeRooms('F5')).length, 0, '3 vigentes + 1 suspendida no alcanzan el mínimo');
+  eq(await notifCount('auto_match_gestating', USERS[3].id), 0, 'la cuenta suspendida no recibe push');
+  await admin.query('update auth.users set banned_until = null where id=$1', [USERS[3].id]);
+
+  // Completar ubicación actualiza la MISMA fila activa y ejecuta el sync.
+  await resetData();
+  for (const user of USERS.slice(0, 3)) await seedAvailability(user.id, { days: COHORT_DAYS });
+  const incompleteId = await seedAvailability(USERS[3].id, {
+    days: COHORT_DAYS, lat: null, lng: null,
+  });
+  await admin.query(
+    'update public.usuarios set latitud=-34.60, longitud=-58.40 where id=$1',
+    [USERS[3].id],
+  );
+  const completed = await one(
+    await asUser(USERS[3].id),
+    'select * from public.sync_my_auto_match_location_from_profile()',
+  );
+  eq(Number(completed.id), Number(incompleteId), 'completar ubicación conserva el id de la búsqueda activa');
+  eq(await num(admin, "select count(*) from public.player_availability where user_id=$1 and status='active'", [USERS[3].id]), 1,
+    'completar ubicación no duplica la búsqueda');
+  eq((await activeRooms('F5')).length, 1, 'al completar ubicación, cuatro válidos crean la gestación');
+
+  // Una incompleta no aborta el cron: procesa las cuatro válidas y la excluye.
+  await resetData();
+  for (const user of USERS.slice(0, 4)) await seedAvailability(user.id, { days: COHORT_DAYS });
+  await seedAvailability(USERS[4].id, { days: COHORT_DAYS, lat: null, lng: null });
+  const mixedSweep = await one(admin, 'select * from public.sync_active_auto_match_gestations()');
+  eq(Number(mixedSweep.processed_count), 4, 'el barrido procesa sólo las cuatro búsquedas elegibles');
+  eq(Number(mixedSweep.failed_count), 0, 'la incompleta no aborta el barrido');
+  const mixedRoom = (await activeRooms('F5'))[0];
+  eq((await activeMembers(mixedRoom.id)).length, 4, 'la sala cuenta únicamente a los cuatro válidos');
+  eq(await notifCount('auto_match_gestating', USERS[4].id), 0, 'la incompleta no es invitada ni notificada');
+
+  // Regresión #621: pertenecer a un partido real superpuesto sigue bloqueando.
+  await resetData();
+  for (const user of USERS.slice(0, 4)) await seedAvailability(user.id, { days: COHORT_DAYS });
+  const overlapDate = await val(
+    admin,
+    `select d::date
+     from generate_series(current_date + 2, current_date + 14, interval '1 day') d
+     where extract(isodow from d)::integer = $1
+     order by d limit 1`,
+    [COHORT_DAYS[0]],
+  );
+  const partido621 = await val(
+    admin,
+    `insert into public.partidos (nombre, fecha, hora, modalidad, cupo_jugadores, creado_por, estado)
+     values ('Partido real #621', $1, '20:00', 'F5', 10, $2, 'activo') returning id`,
+    [overlapDate, USERS[0].id],
+  );
+  for (const user of USERS.slice(0, 4)) {
+    await admin.query(
+      'insert into public.jugadores (partido_id, usuario_id, nombre) values ($1,$2,$3)',
+      [partido621, user.id, user.nombre],
+    );
+  }
+  await val(admin, 'select public.auto_match_scheduled_sweep()');
+  eq((await activeRooms('F5')).length, 0, 'los usuarios del partido #621 siguen bloqueados por superposición');
+}
+
+// ---------------------------------------------------------------------------
+// Escenario 16: el cron inicia la PRIMERA gestación sin ningún sync de cliente.
+// También verifica capacidad, destinatarios e idempotencia de barridos repetidos.
+// ---------------------------------------------------------------------------
+async function scenarioBackendInitialSweep() {
+  console.log('\nEscenario 16: barrido backend inicia la primera gestación');
+  await resetData();
+
+  for (const user of USERS.slice(0, 20)) {
+    await seedAvailability(user.id, { formats: ['F5'], days: COHORT_DAYS });
+  }
+
+  eq(await num(admin, 'select count(*) from public.auto_match_proposals'), 0,
+    'sin frontend todavía no existe ninguna propuesta');
+
+  await val(admin, 'select public.auto_match_scheduled_sweep()');
+
+  const rooms = await activeRooms('F5');
+  eq(rooms.length, 1, 'el backend creó exactamente la primera sala');
+  const room = rooms[0];
+  eq((await activeMembers(room.id)).length, 15, 'la convocatoria respeta el máximo F5 de 15');
+  eq(await num(admin, "select count(distinct user_id) from public.notifications where type='auto_match_gestating'"), 15,
+    'se notificó sólo a los 15 convocados, no a las 20 búsquedas');
+
+  const membersBefore = await num(admin, 'select count(*) from public.auto_match_proposal_members');
+  const notificationsBefore = await num(admin, 'select count(*) from public.notifications');
+  const deliveriesBefore = await num(admin, 'select count(*) from public.notification_delivery_log');
+  const sweepResult = await one(admin, 'select * from public.sync_active_auto_match_gestations()');
+  eq(Number(sweepResult.processed_count), 20, 'el backend recorrió las 20 búsquedas activas');
+  eq(Number(sweepResult.failed_count), 0, 'ninguna búsqueda falló durante el barrido');
+  await val(admin, 'select public.auto_match_scheduled_sweep()');
+  await val(admin, 'select public.auto_match_scheduled_sweep()');
+  eq((await activeRooms('F5')).length, 1, 'barridos repetidos no duplican la sala');
+  eq(await num(admin, 'select count(*) from public.auto_match_proposal_members'), membersBefore,
+    'barridos repetidos no duplican miembros');
+  eq(await num(admin, 'select count(*) from public.notifications'), notificationsBefore,
+    'barridos repetidos no duplican notificaciones');
+  eq(await num(admin, 'select count(*) from public.notification_delivery_log'), deliveriesBefore,
+    'barridos repetidos no duplican pushes encolados');
+}
+
+// ---------------------------------------------------------------------------
+// Escenario 17: COHORTES PROGRESIVAS. 100 compatibles para F5, lunes 20:00. La
 // primera sala convoca 15; al completar sus 10 titulares se habilita SOLA la
 // segunda con otros 15; al completar esa, la tercera. Sin organizador, sin sync
 // manual, sin duplicar usuarios ni salas, sin 100 pushes juntos.
 // ---------------------------------------------------------------------------
 async function scenarioProgressiveCohorts() {
-  console.log('\nEscenario 15: cohortes progresivas (100 compatibles, F5 lunes 20:00)');
+  console.log('\nEscenario 17: cohortes progresivas (100 compatibles, F5 lunes 20:00)');
   await resetData();
 
   // 100 disponibles idénticos (nadie organiza: la sala 1 quedará "falta
@@ -1289,11 +1492,11 @@ async function scenarioProgressiveCohorts() {
 }
 
 // ---------------------------------------------------------------------------
-// Escenario 16: la cascada es a prueba de carreras. Dos confirmaciones que
+// Escenario 18: la cascada es a prueba de carreras. Dos confirmaciones que
 // cruzan el umbral a la vez NO crean dos "segundas salas". (Punto 12.)
 // ---------------------------------------------------------------------------
 async function scenarioCohortConcurrency() {
-  console.log('\nEscenario 16: dos confirmaciones concurrentes no duplican la segunda sala');
+  console.log('\nEscenario 18: dos confirmaciones concurrentes no duplican la segunda sala');
   await resetData();
 
   for (const user of USERS.slice(0, 40)) await seedAvailability(user.id, { formats: ['F5'], days: COHORT_DAYS });
@@ -1320,12 +1523,12 @@ async function scenarioCohortConcurrency() {
 }
 
 // ---------------------------------------------------------------------------
-// Escenario 17: rechazos y vencimientos liberan capacidad y suman reemplazos,
+// Escenario 19: rechazos y vencimientos liberan capacidad y suman reemplazos,
 // sin re-invitar al que se fue ni mandarle una invitación equivalente inmediata
 // (nada de spam). El que rechazó tampoco entra a la segunda sala. (Punto 15.)
 // ---------------------------------------------------------------------------
 async function scenarioCohortReplacements() {
-  console.log('\nEscenario 17: rechazo/vencimiento libera capacidad y suma reemplazo (sin spam)');
+  console.log('\nEscenario 19: rechazo/vencimiento libera capacidad y suma reemplazo (sin spam)');
   await resetData();
 
   for (const user of USERS.slice(0, 40)) await seedAvailability(user.id, { formats: ['F5'], days: COHORT_DAYS });
@@ -1368,12 +1571,12 @@ async function scenarioCohortReplacements() {
 }
 
 // ---------------------------------------------------------------------------
-// Escenario 18: variantes. F7 (cap 21) y F11 (cap 33); distintos horarios del
+// Escenario 20: variantes. F7 (cap 21) y F11 (cap 33); distintos horarios del
 // mismo día y misma hora con formatos distintos = cohortes independientes; el
 // umbral de 4 compatibles corta la cascada; sync repetido es idempotente.
 // ---------------------------------------------------------------------------
 async function scenarioCohortVariants() {
-  console.log('\nEscenario 18: variantes de cohorte (F7/F11, horarios/formatos, umbral, idempotencia)');
+  console.log('\nEscenario 20: variantes de cohorte (F7/F11, horarios/formatos, umbral, idempotencia)');
 
   // F7 => invitation_capacity 21.
   await resetData();
@@ -1450,11 +1653,11 @@ async function scenarioCohortVariants() {
 }
 
 // ---------------------------------------------------------------------------
-// Escenario 19: la distancia se respeta al formar la sala. Un compatible fuera
+// Escenario 21: la distancia se respeta al formar la sala. Un compatible fuera
 // del radio NO es convocado. (Variante "distintos radios de distancia".)
 // ---------------------------------------------------------------------------
 async function scenarioCohortDistance() {
-  console.log('\nEscenario 19: la distancia excluye a los que están fuera del radio');
+  console.log('\nEscenario 21: la distancia excluye a los que están fuera del radio');
   await resetData();
 
   // 6 cerca (mismo punto) + 1 lejos (~15 km, fuera del radio de 8 km).
@@ -1490,6 +1693,8 @@ async function main() {
     }
   }
 
+  const authSeed = USERS.map((user) => `('${user.id}')`).join(',');
+  await admin.query(`insert into auth.users (id) values ${authSeed}`);
   const adminSeed = USERS.map((user) => `('${user.id}', '${user.nombre}')`).join(',');
   await admin.query(`insert into public.usuarios (id, nombre) values ${adminSeed}`);
 
@@ -1513,6 +1718,8 @@ async function main() {
   const nowDow = await num(admin, 'select extract(isodow from now())');
   COHORT_DAYS = [((nowDow + 1) % 7) + 1];
 
+  await scenarioStrictLocationAndAccountEligibility();
+  await scenarioBackendInitialSweep();
   await scenarioProgressiveCohorts();
   await scenarioCohortConcurrency();
   await scenarioCohortReplacements();

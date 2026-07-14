@@ -34,12 +34,19 @@ as $$
   select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid;
 $$;
 
+create table auth.users (
+  id uuid primary key,
+  banned_until timestamptz,
+  deleted_at timestamptz
+);
+
 create table public.usuarios (
   id uuid primary key,
   nombre text,
   avatar_url text,
   latitud double precision,
   longitud double precision,
+  is_active boolean not null default false,
   created_at timestamptz not null default now()
 );
 

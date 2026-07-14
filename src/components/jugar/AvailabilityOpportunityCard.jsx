@@ -1,4 +1,6 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback, useEffect, useMemo, useRef, useState,
+} from 'react';
 import ReactDOM from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -22,6 +24,14 @@ import { PlayerCardTrigger } from '../ProfileComponents';
 import { supabase } from '../../lib/supabaseClient';
 import { PRIMARY_CTA_BUTTON_CLASS } from '../../styles/buttonClasses';
 import { hasValidCoordinates, toCoordinateNumber } from '../../utils/matchLocation';
+import { captureException } from '../../utils/monitoring/sentry';
+import {
+  AUTO_MATCH_REFRESH_STEPS,
+  getAutoMatchRefreshMessage,
+  getAutoMatchRetryDelay,
+  isAutoMatchOnline,
+  runAutoMatchRefreshStep,
+} from '../../utils/autoMatchRefresh';
 import {
   ALLOWED_FORMATS,
   cancelMyAvailability,
@@ -33,6 +43,7 @@ import {
   respondToAutoMatchSubstitute,
   saveMyAvailability,
   syncMyAutoMatchGestations,
+  syncMyAutoMatchLocationFromProfile,
 } from '../../services/db/availability';
 
 // El chat arrastra Capacitor Keyboard y la infra de realtime: se carga recién
@@ -676,9 +687,13 @@ export default function AvailabilityOpportunityCard() {
   const [canOrganize, setCanOrganize] = useState(false);
   const [organizingProposal, setOrganizingProposal] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
+  const [refreshIssue, setRefreshIssue] = useState(null);
   const [notice, setNotice] = useState('');
   const [listNotice, setListNotice] = useState('');
+  const refreshAttemptRef = useRef(0);
+  const refreshInFlightRef = useRef(false);
 
   const proposalParam = useMemo(
     () => new URLSearchParams(location.search).get('proposal'),
@@ -725,38 +740,108 @@ export default function AvailabilityOpportunityCard() {
     navigate(`${location.pathname}?auto=1&invite=${proposalId}`, { state: { fromAutoList: true } });
   }, [location.pathname, navigate]);
 
-  const loadLocation = useCallback(async () => {
-    if (!user?.id) return;
-    const { data, error: profileError } = await supabase
-      .from('usuarios')
-      .select('latitud, longitud')
-      .eq('id', user.id)
-      .maybeSingle();
+  const recordRefreshFailure = useCallback((err, source) => {
+    const online = isAutoMatchOnline();
+    refreshAttemptRef.current += 1;
+    setRefreshIssue({
+      message: getAutoMatchRefreshMessage({ online }),
+      attempt: refreshAttemptRef.current,
+    });
+    captureException(err?.cause || err, {
+      feature: 'auto_match',
+      flow: 'refresh',
+      operation: err?.operation || 'unknown',
+      target: err?.target || 'unknown',
+      method: err?.method || 'unknown',
+      source,
+      online,
+      retry_attempt: refreshAttemptRef.current,
+    });
+  }, []);
 
-    if (profileError) return;
-    if (hasValidCoordinates(data?.latitud, data?.longitud)) {
+  const loadLocation = useCallback(async (source = 'profile_location') => {
+    if (!user?.id) return false;
+    try {
+      const { data, error: profileError } = await runAutoMatchRefreshStep(
+        AUTO_MATCH_REFRESH_STEPS.profileLocation,
+        async () => {
+          const response = await supabase
+            .from('usuarios')
+            .select('latitud, longitud')
+            .eq('id', user.id)
+            .maybeSingle();
+          if (response.error) throw response.error;
+          return response;
+        },
+      );
+
+      if (!hasValidCoordinates(data?.latitud, data?.longitud)) {
+        setLocation(null);
+        return true;
+      }
+
       setLocation({
         lat: toCoordinateNumber(data.latitud),
         lng: toCoordinateNumber(data.longitud),
       });
+      // Idempotente: si la búsqueda ya tenía estas coordenadas no modifica la
+      // fila. Si estaba incompleta, la vuelve elegible y corre el sync.
+      await runAutoMatchRefreshStep(
+        AUTO_MATCH_REFRESH_STEPS.location,
+        () => syncMyAutoMatchLocationFromProfile(),
+      );
+      return true;
+    } catch (err) {
+      recordRefreshFailure(err, source);
+      return false;
     }
-  }, [user?.id]);
+  }, [recordRefreshFailure, user?.id]);
 
   const loadMembers = useCallback(async (proposalRows) => {
-    const entries = await Promise.all((proposalRows || []).map(async (proposal) => {
+    const results = await Promise.all((proposalRows || []).map(async (proposal) => {
       try {
-        return [proposal.id, await getAutoMatchProposalMembers(proposal.id)];
-      } catch (_error) {
-        return [proposal.id, []];
+        const rows = await runAutoMatchRefreshStep(
+          AUTO_MATCH_REFRESH_STEPS.members,
+          () => getAutoMatchProposalMembers(proposal.id),
+        );
+        return { proposalId: proposal.id, rows, error: null };
+      } catch (memberError) {
+        return { proposalId: proposal.id, rows: null, error: memberError };
       }
     }));
-    setMembersByProposal(Object.fromEntries(entries));
+
+    setMembersByProposal((current) => {
+      const next = { ...current };
+      results.forEach(({ proposalId, rows }) => {
+        if (rows) next[proposalId] = rows;
+      });
+      return next;
+    });
+
+    const failure = results.find(({ error: memberError }) => memberError)?.error;
+    if (failure) throw failure;
   }, []);
 
-  const load = useCallback(async ({ sync = false } = {}) => {
-    if (!user?.id) return;
+  const load = useCallback(async ({
+    sync = false,
+    source = 'unknown',
+    force = false,
+    refreshLocation = false,
+  } = {}) => {
+    if (!user?.id) return true;
+    if (refreshInFlightRef.current) {
+      if (!force) return null;
+      await refreshInFlightRef.current;
+    }
+    let releaseRefresh;
+    const inFlight = new Promise((resolve) => { releaseRefresh = resolve; });
+    refreshInFlightRef.current = inFlight;
     try {
-      const active = await getMyActiveAvailability(user.id);
+      const locationSucceeded = refreshLocation ? await loadLocation(source) : true;
+      const active = await runAutoMatchRefreshStep(
+        AUTO_MATCH_REFRESH_STEPS.availability,
+        () => getMyActiveAvailability(user.id),
+      );
       setAvailability(active);
       if (active) {
         setDays(active.days_of_week || []);
@@ -765,29 +850,113 @@ export default function AvailabilityOpportunityCard() {
         setFormats(active.formats || ['F5']);
         setDistance(active.max_distance_km || 8);
         setCanOrganize(Boolean(active.can_organize));
-        if (sync) await syncMyAutoMatchGestations();
+        if (sync && hasValidCoordinates(active.latitude, active.longitude)) {
+          await runAutoMatchRefreshStep(
+            AUTO_MATCH_REFRESH_STEPS.sync,
+            () => syncMyAutoMatchGestations(),
+          );
+        }
       }
-      const nextProposals = await getMyActiveProposals(user.id);
+      const nextProposals = await runAutoMatchRefreshStep(
+        AUTO_MATCH_REFRESH_STEPS.proposals,
+        () => getMyActiveProposals(user.id),
+      );
       setProposals(nextProposals);
       setProposalsLoaded(true);
       await loadMembers(nextProposals);
+      refreshAttemptRef.current = 0;
+      if (locationSucceeded) setRefreshIssue(null);
+      return locationSucceeded;
     } catch (err) {
-      setError(err.message || 'No pudimos cargar tu disponibilidad.');
+      recordRefreshFailure(err, source);
+      return false;
+    } finally {
+      releaseRefresh();
+      if (refreshInFlightRef.current === inFlight) refreshInFlightRef.current = null;
     }
-  }, [loadMembers, user?.id]);
+  }, [loadLocation, loadMembers, recordRefreshFailure, user?.id]);
 
   useEffect(() => {
-    load({ sync: true });
-    loadLocation();
-  }, [load, loadLocation]);
+    let cancelled = false;
+    const initialLoad = async () => {
+      if (!cancelled) {
+        await load({
+          sync: true,
+          source: 'initial_load',
+          refreshLocation: true,
+        });
+      }
+    };
+    initialLoad();
+    return () => { cancelled = true; };
+  }, [load]);
 
-  // La lista se refresca sola mientras la pantalla está abierta: no hace
-  // falta (ni existe) un botón manual de actualizar.
+  // Refresco periódico sin solapamientos. Ante un error conserva el último
+  // estado válido y reintenta con backoff; al volver la conectividad adelanta
+  // el próximo intento. El backend ya inicia gestaciones por cron, por lo que
+  // este polling sólo refresca la vista y no es una dependencia del matcher.
   useEffect(() => {
     if (!open) return undefined;
-    const timer = window.setInterval(() => load({ sync: true }), REFRESH_MS);
-    return () => window.clearInterval(timer);
-  }, [load, open]);
+    let cancelled = false;
+    let timer = null;
+
+    const schedule = (delay) => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(async () => {
+        const succeeded = await load({
+          sync: false,
+          source: 'scheduled_refresh',
+          refreshLocation: true,
+        });
+        if (cancelled) return;
+        if (succeeded === null) {
+          schedule(1000);
+          return;
+        }
+        schedule(succeeded
+          ? REFRESH_MS
+          : getAutoMatchRetryDelay(refreshAttemptRef.current, { online: isAutoMatchOnline() }));
+      }, delay);
+    };
+
+    const retryWhenOnline = () => schedule(0);
+    schedule(refreshIssue
+      ? getAutoMatchRetryDelay(refreshIssue.attempt, { online: isAutoMatchOnline() })
+      : REFRESH_MS);
+    window.addEventListener('online', retryWhenOnline);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+      window.removeEventListener('online', retryWhenOnline);
+    };
+  }, [load, open, refreshIssue]);
+
+  const retryRefresh = async () => {
+    setRefreshing(true);
+    await load({
+      sync: false,
+      source: 'manual_retry',
+      force: true,
+      refreshLocation: true,
+    });
+    setRefreshing(false);
+  };
+
+  const reportActionFailure = useCallback((err, {
+    operation,
+    target,
+    message,
+  }) => {
+    captureException(err, {
+      feature: 'auto_match',
+      flow: 'action',
+      operation,
+      target,
+      method: 'POST',
+      online: isAutoMatchOnline(),
+    });
+    setError(message);
+  }, []);
 
   const orderedProposals = useMemo(
     () => sortProposalsForList(proposals, user?.id),
@@ -897,9 +1066,13 @@ export default function AvailabilityOpportunityCard() {
       });
       // Solo lectores de pantalla: el resumen y el botón ya comunican el estado.
       setNotice('Búsqueda activada.');
-      await load({ sync: true });
+      await load({ sync: true, source: 'availability_saved', force: true });
     } catch (err) {
-      setError(err.message || 'No se pudo activar tu disponibilidad.');
+      reportActionFailure(err, {
+        operation: 'save_availability',
+        target: 'rpc:upsert_my_availability',
+        message: 'No pudimos activar la búsqueda. Probá de nuevo.',
+      });
     } finally {
       setLoading(false);
     }
@@ -911,9 +1084,14 @@ export default function AvailabilityOpportunityCard() {
     try {
       await cancelMyAvailability();
       setAvailability(null);
+      setRefreshIssue(null);
       setNotice('Búsqueda desactivada.');
     } catch (err) {
-      setError(err.message || 'No se pudo desactivar.');
+      reportActionFailure(err, {
+        operation: 'cancel_availability',
+        target: 'rpc:cancel_my_availability',
+        message: 'No pudimos detener la búsqueda. Tu búsqueda sigue activa.',
+      });
     } finally {
       setLoading(false);
     }
@@ -930,17 +1108,21 @@ export default function AvailabilityOpportunityCard() {
       if (response === 'declined' && String(proposalParam || '') === String(proposalId)) {
         backFromDetail();
       }
-      await load({ sync: false });
+      await load({ sync: false, source: 'proposal_response' });
     } catch (err) {
       const message = err?.message || '';
       if (/proposal_not_open|proposal_not_found|proposal_member_not_found|proposal_member_declined/.test(message)) {
         setError('Esta propuesta ya no está disponible.');
-        await load({ sync: false });
+        await load({ sync: false, source: 'proposal_closed' });
       } else if (/proposal_full/.test(message)) {
         setError('El cupo ya se completó sin tu lugar. Tu disponibilidad sigue activa.');
-        await load({ sync: false });
+        await load({ sync: false, source: 'proposal_full' });
       } else {
-        setError(message || 'No pudimos guardar tu respuesta.');
+        reportActionFailure(err, {
+          operation: 'respond_to_proposal',
+          target: 'rpc:respond_to_auto_match_proposal',
+          message: 'No pudimos guardar tu respuesta. Probá de nuevo.',
+        });
       }
     } finally {
       setLoading(false);
@@ -966,20 +1148,24 @@ export default function AvailabilityOpportunityCard() {
       }
       setNotice('Listo, no te sumás a este partido.');
       if (String(inviteParam || '') === String(proposalId)) backFromDetail();
-      await load({ sync: false });
+      await load({ sync: false, source: 'match_invite_response' });
     } catch (err) {
       const message = err?.message || '';
       if (/match_roster_full/.test(message)) {
         setError('El lugar ya se ocupó. Tu disponibilidad sigue activa.');
-        await load({ sync: false });
+        await load({ sync: false, source: 'match_roster_full' });
       } else if (/match_already_started/.test(message)) {
         setError('El partido ya empezó.');
-        await load({ sync: false });
+        await load({ sync: false, source: 'match_started' });
       } else if (/substitute_invite_closed|proposal_member_not_found|proposal_not_materialized/.test(message)) {
         setError('Esta invitación ya no está disponible.');
-        await load({ sync: false });
+        await load({ sync: false, source: 'match_invite_closed' });
       } else {
-        setError(message || 'No pudimos guardar tu respuesta.');
+        reportActionFailure(err, {
+          operation: 'respond_to_match_invite',
+          target: 'rpc:respond_to_auto_match_substitute',
+          message: 'No pudimos guardar tu respuesta. Probá de nuevo.',
+        });
       }
     } finally {
       setLoading(false);
@@ -992,17 +1178,21 @@ export default function AvailabilityOpportunityCard() {
     try {
       await claimAutoMatchOrganizer(proposalId);
       setNotice('¡La organización es tuya! Completá cancha, hora y precio.');
-      await load({ sync: false });
+      await load({ sync: false, source: 'organizer_claimed' });
     } catch (err) {
       const message = err?.message || '';
       if (/organizer_already_assigned/.test(message)) {
         setError('Otra persona tomó la organización primero.');
-        await load({ sync: false });
+        await load({ sync: false, source: 'organizer_already_assigned' });
       } else if (/proposal_not_open|proposal_not_found|proposal_member_not_found/.test(message)) {
         setError('Esta propuesta ya no está esperando organización.');
-        await load({ sync: false });
+        await load({ sync: false, source: 'organizer_proposal_closed' });
       } else {
-        setError(message || 'No pudimos asignarte la organización.');
+        reportActionFailure(err, {
+          operation: 'claim_organizer',
+          target: 'rpc:claim_auto_match_organizer',
+          message: 'No pudimos asignarte la organización. Probá de nuevo.',
+        });
       }
     } finally {
       setLoading(false);
@@ -1013,12 +1203,37 @@ export default function AvailabilityOpportunityCard() {
     navigate(asAdmin ? `/admin/${partidoId}` : `/partido-publico/${partidoId}`);
   }, [navigate]);
 
+  const openProfileForLocation = useCallback(() => {
+    setOpen(false);
+    navigate('/profile', { state: { returnTo: `${location.pathname}?auto=1` } });
+  }, [location.pathname, navigate]);
+
   if (!user?.id || !open) return null;
 
   const searchActive = Boolean(availability);
+  const searchEligible = searchActive
+    && hasValidCoordinates(availability?.latitude, availability?.longitude);
   const endOptions = END_HOURS.filter((option) => toMinutes(option) - toMinutes(timeStart) >= 60);
-  const errorBanner = error ? (
-    <p className="mt-3 rounded-xl border border-amber-400/24 bg-amber-400/10 px-3 py-2.5 font-oswald text-[11.5px] text-amber-100">{error}</p>
+  const visibleError = error || refreshIssue?.message;
+  const errorBanner = visibleError ? (
+    <div role="alert" className="mt-3 rounded-xl border border-amber-400/24 bg-amber-400/10 px-3 py-2.5 font-oswald text-[11.5px] text-amber-100">
+      <p>
+        {visibleError}
+        {!error && refreshIssue && searchActive
+          ? (searchEligible ? ' Tu búsqueda sigue activa.' : ' Tu búsqueda sigue guardada.')
+          : ''}
+      </p>
+      {!error && refreshIssue ? (
+        <button
+          type="button"
+          disabled={refreshing}
+          onClick={retryRefresh}
+          className="mt-2 min-h-8 rounded-lg border border-amber-200/25 px-3 text-[10.5px] font-semibold text-amber-50 disabled:opacity-50"
+        >
+          {refreshing ? 'Reintentando…' : 'Reintentar'}
+        </button>
+      ) : null}
+    </div>
   ) : null;
 
   return ReactDOM.createPortal(
@@ -1042,12 +1257,22 @@ export default function AvailabilityOpportunityCard() {
             está activa aparece el resumen arriba y los controles se apagan. */}
         <section aria-label="Tu búsqueda" data-testid="auto-search-section">
           {searchActive ? (
-            <div className="mb-4 flex items-start gap-3" data-testid="search-active-summary">
+            <div
+              className="mb-4 flex items-start gap-3"
+              data-testid={searchEligible ? 'search-active-summary' : 'search-incomplete-summary'}
+            >
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#9b7bff]/25 bg-[#6a43ff]/15 text-[#c8baff]">
-                <Search size={16} />
+                {searchEligible ? <Search size={16} /> : <MapPin size={16} />}
               </span>
               <div className="min-w-0 flex-1">
-                <p className="font-oswald text-[13px] font-bold text-white">Tu búsqueda está activa</p>
+                <p className="font-oswald text-[13px] font-bold text-white">
+                  {searchEligible ? 'Tu búsqueda está activa' : 'Tu búsqueda necesita ubicación'}
+                </p>
+                {!searchEligible ? (
+                  <p className="mt-0.5 font-sans text-[10.5px] text-amber-100/75">
+                    Agregá una ubicación para buscar jugadores cerca tuyo.
+                  </p>
+                ) : null}
                 <p className="mt-0.5 font-oswald text-[11.5px] text-white/52">{formatWindow(availability)}</p>
                 <p className="mt-0.5 flex flex-wrap items-center gap-x-2 font-sans text-[10px] text-white/42">
                   <span>{(availability.formats || []).join(' · ')}</span>
@@ -1181,20 +1406,31 @@ export default function AvailabilityOpportunityCard() {
               <MapPin size={15} className="mt-0.5 shrink-0 text-[#aa94ff]" />
               {profileLocation
                 ? 'Tu ubicación exacta solo se usa para calcular compatibilidad. No se comparte con los demás.'
-                : 'Sin ubicación guardada, la búsqueda se hará por días, horario y formato.'}
+                : 'Agregá una ubicación para buscar jugadores cerca tuyo. Sin ella, la búsqueda no participa del matching.'}
             </div>
           </div>
 
           {searchActive ? (
-            <button
-              type="button"
-              disabled={loading}
-              onClick={cancel}
-              className="mt-5 min-h-[50px] w-full rounded-xl border border-rose-400/20 bg-rose-400/[0.07] font-oswald text-[13px] font-semibold text-rose-100/80 transition-all hover:bg-rose-400/10 active:scale-[0.985] motion-reduce:transition-none"
-            >
-              Dejar de buscar
-            </button>
-          ) : (
+            <>
+              {!searchEligible ? (
+                <button
+                  type="button"
+                  onClick={openProfileForLocation}
+                  className={`${PRIMARY_CTA_BUTTON_CLASS} mt-5 !min-h-[50px]`}
+                >
+                  <MapPin size={18} className="mr-2" /> Agregar ubicación
+                </button>
+              ) : null}
+              <button
+                type="button"
+                disabled={loading}
+                onClick={cancel}
+                className={`${searchEligible ? 'mt-5' : 'mt-3'} min-h-[50px] w-full rounded-xl border border-rose-400/20 bg-rose-400/[0.07] font-oswald text-[13px] font-semibold text-rose-100/80 transition-all hover:bg-rose-400/10 active:scale-[0.985] motion-reduce:transition-none`}
+              >
+                Dejar de buscar
+              </button>
+            </>
+          ) : profileLocation ? (
             <button
               type="button"
               disabled={loading || formats.length === 0 || days.length === 0}
@@ -1202,6 +1438,14 @@ export default function AvailabilityOpportunityCard() {
               className={`${PRIMARY_CTA_BUTTON_CLASS} mt-5 !min-h-[50px]`}
             >
               <Users size={18} className="mr-2" /> Activar búsqueda
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={openProfileForLocation}
+              className={`${PRIMARY_CTA_BUTTON_CLASS} mt-5 !min-h-[50px]`}
+            >
+              <MapPin size={18} className="mr-2" /> Agregar ubicación
             </button>
           )}
         </section>
