@@ -1,5 +1,6 @@
 import { supabase } from '../../lib/supabaseClient';
 import { requestImmediatePushDispatchSafe } from '../pushDispatchService';
+import { hasValidCoordinates } from '../../utils/matchLocation';
 import {
   AUTH_REQUIRED_MESSAGE,
   describeDbAccessError,
@@ -68,8 +69,13 @@ export const normalizeAvailabilityInput = (input = {}) => {
   const formats = [...new Set((input.formats || []).map((value) => String(value).toUpperCase()))]
     .filter((value) => ALLOWED_FORMATS.includes(value));
   const maxDistanceKm = Math.max(1, Math.min(50, Math.round(Number(input.maxDistanceKm) || 8)));
-  const latitude = toCoordinate(input.latitude);
-  const longitude = toCoordinate(input.longitude);
+  const parsedLatitude = toCoordinate(input.latitude);
+  const parsedLongitude = toCoordinate(input.longitude);
+  const hasCoordinateInput = ![input.latitude, input.longitude]
+    .every((value) => value === null || value === undefined || value === '');
+  const coordinatesAreValid = hasValidCoordinates(parsedLatitude, parsedLongitude);
+  const latitude = coordinatesAreValid ? parsedLatitude : null;
+  const longitude = coordinatesAreValid ? parsedLongitude : null;
   const canOrganize = input.canOrganize === true;
 
   if (days.length === 0) throw new Error('Elegí al menos un día de la semana.');
@@ -77,6 +83,9 @@ export const normalizeAvailabilityInput = (input = {}) => {
   if (timeEnd <= timeStart) throw new Error('El horario de finalización debe ser posterior al inicio.');
   if (timeEnd - timeStart < 60) throw new Error('La franja tiene que durar al menos una hora.');
   if (formats.length === 0) throw new Error('Elegí al menos un formato de partido.');
+  if (hasCoordinateInput && !coordinatesAreValid) {
+    throw new Error('Agregá una ubicación válida para buscar jugadores cerca tuyo.');
+  }
 
   return {
     days,
@@ -158,6 +167,23 @@ export const syncMyAutoMatchGestations = async () => {
   }
   kickAutoMatchPushes();
   return data || [];
+};
+
+// Actualiza únicamente las coordenadas de la disponibilidad activa usando el
+// perfil canónico. El RPC conserva la misma búsqueda (no cancela ni inserta
+// otra fila) y ejecuta el matcher cuando la ubicación queda completa.
+export const syncMyAutoMatchLocationFromProfile = async () => {
+  const session = await requireSession();
+  const { data, error } = await supabase.rpc('sync_my_auto_match_location_from_profile');
+  if (error) {
+    throw describeAvailabilityDbError(error, {
+      operation: 'syncMyAutoMatchLocationFromProfile',
+      target: 'rpc:sync_my_auto_match_location_from_profile',
+      userId: session.user?.id,
+    });
+  }
+  if (data) kickAutoMatchPushes();
+  return data || null;
 };
 
 export const createMyAutoMatchProposal = async (format) => {

@@ -1,6 +1,7 @@
 import { supabase } from '../../lib/supabaseClient';
 import logger from '../../utils/logger';
 import { prepareImageForUpload } from '../../utils/imageUpload';
+import { hasValidCoordinates } from '../../utils/matchLocation';
 import {
   fetchRegisteredUserAwardCounts,
 } from './userIdentity';
@@ -373,7 +374,6 @@ export const updateProfile = async (userId, profileData) => {
   const finalData = { ...cleanProfileData, profile_completion: completion, updated_at: new Date().toISOString() };
 
   logger.log('[UPDATE_PROFILE] Mapped fields:', Object.keys(finalData));
-  logger.log('[UPDATE_PROFILE] Final data:', finalData);
 
   const getMissingSchemaColumn = (error) => {
     const rawMessage = `${error?.message || ''} ${error?.details || ''}`;
@@ -435,6 +435,24 @@ export const updateProfile = async (userId, profileData) => {
     } catch (updateError) {
       logger.error('[UPDATE_PROFILE] Error updating player names:', updateError);
       // No lanzar error, solo loguearlo
+    }
+  }
+
+  const locationWasUpdated = ['latitud', 'longitud']
+    .some((field) => Object.prototype.hasOwnProperty.call(cleanProfileData, field));
+  if (locationWasUpdated && hasValidCoordinates(data?.latitud, data?.longitud)) {
+    try {
+      const { error: locationSyncError } = await supabase
+        .rpc('sync_my_auto_match_location_from_profile');
+      if (locationSyncError) {
+        logger.warn('[UPDATE_PROFILE] Auto-match location sync failed:', {
+          code: locationSyncError.code || null,
+        });
+      }
+    } catch (locationSyncError) {
+      logger.warn('[UPDATE_PROFILE] Auto-match location sync request failed:', {
+        name: locationSyncError?.name || 'Error',
+      });
     }
   }
 
