@@ -36,6 +36,7 @@ describe('getAuthRedirectUrl', () => {
   test('uses the current origin during local development', () => {
     process.env.NODE_ENV = 'development';
     delete process.env.REACT_APP_PUBLIC_APP_URL;
+    delete process.env.REACT_APP_AUTH_REDIRECT_URL;
     expect(getAuthRedirectUrl()).toBe(`${window.location.origin}/auth/callback`);
   });
 
