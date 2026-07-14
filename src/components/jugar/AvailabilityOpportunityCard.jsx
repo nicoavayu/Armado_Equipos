@@ -37,6 +37,7 @@ import {
   cancelMyAvailability,
   claimAutoMatchOrganizer,
   getAutoMatchProposalMembers,
+  getAutoMatchProposalResponseError,
   getMyActiveAvailability,
   getMyActiveProposals,
   respondToAutoMatchProposal,
@@ -1110,13 +1111,12 @@ export default function AvailabilityOpportunityCard() {
       }
       await load({ sync: false, source: 'proposal_response' });
     } catch (err) {
-      const message = err?.message || '';
-      if (/proposal_not_open|proposal_not_found|proposal_member_not_found|proposal_member_declined/.test(message)) {
-        setError('Esta propuesta ya no está disponible.');
-        await load({ sync: false, source: 'proposal_closed' });
-      } else if (/proposal_full/.test(message)) {
-        setError('El cupo ya se completó sin tu lugar. Tu disponibilidad sigue activa.');
-        await load({ sync: false, source: 'proposal_full' });
+      const expectedError = getAutoMatchProposalResponseError(err);
+      if (expectedError) {
+        setError(expectedError.message);
+        if (expectedError.refreshSource) {
+          await load({ sync: false, source: expectedError.refreshSource });
+        }
       } else {
         reportActionFailure(err, {
           operation: 'respond_to_proposal',
