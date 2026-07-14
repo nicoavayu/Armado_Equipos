@@ -14,6 +14,7 @@ describe('auto-match proposal response errors', () => {
     ['proposal_member_expired', 'invite_expired', 'venció'],
     ['proposal_not_open', 'proposal_closed', 'no está disponible'],
     ['proposal_full', 'proposal_full', 'cupo'],
+    ['proposal_geographic_incompatibility', 'geographic_incompatibility', 'otra compatible'],
     ['auto_match_location_or_account_ineligible', 'availability_ineligible', 'ubicación'],
   ])('maps %s to a safe product state', (technical, code, visibleCopy) => {
     const mapped = getAutoMatchProposalResponseError({ message: technical });
@@ -32,5 +33,13 @@ describe('auto-match proposal response errors', () => {
   test('reserves the generic UI fallback for unexpected/network failures', () => {
     expect(getAutoMatchProposalResponseError(new Error('Failed to fetch'))).toBeNull();
     expect(getAutoMatchProposalResponseError(new Error('unexpected database failure'))).toBeNull();
+  });
+
+  test('uses the approved copy for a geographically incompatible invitation', () => {
+    expect(getAutoMatchProposalResponseError({ message: 'proposal_geographic_incompatibility' })).toEqual({
+      code: 'geographic_incompatibility',
+      message: 'Esta oportunidad ya no coincide con tu ubicación. Vamos a buscarte otra compatible.',
+      refreshSource: 'proposal_geographic_incompatibility',
+    });
   });
 });

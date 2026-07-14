@@ -55,6 +55,13 @@ export const getAutoMatchProposalResponseError = (error) => {
       refreshSource: 'proposal_full',
     };
   }
+  if (/proposal_geographic_incompatibility/.test(message)) {
+    return {
+      code: 'geographic_incompatibility',
+      message: 'Esta oportunidad ya no coincide con tu ubicación. Vamos a buscarte otra compatible.',
+      refreshSource: 'proposal_geographic_incompatibility',
+    };
+  }
   if (/proposal_not_open|proposal_not_found|proposal_member_not_found|proposal_member_declined|proposal_member_waitlisted/.test(message)) {
     return {
       code: 'proposal_closed',
@@ -263,6 +270,15 @@ export const respondToAutoMatchProposal = async (proposalId, response, { canOrga
     });
   }
   kickAutoMatchPushes();
+  if (data?.response === 'expired') {
+    if (data.response_reason === 'geographic_incompatibility') {
+      throw new Error('proposal_geographic_incompatibility');
+    }
+    if (data.response_reason === 'invite_expired') {
+      throw new Error('proposal_member_expired');
+    }
+    throw new Error('auto_match_location_or_account_ineligible');
+  }
   return data;
 };
 
