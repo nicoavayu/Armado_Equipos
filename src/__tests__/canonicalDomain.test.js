@@ -4,20 +4,30 @@ import { getCanonicalRedirectUrl, PUBLIC_APP_ORIGIN } from '../utils/publicAppUr
 import { getPublicBaseUrl } from '../utils/publicBaseUrl';
 
 describe('canonical production domain', () => {
-  test('redirects the legacy host preserving path, query and hash', () => {
+  test.each([
+    'arma2.vercel.app',
+    'arma2-nicoavayus-projects.vercel.app',
+  ])('redirects legacy host %s preserving path, query and hash', (hostname) => {
     expect(getCanonicalRedirectUrl({
-      hostname: 'arma2-nicoavayus-projects.vercel.app',
+      hostname,
       protocol: 'https:',
-      pathname: '/auth/callback',
-      search: '?code=abc',
-      hash: '#token',
-    })).toBe('https://arma2.vercel.app/auth/callback?code=abc#token');
+      pathname: '/perfil',
+      search: '?source=test',
+      hash: '#partido/123',
+    })).toBe('https://app.arma2.com.ar/perfil?source=test#partido/123');
   });
 
   test.each([
     { hostname: 'localhost', protocol: 'http:' },
+    { hostname: 'localhost', protocol: 'https:' },
+    { hostname: '127.0.0.1', protocol: 'http:' },
     { hostname: 'localhost', protocol: 'capacitor:' },
+    { hostname: '', protocol: 'file:' },
     { hostname: 'preview-git-fix.vercel.app', protocol: 'https:' },
+    { hostname: 'arma2-git-main-nicoavayus-projects.vercel.app', protocol: 'https:' },
+    { hostname: 'app.arma2.com.ar', protocol: 'https:' },
+    { hostname: 'arma2.com.ar', protocol: 'https:' },
+    { hostname: 'www.arma2.com.ar', protocol: 'https:' },
   ])('does not redirect local, Capacitor or preview origins: %o', (locationLike) => {
     expect(getCanonicalRedirectUrl({ ...locationLike, pathname: '/', search: '', hash: '' })).toBeNull();
   });
@@ -31,12 +41,28 @@ describe('canonical production domain', () => {
 
   test('hosting and metadata declare the canonical domain', () => {
     const root = path.resolve(__dirname, '../..');
-    const vercel = fs.readFileSync(path.join(root, 'vercel.json'), 'utf8');
+    const vercel = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
     const index = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
     const manifest = fs.readFileSync(path.join(root, 'public/manifest.json'), 'utf8');
-    expect(vercel).toContain('arma2-nicoavayus-projects.vercel.app');
-    expect(vercel).toContain('https://arma2.vercel.app/$1');
-    expect(index).toContain('rel="canonical" href="https://arma2.vercel.app/"');
-    expect(manifest).toContain('"start_url": "https://arma2.vercel.app/"');
+    expect(PUBLIC_APP_ORIGIN).toBe('https://app.arma2.com.ar');
+    expect(vercel.redirects).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        has: [{ type: 'host', value: 'arma2.vercel.app' }],
+        destination: 'https://app.arma2.com.ar/$1',
+        permanent: true,
+      }),
+      expect.objectContaining({
+        has: [{ type: 'host', value: 'arma2-nicoavayus-projects.vercel.app' }],
+        destination: 'https://app.arma2.com.ar/$1',
+        permanent: true,
+      }),
+    ]));
+    expect(index).toContain('rel="canonical" href="https://app.arma2.com.ar/"');
+    expect(index).toContain('property="og:url" content="https://app.arma2.com.ar/"');
+    expect(index).toContain("'arma2.vercel.app'");
+    expect(index).toContain("'arma2-nicoavayus-projects.vercel.app'");
+    expect(index).toContain('window.location.pathname + window.location.search + window.location.hash');
+    expect(manifest).toContain('"start_url": "https://app.arma2.com.ar/"');
+    expect(manifest).toContain('"scope": "https://app.arma2.com.ar/"');
   });
 });

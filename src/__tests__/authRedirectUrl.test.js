@@ -24,13 +24,13 @@ describe('getAuthRedirectUrl', () => {
     process.env.REACT_APP_AUTH_REDIRECT_URL = 'com.teambalancer.app://auth/callback';
     process.env.REACT_APP_PUBLIC_APP_URL = 'https://arma2.vercel.app';
 
-    expect(getAuthRedirectUrl()).toBe('https://arma2.vercel.app/auth/callback');
+    expect(getAuthRedirectUrl()).toBe('https://app.arma2.com.ar/auth/callback');
   });
 
   test('does not allow a legacy production environment variable to leak into auth links', () => {
     process.env.NODE_ENV = 'production';
     process.env.REACT_APP_PUBLIC_APP_URL = 'https://arma2-nicoavayus-projects.vercel.app';
-    expect(getAuthRedirectUrl()).toBe('https://arma2.vercel.app/auth/callback');
+    expect(getAuthRedirectUrl()).toBe('https://app.arma2.com.ar/auth/callback');
   });
 
   test('uses the current origin during local development', () => {

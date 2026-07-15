@@ -18,8 +18,8 @@
       "sizes": "512x512"
     }
   ],
-  "start_url": "https://arma2.vercel.app/",
-  "scope": "https://arma2.vercel.app/",
+  "start_url": "https://app.arma2.com.ar/",
+  "scope": "https://app.arma2.com.ar/",
   "display": "standalone",
   "theme_color": "#0EA9C6",
   "background_color": "#1a1a1a",
