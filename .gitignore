@@ -39,6 +39,7 @@ Thumbs.db
 .env.*
 *.local
 .secrets/
+.vercel/
 android/app/google-services.json
 ios/App/App/GoogleService-Info.plist
 

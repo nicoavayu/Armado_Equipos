@@ -25,6 +25,7 @@
     "@testing-library/jest-dom": "^5.17.0",
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",
+    "@vercel/functions": "^3.7.5",
     "babel-loader": "^10.0.0",
     "capacitor-native-settings": "^7.0.2",
     "dompurify": "^3.2.7",
@@ -60,6 +61,7 @@
     "release:web:sentry": "npm run build:web:release && npm run sentry:web:sourcemaps:upload",
     "test": "react-scripts test",
     "test:ci": "CI=true react-scripts test --watchAll=false --runInBand",
+    "test:web-access": "node --test server/__tests__/*.test.mjs",
     "test:db": "node scripts/db-integration/run.mjs",
     "eject": "react-scripts eject",
     "mobile:sync": "npm run build && npx cap sync",
@@ -70,6 +72,7 @@
     "ios:open": "npx cap open ios",
     "lint": "eslint src/ --ext .js,.jsx",
     "lint:fix": "eslint src/ --ext .js,.jsx --fix",
+    "validate:web-access-env": "node scripts/validate-private-web-env.mjs",
     "migrations:guard": "node scripts/guard_migration_source.mjs",
     "db:list": "npm run migrations:guard && npx supabase migration list --linked",
     "db:push": "npm run migrations:guard && npx supabase db push"

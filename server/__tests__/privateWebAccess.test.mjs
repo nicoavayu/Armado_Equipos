@@ -1,0 +1,273 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+import test from 'node:test';
+import { fileURLToPath } from 'node:url';
+
+import privateWebAccessHandler from '../../api/private-web-access.mjs';
+import privateWebLogoutHandler from '../../api/private-web-logout.mjs';
+import privateWebGate from '../../middleware.ts';
+import {
+  PRIVATE_WEB_COOKIE_MAX_AGE_SECONDS,
+  PRIVATE_WEB_COOKIE_NAME,
+  createPrivateWebAccessToken,
+  createPrivateWebPasswordHash,
+  normalizePrivateWebReturnTo,
+  serializePrivateWebAccessCookie,
+  verifyPrivateWebAccessToken,
+  verifyPrivateWebPassword,
+} from '../privateWebAccess.mjs';
+
+const TEST_PASSWORD = 'not-a-real-private-password';
+const TEST_SIGNING_SECRET = 'test-only-signing-secret-with-at-least-32-characters';
+const OTHER_SIGNING_SECRET = 'different-test-signing-secret-with-32-characters';
+const TEST_ORIGIN = 'https://arma2-preview.example.com';
+const testDirectory = path.dirname(fileURLToPath(import.meta.url));
+const repoRoot = path.resolve(testDirectory, '../..');
+
+function createMockResponse() {
+  const headers = new Map();
+  return {
+    statusCode: 200,
+    body: '',
+    ended: false,
+    setHeader(name, value) {
+      headers.set(String(name).toLowerCase(), value);
+    },
+    getHeader(name) {
+      return headers.get(String(name).toLowerCase());
+    },
+    end(body = '') {
+      this.body = body;
+      this.ended = true;
+    },
+  };
+}
+
+function createPostRequest(body, { origin = TEST_ORIGIN } = {}) {
+  return {
+    method: 'POST',
+    headers: {
+      host: 'arma2-preview.example.com',
+      origin,
+      'x-forwarded-host': 'arma2-preview.example.com',
+      'x-forwarded-proto': 'https',
+      'content-type': 'application/x-www-form-urlencoded',
+    },
+    body,
+  };
+}
+
+async function invokeGate(pathname, { cookie, origin = TEST_ORIGIN, method = 'GET' } = {}) {
+  const headers = cookie ? { cookie } : undefined;
+  return privateWebGate(new Request(`${origin}${pathname}`, { headers, method }));
+}
+
+test('PBKDF2 password hashes validate the right password without storing plaintext', async () => {
+  const hash = await createPrivateWebPasswordHash(TEST_PASSWORD, { iterations: 100_000 });
+
+  assert.equal(hash.includes(TEST_PASSWORD), false);
+  assert.equal(await verifyPrivateWebPassword(TEST_PASSWORD, hash), true);
+  assert.equal(await verifyPrivateWebPassword('wrong-password', hash), false);
+});
+
+test('signed access tokens reject tampering, expiration, and another signing secret', async () => {
+  const nowMs = Date.UTC(2026, 6, 15, 12, 0, 0);
+  const token = await createPrivateWebAccessToken(TEST_SIGNING_SECRET, { nowMs });
+  const alteredToken = `${token.slice(0, -1)}${token.endsWith('a') ? 'b' : 'a'}`;
+
+  assert.equal(await verifyPrivateWebAccessToken(token, TEST_SIGNING_SECRET, { nowMs }), true);
+  assert.equal(await verifyPrivateWebAccessToken(alteredToken, TEST_SIGNING_SECRET, { nowMs }), false);
+  assert.equal(await verifyPrivateWebAccessToken(token, OTHER_SIGNING_SECRET, { nowMs }), false);
+  assert.equal(
+    await verifyPrivateWebAccessToken(token, TEST_SIGNING_SECRET, {
+      nowMs: nowMs + ((PRIVATE_WEB_COOKIE_MAX_AGE_SECONDS + 1) * 1000),
+    }),
+    false,
+  );
+});
+
+test('the authorization cookie is host-only, secure, HttpOnly, Lax, and lasts 30 days', async () => {
+  const token = await createPrivateWebAccessToken(TEST_SIGNING_SECRET);
+  const cookie = serializePrivateWebAccessCookie(token);
+
+  assert.match(cookie, new RegExp(`^${PRIVATE_WEB_COOKIE_NAME}=`));
+  assert.match(cookie, /Path=\//);
+  assert.match(cookie, /Max-Age=2592000/);
+  assert.match(cookie, /HttpOnly/);
+  assert.match(cookie, /Secure/);
+  assert.match(cookie, /SameSite=Lax/);
+  assert.doesNotMatch(cookie, /Domain=/i);
+});
+
+test('returnTo accepts only same-origin paths and blocks open redirects', () => {
+  assert.equal(normalizePrivateWebReturnTo('/profile?tab=cuenta#web'), '/profile?tab=cuenta#web');
+  assert.equal(normalizePrivateWebReturnTo('//evil.example/path'), '/login');
+  assert.equal(normalizePrivateWebReturnTo('/\\evil.example/path'), '/login');
+  assert.equal(normalizePrivateWebReturnTo('https://evil.example/path'), '/login');
+  assert.equal(normalizePrivateWebReturnTo('/login%0d%0aLocation:evil'), '/login');
+});
+
+test('an anonymous visitor receives mobile-only HTML for root and internal SPA routes', async () => {
+  for (const pathname of ['/', '/login', '/registro', '/profile', '/partido/123', '/auth/callback']) {
+    const response = await invokeGate(pathname);
+    assert.equal(response.status, 200, pathname);
+    assert.equal(
+      response.headers.get('x-middleware-rewrite'),
+      `${TEST_ORIGIN}/mobile-only.html`,
+      pathname,
+    );
+  }
+
+  const staticChunk = await invokeGate('/static/js/main.secret.js');
+  assert.equal(staticChunk.headers.get('x-middleware-rewrite'), `${TEST_ORIGIN}/mobile-only.html`);
+});
+
+test('the private route is available but never linked from the public page', async () => {
+  const response = await invokeGate('/acceso-web?returnTo=%2Fprofile');
+  assert.equal(
+    response.headers.get('x-middleware-rewrite'),
+    `${TEST_ORIGIN}/private-web-access.html`,
+  );
+
+  const publicHtml = await readFile(path.join(repoRoot, 'public/mobile-only.html'), 'utf8');
+  assert.doesNotMatch(publicHtml, /acceso-web|private-web-access|login|registro/i);
+});
+
+test('a valid cookie permits the SPA and the access route redirects safely', async () => {
+  process.env.PRIVATE_WEB_ACCESS_SIGNING_SECRET = TEST_SIGNING_SECRET;
+  const token = await createPrivateWebAccessToken(TEST_SIGNING_SECRET);
+  const cookie = `${PRIVATE_WEB_COOKIE_NAME}=${token}`;
+
+  const response = await invokeGate('/profile', { cookie });
+  assert.equal(response.headers.get('x-middleware-next'), '1');
+  assert.equal(response.headers.get('x-middleware-rewrite'), null);
+
+  const accessRoute = await invokeGate('/acceso-web?returnTo=%2Fprofile', { cookie });
+  assert.equal(accessRoute.status, 302);
+  assert.equal(accessRoute.headers.get('location'), `${TEST_ORIGIN}/profile`);
+});
+
+test('localhost and Capacitor origins bypass the Vercel web gate', async () => {
+  const localhostResponse = await privateWebGate(new Request('https://localhost/login'));
+  const loopbackResponse = await privateWebGate(new Request('http://127.0.0.1:3000/profile'));
+  const capacitorResponse = await privateWebGate(new Request('capacitor://localhost/profile'));
+
+  assert.equal(localhostResponse.headers.get('x-middleware-next'), '1');
+  assert.equal(loopbackResponse.headers.get('x-middleware-next'), '1');
+  assert.equal(capacitorResponse.headers.get('x-middleware-next'), '1');
+});
+
+test('legacy production hosts redirect permanently while previews stay on their own host', async () => {
+  const legacy = await privateWebGate(
+    new Request('https://arma2.vercel.app/profile?source=legacy'),
+  );
+  assert.equal(legacy.status, 308);
+  assert.equal(legacy.headers.get('location'), 'https://app.arma2.com.ar/profile?source=legacy');
+
+  const preview = await invokeGate('/login', {
+    origin: 'https://arma2-git-private-web-nicoavayus-projects.vercel.app',
+  });
+  assert.equal(preview.status, 200);
+  assert.equal(
+    preview.headers.get('x-middleware-rewrite'),
+    'https://arma2-git-private-web-nicoavayus-projects.vercel.app/mobile-only.html',
+  );
+});
+
+test('anonymous health checks do not load the SPA or expose user data', async () => {
+  const response = await invokeGate('/health');
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { status: 'ok' });
+  assert.equal(response.headers.get('x-middleware-rewrite'), null);
+});
+
+test('correct password issues the private cookie and incorrect password never authorizes', async () => {
+  process.env.PRIVATE_WEB_ACCESS_PASSWORD_HASH = await createPrivateWebPasswordHash(
+    TEST_PASSWORD,
+    { iterations: 100_000 },
+  );
+  process.env.PRIVATE_WEB_ACCESS_SIGNING_SECRET = TEST_SIGNING_SECRET;
+
+  const successResponse = createMockResponse();
+  await privateWebAccessHandler(
+    createPostRequest({ password: TEST_PASSWORD, returnTo: '/profile' }),
+    successResponse,
+  );
+  assert.equal(successResponse.statusCode, 303);
+  assert.equal(successResponse.getHeader('location'), '/profile');
+  assert.match(successResponse.getHeader('set-cookie'), /HttpOnly; Secure; SameSite=Lax/);
+
+  const failureResponse = createMockResponse();
+  await privateWebAccessHandler(
+    createPostRequest({ password: 'wrong-password', returnTo: '/profile' }),
+    failureResponse,
+  );
+  assert.equal(failureResponse.statusCode, 303);
+  assert.equal(failureResponse.getHeader('set-cookie'), undefined);
+  assert.match(failureResponse.getHeader('location'), /^\/acceso-web\?error=1/);
+});
+
+test('private access POST rejects a cross-origin request and returnTo open redirects', async () => {
+  process.env.PRIVATE_WEB_ACCESS_PASSWORD_HASH = await createPrivateWebPasswordHash(
+    TEST_PASSWORD,
+    { iterations: 100_000 },
+  );
+  process.env.PRIVATE_WEB_ACCESS_SIGNING_SECRET = TEST_SIGNING_SECRET;
+
+  const crossOriginResponse = createMockResponse();
+  await privateWebAccessHandler(
+    createPostRequest(
+      { password: TEST_PASSWORD, returnTo: '/profile' },
+      { origin: 'https://evil.example' },
+    ),
+    crossOriginResponse,
+  );
+  assert.equal(crossOriginResponse.statusCode, 403);
+  assert.equal(crossOriginResponse.getHeader('set-cookie'), undefined);
+
+  const safeRedirectResponse = createMockResponse();
+  await privateWebAccessHandler(
+    createPostRequest({ password: TEST_PASSWORD, returnTo: '//evil.example' }),
+    safeRedirectResponse,
+  );
+  assert.equal(safeRedirectResponse.getHeader('location'), '/login');
+});
+
+test('closing web access clears only the private cookie', () => {
+  const response = createMockResponse();
+  privateWebLogoutHandler(createPostRequest({}), response);
+
+  assert.equal(response.statusCode, 204);
+  assert.match(response.getHeader('set-cookie'), new RegExp(`^${PRIVATE_WEB_COOKIE_NAME}=`));
+  assert.match(response.getHeader('set-cookie'), /Max-Age=0/);
+  assert.match(response.getHeader('set-cookie'), /HttpOnly; Secure; SameSite=Lax/);
+});
+
+test('public and private pages preserve copy, stores, accessibility, and secret isolation', async () => {
+  const [publicHtml, privateHtml, profileEditor, logoutService] = await Promise.all([
+    readFile(path.join(repoRoot, 'public/mobile-only.html'), 'utf8'),
+    readFile(path.join(repoRoot, 'public/private-web-access.html'), 'utf8'),
+    readFile(path.join(repoRoot, 'src/components/ProfileEditor.js'), 'utf8'),
+    readFile(path.join(repoRoot, 'src/services/authLogoutService.js'), 'utf8'),
+  ]);
+
+  assert.match(publicHtml, /<html lang="es"/);
+  assert.match(publicHtml, /<main class="gate-shell">/);
+  assert.match(publicHtml, /<h1 id="mobile-only-title">ARMA2 SE VIVE DESDE LA APP<\/h1>/);
+  assert.match(publicHtml, /Descargala en tu teléfono y viví tu fútbol amateur como nunca antes\./);
+  assert.match(publicHtml, /Descargar en App Store/);
+  assert.match(publicHtml, /apps\.apple\.com\/ar\/app\/arma2\/id6760599244/);
+  assert.match(publicHtml, /Próximamente en Google Play/);
+  assert.doesNotMatch(publicHtml, /play\.google\.com/);
+  assert.doesNotMatch(publicHtml, /href=["'][^"']*google/i);
+  assert.match(privateHtml, /<label for="private-password">Contraseña<\/label>/);
+  assert.match(privateHtml, /role="alert" aria-live="polite"/);
+  assert.match(profileEditor, /Cerrar acceso web/);
+  assert.match(profileEditor, /closePrivateWebAccess/);
+  assert.doesNotMatch(logoutService, /PRIVATE_WEB_ACCESS|arma2_private_web/);
+
+  for (const html of [publicHtml, privateHtml]) {
+    assert.doesNotMatch(html, /PRIVATE_WEB_ACCESS_PASSWORD_HASH|PRIVATE_WEB_ACCESS_SIGNING_SECRET/);
+  }
+});
