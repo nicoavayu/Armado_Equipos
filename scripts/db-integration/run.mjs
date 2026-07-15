@@ -121,6 +121,16 @@ const val = async (client, sql, params = []) => {
 };
 const num = async (client, sql, params = []) => Number(await val(client, sql, params));
 
+const FIXTURE_TIMEZONE = 'America/Argentina/Buenos_Aires';
+const fixtureFutureSlotAt20 = (referenceInstant = null) => val(
+  admin,
+  `select (
+     ((coalesce($1::timestamptz, now()) at time zone $2)::date + 3)
+     + time '20:00'
+   ) at time zone $2`,
+  [referenceInstant, FIXTURE_TIMEZONE],
+);
+
 // Por defecto la disponibilidad es de UN día (sábado): así los escenarios que
 // asumen "un solo slot" siguen valiendo. El sync multi-día se prueba aparte
 // pasando `days` con varias jornadas.
@@ -192,7 +202,7 @@ const finalize = async (uid, proposalId, overrides = {}) => {
 const seedReadyProposal = async (format, acceptedCount, { pending = 0 } = {}) => {
   await resetData();
   const required = Number(format.slice(1)) * 2;
-  const slot = await val(admin, "select date_trunc('minute', now() + interval '3 days')");
+  const slot = await fixtureFutureSlotAt20();
   const slotDow = await num(
     admin,
     "select extract(isodow from ($1::timestamptz at time zone 'America/Argentina/Buenos_Aires'))",
@@ -927,16 +937,35 @@ async function scenarioInviteExpiry() {
 // Escenario 10: un jugador pendiente en dos propuestas que se pisan puede
 // confirmar una sin que la respuesta modifique la otra.
 // ---------------------------------------------------------------------------
-async function scenarioOverlapWithdrawal() {
-  console.log('\nEscenario 10: gestaciones superpuestas independientes al confirmar');
+async function scenarioOverlapWithdrawal({
+  referenceInstant = null,
+  title = 'Escenario 10: gestaciones superpuestas independientes al confirmar',
+} = {}) {
+  console.log(`\n${title}`);
   await resetData();
 
-  const slot = await val(admin, "select date_trunc('minute', now() + interval '3 days')");
+  const slot = await fixtureFutureSlotAt20(referenceInstant);
   const slotDow = await num(
     admin,
     "select extract(isodow from ($1::timestamptz at time zone 'America/Argentina/Buenos_Aires'))",
     [slot],
   );
+
+  if (referenceInstant) {
+    const boundary = await one(
+      admin,
+      `select
+         to_char($1::timestamptz at time zone $3, 'HH24:MI') as local_start,
+         extract(epoch from (
+           time '23:59' - ($1::timestamptz at time zone $3)::time
+         )) / 60 as available_minutes,
+         $1::timestamptz > $2::timestamptz as remains_future`,
+      [slot, referenceInstant, FIXTURE_TIMEZONE],
+    );
+    eq(boundary.local_start, '20:00', 'el fixture fija el inicio a las 20:00 de Argentina');
+    ok(Number(boundary.available_minutes) > 60, 'el fixture conserva más de 60 minutos disponibles');
+    eq(boundary.remains_future, true, 'el slot sigue en el futuro al simular una ejecución a medianoche');
+  }
 
   const avail = {};
   for (const user of USERS.slice(0, 6)) {
@@ -1493,7 +1522,7 @@ async function scenarioCrossedProposalConcurrency() {
   console.log('\nEscenario 10d: concurrencia cruzada sin deadlock');
   await resetData();
 
-  const slot = await val(admin, "select date_trunc('minute', now() + interval '3 days')");
+  const slot = await fixtureFutureSlotAt20();
   const slotDow = await num(
     admin,
     "select extract(isodow from ($1::timestamptz at time zone 'America/Argentina/Buenos_Aires'))",
@@ -2466,6 +2495,17 @@ async function main() {
   await scenarioConcurrentConfirmations();
   await scenarioInviteExpiry();
   await scenarioOverlapWithdrawal();
+  const nearMidnightArgentina = await val(
+    admin,
+    `select (
+       (now() at time zone $1)::date + time '23:59'
+     ) at time zone $1`,
+    [FIXTURE_TIMEZONE],
+  );
+  await scenarioOverlapWithdrawal({
+    referenceInstant: nearMidnightArgentina,
+    title: 'Escenario 10a: fixture estable al ejecutar cerca de medianoche',
+  });
   await scenarioConcreteScheduleOverlapAndIdempotency();
   await scenarioProposalFiveDeterministicReconciliation();
   await scenarioCrossedProposalConcurrency();
