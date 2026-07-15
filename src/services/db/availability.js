@@ -3,6 +3,7 @@ import { requestImmediatePushDispatchSafe } from '../pushDispatchService';
 import { hasValidCoordinates } from '../../utils/matchLocation';
 import {
   AUTH_REQUIRED_MESSAGE,
+  PERMISSION_DENIED_MESSAGE,
   describeDbAccessError,
   getUsableSession,
 } from './dbErrors';
@@ -30,6 +31,53 @@ export const autoMatchRequiredPlayers = (format) => Number(String(format || '').
 export const autoMatchInvitationCapacity = (format) => Math.ceil(autoMatchRequiredPlayers(format) * AUTO_MATCH_OVERBOOK_FACTOR);
 
 export { AUTH_REQUIRED_MESSAGE, PERMISSION_DENIED_MESSAGE } from './dbErrors';
+
+export const getAutoMatchProposalResponseError = (error) => {
+  const message = String(error?.message || '');
+  if (/proposal_member_expired/.test(message)) {
+    return {
+      code: 'invite_expired',
+      message: 'Tu invitación venció. Tu disponibilidad sigue activa para otras propuestas.',
+      refreshSource: 'proposal_invite_expired',
+    };
+  }
+  if (/proposal_full/.test(message)) {
+    return {
+      code: 'proposal_full',
+      message: 'El cupo ya se completó sin tu lugar. Tu disponibilidad sigue activa.',
+      refreshSource: 'proposal_full',
+    };
+  }
+  if (/proposal_geographic_incompatibility/.test(message)) {
+    return {
+      code: 'geographic_incompatibility',
+      message: 'Esta oportunidad ya no coincide con tu ubicación. Vamos a buscarte otra compatible.',
+      refreshSource: 'proposal_geographic_incompatibility',
+    };
+  }
+  if (/proposal_not_open|proposal_not_found|proposal_member_not_found|proposal_member_declined|proposal_member_waitlisted/.test(message)) {
+    return {
+      code: 'proposal_closed',
+      message: 'Esta propuesta ya no está disponible.',
+      refreshSource: 'proposal_closed',
+    };
+  }
+  if (/auto_match_location_or_account_ineligible/.test(message)) {
+    return {
+      code: 'availability_ineligible',
+      message: 'Tu búsqueda ya no cumple los requisitos de esta propuesta. Revisá tu ubicación y disponibilidad.',
+      refreshSource: 'proposal_ineligible',
+    };
+  }
+  if (message === AUTH_REQUIRED_MESSAGE || message === PERMISSION_DENIED_MESSAGE) {
+    return {
+      code: message === AUTH_REQUIRED_MESSAGE ? 'authentication_required' : 'permission_denied',
+      message,
+      refreshSource: null,
+    };
+  }
+  return null;
+};
 
 const requireSession = async () => {
   const session = await getUsableSession();
@@ -215,6 +263,15 @@ export const respondToAutoMatchProposal = async (proposalId, response, { canOrga
     });
   }
   kickAutoMatchPushes();
+  if (data?.response === 'expired') {
+    if (data.response_reason === 'geographic_incompatibility') {
+      throw new Error('proposal_geographic_incompatibility');
+    }
+    if (data.response_reason === 'invite_expired') {
+      throw new Error('proposal_member_expired');
+    }
+    throw new Error('auto_match_location_or_account_ineligible');
+  }
   return data;
 };
 

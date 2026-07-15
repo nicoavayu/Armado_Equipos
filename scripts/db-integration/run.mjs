@@ -29,6 +29,8 @@ const MIGRATIONS = [
   '20260713120000_auto_match_roster_cap_and_promotion.sql',
   '20260713190000_auto_match_progressive_cohorts.sql',
   '20260714030000_auto_match_backend_initial_sweep.sql',
+  '20260714223000_auto_match_response_and_real_overlap_fix.sql',
+  '20260715003000_auto_match_materialization_schedule_fix.sql',
 ];
 
 const PORT = 54300 + Math.floor(Math.random() * 500);
@@ -119,6 +121,16 @@ const val = async (client, sql, params = []) => {
 };
 const num = async (client, sql, params = []) => Number(await val(client, sql, params));
 
+const FIXTURE_TIMEZONE = 'America/Argentina/Buenos_Aires';
+const fixtureFutureSlotAt20 = (referenceInstant = null) => val(
+  admin,
+  `select (
+     ((coalesce($1::timestamptz, now()) at time zone $2)::date + 3)
+     + time '20:00'
+   ) at time zone $2`,
+  [referenceInstant, FIXTURE_TIMEZONE],
+);
+
 // Por defecto la disponibilidad es de UN día (sábado): así los escenarios que
 // asumen "un solo slot" siguen valiendo. El sync multi-día se prueba aparte
 // pasando `days` con varias jornadas.
@@ -190,7 +202,12 @@ const finalize = async (uid, proposalId, overrides = {}) => {
 const seedReadyProposal = async (format, acceptedCount, { pending = 0 } = {}) => {
   await resetData();
   const required = Number(format.slice(1)) * 2;
-  const slot = await val(admin, "select date_trunc('minute', now() + interval '3 days')");
+  const slot = await fixtureFutureSlotAt20();
+  const slotDow = await num(
+    admin,
+    "select extract(isodow from ($1::timestamptz at time zone 'America/Argentina/Buenos_Aires'))",
+    [slot],
+  );
   const pid = await val(
     admin,
     `insert into public.auto_match_proposals
@@ -201,8 +218,8 @@ const seedReadyProposal = async (format, acceptedCount, { pending = 0 } = {}) =>
   for (let i = 0; i < acceptedCount + pending; i += 1) {
     const availId = await val(
       admin,
-      "insert into public.player_availability (user_id, days_of_week, time_start, time_end, formats, latitude, longitude, status) values ($1, '{6}', '20:00', '23:00', $2, -34.60, -58.40, 'active') returning id",
-      [USERS[i].id, `{${format}}`],
+      "insert into public.player_availability (user_id, days_of_week, time_start, time_end, formats, latitude, longitude, status) values ($1, $2::smallint[], '00:00', '23:59', $3, -34.60, -58.40, 'active') returning id",
+      [USERS[i].id, [slotDow], `{${format}}`],
     );
     if (i < acceptedCount) {
       await admin.query(
@@ -355,12 +372,12 @@ async function scenarioFullLifecycle() {
   );
   eq(await notifCount('auto_match_gestating', USERS[10].id), 1, 'el 11.º convocado tiene una sola notificación de convocatoria');
 
-  // Bloqueo por ocurrencia: mismo slot bloqueado hasta que pase; otro día no.
+  // El rechazo pertenece solo a esta gestación; no bloquea otras ocurrencias.
   const slot = afterDecline.proposed_starts_at;
   eq(
     await val(admin, "select public.user_declined_auto_match_slot($1,'F5',$2::timestamptz)", [holdout, slot]),
-    true,
-    'quien rechazó queda bloqueado para esa ocurrencia',
+    false,
+    'rechazar una gestación no consume esa ocurrencia',
   );
   eq(
     await val(admin, "select public.user_declined_auto_match_slot($1,'F5',$2::timestamptz + interval '7 days')", [holdout, slot]),
@@ -453,18 +470,17 @@ async function scenarioFullLifecycle() {
     'la notificación de creado deep-linkea al partido',
   );
 
-  // Superposición: con el partido real creado, ningún participante vuelve a
-  // gestar/joinsear otra propuesta en el mismo slot.
+  // Un partido real no consume disponibilidad ni impide otras gestaciones.
   await Promise.all(USERS.slice(0, 10).map((user) => sync(user.id)));
   eq(
     await num(admin, "select count(*) from public.auto_match_proposals where status in ('collecting','ready')"),
-    0,
-    'sync posterior no crea propuestas superpuestas con el partido',
+    1,
+    'sync posterior puede crear otra gestación aunque exista el partido real',
   );
   eq(
     await val(admin, 'select public.user_has_overlapping_auto_match($1, $2::timestamptz, null)', [USERS[1].id, slot]),
-    true,
-    'el partido real cuenta como superposición',
+    false,
+    'el helper de gestación no trata al partido real como reserva anticipada',
   );
 
   // Constraint de exclusión: dos propuestas activas en el mismo bucket es
@@ -918,24 +934,48 @@ async function scenarioInviteExpiry() {
 }
 
 // ---------------------------------------------------------------------------
-// Escenario 10: superposición al confirmar. Un jugador pendiente en dos
-// propuestas que se pisan (mismo horario, distinto formato) es retirado de la
-// otra al confirmar una. Estado armado a mano para forzar el doble-pendiente.
+// Escenario 10: un jugador pendiente en dos propuestas que se pisan puede
+// confirmar una sin que la respuesta modifique la otra.
 // ---------------------------------------------------------------------------
-async function scenarioOverlapWithdrawal() {
-  console.log('\nEscenario 10: retiro de propuestas superpuestas al confirmar');
+async function scenarioOverlapWithdrawal({
+  referenceInstant = null,
+  title = 'Escenario 10: gestaciones superpuestas independientes al confirmar',
+} = {}) {
+  console.log(`\n${title}`);
   await resetData();
+
+  const slot = await fixtureFutureSlotAt20(referenceInstant);
+  const slotDow = await num(
+    admin,
+    "select extract(isodow from ($1::timestamptz at time zone 'America/Argentina/Buenos_Aires'))",
+    [slot],
+  );
+
+  if (referenceInstant) {
+    const boundary = await one(
+      admin,
+      `select
+         to_char($1::timestamptz at time zone $3, 'HH24:MI') as local_start,
+         extract(epoch from (
+           time '23:59' - ($1::timestamptz at time zone $3)::time
+         )) / 60 as available_minutes,
+         $1::timestamptz > $2::timestamptz as remains_future`,
+      [slot, referenceInstant, FIXTURE_TIMEZONE],
+    );
+    eq(boundary.local_start, '20:00', 'el fixture fija el inicio a las 20:00 de Argentina');
+    ok(Number(boundary.available_minutes) > 60, 'el fixture conserva más de 60 minutos disponibles');
+    eq(boundary.remains_future, true, 'el slot sigue en el futuro al simular una ejecución a medianoche');
+  }
 
   const avail = {};
   for (const user of USERS.slice(0, 6)) {
     avail[user.id] = await val(
       admin,
-      "insert into public.player_availability (user_id, days_of_week, time_start, time_end, formats, latitude, longitude, status) values ($1, '{6}', '20:00', '23:00', '{F5,F7}', -34.60, -58.40, 'active') returning id",
-      [user.id],
+      "insert into public.player_availability (user_id, days_of_week, time_start, time_end, formats, latitude, longitude, status) values ($1, $2::smallint[], '00:00', '23:59', '{F5,F7}', -34.60, -58.40, 'active') returning id",
+      [user.id, [slotDow]],
     );
   }
 
-  const slot = await val(admin, "select date_trunc('minute', now() + interval '3 days')");
   const p1 = await val(
     admin,
     "insert into public.auto_match_proposals (format, proposed_starts_at, max_players, status, expires_at, gestation_started_at, gestation_threshold) values ('F5', $1, 10, 'collecting', $1::timestamptz - interval '30 minutes', now(), 4) returning id",
@@ -970,14 +1010,761 @@ async function scenarioOverlapWithdrawal() {
   );
   eq(
     await val(admin, 'select response from public.auto_match_proposal_members where proposal_id=$1 and user_id=$2', [p2, USERS[0].id]),
-    'declined',
-    'es retirado automáticamente de la propuesta superpuesta',
+    'pending',
+    'permanece en la propuesta superpuesta',
   );
   eq(
     await val(admin, 'select status from public.auto_match_proposals where id=$1', [p2]),
     'collecting',
     'la propuesta superpuesta sigue viva para el resto',
   );
+}
+
+// ---------------------------------------------------------------------------
+// Regresion 14-jul: una ventana 20-23 con F5/F7 admite todas las gestaciones;
+// ninguna respuesta consume disponibilidad ni emite cancelaciones falsas.
+// ---------------------------------------------------------------------------
+async function scenarioConcreteScheduleOverlapAndIdempotency() {
+  console.log('\nEscenario 10b: horarios concretos, snapshots e idempotencia');
+  await resetData();
+
+  const localDate = await val(
+    admin,
+    "select (current_date + 3)::date",
+  );
+  const localDow = await num(admin, 'select extract(isodow from $1::date)', [localDate]);
+  const slot20 = await val(
+    admin,
+    "select ($1::date + time '20:00') at time zone 'America/Argentina/Buenos_Aires'",
+    [localDate],
+  );
+
+  const availability = {};
+  for (const user of USERS.slice(0, 16)) {
+    availability[user.id] = await seedAvailability(user.id, {
+      days: [localDow], formats: ['F5', 'F7'], start: '20:00', end: '23:00',
+    });
+  }
+
+  const insertProposal = async (format, offset) => val(
+    admin,
+    `insert into public.auto_match_proposals
+       (format, proposed_starts_at, max_players, status, expires_at, gestation_started_at, gestation_threshold)
+     values ($1, $2::timestamptz + $3::interval, $4, 'collecting',
+             $2::timestamptz + $3::interval - interval '30 minutes', now(), 4)
+     returning id`,
+    [format, slot20, offset, Number(format.slice(1)) * 2],
+  );
+
+  const f5At20 = await insertProposal('F5', '0 minutes');
+  const f7At22 = await insertProposal('F7', '120 minutes');
+  const f7At21 = await insertProposal('F7', '60 minutes');
+
+  const addMember = (proposalId, uid, response) => admin.query(
+    `insert into public.auto_match_proposal_members
+       (proposal_id, availability_id, user_id, response, responded_at, confirmed_at, invite_expires_at)
+     values ($1, $2, $3, $4,
+             case when $4='accepted' then now() else null end,
+             case when $4='accepted' then now() else null end,
+             case when $4='pending' then now() + interval '8 hours' else null end)`,
+    [proposalId, availability[uid], uid, response],
+  );
+
+  await addMember(f5At20, USERS[0].id, 'pending');
+  await addMember(f7At22, USERS[0].id, 'pending');
+  await addMember(f7At21, USERS[0].id, 'pending');
+  for (const user of USERS.slice(1, 5)) await addMember(f5At20, user.id, 'accepted');
+  for (const user of USERS.slice(5, 9)) await addMember(f7At22, user.id, 'accepted');
+  for (const user of USERS.slice(9, 13)) await addMember(f7At21, user.id, 'accepted');
+
+  // Segundo usuario: ya acepto 20:00 y prueba una propuesta realmente
+  // superpuesta a las 21:00. Debe rechazarse el intento, no cambiar la previa.
+  await addMember(f5At20, USERS[14].id, 'accepted');
+  await addMember(f7At21, USERS[14].id, 'pending');
+
+  const first = await respond(USERS[0].id, f5At20, 'accepted');
+  const firstConfirmedAt = String(first.confirmed_at);
+  eq(
+    await val(admin, 'select response from public.auto_match_proposal_members where proposal_id=$1 and user_id=$2', [f7At22, USERS[0].id]),
+    'pending',
+    'confirmar F5 20:00 conserva F7 22:00 (partidos consecutivos)',
+  );
+  eq(
+    await val(admin, 'select response_reason from public.auto_match_proposal_members where proposal_id=$1 and user_id=$2', [f7At21, USERS[0].id]),
+    null,
+    'F7 21:00 no se marca como conflicto mientras siga en gestación',
+  );
+  eq(
+    await val(admin, 'select status from public.auto_match_proposals where id=$1', [f7At21]),
+    'collecting',
+    'la baja conflictiva no cancela toda la gestacion',
+  );
+  eq(
+    await num(admin, 'select count(*) from public.auto_match_proposal_members where proposal_id=$1 and user_id=$2 and response=$3', [f7At21, USERS[13].id, 'pending']),
+    0,
+    'sin salida por agenda no se abre una vacante artificial',
+  );
+  eq(await notifCount('auto_match_cancelled'), 0, 'no se encolan pushes de cancelacion falsos');
+
+  const duplicate = await respond(USERS[0].id, f5At20, 'accepted');
+  eq(String(duplicate.confirmed_at), firstConfirmedAt, 'repetir la misma respuesta es idempotente');
+  eq(
+    await num(admin, "select count(*) from public.auto_match_proposal_members where proposal_id=$1 and user_id=$2 and response='accepted'", [f5At20, USERS[0].id]),
+    1,
+    'el retry no duplica la membresia confirmada',
+  );
+
+  await respond(USERS[0].id, f7At22, 'accepted');
+  eq(
+    await num(admin, "select count(*) from public.auto_match_proposal_members where user_id=$1 and response='accepted' and proposal_id in ($2,$3)", [USERS[0].id, f5At20, f7At22]),
+    2,
+    'el usuario confirma los dos partidos consecutivos',
+  );
+  eq(
+    await val(admin, 'select status from public.player_availability where id=$1', [availability[USERS[0].id]]),
+    'active',
+    'aceptar un formato no desactiva la disponibilidad ni los demas formatos',
+  );
+
+  await respond(USERS[14].id, f7At21, 'accepted');
+  eq(
+    await val(admin, 'select response from public.auto_match_proposal_members where proposal_id=$1 and user_id=$2', [f5At20, USERS[14].id]),
+    'accepted',
+    'la segunda confirmacion no revoca la confirmacion previa valida',
+  );
+
+  // Dos taps concurrentes sobre salas distintas son independientes.
+  availability[USERS[16].id] = await seedAvailability(USERS[16].id, {
+    days: [localDow], formats: ['F5', 'F7'], start: '20:00', end: '23:00',
+  });
+  await addMember(f5At20, USERS[16].id, 'pending');
+  await addMember(f7At21, USERS[16].id, 'pending');
+  const concurrentResponses = await Promise.allSettled([
+    respond(USERS[16].id, f5At20, 'accepted'),
+    respond(USERS[16].id, f7At21, 'accepted'),
+  ]);
+  eq(
+    concurrentResponses.filter(({ status }) => status === 'fulfilled').length,
+    2,
+    'dos confirmaciones superpuestas simultaneas pueden aceptarse',
+  );
+  eq(
+    await num(
+      admin,
+      "select count(*) from public.auto_match_proposal_members where user_id=$1 and proposal_id in ($2,$3) and response='accepted'",
+      [USERS[16].id, f5At20, f7At21],
+    ),
+    2,
+    'dos gestaciones aceptadas no constituyen una doble reserva',
+  );
+
+  // Reproduce la cuenta real: otra persona aceptada conserva una fila historica
+  // que dejo de estar activa. Antes, ese snapshot ajeno hacia fallar al usuario
+  // pendiente con auto_match_location_or_account_ineligible.
+  await resetData();
+  const staleAvailability = {};
+  for (const user of USERS.slice(0, 5)) {
+    staleAvailability[user.id] = await seedAvailability(user.id, {
+      days: [localDow], formats: ['F5', 'F7'], start: '20:00', end: '23:00',
+    });
+  }
+  const realCase = await insertProposal('F5', '0 minutes');
+  await admin.query(
+    `insert into public.auto_match_proposal_members
+       (proposal_id, availability_id, user_id, response, invite_expires_at)
+     values ($1,$2,$3,'pending',now()+interval '8 hours')`,
+    [realCase, staleAvailability[USERS[0].id], USERS[0].id],
+  );
+  for (const user of USERS.slice(1, 4)) {
+    await admin.query(
+      `insert into public.auto_match_proposal_members
+         (proposal_id, availability_id, user_id, response, responded_at, confirmed_at)
+       values ($1,$2,$3,'accepted',now(),now())`,
+      [realCase, staleAvailability[user.id], user.id],
+    );
+  }
+  await admin.query("update public.player_availability set status='cancelled' where id=$1", [staleAvailability[USERS[1].id]]);
+
+  const repairedResponse = await respond(USERS[0].id, realCase, 'accepted');
+  eq(repairedResponse.response, 'accepted', 'el error especifico de la cuenta real queda reproducido y corregido');
+  const repairedConfirmedAt = String(repairedResponse.confirmed_at);
+  eq(
+    String((await respond(USERS[0].id, realCase, 'accepted')).confirmed_at),
+    repairedConfirmedAt,
+    'el caso real tambien conserva confirmed_at en un retry',
+  );
+  await val(admin, 'select public.prune_ineligible_auto_match_members()');
+  eq(
+    await val(admin, 'select response from public.auto_match_proposal_members where proposal_id=$1 and user_id=$2', [realCase, USERS[1].id]),
+    'accepted',
+    'el sweep no expira un compromiso por una disponibilidad historica cancelada',
+  );
+
+  const immutableBefore = await one(
+    admin,
+    `select availability_id, source_availability_id, snapshot_latitude,
+            snapshot_longitude, snapshot_max_distance_km, snapshot_formats,
+            snapshot_taken_at
+     from public.auto_match_proposal_members
+     where proposal_id=$1 and user_id=$2`,
+    [realCase, USERS[1].id],
+  );
+  const replacementAvailability = await seedAvailability(USERS[1].id, {
+    days: [localDow], formats: ['F5', 'F7'], start: '20:00', end: '23:00',
+  });
+  eq(
+    Number(await val(admin, 'select availability_id from public.auto_match_proposal_members where proposal_id=$1 and user_id=$2', [realCase, USERS[1].id])),
+    Number(staleAvailability[USERS[1].id]),
+    're-guardar no religa ni muta la membresia existente',
+  );
+  const immutableAfter = await one(
+    admin,
+    `select source_availability_id, snapshot_latitude, snapshot_longitude,
+            snapshot_max_distance_km, snapshot_formats, snapshot_taken_at
+     from public.auto_match_proposal_members
+     where proposal_id=$1 and user_id=$2`,
+    [realCase, USERS[1].id],
+  );
+  eq(JSON.stringify(immutableAfter), JSON.stringify({
+    source_availability_id: immutableBefore.source_availability_id,
+    snapshot_latitude: immutableBefore.snapshot_latitude,
+    snapshot_longitude: immutableBefore.snapshot_longitude,
+    snapshot_max_distance_km: immutableBefore.snapshot_max_distance_km,
+    snapshot_formats: immutableBefore.snapshot_formats,
+    snapshot_taken_at: immutableBefore.snapshot_taken_at,
+  }), 're-guardar conserva el snapshot byte por byte');
+  ok(Number(replacementAvailability) !== Number(immutableBefore.availability_id), 'la nueva busqueda tiene otro id');
+
+  await (await asUser(USERS[1].id)).query(
+    'delete from public.player_availability where id=$1',
+    [staleAvailability[USERS[1].id]],
+  );
+  eq(
+    await val(admin, 'select availability_id from public.auto_match_proposal_members where proposal_id=$1 and user_id=$2', [realCase, USERS[1].id]),
+    null,
+    'eliminar la disponibilidad aplica ON DELETE SET NULL',
+  );
+  eq(
+    Number(await val(admin, 'select source_availability_id from public.auto_match_proposal_members where proposal_id=$1 and user_id=$2', [realCase, USERS[1].id])),
+    Number(staleAvailability[USERS[1].id]),
+    'el identificador de origen desacoplado sobrevive al DELETE',
+  );
+  eq(
+    await val(admin, 'select response from public.auto_match_proposal_members where proposal_id=$1 and user_id=$2', [realCase, USERS[1].id]),
+    'accepted',
+    'eliminar la busqueda no borra ni expira la confirmacion',
+  );
+
+  // Estados esperables: vencida, cerrada y capacidad final completa.
+  await resetData();
+  const capacityAvailability = {};
+  for (const user of USERS.slice(0, 17)) {
+    capacityAvailability[user.id] = await seedAvailability(user.id, {
+      days: [localDow], formats: ['F5'], start: '20:00', end: '23:00',
+    });
+  }
+  const fullProposal = await insertProposal('F5', '0 minutes');
+  for (const user of USERS.slice(0, 14)) {
+    await admin.query(
+      `insert into public.auto_match_proposal_members
+         (proposal_id, availability_id, user_id, response, responded_at, confirmed_at)
+       values ($1,$2,$3,'accepted',now(),now())`,
+      [fullProposal, capacityAvailability[user.id], user.id],
+    );
+  }
+  await admin.query(
+    `insert into public.auto_match_proposal_members
+       (proposal_id, availability_id, user_id, response, invite_expires_at)
+     values ($1,$2,$3,'pending',now()+interval '8 hours')`,
+    [fullProposal, capacityAvailability[USERS[14].id], USERS[14].id],
+  );
+  await respond(USERS[14].id, fullProposal, 'accepted');
+  eq(
+    await num(admin, "select count(*) from public.auto_match_proposal_members where proposal_id=$1 and response='accepted'" , [fullProposal]),
+    15,
+    'los 15 sobreconvocados pueden responder sin error generico',
+  );
+  await val(admin, 'select public.backfill_auto_match_proposal_members($1)', [fullProposal]);
+  eq(
+    await num(admin, 'select count(*) from public.auto_match_proposal_members where proposal_id=$1 and user_id=$2', [fullProposal, USERS[15].id]),
+    0,
+    'capacidad completa: un 16.o no entra y el plantel final sigue topeado a titulares + 4',
+  );
+
+  // Libera la exclusion de sala recolectando del mismo bucket: esta sala ya
+  // alcanzo titulares y queda latcheada como en el flujo real.
+  await admin.query(
+    "update public.auto_match_proposals set status='ready', titulares_completed_at=now() where id=$1",
+    [fullProposal],
+  );
+
+  const expiredProposal = await insertProposal('F5', '0 minutes');
+  await admin.query(
+    `insert into public.auto_match_proposal_members
+       (proposal_id, availability_id, user_id, response, responded_at)
+     values ($1,$2,$3,'expired',now())`,
+    [expiredProposal, capacityAvailability[USERS[15].id], USERS[15].id],
+  );
+  await expectError(
+    respond(USERS[15].id, expiredProposal, 'accepted'),
+    /proposal_member_expired/,
+    'una invitacion vencida conserva un estado especifico',
+  );
+
+  await admin.query("update public.auto_match_proposals set status='cancelled' where id=$1", [expiredProposal]);
+
+  const closedProposal = await insertProposal('F5', '0 minutes');
+  await admin.query("update public.auto_match_proposals set status='cancelled' where id=$1", [closedProposal]);
+  await admin.query(
+    `insert into public.auto_match_proposal_members
+       (proposal_id, availability_id, user_id, response, invite_expires_at)
+     values ($1,$2,$3,'pending',now()+interval '8 hours')`,
+    [closedProposal, capacityAvailability[USERS[16].id], USERS[16].id],
+  );
+  await expectError(
+    respond(USERS[16].id, closedProposal, 'accepted'),
+    /proposal_not_open/,
+    'una propuesta cerrada conserva un estado especifico',
+  );
+
+  await expectError(
+    admin.query('select * from public.respond_to_auto_match_proposal($1,$2,$3)', [fullProposal, 'accepted', false]),
+    /not_authenticated/,
+    'autenticacion sigue siendo obligatoria',
+  );
+  eq(
+    await val(admin, "select has_function_privilege('anon', 'public.respond_to_auto_match_proposal(bigint,text,boolean)', 'EXECUTE')"),
+    false,
+    'anon no puede ejecutar el RPC',
+  );
+  eq(
+    await val(admin, "select has_function_privilege('authenticated', 'public.respond_to_auto_match_proposal(bigint,text,boolean)', 'EXECUTE')"),
+    true,
+    'authenticated conserva el permiso minimo del RPC',
+  );
+  eq(
+    await val(admin, "select has_function_privilege('authenticated', 'public.reconcile_auto_match_proposal_members(bigint)', 'EXECUTE')"),
+    false,
+    'authenticated no puede ejecutar la reconciliacion interna',
+  );
+  eq(
+    await val(admin, "select has_function_privilege('authenticated', 'public.capture_auto_match_member_snapshot()', 'EXECUTE')"),
+    false,
+    'authenticated no puede ejecutar directamente el capturador de snapshots',
+  );
+  eq(
+    await val(admin, "select relrowsecurity from pg_class where oid='public.auto_match_proposal_members'::regclass"),
+    true,
+    'RLS sigue habilitada en membresias',
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Escenario 10c: forma exacta de la propuesta #5 observada en produccion.
+// Accepted (#49/#51) forman el nucleo, #55 conserva confirmed_at tras el bug,
+// #52 es pending compatible y #57 esta ~13,1 km fuera de radios de 8 km.
+// ---------------------------------------------------------------------------
+async function scenarioProposalFiveDeterministicReconciliation() {
+  console.log('\nEscenario 10c: reconciliacion determinista de la propuesta #5');
+  await resetData();
+
+  const localDate = await val(admin, 'select (current_date + 3)::date');
+  const localDow = await num(admin, 'select extract(isodow from $1::date)', [localDate]);
+  const slot = await val(
+    admin,
+    "select ($1::date + time '20:00') at time zone 'America/Argentina/Buenos_Aires'",
+    [localDate],
+  );
+
+  const availabilitySeeds = [
+    [49, USERS[0].id, -34.600, -58.400, 8],
+    [51, USERS[1].id, -34.602, -58.400, 8],
+    [52, USERS[2].id, -34.604, -58.400, 8],
+    [55, USERS[3].id, -34.722, -58.400, 19],
+    [56, USERS[7].id, -34.606, -58.400, 8],
+    [57, USERS[4].id, -34.722, -58.395, 18],
+    [58, USERS[5].id, -34.730, -58.400, 8],
+    [59, USERS[6].id, -34.608, -58.400, 8],
+  ];
+  for (const [id, uid, lat, lng, radius] of availabilitySeeds) {
+    await admin.query(
+      `insert into public.player_availability
+         (id, user_id, days_of_week, time_start, time_end, timezone, formats,
+          max_distance_km, latitude, longitude, status)
+       values ($1,$2,$3::smallint[],'20:00','23:00','America/Argentina/Buenos_Aires',
+               '{F5,F7}',$4,$5,$6,'active')`,
+      [id, uid, [localDow], radius, lat, lng],
+    );
+  }
+
+  await admin.query(
+    `insert into public.auto_match_proposals
+       (id, format, proposed_starts_at, max_players, status, expires_at,
+        gestation_started_at, gestation_threshold)
+     values (5,'F5',$1,10,'collecting',$1::timestamptz - interval '30 minutes',now(),4)`,
+    [slot],
+  );
+
+  // Se desactiva solamente la defensa geografica para sembrar la corrupcion
+  // historica; el trigger de snapshot permanece activo.
+  await admin.query('alter table public.auto_match_proposal_members disable trigger enforce_auto_match_member_eligibility_trigger');
+  try {
+    for (const [availabilityId, uid, response] of [
+      [49, USERS[0].id, 'accepted'],
+      [51, USERS[1].id, 'accepted'],
+      [52, USERS[2].id, 'pending'],
+      [55, USERS[3].id, 'expired'],
+      [56, USERS[7].id, 'expired'],
+      [57, USERS[4].id, 'pending'],
+    ]) {
+      await admin.query(
+        `insert into public.auto_match_proposal_members
+           (proposal_id, availability_id, user_id, response, responded_at,
+            confirmed_at, invite_expires_at)
+         values (5,$1,$2,$3,
+                 case when $3 in ('accepted','expired') then now() else null end,
+                 case when $3 in ('accepted','expired') then now() else null end,
+                 case when $3='pending' then now()+interval '8 hours' else null end)`,
+        [availabilityId, uid, response],
+      );
+    }
+  } finally {
+    await admin.query('alter table public.auto_match_proposal_members enable trigger enforce_auto_match_member_eligibility_trigger');
+  }
+  await admin.query(
+    "update public.auto_match_proposal_members set response_reason='availability_ineligible' where proposal_id=5 and source_availability_id=56",
+  );
+  await admin.query("update public.player_availability set status='cancelled' where id=55");
+
+  const reconciliation = await one(admin, 'select * from public.reconcile_auto_match_proposal_members(5)');
+  eq(Number(reconciliation.restored_count), 1,
+    'la confirmación compatible expirada por re-guardar disponibilidad se restaura');
+  eq(Number(reconciliation.removed_count), 1, '#57 es el unico pending retirado por incompatibilidad');
+  eq(
+    await val(admin, 'select response from public.auto_match_proposal_members where proposal_id=5 and source_availability_id=49'),
+    'accepted',
+    '#49 permanece accepted',
+  );
+  eq(
+    await val(admin, 'select response from public.auto_match_proposal_members where proposal_id=5 and source_availability_id=51'),
+    'accepted',
+    '#51 permanece accepted',
+  );
+  eq(
+    await val(admin, 'select response from public.auto_match_proposal_members where proposal_id=5 and source_availability_id=52'),
+    'pending',
+    '#52 permanece pending compatible y no es bloqueado por #57',
+  );
+  eq(
+    await val(admin, 'select response from public.auto_match_proposal_members where proposal_id=5 and source_availability_id=55'),
+    'expired',
+    '#55 permanece expired: confirmed_at no permite violar la regla geografica simetrica',
+  );
+  eq(
+    await val(admin, 'select response from public.auto_match_proposal_members where proposal_id=5 and source_availability_id=56'),
+    'accepted',
+    '#56 demuestra la restauración automática cuando la única causa fue el bug de re-guardado',
+  );
+  eq(
+    await val(admin, 'select response_reason from public.auto_match_proposal_members where proposal_id=5 and source_availability_id=57'),
+    'geographic_incompatibility',
+    '#57 queda retirado con causa geografica especifica',
+  );
+  eq(await val(admin, 'select status from public.auto_match_proposals where id=5'), 'collecting',
+    'la propuesta #5 continua collecting');
+  eq(
+    await num(admin, 'select count(*) from public.auto_match_proposal_members where proposal_id=5 and source_availability_id=58'),
+    0,
+    'el backfill no invita al candidato lejano',
+  );
+  eq(
+    await val(admin, 'select response from public.auto_match_proposal_members where proposal_id=5 and source_availability_id=59'),
+    'pending',
+    'el backfill invita solamente al reemplazo compatible',
+  );
+  eq(await val(admin, "select status from public.player_availability where id=57"), 'active',
+    '#57 conserva su busqueda activa para otra cohorte');
+
+  const accepted52 = await respond(USERS[2].id, 5, 'accepted');
+  eq(accepted52.response, 'accepted', '#52 puede guardar su respuesta');
+  const incompatible57 = await respond(USERS[4].id, 5, 'accepted');
+  eq(incompatible57.response_reason, 'geographic_incompatibility',
+    '#57 recibe una causa persistida que la UI traduce sin mensaje generico');
+
+  // Un rechazo voluntario sigue siendo definitivo y no entra en la regla de
+  // restauracion de confirmed_at.
+  await admin.query(
+    `insert into public.player_availability
+       (id,user_id,days_of_week,time_start,time_end,timezone,formats,max_distance_km,latitude,longitude,status)
+     values (60,$1,$2::smallint[],'20:00','23:00','America/Argentina/Buenos_Aires','{F5}',8,-34.609,-58.4,'active')`,
+    [USERS[8].id, [localDow]],
+  );
+  await admin.query(
+    `insert into public.auto_match_proposal_members
+       (proposal_id,availability_id,user_id,response,invite_expires_at)
+     values (5,60,$1,'pending',now()+interval '8 hours')`,
+    [USERS[8].id],
+  );
+  await respond(USERS[8].id, 5, 'declined');
+  await one(admin, 'select * from public.reconcile_auto_match_proposal_members(5)');
+  eq(
+    await val(admin, 'select response from public.auto_match_proposal_members where proposal_id=5 and source_availability_id=60'),
+    'declined',
+    'una cancelacion explicita sigue respetandose',
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Escenario 10d: dos usuarios aceptan propuestas cruzadas simultaneamente sin
+// locks cruzados ni cambios sobre la otra sala.
+// ---------------------------------------------------------------------------
+async function scenarioCrossedProposalConcurrency() {
+  console.log('\nEscenario 10d: concurrencia cruzada sin deadlock');
+  await resetData();
+
+  const slot = await fixtureFutureSlotAt20();
+  const slotDow = await num(
+    admin,
+    "select extract(isodow from ($1::timestamptz at time zone 'America/Argentina/Buenos_Aires'))",
+    [slot],
+  );
+  const avail = {};
+  for (const user of USERS.slice(0, 6)) {
+    avail[user.id] = await val(
+      admin,
+      `insert into public.player_availability
+         (user_id,days_of_week,time_start,time_end,formats,latitude,longitude,status)
+       values ($1,$2::smallint[],'00:00','23:59','{F5,F7}',-34.60,-58.40,'active') returning id`,
+      [user.id, [slotDow]],
+    );
+  }
+  const p1 = await val(
+    admin,
+    `insert into public.auto_match_proposals
+       (format,proposed_starts_at,max_players,status,expires_at,gestation_started_at,gestation_threshold)
+     values ('F5',$1,10,'collecting',$1::timestamptz-interval '30 minutes',now(),4) returning id`,
+    [slot],
+  );
+  const p2 = await val(
+    admin,
+    `insert into public.auto_match_proposals
+       (format,proposed_starts_at,max_players,status,expires_at,gestation_started_at,gestation_threshold)
+     values ('F7',$1,14,'collecting',$1::timestamptz-interval '30 minutes',now(),4) returning id`,
+    [slot],
+  );
+
+  for (const pid of [p1, p2]) {
+    for (const user of USERS.slice(0, 2)) {
+      await admin.query(
+        `insert into public.auto_match_proposal_members
+           (proposal_id,availability_id,user_id,response,invite_expires_at)
+         values ($1,$2,$3,'pending',now()+interval '8 hours')`,
+        [pid, avail[user.id], user.id],
+      );
+    }
+    for (const user of USERS.slice(2, 6)) {
+      await admin.query(
+        `insert into public.auto_match_proposal_members
+           (proposal_id,availability_id,user_id,response,responded_at,confirmed_at)
+         values ($1,$2,$3,'accepted',now(),now())`,
+        [pid, avail[user.id], user.id],
+      );
+    }
+  }
+
+  const clientA = await asUser(USERS[0].id);
+  const clientB = await asUser(USERS[1].id);
+  await clientA.query("set statement_timeout='5s'; set lock_timeout='4s'");
+  await clientB.query("set statement_timeout='5s'; set lock_timeout='4s'");
+
+  const [aResult, bResult] = await Promise.allSettled([
+    respond(USERS[0].id, p1, 'accepted'),
+    respond(USERS[1].id, p2, 'accepted'),
+  ]);
+  ok(aResult.status === 'fulfilled' && bResult.status === 'fulfilled',
+    'las dos operaciones simultaneas terminan sin deadlock ni timeout',
+    `${aResult.reason?.message || ''} ${bResult.reason?.message || ''}`);
+  eq(await val(admin, 'select response from public.auto_match_proposal_members where proposal_id=$1 and user_id=$2', [p1, USERS[0].id]),
+    'accepted', 'A acepta propuesta 1');
+  eq(await val(admin, 'select response from public.auto_match_proposal_members where proposal_id=$1 and user_id=$2', [p2, USERS[0].id]),
+    'pending', 'A permanece en propuesta 2');
+  eq(await val(admin, 'select response from public.auto_match_proposal_members where proposal_id=$1 and user_id=$2', [p2, USERS[1].id]),
+    'accepted', 'B acepta propuesta 2');
+  eq(await val(admin, 'select response from public.auto_match_proposal_members where proposal_id=$1 and user_id=$2', [p1, USERS[1].id]),
+    'pending', 'B permanece en propuesta 1');
+
+  const countsBeforeRetry = await one(
+    admin,
+    `select
+       (select count(*) from public.auto_match_proposal_members) as memberships,
+       (select count(*) from public.notifications) as notifications,
+       (select count(*) from public.notification_delivery_log) as deliveries,
+       (select count(*) from public.auto_match_proposal_events) as events`,
+  );
+  await respond(USERS[0].id, p1, 'accepted');
+  await respond(USERS[1].id, p2, 'accepted');
+  const countsAfterRetry = await one(
+    admin,
+    `select
+       (select count(*) from public.auto_match_proposal_members) as memberships,
+       (select count(*) from public.notifications) as notifications,
+       (select count(*) from public.notification_delivery_log) as deliveries,
+       (select count(*) from public.auto_match_proposal_events) as events`,
+  );
+  eq(JSON.stringify(countsAfterRetry), JSON.stringify(countsBeforeRetry),
+    'retries no duplican membresias, pushes ni event keys');
+  eq(
+    await num(admin, 'select count(*) from public.auto_match_proposal_members'),
+    await num(admin, 'select count(distinct (proposal_id,user_id)) from public.auto_match_proposal_members'),
+    'no hay filas de respuesta/membresia duplicadas',
+  );
+
+  await clientA.query('reset statement_timeout; reset lock_timeout');
+  await clientB.query('reset statement_timeout; reset lock_timeout');
+}
+
+// ---------------------------------------------------------------------------
+// Escenario 10e: la agenda se resuelve exclusivamente al materializar. Se
+// prueban alternativa consecutiva, ausencia de horario y dos materializaciones
+// simultáneas con jugadores compartidos.
+// ---------------------------------------------------------------------------
+async function scenarioFinalMaterializationSchedule() {
+  console.log('\nEscenario 10e: selección final de horario al materializar');
+
+  const seedReadyRooms = async ({ rooms = 1, end = '23:59' } = {}) => {
+    await resetData();
+    const localDate = await val(admin, 'select (current_date + 3)::date');
+    const localDow = await num(admin, 'select extract(isodow from $1::date)', [localDate]);
+    const slot20 = await val(
+      admin,
+      "select ($1::date + time '20:00') at time zone 'America/Argentina/Buenos_Aires'",
+      [localDate],
+    );
+    const availabilities = [];
+    for (const user of USERS.slice(0, 10)) {
+      availabilities.push(await seedAvailability(user.id, {
+        days: [localDow], formats: ['F5'], start: '20:00', end,
+      }));
+    }
+    const proposalIds = [];
+    for (let roomIndex = 0; roomIndex < rooms; roomIndex += 1) {
+      const proposalId = await val(
+        admin,
+        `insert into public.auto_match_proposals
+           (format, proposed_starts_at, max_players, status, expires_at,
+            gestation_started_at, gestation_threshold, organizer_id, titulares_completed_at)
+         values ('F5',$1,10,'ready',$1::timestamptz-interval '30 minutes',now(),4,$2,now())
+         returning id`,
+        [slot20, USERS[0].id],
+      );
+      proposalIds.push(proposalId);
+      for (let i = 0; i < 10; i += 1) {
+        await admin.query(
+          `insert into public.auto_match_proposal_members
+             (proposal_id,availability_id,user_id,response,responded_at,confirmed_at,can_organize)
+           values ($1,$2,$3,'accepted',now(),now()+make_interval(secs=>$4::double precision),$5)`,
+          [proposalId, availabilities[i], USERS[i].id, i * 0.01, i === 0],
+        );
+      }
+    }
+    return { localDate, slot20, proposalIds };
+  };
+
+  const seedRealMatchAt20 = async (localDate, userId = USERS[0].id) => {
+    const partidoId = await val(
+      admin,
+      `insert into public.partidos
+         (nombre,fecha,hora,modalidad,cupo_jugadores,creado_por,estado)
+       values ('Partido real 20',$1,'20:00','F5',10,$2,'activo') returning id`,
+      [localDate, userId],
+    );
+    await admin.query(
+      'insert into public.jugadores (partido_id,usuario_id,nombre) values ($1,$2,$3)',
+      [partidoId, userId, 'Jugador ocupado'],
+    );
+    return partidoId;
+  };
+
+  // El horario pedido 21:00 se superpone con [20:00,22:00); se descarta y la
+  // misma transacción elige 22:00, permitido por el rango semiabierto.
+  {
+    const seeded = await seedReadyRooms();
+    await seedRealMatchAt20(seeded.localDate);
+    const materialized = await finalize(USERS[0].id, seeded.proposalIds[0], { hora: '21:00' });
+    ok(Boolean(materialized.partido_id), 'un conflicto inicial busca otra hora en vez de cancelar');
+    eq(
+      await val(admin, 'select hora from public.partidos where id=$1', [materialized.partido_id]),
+      '22:00',
+      '20:00–22:00 permite el nuevo partido exactamente a las 22:00',
+    );
+    eq(
+      await val(admin, 'select status from public.auto_match_proposals where id=$1', [seeded.proposalIds[0]]),
+      'created',
+      'la propuesta se materializa sólo después de hallar horario compatible',
+    );
+    eq(await notifCount('auto_match_cancelled'), 0, 'no hay push de cancelación por agenda');
+  }
+
+  // La ventana termina a las 22:00: con la regla vigente de al menos 60 min
+  // restantes, el último comienzo posible es 21:00 y todos se superponen.
+  {
+    const seeded = await seedReadyRooms({ end: '22:00' });
+    await seedRealMatchAt20(seeded.localDate);
+    await expectError(
+      finalize(USERS[0].id, seeded.proposalIds[0], { hora: '21:00' }),
+      /no_compatible_final_time/,
+      'sin alternativa no se crea un partido',
+    );
+    eq(await num(admin, 'select count(*) from public.partidos'), 1,
+      'permanece solamente el partido real preexistente');
+    eq(
+      await val(admin, 'select status from public.auto_match_proposals where id=$1', [seeded.proposalIds[0]]),
+      'ready',
+      'sin horario compatible la gestación permanece ready',
+    );
+    eq(
+      await num(admin, "select count(*) from public.auto_match_proposal_members where proposal_id=$1 and response='accepted'", [seeded.proposalIds[0]]),
+      10,
+      'sin horario compatible conserva todas las membresías accepted',
+    );
+  }
+
+  // Dos salas listas con los mismos jugadores intentan 20:00 a la vez. Los
+  // locks por jugador serializan la elección: una queda 20:00 y la otra 22:00.
+  {
+    const seeded = await seedReadyRooms({ rooms: 2 });
+    const call = (client, proposalId) => one(
+      client,
+      `select * from public.finalize_auto_match_proposal(
+         $1,'Partido concurrente',null,'20:00','Masculino',8000,
+         'Cancha Test','place-test','Calle Test',-34.6,-58.4)`,
+      [proposalId],
+    );
+    const clientA = await connect(USERS[0].id);
+    const clientB = await connect(USERS[0].id);
+    const [first, second] = await Promise.allSettled([
+      call(clientA, seeded.proposalIds[0]),
+      call(clientB, seeded.proposalIds[1]),
+    ]);
+    ok(first.status === 'fulfilled' && second.status === 'fulfilled',
+      'dos materializaciones simultáneas terminan sin error ni deadlock',
+      `${first.reason?.message || ''} ${second.reason?.message || ''}`);
+    const hours = (await admin.query('select hora from public.partidos order by fecha,hora,id')).rows.map((row) => row.hora);
+    eq(JSON.stringify(hours), JSON.stringify(['20:00', '22:00']),
+      'la segunda materialización recalcula y elige el siguiente horario compatible');
+    eq(
+      await num(
+        admin,
+        `select count(*)
+         from public.partidos a
+         join public.partidos b on a.id < b.id
+         where public.auto_match_play_range(public.partido_kickoff_at(a.fecha,a.hora),a.modalidad)
+               && public.auto_match_play_range(public.partido_kickoff_at(b.fecha,b.hora),b.modalidad)`,
+      ),
+      0,
+      'dos materializaciones simultáneas no producen partidos reales superpuestos',
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1349,7 +2136,7 @@ async function scenarioStrictLocationAndAccountEligibility() {
   eq((await activeMembers(mixedRoom.id)).length, 4, 'la sala cuenta únicamente a los cuatro válidos');
   eq(await notifCount('auto_match_gestating', USERS[4].id), 0, 'la incompleta no es invitada ni notificada');
 
-  // Regresión #621: pertenecer a un partido real superpuesto sigue bloqueando.
+  // Regresión #621: un partido real no bloquea la creación de una gestación.
   await resetData();
   for (const user of USERS.slice(0, 4)) await seedAvailability(user.id, { days: COHORT_DAYS });
   const overlapDate = await val(
@@ -1373,7 +2160,7 @@ async function scenarioStrictLocationAndAccountEligibility() {
     );
   }
   await val(admin, 'select public.auto_match_scheduled_sweep()');
-  eq((await activeRooms('F5')).length, 0, 'los usuarios del partido #621 siguen bloqueados por superposición');
+  eq((await activeRooms('F5')).length, 1, 'los usuarios del partido #621 siguen disponibles para gestar');
 }
 
 // ---------------------------------------------------------------------------
@@ -1708,6 +2495,21 @@ async function main() {
   await scenarioConcurrentConfirmations();
   await scenarioInviteExpiry();
   await scenarioOverlapWithdrawal();
+  const nearMidnightArgentina = await val(
+    admin,
+    `select (
+       (now() at time zone $1)::date + time '23:59'
+     ) at time zone $1`,
+    [FIXTURE_TIMEZONE],
+  );
+  await scenarioOverlapWithdrawal({
+    referenceInstant: nearMidnightArgentina,
+    title: 'Escenario 10a: fixture estable al ejecutar cerca de medianoche',
+  });
+  await scenarioConcreteScheduleOverlapAndIdempotency();
+  await scenarioProposalFiveDeterministicReconciliation();
+  await scenarioCrossedProposalConcurrency();
+  await scenarioFinalMaterializationSchedule();
   await scenarioSubstitutes();
   await scenarioRosterCap();
   await scenarioPromotion();

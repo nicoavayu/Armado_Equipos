@@ -33,6 +33,12 @@ jobs:
       - name: Prepare public env file
         run: cp .env.example .env
 
+      - name: Guard migration source
+        run: npm run migrations:guard
+
+      - name: Run PostgreSQL integration suite
+        run: npm run test:db
+
       - name: Run lint
         run: npm run lint
 

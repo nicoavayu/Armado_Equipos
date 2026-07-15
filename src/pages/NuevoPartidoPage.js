@@ -1,13 +1,11 @@
 import logger from '../utils/logger';
 import React, { useState } from 'react';
-import {
-  ClipboardList,
-  PencilLine,
-} from 'lucide-react';
+import { PencilLine } from 'lucide-react';
 import { useAnimatedNavigation } from '../hooks/useAnimatedNavigation';
 import FormularioNuevoPartidoFlow from './FormularioNuevoPartidoFlow';
 import PageTitle from '../components/PageTitle';
 import WhatsAppMatchImportFlow from '../components/WhatsAppMatchImportFlow';
+import WhatsappIcon from '../components/WhatsappIcon';
 
 const PickerBackground = () => (
   <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden="true">
@@ -17,10 +15,6 @@ const PickerBackground = () => (
   </div>
 );
 
-// Compact, equal-size square button. The whole surface is the pressable target
-// (single <button>), it carries only an icon + a title (max two lines, height
-// reserved so both tiles align identically) and it honours reduced-motion by
-// dropping the transition/press-scale.
 export const MethodTile = ({ icon, title, onClick, disabled = false, testId }) => (
   <button
     type="button"
@@ -28,18 +22,18 @@ export const MethodTile = ({ icon, title, onClick, disabled = false, testId }) =
     disabled={disabled}
     data-testid={testId}
     aria-label={title}
-    className={`group relative flex aspect-square w-full min-w-0 flex-col items-center justify-center gap-3 overflow-hidden rounded-[22px] border p-3 text-center transition-[transform,border-color,background-color] duration-200 motion-reduce:transition-none ${disabled
+    className={`group relative flex min-h-[184px] w-full min-w-0 flex-col items-center justify-center gap-4 overflow-hidden rounded-[24px] border p-4 text-center outline-none transition-[transform,border-color,box-shadow] duration-200 ease-out focus-visible:ring-2 focus-visible:ring-[#a98cff] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0b0818] motion-reduce:transform-none motion-reduce:transition-none sm:min-h-[204px] sm:gap-5 sm:p-5 ${disabled
       ? 'cursor-not-allowed border-white/10 bg-white/[0.02] opacity-45'
-      : 'border-[rgba(148,134,255,0.24)] bg-[linear-gradient(160deg,rgba(35,27,76,0.72),rgba(13,10,31,0.94))] shadow-[0_16px_44px_rgba(5,2,22,0.34),inset_0_1px_0_rgba(255,255,255,0.05)] hover:border-[rgba(151,126,255,0.42)] active:scale-[0.97] active:border-[#9b7bff] active:bg-[linear-gradient(160deg,rgba(60,44,132,0.86),rgba(24,17,52,0.96))] motion-reduce:active:scale-100'}`}
+      : 'border-[rgba(151,126,255,0.38)] bg-[linear-gradient(160deg,rgba(38,29,80,0.78),rgba(13,10,31,0.96))] shadow-[0_16px_44px_rgba(5,2,22,0.38),inset_0_1px_0_rgba(255,255,255,0.055)] hover:-translate-y-1 hover:border-[rgba(177,157,255,0.64)] hover:shadow-[0_20px_48px_rgba(5,2,22,0.46),0_0_26px_rgba(106,67,255,0.2),inset_0_1px_0_rgba(255,255,255,0.075)] active:translate-y-[1px] active:scale-[0.985]'}`}
   >
-    <span className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-white/25 to-transparent opacity-70" />
-    <span className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border ${disabled
+    <span className="pointer-events-none absolute inset-x-7 top-0 h-px bg-gradient-to-r from-transparent via-[#a98cff]/60 to-transparent" />
+    <span className={`relative flex h-[58px] w-[58px] shrink-0 items-center justify-center rounded-[18px] border transition-transform duration-200 group-hover:scale-[1.035] group-active:scale-[0.98] motion-reduce:transform-none motion-reduce:transition-none sm:h-16 sm:w-16 ${disabled
       ? 'border-white/10 bg-white/[0.03] text-white/40'
-      : 'border-[#9b7bff]/30 bg-[#6a43ff]/16 text-[#c8baff] shadow-[0_10px_28px_rgba(81,45,196,0.28)] group-active:bg-[#6a43ff]/26'}`}
+      : 'border-[#9b7bff]/40 bg-[#6a43ff]/17 text-white shadow-[0_10px_26px_rgba(81,45,196,0.3),0_0_18px_rgba(106,67,255,0.14)]'}`}
     >
-      {React.cloneElement(icon, { size: 27, strokeWidth: 1.8 })}
+      {React.cloneElement(icon, { size: 29, strokeWidth: 1.8 })}
     </span>
-    <span className="flex min-h-[2.4em] items-center justify-center px-1 font-oswald text-[15px] font-bold uppercase leading-[1.16] tracking-[0.045em] text-white [text-wrap:balance]">
+    <span className="relative flex min-h-[2.24em] max-h-[2.24em] max-w-full items-center justify-center overflow-hidden font-oswald text-[clamp(12px,3.6vw,17px)] font-bold uppercase leading-[1.12] tracking-[0.035em] text-white [overflow-wrap:normal] [word-break:keep-all]">
       {title}
     </span>
   </button>
@@ -53,30 +47,27 @@ export const NewMatchMethodPicker = ({ onManual, onWhatsApp, onBack }) => (
 
     <PageTitle respectSafeArea title="NUEVO PARTIDO" onBack={onBack}>NUEVO PARTIDO</PageTitle>
 
-    <main className="relative z-10 mx-auto w-full max-w-[560px] px-4 pb-[max(34px,var(--safe-bottom,0px))] pt-[calc(var(--safe-top,0px)+96px)]">
-      <div className="mb-6 text-center">
+    <main className="relative z-10 mx-auto w-full max-w-[620px] px-4 pb-[max(34px,var(--safe-bottom,0px))] pt-[calc(var(--safe-top,0px)+96px)] sm:px-6">
+      <div className="mb-7 text-center sm:mb-8">
         <h2 className="font-bebas-real text-[clamp(38px,11vw,54px)] leading-[0.9] tracking-[0.035em] text-white drop-shadow-[0_8px_26px_rgba(5,2,20,0.7)]">
           ¿CÓMO QUERÉS CREARLO?
         </h2>
       </div>
 
-      {/* Two equal squares, side by side. Stays 2-up on every phone width
-          (no single-column breakpoint); the grid caps its own width so the
-          tiles never grow past a comfortable size on tablets. */}
       <div
         data-testid="method-picker-grid"
-        className="mx-auto grid max-w-[440px] grid-cols-2 gap-3"
+        className="mx-auto grid w-full max-w-[500px] grid-cols-2 gap-3 sm:gap-4"
       >
         <MethodTile
           testId="method-tile-manual"
-          icon={<PencilLine />}
-          title="Crear manual"
+          icon={<PencilLine data-testid="manual-pencil-icon" />}
+          title="CREAR PARTIDO MANUAL"
           onClick={onManual}
         />
         <MethodTile
           testId="method-tile-whatsapp"
-          icon={<ClipboardList />}
-          title="Importar WhatsApp"
+          icon={<WhatsappIcon data-testid="whatsapp-icon" color="white" />}
+          title="IMPORTAR DE WHATSAPP"
           onClick={onWhatsApp}
         />
       </div>

@@ -85,7 +85,11 @@ jest.mock('../components/PageTitle', () => ({ children, onBack }) => (
 // eslint-disable-next-line import/first
 import AvailabilityOpportunityCard from '../components/jugar/AvailabilityOpportunityCard';
 // eslint-disable-next-line import/first
-import { sortProposalsForList, proposalNeedsAction } from '../components/jugar/AvailabilityOpportunityCard';
+import {
+  isLiveGestation,
+  proposalNeedsAction,
+  sortProposalsForList,
+} from '../components/jugar/AvailabilityOpportunityCard';
 
 const ACTIVE_AVAILABILITY = {
   id: 101,
@@ -172,7 +176,49 @@ describe('sortProposalsForList', () => {
   });
 });
 
+describe('isLiveGestation', () => {
+  const now = Date.parse('2026-07-14T15:00:00.000Z');
+  const live = {
+    id: 1,
+    status: 'collecting',
+    proposed_starts_at: '2026-07-20T21:00:00.000Z',
+    expires_at: '2026-07-20T20:30:00.000Z',
+    my_response: 'accepted',
+    member_count: 6,
+    max_players: 10,
+  };
+
+  test('acepta solamente una propuesta futura con membresía activa', () => {
+    expect(isLiveGestation(live, now)).toBe(true);
+    expect(isLiveGestation({ ...live, id: null }, now)).toBe(false);
+    expect(isLiveGestation({ ...live, status: 'created' }, now)).toBe(false);
+    expect(isLiveGestation({ ...live, status: 'cancelled' }, now)).toBe(false);
+    expect(isLiveGestation({ ...live, expires_at: '2026-07-14T14:59:00.000Z' }, now)).toBe(false);
+    expect(isLiveGestation({ ...live, proposed_starts_at: '2026-07-14T14:59:00.000Z' }, now)).toBe(false);
+  });
+
+  test('excluye membresías vencidas, rechazadas o en espera', () => {
+    expect(isLiveGestation({ ...live, my_response: 'expired' }, now)).toBe(false);
+    expect(isLiveGestation({ ...live, my_response: 'declined' }, now)).toBe(false);
+    expect(isLiveGestation({ ...live, my_response: 'waitlisted' }, now)).toBe(false);
+    expect(isLiveGestation({
+      ...live,
+      my_response: 'pending',
+      my_invite_expires_at: '2026-07-14T14:59:00.000Z',
+    }, now)).toBe(false);
+  });
+});
+
 describe('main screen structure', () => {
+  test('usa un único título para el formulario automático', async () => {
+    renderScreen();
+
+    expect(await screen.findByRole('heading', { name: '¿CUÁNDO PODÉS JUGAR?' })).toBeInTheDocument();
+    expect(screen.getByText('PARTIDO AUTOMÁTICO')).toBeInTheDocument();
+    expect(screen.queryByText('ARMA2 BUSCA Y COORDINA')).toBeNull();
+    expect(screen.queryByText('QUIERO JUGAR')).toBeNull();
+  });
+
   test('search section renders without an outer card, before the gestation list', async () => {
     currentAvailability = ACTIVE_AVAILABILITY;
     currentProposals = PROPOSALS;
@@ -429,6 +475,19 @@ describe('proposal deep links', () => {
     expect(screen.queryByText(/No encontramos ese destino/)).toBeNull();
     expect(screen.getByTestId('gestation-card-11')).toBeInTheDocument();
   });
+
+  test('un deep link antiguo conserva el aviso fuera de una sección vacía', async () => {
+    currentAvailability = ACTIVE_AVAILABILITY;
+    currentProposals = [];
+    renderScreen('/quiero-jugar?auto=1&proposal=999');
+
+    await waitFor(() => {
+      expect(screen.getByTestId('location-probe')).toHaveTextContent(/\?auto=1$/);
+    });
+    expect(screen.getByText('Esa gestación ya no está disponible.')).toBeInTheDocument();
+    expect(screen.queryByTestId('gestation-list-section')).toBeNull();
+    expect(screen.queryByText('Tus partidos en gestación')).toBeNull();
+  });
 });
 
 describe('overbooking and confirmation-order in the detail', () => {
@@ -486,6 +545,39 @@ describe('gestation list visibility (§13)', () => {
     expect(within(listSection).getByTestId('gestation-card-11')).toBeInTheDocument();
     expect(within(listSection).queryByTestId('gestation-card-33')).toBeNull();
     expect(within(listSection).queryByTestId('gestation-card-44')).toBeNull();
+  });
+
+  test('no renderiza sección ni espacio cuando todas las propuestas son inactivas', async () => {
+    currentAvailability = ACTIVE_AVAILABILITY;
+    currentProposals = [
+      { ...PROPOSALS[0], id: 31, status: 'created', partido_id: 900 },
+      { ...PROPOSALS[0], id: 32, status: 'cancelled' },
+      { ...PROPOSALS[0], id: 33, status: 'expired' },
+      { ...PROPOSALS[0], id: 34, my_response: 'expired' },
+      { ...PROPOSALS[0], id: 35, my_response: 'pending', my_invite_expires_at: '2020-01-01T00:00:00.000Z' },
+      { ...PROPOSALS[0], id: null },
+    ];
+    renderScreen();
+
+    await screen.findByTestId('auto-search-section');
+    await waitFor(() => expect(mockGetProposals).toHaveBeenCalled());
+    expect(screen.queryByTestId('gestation-list-section')).toBeNull();
+    expect(screen.queryByText('Tus partidos en gestación')).toBeNull();
+    expect(screen.queryByText('Esa gestación ya no está disponible.')).toBeNull();
+  });
+
+  test('oculta silenciosamente la sección cuando desaparece la última card', async () => {
+    currentAvailability = ACTIVE_AVAILABILITY;
+    currentProposals = [{ ...PROPOSALS[1] }];
+    mockRespond.mockImplementation(async () => { currentProposals = []; });
+    renderScreen();
+
+    fireEvent.click(await screen.findByTestId('gestation-card-22'));
+    const detail = await screen.findByTestId('gestation-detail-screen');
+    fireEvent.click(within(detail).getByText('Esta vez no'));
+
+    await waitFor(() => expect(screen.queryByTestId('gestation-list-section')).toBeNull());
+    expect(screen.queryByText('Esa gestación ya no está disponible.')).toBeNull();
   });
 });
 

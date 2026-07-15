@@ -1,6 +1,5 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { PencilLine } from 'lucide-react';
 
 // The picker view pulls in the two heavy flows and the animated-nav hook; stub
@@ -36,8 +35,8 @@ describe('NewMatchMethodPicker', () => {
 
   test('renderiza exactamente dos opciones con labels compactos', () => {
     renderPicker();
-    expect(screen.getByRole('button', { name: 'Crear manual' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Importar WhatsApp' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'CREAR PARTIDO MANUAL' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'IMPORTAR DE WHATSAPP' })).toBeInTheDocument();
     expect(screen.getAllByTestId(/^method-tile-/)).toHaveLength(2);
   });
 
@@ -46,8 +45,7 @@ describe('NewMatchMethodPicker', () => {
     const grid = screen.getByTestId('method-picker-grid');
     expect(grid).toHaveClass('grid', 'grid-cols-2');
     expect(grid.className).not.toMatch(/grid-cols-1/);
-    // Width is capped so the two tiles never grow past a comfortable size.
-    expect(grid.className).toMatch(/max-w-\[440px\]/);
+    expect(grid.className).toMatch(/max-w-\[500px\]/);
   });
 
   test('elimina los subtítulos y la flecha circular anteriores', () => {
@@ -64,19 +62,39 @@ describe('NewMatchMethodPicker', () => {
     const whatsapp = screen.getByTestId('method-tile-whatsapp');
     expect(manual.tagName).toBe('BUTTON');
     expect(whatsapp.tagName).toBe('BUTTON');
-    // Square, equal-size, touch-friendly, no min-width overflow.
     [manual, whatsapp].forEach((tile) => {
-      expect(tile.className).toMatch(/aspect-square/);
+      expect(tile.className).toMatch(/min-h-\[184px\]/);
       expect(tile.className).toMatch(/w-full/);
       expect(tile.className).toMatch(/min-w-0/);
+    });
+  });
+
+  test('usa el logotipo blanco de WhatsApp y la misma presentación violeta', () => {
+    renderPicker();
+    const manual = screen.getByTestId('method-tile-manual');
+    const whatsapp = screen.getByTestId('method-tile-whatsapp');
+
+    expect(screen.getByTestId('manual-pencil-icon')).toBeInTheDocument();
+    expect(whatsapp.querySelector('svg path')).toHaveAttribute('fill', 'white');
+    [manual, whatsapp].forEach((tile) => {
+      expect(tile).toHaveClass('border-[rgba(151,126,255,0.38)]');
+      expect(tile).toHaveClass('focus-visible:ring-[#a98cff]');
+      expect(tile.className).not.toMatch(/37,211,102|25d366/i);
+    });
+  });
+
+  test('limita ambos títulos a un máximo visual de dos líneas', () => {
+    renderPicker();
+    ['CREAR PARTIDO MANUAL', 'IMPORTAR DE WHATSAPP'].forEach((title) => {
+      expect(screen.getByText(title)).toHaveClass('max-h-[2.24em]', 'overflow-hidden');
     });
   });
 
   test('mantiene feedback de pressed y respeta reduced-motion', () => {
     render(<MethodTile testId="tile" icon={<PencilLine />} title="Crear manual" onClick={jest.fn()} />);
     const tile = screen.getByTestId('tile');
-    expect(tile.className).toMatch(/active:scale-\[0\.97\]/);
-    expect(tile.className).toMatch(/motion-reduce:active:scale-100/);
+    expect(tile.className).toMatch(/active:scale-\[0\.985\]/);
+    expect(tile.className).toMatch(/focus-visible:ring-2/);
     expect(tile.className).toMatch(/motion-reduce:transition-none/);
   });
 
@@ -94,16 +112,16 @@ describe('NewMatchMethodPicker', () => {
 describe('NuevoPartidoPage — navegación de cada método', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  test('“Crear manual” abre el flujo manual', async () => {
+  test('“Crear manual” abre el flujo manual', () => {
     render(<NuevoPartidoPage />);
-    await userEvent.click(screen.getByRole('button', { name: 'Crear manual' }));
+    fireEvent.click(screen.getByRole('button', { name: 'CREAR PARTIDO MANUAL' }));
     expect(screen.getByTestId('manual-flow')).toBeInTheDocument();
     expect(screen.queryByTestId('whatsapp-flow')).not.toBeInTheDocument();
   });
 
-  test('“Importar WhatsApp” abre el flujo de importación', async () => {
+  test('“Importar WhatsApp” abre el flujo de importación', () => {
     render(<NuevoPartidoPage />);
-    await userEvent.click(screen.getByRole('button', { name: 'Importar WhatsApp' }));
+    fireEvent.click(screen.getByRole('button', { name: 'IMPORTAR DE WHATSAPP' }));
     expect(screen.getByTestId('whatsapp-flow')).toBeInTheDocument();
     expect(screen.queryByTestId('manual-flow')).not.toBeInTheDocument();
   });

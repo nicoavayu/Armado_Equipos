@@ -226,7 +226,9 @@ describe('locationService', () => {
 
   test('web con permiso prompt llama getCurrentPosition para disparar el popup del navegador', async () => {
     const webGetCurrentPosition = jest.fn((resolve) => resolve(makePosition()));
-    const query = jest.fn().mockResolvedValue({ state: 'prompt' });
+    const query = jest.fn()
+      .mockResolvedValueOnce({ state: 'prompt' })
+      .mockResolvedValueOnce({ state: 'granted' });
     setNavigatorValue('geolocation', {
       getCurrentPosition: webGetCurrentPosition,
     });
@@ -234,7 +236,11 @@ describe('locationService', () => {
 
     await expect(getCurrentPosition()).resolves.toMatchObject({
       source: 'web',
+      permissionBefore: 'prompt',
+      permissionAfter: 'granted',
+      permissionState: 'granted',
     });
+    expect(query).toHaveBeenCalledTimes(2);
     expect(query).toHaveBeenCalledWith({ name: 'geolocation' });
     expect(webGetCurrentPosition).toHaveBeenCalledTimes(1);
   });
@@ -249,9 +255,27 @@ describe('locationService', () => {
 
     await expect(getCurrentPosition()).rejects.toMatchObject({
       code: 'PERMISSION_DENIED',
+      permissionBefore: 'denied',
+      permissionAfter: 'denied',
+      permissionState: 'denied',
     });
+    expect(query).toHaveBeenCalledTimes(2);
     expect(query).toHaveBeenCalledWith({ name: 'geolocation' });
     expect(webGetCurrentPosition).toHaveBeenCalledTimes(1);
+  });
+
+  test('web conserva granted cuando el sistema rechaza aun con permiso del sitio', async () => {
+    const webGetCurrentPosition = jest.fn((_resolve, reject) => reject({ code: 1 }));
+    const query = jest.fn().mockResolvedValue({ state: 'granted' });
+    setNavigatorValue('geolocation', { getCurrentPosition: webGetCurrentPosition });
+    setNavigatorValue('permissions', { query });
+
+    await expect(getCurrentPosition()).rejects.toMatchObject({
+      code: 'PERMISSION_DENIED',
+      permissionBefore: 'granted',
+      permissionAfter: 'granted',
+      permissionState: 'granted',
+    });
   });
 
   test('usa plataforma nativa si getPlatform devuelve ios', async () => {

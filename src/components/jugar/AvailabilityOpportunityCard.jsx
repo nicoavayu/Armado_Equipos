@@ -37,6 +37,7 @@ import {
   cancelMyAvailability,
   claimAutoMatchOrganizer,
   getAutoMatchProposalMembers,
+  getAutoMatchProposalResponseError,
   getMyActiveAvailability,
   getMyActiveProposals,
   respondToAutoMatchProposal,
@@ -128,9 +129,27 @@ export const resolveProposalStage = (proposal) => {
 
 // Una GESTACIÓN viva (collecting/ready): las únicas que aparecen en "Tus
 // partidos en gestación" y las únicas con chat. Exportado para tests.
-export const isLiveGestation = (proposal) => (
-  ['searching', 'waiting', 'needs_organizer', 'organizing'].includes(resolveProposalStage(proposal).key)
-);
+const INACTIVE_MEMBERSHIP_RESPONSES = new Set(['declined', 'expired', 'waitlisted', 'cancelled', 'canceled']);
+
+const isPastTimestamp = (value, now) => {
+  if (!value) return false;
+  const timestamp = new Date(value).getTime();
+  return Number.isFinite(timestamp) && timestamp <= now;
+};
+
+export const isLiveGestation = (proposal, now = Date.now()) => {
+  if (!proposal?.id) return false;
+  if (!['collecting', 'ready'].includes(String(proposal.status || ''))) return false;
+  if (!['searching', 'waiting', 'needs_organizer', 'organizing'].includes(resolveProposalStage(proposal).key)) return false;
+
+  const membershipResponse = String(proposal.my_response || '').toLowerCase();
+  if (INACTIVE_MEMBERSHIP_RESPONSES.has(membershipResponse)) return false;
+  if (isPastTimestamp(proposal.expires_at, now)) return false;
+  if (isPastTimestamp(proposal.proposed_starts_at, now)) return false;
+  if (membershipResponse === 'pending' && isPastTimestamp(proposal.my_invite_expires_at, now)) return false;
+
+  return true;
+};
 
 // Invitación a un partido YA creado (el plantel se materializó y me quedó una
 // invitación pendiente). No es una gestación revivida: es una invitación al
@@ -969,7 +988,7 @@ export default function AvailabilityOpportunityCard() {
   // se resuelve como redirección al partido real. Canceladas/vencidas tampoco
   // se acumulan como cards eternas.
   const visibleProposals = useMemo(
-    () => orderedProposals.filter(isLiveGestation),
+    () => orderedProposals.filter((proposal) => isLiveGestation(proposal)),
     [orderedProposals],
   );
 
@@ -1110,13 +1129,12 @@ export default function AvailabilityOpportunityCard() {
       }
       await load({ sync: false, source: 'proposal_response' });
     } catch (err) {
-      const message = err?.message || '';
-      if (/proposal_not_open|proposal_not_found|proposal_member_not_found|proposal_member_declined/.test(message)) {
-        setError('Esta propuesta ya no está disponible.');
-        await load({ sync: false, source: 'proposal_closed' });
-      } else if (/proposal_full/.test(message)) {
-        setError('El cupo ya se completó sin tu lugar. Tu disponibilidad sigue activa.');
-        await load({ sync: false, source: 'proposal_full' });
+      const expectedError = getAutoMatchProposalResponseError(err);
+      if (expectedError) {
+        setError(expectedError.message);
+        if (expectedError.refreshSource) {
+          await load({ sync: false, source: expectedError.refreshSource });
+        }
       } else {
         reportActionFailure(err, {
           operation: 'respond_to_proposal',
@@ -1247,15 +1265,14 @@ export default function AvailabilityOpportunityCard() {
       <PageTitle respectSafeArea onBack={close}>PARTIDO AUTOMÁTICO</PageTitle>
 
       <main className="relative z-10 mx-auto w-full max-w-[560px] px-4 pb-[max(34px,var(--safe-bottom,0px))] pt-[calc(var(--safe-top,0px)+92px)] font-oswald">
-        <div className="mb-5 text-center">
-          <p className="font-oswald text-[10px] font-semibold uppercase tracking-[0.22em] text-[#a98cff]">Arma2 busca y coordina</p>
-          <h2 className="mt-1 font-bebas-real text-[clamp(36px,10vw,46px)] leading-[0.92] tracking-[0.035em] text-white drop-shadow-[0_8px_26px_rgba(5,2,20,0.7)]">QUIERO JUGAR</h2>
-        </div>
 
         {/* Búsqueda: siempre primero y directamente sobre el fondo, sin card
             exterior. La misma estructura sirve para activa e inactiva: cuando
             está activa aparece el resumen arriba y los controles se apagan. */}
         <section aria-label="Tu búsqueda" data-testid="auto-search-section">
+          <h2 className="mb-5 text-center font-bebas-real text-[clamp(36px,10vw,46px)] leading-[0.92] tracking-[0.035em] text-white drop-shadow-[0_8px_26px_rgba(5,2,20,0.7)]">
+            ¿CUÁNDO PODÉS JUGAR?
+          </h2>
           {searchActive ? (
             <div
               className="mb-4 flex items-start gap-3"
@@ -1460,13 +1477,14 @@ export default function AvailabilityOpportunityCard() {
           </section>
         ) : null}
 
-        {/* Lista compacta de gestaciones: siempre debajo de la búsqueda. */}
-        {visibleProposals.length > 0 || listNotice ? (
+        {listNotice ? (
+          <p role="status" className="mt-7 font-sans text-[10.5px] text-white/40">{listNotice}</p>
+        ) : null}
+
+        {/* Lista compacta de gestaciones: sólo existe mientras haya cards vivas. */}
+        {visibleProposals.length > 0 ? (
           <section aria-label="Tus partidos en gestación" data-testid="gestation-list-section" className="mt-7">
             <p className="mb-2 font-oswald text-[10px] font-semibold uppercase tracking-[0.16em] text-white/44">Tus partidos en gestación</p>
-            {listNotice ? (
-              <p className="mb-2 font-sans text-[10.5px] text-white/40">{listNotice}</p>
-            ) : null}
             {visibleProposals.map((proposal) => (
               <CompactProposalCard key={proposal.id} proposal={proposal} onOpen={openProposal} />
             ))}
