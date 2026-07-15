@@ -30,6 +30,7 @@ const MIGRATIONS = [
   '20260713190000_auto_match_progressive_cohorts.sql',
   '20260714030000_auto_match_backend_initial_sweep.sql',
   '20260714223000_auto_match_response_and_real_overlap_fix.sql',
+  '20260715003000_auto_match_materialization_schedule_fix.sql',
 ];
 
 const PORT = 54300 + Math.floor(Math.random() * 500);
@@ -361,12 +362,12 @@ async function scenarioFullLifecycle() {
   );
   eq(await notifCount('auto_match_gestating', USERS[10].id), 1, 'el 11.º convocado tiene una sola notificación de convocatoria');
 
-  // Bloqueo por ocurrencia: mismo slot bloqueado hasta que pase; otro día no.
+  // El rechazo pertenece solo a esta gestación; no bloquea otras ocurrencias.
   const slot = afterDecline.proposed_starts_at;
   eq(
     await val(admin, "select public.user_declined_auto_match_slot($1,'F5',$2::timestamptz)", [holdout, slot]),
-    true,
-    'quien rechazó queda bloqueado para esa ocurrencia',
+    false,
+    'rechazar una gestación no consume esa ocurrencia',
   );
   eq(
     await val(admin, "select public.user_declined_auto_match_slot($1,'F5',$2::timestamptz + interval '7 days')", [holdout, slot]),
@@ -459,18 +460,17 @@ async function scenarioFullLifecycle() {
     'la notificación de creado deep-linkea al partido',
   );
 
-  // Superposición: con el partido real creado, ningún participante vuelve a
-  // gestar/joinsear otra propuesta en el mismo slot.
+  // Un partido real no consume disponibilidad ni impide otras gestaciones.
   await Promise.all(USERS.slice(0, 10).map((user) => sync(user.id)));
   eq(
     await num(admin, "select count(*) from public.auto_match_proposals where status in ('collecting','ready')"),
-    0,
-    'sync posterior no crea propuestas superpuestas con el partido',
+    1,
+    'sync posterior puede crear otra gestación aunque exista el partido real',
   );
   eq(
     await val(admin, 'select public.user_has_overlapping_auto_match($1, $2::timestamptz, null)', [USERS[1].id, slot]),
-    true,
-    'el partido real cuenta como superposición',
+    false,
+    'el helper de gestación no trata al partido real como reserva anticipada',
   );
 
   // Constraint de exclusión: dos propuestas activas en el mismo bucket es
@@ -924,12 +924,11 @@ async function scenarioInviteExpiry() {
 }
 
 // ---------------------------------------------------------------------------
-// Escenario 10: superposición al confirmar. Un jugador pendiente en dos
-// propuestas que se pisan (mismo horario, distinto formato) es retirado de la
-// otra al confirmar una. Estado armado a mano para forzar el doble-pendiente.
+// Escenario 10: un jugador pendiente en dos propuestas que se pisan puede
+// confirmar una sin que la respuesta modifique la otra.
 // ---------------------------------------------------------------------------
 async function scenarioOverlapWithdrawal() {
-  console.log('\nEscenario 10: retiro de propuestas superpuestas al confirmar');
+  console.log('\nEscenario 10: gestaciones superpuestas independientes al confirmar');
   await resetData();
 
   const slot = await val(admin, "select date_trunc('minute', now() + interval '3 days')");
@@ -982,8 +981,8 @@ async function scenarioOverlapWithdrawal() {
   );
   eq(
     await val(admin, 'select response from public.auto_match_proposal_members where proposal_id=$1 and user_id=$2', [p2, USERS[0].id]),
-    'declined',
-    'es retirado automáticamente de la propuesta superpuesta',
+    'pending',
+    'permanece en la propuesta superpuesta',
   );
   eq(
     await val(admin, 'select status from public.auto_match_proposals where id=$1', [p2]),
@@ -993,9 +992,8 @@ async function scenarioOverlapWithdrawal() {
 }
 
 // ---------------------------------------------------------------------------
-// Regresion 14-jul: una ventana 20-23 con F5/F7 puede sostener partidos
-// consecutivos. Solo se retira la membresia que se superpone de verdad; la sala
-// sigue viva, hace backfill y no emite una cancelacion falsa.
+// Regresion 14-jul: una ventana 20-23 con F5/F7 admite todas las gestaciones;
+// ninguna respuesta consume disponibilidad ni emite cancelaciones falsas.
 // ---------------------------------------------------------------------------
 async function scenarioConcreteScheduleOverlapAndIdempotency() {
   console.log('\nEscenario 10b: horarios concretos, snapshots e idempotencia');
@@ -1064,8 +1062,8 @@ async function scenarioConcreteScheduleOverlapAndIdempotency() {
   );
   eq(
     await val(admin, 'select response_reason from public.auto_match_proposal_members where proposal_id=$1 and user_id=$2', [f7At21, USERS[0].id]),
-    'schedule_conflict',
-    'solo la membresia F7 21:00 realmente superpuesta queda identificada',
+    null,
+    'F7 21:00 no se marca como conflicto mientras siga en gestación',
   );
   eq(
     await val(admin, 'select status from public.auto_match_proposals where id=$1', [f7At21]),
@@ -1074,8 +1072,8 @@ async function scenarioConcreteScheduleOverlapAndIdempotency() {
   );
   eq(
     await num(admin, 'select count(*) from public.auto_match_proposal_members where proposal_id=$1 and user_id=$2 and response=$3', [f7At21, USERS[13].id, 'pending']),
-    1,
-    'la vacante real ejecuta el backfill existente',
+    0,
+    'sin salida por agenda no se abre una vacante artificial',
   );
   eq(await notifCount('auto_match_cancelled'), 0, 'no se encolan pushes de cancelacion falsos');
 
@@ -1099,19 +1097,14 @@ async function scenarioConcreteScheduleOverlapAndIdempotency() {
     'aceptar un formato no desactiva la disponibilidad ni los demas formatos',
   );
 
-  await expectError(
-    respond(USERS[14].id, f7At21, 'accepted'),
-    /proposal_schedule_conflict/,
-    'una segunda confirmacion realmente superpuesta devuelve estado entendible',
-  );
+  await respond(USERS[14].id, f7At21, 'accepted');
   eq(
     await val(admin, 'select response from public.auto_match_proposal_members where proposal_id=$1 and user_id=$2', [f5At20, USERS[14].id]),
     'accepted',
-    'el conflicto no revoca la confirmacion previa valida',
+    'la segunda confirmacion no revoca la confirmacion previa valida',
   );
 
-  // Dos taps concurrentes sobre salas distintas del mismo usuario se
-  // serializan: solo una decision puede quedar aceptada.
+  // Dos taps concurrentes sobre salas distintas son independientes.
   availability[USERS[16].id] = await seedAvailability(USERS[16].id, {
     days: [localDow], formats: ['F5', 'F7'], start: '20:00', end: '23:00',
   });
@@ -1123,8 +1116,8 @@ async function scenarioConcreteScheduleOverlapAndIdempotency() {
   ]);
   eq(
     concurrentResponses.filter(({ status }) => status === 'fulfilled').length,
-    1,
-    'dos confirmaciones superpuestas simultaneas producen una sola aceptacion',
+    2,
+    'dos confirmaciones superpuestas simultaneas pueden aceptarse',
   );
   eq(
     await num(
@@ -1132,8 +1125,8 @@ async function scenarioConcreteScheduleOverlapAndIdempotency() {
       "select count(*) from public.auto_match_proposal_members where user_id=$1 and proposal_id in ($2,$3) and response='accepted'",
       [USERS[16].id, f5At20, f7At21],
     ),
-    1,
-    'la carrera concurrente nunca deja una doble reserva',
+    2,
+    'dos gestaciones aceptadas no constituyen una doble reserva',
   );
 
   // Reproduce la cuenta real: otra persona aceptada conserva una fila historica
@@ -1359,6 +1352,7 @@ async function scenarioProposalFiveDeterministicReconciliation() {
     [51, USERS[1].id, -34.602, -58.400, 8],
     [52, USERS[2].id, -34.604, -58.400, 8],
     [55, USERS[3].id, -34.722, -58.400, 19],
+    [56, USERS[7].id, -34.606, -58.400, 8],
     [57, USERS[4].id, -34.722, -58.395, 18],
     [58, USERS[5].id, -34.730, -58.400, 8],
     [59, USERS[6].id, -34.608, -58.400, 8],
@@ -1391,6 +1385,7 @@ async function scenarioProposalFiveDeterministicReconciliation() {
       [51, USERS[1].id, 'accepted'],
       [52, USERS[2].id, 'pending'],
       [55, USERS[3].id, 'expired'],
+      [56, USERS[7].id, 'expired'],
       [57, USERS[4].id, 'pending'],
     ]) {
       await admin.query(
@@ -1407,11 +1402,14 @@ async function scenarioProposalFiveDeterministicReconciliation() {
   } finally {
     await admin.query('alter table public.auto_match_proposal_members enable trigger enforce_auto_match_member_eligibility_trigger');
   }
+  await admin.query(
+    "update public.auto_match_proposal_members set response_reason='availability_ineligible' where proposal_id=5 and source_availability_id=56",
+  );
   await admin.query("update public.player_availability set status='cancelled' where id=55");
 
   const reconciliation = await one(admin, 'select * from public.reconcile_auto_match_proposal_members(5)');
-  eq(Number(reconciliation.restored_count), 0,
-    '#55 conserva evidencia de confirmacion pero no se restaura porque tambien es incompatible');
+  eq(Number(reconciliation.restored_count), 1,
+    'la confirmación compatible expirada por re-guardar disponibilidad se restaura');
   eq(Number(reconciliation.removed_count), 1, '#57 es el unico pending retirado por incompatibilidad');
   eq(
     await val(admin, 'select response from public.auto_match_proposal_members where proposal_id=5 and source_availability_id=49'),
@@ -1432,6 +1430,11 @@ async function scenarioProposalFiveDeterministicReconciliation() {
     await val(admin, 'select response from public.auto_match_proposal_members where proposal_id=5 and source_availability_id=55'),
     'expired',
     '#55 permanece expired: confirmed_at no permite violar la regla geografica simetrica',
+  );
+  eq(
+    await val(admin, 'select response from public.auto_match_proposal_members where proposal_id=5 and source_availability_id=56'),
+    'accepted',
+    '#56 demuestra la restauración automática cuando la única causa fue el bug de re-guardado',
   );
   eq(
     await val(admin, 'select response_reason from public.auto_match_proposal_members where proposal_id=5 and source_availability_id=57'),
@@ -1465,15 +1468,15 @@ async function scenarioProposalFiveDeterministicReconciliation() {
     `insert into public.player_availability
        (id,user_id,days_of_week,time_start,time_end,timezone,formats,max_distance_km,latitude,longitude,status)
      values (60,$1,$2::smallint[],'20:00','23:00','America/Argentina/Buenos_Aires','{F5}',8,-34.609,-58.4,'active')`,
-    [USERS[7].id, [localDow]],
+    [USERS[8].id, [localDow]],
   );
   await admin.query(
     `insert into public.auto_match_proposal_members
        (proposal_id,availability_id,user_id,response,invite_expires_at)
      values (5,60,$1,'pending',now()+interval '8 hours')`,
-    [USERS[7].id],
+    [USERS[8].id],
   );
-  await respond(USERS[7].id, 5, 'declined');
+  await respond(USERS[8].id, 5, 'declined');
   await one(admin, 'select * from public.reconcile_auto_match_proposal_members(5)');
   eq(
     await val(admin, 'select response from public.auto_match_proposal_members where proposal_id=5 and source_availability_id=60'),
@@ -1483,8 +1486,8 @@ async function scenarioProposalFiveDeterministicReconciliation() {
 }
 
 // ---------------------------------------------------------------------------
-// Escenario 10d: dos usuarios aceptan propuestas cruzadas simultaneamente.
-// Ambos RPC bloquean P1/P2 por id ascendente antes de hacer exits/backfills.
+// Escenario 10d: dos usuarios aceptan propuestas cruzadas simultaneamente sin
+// locks cruzados ni cambios sobre la otra sala.
 // ---------------------------------------------------------------------------
 async function scenarioCrossedProposalConcurrency() {
   console.log('\nEscenario 10d: concurrencia cruzada sin deadlock');
@@ -1554,12 +1557,12 @@ async function scenarioCrossedProposalConcurrency() {
     `${aResult.reason?.message || ''} ${bResult.reason?.message || ''}`);
   eq(await val(admin, 'select response from public.auto_match_proposal_members where proposal_id=$1 and user_id=$2', [p1, USERS[0].id]),
     'accepted', 'A acepta propuesta 1');
-  eq(await val(admin, 'select response_reason from public.auto_match_proposal_members where proposal_id=$1 and user_id=$2', [p2, USERS[0].id]),
-    'schedule_conflict', 'A sale de propuesta 2');
+  eq(await val(admin, 'select response from public.auto_match_proposal_members where proposal_id=$1 and user_id=$2', [p2, USERS[0].id]),
+    'pending', 'A permanece en propuesta 2');
   eq(await val(admin, 'select response from public.auto_match_proposal_members where proposal_id=$1 and user_id=$2', [p2, USERS[1].id]),
     'accepted', 'B acepta propuesta 2');
-  eq(await val(admin, 'select response_reason from public.auto_match_proposal_members where proposal_id=$1 and user_id=$2', [p1, USERS[1].id]),
-    'schedule_conflict', 'B sale de propuesta 1');
+  eq(await val(admin, 'select response from public.auto_match_proposal_members where proposal_id=$1 and user_id=$2', [p1, USERS[1].id]),
+    'pending', 'B permanece en propuesta 1');
 
   const countsBeforeRetry = await one(
     admin,
@@ -1589,6 +1592,150 @@ async function scenarioCrossedProposalConcurrency() {
 
   await clientA.query('reset statement_timeout; reset lock_timeout');
   await clientB.query('reset statement_timeout; reset lock_timeout');
+}
+
+// ---------------------------------------------------------------------------
+// Escenario 10e: la agenda se resuelve exclusivamente al materializar. Se
+// prueban alternativa consecutiva, ausencia de horario y dos materializaciones
+// simultáneas con jugadores compartidos.
+// ---------------------------------------------------------------------------
+async function scenarioFinalMaterializationSchedule() {
+  console.log('\nEscenario 10e: selección final de horario al materializar');
+
+  const seedReadyRooms = async ({ rooms = 1, end = '23:59' } = {}) => {
+    await resetData();
+    const localDate = await val(admin, 'select (current_date + 3)::date');
+    const localDow = await num(admin, 'select extract(isodow from $1::date)', [localDate]);
+    const slot20 = await val(
+      admin,
+      "select ($1::date + time '20:00') at time zone 'America/Argentina/Buenos_Aires'",
+      [localDate],
+    );
+    const availabilities = [];
+    for (const user of USERS.slice(0, 10)) {
+      availabilities.push(await seedAvailability(user.id, {
+        days: [localDow], formats: ['F5'], start: '20:00', end,
+      }));
+    }
+    const proposalIds = [];
+    for (let roomIndex = 0; roomIndex < rooms; roomIndex += 1) {
+      const proposalId = await val(
+        admin,
+        `insert into public.auto_match_proposals
+           (format, proposed_starts_at, max_players, status, expires_at,
+            gestation_started_at, gestation_threshold, organizer_id, titulares_completed_at)
+         values ('F5',$1,10,'ready',$1::timestamptz-interval '30 minutes',now(),4,$2,now())
+         returning id`,
+        [slot20, USERS[0].id],
+      );
+      proposalIds.push(proposalId);
+      for (let i = 0; i < 10; i += 1) {
+        await admin.query(
+          `insert into public.auto_match_proposal_members
+             (proposal_id,availability_id,user_id,response,responded_at,confirmed_at,can_organize)
+           values ($1,$2,$3,'accepted',now(),now()+make_interval(secs=>$4::double precision),$5)`,
+          [proposalId, availabilities[i], USERS[i].id, i * 0.01, i === 0],
+        );
+      }
+    }
+    return { localDate, slot20, proposalIds };
+  };
+
+  const seedRealMatchAt20 = async (localDate, userId = USERS[0].id) => {
+    const partidoId = await val(
+      admin,
+      `insert into public.partidos
+         (nombre,fecha,hora,modalidad,cupo_jugadores,creado_por,estado)
+       values ('Partido real 20',$1,'20:00','F5',10,$2,'activo') returning id`,
+      [localDate, userId],
+    );
+    await admin.query(
+      'insert into public.jugadores (partido_id,usuario_id,nombre) values ($1,$2,$3)',
+      [partidoId, userId, 'Jugador ocupado'],
+    );
+    return partidoId;
+  };
+
+  // El horario pedido 21:00 se superpone con [20:00,22:00); se descarta y la
+  // misma transacción elige 22:00, permitido por el rango semiabierto.
+  {
+    const seeded = await seedReadyRooms();
+    await seedRealMatchAt20(seeded.localDate);
+    const materialized = await finalize(USERS[0].id, seeded.proposalIds[0], { hora: '21:00' });
+    ok(Boolean(materialized.partido_id), 'un conflicto inicial busca otra hora en vez de cancelar');
+    eq(
+      await val(admin, 'select hora from public.partidos where id=$1', [materialized.partido_id]),
+      '22:00',
+      '20:00–22:00 permite el nuevo partido exactamente a las 22:00',
+    );
+    eq(
+      await val(admin, 'select status from public.auto_match_proposals where id=$1', [seeded.proposalIds[0]]),
+      'created',
+      'la propuesta se materializa sólo después de hallar horario compatible',
+    );
+    eq(await notifCount('auto_match_cancelled'), 0, 'no hay push de cancelación por agenda');
+  }
+
+  // La ventana termina a las 22:00: con la regla vigente de al menos 60 min
+  // restantes, el último comienzo posible es 21:00 y todos se superponen.
+  {
+    const seeded = await seedReadyRooms({ end: '22:00' });
+    await seedRealMatchAt20(seeded.localDate);
+    await expectError(
+      finalize(USERS[0].id, seeded.proposalIds[0], { hora: '21:00' }),
+      /no_compatible_final_time/,
+      'sin alternativa no se crea un partido',
+    );
+    eq(await num(admin, 'select count(*) from public.partidos'), 1,
+      'permanece solamente el partido real preexistente');
+    eq(
+      await val(admin, 'select status from public.auto_match_proposals where id=$1', [seeded.proposalIds[0]]),
+      'ready',
+      'sin horario compatible la gestación permanece ready',
+    );
+    eq(
+      await num(admin, "select count(*) from public.auto_match_proposal_members where proposal_id=$1 and response='accepted'", [seeded.proposalIds[0]]),
+      10,
+      'sin horario compatible conserva todas las membresías accepted',
+    );
+  }
+
+  // Dos salas listas con los mismos jugadores intentan 20:00 a la vez. Los
+  // locks por jugador serializan la elección: una queda 20:00 y la otra 22:00.
+  {
+    const seeded = await seedReadyRooms({ rooms: 2 });
+    const call = (client, proposalId) => one(
+      client,
+      `select * from public.finalize_auto_match_proposal(
+         $1,'Partido concurrente',null,'20:00','Masculino',8000,
+         'Cancha Test','place-test','Calle Test',-34.6,-58.4)`,
+      [proposalId],
+    );
+    const clientA = await connect(USERS[0].id);
+    const clientB = await connect(USERS[0].id);
+    const [first, second] = await Promise.allSettled([
+      call(clientA, seeded.proposalIds[0]),
+      call(clientB, seeded.proposalIds[1]),
+    ]);
+    ok(first.status === 'fulfilled' && second.status === 'fulfilled',
+      'dos materializaciones simultáneas terminan sin error ni deadlock',
+      `${first.reason?.message || ''} ${second.reason?.message || ''}`);
+    const hours = (await admin.query('select hora from public.partidos order by fecha,hora,id')).rows.map((row) => row.hora);
+    eq(JSON.stringify(hours), JSON.stringify(['20:00', '22:00']),
+      'la segunda materialización recalcula y elige el siguiente horario compatible');
+    eq(
+      await num(
+        admin,
+        `select count(*)
+         from public.partidos a
+         join public.partidos b on a.id < b.id
+         where public.auto_match_play_range(public.partido_kickoff_at(a.fecha,a.hora),a.modalidad)
+               && public.auto_match_play_range(public.partido_kickoff_at(b.fecha,b.hora),b.modalidad)`,
+      ),
+      0,
+      'dos materializaciones simultáneas no producen partidos reales superpuestos',
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1960,7 +2107,7 @@ async function scenarioStrictLocationAndAccountEligibility() {
   eq((await activeMembers(mixedRoom.id)).length, 4, 'la sala cuenta únicamente a los cuatro válidos');
   eq(await notifCount('auto_match_gestating', USERS[4].id), 0, 'la incompleta no es invitada ni notificada');
 
-  // Regresión #621: pertenecer a un partido real superpuesto sigue bloqueando.
+  // Regresión #621: un partido real no bloquea la creación de una gestación.
   await resetData();
   for (const user of USERS.slice(0, 4)) await seedAvailability(user.id, { days: COHORT_DAYS });
   const overlapDate = await val(
@@ -1984,7 +2131,7 @@ async function scenarioStrictLocationAndAccountEligibility() {
     );
   }
   await val(admin, 'select public.auto_match_scheduled_sweep()');
-  eq((await activeRooms('F5')).length, 0, 'los usuarios del partido #621 siguen bloqueados por superposición');
+  eq((await activeRooms('F5')).length, 1, 'los usuarios del partido #621 siguen disponibles para gestar');
 }
 
 // ---------------------------------------------------------------------------
@@ -2322,6 +2469,7 @@ async function main() {
   await scenarioConcreteScheduleOverlapAndIdempotency();
   await scenarioProposalFiveDeterministicReconciliation();
   await scenarioCrossedProposalConcurrency();
+  await scenarioFinalMaterializationSchedule();
   await scenarioSubstitutes();
   await scenarioRosterCap();
   await scenarioPromotion();

@@ -34,13 +34,6 @@ export { AUTH_REQUIRED_MESSAGE, PERMISSION_DENIED_MESSAGE } from './dbErrors';
 
 export const getAutoMatchProposalResponseError = (error) => {
   const message = String(error?.message || '');
-  if (/proposal_schedule_conflict/.test(message)) {
-    return {
-      code: 'schedule_conflict',
-      message: 'Ya confirmaste otro partido que se superpone con este horario.',
-      refreshSource: 'proposal_schedule_conflict',
-    };
-  }
   if (/proposal_member_expired/.test(message)) {
     return {
       code: 'invite_expired',

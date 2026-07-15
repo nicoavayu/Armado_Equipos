@@ -93,6 +93,8 @@ export default function AutoMatchOrganizeSheet({ proposal, onClose, onFinalized 
         setError('Esta propuesta ya no está esperando organización.');
       } else if (/time_out_of_range|invalid_time/.test(message)) {
         setError('La hora tiene que quedar cerca del horario acordado con los jugadores.');
+      } else if (/no_compatible_final_time/.test(message)) {
+        setError('Todavía no hay un horario compatible para todos. La gestación sigue activa para intentarlo más adelante.');
       } else if (/invalid_price/.test(message)) {
         setError('El precio no es válido.');
       } else {

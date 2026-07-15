@@ -15,11 +15,9 @@ describe('auto-match response and real-overlap migration', () => {
     expect(sql).not.toMatch(/proposed_starts_at \+ interval '150 minutes'/i);
   });
 
-  test('makes retries idempotent and schedule conflicts explicit', () => {
+  test('makes retries idempotent without treating gestations as reservations', () => {
     expect(sql).toMatch(/pg_advisory_xact_lock\(hashtext\('auto_match_response:' \|\| auth\.uid\(\)::text\)\)/i);
     expect(sql).toMatch(/p_response = 'accepted' and v_member\.response = 'accepted'/i);
-    expect(sql).toMatch(/raise exception 'proposal_schedule_conflict'/i);
-    expect(sql).toMatch(/response_reason = 'schedule_conflict'/i);
   });
 
   test('stores typed immutable snapshots and keeps the source FK non-destructive', () => {

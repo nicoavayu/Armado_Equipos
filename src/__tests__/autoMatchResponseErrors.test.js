@@ -10,7 +10,6 @@ jest.mock('../lib/supabaseClient', () => ({
 
 describe('auto-match proposal response errors', () => {
   test.each([
-    ['proposal_schedule_conflict', 'schedule_conflict', 'superpone'],
     ['proposal_member_expired', 'invite_expired', 'venció'],
     ['proposal_not_open', 'proposal_closed', 'no está disponible'],
     ['proposal_full', 'proposal_full', 'cupo'],
@@ -21,6 +20,10 @@ describe('auto-match proposal response errors', () => {
     expect(mapped).toEqual(expect.objectContaining({ code }));
     expect(mapped.message).toContain(visibleCopy);
     expect(mapped.message).not.toContain(technical);
+  });
+
+  test('does not expose a gestation schedule-conflict state anymore', () => {
+    expect(getAutoMatchProposalResponseError({ message: 'proposal_schedule_conflict' })).toBeNull();
   });
 
   test.each([
