@@ -191,6 +191,7 @@ describe('ProfileEditor automatic geolocation flow', () => {
     const localityControl = screen.getByRole('textbox', { name: 'Localidad detectada automáticamente' });
     expect(localityControl.tagName).toBe('DIV');
     expect(localityControl).toHaveAttribute('aria-readonly', 'true');
+    expect(localityControl).toHaveClass('!rounded-xl');
     expect(localityControl).not.toHaveAttribute('contenteditable');
     fireEvent.click(localityControl);
     expect(mockGetCurrentPosition).not.toHaveBeenCalled();
@@ -231,19 +232,36 @@ describe('ProfileEditor automatic geolocation flow', () => {
     ));
   });
 
-  test('permiso rechazado muestra un mensaje entendible y permite reintentar', async () => {
+  test('permiso web bloqueado explica cómo habilitar el dominio y permite reintentar', async () => {
     setProfile(makeProfile());
     mockGetCurrentPosition.mockRejectedValue(Object.assign(new Error('User denied Geolocation'), {
       code: 'PERMISSION_DENIED',
       rawCode: 'OS-PLUG-GLOC-0003',
-      source: 'capacitor.getCurrentPosition',
+      source: 'web.navigator',
+      permissionAfter: 'denied',
     }));
 
     renderProfileEditor();
 
-    expect((await screen.findAllByText('Necesitamos acceso a tu ubicación. Permitilo para continuar.')).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText(/La ubicación está bloqueada para .* en este perfil del navegador/)).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/controles del sitio.*Ubicación.*“Permitir”/i).length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: 'Volver a intentar' })).toBeInTheDocument();
     expect(screen.queryByText(/User denied|OS-PLUG|TypeError|Failed to fetch|Capacitor/i)).not.toBeInTheDocument();
+  });
+
+  test('permiso web concedido deriva el bloqueo a ajustes del sistema', async () => {
+    setProfile(makeProfile());
+    mockGetCurrentPosition.mockRejectedValue(Object.assign(new Error('permission denied by operating system'), {
+      code: 'PERMISSION_DENIED',
+      source: 'web.navigator',
+      permissionAfter: 'granted',
+    }));
+
+    renderProfileEditor();
+
+    expect((await screen.findAllByText(/tiene permiso, pero el navegador o el sistema operativo bloqueó la ubicación/)).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Habilitá Ubicación para este navegador en los ajustes del sistema/).length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: 'Volver a intentar' })).toBeInTheDocument();
   });
 
   test('permiso bloqueado en mobile ofrece Abrir ajustes', async () => {
@@ -297,7 +315,7 @@ describe('ProfileEditor automatic geolocation flow', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Actualizar ubicación' }));
 
-    expect((await screen.findAllByText('No pudimos actualizar tu ubicación. Conservamos la anterior.')).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText(/El navegador no pudo obtener tu ubicación.*Conservamos la ubicación anterior/)).length).toBeGreaterThan(0);
     expect(mockUpdateProfile).not.toHaveBeenCalled();
     expect(card).toHaveAttribute('data-latitude', '-34.6037347');
     expect(card).toHaveAttribute('data-longitude', '-58.3815704');

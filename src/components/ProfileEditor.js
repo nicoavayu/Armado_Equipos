@@ -38,9 +38,26 @@ const LOCATION_PERMISSION_BLOCKED_MESSAGE = 'Necesitamos acceso a tu ubicación.
 const LOCATION_PERMISSION_BLOCKED_WITH_SAVED_MESSAGE = 'No pudimos acceder a tu ubicación. Conservamos la anterior.';
 const LOCATION_SERVICES_DISABLED_MESSAGE = 'La ubicación del dispositivo está desactivada. Activala desde Ajustes y volvé a intentar.';
 const LOCATION_SERVICES_DISABLED_WITH_SAVED_MESSAGE = 'La ubicación del dispositivo está desactivada. Conservamos la anterior.';
+const WEB_LOCATION_TIMEOUT_MESSAGE = 'La ubicación tardó demasiado en responder. Revisá la señal y volvé a intentar.';
+const WEB_LOCATION_UNAVAILABLE_MESSAGE = 'El navegador no pudo obtener tu ubicación. Verificá que la ubicación del sistema esté habilitada y volvé a intentar.';
 const normalizeLocationToken = (value) => String(value || '').trim().toLowerCase();
 
-const getLocationFailureMessage = (error, hasSavedCoordinates = false) => {
+const getWebLocationPermissionMessage = (error, hasSavedCoordinates) => {
+  const hostname = typeof window !== 'undefined' && window.location?.hostname
+    ? window.location.hostname
+    : 'arma2.vercel.app';
+  const permissionState = String(
+    error?.permissionAfter || error?.permissionState || error?.permissionBefore || 'unknown',
+  ).toLowerCase();
+
+  if (permissionState === 'granted') {
+    return `El sitio ${hostname} tiene permiso, pero el navegador o el sistema operativo bloqueó la ubicación. Habilitá Ubicación para este navegador en los ajustes del sistema y volvé a intentar.${hasSavedCoordinates ? ' Conservamos la ubicación anterior.' : ''}`;
+  }
+
+  return `La ubicación está bloqueada para ${hostname} en este perfil del navegador. Abrí los controles del sitio, cambiá Ubicación a “Permitir” y volvé a intentar.${hasSavedCoordinates ? ' Conservamos la ubicación anterior.' : ''}`;
+};
+
+const getLocationFailureMessage = (error, hasSavedCoordinates = false, { isNative = false } = {}) => {
 
   if (isLocationServicesDisabledError(error)) {
     return hasSavedCoordinates
@@ -49,9 +66,22 @@ const getLocationFailureMessage = (error, hasSavedCoordinates = false) => {
   }
 
   if (isPermissionDeniedError(error)) {
+    if (!isNative) return getWebLocationPermissionMessage(error, hasSavedCoordinates);
     return hasSavedCoordinates
       ? LOCATION_PERMISSION_BLOCKED_WITH_SAVED_MESSAGE
       : LOCATION_PERMISSION_BLOCKED_MESSAGE;
+  }
+
+  if (!isNative && error?.code === 'TIMEOUT') {
+    return hasSavedCoordinates
+      ? `${WEB_LOCATION_TIMEOUT_MESSAGE} Conservamos la ubicación anterior.`
+      : WEB_LOCATION_TIMEOUT_MESSAGE;
+  }
+
+  if (!isNative && ['POSITION_UNAVAILABLE', 'UNAVAILABLE'].includes(error?.code)) {
+    return hasSavedCoordinates
+      ? `${WEB_LOCATION_UNAVAILABLE_MESSAGE} Conservamos la ubicación anterior.`
+      : WEB_LOCATION_UNAVAILABLE_MESSAGE;
   }
 
   return hasSavedCoordinates
@@ -94,7 +124,7 @@ const AutomaticLocationField = ({
         <div
           aria-label="Localidad detectada automáticamente"
           aria-readonly="true"
-          className={`${singleLineFieldClass} flex flex-1 min-w-0 items-center text-[16px] ${value ? '' : '!text-white/45'}`}
+          className={`${singleLineFieldClass} !rounded-xl flex flex-1 min-w-0 items-center text-[16px] ${value ? '' : '!text-white/45'}`}
           role="textbox"
         >
           <span className="truncate">{displayValue}</span>
@@ -904,7 +934,10 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
       }
     } catch (error) {
       logLocationErrorOnce(error);
-      const failureMessage = getLocationFailureMessage(error, hadValidCoordinates);
+      const platformInfo = getLocationPlatformInfo();
+      const failureMessage = getLocationFailureMessage(error, hadValidCoordinates, {
+        isNative: platformInfo.isNative,
+      });
       setLocationFallbackMessage(failureMessage);
       logLocationDebug('location_update_failed', {
         ...getLocationPlatformInfo(),

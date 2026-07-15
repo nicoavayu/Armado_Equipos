@@ -343,6 +343,8 @@ export const getLocationPlatformInfo = () => ({
   hasCapacitorGeolocation: Boolean(CapacitorGeolocation?.getCurrentPosition),
   hasWebGeolocation: typeof navigator !== 'undefined' && Boolean(navigator.geolocation),
   hasWebPermissionsApi: typeof navigator !== 'undefined' && Boolean(navigator.permissions?.query),
+  isSecureContext: typeof window !== 'undefined' ? window.isSecureContext === true : null,
+  origin: typeof window !== 'undefined' ? window.location?.origin || null : null,
 });
 
 const toLocationResult = (position, source) => {
@@ -405,6 +407,7 @@ const getWebPosition = async (options) => {
       permissionBefore,
       permissionState: permissionBefore === 'denied' ? 'denied' : null,
     });
+    const permissionAfter = await getWebPermissionState();
     logLocationDebug('position_success', {
       platform: getDetectedPlatform(),
       method: 'web navigator',
@@ -419,18 +422,26 @@ const getWebPosition = async (options) => {
       lng: position.lng,
       accuracy_m: position.accuracy_m,
       timestamp: position.timestamp,
+      permissionBefore,
+      permissionAfter,
     });
     return {
       ...position,
       platform: getDetectedPlatform(),
-      permissionState: permissionBefore,
+      permissionState: permissionAfter === 'unknown' ? permissionBefore : permissionAfter,
+      permissionBefore,
+      permissionAfter,
     };
   } catch (error) {
+    const permissionAfter = await getWebPermissionState();
     throw normalizeLocationError(error, {
       platform: getDetectedPlatform(),
       source: 'web.navigator',
       permissionBefore,
-      permissionState: error?.permissionState || (permissionBefore === 'denied' ? 'denied' : null),
+      permissionAfter,
+      permissionState: permissionAfter === 'unknown'
+        ? (error?.permissionState || (permissionBefore === 'denied' ? 'denied' : null))
+        : permissionAfter,
     });
   }
 };
