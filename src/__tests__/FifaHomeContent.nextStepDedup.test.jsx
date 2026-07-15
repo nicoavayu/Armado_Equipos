@@ -7,6 +7,7 @@ const mockUseAuth = jest.fn();
 const mockUseNotifications = jest.fn();
 const mockSupabaseFrom = jest.fn();
 const mockListMyTeamMatches = jest.fn(async () => []);
+const mockQuickAccessItems = jest.fn();
 
 jest.mock('react-router-dom', () => {
   const actual = jest.requireActual('react-router-dom');
@@ -72,7 +73,8 @@ jest.mock('../components/HomeWelcomeCard', () => function MockHomeWelcomeCard() 
   return <div data-testid="home-welcome-card" />;
 });
 
-jest.mock('../components/QuickAccessRail', () => function MockQuickAccessRail() {
+jest.mock('../components/QuickAccessRail', () => function MockQuickAccessRail({ items }) {
+  mockQuickAccessItems(items);
   return <div data-testid="quick-access-rail" />;
 });
 
@@ -140,6 +142,7 @@ describe('FifaHomeContent next-step card vs recent activity dedup', () => {
     window.localStorage.clear();
     window.sessionStorage.clear();
     mockNavigate.mockClear();
+    mockQuickAccessItems.mockClear();
     buildActivityFeed.mockReset();
     mockSupabaseFrom.mockReset();
     mockSupabaseFrom.mockImplementation(() => ({
@@ -155,6 +158,27 @@ describe('FifaHomeContent next-step card vs recent activity dedup', () => {
       notifications: [],
       markAsRead: jest.fn(),
     });
+  });
+
+  test('keeps Partido nuevo centred with Mis partidos right and Partido automático left', async () => {
+    buildActivityFeed.mockResolvedValue([]);
+
+    render(
+      <MemoryRouter>
+        <FifaHomeContent />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText('Sin notificaciones');
+
+    const titles = mockQuickAccessItems.mock.calls.at(-1)[0].map((item) => item.title);
+    expect(titles).toEqual([
+      'Partido nuevo',
+      'Mis partidos',
+      'Frecuentes',
+      'Estadísticas',
+      'Partido automático',
+    ]);
   });
 
   test('the promoted item shows only in the card; other events of the match stay in activity', async () => {

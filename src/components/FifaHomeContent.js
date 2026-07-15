@@ -1017,14 +1017,6 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
       showPlus: true,
     },
     {
-      key: 'partido-automatico',
-      to: '/quiero-jugar?auto=1',
-      prefetch: '/quiero-jugar',
-      icon: <CalendarClock />,
-      title: 'Partido automático',
-      subtitle: 'Decidí cuando jugar',
-    },
-    {
       key: 'mis-partidos',
       onClick: () => user && setShowProximosPartidos(true),
       icon: <CalendarDays />,
@@ -1047,6 +1039,14 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
       icon: <BarChart3 />,
       title: 'Estadísticas',
       subtitle: 'Tu rendimiento',
+    },
+    {
+      key: 'partido-automatico',
+      to: '/quiero-jugar?auto=1',
+      prefetch: '/quiero-jugar',
+      icon: <CalendarClock />,
+      title: 'Partido automático',
+      subtitle: 'Decidí cuando jugar',
     },
   ];
 
