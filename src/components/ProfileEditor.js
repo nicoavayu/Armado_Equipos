@@ -45,7 +45,7 @@ const normalizeLocationToken = (value) => String(value || '').trim().toLowerCase
 const getWebLocationPermissionMessage = (error, hasSavedCoordinates) => {
   const hostname = typeof window !== 'undefined' && window.location?.hostname
     ? window.location.hostname
-    : 'arma2.vercel.app';
+    : 'app.arma2.com.ar';
   const permissionState = String(
     error?.permissionAfter || error?.permissionState || error?.permissionBefore || 'unknown',
   ).toLowerCase();

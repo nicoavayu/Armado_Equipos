@@ -8,10 +8,21 @@
       "has": [
         {
           "type": "host",
+          "value": "arma2.vercel.app"
+        }
+      ],
+      "destination": "https://app.arma2.com.ar/$1",
+      "permanent": true
+    },
+    {
+      "source": "/(.*)",
+      "has": [
+        {
+          "type": "host",
           "value": "arma2-nicoavayus-projects.vercel.app"
         }
       ],
-      "destination": "https://arma2.vercel.app/$1",
+      "destination": "https://app.arma2.com.ar/$1",
       "permanent": true
     }
   ],
