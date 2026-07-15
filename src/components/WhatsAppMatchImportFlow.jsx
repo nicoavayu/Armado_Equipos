@@ -278,7 +278,9 @@ export default function WhatsAppMatchImportFlow({ onCreated, onBack }) {
         ) : !draft ? (
           <section>
             <div className="mb-6 text-center">
-              <p className="font-oswald text-[10px] font-semibold uppercase tracking-[0.22em] text-[#a98cff]">Asistente de creación</p>
+              {/* Preserve the removed eyebrow's 10px/1.5 line box so the main
+                  prompt stays at the exact same vertical position. */}
+              <div aria-hidden="true" className="wa-import-eyebrow-spacer h-[15px]" />
               <h2 className="mt-1 font-bebas-real text-[clamp(34px,9.5vw,42px)] leading-[0.95] tracking-[0.035em] text-white drop-shadow-[0_8px_26px_rgba(5,2,20,0.7)]">
                 PEGÁ LA CONVERSACIÓN
               </h2>
