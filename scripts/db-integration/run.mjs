@@ -31,6 +31,7 @@ const MIGRATIONS = [
   '20260714030000_auto_match_backend_initial_sweep.sql',
   '20260714223000_auto_match_response_and_real_overlap_fix.sql',
   '20260715003000_auto_match_materialization_schedule_fix.sql',
+  '20260716120000_auto_match_real_conflict_slots_and_invite_capacity_race.sql',
 ];
 
 const PORT = 54300 + Math.floor(Math.random() * 500);
@@ -2461,6 +2462,281 @@ async function scenarioCohortDistance() {
     'el compatible fuera del radio NO es convocado a la sala');
 }
 
+// ---------------------------------------------------------------------------
+// Escenario 22 (auditoría A2): un partido real confirmado excluye únicamente a
+// las oportunidades cuyos horarios candidatos están TODOS ocupados; nunca
+// desactiva la búsqueda ni bloquea otros días/horarios. La aceptación vuelve a
+// validar y la vacante se repone por backfill.
+// ---------------------------------------------------------------------------
+const seedRealMatch = async (fecha, hora, userId) => {
+  const partidoId = await val(
+    admin,
+    `insert into public.partidos (nombre, fecha, hora, modalidad, cupo_jugadores, creado_por, estado)
+     values ('Partido real A2', $1, $2, 'F5', 10, $3, 'activo') returning id`,
+    [fecha, hora, userId],
+  );
+  await admin.query(
+    'insert into public.jugadores (partido_id, usuario_id, nombre) values ($1,$2,$3)',
+    [partidoId, userId, 'Jugador ocupado'],
+  );
+  return partidoId;
+};
+
+const futureDates = async () => {
+  const dateA = await val(admin, 'select (current_date + 3)::date');
+  const dowA = await num(admin, 'select extract(isodow from $1::date)', [dateA]);
+  const dateB = await val(admin, 'select (current_date + 4)::date');
+  const dowB = await num(admin, 'select extract(isodow from $1::date)', [dateB]);
+  return { dateA, dowA, dateB, dowB };
+};
+
+async function scenarioRealMatchConflictGating() {
+  console.log('\nEscenario 22: A2 — conflicto total con partidos reales por oportunidad');
+
+  // Caso 1: la única franja candidata (22:00) está ocupada => no se lo invita,
+  // sin push, la búsqueda sigue activa y otro día sí procede.
+  {
+    await resetData();
+    const { dateA, dowA, dowB } = await futureDates();
+    for (const user of USERS.slice(0, 5)) {
+      await seedAvailability(user.id, { days: [dowA], start: '22:00', end: '23:00' });
+    }
+    await seedRealMatch(dateA, '22:00', USERS[0].id);
+    await val(admin, 'select public.auto_match_scheduled_sweep()');
+
+    const rooms = await activeRooms('F5');
+    eq(rooms.length, 1, 'los 4 libres gestan igual (el ocupado no bloquea la sala)');
+    const roomMembers = await activeMembers(rooms[0].id);
+    eq(roomMembers.length, 4, 'la sala convoca exactamente a los 4 sin conflicto');
+    eq(roomMembers.some((row) => row.user_id === USERS[0].id), false,
+      'conflicto total => el ocupado no es invitado');
+    eq(await notifCount('auto_match_gestating', USERS[0].id), 0,
+      'el ocupado no recibe push por una oportunidad imposible');
+    eq(
+      await val(admin, "select status from public.player_availability where user_id=$1", [USERS[0].id]),
+      'active',
+      'una oportunidad incompatible no desactiva la búsqueda',
+    );
+
+    const membersBefore = await num(admin, 'select count(*) from public.auto_match_proposal_members');
+    const notifsBefore = await num(admin, 'select count(*) from public.notifications');
+    await val(admin, 'select public.auto_match_scheduled_sweep()');
+    await val(admin, 'select public.auto_match_scheduled_sweep()');
+    eq(await num(admin, 'select count(*) from public.auto_match_proposal_members'), membersBefore,
+      'sweeps repetidos no re-invitan al ocupado a la oportunidad imposible');
+    eq(await num(admin, 'select count(*) from public.notifications'), notifsBefore,
+      'sweeps repetidos no duplican notificaciones');
+
+    // Mismo usuario, otro día sin conflicto: la oportunidad sí procede.
+    for (const user of USERS.slice(5, 9)) {
+      await seedAvailability(user.id, { days: [dowB], start: '22:00', end: '23:00' });
+    }
+    await activate(USERS[0].id, { days: [dowB] });
+    const roomsAfter = await activeRooms('F5');
+    eq(roomsAfter.length, 2, 'el mismo usuario gesta normalmente otro día');
+    const roomB = roomsAfter.find((row) => String(row.id) !== String(rooms[0].id));
+    const roomBMembers = await activeMembers(roomB.id);
+    eq(roomBMembers.some((row) => row.user_id === USERS[0].id), true,
+      'sigue elegible para oportunidades con horario libre');
+  }
+
+  // Caso 2: partido real a las 20:00 pero candidato libre a las 22:00 =>
+  // la oportunidad se permite (la materialización elegirá la alternativa).
+  {
+    await resetData();
+    const { dateA, dowA } = await futureDates();
+    for (const user of USERS.slice(0, 5)) {
+      await seedAvailability(user.id, { days: [dowA], start: '20:00', end: '23:59' });
+    }
+    await seedRealMatch(dateA, '20:00', USERS[0].id);
+    await val(admin, 'select public.auto_match_scheduled_sweep()');
+
+    const rooms = await activeRooms('F5');
+    eq(rooms.length, 1, 'con alternativa horaria la gestación procede');
+    const roomMembers = await activeMembers(rooms[0].id);
+    eq(roomMembers.length, 5, 'participan los 5 (incluido el del partido 20:00)');
+    eq(roomMembers.some((row) => row.user_id === USERS[0].id), true,
+      'partido real 20:00 + candidato libre 22:00 => sigue permitido');
+  }
+
+  // Caso 3: partido creado DESPUÉS de la invitación y ANTES de aceptar. La
+  // aceptación revalida, expira con motivo terminal y el backfill repone.
+  {
+    await resetData();
+    const { dateA, dowA } = await futureDates();
+    for (const user of USERS.slice(0, 16)) {
+      await seedAvailability(user.id, { days: [dowA], start: '20:00', end: '22:00' });
+    }
+    await val(admin, 'select public.auto_match_scheduled_sweep()');
+    const rooms = await activeRooms('F5');
+    eq(rooms.length, 1, 'una sola sala F5 con 16 compatibles');
+    const room = rooms[0];
+    const invited = await activeMembers(room.id);
+    eq(invited.length, 15, 'convocatoria completa (15) deja un compatible afuera');
+    const pendingUser = invited.find((row) => row.response === 'pending').user_id;
+    const outsider = USERS.slice(0, 16)
+      .map((user) => user.id)
+      .find((uid) => !invited.some((row) => row.user_id === uid));
+
+    // La ventana 20:00–22:00 sólo admite candidatos 20:00–21:00; el partido
+    // real [20:00,22:00) los ocupa todos.
+    await seedRealMatch(dateA, '20:00', pendingUser);
+
+    const outcome = await respond(pendingUser, room.id, 'accepted');
+    eq(outcome.response, 'expired', 'la aceptación tardía no lo confirma');
+    eq(outcome.response_reason, 'schedule_conflict', 'motivo terminal: schedule_conflict');
+
+    const after = await activeMembers(room.id);
+    eq(after.length, 15, 'el backfill repone el lugar en la misma transacción');
+    eq(after.some((row) => row.user_id === pendingUser), false,
+      'el conflictuado no conserva el lugar');
+    eq(after.some((row) => row.user_id === outsider), true,
+      'el compatible que había quedado afuera entra por backfill');
+    eq(await notifCount('auto_match_gestating', outsider), 1,
+      'el reemplazo recibe un único push');
+    await expectError(
+      (await asUser(pendingUser)).query(
+        'select * from public.respond_to_auto_match_proposal($1,$2,$3)',
+        [room.id, 'accepted', false],
+      ),
+      /proposal_member_expired/,
+      'el estado es terminal: el reintento no lo deja pendiente',
+    );
+
+    const membersBefore = await num(admin, 'select count(*) from public.auto_match_proposal_members');
+    const notifsBefore = await num(admin, 'select count(*) from public.notifications');
+    await val(admin, 'select public.auto_match_scheduled_sweep()');
+    await val(admin, 'select public.auto_match_scheduled_sweep()');
+    eq(await num(admin, 'select count(*) from public.auto_match_proposal_members'), membersBefore,
+      'los sweeps posteriores no re-invitan al expirado por agenda');
+    eq(await num(admin, 'select count(*) from public.notifications'), notifsBefore,
+      'los sweeps posteriores no duplican pushes');
+    eq(
+      await val(admin, 'select response from public.auto_match_proposal_members where proposal_id=$1 and user_id=$2', [room.id, pendingUser]),
+      'expired',
+      'el expirado por agenda permanece terminal tras los sweeps',
+    );
+  }
+
+  // Caso 4: borde de medianoche. Ventana 22:30–23:59 => candidatos 22:30 y
+  // 22:45 del MISMO día local; un partido 22:00 los cubre a ambos, uno 20:00 no.
+  {
+    await resetData();
+    const { dateA, dowA } = await futureDates();
+    for (const user of USERS.slice(0, 6)) {
+      await seedAvailability(user.id, { days: [dowA], start: '22:30', end: '23:59' });
+    }
+    await seedRealMatch(dateA, '22:00', USERS[0].id);
+    await seedRealMatch(dateA, '20:00', USERS[1].id);
+    await val(admin, 'select public.auto_match_scheduled_sweep()');
+
+    const rooms = await activeRooms('F5');
+    eq(rooms.length, 1, 'cerca de medianoche la sala se crea igual');
+    const roomMembers = await activeMembers(rooms[0].id);
+    eq(roomMembers.length, 5, 'cinco compatibles: el bloqueado a las 22:00 queda fuera');
+    eq(roomMembers.some((row) => row.user_id === USERS[0].id), false,
+      'sin candidato libre antes de medianoche queda excluido');
+    eq(roomMembers.some((row) => row.user_id === USERS[1].id), true,
+      'el partido 20:00 no bloquea el candidato de las 22:30');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Escenario 23 (auditoría A3): dos incorporaciones concurrentes al último lugar
+// de convocatoria nunca dejan capacity + 1 pendientes. Concurrencia real con
+// una conexión por usuario; el re-conteo post-lock de la Fase A es el guard.
+// ---------------------------------------------------------------------------
+async function scenarioInviteCapacityRace() {
+  console.log('\nEscenario 23: A3 — carrera por el último lugar de convocatoria');
+
+  const seedNearFullRoom = async () => {
+    await resetData();
+    const { dateA, dowA } = await futureDates();
+    const slot = await val(
+      admin,
+      "select ($1::date + time '20:00') at time zone 'America/Argentina/Buenos_Aires'",
+      [dateA],
+    );
+    const avail = {};
+    for (const user of USERS.slice(0, 16)) {
+      avail[user.id] = await seedAvailability(user.id, { days: [dowA], start: '20:00', end: '23:00' });
+    }
+    const pid = await val(
+      admin,
+      `insert into public.auto_match_proposals
+         (format, proposed_starts_at, max_players, status, expires_at, gestation_started_at, gestation_threshold)
+       values ('F5', $1, 10, 'collecting', $1::timestamptz - interval '30 minutes', now(), 4) returning id`,
+      [slot],
+    );
+    for (let i = 0; i < 14; i += 1) {
+      const response = i === 0 ? 'accepted' : 'pending';
+      await admin.query(
+        `insert into public.auto_match_proposal_members
+           (proposal_id, availability_id, user_id, response, responded_at, confirmed_at, invite_expires_at)
+         values ($1,$2,$3,$4,
+                 case when $4='accepted' then now() else null end,
+                 case when $4='accepted' then now() else null end,
+                 case when $4='pending' then now() + interval '8 hours' else null end)`,
+        [pid, avail[USERS[i].id], USERS[i].id, response],
+      );
+    }
+    return { pid };
+  };
+
+  // Varias rondas para darle chances reales a la carrera del snapshot viejo.
+  const ROUNDS = 6;
+  let lastPid = null;
+  for (let round = 1; round <= ROUNDS; round += 1) {
+    const { pid } = await seedNearFullRoom();
+    lastPid = pid;
+    const [r1, r2] = await Promise.allSettled([sync(USERS[14].id), sync(USERS[15].id)]);
+    ok(
+      r1.status === 'fulfilled' && r2.status === 'fulfilled',
+      `ronda ${round}: dos syncs concurrentes terminan sin error ni deadlock`,
+      `${r1.reason?.message || ''} ${r2.reason?.message || ''}`,
+    );
+    const active = await activeMembers(pid);
+    eq(active.length, 15, `ronda ${round}: la convocatoria nunca supera 15 (capacity F5)`);
+    const racers = active.filter((row) => [USERS[14].id, USERS[15].id].includes(row.user_id));
+    eq(racers.length, 1, `ronda ${round}: exactamente uno de los dos toma el último lugar`);
+    const winner = racers[0].user_id;
+    const loser = winner === USERS[14].id ? USERS[15].id : USERS[14].id;
+    eq(await notifCount('auto_match_gestating', winner), 1, `ronda ${round}: sólo el ganador recibe push`);
+    eq(await notifCount('auto_match_gestating', loser), 0, `ronda ${round}: el perdedor no recibe push`);
+  }
+
+  // Reintentos y sweeps sobre el estado final: idempotentes, sin duplicados.
+  const membersBefore = await num(admin, 'select count(*) from public.auto_match_proposal_members');
+  const notifsBefore = await num(admin, 'select count(*) from public.notifications');
+  await Promise.allSettled([sync(USERS[14].id), sync(USERS[15].id)]);
+  await val(admin, 'select public.auto_match_scheduled_sweep()');
+  await val(admin, 'select public.auto_match_scheduled_sweep()');
+  eq(await num(admin, 'select count(*) from public.auto_match_proposal_members'), membersBefore,
+    'reintentos y sweeps repetidos no agregan miembros');
+  eq(await num(admin, 'select count(*) from public.notifications'), notifsBefore,
+    'reintentos y sweeps repetidos no duplican pushes');
+  eq((await activeMembers(lastPid)).length, 15, 'la sala queda estable en 15 convocados');
+
+  // El cupo de titulares (10 confirmados) sigue protegido con la sala llena.
+  const pendings = (await activeMembers(lastPid))
+    .filter((row) => row.response === 'pending')
+    .map((row) => row.user_id);
+  for (const uid of pendings) await respond(uid, lastPid, 'accepted');
+  eq(
+    await num(admin, "select count(*) from public.auto_match_proposal_members where proposal_id=$1 and response='accepted'", [lastPid]),
+    15,
+    'los 15 convocados pueden confirmar (sobreconvocatoria intacta)',
+  );
+  const seatRows = (await (await asUser(USERS[0].id)).query(
+    "select seat, count(*)::int as n from public.get_auto_match_proposal_members($1) where response='accepted' group by seat",
+    [lastPid],
+  )).rows;
+  eq(Number(seatRows.find((row) => row.seat === 'titular')?.n || 0), 10,
+    'nunca hay más de 10 titulares');
+  eq(Number(seatRows.find((row) => row.seat === 'suplente')?.n || 0), 5,
+    'los excedentes quedan suplentes');
+}
+
 async function main() {
   console.log(`Iniciando Postgres embebido en :${PORT} (${DATA_DIR})`);
   await postgres.initialise();
@@ -2527,6 +2803,8 @@ async function main() {
   await scenarioCohortReplacements();
   await scenarioCohortVariants();
   await scenarioCohortDistance();
+  await scenarioRealMatchConflictGating();
+  await scenarioInviteCapacityRace();
 
   console.log(`\n${checks} chequeos, ${failures} fallas`);
   if (failures > 0) process.exitCode = 1;
