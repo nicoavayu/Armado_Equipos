@@ -271,6 +271,7 @@ test('the private route is available but never linked from the public page', asy
     response.headers.get('x-middleware-rewrite'),
     `${TEST_ORIGIN}/private-web-access.html`,
   );
+  assert.equal(response.headers.get('referrer-policy'), 'same-origin');
 
   const publicHtml = await readFile(path.join(repoRoot, 'public/mobile-only.html'), 'utf8');
   assert.doesNotMatch(publicHtml, /acceso-web|private-web-access|login|registro/i);
