@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="es" data-page="private-web-access">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0c0a1d" />
+    <meta name="robots" content="noindex,nofollow,noarchive" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/32x32.png" />
+    <link rel="stylesheet" href="/web-access.css" />
+    <title>Acceso web — Arma2</title>
+  </head>
+  <body class="gate-page gate-page--access">
+    <div class="gate-atmosphere" aria-hidden="true">
+      <span class="gate-orbit gate-orbit--one"></span>
+      <span class="gate-orbit gate-orbit--two"></span>
+      <span class="gate-field-lines"></span>
+    </div>
+
+    <main class="gate-shell gate-shell--access">
+      <section class="gate-card gate-card--access" aria-labelledby="private-access-title">
+        <div class="gate-brand gate-brand--compact" aria-label="Arma2">
+          <img src="/logo_arma2.png" alt="Arma2" class="gate-logo" width="601" height="418" />
+        </div>
+
+        <div class="gate-copy gate-copy--access">
+          <p class="gate-kicker">ACCESO WEB</p>
+          <h1 id="private-access-title">Ingresá tu contraseña</h1>
+        </div>
+
+        <p class="gate-form-error" id="access-error" role="alert" aria-live="polite" hidden>
+          No pudimos habilitar el acceso. Intentá nuevamente.
+        </p>
+
+        <form class="gate-form" action="/api/private-web-access" method="post">
+          <input type="hidden" name="returnTo" id="return-to" value="/login" />
+          <label for="private-password">Contraseña</label>
+          <input
+            id="private-password"
+            name="password"
+            type="password"
+            maxlength="256"
+            autocomplete="current-password"
+            required
+          />
+          <button type="submit">Continuar</button>
+        </form>
+      </section>
+    </main>
+
+    <script src="/web-access.js" defer></script>
+  </body>
+</html>

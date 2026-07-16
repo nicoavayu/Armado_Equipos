@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "REACT_APP_SENTRY_RELEASE=${VERCEL_GIT_COMMIT_SHA:-$REACT_APP_SENTRY_RELEASE} REACT_APP_SENTRY_ENVIRONMENT=${REACT_APP_SENTRY_ENVIRONMENT:-$VERCEL_ENV} npm run release:web:sentry",
+  "buildCommand": "npm run validate:web-access-env && REACT_APP_SENTRY_RELEASE=${VERCEL_GIT_COMMIT_SHA:-$REACT_APP_SENTRY_RELEASE} REACT_APP_SENTRY_ENVIRONMENT=${REACT_APP_SENTRY_ENVIRONMENT:-$VERCEL_ENV} npm run release:web:sentry",
   "outputDirectory": "build",
   "redirects": [
     {
@@ -33,6 +33,32 @@
     }
   ],
   "headers": [
+    {
+      "source": "/.well-known/apple-app-site-association",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/json; charset=utf-8"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=3600"
+        }
+      ]
+    },
+    {
+      "source": "/.well-known/assetlinks.json",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/json; charset=utf-8"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=3600"
+        }
+      ]
+    },
     {
       "source": "/static/(.*)",
       "headers": [

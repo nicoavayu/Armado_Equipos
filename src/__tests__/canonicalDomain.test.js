@@ -65,4 +65,30 @@ describe('canonical production domain', () => {
     expect(manifest).toContain('"start_url": "https://app.arma2.com.ar/"');
     expect(manifest).toContain('"scope": "https://app.arma2.com.ar/"');
   });
+
+  test('native platforms and association files declare only the canonical public app host', () => {
+    const root = path.resolve(__dirname, '../..');
+    const entitlements = fs.readFileSync(path.join(root, 'ios/App/App/App.entitlements'), 'utf8');
+    const androidManifest = fs.readFileSync(
+      path.join(root, 'android/app/src/main/AndroidManifest.xml'),
+      'utf8',
+    );
+    const appleAssociation = JSON.parse(fs.readFileSync(
+      path.join(root, 'public/.well-known/apple-app-site-association'),
+      'utf8',
+    ));
+    const androidAssociation = JSON.parse(fs.readFileSync(
+      path.join(root, 'public/.well-known/assetlinks.json'),
+      'utf8',
+    ));
+
+    expect(entitlements).toContain('applinks:app.arma2.com.ar');
+    expect(entitlements).not.toContain('applinks:arma2.vercel.app');
+    expect(androidManifest).toContain('android:host="app.arma2.com.ar"');
+    expect(androidManifest).not.toContain('android:host="arma2.vercel.app"');
+    expect(appleAssociation.applinks.details[0].appIDs).toContain(
+      '878YHWVKB2.com.teambalancer.app',
+    );
+    expect(androidAssociation[0].target.package_name).toBe('com.teambalancer.app');
+  });
 });

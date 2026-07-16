@@ -2,6 +2,7 @@ import logger from '../utils/logger';
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import { useNavigate } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
 import { useAuth } from './AuthProvider';
 import { updateProfile, calculateProfileCompletion, supabase } from '../supabase';
 import { friendlyError } from '../utils/friendlyError';
@@ -30,6 +31,7 @@ import {
   getLogoutErrorMessage,
   signOutWithPushDeactivation,
 } from '../services/authLogoutService';
+import { closePrivateWebAccess } from '../utils/privateWebAccess';
 
 const GEO_LOG_PREFIX = '[PROFILE_GEO]';
 const LOCATION_DETECTION_FAILED_MESSAGE = 'No pudimos obtener tu ubicación. Volvé a intentarlo.';
@@ -178,6 +180,9 @@ const ProfileEditorForm = ({
   hasChanges,
   handleSave,
   handleLogout,
+  handleCloseWebAccess,
+  closeWebAccessLoading,
+  showCloseWebAccess,
   handleDeleteAccount,
   singleLineFieldClass,
   inlineNotice,
@@ -403,6 +408,9 @@ const ProfileEditorForm = ({
           loading={loading}
           handleSave={handleSave}
           handleLogout={handleLogout}
+          handleCloseWebAccess={handleCloseWebAccess}
+          closeWebAccessLoading={closeWebAccessLoading}
+          showCloseWebAccess={showCloseWebAccess}
           handleDeleteAccount={handleDeleteAccount}
           deleteAccountDisabled={loading || isLocalDevSession}
           bottomPaddingClass={actionButtonsBottomPaddingClass}
@@ -506,6 +514,9 @@ const ProfileActionSection = ({
   loading,
   handleSave,
   handleLogout,
+  handleCloseWebAccess,
+  closeWebAccessLoading,
+  showCloseWebAccess,
   handleDeleteAccount,
   deleteAccountDisabled,
   bottomPaddingClass = '',
@@ -532,6 +543,17 @@ const ProfileActionSection = ({
       Cerrar sesión
     </button>
 
+    {showCloseWebAccess && (
+      <button
+        type="button"
+        className="self-center mt-1 border-0 border-b border-transparent bg-transparent px-2 py-1 text-[13px] font-oswald font-medium tracking-[0.01em] text-white/55 transition-colors hover:border-white/30 hover:text-white/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8b7cff]/70 disabled:cursor-wait disabled:opacity-40"
+        onClick={handleCloseWebAccess}
+        disabled={loading || closeWebAccessLoading}
+      >
+        {closeWebAccessLoading ? 'Cerrando acceso…' : 'Cerrar acceso web'}
+      </button>
+    )}
+
     <div className="flex flex-col items-center pt-2">
       <button
         className="group inline-flex items-center justify-center text-[13px] font-oswald font-medium tracking-[0.01em] normal-case text-red-200/58 transition-all hover:text-red-100/90 disabled:opacity-35 disabled:cursor-not-allowed"
@@ -551,6 +573,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
   const { user, profile, refreshProfile, updateLocalProfile, localEditMode } = useAuth();
   const isLocalDevSession = localEditMode && user?.app_metadata?.provider === 'local-dev';
   const [loading, setLoading] = useState(false);
+  const [closeWebAccessLoading, setCloseWebAccessLoading] = useState(false);
   const [liveProfile, setLiveProfile] = useState(profile);
   const [hasChanges, setHasChanges] = useState(false);
   const [showLogoutConfirmModal, setShowLogoutConfirmModal] = useState(false);
@@ -1180,6 +1203,21 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
     setShowLogoutConfirmModal(true);
   }, [loading]);
 
+  const handleCloseWebAccess = useCallback(async () => {
+    if (loading || closeWebAccessLoading) return;
+    setCloseWebAccessLoading(true);
+    try {
+      await closePrivateWebAccess();
+      window.location.replace('/');
+    } catch (error) {
+      showInlineNotice(
+        'warning',
+        error?.message || 'No pudimos cerrar el acceso web. Intentá nuevamente.',
+      );
+      setCloseWebAccessLoading(false);
+    }
+  }, [closeWebAccessLoading, loading, showInlineNotice]);
+
   const closeLogoutConfirmModal = useCallback(() => {
     if (loading) return;
     setShowLogoutConfirmModal(false);
@@ -1449,6 +1487,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
   const singleLineFieldClass = `${inputClass} h-[50px] py-0`;
   const labelClass = 'text-white/90 text-sm font-bold mb-2 block uppercase tracking-wider';
   const formGroupClass = 'flex flex-col w-full';
+  const showCloseWebAccess = process.env.NODE_ENV === 'production' && !Capacitor.isNativePlatform();
   if (isEmbedded) {
     return (
       <div
@@ -1476,6 +1515,9 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
           hasChanges={hasChanges}
           handleSave={handleSave}
           handleLogout={handleLogout}
+          handleCloseWebAccess={handleCloseWebAccess}
+          closeWebAccessLoading={closeWebAccessLoading}
+          showCloseWebAccess={showCloseWebAccess}
           handleDeleteAccount={handleDeleteAccount}
           singleLineFieldClass={singleLineFieldClass}
           inlineNotice={inlineNotice}
@@ -1736,6 +1778,9 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
               loading={loading}
               handleSave={handleSave}
               handleLogout={handleLogout}
+              handleCloseWebAccess={handleCloseWebAccess}
+              closeWebAccessLoading={closeWebAccessLoading}
+              showCloseWebAccess={showCloseWebAccess}
               handleDeleteAccount={handleDeleteAccount}
               deleteAccountDisabled={loading || isLocalDevSession}
               bottomPaddingClass="pb-5 md:pb-0"

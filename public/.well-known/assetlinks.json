@@ -1,0 +1,15 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.teambalancer.app",
+      "sha256_cert_fingerprints": [
+        "31:E8:85:EF:FD:C9:2C:A7:F2:B2:54:57:A7:57:73:E8:C5:B2:74:29:6D:AC:97:8A:AA:00:37:CC:6E:82:7E:32",
+        "43:63:0D:2D:FC:D2:8A:DE:8E:9E:E1:D0:DA:14:15:23:F9:43:B0:F3:E1:C5:F8:2E:65:29:77:BD:C9:71:68:E4"
+      ]
+    }
+  }
+]
