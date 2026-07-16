@@ -33,7 +33,11 @@ function base64UrlToBytes(value) {
   const padded = value.replace(/-/g, '+').replace(/_/g, '/')
     + '='.repeat((4 - (value.length % 4)) % 4);
   const binary = atob(padded);
-  return Uint8Array.from(binary, (character) => character.charCodeAt(0));
+  const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+  if (bytesToBase64Url(bytes) !== value) {
+    throw new Error('Non-canonical base64url value.');
+  }
+  return bytes;
 }
 
 function isSigningSecretValid(secret) {

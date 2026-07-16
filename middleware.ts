@@ -32,6 +32,8 @@ const PUBLIC_GATE_ASSETS = new Set([
   '/16x16.png',
   '/32x32.png',
   '/robots.txt',
+  '/.well-known/apple-app-site-association',
+  '/.well-known/assetlinks.json',
 ]);
 const PUBLIC_GATE_API_PATHS = new Set([
   '/api/private-web-access',

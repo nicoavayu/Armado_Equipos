@@ -28,6 +28,7 @@ import {
   setAuthFlowResult,
 } from './utils/authFlowState';
 import { track } from './utils/monitoring/analytics';
+import { getNativeAppLinkRoute, redactUrlForLog } from './utils/nativeAppLink';
 import {
   getGoogleMapsLoaderState,
   loadGoogleMapsScript,
@@ -351,6 +352,7 @@ function NativeAuthDeepLinkBootstrap() {
 
     const handleUrl = (incomingUrl) => {
       const rawUrl = String(incomingUrl || '').trim();
+      const safeRawUrl = redactUrlForLog(rawUrl);
       const alreadyHandled = handledUrls.has(rawUrl);
       const rawUrlWithoutFragment = rawUrl.split('#')[0] || '';
       const rawUrlWithoutQuery = rawUrlWithoutFragment.split('?')[0] || '';
@@ -360,7 +362,7 @@ function NativeAuthDeepLinkBootstrap() {
         || normalizedRawCallbackUrl === 'com.teambalancer.app:///auth/callback'
       );
       logAuth('handleUrl_called', {
-        rawUrl,
+        rawUrl: safeRawUrl,
         normalizedRawCallbackUrl,
         isOauthCallback,
         alreadyHandled,
@@ -375,7 +377,7 @@ function NativeAuthDeepLinkBootstrap() {
         parsed = new URL(rawUrl);
       } catch (error) {
         warnAuth('handleUrl_parse_failed', {
-          rawUrl,
+          rawUrl: safeRawUrl,
           message: error?.message || String(error),
         });
         return;
@@ -386,49 +388,60 @@ function NativeAuthDeepLinkBootstrap() {
       const pathname = String(parsed.pathname || '');
       const search = String(parsed.search || '');
       const hash = String(parsed.hash || '');
+      const nativeAppRoute = getNativeAppLinkRoute(parsed);
 
       logAuth('handleUrl_parsed', {
-        rawUrl,
+        rawUrl: safeRawUrl,
         protocol,
         hostname,
         pathname,
-        search,
-        hash,
+        hasSearch: Boolean(search),
+        hasHash: Boolean(hash),
         normalizedRawCallbackUrl,
         alreadyHandled,
       });
 
       logAuth('handleUrl_match', {
-        rawUrl,
+        rawUrl: safeRawUrl,
         protocol,
         hostname,
         pathname,
-        search,
-        hash,
+        hasSearch: Boolean(search),
+        hasHash: Boolean(hash),
         normalizedRawCallbackUrl,
         isOauthCallback,
+        isNativeAppLink: Boolean(nativeAppRoute),
         alreadyHandled,
       });
+
+      if (nativeAppRoute) {
+        handledUrls.add(rawUrl);
+        const currentRoute = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+        if (currentRoute !== nativeAppRoute) {
+          window.setTimeout(() => window.location.replace(nativeAppRoute), 0);
+        }
+        return;
+      }
 
       if (!isOauthCallback) return;
 
       handledUrls.add(rawUrl);
       markPendingAuthCallbackReceived({ callbackUrl: rawUrl });
-      logAuth('browser_close_requested', { rawUrl });
+      logAuth('browser_close_requested', { rawUrl: safeRawUrl });
       try {
         Browser.close()
           .then(() => {
-            logAuth('browser_close_done', { rawUrl });
+            logAuth('browser_close_done', { rawUrl: safeRawUrl });
           })
           .catch((error) => {
             warnAuth('browser_close_failed', {
-              rawUrl,
+              rawUrl: safeRawUrl,
               message: error?.message || String(error),
             });
           });
       } catch (error) {
         warnAuth('browser_close_failed', {
-          rawUrl,
+          rawUrl: safeRawUrl,
           message: error?.message || String(error),
         });
       }
@@ -436,29 +449,29 @@ function NativeAuthDeepLinkBootstrap() {
       const callbackRoute = `/auth/callback${search}${hash}`;
       const currentRoute = `${window.location.pathname}${window.location.search}${window.location.hash}`;
       logAuth('callback_route', {
-        rawUrl,
+        rawUrl: safeRawUrl,
         protocol,
         hostname,
         pathname,
-        search,
-        hash,
+        hasSearch: Boolean(search),
+        hasHash: Boolean(hash),
         normalizedRawCallbackUrl,
         isOauthCallback,
-        callbackRoute,
-        currentRoute,
+        callbackRoute: redactUrlForLog(callbackRoute),
+        currentRoute: redactUrlForLog(currentRoute),
       });
 
       if (currentRoute === callbackRoute) {
         logAuth('callback_route_already_current', {
-          callbackRoute,
+          callbackRoute: redactUrlForLog(callbackRoute),
         });
         return;
       }
 
       window.setTimeout(() => {
         logAuth('callback_route_replace', {
-          callbackRoute,
-          rawUrl,
+          callbackRoute: redactUrlForLog(callbackRoute),
+          rawUrl: safeRawUrl,
         });
         window.location.replace(callbackRoute);
       }, 0);
@@ -518,7 +531,7 @@ function NativeAuthDeepLinkBootstrap() {
       try {
         logAuth('appUrlOpen_listener_ready');
         listenerHandle = await CapacitorApp.addListener('appUrlOpen', ({ url }) => {
-          logAuth('appUrlOpen_received', { url: String(url || '') });
+          logAuth('appUrlOpen_received', { url: redactUrlForLog(url) });
           if (isDisposed) return;
           handleUrl(url);
         });
@@ -531,7 +544,7 @@ function NativeAuthDeepLinkBootstrap() {
       try {
         const launch = await CapacitorApp.getLaunchUrl();
         logAuth('app_launch_url', {
-          url: launch?.url || null,
+          url: launch?.url ? redactUrlForLog(launch.url) : null,
         });
         if (!isDisposed && launch?.url) {
           handleUrl(launch.url);

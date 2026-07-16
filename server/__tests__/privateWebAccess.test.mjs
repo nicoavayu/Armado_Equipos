@@ -128,6 +128,17 @@ test('an anonymous visitor receives mobile-only HTML for root and internal SPA r
   assert.equal(staticChunk.headers.get('x-middleware-rewrite'), `${TEST_ORIGIN}/mobile-only.html`);
 });
 
+test('native association files bypass the private web gate', async () => {
+  for (const pathname of [
+    '/.well-known/apple-app-site-association',
+    '/.well-known/assetlinks.json',
+  ]) {
+    const response = await invokeGate(pathname);
+    assert.equal(response.headers.get('x-middleware-next'), '1', pathname);
+    assert.equal(response.headers.get('x-middleware-rewrite'), null, pathname);
+  }
+});
+
 test('the public voting allowlist is exact and requires the existing match-code query', async () => {
   assert.deepEqual(PUBLIC_VOTING_ROUTE_ALLOWLIST, [
     { pathname: '/votar-equipos', requiredQueryParameter: 'codigo' },
