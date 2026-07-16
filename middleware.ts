@@ -4,6 +4,12 @@ import {
   normalizePrivateWebReturnTo,
   verifyPrivateWebAccessToken,
 } from './server/privateWebAccess.mjs';
+import publicVotingRoutes from './src/config/publicVotingRoutes.cjs';
+
+const {
+  isAllowedPublicVotingRequest,
+  isLegacyPublicVotingAlias,
+} = publicVotingRoutes;
 
 const LEGACY_PRODUCTION_HOSTS = new Set([
   'arma2.vercel.app',
@@ -29,6 +35,10 @@ const PUBLIC_GATE_API_PATHS = new Set([
   '/api/private-web-access',
   '/api/private-web-logout',
 ]);
+const PUBLIC_VOTING_BUILD_ASSET_PATTERNS = [
+  /^\/static\/(?:js|css)\/(?:[A-Za-z0-9_-]+\.)?[a-f0-9]{8}(?:\.chunk)?\.(?:js|css)$/,
+  /^\/static\/media\/[A-Za-z0-9_-]+\.[a-f0-9]{8,32}\.(?:jpe?g|png|svg|webp|woff2?)$/,
+];
 
 const GATE_CONTENT_SECURITY_POLICY = [
   "default-src 'none'",
@@ -68,11 +78,36 @@ function redirectLegacyProductionHost(url) {
   });
 }
 
+function redirectLegacyPublicVotingAlias(url) {
+  if (!isLegacyPublicVotingAlias(url)) return null;
+  const destination = new URL('/votar-equipos', url.origin);
+  destination.search = url.search;
+  return new Response(null, {
+    status: 308,
+    headers: { Location: destination.toString() },
+  });
+}
+
+function isPublicVotingBuildAsset(pathname) {
+  return PUBLIC_VOTING_BUILD_ASSET_PATTERNS.some((pattern) => pattern.test(pathname));
+}
+
 export default async function privateWebGate(request) {
   const url = new URL(request.url);
   const legacyRedirect = redirectLegacyProductionHost(url);
   if (legacyRedirect) return legacyRedirect;
   if (isLocalOrCapacitorRequest(url)) return next();
+
+  const legacyVotingRedirect = redirectLegacyPublicVotingAlias(url);
+  if (legacyVotingRedirect) return legacyVotingRedirect;
+
+  const isReadRequest = request.method === 'GET' || request.method === 'HEAD';
+  if (
+    isReadRequest
+    && (isAllowedPublicVotingRequest(url) || isPublicVotingBuildAsset(url.pathname))
+  ) {
+    return next();
+  }
 
   if (PUBLIC_GATE_API_PATHS.has(url.pathname)) return next();
 

@@ -15,6 +15,7 @@ import GlobalNoticeModal from './components/GlobalNoticeModal';
 // NotificationsDebugPanel removed
 
 import MainLayout from './components/MainLayout';
+import PublicVotingRouteIsolation from './components/PublicVotingRouteIsolation';
 import { initNativePushNotifications } from './hooks/useNativeFeatures';
 import { useNotificationRedirect } from './hooks/useNotificationRedirect';
 import { useRouteScrollReset } from './hooks/useScrollReset';
@@ -94,7 +95,8 @@ export default function App() {
                 <RoutePrefetchBootstrap />
                 <ScrollToTop />
                 <RouteAnalyticsTracker />
-                <Routes>
+                <PublicVotingRouteIsolation>
+                  <Routes>
                   <Route path="/health" element={<HealthRoute />} />
                   <Route path="/terms" element={
                     <Suspense fallback={<AppLoadingScreen />}>
@@ -264,7 +266,8 @@ export default function App() {
                       } />
                     </Route>
                   </Route>
-                </Routes>
+                  </Routes>
+                </PublicVotingRouteIsolation>
                 <GlobalNoticeModal />
               </Router>
               {/* Debug panel removed */}

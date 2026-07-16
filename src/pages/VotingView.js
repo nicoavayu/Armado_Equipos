@@ -3,6 +3,7 @@ import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { friendlyError } from 'utils/friendlyError';
 // src/VotingView.js
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { Capacitor } from '@capacitor/core';
 import {
   checkIfAlreadyVoted,
   uploadFoto,
@@ -27,6 +28,8 @@ import ConfirmModal from '../components/ConfirmModal';
 import { useScrollResetContainer, useScrollResetOnChange } from '../hooks/useScrollReset';
 import Logo from '../Logo.png';
 
+const { isExactPublicVotingPath } = require('../config/publicVotingRoutes.cjs');
+
 // Styles are now handled via Tailwind CSS
 // Legacy styles: src/pages/LegacyVoting.css (for other components)
 
@@ -44,7 +47,10 @@ const SUBSTITUTE_VOTER_MESSAGE = 'Estás como suplente. Podés ser calificado po
 
 export default function VotingView({ onReset, onCancel, jugadores, partidoActual }) {
   const urlParams = new URLSearchParams(window.location.search);
-  const isPublicRoute = window.location.pathname.includes('/votar-equipos') || urlParams.has('codigo');
+  const isExactPublicRoute = isExactPublicVotingPath(window.location.pathname);
+  const isLegacyInternalVotingRoute = window.location.pathname === '/' && urlParams.has('codigo');
+  const isPublicRoute = isExactPublicRoute || isLegacyInternalVotingRoute;
+  const isWebPublicVotingRoute = isExactPublicRoute && !Capacitor.isNativePlatform();
   const isPublicVoting = isPublicRoute;
   const isGuestPlayer = (player) => {
     const userId = player?.usuario_id;
@@ -531,7 +537,9 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
       onReset();
     }
   };
-  const shouldShowReturnAction = !isPublicRoute || Boolean(authenticatedUserId);
+  const shouldShowReturnAction = isWebPublicVotingRoute
+    ? false
+    : (!isPublicRoute || Boolean(authenticatedUserId));
   const finalStateMessage = (publicAlreadyVoted || usuarioYaVoto)
     ? 'Tus votos ya fueron registrados.'
     : (
@@ -658,31 +666,6 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
       </div>
     );
   }
-
-  const openVotingLink = () => {
-    // GUARD: Use cached matchId if available, avoid re-resolution
-    if (resolvedMatchIdRef.current) {
-      window.location.href = `/?partidoId=${resolvedMatchIdRef.current}`;
-      return;
-    }
-
-    // Fallback: try URL params or partidoActual
-    const urlParams = new URLSearchParams(window.location.search);
-    const partidoIdParam = urlParams.get('partidoId');
-    const codigoParam = urlParams.get('codigo');
-
-    // Priority: use partidoId if available
-    if (partidoIdParam || partidoActual?.id) {
-      const id = partidoIdParam || partidoActual.id;
-      window.location.href = `/?partidoId=${id}`;
-    } else if (codigoParam || partidoActual?.codigo) {
-      const codigo = codigoParam || partidoActual.codigo;
-      window.location.href = `/?codigo=${codigo}`;
-    } else {
-      logger.error('[VOTING] No partidoId or codigo available');
-      showInlineNotice('warning', 'No se pudo abrir la votación.');
-    }
-  };
 
   const handleConfirmNombre = async () => {
     // Guard: Check if already locked/voted

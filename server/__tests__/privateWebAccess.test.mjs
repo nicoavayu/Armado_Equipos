@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import privateWebAccessHandler from '../../api/private-web-access.mjs';
 import privateWebLogoutHandler from '../../api/private-web-logout.mjs';
 import privateWebGate from '../../middleware.ts';
+import publicVotingRoutes from '../../src/config/publicVotingRoutes.cjs';
 import {
   PRIVATE_WEB_COOKIE_MAX_AGE_SECONDS,
   PRIVATE_WEB_COOKIE_NAME,
@@ -24,6 +25,7 @@ const OTHER_SIGNING_SECRET = 'different-test-signing-secret-with-32-characters';
 const TEST_ORIGIN = 'https://arma2-preview.example.com';
 const testDirectory = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(testDirectory, '../..');
+const { PUBLIC_VOTING_ROUTE_ALLOWLIST } = publicVotingRoutes;
 
 function createMockResponse() {
   const headers = new Map();
@@ -123,6 +125,68 @@ test('an anonymous visitor receives mobile-only HTML for root and internal SPA r
   assert.equal(staticChunk.headers.get('x-middleware-rewrite'), `${TEST_ORIGIN}/mobile-only.html`);
 });
 
+test('the public voting allowlist is exact and requires the existing match-code query', async () => {
+  assert.deepEqual(PUBLIC_VOTING_ROUTE_ALLOWLIST, [
+    { pathname: '/votar-equipos', requiredQueryParameter: 'codigo' },
+  ]);
+
+  for (const pathname of [
+    '/votar-equipos?codigo=H03G61',
+    '/votar-equipos?codigo=INVALIDO',
+    '/votar-equipos?codigo=H03G61&token=legacy-token&source=whatsapp',
+  ]) {
+    const response = await invokeGate(pathname);
+    assert.equal(response.headers.get('x-middleware-next'), '1', pathname);
+    assert.equal(response.headers.get('x-middleware-rewrite'), null, pathname);
+  }
+
+  for (const pathname of [
+    '/votar-equipos',
+    '/votar-equipos?codigo=',
+    '/votar-equipos?partidoId=321',
+    '/votar-equipos-extra?codigo=H03G61',
+    '/votar-equipos/321?codigo=H03G61',
+    '/login',
+  ]) {
+    const response = await invokeGate(pathname);
+    assert.equal(
+      response.headers.get('x-middleware-rewrite'),
+      `${TEST_ORIGIN}/mobile-only.html`,
+      pathname,
+    );
+  }
+
+  const publicRoutePost = await invokeGate('/votar-equipos?codigo=H03G61', { method: 'POST' });
+  assert.equal(publicRoutePost.status, 403);
+  assert.equal(await publicRoutePost.text(), 'Access denied');
+});
+
+test('anonymous voting can load only hashed SPA build assets', async () => {
+  for (const pathname of [
+    '/static/js/main.983416ff.js',
+    '/static/js/6438.e459db10.chunk.js',
+    '/static/css/main.adb62df7.css',
+    '/static/media/Logo.caa6c0d9880771643ab5.png',
+    '/static/media/oswald-latin.e626a4120b15bb42a749.woff2',
+  ]) {
+    const response = await invokeGate(pathname);
+    assert.equal(response.headers.get('x-middleware-next'), '1', pathname);
+  }
+
+  for (const pathname of [
+    '/static/js/main.secret.js',
+    '/static/js/unhashed.js',
+    '/static/media/private-notes.txt',
+  ]) {
+    const response = await invokeGate(pathname);
+    assert.equal(
+      response.headers.get('x-middleware-rewrite'),
+      `${TEST_ORIGIN}/mobile-only.html`,
+      pathname,
+    );
+  }
+});
+
 test('the private route is available but never linked from the public page', async () => {
   const response = await invokeGate('/acceso-web?returnTo=%2Fprofile');
   assert.equal(
@@ -173,6 +237,41 @@ test('legacy production hosts redirect permanently while previews stay on their 
     preview.headers.get('x-middleware-rewrite'),
     'https://arma2-git-private-web-nicoavayus-projects.vercel.app/mobile-only.html',
   );
+});
+
+test('legacy voting links preserve their code, token, path, and query before opening the exact public route', async () => {
+  const currentVotingLink = await privateWebGate(
+    new Request('https://arma2.vercel.app/votar-equipos?codigo=H03G61&token=abc123&source=whatsapp'),
+  );
+  assert.equal(currentVotingLink.status, 308);
+  assert.equal(
+    currentVotingLink.headers.get('location'),
+    'https://app.arma2.com.ar/votar-equipos?codigo=H03G61&token=abc123&source=whatsapp',
+  );
+
+  const historicalRootLink = await privateWebGate(
+    new Request('https://arma2.vercel.app/?codigo=H03G61&token=abc123&source=whatsapp'),
+  );
+  assert.equal(historicalRootLink.status, 308);
+  assert.equal(
+    historicalRootLink.headers.get('location'),
+    'https://app.arma2.com.ar/?codigo=H03G61&token=abc123&source=whatsapp',
+  );
+
+  const normalizedHistoricalLink = await privateWebGate(
+    new Request(historicalRootLink.headers.get('location')),
+  );
+  assert.equal(normalizedHistoricalLink.status, 308);
+  assert.equal(
+    normalizedHistoricalLink.headers.get('location'),
+    'https://app.arma2.com.ar/votar-equipos?codigo=H03G61&token=abc123&source=whatsapp',
+  );
+
+  const publicVotingResponse = await privateWebGate(
+    new Request(normalizedHistoricalLink.headers.get('location')),
+  );
+  assert.equal(publicVotingResponse.headers.get('x-middleware-next'), '1');
+  assert.equal(publicVotingResponse.headers.get('x-middleware-rewrite'), null);
 });
 
 test('anonymous health checks do not load the SPA or expose user data', async () => {
@@ -245,9 +344,10 @@ test('closing web access clears only the private cookie', () => {
 });
 
 test('public and private pages preserve copy, stores, accessibility, and secret isolation', async () => {
-  const [publicHtml, privateHtml, profileEditor, logoutService] = await Promise.all([
+  const [publicHtml, privateHtml, publicStyles, profileEditor, logoutService] = await Promise.all([
     readFile(path.join(repoRoot, 'public/mobile-only.html'), 'utf8'),
     readFile(path.join(repoRoot, 'public/private-web-access.html'), 'utf8'),
+    readFile(path.join(repoRoot, 'public/web-access.css'), 'utf8'),
     readFile(path.join(repoRoot, 'src/components/ProfileEditor.js'), 'utf8'),
     readFile(path.join(repoRoot, 'src/services/authLogoutService.js'), 'utf8'),
   ]);
@@ -261,6 +361,9 @@ test('public and private pages preserve copy, stores, accessibility, and secret 
   assert.match(publicHtml, /Próximamente en Google Play/);
   assert.doesNotMatch(publicHtml, /play\.google\.com/);
   assert.doesNotMatch(publicHtml, /href=["'][^"']*google/i);
+  assert.match(publicStyles, /\.gate-copy h1\s*{[^}]*font-family: 'Bebas Neue'/s);
+  assert.match(publicStyles, /\.gate-lead\s*{[^}]*font-family: 'Inter', sans-serif;[^}]*font-weight: 400;[^}]*line-height: 1\.5;[^}]*letter-spacing: normal;/s);
+  assert.match(publicStyles, /\.gate-store-button\s*{[^}]*font-family: 'Inter', sans-serif;[^}]*font-weight: 500;[^}]*line-height: 1\.5;[^}]*letter-spacing: normal;/s);
   assert.match(privateHtml, /<label for="private-password">Contraseña<\/label>/);
   assert.match(privateHtml, /role="alert" aria-live="polite"/);
   assert.match(profileEditor, /Cerrar acceso web/);

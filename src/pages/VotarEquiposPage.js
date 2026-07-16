@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
 import {
   MATCH_RESOLUTION_STATUS,
   resolveMatchIdFromQueryParams,
@@ -25,6 +26,8 @@ const VotarEquiposPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [terminalError, setTerminalError] = useState(null);
   const [manualCodigo, setManualCodigo] = useState('');
+  const [resolutionAttempt, setResolutionAttempt] = useState(0);
+  const isNativeApp = Capacitor.isNativePlatform();
 
   // Prevent double-fetch with ref to track last processed search
   const lastSearchRef = useRef('');
@@ -47,7 +50,11 @@ const VotarEquiposPage = () => {
     setTerminalError(null);
     setManualCodigo('');
     lastSearchRef.current = '';
-    navigate(targetRoute, { replace: true });
+    if (isNativeApp) {
+      navigate(targetRoute, { replace: true });
+      return;
+    }
+    setResolutionAttempt((attempt) => attempt + 1);
   };
 
   const handlePublicVotingError = (result) => {
@@ -151,7 +158,7 @@ const VotarEquiposPage = () => {
           context: { action: 'load_public_voting' },
         });
       });
-  }, [location.search, navigate]);
+  }, [location.search, navigate, resolutionAttempt]);
 
   if (!showVotingView) {
     return null;
@@ -189,14 +196,18 @@ const VotarEquiposPage = () => {
                 </button>
               </form>
             ) : null}
-            <button
-              type="button"
-              onClick={() => resetVotingShell('/')}
-              className="mt-3 w-full min-h-[44px] rounded-lg border border-white/20 text-white font-semibold inline-flex items-center justify-center gap-2 hover:bg-white/10"
-            >
-              <ArrowLeft size={18} aria-hidden="true" />
-              <span>Volver al inicio</span>
-            </button>
+            {isNativeApp ? (
+              <button
+                type="button"
+                onClick={() => resetVotingShell('/')}
+                className="mt-3 w-full min-h-[44px] rounded-lg border border-white/20 text-white font-semibold inline-flex items-center justify-center gap-2 hover:bg-white/10"
+              >
+                <ArrowLeft size={18} aria-hidden="true" />
+                <span>Volver al inicio</span>
+              </button>
+            ) : (
+              <p className="mt-4 text-sm text-white/55">Podés corregir el código o cerrar esta ventana.</p>
+            )}
           </div>
         </div>
       ) : (
