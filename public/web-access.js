@@ -1,9 +1,45 @@
 (function initializeWebAccessPages() {
   'use strict';
 
+  function decodeBase64Font(source) {
+    var binary = window.atob(source);
+    var bytes = new Uint8Array(binary.length);
+
+    for (var index = 0; index < binary.length; index += 1) {
+      bytes[index] = binary.charCodeAt(index);
+    }
+
+    return bytes.buffer;
+  }
+
+  function installPublicInterFont() {
+    var fontData = document.getElementById('inter-font-data');
+    if (!fontData || !('FontFace' in window) || !document.fonts) return;
+
+    try {
+      var source = decodeBase64Font(fontData.textContent.trim());
+      ['400', '500'].forEach(function loadInterWeight(weight) {
+        var face = new FontFace('Inter', source, {
+          style: 'normal',
+          weight: weight,
+        });
+
+        face.load()
+          .then(function registerInterFont(loadedFace) {
+            document.fonts.add(loadedFace);
+          })
+          .catch(function ignoreFontLoadFailure() {});
+      });
+    } catch (error) {
+      // The system sans-serif fallback remains readable if FontFace is unavailable.
+    }
+  }
+
   var page = document.documentElement.getAttribute('data-page');
 
   if (page === 'mobile-only') {
+    installPublicInterFont();
+
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistrations()
         .then(function unregisterAll(registrations) {

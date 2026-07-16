@@ -344,10 +344,11 @@ test('closing web access clears only the private cookie', () => {
 });
 
 test('public and private pages preserve copy, stores, accessibility, and secret isolation', async () => {
-  const [publicHtml, privateHtml, publicStyles, profileEditor, logoutService] = await Promise.all([
+  const [publicHtml, privateHtml, publicStyles, publicScript, profileEditor, logoutService] = await Promise.all([
     readFile(path.join(repoRoot, 'public/mobile-only.html'), 'utf8'),
     readFile(path.join(repoRoot, 'public/private-web-access.html'), 'utf8'),
     readFile(path.join(repoRoot, 'public/web-access.css'), 'utf8'),
+    readFile(path.join(repoRoot, 'public/web-access.js'), 'utf8'),
     readFile(path.join(repoRoot, 'src/components/ProfileEditor.js'), 'utf8'),
     readFile(path.join(repoRoot, 'src/services/authLogoutService.js'), 'utf8'),
   ]);
@@ -364,6 +365,13 @@ test('public and private pages preserve copy, stores, accessibility, and secret 
   assert.match(publicStyles, /\.gate-copy h1\s*{[^}]*font-family: 'Bebas Neue'/s);
   assert.match(publicStyles, /\.gate-lead\s*{[^}]*font-family: 'Inter', sans-serif;[^}]*font-weight: 400;[^}]*line-height: 1\.5;[^}]*letter-spacing: normal;/s);
   assert.match(publicStyles, /\.gate-store-button\s*{[^}]*font-family: 'Inter', sans-serif;[^}]*font-weight: 500;[^}]*line-height: 1\.5;[^}]*letter-spacing: normal;/s);
+  const embeddedInter = publicHtml.match(/<template id="inter-font-data" aria-hidden="true">([A-Za-z0-9+/=]+)<\/template>/);
+  assert.ok(embeddedInter, 'the standalone page embeds the same Inter face used by login');
+  const interFontBytes = Buffer.from(embeddedInter[1], 'base64');
+  assert.equal(interFontBytes.subarray(0, 4).toString('ascii'), 'wOF2');
+  assert.ok(interFontBytes.length > 40000);
+  assert.match(publicScript, /new FontFace\('Inter', source/);
+  assert.match(publicScript, /document\.fonts\.add\(loadedFace\)/);
   assert.match(privateHtml, /<label for="private-password">Contraseña<\/label>/);
   assert.match(privateHtml, /role="alert" aria-live="polite"/);
   assert.match(profileEditor, /Cerrar acceso web/);
