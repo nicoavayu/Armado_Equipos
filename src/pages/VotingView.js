@@ -28,7 +28,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import { useScrollResetContainer, useScrollResetOnChange } from '../hooks/useScrollReset';
 import Logo from '../Logo.png';
 
-const { isExactPublicVotingPath } = require('../config/publicVotingRoutes.cjs');
+const { isExactPublicVotingPath } = require('../config/publicVotingRoutes');
 
 // Styles are now handled via Tailwind CSS
 // Legacy styles: src/pages/LegacyVoting.css (for other components)

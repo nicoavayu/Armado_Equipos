@@ -1,5 +1,3 @@
-'use strict';
-
 // Exact public web allowlist. Query parameters are part of the contract: the
 // public guest flow requires the match code and never exposes a match by path ID.
 const PUBLIC_VOTING_ROUTE_ALLOWLIST = Object.freeze([

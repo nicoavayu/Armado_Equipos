@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import privateWebAccessHandler from '../../api/private-web-access.mjs';
 import privateWebLogoutHandler from '../../api/private-web-logout.mjs';
 import privateWebGate from '../../middleware.ts';
-import publicVotingRoutes from '../../src/config/publicVotingRoutes.cjs';
+import publicVotingRoutes from '../../src/config/publicVotingRoutes.js';
 import {
   PRIVATE_WEB_COOKIE_MAX_AGE_SECONDS,
   PRIVATE_WEB_COOKIE_NAME,

@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 
-const { isExactPublicVotingPath } = require('../config/publicVotingRoutes.cjs');
+const { isExactPublicVotingPath } = require('../config/publicVotingRoutes');
 
 const PublicVotingRouteIsolation = ({ children }) => {
   const location = useLocation();

@@ -4,7 +4,7 @@ import {
   normalizePrivateWebReturnTo,
   verifyPrivateWebAccessToken,
 } from './server/privateWebAccess.mjs';
-import publicVotingRoutes from './src/config/publicVotingRoutes.cjs';
+import publicVotingRoutes from './src/config/publicVotingRoutes.js';
 
 const {
   isAllowedPublicVotingRequest,
