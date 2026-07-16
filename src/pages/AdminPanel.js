@@ -26,6 +26,7 @@ import MatchInfoSection from '../components/MatchInfoSection';
 import normalizePartidoForHeader from '../utils/normalizePartidoForHeader';
 import ConfirmModal from '../components/ConfirmModal';
 import { getPublicBaseUrl } from '../utils/publicBaseUrl';
+import { buildGuestMatchInviteLink } from '../utils/guestMatchInviteLink';
 import { parseLocalDate } from '../utils/dateLocal';
 import { buildWhatsAppRosterMessage } from '../utils/buildWhatsAppRosterMessage';
 import { analyzeTeamsAgainstRoster } from '../utils/teamRosterValidity';
@@ -420,7 +421,12 @@ export default function AdminPanel({
 
     const inviteToken = String(inviteRows[0].token || '').trim();
     const baseUrl = getPublicBaseUrl() || window.location.origin;
-    return `${baseUrl}/partido/${matchId}/invitacion?c=${encodeURIComponent(matchCode)}&i=${encodeURIComponent(inviteToken)}`;
+    return buildGuestMatchInviteLink({
+      baseUrl,
+      matchId,
+      matchCode,
+      inviteToken,
+    });
   };
 
   const openWhatsAppShare = async ({ title, text, url }) => {

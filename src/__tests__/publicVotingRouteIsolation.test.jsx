@@ -26,6 +26,32 @@ const VotingScreen = () => {
       <button type="button" onClick={() => navigate('/')}>Intentar Home</button>
       <button type="button" onClick={() => navigate('/profile')}>Intentar Perfil</button>
       <button type="button" onClick={() => navigate('/quiero-jugar')}>Intentar Partido automático</button>
+      <button
+        type="button"
+        onClick={() => navigate('/partido/321/invitacion?c=H03G61&i=0123456789abcdef0123456789abcdef')}
+      >
+        Intentar Invitación
+      </button>
+      <LocationProbe />
+    </main>
+  );
+};
+
+const InviteScreen = () => {
+  const navigate = useNavigate();
+  return (
+    <main>
+      <h1>Invitación pública</h1>
+      <button type="button" onClick={() => navigate('/profile')}>Intentar Perfil</button>
+      <button type="button" onClick={() => navigate('/votar-equipos?codigo=H03G61')}>
+        Intentar Votación
+      </button>
+      <button
+        type="button"
+        onClick={() => navigate('/partido/999/invitacion?c=OTRO99&i=ffffffffffffffffffffffffffffffff')}
+      >
+        Intentar Otra Invitación
+      </button>
       <LocationProbe />
     </main>
   );
@@ -52,6 +78,7 @@ const renderRoutes = (initialEntry) => render(
     <PublicVotingRouteIsolation>
       <Routes>
         <Route path="/votar-equipos" element={<VotingScreen />} />
+        <Route path="/partido/:partidoId/invitacion" element={<InviteScreen />} />
         <Route path="/" element={<PrivateHome />} />
         <Route path="/profile" element={<main><h1>Perfil privado</h1><LocationProbe /></main>} />
         <Route path="/quiero-jugar" element={<main><h1>Partido automático privado</h1><LocationProbe /></main>} />
@@ -71,6 +98,7 @@ describe('PublicVotingRouteIsolation', () => {
     ['Home', 'Intentar Home'],
     ['Perfil', 'Intentar Perfil'],
     ['Partido automático', 'Intentar Partido automático'],
+    ['Invitación', 'Intentar Invitación'],
   ])('una sesión pública web no puede navegar a %s', async (_label, buttonName) => {
     renderRoutes('/votar-equipos?codigo=H03G61&source=whatsapp');
 
@@ -105,6 +133,31 @@ describe('PublicVotingRouteIsolation', () => {
     expect(screen.queryByRole('heading', { name: 'Perfil privado' })).not.toBeInTheDocument();
   });
 
+  test.each(['Intentar Perfil', 'Intentar Votación', 'Intentar Otra Invitación'])(
+    'una invitación web válida no puede usar su excepción para %s',
+    async (buttonName) => {
+      const inviteEntry = '/partido/321/invitacion?c=H03G61&i=0123456789abcdef0123456789abcdef';
+      renderRoutes(inviteEntry);
+
+      fireEvent.click(screen.getByRole('button', { name: buttonName }));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('location')).toHaveTextContent(inviteEntry);
+      });
+      expect(screen.getByRole('heading', { name: 'Invitación pública' })).toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'Perfil privado' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'Votación pública' })).not.toBeInTheDocument();
+    },
+  );
+
+  test('una invitación sin token no activa la sesión pública de invitado', () => {
+    renderRoutes('/partido/321/invitacion?c=H03G61');
+
+    expect(screen.getByRole('heading', { name: 'Invitación pública' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Intentar Perfil' }));
+    expect(screen.getByRole('heading', { name: 'Perfil privado' })).toBeInTheDocument();
+  });
+
   test.each(['ios', 'android'])('la navegación nativa de %s no cambia', async (platform) => {
     mockNativePlatform = true;
     mockPlatform = platform;
@@ -115,4 +168,18 @@ describe('PublicVotingRouteIsolation', () => {
     expect(await screen.findByRole('heading', { name: 'Perfil privado' })).toBeInTheDocument();
     expect(screen.getByTestId('location')).toHaveTextContent('/profile');
   });
+
+  test.each(['ios', 'android'])(
+    'el deep link de invitación conserva la navegación nativa de %s',
+    async (platform) => {
+      mockNativePlatform = true;
+      mockPlatform = platform;
+      renderRoutes('/partido/321/invitacion?c=H03G61&i=0123456789abcdef0123456789abcdef');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Intentar Perfil' }));
+
+      expect(await screen.findByRole('heading', { name: 'Perfil privado' })).toBeInTheDocument();
+      expect(screen.getByTestId('location')).toHaveTextContent('/profile');
+    },
+  );
 });

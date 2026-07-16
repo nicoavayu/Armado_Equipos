@@ -8,6 +8,7 @@ import privateWebAccessHandler from '../../api/private-web-access.mjs';
 import privateWebLogoutHandler from '../../api/private-web-logout.mjs';
 import privateWebGate from '../../middleware.ts';
 import publicVotingRoutes from '../../src/config/publicVotingRoutes.js';
+import publicMatchInviteRoutes from '../../src/config/publicMatchInviteRoutes.js';
 import {
   PRIVATE_WEB_COOKIE_MAX_AGE_SECONDS,
   PRIVATE_WEB_COOKIE_NAME,
@@ -26,6 +27,8 @@ const TEST_ORIGIN = 'https://arma2-preview.example.com';
 const testDirectory = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(testDirectory, '../..');
 const { PUBLIC_VOTING_ROUTE_ALLOWLIST } = publicVotingRoutes;
+const { PUBLIC_MATCH_INVITE_ROUTE_ALLOWLIST } = publicMatchInviteRoutes;
+const TEST_INVITE_TOKEN = '0123456789abcdef0123456789abcdef';
 
 function createMockResponse() {
   const headers = new Map();
@@ -161,7 +164,71 @@ test('the public voting allowlist is exact and requires the existing match-code 
   assert.equal(await publicRoutePost.text(), 'Access denied');
 });
 
-test('anonymous voting can load only hashed SPA build assets', async () => {
+test('the public match-invite allowlist preserves the real path, aliases, code, and token contract', async () => {
+  assert.deepEqual(PUBLIC_MATCH_INVITE_ROUTE_ALLOWLIST, [
+    {
+      pathnamePattern: '/partido/:partidoId/invitacion',
+      requiredQueryParameters: [
+        ['codigo', 'c'],
+        ['invite', 'i'],
+      ],
+    },
+  ]);
+
+  for (const pathname of [
+    `/partido/321/invitacion?c=H03G61&i=${TEST_INVITE_TOKEN}`,
+    `/partido/321/invitacion?codigo=H03G61&invite=${TEST_INVITE_TOKEN}`,
+    `/partido/321/invitacion?c=INVALIDO&i=${'f'.repeat(32)}&source=whatsapp`,
+  ]) {
+    const response = await invokeGate(pathname);
+    assert.equal(response.headers.get('x-middleware-next'), '1', pathname);
+    assert.equal(response.headers.get('x-middleware-rewrite'), null, pathname);
+  }
+
+  for (const pathname of [
+    '/partido/321/invitacion',
+    `/partido/321/invitacion?c=&i=${TEST_INVITE_TOKEN}`,
+    '/partido/321/invitacion?c=H03G61',
+    '/partido/321/invitacion?c=H03G61&i=not-a-token',
+    `/partido/321/invitacion?c=ABC&i=${TEST_INVITE_TOKEN}`,
+    `/partido/0/invitacion?c=H03G61&i=${TEST_INVITE_TOKEN}`,
+    `/partido/not-a-match/invitacion?c=H03G61&i=${TEST_INVITE_TOKEN}`,
+    `/partido/321/invitacion/extra?c=H03G61&i=${TEST_INVITE_TOKEN}`,
+    `/partido/321?c=H03G61&i=${TEST_INVITE_TOKEN}`,
+    `/profile?c=H03G61&i=${TEST_INVITE_TOKEN}`,
+  ]) {
+    const response = await invokeGate(pathname);
+    assert.equal(
+      response.headers.get('x-middleware-rewrite'),
+      `${TEST_ORIGIN}/mobile-only.html`,
+      pathname,
+    );
+  }
+
+  const publicRoutePost = await invokeGate(
+    `/partido/321/invitacion?c=H03G61&i=${TEST_INVITE_TOKEN}`,
+    { method: 'POST' },
+  );
+  assert.equal(publicRoutePost.status, 403);
+  assert.equal(await publicRoutePost.text(), 'Access denied');
+});
+
+test('public voting and guest invitation coexist without opening any third SPA entry', async () => {
+  const voting = await invokeGate('/votar-equipos?codigo=H03G61');
+  const invitation = await invokeGate(
+    `/partido/321/invitacion?c=H03G61&i=${TEST_INVITE_TOKEN}`,
+  );
+  const privateRoute = await invokeGate('/partido/321');
+
+  assert.equal(voting.headers.get('x-middleware-next'), '1');
+  assert.equal(invitation.headers.get('x-middleware-next'), '1');
+  assert.equal(
+    privateRoute.headers.get('x-middleware-rewrite'),
+    `${TEST_ORIGIN}/mobile-only.html`,
+  );
+});
+
+test('anonymous public flows can load only hashed SPA build assets', async () => {
   for (const pathname of [
     '/static/js/main.983416ff.js',
     '/static/js/6438.e459db10.chunk.js',
@@ -216,10 +283,14 @@ test('localhost and Capacitor origins bypass the Vercel web gate', async () => {
   const localhostResponse = await privateWebGate(new Request('https://localhost/login'));
   const loopbackResponse = await privateWebGate(new Request('http://127.0.0.1:3000/profile'));
   const capacitorResponse = await privateWebGate(new Request('capacitor://localhost/profile'));
+  const nativeInviteDeepLink = await privateWebGate(new Request(
+    `capacitor://localhost/partido/321/invitacion?c=H03G61&i=${TEST_INVITE_TOKEN}`,
+  ));
 
   assert.equal(localhostResponse.headers.get('x-middleware-next'), '1');
   assert.equal(loopbackResponse.headers.get('x-middleware-next'), '1');
   assert.equal(capacitorResponse.headers.get('x-middleware-next'), '1');
+  assert.equal(nativeInviteDeepLink.headers.get('x-middleware-next'), '1');
 });
 
 test('legacy production hosts redirect permanently while previews stay on their own host', async () => {
@@ -272,6 +343,24 @@ test('legacy voting links preserve their code, token, path, and query before ope
   );
   assert.equal(publicVotingResponse.headers.get('x-middleware-next'), '1');
   assert.equal(publicVotingResponse.headers.get('x-middleware-rewrite'), null);
+});
+
+test('legacy production invite links preserve the existing deep-link path and short parameters', async () => {
+  const legacyInvite = await privateWebGate(new Request(
+    `https://arma2.vercel.app/partido/321/invitacion?c=H03G61&i=${TEST_INVITE_TOKEN}`,
+  ));
+
+  assert.equal(legacyInvite.status, 308);
+  assert.equal(
+    legacyInvite.headers.get('location'),
+    `https://app.arma2.com.ar/partido/321/invitacion?c=H03G61&i=${TEST_INVITE_TOKEN}`,
+  );
+
+  const canonicalInvite = await privateWebGate(
+    new Request(legacyInvite.headers.get('location')),
+  );
+  assert.equal(canonicalInvite.headers.get('x-middleware-next'), '1');
+  assert.equal(canonicalInvite.headers.get('x-middleware-rewrite'), null);
 });
 
 test('anonymous health checks do not load the SPA or expose user data', async () => {

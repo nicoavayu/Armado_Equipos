@@ -1357,7 +1357,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
 
           if (reqId !== reqIdRef.current) return;
 
-          if (inviteValidation.ok === false) {
+          if (inviteValidation.ok !== true) {
             setCodigoValido(false);
             setError(INVALID_INVITE_PAGE_MESSAGE);
             setLoading(false);
@@ -1365,6 +1365,10 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           }
         } catch (inviteValidationError) {
           logger.error('[INVITE] guest invite prevalidation failed', inviteValidationError);
+          setCodigoValido(false);
+          setError(INVALID_INVITE_PAGE_MESSAGE);
+          setLoading(false);
+          return;
         }
       }
 
@@ -1448,7 +1452,11 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       }
 
       try {
-        if (user?.id) {
+        // A tokenized WhatsApp link is already authorized by the guest-invite
+        // RPC. Registered-notification state is required only for tokenless
+        // in-app invites, so installed-app deep links keep working for signed-in
+        // users who received the shared link externally.
+        if (user?.id && !inviteTokenValue) {
           const inviteAccess = await fetchInviteAccessState({
             userId: user.id,
             matchId: partidoId,
@@ -1504,14 +1512,19 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
         if (reqId === reqIdRef.current) {
           setPartido({ ...partidoData, jugadoresCount: count || 0 });
           setJugadores(jugadoresData || []);
-          // UX: for invite links, unauthenticated users go straight to "Sumarte rápido".
-          if (!user && mode === 'invite') {
-            setStep('guest-form');
-          }
           if (isMatchClosed(partidoData)) {
             setError('Este partido fue cancelado o cerrado.');
             setLoading(false);
             return;
+          }
+          // UX: for invite links, unauthenticated users go straight to "Sumarte rápido".
+          if (!user && mode === 'invite') {
+            const maxRoster = getMaxRosterSlots(partidoData);
+            if (maxRoster > 0 && (jugadoresData || []).length >= maxRoster) {
+              setStep('full');
+            } else {
+              setStep('guest-form');
+            }
           }
           setLoading(false);
         }

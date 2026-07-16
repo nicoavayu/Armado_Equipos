@@ -5,11 +5,13 @@ import {
   verifyPrivateWebAccessToken,
 } from './server/privateWebAccess.mjs';
 import publicVotingRoutes from './src/config/publicVotingRoutes.js';
+import publicMatchInviteRoutes from './src/config/publicMatchInviteRoutes.js';
 
 const {
   isAllowedPublicVotingRequest,
   isLegacyPublicVotingAlias,
 } = publicVotingRoutes;
+const { isAllowedPublicMatchInviteRequest } = publicMatchInviteRoutes;
 
 const LEGACY_PRODUCTION_HOSTS = new Set([
   'arma2.vercel.app',
@@ -35,7 +37,7 @@ const PUBLIC_GATE_API_PATHS = new Set([
   '/api/private-web-access',
   '/api/private-web-logout',
 ]);
-const PUBLIC_VOTING_BUILD_ASSET_PATTERNS = [
+const PUBLIC_SPA_BUILD_ASSET_PATTERNS = [
   /^\/static\/(?:js|css)\/(?:[A-Za-z0-9_-]+\.)?[a-f0-9]{8}(?:\.chunk)?\.(?:js|css)$/,
   /^\/static\/media\/[A-Za-z0-9_-]+\.[a-f0-9]{8,32}\.(?:jpe?g|png|svg|webp|woff2?)$/,
 ];
@@ -88,8 +90,8 @@ function redirectLegacyPublicVotingAlias(url) {
   });
 }
 
-function isPublicVotingBuildAsset(pathname) {
-  return PUBLIC_VOTING_BUILD_ASSET_PATTERNS.some((pattern) => pattern.test(pathname));
+function isPublicSpaBuildAsset(pathname) {
+  return PUBLIC_SPA_BUILD_ASSET_PATTERNS.some((pattern) => pattern.test(pathname));
 }
 
 export default async function privateWebGate(request) {
@@ -104,7 +106,11 @@ export default async function privateWebGate(request) {
   const isReadRequest = request.method === 'GET' || request.method === 'HEAD';
   if (
     isReadRequest
-    && (isAllowedPublicVotingRequest(url) || isPublicVotingBuildAsset(url.pathname))
+    && (
+      isAllowedPublicVotingRequest(url)
+      || isAllowedPublicMatchInviteRequest(url)
+      || isPublicSpaBuildAsset(url.pathname)
+    )
   ) {
     return next();
   }
