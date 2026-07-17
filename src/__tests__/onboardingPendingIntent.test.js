@@ -2,6 +2,7 @@ import {
   isSafeHomeSurface,
   hasAuthRecoveryMarkers,
   hasPendingNativePushRedirect,
+  hasBlockingModalOpen,
   hasPendingIntent,
 } from '../features/onboarding/pendingIntent';
 
@@ -65,5 +66,16 @@ describe('hasPendingIntent', () => {
 
   test('false when nothing is pending', () => {
     expect(hasPendingIntent({ pendingAuthFlow: null })).toBe(false);
+  });
+});
+
+describe('hasBlockingModalOpen', () => {
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  test('detects an existing app modal but ignores the onboarding host itself', () => {
+    document.body.innerHTML = '<div data-modal-root="true"></div>';
+    expect(hasBlockingModalOpen()).toBe(true);
+    document.body.innerHTML = '<div data-modal-root="true" data-onboarding-root="true"></div>';
+    expect(hasBlockingModalOpen()).toBe(false);
   });
 });

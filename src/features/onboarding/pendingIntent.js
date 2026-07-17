@@ -47,6 +47,12 @@ export function hasPendingNativePushRedirect() {
   }
 }
 
+export function hasBlockingModalOpen() {
+  if (typeof document === 'undefined') return false;
+  return Array.from(document.querySelectorAll('[data-modal-root="true"]'))
+    .some((node) => node.getAttribute('data-onboarding-root') !== 'true');
+}
+
 // A pending "intent" is anything that should take priority over onboarding:
 // an in-flight auth flow, a password-recovery URL, or a queued push redirect.
 export function hasPendingIntent({ pendingAuthFlow = null } = {}) {

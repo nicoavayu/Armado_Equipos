@@ -34,6 +34,7 @@ import {
 import { useSmartBackNavigation } from '../hooks/useSmartBackNavigation';
 import { useRefreshOnVisibility } from '../hooks/useRefreshOnVisibility';
 import { useSupabaseRealtime } from '../hooks/useSupabaseRealtime';
+import { useOnboardingOptional } from '../features/onboarding/OnboardingContext';
 
 import DistanceSlider from '../components/jugar/DistanceSlider';
 
@@ -101,6 +102,8 @@ const QuieroJugar = ({
   });
   const onVolver = () => goBackSmart();
   const { user } = useAuth();
+  const onboarding = useOnboardingOptional();
+  const markOnboardingAction = onboarding?.markChecklistAction;
   const [partidosAbiertos, setPartidosAbiertos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [freePlayers, setFreePlayers] = useState([]);
@@ -159,8 +162,13 @@ const QuieroJugar = ({
   const handleOpenMatch = useCallback((match, meta = {}) => {
     if (!match?.id) return;
     const owner = meta.isOwner ?? Boolean(user?.id && String(match?.creado_por || '') === String(user.id));
+    if (!owner) markOnboardingAction?.('reviewedMatch');
     navigate(owner ? `/admin/${match.id}` : `/partido-publico/${match.id}`);
-  }, [navigate, user?.id]);
+  }, [markOnboardingAction, navigate, user?.id]);
+
+  useEffect(() => {
+    markOnboardingAction?.('openedPlay');
+  }, [markOnboardingAction]);
 
   useEffect(() => {
     sessionStorage.setItem(MATCH_DISTANCE_STORAGE_KEY, String(maxMatchDistanceKm));
@@ -798,7 +806,7 @@ const QuieroJugar = ({
                           <div className="flex gap-2 mt-3">
                             <button
                               className="flex-1 font-bebas font-semibold text-base px-4 py-2 border border-white/15 rounded-2xl cursor-pointer transition-all text-white min-h-[44px] flex items-center justify-center text-center bg-cta-gradient shadow-cta hover:brightness-110"
-                              onClick={() => navigate(isOwnerMatch ? `/admin/${partido.id}` : `/partido-publico/${partido.id}`)}
+                              onClick={() => handleOpenMatch(partido, { isOwner: isOwnerMatch })}
                             >
                               Ver partido
                             </button>
@@ -887,6 +895,7 @@ const QuieroJugar = ({
                         ) || 0) / 1000
                         : null}
                       onClick={(e) => {
+                        markOnboardingAction?.('reviewedPlayer');
                         const rect = e?.currentTarget?.getBoundingClientRect?.();
                         setActionAnchorPoint({
                           x: rect ? (rect.left + rect.width / 2) : window.innerWidth / 2,

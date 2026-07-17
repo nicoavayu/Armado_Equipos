@@ -37,6 +37,7 @@ describe('normalizeOnboardingState', () => {
       status: 'completed',
       chosen_path: 'organizer',
       coach_marks: { 'new-match:manual': true },
+      checklist: { actions: { openedPlay: true } },
       welcome_card_dismissed: true,
     });
     expect(s).toMatchObject({
@@ -44,6 +45,7 @@ describe('normalizeOnboardingState', () => {
       status: 'completed',
       chosenPath: 'organizer',
       coachMarks: { 'new-match:manual': true },
+      checklist: { actions: { openedPlay: true } },
       welcomeCardDismissed: true,
     });
   });
@@ -75,6 +77,21 @@ describe('mergeOnboardingStates (cross-device idempotency)', () => {
     const once = mergeOnboardingStates(a, a);
     const twice = mergeOnboardingStates(once, a);
     expect(twice).toEqual(once);
+  });
+
+  test('unions real checklist actions and one-time completion guards across devices', () => {
+    const local = normalizeOnboardingState({
+      checklist: { actions: { openedPlay: true }, completionShown: true },
+    });
+    const remote = normalizeOnboardingState({
+      checklist: { actions: { reviewedMatch: true }, celebrated: true },
+    });
+
+    expect(mergeOnboardingStates(local, remote).checklist).toMatchObject({
+      actions: { openedPlay: true, reviewedMatch: true },
+      completionShown: true,
+      celebrated: true,
+    });
   });
 });
 

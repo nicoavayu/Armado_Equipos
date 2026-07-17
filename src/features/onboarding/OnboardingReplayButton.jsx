@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Compass } from 'lucide-react';
+import { Compass, ListChecks } from 'lucide-react';
 
 import { useOnboardingOptional } from './OnboardingContext';
 import { onboardingHaptic } from './haptics';
@@ -14,6 +14,11 @@ export default function OnboardingReplayButton({ className = '', onActivate }) {
   const navigate = useNavigate();
 
   if (!onboarding || !onboarding.enabled) return null;
+  const canShowFirstSteps = Boolean(
+    onboarding.state?.chosenPath
+    && !onboarding.state?.checklist?.completionShown
+    && !onboarding.state?.checklist?.celebrated,
+  );
 
   const handleClick = () => {
     onboardingHaptic('light');
@@ -23,14 +28,27 @@ export default function OnboardingReplayButton({ className = '', onActivate }) {
     setTimeout(() => onboarding.replayOnboarding(), 0);
   };
 
+  const handleFirstSteps = () => {
+    onboardingHaptic('light');
+    if (typeof onActivate === 'function') onActivate();
+    navigate('/');
+    setTimeout(() => onboarding.showFirstSteps(), 0);
+  };
+
+  const buttonClass = `w-full h-[50px] rounded-none border border-[rgba(148,134,255,0.28)] bg-white/[0.05] text-white/90 text-base font-bebas tracking-[0.01em] normal-case cursor-pointer transition-all hover:bg-white/[0.1] hover:text-white active:opacity-95 flex items-center justify-center gap-2 ${className}`;
+
   return (
-    <button
-      type="button"
-      onClick={handleClick}
-      className={`w-full h-[50px] rounded-none border border-[rgba(148,134,255,0.28)] bg-white/[0.05] text-white/90 text-base font-bebas tracking-[0.01em] normal-case cursor-pointer transition-all hover:bg-white/[0.1] hover:text-white active:opacity-95 flex items-center justify-center gap-2 ${className}`}
-    >
-      <Compass size={18} aria-hidden />
-      Conocer Arma2
-    </button>
+    <div className="flex w-full flex-col gap-3">
+      <button type="button" onClick={handleClick} className={buttonClass}>
+        <Compass size={18} aria-hidden />
+        Conocer Arma2
+      </button>
+      {canShowFirstSteps && (
+        <button type="button" onClick={handleFirstSteps} className={buttonClass}>
+          <ListChecks size={18} aria-hidden />
+          Ver primeros pasos
+        </button>
+      )}
+    </div>
   );
 }

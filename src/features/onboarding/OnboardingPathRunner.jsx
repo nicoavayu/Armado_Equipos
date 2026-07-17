@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
-  ChevronLeft, ChevronRight, Check, Users, Share2, Scale, History,
+  ChevronLeft, ChevronRight, Check,
 } from 'lucide-react';
 
 import { getPathContent } from './content';
@@ -11,7 +11,11 @@ import OnboardingStepArt from './OnboardingStepArt';
 import { useOnboarding } from './OnboardingProvider';
 import { onboardingHaptic } from './haptics';
 
-const BULLET_ICONS = { Users, Share2, Scale, History };
+const CLOSING_ART = {
+  organizer: 'record',
+  auto_match: 'confirm',
+  overview: 'explore_matches',
+};
 
 // Shared stepper used by all three path components. Renders the step art, copy,
 // progress and navigation, then a closing card whose CTA navigates to a REAL
@@ -72,19 +76,15 @@ export default function OnboardingPathRunner({ pathKey }) {
         )}
       </div>
 
-      <div className="relative flex min-h-0 flex-1 flex-col justify-center">
+      <div className="relative flex min-h-0 flex-1 flex-col justify-center py-2">
         <AnimatePresence mode="wait" initial={false}>
           <motion.div key={isClosing ? 'closing' : `step-${index}`} {...bodyMotion} className="flex flex-col items-center text-center">
             {isClosing ? (
               <>
-                <div className="mb-6 flex h-[150px] w-[150px] items-center justify-center">
-                  <div className="relative flex h-[132px] w-[132px] items-center justify-center rounded-full bg-[radial-gradient(circle,rgba(53,208,127,0.22),transparent_66%)]">
-                    <span className="inline-flex h-20 w-20 items-center justify-center rounded-full border-[3px] border-[#35d07f] bg-[#101a14]">
-                      <Check size={40} strokeWidth={3} className="text-[#35d07f]" aria-hidden />
-                    </span>
-                  </div>
+                <div className="mb-5 w-full max-w-[280px]">
+                  <OnboardingStepArt name={CLOSING_ART[pathKey] || 'completion'} />
                 </div>
-                <h2 className="font-oswald text-[26px] font-bold leading-tight text-white sm:text-[28px]">
+                <h2 id="onboarding-path-title" className="max-w-[350px] font-bebas-real text-[clamp(34px,9.5vw,44px)] leading-[0.94] tracking-[0.035em] text-white">
                   {path.closing.title}
                 </h2>
                 <p className="mt-3 max-w-[330px] font-sans text-[15px] leading-[1.5] text-white/72">
@@ -96,35 +96,22 @@ export default function OnboardingPathRunner({ pathKey }) {
                 <div className="mb-6 w-full max-w-[280px]">
                   <OnboardingStepArt name={step.art} />
                 </div>
-                <h2 className="font-oswald text-[24px] font-bold leading-tight text-white sm:text-[26px]">
+                <h2
+                  id="onboarding-path-title"
+                  className="max-w-[350px] font-bebas-real text-[clamp(34px,9.5vw,44px)] leading-[0.94] tracking-[0.035em] text-white"
+                >
                   {step.title}
                 </h2>
                 <p className="mt-3 max-w-[340px] font-sans text-[15px] leading-[1.5] text-white/72">
                   {step.description}
                 </p>
-
-                {Array.isArray(step.bullets) && (
-                  <ul className="mt-6 w-full max-w-[360px] space-y-2.5 text-left">
-                    {step.bullets.map((bullet) => {
-                      const BulletIcon = BULLET_ICONS[bullet.icon] || Check;
-                      return (
-                        <li key={bullet.text} className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2.5">
-                          <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[linear-gradient(140deg,rgba(139,92,255,0.32),rgba(106,67,255,0.12))] text-[#cfc4ff]">
-                            <BulletIcon size={16} strokeWidth={2} aria-hidden />
-                          </span>
-                          <span className="font-sans text-[13.5px] leading-snug text-white/85">{bullet.text}</span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
               </>
             )}
           </motion.div>
         </AnimatePresence>
       </div>
 
-      <div className="flex items-center gap-3 pt-4">
+      <div className="flex shrink-0 items-center gap-3 pt-4">
         <GhostButton onClick={goPrev} className="px-4" aria-label="Anterior">
           <ChevronLeft size={18} aria-hidden />
           <span className="ml-1">Anterior</span>

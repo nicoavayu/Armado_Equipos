@@ -1,15 +1,15 @@
 import React from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { CalendarPlus, Radar, Sparkles, ChevronRight, ChevronLeft } from 'lucide-react';
+import { CalendarPlus, Radar, LayoutGrid, ChevronRight } from 'lucide-react';
 
 import { goalSelectorContent } from './content';
 import { onboardingHaptic } from './haptics';
 
-const ICONS = { CalendarPlus, Radar, Sparkles };
+const ICONS = { CalendarPlus, Radar, LayoutGrid };
 
 // "¿Qué querés hacer primero?" — the branch selector. Choosing an option drives
-// both the flow path and the Home checklist. Includes a Back to welcome.
-export default function OnboardingGoalSelector({ onSelect, onBack, labelledById }) {
+// both the educational path and its real-data first-steps checklist.
+export default function OnboardingGoalSelector({ onSelect, labelledById }) {
   const reduce = useReducedMotion();
 
   const item = (index) => (reduce
@@ -22,11 +22,11 @@ export default function OnboardingGoalSelector({ onSelect, onBack, labelledById 
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="pt-6">
+      <div className="pt-5">
         <motion.h2
           id={labelledById}
           {...item(0)}
-          className="font-oswald text-[26px] font-bold leading-tight tracking-[0.005em] text-white sm:text-[28px]"
+          className="font-bebas-real text-[clamp(34px,10vw,46px)] leading-[0.94] tracking-[0.035em] text-white"
         >
           {goalSelectorContent.title}
         </motion.h2>
@@ -34,7 +34,7 @@ export default function OnboardingGoalSelector({ onSelect, onBack, labelledById 
 
       <div className="mt-7 flex flex-1 flex-col justify-center gap-3">
         {goalSelectorContent.options.map((option, index) => {
-          const Icon = ICONS[option.icon] || Sparkles;
+          const Icon = ICONS[option.icon] || LayoutGrid;
           return (
             <motion.button
               key={option.key}
@@ -48,7 +48,7 @@ export default function OnboardingGoalSelector({ onSelect, onBack, labelledById 
                 <Icon size={22} strokeWidth={2} />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block font-oswald text-[17px] font-semibold leading-tight text-white">
+                <span className="block font-bebas-real text-[21px] leading-none tracking-[0.025em] text-white">
                   {option.label}
                 </span>
                 <span className="mt-0.5 block font-sans text-[12.5px] leading-snug text-white/55">
@@ -61,15 +61,6 @@ export default function OnboardingGoalSelector({ onSelect, onBack, labelledById 
         })}
       </div>
 
-      <div className="pt-4">
-        <button
-          type="button"
-          onClick={onBack}
-          className="inline-flex items-center gap-1 rounded-full px-2 py-1.5 font-oswald text-[14px] font-medium text-white/60 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8b7cff]/70"
-        >
-          <ChevronLeft size={16} aria-hidden /> Volver
-        </button>
-      </div>
     </div>
   );
 }

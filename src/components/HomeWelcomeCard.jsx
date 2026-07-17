@@ -34,7 +34,11 @@ export default function HomeWelcomeCard() {
   };
 
   return (
-    <div className="fixed inset-0 z-[12000] flex items-center justify-center bg-[rgba(4,7,18,0.78)] px-5 backdrop-blur-[3px]">
+    <div
+      data-modal-root="true"
+      data-home-welcome-modal="true"
+      className="fixed inset-0 z-[12000] flex items-center justify-center bg-[rgba(4,7,18,0.78)] px-5 backdrop-blur-[3px]"
+    >
       <section
         role="dialog"
         aria-modal="true"
