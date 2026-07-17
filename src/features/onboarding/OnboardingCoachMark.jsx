@@ -1,8 +1,8 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { motion, useReducedMotion } from 'framer-motion';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 
+import BareCloseButton from '../../components/BareCloseButton';
 import { useCoachMarks } from './useCoachMarks';
 import { useOnboardingOptional } from './OnboardingContext';
 
@@ -16,7 +16,7 @@ export default function OnboardingCoachMark({ screenKey }) {
 
 // Contextual coach marks for a single screen. Dims the background, spotlights
 // the REAL control (a soft "hole" cut with a large box-shadow), and shows a
-// bottom card with title/body, progress ("1 de N") and Anterior/Siguiente/Omitir.
+// bottom card with title/body, progress and borderless dismiss X.
 // Non-blocking: taps pass through to the app; the tour never loops or repeats.
 function OnboardingCoachMarkInner({ screenKey }) {
   const reduce = useReducedMotion();
@@ -80,13 +80,11 @@ function OnboardingCoachMarkInner({ screenKey }) {
             <span className="font-sans text-[11px] font-bold uppercase tracking-[0.14em] text-[#b0a0ff]/75">
               {index + 1} de {total}
             </span>
-            <button
-              type="button"
+            <BareCloseButton
               onClick={skip}
-              className="rounded-full px-2 py-1 font-oswald text-[13px] font-medium text-white/55 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8b7cff]/70"
-            >
-              Omitir
-            </button>
+              aria-label="Omitir tutorial"
+              className="-my-2 -mr-2"
+            />
           </div>
           <h3 className="font-oswald text-[17px] font-bold leading-tight text-white">{step.title}</h3>
           <p className="mt-1 font-sans text-[13.5px] leading-snug text-white/72">{step.body}</p>
@@ -94,19 +92,22 @@ function OnboardingCoachMarkInner({ screenKey }) {
           <div className="mt-3.5 flex items-center gap-2">
             <button
               type="button"
+              data-preserve-button-case="true"
               onClick={prev}
               disabled={isFirst}
-              className="inline-flex h-10 items-center justify-center gap-1 rounded-xl border border-white/14 bg-white/[0.05] px-3 font-oswald text-[13.5px] font-medium text-white/85 transition-colors hover:bg-white/[0.1] disabled:opacity-35 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8b7cff]/70"
+              data-onboarding-cta="true"
+              className="inline-flex h-10 items-center justify-center rounded-xl border border-white/14 bg-white/[0.05] px-3 font-sans text-[13.5px] font-semibold tracking-[0.01em] text-white/85 transition-colors hover:bg-white/[0.1] disabled:opacity-35 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8b7cff]/70"
             >
-              <ChevronLeft size={16} aria-hidden /> Anterior
+              Anterior
             </button>
             <button
               type="button"
+              data-preserve-button-case="true"
               onClick={next}
-              className="inline-flex h-10 flex-1 items-center justify-center gap-1 rounded-xl bg-[linear-gradient(135deg,#8b5cff,#6a43ff)] px-4 font-oswald text-[14px] font-semibold text-white shadow-[0_6px_16px_rgba(106,67,255,0.36)] transition-transform active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#b0a0ff]"
+              data-onboarding-cta="true"
+              className="inline-flex h-10 flex-1 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#8b5cff,#6a43ff)] px-4 font-sans text-[14px] font-semibold tracking-[0.01em] text-white shadow-[0_6px_16px_rgba(106,67,255,0.36)] transition-transform active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#b0a0ff]"
             >
               {isLast ? 'Entendido' : 'Siguiente'}
-              {!isLast && <ChevronRight size={16} aria-hidden />}
             </button>
           </div>
         </div>

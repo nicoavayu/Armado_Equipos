@@ -1,5 +1,6 @@
 import React, { useRef } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
+import BareCloseButton from '../../components/BareCloseButton';
 import useOnboardingDialog from './useOnboardingDialog';
 
 // Fullscreen chrome for the onboarding flow: themed backdrop with soft pitch
@@ -8,15 +9,15 @@ import useOnboardingDialog from './useOnboardingDialog';
 // honored via env(safe-area-inset-*).
 
 export default function OnboardingShell({
-  onSkip,
+  onDismiss,
   labelledById,
   describedById,
-  skipLabel = 'Omitir',
+  dismissLabel = 'Omitir tutorial',
   children,
 }) {
   const reduce = useReducedMotion();
   const cardRef = useRef(null);
-  const handleKeyDown = useOnboardingDialog({ containerRef: cardRef, onDismiss: onSkip });
+  const handleKeyDown = useOnboardingDialog({ containerRef: cardRef, onDismiss });
 
   const backdropMotion = reduce
     ? { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 } }
@@ -42,19 +43,21 @@ export default function OnboardingShell({
         aria-labelledby={labelledById}
         aria-describedby={describedById}
         tabIndex={-1}
-        className="relative flex w-full max-w-[520px] flex-col overflow-hidden outline-none sm:my-auto sm:h-[min(760px,94vh)] sm:rounded-[28px] sm:border sm:border-white/12 sm:shadow-[0_30px_80px_rgba(4,2,14,0.6)]"
+        data-onboarding-fullscreen-frame="true"
+        className="relative flex h-[100dvh] w-full flex-col overflow-hidden rounded-none border-0 outline-none"
         style={{ background: 'var(--app-bg-gradient)' }}
         {...cardMotion}
         transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
       >
-        {/* Ambience: soft pitch arc + violet/magenta glows. Decorative only. */}
+        {/* Full-viewport pitch: the device edges are the field boundary. */}
         <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
           <div className="absolute -top-24 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-[radial-gradient(circle,rgba(139,92,255,0.28),transparent_66%)]" />
           <div className="absolute bottom-[-30%] right-[-10%] h-72 w-72 rounded-full bg-[radial-gradient(circle,rgba(236,0,125,0.18),transparent_68%)]" />
-          <svg viewBox="0 0 400 800" className="absolute inset-0 h-full w-full opacity-[0.06]" preserveAspectRatio="xMidYMid slice">
-            <rect x="20" y="20" width="360" height="760" rx="24" fill="none" stroke="#fff" strokeWidth="2" />
-            <line x1="20" y1="400" x2="380" y2="400" stroke="#fff" strokeWidth="2" />
+          <svg data-onboarding-pitch="fullscreen" viewBox="0 0 400 800" className="absolute inset-0 h-full w-full opacity-[0.065]" preserveAspectRatio="xMidYMid slice">
+            <line x1="-40" y1="400" x2="440" y2="400" stroke="#fff" strokeWidth="2" />
             <circle cx="200" cy="400" r="70" fill="none" stroke="#fff" strokeWidth="2" />
+            <circle cx="200" cy="400" r="3" fill="#fff" />
+            <path d="M100 0v150M300 0v150M100 800V650M300 800V650" fill="none" stroke="#fff" strokeWidth="1.5" opacity="0.42" />
           </svg>
         </div>
 
@@ -65,17 +68,15 @@ export default function OnboardingShell({
             paddingBottom: 'max(calc(env(safe-area-inset-bottom) + 22px), 34px)',
           }}
         >
-          <div className="flex items-center justify-end px-5 pb-1 pt-1">
-            <button
-              type="button"
-              onClick={onSkip}
-              className="inline-flex min-h-11 shrink-0 items-center rounded-full bg-white/[0.035] px-3 text-[12.5px] font-sans font-semibold text-white/58 transition-colors hover:bg-white/[0.09] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8b7cff]/70"
-            >
-              {skipLabel}
-            </button>
+          <div className="mx-auto flex w-full max-w-[520px] items-center justify-end px-4 pb-1 pt-1">
+            <BareCloseButton
+              onClick={onDismiss}
+              aria-label={dismissLabel}
+              className="shrink-0"
+            />
           </div>
 
-          <div className="flex min-h-0 flex-1 flex-col px-5">
+          <div className="mx-auto flex min-h-0 w-full max-w-[520px] flex-1 flex-col px-5">
             {children}
           </div>
         </div>

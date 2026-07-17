@@ -28,7 +28,8 @@ export default function OnboardingIntroModal({ onStart, onDismiss }) {
         <motion.h1
           id="onboarding-intro-title"
           {...reveal(0.08)}
-          className="font-bebas-real text-[clamp(38px,11vw,50px)] leading-[0.92] tracking-[0.035em] text-white"
+          data-onboarding-intro-single-line="true"
+          className="whitespace-nowrap font-bebas-real text-[clamp(27px,8.4vw,42px)] leading-none tracking-[0.018em] text-white"
         >
           {welcomeContent.title}
         </motion.h1>

@@ -26,8 +26,10 @@ export default function useOnboardingDialog({ containerRef, onDismiss }) {
     const focusTimer = window.setTimeout(() => {
       const node = containerRef.current;
       if (!node) return;
-      const first = node.querySelector(FOCUSABLE);
-      (first || node).focus?.();
+      // Focus the labelled dialog itself on entry. Focusing the first action
+      // made the borderless X display a focus ring before any keyboard input,
+      // visually turning it into a square button on mobile.
+      node.focus?.();
     }, 30);
 
     return () => {

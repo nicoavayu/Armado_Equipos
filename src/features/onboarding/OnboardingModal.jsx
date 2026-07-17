@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { X } from 'lucide-react';
 
+import BareCloseButton from '../../components/BareCloseButton';
 import useOnboardingDialog from './useOnboardingDialog';
 
 // Shared modal chrome for intro, real first-step progress and completion.
@@ -52,14 +52,11 @@ export default function OnboardingModal({
         </div>
 
         {showClose && (
-          <button
-            type="button"
+          <BareCloseButton
             onClick={onClose}
             aria-label={closeLabel}
-            className="absolute right-3 top-[max(env(safe-area-inset-top),12px)] z-20 inline-flex h-11 w-11 items-center justify-center rounded-full bg-white/[0.045] text-white/58 transition-colors hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#a98cff]"
-          >
-            <X size={18} aria-hidden />
-          </button>
+            className="absolute right-3 top-[max(env(safe-area-inset-top),12px)] z-20"
+          />
         )}
 
         <div className="relative z-10 min-h-0 overflow-y-auto overscroll-contain px-5 sm:px-6">

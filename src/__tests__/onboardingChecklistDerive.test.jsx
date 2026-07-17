@@ -101,12 +101,11 @@ describe('useOnboardingChecklist — derives from real data', () => {
     expect(result.current.allDone).toBe(true);
   });
 
-  test('explore checklist uses only interactions that actually happened', async () => {
+  test('explore checklist uses only meaningful review interactions', async () => {
     useAuth.mockReturnValue({ user: { id: 'u5' }, profile: { profile_completion: 100 } });
     installSupabase(() => ({ data: [], error: null }));
 
     const trackedActions = {
-      openedPlay: true,
       reviewedMatch: true,
       reviewedPlayer: false,
     };
@@ -115,7 +114,7 @@ describe('useOnboardingChecklist — derives from real data', () => {
 
     const byKey = Object.fromEntries(result.current.items.map((item) => [item.key, item.done]));
     expect(byKey.profile).toBe(true);
-    expect(byKey.open_play).toBe(true);
+    expect(byKey.open_play).toBeUndefined();
     expect(byKey.review_match).toBe(true);
     expect(byKey.review_player).toBe(false);
     expect(result.current.allDone).toBe(false);

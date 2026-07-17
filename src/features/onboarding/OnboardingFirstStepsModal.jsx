@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, ChevronRight } from 'lucide-react';
+import { Check } from 'lucide-react';
 
 import { onboardingHaptic } from './haptics';
 import OnboardingModal from './OnboardingModal';
@@ -45,6 +45,7 @@ export default function OnboardingFirstStepsModal({ checklist, onClose, onNaviga
               <li key={item.key}>
                 <button
                   type="button"
+                  data-preserve-button-case="true"
                   disabled={item.done || !item.route}
                   onClick={() => {
                     onboardingHaptic('light');
@@ -65,7 +66,6 @@ export default function OnboardingFirstStepsModal({ checklist, onClose, onNaviga
                   <span className={`min-w-0 flex-1 font-sans text-[13.5px] font-medium leading-snug ${item.done ? 'text-white/42 line-through' : 'text-white/88'}`}>
                     {item.label}
                   </span>
-                  {!item.done && item.route && <ChevronRight size={17} className="shrink-0 text-white/38" aria-hidden />}
                 </button>
               </li>
             );

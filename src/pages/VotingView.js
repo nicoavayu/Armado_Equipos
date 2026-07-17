@@ -17,7 +17,7 @@ import DOMPurify from 'dompurify';
 import { handleError, AppError, ERROR_CODES } from '../lib/errorHandler';
 import { db } from '../api/supabaseWrapper';
 import { resolveMatchIdFromQueryParams } from '../utils/matchResolver';
-import { X } from 'lucide-react';
+import BareCloseButton from '../components/BareCloseButton';
 import StarRating from '../components/StarRating';
 import { AvatarFallback } from '../components/ProfileComponents';
 import EmptyStateCard from '../components/EmptyStateCard';
@@ -504,7 +504,6 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
       />
     </div>
   );
-  const cancelVoteButtonClass = 'fixed z-[1200] h-10 w-10 flex items-center justify-center text-white/92 transition-all duration-200 hover:scale-105 hover:text-white active:scale-[0.96] disabled:opacity-50 disabled:cursor-not-allowed';
   const cancelVoteButtonStyle = {
     top: 'max(14px, calc(env(safe-area-inset-top) + 12px))',
     right: 'max(14px, calc(env(safe-area-inset-right) + 12px))',
@@ -591,16 +590,13 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
   };
 
   const cancelVoteButton = (
-    <button
-      type="button"
+    <BareCloseButton
       aria-label="Cerrar votación"
-      className={cancelVoteButtonClass}
+      className="fixed z-[1200]"
       style={cancelVoteButtonStyle}
       onClick={requestCancelVoting}
       disabled={isSubmitting}
-    >
-      <X size={20} strokeWidth={2.35} />
-    </button>
+    />
   );
   const cancelVoteDialog = (
     <ConfirmModal

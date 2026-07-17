@@ -55,6 +55,10 @@ describe('normalizeOnboardingState', () => {
     expect(s.chosenPath).toBeNull();
     expect(s.status).toBe(ONBOARDING_STATUS.NOT_STARTED);
   });
+
+  test.each(['challenges', 'stats'])('does not persist informational path %s', (chosenPath) => {
+    expect(normalizeOnboardingState({ chosen_path: chosenPath }).chosenPath).toBeNull();
+  });
 });
 
 describe('mergeOnboardingStates (cross-device idempotency)', () => {
