@@ -32,6 +32,7 @@ const MIGRATIONS = [
   '20260714223000_auto_match_response_and_real_overlap_fix.sql',
   '20260715003000_auto_match_materialization_schedule_fix.sql',
   '20260716120000_auto_match_real_conflict_slots_and_invite_capacity_race.sql',
+  '20260716160000_user_onboarding_state.sql',
 ];
 
 const PORT = 54300 + Math.floor(Math.random() * 500);
@@ -2737,6 +2738,56 @@ async function scenarioInviteCapacityRace() {
     'los excedentes quedan suplentes');
 }
 
+// RLS del estado de onboarding: cada usuario sólo lee/escribe SU fila, nunca la
+// de otro. También verifica el trigger updated_at y el check de status.
+async function scenarioOnboardingStateRls() {
+  console.log('\nEscenario: RLS de user_onboarding_state');
+  const u1 = USERS[0].id;
+  const u2 = USERS[1].id;
+  const c1 = await asUser(u1);
+  const c2 = await asUser(u2);
+
+  await c1.query(
+    `insert into public.user_onboarding_state (user_id, completed_version, status, chosen_path)
+     values ($1, 1, 'completed', 'organizer')`,
+    [u1],
+  );
+
+  const ownRows = (await c1.query('select * from public.user_onboarding_state where user_id=$1', [u1])).rows;
+  eq(ownRows.length, 1, 'u1 lee su propio estado de onboarding');
+  eq(ownRows[0].chosen_path, 'organizer', 'u1 ve su recorrido elegido');
+
+  const crossRead = (await c2.query('select * from public.user_onboarding_state where user_id=$1', [u1])).rows;
+  eq(crossRead.length, 0, 'u2 NO puede leer el estado de onboarding de u1 (RLS)');
+
+  await expectError(
+    c2.query("insert into public.user_onboarding_state (user_id, status) values ($1, 'in_progress')", [u1]),
+    /row-level security|violates row-level security|new row violates/i,
+    'u2 NO puede insertar estado a nombre de u1 (RLS with check)',
+  );
+
+  const upd = await c2.query("update public.user_onboarding_state set status='skipped' where user_id=$1", [u1]);
+  eq(upd.rowCount, 0, 'u2 NO puede modificar el estado de u1 (0 filas afectadas)');
+
+  const still = (await c1.query('select status from public.user_onboarding_state where user_id=$1', [u1])).rows[0];
+  eq(still.status, 'completed', 'el estado de u1 permanece intacto tras el intento de u2');
+
+  await c1.query('select pg_sleep(0.01)');
+  await c1.query("update public.user_onboarding_state set status='skipped' where user_id=$1", [u1]);
+  const afterUpd = (await c1.query('select status, updated_at, created_at from public.user_onboarding_state where user_id=$1', [u1])).rows[0];
+  eq(afterUpd.status, 'skipped', 'u1 actualiza su propio estado');
+  ok(afterUpd.updated_at.getTime() >= afterUpd.created_at.getTime(), 'el trigger updated_at se dispara');
+
+  await expectError(
+    c1.query("update public.user_onboarding_state set status='bogus' where user_id=$1", [u1]),
+    /user_onboarding_status_check|check constraint/i,
+    'un status inválido es rechazado por el check constraint',
+  );
+
+  // Limpieza: no dejar la fila para no interferir con otros escenarios/reruns.
+  await c1.query('delete from public.user_onboarding_state where user_id=$1', [u1]);
+}
+
 async function main() {
   console.log(`Iniciando Postgres embebido en :${PORT} (${DATA_DIR})`);
   await postgres.initialise();
@@ -2805,6 +2856,7 @@ async function main() {
   await scenarioCohortDistance();
   await scenarioRealMatchConflictGating();
   await scenarioInviteCapacityRace();
+  await scenarioOnboardingStateRls();
 
   console.log(`\n${checks} chequeos, ${failures} fallas`);
   if (failures > 0) process.exitCode = 1;

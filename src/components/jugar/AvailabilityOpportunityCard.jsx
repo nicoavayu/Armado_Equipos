@@ -1303,7 +1303,7 @@ export default function AvailabilityOpportunityCard() {
             </div>
           ) : null}
 
-          <div className={searchActive ? 'opacity-55' : ''} aria-disabled={searchActive}>
+          <div className={searchActive ? 'opacity-55' : ''} aria-disabled={searchActive} data-tour-id="auto-match-availability">
             <div>
               <p className="mb-2 font-oswald text-[9px] font-semibold uppercase tracking-[0.14em] text-white/40">Días de la semana</p>
               <div className="grid grid-cols-7 gap-1">
@@ -1452,6 +1452,7 @@ export default function AvailabilityOpportunityCard() {
               type="button"
               disabled={loading || formats.length === 0 || days.length === 0}
               onClick={save}
+              data-tour-id="auto-match-activate"
               className={`${PRIMARY_CTA_BUTTON_CLASS} mt-5 !min-h-[50px]`}
             >
               <Users size={18} className="mr-2" /> Activar búsqueda

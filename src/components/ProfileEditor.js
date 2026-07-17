@@ -8,6 +8,7 @@ import { updateProfile, calculateProfileCompletion, supabase } from '../supabase
 import { friendlyError } from '../utils/friendlyError';
 import { prepareImageForUpload } from '../utils/imageUpload';
 import ProfileCard from './ProfileCard';
+import { OnboardingReplayButton } from '../features/onboarding';
 import AvatarCropModal from './AvatarCropModal';
 import ConfirmModal from './ConfirmModal';
 import InlineNotice from './ui/InlineNotice';
@@ -534,6 +535,9 @@ const ProfileActionSection = ({
     >
       {loading ? 'Procesando...' : 'Guardar Cambios'}
     </button>
+
+    {/* Ayuda: replay the interactive onboarding ("Conocer Arma2"). */}
+    <OnboardingReplayButton />
 
     <button
       className="w-full h-[50px] rounded-none border border-[rgba(148,134,255,0.28)] bg-white/[0.05] text-white/90 text-base font-bebas tracking-[0.01em] normal-case cursor-pointer transition-all hover:bg-white/[0.1] hover:text-white active:opacity-95 flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed"

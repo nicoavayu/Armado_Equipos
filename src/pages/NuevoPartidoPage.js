@@ -6,6 +6,7 @@ import FormularioNuevoPartidoFlow from './FormularioNuevoPartidoFlow';
 import PageTitle from '../components/PageTitle';
 import WhatsAppMatchImportFlow from '../components/WhatsAppMatchImportFlow';
 import WhatsappIcon from '../components/WhatsappIcon';
+import OnboardingCoachMark from '../features/onboarding/OnboardingCoachMark';
 
 const PickerBackground = () => (
   <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden="true">
@@ -15,12 +16,13 @@ const PickerBackground = () => (
   </div>
 );
 
-export const MethodTile = ({ icon, title, onClick, disabled = false, testId }) => (
+export const MethodTile = ({ icon, title, onClick, disabled = false, testId, tourId }) => (
   <button
     type="button"
     onClick={onClick}
     disabled={disabled}
     data-testid={testId}
+    data-tour-id={tourId}
     aria-label={title}
     className={`group relative flex min-h-[184px] w-full min-w-0 flex-col items-center justify-center gap-4 overflow-hidden rounded-[24px] border p-4 text-center outline-none transition-[transform,border-color,box-shadow] duration-200 ease-out focus-visible:ring-2 focus-visible:ring-[#a98cff] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0b0818] motion-reduce:transform-none motion-reduce:transition-none sm:min-h-[204px] sm:gap-5 sm:p-5 ${disabled
       ? 'cursor-not-allowed border-white/10 bg-white/[0.02] opacity-45'
@@ -60,18 +62,21 @@ export const NewMatchMethodPicker = ({ onManual, onWhatsApp, onBack }) => (
       >
         <MethodTile
           testId="method-tile-manual"
+          tourId="new-match-manual"
           icon={<PencilLine data-testid="manual-pencil-icon" />}
           title="CREAR PARTIDO MANUAL"
           onClick={onManual}
         />
         <MethodTile
           testId="method-tile-whatsapp"
+          tourId="new-match-whatsapp"
           icon={<WhatsappIcon data-testid="whatsapp-icon" color="white" />}
           title="IMPORTAR DE WHATSAPP"
           onClick={onWhatsApp}
         />
       </div>
     </main>
+    <OnboardingCoachMark screenKey="new-match" />
   </div>
 );
 

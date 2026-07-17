@@ -15,6 +15,13 @@ const ALLOWED_EVENTS = new Set([
   'push_opened',
   'friend_request_opened',
   'match_invite_opened',
+  'onboarding_started',
+  'onboarding_path_selected',
+  'onboarding_completed',
+  'onboarding_skipped',
+  'onboarding_replayed',
+  'onboarding_card_dismissed',
+  'onboarding_coach_marks_done',
 ]);
 
 let posthogClient = null;
