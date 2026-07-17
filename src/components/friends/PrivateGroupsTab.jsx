@@ -919,8 +919,8 @@ const PrivateGroupsTab = ({
       ) : groups.length === 0 ? (
         <EmptyStateCard
           icon={FolderOpen}
-          title="Todavía no creaste grupos"
-          description="Creá grupos privados para organizar amigos y usarlos al invitar a un partido."
+          title="Todavía no tenés grupos"
+          description="Creá grupos privados con tus amigos para invitarlos más rápido a tus partidos."
           className="my-0 p-5"
         />
       ) : (
