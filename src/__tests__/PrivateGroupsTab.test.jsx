@@ -76,7 +76,7 @@ describe('PrivateGroupsTab', () => {
       />,
     );
 
-    expect(await screen.findByText('Todavía no creaste grupos')).toBeInTheDocument();
+    expect(await screen.findByText('Todavía no tenés grupos')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /Crear grupo/i }));
     fireEvent.change(screen.getByLabelText(/Nombre del grupo/i), {
