@@ -70,6 +70,7 @@ describe('version handling', () => {
   test('completed current version is handled', () => {
     expect(hasHandledCurrentVersion({ completedVersion: 1 }, 1)).toBe(true);
     expect(hasHandledCurrentVersion({ completedVersion: 0 }, 1)).toBe(false);
+    expect(hasHandledCurrentVersion({ completedVersion: 1, status: ONBOARDING_STATUS.SKIPPED }, 1)).toBe(false);
   });
 
   test('a future version is not yet handled by a v1 completer', () => {
@@ -83,10 +84,11 @@ describe('resolveOnboardingDecision', () => {
     expect(d).toMatchObject({ ready: true, shouldAutoOpen: true, showDiscoveryCard: false });
   });
 
-  test('existing user never auto-opens, but is offered the discovery card', () => {
+  test('existing user never auto-opens and gets no inline Home offer', () => {
     const d = resolveOnboardingDecision(baseCtx({ user: oldUser }));
     expect(d.shouldAutoOpen).toBe(false);
-    expect(d.showDiscoveryCard).toBe(true);
+    expect(d.showDiscoveryCard).toBe(false);
+    expect(d.reason).toBe('existing_manual_only');
   });
 
   test('existing user who dismissed the card sees nothing', () => {
@@ -108,12 +110,12 @@ describe('resolveOnboardingDecision', () => {
     expect(d.reason).toBe('already_handled');
   });
 
-  test('user who skipped the current version is not re-shown', () => {
-    // skip persists completedVersion = CURRENT + status skipped
+  test('user who skipped remains pending and can be re-offered next session', () => {
+    // v1 clients wrote completedVersion on skip; status repairs the semantics.
     const d = resolveOnboardingDecision(baseCtx({
       state: { completedVersion: 1, status: ONBOARDING_STATUS.SKIPPED },
     }));
-    expect(d.shouldAutoOpen).toBe(false);
+    expect(d.shouldAutoOpen).toBe(true);
     expect(d.showDiscoveryCard).toBe(false);
   });
 

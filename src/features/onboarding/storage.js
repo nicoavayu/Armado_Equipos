@@ -72,6 +72,8 @@ export function normalizeOnboardingState(input) {
 export function mergeOnboardingStates(a, b) {
   const left = normalizeOnboardingState(a);
   const right = normalizeOnboardingState(b);
+  const leftChecklist = asPlainObject(left.checklist);
+  const rightChecklist = asPlainObject(right.checklist);
 
   const completedVersion = Math.max(left.completedVersion, right.completedVersion);
   const status = (STATUS_RANK[right.status] || 0) >= (STATUS_RANK[left.status] || 0)
@@ -83,7 +85,18 @@ export function mergeOnboardingStates(a, b) {
     status,
     chosenPath: right.chosenPath || left.chosenPath || null,
     coachMarks: { ...left.coachMarks, ...right.coachMarks },
-    checklist: { ...left.checklist, ...right.checklist },
+    checklist: {
+      ...leftChecklist,
+      ...rightChecklist,
+      // Action signals can be written on different devices. Union them so a
+      // later reconciliation never rolls a genuinely completed step back.
+      actions: {
+        ...asPlainObject(leftChecklist.actions),
+        ...asPlainObject(rightChecklist.actions),
+      },
+      celebrated: Boolean(leftChecklist.celebrated || rightChecklist.celebrated),
+      completionShown: Boolean(leftChecklist.completionShown || rightChecklist.completionShown),
+    },
     welcomeCardDismissed: left.welcomeCardDismissed || right.welcomeCardDismissed,
     firstSeenAt: left.firstSeenAt || right.firstSeenAt || null,
     completedAt: right.completedAt || left.completedAt || null,

@@ -86,10 +86,14 @@ const ASYNC_DERIVERS = {
   hasConfirmedOpportunity: queryHasConfirmedOpportunity,
 };
 
-export function useOnboardingChecklist(pathKey, { refreshNonce = 0 } = {}) {
+export function useOnboardingChecklist(pathKey, {
+  refreshNonce = 0,
+  enabled = true,
+  trackedActions = {},
+} = {}) {
   const { user, profile } = useAuth();
   const userId = user?.id || null;
-  const content = getChecklistContent(pathKey || ONBOARDING_PATHS.OVERVIEW);
+  const content = getChecklistContent(pathKey || ONBOARDING_PATHS.EXPLORE);
   const [signals, setSignals] = useState({});
   const [loading, setLoading] = useState(true);
 
@@ -103,7 +107,7 @@ export function useOnboardingChecklist(pathKey, { refreshNonce = 0 } = {}) {
 
   useEffect(() => {
     let cancelled = false;
-    if (!userId) {
+    if (!enabled || !userId) {
       setSignals({});
       setLoading(false);
       return () => { cancelled = true; };
@@ -126,15 +130,18 @@ export function useOnboardingChecklist(pathKey, { refreshNonce = 0 } = {}) {
     })();
 
     return () => { cancelled = true; };
-  }, [userId, neededAsyncKeys, refreshNonce]);
+  }, [enabled, userId, neededAsyncKeys, refreshNonce]);
 
   const items = useMemo(() => content.items.map((item) => {
     let done = false;
     if (item.derive === 'profileComplete') done = deriveProfileComplete(profile);
     else if (item.derive === 'hasLocation') done = deriveHasLocation(profile);
+    else if (item.derive === 'openedPlay') done = Boolean(trackedActions.openedPlay);
+    else if (item.derive === 'reviewedMatch') done = Boolean(trackedActions.reviewedMatch);
+    else if (item.derive === 'reviewedPlayer') done = Boolean(trackedActions.reviewedPlayer);
     else done = Boolean(signals[item.derive]);
     return { ...item, done };
-  }), [content, profile, signals]);
+  }), [content, profile, signals, trackedActions]);
 
   const completedCount = items.filter((item) => item.done).length;
   const allDone = items.length > 0 && completedCount === items.length;

@@ -73,7 +73,7 @@ function OnboardingCoachMarkInner({ screenKey }) {
         {...cardMotion}
         transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
         className="absolute inset-x-0 bottom-0 px-4"
-        style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 16px)', pointerEvents: 'auto' }}
+        style={{ paddingBottom: 'max(calc(env(safe-area-inset-bottom) + 20px), 30px)', pointerEvents: 'auto' }}
       >
         <div className="mx-auto max-w-[520px] rounded-2xl border border-[rgba(148,134,255,0.3)] bg-[linear-gradient(165deg,rgba(38,30,80,0.98),rgba(16,12,33,0.99))] p-4 shadow-[0_24px_64px_rgba(5,3,16,0.7)]">
           <div className="mb-1 flex items-center justify-between">

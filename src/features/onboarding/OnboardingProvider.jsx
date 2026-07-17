@@ -24,14 +24,19 @@ import {
   loadOnboardingState,
   saveOnboardingState,
 } from './storage';
-import { hasPendingIntent as detectPendingIntent, isSafeHomeSurface } from './pendingIntent';
+import {
+  hasBlockingModalOpen,
+  hasPendingIntent as detectPendingIntent,
+  isSafeHomeSurface,
+} from './pendingIntent';
+import { useOnboardingChecklist } from './useOnboardingChecklist';
 
 // Small defer before auto-opening: lets routing, deep links and notification
 // redirects settle so a queued navigation can win the race. We re-check safety
 // when the timer fires, so a redirect that lands during the delay cancels it.
 const AUTO_OPEN_DELAY_MS = 700;
 // Hard cap on waiting for the profile so a profile-load error never blocks the
-// onboarding (or the discovery card) forever.
+// onboarding forever.
 const PROFILE_GRACE_MS = 2000;
 
 export { useOnboarding, useOnboardingOptional };
@@ -47,26 +52,41 @@ export function OnboardingProvider({ children }) {
   const [state, setState] = useState(() => createDefaultOnboardingState());
   const [stateLoaded, setStateLoaded] = useState(false);
   const [profileGraceElapsed, setProfileGraceElapsed] = useState(false);
-  // activeFlow: null when closed, else { screen: 'welcome'|'goal'|'path', path }
+  // A single host owns every visible state, so onboarding surfaces can never
+  // stack: intro modal, fullscreen tour, first steps modal or completion modal.
   const [activeFlow, setActiveFlow] = useState(null);
+  const [pendingManualSurface, setPendingManualSurface] = useState(null);
 
   const userId = user?.id || null;
   const autoOpenedThisSessionRef = useRef(false);
+  const firstStepsShownThisSessionRef = useRef(false);
+  const completionShownThisSessionRef = useRef(false);
   const locationRef = useRef(location);
   const pendingAuthFlowRef = useRef(pendingAuthFlow);
   const firstWriteDoneRef = useRef(false);
+  const writeQueueRef = useRef(Promise.resolve());
+  const blockingModalOpen = useBlockingModalOpen();
+  const blockingModalOpenRef = useRef(blockingModalOpen);
   locationRef.current = location;
   pendingAuthFlowRef.current = pendingAuthFlow;
+  blockingModalOpenRef.current = blockingModalOpen;
 
   const enabled = useMemo(() => isOnboardingEnabledForUser(user), [user]);
+  const checklist = useOnboardingChecklist(state.chosenPath, {
+    enabled: enabled && stateLoaded && Boolean(state.chosenPath),
+    trackedActions: state.checklist?.actions || {},
+  });
 
   // Load persisted state whenever the user changes. Never throws (storage falls
   // back to local/defaults), so the app is usable even if the query fails.
   useEffect(() => {
     let cancelled = false;
     autoOpenedThisSessionRef.current = false;
+    firstStepsShownThisSessionRef.current = false;
+    completionShownThisSessionRef.current = false;
     firstWriteDoneRef.current = false;
     setActiveFlow(null);
+    setPendingManualSurface(null);
 
     if (!userId) {
       setState(createDefaultOnboardingState());
@@ -101,7 +121,7 @@ export function OnboardingProvider({ children }) {
 
   const profileResolved = authResolved && (Boolean(profile) || profileGraceElapsed);
   const safeHome = isSafeHomeSurface(location);
-  const pendingIntent = detectPendingIntent({ pendingAuthFlow });
+  const pendingIntent = detectPendingIntent({ pendingAuthFlow }) || blockingModalOpen;
 
   const decision = useMemo(() => resolveOnboardingDecision({
     enabled,
@@ -124,8 +144,11 @@ export function OnboardingProvider({ children }) {
       const withSeed = isFirstWrite && !next.firstSeenAt
         ? { ...next, firstSeenAt: new Date().toISOString() }
         : next;
-      // Fire and forget; storage handles offline fallback.
-      Promise.resolve(saveOnboardingState(userId, withSeed, { isFirstWrite }))
+      // Preserve write order when real actions happen quickly. Storage still
+      // writes locally first and handles offline fallback; serialization keeps
+      // a slower earlier upsert from overwriting a newer checklist state.
+      writeQueueRef.current = writeQueueRef.current
+        .then(() => saveOnboardingState(userId, withSeed, { isFirstWrite }))
         .catch((error) => logger.warn('[ONBOARDING] persist failed', { code: error?.code || null }));
       if (meta.event) {
         try { track(meta.event, meta.props || {}); } catch (_error) { /* analytics is optional */ }
@@ -140,7 +163,7 @@ export function OnboardingProvider({ children }) {
     // Resume mid-path only for a genuine in-progress run (not a replay).
     const screen = !replay && resumePath && state.status === ONBOARDING_STATUS.IN_PROGRESS
       ? 'path'
-      : 'welcome';
+      : 'intro';
     setActiveFlow({ screen, path: screen === 'path' ? resumePath : null });
     if (state.status !== ONBOARDING_STATUS.IN_PROGRESS && state.completedVersion < CURRENT_ONBOARDING_VERSION) {
       persist((prev) => ({ ...prev, status: ONBOARDING_STATUS.IN_PROGRESS }), {
@@ -154,10 +177,6 @@ export function OnboardingProvider({ children }) {
 
   const goToGoalSelector = useCallback(() => {
     setActiveFlow((prev) => (prev ? { ...prev, screen: 'goal', path: null } : { screen: 'goal', path: null }));
-  }, []);
-
-  const goToWelcome = useCallback(() => {
-    setActiveFlow((prev) => (prev ? { ...prev, screen: 'welcome' } : { screen: 'welcome', path: null }));
   }, []);
 
   const chooseGoal = useCallback((pathKey) => {
@@ -189,7 +208,9 @@ export function OnboardingProvider({ children }) {
     persist((prev) => ({
       ...prev,
       status: ONBOARDING_STATUS.SKIPPED,
-      completedVersion: CURRENT_ONBOARDING_VERSION,
+      // Skipping is intentionally pending: it suppresses the current session,
+      // but does not handle the version forever.
+      completedVersion: prev.completedVersion,
       skippedAt: new Date().toISOString(),
     }), { event: 'onboarding_skipped', props: { path: state.chosenPath || null } });
     setActiveFlow(null);
@@ -197,34 +218,68 @@ export function OnboardingProvider({ children }) {
 
   const replayOnboarding = useCallback((pathKey) => {
     autoOpenedThisSessionRef.current = true;
-    if (isValidOnboardingPath(pathKey)) {
-      setActiveFlow({ screen: 'path', path: pathKey });
+    const validPath = isValidOnboardingPath(pathKey) ? pathKey : null;
+    if (validPath) {
       persist((prev) => ({ ...prev, chosenPath: pathKey }));
-    } else {
-      setActiveFlow({ screen: 'welcome', path: null });
     }
-    track_safe('onboarding_replayed', { path: isValidOnboardingPath(pathKey) ? pathKey : null });
-  }, [persist]);
-
-  const dismissDiscoveryCard = useCallback(() => {
-    persist((prev) => ({ ...prev, welcomeCardDismissed: true }), { event: 'onboarding_card_dismissed' });
+    const request = { type: 'tour', path: validPath };
+    if (!isSafeHomeSurface(locationRef.current)
+      || detectPendingIntent({ pendingAuthFlow: pendingAuthFlowRef.current })
+      || blockingModalOpenRef.current) {
+      setPendingManualSurface(request);
+    } else {
+      setActiveFlow(validPath
+        ? { screen: 'path', path: validPath }
+        : { screen: 'intro', path: null });
+    }
+    track_safe('onboarding_replayed', { path: validPath });
   }, [persist]);
 
   const dismissChecklist = useCallback(() => {
-    persist((prev) => ({ ...prev, checklist: { ...prev.checklist, dismissed: true } }));
-  }, [persist]);
+    firstStepsShownThisSessionRef.current = true;
+    setActiveFlow(null);
+  }, []);
+
+  const showFirstSteps = useCallback(() => {
+    if (!isValidOnboardingPath(state.chosenPath)) return;
+    const request = { type: 'first_steps', path: state.chosenPath };
+    if (!isSafeHomeSurface(locationRef.current)
+      || detectPendingIntent({ pendingAuthFlow: pendingAuthFlowRef.current })
+      || blockingModalOpenRef.current) {
+      setPendingManualSurface(request);
+      return;
+    }
+    firstStepsShownThisSessionRef.current = true;
+    setActiveFlow({ screen: 'first_steps', path: request.path });
+  }, [state.chosenPath]);
 
   // Called when the checklist is fully completed: record the celebration and,
   // if the user never formally finished the flow, mark the onboarding done.
   const markChecklistCelebrated = useCallback(() => {
     persist((prev) => ({
       ...prev,
-      checklist: { ...prev.checklist, celebrated: true, dismissed: true },
+      checklist: {
+        ...prev.checklist,
+        celebrated: true,
+        completionShown: true,
+      },
       status: ONBOARDING_STATUS.COMPLETED,
       completedVersion: Math.max(prev.completedVersion, CURRENT_ONBOARDING_VERSION),
       completedAt: prev.completedAt || new Date().toISOString(),
     }));
   }, [persist]);
+
+  const markChecklistAction = useCallback((actionKey) => {
+    const normalizedKey = String(actionKey || '').trim();
+    if (!normalizedKey || state.checklist?.actions?.[normalizedKey]) return;
+    persist((prev) => ({
+      ...prev,
+      checklist: {
+        ...prev.checklist,
+        actions: { ...prev.checklist?.actions, [normalizedKey]: true },
+      },
+    }), { event: 'onboarding_checklist_action', props: { action: normalizedKey } });
+  }, [persist, state.checklist?.actions]);
 
   const markCoachMarkSeen = useCallback((screenKey, markId) => {
     persist((prev) => ({
@@ -249,17 +304,72 @@ export function OnboardingProvider({ children }) {
   // timer-fire time still finds a safe, idle Home. Once per session.
   useEffect(() => {
     if (!decision.ready || !decision.shouldAutoOpen) return undefined;
+    if (pendingManualSurface) return undefined;
     if (activeFlow || autoOpenedThisSessionRef.current) return undefined;
 
     const timer = setTimeout(() => {
       if (autoOpenedThisSessionRef.current) return;
       if (!isSafeHomeSurface(locationRef.current)) return;
       if (detectPendingIntent({ pendingAuthFlow: pendingAuthFlowRef.current })) return;
+      if (blockingModalOpenRef.current) return;
       openOnboarding({ auto: true });
     }, AUTO_OPEN_DELAY_MS);
 
     return () => clearTimeout(timer);
-  }, [decision.ready, decision.shouldAutoOpen, activeFlow, openOnboarding]);
+  }, [decision.ready, decision.shouldAutoOpen, activeFlow, openOnboarding, pendingManualSurface]);
+
+  useEffect(() => {
+    if (!pendingManualSurface || activeFlow || !safeHome || pendingIntent) return;
+    setPendingManualSurface(null);
+    if (pendingManualSurface.type === 'first_steps') {
+      firstStepsShownThisSessionRef.current = true;
+      setActiveFlow({ screen: 'first_steps', path: pendingManualSurface.path });
+      return;
+    }
+    setActiveFlow(pendingManualSurface.path
+      ? { screen: 'path', path: pendingManualSurface.path }
+      : { screen: 'intro', path: null });
+  }, [activeFlow, pendingIntent, pendingManualSurface, safeHome]);
+
+  // Offer real first-step progress as a modal, never as Home content. It can
+  // appear after a completed/skipped tour or on a later idle Home, once/session.
+  useEffect(() => {
+    const tourHandled = state.status === ONBOARDING_STATUS.COMPLETED
+      || state.status === ONBOARDING_STATUS.SKIPPED;
+    if (!enabled || !stateLoaded || !tourHandled || !state.chosenPath) return undefined;
+    if (checklist.loading || checklist.allDone || activeFlow) return undefined;
+    if (!safeHome || pendingIntent || firstStepsShownThisSessionRef.current) return undefined;
+
+    const timer = setTimeout(() => {
+      if (!isSafeHomeSurface(locationRef.current)) return;
+      if (detectPendingIntent({ pendingAuthFlow: pendingAuthFlowRef.current })) return;
+      if (blockingModalOpenRef.current || firstStepsShownThisSessionRef.current) return;
+      firstStepsShownThisSessionRef.current = true;
+      setActiveFlow({ screen: 'first_steps', path: state.chosenPath });
+    }, AUTO_OPEN_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [activeFlow, checklist.allDone, checklist.loading, enabled, pendingIntent, safeHome, state.chosenPath, state.status, stateLoaded]);
+
+  // The premium completion modal is tied to real checklist data and is marked
+  // shown before rendering, preventing render loops and cross-device repeats.
+  useEffect(() => {
+    const tourHandled = state.status === ONBOARDING_STATUS.COMPLETED
+      || state.status === ONBOARDING_STATUS.SKIPPED;
+    const alreadyShown = Boolean(state.checklist?.completionShown || state.checklist?.celebrated);
+    if (!enabled || !stateLoaded || !tourHandled || !state.chosenPath) return undefined;
+    if (checklist.loading || !checklist.allDone || alreadyShown || activeFlow) return undefined;
+    if (!safeHome || pendingIntent || completionShownThisSessionRef.current) return undefined;
+
+    const timer = setTimeout(() => {
+      if (!isSafeHomeSurface(locationRef.current)) return;
+      if (detectPendingIntent({ pendingAuthFlow: pendingAuthFlowRef.current })) return;
+      if (blockingModalOpenRef.current || completionShownThisSessionRef.current) return;
+      completionShownThisSessionRef.current = true;
+      markChecklistCelebrated();
+      setActiveFlow({ screen: 'completed', path: state.chosenPath });
+    }, AUTO_OPEN_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [activeFlow, checklist.allDone, checklist.loading, enabled, markChecklistCelebrated, pendingIntent, safeHome, state.checklist?.celebrated, state.checklist?.completionShown, state.chosenPath, state.status, stateLoaded]);
 
   const value = useMemo(() => ({
     // state / decision
@@ -269,22 +379,22 @@ export function OnboardingProvider({ children }) {
     enabled,
     activeFlow,
     isActive: Boolean(activeFlow),
+    isTourActive: Boolean(activeFlow && ['intro', 'goal', 'path'].includes(activeFlow.screen)),
     currentVersion: CURRENT_ONBOARDING_VERSION,
-    // discovery card
-    canShowDiscoveryCard: decision.ready && decision.showDiscoveryCard,
+    checklist,
     // flow navigation
     openOnboarding,
     goToGoalSelector,
-    goToWelcome,
     chooseGoal,
     closeOnboarding,
     completeOnboarding,
     skipOnboarding,
     replayOnboarding,
-    dismissDiscoveryCard,
     // checklist
     dismissChecklist,
+    showFirstSteps,
     markChecklistCelebrated,
+    markChecklistAction,
     // coach marks
     markCoachMarkSeen,
     markCoachMarkGroupDone,
@@ -295,17 +405,18 @@ export function OnboardingProvider({ children }) {
     decision,
     enabled,
     activeFlow,
+    checklist,
     openOnboarding,
     goToGoalSelector,
-    goToWelcome,
     chooseGoal,
     closeOnboarding,
     completeOnboarding,
     skipOnboarding,
     replayOnboarding,
-    dismissDiscoveryCard,
     dismissChecklist,
+    showFirstSteps,
     markChecklistCelebrated,
+    markChecklistAction,
     markCoachMarkSeen,
     markCoachMarkGroupDone,
     isCoachMarkGroupDone,
@@ -321,6 +432,25 @@ export function OnboardingProvider({ children }) {
 // track() silently ignores unknown events; wrap so analytics is never fatal.
 function track_safe(event, props) {
   try { track(event, props); } catch (_error) { /* analytics is optional */ }
+}
+
+// Existing app modals (especially HomeWelcomeCard) have absolute priority.
+// Watching the DOM means onboarding also waits for notices/actions that do not
+// share React state with this provider.
+function useBlockingModalOpen() {
+  const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    if (typeof document === 'undefined' || !document.body) return undefined;
+    const sync = () => setIsOpen(hasBlockingModalOpen());
+    sync();
+    if (typeof MutationObserver === 'undefined') return undefined;
+    const observer = new MutationObserver(sync);
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, []);
+
+  return isOpen;
 }
 
 export default OnboardingProvider;

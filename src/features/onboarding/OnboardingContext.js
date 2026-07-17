@@ -1,7 +1,7 @@
 import { createContext, useContext } from 'react';
 
 // Lightweight context module: no heavy imports (no AuthProvider / capacitor), so
-// leaf surfaces (coach marks, discovery card) can consume onboarding without
+// leaf surfaces (coach marks, manual replay) can consume onboarding without
 // pulling the whole provider chain into their bundle or their tests.
 export const OnboardingContext = createContext(null);
 

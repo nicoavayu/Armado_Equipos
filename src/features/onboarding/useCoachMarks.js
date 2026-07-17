@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useOnboarding } from './OnboardingContext';
 import { coachMarkContent } from './content';
-import { hasPendingIntent } from './pendingIntent';
+import { hasBlockingModalOpen, hasPendingIntent } from './pendingIntent';
 
 const MEASURE_DELAY_MS = 260; // let the screen paint + any scroll settle
 const READY_DELAY_MS = 450; // small delay before first showing marks
@@ -51,6 +51,7 @@ export function useCoachMarks(screenKey, { enabledOverride = null } = {}) {
     if (isActive) return false; // never over the fullscreen flow
     if (isCoachMarkGroupDone(screenKey, groupVersion)) return false;
     if (hasPendingIntent()) return false; // deep-link / urgent flow takes priority
+    if (hasBlockingModalOpen()) return false;
     return true;
   }, [enabledOverride, enabled, stateLoaded, group, isActive, isCoachMarkGroupDone, screenKey, groupVersion]);
 

@@ -2,13 +2,13 @@
 export { default as OnboardingProvider, useOnboarding } from './OnboardingProvider';
 export { default as OnboardingHost } from './OnboardingHost';
 export { default as OnboardingFlow } from './OnboardingFlow';
-export { default as OnboardingWelcome } from './OnboardingWelcome';
+export { default as OnboardingIntroModal } from './OnboardingIntroModal';
 export { default as OnboardingGoalSelector } from './OnboardingGoalSelector';
 export { default as OnboardingOrganizerPath } from './OnboardingOrganizerPath';
 export { default as OnboardingAutoMatchPath } from './OnboardingAutoMatchPath';
-export { default as OnboardingOverviewPath } from './OnboardingOverviewPath';
-export { default as OnboardingChecklist } from './OnboardingChecklist';
-export { default as OnboardingDiscoveryCard } from './OnboardingDiscoveryCard';
+export { default as OnboardingExplorePath } from './OnboardingExplorePath';
+export { default as OnboardingFirstStepsModal } from './OnboardingFirstStepsModal';
+export { default as OnboardingCompletedModal } from './OnboardingCompletedModal';
 export { default as OnboardingCoachMark } from './OnboardingCoachMark';
 export { default as OnboardingReplayButton } from './OnboardingReplayButton';
 export { useOnboardingOptional } from './OnboardingProvider';

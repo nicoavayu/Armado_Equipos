@@ -1,185 +1,415 @@
 import React from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
+import {
+  CalendarDays,
+  Check,
+  Clock3,
+  Link2,
+  MapPin,
+  MessageCircle,
+  Radar,
+  SlidersHorizontal,
+  Star,
+  Trophy,
+  Users,
+} from 'lucide-react';
 
-// Lightweight, theme-matched SVG illustrations for the onboarding steps. Pure
-// vector (no external assets, no heavy media), so they stay crisp and cheap.
-// Colors come from the app palette: violet #6a43ff / #8b7cff, magenta #ec007d,
-// pitch green #35d07f. Any subtle motion is CSS-driven and disabled under
-// prefers-reduced-motion by the parent's reduced-motion styles.
+const ART_LABELS = {
+  intro: 'Fichas de jugadores formando un equipo alrededor de una pelota',
+  create: 'Card de partido con fecha, horario y ubicación',
+  whatsapp: 'Enlace de un partido que incorpora fichas de jugadores',
+  evaluate: 'Jugadores aportando señales a una evaluación grupal',
+  teams: 'Fichas reorganizadas en dos equipos equilibrados',
+  record: 'Resultado de un partido guardado en el historial',
+  availability: 'Calendario con días y horarios disponibles',
+  preferences: 'Formato, distancia y ubicación combinados para buscar',
+  matching: 'Disponibilidad y preferencias convergiendo en una oportunidad',
+  confirm: 'Oportunidad de partido lista para confirmar',
+  explore_matches: 'Card de un partido disponible en la pestaña Jugar',
+  explore_players: 'Fichas de jugadores disponibles en la pestaña Jugar',
+  completion: 'Formación completa y primeros pasos confirmados',
+};
 
-const Frame = ({ children, label }) => (
-  <svg viewBox="0 0 200 140" role="img" aria-label={label} className="onboarding-art">
-    <defs>
-      <linearGradient id="ob-violet" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0" stopColor="#8b5cff" />
-        <stop offset="1" stopColor="#6a43ff" />
-      </linearGradient>
-      <linearGradient id="ob-pitch" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stopColor="#1f7a4d" />
-        <stop offset="1" stopColor="#0f3d28" />
-      </linearGradient>
-    </defs>
-    {children}
-  </svg>
-);
+const TOKEN_STYLES = {
+  violet: 'border-[#9d86ff]/70 bg-[#6a43ff] text-white shadow-[0_5px_16px_rgba(106,67,255,0.4)]',
+  magenta: 'border-[#ff78b9]/65 bg-[#c71d78] text-white shadow-[0_5px_16px_rgba(199,29,120,0.35)]',
+  teal: 'border-[#71e0ce]/60 bg-[#167a6b] text-white shadow-[0_5px_16px_rgba(22,122,107,0.35)]',
+  amber: 'border-[#ffe09a]/60 bg-[#9b6816] text-white shadow-[0_5px_16px_rgba(155,104,22,0.35)]',
+};
 
-const PitchBase = () => (
-  <g opacity="0.9">
-    <rect x="16" y="18" width="168" height="104" rx="12" fill="url(#ob-pitch)" />
-    <rect x="16" y="18" width="168" height="104" rx="12" fill="none" stroke="rgba(255,255,255,0.28)" strokeWidth="1.6" />
-    <line x1="100" y1="18" x2="100" y2="122" stroke="rgba(255,255,255,0.28)" strokeWidth="1.4" />
-    <circle cx="100" cy="70" r="16" fill="none" stroke="rgba(255,255,255,0.28)" strokeWidth="1.4" />
-  </g>
-);
+const enter = (reduce, { delay = 0, x = 0, y = 12, scale = 1 } = {}) => ({
+  initial: reduce ? false : { opacity: 0, x, y, scale },
+  animate: { opacity: 1, x: 0, y: 0, scale: 1 },
+  transition: { duration: reduce ? 0 : 0.38, delay: reduce ? 0 : delay, ease: [0.16, 1, 0.3, 1] },
+});
 
-const arts = {
-  create: (
-    <Frame label="Crear partido">
-      <PitchBase />
-      <g>
-        <rect x="70" y="52" width="60" height="36" rx="8" fill="#120e28" stroke="url(#ob-violet)" strokeWidth="2" />
-        <line x1="80" y1="64" x2="120" y2="64" stroke="#8b7cff" strokeWidth="3" strokeLinecap="round" />
-        <line x1="80" y1="74" x2="108" y2="74" stroke="rgba(255,255,255,0.45)" strokeWidth="3" strokeLinecap="round" />
-        <circle cx="128" cy="46" r="11" fill="#6a43ff" />
-        <path d="M128 41v10M123 46h10" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" />
-      </g>
-    </Frame>
-  ),
-  whatsapp: (
-    <Frame label="Invitar por WhatsApp">
-      <PitchBase />
-      <g>
-        <circle cx="100" cy="70" r="26" fill="#25D366" />
-        <path
-          d="M100 55c-8.3 0-15 6.7-15 15 0 2.6.7 5.1 2 7.3L85 87l10-2c2 1.1 4.4 1.7 6.9 1.7 8.3 0 15-6.7 15-15S108.3 55 100 55z"
-          fill="#fff"
+function ArtStage({ name, children }) {
+  return (
+    <div
+      role="img"
+      aria-label={ART_LABELS[name] || 'Visual del onboarding de Arma2'}
+      data-onboarding-art={name}
+      className="relative h-[176px] w-full overflow-hidden rounded-[24px] border border-white/10 bg-[radial-gradient(220px_120px_at_50%_-15%,rgba(139,92,255,0.2),transparent_68%),linear-gradient(165deg,rgba(34,27,72,0.88),rgba(13,10,31,0.96))] shadow-[0_18px_38px_rgba(5,3,16,0.34),inset_0_1px_0_rgba(255,255,255,0.055)]"
+    >
+      <div aria-hidden className="absolute inset-[12px] rounded-[18px] border border-white/[0.055]">
+        <span className="absolute inset-y-0 left-1/2 w-px bg-white/[0.045]" />
+        <span className="absolute left-1/2 top-1/2 h-12 w-12 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/[0.05]" />
+      </div>
+      <div className="relative h-full w-full">{children}</div>
+    </div>
+  );
+}
+
+function PlayerToken({ number, tone = 'violet', className = '', ...motionProps }) {
+  return (
+    <motion.span
+      {...motionProps}
+      className={`absolute inline-flex h-9 w-9 items-center justify-center rounded-full border-2 font-bebas-real text-[16px] leading-none ${TOKEN_STYLES[tone]} ${className}`}
+    >
+      {number}
+    </motion.span>
+  );
+}
+
+function Ball({ className = '' }) {
+  return (
+    <span className={`inline-flex h-11 w-11 items-center justify-center rounded-full border-2 border-white/80 bg-white text-[#17112f] shadow-[0_8px_24px_rgba(255,255,255,0.18)] ${className}`}>
+      <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 6.4l3.5 2.5-1.3 4.2H9.8L8.5 8.9 12 6.4zM12 6.4V3.1M15.5 8.9L19 7.8M14.2 13.1l2.7 3.4M9.8 13.1l-2.7 3.4M8.5 8.9L5 7.8" />
+      </svg>
+    </span>
+  );
+}
+
+function IntroArt({ reduce }) {
+  const tokens = [
+    { number: 7, tone: 'violet', className: 'left-[18%] top-[28%]', x: 58, y: 24 },
+    { number: 4, tone: 'teal', className: 'right-[18%] top-[25%]', x: -58, y: 26 },
+    { number: 10, tone: 'magenta', className: 'left-[26%] bottom-[20%]', x: 46, y: -32 },
+    { number: 5, tone: 'amber', className: 'right-[26%] bottom-[18%]', x: -46, y: -34 },
+  ];
+  return (
+    <ArtStage name="intro">
+      <motion.div {...enter(reduce, { delay: 0.04, scale: 0.7 })} className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+        <Ball />
+      </motion.div>
+      {tokens.map((token, index) => (
+        <PlayerToken
+          key={token.number}
+          number={token.number}
+          tone={token.tone}
+          className={token.className}
+          {...enter(reduce, { delay: 0.11 + index * 0.07, x: token.x, y: token.y, scale: 0.75 })}
         />
-        <path
-          d="M94.5 63.5c-.4-.9-.8-.9-1.2-.9h-1c-.3 0-.9.1-1.4.6-.5.5-1.8 1.7-1.8 4.2s1.9 4.9 2.1 5.2c.3.4 3.6 5.7 8.9 7.8 4.4 1.7 5.3 1.4 6.2 1.3.9-.1 3-1.2 3.4-2.4.4-1.2.4-2.2.3-2.4-.1-.2-.5-.4-1-.6l-3.1-1.5c-.4-.2-.8-.3-1.1.2l-1.5 2c-.3.4-.6.4-1 .2-.6-.3-2.4-.9-4.6-2.8-1.7-1.5-2.8-3.4-3.2-4-.3-.5 0-.8.2-1 .2-.2.5-.5.7-.8.2-.3.3-.5.5-.8.1-.3.1-.6 0-.8-.1-.2-1-2.6-1.4-3.5z"
-          fill="#25D366"
+      ))}
+      <motion.div {...enter(reduce, { delay: 0.42, y: 8 })} className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-white/10 bg-[#0d0a20]/80 px-3 py-1 font-sans text-[9.5px] font-bold uppercase tracking-[0.14em] text-white/58">
+        Tu grupo · Tu próximo partido
+      </motion.div>
+    </ArtStage>
+  );
+}
+
+function MatchCard({ reduce, compact = false, delay = 0.05 }) {
+  return (
+    <motion.div
+      {...enter(reduce, { delay, y: 18, scale: 0.96 })}
+      className={`rounded-2xl border border-[#9d86ff]/28 bg-[linear-gradient(160deg,rgba(43,34,91,0.96),rgba(18,14,39,0.98))] shadow-[0_12px_28px_rgba(5,3,16,0.45)] ${compact ? 'w-[146px] p-3' : 'w-[230px] p-3.5'}`}
+    >
+      <div className="flex items-center justify-between">
+        <span className="font-bebas-real text-[20px] leading-none tracking-[0.04em] text-white">PARTIDO F5</span>
+        <span className="rounded-full border border-[#35d07f]/30 bg-[#35d07f]/10 px-2 py-0.5 font-sans text-[8px] font-bold text-[#8ff0bd]">6/10</span>
+      </div>
+      <div className={`mt-2.5 grid ${compact ? 'grid-cols-2' : 'grid-cols-3'} gap-1.5`}>
+        <InfoChip icon={CalendarDays} text="SÁB 19" />
+        <InfoChip icon={Clock3} text="21:00" />
+        {!compact && <InfoChip icon={MapPin} text="PALERMO" />}
+      </div>
+      {compact && (
+        <div className="mt-2 flex items-center gap-1 font-sans text-[8px] font-semibold text-white/55">
+          <MapPin size={9} /> Palermo
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
+function InfoChip({ icon: Icon, text }) {
+  return (
+    <span className="inline-flex min-w-0 items-center justify-center gap-1 rounded-lg border border-white/8 bg-white/[0.045] px-1.5 py-1.5 font-sans text-[8.5px] font-bold text-white/68">
+      <Icon size={10} className="shrink-0 text-[#b9a8ff]" aria-hidden />
+      <span className="truncate">{text}</span>
+    </span>
+  );
+}
+
+function CreateArt({ reduce }) {
+  return (
+    <ArtStage name="create">
+      <div className="flex h-full items-center justify-center">
+        <MatchCard reduce={reduce} />
+      </div>
+      {[{ icon: CalendarDays, x: 'left-[13%]', delay: 0.25 }, { icon: Clock3, x: 'right-[13%]', delay: 0.32 }, { icon: MapPin, x: 'left-[22%]', delay: 0.39 }].map(({ icon: Icon, x, delay }, index) => (
+        <motion.span key={index} {...enter(reduce, { delay, y: 10, scale: 0.75 })} className={`absolute ${x} ${index === 2 ? 'bottom-3' : 'top-3'} inline-flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-[#171230] text-[#b9a8ff]`}>
+          <Icon size={15} aria-hidden />
+        </motion.span>
+      ))}
+    </ArtStage>
+  );
+}
+
+function WhatsAppArt({ reduce }) {
+  return (
+    <ArtStage name="whatsapp">
+      <div className="absolute left-3 top-1/2 -translate-y-1/2"><MatchCard reduce={reduce} compact /></div>
+      <motion.div
+        initial={reduce ? false : { opacity: 0, scaleX: 0 }}
+        animate={{ opacity: 1, scaleX: 1 }}
+        transition={{ duration: reduce ? 0 : 0.4, delay: reduce ? 0 : 0.28, ease: 'easeOut' }}
+        className="absolute left-[47%] top-1/2 h-px w-[22%] origin-left bg-[linear-gradient(90deg,#8b7cff,#35d07f)]"
+      />
+      <motion.span {...enter(reduce, { delay: 0.36, x: -12, scale: 0.8 })} className="absolute left-[57%] top-[37%] inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#25D366] text-white shadow-[0_7px_20px_rgba(37,211,102,0.3)]">
+        <MessageCircle size={18} fill="currentColor" aria-hidden />
+      </motion.span>
+      <motion.span {...enter(reduce, { delay: 0.42, x: -10 })} className="absolute left-[53%] top-[58%] text-[#a997ff]"><Link2 size={16} aria-hidden /></motion.span>
+      <PlayerToken number="8" tone="teal" className="right-[15%] top-[23%]" {...enter(reduce, { delay: 0.46, x: -34, scale: 0.7 })} />
+      <PlayerToken number="11" tone="violet" className="right-[7%] top-[47%]" {...enter(reduce, { delay: 0.54, x: -42, scale: 0.7 })} />
+      <PlayerToken number="3" tone="magenta" className="right-[19%] bottom-[12%]" {...enter(reduce, { delay: 0.62, x: -28, scale: 0.7 })} />
+    </ArtStage>
+  );
+}
+
+function EvaluateArt({ reduce }) {
+  return (
+    <ArtStage name="evaluate">
+      <PlayerToken number="7" tone="violet" className="left-[20%] top-4" {...enter(reduce, { delay: 0.04, y: -12 })} />
+      <PlayerToken number="5" tone="teal" className="left-1/2 top-3 -translate-x-1/2" {...enter(reduce, { delay: 0.1, y: -12 })} />
+      <PlayerToken number="10" tone="magenta" className="right-[20%] top-4" {...enter(reduce, { delay: 0.16, y: -12 })} />
+      {[26, 50, 74].map((left, index) => (
+        <motion.span
+          key={left}
+          initial={reduce ? false : { opacity: 0, scaleY: 0 }}
+          animate={{ opacity: 0.55, scaleY: 1 }}
+          transition={{ duration: reduce ? 0 : 0.32, delay: reduce ? 0 : 0.22 + index * 0.05 }}
+          className="absolute top-[50px] h-10 w-px origin-top bg-[linear-gradient(#8b7cff,transparent)]"
+          style={{ left: `${left}%` }}
         />
-      </g>
-    </Frame>
-  ),
-  evaluate: (
-    <Frame label="El grupo evalúa">
-      <PitchBase />
-      <g>
-        {[62, 100, 138].map((cx, i) => (
-          <g key={cx}>
-            <circle cx={cx} cy="64" r="12" fill="#1d1740" stroke="#8b7cff" strokeWidth="2" />
-            <circle cx={cx} cy="60" r="4" fill="#cfc4ff" />
-            <path d={`M${cx - 6} 72c1.5-3 10.5-3 12 0`} fill="#cfc4ff" />
-            <path
-              d={`M${cx - 4} 84l1.4 3 3.3.3-2.5 2.2.8 3.2-3-1.7-3 1.7.8-3.2-2.5-2.2 3.3-.3z`}
-              fill={i === 1 ? '#ffd45e' : '#6a43ff'}
+      ))}
+      <motion.div {...enter(reduce, { delay: 0.32, y: 15 })} className="absolute inset-x-[15%] bottom-4 rounded-2xl border border-white/10 bg-[#12102a]/95 px-3 py-2.5">
+        <div className="flex items-center justify-between">
+          <span className="font-sans text-[8.5px] font-bold uppercase tracking-[0.12em] text-[#b9a8ff]">Aporte del grupo</span>
+          <Users size={13} className="text-white/45" aria-hidden />
+        </div>
+        <div className="mt-2 flex items-end gap-1.5">
+          {[45, 68, 56, 74, 62].map((height, index) => (
+            <motion.span key={height} initial={reduce ? false : { scaleY: 0 }} animate={{ scaleY: 1 }} transition={{ delay: reduce ? 0 : 0.4 + index * 0.04 }} className="w-full origin-bottom rounded-full bg-[linear-gradient(180deg,#8b7cff,#6a43ff)]" style={{ height: `${height / 5}px` }} />
+          ))}
+        </div>
+      </motion.div>
+    </ArtStage>
+  );
+}
+
+function TeamsArt({ reduce }) {
+  const left = [
+    { number: 1, top: 'top-[56px]' }, { number: 4, top: 'top-[94px]' }, { number: 9, top: 'top-[132px]' },
+  ];
+  const right = [
+    { number: 2, top: 'top-[56px]' }, { number: 6, top: 'top-[94px]' }, { number: 10, top: 'top-[132px]' },
+  ];
+  return (
+    <ArtStage name="teams">
+      <motion.div {...enter(reduce, { delay: 0.04, x: 18 })} className="absolute bottom-3 left-3 top-3 w-[43%] rounded-2xl border border-[#8b7cff]/25 bg-[#6a43ff]/[0.08]">
+        <span className="absolute left-3 top-2 font-bebas-real text-[18px] text-[#b9a8ff]">EQUIPO A</span>
+      </motion.div>
+      <motion.div {...enter(reduce, { delay: 0.08, x: -18 })} className="absolute bottom-3 right-3 top-3 w-[43%] rounded-2xl border border-[#ec007d]/22 bg-[#ec007d]/[0.07]">
+        <span className="absolute right-3 top-2 font-bebas-real text-[18px] text-[#ff91c6]">EQUIPO B</span>
+      </motion.div>
+      {left.map((token, index) => <PlayerToken key={token.number} number={token.number} tone="violet" className={`left-[22%] ${token.top}`} {...enter(reduce, { delay: 0.2 + index * 0.08, x: 58, scale: 0.75 })} />)}
+      {right.map((token, index) => <PlayerToken key={token.number} number={token.number} tone="magenta" className={`right-[22%] ${token.top}`} {...enter(reduce, { delay: 0.24 + index * 0.08, x: -58, scale: 0.75 })} />)}
+      <motion.span {...enter(reduce, { delay: 0.58, scale: 0.7 })} className="absolute left-1/2 top-[76px] inline-flex h-8 w-8 -translate-x-1/2 items-center justify-center rounded-full border border-[#35d07f]/40 bg-[#10251d] text-[#65e4a3]">
+        <Check size={16} strokeWidth={3} aria-hidden />
+      </motion.span>
+    </ArtStage>
+  );
+}
+
+function RecordArt({ reduce }) {
+  return (
+    <ArtStage name="record">
+      <motion.div {...enter(reduce, { delay: 0.04, y: 15 })} className="absolute inset-x-[15%] top-5 rounded-2xl border border-white/10 bg-[#12102a]/95 p-3.5">
+        <div className="flex items-center justify-between">
+          <span className="font-bebas-real text-[18px] tracking-[0.04em] text-white">PARTIDO FINALIZADO</span>
+          <Trophy size={16} className="text-[#ffd36f]" aria-hidden />
+        </div>
+        <div className="mt-2 flex items-center justify-center gap-4">
+          <span className="rounded-xl bg-[#6a43ff]/20 px-3 py-1 font-bebas-real text-[28px] text-[#c9bdff]">3</span>
+          <span className="font-sans text-[9px] font-bold uppercase tracking-[0.14em] text-white/35">Final</span>
+          <span className="rounded-xl bg-[#ec007d]/15 px-3 py-1 font-bebas-real text-[28px] text-[#ffacd4]">2</span>
+        </div>
+      </motion.div>
+      <motion.div {...enter(reduce, { delay: 0.34, x: -16 })} className="absolute bottom-4 left-[18%] right-[18%] flex items-center gap-2 rounded-xl border border-[#35d07f]/20 bg-[#35d07f]/[0.07] px-3 py-2 text-[#8ff0bd]">
+        <Check size={15} strokeWidth={3} aria-hidden />
+        <span className="font-sans text-[9.5px] font-bold uppercase tracking-[0.1em]">Guardado en tu historial</span>
+      </motion.div>
+    </ArtStage>
+  );
+}
+
+function AvailabilityArt({ reduce }) {
+  const selected = new Set([2, 5, 8, 9]);
+  return (
+    <ArtStage name="availability">
+      <motion.div {...enter(reduce, { delay: 0.03, y: 14 })} className="absolute inset-x-[13%] inset-y-4 rounded-2xl border border-white/10 bg-[#12102a]/95 p-3">
+        <div className="flex items-center justify-between">
+          <span className="font-bebas-real text-[18px] tracking-[0.04em] text-white">TU DISPONIBILIDAD</span>
+          <CalendarDays size={15} className="text-[#b9a8ff]" aria-hidden />
+        </div>
+        <div className="mt-2 grid grid-cols-5 gap-1.5">
+          {Array.from({ length: 10 }).map((_, index) => (
+            <motion.span
+              key={index}
+              {...enter(reduce, { delay: 0.12 + index * 0.035, scale: 0.8 })}
+              className={`h-5 rounded-md border ${selected.has(index) ? 'border-[#8b7cff]/55 bg-[#6a43ff]/35' : 'border-white/8 bg-white/[0.035]'}`}
             />
-          </g>
-        ))}
-      </g>
-    </Frame>
-  ),
-  teams: (
-    <Frame label="Equipos parejos">
-      <PitchBase />
-      <g>
-        {[46, 66, 86].map((cy, i) => (
-          <circle key={`a${cy}`} cx={i === 1 ? 60 : 54} cy={cy} r="7" fill="#6a43ff" stroke="#8b7cff" strokeWidth="1.5" />
-        ))}
-        {[46, 66, 86].map((cy, i) => (
-          <circle key={`b${cy}`} cx={i === 1 ? 140 : 146} cy={cy} r="7" fill="#ec007d" stroke="#ff5aa8" strokeWidth="1.5" />
-        ))}
-        <circle cx="100" cy="70" r="8" fill="#fff" />
-        <path d="M100 64l2.2 4 4.4.4-3.3 2.9 1 4.3-4.3-2.4-4.3 2.4 1-4.3-3.3-2.9 4.4-.4z" fill="#120e28" />
-      </g>
-    </Frame>
-  ),
-  record: (
-    <Frame label="Registro e historial">
-      <PitchBase />
-      <g>
-        <rect x="66" y="44" width="68" height="52" rx="8" fill="#120e28" stroke="url(#ob-violet)" strokeWidth="2" />
-        {[56, 66, 76, 86].map((y, i) => (
-          <g key={y}>
-            <circle cx="76" cy={y} r="2.6" fill={i % 2 ? '#35d07f' : '#8b7cff'} />
-            <line x1="84" y1={y} x2={i % 2 ? 118 : 124} y2={y} stroke="rgba(255,255,255,0.4)" strokeWidth="2.4" strokeLinecap="round" />
-          </g>
-        ))}
-      </g>
-    </Frame>
-  ),
-  availability: (
-    <Frame label="Disponibilidad">
-      <PitchBase />
-      <g>
-        <rect x="64" y="42" width="72" height="56" rx="8" fill="#120e28" stroke="url(#ob-violet)" strokeWidth="2" />
-        <line x1="64" y1="54" x2="136" y2="54" stroke="#8b7cff" strokeWidth="2" />
-        {[0, 1, 2, 3].map((c) => [0, 1, 2].map((r) => {
-          const on = (c + r) % 2 === 0;
-          return (
-            <rect
-              key={`${c}-${r}`}
-              x={72 + c * 15}
-              y={60 + r * 11}
-              width="10"
-              height="8"
-              rx="2"
-              fill={on ? '#6a43ff' : 'rgba(255,255,255,0.12)'}
-            />
-          );
-        }))}
-      </g>
-    </Frame>
-  ),
-  preferences: (
-    <Frame label="Preferencias de juego">
-      <PitchBase />
-      <g>
-        <circle cx="100" cy="70" r="30" fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth="1.5" strokeDasharray="4 4" />
-        <circle cx="100" cy="70" r="18" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="1.5" strokeDasharray="3 4" />
-        <circle cx="100" cy="70" r="7" fill="#6a43ff" />
-        <path d="M100 70l18-10" stroke="#ec007d" strokeWidth="2.4" strokeLinecap="round" />
-        <circle cx="118" cy="60" r="4" fill="#ec007d" />
-      </g>
-    </Frame>
-  ),
-  matching: (
-    <Frame label="Buscando jugadores">
-      <PitchBase />
-      <g>
-        <circle cx="100" cy="70" r="8" fill="#6a43ff" />
-        {[24, 34].map((r, i) => (
-          <circle key={r} cx="100" cy="70" r={r} fill="none" stroke="#8b7cff" strokeWidth="2" opacity={0.55 - i * 0.2} />
-        ))}
-        <circle cx="72" cy="52" r="6" fill="#ec007d" />
-        <circle cx="132" cy="58" r="6" fill="#35d07f" />
-        <circle cx="128" cy="92" r="6" fill="#ffd45e" />
-        <circle cx="70" cy="90" r="6" fill="#8b7cff" />
-      </g>
-    </Frame>
-  ),
-  confirm: (
-    <Frame label="Confirmar oportunidad">
-      <PitchBase />
-      <g>
-        <circle cx="100" cy="70" r="24" fill="#120e28" stroke="#35d07f" strokeWidth="3" />
-        <path d="M89 71l7 7 15-16" fill="none" stroke="#35d07f" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
-      </g>
-    </Frame>
-  ),
-  overview: (
-    <Frame label="Conocer Arma2">
-      <PitchBase />
-      <g>
-        <circle cx="100" cy="70" r="20" fill="#6a43ff" opacity="0.25" />
-        <path
-          d="M100 52l4.6 9.4 10.4 1.5-7.5 7.3 1.8 10.3-9.3-4.9-9.3 4.9 1.8-10.3-7.5-7.3 10.4-1.5z"
-          fill="#ffd45e"
-        />
-      </g>
-    </Frame>
-  ),
+          ))}
+        </div>
+        <motion.div {...enter(reduce, { delay: 0.5, x: -14 })} className="mt-2 flex gap-1.5">
+          <span className="rounded-lg border border-[#8b7cff]/30 bg-[#6a43ff]/15 px-2 py-1 font-sans text-[8px] font-bold text-white/72">19:00</span>
+          <span className="rounded-lg border border-[#8b7cff]/30 bg-[#6a43ff]/15 px-2 py-1 font-sans text-[8px] font-bold text-white/72">22:00</span>
+        </motion.div>
+      </motion.div>
+    </ArtStage>
+  );
+}
+
+function PreferencesArt({ reduce }) {
+  const chips = [
+    { icon: Users, text: 'F5', className: 'left-[10%] top-[26%]', x: 36 },
+    { icon: MapPin, text: '8 KM', className: 'right-[9%] top-[27%]', x: -36 },
+    { icon: Clock3, text: 'NOCHE', className: 'left-[15%] bottom-[22%]', x: 32 },
+  ];
+  return (
+    <ArtStage name="preferences">
+      {chips.map(({ icon: Icon, text, className, x }, index) => (
+        <motion.span key={text} {...enter(reduce, { delay: 0.06 + index * 0.08, x, scale: 0.8 })} className={`absolute ${className} inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-[#181333] px-2.5 py-2 font-sans text-[9px] font-bold text-white/70`}>
+          <Icon size={12} className="text-[#b9a8ff]" aria-hidden /> {text}
+        </motion.span>
+      ))}
+      <motion.div {...enter(reduce, { delay: 0.35, scale: 0.78 })} className="absolute right-[18%] bottom-[18%] inline-flex h-16 w-16 items-center justify-center rounded-2xl border border-[#8b7cff]/35 bg-[#6a43ff]/15 text-[#c9bdff]">
+        <SlidersHorizontal size={26} aria-hidden />
+      </motion.div>
+      <motion.span initial={reduce ? false : { opacity: 0, scaleX: 0 }} animate={{ opacity: 0.7, scaleX: 1 }} transition={{ delay: reduce ? 0 : 0.42 }} className="absolute left-[37%] top-1/2 h-px w-[22%] origin-left bg-[#8b7cff]" />
+    </ArtStage>
+  );
+}
+
+function MatchingArt({ reduce }) {
+  const radarMotion = reduce
+    ? { initial: false, animate: { opacity: 0.5, scale: 1 } }
+    : { initial: { opacity: 0, scale: 0.72 }, animate: { opacity: [0.2, 0.62, 0.2], scale: [0.78, 1, 1.08] }, transition: { duration: 1.8, repeat: Infinity, ease: 'easeOut' } };
+  return (
+    <ArtStage name="matching">
+      <div className="absolute left-[12%] top-1/2 h-24 w-24 -translate-y-1/2">
+        <motion.span {...radarMotion} className="absolute inset-0 rounded-full border border-[#8b7cff]/60" />
+        <span className="absolute inset-5 inline-flex items-center justify-center rounded-full border border-[#8b7cff]/35 bg-[#6a43ff]/15 text-[#c9bdff]"><Radar size={23} aria-hidden /></span>
+      </div>
+      <motion.div {...enter(reduce, { delay: 0.36, x: 28, scale: 0.94 })} className="absolute right-[9%] top-1/2 w-[154px] -translate-y-1/2 rounded-2xl border border-[#35d07f]/25 bg-[#12231d]/95 p-3">
+        <span className="font-sans text-[8px] font-bold uppercase tracking-[0.13em] text-[#7ce6ad]">Oportunidad</span>
+        <p className="mt-1 font-bebas-real text-[21px] leading-none text-white">F5 · SÁBADO</p>
+        <div className="mt-2 flex -space-x-1.5">
+          {[7, 4, 10, 2].map((number, index) => <span key={number} className={`inline-flex h-6 w-6 items-center justify-center rounded-full border border-[#12102a] font-bebas-real text-[11px] ${index % 2 ? 'bg-[#167a6b]' : 'bg-[#6a43ff]'}`}>{number}</span>)}
+        </div>
+      </motion.div>
+    </ArtStage>
+  );
+}
+
+function ConfirmArt({ reduce }) {
+  return (
+    <ArtStage name="confirm">
+      <motion.div {...enter(reduce, { delay: 0.04, y: 14 })} className="absolute inset-x-[14%] inset-y-5 rounded-2xl border border-[#35d07f]/26 bg-[linear-gradient(160deg,rgba(22,51,40,0.95),rgba(16,20,33,0.98))] p-3.5">
+        <div className="flex items-start justify-between">
+          <div>
+            <span className="font-sans text-[8px] font-bold uppercase tracking-[0.14em] text-[#7ce6ad]">Partido encontrado</span>
+            <p className="mt-1 font-bebas-real text-[23px] leading-none text-white">F5 · SÁB 21:00</p>
+          </div>
+          <MapPin size={16} className="text-[#b9a8ff]" aria-hidden />
+        </div>
+        <div className="mt-3 flex items-center justify-between rounded-xl border border-white/8 bg-white/[0.035] px-2.5 py-2">
+          <div className="flex -space-x-1.5">
+            {[1, 5, 8, 11].map((number, index) => <span key={number} className={`inline-flex h-6 w-6 items-center justify-center rounded-full border border-[#17221d] font-bebas-real text-[11px] ${index % 2 ? 'bg-[#167a6b]' : 'bg-[#6a43ff]'}`}>{number}</span>)}
+          </div>
+          <motion.span {...enter(reduce, { delay: 0.34, scale: 0.72 })} className="inline-flex items-center gap-1 rounded-lg bg-[#35d07f] px-2 py-1 font-sans text-[8.5px] font-bold text-[#082216]"><Check size={10} strokeWidth={3} /> Confirmar</motion.span>
+        </div>
+      </motion.div>
+    </ArtStage>
+  );
+}
+
+function ExploreMatchesArt({ reduce }) {
+  return (
+    <ArtStage name="explore_matches">
+      <div className="flex h-full items-center justify-center">
+        <MatchCard reduce={reduce} delay={0.04} />
+      </div>
+      <motion.span {...enter(reduce, { delay: 0.34, x: 14 })} className="absolute bottom-3 right-[18%] rounded-lg bg-[linear-gradient(135deg,#8b5cff,#6a43ff)] px-3 py-1.5 font-bebas-real text-[13px] tracking-[0.04em] text-white shadow-[0_6px_16px_rgba(106,67,255,0.35)]">VER PARTIDO</motion.span>
+    </ArtStage>
+  );
+}
+
+function PlayerCard({ number, position, rating, tone, reduce, delay, className }) {
+  return (
+    <motion.div {...enter(reduce, { delay, x: -16, scale: 0.96 })} className={`absolute flex items-center gap-2 rounded-2xl border border-white/10 bg-[#15112e]/95 p-2.5 shadow-[0_8px_22px_rgba(5,3,16,0.34)] ${className}`}>
+      <span className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 font-bebas-real text-[16px] ${TOKEN_STYLES[tone]}`}>{number}</span>
+      <span className="min-w-0">
+        <span className="block font-bebas-real text-[16px] leading-none text-white">JUGADOR DISPONIBLE</span>
+        <span className="mt-1 flex items-center gap-2 font-sans text-[8px] font-bold text-white/48"><span>{position}</span><span className="flex items-center gap-0.5 text-[#ffd36f]"><Star size={8} fill="currentColor" /> {rating}</span></span>
+      </span>
+    </motion.div>
+  );
+}
+
+function ExplorePlayersArt({ reduce }) {
+  return (
+    <ArtStage name="explore_players">
+      <PlayerCard number="7" position="DEL" rating="4.8" tone="violet" reduce={reduce} delay={0.04} className="left-[8%] right-[18%] top-4" />
+      <PlayerCard number="5" position="MED" rating="4.6" tone="teal" reduce={reduce} delay={0.15} className="left-[18%] right-[8%] top-[65px]" />
+      <PlayerCard number="1" position="ARQ" rating="4.9" tone="magenta" reduce={reduce} delay={0.26} className="bottom-3 left-[10%] right-[16%]" />
+    </ArtStage>
+  );
+}
+
+function CompletionArt({ reduce }) {
+  return (
+    <ArtStage name="completion">
+      <motion.div {...enter(reduce, { delay: 0.05, scale: 0.78 })} className="absolute left-1/2 top-[18px] -translate-x-1/2"><Ball /></motion.div>
+      {[{ n: 1, t: 'violet', c: 'left-[16%] bottom-[22%]', x: 60 }, { n: 4, t: 'teal', c: 'left-[34%] bottom-[10%]', x: 28 }, { n: 7, t: 'magenta', c: 'right-[34%] bottom-[10%]', x: -28 }, { n: 10, t: 'amber', c: 'right-[16%] bottom-[22%]', x: -60 }].map((token, index) => (
+        <PlayerToken key={token.n} number={token.n} tone={token.t} className={token.c} {...enter(reduce, { delay: 0.16 + index * 0.07, x: token.x, y: -28, scale: 0.72 })} />
+      ))}
+      <motion.span {...enter(reduce, { delay: 0.48, scale: 0.7 })} className="absolute bottom-4 left-1/2 inline-flex h-9 w-9 -translate-x-1/2 items-center justify-center rounded-full border border-[#35d07f]/45 bg-[#10251d] text-[#65e4a3] shadow-[0_0_20px_rgba(53,208,127,0.18)]"><Check size={19} strokeWidth={3} aria-hidden /></motion.span>
+    </ArtStage>
+  );
+}
+
+const ART_COMPONENTS = {
+  intro: IntroArt,
+  create: CreateArt,
+  whatsapp: WhatsAppArt,
+  evaluate: EvaluateArt,
+  teams: TeamsArt,
+  record: RecordArt,
+  availability: AvailabilityArt,
+  preferences: PreferencesArt,
+  matching: MatchingArt,
+  confirm: ConfirmArt,
+  explore_matches: ExploreMatchesArt,
+  explore_players: ExplorePlayersArt,
+  completion: CompletionArt,
 };
 
 export default function OnboardingStepArt({ name }) {
-  return arts[name] || arts.overview;
+  const reduce = useReducedMotion();
+  const Art = ART_COMPONENTS[name] || ExploreMatchesArt;
+  return <Art reduce={Boolean(reduce)} />;
 }

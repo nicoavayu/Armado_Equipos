@@ -9,8 +9,8 @@ import {
 
 // Feature-flag rollout, controlled at build time (CRA bakes env). Kept minimal:
 // 'off' hides everything, 'allowlist' limits to specific ids/emails, 'all'
-// (default) enables the automatic onboarding for new users and the manual
-// replay / discovery card for everyone eligible.
+// (default) enables the automatic onboarding for new users and manual replay
+// for everyone eligible.
 export function getOnboardingRollout(env = process.env) {
   const raw = String(env.REACT_APP_ONBOARDING_ROLLOUT || '').trim().toLowerCase();
   if (raw === 'off' || raw === 'allowlist' || raw === 'all') return raw;
@@ -53,6 +53,9 @@ export function isNewAccount(user, options = {}) {
 // Whether the current onboarding version was already completed or explicitly
 // skipped. A future version bump (CURRENT > handled) re-offers automatically.
 export function hasHandledCurrentVersion(state, version = CURRENT_ONBOARDING_VERSION) {
+  // Older v1 clients wrote completed_version on skip. Status is the source of
+  // truth so those users can still be re-offered the pending tour next session.
+  if (state?.status === ONBOARDING_STATUS.SKIPPED) return false;
   const handled = Number(state?.completedVersion ?? 0);
   return Number.isFinite(handled) && handled >= version;
 }
@@ -69,7 +72,8 @@ const WAITING = Object.freeze({
  *
  * @returns {{ready:boolean, shouldAutoOpen:boolean, showDiscoveryCard:boolean, reason:string}}
  *  - shouldAutoOpen: open the full-screen flow now (new/resuming user on a safe surface).
- *  - showDiscoveryCard: render the dismissable Home card (existing eligible user).
+ *  - showDiscoveryCard: retained for compatibility and always false; Home no
+ *    longer renders inline onboarding surfaces.
  *  - ready: eligibility has been fully resolved (safe to stop waiting).
  */
 export function resolveOnboardingDecision(ctx = {}) {
@@ -111,13 +115,12 @@ export function resolveOnboardingDecision(ctx = {}) {
     };
   }
 
-  // Existing users: never auto-open. Offer the dismissable discovery card until
-  // they dismiss it (or start the flow, which flips status away from here).
-  const dismissed = Boolean(state?.welcomeCardDismissed);
+  // Existing users never receive an automatic or inline Home offer. Manual
+  // replay remains available from Perfil → Ayuda.
   return {
     ready: true,
     shouldAutoOpen: false,
-    showDiscoveryCard: !dismissed,
-    reason: dismissed ? 'existing_dismissed' : 'existing_offer_card',
+    showDiscoveryCard: false,
+    reason: 'existing_manual_only',
   };
 }

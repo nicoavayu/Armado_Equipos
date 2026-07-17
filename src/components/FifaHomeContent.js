@@ -24,7 +24,6 @@ import NotificationsBell from './NotificationsBell';
 import HomeWelcomeCard from './HomeWelcomeCard';
 import HomeNextStepCard from './HomeNextStepCard';
 import QuickAccessRail from './QuickAccessRail';
-import { OnboardingChecklist, OnboardingDiscoveryCard } from '../features/onboarding';
 import SwipeDismissibleActivityItem from './SwipeDismissibleActivityItem';
 import { useRefreshOnVisibility } from '../hooks/useRefreshOnVisibility';
 import { prefetchRoute } from '../utils/routePrefetch';
@@ -1181,12 +1180,6 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
       )}
 
       <QuickAccessRail items={quickAccessItems} />
-
-      {/* Onboarding surfaces — each self-gates and renders nothing when N/A.
-          DiscoveryCard: dismissable offer for pre-existing users.
-          Checklist: compact real-data progress for users who picked a path. */}
-      <OnboardingDiscoveryCard />
-      <OnboardingChecklist />
 
       {/* Next-action card — only when a real, valid pending action exists */}
       <HomeNextStepCard
