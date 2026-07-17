@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import TabBar from './TabBar';
 import { useScrollResetContainer } from '../hooks/useScrollReset';
+import { OnboardingProvider, OnboardingHost } from '../features/onboarding';
 
 const MainLayout = () => {
   const location = useLocation();
@@ -56,26 +57,32 @@ const MainLayout = () => {
   };
 
   return (
-    // En home dashboard fijamos la altura al viewport (h-[100dvh] + overflow-hidden)
-    // para que la cadena flex-1/min-h-0 realmente acote y el panel "Actividad reciente"
-    // scrollee internamente, sin invadir nunca la TabBar fija. El resto de las rutas
-    // mantiene min-h-[100dvh] (la página puede crecer y scrollear normalmente).
-    <div className={`flex flex-col ${isHomeDashboard ? 'h-[100dvh] max-h-[100dvh] overflow-hidden overscroll-none' : 'min-h-[100dvh]'}`}>
-      {/* App Shell / Main Content Container */}
-      <main
-        ref={mainScrollResetRef}
-        className={`flex-1 flex flex-col ${mainPaddingTopClass} ${mainPaddingBottomClass} overflow-x-hidden ${isHomeDashboard ? 'min-h-0 overflow-y-hidden overscroll-none' : ''}`}
-      >
-        <Outlet />
-      </main>
+    // OnboardingProvider wraps only the authenticated shell, so onboarding never
+    // mounts on public routes (voting/invitation/login). OnboardingHost portals
+    // the fullscreen flow to <body>; a failure inside it can't break the app.
+    <OnboardingProvider>
+      {/* En home dashboard fijamos la altura al viewport (h-[100dvh] + overflow-hidden)
+        para que la cadena flex-1/min-h-0 realmente acote y el panel "Actividad reciente"
+        scrollee internamente, sin invadir nunca la TabBar fija. El resto de las rutas
+        mantiene min-h-[100dvh] (la página puede crecer y scrollear normalmente). */}
+      <div className={`flex flex-col ${isHomeDashboard ? 'h-[100dvh] max-h-[100dvh] overflow-hidden overscroll-none' : 'min-h-[100dvh]'}`}>
+        {/* App Shell / Main Content Container */}
+        <main
+          ref={mainScrollResetRef}
+          className={`flex-1 flex flex-col ${mainPaddingTopClass} ${mainPaddingBottomClass} overflow-x-hidden ${isHomeDashboard ? 'min-h-0 overflow-y-hidden overscroll-none' : ''}`}
+        >
+          <Outlet />
+        </main>
 
-      {!isVotingShellRoute && !isImmersiveNewMatchRoute && (
-        <TabBar
-          activeTab={getActiveTab()}
-          onTabChange={handleTabChange}
-        />
-      )}
-    </div>
+        {!isVotingShellRoute && !isImmersiveNewMatchRoute && (
+          <TabBar
+            activeTab={getActiveTab()}
+            onTabChange={handleTabChange}
+          />
+        )}
+      </div>
+      <OnboardingHost />
+    </OnboardingProvider>
   );
 };
 
