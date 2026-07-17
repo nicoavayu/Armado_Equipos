@@ -21,7 +21,18 @@ export const ONBOARDING_PATHS = Object.freeze({
   // Keep the persisted value `overview` for compatibility with the existing
   // DB constraint. The product-facing path is now "Explorar para jugar".
   EXPLORE: 'overview',
+  // Informational, single-screen paths. These are intentionally not written
+  // to `chosen_path`, whose existing DB constraint only accepts the three
+  // checklist-backed values above.
+  CHALLENGES: 'challenges',
+  STATS: 'stats',
 });
+
+const PERSISTED_ONBOARDING_PATHS = Object.freeze([
+  ONBOARDING_PATHS.ORGANIZER,
+  ONBOARDING_PATHS.AUTO_MATCH,
+  ONBOARDING_PATHS.EXPLORE,
+]);
 
 export const ONBOARDING_STATUS = Object.freeze({
   NOT_STARTED: 'not_started',
@@ -48,7 +59,7 @@ export const goalSelectorContent = Object.freeze({
     },
     {
       key: ONBOARDING_PATHS.AUTO_MATCH,
-      label: 'Encontrar un partido',
+      label: 'Partido Automático',
       description: 'Decís cuándo podés y Arma2 busca una oportunidad.',
       icon: 'Radar',
     },
@@ -57,6 +68,18 @@ export const goalSelectorContent = Object.freeze({
       label: 'Explorar para jugar',
       description: 'Mirá partidos disponibles y jugadores que quieren sumarse.',
       icon: 'LayoutGrid',
+    },
+    {
+      key: ONBOARDING_PATHS.CHALLENGES,
+      label: 'Desafíos',
+      description: 'Armá tu equipo y encontrá rivales para jugar.',
+      icon: 'Shield',
+    },
+    {
+      key: ONBOARDING_PATHS.STATS,
+      label: 'Estadísticas',
+      description: 'Llevá el registro de tus partidos jugados, ganados, empatados y lesiones durante el año.',
+      icon: 'BarChart3',
     },
   ],
 });
@@ -95,9 +118,9 @@ export const pathContent = Object.freeze({
       },
       {
         key: 'record',
-        title: 'Todo queda registrado',
-        description: 'Guardá resultados, revisá tu historial y seguí compartiendo partidos.',
-        art: 'record',
+        title: 'Revisá tu historial',
+        description: 'Consultá los partidos que jugaste y volvé a encontrarlos cuando quieras.',
+        art: 'history',
       },
     ],
     closing: {
@@ -108,7 +131,7 @@ export const pathContent = Object.freeze({
   },
   [ONBOARDING_PATHS.AUTO_MATCH]: {
     key: ONBOARDING_PATHS.AUTO_MATCH,
-    label: 'Encontrar un partido',
+    label: 'Partido Automático',
     steps: [
       {
         key: 'availability',
@@ -164,6 +187,38 @@ export const pathContent = Object.freeze({
       cta: { label: 'Ir a Jugar', route: '/quiero-jugar' },
     },
   },
+  [ONBOARDING_PATHS.CHALLENGES]: {
+    key: ONBOARDING_PATHS.CHALLENGES,
+    label: 'Desafíos',
+    singleScreen: true,
+    steps: [
+      {
+        key: 'challenges',
+        title: 'Armá tu equipo. Encontrá rival.',
+        description: 'Creá tu equipo y usá la cartelera de Desafíos para encontrar o publicar propuestas y conectar con otros equipos que quieren jugar.',
+        art: 'challenges',
+      },
+    ],
+    closing: {
+      cta: { label: 'Ir a Desafíos', route: '/desafios' },
+    },
+  },
+  [ONBOARDING_PATHS.STATS]: {
+    key: ONBOARDING_PATHS.STATS,
+    label: 'Estadísticas',
+    singleScreen: true,
+    steps: [
+      {
+        key: 'stats',
+        title: 'Tu año en números',
+        description: 'Consultá tus partidos jugados, ganados, empatados y las lesiones registradas durante el año.',
+        art: 'stats',
+      },
+    ],
+    closing: {
+      cta: { label: 'Ver mis estadísticas', route: '/stats' },
+    },
+  },
 });
 
 // Compact Home checklists. `derive` names a signal computed from REAL product
@@ -192,7 +247,6 @@ export const checklistContent = Object.freeze({
     title: 'Primeros pasos',
     items: [
       { key: 'profile', label: 'Completá tu perfil', derive: 'profileComplete', route: '/profile' },
-      { key: 'open_play', label: 'Abrí la pestaña Jugar', derive: 'openedPlay', route: '/quiero-jugar' },
       { key: 'review_match', label: 'Revisá un partido disponible', derive: 'reviewedMatch', route: '/quiero-jugar' },
       { key: 'review_player', label: 'Revisá un jugador disponible', derive: 'reviewedPlayer', route: '/quiero-jugar' },
     ],
@@ -255,4 +309,8 @@ export function getChecklistContent(pathKey) {
 
 export function isValidOnboardingPath(pathKey) {
   return Object.values(ONBOARDING_PATHS).includes(pathKey);
+}
+
+export function isPersistedOnboardingPath(pathKey) {
+  return PERSISTED_ONBOARDING_PATHS.includes(pathKey);
 }

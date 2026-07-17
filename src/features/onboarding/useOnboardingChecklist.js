@@ -136,7 +136,6 @@ export function useOnboardingChecklist(pathKey, {
     let done = false;
     if (item.derive === 'profileComplete') done = deriveProfileComplete(profile);
     else if (item.derive === 'hasLocation') done = deriveHasLocation(profile);
-    else if (item.derive === 'openedPlay') done = Boolean(trackedActions.openedPlay);
     else if (item.derive === 'reviewedMatch') done = Boolean(trackedActions.reviewedMatch);
     else if (item.derive === 'reviewedPlayer') done = Boolean(trackedActions.reviewedPlayer);
     else done = Boolean(signals[item.derive]);

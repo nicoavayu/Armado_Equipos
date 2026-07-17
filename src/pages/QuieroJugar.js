@@ -167,10 +167,6 @@ const QuieroJugar = ({
   }, [markOnboardingAction, navigate, user?.id]);
 
   useEffect(() => {
-    markOnboardingAction?.('openedPlay');
-  }, [markOnboardingAction]);
-
-  useEffect(() => {
     sessionStorage.setItem(MATCH_DISTANCE_STORAGE_KEY, String(maxMatchDistanceKm));
   }, [maxMatchDistanceKm]);
 

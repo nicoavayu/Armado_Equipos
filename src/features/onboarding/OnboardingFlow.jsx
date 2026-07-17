@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 
 import { useOnboarding } from './OnboardingProvider';
 import { ONBOARDING_PATHS } from './content';
@@ -7,6 +7,7 @@ import OnboardingGoalSelector from './OnboardingGoalSelector';
 import OnboardingOrganizerPath from './OnboardingOrganizerPath';
 import OnboardingAutoMatchPath from './OnboardingAutoMatchPath';
 import OnboardingExplorePath from './OnboardingExplorePath';
+import OnboardingPathRunner from './OnboardingPathRunner';
 
 const PATH_COMPONENTS = {
   [ONBOARDING_PATHS.ORGANIZER]: OnboardingOrganizerPath,
@@ -21,8 +22,14 @@ export default function OnboardingFlow() {
   const {
     activeFlow,
     chooseGoal,
+    completeOnboarding,
     skipOnboarding,
   } = useOnboarding();
+  const [isFinalScreen, setIsFinalScreen] = useState(false);
+
+  const activePath = activeFlow?.path || null;
+  useEffect(() => setIsFinalScreen(false), [activePath]);
+  const handleFinalStateChange = useCallback((value) => setIsFinalScreen(Boolean(value)), []);
 
   if (!activeFlow) return null;
 
@@ -31,7 +38,8 @@ export default function OnboardingFlow() {
   if (screen === 'goal') {
     return (
       <OnboardingShell
-        onSkip={skipOnboarding}
+        onDismiss={skipOnboarding}
+        dismissLabel="Omitir tutorial"
         labelledById="onboarding-goal-title"
       >
         <OnboardingGoalSelector
@@ -43,13 +51,18 @@ export default function OnboardingFlow() {
   }
 
   // screen === 'path'
-  const PathComponent = PATH_COMPONENTS[path] || OnboardingExplorePath;
+  const PathComponent = PATH_COMPONENTS[path] || null;
   return (
     <OnboardingShell
-      onSkip={skipOnboarding}
+      onDismiss={isFinalScreen ? () => completeOnboarding(path) : skipOnboarding}
+      dismissLabel={isFinalScreen ? 'Cerrar' : 'Omitir tutorial'}
       labelledById="onboarding-path-title"
     >
-      <PathComponent />
+      {PathComponent ? (
+        <PathComponent onFinalStateChange={handleFinalStateChange} />
+      ) : (
+        <OnboardingPathRunner pathKey={path} onFinalStateChange={handleFinalStateChange} />
+      )}
     </OnboardingShell>
   );
 }

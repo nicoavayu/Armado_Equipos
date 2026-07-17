@@ -8,8 +8,9 @@ jest.mock('framer-motion', () => {
   const ReactLib = require('react');
   const strip = (p) => { const { initial, animate, exit, transition, variants, ...rest } = p; return rest; };
   const passthrough = (tag) => ReactLib.forwardRef(({ children, ...props }, ref) => ReactLib.createElement(tag, { ...strip(props), ref }, children));
+  const motionCache = {};
   return {
-    motion: new Proxy({}, { get: (_t, k) => passthrough(k) }),
+    motion: new Proxy({}, { get: (_t, k) => (motionCache[k] ||= passthrough(k)) }),
     AnimatePresence: ({ children }) => ReactLib.createElement(ReactLib.Fragment, null, children),
     useReducedMotion: () => false,
   };
@@ -85,11 +86,11 @@ describe('OnboardingCoachMark', () => {
     expect(screen.queryByText('¿Ya tenés la lista?')).not.toBeInTheDocument();
   });
 
-  test('Omitir dismisses and marks the group done', async () => {
+  test('the borderless X dismisses and marks the group done', async () => {
     const ctx = makeCtx();
     renderCoach(ctx);
     await screen.findByText('Creá tu partido');
-    await userEvent.click(screen.getByRole('button', { name: 'Omitir' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Omitir tutorial' }));
     await waitFor(() => expect(ctx.markCoachMarkGroupDone).toHaveBeenCalledWith('new-match', 1));
   });
 

@@ -57,7 +57,8 @@ jest.mock('framer-motion', () => {
   const passthrough = (tag) => ReactLib.forwardRef(({ children, ...props }, ref) => (
     ReactLib.createElement(tag, { ...strip(props), ref }, children)
   ));
-  const motion = new Proxy({}, { get: (_target, key) => passthrough(key) });
+  const motionCache = {};
+  const motion = new Proxy({}, { get: (_target, key) => (motionCache[key] ||= passthrough(key)) });
   return {
     motion,
     AnimatePresence: ({ children }) => ReactLib.createElement(ReactLib.Fragment, null, children),
@@ -167,7 +168,7 @@ describe('modal → selector → recorridos', () => {
     await waitLoaded();
     await userEvent.click(screen.getByText('harness-open'));
     await userEvent.click(await screen.findByRole('button', { name: 'Empezar' }));
-    await userEvent.click(await screen.findByText('Encontrar un partido'));
+    await userEvent.click(await screen.findByText('Partido Automático'));
     expect(await screen.findByText('Decinos cuándo podés jugar')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /Anterior/i }));
     expect(await screen.findByText('¿Qué querés hacer primero?')).toBeInTheDocument();
@@ -213,6 +214,63 @@ describe('modal → selector → recorridos', () => {
     expect(await screen.findByText('Tu próximo partido puede estar acá.')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Ir a Jugar' }));
     await waitFor(() => expect(screen.getByTestId('pathname')).toHaveTextContent('/quiero-jugar'));
+  });
+
+  test('Desafíos is a single educational screen that only completes and navigates', async () => {
+    renderApp();
+    await waitLoaded();
+    await userEvent.click(screen.getByText('harness-open'));
+    await userEvent.click(await screen.findByRole('button', { name: 'Empezar' }));
+    await userEvent.click(await screen.findByText('Desafíos'));
+
+    expect(await screen.findByRole('heading', { name: 'Armá tu equipo. Encontrá rival.' })).toBeInTheDocument();
+    expect(screen.getByText(/encontrar o publicar propuestas/i)).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: /Cartelera de desafíos/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Siguiente' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Ir a Desafíos' }));
+
+    await waitFor(() => expect(screen.getByTestId('pathname')).toHaveTextContent('/desafios'));
+    const completedCall = saveOnboardingState.mock.calls
+      .map((call) => call[1])
+      .find((saved) => saved.status === ONBOARDING_STATUS.COMPLETED);
+    expect(completedCall).toMatchObject({ completedVersion: 1, chosenPath: null });
+  });
+
+  test('Estadísticas is a single informational screen with no checklist path or product mutations', async () => {
+    renderApp();
+    await waitLoaded();
+    await userEvent.click(screen.getByText('harness-open'));
+    await userEvent.click(await screen.findByRole('button', { name: 'Empezar' }));
+    await userEvent.click(await screen.findByText('Estadísticas'));
+
+    expect(await screen.findByRole('heading', { name: 'Tu año en números' })).toBeInTheDocument();
+    expect(screen.getByText(/partidos jugados, ganados, empatados y las lesiones/i)).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: /Resumen anual/i })).toBeInTheDocument();
+    expect(screen.queryByText(/marcador|resultado exacto|porcentaje/i)).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Ver mis estadísticas' }));
+
+    await waitFor(() => expect(screen.getByTestId('pathname')).toHaveTextContent('/stats'));
+    expect(saveOnboardingState.mock.calls.map((call) => call[1].chosenPath)).not.toContain('stats');
+  });
+
+  test('a reached final screen shows Cerrar, never Omitir or premature Completado', async () => {
+    renderApp();
+    await waitLoaded();
+    await userEvent.click(screen.getByText('harness-open'));
+    await userEvent.click(await screen.findByRole('button', { name: 'Empezar' }));
+    await userEvent.click(await screen.findByText('Organizar un partido'));
+    for (let index = 0; index < 5; index += 1) {
+      await userEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
+    }
+
+    expect(await screen.findByText('Ya sabés todo lo necesario.')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Cerrar' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Omitir tutorial' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Completado')).not.toBeInTheDocument();
+    expect(screen.getByRole('img', { name: /Dos equipos formados/i })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Cerrar' }));
+    await waitFor(() => expect(screen.getByTestId('active')).toHaveTextContent('false'));
+    expect(screen.getByTestId('pathname')).toHaveTextContent('/');
   });
 
   test('soft close keeps an in-progress path resumable', async () => {

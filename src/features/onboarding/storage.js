@@ -8,7 +8,7 @@ import logger from '../../utils/logger';
 import {
   CURRENT_ONBOARDING_VERSION,
   ONBOARDING_STATUS,
-  isValidOnboardingPath,
+  isPersistedOnboardingPath,
 } from './content';
 
 const LOCAL_KEY_PREFIX = 'arma2:onboarding:v1:';
@@ -49,7 +49,7 @@ export function normalizeOnboardingState(input) {
     ? rawStatus
     : ONBOARDING_STATUS.NOT_STARTED;
   const chosenPathRaw = src.chosenPath ?? src.chosen_path ?? null;
-  const chosenPath = isValidOnboardingPath(chosenPathRaw) ? chosenPathRaw : null;
+  const chosenPath = isPersistedOnboardingPath(chosenPathRaw) ? chosenPathRaw : null;
   const completedVersionRaw = Number(src.completedVersion ?? src.completed_version ?? 0);
 
   return {

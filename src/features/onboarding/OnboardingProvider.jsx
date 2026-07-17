@@ -16,6 +16,7 @@ import { OnboardingContext, useOnboarding, useOnboardingOptional } from './Onboa
 import {
   CURRENT_ONBOARDING_VERSION,
   ONBOARDING_STATUS,
+  isPersistedOnboardingPath,
   isValidOnboardingPath,
 } from './content';
 import { isOnboardingEnabledForUser, resolveOnboardingDecision } from './eligibility';
@@ -159,7 +160,7 @@ export function OnboardingProvider({ children }) {
 
   const openOnboarding = useCallback(({ auto = false, replay = false } = {}) => {
     autoOpenedThisSessionRef.current = true;
-    const resumePath = isValidOnboardingPath(state.chosenPath) ? state.chosenPath : null;
+    const resumePath = isPersistedOnboardingPath(state.chosenPath) ? state.chosenPath : null;
     // Resume mid-path only for a genuine in-progress run (not a replay).
     const screen = !replay && resumePath && state.status === ONBOARDING_STATUS.IN_PROGRESS
       ? 'path'
@@ -181,7 +182,14 @@ export function OnboardingProvider({ children }) {
 
   const chooseGoal = useCallback((pathKey) => {
     if (!isValidOnboardingPath(pathKey)) return;
-    persist((prev) => ({ ...prev, chosenPath: pathKey, status: ONBOARDING_STATUS.IN_PROGRESS }), {
+    persist((prev) => ({
+      ...prev,
+      // Desafíos and Estadísticas are educational-only paths. Keeping the
+      // previous checklist choice (or null for a new user) avoids writing an
+      // unsupported DB enum and never turns either feature into a task.
+      chosenPath: isPersistedOnboardingPath(pathKey) ? pathKey : prev.chosenPath,
+      status: ONBOARDING_STATUS.IN_PROGRESS,
+    }), {
       event: 'onboarding_path_selected',
       props: { path: pathKey },
     });
@@ -194,13 +202,13 @@ export function OnboardingProvider({ children }) {
     setActiveFlow(null);
   }, []);
 
-  const completeOnboarding = useCallback(() => {
+  const completeOnboarding = useCallback((completedPath = null) => {
     persist((prev) => ({
       ...prev,
       status: ONBOARDING_STATUS.COMPLETED,
       completedVersion: CURRENT_ONBOARDING_VERSION,
       completedAt: new Date().toISOString(),
-    }), { event: 'onboarding_completed', props: { path: state.chosenPath || null } });
+    }), { event: 'onboarding_completed', props: { path: completedPath || state.chosenPath || null } });
     setActiveFlow(null);
   }, [persist, state.chosenPath]);
 
@@ -218,7 +226,7 @@ export function OnboardingProvider({ children }) {
 
   const replayOnboarding = useCallback((pathKey) => {
     autoOpenedThisSessionRef.current = true;
-    const validPath = isValidOnboardingPath(pathKey) ? pathKey : null;
+    const validPath = isPersistedOnboardingPath(pathKey) ? pathKey : null;
     if (validPath) {
       persist((prev) => ({ ...prev, chosenPath: pathKey }));
     }
@@ -241,7 +249,7 @@ export function OnboardingProvider({ children }) {
   }, []);
 
   const showFirstSteps = useCallback(() => {
-    if (!isValidOnboardingPath(state.chosenPath)) return;
+    if (!isPersistedOnboardingPath(state.chosenPath)) return;
     const request = { type: 'first_steps', path: state.chosenPath };
     if (!isSafeHomeSurface(locationRef.current)
       || detectPendingIntent({ pendingAuthFlow: pendingAuthFlowRef.current })
