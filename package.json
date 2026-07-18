@@ -63,6 +63,7 @@
     "test:ci": "CI=true react-scripts test --watchAll=false --runInBand",
     "test:web-access": "node --test server/__tests__/*.test.mjs",
     "test:db": "node scripts/db-integration/run.mjs",
+    "test:db:goalkeeper": "node scripts/db-integration/goalkeeper.mjs",
     "eject": "react-scripts eject",
     "mobile:sync": "npm run build && npx cap sync",
     "android:sync": "npm run build && npx cap sync android",

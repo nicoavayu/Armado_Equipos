@@ -101,6 +101,7 @@ export const buildQuieroJugarMatchAudit = ({
     normalizeLooseText(matchRow?.nombre || matchRow?.titulo || matchRow?.name || ''),
   );
   const needsPlayers = matchRow?.falta_jugadores === true;
+  const needsGoalkeeper = matchRow?.busca_arquero === true;
   const userHasLocation = hasFiniteCoordinates(userLocation);
   const matchHasCoordinates = hasFiniteCoordinates(matchCoordinates);
   const roundedDistanceKm = Number.isFinite(distanceKm) ? Number(distanceKm) : null;
@@ -112,7 +113,7 @@ export const buildQuieroJugarMatchAudit = ({
     ? roundedDistanceKm <= Number(maxDistanceKm)
     : null;
 
-  if (!needsPlayers) exclusionReasons.push('no_open_slots');
+  if (!needsPlayers && !needsGoalkeeper) exclusionReasons.push('no_open_slots');
   if (hideChallengeMatches && challengeMatch) exclusionReasons.push('challenge_match_hidden');
 
   const baseEligible = exclusionReasons.length === 0;
@@ -133,6 +134,7 @@ export const buildQuieroJugarMatchAudit = ({
     withinDistance,
     maxDistanceKm: Number.isFinite(Number(maxDistanceKm)) ? Number(maxDistanceKm) : null,
     needsPlayers,
+    needsGoalkeeper,
     challengeMatch,
     baseEligible,
     includedInList: exclusionReasons.length === 0,

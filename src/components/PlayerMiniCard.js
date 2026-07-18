@@ -1,29 +1,7 @@
 import React from 'react';
 import { MapPin, MoreVertical, Star, User } from 'lucide-react';
 import { clampPlayerRating } from '../utils/playerRating';
-
-const POS_MAP = {
-  ARQ: 'ARQ',
-  DEF: 'DEF',
-  MED: 'MED',
-  DEL: 'DEL',
-  arq: 'ARQ',
-  def: 'DEF',
-  med: 'MED',
-  del: 'DEL',
-  arquero: 'ARQ',
-  defensor: 'DEF',
-  mediocampista: 'MED',
-  delantero: 'DEL',
-};
-const POS_COLOR_MAP = { ARQ: '#FDB022', DEF: '#FF6B9D', MED: '#06C270', DEL: '#FF3B3B' };
-
-const getPos = (p) => {
-  const raw = String(p || '').trim();
-  if (!raw) return 'DEF';
-  return POS_MAP[raw] || POS_MAP[raw.toUpperCase()] || 'DEF';
-};
-const getPosColor = (p) => POS_COLOR_MAP[p] || '#8178e5';
+import { getDisplayPositions, getPositionColor } from '../utils/positions';
 
 const getInitials = (name) => {
   if (!name) return '?';
@@ -71,8 +49,7 @@ const PlayerMiniCard = ({
       : (typeof profile?.calificacion === 'number' ? profile.calificacion : 5));
   const normalizedRating = clampPlayerRating(rawRatingCandidate);
   const ratingStr = normalizedRating.toFixed(1);
-  const posicion = getPos(profile?.posicion || profile?.rol_favorito || 'DEF');
-  const posColor = getPosColor(posicion);
+  const positions = getDisplayPositions(profile);
   const showDistance = variant === 'searching' && typeof distanceKm === 'number' && Number.isFinite(distanceKm);
   const showMissingDistance = variant === 'searching' && showDistanceUnavailable && !showDistance;
   const isSelfFriendCard = variant === 'friend' && isSelf;
@@ -126,12 +103,15 @@ const PlayerMiniCard = ({
             </div>
           ) : null}
 
-          <div
-            className="inline-flex items-center justify-center px-2 py-[3px] rounded-full text-[10px] font-bold text-white min-w-[36px] uppercase tracking-[0.04em]"
-            style={{ backgroundColor: posColor }}
-          >
-            {posicion}
-          </div>
+          {positions.map((pos) => (
+            <div
+              key={pos}
+              className="inline-flex items-center justify-center px-2 py-[3px] rounded-full text-[10px] font-bold text-white min-w-[36px] uppercase tracking-[0.04em]"
+              style={{ backgroundColor: getPositionColor(pos) }}
+            >
+              {pos}
+            </div>
+          ))}
 
           {detailBadges}
 

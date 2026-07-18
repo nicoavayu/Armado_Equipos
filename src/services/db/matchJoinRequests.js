@@ -5,7 +5,7 @@ export const fetchPendingMatchJoinRequests = async (matchId) => {
 
   const { data, error } = await supabase
     .from('match_join_requests')
-    .select('id, match_id, user_id, status, created_at')
+    .select('id, match_id, user_id, status, role, created_at')
     .eq('match_id', matchId)
     .eq('status', 'pending')
     .order('created_at', { ascending: false })

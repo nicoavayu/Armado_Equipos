@@ -17,9 +17,16 @@ import PlayerMiniCard from '../components/PlayerMiniCard';
 import PlayerBadges from '../components/PlayerBadges';
 import EmptyStateCard from '../components/EmptyStateCard';
 import { handleError } from '../lib/errorHandler';
-import { Calendar, Clock, MapPin, MapPinOff, Star, ListOrdered, Users, CalendarX2, List, Map as MapIcon } from 'lucide-react';
+import { Calendar, Clock, MapPin, MapPinOff, Star, ListOrdered, Users, CalendarX2, List, Map as MapIcon, Hand } from 'lucide-react';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { hasValidCoordinates, toCoordinateNumber } from '../utils/matchLocation';
+import {
+  MATCH_SEARCH_FILTERS,
+  MATCH_SEARCH_FILTER_LABELS,
+  filterMatchesBySearchType,
+  getMatchSearchBadges,
+} from '../utils/matchSearchFilters';
+import { buildGoalkeeperMarket } from '../utils/goalkeeperMarket';
 import {
   countOperationallyOpenMatches,
   fetchOpenMatchesForQuieroJugar,
@@ -77,6 +84,8 @@ const buildMatchLocationLabel = (partido) => {
   return fromNamedVenue || place;
 };
 
+const MATCH_SEARCH_FILTER_STORAGE_KEY = 'quiero-jugar-match-search-filter';
+const MATCH_SEARCH_FILTER_ICONS = { players: Users, goalkeeper: Hand };
 const MATCH_DISTANCE_STORAGE_KEY = 'quiero-jugar-match-distance-km';
 const MIN_MATCH_DISTANCE_KM = 1;
 const MAX_MATCH_DISTANCE_KM = 30;
@@ -122,7 +131,13 @@ const QuieroJugar = ({
   });
   const [activeTab, setActiveTab] = useState(() => {
     const savedTab = sessionStorage.getItem('quiero-jugar-tab');
-    return savedTab === 'players' || savedTab === 'matches' ? savedTab : 'matches';
+    return ['players', 'matches', 'goalkeepers'].includes(savedTab) ? savedTab : 'matches';
+  });
+  const [goalkeepers, setGoalkeepers] = useState([]);
+  // PARTIDOS "what is this looking for" filter: all | players | goalkeeper.
+  const [matchSearchFilter, setMatchSearchFilter] = useState(() => {
+    const saved = sessionStorage.getItem(MATCH_SEARCH_FILTER_STORAGE_KEY);
+    return MATCH_SEARCH_FILTERS.includes(saved) ? saved : 'all';
   });
   // Internal PARTIDOS sub-view. Lista is the default; the choice persists per session.
   const [partidosView, setPartidosView] = useState(() => (
@@ -367,7 +382,7 @@ const QuieroJugar = ({
 
       const { data: userProfiles, error: usersError } = await supabase
         .from('usuarios')
-        .select('id, nombre, avatar_url, localidad, latitud, longitud, ranking, partidos_jugados, posicion, acepta_invitaciones, bio, fecha_alta, updated_at, nacionalidad, mvps')
+        .select('id, nombre, avatar_url, localidad, latitud, longitud, ranking, partidos_jugados, posicion, posiciones, disponible_arquero, acepta_invitaciones, bio, fecha_alta, updated_at, nacionalidad, mvps')
         .in('id', userIds);
 
       if (usersError) throw usersError;
@@ -387,6 +402,8 @@ const QuieroJugar = ({
             mvps: userProfile?.mvps || 0,
             nacionalidad: userProfile?.nacionalidad || 'Argentina',
             posicion: userProfile?.posicion || 'Jugador',
+            posiciones: userProfile?.posiciones || null,
+            disponible_arquero: userProfile?.disponible_arquero === true,
             acepta_invitaciones: userProfile?.acepta_invitaciones,
           };
         })
@@ -395,6 +412,40 @@ const QuieroJugar = ({
     } catch (error) {
       handleError(error, { showToast: false, onError: () => logger.error(error) });
     }
+  }, []);
+
+  // Goalkeeper market: every user with ARQ among their positions who opted into
+  // "disponible para atajar". Reuses the same profile fields (and cards) as
+  // Jugadores; distance/order is applied client-side just like there.
+  const fetchGoalkeepers = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('usuarios')
+        .select('id, nombre, avatar_url, localidad, latitud, longitud, ranking, partidos_jugados, posicion, posiciones, disponible_arquero, acepta_invitaciones, bio, nacionalidad, mvps')
+        .eq('disponible_arquero', true)
+        .contains('posiciones', ['ARQ']);
+
+      if (error) throw error;
+
+      const mapped = (data || []).map((profile) => ({
+        ...profile,
+        user_id: profile.id,
+        uuid: profile.id,
+        rating: profile.ranking || 5,
+        ranking: profile.ranking || 5,
+        mvps: profile.mvps || 0,
+        nacionalidad: profile.nacionalidad || 'Argentina',
+      }));
+      setGoalkeepers(mapped);
+    } catch (error) {
+      handleError(error, { showToast: false, onError: () => logger.error(error) });
+    }
+  }, []);
+
+  const selectMatchSearchFilter = useCallback((nextFilter) => {
+    const filter = MATCH_SEARCH_FILTERS.includes(nextFilter) ? nextFilter : 'all';
+    setMatchSearchFilter(filter);
+    sessionStorage.setItem(MATCH_SEARCH_FILTER_STORAGE_KEY, filter);
   }, []);
 
   useEffect(() => {
@@ -417,8 +468,9 @@ const QuieroJugar = ({
     setLocationStatus('loading');
     setMatchesError('');
     fetchFreePlayers();
+    fetchGoalkeepers();
     getUserLocation();
-  }, [fetchFreePlayers, getUserLocation, user]);
+  }, [fetchFreePlayers, fetchGoalkeepers, getUserLocation, user]);
 
   useEffect(() => {
     clearIntervalSafe();
@@ -432,6 +484,11 @@ const QuieroJugar = ({
         if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
         fetchFreePlayers();
       }, QUIERO_JUGAR_PLAYERS_POLL_MS);
+    } else if (activeTab === 'goalkeepers') {
+      setIntervalSafe(() => {
+        if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+        fetchGoalkeepers();
+      }, QUIERO_JUGAR_PLAYERS_POLL_MS);
     } else if (activeTab === 'matches') {
       setIntervalSafe(() => {
         if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
@@ -440,7 +497,7 @@ const QuieroJugar = ({
     }
 
     return () => clearIntervalSafe();
-  }, [activeTab, clearIntervalSafe, fetchFreePlayers, fetchPartidosAbiertos, setIntervalSafe, user?.id]);
+  }, [activeTab, clearIntervalSafe, fetchFreePlayers, fetchGoalkeepers, fetchPartidosAbiertos, setIntervalSafe, user?.id]);
 
   useRefreshOnVisibility(
     () => {
@@ -448,6 +505,12 @@ const QuieroJugar = ({
 
       if (activeTab === 'players') {
         fetchFreePlayers();
+        return;
+      }
+
+      if (activeTab === 'goalkeepers') {
+        fetchGoalkeepers();
+        if (!locationResolved) getUserLocation();
         return;
       }
 
@@ -461,6 +524,11 @@ const QuieroJugar = ({
       enabled: Boolean(user?.id),
     },
   );
+
+  useEffect(() => {
+    if (activeTab !== 'goalkeepers' || !user?.id) return;
+    fetchGoalkeepers();
+  }, [activeTab, fetchGoalkeepers, user?.id]);
 
   useEffect(() => {
     if (activeTab !== 'players' || !user?.id) return;
@@ -502,6 +570,22 @@ const QuieroJugar = ({
         table: 'usuarios',
         handler: () => {
           fetchFreePlayers();
+        },
+      },
+    ],
+  });
+
+  useSupabaseRealtime({
+    enabled: Boolean(user?.id) && activeTab === 'goalkeepers',
+    channelName: `quiero-jugar-goalkeepers-${user?.id}`,
+    deps: [activeTab, user?.id],
+    events: [
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'usuarios',
+        handler: () => {
+          fetchGoalkeepers();
         },
       },
     ],
@@ -553,7 +637,13 @@ const QuieroJugar = ({
   // Filter out current user from the general list
   const otherPlayers = sortedFreePlayers.filter((p) => p.user_id !== user?.id);
   const canFilterByDistance = Boolean(userLocation);
-  const visibleMatches = partidosAbiertos;
+  const visibleMatches = filterMatchesBySearchType(partidosAbiertos, matchSearchFilter);
+  const goalkeeperMarket = buildGoalkeeperMarket({
+    goalkeepers,
+    userLocation,
+    maxDistanceKm: deferredMaxMatchDistanceKm,
+    currentUserId: user?.id,
+  });
   const shouldShowLocationHelp = !canFilterByDistance && (locationStatus === 'denied' || locationStatus === 'unavailable');
 
   if (loading) {
@@ -585,30 +675,26 @@ const QuieroJugar = ({
           }}
         >
           <div className="flex h-[44px] w-full max-w-[500px] mx-auto gap-1 p-1 overflow-hidden rounded-full border border-[rgba(148,134,255,0.22)] bg-[rgba(20,16,41,0.85)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_6px_16px_rgba(5,3,16,0.35)]">
-            <button
-              className={`relative flex-1 min-w-0 rounded-full px-0 py-0 font-sans font-semibold text-[12.5px] uppercase tracking-[0.04em] transition-[background-color,border-color,color] duration-150 ${activeTab === 'matches'
-                ? 'z-[2] bg-cta-gradient text-white shadow-[0_4px_14px_rgba(106,67,255,0.4),inset_0_1px_0_rgba(255,255,255,0.2)]'
-                : 'z-[1] bg-transparent text-white/60 hover:text-white/90 hover:bg-white/[0.06]'
-                }`}
-              onClick={() => {
-                setActiveTab('matches');
-                sessionStorage.setItem('quiero-jugar-tab', 'matches');
-              }}
-            >
-              PARTIDOS
-            </button>
-            <button
-              className={`relative flex-1 min-w-0 rounded-full px-0 py-0 font-sans font-semibold text-[12.5px] uppercase tracking-[0.04em] transition-[background-color,border-color,color] duration-150 ${activeTab === 'players'
-                ? 'z-[2] bg-cta-gradient text-white shadow-[0_4px_14px_rgba(106,67,255,0.4),inset_0_1px_0_rgba(255,255,255,0.2)]'
-                : 'z-[1] bg-transparent text-white/60 hover:text-white/90 hover:bg-white/[0.06]'
-                }`}
-              onClick={() => {
-                setActiveTab('players');
-                sessionStorage.setItem('quiero-jugar-tab', 'players');
-              }}
-            >
-              JUGADORES
-            </button>
+            {[
+              { key: 'matches', label: 'PARTIDOS' },
+              { key: 'players', label: 'JUGADORES' },
+              { key: 'goalkeepers', label: 'ARQUEROS' },
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                aria-pressed={activeTab === tab.key}
+                className={`relative flex-1 min-w-0 rounded-full px-0 py-0 font-sans font-semibold text-[11px] sm:text-[12px] uppercase tracking-[0.02em] whitespace-nowrap transition-[background-color,border-color,color] duration-150 ${activeTab === tab.key
+                  ? 'z-[2] bg-cta-gradient text-white shadow-[0_4px_14px_rgba(106,67,255,0.4),inset_0_1px_0_rgba(255,255,255,0.2)]'
+                  : 'z-[1] bg-transparent text-white/60 hover:text-white/90 hover:bg-white/[0.06]'
+                  }`}
+                onClick={() => {
+                  setActiveTab(tab.key);
+                  sessionStorage.setItem('quiero-jugar-tab', tab.key);
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -714,6 +800,32 @@ const QuieroJugar = ({
                   </button>
                 </div>
 
+                {/* Compact "what is this match looking for" filter chips. Coexist
+                    with the distance slider and Lista/Mapa above; apply to both. */}
+                <div className="w-full max-w-[500px] mb-3 flex gap-1.5" role="group" aria-label="Filtrar partidos por lo que buscan">
+                  {MATCH_SEARCH_FILTERS.map((filterKey) => {
+                    const Icon = MATCH_SEARCH_FILTER_ICONS[filterKey];
+                    const isActive = matchSearchFilter === filterKey;
+                    return (
+                      <button
+                        key={filterKey}
+                        type="button"
+                        aria-pressed={isActive}
+                        className={`flex-1 min-w-0 py-2 px-2 rounded-full text-[11px] font-bold tracking-[0.02em] uppercase whitespace-nowrap cursor-pointer transition-all duration-200 border ${isActive
+                          ? 'bg-[rgba(106,67,255,0.25)] text-white border-[rgba(148,134,255,0.5)] shadow-[0_0_12px_rgba(106,67,255,0.2)]'
+                          : 'bg-white/[0.03] text-white/45 border-[rgba(148,134,255,0.14)] hover:bg-white/[0.06] hover:text-white/70'
+                          }`}
+                        onClick={() => selectMatchSearchFilter(filterKey)}
+                      >
+                        <span className="flex items-center gap-1 justify-center">
+                          {Icon ? <Icon size={12} className="shrink-0" /> : null}
+                          <span className="truncate">{MATCH_SEARCH_FILTER_LABELS[filterKey]}</span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
                 {partidosView === 'lista' ? (
                   visibleMatches.length === 0 ? (
                   <div className="w-full max-w-[500px] rounded-card surface-card p-6 text-center">
@@ -781,6 +893,23 @@ const QuieroJugar = ({
                           <div className="flex items-center gap-1.5 mb-2 flex-wrap">
                             <span className="font-sans text-[11px] font-bold px-2.5 py-[3px] rounded-full border shrink-0 whitespace-nowrap border-[#22c55e]/45 bg-[#22c55e]/10 text-[#86efac]">{partido.modalidad || 'F5'}</span>
                             <span className="font-sans text-[11px] font-bold px-2.5 py-[3px] rounded-full border shrink-0 whitespace-nowrap border-[#2dd4bf]/45 bg-[#2dd4bf]/10 text-[#99f6e4]">{partido.tipo_partido || 'Mixto'}</span>
+                            {(() => {
+                              const searchBadges = getMatchSearchBadges(partido);
+                              return (
+                                <>
+                                  {searchBadges.players ? (
+                                    <span className="font-sans inline-flex items-center gap-1 px-2.5 py-[3px] rounded-full text-[10px] font-bold shrink-0 whitespace-nowrap border border-[#8b5cff]/55 bg-[rgba(139,92,255,0.14)] text-[#ddd7ff]">
+                                      <Users size={11} className="shrink-0" /> Busca jugadores
+                                    </span>
+                                  ) : null}
+                                  {searchBadges.goalkeeper ? (
+                                    <span className="font-sans inline-flex items-center gap-1 px-2.5 py-[3px] rounded-full text-[10px] font-bold shrink-0 whitespace-nowrap border border-[#FDB022]/55 bg-[rgba(253,176,34,0.14)] text-[#ffd88a]">
+                                      <Hand size={11} className="shrink-0" /> Busca arquero
+                                    </span>
+                                  ) : null}
+                                </>
+                              );
+                            })()}
                             {isOwnerMatch ? (
                               <span className="font-sans px-2.5 py-[3px] rounded-full text-[10px] font-bold shrink-0 whitespace-nowrap border border-[#8e7dff]/60 bg-[rgba(106,67,255,0.16)] text-[#ddd7ff] uppercase tracking-[0.04em]">
                                 Tu partido
@@ -831,6 +960,74 @@ const QuieroJugar = ({
               </>
             );
           })()
+        ) : activeTab === 'goalkeepers' ? (
+          // Goalkeepers Market Tab — same cards + invite flow as Jugadores,
+          // filtered to ARQ + "disponible para atajar" and ordered by distance.
+          <>
+            {shouldShowLocationHelp ? (
+              <EmptyStateCard
+                icon={MapPinOff}
+                title="Activá tu ubicación"
+                description="Para ordenar los arqueros por cercanía activá la ubicación desde tu perfil o desde Ajustes del teléfono."
+                actionLabel="Ir a perfil"
+                onAction={() => navigate('/profile')}
+                className="mt-2 mb-4"
+                titleClassName="font-oswald text-[clamp(18px,5.6vw,22px)] font-semibold leading-tight text-white"
+              />
+            ) : null}
+
+            <div className="w-full max-w-[500px] mt-1.5 mb-3 rounded-card surface-card px-3.5 py-2">
+              <div className="flex items-center justify-between gap-2 mb-0.5">
+                <span className="font-sans font-bold text-[11px] uppercase tracking-[0.14em] text-[#b0a0ff]/85">
+                  Distancia
+                </span>
+                <span className="font-sans text-[13px] font-bold text-white inline-flex items-center rounded-full border border-[rgba(148,134,255,0.3)] bg-[rgba(106,67,255,0.16)] px-2.5 py-0.5 leading-none">
+                  {maxMatchDistanceKm} km
+                </span>
+              </div>
+              <DistanceSlider
+                min={MIN_MATCH_DISTANCE_KM}
+                max={MAX_MATCH_DISTANCE_KM}
+                step={1}
+                value={maxMatchDistanceKm}
+                disabled={!canFilterByDistance}
+                onChange={handleMatchDistanceChange}
+                ariaLabel="Distancia máxima de arqueros"
+                valueText={`${maxMatchDistanceKm} km`}
+              />
+            </div>
+
+            {goalkeeperMarket.length === 0 ? (
+              <EmptyStateCard
+                icon={Hand}
+                title="No hay arqueros disponibles"
+                titleClassName="font-oswald text-[clamp(18px,5.6vw,22px)] font-semibold leading-tight text-white"
+                description="Cuando haya arqueros disponibles para atajar cerca tuyo, van a aparecer acá. Podés habilitarte como arquero desde tu perfil."
+              />
+            ) : (
+              <div className="w-full max-w-[500px] flex flex-col gap-2">
+                {goalkeeperMarket.map((goalkeeper) => (
+                  <PlayerMiniCard
+                    key={goalkeeper.uuid || goalkeeper.id}
+                    profile={goalkeeper}
+                    variant="searching"
+                    showDistanceUnavailable
+                    distanceKm={Number.isFinite(goalkeeper.distanceKm) ? goalkeeper.distanceKm : null}
+                    onClick={(e) => {
+                      markOnboardingAction?.('reviewedPlayer');
+                      const rect = e?.currentTarget?.getBoundingClientRect?.();
+                      setActionAnchorPoint({
+                        x: rect ? (rect.left + rect.width / 2) : window.innerWidth / 2,
+                        y: rect ? (rect.top + rect.height / 2) : window.innerHeight / 2,
+                      });
+                      setActionPlayer(goalkeeper);
+                    }}
+                    detailBadges={<PlayerBadges playerId={goalkeeper.user_id || goalkeeper.uuid || goalkeeper.id} />}
+                  />
+                ))}
+              </div>
+            )}
+          </>
         ) : (
           // Players Tab
           <>

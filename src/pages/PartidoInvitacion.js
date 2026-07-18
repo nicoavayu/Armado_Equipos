@@ -31,6 +31,9 @@ import {
   hasPendingMatchInviteStatus,
 } from '../utils/notificationInviteState';
 import { resolvePlayerInvitePermission } from '../utils/matchInvitePermissions';
+import { resolveJoinRoleFlow, JOIN_ROLE_MESSAGES } from '../utils/joinRole';
+import { getProfilePositions } from '../utils/positions';
+import JoinRoleModal from '../components/JoinRoleModal';
 
 /**
  * Pantalla pública de invitación a un partido
@@ -967,6 +970,8 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
   });
   const [showPlayerInviteModal, setShowPlayerInviteModal] = useState(false);
   const [inlineNotice, setInlineNotice] = useState(null);
+  const [myPositions, setMyPositions] = useState([]);
+  const [roleChooserOpen, setRoleChooserOpen] = useState(false);
   const pendingContinueRef = useRef(null);
   const guestPhotoInputRef = useRef(null);
   const suppressRejectedJoinNoticeRef = useRef(false);
@@ -976,6 +981,31 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
   const showInlineNotice = (type, message) => {
     setInlineNotice({ type, message, ts: Date.now() });
   };
+
+  // Current user's profile positions — used to decide how they can join a match
+  // that searches for a goalkeeper (only ARQ profiles can request that slot).
+  useEffect(() => {
+    let cancelled = false;
+    if (!user?.id) {
+      setMyPositions([]);
+      return undefined;
+    }
+    (async () => {
+      const { data, error: positionsError } = await supabase
+        .from('usuarios')
+        .select('posiciones, posicion')
+        .eq('id', user.id)
+        .maybeSingle();
+      if (cancelled) return;
+      if (positionsError) {
+        logger.warn('[JOIN_ROLE] could not load positions', { code: positionsError.code || null });
+        setMyPositions([]);
+        return;
+      }
+      setMyPositions(getProfilePositions(data));
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id]);
 
   const closeScheduleWarning = () => {
     pendingContinueRef.current = null;
@@ -1745,7 +1775,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
     return true;
   };
 
-  const handleSolicitarUnirme = async (skipScheduleWarning = false) => {
+  const handleSolicitarUnirme = async (skipScheduleWarning = false, roleOverride = null) => {
     if (isMatchClosed(partido)) {
       showInlineNotice('warning', 'Este partido fue cancelado o cerrado.');
       return;
@@ -1765,12 +1795,27 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
 
     if (joinStatus !== 'none' || joinSubmitting || joinCancelling) return;
 
+    // Resolve the join role from the match's two search toggles and whether the
+    // user can keep goal. A goalkeeper-only match is off-limits without ARQ.
+    const roleFlow = roleOverride
+      ? { outcome: roleOverride }
+      : resolveJoinRoleFlow({
+        matchWantsPlayers: partido?.falta_jugadores === true,
+        matchWantsGoalkeeper: partido?.busca_arquero === true,
+        userHasGoalkeeper: myPositions.includes('ARQ'),
+      });
+
+    if (roleFlow.outcome === 'blocked_no_goalkeeper') {
+      showInlineNotice('warning', JOIN_ROLE_MESSAGES.blocked_no_goalkeeper);
+      return;
+    }
+
     try {
       const canContinue = await checkScheduleConflictAndMaybeWarn({ skipWarning: skipScheduleWarning });
       if (!canContinue) {
         pendingContinueRef.current = async () => {
           closeScheduleWarning();
-          await handleSolicitarUnirme(true);
+          await handleSolicitarUnirme(true, roleOverride);
         };
         return;
       }
@@ -1778,6 +1823,14 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       showInlineNotice('warning', 'No se pudo validar el conflicto de horario.');
       return;
     }
+
+    // The match wants both and the user can keep goal: ask how they want to join.
+    if (!roleOverride && roleFlow.outcome === 'choose') {
+      setRoleChooserOpen(true);
+      return;
+    }
+
+    const joinRole = roleFlow.outcome === 'goalkeeper' ? 'goalkeeper' : 'player';
 
     setJoinSubmitting(true);
     try {
@@ -1787,7 +1840,8 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
         .insert({
           match_id: Number(partidoId),
           user_id: user.id,
-          status: 'pending'
+          status: 'pending',
+          role: joinRole,
         })
         .select('id')
         .single();
@@ -1805,7 +1859,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           if (existingRequest && REOPENABLE_JOIN_REQUEST_STATUSES.has(existingStatus)) {
             const { data: reopenedRequest, error: reopenError } = await supabase
               .from('match_join_requests')
-              .update({ status: 'pending' })
+              .update({ status: 'pending', role: joinRole })
               .eq('id', existingRequest.id)
               .select('id')
               .single();
@@ -2411,6 +2465,18 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           singleButton={true}
           onCancel={closeJoinSuccessModal}
           onConfirm={closeJoinSuccessModal}
+        />
+        <JoinRoleModal
+          isOpen={roleChooserOpen}
+          onClose={() => setRoleChooserOpen(false)}
+          onSelectPlayer={() => {
+            setRoleChooserOpen(false);
+            handleSolicitarUnirme(true, 'player');
+          }}
+          onSelectGoalkeeper={() => {
+            setRoleChooserOpen(false);
+            handleSolicitarUnirme(true, 'goalkeeper');
+          }}
         />
       </>
     );

@@ -8,6 +8,8 @@ import { updateProfile, calculateProfileCompletion, supabase } from '../supabase
 import { friendlyError } from '../utils/friendlyError';
 import { prepareImageForUpload } from '../utils/imageUpload';
 import ProfileCard from './ProfileCard';
+import ProfilePositionsField from './ProfilePositionsField';
+import { getProfilePositions, normalizePositions } from '../utils/positions';
 import { OnboardingReplayButton } from '../features/onboarding';
 import AvatarCropModal from './AvatarCropModal';
 import ConfirmModal from './ConfirmModal';
@@ -166,6 +168,8 @@ const ProfileEditorForm = ({
   user,
   formData,
   handleInputChange,
+  handlePositionsChange,
+  handleDisponibleArqueroChange,
   fileInputRef,
   handlePhotoChange,
   handleGeolocation,
@@ -174,7 +178,6 @@ const ProfileEditorForm = ({
   formGroupClass,
   MAX_NOMBRE,
   countries,
-  positions,
   footOptions,
   levelOptions,
   loading,
@@ -336,25 +339,15 @@ const ProfileEditorForm = ({
           />
         </div>
 
-        {/* Posición Field */}
-        <div className={formGroupClass}>
-          <label className={labelClass}>Posición</label>
-          <div className="grid grid-cols-4 gap-2 md:gap-1.5 mt-1">
-            {positions.map((pos) => (
-              <button
-                key={pos.key}
-                type="button"
-                className={`
-                  h-[40px] bg-[rgba(28,39,86,0.72)] border border-[rgba(102,118,182,0.52)] text-white p-2 rounded-none text-xs sm:text-sm font-bold font-oswald cursor-pointer transition-all hover:bg-[rgba(38,51,104,0.86)] hover:border-[rgba(139,156,221,0.68)]
-                  ${formData.posicion === pos.key ? 'bg-gradient-to-r from-[#f4d03f] to-[#f7dc6f] !border-[#f4d03f] !text-[#201600] shadow-[0_8px_18px_rgba(244,208,63,0.32)]' : ''}
-                `}
-                onClick={() => handleInputChange('posicion', pos.key)}
-              >
-                {pos.label}
-              </button>
-            ))}
-          </div>
-        </div>
+        {/* Posiciones (máximo 2) + disponibilidad para atajar */}
+        <ProfilePositionsField
+          selected={formData.posiciones}
+          disponibleArquero={formData.disponible_arquero}
+          onPositionsChange={handlePositionsChange}
+          onDisponibleArqueroChange={handleDisponibleArqueroChange}
+          labelClass={labelClass}
+          formGroupClass={formGroupClass}
+        />
 
         <div className={formGroupClass}>
           <label className={labelClass}>Pierna hábil</label>
@@ -604,6 +597,8 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
     nacionalidad: 'Argentina',
     pais_codigo: 'AR',
     posicion: 'DEF',
+    posiciones: [],
+    disponible_arquero: false,
     pierna_habil: '',
     nivel: null,
     fecha_nacimiento: null,
@@ -660,6 +655,8 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
         nacionalidad: profile.nacionalidad || 'Argentina',
         pais_codigo: profile.pais_codigo || 'AR',
         posicion: profile.posicion || profile.rol_favorito || 'DEF',
+        posiciones: getProfilePositions(profile),
+        disponible_arquero: profile.disponible_arquero === true,
         pierna_habil: ['right', 'left', 'both'].includes(profile.pierna_habil) ? profile.pierna_habil : '',
         nivel: parseLevel(profile.nivel),
         fecha_nacimiento: cleanDate(profile.fecha_nacimiento),
@@ -741,6 +738,32 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
     setHasChanges(true);
     setLiveProfile((prev) => ({ ...(prev || {}), [field]: value }));
   }, [setFormData, setHasChanges, setLiveProfile]);
+
+  // Positions are the source of truth; the legacy `posicion` field mirrors the
+  // first choice and goalkeeper availability is force-cleared without ARQ.
+  const handlePositionsChange = useCallback((nextPositions) => {
+    const positions = normalizePositions(nextPositions);
+    const hasArq = positions.includes('ARQ');
+    const patch = {
+      posiciones: positions,
+      posicion: positions[0] || null,
+    };
+    setFormData((prev) => ({
+      ...prev,
+      ...patch,
+      disponible_arquero: hasArq ? prev.disponible_arquero : false,
+    }));
+    setHasChanges(true);
+    setLiveProfile((prev) => ({
+      ...(prev || {}),
+      ...patch,
+      disponible_arquero: hasArq ? (prev?.disponible_arquero ?? false) : false,
+    }));
+  }, [setFormData, setHasChanges, setLiveProfile]);
+
+  const handleDisponibleArqueroChange = useCallback((value) => {
+    handleInputChange('disponible_arquero', Boolean(value));
+  }, [handleInputChange]);
 
   const applyLocationPatch = useCallback((patch) => {
     setFormData((prev) => ({ ...prev, ...patch }));
@@ -1362,13 +1385,6 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
     user?.id,
   ]);
 
-  const positions = useMemo(() => [
-    { key: 'ARQ', label: 'ARQ' },
-    { key: 'DEF', label: 'DEF' },
-    { key: 'MED', label: 'MED' },
-    { key: 'DEL', label: 'DEL' },
-  ], []);
-
   const footOptions = useMemo(() => [
     { key: '', label: 'Sin definir' },
     { key: 'right', label: 'Derecha (DER)' },
@@ -1504,6 +1520,8 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
           user={user}
           formData={formData}
           handleInputChange={handleInputChange}
+          handlePositionsChange={handlePositionsChange}
+          handleDisponibleArqueroChange={handleDisponibleArqueroChange}
           fileInputRef={fileInputRef}
           handlePhotoChange={handlePhotoChange}
           handleGeolocation={handleGeolocation}
@@ -1512,7 +1530,6 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
           formGroupClass={formGroupClass}
           MAX_NOMBRE={MAX_NOMBRE}
           countries={countries}
-          positions={positions}
           footOptions={footOptions}
           levelOptions={levelOptions}
           loading={loading}
@@ -1710,24 +1727,14 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
               />
             </div>
 
-            <div className={formGroupClass}>
-              <label className={labelClass}>Posición</label>
-              <div className="grid grid-cols-4 gap-2 md:gap-1.5 mt-1">
-                {positions.map((pos) => (
-                  <button
-                    key={pos.key}
-                    type="button"
-                    className={`
-                          h-[40px] bg-[rgba(28,39,86,0.72)] border border-[rgba(102,118,182,0.52)] text-white p-2 rounded-none text-xs sm:text-sm font-bold font-oswald cursor-pointer transition-all hover:bg-[rgba(38,51,104,0.86)] hover:border-[rgba(139,156,221,0.68)]
-                          ${formData.posicion === pos.key ? 'bg-gradient-to-r from-[#f4d03f] to-[#f7dc6f] !border-[#f4d03f] !text-[#201600] shadow-[0_8px_18px_rgba(244,208,63,0.32)]' : ''}
-                        `}
-                    onClick={() => handleInputChange('posicion', pos.key)}
-                  >
-                    {pos.label}
-                  </button>
-                ))}
-              </div>
-            </div>
+            <ProfilePositionsField
+              selected={formData.posiciones}
+              disponibleArquero={formData.disponible_arquero}
+              onPositionsChange={handlePositionsChange}
+              onDisponibleArqueroChange={handleDisponibleArqueroChange}
+              labelClass={labelClass}
+              formGroupClass={formGroupClass}
+            />
 
             <div className={formGroupClass}>
               <label className={labelClass}>Pierna hábil</label>
