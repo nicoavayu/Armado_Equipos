@@ -15,6 +15,14 @@
 --     from the existing `falta_jugadores` "open to community" flag for players).
 --   * A join request carries the requested `role` (player | goalkeeper); the
 --     approval RPC sets `jugadores.is_goalkeeper` per-match from that role.
+--   * Request creation is gated in the backend (never only on the client): a
+--     'goalkeeper' request is REJECTED (not silently downgraded) when the
+--     requester has no ARQ, and each role also requires the matching search flag
+--     (busca_arquero for goalkeepers, falta_jugadores for players).
+--   * approve_join_request enforces the roster cap ATOMICALLY: it locks the match
+--     row so concurrent approvals serialize, filling `cupo_jugadores` titulares
+--     then up to 4 suplentes (`jugadores.is_substitute`) and never more — nobody
+--     is ever auto-evicted and the limit can never be exceeded.
 --
 -- Reversible: the DOWN steps at the bottom are documented (commented) so the
 -- change can be rolled back without data loss for pre-existing rows.
@@ -157,25 +165,62 @@ BEGIN
 END
 $$;
 
--- Creation-side guard: a 'goalkeeper' request requires the requester to actually
--- keep goal (ARQ among their positions). Otherwise coerce it to a normal player
--- request so a direct API call can never advertise a goalkeeper it isn't — the
--- approval RPC already refuses to set is_goalkeeper without ARQ, and this keeps
--- the stored intent (and the "Se suma como arquero" label) honest. Availability
--- to keep goal (disponible_arquero) is NOT enough: only the ARQ position counts.
+-- Creation/reopen guard: enforces the join rules in the backend so a direct API
+-- call can never bypass them (the client must not be the only gate). A request is
+-- REJECTED with a clear, controlled error — never silently coerced — when:
+--   * role='goalkeeper' but the requester has no ARQ among their positions;
+--   * role='goalkeeper' but the match is not searching a goalkeeper (busca_arquero);
+--   * role='player'    but the match is not open to players (falta_jugadores).
+-- With both flags on, both roles are allowed; with neither on, no request can be
+-- created. Availability to keep goal (disponible_arquero) is NOT enough: only the
+-- ARQ position counts. SECURITY DEFINER so the flag/position lookups are
+-- authoritative regardless of the requester's RLS visibility.
 CREATE OR REPLACE FUNCTION public.tg_match_join_request_role_guard()
 RETURNS trigger
 LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
 AS $$
+DECLARE
+  v_role text := COALESCE(NEW.role, 'player');
+  v_wants_players boolean;
+  v_wants_goalkeeper boolean;
+  v_has_arq boolean;
 BEGIN
-  IF COALESCE(NEW.role, 'player') = 'goalkeeper'
-     AND NOT EXISTS (
-       SELECT 1 FROM public.usuarios u
-       WHERE u.id = NEW.user_id
-         AND 'ARQ' = ANY(COALESCE(u.posiciones, '{}'::text[]))
-     ) THEN
-    NEW.role := 'player';
+  SELECT COALESCE(p.falta_jugadores, false), COALESCE(p.busca_arquero, false)
+    INTO v_wants_players, v_wants_goalkeeper
+  FROM public.partidos p
+  WHERE p.id = NEW.match_id;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Partido no encontrado' USING ERRCODE = 'no_data_found';
   END IF;
+
+  IF v_role = 'goalkeeper' THEN
+    SELECT ('ARQ' = ANY(COALESCE(u.posiciones, '{}'::text[])))
+      INTO v_has_arq
+    FROM public.usuarios u
+    WHERE u.id = NEW.user_id;
+
+    IF NOT COALESCE(v_has_arq, false) THEN
+      RAISE EXCEPTION 'Necesitás tener Arquero (ARQ) en tu perfil para postularte como arquero.'
+        USING ERRCODE = 'check_violation';
+    END IF;
+
+    IF NOT v_wants_goalkeeper THEN
+      RAISE EXCEPTION 'Este partido no está buscando arquero.'
+        USING ERRCODE = 'check_violation';
+    END IF;
+  ELSIF v_role = 'player' THEN
+    IF NOT v_wants_players THEN
+      RAISE EXCEPTION 'Este partido no está buscando jugadores.'
+        USING ERRCODE = 'check_violation';
+    END IF;
+  ELSE
+    RAISE EXCEPTION 'Rol de solicitud inválido: %', v_role
+      USING ERRCODE = 'check_violation';
+  END IF;
+
   RETURN NEW;
 END;
 $$;
@@ -186,9 +231,18 @@ BEFORE INSERT OR UPDATE OF role ON public.match_join_requests
 FOR EACH ROW EXECUTE FUNCTION public.tg_match_join_request_role_guard();
 
 -- ---------------------------------------------------------------------------
--- 4) approve_join_request: honor the requested role for is_goalkeeper.
---    (Redefinition of the current prod version + role handling. A goalkeeper
---    request requires the requester to actually have ARQ among their positions.)
+-- 3b) jugadores: substitute flag used by the roster cap. Prod already carries
+--     `is_substitute` (added out of band); ADD IF NOT EXISTS is a no-op there and
+--     guarantees the column exists for the capacity check below in any environment.
+-- ---------------------------------------------------------------------------
+ALTER TABLE public.jugadores
+  ADD COLUMN IF NOT EXISTS is_substitute boolean NOT NULL DEFAULT false;
+
+-- ---------------------------------------------------------------------------
+-- 4) approve_join_request: honor the requested role for is_goalkeeper AND enforce
+--    the roster cap atomically. (Redefinition of the current prod version.) A
+--    goalkeeper approval requires the requester to still have ARQ; capacity fills
+--    `cupo_jugadores` titulares then up to 4 suplentes and never overfills.
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.approve_join_request(p_request_id bigint)
 RETURNS jsonb
@@ -206,31 +260,46 @@ DECLARE
   v_avatar_url text;
   v_exists boolean;
   v_match_admin_id uuid;
+  v_modalidad text;
+  v_cupo_raw integer;
+  v_cupo integer;
+  v_starters integer;
+  v_substitutes integer;
+  v_is_substitute boolean;
   v_is_goalkeeper boolean;
   v_has_arq boolean;
   v_jugador_id public.jugadores.id%TYPE;
+  c_max_substitutes constant integer := 4;
 BEGIN
   IF v_actor_user_id IS NULL THEN
     RAISE EXCEPTION 'Forbidden' USING ERRCODE = '42501';
   END IF;
 
+  -- Lock BOTH the request row and the match row. Locking the match (partidos)
+  -- serializes every concurrent approval for the SAME match, which is what makes
+  -- the capacity check atomic: a second approval blocks here until the first
+  -- commits, then re-reads the freshly-committed roster and can never overfill.
   SELECT
     r.match_id,
     r.user_id,
     r.status,
     COALESCE(r.role, 'player'),
-    p.creado_por
+    p.creado_por,
+    p.modalidad,
+    p.cupo_jugadores
   INTO
     v_match_id,
     v_user_id,
     v_status,
     v_role,
-    v_match_admin_id
+    v_match_admin_id,
+    v_modalidad,
+    v_cupo_raw
   FROM public.match_join_requests r
   JOIN public.partidos p
     ON p.id = r.match_id
   WHERE r.id = p_request_id
-  FOR UPDATE OF r;
+  FOR UPDATE OF r, p;
 
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Solicitud no encontrada';
@@ -248,6 +317,9 @@ BEGIN
     RAISE EXCEPTION 'La solicitud no está pendiente';
   END IF;
 
+  -- Idempotent: a player already in the match must never be inserted twice nor
+  -- consume a second slot (the unique index on (partido_id, usuario_id) is the
+  -- last-resort guard; this keeps a double-approval graceful).
   SELECT EXISTS (
     SELECT 1
     FROM public.jugadores j
@@ -259,15 +331,49 @@ BEGIN
     RAISE EXCEPTION 'El jugador ya está en el partido';
   END IF;
 
-  -- A goalkeeper approval only marks is_goalkeeper when the requester truly has
-  -- ARQ in their profile positions; otherwise fall back to a normal player.
+  -- A goalkeeper approval requires the requester to STILL keep goal (ARQ among
+  -- their positions). If they removed ARQ after requesting, reject with a clear
+  -- error instead of silently downgrading the role to a field player.
   v_is_goalkeeper := false;
   IF v_role = 'goalkeeper' THEN
     SELECT ('ARQ' = ANY(COALESCE(u.posiciones, '{}'::text[])))
       INTO v_has_arq
     FROM public.usuarios u
     WHERE u.id = v_user_id;
-    v_is_goalkeeper := COALESCE(v_has_arq, false);
+    IF NOT COALESCE(v_has_arq, false) THEN
+      RAISE EXCEPTION 'El jugador ya no tiene Arquero (ARQ) en su perfil.'
+        USING ERRCODE = 'check_violation';
+    END IF;
+    v_is_goalkeeper := true;
+  END IF;
+
+  -- Roster cap: `cupo_jugadores` titulares (fall back to the modality default),
+  -- then up to 4 suplentes. Never a 5th suplente, never over the limit, and never
+  -- auto-evict or replace anyone already in the match.
+  v_cupo := COALESCE(
+    NULLIF(v_cupo_raw, 0),
+    CASE upper(COALESCE(v_modalidad, ''))
+      WHEN 'F5' THEN 10 WHEN 'F6' THEN 12 WHEN 'F7' THEN 14
+      WHEN 'F8' THEN 16 WHEN 'F9' THEN 18 WHEN 'F11' THEN 22
+      ELSE 10
+    END
+  );
+
+  SELECT
+    count(*) FILTER (WHERE COALESCE(j.is_substitute, false) = false),
+    count(*) FILTER (WHERE COALESCE(j.is_substitute, false) = true)
+  INTO v_starters, v_substitutes
+  FROM public.jugadores j
+  WHERE j.partido_id = v_match_id;
+
+  IF v_starters < v_cupo THEN
+    v_is_substitute := false;
+  ELSIF v_substitutes < c_max_substitutes THEN
+    v_is_substitute := true;
+  ELSE
+    RAISE EXCEPTION 'El partido está completo (% titulares + % suplentes).',
+      v_cupo, c_max_substitutes
+      USING ERRCODE = 'check_violation';
   END IF;
 
   SELECT
@@ -284,14 +390,16 @@ BEGIN
     nombre,
     avatar_url,
     score,
-    is_goalkeeper
+    is_goalkeeper,
+    is_substitute
   ) VALUES (
     v_match_id,
     v_user_id,
     v_nombre,
     v_avatar_url,
     5,
-    v_is_goalkeeper
+    v_is_goalkeeper,
+    v_is_substitute
   )
   RETURNING id INTO v_jugador_id;
 
@@ -313,6 +421,7 @@ BEGIN
     'user_id', v_user_id,
     'role', v_role,
     'is_goalkeeper', v_is_goalkeeper,
+    'is_substitute', v_is_substitute,
     'jugador_id', v_jugador_id
   );
 END;
@@ -450,6 +559,8 @@ COMMIT;
 --   DROP INDEX IF EXISTS public.notifications_match_needs_goalkeeper_unique;
 --   DROP TRIGGER IF EXISTS trg_match_join_request_role_guard ON public.match_join_requests;
 --   DROP FUNCTION IF EXISTS public.tg_match_join_request_role_guard();
+--   -- jugadores.is_substitute is intentionally NOT dropped: it predates this
+--   -- migration in prod and holds roster data (ADD IF NOT EXISTS was a no-op).
 --   ALTER TABLE public.match_join_requests DROP COLUMN IF EXISTS role;
 --   ALTER TABLE public.partidos DROP COLUMN IF EXISTS busca_arquero;
 --   DROP TRIGGER IF EXISTS trg_normalize_usuario_posiciones ON public.usuarios;

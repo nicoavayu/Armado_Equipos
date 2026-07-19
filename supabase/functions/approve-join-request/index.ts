@@ -177,6 +177,17 @@ serve(async (req) => {
         push_dispatch: null,
       }, 200, cors);
     }
+    // Controlled business rejections from approve_join_request (roster full, or the
+    // requester no longer keeps goal) surface their exact, understandable message
+    // to the admin. 23514 (check_violation) here can only come from those RAISEs.
+    if (
+      error.code === "23514"
+      || message.includes("El partido está completo")
+      || message.includes("La solicitud no está pendiente")
+      || message.includes("ya no tiene Arquero")
+    ) {
+      return jsonResponse({ ok: false, message }, 200, cors);
+    }
     return jsonResponse({ ok: false, message: "approve_failed", details: message }, 500, cors);
   }
 
