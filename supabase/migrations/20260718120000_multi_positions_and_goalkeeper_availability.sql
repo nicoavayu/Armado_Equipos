@@ -157,6 +157,34 @@ BEGIN
 END
 $$;
 
+-- Creation-side guard: a 'goalkeeper' request requires the requester to actually
+-- keep goal (ARQ among their positions). Otherwise coerce it to a normal player
+-- request so a direct API call can never advertise a goalkeeper it isn't — the
+-- approval RPC already refuses to set is_goalkeeper without ARQ, and this keeps
+-- the stored intent (and the "Se suma como arquero" label) honest. Availability
+-- to keep goal (disponible_arquero) is NOT enough: only the ARQ position counts.
+CREATE OR REPLACE FUNCTION public.tg_match_join_request_role_guard()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF COALESCE(NEW.role, 'player') = 'goalkeeper'
+     AND NOT EXISTS (
+       SELECT 1 FROM public.usuarios u
+       WHERE u.id = NEW.user_id
+         AND 'ARQ' = ANY(COALESCE(u.posiciones, '{}'::text[]))
+     ) THEN
+    NEW.role := 'player';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_match_join_request_role_guard ON public.match_join_requests;
+CREATE TRIGGER trg_match_join_request_role_guard
+BEFORE INSERT OR UPDATE OF role ON public.match_join_requests
+FOR EACH ROW EXECUTE FUNCTION public.tg_match_join_request_role_guard();
+
 -- ---------------------------------------------------------------------------
 -- 4) approve_join_request: honor the requested role for is_goalkeeper.
 --    (Redefinition of the current prod version + role handling. A goalkeeper
@@ -210,6 +238,14 @@ BEGIN
 
   IF v_match_admin_id IS DISTINCT FROM v_actor_user_id THEN
     RAISE EXCEPTION 'Forbidden' USING ERRCODE = '42501';
+  END IF;
+
+  -- A decided-and-closed request (rejected/cancelled) must never be approved,
+  -- even by a direct RPC call. 'approved' is intentionally allowed to fall
+  -- through so a repeated approval hits the idempotent "already in the match"
+  -- path below instead of erroring here.
+  IF v_status NOT IN ('pending', 'approved') THEN
+    RAISE EXCEPTION 'La solicitud no está pendiente';
   END IF;
 
   SELECT EXISTS (
@@ -412,6 +448,8 @@ COMMIT;
 -- DOWN (manual rollback reference — not executed):
 --   DROP FUNCTION IF EXISTS public.notify_available_goalkeepers(bigint, integer);
 --   DROP INDEX IF EXISTS public.notifications_match_needs_goalkeeper_unique;
+--   DROP TRIGGER IF EXISTS trg_match_join_request_role_guard ON public.match_join_requests;
+--   DROP FUNCTION IF EXISTS public.tg_match_join_request_role_guard();
 --   ALTER TABLE public.match_join_requests DROP COLUMN IF EXISTS role;
 --   ALTER TABLE public.partidos DROP COLUMN IF EXISTS busca_arquero;
 --   DROP TRIGGER IF EXISTS trg_normalize_usuario_posiciones ON public.usuarios;

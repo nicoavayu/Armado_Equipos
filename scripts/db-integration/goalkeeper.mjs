@@ -33,6 +33,7 @@ const GK_FAR = '00000000-0000-4000-8000-0000000000b2';
 const GK_OFF = '00000000-0000-4000-8000-0000000000b3';
 const FIELD = '00000000-0000-4000-8000-0000000000c1';
 const GK_IN_MATCH = '00000000-0000-4000-8000-0000000000b4';
+const GK_SECOND = '00000000-0000-4000-8000-0000000000b5';
 
 let failures = 0;
 let checks = 0;
@@ -197,6 +198,13 @@ async function main() {
   row = (await admin.query('select disponible_arquero from public.usuarios where id=$1', [FIELD])).rows[0];
   eq(row.disponible_arquero, false, 'removing ARQ auto-clears availability');
 
+  // Legacy writer path: a client that only touches `posicion` (leaving the array
+  // untouched) rebuilds `posiciones` from it, so the two columns never diverge.
+  await admin.query(`update public.usuarios set posicion = 'ARQ' where id=$1`, [FIELD]);
+  row = (await admin.query('select posiciones, posicion from public.usuarios where id=$1', [FIELD])).rows[0];
+  eq(row.posiciones, ['ARQ'], 'legacy posicion-only write rebuilds posiciones');
+  eq(row.posicion, 'ARQ', 'legacy posicion-only write stays mirrored');
+
   console.log('\n▶ approve_join_request honors role → is_goalkeeper (per match)');
   await admin.query('delete from public.usuarios where id = any($1)', [[GK_NEAR, FIELD]]);
   await admin.query(`insert into public.usuarios (id, nombre, latitud, longitud) values ($1,'Admin',-34.60,-58.38)`, [ADMIN]);
@@ -212,10 +220,27 @@ async function main() {
   let jg = (await admin.query('select is_goalkeeper from public.jugadores where partido_id=$1 and usuario_id=$2', [matchId, GK_NEAR])).rows[0];
   eq(jg.is_goalkeeper, true, 'goalkeeper request → is_goalkeeper=true');
 
-  const reqFieldAsGk = (await admin.query(`insert into public.match_join_requests (match_id, user_id, role) values ($1,$2,'goalkeeper') returning id`, [matchId, FIELD])).rows[0].id;
-  await adminAsUser.query('select public.approve_join_request($1)', [reqFieldAsGk]);
+  // Creation-side guard: a goalkeeper request from a non-ARQ profile is coerced
+  // to 'player' at insert time (so the stored intent / "Se suma como arquero"
+  // label can never lie), and the approval likewise never marks is_goalkeeper.
+  const reqFieldAsGk = (await admin.query(`insert into public.match_join_requests (match_id, user_id, role) values ($1,$2,'goalkeeper') returning id, role`, [matchId, FIELD])).rows[0];
+  eq(reqFieldAsGk.role, 'player', 'goalkeeper request without ARQ is coerced to player at creation');
+  await adminAsUser.query('select public.approve_join_request($1)', [reqFieldAsGk.id]);
   jg = (await admin.query('select is_goalkeeper from public.jugadores where partido_id=$1 and usuario_id=$2', [matchId, FIELD])).rows[0];
   eq(jg.is_goalkeeper, false, 'goalkeeper request without ARQ falls back to field player');
+
+  // A rejected request can never be approved, even by a direct RPC call.
+  await admin.query(`insert into public.usuarios (id, nombre, posiciones) values ($1,'GKrej', array['ARQ'])`, [GK_OFF]);
+  const reqRejected = (await admin.query(`insert into public.match_join_requests (match_id, user_id, role, status) values ($1,$2,'goalkeeper','rejected') returning id`, [matchId, GK_OFF])).rows[0].id;
+  let rejectedApprovalBlocked = false;
+  try {
+    await adminAsUser.query('select public.approve_join_request($1)', [reqRejected]);
+  } catch (e) {
+    rejectedApprovalBlocked = /no está pendiente/i.test(String(e.message));
+  }
+  ok(rejectedApprovalBlocked, 'a rejected request cannot be approved');
+  const rejectedJugador = (await admin.query('select 1 from public.jugadores where partido_id=$1 and usuario_id=$2', [matchId, GK_OFF])).rowCount;
+  eq(rejectedJugador, 0, 'rejected-then-approve never inserts the player');
 
   await admin.query(`insert into public.usuarios (id, nombre, posiciones) values ($1,'GKplayer', array['ARQ'])`, [GK_FAR]);
   const reqPlayer = (await admin.query(`insert into public.match_join_requests (match_id, user_id, role) values ($1,$2,'player') returning id`, [matchId, GK_FAR])).rows[0].id;
@@ -229,22 +254,30 @@ async function main() {
   await admin.query('delete from public.match_join_requests');
   await admin.query('delete from public.notifications');
   await admin.query('delete from public.partidos');
-  await admin.query('delete from public.usuarios where id = any($1)', [[GK_NEAR, GK_FAR, GK_OFF, FIELD, GK_IN_MATCH]]);
+  await admin.query('delete from public.usuarios where id = any($1)', [[GK_NEAR, GK_FAR, GK_OFF, FIELD, GK_IN_MATCH, GK_SECOND]]);
   await admin.query(`insert into public.usuarios (id, nombre, posiciones, disponible_arquero, latitud, longitud) values
-    ($1,'GKnear', array['ARQ'], true, -34.61, -58.38),
-    ($2,'GKfar',  array['ARQ'], true, -34.95, -58.38),
-    ($3,'GKoff',  array['ARQ'], false, -34.61, -58.38),
-    ($4,'Field',  array['DEF'], false, -34.61, -58.38),
-    ($5,'GKin',   array['ARQ'], true, -34.61, -58.38)`, [GK_NEAR, GK_FAR, GK_OFF, FIELD, GK_IN_MATCH]);
+    ($1,'GKnear',   array['ARQ'],       true,  -34.61, -58.38),
+    ($2,'GKfar',    array['ARQ'],       true,  -34.95, -58.38),
+    ($3,'GKoff',    array['ARQ'],       false, -34.61, -58.38),
+    ($4,'Field',    array['DEF'],       false, -34.61, -58.38),
+    ($5,'GKin',     array['ARQ'],       true,  -34.61, -58.38),
+    ($6,'GKsecond', array['DEL','ARQ'], true,  -34.615, -58.38)`, [GK_NEAR, GK_FAR, GK_OFF, FIELD, GK_IN_MATCH, GK_SECOND]);
   const gkMatch = (await admin.query(
     `insert into public.partidos (nombre, fecha, hora, sede, sede_direccion_normalizada, sede_latitud, sede_longitud, modalidad, cupo_jugadores, creado_por, estado, busca_arquero)
      values ('GKsearch', (now() + interval '3 days')::date, '21:00', 'Cancha Centro', 'Palermo', -34.60, -58.38, 'F5', 10, $1, 'active', true) returning id`, [ADMIN])).rows[0].id;
   await admin.query(`insert into public.jugadores (partido_id, usuario_id, nombre) values ($1,$2,'GKin')`, [gkMatch, GK_IN_MATCH]);
 
   const notified1 = (await adminAsUser.query('select public.notify_available_goalkeepers($1, 30) as r', [gkMatch])).rows[0].r;
-  eq(notified1.notified, 1, 'only the near, available, not-in-match goalkeeper is notified');
+  // GKnear (ARQ) and GKsecond (ARQ as 2nd position) are eligible; GKfar (radius),
+  // GKoff (no availability), Field (no ARQ), GKin (already in match) and the admin
+  // (actor) are all excluded.
+  eq(notified1.notified, 2, 'near available goalkeepers notified (ARQ as 1st or 2nd position)');
   const recipients = (await admin.query(`select user_id from public.notifications where partido_id=$1 and type='match_needs_goalkeeper' order by user_id`, [gkMatch])).rows.map((r) => r.user_id);
-  eq(recipients, [GK_NEAR], 'recipient is exactly the eligible near goalkeeper');
+  eq(recipients, [GK_NEAR, GK_SECOND], 'recipients are exactly the two eligible near goalkeepers');
+
+  // Deep link opens the correct match.
+  const link = (await admin.query(`select data->>'link' AS link from public.notifications where partido_id=$1 and type='match_needs_goalkeeper' limit 1`, [gkMatch])).rows[0].link;
+  eq(link, `/partido-publico/${gkMatch}`, 'notification deep link points to the correct match');
 
   const notified2 = (await adminAsUser.query('select public.notify_available_goalkeepers($1, 30) as r', [gkMatch])).rows[0].r;
   eq(notified2.notified, 0, 're-running does not re-notify (dedupe)');

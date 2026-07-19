@@ -927,18 +927,21 @@ const ProfileCardComponent = ({
           background: rgba(255, 255, 255, 0.05);
         }
         /* Two positions: two smaller badges stacked vertically inside the same
-           slot reserved for the single position badge. Keeps the flag, foot
-           badge, rating and PJ/PA untouched and the card height stable. */
+           slot reserved for the single position badge. The stack is capped to the
+           exact height of the single position badge (clamp(20px, 6.1vw, 26px)) so
+           the badge row never grows — the flag, foot badge, rating and PJ/PA stay
+           put and the card height is unchanged. */
         .pc-position-stack {
           display: flex;
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          gap: clamp(2px, 0.7vw, 4px);
+          height: clamp(20px, 6.1vw, 26px);
+          gap: clamp(1px, 0.4vw, 2px);
         }
         .pc-position-badge--stacked {
           width: clamp(30px, 9.2vw, 38px);
-          height: clamp(13px, 4vw, 16px);
+          height: clamp(9px, 2.7vw, 11px);
           border: 1.5px solid;
           border-radius: 0.35rem;
           background: rgba(255, 255, 255, 0.05);
