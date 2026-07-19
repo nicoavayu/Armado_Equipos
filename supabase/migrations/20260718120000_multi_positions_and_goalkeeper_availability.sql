@@ -15,10 +15,14 @@
 --     from the existing `falta_jugadores` "open to community" flag for players).
 --   * A join request carries the requested `role` (player | goalkeeper); the
 --     approval RPC sets `jugadores.is_goalkeeper` per-match from that role.
---   * Request creation is gated in the backend (never only on the client): a
---     'goalkeeper' request is REJECTED (not silently downgraded) when the
---     requester has no ARQ, and each role also requires the matching search flag
---     (busca_arquero for goalkeepers, falta_jugadores for players).
+--   * Request creation is gated in the backend for the GOALKEEPER role (only the
+--     new client can send it): a 'goalkeeper' request is REJECTED (never silently
+--     downgraded) when the requester has no ARQ, and it requires busca_arquero.
+--     A plain PLAYER request is intentionally NOT rejected here — apps already
+--     installed create player requests without knowing falta_jugadores and must
+--     keep working (backward compatibility). The strict "player requires
+--     falta_jugadores" rule is deferred to the client until legacy apps are gone
+--     (see the note by the guard below).
 --   * approve_join_request enforces the roster cap ATOMICALLY: it locks the match
 --     row so concurrent approvals serialize, filling `cupo_jugadores` titulares
 --     then up to 4 suplentes (`jugadores.is_substitute`) and never more — nobody
@@ -165,16 +169,25 @@ BEGIN
 END
 $$;
 
--- Creation/reopen guard: enforces the join rules in the backend so a direct API
--- call can never bypass them (the client must not be the only gate). A request is
--- REJECTED with a clear, controlled error — never silently coerced — when:
---   * role='goalkeeper' but the requester has no ARQ among their positions;
---   * role='goalkeeper' but the match is not searching a goalkeeper (busca_arquero);
---   * role='player'    but the match is not open to players (falta_jugadores).
--- With both flags on, both roles are allowed; with neither on, no request can be
--- created. Availability to keep goal (disponible_arquero) is NOT enough: only the
--- ARQ position counts. SECURITY DEFINER so the flag/position lookups are
--- authoritative regardless of the requester's RLS visibility.
+-- Creation/reopen guard. Enforces the GOALKEEPER join rules in the backend so a
+-- direct API call can never bypass them (the client must not be the only gate for
+-- the goalkeeper role). A 'goalkeeper' request is REJECTED with a clear, controlled
+-- error — never silently coerced to 'player' — when:
+--   * the requester has no ARQ among their positions; or
+--   * the match is not searching a goalkeeper (busca_arquero = false).
+-- Availability to keep goal (disponible_arquero) is NOT enough: only the ARQ
+-- position counts. SECURITY DEFINER so the flag/position lookups are authoritative
+-- regardless of the requester's RLS visibility.
+--
+-- BACKWARD COMPATIBILITY (deliberate): a plain PLAYER request is NEVER rejected
+-- here, whatever the value of falta_jugadores. Apps already installed create
+-- player requests (often with no `role` at all) without knowing about
+-- falta_jugadores, and via existing direct links; rejecting them in the backend
+-- would break those clients. The new client already hides/blocks the player action
+-- when falta_jugadores = false, so the rule lives in the UI for now.
+-- FUTURE: the strict "a player request requires falta_jugadores" rule can be moved
+-- into this guard once legacy apps are unsupported or a forced minimum version is
+-- in place (drop-in: re-add the falta_jugadores check in the ELSIF below).
 CREATE OR REPLACE FUNCTION public.tg_match_join_request_role_guard()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -183,20 +196,19 @@ SET search_path = public
 AS $$
 DECLARE
   v_role text := COALESCE(NEW.role, 'player');
-  v_wants_players boolean;
   v_wants_goalkeeper boolean;
   v_has_arq boolean;
 BEGIN
-  SELECT COALESCE(p.falta_jugadores, false), COALESCE(p.busca_arquero, false)
-    INTO v_wants_players, v_wants_goalkeeper
-  FROM public.partidos p
-  WHERE p.id = NEW.match_id;
-
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'Partido no encontrado' USING ERRCODE = 'no_data_found';
-  END IF;
-
   IF v_role = 'goalkeeper' THEN
+    SELECT COALESCE(p.busca_arquero, false)
+      INTO v_wants_goalkeeper
+    FROM public.partidos p
+    WHERE p.id = NEW.match_id;
+
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Partido no encontrado' USING ERRCODE = 'no_data_found';
+    END IF;
+
     SELECT ('ARQ' = ANY(COALESCE(u.posiciones, '{}'::text[])))
       INTO v_has_arq
     FROM public.usuarios u
@@ -211,12 +223,7 @@ BEGIN
       RAISE EXCEPTION 'Este partido no está buscando arquero.'
         USING ERRCODE = 'check_violation';
     END IF;
-  ELSIF v_role = 'player' THEN
-    IF NOT v_wants_players THEN
-      RAISE EXCEPTION 'Este partido no está buscando jugadores.'
-        USING ERRCODE = 'check_violation';
-    END IF;
-  ELSE
+  ELSIF v_role <> 'player' THEN
     RAISE EXCEPTION 'Rol de solicitud inválido: %', v_role
       USING ERRCODE = 'check_violation';
   END IF;

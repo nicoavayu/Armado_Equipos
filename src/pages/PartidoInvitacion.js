@@ -1810,6 +1810,11 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       return;
     }
 
+    if (roleFlow.outcome === 'blocked_no_slots') {
+      showInlineNotice('warning', JOIN_ROLE_MESSAGES.blocked_no_slots);
+      return;
+    }
+
     try {
       const canContinue = await checkScheduleConflictAndMaybeWarn({ skipWarning: skipScheduleWarning });
       if (!canContinue) {

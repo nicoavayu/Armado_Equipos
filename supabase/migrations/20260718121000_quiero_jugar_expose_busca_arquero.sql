@@ -1,27 +1,40 @@
--- Expose `busca_arquero` through the Quiero Jugar open-matches pipeline.
+-- Expose `busca_arquero` through a NEW, explicit v2 Quiero Jugar pipeline.
 --
--- A match is now "operationally open" (appears in Jugar > Partidos) when it is
--- searching for players (`falta_jugadores`) OR searching for a goalkeeper
--- (`busca_arquero`). The existing `partido_is_operationally_open()` predicate is
--- reused untouched by passing `(falta_jugadores OR busca_arquero)` as its
--- players flag — no signature change, no goalkeeper-only match left out.
+-- Backward compatibility is the hard requirement here: the CURRENT view/RPC
+-- (`partidos_abiertos_operativos`, `get_open_matches_for_quiero_jugar`,
+-- `debug_quiero_jugar_match_audit`) are consumed by apps that are ALREADY
+-- installed and that do NOT know the goalkeeper flow. Those objects are left
+-- exactly as prod has them: same signature, same columns, same behavior, and the
+-- historical `falta_jugadores`-only "operationally open" condition. Installed apps
+-- must keep receiving only the matches they received before this PR — in
+-- particular they must NEVER start seeing busca_arquero-only matches, which they
+-- would mishandle as ordinary player searches.
 --
--- Additive: the view gains a trailing `busca_arquero` column; the RPC returns it
--- so the client can render "Busca jugadores" / "Busca arquero" badges and filter.
+-- The new client (this PR) consumes a NEW, explicit v2 surface instead:
+--   * view  partidos_abiertos_operativos_v2
+--   * rpc   get_open_matches_for_quiero_jugar_v2
+--   * rpc   debug_quiero_jugar_match_audit_v2
+-- A match is "operationally open" for v2 when it searches for players
+-- (`falta_jugadores`) OR a goalkeeper (`busca_arquero`). The existing
+-- `partido_is_operationally_open()` predicate is reused untouched by passing
+-- `(falta_jugadores OR busca_arquero)` as its players flag. v2 additionally
+-- exposes `busca_arquero` so the client can render "Busca jugadores" / "Busca
+-- arquero" badges and filter.
 
 BEGIN;
 
--- Companion partial index that also covers goalkeeper-only open matches.
-DROP INDEX IF EXISTS public.partidos_quiero_jugar_open_candidates_idx;
-CREATE INDEX IF NOT EXISTS partidos_quiero_jugar_open_candidates_idx
+-- Companion partial index for the v2 candidate set (players OR goalkeeper). The
+-- legacy `partidos_quiero_jugar_open_candidates_idx` is intentionally left
+-- untouched so the legacy view/RPC keep their original plan.
+CREATE INDEX IF NOT EXISTS partidos_quiero_jugar_v2_open_candidates_idx
   ON public.partidos (estado, fecha, hora, created_at DESC)
   WHERE deleted_at IS NULL
     AND (COALESCE(falta_jugadores, false) = true OR COALESCE(busca_arquero, false) = true);
 
--- Recreate the view. `busca_arquero` is appended after the existing columns so
--- CREATE OR REPLACE VIEW's append-only rule is respected; the WHERE now opens
--- on either flag.
-CREATE OR REPLACE VIEW public.partidos_abiertos_operativos
+-- v2 view: same shape as the legacy view plus a trailing `busca_arquero` column,
+-- and a WHERE that opens on either flag. Created as a NEW object; the legacy view
+-- is not redefined.
+CREATE OR REPLACE VIEW public.partidos_abiertos_operativos_v2
 WITH (security_invoker = on)
 AS
 SELECT
@@ -73,11 +86,12 @@ WHERE public.partido_is_operationally_open(
   now()
 );
 
-GRANT SELECT ON public.partidos_abiertos_operativos TO authenticated;
+GRANT SELECT ON public.partidos_abiertos_operativos_v2 TO authenticated;
 
--- Recreate the open-matches RPC with the extra `busca_arquero` column.
-DROP FUNCTION IF EXISTS public.get_open_matches_for_quiero_jugar(double precision, double precision, integer);
-CREATE FUNCTION public.get_open_matches_for_quiero_jugar(
+-- v2 open-matches RPC: same shape as the legacy RPC plus the `busca_arquero`
+-- column, sourcing from the v2 view. The legacy RPC is not redefined.
+DROP FUNCTION IF EXISTS public.get_open_matches_for_quiero_jugar_v2(double precision, double precision, integer);
+CREATE FUNCTION public.get_open_matches_for_quiero_jugar_v2(
   p_user_lat double precision DEFAULT NULL,
   p_user_lng double precision DEFAULT NULL,
   p_max_distance_km integer DEFAULT 30
@@ -141,7 +155,7 @@ AS $$
         ELSE NULL
       END AS distance_km,
       ui.max_distance_km
-    FROM public.partidos_abiertos_operativos v
+    FROM public.partidos_abiertos_operativos_v2 v
     CROSS JOIN user_input ui
   )
   SELECT
@@ -185,12 +199,12 @@ AS $$
   ORDER BY c.kickoff_at ASC, c.created_at DESC;
 $$;
 
-REVOKE ALL ON FUNCTION public.get_open_matches_for_quiero_jugar(double precision, double precision, integer) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.get_open_matches_for_quiero_jugar(double precision, double precision, integer) TO authenticated;
+REVOKE ALL ON FUNCTION public.get_open_matches_for_quiero_jugar_v2(double precision, double precision, integer) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.get_open_matches_for_quiero_jugar_v2(double precision, double precision, integer) TO authenticated;
 
--- Keep the debug audit consistent: an open call can be for players or goalkeeper.
-DROP FUNCTION IF EXISTS public.debug_quiero_jugar_match_audit(double precision, double precision, integer);
-CREATE FUNCTION public.debug_quiero_jugar_match_audit(
+-- v2 debug audit (goalkeeper-aware). The legacy debug function is left untouched.
+DROP FUNCTION IF EXISTS public.debug_quiero_jugar_match_audit_v2(double precision, double precision, integer);
+CREATE FUNCTION public.debug_quiero_jugar_match_audit_v2(
   p_user_lat double precision DEFAULT NULL,
   p_user_lng double precision DEFAULT NULL,
   p_max_distance_km integer DEFAULT 30
@@ -310,7 +324,16 @@ AS $$
   ORDER BY a.start_datetime ASC NULLS LAST, a.partido_id ASC;
 $$;
 
-REVOKE ALL ON FUNCTION public.debug_quiero_jugar_match_audit(double precision, double precision, integer) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.debug_quiero_jugar_match_audit(double precision, double precision, integer) TO authenticated;
+REVOKE ALL ON FUNCTION public.debug_quiero_jugar_match_audit_v2(double precision, double precision, integer) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.debug_quiero_jugar_match_audit_v2(double precision, double precision, integer) TO authenticated;
 
 COMMIT;
+
+-- ---------------------------------------------------------------------------
+-- DOWN (manual rollback reference — not executed). The legacy objects were never
+-- touched, so rollback only drops the v2 objects:
+--   DROP FUNCTION IF EXISTS public.debug_quiero_jugar_match_audit_v2(double precision, double precision, integer);
+--   DROP FUNCTION IF EXISTS public.get_open_matches_for_quiero_jugar_v2(double precision, double precision, integer);
+--   DROP VIEW IF EXISTS public.partidos_abiertos_operativos_v2;
+--   DROP INDEX IF EXISTS public.partidos_quiero_jugar_v2_open_candidates_idx;
+-- ---------------------------------------------------------------------------

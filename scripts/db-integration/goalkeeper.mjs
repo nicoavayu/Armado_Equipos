@@ -45,6 +45,7 @@ const RACE_B = '00000000-0000-4000-8000-0000000000f2';
 const FLAG_ADMIN = '00000000-0000-4000-8000-0000000000c9';
 const FLAG_ARQ = '00000000-0000-4000-8000-0000000000ca';
 const FLAG_FIELD = '00000000-0000-4000-8000-0000000000cb';
+const FLAG_LEGACY = '00000000-0000-4000-8000-0000000000cc';
 
 let failures = 0;
 let checks = 0;
@@ -281,10 +282,11 @@ async function main() {
   jg = (await admin.query('select is_goalkeeper from public.jugadores where partido_id=$1 and usuario_id=$2', [matchId, GK_FAR])).rows[0];
   eq(jg.is_goalkeeper, false, 'player request never auto-marks goalkeeper');
 
-  console.log('\n▶ Creation guard: busca_arquero / falta_jugadores + ARQ (rechazo controlado, no coerción)');
+  console.log('\n▶ Creation guard: goalkeeper estricto + PLAYER compatible (no exige falta_jugadores)');
   await admin.query(`insert into public.usuarios (id, nombre) values ($1,'FlagAdmin')`, [FLAG_ADMIN]);
   await admin.query(`insert into public.usuarios (id, nombre, posiciones) values ($1,'FlagArq', array['ARQ'])`, [FLAG_ARQ]);
   await admin.query(`insert into public.usuarios (id, nombre, posiciones) values ($1,'FlagField', array['DEF'])`, [FLAG_FIELD]);
+  await admin.query(`insert into public.usuarios (id, nombre, posiciones) values ($1,'FlagLegacy', array['DEL'])`, [FLAG_LEGACY]);
 
   const mkMatch = async (falta, busca) => (await admin.query(
     `insert into public.partidos (nombre, fecha, hora, sede, modalidad, cupo_jugadores, creado_por, estado, falta_jugadores, busca_arquero)
@@ -295,28 +297,34 @@ async function main() {
   const reqCount = async (mid, uid) =>
     (await admin.query('select 1 from public.match_join_requests where match_id=$1 and user_id=$2', [mid, uid])).rowCount;
 
-  // Neither flag → no request of any role can be created.
-  const mNeither = await mkMatch(false, false);
-  ok(/no está buscando jugadores/i.test(await expectFailure(admin, reqInsert(mNeither, FLAG_FIELD, 'player'))),
-    'neither flag: player request rejected');
-  ok(/no está buscando arquero/i.test(await expectFailure(admin, reqInsert(mNeither, FLAG_ARQ, 'goalkeeper'))),
-    'neither flag: goalkeeper request rejected');
+  // Backward compatibility: a PLAYER request is accepted regardless of
+  // falta_jugadores — including a role-less (legacy) insert and a fully-closed
+  // match — so already-installed clients keep working. A goalkeeper request on a
+  // match not searching a GK is still rejected.
+  const mClosed = await mkMatch(false, false); // neither flag
+  await admin.query(reqInsert(mClosed, FLAG_FIELD, 'player'));
+  eq(await reqCount(mClosed, FLAG_FIELD), 1, 'closed match: explicit player request accepted (legacy compat)');
+  await admin.query(`insert into public.match_join_requests (match_id, user_id) values (${mClosed},'${FLAG_LEGACY}')`);
+  eq(await reqCount(mClosed, FLAG_LEGACY), 1, 'closed match: role-less (legacy) request accepted as player');
+  ok(/no está buscando arquero/i.test(await expectFailure(admin, reqInsert(mClosed, FLAG_ARQ, 'goalkeeper'))),
+    'closed match: goalkeeper request rejected (busca_arquero=false)');
 
-  // Players only → player accepted, goalkeeper rejected (match not searching a GK).
+  // Players-only → player accepted; goalkeeper rejected (match not searching a GK).
   const mPlayers = await mkMatch(true, false);
   await admin.query(reqInsert(mPlayers, FLAG_FIELD, 'player'));
   eq(await reqCount(mPlayers, FLAG_FIELD), 1, 'players-only: player request accepted');
   ok(/no está buscando arquero/i.test(await expectFailure(admin, reqInsert(mPlayers, FLAG_ARQ, 'goalkeeper'))),
     'players-only: goalkeeper request rejected');
 
-  // Goalkeeper only → ARQ goalkeeper accepted, player rejected, non-ARQ goalkeeper rejected.
+  // Goalkeeper-only → ARQ goalkeeper accepted; non-ARQ goalkeeper REJECTED (never
+  // coerced); a PLAYER request is still accepted (legacy compat).
   const mGk = await mkMatch(false, true);
   await admin.query(reqInsert(mGk, FLAG_ARQ, 'goalkeeper'));
   eq(await reqCount(mGk, FLAG_ARQ), 1, 'goalkeeper-only: ARQ goalkeeper request accepted');
-  ok(/no está buscando jugadores/i.test(await expectFailure(admin, reqInsert(mGk, FLAG_FIELD, 'player'))),
-    'goalkeeper-only: player request rejected');
   ok(/ARQ/i.test(await expectFailure(admin, reqInsert(mGk, FLAG_FIELD, 'goalkeeper'))),
     'goalkeeper-only: non-ARQ goalkeeper request rejected (not coerced)');
+  await admin.query(reqInsert(mGk, FLAG_FIELD, 'player'));
+  eq(await reqCount(mGk, FLAG_FIELD), 1, 'goalkeeper-only: player request still accepted (legacy compat)');
 
   // Both flags → both roles allowed.
   const mBoth = await mkMatch(true, true);

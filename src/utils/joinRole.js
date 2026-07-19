@@ -8,9 +8,12 @@
 //                             ask "¿Cómo querés sumarte?".
 //   'blocked_no_goalkeeper' → the match ONLY wants a goalkeeper and the user does
 //                             not have ARQ: cannot request.
+//   'blocked_no_slots'      → the match is not searching for players or a
+//                             goalkeeper (neither flag): cannot request.
 
 export const JOIN_ROLE_MESSAGES = {
   blocked_no_goalkeeper: 'Este partido busca arquero. Agregá Arquero a tus posiciones en tu perfil para poder sumarte.',
+  blocked_no_slots: 'Este partido no está buscando jugadores ni arquero por ahora.',
 };
 
 /**
@@ -37,6 +40,14 @@ export const resolveJoinRoleFlow = ({
     return { outcome: hasGoalkeeper ? 'choose' : 'player' };
   }
 
-  // Only players, or (defensively) neither: a normal player request.
-  return { outcome: 'player' };
+  if (wantsPlayers) {
+    return { outcome: 'player' };
+  }
+
+  // Neither flag: the match is not searching for anyone. The new client does NOT
+  // create a player request here. Backward compatibility for already-installed
+  // clients is handled server-side (the backend still accepts their player
+  // requests); this is the UI gate the deferred "player requires falta_jugadores"
+  // backend rule relies on.
+  return { outcome: 'blocked_no_slots' };
 };

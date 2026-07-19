@@ -32,9 +32,13 @@ describe('resolveJoinRoleFlow', () => {
     })).toEqual({ outcome: 'player' });
   });
 
-  test('neither flag → defensive player request', () => {
+  test('neither flag → blocked (new client does not request as player)', () => {
     expect(resolveJoinRoleFlow({
       matchWantsPlayers: false, matchWantsGoalkeeper: false, userHasGoalkeeper: true,
-    })).toEqual({ outcome: 'player' });
+    })).toEqual({ outcome: 'blocked_no_slots' });
+    expect(resolveJoinRoleFlow({
+      matchWantsPlayers: false, matchWantsGoalkeeper: false, userHasGoalkeeper: false,
+    })).toEqual({ outcome: 'blocked_no_slots' });
+    expect(JOIN_ROLE_MESSAGES.blocked_no_slots).toMatch(/no está buscando/i);
   });
 });
