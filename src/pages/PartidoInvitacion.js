@@ -71,6 +71,18 @@ const PRIMARY_INVITE_BUTTON_CLASS = 'w-full text-white px-6 py-4 rounded-xl font
 const INVALID_INVITE_PAGE_TITLE = 'Invitación inválida';
 const INVALID_INVITE_PAGE_MESSAGE = 'Este link de invitación no es válido.';
 const REOPENABLE_JOIN_REQUEST_STATUSES = new Set(['cancelled', 'rejected']);
+// Controlled business statuses returned by reopen_own_match_join_request → clear,
+// specific UI messages (never the generic "No se pudo enviar la solicitud").
+const REOPEN_BLOCKED_MESSAGES = {
+  match_not_found: 'Este partido ya no está disponible.',
+  match_past: 'Este partido ya pasó, no podés volver a solicitar.',
+  match_closed: 'Este partido ya no admite solicitudes.',
+  goalkeeper_not_searched: 'Este partido no está buscando arquero.',
+  not_goalkeeper: 'Necesitás tener Arquero (ARQ) en tu perfil para postularte como arquero.',
+  players_not_searched: 'Este partido no está buscando jugadores por ahora.',
+  invalid_role: 'No se pudo enviar la solicitud.',
+  not_found: 'No se pudo enviar la solicitud.',
+};
 const isMatchClosed = (match) => {
   const estado = String(match?.estado || '').toLowerCase();
   return CLOSED_MATCH_STATUSES.has(estado);
@@ -1939,8 +1951,10 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
             // Reopen through a SECURITY DEFINER RPC: the requester has no direct
             // UPDATE grant on match_join_requests (only the admin does), so a
             // client-side UPDATE rejected/cancelled -> pending silently affects
-            // zero rows and fails. The RPC runs as the table owner, enforces
-            // goalkeeper eligibility via the role guard, and is idempotent.
+            // zero rows and fails. The RPC validates the whole operation
+            // server-side (match operativo + futuro, membership, role eligibility)
+            // and returns CONTROLLED business statuses, so we show the exact reason
+            // instead of a generic error. It is idempotent under concurrent taps.
             const { data: reopenResult, error: reopenError } = await supabase
               .rpc('reopen_own_match_join_request', {
                 p_match_id: Number(partidoId),
@@ -1954,30 +1968,30 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
             const reopenedStatus = normalizeJoinRequestStatus(reopenResult?.status);
             const reopenedRequestId = reopenResult?.request_id || existingRequest.id;
 
-            if (reopenedStatus === 'approved') {
+            if (reopenedStatus === 'pending') {
+              const requesterName = user?.user_metadata?.nombre || user?.email?.split('@')[0] || 'Un jugador';
+              await notifyAdminJoinRequest({
+                matchId: Number(partidoId),
+                requestId: reopenedRequestId,
+                requesterUserId: user?.id || null,
+                requesterName,
+                adminUserId: partido?.creado_por || null,
+              });
+
+              setJoinStatus('pending');
+              showInlineNotice('success', 'Solicitud enviada. Esperando aprobación del admin.');
+              return;
+            }
+
+            if (reopenedStatus === 'already_approved' || reopenedStatus === 'already_member') {
               const { isMember } = await isUserMemberOfMatch(user.id, Number(partidoId));
               setJoinStatus(isMember ? 'approved' : 'approved_pending_sync');
               return;
             }
 
-            if (reopenedStatus !== 'pending') {
-              // 'not_found' or any unexpected status: reflect what the backend
-              // reports instead of a false success.
-              setJoinStatus(resolvePublicJoinStatus(reopenResult?.status));
-              return;
-            }
-
-            const requesterName = user?.user_metadata?.nombre || user?.email?.split('@')[0] || 'Un jugador';
-            await notifyAdminJoinRequest({
-              matchId: Number(partidoId),
-              requestId: reopenedRequestId,
-              requesterUserId: user?.id || null,
-              requesterName,
-              adminUserId: partido?.creado_por || null,
-            });
-
-            setJoinStatus('pending');
-            showInlineNotice('success', 'Solicitud enviada. Esperando aprobación del admin.');
+            // Controlled block reason (match closed/past/not-found, role not
+            // searched, no ARQ, …): show the exact motive; the request stays as-is.
+            showInlineNotice('warning', REOPEN_BLOCKED_MESSAGES[reopenedStatus] || 'No se pudo enviar la solicitud.');
             return;
           }
 

@@ -60,6 +60,7 @@ const ok = (condition, label, extra = '') => {
 };
 const eq = (actual, expected, label) =>
   ok(JSON.stringify(actual) === JSON.stringify(expected), label, `esperado ${JSON.stringify(expected)}, obtenido ${JSON.stringify(actual)}`);
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 // Runs a query expected to fail; returns the error message ('' if it unexpectedly succeeded).
 const expectFailure = async (client, sql, params = []) => {
   try {
@@ -245,14 +246,29 @@ async function main() {
   const playerAsUser = await connect(PLAYER); playerAsUser.__uid = PLAYER;
   const keeperAsUser = await connect(KEEPER); keeperAsUser.__uid = KEEPER;
 
-  const mkMatch = async (falta, busca) => (await admin.query(
-    `insert into public.partidos (nombre, fecha, hora, sede, sede_latitud, sede_longitud, modalidad, cupo_jugadores, creado_por, estado, falta_jugadores, busca_arquero)
-     values ('P', (now() + interval '3 days')::date, '20:00', 'Cancha', -34.60, -58.38, 'F5', 10, $1, 'active', $2, $3) returning id`,
-    [ADMIN, falta, busca],
-  )).rows[0].id;
+  const mkMatch = async (falta, busca, opts = {}) => {
+    const fechaExpr = opts.past ? `(now() - interval '1 day')::date` : `(now() + interval '3 days')::date`;
+    return (await admin.query(
+      `insert into public.partidos (nombre, fecha, hora, sede, sede_latitud, sede_longitud, modalidad, cupo_jugadores, creado_por, estado, falta_jugadores, busca_arquero)
+       values ('P', ${fechaExpr}, '20:00', 'Cancha', -34.60, -58.38, 'F5', 10, $1, $4, $2, $3) returning id`,
+      [ADMIN, falta, busca, opts.estado || 'active'],
+    )).rows[0].id;
+  };
+
+  // Insert a request then drive it to a terminal status (as if rejected/ejected).
+  const seedTerminalRequest = async (asUser, matchId, role, terminal = 'rejected') => {
+    await insertOwnRequest(asUser, matchId, role);
+    await admin.query(
+      `update public.match_join_requests set status=$3 where match_id=$1 and user_id=$2`,
+      [matchId, asUser.__uid, terminal],
+    );
+  };
 
   const ejectFromMatch = (matchId, userId) =>
     admin.query('delete from public.jugadores where partido_id=$1 and usuario_id=$2', [matchId, userId]);
+
+  const reopen = async (asUser, matchId, role) =>
+    (await asUser.query('select public.reopen_own_match_join_request($1,$2) as r', [matchId, role])).rows[0].r;
 
   // ─────────────────────────────────────────────────────────────────────────
   console.log('\n▶ Flujo real: solicitar → aprobar → expulsar → volver a solicitar (jugador)');
@@ -304,49 +320,95 @@ async function main() {
   eq(after2.role, 'goalkeeper', 'rol reabierto = goalkeeper');
 
   // ─────────────────────────────────────────────────────────────────────────
-  console.log('\n▶ Casos inválidos (elegibilidad post-expulsión)');
-  // Sin ARQ: el jugador de campo intenta reabrir como arquero.
+  console.log('\n▶ Elegibilidad de rol validada en el BACKEND (estados controlados)');
+  // Sin ARQ: el jugador de campo intenta reabrir como arquero → not_goalkeeper.
   const m3 = await mkMatch(true, true);
-  await insertOwnRequest(playerAsUser, m3, 'player');
-  // Drive the request to a terminal state (as if rejected/ejected earlier).
-  await admin.query(`update public.match_join_requests set status='rejected' where match_id=$1 and user_id=$2`, [m3, PLAYER]);
-  const noArqErr = await expectFailure(playerAsUser, 'select public.reopen_own_match_join_request($1,$2)', [m3, 'goalkeeper']);
-  ok(/ARQ/i.test(noArqErr), 'sin ARQ → reabrir como arquero es rechazado', noArqErr);
+  await seedTerminalRequest(playerAsUser, m3, 'player');
+  const noArq = await reopen(playerAsUser, m3, 'goalkeeper');
+  eq(noArq.status, 'not_goalkeeper', 'sin ARQ → reabrir como arquero devuelve not_goalkeeper');
   eq((await latestStatus(admin, m3, PLAYER)).status, 'rejected', 'sin ARQ → la solicitud NO cambia (sigue rejected)');
 
-  // Partido que NO busca arquero: reabrir como arquero es rechazado.
+  // Partido que NO busca arquero: reabrir como arquero → goalkeeper_not_searched.
   const m4 = await mkMatch(true, false); // solo-jugadores
-  await insertOwnRequest(keeperAsUser, m4, 'player');
-  await admin.query(`update public.match_join_requests set status='rejected' where match_id=$1 and user_id=$2`, [m4, KEEPER]);
-  const noBuscaErr = await expectFailure(keeperAsUser, 'select public.reopen_own_match_join_request($1,$2)', [m4, 'goalkeeper']);
-  ok(/arquero/i.test(noBuscaErr), 'partido no busca arquero → reabrir como arquero es rechazado', noBuscaErr);
+  await seedTerminalRequest(keeperAsUser, m4, 'player');
+  const noBusca = await reopen(keeperAsUser, m4, 'goalkeeper');
+  eq(noBusca.status, 'goalkeeper_not_searched', 'partido no busca arquero → goalkeeper_not_searched');
   eq((await latestStatus(admin, m4, KEEPER)).status, 'rejected', 'no busca arquero → la solicitud NO cambia');
   // ...pero el MISMO usuario ARQ puede reabrir como jugador (el partido busca jugadores).
-  const reopenAsPlayer = (await keeperAsUser.query('select public.reopen_own_match_join_request($1,$2) as r', [m4, 'player'])).rows[0].r;
-  eq(reopenAsPlayer.status, 'pending', 'solo-jugadores → reabrir como jugador funciona');
+  eq((await reopen(keeperAsUser, m4, 'player')).status, 'pending', 'solo-jugadores → reabrir como jugador funciona');
+
+  // Partido solo-arquero: reabrir como jugador → players_not_searched.
+  const m4b = await mkMatch(false, true); // solo-arquero
+  await seedTerminalRequest(keeperAsUser, m4b, 'player');
+  const noPlayers = await reopen(keeperAsUser, m4b, 'player');
+  eq(noPlayers.status, 'players_not_searched', 'partido no busca jugadores → players_not_searched');
+  eq((await latestStatus(admin, m4b, KEEPER)).status, 'rejected', 'no busca jugadores → la solicitud NO cambia');
 
   // ─────────────────────────────────────────────────────────────────────────
-  console.log('\n▶ Combinaciones de toggles + idempotencia');
-  // solo-arquero: arquero reabre OK.
+  console.log('\n▶ Combinaciones de toggles + idempotencia + approved');
+  // solo-arquero: arquero reabre OK (desde cancelled).
   const m5 = await mkMatch(false, true);
-  await insertOwnRequest(keeperAsUser, m5, 'goalkeeper');
-  await admin.query(`update public.match_join_requests set status='cancelled' where match_id=$1 and user_id=$2`, [m5, KEEPER]);
-  const reopen5 = (await keeperAsUser.query('select public.reopen_own_match_join_request($1,$2) as r', [m5, 'goalkeeper'])).rows[0].r;
-  eq(reopen5.status, 'pending', 'solo-arquero → reabrir como arquero (desde cancelled) funciona');
+  await seedTerminalRequest(keeperAsUser, m5, 'goalkeeper', 'cancelled');
+  eq((await reopen(keeperAsUser, m5, 'goalkeeper')).status, 'pending', 'solo-arquero → reabrir arquero (desde cancelled) funciona');
 
   // idempotencia: reabrir cuando ya está pending no rompe ni degrada.
-  const reopenAgain = (await keeperAsUser.query('select public.reopen_own_match_join_request($1,$2) as r', [m5, 'goalkeeper'])).rows[0].r;
+  const reopenAgain = await reopen(keeperAsUser, m5, 'goalkeeper');
   eq(reopenAgain.status, 'pending', 'reabrir sobre pending → sigue pending (idempotente)');
   eq(reopenAgain.reopened, false, 'reabrir sobre pending → reopened=false');
 
-  // reabrir un aprobado NO lo degrada.
+  // reabrir un aprobado NO lo reabre ni degrada → already_approved.
   const m6 = await mkMatch(true, false);
   await insertOwnRequest(playerAsUser, m6, 'player');
   const req6 = (await admin.query('select id from public.match_join_requests where match_id=$1 and user_id=$2', [m6, PLAYER])).rows[0].id;
   await adminAsUser.query('select public.approve_join_request($1)', [req6]);
-  const reopenApproved = (await playerAsUser.query('select public.reopen_own_match_join_request($1,$2) as r', [m6, 'player'])).rows[0].r;
-  eq(reopenApproved.status, 'approved', 'reabrir sobre approved → devuelve approved (no degrada)');
+  eq((await reopen(playerAsUser, m6, 'player')).status, 'already_approved', 'reabrir sobre approved → already_approved (no reabre)');
   eq((await latestStatus(admin, m6, PLAYER)).status, 'approved', 'approved permanece approved');
+
+  // ─────────────────────────────────────────────────────────────────────────
+  console.log('\n▶ Partido cerrado / pasado / inexistente + usuario que ya participa');
+  // Partido pasado (kickoff en el pasado) → match_past.
+  const mPast = await mkMatch(true, false, { past: true });
+  await seedTerminalRequest(playerAsUser, mPast, 'player');
+  eq((await reopen(playerAsUser, mPast, 'player')).status, 'match_past', 'partido pasado → match_past');
+  eq((await latestStatus(admin, mPast, PLAYER)).status, 'rejected', 'partido pasado → la solicitud NO cambia');
+
+  // Partido no operativo (estado finalizado) → match_closed.
+  const mClosed = await mkMatch(true, false, { estado: 'finalizado' });
+  await seedTerminalRequest(playerAsUser, mClosed, 'player');
+  eq((await reopen(playerAsUser, mClosed, 'player')).status, 'match_closed', 'partido finalizado → match_closed');
+
+  // Partido inexistente → estado controlado (no hay solicitud que reabrir), sin error genérico.
+  const bogus = await reopen(playerAsUser, 2147483000, 'player');
+  eq(bogus.status, 'not_found', 'partido inexistente → estado controlado (not_found), sin excepción');
+
+  // Usuario que YA participa (solicitud terminal inconsistente + jugador presente) → already_member.
+  const mMember = await mkMatch(true, false);
+  await insertOwnRequest(playerAsUser, mMember, 'player');
+  const reqM = (await admin.query('select id from public.match_join_requests where match_id=$1 and user_id=$2', [mMember, PLAYER])).rows[0].id;
+  await adminAsUser.query('select public.approve_join_request($1)', [reqM]); // agrega jugador
+  await admin.query(`update public.match_join_requests set status='rejected' where id=$1`, [reqM]); // fuerza estado terminal, jugador SIGUE en el plantel
+  eq((await reopen(playerAsUser, mMember, 'player')).status, 'already_member', 'usuario que ya participa → already_member');
+
+  // ─────────────────────────────────────────────────────────────────────────
+  console.log('\n▶ Concurrencia: dos reaperturas simultáneas NO divergen');
+  const mConc = await mkMatch(true, false);
+  await seedTerminalRequest(playerAsUser, mConc, 'player');
+  const cA = await connect(PLAYER);
+  const cB = await connect(PLAYER);
+  await cA.query('begin');
+  await cB.query('begin');
+  const rConcA = (await cA.query('select public.reopen_own_match_join_request($1,$2) as r', [mConc, 'player'])).rows[0].r;
+  // B queda bloqueado en el FOR UPDATE hasta que A commitea.
+  const bPromise = cB.query('select public.reopen_own_match_join_request($1,$2) as r', [mConc, 'player']);
+  await sleep(300);
+  await cA.query('commit');
+  const rConcB = (await bPromise).rows[0].r;
+  await cB.query('commit');
+  eq(rConcA.status, 'pending', 'concurrencia: A reabre → pending');
+  eq(rConcA.reopened, true, 'concurrencia: A reopened=true');
+  eq(rConcB.status, 'pending', 'concurrencia: B (serializado) ve pending');
+  eq(rConcB.reopened, false, 'concurrencia: B idempotente (reopened=false)');
+  eq((await admin.query('select count(*)::int c from public.match_join_requests where match_id=$1 and user_id=$2', [mConc, PLAYER])).rows[0].c, 1, 'concurrencia: sigue habiendo UNA sola solicitud (sin estados inconsistentes)');
 
   // ─────────────────────────────────────────────────────────────────────────
   console.log('\n▶ Sanidad RLS: el admin SÍ puede actualizar; el RPC exige sesión');
