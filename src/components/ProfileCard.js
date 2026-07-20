@@ -1,6 +1,7 @@
 import logger from '../utils/logger';
 import React, { useEffect, useLayoutEffect, useRef, useCallback, useMemo, useState } from 'react';
 import { clampPlayerRating, formatPlayerRating } from '../utils/playerRating';
+import { getDisplayPositions, getPositionColor } from '../utils/positions';
 
 // --- Pure Helper Functions (Outside Component) ---
 const clamp = (v, min = 0, max = 100) => Math.min(Math.max(v, min), max);
@@ -304,6 +305,7 @@ const ProfileCardComponent = ({
       pj: profile.partidos_jugados || 0,
       pa: profile.partidos_abandonados || 0,
       pos: getPos(profile.posicion || profile.rol_favorito),
+      positions: getDisplayPositions(profile),
       cc: (profile.pais_codigo || 'AR').toLowerCase(),
       abbr: getCountry(profile.pais_codigo),
       posColor: getPosColor(getPos(profile.posicion || profile.rol_favorito)),
@@ -924,6 +926,34 @@ const ProfileCardComponent = ({
           border: 1.5px solid;
           background: rgba(255, 255, 255, 0.05);
         }
+        /* Two positions: two smaller badges stacked vertically inside the same
+           slot reserved for the single position badge. The stack is capped to the
+           exact height of the single position badge (clamp(20px, 6.1vw, 26px)) so
+           the badge row never grows — the flag, foot badge, rating and PJ/PA stay
+           put and the card height is unchanged. */
+        .pc-position-stack {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          height: clamp(20px, 6.1vw, 26px);
+          gap: clamp(1px, 0.4vw, 2px);
+        }
+        .pc-position-badge--stacked {
+          width: clamp(30px, 9.2vw, 38px);
+          height: clamp(9px, 2.7vw, 11px);
+          border: 1.5px solid;
+          border-radius: 0.35rem;
+          background: rgba(255, 255, 255, 0.05);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-sizing: border-box;
+          flex-shrink: 0;
+        }
+        .pc-position-badge-label--stacked {
+          font-size: clamp(8px, 2.3vw, 10px);
+        }
         .pc-rating-wrap {
           margin-top: var(--pc-rating-margin-top);
           display: flex;
@@ -1181,20 +1211,42 @@ const ProfileCardComponent = ({
 
                           <div className="pc-center-divider" />
 
-                          <div
-                            className="pc-mini-badge pc-center-badge pc-position-badge"
-                            style={{ borderColor: vm.posColor }}
-                          >
-                            <span
-                              className="pc-mini-badge-label"
-                              style={{
-                                color: vm.posColor,
-                                textShadow: `0 0 4px ${vm.posColor}AA`,
-                              }}
+                          {vm.positions.length > 1 ? (
+                            <div className="pc-position-stack" aria-label={`Posiciones ${vm.positions.join(', ')}`}>
+                              {vm.positions.map((posKey) => {
+                                const color = getPositionColor(posKey);
+                                return (
+                                  <div
+                                    key={posKey}
+                                    className="pc-position-badge pc-position-badge--stacked"
+                                    style={{ borderColor: color }}
+                                  >
+                                    <span
+                                      className="pc-mini-badge-label pc-position-badge-label--stacked"
+                                      style={{ color, textShadow: `0 0 4px ${color}AA` }}
+                                    >
+                                      {posKey}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <div
+                              className="pc-mini-badge pc-center-badge pc-position-badge"
+                              style={{ borderColor: getPositionColor(vm.positions[0]) }}
                             >
-                              {vm.pos}
-                            </span>
-                          </div>
+                              <span
+                                className="pc-mini-badge-label"
+                                style={{
+                                  color: getPositionColor(vm.positions[0]),
+                                  textShadow: `0 0 4px ${getPositionColor(vm.positions[0])}AA`,
+                                }}
+                              >
+                                {vm.positions[0]}
+                              </span>
+                            </div>
+                          )}
                         </div>
 
                         <div className="pc-rating-wrap">

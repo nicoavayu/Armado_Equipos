@@ -12,6 +12,7 @@ import { useSupabaseRealtime } from '../../hooks/useSupabaseRealtime';
 import { useInterval } from '../../hooks/useInterval';
 import { fetchPendingMatchJoinRequests } from '../../services/db/matchJoinRequests';
 import { formatPlayerRating } from '../../utils/playerRating';
+import { getDisplayPositions, getPositionColor } from '../../utils/positions';
 
 const EmptyRequestsMailboxIcon = () => (
     <svg
@@ -81,7 +82,7 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted, onRequestResolve
             // Fetch usuarios data as fallback
             const { data: usuariosData, error: usuariosError } = await supabase
                 .from('usuarios')
-                .select('id, nombre, avatar_url, posicion, ranking, partidos_jugados, pais_codigo, numero')
+                .select('id, nombre, avatar_url, posicion, posiciones, ranking, partidos_jugados, pais_codigo, numero')
                 .in('id', userIds);
 
             if (usuariosError) throw usuariosError;
@@ -316,6 +317,8 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted, onRequestResolve
                     const estadisticas = request.profile?.estadisticas || {};
                     const rating = estadisticas.rating || null;
                     const pj = estadisticas.pj || request.usuario?.partidos_jugados || null;
+                    const requestPositions = getDisplayPositions(request.usuario || {});
+                    const joiningAsGoalkeeper = request.role === 'goalkeeper';
 
                     const isProcessing = processing.has(request.id);
                     const isAccepting = isProcessing && processingAction[request.id] === 'accept';
@@ -345,18 +348,29 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted, onRequestResolve
                                 <div className="font-oswald text-white font-semibold text-base truncate">
                                     {userName}
                                 </div>
-                                {(rating || pj) && (
-                                    <div className="flex items-center gap-3 text-xs text-white/60 mt-0.5">
-                                        {rating && (
-                                            <span className="flex items-center gap-1">
-                                                ⭐ {formatPlayerRating(rating)}
-                                            </span>
-                                        )}
-                                        {pj && (
-                                            <span>
-                                                {pj} PJ
-                                            </span>
-                                        )}
+                                <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                                    {requestPositions.map((pos) => (
+                                        <span
+                                            key={pos}
+                                            className="inline-flex items-center justify-center px-1.5 py-[2px] rounded-full text-[9px] font-bold text-white uppercase tracking-[0.04em]"
+                                            style={{ backgroundColor: getPositionColor(pos) }}
+                                        >
+                                            {pos}
+                                        </span>
+                                    ))}
+                                    {rating && (
+                                        <span className="flex items-center gap-1 text-xs text-white/60">
+                                            ⭐ {formatPlayerRating(rating)}
+                                        </span>
+                                    )}
+                                    {pj && (
+                                        <span className="text-xs text-white/60">{pj} PJ</span>
+                                    )}
+                                </div>
+                                {joiningAsGoalkeeper && (
+                                    <div className="mt-1 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.04em] text-[#ffd88a]">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-[#FDB022]" aria-hidden="true" />
+                                        Se suma como arquero
                                     </div>
                                 )}
                             </div>

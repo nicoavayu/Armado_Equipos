@@ -3,13 +3,11 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowLeft,
   CalendarDays,
-  Check,
   CircleDollarSign,
   Clock3,
   MapPin,
   Megaphone,
   Pencil,
-  Repeat2,
   Trophy,
   Type as TypeIcon,
   UserPlus,
@@ -999,10 +997,23 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
             />
           </div>
 
-          <label className={`${CARD_CLASS} mt-4 flex cursor-pointer items-center gap-3 p-4`} htmlFor="save-frequent">
-            <span className={`relative h-7 w-[52px] flex-none rounded-full border transition-colors ${
+          {/* Text block owns the full width to the left; the fixed-size toggle sits
+              on the right. Off/on share the exact same structure (only the switch
+              colors and knob move), so toggling never reflows or grows the row.
+              The title carries no inline icon so it stays on one line from 360px up
+              (it wraps only below that, e.g. 320px — the documented exception). */}
+          <label className={`${CARD_CLASS} mt-4 flex cursor-pointer items-center gap-2.5 px-4 py-3`} htmlFor="save-frequent">
+            <span className="min-w-0 flex-1">
+              <span className="block font-oswald text-[14px] font-semibold leading-tight text-white">
+                Guardar como partido frecuente
+              </span>
+              <span className="mt-1 block font-oswald text-[11.5px] leading-snug text-white/50">
+                Guardá lugar, hora y precio para reutilizarlo.
+              </span>
+            </span>
+            <span className={`relative h-6 w-[44px] flex-none rounded-full border transition-colors ${
               saveAsFrequent
-                ? 'border-[#9b7bff] bg-[#6a43ff] shadow-[0_0_18px_rgba(106,67,255,0.35)]'
+                ? 'border-[#9b7bff] bg-[#6a43ff] shadow-[0_0_16px_rgba(106,67,255,0.35)]'
                 : 'border-white/15 bg-white/10'
             }`}>
               <input
@@ -1013,20 +1024,10 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
                 disabled={loading}
                 onChange={(event) => setSaveAsFrequent(event.target.checked)}
               />
-              <span className={`absolute top-[3px] h-5 w-5 rounded-full bg-white shadow-md transition-transform ${
-                saveAsFrequent ? 'translate-x-[27px]' : 'translate-x-[3px]'
+              <span className={`absolute top-[2px] h-[18px] w-[18px] rounded-full bg-white shadow-md transition-transform ${
+                saveAsFrequent ? 'translate-x-[23px]' : 'translate-x-[3px]'
               }`} />
             </span>
-            <span className="min-w-0 flex-1">
-              <span className="flex items-center gap-2 font-oswald text-[15px] font-semibold text-white">
-                <Repeat2 size={17} className="text-[#a98cff]" />
-                Guardar como partido frecuente
-              </span>
-              <span className="mt-0.5 block font-oswald text-[12px] leading-snug text-white/48">
-                Guarda lugar, hora y precio para reutilizarlo.
-              </span>
-            </span>
-            {saveAsFrequent ? <Check size={19} className="flex-none text-[#bba8ff]" /> : null}
           </label>
         </div>
       </section>

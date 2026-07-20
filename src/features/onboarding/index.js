@@ -7,14 +7,11 @@ export { default as OnboardingGoalSelector } from './OnboardingGoalSelector';
 export { default as OnboardingOrganizerPath } from './OnboardingOrganizerPath';
 export { default as OnboardingAutoMatchPath } from './OnboardingAutoMatchPath';
 export { default as OnboardingExplorePath } from './OnboardingExplorePath';
-export { default as OnboardingFirstStepsModal } from './OnboardingFirstStepsModal';
-export { default as OnboardingCompletedModal } from './OnboardingCompletedModal';
 export { default as OnboardingCoachMark } from './OnboardingCoachMark';
 export { default as OnboardingReplayButton } from './OnboardingReplayButton';
 export { useOnboardingOptional } from './OnboardingProvider';
 
 export { useCoachMarks } from './useCoachMarks';
-export { useOnboardingChecklist } from './useOnboardingChecklist';
 
 export {
   CURRENT_ONBOARDING_VERSION,

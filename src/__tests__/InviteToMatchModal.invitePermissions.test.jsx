@@ -67,10 +67,18 @@ const createQueryBuilder = (result) => {
   return builder;
 };
 
+// A date `daysAhead` days from now as YYYY-MM-DD, so the selector's future filter
+// (real `now`) keeps these fixtures visible regardless of when the suite runs.
+const dateFromNow = (daysAhead) => {
+  const d = new Date();
+  d.setDate(d.getDate() + daysAhead);
+  return d.toISOString().slice(0, 10);
+};
+
 const makeMatch = (overrides = {}) => ({
   id: 55,
   nombre: 'Partido test',
-  fecha: '2026-03-20',
+  fecha: dateFromNow(7),
   hora: '20:00',
   sede: 'Cancha Norte',
   modalidad: 'F7',
@@ -255,5 +263,100 @@ describe('InviteToMatchModal invite permissions', () => {
       message: 'El organizador no habilitó invitaciones de jugadores para este partido.',
     }));
     expect(mockRpc).not.toHaveBeenCalled();
+  });
+});
+
+describe('InviteToMatchModal — solo partidos vigentes (fecha y hora reales)', () => {
+  beforeEach(() => {
+    mockFrom.mockReset();
+    mockRpc.mockReset();
+    mockNotifyBlockingError.mockReset();
+    mockShowGlobalNotice.mockReset();
+    mockRequestImmediatePushDispatchSafe.mockReset();
+    mockTrack.mockReset();
+    mockRpc.mockResolvedValue({ data: { status: 'sent' }, error: null });
+  });
+
+  test('un partido pasado (junio / fecha vencida) no aparece en el selector', async () => {
+    const pastMatch = makeMatch({ id: 91, nombre: 'Partido junio', fecha: '2026-06-10', hora: '20:00' });
+    enqueueFetchMatches({
+      currentUserId: ADMIN_USER_ID,
+      match: pastMatch,
+      myAdminRows: [{ id: pastMatch.id }],
+      playersInMatch: [{ id: 1, partido_id: pastMatch.id, usuario_id: ADMIN_USER_ID }],
+    });
+
+    renderInviteModal(ADMIN_USER_ID);
+
+    expect(await screen.findByText('No tenés partidos abiertos disponibles para invitar.')).toBeInTheDocument();
+    expect(screen.queryByText('Partido junio')).not.toBeInTheDocument();
+  });
+
+  test('un partido cancelado a futuro no aparece (regla de cierre existente)', async () => {
+    const cancelledFuture = makeMatch({ id: 92, nombre: 'Partido cancelado', fecha: dateFromNow(5), estado: 'cancelado' });
+    enqueueFetchMatches({
+      currentUserId: ADMIN_USER_ID,
+      match: cancelledFuture,
+      myAdminRows: [{ id: cancelledFuture.id }],
+      playersInMatch: [{ id: 1, partido_id: cancelledFuture.id, usuario_id: ADMIN_USER_ID }],
+    });
+
+    renderInviteModal(ADMIN_USER_ID);
+
+    expect(await screen.findByText('No tenés partidos abiertos disponibles para invitar.')).toBeInTheDocument();
+    expect(screen.queryByText('Partido cancelado')).not.toBeInTheDocument();
+  });
+
+  test('un partido futuro válido sí aparece', async () => {
+    const futureMatch = makeMatch({ id: 93, nombre: 'Partido futuro', fecha: dateFromNow(2) });
+    enqueueFetchMatches({
+      currentUserId: ADMIN_USER_ID,
+      match: futureMatch,
+      myAdminRows: [{ id: futureMatch.id }],
+      playersInMatch: [{ id: 1, partido_id: futureMatch.id, usuario_id: ADMIN_USER_ID }],
+    });
+
+    renderInviteModal(ADMIN_USER_ID);
+
+    expect(await screen.findByText('Partido futuro')).toBeInTheDocument();
+  });
+
+  test('ordena los partidos vigentes del más próximo al más lejano', async () => {
+    const soon = makeMatch({ id: 101, nombre: 'Partido cercano', fecha: dateFromNow(1), hora: '20:00' });
+    const later = makeMatch({ id: 102, nombre: 'Partido lejano', fecha: dateFromNow(10), hora: '20:00' });
+    const past = makeMatch({ id: 103, nombre: 'Partido viejo', fecha: '2026-06-01', hora: '20:00' });
+
+    // Deliberately hand them to the client out of order; the selector must reorder.
+    enqueueSupabaseResults([
+      { table: 'jugadores', result: { data: [], error: null } },
+      { table: 'partidos', result: { data: [{ id: later.id }, { id: past.id }, { id: soon.id }], error: null } },
+      { table: 'cleared_matches', result: { data: [], error: null } },
+      { table: 'partidos', result: { data: [later, past, soon], error: null } },
+      {
+        table: 'jugadores',
+        result: {
+          data: [
+            { id: 1, partido_id: later.id, usuario_id: ADMIN_USER_ID },
+            { id: 2, partido_id: soon.id, usuario_id: ADMIN_USER_ID },
+            { id: 3, partido_id: past.id, usuario_id: ADMIN_USER_ID },
+          ],
+          error: null,
+        },
+      },
+      { table: 'notifications_ext', result: { data: [], error: null } },
+    ]);
+
+    renderInviteModal(ADMIN_USER_ID);
+
+    expect(await screen.findByText('Partido cercano')).toBeInTheDocument();
+    // The past match is excluded entirely.
+    expect(screen.queryByText('Partido viejo')).not.toBeInTheDocument();
+
+    // Soonest first, then the later one.
+    const cercanoIdx = document.body.textContent.indexOf('Partido cercano');
+    const lejanoIdx = document.body.textContent.indexOf('Partido lejano');
+    expect(cercanoIdx).toBeGreaterThan(-1);
+    expect(lejanoIdx).toBeGreaterThan(-1);
+    expect(cercanoIdx).toBeLessThan(lejanoIdx);
   });
 });

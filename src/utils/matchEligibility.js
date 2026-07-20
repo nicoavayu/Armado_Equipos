@@ -29,6 +29,21 @@ export const resolveMatchStartAt = (matchRow, timeZone = MATCH_TIMEZONE_AR) => {
   return parsed;
 };
 
+/**
+ * Whether a match's kickoff is still in the future using the REAL date AND time in
+ * the match timezone (never an ambiguous string compare). A match with an
+ * invalid/missing date or time is treated as NOT upcoming. Used to keep past and
+ * already-started matches out of the "Invitar a un partido" selectors.
+ * @param {object} matchRow  needs `fecha` (YYYY-MM-DD) and `hora` (HH:mm)
+ * @param {{now?: Date, timeZone?: string}} [options]
+ * @returns {boolean}
+ */
+export const isMatchUpcoming = (matchRow, { now = new Date(), timeZone = MATCH_TIMEZONE_AR } = {}) => {
+  const startAt = resolveMatchStartAt(matchRow, timeZone);
+  if (!startAt) return false;
+  return now.getTime() < startAt.getTime();
+};
+
 export const buildMatchLifecycleAudit = ({
   matchRow,
   now = new Date(),
@@ -101,6 +116,7 @@ export const buildQuieroJugarMatchAudit = ({
     normalizeLooseText(matchRow?.nombre || matchRow?.titulo || matchRow?.name || ''),
   );
   const needsPlayers = matchRow?.falta_jugadores === true;
+  const needsGoalkeeper = matchRow?.busca_arquero === true;
   const userHasLocation = hasFiniteCoordinates(userLocation);
   const matchHasCoordinates = hasFiniteCoordinates(matchCoordinates);
   const roundedDistanceKm = Number.isFinite(distanceKm) ? Number(distanceKm) : null;
@@ -112,7 +128,7 @@ export const buildQuieroJugarMatchAudit = ({
     ? roundedDistanceKm <= Number(maxDistanceKm)
     : null;
 
-  if (!needsPlayers) exclusionReasons.push('no_open_slots');
+  if (!needsPlayers && !needsGoalkeeper) exclusionReasons.push('no_open_slots');
   if (hideChallengeMatches && challengeMatch) exclusionReasons.push('challenge_match_hidden');
 
   const baseEligible = exclusionReasons.length === 0;
@@ -133,6 +149,7 @@ export const buildQuieroJugarMatchAudit = ({
     withinDistance,
     maxDistanceKm: Number.isFinite(Number(maxDistanceKm)) ? Number(maxDistanceKm) : null,
     needsPlayers,
+    needsGoalkeeper,
     challengeMatch,
     baseEligible,
     includedInList: exclusionReasons.length === 0,

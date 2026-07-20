@@ -37,6 +37,7 @@ import TeamsPanel from '../components/admin/TeamsPanel';
 import Modals from '../components/admin/Modals';
 import AdminTabs from '../components/admin/AdminTabs';
 import SolicitudesSection from '../components/admin/SolicitudesSection';
+import { getConvocatoriaDescription } from '../utils/matchSearchFilters';
 
 const resolveSlotsFromMatchType = (match = {}) => {
   const explicitCapacity = Number(match?.cupo_jugadores || match?.cupo || 0);
@@ -663,54 +664,69 @@ export default function AdminPanel({
                       />
                     )}
 
-                    {/* Toggle para abrir partido a la comunidad - only on Jugadores tab */}
+                    {/* ¿Faltan jugadores? — two independent toggles (Jugadores /
+                        Arquero) on the same line. Only on the Jugadores tab. */}
                     {isAdmin && !adminState.pendingInvitation && activeTab === 'jugadores' && (
-                      <div className="flex flex-col items-center gap-1 my-3 mx-auto text-sm text-white/80 font-oswald">
-                        <div className="flex items-center justify-center gap-3">
-                          <span>¿Faltan jugadores?</span>
-                          <label style={{
-                            position: 'relative',
-                            display: 'inline-block',
-                            width: '50px',
-                            height: '24px',
-                            cursor: (isRosterFull && !adminState.faltanJugadoresState) ? 'not-allowed' : 'pointer',
-                          }}>
-                            <input
-                              type="checkbox"
-                              checked={adminState.faltanJugadoresState}
-                              onChange={adminState.handleFaltanJugadores}
-                              disabled={isRosterFull}
-                              style={{ opacity: 0, width: 0, height: 0 }}
-                            />
-                            <span style={{
-                              position: 'absolute',
-                              cursor: 'inherit',
-                              top: 0,
-                              left: 0,
-                              right: 0,
-                              bottom: 0,
-                              backgroundColor: adminState.faltanJugadoresState ? '#6a43ff' : 'rgba(255,255,255,0.25)',
-                              transition: '0.3s',
-                              borderRadius: '24px',
-                              opacity: isRosterFull ? 0.5 : 1,
-                            }}>
-                              <span style={{
-                                position: 'absolute',
-                                content: '',
-                                height: '18px',
-                                width: '18px',
-                                left: adminState.faltanJugadoresState ? '29px' : '3px',
-                                bottom: '3px',
-                                backgroundColor: 'white',
-                                transition: '0.3s',
-                                borderRadius: '50%',
-                              }} />
-                            </span>
-                          </label>
-                          <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.75)' }}>Abrir a la comunidad</span>
+                      <div className="flex flex-col items-center gap-1.5 my-3 mx-auto w-full max-w-[440px] text-white/80 font-oswald">
+                        <span className="text-sm">¿Faltan jugadores?</span>
+                        <div className="flex items-stretch justify-center gap-2 w-full">
+                          {[
+                            {
+                              key: 'players',
+                              label: 'Jugadores',
+                              checked: adminState.faltanJugadoresState,
+                              onChange: adminState.handleFaltanJugadores,
+                            },
+                            {
+                              key: 'goalkeeper',
+                              label: 'Arquero',
+                              checked: adminState.buscaArqueroState,
+                              onChange: adminState.handleBuscaArquero,
+                            },
+                          ].map((toggle) => {
+                            const disabled = isRosterFull && !toggle.checked;
+                            return (
+                              <label
+                                key={toggle.key}
+                                className="flex-1 min-w-0 flex items-center justify-between gap-2 rounded-xl border border-[rgba(148,134,255,0.22)] bg-[rgba(20,16,41,0.6)] px-3 py-2.5"
+                                style={{ cursor: disabled ? 'not-allowed' : 'pointer' }}
+                              >
+                                <span className="text-[13px] font-semibold text-white/90 truncate">{toggle.label}</span>
+                                <span
+                                  role="switch"
+                                  aria-checked={toggle.checked}
+                                  aria-label={toggle.label}
+                                  aria-disabled={disabled}
+                                  onClick={() => { if (!disabled) toggle.onChange(); }}
+                                  style={{
+                                    position: 'relative',
+                                    display: 'inline-block',
+                                    flexShrink: 0,
+                                    width: '46px',
+                                    height: '24px',
+                                    borderRadius: '24px',
+                                    backgroundColor: toggle.checked ? '#6a43ff' : 'rgba(255,255,255,0.22)',
+                                    transition: '0.25s',
+                                    opacity: disabled ? 0.5 : 1,
+                                  }}
+                                >
+                                  <span style={{
+                                    position: 'absolute',
+                                    height: '18px',
+                                    width: '18px',
+                                    left: toggle.checked ? '25px' : '3px',
+                                    top: '3px',
+                                    backgroundColor: 'white',
+                                    transition: '0.25s',
+                                    borderRadius: '50%',
+                                  }} />
+                                </span>
+                              </label>
+                            );
+                          })}
                         </div>
-                        <div className="text-[11px] text-white/60 leading-snug text-center">
-                          Permite que otros jugadores envíen solicitud para sumarse.
+                        <div className="text-[11px] text-white/60 leading-snug text-center min-h-[15px]">
+                          {getConvocatoriaDescription(adminState.faltanJugadoresState, adminState.buscaArqueroState)}
                         </div>
                       </div>
                     )}

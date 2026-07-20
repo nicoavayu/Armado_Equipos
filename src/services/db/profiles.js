@@ -2,6 +2,7 @@ import { supabase } from '../../lib/supabaseClient';
 import logger from '../../utils/logger';
 import { prepareImageForUpload } from '../../utils/imageUpload';
 import { hasValidCoordinates } from '../../utils/matchLocation';
+import { normalizePositions } from '../../utils/positions';
 import {
   fetchRegisteredUserAwardCounts,
 } from './userIdentity';
@@ -288,7 +289,7 @@ export const updateProfile = async (userId, profileData) => {
   // Valid columns in usuarios table
   const validColumns = [
     'nombre', 'email', 'avatar_url', 'red_social', 'localidad', 'ranking',
-    'partidos_jugados', 'posicion', 'acepta_invitaciones', 'bio',
+    'partidos_jugados', 'posicion', 'posiciones', 'disponible_arquero', 'acepta_invitaciones', 'bio',
     'perfil_completo', 'profile_completion', 'pais_codigo', 'nacionalidad',
     'latitud', 'longitud', 'fecha_nacimiento', 'partidos_abandonados',
     'numero', 'telefono', 'mvps', 'tarjetas_rojas', 'rating', 'updated_at',
@@ -349,6 +350,17 @@ export const updateProfile = async (userId, profileData) => {
           logger.warn('[UPDATE_PROFILE] Invalid pierna_habil value:', value);
           value = null;
         }
+      }
+
+      // Positions: normalize to a deduped, validated, max-2 array before it hits
+      // the array column. The DB trigger re-validates, but never trust the UI.
+      if (dbKey === 'posiciones') {
+        const normalized = normalizePositions(value);
+        cleanProfileData.posiciones = normalized;
+        // Keep the legacy single column mirroring the first position so any
+        // reader still on `posicion` stays consistent even before the trigger.
+        cleanProfileData.posicion = normalized[0] || null;
+        return;
       }
 
       if (dbKey === 'nivel') {

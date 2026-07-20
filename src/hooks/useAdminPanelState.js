@@ -101,6 +101,7 @@ export const useAdminPanelState = ({
   const [invitationLoading, setInvitationLoading] = useState(false);
   const [invitationChecked, setInvitationChecked] = useState(false);
   const [faltanJugadoresState, setFaltanJugadoresState] = useState(partidoActual?.falta_jugadores || false);
+  const [buscaArqueroState, setBuscaArqueroState] = useState(partidoActual?.busca_arquero || false);
   const [actionNotice, setActionNotice] = useState(null);
   const inputRef = useRef();
   const previousIsPlayerInMatchRef = useRef(false);
@@ -389,6 +390,11 @@ export const useAdminPanelState = ({
       setFaltanJugadoresState(partidoActual.falta_jugadores);
     }
   }, [partidoActual?.id, faltanJugadoresState, partidoActual?.falta_jugadores]);
+
+  // Keep the goalkeeper-search toggle in sync with the loaded match.
+  useEffect(() => {
+    setBuscaArqueroState(partidoActual?.busca_arquero === true);
+  }, [partidoActual?.id, partidoActual?.busca_arquero]);
 
   const agregarJugador = async (e) => {
     if (typeof e?.preventDefault === 'function') {
@@ -1104,6 +1110,48 @@ export const useAdminPanelState = ({
     }
   };
 
+  const handleBuscaArquero = async () => {
+    if (!isAdmin) {
+      setInlineNotice('warning', 'Solo el admin puede cambiar este estado');
+      return;
+    }
+
+    const isAtCapacity = isRosterFull;
+    if (isAtCapacity && !buscaArqueroState) {
+      setInlineNotice('warning', 'No se puede buscar arquero cuando el partido está lleno');
+      return;
+    }
+
+    try {
+      const nuevoEstado = !buscaArqueroState;
+      const updateObj = { busca_arquero: nuevoEstado };
+      if (nuevoEstado) updateObj.estado = 'active';
+      const { error } = await supabase
+        .from('partidos')
+        .update(updateObj)
+        .eq('id', partidoActual.id);
+
+      if (error) throw error;
+
+      setBuscaArqueroState(nuevoEstado);
+      partidoActual.busca_arquero = nuevoEstado;
+      if (nuevoEstado) partidoActual.estado = 'active';
+
+      // The fan-out to available goalkeepers runs in the database
+      // (trg_partido_goalkeeper_search_fanout on partidos): it fires reliably when
+      // busca_arquero transitions false→true here — and also when a match is created
+      // with busca_arquero=true — without depending on this frontend call. It is
+      // deduped per (goalkeeper, match), so toggling off and on never spams.
+
+      setInlineNotice('success', nuevoEstado ?
+        'Buscando arquero en la comunidad' :
+        'Búsqueda de arquero desactivada',
+      );
+    } catch (error) {
+      notifyBlockingError(friendlyError(error, 'No se pudo actualizar el partido. Intentá de nuevo.'));
+    }
+  };
+
   return {
     // State
     votantes,
@@ -1126,6 +1174,7 @@ export const useAdminPanelState = ({
     invitationLoading,
     invitationChecked,
     faltanJugadoresState,
+    buscaArqueroState,
     inputRef,
     jugadoresActuales,
     currentPlayerInMatch,
@@ -1138,6 +1187,7 @@ export const useAdminPanelState = ({
     aceptarInvitacion,
     rechazarInvitacion,
     handleFaltanJugadores,
+    handleBuscaArquero,
     invitationStatus, // Export status
     unirseAlPartido,
     fetchJugadores,

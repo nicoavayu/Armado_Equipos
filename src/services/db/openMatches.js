@@ -1,9 +1,12 @@
 import { supabase } from '../../lib/supabaseClient';
 import { hasValidCoordinates, toCoordinateNumber } from '../../utils/matchLocation';
 
-export const QUIERO_JUGAR_OPEN_MATCHES_VIEW = 'partidos_abiertos_operativos';
-export const QUIERO_JUGAR_OPEN_MATCHES_RPC = 'get_open_matches_for_quiero_jugar';
-export const QUIERO_JUGAR_AUDIT_RPC = 'debug_quiero_jugar_match_audit';
+// v2 surface: goalkeeper-aware open matches (falta_jugadores OR busca_arquero),
+// exposing `busca_arquero`. The legacy `*` objects are kept untouched for apps
+// already installed (which must not start seeing busca_arquero-only matches).
+export const QUIERO_JUGAR_OPEN_MATCHES_VIEW = 'partidos_abiertos_operativos_v2';
+export const QUIERO_JUGAR_OPEN_MATCHES_RPC = 'get_open_matches_for_quiero_jugar_v2';
+export const QUIERO_JUGAR_AUDIT_RPC = 'debug_quiero_jugar_match_audit_v2';
 
 const clampDistanceKm = (value) => {
   const parsed = Number(value);
