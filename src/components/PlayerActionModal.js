@@ -88,7 +88,7 @@ const PlayerActionModal = ({
       />
 
       <div
-        className="relative w-full max-w-[340px] bg-[#1e293b] border border-white/20 p-6 rounded-2xl shadow-2xl transition-transform duration-200 ease-out scale-100"
+        className="relative w-full max-w-[340px] p-6 rounded-2xl border border-[rgba(148,134,255,0.24)] bg-[linear-gradient(165deg,rgba(48,38,98,0.96),rgba(20,16,41,0.98))] shadow-[0_24px_60px_rgba(5,3,16,0.62),0_0_42px_rgba(106,67,255,0.14)] transition-transform duration-200 ease-out"
         style={{
           position: 'fixed',
           left: '50%',
@@ -105,7 +105,7 @@ const PlayerActionModal = ({
         </button>
 
         <div className="flex flex-col items-center text-center gap-3 mb-6">
-          <div className="w-20 h-20 rounded-full border-2 border-white/20 overflow-hidden bg-slate-800 flex items-center justify-center shrink-0 shadow-lg">
+          <div className="w-20 h-20 rounded-full border-2 border-[rgba(148,134,255,0.4)] overflow-hidden bg-[#1a1436] flex items-center justify-center shrink-0 shadow-[0_6px_20px_rgba(5,3,16,0.5),0_0_18px_rgba(106,67,255,0.18)]">
             {player.avatar_url ? (
               <img src={player.avatar_url} alt={player.nombre} className="w-full h-full object-cover" />
             ) : (

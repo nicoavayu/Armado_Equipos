@@ -52,7 +52,7 @@ const JoinRoleModal = ({ isOpen, onClose, onSelectPlayer, onSelectGoalkeeper }) 
           <button
             type="button"
             onClick={onClose}
-            className="w-full min-h-[40px] rounded-xl border border-white/12 bg-white/[0.04] text-white/70 font-oswald text-sm transition-all hover:bg-white/[0.08]"
+            className="mt-0.5 w-full min-h-[48px] flex items-center justify-center rounded-xl border border-white/12 bg-white/[0.05] text-white/75 font-oswald text-[15px] tracking-[0.01em] transition-all hover:bg-white/[0.09] hover:text-white active:scale-[0.985] motion-reduce:transition-none motion-reduce:active:scale-100"
           >
             Cancelar
           </button>

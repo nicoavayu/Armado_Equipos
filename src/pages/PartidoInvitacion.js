@@ -1936,21 +1936,41 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           const existingStatus = normalizeJoinRequestStatus(existingRequest?.status);
 
           if (existingRequest && REOPENABLE_JOIN_REQUEST_STATUSES.has(existingStatus)) {
-            const { data: reopenedRequest, error: reopenError } = await supabase
-              .from('match_join_requests')
-              .update({ status: 'pending', role: joinRole })
-              .eq('id', existingRequest.id)
-              .select('id')
-              .single();
+            // Reopen through a SECURITY DEFINER RPC: the requester has no direct
+            // UPDATE grant on match_join_requests (only the admin does), so a
+            // client-side UPDATE rejected/cancelled -> pending silently affects
+            // zero rows and fails. The RPC runs as the table owner, enforces
+            // goalkeeper eligibility via the role guard, and is idempotent.
+            const { data: reopenResult, error: reopenError } = await supabase
+              .rpc('reopen_own_match_join_request', {
+                p_match_id: Number(partidoId),
+                p_role: joinRole,
+              });
 
             if (reopenError) {
               throw reopenError;
             }
 
+            const reopenedStatus = normalizeJoinRequestStatus(reopenResult?.status);
+            const reopenedRequestId = reopenResult?.request_id || existingRequest.id;
+
+            if (reopenedStatus === 'approved') {
+              const { isMember } = await isUserMemberOfMatch(user.id, Number(partidoId));
+              setJoinStatus(isMember ? 'approved' : 'approved_pending_sync');
+              return;
+            }
+
+            if (reopenedStatus !== 'pending') {
+              // 'not_found' or any unexpected status: reflect what the backend
+              // reports instead of a false success.
+              setJoinStatus(resolvePublicJoinStatus(reopenResult?.status));
+              return;
+            }
+
             const requesterName = user?.user_metadata?.nombre || user?.email?.split('@')[0] || 'Un jugador';
             await notifyAdminJoinRequest({
               matchId: Number(partidoId),
-              requestId: reopenedRequest?.id || existingRequest.id,
+              requestId: reopenedRequestId,
               requesterUserId: user?.id || null,
               requesterName,
               adminUserId: partido?.creado_por || null,

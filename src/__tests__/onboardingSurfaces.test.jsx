@@ -33,27 +33,10 @@ jest.mock('framer-motion', () => {
 
 const OnboardingIntroModal = require('../features/onboarding/OnboardingIntroModal').default;
 const OnboardingShell = require('../features/onboarding/OnboardingShell').default;
-const OnboardingFirstStepsModal = require('../features/onboarding/OnboardingFirstStepsModal').default;
-const OnboardingCompletedModal = require('../features/onboarding/OnboardingCompletedModal').default;
 const OnboardingGoalSelector = require('../features/onboarding/OnboardingGoalSelector').default;
 const OnboardingStepArt = require('../features/onboarding/OnboardingStepArt').default;
 const OnboardingReplayButton = require('../features/onboarding/OnboardingReplayButton').default;
 const { PrimaryButton, GhostButton } = require('../features/onboarding/OnboardingUI');
-
-const checklist = (overrides = {}) => ({
-  title: 'Primeros pasos',
-  items: [
-    { key: 'profile', label: 'Completá tu perfil', done: true, route: '/profile' },
-    { key: 'create', label: 'Creá un partido', done: true, route: '/nuevo-partido' },
-    { key: 'invite', label: 'Invitá jugadores', done: false, route: '/nuevo-partido' },
-    { key: 'vote', label: 'Participá en una votación', done: false, route: '/' },
-  ],
-  completedCount: 2,
-  total: 4,
-  allDone: false,
-  loading: false,
-  ...overrides,
-});
 
 const renderWithContext = (context, ui) => render(
   <MemoryRouter>
@@ -94,25 +77,6 @@ describe('shared onboarding modal system', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Ahora no' }));
     expect(onStart).toHaveBeenCalledTimes(1);
     expect(onDismiss).toHaveBeenCalledTimes(1);
-  });
-
-  test('first steps shows real progress and navigates without completing a task', async () => {
-    const onNavigate = jest.fn();
-    render(<OnboardingFirstStepsModal checklist={checklist()} onClose={jest.fn()} onNavigate={onNavigate} />);
-
-    expect(screen.getByText('2/4 completados')).toBeInTheDocument();
-    expect(screen.getByText('Invitá jugadores')).not.toHaveClass('line-through');
-    await userEvent.click(screen.getByRole('button', { name: /Invitá jugadores/i }));
-    expect(onNavigate).toHaveBeenCalledWith('/nuevo-partido');
-    expect(screen.getByText('Invitá jugadores')).not.toHaveClass('line-through');
-  });
-
-  test('completion is a one-purpose premium modal without party emoji/icon copy', () => {
-    render(<OnboardingCompletedModal onClose={jest.fn()} />);
-    expect(screen.getByText('¡Listo! Ya conocés Arma2')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Seguir jugando' })).toBeInTheDocument();
-    expect(screen.queryByText(/🎉|🥳/)).not.toBeInTheDocument();
-    expect(screen.getByRole('img', { name: /Formación completa/i })).toBeInTheDocument();
   });
 
   test('all modal states share safe-area-aware lower spacing', () => {
@@ -217,28 +181,24 @@ describe('Home and Perfil integration', () => {
     expect(source).toMatch(/<QuickAccessRail[\s\S]*?<HomeNextStepCard[\s\S]*?Actividad reciente/);
   });
 
-  test('Jugar records only real review interactions for the explore checklist', () => {
+  test('Jugar no longer wires the removed "Primeros pasos" checklist tracking', () => {
     const source = fs.readFileSync(path.join(process.cwd(), 'src/pages/QuieroJugar.js'), 'utf8');
-    expect(source).not.toMatch(/markOnboardingAction\?\.\('openedPlay'\)/);
-    expect(source).toMatch(/markOnboardingAction\?\.\('reviewedMatch'\)/);
-    expect(source).toMatch(/markOnboardingAction\?\.\('reviewedPlayer'\)/);
-    expect(source).toMatch(/onClick=\{\(\) => handleOpenMatch\(partido/);
+    expect(source).not.toMatch(/markOnboardingAction/);
+    expect(source).not.toMatch(/markChecklistAction/);
+    expect(source).not.toMatch(/useOnboardingOptional/);
   });
 
-  test('Perfil can replay the tour and open pending first steps manually', async () => {
+  test('Perfil can replay the tour and never offers a "Primeros pasos" entry', async () => {
     const replayOnboarding = jest.fn();
-    const showFirstSteps = jest.fn();
     renderWithContext({
       enabled: true,
       replayOnboarding,
-      showFirstSteps,
-      state: { chosenPath: 'organizer', checklist: {} },
+      state: { chosenPath: 'organizer' },
     }, <OnboardingReplayButton />);
 
     await userEvent.click(screen.getByRole('button', { name: 'Conocer Arma2' }));
     await waitFor(() => expect(replayOnboarding).toHaveBeenCalledTimes(1));
-    await userEvent.click(screen.getByRole('button', { name: 'Ver primeros pasos' }));
-    await waitFor(() => expect(showFirstSteps).toHaveBeenCalledTimes(1));
+    expect(screen.queryByRole('button', { name: 'Ver primeros pasos' })).not.toBeInTheDocument();
   });
 
   test('manual entry stays hidden when rollout is disabled', () => {

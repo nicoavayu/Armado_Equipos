@@ -13,11 +13,6 @@ export default function OnboardingReplayButton({ className = '', onActivate }) {
   const navigate = useNavigate();
 
   if (!onboarding || !onboarding.enabled) return null;
-  const canShowFirstSteps = Boolean(
-    onboarding.state?.chosenPath
-    && !onboarding.state?.checklist?.completionShown
-    && !onboarding.state?.checklist?.celebrated,
-  );
 
   const handleClick = () => {
     onboardingHaptic('light');
@@ -27,13 +22,6 @@ export default function OnboardingReplayButton({ className = '', onActivate }) {
     setTimeout(() => onboarding.replayOnboarding(), 0);
   };
 
-  const handleFirstSteps = () => {
-    onboardingHaptic('light');
-    if (typeof onActivate === 'function') onActivate();
-    navigate('/');
-    setTimeout(() => onboarding.showFirstSteps(), 0);
-  };
-
   const buttonClass = `w-full h-[50px] rounded-none border border-[rgba(148,134,255,0.28)] bg-white/[0.05] text-white/90 text-[15px] font-sans font-semibold tracking-[0.01em] normal-case cursor-pointer transition-all hover:bg-white/[0.1] hover:text-white active:opacity-95 flex items-center justify-center ${className}`;
 
   return (
@@ -41,11 +29,6 @@ export default function OnboardingReplayButton({ className = '', onActivate }) {
       <button type="button" onClick={handleClick} className={buttonClass} data-onboarding-cta="true" data-preserve-button-case="true">
         Conocer Arma2
       </button>
-      {canShowFirstSteps && (
-        <button type="button" onClick={handleFirstSteps} className={buttonClass} data-onboarding-cta="true" data-preserve-button-case="true">
-          Ver primeros pasos
-        </button>
-      )}
     </div>
   );
 }

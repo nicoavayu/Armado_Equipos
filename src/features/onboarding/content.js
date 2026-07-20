@@ -221,44 +221,6 @@ export const pathContent = Object.freeze({
   },
 });
 
-// Compact Home checklists. `derive` names a signal computed from REAL product
-// data by useOnboardingChecklist (never "visited a screen"). `route` is where
-// tapping the item takes the user.
-export const checklistContent = Object.freeze({
-  [ONBOARDING_PATHS.ORGANIZER]: {
-    title: 'Primeros pasos',
-    items: [
-      { key: 'profile', label: 'Completá tu perfil', derive: 'profileComplete', route: '/profile' },
-      { key: 'create_match', label: 'Creá un partido', derive: 'hasCreatedMatch', route: '/nuevo-partido' },
-      { key: 'invite', label: 'Invitá jugadores', derive: 'hasInvited', route: '/nuevo-partido' },
-      { key: 'vote', label: 'Participá en una votación', derive: 'hasVoted', route: '/' },
-    ],
-  },
-  [ONBOARDING_PATHS.AUTO_MATCH]: {
-    title: 'Activá tu búsqueda',
-    items: [
-      { key: 'profile', label: 'Completá tu perfil', derive: 'profileComplete', route: '/profile' },
-      { key: 'location', label: 'Confirmá tu ubicación o zona', derive: 'hasLocation', route: '/profile' },
-      { key: 'availability', label: 'Configurá y activá la búsqueda', derive: 'hasActiveAvailability', route: '/quiero-jugar?auto=1' },
-      { key: 'confirm_opportunity', label: 'Confirmá una oportunidad', derive: 'hasConfirmedOpportunity', route: '/quiero-jugar?auto=1' },
-    ],
-  },
-  [ONBOARDING_PATHS.EXPLORE]: {
-    title: 'Primeros pasos',
-    items: [
-      { key: 'profile', label: 'Completá tu perfil', derive: 'profileComplete', route: '/profile' },
-      { key: 'review_match', label: 'Revisá un partido disponible', derive: 'reviewedMatch', route: '/quiero-jugar' },
-      { key: 'review_player', label: 'Revisá un jugador disponible', derive: 'reviewedPlayer', route: '/quiero-jugar' },
-    ],
-  },
-});
-
-export const checklistCompletionContent = Object.freeze({
-  title: '¡Listo! Ya conocés Arma2',
-  description: 'Completaste tus primeros pasos. Que empiece el partido.',
-  cta: 'Seguir jugando',
-});
-
 // Contextual coach marks, keyed by screen. Targets use stable data-tour-id
 // attributes on real controls (never text/position selectors). A screen with a
 // missing target is skipped safely, never looped.
@@ -301,10 +263,6 @@ export const coachMarkContent = Object.freeze({
 
 export function getPathContent(pathKey) {
   return pathContent[pathKey] || null;
-}
-
-export function getChecklistContent(pathKey) {
-  return checklistContent[pathKey] || checklistContent[ONBOARDING_PATHS.EXPLORE];
 }
 
 export function isValidOnboardingPath(pathKey) {

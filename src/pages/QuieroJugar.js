@@ -41,7 +41,6 @@ import {
 import { useSmartBackNavigation } from '../hooks/useSmartBackNavigation';
 import { useRefreshOnVisibility } from '../hooks/useRefreshOnVisibility';
 import { useSupabaseRealtime } from '../hooks/useSupabaseRealtime';
-import { useOnboardingOptional } from '../features/onboarding/OnboardingContext';
 
 import DistanceSlider from '../components/jugar/DistanceSlider';
 
@@ -111,8 +110,6 @@ const QuieroJugar = ({
   });
   const onVolver = () => goBackSmart();
   const { user } = useAuth();
-  const onboarding = useOnboardingOptional();
-  const markOnboardingAction = onboarding?.markChecklistAction;
   const [partidosAbiertos, setPartidosAbiertos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [freePlayers, setFreePlayers] = useState([]);
@@ -177,9 +174,8 @@ const QuieroJugar = ({
   const handleOpenMatch = useCallback((match, meta = {}) => {
     if (!match?.id) return;
     const owner = meta.isOwner ?? Boolean(user?.id && String(match?.creado_por || '') === String(user.id));
-    if (!owner) markOnboardingAction?.('reviewedMatch');
     navigate(owner ? `/admin/${match.id}` : `/partido-publico/${match.id}`);
-  }, [markOnboardingAction, navigate, user?.id]);
+  }, [navigate, user?.id]);
 
   useEffect(() => {
     sessionStorage.setItem(MATCH_DISTANCE_STORAGE_KEY, String(maxMatchDistanceKm));
@@ -1014,7 +1010,6 @@ const QuieroJugar = ({
                     showDistanceUnavailable
                     distanceKm={Number.isFinite(goalkeeper.distanceKm) ? goalkeeper.distanceKm : null}
                     onClick={(e) => {
-                      markOnboardingAction?.('reviewedPlayer');
                       const rect = e?.currentTarget?.getBoundingClientRect?.();
                       setActionAnchorPoint({
                         x: rect ? (rect.left + rect.width / 2) : window.innerWidth / 2,
@@ -1088,7 +1083,6 @@ const QuieroJugar = ({
                         ) || 0) / 1000
                         : null}
                       onClick={(e) => {
-                        markOnboardingAction?.('reviewedPlayer');
                         const rect = e?.currentTarget?.getBoundingClientRect?.();
                         setActionAnchorPoint({
                           x: rect ? (rect.left + rect.width / 2) : window.innerWidth / 2,

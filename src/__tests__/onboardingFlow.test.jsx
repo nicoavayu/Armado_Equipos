@@ -23,19 +23,6 @@ jest.mock('../features/onboarding/storage', () => {
   const actual = jest.requireActual('../features/onboarding/storage');
   return { ...actual, loadOnboardingState: jest.fn(), saveOnboardingState: jest.fn() };
 });
-jest.mock('../features/onboarding/useOnboardingChecklist', () => ({
-  useOnboardingChecklist: jest.fn(() => ({
-    title: 'Primeros pasos',
-    items: [
-      { key: 'profile', label: 'Completá tu perfil', done: false, route: '/profile' },
-      { key: 'create', label: 'Creá un partido', done: false, route: '/nuevo-partido' },
-    ],
-    completedCount: 0,
-    total: 2,
-    allDone: false,
-    loading: false,
-  })),
-}));
 jest.mock('@capacitor/app', () => ({
   App: {
     addListener: jest.fn((_event, callback) => {
@@ -69,7 +56,6 @@ jest.mock('framer-motion', () => {
 const { useAuth } = require('../components/AuthProvider');
 const usePendingAuthFlow = require('../hooks/usePendingAuthFlow').default;
 const { loadOnboardingState, saveOnboardingState } = require('../features/onboarding/storage');
-const { useOnboardingChecklist } = require('../features/onboarding/useOnboardingChecklist');
 
 const NEW_USER = { id: 'u-new', email: 'new@arma2.com', created_at: '2026-08-01T00:00:00.000Z' };
 const OLD_USER = { id: 'u-old', email: 'old@arma2.com', created_at: '2025-01-01T00:00:00.000Z' };
@@ -116,17 +102,6 @@ beforeEach(() => {
   useAuth.mockReturnValue({ user: OLD_USER, profile: { nombre: 'X' }, authResolved: true });
   loadOnboardingState.mockResolvedValue({ state: createDefaultOnboardingState(), source: 'default' });
   saveOnboardingState.mockResolvedValue({ state: createDefaultOnboardingState(), remoteOk: true });
-  useOnboardingChecklist.mockReturnValue({
-    title: 'Primeros pasos',
-    items: [
-      { key: 'profile', label: 'Completá tu perfil', done: false, route: '/profile' },
-      { key: 'create', label: 'Creá un partido', done: false, route: '/nuevo-partido' },
-    ],
-    completedCount: 0,
-    total: 2,
-    allDone: false,
-    loading: false,
-  });
 });
 
 async function waitLoaded() {
@@ -363,8 +338,8 @@ describe('prioridades y controles del modal', () => {
   });
 });
 
-describe('primeros pasos y finalización derivados de acciones reales', () => {
-  test('first steps opens as a modal once per session and closing leaves no Home card', async () => {
+describe('el tutorial no deja rastro de "Primeros pasos"', () => {
+  test('a completed tour never surfaces a first-steps modal on idle Home', async () => {
     jest.useFakeTimers();
     loadOnboardingState.mockResolvedValueOnce({
       state: createDefaultOnboardingState({
@@ -377,51 +352,11 @@ describe('primeros pasos y finalización derivados de acciones reales', () => {
     try {
       renderApp();
       await act(async () => { await Promise.resolve(); });
-      await act(async () => { jest.advanceTimersByTime(800); });
-      expect(screen.getByText('Primeros pasos')).toBeInTheDocument();
-      expect(document.querySelector('[data-onboarding-root="true"]')).toBeInTheDocument();
-
-      fireEvent.click(screen.getByRole('button', { name: 'Cerrar primeros pasos' }));
-      await act(async () => { jest.advanceTimersByTime(1800); });
+      await act(async () => { jest.advanceTimersByTime(2500); });
       expect(screen.queryByText('Primeros pasos')).not.toBeInTheDocument();
-      expect(document.querySelector('[data-onboarding-card]')).not.toBeInTheDocument();
-    } finally {
-      jest.useRealTimers();
-    }
-  });
-
-  test('real transition to all done shows completion once and persists the guard', async () => {
-    jest.useFakeTimers();
-    useOnboardingChecklist.mockReturnValue({
-      title: 'Primeros pasos',
-      items: [{ key: 'profile', label: 'Completá tu perfil', done: true, route: '/profile' }],
-      completedCount: 1,
-      total: 1,
-      allDone: true,
-      loading: false,
-    });
-    loadOnboardingState.mockResolvedValueOnce({
-      state: createDefaultOnboardingState({
-        status: ONBOARDING_STATUS.COMPLETED,
-        completedVersion: 1,
-        chosenPath: 'organizer',
-        checklist: {},
-      }),
-      source: 'remote',
-    });
-    try {
-      renderApp();
-      await act(async () => { await Promise.resolve(); });
-      await act(async () => { jest.advanceTimersByTime(800); });
-      expect(screen.getByText('¡Listo! Ya conocés Arma2')).toBeInTheDocument();
-      const completionWrite = saveOnboardingState.mock.calls
-        .map((call) => call[1])
-        .find((saved) => saved.checklist?.completionShown);
-      expect(completionWrite?.checklist).toMatchObject({ completionShown: true, celebrated: true });
-
-      fireEvent.click(screen.getByRole('button', { name: 'Seguir jugando' }));
-      await act(async () => { jest.advanceTimersByTime(1800); });
+      expect(screen.queryByRole('button', { name: 'Cerrar primeros pasos' })).not.toBeInTheDocument();
       expect(screen.queryByText('¡Listo! Ya conocés Arma2')).not.toBeInTheDocument();
+      expect(document.querySelector('[data-onboarding-card]')).not.toBeInTheDocument();
     } finally {
       jest.useRealTimers();
     }
