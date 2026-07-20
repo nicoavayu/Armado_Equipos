@@ -17,6 +17,7 @@ import {
   rememberCachedInvitedGroupIds,
 } from '../../utils/groupInviteCache';
 import { resolvePlayerInvitePermission } from '../../utils/matchInvitePermissions';
+import { isMatchUpcoming, resolveMatchStartAt } from '../../utils/matchEligibility';
 
 const PRIMARY_ACTION_BUTTON_CLASS = 'inline-flex min-h-[44px] items-center justify-center gap-2 rounded-none border border-[#7d5aff] bg-[#6a43ff] px-4 py-2.5 font-bebas text-base tracking-[0.01em] text-white shadow-[0_0_14px_rgba(106,67,255,0.3)] transition-all hover:bg-[#7550ff] active:opacity-95 disabled:cursor-not-allowed disabled:border-[rgba(125,90,255,0.45)] disabled:bg-[rgba(106,67,255,0.55)] disabled:text-white/45 disabled:shadow-none';
 const SECONDARY_ACTION_BUTTON_CLASS = 'inline-flex min-h-[44px] items-center justify-center gap-2 rounded-none border border-[rgba(148,134,255,0.28)] bg-white/[0.05] px-4 py-2.5 font-bebas text-base tracking-[0.01em] text-white/92 transition-all hover:bg-white/[0.1] active:opacity-95 disabled:cursor-not-allowed disabled:opacity-50';
@@ -227,8 +228,13 @@ const InviteGroupToMatchModal = ({
           playerRows = data || [];
         }
 
+        const now = new Date();
         const nextMatches = (userMatches || [])
           .map((match) => {
+            // Only currently-valid matches: real date+time still in the future
+            // (excludes past/started/invalid). Finished/cancelled/deleted are still
+            // handled by the permission check below.
+            if (!isMatchUpcoming(match, { now })) return null;
             const permission = resolvePlayerInvitePermission({
               match,
               currentUserId,
@@ -257,8 +263,13 @@ const InviteGroupToMatchModal = ({
           })
           .filter(Boolean)
           .sort((left, right) => {
-            if (left.canInvite === right.canInvite) return 0;
-            return left.canInvite ? -1 : 1;
+            if (left.canInvite !== right.canInvite) return left.canInvite ? -1 : 1;
+            // Soonest kickoff first, then the rest chronologically.
+            const leftAt = resolveMatchStartAt(left);
+            const rightAt = resolveMatchStartAt(right);
+            const leftMs = leftAt ? leftAt.getTime() : Number.POSITIVE_INFINITY;
+            const rightMs = rightAt ? rightAt.getTime() : Number.POSITIVE_INFINITY;
+            return leftMs - rightMs;
           });
 
         if (cancelled) return;

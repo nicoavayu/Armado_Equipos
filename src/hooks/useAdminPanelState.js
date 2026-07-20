@@ -1137,19 +1137,11 @@ export const useAdminPanelState = ({
       partidoActual.busca_arquero = nuevoEstado;
       if (nuevoEstado) partidoActual.estado = 'active';
 
-      // Fan out to available goalkeepers when turning the search ON. Deduped and
-      // idempotent on the backend, so it never spams and never blocks the toggle.
-      if (nuevoEstado) {
-        supabase
-          .rpc('notify_available_goalkeepers', { p_match_id: partidoActual.id })
-          .then(({ error: notifyError }) => {
-            if (notifyError) {
-              logger.warn('[ADMIN] notify_available_goalkeepers failed', {
-                code: notifyError.code || null,
-              });
-            }
-          }, () => {});
-      }
+      // The fan-out to available goalkeepers runs in the database
+      // (trg_partido_goalkeeper_search_fanout on partidos): it fires reliably when
+      // busca_arquero transitions false→true here — and also when a match is created
+      // with busca_arquero=true — without depending on this frontend call. It is
+      // deduped per (goalkeeper, match), so toggling off and on never spams.
 
       setInlineNotice('success', nuevoEstado ?
         'Buscando arquero en la comunidad' :

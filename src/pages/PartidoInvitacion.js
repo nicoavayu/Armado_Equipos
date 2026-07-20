@@ -32,6 +32,7 @@ import {
 } from '../utils/notificationInviteState';
 import { resolvePlayerInvitePermission } from '../utils/matchInvitePermissions';
 import { resolveJoinRoleFlow, JOIN_ROLE_MESSAGES } from '../utils/joinRole';
+import { resolvePostSyncJoinState } from '../utils/publicJoinSync';
 import { getProfilePositions } from '../utils/positions';
 import JoinRoleModal from '../components/JoinRoleModal';
 
@@ -331,27 +332,49 @@ async function validateGuestInviteLink({ matchId, codigo, inviteToken }) {
 
 async function hydratePlayerInvitesEnabled(partidoData, matchId) {
   if (!partidoData) return partidoData;
-  if (typeof partidoData.player_invites_enabled === 'boolean') return partidoData;
+
+  // busca_arquero / falta_jugadores drive the join-role resolution and MUST be
+  // authoritative. The public `partidos_view` does not necessarily expose the
+  // newer `busca_arquero` column, and reading an undefined flag would silently
+  // resolve a goalkeeper-search match as a plain player request (the PR #87 smoke
+  // bug). player_invites_enabled has the same "view may omit it" risk. Whenever any
+  // of the three is missing on the row we were handed, read it from `partidos`
+  // (the source of truth) and overlay only the missing ones.
+  const needsInviteFlag = typeof partidoData.player_invites_enabled !== 'boolean';
+  const needsGoalkeeperFlag = typeof partidoData.busca_arquero !== 'boolean';
+  const needsPlayersFlag = typeof partidoData.falta_jugadores !== 'boolean';
+
+  if (!needsInviteFlag && !needsGoalkeeperFlag && !needsPlayersFlag) {
+    return partidoData;
+  }
 
   try {
     const { data, error } = await supabase
       .from('partidos')
-      .select('player_invites_enabled')
+      .select('player_invites_enabled, busca_arquero, falta_jugadores')
       .eq('id', Number(matchId))
       .maybeSingle();
 
     if (error) {
-      logger.warn('[INVITE] player_invites_enabled fallback unavailable', error);
-      return { ...partidoData, player_invites_enabled: false };
+      logger.warn('[INVITE] match flags fallback unavailable', error);
+      return {
+        ...partidoData,
+        ...(needsInviteFlag ? { player_invites_enabled: false } : {}),
+      };
     }
 
     return {
       ...partidoData,
-      player_invites_enabled: data?.player_invites_enabled === true,
+      ...(needsInviteFlag ? { player_invites_enabled: data?.player_invites_enabled === true } : {}),
+      ...(needsGoalkeeperFlag ? { busca_arquero: data?.busca_arquero === true } : {}),
+      ...(needsPlayersFlag ? { falta_jugadores: data?.falta_jugadores === true } : {}),
     };
   } catch (error) {
-    logger.warn('[INVITE] player_invites_enabled fallback failed', error);
-    return { ...partidoData, player_invites_enabled: false };
+    logger.warn('[INVITE] match flags fallback failed', error);
+    return {
+      ...partidoData,
+      ...(needsInviteFlag ? { player_invites_enabled: false } : {}),
+    };
   }
 }
 
@@ -984,28 +1007,33 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
 
   // Current user's profile positions — used to decide how they can join a match
   // that searches for a goalkeeper (only ARQ profiles can request that slot).
+  const myPositionsLoadedRef = useRef(false);
+
+  const fetchMyPositions = useCallback(async () => {
+    if (!user?.id) return [];
+    const { data, error: positionsError } = await supabase
+      .from('usuarios')
+      .select('posiciones, posicion')
+      .eq('id', user.id)
+      .maybeSingle();
+    if (positionsError) {
+      logger.warn('[JOIN_ROLE] could not load positions', { code: positionsError.code || null });
+      return [];
+    }
+    return getProfilePositions(data);
+  }, [user?.id]);
+
   useEffect(() => {
     let cancelled = false;
-    if (!user?.id) {
-      setMyPositions([]);
-      return undefined;
-    }
+    myPositionsLoadedRef.current = false;
     (async () => {
-      const { data, error: positionsError } = await supabase
-        .from('usuarios')
-        .select('posiciones, posicion')
-        .eq('id', user.id)
-        .maybeSingle();
+      const positions = await fetchMyPositions();
       if (cancelled) return;
-      if (positionsError) {
-        logger.warn('[JOIN_ROLE] could not load positions', { code: positionsError.code || null });
-        setMyPositions([]);
-        return;
-      }
-      setMyPositions(getProfilePositions(data));
+      setMyPositions(positions);
+      myPositionsLoadedRef.current = true;
     })();
     return () => { cancelled = true; };
-  }, [user?.id]);
+  }, [fetchMyPositions]);
 
   const closeScheduleWarning = () => {
     pendingContinueRef.current = null;
@@ -1655,16 +1683,50 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
     ] : [],
   });
 
-  // Recheck membership for approved_pending_sync state
+  // Recheck membership for approved_pending_sync state.
+  //
+  // approved_pending_sync only bridges the brief read-replica window between
+  // approve_join_request (which inserts the roster row in the same transaction as
+  // it sets status='approved') and that row becoming visible here. If membership
+  // never appears within the bounded window we settle against SERVER TRUTH instead
+  // of spinning forever: an ejected player's request is demoted to a terminal
+  // status by the DB (trg_demote_join_request_on_player_removal), so we land on a
+  // clear "removed" state rather than an endless "sincronizando…" loop. We never
+  // re-enter the loop from here (we always leave approved_pending_sync), so a real
+  // backend inconsistency is surfaced, not masked by an infinite retry.
   async function recheckMembership(userUuid, matchId, originalReqId, attempt = 1) {
     const maxAttempts = 5;
     const intervalMs = 2000;
 
     if (attempt > maxAttempts) {
-      // Only update if this is still the current request
-      if (originalReqId === reqIdRef.current) {
-        setJoinStatus('none');
-        showInlineNotice('warning', 'Tu aprobación aún no se reflejó. Reintentá más tarde.');
+      if (originalReqId !== reqIdRef.current) return;
+
+      let latestStatus = null;
+      try {
+        const { data: latestRequest } = await fetchLatestJoinRequest({ matchId, userId: userUuid });
+        latestStatus = latestRequest?.status ?? null;
+      } catch (err) {
+        logger.error('[INVITE_PUBLIC] recheck give-up request lookup failed', err);
+      }
+
+      if (originalReqId !== reqIdRef.current) return;
+
+      // A last membership read in case it just landed.
+      const { isMember } = await isUserMemberOfMatch(userUuid, matchId);
+      if (originalReqId !== reqIdRef.current) return;
+
+      const settled = resolvePostSyncJoinState({ isMember, latestStatus });
+      setJoinStatus(settled.status);
+      if (settled.outcome === 'joined') {
+        openJoinSuccessModal();
+      } else if (settled.outcome === 'removed') {
+        // Ejected / rejected / cancelled: the request left 'approved' on the server.
+        if (!hasShownRemovalNoticeRef.current) {
+          hasShownRemovalNoticeRef.current = true;
+          showInlineNotice('warning', 'Ya no formás parte de este partido.');
+        }
+      } else {
+        showInlineNotice('warning', 'No pudimos confirmar tu lugar en el partido. Reintentá más tarde.');
       }
       return;
     }
@@ -1797,12 +1859,24 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
 
     // Resolve the join role from the match's two search toggles and whether the
     // user can keep goal. A goalkeeper-only match is off-limits without ARQ.
+    //
+    // The positions effect is async; on a fast tap it may not have resolved yet.
+    // Reading an empty myPositions here would silently treat an ARQ profile as a
+    // field player (no chooser, role='player'). So when positions are not loaded
+    // yet, resolve them authoritatively before deciding the role.
+    let effectivePositions = myPositions;
+    if (!roleOverride && user?.id && !myPositionsLoadedRef.current) {
+      effectivePositions = await fetchMyPositions();
+      setMyPositions(effectivePositions);
+      myPositionsLoadedRef.current = true;
+    }
+
     const roleFlow = roleOverride
       ? { outcome: roleOverride }
       : resolveJoinRoleFlow({
         matchWantsPlayers: partido?.falta_jugadores === true,
         matchWantsGoalkeeper: partido?.busca_arquero === true,
-        userHasGoalkeeper: myPositions.includes('ARQ'),
+        userHasGoalkeeper: effectivePositions.includes('ARQ'),
       });
 
     if (roleFlow.outcome === 'blocked_no_goalkeeper') {

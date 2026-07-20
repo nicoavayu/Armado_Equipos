@@ -2,6 +2,7 @@ import {
   buildMatchLifecycleAudit,
   buildQuieroJugarMatchAudit,
   isMatchOperationallyOpen,
+  isMatchUpcoming,
 } from '../utils/matchEligibility';
 
 describe('matchEligibility', () => {
@@ -165,5 +166,65 @@ describe('matchEligibility', () => {
     expect(farAudit.exclusionReasons).toContain('outside_distance_limit');
     expect(nearAudit.includedInList).toBe(true);
     expect(nearAudit.exclusionReasons).toEqual([]);
+  });
+});
+
+describe('isMatchUpcoming (invite selector future/past cutoff)', () => {
+  // Argentina is UTC-3 (no DST). AR local time = UTC - 3h, so a match at 15:00 AR
+  // starts at 18:00Z. "now" below is 2026-07-15 15:00 AR (18:00Z).
+  const now = new Date('2026-07-15T18:00:00.000Z');
+  const upcoming = (fecha, hora) => isMatchUpcoming({ fecha, hora }, { now });
+
+  test('un partido de junio (pasado) no está vigente', () => {
+    expect(upcoming('2026-06-10', '20:00')).toBe(false);
+  });
+
+  test('un partido de ayer no está vigente', () => {
+    expect(upcoming('2026-07-14', '20:00')).toBe(false);
+  });
+
+  test('un partido de hoy cuya hora ya pasó (una hora atrás) no está vigente', () => {
+    expect(upcoming('2026-07-15', '14:00')).toBe(false);
+  });
+
+  test('un partido de hoy cuya hora todavía no llegó (una hora adelante) está vigente', () => {
+    expect(upcoming('2026-07-15', '16:00')).toBe(true);
+  });
+
+  test('un partido de mañana está vigente', () => {
+    expect(upcoming('2026-07-16', '10:00')).toBe(true);
+  });
+
+  test('en el instante exacto del kickoff ya NO está vigente (la hora pasó)', () => {
+    expect(upcoming('2026-07-15', '15:00')).toBe(false);
+  });
+
+  test('un minuto antes del kickoff sigue vigente', () => {
+    expect(upcoming('2026-07-15', '15:01')).toBe(true);
+  });
+
+  test('respeta el cambio de día: un partido esta misma noche sigue vigente', () => {
+    // 23:30 AR de hoy = 02:30Z de mañana, aún futuro respecto de now.
+    expect(upcoming('2026-07-15', '23:30')).toBe(true);
+  });
+
+  test('fecha inválida/faltante u hora malformada → no vigente (se excluye)', () => {
+    expect(upcoming(null, '20:00')).toBe(false);
+    expect(upcoming('not-a-date', '20:00')).toBe(false);
+    expect(upcoming('2026-07-16', '99:99')).toBe(false);
+  });
+
+  test('hora faltante se interpreta como inicio del día (consistente con el resto de la app)', () => {
+    // Sin hora, parseDateTimeInTimeZone usa 00:00: un partido de mañana a
+    // medianoche sigue siendo futuro; uno de ayer, no.
+    expect(upcoming('2026-07-16', null)).toBe(true);
+    expect(upcoming('2026-07-14', null)).toBe(false);
+  });
+
+  test('usa fecha Y hora reales, no solo la fecha (mismo día, distinta hora)', () => {
+    // Mismo día que "now": antes de la hora → fuera; después → dentro. Un filtro
+    // que sólo mirara la fecha los trataría igual.
+    expect(upcoming('2026-07-15', '12:00')).toBe(false);
+    expect(upcoming('2026-07-15', '20:00')).toBe(true);
   });
 });

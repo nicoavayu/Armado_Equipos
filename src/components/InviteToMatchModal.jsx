@@ -17,6 +17,7 @@ import {
     resolveNotificationMatchIdText,
 } from '../utils/matchInviteState';
 import { resolvePlayerInvitePermission } from '../utils/matchInvitePermissions';
+import { isMatchUpcoming, resolveMatchStartAt } from '../utils/matchEligibility';
 
 const SECTION_TITLE_CLASS = 'font-oswald text-[clamp(16px,4.4vw,20px)] font-semibold leading-tight tracking-[0.01em] text-white';
 const PRIMARY_ACTION_BUTTON_CLASS = 'w-full min-h-[44px] px-4 py-2.5 rounded-none border border-[#7d5aff] bg-[#6a43ff] text-white font-bebas text-base tracking-[0.01em] transition-all inline-flex items-center justify-center gap-2 hover:bg-[#7550ff] active:opacity-95 shadow-[0_0_14px_rgba(106,67,255,0.3)] disabled:bg-[rgba(106,67,255,0.55)] disabled:border-[rgba(125,90,255,0.5)] disabled:text-white/40 disabled:shadow-none disabled:cursor-not-allowed';
@@ -255,10 +256,17 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
             const inviteStatesByMatch = buildInviteStateByMatch(
                 inviteRows.filter((row) => dedupedMatchIdTexts.has(resolveNotificationMatchIdText(row) || '')),
             );
+            // A single "now" for the whole pass so the future-vs-past cutoff is
+            // consistent across every row.
+            const now = new Date();
             const matchesWithStatus = dedupedMatches
                 .filter((match) => {
                     if (!match?.id) return false;
                     if (clearedIds.has(String(match.id))) return false;
+                    // Only currently-valid matches: real date+time still in the
+                    // future (excludes past/started/invalid). Finished/cancelled/
+                    // deleted are still handled by the permission check below.
+                    if (!isMatchUpcoming(match, { now })) return false;
                     return true;
                 })
                 .map((match) => {
@@ -295,8 +303,13 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
                 })
                 .filter(Boolean)
                 .sort((left, right) => {
-                    if (left.canInvite === right.canInvite) return 0;
-                    return left.canInvite ? -1 : 1;
+                    if (left.canInvite !== right.canInvite) return left.canInvite ? -1 : 1;
+                    // Soonest kickoff first, then the rest chronologically.
+                    const leftAt = resolveMatchStartAt(left);
+                    const rightAt = resolveMatchStartAt(right);
+                    const leftMs = leftAt ? leftAt.getTime() : Number.POSITIVE_INFINITY;
+                    const rightMs = rightAt ? rightAt.getTime() : Number.POSITIVE_INFINITY;
+                    return leftMs - rightMs;
                 });
 
             setMatches(matchesWithStatus);

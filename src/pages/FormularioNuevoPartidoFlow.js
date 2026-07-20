@@ -1019,14 +1019,21 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
             </span>
             <span className="min-w-0 flex-1">
               <span className="flex items-center gap-2 font-oswald text-[15px] font-semibold text-white">
-                <Repeat2 size={17} className="text-[#a98cff]" />
-                Guardar como partido frecuente
+                <Repeat2 size={17} className="flex-none text-[#a98cff]" />
+                <span className="min-w-0">Guardar como partido frecuente</span>
               </span>
               <span className="mt-0.5 block font-oswald text-[12px] leading-snug text-white/48">
                 Guarda lugar, hora y precio para reutilizarlo.
               </span>
             </span>
-            {saveAsFrequent ? <Check size={19} className="flex-none text-[#bba8ff]" /> : null}
+            {/* Always occupy the check's slot so toggling never reflows the row
+                (adding a flex item on state change used to shrink the label column
+                and wrap the title onto a second line, changing the row height). */}
+            <Check
+              size={19}
+              aria-hidden={!saveAsFrequent}
+              className={`flex-none text-[#bba8ff] transition-opacity ${saveAsFrequent ? 'opacity-100' : 'opacity-0'}`}
+            />
           </label>
         </div>
       </section>
