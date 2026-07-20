@@ -365,6 +365,51 @@ async function main() {
   eq((await latestStatus(admin, m6, PLAYER)).status, 'approved', 'approved permanece approved');
 
   // ─────────────────────────────────────────────────────────────────────────
+  // Allowlist de estados reabribles: SÓLO rejected/cancelled se reabren. Cualquier
+  // otro estado (pending/approved ya cubiertos arriba, o un valor inesperado) NO
+  // dispara el UPDATE a pending. Los estados reales de match_join_requests son
+  // {pending, approved, rejected, cancelled}.
+  console.log('\n▶ Allowlist de estados reabribles (sólo rejected/cancelled → pending)');
+  // rejected → se reabre.
+  const mAllowR = await mkMatch(true, false);
+  await seedTerminalRequest(playerAsUser, mAllowR, 'player', 'rejected');
+  eq((await reopen(playerAsUser, mAllowR, 'player')).status, 'pending', 'rejected → se reabre (RPC devuelve pending)');
+  eq((await latestStatus(admin, mAllowR, PLAYER)).status, 'pending', 'rejected → la fila queda pending');
+
+  // cancelled → se reabre.
+  const mAllowC = await mkMatch(true, false);
+  await seedTerminalRequest(playerAsUser, mAllowC, 'player', 'cancelled');
+  eq((await reopen(playerAsUser, mAllowC, 'player')).status, 'pending', 'cancelled → se reabre (RPC devuelve pending)');
+  eq((await latestStatus(admin, mAllowC, PLAYER)).status, 'pending', 'cancelled → la fila queda pending');
+
+  // pending → NO cambia (idempotente, no reabre).
+  const mAllowP = await mkMatch(true, false);
+  await insertOwnRequest(playerAsUser, mAllowP, 'player');
+  const rAllowP = await reopen(playerAsUser, mAllowP, 'player');
+  eq(rAllowP.status, 'pending', 'pending → sigue pending');
+  eq(rAllowP.reopened, false, 'pending → reopened=false (no reabre)');
+  eq((await latestStatus(admin, mAllowP, PLAYER)).status, 'pending', 'pending → la fila no cambia');
+
+  // approved → NO se reabre.
+  const mAllowA = await mkMatch(true, false);
+  await insertOwnRequest(playerAsUser, mAllowA, 'player');
+  const reqAllowA = (await admin.query('select id from public.match_join_requests where match_id=$1 and user_id=$2', [mAllowA, PLAYER])).rows[0].id;
+  await adminAsUser.query('select public.approve_join_request($1)', [reqAllowA]);
+  eq((await reopen(playerAsUser, mAllowA, 'player')).status, 'already_approved', 'approved → already_approved (no reabre)');
+  eq((await latestStatus(admin, mAllowA, PLAYER)).status, 'approved', 'approved → la fila sigue approved');
+
+  // Estado desconocido / no permitido → status_not_reopenable y la fila NO cambia.
+  // (El gate de allowlist corre ANTES de las validaciones de partido/rol, así que
+  // un estado no reconocido nunca se convierte en pending aunque el partido sea válido.)
+  for (const weird of ['withdrawn', 'expired', 'foobar']) {
+    const mWeird = await mkMatch(true, false);
+    await seedTerminalRequest(playerAsUser, mWeird, 'player', weird);
+    const rWeird = await reopen(playerAsUser, mWeird, 'player');
+    eq(rWeird.status, 'status_not_reopenable', `estado '${weird}' → status_not_reopenable`);
+    eq((await latestStatus(admin, mWeird, PLAYER)).status, weird, `estado '${weird}' → la fila NO cambia (sin UPDATE a pending)`);
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
   console.log('\n▶ Partido cerrado / pasado / inexistente + usuario que ya participa');
   // Partido pasado (kickoff en el pasado) → match_past.
   const mPast = await mkMatch(true, false, { past: true });

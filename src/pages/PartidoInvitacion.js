@@ -80,6 +80,7 @@ const REOPEN_BLOCKED_MESSAGES = {
   goalkeeper_not_searched: 'Este partido no está buscando arquero.',
   not_goalkeeper: 'Necesitás tener Arquero (ARQ) en tu perfil para postularte como arquero.',
   players_not_searched: 'Este partido no está buscando jugadores por ahora.',
+  status_not_reopenable: 'Esta solicitud ya no se puede reabrir. Volvé a intentarlo desde el partido.',
   invalid_role: 'No se pudo enviar la solicitud.',
   not_found: 'No se pudo enviar la solicitud.',
 };

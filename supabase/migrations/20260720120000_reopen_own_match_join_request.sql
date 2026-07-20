@@ -28,6 +28,15 @@
 --     the caller to keep goal (ARQ); a 'player' reopen requires the match to be
 --     open to players (falta_jugadores = true);
 --   * an 'approved' request is never reopened (returned as-is);
+--   * ONLY genuinely terminal, reopenable states are reopened. The real
+--     match_join_requests statuses are exactly {pending, approved, rejected,
+--     cancelled} — see the demote trigger (20260719121000, writes 'rejected'),
+--     cancel_own_match_join_request (writes 'cancelled', never the single-l
+--     'canceled') and the client REOPENABLE_JOIN_REQUEST_STATUSES = {cancelled,
+--     rejected}. 'pending'/'approved' are handled above; a 'rejected'/'cancelled'
+--     row is reopenable; ANY OTHER value (unexpected/unknown, or a state we
+--     deliberately do not reopen) is returned as 'status_not_reopenable' and the
+--     row is left untouched (no UPDATE to 'pending');
 --   * two concurrent reopens can never diverge: the request row is locked
 --     FOR UPDATE, so the second caller serializes behind the first and sees the
 --     already-'pending' row (idempotent).
@@ -35,8 +44,8 @@
 --
 -- Returned jsonb `status` values:
 --   pending | already_approved | already_member | not_found | invalid_role |
---   match_not_found | match_past | match_closed | goalkeeper_not_searched |
---   not_goalkeeper | players_not_searched
+--   status_not_reopenable | match_not_found | match_past | match_closed |
+--   goalkeeper_not_searched | not_goalkeeper | players_not_searched
 --
 -- Forward-only and additive; does not touch any applied migration.
 
@@ -100,6 +109,17 @@ BEGIN
     RETURN jsonb_build_object('status', 'already_approved', 'request_id', v_request_id);
   END IF;
 
+  -- Only genuinely terminal, REOPENABLE states may be reopened. The real
+  -- match_join_requests statuses are {pending, approved, rejected, cancelled}
+  -- ('pending'/'approved' already returned above; 'canceled' single-l is never
+  -- written to this table). Any OTHER value (unexpected/unknown status, or a
+  -- state we deliberately do not reopen) is returned as 'status_not_reopenable'
+  -- WITHOUT touching the row — we never blindly UPDATE an unrecognized state to
+  -- 'pending'.
+  IF v_status NOT IN ('rejected', 'cancelled') THEN
+    RETURN jsonb_build_object('status', 'status_not_reopenable', 'request_id', v_request_id);
+  END IF;
+
   -- The caller must not already be on the roster (e.g. re-added out of band).
   IF EXISTS (
     SELECT 1 FROM public.jugadores j
@@ -153,7 +173,7 @@ BEGIN
     END IF;
   END IF;
 
-  -- Terminal (rejected / cancelled / ...) and eligible → reopen to 'pending'.
+  -- Reopenable terminal state (rejected / cancelled) and eligible → 'pending'.
   UPDATE public.match_join_requests
   SET status = 'pending',
       role = v_role,
