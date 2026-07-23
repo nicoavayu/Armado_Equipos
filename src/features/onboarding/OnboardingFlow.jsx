@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useOnboarding } from './OnboardingProvider';
 import { ONBOARDING_PATHS } from './content';
 import OnboardingShell from './OnboardingShell';
+import OnboardingProfileStep from './OnboardingProfileStep';
 import OnboardingGoalSelector from './OnboardingGoalSelector';
 import OnboardingOrganizerPath from './OnboardingOrganizerPath';
 import OnboardingAutoMatchPath from './OnboardingAutoMatchPath';
@@ -34,6 +35,18 @@ export default function OnboardingFlow() {
   if (!activeFlow) return null;
 
   const { screen, path } = activeFlow;
+
+  if (screen === 'profile') {
+    return (
+      <OnboardingShell
+        onDismiss={skipOnboarding}
+        dismissLabel="Omitir tutorial"
+        labelledById="onboarding-profile-title"
+      >
+        <OnboardingProfileStep labelledById="onboarding-profile-title" />
+      </OnboardingShell>
+    );
+  }
 
   if (screen === 'goal') {
     return (

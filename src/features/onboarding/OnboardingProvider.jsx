@@ -56,9 +56,21 @@ export function OnboardingProvider({ children }) {
   // stack: intro modal, fullscreen tour, first steps modal or completion modal.
   const [activeFlow, setActiveFlow] = useState(null);
   const [pendingManualSurface, setPendingManualSurface] = useState(null);
+  // Perfil-tab tutorial: a standalone surface, persisted independently from the
+  // general onboarding flow above so neither can hide the other.
+  const [profileTourOpen, setProfileTourOpen] = useState(false);
+
+  // Where the Perfil tour was opened from: 'onboarding' (via the profile step of
+  // the general flow → resume the goal selector on close) or 'profile' (manual
+  // entry → stay in Perfil). Temporary/in-memory only: never persisted, so a new
+  // device/session/account can't inherit a stale origin and resume incorrectly.
+  const [profileTourOrigin, setProfileTourOrigin] = useState(null);
 
   const userId = user?.id || null;
   const autoOpenedThisSessionRef = useRef(false);
+  // Once the Perfil tour has been offered in this session we don't re-offer it,
+  // even if it was closed by navigation without being explicitly finished.
+  const profileTourHandledSessionRef = useRef(false);
   const locationRef = useRef(location);
   const pendingAuthFlowRef = useRef(pendingAuthFlow);
   const firstWriteDoneRef = useRef(false);
@@ -77,8 +89,14 @@ export function OnboardingProvider({ children }) {
     let cancelled = false;
     autoOpenedThisSessionRef.current = false;
     firstWriteDoneRef.current = false;
+    // Per-user session guards: switching accounts on the same device must never
+    // leak the previous user's "already offered" state or tour origin into the
+    // new one.
+    profileTourHandledSessionRef.current = false;
     setActiveFlow(null);
     setPendingManualSurface(null);
+    setProfileTourOpen(false);
+    setProfileTourOrigin(null);
 
     if (!userId) {
       setState(createDefaultOnboardingState());
@@ -171,6 +189,43 @@ export function OnboardingProvider({ children }) {
     setActiveFlow((prev) => (prev ? { ...prev, screen: 'goal', path: null } : { screen: 'goal', path: null }));
   }, []);
 
+  // "Completá tu perfil": the first recommended step, shown after the intro and
+  // before the goal selector. It never gates the rest of the app.
+  const goToProfileStep = useCallback(() => {
+    setActiveFlow((prev) => (prev ? { ...prev, screen: 'profile', path: null } : { screen: 'profile', path: null }));
+  }, []);
+
+  const markProfileStepSeen = useCallback(() => {
+    persist((prev) => ({
+      ...prev,
+      checklist: { ...prev.checklist, profileStepSeen: true },
+    }), { event: 'onboarding_profile_step_seen' });
+  }, [persist]);
+
+  const markProfileTourSeen = useCallback(() => {
+    persist((prev) => ({
+      ...prev,
+      checklist: { ...prev.checklist, profileTourSeen: true },
+    }), { event: 'onboarding_profile_tour_seen' });
+  }, [persist]);
+
+  // Primary CTA of the profile step: record it as seen and close the flow so the
+  // caller can navigate to Perfil (where the Perfil tour then auto-opens). The
+  // caller passes the 'onboarding' origin via navigation state, so the tour
+  // resumes the general flow (goal selector) on close.
+  const startProfileFromOnboarding = useCallback(() => {
+    markProfileStepSeen();
+    setActiveFlow(null);
+    track_safe('onboarding_profile_step_cta', { action: 'complete' });
+  }, [markProfileStepSeen]);
+
+  // Discreet secondary CTA: mark seen and continue to the goal selector.
+  const continueFromProfileStep = useCallback(() => {
+    markProfileStepSeen();
+    goToGoalSelector();
+    track_safe('onboarding_profile_step_cta', { action: 'continue' });
+  }, [markProfileStepSeen, goToGoalSelector]);
+
   const chooseGoal = useCallback((pathKey) => {
     if (!isValidOnboardingPath(pathKey)) return;
     persist((prev) => ({
@@ -253,6 +308,47 @@ export function OnboardingProvider({ children }) {
     [state.coachMarks],
   );
 
+  // Perfil-tab tutorial. Requested from the Perfil surface (see
+  // useProfileTourTrigger). Guards run here so eligibility/idempotence live in a
+  // single place: shown at most once per session, and never over the general
+  // flow or a blocking modal.
+  // `origin` is the navigation-scoped source ('onboarding' | 'profile'), passed
+  // by the caller (see useProfileTourTrigger). It is never persisted, so a new
+  // device/session/account can't inherit it. Guards keep it idempotent.
+  const openProfileTour = useCallback((origin = 'profile') => {
+    if (!enabled) return;
+    if (profileTourHandledSessionRef.current) return;
+    if (activeFlow || profileTourOpen) return;
+    if (state.checklist?.profileTourSeen) return;
+    if (blockingModalOpenRef.current || detectPendingIntent({ pendingAuthFlow: pendingAuthFlowRef.current })) return;
+    profileTourHandledSessionRef.current = true;
+    const resolvedOrigin = origin === 'onboarding' ? 'onboarding' : 'profile';
+    setProfileTourOrigin(resolvedOrigin);
+    setProfileTourOpen(true);
+    track_safe('onboarding_profile_tour_shown', { origin: resolvedOrigin });
+  }, [enabled, activeFlow, profileTourOpen, state.checklist]);
+
+  // Resume the general flow (goal selector) only when the tour was opened from
+  // the onboarding profile step. Manual entries stay in Perfil. State updates are
+  // batched so the two overlays never render at once.
+  const closeProfileTour = useCallback((event) => {
+    setProfileTourOpen(false);
+    setProfileTourOrigin(null);
+    if (profileTourOrigin === 'onboarding') goToGoalSelector();
+    markProfileTourSeen();
+    track_safe(event, {});
+  }, [profileTourOrigin, markProfileTourSeen, goToGoalSelector]);
+
+  // Explicit finish/close both mark the tutorial as seen (idempotent): the user
+  // acknowledged it. Only an unexpected unmount (reload, crash) leaves it unseen.
+  const completeProfileTour = useCallback(() => {
+    closeProfileTour('onboarding_profile_tour_completed');
+  }, [closeProfileTour]);
+
+  const dismissProfileTour = useCallback(() => {
+    closeProfileTour('onboarding_profile_tour_dismissed');
+  }, [closeProfileTour]);
+
   // Auto-open effect. Fires only when the decision says so AND a re-check at
   // timer-fire time still finds a safe, idle Home. Once per session.
   useEffect(() => {
@@ -287,16 +383,26 @@ export function OnboardingProvider({ children }) {
     enabled,
     activeFlow,
     isActive: Boolean(activeFlow),
-    isTourActive: Boolean(activeFlow && ['intro', 'goal', 'path'].includes(activeFlow.screen)),
+    isTourActive: Boolean(activeFlow && ['intro', 'goal', 'profile', 'path'].includes(activeFlow.screen)),
     currentVersion: CURRENT_ONBOARDING_VERSION,
     // flow navigation
     openOnboarding,
     goToGoalSelector,
+    goToProfileStep,
     chooseGoal,
     closeOnboarding,
     completeOnboarding,
     skipOnboarding,
     replayOnboarding,
+    // profile step (general onboarding)
+    startProfileFromOnboarding,
+    continueFromProfileStep,
+    // perfil-tab tutorial
+    profileTourOpen,
+    profileTourOrigin,
+    openProfileTour,
+    completeProfileTour,
+    dismissProfileTour,
     // coach marks
     markCoachMarkSeen,
     markCoachMarkGroupDone,
@@ -309,11 +415,19 @@ export function OnboardingProvider({ children }) {
     activeFlow,
     openOnboarding,
     goToGoalSelector,
+    goToProfileStep,
     chooseGoal,
     closeOnboarding,
     completeOnboarding,
     skipOnboarding,
     replayOnboarding,
+    startProfileFromOnboarding,
+    continueFromProfileStep,
+    profileTourOpen,
+    profileTourOrigin,
+    openProfileTour,
+    completeProfileTour,
+    dismissProfileTour,
     markCoachMarkSeen,
     markCoachMarkGroupDone,
     isCoachMarkGroupDone,

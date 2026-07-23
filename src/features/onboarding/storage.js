@@ -96,6 +96,12 @@ export function mergeOnboardingStates(a, b) {
       },
       celebrated: Boolean(leftChecklist.celebrated || rightChecklist.celebrated),
       completionShown: Boolean(leftChecklist.completionShown || rightChecklist.completionShown),
+      // "Seen" flags for the profile-focused guides are monotonic: once true on
+      // either side they stay true, so a stale/false remote never re-shows a
+      // tutorial the user already completed on another device. They are tracked
+      // separately on purpose — one flow must never hide the other.
+      profileStepSeen: Boolean(leftChecklist.profileStepSeen || rightChecklist.profileStepSeen),
+      profileTourSeen: Boolean(leftChecklist.profileTourSeen || rightChecklist.profileTourSeen),
     },
     welcomeCardDismissed: left.welcomeCardDismissed || right.welcomeCardDismissed,
     firstSeenAt: left.firstSeenAt || right.firstSeenAt || null,

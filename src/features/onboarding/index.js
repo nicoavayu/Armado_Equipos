@@ -3,7 +3,10 @@ export { default as OnboardingProvider, useOnboarding } from './OnboardingProvid
 export { default as OnboardingHost } from './OnboardingHost';
 export { default as OnboardingFlow } from './OnboardingFlow';
 export { default as OnboardingIntroModal } from './OnboardingIntroModal';
+export { default as OnboardingProfileStep } from './OnboardingProfileStep';
+export { default as OnboardingProfileTour } from './OnboardingProfileTour';
 export { default as OnboardingGoalSelector } from './OnboardingGoalSelector';
+export { default as useProfileTourTrigger } from './useProfileTourTrigger';
 export { default as OnboardingOrganizerPath } from './OnboardingOrganizerPath';
 export { default as OnboardingAutoMatchPath } from './OnboardingAutoMatchPath';
 export { default as OnboardingExplorePath } from './OnboardingExplorePath';

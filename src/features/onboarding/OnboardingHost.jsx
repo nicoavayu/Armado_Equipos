@@ -5,6 +5,7 @@ import { AnimatePresence } from 'framer-motion';
 import { useOnboarding } from './OnboardingProvider';
 import OnboardingFlow from './OnboardingFlow';
 import OnboardingIntroModal from './OnboardingIntroModal';
+import OnboardingProfileTour from './OnboardingProfileTour';
 
 // Mounts the fullscreen onboarding overlay via a portal to <body> so it sits
 // above the app shell and TabBar. Renders nothing when no flow is active, and a
@@ -36,17 +37,22 @@ class OnboardingErrorBoundary extends React.Component {
 export default function OnboardingHost() {
   const {
     activeFlow,
-    goToGoalSelector,
+    goToProfileStep,
     skipOnboarding,
+    profileTourOpen,
   } = useOnboarding();
 
   if (typeof document === 'undefined') return null;
 
+  // Priority keeps surfaces from ever stacking: the general flow (Home) wins over
+  // the Perfil-tab tutorial, which only shows when no flow is active.
   let surface = null;
   if (activeFlow?.screen === 'intro') {
-    surface = <OnboardingIntroModal key="intro" onStart={goToGoalSelector} onDismiss={skipOnboarding} />;
+    surface = <OnboardingIntroModal key="intro" onStart={goToProfileStep} onDismiss={skipOnboarding} />;
   } else if (activeFlow) {
     surface = <OnboardingFlow key="onboarding-flow" />;
+  } else if (profileTourOpen) {
+    surface = <OnboardingProfileTour key="profile-tour" />;
   }
 
   return createPortal(
