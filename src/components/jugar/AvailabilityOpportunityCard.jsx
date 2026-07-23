@@ -67,6 +67,60 @@ const REFRESH_MS = 30000;
 
 const TIME_SELECT = 'h-[52px] w-full appearance-none rounded-xl border border-[#8b7cff]/35 bg-[#161130] [&>option]:bg-[#161130] [&>option]:text-white px-2 text-center font-bebas-real text-[26px] text-white outline-none [color-scheme:dark] focus:border-[#8b7cff] disabled:opacity-55';
 
+// Preferencia de "reduce motion" en runtime (no sólo vía CSS), para poder
+// desactivar la animación de contracción/expansión de la configuración.
+const usePrefersReducedMotion = () => {
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined;
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    setPrefersReducedMotion(mediaQuery.matches);
+    const handleChange = () => setPrefersReducedMotion(mediaQuery.matches);
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', handleChange);
+      return () => mediaQuery.removeEventListener('change', handleChange);
+    }
+    mediaQuery.addListener(handleChange);
+    return () => mediaQuery.removeListener(handleChange);
+  }, []);
+
+  return prefersReducedMotion;
+};
+
+// Contrae/expande la configuración de la búsqueda con una animación breve al
+// cambiar entre el estado inactivo (formulario completo) y activo (resumen
+// compacto). Si el usuario pide reduce-motion, el contenido aparece sin
+// transición. El contenido siempre está en el DOM: sólo se anima opacidad/desplazamiento.
+const CollapsibleReveal = ({ revealKey, children }) => {
+  const prefersReducedMotion = usePrefersReducedMotion();
+  const [entered, setEntered] = useState(prefersReducedMotion);
+
+  useEffect(() => {
+    if (prefersReducedMotion) {
+      setEntered(true);
+      return undefined;
+    }
+    setEntered(false);
+    const frame = window.requestAnimationFrame(() => setEntered(true));
+    return () => window.cancelAnimationFrame(frame);
+  }, [prefersReducedMotion, revealKey]);
+
+  return (
+    <div
+      data-testid="auto-search-reveal"
+      data-animated={prefersReducedMotion ? 'false' : 'true'}
+      className="transition-[opacity,transform] duration-300 ease-out will-change-[opacity,transform] motion-reduce:transition-none motion-reduce:transform-none"
+      style={{
+        opacity: entered ? 1 : 0,
+        transform: entered ? 'translateY(0)' : 'translateY(6px)',
+      }}
+    >
+      {children}
+    </div>
+  );
+};
+
 const toMinutes = (value) => {
   const [hours, minutes] = String(value || '0:0').split(':').map(Number);
   return hours * 60 + (minutes || 0);
@@ -1259,213 +1313,228 @@ export default function AvailabilityOpportunityCard() {
       role="dialog"
       aria-modal="true"
       aria-label="Partido automático"
-      className="fixed inset-0 z-[1200] overflow-y-auto bg-[linear-gradient(180deg,#141031_0%,#100b26_46%,#090715_100%)] text-white"
+      className="fixed inset-0 z-[990] overflow-y-auto bg-[linear-gradient(180deg,#141031_0%,#100b26_46%,#090715_100%)] text-white"
     >
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_50%_-8%,rgba(118,78,255,0.22),transparent_48%),radial-gradient(circle_at_8%_56%,rgba(73,43,171,0.14),transparent_32%)]" />
       <PageTitle respectSafeArea onBack={close}>PARTIDO AUTOMÁTICO</PageTitle>
 
-      <main className="relative z-10 mx-auto w-full max-w-[560px] px-4 pb-[max(34px,var(--safe-bottom,0px))] pt-[calc(var(--safe-top,0px)+92px)] font-oswald">
+      {/* Padding inferior = altura de la TabBar (misma clase que MainLayout) para
+          que la última card no quede tapada por el navbar inferior, que ahora
+          permanece visible por debajo de este overlay (z-[990] < TabBar z-[1000]). */}
+      <main className="relative z-10 mx-auto w-full max-w-[560px] px-4 pb-[104px] md:pb-[112px] pt-[calc(var(--safe-top,0px)+92px)] font-oswald">
 
         {/* Búsqueda: siempre primero y directamente sobre el fondo, sin card
-            exterior. La misma estructura sirve para activa e inactiva: cuando
-            está activa aparece el resumen arriba y los controles se apagan. */}
+            exterior. Con la búsqueda inactiva se muestra el formulario completo
+            (editable). Al activarse, el formulario se contrae y sólo queda un
+            resumen compacto de los criterios + "Dejar de buscar", para que las
+            cards de partidos aparezcan cuanto antes. Al detenerla, el formulario
+            vuelve a desplegarse. La transición respeta prefers-reduced-motion. */}
         <section aria-label="Tu búsqueda" data-testid="auto-search-section">
-          <h2 className="mb-5 text-center font-bebas-real text-[clamp(36px,10vw,46px)] leading-[0.92] tracking-[0.035em] text-white drop-shadow-[0_8px_26px_rgba(5,2,20,0.7)]">
-            ¿CUÁNDO PODÉS JUGAR?
-          </h2>
-          {searchActive ? (
-            <div
-              className="mb-4 flex items-start gap-3"
-              data-testid={searchEligible ? 'search-active-summary' : 'search-incomplete-summary'}
-            >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#9b7bff]/25 bg-[#6a43ff]/15 text-[#c8baff]">
-                {searchEligible ? <Search size={16} /> : <MapPin size={16} />}
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="font-oswald text-[13px] font-bold text-white">
-                  {searchEligible ? 'Tu búsqueda está activa' : 'Tu búsqueda necesita ubicación'}
-                </p>
-                {!searchEligible ? (
-                  <p className="mt-0.5 font-sans text-[10.5px] text-amber-100/75">
-                    Agregá una ubicación para buscar jugadores cerca tuyo.
-                  </p>
-                ) : null}
-                <p className="mt-0.5 font-oswald text-[11.5px] text-white/52">{formatWindow(availability)}</p>
-                <p className="mt-0.5 flex flex-wrap items-center gap-x-2 font-sans text-[10px] text-white/42">
-                  <span>{(availability.formats || []).join(' · ')}</span>
-                  {availability.can_organize ? (
-                    <span className="flex items-center gap-1 text-[#ffe1a6]/80">
-                      <Crown size={10} className="text-[#fdb022]" /> Te ofreciste para organizar
-                    </span>
-                  ) : null}
-                </p>
-              </div>
-            </div>
+          {!searchActive ? (
+            <h2 className="mb-5 text-center font-bebas-real text-[clamp(36px,10vw,46px)] leading-[0.92] tracking-[0.035em] text-white drop-shadow-[0_8px_26px_rgba(5,2,20,0.7)]">
+              ¿CUÁNDO PODÉS JUGAR?
+            </h2>
           ) : null}
 
-          <div className={searchActive ? 'opacity-55' : ''} aria-disabled={searchActive} data-tour-id="auto-match-availability">
-            <div>
-              <p className="mb-2 font-oswald text-[9px] font-semibold uppercase tracking-[0.14em] text-white/40">Días de la semana</p>
-              <div className="grid grid-cols-7 gap-1">
-                {DAY_OPTIONS.map((day) => {
-                  const active = days.includes(day.value);
-                  return (
-                    <button
-                      type="button"
-                      key={day.value}
-                      disabled={searchActive}
-                      onClick={() => toggleDay(day.value)}
-                      aria-pressed={active}
-                      className={`min-h-11 rounded-xl border font-oswald text-[11.5px] font-bold transition-all active:scale-[0.95] motion-reduce:transition-none ${active
-                        ? 'border-[#9b7bff] bg-[linear-gradient(145deg,rgba(112,48,255,0.62),rgba(57,24,132,0.8))] text-white shadow-[0_8px_22px_rgba(75,38,180,0.28)]'
-                        : 'border-white/10 bg-white/[0.035] text-white/42 hover:border-[#9b7bff]/32 hover:text-white/68'}`}
-                    >
-                      {day.short}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+          <CollapsibleReveal revealKey={searchActive ? 'active' : 'inactive'}>
+            {searchActive ? (
+              // ── Búsqueda activa: encabezado/estado compacto (no un formulario) ──
+              <>
+                <div
+                  className="flex items-start gap-3"
+                  data-testid={searchEligible ? 'search-active-summary' : 'search-incomplete-summary'}
+                >
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#9b7bff]/25 bg-[#6a43ff]/15 text-[#c8baff]">
+                    {searchEligible ? <Search size={16} /> : <MapPin size={16} />}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-oswald text-[13px] font-bold text-white">
+                      {searchEligible ? 'Tu búsqueda está activa' : 'Tu búsqueda necesita ubicación'}
+                    </p>
+                    {!searchEligible ? (
+                      <p className="mt-0.5 font-sans text-[10.5px] text-amber-100/75">
+                        Agregá una ubicación para buscar jugadores cerca tuyo.
+                      </p>
+                    ) : null}
+                    {/* Resumen breve de los criterios activos (datos reales): días
+                        y rango horario, y debajo formatos + distancia máxima. */}
+                    <p className="mt-1 font-oswald text-[11.5px] capitalize text-white/60">{formatWindow(availability)}</p>
+                    <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 font-sans text-[10px] text-white/42">
+                      <span>{(availability.formats || []).join(' · ')}</span>
+                      <span aria-hidden="true" className="text-white/22">·</span>
+                      <span>hasta {availability.max_distance_km || distance} km</span>
+                      {availability.can_organize ? (
+                        <span className="flex items-center gap-1 text-[#ffe1a6]/80">
+                          <Crown size={10} className="text-[#fdb022]" /> Te ofreciste para organizar
+                        </span>
+                      ) : null}
+                    </p>
+                  </div>
+                </div>
 
-            <div className="mt-5 rounded-2xl border border-white/[0.075] bg-black/15 px-3.5 py-3">
-              <div className="mb-2 flex items-center gap-1.5 font-oswald text-[9px] font-semibold uppercase tracking-[0.14em] text-white/40">
-                <Clock3 size={13} className="text-[#9d82ff]" /> Rango horario
-              </div>
-              <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-                <label>
-                  <span className="sr-only">Desde</span>
-                  <select aria-label="Desde" disabled={searchActive} value={timeStart} onChange={(event) => changeTimeStart(event.target.value)} className={TIME_SELECT}>
-                    {START_HOURS.map((option) => <option key={option} value={option}>{option}</option>)}
-                  </select>
-                </label>
-                <span className="font-oswald text-[12px] font-semibold text-white/40">a</span>
-                <label>
-                  <span className="sr-only">Hasta</span>
-                  <select aria-label="Hasta" disabled={searchActive} value={timeEnd} onChange={(event) => setTimeEnd(event.target.value)} className={TIME_SELECT}>
-                    {endOptions.map((option) => <option key={option} value={option}>{displayTime(option)}</option>)}
-                  </select>
-                </label>
-              </div>
-            </div>
-
-            <div className="mt-5">
-              <p className="mb-2 font-oswald text-[9px] font-semibold uppercase tracking-[0.14em] text-white/40">Formatos aceptados</p>
-              <div className="grid grid-cols-6 gap-1.5">
-                {ALLOWED_FORMATS.map((format) => {
-                  const active = formats.includes(format);
-                  return (
-                    <button
-                      type="button"
-                      key={format}
-                      disabled={searchActive}
-                      onClick={() => toggleFormat(format)}
-                      aria-pressed={active}
-                      className={`min-h-11 rounded-xl border font-oswald text-[12.5px] font-bold transition-all active:scale-[0.97] motion-reduce:transition-none ${active
-                        ? 'border-[#9b7bff] bg-[linear-gradient(145deg,rgba(112,48,255,0.62),rgba(57,24,132,0.8))] text-white shadow-[0_8px_22px_rgba(75,38,180,0.28)]'
-                        : 'border-white/10 bg-white/[0.035] text-white/42 hover:border-[#9b7bff]/32 hover:text-white/68'}`}
-                    >
-                      {format}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="mt-5 rounded-2xl border border-white/[0.075] bg-black/15 px-3.5 py-3">
-              <div className="mb-1 flex items-center justify-between gap-2">
-                <span className="font-oswald text-[9px] font-semibold uppercase tracking-[0.14em] text-white/40">Distancia máxima</span>
-                <span className="rounded-full border border-[#9b7bff]/25 bg-[#6a43ff]/12 px-2.5 py-1 font-sans text-[10px] font-bold text-[#c8baff]">{distance} km</span>
-              </div>
-              <DistanceSlider
-                min={1}
-                max={30}
-                step={1}
-                value={distance}
-                disabled={searchActive}
-                onChange={setDistance}
-                ariaLabel="Distancia máxima para partido automático"
-                valueText={`${distance} km`}
-              />
-            </div>
-
-            <button
-              type="button"
-              disabled={searchActive}
-              onClick={() => setCanOrganize((current) => !current)}
-              aria-pressed={canOrganize}
-              className={`mt-5 flex w-full items-center gap-3 rounded-2xl border px-3.5 py-3 text-left transition-all active:scale-[0.99] motion-reduce:transition-none ${canOrganize
-                ? 'border-[#fdb022]/45 bg-[#fdb022]/[0.09]'
-                : 'border-white/[0.075] bg-black/15 hover:border-[#fdb022]/25'}`}
-            >
-              <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border ${canOrganize
-                ? 'border-[#fdb022]/40 bg-[#fdb022]/15 text-[#fdb022]'
-                : 'border-white/10 bg-white/[0.04] text-white/40'}`}
-              >
-                <Crown size={16} />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block font-oswald text-[12.5px] font-semibold text-white">Puedo organizar el partido</span>
-                <span className="mt-0.5 block font-sans text-[10px] leading-relaxed text-white/40">
-                  Opcional. Si el grupo se completa, podés quedar como organizador para definir cancha y precio.
-                </span>
-              </span>
-              <span
-                aria-hidden="true"
-                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border ${canOrganize
-                  ? 'border-[#fdb022] bg-[#fdb022] text-[#241a02]'
-                  : 'border-white/20 bg-transparent text-transparent'}`}
-              >
-                <Check size={15} strokeWidth={3} />
-              </span>
-            </button>
-
-            <div className="mt-3 flex items-start gap-2 rounded-xl border border-white/[0.075] bg-white/[0.03] px-3 py-2.5 font-sans text-[10.5px] leading-relaxed text-white/42">
-              <MapPin size={15} className="mt-0.5 shrink-0 text-[#aa94ff]" />
-              {profileLocation
-                ? 'Tu ubicación exacta solo se usa para calcular compatibilidad. No se comparte con los demás.'
-                : 'Agregá una ubicación para buscar jugadores cerca tuyo. Sin ella, la búsqueda no participa del matching.'}
-            </div>
-          </div>
-
-          {searchActive ? (
-            <>
-              {!searchEligible ? (
+                {!searchEligible ? (
+                  <button
+                    type="button"
+                    onClick={openProfileForLocation}
+                    className={`${PRIMARY_CTA_BUTTON_CLASS} mt-4 !min-h-[50px]`}
+                  >
+                    <MapPin size={18} className="mr-2" /> Agregar ubicación
+                  </button>
+                ) : null}
                 <button
                   type="button"
-                  onClick={openProfileForLocation}
-                  className={`${PRIMARY_CTA_BUTTON_CLASS} mt-5 !min-h-[50px]`}
+                  disabled={loading}
+                  onClick={cancel}
+                  className="mt-4 min-h-[50px] w-full rounded-xl border border-rose-400/20 bg-rose-400/[0.07] font-oswald text-[13px] font-semibold text-rose-100/80 transition-all hover:bg-rose-400/10 active:scale-[0.985] motion-reduce:transition-none"
                 >
-                  <MapPin size={18} className="mr-2" /> Agregar ubicación
+                  Dejar de buscar
                 </button>
-              ) : null}
-              <button
-                type="button"
-                disabled={loading}
-                onClick={cancel}
-                className={`${searchEligible ? 'mt-5' : 'mt-3'} min-h-[50px] w-full rounded-xl border border-rose-400/20 bg-rose-400/[0.07] font-oswald text-[13px] font-semibold text-rose-100/80 transition-all hover:bg-rose-400/10 active:scale-[0.985] motion-reduce:transition-none`}
-              >
-                Dejar de buscar
-              </button>
-            </>
-          ) : profileLocation ? (
-            <button
-              type="button"
-              disabled={loading || formats.length === 0 || days.length === 0}
-              onClick={save}
-              data-tour-id="auto-match-activate"
-              className={`${PRIMARY_CTA_BUTTON_CLASS} mt-5 !min-h-[50px]`}
-            >
-              <Users size={18} className="mr-2" /> Activar búsqueda
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={openProfileForLocation}
-              className={`${PRIMARY_CTA_BUTTON_CLASS} mt-5 !min-h-[50px]`}
-            >
-              <MapPin size={18} className="mr-2" /> Agregar ubicación
-            </button>
-          )}
+              </>
+            ) : (
+              // ── Búsqueda inactiva: formulario completo y editable ──
+              <>
+                <div data-tour-id="auto-match-availability">
+                  <div>
+                    <p className="mb-2 font-oswald text-[9px] font-semibold uppercase tracking-[0.14em] text-white/40">Días de la semana</p>
+                    <div className="grid grid-cols-7 gap-1">
+                      {DAY_OPTIONS.map((day) => {
+                        const active = days.includes(day.value);
+                        return (
+                          <button
+                            type="button"
+                            key={day.value}
+                            onClick={() => toggleDay(day.value)}
+                            aria-pressed={active}
+                            className={`min-h-11 rounded-xl border font-oswald text-[11.5px] font-bold transition-all active:scale-[0.95] motion-reduce:transition-none ${active
+                              ? 'border-[#9b7bff] bg-[linear-gradient(145deg,rgba(112,48,255,0.62),rgba(57,24,132,0.8))] text-white shadow-[0_8px_22px_rgba(75,38,180,0.28)]'
+                              : 'border-white/10 bg-white/[0.035] text-white/42 hover:border-[#9b7bff]/32 hover:text-white/68'}`}
+                          >
+                            {day.short}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="mt-5 rounded-2xl border border-white/[0.075] bg-black/15 px-3.5 py-3">
+                    <div className="mb-2 flex items-center gap-1.5 font-oswald text-[9px] font-semibold uppercase tracking-[0.14em] text-white/40">
+                      <Clock3 size={13} className="text-[#9d82ff]" /> Rango horario
+                    </div>
+                    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                      <label>
+                        <span className="sr-only">Desde</span>
+                        <select aria-label="Desde" value={timeStart} onChange={(event) => changeTimeStart(event.target.value)} className={TIME_SELECT}>
+                          {START_HOURS.map((option) => <option key={option} value={option}>{option}</option>)}
+                        </select>
+                      </label>
+                      <span className="font-oswald text-[12px] font-semibold text-white/40">a</span>
+                      <label>
+                        <span className="sr-only">Hasta</span>
+                        <select aria-label="Hasta" value={timeEnd} onChange={(event) => setTimeEnd(event.target.value)} className={TIME_SELECT}>
+                          {endOptions.map((option) => <option key={option} value={option}>{displayTime(option)}</option>)}
+                        </select>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="mt-5">
+                    <p className="mb-2 font-oswald text-[9px] font-semibold uppercase tracking-[0.14em] text-white/40">Formatos aceptados</p>
+                    <div className="grid grid-cols-6 gap-1.5">
+                      {ALLOWED_FORMATS.map((format) => {
+                        const active = formats.includes(format);
+                        return (
+                          <button
+                            type="button"
+                            key={format}
+                            onClick={() => toggleFormat(format)}
+                            aria-pressed={active}
+                            className={`min-h-11 rounded-xl border font-oswald text-[12.5px] font-bold transition-all active:scale-[0.97] motion-reduce:transition-none ${active
+                              ? 'border-[#9b7bff] bg-[linear-gradient(145deg,rgba(112,48,255,0.62),rgba(57,24,132,0.8))] text-white shadow-[0_8px_22px_rgba(75,38,180,0.28)]'
+                              : 'border-white/10 bg-white/[0.035] text-white/42 hover:border-[#9b7bff]/32 hover:text-white/68'}`}
+                          >
+                            {format}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="mt-5 rounded-2xl border border-white/[0.075] bg-black/15 px-3.5 py-3">
+                    <div className="mb-1 flex items-center justify-between gap-2">
+                      <span className="font-oswald text-[9px] font-semibold uppercase tracking-[0.14em] text-white/40">Distancia máxima</span>
+                      <span className="rounded-full border border-[#9b7bff]/25 bg-[#6a43ff]/12 px-2.5 py-1 font-sans text-[10px] font-bold text-[#c8baff]">{distance} km</span>
+                    </div>
+                    <DistanceSlider
+                      min={1}
+                      max={30}
+                      step={1}
+                      value={distance}
+                      onChange={setDistance}
+                      ariaLabel="Distancia máxima para partido automático"
+                      valueText={`${distance} km`}
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setCanOrganize((current) => !current)}
+                    aria-pressed={canOrganize}
+                    className={`mt-5 flex w-full items-center gap-3 rounded-2xl border px-3.5 py-3 text-left transition-all active:scale-[0.99] motion-reduce:transition-none ${canOrganize
+                      ? 'border-[#fdb022]/45 bg-[#fdb022]/[0.09]'
+                      : 'border-white/[0.075] bg-black/15 hover:border-[#fdb022]/25'}`}
+                  >
+                    <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border ${canOrganize
+                      ? 'border-[#fdb022]/40 bg-[#fdb022]/15 text-[#fdb022]'
+                      : 'border-white/10 bg-white/[0.04] text-white/40'}`}
+                    >
+                      <Crown size={16} />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block font-oswald text-[12.5px] font-semibold text-white">Puedo organizar el partido</span>
+                      <span className="mt-0.5 block font-sans text-[10px] leading-relaxed text-white/40">
+                        Opcional. Si el grupo se completa, podés quedar como organizador para definir cancha y precio.
+                      </span>
+                    </span>
+                    <span
+                      aria-hidden="true"
+                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border ${canOrganize
+                        ? 'border-[#fdb022] bg-[#fdb022] text-[#241a02]'
+                        : 'border-white/20 bg-transparent text-transparent'}`}
+                    >
+                      <Check size={15} strokeWidth={3} />
+                    </span>
+                  </button>
+
+                  <div className="mt-3 flex items-start gap-2 rounded-xl border border-white/[0.075] bg-white/[0.03] px-3 py-2.5 font-sans text-[10.5px] leading-relaxed text-white/42">
+                    <MapPin size={15} className="mt-0.5 shrink-0 text-[#aa94ff]" />
+                    {profileLocation
+                      ? 'Tu ubicación exacta solo se usa para calcular compatibilidad. No se comparte con los demás.'
+                      : 'Agregá una ubicación para buscar jugadores cerca tuyo. Sin ella, la búsqueda no participa del matching.'}
+                  </div>
+                </div>
+
+                {profileLocation ? (
+                  <button
+                    type="button"
+                    disabled={loading || formats.length === 0 || days.length === 0}
+                    onClick={save}
+                    data-tour-id="auto-match-activate"
+                    className={`${PRIMARY_CTA_BUTTON_CLASS} mt-5 !min-h-[50px]`}
+                  >
+                    <Users size={18} className="mr-2" /> Activar búsqueda
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={openProfileForLocation}
+                    className={`${PRIMARY_CTA_BUTTON_CLASS} mt-5 !min-h-[50px]`}
+                  >
+                    <MapPin size={18} className="mr-2" /> Agregar ubicación
+                  </button>
+                )}
+              </>
+            )}
+          </CollapsibleReveal>
         </section>
 
         {/* Invitaciones a partidos ya creados: sección propia (no es gestación). */}
@@ -1508,7 +1577,7 @@ export default function AvailabilityOpportunityCard() {
         >
           <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_50%_-8%,rgba(118,78,255,0.22),transparent_48%)]" />
           <PageTitle respectSafeArea onBack={backFromDetail}>PARTIDO EN GESTACIÓN</PageTitle>
-          <main className="relative z-10 mx-auto w-full max-w-[560px] px-4 pb-[max(34px,var(--safe-bottom,0px))] pt-[calc(var(--safe-top,0px)+92px)] font-oswald">
+          <main className="relative z-10 mx-auto w-full max-w-[560px] px-4 pb-[104px] md:pb-[112px] pt-[calc(var(--safe-top,0px)+92px)] font-oswald">
             {detailProposal ? (
               <ProposalDetail
                 proposal={detailProposal}
@@ -1540,7 +1609,7 @@ export default function AvailabilityOpportunityCard() {
         >
           <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_50%_-8%,rgba(45,212,191,0.16),transparent_48%)]" />
           <PageTitle respectSafeArea onBack={backFromDetail}>INVITACIÓN AL PARTIDO</PageTitle>
-          <main className="relative z-10 mx-auto w-full max-w-[560px] px-4 pb-[max(34px,var(--safe-bottom,0px))] pt-[calc(var(--safe-top,0px)+92px)] font-oswald">
+          <main className="relative z-10 mx-auto w-full max-w-[560px] px-4 pb-[104px] md:pb-[112px] pt-[calc(var(--safe-top,0px)+92px)] font-oswald">
             {inviteProposal ? (
               <MatchInviteView
                 proposal={inviteProposal}
