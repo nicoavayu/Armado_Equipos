@@ -287,8 +287,8 @@ const ProfileEditorForm = ({
           />
         </div>
 
-        {/* Teléfono Field */}
-        <div className={formGroupClass}>
+        {/* Teléfono Field — scroll target for the Perfil tutorial's final CTA. */}
+        <div className={formGroupClass} data-profile-tour-target="telefono">
           <label className={labelClass}>Teléfono <span className="text-xs opacity-70">(solo visible para admins)</span></label>
           <input
             className={singleLineFieldClass}

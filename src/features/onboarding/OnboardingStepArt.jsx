@@ -7,14 +7,19 @@ import {
   Link2,
   MapPin,
   MessageCircle,
+  Phone,
   Radar,
   Shield,
+  ShieldCheck,
   SlidersHorizontal,
   Star,
   Users,
 } from 'lucide-react';
 
 const ART_LABELS = {
+  profile: 'Ficha de perfil de jugador con nombre, posiciones y nivel',
+  profile_contact: 'Ficha de perfil resaltando teléfono de contacto y dos posiciones',
+  responsibility: 'Puntaje de responsabilidad con el número cinco destacado',
   intro: 'Fichas de jugadores formando un equipo alrededor de una pelota',
   create: 'Card de partido con fecha, horario y ubicación',
   whatsapp: 'Enlace de un partido que incorpora fichas de jugadores',
@@ -508,6 +513,81 @@ function StatsArt({ reduce }) {
   );
 }
 
+function ProfileArt({ reduce }) {
+  return (
+    <ArtStage name="profile">
+      <motion.div
+        {...enter(reduce, { delay: 0.05, y: 16, scale: 0.96 })}
+        className="absolute inset-x-[14%] inset-y-4 rounded-2xl border border-[#9d86ff]/28 bg-[linear-gradient(160deg,rgba(43,34,91,0.96),rgba(18,14,39,0.98))] p-3.5 shadow-[0_12px_28px_rgba(5,3,16,0.45)]"
+      >
+        <div className="flex items-center gap-2.5">
+          <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 border-[#9d86ff]/70 bg-[#6a43ff] font-bebas-real text-[18px] text-white">10</span>
+          <span className="min-w-0">
+            <span className="block font-bebas-real text-[18px] leading-none tracking-[0.03em] text-white">TU PERFIL</span>
+            <span className="mt-1 flex items-center gap-1 font-sans text-[8px] font-semibold text-white/48"><MapPin size={9} /> Palermo</span>
+          </span>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {['DEL', 'MED'].map((chip, index) => (
+            <motion.span key={chip} {...enter(reduce, { delay: 0.24 + index * 0.07, y: 8, scale: 0.85 })} className="rounded-lg border border-[#8b7cff]/30 bg-[#6a43ff]/15 px-2 py-1 font-sans text-[8px] font-bold text-white/74">{chip}</motion.span>
+          ))}
+          <motion.span {...enter(reduce, { delay: 0.38, y: 8, scale: 0.85 })} className="rounded-lg border border-white/10 bg-white/[0.05] px-2 py-1 font-sans text-[8px] font-bold text-white/55">NIVEL</motion.span>
+        </div>
+      </motion.div>
+    </ArtStage>
+  );
+}
+
+function ProfileContactArt({ reduce }) {
+  return (
+    <ArtStage name="profile_contact">
+      <motion.div {...enter(reduce, { delay: 0.05, y: 14 })} className="absolute inset-x-[13%] top-4 rounded-2xl border border-[#35d07f]/26 bg-[#12231d]/95 px-3 py-2.5">
+        <div className="flex items-center gap-2">
+          <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[#35d07f]/40 bg-[#10251d] text-[#7ce6ad]"><Phone size={15} aria-hidden /></span>
+          <div className="min-w-0">
+            <span className="block font-sans text-[8px] font-bold uppercase tracking-[0.12em] text-[#7ce6ad]">Teléfono</span>
+            <span className="block font-bebas-real text-[16px] leading-none tracking-[0.04em] text-white">+54 9 11 ····</span>
+          </div>
+        </div>
+      </motion.div>
+      <motion.div {...enter(reduce, { delay: 0.2, y: 14 })} className="absolute inset-x-[13%] bottom-4 rounded-2xl border border-[#8b7cff]/25 bg-[#171230]/95 px-3 py-2.5">
+        <span className="font-sans text-[8px] font-bold uppercase tracking-[0.12em] text-[#b9a8ff]">Posiciones · máx. 2</span>
+        <div className="mt-2 grid grid-cols-4 gap-1.5">
+          {[
+            { label: 'ARQ', on: false }, { label: 'DEF', on: false }, { label: 'MED', on: true }, { label: 'DEL', on: true },
+          ].map((chip, index) => (
+            <motion.span
+              key={chip.label}
+              {...enter(reduce, { delay: 0.3 + index * 0.06, scale: 0.8 })}
+              className={`inline-flex items-center justify-center rounded-md border py-1 font-sans text-[8px] font-bold ${chip.on ? 'border-[#8b7cff]/55 bg-[#6a43ff]/35 text-white' : 'border-white/8 bg-white/[0.035] text-white/40'}`}
+            >
+              {chip.label}
+            </motion.span>
+          ))}
+        </div>
+      </motion.div>
+    </ArtStage>
+  );
+}
+
+function ResponsibilityArt({ reduce }) {
+  return (
+    <ArtStage name="responsibility">
+      <div className="flex h-full items-center justify-center">
+        <motion.div {...enter(reduce, { delay: 0.05, scale: 0.8 })} className="relative flex h-[104px] w-[104px] items-center justify-center rounded-full border border-[#9d86ff]/40 bg-[radial-gradient(circle_at_50%_35%,rgba(139,92,255,0.32),rgba(18,14,39,0.96))] shadow-[0_14px_34px_rgba(106,67,255,0.34),inset_0_1px_0_rgba(255,255,255,0.08)]">
+          <span className="font-bebas-real text-[58px] leading-none text-white [text-shadow:0_4px_18px_rgba(139,92,255,0.5)]">5</span>
+          <motion.span {...enter(reduce, { delay: 0.34, scale: 0.6 })} className="absolute -bottom-1 -right-1 inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#6a43ff]/45 bg-[#1a1338] text-[#c9bdff] shadow-[0_6px_16px_rgba(5,3,16,0.5)]">
+            <ShieldCheck size={18} aria-hidden />
+          </motion.span>
+        </motion.div>
+      </div>
+      <motion.span {...enter(reduce, { delay: 0.44, y: 8 })} className="absolute inset-x-0 bottom-2 text-center font-sans text-[8.5px] font-bold uppercase tracking-[0.16em] text-[#b9a8ff]">
+        Responsabilidad
+      </motion.span>
+    </ArtStage>
+  );
+}
+
 function CompletionArt({ reduce }) {
   return (
     <ArtStage name="completion">
@@ -521,6 +601,9 @@ function CompletionArt({ reduce }) {
 }
 
 const ART_COMPONENTS = {
+  profile: ProfileArt,
+  profile_contact: ProfileContactArt,
+  responsibility: ResponsibilityArt,
   intro: IntroArt,
   create: CreateArt,
   whatsapp: WhatsAppArt,

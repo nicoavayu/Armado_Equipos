@@ -4,9 +4,14 @@ import { useAnimatedNavigation } from '../hooks/useAnimatedNavigation';
 import PageTransition from '../components/PageTransition';
 import PageTitle from '../components/PageTitle';
 import ProfileEditor from '../components/ProfileEditor';
+import { useProfileTourTrigger } from '../features/onboarding';
 
 const ProfilePage = () => {
   const { navigateWithAnimation } = useAnimatedNavigation();
+
+  // First visit to Perfil auto-opens the profile tutorial (self-gated: once per
+  // user, never over the general flow or a blocking modal).
+  useProfileTourTrigger();
 
   // Debug: Monitor horizontal overflow offenders in DEV mode
   useEffect(() => {

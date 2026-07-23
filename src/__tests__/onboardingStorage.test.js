@@ -97,6 +97,19 @@ describe('mergeOnboardingStates (cross-device idempotency)', () => {
       celebrated: true,
     });
   });
+
+  test('profile-guide seen flags are monotonic and tracked independently', () => {
+    const local = normalizeOnboardingState({ checklist: { profileStepSeen: true } });
+    const remote = normalizeOnboardingState({ checklist: { profileTourSeen: true } });
+
+    // Each side only saw one guide; the merge must keep both without one hiding
+    // the other, and a later false must never roll a true back.
+    const merged = mergeOnboardingStates(local, remote).checklist;
+    expect(merged).toMatchObject({ profileStepSeen: true, profileTourSeen: true });
+
+    const stale = normalizeOnboardingState({ checklist: { profileTourSeen: false } });
+    expect(mergeOnboardingStates(remote, stale).checklist.profileTourSeen).toBe(true);
+  });
 });
 
 describe('local fallback', () => {

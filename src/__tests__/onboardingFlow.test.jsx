@@ -108,8 +108,18 @@ async function waitLoaded() {
   await waitFor(() => expect(screen.getByTestId('loaded')).toHaveTextContent('true'));
 }
 
-describe('modal → selector → recorridos', () => {
-  test('intro modal advances directly to selector and organizer keeps its real CTA', async () => {
+// intro → "Completá tu perfil" step → goal selector. The profile step is the
+// first recommended step; "Más tarde" continues to the selector without forcing
+// profile completion.
+async function advanceToSelector() {
+  await userEvent.click(screen.getByText('harness-open'));
+  await userEvent.click(await screen.findByRole('button', { name: 'Empezar' }));
+  await userEvent.click(await screen.findByRole('button', { name: 'Más tarde' }));
+  await screen.findByText('¿Qué querés hacer primero?');
+}
+
+describe('modal → perfil → selector → recorridos', () => {
+  test('intro advances through the profile step to the selector and organizer keeps its real CTA', async () => {
     renderApp();
     await waitLoaded();
 
@@ -118,6 +128,8 @@ describe('modal → selector → recorridos', () => {
     expect(screen.getByRole('dialog')).toHaveAttribute('aria-modal', 'true');
 
     await userEvent.click(screen.getByRole('button', { name: 'Empezar' }));
+    expect(await screen.findByRole('heading', { name: 'Completá tu perfil' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Más tarde' }));
     expect(await screen.findByText('¿Qué querés hacer primero?')).toBeInTheDocument();
     expect(screen.queryByText('Tu partido empieza acá.')).not.toBeInTheDocument();
 
@@ -141,8 +153,7 @@ describe('modal → selector → recorridos', () => {
   test('Anterior from the first path step returns to the selector', async () => {
     renderApp();
     await waitLoaded();
-    await userEvent.click(screen.getByText('harness-open'));
-    await userEvent.click(await screen.findByRole('button', { name: 'Empezar' }));
+    await advanceToSelector();
     await userEvent.click(await screen.findByText('Partido Automático'));
     expect(await screen.findByText('Decinos cuándo podés jugar')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /Anterior/i }));
@@ -176,8 +187,7 @@ describe('modal → selector → recorridos', () => {
   test('Explorar para jugar has two useful steps and navigates to Jugar', async () => {
     renderApp({ initialEntries: ['/profile'] });
     await waitLoaded();
-    await userEvent.click(screen.getByText('harness-open'));
-    await userEvent.click(await screen.findByRole('button', { name: 'Empezar' }));
+    await advanceToSelector();
 
     expect(screen.queryByText('Conocer Arma2')).not.toBeInTheDocument();
     await userEvent.click(await screen.findByText('Explorar para jugar'));
@@ -194,8 +204,7 @@ describe('modal → selector → recorridos', () => {
   test('Desafíos is a single educational screen that only completes and navigates', async () => {
     renderApp();
     await waitLoaded();
-    await userEvent.click(screen.getByText('harness-open'));
-    await userEvent.click(await screen.findByRole('button', { name: 'Empezar' }));
+    await advanceToSelector();
     await userEvent.click(await screen.findByText('Desafíos'));
 
     expect(await screen.findByRole('heading', { name: 'Armá tu equipo. Encontrá rival.' })).toBeInTheDocument();
@@ -214,8 +223,7 @@ describe('modal → selector → recorridos', () => {
   test('Estadísticas is a single informational screen with no checklist path or product mutations', async () => {
     renderApp();
     await waitLoaded();
-    await userEvent.click(screen.getByText('harness-open'));
-    await userEvent.click(await screen.findByRole('button', { name: 'Empezar' }));
+    await advanceToSelector();
     await userEvent.click(await screen.findByText('Estadísticas'));
 
     expect(await screen.findByRole('heading', { name: 'Tu año en números' })).toBeInTheDocument();
@@ -231,8 +239,7 @@ describe('modal → selector → recorridos', () => {
   test('a reached final screen shows Cerrar, never Omitir or premature Completado', async () => {
     renderApp();
     await waitLoaded();
-    await userEvent.click(screen.getByText('harness-open'));
-    await userEvent.click(await screen.findByRole('button', { name: 'Empezar' }));
+    await advanceToSelector();
     await userEvent.click(await screen.findByText('Organizar un partido'));
     for (let index = 0; index < 5; index += 1) {
       await userEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
@@ -251,12 +258,57 @@ describe('modal → selector → recorridos', () => {
   test('soft close keeps an in-progress path resumable', async () => {
     renderApp();
     await waitLoaded();
-    await userEvent.click(screen.getByText('harness-open'));
-    await userEvent.click(await screen.findByRole('button', { name: 'Empezar' }));
+    await advanceToSelector();
     await userEvent.click(await screen.findByText('Organizar un partido'));
     await userEvent.click(screen.getByText('harness-close'));
     expect(screen.getByTestId('status')).toHaveTextContent(ONBOARDING_STATUS.IN_PROGRESS);
     expect(screen.getByTestId('path')).toHaveTextContent('organizer');
+  });
+});
+
+describe('paso inicial "Completá tu perfil"', () => {
+  test('appears between the intro and the selector with both CTAs and its secondary copy', async () => {
+    renderApp();
+    await waitLoaded();
+    await userEvent.click(screen.getByText('harness-open'));
+    await userEvent.click(await screen.findByRole('button', { name: 'Empezar' }));
+
+    expect(await screen.findByRole('heading', { name: 'Completá tu perfil' })).toBeInTheDocument();
+    expect(screen.getByText(/Contale a la comunidad un poco más sobre vos/)).toBeInTheDocument();
+    expect(screen.getByText(/tus posiciones, tu nivel autopercibido y un teléfono/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Completar mi perfil' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Más tarde' })).toBeInTheDocument();
+    // The selector has not been reached yet.
+    expect(screen.queryByText('¿Qué querés hacer primero?')).not.toBeInTheDocument();
+  });
+
+  test('"Completar mi perfil" navigates to Perfil and records the step as seen', async () => {
+    renderApp();
+    await waitLoaded();
+    await userEvent.click(screen.getByText('harness-open'));
+    await userEvent.click(await screen.findByRole('button', { name: 'Empezar' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Completar mi perfil' }));
+
+    await waitFor(() => expect(screen.getByTestId('pathname')).toHaveTextContent('/profile'));
+    await waitFor(() => expect(screen.getByTestId('active')).toHaveTextContent('false'));
+    const stepSeen = saveOnboardingState.mock.calls
+      .map((call) => call[1])
+      .find((saved) => saved.checklist?.profileStepSeen === true);
+    expect(stepSeen).toBeTruthy();
+    // The general flow is not marked completed just for visiting Perfil.
+    expect(stepSeen.checklist?.profileTourSeen).not.toBe(true);
+  });
+
+  test('"Más tarde" records the step as seen and continues to the selector', async () => {
+    renderApp();
+    await waitLoaded();
+    await advanceToSelector();
+
+    const stepSeen = saveOnboardingState.mock.calls
+      .map((call) => call[1])
+      .find((saved) => saved.checklist?.profileStepSeen === true);
+    expect(stepSeen).toBeTruthy();
+    expect(screen.getByTestId('pathname')).toHaveTextContent('/');
   });
 });
 

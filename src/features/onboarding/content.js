@@ -48,6 +48,62 @@ export const welcomeContent = Object.freeze({
   secondaryCta: 'Ahora no',
 });
 
+// First recommended step of the general onboarding, shown after the intro and
+// BEFORE the goal selector. It only invites the user to complete their profile
+// (or continue) — it never forces profile completion to keep using the app.
+export const profileStepContent = Object.freeze({
+  title: 'Completá tu perfil',
+  description: 'Contale a la comunidad un poco más sobre vos y ayudá a que los demás jugadores sepan cómo jugás.',
+  secondary: 'Podés indicar tus posiciones, tu nivel autopercibido y un teléfono de contacto.',
+  primaryCta: 'Completar mi perfil',
+  // Discreet "continue without completing now" option that advances the
+  // onboarding to the goal selector.
+  secondaryCta: 'Más tarde',
+});
+
+// Standalone three-slide tutorial shown the first time a user opens the Perfil
+// tab. Persisted independently from the general onboarding (see
+// checklist.profileTourSeen) so neither flow can hide the other.
+export const profileTourContent = Object.freeze({
+  slides: [
+    {
+      key: 'about',
+      title: 'Completá tu perfil',
+      description: 'Agregá información sobre vos para que la comunidad pueda conocerte mejor antes de compartir un partido.',
+      art: 'profile',
+    },
+    {
+      key: 'contact',
+      title: 'Contá cómo jugás',
+      description: 'Completá tu teléfono de contacto y elegí hasta dos posiciones en las que podés jugar.',
+      // Copy matches the real visibility rule: the phone is only shown to admins
+      // (see ProfileEditor's "solo visible para admins" label). It is never public.
+      note: 'Tu teléfono permite que los administradores puedan contactarte cuando sea necesario para organizar un partido.',
+      art: 'profile_contact',
+    },
+    {
+      key: 'score',
+      title: 'Tu puntaje habla de responsabilidad',
+      // Slide 3 is the most important: the score is about responsibility, not
+      // football skill. Keep it free of internal formulas or exact penalties.
+      lead: 'El puntaje no mide qué tan bien jugás al fútbol.',
+      description: 'Todos comienzan con 5 puntos. Este valor refleja tu compromiso y responsabilidad con la comunidad.',
+      detail: 'Puede disminuir si faltás a partidos sin aviso o si tenés comportamientos irresponsables.',
+      levelNote: 'Tu nivel futbolístico se refleja en el nivel autopercibido, no en este puntaje.',
+      closing: 'Jugá, cumplí y cuidá a la comunidad.',
+      art: 'responsibility',
+    },
+  ],
+  // The final CTA leads back to the editable fields on manual entry. Copy adapts
+  // when the profile already has its key data (see resolveProfileTourCta). When
+  // opened from the general onboarding, closing resumes the goal selector, so the
+  // CTA reads "Continuar" instead of pointing at the (soon-covered) form.
+  primaryCta: 'Completar mi perfil',
+  primaryCtaComplete: 'Ver mi perfil',
+  primaryCtaOnboarding: 'Continuar',
+  secondaryCta: 'Ahora no',
+});
+
 export const goalSelectorContent = Object.freeze({
   title: '¿Qué querés hacer primero?',
   options: [
