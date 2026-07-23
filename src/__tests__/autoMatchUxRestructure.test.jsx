@@ -103,6 +103,15 @@ const ACTIVE_AVAILABILITY = {
   can_organize: true,
 };
 
+// Reloj congelado de la suite. isLiveGestation compara las fechas de las
+// propuestas contra Date.now(): si el test dependiera de la fecha real del
+// sistema, las fechas hardcodeadas (2026-07-20/25) vencerían con el paso del
+// tiempo y las gestaciones dejarían de ser "vivas". Congelamos Date.now() a un
+// instante fijo ANTERIOR a esas fechas, de modo que la suite se comporte igual
+// cualquier día del año sin tocar los timers reales (setTimeout/RAF que usan
+// React Testing Library y el polling del componente siguen siendo reales).
+const FROZEN_NOW = Date.parse('2026-07-14T15:00:00.000Z');
+
 // 22 requiere acción (respuesta pendiente) pese a ser más lejano; 11 ya está confirmado.
 const PROPOSALS = [
   {
@@ -144,6 +153,8 @@ const renderScreen = (initialEntry = '/quiero-jugar?auto=1') => render(
 beforeEach(() => {
   // El proyecto corre con resetMocks: true (react-scripts), así que las
   // implementaciones se limpian antes de cada test y hay que re-aplicarlas acá.
+  // Por el mismo motivo el spy de Date.now se re-instala en cada test.
+  jest.spyOn(Date, 'now').mockReturnValue(FROZEN_NOW);
   currentAvailability = null;
   currentProposals = [];
   membersById = {};

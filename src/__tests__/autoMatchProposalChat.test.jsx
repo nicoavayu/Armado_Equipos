@@ -99,6 +99,12 @@ const ACTIVE_AVAILABILITY = {
   can_organize: true,
 };
 
+// Reloj congelado de la suite: isLiveGestation compara proposed_starts_at /
+// expires_at contra Date.now(). Con la fecha real, la propuesta base
+// (2026-07-20) vencería con el tiempo y dejaría de exponer el chat. Congelamos
+// Date.now() a un instante fijo anterior, sin tocar los timers reales.
+const FROZEN_NOW = Date.parse('2026-07-14T15:00:00.000Z');
+
 const baseProposal = (overrides = {}) => ({
   id: 55,
   format: 'F5',
@@ -126,6 +132,8 @@ const renderDetail = () => render(
 );
 
 beforeEach(() => {
+  // resetMocks: true limpia el spy antes de cada test; se re-instala acá.
+  jest.spyOn(Date, 'now').mockReturnValue(FROZEN_NOW);
   currentAvailability = ACTIVE_AVAILABILITY;
   currentProposals = [baseProposal()];
   membersById = { 55: MEMBERS };
