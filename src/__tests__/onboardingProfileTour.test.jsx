@@ -11,6 +11,8 @@ import {
   Routes,
   Route,
   useLocation,
+  useNavigate,
+  useNavigationType,
 } from 'react-router-dom';
 
 import OnboardingProvider, { useOnboarding } from '../features/onboarding/OnboardingProvider';
@@ -363,5 +365,168 @@ describe('continuidad: onboarding → Perfil → selector', () => {
     fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
 
     expect(await screen.findByText('¿Qué querés hacer primero?')).toBeInTheDocument();
+  });
+});
+
+// ---- Consume-once of the navigation-state marker (onboardingProfileTour) -------
+// Arriving from the onboarding profile step carries `state.onboardingProfileTour`
+// on a single /profile history entry. The trigger must capture the origin and
+// then consume the marker EXACTLY ONCE (via replace), so a browser back/forward
+// or an in-place account switch on that same entry cannot reopen the tour as an
+// onboarding continuation for the wrong user.
+function LocationStateProbe() {
+  const location = useLocation();
+  const navigationType = useNavigationType();
+  return (
+    <div>
+      <span data-testid="loc-pathname">{location.pathname}</span>
+      <span data-testid="loc-search">{location.search}</span>
+      <span data-testid="loc-hash">{location.hash}</span>
+      <span data-testid="loc-state">{JSON.stringify(location.state)}</span>
+      <span data-testid="nav-type">{navigationType}</span>
+    </div>
+  );
+}
+
+function NavControls() {
+  const navigate = useNavigate();
+  return (
+    <>
+      <button type="button" onClick={() => navigate(-1)}>go-back</button>
+      <button type="button" onClick={() => navigate(1)}>go-forward</button>
+    </>
+  );
+}
+
+// Perfil surface hosting the trigger; also exposes loaded/tour-open like the other
+// harnesses so waitLoaded() works.
+function ConsumeProfileProbe() {
+  useProfileTourTrigger();
+  const onboarding = useOnboarding();
+  return (
+    <div>
+      <span data-testid="loaded">{String(onboarding.stateLoaded)}</span>
+      <span data-testid="tour-open">{String(onboarding.profileTourOpen)}</span>
+      <div data-profile-tour-target="telefono">
+        <input aria-label="Teléfono" />
+      </div>
+    </div>
+  );
+}
+
+function consumeTree() {
+  return (
+    <OnboardingProvider>
+      <Routes>
+        <Route path="/home" element={<div>home-route</div>} />
+        <Route path="/profile" element={<ConsumeProfileProbe />} />
+      </Routes>
+      <LocationStateProbe />
+      <NavControls />
+      <OnboardingHost />
+    </OnboardingProvider>
+  );
+}
+
+// A prior /home entry sits under the /profile entry so we can prove `replace`
+// (going back must land on /home, never a duplicate /profile).
+function renderConsume(entry) {
+  return render(
+    <MemoryRouter initialEntries={['/home', entry]} initialIndex={1}>
+      {consumeTree()}
+    </MemoryRouter>,
+  );
+}
+
+describe('consume-once del navigation state (onboardingProfileTour)', () => {
+  test('captures the onboarding origin, then strips ONLY the marker via replace, keeping search, hash and sibling state', async () => {
+    renderConsume({
+      pathname: '/profile',
+      search: '?ref=abc',
+      hash: '#seccion',
+      state: { onboardingProfileTour: true, returnTo: '/home' },
+    });
+    await waitLoaded();
+
+    // The origin was captured as 'onboarding': the final CTA reads "Continuar".
+    await advanceToFinalSlide();
+    expect(screen.getByRole('button', { name: 'Continuar' })).toBeInTheDocument();
+
+    // Only the marker was removed; the rest of the entry survived intact.
+    await waitFor(() => expect(screen.getByTestId('loc-state')).toHaveTextContent('{"returnTo":"/home"}'));
+    expect(screen.getByTestId('loc-state')).not.toHaveTextContent('onboardingProfileTour');
+    expect(screen.getByTestId('loc-pathname')).toHaveTextContent('/profile');
+    expect(screen.getByTestId('loc-search')).toHaveTextContent('?ref=abc');
+    expect(screen.getByTestId('loc-hash')).toHaveTextContent('#seccion');
+    // It replaced the current entry (no extra history push) and never stacked overlays.
+    expect(screen.getByTestId('nav-type')).toHaveTextContent('REPLACE');
+    expect(onboardingRootCount()).toBe(1);
+  });
+
+  test('when the marker is the only state, the entry state resets to null (not left dangling)', async () => {
+    renderConsume({ pathname: '/profile', state: { onboardingProfileTour: true } });
+    await waitLoaded();
+    await screen.findByRole('heading', { name: 'Completá tu perfil' });
+
+    await waitFor(() => expect(screen.getByTestId('loc-state').textContent).toBe('null'));
+    expect(screen.getByTestId('nav-type')).toHaveTextContent('REPLACE');
+  });
+
+  test('consumes the marker exactly once: back returns to the previous entry and forward carries no marker', async () => {
+    renderConsume({ pathname: '/profile', state: { onboardingProfileTour: true } });
+    await waitLoaded();
+    await screen.findByRole('heading', { name: 'Completá tu perfil' });
+    await waitFor(() => expect(screen.getByTestId('loc-state').textContent).toBe('null'));
+
+    // Because we replaced (not pushed), going back lands on /home directly — there
+    // is no duplicate /profile entry still holding the marker.
+    await userEvent.click(screen.getByText('go-back'));
+    await waitFor(() => expect(screen.getByTestId('loc-pathname')).toHaveTextContent('/home'));
+    expect(screen.getByText('home-route')).toBeInTheDocument();
+
+    // Forward returns to the same (already-consumed) /profile entry: still no marker.
+    await userEvent.click(screen.getByText('go-forward'));
+    await waitFor(() => expect(screen.getByTestId('loc-pathname')).toHaveTextContent('/profile'));
+    expect(screen.getByTestId('loc-state').textContent).toBe('null');
+  });
+
+  test('an in-place account switch on the same /profile entry does NOT inherit the onboarding origin', async () => {
+    useAuth.mockReturnValue({ user: NEW_USER, profile: { nombre: 'P' }, authResolved: true });
+
+    const { rerender } = render(
+      <MemoryRouter
+        initialEntries={['/home', { pathname: '/profile', state: { onboardingProfileTour: true } }]}
+        initialIndex={1}
+      >
+        {consumeTree()}
+      </MemoryRouter>,
+    );
+    await waitLoaded();
+
+    // Account A: onboarding-origin tour ("Continuar"); marker already consumed.
+    await advanceToFinalSlide();
+    expect(screen.getByRole('button', { name: 'Continuar' })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId('loc-state').textContent).toBe('null'));
+
+    // Switch to account B (fresh, tutorial not seen) on the SAME history entry.
+    // MemoryRouter keeps its evolved history across rerenders, so B lands on the
+    // already-cleared /profile entry.
+    useAuth.mockReturnValue({ user: OTHER_USER, profile: { nombre: 'Q' }, authResolved: true });
+    rerender(
+      <MemoryRouter
+        initialEntries={['/home', { pathname: '/profile', state: { onboardingProfileTour: true } }]}
+        initialIndex={1}
+      >
+        {consumeTree()}
+      </MemoryRouter>,
+    );
+    await waitLoaded();
+
+    // B's tour opens as a MANUAL entry. Closing it (X) must keep B in Perfil and
+    // never resume the general onboarding — proving B did not inherit 'onboarding'.
+    await screen.findByRole('button', { name: 'Siguiente' });
+    await userEvent.click(screen.getByRole('button', { name: 'Cerrar tutorial' }));
+    await waitFor(() => expect(screen.getByTestId('tour-open')).toHaveTextContent('false'));
+    expect(screen.queryByText('¿Qué querés hacer primero?')).not.toBeInTheDocument();
   });
 });
