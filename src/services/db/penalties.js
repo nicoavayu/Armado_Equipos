@@ -1,5 +1,6 @@
 import logger from '../../utils/logger';
 import { supabase } from '../../lib/supabaseClient';
+import { isMissingRpcError } from '../../utils/backendFallback';
 import {
   applyPlayerRatingDelta,
   clampPlayerRating,
@@ -935,12 +936,12 @@ export async function reconcileNoShowUserAggregates(userIds, options = {}) {
   };
 }
 
-export async function ensureNoShowRanking(matchId, options = {}) {
+// Legacy client-side no-show processing. Retained ONLY as a rollout fallback
+// for when the authoritative RPC process_match_no_show_ranking is not deployed
+// yet (PGRST202). Once Stage B revokes direct rating_adjustments writes, this
+// path is rejected by the DB — by then the RPC is the primary path.
+async function ensureNoShowRankingLegacy(matchId, options = {}) {
   const id = Number(matchId);
-  if (!Number.isFinite(id) || id <= 0) {
-    return { data: [], error: new Error('invalid_match_id') };
-  }
-
   const emitNotifications = options.emitNotifications !== false;
   const userIdsRes = await fetchRegisteredUserIdsForMatch(id);
   if (userIdsRes.error) return { data: [], error: userIdsRes.error };
@@ -969,4 +970,47 @@ export async function ensureNoShowRanking(matchId, options = {}) {
     recoveriesApplied: recoveriesRes.data || [],
     reconciledUsers: reconcileRes.data || [],
   };
+}
+
+export async function ensureNoShowRanking(matchId, options = {}) {
+  const id = Number(matchId);
+  if (!Number.isFinite(id) || id <= 0) {
+    return { data: [], error: new Error('invalid_match_id') };
+  }
+
+  const emitNotifications = options.emitNotifications !== false;
+
+  // Primary path: the authoritative, transactional, idempotent RPC. It
+  // recomputes penalties/recoveries only from post_match_surveys and writes
+  // rating_adjustments + no_show_recovery_state + usuarios aggregates server-side.
+  const { data: rpcData, error: rpcError } = await supabase.rpc('process_match_no_show_ranking', {
+    p_partido_id: id,
+    p_emit_notifications: emitNotifications,
+  });
+
+  if (!rpcError) {
+    const penalized = Array.isArray(rpcData?.penalized) ? rpcData.penalized : [];
+    const recovered = Array.isArray(rpcData?.recovered) ? rpcData.recovered : [];
+    return {
+      data: dedupeUserIds([...penalized, ...recovered]),
+      error: null,
+      penaltiesApplied: penalized,
+      recoveriesApplied: recovered,
+      reconciledUsers: dedupeUserIds([...penalized, ...recovered]),
+    };
+  }
+
+  // Strict fallback: ONLY when the RPC is not deployed yet. Any other error
+  // (auth/validation/business/SQL) is a real answer and must surface.
+  if (!isMissingRpcError(rpcError)) {
+    logger.error('[NO_SHOW] process_match_no_show_ranking failed', {
+      partidoId: id,
+      code: rpcError?.code,
+      message: rpcError?.message,
+    });
+    return { data: [], error: rpcError };
+  }
+
+  logger.warn('[NO_SHOW] RPC not deployed yet; using legacy client path', { partidoId: id });
+  return ensureNoShowRankingLegacy(id, options);
 }
