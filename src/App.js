@@ -16,6 +16,7 @@ import GlobalNoticeModal from './components/GlobalNoticeModal';
 
 import MainLayout from './components/MainLayout';
 import PublicVotingRouteIsolation from './components/PublicVotingRouteIsolation';
+import TorneosFeatureGate from './features/torneos/TorneosFeatureGate';
 import { initNativePushNotifications } from './hooks/useNativeFeatures';
 import { useNotificationRedirect } from './hooks/useNotificationRedirect';
 import { useRouteScrollReset } from './hooks/useScrollReset';
@@ -266,6 +267,8 @@ export default function App() {
                         </Suspense>
                       } />
                     </Route>
+                    {/* Independent authenticated shell. The gate is fail-closed in production. */}
+                    <Route path="torneos/*" element={<TorneosFeatureGate />} />
                   </Route>
                   </Routes>
                 </PublicVotingRouteIsolation>
