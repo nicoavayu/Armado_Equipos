@@ -53,10 +53,13 @@ AS $$
 DECLARE
   v_actor uuid := auth.uid();
   v_actor_name text;
-  v_recipient_name text;
   v_match_id bigint := NULLIF(p_context->>'match_id', '')::bigint;
   v_match_name text;
   v_authorized boolean := false;
+  v_sender_in_match boolean := false;
+  v_recipient_in_match boolean := false;
+  v_award_type text := NULLIF(p_context->>'award_type', '');
+  v_award_label text;
   v_title text;
   v_message text;
   v_data jsonb;
@@ -79,49 +82,59 @@ BEGIN
   IF v_match_id IS NOT NULL THEN
     SELECT COALESCE(NULLIF(btrim(nombre), ''), 'el partido') INTO v_match_name
     FROM public.partidos WHERE id = v_match_id;
+    v_sender_in_match :=
+      EXISTS (SELECT 1 FROM public.partidos p WHERE p.id = v_match_id AND p.creado_por = v_actor)
+      OR EXISTS (SELECT 1 FROM public.jugadores j WHERE j.partido_id = v_match_id AND j.usuario_id = v_actor);
+    v_recipient_in_match :=
+      EXISTS (SELECT 1 FROM public.jugadores j WHERE j.partido_id = v_match_id AND j.usuario_id = p_recipient_id)
+      OR EXISTS (SELECT 1 FROM public.partidos p WHERE p.id = v_match_id AND p.creado_por = p_recipient_id);
+    v_data := jsonb_build_object('match_id', v_match_id, 'matchId', v_match_id, 'partido_id', v_match_id);
   END IF;
 
-  -- Per-type authorization + server-generated content. Free text from the
-  -- client is never used; only typed IDs in p_context are read.
+  -- Per-type authorization + server-generated content. Only typed IDs from
+  -- p_context are read; client title/message/data are NEVER used.
   CASE v_type
+    -- ---- Friendship: require a REAL relationship row (no arbitrary events) --
     WHEN 'friend_request' THEN
       IF p_recipient_id = v_actor THEN RAISE EXCEPTION 'cannot_notify_self'; END IF;
-      v_authorized := true; -- anyone may request friendship of anyone
+      v_authorized := EXISTS (
+        SELECT 1 FROM public.amigos a
+        WHERE a.user_id = v_actor AND a.friend_id = p_recipient_id
+          AND lower(COALESCE(a.status, 'pending')) = 'pending'
+      );
       v_title := 'Solicitud de amistad';
       v_message := v_actor_name || ' te envió una solicitud de amistad';
       v_data := jsonb_build_object('sender_id', v_actor, 'sender_name', v_actor_name);
 
     WHEN 'friend_accepted' THEN
+      -- actor accepted a request the recipient originally sent
       v_authorized := EXISTS (
         SELECT 1 FROM public.amigos a
-        WHERE ((a.user_id = v_actor AND a.friend_id = p_recipient_id)
-            OR (a.user_id = p_recipient_id AND a.friend_id = v_actor))
+        WHERE a.user_id = p_recipient_id AND a.friend_id = v_actor
+          AND lower(COALESCE(a.status, '')) = 'accepted'
       );
       v_title := 'Solicitud de amistad aceptada';
       v_message := v_actor_name || ' aceptó tu solicitud de amistad';
       v_data := jsonb_build_object('sender_id', v_actor, 'sender_name', v_actor_name);
 
     WHEN 'friend_rejected' THEN
-      v_authorized := (p_recipient_id <> v_actor);
+      -- a request from recipient -> actor must have existed (now rejected)
+      v_authorized := EXISTS (
+        SELECT 1 FROM public.amigos a
+        WHERE a.user_id = p_recipient_id AND a.friend_id = v_actor
+          AND lower(COALESCE(a.status, '')) = 'rejected'
+      );
       v_title := 'Solicitud de amistad rechazada';
       v_message := 'Tu solicitud de amistad ha sido rechazada';
       v_data := jsonb_build_object('sender_id', v_actor);
 
+    -- ---- Match events: sender AND recipient must belong to the match -------
     WHEN 'match_update', 'match_kicked', 'match_cancelled', 'falta_jugadores',
-         'call_to_vote', 'pre_match_vote', 'match_player_joined' THEN
+         'call_to_vote', 'pre_match_vote', 'match_player_joined',
+         'survey_start', 'survey_reminder', 'survey_finished', 'survey_results_ready',
+         'awards_ready', 'mvp' THEN
       IF v_match_id IS NULL THEN RAISE EXCEPTION 'match_id_required'; END IF;
-      -- sender must be the match creator/admin or a participant
-      v_authorized := EXISTS (
-        SELECT 1 FROM public.partidos p WHERE p.id = v_match_id AND p.creado_por = v_actor
-      ) OR EXISTS (
-        SELECT 1 FROM public.jugadores j WHERE j.partido_id = v_match_id AND j.usuario_id = v_actor
-      );
-      -- recipient must be a participant of that match (or the admin)
-      v_authorized := v_authorized AND (
-        EXISTS (SELECT 1 FROM public.jugadores j WHERE j.partido_id = v_match_id AND j.usuario_id = p_recipient_id)
-        OR EXISTS (SELECT 1 FROM public.partidos p WHERE p.id = v_match_id AND p.creado_por = p_recipient_id)
-      );
-      v_data := jsonb_build_object('match_id', v_match_id, 'matchId', v_match_id, 'partido_id', v_match_id);
+      v_authorized := v_sender_in_match AND v_recipient_in_match;
       CASE v_type
         WHEN 'match_kicked' THEN
           v_title := 'Expulsado del partido';
@@ -141,10 +154,86 @@ BEGIN
         WHEN 'match_player_joined' THEN
           v_title := 'Nuevo jugador';
           v_message := 'Se sumó un jugador al partido "' || v_match_name || '"';
+        WHEN 'survey_start' THEN
+          v_title := '¡Encuesta lista!';
+          v_message := 'Ya podés completar la encuesta del partido "' || v_match_name || '".';
+        WHEN 'survey_reminder' THEN
+          v_title := 'Recordatorio de encuesta';
+          v_message := 'No te olvides de completar la encuesta del partido "' || v_match_name || '".';
+        WHEN 'survey_finished' THEN
+          v_title := 'Encuesta cerrada';
+          v_message := 'La encuesta del partido "' || v_match_name || '" se cerró.';
+        WHEN 'survey_results_ready' THEN
+          v_title := 'Resultados listos';
+          v_message := 'Ya están los resultados del partido "' || v_match_name || '".';
+        WHEN 'awards_ready' THEN
+          v_title := 'Premios listos';
+          v_message := 'Ya están los premios del partido "' || v_match_name || '".';
+        WHEN 'mvp' THEN
+          v_title := 'MVP del partido';
+          v_message := 'Se eligió el MVP del partido "' || v_match_name || '".';
         ELSE
           v_title := 'Actualización del partido';
           v_message := 'Hay novedades en el partido "' || v_match_name || '"';
       END CASE;
+
+    -- ---- Match join request: requester (sender) -> match admin (recipient) -
+    WHEN 'match_join_request' THEN
+      IF v_match_id IS NULL THEN RAISE EXCEPTION 'match_id_required'; END IF;
+      v_authorized := EXISTS (
+        SELECT 1 FROM public.partidos p WHERE p.id = v_match_id AND p.creado_por = p_recipient_id
+      );
+      v_title := 'Solicitud para unirse';
+      v_message := v_actor_name || ' quiere unirse al partido "' || v_match_name || '"';
+
+    -- ---- Payments -----------------------------------------------------------
+    WHEN 'payment_reported' THEN
+      IF v_match_id IS NULL THEN RAISE EXCEPTION 'match_id_required'; END IF;
+      v_authorized := v_sender_in_match AND v_recipient_in_match;
+      v_title := 'Pago a confirmar';
+      v_message := v_actor_name || ' avisó que pagó "' || v_match_name || '".';
+
+    WHEN 'payment_reminder', 'payment_admin' THEN
+      IF v_match_id IS NULL THEN RAISE EXCEPTION 'match_id_required'; END IF;
+      v_authorized := EXISTS (
+        SELECT 1 FROM public.partidos p WHERE p.id = v_match_id AND p.creado_por = v_actor
+      ) AND v_recipient_in_match;
+      v_title := 'Pago pendiente';
+      v_message := 'Tenés pendiente el pago de "' || v_match_name || '".';
+
+    -- ---- Awards: finalizer (sender in match) -> winning participant --------
+    WHEN 'award_won' THEN
+      IF v_match_id IS NULL THEN RAISE EXCEPTION 'match_id_required'; END IF;
+      v_authorized := v_sender_in_match AND v_recipient_in_match;
+      v_award_label := CASE v_award_type
+        WHEN 'mvp' THEN 'MVP'
+        WHEN 'best_gk' THEN 'Mejor Arquero'
+        WHEN 'red_card' THEN 'Jugador más sucio'
+        ELSE 'Premio'
+      END;
+      v_title := 'Ganaste un premio: ' || v_award_label;
+      v_message := 'Ganaste "' || v_award_label || '" en el partido "' || v_match_name || '".';
+      v_data := COALESCE(v_data, '{}'::jsonb) || jsonb_build_object('award_type', COALESCE(v_award_type, 'award'), 'award_label', v_award_label);
+
+    -- ---- Team challenge: challenge notifications cross the two rival teams,
+    -- so we require BOTH sender and recipient to be team members (any team).
+    -- This is a coarse server-side gate that blocks non-team users; precise
+    -- "same challenge" validation needs the team_challenges schema and is a
+    -- documented pre-Stage-B follow-up. Content is server-generated.
+    WHEN 'team_challenge_accepted', 'challenge', 'team_match' THEN
+      v_authorized :=
+        EXISTS (
+          SELECT 1 FROM public.team_members tm
+          JOIN public.jugadores j ON j.id = tm.jugador_id
+          WHERE j.usuario_id = v_actor
+        )
+        AND EXISTS (
+          SELECT 1 FROM public.team_members tm
+          JOIN public.jugadores j ON j.id = tm.jugador_id
+          WHERE j.usuario_id = p_recipient_id
+        );
+      v_title := 'Novedades del desafío';
+      v_message := 'Hay novedades en tu desafío de equipos.';
 
     ELSE
       RAISE EXCEPTION 'unsupported_notification_type: %', v_type USING ERRCODE = '22023';

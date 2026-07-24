@@ -136,23 +136,32 @@ serve(async (req) => {
 
   const sinceIso = new Date(Date.now() - RATE_LIMIT_WINDOW_MS).toISOString()
 
-  // 4) one session = one slot: reject if this session already bound another slot
-  const { data: sessionRows } = await supabase
+  // 4) DURABLE one-session=one-slot binding (permanent, survives the token
+  // window). bind_voting_photo_slot atomically binds this session to the
+  // requested player (if unbound) and returns the bound player_id; a mismatch
+  // means the session already owns a different slot.
+  const { data: boundPlayer, error: bindError } = await supabase.rpc("bind_voting_photo_slot", {
+    p_match_id: matchId,
+    p_guest_session_id: guestSessionId,
+    p_player_id: playerId,
+  })
+  if (bindError) return jsonResponse(cors, 500, { error: "claim_failed" })
+  if (Number(boundPlayer) !== playerId) {
+    return jsonResponse(cors, 409, { error: "session_claimed_other_slot" })
+  }
+
+  // 5) per-session token rate limit (prevents token spam within the window)
+  const { count: sessionTokens } = await supabase
     .from("voting_photo_upload_tokens")
-    .select("player_id, created_at")
+    .select("token_hash", { count: "exact", head: true })
     .eq("match_id", matchId)
     .eq("guest_session_id", guestSessionId)
     .gte("created_at", sinceIso)
-  if (Array.isArray(sessionRows)) {
-    if (sessionRows.some((r) => Number(r.player_id) !== playerId)) {
-      return jsonResponse(cors, 409, { error: "session_claimed_other_slot" })
-    }
-    if (sessionRows.length >= RATE_LIMIT_MAX_SESSION_TOKENS) {
-      return jsonResponse(cors, 429, { error: "rate_limited" })
-    }
+  if (Number(sessionTokens ?? 0) >= RATE_LIMIT_MAX_SESSION_TOKENS) {
+    return jsonResponse(cors, 429, { error: "rate_limited" })
   }
 
-  // 5) per-match rate limit
+  // 6) per-match rate limit
   const { count: matchCount } = await supabase
     .from("voting_photo_upload_tokens")
     .select("token_hash", { count: "exact", head: true })
@@ -162,7 +171,7 @@ serve(async (req) => {
     return jsonResponse(cors, 429, { error: "rate_limited" })
   }
 
-  // 6) mint single-use token
+  // 7) mint single-use token
   const token = crypto.randomUUID() + crypto.randomUUID().replaceAll("-", "")
   const tokenHash = await sha256Hex(token)
   const expiresAt = new Date(Date.now() + TOKEN_TTL_MS).toISOString()

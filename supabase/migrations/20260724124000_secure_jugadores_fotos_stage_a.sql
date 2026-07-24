@@ -56,6 +56,56 @@ GRANT ALL ON public.voting_photo_upload_tokens TO service_role;
 COMMENT ON TABLE public.voting_photo_upload_tokens
   IS 'Single-use, short-lived capability tokens binding a guest voting session to one match/player slot for avatar upload. Written/consumed only by Edge Functions (service_role).';
 
+-- Durable session->slot binding (survives the short token window). A guest
+-- session may only ever upload for the ONE player slot it first claimed, even
+-- after the rate-limit / token window elapses. PK enforces one slot per
+-- (match, session). service_role only.
+CREATE TABLE IF NOT EXISTS public.voting_photo_slot_claims (
+  match_id bigint NOT NULL,
+  guest_session_id text NOT NULL,
+  player_id bigint NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (match_id, guest_session_id)
+);
+ALTER TABLE public.voting_photo_slot_claims ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.voting_photo_slot_claims FROM anon, authenticated;
+GRANT ALL ON public.voting_photo_slot_claims TO service_role;
+
+COMMENT ON TABLE public.voting_photo_slot_claims
+  IS 'Durable (match_id, guest_session_id) -> player_id binding for guest photo uploads. Prevents a session from switching slots regardless of elapsed time. service_role only.';
+
+-- Atomic, permanent claim: binds the session to the requested player if unbound,
+-- and ALWAYS returns the bound player_id. The caller (Edge Function) rejects when
+-- the returned id differs from the requested one (session already owns another
+-- slot). ON CONFLICT DO NOTHING makes concurrent claims deterministic.
+CREATE OR REPLACE FUNCTION public.bind_voting_photo_slot(
+  p_match_id bigint,
+  p_guest_session_id text,
+  p_player_id bigint
+)
+RETURNS bigint
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_bound bigint;
+BEGIN
+  INSERT INTO public.voting_photo_slot_claims (match_id, guest_session_id, player_id)
+  VALUES (p_match_id, p_guest_session_id, p_player_id)
+  ON CONFLICT (match_id, guest_session_id) DO NOTHING;
+
+  SELECT player_id INTO v_bound
+  FROM public.voting_photo_slot_claims
+  WHERE match_id = p_match_id AND guest_session_id = p_guest_session_id;
+
+  RETURN v_bound;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.bind_voting_photo_slot(bigint, text, bigint) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.bind_voting_photo_slot(bigint, text, bigint) TO service_role;
+
 -- ---------------------------------------------------------------------------
 -- 2. Remove anon/authenticated UPDATE (overwrite-anyone hole).
 -- ---------------------------------------------------------------------------
@@ -110,5 +160,7 @@ COMMIT;
 -- CREATE POLICY jugadores_fotos_anon_authenticated_update ON storage.objects
 --   FOR UPDATE TO anon, authenticated
 --   USING (bucket_id = 'jugadores-fotos') WITH CHECK (bucket_id = 'jugadores-fotos');
+-- DROP FUNCTION IF EXISTS public.bind_voting_photo_slot(bigint, text, bigint);
+-- DROP TABLE IF EXISTS public.voting_photo_slot_claims;
 -- DROP TABLE IF EXISTS public.voting_photo_upload_tokens;
 -- COMMIT;

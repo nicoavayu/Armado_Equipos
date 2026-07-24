@@ -69,6 +69,12 @@ describe('security patch — Stage A: no-show ranking (M1)', () => {
     expect(code).toContain('rating_adjustments_amount_domain_check');
     expect(code).toContain('NOT VALID');
   });
+
+  test('rejects premature calls: requires survey closed AND results_ready', () => {
+    expect(code).toContain('survey_not_closed');
+    expect(code).toContain('results_ready IS TRUE');
+    expect(code).toMatch(/survey_status[^\n]*=\s*'closed'/);
+  });
 });
 
 describe('security patch — Stage A: notifications (M3)', () => {
@@ -100,6 +106,44 @@ describe('security patch — Stage A: notifications (M3)', () => {
 
   test('does NOT keep a blanket WITH CHECK (true)', () => {
     expect(code).not.toMatch(/WITH CHECK \(true\)/);
+  });
+
+  test('friendship types require a real amigos relationship (not just recipient != actor)', () => {
+    // friend_request -> pending, friend_accepted -> accepted, friend_rejected -> rejected
+    expect(code).toMatch(/'pending'/);
+    expect(code).toMatch(/'accepted'/);
+    expect(code).toMatch(/'rejected'/);
+    expect(code).toContain('public.amigos');
+    // the weak "p_recipient_id <> v_actor" gate must be gone for friend_rejected
+    expect(code).not.toContain('v_authorized := (p_recipient_id <> v_actor)');
+  });
+
+  test('covers the cross-user domains routed from the client', () => {
+    ['payment_reported', 'payment_reminder', 'award_won', 'team_challenge_accepted',
+      'match_join_request', 'survey_finished'].forEach((t) => expect(code).toContain(t));
+  });
+});
+
+describe('security patch — Stage A: harden existing notification RPCs (M3)', () => {
+  const { code, normalized } = load(fileFor('harden_notification_rpc_content_stage_a.sql'));
+
+  test('wrapped in a transaction', () => {
+    expect(normalized).toContain('BEGIN;');
+    expect(normalized).toContain('COMMIT;');
+  });
+
+  test('neutralises the send_match_invite title/message passthrough', () => {
+    expect(code).toContain('pg_get_functiondef');
+    expect(code).toContain('regexp_replace');
+    expect(code).toContain('p_title');
+    expect(code).toContain("'coalesce(NULL::text,'");
+  });
+
+  test('send_call_to_vote hardcodes content and adds a safe search_path', () => {
+    expect(code).toContain('CREATE OR REPLACE FUNCTION public.send_call_to_vote');
+    expect(code).toContain('SET search_path = public');
+    expect(code).toContain("'¡Hora de votar!'");
+    expect(code).toContain('SECURITY DEFINER');
   });
 });
 
@@ -137,6 +181,14 @@ describe('security patch — Stage A: jugadores-fotos storage (M4)', () => {
     expect(code).toContain('CREATE TABLE IF NOT EXISTS public.voting_photo_upload_tokens');
     expect(code).toContain('ENABLE ROW LEVEL SECURITY');
     expect(code).toContain('REVOKE ALL ON public.voting_photo_upload_tokens FROM anon, authenticated');
+  });
+
+  test('creates a durable slot-claim table (PK match_id,guest_session_id) + bind RPC', () => {
+    expect(code).toContain('CREATE TABLE IF NOT EXISTS public.voting_photo_slot_claims');
+    expect(code).toContain('PRIMARY KEY (match_id, guest_session_id)');
+    expect(code).toContain('CREATE OR REPLACE FUNCTION public.bind_voting_photo_slot');
+    expect(code).toContain('ON CONFLICT (match_id, guest_session_id) DO NOTHING');
+    expect(code).toContain('GRANT EXECUTE ON FUNCTION public.bind_voting_photo_slot(bigint, text, bigint) TO service_role');
   });
 
   test('drops anon/authenticated UPDATE (overwrite-anyone hole)', () => {

@@ -29,6 +29,7 @@ const STAGE_A = [
   '20260724122000_secure_notifications_stage_a.sql',
   '20260724123000_secure_survey_progress_stage_a.sql',
   '20260724124000_secure_jugadores_fotos_stage_a.sql',
+  '20260724125000_harden_notification_rpc_content_stage_a.sql',
 ];
 const STAGE_B = [
   '20260724131000_revoke_direct_rating_writes_stage_b.sql',
@@ -389,6 +390,58 @@ async function main() {
   const genTitle = await val(
     "select title from public.notifications where user_id=$1 and type='match_update' order by id desc limit 1", [U.target]);
   ok(genTitle === 'Actualización del partido', 'create_notification generates server-side content (ignores client text)', `got ${genTitle}`);
+
+  console.log('\nStage A — create_notification friendship checks (real relationship required)');
+  await q('reset role');
+  await q("insert into public.amigos (user_id, friend_id, status) values ($1,$2,'accepted')", [U.stranger, U.creator]);
+  await q("insert into public.amigos (user_id, friend_id, status) values ($1,$2,'pending')", [U.creator, U.voterB]);
+  await q("insert into public.amigos (user_id, friend_id, status) values ($1,$2,'rejected')", [U.voterC, U.creator]);
+  // friend_accepted: authorized only with an accepted row (recipient=requester)
+  await expectOk('friend_accepted allowed when an accepted relationship exists', 'authenticated', U.creator,
+    "select public.create_notification('friend_accepted',$1,'{}'::jsonb)", [U.stranger]);
+  await expectError('friend_accepted forbidden without an accepted relationship', 'authenticated', U.creator,
+    /forbidden/, "select public.create_notification('friend_accepted',$1,'{}'::jsonb)", [U.voterC]);
+  // friend_request: authorized only with a pending row (actor->recipient)
+  await expectOk('friend_request allowed when a pending request exists', 'authenticated', U.creator,
+    "select public.create_notification('friend_request',$1,'{}'::jsonb)", [U.voterB]);
+  await expectError('friend_request forbidden without a pending request', 'authenticated', U.creator,
+    /forbidden|cannot_notify_self/, "select public.create_notification('friend_request',$1,'{}'::jsonb)", [U.stranger]);
+  // friend_rejected: authorized only when a rejected request existed (recipient->actor)
+  await expectOk('friend_rejected allowed when a rejected request existed', 'authenticated', U.creator,
+    "select public.create_notification('friend_rejected',$1,'{}'::jsonb)", [U.voterC]);
+  await expectError('friend_rejected forbidden without a prior request (recipient!=actor is not enough)', 'authenticated', U.creator,
+    /forbidden/, "select public.create_notification('friend_rejected',$1,'{}'::jsonb)", [U.voterB]);
+
+  console.log('\nStage A — no-show RPC rejects premature calls (survey not closed / results not ready)');
+  await q('reset role');
+  const openMatch = await val(
+    "insert into public.partidos (codigo,nombre,creado_por,survey_status) values ('OPEN','Abierto',$1,'open') returning id", [U.creator]);
+  const openTarget = await val('insert into public.jugadores (partido_id, usuario_id, nombre) values ($1,$2,$3) returning id', [openMatch, U.target, 'ot']);
+  await q('insert into public.jugadores (partido_id, usuario_id, nombre) values ($1,$2,$3)', [openMatch, U.voterB, 'vb']);
+  await q('insert into public.jugadores (partido_id, usuario_id, nombre) values ($1,$2,$3)', [openMatch, U.voterC, 'vc']);
+  // partial surveys with 2 confirmations, but the survey is NOT closed and no survey_results row exists
+  await q('insert into public.post_match_surveys (partido_id, votante_id, se_jugo, jugadores_ausentes) values ($1,$2,true,$3)', [openMatch, U.voterB, [openTarget]]);
+  await q('insert into public.post_match_surveys (partido_id, votante_id, se_jugo, jugadores_ausentes) values ($1,$2,true,$3)', [openMatch, U.voterC, [openTarget]]);
+  await expectError('premature no-show call is rejected (survey_not_closed)', 'authenticated', U.creator,
+    /survey_not_closed/, 'select public.process_match_no_show_ranking($1)', [openMatch]);
+  ok(Number(await val('select count(*) from public.rating_adjustments where partido_id=$1', [openMatch])) === 0,
+    'no rating adjustment is inserted for a not-closed survey');
+
+  console.log('\nStage A — guest photo durable slot claim (bind_voting_photo_slot)');
+  await q('reset role');
+  ok(Number(await val('select public.bind_voting_photo_slot($1,$2,$3)', [openMatch, 'sessA', 101])) === 101,
+    'first claim binds the session to the requested player');
+  ok(Number(await val('select public.bind_voting_photo_slot($1,$2,$3)', [openMatch, 'sessA', 202])) === 101,
+    'same session cannot switch to another slot (returns the originally-bound player)');
+  // Simulate "after the rate-limit / token window": the binding is durable, not time-limited.
+  await q("update public.voting_photo_slot_claims set created_at = now() - interval '2 hours' where match_id=$1 and guest_session_id='sessA'", [openMatch]);
+  ok(Number(await val('select public.bind_voting_photo_slot($1,$2,$3)', [openMatch, 'sessA', 303])) === 101,
+    'slot cannot change even after the window elapsed (durable claim)');
+  // Concurrent-style: two different players for a fresh session — first wins deterministically.
+  ok(Number(await val('select public.bind_voting_photo_slot($1,$2,$3)', [openMatch, 'sessB', 501])) === 501,
+    'a fresh session binds its first requested player');
+  ok(Number(await val('select public.bind_voting_photo_slot($1,$2,$3)', [openMatch, 'sessB', 502])) === 501,
+    'the losing concurrent claim is rejected (ON CONFLICT DO NOTHING keeps the winner)');
 
   console.log('\nStage A — survey_progress locked down but trigger keeps working');
   await expectDenied('authenticated cannot read survey_progress directly', 'authenticated', U.creator,

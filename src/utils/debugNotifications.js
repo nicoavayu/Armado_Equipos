@@ -45,6 +45,8 @@ window.debugNotifications = async () => {
     send_at: new Date().toISOString(),
   };
   
+  // SEC: dev-only — developer diagnostics helper (self-insert, user_id = user.id);
+  // not part of any production user flow.
   const { data: test3, error: error3 } = await supabase
     .from('notifications')
     .insert([testNotif])

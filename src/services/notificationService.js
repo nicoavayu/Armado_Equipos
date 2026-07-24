@@ -183,6 +183,9 @@ export async function schedulePostMatchNotification(matchId) {
       // Non-blocking for legacy environments without team_matches.
     }
 
+    // SEC: dev-canonical — the canonical guard above returns early when
+    // SURVEY_FANOUT_MODE=db (production); this JS scheduling row is dev-only and
+    // never runs at Stage B. Prod survey_start scheduling is the DB cron fanout.
     const { data, error } = await supabase
       .from('notifications')
       .insert({

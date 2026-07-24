@@ -73,6 +73,10 @@ const insertPrivateRankingNotification = async ({
     created_at: new Date().toISOString(),
   };
 
+  // SEC: rpc-primary — the authoritative process_match_no_show_ranking RPC emits
+  // these no-show notifications server-side. This client insert only runs inside
+  // the legacy fallback path (ensureNoShowRankingLegacy), which executes ONLY when
+  // that RPC is not deployed (PGRST202) — i.e. never once Stage B is in effect.
   const { error } = await supabase.from('notifications').insert([payload]);
   if (error) {
     throw error;

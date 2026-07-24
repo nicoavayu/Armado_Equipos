@@ -186,6 +186,24 @@ BEGIN
 
   v_match_name := COALESCE(NULLIF(btrim(v_match_name), ''), 'partido ' || p_partido_id::text);
 
+  -- Do NOT modify any rating before the survey is genuinely closed AND its
+  -- results are finalized. This rejects premature calls (partial surveys while
+  -- the survey window is still open): no adjustment is written.
+  IF NOT (
+    EXISTS (
+      SELECT 1 FROM public.partidos p
+      WHERE p.id = p_partido_id
+        AND lower(COALESCE(p.survey_status, '')) = 'closed'
+    )
+    AND EXISTS (
+      SELECT 1 FROM public.survey_results sr
+      WHERE sr.partido_id = p_partido_id
+        AND sr.results_ready IS TRUE
+    )
+  ) THEN
+    RAISE EXCEPTION 'survey_not_closed' USING ERRCODE = '55000';
+  END IF;
+
   -- Nothing to do if the match is not eligible for no-show processing.
   IF NOT public._match_no_show_eligible(p_partido_id) THEN
     RETURN jsonb_build_object('success', true, 'penalized', '[]'::jsonb, 'recovered', '[]'::jsonb);

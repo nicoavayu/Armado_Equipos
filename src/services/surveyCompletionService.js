@@ -3,6 +3,7 @@ import { supabase } from '../supabase';
 import { db } from '../api/supabaseWrapper';
 import { grantAwardsForMatch, notifyAwardWinnersForMatch } from './db/awards';
 import { ensureNoShowRanking } from './db/penalties';
+import { insertNotificationsSecure } from '../utils/notificationHelpers';
 import { handleError } from '../lib/errorHandler';
 import { ensureParticipantsSnapshot, ensureSurveyResultsSnapshot } from './historySnapshotService';
 import { resolveStablePlayerRef } from './db/userIdentity';
@@ -2068,27 +2069,29 @@ export async function finalizeIfComplete(partidoId, options = {}) {
           const jugadoresToInsert = (jugadoresForNotifs || []).filter((j) => !alreadyNotifiedUserIds.has(j.usuario_id));
 
           if (jugadoresToInsert.length > 0) {
-            const notificationPayloads = jugadoresToInsert.map((j) => ({
-              user_id: j.usuario_id,
+            // SEC: routed — server-content create_notification ('survey_finished'),
+            // one per participant (fallback to a direct insert only if absent).
+            await insertNotificationsSecure(jugadoresToInsert.map((j) => ({
               type: 'survey_finished',
-              title: 'Encuesta finalizada',
-              message: getSurveyResultsReadyMessage({ matchName: partidoNombre }),
-              partido_id: idNum,
-              data: {
-                match_id: String(idNum),
-                match_name: partidoNombre,
-                partido_nombre: partidoNombre,
-                link: `/resultados-encuesta/${idNum}`,
-                resultsUrl: `/resultados-encuesta/${idNum}`,
+              recipientId: j.usuario_id,
+              context: { match_id: idNum },
+              legacyRow: {
+                user_id: j.usuario_id,
+                type: 'survey_finished',
+                title: 'Encuesta finalizada',
+                message: getSurveyResultsReadyMessage({ matchName: partidoNombre }),
+                partido_id: idNum,
+                data: {
+                  match_id: String(idNum),
+                  match_name: partidoNombre,
+                  partido_nombre: partidoNombre,
+                  link: `/resultados-encuesta/${idNum}`,
+                  resultsUrl: `/resultados-encuesta/${idNum}`,
+                },
+                read: false,
+                created_at: nowIso,
               },
-              read: false,
-              created_at: nowIso,
-            }));
-
-            const { error: notifErr } = await supabase
-              .from('notifications')
-              .insert(notificationPayloads);
-            if (notifErr) throw notifErr;
+            })));
           }
           return { inserted: jugadoresToInsert.length };
         } catch (notifErr) {

@@ -25,8 +25,30 @@ export const insertNotificationSecure = async ({ type, recipientId, context = {}
     throw rpcError;
   }
 
+  // SEC: routed-helper — this direct insert is the create_notification fallback
+  // and runs ONLY when that RPC is not deployed yet (PGRST202). Once Stage B is
+  // applied the RPC is the primary path, so this branch is never reached.
   const { error } = await supabase.from('notifications').insert([legacyRow]);
   if (error) throw error;
+};
+
+// Route several notifications through the secure path (best-effort per item:
+// one failing recipient does not abort the rest). Each item is
+// { type, recipientId, context, legacyRow }. Returns counts for logging.
+export const insertNotificationsSecure = async (items = []) => {
+  let sent = 0;
+  const errors = [];
+  for (const item of items) {
+    if (!item?.recipientId) continue;
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      await insertNotificationSecure(item);
+      sent += 1;
+    } catch (error) {
+      errors.push(error);
+    }
+  }
+  return { sent, errors };
 };
 
 // NOTE: the helpers below are legacy (referenced only by docs). They now route
@@ -81,29 +103,4 @@ export const createMatchUpdateNotification = async (recipientId, matchData, upda
       read: false,
     },
   });
-};
-
-// Crear notificación de invitación a partido.
-// La vía real de invitaciones usa la RPC SECURITY DEFINER `send_match_invite`
-// (ver InviteToMatchModal/InviteAmigosModal). Este helper legacy queda como
-// inserción directa (cubierta por la policy interina de Stage A).
-export const createMatchInviteNotification = async (recipientId, inviterName, matchData) => {
-  const notification = {
-    user_id: recipientId,
-    type: 'match_invite',
-    title: 'Invitación a partido',
-    message: `${inviterName} te invitó a jugar el ${new Date(matchData.fecha).toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' })} a las ${matchData.hora}`,
-    data: {
-      matchId: matchData.id,
-      matchName: matchData.nombre,
-      matchDate: matchData.fecha,
-      matchTime: matchData.hora,
-      matchLocation: matchData.sede,
-      inviterName,
-    },
-    read: false,
-  };
-
-  const { error } = await supabase.from('notifications').insert([notification]);
-  if (error) throw error;
 };
