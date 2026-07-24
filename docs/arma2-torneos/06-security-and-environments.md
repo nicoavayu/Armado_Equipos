@@ -87,4 +87,3 @@ No se crean eventos Torneos en esta fase. Staging usará tokens de prueba y prov
 | Fuga en exportación | snapshot allowlisted, autorización al crear y descargar |
 | Evidencia pública accidental | bucket privado y proyección separada |
 | Notificación a usuario real | proyecto/credenciales sandbox y flags |
-

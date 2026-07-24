@@ -1,7 +1,7 @@
 # Arma2 Torneos — visión de producto
 
-Estado: blueprint inicial  
-Fecha: 2026-07-24  
+Estado: blueprint inicial
+Fecha: 2026-07-24
 Rama base: `epic/arma2-torneos`
 
 ## Propósito
@@ -40,4 +40,3 @@ Esta fase entrega blueprint, shell responsive, rutas privadas no productivas, fl
 ## Métrica de éxito del lanzamiento futuro
 
 Una organización ficticia debe poder completar un torneo de punta a punta —configuración, inscripción, fixture, operación, estadísticas, disciplina, comunicación, cierre e historial— sin afectar Arma2 personal, sin accesos indebidos y con recuperación verificable ante errores.
-

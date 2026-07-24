@@ -66,4 +66,3 @@ Se recomienda servidor para fuentes, tamaños y assets deterministas. El cliente
 Contraste AA para texto relevante, márgenes seguros, prueba con nombres largos, múltiples densidades, sin recortes en 4:5/9:16/1:1, render repetible y accesibilidad equivalente en el texto acompañante.
 
 No se implementa renderizado en esta fase; sólo se reserva el flag `socialContentGenerator`.
-

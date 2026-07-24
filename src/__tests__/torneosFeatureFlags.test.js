@@ -41,4 +41,3 @@ describe('Arma2 Torneos feature flags', () => {
     expect(flags.torneosEnabled).toBe(false);
   });
 });
-

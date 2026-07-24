@@ -77,4 +77,3 @@ Implicación: un PR hacia la epic no hereda hoy el quality gate de `main`; deben
 | Perfil personal en auth | Onboarding indebido para organizadores | Separar identidad de perfil deportivo |
 | No hay TypeScript en frontend | Contratos menos verificables | JSDoc/tests ahora; evaluar migración incremental |
 | Checkout original sucio y desactualizado | Pérdida de trabajo local | Worktree limpio desde `origin/main` |
-

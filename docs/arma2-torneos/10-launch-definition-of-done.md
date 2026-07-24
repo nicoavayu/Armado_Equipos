@@ -71,4 +71,3 @@ No lanzar con:
 ## Estado de esta foundation
 
 No cumple la definición de lanzamiento y no pretende hacerlo. Sólo establece fronteras, decisiones y un shell no productivo para continuar el desarrollo de forma segura.
-

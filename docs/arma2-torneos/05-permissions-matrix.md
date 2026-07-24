@@ -59,4 +59,3 @@ Requieren confirmación reforzada, motivo y auditoría:
 - publicar datos sensibles;
 - emitir exportaciones completas;
 - generar enlaces o QR con capacidad de escritura.
-

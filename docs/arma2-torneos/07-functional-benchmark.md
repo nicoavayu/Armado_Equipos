@@ -53,4 +53,3 @@ El shell usa datos ficticios y no pretende demostrar cobertura funcional. Ningú
 - ¿Qué datos exige realmente una planilla de buena fe?
 - ¿Cómo se reparten tareas entre organizador, árbitro y capitán?
 - ¿Qué exportaciones son operativas y cuáles regulatorias?
-

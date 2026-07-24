@@ -44,4 +44,3 @@ export function resolveTorneosFeatureFlags(env = {}) {
 }
 
 export const torneosFeatureFlags = resolveTorneosFeatureFlags(process.env);
-

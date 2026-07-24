@@ -80,4 +80,3 @@ Un deep link futuro transportará un recurso, no permisos. Secuencia:
 4. cambiar workspace;
 5. navegar al destino;
 6. mostrar un error seguro si no existe o no hay acceso.
-

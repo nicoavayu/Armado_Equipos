@@ -97,4 +97,3 @@ Tournament 1──* DisciplinaryCase 1──* Sanction
 - snapshot vs cálculo bajo demanda para tablas grandes;
 - retención de evidencia y exportaciones;
 - reglas exactas de estadísticas oficiales frente al scoring actual.
-

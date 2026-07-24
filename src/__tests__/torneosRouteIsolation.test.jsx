@@ -41,4 +41,3 @@ describe('Arma2 Torneos route isolation', () => {
     expect(screen.queryByText('Amigos')).not.toBeInTheDocument();
   });
 });
-

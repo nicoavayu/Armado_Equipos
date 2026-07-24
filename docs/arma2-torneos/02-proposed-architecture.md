@@ -97,4 +97,3 @@ Datos remotos deberán usar claves que incluyan organización/torneo para impedi
 6. estadísticas/disciplinas transaccionales.
 7. publicación y contenido.
 8. integración explícita con Arma2.
-

@@ -83,4 +83,3 @@ Seguridad, performance, accesibilidad, móviles físicos, torneo completo, runbo
 ## Calidad por fase
 
 Unit, integración, permisos/RLS, rutas, responsive, lint, build, suite relevante y `git diff --check`. Typecheck se reporta como no disponible mientras el frontend siga en JavaScript, salvo que la fase introduzca una herramienta formal.
-
