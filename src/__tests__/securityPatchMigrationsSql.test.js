@@ -122,6 +122,51 @@ describe('security patch — Stage A: notifications (M3)', () => {
     ['payment_reported', 'payment_reminder', 'award_won', 'team_challenge_accepted',
       'match_join_request', 'survey_finished'].forEach((t) => expect(code).toContain(t));
   });
+
+  test('admin-only match events require the emitter to be the match creator', () => {
+    // match_kicked / match_cancelled / falta_jugadores / call_to_vote are grouped
+    // together and gated on v_is_admin (not merely shared-match membership).
+    expect(code).toContain("WHEN 'match_kicked', 'match_cancelled', 'falta_jugadores', 'call_to_vote' THEN");
+    expect(code).toContain('v_authorized := v_is_admin AND v_recipient_in_match');
+    expect(code).toContain('creado_por = v_actor');
+  });
+
+  test('match_cancelled requires a real cancellation and call_to_vote requires open voting', () => {
+    expect(code).toMatch(/IN \('cancelado', 'cancelled', 'canceled'\)/);
+    expect(code).toContain('public.is_public_voting_open(v_match_id)');
+  });
+
+  test('survey lifecycle types are gated on the real survey state', () => {
+    expect(code).toContain("WHEN 'survey_start', 'survey_reminder', 'survey_finished', 'survey_results_ready' THEN");
+    expect(code).toContain("IN ('closed', 'finished', 'completed')");
+    expect(code).toContain('sr.results_ready = true');
+  });
+
+  test('awards / mvp / award_won validate against really-persisted player_awards', () => {
+    expect(code).toContain('public.player_awards');
+    expect(code).toMatch(/award_type, ''\)\) = 'mvp'/);
+  });
+
+  test('match_join_request requires a real pending request from the actor', () => {
+    expect(code).toContain('public.match_join_requests');
+    expect(code).toContain('r.user_id = v_actor');
+    expect(code).toMatch(/status, ''\)\) = 'pending'/);
+  });
+
+  test('payments validate real payment rows and correct direction', () => {
+    expect(code).toContain('public.match_player_payments');
+    expect(code).toMatch(/IN \('reported_paid', 'paid'\)/); // payment_reported
+    expect(code).toContain('v_is_admin'); // payment_reminder/admin
+  });
+
+  test('team challenge events verify BOTH parties of the SAME concrete challenge', () => {
+    expect(code).toContain('challenge_id_required');
+    expect(code).toContain('public.challenges');
+    expect(code).toContain('v_actor IN (c.created_by_user_id, c.accepted_by_user_id)');
+    expect(code).toContain('p_recipient_id IN (c.created_by_user_id, c.accepted_by_user_id)');
+    // the old coarse "member of any team" gate must be gone
+    expect(code).not.toContain('JOIN public.jugadores j ON j.id = tm.jugador_id');
+  });
 });
 
 describe('security patch — Stage A: harden existing notification RPCs (M3)', () => {
@@ -144,6 +189,21 @@ describe('security patch — Stage A: harden existing notification RPCs (M3)', (
     expect(code).toContain('SET search_path = public');
     expect(code).toContain("'¡Hora de votar!'");
     expect(code).toContain('SECURITY DEFINER');
+  });
+
+  test('send_call_to_vote authorizes only the match creator/admin (rejects anon + outsiders)', () => {
+    expect(code).toContain("RAISE EXCEPTION 'not_authenticated'"); // anon rejected
+    expect(code).toContain('p.creado_por = v_actor'); // must be the admin
+    expect(code).toContain("RAISE EXCEPTION 'forbidden'"); // outsiders rejected
+  });
+
+  test('a verification gate fails the deploy if the send_match_invite passthrough survives', () => {
+    // inspects the effective definition after the regex rewrite and raises when
+    // a coalesce(p_title|p_message, …) passthrough is still present.
+    expect(code).toContain('v_def := pg_get_functiondef');
+    expect(code).toContain('still passes client p_title into inserted content');
+    expect(code).toContain('still passes client p_message into inserted content');
+    expect(code).toContain('passthrough not neutralised');
   });
 });
 
