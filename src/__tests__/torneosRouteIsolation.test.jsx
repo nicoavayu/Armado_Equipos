@@ -76,7 +76,7 @@ describe('Arma2 Torneos route isolation', () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByRole('heading', { name: /bienvenido a liga devoto/i }))
+    expect(await screen.findByRole('heading', { name: /empezá un torneo/i }))
       .toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Navegación de la organización' }))
       .toBeInTheDocument();
