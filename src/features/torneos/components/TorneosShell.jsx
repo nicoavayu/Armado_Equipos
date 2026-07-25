@@ -5,6 +5,7 @@ import {
   Settings2,
   ShieldCheck,
   Trophy,
+  UsersRound,
 } from 'lucide-react';
 import {
   Link,
@@ -26,12 +27,17 @@ import TorneosDashboard from './TorneosDashboard';
 import TorneosLanding from './TorneosLanding';
 import SeasonFormPage from './SeasonFormPage';
 import TournamentWizardPage from './TournamentWizardPage';
+import TeamsPage from './TeamsPage';
+import NewTeamEntryPage from './NewTeamEntryPage';
+import TeamRegistrationPage from './TeamRegistrationPage';
+import TeamInvitationPage from './TeamInvitationPage';
 import WorkspaceSwitcher from './WorkspaceSwitcher';
 import styles from './TorneosShell.module.css';
 
 const organizationNavigation = [
   { label: 'Inicio', path: 'inicio', icon: Home },
   { label: 'Torneos', path: 'torneos', icon: Trophy },
+  { label: 'Equipos', path: 'equipos', icon: UsersRound },
   { label: 'Configuración', path: 'configuracion', icon: Settings2 },
 ];
 
@@ -41,6 +47,16 @@ function TournamentConfigurationRedirect({ step = null }) {
   return (
     <Navigate
       to={`/torneos/organizacion/${organizationId}/torneos/${tournamentId}/configuracion${suffix}`}
+      replace
+    />
+  );
+}
+
+function TeamEntryRedirect() {
+  const { organizationId, teamEntryId } = useParams();
+  return (
+    <Navigate
+      to={`/torneos/organizacion/${organizationId}/equipos/${teamEntryId}/inscripcion`}
       replace
     />
   );
@@ -80,10 +96,10 @@ export default function TorneosShell() {
     ? location.pathname.split('/').slice(4).join('/')
     : '';
   const currentNavigation = organizationNavigation.find(({ path }) => (
-    path === 'torneos'
+    ['torneos', 'equipos'].includes(path)
       ? (
-        organizationRelativePath.startsWith('torneos')
-        || organizationRelativePath.startsWith('temporadas')
+        organizationRelativePath.startsWith(path)
+        || (path === 'torneos' && organizationRelativePath.startsWith('temporadas'))
       )
       : organizationRelativePath === path
   ));
@@ -163,6 +179,24 @@ export default function TorneosShell() {
               <Route path="temporadas/:seasonId" element={<SeasonFormPage />} />
               <Route path="torneos" element={<CompetitionOverviewPage />} />
               <Route path="torneos/nuevo" element={<TournamentWizardPage />} />
+              <Route path="equipos" element={<TeamsPage />} />
+              <Route path="equipos/nuevo" element={<NewTeamEntryPage />} />
+              <Route
+                path="equipos/:teamEntryId"
+                element={<TeamEntryRedirect />}
+              />
+              <Route
+                path="equipos/:teamEntryId/inscripcion"
+                element={<TeamRegistrationPage initialTab="inscripcion" />}
+              />
+              <Route
+                path="equipos/:teamEntryId/plantel"
+                element={<TeamRegistrationPage initialTab="plantel" />}
+              />
+              <Route
+                path="equipos/:teamEntryId/revision"
+                element={<TeamRegistrationPage initialTab="revision" />}
+              />
               <Route
                 path="torneos/:tournamentId"
                 element={<TournamentConfigurationRedirect />}
@@ -178,6 +212,7 @@ export default function TorneosShell() {
               <Route path="configuracion" element={<OrganizationSettingsPage />} />
               <Route path="miembros" element={<OrganizationMembersPage />} />
             </Route>
+            <Route path="invitacion/equipo/:token" element={<TeamInvitationPage />} />
             <Route path="*" element={<Navigate to="/torneos" replace />} />
           </Routes>
         </main>

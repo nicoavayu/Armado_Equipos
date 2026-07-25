@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ArrowRight,
   CalendarDays,
@@ -10,10 +10,10 @@ import {
   Shield,
   Table2,
   Trophy,
-  Users,
 } from 'lucide-react';
 import { Link, useOutletContext } from 'react-router-dom';
 import { useTorneosCompetition } from '../context/TorneosCompetitionContext';
+import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
 import {
   CHECKLIST_ITEMS,
   getOptionName,
@@ -29,7 +29,6 @@ import styles from './TorneosShell.module.css';
 import coreStyles from './CompetitionCore.module.css';
 
 const futureModules = [
-  { label: 'Equipos', description: 'Inscripciones y planteles', icon: Shield },
   { label: 'Fixture', description: 'Fechas, cruces y sedes', icon: CalendarDays },
   { label: 'Partidos', description: 'Operación y resultados', icon: ClipboardList },
   { label: 'Tabla', description: 'Posiciones y desempates', icon: Table2 },
@@ -59,6 +58,8 @@ export default function TorneosDashboard() {
     activeTournament,
     refresh,
   } = useTorneosCompetition();
+  const { service } = useTorneosWorkspace();
+  const [teamsSummary, setTeamsSummary] = useState(null);
   const canCreateTournament = hasCapability(
     organization,
     TOURNAMENT_CAPABILITIES.TOURNAMENTS_CREATE,
@@ -67,6 +68,32 @@ export default function TorneosDashboard() {
     organization,
     TOURNAMENT_CAPABILITIES.TOURNAMENTS_UPDATE,
   );
+
+  useEffect(() => {
+    let active = true;
+    setTeamsSummary(null);
+    if (!activeTournament?.id || typeof service.loadTeamsContext !== 'function') {
+      return undefined;
+    }
+    service.loadTeamsContext(organization.id, activeTournament.id)
+      .then((payload) => {
+        if (!active) return;
+        const entries = payload?.entries || [];
+        const minimum = Number(payload?.settings?.minimumPlayers || 0);
+        setTeamsSummary({
+          total: entries.length,
+          submitted: entries.filter((entry) => entry.status === 'submitted').length,
+          approved: entries.filter((entry) => entry.status === 'approved').length,
+          incomplete: entries.filter(
+            (entry) => Number(entry.roster?.playerCount || 0) < minimum,
+          ).length,
+        });
+      })
+      .catch(() => {
+        if (active) setTeamsSummary(null);
+      });
+    return () => { active = false; };
+  }, [activeTournament?.id, organization.id, service]);
 
   if (status === 'loading') return <WorkspaceLoading label="Armando tu tablero…" />;
   if (status === 'error') {
@@ -196,13 +223,21 @@ export default function TorneosDashboard() {
         </article>
 
         <article className={`${styles.panel} ${styles.securityPanel}`}>
-          <Users size={24} aria-hidden="true" />
-          <span className={styles.eyebrow}>Siguiente frontera</span>
-          <h2>Sin equipos todavía</h2>
+          <Shield size={24} aria-hidden="true" />
+          <span className={styles.eyebrow}>Operación de equipos</span>
+          <h2>{teamsSummary ? `${teamsSummary.total} equipos` : 'Inscripciones'}</h2>
           <p>
-            El estado de inscripción sólo prepara el torneo. Inscripciones,
-            planteles y jugadores permanecen fuera de esta fase.
+            {teamsSummary
+              ? `${teamsSummary.submitted} para revisar · ${teamsSummary.approved} aprobados · ${teamsSummary.incomplete} incompletos.`
+              : 'El resumen se completa únicamente con inscripciones persistidas.'}
           </p>
+          <Link
+            className={styles.dashboardPrimaryLink}
+            to={`${organizationPath}/equipos`}
+          >
+            Ver equipos
+            <ArrowRight size={17} />
+          </Link>
         </article>
       </section>
 
