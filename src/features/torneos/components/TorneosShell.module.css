@@ -1125,6 +1125,51 @@
   font: 13px/1.55 Arial, sans-serif;
 }
 
+.dashboardChecklist {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dashboardChecklist li {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px;
+  color: var(--torneos-muted);
+  font-size: 11px;
+  background: rgba(255, 255, 255, 0.025);
+  border-radius: 8px;
+}
+
+.dashboardChecklist li[data-complete="true"] {
+  color: #ccf4e3;
+}
+
+.dashboardChecklist li[data-complete="true"] svg {
+  color: var(--torneos-green);
+}
+
+.dashboardPrimaryLink {
+  min-height: 43px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 14px;
+  padding: 0 13px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  background: linear-gradient(135deg, rgba(142, 95, 255, 0.9), rgba(91, 47, 203, 0.9));
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 9px;
+}
+
 .futureSection {
   padding: clamp(20px, 3vw, 28px);
   background: rgba(12, 11, 18, 0.62);
@@ -1570,12 +1615,27 @@
   }
 
   .organizationIdentity {
+    width: 100%;
     flex-direction: column;
+  }
+
+  .organizationIdentity > div {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .dashboardHero h1,
+  .dashboardHero p {
+    overflow-wrap: anywhere;
   }
 
   .summaryGrid,
   .availableActions,
   .futureGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboardChecklist {
     grid-template-columns: 1fr;
   }
 

@@ -1,6 +1,8 @@
 # Modelo de dominio
 
-La fase de workspaces materializa únicamente organización, membership y preferencia. El resto de este documento continúa como modelo futuro y no autoriza tablas adicionales.
+Las fases de workspaces y núcleo competitivo materializan organización,
+membership, temporadas, torneos, categorías, reglas y preferencias. El resto de
+este documento continúa como modelo futuro y no autoriza tablas adicionales.
 
 ## Núcleo implementado
 
@@ -12,15 +14,32 @@ Roles implementados: `owner`, `admin`, `collaborator`. Estados de membresía: `a
 
 La creación atómica garantiza un owner activo. Un índice parcial limita cada organización a un único owner activo y un trigger impide degradarlo o eliminarlo hasta que exista un flujo formal de transferencia.
 
+## Núcleo competitivo implementado
+
+- `tournament_seasons`: período institucional con slug por organización,
+  calendario opcional y ciclo `draft → active → completed → archived`.
+- `tournaments`: competencia de una temporada con modalidad, formato, tipo,
+  calendario y estado.
+- `tournament_categories`: divisiones ordenadas, archivables y con overrides
+  explícitos.
+- `tournament_scoring_rules`: puntuación estructurada 1:1.
+- `tournament_tiebreak_rules`: criterios únicos y ordenados.
+- `tournament_discipline_rules`: configuración previa 1:1, sin sanciones.
+- `tournament_sport_modalities` y `tournament_competition_formats`: catálogos.
+- `user_tournament_context_preferences`: contexto activo por usuario y
+  organización.
+
+El torneo aporta modalidad, género y team size por defecto. Una categoría con
+valor `NULL` hereda; sólo un valor explícito sobrescribe. No se crea categoría
+general automática.
+
 ## Núcleo institucional futuro
 
 - **Organization**: owner, nombre, slug, branding, contacto, ubicación, estado y configuración.
 - **OrganizationMembership**: usuario, organización, estado y vigencia.
 - **Role / Permission / RoleGrant**: catálogo de capacidades y asignaciones; el nombre del rol no decide permisos.
 - **TournamentGrant**: restricciones o capacidades adicionales para un torneo.
-- **Season**: período institucional.
-- **Tournament**: competencia, formato, estado, fechas, privacidad, reglas y apariencia.
-- **Category**: segmento competitivo dentro de una organización o torneo.
+- Branding, privacidad avanzada y grants limitados por torneo.
 
 ## Participación
 
@@ -103,7 +122,7 @@ Tournament 1──* DisciplinaryCase 1──* Sanction
 
 - tratamiento legal y consentimiento para documentos y menores;
 - estrategia de identidad provisional y reclamo;
-- cardinalidad de categorías entre organización y torneo;
 - snapshot vs cálculo bajo demanda para tablas grandes;
+- semántica exacta de `head_to_head`;
 - retención de evidencia y exportaciones;
 - reglas exactas de estadísticas oficiales frente al scoring actual.

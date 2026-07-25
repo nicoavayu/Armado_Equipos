@@ -68,6 +68,10 @@ No lanzar con:
 - tests deshabilitados para pasar el gate;
 - dependencia de correcciones manuales no auditadas.
 
-## Estado de esta foundation
+## Estado del núcleo competitivo
 
-No cumple la definición de lanzamiento y no pretende hacerlo. Sólo establece fronteras, decisiones y un shell no productivo para continuar el desarrollo de forma segura.
+No cumple la definición de lanzamiento y no pretende hacerlo. Ya existen
+workspaces y configuración de temporadas/torneos, pero no hay equipos, fixture,
+operación, tabla, disciplina real, publicación ni integración oficial con
+Arma2. Las flags siguen apagadas en producción y esta rama sólo puede integrarse
+en `epic/arma2-torneos`.

@@ -2,7 +2,7 @@
 
 La UI utiliza capacidades, no comparaciones dispersas de roles. La matriz se replica en `domain/capabilities.js` para UX y en `tournament_role_capabilities()` para RLS/RPC. El backend siempre vuelve a evaluar.
 
-## Capacidades de esta fase
+## Capacidades vigentes
 
 | Capacidad | Owner | Admin | Collaborator |
 |---|:---:|:---:|:---:|
@@ -15,6 +15,21 @@ La UI utiliza capacidades, no comparaciones dispersas de roles. La matriz se rep
 | `members.remove` | ✓ | ✓ | — |
 | `workspace.access` | ✓ | ✓ | ✓ |
 | `workspace.manage` | ✓ | ✓ | — |
+| `seasons.read` | ✓ | ✓ | ✓ |
+| `seasons.create` | ✓ | ✓ | — |
+| `seasons.update` | ✓ | ✓ | — |
+| `seasons.archive` | ✓ | ✓ | — |
+| `tournaments.read` | ✓ | ✓ | ✓ |
+| `tournaments.create` | ✓ | ✓ | — |
+| `tournaments.update` | ✓ | ✓ | — |
+| `tournaments.change_status` | ✓ | ✓ | — |
+| `tournaments.archive` | ✓ | ✓ | — |
+| `categories.read` | ✓ | ✓ | ✓ |
+| `categories.create` | ✓ | ✓ | — |
+| `categories.update` | ✓ | ✓ | — |
+| `categories.archive` | ✓ | ✓ | — |
+| `competition_rules.read` | ✓ | ✓ | ✓ |
+| `competition_rules.update` | ✓ | ✓ | — |
 
 Las capacidades de invitación y administración están preparadas, pero la UI de invitación permanece deshabilitada hasta implementar tokens, expiración, aceptación y revocación de forma completa.
 
@@ -27,6 +42,9 @@ Las capacidades de invitación y administración están preparadas, pero la UI d
 - El owner activo no se puede degradar ni borrar.
 - Roles desconocidos resuelven a cero capacidades.
 - Memberships `suspended` o `removed` resuelven a cero acceso.
+- Un collaborator puede consultar toda la configuración, pero ninguna RPC de
+  mutación acepta su rol.
+- El cliente no recibe grants de escritura directa sobre tablas competitivas.
 
 ## Roles futuros
 

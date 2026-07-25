@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate, Outlet, useLocation, useParams } from 'react-router-dom';
+import { TorneosCompetitionProvider } from '../context/TorneosCompetitionContext';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 
@@ -14,6 +15,7 @@ export default function OrganizationRouteGuard() {
     availableOrganizations,
     selectOrganization,
     refresh,
+    service,
   } = useTorneosWorkspace();
   const organization = availableOrganizations.find(
     (candidate) => candidate.id === organizationId,
@@ -64,5 +66,9 @@ export default function OrganizationRouteGuard() {
     return <WorkspaceLoading label="Confirmando acceso a la organización…" />;
   }
 
-  return <Outlet context={{ organization }} />;
+  return (
+    <TorneosCompetitionProvider organizationId={organization.id} service={service}>
+      <Outlet context={{ organization }} />
+    </TorneosCompetitionProvider>
+  );
 }
