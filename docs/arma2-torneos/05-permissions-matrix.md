@@ -49,3 +49,11 @@ Las capacidades de invitación y administración están preparadas, pero la UI d
 ## Roles futuros
 
 Tournament manager, fixture manager, match official, discipline manager, content manager y viewer se incorporarán cuando existan recursos deportivos concretos. No se agregan roles sin una matriz de capacidades y enforcement de servidor.
+
+## Equipos y planteles
+
+- Owner/Admin: alta, invitación, edición, revisión, aprobación, rechazo y retiro.
+- Collaborator: lectura organizacional únicamente.
+- Captain/Delegate: lectura y edición relacional de su `team_entry_id`; presenta
+  y corrige, pero nunca aprueba.
+- Assistant: lectura relacional sin administración organizacional.
