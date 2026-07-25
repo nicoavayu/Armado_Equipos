@@ -1,8 +1,18 @@
-# Modelo de dominio propuesto
+# Modelo de dominio
 
-Este documento define conceptos y relaciones; no autoriza migraciones. Los nombres físicos se validarán antes de la fase de datos.
+La fase de workspaces materializa únicamente organización, membership y preferencia. El resto de este documento continúa como modelo futuro y no autoriza tablas adicionales.
 
-## Núcleo institucional
+## Núcleo implementado
+
+- `tournament_organizations`: nombre, slug, logo opcional, estado, creador, clave de idempotencia y timestamps.
+- `tournament_organization_members`: organización, usuario, rol, estado, invitador opcional e ingreso.
+- `user_workspace_preferences`: contexto personal u organización activa.
+
+Roles implementados: `owner`, `admin`, `collaborator`. Estados de membresía: `active`, `suspended`, `removed`.
+
+La creación atómica garantiza un owner activo. Un índice parcial limita cada organización a un único owner activo y un trigger impide degradarlo o eliminarlo hasta que exista un flujo formal de transferencia.
+
+## Núcleo institucional futuro
 
 - **Organization**: owner, nombre, slug, branding, contacto, ubicación, estado y configuración.
 - **OrganizationMembership**: usuario, organización, estado y vigencia.
@@ -89,7 +99,7 @@ Match *──1 ScheduleSlot *──1 Court *──1 Venue
 Tournament 1──* DisciplinaryCase 1──* Sanction
 ```
 
-## Temas abiertos antes de migrar
+## Temas abiertos antes de migrar módulos deportivos
 
 - tratamiento legal y consentimiento para documentos y menores;
 - estrategia de identidad provisional y reclamo;

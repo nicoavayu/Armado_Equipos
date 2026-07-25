@@ -1,16 +1,13 @@
 import React from 'react';
 import {
-  AlertTriangle,
-  Bell,
-  CalendarDays,
-  ChevronDown,
+  Building2,
   Home,
-  Search,
   Settings2,
-  Shield,
-  Table2,
+  ShieldCheck,
+  Users,
 } from 'lucide-react';
 import {
+  Link,
   Navigate,
   NavLink,
   Route,
@@ -19,61 +16,39 @@ import {
 } from 'react-router-dom';
 import { torneosFeatureFlags } from '../config/featureFlags';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
+import CreateOrganizationPage from './CreateOrganizationPage';
+import OrganizationMembersPage from './OrganizationMembersPage';
+import OrganizationRouteGuard from './OrganizationRouteGuard';
+import OrganizationSettingsPage from './OrganizationSettingsPage';
 import TorneosDashboard from './TorneosDashboard';
-import TorneosPlaceholderPage from './TorneosPlaceholderPage';
+import TorneosLanding from './TorneosLanding';
+import WorkspaceSwitcher from './WorkspaceSwitcher';
 import styles from './TorneosShell.module.css';
 
-const navigationItems = [
+const organizationNavigation = [
   { label: 'Inicio', path: 'inicio', icon: Home },
-  { label: 'Partidos', path: 'partidos', icon: CalendarDays },
-  { label: 'Equipos', path: 'equipos', icon: Shield },
-  { label: 'Tabla', path: 'tabla', icon: Table2 },
-  { label: 'Gestión', path: 'gestion', icon: Settings2 },
+  { label: 'Miembros', path: 'miembros', icon: Users },
+  { label: 'Configuración', path: 'configuracion', icon: Settings2 },
 ];
 
-const placeholderSections = {
-  partidos: {
-    eyebrow: 'Operación',
-    title: 'Centro de partidos',
-    description: 'Programación, carga rápida y operación detallada vivirán en este espacio.',
-    items: ['Vista por fecha', 'Agenda por cancha', 'Resultados y reclamos'],
-  },
-  equipos: {
-    eyebrow: 'Participantes',
-    title: 'Equipos y planteles',
-    description: 'Inscripciones, aprobaciones y rosters oficiales sin mezclar el equipo general.',
-    items: ['Equipos pendientes', 'Planteles presentados', 'Jugadores suspendidos'],
-  },
-  tabla: {
-    eyebrow: 'Competencia',
-    title: 'Tabla y estadísticas',
-    description: 'Posiciones, forma, goleadores y disciplina calculados desde datos confirmados.',
-    items: ['Tabla general', 'Goleadores y asistencias', 'Fair play'],
-  },
-  gestion: {
-    eyebrow: 'Administración',
-    title: 'Gestión del torneo',
-    description: 'Configuración institucional y operativa, ordenada por capacidades.',
-    items: ['Temporadas y categorías', 'Sedes y árbitros', 'Roles y exportaciones'],
-  },
-};
-
-function Navigation({ compact = false }) {
+function OrganizationNavigation({ organization, mobile = false }) {
+  if (!organization) return null;
+  const base = `/torneos/organizacion/${organization.id}`;
   return (
     <nav
-      className={compact ? styles.mobileNavigation : styles.desktopNavigation}
-      aria-label={compact ? 'Navegación móvil de Torneos' : 'Navegación de Torneos'}
+      className={mobile ? styles.mobileNavigation : styles.desktopNavigation}
+      aria-label={mobile ? 'Navegación móvil de la organización' : 'Navegación de la organización'}
     >
-      {navigationItems.map(({ label, path, icon: Icon }) => (
+      {organizationNavigation.map(({ label, path, icon: Icon }) => (
         <NavLink
           key={path}
-          to={path}
+          to={`${base}/${path}`}
           className={({ isActive }) => (
             `${styles.navigationItem} ${isActive ? styles.navigationItemActive : ''}`
           )}
         >
           <span className={styles.navigationIcon} aria-hidden="true">
-            <Icon size={compact ? 20 : 18} strokeWidth={1.9} />
+            <Icon size={mobile ? 20 : 18} strokeWidth={1.9} />
           </span>
           <span>{label}</span>
         </NavLink>
@@ -84,12 +59,11 @@ function Navigation({ compact = false }) {
 
 export default function TorneosShell() {
   const location = useLocation();
-  const {
-    activeWorkspace,
-    selectedSeason,
-    selectedTournament,
-  } = useTorneosWorkspace();
-  const activePath = navigationItems.find(({ path }) => location.pathname.includes(`/${path}`));
+  const { activeOrganization } = useTorneosWorkspace();
+  const isOrganizationRoute = location.pathname.includes('/torneos/organizacion/');
+  const currentNavigation = organizationNavigation.find(({ path }) => (
+    location.pathname.endsWith(`/${path}`)
+  ));
 
   return (
     <div className={styles.shell}>
@@ -97,78 +71,81 @@ export default function TorneosShell() {
         Saltar al contenido
       </a>
       <div className={styles.ambientGlow} aria-hidden="true" />
+      <div className={styles.gridTexture} aria-hidden="true" />
 
       <aside className={styles.sidebar}>
-        <div className={styles.brand}>
+        <Link className={styles.brand} to="/torneos" aria-label="Arma2 Torneos">
           <span className={styles.brandMark}>A2</span>
           <span className={styles.brandLockup}>
             <strong>ARMA2</strong>
             <small>TORNEOS</small>
           </span>
-        </div>
+        </Link>
 
-        <button className={styles.workspaceButton} type="button" disabled>
-          <span className={styles.workspaceAvatar}>{activeWorkspace?.initials || 'A2'}</span>
-          <span className={styles.workspaceCopy}>
-            <small>Organización</small>
-            <strong>{activeWorkspace?.name || 'Sin organización'}</strong>
-          </span>
-          <ChevronDown size={17} aria-hidden="true" />
-        </button>
+        <WorkspaceSwitcher />
 
-        <Navigation />
+        <OrganizationNavigation organization={isOrganizationRoute ? activeOrganization : null} />
 
         <div className={styles.previewNotice}>
-          <AlertTriangle size={16} aria-hidden="true" />
+          <ShieldCheck size={16} aria-hidden="true" />
           <div>
-            <strong>Entorno de preview</strong>
-            <span>Datos ficticios · sin conexión productiva</span>
+            <strong>Entorno aislado</strong>
+            <span>Sin conexión intencional a producción</span>
           </div>
         </div>
       </aside>
 
       <section className={styles.workspace}>
         <header className={styles.topbar}>
-          <div className={styles.mobileBrand}>
+          <Link className={styles.mobileBrand} to="/torneos">
             <span className={styles.brandMark}>A2</span>
             <span className={styles.mobileTitle}>
-              <small>Torneos</small>
-              <strong>{activeWorkspace?.name}</strong>
+              <small>Arma2 Torneos</small>
+              <strong>{activeOrganization?.name || 'Tus espacios'}</strong>
             </span>
-          </div>
+          </Link>
 
           <div className={styles.pageIdentity}>
-            <span>{activePath?.label || 'Inicio'}</span>
-            <strong>{selectedSeason?.name} · {selectedTournament?.name}</strong>
+            <span>{currentNavigation?.label || (isOrganizationRoute ? 'Organización' : 'Torneos')}</span>
+            <strong>
+              {activeOrganization
+                ? `${activeOrganization.name} · ${activeOrganization.slug}`
+                : 'Workspaces privados'}
+            </strong>
           </div>
 
-          <div className={styles.topbarActions}>
-            <button type="button" className={styles.iconButton} aria-label="Buscar" disabled>
-              <Search size={19} />
-            </button>
-            <button type="button" className={styles.iconButton} aria-label="Notificaciones" disabled>
-              <Bell size={19} />
-              <span className={styles.notificationDot} aria-hidden="true" />
-            </button>
+          <div className={styles.mobileSwitcher}>
+            <WorkspaceSwitcher />
           </div>
+          {!torneosFeatureFlags.workspaceSwitcher && (
+            <Link className={styles.topbarExit} to="/">
+              <Building2 size={17} />
+              Arma2
+            </Link>
+          )}
         </header>
 
         <main id="torneos-main" className={styles.main} tabIndex="-1">
           <Routes>
-            <Route index element={<Navigate to="inicio" replace />} />
-            <Route path="inicio" element={<TorneosDashboard />} />
-            {Object.entries(placeholderSections).map(([path, page]) => (
-              <Route
-                key={path}
-                path={path}
-                element={<TorneosPlaceholderPage {...page} />}
-              />
-            ))}
-            <Route path="*" element={<Navigate to="inicio" replace />} />
+            <Route index element={<TorneosLanding />} />
+            <Route path="nueva-organizacion" element={<CreateOrganizationPage />} />
+            <Route
+              path="organizacion/:organizationId"
+              element={<OrganizationRouteGuard />}
+            >
+              <Route index element={<Navigate to="inicio" replace />} />
+              <Route path="inicio" element={<TorneosDashboard />} />
+              <Route path="configuracion" element={<OrganizationSettingsPage />} />
+              <Route path="miembros" element={<OrganizationMembersPage />} />
+            </Route>
+            <Route path="*" element={<Navigate to="/torneos" replace />} />
           </Routes>
         </main>
 
-        <Navigation compact />
+        <OrganizationNavigation
+          organization={isOrganizationRoute ? activeOrganization : null}
+          mobile
+        />
       </section>
 
       <span className={styles.environmentTag}>

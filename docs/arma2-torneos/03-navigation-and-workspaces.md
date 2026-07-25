@@ -15,7 +15,7 @@ El selector de cuenta listará:
 - crear organización;
 - unirse a una organización.
 
-Cambiar de espacio reemplaza el shell completo, mantiene la sesión, limpia estado incompatible y valida nuevamente la membresía. El último espacio es una preferencia local versionada. Si fue revocado, se vuelve a Arma2 personal o a otro espacio autorizado.
+Cambiar de espacio reemplaza el shell completo, mantiene la sesión, limpia estado incompatible y valida nuevamente la membresía. El último espacio se guarda en `user_workspace_preferences`; el almacenamiento local es sólo un hint no autoritativo. Si el acceso fue revocado, la RPC descarta la preferencia y vuelve a Arma2 personal.
 
 El selector no se expone en producción durante esta fase.
 
@@ -54,17 +54,19 @@ Organización
 └── Configuración y exportaciones
 ```
 
-## Contexto preliminar
+## Contexto implementado
 
-La foundation incluye un proveedor local con una organización ficticia. Sirve para validar la separación del shell y la persistencia, no para probar autorización. El shape mínimo contiene:
+Se eliminaron las organizaciones, temporadas, partidos y métricas ficticias de la foundation. El provider expone:
 
-- `workspace.id`, `name`, `slug`, `role`;
-- `season`;
-- `tournament`;
-- `availableWorkspaces`;
-- `selectWorkspace`.
+- `availableOrganizations`;
+- `activeOrganization`;
+- preferencia validada;
+- capacidades devueltas por backend;
+- cambio a personal u organización;
+- creación y actualización;
+- estados `loading`, `ready` y `error`.
 
-Todo consumidor debe asumir que esta selección puede ser inválida hasta que el servidor la confirme.
+Las rutas `organizacion/:organizationId/*` no montan su contenido antes de que la organización aparezca en la respuesta autorizada.
 
 ## Limpieza de estado al cambiar
 

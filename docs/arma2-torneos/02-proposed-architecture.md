@@ -64,18 +64,22 @@ La resolución de flags es central y fail-closed:
 
 Flags iniciales: producto, selector de espacios, deep links, notificaciones, estadísticas oficiales, páginas públicas y generador social. Las flags no sustituyen RLS.
 
-## Estado y caché
+## Estado y caché implementados
 
-El contexto de workspace contiene selección y capacidades resueltas. La fase inicial usa datos ficticios y persiste una preferencia versionada en `localStorage`. En la fase de workspaces:
+El contexto de workspace obtiene organizaciones, membresías, capacidades y preferencia mediante `get_tournament_workspace_context()`. La respuesta del servidor es la única autoridad.
 
-1. leer preferencia;
-2. pedir memberships vigentes;
-3. elegir sólo si sigue autorizada;
-4. limpiar caché incompatible al cambiar;
-5. persistir la nueva preferencia;
-6. resolver permisos por acción.
+1. La RPC toma el usuario exclusivamente de `auth.uid()`.
+2. Filtra memberships `active` y organizaciones `active`.
+3. Si la preferencia dejó de ser válida, la restablece a `personal`.
+4. El cliente no muestra datos institucionales hasta recibir esa respuesta.
+5. `localStorage` conserva sólo un hint versionado posterior a la validación; nunca concede acceso.
+6. Cambiar de organización persiste mediante `set_tournament_workspace_preference()`.
 
 Datos remotos deberán usar claves que incluyan organización/torneo para impedir contaminación entre espacios.
+
+## Backend de workspaces
+
+La migración `20260724233000_tournament_organization_workspaces.sql` implementa tres tablas con RLS, helpers de capacidades y cuatro RPCs controladas. La creación de organización, owner y preferencia es una única transacción idempotente.
 
 ## Backend futuro
 

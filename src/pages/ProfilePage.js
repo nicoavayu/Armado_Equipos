@@ -5,6 +5,7 @@ import PageTransition from '../components/PageTransition';
 import PageTitle from '../components/PageTitle';
 import ProfileEditor from '../components/ProfileEditor';
 import { useProfileTourTrigger } from '../features/onboarding';
+import PersonalWorkspaceSwitcher from '../features/torneos/components/PersonalWorkspaceSwitcher';
 
 const ProfilePage = () => {
   const { navigateWithAnimation } = useAnimatedNavigation();
@@ -59,6 +60,7 @@ const ProfilePage = () => {
         </PageTitle>
 
         <main className="w-full flex-1 overflow-visible">
+          <PersonalWorkspaceSwitcher />
           <ProfileEditor
             isOpen={true}
             onClose={() => navigateWithAnimation('/', 'back')}
