@@ -27,6 +27,23 @@ const USERS = {
   outsider: '41000000-0000-4000-8000-000000000005',
   race: '41000000-0000-4000-8000-000000000006',
 };
+const COMPETITION_CAPABILITIES = [
+  'seasons.read',
+  'seasons.create',
+  'seasons.update',
+  'seasons.archive',
+  'tournaments.read',
+  'tournaments.create',
+  'tournaments.update',
+  'tournaments.change_status',
+  'tournaments.archive',
+  'categories.read',
+  'categories.create',
+  'categories.update',
+  'categories.archive',
+  'competition_rules.read',
+  'competition_rules.update',
+];
 
 const postgres = new EmbeddedPostgres({
   databaseDir: DATA_DIR,
@@ -299,6 +316,148 @@ async function main() {
     /permission denied|TORNEOS_AUTH_REQUIRED/i,
     'anon no puede ejecutar el contexto competitivo',
   );
+  eq(
+    await count(
+      admin,
+      `select count(*)
+       from information_schema.routine_privileges
+       where specific_schema = 'public'
+         and routine_name in (
+           'normalize_tournament_competition_slug',
+           'is_valid_tournament_format_settings',
+           'protect_tournament_competition_scope',
+           'tournament_registration_checklist',
+           'create_tournament_season',
+           'update_tournament_season',
+           'create_tournament_with_defaults',
+           'update_tournament_configuration',
+           'save_tournament_category',
+           'change_tournament_status',
+           'set_active_tournament_context',
+           'get_tournament_competition_context'
+         )
+         and grantee = 'PUBLIC'`,
+    ),
+    0,
+    'todas las funciones competitivas revocan EXECUTE a PUBLIC',
+  );
+  eq(
+    await count(
+      admin,
+      `select count(*)
+       from pg_proc procedure
+       join pg_namespace namespace on namespace.oid = procedure.pronamespace
+       where namespace.nspname = 'public'
+         and procedure.proname in (
+           'tournament_registration_checklist',
+           'create_tournament_season',
+           'update_tournament_season',
+           'create_tournament_with_defaults',
+           'update_tournament_configuration',
+           'save_tournament_category',
+           'change_tournament_status',
+           'set_active_tournament_context',
+           'get_tournament_competition_context'
+         )
+         and procedure.prosecdef
+         and 'search_path=""' = any(procedure.proconfig)
+         and procedure.prosrc like '%auth.uid()%'
+         and procedure.prosrc !~* '\\mexecute\\M'`,
+    ),
+    9,
+    'las nueve SECURITY DEFINER fijan search_path, validan auth.uid y no usan SQL dinámico',
+  );
+  eq(
+    await value(
+      admin,
+      `select public.is_valid_tournament_format_settings(
+        'league',
+        '{"rounds":"single","qualifiers":0}'::jsonb
+      )`,
+    ),
+    true,
+    'liga acepta únicamente su configuración completa',
+  );
+  eq(
+    await value(
+      admin,
+      `select public.is_valid_tournament_format_settings(
+        'league',
+        '{"rounds":"single","qualifiers":0,"groupCount":2}'::jsonb
+      )`,
+    ),
+    false,
+    'liga rechaza opciones pertenecientes a otro formato',
+  );
+  eq(
+    await value(
+      admin,
+      `select public.is_valid_tournament_format_settings(
+        'groups',
+        '{"groupCount":2,"qualifiersPerGroup":1}'::jsonb
+      )`,
+    ),
+    false,
+    'grupos rechaza una configuración incompleta',
+  );
+  eq(
+    await value(
+      admin,
+      `select public.is_valid_tournament_format_settings(
+        'groups',
+        '{"groupCount":"dos","qualifiersPerGroup":1,"rounds":"single"}'::jsonb
+      )`,
+    ),
+    false,
+    'los tipos inválidos de formato fallan de forma cerrada',
+  );
+  await expectError(
+    () => anonymous.query(
+      `update public.tournament_sport_modalities
+       set team_size = 11
+       where code = 'football_7'`,
+    ),
+    /permission denied/i,
+    'los catálogos no se pueden modificar desde el cliente',
+  );
+  for (const role of ['owner', 'admin']) {
+    const roleCapabilities = await value(
+      admin,
+      'select public.tournament_role_capabilities($1)',
+      [role],
+    );
+    eq(
+      JSON.stringify(roleCapabilities.filter(
+        (capability) => COMPETITION_CAPABILITIES.includes(capability),
+      ).sort()),
+      JSON.stringify([...COMPETITION_CAPABILITIES].sort()),
+      `${role} conserva el contrato competitivo completo y exacto`,
+    );
+  }
+  const collaboratorCapabilities = await value(
+    admin,
+    "select public.tournament_role_capabilities('collaborator')",
+  );
+  eq(
+    JSON.stringify(collaboratorCapabilities.filter(
+      (capability) => COMPETITION_CAPABILITIES.includes(capability),
+    ).sort()),
+    JSON.stringify([
+      'seasons.read',
+      'tournaments.read',
+      'categories.read',
+      'competition_rules.read',
+    ].sort()),
+    'collaborator conserva sólo las capabilities competitivas de lectura',
+  );
+  eq(
+    JSON.stringify(await value(
+      admin,
+      "select public.tournament_role_capabilities('unknown')",
+    )),
+    JSON.stringify([]),
+    'un rol desconocido falla de forma cerrada en SQL',
+  );
 
   console.log('\nTenants, temporadas y capabilities');
   const createdA = await createOrganization(
@@ -391,8 +550,117 @@ async function main() {
     '42000000-0000-4000-8000-000000000015',
   );
   ok(Boolean(adminSeason.id), 'admin puede crear temporadas en su organización');
+  await value(
+    ownerA,
+    `select public.update_tournament_season(
+      $1, $2, null, null, null, null, null, true, false
+    )`,
+    [organizationA, seasonA.id],
+  );
+  eq(
+    await value(
+      admin,
+      'select start_date is null from public.tournament_seasons where id = $1',
+      [seasonA.id],
+    ),
+    true,
+    'una fecha opcional de temporada se puede limpiar explícitamente',
+  );
+  await value(
+    ownerA,
+    `select public.update_tournament_season(
+      $1, $2, null, null, '2027-03-01', null, null, false, false
+    )`,
+    [organizationA, seasonA.id],
+  );
 
   console.log('\nCreación atómica y configuración');
+  await admin.query(`
+    create function public.reject_competition_default_for_test()
+    returns trigger
+    language plpgsql
+    set search_path = ''
+    as $$
+    begin
+      raise exception 'TEST_DEFAULT_FAILURE';
+    end;
+    $$;
+    create trigger reject_competition_default_for_test
+    before insert on public.tournament_scoring_rules
+    for each row execute function public.reject_competition_default_for_test();
+  `);
+  await expectError(
+    () => createTournament(
+      ownerA,
+      organizationA,
+      seasonA.id,
+      'Rollback puntuación',
+      'rollback-puntuacion',
+      '42000000-0000-4000-8000-000000000018',
+    ),
+    /TEST_DEFAULT_FAILURE/,
+    'un fallo al crear puntuación revierte el torneo completo',
+  );
+  await admin.query(`
+    drop trigger reject_competition_default_for_test
+      on public.tournament_scoring_rules;
+    drop function public.reject_competition_default_for_test();
+  `);
+  eq(
+    await count(
+      admin,
+      `select count(*) from public.tournaments
+       where organization_id = $1
+         and creation_key = $2`,
+      [organizationA, '42000000-0000-4000-8000-000000000018'],
+    ),
+    0,
+    'el fallo temprano no deja torneo parcial',
+  );
+
+  await admin.query(`
+    create function public.reject_competition_context_for_test()
+    returns trigger
+    language plpgsql
+    set search_path = ''
+    as $$
+    begin
+      raise exception 'TEST_CONTEXT_FAILURE';
+    end;
+    $$;
+    create trigger reject_competition_context_for_test
+    before insert or update on public.user_tournament_context_preferences
+    for each row execute function public.reject_competition_context_for_test();
+  `);
+  await expectError(
+    () => createTournament(
+      ownerA,
+      organizationA,
+      seasonA.id,
+      'Rollback contexto',
+      'rollback-contexto',
+      '42000000-0000-4000-8000-000000000019',
+    ),
+    /TEST_CONTEXT_FAILURE/,
+    'un fallo final al seleccionar contexto revierte torneo y defaults',
+  );
+  await admin.query(`
+    drop trigger reject_competition_context_for_test
+      on public.user_tournament_context_preferences;
+    drop function public.reject_competition_context_for_test();
+  `);
+  eq(
+    await count(
+      admin,
+      `select count(*) from public.tournaments
+       where organization_id = $1
+         and creation_key = $2`,
+      [organizationA, '42000000-0000-4000-8000-000000000019'],
+    ),
+    0,
+    'el fallo tardío tampoco deja datos parciales',
+  );
+
   const tournamentA = await createTournament(
     ownerA,
     organizationA,
@@ -509,6 +777,52 @@ async function main() {
     /TORNEOS_INVALID_TIEBREAKS/,
     'los desempates duplicados se rechazan',
   );
+  await expectError(
+    () => value(
+      ownerA,
+      'select public.update_tournament_configuration($1, $2, $3::jsonb)',
+      [
+        organizationA,
+        tournamentA.id,
+        JSON.stringify({
+          competitionFormat: 'league',
+          formatSettings: {
+            rounds: 'single',
+            qualifiers: 0,
+            groupCount: 2,
+          },
+        }),
+      ],
+    ),
+    /TORNEOS_INVALID_TOURNAMENT/,
+    'cada formato rechaza opciones incompatibles o antiguas',
+  );
+  await expectError(
+    () => value(
+      ownerA,
+      'select public.update_tournament_configuration($1, $2, $3::jsonb)',
+      [
+        organizationA,
+        tournamentA.id,
+        JSON.stringify({ scoring: { futurePoints: 99 } }),
+      ],
+    ),
+    /TORNEOS_INVALID_SCORING/,
+    'puntuación rechaza claves desconocidas',
+  );
+  await expectError(
+    () => value(
+      ownerA,
+      'select public.update_tournament_configuration($1, $2, $3::jsonb)',
+      [
+        organizationA,
+        tournamentA.id,
+        JSON.stringify({ discipline: { futureSanction: true } }),
+      ],
+    ),
+    /TORNEOS_INVALID_DISCIPLINE/,
+    'disciplina rechaza configuraciones desconocidas',
+  );
 
   console.log('\nCategorías y apertura controlada');
   await expectError(
@@ -561,6 +875,104 @@ async function main() {
     /TORNEOS_RESOURCE_FORBIDDEN/,
     'cambiar tournament_id no concede acceso cross-tenant',
   );
+  const categoryB1 = await value(
+    ownerB,
+    `select public.save_tournament_category(
+      $1, $2, null, 'Primera B', 'primera-b', null, 0,
+      null, null, null, null, null, 'active'
+    )`,
+    [organizationB, tournamentB.id],
+  );
+  await value(
+    ownerB,
+    `select public.save_tournament_category(
+      $1, $2, null, 'Segunda B', 'segunda-b', null, 1,
+      null, null, null, null, null, 'active'
+    )`,
+    [organizationB, tournamentB.id],
+  );
+  const categoryB3 = await value(
+    ownerB,
+    `select public.save_tournament_category(
+      $1, $2, null, 'Tercera B', 'tercera-b', null, 2,
+      null, null, null, null, null, 'active'
+    )`,
+    [organizationB, tournamentB.id],
+  );
+  await value(
+    ownerB,
+    `select public.save_tournament_category(
+      $1, $2, $3, 'Tercera B', 'tercera-b', null, 0,
+      null, null, null, null, null, 'active'
+    )`,
+    [organizationB, tournamentB.id, categoryB3.id],
+  );
+  eq(
+    await value(
+      admin,
+      `select string_agg(name || ':' || sort_order, ',' order by sort_order)
+       from public.tournament_categories
+       where tournament_id = $1 and status = 'active'`,
+      [tournamentB.id],
+    ),
+    'Tercera B:0,Primera B:1,Segunda B:2',
+    'reordenar una categoría es una sola operación continua y transaccional',
+  );
+  ok(Boolean(categoryB1.id), 'las categorías del segundo tenant permanecen aisladas');
+
+  await value(
+    ownerA,
+    'select public.update_tournament_configuration($1, $2, $3::jsonb)',
+    [
+      organizationA,
+      tournamentA.id,
+      JSON.stringify({
+        tiebreaks: ['goal_difference', 'goals_for', 'fair_play'],
+        discipline: { fairPlayEnabled: false },
+      }),
+    ],
+  );
+  await expectError(
+    () => value(
+      ownerA,
+      'select public.change_tournament_status($1, $2, $3)',
+      [organizationA, tournamentA.id, 'registration'],
+    ),
+    /TORNEOS_REGISTRATION_INCOMPLETE/,
+    'fair play no puede usarse como desempate si su regla está deshabilitada',
+  );
+  await value(
+    ownerA,
+    'select public.update_tournament_configuration($1, $2, $3::jsonb)',
+    [
+      organizationA,
+      tournamentA.id,
+      JSON.stringify({ discipline: { fairPlayEnabled: true } }),
+    ],
+  );
+
+  await admin.query(
+    `update public.tournament_tiebreak_rules
+     set sort_order = 4
+     where tournament_id = $1 and sort_order = 3`,
+    [tournamentA.id],
+  );
+  eq(
+    (await value(
+      ownerA,
+      'select public.tournament_registration_checklist($1, $2)',
+      [organizationA, tournamentA.id],
+    )).ready,
+    false,
+    'el checklist rechaza una secuencia de desempates con huecos',
+  );
+  await admin.query(
+    `update public.tournament_tiebreak_rules
+     set sort_order = 3
+     where tournament_id = $1 and sort_order = 4`,
+    [tournamentA.id],
+  );
+
   const opened = await value(
     ownerA,
     'select public.change_tournament_status($1, $2, $3)',
@@ -662,6 +1074,29 @@ async function main() {
     true,
     'archivar limpia el torneo activo',
   );
+  await expectError(
+    () => createTournament(
+      ownerA,
+      organizationA,
+      seasonA.id,
+      'Nombre reintentado',
+      'slug-reintentado',
+      '42000000-0000-4000-8000-000000000020',
+    ),
+    /TORNEOS_IDEMPOTENCY_CONFLICT/,
+    'reintentar una clave archivada no reactiva el torneo en contexto',
+  );
+  eq(
+    await value(
+      admin,
+      `select active_tournament_id is null
+       from public.user_tournament_context_preferences
+       where user_id = $1 and organization_id = $2`,
+      [USERS.ownerA, organizationA],
+    ),
+    true,
+    'el reintento archivado conserva el contexto sin torneo',
+  );
   const afterArchive = await value(
     ownerA,
     'select public.get_tournament_competition_context($1)',
@@ -675,6 +1110,17 @@ async function main() {
       $1, $2, null, null, null, null, 'archived'
     )`,
     [organizationA, adminSeason.id],
+  );
+  await expectError(
+    () => createSeason(
+      adminA,
+      organizationA,
+      'Clausura reintentada',
+      'clausura-reintentada',
+      '42000000-0000-4000-8000-000000000015',
+    ),
+    /TORNEOS_IDEMPOTENCY_CONFLICT/,
+    'reintentar una temporada archivada no la vuelve a seleccionar',
   );
   await expectError(
     () => createTournament(
@@ -717,6 +1163,77 @@ async function main() {
     1,
     'la concurrencia no crea temporadas parciales o duplicadas',
   );
+  const concurrentTournamentResults = await Promise.all(
+    raceClients.map((client) => createTournament(
+      client,
+      raceOrganization.organization.id,
+      raceResults[0].id,
+      'Copa Concurrente',
+      'copa-concurrente',
+      '42000000-0000-4000-8000-000000000032',
+    )),
+  );
+  eq(
+    concurrentTournamentResults[0].id,
+    concurrentTournamentResults[1].id,
+    'la creación atómica de torneo resiste doble envío concurrente',
+  );
+  eq(
+    await count(
+      admin,
+      `select count(*) from public.tournaments
+       where organization_id = $1 and slug = 'copa-concurrente'`,
+      [raceOrganization.organization.id],
+    ),
+    1,
+    'el doble envío conserva un solo torneo',
+  );
+  eq(
+    await count(
+      admin,
+      `select count(*)
+       from public.tournament_tiebreak_rules
+       where tournament_id = $1`,
+      [concurrentTournamentResults[0].id],
+    ),
+    4,
+    'el torneo concurrente conserva un único set completo de defaults',
+  );
+
+  const ownerBContextRace = await connect({
+    role: 'authenticated',
+    userId: USERS.ownerB,
+  });
+  await ownerB.query('begin');
+  await value(
+    ownerB,
+    'select public.change_tournament_status($1, $2, $3)',
+    [organizationB, tournamentB.id, 'archived'],
+  );
+  let contextRaceSettled = false;
+  const contextRace = value(
+    ownerBContextRace,
+    'select public.set_active_tournament_context($1, $2, $3)',
+    [organizationB, seasonB.id, tournamentB.id],
+  )
+    .then(() => null, (error) => error)
+    .finally(() => {
+      contextRaceSettled = true;
+    });
+  await new Promise((resolve) => {
+    setTimeout(resolve, 50);
+  });
+  eq(
+    contextRaceSettled,
+    false,
+    'seleccionar contexto espera una transición de archivo concurrente',
+  );
+  await ownerB.query('commit');
+  const contextRaceError = await contextRace;
+  ok(
+    /TORNEOS_CONTEXT_FORBIDDEN/.test(String(contextRaceError?.message || '')),
+    'el archivo concurrente gana y el contexto no apunta al torneo archivado',
+  );
 
   await admin.query(
     `update public.tournament_organization_members
@@ -732,6 +1249,21 @@ async function main() {
     ),
     /TORNEOS_RESOURCE_FORBIDDEN/,
     'un miembro removido pierde acceso inmediatamente',
+  );
+  await admin.query(
+    `update public.tournament_organization_members
+     set status = 'suspended'
+     where organization_id = $1 and user_id = $2`,
+    [organizationA, USERS.adminA],
+  );
+  await expectError(
+    () => value(
+      adminA,
+      'select public.get_tournament_competition_context($1)',
+      [organizationA],
+    ),
+    /TORNEOS_RESOURCE_FORBIDDEN/,
+    'una membership suspendida también pierde acceso inmediatamente',
   );
 
   console.log(`\n${checks - failures}/${checks} verificaciones aprobadas.`);

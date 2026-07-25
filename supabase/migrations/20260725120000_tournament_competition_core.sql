@@ -453,34 +453,111 @@ create or replace function public.is_valid_tournament_format_settings(
   p_settings jsonb
 )
 returns boolean
-language sql
+language plpgsql
 immutable
 set search_path = ''
 as $$
-  select
-    jsonb_typeof(coalesce(p_settings, '{}'::jsonb)) = 'object'
-    and case p_format
-      when 'league' then
-        coalesce(p_settings->>'rounds', 'single') in ('single', 'double')
-        and coalesce((p_settings->>'qualifiers')::integer, 0) between 0 and 64
-      when 'knockout' then
-        coalesce(p_settings->>'legs', 'single') in ('single', 'double')
-        and coalesce((p_settings->>'thirdPlace')::boolean, false) in (true, false)
-      when 'groups' then
-        coalesce((p_settings->>'groupCount')::integer, 2) between 2 and 32
-        and coalesce((p_settings->>'qualifiersPerGroup')::integer, 1) between 1 and 16
-        and coalesce(p_settings->>'rounds', 'single') in ('single', 'double')
-      when 'groups_and_playoffs' then
-        coalesce((p_settings->>'groupCount')::integer, 2) between 2 and 32
-        and coalesce((p_settings->>'qualifiersPerGroup')::integer, 1) between 1 and 16
-        and coalesce(p_settings->>'groupRounds', 'single') in ('single', 'double')
-        and coalesce(p_settings->>'knockoutLegs', 'single') in ('single', 'double')
-      when 'league_and_playoffs' then
-        coalesce(p_settings->>'leagueRounds', 'single') in ('single', 'double')
-        and coalesce((p_settings->>'qualifiers')::integer, 2) between 2 and 64
-        and coalesce(p_settings->>'knockoutLegs', 'single') in ('single', 'double')
-      else false
-    end;
+begin
+  if jsonb_typeof(p_settings) <> 'object' then
+    return false;
+  end if;
+
+  case p_format
+    when 'league' then
+      if not (
+        p_settings ?& array['rounds', 'qualifiers']
+        and not exists (
+          select 1 from jsonb_object_keys(p_settings) key
+          where key not in ('rounds', 'qualifiers')
+        )
+        and jsonb_typeof(p_settings->'rounds') = 'string'
+        and jsonb_typeof(p_settings->'qualifiers') = 'number'
+      ) then
+        return false;
+      end if;
+      return p_settings->>'rounds' in ('single', 'double')
+        and (p_settings->>'qualifiers')::integer between 0 and 64;
+    when 'knockout' then
+      if not (
+        p_settings ?& array['legs', 'thirdPlace']
+        and not exists (
+          select 1 from jsonb_object_keys(p_settings) key
+          where key not in ('legs', 'thirdPlace')
+        )
+        and jsonb_typeof(p_settings->'legs') = 'string'
+        and jsonb_typeof(p_settings->'thirdPlace') = 'boolean'
+      ) then
+        return false;
+      end if;
+      return p_settings->>'legs' in ('single', 'double')
+        and (p_settings->>'thirdPlace')::boolean in (true, false);
+    when 'groups' then
+      if not (
+        p_settings ?& array['groupCount', 'qualifiersPerGroup', 'rounds']
+        and not exists (
+          select 1 from jsonb_object_keys(p_settings) key
+          where key not in ('groupCount', 'qualifiersPerGroup', 'rounds')
+        )
+        and jsonb_typeof(p_settings->'groupCount') = 'number'
+        and jsonb_typeof(p_settings->'qualifiersPerGroup') = 'number'
+        and jsonb_typeof(p_settings->'rounds') = 'string'
+      ) then
+        return false;
+      end if;
+      return (p_settings->>'groupCount')::integer between 2 and 32
+        and (p_settings->>'qualifiersPerGroup')::integer between 1 and 16
+        and p_settings->>'rounds' in ('single', 'double');
+    when 'groups_and_playoffs' then
+      if not (
+        p_settings ?& array[
+          'groupCount',
+          'qualifiersPerGroup',
+          'groupRounds',
+          'knockoutLegs'
+        ]
+        and not exists (
+          select 1 from jsonb_object_keys(p_settings) key
+          where key not in (
+            'groupCount',
+            'qualifiersPerGroup',
+            'groupRounds',
+            'knockoutLegs'
+          )
+        )
+        and jsonb_typeof(p_settings->'groupCount') = 'number'
+        and jsonb_typeof(p_settings->'qualifiersPerGroup') = 'number'
+        and jsonb_typeof(p_settings->'groupRounds') = 'string'
+        and jsonb_typeof(p_settings->'knockoutLegs') = 'string'
+      ) then
+        return false;
+      end if;
+      return (p_settings->>'groupCount')::integer between 2 and 32
+        and (p_settings->>'qualifiersPerGroup')::integer between 1 and 16
+        and p_settings->>'groupRounds' in ('single', 'double')
+        and p_settings->>'knockoutLegs' in ('single', 'double');
+    when 'league_and_playoffs' then
+      if not (
+        p_settings ?& array['leagueRounds', 'qualifiers', 'knockoutLegs']
+        and not exists (
+          select 1 from jsonb_object_keys(p_settings) key
+          where key not in ('leagueRounds', 'qualifiers', 'knockoutLegs')
+        )
+        and jsonb_typeof(p_settings->'leagueRounds') = 'string'
+        and jsonb_typeof(p_settings->'qualifiers') = 'number'
+        and jsonb_typeof(p_settings->'knockoutLegs') = 'string'
+      ) then
+        return false;
+      end if;
+      return p_settings->>'leagueRounds' in ('single', 'double')
+        and (p_settings->>'qualifiers')::integer between 2 and 64
+        and p_settings->>'knockoutLegs' in ('single', 'double');
+    else
+      return false;
+  end case;
+exception
+  when invalid_text_representation or numeric_value_out_of_range then
+    return false;
+end;
 $$;
 
 create or replace function public.protect_tournament_competition_scope()
@@ -628,8 +705,13 @@ declare
   v_warnings text[] := array[]::text[];
   v_category_count integer;
   v_tiebreak_count integer;
+  v_tiebreak_min smallint;
+  v_tiebreak_max smallint;
   v_has_scoring boolean;
   v_has_discipline boolean;
+  v_season_valid boolean;
+  v_has_fair_play_tiebreak boolean;
+  v_fair_play_enabled boolean;
 begin
   if auth.uid() is null
     or not public.has_tournament_organization_capability(
@@ -651,16 +733,33 @@ begin
     raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
   end if;
 
+  select exists (
+    select 1
+    from public.tournament_seasons season
+    where season.id = v_tournament.season_id
+      and season.organization_id = p_organization_id
+      and season.status <> 'archived'
+  ) into v_season_valid;
+
   select count(*) into v_category_count
   from public.tournament_categories category
   where category.organization_id = p_organization_id
     and category.tournament_id = p_tournament_id
     and category.status = 'active';
 
-  select count(*) into v_tiebreak_count
+  select count(*), min(rule.sort_order), max(rule.sort_order)
+  into v_tiebreak_count, v_tiebreak_min, v_tiebreak_max
   from public.tournament_tiebreak_rules rule
   where rule.organization_id = p_organization_id
     and rule.tournament_id = p_tournament_id;
+
+  select exists (
+    select 1
+    from public.tournament_tiebreak_rules rule
+    where rule.organization_id = p_organization_id
+      and rule.tournament_id = p_tournament_id
+      and rule.criterion = 'fair_play'
+  ) into v_has_fair_play_tiebreak;
 
   select exists(
     select 1 from public.tournament_scoring_rules rule
@@ -669,11 +768,21 @@ begin
   ) into v_has_scoring;
 
   select exists(
-    select 1 from public.tournament_discipline_rules rule
+    select 1
+    from public.tournament_discipline_rules rule
     where rule.organization_id = p_organization_id
       and rule.tournament_id = p_tournament_id
   ) into v_has_discipline;
 
+  select coalesce(bool_or(rule.fair_play_enabled), false)
+  into v_fair_play_enabled
+  from public.tournament_discipline_rules rule
+  where rule.organization_id = p_organization_id
+    and rule.tournament_id = p_tournament_id;
+
+  if not v_season_valid then
+    v_errors := array_append(v_errors, 'season');
+  end if;
   if char_length(v_tournament.name) < 3 then
     v_errors := array_append(v_errors, 'name');
   end if;
@@ -700,10 +809,15 @@ begin
   if not v_has_scoring then
     v_errors := array_append(v_errors, 'scoring');
   end if;
-  if v_tiebreak_count < 1 then
+  if v_tiebreak_count < 1
+    or v_tiebreak_min <> 1
+    or v_tiebreak_max <> v_tiebreak_count
+  then
     v_errors := array_append(v_errors, 'tiebreaks');
   end if;
-  if not v_has_discipline then
+  if not v_has_discipline
+    or (v_has_fair_play_tiebreak and not v_fair_play_enabled)
+  then
     v_errors := array_append(v_errors, 'discipline');
   end if;
   if v_tournament.start_date is null then
@@ -721,6 +835,7 @@ begin
     'warnings', to_jsonb(v_warnings),
     'checks', jsonb_build_object(
       'information', char_length(v_tournament.name) >= 3,
+      'season', v_season_valid,
       'modality', v_tournament.sport_modality is not null,
       'format', public.is_valid_tournament_format_settings(
         v_tournament.competition_format,
@@ -728,8 +843,15 @@ begin
       ),
       'categories', v_category_count > 0,
       'scoring', v_has_scoring,
-      'tiebreaks', v_tiebreak_count > 0,
-      'discipline', v_has_discipline
+      'tiebreaks', (
+        v_tiebreak_count > 0
+        and v_tiebreak_min = 1
+        and v_tiebreak_max = v_tiebreak_count
+      ),
+      'discipline', (
+        v_has_discipline
+        and (not v_has_fair_play_tiebreak or v_fair_play_enabled)
+      )
     )
   );
 end;
@@ -781,11 +903,25 @@ begin
     0
   ));
 
+  perform 1
+  from public.tournament_organizations organization
+  where organization.id = p_organization_id
+    and organization.status = 'active'
+  for share;
+
+  if not found then
+    raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
+  end if;
+
   select season.* into v_season
   from public.tournament_seasons season
   where season.organization_id = p_organization_id
     and season.created_by = v_user_id
     and season.creation_key = p_idempotency_key;
+
+  if v_season.id is not null and v_season.status = 'archived' then
+    raise exception using errcode = '23514', message = 'TORNEOS_IDEMPOTENCY_CONFLICT';
+  end if;
 
   if v_season.id is null then
     begin
@@ -858,7 +994,9 @@ create or replace function public.update_tournament_season(
   p_slug text default null,
   p_start_date date default null,
   p_end_date date default null,
-  p_status text default null
+  p_status text default null,
+  p_clear_start_date boolean default false,
+  p_clear_end_date boolean default false
 )
 returns jsonb
 language plpgsql
@@ -914,8 +1052,14 @@ begin
     when p_slug is null then v_season.slug
     else public.normalize_tournament_competition_slug(p_slug)
   end;
-  v_start_date := coalesce(p_start_date, v_season.start_date);
-  v_end_date := coalesce(p_end_date, v_season.end_date);
+  v_start_date := case
+    when p_clear_start_date then null
+    else coalesce(p_start_date, v_season.start_date)
+  end;
+  v_end_date := case
+    when p_clear_end_date then null
+    else coalesce(p_end_date, v_season.end_date)
+  end;
 
   if char_length(v_name) not between 3 and 80
     or char_length(v_slug) not between 3 and 48
@@ -1002,14 +1146,6 @@ begin
   if p_idempotency_key is null then
     raise exception using errcode = '22023', message = 'TORNEOS_IDEMPOTENCY_REQUIRED';
   end if;
-  if not exists (
-    select 1 from public.tournament_seasons season
-    where season.id = p_season_id
-      and season.organization_id = p_organization_id
-      and season.status <> 'archived'
-  ) then
-    raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
-  end if;
   if char_length(v_name) not between 3 and 100
     or char_length(v_slug) not between 3 and 64
     or p_gender_category not in ('male', 'female', 'mixed', 'open')
@@ -1049,11 +1185,29 @@ begin
     0
   ));
 
+  perform 1
+  from public.tournament_seasons season
+  join public.tournament_organizations organization
+    on organization.id = season.organization_id
+  where season.id = p_season_id
+    and season.organization_id = p_organization_id
+    and season.status <> 'archived'
+    and organization.status = 'active'
+  for share of season, organization;
+
+  if not found then
+    raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
+  end if;
+
   select tournament.* into v_tournament
   from public.tournaments tournament
   where tournament.organization_id = p_organization_id
     and tournament.created_by = v_user_id
     and tournament.creation_key = p_idempotency_key;
+
+  if v_tournament.id is not null and v_tournament.status = 'archived' then
+    raise exception using errcode = '23514', message = 'TORNEOS_IDEMPOTENCY_CONFLICT';
+  end if;
 
   if v_tournament.id is null then
     begin
@@ -1323,6 +1477,23 @@ begin
       raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
     end if;
     v_scoring := v_patch->'scoring';
+    if jsonb_typeof(v_scoring) <> 'object'
+      or exists (
+        select 1
+        from jsonb_object_keys(v_scoring) key
+        where key not in (
+          'pointsWin',
+          'pointsDraw',
+          'pointsLoss',
+          'pointsWalkoverWin',
+          'pointsWalkoverLoss',
+          'allowManualPointsAdjustment',
+          'allowAdministrativeResult'
+        )
+      )
+    then
+      raise exception using errcode = '22023', message = 'TORNEOS_INVALID_SCORING';
+    end if;
     update public.tournament_scoring_rules
     set points_win = coalesce((v_scoring->>'pointsWin')::smallint, points_win),
         points_draw = coalesce((v_scoring->>'pointsDraw')::smallint, points_draw),
@@ -1404,6 +1575,24 @@ begin
       raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
     end if;
     v_discipline := v_patch->'discipline';
+    if jsonb_typeof(v_discipline) <> 'object'
+      or exists (
+        select 1
+        from jsonb_object_keys(v_discipline) key
+        where key not in (
+          'yellowsForSuspension',
+          'suspensionMatches',
+          'directRedSuggestedMatches',
+          'doubleYellowCountsAsRed',
+          'resetYellowsEachStage',
+          'fairPlayEnabled',
+          'yellowFairPlayPoints',
+          'redFairPlayPoints'
+        )
+      )
+    then
+      raise exception using errcode = '22023', message = 'TORNEOS_INVALID_DISCIPLINE';
+    end if;
     update public.tournament_discipline_rules
     set yellows_for_suspension = coalesce(
           (v_discipline->>'yellowsForSuspension')::smallint,
@@ -1482,6 +1671,9 @@ declare
     when p_category_id is null then 'categories.create'
     else 'categories.update'
   end;
+  v_active_count integer;
+  v_current_order integer;
+  v_target_order integer;
 begin
   if auth.uid() is null then
     raise exception using errcode = '42501', message = 'TORNEOS_AUTH_REQUIRED';
@@ -1492,18 +1684,24 @@ begin
   ) then
     raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
   end if;
-  if not exists (
-    select 1 from public.tournaments tournament
-    where tournament.id = p_tournament_id
-      and tournament.organization_id = p_organization_id
-      and tournament.status in ('draft', 'registration')
-  ) then
+  perform 1
+  from public.tournaments tournament
+  where tournament.id = p_tournament_id
+    and tournament.organization_id = p_organization_id
+    and tournament.status in ('draft', 'registration')
+  for update;
+
+  if not found then
     raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
   end if;
   if char_length(v_name) not between 2 and 80
     or char_length(v_slug) not between 2 and 48
     or p_status not in ('active', 'archived')
+    or (p_category_id is null and p_status = 'archived')
+    or (p_min_age is not null and p_min_age not between 5 and 99)
+    or (p_max_age is not null and p_max_age not between 5 and 99)
     or (p_min_age is not null and p_max_age is not null and p_max_age < p_min_age)
+    or (p_team_size is not null and p_team_size not between 5 and 11)
     or (
       p_gender_category is not null
       and p_gender_category not in ('male', 'female', 'mixed', 'open')
@@ -1519,7 +1717,26 @@ begin
     raise exception using errcode = '22023', message = 'TORNEOS_INVALID_CATEGORY';
   end if;
 
+  select count(*)
+  into v_active_count
+  from public.tournament_categories category
+  where category.organization_id = p_organization_id
+    and category.tournament_id = p_tournament_id
+    and category.status = 'active';
+
   if p_category_id is null then
+    v_target_order := least(
+      greatest(coalesce(p_sort_order, v_active_count), 0),
+      v_active_count
+    );
+
+    update public.tournament_categories
+    set sort_order = sort_order + 1
+    where organization_id = p_organization_id
+      and tournament_id = p_tournament_id
+      and status = 'active'
+      and sort_order >= v_target_order;
+
     begin
       insert into public.tournament_categories (
         organization_id,
@@ -1543,7 +1760,7 @@ begin
         v_slug,
         nullif(btrim(coalesce(p_description, '')), ''),
         p_status,
-        greatest(coalesce(p_sort_order, 0), 0),
+        v_target_order,
         p_min_age,
         p_max_age,
         p_gender_category,
@@ -1566,6 +1783,7 @@ begin
     if v_category.id is null or v_category.status = 'archived' then
       raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
     end if;
+    v_current_order := v_category.sort_order;
     if p_status = 'archived'
       and exists (
         select 1 from public.tournaments tournament
@@ -1581,13 +1799,42 @@ begin
       raise exception using errcode = '23514', message = 'TORNEOS_CATEGORY_REQUIRED';
     end if;
 
+    if p_status = 'active' then
+      v_target_order := least(
+        greatest(coalesce(p_sort_order, v_current_order), 0),
+        greatest(v_active_count - 1, 0)
+      );
+
+      if v_target_order < v_current_order then
+        update public.tournament_categories
+        set sort_order = sort_order + 1
+        where organization_id = p_organization_id
+          and tournament_id = p_tournament_id
+          and status = 'active'
+          and id <> p_category_id
+          and sort_order >= v_target_order
+          and sort_order < v_current_order;
+      elsif v_target_order > v_current_order then
+        update public.tournament_categories
+        set sort_order = sort_order - 1
+        where organization_id = p_organization_id
+          and tournament_id = p_tournament_id
+          and status = 'active'
+          and id <> p_category_id
+          and sort_order > v_current_order
+          and sort_order <= v_target_order;
+      end if;
+    else
+      v_target_order := v_current_order;
+    end if;
+
     begin
       update public.tournament_categories
       set name = v_name,
           slug = v_slug,
           description = nullif(btrim(coalesce(p_description, '')), ''),
           status = p_status,
-          sort_order = greatest(coalesce(p_sort_order, sort_order), 0),
+          sort_order = v_target_order,
           min_age = p_min_age,
           max_age = p_max_age,
           gender_category = p_gender_category,
@@ -1599,6 +1846,15 @@ begin
     exception when unique_violation then
       raise exception using errcode = '23505', message = 'TORNEOS_CATEGORY_SLUG_TAKEN';
     end;
+
+    if p_status = 'archived' then
+      update public.tournament_categories
+      set sort_order = sort_order - 1
+      where organization_id = p_organization_id
+        and tournament_id = p_tournament_id
+        and status = 'active'
+        and sort_order > v_current_order;
+    end if;
   end if;
 
   return jsonb_build_object(
@@ -1720,22 +1976,29 @@ begin
   ) then
     raise exception using errcode = '42501', message = 'TORNEOS_CONTEXT_FORBIDDEN';
   end if;
-  if not exists (
-    select 1 from public.tournament_seasons season
-    where season.id = p_season_id
-      and season.organization_id = p_organization_id
-      and season.status <> 'archived'
-  ) then
+  perform 1
+  from public.tournament_seasons season
+  where season.id = p_season_id
+    and season.organization_id = p_organization_id
+    and season.status <> 'archived'
+  for share;
+
+  if not found then
     raise exception using errcode = '42501', message = 'TORNEOS_CONTEXT_FORBIDDEN';
   end if;
-  if p_tournament_id is not null and not exists (
-    select 1 from public.tournaments tournament
+
+  if p_tournament_id is not null then
+    perform 1
+    from public.tournaments tournament
     where tournament.id = p_tournament_id
       and tournament.organization_id = p_organization_id
       and tournament.season_id = p_season_id
       and tournament.status <> 'archived'
-  ) then
-    raise exception using errcode = '42501', message = 'TORNEOS_CONTEXT_FORBIDDEN';
+    for share;
+
+    if not found then
+      raise exception using errcode = '42501', message = 'TORNEOS_CONTEXT_FORBIDDEN';
+    end if;
   end if;
 
   insert into public.user_tournament_context_preferences (
@@ -2051,7 +2314,17 @@ revoke all on function public.is_valid_tournament_format_settings(text, jsonb) f
 revoke all on function public.protect_tournament_competition_scope() from public;
 revoke all on function public.tournament_registration_checklist(uuid, uuid) from public;
 revoke all on function public.create_tournament_season(uuid, text, text, date, date, uuid) from public;
-revoke all on function public.update_tournament_season(uuid, uuid, text, text, date, date, text) from public;
+revoke all on function public.update_tournament_season(
+  uuid,
+  uuid,
+  text,
+  text,
+  date,
+  date,
+  text,
+  boolean,
+  boolean
+) from public;
 revoke all on function public.create_tournament_with_defaults(uuid, uuid, text, text, text, text, text, text, date, date, uuid) from public;
 revoke all on function public.update_tournament_configuration(uuid, uuid, jsonb) from public;
 revoke all on function public.save_tournament_category(uuid, uuid, uuid, text, text, text, integer, smallint, smallint, text, text, smallint, text) from public;
@@ -2067,7 +2340,17 @@ grant execute on function public.tournament_registration_checklist(uuid, uuid)
   to authenticated;
 grant execute on function public.create_tournament_season(uuid, text, text, date, date, uuid)
   to authenticated;
-grant execute on function public.update_tournament_season(uuid, uuid, text, text, date, date, text)
+grant execute on function public.update_tournament_season(
+  uuid,
+  uuid,
+  text,
+  text,
+  date,
+  date,
+  text,
+  boolean,
+  boolean
+)
   to authenticated;
 grant execute on function public.create_tournament_with_defaults(uuid, uuid, text, text, text, text, text, text, date, date, uuid)
   to authenticated;
