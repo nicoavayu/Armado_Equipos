@@ -3,6 +3,10 @@
 
 create extension if not exists pgcrypto;
 
+alter table public.tournament_categories
+  add constraint tournament_categories_org_tournament_id_unique
+  unique (organization_id, tournament_id, id);
+
 create table public.tournament_roster_settings (
   tournament_id uuid primary key,
   organization_id uuid not null,
@@ -76,8 +80,8 @@ create table public.tournament_team_entries (
     foreign key (organization_id, tournament_id, season_id)
     references public.tournaments(organization_id, id, season_id) on delete restrict,
   constraint tournament_team_entries_category_fk
-    foreign key (organization_id, category_id)
-    references public.tournament_categories(organization_id, id) on delete restrict,
+    foreign key (organization_id, tournament_id, category_id)
+    references public.tournament_categories(organization_id, tournament_id, id) on delete restrict,
   constraint tournament_team_entries_name_check
     check (name = btrim(name) and char_length(name) between 2 and 100),
   constraint tournament_team_entries_slug_check
@@ -127,7 +131,9 @@ create table public.tournament_team_entries (
     ),
   constraint tournament_team_entries_idempotency_unique
     unique (organization_id, created_by, idempotency_key),
-  constraint tournament_team_entries_org_id_unique unique (organization_id, id)
+  constraint tournament_team_entries_org_id_unique unique (organization_id, id),
+  constraint tournament_team_entries_org_tournament_id_unique
+    unique (organization_id, tournament_id, id)
 );
 
 create unique index tournament_team_entries_linked_active_unique
@@ -178,7 +184,9 @@ create table public.tournament_team_managers (
     check (
       (status <> 'active' or (user_id is not null and accepted_at is not null))
       and (status <> 'revoked' or revoked_at is not null)
-    )
+    ),
+  constraint tournament_team_managers_scope_unique
+    unique (organization_id, team_entry_id, id)
 );
 
 create unique index tournament_team_managers_active_user_unique
@@ -195,7 +203,7 @@ create table public.tournament_team_invitations (
   organization_id uuid not null,
   tournament_id uuid not null,
   team_entry_id uuid not null,
-  manager_id uuid not null references public.tournament_team_managers(id) on delete restrict,
+  manager_id uuid not null,
   email_normalized text not null,
   role text not null,
   token_hash text not null unique,
@@ -206,11 +214,14 @@ create table public.tournament_team_invitations (
   accepted_at timestamptz,
   revoked_at timestamptz,
   constraint tournament_team_invitations_entry_fk
-    foreign key (organization_id, team_entry_id)
-    references public.tournament_team_entries(organization_id, id) on delete restrict,
+    foreign key (organization_id, tournament_id, team_entry_id)
+    references public.tournament_team_entries(organization_id, tournament_id, id) on delete restrict,
   constraint tournament_team_invitations_tournament_fk
     foreign key (organization_id, tournament_id)
     references public.tournaments(organization_id, id) on delete restrict,
+  constraint tournament_team_invitations_manager_fk
+    foreign key (organization_id, team_entry_id, manager_id)
+    references public.tournament_team_managers(organization_id, team_entry_id, id) on delete restrict,
   constraint tournament_team_invitations_role_check
     check (role in ('captain', 'delegate', 'assistant')),
   constraint tournament_team_invitations_status_check
@@ -221,6 +232,7 @@ create table public.tournament_team_invitations (
     check (
       (status <> 'accepted' or accepted_at is not null)
       and (status <> 'revoked' or revoked_at is not null)
+      and (accepted_at is null or accepted_at <= expires_at)
     )
 );
 
@@ -289,7 +301,9 @@ create table public.tournament_rosters (
       and (status <> 'locked' or locked_at is not null)
     ),
   constraint tournament_rosters_version_unique unique (team_entry_id, version),
-  constraint tournament_rosters_org_id_unique unique (organization_id, id)
+  constraint tournament_rosters_org_id_unique unique (organization_id, id),
+  constraint tournament_rosters_scope_unique
+    unique (organization_id, team_entry_id, id)
 );
 
 create unique index tournament_rosters_editable_unique
@@ -318,8 +332,8 @@ create table public.tournament_roster_players (
   updated_at timestamptz not null default now(),
   removed_at timestamptz,
   constraint tournament_roster_players_roster_fk
-    foreign key (organization_id, roster_id)
-    references public.tournament_rosters(organization_id, id) on delete restrict,
+    foreign key (organization_id, team_entry_id, roster_id)
+    references public.tournament_rosters(organization_id, team_entry_id, id) on delete restrict,
   constraint tournament_roster_players_entry_fk
     foreign key (organization_id, team_entry_id)
     references public.tournament_team_entries(organization_id, id) on delete restrict,
@@ -374,8 +388,8 @@ create table public.tournament_team_reviews (
     foreign key (organization_id, team_entry_id)
     references public.tournament_team_entries(organization_id, id) on delete restrict,
   constraint tournament_team_reviews_roster_fk
-    foreign key (organization_id, roster_id)
-    references public.tournament_rosters(organization_id, id) on delete restrict,
+    foreign key (organization_id, team_entry_id, roster_id)
+    references public.tournament_rosters(organization_id, team_entry_id, id) on delete restrict,
   constraint tournament_team_reviews_decision_check
     check (decision in ('changes_requested', 'approved', 'rejected')),
   constraint tournament_team_reviews_reason_check
@@ -407,7 +421,15 @@ create table public.tournament_audit_log (
   constraint tournament_audit_log_resource_check
     check (resource_type ~ '^[a-z][a-z0-9_]{2,60}$'),
   constraint tournament_audit_log_metadata_check
-    check (jsonb_typeof(metadata) = 'object' and pg_column_size(metadata) <= 8192)
+    check (jsonb_typeof(metadata) = 'object' and pg_column_size(metadata) <= 8192),
+  constraint tournament_audit_log_entry_context_check
+    check (team_entry_id is null or tournament_id is not null),
+  constraint tournament_audit_log_tournament_fk
+    foreign key (organization_id, tournament_id)
+    references public.tournaments(organization_id, id) on delete restrict,
+  constraint tournament_audit_log_entry_fk
+    foreign key (organization_id, tournament_id, team_entry_id)
+    references public.tournament_team_entries(organization_id, tournament_id, id) on delete restrict
 );
 
 create index tournament_audit_log_org_created_idx
@@ -505,11 +527,17 @@ as $$
     join public.tournament_team_entries entry on entry.id = manager.team_entry_id
     join public.tournament_organizations organization on organization.id = entry.organization_id
     join public.tournaments tournament on tournament.id = entry.tournament_id
+    join public.tournament_categories category
+      on category.id = entry.category_id
+      and category.organization_id = entry.organization_id
+      and category.tournament_id = entry.tournament_id
     where manager.team_entry_id = p_team_entry_id
       and manager.user_id = auth.uid()
       and manager.status = 'active'
       and organization.status = 'active'
       and tournament.status <> 'archived'
+      and category.status = 'active'
+      and entry.status <> 'archived'
       and (
         not p_require_edit
         or (
@@ -530,10 +558,102 @@ stable
 security definer
 set search_path = ''
 as $$
-  select public.has_tournament_organization_capability(
-    p_organization_id,
-    'team_entries.read'
-  ) or public.is_tournament_team_manager(p_team_entry_id, false);
+  select auth.uid() is not null and exists (
+    select 1
+    from public.tournament_team_entries entry
+    join public.tournament_organizations organization
+      on organization.id = entry.organization_id
+    join public.tournaments tournament
+      on tournament.id = entry.tournament_id
+      and tournament.organization_id = entry.organization_id
+    join public.tournament_categories category
+      on category.id = entry.category_id
+      and category.organization_id = entry.organization_id
+      and category.tournament_id = entry.tournament_id
+    where entry.id = p_team_entry_id
+      and entry.organization_id = p_organization_id
+      and entry.status <> 'archived'
+      and organization.status = 'active'
+      and tournament.status <> 'archived'
+      and category.status = 'active'
+      and (
+        public.has_tournament_organization_capability(
+          p_organization_id,
+          'team_entries.read'
+        )
+        or public.is_tournament_team_manager(p_team_entry_id, false)
+      )
+  );
+$$;
+
+create or replace function public.can_edit_tournament_team_entry(
+  p_organization_id uuid,
+  p_team_entry_id uuid
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select auth.uid() is not null and exists (
+    select 1
+    from public.tournament_team_entries entry
+    join public.tournament_organizations organization
+      on organization.id = entry.organization_id
+    join public.tournaments tournament
+      on tournament.id = entry.tournament_id
+      and tournament.organization_id = entry.organization_id
+    join public.tournament_categories category
+      on category.id = entry.category_id
+      and category.organization_id = entry.organization_id
+      and category.tournament_id = entry.tournament_id
+    left join public.tournament_roster_settings settings
+      on settings.organization_id = entry.organization_id
+      and settings.tournament_id = entry.tournament_id
+    where entry.id = p_team_entry_id
+      and entry.organization_id = p_organization_id
+      and organization.status = 'active'
+      and category.status = 'active'
+      and entry.status in ('draft', 'invited', 'in_progress', 'changes_requested')
+      and (
+        public.has_tournament_organization_capability(
+          p_organization_id,
+          'team_entries.update'
+        )
+        or exists (
+          select 1
+          from public.tournament_team_managers manager
+          where manager.team_entry_id = entry.id
+            and manager.organization_id = entry.organization_id
+            and manager.user_id = auth.uid()
+            and manager.status = 'active'
+            and manager.role in ('captain', 'delegate')
+        )
+      )
+      and (
+        entry.status = 'changes_requested'
+        or (
+          tournament.status = 'registration'
+          and (
+            tournament.registration_opens_at is null
+            or now() >= tournament.registration_opens_at
+          )
+          and (
+            tournament.registration_closes_at is null
+            or now() <= tournament.registration_closes_at
+          )
+          and (
+            settings.roster_opens_at is null
+            or now() >= settings.roster_opens_at
+          )
+          and (
+            settings.roster_closes_at is null
+            or now() <= settings.roster_closes_at
+          )
+        )
+      )
+  );
 $$;
 
 create or replace function public.append_tournament_audit(
@@ -592,6 +712,7 @@ declare
   v_missing_positions integer;
   v_repeated_numbers integer;
   v_cross_team integer;
+  v_pending_eligibility integer;
   v_errors text[] := array[]::text[];
   v_warnings text[] := array[]::text[];
 begin
@@ -606,10 +727,24 @@ begin
   select * into v_settings from public.tournament_roster_settings
   where tournament_id = v_entry.tournament_id and organization_id = p_organization_id;
 
-  if not exists (
+  if v_entry.id is null or v_settings.tournament_id is null or not exists (
     select 1 from public.tournament_rosters
     where id = p_roster_id and team_entry_id = p_team_entry_id
       and organization_id = p_organization_id
+  ) or not exists (
+    select 1
+    from public.tournament_organizations organization
+    join public.tournaments tournament
+      on tournament.organization_id = organization.id
+    join public.tournament_categories category
+      on category.organization_id = tournament.organization_id
+      and category.tournament_id = tournament.id
+    where organization.id = p_organization_id
+      and organization.status = 'active'
+      and tournament.id = v_entry.tournament_id
+      and tournament.status <> 'archived'
+      and category.id = v_entry.category_id
+      and category.status = 'active'
   ) then
     raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
   end if;
@@ -618,8 +753,10 @@ begin
     count(*),
     count(*) filter (where is_goalkeeper),
     count(*) filter (where shirt_number is null),
-    count(*) filter (where primary_position is null)
-  into v_count, v_goalkeepers, v_missing_numbers, v_missing_positions
+    count(*) filter (where primary_position is null),
+    count(*) filter (where eligibility_status <> 'eligible')
+  into v_count, v_goalkeepers, v_missing_numbers, v_missing_positions,
+    v_pending_eligibility
   from public.tournament_roster_players
   where roster_id = p_roster_id and status = 'active';
 
@@ -635,9 +772,18 @@ begin
   join public.tournament_team_entries current_entry
     on current_entry.id = current_player.team_entry_id
   join public.tournament_roster_players other_player
-    on other_player.arma2_user_id = current_player.arma2_user_id
-    and other_player.team_entry_id <> current_player.team_entry_id
+    on other_player.team_entry_id <> current_player.team_entry_id
     and other_player.status = 'active'
+    and (
+      (
+        current_player.arma2_user_id is not null
+        and other_player.arma2_user_id = current_player.arma2_user_id
+      )
+      or (
+        current_player.provisional_player_id is not null
+        and other_player.provisional_player_id = current_player.provisional_player_id
+      )
+    )
   join public.tournament_team_entries other_entry
     on other_entry.id = other_player.team_entry_id
     and other_entry.tournament_id = current_entry.tournament_id
@@ -645,7 +791,10 @@ begin
     and other_entry.status = 'approved'
   where current_player.roster_id = p_roster_id
     and current_player.status = 'active'
-    and current_player.arma2_user_id is not null;
+    and num_nonnulls(
+      current_player.arma2_user_id,
+      current_player.provisional_player_id
+    ) = 1;
 
   if v_count < v_settings.minimum_players then v_errors := array_append(v_errors, 'minimum_players'); end if;
   if v_count > v_settings.maximum_players then v_errors := array_append(v_errors, 'maximum_players'); end if;
@@ -654,6 +803,9 @@ begin
   if v_settings.position_required and v_missing_positions > 0 then v_errors := array_append(v_errors, 'position_required'); end if;
   if v_settings.unique_shirt_numbers and v_repeated_numbers > 0 then v_errors := array_append(v_errors, 'duplicate_shirt_number'); end if;
   if not v_settings.allow_player_multiple_teams and v_cross_team > 0 then v_errors := array_append(v_errors, 'player_already_approved'); end if;
+  if v_settings.require_individual_player_approval and v_pending_eligibility > 0 then
+    v_errors := array_append(v_errors, 'player_approval_required');
+  end if;
 
   if exists (
     select 1
@@ -708,6 +860,7 @@ declare
   v_uid uuid := auth.uid();
   v_tournament public.tournaments%rowtype;
   v_category public.tournament_categories%rowtype;
+  v_arma2_team public.teams%rowtype;
   v_entry public.tournament_team_entries%rowtype;
   v_roster public.tournament_rosters%rowtype;
   v_manager public.tournament_team_managers%rowtype;
@@ -715,6 +868,8 @@ declare
   v_slug text;
   v_source text := coalesce(p_registration_source, case when p_arma2_team_id is null then 'provisional' else 'arma2_team' end);
   v_email text := nullif(lower(btrim(coalesce(p_manager_email, ''))), '');
+  v_primary_color text := p_primary_color;
+  v_secondary_color text := p_secondary_color;
 begin
   if v_uid is null then raise exception using errcode = '42501', message = 'TORNEOS_AUTH_REQUIRED'; end if;
   if not public.has_tournament_organization_capability(p_organization_id, 'team_entries.create') then
@@ -733,22 +888,37 @@ begin
 
   select * into v_tournament from public.tournaments
   where id = p_tournament_id and organization_id = p_organization_id
-    and status = 'registration' and archived_at is null;
+    and status = 'registration' and archived_at is null
+    and (registration_opens_at is null or now() >= registration_opens_at)
+    and (registration_closes_at is null or now() <= registration_closes_at);
   select * into v_category from public.tournament_categories
   where id = p_category_id and organization_id = p_organization_id
     and tournament_id = p_tournament_id and status = 'active';
   if v_tournament.id is null or v_category.id is null then
     raise exception using errcode = '42501', message = 'TORNEOS_REGISTRATION_CLOSED';
   end if;
+  if v_source not in ('manual', 'invitation', 'arma2_team', 'provisional')
+    or ((v_source = 'arma2_team') <> (p_arma2_team_id is not null))
+  then raise exception using errcode = '22023', message = 'TORNEOS_INVALID_TEAM_ENTRY'; end if;
+  if p_manager_user_id is not null then
+    raise exception using errcode = '22023', message = 'TORNEOS_MANAGER_INVITATION_REQUIRED';
+  end if;
+  if p_arma2_team_id is not null then
+    select * into v_arma2_team
+    from public.teams
+    where id = p_arma2_team_id
+      and is_active
+      and public.team_user_is_admin_or_owner(id, v_uid);
+    if v_arma2_team.id is null then
+      raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
+    end if;
+    v_name := btrim(v_arma2_team.name);
+    v_primary_color := v_arma2_team.color_primary;
+    v_secondary_color := v_arma2_team.color_secondary;
+  end if;
   if char_length(v_name) not between 2 and 100 then
     raise exception using errcode = '22023', message = 'TORNEOS_INVALID_TEAM_ENTRY';
   end if;
-  if v_source not in ('manual', 'invitation', 'arma2_team', 'provisional')
-    or (v_source = 'arma2_team' and p_arma2_team_id is null)
-  then raise exception using errcode = '22023', message = 'TORNEOS_INVALID_TEAM_ENTRY'; end if;
-  if p_arma2_team_id is not null and not exists (
-    select 1 from public.teams where id = p_arma2_team_id and is_active
-  ) then raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN'; end if;
 
   v_slug := public.normalize_tournament_competition_slug(v_name);
   if char_length(v_slug) < 2 then v_slug := 'equipo-' || substr(replace(public.gen_random_uuid()::text, '-', ''), 1, 8); end if;
@@ -764,8 +934,7 @@ begin
   ) values (
     p_organization_id, v_tournament.season_id, p_tournament_id, p_category_id,
     p_arma2_team_id, v_name, v_slug, nullif(btrim(coalesce(p_short_name, '')), ''),
-    p_primary_color, p_secondary_color,
-    case when p_manager_user_id is not null or v_email is not null then 'invited' else 'draft' end,
+    v_primary_color, v_secondary_color, 'draft',
     v_source, v_uid, p_idempotency_key
   ) returning * into v_entry;
 
@@ -783,7 +952,7 @@ begin
     1, v_tournament.registration_opens_at, v_tournament.registration_closes_at
   ) on conflict (tournament_id) do nothing;
 
-  if p_manager_user_id is not null or v_email is not null then
+  if v_email is not null then
     if char_length(btrim(coalesce(p_manager_display_name, ''))) not between 2 and 100 then
       raise exception using errcode = '22023', message = 'TORNEOS_INVALID_MANAGER';
     end if;
@@ -791,10 +960,9 @@ begin
       organization_id, team_entry_id, user_id, email_normalized, display_name,
       role, status, invited_by, accepted_at
     ) values (
-      p_organization_id, v_entry.id, p_manager_user_id, v_email,
-      btrim(p_manager_display_name), 'captain',
-      case when p_manager_user_id is null then 'pending' else 'active' end,
-      v_uid, case when p_manager_user_id is null then null else now() end
+      p_organization_id, v_entry.id, null, v_email,
+      btrim(p_manager_display_name), 'captain', 'pending',
+      v_uid, null
     ) returning * into v_manager;
   end if;
 
@@ -827,7 +995,6 @@ set search_path = ''
 as $$
 declare
   v_entry public.tournament_team_entries%rowtype;
-  v_can_manage boolean;
   v_name text;
 begin
   if auth.uid() is null or jsonb_typeof(p_patch) <> 'object' or exists (
@@ -837,8 +1004,10 @@ begin
 
   select * into v_entry from public.tournament_team_entries
   where id = p_team_entry_id and organization_id = p_organization_id for update;
-  v_can_manage := public.has_tournament_organization_capability(p_organization_id, 'team_entries.update');
-  if v_entry.id is null or (not v_can_manage and not public.is_tournament_team_manager(p_team_entry_id, true)) then
+  if v_entry.id is null or not public.can_edit_tournament_team_entry(
+    p_organization_id,
+    p_team_entry_id
+  ) then
     raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
   end if;
   if v_entry.status not in ('draft', 'invited', 'in_progress', 'changes_requested') then
@@ -881,9 +1050,9 @@ begin
   select * into v_entry from public.tournament_team_entries
   where id = p_team_entry_id and organization_id = p_organization_id;
   if auth.uid() is null or v_entry.id is null
-    or not (
-      public.has_tournament_organization_capability(p_organization_id, 'provisional_players.create')
-      or public.is_tournament_team_manager(p_team_entry_id, true)
+    or not public.can_edit_tournament_team_entry(
+      p_organization_id,
+      p_team_entry_id
     )
   then raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN'; end if;
   if char_length(btrim(coalesce(p_display_name, ''))) not between 2 and 100 then
@@ -927,6 +1096,7 @@ declare
   v_settings public.tournament_roster_settings%rowtype;
   v_player public.tournament_roster_players%rowtype;
   v_count integer;
+  v_constraint_name text;
 begin
   select * into v_entry from public.tournament_team_entries
   where id = p_team_entry_id and organization_id = p_organization_id;
@@ -935,18 +1105,24 @@ begin
     and organization_id = p_organization_id for update;
   if auth.uid() is null or v_entry.id is null or v_roster.id is null
     or v_roster.status not in ('draft', 'changes_requested')
-    or not (
-      public.has_tournament_organization_capability(p_organization_id, 'roster_players.add')
-      or public.is_tournament_team_manager(p_team_entry_id, true)
+    or not public.can_edit_tournament_team_entry(
+      p_organization_id,
+      p_team_entry_id
     )
   then raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN'; end if;
   if num_nonnulls(p_arma2_user_id, p_provisional_player_id) <> 1 then
     raise exception using errcode = '22023', message = 'TORNEOS_INVALID_PLAYER_IDENTITY';
   end if;
   select * into v_settings from public.tournament_roster_settings
-  where tournament_id = v_entry.tournament_id;
+  where tournament_id = v_entry.tournament_id
+    and organization_id = p_organization_id;
+  if v_settings.tournament_id is null then
+    raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
+  end if;
   if p_provisional_player_id is not null then
-    if not v_settings.allow_provisional_players or not exists (
+    if not v_settings.allow_provisional_players
+      or not v_settings.allow_players_without_account
+      or not exists (
       select 1 from public.tournament_provisional_players
       where id = p_provisional_player_id and organization_id = p_organization_id
     ) then raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN'; end if;
@@ -979,7 +1155,14 @@ begin
   );
   return jsonb_build_object('id', v_player.id, 'displayName', v_player.display_name, 'status', v_player.status);
 exception when unique_violation then
-  raise exception using errcode = '23505', message = 'TORNEOS_DUPLICATE_PLAYER';
+  get stacked diagnostics v_constraint_name = constraint_name;
+  if v_constraint_name in (
+    'tournament_roster_players_active_user_unique',
+    'tournament_roster_players_active_provisional_unique'
+  ) then
+    raise exception using errcode = '23505', message = 'TORNEOS_DUPLICATE_PLAYER';
+  end if;
+  raise;
 end;
 $$;
 
@@ -1003,6 +1186,9 @@ declare
   v_entry public.tournament_team_entries%rowtype;
   v_settings public.tournament_roster_settings%rowtype;
 begin
+  if auth.uid() is null then
+    raise exception using errcode = '42501', message = 'TORNEOS_AUTH_REQUIRED';
+  end if;
   select * into v_player from public.tournament_roster_players
   where id = p_roster_player_id and organization_id = p_organization_id
     and team_entry_id = p_team_entry_id and status = 'active' for update;
@@ -1010,9 +1196,9 @@ begin
   select * into v_entry from public.tournament_team_entries where id = p_team_entry_id;
   select * into v_settings from public.tournament_roster_settings where tournament_id = v_entry.tournament_id;
   if v_player.id is null or v_roster.status not in ('draft', 'changes_requested')
-    or not (
-      public.has_tournament_organization_capability(p_organization_id, 'roster_players.update')
-      or public.is_tournament_team_manager(p_team_entry_id, true)
+    or not public.can_edit_tournament_team_entry(
+      p_organization_id,
+      p_team_entry_id
     )
   then raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN'; end if;
   if v_settings.unique_shirt_numbers and p_shirt_number is not null and exists (
@@ -1049,15 +1235,18 @@ declare
   v_roster public.tournament_rosters%rowtype;
   v_entry public.tournament_team_entries%rowtype;
 begin
+  if auth.uid() is null then
+    raise exception using errcode = '42501', message = 'TORNEOS_AUTH_REQUIRED';
+  end if;
   select * into v_player from public.tournament_roster_players
   where id = p_roster_player_id and organization_id = p_organization_id
     and team_entry_id = p_team_entry_id and status = 'active' for update;
   select * into v_roster from public.tournament_rosters where id = v_player.roster_id;
   select * into v_entry from public.tournament_team_entries where id = p_team_entry_id;
   if v_player.id is null or v_roster.status not in ('draft', 'changes_requested')
-    or not (
-      public.has_tournament_organization_capability(p_organization_id, 'roster_players.remove')
-      or public.is_tournament_team_manager(p_team_entry_id, true)
+    or not public.can_edit_tournament_team_entry(
+      p_organization_id,
+      p_team_entry_id
     )
   then raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN'; end if;
   update public.tournament_roster_players set status = 'removed', removed_at = now()
@@ -1090,14 +1279,14 @@ begin
   where team_entry_id = p_team_entry_id and status in ('draft', 'changes_requested')
   order by version desc limit 1 for update;
   if v_entry.id is null or v_entry.status not in ('in_progress', 'changes_requested')
-    or not (
-      public.has_tournament_organization_capability(p_organization_id, 'team_entries.submit')
-      or public.is_tournament_team_manager(p_team_entry_id, true)
+    or not public.can_edit_tournament_team_entry(
+      p_organization_id,
+      p_team_entry_id
     )
   then raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN'; end if;
   if not exists (
     select 1 from public.tournament_team_managers
-    where team_entry_id = p_team_entry_id and status in ('active', 'pending')
+    where team_entry_id = p_team_entry_id and status = 'active'
   ) then raise exception using errcode = '23514', message = 'TORNEOS_MANAGER_REQUIRED'; end if;
   v_validation := public.validate_tournament_roster(p_organization_id, p_team_entry_id, v_roster.id);
   if not (v_validation->>'valid')::boolean then
@@ -1155,6 +1344,23 @@ begin
   if v_entry.id is null or v_roster.id is null then
     raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
   end if;
+  if not exists (
+    select 1
+    from public.tournament_organizations organization
+    join public.tournaments tournament
+      on tournament.organization_id = organization.id
+    join public.tournament_categories category
+      on category.organization_id = tournament.organization_id
+      and category.tournament_id = tournament.id
+    where organization.id = p_organization_id
+      and organization.status = 'active'
+      and tournament.id = v_entry.tournament_id
+      and tournament.status in ('registration', 'scheduled')
+      and category.id = v_entry.category_id
+      and category.status = 'active'
+  ) then
+    raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
+  end if;
   if p_decision = 'approved' then
     perform pg_advisory_xact_lock(hashtextextended(v_entry.tournament_id::text || ':' || v_entry.category_id::text, 0));
     v_validation := public.validate_tournament_roster(p_organization_id, p_team_entry_id, v_roster.id);
@@ -1165,7 +1371,14 @@ begin
     where id = v_roster.id returning * into v_roster;
     update public.tournament_roster_players set
       eligibility_status = case
-        when eligibility_status = 'pending' then 'eligible'
+        when eligibility_status = 'pending'
+          and not (
+            select settings.require_individual_player_approval
+            from public.tournament_roster_settings settings
+            where settings.organization_id = p_organization_id
+              and settings.tournament_id = v_entry.tournament_id
+          )
+        then 'eligible'
         else eligibility_status
       end
     where roster_id = v_roster.id and status = 'active';
@@ -1203,14 +1416,40 @@ $$;
 create or replace function public.approve_tournament_team_entry(
   p_organization_id uuid, p_team_entry_id uuid, p_reason text
 )
-returns jsonb language sql security definer set search_path = ''
-as $$ select public.review_tournament_team_entry($1, $2, 'approved', $3, '[]'::jsonb); $$;
+returns jsonb language plpgsql security definer set search_path = ''
+as $$
+begin
+  if auth.uid() is null then
+    raise exception using errcode = '42501', message = 'TORNEOS_AUTH_REQUIRED';
+  end if;
+  return public.review_tournament_team_entry(
+    p_organization_id,
+    p_team_entry_id,
+    'approved',
+    p_reason,
+    '[]'::jsonb
+  );
+end;
+$$;
 
 create or replace function public.reject_tournament_team_entry(
   p_organization_id uuid, p_team_entry_id uuid, p_reason text
 )
-returns jsonb language sql security definer set search_path = ''
-as $$ select public.review_tournament_team_entry($1, $2, 'rejected', $3, '[]'::jsonb); $$;
+returns jsonb language plpgsql security definer set search_path = ''
+as $$
+begin
+  if auth.uid() is null then
+    raise exception using errcode = '42501', message = 'TORNEOS_AUTH_REQUIRED';
+  end if;
+  return public.review_tournament_team_entry(
+    p_organization_id,
+    p_team_entry_id,
+    'rejected',
+    p_reason,
+    '[]'::jsonb
+  );
+end;
+$$;
 
 create or replace function public.withdraw_tournament_team_entry(
   p_organization_id uuid, p_team_entry_id uuid, p_reason text
@@ -1220,12 +1459,27 @@ language plpgsql security definer set search_path = ''
 as $$
 declare v_entry public.tournament_team_entries%rowtype;
 begin
+  if auth.uid() is null then
+    raise exception using errcode = '42501', message = 'TORNEOS_AUTH_REQUIRED';
+  end if;
   select * into v_entry from public.tournament_team_entries
   where id = p_team_entry_id and organization_id = p_organization_id for update;
   if v_entry.id is null or v_entry.status not in ('draft','invited','in_progress','changes_requested','approved')
     or not (
       public.has_tournament_organization_capability(p_organization_id, 'team_entries.withdraw')
       or public.is_tournament_team_manager(p_team_entry_id, false)
+    )
+    or not exists (
+      select 1
+      from public.tournaments tournament
+      join public.tournament_categories category
+        on category.organization_id = tournament.organization_id
+        and category.tournament_id = tournament.id
+      where tournament.id = v_entry.tournament_id
+        and tournament.organization_id = p_organization_id
+        and tournament.status <> 'archived'
+        and category.id = v_entry.category_id
+        and category.status = 'active'
     )
   then raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN'; end if;
   if char_length(btrim(coalesce(p_reason, ''))) < 3 then
@@ -1238,6 +1492,109 @@ begin
     v_entry.id, v_entry.tournament_id, jsonb_build_object('reason', left(btrim(p_reason), 240))
   );
   return jsonb_build_object('entryId', v_entry.id, 'status', v_entry.status);
+end;
+$$;
+
+create or replace function public.archive_tournament_team_entry(
+  p_organization_id uuid,
+  p_team_entry_id uuid,
+  p_reason text
+)
+returns jsonb
+language plpgsql security definer set search_path = ''
+as $$
+declare v_entry public.tournament_team_entries%rowtype;
+begin
+  if auth.uid() is null or not public.has_tournament_organization_capability(
+    p_organization_id,
+    'team_entries.archive'
+  ) then
+    raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
+  end if;
+  if char_length(btrim(coalesce(p_reason, ''))) not between 3 and 1200 then
+    raise exception using errcode = '22023', message = 'TORNEOS_REASON_REQUIRED';
+  end if;
+  select * into v_entry
+  from public.tournament_team_entries
+  where id = p_team_entry_id
+    and organization_id = p_organization_id
+    and status <> 'archived'
+  for update;
+  if v_entry.id is null then
+    raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
+  end if;
+  update public.tournament_team_invitations
+  set status = 'revoked', revoked_at = now()
+  where team_entry_id = v_entry.id and status = 'pending';
+  update public.tournament_team_entries
+  set status = 'archived', archived_at = now()
+  where id = v_entry.id
+  returning * into v_entry;
+  perform public.append_tournament_audit(
+    p_organization_id,
+    'team_entry.archived',
+    'team_entry',
+    v_entry.id,
+    v_entry.id,
+    v_entry.tournament_id,
+    jsonb_build_object('reason', left(btrim(p_reason), 240))
+  );
+  return jsonb_build_object('entryId', v_entry.id, 'status', v_entry.status);
+end;
+$$;
+
+create or replace function public.lock_tournament_roster(
+  p_organization_id uuid,
+  p_team_entry_id uuid,
+  p_roster_id uuid
+)
+returns jsonb
+language plpgsql security definer set search_path = ''
+as $$
+declare
+  v_entry public.tournament_team_entries%rowtype;
+  v_roster public.tournament_rosters%rowtype;
+begin
+  if auth.uid() is null or not public.has_tournament_organization_capability(
+    p_organization_id,
+    'rosters.lock'
+  ) then
+    raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
+  end if;
+  select * into v_entry
+  from public.tournament_team_entries
+  where id = p_team_entry_id
+    and organization_id = p_organization_id
+    and status = 'approved'
+  for update;
+  select * into v_roster
+  from public.tournament_rosters
+  where id = p_roster_id
+    and organization_id = p_organization_id
+    and team_entry_id = p_team_entry_id
+    and status = 'approved'
+  for update;
+  if v_entry.id is null or v_roster.id is null then
+    raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
+  end if;
+  update public.tournament_rosters
+  set status = 'locked', locked_at = now()
+  where id = v_roster.id
+  returning * into v_roster;
+  perform public.append_tournament_audit(
+    p_organization_id,
+    'roster.locked',
+    'roster',
+    v_roster.id,
+    v_entry.id,
+    v_entry.tournament_id,
+    jsonb_build_object('version', v_roster.version)
+  );
+  return jsonb_build_object(
+    'entryId', v_entry.id,
+    'rosterId', v_roster.id,
+    'status', v_roster.status
+  );
 end;
 $$;
 
@@ -1262,6 +1619,9 @@ begin
   where id = p_team_entry_id and organization_id = p_organization_id for update;
   if v_entry.id is null or not public.has_tournament_organization_capability(
     p_organization_id, 'team_managers.invite'
+  ) or not public.can_edit_tournament_team_entry(
+    p_organization_id,
+    p_team_entry_id
   ) then raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN'; end if;
   if v_email !~ '^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$'
     or p_role not in ('captain','delegate','assistant')
@@ -1271,6 +1631,17 @@ begin
     select count(*) from public.tournament_team_invitations
     where created_by = auth.uid() and created_at > now() - interval '10 minutes'
   ) >= 10 then raise exception using errcode = 'P0001', message = 'TORNEOS_INVITATION_RATE_LIMITED'; end if;
+  if (
+    select count(*) from public.tournament_team_managers
+    where team_entry_id = p_team_entry_id and status <> 'revoked'
+  ) >= 20 and not exists (
+    select 1 from public.tournament_team_managers
+    where team_entry_id = p_team_entry_id
+      and email_normalized = v_email
+      and status <> 'revoked'
+  ) then
+    raise exception using errcode = 'P0001', message = 'TORNEOS_INVITATION_RATE_LIMITED';
+  end if;
   update public.tournament_team_invitations set status = 'revoked', revoked_at = now()
   where team_entry_id = p_team_entry_id and email_normalized = v_email and status = 'pending';
   select * into v_manager from public.tournament_team_managers
@@ -1284,6 +1655,14 @@ begin
       p_organization_id, p_team_entry_id, v_email, btrim(p_display_name),
       p_role, 'pending', auth.uid()
     ) returning * into v_manager;
+  else
+    update public.tournament_team_managers set
+      display_name = btrim(p_display_name),
+      role = p_role,
+      invited_by = auth.uid(),
+      invited_at = now()
+    where id = v_manager.id
+    returning * into v_manager;
   end if;
   v_token := encode(public.gen_random_bytes(32), 'hex');
   insert into public.tournament_team_invitations (
@@ -1315,6 +1694,8 @@ as $$
 declare
   v_invitation public.tournament_team_invitations%rowtype;
   v_user_email text;
+  v_email_verified_at timestamptz;
+  v_email_has_edge_space boolean;
 begin
   if auth.uid() is null or char_length(coalesce(p_token, '')) <> 64 then
     raise exception using errcode = '42501', message = 'TORNEOS_INVITATION_INVALID';
@@ -1325,17 +1706,61 @@ begin
     raise exception using errcode = '42501', message = 'TORNEOS_INVITATION_INVALID';
   end if;
   if v_invitation.expires_at <= now() then
-    update public.tournament_team_invitations set status = 'expired'
-    where id = v_invitation.id;
     raise exception using errcode = '42501', message = 'TORNEOS_INVITATION_EXPIRED';
   end if;
-  select lower(email) into v_user_email from auth.users where id = auth.uid();
-  if v_user_email is distinct from v_invitation.email_normalized then
+  if not exists (
+    select 1
+    from public.tournament_organizations organization
+    join public.tournament_team_entries entry
+      on entry.organization_id = organization.id
+    join public.tournaments tournament
+      on tournament.organization_id = entry.organization_id
+      and tournament.id = entry.tournament_id
+    join public.tournament_categories category
+      on category.organization_id = entry.organization_id
+      and category.tournament_id = entry.tournament_id
+      and category.id = entry.category_id
+    where organization.id = v_invitation.organization_id
+      and organization.status = 'active'
+      and entry.id = v_invitation.team_entry_id
+      and entry.status in ('invited', 'in_progress', 'changes_requested')
+      and tournament.id = v_invitation.tournament_id
+      and tournament.status = 'registration'
+      and (
+        tournament.registration_opens_at is null
+        or now() >= tournament.registration_opens_at
+      )
+      and (
+        tournament.registration_closes_at is null
+        or now() <= tournament.registration_closes_at
+      )
+      and category.status = 'active'
+  ) or not exists (
+    select 1
+    from public.tournament_team_managers manager
+    where manager.id = v_invitation.manager_id
+      and manager.organization_id = v_invitation.organization_id
+      and manager.team_entry_id = v_invitation.team_entry_id
+      and manager.status = 'pending'
+  ) then
+    raise exception using errcode = '42501', message = 'TORNEOS_INVITATION_INVALID';
+  end if;
+  select lower(email), email_confirmed_at, email is distinct from btrim(email)
+  into v_user_email, v_email_verified_at, v_email_has_edge_space
+  from auth.users
+  where id = auth.uid();
+  if v_email_verified_at is null
+    or v_email_has_edge_space
+    or v_user_email is distinct from v_invitation.email_normalized
+  then
     raise exception using errcode = '42501', message = 'TORNEOS_INVITATION_INVALID';
   end if;
   update public.tournament_team_managers set
     user_id = auth.uid(), status = 'active', accepted_at = now()
-  where id = v_invitation.manager_id;
+  where id = v_invitation.manager_id
+    and organization_id = v_invitation.organization_id
+    and team_entry_id = v_invitation.team_entry_id
+    and status = 'pending';
   update public.tournament_team_invitations set status = 'accepted', accepted_at = now()
   where id = v_invitation.id;
   update public.tournament_team_entries set status = case when status = 'invited' then 'in_progress' else status end
@@ -1361,15 +1786,28 @@ language plpgsql security definer set search_path = ''
 as $$
 declare v_invitation public.tournament_team_invitations%rowtype;
 begin
+  if auth.uid() is null then
+    raise exception using errcode = '42501', message = 'TORNEOS_AUTH_REQUIRED';
+  end if;
   select * into v_invitation from public.tournament_team_invitations
   where id = p_invitation_id and organization_id = p_organization_id for update;
-  if v_invitation.id is null or v_invitation.status <> 'pending'
+  if v_invitation.id is null or v_invitation.status not in ('pending', 'accepted')
     or not public.has_tournament_organization_capability(p_organization_id, 'team_managers.revoke')
   then raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN'; end if;
   update public.tournament_team_invitations set status = 'revoked', revoked_at = now()
   where id = v_invitation.id;
+  update public.tournament_team_managers set status = 'revoked', revoked_at = now()
+  where id = v_invitation.manager_id
+    and organization_id = v_invitation.organization_id
+    and team_entry_id = v_invitation.team_entry_id
+    and status in ('pending', 'active');
   perform public.append_tournament_audit(
-    p_organization_id, 'team_manager.invitation_revoked', 'team_manager',
+    p_organization_id,
+    case
+      when v_invitation.status = 'accepted' then 'team_manager.revoked'
+      else 'team_manager.invitation_revoked'
+    end,
+    'team_manager',
     v_invitation.manager_id, v_invitation.team_entry_id,
     v_invitation.tournament_id, '{}'::jsonb
   );
@@ -1381,21 +1819,50 @@ create or replace function public.search_tournament_players(
   p_organization_id uuid,
   p_tournament_id uuid,
   p_query text,
-  p_limit integer default 8
+  p_limit integer default 8,
+  p_team_entry_id uuid default null
 )
 returns jsonb
-language plpgsql stable security definer set search_path = ''
+language plpgsql security definer set search_path = ''
 as $$
 declare v_result jsonb;
 begin
   if auth.uid() is null
-    or not public.has_tournament_organization_capability(p_organization_id, 'roster_players.read')
+    or not (
+      public.has_tournament_organization_capability(
+        p_organization_id,
+        'roster_players.read'
+      )
+      or (
+        p_team_entry_id is not null
+        and public.can_edit_tournament_team_entry(
+          p_organization_id,
+          p_team_entry_id
+        )
+        and exists (
+          select 1
+          from public.tournament_team_entries entry
+          where entry.id = p_team_entry_id
+            and entry.organization_id = p_organization_id
+            and entry.tournament_id = p_tournament_id
+        )
+      )
+    )
     or not exists (
       select 1 from public.tournaments
       where id = p_tournament_id and organization_id = p_organization_id and status <> 'archived'
     )
     or char_length(btrim(coalesce(p_query, ''))) < 2
   then raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN'; end if;
+  if (
+    select count(*)
+    from public.tournament_audit_log audit
+    where audit.actor_user_id = auth.uid()
+      and audit.action = 'search.players'
+      and audit.created_at > now() - interval '1 minute'
+  ) >= 30 then
+    raise exception using errcode = 'P0001', message = 'TORNEOS_SEARCH_RATE_LIMITED';
+  end if;
   select coalesce(jsonb_agg(jsonb_build_object(
     'userId', result.id,
     'displayName', result.nombre,
@@ -1423,6 +1890,20 @@ begin
     order by user_profile.id, priority desc
     limit least(greatest(coalesce(p_limit, 8), 1), 12)
   ) result;
+  perform public.append_tournament_audit(
+    p_organization_id,
+    'search.players',
+    'tournament',
+    p_tournament_id,
+    p_team_entry_id,
+    p_tournament_id,
+    jsonb_build_object(
+      'queryLength',
+      char_length(btrim(p_query)),
+      'resultCount',
+      jsonb_array_length(v_result)
+    )
+  );
   return v_result;
 end;
 $$;
@@ -1434,7 +1915,7 @@ create or replace function public.search_tournament_arma2_teams(
   p_limit integer default 8
 )
 returns jsonb
-language plpgsql stable security definer set search_path = ''
+language plpgsql security definer set search_path = ''
 as $$
 declare v_result jsonb;
 begin
@@ -1447,6 +1928,15 @@ begin
     )
     or char_length(btrim(coalesce(p_query, ''))) < 2
   then raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN'; end if;
+  if (
+    select count(*)
+    from public.tournament_audit_log audit
+    where audit.actor_user_id = auth.uid()
+      and audit.action = 'search.teams'
+      and audit.created_at > now() - interval '1 minute'
+  ) >= 30 then
+    raise exception using errcode = 'P0001', message = 'TORNEOS_SEARCH_RATE_LIMITED';
+  end if;
   select coalesce(jsonb_agg(jsonb_build_object(
     'id', team.id,
     'name', team.name,
@@ -1460,11 +1950,26 @@ begin
     select source.*
     from public.teams source
     where source.is_active
+      and public.team_user_is_admin_or_owner(source.id, auth.uid())
       and public.normalize_tournament_person_name(source.name)
         like '%' || public.normalize_tournament_person_name(p_query) || '%'
     order by source.name
     limit least(greatest(coalesce(p_limit, 8), 1), 12)
   ) team;
+  perform public.append_tournament_audit(
+    p_organization_id,
+    'search.teams',
+    'tournament',
+    p_tournament_id,
+    null,
+    p_tournament_id,
+    jsonb_build_object(
+      'queryLength',
+      char_length(btrim(p_query)),
+      'resultCount',
+      jsonb_array_length(v_result)
+    )
+  );
   return v_result;
 end;
 $$;
@@ -1651,8 +2156,18 @@ begin
   ) then raise exception using errcode = '23514', message = 'TORNEOS_SCOPE_IMMUTABLE';
   elsif tg_table_name in ('tournament_team_managers','tournament_rosters','tournament_roster_players')
     and (
+      to_jsonb(new)->>'id' is distinct from to_jsonb(old)->>'id'
+      or
       to_jsonb(new)->>'organization_id' is distinct from to_jsonb(old)->>'organization_id'
       or to_jsonb(new)->>'team_entry_id' is distinct from to_jsonb(old)->>'team_entry_id'
+      or (
+        tg_table_name = 'tournament_roster_players'
+        and to_jsonb(new)->>'roster_id' is distinct from to_jsonb(old)->>'roster_id'
+      )
+      or (
+        tg_table_name = 'tournament_rosters'
+        and to_jsonb(new)->>'version' is distinct from to_jsonb(old)->>'version'
+      )
     )
   then raise exception using errcode = '23514', message = 'TORNEOS_SCOPE_IMMUTABLE';
   end if;
@@ -1704,6 +2219,13 @@ alter table public.tournament_audit_log enable row level security;
 create policy tournament_roster_settings_select_scope on public.tournament_roster_settings
 for select to authenticated using (
   public.has_tournament_organization_capability(organization_id, 'rosters.read')
+  and exists (
+    select 1
+    from public.tournaments tournament
+    where tournament.id = tournament_roster_settings.tournament_id
+      and tournament.organization_id = tournament_roster_settings.organization_id
+      and tournament.status <> 'archived'
+  )
 );
 create policy tournament_team_entries_select_scope on public.tournament_team_entries
 for select to authenticated using (
@@ -1711,12 +2233,12 @@ for select to authenticated using (
 );
 create policy tournament_team_managers_select_scope on public.tournament_team_managers
 for select to authenticated using (
-  public.has_tournament_organization_capability(organization_id, 'team_managers.read')
-  or public.is_tournament_team_manager(team_entry_id, false)
+  public.can_read_tournament_team_entry(organization_id, team_entry_id)
 );
 create policy tournament_team_invitations_select_scope on public.tournament_team_invitations
 for select to authenticated using (
   public.has_tournament_organization_capability(organization_id, 'team_managers.read')
+  and public.can_read_tournament_team_entry(organization_id, team_entry_id)
 );
 create policy tournament_provisional_players_select_scope on public.tournament_provisional_players
 for select to authenticated using (
@@ -1729,18 +2251,15 @@ for select to authenticated using (
 );
 create policy tournament_rosters_select_scope on public.tournament_rosters
 for select to authenticated using (
-  public.has_tournament_organization_capability(organization_id, 'rosters.read')
-  or public.is_tournament_team_manager(team_entry_id, false)
+  public.can_read_tournament_team_entry(organization_id, team_entry_id)
 );
 create policy tournament_roster_players_select_scope on public.tournament_roster_players
 for select to authenticated using (
-  public.has_tournament_organization_capability(organization_id, 'roster_players.read')
-  or public.is_tournament_team_manager(team_entry_id, false)
+  public.can_read_tournament_team_entry(organization_id, team_entry_id)
 );
 create policy tournament_team_reviews_select_scope on public.tournament_team_reviews
 for select to authenticated using (
-  public.has_tournament_organization_capability(organization_id, 'team_entries.review')
-  or public.is_tournament_team_manager(team_entry_id, false)
+  public.can_read_tournament_team_entry(organization_id, team_entry_id)
 );
 create policy tournament_audit_log_select_scope on public.tournament_audit_log
 for select to authenticated using (
@@ -1759,9 +2278,18 @@ revoke all on table public.tournament_team_reviews from anon, authenticated;
 revoke all on table public.tournament_audit_log from anon, authenticated;
 grant select on public.tournament_roster_settings to authenticated;
 grant select on public.tournament_team_entries to authenticated;
-grant select on public.tournament_team_managers to authenticated;
-grant select on public.tournament_team_invitations to authenticated;
-grant select on public.tournament_provisional_players to authenticated;
+grant select (
+  id, organization_id, team_entry_id, user_id, display_name, role, status,
+  invited_by, invited_at, accepted_at, revoked_at, created_at, updated_at
+) on public.tournament_team_managers to authenticated;
+grant select (
+  id, organization_id, tournament_id, team_entry_id, manager_id, role, status,
+  expires_at, created_by, created_at, accepted_at, revoked_at
+) on public.tournament_team_invitations to authenticated;
+grant select (
+  id, organization_id, display_name, normalized_name, claim_status,
+  created_at, updated_at
+) on public.tournament_provisional_players to authenticated;
 grant select on public.tournament_rosters to authenticated;
 grant select on public.tournament_roster_players to authenticated;
 grant select on public.tournament_team_reviews to authenticated;
@@ -1770,6 +2298,7 @@ grant select on public.tournament_audit_log to authenticated;
 revoke all on function public.normalize_tournament_person_name(text) from public;
 revoke all on function public.is_tournament_team_manager(uuid, boolean) from public;
 revoke all on function public.can_read_tournament_team_entry(uuid, uuid) from public;
+revoke all on function public.can_edit_tournament_team_entry(uuid, uuid) from public;
 revoke all on function public.append_tournament_audit(uuid, text, text, uuid, uuid, uuid, jsonb) from public;
 revoke all on function public.validate_tournament_roster(uuid, uuid, uuid) from public;
 revoke all on function public.create_tournament_team_entry(uuid, uuid, uuid, uuid, text, text, text, text, text, uuid, text, text, uuid) from public;
@@ -1783,10 +2312,12 @@ revoke all on function public.review_tournament_team_entry(uuid, uuid, text, tex
 revoke all on function public.approve_tournament_team_entry(uuid, uuid, text) from public;
 revoke all on function public.reject_tournament_team_entry(uuid, uuid, text) from public;
 revoke all on function public.withdraw_tournament_team_entry(uuid, uuid, text) from public;
+revoke all on function public.archive_tournament_team_entry(uuid, uuid, text) from public;
+revoke all on function public.lock_tournament_roster(uuid, uuid, uuid) from public;
 revoke all on function public.invite_tournament_team_manager(uuid, uuid, text, text, text) from public;
 revoke all on function public.accept_tournament_team_invitation(text) from public;
 revoke all on function public.revoke_tournament_team_invitation(uuid, uuid) from public;
-revoke all on function public.search_tournament_players(uuid, uuid, text, integer) from public;
+revoke all on function public.search_tournament_players(uuid, uuid, text, integer, uuid) from public;
 revoke all on function public.search_tournament_arma2_teams(uuid, uuid, text, integer) from public;
 revoke all on function public.get_tournament_teams_context(uuid, uuid) from public;
 revoke all on function public.get_team_registration_context(uuid, uuid) from public;
@@ -1795,6 +2326,7 @@ revoke all on function public.reject_tournament_audit_mutation() from public;
 
 grant execute on function public.is_tournament_team_manager(uuid, boolean) to authenticated;
 grant execute on function public.can_read_tournament_team_entry(uuid, uuid) to authenticated;
+grant execute on function public.can_edit_tournament_team_entry(uuid, uuid) to authenticated;
 grant execute on function public.validate_tournament_roster(uuid, uuid, uuid) to authenticated;
 grant execute on function public.create_tournament_team_entry(uuid, uuid, uuid, uuid, text, text, text, text, text, uuid, text, text, uuid) to authenticated;
 grant execute on function public.update_tournament_team_entry(uuid, uuid, jsonb) to authenticated;
@@ -1807,10 +2339,12 @@ grant execute on function public.review_tournament_team_entry(uuid, uuid, text, 
 grant execute on function public.approve_tournament_team_entry(uuid, uuid, text) to authenticated;
 grant execute on function public.reject_tournament_team_entry(uuid, uuid, text) to authenticated;
 grant execute on function public.withdraw_tournament_team_entry(uuid, uuid, text) to authenticated;
+grant execute on function public.archive_tournament_team_entry(uuid, uuid, text) to authenticated;
+grant execute on function public.lock_tournament_roster(uuid, uuid, uuid) to authenticated;
 grant execute on function public.invite_tournament_team_manager(uuid, uuid, text, text, text) to authenticated;
 grant execute on function public.accept_tournament_team_invitation(text) to authenticated;
 grant execute on function public.revoke_tournament_team_invitation(uuid, uuid) to authenticated;
-grant execute on function public.search_tournament_players(uuid, uuid, text, integer) to authenticated;
+grant execute on function public.search_tournament_players(uuid, uuid, text, integer, uuid) to authenticated;
 grant execute on function public.search_tournament_arma2_teams(uuid, uuid, text, integer) to authenticated;
 grant execute on function public.get_tournament_teams_context(uuid, uuid) to authenticated;
 grant execute on function public.get_team_registration_context(uuid, uuid) to authenticated;

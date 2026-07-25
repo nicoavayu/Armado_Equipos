@@ -67,7 +67,11 @@ approved → locked/superseded (reservados para una ventana futura)
 ```
 
 La aprobación vuelve a validar mínimos, máximos, arqueros, dorsales, posiciones y
-exclusividad. Un plantel aprobado no vuelve a edición silenciosamente.
+exclusividad. Cuando `require_individual_player_approval` está activo, todos los
+jugadores deben estar explícitamente habilitados; cuando
+`allow_players_without_account` está apagado, tampoco se admiten provisionales.
+Un plantel aprobado no vuelve a edición silenciosamente y puede bloquearse
+explícitamente con una RPC administrativa.
 
 ## RPCs
 
@@ -75,18 +79,24 @@ exclusividad. Un plantel aprobado no vuelve a edición silenciosamente.
 - Inscripción: `create_tournament_team_entry`,
   `update_tournament_team_entry`, `submit_tournament_team_entry`,
   `review_tournament_team_entry`, `approve_tournament_team_entry`,
-  `reject_tournament_team_entry`, `withdraw_tournament_team_entry`.
+  `reject_tournament_team_entry`, `withdraw_tournament_team_entry`,
+  `archive_tournament_team_entry`.
 - Responsables: `invite_tournament_team_manager`,
   `accept_tournament_team_invitation`,
   `revoke_tournament_team_invitation`.
 - Plantel: `create_tournament_provisional_player`,
   `add_tournament_roster_player`, `update_tournament_roster_player`,
-  `remove_tournament_roster_player`, `validate_tournament_roster`.
+  `remove_tournament_roster_player`, `validate_tournament_roster`,
+  `lock_tournament_roster`.
 - Autocomplete: `search_tournament_players`,
   `search_tournament_arma2_teams`.
 
 Las búsquedas exigen dos caracteres, limitan a doce resultados, normalizan
-acentos/case y no proyectan email, teléfono, nacimiento o documento.
+acentos/case y no proyectan email, teléfono, nacimiento o documento. El
+organizador busca dentro de su tenant; un capitán o delegado sólo puede buscar
+jugadores desde su propia inscripción editable. La búsqueda de equipos devuelve
+únicamente equipos permanentes que el usuario puede administrar. Ambas tienen
+rate limit de 30 consultas por minuto y dejan auditoría sin PII.
 
 ## Capabilities y RLS
 
@@ -98,24 +108,37 @@ Capitán y delegado no reciben capabilities organizacionales: el backend resuelv
 su relación con `is_tournament_team_manager(team_entry_id)`. El route guard
 permite abrir sólo esa inscripción incluso sin membership del workspace.
 
-Todas las tablas tienen RLS. `authenticated` recibe sólo `SELECT`; las
-mutaciones son RPC-only. Las funciones definer validan `auth.uid()`, usan
+Todas las tablas tienen RLS. Las mutaciones son RPC-only. Para evitar filtrar
+datos sensibles, `authenticated` recibe `SELECT` sólo sobre columnas públicas:
+quedan fuera emails y hashes de invitación, datos de contacto provisionales y
+metadata interna. Las funciones definer validan `auth.uid()`, usan
 `search_path = ''`, schemas explícitos y grants mínimos.
+
+Las escrituras comprueban nuevamente organización, torneo, categoría, estado y
+ventana temporal. Capitán y delegado deben estar activos; un responsable
+pendiente no obtiene acceso. Los recursos archivados salen de las políticas de
+lectura operativa.
 
 ## Invitaciones
 
 La RPC genera 32 bytes aleatorios y persiste sólo SHA-256. El token expira a los
-siete días, es revocable, de un solo uso y exige que el email de la sesión
-coincida. El token plano aparece una vez con `environment: test-only`.
+siete días, es revocable, de un solo uso y exige una identidad autenticada con
+email verificado que coincida exactamente con el destinatario normalizado. La
+aceptación vuelve a comprobar tenant, torneo, categoría y ventana. El token plano
+aparece una vez con `environment: test-only`.
 
-No se envían emails ni notificaciones. QA copia el enlace manualmente.
+No se envían emails ni notificaciones. QA copia el enlace manualmente. El alta
+de una inscripción provisional genera el enlace en un segundo paso visible una
+sola vez; no crea responsables activos a partir de datos aportados por el
+cliente.
 
 ## Auditoría
 
 `tournament_audit_log` es append-only: no tiene grants de escritura y un trigger
 rechaza `UPDATE/DELETE`. `append_tournament_audit` acepta metadata acotada a
-8 KiB. Registra altas, ediciones, invitaciones, aceptación, jugadores,
-presentación, observación, aprobación, rechazo y retiro sin tokens ni PII.
+8 KiB. Registra altas, ediciones, invitaciones, aceptación, revocación,
+jugadores, presentación, observación, aprobación, rechazo, retiro, archivo,
+bloqueo y búsquedas sin tokens ni PII.
 
 ## Rutas y UX
 
@@ -154,10 +177,13 @@ y contraste insuficiente en el progreso completo.
 Storage no se conecta: `shield_path` permanece opcional y la UI usa monograma.
 
 `scripts/db-integration/torneos-teams-rosters.mjs` aplica desde cero workspaces,
-competition core y esta fase en PostgreSQL embebido. Cubre RLS, idempotencia,
-capitán, collaborator, cross-tenant, provisionales, presentación, observación,
-aprobación, auditoría e invitaciones. Jest cubre estados, requisitos, contratos,
-lista/filtros y acceso relacional.
+competition core y esta fase en PostgreSQL embebido. La auditoría final ejecutó
+221 checks DB: 61 de workspaces, 72 de competition core y 88 de esta fase. La
+cobertura focalizada incluye RLS, grants por columna, idempotencia, concurrencia,
+capitán, collaborator, cross-tenant, provisionales, snapshots permanentes,
+presentación, observación, aprobación, archivo/bloqueo, auditoría e invitaciones
+verificadas de un solo uso. Jest cubre estados, requisitos, contratos,
+lista/filtros, acceso relacional y redacción de tokens en rutas de retorno.
 
 Docker no está instalado en el entorno de desarrollo, por lo que no se levantó
 Supabase local. PostgreSQL embebido no equivale completamente a Supabase. Antes
