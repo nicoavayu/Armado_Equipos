@@ -1701,6 +1701,16 @@ begin
     raise exception using errcode = '42501', message = 'TORNEOS_INVITATION_INVALID';
   end if;
   select * into v_invitation from public.tournament_team_invitations
+  where token_hash = encode(public.digest(p_token, 'sha256'), 'hex');
+  if v_invitation.id is null then
+    raise exception using errcode = '42501', message = 'TORNEOS_INVITATION_INVALID';
+  end if;
+  perform 1
+  from public.tournament_team_entries entry
+  where entry.id = v_invitation.team_entry_id
+    and entry.organization_id = v_invitation.organization_id
+  for update;
+  select * into v_invitation from public.tournament_team_invitations
   where token_hash = encode(public.digest(p_token, 'sha256'), 'hex') for update;
   if v_invitation.id is null or v_invitation.status <> 'pending' then
     raise exception using errcode = '42501', message = 'TORNEOS_INVITATION_INVALID';
@@ -1789,6 +1799,16 @@ begin
   if auth.uid() is null then
     raise exception using errcode = '42501', message = 'TORNEOS_AUTH_REQUIRED';
   end if;
+  select * into v_invitation from public.tournament_team_invitations
+  where id = p_invitation_id and organization_id = p_organization_id;
+  if v_invitation.id is null then
+    raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
+  end if;
+  perform 1
+  from public.tournament_team_entries entry
+  where entry.id = v_invitation.team_entry_id
+    and entry.organization_id = p_organization_id
+  for update;
   select * into v_invitation from public.tournament_team_invitations
   where id = p_invitation_id and organization_id = p_organization_id for update;
   if v_invitation.id is null or v_invitation.status not in ('pending', 'accepted')

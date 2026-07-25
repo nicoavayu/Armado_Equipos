@@ -1161,6 +1161,86 @@ async function main() {
   await admin.query('drop trigger fail_tournament_audit_for_test on public.tournament_audit_log');
   await admin.query('drop function public.fail_tournament_audit_for_test()');
 
+  const revokeSubmitEntry = await createEntry(
+    ownerA,
+    scopeA,
+    '66000000-0000-4000-8000-000000000013',
+    null,
+  );
+  const revokeSubmitManager = await inviteAndAccept(
+    ownerA,
+    captain,
+    scopeA,
+    revokeSubmitEntry.entryId,
+  );
+  for (let index = 1; index <= 5; index += 1) {
+    const provisional = await value(
+      captain,
+      'select public.create_tournament_provisional_player($1,$2,$3)',
+      [scopeA.organizationId, revokeSubmitEntry.entryId, `Revocación ${index}`],
+    );
+    await value(
+      captain,
+      `select public.add_tournament_roster_player(
+        $1,$2,$3,null,$4,$5,null,$6,$7,null,$8
+      )`,
+      [
+        scopeA.organizationId,
+        revokeSubmitEntry.entryId,
+        revokeSubmitEntry.rosterId,
+        provisional.id,
+        provisional.displayName,
+        30 + index,
+        index === 1 ? 'ARQ' : 'DEF',
+        index === 1,
+      ],
+    );
+  }
+  await admin.query(`
+    create or replace function public.pause_manager_revoke_for_test()
+    returns trigger language plpgsql set search_path = ''
+    as $$
+    begin
+      if current_setting('test.pause_manager_revoke', true) = 'on'
+        and old.status = 'accepted'
+        and new.status = 'revoked'
+      then
+        perform pg_sleep(0.25);
+      end if;
+      return new;
+    end;
+    $$;
+    create trigger pause_manager_revoke_for_test
+    before update on public.tournament_team_invitations
+    for each row execute function public.pause_manager_revoke_for_test();
+  `);
+  await value(ownerA, "select set_config('test.pause_manager_revoke','on',false)");
+  const revokePromise = value(
+    ownerA,
+    'select public.revoke_tournament_team_invitation($1,$2)',
+    [scopeA.organizationId, revokeSubmitManager.invitation.invitationId],
+  );
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  const submitPromise = value(
+    captain,
+    'select public.submit_tournament_team_entry($1,$2)',
+    [scopeA.organizationId, revokeSubmitEntry.entryId],
+  );
+  const revokeSubmitRace = await Promise.allSettled([revokePromise, submitPromise]);
+  eq(
+    revokeSubmitRace.filter((result) => result.status === 'fulfilled').length,
+    1,
+    'revocar responsable y presentar se serializan con un único ganador',
+  );
+  eq(
+    await value(admin, 'select status from public.tournament_team_entries where id=$1', [revokeSubmitEntry.entryId]),
+    'in_progress',
+    'la revocación ganadora no deja una inscripción presentada sin responsable',
+  );
+  await value(ownerA, "select set_config('test.pause_manager_revoke','',false)");
+  await admin.query('drop trigger pause_manager_revoke_for_test on public.tournament_team_invitations');
+  await admin.query('drop function public.pause_manager_revoke_for_test()');
+
   console.log('\nRLS por rol, suspensión y ventanas');
   ok(
     await count(adminA, 'select count(*) from public.tournament_team_entries where organization_id=$1', [scopeA.organizationId]) > 0,

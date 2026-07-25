@@ -178,7 +178,7 @@ Storage no se conecta: `shield_path` permanece opcional y la UI usa monograma.
 
 `scripts/db-integration/torneos-teams-rosters.mjs` aplica desde cero workspaces,
 competition core y esta fase en PostgreSQL embebido. La auditoría final ejecutó
-221 checks DB: 61 de workspaces, 72 de competition core y 88 de esta fase. La
+223 checks DB: 61 de workspaces, 72 de competition core y 90 de esta fase. La
 cobertura focalizada incluye RLS, grants por columna, idempotencia, concurrencia,
 capitán, collaborator, cross-tenant, provisionales, snapshots permanentes,
 presentación, observación, aprobación, archivo/bloqueo, auditoría e invitaciones
