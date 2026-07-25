@@ -3,95 +3,168 @@ import {
   ArrowRight,
   CalendarDays,
   CheckCircle2,
+  Circle,
   ClipboardList,
   Gavel,
-  LayoutGrid,
   Megaphone,
-  Settings2,
   Shield,
   Table2,
   Trophy,
   Users,
 } from 'lucide-react';
 import { Link, useOutletContext } from 'react-router-dom';
+import { useTorneosCompetition } from '../context/TorneosCompetitionContext';
 import {
-  getRoleLabel,
+  CHECKLIST_ITEMS,
+  getOptionName,
+  TOURNAMENT_STATUS_LABELS,
+} from '../domain/competitionCatalog';
+import {
   hasCapability,
   TOURNAMENT_CAPABILITIES,
 } from '../domain/capabilities';
+import CompetitionSelector from './CompetitionSelector';
+import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import styles from './TorneosShell.module.css';
+import coreStyles from './CompetitionCore.module.css';
 
 const futureModules = [
-  { label: 'Torneos', description: 'Temporadas y competencias', icon: Trophy },
   { label: 'Equipos', description: 'Inscripciones y planteles', icon: Shield },
   { label: 'Fixture', description: 'Fechas, cruces y sedes', icon: CalendarDays },
   { label: 'Partidos', description: 'Operación y resultados', icon: ClipboardList },
   { label: 'Tabla', description: 'Posiciones y desempates', icon: Table2 },
-  { label: 'Estadísticas', description: 'Rendimiento oficial', icon: LayoutGrid },
   { label: 'Disciplina', description: 'Casos y sanciones', icon: Gavel },
   { label: 'Comunicaciones', description: 'Avisos por audiencia', icon: Megaphone },
-  { label: 'Contenido', description: 'Placas y publicaciones', icon: CheckCircle2 },
 ];
 
 function formatDate(value) {
-  if (!value) return 'Sin dato';
+  if (!value) return 'A definir';
   return new Intl.DateTimeFormat('es-AR', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
-  }).format(new Date(value));
+  }).format(new Date(`${value}T12:00:00`));
 }
 
 export default function TorneosDashboard() {
   const { organization } = useOutletContext();
-  const canUpdate = hasCapability(
+  const organizationPath = `/torneos/organizacion/${organization.id}`;
+  const {
+    status,
+    error,
+    seasons,
+    modalities,
+    formats,
+    activeSeason,
+    activeTournament,
+    refresh,
+  } = useTorneosCompetition();
+  const canCreateTournament = hasCapability(
     organization,
-    TOURNAMENT_CAPABILITIES.ORGANIZATION_UPDATE,
+    TOURNAMENT_CAPABILITIES.TOURNAMENTS_CREATE,
   );
-  const canReadMembers = hasCapability(
+  const canUpdateTournament = hasCapability(
     organization,
-    TOURNAMENT_CAPABILITIES.MEMBERS_READ,
+    TOURNAMENT_CAPABILITIES.TOURNAMENTS_UPDATE,
   );
+
+  if (status === 'loading') return <WorkspaceLoading label="Armando tu tablero…" />;
+  if (status === 'error') {
+    return <WorkspaceError message={error} onRetry={() => refresh().catch(() => {})} />;
+  }
+
+  if (!seasons.length || !activeTournament) {
+    return (
+      <div className={styles.dashboard}>
+        <section className={styles.dashboardHero}>
+          <div className={styles.organizationIdentity}>
+            <span className={styles.largeMonogram}>
+              {organization.logoPath
+                ? <img src={organization.logoPath} alt="" />
+                : organization.name.slice(0, 2).toUpperCase()}
+            </span>
+            <div>
+              <span className={styles.eyebrow}>Workspace competitivo</span>
+              <h1>{seasons.length ? 'Creá tu primer ' : 'Empezá un '}<em>torneo</em></h1>
+              <p>
+                {seasons.length
+                  ? 'La temporada ya está lista. Ahora definí una competencia y sus reglas.'
+                  : 'Primero creá una temporada; después vas a poder configurar torneos y categorías.'}
+              </p>
+            </div>
+          </div>
+        </section>
+        {seasons.length > 0 && <CompetitionSelector />}
+        <section className={coreStyles.emptyCompetition}>
+          <span><Trophy size={27} /></span>
+          <div>
+            <span className={coreStyles.kicker}>Sin datos ficticios</span>
+            <h2>{seasons.length ? 'No hay un torneo activo' : 'No hay temporadas todavía'}</h2>
+            <p>
+              Este tablero se completa únicamente con configuración real guardada
+              por tu organización.
+            </p>
+          </div>
+          {canCreateTournament && (
+            <Link
+              className={coreStyles.primaryAction}
+              to={seasons.length
+                ? `${organizationPath}/torneos/nuevo`
+                : `${organizationPath}/temporadas/nueva`}
+            >
+              {seasons.length ? 'Crear torneo' : 'Crear temporada'}
+              <ArrowRight size={17} />
+            </Link>
+          )}
+        </section>
+      </div>
+    );
+  }
+
+  const checks = activeTournament.checklist?.checks || {};
+  const completeCount = CHECKLIST_ITEMS.filter((item) => checks[item.key]).length;
+  const completion = Math.round((completeCount / CHECKLIST_ITEMS.length) * 100);
 
   return (
     <div className={styles.dashboard}>
+      <CompetitionSelector />
+
       <section className={styles.dashboardHero}>
         <div className={styles.organizationIdentity}>
-          <span className={styles.largeMonogram}>
-            {organization.logoPath
-              ? <img src={organization.logoPath} alt="" />
-              : organization.name.slice(0, 2).toUpperCase()}
-          </span>
+          <span className={styles.largeMonogram}><Trophy size={30} /></span>
           <div>
-            <span className={styles.eyebrow}>Workspace institucional</span>
-            <h1>Bienvenido a <em>{organization.name}</em></h1>
+            <span className={styles.eyebrow}>{activeSeason?.name}</span>
+            <h1>{activeTournament.name}</h1>
             <p>
-              La base de tu organización está lista. Podés revisar su configuración
-              y miembros; la operación deportiva llegará en las próximas fases.
+              {getOptionName(modalities, activeTournament.sportModality)}
+              {' · '}
+              {getOptionName(formats, activeTournament.competitionFormat)}
+              {' · '}
+              {activeTournament.categories?.length || 0} categorías
             </p>
           </div>
         </div>
         <span className={styles.activeStatus}>
           <span aria-hidden="true" />
-          {organization.status === 'active' ? 'Organización activa' : 'Archivada'}
+          {TOURNAMENT_STATUS_LABELS[activeTournament.status]}
         </span>
       </section>
 
-      <section className={styles.summaryGrid} aria-label="Resumen de la organización">
+      <section className={styles.summaryGrid} aria-label="Resumen del torneo">
         <article>
-          <span>Tu rol</span>
-          <strong>{getRoleLabel(organization.role)}</strong>
-          <small>{organization.capabilities?.length || 0} capacidades activas</small>
+          <span>Configuración</span>
+          <strong>{completion}%</strong>
+          <small>{completeCount} de {CHECKLIST_ITEMS.length} requisitos</small>
         </article>
         <article>
-          <span>Estado</span>
-          <strong>{organization.status === 'active' ? 'Activa' : 'Archivada'}</strong>
-          <small>Workspace privado</small>
+          <span>Inicio tentativo</span>
+          <strong>{formatDate(activeTournament.startDate)}</strong>
+          <small>La fecha puede editarse antes de comenzar</small>
         </article>
         <article>
-          <span>Creada</span>
-          <strong>{formatDate(organization.createdAt)}</strong>
-          <small>Identificador: {organization.slug}</small>
+          <span>Categorías</span>
+          <strong>{activeTournament.categories?.length || 0}</strong>
+          <small>Activas y seleccionables</small>
         </article>
       </section>
 
@@ -99,48 +172,45 @@ export default function TorneosDashboard() {
         <article className={styles.panel}>
           <div className={styles.panelHeading}>
             <div>
-              <span className={styles.eyebrow}>Acciones habilitadas</span>
-              <h2>Administración inicial</h2>
+              <span className={styles.eyebrow}>Checklist real</span>
+              <h2>Preparación competitiva</h2>
             </div>
           </div>
-          <div className={styles.availableActions}>
-            {canReadMembers && (
-              <Link to="../miembros">
-                <span><Users size={20} /></span>
-                <span>
-                  <strong>Ver miembros</strong>
-                  <small>Roles, estado y fecha de ingreso</small>
-                </span>
-                <ArrowRight size={18} />
-              </Link>
-            )}
-            <Link to="../configuracion">
-              <span><Settings2 size={20} /></span>
-              <span>
-                <strong>{canUpdate ? 'Configurar organización' : 'Ver configuración'}</strong>
-                <small>Nombre, slug y estado institucional</small>
-              </span>
-              <ArrowRight size={18} />
-            </Link>
-          </div>
+          <ul className={styles.dashboardChecklist}>
+            {CHECKLIST_ITEMS.map((item) => (
+              <li key={item.key} data-complete={Boolean(checks[item.key])}>
+                {checks[item.key]
+                  ? <CheckCircle2 size={17} />
+                  : <Circle size={17} />}
+                <span>{item.label}</span>
+              </li>
+            ))}
+          </ul>
+          <Link
+            className={styles.dashboardPrimaryLink}
+            to={`${organizationPath}/torneos/${activeTournament.id}/configuracion`}
+          >
+            {canUpdateTournament ? 'Continuar configuración' : 'Consultar configuración'}
+            <ArrowRight size={17} />
+          </Link>
         </article>
 
         <article className={`${styles.panel} ${styles.securityPanel}`}>
-          <CheckCircle2 size={24} aria-hidden="true" />
-          <span className={styles.eyebrow}>Acceso verificado</span>
-          <h2>Tu membresía está activa</h2>
+          <Users size={24} aria-hidden="true" />
+          <span className={styles.eyebrow}>Siguiente frontera</span>
+          <h2>Sin equipos todavía</h2>
           <p>
-            Este workspace se resolvió contra el backend. Conocer una URL o un UUID
-            no alcanza para acceder a otra organización.
+            El estado de inscripción sólo prepara el torneo. Inscripciones,
+            planteles y jugadores permanecen fuera de esta fase.
           </p>
         </article>
       </section>
 
       <section className={styles.futureSection} aria-labelledby="future-modules-title">
         <div className={styles.sectionHeading}>
-          <span>Hoja de ruta</span>
-          <h2 id="future-modules-title">Próximos módulos</h2>
-          <p>No hay datos simulados ni rutas incompletas en esta fase.</p>
+          <span>Módulos futuros</span>
+          <h2 id="future-modules-title">Todavía inactivos</h2>
+          <p>No hay enlaces, métricas ni datos simulados para estas funciones.</p>
         </div>
         <div className={styles.futureGrid}>
           {futureModules.map(({ label, description, icon: Icon }) => (

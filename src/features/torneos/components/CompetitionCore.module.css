@@ -1,0 +1,1489 @@
+.competitionPage,
+.formPage,
+.wizardPage {
+  width: min(1240px, 100%);
+  margin: 0 auto;
+  animation: coreIn 260ms ease-out both;
+}
+
+.competitionHeader,
+.formHeader,
+.wizardHeader {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 28px;
+  margin-bottom: 24px;
+}
+
+.competitionHeader > div:first-child,
+.formHeader > div:first-child,
+.wizardHeader > div:first-child {
+  max-width: 760px;
+}
+
+.kicker,
+.sectionTitle > div > span {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--torneos-purple-bright);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.competitionHeader h1,
+.formHeader h1,
+.wizardHeader h1 {
+  margin: 0;
+  font-family: "Bebas Neue", Impact, sans-serif;
+  font-size: clamp(40px, 6vw, 72px);
+  font-weight: 400;
+  letter-spacing: 0.025em;
+  line-height: 0.94;
+}
+
+.competitionHeader p,
+.formHeader p,
+.wizardHeader p {
+  max-width: 66ch;
+  margin: 14px 0 0;
+  color: var(--torneos-muted);
+  font-family: "Oswald", "Arial Narrow", sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.headerActions,
+.formButtons,
+.ruleActions,
+.wizardFooter > div,
+.lifecyclePanel > div:last-child {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.primaryAction,
+.secondaryAction,
+.ghostAction,
+.dangerAction {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 16px;
+  color: #fff;
+  font-family: inherit;
+  font-size: 13px;
+  font-style: normal;
+  font-weight: 700;
+  text-decoration: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    background 180ms ease,
+    opacity 180ms ease;
+}
+
+.primaryAction {
+  color: #fff;
+  background: linear-gradient(135deg, #9d78ff, #6f3ce8);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  box-shadow: 0 10px 28px rgba(105, 55, 225, 0.28);
+}
+
+.secondaryAction {
+  background: rgba(139, 94, 255, 0.1);
+  border: 1px solid rgba(166, 128, 255, 0.32);
+}
+
+.ghostAction {
+  color: var(--torneos-muted);
+  background: transparent;
+  border: 1px solid var(--torneos-border);
+}
+
+.dangerAction {
+  color: #ff9bac;
+  background: rgba(255, 82, 113, 0.08);
+  border: 1px solid rgba(255, 95, 124, 0.28);
+}
+
+.primaryAction:hover:not(:disabled),
+.secondaryAction:hover:not(:disabled),
+.ghostAction:hover:not(:disabled),
+.dangerAction:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: rgba(190, 162, 255, 0.55);
+}
+
+.primaryAction:disabled,
+.secondaryAction:disabled,
+.ghostAction:disabled,
+.dangerAction:disabled {
+  cursor: not-allowed;
+  opacity: 0.46;
+}
+
+.contextSelector {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  margin-bottom: 28px;
+  padding: 1px;
+  background: linear-gradient(90deg, rgba(156, 116, 255, 0.4), rgba(255, 255, 255, 0.08));
+  border-radius: 14px;
+}
+
+.contextSelector label {
+  min-width: 0;
+  min-height: 68px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 9px;
+  padding: 10px 14px;
+  background: rgba(17, 15, 27, 0.96);
+}
+
+.contextSelector label > svg:first-child {
+  grid-row: 1 / 3;
+  color: var(--torneos-purple-bright);
+}
+
+.contextSelector label > span {
+  align-self: end;
+  color: var(--torneos-muted);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.contextSelector select {
+  min-width: 0;
+  align-self: start;
+  padding: 0;
+  color: #fff;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  background: transparent;
+  border: 0;
+  outline: 0;
+  appearance: none;
+}
+
+.contextSelector label > svg:last-child {
+  grid-column: 3;
+  grid-row: 1 / 3;
+  color: var(--torneos-muted);
+}
+
+.contextSelectorCompact {
+  margin-bottom: 16px;
+}
+
+.selectorSkeleton {
+  grid-column: 1 / -1;
+  min-height: 66px;
+  display: grid;
+  place-items: center;
+  color: var(--torneos-muted);
+  background: rgba(17, 15, 27, 0.96);
+  font-size: 12px;
+}
+
+.emptyCompetition {
+  min-height: 260px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 24px;
+  padding: clamp(24px, 5vw, 50px);
+  background:
+    linear-gradient(130deg, rgba(139, 94, 255, 0.14), rgba(18, 15, 28, 0.92) 56%),
+    repeating-linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.018) 0,
+      rgba(255, 255, 255, 0.018) 1px,
+      transparent 1px,
+      transparent 4px
+    );
+  border: 1px solid rgba(164, 127, 255, 0.2);
+  border-radius: 22px;
+}
+
+.emptyCompetition > span {
+  width: 64px;
+  height: 64px;
+  display: grid;
+  place-items: center;
+  color: #d8c6ff;
+  background: rgba(142, 92, 255, 0.16);
+  border: 1px solid rgba(187, 155, 255, 0.25);
+  border-radius: 18px 5px 18px 5px;
+}
+
+.emptyCompetition h2,
+.sectionTitle h2,
+.lifecyclePanel h2 {
+  margin: 0;
+  font-family: "Bebas Neue", Impact, sans-serif;
+  font-size: clamp(28px, 4vw, 40px);
+  font-weight: 400;
+  letter-spacing: 0.025em;
+}
+
+.emptyCompetition p {
+  max-width: 60ch;
+  margin: 10px 0 0;
+  color: var(--torneos-muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.sectionBlock {
+  margin-top: 36px;
+}
+
+.sectionTitle {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 16px;
+}
+
+.seasonGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.seasonGrid > a {
+  min-width: 0;
+  min-height: 132px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: 1fr auto;
+  gap: 10px 14px;
+  padding: 18px;
+  color: inherit;
+  text-decoration: none;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--torneos-border);
+  border-radius: 14px;
+  transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
+}
+
+.seasonGrid > a:hover,
+.seasonGrid > a:focus-visible {
+  transform: translateY(-3px);
+  background: rgba(139, 94, 255, 0.08);
+  border-color: rgba(169, 132, 255, 0.34);
+}
+
+.seasonIndex {
+  color: rgba(183, 151, 255, 0.5);
+  font-family: "Bebas Neue", Impact, sans-serif;
+  font-size: 33px;
+}
+
+.seasonGrid a > span:nth-child(2) {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.seasonGrid small,
+.tournamentGrid article > div:nth-child(2) > small {
+  color: var(--torneos-purple-bright);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.seasonGrid strong {
+  overflow: hidden;
+  margin-top: 5px;
+  font-size: 17px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.seasonGrid em {
+  margin-top: 6px;
+  color: var(--torneos-muted);
+  font-size: 11px;
+  font-style: normal;
+}
+
+.countPill {
+  grid-column: 1 / -1;
+  justify-self: end;
+  color: #d9ceea;
+  font-size: 10px;
+}
+
+.inlineEmpty {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px dashed rgba(255, 255, 255, 0.14);
+  border-radius: 14px;
+}
+
+.inlineEmpty > svg {
+  color: var(--torneos-purple-bright);
+}
+
+.inlineEmpty > div {
+  min-width: 0;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.inlineEmpty span {
+  color: var(--torneos-muted);
+  font-size: 12px;
+}
+
+.inlineEmpty a {
+  color: var(--torneos-purple-bright);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.tournamentGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.tournamentGrid article {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 18px;
+  background:
+    linear-gradient(145deg, rgba(36, 30, 54, 0.88), rgba(18, 16, 27, 0.94));
+  border: 1px solid var(--torneos-border);
+  border-radius: 16px;
+}
+
+.tournamentCardTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.statusPill,
+.largeStatus {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  color: #d9ccf5;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+}
+
+.statusPill {
+  min-height: 25px;
+  padding: 0 9px;
+}
+
+.statusPill[data-status="registration"],
+.largeStatus[data-status="registration"],
+.largeStatus[data-status="active"] {
+  color: #8df5cc;
+  background: rgba(49, 197, 137, 0.1);
+  border-color: rgba(77, 226, 167, 0.24);
+}
+
+.readyIcon {
+  color: var(--torneos-green);
+}
+
+.pendingIcon {
+  color: #e0a856;
+}
+
+.tournamentGrid h3 {
+  overflow: hidden;
+  margin: 6px 0 0;
+  font-family: "Bebas Neue", Impact, sans-serif;
+  font-size: 30px;
+  font-weight: 400;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tournamentGrid p {
+  margin: 8px 0 0;
+  color: var(--torneos-muted);
+  font-size: 11px;
+}
+
+.tournamentGrid dl,
+.reviewSummary dl {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.tournamentGrid dl > div,
+.reviewSummary dl > div {
+  min-width: 0;
+  padding: 9px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+}
+
+.tournamentGrid dt,
+.reviewSummary dt {
+  color: var(--torneos-muted);
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.tournamentGrid dd,
+.reviewSummary dd {
+  overflow: hidden;
+  margin: 4px 0 0;
+  font-size: 11px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tournamentGrid article > a {
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+  padding-top: 12px;
+  color: var(--torneos-purple-bright);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  border-top: 1px solid var(--torneos-border);
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 24px;
+  color: var(--torneos-muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.backLink:hover,
+.backLink:focus-visible {
+  color: #fff;
+}
+
+.largeStatus {
+  min-height: 34px;
+  padding: 0 13px;
+}
+
+.readOnlyNotice,
+.formAlert,
+.warningBox {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 18px;
+  padding: 12px 14px;
+  font-size: 12px;
+  border-radius: 10px;
+}
+
+.readOnlyNotice {
+  color: #ddd1fa;
+  background: rgba(139, 94, 255, 0.09);
+  border: 1px solid rgba(164, 126, 255, 0.2);
+}
+
+.formAlert {
+  grid-column: 1 / -1;
+  color: #ffb8c4;
+  background: rgba(255, 80, 111, 0.08);
+  border: 1px solid rgba(255, 93, 121, 0.24);
+}
+
+.seasonForm,
+.wizardCanvas,
+.lifecyclePanel {
+  background:
+    linear-gradient(145deg, rgba(32, 27, 48, 0.9), rgba(18, 16, 26, 0.95));
+  border: 1px solid var(--torneos-border);
+  border-radius: 18px;
+}
+
+.seasonForm {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  padding: clamp(20px, 4vw, 34px);
+}
+
+.seasonForm label,
+.inputGrid label,
+.dependentSettings label,
+.inlineSettings label,
+.pointsGrid label,
+.disciplineGrid label,
+.categoryForm label {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  color: #d8d1e3;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.seasonForm input,
+.inputGrid input,
+.inputGrid select,
+.inputGrid textarea,
+.dependentSettings input,
+.dependentSettings select,
+.inlineSettings input,
+.pointsGrid input,
+.disciplineGrid input,
+.ruleActions select,
+.categoryForm input,
+.categoryForm textarea,
+.categoryForm select {
+  width: 100%;
+  min-height: 46px;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  color: #fff;
+  font-family: inherit;
+  font-size: 14px;
+  background: rgba(6, 5, 10, 0.42);
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 9px;
+  outline: 0;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.inputGrid textarea,
+.categoryForm textarea {
+  min-height: 88px;
+  resize: vertical;
+}
+
+.seasonForm input:focus,
+.inputGrid input:focus,
+.inputGrid select:focus,
+.inputGrid textarea:focus,
+.dependentSettings input:focus,
+.dependentSettings select:focus,
+.inlineSettings input:focus,
+.pointsGrid input:focus,
+.disciplineGrid input:focus,
+.ruleActions select:focus,
+.categoryForm input:focus,
+.categoryForm textarea:focus,
+.categoryForm select:focus {
+  border-color: rgba(170, 135, 255, 0.65);
+  box-shadow: 0 0 0 3px rgba(136, 92, 255, 0.12);
+}
+
+.seasonForm input:disabled,
+.inputGrid :is(input, select, textarea):disabled {
+  color: #b7afc2;
+  cursor: not-allowed;
+  opacity: 0.68;
+}
+
+.fieldWide,
+.spanTwo {
+  grid-column: 1 / -1;
+}
+
+.prefixedInput {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  background: rgba(6, 5, 10, 0.42);
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 9px;
+}
+
+.prefixedInput > span {
+  padding-left: 12px;
+  color: var(--torneos-muted);
+}
+
+.prefixedInput input {
+  background: transparent;
+  border: 0;
+}
+
+.fieldError {
+  color: #ff99ab;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.formFooter {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 10px;
+}
+
+.lifecyclePanel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-top: 18px;
+  padding: 22px;
+}
+
+.lifecyclePanel p {
+  margin: 7px 0 0;
+  color: var(--torneos-muted);
+  font-size: 12px;
+}
+
+.stepper {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(100px, 1fr));
+  gap: 1px;
+  overflow-x: auto;
+  margin-bottom: 14px;
+  padding: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  scrollbar-width: thin;
+}
+
+.stepper button {
+  min-width: 0;
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px;
+  color: var(--torneos-muted);
+  font-family: inherit;
+  background: rgba(17, 15, 25, 0.98);
+  border: 0;
+  cursor: pointer;
+}
+
+.stepper button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.stepper button > span {
+  width: 23px;
+  height: 23px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  font-size: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 50%;
+}
+
+.stepper em {
+  overflow: hidden;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stepper .stepActive {
+  color: #fff;
+  background: linear-gradient(135deg, rgba(137, 89, 255, 0.3), rgba(28, 22, 43, 0.98));
+}
+
+.stepper .stepActive > span {
+  color: #fff;
+  background: var(--torneos-purple);
+}
+
+.wizardCanvas {
+  overflow: hidden;
+}
+
+.stepHeading {
+  padding: 24px clamp(18px, 4vw, 34px) 18px;
+  border-bottom: 1px solid var(--torneos-border);
+}
+
+.stepHeading > span {
+  color: var(--torneos-purple-bright);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.stepHeading h2 {
+  margin: 4px 0 0;
+  font-family: "Bebas Neue", Impact, sans-serif;
+  font-size: 36px;
+  font-weight: 400;
+  letter-spacing: 0.03em;
+}
+
+.inputGrid,
+.rulesStack,
+.categoriesLayout,
+.reviewLayout {
+  padding: clamp(18px, 4vw, 34px);
+}
+
+.inputGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.inputGrid label > span em,
+.categoryForm label > span em {
+  color: var(--torneos-muted);
+  font-style: normal;
+  font-weight: 400;
+}
+
+.optionGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  padding: clamp(18px, 4vw, 34px);
+}
+
+.optionGrid button,
+.formatGrid button {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  color: #fff;
+  font-family: inherit;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--torneos-border);
+  border-radius: 13px;
+  cursor: pointer;
+  transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
+}
+
+.optionGrid button {
+  min-height: 132px;
+  padding: 16px;
+}
+
+.optionGrid button > span {
+  color: rgba(180, 147, 255, 0.7);
+  font-family: "Bebas Neue", Impact, sans-serif;
+  font-size: 34px;
+  line-height: 1;
+}
+
+.optionGrid strong,
+.formatGrid strong {
+  margin-top: 8px;
+  font-size: 16px;
+}
+
+.optionGrid small {
+  margin-top: 7px;
+  color: var(--torneos-muted);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.optionGrid button:hover:not(:disabled),
+.formatGrid button:hover:not(:disabled),
+.optionGrid .optionSelected,
+.formatGrid .formatSelected {
+  transform: translateY(-3px);
+  background: rgba(140, 93, 255, 0.11);
+  border-color: rgba(173, 138, 255, 0.54);
+}
+
+.inlineSettings,
+.dependentSettings {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0 clamp(18px, 4vw, 34px) clamp(18px, 4vw, 34px);
+  padding: 18px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--torneos-border);
+  border-radius: 12px;
+}
+
+.formatGrid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  padding: clamp(18px, 4vw, 34px);
+}
+
+.formatGrid button {
+  min-height: 156px;
+  padding: 15px;
+}
+
+.formatGrid svg {
+  color: var(--torneos-purple-bright);
+}
+
+.formatGrid button > span {
+  margin-top: 8px;
+  color: var(--torneos-muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.toggleField {
+  justify-content: center;
+}
+
+.toggleField input {
+  width: 18px;
+  min-height: 18px;
+}
+
+.rulesStack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.rulesStack > section {
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.024);
+  border: 1px solid var(--torneos-border);
+  border-radius: 13px;
+}
+
+.ruleTitle {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  margin-bottom: 18px;
+}
+
+.ruleTitle > span {
+  color: rgba(183, 151, 255, 0.48);
+  font-family: "Bebas Neue", Impact, sans-serif;
+  font-size: 31px;
+}
+
+.ruleTitle h3,
+.categoryHeader h3,
+.categoryForm h3,
+.reviewLayout h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.ruleTitle p,
+.categoryHeader p {
+  margin: 4px 0 0;
+  color: var(--torneos-muted);
+  font-size: 11px;
+}
+
+.pointsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.pointsGrid label {
+  position: relative;
+}
+
+.pointsGrid label > small {
+  position: absolute;
+  right: 11px;
+  bottom: 15px;
+  color: var(--torneos-muted);
+  font-size: 9px;
+}
+
+.tiebreakList {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.tiebreakList > div {
+  min-height: 54px;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  background: rgba(9, 8, 14, 0.42);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 9px;
+}
+
+.tiebreakList > div > span {
+  color: var(--torneos-purple-bright);
+  font-family: "Bebas Neue", Impact, sans-serif;
+  font-size: 21px;
+}
+
+.tiebreakList > div > div:first-of-type {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tiebreakList strong {
+  font-size: 12px;
+}
+
+.tiebreakList small {
+  overflow: hidden;
+  color: var(--torneos-muted);
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tiebreakList > div > div:last-child {
+  display: flex;
+  gap: 4px;
+}
+
+.tiebreakList button,
+.categoryList button {
+  min-width: 32px;
+  min-height: 32px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0 8px;
+  color: #d9c9ff;
+  font-family: inherit;
+  font-size: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.tiebreakList button:disabled,
+.categoryList button:disabled {
+  cursor: not-allowed;
+  opacity: 0.34;
+}
+
+.lockedTiebreak {
+  opacity: 0.72;
+}
+
+.ruleActions {
+  margin-top: 10px;
+}
+
+.ruleActions select {
+  max-width: 260px;
+}
+
+.ruleActions button {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 12px;
+  color: #d7c8fa;
+  font-family: inherit;
+  font-size: 11px;
+  background: transparent;
+  border: 1px solid var(--torneos-border);
+  border-radius: 9px;
+  cursor: pointer;
+}
+
+.disciplineGrid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.toggleGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.toggleGrid label {
+  min-height: 45px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px;
+  color: #d9d2e3;
+  font-size: 10px;
+  background: rgba(255, 255, 255, 0.026);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 8px;
+}
+
+.toggleGrid input {
+  accent-color: var(--torneos-purple);
+}
+
+.categoriesLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.7fr);
+  gap: 18px;
+}
+
+.categoryHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.categoryEmpty {
+  min-height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 18px;
+  color: var(--torneos-muted);
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed rgba(255, 255, 255, 0.14);
+  border-radius: 11px;
+}
+
+.categoryEmpty > span {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 10px;
+}
+
+.categoryEmpty strong {
+  color: #fff;
+  font-size: 13px;
+}
+
+.categoryList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.categoryList article {
+  min-height: 64px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--torneos-border);
+  border-radius: 10px;
+}
+
+.categoryOrder {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  color: var(--torneos-purple-bright);
+  background: rgba(139, 94, 255, 0.09);
+  border-radius: 8px;
+  font-family: "Bebas Neue", Impact, sans-serif;
+  font-size: 17px;
+}
+
+.categoryList article > div:first-of-type {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.categoryList article > div:first-of-type small {
+  overflow: hidden;
+  color: var(--torneos-muted);
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.categoryList article > div:last-child {
+  display: flex;
+  gap: 4px;
+}
+
+.categoryForm {
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  padding: 18px;
+  background: rgba(139, 94, 255, 0.06);
+  border: 1px solid rgba(165, 126, 255, 0.22);
+  border-radius: 13px;
+}
+
+.miniGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.reviewLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+  gap: 18px;
+}
+
+.reviewSummary,
+.checklistPanel {
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--torneos-border);
+  border-radius: 13px;
+}
+
+.reviewHero {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.reviewHero > span {
+  width: 54px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: linear-gradient(145deg, #8f5cff, #5526c4);
+  border-radius: 15px 4px 15px 4px;
+}
+
+.reviewHero small {
+  color: var(--torneos-purple-bright);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.reviewHero h3 {
+  margin-top: 3px;
+  font-family: "Bebas Neue", Impact, sans-serif;
+  font-size: 32px;
+  font-weight: 400;
+}
+
+.reviewHero p {
+  margin: 4px 0 0;
+  color: var(--torneos-muted);
+  font-size: 11px;
+}
+
+.reviewSummary dl {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.checklistPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.checklistPanel ul {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.checklistPanel li {
+  min-height: 35px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 9px;
+  color: var(--torneos-muted);
+  font-size: 11px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 7px;
+}
+
+.checklistPanel li[data-complete="true"] {
+  color: #c9f5e3;
+}
+
+.checklistPanel li[data-complete="true"] svg {
+  color: var(--torneos-green);
+}
+
+.warningBox {
+  margin: 0;
+  color: #f0d6a2;
+  background: rgba(224, 168, 86, 0.08);
+  border: 1px solid rgba(224, 168, 86, 0.2);
+}
+
+.wizardFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 18px clamp(18px, 4vw, 34px);
+  background: rgba(5, 4, 8, 0.25);
+  border-top: 1px solid var(--torneos-border);
+}
+
+@keyframes coreIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 1100px) {
+  .seasonGrid,
+  .tournamentGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .formatGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .disciplineGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .competitionHeader,
+  .formHeader,
+  .wizardHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .headerActions {
+    width: 100%;
+  }
+
+  .headerActions > * {
+    flex: 1;
+  }
+
+  .contextSelector,
+  .inputGrid,
+  .optionGrid,
+  .inlineSettings,
+  .dependentSettings,
+  .pointsGrid,
+  .categoriesLayout,
+  .reviewLayout {
+    grid-template-columns: 1fr;
+  }
+
+  .formatGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .contextSelector label {
+    min-height: 62px;
+  }
+
+  .emptyCompetition {
+    grid-template-columns: 1fr;
+    text-align: left;
+  }
+
+  .emptyCompetition > .primaryAction {
+    justify-self: start;
+  }
+
+  .seasonForm {
+    grid-template-columns: 1fr;
+  }
+
+  .fieldWide,
+  .spanTwo,
+  .formFooter {
+    grid-column: auto;
+  }
+
+  .lifecyclePanel {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .disciplineGrid,
+  .toggleGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .categoryForm {
+    order: -1;
+  }
+}
+
+@media (max-width: 520px) {
+  .competitionHeader h1,
+  .formHeader h1,
+  .wizardHeader h1 {
+    font-size: 43px;
+  }
+
+  .headerActions,
+  .formButtons,
+  .wizardFooter,
+  .wizardFooter > div,
+  .lifecyclePanel > div:last-child {
+    width: 100%;
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .headerActions > *,
+  .wizardFooter button,
+  .formButtons button,
+  .lifecyclePanel button {
+    width: 100%;
+  }
+
+  .contextSelector,
+  .seasonGrid,
+  .tournamentGrid,
+  .formatGrid,
+  .disciplineGrid,
+  .toggleGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .tournamentGrid dl {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .inlineEmpty {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .inlineEmpty a {
+    width: 100%;
+    margin-left: 37px;
+  }
+
+  .stepper {
+    grid-template-columns: repeat(6, 108px);
+    margin-right: -14px;
+    border-radius: 10px 0 0 10px;
+  }
+
+  .stepper button {
+    min-height: 58px;
+  }
+
+  .optionGrid button,
+  .formatGrid button {
+    min-height: 112px;
+  }
+
+  .ruleActions,
+  .categoryHeader {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .ruleActions select {
+    max-width: none;
+  }
+
+  .tiebreakList > div {
+    grid-template-columns: 26px minmax(0, 1fr);
+  }
+
+  .tiebreakList > div > div:last-child {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+  }
+
+  .categoryList article {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .categoryList article > div:last-child {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .competitionPage,
+  .formPage,
+  .wizardPage {
+    animation: none;
+  }
+
+  .primaryAction,
+  .secondaryAction,
+  .ghostAction,
+  .dangerAction,
+  .seasonGrid > a,
+  .optionGrid button,
+  .formatGrid button {
+    transition: none;
+  }
+}
