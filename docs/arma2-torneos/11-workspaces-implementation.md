@@ -63,6 +63,7 @@ Resolución fail-closed:
 - sólo `true` literal;
 - deploy environment allowlisted;
 - backend local o staging comprobado;
+- project ref productivo conocido bloqueado aunque se etiquete como staging;
 - producción fuerza todo apagado;
 - variables faltantes o inválidas fuerzan apagado.
 
@@ -80,7 +81,8 @@ Constraints:
 - estado `active` o `archived`;
 - `archived_at` consistente con estado;
 - `creation_key` única por creador;
-- logo relativo, sin URL externa.
+- logo limitado a una ruta relativa de storage, sin esquemas, query strings ni
+  segmentos de traversal.
 
 ### `tournament_organization_members`
 
@@ -90,6 +92,7 @@ Constraints e índices:
 
 - roles `owner`, `admin`, `collaborator`;
 - estados `active`, `suspended`, `removed`;
+- `joined_at` obligatorio en esta fase sin invitaciones pendientes;
 - membership única por organización/usuario;
 - índice parcial: un owner activo por organización;
 - índices de lookup por usuario y organización;
@@ -118,10 +121,11 @@ Los helpers `is_tournament_organization_member()` y `has_tournament_organization
 
 - exige `auth.uid()`;
 - no acepta `user_id`;
-- normaliza y valida nombre/slug;
+- normaliza y valida nombre/slug de forma consistente con acentos españoles;
 - rechaza términos reservados;
 - limita cinco creaciones cada diez minutos;
-- serializa por usuario/clave idempotente;
+- serializa las creaciones por usuario para sostener idempotencia y rate limit
+  también bajo concurrencia;
 - crea organization, owner y preferencia en una transacción;
 - una repetición con la misma clave devuelve la misma organización;
 - devuelve JSON allowlisted.
@@ -132,6 +136,7 @@ Los helpers `is_tournament_organization_member()` y `has_tournament_organization
 - incluye rol y capacidades;
 - valida la preferencia;
 - descarta preferencias revocadas o archivadas;
+- inicializa la preferencia sin colisionar ante dos cargas concurrentes;
 - vuelve a `personal` sin revelar datos del tenant anterior.
 
 ### `is_tournament_organization_slug_available`
@@ -158,6 +163,10 @@ Requiere `organization.update`; archivar requiere además `organization.archive`
 ```
 
 `/torneos` resuelve preferencia y organizaciones. Las rutas directas esperan el contexto autoritativo, verifican que el UUID pertenezca a la respuesta y recién entonces renderizan. Un UUID ajeno redirige sin revelar nombre o existencia.
+
+Cada revalidación limpia primero los datos privados en memoria. Respuestas
+anteriores fuera de orden se ignoran, y volver a enfocar/mostrar la pestaña o
+cambiar de workspace en otra pestaña dispara una nueva validación.
 
 ## Cambio de shell
 
@@ -216,7 +225,9 @@ CI=true npm test -- --watchAll=false --runInBand \
   src/__tests__/torneosCapabilities.test.js \
   src/__tests__/torneosOrganizationValidation.test.js \
   src/__tests__/torneosOrganizationCreation.test.jsx \
-  src/__tests__/tournamentWorkspaceService.test.js
+  src/__tests__/tournamentWorkspaceService.test.js \
+  src/__tests__/torneosRuntimeIsolation.test.jsx \
+  src/__tests__/torneosResponsiveCss.test.js
 ```
 
 RLS/migración con Postgres embebido:
@@ -225,7 +236,10 @@ RLS/migración con Postgres embebido:
 npm run test:db:torneos
 ```
 
-El harness crea usuarios ficticios A, B, C, D y un admin, aplica la migración desde cero y prueba aislamiento, escrituras falsificadas, owner, idempotencia, preferencias y revocación.
+El harness crea usuarios ficticios A, B, C, D, suspendido, admin y actores
+separados para concurrencia. Aplica la migración desde cero y prueba
+aislamiento, escrituras falsificadas, owner, idempotencia, preferencias,
+revocación, colisiones de slug, updates simultáneos y rate limit concurrente.
 
 Con Docker activo, validación Supabase local:
 

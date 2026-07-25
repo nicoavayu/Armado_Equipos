@@ -278,7 +278,7 @@ function isTorneosNamespace(pathname = '') {
   return pathname === '/torneos' || pathname.startsWith('/torneos/');
 }
 
-function RouteScopedProviders({ children }) {
+export function RouteScopedProviders({ children }) {
   const location = useLocation();
   if (isTorneosNamespace(location.pathname)) return children;
 
@@ -291,7 +291,7 @@ function RouteScopedProviders({ children }) {
   );
 }
 
-function PersonalRuntimeEffects() {
+export function PersonalRuntimeEffects() {
   const location = useLocation();
   if (isTorneosNamespace(location.pathname)) return null;
 
@@ -308,13 +308,13 @@ function PersonalRuntimeEffects() {
   );
 }
 
-function ScopedPublicVotingRouteIsolation({ children }) {
+export function ScopedPublicVotingRouteIsolation({ children }) {
   const location = useLocation();
   if (isTorneosNamespace(location.pathname)) return children;
   return <PublicVotingRouteIsolation>{children}</PublicVotingRouteIsolation>;
 }
 
-function PersonalGlobalNotice() {
+export function PersonalGlobalNotice() {
   const location = useLocation();
   if (isTorneosNamespace(location.pathname)) return null;
   return <GlobalNoticeModal />;

@@ -306,11 +306,14 @@
   animation: spin 700ms linear infinite;
 }
 
-.desktopNavigation,
-.mobileNavigation {
+.desktopNavigation {
   display: flex;
   flex-direction: column;
   gap: 5px;
+}
+
+.mobileNavigation {
+  display: none;
 }
 
 .navigationItem {
