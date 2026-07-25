@@ -1427,9 +1427,9 @@
   }
 
   .stepper {
-    grid-template-columns: repeat(6, 108px);
-    margin-right: -14px;
-    border-radius: 10px 0 0 10px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    overflow-x: hidden;
+    border-radius: 10px;
   }
 
   .stepper button {

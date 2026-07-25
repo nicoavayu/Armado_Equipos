@@ -81,7 +81,9 @@ El catálogo contiene:
 - `league_and_playoffs`.
 
 `format_settings` es JSONB validado en servidor según el formato. Conserva
-únicamente opciones de configuración; no crea jornadas, grupos ni llaves.
+únicamente las claves completas y compatibles con el formato elegido; claves
+extra, valores de tipo incorrecto o configuraciones incompletas fallan de forma
+cerrada. No crea jornadas, grupos ni llaves.
 
 ## Estados y transiciones
 
@@ -134,7 +136,8 @@ orden inicial persistido es:
 También pueden elegirse `matches_won`, `playoff_match` y `draw`. Los índices y
 constraints impiden posiciones o criterios duplicados. La semántica detallada
 de `head_to_head` —mini tabla, cantidad de enfrentamientos y desempate
-recursivo— se definirá junto al motor de tabla.
+recursivo— se definirá junto al motor de tabla. Hasta entonces no se calcula ni
+se interpreta: sólo se conserva su posición explícita dentro del orden.
 
 ### Disciplina
 
@@ -151,7 +154,9 @@ categoría activa es requisito para pasar a `registration`.
 El slug es único dentro del torneo. Edades y overrides son opcionales; si ambas
 edades existen, `min_age <= max_age`. Archivar retira la categoría de la
 configuración seleccionable. El servidor impide archivar la última categoría
-activa de un torneo que ya está en `registration`.
+activa de un torneo que ya está en `registration`. Crear, mover o archivar
+serializa el torneo y renumera las categorías activas dentro de la misma
+transacción, por lo que no deja huecos ni posiciones duplicadas.
 
 ## Autorización y RLS
 
@@ -193,7 +198,10 @@ Las funciones `SECURITY DEFINER`:
 
 Las creaciones de temporada y torneo usan una clave UUID de idempotencia con
 índices únicos por organización/actor. La creación del torneo es atómica: no
-puede quedar sin sus tres configuraciones iniciales.
+puede quedar sin sus tres configuraciones iniciales. El cliente conserva la
+misma clave si una respuesta de red falla y sólo la descarta después de una
+creación confirmada. Los locks por organización, temporada y torneo cierran las
+carreras entre creación, archivado y cambio de contexto.
 
 ## Contexto activo y caché
 
@@ -237,6 +245,11 @@ abre el paso correspondiente del wizard.
 7. Owner/admin pueden preparar inscripción o archivar; collaborator ve los
    mismos datos en modo consulta.
 
+El checklist incluye explícitamente una temporada no archivada, posiciones de
+desempate continuas y la coherencia entre el criterio `fair_play` y la regla
+disciplinaria que lo habilita. El frontend presenta exactamente esos checks y
+el backend sigue siendo la autoridad para abrir inscripciones.
+
 Los módulos futuros quedan visibles como “Próximamente”, sin links, métricas ni
 datos simulados.
 
@@ -245,7 +258,8 @@ datos simulados.
 `scripts/db-integration/torneos-competition-core.mjs` aplica desde cero primero
 la migración de workspaces y después esta migración en PostgreSQL embebido. Sus
 casos cubren schema, catálogos, RLS, grants, tenants, roles, idempotencia,
-concurrencia, transiciones y preferencias.
+concurrencia, rollback deliberado, transiciones, preferencias y el contrato
+exacto de capabilities.
 
 La UI tiene pruebas de servicio, validación, contexto, rutas, permisos, CSS
 responsive y flujo. Los builds con Torneos apagado y con el entorno aislado
@@ -263,7 +277,9 @@ embebido y no se tocó ningún proyecto Supabase cloud.
 - [Dashboard tablet 768 × 1024](assets/competition-core-tablet-768.jpg)
 
 También se verificó 320 × 700. En los cuatro breakpoints el ancho del documento
-coincide con el viewport.
+coincide con el viewport. En móvil, los seis pasos del wizard se muestran como
+una grilla 3 × 2 para que el paso activo y todos los destinos permanezcan
+visibles sin scroll horizontal.
 
 ## Decisiones descartadas
 

@@ -29,12 +29,12 @@ describe('Torneos responsive navigation CSS', () => {
     );
   });
 
-  test('collapses competitive grids and keeps the six-step wizard horizontally scrollable', () => {
+  test('collapses competitive grids and keeps all six wizard steps visible', () => {
     expect(competitionCss).toMatch(
       /@media \(max-width:\s*760px\)[\s\S]*?\.contextSelector,[\s\S]*?grid-template-columns:\s*1fr;/,
     );
     expect(competitionCss).toMatch(
-      /@media \(max-width:\s*520px\)[\s\S]*?\.stepper\s*\{[\s\S]*?grid-template-columns:\s*repeat\(6,\s*108px\);/,
+      /@media \(max-width:\s*520px\)[\s\S]*?\.stepper\s*\{[\s\S]*?grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\);[\s\S]*?overflow-x:\s*hidden;/,
     );
     expect(competitionCss).toMatch(
       /\.stepper\s*\{[\s\S]*?overflow-x:\s*auto;/,
