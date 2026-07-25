@@ -34,6 +34,25 @@ const ERROR_MESSAGES = {
   TORNEOS_INVALID_TOURNAMENT_TRANSITION: 'Ese cambio de estado del torneo no está permitido.',
   TORNEOS_REGISTRATION_INCOMPLETE: 'Completá los requisitos antes de preparar la inscripción.',
   TORNEOS_SCOPE_IMMUTABLE: 'No se puede mover un recurso entre organizaciones o torneos.',
+  TORNEOS_REGISTRATION_CLOSED: 'La inscripción no está abierta para ese torneo o categoría.',
+  TORNEOS_INVALID_TEAM_ENTRY: 'Revisá los datos del equipo.',
+  TORNEOS_TEAM_ALREADY_REGISTERED: 'Ese equipo ya está inscripto en la categoría.',
+  TORNEOS_INVALID_MANAGER: 'Revisá los datos del responsable.',
+  TORNEOS_MANAGER_INVITATION_REQUIRED: 'El responsable debe confirmar una invitación con su propia cuenta.',
+  TORNEOS_INVITATION_RATE_LIMITED: 'Se generaron varias invitaciones. Esperá unos minutos.',
+  TORNEOS_SEARCH_RATE_LIMITED: 'Se hicieron muchas búsquedas. Esperá un minuto y probá de nuevo.',
+  TORNEOS_INVITATION_INVALID: 'La invitación no existe, ya fue usada o no corresponde a esta cuenta.',
+  TORNEOS_INVITATION_EXPIRED: 'La invitación venció. Pedí al organizador un enlace nuevo.',
+  TORNEOS_ENTRY_NOT_EDITABLE: 'La inscripción ya no admite cambios.',
+  TORNEOS_INVALID_PLAYER: 'Revisá el nombre del jugador.',
+  TORNEOS_INVALID_PLAYER_IDENTITY: 'Elegí un jugador de Arma2 o creá uno provisional.',
+  TORNEOS_DUPLICATE_PLAYER: 'Ese jugador ya está en el plantel.',
+  TORNEOS_DUPLICATE_SHIRT_NUMBER: 'Ese dorsal ya está asignado.',
+  TORNEOS_ROSTER_MAXIMUM_REACHED: 'El plantel alcanzó el máximo permitido.',
+  TORNEOS_ROSTER_INCOMPLETE: 'El plantel todavía no cumple todos los requisitos.',
+  TORNEOS_MANAGER_REQUIRED: 'Asigná al menos un responsable antes de presentar.',
+  TORNEOS_INVALID_REVIEW: 'Indicá un motivo claro para completar la revisión.',
+  TORNEOS_REASON_REQUIRED: 'Indicá el motivo de esta acción.',
 };
 
 export class TournamentWorkspaceError extends Error {
@@ -378,6 +397,180 @@ export async function setActiveTournamentContext({
   }
 }
 
+export async function loadTournamentTeamsContext(organizationId, tournamentId) {
+  try {
+    return unwrapRpc(
+      await supabase.rpc('get_tournament_teams_context', {
+        p_organization_id: organizationId,
+        p_tournament_id: tournamentId,
+      }),
+      'No pudimos cargar los equipos.',
+    );
+  } catch (error) {
+    throw toWorkspaceError(error, 'No pudimos cargar los equipos.');
+  }
+}
+
+export async function loadTeamRegistrationContext(organizationId, teamEntryId) {
+  try {
+    return unwrapRpc(
+      await supabase.rpc('get_team_registration_context', {
+        p_organization_id: organizationId,
+        p_team_entry_id: teamEntryId,
+      }),
+      'No pudimos cargar la inscripción.',
+    );
+  } catch (error) {
+    throw toWorkspaceError(error, 'No pudimos cargar la inscripción.');
+  }
+}
+
+export async function createTournamentTeamEntry(input) {
+  return unwrapRpc(await supabase.rpc('create_tournament_team_entry', {
+    p_organization_id: input.organizationId,
+    p_tournament_id: input.tournamentId,
+    p_category_id: input.categoryId,
+    p_arma2_team_id: input.arma2TeamId || null,
+    p_name: input.name,
+    p_short_name: input.shortName || null,
+    p_primary_color: input.primaryColor || null,
+    p_secondary_color: input.secondaryColor || null,
+    p_registration_source: input.registrationSource,
+    p_manager_user_id: input.managerUserId || null,
+    p_manager_email: input.managerEmail || null,
+    p_manager_display_name: input.managerDisplayName || null,
+    p_idempotency_key: input.idempotencyKey,
+  }), 'No pudimos crear la inscripción.');
+}
+
+export async function updateTournamentTeamEntry(input) {
+  return unwrapRpc(await supabase.rpc('update_tournament_team_entry', {
+    p_organization_id: input.organizationId,
+    p_team_entry_id: input.teamEntryId,
+    p_patch: input.patch,
+  }), 'No pudimos guardar los datos del equipo.');
+}
+
+export async function createTournamentProvisionalPlayer(input) {
+  return unwrapRpc(await supabase.rpc('create_tournament_provisional_player', {
+    p_organization_id: input.organizationId,
+    p_team_entry_id: input.teamEntryId,
+    p_display_name: input.displayName,
+  }), 'No pudimos crear el jugador provisional.');
+}
+
+export async function addTournamentRosterPlayer(input) {
+  return unwrapRpc(await supabase.rpc('add_tournament_roster_player', {
+    p_organization_id: input.organizationId,
+    p_team_entry_id: input.teamEntryId,
+    p_roster_id: input.rosterId,
+    p_arma2_user_id: input.arma2UserId || null,
+    p_provisional_player_id: input.provisionalPlayerId || null,
+    p_display_name: input.displayName,
+    p_avatar_url: input.avatarUrl || null,
+    p_shirt_number: input.shirtNumber === '' ? null : input.shirtNumber,
+    p_primary_position: input.primaryPosition || null,
+    p_secondary_position: input.secondaryPosition || null,
+    p_is_goalkeeper: Boolean(input.isGoalkeeper),
+  }), 'No pudimos agregar el jugador.');
+}
+
+export async function updateTournamentRosterPlayer(input) {
+  return unwrapRpc(await supabase.rpc('update_tournament_roster_player', {
+    p_organization_id: input.organizationId,
+    p_team_entry_id: input.teamEntryId,
+    p_roster_player_id: input.rosterPlayerId,
+    p_shirt_number: input.shirtNumber === '' ? null : input.shirtNumber,
+    p_primary_position: input.primaryPosition || null,
+    p_secondary_position: input.secondaryPosition || null,
+    p_is_goalkeeper: Boolean(input.isGoalkeeper),
+  }), 'No pudimos actualizar el jugador.');
+}
+
+export async function removeTournamentRosterPlayer(input) {
+  return unwrapRpc(await supabase.rpc('remove_tournament_roster_player', {
+    p_organization_id: input.organizationId,
+    p_team_entry_id: input.teamEntryId,
+    p_roster_player_id: input.rosterPlayerId,
+  }), 'No pudimos quitar el jugador.');
+}
+
+export async function submitTournamentTeamEntry(input) {
+  return unwrapRpc(await supabase.rpc('submit_tournament_team_entry', {
+    p_organization_id: input.organizationId,
+    p_team_entry_id: input.teamEntryId,
+  }), 'No pudimos presentar la inscripción.');
+}
+
+export async function reviewTournamentTeamEntry(input) {
+  return unwrapRpc(await supabase.rpc('review_tournament_team_entry', {
+    p_organization_id: input.organizationId,
+    p_team_entry_id: input.teamEntryId,
+    p_decision: input.decision,
+    p_reason: input.reason,
+    p_issues: input.issues || [],
+  }), 'No pudimos completar la revisión.');
+}
+
+export async function withdrawTournamentTeamEntry(input) {
+  return unwrapRpc(await supabase.rpc('withdraw_tournament_team_entry', {
+    p_organization_id: input.organizationId,
+    p_team_entry_id: input.teamEntryId,
+    p_reason: input.reason,
+  }), 'No pudimos retirar la inscripción.');
+}
+
+export async function archiveTournamentTeamEntry(input) {
+  return unwrapRpc(await supabase.rpc('archive_tournament_team_entry', {
+    p_organization_id: input.organizationId,
+    p_team_entry_id: input.teamEntryId,
+    p_reason: input.reason,
+  }), 'No pudimos archivar la inscripción.');
+}
+
+export async function lockTournamentRoster(input) {
+  return unwrapRpc(await supabase.rpc('lock_tournament_roster', {
+    p_organization_id: input.organizationId,
+    p_team_entry_id: input.teamEntryId,
+    p_roster_id: input.rosterId,
+  }), 'No pudimos bloquear el plantel.');
+}
+
+export async function inviteTournamentTeamManager(input) {
+  return unwrapRpc(await supabase.rpc('invite_tournament_team_manager', {
+    p_organization_id: input.organizationId,
+    p_team_entry_id: input.teamEntryId,
+    p_email: input.email,
+    p_display_name: input.displayName,
+    p_role: input.role || 'captain',
+  }), 'No pudimos generar la invitación.');
+}
+
+export async function acceptTournamentTeamInvitation(token) {
+  return unwrapRpc(await supabase.rpc('accept_tournament_team_invitation', {
+    p_token: token,
+  }), 'No pudimos aceptar la invitación.');
+}
+
+export async function searchTournamentPlayers(input) {
+  return unwrapRpc(await supabase.rpc('search_tournament_players', {
+    p_organization_id: input.organizationId,
+    p_tournament_id: input.tournamentId,
+    p_query: input.query,
+    p_limit: input.limit || 8,
+    p_team_entry_id: input.teamEntryId || null,
+  }), 'No pudimos buscar jugadores.');
+}
+
+export async function searchTournamentArma2Teams(input) {
+  return unwrapRpc(await supabase.rpc('search_tournament_arma2_teams', {
+    p_organization_id: input.organizationId,
+    p_tournament_id: input.tournamentId,
+    p_query: input.query,
+    p_limit: input.limit || 8,
+  }), 'No pudimos buscar equipos de Arma2.');
+}
+
 export const tournamentWorkspaceService = Object.freeze({
   loadContext: loadTournamentWorkspaceContext,
   createOrganization: createTournamentOrganization,
@@ -393,5 +586,22 @@ export const tournamentWorkspaceService = Object.freeze({
   saveCategory: saveTournamentCategory,
   changeTournamentStatus: changeTournamentCompetitionStatus,
   setTournamentContext: setActiveTournamentContext,
+  loadTeamsContext: loadTournamentTeamsContext,
+  loadTeamRegistration: loadTeamRegistrationContext,
+  createTeamEntry: createTournamentTeamEntry,
+  updateTeamEntry: updateTournamentTeamEntry,
+  createProvisionalPlayer: createTournamentProvisionalPlayer,
+  addRosterPlayer: addTournamentRosterPlayer,
+  updateRosterPlayer: updateTournamentRosterPlayer,
+  removeRosterPlayer: removeTournamentRosterPlayer,
+  submitTeamEntry: submitTournamentTeamEntry,
+  reviewTeamEntry: reviewTournamentTeamEntry,
+  withdrawTeamEntry: withdrawTournamentTeamEntry,
+  archiveTeamEntry: archiveTournamentTeamEntry,
+  lockRoster: lockTournamentRoster,
+  inviteTeamManager: inviteTournamentTeamManager,
+  acceptTeamInvitation: acceptTournamentTeamInvitation,
+  searchPlayers: searchTournamentPlayers,
+  searchArma2Teams: searchTournamentArma2Teams,
   createIdempotencyKey,
 });

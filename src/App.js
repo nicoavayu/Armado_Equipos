@@ -637,10 +637,7 @@ export function AppAuthWrapper() {
     const returnTo = `${location.pathname}${location.search}${location.hash}`;
     setAuthReturnTo(returnTo);
     logger.info('[AUTH] app_auth_wrapper_redirect_login', {
-      pathname: location.pathname,
-      search: location.search,
-      hash: location.hash,
-      returnTo,
+      route: redactUrlForLog(returnTo),
       authResolved,
       loading,
     });

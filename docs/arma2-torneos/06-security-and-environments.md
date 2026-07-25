@@ -97,3 +97,10 @@ En `/torneos/*` no se montan `BadgeProvider`, `NotificationProvider`, Google Map
 | Fuga en exportación | snapshot allowlisted, autorización al crear y descargar |
 | Evidencia pública accidental | bucket privado y proyección separada |
 | Notificación a usuario real | proyecto/credenciales sandbox y flags |
+
+## Hardening de inscripciones
+
+Las invitaciones guardan SHA-256 y son de un solo uso. Límites y exclusividad se
+revalidan bajo locks. Las tablas nuevas tienen RLS y ninguna escritura directa a
+`authenticated`; la auditoría rechaza update/delete. Autocompletados acotan
+consulta/resultados y no proyectan PII.

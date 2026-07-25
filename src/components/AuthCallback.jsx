@@ -10,6 +10,7 @@ import {
   setAuthFlowResult,
 } from '../utils/authFlowState';
 import { track } from '../utils/monitoring/analytics';
+import { redactUrlForLog } from '../utils/nativeAppLink';
 import AppLoadingScreen from './AppLoadingScreen';
 
 const SESSION_RETRY_DELAYS_MS = [0, 250, 600, 1200];
@@ -145,7 +146,7 @@ export default function AuthCallback() {
         });
 
         const target = consumeAuthReturnTo('/home');
-        logAuth('auth_callback_navigate', { target });
+        logAuth('auth_callback_navigate', { target: redactUrlForLog(target) });
         navigate(target, { replace: true });
       } catch (err) {
         const currentProvider = readPendingAuthFlow()?.provider || provider;

@@ -126,3 +126,10 @@ Tournament 1──* DisciplinaryCase 1──* Sanction
 - semántica exacta de `head_to_head`;
 - retención de evidencia y exportaciones;
 - reglas exactas de estadísticas oficiales frente al scoring actual.
+
+## Participación implementada
+
+`tournament_team_entries` separa `teams` de la participación concreta.
+Managers, invitaciones, versiones de plantel, usuarios Arma2 y provisionales son
+entidades tenant-scoped. La identidad con cuenta es `auth.users.id`;
+`jugadores` continúa reservado a participaciones en partidos.

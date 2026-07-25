@@ -29,6 +29,31 @@ export const TOURNAMENT_CAPABILITIES = Object.freeze({
   CATEGORIES_ARCHIVE: 'categories.archive',
   COMPETITION_RULES_READ: 'competition_rules.read',
   COMPETITION_RULES_UPDATE: 'competition_rules.update',
+  TEAM_ENTRIES_READ: 'team_entries.read',
+  TEAM_ENTRIES_CREATE: 'team_entries.create',
+  TEAM_ENTRIES_UPDATE: 'team_entries.update',
+  TEAM_ENTRIES_SUBMIT: 'team_entries.submit',
+  TEAM_ENTRIES_REVIEW: 'team_entries.review',
+  TEAM_ENTRIES_APPROVE: 'team_entries.approve',
+  TEAM_ENTRIES_REJECT: 'team_entries.reject',
+  TEAM_ENTRIES_WITHDRAW: 'team_entries.withdraw',
+  TEAM_ENTRIES_ARCHIVE: 'team_entries.archive',
+  TEAM_MANAGERS_READ: 'team_managers.read',
+  TEAM_MANAGERS_INVITE: 'team_managers.invite',
+  TEAM_MANAGERS_REVOKE: 'team_managers.revoke',
+  ROSTERS_READ: 'rosters.read',
+  ROSTERS_UPDATE: 'rosters.update',
+  ROSTERS_SUBMIT: 'rosters.submit',
+  ROSTERS_REVIEW: 'rosters.review',
+  ROSTERS_APPROVE: 'rosters.approve',
+  ROSTERS_LOCK: 'rosters.lock',
+  ROSTER_PLAYERS_READ: 'roster_players.read',
+  ROSTER_PLAYERS_ADD: 'roster_players.add',
+  ROSTER_PLAYERS_UPDATE: 'roster_players.update',
+  ROSTER_PLAYERS_REMOVE: 'roster_players.remove',
+  PROVISIONAL_PLAYERS_CREATE: 'provisional_players.create',
+  PROVISIONAL_PLAYERS_UPDATE: 'provisional_players.update',
+  PLAYER_DUPLICATES_OVERRIDE: 'player_duplicates.override',
 });
 
 const commonMemberCapabilities = [
@@ -55,6 +80,37 @@ const competitionManagementCapabilities = [
   TOURNAMENT_CAPABILITIES.COMPETITION_RULES_UPDATE,
 ];
 
+const teamReadCapabilities = [
+  TOURNAMENT_CAPABILITIES.TEAM_ENTRIES_READ,
+  TOURNAMENT_CAPABILITIES.TEAM_MANAGERS_READ,
+  TOURNAMENT_CAPABILITIES.ROSTERS_READ,
+  TOURNAMENT_CAPABILITIES.ROSTER_PLAYERS_READ,
+];
+
+const teamManagementCapabilities = [
+  TOURNAMENT_CAPABILITIES.TEAM_ENTRIES_CREATE,
+  TOURNAMENT_CAPABILITIES.TEAM_ENTRIES_UPDATE,
+  TOURNAMENT_CAPABILITIES.TEAM_ENTRIES_SUBMIT,
+  TOURNAMENT_CAPABILITIES.TEAM_ENTRIES_REVIEW,
+  TOURNAMENT_CAPABILITIES.TEAM_ENTRIES_APPROVE,
+  TOURNAMENT_CAPABILITIES.TEAM_ENTRIES_REJECT,
+  TOURNAMENT_CAPABILITIES.TEAM_ENTRIES_WITHDRAW,
+  TOURNAMENT_CAPABILITIES.TEAM_ENTRIES_ARCHIVE,
+  TOURNAMENT_CAPABILITIES.TEAM_MANAGERS_INVITE,
+  TOURNAMENT_CAPABILITIES.TEAM_MANAGERS_REVOKE,
+  TOURNAMENT_CAPABILITIES.ROSTERS_UPDATE,
+  TOURNAMENT_CAPABILITIES.ROSTERS_SUBMIT,
+  TOURNAMENT_CAPABILITIES.ROSTERS_REVIEW,
+  TOURNAMENT_CAPABILITIES.ROSTERS_APPROVE,
+  TOURNAMENT_CAPABILITIES.ROSTERS_LOCK,
+  TOURNAMENT_CAPABILITIES.ROSTER_PLAYERS_ADD,
+  TOURNAMENT_CAPABILITIES.ROSTER_PLAYERS_UPDATE,
+  TOURNAMENT_CAPABILITIES.ROSTER_PLAYERS_REMOVE,
+  TOURNAMENT_CAPABILITIES.PROVISIONAL_PLAYERS_CREATE,
+  TOURNAMENT_CAPABILITIES.PROVISIONAL_PLAYERS_UPDATE,
+  TOURNAMENT_CAPABILITIES.PLAYER_DUPLICATES_OVERRIDE,
+];
+
 export const ROLE_CAPABILITIES = Object.freeze({
   [TOURNAMENT_ROLES.OWNER]: Object.freeze([
     ...commonMemberCapabilities,
@@ -65,6 +121,8 @@ export const ROLE_CAPABILITIES = Object.freeze({
     TOURNAMENT_CAPABILITIES.MEMBERS_REMOVE,
     TOURNAMENT_CAPABILITIES.WORKSPACE_MANAGE,
     ...competitionManagementCapabilities,
+    ...teamReadCapabilities,
+    ...teamManagementCapabilities,
   ]),
   [TOURNAMENT_ROLES.ADMIN]: Object.freeze([
     ...commonMemberCapabilities,
@@ -74,9 +132,12 @@ export const ROLE_CAPABILITIES = Object.freeze({
     TOURNAMENT_CAPABILITIES.MEMBERS_REMOVE,
     TOURNAMENT_CAPABILITIES.WORKSPACE_MANAGE,
     ...competitionManagementCapabilities,
+    ...teamReadCapabilities,
+    ...teamManagementCapabilities,
   ]),
   [TOURNAMENT_ROLES.COLLABORATOR]: Object.freeze([
     ...commonMemberCapabilities,
+    ...teamReadCapabilities,
   ]),
 });
 

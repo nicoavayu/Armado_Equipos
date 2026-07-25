@@ -1036,7 +1036,11 @@ async function main() {
     () => value(
       ownerA,
       'select public.set_active_tournament_context($1, $2, $3)',
-      [organizationA, seasonA.id, collaboratorContext.tournaments[0].id.replace(/.$/, '9')],
+      [
+        organizationA,
+        seasonA.id,
+        'ffffffff-ffff-4fff-8fff-ffffffffffff',
+      ],
     ),
     /TORNEOS_CONTEXT_FORBIDDEN/,
     'una preferencia no puede señalar un torneo inexistente o ajeno',

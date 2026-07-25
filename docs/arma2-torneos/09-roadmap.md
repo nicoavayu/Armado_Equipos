@@ -21,11 +21,13 @@ Temporadas, torneos, categorías, estados, reglas y configuración base.
 Gate: creación atómica, edición progresiva, checklist y ciclo
 `draft ⇄ registration` validados con RLS.
 
-## 3. Equipos y planteles — próxima, no iniciada
+## 3. Equipos y planteles — implementada en rama de feature
 
-Inscripción, equipos existentes/provisionales, rosters versionados, aprobación, capitanes e identidades reclamables.
+Inscripción, equipos existentes/provisionales, planteles versionados, revisión,
+capitanes, jugadores sin cuenta, RLS y auditoría append-only.
 
-Gate: no duplicación y privacidad de jugadores.
+Gate técnico cubierto en PostgreSQL embebido. Pendiente auditoría del PR,
+staging Supabase dedicado y autorización; producción continúa apagada.
 
 ## 4. Fixture y programación
 

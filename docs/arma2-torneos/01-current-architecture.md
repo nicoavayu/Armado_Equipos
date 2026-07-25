@@ -77,3 +77,10 @@ Implicación: un PR hacia la epic no hereda hoy el quality gate de `main`; deben
 | Perfil personal en auth | Onboarding indebido para organizadores | Separar identidad de perfil deportivo |
 | No hay TypeScript en frontend | Contratos menos verificables | JSDoc/tests ahora; evaluar migración incremental |
 | Checkout original sucio y desactualizado | Pérdida de trabajo local | Worktree limpio desde `origin/main` |
+
+## Participación competitiva
+
+Torneos agrega inscripciones y planteles sin reutilizar `team_members` ni
+`jugadores` de partido. Los contextos son snapshots RPC autoritativos; el
+organizador accede por capability y el capitán por relación con una inscripción.
+Las mutaciones son RPC-only y generan auditoría append-only.

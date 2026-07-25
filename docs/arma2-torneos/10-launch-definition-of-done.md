@@ -73,5 +73,6 @@ No lanzar con:
 No cumple la definición de lanzamiento y no pretende hacerlo. Ya existen
 workspaces y configuración de temporadas/torneos, pero no hay equipos, fixture,
 operación, tabla, disciplina real, publicación ni integración oficial con
-Arma2. Las flags siguen apagadas en producción y esta rama sólo puede integrarse
+Arma2. Equipos y planteles ya existen en la rama aislada, pero no completan el
+ciclo público. Las flags siguen apagadas en producción y esta rama sólo puede integrarse
 en `epic/arma2-torneos`.
