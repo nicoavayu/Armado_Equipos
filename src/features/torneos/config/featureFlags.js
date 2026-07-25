@@ -5,7 +5,10 @@ const NON_PRODUCTION_ENVIRONMENTS = new Set([
   'preview',
   'staging',
 ]);
-const LOCAL_SUPABASE_HOSTS = new Set(['127.0.0.1', 'localhost']);
+const LOCAL_SUPABASE_HOSTS = new Set(['127.0.0.1', '[::1]', 'localhost']);
+const KNOWN_PRODUCTION_SUPABASE_HOSTS = new Set([
+  'rcyuuoaqfwcembdajcss.supabase.co',
+]);
 
 const FLAG_ENV_KEYS = {
   torneosEnabled: 'REACT_APP_TORNEOS_ENABLED',
@@ -36,29 +39,46 @@ export function resolveTorneosBackendIsolation(env = {}) {
     env.REACT_APP_TORNEOS_STAGING_PROJECT_REF || '',
   ).trim().toLowerCase();
 
-  let hostname = '';
+  let parsedUrl;
   try {
-    hostname = new URL(supabaseUrl).hostname.toLowerCase();
+    parsedUrl = new URL(supabaseUrl);
   } catch {
     return {
       dataEnvironment,
       isIsolatedBackend: false,
+      isKnownProductionBackend: false,
     };
   }
 
+  const hostname = parsedUrl.hostname.toLowerCase();
+  const hasUnexpectedUrlParts = (
+    Boolean(parsedUrl.username)
+    || Boolean(parsedUrl.password)
+    || !['', '/'].includes(parsedUrl.pathname)
+    || Boolean(parsedUrl.search)
+    || Boolean(parsedUrl.hash)
+  );
+  const isKnownProductionBackend = KNOWN_PRODUCTION_SUPABASE_HOSTS.has(hostname);
   const isLocal = (
     dataEnvironment === 'local'
     && LOCAL_SUPABASE_HOSTS.has(hostname)
+    && ['http:', 'https:'].includes(parsedUrl.protocol)
+    && !hasUnexpectedUrlParts
   );
   const isStaging = (
     dataEnvironment === 'staging'
     && /^[a-z0-9]{8,64}$/.test(stagingProjectRef)
     && hostname === `${stagingProjectRef}.supabase.co`
+    && parsedUrl.protocol === 'https:'
+    && parsedUrl.port === ''
+    && !hasUnexpectedUrlParts
+    && !isKnownProductionBackend
   );
 
   return {
     dataEnvironment,
     isIsolatedBackend: isLocal || isStaging,
+    isKnownProductionBackend,
   };
 }
 

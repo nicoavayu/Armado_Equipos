@@ -50,8 +50,10 @@ function WorkspaceProbe() {
   const {
     activeOrganization,
     availableOrganizations,
+    error,
     isAuthoritative,
     notice,
+    refresh,
     selectOrganization,
     selectPersonal,
   } = useTorneosWorkspace();
@@ -61,6 +63,7 @@ function WorkspaceProbe() {
       <span>{activeOrganization?.name || 'Personal'}</span>
       <span>{isAuthoritative ? 'authoritative' : 'pending'}</span>
       <span>{notice}</span>
+      <span>{error}</span>
       <span>{availableOrganizations.length} organizaciones</span>
       <button
         type="button"
@@ -76,6 +79,9 @@ function WorkspaceProbe() {
       </button>
       <button type="button" onClick={() => selectPersonal()}>
         Personal
+      </button>
+      <button type="button" onClick={() => refresh().catch(() => {})}>
+        Refrescar
       </button>
     </div>
   );
@@ -196,5 +202,66 @@ describe('TorneosWorkspaceProvider', () => {
 
     expect(await screen.findByText('Liga Devoto')).toBeInTheDocument();
     expect(screen.getByText('authoritative')).toBeInTheDocument();
+  });
+
+  test('clears cached organization data while revalidating and after an auth error', async () => {
+    const service = createService({
+      preference: {
+        workspaceType: 'tournament_organization',
+        activeOrganizationId: ORGANIZATIONS[0].id,
+      },
+    });
+    render(
+      <TorneosWorkspaceProvider service={service}>
+        <WorkspaceProbe />
+      </TorneosWorkspaceProvider>,
+    );
+
+    expect(await screen.findByText('Liga Devoto')).toBeInTheDocument();
+    service.loadContext.mockRejectedValueOnce(new Error('Tu sesión venció.'));
+    fireEvent.click(screen.getByRole('button', { name: 'Refrescar' }));
+
+    expect(screen.queryByText('Liga Devoto')).not.toBeInTheDocument();
+    expect(await screen.findByText('0 organizaciones')).toBeInTheDocument();
+    expect(await screen.findByText('Tu sesión venció.')).toBeInTheDocument();
+    expect(screen.getByText('pending')).toBeInTheDocument();
+  });
+
+  test('ignores an older refresh response after a newer authorization result', async () => {
+    let resolveOlder;
+    let resolveNewer;
+    const older = new Promise((resolve) => { resolveOlder = resolve; });
+    const newer = new Promise((resolve) => { resolveNewer = resolve; });
+    const service = createService();
+
+    render(
+      <TorneosWorkspaceProvider service={service}>
+        <WorkspaceProbe />
+      </TorneosWorkspaceProvider>,
+    );
+    await screen.findByText('2 organizaciones');
+    service.loadContext
+      .mockImplementationOnce(() => older)
+      .mockImplementationOnce(() => newer);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Refrescar' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Refrescar' }));
+    resolveNewer({
+      preference: { workspaceType: 'personal', activeOrganizationId: null },
+      organizations: [],
+    });
+    expect(await screen.findByText('0 organizaciones')).toBeInTheDocument();
+
+    resolveOlder({
+      preference: {
+        workspaceType: 'tournament_organization',
+        activeOrganizationId: ORGANIZATIONS[0].id,
+      },
+      organizations: ORGANIZATIONS,
+    });
+    await waitFor(() => {
+      expect(screen.queryByText('Liga Devoto')).not.toBeInTheDocument();
+      expect(screen.getByText('0 organizaciones')).toBeInTheDocument();
+    });
   });
 });

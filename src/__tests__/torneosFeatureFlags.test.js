@@ -95,4 +95,42 @@ describe('Arma2 Torneos feature flags', () => {
       REACT_APP_SUPABASE_URL: 'https://production-project.supabase.co',
     }).isIsolatedBackend).toBe(false);
   });
+
+  test('rejects the known production project even when staging flags are forged', () => {
+    const flags = resolveTorneosFeatureFlags({
+      NODE_ENV: 'production',
+      REACT_APP_DEPLOY_ENV: 'preview',
+      REACT_APP_TORNEOS_ENABLED: 'true',
+      REACT_APP_TORNEOS_WORKSPACES_ENABLED: 'true',
+      REACT_APP_TORNEOS_WORKSPACE_SWITCHER_ENABLED: 'true',
+      REACT_APP_TORNEOS_DATA_ENV: 'staging',
+      REACT_APP_TORNEOS_STAGING_PROJECT_REF: 'rcyuuoaqfwcembdajcss',
+      REACT_APP_SUPABASE_URL: 'https://RCYUUOAQFWCEMBDAJCSS.supabase.co',
+    });
+
+    expect(flags.isKnownProductionBackend).toBe(true);
+    expect(flags.isIsolatedBackend).toBe(false);
+    expect(flags.torneosEnabled).toBe(false);
+    expect(flags.workspacesEnabled).toBe(false);
+    expect(flags.workspaceSwitcher).toBe(false);
+  });
+
+  test('rejects staging URL lookalikes, credentials, paths and non-default ports', () => {
+    const base = {
+      REACT_APP_TORNEOS_DATA_ENV: 'staging',
+      REACT_APP_TORNEOS_STAGING_PROJECT_REF: 'stagingref123',
+    };
+    [
+      'https://stagingref123.supabase.co.evil.example',
+      'https://stagingref123.supabase.co:444',
+      'https://user@stagingref123.supabase.co',
+      'https://stagingref123.supabase.co/rest/v1',
+      'http://stagingref123.supabase.co',
+    ].forEach((supabaseUrl) => {
+      expect(resolveTorneosBackendIsolation({
+        ...base,
+        REACT_APP_SUPABASE_URL: supabaseUrl,
+      }).isIsolatedBackend).toBe(false);
+    });
+  });
 });
