@@ -4,93 +4,236 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
+import { tournamentWorkspaceService } from '../api/tournamentWorkspaceService';
 
-export const TORNEOS_WORKSPACE_STORAGE_KEY = 'arma2:torneos:last-workspace:v1';
+export const TORNEOS_WORKSPACE_STORAGE_KEY = 'arma2:torneos:last-workspace:v2';
 
-export const PREVIEW_WORKSPACES = [
-  {
-    id: 'preview-liga-devoto',
-    name: 'Liga Devoto',
-    slug: 'liga-devoto',
-    initials: 'LD',
-    role: 'Owner',
-    season: { id: 'preview-season-2027', name: 'Apertura 2027' },
-    tournament: { id: 'preview-tournament-first', name: 'Primera' },
-  },
-  {
-    id: 'preview-copa-potrero',
-    name: 'Copa El Potrero',
-    slug: 'copa-el-potrero',
-    initials: 'CP',
-    role: 'Tournament manager',
-    season: { id: 'preview-summer-2027', name: 'Copa de verano' },
-    tournament: { id: 'preview-tournament-open', name: 'Categoría abierta' },
-  },
-];
+const PERSONAL_PREFERENCE = Object.freeze({
+  workspaceType: 'personal',
+  activeOrganizationId: null,
+});
 
 const TorneosWorkspaceContext = createContext(null);
 
-function getBrowserStorage() {
-  if (typeof window === 'undefined') return null;
-  return window.localStorage;
+function persistValidatedHint(preference) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(
+      TORNEOS_WORKSPACE_STORAGE_KEY,
+      JSON.stringify({
+        workspaceType: preference.workspaceType,
+        activeOrganizationId: preference.activeOrganizationId || null,
+      }),
+    );
+  } catch {
+    // This is a non-authoritative loading hint only.
+  }
 }
 
-function getInitialWorkspaceId(workspaces, storage) {
-  if (!workspaces.length) return null;
+function normalizeContext(payload) {
+  const organizations = Array.isArray(payload?.organizations)
+    ? payload.organizations
+    : [];
+  const requestedPreference = payload?.preference || PERSONAL_PREFERENCE;
+  const activeOrganizationId = organizations.some(
+    (organization) => organization.id === requestedPreference.activeOrganizationId,
+  )
+    ? requestedPreference.activeOrganizationId
+    : null;
 
-  try {
-    const persistedId = storage?.getItem(TORNEOS_WORKSPACE_STORAGE_KEY);
-    if (workspaces.some((workspace) => workspace.id === persistedId)) {
-      return persistedId;
-    }
-  } catch {
-    // Storage is a convenience only. A denied/unavailable storage API must not block the shell.
-  }
-
-  return workspaces[0].id;
+  return {
+    organizations,
+    preference: activeOrganizationId
+      ? {
+        workspaceType: 'tournament_organization',
+        activeOrganizationId,
+        updatedAt: requestedPreference.updatedAt || null,
+      }
+      : { ...PERSONAL_PREFERENCE, updatedAt: requestedPreference.updatedAt || null },
+  };
 }
 
 export function TorneosWorkspaceProvider({
   children,
-  workspaces = PREVIEW_WORKSPACES,
-  storage = getBrowserStorage(),
+  service = tournamentWorkspaceService,
+  autoLoad = true,
 }) {
-  const [activeWorkspaceId, setActiveWorkspaceId] = useState(
-    () => getInitialWorkspaceId(workspaces, storage),
-  );
-
-  const activeWorkspace = useMemo(
-    () => workspaces.find((workspace) => workspace.id === activeWorkspaceId) || workspaces[0] || null,
-    [activeWorkspaceId, workspaces],
-  );
+  const mountedRef = useRef(true);
+  const [state, setState] = useState({
+    status: autoLoad ? 'loading' : 'idle',
+    organizations: [],
+    preference: PERSONAL_PREFERENCE,
+    error: '',
+    notice: '',
+  });
 
   useEffect(() => {
-    if (!activeWorkspace?.id) return;
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
+  const refresh = useCallback(async ({ preserveNotice = false } = {}) => {
+    setState((current) => ({
+      ...current,
+      status: 'loading',
+      error: '',
+      notice: preserveNotice ? current.notice : '',
+    }));
     try {
-      storage?.setItem(TORNEOS_WORKSPACE_STORAGE_KEY, activeWorkspace.id);
-    } catch {
-      // Persistence failure is non-fatal; server-side authorization will be authoritative later.
+      const normalized = normalizeContext(await service.loadContext());
+      if (!mountedRef.current) return normalized;
+      persistValidatedHint(normalized.preference);
+      setState((current) => ({
+        ...current,
+        ...normalized,
+        status: 'ready',
+        error: '',
+      }));
+      return normalized;
+    } catch (error) {
+      if (!mountedRef.current) throw error;
+      setState((current) => ({
+        ...current,
+        status: 'error',
+        error: error?.message || 'No pudimos cargar tus espacios.',
+      }));
+      throw error;
     }
-  }, [activeWorkspace?.id, storage]);
+  }, [service]);
 
-  const selectWorkspace = useCallback((workspaceId) => {
-    const isKnownPreviewWorkspace = workspaces.some((workspace) => workspace.id === workspaceId);
-    if (!isKnownPreviewWorkspace) return false;
-    setActiveWorkspaceId(workspaceId);
+  useEffect(() => {
+    if (!autoLoad) return;
+    refresh().catch(() => {});
+  }, [autoLoad, refresh]);
+
+  const selectOrganization = useCallback(async (organizationId) => {
+    const organization = state.organizations.find(
+      (candidate) => candidate.id === organizationId,
+    );
+    if (!organization) {
+      setState((current) => ({
+        ...current,
+        notice: 'Ya no tenés acceso a ese espacio.',
+      }));
+      return null;
+    }
+
+    const preference = await service.setPreference(
+      'tournament_organization',
+      organizationId,
+    );
+    const nextPreference = {
+      workspaceType: 'tournament_organization',
+      activeOrganizationId: preference?.activeOrganizationId || organizationId,
+    };
+    persistValidatedHint(nextPreference);
+    setState((current) => ({
+      ...current,
+      preference: nextPreference,
+      notice: '',
+      error: '',
+    }));
+    return organization;
+  }, [service, state.organizations]);
+
+  const selectPersonal = useCallback(async () => {
+    await service.setPreference('personal', null);
+    persistValidatedHint(PERSONAL_PREFERENCE);
+    setState((current) => ({
+      ...current,
+      preference: PERSONAL_PREFERENCE,
+      notice: '',
+      error: '',
+    }));
     return true;
-  }, [workspaces]);
+  }, [service]);
+
+  const createOrganization = useCallback(async (input) => {
+    const result = await service.createOrganization(input);
+    const organization = {
+      ...result.organization,
+      role: result.membership?.role || 'owner',
+      membershipStatus: result.membership?.status || 'active',
+      joinedAt: result.membership?.joinedAt || result.organization?.createdAt,
+      capabilities: result.membership?.capabilities || [],
+    };
+    const preference = result.preference || {
+      workspaceType: 'tournament_organization',
+      activeOrganizationId: organization.id,
+    };
+    persistValidatedHint(preference);
+    setState((current) => ({
+      ...current,
+      status: 'ready',
+      organizations: [
+        ...current.organizations.filter((item) => item.id !== organization.id),
+        organization,
+      ].sort((left, right) => left.name.localeCompare(right.name)),
+      preference,
+      notice: 'Organización creada. Ya estás en su workspace.',
+      error: '',
+    }));
+    return organization;
+  }, [service]);
+
+  const updateOrganization = useCallback(async (input) => {
+    const updated = await service.updateOrganization(input);
+    setState((current) => ({
+      ...current,
+      organizations: updated.status === 'active'
+        ? current.organizations.map((organization) => (
+          organization.id === updated.id ? { ...organization, ...updated } : organization
+        ))
+        : current.organizations.filter((organization) => organization.id !== updated.id),
+      preference: updated.status === 'archived'
+        ? PERSONAL_PREFERENCE
+        : current.preference,
+      notice: updated.status === 'archived'
+        ? 'La organización fue archivada. Volvimos a tu espacio personal.'
+        : 'Los cambios se guardaron.',
+      error: '',
+    }));
+    return updated;
+  }, [service]);
+
+  const clearNotice = useCallback(() => {
+    setState((current) => ({ ...current, notice: '' }));
+  }, []);
+
+  const activeOrganization = state.organizations.find(
+    (organization) => organization.id === state.preference.activeOrganizationId,
+  ) || null;
 
   const value = useMemo(() => ({
-    activeWorkspace,
-    availableWorkspaces: workspaces,
-    selectedSeason: activeWorkspace?.season || null,
-    selectedTournament: activeWorkspace?.tournament || null,
-    selectWorkspace,
-    isAuthoritative: false,
-  }), [activeWorkspace, selectWorkspace, workspaces]);
+    ...state,
+    availableOrganizations: state.organizations,
+    activeOrganization,
+    activeWorkspace: activeOrganization,
+    isAuthoritative: state.status === 'ready',
+    refresh,
+    selectOrganization,
+    selectWorkspace: selectOrganization,
+    selectPersonal,
+    createOrganization,
+    updateOrganization,
+    clearNotice,
+    service,
+  }), [
+    activeOrganization,
+    clearNotice,
+    createOrganization,
+    refresh,
+    selectOrganization,
+    selectPersonal,
+    service,
+    state,
+    updateOrganization,
+  ]);
 
   return (
     <TorneosWorkspaceContext.Provider value={value}>
