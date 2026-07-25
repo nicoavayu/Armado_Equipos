@@ -147,6 +147,37 @@ describe('security patch — Stage A: notifications (M3)', () => {
     expect(code).toMatch(/award_type, ''\)\) = 'mvp'/);
   });
 
+  test('a canonical award-type normalizer maps historic aliases and rejects the unknown', () => {
+    expect(code).toContain('CREATE OR REPLACE FUNCTION public._normalize_award_type');
+    // canonical set
+    expect(code).toMatch(/WHEN 'mvp' THEN 'mvp'/);
+    expect(code).toMatch(/WHEN 'golden_glove' THEN 'best_gk'/);
+    expect(code).toMatch(/WHEN 'tarjeta_roja' THEN 'red_card'/);
+    // unknown / empty -> NULL so create_notification can reject it
+    expect(code).toMatch(/ELSE NULL\s+END/);
+    // not exposed to anon
+    expect(code).toMatch(/REVOKE ALL ON FUNCTION public\._normalize_award_type\(text\) FROM PUBLIC, anon/);
+  });
+
+  test('award_won requires a MANDATORY canonical award_type (rejects missing/unknown)', () => {
+    // award_type is normalized server-side; a NULL result raises invalid_award
+    expect(code).toContain('v_award_type := public._normalize_award_type(v_award_type)');
+    expect(code).toMatch(/IF v_award_type IS NULL THEN\s+RAISE EXCEPTION 'invalid_award'/);
+  });
+
+  test('award_won validates the award BELONGS to the recipient (no notice to a non-winner)', () => {
+    // matching award_type persisted AND the jugador_id resolves to the recipient:
+    // either the normalized user id, or a historic jugadores.uuid / id via the roster.
+    expect(code).toContain('public._normalize_award_type(pa.award_type) = v_award_type');
+    expect(code).toContain('pa.jugador_id::text = p_recipient_id::text');
+    expect(code).toContain('j.usuario_id = p_recipient_id');
+    expect(code).toContain('pa.jugador_id::text IN (j.usuario_id::text, j.uuid::text, j.id::text)');
+  });
+
+  test('award_won is idempotent (no duplicate "Ganaste un premio")', () => {
+    expect(code).toMatch(/IF v_type = 'award_won' THEN[\s\S]*RETURN jsonb_build_object\('success', true, 'id', v_notif_id, 'duplicate', true\)/);
+  });
+
   test('match_join_request requires a real pending request from the actor', () => {
     expect(code).toContain('public.match_join_requests');
     expect(code).toContain('r.user_id = v_actor');

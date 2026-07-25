@@ -33,8 +33,12 @@
 -- falta_jugadores/call_to_vote) require the emitter to be the match creator;
 -- match_cancelled requires the match to be really cancelled and call_to_vote
 -- requires voting to be open; survey_* require the real survey state; awards/mvp
--- require a persisted player_awards / results row; match_join_request requires a
--- real pending request from the actor; payments require a real payment row; team
+-- require a persisted player_awards / results row; award_won additionally
+-- requires a MANDATORY canonical award_type AND that the matching player_awards
+-- row belongs to the recipient (jugador_id resolved to the registered user via
+-- this match's roster) — so "Ganaste un premio" can never be sent to a non-winner;
+-- match_join_request requires a real pending request from the actor; payments
+-- require a real payment row; team
 -- challenge events require both parties to be the concrete challenge's creator/
 -- acceptor (typed challenge_id). send_match_invite / send_call_to_vote content
 -- passthrough is removed in 20260724125000; that migration also authorizes
@@ -45,6 +49,51 @@
 BEGIN;
 
 ALTER TABLE IF EXISTS public.notifications ENABLE ROW LEVEL SECURITY;
+
+-- ---------------------------------------------------------------------------
+-- 0. Canonical award-type normalizer. Mirrors the client `normalizeAwardType`
+--    and the alias sets already used by 20260316233000: maps every historic
+--    alias to the canonical mvp / best_gk / red_card and returns NULL for an
+--    empty or unknown value, so create_notification can REJECT a missing or
+--    bogus award_type instead of trusting whatever the client sent.
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public._normalize_award_type(p_value text)
+RETURNS text
+LANGUAGE sql
+IMMUTABLE
+SET search_path = public
+AS $$
+  SELECT CASE lower(btrim(coalesce(p_value, '')))
+    WHEN 'mvp' THEN 'mvp'
+    WHEN 'best_gk' THEN 'best_gk'
+    WHEN 'guante_dorado' THEN 'best_gk'
+    WHEN 'guante dorado' THEN 'best_gk'
+    WHEN 'goalkeeper' THEN 'best_gk'
+    WHEN 'golden_glove' THEN 'best_gk'
+    WHEN 'golden glove' THEN 'best_gk'
+    WHEN 'best_goalkeeper' THEN 'best_gk'
+    WHEN 'best goalkeeper' THEN 'best_gk'
+    WHEN 'mejor_arquero' THEN 'best_gk'
+    WHEN 'mejor arquero' THEN 'best_gk'
+    WHEN 'red_card' THEN 'red_card'
+    WHEN 'red card' THEN 'red_card'
+    WHEN 'red_cards' THEN 'red_card'
+    WHEN 'tarjeta_roja' THEN 'red_card'
+    WHEN 'tarjeta roja' THEN 'red_card'
+    WHEN 'tarjetas_rojas' THEN 'red_card'
+    WHEN 'tarjetas rojas' THEN 'red_card'
+    WHEN 'negative_fair_play' THEN 'red_card'
+    WHEN 'dirty_player' THEN 'red_card'
+    WHEN 'dirty player' THEN 'red_card'
+    WHEN 'player_dirty' THEN 'red_card'
+    WHEN 'mas_sucio' THEN 'red_card'
+    WHEN 'mas sucio' THEN 'red_card'
+    WHEN 'sucio' THEN 'red_card'
+    ELSE NULL
+  END
+$$;
+REVOKE ALL ON FUNCTION public._normalize_award_type(text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public._normalize_award_type(text) TO authenticated, service_role;
 
 -- ---------------------------------------------------------------------------
 -- 1. Strict, server-content notification RPC for direct-insert domains.
@@ -288,14 +337,34 @@ BEGIN
       v_title := 'Pago pendiente';
       v_message := 'Tenés pendiente el pago de "' || v_match_name || '".';
 
-    -- ---- Awards (personal): the award must be REALLY persisted for the match
-    -- and the recipient must be a real participant. No fabricated premios.
+    -- ---- Awards (personal): "Ganaste un premio". award_type is MANDATORY and
+    -- must be canonical (mvp / best_gk / red_card; historic aliases normalized
+    -- server-side). The matching award must be REALLY persisted for THIS match,
+    -- of THIS type, AND belong to THE RECIPIENT — not merely exist for some other
+    -- player. jugador_id was normalized to the registered user id (usuarios.id);
+    -- older rows may still carry a jugadores.uuid / jugadores.id, which we resolve
+    -- through the roster of THIS match only, never trusting a client-supplied id.
     WHEN 'award_won' THEN
       IF v_match_id IS NULL THEN RAISE EXCEPTION 'match_id_required'; END IF;
+      v_award_type := public._normalize_award_type(v_award_type);
+      IF v_award_type IS NULL THEN
+        RAISE EXCEPTION 'invalid_award' USING ERRCODE = '22023';
+      END IF;
       v_authorized := v_sender_in_match AND v_recipient_in_match AND EXISTS (
         SELECT 1 FROM public.player_awards pa
         WHERE pa.partido_id = v_match_id
-          AND (v_award_type IS NULL OR lower(coalesce(pa.award_type, '')) = lower(v_award_type))
+          AND public._normalize_award_type(pa.award_type) = v_award_type
+          AND (
+            -- normalized form: jugador_id already IS the registered user id
+            pa.jugador_id::text = p_recipient_id::text
+            -- historic forms: resolve through the roster of THIS match only
+            OR EXISTS (
+              SELECT 1 FROM public.jugadores j
+              WHERE j.partido_id = v_match_id
+                AND j.usuario_id = p_recipient_id
+                AND pa.jugador_id::text IN (j.usuario_id::text, j.uuid::text, j.id::text)
+            )
+          )
       );
       v_award_label := CASE v_award_type
         WHEN 'mvp' THEN 'MVP'
@@ -305,7 +374,7 @@ BEGIN
       END;
       v_title := 'Ganaste un premio: ' || v_award_label;
       v_message := 'Ganaste "' || v_award_label || '" en el partido "' || v_match_name || '".';
-      v_data := COALESCE(v_data, '{}'::jsonb) || jsonb_build_object('award_type', COALESCE(v_award_type, 'award'), 'award_label', v_award_label);
+      v_data := COALESCE(v_data, '{}'::jsonb) || jsonb_build_object('award_type', v_award_type, 'award_label', v_award_label);
 
     -- ---- Team challenge: BOTH actor and recipient must be the concrete
     -- parties (creator / acceptor) of the SAME challenge (typed challenge_id).
@@ -328,6 +397,23 @@ BEGIN
 
   IF NOT v_authorized THEN
     RAISE EXCEPTION 'forbidden' USING ERRCODE = '42501';
+  END IF;
+
+  -- award_won is idempotent: never emit a second "Ganaste un premio" for the
+  -- same recipient + match (matches the notifications (user_id, data->>'match_id',
+  -- type) unique index and the client-side dedupe). Return the existing row so a
+  -- repeated call is a silent no-op instead of a duplicate or a unique violation.
+  IF v_type = 'award_won' THEN
+    SELECT n.id INTO v_notif_id
+    FROM public.notifications n
+    WHERE n.user_id = p_recipient_id
+      AND n.type = 'award_won'
+      AND COALESCE(n.partido_id, NULLIF(n.data->>'match_id', '')::bigint) = v_match_id
+    ORDER BY n.id
+    LIMIT 1;
+    IF v_notif_id IS NOT NULL THEN
+      RETURN jsonb_build_object('success', true, 'id', v_notif_id, 'duplicate', true);
+    END IF;
   END IF;
 
   INSERT INTO public.notifications (user_id, type, title, message, data, read, partido_id, created_at)
@@ -409,4 +495,5 @@ COMMIT;
 -- CREATE POLICY notifications_insert_authenticated_any_user ON public.notifications
 --   FOR INSERT TO authenticated WITH CHECK (true);
 -- DROP FUNCTION IF EXISTS public.create_notification(text, uuid, jsonb);
+-- DROP FUNCTION IF EXISTS public._normalize_award_type(text);
 -- COMMIT;
