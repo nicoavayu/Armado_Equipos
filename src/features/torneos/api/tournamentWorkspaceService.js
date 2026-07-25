@@ -4,6 +4,7 @@ import { supabase } from '../../../services/api/supabase';
 const ERROR_MESSAGES = {
   TORNEOS_AUTH_REQUIRED: 'Tu sesión venció. Volvé a iniciar sesión para continuar.',
   TORNEOS_IDEMPOTENCY_REQUIRED: 'No pudimos preparar la creación. Volvé a intentarlo.',
+  TORNEOS_IDEMPOTENCY_CONFLICT: 'Ese intento de creación corresponde a un recurso archivado.',
   TORNEOS_INVALID_NAME: 'Revisá el nombre de la organización.',
   TORNEOS_INVALID_SLUG: 'Revisá el identificador de la organización.',
   TORNEOS_SLUG_TAKEN: 'Ese identificador ya está en uso. Probá con otro.',
@@ -23,6 +24,8 @@ const ERROR_MESSAGES = {
   TORNEOS_INVALID_TOURNAMENT: 'Revisá la configuración del torneo.',
   TORNEOS_INVALID_MODALITY: 'Seleccioná una modalidad válida.',
   TORNEOS_INVALID_PATCH: 'La configuración enviada contiene campos no permitidos.',
+  TORNEOS_INVALID_SCORING: 'Revisá la configuración de puntuación.',
+  TORNEOS_INVALID_DISCIPLINE: 'Revisá la configuración disciplinaria.',
   TORNEOS_TOURNAMENT_SLUG_TAKEN: 'Ya existe un torneo con ese identificador en la temporada.',
   TORNEOS_INVALID_TIEBREAKS: 'Revisá el orden de los criterios de desempate.',
   TORNEOS_INVALID_CATEGORY: 'Revisá los datos de la categoría.',
@@ -234,6 +237,8 @@ export async function updateTournamentSeason({
         p_start_date: startDate || null,
         p_end_date: endDate || null,
         p_status: status,
+        p_clear_start_date: startDate === '',
+        p_clear_end_date: endDate === '',
       }),
       'No pudimos actualizar la temporada.',
     );

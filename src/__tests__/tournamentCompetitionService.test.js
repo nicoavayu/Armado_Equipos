@@ -7,6 +7,7 @@ import {
   saveTournamentCategory,
   setActiveTournamentContext,
   updateTournamentCompetition,
+  updateTournamentSeason,
 } from '../features/torneos/api/tournamentWorkspaceService';
 
 jest.mock('../services/api/supabase', () => ({
@@ -73,6 +74,26 @@ describe('tournament competition service', () => {
         p_idempotency_key: 'request-key',
       }),
     );
+  });
+
+  test('distinguishes clearing optional season dates from leaving them unchanged', async () => {
+    await updateTournamentSeason({
+      organizationId: 'org-a',
+      seasonId: 'season-a',
+      startDate: '',
+      endDate: '',
+    });
+    expect(supabase.rpc).toHaveBeenCalledWith('update_tournament_season', {
+      p_organization_id: 'org-a',
+      p_season_id: 'season-a',
+      p_name: null,
+      p_slug: null,
+      p_start_date: null,
+      p_end_date: null,
+      p_status: null,
+      p_clear_start_date: true,
+      p_clear_end_date: true,
+    });
   });
 
   test('persists structured rule patches without direct table writes', async () => {

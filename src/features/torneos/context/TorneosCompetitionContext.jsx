@@ -204,6 +204,11 @@ export function TorneosCompetitionProvider({
         : 'Estado actualizado.',
   ), [organizationId, runMutation, service]);
 
+  const createIdempotencyKey = useCallback(
+    () => service.createIdempotencyKey(),
+    [service],
+  );
+
   const clearNotice = useCallback(() => {
     setState((current) => ({ ...current, notice: '' }));
   }, []);
@@ -227,6 +232,7 @@ export function TorneosCompetitionProvider({
     updateTournament,
     saveCategory,
     changeTournamentStatus,
+    createIdempotencyKey,
     clearNotice,
   }), [
     activeSeason,
@@ -235,6 +241,7 @@ export function TorneosCompetitionProvider({
     clearNotice,
     createSeason,
     createTournament,
+    createIdempotencyKey,
     refresh,
     saveCategory,
     selectContext,

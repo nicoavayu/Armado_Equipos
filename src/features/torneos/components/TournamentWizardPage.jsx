@@ -1,4 +1,5 @@
 import React, {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -211,6 +212,7 @@ export default function TournamentWizardPage() {
     preference,
     refresh,
     createTournament,
+    createIdempotencyKey,
     updateTournament,
     saveCategory,
     changeTournamentStatus,
@@ -246,9 +248,18 @@ export default function TournamentWizardPage() {
     ? requestedStep
     : 0;
   const initializedTournamentRef = useRef(null);
-  const [draft, setDraft] = useState(() => (
+  const [draft, setDraftState] = useState(() => (
     tournament ? draftFromTournament(tournament) : buildTournamentDraft()
   ));
+  const draftRef = useRef(draft);
+  const setDraft = useCallback((nextDraft) => {
+    const resolved = typeof nextDraft === 'function'
+      ? nextDraft(draftRef.current)
+      : nextDraft;
+    draftRef.current = resolved;
+    setDraftState(resolved);
+  }, []);
+  const creationKeyRef = useRef(null);
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState('');
   const [busy, setBusy] = useState('');
@@ -283,6 +294,7 @@ export default function TournamentWizardPage() {
     modalities,
     preference.activeSeasonId,
     seasons,
+    setDraft,
     tournament,
   ]);
 
@@ -313,52 +325,52 @@ export default function TournamentWizardPage() {
     setErrors((current) => ({ ...current, [field]: '' }));
   };
 
-  const patchForStep = (currentStep) => {
+  const patchForStep = (currentStep, sourceDraft = draftRef.current) => {
     if (currentStep === 0) {
       return {
-        name: draft.name.trim(),
-        slug: normalizeCompetitionSlug(draft.slug || draft.name),
-        description: draft.description.trim(),
-        genderCategory: draft.genderCategory,
-        startDate: draft.startDate,
-        endDate: draft.endDate,
-        registrationOpensAt: draft.registrationOpensAt,
-        registrationClosesAt: draft.registrationClosesAt,
+        name: sourceDraft.name.trim(),
+        slug: normalizeCompetitionSlug(sourceDraft.slug || sourceDraft.name),
+        description: sourceDraft.description.trim(),
+        genderCategory: sourceDraft.genderCategory,
+        startDate: sourceDraft.startDate,
+        endDate: sourceDraft.endDate,
+        registrationOpensAt: sourceDraft.registrationOpensAt,
+        registrationClosesAt: sourceDraft.registrationClosesAt,
       };
     }
     if (currentStep === 1) {
       return {
-        sportModality: draft.sportModality,
-        teamSize: Number(draft.teamSize),
-        substitutesLimit: Number(draft.substitutesLimit),
+        sportModality: sourceDraft.sportModality,
+        teamSize: Number(sourceDraft.teamSize),
+        substitutesLimit: Number(sourceDraft.substitutesLimit),
       };
     }
     if (currentStep === 2) {
       return {
-        competitionFormat: draft.competitionFormat,
-        formatSettings: draft.formatSettings,
+        competitionFormat: sourceDraft.competitionFormat,
+        formatSettings: sourceDraft.formatSettings,
       };
     }
     if (currentStep === 3) {
       return {
         scoring: {
-          ...draft.scoring,
-          pointsWin: Number(draft.scoring.pointsWin),
-          pointsDraw: Number(draft.scoring.pointsDraw),
-          pointsLoss: Number(draft.scoring.pointsLoss),
-          pointsWalkoverWin: toNullableNumber(draft.scoring.pointsWalkoverWin),
-          pointsWalkoverLoss: toNullableNumber(draft.scoring.pointsWalkoverLoss),
+          ...sourceDraft.scoring,
+          pointsWin: Number(sourceDraft.scoring.pointsWin),
+          pointsDraw: Number(sourceDraft.scoring.pointsDraw),
+          pointsLoss: Number(sourceDraft.scoring.pointsLoss),
+          pointsWalkoverWin: toNullableNumber(sourceDraft.scoring.pointsWalkoverWin),
+          pointsWalkoverLoss: toNullableNumber(sourceDraft.scoring.pointsWalkoverLoss),
         },
-        tiebreaks: draft.tiebreaks,
+        tiebreaks: sourceDraft.tiebreaks,
         discipline: {
-          ...draft.discipline,
-          yellowsForSuspension: Number(draft.discipline.yellowsForSuspension),
-          suspensionMatches: Number(draft.discipline.suspensionMatches),
+          ...sourceDraft.discipline,
+          yellowsForSuspension: Number(sourceDraft.discipline.yellowsForSuspension),
+          suspensionMatches: Number(sourceDraft.discipline.suspensionMatches),
           directRedSuggestedMatches: toNullableNumber(
-            draft.discipline.directRedSuggestedMatches,
+            sourceDraft.discipline.directRedSuggestedMatches,
           ),
-          yellowFairPlayPoints: Number(draft.discipline.yellowFairPlayPoints),
-          redFairPlayPoints: Number(draft.discipline.redFairPlayPoints),
+          yellowFairPlayPoints: Number(sourceDraft.discipline.yellowFairPlayPoints),
+          redFairPlayPoints: Number(sourceDraft.discipline.redFairPlayPoints),
         },
       };
     }
@@ -366,30 +378,34 @@ export default function TournamentWizardPage() {
   };
 
   const saveCurrent = async ({ advance = false } = {}) => {
-    const validation = validateTournamentStep(step, draft, categories);
+    const currentDraft = draftRef.current;
+    const validation = validateTournamentStep(step, currentDraft, categories);
     setErrors(validation);
     if (Object.keys(validation).length) return false;
     setBusy(advance ? 'continue' : 'save');
     setFormError('');
     try {
       if (isNew) {
+        creationKeyRef.current ||= createIdempotencyKey();
         const created = await createTournament({
-          seasonId: draft.seasonId,
-          name: draft.name.trim(),
-          slug: normalizeCompetitionSlug(draft.slug || draft.name),
-          description: draft.description.trim(),
-          sportModality: draft.sportModality,
-          competitionFormat: draft.competitionFormat,
-          genderCategory: draft.genderCategory,
-          startDate: draft.startDate || null,
-          endDate: draft.endDate || null,
+          seasonId: currentDraft.seasonId,
+          name: currentDraft.name.trim(),
+          slug: normalizeCompetitionSlug(currentDraft.slug || currentDraft.name),
+          description: currentDraft.description.trim(),
+          sportModality: currentDraft.sportModality,
+          competitionFormat: currentDraft.competitionFormat,
+          genderCategory: currentDraft.genderCategory,
+          startDate: currentDraft.startDate || null,
+          endDate: currentDraft.endDate || null,
+          idempotencyKey: creationKeyRef.current,
         });
+        creationKeyRef.current = null;
         navigate(`${organizationPath}/torneos/${created.id}/configuracion?step=${advance ? 1 : 0}`, {
           replace: true,
         });
         return true;
       }
-      const patch = patchForStep(step);
+      const patch = patchForStep(step, currentDraft);
       if (patch) {
         await updateTournament({ tournamentId: tournament.id, patch });
       }
@@ -502,10 +518,6 @@ export default function TournamentWizardPage() {
       await saveCategory(categoryPayload(
         { ...first, tournamentId: tournament.id },
         { sortOrder: second.sortOrder },
-      ));
-      await saveCategory(categoryPayload(
-        { ...second, tournamentId: tournament.id },
-        { sortOrder: first.sortOrder },
       ));
     } catch (error) {
       setFormError(error?.message || 'No pudimos reordenar las categorías.');

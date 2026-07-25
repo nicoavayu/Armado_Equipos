@@ -68,6 +68,7 @@ export const TOURNAMENT_STATUS_LABELS = Object.freeze({
 
 export const CHECKLIST_ITEMS = Object.freeze([
   { key: 'information', label: 'Información general completa' },
+  { key: 'season', label: 'Temporada disponible' },
   { key: 'modality', label: 'Modalidad definida' },
   { key: 'format', label: 'Formato definido' },
   { key: 'categories', label: 'Categorías creadas' },

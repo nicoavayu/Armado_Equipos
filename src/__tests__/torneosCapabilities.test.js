@@ -5,6 +5,24 @@ import {
   TOURNAMENT_ROLES,
 } from '../features/torneos/domain/capabilities';
 
+const COMPETITION_CAPABILITIES = [
+  'seasons.read',
+  'seasons.create',
+  'seasons.update',
+  'seasons.archive',
+  'tournaments.read',
+  'tournaments.create',
+  'tournaments.update',
+  'tournaments.change_status',
+  'tournaments.archive',
+  'categories.read',
+  'categories.create',
+  'categories.update',
+  'categories.archive',
+  'competition_rules.read',
+  'competition_rules.update',
+];
+
 describe('Torneos role capabilities', () => {
   test.each([
     [TOURNAMENT_ROLES.OWNER, TOURNAMENT_CAPABILITIES.ORGANIZATION_ARCHIVE, true],
@@ -36,5 +54,21 @@ describe('Torneos role capabilities', () => {
       role: 'owner',
       capabilities: ['organization.read'],
     }, 'organization.archive')).toBe(false);
+  });
+
+  test.each([
+    [TOURNAMENT_ROLES.OWNER, COMPETITION_CAPABILITIES],
+    [TOURNAMENT_ROLES.ADMIN, COMPETITION_CAPABILITIES],
+    [TOURNAMENT_ROLES.COLLABORATOR, [
+      'seasons.read',
+      'tournaments.read',
+      'categories.read',
+      'competition_rules.read',
+    ]],
+  ])('keeps the exact competition capability contract for %s', (role, expected) => {
+    const actual = getCapabilitiesForRole(role)
+      .filter((capability) => COMPETITION_CAPABILITIES.includes(capability))
+      .sort();
+    expect(actual).toEqual([...expected].sort());
   });
 });

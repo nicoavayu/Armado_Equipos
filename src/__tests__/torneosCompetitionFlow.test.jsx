@@ -64,6 +64,7 @@ const tournament = {
     warnings: ['registration_dates'],
     checks: {
       information: true,
+      season: true,
       modality: true,
       format: true,
       categories: true,
@@ -217,6 +218,36 @@ describe('Arma2 Torneos competition flow', () => {
       });
       expect(api.loadCompetitionContext).toHaveBeenCalledTimes(2);
     });
+  });
+
+  test('reuses the same creation key when a network failure is retried', async () => {
+    const api = createService({
+      competition: competitionPayload({
+        preference: {
+          organizationId: ORGANIZATION_ID,
+          activeSeasonId: SEASON_ID,
+          activeTournamentId: null,
+        },
+        tournaments: [],
+      }),
+    });
+    api.createTournament
+      .mockRejectedValueOnce(new Error('Sin conexión'))
+      .mockResolvedValueOnce({ id: 'tournament-retried' });
+    renderPath(`/torneos/organizacion/${ORGANIZATION_ID}/torneos/nuevo`, api);
+    fireEvent.change(
+      await screen.findByPlaceholderText('Copa Apertura 2027'),
+      { target: { value: 'Copa Retry' } },
+    );
+    fireEvent.click(screen.getByRole('button', { name: /guardar borrador/i }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Sin conexión');
+    fireEvent.click(screen.getByRole('button', { name: /guardar borrador/i }));
+    await waitFor(() => {
+      expect(api.createTournament).toHaveBeenCalledTimes(2);
+    });
+    expect(api.createTournament.mock.calls[0][0].idempotencyKey).toBe('request-key');
+    expect(api.createTournament.mock.calls[1][0].idempotencyKey).toBe('request-key');
+    expect(api.createIdempotencyKey).toHaveBeenCalledTimes(1);
   });
 
   test('blocks registration CTA when the backend checklist is incomplete', async () => {

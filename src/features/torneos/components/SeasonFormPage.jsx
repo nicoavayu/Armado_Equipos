@@ -30,6 +30,7 @@ export default function SeasonFormPage() {
     error: loadError,
     seasons,
     createSeason,
+    createIdempotencyKey,
     updateSeason,
     refresh,
   } = useTorneosCompetition();
@@ -61,6 +62,7 @@ export default function SeasonFormPage() {
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState('');
   const [busy, setBusy] = useState('');
+  const creationKeyRef = React.useRef(null);
 
   useEffect(() => {
     if (!season) return;
@@ -100,10 +102,13 @@ export default function SeasonFormPage() {
     setFormError('');
     try {
       if (isNew) {
+        creationKeyRef.current ||= createIdempotencyKey();
         const created = await createSeason({
           ...values,
           slug: normalizeCompetitionSlug(values.slug || values.name),
+          idempotencyKey: creationKeyRef.current,
         });
+        creationKeyRef.current = null;
         navigate(`${organizationPath}/temporadas/${created.id}`, { replace: true });
       } else {
         await updateSeason({
