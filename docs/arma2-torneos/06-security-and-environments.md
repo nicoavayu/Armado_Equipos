@@ -13,11 +13,15 @@
 | Dominio | localhost | preview privado | sin ruta pública |
 | Flags Torneos | opt-in | opt-in | forzadas off |
 
-Esta foundation no se conecta ni despliega a un entorno de Torneos. Crear el proyecto staging y sus secretos es un prerrequisito de la fase de organizaciones.
+Esta fase fue implementada y probada contra Postgres embebido/local. No se provisionó staging cloud porque el entorno no dispone de credenciales de infraestructura y no se reutilizaron credenciales productivas.
 
 ## Variables
 
-`REACT_APP_DEPLOY_ENV` identifica `development`, `test`, `preview`, `staging` o `production`. Las flags requieren `true` literal y un entorno no productivo. Si el build es production y no hay entorno explícito, se asume producción.
+`REACT_APP_DEPLOY_ENV` identifica `development`, `test`, `preview`, `staging` o `production`. Las flags requieren `true` literal, un entorno de deploy no productivo y backend aislado verificado:
+
+- `REACT_APP_TORNEOS_DATA_ENV=local` sólo acepta `REACT_APP_SUPABASE_URL` en `localhost` o `127.0.0.1`.
+- `REACT_APP_TORNEOS_DATA_ENV=staging` exige que `REACT_APP_TORNEOS_STAGING_PROJECT_REF` coincida con el hostname Supabase configurado.
+- Cualquier valor faltante, inválido o productivo fuerza todas las flags a `false`.
 
 Nunca se versionan URLs, anon keys, service role keys ni secretos reales. La anon key tampoco sustituye autorización.
 
@@ -32,9 +36,9 @@ Nunca se versionan URLs, anon keys, service role keys ni secretos reales. La ano
 - auditoría y observabilidad sin PII innecesaria.
 - flags como control de release, no de seguridad.
 
-## RLS propuesta
+## RLS implementada
 
-Cada tabla cliente comienza con RLS habilitada y sin políticas permisivas. Se agregan políticas por acción. Las consultas públicas usan vistas/RPCs de proyección con campos allowlisted; nunca exponen la fila administrativa completa.
+Las tres tablas tienen RLS habilitada. Organizaciones y memberships sólo permiten `SELECT` a memberships activas; preferencias sólo permiten `SELECT` al propio usuario. No hay policies cliente para `INSERT`, `UPDATE` o `DELETE`: los cambios pasan por RPCs controladas.
 
 Los helpers de autorización deben ser estables, testeables y evitar recursión de RLS. Se evalúa una tabla de grants normalizada y funciones `STABLE` con permisos mínimos.
 
@@ -64,6 +68,12 @@ Documentos, contactos, nacimiento y evidencia se separan de proyecciones públic
 ## Push y deep links
 
 No se crean eventos Torneos en esta fase. Staging usará tokens de prueba y provider sandbox/dry-run. Un deep link nunca concede permisos y no incluirá secretos permanentes.
+
+## Providers y efectos globales
+
+En `/torneos/*` no se montan `BadgeProvider`, `NotificationProvider`, Google Maps, push, redirects de notificaciones, route prefetch, analytics de partidos, `MainLayout`, TabBar ni onboarding personal.
+
+`AuthProvider` permanece compartido porque aporta una única sesión Supabase. También resuelve el perfil Arma2 y contexto Sentry del usuario; es el único riesgo compartido aceptado en esta fase. No se creó una segunda sesión Supabase.
 
 ## Procedimientos operativos
 
