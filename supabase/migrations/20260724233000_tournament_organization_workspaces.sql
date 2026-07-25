@@ -37,7 +37,9 @@ create table public.tournament_organizations (
       logo_path is null
       or (
         char_length(logo_path) between 1 and 512
-        and logo_path !~ '^(?:https?:)?//'
+        and logo_path ~ '^[a-zA-Z0-9][a-zA-Z0-9._/-]*$'
+        and logo_path !~ '(^|/)\.{1,2}(/|$)'
+        and logo_path !~ '//'
       )
     ),
   constraint tournament_organizations_slug_unique unique (slug),
@@ -54,13 +56,11 @@ create table public.tournament_organization_members (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   invited_by uuid references auth.users(id) on delete set null,
-  joined_at timestamptz,
+  joined_at timestamptz not null,
   constraint tournament_organization_members_role_check
     check (role in ('owner', 'admin', 'collaborator')),
   constraint tournament_organization_members_status_check
     check (status in ('active', 'suspended', 'removed')),
-  constraint tournament_organization_members_joined_check
-    check (status <> 'active' or joined_at is not null),
   constraint tournament_organization_members_unique
     unique (organization_id, user_id)
 );
@@ -105,7 +105,16 @@ immutable
 set search_path = ''
 as $$
   select trim(both '-' from regexp_replace(
-    regexp_replace(lower(btrim(coalesce(p_value, ''))), '[^a-z0-9]+', '-', 'g'),
+    regexp_replace(
+      translate(
+        lower(btrim(coalesce(p_value, ''))),
+        'áéíóúüñ',
+        'aeiouun'
+      ),
+      '[^a-z0-9]+',
+      '-',
+      'g'
+    ),
     '-+', '-', 'g'
   ));
 $$;
@@ -156,7 +165,7 @@ stable
 security definer
 set search_path = ''
 as $$
-  select exists (
+  select auth.uid() is not null and exists (
     select 1
     from public.tournament_organization_members membership
     join public.tournament_organizations organization
@@ -178,7 +187,7 @@ stable
 security definer
 set search_path = ''
 as $$
-  select exists (
+  select auth.uid() is not null and exists (
     select 1
     from public.tournament_organization_members membership
     join public.tournament_organizations organization
@@ -291,8 +300,9 @@ declare
   v_name text := btrim(coalesce(p_name, ''));
   v_slug text := public.normalize_tournament_organization_slug(p_slug);
   v_organization public.tournament_organizations%rowtype;
-  v_role text;
+  v_membership public.tournament_organization_members%rowtype;
   v_created_recently integer;
+  v_constraint_name text;
   v_reserved_slugs constant text[] := array[
     'admin', 'api', 'app', 'auth', 'login', 'logout', 'profile',
     'torneos', 'tournaments', 'settings', 'support', 'www'
@@ -326,7 +336,7 @@ begin
   end if;
 
   perform pg_advisory_xact_lock(
-    hashtextextended(v_user_id::text || ':' || p_idempotency_key::text, 0)
+    hashtextextended(v_user_id::text, 0)
   );
 
   select organization.*
@@ -366,35 +376,62 @@ begin
       returning * into v_organization;
     exception
       when unique_violation then
-        raise exception using
-          errcode = '23505',
-          message = 'TORNEOS_SLUG_TAKEN';
+        get stacked diagnostics v_constraint_name = constraint_name;
+        if v_constraint_name = 'tournament_organizations_slug_unique' then
+          raise exception using
+            errcode = '23505',
+            message = 'TORNEOS_SLUG_TAKEN';
+        elsif v_constraint_name = 'tournament_organizations_creation_unique' then
+          select organization.*
+          into v_organization
+          from public.tournament_organizations organization
+          where organization.created_by = v_user_id
+            and organization.creation_key = p_idempotency_key;
+          if v_organization.id is null then
+            raise;
+          end if;
+        else
+          raise;
+        end if;
     end;
 
-    insert into public.tournament_organization_members (
-      organization_id,
-      user_id,
-      role,
-      status,
-      joined_at
-    )
-    values (
-      v_organization.id,
-      v_user_id,
-      'owner',
-      'active',
-      now()
-    );
+    if not exists (
+      select 1
+      from public.tournament_organization_members membership
+      where membership.organization_id = v_organization.id
+        and membership.user_id = v_user_id
+    ) then
+      insert into public.tournament_organization_members (
+        organization_id,
+        user_id,
+        role,
+        status,
+        joined_at
+      )
+      values (
+        v_organization.id,
+        v_user_id,
+        'owner',
+        'active',
+        now()
+      )
+      returning * into v_membership;
+    end if;
   end if;
 
-  select membership.role
-  into v_role
-  from public.tournament_organization_members membership
-  where membership.organization_id = v_organization.id
-    and membership.user_id = v_user_id
-    and membership.status = 'active';
+  if v_membership.id is null then
+    select membership.*
+    into v_membership
+    from public.tournament_organization_members membership
+    where membership.organization_id = v_organization.id
+      and membership.user_id = v_user_id
+      and membership.status = 'active';
+  end if;
 
-  if v_role is null then
+  if v_membership.id is null
+    or v_membership.role <> 'owner'
+    or v_membership.status <> 'active'
+  then
     raise exception using
       errcode = '23514',
       message = 'TORNEOS_ACTIVE_OWNER_REQUIRED';
@@ -424,10 +461,12 @@ begin
       'createdAt', v_organization.created_at
     ),
     'membership', jsonb_build_object(
-      'role', v_role,
-      'status', 'active',
-      'joinedAt', v_organization.created_at,
-      'capabilities', to_jsonb(public.tournament_role_capabilities(v_role))
+      'role', v_membership.role,
+      'status', v_membership.status,
+      'joinedAt', v_membership.joined_at,
+      'capabilities', to_jsonb(
+        public.tournament_role_capabilities(v_membership.role)
+      )
     ),
     'preference', jsonb_build_object(
       'workspaceType', 'tournament_organization',
@@ -566,7 +605,15 @@ begin
       active_organization_id
     )
     values (v_user_id, 'personal', null)
+    on conflict (user_id) do nothing
     returning * into v_preference;
+
+    if v_preference.user_id is null then
+      select preference.*
+      into v_preference
+      from public.user_workspace_preferences preference
+      where preference.user_id = v_user_id;
+    end if;
   elsif v_preference.workspace_type = 'tournament_organization'
     and not public.has_tournament_organization_capability(
       v_preference.active_organization_id,

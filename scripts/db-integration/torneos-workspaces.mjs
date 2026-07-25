@@ -27,6 +27,12 @@ const USERS = {
   collaboratorA: '10000000-0000-4000-8000-000000000003',
   outsider: '10000000-0000-4000-8000-000000000004',
   adminA: '10000000-0000-4000-8000-000000000005',
+  suspendedA: '10000000-0000-4000-8000-000000000006',
+  contextRace: '10000000-0000-4000-8000-000000000007',
+  idempotencyRace: '10000000-0000-4000-8000-000000000008',
+  slugRaceA: '10000000-0000-4000-8000-000000000009',
+  slugRaceB: '10000000-0000-4000-8000-000000000010',
+  rateLimit: '10000000-0000-4000-8000-000000000011',
 };
 
 const postgres = new EmbeddedPostgres({
@@ -169,6 +175,10 @@ async function main() {
     userId: USERS.outsider,
   });
   const adminA = await connect({ role: 'authenticated', userId: USERS.adminA });
+  const suspendedA = await connect({
+    role: 'authenticated',
+    userId: USERS.suspendedA,
+  });
 
   console.log('\nAutenticación y creación atómica');
   await expectError(
@@ -180,6 +190,109 @@ async function main() {
     ),
     /permission denied|TORNEOS_AUTH_REQUIRED/i,
     'un usuario anónimo no puede crear organizaciones',
+  );
+  await expectError(
+    () => anonymous.query(
+      'select public.is_tournament_organization_member($1)',
+      ['20000000-0000-4000-8000-000000000099'],
+    ),
+    /permission denied/i,
+    'anon no puede ejecutar helpers SECURITY DEFINER',
+  );
+  eq(
+    await value(
+      admin,
+      "select has_function_privilege('anon', 'public.get_tournament_workspace_context()', 'execute')",
+    ),
+    false,
+    'los RPCs no conservan EXECUTE público para anon',
+  );
+  eq(
+    await count(
+      admin,
+      `select count(*)
+       from information_schema.table_privileges
+       where table_schema = 'public'
+         and table_name in (
+           'tournament_organizations',
+           'tournament_organization_members',
+           'user_workspace_preferences'
+         )
+         and grantee = 'authenticated'
+         and privilege_type = 'SELECT'`,
+    ),
+    3,
+    'authenticated recibe únicamente SELECT en las tres tablas',
+  );
+  eq(
+    await count(
+      admin,
+      `select count(*)
+       from information_schema.table_privileges
+       where table_schema = 'public'
+         and table_name in (
+           'tournament_organizations',
+           'tournament_organization_members',
+           'user_workspace_preferences'
+         )
+         and (
+           grantee = 'anon'
+           or (
+             grantee = 'authenticated'
+             and privilege_type <> 'SELECT'
+           )
+         )`,
+    ),
+    0,
+    'anon no tiene grants y authenticated no recibe escrituras directas',
+  );
+  eq(
+    await count(
+      admin,
+      `select count(*)
+       from information_schema.routine_privileges
+       where specific_schema = 'public'
+         and routine_name in (
+           'normalize_tournament_organization_slug',
+           'tournament_role_capabilities',
+           'is_tournament_organization_member',
+           'has_tournament_organization_capability',
+           'touch_tournament_workspace_updated_at',
+           'protect_tournament_organization_owner',
+           'create_tournament_organization',
+           'is_tournament_organization_slug_available',
+           'set_tournament_workspace_preference',
+           'get_tournament_workspace_context',
+           'update_tournament_organization'
+         )
+         and grantee = 'PUBLIC'`,
+    ),
+    0,
+    'todas las funciones nuevas revocan el EXECUTE público por defecto',
+  );
+  eq(
+    await count(
+      admin,
+      `select count(*)
+       from pg_proc procedure
+       join pg_namespace namespace on namespace.oid = procedure.pronamespace
+       where namespace.nspname = 'public'
+         and procedure.proname in (
+           'is_tournament_organization_member',
+           'has_tournament_organization_capability',
+           'create_tournament_organization',
+           'is_tournament_organization_slug_available',
+           'set_tournament_workspace_preference',
+           'get_tournament_workspace_context',
+           'update_tournament_organization'
+         )
+         and procedure.prosecdef
+         and 'search_path=""' = any(procedure.proconfig)
+         and procedure.prosrc like '%auth.uid()%'
+         and procedure.prosrc !~* '\\mexecute\\M'`,
+    ),
+    7,
+    'las siete SECURITY DEFINER fijan search_path, usan auth.uid y no ejecutan SQL dinámico',
   );
   await expectError(
     () => createOrganization(
@@ -200,6 +313,33 @@ async function main() {
     ),
     /TORNEOS_INVALID_SLUG/,
     'el backend rechaza slugs reservados',
+  );
+  eq(
+    await value(
+      ownerA,
+      'select public.normalize_tournament_organization_slug($1)',
+      ['Liga Núñez'],
+    ),
+    'liga-nunez',
+    'el backend normaliza acentos de Liga Núñez igual que el frontend',
+  );
+  eq(
+    await value(
+      ownerA,
+      'select public.normalize_tournament_organization_slug($1)',
+      ['Fútbol 5'],
+    ),
+    'futbol-5',
+    'el backend normaliza Fútbol 5 de forma consistente',
+  );
+  eq(
+    await value(
+      ownerA,
+      'select public.normalize_tournament_organization_slug($1)',
+      ['Copa +30'],
+    ),
+    'copa-30',
+    'el backend normaliza caracteres especiales de Copa +30',
   );
 
   const keyA = '20000000-0000-4000-8000-000000000010';
@@ -289,8 +429,9 @@ async function main() {
       (organization_id, user_id, role, status, joined_at)
      values
       ($1, $2, 'collaborator', 'active', now()),
-      ($1, $3, 'admin', 'active', now())`,
-    [organizationA, USERS.collaboratorA, USERS.adminA],
+      ($1, $3, 'admin', 'active', now()),
+      ($1, $4, 'collaborator', 'active', now())`,
+    [organizationA, USERS.collaboratorA, USERS.adminA, USERS.suspendedA],
   );
 
   console.log('\nRLS y aislamiento cross-tenant');
@@ -330,7 +471,7 @@ async function main() {
        join public.tournament_organization_members membership
          on membership.organization_id = organization.id`,
     ),
-    3,
+    4,
     'los joins sólo devuelven miembros del tenant autorizado',
   );
   await expectError(
@@ -350,6 +491,40 @@ async function main() {
     ),
     /permission denied|row-level security/i,
     'las escrituras directas están cerradas incluso dentro del tenant',
+  );
+  await expectError(
+    () => ownerA.query(
+      `insert into public.tournament_organizations
+        (name, slug, created_by, creation_key)
+       values ('Sin owner', 'sin-owner', $1, $2)`,
+      [
+        USERS.ownerA,
+        '20000000-0000-4000-8000-000000000099',
+      ],
+    ),
+    /permission denied|row-level security/i,
+    'el cliente no puede crear una organización sin owner por escritura directa',
+  );
+  await expectError(
+    () => admin.query(
+      "update public.tournament_organizations set logo_path = 'data:image/svg+xml,bad' where id = $1",
+      [organizationA],
+    ),
+    /tournament_organizations_logo_path_check/i,
+    'logo_path rechaza esquemas y payloads no relativos',
+  );
+  await admin.query(
+    "update public.tournament_organizations set logo_path = 'torneos/logos/organization-a.png' where id = $1",
+    [organizationA],
+  );
+  eq(
+    await value(
+      admin,
+      'select logo_path from public.tournament_organizations where id = $1',
+      [organizationA],
+    ),
+    'torneos/logos/organization-a.png',
+    'logo_path acepta una ruta de storage relativa y acotada',
   );
 
   console.log('\nCapacidades y protección del owner');
@@ -453,6 +628,32 @@ async function main() {
     'RLS bloquea lecturas posteriores a la revocación',
   );
 
+  await value(
+    suspendedA,
+    "select public.set_tournament_workspace_preference('tournament_organization', $1)",
+    [organizationA],
+  );
+  await admin.query(
+    `update public.tournament_organization_members
+     set status = 'suspended'
+     where organization_id = $1 and user_id = $2`,
+    [organizationA, USERS.suspendedA],
+  );
+  const suspendedContext = await value(
+    suspendedA,
+    'select public.get_tournament_workspace_context()',
+  );
+  eq(
+    suspendedContext.preference.workspaceType,
+    'personal',
+    'una membresía suspendida pierde inmediatamente su workspace',
+  );
+  eq(
+    suspendedContext.organizations.length,
+    0,
+    'una membresía suspendida no conserva organizaciones visibles',
+  );
+
   const outsiderContext = await value(
     outsider,
     'select public.get_tournament_workspace_context()',
@@ -480,6 +681,177 @@ async function main() {
     ownerBContext.preference.workspaceType,
     'personal',
     'archivar restablece la preferencia personal',
+  );
+
+  console.log('\nConcurrencia e idempotencia');
+  const contextRaceClients = await Promise.all([
+    connect({ role: 'authenticated', userId: USERS.contextRace }),
+    connect({ role: 'authenticated', userId: USERS.contextRace }),
+  ]);
+  const contextRaceResults = await Promise.allSettled(
+    contextRaceClients.map((client) => value(
+      client,
+      'select public.get_tournament_workspace_context()',
+    )),
+  );
+  eq(
+    contextRaceResults.filter((result) => result.status === 'fulfilled').length,
+    2,
+    'dos inicializaciones concurrentes de preferencia son idempotentes',
+  );
+
+  const idempotencyRaceClients = await Promise.all([
+    connect({ role: 'authenticated', userId: USERS.idempotencyRace }),
+    connect({ role: 'authenticated', userId: USERS.idempotencyRace }),
+  ]);
+  const sharedKey = '30000000-0000-4000-8000-000000000001';
+  const idempotencyResults = await Promise.allSettled(
+    idempotencyRaceClients.map((client) => createOrganization(
+      client,
+      'Liga Idempotente',
+      'liga-idempotente',
+      sharedKey,
+    )),
+  );
+  eq(
+    idempotencyResults.filter((result) => result.status === 'fulfilled').length,
+    2,
+    'dos creaciones simultáneas con la misma clave completan sin error',
+  );
+  eq(
+    new Set(
+      idempotencyResults
+        .filter((result) => result.status === 'fulfilled')
+        .map((result) => result.value.organization.id),
+    ).size,
+    1,
+    'la misma clave concurrente devuelve una única organización',
+  );
+
+  const slugRaceClients = await Promise.all([
+    connect({ role: 'authenticated', userId: USERS.slugRaceA }),
+    connect({ role: 'authenticated', userId: USERS.slugRaceB }),
+  ]);
+  const slugRaceResults = await Promise.allSettled([
+    createOrganization(
+      slugRaceClients[0],
+      'Copa Concurrente A',
+      'copa-concurrente',
+      '30000000-0000-4000-8000-000000000002',
+    ),
+    createOrganization(
+      slugRaceClients[1],
+      'Copa Concurrente B',
+      'copa-concurrente',
+      '30000000-0000-4000-8000-000000000003',
+    ),
+  ]);
+  eq(
+    slugRaceResults.filter((result) => result.status === 'fulfilled').length,
+    1,
+    'dos creaciones con el mismo slug producen un único ganador',
+  );
+  eq(
+    slugRaceResults.filter((result) => (
+      result.status === 'rejected'
+      && /TORNEOS_SLUG_TAKEN/.test(String(result.reason?.message))
+    )).length,
+    1,
+    'la colisión concurrente de slug conserva el error controlado',
+  );
+
+  const concurrentOwnerClients = await Promise.all([connect(), connect()]);
+  const ownerMutationResults = await Promise.allSettled([
+    concurrentOwnerClients[0].query(
+      `update public.tournament_organization_members
+       set status = 'suspended'
+       where organization_id = $1 and role = 'owner'`,
+      [organizationA],
+    ),
+    concurrentOwnerClients[1].query(
+      `delete from public.tournament_organization_members
+       where organization_id = $1 and role = 'owner'`,
+      [organizationA],
+    ),
+  ]);
+  eq(
+    ownerMutationResults.filter((result) => (
+      result.status === 'rejected'
+      && /TORNEOS_ACTIVE_OWNER_REQUIRED/.test(String(result.reason?.message))
+    )).length,
+    2,
+    'dos alteraciones simultáneas del owner son rechazadas',
+  );
+  eq(
+    await count(
+      admin,
+      `select count(*)
+       from public.tournament_organization_members
+       where organization_id = $1 and role = 'owner' and status = 'active'`,
+      [organizationA],
+    ),
+    1,
+    'la concurrencia conserva exactamente un owner activo',
+  );
+
+  const concurrentUpdateClients = await Promise.all([
+    connect({ role: 'authenticated', userId: USERS.ownerA }),
+    connect({ role: 'authenticated', userId: USERS.ownerA }),
+  ]);
+  const concurrentUpdateResults = await Promise.allSettled([
+    value(
+      concurrentUpdateClients[0],
+      'select public.update_tournament_organization($1, $2, null, null)',
+      [organizationA, 'Liga Concurrente Uno'],
+    ),
+    value(
+      concurrentUpdateClients[1],
+      'select public.update_tournament_organization($1, $2, null, null)',
+      [organizationA, 'Liga Concurrente Dos'],
+    ),
+  ]);
+  eq(
+    concurrentUpdateResults.filter((result) => result.status === 'fulfilled').length,
+    2,
+    'dos actualizaciones autorizadas se serializan sin estado parcial',
+  );
+  ok(
+    ['Liga Concurrente Uno', 'Liga Concurrente Dos'].includes(
+      await value(
+        admin,
+        'select name from public.tournament_organizations where id = $1',
+        [organizationA],
+      ),
+    ),
+    'el resultado final de updates concurrentes es una versión completa',
+  );
+
+  const rateLimitClients = await Promise.all(
+    Array.from(
+      { length: 6 },
+      () => connect({ role: 'authenticated', userId: USERS.rateLimit }),
+    ),
+  );
+  const rateLimitResults = await Promise.allSettled(
+    rateLimitClients.map((client, index) => createOrganization(
+      client,
+      `Liga Rate ${index + 1}`,
+      `liga-rate-${index + 1}`,
+      `30000000-0000-4000-8000-00000000000${index + 4}`,
+    )),
+  );
+  eq(
+    rateLimitResults.filter((result) => result.status === 'fulfilled').length,
+    5,
+    'el límite concurrente permite como máximo cinco creaciones',
+  );
+  eq(
+    rateLimitResults.filter((result) => (
+      result.status === 'rejected'
+      && /TORNEOS_CREATION_RATE_LIMITED/.test(String(result.reason?.message))
+    )).length,
+    1,
+    'la sexta creación concurrente recibe el error de rate limit',
   );
 
   console.log(`\n${checks - failures}/${checks} verificaciones aprobadas.`);
