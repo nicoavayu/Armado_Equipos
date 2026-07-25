@@ -2,25 +2,26 @@
 
 Cada fase produce un PR pequeño hacia `epic/arma2-torneos`; ninguna apunta a `main`.
 
-## 0. Blueprint y foundation — actual
+## 0. Blueprint y foundation — completada
 
 Documentación, shell aislado, flags fail-closed, contexto ficticio y pruebas. Sin datos ni deploy.
 
 Salida: navegación responsive demostrable sólo con opt-in local.
 
-## 1. Workspaces, organizaciones y permisos
+## 1. Workspaces, organizaciones y permisos — completada
 
 Proyecto Supabase staging, organizaciones, memberships, capabilities, selector no productivo, revocación y tests cross-tenant.
 
 Gate: auditoría RLS antes de avanzar.
 
-## 2. Temporadas y competencia
+## 2. Temporadas y competencia — completada en esta rama
 
 Temporadas, torneos, categorías, estados, reglas y configuración base.
 
-Gate: ciclo borrador → configurado validado.
+Gate: creación atómica, edición progresiva, checklist y ciclo
+`draft ⇄ registration` validados con RLS.
 
-## 3. Equipos y planteles
+## 3. Equipos y planteles — próxima, no iniciada
 
 Inscripción, equipos existentes/provisionales, rosters versionados, aprobación, capitanes e identidades reclamables.
 

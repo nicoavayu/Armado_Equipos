@@ -77,9 +77,21 @@ El contexto de workspace obtiene organizaciones, membresías, capacidades y pref
 
 Datos remotos deberán usar claves que incluyan organización/torneo para impedir contaminación entre espacios.
 
-## Backend de workspaces
+El contexto competitivo implementado repite el mismo patrón con
+`get_tournament_competition_context()`. Limpia datos privados mientras valida,
+ignora respuestas fuera de orden y persiste temporada/torneo mediante una
+preferencia separada y autoritativa. Las keys lógicas contienen siempre
+organización, temporada y torneo.
+
+## Backend implementado
 
 La migración `20260724233000_tournament_organization_workspaces.sql` implementa tres tablas con RLS, helpers de capacidades y cuatro RPCs controladas. La creación de organización, owner y preferencia es una única transacción idempotente.
+
+La migración `20260725120000_tournament_competition_core.sql` implementa
+temporadas, torneos, categorías, catálogos, reglas y contexto activo. Las
+escrituras pasan por RPCs transaccionales; el cliente sólo tiene SELECT sujeto a
+RLS. La creación de torneo incorpora reglas por defecto y preferencia en una
+sola transacción.
 
 ## Backend futuro
 
@@ -95,7 +107,7 @@ La migración `20260724233000_tournament_organization_workspaces.sql` implementa
 
 1. Foundation sin datos.
 2. Membresías y permisos.
-3. Configuración de competencia.
+3. Configuración de competencia — implementada.
 4. Inscripciones y rosters.
 5. Fixture y operación.
 6. estadísticas/disciplinas transaccionales.
