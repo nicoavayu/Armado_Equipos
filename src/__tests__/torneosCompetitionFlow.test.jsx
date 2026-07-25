@@ -159,7 +159,7 @@ describe('Arma2 Torneos competition flow', () => {
     expect(screen.getAllByText('Apertura 2027').length).toBeGreaterThan(0);
     expect(screen.getByText('100%')).toBeInTheDocument();
     expect(screen.queryByText('12 equipos')).not.toBeInTheDocument();
-    expect(screen.getByText('Sin equipos todavía')).toBeInTheDocument();
+    expect(screen.getByText('Inscripciones')).toBeInTheDocument();
   });
 
   test('shows a useful empty state without invented metrics', async () => {
