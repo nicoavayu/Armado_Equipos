@@ -1,0 +1,159 @@
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  Check,
+  ChevronDown,
+  CircleUserRound,
+  Plus,
+  ShieldCheck,
+} from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { torneosFeatureFlags } from '../config/featureFlags';
+import { getRoleLabel } from '../domain/capabilities';
+import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
+import styles from './TorneosShell.module.css';
+
+function OrganizationAvatar({ organization }) {
+  return (
+    <span className={styles.workspaceAvatar} aria-hidden="true">
+      {organization.logoPath
+        ? <img src={organization.logoPath} alt="" />
+        : organization.name.slice(0, 2).toUpperCase()}
+    </span>
+  );
+}
+
+export default function WorkspaceSwitcher() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const containerRef = useRef(null);
+  const [open, setOpen] = useState(false);
+  const [busyId, setBusyId] = useState('');
+  const {
+    activeOrganization,
+    availableOrganizations,
+    selectOrganization,
+    selectPersonal,
+  } = useTorneosWorkspace();
+
+  useEffect(() => setOpen(false), [location.pathname]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const closeOnOutsideClick = (event) => {
+      if (!containerRef.current?.contains(event.target)) setOpen(false);
+    };
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') {
+        setOpen(false);
+        containerRef.current?.querySelector('button')?.focus();
+      }
+    };
+    document.addEventListener('pointerdown', closeOnOutsideClick);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutsideClick);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [open]);
+
+  if (!torneosFeatureFlags.workspaceSwitcher) return null;
+
+  const goPersonal = async () => {
+    setBusyId('personal');
+    try {
+      await selectPersonal();
+      navigate('/');
+    } finally {
+      setBusyId('');
+    }
+  };
+
+  const goOrganization = async (organization) => {
+    setBusyId(organization.id);
+    try {
+      const selected = await selectOrganization(organization.id);
+      if (selected) {
+        navigate(`/torneos/organizacion/${organization.id}/inicio`);
+      }
+    } finally {
+      setBusyId('');
+    }
+  };
+
+  return (
+    <div className={styles.switcher} ref={containerRef}>
+      <button
+        className={styles.workspaceButton}
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+      >
+        {activeOrganization
+          ? <OrganizationAvatar organization={activeOrganization} />
+          : (
+            <span className={styles.workspaceAvatar} aria-hidden="true">
+              <ShieldCheck size={20} />
+            </span>
+          )}
+        <span className={styles.workspaceCopy}>
+          <small>Espacio activo</small>
+          <strong>{activeOrganization?.name || 'Arma2 Torneos'}</strong>
+        </span>
+        <ChevronDown size={18} aria-hidden="true" />
+      </button>
+
+      {open && (
+        <div className={styles.switcherMenu} role="menu" aria-label="Cambiar espacio">
+          <span className={styles.menuLabel}>Tus espacios</span>
+          <button
+            type="button"
+            role="menuitem"
+            disabled={Boolean(busyId)}
+            onClick={goPersonal}
+          >
+            <span className={styles.personalAvatar}><CircleUserRound size={19} /></span>
+            <span>
+              <strong>Arma2</strong>
+              <small>Tu espacio personal</small>
+            </span>
+            {busyId === 'personal' && <span className={styles.miniSpinner} />}
+          </button>
+
+          {availableOrganizations.map((organization) => (
+            <button
+              type="button"
+              role="menuitem"
+              key={organization.id}
+              disabled={Boolean(busyId)}
+              onClick={() => goOrganization(organization)}
+            >
+              <OrganizationAvatar organization={organization} />
+              <span>
+                <strong>{organization.name}</strong>
+                <small>{getRoleLabel(organization.role)}</small>
+              </span>
+              {activeOrganization?.id === organization.id && busyId !== organization.id && (
+                <Check size={17} aria-label="Espacio activo" />
+              )}
+              {busyId === organization.id && <span className={styles.miniSpinner} />}
+            </button>
+          ))}
+
+          <button
+            type="button"
+            role="menuitem"
+            className={styles.createWorkspaceItem}
+            onClick={() => navigate('/torneos/nueva-organizacion')}
+          >
+            <span className={styles.personalAvatar}><Plus size={19} /></span>
+            <span>
+              <strong>Crear organización</strong>
+              <small>Nuevo workspace de Torneos</small>
+            </span>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}

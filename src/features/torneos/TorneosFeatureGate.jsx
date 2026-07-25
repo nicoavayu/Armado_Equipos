@@ -6,7 +6,11 @@ import { torneosFeatureFlags } from './config/featureFlags';
 const TorneosApp = lazy(() => import('./TorneosApp'));
 
 export default function TorneosFeatureGate({
-  enabled = torneosFeatureFlags.torneosEnabled,
+  enabled = (
+    torneosFeatureFlags.torneosEnabled
+    && torneosFeatureFlags.workspacesEnabled
+  ),
+  service,
 }) {
   if (!enabled) {
     return <Navigate to="/" replace />;
@@ -14,7 +18,7 @@ export default function TorneosFeatureGate({
 
   return (
     <Suspense fallback={<AppLoadingScreen />}>
-      <TorneosApp />
+      <TorneosApp service={service} />
     </Suspense>
   );
 }

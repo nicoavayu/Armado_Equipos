@@ -87,17 +87,10 @@ export default function App() {
     <GlobalErrorBoundary>
       <ErrorBoundary>
         <AuthProvider>
-          <BadgeProvider>
-            <NotificationProvider>
-              <Router>
-                <GoogleMapsScriptBootstrap />
-                <NativePushBootstrap />
-                <NotificationRedirectBootstrap />
-                <NativeAuthDeepLinkBootstrap />
-                <RoutePrefetchBootstrap />
-                <ScrollToTop />
-                <RouteAnalyticsTracker />
-                <PublicVotingRouteIsolation>
+          <Router>
+            <RouteScopedProviders>
+                <PersonalRuntimeEffects />
+                <ScopedPublicVotingRouteIsolation>
                   <Routes>
                   <Route path="/health" element={<HealthRoute />} />
                   <Route path="/terms" element={
@@ -271,16 +264,60 @@ export default function App() {
                     <Route path="torneos/*" element={<TorneosFeatureGate />} />
                   </Route>
                   </Routes>
-                </PublicVotingRouteIsolation>
-                <GlobalNoticeModal />
-              </Router>
-              {/* Debug panel removed */}
-            </NotificationProvider>
-          </BadgeProvider>
+                </ScopedPublicVotingRouteIsolation>
+                <PersonalGlobalNotice />
+            </RouteScopedProviders>
+          </Router>
         </AuthProvider>
       </ErrorBoundary>
     </GlobalErrorBoundary>
   );
+}
+
+function isTorneosNamespace(pathname = '') {
+  return pathname === '/torneos' || pathname.startsWith('/torneos/');
+}
+
+function RouteScopedProviders({ children }) {
+  const location = useLocation();
+  if (isTorneosNamespace(location.pathname)) return children;
+
+  return (
+    <BadgeProvider>
+      <NotificationProvider>
+        {children}
+      </NotificationProvider>
+    </BadgeProvider>
+  );
+}
+
+function PersonalRuntimeEffects() {
+  const location = useLocation();
+  if (isTorneosNamespace(location.pathname)) return null;
+
+  return (
+    <>
+      <GoogleMapsScriptBootstrap />
+      <NativePushBootstrap />
+      <NotificationRedirectBootstrap />
+      <NativeAuthDeepLinkBootstrap />
+      <RoutePrefetchBootstrap />
+      <ScrollToTop />
+      <RouteAnalyticsTracker />
+    </>
+  );
+}
+
+function ScopedPublicVotingRouteIsolation({ children }) {
+  const location = useLocation();
+  if (isTorneosNamespace(location.pathname)) return children;
+  return <PublicVotingRouteIsolation>{children}</PublicVotingRouteIsolation>;
+}
+
+function PersonalGlobalNotice() {
+  const location = useLocation();
+  if (isTorneosNamespace(location.pathname)) return null;
+  return <GlobalNoticeModal />;
 }
 
 function GoogleMapsScriptBootstrap() {
