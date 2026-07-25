@@ -62,6 +62,32 @@ describe('tournament team registration domain', () => {
     expect(migration).not.toMatch(/token_plain|plain_token/i);
   });
 
+  test('binds every relational child to the same tenant and entry', () => {
+    expect(migration).toMatch(
+      /foreign key \(organization_id, team_entry_id, roster_id\)[\s\S]{0,160}references public\.tournament_rosters\(organization_id, team_entry_id, id\)/i,
+    );
+    expect(migration).toMatch(
+      /foreign key \(organization_id, tournament_id, team_entry_id\)[\s\S]{0,160}references public\.tournament_team_entries\(organization_id, tournament_id, id\)/i,
+    );
+    expect(migration).toMatch(
+      /foreign key \(organization_id, team_entry_id, manager_id\)[\s\S]{0,160}references public\.tournament_team_managers\(organization_id, team_entry_id, id\)/i,
+    );
+  });
+
+  test('requires verified session email and manager invitation acceptance', () => {
+    expect(migration).toMatch(/email_confirmed_at/i);
+    expect(migration).toMatch(/TORNEOS_MANAGER_INVITATION_REQUIRED/i);
+    expect(migration).toMatch(/v_email_has_edge_space/i);
+    expect(migration).toMatch(/team_user_is_admin_or_owner\(id, v_uid\)/i);
+  });
+
+  test('keeps direct column grants free of invitation hashes and provisional contacts', () => {
+    const grants = migration.slice(migration.indexOf('grant select ('));
+    expect(grants).not.toMatch(/grant select \([^;]*token_hash/);
+    expect(grants).not.toMatch(/grant select \([^;]*contact_email/);
+    expect(grants).not.toMatch(/grant select \([^;]*contact_phone/);
+  });
+
   test('uses fail-closed definer functions with explicit empty search paths', () => {
     for (const functionName of [
       'create_tournament_team_entry',

@@ -100,6 +100,12 @@ function createService({ role = 'owner', organizations = true } = {}) {
     submitTeamEntry: jest.fn(),
     reviewTeamEntry: jest.fn(),
     searchPlayers: jest.fn().mockResolvedValue([]),
+    searchArma2Teams: jest.fn().mockResolvedValue([]),
+    createTeamEntry: jest.fn().mockResolvedValue({ entryId: ENTRY }),
+    inviteTeamManager: jest.fn().mockResolvedValue({
+      token: 'a'.repeat(64),
+      expiresAt: '2026-08-01T12:00:00.000Z',
+    }),
     createIdempotencyKey: jest.fn(() => 'request-a'),
   };
 }
@@ -139,5 +145,32 @@ describe('Arma2 Torneos teams flow', () => {
     expect(screen.getByText('Plantel vacío')).toBeInTheDocument();
     expect(service.loadTeamRegistration).toHaveBeenCalledWith(ORG, ENTRY);
     await waitFor(() => expect(screen.getByText('Presentar plantel')).toBeDisabled());
+  });
+
+  test('creates the manager invitation and shows its token only in the success step', async () => {
+    const service = createService();
+    renderPath(`/torneos/organizacion/${ORG}/equipos/nuevo`, service);
+
+    expect(await screen.findByRole('heading', { name: 'Agregar equipo' })).toBeInTheDocument();
+    const nameInputs = screen.getAllByLabelText('Nombre');
+    fireEvent.change(nameInputs[0], { target: { value: 'Equipo QA' } });
+    fireEvent.change(nameInputs[1], { target: { value: 'Capitana QA' } });
+    fireEvent.change(screen.getByLabelText('Email'), {
+      target: { value: 'capitana@example.test' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar inscripción' }));
+
+    expect(await screen.findByRole('heading', {
+      name: 'Compartí la invitación una sola vez',
+    })).toBeInTheDocument();
+    expect(service.createTeamEntry).toHaveBeenCalled();
+    expect(service.inviteTeamManager).toHaveBeenCalledWith(expect.objectContaining({
+      organizationId: ORG,
+      teamEntryId: ENTRY,
+      email: 'capitana@example.test',
+    }));
+    expect(
+      screen.getByLabelText('Enlace privado del responsable').value,
+    ).toContain('/torneos/invitacion/equipo/');
   });
 });

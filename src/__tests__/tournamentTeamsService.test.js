@@ -77,6 +77,7 @@ describe('tournament teams service contract', () => {
     await searchTournamentPlayers({
       organizationId: 'org-a',
       tournamentId: 'tournament-a',
+      teamEntryId: 'entry-a',
       query: 'nico',
     });
     expect(supabase.rpc).toHaveBeenCalledWith('search_tournament_players', {
@@ -84,6 +85,7 @@ describe('tournament teams service contract', () => {
       p_tournament_id: 'tournament-a',
       p_query: 'nico',
       p_limit: 8,
+      p_team_entry_id: 'entry-a',
     });
   });
 

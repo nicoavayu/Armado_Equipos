@@ -275,6 +275,7 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
                 onSearch={(query) => service.searchPlayers({
                   organizationId: organization.id,
                   tournamentId: data.entry.tournamentId,
+                  teamEntryId,
                   query,
                 })}
                 onSelect={addPlayer}

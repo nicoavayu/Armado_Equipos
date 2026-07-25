@@ -25,6 +25,11 @@ export default function OrganizationRouteGuard() {
   const relationalTeamEntryId = relationalMatch?.[1] || null;
 
   useEffect(() => {
+    setRelationalOrganization(null);
+    setActivationState('idle');
+  }, [organizationId, relationalTeamEntryId]);
+
+  useEffect(() => {
     if (status !== 'ready' || organization || !relationalTeamEntryId
       || typeof service?.loadTeamRegistration !== 'function') return undefined;
     let active = true;
@@ -57,6 +62,7 @@ export default function OrganizationRouteGuard() {
 
   useEffect(() => {
     if (status !== 'ready' || !organization) return;
+    setRelationalOrganization(null);
     if (preference.activeOrganizationId === organization.id) {
       setActivationState('ready');
       return;

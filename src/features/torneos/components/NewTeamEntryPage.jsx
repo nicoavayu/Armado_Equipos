@@ -1,5 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Check, Link2, Loader2, Search, ShieldPlus, UserRound } from 'lucide-react';
+import {
+  ArrowLeft,
+  Check,
+  Copy,
+  Link2,
+  Loader2,
+  Search,
+  ShieldPlus,
+  UserRound,
+} from 'lucide-react';
 import { Link, useNavigate, useOutletContext } from 'react-router-dom';
 import { useTorneosCompetition } from '../context/TorneosCompetitionContext';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
@@ -25,6 +34,7 @@ export default function NewTeamEntryPage() {
     managerEmail: '',
   });
   const [state, setState] = useState({ status: 'idle', error: '' });
+  const [createdInvitation, setCreatedInvitation] = useState(null);
   const base = `/torneos/organizacion/${organization.id}/equipos`;
 
   useEffect(() => {
@@ -72,7 +82,19 @@ export default function NewTeamEntryPage() {
         managerDisplayName: form.managerDisplayName,
         idempotencyKey: keyRef.current,
       });
-      navigate(`${base}/${result.entryId}/inscripcion`);
+      const invitation = await service.inviteTeamManager({
+        organizationId: organization.id,
+        teamEntryId: result.entryId,
+        email: form.managerEmail,
+        displayName: form.managerDisplayName,
+        role: 'captain',
+      });
+      setCreatedInvitation({
+        entryId: result.entryId,
+        url: `${window.location.origin}/torneos/invitacion/equipo/${invitation.token}`,
+        expiresAt: invitation.expiresAt,
+      });
+      setState({ status: 'success', error: '' });
     } catch (error) {
       setState({ status: 'error', error: error.message });
     }
@@ -86,6 +108,46 @@ export default function NewTeamEntryPage() {
         <p>Seleccioná un torneo en estado de inscripción para agregar equipos.</p>
         <Link to={base}>Volver a equipos</Link>
       </section>
+    );
+  }
+
+  if (createdInvitation) {
+    return (
+      <div className={styles.formPage}>
+        <header className={styles.formHeader}>
+          <span className={styles.kicker}>Inscripción creada</span>
+          <h1>Compartí la invitación una sola vez</h1>
+          <p>
+            El enlace no volverá a mostrarse. Vence el{' '}
+            {new Date(createdInvitation.expiresAt).toLocaleString('es-AR')}.
+          </p>
+        </header>
+        <section className={styles.formSection}>
+          <label>
+            Enlace privado del responsable
+            <input
+              value={createdInvitation.url}
+              readOnly
+              aria-label="Enlace privado del responsable"
+            />
+          </label>
+          <div className={styles.stickyActions}>
+            <button
+              type="button"
+              onClick={() => navigator.clipboard?.writeText(createdInvitation.url)}
+            >
+              <Copy size={17} /> Copiar enlace
+            </button>
+            <button
+              className={styles.primaryButton}
+              type="button"
+              onClick={() => navigate(`${base}/${createdInvitation.entryId}/inscripcion`)}
+            >
+              Abrir inscripción
+            </button>
+          </div>
+        </section>
+      </div>
     );
   }
 

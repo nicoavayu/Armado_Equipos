@@ -38,7 +38,9 @@ const ERROR_MESSAGES = {
   TORNEOS_INVALID_TEAM_ENTRY: 'Revisá los datos del equipo.',
   TORNEOS_TEAM_ALREADY_REGISTERED: 'Ese equipo ya está inscripto en la categoría.',
   TORNEOS_INVALID_MANAGER: 'Revisá los datos del responsable.',
+  TORNEOS_MANAGER_INVITATION_REQUIRED: 'El responsable debe confirmar una invitación con su propia cuenta.',
   TORNEOS_INVITATION_RATE_LIMITED: 'Se generaron varias invitaciones. Esperá unos minutos.',
+  TORNEOS_SEARCH_RATE_LIMITED: 'Se hicieron muchas búsquedas. Esperá un minuto y probá de nuevo.',
   TORNEOS_INVITATION_INVALID: 'La invitación no existe, ya fue usada o no corresponde a esta cuenta.',
   TORNEOS_INVITATION_EXPIRED: 'La invitación venció. Pedí al organizador un enlace nuevo.',
   TORNEOS_ENTRY_NOT_EDITABLE: 'La inscripción ya no admite cambios.',
@@ -518,6 +520,22 @@ export async function withdrawTournamentTeamEntry(input) {
   }), 'No pudimos retirar la inscripción.');
 }
 
+export async function archiveTournamentTeamEntry(input) {
+  return unwrapRpc(await supabase.rpc('archive_tournament_team_entry', {
+    p_organization_id: input.organizationId,
+    p_team_entry_id: input.teamEntryId,
+    p_reason: input.reason,
+  }), 'No pudimos archivar la inscripción.');
+}
+
+export async function lockTournamentRoster(input) {
+  return unwrapRpc(await supabase.rpc('lock_tournament_roster', {
+    p_organization_id: input.organizationId,
+    p_team_entry_id: input.teamEntryId,
+    p_roster_id: input.rosterId,
+  }), 'No pudimos bloquear el plantel.');
+}
+
 export async function inviteTournamentTeamManager(input) {
   return unwrapRpc(await supabase.rpc('invite_tournament_team_manager', {
     p_organization_id: input.organizationId,
@@ -540,6 +558,7 @@ export async function searchTournamentPlayers(input) {
     p_tournament_id: input.tournamentId,
     p_query: input.query,
     p_limit: input.limit || 8,
+    p_team_entry_id: input.teamEntryId || null,
   }), 'No pudimos buscar jugadores.');
 }
 
@@ -578,6 +597,8 @@ export const tournamentWorkspaceService = Object.freeze({
   submitTeamEntry: submitTournamentTeamEntry,
   reviewTeamEntry: reviewTournamentTeamEntry,
   withdrawTeamEntry: withdrawTournamentTeamEntry,
+  archiveTeamEntry: archiveTournamentTeamEntry,
+  lockRoster: lockTournamentRoster,
   inviteTeamManager: inviteTournamentTeamManager,
   acceptTeamInvitation: acceptTournamentTeamInvitation,
   searchPlayers: searchTournamentPlayers,

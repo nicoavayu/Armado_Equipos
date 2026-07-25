@@ -4,6 +4,7 @@ import { Link, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthProvider';
 import { setAuthReturnTo } from '../utils/authReturnTo';
 import { getAuthRedirectUrl } from '../utils/authRedirectUrl';
+import { redactUrlForLog } from '../utils/nativeAppLink';
 import AppleAuth from './AppleAuth';
 import GoogleAuth from './GoogleAuth';
 import usePendingAuthFlow from '../hooks/usePendingAuthFlow';
@@ -38,9 +39,8 @@ export default function AuthHome() {
 
   useEffect(() => {
     logger.info('[AUTH] login_route_enter', {
-      pathname: location.pathname,
-      search: location.search,
-      returnTo,
+      route: redactUrlForLog(`${location.pathname}${location.search}`),
+      returnTo: redactUrlForLog(returnTo || ''),
       loading,
       hasUser: Boolean(user),
       mode,
@@ -52,7 +52,7 @@ export default function AuthHome() {
       setAuthReturnTo(returnTo);
       logger.info('[AUTH] login_return_to_stored', {
         pathname: location.pathname,
-        returnTo,
+        returnTo: redactUrlForLog(returnTo),
       });
     }
   }, [location.pathname, returnTo]);
@@ -94,7 +94,7 @@ export default function AuthHome() {
   const sendMagicLink = async () => {
     logger.info('[AUTH] magic_link_submit', {
       pathname: location.pathname,
-      returnTo: returnTo || '/home',
+      returnTo: redactUrlForLog(returnTo || '/home'),
       hasEmail: Boolean(email.trim()),
       sendingBlocked,
     });
@@ -177,7 +177,7 @@ export default function AuthHome() {
                 onClick={() => {
                   logger.info('[AUTH] login_show_email_mode', {
                     pathname: location.pathname,
-                    returnTo,
+                    returnTo: redactUrlForLog(returnTo || ''),
                   });
                   setMode('email');
                   setNotice({ type: '', message: '' });
