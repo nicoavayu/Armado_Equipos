@@ -16,7 +16,7 @@
 .contextBar label > span, .eyebrow, .cardHeading > span { color: #a99af3; font-size: .68rem; font-weight: 800; letter-spacing: .11em; text-transform: uppercase; }
 .contextBar select { width: 100%; border: 0; outline: 0; color: #f7f5ff; background: transparent; font: inherit; font-weight: 700; }
 .subnav { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 8px; }
-.subnav a { display: inline-flex; align-items: center; flex: 0 0 auto; gap: 7px; min-height: 42px; padding: 0 14px; border: 1px solid rgba(152, 125, 255, .18); border-radius: 999px; color: #aaa4b8; text-decoration: none; }
+.subnav a { display: inline-flex; align-items: center; flex: 0 0 auto; gap: 7px; min-height: 44px; padding: 0 14px; border: 1px solid rgba(152, 125, 255, .18); border-radius: 999px; color: #aaa4b8; text-decoration: none; }
 .subnav a:hover, .subnav .activeTab { border-color: #8062ff; color: #fff; background: rgba(112, 79, 255, .18); }
 .hero { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; padding: clamp(22px, 4vw, 38px); border-radius: 24px; background: radial-gradient(circle at 85% 10%, rgba(113, 79, 255, .22), transparent 35%), linear-gradient(145deg, rgba(25, 22, 38, .98), #0d0c14); }
 .hero h1 { margin: 7px 0; color: #fbfaff; font-size: clamp(2rem, 5vw, 4.1rem); line-height: .96; letter-spacing: -.05em; }
@@ -43,7 +43,8 @@
 .table tbody tr:hover { background: rgba(122, 87, 255, .055); }
 .position { display: inline-grid; place-items: center; min-width: 31px; min-height: 31px; border-radius: 9px; color: #fff; background: #2b2540; }
 .team { display: flex; align-items: center; gap: 10px; }
-.team > span:last-child, .disciplineHeader > span:nth-child(2) { display: grid; gap: 3px; }
+.team > span:last-child, .disciplineHeader > span:nth-child(2) { display: grid; min-width: 0; gap: 3px; }
+.team strong, .disciplineHeader strong { overflow-wrap: anywhere; }
 .team small, .leaderboard small, .teamStats small, .qualifyList small, .disciplineHeader small, .suspension small { color: #888293; }
 .teamDetail { display: none; margin-top: 5px; color: #a9a2b5; font-size: .72rem; }
 .teamDetail summary { width: max-content; color: #b7a8ef; cursor: pointer; }

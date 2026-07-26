@@ -153,7 +153,7 @@ function StandingsTable({ rows }) {
               <td>
                 {row.classificationStatus === 'manual_review'
                   ? <span className={styles.reviewFlag}><AlertTriangle size={14} /> Revisar empate</span>
-                  : <span className={styles.resolvedFlag}><CheckCircle2 size={14} /> Resuelto</span>}
+                  : <span className={styles.resolvedFlag}><CheckCircle2 size={14} /> Posición calculada</span>}
               </td>
             </tr>
           ))}
@@ -202,7 +202,7 @@ function QualificationPanel({ standings, revision, onResolve, busy }) {
   return (
     <section className={styles.card}>
       <div className={styles.cardHeading}>
-        <span>Fuentes estructuradas</span>
+        <span>Cruces del torneo</span>
         <h2>Resolución de clasificados</h2>
         <p>Los puestos publicados alimentan cruces futuros sin perder el origen. Si un cruce posterior ya tiene acta, la corrección queda bloqueada para revisión.</p>
       </div>
@@ -234,6 +234,13 @@ function QualificationPanel({ standings, revision, onResolve, busy }) {
 }
 
 function DisciplinePanel({ rows }) {
+  const statusLabels = {
+    pending: 'Pendiente',
+    active: 'Activa',
+    served: 'Cumplida',
+    reduced: 'Reducida',
+    revoked: 'Revocada',
+  };
   if (!rows.length) return <div className={styles.empty}><Scale size={28} /><h2>Sin novedades disciplinarias</h2><p>Las tarjetas y sanciones nacen exclusivamente de actas oficiales vigentes.</p></div>;
   return (
     <div className={styles.disciplineGrid}>
@@ -247,7 +254,7 @@ function DisciplinePanel({ rows }) {
           {(row.suspensions || []).length ? row.suspensions.map((suspension) => (
             <div className={styles.suspension} key={suspension.id}>
               <ShieldAlert size={17} />
-              <span><strong>{suspension.reason}</strong><small>{suspension.servedMatches}/{suspension.totalMatches} fechas · {suspension.status}</small></span>
+              <span><strong>{suspension.reason}</strong><small>{suspension.servedMatches}/{suspension.totalMatches} fechas · {statusLabels[suspension.status] || 'En revisión'}</small></span>
             </div>
           )) : <p className={styles.noSuspension}>Sin suspensión activa.</p>}
         </article>
@@ -259,19 +266,60 @@ function DisciplinePanel({ rows }) {
 function ReasonDialog({
   action, setAction, reason, setReason, onConfirm, busy,
 }) {
+  const dialogRef = useRef(null);
+  const reasonRef = useRef(null);
+  const restoreFocusRef = useRef(null);
+
+  useEffect(() => {
+    if (!action) return undefined;
+    restoreFocusRef.current = document.activeElement;
+    reasonRef.current?.focus();
+    return () => restoreFocusRef.current?.focus?.();
+  }, [action]);
+
   if (!action) return null;
   const copy = {
     rebuild: ['Recalcular competencia', 'Se creará una revisión borrador reproducible desde actas oficiales.'],
     publish: ['Publicar revisión', 'La tabla visible actual será reemplazada de forma atómica.'],
     qualify: ['Resolver clasificados', 'Los puestos publicados se aplicarán a las fuentes de cruces futuros.'],
   }[action];
+  const handleDialogKeyDown = (event) => {
+    if (event.key === 'Escape' && !busy) {
+      event.preventDefault();
+      setAction(null);
+      return;
+    }
+    if (event.key !== 'Tab') return;
+    const focusable = Array.from(dialogRef.current?.querySelectorAll(
+      'button:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
+    ) || []);
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
   return (
     <div className={styles.dialogBackdrop} role="presentation" onMouseDown={() => !busy && setAction(null)}>
-      <section className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="competition-dialog-title" onMouseDown={(event) => event.stopPropagation()}>
+      <section
+        ref={dialogRef}
+        className={styles.dialog}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="competition-dialog-title"
+        aria-describedby="competition-dialog-description"
+        onKeyDown={handleDialogKeyDown}
+        onMouseDown={(event) => event.stopPropagation()}
+      >
         <span className={styles.dialogIcon}><Sparkles size={21} /></span>
         <h2 id="competition-dialog-title">{copy[0]}</h2>
-        <p>{copy[1]}</p>
-        <label><span>Motivo auditable</span><textarea autoFocus minLength={3} maxLength={1000} value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Explicá por qué se realiza esta acción…" /></label>
+        <p id="competition-dialog-description">{copy[1]}</p>
+        <label><span>Motivo</span><textarea ref={reasonRef} minLength={3} maxLength={1000} value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Explicá por qué se realiza esta acción…" /></label>
         <div className={styles.dialogActions}>
           <button type="button" className={styles.secondaryButton} disabled={busy} onClick={() => setAction(null)}>Cancelar</button>
           <button type="button" className={styles.primaryButton} disabled={busy || reason.trim().length < 3} onClick={onConfirm}>{busy ? 'Procesando…' : 'Confirmar'}</button>
@@ -344,7 +392,16 @@ export default function CompetitionCenterPage({ mode = 'table' }) {
         notice,
       });
     } catch (error) {
-      if (requestRef.current === requestId) setState((current) => ({ ...current, status: 'error', error: error?.message || 'No pudimos cargar la competencia.', notice: '' }));
+      if (requestRef.current === requestId) {
+        setState({
+          status: 'error',
+          standings: [],
+          statistics: { players: [], teams: [], discipline: [] },
+          revision: null,
+          error: error?.message || 'No pudimos cargar la competencia.',
+          notice: '',
+        });
+      }
     }
   }, [scope, service]);
 
@@ -394,7 +451,7 @@ export default function CompetitionCenterPage({ mode = 'table' }) {
       {!canRebuild && <div className={styles.readOnly}><ShieldAlert size={17} /><span><strong>Vista de sólo lectura.</strong> Sólo se muestran revisiones publicadas.</span></div>}
       {state.notice && <div className={styles.notice} role="status"><CheckCircle2 size={17} />{state.notice}</div>}
       {state.error && <div className={styles.error} role="alert"><AlertTriangle size={17} />{state.error}<button type="button" onClick={() => refresh()}>Reintentar</button></div>}
-      {state.status === 'loading' ? <WorkspaceLoading label="Actualizando datos oficiales…" /> : (
+      {state.status === 'loading' ? <WorkspaceLoading label="Actualizando datos oficiales…" /> : state.status === 'error' ? null : (
         <>
           {mode === 'table' && <StandingsTable rows={state.standings} />}
           {mode === 'statistics' && <StatisticsPanel data={state.statistics} />}

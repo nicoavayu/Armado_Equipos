@@ -143,7 +143,7 @@ describe('CompetitionCenterPage', () => {
     await userEvent.click(screen.getByRole('button', { name: /Recalcular/ }));
     const confirm = screen.getByRole('button', { name: 'Confirmar' });
     expect(confirm).toBeDisabled();
-    await userEvent.type(screen.getByLabelText('Motivo auditable'), 'Corrección oficial');
+    await userEvent.type(screen.getByLabelText('Motivo'), 'Corrección oficial');
     await userEvent.click(confirm);
     await waitFor(() => expect(mockService.rebuildStandings).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -155,6 +155,26 @@ describe('CompetitionCenterPage', () => {
       }),
     ));
     await waitFor(() => expect(mockService.loadStandings).toHaveBeenCalledTimes(2));
+  });
+
+  test('keeps keyboard focus inside the action dialog and restores it on Escape', async () => {
+    renderCenter();
+    await screen.findByRole('heading', { name: 'Todavía no hay tabla' });
+    const trigger = screen.getByRole('button', { name: /Recalcular/ });
+    trigger.focus();
+    await userEvent.click(trigger);
+
+    const reason = screen.getByLabelText('Motivo');
+    const cancel = screen.getByRole('button', { name: 'Cancelar' });
+    expect(reason).toHaveFocus();
+
+    cancel.focus();
+    await userEvent.tab();
+    expect(reason).toHaveFocus();
+
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
   });
 
   test('shows a compact statistical podium and explicit discipline', async () => {
@@ -189,7 +209,35 @@ describe('CompetitionCenterPage', () => {
     unmount();
     renderCenter('discipline');
     expect(await screen.findByText('Roja directa')).toBeInTheDocument();
-    expect(screen.getByText(/0\/1 fechas/)).toBeInTheDocument();
+    expect(screen.getByText(/0\/1 fechas · Activa/)).toBeInTheDocument();
+  });
+
+  test('clears the previous category when the next request fails', async () => {
+    mockService.loadStandings.mockResolvedValue({
+      revision: { id: 'revision', number: 1, status: 'published' },
+      standings: [row],
+    });
+    const view = renderCenter();
+    expect(await screen.findByText(row.teamName)).toBeInTheDocument();
+
+    mockService.loadStandings.mockRejectedValue(new Error('Sin conexión'));
+    mockFixture = {
+      ...mockFixture,
+      categoryId: 'category-2',
+      activeCategory: { id: 'category-2', name: 'Senior' },
+      categories: [
+        ...mockFixture.categories,
+        { id: 'category-2', name: 'Senior' },
+      ],
+    };
+    view.rerender(
+      <MemoryRouter>
+        <CompetitionCenterPage mode="table" />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Sin conexión');
+    expect(screen.queryByText(row.teamName)).not.toBeInTheDocument();
   });
 
   test('blocks automatic qualification while a manual tiebreak is pending', async () => {
