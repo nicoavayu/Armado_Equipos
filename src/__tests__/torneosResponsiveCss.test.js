@@ -63,6 +63,12 @@ describe('Torneos responsive navigation CSS', () => {
     );
     expect(matchOperationsCss).toMatch(/min-height:\s*44px;/);
     expect(matchOperationsCss).toMatch(
+      /\.page\s+button,\s*\.page\s+input,\s*\.page\s+select,\s*\.page\s+textarea\s*\{[^}]*box-sizing:\s*border-box;/s,
+    );
+    expect(matchOperationsCss).toMatch(
+      /\.detailCard\s+a\s*\{[^}]*min-height:\s*44px;/s,
+    );
+    expect(matchOperationsCss).toMatch(
       /@media \(prefers-reduced-motion:\s*reduce\)/,
     );
   });
