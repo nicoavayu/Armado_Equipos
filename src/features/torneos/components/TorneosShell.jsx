@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   Building2,
+  CalendarRange,
   Home,
   Settings2,
   ShieldCheck,
@@ -32,12 +33,19 @@ import NewTeamEntryPage from './NewTeamEntryPage';
 import TeamRegistrationPage from './TeamRegistrationPage';
 import TeamInvitationPage from './TeamInvitationPage';
 import WorkspaceSwitcher from './WorkspaceSwitcher';
+import FixtureWorkspacePage from './FixtureWorkspacePage';
 import styles from './TorneosShell.module.css';
 
 const organizationNavigation = [
   { label: 'Inicio', path: 'inicio', icon: Home },
   { label: 'Torneos', path: 'torneos', icon: Trophy },
   { label: 'Equipos', path: 'equipos', icon: UsersRound },
+  {
+    label: 'Fixture',
+    path: 'fixture',
+    icon: CalendarRange,
+    relatedPaths: ['programacion', 'sedes'],
+  },
   { label: 'Configuración', path: 'configuracion', icon: Settings2 },
 ];
 
@@ -63,6 +71,7 @@ function TeamEntryRedirect() {
 }
 
 function OrganizationNavigation({ organization, mobile = false }) {
+  const location = useLocation();
   if (!organization) return null;
   const base = `/torneos/organizacion/${organization.id}`;
   return (
@@ -70,13 +79,18 @@ function OrganizationNavigation({ organization, mobile = false }) {
       className={mobile ? styles.mobileNavigation : styles.desktopNavigation}
       aria-label={mobile ? 'Navegación móvil de la organización' : 'Navegación de la organización'}
     >
-      {organizationNavigation.map(({ label, path, icon: Icon }) => (
+      {organizationNavigation.map(({
+        label, path, icon: Icon, relatedPaths = [],
+      }) => (
         <NavLink
           key={path}
           to={`${base}/${path}`}
-          className={({ isActive }) => (
-            `${styles.navigationItem} ${isActive ? styles.navigationItemActive : ''}`
-          )}
+          className={({ isActive }) => {
+            const related = relatedPaths.some((candidate) => (
+              location.pathname.startsWith(`${base}/${candidate}`)
+            ));
+            return `${styles.navigationItem} ${isActive || related ? styles.navigationItemActive : ''}`;
+          }}
         >
           <span className={styles.navigationIcon} aria-hidden="true">
             <Icon size={mobile ? 20 : 18} strokeWidth={1.9} />
@@ -96,10 +110,14 @@ export default function TorneosShell() {
     ? location.pathname.split('/').slice(4).join('/')
     : '';
   const currentNavigation = organizationNavigation.find(({ path }) => (
-    ['torneos', 'equipos'].includes(path)
+    ['torneos', 'equipos', 'fixture'].includes(path)
       ? (
         organizationRelativePath.startsWith(path)
         || (path === 'torneos' && organizationRelativePath.startsWith('temporadas'))
+        || (path === 'fixture' && (
+          organizationRelativePath.startsWith('programacion')
+          || organizationRelativePath.startsWith('sedes')
+        ))
       )
       : organizationRelativePath === path
   ));
@@ -209,6 +227,20 @@ export default function TorneosShell() {
                 path="torneos/:tournamentId/categorias"
                 element={<TournamentConfigurationRedirect step={4} />}
               />
+              <Route path="fixture" element={<FixtureWorkspacePage mode="overview" />} />
+              <Route path="fixture/participantes" element={<FixtureWorkspacePage mode="participants" />} />
+              <Route path="fixture/bombos" element={<FixtureWorkspacePage mode="pots" />} />
+              <Route path="fixture/sorteo" element={<FixtureWorkspacePage mode="draw" />} />
+              <Route path="fixture/grupos" element={<FixtureWorkspacePage mode="groups" />} />
+              <Route path="fixture/generar" element={<FixtureWorkspacePage mode="generate" />} />
+              <Route path="fixture/version/:fixtureVersionId" element={<FixtureWorkspacePage mode="rounds" />} />
+              <Route path="fixture/jornadas" element={<FixtureWorkspacePage mode="rounds" />} />
+              <Route path="fixture/jornadas/:roundId" element={<FixtureWorkspacePage mode="rounds" />} />
+              <Route path="fixture/partidos/:matchId" element={<FixtureWorkspacePage mode="rounds" />} />
+              <Route path="fixture/llave" element={<FixtureWorkspacePage mode="bracket" />} />
+              <Route path="programacion" element={<FixtureWorkspacePage mode="schedule" />} />
+              <Route path="sedes" element={<FixtureWorkspacePage mode="venues" />} />
+              <Route path="sedes/:venueId" element={<FixtureWorkspacePage mode="venues" />} />
               <Route path="configuracion" element={<OrganizationSettingsPage />} />
               <Route path="miembros" element={<OrganizationMembersPage />} />
             </Route>
