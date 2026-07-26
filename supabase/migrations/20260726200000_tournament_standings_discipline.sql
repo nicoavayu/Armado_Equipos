@@ -138,6 +138,9 @@ create table public.tournament_standings_revisions (
   published_by uuid references auth.users(id) on delete restrict,
   published_at timestamptz,
   superseded_at timestamptz,
+  discarded_by uuid references auth.users(id) on delete restrict,
+  discarded_at timestamptz,
+  discard_reason text,
   constraint tournament_standings_revisions_fixture_fk
     foreign key (organization_id, tournament_id, category_id, fixture_version_id)
     references public.tournament_fixture_versions
@@ -158,7 +161,7 @@ create table public.tournament_standings_revisions (
     references public.tournaments(organization_id, id, season_id) on delete restrict,
   constraint tournament_standings_revisions_number_check check (revision_number > 0),
   constraint tournament_standings_revisions_status_check
-    check (status in ('draft', 'published', 'superseded')),
+    check (status in ('draft', 'published', 'superseded', 'discarded')),
   constraint tournament_standings_revisions_fingerprint_check
     check (source_fingerprint ~ '^[0-9a-f]{64}$'),
   constraint tournament_standings_revisions_config_check
@@ -167,12 +170,24 @@ create table public.tournament_standings_revisions (
   constraint tournament_standings_revisions_reason_check
     check (rebuild_reason = btrim(rebuild_reason)
       and char_length(rebuild_reason) between 3 and 500),
+  constraint tournament_standings_revisions_discard_reason_check
+    check (discard_reason is null or (
+      discard_reason = btrim(discard_reason)
+      and char_length(discard_reason) between 3 and 500
+    )),
   constraint tournament_standings_revisions_lifecycle_check check (
-    (status = 'draft' and published_by is null and published_at is null and superseded_at is null)
+    (status = 'draft' and published_by is null and published_at is null
+      and superseded_at is null and discarded_by is null
+      and discarded_at is null and discard_reason is null)
     or (status = 'published' and published_by is not null
-      and published_at is not null and superseded_at is null)
+      and published_at is not null and superseded_at is null
+      and discarded_by is null and discarded_at is null and discard_reason is null)
     or (status = 'superseded' and published_by is not null
-      and published_at is not null and superseded_at is not null)
+      and published_at is not null and superseded_at is not null
+      and discarded_by is null and discarded_at is null and discard_reason is null)
+    or (status = 'discarded' and published_by is null and published_at is null
+      and superseded_at is null and discarded_by is not null
+      and discarded_at is not null and discard_reason is not null)
   ),
   constraint tournament_standings_revisions_scope_unique
     unique (organization_id, tournament_id, category_id, fixture_version_id, id),
@@ -632,6 +647,7 @@ as $$
           join public.tournament_team_managers manager on manager.team_entry_id = entry.id
           where entry.organization_id = p_organization_id
             and entry.tournament_id = p_tournament_id
+            and entry.status = 'approved'
             and manager.user_id = auth.uid()
             and manager.status = 'active'
         )
@@ -641,6 +657,7 @@ as $$
           join public.tournament_roster_players player on player.team_entry_id = entry.id
           where entry.organization_id = p_organization_id
             and entry.tournament_id = p_tournament_id
+            and entry.status = 'approved'
             and player.arma2_user_id = auth.uid()
             and player.status = 'active'
         )
@@ -670,19 +687,12 @@ begin
   if auth.uid() is null then
     raise exception using errcode = '42501', message = 'TORNEOS_AUTH_REQUIRED';
   end if;
-  select * into v_adjustment
-  from public.tournament_points_adjustments
-  where organization_id = p_organization_id
-    and actor_user_id = auth.uid()
-    and idempotency_key = p_idempotency_key;
-  if v_adjustment.id is not null then return v_adjustment.id; end if;
 
   select * into v_fixture
   from public.tournament_fixture_versions
   where id = p_fixture_version_id
     and organization_id = p_organization_id
-    and status = 'published'
-  for share;
+    and status = 'published';
   if v_fixture.id is null
     or not public.has_tournament_organization_capability(
       p_organization_id, 'standings.override'
@@ -721,6 +731,40 @@ begin
     )
   then
     raise exception using errcode = '22023', message = 'TORNEOS_STANDINGS_SCOPE_INVALID';
+  end if;
+
+  perform pg_advisory_xact_lock(hashtextextended(
+    p_organization_id::text || ':' || v_fixture.tournament_id::text || ':'
+    || v_fixture.category_id::text || ':' || p_phase_id::text || ':'
+    || coalesce(p_group_id::text, 'all'),
+    0
+  ));
+  perform 1
+  from public.tournament_fixture_versions fixture
+  where fixture.id = v_fixture.id
+    and fixture.organization_id = p_organization_id
+    and fixture.status = 'published'
+  for share;
+  if not found then
+    raise exception using errcode = '42501', message = 'TORNEOS_STANDINGS_FORBIDDEN';
+  end if;
+
+  select * into v_adjustment
+  from public.tournament_points_adjustments
+  where organization_id = p_organization_id
+    and actor_user_id = auth.uid()
+    and idempotency_key = p_idempotency_key;
+  if v_adjustment.id is not null then
+    if v_adjustment.fixture_version_id <> v_fixture.id
+      or v_adjustment.phase_id <> p_phase_id
+      or v_adjustment.group_id is distinct from p_group_id
+      or v_adjustment.participant_id <> p_participant_id
+      or v_adjustment.points <> p_points
+      or v_adjustment.reason <> btrim(p_reason)
+    then
+      raise exception using errcode = '23514', message = 'TORNEOS_IDEMPOTENCY_CONFLICT';
+    end if;
+    return v_adjustment.id;
   end if;
 
   insert into public.tournament_points_adjustments (
@@ -762,12 +806,21 @@ begin
   end if;
   select * into v_adjustment
   from public.tournament_points_adjustments
-  where id = p_adjustment_id for update;
+  where id = p_adjustment_id;
   if v_adjustment.id is null or not public.has_tournament_organization_capability(
     v_adjustment.organization_id, 'standings.override'
   ) then
     raise exception using errcode = '42501', message = 'TORNEOS_STANDINGS_FORBIDDEN';
   end if;
+  perform pg_advisory_xact_lock(hashtextextended(
+    v_adjustment.organization_id::text || ':' || v_adjustment.tournament_id::text || ':'
+    || v_adjustment.category_id::text || ':' || v_adjustment.phase_id::text || ':'
+    || coalesce(v_adjustment.group_id::text, 'all'),
+    0
+  ));
+  select * into strict v_adjustment
+  from public.tournament_points_adjustments
+  where id = p_adjustment_id for update;
   if v_adjustment.status = 'revoked' then return v_adjustment.id; end if;
   if char_length(btrim(coalesce(p_reason, ''))) < 3 then
     raise exception using errcode = '22023', message = 'TORNEOS_STANDINGS_REASON_REQUIRED';
@@ -794,25 +847,171 @@ language sql
 stable
 set search_path = ''
 as $$
+  with fixture_context as (
+    select fixture.*
+    from public.tournament_fixture_versions fixture
+    where fixture.id = p_fixture_version_id
+  ), phase_context as (
+    select phase.*
+    from public.tournament_phases phase
+    where phase.id = p_phase_id
+      and phase.fixture_version_id = p_fixture_version_id
+  ), official_operations as (
+    select match_row.match_number, match_row.phase_id, match_row.group_id,
+      operation.id, operation.match_id, operation.operation_version,
+      operation.official_at, outcome.outcome_type, outcome.events_remain_valid,
+      outcome.counts_for_standings, outcome.counts_for_player_stats,
+      outcome.requires_resolution, outcome.administrative_home_score,
+      outcome.administrative_away_score, outcome.reason_code,
+      score.home_score, score.away_score, score.home_penalties,
+      score.away_penalties, score.score_type
+    from public.tournament_matches match_row
+    join phase_context selected_phase on true
+    join public.tournament_phases match_phase
+      on match_phase.id = match_row.phase_id
+    join public.tournament_match_operations operation
+      on operation.match_id = match_row.id and operation.status = 'official'
+    join public.tournament_match_outcomes outcome
+      on outcome.match_operation_id = operation.id
+    left join public.tournament_match_scores score
+      on score.match_operation_id = operation.id
+    where match_row.fixture_version_id = p_fixture_version_id
+      and (
+        (
+          match_row.phase_id = p_phase_id
+          and match_row.group_id is not distinct from p_group_id
+        )
+        or match_phase.sequence_number < selected_phase.sequence_number
+      )
+  )
   select encode(public.digest(
-    coalesce(string_agg(
-      operation.id::text || ':' || operation.operation_version::text || ':'
-      || operation.official_at::text || ':' || coalesce(score.home_score::text, '-') || ':'
-      || coalesce(score.away_score::text, '-') || ':' || outcome.outcome_type,
-      '|' order by match_row.match_number, operation.id
-    ), 'empty'),
+    jsonb_build_object(
+      'operations', coalesce((
+        select jsonb_agg(jsonb_build_object(
+          'id', operation.id,
+          'matchId', operation.match_id,
+          'matchNumber', operation.match_number,
+          'phaseId', operation.phase_id,
+          'groupId', operation.group_id,
+          'version', operation.operation_version,
+          'officialEpoch', extract(epoch from operation.official_at)::numeric,
+          'outcome', operation.outcome_type,
+          'eventsRemainValid', operation.events_remain_valid,
+          'countsForStandings', operation.counts_for_standings,
+          'countsForPlayerStats', operation.counts_for_player_stats,
+          'requiresResolution', operation.requires_resolution,
+          'administrativeHomeScore', operation.administrative_home_score,
+          'administrativeAwayScore', operation.administrative_away_score,
+          'reasonCode', operation.reason_code,
+          'homeScore', operation.home_score,
+          'awayScore', operation.away_score,
+          'homePenalties', operation.home_penalties,
+          'awayPenalties', operation.away_penalties,
+          'scoreType', operation.score_type
+        ) order by operation.match_number, operation.id)
+        from official_operations operation
+      ), '[]'::jsonb),
+      'operationPlayers', coalesce((
+        select jsonb_agg(jsonb_build_object(
+          'operationId', player.match_operation_id,
+          'rosterPlayerId', player.roster_player_id,
+          'teamEntryId', player.team_entry_id,
+          'lineup', player.lineup_status,
+          'attendance', player.attendance_status,
+          'captain', player.is_captain
+        ) order by player.match_operation_id, player.team_entry_id, player.roster_player_id)
+        from public.tournament_match_operation_players player
+        join official_operations operation
+          on operation.id = player.match_operation_id
+      ), '[]'::jsonb),
+      'events', coalesce((
+        select jsonb_agg(jsonb_build_object(
+          'id', event.id,
+          'operationId', event.match_operation_id,
+          'matchId', event.match_id,
+          'teamEntryId', event.team_entry_id,
+          'rosterPlayerId', event.roster_player_id,
+          'relatedRosterPlayerId', event.related_roster_player_id,
+          'relatedEventId', event.related_event_id,
+          'type', event.event_type,
+          'minute', event.minute,
+          'period', event.period,
+          'sequence', event.sequence_number,
+          'metadata', event.metadata
+        ) order by event.match_operation_id, event.sequence_number, event.id)
+        from public.tournament_match_events event
+        join official_operations operation
+          on operation.id = event.match_operation_id
+        where event.voided_at is null
+      ), '[]'::jsonb),
+      'participants', coalesce((
+        select jsonb_agg(jsonb_build_object(
+          'id', participant.id,
+          'teamEntryId', participant.team_entry_id,
+          'status', participant.status
+        ) order by participant.id)
+        from fixture_context fixture
+        join public.tournament_competition_participants participant
+          on participant.participant_set_id = fixture.participant_set_id
+        where p_group_id is null or exists (
+          select 1
+          from public.tournament_group_members member
+          where member.group_id = p_group_id
+            and member.participant_id = participant.id
+        )
+      ), '[]'::jsonb),
+      'pointsAdjustments', coalesce((
+        select jsonb_agg(jsonb_build_object(
+          'id', adjustment.id,
+          'participantId', adjustment.participant_id,
+          'points', adjustment.points,
+          'status', adjustment.status,
+          'reason', adjustment.reason
+        ) order by adjustment.id)
+        from fixture_context fixture
+        join public.tournament_points_adjustments adjustment
+          on adjustment.fixture_version_id = fixture.id
+        where adjustment.phase_id = p_phase_id
+          and adjustment.group_id is not distinct from p_group_id
+      ), '[]'::jsonb),
+      'disciplinaryOverrides', coalesce((
+        select jsonb_agg(jsonb_build_object(
+          'id', override_row.id,
+          'suspensionId', override_row.suspension_id,
+          'action', override_row.action,
+          'newState', override_row.new_state,
+          'createdEpoch', extract(epoch from override_row.created_at)::numeric
+        ) order by override_row.created_at, override_row.id)
+        from fixture_context fixture
+        join public.tournament_disciplinary_overrides override_row
+          on override_row.organization_id = fixture.organization_id
+          and override_row.tournament_id = fixture.tournament_id
+      ), '[]'::jsonb),
+      'scoring', (
+        select to_jsonb(scoring) - 'created_at' - 'updated_at'
+        from fixture_context fixture
+        join public.tournament_scoring_rules scoring
+          on scoring.tournament_id = fixture.tournament_id
+      ),
+      'tiebreaks', coalesce((
+        select jsonb_agg(jsonb_build_object(
+          'criterion', rule.criterion,
+          'order', rule.sort_order
+        ) order by rule.sort_order, rule.criterion)
+        from fixture_context fixture
+        join public.tournament_tiebreak_rules rule
+          on rule.tournament_id = fixture.tournament_id
+      ), '[]'::jsonb),
+      'discipline', (
+        select to_jsonb(discipline) - 'created_at' - 'updated_at'
+        from fixture_context fixture
+        join public.tournament_discipline_rules discipline
+          on discipline.tournament_id = fixture.tournament_id
+      ),
+      'algorithmVersion', 2
+    )::text,
     'sha256'
-  ), 'hex')
-  from public.tournament_matches match_row
-  join public.tournament_match_operations operation
-    on operation.match_id = match_row.id and operation.status = 'official'
-  join public.tournament_match_outcomes outcome
-    on outcome.match_operation_id = operation.id
-  left join public.tournament_match_scores score
-    on score.match_operation_id = operation.id
-  where match_row.fixture_version_id = p_fixture_version_id
-    and match_row.phase_id = p_phase_id
-    and match_row.group_id is not distinct from p_group_id;
+  ), 'hex');
 $$;
 
 create or replace function public.rank_tournament_standings(p_revision_id uuid)
@@ -830,6 +1029,9 @@ begin
     participant_id uuid primary key,
     rank_key text not null default '',
     criterion_value numeric not null default 0,
+    mini_points numeric not null default 0,
+    mini_goal_difference numeric not null default 0,
+    mini_goals_for numeric not null default 0,
     trace jsonb not null default '{}'::jsonb
   ) on commit drop;
   truncate pg_temp.tournament_rank_work;
@@ -874,15 +1076,21 @@ begin
         select count(distinct rank_key) into v_partitions_before
         from pg_temp.tournament_rank_work;
 
-        update pg_temp.tournament_rank_work set criterion_value = 0;
+        update pg_temp.tournament_rank_work
+        set mini_points = 0, mini_goal_difference = 0, mini_goals_for = 0;
         update pg_temp.tournament_rank_work work
-        set criterion_value = coalesce(
-          mini.points * 1000000 + mini.goal_difference * 1000 + mini.goals_for,
-          0
-        )
+        set mini_points = coalesce(mini.points, 0),
+          mini_goal_difference = coalesce(mini.goal_difference, 0),
+          mini_goals_for = coalesce(mini.goals_for, 0)
         from (
         select team.participant_id,
           sum(case
+            when team.goals_for > team.goals_against
+              and team.outcome_type like 'walkover_%'
+              then coalesce(scoring.points_walkover_win, scoring.points_win)
+            when team.goals_for < team.goals_against
+              and team.outcome_type like 'walkover_%'
+              then coalesce(scoring.points_walkover_loss, scoring.points_loss)
             when team.goals_for > team.goals_against then scoring.points_win
             when team.goals_for = team.goals_against then scoring.points_draw
             else scoring.points_loss
@@ -892,11 +1100,14 @@ begin
         from (
           select home_work.rank_key, match_row.home_participant_id as participant_id,
             score.home_score::integer as goals_for, score.away_score::integer as goals_against,
-            revision.tournament_id
+            revision.tournament_id, outcome.outcome_type
           from public.tournament_standings_revisions revision
           join public.tournament_projection_sources source on source.revision_id = revision.id
           join public.tournament_matches match_row on match_row.id = source.match_id
           join public.tournament_match_scores score on score.match_operation_id = source.match_operation_id
+          join public.tournament_match_outcomes outcome
+            on outcome.match_operation_id = source.match_operation_id
+            and outcome.counts_for_standings
           join pg_temp.tournament_rank_work home_work
             on home_work.participant_id = match_row.home_participant_id
           join pg_temp.tournament_rank_work away_work
@@ -906,11 +1117,14 @@ begin
           union all
           select away_work.rank_key, match_row.away_participant_id,
             score.away_score::integer, score.home_score::integer,
-            revision.tournament_id
+            revision.tournament_id, outcome.outcome_type
           from public.tournament_standings_revisions revision
           join public.tournament_projection_sources source on source.revision_id = revision.id
           join public.tournament_matches match_row on match_row.id = source.match_id
           join public.tournament_match_scores score on score.match_operation_id = source.match_operation_id
+          join public.tournament_match_outcomes outcome
+            on outcome.match_operation_id = source.match_operation_id
+            and outcome.counts_for_standings
           join pg_temp.tournament_rank_work away_work
             on away_work.participant_id = match_row.away_participant_id
           join pg_temp.tournament_rank_work home_work
@@ -924,15 +1138,16 @@ begin
         where mini.participant_id = work.participant_id;
 
         update pg_temp.tournament_rank_work
-        set rank_key = rank_key || ':' ||
-              lpad((1000000000 - criterion_value)::bigint::text, 10, '0'),
+        set rank_key = rank_key || ':'
+              || lpad((1000000000 - mini_points)::bigint::text, 10, '0') || ':'
+              || lpad((1000000000 - mini_goal_difference)::bigint::text, 10, '0') || ':'
+              || lpad((1000000000 - mini_goals_for)::bigint::text, 10, '0'),
           trace = trace || jsonb_build_object(
             'head_to_head_' || v_pass::text,
             jsonb_build_object(
-              'composite', criterion_value,
-              'pointsWeight', 1000000,
-              'goalDifferenceWeight', 1000,
-              'goalsForWeight', 1
+              'points', mini_points,
+              'goalDifference', mini_goal_difference,
+              'goalsFor', mini_goals_for
             )
           );
 
@@ -1010,6 +1225,7 @@ set search_path = ''
 as $$
 declare
   v_revision public.tournament_standings_revisions%rowtype;
+  v_existing_draft public.tournament_standings_revisions%rowtype;
   v_fixture public.tournament_fixture_versions%rowtype;
   v_phase public.tournament_phases%rowtype;
   v_scoring public.tournament_scoring_rules%rowtype;
@@ -1034,7 +1250,13 @@ begin
   where organization_id = p_organization_id
     and calculated_by = auth.uid()
     and idempotency_key = p_idempotency_key;
-  if v_revision.id is not null then return v_revision.id; end if;
+
+  perform pg_advisory_xact_lock(hashtextextended(
+    p_organization_id::text || ':' || p_tournament_id::text || ':'
+    || p_category_id::text || ':' || p_phase_id::text || ':'
+    || coalesce(p_group_id::text, 'all'),
+    0
+  ));
 
   select fixture.* into v_fixture
   from public.tournament_fixture_versions fixture
@@ -1073,34 +1295,118 @@ begin
     raise exception using errcode = '22023', message = 'TORNEOS_STANDINGS_SCOPE_INVALID';
   end if;
 
-  perform pg_advisory_xact_lock(hashtextextended(
-    p_organization_id::text || ':' || p_tournament_id::text || ':'
-    || p_category_id::text || ':' || p_phase_id::text || ':'
-    || coalesce(p_group_id::text, 'all'),
-    0
-  ));
-
-  if exists (
-    select 1 from public.tournament_standings_revisions
-    where fixture_version_id = v_fixture.id and phase_id = p_phase_id
-      and group_id is not distinct from p_group_id and status = 'draft'
-  ) then
-    raise exception using errcode = '55000', message = 'TORNEOS_STANDINGS_DRAFT_EXISTS';
+  if v_revision.id is not null then
+    if v_revision.tournament_id <> p_tournament_id
+      or v_revision.category_id <> p_category_id
+      or v_revision.fixture_version_id <> v_fixture.id
+      or v_revision.phase_id <> p_phase_id
+      or v_revision.group_id is distinct from p_group_id
+      or v_revision.rebuild_reason <> btrim(p_reason)
+    then
+      raise exception using errcode = '23514', message = 'TORNEOS_IDEMPOTENCY_CONFLICT';
+    end if;
+    return v_revision.id;
   end if;
 
   select * into strict v_scoring from public.tournament_scoring_rules
-  where tournament_id = p_tournament_id;
+  where tournament_id = p_tournament_id for share;
   select * into strict v_discipline from public.tournament_discipline_rules
-  where tournament_id = p_tournament_id;
+  where tournament_id = p_tournament_id for share;
+  perform 1
+  from public.tournament_tiebreak_rules rule
+  where rule.tournament_id = p_tournament_id
+  order by rule.sort_order
+  for share;
+
+  perform 1
+  from public.tournament_matches match_row
+  join public.tournament_phases match_phase on match_phase.id = match_row.phase_id
+  join public.tournament_match_operations operation
+    on operation.match_id = match_row.id and operation.status = 'official'
+  join public.tournament_match_outcomes outcome
+    on outcome.match_operation_id = operation.id
+  where match_row.fixture_version_id = v_fixture.id
+    and (
+      (
+        match_row.phase_id = p_phase_id
+        and match_row.group_id is not distinct from p_group_id
+      )
+      or match_phase.sequence_number < v_phase.sequence_number
+    )
+  order by match_row.match_number, operation.id
+  for share of match_row, operation, outcome;
+  perform 1
+  from public.tournament_match_operation_players operation_player
+  join public.tournament_match_operations operation
+    on operation.id = operation_player.match_operation_id
+    and operation.status = 'official'
+  join public.tournament_matches match_row on match_row.id = operation.match_id
+  join public.tournament_phases match_phase on match_phase.id = match_row.phase_id
+  where match_row.fixture_version_id = v_fixture.id
+    and (
+      (
+        match_row.phase_id = p_phase_id
+        and match_row.group_id is not distinct from p_group_id
+      )
+      or match_phase.sequence_number < v_phase.sequence_number
+    )
+  order by operation_player.match_operation_id, operation_player.roster_player_id
+  for share of operation_player;
+  perform 1
+  from public.tournament_match_events event
+  join public.tournament_match_operations operation
+    on operation.id = event.match_operation_id and operation.status = 'official'
+  join public.tournament_matches match_row on match_row.id = operation.match_id
+  join public.tournament_phases match_phase on match_phase.id = match_row.phase_id
+  where match_row.fixture_version_id = v_fixture.id
+    and (
+      (
+        match_row.phase_id = p_phase_id
+        and match_row.group_id is not distinct from p_group_id
+      )
+      or match_phase.sequence_number < v_phase.sequence_number
+    )
+  order by event.match_operation_id, event.sequence_number
+  for share of event;
+  perform 1
+  from public.tournament_points_adjustments adjustment
+  where adjustment.fixture_version_id = v_fixture.id
+    and adjustment.phase_id = p_phase_id
+    and adjustment.group_id is not distinct from p_group_id
+  order by adjustment.id
+  for share;
+
+  v_fingerprint := public.tournament_projection_source_fingerprint(
+    v_fixture.id, p_phase_id, p_group_id
+  );
+
+  select * into v_existing_draft
+  from public.tournament_standings_revisions
+  where fixture_version_id = v_fixture.id and phase_id = p_phase_id
+    and group_id is not distinct from p_group_id and status = 'draft'
+  for update;
+  if v_existing_draft.id is not null then
+    if v_existing_draft.source_fingerprint = v_fingerprint then
+      raise exception using errcode = '55000', message = 'TORNEOS_STANDINGS_DRAFT_EXISTS';
+    end if;
+    update public.tournament_standings_revisions
+    set status = 'discarded', discarded_by = auth.uid(), discarded_at = now(),
+      discard_reason = 'Las fuentes oficiales cambiaron antes de la publicación.'
+    where id = v_existing_draft.id;
+    perform public.append_tournament_audit(
+      p_organization_id, 'standings.discard_stale', 'standings_revision',
+      v_existing_draft.id, null, p_tournament_id,
+      jsonb_build_object(
+        'previousFingerprint', v_existing_draft.source_fingerprint,
+        'currentFingerprint', v_fingerprint
+      )
+    );
+  end if;
 
   select coalesce(max(revision_number), 0) + 1 into v_number
   from public.tournament_standings_revisions
   where fixture_version_id = v_fixture.id and phase_id = p_phase_id
     and group_id is not distinct from p_group_id;
-  v_fingerprint := public.tournament_projection_source_fingerprint(
-    v_fixture.id, p_phase_id, p_group_id
-  );
-
   insert into public.tournament_standings_revisions (
     organization_id, season_id, tournament_id, category_id, fixture_version_id,
     phase_id, group_id, revision_number, source_fingerprint,
@@ -1117,7 +1423,7 @@ begin
         from public.tournament_tiebreak_rules where tournament_id = p_tournament_id
       ), '[]'::jsonb),
       'discipline', to_jsonb(v_discipline) - 'created_at' - 'updated_at',
-      'algorithmVersion', 1
+      'algorithmVersion', 2
     ),
     btrim(p_reason), auth.uid(), p_idempotency_key
   ) returning * into v_revision;
@@ -1178,14 +1484,20 @@ begin
   ), cards as (
     select event.team_entry_id,
       sum(case
-        when event.event_type in ('yellow_card', 'second_yellow')
-          then v_discipline.yellow_fair_play_points
+        when event.event_type = 'yellow_card' then v_discipline.yellow_fair_play_points
+        when event.event_type = 'second_yellow'
+          then case when v_discipline.double_yellow_counts_as_red
+            then v_discipline.red_fair_play_points
+            else v_discipline.yellow_fair_play_points end
         when event.event_type = 'red_card' then v_discipline.red_fair_play_points
         else 0
       end)::integer fair_play
     from public.tournament_projection_sources source
     join public.tournament_match_events event
       on event.match_operation_id = source.match_operation_id and event.voided_at is null
+    join public.tournament_match_outcomes outcome
+      on outcome.match_operation_id = source.match_operation_id
+      and outcome.events_remain_valid
     where source.revision_id = v_revision.id
     group by event.team_entry_id
   ), aggregated as (
@@ -1255,7 +1567,8 @@ begin
         filter (where operation_player.lineup_status = 'substitute'
           and operation_player.attendance_status in ('present', 'late'))::integer substitutes,
       count(distinct operation_player.match_operation_id)
-        filter (where operation_player.is_captain)::integer captaincies
+        filter (where operation_player.is_captain
+          and operation_player.attendance_status in ('present', 'late'))::integer captaincies
     from public.tournament_projection_sources source
     join public.tournament_match_operation_players operation_player
       on operation_player.match_operation_id = source.match_operation_id
@@ -1265,10 +1578,14 @@ begin
     group by operation_player.roster_player_id, operation_player.team_entry_id
   ), events as (
     select event.roster_player_id,
-      count(*) filter (where event.event_type = 'goal')::integer goals,
+      count(*) filter (
+        where event.event_type in ('goal', 'penalty_goal')
+          and not (event.event_type = 'penalty_goal' and event.period = 'penalties')
+      )::integer goals,
       count(*) filter (where event.event_type = 'own_goal')::integer own_goals,
       count(*) filter (where event.event_type = 'assist')::integer assists,
-      count(*) filter (where event.event_type = 'penalty_goal')::integer penalty_goals,
+      count(*) filter (where event.event_type = 'penalty_goal'
+        and event.period <> 'penalties')::integer penalty_goals,
       count(*) filter (where event.event_type = 'penalty_missed')::integer penalties_missed,
       count(*) filter (where event.event_type = 'yellow_card')::integer yellow_cards,
       count(*) filter (where event.event_type = 'second_yellow')::integer second_yellows,
@@ -1279,6 +1596,7 @@ begin
     join public.tournament_match_outcomes outcome
       on outcome.match_operation_id = source.match_operation_id
     where source.revision_id = v_revision.id and outcome.counts_for_player_stats
+      and outcome.events_remain_valid
       and event.roster_player_id is not null
     group by event.roster_player_id
   )
@@ -1305,6 +1623,9 @@ begin
       join public.tournament_match_events event
         on event.match_operation_id = source.match_operation_id
         and event.voided_at is null
+      join public.tournament_match_outcomes outcome
+        on outcome.match_operation_id = source.match_operation_id
+        and outcome.events_remain_valid
       where source.revision_id = v_revision.id
         and event.event_type = 'own_goal'
         and event.team_entry_id = standing.team_entry_id),
@@ -1399,23 +1720,83 @@ begin
   where stats.revision_id = v_revision.id
     and stats.participant_id = summary.participant_id;
 
+  create temporary table if not exists pg_temp.tournament_discipline_event_work (
+    event_id uuid primary key,
+    match_operation_id uuid not null,
+    match_id uuid not null,
+    phase_id uuid not null,
+    phase_sequence integer not null,
+    official_at timestamptz not null,
+    match_number integer not null,
+    team_entry_id uuid not null,
+    roster_player_id uuid not null,
+    event_type text not null,
+    sequence_number integer not null
+  ) on commit drop;
+  truncate pg_temp.tournament_discipline_event_work;
+
+  insert into pg_temp.tournament_discipline_event_work (
+    event_id, match_operation_id, match_id, phase_id, phase_sequence,
+    official_at, match_number, team_entry_id, roster_player_id,
+    event_type, sequence_number
+  )
+  select event.id, operation.id, match_row.id, match_row.phase_id,
+    match_phase.sequence_number, operation.official_at, match_row.match_number,
+    event.team_entry_id, event.roster_player_id, event.event_type,
+    event.sequence_number
+  from public.tournament_matches match_row
+  join public.tournament_phases match_phase on match_phase.id = match_row.phase_id
+  join public.tournament_match_operations operation
+    on operation.match_id = match_row.id and operation.status = 'official'
+  join public.tournament_match_outcomes outcome
+    on outcome.match_operation_id = operation.id and outcome.events_remain_valid
+  join public.tournament_match_events event
+    on event.match_operation_id = operation.id and event.voided_at is null
+  join public.tournament_team_standings current_team
+    on current_team.revision_id = v_revision.id
+    and current_team.team_entry_id = event.team_entry_id
+  where match_row.fixture_version_id = v_fixture.id
+    and match_phase.sequence_number <= v_phase.sequence_number
+    and (
+      not v_discipline.reset_yellows_each_stage
+      or match_row.phase_id = p_phase_id
+    )
+    and (
+      match_row.phase_id <> p_phase_id
+      or match_row.group_id is not distinct from p_group_id
+    )
+    and event.roster_player_id is not null
+    and event.event_type in ('yellow_card', 'second_yellow', 'red_card');
+
   insert into public.tournament_discipline_ledgers (
     revision_id, organization_id, tournament_id, category_id, phase_id, group_id,
     roster_player_id, team_entry_id, yellow_cards, second_yellows, direct_reds,
     fair_play_points, automatic_suspensions
   )
   select v_revision.id, p_organization_id, p_tournament_id, p_category_id,
-    p_phase_id, p_group_id, player.roster_player_id, player.team_entry_id,
-    player.yellow_cards, player.second_yellows, player.red_cards,
-    player.yellow_cards * v_discipline.yellow_fair_play_points
-      + (player.second_yellows + player.red_cards) * v_discipline.red_fair_play_points,
-    floor(player.yellow_cards::numeric / v_discipline.yellows_for_suspension)::integer
-      + player.red_cards
+    p_phase_id, p_group_id, event.roster_player_id, event.team_entry_id,
+    count(*) filter (where event.event_type = 'yellow_card')::integer,
+    count(*) filter (where event.event_type = 'second_yellow')::integer,
+    count(*) filter (where event.event_type = 'red_card')::integer,
+    (
+      count(*) filter (where event.event_type = 'yellow_card')
+        * v_discipline.yellow_fair_play_points
+      + count(*) filter (where event.event_type = 'second_yellow')
+        * case when v_discipline.double_yellow_counts_as_red
+          then v_discipline.red_fair_play_points
+          else v_discipline.yellow_fair_play_points end
+      + count(*) filter (where event.event_type = 'red_card')
+        * v_discipline.red_fair_play_points
+    )::integer,
+    floor((
+      count(*) filter (where event.event_type = 'yellow_card')
+    )::numeric / v_discipline.yellows_for_suspension)::integer
+      + count(*) filter (where event.event_type = 'red_card')::integer
       + case when v_discipline.double_yellow_counts_as_red
-        then player.second_yellows else 0 end
-  from public.tournament_player_statistics player
-  where player.revision_id = v_revision.id
-    and (player.yellow_cards + player.second_yellows + player.red_cards) > 0;
+        then count(*) filter (where event.event_type = 'second_yellow')::integer
+        else 0 end
+  from pg_temp.tournament_discipline_event_work event
+  group by event.roster_player_id, event.team_entry_id;
 
   insert into public.tournament_player_suspensions (
     revision_id, organization_id, tournament_id, category_id, phase_id, group_id,
@@ -1423,19 +1804,30 @@ begin
     source_match_id, rule_snapshot, total_matches, reason
   )
   select v_revision.id, p_organization_id, p_tournament_id, p_category_id,
-    p_phase_id, p_group_id, ledger.roster_player_id, ledger.team_entry_id,
-    'yellow_accumulation', 'yellow-' || series.number::text, null, null,
+    p_phase_id, p_group_id, threshold_event.roster_player_id,
+    threshold_event.team_entry_id,
+    'yellow_accumulation', 'yellow:' || threshold_event.event_id::text,
+    threshold_event.event_id, threshold_event.match_id,
     jsonb_build_object(
       'threshold', v_discipline.yellows_for_suspension,
-      'matches', v_discipline.suspension_matches
+      'matches', v_discipline.suspension_matches,
+      'yellowNumber', threshold_event.yellow_number,
+      'resetEachStage', v_discipline.reset_yellows_each_stage
     ),
     v_discipline.suspension_matches,
     'Acumulación de ' || v_discipline.yellows_for_suspension::text || ' amarillas'
-  from public.tournament_discipline_ledgers ledger
-  cross join lateral generate_series(
-    1, floor(ledger.yellow_cards::numeric / v_discipline.yellows_for_suspension)::integer
-  ) series(number)
-  where ledger.revision_id = v_revision.id;
+  from (
+    select yellow_event.*,
+      row_number() over (
+        partition by yellow_event.roster_player_id
+        order by yellow_event.phase_sequence, yellow_event.official_at,
+          yellow_event.match_number, yellow_event.sequence_number, yellow_event.event_id
+      )::integer yellow_number
+    from pg_temp.tournament_discipline_event_work yellow_event
+    where yellow_event.event_type = 'yellow_card'
+  ) threshold_event
+  where threshold_event.phase_id = p_phase_id
+    and threshold_event.yellow_number % v_discipline.yellows_for_suspension = 0;
 
   insert into public.tournament_player_suspensions (
     revision_id, organization_id, tournament_id, category_id, phase_id, group_id,
@@ -1447,7 +1839,7 @@ begin
     case when event.event_type = 'red_card' then 'direct_red' else 'second_yellow' end,
     event.match_id::text || ':' || event.event_type || ':' ||
       event.sequence_number::text,
-    event.id, event.match_id,
+    event.event_id, event.match_id,
     jsonb_build_object(
       'eventType', event.event_type,
       'matches', case when event.event_type = 'red_card'
@@ -1458,14 +1850,18 @@ begin
       then coalesce(v_discipline.direct_red_suggested_matches, v_discipline.suspension_matches)
       else v_discipline.suspension_matches end,
     case when event.event_type = 'red_card' then 'Roja directa' else 'Segunda amarilla' end
-  from public.tournament_projection_sources source
-  join public.tournament_match_events event
-    on event.match_operation_id = source.match_operation_id and event.voided_at is null
-  where source.revision_id = v_revision.id
+  from pg_temp.tournament_discipline_event_work event
+  where event.phase_id = p_phase_id
     and (
       event.event_type = 'red_card'
       or (event.event_type = 'second_yellow' and v_discipline.double_yellow_counts_as_red)
     );
+
+  if v_fingerprint <> public.tournament_projection_source_fingerprint(
+    v_fixture.id, p_phase_id, p_group_id
+  ) then
+    raise exception using errcode = '40001', message = 'TORNEOS_STANDINGS_SOURCES_CHANGED';
+  end if;
 
   perform public.append_tournament_audit(
     p_organization_id, 'standings.rebuild', 'standings_revision',
@@ -1516,12 +1912,20 @@ begin
     raise exception using errcode = '42501', message = 'TORNEOS_AUTH_REQUIRED';
   end if;
   select * into v_revision from public.tournament_standings_revisions
-  where id = p_revision_id for update;
+  where id = p_revision_id;
   if v_revision.id is null or not public.has_tournament_organization_capability(
     v_revision.organization_id, 'standings.publish'
   ) then
     raise exception using errcode = '42501', message = 'TORNEOS_STANDINGS_FORBIDDEN';
   end if;
+  perform pg_advisory_xact_lock(hashtextextended(
+    v_revision.organization_id::text || ':' || v_revision.tournament_id::text || ':'
+    || v_revision.category_id::text || ':' || v_revision.phase_id::text || ':'
+    || coalesce(v_revision.group_id::text, 'all'),
+    0
+  ));
+  select * into strict v_revision from public.tournament_standings_revisions
+  where id = p_revision_id for update;
   if v_revision.status <> 'draft' then
     if v_revision.status = 'published' then return v_revision.id; end if;
     raise exception using errcode = '55000', message = 'TORNEOS_STANDINGS_NOT_PUBLISHABLE';
@@ -1529,11 +1933,83 @@ begin
   if char_length(btrim(coalesce(p_reason, ''))) < 3 then
     raise exception using errcode = '22023', message = 'TORNEOS_STANDINGS_REASON_REQUIRED';
   end if;
+  perform 1
+  from public.tournament_fixture_versions fixture
+  join public.tournaments tournament
+    on tournament.id = fixture.tournament_id
+    and tournament.organization_id = fixture.organization_id
+  join public.tournament_categories category
+    on category.id = fixture.category_id
+    and category.organization_id = fixture.organization_id
+  where fixture.id = v_revision.fixture_version_id
+    and fixture.status = 'published'
+    and tournament.status <> 'archived'
+    and category.status = 'active'
+  for share of fixture, tournament, category;
+  if not found then
+    raise exception using errcode = '55000', message = 'TORNEOS_STANDINGS_NOT_PUBLISHABLE';
+  end if;
+  perform 1
+  from public.tournament_matches match_row
+  join public.tournament_phases match_phase on match_phase.id = match_row.phase_id
+  join public.tournament_phases selected_phase on selected_phase.id = v_revision.phase_id
+  join public.tournament_match_operations operation
+    on operation.match_id = match_row.id and operation.status = 'official'
+  join public.tournament_match_outcomes outcome
+    on outcome.match_operation_id = operation.id
+  where match_row.fixture_version_id = v_revision.fixture_version_id
+    and (
+      (
+        match_row.phase_id = v_revision.phase_id
+        and match_row.group_id is not distinct from v_revision.group_id
+      )
+      or match_phase.sequence_number < selected_phase.sequence_number
+    )
+  order by match_row.match_number, operation.id
+  for share of match_row, operation, outcome;
+  perform 1
+  from public.tournament_points_adjustments adjustment
+  where adjustment.fixture_version_id = v_revision.fixture_version_id
+    and adjustment.phase_id = v_revision.phase_id
+    and adjustment.group_id is not distinct from v_revision.group_id
+  order by adjustment.id
+  for share;
   if v_revision.source_fingerprint <> public.tournament_projection_source_fingerprint(
     v_revision.fixture_version_id, v_revision.phase_id, v_revision.group_id
   ) then
     raise exception using errcode = '55000', message = 'TORNEOS_STANDINGS_STALE';
   end if;
+
+  with effective_override as (
+    select distinct on (current_suspension.id)
+      current_suspension.id current_suspension_id,
+      override_row.action,
+      (override_row.new_state->>'totalMatches')::integer total_matches
+    from public.tournament_player_suspensions current_suspension
+    join public.tournament_player_suspensions previous_suspension
+      on previous_suspension.organization_id = current_suspension.organization_id
+      and previous_suspension.tournament_id = current_suspension.tournament_id
+      and previous_suspension.category_id = current_suspension.category_id
+      and previous_suspension.roster_player_id = current_suspension.roster_player_id
+      and previous_suspension.source_type = current_suspension.source_type
+      and previous_suspension.source_key = current_suspension.source_key
+      and previous_suspension.revision_id <> current_suspension.revision_id
+    join public.tournament_standings_revisions previous_revision
+      on previous_revision.id = previous_suspension.revision_id
+      and previous_revision.status in ('published', 'superseded')
+    join public.tournament_disciplinary_overrides override_row
+      on override_row.suspension_id = previous_suspension.id
+    where current_suspension.revision_id = v_revision.id
+      and current_suspension.status = 'pending'
+    order by current_suspension.id, override_row.created_at desc, override_row.id desc
+  )
+  update public.tournament_player_suspensions suspension
+  set total_matches = effective_override.total_matches,
+    status = case when effective_override.action = 'revoke'
+      then 'revoked' else 'pending' end,
+    updated_at = now()
+  from effective_override
+  where suspension.id = effective_override.current_suspension_id;
 
   update public.tournament_standings_revisions
   set status = 'superseded', superseded_at = now()
@@ -1552,22 +2028,21 @@ begin
     and revision.status = 'superseded'
     and suspension.status in ('active', 'reduced');
 
-  with transferable as (
-    select current_suspension.id current_suspension_id,
+  with served_history as (
+    select distinct on (current_suspension.id, served.match_id)
+      current_suspension.id current_suspension_id,
       served.organization_id, served.match_id, served.marked_by,
       served.marked_at, served.note,
-      row_number() over (
-        partition by current_suspension.id order by served.marked_at, served.match_id
-      ) served_order,
       current_suspension.total_matches
     from public.tournament_player_suspensions current_suspension
     join public.tournament_player_suspensions previous_suspension
       on previous_suspension.organization_id = current_suspension.organization_id
       and previous_suspension.tournament_id = current_suspension.tournament_id
+      and previous_suspension.category_id = current_suspension.category_id
       and previous_suspension.roster_player_id = current_suspension.roster_player_id
       and previous_suspension.source_type = current_suspension.source_type
       and previous_suspension.source_key = current_suspension.source_key
-      and previous_suspension.status in ('superseded', 'served')
+      and previous_suspension.revision_id <> current_suspension.revision_id
     join public.tournament_standings_revisions previous_revision
       on previous_revision.id = previous_suspension.revision_id
       and previous_revision.status = 'superseded'
@@ -1575,6 +2050,14 @@ begin
       on served.suspension_id = previous_suspension.id
     where current_suspension.revision_id = v_revision.id
       and current_suspension.status = 'pending'
+    order by current_suspension.id, served.match_id, served.marked_at, previous_suspension.id
+  ), transferable as (
+    select served_history.*,
+      row_number() over (
+        partition by served_history.current_suspension_id
+        order by served_history.marked_at, served_history.match_id
+      ) served_order
+    from served_history
   )
   insert into public.tournament_suspension_served_matches (
     suspension_id, organization_id, match_id, marked_by, marked_at, note
@@ -1647,16 +2130,31 @@ begin
   if char_length(btrim(coalesce(p_reason, ''))) < 3 then
     raise exception using errcode = '22023', message = 'TORNEOS_QUALIFICATION_REASON_REQUIRED';
   end if;
+  perform pg_advisory_xact_lock(hashtextextended(
+    v_revision.organization_id::text || ':' || v_revision.tournament_id::text || ':'
+    || v_revision.category_id::text || ':' || v_revision.phase_id::text || ':'
+    || coalesce(v_revision.group_id::text, 'all'),
+    0
+  ));
   if exists (
     select 1 from public.tournament_matches match_row
     where match_row.fixture_version_id = v_revision.fixture_version_id
       and match_row.phase_id = v_revision.phase_id
       and match_row.group_id is not distinct from v_revision.group_id
-      and match_row.home_participant_id is not null
-      and match_row.away_participant_id is not null
-      and not exists (
-        select 1 from public.tournament_match_operations operation
-        where operation.match_id = match_row.id and operation.status = 'official'
+      and match_row.status <> 'cancelled'
+      and (
+        match_row.home_participant_id is null
+        or match_row.away_participant_id is null
+        or not exists (
+          select 1
+          from public.tournament_match_operations operation
+          join public.tournament_match_outcomes outcome
+            on outcome.match_operation_id = operation.id
+            and outcome.counts_for_standings
+            and not outcome.requires_resolution
+          where operation.match_id = match_row.id
+            and operation.status = 'official'
+        )
       )
   ) or exists (
     select 1 from public.tournament_match_outcomes outcome
@@ -1716,13 +2214,29 @@ begin
       select case
         when v_source.source_type = 'winner_of_match' then
           case when score.home_score > score.away_score
+              or (
+                score.home_score = score.away_score
+                and score.home_penalties > score.away_penalties
+              )
             then source_match.home_participant_id
             when score.away_score > score.home_score
+              or (
+                score.home_score = score.away_score
+                and score.away_penalties > score.home_penalties
+              )
             then source_match.away_participant_id end
         else
           case when score.home_score < score.away_score
+              or (
+                score.home_score = score.away_score
+                and score.home_penalties < score.away_penalties
+              )
             then source_match.home_participant_id
             when score.away_score < score.home_score
+              or (
+                score.home_score = score.away_score
+                and score.away_penalties < score.home_penalties
+              )
             then source_match.away_participant_id end
         end
       into v_participant
@@ -1765,6 +2279,15 @@ begin
     from public.tournament_matches match_row
     where match_row.id = v_source.match_id
     for update;
+
+    if exists (
+      select 1
+      from public.tournament_qualification_resolutions resolution
+      where resolution.slot_id = v_slot.id
+        and resolution.status = 'manual'
+    ) then
+      raise exception using errcode = '55000', message = 'TORNEOS_QUALIFICATION_MANUAL_LOCKED';
+    end if;
 
     if v_existing is not null and v_existing <> v_participant and exists (
       select 1 from public.tournament_match_operations operation
@@ -1843,14 +2366,15 @@ begin
   if auth.uid() is null then
     raise exception using errcode = '42501', message = 'TORNEOS_AUTH_REQUIRED';
   end if;
-  select * into v_override from public.tournament_disciplinary_overrides
-  where actor_user_id = auth.uid() and idempotency_key = p_idempotency_key;
-  if v_override.id is not null then return v_override.id; end if;
-
   select * into v_suspension from public.tournament_player_suspensions
-  where id = p_suspension_id for update;
+  where id = p_suspension_id;
   if v_suspension.id is null or not public.has_tournament_organization_capability(
     v_suspension.organization_id, 'discipline.override'
+  ) or not exists (
+    select 1
+    from public.tournament_standings_revisions revision
+    where revision.id = v_suspension.revision_id
+      and revision.status = 'published'
   ) then
     raise exception using errcode = '42501', message = 'TORNEOS_DISCIPLINE_FORBIDDEN';
   end if;
@@ -1859,6 +2383,46 @@ begin
     or p_idempotency_key is null
   then
     raise exception using errcode = '22023', message = 'TORNEOS_DISCIPLINE_OVERRIDE_INVALID';
+  end if;
+  perform pg_advisory_xact_lock(hashtextextended(
+    v_suspension.organization_id::text || ':' || v_suspension.tournament_id::text || ':'
+    || v_suspension.category_id::text || ':' || v_suspension.phase_id::text || ':'
+    || coalesce(v_suspension.group_id::text, 'all'),
+    0
+  ));
+  select * into strict v_suspension from public.tournament_player_suspensions
+  where id = p_suspension_id for update;
+  if not exists (
+    select 1
+    from public.tournament_standings_revisions revision
+    where revision.id = v_suspension.revision_id
+      and revision.status = 'published'
+  ) then
+    raise exception using errcode = '42501', message = 'TORNEOS_DISCIPLINE_FORBIDDEN';
+  end if;
+  select * into v_override from public.tournament_disciplinary_overrides
+  where organization_id = v_suspension.organization_id
+    and actor_user_id = auth.uid()
+    and idempotency_key = p_idempotency_key;
+  if v_override.id is not null then
+    if v_override.suspension_id <> p_suspension_id
+      or v_override.action <> p_action
+      or v_override.reason <> btrim(p_reason)
+      or (
+        p_action = 'reduce'
+        and (v_override.new_state->>'totalMatches')::integer <> p_matches
+      )
+      or (
+        p_action = 'add_match'
+        and (
+          (v_override.new_state->>'totalMatches')::integer
+          - (v_override.previous_state->>'totalMatches')::integer
+        ) <> p_matches
+      )
+    then
+      raise exception using errcode = '23514', message = 'TORNEOS_IDEMPOTENCY_CONFLICT';
+    end if;
+    return v_override.id;
   end if;
   v_previous := jsonb_build_object(
     'status', v_suspension.status, 'totalMatches', v_suspension.total_matches,
@@ -1935,12 +2499,20 @@ begin
     raise exception using errcode = '42501', message = 'TORNEOS_AUTH_REQUIRED';
   end if;
   select * into v_suspension from public.tournament_player_suspensions
-  where id = p_suspension_id for update;
+  where id = p_suspension_id;
   if v_suspension.id is null or not public.has_tournament_organization_capability(
     v_suspension.organization_id, 'suspensions.mark_served'
   ) then
     raise exception using errcode = '42501', message = 'TORNEOS_DISCIPLINE_FORBIDDEN';
   end if;
+  perform pg_advisory_xact_lock(hashtextextended(
+    v_suspension.organization_id::text || ':' || v_suspension.tournament_id::text || ':'
+    || v_suspension.category_id::text || ':' || v_suspension.phase_id::text || ':'
+    || coalesce(v_suspension.group_id::text, 'all'),
+    0
+  ));
+  select * into strict v_suspension from public.tournament_player_suspensions
+  where id = p_suspension_id for update;
   if v_suspension.status not in ('active', 'reduced') then
     if v_suspension.status = 'served' then return v_suspension.id; end if;
     raise exception using errcode = '55000', message = 'TORNEOS_SUSPENSION_NOT_ACTIVE';
@@ -1954,6 +2526,9 @@ begin
       on away.id = match_row.away_participant_id
     join public.tournament_match_operations operation
       on operation.match_id = match_row.id and operation.status = 'official'
+    join public.tournament_match_outcomes outcome
+      on outcome.match_operation_id = operation.id
+      and outcome.counts_for_standings
     where match_row.id = p_match_id
       and match_row.organization_id = v_suspension.organization_id
       and match_row.tournament_id = v_suspension.tournament_id
@@ -1976,7 +2551,7 @@ begin
         select 1 from public.tournament_match_operation_players operation_player
         where operation_player.match_operation_id = operation.id
           and operation_player.roster_player_id = v_suspension.roster_player_id
-          and operation_player.attendance_status in ('present', 'late')
+          and operation_player.attendance_status not in ('absent', 'excused')
       )
   ) then
     raise exception using errcode = '22023', message = 'TORNEOS_SUSPENSION_MATCH_INVALID';
@@ -2028,6 +2603,13 @@ declare
 begin
   if auth.uid() is null or not public.can_read_tournament_projection_scope(
     p_organization_id, p_tournament_id
+  ) or not exists (
+    select 1
+    from public.tournament_categories category
+    where category.id = p_category_id
+      and category.organization_id = p_organization_id
+      and category.tournament_id = p_tournament_id
+      and category.status = 'active'
   ) then
     raise exception using errcode = '42501', message = 'TORNEOS_STANDINGS_FORBIDDEN';
   end if;
@@ -2045,12 +2627,20 @@ begin
 
   return jsonb_build_object(
     'canManage', v_can_manage,
-    'revision', case when v_revision.id is null then null else jsonb_build_object(
-      'id', v_revision.id, 'number', v_revision.revision_number,
-      'status', v_revision.status, 'calculatedAt', v_revision.calculated_at,
-      'publishedAt', v_revision.published_at, 'reason', v_revision.rebuild_reason,
-      'sourceFingerprint', v_revision.source_fingerprint
-    ) end,
+    'revision', case
+      when v_revision.id is null then null
+      when v_can_manage then jsonb_build_object(
+        'id', v_revision.id, 'number', v_revision.revision_number,
+        'status', v_revision.status, 'calculatedAt', v_revision.calculated_at,
+        'publishedAt', v_revision.published_at, 'reason', v_revision.rebuild_reason,
+        'sourceFingerprint', v_revision.source_fingerprint
+      )
+      else jsonb_build_object(
+        'id', v_revision.id, 'number', v_revision.revision_number,
+        'status', v_revision.status, 'calculatedAt', v_revision.calculated_at,
+        'publishedAt', v_revision.published_at
+      )
+    end,
     'standings', coalesce((
       select jsonb_agg(jsonb_build_object(
         'position', standing.position, 'participantId', standing.participant_id,
@@ -2096,6 +2686,13 @@ declare
 begin
   if auth.uid() is null or not public.can_read_tournament_projection_scope(
     p_organization_id, p_tournament_id
+  ) or not exists (
+    select 1
+    from public.tournament_categories category
+    where category.id = p_category_id
+      and category.organization_id = p_organization_id
+      and category.tournament_id = p_tournament_id
+      and category.status = 'active'
   ) then
     raise exception using errcode = '42501', message = 'TORNEOS_STATISTICS_FORBIDDEN';
   end if;
@@ -2195,10 +2792,15 @@ begin
     ) order by revision.published_at desc)
     from public.tournament_player_statistics stats
     join public.tournament_roster_players player
-      on player.id = stats.roster_player_id and player.arma2_user_id = auth.uid()
+      on player.id = stats.roster_player_id
+      and player.arma2_user_id = auth.uid()
+      and player.status = 'active'
     join public.tournament_standings_revisions revision
       on revision.id = stats.revision_id and revision.status = 'published'
     where stats.tournament_id = p_tournament_id
+      and public.can_read_tournament_projection_scope(
+        revision.organization_id, revision.tournament_id
+      )
   ), '[]'::jsonb);
 end;
 $$;
@@ -2230,11 +2832,16 @@ begin
     ) order by suspension.created_at desc)
     from public.tournament_player_suspensions suspension
     join public.tournament_roster_players player
-      on player.id = suspension.roster_player_id and player.arma2_user_id = auth.uid()
+      on player.id = suspension.roster_player_id
+      and player.arma2_user_id = auth.uid()
+      and player.status = 'active'
     join public.tournament_standings_revisions revision
       on revision.id = suspension.revision_id and revision.status = 'published'
     where suspension.tournament_id = p_tournament_id
       and suspension.status <> 'superseded'
+      and public.can_read_tournament_projection_scope(
+        revision.organization_id, revision.tournament_id
+      )
   ), '[]'::jsonb);
 end;
 $$;
@@ -2259,18 +2866,136 @@ set search_path = ''
 as $$
 declare
   v_match_id uuid;
+  v_team_entry_id uuid;
 begin
-  select squad.match_id into v_match_id
+  if new.callup_status <> 'called_up' then
+    return new;
+  end if;
+  select squad.match_id, squad.team_entry_id into v_match_id, v_team_entry_id
   from public.tournament_match_squads squad where squad.id = new.match_squad_id;
   if exists (
     select 1
     from public.tournament_player_suspensions suspension
     join public.tournament_standings_revisions revision
       on revision.id = suspension.revision_id and revision.status = 'published'
+    join public.tournament_matches match_row on match_row.id = v_match_id
     where suspension.roster_player_id = new.roster_player_id
+      and suspension.organization_id = new.organization_id
+      and suspension.tournament_id = match_row.tournament_id
+      and suspension.category_id = match_row.category_id
+      and suspension.team_entry_id = v_team_entry_id
       and suspension.status in ('active', 'reduced')
       and suspension.served_matches < suspension.total_matches
+      and (
+        suspension.source_match_id is null
+        or exists (
+          select 1
+          from public.tournament_matches source_match
+          join public.tournament_phases source_phase on source_phase.id = source_match.phase_id
+          join public.tournament_phases target_phase on target_phase.id = match_row.phase_id
+          where source_match.id = suspension.source_match_id
+            and (
+              target_phase.sequence_number > source_phase.sequence_number
+              or (
+                target_phase.sequence_number = source_phase.sequence_number
+                and match_row.match_number > source_match.match_number
+              )
+            )
+        )
+      )
   ) then
+    raise exception using errcode = '42501', message = 'TORNEOS_PLAYER_SUSPENDED';
+  end if;
+  return new;
+end;
+$$;
+
+create or replace function public.reject_suspended_tournament_operation_player()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if exists (
+    select 1
+    from public.tournament_player_suspensions suspension
+    join public.tournament_standings_revisions revision
+      on revision.id = suspension.revision_id and revision.status = 'published'
+    join public.tournament_matches match_row on match_row.id = new.match_id
+    where suspension.roster_player_id = new.roster_player_id
+      and suspension.organization_id = new.organization_id
+      and suspension.tournament_id = match_row.tournament_id
+      and suspension.category_id = match_row.category_id
+      and suspension.team_entry_id = new.team_entry_id
+      and suspension.status in ('active', 'reduced')
+      and suspension.served_matches < suspension.total_matches
+      and (
+        suspension.source_match_id is null
+        or exists (
+          select 1
+          from public.tournament_matches source_match
+          join public.tournament_phases source_phase on source_phase.id = source_match.phase_id
+          join public.tournament_phases target_phase on target_phase.id = match_row.phase_id
+          where source_match.id = suspension.source_match_id
+            and (
+              target_phase.sequence_number > source_phase.sequence_number
+              or (
+                target_phase.sequence_number = source_phase.sequence_number
+                and match_row.match_number > source_match.match_number
+              )
+            )
+        )
+      )
+  ) then
+    raise exception using errcode = '42501', message = 'TORNEOS_PLAYER_SUSPENDED';
+  end if;
+  return new;
+end;
+$$;
+
+create or replace function public.reject_suspended_tournament_squad_submission()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if new.status in ('submitted', 'locked')
+    and new.status is distinct from old.status
+    and exists (
+      select 1
+      from public.tournament_match_squad_players squad_player
+      join public.tournament_player_suspensions suspension
+        on suspension.roster_player_id = squad_player.roster_player_id
+        and suspension.organization_id = squad_player.organization_id
+        and suspension.team_entry_id = squad_player.team_entry_id
+      join public.tournament_standings_revisions revision
+        on revision.id = suspension.revision_id and revision.status = 'published'
+      join public.tournament_matches match_row on match_row.id = new.match_id
+      where squad_player.match_squad_id = new.id
+        and squad_player.callup_status = 'called_up'
+        and suspension.tournament_id = match_row.tournament_id
+        and suspension.category_id = match_row.category_id
+        and suspension.status in ('active', 'reduced')
+        and suspension.served_matches < suspension.total_matches
+        and (
+          suspension.source_match_id is null
+          or exists (
+            select 1
+            from public.tournament_matches source_match
+            join public.tournament_phases source_phase on source_phase.id = source_match.phase_id
+            join public.tournament_phases target_phase on target_phase.id = match_row.phase_id
+            where source_match.id = suspension.source_match_id
+              and (
+                target_phase.sequence_number > source_phase.sequence_number
+                or (
+                  target_phase.sequence_number = source_phase.sequence_number
+                  and match_row.match_number > source_match.match_number
+                )
+              )
+          )
+        )
+    )
+  then
     raise exception using errcode = '42501', message = 'TORNEOS_PLAYER_SUSPENDED';
   end if;
   return new;
@@ -2295,6 +3020,12 @@ for each row execute function public.reject_tournament_projection_mutation();
 create trigger tournament_squad_player_suspension_guard
 before insert or update on public.tournament_match_squad_players
 for each row execute function public.reject_suspended_tournament_squad_player();
+create trigger tournament_operation_player_suspension_guard
+before insert or update on public.tournament_match_operation_players
+for each row execute function public.reject_suspended_tournament_operation_player();
+create trigger tournament_squad_submission_suspension_guard
+before update on public.tournament_match_squads
+for each row execute function public.reject_suspended_tournament_squad_submission();
 
 alter table public.tournament_standings_revisions enable row level security;
 alter table public.tournament_projection_sources enable row level security;
@@ -2312,7 +3043,7 @@ alter table public.tournament_qualification_resolutions enable row level securit
 create policy tournament_standings_revisions_select_scope
 on public.tournament_standings_revisions for select to authenticated
 using (
-  public.can_read_tournament_projection_scope(organization_id, tournament_id)
+  public.has_tournament_organization_capability(organization_id, 'standings.rebuild')
   and (
     status = 'published'
     or public.has_tournament_organization_capability(organization_id, 'standings.rebuild')
@@ -2324,12 +3055,8 @@ using (exists (
   select 1 from public.tournament_standings_revisions revision
   where revision.id = revision_id
     and revision.organization_id = organization_id
-    and (
-      revision.status = 'published'
-      or public.has_tournament_organization_capability(organization_id, 'standings.rebuild')
-    )
-    and public.can_read_tournament_projection_scope(
-      revision.organization_id, revision.tournament_id
+    and public.has_tournament_organization_capability(
+      organization_id, 'standings.rebuild'
     )
 ));
 create policy tournament_team_standings_select_scope
@@ -2387,8 +3114,8 @@ using (exists (
   select 1 from public.tournament_standings_revisions revision
   where revision.id = revision_id and revision.organization_id = organization_id
     and revision.status = 'published'
-    and public.can_read_tournament_projection_scope(
-      revision.organization_id, revision.tournament_id
+    and public.has_tournament_organization_capability(
+      revision.organization_id, 'discipline.read'
     )
 ));
 create policy tournament_suspension_served_matches_select_scope
@@ -2396,8 +3123,8 @@ on public.tournament_suspension_served_matches for select to authenticated
 using (exists (
   select 1 from public.tournament_player_suspensions suspension
   where suspension.id = suspension_id and suspension.organization_id = organization_id
-    and public.can_read_tournament_projection_scope(
-      suspension.organization_id, suspension.tournament_id
+    and public.has_tournament_organization_capability(
+      suspension.organization_id, 'suspensions.read'
     )
 ));
 create policy tournament_disciplinary_overrides_select_manage
@@ -2408,15 +3135,13 @@ on public.tournament_points_adjustments for select to authenticated
 using (public.has_tournament_organization_capability(organization_id, 'standings.override'));
 create policy tournament_qualification_slots_select_scope
 on public.tournament_qualification_slots for select to authenticated
-using (public.can_read_tournament_projection_scope(organization_id, tournament_id));
+using (public.has_tournament_organization_capability(
+  organization_id, 'qualification.read'
+));
 create policy tournament_qualification_resolutions_select_scope
 on public.tournament_qualification_resolutions for select to authenticated
 using (
-  (
-    status <> 'blocked'
-    and public.can_read_tournament_projection_scope(organization_id, tournament_id)
-  )
-  or public.has_tournament_organization_capability(organization_id, 'qualification.resolve')
+  public.has_tournament_organization_capability(organization_id, 'qualification.read')
 );
 
 revoke all on table public.tournament_standings_revisions from anon, authenticated;
@@ -2465,6 +3190,10 @@ revoke all on function public.revoke_tournament_points_adjustment(uuid, text)
   from public, anon;
 revoke all on function public.reject_tournament_projection_mutation() from public, anon, authenticated;
 revoke all on function public.reject_suspended_tournament_squad_player() from public, anon, authenticated;
+revoke all on function public.reject_suspended_tournament_operation_player()
+  from public, anon, authenticated;
+revoke all on function public.reject_suspended_tournament_squad_submission()
+  from public, anon, authenticated;
 
 grant execute on function public.can_read_tournament_projection_scope(uuid, uuid) to authenticated;
 grant execute on function public.rebuild_tournament_standings(uuid, uuid, uuid, uuid, uuid, text, uuid) to authenticated;
