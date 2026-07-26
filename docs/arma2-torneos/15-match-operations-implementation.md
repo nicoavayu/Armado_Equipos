@@ -54,8 +54,8 @@ La operación usa estados:
 
 ```text
 draft → submitted → under_review → validated → official
-official → correction_requested → nueva draft → … → official
-                                      └─ versión anterior → superseded
+official ── revisión de corrección abierta ──→ nueva draft → … → official
+    └──────────────── visible hasta el reemplazo atómico ─────→ superseded
 draft/submitted/review → voided
 ```
 
@@ -91,11 +91,13 @@ separados; el usuario que presentó no puede validar. Oficializar vuelve a
 ejecutar la validación, toma lock y rechaza revisiones incompatibles. No calcula
 derivados.
 
-Una oficial es inmutable. Solicitar corrección invalida temporalmente su
-oficialidad, abre una revisión y permite clonar exactamente una versión. La
-nueva copia snapshots, outcome, score y eventos vigentes; las referencias de
-asistencias se reconstruyen hacia los eventos clonados. Al oficializar la
-corrección, la fuente queda `superseded`.
+Una oficial es inmutable. Solicitar corrección mantiene vigente y visible esa
+oficial, abre una revisión y permite clonar exactamente una versión. La nueva
+copia snapshots, outcome, score y eventos vigentes; las referencias de
+asistencias y sustituciones se reconstruyen hacia los eventos clonados. Al
+oficializar la corrección, una única transacción resuelve la revisión, cambia
+la fuente a `superseded` y publica la nueva versión. Nunca hay un intervalo sin
+resultado oficial ni dos oficiales activas.
 
 ## RLS, capabilities y RPCs
 
@@ -111,10 +113,12 @@ Owner/Admin operan por capabilities `match_operations.*`, `match_squads.*`,
 lee. Captain/delegate y jugador se autorizan por relación, sin recibir
 membership organizacional.
 
-Las RPCs cubren listas de jugador/capitán, disponibilidad propia/manual,
+Las RPCs cliente cubren listas de jugador/capitán, disponibilidad propia/manual,
 contextos, guardar/presentar convocatoria, abrir/guardar acta, outcome, score,
-eventos, reanudación, presentación, revisión, validación, oficialización,
-corrección y anulación. Ninguna RPC gigante concentra todo el flujo.
+eventos, presentación, revisión, validación, oficialización, corrección y
+anulación. La función de reanudación queda revocada a `authenticated` hasta que
+esa fase tenga contrato y UI completos. Ninguna RPC gigante concentra todo el
+flujo.
 
 ## Auditoría
 
@@ -149,9 +153,11 @@ modifica Home personal.
 ## Verificación y límites
 
 El harness PostgreSQL embebido aplica las cinco migraciones Torneos desde cero y
-ejercita disponibilidad, captain, convocatoria, apertura idempotente,
-snapshots, eventos, coherencia score/goles, doble control, inmutabilidad,
-corrección única, RLS, grants y auditoría.
+ejercita disponibilidad propia/manual y sus carreras, captain, convocatoria,
+apertura/cancelación concurrentes, apertura y oficialización idempotentes,
+snapshots, eventos relacionados, coherencia outcome/score/goles, doble control,
+inmutabilidad, rollbacks tardíos de auditoría, reemplazo atómico de corrección,
+RLS, revocación inmediata, grants y auditoría.
 
 Docker no está disponible, por lo que esto no equivale a validar
 Supabase/PostgREST completo. No se conectó un proyecto cloud ni se aplicaron

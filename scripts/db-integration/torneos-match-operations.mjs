@@ -264,7 +264,7 @@ async function seedOperationalMatch(admin) {
       ],
     );
     const teamPlayers = [];
-    for (let playerIndex = 0; playerIndex < 5; playerIndex += 1) {
+    for (let playerIndex = 0; playerIndex < 6; playerIndex += 1) {
       let provisionalId = null;
       const arma2UserId = playerIndex === 0 ? linkedPlayerId : null;
       if (!arma2UserId) {
@@ -366,11 +366,6 @@ async function seedOperationalMatch(admin) {
     )`,
     [organizationId, matchId, venue.id, court.id],
   );
-  await value(
-    owner,
-    'select public.ready_tournament_match($1,$2)',
-    [organizationId, matchId],
-  );
   const matchTeams = await value(
     admin,
     'select to_jsonb(teams) from public.tournament_match_team_entries($1) teams',
@@ -381,6 +376,8 @@ async function seedOperationalMatch(admin) {
     tournamentId: tournament.id,
     categoryId: category.id,
     matchId,
+    venueId: venue.id,
+    courtId: court.id,
     entries,
     rosters,
     rosterPlayers,
@@ -395,7 +392,7 @@ function squadPayload(playerIds) {
     rosterPlayerId,
     availabilityStatus: index === 0 ? 'available' : 'no_response',
     callupStatus: 'called_up',
-    lineupStatus: 'starter',
+    lineupStatus: index < 5 ? 'starter' : 'substitute',
     isGoalkeeper: index === 0,
     isCaptain: index === 1,
     attendanceStatus: 'present',
@@ -407,11 +404,63 @@ async function exerciseOperationalFlow(admin, scope) {
   const playerAway = await connect({ role: 'authenticated', userId: USERS.playerAway });
   const captainHome = await connect({ role: 'authenticated', userId: USERS.captainHome });
   const captainAway = await connect({ role: 'authenticated', userId: USERS.captainAway });
-  const outsider = await connect({ role: 'authenticated', userId: USERS.outsider });
+  const ownerB = await connect({ role: 'authenticated', userId: USERS.outsider });
   const collaborator = await connect({ role: 'authenticated', userId: USERS.collaborator });
   const adminUser = await connect({ role: 'authenticated', userId: USERS.admin });
   const homeTeamIndex = scope.entries.indexOf(scope.homeEntryId);
   const awayTeamIndex = scope.entries.indexOf(scope.awayEntryId);
+
+  await value(
+    ownerB,
+    'select public.create_tournament_organization($1,$2,$3::uuid)',
+    ['Liga B Match QA', 'liga-b-match-qa', '92000000-0000-4000-8000-000000000099'],
+  );
+  await value(
+    scope.owner,
+    'select public.postpone_tournament_match($1,$2,$3)',
+    [scope.organizationId, scope.matchId, 'Prueba de bloqueo postergado'],
+  );
+  await expectError(
+    () => value(scope.owner, 'select public.open_tournament_match_operation($1,$2,$3)', [
+      scope.organizationId,
+      scope.matchId,
+      null,
+    ]),
+    /TORNEOS_MATCH_NOT_OPENABLE/,
+    'un partido postergado no abre acta',
+  );
+  await expectError(
+    () => value(playerHome, 'select public.respond_match_availability($1,$2,$3)', [
+      scope.matchId,
+      'available',
+      null,
+    ]),
+    /TORNEOS_MATCH_FORBIDDEN/,
+    'un partido postergado no acepta disponibilidad',
+  );
+  await value(
+    scope.owner,
+    `select public.reschedule_tournament_match(
+      $1,$2,'2030-06-01T18:00:00Z',$3,$4,60,$5,false
+    )`,
+    [
+      scope.organizationId,
+      scope.matchId,
+      scope.venueId,
+      scope.courtId,
+      'Reprogramación posterior al test',
+    ],
+  );
+  await value(
+    scope.owner,
+    'select public.ready_tournament_match($1,$2)',
+    [scope.organizationId, scope.matchId],
+  );
+  eq(
+    await value(admin, 'select status from public.tournament_matches where id = $1', [scope.matchId]),
+    'ready',
+    'reprogramar vuelve a habilitar la operación',
+  );
 
   const selfResponse = await value(
     playerHome,
@@ -429,13 +478,55 @@ async function exerciseOperationalFlow(admin, scope) {
     'rechaza respuestas fuera del contrato',
   );
   await expectError(
-    () => value(outsider, 'select public.respond_match_availability($1,$2,$3)', [
+    () => value(ownerB, 'select public.respond_match_availability($1,$2,$3)', [
       scope.matchId,
       'available',
       null,
     ]),
     /TORNEOS_MATCH_FORBIDDEN/,
     'outsider no responde en un partido ajeno',
+  );
+  await expectError(
+    () => value(captainHome, 'select public.record_manual_match_availability($1,$2,$3,$4,$5,$6)', [
+      scope.organizationId,
+      scope.matchId,
+      scope.rosterPlayers[0][0],
+      'unavailable',
+      'Intento de pisar una respuesta propia',
+      null,
+    ]),
+    /TORNEOS_MATCH_AVAILABILITY_SELF_AUTHORITATIVE/,
+    'la respuesta propia prevalece sobre la manual',
+  );
+  const availabilityRace = await Promise.allSettled([
+    value(playerHome, 'select public.respond_match_availability($1,$2,$3)', [
+      scope.matchId,
+      'maybe',
+      'Cambio concurrente propio',
+    ]),
+    value(captainHome, 'select public.record_manual_match_availability($1,$2,$3,$4,$5,$6)', [
+      scope.organizationId,
+      scope.matchId,
+      scope.rosterPlayers[0][0],
+      'unavailable',
+      'Cambio concurrente manual',
+      null,
+    ]),
+  ]);
+  eq(
+    availabilityRace.filter((result) => result.status === 'fulfilled').length,
+    1,
+    'la carrera propia versus manual tiene un único ganador',
+  );
+  eq(
+    await value(admin, `select response_source
+      from public.tournament_match_availability_responses
+      where match_id = $1 and roster_player_id = $2`, [
+      scope.matchId,
+      scope.rosterPlayers[0][0],
+    ]),
+    'self',
+    'la autoridad propia gana la carrera de disponibilidad',
   );
   const manual = await value(
     captainHome,
@@ -510,22 +601,38 @@ async function exerciseOperationalFlow(admin, scope) {
     'ambas convocatorias quedan presentadas',
   );
 
-  const opened = await value(
-    scope.owner,
+  await scope.owner.query('begin');
+  const opened = await value(scope.owner,
     'select public.open_tournament_match_operation($1,$2,$3)',
-    [scope.organizationId, scope.matchId, 'Apertura anticipada para QA'],
+    [scope.organizationId, scope.matchId, 'Apertura anticipada para QA']);
+  const cancelWhileOpening = value(
+    adminUser,
+    'select public.cancel_tournament_match($1,$2,$3)',
+    [scope.organizationId, scope.matchId, 'Cancelación concurrente de QA'],
+  );
+  await scope.owner.query('commit');
+  await expectError(
+    () => cancelWhileOpening,
+    /TORNEOS_MATCH_OPERATION_ACTIVE|TORNEOS_RESOURCE_FORBIDDEN/,
+    'abrir acta serializa y bloquea una cancelación concurrente',
   );
   const operationId = opened.operation.id;
-  const openedAgain = await value(
-    scope.owner,
-    'select public.open_tournament_match_operation($1,$2,$3)',
-    [scope.organizationId, scope.matchId, 'Reintento idempotente'],
+  const doubleOpen = await Promise.all([
+    value(scope.owner, 'select public.open_tournament_match_operation($1,$2,$3)', [
+      scope.organizationId, scope.matchId, 'Reintento owner',
+    ]),
+    value(adminUser, 'select public.open_tournament_match_operation($1,$2,$3)', [
+      scope.organizationId, scope.matchId, 'Reintento admin',
+    ]),
+  ]);
+  ok(
+    doubleOpen.every((result) => result.operation.id === operationId),
+    'dos aperturas concurrentes devuelven la misma operación',
   );
-  eq(openedAgain.operation.id, operationId, 'apertura idempotente devuelve la operación activa');
   eq(
     await count(admin, `select count(*) from public.tournament_match_operation_players
       where match_operation_id = $1`, [operationId]),
-    10,
+    12,
     'la apertura copia alineaciones y snapshots',
   );
   eq(
@@ -533,6 +640,91 @@ async function exerciseOperationalFlow(admin, scope) {
       where match_id = $1 and status = 'locked'`, [scope.matchId]),
     2,
     'la apertura bloquea convocatorias presentadas',
+  );
+  await expectError(
+    () => value(captainHome, 'select public.save_match_squad($1,$2,$3,$4::jsonb)', [
+      scope.organizationId,
+      scope.matchId,
+      scope.entries[0],
+      JSON.stringify(squadPayload(scope.rosterPlayers[0])),
+    ]),
+    /TORNEOS_MATCH_OPERATION_ACTIVE/,
+    'una convocatoria no cambia después de abrir el acta',
+  );
+  await expectError(
+    () => value(playerHome, 'select public.respond_match_availability($1,$2,$3)', [
+      scope.matchId,
+      'available',
+      null,
+    ]),
+    /TORNEOS_MATCH_OPERATION_ACTIVE/,
+    'la disponibilidad queda bloqueada al abrir el acta',
+  );
+
+  eq(
+    await count(playerHome, 'select count(*) from public.tournament_match_operations'),
+    0,
+    'un jugador no lee actas draft por RLS',
+  );
+  eq(
+    await count(captainHome, 'select count(*) from public.tournament_match_operations'),
+    0,
+    'un capitán no lee actas draft por RLS',
+  );
+  eq(
+    await count(collaborator, 'select count(*) from public.tournament_match_operations'),
+    1,
+    'collaborator conserva lectura organizacional del acta',
+  );
+  eq(
+    await count(playerHome, 'select count(*) from public.tournament_match_events'),
+    0,
+    'un jugador no enumera eventos draft',
+  );
+  eq(
+    await count(playerHome, 'select count(*) from public.tournament_match_availability_responses'),
+    1,
+    'un jugador sólo ve su propia disponibilidad',
+  );
+  eq(
+    await count(captainHome, 'select count(*) from public.tournament_match_squad_players'),
+    6,
+    'un capitán sólo lee jugadores de su convocatoria',
+  );
+  await expectError(
+    () => value(playerHome, 'select public.get_match_squad_context($1,$2,$3)', [
+      scope.organizationId, scope.matchId, scope.entries[0],
+    ]),
+    /TORNEOS_MATCH_FORBIDDEN/,
+    'un jugador no usa el contexto privado de convocatorias',
+  );
+  await expectError(
+    () => value(captainHome, 'select public.get_match_squad_context($1,$2,$3)', [
+      scope.organizationId, scope.matchId, scope.entries[1],
+    ]),
+    /TORNEOS_MATCH_FORBIDDEN/,
+    'un capitán no abre el contexto del rival',
+  );
+  await expectError(
+    () => value(ownerB, 'select public.get_tournament_match_operation_context($1,$2)', [
+      scope.organizationId, operationId,
+    ]),
+    /TORNEOS_MATCH_FORBIDDEN/,
+    'owner de otra organización no filtra un acta por UUID',
+  );
+  await expectError(
+    () => value(scope.owner, 'select public.validate_tournament_match_operation_payload($1)', [
+      operationId,
+    ]),
+    /permission denied/,
+    'el validador interno no es ejecutable por authenticated',
+  );
+  await expectError(
+    () => value(scope.owner, `select public.schedule_tournament_match_resumption(
+      $1,$2,null,null,null,$3
+    )`, [scope.organizationId, operationId, 'Intento desde cliente']),
+    /permission denied/,
+    'la reanudación futura no queda habilitada al cliente',
   );
 
   await value(
@@ -558,6 +750,62 @@ async function exerciseOperationalFlow(admin, scope) {
       JSON.stringify({ homeScore: 1, awayScore: 0, scoreType: 'played' }),
     ],
   );
+  await admin.query(`
+    create or replace function public.qa_fail_match_audit()
+    returns trigger language plpgsql set search_path = ''
+    as $$
+    begin
+      if new.action = 'match_operation.score_set' then
+        raise exception 'QA_LATE_AUDIT_FAILURE';
+      end if;
+      return new;
+    end;
+    $$;
+    create trigger qa_fail_match_audit
+    before insert on public.tournament_audit_log
+    for each row execute function public.qa_fail_match_audit();
+  `);
+  await expectError(
+    () => value(scope.owner, 'select public.set_tournament_match_score($1,$2,$3::jsonb)', [
+      scope.organizationId,
+      operationId,
+      JSON.stringify({ homeScore: 9, awayScore: 9, scoreType: 'played' }),
+    ]),
+    /QA_LATE_AUDIT_FAILURE/,
+    'un fallo tardío de auditoría revierte el score',
+  );
+  eq(
+    await value(admin, `select home_score::text || ':' || away_score::text
+      from public.tournament_match_scores where match_operation_id = $1`, [operationId]),
+    '1:0',
+    'el rollback tardío conserva el score anterior completo',
+  );
+  await admin.query(`
+    drop trigger qa_fail_match_audit on public.tournament_audit_log;
+    drop function public.qa_fail_match_audit();
+  `);
+  await Promise.all([
+    value(scope.owner, 'select public.set_tournament_match_score($1,$2,$3::jsonb)', [
+      scope.organizationId,
+      operationId,
+      JSON.stringify({ homeScore: 2, awayScore: 1, scoreType: 'played' }),
+    ]),
+    value(adminUser, 'select public.set_tournament_match_score($1,$2,$3::jsonb)', [
+      scope.organizationId,
+      operationId,
+      JSON.stringify({ homeScore: 3, awayScore: 2, scoreType: 'played' }),
+    ]),
+  ]);
+  ok(
+    ['2:1', '3:2'].includes(await value(admin, `select home_score::text || ':' || away_score::text
+      from public.tournament_match_scores where match_operation_id = $1`, [operationId])),
+    'dos pestañas de score dejan una versión completa, sin mezcla parcial',
+  );
+  await value(scope.owner, 'select public.set_tournament_match_score($1,$2,$3::jsonb)', [
+    scope.organizationId,
+    operationId,
+    JSON.stringify({ homeScore: 1, awayScore: 0, scoreType: 'played' }),
+  ]);
   const goal = await value(
     scope.owner,
     'select public.add_tournament_match_event($1,$2,$3::jsonb)',
@@ -609,6 +857,113 @@ async function exerciseOperationalFlow(admin, scope) {
       scope.organizationId,
       operationId,
       JSON.stringify({
+        teamEntryId: scope.awayEntryId,
+        rosterPlayerId: scope.rosterPlayers[awayTeamIndex][1],
+        eventType: 'second_yellow',
+        minute: 43,
+        period: 'first_half',
+      }),
+    ]),
+    /TORNEOS_MATCH_SECOND_YELLOW_WITHOUT_FIRST/,
+    'segunda amarilla exige una amarilla previa',
+  );
+  await value(scope.owner, 'select public.add_tournament_match_event($1,$2,$3::jsonb)', [
+    scope.organizationId,
+    operationId,
+    JSON.stringify({
+      teamEntryId: scope.awayEntryId,
+      rosterPlayerId: scope.rosterPlayers[awayTeamIndex][2],
+      eventType: 'second_yellow',
+      minute: 44,
+      period: 'first_half',
+    }),
+  ]);
+  await expectError(
+    () => value(scope.owner, 'select public.add_tournament_match_event($1,$2,$3::jsonb)', [
+      scope.organizationId,
+      operationId,
+      JSON.stringify({
+        teamEntryId: scope.homeEntryId,
+        rosterPlayerId: scope.rosterPlayers[homeTeamIndex][2],
+        relatedEventId: goal.id,
+        eventType: 'assist',
+        minute: 27,
+        period: 'first_half',
+      }),
+    ]),
+    /duplicate key|one_assist_per_goal/,
+    'un gol admite una sola asistencia vigente',
+  );
+  await expectError(
+    () => value(scope.owner, 'select public.add_tournament_match_event($1,$2,$3::jsonb)', [
+      scope.organizationId,
+      operationId,
+      JSON.stringify({
+        teamEntryId: scope.homeEntryId,
+        rosterPlayerId: scope.rosterPlayers[homeTeamIndex][4],
+        relatedEventId: goal.id,
+        eventType: 'assist',
+        minute: 27,
+        period: 'first_half',
+      }),
+    ]),
+    /TORNEOS_MATCH_ASSIST_WITHOUT_GOAL/,
+    'el goleador no puede asistirse a sí mismo',
+  );
+  const substitutionOut = await value(
+    scope.owner,
+    'select public.add_tournament_match_event($1,$2,$3::jsonb)',
+    [
+      scope.organizationId,
+      operationId,
+      JSON.stringify({
+        teamEntryId: scope.homeEntryId,
+        rosterPlayerId: scope.rosterPlayers[homeTeamIndex][4],
+        eventType: 'substitution_out',
+        minute: 55,
+        period: 'second_half',
+      }),
+    ],
+  );
+  await value(
+    scope.owner,
+    'select public.add_tournament_match_event($1,$2,$3::jsonb)',
+    [
+      scope.organizationId,
+      operationId,
+      JSON.stringify({
+        teamEntryId: scope.homeEntryId,
+        rosterPlayerId: scope.rosterPlayers[homeTeamIndex][5],
+        relatedRosterPlayerId: scope.rosterPlayers[homeTeamIndex][4],
+        relatedEventId: substitutionOut.id,
+        eventType: 'substitution_in',
+        minute: 55,
+        period: 'second_half',
+      }),
+    ],
+  );
+  await expectError(
+    () => value(scope.owner, 'select public.add_tournament_match_event($1,$2,$3::jsonb)', [
+      scope.organizationId,
+      operationId,
+      JSON.stringify({
+        teamEntryId: scope.homeEntryId,
+        rosterPlayerId: scope.rosterPlayers[homeTeamIndex][3],
+        relatedRosterPlayerId: scope.rosterPlayers[homeTeamIndex][4],
+        relatedEventId: substitutionOut.id,
+        eventType: 'substitution_in',
+        minute: 55,
+        period: 'second_half',
+      }),
+    ]),
+    /TORNEOS_MATCH_SUBSTITUTION_INVALID|duplicate key|one_substitution_in/,
+    'una salida no recibe dos ingresos',
+  );
+  await expectError(
+    () => value(scope.owner, 'select public.add_tournament_match_event($1,$2,$3::jsonb)', [
+      scope.organizationId,
+      operationId,
+      JSON.stringify({
         teamEntryId: scope.homeEntryId,
         rosterPlayerId: scope.rosterPlayers[awayTeamIndex][0],
         eventType: 'goal',
@@ -619,16 +974,102 @@ async function exerciseOperationalFlow(admin, scope) {
     /TORNEOS_MATCH_EVENT_PLAYER_MISMATCH/,
     'evento no cruza jugador y equipo',
   );
-  const validation = await value(
+  const incident = await value(
     scope.owner,
+    'select public.add_tournament_match_event($1,$2,$3::jsonb)',
+    [
+      scope.organizationId,
+      operationId,
+      JSON.stringify({
+        teamEntryId: scope.homeEntryId,
+        eventType: 'incident',
+        minute: 60,
+        period: 'second_half',
+      }),
+    ],
+  );
+
+  await admin.query("select set_config('request.jwt.claim.sub', $1, false)", [USERS.owner]);
+  await admin.query('begin');
+  await value(admin, 'select public.set_tournament_match_score($1,$2,$3::jsonb)', [
+    scope.organizationId,
+    operationId,
+    JSON.stringify({ homeScore: 2, awayScore: 0, scoreType: 'played' }),
+  ]);
+  const missingGoalValidation = await value(
+    admin,
     'select public.validate_tournament_match_operation_payload($1)',
     [operationId],
   );
-  eq(validation.valid, true, 'score y goles válidos son coherentes');
-  await value(
-    scope.owner,
+  eq(missingGoalValidation.valid, false, 'un score con gol faltante no valida');
+  ok(
+    missingGoalValidation.errors.includes('score_events_mismatch'),
+    'la incoherencia score-eventos tiene un error explícito',
+  );
+  await admin.query('rollback');
+
+  await admin.query('begin');
+  await value(admin, 'select public.set_tournament_match_outcome($1,$2,$3::jsonb)', [
+    scope.organizationId,
+    operationId,
+    JSON.stringify({
+      outcomeType: 'cancelled',
+      reasonText: 'Cancelación de prueba',
+      countsForStandings: false,
+      countsForPlayerStats: false,
+      requiresResolution: false,
+    }),
+  ]);
+  const cancelledValidation = await value(
+    admin,
+    'select public.validate_tournament_match_operation_payload($1)',
+    [operationId],
+  );
+  eq(cancelledValidation.valid, false, 'cancelled rechaza score y eventos deportivos');
+  await admin.query('rollback');
+
+  await admin.query('begin');
+  await value(admin, 'select public.set_tournament_match_outcome($1,$2,$3::jsonb)', [
+    scope.organizationId,
+    operationId,
+    JSON.stringify({
+      outcomeType: 'suspended',
+      reasonText: 'Tormenta eléctrica',
+      suspensionMinute: 61,
+      suspensionPeriod: 'second_half',
+      countsForStandings: false,
+      countsForPlayerStats: false,
+      requiresResolution: false,
+    }),
+  ]);
+  await value(admin, `select public.schedule_tournament_match_resumption(
+    $1,$2,null,null,null,$3
+  )`, [scope.organizationId, operationId, 'Continuación pendiente']);
+  const suspendedValidation = await value(
+    admin,
+    'select public.validate_tournament_match_operation_payload($1)',
+    [operationId],
+  );
+  eq(suspendedValidation.valid, true, 'una suspensión conserva score parcial y reanudación enlazada');
+  await admin.query('rollback');
+
+  await scope.owner.query('begin');
+  await value(scope.owner, 'select public.void_tournament_match_event($1,$2,$3)', [
+    scope.organizationId,
+    incident.id,
+    'Incidencia descartada',
+  ]);
+  const submitDuringVoid = value(
+    adminUser,
     'select public.submit_tournament_match_operation($1,$2)',
     [scope.organizationId, operationId],
+  );
+  await scope.owner.query('commit');
+  await submitDuringVoid;
+  eq(
+    await value(admin, 'select status from public.tournament_match_operations where id = $1', [operationId]),
+    'submitted',
+    'anular evento versus submit se serializa sin estado parcial',
   );
   await expectError(
     () => value(collaborator, 'select public.make_tournament_match_official($1,$2)', [
@@ -639,19 +1080,34 @@ async function exerciseOperationalFlow(admin, scope) {
     'collaborator no oficializa',
   );
   await value(
-    adminUser,
+    scope.owner,
     'select public.review_tournament_match_operation($1,$2,$3,$4)',
     [scope.organizationId, operationId, 'approved', 'Marcador y eventos verificados'],
   );
+  await expectError(
+    () => value(adminUser, 'select public.validate_tournament_match_operation($1,$2)', [
+      scope.organizationId,
+      operationId,
+    ]),
+    /TORNEOS_MATCH_DUAL_CONTROL_REQUIRED/,
+    'quien presenta no puede validar con la misma sesión',
+  );
   await value(
-    adminUser,
+    scope.owner,
     'select public.validate_tournament_match_operation($1,$2)',
     [scope.organizationId, operationId],
   );
-  await value(
-    adminUser,
-    'select public.make_tournament_match_official($1,$2)',
-    [scope.organizationId, operationId],
+  const officialRace = await Promise.all([
+    value(scope.owner, 'select public.make_tournament_match_official($1,$2)', [
+      scope.organizationId, operationId,
+    ]),
+    value(adminUser, 'select public.make_tournament_match_official($1,$2)', [
+      scope.organizationId, operationId,
+    ]),
+  ]);
+  ok(
+    officialRace.every((result) => result.operation.id === operationId),
+    'oficializar dos veces es idempotente bajo concurrencia',
   );
   eq(
     await value(admin, 'select status from public.tournament_match_operations where id = $1', [operationId]),
@@ -664,30 +1120,200 @@ async function exerciseOperationalFlow(admin, scope) {
     /TORNEOS_OFFICIAL_OPERATION_IMMUTABLE/,
     'acta oficial rechaza edición directa',
   );
+  await expectError(
+    () => admin.query(`update public.tournament_match_scores
+      set home_score = 8 where match_operation_id = $1`, [operationId]),
+    /TORNEOS_OFFICIAL_OPERATION_IMMUTABLE/,
+    'score de acta oficial también es inmutable',
+  );
 
   await value(
     scope.owner,
     'select public.request_tournament_match_correction($1,$2,$3)',
     [scope.organizationId, operationId, 'Corregir una incidencia informada'],
   );
-  const correction = await value(
-    scope.owner,
-    'select public.create_tournament_match_correction($1,$2)',
-    [scope.organizationId, operationId],
+  eq(
+    await value(admin, 'select status from public.tournament_match_operations where id = $1', [operationId]),
+    'official',
+    'solicitar corrección mantiene vigente la versión oficial',
   );
-  eq(correction.operation.operation_version, 2, 'corrección crea versión siguiente');
-  await expectError(
-    () => value(scope.owner, 'select public.create_tournament_match_correction($1,$2)', [
-      scope.organizationId,
-      operationId,
+  eq(
+    await count(admin, `select count(*) from public.tournament_match_operations
+      where match_id = $1 and status = 'official'`, [scope.matchId]),
+    1,
+    'existe una versión oficial durante toda la corrección',
+  );
+  const playerOfficialMatches = await value(
+    playerHome,
+    'select public.get_player_tournament_matches()',
+  );
+  ok(
+    playerOfficialMatches.some((match) => match.matchId === scope.matchId
+      && match.officialScore?.home === 1
+      && match.officialScore?.away === 0),
+    'el jugador sigue viendo el resultado oficial durante la corrección',
+  );
+  const correctionRace = await Promise.allSettled([
+    value(scope.owner, 'select public.create_tournament_match_correction($1,$2)', [
+      scope.organizationId, operationId,
     ]),
-    /TORNEOS_MATCH_CORRECTION_EXISTS/,
-    'dos correcciones concurrentes no crean ramas paralelas',
+    value(adminUser, 'select public.create_tournament_match_correction($1,$2)', [
+      scope.organizationId, operationId,
+    ]),
+  ]);
+  eq(
+    correctionRace.filter((result) => result.status === 'fulfilled').length,
+    1,
+    'dos correcciones concurrentes crean una única versión',
+  );
+  const correction = correctionRace.find((result) => result.status === 'fulfilled').value;
+  const correctionId = correction.operation.id;
+  eq(correction.operation.operation_version, 2, 'corrección crea versión siguiente');
+  eq(
+    await count(admin, `select count(*) from public.tournament_match_operations
+      where match_id = $1 and status = 'official'`, [scope.matchId]),
+    1,
+    'la versión oficial anterior sigue activa con un draft de corrección',
+  );
+  eq(
+    await count(admin, `select count(*)
+      from public.tournament_match_events event
+      where event.match_operation_id = $1
+        and event.event_type in ('assist','substitution_in')
+        and event.related_event_id is not null`, [correctionId]),
+    2,
+    'la corrección reconstruye referencias de asistencia y sustitución',
+  );
+  await value(scope.owner, 'select public.submit_tournament_match_operation($1,$2)', [
+    scope.organizationId, correctionId,
+  ]);
+  await value(adminUser, 'select public.review_tournament_match_operation($1,$2,$3,$4)', [
+    scope.organizationId, correctionId, 'approved', 'Corrección revisada',
+  ]);
+  await value(adminUser, 'select public.validate_tournament_match_operation($1,$2)', [
+    scope.organizationId, correctionId,
+  ]);
+
+  await admin.query(`
+    create or replace function public.qa_fail_match_audit()
+    returns trigger language plpgsql set search_path = ''
+    as $$
+    begin
+      if new.action = 'match_operation.made_official' then
+        raise exception 'QA_OFFICIAL_AUDIT_FAILURE';
+      end if;
+      return new;
+    end;
+    $$;
+    create trigger qa_fail_match_audit
+    before insert on public.tournament_audit_log
+    for each row execute function public.qa_fail_match_audit();
+  `);
+  await expectError(
+    () => value(adminUser, 'select public.make_tournament_match_official($1,$2)', [
+      scope.organizationId, correctionId,
+    ]),
+    /QA_OFFICIAL_AUDIT_FAILURE/,
+    'fallo tardío durante supersede revierte la oficialización completa',
+  );
+  eq(
+    await value(admin, 'select status from public.tournament_match_operations where id = $1', [operationId]),
+    'official',
+    'rollback de supersede conserva la oficial anterior',
+  );
+  eq(
+    await value(admin, 'select status from public.tournament_match_operations where id = $1', [correctionId]),
+    'validated',
+    'rollback conserva la corrección validada sin publicarla',
+  );
+  eq(
+    await value(admin, `select status from public.tournament_match_reviews
+      where match_operation_id = $1 and review_type = 'correction'`, [operationId]),
+    'open',
+    'rollback conserva abierta la revisión de corrección',
+  );
+  await admin.query(`
+    drop trigger qa_fail_match_audit on public.tournament_audit_log;
+    drop function public.qa_fail_match_audit();
+  `);
+  const correctedOfficialRace = await Promise.all([
+    value(scope.owner, 'select public.make_tournament_match_official($1,$2)', [
+      scope.organizationId, correctionId,
+    ]),
+    value(adminUser, 'select public.make_tournament_match_official($1,$2)', [
+      scope.organizationId, correctionId,
+    ]),
+  ]);
+  ok(
+    correctedOfficialRace.every((result) => result.operation.id === correctionId),
+    'publicar la corrección es idempotente',
+  );
+  eq(
+    await value(admin, 'select status from public.tournament_match_operations where id = $1', [operationId]),
+    'superseded',
+    'la versión anterior se reemplaza sólo al publicar la corrección',
+  );
+  eq(
+    await value(admin, 'select status from public.tournament_match_operations where id = $1', [correctionId]),
+    'official',
+    'la nueva versión queda oficial atómicamente',
+  );
+  eq(
+    await count(admin, `select count(*) from public.tournament_match_operations
+      where match_id = $1 and status = 'official'`, [scope.matchId]),
+    1,
+    'nunca quedan dos versiones oficiales',
+  );
+  eq(
+    await value(admin, `select status from public.tournament_match_reviews
+      where match_operation_id = $1 and review_type = 'correction'`, [operationId]),
+    'approved',
+    'la revisión de corrección se resuelve al publicar',
+  );
+  await expectError(
+    () => value(scope.owner, 'select public.open_tournament_match_operation($1,$2,$3)', [
+      scope.organizationId, scope.matchId, 'Intento posterior a oficial',
+    ]),
+    /TORNEOS_MATCH_ALREADY_OFFICIAL/,
+    'un acta oficial no se reabre fuera del circuito de corrección',
   );
   ok(
     await count(admin, `select count(*) from public.tournament_audit_log
-      where tournament_id = $1 and action like 'match_%'`, [scope.tournamentId]) >= 10,
+      where tournament_id = $1 and action like 'match_%'`, [scope.tournamentId]) >= 20,
     'acciones deportivas relevantes quedan auditadas',
+  );
+  eq(
+    await count(admin, `select count(*) from public.tournament_audit_log
+      where tournament_id = $1
+        and action in ('match_operation.superseded','match_operation.made_official')`,
+      [scope.tournamentId]),
+    3,
+    'oficializaciones y supersede tienen auditoría explícita',
+  );
+
+  await admin.query(`update public.tournament_team_managers
+    set status = 'revoked', revoked_at = now()
+    where user_id = $1 and team_entry_id = $2`, [USERS.captainHome, scope.entries[0]]);
+  eq(
+    (await value(captainHome, 'select public.get_managed_tournament_matches()')).length,
+    0,
+    'un responsable revocado pierde acceso inmediatamente',
+  );
+  await admin.query(`update public.tournament_roster_players
+    set status = 'removed', removed_at = now()
+    where arma2_user_id = $1`, [USERS.playerHome]);
+  eq(
+    (await value(playerHome, 'select public.get_player_tournament_matches()')).length,
+    0,
+    'un roster player removido pierde Mis partidos',
+  );
+  await admin.query(`update public.tournament_organization_members
+    set status = 'suspended'
+    where organization_id = $1 and user_id = $2`, [scope.organizationId, USERS.collaborator]);
+  eq(
+    await count(collaborator, 'select count(*) from public.tournament_match_operations'),
+    0,
+    'membership suspendida revoca la lectura organizacional',
   );
 }
 

@@ -6,6 +6,14 @@ create extension if not exists pgcrypto;
 alter table public.tournament_matches
   add constraint tournament_matches_org_id_unique unique (organization_id, id);
 
+alter table public.tournament_roster_players
+  add constraint tournament_roster_players_org_id_unique
+  unique (organization_id, id);
+
+alter table public.tournament_roster_players
+  add constraint tournament_roster_players_org_entry_id_unique
+  unique (organization_id, team_entry_id, id);
+
 create or replace function public.tournament_role_capabilities(p_role text)
 returns text[]
 language sql
@@ -172,8 +180,9 @@ create table public.tournament_match_squad_players (
     references public.tournament_match_squads
       (organization_id, match_id, team_entry_id, id) on delete restrict,
   constraint tournament_match_squad_players_roster_player_fk
-    foreign key (roster_player_id)
-    references public.tournament_roster_players(id) on delete restrict,
+    foreign key (organization_id, team_entry_id, roster_player_id)
+    references public.tournament_roster_players
+      (organization_id, team_entry_id, id) on delete restrict,
   constraint tournament_match_squad_players_availability_check check (
     availability_status in ('pending', 'available', 'unavailable', 'maybe', 'no_response')
   ),
@@ -224,8 +233,9 @@ create table public.tournament_match_availability_responses (
     foreign key (organization_id, team_entry_id)
     references public.tournament_team_entries(organization_id, id) on delete restrict,
   constraint tournament_match_availability_player_fk
-    foreign key (roster_player_id)
-    references public.tournament_roster_players(id) on delete restrict,
+    foreign key (organization_id, team_entry_id, roster_player_id)
+    references public.tournament_roster_players
+      (organization_id, team_entry_id, id) on delete restrict,
   constraint tournament_match_availability_response_check
     check (response in ('available', 'unavailable', 'maybe')),
   constraint tournament_match_availability_source_check
@@ -361,8 +371,9 @@ create table public.tournament_match_operation_players (
     foreign key (organization_id, team_entry_id)
     references public.tournament_team_entries(organization_id, id) on delete restrict,
   constraint tournament_match_operation_players_roster_player_fk
-    foreign key (roster_player_id)
-    references public.tournament_roster_players(id) on delete restrict,
+    foreign key (organization_id, team_entry_id, roster_player_id)
+    references public.tournament_roster_players
+      (organization_id, team_entry_id, id) on delete restrict,
   constraint tournament_match_operation_players_lineup_check
     check (lineup_status in ('starter', 'substitute', 'not_in_match_squad')),
   constraint tournament_match_operation_players_attendance_check
@@ -482,11 +493,11 @@ create table public.tournament_match_events (
     foreign key (organization_id, team_entry_id)
     references public.tournament_team_entries(organization_id, id) on delete restrict,
   constraint tournament_match_events_player_fk
-    foreign key (roster_player_id)
-    references public.tournament_roster_players(id) on delete restrict,
+    foreign key (organization_id, roster_player_id)
+    references public.tournament_roster_players(organization_id, id) on delete restrict,
   constraint tournament_match_events_related_player_fk
-    foreign key (related_roster_player_id)
-    references public.tournament_roster_players(id) on delete restrict,
+    foreign key (organization_id, related_roster_player_id)
+    references public.tournament_roster_players(organization_id, id) on delete restrict,
   constraint tournament_match_events_related_event_fk
     foreign key (related_event_id)
     references public.tournament_match_events(id) on delete restrict,
@@ -526,6 +537,12 @@ create table public.tournament_match_events (
 create index tournament_match_events_timeline_idx
   on public.tournament_match_events(match_operation_id, sequence_number)
   where voided_at is null;
+create unique index tournament_match_events_one_assist_per_goal_idx
+  on public.tournament_match_events(match_operation_id, related_event_id)
+  where event_type = 'assist' and voided_at is null;
+create unique index tournament_match_events_one_substitution_in_per_out_idx
+  on public.tournament_match_events(match_operation_id, related_event_id)
+  where event_type = 'substitution_in' and voided_at is null;
 
 create table public.tournament_match_reviews (
   id uuid primary key default gen_random_uuid(),
@@ -628,6 +645,7 @@ as $$
     and away_participant.participant_set_id = match_row.participant_set_id
   where match_row.id = p_match_id
     and fixture.status = 'published'
+    and fixture.invalidated_at is null
     and home_participant.status = 'active'
     and away_participant.status = 'active';
 $$;
@@ -642,32 +660,16 @@ stable
 security definer
 set search_path = ''
 as $$
-  select auth.uid() is not null and exists (
+  select auth.uid() is not null
+    and public.has_tournament_organization_capability(
+      p_organization_id, 'match_operations.read'
+    )
+    and exists (
     select 1
     from public.tournament_matches match_row
-    cross join lateral public.tournament_match_team_entries(match_row.id) teams
     where match_row.id = p_match_id
       and match_row.organization_id = p_organization_id
-      and (
-        public.has_tournament_organization_capability(
-          p_organization_id, 'match_operations.read'
-        )
-        or public.is_tournament_team_manager(teams.home_team_entry_id, false)
-        or public.is_tournament_team_manager(teams.away_team_entry_id, false)
-        or exists (
-          select 1
-          from public.tournament_roster_players player
-          join public.tournament_rosters roster on roster.id = player.roster_id
-          where player.arma2_user_id = auth.uid()
-            and player.status = 'active'
-            and player.eligibility_status = 'eligible'
-            and roster.status in ('approved', 'locked')
-            and player.team_entry_id in (
-              teams.home_team_entry_id, teams.away_team_entry_id
-            )
-        )
-      )
-  );
+    );
 $$;
 
 create or replace function public.can_manage_tournament_match_squad(
@@ -705,16 +707,30 @@ set search_path = ''
 as $$
 declare
   v_player public.tournament_roster_players%rowtype;
+  v_roster public.tournament_rosters%rowtype;
   v_squad public.tournament_match_squads%rowtype;
+  v_teams record;
 begin
   select * into v_player
   from public.tournament_roster_players
   where id = new.roster_player_id;
+  if v_player.id is not null then
+    select * into v_roster
+    from public.tournament_rosters
+    where id = v_player.roster_id;
+  end if;
+  select * into v_teams
+  from public.tournament_match_team_entries(new.match_id);
   if v_player.id is null
     or v_player.organization_id <> new.organization_id
     or v_player.team_entry_id <> new.team_entry_id
     or v_player.status <> 'active'
     or v_player.eligibility_status <> 'eligible'
+    or v_roster.id is null
+    or v_roster.status not in ('approved', 'locked')
+    or new.team_entry_id not in (
+      v_teams.home_team_entry_id, v_teams.away_team_entry_id
+    )
   then
     raise exception using errcode = '23514', message = 'TORNEOS_MATCH_PLAYER_OUT_OF_SCOPE';
   end if;
@@ -729,6 +745,43 @@ begin
 end;
 $$;
 
+create or replace function public.validate_tournament_match_squad_scope()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+declare
+  v_roster public.tournament_rosters%rowtype;
+  v_match public.tournament_matches%rowtype;
+  v_teams record;
+begin
+  select * into v_match
+  from public.tournament_matches
+  where id = new.match_id and organization_id = new.organization_id;
+  select * into v_roster
+  from public.tournament_rosters
+  where id = new.roster_id
+    and organization_id = new.organization_id
+    and team_entry_id = new.team_entry_id;
+  select * into v_teams
+  from public.tournament_match_team_entries(new.match_id);
+  if v_match.id is null
+    or v_roster.id is null
+    or v_roster.status not in ('approved', 'locked')
+    or new.team_entry_id not in (
+      v_teams.home_team_entry_id, v_teams.away_team_entry_id
+    )
+  then
+    raise exception using errcode = '23514', message = 'TORNEOS_MATCH_SQUAD_SCOPE';
+  end if;
+  return new;
+end;
+$$;
+
+create trigger tournament_match_squads_scope_guard
+before insert or update on public.tournament_match_squads
+for each row execute function public.validate_tournament_match_squad_scope();
+
 create trigger tournament_match_squad_players_scope_guard
 before insert or update on public.tournament_match_squad_players
 for each row execute function public.validate_tournament_match_player_scope();
@@ -736,6 +789,31 @@ for each row execute function public.validate_tournament_match_player_scope();
 create trigger tournament_match_availability_scope_guard
 before insert or update on public.tournament_match_availability_responses
 for each row execute function public.validate_tournament_match_player_scope();
+
+create or replace function public.protect_tournament_match_squad_players()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+declare
+  v_squad_status text;
+begin
+  select status into v_squad_status
+  from public.tournament_match_squads
+  where id = coalesce(new.match_squad_id, old.match_squad_id);
+  if v_squad_status is distinct from 'draft' then
+    raise exception using errcode = '42501', message = 'TORNEOS_MATCH_SQUAD_LOCKED';
+  end if;
+  if tg_op = 'DELETE' then
+    return old;
+  end if;
+  return new;
+end;
+$$;
+
+create trigger tournament_match_squad_players_history_guard
+before insert or update or delete on public.tournament_match_squad_players
+for each row execute function public.protect_tournament_match_squad_players();
 
 create or replace function public.protect_tournament_match_operation_history()
 returns trigger
@@ -748,7 +826,7 @@ begin
   end if;
   if old.status in ('official', 'superseded', 'voided') and not (
     old.status = 'official'
-    and new.status in ('correction_requested', 'superseded')
+    and new.status = 'superseded'
     and row(
       new.id, new.organization_id, new.match_id, new.operation_version,
       new.match_snapshot, new.home_team_snapshot, new.away_team_snapshot,
@@ -786,7 +864,12 @@ begin
   if v_source.id is null
     or v_source.organization_id <> new.organization_id
     or v_source.match_id <> new.match_id
-    or new.operation_version <> v_source.operation_version + 1
+    or new.operation_version <> (
+      select coalesce(max(operation.operation_version), 0) + 1
+      from public.tournament_match_operations operation
+      where operation.match_id = new.match_id
+        and operation.id <> new.id
+    )
   then
     raise exception using errcode = '23514', message = 'TORNEOS_MATCH_CORRECTION_SCOPE';
   end if;
@@ -818,6 +901,76 @@ for each row execute function public.reject_tournament_match_child_delete();
 create trigger tournament_match_reviews_no_delete
 before delete on public.tournament_match_reviews
 for each row execute function public.reject_tournament_match_child_delete();
+
+create or replace function public.protect_tournament_match_child_history()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+declare
+  v_operation_id uuid;
+  v_operation_status text;
+begin
+  if tg_op = 'DELETE' then
+    v_operation_id := old.match_operation_id;
+  else
+    v_operation_id := new.match_operation_id;
+  end if;
+  select status into v_operation_status
+  from public.tournament_match_operations
+  where id = v_operation_id;
+  if v_operation_status is distinct from 'draft' then
+    raise exception using errcode = '42501',
+      message = 'TORNEOS_OFFICIAL_OPERATION_IMMUTABLE';
+  end if;
+  if tg_op = 'DELETE' then
+    return old;
+  end if;
+  return new;
+end;
+$$;
+
+create trigger tournament_match_operation_players_history_guard
+before insert or update or delete on public.tournament_match_operation_players
+for each row execute function public.protect_tournament_match_child_history();
+create trigger tournament_match_outcomes_history_guard
+before insert or update or delete on public.tournament_match_outcomes
+for each row execute function public.protect_tournament_match_child_history();
+create trigger tournament_match_scores_history_guard
+before insert or update or delete on public.tournament_match_scores
+for each row execute function public.protect_tournament_match_child_history();
+create trigger tournament_match_events_history_guard
+before insert or update or delete on public.tournament_match_events
+for each row execute function public.protect_tournament_match_child_history();
+create trigger tournament_match_resumptions_history_guard
+before insert or update or delete on public.tournament_match_resumptions
+for each row execute function public.protect_tournament_match_child_history();
+
+create or replace function public.protect_tournament_match_planning_transition()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if new.status in ('postponed', 'cancelled', 'unscheduled')
+    and new.status is distinct from old.status
+    and exists (
+      select 1
+      from public.tournament_match_operations operation
+      where operation.match_id = old.id
+        and operation.status not in ('superseded', 'voided')
+    )
+  then
+    raise exception using errcode = '55000',
+      message = 'TORNEOS_MATCH_OPERATION_ACTIVE';
+  end if;
+  return new;
+end;
+$$;
+
+create trigger tournament_matches_operation_transition_guard
+before update on public.tournament_matches
+for each row execute function public.protect_tournament_match_planning_transition();
 
 create or replace function public.get_player_tournament_matches()
 returns jsonb
@@ -881,7 +1034,7 @@ as $$
     and player.arma2_user_id = auth.uid()
     and player.status = 'active'
     and player.eligibility_status = 'eligible'
-    and match_row.status in ('scheduled', 'ready', 'postponed');
+    and match_row.status in ('scheduled', 'ready', 'postponed', 'cancelled');
 $$;
 
 create or replace function public.get_managed_tournament_matches()
@@ -937,7 +1090,7 @@ as $$
     and manager.user_id = auth.uid()
     and manager.status = 'active'
     and manager.role in ('captain', 'delegate')
-    and match_row.status in ('scheduled', 'ready', 'postponed');
+    and match_row.status in ('scheduled', 'ready', 'postponed', 'cancelled');
 $$;
 
 create or replace function public.respond_match_availability(
@@ -971,11 +1124,22 @@ begin
     and player.team_entry_id in (teams.home_team_entry_id, teams.away_team_entry_id)
     and player.status = 'active' and player.eligibility_status = 'eligible'
   limit 1;
-  if v_match.id is null or v_match.status not in ('scheduled', 'ready', 'postponed')
+  if v_match.id is null or v_match.status not in ('scheduled', 'ready')
+    or v_match.scheduled_at is null or now() >= v_match.scheduled_at
     or v_player.id is null
   then
     raise exception using errcode = '42501', message = 'TORNEOS_MATCH_FORBIDDEN';
   end if;
+  if exists (
+    select 1 from public.tournament_match_operations operation
+    where operation.match_id = p_match_id
+      and operation.status not in ('superseded', 'voided')
+  ) then
+    raise exception using errcode = '55000', message = 'TORNEOS_MATCH_OPERATION_ACTIVE';
+  end if;
+  perform pg_advisory_xact_lock(hashtextextended(
+    'torneos:match-availability:' || p_match_id || ':' || v_player.id, 0
+  ));
   insert into public.tournament_match_availability_responses (
     organization_id, match_id, team_entry_id, roster_player_id, user_id,
     response, comment, response_source, recorded_by
@@ -1033,15 +1197,34 @@ begin
   end if;
   select * into v_match from public.tournament_matches
   where id = p_match_id and organization_id = p_organization_id for share;
-  select * into v_player from public.tournament_roster_players
-  where id = p_roster_player_id and organization_id = p_organization_id;
-  if v_match.id is null or v_player.id is null
+  select player.* into v_player
+  from public.tournament_roster_players player
+  join public.tournament_rosters roster
+    on roster.id = player.roster_id
+    and roster.status in ('approved', 'locked')
+  where player.id = p_roster_player_id
+    and player.organization_id = p_organization_id
+    and player.status = 'active'
+    and player.eligibility_status = 'eligible';
+  if v_match.id is null or v_match.status not in ('scheduled', 'ready')
+    or v_match.scheduled_at is null or now() >= v_match.scheduled_at
+    or v_player.id is null
     or not public.can_manage_tournament_match_squad(
       p_organization_id, p_match_id, v_player.team_entry_id
     )
   then
     raise exception using errcode = '42501', message = 'TORNEOS_MATCH_FORBIDDEN';
   end if;
+  if exists (
+    select 1 from public.tournament_match_operations operation
+    where operation.match_id = p_match_id
+      and operation.status not in ('superseded', 'voided')
+  ) then
+    raise exception using errcode = '55000', message = 'TORNEOS_MATCH_OPERATION_ACTIVE';
+  end if;
+  perform pg_advisory_xact_lock(hashtextextended(
+    'torneos:match-availability:' || p_match_id || ':' || v_player.id, 0
+  ));
   insert into public.tournament_match_availability_responses (
     organization_id, match_id, team_entry_id, roster_player_id, user_id,
     response, comment, response_source, recorded_by, manual_reason
@@ -1055,7 +1238,12 @@ begin
     user_id = excluded.user_id, response_source = 'manual',
     recorded_by = excluded.recorded_by, manual_reason = excluded.manual_reason,
     responded_at = now(), updated_at = now()
+  where public.tournament_match_availability_responses.response_source = 'manual'
   returning * into v_response;
+  if v_response.id is null then
+    raise exception using errcode = '55000',
+      message = 'TORNEOS_MATCH_AVAILABILITY_SELF_AUTHORITATIVE';
+  end if;
   perform public.append_tournament_audit(
     p_organization_id, 'match_availability.recorded_manual',
     'match_availability', v_response.id, v_player.team_entry_id,
@@ -1077,16 +1265,29 @@ security definer
 set search_path = ''
 as $$
   select case
-    when not public.can_read_tournament_match_operation(p_organization_id, p_match_id)
+    when not (
+      public.has_tournament_organization_capability(
+        p_organization_id, 'match_squads.read'
+      )
+      or public.can_manage_tournament_match_squad(
+        p_organization_id, p_match_id, p_team_entry_id
+      )
+    )
       then public.raise_tournament_match_error('TORNEOS_MATCH_FORBIDDEN')
     else jsonb_build_object(
       'matchId', match_row.id,
       'teamEntryId', p_team_entry_id,
       'teamName', entry.name,
       'status', match_row.status,
-      'teamSize', category.team_size,
+      'teamSize', coalesce(category.team_size, tournament.team_size),
+      'substitutesLimit', coalesce(tournament.substitutes_limit, tournament.team_size),
       'squad', (
-        select to_jsonb(squad) from public.tournament_match_squads squad
+        select jsonb_build_object(
+          'id', squad.id,
+          'status', squad.status,
+          'submittedAt', squad.submitted_at,
+          'lockedAt', squad.locked_at
+        ) from public.tournament_match_squads squad
         where squad.match_id = match_row.id
           and squad.team_entry_id = p_team_entry_id
           and squad.status <> 'superseded'
@@ -1101,7 +1302,13 @@ as $$
           'isGoalkeeper', player.is_goalkeeper,
           'eligibilityStatus', player.eligibility_status,
           'availability', availability.response,
-          'selection', to_jsonb(selection)
+          'selection', case when selection.id is null then null else jsonb_build_object(
+            'callup_status', selection.callup_status,
+            'lineup_status', selection.lineup_status,
+            'is_goalkeeper', selection.is_goalkeeper,
+            'is_captain', selection.is_captain,
+            'attendance_status', selection.attendance_status
+          ) end
         ) order by player.display_name)
         from public.tournament_roster_players player
         join public.tournament_rosters roster
@@ -1119,6 +1326,7 @@ as $$
   end
   from public.tournament_matches match_row
   join public.tournament_categories category on category.id = match_row.category_id
+  join public.tournaments tournament on tournament.id = match_row.tournament_id
   join public.tournament_team_entries entry on entry.id = p_team_entry_id
   cross join lateral public.tournament_match_team_entries(match_row.id) teams
   where match_row.id = p_match_id and match_row.organization_id = p_organization_id
@@ -1180,8 +1388,10 @@ declare
   v_player jsonb;
   v_roster_player public.tournament_roster_players%rowtype;
   v_team_size integer;
+  v_substitutes_limit integer;
   v_starters integer;
   v_captains integer;
+  v_called_up integer;
 begin
   if auth.uid() is null then
     raise exception using errcode = '42501', message = 'TORNEOS_AUTH_REQUIRED';
@@ -1193,12 +1403,19 @@ begin
   end if;
   select * into v_match from public.tournament_matches
   where id = p_match_id and organization_id = p_organization_id for update;
-  if v_match.id is null or v_match.status not in ('scheduled', 'ready', 'postponed')
+  if v_match.id is null or v_match.status not in ('scheduled', 'ready')
     or not public.can_manage_tournament_match_squad(
       p_organization_id, p_match_id, p_team_entry_id
     )
   then
     raise exception using errcode = '42501', message = 'TORNEOS_MATCH_FORBIDDEN';
+  end if;
+  if exists (
+    select 1 from public.tournament_match_operations operation
+    where operation.match_id = p_match_id
+      and operation.status not in ('superseded', 'voided')
+  ) then
+    raise exception using errcode = '55000', message = 'TORNEOS_MATCH_OPERATION_ACTIVE';
   end if;
   select * into v_roster from public.tournament_rosters
   where team_entry_id = p_team_entry_id and status in ('approved', 'locked')
@@ -1206,12 +1423,20 @@ begin
   if v_roster.id is null then
     raise exception using errcode = '23514', message = 'TORNEOS_MATCH_ROSTER_NOT_APPROVED';
   end if;
-  select coalesce(team_size, 11) into v_team_size
-  from public.tournament_categories where id = v_match.category_id;
+  select coalesce(category.team_size, tournament.team_size),
+    coalesce(tournament.substitutes_limit, tournament.team_size)
+  into v_team_size, v_substitutes_limit
+  from public.tournament_categories category
+  join public.tournaments tournament on tournament.id = category.tournament_id
+  where category.id = v_match.category_id;
   select count(*) filter (where value->>'lineupStatus' = 'starter'),
-    count(*) filter (where coalesce((value->>'isCaptain')::boolean, false))
-  into v_starters, v_captains from jsonb_array_elements(p_players);
-  if v_starters > v_team_size or v_captains > 1 then
+    count(*) filter (where coalesce((value->>'isCaptain')::boolean, false)),
+    count(*) filter (where value->>'callupStatus' = 'called_up')
+  into v_starters, v_captains, v_called_up
+  from jsonb_array_elements(p_players);
+  if v_starters > v_team_size or v_captains > 1
+    or v_called_up > v_team_size + v_substitutes_limit
+  then
     raise exception using errcode = '23514', message = 'TORNEOS_INVALID_MATCH_SQUAD';
   end if;
   insert into public.tournament_match_squads (
@@ -1249,7 +1474,7 @@ begin
       coalesce(v_player->>'lineupStatus', 'not_in_match_squad'),
       v_roster_player.shirt_number, v_roster_player.primary_position,
       v_roster_player.display_name, v_roster_player.avatar_url,
-      coalesce((v_player->>'isGoalkeeper')::boolean, v_roster_player.is_goalkeeper),
+      v_roster_player.is_goalkeeper,
       coalesce((v_player->>'isCaptain')::boolean, false),
       coalesce(v_player->>'attendanceStatus', 'unknown')
     );
@@ -1277,6 +1502,7 @@ declare
   v_squad public.tournament_match_squads%rowtype;
   v_match public.tournament_matches%rowtype;
   v_team_size integer;
+  v_substitutes_limit integer;
 begin
   if auth.uid() is null then
     raise exception using errcode = '42501', message = 'TORNEOS_AUTH_REQUIRED';
@@ -1286,19 +1512,40 @@ begin
   select * into v_squad from public.tournament_match_squads
   where match_id = p_match_id and team_entry_id = p_team_entry_id
     and status = 'draft' for update;
-  if v_match.id is null or v_squad.id is null
+  if v_match.id is null or v_match.status not in ('scheduled', 'ready')
+    or v_squad.id is null
     or not public.can_manage_tournament_match_squad(
       p_organization_id, p_match_id, p_team_entry_id
     )
   then
     raise exception using errcode = '42501', message = 'TORNEOS_MATCH_FORBIDDEN';
   end if;
-  select coalesce(team_size, 11) into v_team_size
-  from public.tournament_categories where id = v_match.category_id;
+  if exists (
+    select 1 from public.tournament_match_operations operation
+    where operation.match_id = p_match_id
+      and operation.status not in ('superseded', 'voided')
+  ) then
+    raise exception using errcode = '55000', message = 'TORNEOS_MATCH_OPERATION_ACTIVE';
+  end if;
+  select coalesce(category.team_size, tournament.team_size),
+    coalesce(tournament.substitutes_limit, tournament.team_size)
+  into v_team_size, v_substitutes_limit
+  from public.tournament_categories category
+  join public.tournaments tournament on tournament.id = category.tournament_id
+  where category.id = v_match.category_id;
   if (select count(*) from public.tournament_match_squad_players
       where match_squad_id = v_squad.id and lineup_status = 'starter') <> v_team_size
     or (select count(*) from public.tournament_match_squad_players
       where match_squad_id = v_squad.id and callup_status = 'called_up' and is_captain) <> 1
+    or (select count(*) from public.tournament_match_squad_players
+      where match_squad_id = v_squad.id and callup_status = 'called_up')
+      > v_team_size + v_substitutes_limit
+    or (select count(*) from public.tournament_match_squad_players
+      where match_squad_id = v_squad.id and lineup_status = 'starter'
+        and is_goalkeeper) < 1
+    or (select count(*) from public.tournament_match_squad_players
+      where match_squad_id = v_squad.id and lineup_status = 'starter'
+        and is_captain) <> 1
   then
     raise exception using errcode = '23514', message = 'TORNEOS_INVALID_MATCH_SQUAD';
   end if;
@@ -1347,7 +1594,8 @@ begin
   select * into v_fixture from public.tournament_fixture_versions
   where id = v_match.fixture_version_id for share;
   select * into v_teams from public.tournament_match_team_entries(p_match_id);
-  if v_fixture.status <> 'published' or v_match.status in ('cancelled', 'draft', 'unscheduled')
+  if v_fixture.status <> 'published' or v_fixture.invalidated_at is not null
+    or v_match.status not in ('scheduled', 'ready')
     or v_teams.home_team_entry_id is null or v_teams.away_team_entry_id is null
   then
     raise exception using errcode = '55000', message = 'TORNEOS_MATCH_NOT_OPENABLE';
@@ -1360,7 +1608,7 @@ begin
   end if;
   select * into v_operation from public.tournament_match_operations
   where match_id = p_match_id
-    and status in ('draft', 'submitted', 'under_review', 'validated', 'correction_requested')
+    and status in ('draft', 'submitted', 'under_review', 'validated')
   order by operation_version desc
   limit 1;
   if v_operation.id is not null then
@@ -1368,6 +1616,19 @@ begin
       p_organization_id, v_operation.id
     );
   end if;
+  if exists (
+    select 1
+    from public.tournament_match_operations
+    where match_id = p_match_id and status = 'official'
+  ) then
+    raise exception using errcode = '55000',
+      message = 'TORNEOS_MATCH_ALREADY_OFFICIAL';
+  end if;
+  perform 1
+  from public.tournament_match_squads
+  where match_id = p_match_id and status in ('draft', 'submitted')
+  order by team_entry_id
+  for update;
   select * into v_home from public.tournament_team_entries
   where id = v_teams.home_team_entry_id;
   select * into v_away from public.tournament_team_entries
@@ -1505,11 +1766,14 @@ as $$
           'operationStatus', operation.status,
           'matchStatus', operation.match_status,
           'outcomeType', outcome.outcome_type,
-          'homeScore', case when operation.status = 'official' then score.home_score else null end,
-          'awayScore', case when operation.status = 'official' then score.away_score else null end,
+          'officialOperationId', official_operation.id,
+          'homeScore', official_score.home_score,
+          'awayScore', official_score.away_score,
           'hasOpenCorrection', exists (
             select 1 from public.tournament_match_reviews review
-            where review.match_operation_id = operation.id
+            where review.match_operation_id in (
+              operation.id, operation.source_operation_id
+            )
               and review.review_type = 'correction' and review.status = 'open'
           )
         ) order by match_row.scheduled_at nulls last, match_row.match_number)
@@ -1539,10 +1803,18 @@ as $$
           order by candidate.operation_version desc
           limit 1
         ) operation on true
+        left join lateral (
+          select candidate.id
+          from public.tournament_match_operations candidate
+          where candidate.match_id = match_row.id
+            and candidate.status = 'official'
+          order by candidate.operation_version desc
+          limit 1
+        ) official_operation on true
         left join public.tournament_match_outcomes outcome
           on outcome.match_operation_id = operation.id
-        left join public.tournament_match_scores score
-          on score.match_operation_id = operation.id
+        left join public.tournament_match_scores official_score
+          on official_score.match_operation_id = official_operation.id
         where match_row.organization_id = p_organization_id
           and match_row.tournament_id = p_tournament_id
           and (p_category_id is null or match_row.category_id = p_category_id)
@@ -1611,6 +1883,14 @@ begin
       p_organization_id, 'match_outcomes.manage'
     )
   then
+    raise exception using errcode = '42501', message = 'TORNEOS_MATCH_FORBIDDEN';
+  end if;
+  if p_outcome->>'outcomeType' in (
+    'home_no_show', 'away_no_show', 'double_no_show',
+    'walkover_home', 'walkover_away', 'administrative_result'
+  ) and not public.has_tournament_organization_capability(
+    p_organization_id, 'match_administrative_results.manage'
+  ) then
     raise exception using errcode = '42501', message = 'TORNEOS_MATCH_FORBIDDEN';
   end if;
   insert into public.tournament_match_outcomes (
@@ -1698,6 +1978,13 @@ begin
   then
     raise exception using errcode = '42501', message = 'TORNEOS_MATCH_FORBIDDEN';
   end if;
+  if p_score->>'scoreType' in ('administrative', 'walkover')
+    and not public.has_tournament_organization_capability(
+      p_organization_id, 'match_administrative_results.manage'
+    )
+  then
+    raise exception using errcode = '42501', message = 'TORNEOS_MATCH_FORBIDDEN';
+  end if;
   insert into public.tournament_match_scores (
     match_operation_id, organization_id, match_id, home_score, away_score,
     home_score_first_half, away_score_first_half, home_penalties, away_penalties,
@@ -1742,6 +2029,8 @@ as $$
 declare
   v_operation public.tournament_match_operations%rowtype;
   v_event public.tournament_match_events%rowtype;
+  v_related_event public.tournament_match_events%rowtype;
+  v_is_on_field boolean;
   v_sequence integer;
 begin
   if auth.uid() is null then
@@ -1782,6 +2071,43 @@ begin
   ) then
     raise exception using errcode = '23514', message = 'TORNEOS_MATCH_EVENT_PLAYER_MISMATCH';
   end if;
+  if p_event->>'eventType' not in ('assist', 'substitution_in')
+    and (
+      p_event->>'relatedEventId' is not null
+      or p_event->>'relatedRosterPlayerId' is not null
+    )
+  then
+    raise exception using errcode = '23514', message = 'TORNEOS_MATCH_EVENT_RELATION_INVALID';
+  end if;
+  if p_event->>'eventType' = 'assist'
+    and p_event->>'relatedRosterPlayerId' is not null
+  then
+    raise exception using errcode = '23514', message = 'TORNEOS_MATCH_EVENT_RELATION_INVALID';
+  end if;
+  if p_event->>'eventType' = 'assist' and (
+    p_event->>'relatedEventId' is null or not exists (
+      select 1 from public.tournament_match_events goal
+      where goal.id = (p_event->>'relatedEventId')::uuid
+        and goal.match_operation_id = v_operation.id
+        and goal.team_entry_id = (p_event->>'teamEntryId')::uuid
+        and goal.event_type in ('goal', 'penalty_goal')
+        and not (goal.event_type = 'penalty_goal' and goal.period = 'penalties')
+        and goal.roster_player_id is not null
+        and goal.roster_player_id <> (p_event->>'rosterPlayerId')::uuid
+        and goal.voided_at is null
+    )
+  ) then
+    raise exception using errcode = '23514', message = 'TORNEOS_MATCH_ASSIST_WITHOUT_GOAL';
+  end if;
+  if p_event->>'rosterPlayerId' is not null and exists (
+    select 1
+    from public.tournament_match_operation_players player
+    where player.match_operation_id = v_operation.id
+      and player.roster_player_id = (p_event->>'rosterPlayerId')::uuid
+      and player.attendance_status in ('absent', 'excused')
+  ) then
+    raise exception using errcode = '23514', message = 'TORNEOS_MATCH_PLAYER_ABSENT';
+  end if;
   if p_event->>'rosterPlayerId' is not null
     and p_event->>'eventType' not in ('incident', 'substitution_out')
     and exists (
@@ -1802,6 +2128,109 @@ begin
       and earlier.voided_at is null
   ) then
     raise exception using errcode = '23514', message = 'TORNEOS_MATCH_SECOND_YELLOW_WITHOUT_FIRST';
+  end if;
+  if p_event->>'eventType' = 'substitution_out' then
+    select (
+      (
+        player.lineup_status = 'starter'
+        or exists (
+          select 1
+          from public.tournament_match_events entered
+          where entered.match_operation_id = v_operation.id
+            and entered.roster_player_id = player.roster_player_id
+            and entered.event_type = 'substitution_in'
+            and entered.voided_at is null
+        )
+      )
+      and coalesce((
+        select max(entered.sequence_number)
+        from public.tournament_match_events entered
+        where entered.match_operation_id = v_operation.id
+          and entered.roster_player_id = player.roster_player_id
+          and entered.event_type = 'substitution_in'
+          and entered.voided_at is null
+      ), 0) >= coalesce((
+        select max(exited.sequence_number)
+        from public.tournament_match_events exited
+        where exited.match_operation_id = v_operation.id
+          and exited.roster_player_id = player.roster_player_id
+          and exited.event_type = 'substitution_out'
+          and exited.voided_at is null
+      ), 0)
+    ) into v_is_on_field
+    from public.tournament_match_operation_players player
+    where player.match_operation_id = v_operation.id
+      and player.roster_player_id = (p_event->>'rosterPlayerId')::uuid;
+    if not coalesce(v_is_on_field, false) then
+      raise exception using errcode = '23514', message = 'TORNEOS_MATCH_PLAYER_NOT_ON_FIELD';
+    end if;
+  end if;
+  if p_event->>'eventType' = 'substitution_in' then
+    if p_event->>'relatedEventId' is null
+      or p_event->>'relatedRosterPlayerId' is null
+      or (p_event->>'relatedRosterPlayerId')::uuid
+        = (p_event->>'rosterPlayerId')::uuid
+    then
+      raise exception using errcode = '23514', message = 'TORNEOS_MATCH_SUBSTITUTION_INVALID';
+    end if;
+    select * into v_related_event
+    from public.tournament_match_events
+    where id = (p_event->>'relatedEventId')::uuid
+      and match_operation_id = v_operation.id
+      and team_entry_id = (p_event->>'teamEntryId')::uuid
+      and roster_player_id = (p_event->>'relatedRosterPlayerId')::uuid
+      and event_type = 'substitution_out'
+      and voided_at is null;
+    if v_related_event.id is null
+      or v_related_event.minute is distinct from (p_event->>'minute')::smallint
+      or v_related_event.period is distinct from coalesce(p_event->>'period', 'unknown')
+    then
+      raise exception using errcode = '23514', message = 'TORNEOS_MATCH_SUBSTITUTION_INVALID';
+    end if;
+    if exists (
+      select 1
+      from public.tournament_match_events entered
+      where entered.match_operation_id = v_operation.id
+        and entered.related_event_id = v_related_event.id
+        and entered.event_type = 'substitution_in'
+        and entered.voided_at is null
+    ) then
+      raise exception using errcode = '23514', message = 'TORNEOS_MATCH_SUBSTITUTION_INVALID';
+    end if;
+    select (
+      (
+        player.lineup_status = 'starter'
+        or exists (
+          select 1
+          from public.tournament_match_events entered
+          where entered.match_operation_id = v_operation.id
+            and entered.roster_player_id = player.roster_player_id
+            and entered.event_type = 'substitution_in'
+            and entered.voided_at is null
+        )
+      )
+      and coalesce((
+        select max(entered.sequence_number)
+        from public.tournament_match_events entered
+        where entered.match_operation_id = v_operation.id
+          and entered.roster_player_id = player.roster_player_id
+          and entered.event_type = 'substitution_in'
+          and entered.voided_at is null
+      ), 0) >= coalesce((
+        select max(exited.sequence_number)
+        from public.tournament_match_events exited
+        where exited.match_operation_id = v_operation.id
+          and exited.roster_player_id = player.roster_player_id
+          and exited.event_type = 'substitution_out'
+          and exited.voided_at is null
+      ), 0)
+    ) into v_is_on_field
+    from public.tournament_match_operation_players player
+    where player.match_operation_id = v_operation.id
+      and player.roster_player_id = (p_event->>'rosterPlayerId')::uuid;
+    if coalesce(v_is_on_field, false) then
+      raise exception using errcode = '23514', message = 'TORNEOS_MATCH_PLAYER_ALREADY_ON_FIELD';
+    end if;
   end if;
   select coalesce(max(sequence_number), 0) + 1 into v_sequence
   from public.tournament_match_events where match_operation_id = v_operation.id;
@@ -1827,7 +2256,10 @@ begin
       where goal.id = v_event.related_event_id
         and goal.match_operation_id = v_operation.id
         and goal.team_entry_id = v_event.team_entry_id
-        and goal.event_type in ('goal', 'own_goal', 'penalty_goal')
+        and goal.event_type in ('goal', 'penalty_goal')
+        and not (goal.event_type = 'penalty_goal' and goal.period = 'penalties')
+        and goal.roster_player_id is not null
+        and goal.roster_player_id <> v_event.roster_player_id
         and goal.voided_at is null
     )
   ) then
@@ -1860,9 +2292,13 @@ begin
     raise exception using errcode = '42501', message = 'TORNEOS_AUTH_REQUIRED';
   end if;
   select * into v_event from public.tournament_match_events
-  where id = p_event_id and organization_id = p_organization_id for update;
+  where id = p_event_id and organization_id = p_organization_id;
   select * into v_operation from public.tournament_match_operations
-  where id = v_event.match_operation_id;
+  where id = v_event.match_operation_id and organization_id = p_organization_id
+  for update;
+  select * into v_event from public.tournament_match_events
+  where id = p_event_id and organization_id = p_organization_id
+  for update;
   if v_event.id is null or v_event.voided_at is not null or v_operation.status <> 'draft'
     or not public.has_tournament_organization_capability(
       p_organization_id, 'match_events.void'
@@ -1898,6 +2334,8 @@ declare
   v_score public.tournament_match_scores%rowtype;
   v_home_goals integer;
   v_away_goals integer;
+  v_home_shootout_goals integer;
+  v_away_shootout_goals integer;
   v_errors jsonb := '[]'::jsonb;
 begin
   select * into v_operation from public.tournament_match_operations
@@ -1914,28 +2352,64 @@ begin
   if v_outcome.match_operation_id is null then
     v_errors := v_errors || jsonb_build_array('outcome_required');
   end if;
-  if v_outcome.requires_resolution then
+  if coalesce(v_outcome.requires_resolution, false) then
     v_errors := v_errors || jsonb_build_array('resolution_pending');
   end if;
   if v_outcome.outcome_type in (
-    'played', 'walkover_home', 'walkover_away', 'administrative_result'
+    'played', 'walkover_home', 'walkover_away', 'administrative_result',
+    'home_no_show', 'away_no_show', 'double_no_show'
   ) and v_score.match_operation_id is null then
     v_errors := v_errors || jsonb_build_array('score_required');
   end if;
-  if v_score.score_type in ('administrative', 'walkover')
-    and v_outcome.outcome_type = 'played'
-  then
+  if v_score.match_operation_id is not null and not (
+    (v_outcome.outcome_type = 'played'
+      and v_score.score_type in ('played', 'series_leg'))
+    or (v_outcome.outcome_type in ('walkover_home', 'walkover_away')
+      and v_score.score_type = 'walkover')
+    or (v_outcome.outcome_type in (
+      'administrative_result', 'home_no_show', 'away_no_show', 'double_no_show'
+    ) and v_score.score_type = 'administrative')
+    or (v_outcome.outcome_type in ('suspended', 'abandoned')
+      and v_score.score_type in ('played', 'administrative'))
+  ) then
     v_errors := v_errors || jsonb_build_array('score_outcome_mismatch');
   end if;
-  if v_outcome.outcome_type in ('walkover_home', 'walkover_away')
+  if v_outcome.outcome_type in (
+    'walkover_home', 'walkover_away',
+    'home_no_show', 'away_no_show', 'double_no_show'
+  )
     and v_outcome.counts_for_player_stats
   then
     v_errors := v_errors || jsonb_build_array('walkover_player_stats_forbidden');
   end if;
   if v_outcome.outcome_type in (
-    'postponed_before_start', 'cancelled', 'not_played', 'suspended'
+    'postponed_before_start', 'cancelled', 'not_played'
   ) and v_score.match_operation_id is not null then
     v_errors := v_errors || jsonb_build_array('score_not_allowed_for_outcome');
+  end if;
+  if v_outcome.outcome_type in (
+    'postponed_before_start', 'cancelled', 'not_played',
+    'walkover_home', 'walkover_away',
+    'home_no_show', 'away_no_show', 'double_no_show'
+  ) and exists (
+    select 1
+    from public.tournament_match_events event
+    where event.match_operation_id = v_operation.id
+      and event.voided_at is null
+      and event.event_type in (
+        'goal', 'own_goal', 'assist', 'penalty_goal', 'penalty_missed',
+        'yellow_card', 'second_yellow', 'red_card',
+        'substitution_in', 'substitution_out'
+      )
+  ) then
+    v_errors := v_errors || jsonb_build_array('events_not_allowed_for_outcome');
+  end if;
+  if v_outcome.outcome_type in (
+    'walkover_home', 'walkover_away', 'administrative_result',
+    'home_no_show', 'away_no_show', 'double_no_show',
+    'suspended', 'abandoned', 'cancelled', 'not_played'
+  ) and char_length(btrim(coalesce(v_outcome.reason_text, ''))) < 3 then
+    v_errors := v_errors || jsonb_build_array('outcome_reason_required');
   end if;
   if v_outcome.administrative_home_score is not null and (
     v_score.match_operation_id is null
@@ -1943,6 +2417,19 @@ begin
     or v_outcome.administrative_away_score <> v_score.away_score
   ) then
     v_errors := v_errors || jsonb_build_array('administrative_score_mismatch');
+  end if;
+  if v_outcome.outcome_type not in (
+    'walkover_home', 'walkover_away', 'administrative_result',
+    'home_no_show', 'away_no_show', 'double_no_show'
+  ) and v_outcome.administrative_home_score is not null then
+    v_errors := v_errors || jsonb_build_array('administrative_score_forbidden');
+  end if;
+  if v_score.home_penalties is not null and (
+    v_outcome.outcome_type <> 'played'
+    or v_score.home_score <> v_score.away_score
+    or v_score.home_penalties = v_score.away_penalties
+  ) then
+    v_errors := v_errors || jsonb_build_array('penalty_score_invalid');
   end if;
   if exists (
     select 1
@@ -1952,13 +2439,51 @@ begin
       and goal.match_operation_id = assist.match_operation_id
       and goal.team_entry_id = assist.team_entry_id
       and goal.event_type in ('goal', 'penalty_goal')
+      and not (goal.event_type = 'penalty_goal' and goal.period = 'penalties')
       and goal.voided_at is null
     where assist.match_operation_id = v_operation.id
       and assist.event_type = 'assist'
       and assist.voided_at is null
-      and goal.id is null
+      and (
+        goal.id is null
+        or goal.roster_player_id is null
+        or goal.roster_player_id = assist.roster_player_id
+      )
   ) then
     v_errors := v_errors || jsonb_build_array('assist_without_goal');
+  end if;
+  if exists (
+    select 1
+    from public.tournament_match_events exited
+    left join public.tournament_match_events entered
+      on entered.related_event_id = exited.id
+      and entered.match_operation_id = exited.match_operation_id
+      and entered.event_type = 'substitution_in'
+      and entered.voided_at is null
+    where exited.match_operation_id = v_operation.id
+      and exited.event_type = 'substitution_out'
+      and exited.voided_at is null
+      and entered.id is null
+  ) then
+    v_errors := v_errors || jsonb_build_array('substitution_pair_required');
+  end if;
+  if exists (
+    select 1
+    from public.tournament_match_events second_yellow
+    where second_yellow.match_operation_id = v_operation.id
+      and second_yellow.event_type = 'second_yellow'
+      and second_yellow.voided_at is null
+      and not exists (
+        select 1
+        from public.tournament_match_events first_yellow
+        where first_yellow.match_operation_id = v_operation.id
+          and first_yellow.roster_player_id = second_yellow.roster_player_id
+          and first_yellow.event_type = 'yellow_card'
+          and first_yellow.sequence_number < second_yellow.sequence_number
+          and first_yellow.voided_at is null
+      )
+  ) then
+    v_errors := v_errors || jsonb_build_array('second_yellow_without_first');
   end if;
   if v_outcome.counts_for_player_stats and v_score.score_type in ('played', 'series_leg') then
     select count(*) filter (where event.team_entry_id = v_operation.home_team_entry_id),
@@ -1967,9 +2492,37 @@ begin
     from public.tournament_match_events event
     where event.match_operation_id = v_operation.id
       and event.voided_at is null
-      and event.event_type in ('goal', 'penalty_goal', 'own_goal');
+      and event.event_type in ('goal', 'penalty_goal', 'own_goal')
+      and not (event.event_type = 'penalty_goal' and event.period = 'penalties');
     if v_home_goals <> v_score.home_score or v_away_goals <> v_score.away_score then
       v_errors := v_errors || jsonb_build_array('score_events_mismatch');
+    end if;
+  end if;
+  if v_score.home_penalties is not null and exists (
+    select 1
+    from public.tournament_match_events event
+    where event.match_operation_id = v_operation.id
+      and event.voided_at is null
+      and event.period = 'penalties'
+      and event.event_type in ('penalty_goal', 'penalty_missed')
+  ) then
+    select count(*) filter (
+        where event.team_entry_id = v_operation.home_team_entry_id
+          and event.event_type = 'penalty_goal'
+      ),
+      count(*) filter (
+        where event.team_entry_id = v_operation.away_team_entry_id
+          and event.event_type = 'penalty_goal'
+      )
+    into v_home_shootout_goals, v_away_shootout_goals
+    from public.tournament_match_events event
+    where event.match_operation_id = v_operation.id
+      and event.voided_at is null
+      and event.period = 'penalties';
+    if v_home_shootout_goals <> v_score.home_penalties
+      or v_away_shootout_goals <> v_score.away_penalties
+    then
+      v_errors := v_errors || jsonb_build_array('penalty_events_mismatch');
     end if;
   end if;
   if v_outcome.outcome_type = 'suspended' and (
@@ -1980,6 +2533,35 @@ begin
     )
   ) then
     v_errors := v_errors || jsonb_build_array('suspension_resolution_required');
+  end if;
+  if v_outcome.outcome_type in ('home_no_show', 'walkover_away')
+    and exists (
+      select 1 from public.tournament_match_operation_players player
+      where player.match_operation_id = v_operation.id
+        and player.team_entry_id = v_operation.home_team_entry_id
+        and player.attendance_status in ('present', 'late')
+    )
+  then
+    v_errors := v_errors || jsonb_build_array('home_no_show_presence_conflict');
+  end if;
+  if v_outcome.outcome_type in ('away_no_show', 'walkover_home')
+    and exists (
+      select 1 from public.tournament_match_operation_players player
+      where player.match_operation_id = v_operation.id
+        and player.team_entry_id = v_operation.away_team_entry_id
+        and player.attendance_status in ('present', 'late')
+    )
+  then
+    v_errors := v_errors || jsonb_build_array('away_no_show_presence_conflict');
+  end if;
+  if v_outcome.outcome_type = 'double_no_show'
+    and exists (
+      select 1 from public.tournament_match_operation_players player
+      where player.match_operation_id = v_operation.id
+        and player.attendance_status in ('present', 'late')
+    )
+  then
+    v_errors := v_errors || jsonb_build_array('double_no_show_presence_conflict');
   end if;
   return jsonb_build_object(
     'valid', jsonb_array_length(v_errors) = 0,
@@ -2052,6 +2634,7 @@ as $$
 declare
   v_operation public.tournament_match_operations%rowtype;
   v_review public.tournament_match_reviews%rowtype;
+  v_outcome_type text;
 begin
   if auth.uid() is null then
     raise exception using errcode = '42501', message = 'TORNEOS_AUTH_REQUIRED';
@@ -2077,14 +2660,31 @@ begin
     status = p_decision, resolved_by = auth.uid(), resolved_at = now(),
     resolution = btrim(p_reason)
   where id = v_review.id;
+  select outcome_type into v_outcome_type
+  from public.tournament_match_outcomes
+  where match_operation_id = v_operation.id;
   update public.tournament_match_operations set
     status = case when p_decision = 'approved' then 'under_review' else 'draft' end,
     match_status = case when p_decision = 'approved' then match_status else
-      case when match_status = 'awaiting_validation' then 'played' else match_status end end,
+      case
+        when v_outcome_type = 'played' then 'played'
+        when v_outcome_type = 'suspended' then 'suspended'
+        when v_outcome_type = 'abandoned' then 'abandoned'
+        when v_outcome_type in (
+          'home_no_show', 'away_no_show', 'double_no_show',
+          'walkover_home', 'walkover_away', 'administrative_result'
+        ) then 'administrative'
+        else 'ready'
+      end end,
     submitted_by = case when p_decision = 'approved' then submitted_by else null end,
     submitted_at = case when p_decision = 'approved' then submitted_at else null end,
     updated_at = now()
   where id = v_operation.id;
+  perform public.append_tournament_audit(
+    p_organization_id, 'match_operation.reviewed', 'match_operation',
+    v_operation.id, null, v_operation.tournament_id,
+    jsonb_build_object('decision', p_decision)
+  );
   return public.get_tournament_match_operation_context(p_organization_id, v_operation.id);
 end;
 $$;
@@ -2145,18 +2745,33 @@ declare
   v_operation public.tournament_match_operations%rowtype;
   v_source public.tournament_match_operations%rowtype;
   v_validation jsonb;
+  v_match_id uuid;
 begin
   if auth.uid() is null then
     raise exception using errcode = '42501', message = 'TORNEOS_AUTH_REQUIRED';
   end if;
-  perform pg_advisory_xact_lock(hashtextextended('torneos:match-official:' || p_match_operation_id, 0));
+  select match_id into v_match_id
+  from public.tournament_match_operations
+  where id = p_match_operation_id and organization_id = p_organization_id;
+  if v_match_id is null then
+    raise exception using errcode = '42501', message = 'TORNEOS_MATCH_FORBIDDEN';
+  end if;
+  perform pg_advisory_xact_lock(hashtextextended('torneos:match-official:' || v_match_id, 0));
   select * into v_operation from public.tournament_match_operations
   where id = p_match_operation_id and organization_id = p_organization_id for update;
-  if v_operation.id is null or v_operation.status <> 'validated'
+  if v_operation.id is null
     or not public.has_tournament_organization_capability(
       p_organization_id, 'match_operations.make_official'
     )
   then
+    raise exception using errcode = '42501', message = 'TORNEOS_MATCH_FORBIDDEN';
+  end if;
+  if v_operation.status = 'official' then
+    return public.get_tournament_match_operation_context(
+      p_organization_id, v_operation.id
+    );
+  end if;
+  if v_operation.status <> 'validated' then
     raise exception using errcode = '42501', message = 'TORNEOS_MATCH_FORBIDDEN';
   end if;
   if exists (
@@ -2173,11 +2788,32 @@ begin
   if v_operation.source_operation_id is not null then
     select * into v_source from public.tournament_match_operations
     where id = v_operation.source_operation_id and match_id = v_operation.match_id for update;
-    if v_source.id is null or v_source.status <> 'correction_requested' then
+    if v_source.id is null or v_source.status <> 'official'
+      or not exists (
+        select 1
+        from public.tournament_match_reviews review
+        where review.match_operation_id = v_source.id
+          and review.review_type = 'correction'
+          and review.status = 'open'
+      )
+    then
       raise exception using errcode = '55000', message = 'TORNEOS_MATCH_CORRECTION_STALE';
     end if;
+    update public.tournament_match_reviews set
+      status = 'approved',
+      resolved_by = auth.uid(),
+      resolved_at = now(),
+      resolution = 'Corrección reemplazada por una nueva versión oficial'
+    where match_operation_id = v_source.id
+      and review_type = 'correction'
+      and status = 'open';
     update public.tournament_match_operations set status = 'superseded', updated_at = now()
     where id = v_source.id;
+    perform public.append_tournament_audit(
+      p_organization_id, 'match_operation.superseded', 'match_operation',
+      v_source.id, null, v_source.tournament_id,
+      jsonb_build_object('replacementOperationId', v_operation.id)
+    );
   end if;
   update public.tournament_match_operations set
     status = 'official', match_status = 'official', official_by = auth.uid(),
@@ -2218,8 +2854,16 @@ begin
   then
     raise exception using errcode = '42501', message = 'TORNEOS_MATCH_FORBIDDEN';
   end if;
-  update public.tournament_match_operations set status = 'correction_requested', updated_at = now()
-  where id = v_operation.id;
+  if exists (
+    select 1
+    from public.tournament_match_reviews review
+    where review.match_operation_id = v_operation.id
+      and review.review_type = 'correction'
+      and review.status = 'open'
+  ) then
+    raise exception using errcode = '55000',
+      message = 'TORNEOS_MATCH_CORRECTION_EXISTS';
+  end if;
   insert into public.tournament_match_reviews (
     organization_id, match_operation_id, review_type, reason, requested_by
   ) values (
@@ -2253,7 +2897,14 @@ begin
   perform pg_advisory_xact_lock(hashtextextended('torneos:match-correction:' || p_match_operation_id, 0));
   select * into v_source from public.tournament_match_operations
   where id = p_match_operation_id and organization_id = p_organization_id for update;
-  if v_source.id is null or v_source.status <> 'correction_requested'
+  if v_source.id is null or v_source.status <> 'official'
+    or not exists (
+      select 1
+      from public.tournament_match_reviews review
+      where review.match_operation_id = v_source.id
+        and review.review_type = 'correction'
+        and review.status = 'open'
+    )
     or not public.has_tournament_organization_capability(
       p_organization_id, 'match_operations.correct'
     )
@@ -2275,8 +2926,27 @@ begin
   ) select
     organization_id, season_id, tournament_id, category_id, fixture_version_id,
     phase_id, round_id, match_id, home_team_entry_id, away_team_entry_id,
-    'draft', case when match_status = 'official' then 'played' else match_status end,
-    operation_version + 1, id, match_snapshot, home_team_snapshot,
+    'draft', case (
+      select outcome.outcome_type
+      from public.tournament_match_outcomes outcome
+      where outcome.match_operation_id = v_source.id
+    )
+      when 'played' then 'played'
+      when 'suspended' then 'suspended'
+      when 'abandoned' then 'abandoned'
+      when 'home_no_show' then 'administrative'
+      when 'away_no_show' then 'administrative'
+      when 'double_no_show' then 'administrative'
+      when 'walkover_home' then 'administrative'
+      when 'walkover_away' then 'administrative'
+      when 'administrative_result' then 'administrative'
+      else 'ready'
+    end,
+    (
+      select coalesce(max(existing.operation_version), 0) + 1
+      from public.tournament_match_operations existing
+      where existing.match_id = v_source.match_id
+    ), id, match_snapshot, home_team_snapshot,
     away_team_snapshot, notes, auth.uid(), now(), auth.uid()
   from public.tournament_match_operations where id = v_source.id
   returning * into v_new;
@@ -2330,7 +3000,7 @@ begin
   set related_event_id = copied_goal.id
   from public.tournament_match_events copied_goal
   where copied.match_operation_id = v_new.id
-    and copied.event_type = 'assist'
+    and copied.event_type in ('assist', 'substitution_in')
     and copied_goal.match_operation_id = v_new.id
     and copied_goal.metadata->>'copiedFromEventId'
       = copied.metadata->>'copiedFromRelatedEventId';
@@ -2453,10 +3123,24 @@ alter table public.tournament_match_resumptions enable row level security;
 
 create policy tournament_match_squads_select_scope
 on public.tournament_match_squads for select to authenticated
-using (public.can_read_tournament_match_operation(organization_id, match_id));
+using (
+  public.has_tournament_organization_capability(organization_id, 'match_squads.read')
+  or public.is_tournament_team_manager(team_entry_id, false)
+);
 create policy tournament_match_squad_players_select_scope
 on public.tournament_match_squad_players for select to authenticated
-using (public.can_read_tournament_match_operation(organization_id, match_id));
+using (
+  public.has_tournament_organization_capability(organization_id, 'match_squads.read')
+  or public.is_tournament_team_manager(team_entry_id, false)
+  or exists (
+    select 1
+    from public.tournament_roster_players player
+    where player.id = roster_player_id
+      and player.arma2_user_id = auth.uid()
+      and player.status = 'active'
+      and player.eligibility_status = 'eligible'
+  )
+);
 create policy tournament_match_availability_select_scope
 on public.tournament_match_availability_responses for select to authenticated
 using (
@@ -2466,19 +3150,29 @@ using (
 );
 create policy tournament_match_operations_select_scope
 on public.tournament_match_operations for select to authenticated
-using (public.can_read_tournament_match_operation(organization_id, match_id));
+using (
+  public.has_tournament_organization_capability(organization_id, 'match_operations.read')
+);
 create policy tournament_match_operation_players_select_scope
 on public.tournament_match_operation_players for select to authenticated
-using (public.can_read_tournament_match_operation(organization_id, match_id));
+using (
+  public.has_tournament_organization_capability(organization_id, 'match_operations.read')
+);
 create policy tournament_match_outcomes_select_scope
 on public.tournament_match_outcomes for select to authenticated
-using (public.can_read_tournament_match_operation(organization_id, match_id));
+using (
+  public.has_tournament_organization_capability(organization_id, 'match_operations.read')
+);
 create policy tournament_match_scores_select_scope
 on public.tournament_match_scores for select to authenticated
-using (public.can_read_tournament_match_operation(organization_id, match_id));
+using (
+  public.has_tournament_organization_capability(organization_id, 'match_operations.read')
+);
 create policy tournament_match_events_select_scope
 on public.tournament_match_events for select to authenticated
-using (public.can_read_tournament_match_operation(organization_id, match_id));
+using (
+  public.has_tournament_organization_capability(organization_id, 'match_events.read')
+);
 create policy tournament_match_reviews_select_scope
 on public.tournament_match_reviews for select to authenticated
 using (
@@ -2487,11 +3181,7 @@ using (
 create policy tournament_match_resumptions_select_scope
 on public.tournament_match_resumptions for select to authenticated
 using (
-  exists (
-    select 1 from public.tournament_match_operations operation
-    where operation.id = match_operation_id
-      and public.can_read_tournament_match_operation(organization_id, operation.match_id)
-  )
+  public.has_tournament_organization_capability(organization_id, 'match_operations.read')
 );
 
 revoke all on table public.tournament_match_squads from anon, authenticated;
@@ -2521,9 +3211,13 @@ revoke all on function public.tournament_match_team_entries(uuid) from public;
 revoke all on function public.can_read_tournament_match_operation(uuid, uuid) from public;
 revoke all on function public.can_manage_tournament_match_squad(uuid, uuid, uuid) from public;
 revoke all on function public.validate_tournament_match_player_scope() from public;
+revoke all on function public.validate_tournament_match_squad_scope() from public;
+revoke all on function public.protect_tournament_match_squad_players() from public;
 revoke all on function public.protect_tournament_match_operation_history() from public;
 revoke all on function public.validate_tournament_match_operation_source() from public;
 revoke all on function public.reject_tournament_match_child_delete() from public;
+revoke all on function public.protect_tournament_match_child_history() from public;
+revoke all on function public.protect_tournament_match_planning_transition() from public;
 revoke all on function public.get_player_tournament_matches() from public;
 revoke all on function public.get_managed_tournament_matches() from public;
 revoke all on function public.respond_match_availability(uuid, text, text) from public;
@@ -2566,7 +3260,6 @@ grant execute on function public.set_tournament_match_outcome(uuid, uuid, jsonb)
 grant execute on function public.set_tournament_match_score(uuid, uuid, jsonb) to authenticated;
 grant execute on function public.add_tournament_match_event(uuid, uuid, jsonb) to authenticated;
 grant execute on function public.void_tournament_match_event(uuid, uuid, text) to authenticated;
-grant execute on function public.validate_tournament_match_operation_payload(uuid) to authenticated;
 grant execute on function public.submit_tournament_match_operation(uuid, uuid) to authenticated;
 grant execute on function public.review_tournament_match_operation(uuid, uuid, text, text) to authenticated;
 grant execute on function public.validate_tournament_match_operation(uuid, uuid) to authenticated;
@@ -2574,7 +3267,6 @@ grant execute on function public.make_tournament_match_official(uuid, uuid) to a
 grant execute on function public.request_tournament_match_correction(uuid, uuid, text) to authenticated;
 grant execute on function public.create_tournament_match_correction(uuid, uuid) to authenticated;
 grant execute on function public.void_tournament_match_operation(uuid, uuid, text) to authenticated;
-grant execute on function public.schedule_tournament_match_resumption(uuid, uuid, timestamptz, uuid, uuid, text) to authenticated;
 
 comment on table public.tournament_match_operations is
   'Versioned match report authority. Official versions are immutable and corrections clone state.';
