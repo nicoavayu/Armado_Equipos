@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   ArrowRight,
+  CalendarRange,
   Check,
   CircleUserRound,
   LoaderCircle,
@@ -70,6 +71,19 @@ export function WorkspaceList() {
               <small>Tu espacio personal</small>
             </span>
             <Check size={17} aria-label="Espacio activo" />
+          </button>
+
+          <button
+            type="button"
+            className={styles.tournamentsItem}
+            onClick={() => navigate('/torneos/mis-torneos')}
+          >
+            <span className={styles.personalIcon}><CalendarRange size={20} /></span>
+            <span>
+              <strong>Mis torneos</strong>
+              <small>Calendario y competencia</small>
+            </span>
+            <ArrowRight size={17} />
           </button>
 
           {availableOrganizations.map((organization) => (

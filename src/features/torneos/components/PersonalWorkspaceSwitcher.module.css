@@ -109,6 +109,11 @@
   border-color: rgba(91, 222, 172, 0.18) !important;
 }
 
+.tournamentsItem {
+  border-color: rgba(164, 128, 255, 0.2) !important;
+  background: rgba(137, 91, 255, 0.075) !important;
+}
+
 .personalIcon,
 .organizationIcon {
   width: 38px;

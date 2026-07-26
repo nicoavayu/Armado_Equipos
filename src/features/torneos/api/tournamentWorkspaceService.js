@@ -113,6 +113,8 @@ const ERROR_MESSAGES = {
   TORNEOS_SUSPENSION_NOT_ACTIVE: 'La sanción ya no está activa.',
   TORNEOS_SUSPENSION_MATCH_INVALID: 'Ese partido no puede computarse como fecha cumplida.',
   TORNEOS_PLAYER_SUSPENDED: 'El jugador tiene una suspensión activa y no puede integrar la convocatoria.',
+  TORNEOS_HUB_FORBIDDEN: 'Ese torneo ya no está disponible para tu perfil.',
+  TORNEOS_HUB_INVALID_FILTER: 'El filtro de partidos no es válido.',
 };
 
 export class TournamentWorkspaceError extends Error {
@@ -1121,6 +1123,74 @@ export async function loadPlayerTournamentSuspensions(tournamentId) {
   }), 'No pudimos cargar tus sanciones.');
 }
 
+export async function loadMyTournamentMemberships({
+  limit = 20,
+  offset = 0,
+} = {}) {
+  return unwrapRpc(await supabase.rpc('get_my_tournament_memberships', {
+    p_limit: limit,
+    p_offset: offset,
+  }), 'No pudimos cargar tus torneos.');
+}
+
+export async function loadTournamentParticipantHub({
+  tournamentId,
+  categoryId = null,
+}) {
+  return unwrapRpc(await supabase.rpc('get_tournament_participant_hub', {
+    p_tournament_id: tournamentId,
+    p_category_id: categoryId,
+  }), 'No pudimos cargar el centro del torneo.');
+}
+
+export async function setTournamentHubCategory({
+  tournamentId,
+  categoryId,
+}) {
+  return unwrapRpc(await supabase.rpc('set_my_tournament_hub_category', {
+    p_tournament_id: tournamentId,
+    p_category_id: categoryId,
+  }), 'No pudimos cambiar de categoría.');
+}
+
+export async function loadPublishedTournamentMatches({
+  tournamentId,
+  categoryId,
+  view = 'all',
+  teamEntryId = null,
+  limit = 20,
+  offset = 0,
+}) {
+  return unwrapRpc(await supabase.rpc('get_published_tournament_matches', {
+    p_tournament_id: tournamentId,
+    p_category_id: categoryId,
+    p_view: view,
+    p_team_entry_id: teamEntryId,
+    p_limit: limit,
+    p_offset: offset,
+  }), 'No pudimos cargar los partidos publicados.');
+}
+
+export async function loadTournamentParticipantMatch(matchId) {
+  return unwrapRpc(await supabase.rpc('get_tournament_participant_match', {
+    p_match_id: matchId,
+  }), 'No pudimos cargar el partido.');
+}
+
+export async function loadPublishedTournamentTeams({
+  tournamentId,
+  categoryId,
+  limit = 16,
+  offset = 0,
+}) {
+  return unwrapRpc(await supabase.rpc('get_published_tournament_teams', {
+    p_tournament_id: tournamentId,
+    p_category_id: categoryId,
+    p_limit: limit,
+    p_offset: offset,
+  }), 'No pudimos cargar los equipos publicados.');
+}
+
 export const tournamentWorkspaceService = Object.freeze({
   loadContext: loadTournamentWorkspaceContext,
   createOrganization: createTournamentOrganization,
@@ -1208,5 +1278,11 @@ export const tournamentWorkspaceService = Object.freeze({
   markSuspensionServed: markTournamentSuspensionServed,
   loadPlayerStatistics: loadPlayerTournamentStatistics,
   loadPlayerSuspensions: loadPlayerTournamentSuspensions,
+  loadMyTournaments: loadMyTournamentMemberships,
+  loadParticipantHub: loadTournamentParticipantHub,
+  setHubCategory: setTournamentHubCategory,
+  loadPublishedMatches: loadPublishedTournamentMatches,
+  loadParticipantMatch: loadTournamentParticipantMatch,
+  loadPublishedTeams: loadPublishedTournamentTeams,
   createIdempotencyKey,
 });

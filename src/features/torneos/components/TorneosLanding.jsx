@@ -1,5 +1,12 @@
 import React from 'react';
-import { ArrowLeft, ArrowRight, Building2, Plus, ShieldCheck } from 'lucide-react';
+import {
+  ArrowLeft,
+  ArrowRight,
+  Building2,
+  CalendarRange,
+  Plus,
+  ShieldCheck,
+} from 'lucide-react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { getRoleLabel } from '../domain/capabilities';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
@@ -48,10 +55,14 @@ export default function TorneosLanding() {
         </div>
         <h1>El centro de mando de tu <em>competencia.</em></h1>
         <p>
-          Creá una organización para preparar la operación de tus torneos.
-          Los módulos deportivos se habilitarán en las próximas fases.
+          Operá una organización o entrá a tu calendario competitivo como
+          jugador, capitán o colaborador.
         </p>
         <div className={styles.heroActions}>
+          <Link className={styles.primaryButton} to="/torneos/mis-torneos">
+            <CalendarRange size={18} aria-hidden="true" />
+            Ver mis torneos
+          </Link>
           <Link className={styles.primaryButton} to="/torneos/nueva-organizacion">
             <Plus size={18} aria-hidden="true" />
             Crear organización
