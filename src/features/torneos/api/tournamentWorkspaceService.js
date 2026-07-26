@@ -95,6 +95,22 @@ const ERROR_MESSAGES = {
   TORNEOS_MATCH_REVIEW_OPEN: 'Hay una revisión incompatible todavía abierta.',
   TORNEOS_MATCH_CORRECTION_EXISTS: 'Ya existe una corrección activa para esta versión.',
   TORNEOS_MATCH_CORRECTION_STALE: 'La versión a corregir ya no es la vigente.',
+  TORNEOS_STANDINGS_FORBIDDEN: 'La tabla no está disponible para este perfil o contexto.',
+  TORNEOS_STANDINGS_SCOPE_INVALID: 'La categoría, fase o grupo no pertenecen al contexto activo.',
+  TORNEOS_STANDINGS_REASON_REQUIRED: 'Indicá un motivo claro para recalcular o publicar.',
+  TORNEOS_STANDINGS_DRAFT_EXISTS: 'Ya existe un cálculo borrador para este contexto.',
+  TORNEOS_STANDINGS_NOT_PUBLISHABLE: 'Esta revisión ya no puede publicarse.',
+  TORNEOS_STANDINGS_STALE: 'Los resultados oficiales cambiaron. Recalculá antes de publicar.',
+  TORNEOS_STATISTICS_FORBIDDEN: 'Las estadísticas no están disponibles para este perfil.',
+  TORNEOS_QUALIFICATION_FORBIDDEN: 'No tenés permiso para resolver clasificaciones.',
+  TORNEOS_QUALIFICATION_REASON_REQUIRED: 'Indicá el motivo de la resolución de clasificados.',
+  TORNEOS_QUALIFICATION_INCOMPLETE: 'Aún hay partidos o resultados pendientes en esta fase.',
+  TORNEOS_QUALIFICATION_AMBIGUOUS: 'La clasificación requiere una resolución manual.',
+  TORNEOS_DISCIPLINE_FORBIDDEN: 'No tenés permiso para administrar disciplina.',
+  TORNEOS_DISCIPLINE_OVERRIDE_INVALID: 'Revisá el tipo, la cantidad y el motivo del ajuste disciplinario.',
+  TORNEOS_SUSPENSION_NOT_ACTIVE: 'La sanción ya no está activa.',
+  TORNEOS_SUSPENSION_MATCH_INVALID: 'Ese partido no puede computarse como fecha cumplida.',
+  TORNEOS_PLAYER_SUSPENDED: 'El jugador tiene una suspensión activa y no puede integrar la convocatoria.',
 };
 
 export class TournamentWorkspaceError extends Error {
@@ -1007,6 +1023,102 @@ export async function voidTournamentMatchOperation(input) {
   }), 'No pudimos anular el acta.');
 }
 
+function projectionScopeParams(input) {
+  return {
+    p_organization_id: input.organizationId,
+    p_tournament_id: input.tournamentId,
+    p_category_id: input.categoryId,
+    p_phase_id: input.phaseId,
+    p_group_id: input.groupId || null,
+  };
+}
+
+export async function loadTournamentStandings(input) {
+  return unwrapRpc(await supabase.rpc(
+    'get_tournament_standings_context',
+    projectionScopeParams(input),
+  ), 'No pudimos cargar la tabla.');
+}
+
+export async function loadTournamentStatistics(input) {
+  return unwrapRpc(await supabase.rpc(
+    'get_tournament_statistics_context',
+    projectionScopeParams(input),
+  ), 'No pudimos cargar las estadísticas.');
+}
+
+export async function rebuildTournamentStandings(input) {
+  return unwrapRpc(await supabase.rpc('rebuild_tournament_standings', {
+    ...projectionScopeParams(input),
+    p_reason: input.reason,
+    p_idempotency_key: input.idempotencyKey || createIdempotencyKey(),
+  }), 'No pudimos recalcular la competencia.');
+}
+
+export async function publishTournamentStandings(input) {
+  return unwrapRpc(await supabase.rpc('publish_tournament_standings_revision', {
+    p_revision_id: input.revisionId,
+    p_reason: input.reason,
+  }), 'No pudimos publicar la tabla.');
+}
+
+export async function resolveTournamentQualification(input) {
+  return unwrapRpc(await supabase.rpc('resolve_tournament_qualification', {
+    p_revision_id: input.revisionId,
+    p_reason: input.reason,
+  }), 'No pudimos resolver los clasificados.');
+}
+
+export async function createTournamentPointsAdjustment(input) {
+  return unwrapRpc(await supabase.rpc('create_tournament_points_adjustment', {
+    p_organization_id: input.organizationId,
+    p_fixture_version_id: input.fixtureVersionId,
+    p_phase_id: input.phaseId,
+    p_group_id: input.groupId || null,
+    p_participant_id: input.participantId,
+    p_points: input.points,
+    p_reason: input.reason,
+    p_idempotency_key: input.idempotencyKey || createIdempotencyKey(),
+  }), 'No pudimos registrar el ajuste de puntos.');
+}
+
+export async function revokeTournamentPointsAdjustment(input) {
+  return unwrapRpc(await supabase.rpc('revoke_tournament_points_adjustment', {
+    p_adjustment_id: input.adjustmentId,
+    p_reason: input.reason,
+  }), 'No pudimos revocar el ajuste de puntos.');
+}
+
+export async function createTournamentDisciplinaryOverride(input) {
+  return unwrapRpc(await supabase.rpc('create_tournament_disciplinary_override', {
+    p_suspension_id: input.suspensionId,
+    p_action: input.action,
+    p_matches: input.matches ?? null,
+    p_reason: input.reason,
+    p_idempotency_key: input.idempotencyKey || createIdempotencyKey(),
+  }), 'No pudimos registrar el ajuste disciplinario.');
+}
+
+export async function markTournamentSuspensionServed(input) {
+  return unwrapRpc(await supabase.rpc('mark_tournament_suspension_served', {
+    p_suspension_id: input.suspensionId,
+    p_match_id: input.matchId,
+    p_note: input.note || null,
+  }), 'No pudimos registrar la fecha cumplida.');
+}
+
+export async function loadPlayerTournamentStatistics(tournamentId) {
+  return unwrapRpc(await supabase.rpc('get_player_tournament_statistics', {
+    p_tournament_id: tournamentId,
+  }), 'No pudimos cargar tus estadísticas.');
+}
+
+export async function loadPlayerTournamentSuspensions(tournamentId) {
+  return unwrapRpc(await supabase.rpc('get_player_tournament_suspensions', {
+    p_tournament_id: tournamentId,
+  }), 'No pudimos cargar tus sanciones.');
+}
+
 export const tournamentWorkspaceService = Object.freeze({
   loadContext: loadTournamentWorkspaceContext,
   createOrganization: createTournamentOrganization,
@@ -1083,5 +1195,16 @@ export const tournamentWorkspaceService = Object.freeze({
   requestMatchCorrection: requestTournamentMatchCorrection,
   createMatchCorrection: createTournamentMatchCorrection,
   voidMatchOperation: voidTournamentMatchOperation,
+  loadStandings: loadTournamentStandings,
+  loadStatistics: loadTournamentStatistics,
+  rebuildStandings: rebuildTournamentStandings,
+  publishStandings: publishTournamentStandings,
+  resolveQualification: resolveTournamentQualification,
+  createPointsAdjustment: createTournamentPointsAdjustment,
+  revokePointsAdjustment: revokeTournamentPointsAdjustment,
+  createDisciplinaryOverride: createTournamentDisciplinaryOverride,
+  markSuspensionServed: markTournamentSuspensionServed,
+  loadPlayerStatistics: loadPlayerTournamentStatistics,
+  loadPlayerSuspensions: loadPlayerTournamentSuspensions,
   createIdempotencyKey,
 });
