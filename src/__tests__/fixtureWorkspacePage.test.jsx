@@ -25,8 +25,18 @@ const mockFixtureState = {
   },
   eligibleEntries: [],
   participants: [
-    { id: 'participant-a', name: 'Armas FC', status: 'active' },
-    { id: 'participant-b', name: 'Barrio Norte', status: 'active' },
+    {
+      id: 'participant-a',
+      name: 'Armas FC con un nombre deliberadamente extenso',
+      status: 'active',
+      seedNumber: 1,
+    },
+    {
+      id: 'participant-b',
+      name: 'Barrio Norte',
+      status: 'active',
+      seedNumber: 2,
+    },
   ],
   pots: [],
   groups: [],
@@ -38,20 +48,42 @@ const mockFixtureState = {
     matchCount: 1,
     scheduledCount: 0,
   }],
-  phases: [{ id: 'phase-a', fixtureVersionId: 'version-a', phaseType: 'league' }],
-  rounds: [{
-    id: 'round-a',
-    fixtureVersionId: 'version-a',
-    phaseId: 'phase-a',
-    name: 'Fecha 1',
-    roundNumber: 1,
-    status: 'draft',
-  }],
+  phases: [
+    { id: 'phase-a', fixtureVersionId: 'version-a', phaseType: 'league' },
+    { id: 'phase-b', fixtureVersionId: 'version-a', phaseType: 'knockout' },
+  ],
+  rounds: [
+    {
+      id: 'round-a',
+      fixtureVersionId: 'version-a',
+      phaseId: 'phase-a',
+      name: 'Fecha 1',
+      roundNumber: 1,
+      status: 'draft',
+    },
+    {
+      id: 'round-b',
+      fixtureVersionId: 'version-a',
+      phaseId: 'phase-b',
+      name: 'Final',
+      roundNumber: 1,
+      status: 'draft',
+    },
+  ],
   matches: [{
     id: 'match-a',
     fixtureVersionId: 'version-a',
     roundId: 'round-a',
     matchNumber: 1,
+    homeParticipantId: 'participant-a',
+    awayParticipantId: 'participant-b',
+    status: 'unscheduled',
+    sources: [],
+  }, {
+    id: 'match-b',
+    fixtureVersionId: 'version-a',
+    roundId: 'round-b',
+    matchNumber: 2,
     homeParticipantId: 'participant-a',
     awayParticipantId: 'participant-b',
     status: 'unscheduled',
@@ -146,6 +178,19 @@ describe('FixtureWorkspacePage', () => {
     expect(screen.getByLabelText('Fecha y hora')).toHaveAttribute('type', 'datetime-local');
     expect(screen.getByLabelText('Sede')).toBeRequired();
     expect(screen.getByRole('button', { name: 'Guardar' })).toBeInTheDocument();
+  });
+
+  test('renders a semantic mobile-friendly bracket with sides and seeds', () => {
+    render(
+      <MemoryRouter>
+        <FixtureWorkspacePage mode="bracket" />
+      </MemoryRouter>,
+    );
+    expect(screen.getByRole('heading', { name: 'Llave eliminatoria' })).toBeInTheDocument();
+    expect(screen.getByText('Local')).toBeInTheDocument();
+    expect(screen.getByText('Visitante')).toBeInTheDocument();
+    expect(screen.getByText('Seed 1')).toBeInTheDocument();
+    expect(screen.getByText('Seed 2')).toBeInTheDocument();
   });
 
   test('keeps venue, court, and scheduling-window creation in one resource surface', () => {

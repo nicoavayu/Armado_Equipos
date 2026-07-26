@@ -591,7 +591,7 @@
 .contextBar select {
   width: 100%;
   min-width: 0;
-  min-height: 32px;
+  min-height: 44px;
   border: 0;
   color: #f7f5ff;
   background: transparent;
@@ -981,6 +981,41 @@
   background: rgba(17, 14, 26, 0.8);
 }
 
+.bracketTeam {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 66px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+}
+
+.bracketTeam > span {
+  color: #a79dae;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.bracketTeam strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.bracketTeam strong small {
+  display: block;
+  margin-bottom: 2px;
+  color: #a98cff;
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.bracketVersus {
+  color: #91889e;
+  font-size: 0.76rem;
+}
+
 .scheduleList button {
   display: grid;
   grid-template-columns: 42px minmax(0, 1fr) auto auto;
@@ -1154,16 +1189,26 @@
   }
 
   .roundList article > div > a,
-  .bracketList article,
   .scheduleList button {
     grid-template-columns: 36px minmax(0, 1fr);
   }
 
   .roundList article > div > a > span,
-  .bracketList article > span,
   .scheduleList button > small,
   .scheduleList button > em {
     grid-column: 2;
+  }
+
+  .bracketList article {
+    grid-template-columns: 1fr;
+  }
+
+  .bracketTeam {
+    grid-template-columns: 66px minmax(0, 1fr);
+  }
+
+  .bracketVersus {
+    padding-left: 75px;
   }
 
   .fieldWide {

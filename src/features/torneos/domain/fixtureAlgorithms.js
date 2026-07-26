@@ -41,6 +41,14 @@ function participantId(participant) {
   return typeof participant === 'string' ? participant : participant?.id;
 }
 
+function compareStable(left, right) {
+  const leftValue = String(left);
+  const rightValue = String(right);
+  if (leftValue < rightValue) return -1;
+  if (leftValue > rightValue) return 1;
+  return 0;
+}
+
 function assertParticipants(participants) {
   if (!Array.isArray(participants) || participants.length < 2) {
     throw new Error('TORNEOS_NOT_ENOUGH_PARTICIPANTS');
@@ -113,7 +121,7 @@ export function generateKnockoutBracket(participants, {
     const rightSeed = right?.seedNumber == null ? Number.POSITIVE_INFINITY : Number(right.seedNumber);
     const seedDifference = leftSeed - rightSeed;
     if (seedDifference) return seedDifference;
-    return String(participantId(left)).localeCompare(String(participantId(right)));
+    return compareStable(participantId(left), participantId(right));
   });
   const bracketSize = nextPowerOfTwo(ordered.length);
   const slots = Array.from({ length: bracketSize }, () => BYE);
@@ -136,37 +144,63 @@ export function generateKnockoutBracket(participants, {
   const stages = [];
   let sourceCount = bracketSize;
   let sequence = 1;
+  let previousSources = [];
+  let semifinalLoserSources = [];
   while (sourceCount >= 2) {
     const matchCount = sourceCount / 2;
     const stageMatches = [];
+    const nextSources = [];
+    const autoAdvances = [];
     for (let index = 0; index < matchCount; index += 1) {
       const firstStage = stages.length === 0;
       const home = firstStage ? slots[index * 2] : null;
       const away = firstStage ? slots[index * 2 + 1] : null;
-      const sourceMatchA = firstStage ? null : stages.at(-1).matches[index * 2]?.number;
-      const sourceMatchB = firstStage ? null : stages.at(-1).matches[index * 2 + 1]?.number;
+      const homeSource = firstStage
+        ? (home ? { type: 'participant', participantId: participantId(home) } : { type: 'bye' })
+        : previousSources[index * 2];
+      const awaySource = firstStage
+        ? (away ? { type: 'participant', participantId: participantId(away) } : { type: 'bye' })
+        : previousSources[index * 2 + 1];
+      if (homeSource.type === 'bye' || awaySource.type === 'bye') {
+        const advancing = homeSource.type === 'bye' ? awaySource : homeSource;
+        if (advancing.type !== 'bye') {
+          nextSources.push(advancing);
+          autoAdvances.push(advancing);
+        }
+        continue;
+      }
       const legs = doubleLeg && sourceCount > 2 ? 2 : 1;
+      const tieKey = `tie-${stages.length + 1}-${index + 1}`;
+      const matchNumber = sequence;
       stageMatches.push({
-        number: sequence,
+        number: matchNumber,
         home,
         away,
-        homeSource: firstStage
-          ? (home ? { type: 'participant', participantId: participantId(home) } : { type: 'bye' })
-          : { type: 'winner_of_match', matchNumber: sourceMatchA },
-        awaySource: firstStage
-          ? (away ? { type: 'participant', participantId: participantId(away) } : { type: 'bye' })
-          : { type: 'winner_of_match', matchNumber: sourceMatchB },
+        homeSource,
+        awaySource,
         legs,
-        autoAdvance: firstStage && ((home === BYE) !== (away === BYE)),
+        tieKey,
       });
       sequence += legs;
+      const advancementSource = legs === 2
+        ? { type: 'winner_of_tie', tieKey }
+        : { type: 'winner_of_match', matchNumber };
+      const loserSource = legs === 2
+        ? { type: 'loser_of_tie', tieKey }
+        : { type: 'loser_of_match', matchNumber };
+      nextSources.push(advancementSource);
+      if (sourceCount === 4) semifinalLoserSources.push(loserSource);
     }
-    stages.push({ size: sourceCount, matches: stageMatches });
+    stages.push({
+      size: sourceCount,
+      matches: stageMatches,
+      autoAdvances,
+    });
+    previousSources = nextSources;
     sourceCount /= 2;
   }
 
-  if (thirdPlace && stages.length > 1) {
-    const semifinal = stages.at(-2);
+  if (thirdPlace && semifinalLoserSources.length === 2) {
     const thirdPlaceStage = {
       size: 2,
       thirdPlace: true,
@@ -174,14 +208,8 @@ export function generateKnockoutBracket(participants, {
         number: sequence,
         home: null,
         away: null,
-        homeSource: {
-          type: 'loser_of_match',
-          matchNumber: semifinal.matches[0].number,
-        },
-        awaySource: {
-          type: 'loser_of_match',
-          matchNumber: semifinal.matches[1].number,
-        },
+        homeSource: semifinalLoserSources[0],
+        awaySource: semifinalLoserSources[1],
         legs: 1,
       }],
     };
@@ -215,7 +243,7 @@ export function drawGroups(participants, {
   orderedPots.forEach((potNumber) => {
     const pot = seededShuffle(
       byPot.get(potNumber).sort((left, right) => (
-        String(participantId(left)).localeCompare(String(participantId(right)))
+        compareStable(participantId(left), participantId(right))
       )),
       `${normalizeSeed(seed)}:pot:${potNumber}`,
     );
@@ -264,4 +292,76 @@ export function participantFingerprint(participants) {
   return Array.from({ length: 8 }, (_, index) => (
     hashSeed(`${index}:${canonical}`).toString(16).padStart(8, '0')
   )).join('');
+}
+
+function zonedParts(date, timeZone) {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  });
+  return Object.fromEntries(
+    formatter.formatToParts(date)
+      .filter((part) => part.type !== 'literal')
+      .map((part) => [part.type, part.value]),
+  );
+}
+
+export function instantToZonedLocalInput(value, timeZone) {
+  const parts = zonedParts(new Date(value), timeZone);
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
+}
+
+export function zonedLocalDateTimeToIso(value, timeZone) {
+  const match = String(value || '').match(
+    /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/,
+  );
+  if (!match || !timeZone) throw new Error('TORNEOS_INVALID_LOCAL_SCHEDULE');
+  const desired = match.slice(1).map(Number);
+  const desiredUtc = Date.UTC(
+    desired[0],
+    desired[1] - 1,
+    desired[2],
+    desired[3],
+    desired[4],
+  );
+  const candidateOffsets = new Set(
+    [-48, -24, 0, 24, 48].map((hours) => {
+      const instant = desiredUtc + (hours * 60 * 60 * 1000);
+      const parts = zonedParts(new Date(instant), timeZone);
+      const representedAsUtc = Date.UTC(
+        Number(parts.year),
+        Number(parts.month) - 1,
+        Number(parts.day),
+        Number(parts.hour),
+        Number(parts.minute),
+        Number(parts.second),
+      );
+      return representedAsUtc - instant;
+    }),
+  );
+  const candidates = [...candidateOffsets]
+    .map((offset) => new Date(desiredUtc - offset))
+    .filter((candidate) => (
+      instantToZonedLocalInput(candidate, timeZone) === value
+    ));
+  const uniqueInstants = [...new Set(candidates.map((candidate) => candidate.toISOString()))];
+  if (uniqueInstants.length !== 1) {
+    throw new Error('TORNEOS_INVALID_LOCAL_SCHEDULE');
+  }
+  return uniqueInstants[0];
+}
+
+export function formatInstantInTimeZone(value, timeZone, locale = 'es-AR') {
+  if (!value) return '';
+  return new Intl.DateTimeFormat(locale, {
+    timeZone,
+    dateStyle: 'short',
+    timeStyle: 'short',
+  }).format(new Date(value));
 }

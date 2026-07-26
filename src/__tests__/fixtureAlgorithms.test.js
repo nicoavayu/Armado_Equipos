@@ -2,8 +2,10 @@ import {
   drawGroups,
   generateKnockoutBracket,
   generateRoundRobin,
+  instantToZonedLocalInput,
   participantFingerprint,
   seededShuffle,
+  zonedLocalDateTimeToIso,
 } from '../features/torneos/domain/fixtureAlgorithms';
 
 const ids = (count) => Array.from({ length: count }, (_, index) => `team-${index + 1}`);
@@ -12,7 +14,9 @@ const realMatches = (rounds) => rounds.flatMap((round) => round.matches)
 const pairKey = (match) => [match.home, match.away].sort().join(':');
 
 describe('fixtureAlgorithms round robin', () => {
-  test.each([2, 3, 4, 5, 10])('covers every pairing exactly once with %i teams', (count) => {
+  test.each([2, 3, 4, 5, 6, 7, 10, 16])(
+    'covers every pairing exactly once with %i teams',
+    (count) => {
     const participants = ids(count);
     const rounds = generateRoundRobin(participants);
     const matches = realMatches(rounds);
@@ -26,7 +30,18 @@ describe('fixtureAlgorithms round robin', () => {
         .filter(Boolean);
       expect(new Set(appearances).size).toBe(appearances.length);
     });
-  });
+    participants.forEach((participant) => {
+      expect(matches.filter((match) => (
+        match.home === participant || match.away === participant
+      ))).toHaveLength(count - 1);
+      if (count % 2 === 1) {
+        expect(rounds.filter((round) => round.matches.some((match) => (
+          match.bye && (match.home === participant || match.away === participant)
+        )))).toHaveLength(1);
+      }
+    });
+  },
+  );
 
   test('builds a mirrored second leg with localities inverted', () => {
     const firstAndSecond = generateRoundRobin(ids(6), { doubleRound: true });
@@ -47,22 +62,25 @@ describe('fixtureAlgorithms round robin', () => {
 });
 
 describe('fixtureAlgorithms knockout', () => {
-  test.each([2, 3, 4, 5, 6, 8, 10, 16])('creates a complete power-of-two bracket for %i teams', (count) => {
+  test.each([2, 3, 4, 5, 6, 7, 8, 10, 12, 16])(
+    'creates only playable matches for a power-of-two bracket with %i teams',
+    (count) => {
     const participants = ids(count).map((id, index) => ({ id, seedNumber: index + 1 }));
     const stages = generateKnockoutBracket(participants);
     const bracketSize = 2 ** Math.ceil(Math.log2(count));
 
-    expect(stages.at(0).matches).toHaveLength(bracketSize / 2);
+    expect(stages.at(0).matches).toHaveLength(count - (bracketSize / 2));
     expect(stages.at(-1).matches).toHaveLength(1);
-    expect(stages.flatMap((stage) => stage.matches)).toHaveLength(bracketSize - 1);
-    expect(stages.at(0).matches.filter((match) => match.autoAdvance)).toHaveLength(bracketSize - count);
-    stages.slice(1).forEach((stage) => {
+    expect(stages.flatMap((stage) => stage.matches)).toHaveLength(count - 1);
+    expect(stages.at(0).autoAdvances).toHaveLength(bracketSize - count);
+    stages.forEach((stage) => {
       stage.matches.forEach((match) => {
-        expect(match.homeSource.type).toBe('winner_of_match');
-        expect(match.awaySource.type).toBe('winner_of_match');
+        expect(match.homeSource.type).not.toBe('bye');
+        expect(match.awaySource.type).not.toBe('bye');
       });
     });
-  });
+  },
+  );
 
   test('protects the highest seeds and exposes structured third-place sources', () => {
     const stages = generateKnockoutBracket(
@@ -91,6 +109,8 @@ describe('fixtureAlgorithms knockout', () => {
     expect(stages[0].matches.every((match) => match.legs === 2)).toBe(true);
     expect(stages[1].matches.every((match) => match.legs === 2)).toBe(true);
     expect(stages.at(-1).matches[0].legs).toBe(1);
+    expect(stages[1].matches[0].homeSource.type).toBe('winner_of_tie');
+    expect(stages[1].matches[0].awaySource.type).toBe('winner_of_tie');
   });
 });
 
@@ -116,8 +136,22 @@ describe('fixtureAlgorithms deterministic draw', () => {
 
   test('requires an explicit seed and valid group count', () => {
     expect(() => seededShuffle(ids(4), '')).toThrow('TORNEOS_DRAW_SEED_REQUIRED');
+    expect(() => seededShuffle(ids(4), '   ')).toThrow('TORNEOS_DRAW_SEED_REQUIRED');
     expect(() => drawGroups(participants, { groupCount: 1, seed: 'x' }))
       .toThrow('TORNEOS_INVALID_GROUP_COUNT');
+  });
+
+  test.each([
+    [4, 2], [6, 2], [7, 2], [8, 2], [10, 3], [12, 3], [16, 4],
+  ])('balances %i participants across %i groups', (count, groupCount) => {
+    const values = ids(count).map((id, index) => ({
+      id,
+      potNumber: (index % Math.max(1, Math.floor(count / groupCount))) + 1,
+    }));
+    const groups = drawGroups(values, { groupCount, seed: 'á-seed-非常-larga' });
+    const sizes = groups.map((group) => group.participants.length);
+    expect(Math.max(...sizes) - Math.min(...sizes)).toBeLessThanOrEqual(1);
+    expect(groups.flatMap((group) => group.participants)).toHaveLength(count);
   });
 
   test('fingerprints participant identity and competitive ordering', () => {
@@ -129,5 +163,33 @@ describe('fixtureAlgorithms deterministic draw', () => {
         index === 0 ? { ...participant, seedNumber: 99 } : participant
       )),
     )).not.toBe(fingerprint);
+  });
+});
+
+describe('fixtureAlgorithms scheduling time zones', () => {
+  test('converts venue-local time without depending on the browser time zone', () => {
+    expect(zonedLocalDateTimeToIso(
+      '2030-06-01T12:00',
+      'America/Argentina/Buenos_Aires',
+    )).toBe('2030-06-01T15:00:00.000Z');
+    expect(zonedLocalDateTimeToIso(
+      '2030-06-01T12:00',
+      'Europe/Madrid',
+    )).toBe('2030-06-01T10:00:00.000Z');
+  });
+
+  test('round-trips instants and rejects missing or ambiguous DST times', () => {
+    expect(instantToZonedLocalInput(
+      '2030-06-01T15:00:00.000Z',
+      'America/Argentina/Buenos_Aires',
+    )).toBe('2030-06-01T12:00');
+    expect(() => zonedLocalDateTimeToIso(
+      '2030-03-10T02:30',
+      'America/New_York',
+    )).toThrow('TORNEOS_INVALID_LOCAL_SCHEDULE');
+    expect(() => zonedLocalDateTimeToIso(
+      '2025-11-02T01:30',
+      'America/New_York',
+    )).toThrow('TORNEOS_INVALID_LOCAL_SCHEDULE');
   });
 });

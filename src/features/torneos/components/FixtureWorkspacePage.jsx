@@ -21,6 +21,11 @@ import { Link, useOutletContext, useParams } from 'react-router-dom';
 import { useTorneosCompetition } from '../context/TorneosCompetitionContext';
 import { useTorneosFixture } from '../context/TorneosFixtureContext';
 import { hasCapability, TOURNAMENT_CAPABILITIES } from '../domain/capabilities';
+import {
+  formatInstantInTimeZone,
+  instantToZonedLocalInput,
+  zonedLocalDateTimeToIso,
+} from '../domain/fixtureAlgorithms';
 import CompetitionSelector from './CompetitionSelector';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import styles from './FixtureWorkspace.module.css';
@@ -180,9 +185,10 @@ function PotsPanel({ canManage }) {
         .filter((participant, participantIndex) => (
           (participant.potNumber || ((participantIndex % Number(potCount)) + 1)) === index + 1
         ))
-        .map((participant, participantIndex) => ({
+        .map((participant) => ({
           participantId: participant.id,
-          seedNumber: participant.seedNumber || participantIndex + 1,
+          seedNumber: participant.seedNumber
+            || participants.findIndex((item) => item.id === participant.id) + 1,
         })),
     }));
     setBusy(true);
@@ -326,7 +332,7 @@ function DraftEditor({ version }) {
   const {
     participants, phases, rounds, matches, actions,
   } = useTorneosFixture();
-  const [phase, setPhase] = useState({ name: '', phaseType: 'custom' });
+  const [phase, setPhase] = useState({ name: '', phaseType: 'custom_knockout' });
   const [round, setRound] = useState({ phaseId: '', name: '' });
   const [match, setMatch] = useState({
     roundId: '', homeParticipantId: '', awayParticipantId: '', durationMinutes: 60,
@@ -356,7 +362,7 @@ function DraftEditor({ version }) {
         }}>
           <h3>Nueva fase</h3>
           <label><span>Nombre</span><input required value={phase.name} onChange={(event) => setPhase({ ...phase, name: event.target.value })} /></label>
-          <label><span>Tipo</span><select value={phase.phaseType} onChange={(event) => setPhase({ ...phase, phaseType: event.target.value })}><option value="league">Liga</option><option value="groups">Grupos</option><option value="custom_knockout">Eliminación</option><option value="custom">Personalizada</option></select></label>
+          <label><span>Tipo</span><select value={phase.phaseType} onChange={(event) => setPhase({ ...phase, phaseType: event.target.value })}><option value="league">Liga</option><option value="groups">Grupos</option><option value="custom_knockout">Eliminación</option></select></label>
           <button type="submit"><Plus size={16} /> Crear fase</button>
         </form>
         <form onSubmit={async (event) => {
@@ -412,13 +418,16 @@ function RoundsPanel({ bracket = false, canManage = false }) {
     && (!roundId || round.id === roundId)
   ));
   const participantName = (id) => participants.find((item) => item.id === id)?.name;
+  const participantSeed = (id) => participants.find((item) => item.id === id)?.seedNumber;
   const sourceLabel = (source) => {
     if (!source) return 'A definir';
     if (source.type === 'participant') return participantName(source.participantId) || 'Participante';
     if (source.type === 'winner_of_match') return `Ganador · partido ${matches.find((item) => item.id === source.matchId)?.matchNumber || '—'}`;
     if (source.type === 'loser_of_match') return `Perdedor · partido ${matches.find((item) => item.id === source.matchId)?.matchNumber || '—'}`;
+    if (source.type === 'winner_of_tie') return 'Ganador de la serie';
+    if (source.type === 'loser_of_tie') return 'Perdedor de la serie';
     if (source.type === 'group_position') return `${source.positionNumber}º de grupo`;
-    if (source.type === 'best_ranked') return `Posición general ${source.rankNumber}`;
+    if (source.type === 'league_position') return `Posición de liga ${source.rankNumber}`;
     if (source.type === 'bye') return 'Fecha libre';
     return 'A definir';
   };
@@ -441,9 +450,21 @@ function RoundsPanel({ bracket = false, canManage = false }) {
               {shownMatches.filter((match) => match.roundId === round.id).map((match) => (
                 <article key={match.id}>
                   <small>Partido {match.matchNumber}{match.legNumber > 1 ? ` · vuelta` : ''}</small>
-                  <strong>{participantName(match.homeParticipantId) || sourceLabel(match.sources?.find((source) => source.side === 'home'))}</strong>
-                  <span>vs</span>
-                  <strong>{participantName(match.awayParticipantId) || sourceLabel(match.sources?.find((source) => source.side === 'away'))}</strong>
+                  <div className={styles.bracketTeam}>
+                    <span>Local</span>
+                    <strong>
+                      {participantSeed(match.homeParticipantId) && <small>Seed {participantSeed(match.homeParticipantId)}</small>}
+                      {participantName(match.homeParticipantId) || sourceLabel(match.sources?.find((source) => source.side === 'home'))}
+                    </strong>
+                  </div>
+                  <span className={styles.bracketVersus} aria-hidden="true">vs</span>
+                  <div className={styles.bracketTeam}>
+                    <span>Visitante</span>
+                    <strong>
+                      {participantSeed(match.awayParticipantId) && <small>Seed {participantSeed(match.awayParticipantId)}</small>}
+                      {participantName(match.awayParticipantId) || sourceLabel(match.sources?.find((source) => source.side === 'away'))}
+                    </strong>
+                  </div>
                 </article>
               ))}
             </section>
@@ -482,7 +503,11 @@ function SchedulePanel({ canManage }) {
   const {
     versions, participants, matches, venues, courts, actions,
   } = useTorneosFixture();
-  const candidateMatches = matches.filter((match) => !['cancelled', 'ready'].includes(match.status));
+  const candidateMatches = matches.filter((match) => (
+    !['cancelled', 'ready'].includes(match.status)
+    && match.homeParticipantId
+    && match.awayParticipantId
+  ));
   const [form, setForm] = useState({
     matchId: '', scheduledAt: '', venueId: '', courtId: '', durationMinutes: 60, reason: '',
   });
@@ -490,10 +515,23 @@ function SchedulePanel({ canManage }) {
   const [busy, setBusy] = useState(false);
   const selected = matches.find((match) => match.id === form.matchId);
   const availableCourts = courts.filter((court) => court.venueId === form.venueId && court.status === 'active');
+  const selectedVenue = venues.find((venue) => venue.id === form.venueId);
   const set = (key) => (event) => setForm((current) => ({ ...current, [key]: event.target.value }));
+  const scheduleIso = (() => {
+    try {
+      return form.scheduledAt && selectedVenue?.timezone
+        ? zonedLocalDateTimeToIso(form.scheduledAt, selectedVenue.timezone)
+        : '';
+    } catch {
+      return '';
+    }
+  })();
+  const scheduleTimeError = Boolean(
+    form.scheduledAt && selectedVenue?.timezone && !scheduleIso,
+  );
   const payload = {
     ...form,
-    scheduledAt: form.scheduledAt ? new Date(form.scheduledAt).toISOString() : '',
+    scheduledAt: scheduleIso,
     durationMinutes: Number(form.durationMinutes),
   };
   const submit = async (event) => {
@@ -519,12 +557,18 @@ function SchedulePanel({ canManage }) {
           <button key={match.id} type="button" aria-pressed={form.matchId === match.id} onClick={() => setForm((current) => ({
             ...current,
             matchId: match.id,
-            scheduledAt: match.scheduledAt ? match.scheduledAt.slice(0, 16) : '',
+            scheduledAt: match.scheduledAt
+              ? instantToZonedLocalInput(
+                match.scheduledAt,
+                venues.find((venue) => venue.id === match.venueId)?.timezone
+                  || 'America/Argentina/Buenos_Aires',
+              )
+              : '',
             venueId: match.venueId || '',
             courtId: match.courtId || '',
             durationMinutes: match.durationMinutes || 60,
           }))}>
-            <span>#{match.matchNumber}</span><strong>{participantName(match.homeParticipantId)} · {participantName(match.awayParticipantId)}</strong><small>{match.scheduledAt ? new Date(match.scheduledAt).toLocaleString('es-AR') : 'Sin horario'}</small><em>{match.status}</em>
+            <span>#{match.matchNumber}</span><strong>{participantName(match.homeParticipantId)} · {participantName(match.awayParticipantId)}</strong><small>{match.scheduledAt ? formatInstantInTimeZone(match.scheduledAt, venues.find((venue) => venue.id === match.venueId)?.timezone || 'America/Argentina/Buenos_Aires') : 'Sin horario'}</small><em>{match.status}</em>
           </button>
         ))}</div>
       </section>
@@ -536,8 +580,9 @@ function SchedulePanel({ canManage }) {
         <label><span>Cancha</span><select required value={form.courtId} onChange={set('courtId')}><option value="">Seleccionar</option>{availableCourts.map((court) => <option key={court.id} value={court.id}>{court.name}</option>)}</select></label>
         <label><span>Duración</span><input required type="number" min="15" max="240" value={form.durationMinutes} onChange={set('durationMinutes')} /></label>
         {(selected?.status === 'scheduled' || selected?.status === 'postponed') && <label><span>Motivo</span><textarea required minLength={3} value={form.reason} onChange={set('reason')} /></label>}
+        {scheduleTimeError && <div className={styles.validation} role="alert"><AlertTriangle size={17} /><span>Esa hora local no existe o es ambigua para la zona horaria de la sede.</span></div>}
         {validation && <div className={styles.validation} data-valid={validation.valid}><AlertTriangle size={17} /><span>{validation.blockers?.length || 0} bloqueos · {validation.warnings?.length || 0} advertencias</span></div>}
-        {canManage && <div className={styles.formActions}><button type="button" disabled={busy || !form.matchId || !form.scheduledAt || !form.courtId} onClick={async () => setValidation(await actions.validateSchedule(payload))}>Validar</button><button type="submit" disabled={busy}>Guardar</button></div>}
+        {canManage && <div className={styles.formActions}><button type="button" disabled={busy || !form.matchId || !scheduleIso || !form.courtId} onClick={async () => setValidation(await actions.validateSchedule(payload))}>Validar</button><button type="submit" disabled={busy || !scheduleIso}>Guardar</button></div>}
       </form>
     </div>
   );
@@ -592,7 +637,7 @@ function VenuesPanel({ canManage }) {
           }]);
         }}>
           <h2>Ventana semanal</h2>
-          <label><span>Día</span><select value={scheduleWindow.dayOfWeek} onChange={(event) => setScheduleWindow({ ...scheduleWindow, dayOfWeek: event.target.value })}><option value="1">Lunes</option><option value="2">Martes</option><option value="3">Miércoles</option><option value="4">Jueves</option><option value="5">Viernes</option><option value="6">Sábado</option><option value="0">Domingo</option></select></label>
+          <label><span>Día</span><select value={scheduleWindow.dayOfWeek} onChange={(event) => setScheduleWindow({ ...scheduleWindow, dayOfWeek: event.target.value })}><option value="1">Lunes</option><option value="2">Martes</option><option value="3">Miércoles</option><option value="4">Jueves</option><option value="5">Viernes</option><option value="6">Sábado</option><option value="7">Domingo</option></select></label>
           <label><span>Desde</span><input required type="time" value={scheduleWindow.startsAt} onChange={(event) => setScheduleWindow({ ...scheduleWindow, startsAt: event.target.value })} /></label>
           <label><span>Hasta</span><input required type="time" value={scheduleWindow.endsAt} onChange={(event) => setScheduleWindow({ ...scheduleWindow, endsAt: event.target.value })} /></label>
           <label><span>Minutos por turno</span><input required type="number" min="15" max="240" value={scheduleWindow.slotDurationMinutes} onChange={(event) => setScheduleWindow({ ...scheduleWindow, slotDurationMinutes: event.target.value })} /></label>

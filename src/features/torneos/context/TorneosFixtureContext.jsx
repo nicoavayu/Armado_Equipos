@@ -34,6 +34,7 @@ export function TorneosFixtureProvider({
 }) {
   const { activeTournament } = useTorneosCompetition();
   const requestRef = useRef(0);
+  const scopeRef = useRef('');
   const [categoryId, setCategoryId] = useState(null);
   const [state, setState] = useState({
     status: 'idle',
@@ -45,6 +46,8 @@ export function TorneosFixtureProvider({
     () => (activeTournament?.categories || []).filter((category) => category.status === 'active'),
     [activeTournament?.categories],
   );
+  const scopeKey = `${organizationId || ''}:${activeTournament?.id || ''}:${categoryId || ''}`;
+  scopeRef.current = scopeKey;
 
   useEffect(() => {
     setCategoryId((current) => (
@@ -55,12 +58,15 @@ export function TorneosFixtureProvider({
   }, [activeTournament?.id, categories]);
 
   const refresh = useCallback(async ({ notice = '' } = {}) => {
+    const requestedScope = scopeKey;
     const requestId = requestRef.current + 1;
     requestRef.current = requestId;
     if (!activeTournament?.id || !categoryId
       || typeof service?.loadFixtureContext !== 'function') {
       const data = { ...EMPTY_DATA };
-      setState({ status: 'ready', data, error: '', notice });
+      if (scopeRef.current === requestedScope) {
+        setState({ status: 'ready', data, error: '', notice });
+      }
       return data;
     }
     setState({ status: 'loading', data: EMPTY_DATA, error: '', notice });
@@ -74,12 +80,12 @@ export function TorneosFixtureProvider({
         ...(fixture || {}),
         ...(schedule || {}),
       };
-      if (requestRef.current === requestId) {
+      if (requestRef.current === requestId && scopeRef.current === requestedScope) {
         setState({ status: 'ready', data, error: '', notice });
       }
       return data;
     } catch (error) {
-      if (requestRef.current === requestId) {
+      if (requestRef.current === requestId && scopeRef.current === requestedScope) {
         setState({
           status: 'error',
           data: EMPTY_DATA,
@@ -89,7 +95,7 @@ export function TorneosFixtureProvider({
       }
       throw error;
     }
-  }, [activeTournament?.id, categoryId, organizationId, service]);
+  }, [activeTournament?.id, categoryId, organizationId, scopeKey, service]);
 
   useEffect(() => {
     setState({ status: 'idle', data: EMPTY_DATA, error: '', notice: '' });
@@ -100,10 +106,23 @@ export function TorneosFixtureProvider({
   }, [refresh]);
 
   const mutate = useCallback(async (operation, notice) => {
-    const result = await operation();
-    await refresh({ notice });
-    return result;
-  }, [refresh]);
+    const requestedScope = scopeKey;
+    try {
+      const result = await operation();
+      if (scopeRef.current === requestedScope) await refresh({ notice });
+      return result;
+    } catch (error) {
+      if (scopeRef.current === requestedScope) {
+        setState({
+          status: 'error',
+          data: EMPTY_DATA,
+          error: error?.message || 'No pudimos actualizar el fixture.',
+          notice: '',
+        });
+      }
+      throw error;
+    }
+  }, [refresh, scopeKey]);
 
   const scoped = useCallback((input = {}) => ({
     organizationId,
