@@ -23,6 +23,11 @@ const ROOT = process.env.SECPATCH_ROOT
   ? path.resolve(process.env.SECPATCH_ROOT)
   : path.resolve(__dirname, '..', '..');
 const MIGRATIONS_DIR = path.join(ROOT, 'supabase', 'migrations');
+// Stage B migrations are kept OUT of supabase/migrations (so they can never
+// enter a `supabase db push` of the Stage A rollout) and live in a test-only
+// fixtures dir. Their SQL is byte-identical to the copies carried by the
+// separate Stage B enforcement PR. This harness still applies + asserts them.
+const STAGE_B_DIR = path.join(ROOT, 'scripts', 'db-integration', 'fixtures', 'stage-b');
 
 const STAGE_A = [
   '20260724121000_secure_no_show_ranking_stage_a.sql',
@@ -336,10 +341,10 @@ create policy jugadores_fotos_anon_authenticated_insert on storage.objects for i
 create policy jugadores_fotos_anon_authenticated_update on storage.objects for update to anon, authenticated using (bucket_id = 'jugadores-fotos') with check (bucket_id = 'jugadores-fotos');
 `;
 
-async function applyMigrations(list) {
+async function applyMigrations(list, dir = MIGRATIONS_DIR) {
   await q('reset role');
   for (const file of list) {
-    const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, file), 'utf8');
+    const sql = fs.readFileSync(path.join(dir, file), 'utf8');
     await q(sql);
   }
 }
@@ -666,7 +671,9 @@ async function main() {
     'bucket has a 15MB file_size_limit');
 
   // ----------------------------------------------------------------- Stage B
-  await applyMigrations(STAGE_B);
+  // Applied from the fixtures dir (see STAGE_B_DIR) — these files are NOT under
+  // supabase/migrations in this PR, but the closure is still verified here.
+  await applyMigrations(STAGE_B, STAGE_B_DIR);
 
   console.log('\nStage B — direct writes revoked, RPCs still work');
   await expectDenied('authenticated can no longer INSERT rating_adjustments directly', 'authenticated', U.stranger,

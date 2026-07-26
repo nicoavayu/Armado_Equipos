@@ -2,11 +2,15 @@ const fs = require('fs');
 const path = require('path');
 
 const migrationsDir = path.join(__dirname, '..', '..', 'supabase', 'migrations');
+// Stage B migrations are intentionally kept OUT of supabase/migrations (so they
+// cannot enter a `supabase db push` of the Stage A rollout) and live in a
+// test-only fixtures dir. Content is byte-identical to the separate Stage B PR.
+const stageBDir = path.join(__dirname, '..', '..', 'scripts', 'db-integration', 'fixtures', 'stage-b');
 
 // Executable SQL only (strip `--` comment lines so rollback SQL / prose in
 // comments does not trip the assertions), and the raw text for transaction checks.
-const load = (file) => {
-  const raw = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
+const load = (file, dir = migrationsDir) => {
+  const raw = fs.readFileSync(path.join(dir, file), 'utf8');
   const code = raw
     .split('\n')
     .filter((line) => !line.trim().startsWith('--'))
@@ -22,8 +26,8 @@ const B1 = 'revoke_direct_rating_writes_stage_b.sql';
 const B2 = 'notifications_rpc_only_stage_b.sql';
 const B3 = 'drop_anon_insert_jugadores_fotos_stage_b.sql';
 
-const fileFor = (suffix) =>
-  fs.readdirSync(migrationsDir).find((f) => f.endsWith(suffix));
+const fileFor = (suffix, dir = migrationsDir) =>
+  fs.readdirSync(dir).find((f) => f.endsWith(suffix));
 
 describe('security patch — Stage A: no-show ranking (M1)', () => {
   const { code, normalized } = load(fileFor(A1));
@@ -306,21 +310,21 @@ describe('security patch — Stage A: jugadores-fotos storage (M4)', () => {
 
 describe('security patch — Stage B: full closure', () => {
   test('B1 revokes direct rating writes from authenticated', () => {
-    const { code } = load(fileFor(B1));
+    const { code } = load(fileFor(B1, stageBDir), stageBDir);
     expect(code).toContain('DROP POLICY IF EXISTS rating_adjustments_insert_authenticated');
     expect(code).toContain('REVOKE INSERT, UPDATE, DELETE ON public.rating_adjustments FROM authenticated');
     expect(code).toContain('REVOKE INSERT, UPDATE, DELETE ON public.no_show_recovery_state FROM authenticated');
   });
 
   test('B2 leaves notifications insert as self-only', () => {
-    const { code } = load(fileFor(B2));
+    const { code } = load(fileFor(B2, stageBDir), stageBDir);
     expect(code).toContain('DROP POLICY IF EXISTS notifications_insert_related_or_self');
     expect(code).toContain('CREATE POLICY notifications_insert_self_only');
     expect(code).toContain('WITH CHECK (user_id = auth.uid())');
   });
 
   test('B3 drops the anon INSERT on the bucket (no anon write remains)', () => {
-    const { code } = load(fileFor(B3));
+    const { code } = load(fileFor(B3, stageBDir), stageBDir);
     expect(code).toContain('DROP POLICY IF EXISTS jugadores_fotos_anon_authenticated_insert ON storage.objects');
   });
 });
