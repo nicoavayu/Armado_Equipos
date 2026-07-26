@@ -116,3 +116,12 @@ Advisory locks e índices parciales impiden dos aperturas, dos oficiales o dos
 correcciones activas. Las oficiales rechazan edición directa; eventos se anulan
 sin borrar. Score y eventos se revalidan al presentar y oficializar. No hay
 Storage, notificaciones, emails, datos productivos ni service role en cliente.
+
+## Hardening de proyecciones oficiales
+
+Las proyecciones tienen RLS y cero escrituras directas de `authenticated`.
+Rebuild/publicación/resolución/override son RPCs separadas con `auth.uid()`,
+capability, scope compuesto, `search_path = ''`, grants mínimos, locks e
+idempotencia. La publicación compara fingerprint y rechaza una revisión stale.
+Drafts sólo son visibles para quien puede reconstruir; participantes reciben
+publicados por relación. No se ejecutaron migraciones cloud.

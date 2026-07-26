@@ -72,8 +72,9 @@ No lanzar con:
 
 No cumple la definición de lanzamiento y no pretende hacerlo. Ya existen
 workspaces, configuración, equipos, rosters, fixture y una primera operación
-oficial versionada. Todavía no hay tablas/estadísticas agregadas, disciplina
-definitiva, resolución automática de llaves, publicación, notificaciones ni
+oficial versionada. Ya existe una primera proyección versionada de tabla,
+estadísticas y disciplina, pero faltan staging real, mejores terceros/series
+configurables, tribunal/apelaciones, publicación pública, notificaciones e
 integración oficial con el historial Arma2. La operación no completa el ciclo
 de lanzamiento. Las flags siguen apagadas en producción y esta rama sólo puede
 integrarse en `epic/arma2-torneos`.

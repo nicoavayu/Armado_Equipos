@@ -84,3 +84,10 @@ Torneos agrega inscripciones y planteles sin reutilizar `team_members` ni
 `jugadores` de partido. Los contextos son snapshots RPC autoritativos; el
 organizador accede por capability y el capitán por relación con una inscripción.
 Las mutaciones son RPC-only y generan auditoría append-only.
+
+## Proyecciones competitivas implementadas
+
+Tabla, estadísticas, clasificación y disciplina son revisiones derivadas de
+actas oficiales. El cliente sólo invoca contextos/RPCs; cálculo, scope, actor,
+idempotencia y publicación se resuelven en PostgreSQL. Una corrección genera
+una revisión completa, no incrementos opacos.

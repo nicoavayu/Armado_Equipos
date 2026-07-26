@@ -78,3 +78,17 @@ Tournament manager, fixture manager, match official, discipline manager, content
 Captain/delegate y jugador se autorizan por relación en cada RPC; no reciben
 membership ni capabilities organizacionales. El usuario que presenta un acta
 no puede validarla.
+
+## Proyecciones, clasificación y disciplina
+
+| Familia | Owner | Admin | Collaborator | Captain/Delegate | Jugador |
+|---|:---:|:---:|:---:|:---:|:---:|
+| `standings/statistics/qualification/discipline/suspensions.read` | ✓ | ✓ | ✓ | publicado relacionado | publicado relacionado |
+| `standings.rebuild/publish/override` | ✓ | ✓ | — | — | — |
+| `statistics.rebuild` | ✓ | ✓ | — | — | — |
+| `qualification.resolve/override` | ✓ | ✓ | — | — | — |
+| `discipline.manage/resolve/override` | ✓ | ✓ | — | — | — |
+| `suspensions.manage/mark_served` | ✓ | ✓ | — | — | — |
+
+Los roles relacionales nunca reciben estas capabilities: RLS resuelve su
+relación y oculta drafts e información interna.
