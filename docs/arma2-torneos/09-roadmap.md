@@ -65,6 +65,15 @@ Templates, equipo de la fecha, render server-side, share/download y stale tracki
 
 Gate: QA visual determinista.
 
+## 8.5 Participant Hub autenticado
+
+Mis torneos, resumen, partidos, tabla, estadísticas, equipos, disciplina,
+detalle y contexto propio por relación. Implementado sobre datos publicados,
+sin comunicación ni superficie anónima.
+
+Gate pendiente: staging aislado con sesiones jugador/capitán/organización,
+dataset volumétrico, auditoría de payloads de red y QA en dispositivos físicos.
+
 ## 9. Documentos y exportación
 
 PDF, QR seguro, Excel/CSV, trabajos grandes e historial.

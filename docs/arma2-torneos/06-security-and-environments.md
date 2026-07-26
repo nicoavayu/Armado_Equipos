@@ -125,3 +125,12 @@ capability, scope compuesto, `search_path = ''`, grants mínimos, locks e
 idempotencia. La publicación compara fingerprint y rechaza una revisión stale.
 Drafts sólo son visibles para quien puede reconstruir; participantes reciben
 publicados por relación. No se ejecutaron migraciones cloud.
+
+## Hardening del Participant Hub
+
+El navegador sólo consume seis RPCs allowlisted. Todos derivan identidad de
+`auth.uid()`, fijan `search_path = ''`, revocan `PUBLIC` y revalidan torneo,
+categoría, inscripción y relación activa. Los payloads separan contexto propio
+de información publicada y excluyen notas, actores, auditoría, disponibilidad
+rival, drafts y fingerprints. Los listados tienen límites máximos e índices por
+scope. No se agregaron canales públicos, Storage ni ejecución remota.

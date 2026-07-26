@@ -157,3 +157,10 @@ Tournament 1──* DisciplinaryCase 1──* Sanction
 Managers, invitaciones, versiones de plantel, usuarios Arma2 y provisionales son
 entidades tenant-scoped. La identidad con cuenta es `auth.users.id`;
 `jugadores` continúa reservado a participaciones en partidos.
+
+## Preferencia del Participant Hub
+
+`tournament_participant_hub_preferences` relaciona usuario y torneo con su
+última categoría autorizada. No otorga acceso: cada lectura vuelve a comprobar
+membership organizacional, manager o roster activo. Su RLS no concede acceso
+directo y sólo los RPCs específicos pueden leerla o modificarla.
