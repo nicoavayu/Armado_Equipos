@@ -26,6 +26,7 @@ const USERS = {
   collaborator: '81000000-0000-4000-8000-000000000004',
   captain: '81000000-0000-4000-8000-000000000005',
   outsider: '81000000-0000-4000-8000-000000000006',
+  captainTwo: '81000000-0000-4000-8000-000000000007',
 };
 
 const postgres = new EmbeddedPostgres({
@@ -164,11 +165,15 @@ async function setup() {
   return admin;
 }
 
-async function createCompetition(client) {
+async function createCompetition(client, { label = 'Fixture QA', serial = 1 } = {}) {
+  const suffix = `fixture-qa-${serial}`;
+  const requestKey = (offset) => (
+    `82000000-0000-4000-8000-${String((serial * 10) + offset).padStart(12, '0')}`
+  );
   const organization = await value(
     client,
     'select public.create_tournament_organization($1,$2,$3::uuid)',
-    ['Liga Fixture QA', 'liga-fixture-qa', '82000000-0000-4000-8000-000000000001'],
+    [`Liga ${label}`, `liga-${suffix}`, requestKey(1)],
   );
   const organizationId = organization.organization.id;
   const season = await value(
@@ -176,9 +181,9 @@ async function createCompetition(client) {
     'select public.create_tournament_season($1,$2,$3,null,null,$4::uuid)',
     [
       organizationId,
-      'Temporada Fixture',
-      'temporada-fixture',
-      '82000000-0000-4000-8000-000000000002',
+      `Temporada ${label}`,
+      `temporada-${suffix}`,
+      requestKey(2),
     ],
   );
   const tournament = await value(
@@ -190,7 +195,7 @@ async function createCompetition(client) {
     [
       organizationId,
       season.id,
-      '82000000-0000-4000-8000-000000000003',
+      requestKey(3),
     ],
   );
   const category = await value(
@@ -249,7 +254,7 @@ async function seedApprovedParticipants(admin, scope, amount = 4) {
 }
 
 async function createFormatCompetition(client, baseScope, format, serial) {
-  const suffix = format.replaceAll('_', '-');
+  const suffix = `${format.replaceAll('_', '-')}-${serial}`;
   const key = `82000000-0000-4000-8000-${String(serial).padStart(12, '0')}`;
   const tournament = await value(
     client,
@@ -259,7 +264,7 @@ async function createFormatCompetition(client, baseScope, format, serial) {
     [
       baseScope.organizationId,
       baseScope.seasonId,
-      `Copa ${format}`,
+      `Copa ${format} ${serial}`,
       `copa-${suffix}`,
       format,
       key,
@@ -310,6 +315,119 @@ async function main() {
        )`,
   );
   eq(tableCount, 15, 'la migración crea las quince entidades de la fase');
+  eq(
+    await count(
+      admin,
+      `select count(*) from pg_catalog.pg_class table_row
+       where table_row.relnamespace='public'::regnamespace
+         and table_row.relname like 'tournament_%'
+         and table_row.relrowsecurity
+         and table_row.relname in (
+           'tournament_participant_sets','tournament_competition_participants',
+           'tournament_draw_pots','tournament_draw_pot_members',
+           'tournament_groups','tournament_group_members',
+           'tournament_fixture_versions','tournament_phases',
+           'tournament_rounds','tournament_matches','tournament_match_sources',
+           'tournament_venues','tournament_courts',
+           'tournament_schedule_windows','tournament_match_reschedules'
+         )`,
+    ),
+    15,
+    'las quince tablas habilitan RLS',
+  );
+  eq(
+    await count(
+      admin,
+      `select count(*) from pg_catalog.pg_policies
+       where schemaname='public'
+         and tablename in (
+           'tournament_participant_sets','tournament_competition_participants',
+           'tournament_draw_pots','tournament_draw_pot_members',
+           'tournament_groups','tournament_group_members',
+           'tournament_fixture_versions','tournament_phases',
+           'tournament_rounds','tournament_matches','tournament_match_sources',
+           'tournament_venues','tournament_courts',
+           'tournament_schedule_windows','tournament_match_reschedules'
+         )`,
+    ),
+    15,
+    'cada tabla expone una política SELECT explícita',
+  );
+  eq(
+    await count(
+      admin,
+      `select count(*)
+       from unnest(array[
+         'tournament_participant_sets','tournament_competition_participants',
+         'tournament_draw_pots','tournament_draw_pot_members',
+         'tournament_groups','tournament_group_members',
+         'tournament_fixture_versions','tournament_phases',
+         'tournament_rounds','tournament_matches','tournament_match_sources',
+         'tournament_venues','tournament_courts',
+         'tournament_schedule_windows','tournament_match_reschedules'
+       ]) table_name
+       where has_table_privilege(
+         'authenticated',
+         format('public.%I',table_name),
+         'INSERT,UPDATE,DELETE'
+       )`,
+    ),
+    0,
+    'authenticated no recibe escrituras directas sobre ninguna tabla',
+  );
+  eq(
+    await count(
+      admin,
+      `select count(*) from pg_catalog.pg_proc procedure
+       where procedure.pronamespace='public'::regnamespace
+         and procedure.prosecdef
+         and procedure.proname in (
+           'can_read_tournament_fixture_scope','assert_tournament_fixture_scope',
+           'freeze_tournament_participants','reopen_tournament_participants',
+           'save_tournament_draw_pots','execute_tournament_group_draw',
+           'generate_tournament_fixture','create_manual_fixture_version',
+           'update_draft_fixture','validate_tournament_fixture',
+           'publish_tournament_fixture','archive_tournament_fixture',
+           'supersede_tournament_fixture','create_tournament_venue',
+           'update_tournament_venue','create_tournament_court',
+           'update_tournament_court','save_tournament_schedule_windows',
+           'validate_tournament_match_schedule','schedule_tournament_match',
+           'reschedule_tournament_match','postpone_tournament_match',
+           'cancel_tournament_match','restore_tournament_match_unscheduled',
+           'ready_tournament_match','bulk_schedule_tournament_matches',
+           'auto_schedule_tournament_matches','can_read_tournament_match',
+           'get_tournament_fixture_context','get_tournament_schedule_context'
+         )
+         and exists (
+           select 1 from unnest(procedure.proconfig) setting
+           where setting like 'search_path=%'
+         )`,
+    ),
+    30,
+    'todas las funciones privilegiadas fijan search_path vacío',
+  );
+  ok(
+    !(await value(
+      admin,
+      `select has_function_privilege(
+        'authenticated',
+        'public.build_tournament_round_robin(uuid,uuid,uuid,uuid[],boolean)',
+        'EXECUTE'
+      )`,
+    )),
+    'helpers internos de generación no quedan ejecutables por el cliente',
+  );
+  ok(
+    !(await value(
+      admin,
+      `select has_function_privilege(
+        'anon',
+        'public.schedule_tournament_match(uuid,uuid,timestamptz,uuid,uuid,integer,boolean,text)',
+        'EXECUTE'
+      )`,
+    )),
+    'anon no ejecuta RPCs privilegiadas',
+  );
   if (process.env.TORNEOS_FIXTURE_SCHEMA_ONLY !== 'true') {
     ok(
       await count(
@@ -326,6 +444,11 @@ async function main() {
       role: 'authenticated',
       userId: USERS.collaborator,
     });
+    const captain = await connect({ role: 'authenticated', userId: USERS.captain });
+    const captainTwo = await connect({
+      role: 'authenticated',
+      userId: USERS.captainTwo,
+    });
     const scope = await createCompetition(owner);
     await admin.query(
       `insert into public.tournament_organization_members(
@@ -333,7 +456,23 @@ async function main() {
       ) values ($1,$2,'collaborator','active',$3,now())`,
       [scope.organizationId, USERS.collaborator, USERS.ownerA],
     );
-    await seedApprovedParticipants(admin, scope, 4);
+    const entryIds = await seedApprovedParticipants(admin, scope, 4);
+    await admin.query(
+      `insert into public.tournament_team_managers(
+        organization_id,team_entry_id,user_id,display_name,role,status,
+        invited_by,accepted_at
+      ) values
+        ($1,$2,$3,'Capitán A1','captain','active',$5,now()),
+        ($1,$4,$6,'Capitán A2','captain','active',$5,now())`,
+      [
+        scope.organizationId,
+        entryIds[0],
+        USERS.captain,
+        entryIds[1],
+        USERS.ownerA,
+        USERS.captainTwo,
+      ],
+    );
 
     const frozen = await value(
       owner,
@@ -458,6 +597,78 @@ async function main() {
       12,
       'cada partido conserva dos fuentes estructuradas',
     );
+    const orderedMatches = (await admin.query(
+      `select id,match_number
+       from public.tournament_matches
+       where fixture_version_id=$1
+       order by match_number
+       limit 3`,
+      [generated.fixtureVersionId],
+    )).rows;
+    await expectError(
+      () => admin.query(
+        `update public.tournament_match_sources
+         set source_type='winner_of_match',participant_id=null,
+             source_match_id=match_id
+         where match_id=$1 and side='home'`,
+        [orderedMatches[0].id],
+      ),
+      /TORNEOS_CYCLIC_MATCH_SOURCE/,
+      'rechaza una fuente A que depende de A',
+    );
+    await admin.query('begin');
+    try {
+      await admin.query(
+        `update public.tournament_match_sources
+         set source_type='winner_of_match',participant_id=null,
+             source_match_id=$1
+         where match_id=$2 and side='home'`,
+        [orderedMatches[0].id, orderedMatches[1].id],
+      );
+      await expectError(
+        () => admin.query(
+          `update public.tournament_match_sources
+           set source_type='winner_of_match',participant_id=null,
+               source_match_id=$1
+           where match_id=$2 and side='home'`,
+          [orderedMatches[1].id, orderedMatches[0].id],
+        ),
+        /TORNEOS_CYCLIC_MATCH_SOURCE/,
+        'rechaza el cierre de un ciclo A ↔ B',
+      );
+    } finally {
+      await admin.query('rollback');
+    }
+    await admin.query('begin');
+    try {
+      await admin.query(
+        `update public.tournament_match_sources
+         set source_type='winner_of_match',participant_id=null,
+             source_match_id=$1
+         where match_id=$2 and side='home'`,
+        [orderedMatches[0].id, orderedMatches[1].id],
+      );
+      await admin.query(
+        `update public.tournament_match_sources
+         set source_type='winner_of_match',participant_id=null,
+             source_match_id=$1
+         where match_id=$2 and side='home'`,
+        [orderedMatches[1].id, orderedMatches[2].id],
+      );
+      await expectError(
+        () => admin.query(
+          `update public.tournament_match_sources
+           set source_type='winner_of_match',participant_id=null,
+               source_match_id=$1
+           where match_id=$2 and side='home'`,
+          [orderedMatches[2].id, orderedMatches[0].id],
+        ),
+        /TORNEOS_CYCLIC_MATCH_SOURCE/,
+        'rechaza el cierre de un ciclo A → B → C → A',
+      );
+    } finally {
+      await admin.query('rollback');
+    }
     const validation = await value(
       owner,
       'select public.validate_tournament_fixture($1,$2)',
@@ -470,6 +681,48 @@ async function main() {
       [scope.organizationId, generated.fixtureVersionId],
     );
     eq(published.status, 'published', 'publica una única versión válida');
+    const captainParticipantId = await value(
+      admin,
+      `select id from public.tournament_competition_participants
+       where participant_set_id=$1 and team_entry_id=$2`,
+      [frozen.participantSetId, entryIds[0]],
+    );
+    eq(
+      await count(
+        captain,
+        'select count(*) from public.tournament_matches where fixture_version_id=$1',
+        [generated.fixtureVersionId],
+      ),
+      3,
+      'capitán sólo lee por RLS los partidos vinculados a su equipo',
+    );
+    eq(
+      await count(
+        captain,
+        'select count(*) from public.tournament_phases where fixture_version_id=$1',
+        [generated.fixtureVersionId],
+      ),
+      0,
+      'capitán no obtiene la estructura global por RLS',
+    );
+    const captainFixtureContext = await value(
+      captain,
+      'select public.get_tournament_fixture_context($1,$2,$3)',
+      [scope.organizationId, scope.tournamentId, scope.categoryId],
+    );
+    eq(
+      captainFixtureContext.matches.length,
+      3,
+      'el contexto privilegiado del capitán limita los partidos a su equipo',
+    );
+    eq(captainFixtureContext.pots.length, 0, 'el contexto del capitán no expone bombos ajenos');
+    eq(captainFixtureContext.groups.length, 0, 'el contexto del capitán no expone grupos ajenos');
+    ok(
+      captainFixtureContext.participants.every(
+        (participant) => participant.id === captainParticipantId,
+      ),
+      'el contexto del capitán limita participantes a su propia inscripción',
+    );
 
     const venue = await value(
       owner,
@@ -506,8 +759,11 @@ async function main() {
 
     const matchIds = (await admin.query(
       `select id from public.tournament_matches
-       where fixture_version_id=$1 order by match_number limit 2`,
-      [generated.fixtureVersionId],
+       where fixture_version_id=$1
+       order by (home_participant_id=$2 or away_participant_id=$2) desc,
+         match_number
+       limit 2`,
+      [generated.fixtureVersionId, captainParticipantId],
     )).rows.map((row) => row.id);
     const scheduledAt = '2030-06-01T15:00:00.000Z';
     const scheduleValidation = await value(
@@ -520,6 +776,35 @@ async function main() {
       owner,
       'select public.schedule_tournament_match($1,$2,$3,$4,$5,60,false,null)',
       [scope.organizationId, matchIds[0], scheduledAt, venue.id, court.id],
+    );
+    const captainScheduleContext = await value(
+      captain,
+      'select public.get_tournament_schedule_context($1,$2,$3)',
+      [scope.organizationId, scope.tournamentId, scope.categoryId],
+    );
+    eq(
+      captainScheduleContext.venues.length,
+      1,
+      'capitán sólo recibe la sede de un partido asignado a su equipo',
+    );
+    eq(
+      captainScheduleContext.courts.length,
+      1,
+      'capitán sólo recibe la cancha de un partido asignado a su equipo',
+    );
+    eq(
+      captainScheduleContext.windows.length,
+      0,
+      'capitán no recibe ventanas administrativas',
+    );
+    await expectError(
+      () => value(
+        captain,
+        'select public.validate_tournament_match_schedule($1,$2,$3,$4,$5,60)',
+        [scope.organizationId, matchIds[0], scheduledAt, venue.id, court.id],
+      ),
+      /TORNEOS_RESOURCE_FORBIDDEN/,
+      'capitán no usa RPCs administrativas de programación',
     );
     const collision = await value(
       owner,
@@ -555,10 +840,41 @@ async function main() {
       1,
       'la reprogramación conserva historial append-only',
     );
+    const boundaryValidation = await value(
+      owner,
+      `select public.validate_tournament_match_schedule(
+        $1,$2,'2030-06-01T19:00:00.000Z',$3,$4,60
+      )`,
+      [scope.organizationId, matchIds[1], venue.id, court.id],
+    );
+    ok(
+      !boundaryValidation.blockers.some((blocker) => blocker.code === 'court_overlap'),
+      'los intervalos semiaabiertos permiten comenzar cuando termina el slot anterior',
+    );
     await value(
       owner,
       "select public.postpone_tournament_match($1,$2,'Clima adverso')",
       [scope.organizationId, matchIds[0]],
+    );
+    const postponedState = (await admin.query(
+      `select scheduled_at,venue_id,court_id
+       from public.tournament_matches where id=$1`,
+      [matchIds[0]],
+    )).rows[0];
+    ok(
+      postponedState.scheduled_at === null
+        && postponedState.venue_id === null
+        && postponedState.court_id === null,
+      'postergar libera el slot sin perder el historial',
+    );
+    eq(
+      await count(
+        admin,
+        'select count(*) from public.tournament_match_reschedules where match_id=$1',
+        [matchIds[0]],
+      ),
+      2,
+      'postergación registra ubicación y horario anteriores',
     );
     await value(
       owner,
@@ -569,6 +885,87 @@ async function main() {
       await value(admin, 'select status from public.tournament_matches where id=$1', [matchIds[0]]),
       'cancelled',
       'posponer y cancelar preservan un estado explícito',
+    );
+    const courtTwo = await value(
+      owner,
+      `select public.create_tournament_court(
+        $1,$2,'Cancha 2','football_5',null
+      )`,
+      [scope.organizationId, venue.id],
+    );
+    await value(
+      owner,
+      'select public.save_tournament_schedule_windows($1,$2,$3::jsonb)',
+      [
+        scope.organizationId,
+        scope.tournamentId,
+        JSON.stringify([court.id, courtTwo.id].map((courtId) => ({
+          categoryId: scope.categoryId,
+          venueId: venue.id,
+          courtId,
+          dayOfWeek: 6,
+          startsAt: '08:00',
+          endsAt: '22:00',
+          slotDurationMinutes: 60,
+          bufferMinutes: 0,
+          windowType: 'availability',
+        }))),
+      ],
+    );
+    const sharedTeamMatches = (await admin.query(
+      `select left_match.id as left_id,right_match.id as right_id
+       from public.tournament_matches left_match
+       join public.tournament_matches right_match
+         on right_match.fixture_version_id=left_match.fixture_version_id
+        and right_match.match_number>left_match.match_number
+        and array_remove(
+          array[left_match.home_participant_id,left_match.away_participant_id],
+          null
+        ) && array_remove(
+          array[right_match.home_participant_id,right_match.away_participant_id],
+          null
+        )
+       where left_match.fixture_version_id=$1
+         and left_match.status='unscheduled'
+         and right_match.status='unscheduled'
+       limit 1`,
+      [generated.fixtureVersionId],
+    )).rows[0];
+    const scheduleConcurrent = await connect({
+      role: 'authenticated',
+      userId: USERS.ownerA,
+    });
+    const scheduleRace = await Promise.allSettled([
+      value(
+        owner,
+        `select public.schedule_tournament_match(
+          $1,$2,'2030-06-08T15:00:00Z',$3,$4,60,false,null
+        )`,
+        [scope.organizationId, sharedTeamMatches.left_id, venue.id, court.id],
+      ),
+      value(
+        scheduleConcurrent,
+        `select public.schedule_tournament_match(
+          $1,$2,'2030-06-08T15:00:00Z',$3,$4,60,false,null
+        )`,
+        [scope.organizationId, sharedTeamMatches.right_id, venue.id, courtTwo.id],
+      ),
+    ]);
+    eq(
+      scheduleRace.filter((result) => result.status === 'fulfilled').length,
+      1,
+      'dos canchas concurrentes no programan al mismo equipo dos veces',
+    );
+    const scheduledRaceMatch = await value(
+      admin,
+      `select id from public.tournament_matches
+       where id in ($1,$2) and status='scheduled'`,
+      [sharedTeamMatches.left_id, sharedTeamMatches.right_id],
+    );
+    await value(
+      owner,
+      "select public.cancel_tournament_match($1,$2,'Limpieza de prueba concurrente')",
+      [scope.organizationId, scheduledRaceMatch],
     );
 
     eq(
@@ -598,8 +995,308 @@ async function main() {
       /TORNEOS_RESOURCE_FORBIDDEN/,
       'un usuario ajeno no puede leer el contexto de otro tenant',
     );
+    const manualTwo = await value(
+      owner,
+      'select public.create_manual_fixture_version($1,$2,$3,$4,$5::uuid)',
+      [
+        scope.organizationId,
+        scope.tournamentId,
+        scope.categoryId,
+        generated.fixtureVersionId,
+        '82000000-0000-4000-8000-000000000020',
+      ],
+    );
+    const manualThree = await value(
+      owner,
+      'select public.create_manual_fixture_version($1,$2,$3,$4,$5::uuid)',
+      [
+        scope.organizationId,
+        scope.tournamentId,
+        scope.categoryId,
+        generated.fixtureVersionId,
+        '82000000-0000-4000-8000-000000000021',
+      ],
+    );
+    const manualMatchId = await value(
+      admin,
+      `select id from public.tournament_matches
+       where fixture_version_id=$1 order by match_number desc limit 1`,
+      [manualThree.fixtureVersionId],
+    );
+    await expectError(
+      () => admin.query(
+        `update public.tournament_match_sources
+         set source_type='winner_of_match',participant_id=null,
+             source_match_id=$1
+         where match_id=$2 and side='home'`,
+        [orderedMatches[0].id, manualMatchId],
+      ),
+      /TORNEOS_SCOPE_IMMUTABLE|foreign key/i,
+      'una fuente no puede cruzar versiones de fixture',
+    );
+    const copiedMatch = (await admin.query(
+      `select id,round_id,home_participant_id,away_participant_id
+       from public.tournament_matches
+       where fixture_version_id=$1
+         and home_participant_id is not null
+         and away_participant_id is not null
+         and status <> 'cancelled'
+       order by match_number limit 1`,
+      [manualTwo.fixtureVersionId],
+    )).rows[0];
+    await owner.query('begin');
+    try {
+      await value(
+        owner,
+        `select public.update_draft_fixture(
+          $1,$2,'create_match',$3::jsonb
+        )`,
+        [
+          scope.organizationId,
+          manualTwo.fixtureVersionId,
+          JSON.stringify({
+            roundId: copiedMatch.round_id,
+            homeParticipantId: copiedMatch.away_participant_id,
+            awayParticipantId: copiedMatch.home_participant_id,
+            durationMinutes: 60,
+          }),
+        ],
+      );
+      const duplicateValidation = await value(
+        owner,
+        'select public.validate_tournament_fixture($1,$2)',
+        [scope.organizationId, manualTwo.fixtureVersionId],
+      );
+      ok(
+        duplicateValidation.blockers.some(
+          (blocker) => blocker.code === 'duplicate_pairing',
+        ),
+        'validación manual detecta cruces duplicados con localía invertida',
+        JSON.stringify(duplicateValidation.blockers),
+      );
+    } finally {
+      await owner.query('rollback');
+    }
+    const ownerConcurrent = await connect({
+      role: 'authenticated',
+      userId: USERS.ownerA,
+    });
+    const publicationRace = await Promise.allSettled([
+      value(
+        owner,
+        'select public.publish_tournament_fixture($1,$2)',
+        [scope.organizationId, manualTwo.fixtureVersionId],
+      ),
+      value(
+        ownerConcurrent,
+        'select public.publish_tournament_fixture($1,$2)',
+        [scope.organizationId, manualThree.fixtureVersionId],
+      ),
+    ]);
+    eq(
+      publicationRace.filter((result) => result.status === 'fulfilled').length,
+      1,
+      'dos publicaciones concurrentes tienen un único ganador',
+    );
+    eq(
+      await count(
+        admin,
+        `select count(*) from public.tournament_fixture_versions
+         where tournament_id=$1 and category_id=$2 and status='published'`,
+        [scope.tournamentId, scope.categoryId],
+      ),
+      1,
+      'la carrera de publicación conserva una sola versión activa',
+    );
+    eq(
+      await value(
+        admin,
+        `select id from public.tournament_fixture_versions
+         where tournament_id=$1 and category_id=$2 and status='published'`,
+        [scope.tournamentId, scope.categoryId],
+      ),
+      manualThree.fixtureVersionId,
+      'la publicación sólo admite la versión draft más reciente',
+    );
+    await expectError(
+      () => value(
+        owner,
+        `select public.schedule_tournament_match(
+          $1,$2,'2030-06-08T15:00:00Z',$3,$4,60,false,null
+        )`,
+        [scope.organizationId, matchIds[1], venue.id, court.id],
+      ),
+      /TORNEOS_RESOURCE_FORBIDDEN/,
+      'una versión superseded no puede volver a programarse',
+    );
+    const ownerB = await connect({ role: 'authenticated', userId: USERS.ownerB });
+    const scopeB = await createCompetition(ownerB, { label: 'Fixture B', serial: 2 });
+    await seedApprovedParticipants(admin, scopeB, 2);
+    await value(
+      ownerB,
+      'select public.freeze_tournament_participants($1,$2,$3,$4::uuid)',
+      [
+        scopeB.organizationId,
+        scopeB.tournamentId,
+        scopeB.categoryId,
+        '82000000-0000-4000-8000-000000000024',
+      ],
+    );
+    const fixtureB = await value(
+      ownerB,
+      `select public.generate_tournament_fixture(
+        $1,$2,$3,'tenant-b','{}'::jsonb,$4::uuid
+      )`,
+      [
+        scopeB.organizationId,
+        scopeB.tournamentId,
+        scopeB.categoryId,
+        '82000000-0000-4000-8000-000000000025',
+      ],
+    );
+    eq(
+      await count(
+        owner,
+        'select count(*) from public.tournament_matches where fixture_version_id=$1',
+        [fixtureB.fixtureVersionId],
+      ),
+      0,
+      'owner de Organización A no lee partidos de Organización B',
+    );
+    eq(
+      await count(
+        ownerB,
+        'select count(*) from public.tournament_matches where fixture_version_id=$1',
+        [manualThree.fixtureVersionId],
+      ),
+      0,
+      'owner de Organización B no lee partidos de Organización A',
+    );
+    const venueB = await value(
+      ownerB,
+      `select public.create_tournament_venue(
+        $1,'Complejo B','Calle B 123',null,null,null,'Montevideo',
+        'America/Montevideo',null
+      )`,
+      [scopeB.organizationId],
+    );
+    const courtB = await value(
+      ownerB,
+      `select public.create_tournament_court(
+        $1,$2,'Cancha B','football_5',null
+      )`,
+      [scopeB.organizationId, venueB.id],
+    );
+    const activeManualMatch = await value(
+      admin,
+      `select id from public.tournament_matches
+       where fixture_version_id=$1 and status='unscheduled'
+       order by match_number limit 1`,
+      [manualThree.fixtureVersionId],
+    );
+    const foreignSchedule = await value(
+      owner,
+      `select public.validate_tournament_match_schedule(
+        $1,$2,'2030-06-15T15:00:00Z',$3,$4,60
+      )`,
+      [scope.organizationId, activeManualMatch, venueB.id, courtB.id],
+    );
+    ok(
+      foreignSchedule.blockers.some((blocker) => blocker.code === 'foreign_resource'),
+      'fixture de A rechaza sede y cancha de B antes de escribir',
+    );
+    await expectError(
+      () => value(
+        owner,
+        `select public.schedule_tournament_match(
+          $1,$2,'2030-06-15T15:00:00Z',$3,$4,60,false,null
+        )`,
+        [scope.organizationId, activeManualMatch, venueB.id, courtB.id],
+      ),
+      /TORNEOS_SCHEDULE_CONFLICT/,
+      'la RPC bloquea recursos cross-tenant aunque se conozca el UUID',
+    );
+    await expectError(
+      () => value(
+        owner,
+        `select public.update_tournament_venue(
+          $1,$2,'{"timezone":"Mars/Olympus"}'::jsonb
+        )`,
+        [scope.organizationId, venue.id],
+      ),
+      /TORNEOS_INVALID_TIMEZONE/,
+      'actualizar una sede rechaza zonas horarias inexistentes',
+    );
+    const disposableVenue = await value(
+      owner,
+      `select public.create_tournament_venue(
+        $1,'Sede descartable','Calle 456',null,null,null,null,
+        'America/Argentina/Buenos_Aires',null
+      )`,
+      [scope.organizationId],
+    );
+    const disposableCourt = await value(
+      owner,
+      `select public.create_tournament_court(
+        $1,$2,'Cancha descartable','football_5',null
+      )`,
+      [scope.organizationId, disposableVenue.id],
+    );
+    await value(
+      owner,
+      `select public.update_tournament_venue(
+        $1,$2,'{"status":"archived"}'::jsonb
+      )`,
+      [scope.organizationId, disposableVenue.id],
+    );
+    eq(
+      await value(
+        admin,
+        'select status from public.tournament_courts where id=$1',
+        [disposableCourt.id],
+      ),
+      'archived',
+      'archivar una sede archiva sus canchas de forma atómica',
+    );
+    const activeWindowsBeforeRollback = await count(
+      admin,
+      `select count(*) from public.tournament_schedule_windows
+       where tournament_id=$1 and status='active'`,
+      [scope.tournamentId],
+    );
+    await expectError(
+      () => value(
+        owner,
+        'select public.save_tournament_schedule_windows($1,$2,$3::jsonb)',
+        [
+          scope.organizationId,
+          scope.tournamentId,
+          JSON.stringify([{
+            categoryId: scope.categoryId,
+            venueId: disposableVenue.id,
+            courtId: disposableCourt.id,
+            dayOfWeek: 7,
+            startsAt: '09:00',
+            endsAt: '10:00',
+            slotDurationMinutes: 60,
+          }]),
+        ],
+      ),
+      /TORNEOS_SCOPE_IMMUTABLE/,
+      'una ventana no puede reactivar sede o cancha archivada',
+    );
+    eq(
+      await count(
+        admin,
+        `select count(*) from public.tournament_schedule_windows
+         where tournament_id=$1 and status='active'`,
+        [scope.tournamentId],
+      ),
+      activeWindowsBeforeRollback,
+      'un fallo tardío al guardar ventanas revierte el archivado previo',
+    );
     for (const [index, format, participantCount, expectedMatches] of [
-      [30, 'knockout', 5, 7],
+      [30, 'knockout', 5, 4],
       [31, 'groups', 8, 12],
       [32, 'groups_and_playoffs', 8, 13],
       [33, 'league_and_playoffs', 6, 16],
@@ -626,19 +1323,45 @@ async function main() {
             formatScope.categoryId,
           ],
         );
+        await expectError(
+          () => value(
+            owner,
+            `select public.generate_tournament_fixture(
+              $1,$2,$3,'otra-seed','{}'::jsonb,$4::uuid
+            )`,
+            [
+              formatScope.organizationId,
+              formatScope.tournamentId,
+              formatScope.categoryId,
+              `82000000-0000-4000-8000-${String(index + 180).padStart(12, '0')}`,
+            ],
+          ),
+          /TORNEOS_GROUP_DRAW_SEED_MISMATCH/,
+          `${format} rechaza una seed distinta de la usada en el sorteo publicado`,
+        );
       }
       const formatFixture = await value(
         owner,
-        `select public.generate_tournament_fixture(
-          $1,$2,$3,'format-seed','{}'::jsonb,$4::uuid
-        )`,
+        `select public.generate_tournament_fixture($1,$2,$3,$4,'{}'::jsonb,$5::uuid)`,
         [
           formatScope.organizationId,
           formatScope.tournamentId,
           formatScope.categoryId,
+          format.startsWith('groups') ? '' : 'format-seed',
           `82000000-0000-4000-8000-${String(index + 200).padStart(12, '0')}`,
         ],
       );
+      if (format.startsWith('groups')) {
+        eq(
+          await value(
+            admin,
+            'select seed from public.tournament_fixture_versions where id=$1',
+            [formatFixture.fixtureVersionId],
+          ),
+          'format-seed',
+          `${format} conserva exactamente la seed del sorteo publicado`,
+        );
+      }
       eq(
         await count(
           admin,
@@ -667,7 +1390,832 @@ async function main() {
         participantCount,
         `${format} conserva su fotografía de participantes`,
       );
+      if (format === 'knockout') {
+        eq(
+          await count(
+            admin,
+            `select count(*)
+             from public.tournament_match_sources
+             where fixture_version_id=$1 and source_type='bye'`,
+            [formatFixture.fixtureVersionId],
+          ),
+          0,
+          'los byes avanzan seeds sin crear partidos jugables',
+        );
+      }
+      if (format === 'league_and_playoffs') {
+        eq(
+          await count(
+            admin,
+            `select count(*)
+             from public.tournament_match_sources
+             where fixture_version_id=$1
+               and source_type='league_position'
+               and source_phase_id is not null`,
+            [formatFixture.fixtureVersionId],
+          ),
+          2,
+          'los clasificados de liga conservan una fase fuente estructurada',
+        );
+      }
     }
+    for (const [doubleRound, offset] of [[false, 100], [true, 200]]) {
+      for (const [caseIndex, participantCount] of [2, 3, 4, 5, 6, 7, 10, 16].entries()) {
+        const serial = offset + caseIndex;
+        const leagueScope = await createFormatCompetition(
+          owner,
+          scope,
+          'league',
+          serial,
+        );
+        if (doubleRound) {
+          await admin.query(
+            `update public.tournaments
+             set format_settings='{"rounds":"double"}'::jsonb
+             where id=$1`,
+            [leagueScope.tournamentId],
+          );
+        }
+        await seedApprovedParticipants(admin, leagueScope, participantCount);
+        const leagueFrozen = await value(
+          owner,
+          'select public.freeze_tournament_participants($1,$2,$3,$4::uuid)',
+          [
+            leagueScope.organizationId,
+            leagueScope.tournamentId,
+            leagueScope.categoryId,
+            `83000000-0000-4000-8000-${String(serial).padStart(12, '0')}`,
+          ],
+        );
+        const leagueFixture = await value(
+          owner,
+          `select public.generate_tournament_fixture(
+            $1,$2,$3,'round-robin-seed','{}'::jsonb,$4::uuid
+          )`,
+          [
+            leagueScope.organizationId,
+            leagueScope.tournamentId,
+            leagueScope.categoryId,
+            `84000000-0000-4000-8000-${String(serial).padStart(12, '0')}`,
+          ],
+        );
+        const multiplier = doubleRound ? 2 : 1;
+        eq(
+          await count(
+            admin,
+            'select count(*) from public.tournament_matches where fixture_version_id=$1',
+            [leagueFixture.fixtureVersionId],
+          ),
+          ((participantCount * (participantCount - 1)) / 2) * multiplier,
+          `liga ${doubleRound ? 'ida y vuelta' : 'una rueda'} de ${participantCount} respeta la fórmula`,
+        );
+        eq(
+          await count(
+            admin,
+            `select count(*) from (
+               select least(home_participant_id,away_participant_id),
+                      greatest(home_participant_id,away_participant_id)
+               from public.tournament_matches
+               where fixture_version_id=$1
+               group by 1,2
+               having count(*) <> $2
+             ) invalid_pair`,
+            [leagueFixture.fixtureVersionId, multiplier],
+          ),
+          0,
+          `liga de ${participantCount} no duplica ni omite parejas`,
+        );
+        eq(
+          await count(
+            admin,
+            `select count(*) from (
+               select participant.id
+               from public.tournament_competition_participants participant
+               left join public.tournament_matches match_row
+                 on match_row.fixture_version_id=$2
+                and participant.id in (
+                  match_row.home_participant_id,
+                  match_row.away_participant_id
+                )
+               where participant.participant_set_id=$1
+               group by participant.id
+               having count(match_row.id) <> $3
+             ) invalid_team`,
+            [
+              leagueFrozen.participantSetId,
+              leagueFixture.fixtureVersionId,
+              (participantCount - 1) * multiplier,
+            ],
+          ),
+          0,
+          `cada equipo juega ${(participantCount - 1) * multiplier} partidos`,
+        );
+        if (doubleRound) {
+          eq(
+            await count(
+              admin,
+              `select count(*) from (
+                 select least(home_participant_id,away_participant_id),
+                        greatest(home_participant_id,away_participant_id)
+                 from public.tournament_matches
+                 where fixture_version_id=$1
+                 group by 1,2
+                 having count(*) filter (where leg_number=1) <> 1
+                    or count(*) filter (where leg_number=2) <> 1
+               ) invalid_legs`,
+              [leagueFixture.fixtureVersionId],
+            ),
+            0,
+            `ida y vuelta de ${participantCount} conserva legs inequívocos`,
+          );
+        }
+      }
+    }
+    for (const [caseIndex, participantCount] of [2, 3, 4, 5, 6, 7, 8, 10, 12, 16].entries()) {
+      const serial = 300 + caseIndex;
+      const knockoutScope = await createFormatCompetition(
+        owner,
+        scope,
+        'knockout',
+        serial,
+      );
+      await seedApprovedParticipants(admin, knockoutScope, participantCount);
+      await value(
+        owner,
+        'select public.freeze_tournament_participants($1,$2,$3,$4::uuid)',
+        [
+          knockoutScope.organizationId,
+          knockoutScope.tournamentId,
+          knockoutScope.categoryId,
+          `85000000-0000-4000-8000-${String(serial).padStart(12, '0')}`,
+        ],
+      );
+      const knockoutFixture = await value(
+        owner,
+        `select public.generate_tournament_fixture(
+          $1,$2,$3,'knockout-seed','{}'::jsonb,$4::uuid
+        )`,
+        [
+          knockoutScope.organizationId,
+          knockoutScope.tournamentId,
+          knockoutScope.categoryId,
+          `86000000-0000-4000-8000-${String(serial).padStart(12, '0')}`,
+        ],
+      );
+      eq(
+        await count(
+          admin,
+          'select count(*) from public.tournament_matches where fixture_version_id=$1',
+          [knockoutFixture.fixtureVersionId],
+        ),
+        participantCount - 1,
+        `eliminación de ${participantCount} crea sólo ${participantCount - 1} partidos jugables`,
+      );
+      eq(
+        await count(
+          admin,
+          `select count(*) from public.tournament_match_sources
+           where fixture_version_id=$1 and source_type='bye'`,
+          [knockoutFixture.fixtureVersionId],
+        ),
+        0,
+        `eliminación de ${participantCount} no materializa byes como partidos`,
+      );
+      eq(
+        await count(
+          admin,
+          `select count(*)
+           from public.tournament_match_sources source
+           join public.tournament_matches target on target.id=source.match_id
+           join public.tournament_matches origin on origin.id=source.source_match_id
+           where source.fixture_version_id=$1
+             and origin.match_number >= target.match_number`,
+          [knockoutFixture.fixtureVersionId],
+        ),
+        0,
+        `eliminación de ${participantCount} sólo referencia cruces anteriores`,
+      );
+    }
+    const doubleKnockoutScope = await createFormatCompetition(
+      owner,
+      scope,
+      'knockout',
+      350,
+    );
+    await admin.query(
+      `update public.tournaments
+       set format_settings='{"legs":"double","thirdPlace":true}'::jsonb
+       where id=$1`,
+      [doubleKnockoutScope.tournamentId],
+    );
+    await seedApprovedParticipants(admin, doubleKnockoutScope, 8);
+    await value(
+      owner,
+      'select public.freeze_tournament_participants($1,$2,$3,$4::uuid)',
+      [
+        doubleKnockoutScope.organizationId,
+        doubleKnockoutScope.tournamentId,
+        doubleKnockoutScope.categoryId,
+        '85000000-0000-4000-8000-000000000350',
+      ],
+    );
+    const doubleKnockoutFixture = await value(
+      owner,
+      `select public.generate_tournament_fixture(
+        $1,$2,$3,'double-knockout','{}'::jsonb,$4::uuid
+      )`,
+      [
+        doubleKnockoutScope.organizationId,
+        doubleKnockoutScope.tournamentId,
+        doubleKnockoutScope.categoryId,
+        '86000000-0000-4000-8000-000000000350',
+      ],
+    );
+    eq(
+      await count(
+        admin,
+        `select count(*) from (
+           select tie_key
+           from public.tournament_matches
+           where fixture_version_id=$1 and tie_key is not null
+           group by tie_key
+           having count(*) <> 2
+         ) invalid_tie`,
+        [doubleKnockoutFixture.fixtureVersionId],
+      ),
+      0,
+      'cada serie ida/vuelta contiene exactamente dos partidos',
+    );
+    ok(
+      await count(
+        admin,
+        `select count(*) from public.tournament_match_sources
+         where fixture_version_id=$1
+           and source_type in ('winner_of_tie','loser_of_tie')
+           and source_tie_key is not null`,
+        [doubleKnockoutFixture.fixtureVersionId],
+      ) >= 4,
+      'los cruces posteriores y tercer puesto referencian ganadores/perdedores de serie',
+    );
+    let crossScopeGroupId = null;
+    for (const [caseIndex, [participantCount, groupCount]] of [
+      [4, 2], [6, 2], [7, 2], [8, 2], [10, 3], [12, 3], [16, 4],
+    ].entries()) {
+      const serial = 400 + caseIndex;
+      const groupScope = await createFormatCompetition(
+        owner,
+        scope,
+        'groups',
+        serial,
+      );
+      await seedApprovedParticipants(admin, groupScope, participantCount);
+      const groupFrozen = await value(
+        owner,
+        'select public.freeze_tournament_participants($1,$2,$3,$4::uuid)',
+        [
+          groupScope.organizationId,
+          groupScope.tournamentId,
+          groupScope.categoryId,
+          `87000000-0000-4000-8000-${String(serial).padStart(12, '0')}`,
+        ],
+      );
+      const groupParticipantIds = (await admin.query(
+        `select id from public.tournament_competition_participants
+         where participant_set_id=$1 order by id`,
+        [groupFrozen.participantSetId],
+      )).rows.map((row) => row.id);
+      const potCount = Math.ceil(participantCount / groupCount);
+      const groupPots = Array.from({ length: potCount }, (_, potIndex) => ({
+        name: `Bombo ${potIndex + 1}`,
+        number: potIndex + 1,
+        members: groupParticipantIds
+          .filter((_, participantIndex) => participantIndex % potCount === potIndex)
+          .map((participantId) => ({ participantId })),
+      }));
+      await value(
+        owner,
+        'select public.save_tournament_draw_pots($1,$2,$3,$4::jsonb)',
+        [
+          groupScope.organizationId,
+          groupScope.tournamentId,
+          groupScope.categoryId,
+          JSON.stringify(groupPots),
+        ],
+      );
+      await value(
+        owner,
+        `select public.execute_tournament_group_draw(
+          $1,$2,$3,$4,'distribución-á-非常',true
+        )`,
+        [
+          groupScope.organizationId,
+          groupScope.tournamentId,
+          groupScope.categoryId,
+          groupCount,
+        ],
+      );
+      if (crossScopeGroupId === null) {
+        crossScopeGroupId = await value(
+          admin,
+          `select id from public.tournament_groups
+           where participant_set_id=$1 and fixture_version_id is null
+           order by sort_order limit 1`,
+          [groupFrozen.participantSetId],
+        );
+      }
+      ok(
+        Number(await value(
+          admin,
+          `select max(size)-min(size)
+           from (
+             select count(member.participant_id) as size
+             from public.tournament_groups group_row
+             left join public.tournament_group_members member
+               on member.group_id=group_row.id
+             where group_row.participant_set_id=$1
+               and group_row.fixture_version_id is null
+               and group_row.status='published'
+             group by group_row.id
+           ) sizes`,
+          [groupFrozen.participantSetId],
+        )) <= 1,
+        `${participantCount}/${groupCount} mantiene grupos matemáticamente equilibrados`,
+      );
+      eq(
+        await count(
+          admin,
+          `select count(*) from (
+             select member.participant_id
+             from public.tournament_group_members member
+             join public.tournament_groups group_row on group_row.id=member.group_id
+             where group_row.participant_set_id=$1
+               and group_row.fixture_version_id is null
+               and group_row.status='published'
+             group by member.participant_id
+             having count(*) <> 1
+           ) invalid_member`,
+          [groupFrozen.participantSetId],
+        ),
+        0,
+        `${participantCount}/${groupCount} asigna cada participante una sola vez`,
+      );
+      eq(
+        await count(
+          admin,
+          `select count(*) from (
+             select member.group_id,participant.pot_number
+             from public.tournament_group_members member
+             join public.tournament_competition_participants participant
+               on participant.id=member.participant_id
+             join public.tournament_groups group_row on group_row.id=member.group_id
+             where group_row.participant_set_id=$1
+               and group_row.fixture_version_id is null
+               and group_row.status='published'
+             group by member.group_id,participant.pot_number
+             having count(*) > 1
+           ) duplicated_pot`,
+          [groupFrozen.participantSetId],
+        ),
+        0,
+        `${participantCount}/${groupCount} respeta un equipo por bombo cuando es posible`,
+      );
+    }
+    const manualTwoPhaseId = await value(
+      admin,
+      `select id from public.tournament_phases
+       where fixture_version_id=$1 order by sequence_number limit 1`,
+      [manualTwo.fixtureVersionId],
+    );
+    await expectError(
+      () => value(
+        owner,
+        `select public.update_draft_fixture(
+          $1,$2,'create_round',$3::jsonb
+        )`,
+        [
+          scope.organizationId,
+          manualTwo.fixtureVersionId,
+          JSON.stringify({
+            phaseId: manualTwoPhaseId,
+            groupId: crossScopeGroupId,
+            name: 'Jornada manipulada',
+          }),
+        ],
+      ),
+      /TORNEOS_RESOURCE_FORBIDDEN/,
+      'fixture manual rechaza un grupo de otro set, torneo o versión',
+    );
+    const reopenScope = await createFormatCompetition(owner, scope, 'league', 500);
+    await seedApprovedParticipants(admin, reopenScope, 3);
+    const firstFreeze = await value(
+      owner,
+      'select public.freeze_tournament_participants($1,$2,$3,$4::uuid)',
+      [
+        reopenScope.organizationId,
+        reopenScope.tournamentId,
+        reopenScope.categoryId,
+        '88000000-0000-4000-8000-000000000500',
+      ],
+    );
+    const invalidatedDraft = await value(
+      owner,
+      `select public.generate_tournament_fixture(
+        $1,$2,$3,'before-reopen','{}'::jsonb,$4::uuid
+      )`,
+      [
+        reopenScope.organizationId,
+        reopenScope.tournamentId,
+        reopenScope.categoryId,
+        '89000000-0000-4000-8000-000000000500',
+      ],
+    );
+    await value(
+      owner,
+      "select public.reopen_tournament_participants($1,$2,$3,'Cambio aprobado')",
+      [
+        reopenScope.organizationId,
+        reopenScope.tournamentId,
+        reopenScope.categoryId,
+      ],
+    );
+    eq(
+      await value(
+        admin,
+        'select status from public.tournament_fixture_versions where id=$1',
+        [invalidatedDraft.fixtureVersionId],
+      ),
+      'archived',
+      'reabrir archiva drafts dependientes sin estados parciales',
+    );
+    const secondFreeze = await value(
+      owner,
+      'select public.freeze_tournament_participants($1,$2,$3,$4::uuid)',
+      [
+        reopenScope.organizationId,
+        reopenScope.tournamentId,
+        reopenScope.categoryId,
+        '88000000-0000-4000-8000-000000000501',
+      ],
+    );
+    eq(secondFreeze.versionNumber, 2, 'reabrir y volver a congelar crea un set versionado nuevo');
+    eq(
+      await value(
+        admin,
+        'select status from public.tournament_participant_sets where id=$1',
+        [firstFreeze.participantSetId],
+      ),
+      'superseded',
+      'el set reabierto queda preservado como superseded',
+    );
+    const freezeRaceScope = await createFormatCompetition(owner, scope, 'league', 501);
+    await seedApprovedParticipants(admin, freezeRaceScope, 4);
+    const freezeRace = await Promise.allSettled([
+      value(
+        owner,
+        'select public.freeze_tournament_participants($1,$2,$3,$4::uuid)',
+        [
+          freezeRaceScope.organizationId,
+          freezeRaceScope.tournamentId,
+          freezeRaceScope.categoryId,
+          '88000000-0000-4000-8000-000000000510',
+        ],
+      ),
+      value(
+        ownerConcurrent,
+        'select public.freeze_tournament_participants($1,$2,$3,$4::uuid)',
+        [
+          freezeRaceScope.organizationId,
+          freezeRaceScope.tournamentId,
+          freezeRaceScope.categoryId,
+          '88000000-0000-4000-8000-000000000511',
+        ],
+      ),
+    ]);
+    eq(
+      freezeRace.filter((result) => result.status === 'fulfilled').length,
+      1,
+      'dos congelamientos concurrentes tienen un único ganador',
+    );
+    eq(
+      await count(
+        admin,
+        `select count(*) from public.tournament_participant_sets
+         where tournament_id=$1 and category_id=$2 and status='frozen'`,
+        [freezeRaceScope.tournamentId, freezeRaceScope.categoryId],
+      ),
+      1,
+      'la carrera de congelamiento deja exactamente un set activo',
+    );
+    const autoScheduleScope = await createFormatCompetition(owner, scope, 'league', 600);
+    await admin.query(
+      `update public.tournament_seasons
+       set start_date='2030-06-01',end_date='2030-06-10'
+       where id=$1`,
+      [autoScheduleScope.seasonId],
+    );
+    await admin.query(
+      `update public.tournaments
+       set start_date='2030-06-01',end_date='2030-06-10'
+       where id=$1`,
+      [autoScheduleScope.tournamentId],
+    );
+    await seedApprovedParticipants(admin, autoScheduleScope, 4);
+    await value(
+      owner,
+      'select public.freeze_tournament_participants($1,$2,$3,$4::uuid)',
+      [
+        autoScheduleScope.organizationId,
+        autoScheduleScope.tournamentId,
+        autoScheduleScope.categoryId,
+        '88000000-0000-4000-8000-000000000600',
+      ],
+    );
+    const autoFixture = await value(
+      owner,
+      `select public.generate_tournament_fixture(
+        $1,$2,$3,'auto-order',
+        '{"minimumRestMinutes":60,"maximumMatchesPerDay":1}'::jsonb,
+        $4::uuid
+      )`,
+      [
+        autoScheduleScope.organizationId,
+        autoScheduleScope.tournamentId,
+        autoScheduleScope.categoryId,
+        '89000000-0000-4000-8000-000000000600',
+      ],
+    );
+    await value(
+      owner,
+      'select public.publish_tournament_fixture($1,$2)',
+      [autoScheduleScope.organizationId, autoFixture.fixtureVersionId],
+    );
+    const autoVenue = await value(
+      owner,
+      `select public.create_tournament_venue(
+        $1,'Sede Auto','Auto 100',null,null,null,null,
+        'America/Argentina/Buenos_Aires',null
+      )`,
+      [autoScheduleScope.organizationId],
+    );
+    const autoCourt = await value(
+      owner,
+      `select public.create_tournament_court(
+        $1,$2,'Cancha Auto','football_5',null
+      )`,
+      [autoScheduleScope.organizationId, autoVenue.id],
+    );
+    const autoWindows = Array.from({ length: 10 }, (_, index) => ({
+      categoryId: autoScheduleScope.categoryId,
+      venueId: autoVenue.id,
+      courtId: autoCourt.id,
+      specificDate: `2030-06-${String(index + 1).padStart(2, '0')}`,
+      startsAt: '08:00',
+      endsAt: '20:00',
+      slotDurationMinutes: 60,
+      bufferMinutes: 0,
+      windowType: 'availability',
+    }));
+    await value(
+      owner,
+      'select public.save_tournament_schedule_windows($1,$2,$3::jsonb)',
+      [
+        autoScheduleScope.organizationId,
+        autoScheduleScope.tournamentId,
+        JSON.stringify(autoWindows),
+      ],
+    );
+    const autoRace = await Promise.all([
+      value(
+        owner,
+        'select public.auto_schedule_tournament_matches($1,$2)',
+        [autoScheduleScope.organizationId, autoFixture.fixtureVersionId],
+      ),
+      value(
+        ownerConcurrent,
+        'select public.auto_schedule_tournament_matches($1,$2)',
+        [autoScheduleScope.organizationId, autoFixture.fixtureVersionId],
+      ),
+    ]);
+    eq(
+      autoRace.reduce((total, result) => total + result.scheduledCount, 0),
+      6,
+      'dos autoschedules concurrentes no duplican trabajo',
+    );
+    eq(
+      await count(
+        admin,
+        `select count(*) from public.tournament_matches
+         where fixture_version_id=$1 and status='scheduled'`,
+        [autoFixture.fixtureVersionId],
+      ),
+      6,
+      'autoschedule con capacidad suficiente programa todos los cruces',
+    );
+    eq(
+      await count(
+        admin,
+        `select count(*) from (
+           select participant.id,
+             (match_row.scheduled_at at time zone venue.timezone)::date as local_date
+           from public.tournament_competition_participants participant
+           join public.tournament_matches match_row
+             on participant.id in (
+               match_row.home_participant_id,
+               match_row.away_participant_id
+             )
+           join public.tournament_venues venue on venue.id=match_row.venue_id
+           where match_row.fixture_version_id=$1
+           group by participant.id,
+             (match_row.scheduled_at at time zone venue.timezone)::date
+           having count(*) > 1
+         ) overloaded_team`,
+        [autoFixture.fixtureVersionId],
+      ),
+      0,
+      'autoschedule respeta el máximo diario por equipo en hora local',
+    );
+    const insufficientScope = await createFormatCompetition(owner, scope, 'league', 601);
+    await admin.query(
+      `update public.tournament_seasons
+       set start_date='2030-07-01',end_date='2030-07-01'
+       where id=$1`,
+      [insufficientScope.seasonId],
+    );
+    await admin.query(
+      `update public.tournaments
+       set start_date='2030-07-01',end_date='2030-07-01'
+       where id=$1`,
+      [insufficientScope.tournamentId],
+    );
+    await seedApprovedParticipants(admin, insufficientScope, 4);
+    await value(
+      owner,
+      'select public.freeze_tournament_participants($1,$2,$3,$4::uuid)',
+      [
+        insufficientScope.organizationId,
+        insufficientScope.tournamentId,
+        insufficientScope.categoryId,
+        '88000000-0000-4000-8000-000000000601',
+      ],
+    );
+    const insufficientFixture = await value(
+      owner,
+      `select public.generate_tournament_fixture(
+        $1,$2,$3,'insufficient',
+        '{"minimumRestMinutes":60,"maximumMatchesPerDay":1}'::jsonb,
+        $4::uuid
+      )`,
+      [
+        insufficientScope.organizationId,
+        insufficientScope.tournamentId,
+        insufficientScope.categoryId,
+        '89000000-0000-4000-8000-000000000601',
+      ],
+    );
+    const insufficientVenue = await value(
+      owner,
+      `select public.create_tournament_venue(
+        $1,'Sede Insuficiente','Cupo 1',null,null,null,null,
+        'America/Argentina/Buenos_Aires',null
+      )`,
+      [insufficientScope.organizationId],
+    );
+    const insufficientCourt = await value(
+      owner,
+      `select public.create_tournament_court(
+        $1,$2,'Cancha Única','football_5',null
+      )`,
+      [insufficientScope.organizationId, insufficientVenue.id],
+    );
+    await value(
+      owner,
+      'select public.save_tournament_schedule_windows($1,$2,$3::jsonb)',
+      [
+        insufficientScope.organizationId,
+        insufficientScope.tournamentId,
+        JSON.stringify([
+          {
+            categoryId: insufficientScope.categoryId,
+            venueId: insufficientVenue.id,
+            courtId: insufficientCourt.id,
+            specificDate: '2030-07-01',
+            startsAt: '08:00',
+            endsAt: '10:00',
+            slotDurationMinutes: 60,
+            bufferMinutes: 0,
+            windowType: 'availability',
+          },
+          {
+            categoryId: insufficientScope.categoryId,
+            venueId: insufficientVenue.id,
+            courtId: insufficientCourt.id,
+            specificDate: '2030-07-01',
+            startsAt: '08:00',
+            endsAt: '09:00',
+            slotDurationMinutes: 60,
+            bufferMinutes: 0,
+            windowType: 'closure',
+          },
+        ]),
+      ],
+    );
+    const insufficientResult = await value(
+      owner,
+      'select public.auto_schedule_tournament_matches($1,$2)',
+      [insufficientScope.organizationId, insufficientFixture.fixtureVersionId],
+    );
+    eq(
+      insufficientResult.scheduledCount,
+      1,
+      'un bloqueo tiene precedencia sobre disponibilidad superpuesta',
+    );
+    ok(
+      insufficientResult.unscheduledCount > 0
+        && insufficientResult.unscheduled.length === insufficientResult.unscheduledCount
+        && insufficientResult.unscheduled.every((item) => item.reason === 'no_valid_slot'),
+      'capacidad insuficiente devuelve cada partido no programado y su causa',
+    );
+    await admin.query(
+      `insert into public.tournament_organization_members(
+        organization_id,user_id,role,status,invited_by,joined_at
+      ) values ($1,$2,'collaborator','suspended',$3,now())`,
+      [scope.organizationId, USERS.captain, USERS.ownerA],
+    );
+    eq(
+      await count(
+        captain,
+        'select count(*) from public.tournament_matches where organization_id=$1',
+        [scope.organizationId],
+      ),
+      0,
+      'una membership suspendida revoca también la lectura por capitanía',
+    );
+    await admin.query(
+      `update public.tournament_organization_members
+       set status='removed'
+       where organization_id=$1 and user_id=$2`,
+      [scope.organizationId, USERS.captain],
+    );
+    await expectError(
+      () => value(
+        captain,
+        'select public.get_tournament_fixture_context($1,$2,$3)',
+        [scope.organizationId, scope.tournamentId, scope.categoryId],
+      ),
+      /TORNEOS_RESOURCE_FORBIDDEN/,
+      'una membership removida no puede usar el contexto privilegiado',
+    );
+    await expectError(
+      () => admin.query(
+        `update public.tournament_audit_log
+         set metadata='{"tampered":true}'::jsonb
+         where organization_id=$1`,
+        [scope.organizationId],
+      ),
+      /TORNEOS_AUDIT_APPEND_ONLY/,
+      'la auditoría rechaza UPDATE incluso con bypass RLS',
+    );
+    await expectError(
+      () => admin.query(
+        'delete from public.tournament_audit_log where organization_id=$1',
+        [scope.organizationId],
+      ),
+      /TORNEOS_AUDIT_APPEND_ONLY/,
+      'la auditoría rechaza DELETE incluso con bypass RLS',
+    );
+    await expectError(
+      () => collaborator.query(
+        `insert into public.tournament_audit_log(
+          organization_id,actor_user_id,actor_type,action,resource_type,resource_id
+        ) values ($1,$2,'user','fixture.fake','fixture_version',$3)`,
+        [scope.organizationId, USERS.collaborator, manualThree.fixtureVersionId],
+      ),
+      /permission denied|row-level security/i,
+      'el cliente no inserta eventos de auditoría directamente',
+    );
+    await expectError(
+      () => admin.query(
+        `update public.tournament_matches
+         set status='in_progress'
+         where id=$1`,
+        [manualMatchId],
+      ),
+      /tournament_matches_status_check/,
+      'la base todavía no admite in_progress, completed ni awarded',
+    );
+    eq(
+      await count(
+        admin,
+        `select count(*) from information_schema.columns
+         where table_schema='public'
+           and table_name='tournament_matches'
+           and column_name in (
+             'home_score','away_score','winner_id','points','goals','cards'
+           )`,
+      ),
+      0,
+      'el contrato no incorpora resultados, puntos, goles ni tarjetas',
+    );
     ok(
       await count(
         admin,
@@ -694,6 +2242,7 @@ main()
   .finally(async () => {
     await Promise.allSettled(clients.map((client) => client.end()));
     await postgres.stop().catch(() => {});
+    if (failures) process.exitCode = 1;
   });
 
 export {

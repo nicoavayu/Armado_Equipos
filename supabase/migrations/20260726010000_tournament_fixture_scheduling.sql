@@ -32,9 +32,10 @@ create table public.tournament_participant_sets (
   constraint tournament_participant_sets_fingerprint_check
     check (participant_fingerprint ~ '^[0-9a-f]{64}$'),
   constraint tournament_participant_sets_reopen_check check (
-    (status = 'reopened' and reopened_by is not null and reopened_at is not null
+    (status in ('reopened', 'superseded') and reopened_by is not null and reopened_at is not null
       and invalidated_at is not null and char_length(btrim(reopen_reason)) between 3 and 500)
-    or (status <> 'reopened' and reopened_at is null and reopen_reason is null)
+    or (status = 'frozen' and reopened_by is null and reopened_at is null
+      and reopen_reason is null)
   ),
   constraint tournament_participant_sets_scope_unique
     unique (organization_id, tournament_id, category_id, id),
@@ -295,7 +296,9 @@ create table public.tournament_groups (
   constraint tournament_groups_phase_requires_fixture
     check (phase_id is null or fixture_version_id is not null),
   constraint tournament_groups_scope_unique
-    unique (organization_id, tournament_id, category_id, participant_set_id, id)
+    unique (organization_id, tournament_id, category_id, participant_set_id, id),
+  constraint tournament_groups_fixture_phase_scope_unique
+    unique (organization_id, tournament_id, category_id, fixture_version_id, phase_id, id)
 );
 
 create unique index tournament_groups_draw_code_unique
@@ -320,6 +323,9 @@ create table public.tournament_group_members (
 
 create index tournament_group_members_group_order_idx
   on public.tournament_group_members (group_id, position_seed nulls last, created_at);
+create unique index tournament_group_members_position_unique
+  on public.tournament_group_members (group_id, position_seed)
+  where position_seed is not null;
 
 create table public.tournament_rounds (
   id uuid primary key default gen_random_uuid(),
@@ -343,7 +349,22 @@ create table public.tournament_rounds (
     references public.tournament_phases
       (organization_id, tournament_id, category_id, fixture_version_id, id) on delete restrict,
   constraint tournament_rounds_group_fk
-    foreign key (group_id) references public.tournament_groups(id) on delete restrict,
+    foreign key (
+      organization_id,
+      tournament_id,
+      category_id,
+      fixture_version_id,
+      phase_id,
+      group_id
+    )
+    references public.tournament_groups (
+      organization_id,
+      tournament_id,
+      category_id,
+      fixture_version_id,
+      phase_id,
+      id
+    ) on delete restrict,
   constraint tournament_rounds_number_check check (round_number > 0),
   constraint tournament_rounds_name_check
     check (name = btrim(name) and char_length(name) between 1 and 100),
@@ -484,7 +505,22 @@ create table public.tournament_matches (
     references public.tournament_phases
       (organization_id, tournament_id, category_id, fixture_version_id, id) on delete restrict,
   constraint tournament_matches_group_fk
-    foreign key (group_id) references public.tournament_groups(id) on delete restrict,
+    foreign key (
+      organization_id,
+      tournament_id,
+      category_id,
+      fixture_version_id,
+      phase_id,
+      group_id
+    )
+    references public.tournament_groups (
+      organization_id,
+      tournament_id,
+      category_id,
+      fixture_version_id,
+      phase_id,
+      id
+    ) on delete restrict,
   constraint tournament_matches_home_participant_fk
     foreign key (organization_id, tournament_id, category_id, participant_set_id, home_participant_id)
     references public.tournament_competition_participants
@@ -502,8 +538,7 @@ create table public.tournament_matches (
   constraint tournament_matches_number_check check (match_number > 0),
   constraint tournament_matches_leg_check check (leg_number in (1, 2)),
   constraint tournament_matches_status_check check (status in (
-    'draft', 'unscheduled', 'scheduled', 'postponed', 'cancelled', 'ready',
-    'in_progress', 'completed', 'awarded', 'suspended'
+    'draft', 'unscheduled', 'scheduled', 'postponed', 'cancelled', 'ready'
   )),
   constraint tournament_matches_participants_check
     check (home_participant_id is null or away_participant_id is null
@@ -549,6 +584,8 @@ create table public.tournament_match_sources (
   participant_id uuid,
   source_match_id uuid,
   group_id uuid,
+  source_phase_id uuid,
+  source_tie_key text,
   position_number integer,
   seed_number integer,
   rank_number integer,
@@ -566,30 +603,45 @@ create table public.tournament_match_sources (
     references public.tournament_competition_participants(id) on delete restrict,
   constraint tournament_match_sources_group_fk
     foreign key (group_id) references public.tournament_groups(id) on delete restrict,
+  constraint tournament_match_sources_phase_fk
+    foreign key (organization_id, tournament_id, category_id, fixture_version_id, source_phase_id)
+    references public.tournament_phases
+      (organization_id, tournament_id, category_id, fixture_version_id, id) on delete restrict,
   constraint tournament_match_sources_side_check check (side in ('home', 'away')),
   constraint tournament_match_sources_type_check check (source_type in (
-    'participant', 'winner_of_match', 'loser_of_match', 'group_position',
-    'best_ranked', 'seed', 'bye'
+    'participant', 'winner_of_match', 'loser_of_match',
+    'winner_of_tie', 'loser_of_tie', 'group_position',
+    'league_position', 'seed', 'bye'
   )),
   constraint tournament_match_sources_shape_check check (
     (source_type = 'participant' and participant_id is not null
-      and source_match_id is null and group_id is null and position_number is null
+      and source_match_id is null and group_id is null and source_phase_id is null
+      and source_tie_key is null and position_number is null
       and seed_number is null and rank_number is null)
     or (source_type in ('winner_of_match', 'loser_of_match') and source_match_id is not null
-      and participant_id is null and group_id is null and position_number is null
+      and participant_id is null and group_id is null and source_phase_id is null
+      and source_tie_key is null and position_number is null
+      and seed_number is null and rank_number is null)
+    or (source_type in ('winner_of_tie', 'loser_of_tie') and source_tie_key is not null
+      and char_length(source_tie_key) between 3 and 200
+      and participant_id is null and source_match_id is null and group_id is null
+      and source_phase_id is null and position_number is null
       and seed_number is null and rank_number is null)
     or (source_type = 'group_position' and group_id is not null and position_number > 0
-      and participant_id is null and source_match_id is null
+      and participant_id is null and source_match_id is null and source_phase_id is null
+      and source_tie_key is null
       and seed_number is null and rank_number is null)
-    or (source_type = 'best_ranked' and rank_number > 0
-      and participant_id is null and source_match_id is null and group_id is null
+    or (source_type = 'league_position' and source_phase_id is not null
+      and rank_number > 0 and participant_id is null and source_match_id is null
+      and group_id is null and source_tie_key is null
       and position_number is null and seed_number is null)
     or (source_type = 'seed' and seed_number > 0
       and participant_id is null and source_match_id is null and group_id is null
+      and source_phase_id is null and source_tie_key is null
       and position_number is null and rank_number is null)
     or (source_type = 'bye' and participant_id is null and source_match_id is null
-      and group_id is null and position_number is null and seed_number is null
-      and rank_number is null)
+      and group_id is null and source_phase_id is null and source_tie_key is null
+      and position_number is null and seed_number is null and rank_number is null)
   ),
   constraint tournament_match_sources_side_unique unique (match_id, side)
 );
@@ -819,23 +871,9 @@ as $$
       and organization.status = 'active'
       and tournament.id = p_tournament_id
       and tournament.status <> 'archived'
-      and (
-        public.has_tournament_organization_capability(
-          p_organization_id,
-          'fixture.read'
-        )
-        or exists (
-          select 1
-          from public.tournament_competition_participants participant
-          join public.tournament_team_managers manager
-            on manager.team_entry_id = participant.team_entry_id
-            and manager.organization_id = participant.organization_id
-          where participant.organization_id = p_organization_id
-            and participant.tournament_id = p_tournament_id
-            and participant.status = 'active'
-            and manager.user_id = auth.uid()
-            and manager.status = 'active'
-        )
+      and public.has_tournament_organization_capability(
+        p_organization_id,
+        'fixture.read'
       )
   );
 $$;
@@ -848,6 +886,7 @@ as $$
 declare
   v_left_set uuid;
   v_right_set uuid;
+  v_group public.tournament_groups%rowtype;
 begin
   if tg_table_name = 'tournament_draw_pot_members' then
     select pot.participant_set_id, participant.participant_set_id
@@ -856,18 +895,74 @@ begin
     cross join public.tournament_competition_participants participant
     where pot.id = new.pot_id and participant.id = new.participant_id;
   else
-    select group_row.participant_set_id, participant.participant_set_id
-    into v_left_set, v_right_set
+    select group_row.* into v_group
     from public.tournament_groups group_row
-    cross join public.tournament_competition_participants participant
-    where group_row.id = new.group_id and participant.id = new.participant_id;
+    where group_row.id = new.group_id;
+    select participant.participant_set_id into v_right_set
+    from public.tournament_competition_participants participant
+    where participant.id = new.participant_id;
+    v_left_set := v_group.participant_set_id;
   end if;
   if v_left_set is null or v_left_set is distinct from v_right_set then
+    raise exception using errcode = '23514', message = 'TORNEOS_SCOPE_IMMUTABLE';
+  end if;
+  if tg_table_name = 'tournament_group_members' then
+    perform pg_advisory_xact_lock(hashtextextended(
+      'torneos:group-member:' || coalesce(v_group.fixture_version_id::text, 'draw')
+        || ':' || coalesce(v_group.phase_id::text, v_group.participant_set_id::text)
+        || ':' || new.participant_id::text,
+      0
+    ));
+    if exists (
+      select 1
+      from public.tournament_group_members existing
+      join public.tournament_groups existing_group on existing_group.id = existing.group_id
+      where existing.participant_id = new.participant_id
+        and existing.group_id <> new.group_id
+        and existing_group.participant_set_id = v_group.participant_set_id
+        and existing_group.fixture_version_id is not distinct from v_group.fixture_version_id
+        and existing_group.phase_id is not distinct from v_group.phase_id
+        and existing_group.status <> 'archived'
+    ) then
+      raise exception using errcode = '23505', message = 'TORNEOS_DUPLICATE_GROUP_PARTICIPANT';
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+create or replace function public.validate_tournament_group_scope()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+declare
+  v_version public.tournament_fixture_versions%rowtype;
+begin
+  if new.fixture_version_id is null then
+    if new.phase_id is not null then
+      raise exception using errcode = '23514', message = 'TORNEOS_SCOPE_IMMUTABLE';
+    end if;
+    return new;
+  end if;
+  select version.* into v_version
+  from public.tournament_fixture_versions version
+  where version.id = new.fixture_version_id;
+  if v_version.id is null
+    or v_version.organization_id <> new.organization_id
+    or v_version.tournament_id <> new.tournament_id
+    or v_version.category_id <> new.category_id
+    or v_version.participant_set_id <> new.participant_set_id
+  then
     raise exception using errcode = '23514', message = 'TORNEOS_SCOPE_IMMUTABLE';
   end if;
   return new;
 end;
 $$;
+
+create trigger tournament_groups_scope_guard
+before insert or update on public.tournament_groups
+for each row execute function public.validate_tournament_group_scope();
 
 create trigger tournament_draw_pot_members_scope_guard
 before insert or update on public.tournament_draw_pot_members
@@ -951,6 +1046,9 @@ declare
   v_source_match public.tournament_matches%rowtype;
   v_participant public.tournament_competition_participants%rowtype;
   v_group public.tournament_groups%rowtype;
+  v_phase public.tournament_phases%rowtype;
+  v_tie_count integer;
+  v_tie_last_match integer;
 begin
   select match_row.* into v_match
   from public.tournament_matches match_row
@@ -989,14 +1087,45 @@ begin
       raise exception using errcode = '23514', message = 'TORNEOS_SCOPE_IMMUTABLE';
     end if;
   end if;
+  if new.source_phase_id is not null then
+    select phase.* into v_phase
+    from public.tournament_phases phase
+    where phase.id = new.source_phase_id;
+    if v_phase.id is null
+      or v_phase.organization_id <> new.organization_id
+      or v_phase.tournament_id <> new.tournament_id
+      or v_phase.category_id <> new.category_id
+      or v_phase.fixture_version_id <> new.fixture_version_id
+      or v_phase.sequence_number >= (
+        select target_phase.sequence_number
+        from public.tournament_phases target_phase
+        where target_phase.id = v_match.phase_id
+      )
+    then
+      raise exception using errcode = '23514', message = 'TORNEOS_SCOPE_IMMUTABLE';
+    end if;
+  end if;
   if new.source_match_id is not null then
     select source_match.* into v_source_match
     from public.tournament_matches source_match
     where source_match.id = new.source_match_id;
     if v_source_match.id is null
       or v_source_match.fixture_version_id <> new.fixture_version_id
-      or v_source_match.match_number >= v_match.match_number
     then
+      raise exception using errcode = '23514', message = 'TORNEOS_SCOPE_IMMUTABLE';
+    end if;
+    if v_source_match.match_number >= v_match.match_number
+    then
+      raise exception using errcode = '23514', message = 'TORNEOS_CYCLIC_MATCH_SOURCE';
+    end if;
+  end if;
+  if new.source_tie_key is not null then
+    select count(*), max(tie_match.match_number)
+    into v_tie_count, v_tie_last_match
+    from public.tournament_matches tie_match
+    where tie_match.fixture_version_id = new.fixture_version_id
+      and tie_match.tie_key = new.source_tie_key;
+    if v_tie_count <> 2 or v_tie_last_match >= v_match.match_number then
       raise exception using errcode = '23514', message = 'TORNEOS_CYCLIC_MATCH_SOURCE';
     end if;
   end if;
@@ -1096,6 +1225,7 @@ declare
   v_count integer;
   v_fingerprint text;
   v_version integer;
+  v_entry_ids uuid[];
 begin
   perform public.assert_tournament_fixture_scope(
     p_organization_id, p_tournament_id, p_category_id,
@@ -1143,18 +1273,28 @@ begin
   ) then
     raise exception using errcode = '23514', message = 'TORNEOS_PENDING_REGISTRATIONS';
   end if;
-  select count(*), encode(public.digest(string_agg(entry.id::text, '|' order by entry.id), 'sha256'), 'hex')
-  into v_count, v_fingerprint
-  from public.tournament_team_entries entry
-  where entry.organization_id = p_organization_id
-    and entry.tournament_id = p_tournament_id
-    and entry.category_id = p_category_id
-    and entry.status = 'approved'
-    and exists (
-      select 1 from public.tournament_rosters roster
-      where roster.team_entry_id = entry.id
-        and roster.status in ('approved', 'locked')
-    );
+  select array_agg(eligible.id order by eligible.id)
+  into v_entry_ids
+  from (
+    select entry.id
+    from public.tournament_team_entries entry
+    where entry.organization_id = p_organization_id
+      and entry.tournament_id = p_tournament_id
+      and entry.category_id = p_category_id
+      and entry.status = 'approved'
+      and exists (
+        select 1 from public.tournament_rosters roster
+        where roster.team_entry_id = entry.id
+          and roster.status in ('approved', 'locked')
+      )
+    order by entry.id
+    for share of entry
+  ) eligible;
+  v_count := coalesce(array_length(v_entry_ids, 1), 0);
+  v_fingerprint := encode(public.digest(
+    array_to_string(v_entry_ids, '|'),
+    'sha256'
+  ), 'hex');
   if v_count < 2 then
     raise exception using errcode = '23514', message = 'TORNEOS_NOT_ENOUGH_PARTICIPANTS';
   end if;
@@ -1190,15 +1330,7 @@ begin
     v_set.id, entry.id, 'active', entry.name, entry.short_name, entry.shield_path,
     entry.primary_color, entry.secondary_color, v_set.frozen_at
   from public.tournament_team_entries entry
-  where entry.organization_id = p_organization_id
-    and entry.tournament_id = p_tournament_id
-    and entry.category_id = p_category_id
-    and entry.status = 'approved'
-    and exists (
-      select 1 from public.tournament_rosters roster
-      where roster.team_entry_id = entry.id
-        and roster.status in ('approved', 'locked')
-    )
+  where entry.id = any(v_entry_ids)
   order by entry.id;
   perform public.append_tournament_audit(
     p_organization_id, 'participants.frozen', 'participant_set', v_set.id,
@@ -1561,13 +1693,16 @@ begin
   insert into public.tournament_match_sources (
     organization_id, tournament_id, category_id, fixture_version_id,
     match_id, side, source_type, participant_id, source_match_id,
-    group_id, position_number, seed_number, rank_number
+    group_id, source_phase_id, source_tie_key,
+    position_number, seed_number, rank_number
   ) values (
     v_match.organization_id, v_match.tournament_id, v_match.category_id,
     v_match.fixture_version_id, v_match.id, p_side, p_source->>'type',
     nullif(p_source->>'participantId', '')::uuid,
     nullif(p_source->>'matchId', '')::uuid,
     nullif(p_source->>'groupId', '')::uuid,
+    nullif(p_source->>'phaseId', '')::uuid,
+    nullif(p_source->>'tieKey', ''),
     nullif(p_source->>'positionNumber', '')::integer,
     nullif(p_source->>'seedNumber', '')::integer,
     nullif(p_source->>'rankNumber', '')::integer
@@ -1655,12 +1790,12 @@ begin
           insert into public.tournament_matches (
             organization_id, season_id, tournament_id, category_id,
             participant_set_id, fixture_version_id, phase_id, group_id, round_id,
-            match_number, home_participant_id, away_participant_id, status,
+            match_number, leg_number, home_participant_id, away_participant_id, status,
             duration_minutes, created_by
           ) values (
             v_version.organization_id, v_version.season_id, v_version.tournament_id,
             v_version.category_id, v_version.participant_set_id, v_version.id,
-            p_phase_id, p_group_id, v_round_id, v_match_number, v_home, v_away,
+            p_phase_id, p_group_id, v_round_id, v_match_number, v_leg, v_home, v_away,
             'unscheduled', v_duration, v_version.created_by
           ) returning id into v_match_id;
           perform public.insert_tournament_match_source(
@@ -1709,12 +1844,15 @@ declare
   v_duration integer;
   v_home_source jsonb;
   v_away_source jsonb;
-  v_previous_match_ids uuid[] := '{}'::uuid[];
-  v_current_match_ids uuid[];
+  v_previous_sources jsonb := '[]'::jsonb;
+  v_current_sources jsonb;
+  v_advancement_source jsonb;
+  v_loser_source jsonb;
+  v_semifinal_loser_sources jsonb := '[]'::jsonb;
   v_last_match_id uuid;
   v_tie_key text;
   v_index integer;
-  v_semifinal_match_ids uuid[];
+  v_legs integer;
 begin
   select version.* into v_version
   from public.tournament_fixture_versions version
@@ -1771,23 +1909,29 @@ begin
       end,
       'draft', v_round_number - 1
     ) returning id into v_round_id;
-    v_current_match_ids := '{}'::uuid[];
+    v_current_sources := '[]'::jsonb;
     for v_tie in 1..(v_round_size / 2) loop
       if v_round_number = 1 then
         v_home_source := v_slots->((v_tie - 1) * 2);
         v_away_source := v_slots->((v_tie - 1) * 2 + 1);
       else
-        v_home_source := jsonb_build_object(
-          'type', 'winner_of_match',
-          'matchId', v_previous_match_ids[(v_tie - 1) * 2 + 1]
-        );
-        v_away_source := jsonb_build_object(
-          'type', 'winner_of_match',
-          'matchId', v_previous_match_ids[(v_tie - 1) * 2 + 2]
-        );
+        v_home_source := v_previous_sources->((v_tie - 1) * 2);
+        v_away_source := v_previous_sources->((v_tie - 1) * 2 + 1);
+      end if;
+      if v_home_source->>'type' = 'bye' and v_away_source->>'type' = 'bye' then
+        v_current_sources := v_current_sources
+          || jsonb_build_array(jsonb_build_object('type', 'bye'));
+        continue;
+      elsif v_home_source->>'type' = 'bye' then
+        v_current_sources := v_current_sources || jsonb_build_array(v_away_source);
+        continue;
+      elsif v_away_source->>'type' = 'bye' then
+        v_current_sources := v_current_sources || jsonb_build_array(v_home_source);
+        continue;
       end if;
       v_tie_key := v_version.id::text || ':' || v_round_number || ':' || v_tie;
-      for v_leg in 1..case when p_double_leg and v_round_size > 2 then 2 else 1 end loop
+      v_legs := case when p_double_leg and v_round_size > 2 then 2 else 1 end;
+      for v_leg in 1..v_legs loop
         v_match_number := v_match_number + 1;
         insert into public.tournament_matches (
           organization_id, season_id, tournament_id, category_id,
@@ -1797,7 +1941,8 @@ begin
         ) values (
           v_version.organization_id, v_version.season_id, v_version.tournament_id,
           v_version.category_id, v_version.participant_set_id, v_version.id,
-          p_phase_id, v_round_id, v_match_number, v_leg, v_tie_key,
+          p_phase_id, v_round_id, v_match_number, v_leg,
+          case when v_legs = 2 then v_tie_key else null end,
           case when v_leg = 1 and v_home_source->>'type' = 'participant'
             then (v_home_source->>'participantId')::uuid
             when v_leg = 2 and v_away_source->>'type' = 'participant'
@@ -1816,13 +1961,31 @@ begin
         );
         v_last_match_id := v_match_id;
       end loop;
-      v_current_match_ids := array_append(v_current_match_ids, v_last_match_id);
+      if v_legs = 2 then
+        v_advancement_source := jsonb_build_object(
+          'type', 'winner_of_tie', 'tieKey', v_tie_key
+        );
+        v_loser_source := jsonb_build_object(
+          'type', 'loser_of_tie', 'tieKey', v_tie_key
+        );
+      else
+        v_advancement_source := jsonb_build_object(
+          'type', 'winner_of_match', 'matchId', v_last_match_id
+        );
+        v_loser_source := jsonb_build_object(
+          'type', 'loser_of_match', 'matchId', v_last_match_id
+        );
+      end if;
+      v_current_sources := v_current_sources || jsonb_build_array(v_advancement_source);
+      if v_round_size = 4 then
+        v_semifinal_loser_sources := v_semifinal_loser_sources
+          || jsonb_build_array(v_loser_source);
+      end if;
     end loop;
-    if v_round_size = 4 then v_semifinal_match_ids := v_current_match_ids; end if;
-    v_previous_match_ids := v_current_match_ids;
+    v_previous_sources := v_current_sources;
     v_round_size := v_round_size / 2;
   end loop;
-  if p_third_place and array_length(v_semifinal_match_ids, 1) = 2 then
+  if p_third_place and jsonb_array_length(v_semifinal_loser_sources) = 2 then
     v_round_number := v_round_number + 1;
     insert into public.tournament_rounds (
       organization_id, tournament_id, category_id, fixture_version_id,
@@ -1842,12 +2005,10 @@ begin
       p_phase_id, v_round_id, v_match_number, 'unscheduled', v_duration, v_version.created_by
     ) returning id into v_match_id;
     perform public.insert_tournament_match_source(
-      v_match_id, 'home',
-      jsonb_build_object('type', 'loser_of_match', 'matchId', v_semifinal_match_ids[1])
+      v_match_id, 'home', v_semifinal_loser_sources->0
     );
     perform public.insert_tournament_match_source(
-      v_match_id, 'away',
-      jsonb_build_object('type', 'loser_of_match', 'matchId', v_semifinal_match_ids[2])
+      v_match_id, 'away', v_semifinal_loser_sources->1
     );
   end if;
 end;
@@ -1885,6 +2046,9 @@ declare
   v_double boolean;
   v_knockout_double boolean;
   v_snapshot jsonb;
+  v_effective_seed text;
+  v_draw_seed text;
+  v_distinct_draw_seeds integer;
 begin
   perform public.assert_tournament_fixture_scope(
     p_organization_id, p_tournament_id, p_category_id,
@@ -1892,6 +2056,12 @@ begin
   );
   if p_idempotency_key is null
     or jsonb_typeof(coalesce(p_configuration, '{}'::jsonb)) <> 'object'
+    or coalesce((p_configuration->>'minimumRestMinutes')::integer, 720)
+      not between 1 and 10080
+    or coalesce((p_configuration->>'maximumConsecutiveHome')::integer, 3)
+      not between 1 and 20
+    or coalesce((p_configuration->>'maximumMatchesPerDay')::integer, 1)
+      not between 1 and 10
   then
     raise exception using errcode = '22023', message = 'TORNEOS_INVALID_FIXTURE_CONFIGURATION';
   end if;
@@ -1932,6 +2102,24 @@ begin
   if coalesce(array_length(v_participants, 1), 0) < 2 then
     raise exception using errcode = '23514', message = 'TORNEOS_NOT_ENOUGH_PARTICIPANTS';
   end if;
+  v_effective_seed := nullif(btrim(coalesce(p_seed, '')), '');
+  if v_tournament.competition_format in ('groups', 'groups_and_playoffs') then
+    select
+      min(nullif(btrim(group_row.draw_seed), '')),
+      count(distinct nullif(btrim(group_row.draw_seed), ''))
+    into v_draw_seed, v_distinct_draw_seeds
+    from public.tournament_groups group_row
+    where group_row.participant_set_id = v_set.id
+      and group_row.fixture_version_id is null
+      and group_row.status = 'published';
+    if v_draw_seed is null or v_distinct_draw_seeds <> 1 then
+      raise exception using errcode = '23514', message = 'TORNEOS_GROUP_DRAW_SEED_INVALID';
+    end if;
+    if v_effective_seed is not null and v_effective_seed <> v_draw_seed then
+      raise exception using errcode = '23514', message = 'TORNEOS_GROUP_DRAW_SEED_MISMATCH';
+    end if;
+    v_effective_seed := v_draw_seed;
+  end if;
   select coalesce(max(version.version_number), 0) + 1 into v_version_number
   from public.tournament_fixture_versions version
   where version.tournament_id = p_tournament_id and version.category_id = p_category_id;
@@ -1952,7 +2140,7 @@ begin
     v_version_number, 'draft',
     case when v_tournament.competition_format in ('groups', 'groups_and_playoffs')
       then 'draw' else 'automatic' end,
-    nullif(btrim(coalesce(p_seed, '')), ''), v_set.participant_fingerprint,
+    v_effective_seed, v_set.participant_fingerprint,
     v_snapshot, auth.uid(), p_idempotency_key
   ) returning * into v_version;
 
@@ -2048,6 +2236,18 @@ begin
   elsif v_tournament.competition_format = 'groups_and_playoffs' then
     v_sources := '[]'::jsonb;
     v_qualifiers := coalesce((v_tournament.format_settings->>'qualifiersPerGroup')::integer, 2);
+    if v_qualifiers < 1 or exists (
+      select 1
+      from public.tournament_groups group_row
+      where group_row.fixture_version_id = v_version.id
+        and (
+          select count(*)
+          from public.tournament_group_members member
+          where member.group_id = group_row.id
+        ) < v_qualifiers
+    ) then
+      raise exception using errcode = '23514', message = 'TORNEOS_INVALID_QUALIFIERS';
+    end if;
     for v_group in
       select group_row.id
       from public.tournament_groups group_row
@@ -2075,9 +2275,12 @@ begin
   elsif v_tournament.competition_format = 'league_and_playoffs' then
     v_sources := '[]'::jsonb;
     v_qualifiers := coalesce((v_tournament.format_settings->>'qualifiers')::integer, 4);
+    if v_qualifiers < 2 or v_qualifiers > array_length(v_participants, 1) then
+      raise exception using errcode = '23514', message = 'TORNEOS_INVALID_QUALIFIERS';
+    end if;
     for v_index in 1..v_qualifiers loop
       v_sources := v_sources || jsonb_build_array(jsonb_build_object(
-        'type', 'best_ranked', 'rankNumber', v_index
+        'type', 'league_position', 'phaseId', v_phase_id, 'rankNumber', v_index
       ));
     end loop;
     insert into public.tournament_phases (
@@ -2284,7 +2487,9 @@ begin
         case when v_match.group_id is null then null
           else (v_group_map->>v_match.group_id::text)::uuid end,
         (v_round_map->>v_match.round_id::text)::uuid,
-        v_match.match_number, v_match.leg_number, v_match.tie_key,
+        v_match.match_number, v_match.leg_number,
+        case when v_match.tie_key is null then null
+          else replace(v_match.tie_key, v_source.id::text, v_version.id::text) end,
         v_match.home_participant_id, v_match.away_participant_id,
         case when v_match.status in ('ready', 'in_progress', 'completed', 'awarded', 'suspended')
           then 'scheduled' else v_match.status end,
@@ -2302,7 +2507,8 @@ begin
       insert into public.tournament_match_sources (
         organization_id, tournament_id, category_id, fixture_version_id,
         match_id, side, source_type, participant_id, source_match_id,
-        group_id, position_number, seed_number, rank_number
+        group_id, source_phase_id, source_tie_key,
+        position_number, seed_number, rank_number
       ) values (
         v_source_row.organization_id, v_source_row.tournament_id,
         v_source_row.category_id, v_version.id,
@@ -2312,6 +2518,14 @@ begin
           else (v_match_map->>v_source_row.source_match_id::text)::uuid end,
         case when v_source_row.group_id is null then null
           else (v_group_map->>v_source_row.group_id::text)::uuid end,
+        case when v_source_row.source_phase_id is null then null
+          else (v_phase_map->>v_source_row.source_phase_id::text)::uuid end,
+        case when v_source_row.source_tie_key is null then null
+          else replace(
+            v_source_row.source_tie_key,
+            v_source.id::text,
+            v_version.id::text
+          ) end,
         v_source_row.position_number, v_source_row.seed_number, v_source_row.rank_number
       );
     end loop;
@@ -2401,6 +2615,17 @@ begin
     from public.tournament_rounds round_row
     where round_row.phase_id = v_phase.id
       and round_row.group_id is not distinct from nullif(p_payload->>'groupId', '')::uuid;
+    if nullif(p_payload->>'groupId', '') is not null and not exists (
+      select 1
+      from public.tournament_groups group_row
+      where group_row.id = (p_payload->>'groupId')::uuid
+        and group_row.fixture_version_id = v_version.id
+        and group_row.phase_id = v_phase.id
+        and group_row.participant_set_id = v_version.participant_set_id
+        and group_row.status <> 'archived'
+    ) then
+      raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
+    end if;
     insert into public.tournament_rounds (
       organization_id, tournament_id, category_id, fixture_version_id,
       phase_id, group_id, round_number, name, status, sort_order
@@ -2559,15 +2784,30 @@ begin
       and right_match.id > left_match.id
       and right_match.phase_id = left_match.phase_id
       and right_match.leg_number = left_match.leg_number
-      and right_match.home_participant_id = left_match.home_participant_id
-      and right_match.away_participant_id = left_match.away_participant_id
+      and least(right_match.home_participant_id, right_match.away_participant_id)
+        = least(left_match.home_participant_id, left_match.away_participant_id)
+      and greatest(right_match.home_participant_id, right_match.away_participant_id)
+        = greatest(left_match.home_participant_id, left_match.away_participant_id)
     where left_match.fixture_version_id = v_version.id
       and left_match.status <> 'cancelled' and right_match.status <> 'cancelled'
-    group by left_match.home_participant_id, left_match.away_participant_id,
+    group by least(left_match.home_participant_id, left_match.away_participant_id),
+      greatest(left_match.home_participant_id, left_match.away_participant_id),
       left_match.phase_id, left_match.leg_number
   loop
     v_blockers := v_blockers || jsonb_build_array(jsonb_build_object(
       'code', 'duplicate_pairing', 'resourceId', v_item.id
+    ));
+  end loop;
+  for v_item in
+    select match_row.id
+    from public.tournament_matches match_row
+    join public.tournament_match_sources source on source.match_id = match_row.id
+    where match_row.fixture_version_id = v_version.id
+      and match_row.status <> 'cancelled'
+      and source.source_type = 'bye'
+  loop
+    v_blockers := v_blockers || jsonb_build_array(jsonb_build_object(
+      'code', 'playable_bye_match', 'resourceId', v_item.id
     ));
   end loop;
   for v_item in
@@ -2582,6 +2822,31 @@ begin
   loop
     v_blockers := v_blockers || jsonb_build_array(jsonb_build_object(
       'code', 'empty_published_group', 'resourceId', v_item.id
+    ));
+  end loop;
+  for v_item in
+    select phase.id
+    from public.tournament_phases phase
+    where phase.fixture_version_id = v_version.id
+      and phase.phase_type = 'groups'
+      and exists (
+        select 1
+        from public.tournament_competition_participants participant
+        where participant.participant_set_id = v_version.participant_set_id
+          and participant.status = 'active'
+          and (
+            select count(*)
+            from public.tournament_group_members member
+            join public.tournament_groups group_row on group_row.id = member.group_id
+            where member.participant_id = participant.id
+              and group_row.fixture_version_id = v_version.id
+              and group_row.phase_id = phase.id
+              and group_row.status = 'published'
+          ) <> 1
+      )
+  loop
+    v_blockers := v_blockers || jsonb_build_array(jsonb_build_object(
+      'code', 'incomplete_group_assignment', 'resourceId', v_item.id
     ));
   end loop;
   if not exists (
@@ -2661,6 +2926,16 @@ begin
   perform pg_advisory_xact_lock(hashtextextended(
     'torneos:fixture:' || v_version.tournament_id::text || ':' || v_version.category_id::text, 0
   ));
+  if exists (
+    select 1
+    from public.tournament_fixture_versions newer
+    where newer.tournament_id = v_version.tournament_id
+      and newer.category_id = v_version.category_id
+      and newer.status = 'draft'
+      and newer.version_number > v_version.version_number
+  ) then
+    raise exception using errcode = '40001', message = 'TORNEOS_STALE_FIXTURE_VERSION';
+  end if;
   v_validation := public.validate_tournament_fixture(p_organization_id, v_version.id);
   if not (v_validation->>'valid')::boolean then
     raise exception using errcode = '23514', message = 'TORNEOS_FIXTURE_INVALID';
@@ -2886,6 +3161,13 @@ begin
   if not public.has_tournament_organization_capability(p_organization_id, v_capability) then
     raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
   end if;
+  if p_patch ? 'timezone' and not exists (
+    select 1
+    from pg_catalog.pg_timezone_names zone
+    where zone.name = p_patch->>'timezone'
+  ) then
+    raise exception using errcode = '22023', message = 'TORNEOS_INVALID_TIMEZONE';
+  end if;
   select venue.* into v_venue from public.tournament_venues venue
   where venue.id = p_venue_id and venue.organization_id = p_organization_id
     and venue.status = 'active'
@@ -3061,6 +3343,9 @@ begin
     and status = 'active';
   for v_window in select value from jsonb_array_elements(p_windows)
   loop
+    if jsonb_typeof(v_window) <> 'object' then
+      raise exception using errcode = '22023', message = 'TORNEOS_INVALID_SCHEDULE_WINDOW';
+    end if;
     v_category_id := nullif(v_window->>'categoryId', '')::uuid;
     v_venue_id := nullif(v_window->>'venueId', '')::uuid;
     v_court_id := nullif(v_window->>'courtId', '')::uuid;
@@ -3070,6 +3355,15 @@ begin
         and category.organization_id = p_organization_id
         and category.tournament_id = p_tournament_id
         and category.status = 'active'
+    ) then
+      raise exception using errcode = '23514', message = 'TORNEOS_SCOPE_IMMUTABLE';
+    end if;
+    if v_venue_id is not null and not exists (
+      select 1
+      from public.tournament_venues venue
+      where venue.id = v_venue_id
+        and venue.organization_id = p_organization_id
+        and venue.status = 'active'
     ) then
       raise exception using errcode = '23514', message = 'TORNEOS_SCOPE_IMMUTABLE';
     end if;
@@ -3133,7 +3427,9 @@ declare
   v_buffer integer := 0;
   v_minimum_rest integer := 720;
   v_end timestamptz;
+  v_match_end timestamptz;
   v_local_date date;
+  v_local_end_date date;
   v_local_time time;
   v_blockers jsonb := '[]'::jsonb;
   v_warnings jsonb := '[]'::jsonb;
@@ -3184,26 +3480,48 @@ begin
   then
     v_blockers := v_blockers || jsonb_build_array(jsonb_build_object('code', 'self_match'));
   end if;
+  if v_match.home_participant_id is null or v_match.away_participant_id is null
+    or (
+      select count(*)
+      from public.tournament_match_sources source
+      where source.match_id = v_match.id
+    ) <> 2
+  then
+    v_blockers := v_blockers || jsonb_build_array(
+      jsonb_build_object('code', 'unresolved_or_invalid_sources')
+    );
+  end if;
   if v_version.status not in ('draft', 'published')
     or v_version.invalidated_at is not null
     or v_tournament.status = 'archived'
     or v_category.status = 'archived'
+    or v_match.status not in ('unscheduled', 'scheduled', 'postponed')
   then
     v_blockers := v_blockers || jsonb_build_array(jsonb_build_object('code', 'inactive_fixture'));
   end if;
   if v_venue.id is not null then
     v_local_date := (p_scheduled_at at time zone v_venue.timezone)::date;
     v_local_time := (p_scheduled_at at time zone v_venue.timezone)::time;
+    v_local_end_date := (
+      (p_scheduled_at + make_interval(mins => coalesce(v_duration, 0)))
+      at time zone v_venue.timezone
+    )::date;
   else
     v_local_date := p_scheduled_at::date;
     v_local_time := p_scheduled_at::time;
+    v_local_end_date := (
+      p_scheduled_at + make_interval(mins => coalesce(v_duration, 0))
+    )::date;
   end if;
   if (v_season.start_date is not null and v_local_date < v_season.start_date)
-    or (v_season.end_date is not null and v_local_date > v_season.end_date)
+    or (v_season.end_date is not null and v_local_end_date > v_season.end_date)
     or (v_tournament.start_date is not null and v_local_date < v_tournament.start_date)
-    or (v_tournament.end_date is not null and v_local_date > v_tournament.end_date)
+    or (v_tournament.end_date is not null and v_local_end_date > v_tournament.end_date)
     or (v_round.starts_at is not null and p_scheduled_at < v_round.starts_at)
-    or (v_round.ends_at is not null and p_scheduled_at > v_round.ends_at)
+    or (
+      v_round.ends_at is not null
+      and p_scheduled_at + make_interval(mins => coalesce(v_duration, 0)) > v_round.ends_at
+    )
   then
     v_blockers := v_blockers || jsonb_build_array(jsonb_build_object('code', 'outside_date_range'));
   end if;
@@ -3222,7 +3540,8 @@ begin
     )
     and v_local_time >= schedule_window.starts_at
     and v_local_time + make_interval(mins => v_duration) <= schedule_window.ends_at;
-  v_end := p_scheduled_at + make_interval(mins => v_duration + v_buffer);
+  v_match_end := p_scheduled_at + make_interval(mins => v_duration);
+  v_end := v_match_end + make_interval(mins => v_buffer);
   if exists (
     select 1 from public.tournament_schedule_windows schedule_window
     where schedule_window.organization_id = p_organization_id
@@ -3300,7 +3619,18 @@ begin
     (v_version.configuration_snapshot->>'minimumRestMinutes')::integer, 720
   );
   for v_other in
-    select other.id, abs(extract(epoch from (other.scheduled_at - p_scheduled_at)) / 60) as minutes
+    select other.id, case
+      when other.scheduled_at >= v_match_end then
+        extract(epoch from (other.scheduled_at - v_match_end)) / 60
+      when p_scheduled_at >= (
+        other.scheduled_at + make_interval(mins => coalesce(other.duration_minutes, 60))
+      ) then
+        extract(epoch from (
+          p_scheduled_at
+          - (other.scheduled_at + make_interval(mins => coalesce(other.duration_minutes, 60)))
+        )) / 60
+      else 0
+    end as minutes
     from public.tournament_matches other
     where other.id <> v_match.id
       and other.organization_id = p_organization_id
@@ -3308,21 +3638,43 @@ begin
       and other.status not in ('cancelled', 'completed')
       and array_remove(array[other.home_participant_id, other.away_participant_id], null)
         && array_remove(array[v_match.home_participant_id, v_match.away_participant_id], null)
-      and abs(extract(epoch from (other.scheduled_at - p_scheduled_at)) / 60)
-        < v_minimum_rest
+      and case
+        when other.scheduled_at >= v_match_end then
+          extract(epoch from (other.scheduled_at - v_match_end)) / 60
+        when p_scheduled_at >= (
+          other.scheduled_at + make_interval(mins => coalesce(other.duration_minutes, 60))
+        ) then
+          extract(epoch from (
+            p_scheduled_at
+            - (other.scheduled_at + make_interval(mins => coalesce(other.duration_minutes, 60)))
+          )) / 60
+        else 0
+      end < v_minimum_rest
   loop
     v_warnings := v_warnings || jsonb_build_array(jsonb_build_object(
       'code', 'short_rest', 'resourceId', v_other.id, 'minutes', round(v_other.minutes)
     ));
   end loop;
-  if (
-    select count(*) from public.tournament_matches other
-    where other.id <> v_match.id
-      and other.tournament_id = v_match.tournament_id
-      and other.scheduled_at::date = p_scheduled_at::date
-      and other.status not in ('cancelled', 'completed')
-  ) >= coalesce(
-    (v_version.configuration_snapshot->>'maximumMatchesPerDay')::integer, 8
+  if exists (
+    select 1
+    from unnest(array_remove(
+      array[v_match.home_participant_id, v_match.away_participant_id],
+      null
+    )) candidate_participant(id)
+    where (
+      select count(*)
+      from public.tournament_matches other
+      where other.id <> v_match.id
+        and other.tournament_id = v_match.tournament_id
+        and (other.scheduled_at at time zone v_venue.timezone)::date = v_local_date
+        and other.status <> 'cancelled'
+        and candidate_participant.id in (
+          other.home_participant_id,
+          other.away_participant_id
+        )
+    ) >= coalesce(
+      (v_version.configuration_snapshot->>'maximumMatchesPerDay')::integer, 1
+    )
   ) then
     v_warnings := v_warnings || jsonb_build_array(jsonb_build_object('code', 'heavy_day_load'));
   end if;
@@ -3379,6 +3731,14 @@ begin
   perform pg_advisory_xact_lock(hashtextextended(
     'torneos:schedule:court:' || p_court_id::text, 0
   ));
+  perform pg_advisory_xact_lock(hashtextextended(
+    'torneos:schedule:team:' || participant_id::text, 0
+  ))
+  from unnest(array_remove(
+    array[v_match.home_participant_id, v_match.away_participant_id],
+    null
+  )) participant_id
+  order by participant_id;
   v_validation := public.validate_tournament_match_schedule(
     p_organization_id, p_match_id, p_scheduled_at,
     p_venue_id, p_court_id, p_duration_minutes
@@ -3464,6 +3824,14 @@ begin
   perform pg_advisory_xact_lock(hashtextextended(
     'torneos:schedule:court:' || p_court_id::text, 0
   ));
+  perform pg_advisory_xact_lock(hashtextextended(
+    'torneos:schedule:team:' || participant_id::text, 0
+  ))
+  from unnest(array_remove(
+    array[v_match.home_participant_id, v_match.away_participant_id],
+    null
+  )) participant_id
+  order by participant_id;
   v_validation := public.validate_tournament_match_schedule(
     p_organization_id, p_match_id, p_scheduled_at,
     p_venue_id, p_court_id, p_duration_minutes
@@ -3537,19 +3905,39 @@ begin
   then
     raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
   end if;
-  update public.tournament_matches
-  set status = 'postponed', postponed_at = now()
-  where id = p_match_id and organization_id = p_organization_id
-    and status = 'scheduled'
-  returning * into v_match;
+  select match_row.* into v_match
+  from public.tournament_matches match_row
+  join public.tournament_fixture_versions version
+    on version.id = match_row.fixture_version_id
+    and version.status in ('draft', 'published')
+    and version.invalidated_at is null
+  where match_row.id = p_match_id
+    and match_row.organization_id = p_organization_id
+    and match_row.status = 'scheduled'
+  for update of match_row;
   if v_match.id is null then
     raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
   end if;
+  insert into public.tournament_match_reschedules (
+    organization_id, tournament_id, category_id, fixture_version_id, match_id,
+    previous_scheduled_at, previous_venue_id, previous_court_id,
+    new_scheduled_at, new_venue_id, new_court_id, reason, actor_user_id,
+    previous_status, new_status
+  ) values (
+    v_match.organization_id, v_match.tournament_id, v_match.category_id,
+    v_match.fixture_version_id, v_match.id, v_match.scheduled_at,
+    v_match.venue_id, v_match.court_id, null, null, null,
+    v_reason, auth.uid(), 'scheduled', 'postponed'
+  );
+  update public.tournament_matches
+  set status = 'postponed', postponed_at = now(),
+      scheduled_at = null, venue_id = null, court_id = null
+  where id = v_match.id;
   perform public.append_tournament_audit(
     p_organization_id, 'match.postponed', 'match', v_match.id,
     null, v_match.tournament_id,
     jsonb_build_object(
-      'reason', v_reason, 'scheduledAt', v_match.scheduled_at,
+      'reason', v_reason, 'previousScheduledAt', v_match.scheduled_at,
       'venueId', v_match.venue_id, 'courtId', v_match.court_id
     )
   );
@@ -3578,20 +3966,28 @@ begin
   then
     raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
   end if;
-  update public.tournament_matches
-  set status = 'cancelled', cancelled_at = now()
-  where id = p_match_id and organization_id = p_organization_id
-    and status in ('scheduled', 'postponed')
-  returning * into v_match;
+  select match_row.* into v_match
+  from public.tournament_matches match_row
+  join public.tournament_fixture_versions version
+    on version.id = match_row.fixture_version_id
+    and version.status in ('draft', 'published')
+    and version.invalidated_at is null
+  where match_row.id = p_match_id
+    and match_row.organization_id = p_organization_id
+    and match_row.status in ('scheduled', 'postponed')
+  for update of match_row;
   if v_match.id is null then
     raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
   end if;
+  update public.tournament_matches
+  set status = 'cancelled', cancelled_at = now()
+  where id = v_match.id;
   perform public.append_tournament_audit(
     p_organization_id, 'match.cancelled', 'match', v_match.id,
     null, v_match.tournament_id,
     jsonb_build_object(
       'reason', v_reason, 'previousStatus',
-      case when v_match.postponed_at is null then 'scheduled' else 'postponed' end
+      v_match.status
     )
   );
   return jsonb_build_object('matchId', v_match.id, 'status', 'cancelled');
@@ -3620,9 +4016,13 @@ begin
     raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
   end if;
   select match_row.* into v_match from public.tournament_matches match_row
+  join public.tournament_fixture_versions version
+    on version.id = match_row.fixture_version_id
+    and version.status in ('draft', 'published')
+    and version.invalidated_at is null
   where match_row.id = p_match_id and match_row.organization_id = p_organization_id
     and match_row.status = 'postponed'
-  for update;
+  for update of match_row;
   if v_match.id is null then
     raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
   end if;
@@ -3666,14 +4066,21 @@ begin
   ) then
     raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
   end if;
-  update public.tournament_matches
-  set status = 'ready'
-  where id = p_match_id and organization_id = p_organization_id
-    and status = 'scheduled' and scheduled_at is not null
-  returning * into v_match;
+  select match_row.* into v_match
+  from public.tournament_matches match_row
+  join public.tournament_fixture_versions version
+    on version.id = match_row.fixture_version_id
+    and version.status in ('draft', 'published')
+    and version.invalidated_at is null
+  where match_row.id = p_match_id
+    and match_row.organization_id = p_organization_id
+    and match_row.status = 'scheduled'
+    and match_row.scheduled_at is not null
+  for update of match_row;
   if v_match.id is null then
     raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
   end if;
+  update public.tournament_matches set status = 'ready' where id = v_match.id;
   perform public.append_tournament_audit(
     p_organization_id, 'match.ready', 'match', v_match.id,
     null, v_match.tournament_id, '{}'::jsonb
@@ -3736,6 +4143,8 @@ declare
   v_validation jsonb;
   v_scheduled integer := 0;
   v_unscheduled integer := 0;
+  v_unscheduled_details jsonb := '[]'::jsonb;
+  v_last_validation jsonb;
   v_done boolean;
 begin
   if auth.uid() is null or not public.has_tournament_organization_capability(
@@ -3759,14 +4168,27 @@ begin
     'torneos:auto-schedule:' || v_version.id::text, 0
   ));
   for v_match in
-    select match_row.* from public.tournament_matches match_row
+    select match_row.*
+    from public.tournament_matches match_row
+    join public.tournament_rounds round_row on round_row.id = match_row.round_id
+    join public.tournament_phases phase on phase.id = match_row.phase_id
     where match_row.fixture_version_id = v_version.id
       and match_row.status = 'unscheduled'
-      and match_row.home_participant_id is not null
-      and match_row.away_participant_id is not null
-    order by match_row.round_id, match_row.match_number
+    order by phase.sequence_number, round_row.sort_order,
+      round_row.round_number, match_row.match_number
   loop
+    if v_match.home_participant_id is null or v_match.away_participant_id is null then
+      v_unscheduled := v_unscheduled + 1;
+      v_unscheduled_details := v_unscheduled_details || jsonb_build_array(
+        jsonb_build_object(
+          'matchId', v_match.id,
+          'reason', 'unresolved_sources'
+        )
+      );
+      continue;
+    end if;
     v_done := false;
+    v_last_validation := null;
     for v_candidate in
       with dates as (
         select day::date as slot_date
@@ -3777,6 +4199,7 @@ begin
         ) day
       )
       select
+        schedule_window.id as schedule_window_id,
         schedule_window.venue_id,
         schedule_window.court_id,
         (
@@ -3823,12 +4246,14 @@ begin
           or schedule_window.day_of_week = extract(isodow from dates.slot_date)::smallint
         )
         and court.sport_modality = v_tournament.sport_modality
-      order by scheduled_at, schedule_window.court_id
+      order by scheduled_at, schedule_window.court_id,
+        schedule_window.id, slot.step
     loop
       v_validation := public.validate_tournament_match_schedule(
         p_organization_id, v_match.id, v_candidate.scheduled_at,
         v_candidate.venue_id, v_candidate.court_id, v_candidate.duration_minutes
       );
+      v_last_validation := v_validation;
       if jsonb_array_length(v_validation->'blockers') = 0
         and jsonb_array_length(v_validation->'warnings') = 0
       then
@@ -3842,7 +4267,17 @@ begin
         exit;
       end if;
     end loop;
-    if not v_done then v_unscheduled := v_unscheduled + 1; end if;
+    if not v_done then
+      v_unscheduled := v_unscheduled + 1;
+      v_unscheduled_details := v_unscheduled_details || jsonb_build_array(
+        jsonb_build_object(
+          'matchId', v_match.id,
+          'reason', 'no_valid_slot',
+          'lastBlockers', coalesce(v_last_validation->'blockers', '[]'::jsonb),
+          'lastWarnings', coalesce(v_last_validation->'warnings', '[]'::jsonb)
+        )
+      );
+    end if;
   end loop;
   perform public.append_tournament_audit(
     p_organization_id, 'matches.auto_scheduled', 'fixture_version', v_version.id,
@@ -3852,7 +4287,8 @@ begin
   return jsonb_build_object(
     'fixtureVersionId', v_version.id,
     'scheduledCount', v_scheduled,
-    'unscheduledCount', v_unscheduled
+    'unscheduledCount', v_unscheduled,
+    'unscheduled', v_unscheduled_details
   );
 end;
 $$;
@@ -3889,6 +4325,13 @@ as $$
             )
             and manager.user_id = auth.uid()
             and manager.status = 'active'
+            and not exists (
+              select 1
+              from public.tournament_organization_members blocked_membership
+              where blocked_membership.organization_id = match_row.organization_id
+                and blocked_membership.user_id = auth.uid()
+                and blocked_membership.status <> 'active'
+            )
         )
       )
   );
@@ -3908,20 +4351,46 @@ as $$
 declare
   v_is_manager boolean;
 begin
-  if auth.uid() is null or not public.can_read_tournament_fixture_scope(
-    p_organization_id, p_tournament_id
-  ) or not exists (
+  v_is_manager := not public.has_tournament_organization_capability(
+    p_organization_id, 'fixture.read'
+  );
+  if auth.uid() is null or not exists (
     select 1 from public.tournament_categories category
+    join public.tournaments tournament
+      on tournament.id = category.tournament_id
+      and tournament.organization_id = category.organization_id
+    join public.tournament_organizations organization
+      on organization.id = category.organization_id
     where category.id = p_category_id
       and category.organization_id = p_organization_id
       and category.tournament_id = p_tournament_id
       and category.status = 'active'
+      and tournament.status <> 'archived'
+      and organization.status = 'active'
+  ) or (
+    v_is_manager and not exists (
+      select 1
+      from public.tournament_competition_participants participant
+      join public.tournament_team_managers manager
+        on manager.team_entry_id = participant.team_entry_id
+        and manager.organization_id = participant.organization_id
+      where participant.organization_id = p_organization_id
+        and participant.tournament_id = p_tournament_id
+        and participant.category_id = p_category_id
+        and participant.status = 'active'
+        and manager.user_id = auth.uid()
+        and manager.status = 'active'
+        and not exists (
+          select 1
+          from public.tournament_organization_members blocked_membership
+          where blocked_membership.organization_id = p_organization_id
+            and blocked_membership.user_id = auth.uid()
+            and blocked_membership.status <> 'active'
+        )
+    )
   ) then
     raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
   end if;
-  v_is_manager := not public.has_tournament_organization_capability(
-    p_organization_id, 'fixture.read'
-  );
   return jsonb_build_object(
     'participantSet', (
       select jsonb_build_object(
@@ -3936,6 +4405,7 @@ begin
       where participant_set.organization_id = p_organization_id
         and participant_set.tournament_id = p_tournament_id
         and participant_set.category_id = p_category_id
+        and not v_is_manager
         and participant_set.status in ('frozen', 'reopened')
       order by participant_set.version_number desc limit 1
     ),
@@ -3995,6 +4465,7 @@ begin
       where pot.organization_id = p_organization_id
         and pot.tournament_id = p_tournament_id
         and pot.category_id = p_category_id
+        and not v_is_manager
         and pot.status = 'active' and participant_set.status = 'frozen'
     ), '[]'::jsonb),
     'groups', coalesce((
@@ -4014,6 +4485,7 @@ begin
       where group_row.organization_id = p_organization_id
         and group_row.tournament_id = p_tournament_id
         and group_row.category_id = p_category_id
+        and not v_is_manager
         and group_row.status <> 'archived'
     ), '[]'::jsonb),
     'versions', coalesce((
@@ -4038,6 +4510,15 @@ begin
         and version.tournament_id = p_tournament_id
         and version.category_id = p_category_id
         and version.status <> 'archived'
+        and (
+          not v_is_manager
+          or exists (
+            select 1
+            from public.tournament_matches match_row
+            where match_row.fixture_version_id = version.id
+              and public.can_read_tournament_match(match_row.id)
+          )
+        )
     ), '[]'::jsonb),
     'phases', coalesce((
       select jsonb_agg(jsonb_build_object(
@@ -4053,6 +4534,15 @@ begin
         and version.tournament_id = p_tournament_id
         and version.category_id = p_category_id
         and version.status <> 'archived'
+        and (
+          not v_is_manager
+          or exists (
+            select 1
+            from public.tournament_matches match_row
+            where match_row.phase_id = phase.id
+              and public.can_read_tournament_match(match_row.id)
+          )
+        )
     ), '[]'::jsonb),
     'rounds', coalesce((
       select jsonb_agg(jsonb_build_object(
@@ -4069,6 +4559,15 @@ begin
         and version.tournament_id = p_tournament_id
         and version.category_id = p_category_id
         and version.status <> 'archived'
+        and (
+          not v_is_manager
+          or exists (
+            select 1
+            from public.tournament_matches match_row
+            where match_row.round_id = round_row.id
+              and public.can_read_tournament_match(match_row.id)
+          )
+        )
     ), '[]'::jsonb),
     'matches', coalesce((
       select jsonb_agg(jsonb_build_object(
@@ -4085,7 +4584,8 @@ begin
           select jsonb_agg(jsonb_build_object(
             'side', source.side, 'type', source.source_type,
             'participantId', source.participant_id, 'matchId', source.source_match_id,
-            'groupId', source.group_id, 'positionNumber', source.position_number,
+            'groupId', source.group_id, 'phaseId', source.source_phase_id,
+            'tieKey', source.source_tie_key, 'positionNumber', source.position_number,
             'seedNumber', source.seed_number, 'rankNumber', source.rank_number
           ) order by source.side)
           from public.tournament_match_sources source where source.match_id = match_row.id
@@ -4115,9 +4615,35 @@ stable
 security definer
 set search_path = ''
 as $$
+declare
+  v_is_manager boolean;
 begin
-  if auth.uid() is null or not public.can_read_tournament_fixture_scope(
-    p_organization_id, p_tournament_id
+  v_is_manager := not public.has_tournament_organization_capability(
+    p_organization_id, 'fixture.read'
+  );
+  if auth.uid() is null or not exists (
+    select 1
+    from public.tournament_categories category
+    join public.tournaments tournament
+      on tournament.id = category.tournament_id
+      and tournament.organization_id = category.organization_id
+    join public.tournament_organizations organization
+      on organization.id = category.organization_id
+    where category.id = p_category_id
+      and category.organization_id = p_organization_id
+      and category.tournament_id = p_tournament_id
+      and category.status = 'active'
+      and tournament.status <> 'archived'
+      and organization.status = 'active'
+  ) or (
+    v_is_manager and not exists (
+      select 1
+      from public.tournament_matches match_row
+      where match_row.organization_id = p_organization_id
+        and match_row.tournament_id = p_tournament_id
+        and match_row.category_id = p_category_id
+        and public.can_read_tournament_match(match_row.id)
+    )
   ) then
     raise exception using errcode = '42501', message = 'TORNEOS_RESOURCE_FORBIDDEN';
   end if;
@@ -4131,6 +4657,17 @@ begin
       ) order by venue.status, venue.name)
       from public.tournament_venues venue
       where venue.organization_id = p_organization_id
+        and (
+          not v_is_manager
+          or exists (
+            select 1
+            from public.tournament_matches match_row
+            where match_row.venue_id = venue.id
+              and match_row.tournament_id = p_tournament_id
+              and match_row.category_id = p_category_id
+              and public.can_read_tournament_match(match_row.id)
+          )
+        )
     ), '[]'::jsonb),
     'courts', coalesce((
       select jsonb_agg(jsonb_build_object(
@@ -4140,6 +4677,17 @@ begin
       ) order by court.status, court.name)
       from public.tournament_courts court
       where court.organization_id = p_organization_id
+        and (
+          not v_is_manager
+          or exists (
+            select 1
+            from public.tournament_matches match_row
+            where match_row.court_id = court.id
+              and match_row.tournament_id = p_tournament_id
+              and match_row.category_id = p_category_id
+              and public.can_read_tournament_match(match_row.id)
+          )
+        )
     ), '[]'::jsonb),
     'windows', coalesce((
       select jsonb_agg(jsonb_build_object(
@@ -4157,6 +4705,7 @@ begin
       from public.tournament_schedule_windows schedule_window
       where schedule_window.organization_id = p_organization_id
         and schedule_window.tournament_id = p_tournament_id
+        and not v_is_manager
     ), '[]'::jsonb),
     'reschedules', coalesce((
       select jsonb_agg(jsonb_build_object(
@@ -4320,6 +4869,7 @@ grant select on public.tournament_match_reschedules to authenticated;
 
 revoke all on function public.can_read_tournament_fixture_scope(uuid, uuid) from public, anon;
 revoke all on function public.validate_tournament_fixture_member_scope() from public, anon;
+revoke all on function public.validate_tournament_group_scope() from public, anon;
 revoke all on function public.validate_tournament_match_scope() from public, anon;
 revoke all on function public.validate_tournament_match_source_scope() from public, anon;
 revoke all on function public.assert_tournament_fixture_scope(uuid, uuid, uuid, text, text[]) from public, anon;
