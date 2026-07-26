@@ -40,9 +40,10 @@ Gate: fixtures reproducibles y auditables.
 Disponibilidad, convocatorias, snapshots, actas, eventos, ausencias,
 walkovers, suspensiones, doble control y correcciones versionadas.
 
-Gate PostgreSQL/RLS cubierto localmente. Pendientes auditoría del PR, staging
-Supabase dedicado y QA físico. Árbitros, evidencia, reclamos formales y
-recalculo pertenecen a fases posteriores.
+Gate PostgreSQL/RLS y auditoría final del PR #98 cubiertos localmente, sin
+hallazgos críticos ni altos. Quedan pendientes staging Supabase dedicado y QA
+físico antes de cualquier integración a `main`. Árbitros, evidencia, reclamos
+formales y recálculo pertenecen a fases posteriores.
 
 ## 6. Tabla, estadísticas y disciplina
 

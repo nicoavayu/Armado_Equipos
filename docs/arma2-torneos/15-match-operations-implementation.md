@@ -159,6 +159,21 @@ snapshots, eventos relacionados, coherencia outcome/score/goles, doble control,
 inmutabilidad, rollbacks tardíos de auditoría, reemplazo atómico de corrección,
 RLS, revocación inmediata, grants y auditoría.
 
+La certificación final del PR #98 se ejecutó sobre su head funcional final:
+
+- 233 suites Jest y 1.690 tests;
+- cinco harnesses PostgreSQL/RLS con 515 verificaciones
+  (61 + 72 + 90 + 203 + 89);
+- ESLint, migration guard y `git diff --check`;
+- build optimizado con Torneos activo contra localhost aislado;
+- build productivo con todos los flags de Torneos apagados;
+- QA responsive en 320 × 700, 390 × 844, 768 × 1024 y 1440 × 900,
+  sin overflow horizontal;
+- `package-lock.json` idéntico a la base y ninguna dependencia agregada.
+
+La QA detectó un target de marca móvil de 40 px. Se elevó a 44 × 44 px y se
+agregó una regresión CSS específica. No quedaron hallazgos críticos ni altos.
+
 Docker no está disponible, por lo que esto no equivale a validar
 Supabase/PostgREST completo. No se conectó un proyecto cloud ni se aplicaron
 migraciones remotas.
