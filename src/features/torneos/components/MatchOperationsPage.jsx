@@ -356,6 +356,20 @@ export function SquadEditor({
                     <option value="starter">Titular</option>
                     <option value="substitute">Suplente</option>
                   </select>
+                  <select
+                    aria-label={`Presencia de ${player.displayName}`}
+                    disabled={readOnly}
+                    value={player.attendanceStatus}
+                    onChange={(event) => patch(player.rosterPlayerId, {
+                      attendanceStatus: event.target.value,
+                    })}
+                  >
+                    <option value="unknown">Presencia sin confirmar</option>
+                    <option value="present">Presente</option>
+                    <option value="late">Llegó tarde</option>
+                    <option value="absent">Ausente</option>
+                    <option value="excused">Ausencia justificada</option>
+                  </select>
                   <button
                     type="button"
                     disabled

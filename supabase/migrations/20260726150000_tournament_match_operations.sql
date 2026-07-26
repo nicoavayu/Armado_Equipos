@@ -1469,7 +1469,12 @@ begin
       is_goalkeeper, is_captain, attendance_status
     ) values (
       p_organization_id, v_squad.id, p_match_id, v_roster_player.id, p_team_entry_id,
-      coalesce(v_player->>'availabilityStatus', 'pending'),
+      coalesce((
+        select availability.response
+        from public.tournament_match_availability_responses availability
+        where availability.match_id = p_match_id
+          and availability.roster_player_id = v_roster_player.id
+      ), 'no_response'),
       coalesce(v_player->>'callupStatus', 'not_called_up'),
       coalesce(v_player->>'lineupStatus', 'not_in_match_squad'),
       v_roster_player.shirt_number, v_roster_player.primary_position,
@@ -1546,6 +1551,16 @@ begin
     or (select count(*) from public.tournament_match_squad_players
       where match_squad_id = v_squad.id and lineup_status = 'starter'
         and is_captain) <> 1
+    or exists (
+      select 1
+      from public.tournament_match_squad_players player
+      where player.match_squad_id = v_squad.id
+        and (
+          player.lineup_status = 'starter'
+          or player.is_captain
+        )
+        and player.attendance_status in ('absent', 'excused')
+    )
   then
     raise exception using errcode = '23514', message = 'TORNEOS_INVALID_MATCH_SQUAD';
   end if;

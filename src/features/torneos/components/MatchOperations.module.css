@@ -617,7 +617,7 @@
 }
 
 .playerControls select {
-  min-height: 40px;
+  min-height: 44px;
   color: var(--torneos-copy);
   background: #191724;
   border: 1px solid var(--torneos-border);
@@ -1217,7 +1217,7 @@
 
   .playerControls {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 48px 48px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 
   .stickyActions {
