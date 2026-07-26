@@ -2,6 +2,7 @@ import React from 'react';
 import {
   Building2,
   CalendarRange,
+  ClipboardList,
   Home,
   Settings2,
   ShieldCheck,
@@ -34,6 +35,9 @@ import TeamRegistrationPage from './TeamRegistrationPage';
 import TeamInvitationPage from './TeamInvitationPage';
 import WorkspaceSwitcher from './WorkspaceSwitcher';
 import FixtureWorkspacePage from './FixtureWorkspacePage';
+import MatchOperationsPage from './MatchOperationsPage';
+import MyTournamentMatchesPage from './MyTournamentMatchesPage';
+import CaptainMatchSquadPage from './CaptainMatchSquadPage';
 import styles from './TorneosShell.module.css';
 
 const organizationNavigation = [
@@ -46,6 +50,7 @@ const organizationNavigation = [
     icon: CalendarRange,
     relatedPaths: ['programacion', 'sedes'],
   },
+  { label: 'Partidos', path: 'partidos', icon: ClipboardList },
   { label: 'Configuración', path: 'configuracion', icon: Settings2 },
 ];
 
@@ -110,7 +115,7 @@ export default function TorneosShell() {
     ? location.pathname.split('/').slice(4).join('/')
     : '';
   const currentNavigation = organizationNavigation.find(({ path }) => (
-    ['torneos', 'equipos', 'fixture'].includes(path)
+    ['torneos', 'equipos', 'fixture', 'partidos'].includes(path)
       ? (
         organizationRelativePath.startsWith(path)
         || (path === 'torneos' && organizationRelativePath.startsWith('temporadas'))
@@ -241,9 +246,18 @@ export default function TorneosShell() {
               <Route path="programacion" element={<FixtureWorkspacePage mode="schedule" />} />
               <Route path="sedes" element={<FixtureWorkspacePage mode="venues" />} />
               <Route path="sedes/:venueId" element={<FixtureWorkspacePage mode="venues" />} />
+              <Route path="partidos" element={<MatchOperationsPage mode="list" />} />
+              <Route path="partidos/:matchId" element={<MatchOperationsPage mode="detail" />} />
+              <Route path="partidos/:matchId/convocatorias" element={<MatchOperationsPage mode="squads" />} />
+              <Route path="partidos/:matchId/acta" element={<MatchOperationsPage mode="report" />} />
+              <Route path="partidos/:matchId/revision" element={<MatchOperationsPage mode="review" />} />
+              <Route path="partidos/:matchId/historial" element={<MatchOperationsPage mode="history" />} />
               <Route path="configuracion" element={<OrganizationSettingsPage />} />
               <Route path="miembros" element={<OrganizationMembersPage />} />
             </Route>
+            <Route path="mis-partidos" element={<MyTournamentMatchesPage />} />
+            <Route path="mis-partidos/:matchId" element={<MyTournamentMatchesPage />} />
+            <Route path="mis-partidos/:matchId/convocatoria" element={<CaptainMatchSquadPage />} />
             <Route path="invitacion/equipo/:token" element={<TeamInvitationPage />} />
             <Route path="*" element={<Navigate to="/torneos" replace />} />
           </Routes>

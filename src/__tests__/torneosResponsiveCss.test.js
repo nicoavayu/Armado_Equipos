@@ -15,6 +15,13 @@ const competitionCss = fs.readFileSync(
   ),
   'utf8',
 );
+const matchOperationsCss = fs.readFileSync(
+  path.join(
+    process.cwd(),
+    'src/features/torneos/components/MatchOperations.module.css',
+  ),
+  'utf8',
+);
 
 describe('Torneos responsive navigation CSS', () => {
   test('keeps mobile navigation hidden until the mobile/tablet breakpoint', () => {
@@ -44,6 +51,19 @@ describe('Torneos responsive navigation CSS', () => {
   test('preserves reduced-motion support for new competition screens', () => {
     expect(competitionCss).toMatch(
       /@media \(prefers-reduced-motion:\s*reduce\)[\s\S]*?animation:\s*none;/,
+    );
+  });
+
+  test('collapses match operations layouts without shrinking touch targets', () => {
+    expect(matchOperationsCss).toMatch(
+      /@media \(max-width:\s*720px\)[\s\S]*?grid-template-columns:\s*1fr;/,
+    );
+    expect(matchOperationsCss).toMatch(
+      /@media \(max-width:\s*390px\)/,
+    );
+    expect(matchOperationsCss).toMatch(/min-height:\s*44px;/);
+    expect(matchOperationsCss).toMatch(
+      /@media \(prefers-reduced-motion:\s*reduce\)/,
     );
   });
 });
