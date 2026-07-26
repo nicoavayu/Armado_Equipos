@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate, Outlet, useLocation, useParams } from 'react-router-dom';
 import { TorneosCompetitionProvider } from '../context/TorneosCompetitionContext';
+import { TorneosFixtureProvider } from '../context/TorneosFixtureContext';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 
@@ -119,7 +120,12 @@ export default function OrganizationRouteGuard() {
       organizationId={(organization || relationalOrganization).id}
       service={service}
     >
-      <Outlet context={{ organization: organization || relationalOrganization }} />
+      <TorneosFixtureProvider
+        organizationId={(organization || relationalOrganization).id}
+        service={service}
+      >
+        <Outlet context={{ organization: organization || relationalOrganization }} />
+      </TorneosFixtureProvider>
     </TorneosCompetitionProvider>
   );
 }

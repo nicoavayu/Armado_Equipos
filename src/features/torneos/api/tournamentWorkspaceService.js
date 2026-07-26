@@ -53,6 +53,20 @@ const ERROR_MESSAGES = {
   TORNEOS_MANAGER_REQUIRED: 'Asigná al menos un responsable antes de presentar.',
   TORNEOS_INVALID_REVIEW: 'Indicá un motivo claro para completar la revisión.',
   TORNEOS_REASON_REQUIRED: 'Indicá el motivo de esta acción.',
+  TORNEOS_PARTICIPANTS_ALREADY_FROZEN: 'Los participantes ya están cerrados para esta categoría.',
+  TORNEOS_PARTICIPANTS_NOT_FROZEN: 'Cerrá los participantes antes de generar el fixture.',
+  TORNEOS_PENDING_REGISTRATIONS: 'Hay inscripciones pendientes que deben resolverse antes del cierre.',
+  TORNEOS_NOT_ENOUGH_PARTICIPANTS: 'Se necesitan al menos dos equipos aprobados con plantel habilitado.',
+  TORNEOS_DRAW_NOT_EDITABLE: 'El sorteo publicado ya no admite cambios.',
+  TORNEOS_GROUP_DRAW_REQUIRED: 'Publicá los grupos antes de generar este formato.',
+  TORNEOS_INVALID_DRAW: 'Revisá la cantidad de grupos y la semilla del sorteo.',
+  TORNEOS_INVALID_DRAW_POTS: 'Revisá la configuración de bombos.',
+  TORNEOS_DUPLICATE_DRAW_ASSIGNMENT: 'Un participante o seed está asignado más de una vez.',
+  TORNEOS_FIXTURE_INVALID: 'El fixture tiene conflictos estructurales que impiden publicarlo.',
+  TORNEOS_SCHEDULE_CONFLICT: 'La programación tiene un conflicto bloqueante.',
+  TORNEOS_SCHEDULE_WARNING_CONFIRMATION: 'Revisá las advertencias y confirmá el override con motivo.',
+  TORNEOS_AUTOSCHEDULE_RANGE_REQUIRED: 'Definí un rango acotado para usar la programación automática.',
+  TORNEOS_CYCLIC_MATCH_SOURCE: 'La fuente del cruce produciría una referencia cíclica.',
 };
 
 export class TournamentWorkspaceError extends Error {
@@ -571,6 +585,218 @@ export async function searchTournamentArma2Teams(input) {
   }), 'No pudimos buscar equipos de Arma2.');
 }
 
+export async function loadTournamentFixtureContext(organizationId, tournamentId, categoryId) {
+  return unwrapRpc(await supabase.rpc('get_tournament_fixture_context', {
+    p_organization_id: organizationId,
+    p_tournament_id: tournamentId,
+    p_category_id: categoryId,
+  }), 'No pudimos cargar el fixture.');
+}
+
+export async function loadTournamentScheduleContext(organizationId, tournamentId, categoryId) {
+  return unwrapRpc(await supabase.rpc('get_tournament_schedule_context', {
+    p_organization_id: organizationId,
+    p_tournament_id: tournamentId,
+    p_category_id: categoryId,
+  }), 'No pudimos cargar la programación.');
+}
+
+export async function freezeTournamentParticipants(input) {
+  return unwrapRpc(await supabase.rpc('freeze_tournament_participants', {
+    p_organization_id: input.organizationId,
+    p_tournament_id: input.tournamentId,
+    p_category_id: input.categoryId,
+    p_idempotency_key: input.idempotencyKey,
+  }), 'No pudimos cerrar los participantes.');
+}
+
+export async function reopenTournamentParticipants(input) {
+  return unwrapRpc(await supabase.rpc('reopen_tournament_participants', {
+    p_organization_id: input.organizationId,
+    p_tournament_id: input.tournamentId,
+    p_category_id: input.categoryId,
+    p_reason: input.reason,
+  }), 'No pudimos reabrir los participantes.');
+}
+
+export async function saveTournamentDrawPots(input) {
+  return unwrapRpc(await supabase.rpc('save_tournament_draw_pots', {
+    p_organization_id: input.organizationId,
+    p_tournament_id: input.tournamentId,
+    p_category_id: input.categoryId,
+    p_pots: input.pots,
+  }), 'No pudimos guardar los bombos.');
+}
+
+export async function executeTournamentGroupDraw(input) {
+  return unwrapRpc(await supabase.rpc('execute_tournament_group_draw', {
+    p_organization_id: input.organizationId,
+    p_tournament_id: input.tournamentId,
+    p_category_id: input.categoryId,
+    p_group_count: input.groupCount,
+    p_seed: input.seed,
+    p_publish: Boolean(input.publish),
+  }), 'No pudimos ejecutar el sorteo.');
+}
+
+export async function generateTournamentFixture(input) {
+  return unwrapRpc(await supabase.rpc('generate_tournament_fixture', {
+    p_organization_id: input.organizationId,
+    p_tournament_id: input.tournamentId,
+    p_category_id: input.categoryId,
+    p_seed: input.seed || null,
+    p_configuration: input.configuration || {},
+    p_idempotency_key: input.idempotencyKey,
+  }), 'No pudimos generar el fixture.');
+}
+
+export async function createManualTournamentFixture(input) {
+  return unwrapRpc(await supabase.rpc('create_manual_fixture_version', {
+    p_organization_id: input.organizationId,
+    p_tournament_id: input.tournamentId,
+    p_category_id: input.categoryId,
+    p_source_fixture_version_id: input.sourceFixtureVersionId || null,
+    p_idempotency_key: input.idempotencyKey,
+  }), 'No pudimos crear la versión manual.');
+}
+
+export async function updateDraftTournamentFixture(input) {
+  return unwrapRpc(await supabase.rpc('update_draft_fixture', {
+    p_organization_id: input.organizationId,
+    p_fixture_version_id: input.fixtureVersionId,
+    p_action: input.action,
+    p_payload: input.payload || {},
+  }), 'No pudimos editar el fixture.');
+}
+
+export async function validateTournamentFixture(input) {
+  return unwrapRpc(await supabase.rpc('validate_tournament_fixture', {
+    p_organization_id: input.organizationId,
+    p_fixture_version_id: input.fixtureVersionId,
+  }), 'No pudimos validar el fixture.');
+}
+
+export async function publishTournamentFixture(input) {
+  return unwrapRpc(await supabase.rpc('publish_tournament_fixture', {
+    p_organization_id: input.organizationId,
+    p_fixture_version_id: input.fixtureVersionId,
+  }), 'No pudimos publicar el fixture.');
+}
+
+export async function supersedeTournamentFixture(input) {
+  return unwrapRpc(await supabase.rpc('supersede_tournament_fixture', {
+    p_organization_id: input.organizationId,
+    p_fixture_version_id: input.fixtureVersionId,
+    p_idempotency_key: input.idempotencyKey,
+  }), 'No pudimos preparar una nueva versión.');
+}
+
+export async function createTournamentVenue(input) {
+  return unwrapRpc(await supabase.rpc('create_tournament_venue', {
+    p_organization_id: input.organizationId,
+    p_name: input.name,
+    p_address: input.address,
+    p_place_id: input.placeId || null,
+    p_latitude: input.latitude ?? null,
+    p_longitude: input.longitude ?? null,
+    p_locality: input.locality || null,
+    p_timezone: input.timezone || 'America/Argentina/Buenos_Aires',
+    p_notes: input.notes || null,
+  }), 'No pudimos crear la sede.');
+}
+
+export async function updateTournamentVenue(input) {
+  return unwrapRpc(await supabase.rpc('update_tournament_venue', {
+    p_organization_id: input.organizationId,
+    p_venue_id: input.venueId,
+    p_patch: input.patch,
+  }), 'No pudimos actualizar la sede.');
+}
+
+export async function createTournamentCourt(input) {
+  return unwrapRpc(await supabase.rpc('create_tournament_court', {
+    p_organization_id: input.organizationId,
+    p_venue_id: input.venueId,
+    p_name: input.name,
+    p_sport_modality: input.sportModality,
+    p_notes: input.notes || null,
+  }), 'No pudimos crear la cancha.');
+}
+
+export async function updateTournamentCourt(input) {
+  return unwrapRpc(await supabase.rpc('update_tournament_court', {
+    p_organization_id: input.organizationId,
+    p_court_id: input.courtId,
+    p_patch: input.patch,
+  }), 'No pudimos actualizar la cancha.');
+}
+
+export async function saveTournamentScheduleWindows(input) {
+  return unwrapRpc(await supabase.rpc('save_tournament_schedule_windows', {
+    p_organization_id: input.organizationId,
+    p_tournament_id: input.tournamentId,
+    p_windows: input.windows,
+  }), 'No pudimos guardar las ventanas.');
+}
+
+export async function validateTournamentMatchSchedule(input) {
+  return unwrapRpc(await supabase.rpc('validate_tournament_match_schedule', {
+    p_organization_id: input.organizationId,
+    p_match_id: input.matchId,
+    p_scheduled_at: input.scheduledAt,
+    p_venue_id: input.venueId,
+    p_court_id: input.courtId,
+    p_duration_minutes: input.durationMinutes,
+  }), 'No pudimos validar la programación.');
+}
+
+export async function scheduleTournamentMatch(input) {
+  return unwrapRpc(await supabase.rpc('schedule_tournament_match', {
+    p_organization_id: input.organizationId,
+    p_match_id: input.matchId,
+    p_scheduled_at: input.scheduledAt,
+    p_venue_id: input.venueId,
+    p_court_id: input.courtId,
+    p_duration_minutes: input.durationMinutes,
+    p_override_warnings: Boolean(input.overrideWarnings),
+    p_override_reason: input.overrideReason || null,
+  }), 'No pudimos programar el partido.');
+}
+
+export async function rescheduleTournamentMatch(input) {
+  return unwrapRpc(await supabase.rpc('reschedule_tournament_match', {
+    p_organization_id: input.organizationId,
+    p_match_id: input.matchId,
+    p_scheduled_at: input.scheduledAt,
+    p_venue_id: input.venueId,
+    p_court_id: input.courtId,
+    p_duration_minutes: input.durationMinutes,
+    p_reason: input.reason,
+    p_override_warnings: Boolean(input.overrideWarnings),
+  }), 'No pudimos reprogramar el partido.');
+}
+
+export async function changeTournamentMatchPlan(input) {
+  const rpc = {
+    postpone: 'postpone_tournament_match',
+    cancel: 'cancel_tournament_match',
+    restore: 'restore_tournament_match_unscheduled',
+  }[input.action];
+  if (!rpc) throw new TournamentWorkspaceError('TORNEOS_INVALID_MATCH_ACTION', 'Acción inválida.');
+  return unwrapRpc(await supabase.rpc(rpc, {
+    p_organization_id: input.organizationId,
+    p_match_id: input.matchId,
+    p_reason: input.reason,
+  }), 'No pudimos actualizar el partido.');
+}
+
+export async function autoScheduleTournamentMatches(input) {
+  return unwrapRpc(await supabase.rpc('auto_schedule_tournament_matches', {
+    p_organization_id: input.organizationId,
+    p_fixture_version_id: input.fixtureVersionId,
+  }), 'No pudimos completar la programación automática.');
+}
+
 export const tournamentWorkspaceService = Object.freeze({
   loadContext: loadTournamentWorkspaceContext,
   createOrganization: createTournamentOrganization,
@@ -603,5 +829,27 @@ export const tournamentWorkspaceService = Object.freeze({
   acceptTeamInvitation: acceptTournamentTeamInvitation,
   searchPlayers: searchTournamentPlayers,
   searchArma2Teams: searchTournamentArma2Teams,
+  loadFixtureContext: loadTournamentFixtureContext,
+  loadScheduleContext: loadTournamentScheduleContext,
+  freezeParticipants: freezeTournamentParticipants,
+  reopenParticipants: reopenTournamentParticipants,
+  saveDrawPots: saveTournamentDrawPots,
+  executeGroupDraw: executeTournamentGroupDraw,
+  generateFixture: generateTournamentFixture,
+  createManualFixture: createManualTournamentFixture,
+  updateDraftFixture: updateDraftTournamentFixture,
+  validateFixture: validateTournamentFixture,
+  publishFixture: publishTournamentFixture,
+  supersedeFixture: supersedeTournamentFixture,
+  createVenue: createTournamentVenue,
+  updateVenue: updateTournamentVenue,
+  createCourt: createTournamentCourt,
+  updateCourt: updateTournamentCourt,
+  saveScheduleWindows: saveTournamentScheduleWindows,
+  validateMatchSchedule: validateTournamentMatchSchedule,
+  scheduleMatch: scheduleTournamentMatch,
+  rescheduleMatch: rescheduleTournamentMatch,
+  changeMatchPlan: changeTournamentMatchPlan,
+  autoScheduleMatches: autoScheduleTournamentMatches,
   createIdempotencyKey,
 });

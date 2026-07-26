@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { Link, useOutletContext } from 'react-router-dom';
 import { useTorneosCompetition } from '../context/TorneosCompetitionContext';
+import { useTorneosFixture } from '../context/TorneosFixtureContext';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
 import {
   CHECKLIST_ITEMS,
@@ -29,7 +30,6 @@ import styles from './TorneosShell.module.css';
 import coreStyles from './CompetitionCore.module.css';
 
 const futureModules = [
-  { label: 'Fixture', description: 'Fechas, cruces y sedes', icon: CalendarDays },
   { label: 'Partidos', description: 'Operación y resultados', icon: ClipboardList },
   { label: 'Tabla', description: 'Posiciones y desempates', icon: Table2 },
   { label: 'Disciplina', description: 'Casos y sanciones', icon: Gavel },
@@ -59,6 +59,7 @@ export default function TorneosDashboard() {
     refresh,
   } = useTorneosCompetition();
   const { service } = useTorneosWorkspace();
+  const fixture = useTorneosFixture();
   const [teamsSummary, setTeamsSummary] = useState(null);
   const canCreateTournament = hasCapability(
     organization,
@@ -193,6 +194,11 @@ export default function TorneosDashboard() {
           <strong>{activeTournament.categories?.length || 0}</strong>
           <small>Activas y seleccionables</small>
         </article>
+        <article>
+          <span>Fixture</span>
+          <strong>{fixture.versions.find((version) => version.status === 'published') ? 'Publicado' : fixture.versions.length ? 'Draft' : 'Pendiente'}</strong>
+          <small>{fixture.matches.length} partidos · {fixture.matches.filter((match) => match.status === 'scheduled').length} programados</small>
+        </article>
       </section>
 
       <section className={styles.dashboardGrid}>
@@ -236,6 +242,36 @@ export default function TorneosDashboard() {
             to={`${organizationPath}/equipos`}
           >
             Ver equipos
+            <ArrowRight size={17} />
+          </Link>
+        </article>
+      </section>
+
+      <section className={styles.dashboardGrid}>
+        <article className={styles.panel}>
+          <div className={styles.panelHeading}>
+            <div>
+              <span className={styles.eyebrow}>Estructura competitiva</span>
+              <h2>Fixture y programación</h2>
+            </div>
+          </div>
+          <p>
+            {fixture.participantSet?.status === 'frozen'
+              ? `${fixture.participants.length} participantes congelados en una fotografía auditable.`
+              : 'Cerrá los participantes aprobados antes de generar cruces.'}
+          </p>
+          <Link className={styles.dashboardPrimaryLink} to={`${organizationPath}/fixture`}>
+            Abrir fixture
+            <CalendarDays size={17} />
+          </Link>
+        </article>
+        <article className={`${styles.panel} ${styles.securityPanel}`}>
+          <CalendarDays size={24} aria-hidden="true" />
+          <span className={styles.eyebrow}>Operación previa</span>
+          <h2>{fixture.matches.filter((match) => match.status === 'unscheduled').length} sin horario</h2>
+          <p>Las canchas, ventanas y conflictos se resuelven antes de habilitar cualquier operación de resultados.</p>
+          <Link className={styles.dashboardPrimaryLink} to={`${organizationPath}/programacion`}>
+            Programar partidos
             <ArrowRight size={17} />
           </Link>
         </article>
