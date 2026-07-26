@@ -55,6 +55,12 @@ describe('Torneos responsive navigation CSS', () => {
   });
 
   test('collapses match operations layouts without shrinking touch targets', () => {
+    expect(css).toMatch(
+      /@media \(max-width:\s*900px\)[\s\S]*?\.mobileBrand\s*\{[\s\S]*?min-width:\s*44px;[\s\S]*?min-height:\s*44px;/,
+    );
+    expect(css).toMatch(
+      /\.mobileBrand \.brandMark\s*\{[^}]*width:\s*44px;[^}]*height:\s*44px;/s,
+    );
     expect(matchOperationsCss).toMatch(
       /@media \(max-width:\s*720px\)[\s\S]*?grid-template-columns:\s*1fr;/,
     );
