@@ -35,6 +35,10 @@ const STAGE_A = [
   '20260724123000_secure_survey_progress_stage_a.sql',
   '20260724124000_secure_jugadores_fotos_stage_a.sql',
   '20260724125000_harden_notification_rpc_content_stage_a.sql',
+  // Hotfix (finding #22): drops the SECOND legacy CHECK(true) INSERT policy
+  // ("Allow Insert Authenticated") that 20260724122000 left in place, plus the
+  // relationship-validated compat policies + deploy gate.
+  '20260726120000_drop_legacy_notifications_insert_policy_stage_a.sql',
 ];
 const STAGE_B = [
   '20260724131000_revoke_direct_rating_writes_stage_b.sql',
@@ -279,9 +283,15 @@ grant select, insert on public.rating_adjustments to authenticated, service_role
 grant usage, select on sequence public.rating_adjustments_id_seq to authenticated, service_role;
 grant select, insert, update on public.no_show_recovery_state to authenticated, service_role;
 
--- notifications insecure policy (mirror 20260226123000)
+-- notifications insecure policies — the baseline must mirror the REAL prod
+-- state, which carried TWO permissive CHECK(true) INSERT policies (finding #22):
+--   * notifications_insert_authenticated_any_user (mirror 20260226123000)
+--   * "Allow Insert Authenticated" (a legacy ad-hoc policy the Stage A patch
+--     20260724122000 did NOT drop). Seeding it here is what lets this harness
+--     catch that Stage A alone leaves the forge hole open.
 alter table public.notifications enable row level security;
 create policy notifications_insert_authenticated_any_user on public.notifications for insert to authenticated with check (true);
+create policy "Allow Insert Authenticated" on public.notifications for insert to authenticated with check (true);
 create policy notifications_select_own on public.notifications for select to authenticated using (user_id = auth.uid());
 grant select, insert on public.notifications to authenticated, service_role;
 grant usage, select on sequence public.notifications_id_seq to authenticated, service_role;
@@ -670,6 +680,89 @@ async function main() {
   ok(Number(await val("select file_size_limit from storage.buckets where id='jugadores-fotos'")) === 15728640,
     'bucket has a 15MB file_size_limit');
 
+  console.log('\nStage A hotfix — legacy "Allow Insert Authenticated" dropped + compat policies (finding #22)');
+  await q('reset role');
+  // The Stage A patch alone leaves BOTH the strict relationship policy AND the
+  // untouched "Allow Insert Authenticated" CHECK(true) policy — so without the
+  // 20260726120000 hotfix these two assertions FAIL (which is exactly what the
+  // pre-hotfix baseline should have surfaced before deploy).
+  ok(Number(await val(
+    `select count(*) from pg_policies
+       where schemaname='public' and tablename='notifications'
+         and policyname='Allow Insert Authenticated'`)) === 0,
+    'legacy "Allow Insert Authenticated" policy no longer exists');
+  ok(Number(await val(
+    `select count(*) from pg_policies
+       where schemaname='public' and tablename='notifications'
+         and cmd='INSERT' and permissive='PERMISSIVE'
+         and (roles && array['authenticated','public']::name[])
+         and regexp_replace(lower(coalesce(with_check,'true')), '[[:space:]()]', '', 'g')='true'`)) === 0,
+    'no permissive authenticated INSERT policy with an unrestricted WITH CHECK survives');
+
+  // Isolated world so these assertions do not depend on earlier seeding.
+  const hzA = '00000000-0000-4000-8000-0000000000a1'; // actor / match creator / challenger
+  const hzB = '00000000-0000-4000-8000-0000000000a2'; // shared-match co-participant
+  const hzC = '00000000-0000-4000-8000-0000000000a3'; // unrelated stranger
+  const hzD = '00000000-0000-4000-8000-0000000000a4'; // real friend (no shared match)
+  const hzE = '00000000-0000-4000-8000-0000000000a5'; // challenge opponent (rival, no shared match)
+  const hzF = '00000000-0000-4000-8000-0000000000a6'; // legitimate pending join requester
+  const hzG = '00000000-0000-4000-8000-0000000000a7'; // roster player of a match whose ADMIN is not rostered
+  await q(
+    `insert into public.usuarios (id, nombre, ranking) values
+       ($1,'hzA',5),($2,'hzB',5),($3,'hzC',5),($4,'hzD',5),($5,'hzE',5),($6,'hzF',5),($7,'hzG',5)`,
+    [hzA, hzB, hzC, hzD, hzE, hzF, hzG]);
+  const hzMatch = await val(
+    "insert into public.partidos (codigo,nombre,creado_por) values ('HZ01','Hotfix Match',$1) returning id", [hzA]);
+  await q('insert into public.jugadores (partido_id, usuario_id, nombre) values ($1,$2,$3)', [hzMatch, hzA, 'hzA']);
+  await q('insert into public.jugadores (partido_id, usuario_id, nombre) values ($1,$2,$3)', [hzMatch, hzB, 'hzB']);
+  await q("insert into public.amigos (user_id, friend_id, status) values ($1,$2,'accepted')", [hzA, hzD]);
+  const hzChal = await val(
+    "insert into public.challenges (created_by_user_id, accepted_by_user_id, status) values ($1,$2,'accepted') returning id", [hzA, hzE]);
+  await q("insert into public.match_join_requests (match_id, user_id, status) values ($1,$2,'pending')", [hzMatch, hzF]);
+  // hzMatch2: hzA is the ADMIN (creado_por) but is NOT a roster row; hzG is the
+  // only roster player and shares NO other match with hzA. Exercises the
+  // creator-inclusive branch of the no-show ranking compat policy.
+  const hzMatch2 = await val(
+    "insert into public.partidos (codigo,nombre,creado_por) values ('HZ02','Hotfix Match 2',$1) returning id", [hzA]);
+  await q('insert into public.jugadores (partido_id, usuario_id, nombre) values ($1,$2,$3)', [hzMatch2, hzG, 'hzG']);
+
+  // (1) an authenticated user cannot direct-insert toward an unrelated stranger
+  await expectDenied('an authenticated user cannot direct-insert a notification to an unrelated stranger', 'authenticated', hzA,
+    "insert into public.notifications (user_id,type,title,message) values ($1,'match_update','x','y')", [hzC]);
+  // (2) self insert allowed — even for a type OUTSIDE the strict Stage A allowlist
+  await expectOk('self insert allowed for a non-allowlisted type (post_match_survey)', 'authenticated', hzA,
+    "insert into public.notifications (user_id,type,title,message) values ($1,'post_match_survey','x','y')", [hzA]);
+  await expectOk('self insert allowed (challenge_result_survey)', 'authenticated', hzA,
+    "insert into public.notifications (user_id,type,title,message) values ($1,'challenge_result_survey','x','y')", [hzA]);
+  // (3) relationship by shared match allowed during Stage A
+  await expectOk('shared-match co-participant insert allowed (Stage A interim relationship)', 'authenticated', hzA,
+    "insert into public.notifications (user_id,type,title,message) values ($1,'match_update','x','y')", [hzB]);
+  // (4) real friendship allowed (no shared match)
+  await expectOk('real-friendship insert allowed with no shared match', 'authenticated', hzA,
+    "insert into public.notifications (user_id,type,title,message) values ($1,'match_update','x','y')", [hzD]);
+  // (3b) no-show ranking compat: the *_applied type to a co-participant is allowed,
+  //      to a stranger is denied.
+  await expectOk('no_show_penalty_applied to a shared-match co-participant allowed (ranking compat)', 'authenticated', hzA,
+    "insert into public.notifications (user_id,type,title,message) values ($1,'no_show_penalty_applied','x','y')", [hzB]);
+  await expectDenied('no_show_penalty_applied to an unrelated stranger denied', 'authenticated', hzA,
+    "insert into public.notifications (user_id,type,title,message) values ($1,'no_show_penalty_applied','x','y')", [hzC]);
+  // (3c) the match ADMIN (creado_por, NOT a roster row) can still notify a rostered
+  //      player — the finalizer is not always in jugadores (creator-inclusive branch).
+  await expectOk('no_show_recovery_applied from the match admin (not rostered) to a roster player allowed', 'authenticated', hzA,
+    "insert into public.notifications (user_id,partido_id,type,title,message) values ($1,$2,'no_show_recovery_applied','x','y')", [hzG, hzMatch2]);
+  // (5) legitimate join request allowed (real pending request -> the match admin)
+  await expectOk('legit match_join_request (real pending request -> match admin) allowed', 'authenticated', hzF,
+    "insert into public.notifications (user_id,partido_id,type,title,message) values ($1,$2,'match_join_request','x','y')", [hzA, hzMatch]);
+  // (5b) a match_join_request with NO real pending request is rejected
+  await expectDenied('match_join_request without a real pending request denied', 'authenticated', hzC,
+    "insert into public.notifications (user_id,partido_id,type,title,message) values ($1,$2,'match_join_request','x','y')", [hzA, hzMatch]);
+  // (6) challenge parties allowed; an unrelated challenge is rejected
+  await expectOk('a challenge party can notify the other party of the SAME challenge', 'authenticated', hzA,
+    "insert into public.notifications (user_id,type,title,message) values ($1,'team_challenge_accepted','x','y')", [hzE]);
+  await expectDenied('a challenge notification to a user in NO shared challenge is denied', 'authenticated', hzA,
+    "insert into public.notifications (user_id,type,title,message) values ($1,'team_challenge_accepted','x','y')", [hzC]);
+  void hzChal;
+
   // ----------------------------------------------------------------- Stage B
   // Applied from the fixtures dir (see STAGE_B_DIR) — these files are NOT under
   // supabase/migrations in this PR, but the closure is still verified here.
@@ -692,6 +785,23 @@ async function main() {
   // (user_id,(data->>'match_id'),type) does not treat this as a duplicate insert.
   await expectOk('create_notification still delivers to a participant', 'authenticated', U.creator,
     "select public.create_notification('match_update',$1,jsonb_build_object('match_id',$2::bigint))", [U.voterC, partidoId]);
+  // Stage B must ALSO close every Stage A hotfix compat policy — only self-insert
+  // survives (the hz* world was seeded above).
+  await expectDenied('Stage B: challenge-party cross-user insert now denied', 'authenticated', hzA,
+    "insert into public.notifications (user_id,type,title,message) values ($1,'team_challenge_accepted','x','y')", [hzE]);
+  await expectDenied('Stage B: no_show_penalty_applied to a co-participant now denied', 'authenticated', hzA,
+    "insert into public.notifications (user_id,type,title,message) values ($1,'no_show_penalty_applied','x','y')", [hzB]);
+  await expectDenied('Stage B: match_join_request direct insert now denied', 'authenticated', hzF,
+    "insert into public.notifications (user_id,partido_id,type,title,message) values ($1,$2,'match_join_request','x','y')", [hzA, hzMatch]);
+  await expectOk('Stage B: self insert still allowed', 'authenticated', hzA,
+    "insert into public.notifications (user_id,type,title,message) values ($1,'info','x','y')", [hzA]);
+  ok(Number(await val(
+    `select count(*) from pg_policies
+       where schemaname='public' and tablename='notifications'
+         and cmd='INSERT' and permissive='PERMISSIVE'
+         and (roles && array['authenticated','public']::name[])
+         and regexp_replace(lower(coalesce(with_check,'true')), '[[:space:]()]', '', 'g')='true'`)) === 0,
+    'Stage B: still no permissive authenticated INSERT policy with an unrestricted WITH CHECK');
 
   console.log('\nStage B — storage anon write fully closed');
   await expectDenied('anon can no longer INSERT into the bucket', 'anon', '',
