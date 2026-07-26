@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import EmbeddedPostgres from 'embedded-postgres';
 import pg from 'pg';
@@ -20,7 +20,7 @@ const MIGRATIONS = [
 const PORT = 56400 + Math.floor(Math.random() * 200);
 const DATABASE = 'arma2_torneos_match_operations';
 const DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'arma2-match-operations-pg-'));
-const USERS = {
+export const USERS = {
   owner: '91000000-0000-4000-8000-000000000001',
   admin: '91000000-0000-4000-8000-000000000002',
   collaborator: '91000000-0000-4000-8000-000000000003',
@@ -67,7 +67,7 @@ async function expectError(action, pattern, label) {
   }
 }
 
-async function connect({ role = null, userId = null } = {}) {
+export async function connect({ role = null, userId = null } = {}) {
   const client = new pg.Client({
     host: '127.0.0.1',
     port: PORT,
@@ -82,16 +82,16 @@ async function connect({ role = null, userId = null } = {}) {
   return client;
 }
 
-async function value(client, text, params = []) {
+export async function value(client, text, params = []) {
   const row = (await client.query(text, params)).rows[0];
   return row ? Object.values(row)[0] : null;
 }
 
-async function count(client, text, params = []) {
+export async function count(client, text, params = []) {
   return Number(await value(client, text, params));
 }
 
-async function setup() {
+export async function setup(extraMigrations = []) {
   await postgres.initialise();
   await postgres.start();
   await postgres.createDatabase(DATABASE);
@@ -161,13 +161,13 @@ async function setup() {
       );
     $$;
   `);
-  for (const name of MIGRATIONS.slice(2)) {
+  for (const name of [...MIGRATIONS.slice(2), ...extraMigrations]) {
     await admin.query(fs.readFileSync(path.join(ROOT, 'supabase', 'migrations', name), 'utf8'));
   }
   return admin;
 }
 
-async function seedOperationalMatch(admin) {
+export async function seedOperationalMatch(admin) {
   const owner = await connect({ role: 'authenticated', userId: USERS.owner });
   const organization = await value(
     owner,
@@ -1499,6 +1499,11 @@ async function exerciseOperationalFlow(admin, scope) {
   );
 }
 
+export async function cleanupMatchOperationsHarness() {
+  await Promise.allSettled(clients.map((client) => client.end()));
+  await postgres.stop().catch(() => {});
+}
+
 async function run() {
   console.log('Arma2 Torneos · match operations PostgreSQL/RLS');
   try {
@@ -1576,11 +1581,15 @@ async function run() {
     failures += 1;
     console.error(error);
   } finally {
-    await Promise.allSettled(clients.map((client) => client.end()));
-    await postgres.stop().catch(() => {});
+    await cleanupMatchOperationsHarness();
   }
   console.log(`\n${checks - failures}/${checks} verificaciones aprobadas`);
   if (failures) process.exitCode = 1;
 }
 
-await run();
+if (
+  process.argv[1]
+  && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href
+) {
+  await run();
+}
