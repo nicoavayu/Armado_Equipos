@@ -206,6 +206,25 @@ async function exerciseProjection(admin, scope) {
      where tournament_id = $1`,
     [scope.tournamentId],
   );
+  await admin.query("select set_config('TimeZone','UTC',false)");
+  const utcFingerprint = await value(
+    admin,
+    'select public.tournament_projection_source_fingerprint($1,$2,null)',
+    [fixtureId, phaseId],
+  );
+  await admin.query(
+    "select set_config('TimeZone','America/Argentina/Buenos_Aires',false)",
+  );
+  const localFingerprint = await value(
+    admin,
+    'select public.tournament_projection_source_fingerprint($1,$2,null)',
+    [fixtureId, phaseId],
+  );
+  eq(
+    localFingerprint,
+    utcFingerprint,
+    'fingerprint es estable entre zonas horarias',
+  );
   const adjustmentKey = '93000000-0000-4000-8000-000000000000';
   const adjustmentId = await value(
     owner,
@@ -238,6 +257,24 @@ async function exerciseProjection(admin, scope) {
     ),
     adjustmentId,
     'ajuste de puntos es idempotente y scope-aware',
+  );
+  await expectError(
+    () => value(
+      owner,
+      `select public.create_tournament_points_adjustment(
+        $1,$2,$3,null,$4,-2,$5,$6::uuid
+      )`,
+      [
+        scope.organizationId,
+        fixtureId,
+        phaseId,
+        operation.match.away_participant_id,
+        'Payload distinto con la misma clave',
+        adjustmentKey,
+      ],
+    ),
+    /TORNEOS_IDEMPOTENCY_CONFLICT/,
+    'una clave idempotente no acepta un payload diferente',
   );
   await expectError(
     () => value(
@@ -449,8 +486,8 @@ async function exerciseProjection(admin, scope) {
       playerHome,
       'select count(*) from public.tournament_team_standings',
     ),
-    2,
-    'jugador relacionado lee la tabla publicada',
+    0,
+    'jugador relacionado no recibe acceso SQL directo a la proyección',
   );
   const playerContext = await value(
     playerHome,
@@ -461,6 +498,16 @@ async function exerciseProjection(admin, scope) {
     playerContext.revision.status,
     'published',
     'contexto del jugador nunca devuelve un draft',
+  );
+  eq(
+    Object.prototype.hasOwnProperty.call(playerContext.revision, 'sourceFingerprint'),
+    false,
+    'contexto participante no expone fingerprints internos',
+  );
+  eq(
+    playerContext.standings.length,
+    2,
+    'jugador relacionado lee la tabla publicada mediante payload seguro',
   );
   eq(
     (await value(
@@ -497,6 +544,20 @@ async function exerciseProjection(admin, scope) {
     /TORNEOS_SUSPENSION_MATCH_INVALID/,
     'una presencia oficial no puede computarse como sanción cumplida',
   );
+  const futureMatchId = await value(
+    admin,
+    `insert into public.tournament_matches(
+      organization_id,season_id,tournament_id,category_id,participant_set_id,
+      fixture_version_id,phase_id,group_id,round_id,match_number,leg_number,
+      home_participant_id,away_participant_id,status,created_by
+    )
+    select organization_id,season_id,tournament_id,category_id,participant_set_id,
+      fixture_version_id,phase_id,group_id,round_id,match_number + 100,1,
+      home_participant_id,away_participant_id,'unscheduled',$2
+    from public.tournament_matches where id = $1
+    returning id`,
+    [scope.matchId, USERS.owner],
+  );
   const squadId = await value(
     admin,
     `insert into public.tournament_match_squads(
@@ -504,7 +565,7 @@ async function exerciseProjection(admin, scope) {
     ) values ($1,$2,$3,$4,'draft',$5) returning id`,
     [
       scope.organizationId,
-      scope.matchId,
+      futureMatchId,
       scope.entries[operation.homeIndex],
       scope.rosters[operation.homeIndex],
       USERS.owner,
@@ -523,13 +584,90 @@ async function exerciseProjection(admin, scope) {
       [
         scope.organizationId,
         squadId,
-        scope.matchId,
+        futureMatchId,
         scope.entries[operation.homeIndex],
         operation.homeCardedPlayerId,
       ],
     ),
     /TORNEOS_PLAYER_SUSPENDED/,
     'jugador suspendido no puede incorporarse a una convocatoria',
+  );
+  await admin.query(
+    `update public.tournament_player_suspensions
+     set status = 'revoked' where id = $1`,
+    [activeSuspension],
+  );
+  await admin.query(
+    `insert into public.tournament_match_squad_players(
+      organization_id,match_squad_id,match_id,roster_player_id,team_entry_id,
+      availability_status,callup_status,lineup_status,display_name_snapshot,
+      is_goalkeeper,is_captain,attendance_status
+    )
+    select $1,$2,$3,player.id,$4,'available','called_up','starter',
+      player.display_name,player.is_goalkeeper,false,'present'
+    from public.tournament_roster_players player where player.id = $5`,
+    [
+      scope.organizationId,
+      squadId,
+      futureMatchId,
+      scope.entries[operation.homeIndex],
+      operation.homeCardedPlayerId,
+    ],
+  );
+  await admin.query(
+    `update public.tournament_player_suspensions
+     set status = 'active' where id = $1`,
+    [activeSuspension],
+  );
+  await expectError(
+    () => admin.query(
+      `update public.tournament_match_squads
+       set status = 'submitted', submitted_by = $2, submitted_at = now()
+       where id = $1`,
+      [squadId, USERS.owner],
+    ),
+    /TORNEOS_PLAYER_SUSPENDED/,
+    'presentar una convocatoria revalida sanciones publicadas después del armado',
+  );
+  const futureOperationId = await value(
+    admin,
+    `insert into public.tournament_match_operations(
+      organization_id,season_id,tournament_id,category_id,fixture_version_id,
+      phase_id,round_id,match_id,home_team_entry_id,away_team_entry_id,
+      status,match_status,operation_version,match_snapshot,home_team_snapshot,
+      away_team_snapshot,opened_by
+    )
+    select match_row.organization_id,match_row.season_id,match_row.tournament_id,
+      match_row.category_id,match_row.fixture_version_id,match_row.phase_id,
+      match_row.round_id,match_row.id,home.team_entry_id,away.team_entry_id,
+      'draft','ready',1,'{}','{}','{}',$2
+    from public.tournament_matches match_row
+    join public.tournament_competition_participants home
+      on home.id = match_row.home_participant_id
+    join public.tournament_competition_participants away
+      on away.id = match_row.away_participant_id
+    where match_row.id = $1
+    returning id`,
+    [futureMatchId, USERS.owner],
+  );
+  await expectError(
+    () => admin.query(
+      `insert into public.tournament_match_operation_players(
+        organization_id,match_operation_id,match_id,team_entry_id,roster_player_id,
+        display_name_snapshot,lineup_status,attendance_status
+      )
+      select $1,$2,$3,$4,player.id,player.display_name,'substitute','present'
+      from public.tournament_roster_players player where player.id = $5`,
+      [
+        scope.organizationId,
+        futureOperationId,
+        futureMatchId,
+        scope.entries[operation.homeIndex],
+        operation.homeCardedPlayerId,
+      ],
+    ),
+    /TORNEOS_PLAYER_SUSPENDED/,
+    'un acta futura tampoco puede incorporar al sancionado por request manipulado',
   );
 
   const overrideId = await value(
@@ -611,6 +749,24 @@ async function exerciseProjection(admin, scope) {
   eq(
     await value(
       admin,
+      `select status
+       from public.tournament_player_suspensions
+       where revision_id = $1
+         and roster_player_id = $2
+         and source_type = (
+           select source_type from public.tournament_player_suspensions
+           where id = $3
+         )
+       order by source_key
+       limit 1`,
+      [secondRevision, operation.homeCardedPlayerId, activeSuspension],
+    ),
+    'revoked',
+    'rebuild conserva la revocación disciplinaria oficial',
+  );
+  eq(
+    await value(
+      admin,
       'select status from public.tournament_standings_revisions where id = $1',
       [revisionId],
     ),
@@ -672,6 +828,351 @@ async function exerciseProjection(admin, scope) {
     ),
     1,
     'la carrera no deja proyecciones parciales duplicadas',
+  );
+
+  const staleDraftId = race.find((result) => result.status === 'fulfilled').value;
+  await value(
+    owner,
+    `select public.create_tournament_points_adjustment(
+      $1,$2,$3,null,$4,1,$5,$6::uuid
+    )`,
+    [
+      scope.organizationId,
+      fixtureId,
+      phaseId,
+      operation.match.home_participant_id,
+      'Corrección posterior al cálculo borrador',
+      '93000000-0000-4000-8000-000000000006',
+    ],
+  );
+  await expectError(
+    () => value(
+      owner,
+      'select public.publish_tournament_standings_revision($1,$2)',
+      [staleDraftId, 'Intento de publicar datos desactualizados'],
+    ),
+    /TORNEOS_STANDINGS_STALE/,
+    'publicación rechaza un draft si cambian los ajustes oficiales',
+  );
+  const recoveredDraftId = await value(
+    owner,
+    `select public.rebuild_tournament_standings(
+      $1,$2,$3,$4,null,$5,$6::uuid
+    )`,
+    [
+      scope.organizationId,
+      scope.tournamentId,
+      scope.categoryId,
+      phaseId,
+      'Recuperación luego de fuentes modificadas',
+      '93000000-0000-4000-8000-000000000007',
+    ],
+  );
+  ok(
+    Boolean(recoveredDraftId) && recoveredDraftId !== staleDraftId,
+    'rebuild reemplaza de forma segura un draft obsoleto',
+  );
+  eq(
+    await value(
+      admin,
+      'select status from public.tournament_standings_revisions where id = $1',
+      [staleDraftId],
+    ),
+    'discarded',
+    'draft obsoleto queda conservado como descartado y auditable',
+  );
+}
+
+async function exerciseThreeTeamMiniTableAndDisciplineCarry(admin, scope) {
+  const fixture = (
+    await admin.query(
+      `select fixture.*, tournament.season_id
+       from public.tournament_fixture_versions fixture
+       join public.tournaments tournament on tournament.id = fixture.tournament_id
+       where fixture.tournament_id = $1 and fixture.category_id = $2
+         and fixture.status = 'published'`,
+      [scope.tournamentId, scope.categoryId],
+    )
+  ).rows[0];
+  const firstPhaseId = await value(
+    admin,
+    `select id from public.tournament_phases
+     where fixture_version_id = $1 order by sequence_number limit 1`,
+    [fixture.id],
+  );
+  const carriedPlayerId = await value(
+    admin,
+    `select roster_player_id
+     from public.tournament_discipline_ledgers ledger
+     join public.tournament_standings_revisions revision
+       on revision.id = ledger.revision_id
+     where revision.phase_id = $1 and ledger.yellow_cards >= 5
+     order by revision.revision_number desc limit 1`,
+    [firstPhaseId],
+  );
+  const thirdEntryId = await value(
+    admin,
+    `insert into public.tournament_team_entries(
+      organization_id,season_id,tournament_id,category_id,name,slug,short_name,
+      primary_color,secondary_color,status,registration_source,created_by,
+      submitted_by,submitted_at,reviewed_by,reviewed_at,approved_at,idempotency_key
+    ) values (
+      $1,$2,$3,$4,'Córdoba QA','cordoba-qa','COR','#4F78FF','#14111F',
+      'approved','provisional',$5,$5,now(),$5,now(),now(),gen_random_uuid()
+    ) returning id`,
+    [
+      scope.organizationId,
+      fixture.season_id,
+      scope.tournamentId,
+      scope.categoryId,
+      USERS.owner,
+    ],
+  );
+  const thirdParticipantId = await value(
+    admin,
+    `insert into public.tournament_competition_participants(
+      organization_id,season_id,tournament_id,category_id,participant_set_id,
+      team_entry_id,status,snapshot_name,snapshot_short_name,
+      snapshot_primary_color,snapshot_secondary_color,frozen_at
+    ) values (
+      $1,$2,$3,$4,$5,$6,'active','Córdoba QA','COR','#4F78FF','#14111F',now()
+    ) returning id`,
+    [
+      scope.organizationId,
+      fixture.season_id,
+      scope.tournamentId,
+      scope.categoryId,
+      fixture.participant_set_id,
+      thirdEntryId,
+    ],
+  );
+  const participants = (
+    await admin.query(
+      `select id, team_entry_id
+       from public.tournament_competition_participants
+       where participant_set_id = $1 and team_entry_id = any($2::uuid[])`,
+      [fixture.participant_set_id, scope.entries],
+    )
+  ).rows;
+  const participantByEntry = new Map(
+    participants.map((participant) => [
+      participant.team_entry_id,
+      participant.id,
+    ]),
+  );
+  const teamA = {
+    entryId: scope.entries[0],
+    participantId: participantByEntry.get(scope.entries[0]),
+  };
+  const teamB = {
+    entryId: scope.entries[1],
+    participantId: participantByEntry.get(scope.entries[1]),
+  };
+  const teamC = { entryId: thirdEntryId, participantId: thirdParticipantId };
+
+  const secondPhaseId = await value(
+    admin,
+    `insert into public.tournament_phases(
+      organization_id,tournament_id,category_id,fixture_version_id,
+      name,phase_type,sequence_number,status
+    ) values ($1,$2,$3,$4,'Fase acumulada','league',2,'active_future')
+    returning id`,
+    [scope.organizationId, scope.tournamentId, scope.categoryId, fixture.id],
+  );
+  const secondRoundId = await value(
+    admin,
+    `insert into public.tournament_rounds(
+      organization_id,tournament_id,category_id,fixture_version_id,
+      phase_id,round_number,name,status,sort_order
+    ) values ($1,$2,$3,$4,$5,1,'Fecha circular','scheduled',1)
+    returning id`,
+    [
+      scope.organizationId,
+      scope.tournamentId,
+      scope.categoryId,
+      fixture.id,
+      secondPhaseId,
+    ],
+  );
+
+  await admin.query(
+    'delete from public.tournament_tiebreak_rules where tournament_id = $1',
+    [scope.tournamentId],
+  );
+  await admin.query(
+    `insert into public.tournament_tiebreak_rules(
+      organization_id,tournament_id,criterion,sort_order
+    ) values ($1,$2,'head_to_head',1)`,
+    [scope.organizationId, scope.tournamentId],
+  );
+  await admin.query(
+    `update public.tournament_discipline_rules
+     set reset_yellows_each_stage = false
+     where tournament_id = $1`,
+    [scope.tournamentId],
+  );
+
+  const circularMatches = [
+    [teamA, teamB, 2, 1],
+    [teamB, teamC, 2, 0],
+    [teamC, teamA, 1, 0],
+  ];
+  let matchNumber = 200;
+  for (const [home, away, homeScore, awayScore] of circularMatches) {
+    matchNumber += 1;
+    const matchId = await value(
+      admin,
+      `insert into public.tournament_matches(
+        organization_id,season_id,tournament_id,category_id,participant_set_id,
+        fixture_version_id,phase_id,round_id,match_number,leg_number,
+        home_participant_id,away_participant_id,status,created_by
+      ) values (
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,1,$10,$11,'ready',$12
+      ) returning id`,
+      [
+        scope.organizationId,
+        fixture.season_id,
+        scope.tournamentId,
+        scope.categoryId,
+        fixture.participant_set_id,
+        fixture.id,
+        secondPhaseId,
+        secondRoundId,
+        matchNumber,
+        home.participantId,
+        away.participantId,
+        USERS.owner,
+      ],
+    );
+    const operationId = await value(
+      admin,
+      `insert into public.tournament_match_operations(
+        organization_id,season_id,tournament_id,category_id,fixture_version_id,
+        phase_id,round_id,match_id,home_team_entry_id,away_team_entry_id,
+        status,match_status,operation_version,match_snapshot,home_team_snapshot,
+        away_team_snapshot,opened_by
+      ) values (
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'draft','ready',1,
+        '{}','{}','{}',$11
+      ) returning id`,
+      [
+        scope.organizationId,
+        fixture.season_id,
+        scope.tournamentId,
+        scope.categoryId,
+        fixture.id,
+        secondPhaseId,
+        secondRoundId,
+        matchId,
+        home.entryId,
+        away.entryId,
+        USERS.owner,
+      ],
+    );
+    await admin.query(
+      `insert into public.tournament_match_outcomes(
+        match_operation_id,organization_id,match_id,outcome_type,
+        counts_for_standings,counts_for_player_stats
+      ) values ($1,$2,$3,'played',true,false)`,
+      [operationId, scope.organizationId, matchId],
+    );
+    await admin.query(
+      `insert into public.tournament_match_scores(
+        match_operation_id,organization_id,match_id,home_score,away_score,score_type
+      ) values ($1,$2,$3,$4,$5,'played')`,
+      [
+        operationId,
+        scope.organizationId,
+        matchId,
+        homeScore,
+        awayScore,
+      ],
+    );
+    await admin.query(
+      `update public.tournament_match_operations
+       set status = 'official', match_status = 'official',
+         submitted_by = $2, submitted_at = now(),
+         validated_by = $3, validated_at = now(),
+         official_by = $2, official_at = now(), closed_at = now()
+       where id = $1`,
+      [operationId, USERS.owner, USERS.admin],
+    );
+  }
+
+  const carryRevisionId = await value(
+    scope.owner,
+    `select public.rebuild_tournament_standings(
+      $1,$2,$3,$4,null,$5,$6::uuid
+    )`,
+    [
+      scope.organizationId,
+      scope.tournamentId,
+      scope.categoryId,
+      secondPhaseId,
+      'Mini tabla y arrastre entre fases',
+      '93000000-0000-4000-8000-000000000020',
+    ],
+  );
+  const rankedEntries = (
+    await admin.query(
+      `select team_entry_id
+       from public.tournament_team_standings
+       where revision_id = $1 order by position`,
+      [carryRevisionId],
+    )
+  ).rows.map((row) => row.team_entry_id);
+  eq(
+    JSON.stringify(rankedEntries),
+    JSON.stringify([teamB.entryId, teamA.entryId, teamC.entryId]),
+    'mini tabla de tres equipos resuelve el empate circular por DG interna',
+  );
+  eq(
+    await value(
+      admin,
+      `select yellow_cards
+       from public.tournament_discipline_ledgers
+       where revision_id = $1 and roster_player_id = $2`,
+      [carryRevisionId, carriedPlayerId],
+    ),
+    5,
+    'regla sin reinicio arrastra amarillas de la fase anterior',
+  );
+  await value(
+    scope.owner,
+    'select public.publish_tournament_standings_revision($1,$2)',
+    [carryRevisionId, 'Publicación de mini tabla acumulada'],
+  );
+
+  await admin.query(
+    `update public.tournament_discipline_rules
+     set reset_yellows_each_stage = true
+     where tournament_id = $1`,
+    [scope.tournamentId],
+  );
+  const resetRevisionId = await value(
+    scope.owner,
+    `select public.rebuild_tournament_standings(
+      $1,$2,$3,$4,null,$5,$6::uuid
+    )`,
+    [
+      scope.organizationId,
+      scope.tournamentId,
+      scope.categoryId,
+      secondPhaseId,
+      'Reinicio disciplinario por fase',
+      '93000000-0000-4000-8000-000000000021',
+    ],
+  );
+  eq(
+    await count(
+      admin,
+      `select count(*)
+       from public.tournament_discipline_ledgers
+       where revision_id = $1 and roster_player_id = $2`,
+      [resetRevisionId, carriedPlayerId],
+    ),
+    0,
+    'regla con reinicio no mezcla amarillas de fases anteriores',
   );
 }
 
@@ -767,6 +1268,7 @@ async function run() {
     );
     const scope = await seedOperationalMatch(admin);
     await exerciseProjection(admin, scope);
+    await exerciseThreeTeamMiniTableAndDisciplineCarry(admin, scope);
   } catch (error) {
     failures += 1;
     console.error(error);
