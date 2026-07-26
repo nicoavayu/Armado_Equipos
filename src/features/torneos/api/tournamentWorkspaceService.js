@@ -69,19 +69,29 @@ const ERROR_MESSAGES = {
   TORNEOS_CYCLIC_MATCH_SOURCE: 'La fuente del cruce produciría una referencia cíclica.',
   TORNEOS_MATCH_FORBIDDEN: 'El partido no está disponible o no tenés permiso para verlo.',
   TORNEOS_MATCH_NOT_OPENABLE: 'El partido todavía no reúne las condiciones para abrir el acta.',
+  TORNEOS_MATCH_ALREADY_OFFICIAL: 'El partido ya tiene un resultado oficial. Solicitá una corrección para crear otra versión.',
+  TORNEOS_MATCH_OPERATION_ACTIVE: 'El partido ya tiene un acta activa y no admite cambios de programación.',
   TORNEOS_MATCH_OPEN_WINDOW: 'El acta se está abriendo fuera de horario. Indicá el motivo del override.',
   TORNEOS_MATCH_PLAYER_OUT_OF_SCOPE: 'Ese jugador no pertenece al plantel habilitado del equipo.',
+  TORNEOS_MATCH_PLAYER_ABSENT: 'Ese jugador figura ausente o justificado y no puede recibir el evento.',
+  TORNEOS_MATCH_PLAYER_NOT_ON_FIELD: 'Ese jugador no está en cancha en ese momento.',
+  TORNEOS_MATCH_PLAYER_ALREADY_ON_FIELD: 'Ese jugador ya está en cancha en ese momento.',
   TORNEOS_MATCH_ROSTER_NOT_APPROVED: 'El equipo no tiene un plantel aprobado o bloqueado.',
   TORNEOS_INVALID_MATCH_SQUAD: 'Revisá titulares, capitán y jugadores de la convocatoria.',
   TORNEOS_MATCH_SQUAD_LOCKED: 'La convocatoria ya fue presentada o bloqueada.',
+  TORNEOS_MATCH_SQUAD_SCOPE: 'La convocatoria no coincide con el partido, equipo o plantel habilitado.',
   TORNEOS_INVALID_AVAILABILITY: 'Elegí Voy, No voy o En duda.',
+  TORNEOS_MATCH_AVAILABILITY_SELF_AUTHORITATIVE: 'La respuesta personal del jugador no puede reemplazarse manualmente.',
   TORNEOS_MATCH_EVENT_TEAM_MISMATCH: 'El evento no corresponde a un equipo del partido.',
   TORNEOS_MATCH_EVENT_PLAYER_MISMATCH: 'El jugador del evento no pertenece a esa alineación.',
+  TORNEOS_MATCH_EVENT_RELATION_INVALID: 'Revisá la relación entre los eventos seleccionados.',
   TORNEOS_MATCH_ASSIST_WITHOUT_GOAL: 'La asistencia debe vincularse con un gol válido del mismo equipo.',
+  TORNEOS_MATCH_SUBSTITUTION_INVALID: 'La sustitución debe vincular una salida vigente con un ingreso válido.',
   TORNEOS_MATCH_PLAYER_ALREADY_SENT_OFF: 'Ese jugador ya fue expulsado; revisá la secuencia del acta.',
   TORNEOS_MATCH_SECOND_YELLOW_WITHOUT_FIRST: 'La segunda amarilla requiere una amarilla previa vigente.',
   TORNEOS_MATCH_OPERATION_INVALID: 'El acta tiene validaciones pendientes antes de presentarse.',
   TORNEOS_MATCH_DUAL_CONTROL_REQUIRED: 'Otra persona autorizada debe validar el acta.',
+  TORNEOS_MATCH_REVIEW_NOT_OPEN: 'La revisión ya fue resuelta o dejó de estar disponible.',
   TORNEOS_MATCH_REVIEW_OPEN: 'Hay una revisión incompatible todavía abierta.',
   TORNEOS_MATCH_CORRECTION_EXISTS: 'Ya existe una corrección activa para esta versión.',
   TORNEOS_MATCH_CORRECTION_STALE: 'La versión a corregir ya no es la vigente.',
@@ -989,17 +999,6 @@ export async function createTournamentMatchCorrection(input) {
   }), 'No pudimos crear la nueva versión del acta.');
 }
 
-export async function scheduleTournamentMatchResumption(input) {
-  return unwrapRpc(await supabase.rpc('schedule_tournament_match_resumption', {
-    p_organization_id: input.organizationId,
-    p_match_operation_id: input.operationId,
-    p_scheduled_at: input.scheduledAt || null,
-    p_venue_id: input.venueId || null,
-    p_court_id: input.courtId || null,
-    p_reason: input.reason,
-  }), 'No pudimos preparar la reanudación.');
-}
-
 export async function voidTournamentMatchOperation(input) {
   return unwrapRpc(await supabase.rpc('void_tournament_match_operation', {
     p_organization_id: input.organizationId,
@@ -1083,7 +1082,6 @@ export const tournamentWorkspaceService = Object.freeze({
   makeMatchOfficial: makeTournamentMatchOfficial,
   requestMatchCorrection: requestTournamentMatchCorrection,
   createMatchCorrection: createTournamentMatchCorrection,
-  scheduleMatchResumption: scheduleTournamentMatchResumption,
   voidMatchOperation: voidTournamentMatchOperation,
   createIdempotencyKey,
 });

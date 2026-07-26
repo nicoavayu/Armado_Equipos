@@ -55,7 +55,7 @@ function AvailabilityButtons({
           type="button"
           className={match.availability === value ? styles.availabilityActive : ''}
           aria-pressed={match.availability === value}
-          disabled={busy}
+          disabled={busy || !['scheduled', 'ready'].includes(match.status)}
           onClick={() => onRespond(value)}
         >
           <Icon size={17} aria-hidden="true" />

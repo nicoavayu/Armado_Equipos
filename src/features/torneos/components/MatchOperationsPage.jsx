@@ -67,6 +67,8 @@ const EVENT_LABELS = {
   red_card: 'Roja',
   substitution_in: 'Ingreso',
   substitution_out: 'Salida',
+  penalty_goal: 'Gol de penal',
+  penalty_missed: 'Penal errado',
   incident: 'Incidencia',
   no_show: 'Ausencia',
   suspension: 'Suspensión',
@@ -356,9 +358,9 @@ export function SquadEditor({
                   </select>
                   <button
                     type="button"
-                    disabled={readOnly}
+                    disabled
                     aria-pressed={player.isGoalkeeper}
-                    onClick={() => patch(player.rosterPlayerId, { isGoalkeeper: !player.isGoalkeeper })}
+                    title="La condición de arquero proviene del plantel habilitado"
                   >
                     ARQ
                   </button>
@@ -414,6 +416,8 @@ function ReportEditor({
     homeScore: context.score?.home_score ?? 0,
     awayScore: context.score?.away_score ?? 0,
     scoreType: context.score?.score_type || 'played',
+    homePenalties: context.score?.home_penalties ?? '',
+    awayPenalties: context.score?.away_penalties ?? '',
   });
   const [outcome, setOutcome] = useState({
     outcomeType: context.outcome?.outcome_type || 'played',
@@ -432,6 +436,8 @@ function ReportEditor({
     minute: '',
     period: 'first_half',
     unidentifiedPlayerReason: '',
+    relatedEventId: '',
+    relatedRosterPlayerId: '',
   });
   const [voidReason, setVoidReason] = useState('');
   const readOnly = !canManage || operation.status !== 'draft';
@@ -440,6 +446,25 @@ function ReportEditor({
       ? player.team_entry_id !== event.teamEntryId
       : player.team_entry_id === event.teamEntryId
   ));
+  const relatedGoals = context.events.filter((item) => (
+    !item.voided_at
+      && ['goal', 'penalty_goal'].includes(item.event_type)
+      && !(item.event_type === 'penalty_goal' && item.period === 'penalties')
+      && item.team_entry_id === event.teamEntryId
+      && item.roster_player_id
+      && item.roster_player_id !== event.rosterPlayerId
+  ));
+  const relatedSubstitutionOuts = context.events.filter((item) => (
+    !item.voided_at
+      && item.event_type === 'substitution_out'
+      && item.team_entry_id === event.teamEntryId
+      && !context.events.some((candidate) => (
+        !candidate.voided_at
+          && candidate.event_type === 'substitution_in'
+          && candidate.related_event_id === item.id
+      ))
+  ));
+  const eventRequiresRelation = ['assist', 'substitution_in'].includes(event.eventType);
 
   return (
     <div className={styles.reportGrid}>
@@ -495,8 +520,18 @@ function ReportEditor({
             <option value="series_leg">Partido de serie</option>
           </select>
         </label>
+        <div className={styles.twoColumns}>
+          <label><span>Penales local (opcional)</span><input disabled={readOnly} type="number" min="0" max="99" value={score.homePenalties} onChange={(e) => setScore((c) => ({ ...c, homePenalties: e.target.value }))} /></label>
+          <label><span>Penales visitante (opcional)</span><input disabled={readOnly} type="number" min="0" max="99" value={score.awayPenalties} onChange={(e) => setScore((c) => ({ ...c, awayPenalties: e.target.value }))} /></label>
+        </div>
         <p className={styles.helperCopy}>Un walkover no crea goles individuales ni asume 3–0.</p>
-        {!readOnly && <button type="button" disabled={busy} onClick={() => run('score', { ...score, homeScore: Number(score.homeScore), awayScore: Number(score.awayScore) })}><Save size={17} /> Guardar resultado</button>}
+        {!readOnly && <button type="button" disabled={busy} onClick={() => run('score', {
+          ...score,
+          homeScore: Number(score.homeScore),
+          awayScore: Number(score.awayScore),
+          homePenalties: score.homePenalties === '' ? null : Number(score.homePenalties),
+          awayPenalties: score.awayPenalties === '' ? null : Number(score.awayPenalties),
+        })}><Save size={17} /> Guardar resultado</button>}
       </section>
 
       <section className={`${styles.reportSection} ${styles.eventsSection}`}>
@@ -506,12 +541,78 @@ function ReportEditor({
         </div>
         {!readOnly && (
           <div className={styles.eventComposer}>
-            <label><span>Evento</span><select value={event.eventType} onChange={(e) => setEvent((c) => ({ ...c, eventType: e.target.value }))}>{Object.entries(EVENT_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-            <label><span>Equipo</span><select value={event.teamEntryId} onChange={(e) => setEvent((c) => ({ ...c, teamEntryId: e.target.value, rosterPlayerId: '' }))}><option value={operation.home_team_entry_id}>{match.homeName}</option><option value={operation.away_team_entry_id}>{match.awayName}</option></select></label>
+            <label><span>Evento</span><select value={event.eventType} onChange={(e) => setEvent((c) => ({
+              ...c,
+              eventType: e.target.value,
+              relatedEventId: '',
+              relatedRosterPlayerId: '',
+            }))}>{Object.entries(EVENT_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+            <label><span>Equipo</span><select value={event.teamEntryId} onChange={(e) => setEvent((c) => ({
+              ...c,
+              teamEntryId: e.target.value,
+              rosterPlayerId: '',
+              relatedEventId: '',
+              relatedRosterPlayerId: '',
+            }))}><option value={operation.home_team_entry_id}>{match.homeName}</option><option value={operation.away_team_entry_id}>{match.awayName}</option></select></label>
             <label><span>Jugador</span><select value={event.rosterPlayerId} onChange={(e) => setEvent((c) => ({ ...c, rosterPlayerId: e.target.value }))}><option value="">Sin identificar / equipo</option>{players.map((player) => <option key={player.roster_player_id} value={player.roster_player_id}>{player.display_name_snapshot}</option>)}</select></label>
             <label><span>Minuto</span><input type="number" min="0" max="240" value={event.minute} onChange={(e) => setEvent((c) => ({ ...c, minute: e.target.value }))} /></label>
+            <label><span>Período</span><select value={event.period} onChange={(e) => setEvent((c) => ({ ...c, period: e.target.value }))}><option value="pre_match">Prepartido</option><option value="first_half">Primer tiempo</option><option value="halftime">Entretiempo</option><option value="second_half">Segundo tiempo</option><option value="extra_time">Alargue</option><option value="penalties">Penales</option><option value="post_match">Postpartido</option></select></label>
+            {event.eventType === 'assist' && (
+              <label className={styles.fullField}>
+                <span>Gol asistido</span>
+                <select value={event.relatedEventId} onChange={(e) => setEvent((c) => ({
+                  ...c,
+                  relatedEventId: e.target.value,
+                }))}>
+                  <option value="">Seleccioná un gol vigente</option>
+                  {relatedGoals.map((goalEvent) => (
+                    <option key={goalEvent.id} value={goalEvent.id}>
+                      {goalEvent.minute ?? '·'}′ · {context.players.find(
+                        (player) => player.roster_player_id === goalEvent.roster_player_id,
+                      )?.display_name_snapshot || 'Gol identificado'}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {event.eventType === 'substitution_in' && (
+              <label className={styles.fullField}>
+                <span>Salida vinculada</span>
+                <select value={event.relatedEventId} onChange={(e) => {
+                  const related = relatedSubstitutionOuts.find(
+                    (candidate) => candidate.id === e.target.value,
+                  );
+                  setEvent((c) => ({
+                    ...c,
+                    relatedEventId: e.target.value,
+                    relatedRosterPlayerId: related?.roster_player_id || '',
+                    minute: related?.minute ?? c.minute,
+                    period: related?.period || c.period,
+                  }));
+                }}>
+                  <option value="">Primero registrá y elegí la salida</option>
+                  {relatedSubstitutionOuts.map((outEvent) => (
+                    <option key={outEvent.id} value={outEvent.id}>
+                      {outEvent.minute ?? '·'}′ · {context.players.find(
+                        (player) => player.roster_player_id === outEvent.roster_player_id,
+                      )?.display_name_snapshot || 'Jugador saliente'}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
             {!event.rosterPlayerId && ['goal', 'own_goal'].includes(event.eventType) && <label className={styles.fullField}><span>Motivo del autor desconocido</span><input value={event.unidentifiedPlayerReason} onChange={(e) => setEvent((c) => ({ ...c, unidentifiedPlayerReason: e.target.value }))} /></label>}
-            <button type="button" disabled={busy} onClick={() => run('event', { ...event, rosterPlayerId: event.rosterPlayerId || null, minute: event.minute === '' ? null : Number(event.minute) })}><Plus size={17} /> Agregar evento</button>
+            <button
+              type="button"
+              disabled={busy || (eventRequiresRelation && !event.relatedEventId)}
+              onClick={() => run('event', {
+                ...event,
+                rosterPlayerId: event.rosterPlayerId || null,
+                relatedEventId: event.relatedEventId || null,
+                relatedRosterPlayerId: event.relatedRosterPlayerId || null,
+                minute: event.minute === '' ? null : Number(event.minute),
+              })}
+            ><Plus size={17} /> Agregar evento</button>
           </div>
         )}
         <ol className={styles.eventTimeline}>
@@ -560,15 +661,19 @@ export default function MatchOperationsPage({ mode = 'list' }) {
     const requestId = requestRef.current + 1;
     requestRef.current = requestId;
     if (!activeTournament?.id) {
+      setActiveTeamId(null);
       setState({ status: 'ready', matches: [], operation: null, squads: {}, error: '', notice });
       return;
     }
-    setState((current) => ({
-      ...current,
+    setActiveTeamId(null);
+    setState({
       status: 'loading',
+      matches: [],
+      operation: null,
+      squads: {},
       error: '',
       notice,
-    }));
+    });
     try {
       const payload = await service.loadMatchOperations({
         organizationId: organization.id,
@@ -604,7 +709,7 @@ export default function MatchOperationsPage({ mode = 'list' }) {
         };
       }
       if (requestRef.current !== requestId) return;
-      setActiveTeamId((current) => current || match?.homeTeamEntryId || null);
+      setActiveTeamId(match?.homeTeamEntryId || null);
       setState({
         status: 'ready',
         matches,
@@ -615,12 +720,14 @@ export default function MatchOperationsPage({ mode = 'list' }) {
       });
     } catch (error) {
       if (requestRef.current !== requestId) return;
-      setState((current) => ({
-        ...current,
+      setState({
         status: 'error',
+        matches: [],
+        operation: null,
+        squads: {},
         error: error.message,
         notice: '',
-      }));
+      });
     }
   }, [
     activeTournament?.id,
@@ -644,6 +751,14 @@ export default function MatchOperationsPage({ mode = 'list' }) {
 
   const run = async (action, payload = {}) => {
     if (busy) return;
+    if (action === 'official'
+      && !window.confirm('¿Confirmás que esta versión será el resultado oficial e inmutable?')) return;
+    if (action === 'outcome'
+      && ['walkover_home', 'walkover_away'].includes(payload.outcomeType)
+      && !window.confirm('¿Confirmás el walkover? La decisión y el motivo quedarán auditados.')) return;
+    if (action === 'event'
+      && payload.eventType === 'red_card'
+      && !window.confirm('¿Confirmás la expulsión por roja directa?')) return;
     setBusy(true);
     try {
       const common = { organizationId: organization.id };
@@ -759,7 +874,7 @@ export default function MatchOperationsPage({ mode = 'list' }) {
                 <p>El fixture conserva cuándo y dónde; el acta registra qué ocurrió.</p>
                 {state.operation ? (
                   <Link to={`${base}/${match.id}/acta`}>Continuar acta</Link>
-                ) : canOpen && match.planningStatus !== 'cancelled' ? (
+                ) : canOpen && ['scheduled', 'ready'].includes(match.planningStatus) ? (
                   <button type="button" disabled={busy} onClick={() => run('open')}>
                     <Plus size={17} /> Abrir acta
                   </button>
@@ -808,7 +923,8 @@ export default function MatchOperationsPage({ mode = 'list' }) {
                 <ClipboardCheck size={30} />
                 <h2>Primero abrí el acta</h2>
                 <p>La apertura crea la versión y copia los snapshots disponibles.</p>
-                {canOpen && <button type="button" disabled={busy} onClick={() => run('open')}>Abrir acta</button>}
+                {canOpen && ['scheduled', 'ready'].includes(match.planningStatus)
+                  && <button type="button" disabled={busy} onClick={() => run('open')}>Abrir acta</button>}
               </section>
             ) : (
               <>
@@ -849,11 +965,17 @@ export default function MatchOperationsPage({ mode = 'list' }) {
                       <button className={styles.primaryButton} type="button" disabled={busy} onClick={() => run('official')}><CheckCircle2 size={17} /> Hacer oficial</button>
                     )}
                     {hasCapability(organization, TOURNAMENT_CAPABILITIES.MATCH_OPERATIONS_REQUEST_CORRECTION)
-                      && state.operation.operation.status === 'official' && (
+                      && state.operation.operation.status === 'official'
+                      && !(state.operation.reviews || []).some(
+                        (review) => review.review_type === 'correction' && review.status === 'open',
+                      ) && (
                       <button type="button" disabled={busy || reviewReason.trim().length < 3} onClick={() => run('requestCorrection', { reason: reviewReason })}><AlertTriangle size={17} /> Solicitar corrección</button>
                     )}
                     {hasCapability(organization, TOURNAMENT_CAPABILITIES.MATCH_OPERATIONS_CORRECT)
-                      && state.operation.operation.status === 'correction_requested' && (
+                      && state.operation.operation.status === 'official'
+                      && (state.operation.reviews || []).some(
+                        (review) => review.review_type === 'correction' && review.status === 'open',
+                      ) && (
                       <button type="button" disabled={busy} onClick={() => run('createCorrection')}><Plus size={17} /> Crear nueva versión</button>
                     )}
                   </div>

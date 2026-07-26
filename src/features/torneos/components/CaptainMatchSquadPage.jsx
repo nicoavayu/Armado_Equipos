@@ -25,7 +25,12 @@ export default function CaptainMatchSquadPage() {
   const load = useCallback(async ({ notice = '' } = {}) => {
     const requestId = requestRef.current + 1;
     requestRef.current = requestId;
-    setState((current) => ({ ...current, status: 'loading', error: '', notice }));
+    setState({
+      status: 'loading',
+      context: null,
+      error: '',
+      notice,
+    });
     try {
       const context = await service.loadMyManagedMatchSquad(matchId);
       if (requestRef.current !== requestId) return;
@@ -87,7 +92,8 @@ export default function CaptainMatchSquadPage() {
     })
     : 'Horario a confirmar';
   const readOnly = Boolean(
-    state.context.squad?.status && state.context.squad.status !== 'draft',
+    state.context.status === 'postponed'
+      || (state.context.squad?.status && state.context.squad.status !== 'draft'),
   );
 
   return (

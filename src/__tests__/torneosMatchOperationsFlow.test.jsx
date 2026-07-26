@@ -165,4 +165,26 @@ describe('Arma2 Torneos match operations flow', () => {
     });
     await waitFor(() => expect(service.loadPlayerMatches).toHaveBeenCalledTimes(2));
   });
+
+  test('keeps availability read-only when the match is postponed', async () => {
+    const service = createService({
+      organizations: false,
+      playerMatches: [{
+        matchId: MATCH,
+        teamName: 'Napoli',
+        opponentName: 'Belgrano',
+        isHome: true,
+        scheduledAt: null,
+        status: 'postponed',
+        venue: null,
+        court: null,
+        availability: 'available',
+      }],
+    });
+    renderPath('/torneos/mis-partidos', service);
+    const available = await screen.findByRole('button', { name: 'Voy' });
+    expect(available).toBeDisabled();
+    fireEvent.click(available);
+    expect(service.respondMatchAvailability).not.toHaveBeenCalled();
+  });
 });
