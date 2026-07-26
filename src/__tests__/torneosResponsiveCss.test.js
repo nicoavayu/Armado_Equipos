@@ -15,6 +15,13 @@ const competitionCss = fs.readFileSync(
   ),
   'utf8',
 );
+const matchOperationsCss = fs.readFileSync(
+  path.join(
+    process.cwd(),
+    'src/features/torneos/components/MatchOperations.module.css',
+  ),
+  'utf8',
+);
 
 describe('Torneos responsive navigation CSS', () => {
   test('keeps mobile navigation hidden until the mobile/tablet breakpoint', () => {
@@ -44,6 +51,31 @@ describe('Torneos responsive navigation CSS', () => {
   test('preserves reduced-motion support for new competition screens', () => {
     expect(competitionCss).toMatch(
       /@media \(prefers-reduced-motion:\s*reduce\)[\s\S]*?animation:\s*none;/,
+    );
+  });
+
+  test('collapses match operations layouts without shrinking touch targets', () => {
+    expect(css).toMatch(
+      /@media \(max-width:\s*900px\)[\s\S]*?\.mobileBrand\s*\{[\s\S]*?min-width:\s*44px;[\s\S]*?min-height:\s*44px;/,
+    );
+    expect(css).toMatch(
+      /\.mobileBrand \.brandMark\s*\{[^}]*width:\s*44px;[^}]*height:\s*44px;/s,
+    );
+    expect(matchOperationsCss).toMatch(
+      /@media \(max-width:\s*720px\)[\s\S]*?grid-template-columns:\s*1fr;/,
+    );
+    expect(matchOperationsCss).toMatch(
+      /@media \(max-width:\s*390px\)/,
+    );
+    expect(matchOperationsCss).toMatch(/min-height:\s*44px;/);
+    expect(matchOperationsCss).toMatch(
+      /\.page\s+button,\s*\.page\s+input,\s*\.page\s+select,\s*\.page\s+textarea\s*\{[^}]*box-sizing:\s*border-box;/s,
+    );
+    expect(matchOperationsCss).toMatch(
+      /\.detailCard\s+a\s*\{[^}]*min-height:\s*44px;/s,
+    );
+    expect(matchOperationsCss).toMatch(
+      /@media \(prefers-reduced-motion:\s*reduce\)/,
     );
   });
 });

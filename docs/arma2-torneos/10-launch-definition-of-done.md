@@ -71,8 +71,9 @@ No lanzar con:
 ## Estado del núcleo competitivo
 
 No cumple la definición de lanzamiento y no pretende hacerlo. Ya existen
-workspaces y configuración de temporadas/torneos, pero no hay equipos, fixture,
-operación, tabla, disciplina real, publicación ni integración oficial con
-Arma2. Equipos y planteles ya existen en la rama aislada, pero no completan el
-ciclo público. Las flags siguen apagadas en producción y esta rama sólo puede integrarse
-en `epic/arma2-torneos`.
+workspaces, configuración, equipos, rosters, fixture y una primera operación
+oficial versionada. Todavía no hay tablas/estadísticas agregadas, disciplina
+definitiva, resolución automática de llaves, publicación, notificaciones ni
+integración oficial con el historial Arma2. La operación no completa el ciclo
+de lanzamiento. Las flags siguen apagadas en producción y esta rama sólo puede
+integrarse en `epic/arma2-torneos`.

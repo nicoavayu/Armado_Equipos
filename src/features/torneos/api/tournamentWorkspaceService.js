@@ -67,6 +67,34 @@ const ERROR_MESSAGES = {
   TORNEOS_SCHEDULE_WARNING_CONFIRMATION: 'Revisá las advertencias y confirmá el override con motivo.',
   TORNEOS_AUTOSCHEDULE_RANGE_REQUIRED: 'Definí un rango acotado para usar la programación automática.',
   TORNEOS_CYCLIC_MATCH_SOURCE: 'La fuente del cruce produciría una referencia cíclica.',
+  TORNEOS_MATCH_FORBIDDEN: 'El partido no está disponible o no tenés permiso para verlo.',
+  TORNEOS_MATCH_NOT_OPENABLE: 'El partido todavía no reúne las condiciones para abrir el acta.',
+  TORNEOS_MATCH_ALREADY_OFFICIAL: 'El partido ya tiene un resultado oficial. Solicitá una corrección para crear otra versión.',
+  TORNEOS_MATCH_OPERATION_ACTIVE: 'El partido ya tiene un acta activa y no admite cambios de programación.',
+  TORNEOS_MATCH_OPEN_WINDOW: 'El acta se está abriendo fuera de horario. Indicá el motivo del override.',
+  TORNEOS_MATCH_PLAYER_OUT_OF_SCOPE: 'Ese jugador no pertenece al plantel habilitado del equipo.',
+  TORNEOS_MATCH_PLAYER_ABSENT: 'Ese jugador figura ausente o justificado y no puede recibir el evento.',
+  TORNEOS_MATCH_PLAYER_NOT_ON_FIELD: 'Ese jugador no está en cancha en ese momento.',
+  TORNEOS_MATCH_PLAYER_ALREADY_ON_FIELD: 'Ese jugador ya está en cancha en ese momento.',
+  TORNEOS_MATCH_ROSTER_NOT_APPROVED: 'El equipo no tiene un plantel aprobado o bloqueado.',
+  TORNEOS_INVALID_MATCH_SQUAD: 'Revisá titulares, capitán y jugadores de la convocatoria.',
+  TORNEOS_MATCH_SQUAD_LOCKED: 'La convocatoria ya fue presentada o bloqueada.',
+  TORNEOS_MATCH_SQUAD_SCOPE: 'La convocatoria no coincide con el partido, equipo o plantel habilitado.',
+  TORNEOS_INVALID_AVAILABILITY: 'Elegí Voy, No voy o En duda.',
+  TORNEOS_MATCH_AVAILABILITY_SELF_AUTHORITATIVE: 'La respuesta personal del jugador no puede reemplazarse manualmente.',
+  TORNEOS_MATCH_EVENT_TEAM_MISMATCH: 'El evento no corresponde a un equipo del partido.',
+  TORNEOS_MATCH_EVENT_PLAYER_MISMATCH: 'El jugador del evento no pertenece a esa alineación.',
+  TORNEOS_MATCH_EVENT_RELATION_INVALID: 'Revisá la relación entre los eventos seleccionados.',
+  TORNEOS_MATCH_ASSIST_WITHOUT_GOAL: 'La asistencia debe vincularse con un gol válido del mismo equipo.',
+  TORNEOS_MATCH_SUBSTITUTION_INVALID: 'La sustitución debe vincular una salida vigente con un ingreso válido.',
+  TORNEOS_MATCH_PLAYER_ALREADY_SENT_OFF: 'Ese jugador ya fue expulsado; revisá la secuencia del acta.',
+  TORNEOS_MATCH_SECOND_YELLOW_WITHOUT_FIRST: 'La segunda amarilla requiere una amarilla previa vigente.',
+  TORNEOS_MATCH_OPERATION_INVALID: 'El acta tiene validaciones pendientes antes de presentarse.',
+  TORNEOS_MATCH_DUAL_CONTROL_REQUIRED: 'Otra persona autorizada debe validar el acta.',
+  TORNEOS_MATCH_REVIEW_NOT_OPEN: 'La revisión ya fue resuelta o dejó de estar disponible.',
+  TORNEOS_MATCH_REVIEW_OPEN: 'Hay una revisión incompatible todavía abierta.',
+  TORNEOS_MATCH_CORRECTION_EXISTS: 'Ya existe una corrección activa para esta versión.',
+  TORNEOS_MATCH_CORRECTION_STALE: 'La versión a corregir ya no es la vigente.',
 };
 
 export class TournamentWorkspaceError extends Error {
@@ -797,6 +825,188 @@ export async function autoScheduleTournamentMatches(input) {
   }), 'No pudimos completar la programación automática.');
 }
 
+export async function loadPlayerTournamentMatches() {
+  const [playerMatches, managedMatches] = await Promise.all([
+    supabase.rpc('get_player_tournament_matches'),
+    supabase.rpc('get_managed_tournament_matches'),
+  ]);
+  const playerRows = unwrapRpc(playerMatches, 'No pudimos cargar tus partidos del torneo.') || [];
+  const managedRows = unwrapRpc(managedMatches, 'No pudimos cargar tus partidos del torneo.') || [];
+  const byScope = new Map();
+  [...playerRows, ...managedRows].forEach((match) => {
+    const key = `${match.matchId}:${match.teamEntryId}`;
+    byScope.set(key, { ...(byScope.get(key) || {}), ...match });
+  });
+  return [...byScope.values()];
+}
+
+export async function respondTournamentMatchAvailability(input) {
+  return unwrapRpc(await supabase.rpc('respond_match_availability', {
+    p_match_id: input.matchId,
+    p_response: input.response,
+    p_comment: input.comment || null,
+  }), 'No pudimos guardar tu disponibilidad.');
+}
+
+export async function recordManualTournamentMatchAvailability(input) {
+  return unwrapRpc(await supabase.rpc('record_manual_match_availability', {
+    p_organization_id: input.organizationId,
+    p_match_id: input.matchId,
+    p_roster_player_id: input.rosterPlayerId,
+    p_response: input.response,
+    p_reason: input.reason,
+    p_comment: input.comment || null,
+  }), 'No pudimos registrar la disponibilidad manual.');
+}
+
+export async function loadTournamentMatchOperations(input) {
+  return unwrapRpc(await supabase.rpc('get_tournament_match_operations_context', {
+    p_organization_id: input.organizationId,
+    p_tournament_id: input.tournamentId,
+    p_category_id: input.categoryId || null,
+  }), 'No pudimos cargar los partidos operativos.');
+}
+
+export async function loadTournamentMatchOperation(input) {
+  return unwrapRpc(await supabase.rpc('get_tournament_match_operation_context', {
+    p_organization_id: input.organizationId,
+    p_match_operation_id: input.operationId,
+  }), 'No pudimos cargar el acta.');
+}
+
+export async function loadTournamentMatchSquad(input) {
+  return unwrapRpc(await supabase.rpc('get_match_squad_context', {
+    p_organization_id: input.organizationId,
+    p_match_id: input.matchId,
+    p_team_entry_id: input.teamEntryId,
+  }), 'No pudimos cargar la convocatoria.');
+}
+
+export async function loadMyManagedTournamentMatchSquad(matchId) {
+  return unwrapRpc(await supabase.rpc('get_my_managed_match_squad_context', {
+    p_match_id: matchId,
+  }), 'No pudimos cargar tu convocatoria.');
+}
+
+export async function saveTournamentMatchSquad(input) {
+  return unwrapRpc(await supabase.rpc('save_match_squad', {
+    p_organization_id: input.organizationId,
+    p_match_id: input.matchId,
+    p_team_entry_id: input.teamEntryId,
+    p_players: input.players,
+  }), 'No pudimos guardar la convocatoria.');
+}
+
+export async function submitTournamentMatchSquad(input) {
+  return unwrapRpc(await supabase.rpc('submit_match_squad', {
+    p_organization_id: input.organizationId,
+    p_match_id: input.matchId,
+    p_team_entry_id: input.teamEntryId,
+  }), 'No pudimos presentar la convocatoria.');
+}
+
+export async function openTournamentMatchOperation(input) {
+  return unwrapRpc(await supabase.rpc('open_tournament_match_operation', {
+    p_organization_id: input.organizationId,
+    p_match_id: input.matchId,
+    p_override_reason: input.overrideReason || null,
+  }), 'No pudimos abrir el acta.');
+}
+
+export async function saveTournamentMatchOperationDraft(input) {
+  return unwrapRpc(await supabase.rpc('save_tournament_match_operation_draft', {
+    p_organization_id: input.organizationId,
+    p_match_operation_id: input.operationId,
+    p_match_status: input.matchStatus,
+    p_notes: input.notes || null,
+  }), 'No pudimos guardar el acta.');
+}
+
+export async function setTournamentMatchOutcome(input) {
+  return unwrapRpc(await supabase.rpc('set_tournament_match_outcome', {
+    p_organization_id: input.organizationId,
+    p_match_operation_id: input.operationId,
+    p_outcome: input.outcome,
+  }), 'No pudimos guardar la resolución deportiva.');
+}
+
+export async function setTournamentMatchScore(input) {
+  return unwrapRpc(await supabase.rpc('set_tournament_match_score', {
+    p_organization_id: input.organizationId,
+    p_match_operation_id: input.operationId,
+    p_score: input.score,
+  }), 'No pudimos guardar el resultado.');
+}
+
+export async function addTournamentMatchEvent(input) {
+  return unwrapRpc(await supabase.rpc('add_tournament_match_event', {
+    p_organization_id: input.organizationId,
+    p_match_operation_id: input.operationId,
+    p_event: input.event,
+  }), 'No pudimos agregar el evento.');
+}
+
+export async function voidTournamentMatchEvent(input) {
+  return unwrapRpc(await supabase.rpc('void_tournament_match_event', {
+    p_organization_id: input.organizationId,
+    p_event_id: input.eventId,
+    p_reason: input.reason,
+  }), 'No pudimos anular el evento.');
+}
+
+export async function submitTournamentMatchOperation(input) {
+  return unwrapRpc(await supabase.rpc('submit_tournament_match_operation', {
+    p_organization_id: input.organizationId,
+    p_match_operation_id: input.operationId,
+  }), 'No pudimos presentar el acta.');
+}
+
+export async function reviewTournamentMatchOperation(input) {
+  return unwrapRpc(await supabase.rpc('review_tournament_match_operation', {
+    p_organization_id: input.organizationId,
+    p_match_operation_id: input.operationId,
+    p_decision: input.decision,
+    p_reason: input.reason,
+  }), 'No pudimos revisar el acta.');
+}
+
+export async function validateTournamentMatchOperation(input) {
+  return unwrapRpc(await supabase.rpc('validate_tournament_match_operation', {
+    p_organization_id: input.organizationId,
+    p_match_operation_id: input.operationId,
+  }), 'No pudimos validar el acta.');
+}
+
+export async function makeTournamentMatchOfficial(input) {
+  return unwrapRpc(await supabase.rpc('make_tournament_match_official', {
+    p_organization_id: input.organizationId,
+    p_match_operation_id: input.operationId,
+  }), 'No pudimos oficializar el acta.');
+}
+
+export async function requestTournamentMatchCorrection(input) {
+  return unwrapRpc(await supabase.rpc('request_tournament_match_correction', {
+    p_organization_id: input.organizationId,
+    p_match_operation_id: input.operationId,
+    p_reason: input.reason,
+  }), 'No pudimos solicitar la corrección.');
+}
+
+export async function createTournamentMatchCorrection(input) {
+  return unwrapRpc(await supabase.rpc('create_tournament_match_correction', {
+    p_organization_id: input.organizationId,
+    p_match_operation_id: input.operationId,
+  }), 'No pudimos crear la nueva versión del acta.');
+}
+
+export async function voidTournamentMatchOperation(input) {
+  return unwrapRpc(await supabase.rpc('void_tournament_match_operation', {
+    p_organization_id: input.organizationId,
+    p_match_operation_id: input.operationId,
+    p_reason: input.reason,
+  }), 'No pudimos anular el acta.');
+}
+
 export const tournamentWorkspaceService = Object.freeze({
   loadContext: loadTournamentWorkspaceContext,
   createOrganization: createTournamentOrganization,
@@ -851,5 +1061,27 @@ export const tournamentWorkspaceService = Object.freeze({
   rescheduleMatch: rescheduleTournamentMatch,
   changeMatchPlan: changeTournamentMatchPlan,
   autoScheduleMatches: autoScheduleTournamentMatches,
+  loadPlayerMatches: loadPlayerTournamentMatches,
+  respondMatchAvailability: respondTournamentMatchAvailability,
+  recordManualMatchAvailability: recordManualTournamentMatchAvailability,
+  loadMatchOperations: loadTournamentMatchOperations,
+  loadMatchOperation: loadTournamentMatchOperation,
+  loadMatchSquad: loadTournamentMatchSquad,
+  loadMyManagedMatchSquad: loadMyManagedTournamentMatchSquad,
+  saveMatchSquad: saveTournamentMatchSquad,
+  submitMatchSquad: submitTournamentMatchSquad,
+  openMatchOperation: openTournamentMatchOperation,
+  saveMatchOperationDraft: saveTournamentMatchOperationDraft,
+  setMatchOutcome: setTournamentMatchOutcome,
+  setMatchScore: setTournamentMatchScore,
+  addMatchEvent: addTournamentMatchEvent,
+  voidMatchEvent: voidTournamentMatchEvent,
+  submitMatchOperation: submitTournamentMatchOperation,
+  reviewMatchOperation: reviewTournamentMatchOperation,
+  validateMatchOperation: validateTournamentMatchOperation,
+  makeMatchOfficial: makeTournamentMatchOfficial,
+  requestMatchCorrection: requestTournamentMatchCorrection,
+  createMatchCorrection: createTournamentMatchCorrection,
+  voidMatchOperation: voidTournamentMatchOperation,
   createIdempotencyKey,
 });

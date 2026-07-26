@@ -90,6 +90,30 @@ export const TOURNAMENT_CAPABILITIES = Object.freeze({
   SCHEDULE_WINDOWS_READ: 'schedule_windows.read',
   SCHEDULE_WINDOWS_MANAGE: 'schedule_windows.manage',
   SCHEDULE_CONFLICTS_OVERRIDE: 'schedule_conflicts.override',
+  MATCH_OPERATIONS_READ: 'match_operations.read',
+  MATCH_OPERATIONS_OPEN: 'match_operations.open',
+  MATCH_OPERATIONS_UPDATE_DRAFT: 'match_operations.update_draft',
+  MATCH_OPERATIONS_SUBMIT: 'match_operations.submit',
+  MATCH_OPERATIONS_REVIEW: 'match_operations.review',
+  MATCH_OPERATIONS_VALIDATE: 'match_operations.validate',
+  MATCH_OPERATIONS_MAKE_OFFICIAL: 'match_operations.make_official',
+  MATCH_OPERATIONS_REQUEST_CORRECTION: 'match_operations.request_correction',
+  MATCH_OPERATIONS_CORRECT: 'match_operations.correct',
+  MATCH_OPERATIONS_VOID: 'match_operations.void',
+  MATCH_SQUADS_READ: 'match_squads.read',
+  MATCH_SQUADS_MANAGE: 'match_squads.manage',
+  MATCH_SQUADS_SUBMIT: 'match_squads.submit',
+  MATCH_SQUADS_LOCK: 'match_squads.lock',
+  MATCH_AVAILABILITY_READ: 'match_availability.read',
+  MATCH_AVAILABILITY_RESPOND_SELF: 'match_availability.respond_self',
+  MATCH_AVAILABILITY_RECORD_MANUAL: 'match_availability.record_manual',
+  MATCH_EVENTS_READ: 'match_events.read',
+  MATCH_EVENTS_CREATE: 'match_events.create',
+  MATCH_EVENTS_UPDATE_DRAFT: 'match_events.update_draft',
+  MATCH_EVENTS_VOID: 'match_events.void',
+  MATCH_OUTCOMES_MANAGE: 'match_outcomes.manage',
+  MATCH_SCORES_MANAGE: 'match_scores.manage',
+  MATCH_ADMINISTRATIVE_RESULTS_MANAGE: 'match_administrative_results.manage',
 });
 
 const commonMemberCapabilities = [
@@ -189,6 +213,35 @@ const fixtureManagementCapabilities = [
   TOURNAMENT_CAPABILITIES.SCHEDULE_CONFLICTS_OVERRIDE,
 ];
 
+const matchReadCapabilities = [
+  TOURNAMENT_CAPABILITIES.MATCH_OPERATIONS_READ,
+  TOURNAMENT_CAPABILITIES.MATCH_SQUADS_READ,
+  TOURNAMENT_CAPABILITIES.MATCH_AVAILABILITY_READ,
+  TOURNAMENT_CAPABILITIES.MATCH_EVENTS_READ,
+];
+
+const matchManagementCapabilities = [
+  TOURNAMENT_CAPABILITIES.MATCH_OPERATIONS_OPEN,
+  TOURNAMENT_CAPABILITIES.MATCH_OPERATIONS_UPDATE_DRAFT,
+  TOURNAMENT_CAPABILITIES.MATCH_OPERATIONS_SUBMIT,
+  TOURNAMENT_CAPABILITIES.MATCH_OPERATIONS_REVIEW,
+  TOURNAMENT_CAPABILITIES.MATCH_OPERATIONS_VALIDATE,
+  TOURNAMENT_CAPABILITIES.MATCH_OPERATIONS_MAKE_OFFICIAL,
+  TOURNAMENT_CAPABILITIES.MATCH_OPERATIONS_REQUEST_CORRECTION,
+  TOURNAMENT_CAPABILITIES.MATCH_OPERATIONS_CORRECT,
+  TOURNAMENT_CAPABILITIES.MATCH_OPERATIONS_VOID,
+  TOURNAMENT_CAPABILITIES.MATCH_SQUADS_MANAGE,
+  TOURNAMENT_CAPABILITIES.MATCH_SQUADS_SUBMIT,
+  TOURNAMENT_CAPABILITIES.MATCH_SQUADS_LOCK,
+  TOURNAMENT_CAPABILITIES.MATCH_AVAILABILITY_RECORD_MANUAL,
+  TOURNAMENT_CAPABILITIES.MATCH_EVENTS_CREATE,
+  TOURNAMENT_CAPABILITIES.MATCH_EVENTS_UPDATE_DRAFT,
+  TOURNAMENT_CAPABILITIES.MATCH_EVENTS_VOID,
+  TOURNAMENT_CAPABILITIES.MATCH_OUTCOMES_MANAGE,
+  TOURNAMENT_CAPABILITIES.MATCH_SCORES_MANAGE,
+  TOURNAMENT_CAPABILITIES.MATCH_ADMINISTRATIVE_RESULTS_MANAGE,
+];
+
 export const ROLE_CAPABILITIES = Object.freeze({
   [TOURNAMENT_ROLES.OWNER]: Object.freeze([
     ...commonMemberCapabilities,
@@ -203,6 +256,8 @@ export const ROLE_CAPABILITIES = Object.freeze({
     ...teamManagementCapabilities,
     ...fixtureReadCapabilities,
     ...fixtureManagementCapabilities,
+    ...matchReadCapabilities,
+    ...matchManagementCapabilities,
   ]),
   [TOURNAMENT_ROLES.ADMIN]: Object.freeze([
     ...commonMemberCapabilities,
@@ -216,11 +271,14 @@ export const ROLE_CAPABILITIES = Object.freeze({
     ...teamManagementCapabilities,
     ...fixtureReadCapabilities,
     ...fixtureManagementCapabilities,
+    ...matchReadCapabilities,
+    ...matchManagementCapabilities,
   ]),
   [TOURNAMENT_ROLES.COLLABORATOR]: Object.freeze([
     ...commonMemberCapabilities,
     ...teamReadCapabilities,
     ...fixtureReadCapabilities,
+    ...matchReadCapabilities,
   ]),
 });
 

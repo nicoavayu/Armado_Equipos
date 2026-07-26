@@ -1489,7 +1489,8 @@
   }
 
   .mobileBrand {
-    min-width: 0;
+    min-width: 44px;
+    min-height: 44px;
     display: flex;
     align-items: center;
     gap: 9px;
@@ -1498,8 +1499,8 @@
   }
 
   .mobileBrand .brandMark {
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
     font-size: 21px;
   }
 

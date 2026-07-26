@@ -104,3 +104,15 @@ Las invitaciones guardan SHA-256 y son de un solo uso. Límites y exclusividad s
 revalidan bajo locks. Las tablas nuevas tienen RLS y ninguna escritura directa a
 `authenticated`; la auditoría rechaza update/delete. Autocompletados acotan
 consulta/resultados y no proyectan PII.
+
+## Hardening de operación de partidos
+
+Las diez entidades nuevas tienen RLS y carecen de escritura directa para
+`authenticated`. Los helpers resuelven ambos equipos desde el fixture publicado,
+no desde IDs declarados por el cliente. Disponibilidad propia deriva el roster
+player de `auth.uid()`; captain/delegate queda acotado a su `team_entry_id`.
+
+Advisory locks e índices parciales impiden dos aperturas, dos oficiales o dos
+correcciones activas. Las oficiales rechazan edición directa; eventos se anulan
+sin borrar. Score y eventos se revalidan al presentar y oficializar. No hay
+Storage, notificaciones, emails, datos productivos ni service role en cliente.

@@ -74,6 +74,18 @@ Invariante: equipo general, inscripción y roster son entidades distintas.
 
 La confirmación posterior requiere una transición explícita. Editar un partido confirmado recalcula derivados en una transacción o no modifica nada.
 
+### Operación implementada
+
+- **MatchSquad / MatchSquadPlayer**: convocatoria y snapshot de alineación.
+- **AvailabilityResponse**: respuesta propia o manual auditada.
+- **MatchOperation**: versión del acta y autoridad de workflow.
+- **MatchOperationPlayer**: snapshot inmutable usado por eventos.
+- **MatchOutcome / MatchScore**: qué ocurrió y su marcador, sin confundirlos.
+- **MatchReview / MatchResumption**: doble control, corrección y continuación.
+
+`MatchOperation(official)` es la única raíz consumible por futuros derivados.
+El fixture nunca se consulta como fuente de marcador.
+
 ## Tabla y estadísticas
 
 - **StandingRuleSet**: puntos, desempates ordenados, clasificación y descenso.
@@ -114,6 +126,10 @@ Tournament 1──* Category
 Arma2Team 0..1──* TournamentEntry 1──* RosterSubmission 1──* RosterPlayer
 Tournament 1──* Stage 1──* Round 1──* Match
 Match 1──* MatchEvent
+Match 1──* MatchSquad 1──* MatchSquadPlayer
+Match 1──* MatchOperation 1──1 MatchOutcome
+MatchOperation 1──0..1 MatchScore
+MatchOperation 1──* MatchReview
 Match *──1 ScheduleSlot *──1 Court *──1 Venue
 Tournament 1──* DisciplinaryCase 1──* Sanction
 ```
