@@ -22,6 +22,13 @@ const matchOperationsCss = fs.readFileSync(
   ),
   'utf8',
 );
+const competitionCenterCss = fs.readFileSync(
+  path.join(
+    process.cwd(),
+    'src/features/torneos/components/CompetitionCenter.module.css',
+  ),
+  'utf8',
+);
 
 describe('Torneos responsive navigation CSS', () => {
   test('keeps mobile navigation hidden until the mobile/tablet breakpoint', () => {
@@ -75,6 +82,20 @@ describe('Torneos responsive navigation CSS', () => {
       /\.detailCard\s+a\s*\{[^}]*min-height:\s*44px;/s,
     );
     expect(matchOperationsCss).toMatch(
+      /@media \(prefers-reduced-motion:\s*reduce\)/,
+    );
+  });
+
+  test('keeps the competition table usable without mandatory mobile overflow', () => {
+    expect(competitionCenterCss).toMatch(
+      /@media \(max-width:\s*680px\)[\s\S]*?\.table\s*\{[^}]*min-width:\s*0;[^}]*table-layout:\s*fixed;/,
+    );
+    expect(competitionCenterCss).toMatch(
+      /\.teamDetail\s*\{[^}]*display:\s*none;[\s\S]*?@media \(max-width:\s*680px\)[\s\S]*?\.teamDetail\s*\{[^}]*display:\s*block;/,
+    );
+    expect(competitionCenterCss).toMatch(/min-height:\s*44px;/);
+    expect(competitionCenterCss).toMatch(/:focus-visible/);
+    expect(competitionCenterCss).toMatch(
       /@media \(prefers-reduced-motion:\s*reduce\)/,
     );
   });

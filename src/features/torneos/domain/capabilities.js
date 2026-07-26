@@ -114,6 +114,22 @@ export const TOURNAMENT_CAPABILITIES = Object.freeze({
   MATCH_OUTCOMES_MANAGE: 'match_outcomes.manage',
   MATCH_SCORES_MANAGE: 'match_scores.manage',
   MATCH_ADMINISTRATIVE_RESULTS_MANAGE: 'match_administrative_results.manage',
+  STANDINGS_READ: 'standings.read',
+  STANDINGS_REBUILD: 'standings.rebuild',
+  STANDINGS_PUBLISH: 'standings.publish',
+  STANDINGS_OVERRIDE: 'standings.override',
+  STATISTICS_READ: 'statistics.read',
+  STATISTICS_REBUILD: 'statistics.rebuild',
+  QUALIFICATION_READ: 'qualification.read',
+  QUALIFICATION_RESOLVE: 'qualification.resolve',
+  QUALIFICATION_OVERRIDE: 'qualification.override',
+  DISCIPLINE_READ: 'discipline.read',
+  DISCIPLINE_MANAGE: 'discipline.manage',
+  DISCIPLINE_RESOLVE: 'discipline.resolve',
+  DISCIPLINE_OVERRIDE: 'discipline.override',
+  SUSPENSIONS_READ: 'suspensions.read',
+  SUSPENSIONS_MANAGE: 'suspensions.manage',
+  SUSPENSIONS_MARK_SERVED: 'suspensions.mark_served',
 });
 
 const commonMemberCapabilities = [
@@ -242,6 +258,28 @@ const matchManagementCapabilities = [
   TOURNAMENT_CAPABILITIES.MATCH_ADMINISTRATIVE_RESULTS_MANAGE,
 ];
 
+const projectionReadCapabilities = [
+  TOURNAMENT_CAPABILITIES.STANDINGS_READ,
+  TOURNAMENT_CAPABILITIES.STATISTICS_READ,
+  TOURNAMENT_CAPABILITIES.QUALIFICATION_READ,
+  TOURNAMENT_CAPABILITIES.DISCIPLINE_READ,
+  TOURNAMENT_CAPABILITIES.SUSPENSIONS_READ,
+];
+
+const projectionManagementCapabilities = [
+  TOURNAMENT_CAPABILITIES.STANDINGS_REBUILD,
+  TOURNAMENT_CAPABILITIES.STANDINGS_PUBLISH,
+  TOURNAMENT_CAPABILITIES.STANDINGS_OVERRIDE,
+  TOURNAMENT_CAPABILITIES.STATISTICS_REBUILD,
+  TOURNAMENT_CAPABILITIES.QUALIFICATION_RESOLVE,
+  TOURNAMENT_CAPABILITIES.QUALIFICATION_OVERRIDE,
+  TOURNAMENT_CAPABILITIES.DISCIPLINE_MANAGE,
+  TOURNAMENT_CAPABILITIES.DISCIPLINE_RESOLVE,
+  TOURNAMENT_CAPABILITIES.DISCIPLINE_OVERRIDE,
+  TOURNAMENT_CAPABILITIES.SUSPENSIONS_MANAGE,
+  TOURNAMENT_CAPABILITIES.SUSPENSIONS_MARK_SERVED,
+];
+
 export const ROLE_CAPABILITIES = Object.freeze({
   [TOURNAMENT_ROLES.OWNER]: Object.freeze([
     ...commonMemberCapabilities,
@@ -258,6 +296,8 @@ export const ROLE_CAPABILITIES = Object.freeze({
     ...fixtureManagementCapabilities,
     ...matchReadCapabilities,
     ...matchManagementCapabilities,
+    ...projectionReadCapabilities,
+    ...projectionManagementCapabilities,
   ]),
   [TOURNAMENT_ROLES.ADMIN]: Object.freeze([
     ...commonMemberCapabilities,
@@ -273,12 +313,15 @@ export const ROLE_CAPABILITIES = Object.freeze({
     ...fixtureManagementCapabilities,
     ...matchReadCapabilities,
     ...matchManagementCapabilities,
+    ...projectionReadCapabilities,
+    ...projectionManagementCapabilities,
   ]),
   [TOURNAMENT_ROLES.COLLABORATOR]: Object.freeze([
     ...commonMemberCapabilities,
     ...teamReadCapabilities,
     ...fixtureReadCapabilities,
     ...matchReadCapabilities,
+    ...projectionReadCapabilities,
   ]),
 });
 

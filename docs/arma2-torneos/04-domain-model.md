@@ -95,6 +95,14 @@ El fixture nunca se consulta como fuente de marcador.
 
 Fuente de verdad: partidos confirmados, eventos vigentes y resoluciones disciplinarias. Los snapshots son derivados.
 
+### Proyección implementada
+
+`StandingsRevision` enlaza `ProjectionSource`, `TeamStanding`,
+`TeamStatistic`, `PlayerStatistic`, `DisciplineLedger` y `PlayerSuspension`.
+`QualificationSlot` conserva la fuente y `QualificationResolution` su
+asignación o bloqueo histórico. `PointsAdjustment`, `DisciplinaryOverride` y
+`SuspensionServedMatch` son resoluciones explícitas; nunca reescriben el acta.
+
 ## Disciplina
 
 - **DisciplineRuleSet**: acumulaciones y consecuencias.
@@ -139,7 +147,7 @@ Tournament 1──* DisciplinaryCase 1──* Sanction
 - tratamiento legal y consentimiento para documentos y menores;
 - estrategia de identidad provisional y reclamo;
 - snapshot vs cálculo bajo demanda para tablas grandes;
-- semántica exacta de `head_to_head`;
+- normalización de mejores terceros y series ida/vuelta;
 - retención de evidencia y exportaciones;
 - reglas exactas de estadísticas oficiales frente al scoring actual.
 

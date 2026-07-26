@@ -45,11 +45,13 @@ hallazgos críticos ni altos. Quedan pendientes staging Supabase dedicado y QA
 físico antes de cualquier integración a `main`. Árbitros, evidencia, reclamos
 formales y recálculo pertenecen a fases posteriores.
 
-## 6. Tabla, estadísticas y disciplina
+## 6. Tabla, estadísticas y disciplina — implementada en rama de feature
 
 Reglas ordenables, snapshots, rankings, fair play, tribunal y elegibilidad.
 
-Gate: reconstrucción exacta desde fuentes.
+Gate PostgreSQL/RLS local: reconstrucción versionada desde actas oficiales,
+publicación atómica, privacidad y concurrencia cubiertas. Pendientes staging
+aislado, mejores terceros/series configurables y torneo sintético completo.
 
 ## 7. Comunicación y público
 

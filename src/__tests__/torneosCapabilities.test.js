@@ -23,6 +23,25 @@ const COMPETITION_CAPABILITIES = [
   'competition_rules.update',
 ];
 
+const PROJECTION_CAPABILITIES = [
+  'standings.read',
+  'standings.rebuild',
+  'standings.publish',
+  'standings.override',
+  'statistics.read',
+  'statistics.rebuild',
+  'qualification.read',
+  'qualification.resolve',
+  'qualification.override',
+  'discipline.read',
+  'discipline.manage',
+  'discipline.resolve',
+  'discipline.override',
+  'suspensions.read',
+  'suspensions.manage',
+  'suspensions.mark_served',
+];
+
 describe('Torneos role capabilities', () => {
   test.each([
     [TOURNAMENT_ROLES.OWNER, TOURNAMENT_CAPABILITIES.ORGANIZATION_ARCHIVE, true],
@@ -68,6 +87,23 @@ describe('Torneos role capabilities', () => {
   ])('keeps the exact competition capability contract for %s', (role, expected) => {
     const actual = getCapabilitiesForRole(role)
       .filter((capability) => COMPETITION_CAPABILITIES.includes(capability))
+      .sort();
+    expect(actual).toEqual([...expected].sort());
+  });
+
+  test.each([
+    [TOURNAMENT_ROLES.OWNER, PROJECTION_CAPABILITIES],
+    [TOURNAMENT_ROLES.ADMIN, PROJECTION_CAPABILITIES],
+    [TOURNAMENT_ROLES.COLLABORATOR, [
+      'standings.read',
+      'statistics.read',
+      'qualification.read',
+      'discipline.read',
+      'suspensions.read',
+    ]],
+  ])('keeps projections read-only for collaborator in %s', (role, expected) => {
+    const actual = getCapabilitiesForRole(role)
+      .filter((capability) => PROJECTION_CAPABILITIES.includes(capability))
       .sort();
     expect(actual).toEqual([...expected].sort());
   });

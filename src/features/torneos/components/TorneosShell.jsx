@@ -3,6 +3,7 @@ import {
   Building2,
   CalendarRange,
   ClipboardList,
+  Medal,
   Home,
   Settings2,
   ShieldCheck,
@@ -38,6 +39,7 @@ import FixtureWorkspacePage from './FixtureWorkspacePage';
 import MatchOperationsPage from './MatchOperationsPage';
 import MyTournamentMatchesPage from './MyTournamentMatchesPage';
 import CaptainMatchSquadPage from './CaptainMatchSquadPage';
+import CompetitionCenterPage from './CompetitionCenterPage';
 import styles from './TorneosShell.module.css';
 
 const organizationNavigation = [
@@ -51,6 +53,7 @@ const organizationNavigation = [
     relatedPaths: ['programacion', 'sedes'],
   },
   { label: 'Partidos', path: 'partidos', icon: ClipboardList },
+  { label: 'Competencia', path: 'competencia', icon: Medal },
   { label: 'Configuración', path: 'configuracion', icon: Settings2 },
 ];
 
@@ -115,7 +118,7 @@ export default function TorneosShell() {
     ? location.pathname.split('/').slice(4).join('/')
     : '';
   const currentNavigation = organizationNavigation.find(({ path }) => (
-    ['torneos', 'equipos', 'fixture', 'partidos'].includes(path)
+    ['torneos', 'equipos', 'fixture', 'partidos', 'competencia'].includes(path)
       ? (
         organizationRelativePath.startsWith(path)
         || (path === 'torneos' && organizationRelativePath.startsWith('temporadas'))
@@ -252,6 +255,11 @@ export default function TorneosShell() {
               <Route path="partidos/:matchId/acta" element={<MatchOperationsPage mode="report" />} />
               <Route path="partidos/:matchId/revision" element={<MatchOperationsPage mode="review" />} />
               <Route path="partidos/:matchId/historial" element={<MatchOperationsPage mode="history" />} />
+              <Route path="competencia" element={<Navigate to="tabla" replace />} />
+              <Route path="competencia/tabla" element={<CompetitionCenterPage mode="table" />} />
+              <Route path="competencia/estadisticas" element={<CompetitionCenterPage mode="statistics" />} />
+              <Route path="competencia/clasificacion" element={<CompetitionCenterPage mode="qualification" />} />
+              <Route path="competencia/disciplina" element={<CompetitionCenterPage mode="discipline" />} />
               <Route path="configuracion" element={<OrganizationSettingsPage />} />
               <Route path="miembros" element={<OrganizationMembersPage />} />
             </Route>
