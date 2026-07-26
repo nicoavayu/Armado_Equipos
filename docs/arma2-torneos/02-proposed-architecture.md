@@ -93,6 +93,12 @@ escrituras pasan por RPCs transaccionales; el cliente sólo tiene SELECT sujeto 
 RLS. La creación de torneo incorpora reglas por defecto y preferencia en una
 sola transacción.
 
+La migración `20260726150000_tournament_match_operations.sql` mantiene tres
+autoridades separadas: programación, operación versionada y resultado oficial.
+Convocatorias, disponibilidad y actas referencian fixture/rosters sin absorber
+los partidos personales. Score, outcome y eventos son contratos independientes;
+una corrección clona la oficial y conserva la fuente como histórica.
+
 ## Backend futuro
 
 - Tablas pequeñas y normalizadas por agregado.

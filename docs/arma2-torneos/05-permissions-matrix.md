@@ -57,3 +57,24 @@ Tournament manager, fixture manager, match official, discipline manager, content
 - Captain/Delegate: lectura y edición relacional de su `team_entry_id`; presenta
   y corrige, pero nunca aprueba.
 - Assistant: lectura relacional sin administración organizacional.
+
+## Operación de partidos
+
+| Familia | Owner | Admin | Collaborator | Captain/Delegate | Jugador |
+|---|:---:|:---:|:---:|:---:|:---:|
+| `match_operations.read` | ✓ | ✓ | ✓ | su partido | publicado |
+| `match_operations.open/update_draft/submit` | ✓ | ✓ | — | — | — |
+| `match_operations.review/validate/make_official` | ✓ | ✓ | — | — | — |
+| `match_operations.request_correction/correct/void` | ✓ | ✓ | — | — | — |
+| `match_squads.read` | ✓ | ✓ | ✓ | su equipo | propia publicación |
+| `match_squads.manage/submit` | ✓ | ✓ | — | su equipo | — |
+| `match_availability.read` | ✓ | ✓ | ✓ | su equipo | propia |
+| `match_availability.respond_self` | — | — | — | si es jugador | propia |
+| `match_availability.record_manual` | ✓ | ✓ | — | su equipo | — |
+| `match_events.read` | ✓ | ✓ | ✓ | su partido | oficial |
+| `match_events.create/void` | ✓ | ✓ | — | — | — |
+| `match_outcomes/scores/administrative_results.manage` | ✓ | ✓ | — | — | — |
+
+Captain/delegate y jugador se autorizan por relación en cada RPC; no reciben
+membership ni capabilities organizacionales. El usuario que presenta un acta
+no puede validarla.
