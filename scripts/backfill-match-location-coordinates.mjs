@@ -9,10 +9,8 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 const SHOW_HELP = process.argv.includes('--help') || process.argv.includes('-h');
 const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL;
 const SUPABASE_READ_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
-  || process.env.REACT_APP_SUPABASE_SERVICE_ROLE_KEY
   || process.env.REACT_APP_SUPABASE_ANON_KEY;
-const SUPABASE_WRITE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
-  || process.env.REACT_APP_SUPABASE_SERVICE_ROLE_KEY;
+const SUPABASE_WRITE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const GOOGLE_MAPS_API_KEY = process.env.REACT_APP_GOOGLE_MAPS_API_KEY || '';
 const APPLY = process.argv.includes('--apply');
 const EMIT_SQL = process.argv.includes('--emit-sql');

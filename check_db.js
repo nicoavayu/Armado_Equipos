@@ -1,15 +1,19 @@
-
 const { createClient } = require('@supabase/supabase-js');
 
-async function check() {
-    const supabaseUrl = 'https://rcyuuoaqfwcembdajcss.supabase.co';
-    const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJjeXV1b2FxZndjZW1iZGFqY3NzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEzMTcwNzUsImV4cCI6MjA2Njg5MzA3NX0.X0Kv_k7VA3SgxquAC1LOwzMwZuzeKtN3W4BOl_AIsRs';
+const supabaseUrl = process.env.CHECK_DB_SUPABASE_URL;
+const supabaseAnonKey = process.env.CHECK_DB_SUPABASE_ANON_KEY;
+const partidoId = Number(process.env.CHECK_DB_PARTIDO_ID);
 
+if (!supabaseUrl || !supabaseAnonKey || !Number.isSafeInteger(partidoId) || partidoId <= 0) {
+    throw new Error(
+        'Missing CHECK_DB_SUPABASE_URL, CHECK_DB_SUPABASE_ANON_KEY, or a valid CHECK_DB_PARTIDO_ID'
+    );
+}
+
+async function check() {
     const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-    const partidoId = 268;
-
-    console.log('--- Checking Match 268 ---');
+    console.log(`--- Checking Match ${partidoId} ---`);
 
     const { data: v } = await supabase.from('votos').select('*').eq('partido_id', partidoId);
     console.log('Votos Table count:', v?.length);
@@ -23,7 +27,7 @@ async function check() {
     console.log('Public Voters Table:', pv);
 
     const { data: j } = await supabase.from('jugadores').select('*').eq('partido_id', partidoId);
-    console.log('Jugadores Table (Total 8):', j.map(p => ({ id: p.id, uuid: p.uuid, nombre: p.nombre, usuario_id: p.usuario_id })));
+    console.log('Jugadores:', j?.map(p => ({ id: p.id, uuid: p.uuid, nombre: p.nombre, usuario_id: p.usuario_id })));
 }
 
 check();
