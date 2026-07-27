@@ -11,6 +11,8 @@ describe('Arma2 Torneos feature flags', () => {
       REACT_APP_TORNEOS_ENABLED: 'true',
       REACT_APP_TORNEOS_WORKSPACES_ENABLED: 'true',
       REACT_APP_TORNEOS_PUBLIC_PAGES_ENABLED: 'true',
+      REACT_APP_TORNEOS_MEDIA_ENABLED: 'true',
+      REACT_APP_TORNEOS_MEDIA_UPLOAD_ENABLED: 'true',
       REACT_APP_TORNEOS_DATA_ENV: 'local',
       REACT_APP_SUPABASE_URL: 'http://127.0.0.1:54321',
     });
@@ -20,6 +22,9 @@ describe('Arma2 Torneos feature flags', () => {
     expect(flags.torneosEnabled).toBe(false);
     expect(flags.workspacesEnabled).toBe(false);
     expect(flags.publicPages).toBe(false);
+    expect(flags.mediaEnabled).toBe(false);
+    expect(flags.mediaUploadEnabled).toBe(false);
+    expect(flags.mediaOperationalReady).toBe(false);
   });
 
   test('requires a literal opt-in in a known non-production environment', () => {
@@ -132,5 +137,56 @@ describe('Arma2 Torneos feature flags', () => {
         REACT_APP_SUPABASE_URL: supabaseUrl,
       }).isIsolatedBackend).toBe(false);
     });
+  });
+
+  test('keeps media upload fail-closed until every operational gate is explicit', () => {
+    const base = {
+      NODE_ENV: 'production',
+      REACT_APP_DEPLOY_ENV: 'staging',
+      REACT_APP_TORNEOS_DATA_ENV: 'staging',
+      REACT_APP_TORNEOS_STAGING_PROJECT_REF: 'stagingref123',
+      REACT_APP_SUPABASE_URL: 'https://stagingref123.supabase.co',
+      REACT_APP_TORNEOS_ENABLED: 'true',
+      REACT_APP_TORNEOS_MEDIA_ENABLED: 'true',
+      REACT_APP_TORNEOS_MEDIA_UPLOAD_ENABLED: 'true',
+    };
+
+    expect(resolveTorneosFeatureFlags(base).mediaEnabled).toBe(true);
+    expect(resolveTorneosFeatureFlags(base).mediaUploadEnabled).toBe(false);
+    expect(resolveTorneosFeatureFlags(base).mediaOperationalReady).toBe(false);
+
+    const ready = resolveTorneosFeatureFlags({
+      ...base,
+      REACT_APP_TORNEOS_MEDIA_SIGNER_READY: 'true',
+      REACT_APP_TORNEOS_MEDIA_WORKER_READY: 'true',
+      REACT_APP_TORNEOS_MEDIA_AV_READY: 'true',
+      REACT_APP_TORNEOS_MEDIA_CLEANUP_READY: 'true',
+      REACT_APP_TORNEOS_MEDIA_OBSERVABILITY_READY: 'true',
+    });
+    expect(ready.mediaOperationalReady).toBe(true);
+    expect(ready.mediaUploadEnabled).toBe(true);
+  });
+
+  test('media cannot bypass the parent Torneos or gallery flags', () => {
+    const base = {
+      NODE_ENV: 'test',
+      REACT_APP_TORNEOS_DATA_ENV: 'local',
+      REACT_APP_SUPABASE_URL: 'http://localhost:54321',
+      REACT_APP_TORNEOS_MEDIA_ENABLED: 'true',
+      REACT_APP_TORNEOS_MEDIA_UPLOAD_ENABLED: 'true',
+      REACT_APP_TORNEOS_MEDIA_SIGNER_READY: 'true',
+      REACT_APP_TORNEOS_MEDIA_WORKER_READY: 'true',
+      REACT_APP_TORNEOS_MEDIA_AV_READY: 'true',
+      REACT_APP_TORNEOS_MEDIA_CLEANUP_READY: 'true',
+      REACT_APP_TORNEOS_MEDIA_OBSERVABILITY_READY: 'true',
+    };
+
+    expect(resolveTorneosFeatureFlags(base).mediaEnabled).toBe(false);
+    expect(resolveTorneosFeatureFlags(base).mediaUploadEnabled).toBe(false);
+    expect(resolveTorneosFeatureFlags({
+      ...base,
+      REACT_APP_TORNEOS_ENABLED: 'true',
+      REACT_APP_TORNEOS_MEDIA_ENABLED: 'false',
+    }).mediaUploadEnabled).toBe(false);
   });
 });

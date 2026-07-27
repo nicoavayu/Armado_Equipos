@@ -399,7 +399,7 @@ function squadPayload(playerIds) {
   }));
 }
 
-async function exerciseOperationalFlow(admin, scope) {
+export async function exerciseOperationalFlow(admin, scope) {
   const playerHome = await connect({ role: 'authenticated', userId: USERS.playerHome });
   const playerAway = await connect({ role: 'authenticated', userId: USERS.playerAway });
   const captainHome = await connect({ role: 'authenticated', userId: USERS.captainHome });

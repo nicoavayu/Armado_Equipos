@@ -18,8 +18,18 @@ const FLAG_ENV_KEYS = {
   notifications: 'REACT_APP_TORNEOS_NOTIFICATIONS_ENABLED',
   officialStats: 'REACT_APP_TORNEOS_OFFICIAL_STATS_ENABLED',
   publicPages: 'REACT_APP_TORNEOS_PUBLIC_PAGES_ENABLED',
+  mediaEnabled: 'REACT_APP_TORNEOS_MEDIA_ENABLED',
+  mediaUploadEnabled: 'REACT_APP_TORNEOS_MEDIA_UPLOAD_ENABLED',
   socialContentGenerator: 'REACT_APP_TORNEOS_SOCIAL_GENERATOR_ENABLED',
 };
+
+const MEDIA_UPLOAD_READINESS_ENV_KEYS = [
+  'REACT_APP_TORNEOS_MEDIA_SIGNER_READY',
+  'REACT_APP_TORNEOS_MEDIA_WORKER_READY',
+  'REACT_APP_TORNEOS_MEDIA_AV_READY',
+  'REACT_APP_TORNEOS_MEDIA_CLEANUP_READY',
+  'REACT_APP_TORNEOS_MEDIA_OBSERVABILITY_READY',
+];
 
 export function resolveDeployEnvironment(env = {}) {
   const explicitEnvironment = String(env.REACT_APP_DEPLOY_ENV || '')
@@ -94,9 +104,22 @@ export function resolveTorneosFeatureFlags(env = {}) {
       canEnableTorneos && env[environmentKey] === ENABLED_VALUE,
     ]),
   );
+  const mediaOperationalReady = (
+    canEnableTorneos
+    && MEDIA_UPLOAD_READINESS_ENV_KEYS.every(
+      (environmentKey) => env[environmentKey] === ENABLED_VALUE,
+    )
+  );
+  flags.mediaEnabled = flags.torneosEnabled && flags.mediaEnabled;
+  flags.mediaUploadEnabled = (
+    flags.mediaEnabled
+    && flags.mediaUploadEnabled
+    && mediaOperationalReady
+  );
 
   return {
     ...flags,
+    mediaOperationalReady,
     deployEnvironment,
     isNonProduction,
     ...backendIsolation,
