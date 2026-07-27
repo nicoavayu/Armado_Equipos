@@ -99,3 +99,12 @@ hermanas a los workspaces organizacionales. `TournamentHubPage` compone una
 única experiencia por capabilities y relaciones autoritativas, mientras que
 RPCs específicos agregan datos publicados y contexto propio sin consultas N+1.
 La preferencia de categoría vive en PostgreSQL; URL y estado React son hints.
+
+## Comunicaciones institucionales
+
+El dominio separa comunicados, audiencias, entregas internas, documentos
+versionados, confirmaciones y preferencias. Publicar resuelve y deduplica
+relaciones actuales dentro de PostgreSQL; la entrega no concede autorización
+permanente. El inbox personal, Novedades del Hub y el compositor organizativo
+consumen RPCs allowlisted. No existe integración con push, email, cron o
+Storage.

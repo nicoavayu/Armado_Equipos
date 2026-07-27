@@ -101,3 +101,8 @@ Seguridad, performance, accesibilidad, móviles físicos, torneo completo, runbo
 ## Calidad por fase
 
 Unit, integración, permisos/RLS, rutas, responsive, lint, build, suite relevante y `git diff --check`. Typecheck se reporta como no disponible mientras el frontend siga en JavaScript, salvo que la fase introduzca una herramienta formal.
+
+La primera capa de comunicaciones internas ya modela comunicados, documentos,
+audiencias y entregas sin conectar canales productivos. Push/email, publicación
+automática y compatibilidad con notificaciones existentes siguen bloqueados
+hasta una auditoría específica.

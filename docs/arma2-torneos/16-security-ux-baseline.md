@@ -156,3 +156,10 @@ autoritativa. Una carrera o error limpia el contexto anterior; el roster
 publicable omite avatar sin consentimiento; los controles tienen 44 px, foco
 visible, reducción de movimiento y los datos tabulares conservan Posición,
 Equipo, PJ, DG y Puntos en móvil.
+
+Comunicaciones agrega inbox priorizado, detalle legible, documentos,
+preferencias y compositor de seis pasos. Urgencia combina icono, copy y borde;
+la confirmación evita lenguaje de aceptación legal. Preview muestra canal,
+torneo, criterio y cantidad estimada, pero avisa que el backend revalida al
+publicar. Los layouts pasan a una columna, mantienen targets de 44 px, foco
+visible y reduced motion; los pasos sólo usan scroll local en móvil.

@@ -84,3 +84,9 @@ y capitanes, pero tampoco cambia ese estado: faltan validación multirol en
 staging, performance con volumen real, accesibilidad manual, dispositivos
 físicos, soporte operativo y rollout autorizado. Producción continúa con flags
 apagadas.
+
+Comunicados y documentos agregan un inbox interno aislado, publicación atómica,
+historial y confirmaciones de lectura. Tampoco habilitan lanzamiento: faltan
+staging autenticado multirol, validación legal, observabilidad, moderación,
+canales externos autorizados y pruebas en dispositivos físicos. No hay cron,
+push, email, Storage ni integración con notificaciones productivas.

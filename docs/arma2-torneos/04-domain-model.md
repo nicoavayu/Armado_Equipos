@@ -164,3 +164,12 @@ entidades tenant-scoped. La identidad con cuenta es `auth.users.id`;
 última categoría autorizada. No otorga acceso: cada lectura vuelve a comprobar
 membership organizacional, manager o roster activo. Su RLS no concede acceso
 directo y sólo los RPCs específicos pueden leerla o modificarla.
+
+## Comunicación oficial
+
+`tournament_announcements` versiona el contenido; sus audiencias son criterios
+estructurados y `tournament_announcement_deliveries` congela una entrega
+deduplicada. `tournament_documents` mantiene identidad y versión activa,
+`tournament_document_versions` conserva historia inmutable y los
+acknowledgements pertenecen a una versión. Las preferencias personales nunca
+son una frontera de autorización. Ver [19-communications.md](19-communications.md).

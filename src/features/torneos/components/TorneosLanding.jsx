@@ -2,6 +2,7 @@ import React from 'react';
 import {
   ArrowLeft,
   ArrowRight,
+  Bell,
   Building2,
   CalendarRange,
   Plus,
@@ -62,6 +63,10 @@ export default function TorneosLanding() {
           <Link className={styles.primaryButton} to="/torneos/mis-torneos">
             <CalendarRange size={18} aria-hidden="true" />
             Ver mis torneos
+          </Link>
+          <Link className={styles.secondaryButton} to="/torneos/comunicados">
+            <Bell size={18} aria-hidden="true" />
+            Comunicados
           </Link>
           <Link className={styles.primaryButton} to="/torneos/nueva-organizacion">
             <Plus size={18} aria-hidden="true" />

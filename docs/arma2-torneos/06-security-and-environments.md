@@ -136,3 +136,17 @@ rival, drafts, avatares sin consentimiento y fingerprints. Tabla y estadísticas
 usan contratos participantes distintos de los contratos administrativos. Los
 listados tienen límites máximos e índices por scope. No se agregaron canales
 públicos, Storage ni ejecución remota.
+
+## Hardening de comunicaciones
+
+Ocho tablas tienen RLS y cero grants directos de cliente. Mutaciones y lecturas
+son RPC-only con `auth.uid()`, `search_path = ''`, schemas explícitos, revokes y
+grants mínimos. Las audiencias no aceptan arrays arbitrarios: se resuelven desde
+memberships, managers, rosters y fixture publicado. Publicar usa row lock,
+advisory lock, rate limit, máximo de destinatarios, snapshot, deduplicación,
+idempotencia y auditoría en una transacción.
+
+Inbox y detalle revalidan una relación actual además de la entrega. Publicados
+y versiones documentales son inmutables; corregir supersede y revocar conserva
+historia. HTML, esquemas inseguros y enlaces cross-tenant se rechazan. Push,
+email, cron, Edge Functions y Storage permanecen inexistentes.
