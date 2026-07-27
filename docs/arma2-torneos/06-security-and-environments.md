@@ -128,9 +128,11 @@ publicados por relación. No se ejecutaron migraciones cloud.
 
 ## Hardening del Participant Hub
 
-El navegador sólo consume seis RPCs allowlisted. Todos derivan identidad de
+El navegador sólo consume ocho RPCs allowlisted. Todos derivan identidad de
 `auth.uid()`, fijan `search_path = ''`, revocan `PUBLIC` y revalidan torneo,
 categoría, inscripción y relación activa. Los payloads separan contexto propio
 de información publicada y excluyen notas, actores, auditoría, disponibilidad
-rival, drafts y fingerprints. Los listados tienen límites máximos e índices por
-scope. No se agregaron canales públicos, Storage ni ejecución remota.
+rival, drafts, avatares sin consentimiento y fingerprints. Tabla y estadísticas
+usan contratos participantes distintos de los contratos administrativos. Los
+listados tienen límites máximos e índices por scope. No se agregaron canales
+públicos, Storage ni ejecución remota.

@@ -3,7 +3,7 @@
 ## Objetivo y alcance
 
 El Participant Hub es la experiencia web autenticada para jugadores, capitanes,
-delegados, asistentes y miembros activos de una organización. Reúne competencias
+delegados y miembros activos de una organización. Reúne competencias
 relacionadas en `/torneos/mis-torneos` y ofrece un centro unificado por torneo en
 `/torneos/torneo/:tournamentId`.
 
@@ -33,8 +33,9 @@ persiste en backend y se revalida en cada carga; el query string no autoriza.
 `can_read_tournament_participant_hub` permite acceso únicamente a:
 
 - miembro activo de la organización;
-- manager activo de una inscripción aprobada; o
-- jugador Arma2 activo de un roster aprobado.
+- capitán o delegado activo de una inscripción aprobada; o
+- jugador Arma2, o provisional ya vinculado, activo en el roster aprobado o
+  bloqueado vigente.
 
 La relación y la categoría se revalidan en PostgreSQL en cada RPC. Usuario
 eliminado, manager suspendido, inscripción no aprobada, categoría ajena,
@@ -42,8 +43,9 @@ UUID inválido, sesión vencida y anónimo fallan cerrados. Un torneo
 completado/archivado permanece disponible sólo como historial de lectura.
 
 Los RPCs SECURITY DEFINER tienen `search_path = ''`, grants mínimos y no aceptan
-`user_id` del cliente. No devuelven notas internas, disponibilidad rival,
-actores, auditoría, fingerprints, drafts ni perfiles privados. El directorio de
+`user_id` ni `organization_id` como autoridad enviada por el cliente. No
+devuelven notas internas, disponibilidad rival, actores, auditoría,
+fingerprints, drafts ni perfiles privados. El directorio de
 equipos publica únicamente nombre, dorsal, posición y condición de arquero; no
 publica avatar porque el dominio actual no registra consentimiento específico.
 
@@ -56,26 +58,32 @@ La migración `20260726230000_tournament_participant_hub.sql` agrega:
 - `set_my_tournament_hub_category(tournament, category)`;
 - `get_published_tournament_matches(...)`;
 - `get_tournament_participant_match(match)`;
-- `get_published_tournament_teams(...)`.
+- `get_published_tournament_teams(...)`;
+- `get_published_tournament_standings(...)`; y
+- `get_published_tournament_statistics(...)`.
 
 El resumen limita próximos partidos, resultados, tabla y goleadores. Partidos,
 equipos y membresías tienen paginación acotada. Cada RPC compone un payload
 específico para evitar N+1 y evita entregar filas base amplias al navegador.
-Tabla, estadísticas y disciplina consumen exclusivamente la revisión publicada;
-si sólo existe draft se muestra vacío.
+Tabla, estadísticas y disciplina usan contratos participantes propios y
+consumen exclusivamente la revisión publicada, incluso para owner o admin; si
+sólo existe draft se muestra vacío. Estos contratos omiten avatares,
+fingerprints, motivos de recálculo, trazas y campos de administración.
 
 ## Estados por rol
 
 - Jugador: próximo partido, disponibilidad propia, convocatoria publicada,
   estadísticas propias, equipo, sanciones y alertas propias.
-- Capitán/delegado/asistente: lo anterior más acceso a su flujo existente de
+- Capitán/delegado: lo anterior más acceso a su flujo existente de
   convocatoria y conteos agregados de disponibilidad de su equipo.
 - Owner/admin/collaborator: lectura transversal de categorías autorizadas; el
   enlace al gestor sólo aparece con capability `tournaments.update`.
 
 Un usuario con varios roles usa el mismo componente y recibe la composición de
-capacidades calculada en servidor. No existen variantes visuales que amplíen
-permisos por sí mismas.
+capacidades calculada en servidor. La portada prioriza respuestas y convocatoria
+para capitán/delegado, alertas y acceso operativo para organizadores, y contexto
+personal para jugadores. No existen variantes visuales que amplíen permisos por
+sí mismas.
 
 ## UX, accesibilidad y responsive
 
@@ -93,18 +101,20 @@ Puntos; G/E/P se ocultan debajo de 680 px.
 ## Performance e índices
 
 Las consultas parten de scope compuesto e índices sobre fixture/estado/fecha.
-La migración agrega índices para roster activo por usuario, feed de partidos por
-fixture y preferencia por categoría. Los límites máximos son 50 partidos, 50
-membresías y 32 equipos por llamada. No se agregan Storage, sockets, jobs ni
-consultas por tarjeta.
+La migración agrega índices para roster activo por usuario Arma2, identidad
+provisional vinculada, feed de partidos por fixture y cascadas de preferencia
+por categoría. Los límites máximos son 50 partidos, 50 membresías y 32 equipos
+por llamada. No se agregan Storage, sockets, jobs ni consultas por tarjeta.
 
 ## Pruebas y rollout
 
 `torneos-participant-hub.mjs` ensaya migraciones desde cero y cubre grants, RLS,
-anónimo, roles relacionales, categorías cruzadas, borradores, archivo, remoción,
-suspensión y ausencia de datos privados. Jest cubre contratos de servicio,
-estados personales, jugador, capitán/admin, carreras, error, responsive y
-accesibilidad estructural.
+anónimo, roles relacionales, categoría cruzada, deduplicación multirrol,
+identidad provisional vinculada, roster superseded, convocatoria draft,
+proyecciones draft, archivo, remoción, suspensión y ausencia de datos privados.
+Jest cubre contratos de servicio, endpoints publicados, estados personales,
+jugador, capitán/admin, respuestas tardías, error, responsive y accesibilidad
+estructural.
 
 No se ejecutan migraciones remotas ni deploys. La experiencia permanece detrás
 de las flags existentes de Torneos, apagadas en producción. El rollout futuro
