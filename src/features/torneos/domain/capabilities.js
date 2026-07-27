@@ -130,6 +130,19 @@ export const TOURNAMENT_CAPABILITIES = Object.freeze({
   SUSPENSIONS_READ: 'suspensions.read',
   SUSPENSIONS_MANAGE: 'suspensions.manage',
   SUSPENSIONS_MARK_SERVED: 'suspensions.mark_served',
+  MEDIA_READ: 'media.read',
+  MEDIA_CREATE_GALLERY: 'media.create_gallery',
+  MEDIA_UPDATE_GALLERY: 'media.update_gallery',
+  MEDIA_UPLOAD: 'media.upload',
+  MEDIA_REVIEW: 'media.review',
+  MEDIA_PUBLISH: 'media.publish',
+  MEDIA_ARCHIVE: 'media.archive',
+  MEDIA_REVOKE: 'media.revoke',
+  MEDIA_SET_COVER: 'media.set_cover',
+  MEDIA_TAG_TEAM: 'media.tag_team',
+  MEDIA_TAG_PLAYER: 'media.tag_player',
+  MEDIA_MANAGE_CONSENT: 'media.manage_consent',
+  MEDIA_HANDLE_REPORTS: 'media.handle_reports',
 });
 
 const commonMemberCapabilities = [
@@ -280,6 +293,25 @@ const projectionManagementCapabilities = [
   TOURNAMENT_CAPABILITIES.SUSPENSIONS_MARK_SERVED,
 ];
 
+const mediaReadCapabilities = [
+  TOURNAMENT_CAPABILITIES.MEDIA_READ,
+];
+
+const mediaManagementCapabilities = [
+  TOURNAMENT_CAPABILITIES.MEDIA_CREATE_GALLERY,
+  TOURNAMENT_CAPABILITIES.MEDIA_UPDATE_GALLERY,
+  TOURNAMENT_CAPABILITIES.MEDIA_UPLOAD,
+  TOURNAMENT_CAPABILITIES.MEDIA_REVIEW,
+  TOURNAMENT_CAPABILITIES.MEDIA_PUBLISH,
+  TOURNAMENT_CAPABILITIES.MEDIA_ARCHIVE,
+  TOURNAMENT_CAPABILITIES.MEDIA_REVOKE,
+  TOURNAMENT_CAPABILITIES.MEDIA_SET_COVER,
+  TOURNAMENT_CAPABILITIES.MEDIA_TAG_TEAM,
+  TOURNAMENT_CAPABILITIES.MEDIA_TAG_PLAYER,
+  TOURNAMENT_CAPABILITIES.MEDIA_MANAGE_CONSENT,
+  TOURNAMENT_CAPABILITIES.MEDIA_HANDLE_REPORTS,
+];
+
 export const ROLE_CAPABILITIES = Object.freeze({
   [TOURNAMENT_ROLES.OWNER]: Object.freeze([
     ...commonMemberCapabilities,
@@ -298,6 +330,8 @@ export const ROLE_CAPABILITIES = Object.freeze({
     ...matchManagementCapabilities,
     ...projectionReadCapabilities,
     ...projectionManagementCapabilities,
+    ...mediaReadCapabilities,
+    ...mediaManagementCapabilities,
   ]),
   [TOURNAMENT_ROLES.ADMIN]: Object.freeze([
     ...commonMemberCapabilities,
@@ -315,6 +349,8 @@ export const ROLE_CAPABILITIES = Object.freeze({
     ...matchManagementCapabilities,
     ...projectionReadCapabilities,
     ...projectionManagementCapabilities,
+    ...mediaReadCapabilities,
+    ...mediaManagementCapabilities,
   ]),
   [TOURNAMENT_ROLES.COLLABORATOR]: Object.freeze([
     ...commonMemberCapabilities,
@@ -322,6 +358,7 @@ export const ROLE_CAPABILITIES = Object.freeze({
     ...fixtureReadCapabilities,
     ...matchReadCapabilities,
     ...projectionReadCapabilities,
+    ...mediaReadCapabilities,
   ]),
 });
 
