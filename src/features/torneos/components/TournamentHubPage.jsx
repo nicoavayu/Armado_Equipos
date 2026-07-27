@@ -9,6 +9,7 @@ import {
   ArrowLeft,
   ArrowRight,
   BarChart3,
+  Bell,
   CalendarDays,
   Check,
   ChevronRight,
@@ -33,9 +34,11 @@ import {
 } from 'react-router-dom';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
 import styles from './ParticipantHub.module.css';
+import TournamentCommunicationsPanel from './TournamentCommunicationsPanel';
 
 const SECTIONS = [
   ['resumen', 'Resumen', Sparkles],
+  ['novedades', 'Novedades', Bell],
   ['partidos', 'Partidos', CalendarDays],
   ['tabla', 'Tabla', Trophy],
   ['estadisticas', 'Estadísticas', BarChart3],
@@ -873,6 +876,13 @@ export default function TournamentHubPage({ defaultSection = 'resumen', matchMod
           categoryId={categoryId}
           busyMatchId={busyMatchId}
           onRespond={respond}
+        />
+      )}
+      {!matchMode && section === 'novedades' && (
+        <TournamentCommunicationsPanel
+          tournamentId={tournamentId}
+          categoryId={categoryId}
+          service={service}
         />
       )}
       {!matchMode && section === 'partidos' && resourceState.status === 'ready' && (

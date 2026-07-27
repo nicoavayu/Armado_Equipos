@@ -1,0 +1,493 @@
+.communicationPanel,
+.detailCard,
+.preferencesCard {
+  color: #f7f5ff;
+}
+
+.panelHeader,
+.detailTopline,
+.detailFooter,
+.documentAction {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.panelHeader {
+  margin-bottom: 20px;
+}
+
+.panelHeader h2,
+.detailCard h2,
+.preferencesCard h2 {
+  margin: 3px 0 6px;
+  font-size: clamp(1.55rem, 3vw, 2.35rem);
+  letter-spacing: -0.035em;
+}
+
+.panelHeader p,
+.preferencesCard p {
+  margin: 0;
+  color: #b9b1d1;
+}
+
+.eyebrow {
+  margin: 0;
+  color: #9e8aff;
+  font-size: 0.73rem;
+  font-weight: 800;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.unreadCount,
+.detailTopline span,
+.updatedChip,
+.unreadDot {
+  border: 1px solid rgba(158, 138, 255, 0.38);
+  border-radius: 999px;
+  background: rgba(116, 84, 231, 0.14);
+  color: #d9d0ff;
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 7px 10px;
+}
+
+.sectionTabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 5px;
+  margin-bottom: 18px;
+  border: 1px solid rgba(160, 143, 222, 0.19);
+  border-radius: 16px;
+  background: rgba(12, 8, 29, 0.7);
+}
+
+.sectionTabs button,
+.detailTopline button,
+.detailFooter button,
+.documentAction button,
+.preferencesCard button,
+.stateCard button {
+  min-height: 44px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  color: #c9c1dd;
+  background: transparent;
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.sectionTabs button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.sectionTabs button[aria-selected='true'] {
+  border-color: rgba(158, 138, 255, 0.36);
+  color: #fff;
+  background: rgba(113, 78, 239, 0.2);
+}
+
+.newsList,
+.documentGrid {
+  display: grid;
+  gap: 11px;
+}
+
+.newsCard {
+  position: relative;
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) auto;
+  gap: 14px;
+  width: 100%;
+  min-height: 88px;
+  padding: 17px;
+  border: 1px solid rgba(158, 138, 255, 0.17);
+  border-radius: 18px;
+  text-align: left;
+  color: #f6f3ff;
+  background: linear-gradient(145deg, rgba(28, 20, 55, 0.88), rgba(13, 9, 29, 0.9));
+  cursor: pointer;
+}
+
+.newsCard[data-unread='true'] {
+  border-color: rgba(126, 94, 255, 0.54);
+  box-shadow: inset 3px 0 0 #8e72ff;
+}
+
+.newsCard[data-priority='urgent'] {
+  border-color: rgba(255, 129, 138, 0.46);
+}
+
+.newsIcon,
+.documentIcon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  color: #b9a9ff;
+  background: rgba(130, 94, 255, 0.16);
+}
+
+.newsCard[data-priority='urgent'] .newsIcon {
+  color: #ffadb5;
+  background: rgba(223, 67, 83, 0.16);
+}
+
+.newsCopy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.newsCopy small,
+.newsCopy time,
+.documentCard small {
+  color: #968dad;
+  font-size: 0.75rem;
+}
+
+.newsCopy strong {
+  overflow: hidden;
+  font-size: 1rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.newsCopy > span {
+  overflow: hidden;
+  color: #beb6d0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.unreadDot,
+.updatedChip {
+  align-self: start;
+  padding: 5px 8px;
+  font-size: 0.68rem;
+}
+
+.updatedChip {
+  position: absolute;
+  right: 15px;
+  bottom: 14px;
+  color: #8ff0c3;
+  border-color: rgba(83, 224, 159, 0.35);
+  background: rgba(43, 171, 113, 0.12);
+}
+
+.detailCard,
+.preferencesCard,
+.documentCard,
+.stateCard {
+  border: 1px solid rgba(158, 138, 255, 0.2);
+  border-radius: 22px;
+  background: linear-gradient(150deg, rgba(28, 19, 57, 0.94), rgba(12, 8, 27, 0.96));
+  box-shadow: 0 22px 70px rgba(3, 1, 12, 0.25);
+}
+
+.detailCard {
+  padding: clamp(18px, 4vw, 36px);
+}
+
+.detailTopline button {
+  padding: 0 14px;
+  border-color: rgba(158, 138, 255, 0.22);
+}
+
+.detailTopline span[data-priority='urgent'] {
+  border-color: rgba(255, 123, 134, 0.42);
+  color: #ffb4bc;
+  background: rgba(205, 52, 70, 0.14);
+}
+
+.summary {
+  max-width: 760px;
+  margin: 10px 0 24px;
+  color: #c9c1da;
+  font-size: 1.08rem;
+  line-height: 1.55;
+}
+
+.bodyCopy {
+  max-width: 780px;
+  color: #ece8f6;
+  font-size: 1rem;
+  line-height: 1.75;
+}
+
+.bodyCopy p {
+  white-space: pre-wrap;
+}
+
+.withdrawnNotice,
+.updatedNotice {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 12px 14px;
+  margin: 15px 0;
+  border-radius: 13px;
+  color: #ffc0c6;
+  background: rgba(191, 50, 65, 0.14);
+}
+
+.updatedNotice {
+  color: #b9ffd9;
+  background: rgba(40, 157, 103, 0.14);
+}
+
+.relatedLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin: 24px 0;
+}
+
+.relatedLinks a,
+.relatedLinks span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 0 13px;
+  border: 1px solid rgba(158, 138, 255, 0.26);
+  border-radius: 12px;
+  color: #ddd5ff;
+  text-decoration: none;
+  background: rgba(124, 88, 246, 0.1);
+}
+
+.relatedLinks small {
+  color: #9e94b5;
+}
+
+.detailFooter {
+  flex-wrap: wrap;
+  padding-top: 20px;
+  margin-top: 24px;
+  border-top: 1px solid rgba(158, 138, 255, 0.14);
+}
+
+.detailFooter > span,
+.documentAction span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #a9a0bd;
+}
+
+.detailFooter button,
+.documentAction button,
+.preferencesCard > button,
+.stateCard button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 16px;
+  color: #fff;
+  background: #7653e8;
+}
+
+.legalNote {
+  color: #8e859f;
+  font-size: 0.77rem;
+}
+
+.documentCard {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) auto;
+  gap: 15px;
+  padding: 19px;
+}
+
+.documentCard h3 {
+  margin: 3px 0 6px;
+}
+
+.documentCard p {
+  margin: 0 0 10px;
+  color: #bcb4cc;
+}
+
+.documentBody {
+  overflow: hidden;
+  max-height: 7.2em;
+  margin: 12px 0;
+  color: #ddd7e9;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.preferencesCard {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.8fr);
+  gap: 28px;
+  padding: clamp(20px, 4vw, 34px);
+}
+
+.preferenceList {
+  display: grid;
+  gap: 8px;
+}
+
+.preferenceList label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 48px;
+  padding: 0 13px;
+  border: 1px solid rgba(158, 138, 255, 0.16);
+  border-radius: 13px;
+  color: #d8d1e3;
+  background: rgba(10, 7, 25, 0.45);
+}
+
+.preferenceList input {
+  width: 22px;
+  height: 22px;
+  accent-color: #8363ee;
+}
+
+.preferencesCard > button {
+  grid-column: 2;
+}
+
+.stateCard {
+  display: grid;
+  justify-items: start;
+  padding: 28px;
+}
+
+.stateCard h2 {
+  margin: 12px 0 5px;
+}
+
+.stateCard p {
+  margin: 0 0 16px;
+  color: #aca4bd;
+}
+
+.skeletonGrid {
+  display: grid;
+  gap: 12px;
+}
+
+.skeletonGrid span {
+  display: block;
+  min-height: 92px;
+  border-radius: 18px;
+  background: linear-gradient(
+    100deg,
+    rgba(88, 68, 135, 0.12) 20%,
+    rgba(142, 112, 218, 0.24) 45%,
+    rgba(88, 68, 135, 0.12) 70%
+  );
+  background-size: 240% 100%;
+  animation: communications-shimmer 1.35s ease infinite;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible {
+  outline: 3px solid #b7a8ff;
+  outline-offset: 3px;
+}
+
+button:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+@media (hover: hover) {
+  .newsCard:hover,
+  .sectionTabs button:hover,
+  .detailTopline button:hover {
+    border-color: rgba(175, 154, 255, 0.52);
+    transform: translateY(-1px);
+  }
+}
+
+@media (max-width: 720px) {
+  .panelHeader,
+  .detailFooter {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .newsCard {
+    grid-template-columns: 42px minmax(0, 1fr);
+    padding: 14px;
+  }
+
+  .newsCard > .unreadDot {
+    display: none;
+  }
+
+  .newsCopy strong,
+  .newsCopy > span {
+    white-space: normal;
+  }
+
+  .documentCard {
+    grid-template-columns: 44px minmax(0, 1fr);
+  }
+
+  .documentAction {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+
+  .preferencesCard {
+    grid-template-columns: 1fr;
+  }
+
+  .preferencesCard > button {
+    grid-column: 1;
+    width: 100%;
+  }
+}
+
+@media (max-width: 420px) {
+  .sectionTabs {
+    grid-template-columns: 1fr;
+  }
+
+  .sectionTabs button {
+    justify-content: flex-start;
+    padding: 0 14px;
+  }
+
+  .detailCard {
+    border-radius: 17px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeletonGrid span {
+    animation: none;
+  }
+
+  .newsCard,
+  .sectionTabs button,
+  .detailTopline button {
+    transition: none;
+  }
+}
+
+@keyframes communications-shimmer {
+  to {
+    background-position: -240% 0;
+  }
+}

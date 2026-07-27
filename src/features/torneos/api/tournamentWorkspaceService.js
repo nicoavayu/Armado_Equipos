@@ -115,6 +115,22 @@ const ERROR_MESSAGES = {
   TORNEOS_PLAYER_SUSPENDED: 'El jugador tiene una suspensión activa y no puede integrar la convocatoria.',
   TORNEOS_HUB_FORBIDDEN: 'Ese torneo ya no está disponible para tu perfil.',
   TORNEOS_HUB_INVALID_FILTER: 'El filtro de partidos no es válido.',
+  TORNEOS_COMMUNICATION_FORBIDDEN: 'Ese comunicado no está disponible para tu perfil.',
+  TORNEOS_DOCUMENT_FORBIDDEN: 'Ese documento no está disponible para tu perfil.',
+  TORNEOS_COMMUNICATION_IMMUTABLE: 'El comunicado publicado no puede editarse. Creá una actualización.',
+  TORNEOS_DOCUMENT_VERSION_IMMUTABLE: 'La versión publicada no puede editarse. Creá una nueva versión.',
+  TORNEOS_COMMUNICATION_NOT_PUBLISHABLE: 'Ese comunicado ya no se puede publicar.',
+  TORNEOS_COMMUNICATION_INVALID_FILTER: 'El filtro de novedades no es válido.',
+  TORNEOS_INVALID_AUDIENCE: 'La audiencia ya no pertenece a este torneo.',
+  TORNEOS_AUDIENCE_REQUIRED: 'Definí una audiencia antes de publicar.',
+  TORNEOS_AUDIENCE_EMPTY: 'La audiencia no tiene destinatarios activos.',
+  TORNEOS_AUDIENCE_LIMIT_REACHED: 'El comunicado alcanzó el máximo de audiencias.',
+  TORNEOS_RECIPIENT_LIMIT_REACHED: 'La audiencia supera el máximo permitido.',
+  TORNEOS_DRAFT_LIMIT_REACHED: 'Hay demasiados borradores abiertos en este espacio.',
+  TORNEOS_PUBLISH_RATE_LIMITED: 'Se publicaron muchos comunicados. Esperá antes de continuar.',
+  TORNEOS_LINK_LIMIT_REACHED: 'El comunicado alcanzó el máximo de enlaces.',
+  TORNEOS_INVALID_COMMUNICATION_LINK: 'El enlace no pertenece a este torneo o no es seguro.',
+  TORNEOS_DOCUMENT_DRAFT_EXISTS: 'Ya existe una versión borrador para este documento.',
 };
 
 export class TournamentWorkspaceError extends Error {
@@ -1219,6 +1235,190 @@ export async function loadPublishedTournamentStatistics({
   }), 'No pudimos cargar las estadísticas publicadas.');
 }
 
+export async function loadTournamentCommunicationsInbox({
+  tournamentId = null,
+  filter = 'all',
+  limit = 20,
+  offset = 0,
+} = {}) {
+  return unwrapRpc(await supabase.rpc('get_tournament_communications_inbox', {
+    p_tournament_id: tournamentId,
+    p_filter: filter,
+    p_limit: limit,
+    p_offset: offset,
+  }), 'No pudimos cargar las novedades.');
+}
+
+export async function loadTournamentAnnouncement(announcementId) {
+  return unwrapRpc(await supabase.rpc('get_tournament_announcement', {
+    p_announcement_id: announcementId,
+  }), 'No pudimos abrir el comunicado.');
+}
+
+export async function markTournamentAnnouncementRead({
+  announcementId,
+  confirm = false,
+}) {
+  return unwrapRpc(await supabase.rpc('mark_tournament_announcement_read', {
+    p_announcement_id: announcementId,
+    p_confirm: confirm,
+  }), 'No pudimos registrar la lectura.');
+}
+
+export async function loadTournamentNotificationPreferences(tournamentId) {
+  return unwrapRpc(await supabase.rpc('get_my_tournament_notification_preferences', {
+    p_tournament_id: tournamentId,
+  }), 'No pudimos cargar tus preferencias.');
+}
+
+export async function updateTournamentNotificationPreferences({
+  tournamentId,
+  general,
+  matchChanges,
+  callups,
+  discipline,
+  documents,
+  summaries,
+}) {
+  return unwrapRpc(await supabase.rpc('update_my_tournament_notification_preferences', {
+    p_tournament_id: tournamentId,
+    p_general: general,
+    p_match_changes: matchChanges,
+    p_callups: callups,
+    p_discipline: discipline,
+    p_documents: documents,
+    p_summaries: summaries,
+  }), 'No pudimos actualizar tus preferencias.');
+}
+
+export async function loadPublishedTournamentDocuments({
+  tournamentId,
+  categoryId = null,
+}) {
+  return unwrapRpc(await supabase.rpc('get_published_tournament_documents', {
+    p_tournament_id: tournamentId,
+    p_category_id: categoryId,
+  }), 'No pudimos cargar los documentos oficiales.');
+}
+
+export async function acknowledgeTournamentDocument({
+  versionId,
+  confirm = false,
+}) {
+  return unwrapRpc(await supabase.rpc('acknowledge_tournament_document', {
+    p_version_id: versionId,
+    p_confirm: confirm,
+  }), 'No pudimos registrar la lectura del documento.');
+}
+
+export async function loadTournamentCommunicationsAdminContext({
+  organizationId,
+  tournamentId = null,
+}) {
+  return unwrapRpc(await supabase.rpc('get_tournament_communications_admin_context', {
+    p_organization_id: organizationId,
+    p_tournament_id: tournamentId,
+  }), 'No pudimos cargar el centro de comunicaciones.');
+}
+
+export async function createTournamentAnnouncementDraft({
+  organizationId,
+  tournamentId,
+  categoryId = null,
+  type,
+  title,
+  summary,
+  body,
+  priority = 'normal',
+  acknowledgementMode = 'none',
+  scheduledFor = null,
+  supersedesId = null,
+  correctionReason = null,
+  idempotencyKey,
+}) {
+  return unwrapRpc(await supabase.rpc('create_tournament_announcement_draft', {
+    p_organization_id: organizationId,
+    p_tournament_id: tournamentId,
+    p_category_id: categoryId,
+    p_announcement_type: type,
+    p_title: title,
+    p_summary: summary,
+    p_body: body,
+    p_priority: priority,
+    p_acknowledgement_mode: acknowledgementMode,
+    p_scheduled_for: scheduledFor,
+    p_supersedes_id: supersedesId,
+    p_correction_reason: correctionReason,
+    p_idempotency_key: idempotencyKey,
+  }), 'No pudimos crear el borrador.');
+}
+
+export async function setTournamentAnnouncementAudience({
+  announcementId,
+  type,
+  categoryId = null,
+  teamEntryId = null,
+  matchId = null,
+  specificUserId = null,
+}) {
+  return unwrapRpc(await supabase.rpc('set_tournament_announcement_audience', {
+    p_announcement_id: announcementId,
+    p_audience_type: type,
+    p_category_id: categoryId,
+    p_team_entry_id: teamEntryId,
+    p_match_id: matchId,
+    p_specific_user_id: specificUserId,
+  }), 'No pudimos definir la audiencia.');
+}
+
+export async function previewTournamentAnnouncementAudience(announcementId) {
+  return unwrapRpc(await supabase.rpc('preview_tournament_announcement_audience', {
+    p_announcement_id: announcementId,
+  }), 'No pudimos previsualizar la audiencia.');
+}
+
+export async function publishTournamentAnnouncement({
+  announcementId,
+  expectedRecipientCount = null,
+}) {
+  return unwrapRpc(await supabase.rpc('publish_tournament_announcement', {
+    p_announcement_id: announcementId,
+    p_expected_recipient_count: expectedRecipientCount,
+  }), 'No pudimos publicar el comunicado.');
+}
+
+export async function createTournamentDocument({
+  organizationId,
+  tournamentId,
+  categoryId = null,
+  type,
+  title,
+  summary,
+  body,
+  acknowledgementMode = 'none',
+  effectiveAt = null,
+  idempotencyKey,
+}) {
+  return unwrapRpc(await supabase.rpc('create_tournament_document', {
+    p_organization_id: organizationId,
+    p_tournament_id: tournamentId,
+    p_category_id: categoryId,
+    p_document_type: type,
+    p_title: title,
+    p_summary: summary,
+    p_body: body,
+    p_acknowledgement_mode: acknowledgementMode,
+    p_effective_at: effectiveAt,
+    p_idempotency_key: idempotencyKey,
+  }), 'No pudimos crear el documento.');
+}
+
+export async function publishTournamentDocumentVersion(versionId) {
+  return unwrapRpc(await supabase.rpc('publish_tournament_document_version', {
+    p_version_id: versionId,
+  }), 'No pudimos publicar el documento.');
+}
+
 export const tournamentWorkspaceService = Object.freeze({
   loadContext: loadTournamentWorkspaceContext,
   createOrganization: createTournamentOrganization,
@@ -1314,5 +1514,19 @@ export const tournamentWorkspaceService = Object.freeze({
   loadPublishedTeams: loadPublishedTournamentTeams,
   loadPublishedStandings: loadPublishedTournamentStandings,
   loadPublishedStatistics: loadPublishedTournamentStatistics,
+  loadCommunicationsInbox: loadTournamentCommunicationsInbox,
+  loadAnnouncement: loadTournamentAnnouncement,
+  markAnnouncementRead: markTournamentAnnouncementRead,
+  loadNotificationPreferences: loadTournamentNotificationPreferences,
+  updateNotificationPreferences: updateTournamentNotificationPreferences,
+  loadPublishedDocuments: loadPublishedTournamentDocuments,
+  acknowledgeDocument: acknowledgeTournamentDocument,
+  loadCommunicationsAdminContext: loadTournamentCommunicationsAdminContext,
+  createAnnouncementDraft: createTournamentAnnouncementDraft,
+  setAnnouncementAudience: setTournamentAnnouncementAudience,
+  previewAnnouncementAudience: previewTournamentAnnouncementAudience,
+  publishAnnouncement: publishTournamentAnnouncement,
+  createDocument: createTournamentDocument,
+  publishDocumentVersion: publishTournamentDocumentVersion,
   createIdempotencyKey,
 });
