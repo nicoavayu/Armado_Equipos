@@ -99,6 +99,12 @@ Convocatorias, disponibilidad y actas referencian fixture/rosters sin absorber
 los partidos personales. Score, outcome y eventos son contratos independientes;
 una corrección clona la oficial y conserva la fuente como histórica.
 
+La migración `20260727060000_tournament_media_galleries.sql` implementa
+galerías privadas, workflow moderado, sesiones efímeras hasheadas, variantes,
+consentimientos, asignaciones y reportes. Storage no es una autoridad accesible
+desde el cliente: un servicio confiable completa la carga y un signer emite
+URLs breves por lote. Sin ese staging, la integración permanece fail-closed.
+
 ## Backend futuro
 
 - Tablas pequeñas y normalizadas por agregado.
@@ -106,7 +112,7 @@ una corrección clona la oficial y conserva la fuente como histórica.
 - RPCs transaccionales para cambios que regeneran derivados.
 - `SECURITY DEFINER` sólo cuando RLS no alcance, con `auth.uid()`, permisos explícitos, `search_path` fijo y grants mínimos.
 - Audit log append-only para acciones sensibles.
-- Storage con buckets/prefijos separados y políticas equivalentes.
+- Bucket privado multimedia y signer por lote certificados en staging.
 - trabajos asíncronos idempotentes para PDF, exportaciones y contenido.
 
 ## Estrategia de evolución

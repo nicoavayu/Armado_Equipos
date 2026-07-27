@@ -108,3 +108,13 @@ relaciones actuales dentro de PostgreSQL; la entrega no concede autorización
 permanente. El inbox personal, Novedades del Hub y el compositor organizativo
 consumen RPCs allowlisted. No existe integración con push, email, cron o
 Storage.
+
+## Fotos y galerías privadas
+
+La capa multimedia agrega un agregado propio para galerías, assets, variantes,
+sesiones, moderación, consentimiento y reportes. Los componentes consumen sólo
+servicios/RPCs; RLS niega el acceso directo a las tablas y participantes reciben
+una proyección minimizada. Storage permanece privado y exclusivamente detrás de
+un adaptador confiable. Como el staging todavía no tiene bucket ni signer
+certificados, el contrato declara `uploadReady: false` y la UI no simula una
+carga. El diseño completo está en `20-media-galleries.md`.

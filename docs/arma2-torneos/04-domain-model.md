@@ -121,6 +121,24 @@ Las sugerencias automáticas no son sanciones irreversibles; requieren la transi
 - **ContentTemplate / GeneratedAsset**: tipo, datos, versión, formato, sponsors y estado de vigencia.
 - **ExportJob / DocumentJob**: solicitud, permisos, snapshot y resultado temporal.
 
+### Multimedia implementada
+
+- **MediaGallery**: colección editorial scoped a torneo, categoría o partido,
+  con audiencia, workflow y portada.
+- **MediaAsset / MediaVariant**: metadatos privados del original y sus tamaños
+  procesados; no almacenan URLs públicas.
+- **MediaUploadSession**: autorización efímera hasheada, limitada y de un solo
+  uso; la finalización pertenece al adaptador confiable.
+- **MediaRelation / MediaGalleryItem**: tags tipados y orden editorial sin
+  trasladar el asset entre tenants.
+- **MediaModerationAction**: transición append-only.
+- **MediaConsent**: decisión explícita, vigente y revocable por sujeto.
+- **MediaReport**: reporte privado y resolución auditable.
+- **MediaAssignment**: fotógrafo habilitado por torneo y vigencia.
+
+Un tag individual no concede consentimiento. Archivar, revocar u ocultar
+preserva la historia y retira el contenido de la proyección participante.
+
 ## Auditoría transversal
 
 `AuditEvent` registra actor, organización, torneo, acción, recurso, before/after seguro, motivo, correlation id, fecha e IP/dispositivo cuando sea legítimo. No duplica secretos ni datos sensibles completos.

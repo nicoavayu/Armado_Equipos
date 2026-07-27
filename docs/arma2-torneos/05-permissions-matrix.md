@@ -125,3 +125,21 @@ un partido. Haber visitado antes una URL no conserva acceso.
 Un collaborator no obtiene publicación por el nombre del rol. El backend
 resuelve capabilities y además restringe la edición de collaborator a drafts
 propios.
+
+## Fotos y galerías
+
+| Capability/acción | Owner | Admin | Collaborator | Fotógrafo asignado | Captain/Delegate | Jugador |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|
+| `media.read` organizacional | ✓ | ✓ | ✓ | su torneo | — | — |
+| `media.create_gallery/update_gallery/upload` | ✓ | ✓ | — | su torneo | — | — |
+| `media.review/publish/archive/revoke` | ✓ | ✓ | — | — | — | — |
+| `media.set_cover` | ✓ | ✓ | — | su torneo | — | — |
+| `media.tag_team/tag_player` | ✓ | ✓ | — | su torneo | — | — |
+| `media.manage_consent` | ✓ | ✓ | — | — | propio sujeto | propio sujeto |
+| Leer galerías publicadas | ✓ | ✓ | ✓ | su torneo | relación vigente | relación vigente |
+| Reportar / solicitar retiro | propia vista | propia vista | propia vista | propia vista | propia vista | propia vista |
+| `media.handle_reports` | ✓ | ✓ | — | — | — | — |
+
+La asignación de fotógrafo es relacional, limitada en el tiempo y revalidada por
+RPC; no crea una membership. Participantes no reciben paths, originales,
+tokens, checksums, reportes ajenos ni notas internas.
