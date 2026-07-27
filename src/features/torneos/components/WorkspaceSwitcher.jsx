@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Check,
+  CalendarRange,
   ChevronDown,
   CircleUserRound,
   Plus,
@@ -80,6 +81,16 @@ export default function WorkspaceSwitcher() {
     }
   };
 
+  const goMyTournaments = async () => {
+    setBusyId('my-tournaments');
+    try {
+      await selectPersonal();
+      navigate('/torneos/mis-torneos');
+    } finally {
+      setBusyId('');
+    }
+  };
+
   return (
     <div className={styles.switcher} ref={containerRef}>
       <button
@@ -118,6 +129,20 @@ export default function WorkspaceSwitcher() {
               <small>Tu espacio personal</small>
             </span>
             {busyId === 'personal' && <span className={styles.miniSpinner} />}
+          </button>
+
+          <button
+            type="button"
+            role="menuitem"
+            disabled={Boolean(busyId)}
+            onClick={goMyTournaments}
+          >
+            <span className={styles.personalAvatar}><CalendarRange size={19} /></span>
+            <span>
+              <strong>Mis torneos</strong>
+              <small>Calendario y competencia</small>
+            </span>
+            {busyId === 'my-tournaments' && <span className={styles.miniSpinner} />}
           </button>
 
           {availableOrganizations.map((organization) => (

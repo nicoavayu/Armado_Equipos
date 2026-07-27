@@ -78,3 +78,9 @@ configurables, tribunal/apelaciones, publicación pública, notificaciones e
 integración oficial con el historial Arma2. La operación no completa el ciclo
 de lanzamiento. Las flags siguen apagadas en producción y esta rama sólo puede
 integrarse en `epic/arma2-torneos`.
+
+El Participant Hub autenticado completa una primera lectura útil para jugadores
+y capitanes, pero tampoco cambia ese estado: faltan validación multirol en
+staging, performance con volumen real, accesibilidad manual, dispositivos
+físicos, soporte operativo y rollout autorizado. Producción continúa con flags
+apagadas.

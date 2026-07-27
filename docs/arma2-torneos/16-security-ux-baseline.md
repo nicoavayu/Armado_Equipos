@@ -147,3 +147,12 @@ acciones sticky y ausencia de dependencia de hover.
 La tabla competitiva aplica esta baseline con cinco columnas esenciales en
 móvil y detalle expandible. Ninguna simplificación elimina la traza de
 desempate, el estado de revisión o el motivo de una acción oficial.
+
+El Participant Hub aplica una única base de componentes con composición por
+rol: próximo partido y contexto personal para jugador, respuestas y
+convocatoria para capitán/delegado, y alertas operativas primero para
+organizador. La navegación interna es compacta y la preferencia de categoría es
+autoritativa. Una carrera o error limpia el contexto anterior; el roster
+publicable omite avatar sin consentimiento; los controles tienen 44 px, foco
+visible, reducción de movimiento y los datos tabulares conservan Posición,
+Equipo, PJ, DG y Puntos en móvil.

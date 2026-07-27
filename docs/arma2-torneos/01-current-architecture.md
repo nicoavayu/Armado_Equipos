@@ -91,3 +91,11 @@ Tabla, estadísticas, clasificación y disciplina son revisiones derivadas de
 actas oficiales. El cliente sólo invoca contextos/RPCs; cálculo, scope, actor,
 idempotencia y publicación se resuelven en PostgreSQL. Una corrección genera
 una revisión completa, no incrementos opacos.
+
+## Superficie autenticada de participantes
+
+El shell de Torneos incorpora una entrada personal `Mis torneos` y rutas
+hermanas a los workspaces organizacionales. `TournamentHubPage` compone una
+única experiencia por capabilities y relaciones autoritativas, mientras que
+RPCs específicos agregan datos publicados y contexto propio sin consultas N+1.
+La preferencia de categoría vive en PostgreSQL; URL y estado React son hints.

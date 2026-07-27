@@ -40,6 +40,8 @@ import MatchOperationsPage from './MatchOperationsPage';
 import MyTournamentMatchesPage from './MyTournamentMatchesPage';
 import CaptainMatchSquadPage from './CaptainMatchSquadPage';
 import CompetitionCenterPage from './CompetitionCenterPage';
+import MyTournamentsPage from './MyTournamentsPage';
+import TournamentHubPage from './TournamentHubPage';
 import styles from './TorneosShell.module.css';
 
 const organizationNavigation = [
@@ -266,6 +268,32 @@ export default function TorneosShell() {
             <Route path="mis-partidos" element={<MyTournamentMatchesPage />} />
             <Route path="mis-partidos/:matchId" element={<MyTournamentMatchesPage />} />
             <Route path="mis-partidos/:matchId/convocatoria" element={<CaptainMatchSquadPage />} />
+            <Route path="mis-torneos" element={<MyTournamentsPage />} />
+            <Route path="torneo/:tournamentId" element={<TournamentHubPage />} />
+            <Route
+              path="torneo/:tournamentId/partidos"
+              element={<TournamentHubPage defaultSection="partidos" />}
+            />
+            <Route
+              path="torneo/:tournamentId/partidos/:matchId"
+              element={<TournamentHubPage defaultSection="partidos" matchMode />}
+            />
+            <Route
+              path="torneo/:tournamentId/tabla"
+              element={<TournamentHubPage defaultSection="tabla" />}
+            />
+            <Route
+              path="torneo/:tournamentId/estadisticas"
+              element={<TournamentHubPage defaultSection="estadisticas" />}
+            />
+            <Route
+              path="torneo/:tournamentId/equipos"
+              element={<TournamentHubPage defaultSection="equipos" />}
+            />
+            <Route
+              path="torneo/:tournamentId/disciplina"
+              element={<TournamentHubPage defaultSection="disciplina" />}
+            />
             <Route path="invitacion/equipo/:token" element={<TeamInvitationPage />} />
             <Route path="*" element={<Navigate to="/torneos" replace />} />
           </Routes>

@@ -92,3 +92,18 @@ no puede validarla.
 
 Los roles relacionales nunca reciben estas capabilities: RLS resuelve su
 relación y oculta drafts e información interna.
+
+## Participant Hub autenticado
+
+| Lectura/acción | Owner/Admin | Collaborator | Captain/Delegate | Jugador |
+|---|:---:|:---:|:---:|:---:|
+| Ver torneos relacionados | ✓ | ✓ | su inscripción | su roster |
+| Ver fixture/resultados/tabla publicados | ✓ | ✓ | categoría relacionada | categoría relacionada |
+| Ver equipos/roster publicable | ✓ | ✓ | categoría relacionada | categoría relacionada |
+| Ver disponibilidad/convocatoria | agregados autorizados | — | su equipo | propia |
+| Responder disponibilidad | si integra roster | si integra roster | si integra roster | propia |
+| Ver sanciones personales | si integra roster | si integra roster | si integra roster | propia |
+| Abrir gestor organizacional | por capability | — | — | — |
+
+La relación se comprueba nuevamente al abrir el hub, cambiar categoría y abrir
+un partido. Haber visitado antes una URL no conserva acceso.
