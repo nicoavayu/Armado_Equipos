@@ -16,6 +16,7 @@ import {
   SlidersHorizontal,
   Sparkles,
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import styles from './TournamentCommunications.module.css';
 
 const TYPE_LABELS = {
@@ -38,6 +39,25 @@ function formatDate(value) {
     hour: '2-digit',
     minute: '2-digit',
   }).format(new Date(value));
+}
+
+function internalLinkPath(announcement, link) {
+  const tournamentId = encodeURIComponent(announcement.tournament.id);
+  const resourceId = encodeURIComponent(link.resourceId || '');
+  const categoryQuery = announcement.category?.id
+    ? `?categoria=${encodeURIComponent(announcement.category.id)}` : '';
+  if (link.type === 'tournament') return `/torneos/torneo/${tournamentId}`;
+  if (link.type === 'category') {
+    return `/torneos/torneo/${tournamentId}?categoria=${resourceId}`;
+  }
+  if (link.type === 'match') {
+    return `/torneos/torneo/${tournamentId}/partidos/${resourceId}${categoryQuery}`;
+  }
+  if (link.type === 'standings') return `/torneos/torneo/${tournamentId}/tabla`;
+  if (link.type === 'discipline') return `/torneos/torneo/${tournamentId}/disciplina`;
+  if (link.type === 'round') return `/torneos/torneo/${tournamentId}/partidos`;
+  if (link.type === 'document') return `/torneos/torneo/${tournamentId}/novedades`;
+  return null;
 }
 
 function StateCard({
@@ -99,9 +119,11 @@ function AnnouncementDetail({
               <a href={link.externalUrl} target="_blank" rel="noreferrer" key={link.id}>
                 {link.label} <small>{link.externalDomain}</small>
               </a>
-            ) : (
-              <span key={link.id}>{link.label}</span>
-            )
+            ) : internalLinkPath(announcement, link) ? (
+              <Link key={link.id} to={internalLinkPath(announcement, link)}>
+                {link.label}
+              </Link>
+            ) : null
           ))}
         </nav>
       )}
@@ -237,6 +259,9 @@ export default function TournamentCommunicationsPanel({
   service,
 }) {
   const requestRef = useRef(0);
+  const scopeKey = `${tournamentId}:${categoryId || ''}`;
+  const scopeRef = useRef(scopeKey);
+  scopeRef.current = scopeKey;
   const [section, setSection] = useState('news');
   const [state, setState] = useState({
     status: 'loading',
@@ -311,50 +336,57 @@ export default function TournamentCommunicationsPanel({
         }));
       }
     } finally {
-      setBusy('');
+      if (requestRef.current === requestId) setBusy('');
     }
   };
 
   const markRead = async (confirm) => {
     if (!selected || busy) return;
+    const actionScope = scopeKey;
     setBusy(selected.id);
     try {
       await service.markAnnouncementRead({
         announcementId: selected.id,
         confirm,
       });
-      await load();
+      if (scopeRef.current === actionScope) await load();
     } finally {
-      setBusy('');
+      if (scopeRef.current === actionScope) setBusy('');
     }
   };
 
   const acknowledgeDocument = async (document, confirm) => {
     if (busy) return;
+    const actionScope = scopeKey;
     setBusy(document.versionId);
     try {
       await service.acknowledgeDocument({
         versionId: document.versionId,
         confirm,
       });
-      await load();
-      setSection('documents');
+      if (scopeRef.current === actionScope) {
+        await load();
+        setSection('documents');
+      }
     } finally {
-      setBusy('');
+      if (scopeRef.current === actionScope) setBusy('');
     }
   };
 
   const savePreferences = async (preferences) => {
     if (busy) return;
+    const actionScope = scopeKey;
     setBusy('preferences');
     try {
       const saved = await service.updateNotificationPreferences({
         tournamentId,
         ...preferences,
       });
-      setState((current) => ({ ...current, preferences: saved }));
+      if (scopeRef.current === actionScope) {
+        setState((current) => ({ ...current, preferences: saved }));
+      }
     } finally {
-      setBusy('');
+      if (scopeRef.current === actionScope) setBusy('');
     }
   };
 

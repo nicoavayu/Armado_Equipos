@@ -1371,6 +1371,62 @@ export async function setTournamentAnnouncementAudience({
   }), 'No pudimos definir la audiencia.');
 }
 
+export async function replaceTournamentAnnouncementAudience({
+  announcementId,
+  type,
+  categoryId = null,
+  teamEntryId = null,
+  matchId = null,
+  specificUserId = null,
+}) {
+  return unwrapRpc(await supabase.rpc('replace_tournament_announcement_audience', {
+    p_announcement_id: announcementId,
+    p_audience_type: type,
+    p_category_id: categoryId,
+    p_team_entry_id: teamEntryId,
+    p_match_id: matchId,
+    p_specific_user_id: specificUserId,
+  }), 'No pudimos reemplazar la audiencia.');
+}
+
+export async function setTournamentAnnouncementLink({
+  announcementId,
+  type,
+  resourceId = null,
+  externalUrl = null,
+  label,
+  sortOrder = 0,
+}) {
+  return unwrapRpc(await supabase.rpc('set_tournament_announcement_link', {
+    p_announcement_id: announcementId,
+    p_link_type: type,
+    p_resource_id: resourceId,
+    p_external_url: externalUrl,
+    p_label: label,
+    p_sort_order: sortOrder,
+  }), 'No pudimos definir el enlace principal.');
+}
+
+export async function updateTournamentAnnouncementDraft({
+  announcementId,
+  title,
+  summary,
+  body,
+  priority = 'normal',
+  acknowledgementMode = 'none',
+  scheduledFor = null,
+}) {
+  return unwrapRpc(await supabase.rpc('update_tournament_announcement_draft', {
+    p_announcement_id: announcementId,
+    p_title: title,
+    p_summary: summary,
+    p_body: body,
+    p_priority: priority,
+    p_acknowledgement_mode: acknowledgementMode,
+    p_scheduled_for: scheduledFor,
+  }), 'No pudimos actualizar el borrador.');
+}
+
 export async function previewTournamentAnnouncementAudience(announcementId) {
   return unwrapRpc(await supabase.rpc('preview_tournament_announcement_audience', {
     p_announcement_id: announcementId,
@@ -1523,7 +1579,10 @@ export const tournamentWorkspaceService = Object.freeze({
   acknowledgeDocument: acknowledgeTournamentDocument,
   loadCommunicationsAdminContext: loadTournamentCommunicationsAdminContext,
   createAnnouncementDraft: createTournamentAnnouncementDraft,
+  updateAnnouncementDraft: updateTournamentAnnouncementDraft,
   setAnnouncementAudience: setTournamentAnnouncementAudience,
+  replaceAnnouncementAudience: replaceTournamentAnnouncementAudience,
+  setAnnouncementLink: setTournamentAnnouncementLink,
   previewAnnouncementAudience: previewTournamentAnnouncementAudience,
   publishAnnouncement: publishTournamentAnnouncement,
   createDocument: createTournamentDocument,

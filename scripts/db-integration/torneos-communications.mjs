@@ -303,6 +303,44 @@ async function run() {
         '96000000-0000-4000-8000-000000000001',
       ],
     );
+    const duplicateDocument = await value(
+      owner,
+      `select public.create_tournament_document(
+        $1,$2,$3,'regulation','Reglamento oficial',
+        'Reglas vigentes de la competencia.',
+        'Este reglamento define las reglas deportivas de la competencia.',
+        'explicit','2030-01-01T00:00:00Z',$4
+      )`,
+      [
+        scope.organizationId,
+        scope.tournamentId,
+        scope.categoryId,
+        '96000000-0000-4000-8000-000000000001',
+      ],
+    );
+    eq(
+      duplicateDocument.versionId,
+      document.versionId,
+      'doble click de documento devuelve la misma versión inicial',
+    );
+    await expectError(
+      () => owner.query(
+        `select public.create_tournament_document(
+          $1,$2,$3,'regulation','Otro reglamento',
+          'Reglas vigentes de la competencia.',
+          'Este reglamento define las reglas deportivas de la competencia.',
+          'explicit','2030-01-01T00:00:00Z',$4
+        )`,
+        [
+          scope.organizationId,
+          scope.tournamentId,
+          scope.categoryId,
+          '96000000-0000-4000-8000-000000000001',
+        ],
+      ),
+      /TORNEOS_IDEMPOTENCY_CONFLICT/,
+      'reusar la clave de documento con otro payload falla cerrado',
+    );
     const publishedDocument = await value(
       owner,
       'select public.publish_tournament_document_version($1)',
@@ -391,10 +429,35 @@ async function run() {
       )`,
       [correctionId],
     );
+    const competingCorrectionId = await createDraft(owner, scope, '10', {
+      type: 'match_update',
+      title: 'Corrección alternativa no publicable',
+      summary: 'Una segunda rama no puede reemplazar el mismo comunicado.',
+      body: 'Sólo una corrección puede convertirse en la versión vigente.',
+      priority: 'urgent',
+      acknowledgementMode: 'read',
+      supersedesId: announcementId,
+      correctionReason: 'Se preparó una alternativa concurrente',
+    });
+    await value(
+      owner,
+      `select public.set_tournament_announcement_audience(
+        $1,'tournament',null,null,null,null
+      )`,
+      [competingCorrectionId],
+    );
     await value(
       owner,
       'select public.publish_tournament_announcement($1,null)',
       [correctionId],
+    );
+    await expectError(
+      () => owner.query(
+        'select public.publish_tournament_announcement($1,null)',
+        [competingCorrectionId],
+      ),
+      /TORNEOS_CORRECTION_ALREADY_SUPERSEDED/,
+      'dos correcciones no pueden quedar publicadas sobre la misma versión',
     );
     eq(
       await value(
@@ -410,12 +473,74 @@ async function run() {
       'select public.mark_tournament_announcement_read($1,true)',
       [correctionId],
     );
+    const teamPrivateId = await createDraft(owner, scope, '8', {
+      title: 'Información privada para Napoli',
+      summary: 'Este aviso corresponde únicamente al plantel de Napoli.',
+      body: 'La información del equipo no debe seguir a una relación revocada.',
+    });
+    await value(
+      owner,
+      `select public.set_tournament_announcement_audience(
+        $1,'team',null,$2,null,null
+      )`,
+      [teamPrivateId, scope.entries[0]],
+    );
+    await value(
+      owner,
+      'select public.publish_tournament_announcement($1,null)',
+      [teamPrivateId],
+    );
+    await value(
+      admin,
+      `insert into public.tournament_team_managers(
+        organization_id,team_entry_id,user_id,display_name,role,status,
+        invited_by,accepted_at
+      ) values ($1,$2,$3,'Delegado alternativo','delegate','active',$4,now())`,
+      [
+        scope.organizationId,
+        scope.entries[1],
+        USERS.playerHome,
+        USERS.owner,
+      ],
+    );
     await value(
       admin,
       `update public.tournament_roster_players
        set status = 'removed',removed_at = now()
        where organization_id = $1 and arma2_user_id = $2`,
       [scope.organizationId, USERS.playerHome],
+    );
+    await expectError(
+      () => playerHome.query(
+        'select public.get_tournament_announcement($1)',
+        [teamPrivateId],
+      ),
+      /TORNEOS_COMMUNICATION_FORBIDDEN/,
+      'otra relación del torneo no conserva el aviso privado del equipo anterior',
+    );
+    await expectError(
+      () => playerHome.query(
+        'select public.mark_tournament_announcement_read($1,true)',
+        [teamPrivateId],
+      ),
+      /TORNEOS_COMMUNICATION_FORBIDDEN/,
+      'la lectura revalida la audiencia exacta y no sólo el torneo',
+    );
+    const stillRelatedDetail = await value(
+      playerHome,
+      'select public.get_tournament_announcement($1)',
+      [correctionId],
+    );
+    eq(
+      stillRelatedDetail.id,
+      correctionId,
+      'una relación actual distinta conserva comunicados dirigidos a todo el torneo',
+    );
+    await admin.query(
+      `update public.tournament_team_managers
+       set status = 'revoked',revoked_at = now()
+       where organization_id = $1 and team_entry_id = $2 and user_id = $3`,
+      [scope.organizationId, scope.entries[1], USERS.playerHome],
     );
     await expectError(
       () => playerHome.query(
@@ -431,7 +556,7 @@ async function run() {
         [correctionId],
       ),
       /TORNEOS_COMMUNICATION_FORBIDDEN/,
-      'la relación actual se revalida antes de confirmar una lectura',
+      'sin relación vigente tampoco puede confirmar una lectura',
     );
     await value(
       admin,
@@ -578,6 +703,85 @@ async function run() {
        set status = 'approved',withdrawn_at = null
        where id = $1`,
       [scope.entries[0]],
+    );
+    await admin.query(
+      `update public.tournament_categories
+       set status = 'archived',archived_at = now()
+       where id = $1`,
+      [scope.categoryId],
+    );
+    const archivedCategoryPreview = await value(
+      owner,
+      'select public.preview_tournament_announcement_audience($1)',
+      [teamDraft],
+    );
+    eq(
+      archivedCategoryPreview.estimatedRecipients,
+      0,
+      'categoría archivada deja de resolver destinatarios actuales',
+    );
+    await admin.query(
+      `update public.tournament_categories
+       set status = 'active',archived_at = null
+       where id = $1`,
+      [scope.categoryId],
+    );
+    const replacementDraft = await createDraft(owner, scope, '12', {
+      title: 'Audiencia reemplazable del compositor',
+      summary: 'La edición no debe acumular criterios anteriores.',
+      body: 'El criterio actual reemplaza atómicamente el preview anterior.',
+    });
+    await value(
+      owner,
+      `select public.set_tournament_announcement_audience(
+        $1,'tournament',null,null,null,null
+      )`,
+      [replacementDraft],
+    );
+    await value(
+      owner,
+      `select public.replace_tournament_announcement_audience(
+        $1,'team',null,$2,null,null
+      )`,
+      [replacementDraft, scope.entries[1]],
+    );
+    eq(
+      Number(await value(
+        admin,
+        `select count(*) from public.tournament_announcement_audiences
+         where announcement_id = $1 and audience_type = 'team'
+           and team_entry_id = $2`,
+        [replacementDraft, scope.entries[1]],
+      )),
+      1,
+      'editar el compositor reemplaza la audiencia sin acumular criterios',
+    );
+    await value(
+      owner,
+      `select public.set_tournament_announcement_link(
+        $1,'category',$2,null,'Ver categoría',0
+      )`,
+      [replacementDraft, scope.categoryId],
+    );
+    await admin.query(
+      `update public.tournament_categories
+       set status = 'archived',archived_at = now()
+       where id = $1`,
+      [scope.categoryId],
+    );
+    await expectError(
+      () => owner.query(
+        'select public.publish_tournament_announcement($1,null)',
+        [replacementDraft],
+      ),
+      /TORNEOS_INVALID_COMMUNICATION_LINK/,
+      'publicar revalida el recurso del CTA contra el scope vigente',
+    );
+    await admin.query(
+      `update public.tournament_categories
+       set status = 'active',archived_at = null
+       where id = $1`,
+      [scope.categoryId],
     );
 
     await value(

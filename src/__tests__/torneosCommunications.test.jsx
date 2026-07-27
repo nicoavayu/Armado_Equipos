@@ -81,12 +81,14 @@ function createParticipantService(overrides = {}) {
 
 function renderPanel(service = createParticipantService(), props = {}) {
   return render(
-    <TournamentCommunicationsPanel
-      tournamentId="tournament-a"
-      categoryId="category-a"
-      service={service}
-      {...props}
-    />,
+    <MemoryRouter>
+      <TournamentCommunicationsPanel
+        tournamentId="tournament-a"
+        categoryId="category-a"
+        service={service}
+        {...props}
+      />
+    </MemoryRouter>,
   );
 }
 
@@ -99,12 +101,26 @@ describe('participant tournament communications', () => {
   });
 
   test('opens a long announcement and records explicit read confirmation', async () => {
-    const service = createParticipantService();
+    const service = createParticipantService({
+      loadAnnouncement: jest.fn().mockResolvedValue(announcementDetail({
+        links: [{
+          id: 'link-a',
+          type: 'match',
+          resourceId: 'match-a',
+          label: 'Ver partido',
+          externalUrl: null,
+        }],
+      })),
+    });
     renderPanel(service);
     await userEvent.click(await screen.findByText('Cambio de horario confirmado'));
     expect(await screen.findByText('Contenido oficial completo.')).toBeInTheDocument();
     expect(screen.getByText('Esta confirmación registra lectura; no representa una aceptación legal.'))
       .toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Ver partido' })).toHaveAttribute(
+      'href',
+      '/torneos/torneo/tournament-a/partidos/match-a?categoria=category-a',
+    );
     await userEvent.click(screen.getByRole('button', { name: 'Confirmo que lo leí' }));
     expect(service.markAnnouncementRead).toHaveBeenCalledWith({
       announcementId: 'announcement-a',
@@ -196,16 +212,71 @@ describe('participant tournament communications', () => {
     });
     const view = renderPanel(service);
     view.rerender(
-      <TournamentCommunicationsPanel
-        tournamentId="tournament-b"
-        categoryId="category-b"
-        service={service}
-      />,
+      <MemoryRouter>
+        <TournamentCommunicationsPanel
+          tournamentId="tournament-b"
+          categoryId="category-b"
+          service={service}
+        />
+      </MemoryRouter>,
     );
     expect(await screen.findByText('Comunicado del torneo nuevo')).toBeInTheDocument();
     resolveOld({ items: [inboxItem()], unreadCount: 1 });
     await waitFor(() => {
       expect(screen.queryByText('Cambio de horario confirmado')).not.toBeInTheDocument();
+    });
+  });
+
+  test('does not apply a late preference save to a different tournament', async () => {
+    let resolveOldSave;
+    const oldSave = new Promise((resolve) => {
+      resolveOldSave = resolve;
+    });
+    const service = createParticipantService({
+      loadNotificationPreferences: jest.fn().mockImplementation(
+        async (tournamentId) => ({
+          tournamentId,
+          general: true,
+          matchChanges: true,
+          callups: true,
+          discipline: true,
+          documents: true,
+          summaries: true,
+        }),
+      ),
+      updateNotificationPreferences: jest.fn().mockReturnValue(oldSave),
+    });
+    const view = renderPanel(service);
+    await userEvent.click(await screen.findByRole('tab', { name: 'Preferencias' }));
+    await userEvent.click(
+      screen.getByRole('checkbox', { name: 'Comunicados generales' }),
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar preferencias' }));
+    view.rerender(
+      <MemoryRouter>
+        <TournamentCommunicationsPanel
+          tournamentId="tournament-b"
+          categoryId="category-b"
+          service={service}
+        />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByRole('checkbox', { name: 'Comunicados generales' }))
+        .toBeChecked();
+    });
+    resolveOldSave({
+      tournamentId: 'tournament-a',
+      general: false,
+      matchChanges: true,
+      callups: true,
+      discipline: true,
+      documents: true,
+      summaries: true,
+    });
+    await waitFor(() => {
+      expect(screen.getByRole('checkbox', { name: 'Comunicados generales' }))
+        .toBeChecked();
     });
   });
 });
@@ -244,7 +315,10 @@ describe('organizer communications composer', () => {
         documents: [],
       }),
       createAnnouncementDraft: jest.fn().mockResolvedValue('announcement-a'),
+      updateAnnouncementDraft: jest.fn().mockResolvedValue('announcement-a'),
       setAnnouncementAudience: jest.fn().mockResolvedValue('audience-a'),
+      replaceAnnouncementAudience: jest.fn().mockResolvedValue('audience-a'),
+      setAnnouncementLink: jest.fn().mockResolvedValue('link-a'),
       previewAnnouncementAudience: jest.fn().mockResolvedValue({
         estimatedRecipients: 12,
         roles: ['player', 'captain'],
@@ -316,5 +390,48 @@ describe('organizer communications composer', () => {
       expect(mockContextService.publishAnnouncement).toHaveBeenCalledTimes(1);
     });
     expect(await screen.findByText('Comunicado publicado')).toBeInTheDocument();
+  });
+
+  test('revalidates edited draft content and replaces its prior audience', async () => {
+    render(
+      <MemoryRouter initialEntries={['/torneos/organizacion/org-a/comunicaciones']}>
+        <Routes>
+          <Route
+            path="/torneos/organizacion/:organizationId/comunicaciones"
+            element={<CommunicationsAdminPage />}
+          />
+        </Routes>
+      </MemoryRouter>,
+    );
+    await screen.findByText('Información general');
+    await userEvent.click(screen.getByRole('button', { name: /Siguiente/ }));
+    await userEvent.type(
+      screen.getByPlaceholderText('Ej. Cambio de sede confirmado'),
+      'Aviso editable',
+    );
+    await userEvent.type(
+      screen.getByPlaceholderText('La información esencial en una frase.'),
+      'Resumen editable del comunicado.',
+    );
+    await userEvent.type(
+      screen.getByPlaceholderText('Texto plano. No se admite HTML.'),
+      'Contenido editable del comunicado.',
+    );
+    await userEvent.click(screen.getByRole('button', { name: /Siguiente/ }));
+    await userEvent.click(screen.getByRole('button', { name: /Siguiente/ }));
+    await userEvent.click(screen.getByRole('button', { name: /Preparar vista previa/ }));
+    await screen.findByText('12 destinatarios');
+    await userEvent.click(screen.getByRole('button', { name: /Anterior/ }));
+    await userEvent.selectOptions(screen.getByLabelText('Prioridad'), 'urgent');
+    await userEvent.click(screen.getByRole('button', { name: /Preparar vista previa/ }));
+    await waitFor(() => {
+      expect(mockContextService.updateAnnouncementDraft).toHaveBeenCalledWith(
+        expect.objectContaining({
+          announcementId: 'announcement-a',
+          priority: 'urgent',
+        }),
+      );
+      expect(mockContextService.replaceAnnouncementAudience).toHaveBeenCalledTimes(2);
+    });
   });
 });

@@ -25,6 +25,38 @@ import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
 import styles from './CommunicationsAdminPage.module.css';
 
 const STEPS = ['Tipo', 'Contenido', 'Audiencia', 'Contexto', 'Vista previa', 'Confirmar'];
+const STATUS_LABELS = {
+  draft: 'Borrador',
+  scheduled: 'Programado',
+  published: 'Publicado',
+  superseded: 'Actualizado',
+  archived: 'Archivado',
+  cancelled: 'Cancelado',
+  revoked: 'Retirado',
+};
+const PRIORITY_LABELS = {
+  normal: 'Información',
+  important: 'Importante',
+  urgent: 'Urgente',
+};
+const AUDIENCE_LABELS = {
+  tournament: 'Todos los participantes',
+  category: 'Una categoría',
+  team: 'Un equipo',
+  captains: 'Capitanes y delegados',
+  players: 'Jugadores',
+  match: 'Participantes del partido',
+  home_team: 'Equipo local',
+  away_team: 'Equipo visitante',
+};
+const DOCUMENT_TYPE_LABELS = {
+  regulation: 'Reglamento',
+  discipline: 'Disciplina',
+  terms: 'Bases',
+  requirements: 'Requisitos',
+  policy: 'Política',
+  other: 'Otro',
+};
 const EMPTY_FORM = {
   tournamentId: '',
   categoryId: '',
@@ -52,6 +84,8 @@ export default function CommunicationsAdminPage() {
   const { organizationId } = useParams();
   const { service } = useTorneosWorkspace();
   const requestRef = useRef(0);
+  const organizationRef = useRef(organizationId);
+  organizationRef.current = organizationId;
   const publishLockRef = useRef(false);
   const [section, setSection] = useState('announcements');
   const [step, setStep] = useState(1);
@@ -103,6 +137,20 @@ export default function CommunicationsAdminPage() {
   };
 
   useEffect(() => {
+    setForm(EMPTY_FORM);
+    setDocumentForm({
+      tournamentId: '',
+      categoryId: '',
+      type: 'regulation',
+      title: '',
+      summary: '',
+      body: '',
+      acknowledgementMode: 'read',
+    });
+    setDraftId('');
+    setPreview(null);
+    setResult(null);
+    setStep(1);
     load();
     return () => {
       requestRef.current += 1;
@@ -126,10 +174,12 @@ export default function CommunicationsAdminPage() {
     }));
     setPreview(null);
     setResult(null);
+    if (key === 'tournamentId') setDraftId('');
   };
 
   const preparePreview = async () => {
     if (busy) return;
+    const requestId = requestRef.current;
     setBusy(true);
     try {
       const announcementId = draftId || await service.createAnnouncementDraft({
@@ -144,8 +194,19 @@ export default function CommunicationsAdminPage() {
         acknowledgementMode: form.acknowledgementMode,
         idempotencyKey: service.createIdempotencyKey(),
       });
+      if (draftId) {
+        await service.updateAnnouncementDraft({
+          announcementId,
+          title: form.title,
+          summary: form.summary,
+          body: form.body,
+          priority: form.priority,
+          acknowledgementMode: form.acknowledgementMode,
+        });
+      }
+      if (requestRef.current !== requestId) return;
       setDraftId(announcementId);
-      await service.setAnnouncementAudience({
+      await service.replaceAnnouncementAudience({
         announcementId,
         type: form.audienceType,
         categoryId: form.audienceType === 'category' ? form.categoryId || null : null,
@@ -153,18 +214,36 @@ export default function CommunicationsAdminPage() {
         matchId: ['match', 'home_team', 'away_team'].includes(form.audienceType)
           ? form.matchId || null : null,
       });
+      const linksToMatch = ['match', 'home_team', 'away_team'].includes(
+        form.audienceType,
+      );
+      const linkType = linksToMatch
+        ? 'match' : form.audienceType === 'category' ? 'category' : 'tournament';
+      const resourceId = linksToMatch
+        ? form.matchId : linkType === 'category' ? form.categoryId : form.tournamentId;
+      await service.setAnnouncementLink({
+        announcementId,
+        type: linkType,
+        resourceId,
+        label: linksToMatch
+          ? 'Ver partido' : linkType === 'category' ? 'Ver categoría' : 'Ver torneo',
+        sortOrder: 0,
+      });
       const audiencePreview = await service.previewAnnouncementAudience(announcementId);
+      if (requestRef.current !== requestId) return;
       setPreview(audiencePreview);
       setStep(5);
     } catch (error) {
+      if (requestRef.current !== requestId) return;
       setState((current) => ({ ...current, error: error?.message || 'No pudimos preparar la vista previa.' }));
     } finally {
-      setBusy(false);
+      if (requestRef.current === requestId) setBusy(false);
     }
   };
 
   const publish = async () => {
     if (busy || publishLockRef.current || !draftId || !canPublish) return;
+    const actionOrganization = organizationId;
     publishLockRef.current = true;
     setBusy(true);
     try {
@@ -172,13 +251,15 @@ export default function CommunicationsAdminPage() {
         announcementId: draftId,
         expectedRecipientCount: preview?.estimatedRecipients ?? null,
       });
+      if (organizationRef.current !== actionOrganization) return;
       setResult(publication);
       await load();
     } catch (error) {
+      if (organizationRef.current !== actionOrganization) return;
       setState((current) => ({ ...current, error: error?.message || 'No pudimos publicar.' }));
     } finally {
       publishLockRef.current = false;
-      setBusy(false);
+      if (organizationRef.current === actionOrganization) setBusy(false);
     }
   };
 
@@ -194,6 +275,7 @@ export default function CommunicationsAdminPage() {
   const publishDocument = async (event) => {
     event.preventDefault();
     if (busy) return;
+    const actionOrganization = organizationId;
     setBusy(true);
     try {
       const document = await service.createDocument({
@@ -210,15 +292,17 @@ export default function CommunicationsAdminPage() {
       if (canPublishDocuments) {
         await service.publishDocumentVersion(document.versionId);
       }
+      if (organizationRef.current !== actionOrganization) return;
       setResult({
         documentId: document.documentId,
         status: canPublishDocuments ? 'published' : 'draft',
       });
       await load();
     } catch (error) {
+      if (organizationRef.current !== actionOrganization) return;
       setState((current) => ({ ...current, error: error?.message || 'No pudimos crear el documento.' }));
     } finally {
-      setBusy(false);
+      if (organizationRef.current === actionOrganization) setBusy(false);
     }
   };
 
@@ -495,6 +579,10 @@ export default function CommunicationsAdminPage() {
                       <Radio size={18} />
                       Publicación programada modelada, pero sin automatización habilitada.
                     </div>
+                    <div className={styles.disabledSchedule}>
+                      <Eye size={18} />
+                      El acceso llevará al torneo, categoría o partido seleccionado.
+                    </div>
                   </fieldset>
                 )}
 
@@ -502,7 +590,9 @@ export default function CommunicationsAdminPage() {
                   <div className={styles.preview}>
                     <div className={styles.phonePreview}>
                       <small>Así se verá en móvil</small>
-                      <span data-priority={form.priority}>{form.priority}</span>
+                      <span data-priority={form.priority}>
+                        {PRIORITY_LABELS[form.priority]}
+                      </span>
                       <h3>{form.title}</h3>
                       <p>{form.summary}</p>
                       <button type="button">Ver comunicado</button>
@@ -513,7 +603,10 @@ export default function CommunicationsAdminPage() {
                       <dl>
                         <div><dt>Canal</dt><dd>Sólo inbox interno</dd></div>
                         <div><dt>Torneo</dt><dd>{tournament?.name}</dd></div>
-                        <div><dt>Criterio</dt><dd>{form.audienceType}</dd></div>
+                        <div>
+                          <dt>Criterio</dt>
+                          <dd>{AUDIENCE_LABELS[form.audienceType]}</dd>
+                        </div>
                         <div><dt>Roles</dt><dd>{preview.roles.join(', ')}</dd></div>
                       </dl>
                       <p>La cantidad se volverá a calcular al publicar.</p>
@@ -577,7 +670,9 @@ export default function CommunicationsAdminPage() {
             <div>
               {state.data.announcements.slice(0, 12).map((announcement) => (
                 <article key={announcement.id}>
-                  <span data-status={announcement.status}>{announcement.status}</span>
+                  <span data-status={announcement.status}>
+                    {STATUS_LABELS[announcement.status] || announcement.status}
+                  </span>
                   <strong>{announcement.title}</strong>
                   <small>
                     {announcement.recipientCount ?? '—'} entregas ·
@@ -687,9 +782,11 @@ export default function CommunicationsAdminPage() {
             <div>
               {state.data.documents.map((document) => (
                 <article key={document.id}>
-                  <span data-status={document.status}>{document.status}</span>
+                  <span data-status={document.status}>
+                    {STATUS_LABELS[document.status] || document.status}
+                  </span>
                   <strong>{document.title}</strong>
-                  <small>{document.type}</small>
+                  <small>{DOCUMENT_TYPE_LABELS[document.type] || document.type}</small>
                 </article>
               ))}
               {!state.data.documents.length && <p>Todavía no hay documentos.</p>}

@@ -29,6 +29,8 @@ puedan convertirse en contenido ejecutable. No existe editor HTML.
 Un comunicado publicado es inmutable. Una corrección crea otro registro con
 `version`, `supersedes_id` y `correction_reason`. La publicación de la
 corrección mueve el anterior a `superseded`, sin borrar su entrega ni lecturas.
+Si existen borradores alternativos sobre la misma versión, sólo el primero que
+se publica puede avanzar; los demás fallan cerrados.
 
 ### `tournament_announcement_audiences`
 
@@ -55,9 +57,11 @@ Snapshot deduplicado por comunicado y usuario. Sus estados son `available`,
 `read`, `confirmed`, `archived` y `revoked`. Una entrega sólo se crea durante
 una publicación atómica y no dispara un proveedor externo.
 
-La entrega no reemplaza autorización: inbox y detalle vuelven a exigir una
-relación actual con el torneo. Una relación removida no conserva acceso privado
-por haber recibido antes un UUID.
+La entrega no reemplaza autorización: inbox, detalle y confirmación vuelven a
+resolver la audiencia original contra relaciones actuales. Mantener otra
+relación dentro del mismo torneo no conserva acceso a un aviso privado del
+equipo o categoría anterior, y una relación removida no conserva acceso por
+haber recibido antes un UUID.
 
 ### `tournament_announcement_links`
 
@@ -143,7 +147,8 @@ El conteo de preview es informativo. La publicación vuelve a resolver y devuelv
 
 Jugadores provisionales sólo son destinatarios cuando el provisional está
 `claimed` y vinculado a una cuenta. Equipos retirados, memberships suspendidas,
-managers revocados, rosters superseded y jugadores removidos no resuelven.
+managers revocados, categorías archivadas, fixtures superseded, rosters
+superseded y jugadores removidos no resuelven.
 
 ## Programación futura
 
@@ -159,6 +164,7 @@ Mutaciones organizativas:
 - `create_tournament_announcement_draft`
 - `update_tournament_announcement_draft`
 - `set_tournament_announcement_audience`
+- `replace_tournament_announcement_audience`
 - `set_tournament_announcement_link`
 - `preview_tournament_announcement_audience`
 - `publish_tournament_announcement`
@@ -195,6 +201,7 @@ las escrituras son RPC-only.
 ## Idempotencia, abuso y concurrencia
 
 - creación deduplicada por organización, autor e idempotency key;
+- reusar una clave con otro payload falla como conflicto;
 - publicación ya completada devuelve el mismo resultado;
 - unique por comunicado/usuario impide entregas duplicadas;
 - advisory lock evita bypass concurrente del rate limit;
@@ -232,7 +239,9 @@ depende sólo del color.
 
 El compositor tiene seis pasos: tipo, contenido, audiencia, contexto, preview y
 confirmación. La preview móvil muestra título, resumen, prioridad, CTA, criterio
-y cantidad estimada. Publicar describe el efecto irreversible e interno.
+y cantidad estimada. El CTA usa una ruta canónica al torneo, categoría o partido
+elegido y se revalida al publicar. Publicar describe el efecto irreversible e
+interno.
 
 Las superficies tienen skeleton, vacío, error/offline, draft, scheduled,
 published, superseded, revoked, read-only, audiencia vacía, audiencia cambiada y

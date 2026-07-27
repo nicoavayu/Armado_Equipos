@@ -24,10 +24,33 @@ function formatDate(value) {
   }).format(new Date(value)) : 'Sin fecha';
 }
 
+function internalLinkPath(detail, link) {
+  const tournamentId = encodeURIComponent(detail.tournament.id);
+  const resourceId = encodeURIComponent(link.resourceId || '');
+  if (link.type === 'tournament') return `/torneos/torneo/${tournamentId}`;
+  if (link.type === 'category') {
+    return `/torneos/torneo/${tournamentId}?categoria=${resourceId}`;
+  }
+  if (link.type === 'match') {
+    return `/torneos/torneo/${tournamentId}/partidos/${resourceId}`;
+  }
+  if (link.type === 'standings') return `/torneos/torneo/${tournamentId}/tabla`;
+  if (link.type === 'discipline') return `/torneos/torneo/${tournamentId}/disciplina`;
+  return `/torneos/torneo/${tournamentId}/novedades`;
+}
+
+function priorityLabel(priority) {
+  if (priority === 'urgent') return 'Urgente';
+  if (priority === 'important') return 'Importante';
+  return 'Información';
+}
+
 export default function MyCommunicationsPage() {
   const { service } = useTorneosWorkspace();
   const requestRef = useRef(0);
   const [filter, setFilter] = useState('all');
+  const filterRef = useRef(filter);
+  filterRef.current = filter;
   const [state, setState] = useState({
     status: 'loading',
     data: null,
@@ -74,21 +97,22 @@ export default function MyCommunicationsPage() {
         setState((current) => ({ ...current, detail }));
       }
     } finally {
-      setBusy('');
+      if (requestRef.current === requestId) setBusy('');
     }
   };
 
   const markRead = async (confirm) => {
     if (!state.detail || busy) return;
+    const actionFilter = filter;
     setBusy(state.detail.id);
     try {
       await service.markAnnouncementRead({
         announcementId: state.detail.id,
         confirm,
       });
-      await load();
+      if (filterRef.current === actionFilter) await load();
     } finally {
-      setBusy('');
+      if (filterRef.current === actionFilter) setBusy('');
     }
   };
 
@@ -117,7 +141,7 @@ export default function MyCommunicationsPage() {
           >
             Volver
           </button>
-          <span data-priority={detail.priority}>{detail.priority}</span>
+          <span data-priority={detail.priority}>{priorityLabel(detail.priority)}</span>
         </div>
         <p className={styles.eyebrow}>
           {detail.organization.name} · {detail.tournament.name}
@@ -130,6 +154,21 @@ export default function MyCommunicationsPage() {
           </div>
         )}
         <div className={styles.bodyCopy}>{detail.body}</div>
+        {!!detail.links?.length && (
+          <nav className={styles.relatedLinks} aria-label="Enlaces relacionados">
+            {detail.links.map((link) => (
+              link.externalUrl ? (
+                <a href={link.externalUrl} target="_blank" rel="noreferrer" key={link.id}>
+                  {link.label} <small>{link.externalDomain}</small>
+                </a>
+              ) : (
+                <Link key={link.id} to={internalLinkPath(detail, link)}>
+                  {link.label}
+                </Link>
+              )
+            ))}
+          </nav>
+        )}
         <footer className={styles.detailFooter}>
           <span><Clock3 size={15} /> {formatDate(detail.publishedAt)}</span>
           {!detail.delivery?.readAt && (

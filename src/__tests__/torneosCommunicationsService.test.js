@@ -10,7 +10,10 @@ import {
   markTournamentAnnouncementRead,
   previewTournamentAnnouncementAudience,
   publishTournamentAnnouncement,
+  replaceTournamentAnnouncementAudience,
+  setTournamentAnnouncementLink,
   setTournamentAnnouncementAudience,
+  updateTournamentAnnouncementDraft,
   updateTournamentNotificationPreferences,
 } from '../features/torneos/api/tournamentWorkspaceService';
 
@@ -105,6 +108,66 @@ describe('tournament communications service contracts', () => {
       p_match_id: null,
       p_specific_user_id: null,
     });
+  });
+
+  test('updates a draft and atomically replaces the composer audience', async () => {
+    await updateTournamentAnnouncementDraft({
+      announcementId: 'announcement-a',
+      title: 'Título actualizado',
+      summary: 'Resumen actualizado',
+      body: 'Contenido actualizado',
+      priority: 'urgent',
+      acknowledgementMode: 'explicit',
+    });
+    await replaceTournamentAnnouncementAudience({
+      announcementId: 'announcement-a',
+      type: 'team',
+      teamEntryId: 'team-a',
+      recipients: ['forged-user'],
+    });
+    await setTournamentAnnouncementLink({
+      announcementId: 'announcement-a',
+      type: 'match',
+      resourceId: 'match-a',
+      label: 'Ver partido',
+    });
+    expect(supabase.rpc).toHaveBeenNthCalledWith(
+      1,
+      'update_tournament_announcement_draft',
+      {
+        p_announcement_id: 'announcement-a',
+        p_title: 'Título actualizado',
+        p_summary: 'Resumen actualizado',
+        p_body: 'Contenido actualizado',
+        p_priority: 'urgent',
+        p_acknowledgement_mode: 'explicit',
+        p_scheduled_for: null,
+      },
+    );
+    expect(supabase.rpc).toHaveBeenNthCalledWith(
+      2,
+      'replace_tournament_announcement_audience',
+      {
+        p_announcement_id: 'announcement-a',
+        p_audience_type: 'team',
+        p_category_id: null,
+        p_team_entry_id: 'team-a',
+        p_match_id: null,
+        p_specific_user_id: null,
+      },
+    );
+    expect(supabase.rpc).toHaveBeenNthCalledWith(
+      3,
+      'set_tournament_announcement_link',
+      {
+        p_announcement_id: 'announcement-a',
+        p_link_type: 'match',
+        p_resource_id: 'match-a',
+        p_external_url: null,
+        p_label: 'Ver partido',
+        p_sort_order: 0,
+      },
+    );
   });
 
   test('previews then publishes with only an advisory expected count', async () => {

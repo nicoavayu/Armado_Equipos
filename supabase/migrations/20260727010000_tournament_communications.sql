@@ -529,6 +529,9 @@ as $$
   with target as (
     select announcement.*
     from public.tournament_announcements announcement
+    join public.tournament_organizations organization
+      on organization.id = announcement.organization_id
+     and organization.status = 'active'
     where announcement.id = p_announcement_id
   ),
   audience as (
@@ -558,6 +561,11 @@ as $$
      and entry.status = 'approved'
      and (audience.category_id is null or entry.category_id = audience.category_id)
      and (audience.team_entry_id is null or entry.id = audience.team_entry_id)
+    join public.tournament_categories category
+      on category.organization_id = entry.organization_id
+     and category.tournament_id = entry.tournament_id
+     and category.id = entry.category_id
+     and category.status = 'active'
     join public.tournament_rosters roster
       on roster.organization_id = entry.organization_id
      and roster.team_entry_id = entry.id
@@ -585,6 +593,11 @@ as $$
      and entry.status = 'approved'
      and (audience.category_id is null or entry.category_id = audience.category_id)
      and (audience.team_entry_id is null or entry.id = audience.team_entry_id)
+    join public.tournament_categories category
+      on category.organization_id = entry.organization_id
+     and category.tournament_id = entry.tournament_id
+     and category.id = entry.category_id
+     and category.status = 'active'
     join public.tournament_team_managers manager
       on manager.organization_id = entry.organization_id
      and manager.team_entry_id = entry.id
@@ -602,6 +615,15 @@ as $$
       on match.organization_id = target.organization_id
      and match.tournament_id = target.tournament_id
      and match.id = audience.match_id
+    join public.tournament_fixture_versions fixture
+      on fixture.organization_id = match.organization_id
+     and fixture.id = match.fixture_version_id
+     and fixture.status = 'published'
+    join public.tournament_categories category
+      on category.organization_id = match.organization_id
+     and category.tournament_id = match.tournament_id
+     and category.id = match.category_id
+     and category.status = 'active'
     join public.tournament_competition_participants participant
       on participant.organization_id = match.organization_id
      and participant.tournament_id = match.tournament_id
@@ -661,8 +683,32 @@ as $$
       where entry.organization_id = target.organization_id
         and entry.tournament_id = target.tournament_id
         and entry.status = 'approved'
+        and exists (
+          select 1
+          from public.tournament_categories category
+          where category.organization_id = entry.organization_id
+            and category.tournament_id = entry.tournament_id
+            and category.id = entry.category_id
+            and category.status = 'active'
+        )
         and coalesce(player.arma2_user_id, provisional.claimed_by_user_id)
           = audience.specific_user_id
+    ) or exists (
+      select 1
+      from public.tournament_team_entries entry
+      join public.tournament_categories category
+        on category.organization_id = entry.organization_id
+       and category.tournament_id = entry.tournament_id
+       and category.id = entry.category_id
+       and category.status = 'active'
+      join public.tournament_team_managers manager
+        on manager.organization_id = entry.organization_id
+       and manager.team_entry_id = entry.id
+       and manager.status = 'active'
+      where entry.organization_id = target.organization_id
+        and entry.tournament_id = target.tournament_id
+        and entry.status = 'approved'
+        and manager.user_id = audience.specific_user_id
     )
   )
   select distinct on (resolved.user_id)
@@ -674,6 +720,25 @@ as $$
 $$;
 
 revoke all on function public.resolve_tournament_announcement_recipients(uuid)
+  from public,anon,authenticated;
+
+create or replace function public.can_current_user_access_tournament_announcement(
+  p_announcement_id uuid
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select auth.uid() is not null and exists (
+    select 1
+    from public.resolve_tournament_announcement_recipients(p_announcement_id) recipient
+    where recipient.user_id = auth.uid()
+  );
+$$;
+
+revoke all on function public.can_current_user_access_tournament_announcement(uuid)
   from public,anon,authenticated;
 
 create or replace function public.create_tournament_announcement_draft(
@@ -752,8 +817,17 @@ begin
     and announcement.idempotency_key = p_idempotency_key;
   if v_existing.id is not null then
     if v_existing.tournament_id <> p_tournament_id
+      or v_existing.category_id is distinct from p_category_id
+      or v_existing.announcement_type <> p_announcement_type
       or v_existing.title <> btrim(p_title)
+      or v_existing.summary <> btrim(p_summary)
       or v_existing.body <> btrim(p_body)
+      or v_existing.priority <> coalesce(p_priority,'normal')
+      or v_existing.acknowledgement_mode <> coalesce(p_acknowledgement_mode,'none')
+      or v_existing.scheduled_for is distinct from p_scheduled_for
+      or v_existing.supersedes_id is distinct from p_supersedes_id
+      or v_existing.correction_reason is distinct from
+        nullif(btrim(coalesce(p_correction_reason,'')),'')
     then
       raise exception using errcode = '23514', message = 'TORNEOS_IDEMPOTENCY_CONFLICT';
     end if;
@@ -995,6 +1069,40 @@ begin
 end;
 $$;
 
+create or replace function public.replace_tournament_announcement_audience(
+  p_announcement_id uuid,
+  p_audience_type text,
+  p_category_id uuid default null,
+  p_team_entry_id uuid default null,
+  p_match_id uuid default null,
+  p_specific_user_id uuid default null
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_audience_id uuid;
+begin
+  if auth.uid() is null then
+    raise exception using errcode = '42501', message = 'TORNEOS_AUTH_REQUIRED';
+  end if;
+  v_audience_id := public.set_tournament_announcement_audience(
+    p_announcement_id,
+    p_audience_type,
+    p_category_id,
+    p_team_entry_id,
+    p_match_id,
+    p_specific_user_id
+  );
+  delete from public.tournament_announcement_audiences audience
+  where audience.announcement_id = p_announcement_id
+    and audience.id <> v_audience_id;
+  return v_audience_id;
+end;
+$$;
+
 create or replace function public.publish_tournament_announcement(
   p_announcement_id uuid,
   p_expected_recipient_count integer default null
@@ -1051,6 +1159,43 @@ begin
   ) then
     raise exception using errcode = '23514', message = 'TORNEOS_AUDIENCE_REQUIRED';
   end if;
+  if exists (
+    select 1
+    from public.tournament_announcement_links link
+    where link.announcement_id = p_announcement_id
+      and (
+        (link.link_type = 'category' and not exists (
+          select 1
+          from public.tournament_categories category
+          where category.id = link.resource_id
+            and category.organization_id = v_announcement.organization_id
+            and category.tournament_id = v_announcement.tournament_id
+            and category.status = 'active'
+        ))
+        or (link.link_type = 'match' and not exists (
+          select 1
+          from public.tournament_matches match
+          join public.tournament_fixture_versions fixture
+            on fixture.organization_id = match.organization_id
+           and fixture.id = match.fixture_version_id
+           and fixture.status = 'published'
+          where match.id = link.resource_id
+            and match.organization_id = v_announcement.organization_id
+            and match.tournament_id = v_announcement.tournament_id
+        ))
+        or (link.link_type = 'document' and not exists (
+          select 1
+          from public.tournament_documents document
+          where document.id = link.resource_id
+            and document.organization_id = v_announcement.organization_id
+            and document.tournament_id = v_announcement.tournament_id
+            and document.status = 'published'
+        ))
+      )
+  ) then
+    raise exception using errcode = '42501',
+      message = 'TORNEOS_INVALID_COMMUNICATION_LINK';
+  end if;
 
   select count(*) into v_count
   from public.resolve_tournament_announcement_recipients(p_announcement_id);
@@ -1083,7 +1228,14 @@ begin
   if v_announcement.supersedes_id is not null then
     update public.tournament_announcements
     set status = 'superseded'
-    where id = v_announcement.supersedes_id and status = 'published';
+    where id = v_announcement.supersedes_id
+      and organization_id = v_announcement.organization_id
+      and tournament_id = v_announcement.tournament_id
+      and status = 'published';
+    if not found then
+      raise exception using errcode = '40001',
+        message = 'TORNEOS_CORRECTION_ALREADY_SUPERSEDED';
+    end if;
   end if;
   update public.tournament_announcements
   set status = 'published',published_at = now(),scheduled_for = null,
@@ -1206,10 +1358,15 @@ begin
       where category.id = p_resource_id
         and category.organization_id = v_announcement.organization_id
         and category.tournament_id = v_announcement.tournament_id
+        and category.status = 'active'
     );
   elsif p_link_type = 'match' then
     v_valid := exists (
       select 1 from public.tournament_matches match
+      join public.tournament_fixture_versions fixture
+        on fixture.organization_id = match.organization_id
+       and fixture.id = match.fixture_version_id
+       and fixture.status = 'published'
       where match.id = p_resource_id
         and match.organization_id = v_announcement.organization_id
         and match.tournament_id = v_announcement.tournament_id
@@ -1222,6 +1379,7 @@ begin
       where document.id = p_resource_id
         and document.organization_id = v_announcement.organization_id
         and document.tournament_id = v_announcement.tournament_id
+        and document.status = 'published'
     );
   end if;
   if not v_valid then
@@ -1309,6 +1467,7 @@ begin
       where delivery.recipient_user_id = auth.uid()
         and delivery.status <> 'archived'
         and public.can_access_tournament_communications(announcement.tournament_id)
+        and public.can_current_user_access_tournament_announcement(announcement.id)
         and (p_tournament_id is null or announcement.tournament_id = p_tournament_id)
         and (
           p_filter = 'all'
@@ -1364,6 +1523,9 @@ begin
           and public.can_access_tournament_communications(
             unread_announcement.tournament_id
           )
+          and public.can_current_user_access_tournament_announcement(
+            unread_announcement.id
+          )
           and (p_tournament_id is null
             or unread_announcement.tournament_id = p_tournament_id)
       )
@@ -1406,7 +1568,9 @@ begin
     or (
       v_delivery.id is not null
       and not v_can_manage
-      and not public.can_access_tournament_communications(v_announcement.tournament_id)
+      and not public.can_current_user_access_tournament_announcement(
+        v_announcement.id
+      )
     )
     or (v_delivery.id is null and not v_can_manage)
   then
@@ -1480,7 +1644,7 @@ begin
   where delivery.announcement_id = p_announcement_id
     and delivery.recipient_user_id = auth.uid()
     and delivery.status not in ('archived','revoked')
-    and public.can_access_tournament_communications(announcement.tournament_id)
+    and public.can_current_user_access_tournament_announcement(announcement.id)
   for update of delivery;
   if v_delivery.id is null then
     raise exception using errcode = '42501', message = 'TORNEOS_COMMUNICATION_FORBIDDEN';
@@ -1718,8 +1882,22 @@ begin
     and document.created_by = auth.uid()
     and document.idempotency_key = p_idempotency_key;
   if v_existing.id is not null then
+    if v_existing.tournament_id <> p_tournament_id
+      or v_existing.category_id is distinct from p_category_id
+      or v_existing.document_type <> p_document_type
+      or v_existing.title <> btrim(p_title)
+      or v_existing.acknowledgement_mode <>
+        coalesce(p_acknowledgement_mode,'none')
+    then
+      raise exception using errcode = '23514',
+        message = 'TORNEOS_IDEMPOTENCY_CONFLICT';
+    end if;
+    select version.id into v_version_id
+    from public.tournament_document_versions version
+    where version.document_id = v_existing.id
+      and version.version = 1;
     return jsonb_build_object(
-      'documentId',v_existing.id,'versionId',v_existing.active_version_id
+      'documentId',v_existing.id,'versionId',v_version_id
     );
   end if;
 
@@ -2190,6 +2368,9 @@ revoke all on function public.set_tournament_announcement_link(
 ) from public,anon;
 revoke all on function public.preview_tournament_announcement_audience(uuid)
   from public,anon;
+revoke all on function public.replace_tournament_announcement_audience(
+  uuid,text,uuid,uuid,uuid,uuid
+) from public,anon;
 revoke all on function public.publish_tournament_announcement(uuid,integer)
   from public,anon;
 revoke all on function public.get_tournament_communications_inbox(
@@ -2242,6 +2423,9 @@ grant execute on function public.set_tournament_announcement_link(
 ) to authenticated;
 grant execute on function public.preview_tournament_announcement_audience(uuid)
   to authenticated;
+grant execute on function public.replace_tournament_announcement_audience(
+  uuid,text,uuid,uuid,uuid,uuid
+) to authenticated;
 grant execute on function public.publish_tournament_announcement(uuid,integer)
   to authenticated;
 grant execute on function public.get_tournament_communications_inbox(
