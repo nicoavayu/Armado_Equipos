@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  act,
   render,
   screen,
   waitFor,
@@ -9,6 +10,7 @@ import {
   MemoryRouter,
   Route,
   Routes,
+  useNavigate,
 } from 'react-router-dom';
 import MyTournamentsPage from '../features/torneos/components/MyTournamentsPage';
 import TournamentHubPage from '../features/torneos/components/TournamentHubPage';
@@ -145,6 +147,12 @@ function createService(hub = buildHub()) {
       teams: [],
       discipline: [],
     }),
+    loadPublishedStandings: jest.fn().mockResolvedValue({ standings: [] }),
+    loadPublishedStatistics: jest.fn().mockResolvedValue({
+      players: [],
+      teams: [],
+      discipline: [],
+    }),
     respondMatchAvailability: jest.fn().mockResolvedValue({ response: 'available' }),
   };
 }
@@ -161,8 +169,26 @@ function renderHub(path = '/torneos/torneo/tournament-a?categoria=category-a', p
           path="/torneos/torneo/:tournamentId/partidos"
           element={<TournamentHubPage defaultSection="partidos" {...props} />}
         />
+        <Route
+          path="/torneos/torneo/:tournamentId/tabla"
+          element={<TournamentHubPage defaultSection="tabla" {...props} />}
+        />
       </Routes>
     </MemoryRouter>,
+  );
+}
+
+function CategoryTestNavigation() {
+  const navigate = useNavigate();
+  return (
+    <div>
+      <button type="button" onClick={() => navigate('/torneos/torneo/tournament-a?categoria=category-b')}>
+        Ir a Senior
+      </button>
+      <button type="button" onClick={() => navigate('/torneos/torneo/tournament-a?categoria=category-c')}>
+        Ir a Master
+      </button>
+    </div>
   );
 }
 
@@ -269,6 +295,9 @@ describe('Participant Hub', () => {
       'href',
       '/torneos/mis-partidos/match-a/convocatoria',
     );
+    expect(screen.getByRole('heading', {
+      name: 'Respuestas y convocatoria',
+    })).toBeInTheDocument();
   });
 
   test('keeps archived tournaments read-only for every composed role', async () => {
@@ -315,6 +344,55 @@ describe('Participant Hub', () => {
     }));
   });
 
+  test('discards older hub responses after rapid category navigation', async () => {
+    const pending = {};
+    mockService.loadParticipantHub.mockImplementation(({ categoryId }) => (
+      new Promise((resolve) => {
+        pending[categoryId] = resolve;
+      })
+    ));
+    render(
+      <MemoryRouter initialEntries={['/torneos/torneo/tournament-a?categoria=category-a']}>
+        <CategoryTestNavigation />
+        <Routes>
+          <Route
+            path="/torneos/torneo/:tournamentId"
+            element={<TournamentHubPage />}
+          />
+        </Routes>
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(pending['category-a']).toBeDefined());
+    await userEvent.click(screen.getByRole('button', { name: 'Ir a Senior' }));
+    await waitFor(() => expect(pending['category-b']).toBeDefined());
+    await userEvent.click(screen.getByRole('button', { name: 'Ir a Master' }));
+    await waitFor(() => expect(pending['category-c']).toBeDefined());
+
+    await act(async () => {
+      pending['category-c'](buildHub({
+        activeCategoryId: 'category-c',
+        tournament: {
+          ...buildHub().tournament,
+          name: 'Copa Master',
+        },
+      }));
+    });
+    expect(await screen.findByRole('heading', { name: 'Copa Master' })).toBeInTheDocument();
+
+    await act(async () => {
+      pending['category-a'](buildHub());
+      pending['category-b'](buildHub({
+        activeCategoryId: 'category-b',
+        tournament: {
+          ...buildHub().tournament,
+          name: 'Copa Senior',
+        },
+      }));
+    });
+    expect(screen.getByRole('heading', { name: 'Copa Master' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Copa Senior' })).not.toBeInTheDocument();
+  });
+
   test('renders a safe empty matches state from the published endpoint', async () => {
     renderHub('/torneos/torneo/tournament-a/partidos?categoria=category-a');
     expect(await screen.findByRole('heading', { name: 'Sin partidos publicados' })).toBeInTheDocument();
@@ -324,6 +402,19 @@ describe('Participant Hub', () => {
       view: 'all',
       limit: 30,
     });
+  });
+
+  test('uses participant-only published projections instead of administrative RPCs', async () => {
+    renderHub('/torneos/torneo/tournament-a/tabla?categoria=category-a', {
+      defaultSection: 'tabla',
+    });
+    await waitFor(() => expect(mockService.loadPublishedStandings).toHaveBeenCalledWith({
+      tournamentId: 'tournament-a',
+      categoryId: 'category-a',
+      phaseId: 'phase-a',
+      groupId: null,
+    }));
+    expect(mockService.loadStandings).not.toHaveBeenCalled();
   });
 
   test('clears stale hub content when a subsequent category request fails', async () => {

@@ -2,6 +2,8 @@ import { supabase } from '../services/api/supabase';
 import {
   loadMyTournamentMemberships,
   loadPublishedTournamentMatches,
+  loadPublishedTournamentStandings,
+  loadPublishedTournamentStatistics,
   loadPublishedTournamentTeams,
   loadTournamentParticipantHub,
   loadTournamentParticipantMatch,
@@ -90,6 +92,38 @@ describe('participant hub service contracts', () => {
       p_category_id: 'category-a',
       p_limit: 16,
       p_offset: 16,
+    });
+  });
+
+  test('loads participant standings from a published-only scope', async () => {
+    await loadPublishedTournamentStandings({
+      tournamentId: 'tournament-a',
+      categoryId: 'category-a',
+      phaseId: 'phase-a',
+      groupId: null,
+      organizationId: 'forged-org',
+    });
+    expect(supabase.rpc).toHaveBeenCalledWith('get_published_tournament_standings', {
+      p_tournament_id: 'tournament-a',
+      p_category_id: 'category-a',
+      p_phase_id: 'phase-a',
+      p_group_id: null,
+    });
+  });
+
+  test('loads participant statistics without an administrative organization id', async () => {
+    await loadPublishedTournamentStatistics({
+      tournamentId: 'tournament-a',
+      categoryId: 'category-a',
+      phaseId: 'phase-a',
+      groupId: 'group-a',
+      organizationId: 'forged-org',
+    });
+    expect(supabase.rpc).toHaveBeenCalledWith('get_published_tournament_statistics', {
+      p_tournament_id: 'tournament-a',
+      p_category_id: 'category-a',
+      p_phase_id: 'phase-a',
+      p_group_id: 'group-a',
     });
   });
 
