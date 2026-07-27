@@ -14,6 +14,7 @@ import {
   Check,
   ChevronRight,
   Clock3,
+  Camera,
   Goal,
   MapPin,
   Medal,
@@ -35,6 +36,7 @@ import {
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
 import styles from './ParticipantHub.module.css';
 import TournamentCommunicationsPanel from './TournamentCommunicationsPanel';
+import ParticipantMediaGallery from './ParticipantMediaGallery';
 
 const SECTIONS = [
   ['resumen', 'Resumen', Sparkles],
@@ -43,6 +45,7 @@ const SECTIONS = [
   ['tabla', 'Tabla', Trophy],
   ['estadisticas', 'Estadísticas', BarChart3],
   ['equipos', 'Equipos', UsersRound],
+  ['fotos', 'Fotos', Camera],
   ['disciplina', 'Disciplina', ShieldAlert],
 ];
 const VALID_SECTIONS = new Set(SECTIONS.map(([key]) => key));
@@ -535,7 +538,9 @@ function DisciplineSection({ data, myPlayerId }) {
   );
 }
 
-function MatchDetail({ match, tournamentId, categoryId }) {
+function MatchDetail({
+  match, tournamentId, categoryId, service,
+}) {
   if (!match) return null;
   const goals = (match.officialEvents || []).filter((event) => (
     ['goal', 'own_goal', 'penalty_goal'].includes(event.type)
@@ -590,6 +595,14 @@ function MatchDetail({ match, tournamentId, categoryId }) {
           )) : <p className={styles.panelEmpty}>Sin tarjetas oficiales.</p>}
         </section>
       </div>
+      <ParticipantMediaGallery
+        tournamentId={tournamentId}
+        categoryId={categoryId}
+        matchId={match.matchId || match.id}
+        service={service}
+        hideWhenEmpty
+        compact
+      />
     </div>
   );
 }
@@ -722,7 +735,7 @@ export default function TournamentHubPage({ defaultSection = 'resumen', matchMod
 
   useEffect(() => {
     if (hubState.status !== 'ready') return;
-    if (section === 'resumen' && !matchMode) return;
+    if (['resumen', 'novedades', 'fotos'].includes(section) && !matchMode) return;
     loadResource();
   }, [hubState.status, loadResource, matchMode, section]);
 
@@ -870,13 +883,22 @@ export default function TournamentHubPage({ defaultSection = 'resumen', matchMod
       )}
 
       {!matchMode && section === 'resumen' && (
-        <OverviewSection
-          hub={hub}
-          tournamentId={tournamentId}
-          categoryId={categoryId}
-          busyMatchId={busyMatchId}
-          onRespond={respond}
-        />
+        <>
+          <OverviewSection
+            hub={hub}
+            tournamentId={tournamentId}
+            categoryId={categoryId}
+            busyMatchId={busyMatchId}
+            onRespond={respond}
+          />
+          <ParticipantMediaGallery
+            tournamentId={tournamentId}
+            categoryId={categoryId}
+            service={service}
+            hideWhenEmpty
+            compact
+          />
+        </>
       )}
       {!matchMode && section === 'novedades' && (
         <TournamentCommunicationsPanel
@@ -911,11 +933,23 @@ export default function TournamentHubPage({ defaultSection = 'resumen', matchMod
       {!matchMode && section === 'equipos' && resourceState.status === 'ready' && (
         <TeamsSection payload={resourceState.data} />
       )}
+      {!matchMode && section === 'fotos' && (
+        <ParticipantMediaGallery
+          tournamentId={tournamentId}
+          categoryId={categoryId}
+          service={service}
+        />
+      )}
       {!matchMode && section === 'disciplina' && resourceState.status === 'ready' && (
         <DisciplineSection data={resourceState.data} myPlayerId={myPlayerId} />
       )}
       {matchMode && resourceState.status === 'ready' && (
-        <MatchDetail match={resourceState.data} tournamentId={tournamentId} categoryId={categoryId} />
+        <MatchDetail
+          match={resourceState.data}
+          tournamentId={tournamentId}
+          categoryId={categoryId}
+          service={service}
+        />
       )}
     </div>
   );

@@ -1,0 +1,287 @@
+.mediaSection {
+  --photo-accent: var(--hub-accent, #9b7bff);
+  display: grid;
+  gap: 18px;
+  color: #f8f5ff;
+}
+.sectionHeading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+}
+.sectionHeading p {
+  margin: 0 0 5px;
+  color: #63eed0;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+}
+.sectionHeading h2 {
+  margin: 0;
+  font-family: "Bebas Neue", "Oswald", sans-serif;
+  font-size: clamp(34px, 5vw, 52px);
+  font-weight: 500;
+  letter-spacing: .02em;
+  line-height: 1;
+}
+.sectionHeading > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #a69daf;
+  font-size: 11px;
+}
+.gallery {
+  overflow: hidden;
+  padding: clamp(14px, 2.5vw, 22px);
+  border: 1px solid rgba(255,255,255,.085);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 90% 0, color-mix(in srgb, var(--photo-accent) 17%, transparent), transparent 35%),
+    #110e19;
+  box-shadow: 0 20px 60px rgba(6,3,14,.22);
+}
+.gallery > header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.gallery > header > span { display: grid; gap: 4px; }
+.gallery > header strong { font-size: 19px; }
+.gallery > header small { max-width: 620px; color: #9d94a9; line-height: 1.45; }
+.gallery > header em {
+  flex: none;
+  border-radius: 999px;
+  background: rgba(255,255,255,.07);
+  color: #c9c1d3;
+  padding: 6px 9px;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.photoGrid {
+  display: grid;
+  grid-template-columns: minmax(0,1.45fr) minmax(220px,.55fr);
+  gap: 8px;
+}
+.photoGrid button {
+  position: relative;
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 13px;
+  background: #211831;
+  color: white;
+  cursor: pointer;
+}
+.photoGrid button:focus-visible {
+  outline: 3px solid #63eed0;
+  outline-offset: 2px;
+}
+.cover { min-height: 380px; }
+.photoGrid img, .protectedFrame {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  min-height: 110px;
+  object-fit: cover;
+  transition: transform .32s ease, filter .32s ease;
+}
+.protectedFrame {
+  gap: 6px;
+  background:
+    radial-gradient(circle at 35% 25%, color-mix(in srgb, var(--photo-accent) 34%, transparent), transparent 40%),
+    linear-gradient(140deg,#291d3b,#0d0a14);
+  color: rgba(255,255,255,.54);
+}
+.protectedFrame small { font-size: 9px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.photoGrid button:hover img { transform: scale(1.025); filter: saturate(1.06); }
+.cover > span {
+  position: absolute;
+  left: 13px;
+  bottom: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  background: rgba(9,7,14,.76);
+  padding: 8px 10px;
+  font-size: 10px;
+  font-weight: 800;
+  backdrop-filter: blur(8px);
+}
+.photoGrid > div {
+  display: grid;
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: 8px;
+}
+.photoGrid > div button { min-height: 118px; }
+.photoGrid > div button b {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(8,5,14,.67);
+  font-size: 24px;
+}
+
+.compact .sectionHeading h2 { font-size: 36px; }
+.compact .gallery { padding: 14px; }
+.compact .cover { min-height: 270px; }
+
+.lightboxBackdrop {
+  position: fixed;
+  z-index: 10020;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(3,2,7,.89);
+  backdrop-filter: blur(12px);
+}
+.lightbox {
+  display: grid;
+  grid-template-rows: auto minmax(0,1fr) auto;
+  width: min(1120px, 100%);
+  max-height: calc(100vh - 36px);
+  overflow: auto;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 22px;
+  background: #0d0b13;
+  box-shadow: 0 34px 120px rgba(0,0,0,.55);
+}
+.lightbox > header, .lightbox > footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 15px;
+}
+.lightbox > header > span, .lightbox > footer > span { display: grid; gap: 2px; }
+.lightbox small { color: #968da1; }
+.lightbox button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 44px;
+  min-height: 44px;
+  border: 1px solid rgba(255,255,255,.13);
+  border-radius: 12px;
+  background: rgba(255,255,255,.055);
+  color: white;
+  cursor: pointer;
+}
+.lightbox button:focus-visible, .reportForm :is(select,textarea,input):focus-visible {
+  outline: 3px solid #63eed0;
+  outline-offset: 2px;
+}
+.lightboxStage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 340px;
+  background: #07060a;
+}
+.lightboxStage > img, .lightboxStage > .protectedFrame {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  max-height: calc(100vh - 230px);
+  min-height: 340px;
+  object-fit: contain;
+}
+.lightboxStage .previous, .lightboxStage .next {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  border-radius: 50%;
+  background: rgba(10,7,14,.72);
+}
+.previous { left: 13px; }
+.next { right: 13px; }
+
+.reportForm {
+  display: grid;
+  grid-template-columns: minmax(180px,.75fr) repeat(2,minmax(0,1fr)) auto;
+  gap: 12px;
+  align-items: end;
+  padding: 15px;
+  border-top: 1px solid rgba(255,255,255,.08);
+  background: #15101e;
+}
+.reportForm > div:first-child span { display: flex; align-items: center; gap: 7px; }
+.reportForm > div:first-child svg { color: #63eed0; }
+.reportForm p { margin: 5px 0 0; color: #9c92a7; font-size: 11px; line-height: 1.4; }
+.reportForm label { display: grid; gap: 5px; }
+.reportForm label > span { color: #aea5b8; font-size: 10px; font-weight: 800; text-transform: uppercase; }
+.reportForm select, .reportForm textarea {
+  min-height: 44px;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 10px;
+  background: #0d0a13;
+  color: white;
+  padding: 9px;
+}
+.reportForm textarea { height: 64px; resize: vertical; }
+.reportForm .checkLabel { display: flex; align-items: center; gap: 8px; min-height: 44px; }
+.checkLabel input { width: 20px; height: 20px; accent-color: #8d6cf5; }
+.reportError { color: #ff9aaa !important; }
+.reportSuccess { grid-column: 2 / -1; display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: 12px; background: rgba(99,238,208,.08); }
+.reportSuccess svg { color: #63eed0; }
+.reportSuccess span { display: grid; gap: 3px; }
+
+.emptyState {
+  display: grid;
+  place-items: center;
+  min-height: 240px;
+  padding: 28px;
+  border: 1px dashed rgba(157,123,255,.28);
+  border-radius: 22px;
+  text-align: center;
+  background: rgba(18,14,27,.55);
+  color: #f5f1fb;
+}
+.emptyState svg { color: #9d7bff; }
+.emptyState h2 { margin: 11px 0 5px; }
+.emptyState p { max-width: 520px; margin: 0; color: #9c93a7; line-height: 1.5; }
+.emptyState button { margin-top: 14px; min-height: 44px; border-radius: 11px; }
+.skeleton { display: grid; grid-template-columns: 1.4fr .6fr; gap: 9px; }
+.skeleton i { min-height: 330px; border-radius: 18px; background: linear-gradient(90deg,#15111f,#251b35,#15111f); background-size: 200% 100%; animation: photo-shimmer 1.2s infinite; }
+.skeleton i:nth-of-type(2), .skeleton i:nth-of-type(3) { min-height: 160px; }
+.srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
+@keyframes photo-shimmer { to { background-position: -200% 0; } }
+
+@media (max-width: 720px) {
+  .sectionHeading { align-items: flex-start; flex-direction: column; }
+  .photoGrid { grid-template-columns: 1fr; }
+  .cover { min-height: 280px; }
+  .photoGrid > div { grid-template-columns: repeat(3,minmax(0,1fr)); }
+  .photoGrid > div button { min-height: 96px; }
+  .lightboxBackdrop { padding: 0; }
+  .lightbox { width: 100%; max-height: 100vh; min-height: 100vh; border: 0; border-radius: 0; }
+  .lightboxStage > img, .lightboxStage > .protectedFrame { max-height: calc(100vh - 210px); }
+  .lightbox > footer { align-items: flex-start; flex-direction: column; }
+  .lightbox > footer button { width: 100%; }
+  .reportForm { grid-template-columns: 1fr; }
+  .reportSuccess { grid-column: auto; }
+}
+
+@media (max-width: 390px) {
+  .gallery > header { flex-direction: column; }
+  .photoGrid > div { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .cover { min-height: 230px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .photoGrid img { transition: none; }
+  .photoGrid button:hover img { transform: none; }
+  .skeleton i { animation: none; }
+}
