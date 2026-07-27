@@ -42,6 +42,22 @@ const PROJECTION_CAPABILITIES = [
   'suspensions.mark_served',
 ];
 
+const MEDIA_CAPABILITIES = [
+  'media.read',
+  'media.create_gallery',
+  'media.update_gallery',
+  'media.upload',
+  'media.review',
+  'media.publish',
+  'media.archive',
+  'media.revoke',
+  'media.set_cover',
+  'media.tag_team',
+  'media.tag_player',
+  'media.manage_consent',
+  'media.handle_reports',
+];
+
 describe('Torneos role capabilities', () => {
   test.each([
     [TOURNAMENT_ROLES.OWNER, TOURNAMENT_CAPABILITIES.ORGANIZATION_ARCHIVE, true],
@@ -104,6 +120,17 @@ describe('Torneos role capabilities', () => {
   ])('keeps projections read-only for collaborator in %s', (role, expected) => {
     const actual = getCapabilitiesForRole(role)
       .filter((capability) => PROJECTION_CAPABILITIES.includes(capability))
+      .sort();
+    expect(actual).toEqual([...expected].sort());
+  });
+
+  test.each([
+    [TOURNAMENT_ROLES.OWNER, MEDIA_CAPABILITIES],
+    [TOURNAMENT_ROLES.ADMIN, MEDIA_CAPABILITIES],
+    [TOURNAMENT_ROLES.COLLABORATOR, ['media.read']],
+  ])('keeps media fail-closed for %s', (role, expected) => {
+    const actual = getCapabilitiesForRole(role)
+      .filter((capability) => MEDIA_CAPABILITIES.includes(capability))
       .sort();
     expect(actual).toEqual([...expected].sort());
   });
