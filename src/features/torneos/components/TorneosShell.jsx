@@ -3,6 +3,7 @@ import {
   Building2,
   CalendarRange,
   ClipboardList,
+  Images,
   Medal,
   Megaphone,
   Home,
@@ -45,6 +46,7 @@ import MyTournamentsPage from './MyTournamentsPage';
 import TournamentHubPage from './TournamentHubPage';
 import MyCommunicationsPage from './MyCommunicationsPage';
 import CommunicationsAdminPage from './CommunicationsAdminPage';
+import MediaAdminPage from './MediaAdminPage';
 import styles from './TorneosShell.module.css';
 
 const organizationNavigation = [
@@ -60,6 +62,7 @@ const organizationNavigation = [
   { label: 'Partidos', path: 'partidos', icon: ClipboardList },
   { label: 'Competencia', path: 'competencia', icon: Medal },
   { label: 'Comunicaciones', path: 'comunicaciones', icon: Megaphone },
+  { label: 'Multimedia', path: 'multimedia', icon: Images },
   { label: 'Configuración', path: 'configuracion', icon: Settings2 },
 ];
 
@@ -124,7 +127,7 @@ export default function TorneosShell() {
     ? location.pathname.split('/').slice(4).join('/')
     : '';
   const currentNavigation = organizationNavigation.find(({ path }) => (
-    ['torneos', 'equipos', 'fixture', 'partidos', 'competencia', 'comunicaciones'].includes(path)
+    ['torneos', 'equipos', 'fixture', 'partidos', 'competencia', 'comunicaciones', 'multimedia'].includes(path)
       ? (
         organizationRelativePath.startsWith(path)
         || (path === 'torneos' && organizationRelativePath.startsWith('temporadas'))
@@ -267,6 +270,7 @@ export default function TorneosShell() {
               <Route path="competencia/clasificacion" element={<CompetitionCenterPage mode="qualification" />} />
               <Route path="competencia/disciplina" element={<CompetitionCenterPage mode="discipline" />} />
               <Route path="comunicaciones" element={<CommunicationsAdminPage />} />
+              <Route path="multimedia" element={<MediaAdminPage />} />
               <Route path="configuracion" element={<OrganizationSettingsPage />} />
               <Route path="miembros" element={<OrganizationMembersPage />} />
             </Route>
@@ -299,6 +303,10 @@ export default function TorneosShell() {
             <Route
               path="torneo/:tournamentId/equipos"
               element={<TournamentHubPage defaultSection="equipos" />}
+            />
+            <Route
+              path="torneo/:tournamentId/fotos"
+              element={<TournamentHubPage defaultSection="fotos" />}
             />
             <Route
               path="torneo/:tournamentId/disciplina"

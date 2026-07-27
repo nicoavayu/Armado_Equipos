@@ -163,3 +163,16 @@ la confirmación evita lenguaje de aceptación legal. Preview muestra canal,
 torneo, criterio y cantidad estimada, pero avisa que el backend revalida al
 publicar. Los layouts pasan a una columna, mantienen targets de 44 px, foco
 visible y reduced motion; los pasos sólo usan scroll local en móvil.
+
+Multimedia nunca expone originales, paths, buckets, checksums ni tokens a un
+participante. El bucket es privado, el token de sesión se guarda hasheado y la
+finalización pertenece a `service_role`; una URL de variante debe ser firmada,
+breve, por lote y revalidada contra audiencia/consentimiento. Un tag no concede
+consentimiento. Reportar es privado; una solicitud de retiro queda visible sólo
+para quienes manejan privacidad y requiere una transición editorial auditable.
+
+La experiencia de carga acepta errores parciales, mantiene la selección válida,
+permite retry/cancel cuando exista el adaptador y nunca inventa porcentaje ni
+éxito. La galería participante usa thumbnail lazy y lightbox con diálogo, foco
+contenido, Escape, flechas, contador y cierre visible. No depende de hover ni
+drag-and-drop; en móvil reordenar dispone de controles explícitos.

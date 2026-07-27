@@ -131,6 +131,26 @@ const ERROR_MESSAGES = {
   TORNEOS_LINK_LIMIT_REACHED: 'El comunicado alcanzó el máximo de enlaces.',
   TORNEOS_INVALID_COMMUNICATION_LINK: 'El enlace no pertenece a este torneo o no es seguro.',
   TORNEOS_DOCUMENT_DRAFT_EXISTS: 'Ya existe una versión borrador para este documento.',
+  TORNEOS_MEDIA_FORBIDDEN: 'La galería no está disponible o no tenés permiso para esa acción.',
+  TORNEOS_MEDIA_SCOPE_INVALID: 'La galería, el partido o la relación deportiva no coinciden.',
+  TORNEOS_MEDIA_VISIBILITY_INVALID: 'Esa visibilidad no corresponde al alcance de la galería.',
+  TORNEOS_MEDIA_GALLERY_IMMUTABLE: 'La galería publicada ya no admite edición directa.',
+  TORNEOS_MEDIA_GALLERY_NOT_PUBLISHABLE: 'Revisá la portada y las fotos aprobadas antes de publicar.',
+  TORNEOS_MEDIA_FILE_INVALID: 'El archivo no superó la validación segura.',
+  TORNEOS_MEDIA_IDEMPOTENCY_CONFLICT: 'Ese intento ya se usó con otros datos. Volvé a iniciar la acción.',
+  TORNEOS_MEDIA_PROCESSING_REQUIRED: 'La foto todavía se está procesando de forma segura.',
+  TORNEOS_MEDIA_QUOTA_EXCEEDED: 'Se alcanzó la cuota multimedia de este espacio.',
+  TORNEOS_MEDIA_UPLOAD_SESSION_INVALID: 'La sesión de carga venció o ya fue utilizada.',
+  TORNEOS_MEDIA_DUPLICATE: 'Esa foto ya fue cargada en la organización.',
+  TORNEOS_MEDIA_TRANSITION_INVALID: 'Ese cambio de estado ya no está disponible.',
+  TORNEOS_MEDIA_COVER_INVALID: 'Elegí como portada una foto aprobada de esta galería.',
+  TORNEOS_MEDIA_CONSENT_INVALID: 'Revisá la persona y el uso asociado al consentimiento.',
+  TORNEOS_MEDIA_CONSENT_REQUIRED: 'Falta registrar el derecho de visualización interna.',
+  TORNEOS_MEDIA_ASSIGNMENT_INVALID: 'No pudimos asignar ese fotógrafo.',
+  TORNEOS_MEDIA_FILTER_INVALID: 'Revisá los filtros de Multimedia.',
+  TORNEOS_MEDIA_REPORT_RATE_LIMITED: 'Recibimos varios reportes. Esperá antes de enviar otro.',
+  TORNEOS_MEDIA_REPORT_INVALID: 'Ese reporte ya no admite esa resolución.',
+  TORNEOS_MEDIA_ORDER_INVALID: 'No pudimos mover la foto a esa posición.',
 };
 
 export class TournamentWorkspaceError extends Error {
@@ -1475,6 +1495,177 @@ export async function publishTournamentDocumentVersion(versionId) {
   }), 'No pudimos publicar el documento.');
 }
 
+export async function loadTournamentMediaAdminContext({
+  organizationId,
+  tournamentId = null,
+  status = null,
+  limit = 30,
+  offset = 0,
+}) {
+  return unwrapRpc(await supabase.rpc('get_tournament_media_admin_context', {
+    p_organization_id: organizationId,
+    p_tournament_id: tournamentId,
+    p_status: status,
+    p_limit: limit,
+    p_offset: offset,
+  }), 'No pudimos cargar el Centro Multimedia.');
+}
+
+export async function createTournamentMediaGallery({
+  organizationId,
+  tournamentId,
+  categoryId = null,
+  roundId = null,
+  matchId = null,
+  title,
+  description = '',
+  visibility = 'tournament_participants',
+  idempotencyKey,
+}) {
+  return unwrapRpc(await supabase.rpc('create_tournament_media_gallery', {
+    p_organization_id: organizationId,
+    p_tournament_id: tournamentId,
+    p_category_id: categoryId,
+    p_round_id: roundId,
+    p_match_id: matchId,
+    p_title: title,
+    p_description: description,
+    p_visibility: visibility,
+    p_idempotency_key: idempotencyKey,
+  }), 'No pudimos crear la galería.');
+}
+
+export async function updateTournamentMediaGallery({
+  galleryId,
+  title,
+  description = '',
+  visibility,
+  submitForReview = false,
+}) {
+  return unwrapRpc(await supabase.rpc('update_tournament_media_gallery', {
+    p_gallery_id: galleryId,
+    p_title: title,
+    p_description: description,
+    p_visibility: visibility,
+    p_submit_for_review: submitForReview,
+  }), 'No pudimos actualizar la galería.');
+}
+
+export async function requestTournamentMediaUploadSession({
+  galleryId,
+  fileName,
+  mime,
+  byteSize,
+  idempotencyKey,
+}) {
+  return unwrapRpc(await supabase.rpc('request_tournament_media_upload_session', {
+    p_gallery_id: galleryId,
+    p_file_name: fileName,
+    p_declared_mime: mime,
+    p_byte_size: byteSize,
+    p_idempotency_key: idempotencyKey,
+  }), 'No pudimos preparar la carga.');
+}
+
+export async function cancelTournamentMediaUploadSession(sessionId) {
+  return unwrapRpc(await supabase.rpc('cancel_tournament_media_upload_session', {
+    p_session_id: sessionId,
+  }), 'No pudimos cancelar la preparación de la foto.');
+}
+
+export async function transitionTournamentMediaAsset({
+  assetId,
+  action,
+  reason = null,
+}) {
+  return unwrapRpc(await supabase.rpc('transition_tournament_media_asset', {
+    p_asset_id: assetId,
+    p_action: action,
+    p_reason: reason,
+  }), 'No pudimos actualizar el estado de la foto.');
+}
+
+export async function setTournamentMediaCover({ galleryId, assetId }) {
+  return unwrapRpc(await supabase.rpc('set_tournament_media_cover', {
+    p_gallery_id: galleryId,
+    p_asset_id: assetId,
+  }), 'No pudimos elegir la portada.');
+}
+
+export async function reorderTournamentMediaItem({
+  galleryId,
+  assetId,
+  targetOrder,
+}) {
+  return unwrapRpc(await supabase.rpc('reorder_tournament_media_item', {
+    p_gallery_id: galleryId,
+    p_asset_id: assetId,
+    p_target_order: targetOrder,
+  }), 'No pudimos reordenar la foto.');
+}
+
+export async function publishTournamentMediaGallery(galleryId) {
+  return unwrapRpc(await supabase.rpc('publish_tournament_media_gallery', {
+    p_gallery_id: galleryId,
+  }), 'No pudimos publicar la galería.');
+}
+
+export async function changeTournamentMediaGalleryState({
+  galleryId,
+  action,
+  reason,
+}) {
+  return unwrapRpc(await supabase.rpc('change_tournament_media_gallery_state', {
+    p_gallery_id: galleryId,
+    p_action: action,
+    p_reason: reason,
+  }), 'No pudimos actualizar la galería.');
+}
+
+export async function loadPublishedTournamentMedia({
+  tournamentId,
+  categoryId = null,
+  matchId = null,
+  limit = 20,
+  offset = 0,
+}) {
+  return unwrapRpc(await supabase.rpc('get_published_tournament_media', {
+    p_tournament_id: tournamentId,
+    p_category_id: categoryId,
+    p_match_id: matchId,
+    p_limit: limit,
+    p_offset: offset,
+  }), 'No pudimos cargar las fotos.');
+}
+
+export async function reportTournamentMediaAsset({
+  assetId,
+  reason,
+  detail = '',
+  requestHide = false,
+  idempotencyKey,
+}) {
+  return unwrapRpc(await supabase.rpc('report_tournament_media_asset', {
+    p_asset_id: assetId,
+    p_reason: reason,
+    p_detail: detail,
+    p_request_hide: requestHide,
+    p_idempotency_key: idempotencyKey,
+  }), 'No pudimos enviar el reporte.');
+}
+
+export async function handleTournamentMediaReport({
+  reportId,
+  status,
+  resolution,
+}) {
+  return unwrapRpc(await supabase.rpc('handle_tournament_media_report', {
+    p_report_id: reportId,
+    p_status: status,
+    p_resolution: resolution,
+  }), 'No pudimos resolver el reporte.');
+}
+
 export const tournamentWorkspaceService = Object.freeze({
   loadContext: loadTournamentWorkspaceContext,
   createOrganization: createTournamentOrganization,
@@ -1587,5 +1778,18 @@ export const tournamentWorkspaceService = Object.freeze({
   publishAnnouncement: publishTournamentAnnouncement,
   createDocument: createTournamentDocument,
   publishDocumentVersion: publishTournamentDocumentVersion,
+  loadMediaAdminContext: loadTournamentMediaAdminContext,
+  createMediaGallery: createTournamentMediaGallery,
+  updateMediaGallery: updateTournamentMediaGallery,
+  requestMediaUploadSession: requestTournamentMediaUploadSession,
+  cancelMediaUploadSession: cancelTournamentMediaUploadSession,
+  transitionMediaAsset: transitionTournamentMediaAsset,
+  setMediaCover: setTournamentMediaCover,
+  reorderMediaItem: reorderTournamentMediaItem,
+  publishMediaGallery: publishTournamentMediaGallery,
+  changeMediaGalleryState: changeTournamentMediaGalleryState,
+  loadPublishedMedia: loadPublishedTournamentMedia,
+  reportMediaAsset: reportTournamentMediaAsset,
+  handleMediaReport: handleTournamentMediaReport,
   createIdempotencyKey,
 });

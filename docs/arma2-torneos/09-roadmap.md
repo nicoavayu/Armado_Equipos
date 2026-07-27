@@ -53,11 +53,14 @@ Gate PostgreSQL/RLS local: reconstrucción versionada desde actas oficiales,
 publicación atómica, privacidad y concurrencia cubiertas. Pendientes staging
 aislado, mejores terceros/series configurables y torneo sintético completo.
 
-## 7. Comunicación y público
+## 7. Comunicación y público — comunicaciones internas y multimedia implementadas en la epic
 
-Avisos, noticias, galería, proyecciones públicas, deep links y push sandbox.
+Avisos, noticias, galerías privadas, proyecciones públicas, deep links y push
+sandbox. Comunicaciones internas y el dominio/UI de galerías autenticadas están
+implementados; publicación anónima, canales externos y Storage real no.
 
-Gate: revisión de privacidad y enlaces.
+Gate: bucket privado, signer batch, procesamiento, revisión legal de imagen y
+menores, auditoría Storage/RLS y QA multirol en staging.
 
 ## 8. Contenido automático
 
@@ -106,3 +109,8 @@ La primera capa de comunicaciones internas ya modela comunicados, documentos,
 audiencias y entregas sin conectar canales productivos. Push/email, publicación
 automática y compatibilidad con notificaciones existentes siguen bloqueados
 hasta una auditoría específica.
+
+Fotos agrega galerías por torneo/categoría/partido, moderación, consentimiento y
+reportes sin conectar Storage productivo. La metadata y sus pruebas pueden
+integrarse a la epic; la carga real y las URLs firmadas siguen bloqueadas hasta
+el staging aislado.

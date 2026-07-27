@@ -65,6 +65,9 @@ No lanzar con:
 - migraciones no ensayadas;
 - notificaciones capaces de alcanzar usuarios reales desde staging;
 - datos sensibles visibles o exportables sin justificación;
+- originales multimedia o paths accesibles al cliente;
+- publicación de imagen sin consentimiento/política de menores aprobados;
+- URLs firmadas sin expiración, scope y auditoría de red;
 - tests deshabilitados para pasar el gate;
 - dependencia de correcciones manuales no auditadas.
 
@@ -90,3 +93,8 @@ historial y confirmaciones de lectura. Tampoco habilitan lanzamiento: faltan
 staging autenticado multirol, validación legal, observabilidad, moderación,
 canales externos autorizados y pruebas en dispositivos físicos. No hay cron,
 push, email, Storage ni integración con notificaciones productivas.
+
+Fotos y galerías agregan metadata privada, moderación, portada, orden,
+consentimiento, reporte y lectura relacionada. Tampoco habilitan lanzamiento:
+el bucket, signer, antivirus, variantes, cleanup y retención deben validarse con
+objetos reales en staging; la UI mantiene la carga bloqueada hasta entonces.
