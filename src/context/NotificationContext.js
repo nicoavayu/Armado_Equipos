@@ -1320,7 +1320,8 @@ export const NotificationProvider = ({ children }) => {
         logger.warn('[NOTIFICATIONS] getSession error:', sessErr);
       }
 
-      // Attempt insert
+      // SEC: self — schedules a notification for the current user itself
+      // (user_id = currentUserId = auth.uid()); survives the Stage B self-insert policy.
       const res = await supabase
         .from('notifications')
         .insert([notification])

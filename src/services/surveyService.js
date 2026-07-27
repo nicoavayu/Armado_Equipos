@@ -182,7 +182,8 @@ export const createPostMatchSurveyNotifications = async (partido) => {
       },
     ]));
 
-    // Insert notifications into the database
+    // SEC: dev-only — disabled in production (guarded by USE_JS_FANOUT above;
+    // prod survey notifications come from the DB cron fanout). Never runs at Stage B.
     const { data, error } = await supabase
       .from('notifications')
       .insert([...startNotifications, ...reminderNotifications])

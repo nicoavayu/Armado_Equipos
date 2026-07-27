@@ -67,6 +67,7 @@
     "test:db:goalkeeper:notifications": "node scripts/db-integration/goalkeeper_notifications.mjs",
     "test:db:quierojugar": "node scripts/db-integration/quiero_jugar_v2.mjs",
     "test:db:rejoin": "node scripts/db-integration/rejoin_after_expulsion.mjs",
+    "test:db:security": "node scripts/db-integration/security_patch.mjs",
     "eject": "react-scripts eject",
     "mobile:sync": "npm run build && npx cap sync",
     "android:sync": "npm run build && npx cap sync android",

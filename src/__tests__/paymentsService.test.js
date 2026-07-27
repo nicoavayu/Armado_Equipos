@@ -34,13 +34,14 @@ describe('reportMyPayment', () => {
     await reportMyPayment(123, { matchName: 'Fútbol jueves', reporterName: 'Juan', adminUserId: 'admin-uuid' });
 
     expect(mockRpc).toHaveBeenCalledWith('report_my_payment', { p_partido_id: 123 });
-    expect(mockInsertCalls).toHaveLength(1);
-    const notif = mockInsertCalls[0];
-    expect(notif.user_id).toBe('admin-uuid');
-    expect(notif.type).toBe('payment_reported');
-    expect(notif.data.link).toBe('/pagos/123');
-    expect(notif.message).toContain('Juan');
-    expect(notif.message).toContain('Fútbol jueves');
+    // Notifications now route through the secure create_notification RPC
+    // (server-generated content); no direct client insert.
+    expect(mockInsertCalls).toHaveLength(0);
+    const notifCalls = mockRpc.mock.calls.filter((c) => c[0] === 'create_notification');
+    expect(notifCalls).toHaveLength(1);
+    expect(notifCalls[0][1].p_type).toBe('payment_reported');
+    expect(notifCalls[0][1].p_recipient_id).toBe('admin-uuid');
+    expect(notifCalls[0][1].p_context).toEqual({ match_id: 123 });
   });
 
   test('does not notify when the caller is the admin', async () => {
@@ -70,13 +71,12 @@ describe('adminRemindPending', () => {
 
     expect(mockRpc).toHaveBeenCalledWith('admin_remind_pending_payments', { p_partido_id: 123 });
     expect(res.notified).toBe(2);
-    expect(mockInsertCalls).toHaveLength(1);
-    const payload = mockInsertCalls[0];
-    expect(Array.isArray(payload)).toBe(true);
-    expect(payload).toHaveLength(2);
-    expect(payload[0].type).toBe('payment_reminder');
-    expect(payload[0].data.link).toBe('/pagos/123');
-    expect(payload[0].message).toContain('Fútbol jueves');
+    // One secure create_notification RPC per pending recipient; no direct insert.
+    expect(mockInsertCalls).toHaveLength(0);
+    const notifCalls = mockRpc.mock.calls.filter((c) => c[0] === 'create_notification');
+    expect(notifCalls).toHaveLength(2);
+    expect(notifCalls[0][1].p_type).toBe('payment_reminder');
+    expect(notifCalls.map((c) => c[1].p_recipient_id).sort()).toEqual(['u1', 'u2']);
   });
 
   test('inserts nothing when there are no pending recipients', async () => {
@@ -97,11 +97,11 @@ describe('adminRemindPending', () => {
     });
     const res = await adminRemindPending(123, { matchName: 'X' });
     expect(res.notified).toBe(1);
-    expect(mockInsertCalls).toHaveLength(1);
-    const payload = mockInsertCalls[0];
-    expect(payload).toHaveLength(1);
-    expect(payload[0].user_id).toBe('u2');
-    expect(payload.some((n) => n.user_id === 'admin-uuid')).toBe(false);
+    expect(mockInsertCalls).toHaveLength(0);
+    const notifCalls = mockRpc.mock.calls.filter((c) => c[0] === 'create_notification');
+    expect(notifCalls).toHaveLength(1);
+    expect(notifCalls[0][1].p_recipient_id).toBe('u2');
+    expect(notifCalls.some((c) => c[1].p_recipient_id === 'admin-uuid')).toBe(false);
   });
 
   test('inserts nothing when the only pending recipient is the admin themselves', async () => {
