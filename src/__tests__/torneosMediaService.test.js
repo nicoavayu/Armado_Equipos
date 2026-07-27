@@ -1,5 +1,6 @@
 import { supabase } from '../services/api/supabase';
 import {
+  cancelTournamentMediaUploadSession,
   createTournamentMediaGallery,
   loadPublishedTournamentMedia,
   loadTournamentMediaAdminContext,
@@ -80,6 +81,14 @@ describe('tournament media service contracts', () => {
       p_byte_size: 4096,
       p_idempotency_key: 'key-a',
     });
+  });
+
+  test('cancels an upload intent by opaque session ID only', async () => {
+    await cancelTournamentMediaUploadSession('session-a');
+    expect(supabase.rpc).toHaveBeenCalledWith(
+      'cancel_tournament_media_upload_session',
+      { p_session_id: 'session-a' },
+    );
   });
 
   test('moderates and reports by opaque resource ID only', async () => {

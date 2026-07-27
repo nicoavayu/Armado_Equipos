@@ -213,6 +213,7 @@ export default function MediaAdminPage() {
   const canReview = capabilities.includes('media.review');
   const canPublish = capabilities.includes('media.publish');
   const canHandleReports = capabilities.includes('media.handle_reports');
+  const uploadReady = state.data?.storage?.uploadReady === true;
   const selectedTournament = useMemo(() => (
     state.data?.tournaments?.find((item) => item.id === form.tournamentId) || null
   ), [form.tournamentId, state.data]);
@@ -264,6 +265,10 @@ export default function MediaAdminPage() {
       ...item,
       idempotencyKey: service.createIdempotencyKey(),
       previewUrl: item.status === 'ready' ? URL.createObjectURL(item.file) : '',
+      ...(item.status === 'ready' && !uploadReady ? {
+        status: 'staging_required',
+        error: 'La carga de fotos todavía no está habilitada en este entorno.',
+      } : {}),
     }));
     setQueue((current) => {
       current.forEach((item) => item.previewUrl && URL.revokeObjectURL(item.previewUrl));
@@ -273,7 +278,7 @@ export default function MediaAdminPage() {
   };
 
   const prepareUpload = async (item) => {
-    if (!selectedGallery || !canUpload || item.status === 'requesting') return;
+    if (!selectedGallery || !canUpload || !uploadReady || item.status === 'requesting') return;
     setQueue((current) => current.map((candidate) => (
       candidate.id === item.id
         ? { ...candidate, status: 'requesting', error: '', progress: 0 }
@@ -295,7 +300,7 @@ export default function MediaAdminPage() {
             status: session.uploadReady ? 'ready_to_upload' : 'staging_required',
             error: session.uploadReady
               ? ''
-              : 'Sesión segura emitida. La subida real espera certificación de Storage staging.',
+              : 'La carga de fotos todavía no está habilitada en este entorno.',
           }
           : candidate
       )));
@@ -443,12 +448,12 @@ export default function MediaAdminPage() {
       <div className={styles.storageGate}>
         <ShieldCheck size={20} />
         <span>
-          <strong>Contrato seguro preparado</strong>
+          <strong>Carga protegida</strong>
           <small>
-            Bucket privado previsto: tournament-media · Storage staging todavía no certificado.
+            La carga de fotos todavía no está habilitada en este entorno.
           </small>
         </span>
-        <em>No desplegado</em>
+        <em>Próximamente</em>
       </div>
 
       {(state.error || notice) && (
@@ -596,7 +601,10 @@ export default function MediaAdminPage() {
                 <section className={styles.uploadPanel}>
                   <div>
                     <UploadCloud size={24} />
-                    <span><strong>Preparar fotos</strong><small>JPEG, PNG o WebP · hasta 12 MB · máximo 40 por tanda</small></span>
+                    <span>
+                      <strong>{uploadReady ? 'Preparar fotos' : 'Revisar fotos'}</strong>
+                      <small>JPEG, PNG o WebP · hasta 12 MB · máximo 40 por tanda</small>
+                    </span>
                   </div>
                   <input
                     ref={fileInputRef}

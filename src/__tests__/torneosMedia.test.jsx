@@ -115,12 +115,13 @@ describe('organizer tournament media center', () => {
     mockContextService = createAdminService();
   });
 
-  test('renders premium empty state and honest staging gate', async () => {
+  test('renders premium empty state and an honest environment gate', async () => {
     renderAdmin();
     expect(await screen.findByRole('heading', { name: 'Centro Multimedia' }))
       .toBeInTheDocument();
     expect(screen.getByText('El archivo visual empieza acá')).toBeInTheDocument();
-    expect(screen.getByText(/Storage staging todavía no certificado/)).toBeInTheDocument();
+    expect(screen.getByText(/La carga de fotos todavía no está habilitada/)).toBeInTheDocument();
+    expect(screen.queryByText(/Storage|bucket|staging/i)).not.toBeInTheDocument();
   });
 
   test('creates a match gallery with relation-scoped visibility', async () => {
@@ -163,10 +164,12 @@ describe('organizer tournament media center', () => {
     expect(await screen.findByText('Foto 01')).toBeInTheDocument();
     expect(screen.getByText('Foto 02')).toBeInTheDocument();
     expect(screen.getByText(/Formato no admitido/)).toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: 'Preparar' })).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: 'Preparar' })).not.toBeInTheDocument();
+    expect(screen.getAllByText(/La carga de fotos todavía no está habilitada/).length)
+      .toBeGreaterThan(1);
   });
 
-  test('prepares a secure session without faking upload progress', async () => {
+  test('keeps upload fail-closed without issuing a session or faking progress', async () => {
     mockContextService = createAdminService(adminPayload({
       galleries: [{
         id: 'gallery-a',
@@ -185,9 +188,13 @@ describe('organizer tournament media center', () => {
     fireEvent.change(input, {
       target: { files: [new File(['foto'], 'partido.jpg', { type: 'image/jpeg' })] },
     });
-    await userEvent.click(await screen.findByRole('button', { name: 'Preparar' }));
-    expect(await screen.findByText(/La subida real espera certificación/)).toBeInTheDocument();
-    expect(mockContextService.requestMediaUploadSession).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(
+        screen.getAllByText(/La carga de fotos todavía no está habilitada/).length,
+      ).toBeGreaterThan(1);
+    });
+    expect(screen.queryByRole('button', { name: 'Preparar' })).not.toBeInTheDocument();
+    expect(mockContextService.requestMediaUploadSession).not.toHaveBeenCalled();
   });
 
   test('approves, selects cover and protects publication from rapid double click', async () => {

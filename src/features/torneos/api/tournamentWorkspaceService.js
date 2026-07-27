@@ -137,6 +137,8 @@ const ERROR_MESSAGES = {
   TORNEOS_MEDIA_GALLERY_IMMUTABLE: 'La galería publicada ya no admite edición directa.',
   TORNEOS_MEDIA_GALLERY_NOT_PUBLISHABLE: 'Revisá la portada y las fotos aprobadas antes de publicar.',
   TORNEOS_MEDIA_FILE_INVALID: 'El archivo no superó la validación segura.',
+  TORNEOS_MEDIA_IDEMPOTENCY_CONFLICT: 'Ese intento ya se usó con otros datos. Volvé a iniciar la acción.',
+  TORNEOS_MEDIA_PROCESSING_REQUIRED: 'La foto todavía se está procesando de forma segura.',
   TORNEOS_MEDIA_QUOTA_EXCEEDED: 'Se alcanzó la cuota multimedia de este espacio.',
   TORNEOS_MEDIA_UPLOAD_SESSION_INVALID: 'La sesión de carga venció o ya fue utilizada.',
   TORNEOS_MEDIA_DUPLICATE: 'Esa foto ya fue cargada en la organización.',
@@ -1565,6 +1567,12 @@ export async function requestTournamentMediaUploadSession({
   }), 'No pudimos preparar la carga.');
 }
 
+export async function cancelTournamentMediaUploadSession(sessionId) {
+  return unwrapRpc(await supabase.rpc('cancel_tournament_media_upload_session', {
+    p_session_id: sessionId,
+  }), 'No pudimos cancelar la preparación de la foto.');
+}
+
 export async function transitionTournamentMediaAsset({
   assetId,
   action,
@@ -1774,6 +1782,7 @@ export const tournamentWorkspaceService = Object.freeze({
   createMediaGallery: createTournamentMediaGallery,
   updateMediaGallery: updateTournamentMediaGallery,
   requestMediaUploadSession: requestTournamentMediaUploadSession,
+  cancelMediaUploadSession: cancelTournamentMediaUploadSession,
   transitionMediaAsset: transitionTournamentMediaAsset,
   setMediaCover: setTournamentMediaCover,
   reorderMediaItem: reorderTournamentMediaItem,

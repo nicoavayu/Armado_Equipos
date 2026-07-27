@@ -136,8 +136,9 @@ create table public.tournament_media_assets (
 
 create index tournament_media_assets_gallery_status_idx
   on public.tournament_media_assets (gallery_id, status, created_at desc);
-create index tournament_media_assets_checksum_idx
-  on public.tournament_media_assets (organization_id, checksum_sha256);
+create unique index tournament_media_assets_checksum_active_unique
+  on public.tournament_media_assets (organization_id, checksum_sha256)
+  where status <> 'revoked';
 create index tournament_media_assets_review_idx
   on public.tournament_media_assets (organization_id, status, created_at)
   where status in ('pending_review','hidden');
@@ -406,6 +407,39 @@ create unique index tournament_media_consents_subject_unique
 create index tournament_media_consents_asset_idx
   on public.tournament_media_consents (asset_id, use_scope, status);
 
+create table public.tournament_media_consent_events (
+  id bigint generated always as identity primary key,
+  organization_id uuid not null,
+  tournament_id uuid not null,
+  consent_id uuid not null
+    references public.tournament_media_consents(id) on delete restrict,
+  asset_id uuid not null references public.tournament_media_assets(id) on delete restrict,
+  roster_player_id uuid references public.tournament_roster_players(id) on delete restrict,
+  subject_user_id uuid references auth.users(id) on delete restrict,
+  use_scope text not null,
+  previous_status text,
+  resulting_status text not null,
+  legal_basis text,
+  actor_user_id uuid not null references auth.users(id) on delete restrict,
+  created_at timestamptz not null default now(),
+  constraint tournament_media_consent_events_subject_check
+    check (roster_player_id is not null or subject_user_id is not null),
+  constraint tournament_media_consent_events_use_check
+    check (use_scope in (
+      'view_internal','share_internal','social_future',
+      'promotion_future','commercial'
+    )),
+  constraint tournament_media_consent_events_status_check check (
+    (previous_status is null or previous_status in (
+      'unknown','allowed','denied','revoked','not_required'
+    ))
+    and resulting_status in ('unknown','allowed','denied','revoked','not_required')
+  )
+);
+
+create index tournament_media_consent_events_consent_idx
+  on public.tournament_media_consent_events (consent_id, created_at desc);
+
 create table public.tournament_media_reports (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null,
@@ -461,7 +495,6 @@ create table public.tournament_media_assignments (
   user_id uuid not null references auth.users(id) on delete restrict,
   role text not null default 'photographer',
   can_upload boolean not null default true,
-  can_review boolean not null default false,
   status text not null default 'active',
   assigned_by uuid not null references auth.users(id) on delete restrict,
   created_at timestamptz not null default now(),
@@ -491,6 +524,7 @@ alter table public.tournament_media_variants enable row level security;
 alter table public.tournament_media_upload_sessions enable row level security;
 alter table public.tournament_media_moderation_actions enable row level security;
 alter table public.tournament_media_consents enable row level security;
+alter table public.tournament_media_consent_events enable row level security;
 alter table public.tournament_media_reports enable row level security;
 alter table public.tournament_media_assignments enable row level security;
 
@@ -502,6 +536,7 @@ revoke all on table public.tournament_media_variants from anon,authenticated;
 revoke all on table public.tournament_media_upload_sessions from anon,authenticated;
 revoke all on table public.tournament_media_moderation_actions from anon,authenticated;
 revoke all on table public.tournament_media_consents from anon,authenticated;
+revoke all on table public.tournament_media_consent_events from anon,authenticated;
 revoke all on table public.tournament_media_reports from anon,authenticated;
 revoke all on table public.tournament_media_assignments from anon,authenticated;
 
@@ -597,9 +632,48 @@ as $$
       and assignment.status = 'active'
       and gallery.status in ('draft','under_review')
       and organization.status = 'active'
+      and p_action = 'upload'
+      and assignment.can_upload
+  );
+$$;
+
+create or replace function public.tournament_media_user_can_upload(
+  p_user_id uuid,
+  p_gallery_id uuid
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select p_user_id is not null and exists (
+    select 1
+    from public.tournament_media_galleries gallery
+    join public.tournament_organizations organization
+      on organization.id = gallery.organization_id
+    where gallery.id = p_gallery_id
+      and gallery.status in ('draft','under_review')
+      and organization.status = 'active'
       and (
-        (p_action = 'upload' and assignment.can_upload)
-        or (p_action = 'review' and assignment.can_review)
+        exists (
+          select 1
+          from public.tournament_organization_members membership
+          where membership.organization_id = gallery.organization_id
+            and membership.user_id = p_user_id
+            and membership.status = 'active'
+            and 'media.upload' = any(
+              public.tournament_media_role_capabilities(membership.role)
+            )
+        )
+        or exists (
+          select 1
+          from public.tournament_media_assignments assignment
+          where assignment.gallery_id = gallery.id
+            and assignment.user_id = p_user_id
+            and assignment.status = 'active'
+            and assignment.can_upload
+        )
       )
   );
 $$;
@@ -626,6 +700,57 @@ as $$
       from public.get_my_current_tournament_roster_players() player
       where player.team_entry_id = p_team_entry_id
     )
+  );
+$$;
+
+create or replace function public.tournament_media_asset_has_internal_consent(
+  p_asset_id uuid
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select not exists (
+    select 1
+    from public.tournament_media_relations relation
+    join public.tournament_roster_players player
+      on player.id = relation.roster_player_id
+    where relation.asset_id = p_asset_id
+      and relation.relation_type = 'player'
+      and (
+        not exists (
+          select 1
+          from public.tournament_media_consents consent
+          where consent.asset_id = relation.asset_id
+            and consent.use_scope = 'view_internal'
+            and (
+              consent.roster_player_id = relation.roster_player_id
+              or (
+                consent.roster_player_id is null
+                and player.arma2_user_id is not null
+                and consent.subject_user_id = player.arma2_user_id
+              )
+            )
+            and consent.status in ('allowed','not_required')
+        )
+        or exists (
+          select 1
+          from public.tournament_media_consents consent
+          where consent.asset_id = relation.asset_id
+            and consent.use_scope = 'view_internal'
+            and (
+              consent.roster_player_id = relation.roster_player_id
+              or (
+                consent.roster_player_id is null
+                and player.arma2_user_id is not null
+                and consent.subject_user_id = player.arma2_user_id
+              )
+            )
+            and consent.status not in ('allowed','not_required')
+        )
+      )
   );
 $$;
 
@@ -701,7 +826,7 @@ set search_path = ''
 as $$
 declare
   v_scope record;
-  v_existing uuid;
+  v_existing public.tournament_media_galleries%rowtype;
   v_id uuid;
 begin
   if auth.uid() is null then
@@ -716,6 +841,12 @@ begin
   ) then
     raise exception using errcode = '42501', message = 'TORNEOS_MEDIA_FORBIDDEN';
   end if;
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(
+      p_organization_id::text || ':' || auth.uid()::text || ':' || p_idempotency_key::text,
+      3
+    )
+  );
 
   select tournament.season_id
   into v_scope
@@ -736,21 +867,31 @@ begin
     raise exception using errcode = '22023', message = 'TORNEOS_MEDIA_SCOPE_INVALID';
   end if;
   if p_round_id is not null and not exists (
-    select 1 from public.tournament_rounds round
+    select 1
+    from public.tournament_rounds round
+    join public.tournament_fixture_versions fixture
+      on fixture.id = round.fixture_version_id
     where round.id = p_round_id
       and round.organization_id = p_organization_id
       and round.tournament_id = p_tournament_id
       and (p_category_id is null or round.category_id = p_category_id)
+      and fixture.status = 'published'
+      and fixture.invalidated_at is null
   ) then
     raise exception using errcode = '22023', message = 'TORNEOS_MEDIA_SCOPE_INVALID';
   end if;
   if p_match_id is not null and not exists (
-    select 1 from public.tournament_matches match
+    select 1
+    from public.tournament_matches match
+    join public.tournament_fixture_versions fixture
+      on fixture.id = match.fixture_version_id
     where match.id = p_match_id
       and match.organization_id = p_organization_id
       and match.tournament_id = p_tournament_id
       and (p_category_id is null or match.category_id = p_category_id)
       and (p_round_id is null or match.round_id = p_round_id)
+      and fixture.status = 'published'
+      and fixture.invalidated_at is null
   ) then
     raise exception using errcode = '22023', message = 'TORNEOS_MEDIA_SCOPE_INVALID';
   end if;
@@ -758,13 +899,23 @@ begin
     raise exception using errcode = '22023', message = 'TORNEOS_MEDIA_VISIBILITY_INVALID';
   end if;
 
-  select gallery.id into v_existing
+  select * into v_existing
   from public.tournament_media_galleries gallery
   where gallery.organization_id = p_organization_id
     and gallery.created_by = auth.uid()
     and gallery.idempotency_key = p_idempotency_key;
-  if v_existing is not null then
-    return v_existing;
+  if v_existing.id is not null then
+    if v_existing.tournament_id is distinct from p_tournament_id
+      or v_existing.category_id is distinct from p_category_id
+      or v_existing.round_id is distinct from p_round_id
+      or v_existing.match_id is distinct from p_match_id
+      or v_existing.title is distinct from btrim(p_title)
+      or v_existing.description is distinct from nullif(btrim(p_description),'')
+      or v_existing.visibility is distinct from p_visibility
+    then
+      raise exception using errcode = '22023', message = 'TORNEOS_MEDIA_IDEMPOTENCY_CONFLICT';
+    end if;
+    return v_existing.id;
   end if;
 
   insert into public.tournament_media_galleries (
@@ -800,13 +951,22 @@ declare
 begin
   select * into v_gallery
   from public.tournament_media_galleries
-  where id = p_gallery_id
-  for update;
+  where id = p_gallery_id;
   if v_gallery.id is null or not public.has_tournament_media_capability(
     v_gallery.organization_id,'media.update_gallery'
   ) then
     raise exception using errcode = '42501', message = 'TORNEOS_MEDIA_FORBIDDEN';
   end if;
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(v_gallery.organization_id::text,0)
+  );
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(v_gallery.id::text,1)
+  );
+  select * into v_gallery
+  from public.tournament_media_galleries
+  where id = p_gallery_id
+  for update;
   if v_gallery.status not in ('draft','under_review') then
     raise exception using errcode = '22023', message = 'TORNEOS_MEDIA_GALLERY_IMMUTABLE';
   end if;
@@ -866,38 +1026,27 @@ begin
   end if;
   select * into v_gallery
   from public.tournament_media_galleries
-  where id = p_gallery_id
-  for share;
-  if v_gallery.id is null or (
-    not public.has_tournament_media_capability(v_gallery.organization_id,'media.upload')
-    and not public.has_tournament_media_assignment(p_gallery_id,'upload')
-  ) then
+  where id = p_gallery_id;
+  if v_gallery.id is null then
     raise exception using errcode = '42501', message = 'TORNEOS_MEDIA_FORBIDDEN';
-  end if;
-  if v_gallery.status not in ('draft','under_review') then
-    raise exception using errcode = '22023', message = 'TORNEOS_MEDIA_GALLERY_IMMUTABLE';
   end if;
   if p_idempotency_key is null then
     raise exception using errcode = '22023', message = 'TORNEOS_IDEMPOTENCY_REQUIRED';
   end if;
 
-  -- Serializa la reserva de cuota por organización para que múltiples actores
-  -- no puedan sobrepasar el límite con sesiones concurrentes.
+  -- Todas las reservas toman primero organización y luego galería.
   perform pg_catalog.pg_advisory_xact_lock(
     pg_catalog.hashtextextended(v_gallery.organization_id::text,0)
   );
-
-  select * into v_existing
-  from public.tournament_media_upload_sessions session
-  where session.organization_id = v_gallery.organization_id
-    and session.requested_by = auth.uid()
-    and session.idempotency_key = p_idempotency_key;
-  if v_existing.id is not null then
-    return jsonb_build_object(
-      'sessionId',v_existing.id,'safeName',v_existing.safe_name,
-      'expiresAt',v_existing.expires_at,'token',null,'reused',true,
-      'uploadReady',false,'requiresStagingStorageSigner',true
-    );
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(p_gallery_id::text,1)
+  );
+  select * into v_gallery
+  from public.tournament_media_galleries
+  where id = p_gallery_id
+  for share;
+  if not public.tournament_media_user_can_upload(auth.uid(),p_gallery_id) then
+    raise exception using errcode = '42501', message = 'TORNEOS_MEDIA_FORBIDDEN';
   end if;
 
   v_extension := case p_declared_mime
@@ -915,6 +1064,26 @@ begin
     )
   then
     raise exception using errcode = '22023', message = 'TORNEOS_MEDIA_FILE_INVALID';
+  end if;
+  select * into v_existing
+  from public.tournament_media_upload_sessions session
+  where session.organization_id = v_gallery.organization_id
+    and session.requested_by = auth.uid()
+    and session.idempotency_key = p_idempotency_key;
+  if v_existing.id is not null then
+    if v_existing.gallery_id is distinct from p_gallery_id
+      or v_existing.requested_mime is distinct from p_declared_mime
+      or v_existing.requested_size is distinct from p_byte_size
+      or right(v_existing.safe_name,char_length(v_extension) + 1)
+        is distinct from '.' || v_extension
+    then
+      raise exception using errcode = '22023', message = 'TORNEOS_MEDIA_IDEMPOTENCY_CONFLICT';
+    end if;
+    return jsonb_build_object(
+      'sessionId',v_existing.id,'safeName',v_existing.safe_name,
+      'expiresAt',v_existing.expires_at,'token',null,'reused',true,
+      'uploadReady',false,'requiresStagingStorageSigner',true
+    );
   end if;
 
   select
@@ -1015,10 +1184,30 @@ set search_path = ''
 as $$
 declare
   v_session public.tournament_media_upload_sessions%rowtype;
+  v_gallery public.tournament_media_galleries%rowtype;
   v_asset_id uuid;
   v_sort integer;
   v_extension text;
 begin
+  if auth.uid() is null then
+    raise exception using errcode = '42501', message = 'TORNEOS_AUTH_REQUIRED';
+  end if;
+  select * into v_session
+  from public.tournament_media_upload_sessions
+  where id = p_session_id;
+  if v_session.id is null then
+    raise exception using errcode = '42501', message = 'TORNEOS_MEDIA_UPLOAD_SESSION_INVALID';
+  end if;
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(v_session.organization_id::text,0)
+  );
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(v_session.gallery_id::text,1)
+  );
+  select * into v_gallery
+  from public.tournament_media_galleries
+  where id = v_session.gallery_id
+  for share;
   select * into v_session
   from public.tournament_media_upload_sessions
   where id = p_session_id
@@ -1027,6 +1216,11 @@ begin
     or v_session.status <> 'issued'
     or v_session.expires_at <= now()
     or encode(public.digest(coalesce(p_token,''),'sha256'),'hex') <> v_session.token_hash
+    or auth.uid() <> v_session.requested_by
+    or v_gallery.status not in ('draft','under_review')
+    or not public.tournament_media_user_can_upload(
+      v_session.requested_by,v_session.gallery_id
+    )
   then
     raise exception using errcode = '42501', message = 'TORNEOS_MEDIA_UPLOAD_SESSION_INVALID';
   end if;
@@ -1112,6 +1306,61 @@ begin
 end;
 $$;
 
+create or replace function public.cancel_tournament_media_upload_session(
+  p_session_id uuid
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_session public.tournament_media_upload_sessions%rowtype;
+begin
+  if auth.uid() is null then
+    raise exception using errcode = '42501', message = 'TORNEOS_AUTH_REQUIRED';
+  end if;
+  select * into v_session
+  from public.tournament_media_upload_sessions
+  where id = p_session_id;
+  if v_session.id is null then
+    raise exception using errcode = '42501', message = 'TORNEOS_MEDIA_FORBIDDEN';
+  end if;
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(v_session.organization_id::text,0)
+  );
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(v_session.gallery_id::text,1)
+  );
+  select * into v_session
+  from public.tournament_media_upload_sessions
+  where id = p_session_id
+  for update;
+  if v_session.requested_by <> auth.uid()
+    and not public.has_tournament_media_capability(
+      v_session.organization_id,'media.update_gallery'
+    )
+  then
+    raise exception using errcode = '42501', message = 'TORNEOS_MEDIA_FORBIDDEN';
+  end if;
+  if v_session.status = 'revoked' then
+    return jsonb_build_object('sessionId',p_session_id,'status','revoked');
+  end if;
+  if v_session.status <> 'issued' then
+    raise exception using errcode = '22023', message = 'TORNEOS_MEDIA_UPLOAD_SESSION_INVALID';
+  end if;
+  update public.tournament_media_upload_sessions
+  set status = 'revoked'
+  where id = p_session_id;
+  perform public.append_tournament_audit(
+    v_session.organization_id,'media.upload_session.cancelled',
+    'media_upload_session',p_session_id,null,v_session.tournament_id,
+    jsonb_build_object('galleryId',v_session.gallery_id)
+  );
+  return jsonb_build_object('sessionId',p_session_id,'status','revoked');
+end;
+$$;
+
 create or replace function public.change_tournament_media_gallery_state(
   p_gallery_id uuid,
   p_action text,
@@ -1127,6 +1376,17 @@ declare
   v_status text;
   v_capability text;
 begin
+  select * into v_gallery
+  from public.tournament_media_galleries where id = p_gallery_id;
+  if v_gallery.id is null then
+    raise exception using errcode = '42501', message = 'TORNEOS_MEDIA_FORBIDDEN';
+  end if;
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(v_gallery.organization_id::text,0)
+  );
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(p_gallery_id::text,1)
+  );
   select * into v_gallery
   from public.tournament_media_galleries where id = p_gallery_id for update;
   v_status := case p_action when 'archive' then 'archived' when 'revoke' then 'revoked' end;
@@ -1156,7 +1416,13 @@ begin
       hidden_at = case when v_status = 'archived' then now() else hidden_at end,
       revoked_at = case when v_status = 'revoked' then now() else revoked_at end
   where gallery_id = p_gallery_id
-    and status in ('approved','published','hidden');
+    and status in (
+      'uploading','processing','pending_review','approved','published','hidden'
+    );
+  update public.tournament_media_upload_sessions
+  set status = 'revoked'
+  where gallery_id = p_gallery_id
+    and status = 'issued';
   perform public.append_tournament_audit(
     v_gallery.organization_id,'media.gallery.' || p_action,'media_gallery',
     p_gallery_id,null,v_gallery.tournament_id,jsonb_build_object('reason',btrim(p_reason))
@@ -1177,9 +1443,27 @@ set search_path = ''
 as $$
 declare
   v_asset public.tournament_media_assets%rowtype;
+  v_gallery public.tournament_media_galleries%rowtype;
   v_next text;
+  v_replacement uuid;
   v_capability text := 'media.review';
 begin
+  select * into v_asset
+  from public.tournament_media_assets
+  where id = p_asset_id;
+  if v_asset.id is null then
+    raise exception using errcode = '42501', message = 'TORNEOS_MEDIA_FORBIDDEN';
+  end if;
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(v_asset.organization_id::text,0)
+  );
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(v_asset.gallery_id::text,1)
+  );
+  select * into v_gallery
+  from public.tournament_media_galleries
+  where id = v_asset.gallery_id
+  for update;
   select * into v_asset
   from public.tournament_media_assets
   where id = p_asset_id
@@ -1187,19 +1471,18 @@ begin
   if p_action in ('hide','revoke','request_deletion') then
     v_capability := 'media.revoke';
   end if;
-  if v_asset.id is null or (
-    not public.has_tournament_media_capability(v_asset.organization_id,v_capability)
-    and not (
-      v_capability = 'media.review'
-      and public.has_tournament_media_assignment(v_asset.gallery_id,'review')
-    )
+  if not public.has_tournament_media_capability(
+    v_asset.organization_id,v_capability
   ) then
     raise exception using errcode = '42501', message = 'TORNEOS_MEDIA_FORBIDDEN';
   end if;
   v_next := case
-    when p_action = 'approve' and v_asset.status in ('pending_review','hidden') then 'approved'
+    when p_action = 'approve' and v_asset.status = 'pending_review' then 'approved'
     when p_action = 'reject' and v_asset.status = 'pending_review' then 'rejected'
     when p_action = 'hide' and v_asset.status in ('approved','published') then 'hidden'
+    when p_action = 'restore' and v_asset.status = 'hidden'
+      and v_gallery.status = 'published' and v_asset.published_at is not null
+      then 'published'
     when p_action = 'restore' and v_asset.status = 'hidden' then 'approved'
     when p_action in ('revoke','request_deletion')
       and v_asset.status in ('pending_review','approved','published','hidden') then 'revoked'
@@ -1213,6 +1496,22 @@ begin
   then
     raise exception using errcode = '22023', message = 'TORNEOS_REASON_REQUIRED';
   end if;
+  if p_action in ('approve','restore') and (
+    select count(*) <> 4
+      or count(*) filter (
+        where variant.status = 'ready' and variant.metadata_stripped
+      ) <> 4
+    from public.tournament_media_variants variant
+    where variant.asset_id = p_asset_id
+      and variant.kind in ('thumbnail','grid','detail','original')
+  ) then
+    raise exception using errcode = '22023', message = 'TORNEOS_MEDIA_PROCESSING_REQUIRED';
+  end if;
+  if v_next = 'published'
+    and not public.tournament_media_asset_has_internal_consent(p_asset_id)
+  then
+    raise exception using errcode = '22023', message = 'TORNEOS_MEDIA_CONSENT_REQUIRED';
+  end if;
   update public.tournament_media_assets
   set status = v_next,
       approved_by = case when v_next = 'approved' then auth.uid() else approved_by end,
@@ -1220,6 +1519,47 @@ begin
       hidden_at = case when v_next = 'hidden' then now() else null end,
       revoked_at = case when v_next = 'revoked' then now() else revoked_at end
   where id = p_asset_id;
+  if v_gallery.status in ('draft','under_review')
+    and v_next in ('rejected','revoked')
+  then
+    delete from public.tournament_media_gallery_items
+    where gallery_id = v_gallery.id and asset_id = p_asset_id;
+    update public.tournament_media_galleries
+    set cover_asset_id = case
+          when cover_asset_id = p_asset_id then null else cover_asset_id end,
+        version = version + 1
+    where id = v_gallery.id;
+  elsif v_gallery.status in ('draft','under_review')
+    and v_next = 'hidden'
+    and v_gallery.cover_asset_id = p_asset_id
+  then
+    update public.tournament_media_galleries
+    set cover_asset_id = null,version = version + 1
+    where id = v_gallery.id;
+  end if;
+  if v_gallery.status = 'published'
+    and p_action in ('hide','revoke','request_deletion')
+    and v_gallery.cover_asset_id = p_asset_id
+  then
+    select asset.id into v_replacement
+    from public.tournament_media_gallery_items item
+    join public.tournament_media_assets asset on asset.id = item.asset_id
+    where item.gallery_id = v_gallery.id
+      and asset.id <> p_asset_id
+      and asset.status = 'published'
+    order by item.sort_order,asset.created_at
+    limit 1;
+    if v_replacement is null then
+      update public.tournament_media_galleries
+      set status = 'archived',cover_asset_id = null,archived_at = now(),
+          version = version + 1
+      where id = v_gallery.id;
+    else
+      update public.tournament_media_galleries
+      set cover_asset_id = v_replacement,version = version + 1
+      where id = v_gallery.id;
+    end if;
+  end if;
   insert into public.tournament_media_moderation_actions (
     organization_id,tournament_id,gallery_id,asset_id,action,
     previous_status,resulting_status,reason,actor_user_id
@@ -1250,11 +1590,24 @@ declare
   v_gallery public.tournament_media_galleries%rowtype;
 begin
   select * into v_gallery
-  from public.tournament_media_galleries where id = p_gallery_id for update;
+  from public.tournament_media_galleries where id = p_gallery_id;
   if v_gallery.id is null or not public.has_tournament_media_capability(
     v_gallery.organization_id,'media.set_cover'
   ) then
     raise exception using errcode = '42501', message = 'TORNEOS_MEDIA_FORBIDDEN';
+  end if;
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(v_gallery.organization_id::text,0)
+  );
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(v_gallery.id::text,1)
+  );
+  select * into v_gallery
+  from public.tournament_media_galleries
+  where id = p_gallery_id
+  for update;
+  if v_gallery.status not in ('draft','under_review') then
+    raise exception using errcode = '22023', message = 'TORNEOS_MEDIA_GALLERY_IMMUTABLE';
   end if;
   if not exists (
     select 1 from public.tournament_media_assets asset
@@ -1371,6 +1724,19 @@ begin
   ) then
     raise exception using errcode = '42501', message = 'TORNEOS_MEDIA_FORBIDDEN';
   end if;
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(v_asset.organization_id::text,0)
+  );
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(v_asset.gallery_id::text,1)
+  );
+  select * into v_gallery
+  from public.tournament_media_galleries
+  where id = v_asset.gallery_id
+  for update;
+  if v_gallery.status not in ('draft','under_review') then
+    raise exception using errcode = '22023', message = 'TORNEOS_MEDIA_GALLERY_IMMUTABLE';
+  end if;
   if p_relation_type = 'match' then
     select match.category_id into v_category_id from public.tournament_matches match
     where match.id = p_match_id
@@ -1435,6 +1801,11 @@ set search_path = ''
 as $$
 declare
   v_asset public.tournament_media_assets%rowtype;
+  v_gallery public.tournament_media_galleries%rowtype;
+  v_existing public.tournament_media_consents%rowtype;
+  v_consent_id uuid;
+  v_replacement uuid;
+  v_subject_user_id uuid;
 begin
   select * into v_asset from public.tournament_media_assets where id = p_asset_id;
   if v_asset.id is null or not public.has_tournament_media_capability(
@@ -1442,24 +1813,88 @@ begin
   ) then
     raise exception using errcode = '42501', message = 'TORNEOS_MEDIA_FORBIDDEN';
   end if;
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(v_asset.organization_id::text,0)
+  );
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(v_asset.gallery_id::text,1)
+  );
+  select * into v_gallery
+  from public.tournament_media_galleries
+  where id = v_asset.gallery_id
+  for update;
+  select * into v_asset
+  from public.tournament_media_assets
+  where id = p_asset_id
+  for update;
   if p_roster_player_id is null and p_subject_user_id is null then
     raise exception using errcode = '22023', message = 'TORNEOS_MEDIA_CONSENT_INVALID';
   end if;
-  if p_roster_player_id is not null and not exists (
-    select 1 from public.tournament_roster_players player
-    join public.tournament_team_entries entry on entry.id = player.team_entry_id
-    where player.id = p_roster_player_id
+  if p_roster_player_id is not null then
+    select player.arma2_user_id
+    into v_subject_user_id
+    from public.tournament_media_relations relation
+    join public.tournament_roster_players player
+      on player.id = relation.roster_player_id
+    join public.tournament_team_entries entry
+      on entry.id = player.team_entry_id
+    where relation.asset_id = p_asset_id
+      and relation.relation_type = 'player'
+      and relation.roster_player_id = p_roster_player_id
+      and player.status = 'active'
+      and entry.organization_id = v_asset.organization_id
+      and entry.tournament_id = v_asset.tournament_id;
+    if not found
+      or (
+        p_subject_user_id is not null
+        and p_subject_user_id is distinct from v_subject_user_id
+      )
+    then
+      raise exception using errcode = '22023', message = 'TORNEOS_MEDIA_SCOPE_INVALID';
+    end if;
+  else
+    v_subject_user_id := p_subject_user_id;
+  end if;
+  if p_roster_player_id is null and not exists (
+    select 1
+    from public.tournament_media_relations relation
+    join public.tournament_roster_players player
+      on player.id = relation.roster_player_id
+    join public.tournament_team_entries entry
+      on entry.id = player.team_entry_id
+    where relation.asset_id = p_asset_id
+      and relation.relation_type = 'player'
+      and player.arma2_user_id = v_subject_user_id
+      and player.status = 'active'
       and entry.organization_id = v_asset.organization_id
       and entry.tournament_id = v_asset.tournament_id
   ) then
     raise exception using errcode = '22023', message = 'TORNEOS_MEDIA_SCOPE_INVALID';
+  end if;
+  select * into v_existing
+  from public.tournament_media_consents consent
+  where consent.asset_id = p_asset_id
+    and consent.roster_player_id is not distinct from p_roster_player_id
+    and consent.subject_user_id is not distinct from v_subject_user_id
+    and consent.use_scope = p_use_scope
+  for update;
+  if v_existing.id is not null
+    and v_existing.status = p_status
+    and v_existing.legal_basis is not distinct from (
+      case when p_status = 'not_required'
+        then nullif(btrim(p_legal_basis),'') else null end
+    )
+  then
+    return jsonb_build_object(
+      'assetId',p_asset_id,'useScope',p_use_scope,'status',p_status
+    );
   end if;
   insert into public.tournament_media_consents (
     organization_id,tournament_id,asset_id,roster_player_id,subject_user_id,
     use_scope,status,legal_basis,managed_by,revoked_at
   ) values (
     v_asset.organization_id,v_asset.tournament_id,p_asset_id,p_roster_player_id,
-    p_subject_user_id,p_use_scope,p_status,
+    v_subject_user_id,p_use_scope,p_status,
     case when p_status = 'not_required' then nullif(btrim(p_legal_basis),'') else null end,
     auth.uid(),case when p_status = 'revoked' then now() else null end
   ) on conflict (
@@ -1470,7 +1905,54 @@ begin
   ) do update set
     status = excluded.status,legal_basis = excluded.legal_basis,
     managed_by = excluded.managed_by,revoked_at = excluded.revoked_at,
-    updated_at = now();
+    updated_at = now()
+  returning id into v_consent_id;
+  insert into public.tournament_media_consent_events (
+    organization_id,tournament_id,consent_id,asset_id,roster_player_id,
+    subject_user_id,use_scope,previous_status,resulting_status,legal_basis,
+    actor_user_id
+  ) values (
+    v_asset.organization_id,v_asset.tournament_id,v_consent_id,p_asset_id,
+    p_roster_player_id,v_subject_user_id,p_use_scope,v_existing.status,p_status,
+    case when p_status = 'not_required' then nullif(btrim(p_legal_basis),'') else null end,
+    auth.uid()
+  );
+  if p_use_scope = 'view_internal'
+    and p_status in ('denied','revoked')
+    and v_asset.status = 'published'
+  then
+    update public.tournament_media_assets
+    set status = 'hidden',hidden_at = now()
+    where id = p_asset_id;
+    if v_gallery.cover_asset_id = p_asset_id then
+      select asset.id into v_replacement
+      from public.tournament_media_gallery_items item
+      join public.tournament_media_assets asset on asset.id = item.asset_id
+      where item.gallery_id = v_gallery.id
+        and asset.id <> p_asset_id
+        and asset.status = 'published'
+      order by item.sort_order,asset.created_at
+      limit 1;
+      if v_replacement is null then
+        update public.tournament_media_galleries
+        set status = 'archived',cover_asset_id = null,archived_at = now(),
+            version = version + 1
+        where id = v_gallery.id;
+      else
+        update public.tournament_media_galleries
+        set cover_asset_id = v_replacement,version = version + 1
+        where id = v_gallery.id;
+      end if;
+    end if;
+    insert into public.tournament_media_moderation_actions (
+      organization_id,tournament_id,gallery_id,asset_id,action,
+      previous_status,resulting_status,reason,actor_user_id
+    ) values (
+      v_asset.organization_id,v_asset.tournament_id,v_asset.gallery_id,p_asset_id,
+      'hide','published','hidden','Consentimiento interno denegado o revocado.',
+      auth.uid()
+    );
+  end if;
   perform public.append_tournament_audit(
     v_asset.organization_id,'media.consent.updated','media_asset',p_asset_id,
     null,v_asset.tournament_id,jsonb_build_object(
@@ -1495,7 +1977,17 @@ declare
   v_gallery public.tournament_media_galleries%rowtype;
   v_count integer;
 begin
-  perform pg_advisory_xact_lock(hashtextextended(p_gallery_id::text,0));
+  select * into v_gallery
+  from public.tournament_media_galleries where id = p_gallery_id;
+  if v_gallery.id is null then
+    raise exception using errcode = '42501', message = 'TORNEOS_MEDIA_FORBIDDEN';
+  end if;
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(v_gallery.organization_id::text,0)
+  );
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(p_gallery_id::text,1)
+  );
   select * into v_gallery
   from public.tournament_media_galleries where id = p_gallery_id for update;
   if v_gallery.id is null or not public.has_tournament_media_capability(
@@ -1514,29 +2006,37 @@ begin
   select count(*) into v_count
   from public.tournament_media_gallery_items item
   join public.tournament_media_assets asset on asset.id = item.asset_id
-  where item.gallery_id = p_gallery_id and asset.status = 'approved';
+  where item.gallery_id = p_gallery_id;
   if v_count < 1 or v_gallery.cover_asset_id is null or not exists (
     select 1 from public.tournament_media_assets asset
     where asset.id = v_gallery.cover_asset_id
       and asset.gallery_id = p_gallery_id and asset.status = 'approved'
+  ) or exists (
+    select 1
+    from public.tournament_media_gallery_items item
+    join public.tournament_media_assets asset on asset.id = item.asset_id
+    where item.gallery_id = p_gallery_id
+      and asset.status <> 'approved'
+  ) or exists (
+    select 1
+    from public.tournament_media_gallery_items item
+    where item.gallery_id = p_gallery_id
+      and (
+        select count(*)
+        from public.tournament_media_variants variant
+        where variant.asset_id = item.asset_id
+          and variant.kind in ('thumbnail','grid','detail','original')
+          and variant.status = 'ready'
+          and variant.metadata_stripped
+      ) <> 4
   ) then
     raise exception using errcode = '22023', message = 'TORNEOS_MEDIA_GALLERY_NOT_PUBLISHABLE';
   end if;
   if exists (
     select 1
-    from public.tournament_media_relations relation
-    where relation.asset_id in (
-      select item.asset_id from public.tournament_media_gallery_items item
-      where item.gallery_id = p_gallery_id
-    )
-      and relation.relation_type = 'player'
-      and not exists (
-        select 1 from public.tournament_media_consents consent
-        where consent.asset_id = relation.asset_id
-          and consent.roster_player_id = relation.roster_player_id
-          and consent.use_scope = 'view_internal'
-          and consent.status in ('allowed','not_required')
-      )
+    from public.tournament_media_gallery_items item
+    where item.gallery_id = p_gallery_id
+      and not public.tournament_media_asset_has_internal_consent(item.asset_id)
   ) then
     raise exception using errcode = '22023', message = 'TORNEOS_MEDIA_CONSENT_REQUIRED';
   end if;
@@ -1562,7 +2062,6 @@ $$;
 create or replace function public.assign_tournament_media_photographer(
   p_gallery_id uuid,
   p_user_id uuid,
-  p_can_review boolean default false,
   p_revoke boolean default false
 )
 returns jsonb
@@ -1579,18 +2078,31 @@ begin
   ) then
     raise exception using errcode = '42501', message = 'TORNEOS_MEDIA_FORBIDDEN';
   end if;
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(v_gallery.organization_id::text,0)
+  );
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(p_gallery_id::text,1)
+  );
+  select * into v_gallery
+  from public.tournament_media_galleries
+  where id = p_gallery_id
+  for update;
+  if not p_revoke and v_gallery.status not in ('draft','under_review') then
+    raise exception using errcode = '22023', message = 'TORNEOS_MEDIA_GALLERY_IMMUTABLE';
+  end if;
   if not exists (select 1 from auth.users where id = p_user_id) then
     raise exception using errcode = '22023', message = 'TORNEOS_MEDIA_ASSIGNMENT_INVALID';
   end if;
   insert into public.tournament_media_assignments (
-    organization_id,tournament_id,gallery_id,user_id,can_review,status,
+    organization_id,tournament_id,gallery_id,user_id,status,
     assigned_by,revoked_at
   ) values (
     v_gallery.organization_id,v_gallery.tournament_id,p_gallery_id,p_user_id,
-    p_can_review,case when p_revoke then 'revoked' else 'active' end,
+    case when p_revoke then 'revoked' else 'active' end,
     auth.uid(),case when p_revoke then now() else null end
   ) on conflict (gallery_id,user_id) do update set
-    can_upload = not p_revoke,can_review = case when p_revoke then false else p_can_review end,
+    can_upload = not p_revoke,
     status = case when p_revoke then 'revoked' else 'active' end,
     revoked_at = case when p_revoke then now() else null end,
     assigned_by = auth.uid();
@@ -1598,8 +2110,15 @@ begin
     v_gallery.organization_id,
     case when p_revoke then 'media.photographer.revoked' else 'media.photographer.assigned' end,
     'media_gallery',p_gallery_id,null,v_gallery.tournament_id,
-    jsonb_build_object('canReview',case when p_revoke then false else p_can_review end)
+    jsonb_build_object('scope','upload_only')
   );
+  if p_revoke then
+    update public.tournament_media_upload_sessions
+    set status = 'revoked'
+    where gallery_id = p_gallery_id
+      and requested_by = p_user_id
+      and status = 'issued';
+  end if;
   return jsonb_build_object(
     'galleryId',p_gallery_id,'status',case when p_revoke then 'revoked' else 'active' end
   );
@@ -1621,6 +2140,7 @@ set search_path = ''
 as $$
 declare
   v_result jsonb;
+  v_can_handle_reports boolean;
 begin
   if not public.has_tournament_media_capability(p_organization_id,'media.read') then
     raise exception using errcode = '42501', message = 'TORNEOS_MEDIA_FORBIDDEN';
@@ -1628,6 +2148,9 @@ begin
   if p_limit < 1 or p_limit > 100 or p_offset < 0 then
     raise exception using errcode = '22023', message = 'TORNEOS_MEDIA_FILTER_INVALID';
   end if;
+  v_can_handle_reports := public.has_tournament_media_capability(
+    p_organization_id,'media.handle_reports'
+  );
   select jsonb_build_object(
     'storage',jsonb_build_object(
       'bucket','tournament-media','private',true,'certified',false,
@@ -1654,8 +2177,12 @@ begin
             'scheduledAt',match.scheduled_at,'status',match.status
           ) order by match.scheduled_at nulls last,match.match_number),'[]'::jsonb)
           from public.tournament_matches match
+          join public.tournament_fixture_versions fixture
+            on fixture.id = match.fixture_version_id
           where match.tournament_id = tournament.id
             and match.status <> 'cancelled'
+            and fixture.status = 'published'
+            and fixture.invalidated_at is null
         )
       ) order by tournament.updated_at desc)
       from public.tournaments tournament
@@ -1685,10 +2212,10 @@ begin
           join public.tournament_media_assets asset on asset.id = item.asset_id
           where item.gallery_id = gallery.id
         ),
-        'reportCount',(
+        'reportCount',case when v_can_handle_reports then (
           select count(*) from public.tournament_media_reports report
           where report.gallery_id = gallery.id and report.status in ('open','under_review')
-        )
+        ) else 0 end
       ) order by gallery.updated_at desc)
       from (
         select *
@@ -1700,7 +2227,7 @@ begin
         limit p_limit offset p_offset
       ) gallery
     ),'[]'::jsonb),
-    'reports',coalesce((
+    'reports',case when v_can_handle_reports then coalesce((
       select jsonb_agg(jsonb_build_object(
         'id',report.id,'galleryId',report.gallery_id,'assetId',report.asset_id,
         'reason',report.reason,'detail',report.detail,
@@ -1711,7 +2238,7 @@ begin
       where report.organization_id = p_organization_id
         and report.status in ('open','under_review')
         and (p_tournament_id is null or report.tournament_id = p_tournament_id)
-    ),'[]'::jsonb)
+    ),'[]'::jsonb) else '[]'::jsonb end
   ) into v_result
   from public.tournament_organization_members membership
   where membership.organization_id = p_organization_id
@@ -1810,7 +2337,7 @@ set search_path = ''
 as $$
 declare
   v_asset public.tournament_media_assets%rowtype;
-  v_existing uuid;
+  v_existing public.tournament_media_reports%rowtype;
   v_id uuid;
 begin
   if auth.uid() is null then
@@ -1823,12 +2350,27 @@ begin
   then
     raise exception using errcode = '42501', message = 'TORNEOS_MEDIA_FORBIDDEN';
   end if;
-  select report.id into v_existing
+  if p_idempotency_key is null then
+    raise exception using errcode = '22023', message = 'TORNEOS_IDEMPOTENCY_REQUIRED';
+  end if;
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(auth.uid()::text,2)
+  );
+  select * into v_existing
   from public.tournament_media_reports report
   where report.reporter_user_id = auth.uid()
     and report.idempotency_key = p_idempotency_key;
-  if v_existing is not null then
-    return jsonb_build_object('reportId',v_existing,'status','open');
+  if v_existing.id is not null then
+    if v_existing.asset_id is distinct from p_asset_id
+      or v_existing.reason is distinct from p_reason
+      or v_existing.detail is distinct from nullif(btrim(p_detail),'')
+      or v_existing.request_hide is distinct from p_request_hide
+    then
+      raise exception using errcode = '22023', message = 'TORNEOS_MEDIA_IDEMPOTENCY_CONFLICT';
+    end if;
+    return jsonb_build_object(
+      'reportId',v_existing.id,'status',v_existing.status
+    );
   end if;
   if (
     select count(*) from public.tournament_media_reports report
@@ -1877,6 +2419,14 @@ begin
   if p_status not in ('under_review','resolved','dismissed') then
     raise exception using errcode = '22023', message = 'TORNEOS_MEDIA_REPORT_INVALID';
   end if;
+  if v_report.status = p_status then
+    return jsonb_build_object('reportId',p_report_id,'status',p_status);
+  end if;
+  if v_report.status not in ('open','under_review')
+    or (v_report.status = 'under_review' and p_status = 'under_review')
+  then
+    raise exception using errcode = '22023', message = 'TORNEOS_MEDIA_REPORT_INVALID';
+  end if;
   update public.tournament_media_reports
   set status = p_status,
       handled_by = case when p_status in ('resolved','dismissed') then auth.uid() else null end,
@@ -1896,7 +2446,11 @@ revoke all on function public.touch_tournament_media_updated_at() from public;
 revoke all on function public.tournament_media_role_capabilities(text) from public;
 revoke all on function public.has_tournament_media_capability(uuid,text) from public,anon,authenticated;
 revoke all on function public.has_tournament_media_assignment(uuid,text) from public,anon,authenticated;
+revoke all on function public.tournament_media_user_can_upload(uuid,uuid)
+  from public,anon,authenticated;
 revoke all on function public.current_user_has_media_team_relation(uuid) from public,anon,authenticated;
+revoke all on function public.tournament_media_asset_has_internal_consent(uuid)
+  from public,anon,authenticated;
 revoke all on function public.can_current_user_read_media_gallery(uuid) from public,anon,authenticated;
 revoke all on function public.create_tournament_media_gallery(
   uuid,uuid,uuid,uuid,uuid,text,text,text,uuid
@@ -1910,6 +2464,8 @@ revoke all on function public.request_tournament_media_upload_session(
 revoke all on function public.complete_tournament_media_upload(
   uuid,text,text,bigint,integer,integer,text
 ) from public,anon,authenticated,service_role;
+revoke all on function public.cancel_tournament_media_upload_session(uuid)
+  from public,anon,authenticated;
 revoke all on function public.transition_tournament_media_asset(uuid,text,text)
   from public,anon,authenticated;
 revoke all on function public.change_tournament_media_gallery_state(uuid,text,text)
@@ -1927,7 +2483,7 @@ revoke all on function public.manage_tournament_media_consent(
 revoke all on function public.publish_tournament_media_gallery(uuid)
   from public,anon,authenticated;
 revoke all on function public.assign_tournament_media_photographer(
-  uuid,uuid,boolean,boolean
+  uuid,uuid,boolean
 ) from public,anon,authenticated;
 revoke all on function public.get_tournament_media_admin_context(
   uuid,uuid,text,integer,integer
@@ -1953,6 +2509,8 @@ grant execute on function public.request_tournament_media_upload_session(
 grant execute on function public.complete_tournament_media_upload(
   uuid,text,text,bigint,integer,integer,text
 ) to service_role;
+grant execute on function public.cancel_tournament_media_upload_session(uuid)
+  to authenticated;
 grant execute on function public.transition_tournament_media_asset(uuid,text,text)
   to authenticated;
 grant execute on function public.change_tournament_media_gallery_state(uuid,text,text)
@@ -1970,7 +2528,7 @@ grant execute on function public.manage_tournament_media_consent(
 grant execute on function public.publish_tournament_media_gallery(uuid)
   to authenticated;
 grant execute on function public.assign_tournament_media_photographer(
-  uuid,uuid,boolean,boolean
+  uuid,uuid,boolean
 ) to authenticated;
 grant execute on function public.get_tournament_media_admin_context(
   uuid,uuid,text,integer,integer
