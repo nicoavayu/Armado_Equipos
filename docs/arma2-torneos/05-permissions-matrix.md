@@ -107,3 +107,21 @@ relación y oculta drafts e información interna.
 
 La relación se comprueba nuevamente al abrir el hub, cambiar categoría y abrir
 un partido. Haber visitado antes una URL no conserva acceso.
+
+## Comunicaciones
+
+| Capability/acción | Owner | Admin | Collaborator | Captain/Delegate | Jugador |
+|---|:---:|:---:|:---:|:---:|:---:|
+| Leer entregas relacionadas | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `announcements.create/update_draft` | ✓ | ✓ | propios | — | — |
+| `announcements.publish/schedule/archive/revoke` | ✓ | ✓ | — | — | — |
+| `audiences.preview` | ✓ | ✓ | propios | — | — |
+| `deliveries.read_summary` | ✓ | ✓ | — | — | — |
+| `documents.create/update_draft` | ✓ | ✓ | propios | — | — |
+| `documents.publish/archive` | ✓ | ✓ | — | — | — |
+| Confirmar lectura | propia | propia | propia | propia | propia |
+| `notification_preferences.manage_self` | propia | propia | propia | propia | propia |
+
+Un collaborator no obtiene publicación por el nombre del rol. El backend
+resuelve capabilities y además restringe la edición de collaborator a drafts
+propios.
