@@ -17,20 +17,63 @@ create table public.tournament_participant_hub_preferences (
     on delete cascade
 );
 
-create index tournament_participant_hub_preferences_category_idx
+create index tournament_participant_hub_preferences_scope_idx
   on public.tournament_participant_hub_preferences
-  (user_id, organization_id, tournament_id, category_id);
+  (organization_id, tournament_id, category_id, user_id);
 
 create index tournament_roster_players_user_active_idx
-  on public.tournament_roster_players (arma2_user_id, team_entry_id)
+  on public.tournament_roster_players (arma2_user_id, team_entry_id, roster_id)
   where status = 'active' and arma2_user_id is not null;
+
+create index tournament_provisional_players_claimed_user_idx
+  on public.tournament_provisional_players (claimed_by_user_id, id)
+  where claim_status = 'claimed' and claimed_by_user_id is not null;
+
+create index tournament_roster_players_provisional_active_idx
+  on public.tournament_roster_players
+  (provisional_player_id, team_entry_id, roster_id)
+  where status = 'active' and provisional_player_id is not null;
 
 create index tournament_matches_participant_feed_idx
   on public.tournament_matches
-  (tournament_id, category_id, fixture_version_id, scheduled_at, match_number)
-  where status <> 'cancelled';
+  (fixture_version_id, scheduled_at, match_number);
 
 alter table public.tournament_participant_hub_preferences enable row level security;
+
+create or replace function public.get_my_current_tournament_roster_players()
+returns table (
+  roster_player_id uuid,
+  team_entry_id uuid
+)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select player.id, player.team_entry_id
+  from public.tournament_roster_players player
+  join public.tournament_rosters roster
+    on roster.id = player.roster_id
+   and roster.organization_id = player.organization_id
+   and roster.team_entry_id = player.team_entry_id
+   and roster.status in ('approved', 'locked')
+  where player.arma2_user_id = auth.uid()
+    and player.status = 'active'
+  union all
+  select player.id, player.team_entry_id
+  from public.tournament_provisional_players provisional
+  join public.tournament_roster_players player
+    on player.organization_id = provisional.organization_id
+   and player.provisional_player_id = provisional.id
+   and player.status = 'active'
+  join public.tournament_rosters roster
+    on roster.id = player.roster_id
+   and roster.organization_id = player.organization_id
+   and roster.team_entry_id = player.team_entry_id
+   and roster.status in ('approved', 'locked')
+  where provisional.claimed_by_user_id = auth.uid()
+    and provisional.claim_status = 'claimed';
+$$;
 
 create or replace function public.can_read_tournament_participant_hub(
   p_tournament_id uuid,
@@ -80,19 +123,17 @@ as $$
             and (p_category_id is null or entry.category_id = p_category_id)
             and manager.user_id = auth.uid()
             and manager.status = 'active'
+            and manager.role in ('captain', 'delegate')
         )
         or exists (
           select 1
           from public.tournament_team_entries entry
-          join public.tournament_roster_players player
-            on player.organization_id = entry.organization_id
-           and player.team_entry_id = entry.id
+          join public.get_my_current_tournament_roster_players() player
+            on player.team_entry_id = entry.id
           where entry.tournament_id = tournament.id
             and entry.organization_id = tournament.organization_id
             and entry.status = 'approved'
             and (p_category_id is null or entry.category_id = p_category_id)
-            and player.arma2_user_id = auth.uid()
-            and player.status = 'active'
         )
       )
   );
@@ -177,6 +218,7 @@ declare
   v_fixture_id uuid;
   v_limit integer := least(greatest(coalesce(p_limit, 20), 1), 50);
   v_offset integer := greatest(coalesce(p_offset, 0), 0);
+  v_is_historical boolean := false;
   v_result jsonb;
 begin
   if auth.uid() is null then
@@ -191,6 +233,16 @@ begin
   ) then
     raise exception using errcode = '42501', message = 'TORNEOS_HUB_FORBIDDEN';
   end if;
+
+  select
+    tournament.status in ('completed', 'archived')
+      or season.status = 'archived'
+  into v_is_historical
+  from public.tournaments tournament
+  join public.tournament_seasons season
+    on season.organization_id = tournament.organization_id
+   and season.id = tournament.season_id
+  where tournament.id = p_tournament_id;
 
   select fixture.id
   into v_fixture_id
@@ -261,7 +313,7 @@ begin
     left join public.tournament_competition_participants away
       on away.id = match_row.away_participant_id
     left join lateral (
-      select official.*
+      select official.id, official.official_at
       from public.tournament_match_operations official
       where official.match_id = match_row.id
         and official.status = 'official'
@@ -273,12 +325,10 @@ begin
       on score.match_operation_id = operation.id
     left join lateral (
       select
-        player.id roster_player_id,
+        player.roster_player_id,
         player.team_entry_id
-      from public.tournament_roster_players player
-      where player.arma2_user_id = auth.uid()
-        and player.status = 'active'
-        and player.team_entry_id in (home.team_entry_id, away.team_entry_id)
+      from public.get_my_current_tournament_roster_players() player
+      where player.team_entry_id in (home.team_entry_id, away.team_entry_id)
       order by player.team_entry_id
       limit 1
     ) self_player on true
@@ -288,7 +338,7 @@ begin
     left join public.tournament_match_squads squad
       on squad.match_id = match_row.id
      and squad.team_entry_id = self_player.team_entry_id
-     and squad.status <> 'superseded'
+     and squad.status in ('submitted', 'locked')
     left join public.tournament_match_squad_players squad_player
       on squad_player.match_squad_id = squad.id
      and squad_player.roster_player_id = self_player.roster_player_id
@@ -364,9 +414,18 @@ begin
       ) end,
       'isMyTeam', my_team_entry_id is not null,
       'myTeamEntryId', my_team_entry_id,
-      'myAvailability', my_availability,
-      'myCallupStatus', my_callup_status,
-      'myLineupStatus', my_lineup_status
+      'myAvailability', case
+        when v_is_historical then null
+        else my_availability
+      end,
+      'myCallupStatus', case
+        when v_is_historical then null
+        else my_callup_status
+      end,
+      'myLineupStatus', case
+        when v_is_historical then null
+        else my_lineup_status
+      end
     ) order by
       case when operation_id is null then 0 else 1 end,
       case when operation_id is null then scheduled_at end asc nulls last,
@@ -409,13 +468,23 @@ declare
   v_operation_id uuid;
   v_my_player_id uuid;
   v_my_team_id uuid;
+  v_is_historical boolean := false;
   v_result jsonb;
 begin
   if auth.uid() is null then
     raise exception using errcode = '42501', message = 'TORNEOS_AUTH_REQUIRED';
   end if;
 
-  select match_row.*, round_row.name round_name, round_row.round_number,
+  select
+    match_row.id,
+    match_row.tournament_id,
+    match_row.category_id,
+    match_row.match_number,
+    match_row.status,
+    match_row.scheduled_at,
+    match_row.duration_minutes,
+    round_row.name round_name,
+    round_row.round_number,
     phase.name phase_name, group_row.name group_name,
     venue.name venue_name, venue.address venue_address, court.name court_name,
     home.team_entry_id home_team_entry_id, home.snapshot_name home_name,
@@ -449,12 +518,20 @@ begin
     raise exception using errcode = '42501', message = 'TORNEOS_HUB_FORBIDDEN';
   end if;
 
-  select player.id, player.team_entry_id
+  select
+    tournament.status in ('completed', 'archived')
+      or season.status = 'archived'
+  into v_is_historical
+  from public.tournaments tournament
+  join public.tournament_seasons season
+    on season.organization_id = tournament.organization_id
+   and season.id = tournament.season_id
+  where tournament.id = v_match.tournament_id;
+
+  select player.roster_player_id, player.team_entry_id
   into v_my_player_id, v_my_team_id
-  from public.tournament_roster_players player
-  where player.arma2_user_id = auth.uid()
-    and player.status = 'active'
-    and player.team_entry_id in (
+  from public.get_my_current_tournament_roster_players() player
+  where player.team_entry_id in (
       v_match.home_team_entry_id,
       v_match.away_team_entry_id
     )
@@ -554,7 +631,9 @@ begin
         and player.attendance_status in ('present', 'late')
         and player.lineup_status in ('starter', 'substitute')
     ),
-    'myContext', case when v_my_player_id is null then null else jsonb_build_object(
+    'myContext', case
+      when v_my_player_id is null or v_is_historical then null
+      else jsonb_build_object(
       'teamEntryId', v_my_team_id,
       'rosterPlayerId', v_my_player_id,
       'availability', (
@@ -579,7 +658,7 @@ begin
          and squad_player.roster_player_id = v_my_player_id
         where squad.match_id = p_match_id
           and squad.team_entry_id = v_my_team_id
-          and squad.status <> 'superseded'
+          and squad.status in ('submitted', 'locked')
         limit 1
       ),
       'suspensions', (
@@ -629,6 +708,8 @@ declare
   v_my_player_id uuid;
   v_manager_role text;
   v_organization_role text;
+  v_is_historical boolean := false;
+  v_can_read_team_private boolean := false;
   v_result jsonb;
 begin
   if auth.uid() is null then
@@ -696,21 +777,19 @@ begin
       select entry.category_id
       into v_category_id
       from public.tournament_team_entries entry
-      left join public.tournament_roster_players player
-        on player.organization_id = entry.organization_id
-       and player.team_entry_id = entry.id
-       and player.arma2_user_id = auth.uid()
-       and player.status = 'active'
+      left join public.get_my_current_tournament_roster_players() player
+        on player.team_entry_id = entry.id
       left join public.tournament_team_managers manager
         on manager.organization_id = entry.organization_id
        and manager.team_entry_id = entry.id
        and manager.user_id = auth.uid()
        and manager.status = 'active'
+       and manager.role in ('captain', 'delegate')
       where entry.organization_id = v_tournament.organization_id
         and entry.tournament_id = p_tournament_id
         and entry.status = 'approved'
-        and (player.id is not null or manager.id is not null)
-      order by (player.id is not null) desc, entry.name
+        and (player.roster_player_id is not null or manager.id is not null)
+      order by (player.roster_player_id is not null) desc, entry.name
       limit 1;
     end if;
 
@@ -743,26 +822,32 @@ begin
     and fixture.category_id = v_category_id
     and fixture.status = 'published';
 
-  select entry.id, player.id, manager.role
+  select entry.id, player.roster_player_id, manager.role
   into v_my_team_id, v_my_player_id, v_manager_role
   from public.tournament_team_entries entry
-  left join public.tournament_roster_players player
-    on player.organization_id = entry.organization_id
-   and player.team_entry_id = entry.id
-   and player.arma2_user_id = auth.uid()
-   and player.status = 'active'
+  left join public.get_my_current_tournament_roster_players() player
+    on player.team_entry_id = entry.id
   left join public.tournament_team_managers manager
     on manager.organization_id = entry.organization_id
    and manager.team_entry_id = entry.id
    and manager.user_id = auth.uid()
    and manager.status = 'active'
+   and manager.role in ('captain', 'delegate')
   where entry.organization_id = v_tournament.organization_id
     and entry.tournament_id = p_tournament_id
     and entry.category_id = v_category_id
     and entry.status = 'approved'
-    and (player.id is not null or manager.id is not null)
-  order by (player.id is not null) desc, (manager.id is not null) desc, entry.name
+    and (player.roster_player_id is not null or manager.id is not null)
+  order by
+    (player.roster_player_id is not null) desc,
+    (manager.id is not null) desc,
+    entry.name
   limit 1;
+
+  v_is_historical := v_tournament.status in ('completed', 'archived')
+    or v_tournament.season_status = 'archived';
+  v_can_read_team_private := not v_is_historical
+    and v_manager_role in ('captain', 'delegate');
 
   select revision.id, revision.phase_id, revision.group_id
   into v_revision_id, v_phase_id, v_group_id
@@ -789,7 +874,7 @@ begin
       'startDate', v_tournament.start_date,
       'endDate', v_tournament.end_date,
       'logoPath', v_tournament.logo_path,
-      'readOnly', v_tournament.status in ('completed', 'archived')
+      'readOnly', v_is_historical
     ),
     'audience', jsonb_build_object(
       'organizationRole', v_organization_role,
@@ -799,7 +884,7 @@ begin
         v_tournament.organization_id,
         'tournaments.update'
       ),
-      'canManageTeam', v_manager_role is not null
+      'canManageTeam', v_can_read_team_private
     ),
     'categories', (
       select coalesce(jsonb_agg(jsonb_build_object(
@@ -822,20 +907,21 @@ begin
           or exists (
             select 1
             from public.tournament_team_entries entry
-            left join public.tournament_roster_players player
-              on player.organization_id = entry.organization_id
-             and player.team_entry_id = entry.id
-             and player.arma2_user_id = auth.uid()
-             and player.status = 'active'
+            left join public.get_my_current_tournament_roster_players() player
+              on player.team_entry_id = entry.id
             left join public.tournament_team_managers manager
               on manager.organization_id = entry.organization_id
              and manager.team_entry_id = entry.id
              and manager.user_id = auth.uid()
              and manager.status = 'active'
+             and manager.role in ('captain', 'delegate')
             where entry.tournament_id = p_tournament_id
               and entry.category_id = category.id
               and entry.status = 'approved'
-              and (player.id is not null or manager.id is not null)
+              and (
+                player.roster_player_id is not null
+                or manager.id is not null
+              )
           )
         )
     ),
@@ -902,9 +988,18 @@ begin
               home.team_entry_id = v_my_team_id
               or away.team_entry_id = v_my_team_id
             ),
-            'myAvailability', availability.response,
-            'myCallupStatus', squad_player.callup_status,
-            'myLineupStatus', squad_player.lineup_status
+            'myAvailability', case
+              when v_is_historical then null
+              else availability.response
+            end,
+            'myCallupStatus', case
+              when v_is_historical then null
+              else squad_player.callup_status
+            end,
+            'myLineupStatus', case
+              when v_is_historical then null
+              else squad_player.lineup_status
+            end
           ) match_payload
         from public.tournament_matches match_row
         join public.tournament_rounds round_row on round_row.id = match_row.round_id
@@ -920,7 +1015,7 @@ begin
         left join public.tournament_match_squads squad
           on squad.match_id = match_row.id
          and squad.team_entry_id = v_my_team_id
-         and squad.status <> 'superseded'
+         and squad.status in ('submitted', 'locked')
         left join public.tournament_match_squad_players squad_player
           on squad_player.match_squad_id = squad.id
          and squad_player.roster_player_id = v_my_player_id
@@ -1076,7 +1171,7 @@ begin
         'primaryColor', entry.primary_color,
         'secondaryColor', entry.secondary_color,
         'managerRole', v_manager_role,
-        'canManage', v_manager_role is not null,
+        'canManage', v_can_read_team_private,
         'roster', (
           select coalesce(jsonb_agg(jsonb_build_object(
             'id', player.id,
@@ -1117,7 +1212,8 @@ begin
           join public.tournament_standings_revisions revision
             on revision.id = suspension.revision_id
            and revision.status = 'published'
-          where suspension.team_entry_id = entry.id
+          where v_can_read_team_private
+            and suspension.team_entry_id = entry.id
             and suspension.category_id = v_category_id
             and suspension.status in ('active', 'reduced')
         ),
@@ -1129,7 +1225,8 @@ begin
             'total', count(*)
           )
           from public.tournament_match_availability_responses response
-          where response.team_entry_id = entry.id
+          where v_can_read_team_private
+            and response.team_entry_id = entry.id
             and response.match_id = (
               select next_match.id
               from public.tournament_matches next_match
@@ -1170,7 +1267,8 @@ begin
         join public.tournament_standings_revisions revision
           on revision.id = suspension.revision_id
          and revision.status = 'published'
-        where suspension.roster_player_id = v_my_player_id
+        where not v_is_historical
+          and suspension.roster_player_id = v_my_player_id
           and suspension.category_id = v_category_id
           and suspension.status in ('active', 'reduced')
         union all
@@ -1193,7 +1291,8 @@ begin
         join public.tournament_matches match_row
           on match_row.id = squad.match_id
          and match_row.fixture_version_id = v_fixture_id
-        where squad_player.roster_player_id = v_my_player_id
+        where not v_is_historical
+          and squad_player.roster_player_id = v_my_player_id
           and squad_player.callup_status = 'called_up'
           and (match_row.scheduled_at is null or match_row.scheduled_at >= now())
         order by priority
@@ -1225,7 +1324,7 @@ begin
     raise exception using errcode = '42501', message = 'TORNEOS_AUTH_REQUIRED';
   end if;
 
-  with authorized_categories as (
+  with authorized_relations as (
     select
       tournament.organization_id,
       tournament.id tournament_id,
@@ -1243,7 +1342,7 @@ begin
       on membership.organization_id = tournament.organization_id
      and membership.user_id = auth.uid()
      and membership.status = 'active'
-    union
+    union all
     select
       entry.organization_id,
       entry.tournament_id,
@@ -1255,26 +1354,36 @@ begin
      and manager.team_entry_id = entry.id
      and manager.user_id = auth.uid()
      and manager.status = 'active'
+     and manager.role in ('captain', 'delegate')
     join public.tournament_organizations organization
       on organization.id = entry.organization_id
      and organization.status = 'active'
     where entry.status = 'approved'
-    union
+    union all
     select
       entry.organization_id,
       entry.tournament_id,
       entry.category_id,
       null::text
     from public.tournament_team_entries entry
-    join public.tournament_roster_players player
-      on player.organization_id = entry.organization_id
-     and player.team_entry_id = entry.id
-     and player.arma2_user_id = auth.uid()
-     and player.status = 'active'
+    join public.get_my_current_tournament_roster_players() player
+      on player.team_entry_id = entry.id
     join public.tournament_organizations organization
       on organization.id = entry.organization_id
      and organization.status = 'active'
     where entry.status = 'approved'
+  ),
+  authorized_categories as (
+    select
+      relation.organization_id,
+      relation.tournament_id,
+      relation.category_id,
+      max(relation.organization_role) organization_role
+    from authorized_relations relation
+    group by
+      relation.organization_id,
+      relation.tournament_id,
+      relation.category_id
   ),
   scoped as (
     select
@@ -1332,24 +1441,28 @@ begin
         entry.shield_path team_shield_path,
         entry.primary_color,
         manager.role manager_role,
-        player.id roster_player_id
+        player.roster_player_id
       from public.tournament_team_entries entry
       left join public.tournament_team_managers manager
         on manager.organization_id = entry.organization_id
        and manager.team_entry_id = entry.id
        and manager.user_id = auth.uid()
        and manager.status = 'active'
-      left join public.tournament_roster_players player
-        on player.organization_id = entry.organization_id
-       and player.team_entry_id = entry.id
-       and player.arma2_user_id = auth.uid()
-       and player.status = 'active'
+       and manager.role in ('captain', 'delegate')
+      left join public.get_my_current_tournament_roster_players() player
+        on player.team_entry_id = entry.id
       where entry.organization_id = access.organization_id
         and entry.tournament_id = access.tournament_id
         and entry.category_id = access.category_id
         and entry.status = 'approved'
-        and (manager.id is not null or player.id is not null)
-      order by (player.id is not null) desc, (manager.id is not null) desc, entry.name
+        and (
+          manager.id is not null
+          or player.roster_player_id is not null
+        )
+      order by
+        (player.roster_player_id is not null) desc,
+        (manager.id is not null) desc,
+        entry.name
       limit 1
     ) own_team on true
     left join public.tournament_fixture_versions fixture
@@ -1523,21 +1636,22 @@ begin
   select entry.id
   into v_my_team_id
   from public.tournament_team_entries entry
-  left join public.tournament_roster_players player
-    on player.organization_id = entry.organization_id
-   and player.team_entry_id = entry.id
-   and player.arma2_user_id = auth.uid()
-   and player.status = 'active'
+  left join public.get_my_current_tournament_roster_players() player
+    on player.team_entry_id = entry.id
   left join public.tournament_team_managers manager
     on manager.organization_id = entry.organization_id
    and manager.team_entry_id = entry.id
    and manager.user_id = auth.uid()
    and manager.status = 'active'
+   and manager.role in ('captain', 'delegate')
   where entry.tournament_id = p_tournament_id
     and entry.category_id = p_category_id
     and entry.status = 'approved'
-    and (player.id is not null or manager.id is not null)
-  order by (player.id is not null) desc, entry.name
+    and (
+      player.roster_player_id is not null
+      or manager.id is not null
+    )
+  order by (player.roster_player_id is not null) desc, entry.name
   limit 1;
 
   select revision.id
@@ -1643,7 +1757,10 @@ begin
       'primaryColor', primary_color,
       'secondaryColor', secondary_color,
       'status', status,
-      'roster', roster,
+      'roster', case
+        when status = 'active' then roster
+        else '[]'::jsonb
+      end,
       'position', position,
       'played', played,
       'points', points,
@@ -1674,25 +1791,286 @@ begin
 end;
 $$;
 
+create or replace function public.get_published_tournament_standings(
+  p_tournament_id uuid,
+  p_category_id uuid,
+  p_phase_id uuid,
+  p_group_id uuid default null
+)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_fixture_id uuid;
+  v_revision_id uuid;
+  v_result jsonb;
+begin
+  if auth.uid() is null then
+    raise exception using errcode = '42501', message = 'TORNEOS_AUTH_REQUIRED';
+  end if;
+  if not public.can_read_tournament_participant_hub(
+    p_tournament_id,
+    p_category_id
+  ) then
+    raise exception using errcode = '42501', message = 'TORNEOS_HUB_FORBIDDEN';
+  end if;
+
+  select fixture.id
+  into v_fixture_id
+  from public.tournament_fixture_versions fixture
+  join public.tournament_phases phase
+    on phase.fixture_version_id = fixture.id
+   and phase.id = p_phase_id
+   and phase.status <> 'archived'
+  where fixture.tournament_id = p_tournament_id
+    and fixture.category_id = p_category_id
+    and fixture.status = 'published'
+    and (
+      p_group_id is null
+      or exists (
+        select 1
+        from public.tournament_groups group_row
+        where group_row.id = p_group_id
+          and group_row.fixture_version_id = fixture.id
+          and group_row.phase_id = phase.id
+          and group_row.status = 'published'
+      )
+    );
+
+  if v_fixture_id is null then
+    raise exception using errcode = '42501', message = 'TORNEOS_HUB_FORBIDDEN';
+  end if;
+
+  select revision.id
+  into v_revision_id
+  from public.tournament_standings_revisions revision
+  where revision.fixture_version_id = v_fixture_id
+    and revision.phase_id = p_phase_id
+    and revision.group_id is not distinct from p_group_id
+    and revision.status = 'published'
+  order by revision.revision_number desc
+  limit 1;
+
+  select jsonb_build_object(
+    'revision', case
+      when revision.id is null then null
+      else jsonb_build_object(
+        'id', revision.id,
+        'number', revision.revision_number,
+        'status', 'published',
+        'publishedAt', revision.published_at
+      )
+    end,
+    'standings', coalesce((
+      select jsonb_agg(jsonb_build_object(
+        'position', standing.position,
+        'participantId', standing.participant_id,
+        'teamEntryId', standing.team_entry_id,
+        'teamName', participant.snapshot_name,
+        'shortName', participant.snapshot_short_name,
+        'shieldPath', participant.snapshot_shield_path,
+        'played', standing.played,
+        'won', standing.won,
+        'drawn', standing.drawn,
+        'lost', standing.lost,
+        'goalsFor', standing.goals_for,
+        'goalsAgainst', standing.goals_against,
+        'goalDifference', standing.goal_difference,
+        'points', standing.points,
+        'classificationStatus', standing.classification_status
+      ) order by standing.position)
+      from public.tournament_team_standings standing
+      join public.tournament_competition_participants participant
+        on participant.id = standing.participant_id
+      where standing.revision_id = revision.id
+    ), '[]'::jsonb)
+  )
+  into v_result
+  from public.tournament_standings_revisions revision
+  where revision.id = v_revision_id;
+
+  return coalesce(v_result, jsonb_build_object(
+    'revision', null,
+    'standings', '[]'::jsonb
+  ));
+end;
+$$;
+
+create or replace function public.get_published_tournament_statistics(
+  p_tournament_id uuid,
+  p_category_id uuid,
+  p_phase_id uuid,
+  p_group_id uuid default null
+)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_fixture_id uuid;
+  v_revision_id uuid;
+begin
+  if auth.uid() is null then
+    raise exception using errcode = '42501', message = 'TORNEOS_AUTH_REQUIRED';
+  end if;
+  if not public.can_read_tournament_participant_hub(
+    p_tournament_id,
+    p_category_id
+  ) then
+    raise exception using errcode = '42501', message = 'TORNEOS_HUB_FORBIDDEN';
+  end if;
+
+  select fixture.id
+  into v_fixture_id
+  from public.tournament_fixture_versions fixture
+  join public.tournament_phases phase
+    on phase.fixture_version_id = fixture.id
+   and phase.id = p_phase_id
+   and phase.status <> 'archived'
+  where fixture.tournament_id = p_tournament_id
+    and fixture.category_id = p_category_id
+    and fixture.status = 'published'
+    and (
+      p_group_id is null
+      or exists (
+        select 1
+        from public.tournament_groups group_row
+        where group_row.id = p_group_id
+          and group_row.fixture_version_id = fixture.id
+          and group_row.phase_id = phase.id
+          and group_row.status = 'published'
+      )
+    );
+
+  if v_fixture_id is null then
+    raise exception using errcode = '42501', message = 'TORNEOS_HUB_FORBIDDEN';
+  end if;
+
+  select revision.id
+  into v_revision_id
+  from public.tournament_standings_revisions revision
+  where revision.fixture_version_id = v_fixture_id
+    and revision.phase_id = p_phase_id
+    and revision.group_id is not distinct from p_group_id
+    and revision.status = 'published'
+  order by revision.revision_number desc
+  limit 1;
+
+  return jsonb_build_object(
+    'revisionId', v_revision_id,
+    'players', coalesce((
+      select jsonb_agg(jsonb_build_object(
+        'rosterPlayerId', statistic.roster_player_id,
+        'teamEntryId', statistic.team_entry_id,
+        'name', player.display_name,
+        'goals', statistic.goals,
+        'ownGoals', statistic.own_goals,
+        'assists', statistic.assists,
+        'appearances', statistic.appearances,
+        'starts', statistic.starts,
+        'substituteAppearances', statistic.substitute_appearances,
+        'yellowCards', statistic.yellow_cards,
+        'secondYellows', statistic.second_yellows,
+        'redCards', statistic.red_cards,
+        'captaincies', statistic.captaincies
+      ) order by
+        statistic.goals desc,
+        statistic.assists desc,
+        player.display_name,
+        statistic.roster_player_id)
+      from public.tournament_player_statistics statistic
+      join public.tournament_roster_players player
+        on player.id = statistic.roster_player_id
+      where statistic.revision_id = v_revision_id
+    ), '[]'::jsonb),
+    'teams', coalesce((
+      select jsonb_agg(jsonb_build_object(
+        'participantId', statistic.participant_id,
+        'teamEntryId', statistic.team_entry_id,
+        'teamName', participant.snapshot_name,
+        'shortName', participant.snapshot_short_name,
+        'shieldPath', participant.snapshot_shield_path,
+        'goals', statistic.goals,
+        'yellowCards', statistic.yellow_cards,
+        'secondYellows', statistic.second_yellows,
+        'redCards', statistic.red_cards,
+        'homePlayed', statistic.home_played,
+        'awayPlayed', statistic.away_played
+      ) order by statistic.goals desc, participant.snapshot_name)
+      from public.tournament_team_statistics statistic
+      join public.tournament_competition_participants participant
+        on participant.id = statistic.participant_id
+      where statistic.revision_id = v_revision_id
+    ), '[]'::jsonb),
+    'discipline', coalesce((
+      select jsonb_agg(jsonb_build_object(
+        'rosterPlayerId', ledger.roster_player_id,
+        'teamEntryId', ledger.team_entry_id,
+        'name', player.display_name,
+        'yellowCards', ledger.yellow_cards,
+        'secondYellows', ledger.second_yellows,
+        'directReds', ledger.direct_reds,
+        'fairPlayPoints', ledger.fair_play_points,
+        'automaticSuspensions', ledger.automatic_suspensions,
+        'suspensions', coalesce((
+          select jsonb_agg(jsonb_build_object(
+            'id', suspension.id,
+            'sourceType', suspension.source_type,
+            'totalMatches', suspension.total_matches,
+            'servedMatches', suspension.served_matches,
+            'remainingMatches', greatest(
+              suspension.total_matches - suspension.served_matches,
+              0
+            ),
+            'status', suspension.status
+          ) order by suspension.created_at)
+          from public.tournament_player_suspensions suspension
+          where suspension.revision_id = ledger.revision_id
+            and suspension.roster_player_id = ledger.roster_player_id
+            and suspension.status in ('active', 'reduced', 'served')
+        ), '[]'::jsonb)
+      ) order by ledger.fair_play_points desc, player.display_name)
+      from public.tournament_discipline_ledgers ledger
+      join public.tournament_roster_players player
+        on player.id = ledger.roster_player_id
+      where ledger.revision_id = v_revision_id
+    ), '[]'::jsonb)
+  );
+end;
+$$;
+
 revoke all on table public.tournament_participant_hub_preferences
   from public, anon, authenticated;
 
+revoke all on function public.get_my_current_tournament_roster_players()
+  from public, anon, authenticated;
 revoke all on function public.can_read_tournament_participant_hub(uuid, uuid)
-  from public;
+  from public, anon;
 revoke all on function public.set_my_tournament_hub_category(uuid, uuid)
-  from public;
+  from public, anon;
 revoke all on function public.get_my_tournament_memberships(integer, integer)
-  from public;
+  from public, anon;
 revoke all on function public.get_tournament_participant_hub(uuid, uuid)
-  from public;
+  from public, anon;
 revoke all on function public.get_published_tournament_matches(
   uuid, uuid, text, uuid, integer, integer
-) from public;
+) from public, anon;
 revoke all on function public.get_tournament_participant_match(uuid)
-  from public;
+  from public, anon;
 revoke all on function public.get_published_tournament_teams(
   uuid, uuid, integer, integer
-) from public;
+) from public, anon;
+revoke all on function public.get_published_tournament_standings(
+  uuid, uuid, uuid, uuid
+) from public, anon;
+revoke all on function public.get_published_tournament_statistics(
+  uuid, uuid, uuid, uuid
+) from public, anon;
 
 grant execute on function public.set_my_tournament_hub_category(uuid, uuid)
   to authenticated;
@@ -1707,4 +2085,10 @@ grant execute on function public.get_tournament_participant_match(uuid)
   to authenticated;
 grant execute on function public.get_published_tournament_teams(
   uuid, uuid, integer, integer
+) to authenticated;
+grant execute on function public.get_published_tournament_standings(
+  uuid, uuid, uuid, uuid
+) to authenticated;
+grant execute on function public.get_published_tournament_statistics(
+  uuid, uuid, uuid, uuid
 ) to authenticated;

@@ -26,9 +26,9 @@ const STATUS_LABELS = {
 };
 
 const ROLE_LABELS = {
-  owner: 'Owner',
-  admin: 'Admin',
-  collaborator: 'Collaborator',
+  owner: 'Responsable',
+  admin: 'Administrador',
+  collaborator: 'Colaborador',
   captain: 'Capitán',
   delegate: 'Delegado',
   assistant: 'Asistente',

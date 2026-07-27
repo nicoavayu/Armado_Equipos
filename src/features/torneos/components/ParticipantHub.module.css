@@ -423,6 +423,40 @@
   grid-template-columns: 1.2fr .8fr;
   gap: 17px;
 }
+.captainPanel {
+  border-color: color-mix(in srgb, var(--hub-accent-secondary) 34%, transparent);
+}
+.captainMetrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .07);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, .07);
+}
+.captainMetrics > div {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+  padding: 11px 8px;
+  background: #12101a;
+  text-align: center;
+}
+.captainMetrics dt {
+  color: #928aa0;
+  font-size: .61rem;
+  font-weight: 800;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+.captainMetrics dd {
+  margin: 0;
+  color: #fff;
+  font-size: 1.25rem;
+  font-weight: 900;
+}
 .featurePanel,
 .rankingPanel {
   min-width: 0;
@@ -668,6 +702,7 @@
   .tournamentIdentity { align-items: center; gap: 12px; }
   .tournamentIdentity .tournamentMonogram { width: 46px; height: 46px; }
   .hubNav a { padding: 0 12px; }
+  .captainMetrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .projectionFilters { width: 100%; justify-self: stretch; }
   .projectionFilters label { min-width: 0; flex: 1 1 50%; }
   .matchup { gap: 7px; }

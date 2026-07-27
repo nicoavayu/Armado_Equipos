@@ -1191,6 +1191,34 @@ export async function loadPublishedTournamentTeams({
   }), 'No pudimos cargar los equipos publicados.');
 }
 
+export async function loadPublishedTournamentStandings({
+  tournamentId,
+  categoryId,
+  phaseId,
+  groupId = null,
+}) {
+  return unwrapRpc(await supabase.rpc('get_published_tournament_standings', {
+    p_tournament_id: tournamentId,
+    p_category_id: categoryId,
+    p_phase_id: phaseId,
+    p_group_id: groupId,
+  }), 'No pudimos cargar la tabla publicada.');
+}
+
+export async function loadPublishedTournamentStatistics({
+  tournamentId,
+  categoryId,
+  phaseId,
+  groupId = null,
+}) {
+  return unwrapRpc(await supabase.rpc('get_published_tournament_statistics', {
+    p_tournament_id: tournamentId,
+    p_category_id: categoryId,
+    p_phase_id: phaseId,
+    p_group_id: groupId,
+  }), 'No pudimos cargar las estadísticas publicadas.');
+}
+
 export const tournamentWorkspaceService = Object.freeze({
   loadContext: loadTournamentWorkspaceContext,
   createOrganization: createTournamentOrganization,
@@ -1284,5 +1312,7 @@ export const tournamentWorkspaceService = Object.freeze({
   loadPublishedMatches: loadPublishedTournamentMatches,
   loadParticipantMatch: loadTournamentParticipantMatch,
   loadPublishedTeams: loadPublishedTournamentTeams,
+  loadPublishedStandings: loadPublishedTournamentStandings,
+  loadPublishedStatistics: loadPublishedTournamentStatistics,
   createIdempotencyKey,
 });

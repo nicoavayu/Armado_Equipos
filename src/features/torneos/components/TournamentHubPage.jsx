@@ -50,7 +50,9 @@ const STATUS_LABELS = {
   active: 'En juego',
   completed: 'Finalizado',
   archived: 'Archivado',
+  unscheduled: 'Fecha a confirmar',
   postponed: 'Postergado',
+  cancelled: 'Cancelado',
   ready: 'Listo',
   official: 'Oficial',
 };
@@ -64,6 +66,11 @@ const SUSPENSION_LABELS = {
   second_yellow: 'Segunda amarilla',
   direct_red: 'Roja directa',
   manual: 'Resolución disciplinaria',
+};
+const SUSPENSION_STATUS_LABELS = {
+  active: 'Activa',
+  reduced: 'Reducida',
+  served: 'Cumplida',
 };
 
 function formatDate(value, withTime = true) {
@@ -203,45 +210,97 @@ function OverviewSection({
   hub, tournamentId, categoryId, busyMatchId, onRespond,
 }) {
   const nextMatch = hub.nextMatches?.[0];
+  const isCaptain = ['captain', 'delegate'].includes(hub.audience?.managerRole);
+  const isOrganizer = Boolean(
+    hub.audience?.canManageTournament && !isCaptain && !hub.audience?.isPlayer,
+  );
+  const nextMatchPanel = (
+    <section className={`${styles.featurePanel} ${styles.nextMatchPanel}`}>
+      <div className={styles.panelHeading}>
+        <span>Próxima cita</span>
+        <h2>{nextMatch ? 'Lo que viene' : 'Fixture por confirmar'}</h2>
+      </div>
+      {nextMatch ? (
+        <MatchCard
+          match={nextMatch}
+          tournamentId={tournamentId}
+          categoryId={categoryId}
+          busy={busyMatchId === nextMatch.matchId}
+          onRespond={onRespond}
+          readOnly={hub.tournament.readOnly}
+        />
+      ) : (
+        <p className={styles.panelEmpty}>La organización todavía no publicó un próximo partido.</p>
+      )}
+    </section>
+  );
+  const alertsPanel = (
+    <section className={`${styles.featurePanel} ${styles.alertPanel}`}>
+      <div className={styles.panelHeading}>
+        <span>{isOrganizer ? 'Estado operativo' : 'Tu radar'}</span>
+        <h2>{isOrganizer ? 'Alertas del torneo' : 'Alertas personales'}</h2>
+      </div>
+      {hub.alerts?.length ? (
+        <div className={styles.alertList}>
+          {hub.alerts.map((alert, index) => (
+            <article key={`${alert.type}:${index}`}>
+              {alert.type === 'suspension' ? <ShieldAlert size={18} /> : <Medal size={18} />}
+              <span><strong>{alert.label}</strong><small>{alert.detail}</small></span>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div className={styles.clearAlert}>
+          <Check size={18} />
+          {isOrganizer ? 'Sin alertas publicadas pendientes.' : 'Sin alertas pendientes.'}
+        </div>
+      )}
+      {isOrganizer && (
+        <Link
+          className={styles.panelLink}
+          to={`/torneos/organizacion/${hub.tournament.organizationId}/inicio`}
+        >
+          Abrir gestión operativa <ArrowRight size={16} />
+        </Link>
+      )}
+    </section>
+  );
   return (
     <div className={styles.overviewGrid}>
-      <section className={`${styles.featurePanel} ${styles.nextMatchPanel}`}>
-        <div className={styles.panelHeading}>
-          <span>Próxima cita</span>
-          <h2>{nextMatch ? 'Lo que viene' : 'Fixture por confirmar'}</h2>
-        </div>
-        {nextMatch ? (
-          <MatchCard
-            match={nextMatch}
-            tournamentId={tournamentId}
-            categoryId={categoryId}
-            busy={busyMatchId === nextMatch.matchId}
-            onRespond={onRespond}
-            readOnly={hub.tournament.readOnly}
-          />
-        ) : (
-          <p className={styles.panelEmpty}>La organización todavía no publicó un próximo partido.</p>
-        )}
-      </section>
-
-      <section className={`${styles.featurePanel} ${styles.alertPanel}`}>
-        <div className={styles.panelHeading}>
-          <span>Tu radar</span>
-          <h2>Alertas personales</h2>
-        </div>
-        {hub.alerts?.length ? (
-          <div className={styles.alertList}>
-            {hub.alerts.map((alert, index) => (
-              <article key={`${alert.type}:${index}`}>
-                {alert.type === 'suspension' ? <ShieldAlert size={18} /> : <Medal size={18} />}
-                <span><strong>{alert.label}</strong><small>{alert.detail}</small></span>
-              </article>
-            ))}
+      {isOrganizer && alertsPanel}
+      {nextMatchPanel}
+      {isCaptain && hub.myTeam && (
+        <section className={`${styles.featurePanel} ${styles.captainPanel}`}>
+          <div className={styles.panelHeading}>
+            <span>Vestuario</span>
+            <h2>Respuestas y convocatoria</h2>
           </div>
-        ) : (
-          <div className={styles.clearAlert}><Check size={18} /> Sin alertas pendientes.</div>
-        )}
-      </section>
+          <dl className={styles.captainMetrics}>
+            <div>
+              <dt>Disponibles</dt>
+              <dd>{hub.myTeam.nextMatchResponses?.available || 0}</dd>
+            </div>
+            <div>
+              <dt>No disponibles</dt>
+              <dd>{hub.myTeam.nextMatchResponses?.unavailable || 0}</dd>
+            </div>
+            <div>
+              <dt>En duda</dt>
+              <dd>{hub.myTeam.nextMatchResponses?.maybe || 0}</dd>
+            </div>
+            <div>
+              <dt>Bloqueados</dt>
+              <dd>{hub.myTeam.activeSuspensions?.length || 0}</dd>
+            </div>
+          </dl>
+          {nextMatch && !hub.tournament.readOnly && (
+            <Link className={styles.captainCta} to={`/torneos/mis-partidos/${nextMatch.matchId}/convocatoria`}>
+              Preparar convocatoria <ArrowRight size={16} />
+            </Link>
+          )}
+        </section>
+      )}
+      {!isOrganizer && alertsPanel}
 
       <section className={styles.featurePanel}>
         <div className={styles.panelHeading}>
@@ -305,11 +364,6 @@ function OverviewSection({
               <div><dt>Goles</dt><dd>{hub.myStatistics.goals}</dd></div>
               <div><dt>Asist.</dt><dd>{hub.myStatistics.assists}</dd></div>
             </dl>
-          )}
-          {hub.myTeam.canManage && nextMatch && !hub.tournament.readOnly && (
-            <Link className={styles.captainCta} to={`/torneos/mis-partidos/${nextMatch.matchId}/convocatoria`}>
-              Preparar convocatoria <ArrowRight size={16} />
-            </Link>
           )}
         </section>
       )}
@@ -462,7 +516,14 @@ function DisciplineSection({ data, myPlayerId }) {
           {(row.suspensions || []).map((suspension) => (
             <div key={suspension.id}>
               <ShieldAlert size={16} />
-              <span><strong>{suspension.reason || SUSPENSION_LABELS[suspension.sourceType]}</strong><small>{suspension.servedMatches}/{suspension.totalMatches} fechas · {suspension.status}</small></span>
+              <span>
+                <strong>{SUSPENSION_LABELS[suspension.sourceType] || 'Sanción publicada'}</strong>
+                <small>
+                  {suspension.servedMatches}/{suspension.totalMatches} fechas
+                  {' · '}
+                  {SUSPENSION_STATUS_LABELS[suspension.status] || 'Publicada'}
+                </small>
+              </span>
             </div>
           ))}
         </article>
@@ -537,6 +598,8 @@ export default function TournamentHubPage({ defaultSection = 'resumen', matchMod
   const { service } = useTorneosWorkspace();
   const hubRequestRef = useRef(0);
   const resourceRequestRef = useRef(0);
+  const categoryRequestRef = useRef(0);
+  const scopeGenerationRef = useRef(0);
   const [hubState, setHubState] = useState({
     status: 'loading',
     data: null,
@@ -553,6 +616,7 @@ export default function TournamentHubPage({ defaultSection = 'resumen', matchMod
   const section = VALID_SECTIONS.has(defaultSection) ? defaultSection : 'resumen';
 
   const loadHub = useCallback(async () => {
+    scopeGenerationRef.current += 1;
     const requestId = hubRequestRef.current + 1;
     hubRequestRef.current = requestId;
     resourceRequestRef.current += 1;
@@ -585,6 +649,8 @@ export default function TournamentHubPage({ defaultSection = 'resumen', matchMod
     return () => {
       hubRequestRef.current += 1;
       resourceRequestRef.current += 1;
+      categoryRequestRef.current += 1;
+      scopeGenerationRef.current += 1;
     };
   }, [loadHub]);
 
@@ -618,15 +684,14 @@ export default function TournamentHubPage({ defaultSection = 'resumen', matchMod
             : { players: [], teams: [], discipline: [] };
         } else {
           const scope = {
-            organizationId: hub.tournament.organizationId,
             tournamentId,
             categoryId: hub.activeCategoryId,
             phaseId,
             groupId,
           };
           data = section === 'tabla'
-            ? await service.loadStandings(scope)
-            : await service.loadStatistics(scope);
+            ? await service.loadPublishedStandings(scope)
+            : await service.loadPublishedStatistics(scope);
         }
       } else {
         data = null;
@@ -660,9 +725,11 @@ export default function TournamentHubPage({ defaultSection = 'resumen', matchMod
 
   const respond = async (match, response) => {
     if (busyMatchId) return;
+    const scopeGeneration = scopeGenerationRef.current;
     setBusyMatchId(match.matchId);
     try {
       await service.respondMatchAvailability({ matchId: match.matchId, response });
+      if (scopeGenerationRef.current !== scopeGeneration) return;
       await loadHub();
     } finally {
       setBusyMatchId(null);
@@ -671,14 +738,20 @@ export default function TournamentHubPage({ defaultSection = 'resumen', matchMod
 
   const changeCategory = async (categoryId) => {
     if (!categoryId || categoryId === hubState.data?.activeCategoryId) return;
+    const categoryRequestId = categoryRequestRef.current + 1;
+    categoryRequestRef.current = categoryRequestId;
+    scopeGenerationRef.current += 1;
     hubRequestRef.current += 1;
     resourceRequestRef.current += 1;
+    setBusyMatchId(null);
     setHubState({ status: 'loading', data: null, error: '' });
     setResourceState({ status: 'idle', data: null, error: '' });
     try {
       await service.setHubCategory({ tournamentId, categoryId });
+      if (categoryRequestRef.current !== categoryRequestId) return;
       setSearchParams({ categoria: categoryId });
     } catch (error) {
+      if (categoryRequestRef.current !== categoryRequestId) return;
       setHubState({
         status: 'error',
         data: null,
