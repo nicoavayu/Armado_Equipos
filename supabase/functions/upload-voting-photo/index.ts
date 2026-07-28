@@ -14,8 +14,8 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1"
 import {
-  createSupabaseApiKeyOnlyFetch,
-  getSupabaseSecretKey,
+  createSupabaseCredentialFetch,
+  getSupabaseSecretCredential,
 } from "../_shared/supabaseApiKeys.ts"
 
 const MAX_DATA_URL_LENGTH = 8_000_000 // ~6 MB image encoded as base64 data URL
@@ -75,7 +75,7 @@ serve(async (req) => {
   if (req.method !== "POST") return jsonResponse(cors, 405, { error: "method_not_allowed" })
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")
-  const serviceKey = getSupabaseSecretKey()
+  const serviceCredential = getSupabaseSecretCredential()
   if (!supabaseUrl) return jsonResponse(cors, 500, { error: "server_misconfigured" })
 
   let body: Record<string, unknown>
@@ -110,8 +110,8 @@ serve(async (req) => {
     return jsonResponse(cors, 413, { error: "image_too_large" })
   }
 
-  const supabase: SupabaseClient = createClient(supabaseUrl, serviceKey, {
-    global: { fetch: createSupabaseApiKeyOnlyFetch(serviceKey) },
+  const supabase: SupabaseClient = createClient(supabaseUrl, serviceCredential.key, {
+    global: { fetch: createSupabaseCredentialFetch(serviceCredential) },
     auth: { persistSession: false, autoRefreshToken: false },
   })
 

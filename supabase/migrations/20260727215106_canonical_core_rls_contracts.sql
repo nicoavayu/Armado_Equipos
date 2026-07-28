@@ -273,6 +273,197 @@ begin
 end;
 $$;
 
+-- Guest invite consumption and player creation are one database operation.
+-- The match row is the per-roster lock, so retries and concurrent joins share
+-- the same capacity decision and substitute queue ordering.
+create or replace function public.join_guest_match_with_invite(
+  p_partido_id bigint,
+  p_token text,
+  p_guest_uuid uuid,
+  p_nombre text,
+  p_avatar_url text default null
+)
+returns table (
+  ok boolean,
+  status text,
+  jugador_id bigint,
+  nombre text,
+  uuid uuid,
+  is_substitute boolean,
+  substitute_order smallint
+)
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  existing_player public.jugadores%rowtype;
+  joined_player public.jugadores%rowtype;
+begin
+  if p_partido_id is null
+     or p_partido_id <= 0
+     or p_token is null
+     or p_guest_uuid is null
+     or p_nombre is null
+     or p_nombre <> btrim(p_nombre)
+     or char_length(p_nombre) not between 1 and 40
+  then
+    return query
+    select
+      false,
+      'invalid_payload'::text,
+      null::bigint,
+      null::text,
+      null::uuid,
+      null::boolean,
+      null::smallint;
+    return;
+  end if;
+
+  perform 1
+  from public.partidos match_row
+  where match_row.id = p_partido_id
+  for update;
+
+  if not found then
+    return query
+    select
+      false,
+      'not_found'::text,
+      null::bigint,
+      null::text,
+      null::uuid,
+      null::boolean,
+      null::smallint;
+    return;
+  end if;
+
+  select player_row.*
+  into existing_player
+  from public.jugadores player_row
+  where player_row.partido_id = p_partido_id
+    and player_row.uuid = p_guest_uuid;
+
+  if found then
+    if existing_player.usuario_id is null then
+      return query
+      select
+        true,
+        'already_joined'::text,
+        existing_player.id,
+        existing_player.nombre,
+        existing_player.uuid,
+        existing_player.is_substitute,
+        existing_player.substitute_order;
+    else
+      return query
+      select
+        false,
+        'guest_identity_conflict'::text,
+        null::bigint,
+        null::text,
+        null::uuid,
+        null::boolean,
+        null::smallint;
+    end if;
+    return;
+  end if;
+
+  begin
+    update public.guest_match_invites invite
+    set uses_count = invite.uses_count + 1
+    where invite.partido_id = p_partido_id
+      and invite.token = p_token
+      and invite.revoked_at is null
+      and invite.expires_at > now()
+      and invite.uses_count < invite.max_uses;
+
+    if not found then
+      return query
+      select
+        false,
+        'invalid_invite'::text,
+        null::bigint,
+        null::text,
+        null::uuid,
+        null::boolean,
+        null::smallint;
+      return;
+    end if;
+
+    insert into public.jugadores (
+      partido_id,
+      usuario_id,
+      nombre,
+      uuid,
+      avatar_url
+    )
+    values (
+      p_partido_id,
+      null,
+      p_nombre,
+      p_guest_uuid,
+      p_avatar_url
+    )
+    returning * into joined_player;
+  exception
+    when unique_violation then
+      select player_row.*
+      into existing_player
+      from public.jugadores player_row
+      where player_row.partido_id = p_partido_id
+        and player_row.uuid = p_guest_uuid;
+
+      if found and existing_player.usuario_id is null then
+        return query
+        select
+          true,
+          'already_joined'::text,
+          existing_player.id,
+          existing_player.nombre,
+          existing_player.uuid,
+          existing_player.is_substitute,
+          existing_player.substitute_order;
+      else
+        return query
+        select
+          false,
+          'guest_identity_conflict'::text,
+          null::bigint,
+          null::text,
+          null::uuid,
+          null::boolean,
+          null::smallint;
+      end if;
+      return;
+    when raise_exception then
+      if sqlerrm = 'MATCH_FULL_WITH_SUBSTITUTES' then
+        return query
+        select
+          false,
+          'full'::text,
+          null::bigint,
+          null::text,
+          null::uuid,
+          null::boolean,
+          null::smallint;
+        return;
+      end if;
+      raise;
+  end;
+
+  return query
+  select
+    true,
+    'accepted'::text,
+    joined_player.id,
+    joined_player.nombre,
+    joined_player.uuid,
+    joined_player.is_substitute,
+    joined_player.substitute_order;
+end;
+$$;
+
 create or replace function public.delete_my_notifications()
 returns bigint
 language plpgsql
@@ -356,6 +547,9 @@ $$;
 revoke all on function public.resolve_match_by_code(text) from public, anon, authenticated, service_role;
 revoke all on function public.get_partido_by_invite(bigint, text) from public, anon, authenticated, service_role;
 revoke all on function public.consume_guest_match_invite(bigint, text) from public, anon, authenticated, service_role;
+revoke all on function public.join_guest_match_with_invite(bigint, text, uuid, text, text) from public, anon, authenticated, service_role;
+revoke all on function public.assign_substitute_slot() from public, anon, authenticated, service_role;
+revoke all on function public.promote_substitute_after_player_leave() from public, anon, authenticated, service_role;
 revoke all on function public.delete_my_notifications() from public, anon, authenticated, service_role;
 revoke all on function public.inc_numeric(text, text, uuid, numeric) from public, anon, authenticated, service_role;
 revoke all on function public.increment_matches_played(uuid) from public, anon, authenticated, service_role;
@@ -364,6 +558,7 @@ revoke all on function public.increment_matches_abandoned(uuid) from public, ano
 grant execute on function public.resolve_match_by_code(text) to anon, authenticated, service_role;
 grant execute on function public.get_partido_by_invite(bigint, text) to anon, authenticated, service_role;
 grant execute on function public.consume_guest_match_invite(bigint, text) to service_role;
+grant execute on function public.join_guest_match_with_invite(bigint, text, uuid, text, text) to service_role;
 grant execute on function public.delete_my_notifications() to authenticated, service_role;
 grant execute on function public.inc_numeric(text, text, uuid, numeric) to authenticated, service_role;
 grant execute on function public.increment_matches_played(uuid) to authenticated, service_role;

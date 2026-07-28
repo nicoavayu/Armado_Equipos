@@ -2,8 +2,8 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1"
 import {
-  createSupabaseApiKeyOnlyFetch,
-  getSupabaseSecretKey,
+  createSupabaseCredentialFetch,
+  getSupabaseSecretCredential,
 } from "../_shared/supabaseApiKeys.ts"
 
 const MAX_REQUEST_BYTES = 200_000
@@ -333,7 +333,7 @@ serve(async (req) => {
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")
-    const supabaseServiceKey = getSupabaseSecretKey()
+    const serviceCredential = getSupabaseSecretCredential()
 
     if (!supabaseUrl) {
       return jsonResponse(cors, 500, { ok: false, reason: "missing_env" })
@@ -390,39 +390,12 @@ serve(async (req) => {
     auditIpHash = await sha256Hex(getClientIp(req))
     auditInviteHash = await sha256Hex(inviteToken)
 
-    supabase = createClient(supabaseUrl, supabaseServiceKey, {
-      global: { fetch: createSupabaseApiKeyOnlyFetch(supabaseServiceKey) },
+    supabase = createClient(supabaseUrl, serviceCredential.key, {
+      global: { fetch: createSupabaseCredentialFetch(serviceCredential) },
       auth: { autoRefreshToken: false, persistSession: false },
     })
 
     await cleanupOldAttempts(supabase)
-
-    if (guestUuid) {
-      const { data: existing } = await supabase
-        .from("jugadores")
-        .select("id,nombre,uuid")
-        .eq("partido_id", partidoIdNum)
-        .eq("uuid", guestUuid)
-        .maybeSingle()
-
-      if (existing) {
-        await recordAttempt(supabase, {
-          ipHash: auditIpHash,
-          partidoId: partidoIdNum,
-          inviteTokenHash: auditInviteHash,
-          guestUuid,
-          outcome: "already_joined",
-          userAgent: auditUserAgent,
-        })
-
-        return jsonResponse(cors, 200, {
-          ok: true,
-          already_joined: true,
-          guest_uuid: existing.uuid,
-          jugador: existing,
-        })
-      }
-    }
 
     const rateLimit = await enforceRateLimit(supabase, {
       ipHash: auditIpHash,
@@ -493,80 +466,6 @@ serve(async (req) => {
       return jsonResponse(cors, 401, { ok: false, reason: "invalid_code" })
     }
 
-    const { count, error: countError } = await supabase
-      .from("jugadores")
-      .select("id", { count: "exact", head: true })
-      .eq("partido_id", partidoIdNum)
-
-    if (countError) {
-      await recordAttempt(supabase, {
-        ipHash: auditIpHash,
-        partidoId: partidoIdNum,
-        inviteTokenHash: auditInviteHash,
-        guestUuid,
-        outcome: "player_count_error",
-        failureReason: "player_count_error",
-        userAgent: auditUserAgent,
-      })
-      return jsonResponse(cors, 500, { ok: false, reason: "player_count_error" })
-    }
-
-    const jugadoresCount = count ?? 0
-    const capacity = Number(partido.cupo_jugadores ?? 0)
-    const maxRosterSlots = capacity > 0 ? capacity + 4 : 0
-    if (maxRosterSlots > 0 && jugadoresCount >= maxRosterSlots) {
-      await recordAttempt(supabase, {
-        ipHash: auditIpHash,
-        partidoId: partidoIdNum,
-        inviteTokenHash: auditInviteHash,
-        guestUuid,
-        outcome: "full",
-        failureReason: "full",
-        userAgent: auditUserAgent,
-      })
-      return jsonResponse(cors, 409, { ok: false, reason: "full" })
-    }
-
-    const { data: consumeRows, error: consumeErr } = await supabase.rpc(
-      "consume_guest_match_invite",
-      {
-        p_partido_id: partidoIdNum,
-        p_token: inviteToken,
-      },
-    )
-
-    if (consumeErr) {
-      console.warn("[INVITE] consume_guest_match_invite failed", {
-        partidoId: partidoIdNum,
-        code: consumeErr.code,
-        message: consumeErr.message,
-      })
-      await recordAttempt(supabase, {
-        ipHash: auditIpHash,
-        partidoId: partidoIdNum,
-        inviteTokenHash: auditInviteHash,
-        guestUuid,
-        outcome: "invite_consume_error",
-        failureReason: "invite_consume_error",
-        userAgent: auditUserAgent,
-      })
-      return jsonResponse(cors, 500, { ok: false, reason: "invite_consume_error" })
-    }
-
-    const consume = Array.isArray(consumeRows) ? consumeRows[0] : null
-    if (!consume?.ok) {
-      await recordAttempt(supabase, {
-        ipHash: auditIpHash,
-        partidoId: partidoIdNum,
-        inviteTokenHash: auditInviteHash,
-        guestUuid,
-        outcome: "invalid_invite",
-        failureReason: "invalid_invite",
-        userAgent: auditUserAgent,
-      })
-      return jsonResponse(cors, 401, { ok: false, reason: "invalid_invite" })
-    }
-
     if (avatarRejected) {
       console.warn("[INVITE] guest avatar payload rejected", {
         partidoId: partidoIdNum,
@@ -576,54 +475,23 @@ serve(async (req) => {
 
     const safeGuestUuid = guestUuid ?? crypto.randomUUID()
 
-    const { data: jugador, error: insertError } = await supabase
-      .from("jugadores")
-      .insert([
-        {
-          partido_id: partidoIdNum,
-          usuario_id: null,
-          nombre: playerName,
-          uuid: safeGuestUuid,
-          avatar_url: avatarDataUrl,
-        },
-      ])
-      .select("id,nombre,uuid,is_substitute,substitute_order")
-      .single()
+    const { data: joinRows, error: joinError } = await supabase.rpc(
+      "join_guest_match_with_invite",
+      {
+        p_partido_id: partidoIdNum,
+        p_token: inviteToken,
+        p_guest_uuid: safeGuestUuid,
+        p_nombre: playerName,
+        p_avatar_url: avatarDataUrl,
+      },
+    )
 
-    if (insertError) {
-      console.warn("[INVITE] guest join insert failed", {
+    if (joinError) {
+      console.warn("[INVITE] atomic guest join failed", {
         partidoId: partidoIdNum,
-        code: insertError.code,
-        message: insertError.message,
+        code: joinError.code,
+        message: joinError.message,
       })
-
-      if (insertError.code === "23505") {
-        const { data: existingDuplicate } = await supabase
-          .from("jugadores")
-          .select("id,nombre,uuid,is_substitute,substitute_order")
-          .eq("partido_id", partidoIdNum)
-          .eq("uuid", safeGuestUuid)
-          .maybeSingle()
-
-        if (existingDuplicate) {
-          await recordAttempt(supabase, {
-            ipHash: auditIpHash,
-            partidoId: partidoIdNum,
-            inviteTokenHash: auditInviteHash,
-            guestUuid: safeGuestUuid,
-            outcome: "already_joined",
-            userAgent: auditUserAgent,
-          })
-
-          return jsonResponse(cors, 200, {
-            ok: true,
-            already_joined: true,
-            guest_uuid: existingDuplicate.uuid,
-            jugador: existingDuplicate,
-          })
-        }
-      }
-
       await recordAttempt(supabase, {
         ipHash: auditIpHash,
         partidoId: partidoIdNum,
@@ -634,6 +502,56 @@ serve(async (req) => {
         userAgent: auditUserAgent,
       })
       return jsonResponse(cors, 500, { ok: false, reason: "db_error" })
+    }
+
+    const join = Array.isArray(joinRows) ? joinRows[0] : null
+    const joinStatus = String(join?.status ?? "db_error")
+
+    if (!join?.ok) {
+      const responseByStatus: Record<string, { status: number; reason: string }> = {
+        invalid_invite: { status: 401, reason: "invalid_invite" },
+        full: { status: 409, reason: "full" },
+        guest_identity_conflict: { status: 409, reason: "guest_identity_conflict" },
+        invalid_payload: { status: 400, reason: "invalid_payload" },
+        not_found: { status: 404, reason: "not_found" },
+      }
+      const failure = responseByStatus[joinStatus] ?? { status: 500, reason: "db_error" }
+
+      await recordAttempt(supabase, {
+        ipHash: auditIpHash,
+        partidoId: partidoIdNum,
+        inviteTokenHash: auditInviteHash,
+        guestUuid: safeGuestUuid,
+        outcome: joinStatus,
+        failureReason: failure.reason,
+        userAgent: auditUserAgent,
+      })
+      return jsonResponse(cors, failure.status, { ok: false, reason: failure.reason })
+    }
+
+    const jugador = {
+      id: join.jugador_id,
+      nombre: join.nombre,
+      uuid: join.uuid,
+      is_substitute: join.is_substitute,
+      substitute_order: join.substitute_order,
+    }
+
+    if (joinStatus === "already_joined") {
+      await recordAttempt(supabase, {
+        ipHash: auditIpHash,
+        partidoId: partidoIdNum,
+        inviteTokenHash: auditInviteHash,
+        guestUuid: safeGuestUuid,
+        outcome: "already_joined",
+        userAgent: auditUserAgent,
+      })
+      return jsonResponse(cors, 200, {
+        ok: true,
+        already_joined: true,
+        guest_uuid: jugador.uuid,
+        jugador,
+      })
     }
 
     await recordAttempt(supabase, {
@@ -653,7 +571,7 @@ serve(async (req) => {
 
     return jsonResponse(cors, 200, {
       ok: true,
-      guest_uuid: safeGuestUuid,
+      guest_uuid: jugador.uuid,
       jugador,
     })
   } catch (error) {

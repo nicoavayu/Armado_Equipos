@@ -1,8 +1,8 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import {
-  createSupabaseApiKeyOnlyFetch,
-  getSupabasePublishableKey,
+  createSupabaseCredentialFetch,
+  getSupabasePublishableCredential,
 } from "../_shared/supabaseApiKeys.ts";
 
 function corsHeaders(req: Request) {
@@ -130,15 +130,15 @@ serve(async (req) => {
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const anonKey = getSupabasePublishableKey();
+  const anonCredential = getSupabasePublishableCredential();
   if (!supabaseUrl) {
     return jsonResponse({ ok: false, message: "missing_env" }, 500, cors);
   }
 
   const authHeader = req.headers.get("Authorization") || "";
-  const userClient = createClient(supabaseUrl, anonKey, {
+  const userClient = createClient(supabaseUrl, anonCredential.key, {
     global: {
-      fetch: createSupabaseApiKeyOnlyFetch(anonKey),
+      fetch: createSupabaseCredentialFetch(anonCredential),
       headers: {
         Authorization: authHeader,
       },

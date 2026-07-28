@@ -18005,6 +18005,68 @@ $$;
 
 
 --
+-- Name: assign_substitute_slot(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE OR REPLACE FUNCTION "public"."assign_substitute_slot"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    AS $$
+DECLARE
+  v_capacity integer;
+  v_starters integer;
+  v_substitutes integer;
+  v_total integer;
+BEGIN
+  -- Serialize roster mutations for the same match so concurrent joins cannot
+  -- overbook the four historical substitute slots or duplicate queue order.
+  SELECT COALESCE(match_row.cupo_jugadores, 0)
+  INTO v_capacity
+  FROM public.partidos match_row
+  WHERE match_row.id = NEW.partido_id
+  FOR UPDATE;
+
+  IF COALESCE(v_capacity, 0) <= 0 THEN
+    NEW.is_substitute := false;
+    NEW.substitute_order := NULL;
+    RETURN NEW;
+  END IF;
+
+  SELECT
+    COUNT(*),
+    COUNT(*) FILTER (WHERE COALESCE(player_row.is_substitute, false) = false),
+    COUNT(*) FILTER (WHERE COALESCE(player_row.is_substitute, false) = true)
+  INTO v_total, v_starters, v_substitutes
+  FROM public.jugadores player_row
+  WHERE player_row.partido_id = NEW.partido_id;
+
+  IF v_total >= v_capacity + 4 THEN
+    RAISE EXCEPTION 'MATCH_FULL_WITH_SUBSTITUTES'
+      USING ERRCODE = 'P0001',
+            HINT = 'No hay más cupos (titulares + suplentes).';
+  END IF;
+
+  IF v_starters < v_capacity THEN
+    NEW.is_substitute := false;
+    NEW.substitute_order := NULL;
+    RETURN NEW;
+  END IF;
+
+  IF v_substitutes >= 4 THEN
+    RAISE EXCEPTION 'MATCH_FULL_WITH_SUBSTITUTES'
+      USING ERRCODE = 'P0001',
+            HINT = 'No hay más cupos de suplente.';
+  END IF;
+
+  NEW.is_substitute := true;
+  NEW.substitute_order := (v_substitutes + 1)::smallint;
+  RETURN NEW;
+END;
+$$;
+
+
+
+--
 -- Name: promote_substitute_after_player_leave(); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -36376,7 +36438,8 @@ CREATE TABLE IF NOT EXISTS "public"."jugadores" (
     "posicion" "text",
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
-    "is_substitute" boolean DEFAULT false NOT NULL
+    "is_substitute" boolean DEFAULT false NOT NULL,
+    "substitute_order" smallint
 );
 
 
@@ -41839,6 +41902,36 @@ ALTER TABLE ONLY "public"."tournament_sport_modalities"
 
 
 --
+-- Data for Name: tournament_sport_modalities; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+INSERT INTO "public"."tournament_sport_modalities" (
+    "code",
+    "name",
+    "team_size",
+    "recommended_substitutes",
+    "team_of_round_size",
+    "suggested_duration_minutes",
+    "requires_goalkeeper"
+)
+VALUES
+    ('football_5', 'Fútbol 5', 5, 3, 5, 40, true),
+    ('football_6', 'Fútbol 6', 6, 4, 6, 50, true),
+    ('football_7', 'Fútbol 7', 7, 5, 7, 50, true),
+    ('football_8', 'Fútbol 8', 8, 5, 8, 60, true),
+    ('football_9', 'Fútbol 9', 9, 6, 9, 70, true),
+    ('football_11', 'Fútbol 11', 11, 7, 11, 90, true)
+ON CONFLICT ("code") DO UPDATE
+SET
+    "name" = EXCLUDED."name",
+    "team_size" = EXCLUDED."team_size",
+    "recommended_substitutes" = EXCLUDED."recommended_substitutes",
+    "team_of_round_size" = EXCLUDED."team_of_round_size",
+    "suggested_duration_minutes" = EXCLUDED."suggested_duration_minutes",
+    "requires_goalkeeper" = EXCLUDED."requires_goalkeeper";
+
+
+--
 -- Name: tournament_standings_revisions tournament_standings_revisions_idempotency_unique; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -42428,6 +42521,13 @@ CREATE INDEX "invites_expires_at_idx" ON "public"."invites" USING "btree" ("expi
 --
 
 CREATE INDEX "invites_partido_id_idx" ON "public"."invites" USING "btree" ("partido_id");
+
+
+--
+-- Name: jugadores_partido_substitute_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX "jugadores_partido_substitute_idx" ON "public"."jugadores" USING "btree" ("partido_id", "is_substitute", "substitute_order", "created_at");
 
 
 --
@@ -44046,6 +44146,13 @@ CREATE OR REPLACE TRIGGER "trg_amigos_create_friend_request_notification" AFTER 
 
 
 --
+-- Name: jugadores trg_assign_substitute_slot; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE OR REPLACE TRIGGER "trg_assign_substitute_slot" BEFORE INSERT ON "public"."jugadores" FOR EACH ROW EXECUTE FUNCTION "public"."assign_substitute_slot"();
+
+
+--
 -- Name: challenge_team_squad trg_challenge_team_squad_enforce_limits; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
@@ -44169,6 +44276,13 @@ CREATE OR REPLACE TRIGGER "trg_prevent_challenge_survey_notifications" BEFORE IN
 --
 
 CREATE OR REPLACE TRIGGER "trg_prevent_challenge_survey_results" BEFORE INSERT OR UPDATE ON "public"."survey_results" FOR EACH ROW EXECUTE FUNCTION "public"."prevent_challenge_survey_results_rows"();
+
+
+--
+-- Name: jugadores trg_promote_substitute_after_player_leave; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE OR REPLACE TRIGGER "trg_promote_substitute_after_player_leave" AFTER DELETE ON "public"."jugadores" FOR EACH ROW EXECUTE FUNCTION "public"."promote_substitute_after_player_leave"();
 
 
 --

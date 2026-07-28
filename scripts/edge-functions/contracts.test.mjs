@@ -125,3 +125,16 @@ test('the browser guest flow sends only apikey when no user JWT exists', async (
   assert.match(invocation, /['"]apikey['"]:\s*anonKey/);
   assert.doesNotMatch(invocation, /Authorization/);
 });
+
+test('guest invite consumption and player creation use one atomic RPC', async () => {
+  const source = await fs.readFile(
+    path.join(functionsRoot, 'join-match-guest', 'index.ts'),
+    'utf8',
+  );
+
+  assert.match(source, /\.rpc\(\s*["']join_guest_match_with_invite["']/);
+  assert.doesNotMatch(source, /\.rpc\(\s*["']consume_guest_match_invite["']/);
+  assert.doesNotMatch(source, /\.from\(["']jugadores["']\)\s*\.insert\(/);
+  assert.match(source, /guest_identity_conflict/);
+  assert.match(source, /substitute_order:\s*join\.substitute_order/);
+});

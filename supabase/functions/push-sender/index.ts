@@ -1,8 +1,8 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import {
-  createSupabaseApiKeyOnlyFetch,
-  getSupabaseSecretKey,
+  createSupabaseCredentialFetch,
+  getSupabaseSecretCredential,
 } from "../_shared/supabaseApiKeys.ts";
 
 type DeliveryLogRow = {
@@ -1085,7 +1085,7 @@ serve(async (req) => {
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const serviceRoleKey = getSupabaseSecretKey();
+  const serviceCredential = getSupabaseSecretCredential();
 
   if (!supabaseUrl) {
     return jsonResponse({ ok: false, reason: "missing_supabase_env" }, 500, cors);
@@ -1110,8 +1110,8 @@ serve(async (req) => {
   const targetedLogIds = normalizeUuidList(body?.log_ids);
   const config = getConfig(body as Record<string, unknown>);
 
-  const supabase = createClient(supabaseUrl, serviceRoleKey, {
-    global: { fetch: createSupabaseApiKeyOnlyFetch(serviceRoleKey) },
+  const supabase = createClient(supabaseUrl, serviceCredential.key, {
+    global: { fetch: createSupabaseCredentialFetch(serviceCredential) },
     auth: { autoRefreshToken: false, persistSession: false },
   });
 

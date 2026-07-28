@@ -1,9 +1,9 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import {
-  createSupabaseApiKeyOnlyFetch,
-  getSupabasePublishableKey,
-  getSupabaseSecretKey,
+  createSupabaseCredentialFetch,
+  getSupabasePublishableCredential,
+  getSupabaseSecretCredential,
 } from "../_shared/supabaseApiKeys.ts";
 
 function corsHeaders(req: Request) {
@@ -154,8 +154,8 @@ serve(async (req) => {
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const anonKey = getSupabasePublishableKey();
-    const serviceKey = getSupabaseSecretKey();
+    const anonCredential = getSupabasePublishableCredential();
+    const serviceCredential = getSupabaseSecretCredential();
 
     if (!supabaseUrl) {
       return new Response(JSON.stringify({ ok: false, message: "missing_env" }), {
@@ -166,9 +166,9 @@ serve(async (req) => {
 
     const authHeader = req.headers.get("Authorization") || "";
 
-    const userClient = createClient(supabaseUrl, anonKey, {
+    const userClient = createClient(supabaseUrl, anonCredential.key, {
       global: {
-        fetch: createSupabaseApiKeyOnlyFetch(anonKey),
+        fetch: createSupabaseCredentialFetch(anonCredential),
         headers: {
           Authorization: authHeader,
         },
@@ -198,8 +198,8 @@ serve(async (req) => {
       });
     }
 
-    const adminClient = createClient(supabaseUrl, serviceKey, {
-      global: { fetch: createSupabaseApiKeyOnlyFetch(serviceKey) },
+    const adminClient = createClient(supabaseUrl, serviceCredential.key, {
+      global: { fetch: createSupabaseCredentialFetch(serviceCredential) },
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
