@@ -59,7 +59,7 @@ const request = async (pathname, {
     method,
     headers: {
       apikey: anonKey,
-      Authorization: `Bearer ${token || anonKey}`,
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
       ...headers,
     },

@@ -12,11 +12,16 @@ verify_jwt = false
 [functions.accept-invite]
 verify_jwt = true
 
+[functions.approve-join-request]
+verify_jwt = true
+
 [functions.delete-account]
 verify_jwt = true
 
 [functions.push-sender]
-verify_jwt = true
+# Service-to-service: validates apikey plus x-push-sender-secret in the handler.
+# New secret keys are opaque and cannot pass the gateway JWT verifier.
+verify_jwt = false
 
 [functions.push-dispatch-now]
 verify_jwt = true

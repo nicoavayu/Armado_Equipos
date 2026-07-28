@@ -1,6 +1,10 @@
 // supabase/functions/join-match-guest/index.ts
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1"
+import {
+  createSupabaseApiKeyOnlyFetch,
+  getSupabaseSecretKey,
+} from "../_shared/supabaseApiKeys.ts"
 
 const MAX_REQUEST_BYTES = 200_000
 const MAX_PLAYER_NAME_LENGTH = 40
@@ -329,9 +333,9 @@ serve(async (req) => {
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")
-    const supabaseServiceKey = Deno.env.get("SERVICE_ROLE_KEY")
+    const supabaseServiceKey = getSupabaseSecretKey()
 
-    if (!supabaseUrl || !supabaseServiceKey) {
+    if (!supabaseUrl) {
       return jsonResponse(cors, 500, { ok: false, reason: "missing_env" })
     }
 
@@ -387,6 +391,7 @@ serve(async (req) => {
     auditInviteHash = await sha256Hex(inviteToken)
 
     supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      global: { fetch: createSupabaseApiKeyOnlyFetch(supabaseServiceKey) },
       auth: { autoRefreshToken: false, persistSession: false },
     })
 

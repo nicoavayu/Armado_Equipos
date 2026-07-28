@@ -27271,7 +27271,6 @@ BEGIN
     url := trim(v_function_url),
     headers := jsonb_build_object(
       'Content-Type', 'application/json',
-      'Authorization', 'Bearer ' || trim(v_service_role_jwt),
       'apikey', trim(v_service_role_jwt),
       'x-push-sender-secret', trim(v_sender_secret)
     ),

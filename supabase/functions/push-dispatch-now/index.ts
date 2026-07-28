@@ -1,5 +1,9 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import {
+  createSupabaseApiKeyOnlyFetch,
+  getSupabaseSecretKey,
+} from "../_shared/supabaseApiKeys.ts";
 
 type KickEventType =
   | "match_invite"
@@ -1682,7 +1686,7 @@ serve(async (req) => {
   }
 
   const supabaseUrl = String(Deno.env.get("SUPABASE_URL") ?? "").trim();
-  const serviceRoleKey = String(Deno.env.get("SERVICE_ROLE_KEY") ?? "").trim();
+  const serviceRoleKey = getSupabaseSecretKey();
   const senderSecret = String(Deno.env.get("PUSH_SENDER_SECRET") ?? "").trim();
 
   if (!supabaseUrl || !serviceRoleKey || !senderSecret) {
@@ -1708,6 +1712,7 @@ serve(async (req) => {
   const windowStartIso = new Date(Date.now() - windowSeconds * 1000).toISOString();
 
   const supabase = createClient(supabaseUrl, serviceRoleKey, {
+    global: { fetch: createSupabaseApiKeyOnlyFetch(serviceRoleKey) },
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
@@ -1933,7 +1938,6 @@ serve(async (req) => {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${serviceRoleKey}`,
       apikey: serviceRoleKey,
       "x-push-sender-secret": senderSecret,
     },
