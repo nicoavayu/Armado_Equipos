@@ -2,8 +2,8 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1"
 import {
-  createSupabaseApiKeyOnlyFetch,
-  getSupabaseSecretKey,
+  createSupabaseCredentialFetch,
+  getSupabaseSecretCredential,
 } from "../_shared/supabaseApiKeys.ts"
 
 const MAX_REQUEST_BYTES = 200_000
@@ -333,7 +333,7 @@ serve(async (req) => {
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")
-    const supabaseServiceKey = getSupabaseSecretKey()
+    const serviceCredential = getSupabaseSecretCredential()
 
     if (!supabaseUrl) {
       return jsonResponse(cors, 500, { ok: false, reason: "missing_env" })
@@ -390,8 +390,8 @@ serve(async (req) => {
     auditIpHash = await sha256Hex(getClientIp(req))
     auditInviteHash = await sha256Hex(inviteToken)
 
-    supabase = createClient(supabaseUrl, supabaseServiceKey, {
-      global: { fetch: createSupabaseApiKeyOnlyFetch(supabaseServiceKey) },
+    supabase = createClient(supabaseUrl, serviceCredential.key, {
+      global: { fetch: createSupabaseCredentialFetch(serviceCredential) },
       auth: { autoRefreshToken: false, persistSession: false },
     })
 
