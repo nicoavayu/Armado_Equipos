@@ -112,7 +112,11 @@ try {
       console.log('[staging:create:guard] Free project creation metadata passed.');
       break;
     case 'guard':
-      console.log('[staging:guard] OK.');
+      console.log(
+        `[staging:guard] OK. Torneos ${target.torneosEnabled ? 'enabled' : 'disabled'}; `
+        + `QA password login ${target.qaPasswordLoginEnabled ? 'enabled' : 'disabled'}; `
+        + 'Multimedia Upload disabled; Estudio Social disabled.',
+      );
       break;
     case 'link':
       run('npx', [

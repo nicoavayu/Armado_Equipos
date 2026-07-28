@@ -26,6 +26,7 @@ const validEnv = {
   REACT_APP_TORNEOS_STAGING_PROJECT_REF: stagingRef,
   REACT_APP_SUPABASE_URL: `https://${stagingRef}.supabase.co`,
   REACT_APP_TORNEOS_ENABLED: 'true',
+  REACT_APP_QA_PASSWORD_LOGIN_ENABLED: 'false',
   REACT_APP_TORNEOS_MEDIA_UPLOAD_ENABLED: 'false',
   REACT_APP_TORNEOS_SOCIAL_GENERATOR_ENABLED: 'false',
 };
@@ -119,6 +120,33 @@ test('rejects Torneos in a production preview environment', () => {
   rejects({
     REACT_APP_DEPLOY_ENV: 'production',
   }, /only be enabled for Preview or staging/);
+});
+
+test('allows QA password login only with exact staging environment flags', () => {
+  const result = validateStagingTarget({
+    env: {
+      ...validEnv,
+      REACT_APP_DEPLOY_ENV: 'staging',
+      REACT_APP_QA_PASSWORD_LOGIN_ENABLED: 'true',
+    },
+    repoRoot: temporaryRepo(stagingRef),
+    requireLinked: true,
+  });
+  assert.equal(result.qaPasswordLoginEnabled, true);
+});
+
+test('rejects QA password login in a generic preview environment', () => {
+  rejects({
+    REACT_APP_QA_PASSWORD_LOGIN_ENABLED: 'true',
+  }, /requires REACT_APP_DEPLOY_ENV=staging exactly/);
+});
+
+test('rejects QA password login with non-exact staging data environment', () => {
+  rejects({
+    REACT_APP_DEPLOY_ENV: 'staging',
+    REACT_APP_TORNEOS_DATA_ENV: 'STAGING',
+    REACT_APP_QA_PASSWORD_LOGIN_ENABLED: 'true',
+  }, /requires REACT_APP_TORNEOS_DATA_ENV=staging exactly/);
 });
 
 test('allows only the authorized zero-cost Free staging creation metadata', () => {

@@ -168,6 +168,15 @@ export function validateStagingTarget({
   const torneosEnabled = String(env.REACT_APP_TORNEOS_ENABLED || '')
     .trim()
     .toLowerCase() === 'true';
+  const qaPasswordLoginEnabled = env.REACT_APP_QA_PASSWORD_LOGIN_ENABLED === 'true';
+  if (qaPasswordLoginEnabled) {
+    if (env.REACT_APP_DEPLOY_ENV !== 'staging') {
+      fail('QA password login requires REACT_APP_DEPLOY_ENV=staging exactly.');
+    }
+    if (env.REACT_APP_TORNEOS_DATA_ENV !== 'staging') {
+      fail('QA password login requires REACT_APP_TORNEOS_DATA_ENV=staging exactly.');
+    }
+  }
   if (torneosEnabled) {
     const previewEnvironment = required(env, 'REACT_APP_DEPLOY_ENV').toLowerCase();
     if (!ALLOWED_PREVIEW_ENVIRONMENTS.has(previewEnvironment)) {
@@ -196,6 +205,7 @@ export function validateStagingTarget({
     targetSupabaseUrl: targetUrl.toString().replace(/\/$/, ''),
     linkedProjectRef,
     torneosEnabled,
+    qaPasswordLoginEnabled,
   };
 }
 
@@ -257,6 +267,9 @@ if (isMain) {
     const result = validateStagingTarget({ repoRoot });
     console.log(
       `[staging:guard] OK. Protected staging target ${redactProjectRef(result.targetProjectRef)}.`,
+    );
+    console.log(
+      `[staging:guard] QA password login ${result.qaPasswordLoginEnabled ? 'enabled' : 'disabled'}.`,
     );
   } catch (error) {
     console.error(`[staging:guard] ${error.message}`);
