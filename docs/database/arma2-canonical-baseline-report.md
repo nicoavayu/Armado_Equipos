@@ -2,32 +2,31 @@
 
 Fecha: 2026-07-28.
 
-Estado: **transferido y certificado localmente; sin commit, push ni PR**.
+Estado: **baseline y correcciones P1 certificadas localmente**.
 
 ## Alcance y aislamiento
 
 El trabajo se realizó en
-`/Users/nicoavayu/Downloads/arma2/arma2-canonical-schema`, rama
-`feature/arma2-canonical-schema`, creada desde
-`epic/arma2-torneos@5c3b06c7335fbd566c6e8af1c435788cdb6bec17`.
+`/Users/nicoavayu/Downloads/arma2/arma2-canonical-p1-fixes`, rama
+`feature/canonical-p1-guest-tournament`, creada desde el head exacto del PR
+#107:
+`feature/arma2-canonical-schema@fa06080e955c01495a362590a7ffe28bfeba653e`.
 
-La fuente técnica fue el worktree
-`/Users/nicoavayu/Downloads/arma2/arma2-schema-baseline`. Antes de transferir
-se generaron un patch binario de tracked y un archivo de untracked, se
-calcularon sus SHA-256 y `git apply --check` confirmó cero colisiones. Se
-excluyó deliberadamente
-`docs/arma2-torneos/22-reproducible-schema-baseline.md`.
+La transferencia original de la baseline se conserva sin cambios. Esta rama
+agrega exclusivamente las correcciones P1 del ingreso guest y del catálogo de
+modalidades; no incluye cambios visuales ni estéticos.
 
 No se vinculó ni consultó un proyecto Supabase remoto. No se ejecutaron
 `supabase link`, `db pull`, `db push` ni comandos contra producción. No se
-modificaron `main`, producción, stores, PR #103, PR #104, el worktree fuente,
-el checkout de release, los cambios iOS locales, `.claude` ni `build-device`.
+modificaron `main`, producción, stores, PR #103, PR #104, PR #107, PR #109, el
+worktree fuente, el checkout de release, los cambios iOS locales, `.claude` ni
+`build-device`.
 
 ## Compatibilidad
 
 El contrato observable final registra:
 
-- 1.097 operaciones Supabase estáticas;
+- 1.093 operaciones Supabase estáticas;
 - 44 tablas/vistas consumidas directamente;
 - 213 nombres de RPC estáticas;
 - 7 Edge Functions invocadas;
@@ -36,7 +35,7 @@ El contrato observable final registra:
 
 El detalle navegable está en
 [`arma2-functional-contract.md`](./arma2-functional-contract.md). La matriz
-objeto por objeto contiene 136 relaciones públicas y 454 nombres únicos de
+objeto por objeto contiene 136 relaciones públicas y 456 nombres únicos de
 función pública en
 [`arma2-object-compatibility.md`](./arma2-object-compatibility.md).
 
@@ -72,10 +71,10 @@ Estado reconstruido:
 | --- | ---: |
 | Tablas `public` | 127 |
 | Vistas `public` | 9 |
-| Sobrecargas de función `public` | 456 |
+| Sobrecargas de función `public` | 458 |
 | Policies `public` + `storage` | 169 |
-| Triggers `public` | 113 |
-| Índices `public` | 446 |
+| Triggers `public` | 115 |
+| Índices `public` | 447 |
 | Tablas `public` sin RLS | 0 |
 | `SECURITY DEFINER` sin `search_path` fijo | 0 |
 | Jobs `pg_cron` | 8 |
@@ -110,7 +109,7 @@ Torneos se ejecuta como versión adicional.
 ### Delta de inventario explicado
 
 La baseline previa reconstruida tiene 125 tablas y 448
-funciones/sobrecargas. La final tiene 127 y 456, sin objetos removidos.
+funciones/sobrecargas. La final tiene 127 y 458, sin objetos removidos.
 
 | Objeto adicional | Origen y necesidad | Seguridad | Cobertura |
 | --- | --- | --- | --- |
@@ -124,6 +123,45 @@ funciones/sobrecargas. La final tiene 127 y 456, sin objetos removidos.
 | `_normalize_award_type(text)` | Normaliza aliases históricos de premios | `anon` revocado; uso acotado por RPC validada | `security_patch` (tipo inválido, ganador real y aliases históricos) |
 | `create_notification(text, uuid, jsonb)` | Fanout tipado con contenido generado en servidor | `anon` revocado; autorización por tipo y recurso; `search_path` fijo | `security_patch` (amistad, partido, encuesta, premios, pagos y desafíos) |
 | `bind_voting_photo_slot(bigint, text, bigint)` | Claim atómico invocado sólo por Edge Function | `EXECUTE` exclusivo de `service_role`; tablas privadas | `security_patch` y `securityPatchClientFallback` |
+| `assign_substitute_slot()` | Restaura la asignación histórica de titulares y hasta cuatro suplentes en orden estable | Trigger interno, lock por partido, sin `EXECUTE` público | `canonical-p1-regressions` (titular, orden 1..4, cupo y carrera) |
+| `join_guest_match_with_invite(bigint, text, uuid, text, text)` | Une consumo de invitación e inserción guest en una única transacción idempotente | `EXECUTE` exclusivo de `service_role`; respuesta sanitizada | `canonical-p1-regressions` (errores, replay, carrera y Edge real) |
+
+### Correcciones P1 de QA cloud
+
+**P1-A — ingreso guest.** La baseline retenía
+`promote_next_substitute()` y los consumidores seguían leyendo
+`substitute_order`, pero `public.jugadores` había perdido la columna y su
+trigger de asignación. La Edge Function además consumía la invitación mediante
+una RPC y realizaba el `INSERT` del jugador en una segunda operación. Un fallo
+entre ambas dejaba consumo parcial.
+
+La evidencia histórica fija el contrato como `smallint`, nullable, sin default,
+con índice por
+`(partido_id, is_substitute, substitute_order, created_at)`. Los primeros
+`cupo_jugadores` son titulares; los siguientes ocupan las posiciones de
+suplente 1..4. Al borrar un titular, se promueve primero el menor
+`substitute_order`, desempata por `created_at` e `id`, y se reordena la cola.
+La corrección restaura exactamente ese contrato. El consumo del token y la
+creación del jugador ahora ocurren dentro de
+`join_guest_match_with_invite(...)`; el lock por partido serializa cupo, orden
+y replay, y cualquier error de inserción revierte el consumo.
+
+**P1-B — modalidades.** La tabla
+`tournament_sport_modalities` estaba presente pero la baseline había omitido
+las filas originales. Se restauró el seed determinista e idempotente con las
+seis claves históricas estables:
+
+| Código | Nombre | Equipo | Suplentes recomendados | Equipo de la fecha | Duración |
+| --- | --- | ---: | ---: | ---: | ---: |
+| `football_5` | Fútbol 5 | 5 | 3 | 5 | 40 min |
+| `football_6` | Fútbol 6 | 6 | 4 | 6 | 50 min |
+| `football_7` | Fútbol 7 | 7 | 5 | 7 | 50 min |
+| `football_8` | Fútbol 8 | 8 | 5 | 8 | 60 min |
+| `football_9` | Fútbol 9 | 9 | 6 | 9 | 70 min |
+| `football_11` | Fútbol 11 | 11 | 7 | 11 | 90 min |
+
+Todas requieren arquero. El esquema histórico no define UUID, columna de
+deporte, orden adicional ni flag activo, por lo que no se inventó ninguno.
 
 ### Acceso anónimo efectivo
 
@@ -175,16 +213,18 @@ No existe escritura anónima en Storage. La foto guest pasa por
 
 ## Certificación
 
-Se ejecutaron cinco `supabase db reset --local --no-seed` consecutivos
-después del último cambio de esquema. Los cinco terminaron correctamente.
+La baseline original registró cinco `supabase db reset --local --no-seed`.
+Después del último cambio SQL de esta corrección P1 se ejecutaron otros tres
+resets consecutivos; los tres terminaron correctamente.
 
 | Suite | Resultado |
 | --- | --- |
-| Golden Supabase real local | 41/41 |
+| Golden Supabase real local | 41/41 + regresiones P1 40/40 |
 | Seguridad DB | 104/104 |
 | DB integración Arma2 personal/auto-match | 420/420 |
-| DB integración Arma2 Torneos | 879/879 en 9 suites |
-| Jest frontend/servicios/migraciones | 248 suites, 1.856 tests |
+| DB integración Arma2 Torneos | 880/880 en 9 suites |
+| Contratos Edge Functions | 14/14 |
+| Jest frontend/servicios/migraciones | 249 suites, 1.858 tests |
 | ESLint | aprobado |
 | Build con flags apagados | aprobado |
 | Build con Torneos habilitado y Multimedia apagado | aprobado |
@@ -217,9 +257,11 @@ contiene ocho jobs.
 - **Arma2 personal 1.1.20/40:** contrato observable y suites golden,
   seguridad, integración y frontend aprobados sin cambios funcionales.
 
-## Próximo paso
+## Reconstrucción remota pendiente
 
-Revisar este inventario y sus logs. Sólo después de aprobar la transferencia
-y certificación corresponde crear el commit y el PR independiente contra
-`epic/arma2-torneos`. Antes de cualquier transición remota de Supabase debe
-ensayarse sobre un proyecto temporal nuevo; este trabajo no la autoriza.
+La corrección se entrega en un PR técnico independiente contra
+`feature/arma2-canonical-schema`. No autoriza reset, borrado, reconstrucción ni
+deploy remoto. Staging debe reconstruirse sólo después de aprobación explícita,
+con guard de destino, backup verificable, exactamente las dos migraciones
+canónicas, despliegue explícito de Edge Functions y verificación posterior.
+Producción y los proyectos pausados permanecen fuera de alcance.

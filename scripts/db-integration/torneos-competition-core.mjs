@@ -661,6 +661,20 @@ async function main() {
     'el fallo tardío tampoco deja datos parciales',
   );
 
+  await expectError(
+    () => createTournament(
+      ownerA,
+      organizationA,
+      seasonA.id,
+      'Modalidad inexistente',
+      'modalidad-inexistente',
+      '42000000-0000-4000-8000-000000000017',
+      'football_10',
+    ),
+    /TORNEOS_INVALID_MODALITY/,
+    'una modalidad fuera del catálogo sigue siendo rechazada',
+  );
+
   const tournamentA = await createTournament(
     ownerA,
     organizationA,

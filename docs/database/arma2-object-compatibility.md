@@ -7,9 +7,9 @@ La clasificación es conservadora: “no aparece como llamada directa” no equi
 ## Resumen
 
 - Relaciones públicas: **136**.
-- Funciones públicas (nombres únicos): **454**.
+- Funciones públicas (nombres únicos): **456**.
 - RPCs estáticas observadas: **213**.
-- Funciones conectadas a triggers: **63**.
+- Funciones conectadas a triggers: **65**.
 - Jobs canónicos: **8**.
 - Buckets activos: **2**.
 
@@ -192,6 +192,7 @@ La clasificación es conservadora: “no aparece como llamada directa” no equi
 | `public.archive_tournament_fixture` | `función interna/compat` | `compatibilidad necesaria / indirecta` | `Retenida para composición entre RPCs, jobs, mantenimiento o compatibilidad histórica; sin evidencia de eliminación segura.` |
 | `public.archive_tournament_team_entry` | `función/RPC` | `usado` | `RPC estática consumida por cliente o Edge Function.` |
 | `public.assert_tournament_fixture_scope` | `función interna/compat` | `compatibilidad necesaria / indirecta` | `Retenida para composición entre RPCs, jobs, mantenimiento o compatibilidad histórica; sin evidencia de eliminación segura.` |
+| `public.assign_substitute_slot` | `función trigger` | `compatibilidad necesaria` | `Vinculada a un trigger activo.` |
 | `public.assign_tournament_media_photographer` | `función interna/compat` | `compatibilidad necesaria / indirecta` | `Retenida para composición entre RPCs, jobs, mantenimiento o compatibilidad histórica; sin evidencia de eliminación segura.` |
 | `public.auto_match_account_is_eligible` | `función interna/compat` | `compatibilidad necesaria / indirecta` | `Retenida para composición entre RPCs, jobs, mantenimiento o compatibilidad histórica; sin evidencia de eliminación segura.` |
 | `public.auto_match_availabilities_are_compatible` | `función interna/compat` | `compatibilidad necesaria / indirecta` | `Retenida para composición entre RPCs, jobs, mantenimiento o compatibilidad histórica; sin evidencia de eliminación segura.` |
@@ -258,7 +259,7 @@ La clasificación es conservadora: “no aparece como llamada directa” no equi
 | `public.cleanup_voting_access_state` | `función/RPC` | `usado` | `RPC estática consumida por cliente o Edge Function.` |
 | `public.collect_notification_refs_from_team_payload` | `función interna/compat` | `compatibilidad necesaria / indirecta` | `Retenida para composición entre RPCs, jobs, mantenimiento o compatibilidad histórica; sin evidencia de eliminación segura.` |
 | `public.complete_tournament_media_upload` | `función interna/compat` | `compatibilidad necesaria / indirecta` | `Retenida para composición entre RPCs, jobs, mantenimiento o compatibilidad histórica; sin evidencia de eliminación segura.` |
-| `public.consume_guest_match_invite` | `función/RPC` | `usado` | `RPC estática consumida por cliente o Edge Function.` |
+| `public.consume_guest_match_invite` | `función interna/compat` | `compatibilidad necesaria / indirecta` | `Retenida para composición entre RPCs, jobs, mantenimiento o compatibilidad histórica; sin evidencia de eliminación segura.` |
 | `public.coordinates_are_valid` | `función interna/compat` | `compatibilidad necesaria / indirecta` | `Retenida para composición entre RPCs, jobs, mantenimiento o compatibilidad histórica; sin evidencia de eliminación segura.` |
 | `public.create_friend_request_notification_from_amigos` | `función trigger` | `compatibilidad necesaria` | `Vinculada a un trigger activo.` |
 | `public.create_guest_match_invite` | `función/RPC` | `usado` | `RPC estática consumida por cliente o Edge Function.` |
@@ -370,6 +371,7 @@ La clasificación es conservadora: “no aparece como llamada directa” no equi
 | `public.is_tournament_organization_slug_available` | `función/RPC` | `usado` | `RPC estática consumida por cliente o Edge Function.` |
 | `public.is_tournament_team_manager` | `función interna/compat` | `compatibilidad necesaria / indirecta` | `Retenida para composición entre RPCs, jobs, mantenimiento o compatibilidad histórica; sin evidencia de eliminación segura.` |
 | `public.is_valid_tournament_format_settings` | `función interna/compat` | `compatibilidad necesaria / indirecta` | `Retenida para composición entre RPCs, jobs, mantenimiento o compatibilidad histórica; sin evidencia de eliminación segura.` |
+| `public.join_guest_match_with_invite` | `función/RPC` | `usado` | `RPC estática consumida por cliente o Edge Function.` |
 | `public.leave_owned_match_with_transfer` | `función/RPC` | `usado` | `RPC estática consumida por cliente o Edge Function.` |
 | `public.lock_match_history_snapshots` | `función trigger` | `compatibilidad necesaria` | `Vinculada a un trigger activo.` |
 | `public.lock_tournament_roster` | `función/RPC` | `usado` | `RPC estática consumida por cliente o Edge Function.` |
@@ -418,7 +420,7 @@ La clasificación es conservadora: “no aparece como llamada directa” no equi
 | `public.process_match_reminder_notifications_backend` | `función interna/compat` | `compatibilidad necesaria / indirecta` | `Retenida para composición entre RPCs, jobs, mantenimiento o compatibilidad histórica; sin evidencia de eliminación segura.` |
 | `public.process_survey_reminder_notifications_backend` | `función interna/compat` | `compatibilidad necesaria / indirecta` | `Retenida para composición entre RPCs, jobs, mantenimiento o compatibilidad histórica; sin evidencia de eliminación segura.` |
 | `public.process_survey_start_notifications_backend` | `función interna/compat` | `compatibilidad necesaria / indirecta` | `Retenida para composición entre RPCs, jobs, mantenimiento o compatibilidad histórica; sin evidencia de eliminación segura.` |
-| `public.promote_substitute_after_player_leave` | `función interna/compat` | `compatibilidad necesaria / indirecta` | `Retenida para composición entre RPCs, jobs, mantenimiento o compatibilidad histórica; sin evidencia de eliminación segura.` |
+| `public.promote_substitute_after_player_leave` | `función trigger` | `compatibilidad necesaria` | `Vinculada a un trigger activo.` |
 | `public.protect_published_tournament_communication` | `función trigger` | `compatibilidad necesaria` | `Vinculada a un trigger activo.` |
 | `public.protect_published_tournament_document_version` | `función trigger` | `compatibilidad necesaria` | `Vinculada a un trigger activo.` |
 | `public.protect_tournament_competition_scope` | `función trigger` | `compatibilidad necesaria` | `Vinculada a un trigger activo.` |
