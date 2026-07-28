@@ -14,7 +14,7 @@ const ROOT = path.resolve(__dirname, '..', '..');
 const MIGRATION = path.join(
   ROOT,
   'supabase',
-  'migrations',
+  'migrations_history',
   '20260724233000_tournament_organization_workspaces.sql',
 );
 const PORT = 54800 + Math.floor(Math.random() * 500);

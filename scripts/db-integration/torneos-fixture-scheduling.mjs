@@ -118,7 +118,7 @@ async function setup() {
     );
   }
   for (const name of MIGRATIONS.slice(0, 2)) {
-    await admin.query(fs.readFileSync(path.join(ROOT, 'supabase', 'migrations', name), 'utf8'));
+    await admin.query(fs.readFileSync(path.join(ROOT, 'supabase', 'migrations_history', name), 'utf8'));
   }
   await admin.query(`
     create table public.usuarios (
@@ -160,7 +160,7 @@ async function setup() {
     $$;
   `);
   for (const name of MIGRATIONS.slice(2)) {
-    await admin.query(fs.readFileSync(path.join(ROOT, 'supabase', 'migrations', name), 'utf8'));
+    await admin.query(fs.readFileSync(path.join(ROOT, 'supabase', 'migrations_history', name), 'utf8'));
   }
   return admin;
 }

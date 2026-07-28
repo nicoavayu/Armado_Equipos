@@ -14,7 +14,7 @@ const ROOT = path.resolve(__dirname, '..', '..');
 const MIGRATIONS = [
   '20260724233000_tournament_organization_workspaces.sql',
   '20260725120000_tournament_competition_core.sql',
-].map((name) => path.join(ROOT, 'supabase', 'migrations', name));
+].map((name) => path.join(ROOT, 'supabase', 'migrations_history', name));
 const PORT = 55300 + Math.floor(Math.random() * 400);
 const DATABASE = 'arma2_torneos_competition';
 const DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'arma2-competition-pg-'));

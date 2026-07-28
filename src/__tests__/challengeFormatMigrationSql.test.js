@@ -6,7 +6,7 @@ const migrationPath = path.join(
   '..',
   '..',
   'supabase',
-  'migrations',
+  'migrations_history',
   '20260614000629_allow_challenge_format_edit_with_existing_team_matches.sql',
 );
 

@@ -11,7 +11,7 @@ describe('Torneos media responsive and storage contract', () => {
     'utf8',
   );
   const migration = fs.readFileSync(
-    path.join(process.cwd(), 'supabase/migrations/20260727060000_tournament_media_galleries.sql'),
+    path.join(process.cwd(), 'supabase/migrations_history/20260727060000_tournament_media_galleries.sql'),
     'utf8',
   );
   const css = `${participantCss}\n${adminCss}`;
