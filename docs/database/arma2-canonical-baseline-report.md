@@ -163,6 +163,52 @@ seis claves históricas estables:
 Todas requieren arquero. El esquema histórico no define UUID, columna de
 deporte, orden adicional ni flag activo, por lo que no se inventó ninguno.
 
+**P1-C — formatos de competencia.** La baseline retenía la tabla, sus
+constraints, RLS, grants y la FK
+`tournaments_competition_format_fkey`, pero omitía las cinco filas que la
+migración histórica `20260725120000_tournament_competition_core.sql` insertaba.
+La primera llamada a `create_tournament_with_defaults` alcanzaba el `INSERT` de
+`tournaments` y fallaba aun para `league`.
+
+Se restauraron los valores históricos exactos:
+
+| Orden de contexto | Código/PK estable | Nombre | Descripción |
+| ---: | --- | --- | --- |
+| 1 | `league` | Liga | Todos compiten por puntos en una o dos ruedas. |
+| 2 | `knockout` | Eliminación directa | Cruces eliminatorios a partido único o ida y vuelta. |
+| 3 | `groups` | Fase de grupos | Grupos independientes con clasificación por puntos. |
+| 4 | `groups_and_playoffs` | Grupos y playoffs | Una fase de grupos clasifica a una etapa eliminatoria. |
+| 5 | `league_and_playoffs` | Liga y playoffs | Una liga general clasifica a una etapa eliminatoria. |
+
+`code` es tanto la PK como el identificador usado por frontend, RPCs y fixture;
+no existe UUID, slug separado, columna de orden, metadata adicional ni flag
+activo. El orden histórico está definido por el `CASE` de
+`get_tournament_competition_context`. El seed activo usa `ON CONFLICT (code) DO
+UPDATE`, por lo que es determinista e idempotente.
+
+Los 880 checks anteriores de Torneos no detectaron la omisión porque las nueve
+suites levantaban PostgreSQL embebido y aplicaban directamente
+`supabase/migrations_history`, incluida la migración que sí contiene el seed.
+Los tests de frontend usan catálogos mockeados. Ninguno ejecutaba las dos
+migraciones activas desde un `supabase db reset --local --no-seed`.
+
+La auditoría preventiva de lookups necesarios para crear y operar un torneo
+desde cero dio:
+
+| Catálogo | Requerido por | Filas esperadas | Filas baseline fresca antes/después | Seed presente | Test baseline |
+| --- | --- | ---: | ---: | --- | --- |
+| `tournament_sport_modalities` | torneo, categoría y canchas | 6 | 6 / 6 | sí | sí |
+| `tournament_competition_formats` | torneo, configuración y fixture | 5 | 0 / 5 | restaurado | sí |
+| género y tipo de categoría | torneo/categoría | 4 valores `CHECK` | no aplica | no corresponde | sí, vía RPC |
+| estados de temporada/torneo/categoría/fixture/fase | ciclo de vida | valores `CHECK` | no aplica | no corresponde | suites funcionales |
+| tipos de fase y evento | fixture, actas y disciplina | valores `CHECK` | no aplica | no corresponde | suites funcionales |
+| scoring, desempates y disciplina | reglas por torneo | 1 + 4 + 1 por torneo | tenant, 0 antes de crear | RPC transaccional | sí |
+| standings y clasificación | proyecciones por fixture | tenant/derivado | 0 esperado | no corresponde | suites funcionales |
+
+No apareció un tercer lookup estático faltante. Categorías, etapas, reglas,
+standings, disciplina y eventos son recursos tenant o derivados; sus tipos y
+estados están cerrados por constraints, no por tablas catálogo vacías.
+
 ### Acceso anónimo efectivo
 
 En `public` sólo hay dos policies aplicables a `anon`, ambas de lectura:
@@ -222,8 +268,8 @@ resets consecutivos; los tres terminaron correctamente.
 | Golden Supabase real local | 41/41 + regresiones P1 40/40 |
 | Seguridad DB | 104/104 |
 | DB integración Arma2 personal/auto-match | 420/420 |
-| DB integración Arma2 Torneos | 880/880 en 9 suites |
-| Contratos Edge Functions | 14/14 |
+| DB integración Arma2 Torneos | 927/927 en 10 suites: 880 previos + 47 baseline |
+| Contratos Edge Functions | 19/19 |
 | Jest frontend/servicios/migraciones | 249 suites, 1.858 tests |
 | ESLint | aprobado |
 | Build con flags apagados | aprobado |
@@ -238,6 +284,15 @@ La repetición focal posterior a la inspección de integridad también aprobó:
 `SECURITY DEFINER` sin `search_path`, 0 tablas `public` sin RLS, 0 DML
 innecesario de `anon`, 0 policies cliente con `WITH CHECK (true)`, 0
 `public.exec_sql` y 0 `public.compute_awards_for_match`.
+
+La recertificación P1-C agregó
+`canonical-tournament-baseline.mjs`. La suite ejecuta dos resets sin seed
+propios y aprobó 47/47 checks: catálogos exactos, repetición idempotente,
+identificadores estables, creación RPC real, los cinco formatos con fixture
+mínimo válido, aislamiento tenant y rechazos fail-closed. Tras el último cambio
+SQL se ejecutaron además los tres resets consecutivos formales. La ruta activa
+conserva dos migraciones, los 214 SQL históricos permanecen byte-idénticos y no
+queda ningún catálogo obligatorio vacío.
 
 El cron `push_sender_dispatch_scheduler` se probó con trabajo listo y Vault
 vacío dentro de una transacción revertida: respondió `misconfigured` con

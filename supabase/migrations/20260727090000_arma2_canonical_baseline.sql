@@ -40878,6 +40878,27 @@ ALTER TABLE ONLY "public"."tournament_competition_formats"
 
 
 --
+-- Data for Name: tournament_competition_formats; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+INSERT INTO "public"."tournament_competition_formats" (
+    "code",
+    "name",
+    "description"
+)
+VALUES
+    ('league', 'Liga', 'Todos compiten por puntos en una o dos ruedas.'),
+    ('knockout', 'Eliminación directa', 'Cruces eliminatorios a partido único o ida y vuelta.'),
+    ('groups', 'Fase de grupos', 'Grupos independientes con clasificación por puntos.'),
+    ('groups_and_playoffs', 'Grupos y playoffs', 'Una fase de grupos clasifica a una etapa eliminatoria.'),
+    ('league_and_playoffs', 'Liga y playoffs', 'Una liga general clasifica a una etapa eliminatoria.')
+ON CONFLICT ("code") DO UPDATE
+SET
+    "name" = EXCLUDED."name",
+    "description" = EXCLUDED."description";
+
+
+--
 -- Name: tournament_competition_participants tournament_competition_participants_entry_unique; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
