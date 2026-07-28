@@ -3,7 +3,7 @@ import path from 'path';
 
 const migrationPath = path.join(
   process.cwd(),
-  'supabase/migrations/20260712120000_auto_match_proposal_chat.sql',
+  'supabase/migrations_history/20260712120000_auto_match_proposal_chat.sql',
 );
 const sql = fs.readFileSync(migrationPath, 'utf8');
 

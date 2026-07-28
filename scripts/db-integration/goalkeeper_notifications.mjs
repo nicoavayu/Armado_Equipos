@@ -187,7 +187,7 @@ async function main() {
   const admin = await connect();
   await admin.query(STUB_SCHEMA);
   for (const m of MIGRATIONS) {
-    await admin.query(fs.readFileSync(path.join(ROOT, 'supabase', 'migrations', m), 'utf8'));
+    await admin.query(fs.readFileSync(path.join(ROOT, 'supabase', 'migrations_history', m), 'utf8'));
   }
   await admin.query('grant all on all tables in schema public to authenticated');
   await admin.query('grant usage on all sequences in schema public to authenticated');

@@ -87,6 +87,7 @@ coverage/
 # Git
 .git/
 .gitignore
+supabase/.branches/
 
 # Custom: tu propio directorio para cosas grandes o irrelevantes
 # por ejemplo, elimina backups viejos, dumps, etc

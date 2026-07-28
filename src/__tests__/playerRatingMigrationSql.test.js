@@ -3,7 +3,7 @@ import path from 'path';
 
 const migrationPath = path.join(
   process.cwd(),
-  'supabase/migrations/20260703052313_enforce_player_rating_max_five.sql',
+  'supabase/migrations_history/20260703052313_enforce_player_rating_max_five.sql',
 );
 const sql = fs.readFileSync(migrationPath, 'utf8');
 

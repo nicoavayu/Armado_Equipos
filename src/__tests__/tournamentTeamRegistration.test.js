@@ -8,7 +8,7 @@ import {
 const migration = fs.readFileSync(
   path.join(
     process.cwd(),
-    'supabase/migrations/20260725210000_tournament_teams_rosters.sql',
+    'supabase/migrations_history/20260725210000_tournament_teams_rosters.sql',
   ),
   'utf8',
 );

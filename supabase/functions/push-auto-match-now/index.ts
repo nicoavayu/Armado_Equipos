@@ -1,5 +1,9 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import {
+  createSupabaseCredentialFetch,
+  getSupabaseSecretCredential,
+} from "../_shared/supabaseApiKeys.ts";
 
 type Body = { event_type?: unknown; limit?: unknown };
 type DeliveryRow = {
@@ -75,9 +79,9 @@ serve(async (req) => {
   if (!actorUserId) return json({ ok: false, reason: "unauthorized" }, 401, headers);
 
   const supabaseUrl = String(Deno.env.get("SUPABASE_URL") ?? "").trim();
-  const serviceRoleKey = String(Deno.env.get("SERVICE_ROLE_KEY") ?? "").trim();
+  const serviceCredential = getSupabaseSecretCredential();
   const senderSecret = String(Deno.env.get("PUSH_SENDER_SECRET") ?? "").trim();
-  if (!supabaseUrl || !serviceRoleKey || !senderSecret) {
+  if (!supabaseUrl || !senderSecret) {
     return json({ ok: false, reason: "missing_sender_env" }, 500, headers);
   }
 
@@ -91,7 +95,8 @@ serve(async (req) => {
   const limit = Number.isFinite(requestedLimit) ? Math.max(1, Math.min(100, Math.round(requestedLimit))) : 100;
   const windowStart = new Date(Date.now() - 10 * 60 * 1000).toISOString();
 
-  const admin = createClient(supabaseUrl, serviceRoleKey, {
+  const admin = createClient(supabaseUrl, serviceCredential.key, {
+    global: { fetch: createSupabaseCredentialFetch(serviceCredential) },
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
@@ -144,7 +149,6 @@ serve(async (req) => {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${serviceRoleKey}`,
       apikey: serviceRoleKey,
       "x-push-sender-secret": senderSecret,
     },

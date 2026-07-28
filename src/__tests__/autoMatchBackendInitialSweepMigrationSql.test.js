@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 
 const sql = fs.readFileSync(
-  path.join(process.cwd(), 'supabase/migrations/20260714030000_auto_match_backend_initial_sweep.sql'),
+  path.join(process.cwd(), 'supabase/migrations_history/20260714030000_auto_match_backend_initial_sweep.sql'),
   'utf8',
 );
 

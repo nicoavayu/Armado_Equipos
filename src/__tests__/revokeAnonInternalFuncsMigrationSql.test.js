@@ -6,7 +6,7 @@ const migrationPath = path.join(
   '..',
   '..',
   'supabase',
-  'migrations',
+  'migrations_history',
   '20260622140000_revoke_anon_internal_funcs.sql',
 );
 

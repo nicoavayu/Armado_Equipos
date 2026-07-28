@@ -5,6 +5,10 @@ const repoRoot = process.cwd();
 const rootMigrationsDir = path.join(repoRoot, 'migrations');
 const supabaseMigrationsDir = path.join(repoRoot, 'supabase', 'migrations');
 const allowlistPath = path.join(rootMigrationsDir, 'ROOT_SQL_ALLOWLIST.txt');
+const expectedCanonicalMigrations = [
+  '20260727090000_arma2_canonical_baseline.sql',
+  '20260727215106_canonical_core_rls_contracts.sql',
+];
 
 const exitWithError = (message) => {
   console.error(`[migrations:guard] ${message}`);
@@ -49,8 +53,19 @@ const canonicalSqlFiles = fs.readdirSync(supabaseMigrationsDir)
   .filter((file) => file.endsWith('.sql'))
   .sort();
 
-if (canonicalSqlFiles.length === 0) {
-  exitWithError('No SQL files found in `supabase/migrations/`.');
+if (
+  canonicalSqlFiles.length !== expectedCanonicalMigrations.length
+  || canonicalSqlFiles.some(
+    (file, index) => file !== expectedCanonicalMigrations[index],
+  )
+) {
+  exitWithError(
+    [
+      'Canonical migration set must contain exactly two approved files.',
+      `Expected: ${expectedCanonicalMigrations.join(', ')}`,
+      `Found: ${canonicalSqlFiles.join(', ') || '(none)'}`,
+    ].join(' '),
+  );
 }
 
-console.log(`[migrations:guard] OK. Canonical migrations in supabase/migrations: ${canonicalSqlFiles.length} files.`);
+console.log('[migrations:guard] OK. Exactly two approved canonical migrations are present.');

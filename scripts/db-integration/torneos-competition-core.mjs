@@ -14,7 +14,7 @@ const ROOT = path.resolve(__dirname, '..', '..');
 const MIGRATIONS = [
   '20260724233000_tournament_organization_workspaces.sql',
   '20260725120000_tournament_competition_core.sql',
-].map((name) => path.join(ROOT, 'supabase', 'migrations', name));
+].map((name) => path.join(ROOT, 'supabase', 'migrations_history', name));
 const PORT = 55300 + Math.floor(Math.random() * 400);
 const DATABASE = 'arma2_torneos_competition';
 const DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'arma2-competition-pg-'));
@@ -659,6 +659,20 @@ async function main() {
     ),
     0,
     'el fallo tardío tampoco deja datos parciales',
+  );
+
+  await expectError(
+    () => createTournament(
+      ownerA,
+      organizationA,
+      seasonA.id,
+      'Modalidad inexistente',
+      'modalidad-inexistente',
+      '42000000-0000-4000-8000-000000000017',
+      'football_10',
+    ),
+    /TORNEOS_INVALID_MODALITY/,
+    'una modalidad fuera del catálogo sigue siendo rechazada',
   );
 
   const tournamentA = await createTournament(

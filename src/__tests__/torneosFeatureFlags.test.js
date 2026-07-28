@@ -97,6 +97,7 @@ describe('Arma2 Torneos feature flags', () => {
   });
 
   test('rejects the known production project even when staging flags are forged', () => {
+    const productionFixtureRef = 'productionfixture123';
     const flags = resolveTorneosFeatureFlags({
       NODE_ENV: 'production',
       REACT_APP_DEPLOY_ENV: 'preview',
@@ -104,8 +105,9 @@ describe('Arma2 Torneos feature flags', () => {
       REACT_APP_TORNEOS_WORKSPACES_ENABLED: 'true',
       REACT_APP_TORNEOS_WORKSPACE_SWITCHER_ENABLED: 'true',
       REACT_APP_TORNEOS_DATA_ENV: 'staging',
-      REACT_APP_TORNEOS_STAGING_PROJECT_REF: 'rcyuuoaqfwcembdajcss',
-      REACT_APP_SUPABASE_URL: 'https://RCYUUOAQFWCEMBDAJCSS.supabase.co',
+      REACT_APP_TORNEOS_STAGING_PROJECT_REF: productionFixtureRef,
+      REACT_APP_PRODUCTION_PROJECT_REF: productionFixtureRef,
+      REACT_APP_SUPABASE_URL: `https://${productionFixtureRef}.supabase.co`,
     });
 
     expect(flags.isKnownProductionBackend).toBe(true);

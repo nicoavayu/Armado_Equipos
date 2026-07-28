@@ -6,7 +6,7 @@ const migrationPath = path.join(
   '..',
   '..',
   'supabase',
-  'migrations',
+  'migrations_history',
   '20260615120000_challenge_manual_results.sql',
 );
 const followupMigrationPath = path.join(
@@ -14,7 +14,7 @@ const followupMigrationPath = path.join(
   '..',
   '..',
   'supabase',
-  'migrations',
+  'migrations_history',
   '20260615222854_challenge_manual_results_followup.sql',
 );
 const acceptedStatusFixMigrationPath = path.join(
@@ -22,7 +22,7 @@ const acceptedStatusFixMigrationPath = path.join(
   '..',
   '..',
   'supabase',
-  'migrations',
+  'migrations_history',
   '20260616121000_fix_challenge_result_accepted_status.sql',
 );
 

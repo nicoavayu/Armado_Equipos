@@ -145,7 +145,7 @@ describe('auto match notification routing', () => {
 
 describe('organizer flow migration SQL guards', () => {
   const sql = fs.readFileSync(
-    path.join(process.cwd(), 'supabase/migrations/20260711210000_auto_match_organizer_flow.sql'),
+    path.join(process.cwd(), 'supabase/migrations_history/20260711210000_auto_match_organizer_flow.sql'),
     'utf8',
   );
 

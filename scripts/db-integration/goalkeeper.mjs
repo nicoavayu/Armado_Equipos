@@ -190,7 +190,7 @@ async function main() {
 
   const admin = await connect();
   await admin.query(STUB_SCHEMA);
-  await admin.query(fs.readFileSync(path.join(ROOT, 'supabase', 'migrations', MIGRATION), 'utf8'));
+  await admin.query(fs.readFileSync(path.join(ROOT, 'supabase', 'migrations_history', MIGRATION), 'utf8'));
 
   // Grant on the objects created by the migration (run as postgres/superuser).
   await admin.query('grant all on all tables in schema public to authenticated');
