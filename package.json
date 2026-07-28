@@ -77,6 +77,7 @@
     "test:db:torneos:participant-hub": "node scripts/db-integration/torneos-participant-hub.mjs",
     "test:db:torneos:communications": "node scripts/db-integration/torneos-communications.mjs",
     "test:db:torneos:media": "node scripts/db-integration/torneos-media-galleries.mjs",
+    "test:db:security": "node scripts/db-integration/security_patch.mjs",
     "eject": "react-scripts eject",
     "mobile:sync": "npm run build && npx cap sync",
     "android:sync": "npm run build && npx cap sync android",

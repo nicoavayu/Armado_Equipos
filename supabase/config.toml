@@ -1,6 +1,14 @@
 [functions.join-match-guest]
 verify_jwt = false
 
+# Public guest voting-photo flow. Both are anon-callable; the capability token
+# (issued/consumed here) is the authorization, not a JWT.
+[functions.issue-voting-photo-token]
+verify_jwt = false
+
+[functions.upload-voting-photo]
+verify_jwt = false
+
 [functions.accept-invite]
 verify_jwt = true
 

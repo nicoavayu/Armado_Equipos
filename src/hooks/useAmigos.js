@@ -4,6 +4,7 @@ import { supabase, getAmigos as getAmigosFromSupabase } from '../supabase';
 import { useNotifications } from '../context/NotificationContext';
 import { requestImmediatePushDispatchSafe } from '../services/pushDispatchService';
 import { track } from '../utils/monitoring/analytics';
+import { insertNotificationSecure } from '../utils/notificationHelpers';
 
 /**
  * Validate if a string is a valid UUID format
@@ -297,11 +298,14 @@ export const useAmigos = (currentUserId) => {
           .single();
         const accepterName = accepterProfile?.nombre || 'Alguien';
 
-        // Create notification in the database for the sender
-        await supabase
-          .from('notifications')
-          .insert([{
-            user_id: data.user_id, // The original sender of the request
+        // Notify the original sender via the secure RPC (server generates the
+        // content; falls back to a direct insert only if the RPC is absent).
+        await insertNotificationSecure({
+          type: 'friend_accepted',
+          recipientId: data.user_id, // The original sender of the request
+          context: {},
+          legacyRow: {
+            user_id: data.user_id,
             type: 'friend_accepted',
             title: 'Solicitud de amistad aceptada',
             message: `${accepterName} ha aceptado tu solicitud de amistad`,
@@ -311,7 +315,8 @@ export const useAmigos = (currentUserId) => {
             },
             read: false,
             created_at: new Date().toISOString(),
-          }]);
+          },
+        });
       } catch (notifError) {
         logger.error('[AMIGOS] Error creating notification:', notifError);
         // Continue even if notification creation fails
@@ -350,18 +355,20 @@ export const useAmigos = (currentUserId) => {
 
       // Create notification for the sender that their request was rejected
       try {
-        // Create notification in the database for the sender
-        await supabase
-          .from('notifications')
-          .insert([{
-            user_id: data.user_id, // The original sender of the request
+        await insertNotificationSecure({
+          type: 'friend_rejected',
+          recipientId: data.user_id, // The original sender of the request
+          context: {},
+          legacyRow: {
+            user_id: data.user_id,
             type: 'friend_rejected',
             title: 'Solicitud de amistad rechazada',
             message: 'Tu solicitud de amistad ha sido rechazada',
             data: { requestId: data.id },
             read: false,
             created_at: new Date().toISOString(),
-          }]);
+          },
+        });
       } catch (notifError) {
         logger.error('[AMIGOS] Error creating notification:', notifError);
         // Continue even if notification creation fails

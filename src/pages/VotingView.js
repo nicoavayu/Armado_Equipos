@@ -17,6 +17,7 @@ import DOMPurify from 'dompurify';
 import { handleError, AppError, ERROR_CODES } from '../lib/errorHandler';
 import { db } from '../api/supabaseWrapper';
 import { resolveMatchIdFromQueryParams } from '../utils/matchResolver';
+import { uploadGuestVotingPhoto } from '../services/votingPhotoUpload';
 import BareCloseButton from '../components/BareCloseButton';
 import StarRating from '../components/StarRating';
 import { AvatarFallback } from '../components/ProfileComponents';
@@ -855,7 +856,28 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
       setSubiendoFoto(true);
 
       try {
-        const fotoUrl = await uploadFoto(selectedFile, jugador);
+        let fotoUrl;
+        // Public/guest voter: upload through the capability-token Edge Functions
+        // (server-side, service_role) so anon no longer writes Storage directly.
+        // Authenticated voters keep uploading to their own profile folder.
+        if (isPublicVoting && !useAuthenticatedSubmit) {
+          const matchId = Number(resolvedMatchIdRef.current || partidoActual?.id) || null;
+          const codigo = String(urlParams.get('codigo') || partidoActual?.codigo || '').trim().toUpperCase();
+          const guestSessionId = (typeof getGuestSessionId === 'function' && matchId)
+            ? getGuestSessionId(matchId)
+            : null;
+          fotoUrl = await uploadGuestVotingPhoto({
+            file: selectedFile,
+            codigo,
+            matchId,
+            playerId: Number(jugador?.id) || null,
+            guestSessionId,
+            // Fallback ONLY if the Edge Functions are not deployed yet (404).
+            onMissing: () => uploadFoto(selectedFile, jugador),
+          });
+        } else {
+          fotoUrl = await uploadFoto(selectedFile, jugador);
+        }
         clearLocalPreviewObjectUrl();
         setFotoPreview(fotoUrl);
         showInlineNotice('success', 'Foto cargada.');

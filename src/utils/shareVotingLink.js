@@ -60,6 +60,8 @@ export const ensurePublicVotingMarker = async ({ matchId, adminUserId, matchCode
       return;
     }
 
+    // SEC: self — marker notification for the admin themselves (user_id = adminUserId
+    // = current user); survives the Stage B self-insert policy.
     const { error: insertError } = await supabase
       .from('notifications')
       .insert([{

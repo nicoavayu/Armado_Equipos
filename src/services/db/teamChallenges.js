@@ -1,6 +1,7 @@
 import logger from '../../utils/logger';
 import { supabase } from '../../lib/supabaseClient';
 import { requestImmediatePushDispatchSafe } from '../pushDispatchService';
+import { insertNotificationSecure, insertNotificationsSecure } from '../../utils/notificationHelpers';
 import {
   normalizeTeamCountryCode,
   normalizeTeamMode,
@@ -822,14 +823,20 @@ export const upsertChallengeAcceptedNotifications = async ({
   });
 
   try {
-    const { error } = await supabase
-      .from('notifications')
-      .insert(Array.from(uniqueByRecipient.values()));
-    if (error) {
-      logger.warn('[TEAM_CHALLENGES] notification insert failed', {
+    // SEC: routed — server-content RPC create_notification ('challenge'),
+    // one per recipient (fallback to a direct insert only if the RPC is absent).
+    const { errors } = await insertNotificationsSecure(
+      Array.from(uniqueByRecipient.values()).map((row) => ({
+        type: 'challenge',
+        recipientId: row.user_id,
+        context: { challenge_id: challengeId },
+        legacyRow: row,
+      })),
+    );
+    if (errors.length > 0) {
+      logger.warn('[TEAM_CHALLENGES] notification insert partially failed', {
         challengeId,
-        code: error.code,
-        message: error.message,
+        failed: errors.length,
       });
     }
   } catch (error) {
@@ -2738,21 +2745,27 @@ export const acceptChallenge = async (challengeId, acceptedTeamId, _options = {}
         || challenge?.challenged_team?.name
         || 'El equipo rival',
       ).trim();
-      await supabase.from('notifications').insert({
-        user_id: challenge.created_by_user_id,
+      // SEC: routed — server-content RPC create_notification (fallback only if absent)
+      await insertNotificationSecure({
         type: 'team_challenge_accepted',
-        title: 'Desafío aceptado',
-        message: `${rivalName} aceptó el desafío`,
-        data: {
-          challenge_id: challenge.id,
-          challenger_team_id: challenge.challenger_team_id,
-          challenged_team_id: challenge.challenged_team_id,
-          team_match_id: matchId,
-          source: 'team_challenge',
-          link: matchId ? `/desafios/equipos/partidos/${matchId}` : '/desafios',
+        recipientId: challenge.created_by_user_id,
+        context: { challenge_id: challenge.id },
+        legacyRow: {
+          user_id: challenge.created_by_user_id,
+          type: 'team_challenge_accepted',
+          title: 'Desafío aceptado',
+          message: `${rivalName} aceptó el desafío`,
+          data: {
+            challenge_id: challenge.id,
+            challenger_team_id: challenge.challenger_team_id,
+            challenged_team_id: challenge.challenged_team_id,
+            team_match_id: matchId,
+            source: 'team_challenge',
+            link: matchId ? `/desafios/equipos/partidos/${matchId}` : '/desafios',
+          },
+          read: false,
+          created_at: new Date().toISOString(),
         },
-        read: false,
-        created_at: new Date().toISOString(),
       });
     } catch (error) {
       logger.warn('[TEAM_CHALLENGES] team_challenge_accepted notification failed', {
