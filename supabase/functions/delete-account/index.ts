@@ -1,5 +1,10 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import {
+  createSupabaseApiKeyOnlyFetch,
+  getSupabasePublishableKey,
+  getSupabaseSecretKey,
+} from "../_shared/supabaseApiKeys.ts";
 
 type QueryError = {
   message?: string;
@@ -320,10 +325,10 @@ serve(async (req) => {
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
-    const serviceKey = Deno.env.get("SERVICE_ROLE_KEY");
+    const anonKey = getSupabasePublishableKey();
+    const serviceKey = getSupabaseSecretKey();
 
-    if (!supabaseUrl || !anonKey || !serviceKey) {
+    if (!supabaseUrl) {
       return new Response(JSON.stringify({ ok: false, message: "missing_env" }), {
         status: 500,
         headers: { ...cors, "Content-Type": "application/json" },
@@ -348,6 +353,7 @@ serve(async (req) => {
 
     const userClient = createClient(supabaseUrl, anonKey, {
       global: {
+        fetch: createSupabaseApiKeyOnlyFetch(anonKey),
         headers: {
           Authorization: authHeader,
         },
@@ -368,6 +374,7 @@ serve(async (req) => {
     }
 
     const adminClient = createClient(supabaseUrl, serviceKey, {
+      global: { fetch: createSupabaseApiKeyOnlyFetch(serviceKey) },
       auth: { autoRefreshToken: false, persistSession: false },
     });
 

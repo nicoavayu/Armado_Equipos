@@ -61,6 +61,7 @@
     "release:web:sentry": "npm run build:web:release && npm run sentry:web:sourcemaps:upload",
     "test": "react-scripts test",
     "test:ci": "npm run test:staging:guard && CI=true react-scripts test --watchAll=false --runInBand",
+    "test:edge-functions": "node --test scripts/edge-functions/*.test.mjs",
     "test:web-access": "node --test server/__tests__/*.test.mjs",
     "test:db": "node scripts/db-integration/run.mjs",
     "test:db:golden": "node scripts/db-integration/canonical-golden.mjs",

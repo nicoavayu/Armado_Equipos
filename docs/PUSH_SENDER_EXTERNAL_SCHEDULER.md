@@ -20,8 +20,7 @@ Invocation:
 
 - `POST` to `push-sender` URL
 - Headers:
-  - `Authorization: Bearer <service_role_jwt>`
-  - `apikey: <service_role_jwt>`
+  - `apikey: <secret_or_legacy_service_role_key>`
   - `x-push-sender-secret: <push_sender_secret>`
   - `Content-Type: application/json`
 - Body:
@@ -36,7 +35,7 @@ Configure repository secrets:
 - `SUPABASE_PUSH_SENDER_URL`
   - Example: `https://<PRODUCTION_PROJECT_REF>.supabase.co/functions/v1/push-sender`
 - `SUPABASE_SERVICE_ROLE_KEY`
-  - Service role JWT for project `<PRODUCTION_PROJECT_REF>`
+  - Secret key or legacy service role key for project `<PRODUCTION_PROJECT_REF>`
 - `PUSH_SENDER_SECRET`
   - Must match the Supabase Function secret already configured in `push-sender`
 
@@ -51,7 +50,7 @@ Optional repository variable:
    - `HTTP status: 200`
    - summary line with `ok=true`
 3. Distinguish errors:
-   - `401 unauthorized`: auth header or `x-push-sender-secret` mismatch
+   - `401 unauthorized`: `apikey` or `x-push-sender-secret` mismatch
    - `500 sender_misconfigured`: missing function env (for example sender secret)
    - `ok=false` with `reason`: internal sender/runtime issue
 4. Verify queue behavior in Supabase:
@@ -60,4 +59,6 @@ Optional repository variable:
 ## Notes
 
 - The DB scheduler objects remain present for now (legacy path).
+- Supabase API keys are sent only through `apikey`; `Authorization` is reserved
+  for user or capability tokens.
 - No SQL cleanup is performed in this step.
