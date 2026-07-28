@@ -43,7 +43,9 @@ jobs:
         run: npx supabase start
 
       - name: Run RPC grant and Security Advisor parser suite
-        run: npm run test:db:security
+        run: |
+          trap 'npx supabase stop --no-backup' EXIT
+          npm run test:db:security
 
       - name: Run lint
         run: npm run lint
