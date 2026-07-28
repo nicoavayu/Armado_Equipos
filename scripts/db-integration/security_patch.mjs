@@ -1,0 +1,827 @@
+#!/usr/bin/env node
+// Real-Postgres integration harness for the M1/M3/M4 security patch.
+// Boots embedded-postgres, builds a minimal pre-patch stub (roles, auth.uid(),
+// core tables with the CURRENT insecure policies, storage schema), applies the
+// Stage A migrations then the Stage B migrations, and asserts the security
+// properties end-to-end as anon / authenticated / service_role.
+//
+// Usage: node scripts/db-integration/security_patch.mjs
+
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import process from 'node:process';
+import { fileURLToPath } from 'node:url';
+
+import EmbeddedPostgres from 'embedded-postgres';
+import pg from 'pg';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// ROOT defaults to the repo root (this file lives in scripts/db-integration/).
+// SECPATCH_ROOT lets the harness be executed from an isolated deps sandbox.
+const ROOT = process.env.SECPATCH_ROOT
+  ? path.resolve(process.env.SECPATCH_ROOT)
+  : path.resolve(__dirname, '..', '..');
+const MIGRATIONS_DIR = path.join(ROOT, 'supabase', 'migrations');
+// Stage B migrations are kept OUT of supabase/migrations (so they can never
+// enter a `supabase db push` of the Stage A rollout) and live in a test-only
+// fixtures dir. Their SQL is byte-identical to the copies carried by the
+// separate Stage B enforcement PR. This harness still applies + asserts them.
+const STAGE_B_DIR = path.join(ROOT, 'scripts', 'db-integration', 'fixtures', 'stage-b');
+
+const STAGE_A = [
+  '20260724121000_secure_no_show_ranking_stage_a.sql',
+  '20260724122000_secure_notifications_stage_a.sql',
+  '20260724123000_secure_survey_progress_stage_a.sql',
+  '20260724124000_secure_jugadores_fotos_stage_a.sql',
+  '20260724125000_harden_notification_rpc_content_stage_a.sql',
+  // Hotfix (finding #22): drops the SECOND legacy CHECK(true) INSERT policy
+  // ("Allow Insert Authenticated") that 20260724122000 left in place, plus the
+  // relationship-validated compat policies + deploy gate.
+  '20260726120000_drop_legacy_notifications_insert_policy_stage_a.sql',
+];
+const STAGE_B = [
+  '20260724131000_revoke_direct_rating_writes_stage_b.sql',
+  '20260724132000_notifications_rpc_only_stage_b.sql',
+  '20260724134000_drop_anon_insert_jugadores_fotos_stage_b.sql',
+];
+
+const PORT = 55300 + Math.floor(Math.random() * 400);
+const DB_NAME = 'postgres';
+const DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'arma2-secpatch-pg-'));
+
+const U = {
+  creator: '00000000-0000-4000-8000-000000000001',
+  voterB: '00000000-0000-4000-8000-000000000002',
+  voterC: '00000000-0000-4000-8000-000000000003',
+  target: '00000000-0000-4000-8000-000000000004',
+  stranger: '00000000-0000-4000-8000-000000000005',
+};
+
+let failures = 0;
+let checks = 0;
+const ok = (cond, label, extra = '') => {
+  checks += 1;
+  if (cond) {
+    console.log(`  ✔ ${label}`);
+  } else {
+    failures += 1;
+    console.error(`  ✘ ${label}${extra ? ` — ${extra}` : ''}`);
+  }
+};
+
+const postgres = new EmbeddedPostgres({
+  databaseDir: DATA_DIR,
+  user: 'postgres',
+  password: 'password',
+  port: PORT,
+  persistent: false,
+  onLog: () => {},
+  onError: () => {},
+});
+
+let client;
+const q = (sql, params = []) => client.query(sql, params);
+const val = async (sql, params = []) => {
+  const r = await q(sql, params);
+  const row = r.rows[0];
+  return row ? Object.values(row)[0] : null;
+};
+
+// Run `fn` as a specific role. Superuser (postgres) resets first so it can
+// assume any role, then sets the JWT sub + role like Supabase/PostgREST.
+const asRole = async (role, uid, fn) => {
+  await q('reset role');
+  await q("select set_config('request.jwt.claim.sub', $1, false)", [uid || '']);
+  await q(`set role ${role}`);
+  try {
+    return await fn();
+  } finally {
+    await q('reset role');
+  }
+};
+
+const expectDenied = async (label, role, uid, sql, params = []) => {
+  try {
+    await asRole(role, uid, () => q(sql, params));
+    ok(false, label, 'expected denial but succeeded');
+  } catch (error) {
+    const msg = String(error?.message || error);
+    ok(/(row-level security|permission denied|violates)/i.test(msg), label, `unexpected: ${msg}`);
+  }
+};
+
+const expectOk = async (label, role, uid, sql, params = []) => {
+  try {
+    await asRole(role, uid, () => q(sql, params));
+    ok(true, label);
+  } catch (error) {
+    ok(false, label, String(error?.message || error));
+  }
+};
+
+const expectError = async (label, role, uid, pattern, sql, params = []) => {
+  try {
+    await asRole(role, uid, () => q(sql, params));
+    ok(false, label, 'expected error but succeeded');
+  } catch (error) {
+    const msg = String(error?.message || error);
+    ok(pattern.test(msg), label, `unexpected: ${msg}`);
+  }
+};
+
+const STUB = `
+do $$ begin
+  if not exists (select 1 from pg_roles where rolname='anon') then create role anon nologin; end if;
+  if not exists (select 1 from pg_roles where rolname='authenticated') then create role authenticated nologin; end if;
+  if not exists (select 1 from pg_roles where rolname='service_role') then create role service_role nologin bypassrls; end if;
+end $$;
+grant usage on schema public to anon, authenticated, service_role;
+
+create schema if not exists auth;
+create or replace function auth.uid() returns uuid language sql stable as $fn$
+  select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid;
+$fn$;
+
+create table public.usuarios (
+  id uuid primary key, nombre text, avatar_url text,
+  ranking numeric default 5, partidos_abandonados int default 0,
+  acepta_invitaciones boolean default true
+);
+create table public.partidos (
+  id bigint generated by default as identity primary key,
+  codigo text, nombre text, creado_por uuid references public.usuarios(id),
+  estado text, survey_status text
+);
+create table public.jugadores (
+  id bigint generated by default as identity primary key,
+  partido_id bigint references public.partidos(id) on delete cascade,
+  usuario_id uuid references public.usuarios(id),
+  uuid uuid default gen_random_uuid(), nombre text, avatar_url text
+);
+create table public.post_match_surveys (
+  id bigint generated by default as identity primary key,
+  partido_id bigint, votante_id uuid, se_jugo boolean, motivo_no_jugado text,
+  jugadores_ausentes bigint[], created_at timestamptz default now()
+);
+create table public.survey_results (
+  partido_id bigint primary key, results_ready boolean default false,
+  encuesta_cerrada_at timestamptz, finished_at timestamptz,
+  created_at timestamptz default now(), updated_at timestamptz default now()
+);
+create table public.notifications (
+  id bigint generated by default as identity primary key,
+  user_id uuid not null references public.usuarios(id), type text not null,
+  title text, message text, data jsonb, read boolean default false,
+  partido_id bigint, created_at timestamptz default now(), send_at timestamptz
+);
+-- Mirror prod's dedupe index (add_surveys_sent_column.sql) so send_call_to_vote's
+-- ON CONFLICT (user_id, (data->>'match_id'), type) target resolves.
+create unique index uniq_notif_user_match_type
+  on public.notifications (user_id, (data->>'match_id'), type);
+create table public.amigos (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid, friend_id uuid, status text default 'pending'
+);
+create table public.teams (id uuid primary key default gen_random_uuid(), nombre text);
+create table public.team_members (
+  id uuid primary key default gen_random_uuid(),
+  team_id uuid, jugador_id bigint, role text default 'player'
+);
+create table public.survey_progress (
+  partido_id bigint primary key, enabled_at timestamptz, first_response_at timestamptz,
+  response_count int, results_notified boolean, created_at timestamptz, updated_at timestamptz
+);
+
+-- Domain tables referenced by the hardened create_notification per-type checks
+-- (round 3). Column names mirror prod (match_join_requests uses match_id;
+-- player_awards keys by jugador_id; match_player_payments status enum; challenges
+-- created_by/accepted_by user ids).
+create table public.match_join_requests (
+  id bigint generated by default as identity primary key,
+  match_id bigint references public.partidos(id) on delete cascade,
+  user_id uuid references public.usuarios(id),
+  status text default 'pending', role text default 'player',
+  created_at timestamptz default now()
+);
+-- jugador_id mirrors prod: normalized to the registered user id (usuarios.id),
+-- but historic rows may still carry a jugadores.uuid / jugadores.id — text is the
+-- superset that lets the harness exercise both the normalized and historic forms.
+create table public.player_awards (
+  id bigint generated by default as identity primary key,
+  partido_id bigint references public.partidos(id) on delete cascade,
+  jugador_id text not null,
+  award_type text not null, created_at timestamptz default now()
+);
+create table public.match_player_payments (
+  id bigint generated by default as identity primary key,
+  partido_id bigint references public.partidos(id) on delete cascade,
+  jugador_id bigint, user_id uuid references public.usuarios(id),
+  status text not null default 'pending', created_at timestamptz default now()
+);
+create table public.challenges (
+  id uuid primary key default gen_random_uuid(),
+  created_by_user_id uuid, accepted_by_user_id uuid,
+  challenger_team_id uuid, accepted_team_id uuid, challenged_team_id uuid,
+  status text default 'open'
+);
+
+-- Faithful send_match_invite stub carrying the SAME client-content passthrough
+-- shape as prod (coalesce(<newline> p_title, …)). Stage A's regex must neutralise
+-- it and the verification gate must then pass; the harness asserts the effective
+-- definition no longer feeds p_title/p_message into the insert.
+create or replace function public.send_match_invite(
+  p_from_user_id uuid, p_partido_id bigint, p_title text, p_message text, p_invite_mode text default 'direct'
+) returns jsonb language plpgsql security definer set search_path = public as $fn$
+declare
+  v_resolved_title text;
+  v_resolved_message text;
+begin
+  v_resolved_title := coalesce(
+    p_title,
+    'Invitación a un partido'
+  );
+  v_resolved_message := coalesce(
+    p_message,
+    'Te invitaron a un partido'
+  );
+  insert into public.notifications (user_id, type, title, message)
+  values (p_from_user_id, 'match_invite', v_resolved_title, v_resolved_message);
+  return jsonb_build_object('title', v_resolved_title, 'message', v_resolved_message);
+end
+$fn$;
+grant execute on function public.send_match_invite(uuid, bigint, text, text, text) to authenticated, service_role;
+grant select on public.match_join_requests, public.player_awards to anon, authenticated, service_role;
+grant select on public.match_player_payments, public.challenges to anon, authenticated, service_role;
+
+-- Realistic base read grants (Supabase grants authenticated SELECT on these
+-- core tables; the scoped RLS policies reference them as the calling role).
+grant select on public.usuarios, public.partidos, public.jugadores to anon, authenticated, service_role;
+grant select on public.amigos, public.team_members, public.teams to anon, authenticated, service_role;
+grant update on public.usuarios to authenticated, service_role;
+
+-- pre-patch M1 tables + insecure policies (mirror 20260219152000)
+create table public.rating_adjustments (
+  id bigserial primary key, user_id uuid not null, partido_id bigint not null,
+  type text not null, amount numeric(8,2) not null, meta jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  constraint rating_adjustments_type_check check (type in ('no_show_penalty','no_show_recovery')),
+  constraint rating_adjustments_nonzero_amount_check check (amount <> 0)
+);
+create unique index rating_adjustments_user_match_type_uidx on public.rating_adjustments (user_id, partido_id, type);
+create table public.no_show_recovery_state (
+  user_id uuid primary key, current_streak int not null default 0, updated_at timestamptz not null default now()
+);
+alter table public.rating_adjustments enable row level security;
+alter table public.no_show_recovery_state enable row level security;
+create policy rating_adjustments_select_authenticated on public.rating_adjustments for select to authenticated using (true);
+create policy rating_adjustments_insert_authenticated on public.rating_adjustments for insert to authenticated with check (true);
+create policy no_show_recovery_state_select_authenticated on public.no_show_recovery_state for select to authenticated using (true);
+create policy no_show_recovery_state_insert_authenticated on public.no_show_recovery_state for insert to authenticated with check (true);
+create policy no_show_recovery_state_update_authenticated on public.no_show_recovery_state for update to authenticated using (true) with check (true);
+grant select, insert on public.rating_adjustments to authenticated, service_role;
+grant usage, select on sequence public.rating_adjustments_id_seq to authenticated, service_role;
+grant select, insert, update on public.no_show_recovery_state to authenticated, service_role;
+
+-- notifications insecure policies — the baseline must mirror the REAL prod
+-- state, which carried TWO permissive CHECK(true) INSERT policies (finding #22):
+--   * notifications_insert_authenticated_any_user (mirror 20260226123000)
+--   * "Allow Insert Authenticated" (a legacy ad-hoc policy the Stage A patch
+--     20260724122000 did NOT drop). Seeding it here is what lets this harness
+--     catch that Stage A alone leaves the forge hole open.
+alter table public.notifications enable row level security;
+create policy notifications_insert_authenticated_any_user on public.notifications for insert to authenticated with check (true);
+create policy "Allow Insert Authenticated" on public.notifications for insert to authenticated with check (true);
+create policy notifications_select_own on public.notifications for select to authenticated using (user_id = auth.uid());
+grant select, insert on public.notifications to authenticated, service_role;
+grant usage, select on sequence public.notifications_id_seq to authenticated, service_role;
+
+-- survey_progress insecure policy + invoker trigger (mirror 20260224193000 / 20260310183000)
+alter table public.survey_progress enable row level security;
+create policy survey_progress_authenticated_all on public.survey_progress for all to authenticated using (true) with check (true);
+create policy survey_progress_service_role_all on public.survey_progress for all to service_role using (true) with check (true);
+grant all on public.survey_progress to authenticated, service_role;
+create or replace function public.check_survey_completion_from_post_match_surveys()
+returns trigger language plpgsql as $fn$
+declare v_c int;
+begin
+  insert into public.survey_progress (partido_id, enabled_at, first_response_at, response_count, results_notified, created_at, updated_at)
+  values (new.partido_id, now(), new.created_at, 0, false, now(), now())
+  on conflict (partido_id) do nothing;
+  select count(distinct s.votante_id) into v_c from public.post_match_surveys s where s.partido_id = new.partido_id;
+  update public.survey_progress set response_count = coalesce(v_c,0), updated_at = now() where partido_id = new.partido_id;
+  return new;
+end $fn$;
+create or replace function public.check_survey_completion()
+returns trigger language plpgsql as $fn$ begin return new; end $fn$;
+create trigger trg_post_match_survey_completion after insert on public.post_match_surveys
+  for each row execute function public.check_survey_completion_from_post_match_surveys();
+alter table public.post_match_surveys enable row level security;
+create policy pms_insert_all on public.post_match_surveys for insert to anon, authenticated with check (true);
+create policy pms_select_all on public.post_match_surveys for select to anon, authenticated using (true);
+grant select, insert on public.post_match_surveys to anon, authenticated, service_role;
+grant usage, select on sequence public.post_match_surveys_id_seq to anon, authenticated, service_role;
+
+-- is_public_voting_open stub (voting always open in the harness)
+create or replace function public.is_public_voting_open(p_partido_id bigint)
+returns boolean language sql stable as $fn$ select true $fn$;
+grant execute on function public.is_public_voting_open(bigint) to anon, authenticated, service_role;
+
+-- storage schema (minimal) + pre-patch jugadores-fotos policies (mirror 20260622150000)
+create schema if not exists storage;
+grant usage on schema storage to anon, authenticated, service_role;
+create table storage.buckets (
+  id text primary key, name text, public boolean default true,
+  allowed_mime_types text[], file_size_limit bigint
+);
+create table storage.objects (
+  id uuid primary key default gen_random_uuid(), bucket_id text, name text,
+  owner uuid, created_at timestamptz default now()
+);
+insert into storage.buckets (id, name, public) values ('jugadores-fotos', 'jugadores-fotos', true);
+create or replace function storage.foldername(name text) returns text[] language sql immutable as $fn$
+  select string_to_array(name, '/');
+$fn$;
+alter table storage.objects enable row level security;
+grant select, insert, update, delete on storage.objects to anon, authenticated;
+grant all on storage.objects to service_role;
+grant select, update on storage.buckets to anon, authenticated, service_role;
+create policy jugadores_fotos_public_read on storage.objects for select to public using (bucket_id = 'jugadores-fotos');
+create policy jugadores_fotos_anon_authenticated_insert on storage.objects for insert to anon, authenticated with check (bucket_id = 'jugadores-fotos');
+create policy jugadores_fotos_anon_authenticated_update on storage.objects for update to anon, authenticated using (bucket_id = 'jugadores-fotos') with check (bucket_id = 'jugadores-fotos');
+`;
+
+async function applyMigrations(list, dir = MIGRATIONS_DIR) {
+  await q('reset role');
+  for (const file of list) {
+    const sql = fs.readFileSync(path.join(dir, file), 'utf8');
+    await q(sql);
+  }
+}
+
+async function seed() {
+  await q('reset role');
+  await q(
+    `insert into public.usuarios (id, nombre, ranking) values
+       ($1,'Creator',5),($2,'VoterB',5),($3,'VoterC',5),($4,'Target',5),($5,'Stranger',5)`,
+    [U.creator, U.voterB, U.voterC, U.target, U.stranger],
+  );
+  const partidoId = await val(
+    `insert into public.partidos (codigo, nombre, creado_por, survey_status)
+       values ('ABCD','Partido Test',$1,'closed') returning id`,
+    [U.creator],
+  );
+  // roster: creator + B + C + target (all registered)
+  const players = {};
+  for (const [key, uid] of Object.entries({ creator: U.creator, voterB: U.voterB, voterC: U.voterC, target: U.target })) {
+    players[key] = await val(
+      'insert into public.jugadores (partido_id, usuario_id, nombre) values ($1,$2,$3) returning id',
+      [partidoId, uid, key],
+    );
+  }
+  // survey_results ready (so streak replay sees it as a closed eligible match)
+  await q(
+    `insert into public.survey_results (partido_id, results_ready, encuesta_cerrada_at)
+       values ($1, true, now())`,
+    [partidoId],
+  );
+  // Two distinct voters confirm the target player as absent (se_jugo=true).
+  await q(
+    'insert into public.post_match_surveys (partido_id, votante_id, se_jugo, jugadores_ausentes) values ($1,$2,true,$3)',
+    [partidoId, U.voterB, [players.target]],
+  );
+  await q(
+    'insert into public.post_match_surveys (partido_id, votante_id, se_jugo, jugadores_ausentes) values ($1,$2,true,$3)',
+    [partidoId, U.voterC, [players.target]],
+  );
+  return { partidoId, players };
+}
+
+async function main() {
+  await postgres.initialise();
+  await postgres.start();
+  client = new pg.Client({ host: '127.0.0.1', port: PORT, user: 'postgres', password: 'password', database: DB_NAME });
+  await client.connect();
+
+  await q(STUB);
+  await applyMigrations(STAGE_A);
+  const { partidoId, players } = await seed();
+
+  console.log('\nStage A — grants & internal RPC exposure');
+  ok((await val("select has_function_privilege('anon','public.process_match_no_show_ranking(bigint,boolean)','EXECUTE')")) === false,
+    'anon cannot EXECUTE process_match_no_show_ranking');
+  ok((await val("select has_function_privilege('authenticated','public.process_match_no_show_ranking(bigint,boolean)','EXECUTE')")) === true,
+    'authenticated CAN EXECUTE process_match_no_show_ranking');
+  ok((await val("select has_function_privilege('anon','public.create_notification(text,uuid,jsonb)','EXECUTE')")) === false,
+    'anon cannot EXECUTE create_notification');
+  ok((await val("select has_function_privilege('anon','public._derive_no_show_streak(uuid)','EXECUTE')")) === false,
+    'anon cannot EXECUTE internal _derive_no_show_streak');
+
+  console.log('\nStage A — no-show RPC authorization & recompute');
+  await expectError('anon cannot run the no-show RPC', 'anon', '',
+    /permission denied|not_authenticated/, 'select public.process_match_no_show_ranking($1)', [partidoId]);
+  await expectError('non-participant is forbidden', 'authenticated', U.stranger,
+    /forbidden/, 'select public.process_match_no_show_ranking($1)', [partidoId]);
+
+  await asRole('authenticated', U.creator, () => q('select public.process_match_no_show_ranking($1)', [partidoId]));
+  const penaltyRows = await val(
+    "select count(*) from public.rating_adjustments where user_id=$1 and partido_id=$2 and type='no_show_penalty'",
+    [U.target, partidoId],
+  );
+  ok(Number(penaltyRows) === 1, 'RPC recomputed one -0.5 penalty for the confirmed absentee from surveys');
+  const penaltyAmount = await val(
+    "select amount from public.rating_adjustments where user_id=$1 and partido_id=$2 and type='no_show_penalty'",
+    [U.target, partidoId],
+  );
+  ok(Number(penaltyAmount) === -0.5, 'penalty amount is the server constant -0.5');
+  const rankingAfter = await val('select ranking from public.usuarios where id=$1', [U.target]);
+  ok(Number(rankingAfter) === 4.5, 'target ranking decremented by 0.5 via aggregates', `got ${rankingAfter}`);
+
+  // idempotency: run again -> still one penalty, ranking unchanged
+  await asRole('authenticated', U.creator, () => q('select public.process_match_no_show_ranking($1)', [partidoId]));
+  ok(Number(await val("select count(*) from public.rating_adjustments where partido_id=$1 and type='no_show_penalty'", [partidoId])) === 1,
+    'RPC is idempotent (no duplicate penalty on re-run)');
+  ok(Number(await val('select ranking from public.usuarios where id=$1', [U.target])) === 4.5,
+    'RPC is idempotent (ranking unchanged on re-run)');
+
+  console.log('\nStage A — rating_adjustments SELECT scoping');
+  ok(Number(await asRole('authenticated', U.target, () => val('select count(*) from public.rating_adjustments where user_id=$1', [U.target]))) === 1,
+    'owner reads own rating_adjustments');
+  ok(Number(await asRole('authenticated', U.stranger, () => val('select count(*) from public.rating_adjustments where user_id=$1', [U.target]))) === 0,
+    'stranger cannot read another user’s rating_adjustments');
+  ok(Number(await asRole('authenticated', U.creator, () => val('select count(*) from public.rating_adjustments where user_id=$1', [U.target]))) === 1,
+    'co-player (shared match) can read the row (results view)');
+
+  console.log('\nStage A — rating_adjustments direct write mitigation (CHECK)');
+  await expectError('forged out-of-range recovery is rejected by CHECK', 'authenticated', U.stranger,
+    /rating_adjustments_amount_domain_check|violates check/,
+    "insert into public.rating_adjustments (user_id,partido_id,type,amount) values ($1,$2,'no_show_recovery',5)", [U.stranger, partidoId]);
+
+  console.log('\nStage A — notifications interim policy + create_notification');
+  await expectOk('self-notification allowed', 'authenticated', U.creator,
+    "insert into public.notifications (user_id,type,title,message) values ($1,'info','x','y')", [U.creator]);
+  await expectDenied('direct notification to a stranger is denied', 'authenticated', U.creator,
+    "insert into public.notifications (user_id,type,title,message) values ($1,'match_update','x','y')", [U.stranger]);
+  await expectOk('direct notification to a co-player (shared match) allowed', 'authenticated', U.creator,
+    "insert into public.notifications (user_id,type,title,message) values ($1,'match_update','x','y')", [U.target]);
+  await expectError('create_notification to a non-participant is forbidden', 'authenticated', U.creator,
+    /forbidden|match_id_required/, "select public.create_notification('match_update',$1,jsonb_build_object('match_id',$2::bigint))", [U.stranger, partidoId]);
+  await asRole('authenticated', U.creator, () => q(
+    "select public.create_notification('match_update',$1,jsonb_build_object('match_id',$2::bigint))", [U.target, partidoId]));
+  const genTitle = await val(
+    "select title from public.notifications where user_id=$1 and type='match_update' order by id desc limit 1", [U.target]);
+  ok(genTitle === 'Actualización del partido', 'create_notification generates server-side content (ignores client text)', `got ${genTitle}`);
+
+  console.log('\nStage A — create_notification friendship checks (real relationship required)');
+  await q('reset role');
+  await q("insert into public.amigos (user_id, friend_id, status) values ($1,$2,'accepted')", [U.stranger, U.creator]);
+  await q("insert into public.amigos (user_id, friend_id, status) values ($1,$2,'pending')", [U.creator, U.voterB]);
+  await q("insert into public.amigos (user_id, friend_id, status) values ($1,$2,'rejected')", [U.voterC, U.creator]);
+  // friend_accepted: authorized only with an accepted row (recipient=requester)
+  await expectOk('friend_accepted allowed when an accepted relationship exists', 'authenticated', U.creator,
+    "select public.create_notification('friend_accepted',$1,'{}'::jsonb)", [U.stranger]);
+  await expectError('friend_accepted forbidden without an accepted relationship', 'authenticated', U.creator,
+    /forbidden/, "select public.create_notification('friend_accepted',$1,'{}'::jsonb)", [U.voterC]);
+  // friend_request: authorized only with a pending row (actor->recipient)
+  await expectOk('friend_request allowed when a pending request exists', 'authenticated', U.creator,
+    "select public.create_notification('friend_request',$1,'{}'::jsonb)", [U.voterB]);
+  await expectError('friend_request forbidden without a pending request', 'authenticated', U.creator,
+    /forbidden|cannot_notify_self/, "select public.create_notification('friend_request',$1,'{}'::jsonb)", [U.stranger]);
+  // friend_rejected: authorized only when a rejected request existed (recipient->actor)
+  await expectOk('friend_rejected allowed when a rejected request existed', 'authenticated', U.creator,
+    "select public.create_notification('friend_rejected',$1,'{}'::jsonb)", [U.voterC]);
+  await expectError('friend_rejected forbidden without a prior request (recipient!=actor is not enough)', 'authenticated', U.creator,
+    /forbidden/, "select public.create_notification('friend_rejected',$1,'{}'::jsonb)", [U.voterB]);
+
+  console.log('\nStage A — no-show RPC rejects premature calls (survey not closed / results not ready)');
+  await q('reset role');
+  const openMatch = await val(
+    "insert into public.partidos (codigo,nombre,creado_por,survey_status) values ('OPEN','Abierto',$1,'open') returning id", [U.creator]);
+  const openTarget = await val('insert into public.jugadores (partido_id, usuario_id, nombre) values ($1,$2,$3) returning id', [openMatch, U.target, 'ot']);
+  await q('insert into public.jugadores (partido_id, usuario_id, nombre) values ($1,$2,$3)', [openMatch, U.voterB, 'vb']);
+  await q('insert into public.jugadores (partido_id, usuario_id, nombre) values ($1,$2,$3)', [openMatch, U.voterC, 'vc']);
+  // partial surveys with 2 confirmations, but the survey is NOT closed and no survey_results row exists
+  await q('insert into public.post_match_surveys (partido_id, votante_id, se_jugo, jugadores_ausentes) values ($1,$2,true,$3)', [openMatch, U.voterB, [openTarget]]);
+  await q('insert into public.post_match_surveys (partido_id, votante_id, se_jugo, jugadores_ausentes) values ($1,$2,true,$3)', [openMatch, U.voterC, [openTarget]]);
+  await expectError('premature no-show call is rejected (survey_not_closed)', 'authenticated', U.creator,
+    /survey_not_closed/, 'select public.process_match_no_show_ranking($1)', [openMatch]);
+  ok(Number(await val('select count(*) from public.rating_adjustments where partido_id=$1', [openMatch])) === 0,
+    'no rating adjustment is inserted for a not-closed survey');
+
+  console.log('\nStage A — create_notification per-type authorization (round 3)');
+  await q('reset role');
+  // Real domain state for the positive paths. The MVP is REALLY persisted for
+  // the winner (U.target), keyed by the normalized registered user id (usuarios.id)
+  // exactly as prod stores it post-20260316233000.
+  await q("insert into public.player_awards (partido_id, jugador_id, award_type) values ($1,$2,'mvp')", [partidoId, U.target]);
+  await q("insert into public.match_join_requests (match_id, user_id, status) values ($1,$2,'pending')", [partidoId, U.stranger]);
+  await q("insert into public.match_player_payments (partido_id, user_id, status) values ($1,$2,'reported_paid')", [partidoId, U.target]);
+  await q("insert into public.match_player_payments (partido_id, user_id, status) values ($1,$2,'pending')", [partidoId, U.voterB]);
+  const chal1 = await val(
+    "insert into public.challenges (created_by_user_id, accepted_by_user_id, status) values ($1,$2,'accepted') returning id", [U.creator, U.voterB]);
+  const chal2 = await val(
+    "insert into public.challenges (created_by_user_id, accepted_by_user_id, status) values ($1,$2,'accepted') returning id", [U.voterC, U.target]);
+  const cancelMatch = await val(
+    "insert into public.partidos (codigo,nombre,creado_por,estado) values ('CANC','Cancelado',$1,'cancelado') returning id", [U.creator]);
+  await q('insert into public.jugadores (partido_id, usuario_id, nombre) values ($1,$2,$3)', [cancelMatch, U.target, 'ct']);
+
+  // -- Admin-only events: a plain participant cannot kick / ask for players / open voting.
+  await expectError('a plain participant cannot create match_kicked', 'authenticated', U.voterB,
+    /forbidden/, "select public.create_notification('match_kicked',$1,jsonb_build_object('match_id',$2::bigint))", [U.target, partidoId]);
+  await expectOk('the match admin can create match_kicked to a participant', 'authenticated', U.creator,
+    "select public.create_notification('match_kicked',$1,jsonb_build_object('match_id',$2::bigint))", [U.target, partidoId]);
+  await expectError('a plain participant cannot create falta_jugadores', 'authenticated', U.voterB,
+    /forbidden/, "select public.create_notification('falta_jugadores',$1,jsonb_build_object('match_id',$2::bigint))", [U.target, partidoId]);
+  await expectError('a plain participant cannot create call_to_vote', 'authenticated', U.voterB,
+    /forbidden/, "select public.create_notification('call_to_vote',$1,jsonb_build_object('match_id',$2::bigint))", [U.target, partidoId]);
+  await expectOk('the match admin can create call_to_vote while voting is open', 'authenticated', U.creator,
+    "select public.create_notification('call_to_vote',$1,jsonb_build_object('match_id',$2::bigint))", [U.target, partidoId]);
+
+  // -- match_cancelled: must reflect a REAL cancellation.
+  await expectError('a plain participant cannot create match_cancelled', 'authenticated', U.target,
+    /forbidden/, "select public.create_notification('match_cancelled',$1,jsonb_build_object('match_id',$2::bigint))", [U.creator, cancelMatch]);
+  await expectError('admin cannot create match_cancelled when the match is NOT cancelled', 'authenticated', U.creator,
+    /forbidden/, "select public.create_notification('match_cancelled',$1,jsonb_build_object('match_id',$2::bigint))", [U.target, partidoId]);
+  await expectOk('admin can create match_cancelled for a really-cancelled match', 'authenticated', U.creator,
+    "select public.create_notification('match_cancelled',$1,jsonb_build_object('match_id',$2::bigint))", [U.target, cancelMatch]);
+
+  // -- Survey lifecycle: must reflect the real survey state (no arbitrary close).
+  await expectError('a participant cannot fabricate survey_finished when the survey is not closed', 'authenticated', U.voterB,
+    /forbidden/, "select public.create_notification('survey_finished',$1,jsonb_build_object('match_id',$2::bigint))", [U.target, openMatch]);
+  await expectOk('survey_finished is allowed once the survey is really closed', 'authenticated', U.voterB,
+    "select public.create_notification('survey_finished',$1,jsonb_build_object('match_id',$2::bigint))", [U.creator, partidoId]);
+
+  // -- Awards / MVP: only against really-persisted awards.
+  await expectError('a participant cannot invent an MVP with no persisted award', 'authenticated', U.voterB,
+    /forbidden/, "select public.create_notification('mvp',$1,jsonb_build_object('match_id',$2::bigint))", [U.target, openMatch]);
+  await expectOk('mvp is allowed when an MVP award is really persisted', 'authenticated', U.creator,
+    "select public.create_notification('mvp',$1,jsonb_build_object('match_id',$2::bigint))", [U.voterB, partidoId]);
+  // -- award_won (personal "Ganaste un premio"): award_type is MANDATORY and
+  // canonical, and the matching award must belong to THE RECIPIENT — persisted
+  // MVP -> U.target. A non-winner participant must NOT be told they won.
+  await expectError('award_won without an award_type is rejected', 'authenticated', U.creator,
+    /invalid_award/, "select public.create_notification('award_won',$1,jsonb_build_object('match_id',$2::bigint))", [U.target, partidoId]);
+  await expectError('award_won with an unknown award_type is rejected', 'authenticated', U.creator,
+    /invalid_award/, "select public.create_notification('award_won',$1,jsonb_build_object('match_id',$2::bigint,'award_type','golden_boot'))", [U.target, partidoId]);
+  await expectError('award_won to a NON-winner participant is forbidden (MVP belongs to someone else)', 'authenticated', U.creator,
+    /forbidden/, "select public.create_notification('award_won',$1,jsonb_build_object('match_id',$2::bigint,'award_type','mvp'))", [U.voterB, partidoId]);
+  await expectError('award_won with a canonical type that has NO persisted award for the recipient is forbidden', 'authenticated', U.creator,
+    /forbidden/, "select public.create_notification('award_won',$1,jsonb_build_object('match_id',$2::bigint,'award_type','best_gk'))", [U.target, partidoId]);
+  await expectError('award_won cannot be fabricated on a match with no persisted award', 'authenticated', U.voterB,
+    /forbidden/, "select public.create_notification('award_won',$1,jsonb_build_object('match_id',$2::bigint,'award_type','mvp'))", [U.target, openMatch]);
+  await expectOk('award_won is allowed to the REAL winner with the matching award_type', 'authenticated', U.creator,
+    "select public.create_notification('award_won',$1,jsonb_build_object('match_id',$2::bigint,'award_type','mvp'))", [U.target, partidoId]);
+
+  // Historic representation: an award stored with a jugadores.uuid (pre-normalization)
+  // and a legacy alias ('golden_glove') must still resolve to the registered winner
+  // via THIS match's roster and normalize to the canonical 'best_gk'.
+  const voterCJugadorUuid = await val('select uuid from public.jugadores where partido_id=$1 and usuario_id=$2 limit 1', [partidoId, U.voterC]);
+  await q("insert into public.player_awards (partido_id, jugador_id, award_type) values ($1,$2,'golden_glove')", [partidoId, voterCJugadorUuid]);
+  await expectOk('award_won resolves a HISTORIC jugadores.uuid ref + alias to the registered winner', 'authenticated', U.creator,
+    "select public.create_notification('award_won',$1,jsonb_build_object('match_id',$2::bigint,'award_type','best_gk'))", [U.voterC, partidoId]);
+
+  // Idempotent: repeating the award_won call must NOT create a duplicate row.
+  const awardWonBefore = await val(
+    "select count(*) from public.notifications where user_id=$1 and partido_id=$2 and type='award_won'", [U.target, partidoId]);
+  await expectOk('award_won can be re-emitted without error (idempotent no-op)', 'authenticated', U.creator,
+    "select public.create_notification('award_won',$1,jsonb_build_object('match_id',$2::bigint,'award_type','mvp'))", [U.target, partidoId]);
+  const awardWonAfter = await val(
+    "select count(*) from public.notifications where user_id=$1 and partido_id=$2 and type='award_won'", [U.target, partidoId]);
+  ok(Number(awardWonBefore) === 1 && Number(awardWonAfter) === 1,
+    'award_won is not duplicated on repeat (exactly one row before and after)', `before=${awardWonBefore} after=${awardWonAfter}`);
+
+  // -- match_join_request: requires a REAL pending request from the actor.
+  await expectError('a user WITHOUT a pending request cannot emit match_join_request', 'authenticated', U.voterC,
+    /forbidden/, "select public.create_notification('match_join_request',$1,jsonb_build_object('match_id',$2::bigint))", [U.creator, partidoId]);
+  await expectOk('the real pending requester can notify the match admin', 'authenticated', U.stranger,
+    "select public.create_notification('match_join_request',$1,jsonb_build_object('match_id',$2::bigint))", [U.creator, partidoId]);
+
+  // -- Payments: real payment rows + correct direction.
+  await expectError('payment_reported denied without a real reported-paid row', 'authenticated', U.voterC,
+    /forbidden/, "select public.create_notification('payment_reported',$1,jsonb_build_object('match_id',$2::bigint))", [U.creator, partidoId]);
+  await expectOk('payment_reported allowed with a real reported payment to the admin', 'authenticated', U.target,
+    "select public.create_notification('payment_reported',$1,jsonb_build_object('match_id',$2::bigint))", [U.creator, partidoId]);
+  await expectError('a participant cannot send payment_reminder (admin-only)', 'authenticated', U.voterB,
+    /forbidden/, "select public.create_notification('payment_reminder',$1,jsonb_build_object('match_id',$2::bigint))", [U.voterC, partidoId]);
+  await expectOk('admin can remind a participant that has a real pending payment', 'authenticated', U.creator,
+    "select public.create_notification('payment_reminder',$1,jsonb_build_object('match_id',$2::bigint))", [U.voterB, partidoId]);
+
+  // -- Team challenge: both parties must belong to the SAME concrete challenge.
+  await expectError('a team challenge notification without challenge_id is rejected', 'authenticated', U.voterB,
+    /challenge_id_required/, "select public.create_notification('challenge',$1,'{}'::jsonb)", [U.creator]);
+  await expectOk('a challenge party can notify the other party of the SAME challenge', 'authenticated', U.voterB,
+    "select public.create_notification('team_challenge_accepted',$1,jsonb_build_object('challenge_id',$2::uuid))", [U.creator, chal1]);
+  await expectError('a member of one challenge cannot notify a member of an UNRELATED challenge', 'authenticated', U.creator,
+    /forbidden/, "select public.create_notification('challenge',$1,jsonb_build_object('challenge_id',$2::uuid))", [U.target, chal2]);
+
+  console.log('\nStage A — send_call_to_vote authorization (round 3)');
+  await expectError('anon cannot send_call_to_vote', 'anon', '',
+    /not_authenticated|permission denied/, 'select public.send_call_to_vote($1)', [openMatch]);
+  await expectError('a stranger (non-admin) cannot send_call_to_vote', 'authenticated', U.stranger,
+    /forbidden/, 'select public.send_call_to_vote($1)', [openMatch]);
+  await expectError('a participant (non-admin) cannot send_call_to_vote', 'authenticated', U.target,
+    /forbidden/, 'select public.send_call_to_vote($1)', [openMatch]);
+  await expectOk('the match admin can send_call_to_vote', 'authenticated', U.creator,
+    'select public.send_call_to_vote($1)', [openMatch]);
+
+  console.log('\nStage A — send_match_invite passthrough neutralised (verification gate ran)');
+  await q('reset role');
+  const smiDef = await val(
+    "select pg_get_functiondef('public.send_match_invite(uuid, bigint, text, text, text)'::regprocedure)");
+  ok(typeof smiDef === 'string' && !/coalesce\(\s*p_title\b/i.test(smiDef),
+    'send_match_invite no longer feeds client p_title into inserted content');
+  ok(typeof smiDef === 'string' && !/coalesce\(\s*p_message\b/i.test(smiDef),
+    'send_match_invite no longer feeds client p_message into inserted content');
+  ok(typeof smiDef === 'string' && /coalesce\(NULL::text,/i.test(smiDef),
+    'send_match_invite passthrough was rewritten to a server-side default (coalesce(NULL::text, …))');
+
+  console.log('\nStage A — guest photo durable slot claim (bind_voting_photo_slot)');
+  await q('reset role');
+  ok(Number(await val('select public.bind_voting_photo_slot($1,$2,$3)', [openMatch, 'sessA', 101])) === 101,
+    'first claim binds the session to the requested player');
+  ok(Number(await val('select public.bind_voting_photo_slot($1,$2,$3)', [openMatch, 'sessA', 202])) === 101,
+    'same session cannot switch to another slot (returns the originally-bound player)');
+  // Simulate "after the rate-limit / token window": the binding is durable, not time-limited.
+  await q("update public.voting_photo_slot_claims set created_at = now() - interval '2 hours' where match_id=$1 and guest_session_id='sessA'", [openMatch]);
+  ok(Number(await val('select public.bind_voting_photo_slot($1,$2,$3)', [openMatch, 'sessA', 303])) === 101,
+    'slot cannot change even after the window elapsed (durable claim)');
+  // Concurrent-style: two different players for a fresh session — first wins deterministically.
+  ok(Number(await val('select public.bind_voting_photo_slot($1,$2,$3)', [openMatch, 'sessB', 501])) === 501,
+    'a fresh session binds its first requested player');
+  ok(Number(await val('select public.bind_voting_photo_slot($1,$2,$3)', [openMatch, 'sessB', 502])) === 501,
+    'the losing concurrent claim is rejected (ON CONFLICT DO NOTHING keeps the winner)');
+
+  console.log('\nStage A — survey_progress locked down but trigger keeps working');
+  await expectDenied('authenticated cannot read survey_progress directly', 'authenticated', U.creator,
+    'select * from public.survey_progress limit 1');
+  const p2 = await val("insert into public.partidos (codigo,nombre,creado_por) values ('EFGH','P2',$1) returning id", [U.creator]);
+  await asRole('anon', '', () => q(
+    'insert into public.post_match_surveys (partido_id, votante_id, se_jugo, jugadores_ausentes) values ($1,$2,true,$3)',
+    [p2, U.voterB, []]));
+  await q('reset role');
+  ok(Number(await val('select count(*) from public.survey_progress where partido_id=$1', [p2])) === 1,
+    'anon survey submit still populates survey_progress via SECURITY DEFINER trigger');
+
+  console.log('\nStage A — storage jugadores-fotos');
+  await q('reset role');
+  await q("insert into storage.objects (bucket_id, name, owner) values ('jugadores-fotos', 'seed_obj.jpg', null)");
+  // RLS-blocked UPDATE affects 0 rows silently (no error), so assert the object
+  // was NOT modified rather than expecting an exception.
+  await asRole('anon', '', () => q("update storage.objects set name='hijacked.jpg' where name='seed_obj.jpg'"));
+  await q('reset role');
+  ok(Number(await val("select count(*) from storage.objects where name='seed_obj.jpg'")) === 1
+     && Number(await val("select count(*) from storage.objects where name='hijacked.jpg'")) === 0,
+    'anon can no longer UPDATE (overwrite) storage objects');
+  await expectOk('anon can still INSERT (Stage A keeps guest insert)', 'anon', '',
+    "insert into storage.objects (bucket_id, name) values ('jugadores-fotos','anon_a.jpg')");
+  const mime = await val("select allowed_mime_types from storage.buckets where id='jugadores-fotos'");
+  ok(Array.isArray(mime) && mime.includes('image/jpeg') && !mime.includes('image/svg+xml'),
+    'bucket restricts MIME to real image types (no SVG)', JSON.stringify(mime));
+  ok(Number(await val("select file_size_limit from storage.buckets where id='jugadores-fotos'")) === 15728640,
+    'bucket has a 15MB file_size_limit');
+
+  console.log('\nStage A hotfix — legacy "Allow Insert Authenticated" dropped + compat policies (finding #22)');
+  await q('reset role');
+  // The Stage A patch alone leaves BOTH the strict relationship policy AND the
+  // untouched "Allow Insert Authenticated" CHECK(true) policy — so without the
+  // 20260726120000 hotfix these two assertions FAIL (which is exactly what the
+  // pre-hotfix baseline should have surfaced before deploy).
+  ok(Number(await val(
+    `select count(*) from pg_policies
+       where schemaname='public' and tablename='notifications'
+         and policyname='Allow Insert Authenticated'`)) === 0,
+    'legacy "Allow Insert Authenticated" policy no longer exists');
+  ok(Number(await val(
+    `select count(*) from pg_policies
+       where schemaname='public' and tablename='notifications'
+         and cmd='INSERT' and permissive='PERMISSIVE'
+         and (roles && array['authenticated','public']::name[])
+         and regexp_replace(lower(coalesce(with_check,'true')), '[[:space:]()]', '', 'g')='true'`)) === 0,
+    'no permissive authenticated INSERT policy with an unrestricted WITH CHECK survives');
+
+  // Isolated world so these assertions do not depend on earlier seeding.
+  const hzA = '00000000-0000-4000-8000-0000000000a1'; // actor / match creator / challenger
+  const hzB = '00000000-0000-4000-8000-0000000000a2'; // shared-match co-participant
+  const hzC = '00000000-0000-4000-8000-0000000000a3'; // unrelated stranger
+  const hzD = '00000000-0000-4000-8000-0000000000a4'; // real friend (no shared match)
+  const hzE = '00000000-0000-4000-8000-0000000000a5'; // challenge opponent (rival, no shared match)
+  const hzF = '00000000-0000-4000-8000-0000000000a6'; // legitimate pending join requester
+  const hzG = '00000000-0000-4000-8000-0000000000a7'; // roster player of a match whose ADMIN is not rostered
+  await q(
+    `insert into public.usuarios (id, nombre, ranking) values
+       ($1,'hzA',5),($2,'hzB',5),($3,'hzC',5),($4,'hzD',5),($5,'hzE',5),($6,'hzF',5),($7,'hzG',5)`,
+    [hzA, hzB, hzC, hzD, hzE, hzF, hzG]);
+  const hzMatch = await val(
+    "insert into public.partidos (codigo,nombre,creado_por) values ('HZ01','Hotfix Match',$1) returning id", [hzA]);
+  await q('insert into public.jugadores (partido_id, usuario_id, nombre) values ($1,$2,$3)', [hzMatch, hzA, 'hzA']);
+  await q('insert into public.jugadores (partido_id, usuario_id, nombre) values ($1,$2,$3)', [hzMatch, hzB, 'hzB']);
+  await q("insert into public.amigos (user_id, friend_id, status) values ($1,$2,'accepted')", [hzA, hzD]);
+  const hzChal = await val(
+    "insert into public.challenges (created_by_user_id, accepted_by_user_id, status) values ($1,$2,'accepted') returning id", [hzA, hzE]);
+  await q("insert into public.match_join_requests (match_id, user_id, status) values ($1,$2,'pending')", [hzMatch, hzF]);
+  // hzMatch2: hzA is the ADMIN (creado_por) but is NOT a roster row; hzG is the
+  // only roster player and shares NO other match with hzA. Exercises the
+  // creator-inclusive branch of the no-show ranking compat policy.
+  const hzMatch2 = await val(
+    "insert into public.partidos (codigo,nombre,creado_por) values ('HZ02','Hotfix Match 2',$1) returning id", [hzA]);
+  await q('insert into public.jugadores (partido_id, usuario_id, nombre) values ($1,$2,$3)', [hzMatch2, hzG, 'hzG']);
+
+  // (1) an authenticated user cannot direct-insert toward an unrelated stranger
+  await expectDenied('an authenticated user cannot direct-insert a notification to an unrelated stranger', 'authenticated', hzA,
+    "insert into public.notifications (user_id,type,title,message) values ($1,'match_update','x','y')", [hzC]);
+  // (2) self insert allowed — even for a type OUTSIDE the strict Stage A allowlist
+  await expectOk('self insert allowed for a non-allowlisted type (post_match_survey)', 'authenticated', hzA,
+    "insert into public.notifications (user_id,type,title,message) values ($1,'post_match_survey','x','y')", [hzA]);
+  await expectOk('self insert allowed (challenge_result_survey)', 'authenticated', hzA,
+    "insert into public.notifications (user_id,type,title,message) values ($1,'challenge_result_survey','x','y')", [hzA]);
+  // (3) relationship by shared match allowed during Stage A
+  await expectOk('shared-match co-participant insert allowed (Stage A interim relationship)', 'authenticated', hzA,
+    "insert into public.notifications (user_id,type,title,message) values ($1,'match_update','x','y')", [hzB]);
+  // (4) real friendship allowed (no shared match)
+  await expectOk('real-friendship insert allowed with no shared match', 'authenticated', hzA,
+    "insert into public.notifications (user_id,type,title,message) values ($1,'match_update','x','y')", [hzD]);
+  // (3b) no-show ranking compat: the *_applied type to a co-participant is allowed,
+  //      to a stranger is denied.
+  await expectOk('no_show_penalty_applied to a shared-match co-participant allowed (ranking compat)', 'authenticated', hzA,
+    "insert into public.notifications (user_id,type,title,message) values ($1,'no_show_penalty_applied','x','y')", [hzB]);
+  await expectDenied('no_show_penalty_applied to an unrelated stranger denied', 'authenticated', hzA,
+    "insert into public.notifications (user_id,type,title,message) values ($1,'no_show_penalty_applied','x','y')", [hzC]);
+  // (3c) the match ADMIN (creado_por, NOT a roster row) can still notify a rostered
+  //      player — the finalizer is not always in jugadores (creator-inclusive branch).
+  await expectOk('no_show_recovery_applied from the match admin (not rostered) to a roster player allowed', 'authenticated', hzA,
+    "insert into public.notifications (user_id,partido_id,type,title,message) values ($1,$2,'no_show_recovery_applied','x','y')", [hzG, hzMatch2]);
+  // (5) legitimate join request allowed (real pending request -> the match admin)
+  await expectOk('legit match_join_request (real pending request -> match admin) allowed', 'authenticated', hzF,
+    "insert into public.notifications (user_id,partido_id,type,title,message) values ($1,$2,'match_join_request','x','y')", [hzA, hzMatch]);
+  // (5b) a match_join_request with NO real pending request is rejected
+  await expectDenied('match_join_request without a real pending request denied', 'authenticated', hzC,
+    "insert into public.notifications (user_id,partido_id,type,title,message) values ($1,$2,'match_join_request','x','y')", [hzA, hzMatch]);
+  // (6) challenge parties allowed; an unrelated challenge is rejected
+  await expectOk('a challenge party can notify the other party of the SAME challenge', 'authenticated', hzA,
+    "insert into public.notifications (user_id,type,title,message) values ($1,'team_challenge_accepted','x','y')", [hzE]);
+  await expectDenied('a challenge notification to a user in NO shared challenge is denied', 'authenticated', hzA,
+    "insert into public.notifications (user_id,type,title,message) values ($1,'team_challenge_accepted','x','y')", [hzC]);
+  void hzChal;
+
+  // ----------------------------------------------------------------- Stage B
+  // Applied from the fixtures dir (see STAGE_B_DIR) — these files are NOT under
+  // supabase/migrations in this PR, but the closure is still verified here.
+  await applyMigrations(STAGE_B, STAGE_B_DIR);
+
+  console.log('\nStage B — direct writes revoked, RPCs still work');
+  await expectDenied('authenticated can no longer INSERT rating_adjustments directly', 'authenticated', U.stranger,
+    "insert into public.rating_adjustments (user_id,partido_id,type,amount) values ($1,$2,'no_show_penalty',-0.5)", [U.stranger, partidoId]);
+  await expectDenied('authenticated can no longer modify no_show_recovery_state', 'authenticated', U.stranger,
+    'insert into public.no_show_recovery_state (user_id, current_streak) values ($1, 3)', [U.stranger]);
+  await expectOk('the no-show RPC still runs for a participant', 'authenticated', U.creator,
+    'select public.process_match_no_show_ranking($1)', [partidoId]);
+
+  console.log('\nStage B — notifications self-only + RPC');
+  await expectDenied('direct notification to a co-player now denied (self-only)', 'authenticated', U.creator,
+    "insert into public.notifications (user_id,type,title,message) values ($1,'match_update','x','y')", [U.target]);
+  await expectOk('self-notification still allowed', 'authenticated', U.creator,
+    "insert into public.notifications (user_id,type,title,message) values ($1,'info','x','y')", [U.creator]);
+  // Different recipient than the Stage A demo above so the dedupe unique index
+  // (user_id,(data->>'match_id'),type) does not treat this as a duplicate insert.
+  await expectOk('create_notification still delivers to a participant', 'authenticated', U.creator,
+    "select public.create_notification('match_update',$1,jsonb_build_object('match_id',$2::bigint))", [U.voterC, partidoId]);
+  // Stage B must ALSO close every Stage A hotfix compat policy — only self-insert
+  // survives (the hz* world was seeded above).
+  await expectDenied('Stage B: challenge-party cross-user insert now denied', 'authenticated', hzA,
+    "insert into public.notifications (user_id,type,title,message) values ($1,'team_challenge_accepted','x','y')", [hzE]);
+  await expectDenied('Stage B: no_show_penalty_applied to a co-participant now denied', 'authenticated', hzA,
+    "insert into public.notifications (user_id,type,title,message) values ($1,'no_show_penalty_applied','x','y')", [hzB]);
+  await expectDenied('Stage B: match_join_request direct insert now denied', 'authenticated', hzF,
+    "insert into public.notifications (user_id,partido_id,type,title,message) values ($1,$2,'match_join_request','x','y')", [hzA, hzMatch]);
+  await expectOk('Stage B: self insert still allowed', 'authenticated', hzA,
+    "insert into public.notifications (user_id,type,title,message) values ($1,'info','x','y')", [hzA]);
+  ok(Number(await val(
+    `select count(*) from pg_policies
+       where schemaname='public' and tablename='notifications'
+         and cmd='INSERT' and permissive='PERMISSIVE'
+         and (roles && array['authenticated','public']::name[])
+         and regexp_replace(lower(coalesce(with_check,'true')), '[[:space:]()]', '', 'g')='true'`)) === 0,
+    'Stage B: still no permissive authenticated INSERT policy with an unrestricted WITH CHECK');
+
+  console.log('\nStage B — storage anon write fully closed');
+  await expectDenied('anon can no longer INSERT into the bucket', 'anon', '',
+    "insert into storage.objects (bucket_id, name) values ('jugadores-fotos','anon_b.jpg')");
+  await expectOk('authenticated may write into its own namespace', 'authenticated', U.creator,
+    "insert into storage.objects (bucket_id, name) values ('jugadores-fotos', $1)", [`${U.creator}/photo.jpg`]);
+  await expectDenied('authenticated cannot write into another user’s namespace', 'authenticated', U.creator,
+    "insert into storage.objects (bucket_id, name) values ('jugadores-fotos', $1)", [`${U.stranger}/photo.jpg`]);
+
+  console.log(`\n${failures === 0 ? '✅ PASS' : '❌ FAIL'} — ${checks - failures}/${checks} checks passed`);
+}
+
+main()
+  .catch((error) => {
+    console.error('Harness crashed:', error);
+    failures += 1;
+  })
+  .finally(async () => {
+    try { if (client) await client.end(); } catch { /* ignore */ }
+    try { await postgres.stop(); } catch { /* ignore */ }
+    try { fs.rmSync(DATA_DIR, { recursive: true, force: true }); } catch { /* ignore */ }
+    process.exit(failures === 0 ? 0 : 1);
+  });

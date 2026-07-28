@@ -1,5 +1,6 @@
 import logger from '../../utils/logger';
 import { supabase } from '../../lib/supabaseClient';
+import { insertNotificationSecure, insertNotificationsSecure } from '../../utils/notificationHelpers';
 
 // Internal notification types for post-match payments.
 export const PAYMENT_NOTIFICATION_REPORTED = 'payment_reported';
@@ -84,15 +85,21 @@ export const reportMyPayment = async (partidoId, { matchName = '', reporterName 
     const { data: authData } = await supabase.auth.getUser();
     const me = String(authData?.user?.id || '');
     if (admin && admin !== me) {
-      await supabase.from('notifications').insert({
-        user_id: admin,
-        partido_id: matchId,
+      // SEC: routed — server-content RPC create_notification (fallback only if absent)
+      await insertNotificationSecure({
         type: PAYMENT_NOTIFICATION_REPORTED,
-        title: 'Pago a confirmar',
-        message: `${reporterName || 'Un jugador'} avisó que pagó "${name}".`,
-        data: { match_id: String(matchId), link: paymentsLink(matchId), route: paymentsLink(matchId) },
-        read: false,
-        created_at: new Date().toISOString(),
+        recipientId: admin,
+        context: { match_id: matchId },
+        legacyRow: {
+          user_id: admin,
+          partido_id: matchId,
+          type: PAYMENT_NOTIFICATION_REPORTED,
+          title: 'Pago a confirmar',
+          message: `${reporterName || 'Un jugador'} avisó que pagó "${name}".`,
+          data: { match_id: String(matchId), link: paymentsLink(matchId), route: paymentsLink(matchId) },
+          read: false,
+          created_at: new Date().toISOString(),
+        },
       });
     }
   } catch (notifyError) {
@@ -189,24 +196,28 @@ export const adminRemindPending = async (partidoId, { matchName = '' } = {}) => 
   }
 
   const nowIso = new Date().toISOString();
-  const notifications = recipients.map((uid) => ({
-    user_id: uid,
-    partido_id: matchId,
+  // SEC: routed — one server-content create_notification per recipient (fallback only if absent)
+  const { sent, errors } = await insertNotificationsSecure(recipients.map((uid) => ({
     type: PAYMENT_NOTIFICATION_REMINDER,
-    title: 'Pago pendiente',
-    message: `Tenés pendiente el pago de "${name}".`,
-    data: { match_id: String(matchId), link: paymentsLink(matchId), route: paymentsLink(matchId) },
-    read: false,
-    created_at: nowIso,
-  }));
+    recipientId: uid,
+    context: { match_id: matchId },
+    legacyRow: {
+      user_id: uid,
+      partido_id: matchId,
+      type: PAYMENT_NOTIFICATION_REMINDER,
+      title: 'Pago pendiente',
+      message: `Tenés pendiente el pago de "${name}".`,
+      data: { match_id: String(matchId), link: paymentsLink(matchId), route: paymentsLink(matchId) },
+      read: false,
+      created_at: nowIso,
+    },
+  })));
 
-  const { error: insertError } = await supabase.from('notifications').insert(notifications);
-  if (insertError) {
-    logger.warn('[PAYMENTS] reminder notifications insert failed', { matchId, message: insertError.message });
-    return { ok: true, notified: 0, notifyError: insertError.message };
+  if (errors.length > 0) {
+    logger.warn('[PAYMENTS] reminder notifications partially failed', { matchId, failed: errors.length });
   }
 
-  return { ok: true, notified: recipients.length };
+  return { ok: true, notified: sent };
 };
 
 /**

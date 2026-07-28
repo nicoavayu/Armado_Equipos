@@ -9,6 +9,7 @@ import { notifyAdminPlayerJoined, notifyAdminPlayerLeft } from '../services/matc
 import { requestImmediatePushDispatchSafe } from '../services/pushDispatchService';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { sanitizeNotificationMatchName } from '../utils/notificationText';
+import { insertNotificationsSecure } from '../utils/notificationHelpers';
 import { transferMatchAdmin } from '../services/db/matches';
 
 const BLOCKED_INVITE_STATUSES = new Set([
@@ -719,6 +720,8 @@ export const useAdminPanelState = ({
           );
 
           if (kickNotificationError && isMissingRpcFunctionError(kickNotificationError)) {
+            // SEC: rpc-primary — send_match_kicked_notification is the DEFINER path;
+            // this direct insert runs ONLY when that RPC is not deployed (missing).
             const { error: fallbackInsertError } = await supabase.from('notifications').insert([payload]);
             if (fallbackInsertError) {
               logger.error('[LEAVE_MATCH] Error creating kick notification:', fallbackInsertError);
@@ -1049,24 +1052,29 @@ export const useAdminPanelState = ({
     try {
       const jugadoresConCuenta = jugadores.filter((j) => j.usuario_id);
 
-      const notificaciones = jugadoresConCuenta.map((jugador) => ({
-        user_id: jugador.usuario_id,
-        type: 'match_update',
-        title: 'Invitación rechazada',
-        message: `${nombreJugador} rechazó la invitación al partido "${partidoActual.nombre || 'PARTIDO'}"`,
-        data: {
-          matchId: toBigIntId(partidoActual.id),
-          matchName: partidoActual.nombre,
-          playerName: nombreJugador,
-          player_user_id: user?.id || null,
-          push_relevant: true,
-          link: `/partido-publico/${toBigIntId(partidoActual.id)}`,
-        },
-        read: false,
-      }));
-
-      if (notificaciones.length > 0) {
-        await supabase.from('notifications').insert(notificaciones);
+      // SEC: routed — one server-content create_notification per participant
+      // (fallback only if the RPC is absent).
+      if (jugadoresConCuenta.length > 0) {
+        await insertNotificationsSecure(jugadoresConCuenta.map((jugador) => ({
+          type: 'match_update',
+          recipientId: jugador.usuario_id,
+          context: { match_id: toBigIntId(partidoActual.id) },
+          legacyRow: {
+            user_id: jugador.usuario_id,
+            type: 'match_update',
+            title: 'Invitación rechazada',
+            message: `${nombreJugador} rechazó la invitación al partido "${partidoActual.nombre || 'PARTIDO'}"`,
+            data: {
+              matchId: toBigIntId(partidoActual.id),
+              matchName: partidoActual.nombre,
+              playerName: nombreJugador,
+              player_user_id: user?.id || null,
+              push_relevant: true,
+              link: `/partido-publico/${toBigIntId(partidoActual.id)}`,
+            },
+            read: false,
+          },
+        })));
       }
     } catch (error) {
       // Error notifying rejection
