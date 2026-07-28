@@ -6,10 +6,6 @@ const NON_PRODUCTION_ENVIRONMENTS = new Set([
   'staging',
 ]);
 const LOCAL_SUPABASE_HOSTS = new Set(['127.0.0.1', '[::1]', 'localhost']);
-const KNOWN_PRODUCTION_SUPABASE_HOSTS = new Set([
-  'rcyuuoaqfwcembdajcss.supabase.co',
-]);
-
 const FLAG_ENV_KEYS = {
   torneosEnabled: 'REACT_APP_TORNEOS_ENABLED',
   workspacesEnabled: 'REACT_APP_TORNEOS_WORKSPACES_ENABLED',
@@ -18,6 +14,7 @@ const FLAG_ENV_KEYS = {
   notifications: 'REACT_APP_TORNEOS_NOTIFICATIONS_ENABLED',
   officialStats: 'REACT_APP_TORNEOS_OFFICIAL_STATS_ENABLED',
   publicPages: 'REACT_APP_TORNEOS_PUBLIC_PAGES_ENABLED',
+  mediaUpload: 'REACT_APP_TORNEOS_MEDIA_UPLOAD_ENABLED',
   socialContentGenerator: 'REACT_APP_TORNEOS_SOCIAL_GENERATOR_ENABLED',
 };
 
@@ -37,6 +34,9 @@ export function resolveTorneosBackendIsolation(env = {}) {
   const supabaseUrl = String(env.REACT_APP_SUPABASE_URL || '').trim();
   const stagingProjectRef = String(
     env.REACT_APP_TORNEOS_STAGING_PROJECT_REF || '',
+  ).trim().toLowerCase();
+  const productionProjectRef = String(
+    env.REACT_APP_PRODUCTION_PROJECT_REF || '',
   ).trim().toLowerCase();
 
   let parsedUrl;
@@ -58,7 +58,10 @@ export function resolveTorneosBackendIsolation(env = {}) {
     || Boolean(parsedUrl.search)
     || Boolean(parsedUrl.hash)
   );
-  const isKnownProductionBackend = KNOWN_PRODUCTION_SUPABASE_HOSTS.has(hostname);
+  const isKnownProductionBackend = (
+    /^[a-z0-9]{8,64}$/.test(productionProjectRef)
+    && hostname === `${productionProjectRef}.supabase.co`
+  );
   const isLocal = (
     dataEnvironment === 'local'
     && LOCAL_SUPABASE_HOSTS.has(hostname)

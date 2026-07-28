@@ -60,7 +60,7 @@
     "sentry:web:sourcemaps:upload": "node scripts/upload_sentry_sourcemaps.mjs",
     "release:web:sentry": "npm run build:web:release && npm run sentry:web:sourcemaps:upload",
     "test": "react-scripts test",
-    "test:ci": "CI=true react-scripts test --watchAll=false --runInBand",
+    "test:ci": "npm run test:staging:guard && CI=true react-scripts test --watchAll=false --runInBand",
     "test:web-access": "node --test server/__tests__/*.test.mjs",
     "test:db": "node scripts/db-integration/run.mjs",
     "test:db:golden": "node scripts/db-integration/canonical-golden.mjs",
@@ -91,8 +91,17 @@
     "validate:web-access-env": "node scripts/validate-private-web-env.mjs",
     "migrations:guard": "node scripts/guard_migration_source.mjs",
     "db:contract": "node scripts/database/generate-functional-contract.mjs && node scripts/database/generate-object-compatibility.mjs",
-    "db:list": "npm run migrations:guard && npx supabase migration list --linked",
-    "db:push": "npm run migrations:guard && npx supabase db push"
+    "db:list": "npm run staging:verify",
+    "db:push": "npm run staging:db:push",
+    "staging:create:guard": "node scripts/staging/run.mjs create-guard",
+    "staging:guard": "node scripts/staging/run.mjs guard",
+    "staging:link": "node scripts/staging/run.mjs link",
+    "staging:db:dry-run": "node scripts/staging/run.mjs db-dry-run",
+    "staging:db:push": "node scripts/staging/run.mjs db-push",
+    "staging:functions:deploy": "node scripts/staging/run.mjs functions-deploy",
+    "staging:verify": "node scripts/staging/run.mjs verify",
+    "staging:unlink": "node scripts/staging/run.mjs unlink",
+    "test:staging:guard": "node --test scripts/staging/guard.test.mjs"
   },
   "eslintConfig": {
     "extends": [
@@ -136,6 +145,7 @@
     "eslint-webpack-plugin": "^4.2.0",
     "pg": "^8.22.0",
     "postcss": "^8.5.6",
+    "supabase": "2.110.0",
     "webpack": "^5.92.0",
     "webpack-cli": "^5.1.4",
     "webpack-dev-server": "^5.0.4"

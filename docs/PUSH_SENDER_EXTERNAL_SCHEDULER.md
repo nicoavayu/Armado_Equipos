@@ -34,9 +34,9 @@ Invocation:
 Configure repository secrets:
 
 - `SUPABASE_PUSH_SENDER_URL`
-  - Example: `https://rcyuuoaqfwcembdajcss.supabase.co/functions/v1/push-sender`
+  - Example: `https://<PRODUCTION_PROJECT_REF>.supabase.co/functions/v1/push-sender`
 - `SUPABASE_SERVICE_ROLE_KEY`
-  - Service role JWT for project `rcyuuoaqfwcembdajcss`
+  - Service role JWT for project `<PRODUCTION_PROJECT_REF>`
 - `PUSH_SENDER_SECRET`
   - Must match the Supabase Function secret already configured in `push-sender`
 
