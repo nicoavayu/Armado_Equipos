@@ -83,6 +83,8 @@
     "test:db:torneos:media": "node scripts/db-integration/torneos-media-galleries.mjs",
     "test:db:security": "node scripts/db-integration/security_patch.mjs && node scripts/db-integration/authenticated-rpc-grants.mjs && node --test scripts/security-advisor/response.test.mjs",
     "test:db:grants": "node scripts/db-integration/authenticated-rpc-grants.mjs",
+    "test:db:authenticated-rpc-grants": "node scripts/db-integration/authenticated-rpc-grants.mjs",
+    "test:security-advisor": "node --test scripts/security-advisor/response.test.mjs",
     "test:db:tournament-baseline": "node scripts/db-integration/canonical-tournament-baseline.mjs",
     "eject": "react-scripts eject",
     "mobile:sync": "npm run build && npx cap sync",
