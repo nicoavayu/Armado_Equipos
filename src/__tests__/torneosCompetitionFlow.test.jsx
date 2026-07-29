@@ -265,17 +265,18 @@ describe('Arma2 Torneos competition flow', () => {
       .mockRejectedValueOnce(new Error('Sin conexión'))
       .mockResolvedValueOnce({ id: 'tournament-retried' });
     renderPath(`/torneos/organizacion/${ORGANIZATION_ID}/torneos/nuevo`, api);
-    fireEvent.change(
-      await screen.findByPlaceholderText('Copa Apertura 2027'),
-      { target: { value: 'Copa Retry' } },
-    );
-    fireEvent.click(screen.getByRole('button', { name: /guardar borrador/i }));
-    expect(await screen.findByRole('alert', {}, { timeout: 5000 }))
-      .toHaveTextContent('Sin conexión');
-    fireEvent.click(screen.getByRole('button', { name: /guardar borrador/i }));
+    const nameInput = await screen.findByRole('textbox', { name: /nombre del torneo/i });
     await waitFor(() => {
-      expect(api.createTournament).toHaveBeenCalledTimes(2);
+      expect(screen.getByRole('combobox', { name: 'Temporada' }))
+        .toHaveValue(SEASON_ID);
     });
+    fireEvent.change(nameInput, { target: { value: 'Copa Retry' } });
+    fireEvent.click(screen.getByRole('button', { name: /guardar borrador/i }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Sin conexión');
+    fireEvent.click(screen.getByRole('button', { name: /guardar borrador/i }));
+    expect(await screen.findByRole('heading', { name: 'Temporadas y torneos' }))
+      .toBeInTheDocument();
+    expect(api.createTournament).toHaveBeenCalledTimes(2);
     expect(api.createTournament.mock.calls[0][0].idempotencyKey).toBe('request-key');
     expect(api.createTournament.mock.calls[1][0].idempotencyKey).toBe('request-key');
     expect(api.createIdempotencyKey).toHaveBeenCalledTimes(1);
