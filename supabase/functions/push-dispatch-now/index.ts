@@ -1938,7 +1938,7 @@ serve(async (req) => {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      apikey: serviceRoleKey,
+      apikey: serviceCredential.key,
       "x-push-sender-secret": senderSecret,
     },
     body: JSON.stringify({

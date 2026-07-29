@@ -205,7 +205,7 @@ serve(async (req) => {
   if (matchId && recipientUserId) {
     pushResult = await requestImmediateApprovalPush({
       supabaseUrl,
-      anonKey,
+      anonKey: anonCredential.key,
       authHeader,
       matchId,
       requestId: normalizedRequestId,
