@@ -1126,8 +1126,6 @@ $$;
 -- every 3 assists, rating clamp 1..10). No formula/value/behaviour change.
 -- ===========================================================================
 
-BEGIN;
-
 -- ---------------------------------------------------------------------------
 -- 0. Rating clamp helper (mirrors utils/playerRating: min 1, max 10, 2 dp).
 -- ---------------------------------------------------------------------------
@@ -1595,8 +1593,6 @@ BEGIN
 END
 $$;
 
-COMMIT;
-
 -- ===========================================================================
 -- ROLLBACK (Stage A)
 -- ===========================================================================
@@ -1664,8 +1660,6 @@ COMMIT;
 -- send_call_to_vote to the match admin and fails the deploy if the
 -- send_match_invite passthrough survives.
 -- ===========================================================================
-
-BEGIN;
 
 ALTER TABLE IF EXISTS public.notifications ENABLE ROW LEVEL SECURITY;
 
@@ -2104,8 +2098,6 @@ WITH CHECK (
   )
 );
 
-COMMIT;
-
 -- ===========================================================================
 -- ROLLBACK (Stage A)
 -- ===========================================================================
@@ -2136,8 +2128,6 @@ COMMIT;
 -- populates survey_progress with owner rights regardless of anon's grants.
 -- This is NON-BREAKING and hardens the anon path. Rollback SQL at the bottom.
 -- ===========================================================================
-
-BEGIN;
 
 -- Observability-only trigger (post_match_surveys). Body identical to
 -- 20260310183000_fix_survey_closure_single_path.sql, now SECURITY DEFINER.
@@ -2222,8 +2212,6 @@ DROP POLICY IF EXISTS survey_progress_authenticated_all ON public.survey_progres
 REVOKE ALL ON public.survey_progress FROM authenticated, anon;
 GRANT ALL ON public.survey_progress TO service_role;
 
-COMMIT;
-
 -- ===========================================================================
 -- ROLLBACK (Stage A)
 -- ===========================================================================
@@ -2265,8 +2253,6 @@ COMMIT;
 -- web build routes guest uploads through the Edge Function. `public` is NOT
 -- changed (would break already-served images). Rollback SQL at the bottom.
 -- ===========================================================================
-
-BEGIN;
 
 -- ---------------------------------------------------------------------------
 -- 1. Guest-photo capability token (single-use, short-lived). service_role only.
@@ -2386,8 +2372,6 @@ SET
   file_size_limit = 15728640  -- 15 MB, matches client DEFAULT_MAX_IMAGE_BYTES
 WHERE id = 'jugadores-fotos';
 
-COMMIT;
-
 -- ===========================================================================
 -- ROLLBACK (Stage A)
 -- ===========================================================================
@@ -2430,8 +2414,6 @@ COMMIT;
 --     anon and unrelated authenticated users are rejected.
 -- Rollback: re-apply the prior definitions (see 20260316184500 / 20260316223000).
 -- ===========================================================================
-
-BEGIN;
 
 -- send_match_invite: make COALESCE(p_title, …) / COALESCE(p_message, …) always
 -- resolve to the server-side default by neutralising the client argument.
@@ -2561,8 +2543,6 @@ BEGIN
 END;
 $$;
 
-COMMIT;
-
 -- ===========================================================================
 -- ROLLBACK: re-apply the previous send_match_invite (20260316184500) and
 -- send_call_to_vote (20260316223000) definitions verbatim.
@@ -2609,8 +2589,6 @@ COMMIT;
 -- RPCs (create_notification, send_match_invite, send_call_to_vote, enqueue_*).
 -- Rollback SQL at the bottom.
 -- ===========================================================================
-
-BEGIN;
 
 ALTER TABLE IF EXISTS public.notifications ENABLE ROW LEVEL SECURITY;
 
@@ -2770,8 +2748,6 @@ BEGIN
   END IF;
 END $$;
 
-COMMIT;
-
 -- ===========================================================================
 -- ROLLBACK (Stage A hotfix -> pre-hotfix Stage A state)
 -- ===========================================================================
@@ -2800,8 +2776,6 @@ COMMIT;
 -- Reading own/ shared rows is unaffected. Rollback SQL at the bottom.
 -- ===========================================================================
 
-BEGIN;
-
 -- rating_adjustments: remove the permissive INSERT policy and direct write grants.
 DROP POLICY IF EXISTS rating_adjustments_insert_authenticated ON public.rating_adjustments;
 REVOKE INSERT, UPDATE, DELETE ON public.rating_adjustments FROM authenticated;
@@ -2814,8 +2788,6 @@ REVOKE INSERT, UPDATE, DELETE ON public.no_show_recovery_state FROM authenticate
 -- service_role keeps full access; SELECT stays governed by the scoped policies
 -- created in 20260724121000 (own rows / shared-match for rating_adjustments,
 -- own row for no_show_recovery_state).
-
-COMMIT;
 
 -- ===========================================================================
 -- ROLLBACK (Stage B -> Stage A state)
@@ -2850,8 +2822,6 @@ COMMIT;
 -- directly for ANOTHER user is denied. Accepted per the approved rollout.
 -- Rollback SQL at the bottom.
 -- ===========================================================================
-
-BEGIN;
 
 DROP POLICY IF EXISTS notifications_insert_related_or_self ON public.notifications;
 
@@ -2893,8 +2863,6 @@ BEGIN
   END IF;
 END $$;
 
-COMMIT;
-
 -- ===========================================================================
 -- ROLLBACK (Stage B -> Stage A state)
 -- ===========================================================================
@@ -2921,11 +2889,7 @@ COMMIT;
 -- storage.objects for this bucket. Rollback SQL at the bottom.
 -- ===========================================================================
 
-BEGIN;
-
 DROP POLICY IF EXISTS jugadores_fotos_anon_authenticated_insert ON storage.objects;
-
-COMMIT;
 
 -- ===========================================================================
 -- ROLLBACK (Stage B -> Stage A state)

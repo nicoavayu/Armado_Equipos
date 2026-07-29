@@ -16,7 +16,13 @@ Comandos de verificación:
 
 ```bash
 npx supabase db reset --local --no-seed
+npm run test:db:migration-atomicity
 npm run db:contract
 npm run test:db:golden
 npm run test:db:torneos
 ```
+
+La segunda migración no contiene límites transaccionales propios. Supabase CLI
+aplica el archivo completo y su entrada de ledger dentro del mismo batch
+atómico. El inventario y la prueba de interrupción están documentados en
+`docs/database/canonical-migration-atomicity.md`.
