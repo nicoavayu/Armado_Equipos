@@ -56,6 +56,31 @@ const MEDIUM = [
   'public.accept_invite_for_user(text,uuid)',
 ];
 
+const AUTO_MATCH_SERVICE_ROLE = [
+  'public.auto_match_account_is_eligible(uuid)',
+  'public.auto_match_availabilities_are_compatible(bigint,bigint)',
+  'public.auto_match_availability_fits_proposal(bigint,bigint)',
+  'public.auto_match_availability_has_free_slot(bigint,bigint)',
+  'public.auto_match_availability_is_eligible(bigint)',
+  'public.auto_match_distance_km(double precision,double precision,double precision,double precision)',
+  'public.auto_match_duration(text)',
+  'public.auto_match_has_valid_coordinates(double precision,double precision)',
+  'public.auto_match_member_has_free_slot(bigint,uuid)',
+  'public.auto_match_member_snapshot_fits_proposal(bigint,uuid)',
+  'public.auto_match_member_snapshot_is_valid_for_proposal(bigint,uuid)',
+  'public.auto_match_member_snapshots_are_compatible(bigint,uuid,uuid)',
+  'public.auto_match_play_range(timestamp with time zone,text)',
+  'public.auto_match_snapshots_are_compatible(double precision,double precision,integer,double precision,double precision,integer)',
+  'public.auto_match_user_real_match_conflict(uuid,timestamp with time zone,text,bigint)',
+  'public.auto_match_window_has_free_slot(uuid,timestamp with time zone,text,smallint[],time without time zone,time without time zone,text,boolean,bigint)',
+  'public.capture_auto_match_member_snapshot()',
+  'public.enforce_auto_match_member_eligibility()',
+  'public.prevent_auto_match_member_snapshot_update()',
+  'public.sync_active_auto_match_gestations()',
+  'public.user_declined_auto_match_slot(uuid,text,timestamp with time zone)',
+  'public.user_has_overlapping_auto_match(uuid,timestamp with time zone,bigint)',
+];
+
 const ANON_ALLOWLIST = [
   'public.get_invite_landing(text)',
   'public.get_partido_by_invite(bigint,text)',
@@ -189,11 +214,45 @@ for (const signature of serviceOnly) {
   check(row?.service_execute === true, `service_role allowed: ${signature}`);
 }
 
+for (const signature of AUTO_MATCH_SERVICE_ROLE) {
+  const row = bySignature.get(signature);
+  check(Boolean(row), `auto-match service_role identity exists: ${signature}`);
+  check(row?.public_execute === false, `auto-match PUBLIC denied: ${signature}`);
+  check(row?.anon_execute === false, `auto-match anon denied: ${signature}`);
+  check(row?.authenticated_execute === false, `auto-match authenticated denied: ${signature}`);
+  check(row?.service_execute === true, `auto-match service_role allowed: ${signature}`);
+}
+
 const unexpectedPublic = catalog.rows.filter((row) => row.public_execute);
 check(
   unexpectedPublic.length === 0,
   'PUBLIC EXECUTE unexpected: 0',
   unexpectedPublic.map((row) => row.signature).join(', '),
+);
+
+const unsafeFunctionDefaults = await client.query(`
+  select
+    owner_role.rolname as owner,
+    coalesce(grantee_role.rolname, 'PUBLIC') as grantee
+  from pg_default_acl default_acl
+  join pg_roles owner_role on owner_role.oid = default_acl.defaclrole
+  join pg_namespace namespace on namespace.oid = default_acl.defaclnamespace
+  cross join lateral aclexplode(default_acl.defaclacl) privilege
+  left join pg_roles grantee_role on grantee_role.oid = privilege.grantee
+  where namespace.nspname = 'public'
+    and default_acl.defaclobjtype = 'f'
+    and owner_role.rolname = 'postgres'
+    and coalesce(grantee_role.rolname, 'PUBLIC')
+      in ('PUBLIC', 'anon', 'authenticated', 'service_role')
+    and privilege.privilege_type = 'EXECUTE'
+  order by owner, grantee
+`);
+check(
+  unsafeFunctionDefaults.rows.length === 0,
+  'future public functions require an explicit EXECUTE allowlist',
+  unsafeFunctionDefaults.rows
+    .map((row) => `${row.owner}->${row.grantee}`)
+    .join(', '),
 );
 
 const expectAuthenticatedDenied = async (label, sql, params = []) => {
@@ -234,6 +293,20 @@ try {
   await client.query('select * from public.claim_push_delivery_batch(1, $1, 1, 1)', ['grant-test']);
   await client.query('select public.purge_old_notifications(14, 1, true)');
   await client.query('select public.purge_old_notification_delivery_logs(7, 1, true)');
+  await client.query(`
+    select
+      public.auto_match_duration('F5'),
+      public.auto_match_has_valid_coordinates(-34.6, -58.4),
+      public.auto_match_distance_km(0, 0, 0, 0),
+      public.auto_match_snapshots_are_compatible(
+        -34.6, -58.4, 10,
+        -34.6, -58.4, 10
+      ),
+      public.auto_match_play_range(
+        '2030-01-01 20:00+00'::timestamptz,
+        'F5'
+      )
+  `);
   check(true, 'service_role executes required backend helpers inside rollback');
 } catch (error) {
   check(false, 'service_role executes required backend helpers inside rollback', error.message);
@@ -286,6 +359,9 @@ const counts = {
   serviceRoleExecute: catalog.rows.filter((row) => row.service_execute).length,
   authenticatedAllowlist: allowlist.size,
 };
+check(counts.publicExecute === 0, 'PUBLIC EXECUTE count remains 0');
+check(counts.anonExecute === 18, 'anon EXECUTE count remains 18');
+check(counts.authenticatedExecute === 222, 'authenticated EXECUTE count remains 222');
 console.log('\nCatalog counts:', counts);
 console.log(`\n${checks} grant/security checks, ${failures} failures.`);
 

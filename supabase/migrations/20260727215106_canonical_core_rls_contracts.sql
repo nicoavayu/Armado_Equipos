@@ -3191,3 +3191,215 @@ begin
 end
 $authenticated_execute_allowlist$;
 -- END AUTHENTICATED EXECUTE ALLOWLIST
+
+-- BEGIN AUTO-MATCH SERVICE_ROLE EXECUTE ALLOWLIST
+-- Estos grants estabilizan una diferencia real entre imágenes de Supabase.
+-- No constituyen acceso de cliente.
+revoke execute on function public.auto_match_account_is_eligible(p_user_id uuid)
+  from public, anon, authenticated, service_role;
+grant execute on function public.auto_match_account_is_eligible(p_user_id uuid)
+  to service_role;
+
+revoke execute on function public.auto_match_availabilities_are_compatible(
+  p_availability_a bigint,
+  p_availability_b bigint
+) from public, anon, authenticated, service_role;
+grant execute on function public.auto_match_availabilities_are_compatible(
+  p_availability_a bigint,
+  p_availability_b bigint
+) to service_role;
+
+revoke execute on function public.auto_match_availability_fits_proposal(
+  p_availability_id bigint,
+  p_proposal_id bigint
+) from public, anon, authenticated, service_role;
+grant execute on function public.auto_match_availability_fits_proposal(
+  p_availability_id bigint,
+  p_proposal_id bigint
+) to service_role;
+
+revoke execute on function public.auto_match_availability_has_free_slot(
+  p_availability_id bigint,
+  p_proposal_id bigint
+) from public, anon, authenticated, service_role;
+grant execute on function public.auto_match_availability_has_free_slot(
+  p_availability_id bigint,
+  p_proposal_id bigint
+) to service_role;
+
+revoke execute on function public.auto_match_availability_is_eligible(
+  p_availability_id bigint
+) from public, anon, authenticated, service_role;
+grant execute on function public.auto_match_availability_is_eligible(
+  p_availability_id bigint
+) to service_role;
+
+revoke execute on function public.auto_match_distance_km(
+  p_latitude_a double precision,
+  p_longitude_a double precision,
+  p_latitude_b double precision,
+  p_longitude_b double precision
+) from public, anon, authenticated, service_role;
+grant execute on function public.auto_match_distance_km(
+  p_latitude_a double precision,
+  p_longitude_a double precision,
+  p_latitude_b double precision,
+  p_longitude_b double precision
+) to service_role;
+
+revoke execute on function public.auto_match_duration(p_format text)
+  from public, anon, authenticated, service_role;
+grant execute on function public.auto_match_duration(p_format text)
+  to service_role;
+
+revoke execute on function public.auto_match_has_valid_coordinates(
+  p_latitude double precision,
+  p_longitude double precision
+) from public, anon, authenticated, service_role;
+grant execute on function public.auto_match_has_valid_coordinates(
+  p_latitude double precision,
+  p_longitude double precision
+) to service_role;
+
+revoke execute on function public.auto_match_member_has_free_slot(
+  p_proposal_id bigint,
+  p_user_id uuid
+) from public, anon, authenticated, service_role;
+grant execute on function public.auto_match_member_has_free_slot(
+  p_proposal_id bigint,
+  p_user_id uuid
+) to service_role;
+
+revoke execute on function public.auto_match_member_snapshot_fits_proposal(
+  p_proposal_id bigint,
+  p_user_id uuid
+) from public, anon, authenticated, service_role;
+grant execute on function public.auto_match_member_snapshot_fits_proposal(
+  p_proposal_id bigint,
+  p_user_id uuid
+) to service_role;
+
+revoke execute on function public.auto_match_member_snapshot_is_valid_for_proposal(
+  p_proposal_id bigint,
+  p_user_id uuid
+) from public, anon, authenticated, service_role;
+grant execute on function public.auto_match_member_snapshot_is_valid_for_proposal(
+  p_proposal_id bigint,
+  p_user_id uuid
+) to service_role;
+
+revoke execute on function public.auto_match_member_snapshots_are_compatible(
+  p_proposal_id bigint,
+  p_user_a uuid,
+  p_user_b uuid
+) from public, anon, authenticated, service_role;
+grant execute on function public.auto_match_member_snapshots_are_compatible(
+  p_proposal_id bigint,
+  p_user_a uuid,
+  p_user_b uuid
+) to service_role;
+
+revoke execute on function public.auto_match_play_range(
+  p_starts_at timestamp with time zone,
+  p_format text
+) from public, anon, authenticated, service_role;
+grant execute on function public.auto_match_play_range(
+  p_starts_at timestamp with time zone,
+  p_format text
+) to service_role;
+
+revoke execute on function public.auto_match_snapshots_are_compatible(
+  p_latitude_a double precision,
+  p_longitude_a double precision,
+  p_radius_a integer,
+  p_latitude_b double precision,
+  p_longitude_b double precision,
+  p_radius_b integer
+) from public, anon, authenticated, service_role;
+grant execute on function public.auto_match_snapshots_are_compatible(
+  p_latitude_a double precision,
+  p_longitude_a double precision,
+  p_radius_a integer,
+  p_latitude_b double precision,
+  p_longitude_b double precision,
+  p_radius_b integer
+) to service_role;
+
+revoke execute on function public.auto_match_user_real_match_conflict(
+  p_user_id uuid,
+  p_starts_at timestamp with time zone,
+  p_format text,
+  p_exclude_partido_id bigint
+) from public, anon, authenticated, service_role;
+grant execute on function public.auto_match_user_real_match_conflict(
+  p_user_id uuid,
+  p_starts_at timestamp with time zone,
+  p_format text,
+  p_exclude_partido_id bigint
+) to service_role;
+
+revoke execute on function public.auto_match_window_has_free_slot(
+  p_user_id uuid,
+  p_proposed_starts_at timestamp with time zone,
+  p_format text,
+  p_days_of_week smallint[],
+  p_time_start time without time zone,
+  p_time_end time without time zone,
+  p_timezone text,
+  p_fixed_time boolean,
+  p_exclude_partido_id bigint
+) from public, anon, authenticated, service_role;
+grant execute on function public.auto_match_window_has_free_slot(
+  p_user_id uuid,
+  p_proposed_starts_at timestamp with time zone,
+  p_format text,
+  p_days_of_week smallint[],
+  p_time_start time without time zone,
+  p_time_end time without time zone,
+  p_timezone text,
+  p_fixed_time boolean,
+  p_exclude_partido_id bigint
+) to service_role;
+
+revoke execute on function public.capture_auto_match_member_snapshot()
+  from public, anon, authenticated, service_role;
+grant execute on function public.capture_auto_match_member_snapshot()
+  to service_role;
+
+revoke execute on function public.enforce_auto_match_member_eligibility()
+  from public, anon, authenticated, service_role;
+grant execute on function public.enforce_auto_match_member_eligibility()
+  to service_role;
+
+revoke execute on function public.prevent_auto_match_member_snapshot_update()
+  from public, anon, authenticated, service_role;
+grant execute on function public.prevent_auto_match_member_snapshot_update()
+  to service_role;
+
+revoke execute on function public.sync_active_auto_match_gestations()
+  from public, anon, authenticated, service_role;
+grant execute on function public.sync_active_auto_match_gestations()
+  to service_role;
+
+revoke execute on function public.user_declined_auto_match_slot(
+  p_user_id uuid,
+  p_format text,
+  p_starts_at timestamp with time zone
+) from public, anon, authenticated, service_role;
+grant execute on function public.user_declined_auto_match_slot(
+  p_user_id uuid,
+  p_format text,
+  p_starts_at timestamp with time zone
+) to service_role;
+
+revoke execute on function public.user_has_overlapping_auto_match(
+  p_user_id uuid,
+  p_starts_at timestamp with time zone,
+  p_exclude_proposal_id bigint
+) from public, anon, authenticated, service_role;
+grant execute on function public.user_has_overlapping_auto_match(
+  p_user_id uuid,
+  p_starts_at timestamp with time zone,
+  p_exclude_proposal_id bigint
+) to service_role;
+-- END AUTO-MATCH SERVICE_ROLE EXECUTE ALLOWLIST
