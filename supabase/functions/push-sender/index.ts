@@ -1091,7 +1091,7 @@ serve(async (req) => {
     return jsonResponse({ ok: false, reason: "missing_supabase_env" }, 500, cors);
   }
 
-  if (!hasValidSupabaseApiKey(req, serviceRoleKey)) {
+  if (!hasValidSupabaseApiKey(req, serviceCredential.key)) {
     return jsonResponse({ ok: false, reason: "unauthorized" }, 401, cors);
   }
 

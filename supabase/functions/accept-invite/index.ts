@@ -255,7 +255,7 @@ serve(async (req) => {
 
       await requestImmediateJoinedPush({
         supabaseUrl,
-        anonKey,
+        anonKey: anonCredential.key,
         authHeader,
         partidoId: Number(partidoId),
       });
