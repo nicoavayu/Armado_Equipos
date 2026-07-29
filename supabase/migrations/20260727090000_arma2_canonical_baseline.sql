@@ -54478,6 +54478,506 @@ begin
 end
 $$;
 
+-- ---------------------------------------------------------------------------
+-- Authenticated RPC hardening
+-- ---------------------------------------------------------------------------
+-- The historical dump is replayed inside Supabase, whose postgres default ACL
+-- grants EXECUTE to authenticated while functions are being created. pg_dump
+-- only records the delta from PostgreSQL's built-in PUBLIC ACL, so a textual
+-- `REVOKE ... FROM PUBLIC` is insufficient on restore. Keep the privileged
+-- helpers service-only and expose small actor-derived wrappers for the seven
+-- client flows that still need an RPC.
+
+create or replace function public.cancel_partido_as_admin(
+  p_partido_id bigint,
+  p_reason text default 'Partido cancelado'::text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if auth.uid() is null
+     or not exists (
+       select 1
+       from public.partidos match_row
+       where match_row.id = p_partido_id
+         and coalesce(match_row.creado_por, match_row.admin_id) = auth.uid()
+     )
+  then
+    raise exception using errcode = '42501', message = 'not_match_admin';
+  end if;
+
+  if char_length(coalesce(p_reason, '')) > 500 then
+    raise exception using errcode = '22023', message = 'invalid_reason';
+  end if;
+
+  return public.cancel_partido_with_notification(p_partido_id, p_reason);
+end
+$$;
+
+create or replace function public.cleanup_voting_access_state_as_admin(
+  p_partido_id bigint
+)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if auth.uid() is null
+     or not exists (
+       select 1
+       from public.partidos match_row
+       where match_row.id = p_partido_id
+         and coalesce(match_row.creado_por, match_row.admin_id) = auth.uid()
+     )
+  then
+    raise exception using errcode = '42501', message = 'not_match_admin';
+  end if;
+
+  perform public.cleanup_voting_access_state(p_partido_id);
+end
+$$;
+
+create or replace function public.enqueue_partido_notification_as_actor(
+  p_partido_id bigint,
+  p_type text,
+  p_title text default null,
+  p_message text default null,
+  p_payload jsonb default '{}'::jsonb
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_actor uuid := auth.uid();
+  v_is_admin boolean;
+  v_is_participant boolean;
+  v_has_join_request boolean;
+begin
+  select exists (
+    select 1
+    from public.partidos match_row
+    where match_row.id = p_partido_id
+      and coalesce(match_row.creado_por, match_row.admin_id) = v_actor
+  ) into v_is_admin;
+
+  select exists (
+    select 1
+    from public.jugadores player_row
+    where player_row.partido_id = p_partido_id
+      and player_row.usuario_id = v_actor
+  ) into v_is_participant;
+
+  select exists (
+    select 1
+    from public.match_join_requests request_row
+    where request_row.match_id = p_partido_id
+      and request_row.user_id = v_actor
+  ) into v_has_join_request;
+
+  if v_actor is null
+     or not (v_is_admin or v_is_participant or v_has_join_request)
+  then
+    raise exception using errcode = '42501', message = 'not_match_actor';
+  end if;
+
+  if p_type not in (
+    'match_join_request',
+    'match_update',
+    'survey_start',
+    'match_deleted'
+  ) then
+    raise exception using errcode = '42501', message = 'notification_type_not_allowed';
+  end if;
+
+  if p_type = 'match_deleted' and not v_is_admin then
+    raise exception using errcode = '42501', message = 'not_match_admin';
+  end if;
+
+  if char_length(coalesce(p_title, '')) > 120
+     or char_length(coalesce(p_message, '')) > 500
+  then
+    raise exception using errcode = '22023', message = 'notification_content_too_long';
+  end if;
+
+  return public.enqueue_partido_notification(
+    p_partido_id,
+    p_type,
+    nullif(btrim(coalesce(p_title, '')), ''),
+    nullif(btrim(coalesce(p_message, '')), ''),
+    coalesce(p_payload, '{}'::jsonb)
+      || jsonb_build_object('actor_user_id', v_actor)
+  );
+end
+$$;
+
+create or replace function public.enqueue_match_participant_notification_as_actor(
+  p_partido_id bigint,
+  p_type text,
+  p_title text default null,
+  p_message text default null,
+  p_payload jsonb default '{}'::jsonb,
+  p_exclude_user_id uuid default null,
+  p_include_admin boolean default true
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_actor uuid := auth.uid();
+  v_is_admin boolean;
+  v_is_participant boolean;
+  v_has_join_request boolean;
+begin
+  select exists (
+    select 1
+    from public.partidos match_row
+    where match_row.id = p_partido_id
+      and coalesce(match_row.creado_por, match_row.admin_id) = v_actor
+  ) into v_is_admin;
+
+  select exists (
+    select 1
+    from public.jugadores player_row
+    where player_row.partido_id = p_partido_id
+      and player_row.usuario_id = v_actor
+  ) into v_is_participant;
+
+  select exists (
+    select 1
+    from public.match_join_requests request_row
+    where request_row.match_id = p_partido_id
+      and request_row.user_id = v_actor
+  ) into v_has_join_request;
+
+  if v_actor is null
+     or not (v_is_admin or v_is_participant or v_has_join_request)
+  then
+    raise exception using errcode = '42501', message = 'not_match_actor';
+  end if;
+
+  if p_type <> 'match_update' then
+    raise exception using errcode = '42501', message = 'notification_type_not_allowed';
+  end if;
+
+  if p_exclude_user_id is not null
+     and p_exclude_user_id <> v_actor
+     and not v_is_admin
+  then
+    raise exception using errcode = '42501', message = 'invalid_excluded_user';
+  end if;
+
+  if char_length(coalesce(p_title, '')) > 120
+     or char_length(coalesce(p_message, '')) > 500
+  then
+    raise exception using errcode = '22023', message = 'notification_content_too_long';
+  end if;
+
+  return public.enqueue_match_participant_notification(
+    p_partido_id,
+    p_type,
+    nullif(btrim(coalesce(p_title, '')), ''),
+    nullif(btrim(coalesce(p_message, '')), ''),
+    coalesce(p_payload, '{}'::jsonb)
+      || jsonb_build_object('actor_user_id', v_actor),
+    p_exclude_user_id,
+    p_include_admin
+  );
+end
+$$;
+
+create or replace function public.prepare_challenge_team_squad_as_actor(
+  p_challenge_id uuid,
+  p_open boolean default true
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if auth.uid() is null
+     or not public.challenge_user_is_owner_or_captain(
+       p_challenge_id,
+       auth.uid()
+     )
+  then
+    raise exception using errcode = '42501', message = 'not_challenge_captain';
+  end if;
+
+  return public.prepare_challenge_team_squad(p_challenge_id, p_open);
+end
+$$;
+
+create or replace function public.send_match_kicked_notification_as_admin(
+  p_user_id uuid,
+  p_partido_id bigint
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_match_name text;
+begin
+  select match_row.nombre
+  into v_match_name
+  from public.partidos match_row
+  where match_row.id = p_partido_id
+    and coalesce(match_row.creado_por, match_row.admin_id) = auth.uid();
+
+  if auth.uid() is null or not found then
+    raise exception using errcode = '42501', message = 'not_match_admin';
+  end if;
+
+  return public.send_match_kicked_notification(
+    p_user_id,
+    p_partido_id,
+    v_match_name,
+    auth.uid(),
+    now()
+  );
+end
+$$;
+
+create or replace function public.sync_team_match_to_partido_as_actor(
+  p_team_match_id uuid
+)
+returns bigint
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if auth.uid() is null
+     or not exists (
+       select 1
+       from public.team_matches match_row
+       where match_row.id = p_team_match_id
+         and (
+           public.team_user_is_member(match_row.team_a_id, auth.uid())
+           or public.team_user_is_member(match_row.team_b_id, auth.uid())
+         )
+     )
+  then
+    raise exception using errcode = '42501', message = 'not_team_match_member';
+  end if;
+
+  return public.sync_team_match_to_partido(p_team_match_id);
+end
+$$;
+
+revoke all on function public.cancel_partido_as_admin(bigint, text)
+  from public, anon, authenticated, service_role;
+revoke all on function public.cleanup_voting_access_state_as_admin(bigint)
+  from public, anon, authenticated, service_role;
+revoke all on function public.enqueue_partido_notification_as_actor(bigint, text, text, text, jsonb)
+  from public, anon, authenticated, service_role;
+revoke all on function public.enqueue_match_participant_notification_as_actor(bigint, text, text, text, jsonb, uuid, boolean)
+  from public, anon, authenticated, service_role;
+revoke all on function public.prepare_challenge_team_squad_as_actor(uuid, boolean)
+  from public, anon, authenticated, service_role;
+revoke all on function public.send_match_kicked_notification_as_admin(uuid, bigint)
+  from public, anon, authenticated, service_role;
+revoke all on function public.sync_team_match_to_partido_as_actor(uuid)
+  from public, anon, authenticated, service_role;
+
+grant execute on function public.cancel_partido_as_admin(bigint, text)
+  to authenticated, service_role;
+grant execute on function public.cleanup_voting_access_state_as_admin(bigint)
+  to authenticated, service_role;
+grant execute on function public.enqueue_partido_notification_as_actor(bigint, text, text, text, jsonb)
+  to authenticated, service_role;
+grant execute on function public.enqueue_match_participant_notification_as_actor(bigint, text, text, text, jsonb, uuid, boolean)
+  to authenticated, service_role;
+grant execute on function public.prepare_challenge_team_squad_as_actor(uuid, boolean)
+  to authenticated, service_role;
+grant execute on function public.send_match_kicked_notification_as_admin(uuid, bigint)
+  to authenticated, service_role;
+grant execute on function public.sync_team_match_to_partido_as_actor(uuid)
+  to authenticated, service_role;
+
+
+-- Exact service-only identities confirmed from Security Advisor lint 0029.
+-- Keep each overload explicit: never revoke by approximate function name.
+revoke all on function public.claim_push_delivery_batch(integer, text, integer, integer) from public;
+revoke all on function public.claim_push_delivery_batch(integer, text, integer, integer) from anon;
+revoke all on function public.claim_push_delivery_batch(integer, text, integer, integer) from authenticated;
+grant execute on function public.claim_push_delivery_batch(integer, text, integer, integer) to service_role;
+
+revoke all on function public.claim_targeted_push_delivery_batch(uuid[], integer, text, integer, integer) from public;
+revoke all on function public.claim_targeted_push_delivery_batch(uuid[], integer, text, integer, integer) from anon;
+revoke all on function public.claim_targeted_push_delivery_batch(uuid[], integer, text, integer, integer) from authenticated;
+grant execute on function public.claim_targeted_push_delivery_batch(uuid[], integer, text, integer, integer) to service_role;
+
+revoke all on function public.run_push_sender_scheduler_tick(text, integer, integer, integer) from public;
+revoke all on function public.run_push_sender_scheduler_tick(text, integer, integer, integer) from anon;
+revoke all on function public.run_push_sender_scheduler_tick(text, integer, integer, integer) from authenticated;
+grant execute on function public.run_push_sender_scheduler_tick(text, integer, integer, integer) to service_role;
+
+revoke all on function public.cancel_partido_with_notification(bigint, text) from public;
+revoke all on function public.cancel_partido_with_notification(bigint, text) from anon;
+revoke all on function public.cancel_partido_with_notification(bigint, text) from authenticated;
+grant execute on function public.cancel_partido_with_notification(bigint, text) to service_role;
+
+revoke all on function public.cleanup_invalid_device_tokens(integer, integer) from public;
+revoke all on function public.cleanup_invalid_device_tokens(integer, integer) from anon;
+revoke all on function public.cleanup_invalid_device_tokens(integer, integer) from authenticated;
+grant execute on function public.cleanup_invalid_device_tokens(integer, integer) to service_role;
+
+revoke all on function public.cleanup_voting_access_state(bigint) from public;
+revoke all on function public.cleanup_voting_access_state(bigint) from anon;
+revoke all on function public.cleanup_voting_access_state(bigint) from authenticated;
+grant execute on function public.cleanup_voting_access_state(bigint) to service_role;
+
+revoke all on function public.enqueue_auto_match_notification(bigint, text, text, text, uuid[], text, jsonb) from public;
+revoke all on function public.enqueue_auto_match_notification(bigint, text, text, text, uuid[], text, jsonb) from anon;
+revoke all on function public.enqueue_auto_match_notification(bigint, text, text, text, uuid[], text, jsonb) from authenticated;
+grant execute on function public.enqueue_auto_match_notification(bigint, text, text, text, uuid[], text, jsonb) to service_role;
+
+revoke all on function public.enqueue_match_participant_notification(bigint, text, text, text, jsonb, uuid, boolean) from public;
+revoke all on function public.enqueue_match_participant_notification(bigint, text, text, text, jsonb, uuid, boolean) from anon;
+revoke all on function public.enqueue_match_participant_notification(bigint, text, text, text, jsonb, uuid, boolean) from authenticated;
+grant execute on function public.enqueue_match_participant_notification(bigint, text, text, text, jsonb, uuid, boolean) to service_role;
+
+revoke all on function public.enqueue_partido_notification(bigint, text, text, text, jsonb) from public;
+revoke all on function public.enqueue_partido_notification(bigint, text, text, text, jsonb) from anon;
+revoke all on function public.enqueue_partido_notification(bigint, text, text, text, jsonb) from authenticated;
+grant execute on function public.enqueue_partido_notification(bigint, text, text, text, jsonb) to service_role;
+
+revoke all on function public.finalize_push_delivery_attempt(uuid, text, text, text, timestamp with time zone, text, jsonb) from public;
+revoke all on function public.finalize_push_delivery_attempt(uuid, text, text, text, timestamp with time zone, text, jsonb) from anon;
+revoke all on function public.finalize_push_delivery_attempt(uuid, text, text, text, timestamp with time zone, text, jsonb) from authenticated;
+grant execute on function public.finalize_push_delivery_attempt(uuid, text, text, text, timestamp with time zone, text, jsonb) to service_role;
+
+revoke all on function public.mark_match_assumed_not_played(bigint, text) from public;
+revoke all on function public.mark_match_assumed_not_played(bigint, text) from anon;
+revoke all on function public.mark_match_assumed_not_played(bigint, text) from authenticated;
+grant execute on function public.mark_match_assumed_not_played(bigint, text) to service_role;
+
+revoke all on function public.prepare_challenge_team_squad(uuid, boolean) from public;
+revoke all on function public.prepare_challenge_team_squad(uuid, boolean) from anon;
+revoke all on function public.prepare_challenge_team_squad(uuid, boolean) from authenticated;
+grant execute on function public.prepare_challenge_team_squad(uuid, boolean) to service_role;
+
+revoke all on function public.prepare_pending_challenge_partido_for_post_match(bigint, timestamp with time zone, timestamp with time zone) from public;
+revoke all on function public.prepare_pending_challenge_partido_for_post_match(bigint, timestamp with time zone, timestamp with time zone) from anon;
+revoke all on function public.prepare_pending_challenge_partido_for_post_match(bigint, timestamp with time zone, timestamp with time zone) from authenticated;
+grant execute on function public.prepare_pending_challenge_partido_for_post_match(bigint, timestamp with time zone, timestamp with time zone) to service_role;
+
+revoke all on function public.purge_old_notification_delivery_logs(integer, integer, boolean) from public;
+revoke all on function public.purge_old_notification_delivery_logs(integer, integer, boolean) from anon;
+revoke all on function public.purge_old_notification_delivery_logs(integer, integer, boolean) from authenticated;
+grant execute on function public.purge_old_notification_delivery_logs(integer, integer, boolean) to service_role;
+
+revoke all on function public.purge_old_notifications(integer, integer, boolean) from public;
+revoke all on function public.purge_old_notifications(integer, integer, boolean) from anon;
+revoke all on function public.purge_old_notifications(integer, integer, boolean) from authenticated;
+grant execute on function public.purge_old_notifications(integer, integer, boolean) to service_role;
+
+revoke all on function public.send_match_kicked_notification(uuid, bigint, text, uuid, timestamp with time zone) from public;
+revoke all on function public.send_match_kicked_notification(uuid, bigint, text, uuid, timestamp with time zone) from anon;
+revoke all on function public.send_match_kicked_notification(uuid, bigint, text, uuid, timestamp with time zone) from authenticated;
+grant execute on function public.send_match_kicked_notification(uuid, bigint, text, uuid, timestamp with time zone) to service_role;
+
+revoke all on function public.sync_team_match_to_partido(uuid) from public;
+revoke all on function public.sync_team_match_to_partido(uuid) from anon;
+revoke all on function public.sync_team_match_to_partido(uuid) from authenticated;
+grant execute on function public.sync_team_match_to_partido(uuid) to service_role;
+
+revoke all on function public._notify_goalkeepers_for_match(bigint, uuid, integer) from public;
+revoke all on function public._notify_goalkeepers_for_match(bigint, uuid, integer) from anon;
+revoke all on function public._notify_goalkeepers_for_match(bigint, uuid, integer) from authenticated;
+grant execute on function public._notify_goalkeepers_for_match(bigint, uuid, integer) to service_role;
+
+revoke all on function public.auto_match_scheduled_sweep() from public;
+revoke all on function public.auto_match_scheduled_sweep() from anon;
+revoke all on function public.auto_match_scheduled_sweep() from authenticated;
+grant execute on function public.auto_match_scheduled_sweep() to service_role;
+
+revoke all on function public.backfill_auto_match_proposal_members(bigint) from public;
+revoke all on function public.backfill_auto_match_proposal_members(bigint) from anon;
+revoke all on function public.backfill_auto_match_proposal_members(bigint) from authenticated;
+grant execute on function public.backfill_auto_match_proposal_members(bigint) to service_role;
+
+revoke all on function public.expire_stale_auto_match_invites() from public;
+revoke all on function public.expire_stale_auto_match_invites() from anon;
+revoke all on function public.expire_stale_auto_match_invites() from authenticated;
+grant execute on function public.expire_stale_auto_match_invites() to service_role;
+
+revoke all on function public.expire_stale_auto_match_proposals() from public;
+revoke all on function public.expire_stale_auto_match_proposals() from anon;
+revoke all on function public.expire_stale_auto_match_proposals() from authenticated;
+grant execute on function public.expire_stale_auto_match_proposals() to service_role;
+
+revoke all on function public.expire_stale_directed_challenges() from public;
+revoke all on function public.expire_stale_directed_challenges() from anon;
+revoke all on function public.expire_stale_directed_challenges() from authenticated;
+grant execute on function public.expire_stale_directed_challenges() to service_role;
+
+revoke all on function public.invite_auto_match_substitutes(bigint, integer, boolean) from public;
+revoke all on function public.invite_auto_match_substitutes(bigint, integer, boolean) from anon;
+revoke all on function public.invite_auto_match_substitutes(bigint, integer, boolean) from authenticated;
+grant execute on function public.invite_auto_match_substitutes(bigint, integer, boolean) to service_role;
+
+revoke all on function public.process_auto_match_member_exit(bigint) from public;
+revoke all on function public.process_auto_match_member_exit(bigint) from anon;
+revoke all on function public.process_auto_match_member_exit(bigint) from authenticated;
+grant execute on function public.process_auto_match_member_exit(bigint) to service_role;
+
+revoke all on function public.process_challenge_result_survey_notifications_backend(integer) from public;
+revoke all on function public.process_challenge_result_survey_notifications_backend(integer) from anon;
+revoke all on function public.process_challenge_result_survey_notifications_backend(integer) from authenticated;
+grant execute on function public.process_challenge_result_survey_notifications_backend(integer) to service_role;
+
+revoke all on function public.process_match_reminder_notifications_backend(integer, integer) from public;
+revoke all on function public.process_match_reminder_notifications_backend(integer, integer) from anon;
+revoke all on function public.process_match_reminder_notifications_backend(integer, integer) from authenticated;
+grant execute on function public.process_match_reminder_notifications_backend(integer, integer) to service_role;
+
+revoke all on function public.process_survey_start_notifications_backend(integer, integer) from public;
+revoke all on function public.process_survey_start_notifications_backend(integer, integer) from anon;
+revoke all on function public.process_survey_start_notifications_backend(integer, integer) from authenticated;
+grant execute on function public.process_survey_start_notifications_backend(integer, integer) to service_role;
+
+revoke all on function public.prune_ineligible_auto_match_members() from public;
+revoke all on function public.prune_ineligible_auto_match_members() from anon;
+revoke all on function public.prune_ineligible_auto_match_members() from authenticated;
+grant execute on function public.prune_ineligible_auto_match_members() to service_role;
+
+revoke all on function public.reconcile_auto_match_proposal_members(bigint) from public;
+revoke all on function public.reconcile_auto_match_proposal_members(bigint) from anon;
+revoke all on function public.reconcile_auto_match_proposal_members(bigint) from authenticated;
+grant execute on function public.reconcile_auto_match_proposal_members(bigint) to service_role;
+
+revoke all on function public.reopen_auto_match_vacancies() from public;
+revoke all on function public.reopen_auto_match_vacancies() from anon;
+revoke all on function public.reopen_auto_match_vacancies() from authenticated;
+grant execute on function public.reopen_auto_match_vacancies() to service_role;
+
+revoke all on function public.resolve_auto_match_full_cupo(bigint) from public;
+revoke all on function public.resolve_auto_match_full_cupo(bigint) from anon;
+revoke all on function public.resolve_auto_match_full_cupo(bigint) from authenticated;
+grant execute on function public.resolve_auto_match_full_cupo(bigint) to service_role;
+
+revoke all on function public.spawn_next_auto_match_cohort(bigint) from public;
+revoke all on function public.spawn_next_auto_match_cohort(bigint) from anon;
+revoke all on function public.spawn_next_auto_match_cohort(bigint) from authenticated;
+grant execute on function public.spawn_next_auto_match_cohort(bigint) to service_role;
+
+revoke all on function public.accept_invite_for_user(text, uuid) from public;
+revoke all on function public.accept_invite_for_user(text, uuid) from anon;
+revoke all on function public.accept_invite_for_user(text, uuid) from authenticated;
+grant execute on function public.accept_invite_for_user(text, uuid) to service_role;
+
 -- Buckets are configuration rows in Supabase, so a schema-only pg_dump does
 -- not carry them. Multimedia Upload for Torneos intentionally remains off:
 -- there is no `tournament-media` bucket.

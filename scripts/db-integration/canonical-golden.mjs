@@ -7,7 +7,6 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const dbContainer = `supabase_db_${path.basename(root)}`;
 
 const statusResult = spawnSync('npx', ['supabase', 'status', '-o', 'env'], {
   cwd: root,
@@ -28,7 +27,23 @@ const localEnv = Object.fromEntries(
 
 const apiUrl = localEnv.API_URL;
 const anonKey = localEnv.ANON_KEY;
-if (!apiUrl || !anonKey) throw new Error('Supabase local no expuso API_URL/ANON_KEY.');
+const dbUrl = localEnv.DB_URL;
+if (!apiUrl || !anonKey || !dbUrl) {
+  throw new Error('Supabase local no expuso API_URL/ANON_KEY/DB_URL.');
+}
+
+const dbPort = new URL(dbUrl).port;
+const dbContainerResult = spawnSync(
+  'docker',
+  ['ps', '--filter', `publish=${dbPort}`, '--format', '{{.Names}}'],
+  { encoding: 'utf8' },
+);
+const dbContainer = dbContainerResult.stdout
+  .split('\n')
+  .find((name) => name.startsWith('supabase_db_'));
+if (!dbContainer) {
+  throw new Error(`No se encontró el contenedor Supabase DB publicado en ${dbPort}.`);
+}
 
 let checks = 0;
 let failures = 0;

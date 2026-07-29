@@ -2595,13 +2595,6 @@ export const rejectDirectedChallenge = async (challengeId) => {
 export const listMyDirectedChallenges = async (userId) => {
   assertAuthenticatedUser(userId);
 
-  // Barrido oportunista de vencidos (best-effort; nunca bloquea la carga).
-  try {
-    await supabase.rpc('expire_stale_directed_challenges');
-  } catch (_) {
-    // ignore: el cron también barre, y si falta el RPC seguimos igual.
-  }
-
   const myTeams = await listMyManageableTeams(userId).catch(() => []);
   const myTeamIds = (myTeams || []).map((team) => team?.id).filter(Boolean);
   const myTeamIdSet = new Set(myTeamIds.map((id) => String(id)));
@@ -2830,12 +2823,12 @@ export const completeChallenge = async ({ challengeId, scoreA, scoreB, playedAt 
   }
 
   try {
-    const bridgeResponse = await supabase.rpc('sync_team_match_to_partido', {
+    const bridgeResponse = await supabase.rpc('sync_team_match_to_partido_as_actor', {
       p_team_match_id: matchId,
     });
 
     if (bridgeResponse.error) {
-      if (!isMissingFunctionError(bridgeResponse.error, 'sync_team_match_to_partido')) {
+      if (!isMissingFunctionError(bridgeResponse.error, 'sync_team_match_to_partido_as_actor')) {
         logger.warn('[TEAM_CHALLENGES] sync_team_match_to_partido failed', {
           matchId,
           code: bridgeResponse.error.code,
@@ -2981,13 +2974,13 @@ export const getChallengeById = async (challengeId) => {
 const maybePrepareChallengeTeamSquad = async (challengeId, open = true) => {
   if (!challengeId) return null;
 
-  const response = await supabase.rpc('prepare_challenge_team_squad', {
+  const response = await supabase.rpc('prepare_challenge_team_squad_as_actor', {
     p_challenge_id: challengeId,
     p_open: Boolean(open),
   });
 
   if (response.error) {
-    if (isMissingFunctionError(response.error, 'prepare_challenge_team_squad')) {
+    if (isMissingFunctionError(response.error, 'prepare_challenge_team_squad_as_actor')) {
       return null;
     }
     throw new Error(response.error.message || 'No se pudo preparar la convocatoria del desafío');
@@ -3057,7 +3050,7 @@ export const listChallengeTeamSquad = async ({
     try {
       await maybePrepareChallengeTeamSquad(challengeId, true);
     } catch (error) {
-      if (!isMissingFunctionError(error, 'prepare_challenge_team_squad')) {
+      if (!isMissingFunctionError(error, 'prepare_challenge_team_squad_as_actor')) {
         throw error;
       }
     }
@@ -3553,12 +3546,12 @@ export const listMyTeamMatches = async (userId, options = {}) => {
       }
 
       try {
-        const bridgeResponse = await supabase.rpc('sync_team_match_to_partido', {
+        const bridgeResponse = await supabase.rpc('sync_team_match_to_partido_as_actor', {
           p_team_match_id: match.id,
         });
 
         if (bridgeResponse.error) {
-          if (!isMissingFunctionError(bridgeResponse.error, 'sync_team_match_to_partido')) {
+          if (!isMissingFunctionError(bridgeResponse.error, 'sync_team_match_to_partido_as_actor')) {
             logger.warn('[TEAM_CHALLENGES] listMyTeamMatches sync_team_match_to_partido failed', {
               matchId: match.id,
               code: bridgeResponse.error.code,
