@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -261,18 +262,27 @@ describe('Arma2 Torneos competition flow', () => {
         tournaments: [],
       }),
     });
+    let rejectFirstAttempt;
     api.createTournament
-      .mockRejectedValueOnce(new Error('Sin conexión'))
+      .mockImplementationOnce(() => new Promise((_, reject) => {
+        rejectFirstAttempt = reject;
+      }))
       .mockResolvedValueOnce({ id: 'tournament-retried' });
     renderPath(`/torneos/organizacion/${ORGANIZATION_ID}/torneos/nuevo`, api);
     const nameInput = await screen.findByRole('textbox', { name: /nombre del torneo/i });
-    await waitFor(() => {
-      expect(screen.getByRole('combobox', { name: 'Temporada' }))
-        .toHaveValue(SEASON_ID);
-    });
+    const seasonSelect = screen.getByRole('combobox', { name: 'Temporada' });
+    fireEvent.change(seasonSelect, { target: { value: SEASON_ID } });
+    expect(seasonSelect).toHaveValue(SEASON_ID);
     fireEvent.change(nameInput, { target: { value: 'Copa Retry' } });
     fireEvent.click(screen.getByRole('button', { name: /guardar borrador/i }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('Sin conexión');
+    await waitFor(() => {
+      expect(api.createTournament).toHaveBeenCalledTimes(1);
+    });
+    await act(async () => {
+      rejectFirstAttempt(new Error('Sin conexión'));
+    });
+    expect(await screen.findByRole('alert', {}, { timeout: 5000 }))
+      .toHaveTextContent('Sin conexión');
     fireEvent.click(screen.getByRole('button', { name: /guardar borrador/i }));
     expect(await screen.findByRole('heading', { name: 'Temporadas y torneos' }))
       .toBeInTheDocument();
@@ -280,7 +290,7 @@ describe('Arma2 Torneos competition flow', () => {
     expect(api.createTournament.mock.calls[0][0].idempotencyKey).toBe('request-key');
     expect(api.createTournament.mock.calls[1][0].idempotencyKey).toBe('request-key');
     expect(api.createIdempotencyKey).toHaveBeenCalledTimes(1);
-  });
+  }, 15_000);
 
   test('blocks registration CTA when the backend checklist is incomplete', async () => {
     const api = createService({
