@@ -86,6 +86,7 @@
     "test:db:authenticated-rpc-grants": "node scripts/db-integration/authenticated-rpc-grants.mjs",
     "test:security-advisor": "node --test scripts/security-advisor/response.test.mjs",
     "test:db:tournament-baseline": "node scripts/db-integration/canonical-tournament-baseline.mjs",
+    "test:db:migration-atomicity": "node --test scripts/db-integration/canonical-migration-atomicity.test.mjs",
     "eject": "react-scripts eject",
     "mobile:sync": "npm run build && npx cap sync",
     "android:sync": "npm run build && npx cap sync android",
