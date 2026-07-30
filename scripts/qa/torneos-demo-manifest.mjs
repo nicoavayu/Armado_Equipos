@@ -4,20 +4,18 @@ import {
   buildTorneosDemoDataset,
   stableUuid,
 } from './torneos-demo-dataset.mjs';
+import {
+  QAIdentityMap,
+  QA_IDENTITY_RELATIONS,
+  QA_IDENTITY_ROLES,
+} from './torneos-qa-identity-map.mjs';
 
 export const SEED_KEY = 'torneos-demo-v2';
 export const SEED_VERSION = 2;
 export const SEED_ORGANIZATION_SLUG = 'qa-metropolitana';
 export const FIXED_NOW = '2026-07-30T12:00:00.000Z';
 
-export const QA_USER_ROLES = Object.freeze([
-  'owner',
-  'admin',
-  'delegate',
-  'player',
-  'collaborator',
-  'outsider',
-]);
+export const QA_USER_ROLES = QA_IDENTITY_ROLES;
 
 const ROLE_DISPLAY_NAMES = Object.freeze({
   owner: 'QA Owner Torneos',
@@ -42,37 +40,17 @@ function canonicalJson(value) {
   return JSON.stringify(value);
 }
 
-export function qaUsers({ env = process.env, localDefaults = false } = {}) {
+function usersFromIdentityMap(identityMap) {
   return Object.fromEntries(QA_USER_ROLES.map((role) => {
-    const prefix = `QA_USER_${role.toUpperCase()}`;
-    const configuredId = String(env[`${prefix}_ID`] || '').trim();
-    const configuredEmail = String(env[`${prefix}_EMAIL`] || '').trim().toLowerCase();
-    const id = configuredId || (localDefaults ? stableUuid(`qa-user:${role}`) : null);
-    const email = configuredEmail || (localDefaults ? `qa-${role}@localhost.invalid` : null);
+    const identity = identityMap.get(role);
     return [role, {
       role,
-      id,
-      email,
+      id: identity.auth_user_id,
+      email: identity.expected_email,
       displayName: ROLE_DISPLAY_NAMES[role],
-      idVariable: `${prefix}_ID`,
-      emailVariable: `${prefix}_EMAIL`,
+      projectedRelations: identity.projected_relations,
     }];
   }));
-}
-
-export function assertQaUsersComplete(users) {
-  const missing = Object.values(users).flatMap((user) => [
-    ...(!user.id ? [user.idVariable] : []),
-    ...(!user.email ? [user.emailVariable] : []),
-  ]);
-  if (missing.length > 0) {
-    throw new Error(`Missing required QA identity variables: ${missing.join(', ')}`);
-  }
-  const ids = Object.values(users).map((user) => user.id);
-  const emails = Object.values(users).map((user) => user.email);
-  if (new Set(ids).size !== ids.length || new Set(emails).size !== emails.length) {
-    throw new Error('QA identity IDs and emails must be unique across all six roles.');
-  }
 }
 
 function table(name, identity, rows, naturalKeys = []) {
@@ -248,8 +226,7 @@ function buildCanonicalEvents(dataset, matchById, operationIdByMatch) {
   };
 }
 
-export function buildCanonicalManifest({ users = qaUsers({ localDefaults: true }) } = {}) {
-  assertQaUsersComplete(users);
+function buildManifestTemplate({ users }) {
   const dataset = buildTorneosDemoDataset();
   const owner = users.owner.id;
   const activeTournament = dataset.tournaments.find((item) => item.isPrimaryDataset);
@@ -1124,7 +1101,161 @@ export function buildCanonicalManifest({ users = qaUsers({ localDefaults: true }
   };
 }
 
-export function validateCanonicalManifest(manifest = buildCanonicalManifest()) {
+const PLACEHOLDER_USERS = Object.freeze(Object.fromEntries(QA_USER_ROLES.map((role) => [
+  role,
+  Object.freeze({
+    role,
+    id: stableUuid(`qa-identity-placeholder:${role}`),
+    email: `unresolved-${role}@qa.invalid`,
+    displayName: ROLE_DISPLAY_NAMES[role],
+    projectedRelations: QA_IDENTITY_RELATIONS[role],
+  }),
+])));
+
+function isSeedMarkerOperation(operation) {
+  return operation.table === 'tournament_audit_log'
+    && operation.rows.length === 1
+    && operation.rows[0].resource_type === 'qa_seed_execution';
+}
+
+function replaceIdentityPlaceholders(value, replacements) {
+  if (Array.isArray(value)) {
+    return value.map((entry) => replaceIdentityPlaceholders(entry, replacements));
+  }
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([key, entry]) => [
+      key,
+      replaceIdentityPlaceholders(entry, replacements),
+    ]));
+  }
+  return replacements.get(value) || value;
+}
+
+function manifestHashInput(operations) {
+  return operations.map((operation) => ({
+    table: operation.table,
+    identity: operation.identity,
+    rows: operation.rows,
+  }));
+}
+
+function ownershipFingerprint(operations) {
+  return sha256(canonicalJson(operations.map((operation) => ({
+    table: operation.table,
+    identities: operation.rows.map((row) => Object.fromEntries(
+      operation.identity.map((column) => [column, row[column]]),
+    )),
+  }))));
+}
+
+export function buildBaseManifest() {
+  const template = buildManifestTemplate({ users: PLACEHOLDER_USERS });
+  const operations = template.operations.filter((operation) => !isSeedMarkerOperation(operation));
+  return {
+    manifestKind: 'auth-independent-base',
+    seedKey: template.seedKey,
+    seedVersion: template.seedVersion,
+    datasetVersion: template.seedVersion,
+    baseManifestHash: sha256(canonicalJson(manifestHashInput(operations))),
+    organizationId: template.organizationId,
+    organizationSlug: template.organizationSlug,
+    organizationCreationKey: template.organizationCreationKey,
+    seedRegistryId: template.seedRegistryId,
+    activeTournamentId: template.activeTournamentId,
+    identityPlaceholders: Object.fromEntries(QA_USER_ROLES.map((role) => [
+      role,
+      PLACEHOLDER_USERS[role].id,
+    ])),
+    operations,
+    summary: template.summary,
+  };
+}
+
+export function resolveCanonicalManifest({
+  baseManifest = buildBaseManifest(),
+  identityMap,
+  createdAt = new Date().toISOString(),
+} = {}) {
+  const resolvedIdentityMap = identityMap instanceof QAIdentityMap
+    ? identityMap
+    : new QAIdentityMap(identityMap);
+  const replacements = new Map(QA_USER_ROLES.map((role) => [
+    baseManifest.identityPlaceholders[role],
+    resolvedIdentityMap.get(role).auth_user_id,
+  ]));
+  const operations = replaceIdentityPlaceholders(baseManifest.operations, replacements);
+  const users = usersFromIdentityMap(resolvedIdentityMap);
+  const manifestHash = sha256(canonicalJson(manifestHashInput(operations)));
+  const identityMapFingerprint = resolvedIdentityMap.fingerprint();
+  const rowOwnershipFingerprint = ownershipFingerprint(operations);
+  const expectedRowCount = operations.reduce((sum, operation) => sum + operation.rows.length, 0) + 1;
+  const expectedTableCount = new Set([
+    ...operations.map((operation) => operation.table),
+    'tournament_audit_log',
+  ]).size;
+  operations.push(table('tournament_audit_log', ['resource_type', 'resource_id', 'action'], [{
+    organization_id: baseManifest.organizationId,
+    actor_user_id: users.owner.id,
+    actor_type: 'user',
+    action: 'qa.seed.applied',
+    resource_type: 'qa_seed_execution',
+    resource_id: baseManifest.seedRegistryId,
+    team_entry_id: null,
+    tournament_id: baseManifest.activeTournamentId,
+    metadata: {
+      seed_key: baseManifest.seedKey,
+      manifest_hash: manifestHash,
+      dataset_version: baseManifest.datasetVersion,
+      identity_map_fingerprint: identityMapFingerprint,
+      created_at: createdAt,
+      creation_key: baseManifest.organizationCreationKey,
+      ownership_fingerprint: rowOwnershipFingerprint,
+      expected_row_count: expectedRowCount,
+      expected_table_count: expectedTableCount,
+      rollback_source: 'persistent-marker-and-resolved-manifest',
+    },
+    created_at: createdAt,
+  }]));
+  return {
+    ...baseManifest,
+    manifestKind: 'auth-resolved',
+    manifestHash,
+    identityMapFingerprint,
+    rowOwnershipFingerprint,
+    expectedRowCount,
+    expectedTableCount,
+    createdAt,
+    users,
+    identityReport: resolvedIdentityMap.report(),
+    operations,
+  };
+}
+
+export function buildCanonicalManifest({
+  identityMap,
+  createdAt = FIXED_NOW,
+} = {}) {
+  if (!identityMap) {
+    throw new Error('buildCanonicalManifest requires a resolved QAIdentityMap.');
+  }
+  return resolveCanonicalManifest({ identityMap, createdAt });
+}
+
+export function validateCanonicalManifest(manifest) {
+  if (!manifest || manifest.manifestKind !== 'auth-resolved') {
+    throw new Error('validateCanonicalManifest requires an Auth-resolved manifest.');
+  }
+  const rowCount = manifest.operations.reduce(
+    (sum, operation) => sum + operation.rows.length,
+    0,
+  );
+  const tableCount = new Set(manifest.operations.map((operation) => operation.table)).size;
+  if (rowCount !== 587 || tableCount !== 32) {
+    throw new Error(
+      `Resolved manifest contract changed: expected 587 rows/32 tables, got `
+      + `${rowCount} rows/${tableCount} tables.`,
+    );
+  }
   const byTable = new Map();
   manifest.operations.forEach((operation) => {
     byTable.set(operation.table, [
@@ -1241,6 +1372,6 @@ export function validateCanonicalManifest(manifest = buildCanonicalManifest()) {
   return {
     ...manifest.summary,
     manifestHash: manifest.manifestHash,
-    tables: new Set(manifest.operations.map((operation) => operation.table)).size,
+    tables: tableCount,
   };
 }

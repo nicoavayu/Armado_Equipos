@@ -1,15 +1,16 @@
 # Dataset QA real de Torneos
 
-Estado: implementado y probado contra Supabase local efímero. No ejecutado ni conectado a Staging o Production.
+Estado: seed implementado y probado contra Supabase local efímero; cleanup bloqueado de forma segura por guards canónicos activos. No ejecutado ni conectado a Staging o Production.
 
 ## Arquitectura
 
-El dataset `torneos-demo-v2` se compone de cuatro capas:
+El dataset `torneos-demo-v2` se compone de cinco capas:
 
 1. `torneos-demo-dataset.mjs`: casos semánticos determinísticos.
-2. `torneos-demo-manifest.mjs`: adaptación exclusiva a tablas canónicas, IDs UUID determinísticos, relaciones y validaciones de coherencia.
-3. `torneos-seed-db.mjs`: preflight, transacción serializable, advisory lock, inserciones sin upsert, idempotencia y rollback.
-4. CLIs separados para identidades, seed, cleanup y auditoría de catálogo.
+2. `buildBaseManifest()`: manifest determinístico independiente de Auth.
+3. `QAIdentityMap`: seis UUID reales, emails QA esperados, roles y relaciones proyectadas.
+4. `resolveCanonicalManifest()`: manifest final y hash sobre UUIDs reales.
+5. `torneos-seed-db.mjs`: preflight, SERIALIZABLE con retry `40001`, advisory lock, inserciones sin upsert, idempotencia y cleanup guardado.
 
 El dry-run offline es el default y no abre sockets. `--apply`, `--execute` y `--apply-remote` están bloqueados. Sólo `--apply-local` existe y exige target PostgreSQL loopback, `QA_SEED_ENV=local`, `QA_SEED_PROJECT_REF=local` y opt-in específico.
 
@@ -59,7 +60,7 @@ Las seis identidades son `owner`, `admin`, `delegate`, `player`, `collaborator` 
 - player: roster player Arma2.
 - outsider: perfil real sin membership, manager ni roster.
 
-`prepare-torneos-qa-users.mjs` crea identidades sólo en local, sin contraseña, y deja que el trigger canónico cree `public.usuarios`. En remoto sólo genera un plan: un administrador debe resolver/invitar emails fuera de Git y pasar IDs/emails por variables seguras. El código no acepta contraseñas, tokens o service-role keys para el plan remoto.
+`prepare-torneos-qa-users.mjs` usa `supabase.auth.admin.createUser` sólo contra Auth local y nunca envía un `id`; Supabase Auth genera los UUIDs. El trigger canónico debe crear `public.usuarios`. El mapa resultante puede persistirse en una ruta nueva ignorada por Git, modo `0600`. En remoto el script sólo genera un plan. El mapa rechaza contraseñas, tokens, service-role keys, roles incompletos y relaciones incompatibles.
 
 Auth es una transacción administrativa separada. Si falla el seed, esas identidades quedan preparadas, no parcialmente relacionadas. La compensación local opcional verifica `raw_app_meta_data.qa_seed_key`, ausencia total de relaciones y doble confirmación antes de eliminar perfil/Auth.
 
@@ -69,14 +70,14 @@ La prueba persistente de ownership combina:
 
 - `tournament_organizations.creation_key` determinística;
 - evento `tournament_audit_log` con `resource_type=qa_seed_execution`;
-- `seedKey`, versión y `manifestHash` persistidos en metadata;
+- `seed_key`, versión, hash resuelto, identity fingerprint y ownership fingerprint;
 - IDs determinísticos del manifest.
 
-No se usa upsert. Sin marker, cualquier colisión de ID, slug, creation key, idempotency key o natural key declarada rechaza la operación. Con marker exacto y las 587 identidades presentes, la reejecución devuelve `skip`. Marker distinto, duplicado o dataset parcial/tampered devuelve `reject`.
+No se usa upsert. Sin marker, cualquier colisión de ID, slug, creation key, idempotency key o natural key declarada rechaza la operación. Con marker exacto, mismo mapa y contenido exacto de las 587 filas, la reejecución devuelve `skip`. Un mapa distinto devuelve `identity_map_changed`; marker distinto, duplicado o dataset parcial/tampered devuelve `reject`.
 
 ## Transacción
 
-La materialización usa `BEGIN ISOLATION LEVEL SERIALIZABLE` y `pg_advisory_xact_lock(seed_key)`. Las operaciones de partido no-draft se insertan primero como draft, se cargan hijos mientras el historial es editable y se finalizan como `under_review`/`official` al final de la misma transacción. Un error revierte todo.
+La materialización usa `BEGIN ISOLATION LEVEL SERIALIZABLE` y `pg_advisory_xact_lock(seed_key)`. Reintenta como máximo tres veces, con backoff, únicamente SQLSTATE `40001`; validaciones, permisos, FKs y constraints no se reintentan. Las operaciones de partido no-draft se insertan primero como draft, se cargan hijos mientras el historial es editable y se finalizan como `under_review`/`official` al final de la misma transacción. Un error revierte todo.
 
 El fallo deliberado después de `tournament_matches` confirmó que no queda organización, marker ni fila determinística parcial.
 
@@ -88,9 +89,9 @@ El cleanup default es offline. El dry-run local comprueba marker, hash, creation
 - `QA_CONFIRM_SEED_KEY=torneos-demo-v2`;
 - `QA_CONFIRM_ORGANIZATION_SLUG=qa-metropolitana`.
 
-El historial oficial canónico es append-only. Por eso el cleanup, ejecutado como database owner, abre una ventana `session_replication_role=replica` únicamente dentro de la transacción, elimina identidades exactas en orden inverso, restaura `origin` y antes del commit verifica por catálogo que no quede ninguna fila con ese `organization_id`. Luego repite la verificación. El segundo rollback es un no-op seguro.
+El cleanup no usa `session_replication_role` ni deshabilita FKs/triggers. Verifica marker, fingerprints, contenido exacto y ausencia de filas ajenas, conserva el marker hasta el final y proyecta deletes inversos.
 
-Este bypass privilegiado es el principal riesgo pendiente para una futura habilitación remota: debe conservarse bloqueado hasta una autorización específica y ejecutarse con database owner, ventana exclusiva y backup.
+El esquema actual tiene guards append-only que rechazan esos deletes con triggers activos (`tournament_audit_append_only`, guards de historia de operaciones/hijos, eventos y reviews no-delete, standings revisions no-delete). El runner devuelve `active_append_only_cleanup_guards` antes de mutar. La solución exacta, que requiere una migración futura no incluida, está en `torneos-qa-auth-runbook.md`.
 
 ## Equipo ideal
 
@@ -132,9 +133,14 @@ export QA_SEED_ENV=local
 export QA_SEED_PROJECT_REF=local
 # Resolver DB_URL con `npx supabase status -o env` y exportarlo sólo en la shell.
 export QA_SEED_DATABASE_URL="<DB_URL local no versionada>"
+export QA_SUPABASE_URL="<API_URL loopback>"
+export QA_LOCAL_SERVICE_ROLE_KEY="<sólo en memoria>"
+export QA_IDENTITY_MAP_OUTPUT=".secrets/torneos-qa-identity-map.local.json"
 
 QA_ALLOW_LOCAL_USER_PREP=true \
   node scripts/qa/prepare-torneos-qa-users.mjs --apply-local
+
+export QA_IDENTITY_MAP_FILE=".secrets/torneos-qa-identity-map.local.json"
 
 QA_ALLOW_LOCAL_SEED=true \
   node scripts/qa/seed-torneos-demo.mjs --apply-local

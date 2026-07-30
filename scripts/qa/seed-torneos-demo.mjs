@@ -5,10 +5,13 @@ import { fileURLToPath } from 'node:url';
 
 import productionGuard from './production-guard.js';
 import {
+  buildBaseManifest,
   buildCanonicalManifest,
-  qaUsers,
+  resolveCanonicalManifest,
   validateCanonicalManifest,
 } from './torneos-demo-manifest.mjs';
+import { loadQAIdentityMap } from './torneos-qa-identity-map.mjs';
+import { QA_IDENTITY_ROLES } from './torneos-qa-identity-map.mjs';
 import {
   materializeManifest,
   offlinePlan,
@@ -23,15 +26,48 @@ const {
   assertSafeQaEnvironment,
 } = productionGuard;
 
-export function dryRun({ env = process.env } = {}) {
+export function dryRun({ env = process.env, identityMap } = {}) {
   assertSafeQaEnvironment(env);
-  const manifest = buildCanonicalManifest({
-    users: qaUsers({ env, localDefaults: true }),
+  if (!identityMap) {
+    throw new Error('dryRun requires an explicit QAIdentityMap.');
+  }
+  const manifest = resolveCanonicalManifest({
+    baseManifest: buildBaseManifest(),
+    identityMap,
   });
   return {
     ...offlinePlan(manifest),
     validation: validateCanonicalManifest(manifest),
   };
+}
+
+export function baseDryRun({ env = process.env } = {}) {
+  assertSafeQaEnvironment(env);
+  const manifest = buildBaseManifest();
+  return {
+    mode: 'offline-base-manifest',
+    connects: false,
+    writes: false,
+    resolved: false,
+    seedKey: manifest.seedKey,
+    datasetVersion: manifest.datasetVersion,
+    baseManifestHash: manifest.baseManifestHash,
+    rowsBeforeMarker: manifest.operations.reduce(
+      (sum, operation) => sum + operation.rows.length,
+      0,
+    ),
+    expectedResolvedRows: 587,
+    expectedTables: 32,
+    identityRoles: QA_IDENTITY_ROLES,
+    note: 'Load a QAIdentityMap to calculate the authorized resolved manifest hash.',
+  };
+}
+
+function hasIdentitySource(env) {
+  return Boolean(env.QA_IDENTITY_MAP_FILE) || QA_IDENTITY_ROLES.some((role) => (
+    env[`QA_IDENTITY_${role.toUpperCase()}_AUTH_USER_ID`]
+    || env[`QA_IDENTITY_${role.toUpperCase()}_EMAIL`]
+  ));
 }
 
 async function main() {
@@ -41,8 +77,9 @@ async function main() {
   }
   if (args.has('--remote-plan')) {
     const target = assertRemotePlanTarget(process.env);
+    const identityMap = await loadQAIdentityMap({ env: process.env });
     console.log(JSON.stringify({
-      ...dryRun(),
+      ...dryRun({ identityMap }),
       mode: target.mode,
       target,
       note: 'No connection was opened and no credential was accepted.',
@@ -54,9 +91,8 @@ async function main() {
     if (args.has('--apply-local') && process.env.QA_ALLOW_LOCAL_SEED !== 'true') {
       throw new Error('QA_ALLOW_LOCAL_SEED=true is required for local materialization.');
     }
-    const manifest = buildCanonicalManifest({
-      users: qaUsers({ env: process.env, localDefaults: true }),
-    });
+    const identityMap = await loadQAIdentityMap({ env: process.env });
+    const manifest = buildCanonicalManifest({ identityMap });
     validateCanonicalManifest(manifest);
     const result = await withDatabase(target.databaseUrl, async (client) => (
       args.has('--apply-local')
@@ -79,7 +115,12 @@ async function main() {
       'Unknown arguments. Use --dry-run, --remote-plan, --preflight-local, or --apply-local.',
     );
   }
-  console.log(JSON.stringify(dryRun(), null, 2));
+  if (!hasIdentitySource(process.env)) {
+    console.log(JSON.stringify(baseDryRun(), null, 2));
+    return;
+  }
+  const identityMap = await loadQAIdentityMap({ env: process.env });
+  console.log(JSON.stringify(dryRun({ identityMap }), null, 2));
 }
 
 const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];

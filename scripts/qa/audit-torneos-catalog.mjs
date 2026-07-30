@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 
 import productionGuard from './production-guard.js';
-import { buildCanonicalManifest } from './torneos-demo-manifest.mjs';
+import { buildBaseManifest } from './torneos-demo-manifest.mjs';
 
 const { assertLocalDatabaseTarget } = productionGuard;
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -109,7 +109,7 @@ function renderForeignKeyReport(allRows) {
     row.table_name.startsWith('tournament_')
     || row.table_name === 'user_tournament_context_preferences'
   ));
-  const manifestTables = new Set(buildCanonicalManifest().operations.map(
+  const manifestTables = new Set(buildBaseManifest().operations.map(
     (operation) => operation.table,
   ));
   manifestTables.add('tournament_groups');
