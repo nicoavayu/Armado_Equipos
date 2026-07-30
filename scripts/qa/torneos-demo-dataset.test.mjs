@@ -40,7 +40,12 @@ test('canonical manifest covers the requested QA edge cases', () => {
     events: 14,
     suspensions: 2,
     manifestHash: summary.manifestHash,
-    tables: 32,
+    counts: {
+      baseRows: 586,
+      markerRows: 1,
+      totalRows: 587,
+      tables: 32,
+    },
   });
 });
 

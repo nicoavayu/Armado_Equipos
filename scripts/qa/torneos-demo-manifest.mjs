@@ -1245,15 +1245,44 @@ export function validateCanonicalManifest(manifest) {
   if (!manifest || manifest.manifestKind !== 'auth-resolved') {
     throw new Error('validateCanonicalManifest requires an Auth-resolved manifest.');
   }
-  const rowCount = manifest.operations.reduce(
+  const totalRows = manifest.operations.reduce(
     (sum, operation) => sum + operation.rows.length,
     0,
   );
-  const tableCount = new Set(manifest.operations.map((operation) => operation.table)).size;
-  if (rowCount !== 587 || tableCount !== 32) {
+  const markerRows = manifest.operations.reduce((count, operation) => (
+    count + (
+      operation.table === 'tournament_audit_log'
+        ? operation.rows.filter((row) => row.resource_type === 'qa_seed_execution').length
+        : 0
+    )
+  ), 0);
+  const baseRows = totalRows - markerRows;
+  const tables = new Set(manifest.operations.map((operation) => operation.table)).size;
+  const counts = Object.freeze({
+    baseRows,
+    markerRows,
+    totalRows,
+    tables,
+  });
+  if (baseRows !== 586 || markerRows !== 1 || totalRows !== 587 || tables !== 32) {
     throw new Error(
-      `Resolved manifest contract changed: expected 587 rows/32 tables, got `
-      + `${rowCount} rows/${tableCount} tables.`,
+      'Resolved manifest contract changed: expected '
+      + '586 base rows + 1 marker = 587 total rows/32 tables, got '
+      + `${baseRows} base rows + ${markerRows} marker = ${totalRows} total rows/`
+      + `${tables} tables.`,
+    );
+  }
+  if (!Object.hasOwn(manifest, 'expectedRowCount')) {
+    throw new Error('Resolved manifest contract is missing expectedRowCount.');
+  }
+  if (!Object.hasOwn(manifest, 'expectedTableCount')) {
+    throw new Error('Resolved manifest contract is missing expectedTableCount.');
+  }
+  if (manifest.expectedRowCount !== totalRows || manifest.expectedTableCount !== tables) {
+    throw new Error(
+      'Resolved manifest declared counts do not match validated counts: '
+      + `${manifest.expectedRowCount} rows/${manifest.expectedTableCount} tables declared, `
+      + `${totalRows} rows/${tables} tables validated.`,
     );
   }
   const byTable = new Map();
@@ -1372,6 +1401,6 @@ export function validateCanonicalManifest(manifest) {
   return {
     ...manifest.summary,
     manifestHash: manifest.manifestHash,
-    tables: tableCount,
+    counts,
   };
 }

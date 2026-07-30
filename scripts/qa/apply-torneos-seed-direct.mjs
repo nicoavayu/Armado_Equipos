@@ -2,6 +2,7 @@
 
 import process from 'node:process';
 import { createInterface } from 'node:readline/promises';
+import { fileURLToPath } from 'node:url';
 
 import pg from 'pg';
 
@@ -18,7 +19,9 @@ const AUTHORIZED = Object.freeze({
   manifestHash: '48b413d1c6673ad96d3ce5bb30fecc89bd2c432b465a00447eb6f2cb51befb2f',
   identityMapFingerprint: '77d95cb8caee567de1e8275b81c1e8c850eb59dcf6025504cab93c634ff3657c',
   ownershipFingerprint: '9375b59f2f908aec4b0d5b32b79514491e2ebbd648c4d9e7c245064c772ebe8d',
-  rows: 587,
+  baseRows: 586,
+  markerRows: 1,
+  totalRows: 587,
   tables: 32,
 });
 
@@ -102,16 +105,67 @@ function validatedConnection(rawConnectionString) {
   };
 }
 
-function assertAuthorizedManifest(manifest, validation) {
-  const matches = manifest.seedKey === AUTHORIZED.seedKey
-    && manifest.manifestHash === AUTHORIZED.manifestHash
-    && manifest.identityMapFingerprint === AUTHORIZED.identityMapFingerprint
-    && manifest.rowOwnershipFingerprint === AUTHORIZED.ownershipFingerprint
-    && manifest.expectedRowCount === AUTHORIZED.rows
-    && manifest.expectedTableCount === AUTHORIZED.tables
-    && validation.rows === AUTHORIZED.rows
-    && validation.tables === AUTHORIZED.tables;
-  if (!matches) throw new Error('Resolved manifest does not match the remote authorization.');
+function requiredProperty(object, property, label) {
+  if (!object || !Object.hasOwn(object, property)) {
+    throw new Error(`Resolved manifest validation is missing ${label}.`);
+  }
+  return object[property];
+}
+
+function assertExact(label, actual, expected) {
+  if (actual !== expected) {
+    throw new Error(
+      `Resolved manifest ${label} does not match the remote authorization: `
+      + `expected ${expected}, got ${actual}.`,
+    );
+  }
+}
+
+export function assertAuthorizedManifest(
+  manifest,
+  validation,
+  authorization = AUTHORIZED,
+) {
+  const counts = requiredProperty(validation, 'counts', 'validation.counts');
+  const baseRows = requiredProperty(counts, 'baseRows', 'validation.counts.baseRows');
+  const markerRows = requiredProperty(counts, 'markerRows', 'validation.counts.markerRows');
+  const totalRows = requiredProperty(counts, 'totalRows', 'validation.counts.totalRows');
+  const tables = requiredProperty(counts, 'tables', 'validation.counts.tables');
+  const expectedRowCount = requiredProperty(
+    manifest,
+    'expectedRowCount',
+    'manifest.expectedRowCount',
+  );
+  const expectedTableCount = requiredProperty(
+    manifest,
+    'expectedTableCount',
+    'manifest.expectedTableCount',
+  );
+
+  assertExact('seed key', manifest.seedKey, authorization.seedKey);
+  assertExact('manifest hash', manifest.manifestHash, authorization.manifestHash);
+  assertExact(
+    'identity-map fingerprint',
+    manifest.identityMapFingerprint,
+    authorization.identityMapFingerprint,
+  );
+  assertExact(
+    'ownership fingerprint',
+    manifest.rowOwnershipFingerprint,
+    authorization.ownershipFingerprint,
+  );
+  assertExact('validated base-row count', baseRows, authorization.baseRows);
+  assertExact('validated marker count', markerRows, authorization.markerRows);
+  assertExact('validated total-row count', totalRows, authorization.totalRows);
+  assertExact('validated table count', tables, authorization.tables);
+  assertExact('declared total-row count', expectedRowCount, totalRows);
+  assertExact('declared table count', expectedTableCount, tables);
+}
+
+export function validateRunnerPreflight(manifest, authorization = AUTHORIZED) {
+  const validation = validateCanonicalManifest(manifest);
+  assertAuthorizedManifest(manifest, validation, authorization);
+  return validation;
 }
 
 function safeError(error) {
@@ -143,8 +197,7 @@ async function main() {
     },
   });
   const manifest = buildCanonicalManifest({ identityMap });
-  const validation = validateCanonicalManifest(manifest);
-  assertAuthorizedManifest(manifest, validation);
+  validateRunnerPreflight(manifest);
 
   const rawConnectionString = await readHiddenLine(
     'Pegá la connection string de Staging (entrada oculta): ',
@@ -215,7 +268,10 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(JSON.stringify({ error: safeError(error) }, null, 2));
-  process.exitCode = 1;
-});
+const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
+if (isMain) {
+  main().catch((error) => {
+    console.error(JSON.stringify({ error: safeError(error) }, null, 2));
+    process.exitCode = 1;
+  });
+}
