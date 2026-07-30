@@ -1,8 +1,27 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import {
+  mkdtemp,
+  readFile,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
+import net from 'node:net';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import test from 'node:test';
+import tls from 'node:tls';
+
+import pg from 'pg';
 
 import {
   assertAuthorizedManifest,
+  assertStrictPgConfiguration,
+  buildStrictPgConfiguration,
+  loadStrictDatabaseCA,
+  parseRunnerArguments,
+  safeError,
+  validatedConnection,
   validateRunnerPreflight,
 } from './apply-torneos-seed-direct.mjs';
 import {
@@ -44,6 +63,19 @@ function fixture() {
   };
 }
 
+function databaseURL({
+  hostname,
+  username = 'postgres',
+  port = 5432,
+  sslmode = null,
+}) {
+  const url = new URL(`postgresql://${hostname}:${port}/postgres`);
+  url.username = username;
+  url.password = 'local-only';
+  if (sslmode !== null) url.searchParams.set('sslmode', sslmode);
+  return url.toString();
+}
+
 function manifestWithRowDelta(manifest, delta) {
   const changed = structuredClone(manifest);
   const operation = changed.operations.find((item) => (
@@ -71,6 +103,184 @@ function manifestWithTableCount(manifest, tables) {
     naturalKeys: [],
   });
   return changed;
+}
+
+function runOpenSSL(args, cwd) {
+  const result = spawnSync('openssl', args, {
+    cwd,
+    encoding: 'utf8',
+  });
+  assert.equal(
+    result.status,
+    0,
+    result.stderr || result.stdout || `openssl ${args[0]} failed`,
+  );
+}
+
+async function createTLSFixture(hostname) {
+  const directory = await mkdtemp(join(tmpdir(), 'torneos-direct-tls-'));
+  const caKey = join(directory, 'ca.key');
+  const caCert = join(directory, 'ca.crt');
+  const serverKey = join(directory, 'server.key');
+  const serverCsr = join(directory, 'server.csr');
+  const serverCert = join(directory, 'server.crt');
+  const extensions = join(directory, 'server.ext');
+  runOpenSSL([
+    'req',
+    '-x509',
+    '-newkey',
+    'rsa:2048',
+    '-nodes',
+    '-sha256',
+    '-days',
+    '1',
+    '-subj',
+    '/CN=Arma2 QA ephemeral root',
+    '-addext',
+    'basicConstraints=critical,CA:TRUE',
+    '-addext',
+    'keyUsage=critical,keyCertSign,cRLSign',
+    '-keyout',
+    caKey,
+    '-out',
+    caCert,
+  ], directory);
+  runOpenSSL([
+    'req',
+    '-newkey',
+    'rsa:2048',
+    '-nodes',
+    '-sha256',
+    '-subj',
+    `/CN=${hostname}`,
+    '-keyout',
+    serverKey,
+    '-out',
+    serverCsr,
+  ], directory);
+  await writeFile(
+    extensions,
+    `subjectAltName=DNS:${hostname}\nbasicConstraints=critical,CA:FALSE\n`,
+    { mode: 0o600 },
+  );
+  runOpenSSL([
+    'x509',
+    '-req',
+    '-in',
+    serverCsr,
+    '-CA',
+    caCert,
+    '-CAkey',
+    caKey,
+    '-CAcreateserial',
+    '-days',
+    '1',
+    '-sha256',
+    '-extfile',
+    extensions,
+    '-out',
+    serverCert,
+  ], directory);
+  return {
+    directory,
+    ca: await readFile(caCert, 'utf8'),
+    caCert,
+    key: await readFile(serverKey, 'utf8'),
+    cert: await readFile(serverCert, 'utf8'),
+  };
+}
+
+async function startPostgresTLSServer({ key, cert }) {
+  const secureContext = tls.createSecureContext({ key, cert });
+  const state = {
+    sslRequests: 0,
+    tlsConnections: 0,
+    applicationBytes: 0,
+    startupMessages: 0,
+    queryMessages: 0,
+  };
+  const sockets = new Set();
+  const server = net.createServer((socket) => {
+    sockets.add(socket);
+    socket.on('close', () => sockets.delete(socket));
+    socket.once('data', (request) => {
+      if (
+        request.length !== 8
+        || request.readInt32BE(0) !== 8
+        || request.readInt32BE(4) !== 80877103
+      ) {
+        socket.destroy(new Error('Unexpected PostgreSQL SSL request.'));
+        return;
+      }
+      state.sslRequests += 1;
+      socket.write('S', () => {
+        const secureSocket = new tls.TLSSocket(socket, {
+          isServer: true,
+          secureContext,
+        });
+        secureSocket.once('secure', () => {
+          state.tlsConnections += 1;
+        });
+        let pending = Buffer.alloc(0);
+        let startupComplete = false;
+        secureSocket.on('data', (chunk) => {
+          state.applicationBytes += chunk.length;
+          pending = Buffer.concat([pending, chunk]);
+          if (!startupComplete && pending.length >= 4) {
+            const startupLength = pending.readInt32BE(0);
+            if (pending.length >= startupLength) {
+              startupComplete = true;
+              state.startupMessages += 1;
+              pending = pending.subarray(startupLength);
+              const authenticationOK = Buffer.alloc(9);
+              authenticationOK.write('R', 0);
+              authenticationOK.writeInt32BE(8, 1);
+              authenticationOK.writeInt32BE(0, 5);
+              const readyForQuery = Buffer.alloc(6);
+              readyForQuery.write('Z', 0);
+              readyForQuery.writeInt32BE(5, 1);
+              readyForQuery.write('I', 5);
+              secureSocket.write(Buffer.concat([authenticationOK, readyForQuery]));
+            }
+          }
+          while (startupComplete && pending.length >= 5) {
+            const messageLength = pending.readInt32BE(1);
+            const frameLength = messageLength + 1;
+            if (pending.length < frameLength) break;
+            if (pending.toString('utf8', 0, 1) === 'Q') {
+              state.queryMessages += 1;
+            }
+            pending = pending.subarray(frameLength);
+          }
+        });
+        secureSocket.on('error', () => {});
+      });
+    });
+  });
+  await new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', resolve);
+  });
+  return {
+    port: server.address().port,
+    state,
+    async close() {
+      for (const socket of sockets) socket.destroy();
+      await new Promise((resolve) => server.close(resolve));
+    },
+  };
+}
+
+function pgClientForLocalTLSServer(config, port) {
+  return new pg.Client({
+    ...config,
+    stream: () => {
+      const socket = new net.Socket();
+      const connect = socket.connect.bind(socket);
+      socket.connect = () => connect({ host: '127.0.0.1', port });
+      return socket;
+    },
+  });
 }
 
 test('direct runner preflight accepts only the exact validated manifest contract', () => {
@@ -148,4 +358,183 @@ test('direct runner preflight requires exactly one seed marker', () => {
     () => validateRunnerPreflight(changed, authorization),
     /0 marker/,
   );
+});
+
+test('strict TLS accepts a valid untracked CA and builds verify-full pg configuration', async (t) => {
+  const hostname = 'db.hhyvmhgpapyuzjgxfnqv.supabase.co';
+  const fixture = await createTLSFixture(hostname);
+  t.after(() => rm(fixture.directory, { recursive: true, force: true }));
+  const ca = await loadStrictDatabaseCA(fixture.caCert);
+  const target = validatedConnection(databaseURL({ hostname }));
+  const config = buildStrictPgConfiguration(target, ca);
+  assert.equal(config.connectionString, undefined);
+  assert.equal(config.ssl.rejectUnauthorized, true);
+  assert.equal(config.ssl.ca, ca);
+  assert.equal(config.ssl.servername, hostname);
+  assert.equal(config.ssl.checkServerIdentity, tls.checkServerIdentity);
+  assert.equal(assertStrictPgConfiguration(config, target), config);
+});
+
+test('strict TLS rejects a missing CA before a client can be created', async () => {
+  await assert.rejects(
+    () => loadStrictDatabaseCA(join(tmpdir(), 'torneos-ca-does-not-exist.crt')),
+    /missing or inaccessible/,
+  );
+});
+
+test('strict TLS rejects an invalid PEM file', async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), 'torneos-invalid-ca-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const filePath = join(directory, 'invalid.crt');
+  await writeFile(filePath, 'not a certificate\n', { mode: 0o600 });
+  await assert.rejects(
+    () => loadStrictDatabaseCA(filePath),
+    /valid PEM certificates/,
+  );
+});
+
+test('strict TLS rejects a CA file inside Git unless the path is ignored', async (t) => {
+  const hostname = 'db.hhyvmhgpapyuzjgxfnqv.supabase.co';
+  const fixture = await createTLSFixture(hostname);
+  const unignoredPath = join(
+    process.cwd(),
+    `torneos-unignored-ca-${process.pid}.crt`,
+  );
+  const ignoredPath = join(
+    process.cwd(),
+    `torneos-ignored-ca-${process.pid}.local`,
+  );
+  t.after(async () => {
+    await rm(unignoredPath, { force: true });
+    await rm(ignoredPath, { force: true });
+    await rm(fixture.directory, { recursive: true, force: true });
+  });
+  await writeFile(unignoredPath, fixture.ca, { mode: 0o600 });
+  await assert.rejects(
+    () => loadStrictDatabaseCA(unignoredPath),
+    /must be untracked and Git-ignored/,
+  );
+  await writeFile(ignoredPath, fixture.ca, { mode: 0o600 });
+  assert.equal(await loadStrictDatabaseCA(ignoredPath), fixture.ca);
+});
+
+test('strict TLS rejects any rejectUnauthorized value other than true', async (t) => {
+  const hostname = 'db.hhyvmhgpapyuzjgxfnqv.supabase.co';
+  const fixture = await createTLSFixture(hostname);
+  t.after(() => rm(fixture.directory, { recursive: true, force: true }));
+  const target = validatedConnection(databaseURL({ hostname }));
+  const config = buildStrictPgConfiguration(target, fixture.ca);
+  config.ssl.rejectUnauthorized = false;
+  assert.throws(
+    () => assertStrictPgConfiguration(config, target),
+    /Strict PostgreSQL TLS configuration is required/,
+  );
+});
+
+test('connection validation rejects sslmode overrides, port 6543 and foreign hosts', () => {
+  const hostname = 'db.hhyvmhgpapyuzjgxfnqv.supabase.co';
+  assert.throws(
+    () => validatedConnection(databaseURL({ hostname, sslmode: 'no-verify' })),
+    /TLS parameters/,
+  );
+  assert.throws(
+    () => validatedConnection(databaseURL({
+      hostname: 'aws-0-us-east-1.pooler.supabase.com',
+      username: 'postgres.hhyvmhgpapyuzjgxfnqv',
+      port: 6543,
+    })),
+    /port-5432 session pooler/,
+  );
+  assert.throws(
+    () => validatedConnection(databaseURL({
+      hostname: 'db.aaaaaaaaaaaaaaaaaaaa.supabase.co',
+    })),
+    /authorized direct endpoint/,
+  );
+  const sessionPooler = validatedConnection(databaseURL({
+    hostname: 'aws-0-us-east-1.pooler.supabase.com',
+    username: 'postgres.hhyvmhgpapyuzjgxfnqv',
+  }));
+  assert.equal(sessionPooler.connectionMode, 'session-pooler');
+  assert.equal(sessionPooler.port, 5432);
+});
+
+test('runner rejects process-wide TLS verification disablement', () => {
+  assert.throws(
+    () => parseRunnerArguments(
+      ['--execute', '--ca-cert', '/tmp/local-ca.crt'],
+      { NODE_TLS_REJECT_UNAUTHORIZED: '0' },
+    ),
+    /NODE_TLS_REJECT_UNAUTHORIZED=0 is forbidden/,
+  );
+});
+
+test('runner completes manifest validation before reading the CA or credentials', async (t) => {
+  const invalidIdentityMap = join(
+    process.cwd(),
+    `torneos-invalid-identity-${process.pid}.local`,
+  );
+  t.after(() => rm(invalidIdentityMap, { force: true }));
+  await writeFile(invalidIdentityMap, '{}\n', { mode: 0o600 });
+  const result = spawnSync(
+    process.execPath,
+    [
+      'scripts/qa/apply-torneos-seed-direct.mjs',
+      '--execute',
+      '--ca-cert',
+      join(tmpdir(), 'torneos-ca-must-not-be-read.crt'),
+    ],
+    {
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        QA_IDENTITY_MAP_FILE: invalidIdentityMap,
+        NODE_TLS_REJECT_UNAUTHORIZED: '',
+      },
+      encoding: 'utf8',
+    },
+  );
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /QAIdentityMap roles mismatch/);
+  assert.doesNotMatch(result.stderr, /database CA certificate file is missing/);
+});
+
+test('ephemeral PostgreSQL TLS handshake trusts only the configured CA and sends zero SQL on rejection', async (t) => {
+  const hostname = 'db.hhyvmhgpapyuzjgxfnqv.supabase.co';
+  const trusted = await createTLSFixture(hostname);
+  const untrusted = await createTLSFixture(hostname);
+  const server = await startPostgresTLSServer(trusted);
+  t.after(async () => {
+    await server.close();
+    await rm(trusted.directory, { recursive: true, force: true });
+    await rm(untrusted.directory, { recursive: true, force: true });
+  });
+
+  const target = validatedConnection(databaseURL({ hostname }));
+  const trustedClient = pgClientForLocalTLSServer(
+    buildStrictPgConfiguration(target, trusted.ca),
+    server.port,
+  );
+  await trustedClient.connect();
+  assert.equal(trustedClient.connection.stream.authorized, true);
+  await trustedClient.end();
+
+  const untrustedClient = pgClientForLocalTLSServer(
+    buildStrictPgConfiguration(target, untrusted.ca),
+    server.port,
+  );
+  await assert.rejects(
+    () => untrustedClient.connect(),
+    (error) => {
+      const visible = safeError(error);
+      assert.match(
+        visible.message,
+        /certificate|issuer|self[- ]signed|unable to verify/i,
+      );
+      return true;
+    },
+  );
+  assert.equal(server.state.sslRequests, 2);
+  assert.equal(server.state.startupMessages, 1);
+  assert.equal(server.state.queryMessages, 0);
 });

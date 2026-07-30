@@ -1,7 +1,22 @@
 #!/usr/bin/env node
 
+import { X509Certificate } from 'node:crypto';
+import {
+  lstat,
+  readFile,
+  realpath,
+} from 'node:fs/promises';
+import {
+  dirname,
+  isAbsolute,
+  relative,
+  resolve,
+  sep,
+} from 'node:path';
 import process from 'node:process';
 import { createInterface } from 'node:readline/promises';
+import { spawnSync } from 'node:child_process';
+import { checkServerIdentity } from 'node:tls';
 import { fileURLToPath } from 'node:url';
 
 import pg from 'pg';
@@ -64,7 +79,138 @@ function readHiddenLine(prompt) {
   });
 }
 
-function validatedConnection(rawConnectionString) {
+function isPathWithin(parent, candidate) {
+  const pathFromParent = relative(parent, candidate);
+  return pathFromParent === ''
+    || (!pathFromParent.startsWith(`..${sep}`) && !isAbsolute(pathFromParent));
+}
+
+function gitOutput(args, cwd) {
+  return spawnSync('git', args, {
+    cwd,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'ignore'],
+  });
+}
+
+function certificateBlocks(pem) {
+  const pattern = /-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/g;
+  const blocks = [...pem.matchAll(pattern)].map((match) => match[0]);
+  const remainder = pem.replace(pattern, '').trim();
+  if (blocks.length === 0 || remainder) {
+    throw new Error('The database CA file must contain only valid PEM certificates.');
+  }
+  try {
+    const certificates = blocks.map((block) => new X509Certificate(block));
+    if (!certificates.every((certificate) => certificate.ca === true)) {
+      throw new Error('not a certificate authority');
+    }
+  } catch {
+    throw new Error('The database CA file does not contain a valid CA certificate.');
+  }
+  return `${blocks.join('\n')}\n`;
+}
+
+export function parseRunnerArguments(args, env = process.env) {
+  if (env.NODE_TLS_REJECT_UNAUTHORIZED === '0') {
+    throw new Error('NODE_TLS_REJECT_UNAUTHORIZED=0 is forbidden.');
+  }
+  let execute = false;
+  let argumentCAPath = null;
+  for (let index = 0; index < args.length; index += 1) {
+    const argument = args[index];
+    if (argument === '--execute' && !execute) {
+      execute = true;
+      continue;
+    }
+    if (argument === '--ca-cert' && argumentCAPath === null) {
+      argumentCAPath = args[index + 1] || null;
+      index += 1;
+      continue;
+    }
+    if (argument.startsWith('--ca-cert=') && argumentCAPath === null) {
+      argumentCAPath = argument.slice('--ca-cert='.length) || null;
+      continue;
+    }
+    throw new Error('Unsupported or repeated runner argument.');
+  }
+  const environmentCAPath = env.SUPABASE_DB_CA_CERT_PATH || null;
+  if (
+    argumentCAPath
+    && environmentCAPath
+    && resolve(argumentCAPath) !== resolve(environmentCAPath)
+  ) {
+    throw new Error('Choose exactly one database CA certificate path.');
+  }
+  return {
+    execute,
+    caCertPath: argumentCAPath || environmentCAPath,
+  };
+}
+
+export async function loadStrictDatabaseCA(filePath, { cwd = process.cwd() } = {}) {
+  if (!filePath) {
+    throw new Error(
+      'A local Supabase database CA certificate is required via --ca-cert '
+      + 'or SUPABASE_DB_CA_CERT_PATH.',
+    );
+  }
+  const requestedPath = resolve(cwd, filePath);
+  let fileStats;
+  try {
+    fileStats = await lstat(requestedPath);
+  } catch {
+    throw new Error('The database CA certificate file is missing or inaccessible.');
+  }
+  if (!fileStats.isFile() || fileStats.isSymbolicLink()) {
+    throw new Error('The database CA certificate path must be a regular file.');
+  }
+
+  const absolutePath = await realpath(requestedPath);
+  const certificateDirectory = dirname(absolutePath);
+  const repository = gitOutput(
+    ['rev-parse', '--show-toplevel'],
+    certificateDirectory,
+  );
+  if (repository.status === 0) {
+    const repositoryRoot = await realpath(repository.stdout.trim());
+    if (isPathWithin(repositoryRoot, absolutePath)) {
+      const repositoryPath = relative(repositoryRoot, absolutePath);
+      const tracked = gitOutput(
+        ['ls-files', '--error-unmatch', '--', repositoryPath],
+        repositoryRoot,
+      );
+      const ignored = gitOutput(
+        ['check-ignore', '--quiet', '--', repositoryPath],
+        repositoryRoot,
+      );
+      if (tracked.status === 0 || ignored.status !== 0) {
+        throw new Error(
+          'A database CA certificate inside the repository must be untracked and Git-ignored.',
+        );
+      }
+    }
+  }
+
+  let pem;
+  try {
+    pem = await readFile(absolutePath, 'utf8');
+  } catch {
+    throw new Error('The database CA certificate file is unreadable.');
+  }
+  return certificateBlocks(pem);
+}
+
+function hasTLSConnectionParameter(url) {
+  return [...url.searchParams.keys()].some((key) => {
+    const normalized = key.toLowerCase();
+    return normalized.startsWith('ssl')
+      || normalized.startsWith('tls')
+      || normalized === 'rejectunauthorized';
+  });
+}
+
+export function validatedConnection(rawConnectionString) {
   let url;
   try {
     url = new URL(rawConnectionString);
@@ -80,8 +226,15 @@ function validatedConnection(rawConnectionString) {
   if (url.pathname !== '/postgres') {
     throw new Error('The database name must be postgres.');
   }
+  if (url.hash || hasTLSConnectionParameter(url)) {
+    throw new Error(
+      'TLS parameters and fragments are forbidden in the connection string; '
+      + 'the runner owns the complete TLS configuration.',
+    );
+  }
 
   const username = decodeURIComponent(url.username);
+  const password = decodeURIComponent(url.password);
   const directHost = `db.${AUTHORIZED.projectRef}.supabase.co`;
   const isDirect = url.hostname === directHost
     && (url.port || '5432') === '5432'
@@ -98,11 +251,58 @@ function validatedConnection(rawConnectionString) {
     throw new Error('Transaction-pooler port 6543 is forbidden for this session workflow.');
   }
 
-  url.searchParams.delete('sslmode');
   return {
-    connectionString: url.toString(),
+    hostname: url.hostname,
+    port: Number(url.port || '5432'),
+    database: 'postgres',
+    username,
+    password,
     connectionMode: isDirect ? 'direct' : 'session-pooler',
   };
+}
+
+export function assertStrictPgConfiguration(config, target) {
+  if (
+    config.connectionString !== undefined
+    || config.host !== target.hostname
+    || config.port !== target.port
+    || config.database !== target.database
+    || config.user !== target.username
+    || config.password !== target.password
+  ) {
+    throw new Error('PostgreSQL connection fields do not match the validated target.');
+  }
+  if (
+    !config.ssl
+    || config.ssl.rejectUnauthorized !== true
+    || typeof config.ssl.ca !== 'string'
+    || config.ssl.ca.length === 0
+    || config.ssl.servername !== target.hostname
+    || config.ssl.checkServerIdentity !== checkServerIdentity
+  ) {
+    throw new Error('Strict PostgreSQL TLS configuration is required.');
+  }
+  return config;
+}
+
+export function buildStrictPgConfiguration(target, ca) {
+  const config = {
+    host: target.hostname,
+    port: target.port,
+    database: target.database,
+    user: target.username,
+    password: target.password,
+    ssl: {
+      rejectUnauthorized: true,
+      ca,
+      servername: target.hostname,
+      checkServerIdentity,
+    },
+    application_name: 'arma2_torneos_qa_seed_direct',
+    connectionTimeoutMillis: 15_000,
+    keepAlive: true,
+  };
+  return assertStrictPgConfiguration(config, target);
 }
 
 function requiredProperty(object, property, label) {
@@ -168,7 +368,7 @@ export function validateRunnerPreflight(manifest, authorization = AUTHORIZED) {
   return validation;
 }
 
-function safeError(error) {
+export function safeError(error) {
   return {
     name: error?.name || 'Error',
     message: error?.message || 'Unknown error',
@@ -185,8 +385,12 @@ function safeError(error) {
 }
 
 async function main() {
-  if (process.argv.length !== 3 || process.argv[2] !== '--execute') {
-    throw new Error('Prepared only. Pass --execute after a separate remote-write authorization.');
+  const options = parseRunnerArguments(process.argv.slice(2));
+  if (!options.execute) {
+    throw new Error(
+      'Prepared only. Pass --execute and a local Supabase CA certificate '
+      + 'after a separate remote-write authorization.',
+    );
   }
 
   const identityMap = await loadQAIdentityMap({
@@ -199,6 +403,7 @@ async function main() {
   const manifest = buildCanonicalManifest({ identityMap });
   validateRunnerPreflight(manifest);
 
+  const databaseCA = await loadStrictDatabaseCA(options.caCertPath);
   const rawConnectionString = await readHiddenLine(
     'Pegá la connection string de Staging (entrada oculta): ',
   );
@@ -213,13 +418,7 @@ async function main() {
     throw new Error('Execution confirmation did not match.');
   }
 
-  const client = new pg.Client({
-    connectionString: target.connectionString,
-    ssl: { rejectUnauthorized: true },
-    application_name: 'arma2_torneos_qa_seed_direct',
-    connectionTimeoutMillis: 15_000,
-    keepAlive: true,
-  });
+  const client = new pg.Client(buildStrictPgConfiguration(target, databaseCA));
   await client.connect();
   try {
     const server = await client.query(
