@@ -285,3 +285,35 @@
   .photoGrid button:hover img { transform: none; }
   .skeleton i { animation: none; }
 }
+
+/* Arma2 Personal visual alignment */
+.mediaSection {
+  --photo-accent: var(--torneos-purple);
+  font-family: inherit;
+}
+
+.sectionHeading h2 {
+  font-size: clamp(2rem, 4vw, 3rem);
+}
+
+.gallery,
+.lightbox,
+.emptyState {
+  background: var(--torneos-card-bg);
+  border-color: var(--torneos-border);
+  border-radius: var(--torneos-radius);
+  box-shadow: var(--torneos-elevated-shadow);
+}
+
+.lightbox button,
+.emptyState button,
+.reportForm button {
+  min-height: 48px;
+  border-radius: var(--torneos-control-radius);
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+.reportForm select,
+.reportForm textarea {
+  border-radius: var(--torneos-control-radius);
+}

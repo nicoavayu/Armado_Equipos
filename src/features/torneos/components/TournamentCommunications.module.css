@@ -491,3 +491,42 @@ button:disabled {
     background-position: -240% 0;
   }
 }
+
+/* Arma2 Personal visual alignment */
+.communicationPanel,
+.detailCard,
+.preferencesCard {
+  font-family: inherit;
+}
+
+.newsCard,
+.detailCard,
+.preferencesCard,
+.documentCard,
+.stateCard {
+  background: var(--torneos-card-bg);
+  border-color: var(--torneos-border);
+  border-radius: var(--torneos-radius);
+  box-shadow: var(--torneos-elevated-shadow);
+}
+
+.sectionTabs button,
+.detailTopline button,
+.detailFooter button,
+.documentAction button,
+.preferencesCard button,
+.stateCard button,
+.relatedLinks a {
+  min-height: 48px;
+  border-radius: var(--torneos-control-radius);
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+.detailFooter button,
+.documentAction button,
+.preferencesCard > button,
+.stateCard button {
+  background: var(--torneos-cta);
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: var(--torneos-cta-shadow);
+}

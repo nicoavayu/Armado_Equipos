@@ -21,6 +21,8 @@ import {
   useLocation,
   useParams,
 } from 'react-router-dom';
+import Logo from '../../../Logo.png';
+import { useKeyboard } from '../../../hooks/useKeyboard';
 import { torneosFeatureFlags } from '../config/featureFlags';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
 import CreateOrganizationPage from './CreateOrganizationPage';
@@ -87,14 +89,19 @@ function TeamEntryRedirect() {
   );
 }
 
-function OrganizationNavigation({ organization, mobile = false }) {
+function OrganizationNavigation({ organization, mobile = false, keyboardHidden = false }) {
   const location = useLocation();
   if (!organization) return null;
   const base = `/torneos/organizacion/${organization.id}`;
   return (
     <nav
-      className={mobile ? styles.mobileNavigation : styles.desktopNavigation}
+      className={
+        mobile
+          ? `${styles.mobileNavigation} ${keyboardHidden ? styles.mobileNavigationHidden : ''}`
+          : styles.desktopNavigation
+      }
       aria-label={mobile ? 'Navegación móvil de la organización' : 'Navegación de la organización'}
+      aria-hidden={mobile && keyboardHidden ? 'true' : undefined}
     >
       {organizationNavigation.map(({
         label, path, icon: Icon, relatedPaths = [],
@@ -121,6 +128,7 @@ function OrganizationNavigation({ organization, mobile = false }) {
 
 export default function TorneosShell() {
   const location = useLocation();
+  const { isKeyboardOpen } = useKeyboard();
   const { activeOrganization } = useTorneosWorkspace();
   const isOrganizationRoute = location.pathname.includes('/torneos/organizacion/');
   const organizationRelativePath = isOrganizationRoute
@@ -149,9 +157,8 @@ export default function TorneosShell() {
 
       <aside className={styles.sidebar}>
         <Link className={styles.brand} to="/torneos" aria-label="Arma2 Torneos">
-          <span className={styles.brandMark}>A2</span>
+          <img className={styles.brandLogo} src={Logo} alt="" />
           <span className={styles.brandLockup}>
-            <strong>ARMA2</strong>
             <small>TORNEOS</small>
           </span>
         </Link>
@@ -172,7 +179,7 @@ export default function TorneosShell() {
       <section className={styles.workspace}>
         <header className={styles.topbar}>
           <Link className={styles.mobileBrand} to="/torneos">
-            <span className={styles.brandMark}>A2</span>
+            <img className={styles.brandLogo} src={Logo} alt="" />
             <span className={styles.mobileTitle}>
               <small>Arma2 Torneos</small>
               <strong>{activeOrganization?.name || 'Tus espacios'}</strong>
@@ -320,6 +327,7 @@ export default function TorneosShell() {
         <OrganizationNavigation
           organization={isOrganizationRoute ? activeOrganization : null}
           mobile
+          keyboardHidden={isKeyboardOpen}
         />
       </section>
 

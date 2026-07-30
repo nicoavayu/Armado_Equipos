@@ -66,7 +66,10 @@ describe('Torneos responsive navigation CSS', () => {
       /@media \(max-width:\s*900px\)[\s\S]*?\.mobileBrand\s*\{[\s\S]*?min-width:\s*44px;[\s\S]*?min-height:\s*44px;/,
     );
     expect(css).toMatch(
-      /\.mobileBrand \.brandMark\s*\{[^}]*width:\s*44px;[^}]*height:\s*44px;/s,
+      /\.mobileBrand \.brandLogo\s*\{[^}]*width:\s*50px;[^}]*height:\s*44px;/s,
+    );
+    expect(css).toMatch(
+      /\.mobileNavigationHidden\s*\{[^}]*opacity:\s*0;[^}]*pointer-events:\s*none;[^}]*transform:\s*translateY\(130%\);/s,
     );
     expect(matchOperationsCss).toMatch(
       /@media \(max-width:\s*720px\)[\s\S]*?grid-template-columns:\s*1fr;/,

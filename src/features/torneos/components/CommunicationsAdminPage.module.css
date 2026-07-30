@@ -594,3 +594,56 @@ button:disabled {
     animation: none !important;
   }
 }
+
+/* Arma2 Personal visual alignment */
+.page {
+  width: min(1180px, 100%);
+  margin: 0 auto;
+  font-family: inherit;
+}
+
+.hero,
+.composer,
+.history,
+.stateCard,
+.phonePreview {
+  background: var(--torneos-card-bg);
+  border-color: var(--torneos-border);
+  border-radius: var(--torneos-radius);
+  box-shadow: var(--torneos-elevated-shadow);
+}
+
+.hero {
+  min-height: 190px;
+  align-items: center;
+}
+
+.hero h1 {
+  font-family: "Bebas Neue", Impact, sans-serif;
+  font-size: clamp(2.25rem, 5vw, 3.75rem);
+  line-height: 1;
+  letter-spacing: 0.015em;
+}
+
+.primaryAction,
+.composerFooter button,
+.confirmation button,
+.successState button,
+.stateCard button {
+  min-height: 48px;
+  border-radius: var(--torneos-control-radius);
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+.primaryAction {
+  color: #fff;
+  background: var(--torneos-cta);
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: var(--torneos-cta-shadow);
+}
+
+.field input,
+.field select,
+.field textarea {
+  border-radius: var(--torneos-control-radius);
+}
