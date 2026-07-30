@@ -522,9 +522,18 @@ export async function materializeManifest(
   return withSerializableRetry(async (attempt) => {
     await client.query('begin isolation level serializable');
     try {
-      await client.query('select pg_advisory_xact_lock(hashtextextended($1, 0))', [
-        manifest.seedKey,
-      ]);
+      await client.query("set local idle_in_transaction_session_timeout = '5min'");
+      const lock = await client.query(
+        'select pg_try_advisory_xact_lock(hashtextextended($1, 0)) as acquired',
+        [
+          manifest.seedKey,
+        ],
+      );
+      if (!lock.rows[0]?.acquired) {
+        const error = new Error('Seed advisory lock is already held.');
+        error.code = '55P03';
+        throw error;
+      }
       const preflight = await preflightDatabase(client, manifest);
       if (preflight.status === 'skip') {
         await client.query('rollback');
@@ -560,13 +569,24 @@ export async function materializeManifest(
         }
         inserted.push({ table: operation.table, rows: operation.rows.length });
         if (failAfterTable === operation.table) {
-          throw new Error(`QA deliberate failure after ${operation.table}`);
+          await client.query('select 1 / 0 as qa_deliberate_failure');
         }
+      }
+      const verification = await preflightDatabase(client, manifest);
+      if (
+        verification.status !== 'skip'
+        || verification.present !== manifest.expectedRowCount
+        || verification.expected !== manifest.expectedRowCount
+      ) {
+        const error = new Error('Seed validation failed before commit.');
+        error.preflight = verification;
+        throw error;
       }
       await client.query('commit');
       return {
         status: 'created',
         preflight,
+        verification,
         inserted,
         attempts: attempt,
       };

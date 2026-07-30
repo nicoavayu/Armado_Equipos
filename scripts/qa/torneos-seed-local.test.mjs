@@ -112,7 +112,11 @@ test('local canonical seed lifecycle validates Auth UUIDs, safety and cleanup bl
       () => materializeManifest(client, manifest, {
         failAfterTable: 'tournament_matches',
       }),
-      /deliberate failure/,
+      (error) => {
+        assert.match(error.message, /division by zero/);
+        assert.equal(error.code, '22012');
+        return true;
+      },
     );
     const afterFailure = await preflightDatabase(client, manifest);
     assert.equal(afterFailure.status, 'create');
@@ -122,6 +126,8 @@ test('local canonical seed lifecycle validates Auth UUIDs, safety and cleanup bl
     assert.equal(first.status, 'created');
     assert.equal(first.preflight.present, 0);
     assert.equal(first.preflight.expected, 587);
+    assert.equal(first.verification.status, 'skip');
+    assert.equal(first.verification.present, 587);
 
     const secondPreflight = await preflightDatabase(client, manifest);
     assert.equal(
