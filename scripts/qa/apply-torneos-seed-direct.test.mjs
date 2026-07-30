@@ -18,6 +18,8 @@ import {
   assertAuthorizedManifest,
   assertStrictPgConfiguration,
   buildStrictPgConfiguration,
+  diagnoseConnectedDatabase,
+  evaluateConnectedDiagnostics,
   loadStrictDatabaseCA,
   parseRunnerArguments,
   safeError,
@@ -67,13 +69,46 @@ function databaseURL({
   hostname,
   username = 'postgres',
   port = 5432,
+  database = 'postgres',
   sslmode = null,
 }) {
-  const url = new URL(`postgresql://${hostname}:${port}/postgres`);
+  const url = new URL(`postgresql://${hostname}:${port}/${database}`);
   url.username = username;
   url.password = 'local-only';
   if (sslmode !== null) url.searchParams.set('sslmode', sslmode);
   return url.toString();
+}
+
+function validSessionPoolerDiagnostic() {
+  const hostname = 'aws-0-us-east-1.pooler.supabase.com';
+  const target = validatedConnection(databaseURL({
+    hostname,
+    username: 'postgres.hhyvmhgpapyuzjgxfnqv',
+  }));
+  return {
+    target,
+    server: {
+      databaseName: 'postgres',
+      currentUser: 'postgres',
+      sessionUser: 'postgres',
+      serverAddress: '10.0.0.14',
+      serverPort: 5432,
+      backendPid: 4242,
+      backendSsl: false,
+      backendTlsVersion: null,
+      backendCipher: null,
+    },
+    tls: {
+      encrypted: true,
+      authorized: true,
+      authorizationError: null,
+      protocol: 'TLSv1.3',
+      cipher: 'TLS_AES_256_GCM_SHA384',
+      servername: hostname,
+      peerSubjectCN: '*.pooler.supabase.com',
+      peerIssuerCN: 'Supabase database CA',
+    },
+  };
 }
 
 function manifestWithRowDelta(manifest, delta) {
@@ -443,20 +478,185 @@ test('connection validation rejects sslmode overrides, port 6543 and foreign hos
       username: 'postgres.hhyvmhgpapyuzjgxfnqv',
       port: 6543,
     })),
-    /port-5432 session pooler/,
+    /failed checks: port/,
   );
   assert.throws(
     () => validatedConnection(databaseURL({
       hostname: 'db.aaaaaaaaaaaaaaaaaaaa.supabase.co',
     })),
-    /authorized direct endpoint/,
+    /failed checks: project_ref/,
   );
   const sessionPooler = validatedConnection(databaseURL({
     hostname: 'aws-0-us-east-1.pooler.supabase.com',
     username: 'postgres.hhyvmhgpapyuzjgxfnqv',
   }));
   assert.equal(sessionPooler.connectionMode, 'session-pooler');
+  assert.equal(sessionPooler.projectRef, 'hhyvmhgpapyuzjgxfnqv');
   assert.equal(sessionPooler.port, 5432);
+});
+
+test('valid Session Pooler diagnostic passes when client TLS is strict and backend pg_stat_ssl is false', () => {
+  const diagnostic = evaluateConnectedDiagnostics(validSessionPoolerDiagnostic());
+  assert.equal(diagnostic.status, 'pass');
+  assert.deepEqual(diagnostic.failedChecks, []);
+  assert.equal(diagnostic.checks.project_ref.status, 'pass');
+  assert.equal(diagnostic.checks.database.status, 'pass');
+  assert.equal(diagnostic.checks.username.status, 'pass');
+  assert.equal(diagnostic.checks.session_pooler.status, 'pass');
+  assert.equal(diagnostic.checks.ssl_active.status, 'pass');
+  assert.equal(diagnostic.checks.tls_version.status, 'pass');
+  assert.equal(diagnostic.checks.certificate_validation.status, 'pass');
+  assert.equal(diagnostic.checks.port.status, 'pass');
+  assert.equal(diagnostic.observed.pgStatSsl.active, false);
+  assert.equal(
+    diagnostic.observed.pgStatSsl.scope,
+    'Session Pooler to PostgreSQL backend',
+  );
+  assert.equal(diagnostic.observed.clientTls.active, true);
+  assert.match(diagnostic.observed.projectRef, /^hhyvmh…$/);
+  assert.match(diagnostic.observed.targetUsername, /^postgres\.hhyvmh…$/);
+});
+
+test('connection target rejects every unsafe Session Pooler condition by name', () => {
+  const hostname = 'aws-0-us-east-1.pooler.supabase.com';
+  const cases = [
+    {
+      label: 'project_ref',
+      url: databaseURL({
+        hostname,
+        username: 'postgres.aaaaaaaaaaaaaaaaaaaa',
+      }),
+    },
+    {
+      label: 'database',
+      url: databaseURL({
+        hostname,
+        username: 'postgres.hhyvmhgpapyuzjgxfnqv',
+        database: 'template1',
+      }),
+    },
+    {
+      label: 'username',
+      url: databaseURL({ hostname, username: 'postgres' }),
+    },
+    {
+      label: 'session_pooler',
+      url: databaseURL({
+        hostname: 'shared.example.invalid',
+        username: 'postgres.hhyvmhgpapyuzjgxfnqv',
+      }),
+    },
+    {
+      label: 'port',
+      url: databaseURL({
+        hostname,
+        username: 'postgres.hhyvmhgpapyuzjgxfnqv',
+        port: 6543,
+      }),
+    },
+  ];
+  for (const { label, url } of cases) {
+    assert.throws(
+      () => validatedConnection(url),
+      new RegExp(`failed checks: .*${label}`),
+    );
+  }
+});
+
+test('connected diagnostic rejects each post-connect condition independently', () => {
+  const cases = [
+    {
+      label: 'project_ref',
+      mutate: (fixture) => { fixture.target.projectRef = 'aaaaaaaaaaaaaaaaaaaa'; },
+    },
+    {
+      label: 'database',
+      mutate: (fixture) => { fixture.server.databaseName = 'template1'; },
+    },
+    {
+      label: 'username',
+      mutate: (fixture) => { fixture.server.sessionUser = 'authenticator'; },
+    },
+    {
+      label: 'session_pooler',
+      mutate: (fixture) => { fixture.target.connectionMode = 'unsupported'; },
+    },
+    {
+      label: 'ssl_active',
+      mutate: (fixture) => { fixture.tls.encrypted = false; },
+    },
+    {
+      label: 'tls_version',
+      mutate: (fixture) => { fixture.tls.protocol = 'TLSv1.1'; },
+    },
+    {
+      label: 'certificate_validation',
+      mutate: (fixture) => {
+        fixture.tls.authorized = false;
+        fixture.tls.authorizationError = 'UNABLE_TO_VERIFY_LEAF_SIGNATURE';
+      },
+    },
+    {
+      label: 'port',
+      mutate: (fixture) => { fixture.server.serverPort = 6543; },
+    },
+  ];
+  for (const { label, mutate } of cases) {
+    const fixture = validSessionPoolerDiagnostic();
+    mutate(fixture);
+    const diagnostic = evaluateConnectedDiagnostics(fixture);
+    assert.equal(diagnostic.status, 'fail', label);
+    assert.equal(diagnostic.checks[label].status, 'fail', label);
+    assert.ok(diagnostic.failedChecks.includes(label), label);
+  }
+});
+
+test('connected diagnostic queries identity and both TLS scopes without writing', async () => {
+  const fixture = validSessionPoolerDiagnostic();
+  const queries = [];
+  const client = {
+    connection: {
+      stream: {
+        encrypted: true,
+        authorized: true,
+        authorizationError: null,
+        servername: fixture.target.hostname,
+        getProtocol: () => fixture.tls.protocol,
+        getCipher: () => ({ standardName: fixture.tls.cipher }),
+        getPeerCertificate: () => ({
+          subject: { CN: fixture.tls.peerSubjectCN },
+          issuer: { CN: fixture.tls.peerIssuerCN },
+        }),
+      },
+    },
+    async query(sql) {
+      queries.push(sql);
+      return {
+        rows: [{
+          database_name: fixture.server.databaseName,
+          current_user_name: fixture.server.currentUser,
+          session_user_name: fixture.server.sessionUser,
+          server_address: fixture.server.serverAddress,
+          server_port: fixture.server.serverPort,
+          backend_pid: fixture.server.backendPid,
+          backend_ssl: fixture.server.backendSsl,
+          backend_tls_version: fixture.server.backendTlsVersion,
+          backend_cipher: fixture.server.backendCipher,
+        }],
+      };
+    },
+  };
+  const diagnostic = await diagnoseConnectedDatabase(client, fixture.target);
+  assert.equal(diagnostic.status, 'pass');
+  assert.equal(queries.length, 1);
+  assert.match(queries[0], /current_database\(\)/);
+  assert.match(queries[0], /current_user/);
+  assert.match(queries[0], /session_user/);
+  assert.match(queries[0], /inet_server_addr\(\)/);
+  assert.match(queries[0], /inet_server_port\(\)/);
+  assert.match(queries[0], /pg_backend_pid\(\)/);
+  assert.match(queries[0], /pg_stat_ssl/);
+  assert.doesNotMatch(queries[0], /\b(insert|update|delete|merge|truncate)\b/i);
 });
 
 test('runner rejects process-wide TLS verification disablement', () => {
@@ -466,6 +666,24 @@ test('runner rejects process-wide TLS verification disablement', () => {
       { NODE_TLS_REJECT_UNAUTHORIZED: '0' },
     ),
     /NODE_TLS_REJECT_UNAUTHORIZED=0 is forbidden/,
+  );
+});
+
+test('runner exposes a read-only diagnostic mode and forbids combining it with execute', () => {
+  assert.deepEqual(
+    parseRunnerArguments(['--diagnose', '--ca-cert', '/tmp/local-ca.crt'], {}),
+    {
+      execute: false,
+      diagnose: true,
+      caCertPath: '/tmp/local-ca.crt',
+    },
+  );
+  assert.throws(
+    () => parseRunnerArguments(
+      ['--diagnose', '--execute', '--ca-cert', '/tmp/local-ca.crt'],
+      {},
+    ),
+    /exactly one runner mode/,
   );
 });
 
@@ -536,5 +754,35 @@ test('ephemeral PostgreSQL TLS handshake trusts only the configured CA and sends
   );
   assert.equal(server.state.sslRequests, 2);
   assert.equal(server.state.startupMessages, 1);
+  assert.equal(server.state.queryMessages, 0);
+});
+
+test('ephemeral PostgreSQL TLS handshake rejects a CA-trusted hostname mismatch before SQL', async (t) => {
+  const targetHostname = 'db.hhyvmhgpapyuzjgxfnqv.supabase.co';
+  const wrongHostname = 'db.aaaaaaaaaaaaaaaaaaaa.supabase.co';
+  const fixture = await createTLSFixture(wrongHostname);
+  const server = await startPostgresTLSServer(fixture);
+  t.after(async () => {
+    await server.close();
+    await rm(fixture.directory, { recursive: true, force: true });
+  });
+
+  const target = validatedConnection(databaseURL({ hostname: targetHostname }));
+  const client = pgClientForLocalTLSServer(
+    buildStrictPgConfiguration(target, fixture.ca),
+    server.port,
+  );
+  await assert.rejects(
+    () => client.connect(),
+    (error) => {
+      assert.match(
+        safeError(error).message,
+        /hostname|altname|not cert's/i,
+      );
+      return true;
+    },
+  );
+  assert.equal(server.state.sslRequests, 1);
+  assert.equal(server.state.startupMessages, 0);
   assert.equal(server.state.queryMessages, 0);
 });

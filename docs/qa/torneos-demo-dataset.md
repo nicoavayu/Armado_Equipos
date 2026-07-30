@@ -1,6 +1,8 @@
 # Dataset QA real de Torneos
 
-Estado: seed implementado y probado contra Supabase local efímero; cleanup bloqueado de forma segura por guards canónicos activos. No ejecutado ni conectado a Staging o Production.
+Estado: seed implementado y probado contra Supabase local efímero. Staging se
+auditó exclusivamente con lecturas; el seed remoto no se ejecutó. El cleanup
+local continúa bloqueado de forma segura por guards canónicos activos.
 
 ## Arquitectura
 
@@ -115,6 +117,36 @@ Esto cubre persistencia y auditoría del seed, pero todavía no ofrece una fuent
 - Se rechazan Production, variables faltantes y URLs ambiguas.
 - El plan remoto no acepta credenciales ni abre conexión.
 - No existe ref, URL ni credencial fallback para operaciones conectadas.
+- El Session Pooler usa exclusivamente puerto `5432`; `6543` se rechaza sin
+  fallback.
+- En Session Pooler, la identidad del proyecto deriva del usuario
+  `postgres.<project-ref>`, no del hostname compartido.
+- TLS se valida en el socket cliente→Pooler con CA local, hostname,
+  `rejectUnauthorized: true`, versión y cipher negociados. `pg_stat_ssl` se
+  informa aparte porque describe el backend Pooler→Postgres y no sustituye la
+  evidencia TLS del cliente.
+
+## Diagnóstico remoto read-only
+
+El diagnóstico no carga el manifest, no pide confirmación de escritura y no
+invoca `materializeManifest`. Abre `BEGIN READ ONLY`, ejecuta un único `SELECT`
+de identidad/estado de conexión y finaliza con `ROLLBACK`:
+
+```bash
+node scripts/qa/apply-torneos-seed-direct.mjs \
+  --diagnose \
+  --ca-cert .secrets/supabase-prod-ca-2021.crt
+```
+
+La connection string se ingresa de forma oculta. El reporte sanitizado publica
+por separado `project_ref`, `database`, `username`, `session_pooler`,
+`ssl_active`, `tls_version`, `certificate_validation` y `port`, cada uno con
+`pass`/`fail` y motivo. También observa `current_database()`, `current_user`,
+`session_user`, `inet_server_addr()`, `inet_server_port()`,
+`pg_backend_pid()` y el registro del backend actual en `pg_stat_ssl`.
+
+No se emiten connection strings, contraseñas ni UUIDs completos. Cualquier
+rechazo enumera los controles exactos que fallaron.
 
 ## Comandos
 

@@ -40,6 +40,21 @@ const AUTHORIZED = Object.freeze({
   tables: 32,
 });
 
+const SESSION_POOLER_HOST = /^[a-z0-9-]+\.pooler\.supabase\.com$/i;
+const DIRECT_HOST = /^db\.([a-z0-9]{8,64})\.supabase\.co$/i;
+const SESSION_POOLER_USERNAME = /^postgres\.([a-z0-9]{8,64})$/i;
+const ACCEPTED_TLS_VERSIONS = new Set(['TLSv1.2', 'TLSv1.3']);
+const CHECK_NAMES = Object.freeze([
+  'project_ref',
+  'database',
+  'username',
+  'session_pooler',
+  'ssl_active',
+  'tls_version',
+  'certificate_validation',
+  'port',
+]);
+
 function readHiddenLine(prompt) {
   if (!process.stdin.isTTY || !process.stderr.isTTY || !process.stdin.setRawMode) {
     throw new Error('A local interactive TTY is required for hidden credential input.');
@@ -116,11 +131,16 @@ export function parseRunnerArguments(args, env = process.env) {
     throw new Error('NODE_TLS_REJECT_UNAUTHORIZED=0 is forbidden.');
   }
   let execute = false;
+  let diagnose = false;
   let argumentCAPath = null;
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index];
     if (argument === '--execute' && !execute) {
       execute = true;
+      continue;
+    }
+    if (argument === '--diagnose' && !diagnose) {
+      diagnose = true;
       continue;
     }
     if (argument === '--ca-cert' && argumentCAPath === null) {
@@ -142,8 +162,12 @@ export function parseRunnerArguments(args, env = process.env) {
   ) {
     throw new Error('Choose exactly one database CA certificate path.');
   }
+  if (execute && diagnose) {
+    throw new Error('Choose exactly one runner mode: --execute or --diagnose.');
+  }
   return {
     execute,
+    diagnose,
     caCertPath: argumentCAPath || environmentCAPath,
   };
 }
@@ -223,9 +247,6 @@ export function validatedConnection(rawConnectionString) {
   if (!url.password) {
     throw new Error('The connection string must include the database password.');
   }
-  if (url.pathname !== '/postgres') {
-    throw new Error('The database name must be postgres.');
-  }
   if (url.hash || hasTLSConnectionParameter(url)) {
     throw new Error(
       'TLS parameters and fragments are forbidden in the connection string; '
@@ -235,29 +256,38 @@ export function validatedConnection(rawConnectionString) {
 
   const username = decodeURIComponent(url.username);
   const password = decodeURIComponent(url.password);
-  const directHost = `db.${AUTHORIZED.projectRef}.supabase.co`;
-  const isDirect = url.hostname === directHost
-    && (url.port || '5432') === '5432'
-    && username === 'postgres';
-  const isSessionPooler = /^[a-z0-9-]+\.pooler\.supabase\.com$/i.test(url.hostname)
-    && (url.port || '5432') === '5432'
-    && username === `postgres.${AUTHORIZED.projectRef}`;
-  if (!isDirect && !isSessionPooler) {
+  const port = Number(url.port || '5432');
+  const directMatch = url.hostname.match(DIRECT_HOST);
+  const poolerUsernameMatch = username.match(SESSION_POOLER_USERNAME);
+  const connectionMode = directMatch
+    ? 'direct'
+    : (SESSION_POOLER_HOST.test(url.hostname) ? 'session-pooler' : 'unsupported');
+  const projectRef = connectionMode === 'direct'
+    ? directMatch[1].toLowerCase()
+    : (poolerUsernameMatch?.[1].toLowerCase() || null);
+  const expectedUsername = connectionMode === 'direct'
+    ? 'postgres'
+    : `postgres.${AUTHORIZED.projectRef}`;
+  const failures = [];
+  if (projectRef !== AUTHORIZED.projectRef) failures.push('project_ref');
+  if (url.pathname !== '/postgres') failures.push('database');
+  if (username !== expectedUsername) failures.push('username');
+  if (connectionMode === 'unsupported') failures.push('session_pooler');
+  if (port !== 5432) failures.push('port');
+  if (failures.length > 0) {
     throw new Error(
-      'Only the authorized direct endpoint or its port-5432 session pooler is accepted.',
+      `PostgreSQL target rejected; failed checks: ${failures.join(', ')}.`,
     );
-  }
-  if (url.port === '6543') {
-    throw new Error('Transaction-pooler port 6543 is forbidden for this session workflow.');
   }
 
   return {
     hostname: url.hostname,
-    port: Number(url.port || '5432'),
+    port,
     database: 'postgres',
     username,
     password,
-    connectionMode: isDirect ? 'direct' : 'session-pooler',
+    projectRef,
+    connectionMode,
   };
 }
 
@@ -303,6 +333,212 @@ export function buildStrictPgConfiguration(target, ca) {
     keepAlive: true,
   };
   return assertStrictPgConfiguration(config, target);
+}
+
+function sanitizedProjectRef(projectRef) {
+  return projectRef ? `${projectRef.slice(0, 6)}…` : null;
+}
+
+function sanitizedUsername(username) {
+  if (!username?.startsWith('postgres.')) return username || null;
+  return `postgres.${sanitizedProjectRef(username.slice('postgres.'.length))}`;
+}
+
+function sanitizedServerAddress(address) {
+  if (!address) return null;
+  if (address.includes(':')) {
+    const groups = address.split(':');
+    return `${groups.slice(0, 2).join(':')}:…`;
+  }
+  const octets = address.split('.');
+  return octets.length === 4
+    ? `${octets.slice(0, 3).join('.')}.x`
+    : '[present]';
+}
+
+function check(status, reason) {
+  return { status: status ? 'pass' : 'fail', reason };
+}
+
+export function evaluateConnectedDiagnostics(
+  { target, server, tls },
+  authorization = AUTHORIZED,
+) {
+  const isSessionPooler = target.connectionMode === 'session-pooler';
+  const expectedUsername = isSessionPooler
+    ? `postgres.${authorization.projectRef}`
+    : 'postgres';
+  const projectRefPass = target.projectRef === authorization.projectRef;
+  const databasePass = (
+    target.database === 'postgres'
+    && server.databaseName === 'postgres'
+  );
+  const usernamePass = (
+    target.username === expectedUsername
+    && server.currentUser === 'postgres'
+    && server.sessionUser === 'postgres'
+  );
+  const sessionPoolerPass = (
+    target.connectionMode === 'direct'
+    || (
+      isSessionPooler
+      && SESSION_POOLER_HOST.test(target.hostname)
+    )
+  );
+  const sslActivePass = tls.encrypted === true;
+  const tlsVersionPass = ACCEPTED_TLS_VERSIONS.has(tls.protocol);
+  const certificateValidationPass = (
+    tls.authorized === true
+    && !tls.authorizationError
+    && tls.servername === target.hostname
+  );
+  const portPass = target.port === 5432 && Number(server.serverPort) === 5432;
+
+  const checks = {
+    project_ref: check(
+      projectRefPass,
+      projectRefPass
+        ? 'derived project ref matches the authorized Staging project'
+        : 'derived project ref does not match the authorized Staging project',
+    ),
+    database: check(
+      databasePass,
+      databasePass
+        ? 'target and current_database() are postgres'
+        : 'target database or current_database() is not postgres',
+    ),
+    username: check(
+      usernamePass,
+      usernamePass
+        ? 'routing username and PostgreSQL session roles are compatible'
+        : 'routing username, current_user, or session_user is incompatible',
+    ),
+    session_pooler: check(
+      sessionPoolerPass,
+      sessionPoolerPass
+        ? (
+          isSessionPooler
+            ? 'shared Session Pooler hostname is accepted without deriving project identity from it'
+            : 'authorized direct endpoint does not require Pooler routing'
+        )
+        : 'host is neither the authorized direct endpoint nor a shared Session Pooler',
+    ),
+    ssl_active: check(
+      sslActivePass,
+      sslActivePass
+        ? 'client-to-endpoint socket is encrypted'
+        : 'client-to-endpoint socket is not encrypted',
+    ),
+    tls_version: check(
+      tlsVersionPass,
+      tlsVersionPass
+        ? 'negotiated TLS version is accepted'
+        : 'negotiated TLS version is missing or unsupported',
+    ),
+    certificate_validation: check(
+      certificateValidationPass,
+      certificateValidationPass
+        ? 'CA chain and endpoint hostname were verified'
+        : 'CA chain or endpoint hostname validation was not proven',
+    ),
+    port: check(
+      portPass,
+      portPass
+        ? 'client endpoint and PostgreSQL backend use port 5432'
+        : 'client endpoint or PostgreSQL backend is not on port 5432',
+    ),
+  };
+  const failedChecks = CHECK_NAMES.filter((name) => checks[name].status === 'fail');
+  return {
+    mode: 'read-only-connection-diagnostic',
+    status: failedChecks.length === 0 ? 'pass' : 'fail',
+    failedChecks,
+    checks,
+    observed: {
+      projectRef: sanitizedProjectRef(target.projectRef),
+      hostname: target.hostname,
+      connectionMode: target.connectionMode,
+      targetPort: target.port,
+      targetDatabase: target.database,
+      targetUsername: sanitizedUsername(target.username),
+      currentDatabase: server.databaseName,
+      currentUser: server.currentUser,
+      sessionUser: server.sessionUser,
+      serverAddress: sanitizedServerAddress(server.serverAddress),
+      serverPort: server.serverPort,
+      backendPid: Number.isInteger(server.backendPid) ? 'observed' : 'unavailable',
+      pgStatSsl: {
+        active: server.backendSsl === true,
+        tlsVersion: server.backendTlsVersion || null,
+        cipher: server.backendCipher || null,
+        scope: isSessionPooler
+          ? 'Session Pooler to PostgreSQL backend'
+          : 'client to PostgreSQL backend',
+      },
+      clientTls: {
+        active: tls.encrypted === true,
+        authorized: tls.authorized === true,
+        protocol: tls.protocol || null,
+        cipher: tls.cipher || null,
+        servername: tls.servername || null,
+        peerSubjectCN: tls.peerSubjectCN || null,
+        peerIssuerCN: tls.peerIssuerCN || null,
+      },
+    },
+  };
+}
+
+export async function diagnoseConnectedDatabase(client, target) {
+  const serverResult = await client.query(
+    `select current_database() as database_name,
+            current_user as current_user_name,
+            session_user as session_user_name,
+            host(inet_server_addr()) as server_address,
+            inet_server_port() as server_port,
+            pg_backend_pid() as backend_pid,
+            ssl_row.ssl as backend_ssl,
+            ssl_row.version as backend_tls_version,
+            ssl_row.cipher as backend_cipher
+     from (select pg_backend_pid() as backend_pid) current_backend
+     left join pg_stat_ssl ssl_row on ssl_row.pid = current_backend.backend_pid`,
+  );
+  const row = serverResult.rows[0] || {};
+  const stream = client.connection.stream;
+  const peer = stream.getPeerCertificate?.();
+  const cipher = stream.getCipher?.();
+  return evaluateConnectedDiagnostics({
+    target,
+    server: {
+      databaseName: row.database_name,
+      currentUser: row.current_user_name,
+      sessionUser: row.session_user_name,
+      serverAddress: row.server_address,
+      serverPort: row.server_port,
+      backendPid: row.backend_pid,
+      backendSsl: row.backend_ssl,
+      backendTlsVersion: row.backend_tls_version,
+      backendCipher: row.backend_cipher,
+    },
+    tls: {
+      encrypted: stream.encrypted === true,
+      authorized: stream.authorized === true,
+      authorizationError: stream.authorizationError || null,
+      protocol: stream.getProtocol?.() || null,
+      cipher: cipher?.standardName || cipher?.name || null,
+      servername: stream.servername || null,
+      peerSubjectCN: peer?.subject?.CN || null,
+      peerIssuerCN: peer?.issuer?.CN || null,
+    },
+  });
+}
+
+function assertDiagnosticPass(diagnostic) {
+  if (diagnostic.status === 'pass') return diagnostic;
+  const error = new Error(
+    `Connection diagnostic rejected; failed checks: ${diagnostic.failedChecks.join(', ')}.`,
+  );
+  error.connectionDiagnostic = diagnostic;
+  throw error;
 }
 
 function requiredProperty(object, property, label) {
@@ -381,57 +617,68 @@ export function safeError(error) {
       expected: error.preflight.expected,
       present: error.preflight.present,
     } : null,
+    connectionDiagnostic: error?.connectionDiagnostic || null,
   };
 }
 
 async function main() {
   const options = parseRunnerArguments(process.argv.slice(2));
-  if (!options.execute) {
+  if (!options.execute && !options.diagnose) {
     throw new Error(
-      'Prepared only. Pass --execute and a local Supabase CA certificate '
-      + 'after a separate remote-write authorization.',
+      'Prepared only. Pass --diagnose for a read-only connection audit, or '
+      + '--execute after a separate remote-write authorization.',
     );
   }
 
-  const identityMap = await loadQAIdentityMap({
-    env: {
-      ...process.env,
-      QA_IDENTITY_MAP_FILE: process.env.QA_IDENTITY_MAP_FILE
-        || 'torneos-demo-v2-identity-map.local',
-    },
-  });
-  const manifest = buildCanonicalManifest({ identityMap });
-  validateRunnerPreflight(manifest);
+  let manifest = null;
+  if (options.execute) {
+    const identityMap = await loadQAIdentityMap({
+      env: {
+        ...process.env,
+        QA_IDENTITY_MAP_FILE: process.env.QA_IDENTITY_MAP_FILE
+          || 'torneos-demo-v2-identity-map.local',
+      },
+    });
+    manifest = buildCanonicalManifest({ identityMap });
+    validateRunnerPreflight(manifest);
+  }
 
   const databaseCA = await loadStrictDatabaseCA(options.caCertPath);
   const rawConnectionString = await readHiddenLine(
-    'Pegá la connection string de Staging (entrada oculta): ',
+    'Pegá la connection string de Staging para validar (entrada oculta): ',
   );
   const target = validatedConnection(rawConnectionString);
 
-  const confirmation = createInterface({ input: process.stdin, output: process.stderr });
-  const answer = await confirmation.question(
-    `Escribí "APLICAR ${AUTHORIZED.seedKey}" para continuar: `,
-  );
-  confirmation.close();
-  if (answer !== `APLICAR ${AUTHORIZED.seedKey}`) {
-    throw new Error('Execution confirmation did not match.');
+  if (options.execute) {
+    const confirmation = createInterface({ input: process.stdin, output: process.stderr });
+    const answer = await confirmation.question(
+      `Escribí "APLICAR ${AUTHORIZED.seedKey}" para continuar: `,
+    );
+    confirmation.close();
+    if (answer !== `APLICAR ${AUTHORIZED.seedKey}`) {
+      throw new Error('Execution confirmation did not match.');
+    }
   }
 
-  const client = new pg.Client(buildStrictPgConfiguration(target, databaseCA));
+  const configuration = buildStrictPgConfiguration(target, databaseCA);
+  const client = new pg.Client(configuration);
   await client.connect();
   try {
-    const server = await client.query(
-      `select current_database() as database_name,
-              current_setting('transaction_isolation') as initial_isolation,
-              exists (
-                select 1 from pg_stat_ssl where pid = pg_backend_pid() and ssl
-              ) as ssl`,
-    );
-    if (server.rows[0]?.database_name !== 'postgres' || !server.rows[0]?.ssl) {
-      throw new Error('Connected database or SSL state is not acceptable.');
+    if (options.diagnose) {
+      await client.query('begin read only');
+      try {
+        const diagnostic = await diagnoseConnectedDatabase(client, target);
+        console.log(JSON.stringify(diagnostic, null, 2));
+        assertDiagnosticPass(diagnostic);
+      } finally {
+        await client.query('rollback');
+      }
+      return;
     }
 
+    const diagnostic = assertDiagnosticPass(
+      await diagnoseConnectedDatabase(client, target),
+    );
     const retries = [];
     const result = await materializeManifest(client, manifest, {
       retry: {
@@ -443,6 +690,7 @@ async function main() {
     console.log(JSON.stringify({
       projectRef: AUTHORIZED.projectRef,
       connectionMode: target.connectionMode,
+      connectionDiagnostic: diagnostic,
       seedKey: manifest.seedKey,
       manifestHash: manifest.manifestHash,
       status: result.status,
