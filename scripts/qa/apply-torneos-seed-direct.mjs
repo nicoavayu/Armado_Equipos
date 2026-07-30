@@ -40,9 +40,14 @@ const AUTHORIZED = Object.freeze({
   tables: 32,
 });
 
+const STAGING_TARGET = Object.freeze({
+  hostname: 'aws-0-us-east-1.pooler.supabase.com',
+  port: 5432,
+  database: 'postgres',
+  username: `postgres.${AUTHORIZED.projectRef}`,
+});
+
 const SESSION_POOLER_HOST = /^[a-z0-9-]+\.pooler\.supabase\.com$/i;
-const DIRECT_HOST = /^db\.([a-z0-9]{8,64})\.supabase\.co$/i;
-const SESSION_POOLER_USERNAME = /^postgres\.([a-z0-9]{8,64})$/i;
 const ACCEPTED_TLS_VERSIONS = new Set(['TLSv1.2', 'TLSv1.3']);
 const CHECK_NAMES = Object.freeze([
   'project_ref',
@@ -55,43 +60,32 @@ const CHECK_NAMES = Object.freeze([
   'port',
 ]);
 
-function readHiddenLine(prompt) {
-  if (!process.stdin.isTTY || !process.stderr.isTTY || !process.stdin.setRawMode) {
-    throw new Error('A local interactive TTY is required for hidden credential input.');
+export function readPasswordFromMacOSDialog({
+  spawn = spawnSync,
+  platform = process.platform,
+} = {}) {
+  if (platform !== 'darwin') {
+    throw new Error('The secure database password dialog requires macOS.');
   }
-  process.stderr.write(prompt);
-  process.stdin.setRawMode(true);
-  process.stdin.resume();
-  process.stdin.setEncoding('utf8');
-  return new Promise((resolve, reject) => {
-    let value = '';
-    const restore = () => {
-      process.stdin.off('data', onData);
-      process.stdin.setRawMode(false);
-      process.stdin.pause();
-      process.stderr.write('\n');
-    };
-    const onData = (chunk) => {
-      for (const character of chunk) {
-        if (character === '\u0003') {
-          restore();
-          reject(new Error('Credential input cancelled.'));
-          return;
-        }
-        if (character === '\r' || character === '\n') {
-          restore();
-          resolve(value);
-          return;
-        }
-        if (character === '\u007f' || character === '\b') {
-          value = value.slice(0, -1);
-        } else {
-          value += character;
-        }
-      }
-    };
-    process.stdin.on('data', onData);
+  const result = spawn('/usr/bin/osascript', [
+    '-e',
+    'tell application "System Events" to activate',
+    '-e',
+    'set response to display dialog "Ingresá únicamente la contraseña nueva de la base de Staging." default answer "" with hidden answer buttons {"Cancelar", "Continuar"} default button "Continuar" cancel button "Cancelar" with title "Supabase Staging"',
+    '-e',
+    'return text returned of response',
+  ], {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
   });
+  if (result.status !== 0) {
+    throw new Error('Secure database password input was cancelled or unavailable.');
+  }
+  const password = String(result.stdout || '').replace(/\r?\n$/, '');
+  if (password.length === 0) {
+    throw new Error('The database password cannot be empty.');
+  }
+  return password;
 }
 
 function isPathWithin(parent, candidate) {
@@ -225,73 +219,48 @@ export async function loadStrictDatabaseCA(filePath, { cwd = process.cwd() } = {
   return certificateBlocks(pem);
 }
 
-function hasTLSConnectionParameter(url) {
-  return [...url.searchParams.keys()].some((key) => {
-    const normalized = key.toLowerCase();
-    return normalized.startsWith('ssl')
-      || normalized.startsWith('tls')
-      || normalized === 'rejectunauthorized';
-  });
-}
-
-export function validatedConnection(rawConnectionString) {
-  let url;
-  try {
-    url = new URL(rawConnectionString);
-  } catch {
-    throw new Error('The hidden value is not a valid PostgreSQL connection string.');
-  }
-  if (!['postgres:', 'postgresql:'].includes(url.protocol)) {
-    throw new Error('The connection string must use postgres:// or postgresql://.');
-  }
-  if (!url.password) {
-    throw new Error('The connection string must include the database password.');
-  }
-  if (url.hash || hasTLSConnectionParameter(url)) {
-    throw new Error(
-      'TLS parameters and fragments are forbidden in the connection string; '
-      + 'the runner owns the complete TLS configuration.',
-    );
-  }
-
-  const username = decodeURIComponent(url.username);
-  const password = decodeURIComponent(url.password);
-  const port = Number(url.port || '5432');
-  const directMatch = url.hostname.match(DIRECT_HOST);
-  const poolerUsernameMatch = username.match(SESSION_POOLER_USERNAME);
-  const connectionMode = directMatch
-    ? 'direct'
-    : (SESSION_POOLER_HOST.test(url.hostname) ? 'session-pooler' : 'unsupported');
-  const projectRef = connectionMode === 'direct'
-    ? directMatch[1].toLowerCase()
-    : (poolerUsernameMatch?.[1].toLowerCase() || null);
-  const expectedUsername = connectionMode === 'direct'
-    ? 'postgres'
-    : `postgres.${AUTHORIZED.projectRef}`;
+export function assertAuthorizedStagingTarget(
+  target,
+  authorization = AUTHORIZED,
+) {
   const failures = [];
-  if (projectRef !== AUTHORIZED.projectRef) failures.push('project_ref');
-  if (url.pathname !== '/postgres') failures.push('database');
-  if (username !== expectedUsername) failures.push('username');
-  if (connectionMode === 'unsupported') failures.push('session_pooler');
-  if (port !== 5432) failures.push('port');
+  if (target.projectRef !== authorization.projectRef) failures.push('project_ref');
+  if (target.database !== STAGING_TARGET.database) failures.push('database');
+  if (target.username !== STAGING_TARGET.username) failures.push('username');
+  if (
+    target.connectionMode !== 'session-pooler'
+    || target.hostname !== STAGING_TARGET.hostname
+  ) {
+    failures.push('session_pooler');
+  }
+  if (target.port !== STAGING_TARGET.port) failures.push('port');
+  if (typeof target.password !== 'string' || target.password.length === 0) {
+    failures.push('password');
+  }
   if (failures.length > 0) {
     throw new Error(
       `PostgreSQL target rejected; failed checks: ${failures.join(', ')}.`,
     );
   }
+  return target;
+}
 
-  return {
-    hostname: url.hostname,
-    port,
-    database: 'postgres',
-    username,
+export function buildAuthorizedStagingTarget(
+  password,
+  authorization = AUTHORIZED,
+) {
+  const username = STAGING_TARGET.username;
+  const target = {
+    ...STAGING_TARGET,
     password,
-    projectRef,
-    connectionMode,
+    projectRef: username.slice('postgres.'.length),
+    connectionMode: 'session-pooler',
   };
+  return Object.freeze(assertAuthorizedStagingTarget(target, authorization));
 }
 
 export function assertStrictPgConfiguration(config, target) {
+  assertAuthorizedStagingTarget(target);
   if (
     config.connectionString !== undefined
     || config.host !== target.hostname
@@ -365,9 +334,7 @@ export function evaluateConnectedDiagnostics(
   authorization = AUTHORIZED,
 ) {
   const isSessionPooler = target.connectionMode === 'session-pooler';
-  const expectedUsername = isSessionPooler
-    ? `postgres.${authorization.projectRef}`
-    : 'postgres';
+  const expectedUsername = `postgres.${authorization.projectRef}`;
   const projectRefPass = target.projectRef === authorization.projectRef;
   const databasePass = (
     target.database === 'postgres'
@@ -379,11 +346,9 @@ export function evaluateConnectedDiagnostics(
     && server.sessionUser === 'postgres'
   );
   const sessionPoolerPass = (
-    target.connectionMode === 'direct'
-    || (
-      isSessionPooler
-      && SESSION_POOLER_HOST.test(target.hostname)
-    )
+    isSessionPooler
+    && target.hostname === STAGING_TARGET.hostname
+    && SESSION_POOLER_HOST.test(target.hostname)
   );
   const sslActivePass = tls.encrypted === true;
   const tlsVersionPass = ACCEPTED_TLS_VERSIONS.has(tls.protocol);
@@ -471,9 +436,7 @@ export function evaluateConnectedDiagnostics(
         active: server.backendSsl === true,
         tlsVersion: server.backendTlsVersion || null,
         cipher: server.backendCipher || null,
-        scope: isSessionPooler
-          ? 'Session Pooler to PostgreSQL backend'
-          : 'client to PostgreSQL backend',
+        scope: 'Session Pooler to PostgreSQL backend',
       },
       clientTls: {
         active: tls.encrypted === true,
@@ -644,10 +607,8 @@ async function main() {
   }
 
   const databaseCA = await loadStrictDatabaseCA(options.caCertPath);
-  const rawConnectionString = await readHiddenLine(
-    'Pegá la connection string de Staging para validar (entrada oculta): ',
-  );
-  const target = validatedConnection(rawConnectionString);
+  const databasePassword = readPasswordFromMacOSDialog();
+  const target = buildAuthorizedStagingTarget(databasePassword);
 
   if (options.execute) {
     const confirmation = createInterface({ input: process.stdin, output: process.stderr });

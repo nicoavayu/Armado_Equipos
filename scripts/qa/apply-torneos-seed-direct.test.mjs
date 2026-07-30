@@ -16,14 +16,16 @@ import pg from 'pg';
 
 import {
   assertAuthorizedManifest,
+  assertAuthorizedStagingTarget,
   assertStrictPgConfiguration,
+  buildAuthorizedStagingTarget,
   buildStrictPgConfiguration,
   diagnoseConnectedDatabase,
   evaluateConnectedDiagnostics,
   loadStrictDatabaseCA,
   parseRunnerArguments,
+  readPasswordFromMacOSDialog,
   safeError,
-  validatedConnection,
   validateRunnerPreflight,
 } from './apply-torneos-seed-direct.mjs';
 import {
@@ -65,26 +67,8 @@ function fixture() {
   };
 }
 
-function databaseURL({
-  hostname,
-  username = 'postgres',
-  port = 5432,
-  database = 'postgres',
-  sslmode = null,
-}) {
-  const url = new URL(`postgresql://${hostname}:${port}/${database}`);
-  url.username = username;
-  url.password = 'local-only';
-  if (sslmode !== null) url.searchParams.set('sslmode', sslmode);
-  return url.toString();
-}
-
 function validSessionPoolerDiagnostic() {
-  const hostname = 'aws-0-us-east-1.pooler.supabase.com';
-  const target = validatedConnection(databaseURL({
-    hostname,
-    username: 'postgres.hhyvmhgpapyuzjgxfnqv',
-  }));
+  const target = buildAuthorizedStagingTarget('local-only');
   return {
     target,
     server: {
@@ -104,7 +88,7 @@ function validSessionPoolerDiagnostic() {
       authorizationError: null,
       protocol: 'TLSv1.3',
       cipher: 'TLS_AES_256_GCM_SHA384',
-      servername: hostname,
+      servername: target.hostname,
       peerSubjectCN: '*.pooler.supabase.com',
       peerIssuerCN: 'Supabase database CA',
     },
@@ -396,11 +380,11 @@ test('direct runner preflight requires exactly one seed marker', () => {
 });
 
 test('strict TLS accepts a valid untracked CA and builds verify-full pg configuration', async (t) => {
-  const hostname = 'db.hhyvmhgpapyuzjgxfnqv.supabase.co';
+  const hostname = 'aws-0-us-east-1.pooler.supabase.com';
   const fixture = await createTLSFixture(hostname);
   t.after(() => rm(fixture.directory, { recursive: true, force: true }));
   const ca = await loadStrictDatabaseCA(fixture.caCert);
-  const target = validatedConnection(databaseURL({ hostname }));
+  const target = buildAuthorizedStagingTarget('local-only');
   const config = buildStrictPgConfiguration(target, ca);
   assert.equal(config.connectionString, undefined);
   assert.equal(config.ssl.rejectUnauthorized, true);
@@ -429,7 +413,7 @@ test('strict TLS rejects an invalid PEM file', async (t) => {
 });
 
 test('strict TLS rejects a CA file inside Git unless the path is ignored', async (t) => {
-  const hostname = 'db.hhyvmhgpapyuzjgxfnqv.supabase.co';
+  const hostname = 'aws-0-us-east-1.pooler.supabase.com';
   const fixture = await createTLSFixture(hostname);
   const unignoredPath = join(
     process.cwd(),
@@ -454,10 +438,10 @@ test('strict TLS rejects a CA file inside Git unless the path is ignored', async
 });
 
 test('strict TLS rejects any rejectUnauthorized value other than true', async (t) => {
-  const hostname = 'db.hhyvmhgpapyuzjgxfnqv.supabase.co';
+  const hostname = 'aws-0-us-east-1.pooler.supabase.com';
   const fixture = await createTLSFixture(hostname);
   t.after(() => rm(fixture.directory, { recursive: true, force: true }));
-  const target = validatedConnection(databaseURL({ hostname }));
+  const target = buildAuthorizedStagingTarget('local-only');
   const config = buildStrictPgConfiguration(target, fixture.ca);
   config.ssl.rejectUnauthorized = false;
   assert.throws(
@@ -466,33 +450,59 @@ test('strict TLS rejects any rejectUnauthorized value other than true', async (t
   );
 });
 
-test('connection validation rejects sslmode overrides, port 6543 and foreign hosts', () => {
-  const hostname = 'db.hhyvmhgpapyuzjgxfnqv.supabase.co';
-  assert.throws(
-    () => validatedConnection(databaseURL({ hostname, sslmode: 'no-verify' })),
-    /TLS parameters/,
-  );
-  assert.throws(
-    () => validatedConnection(databaseURL({
-      hostname: 'aws-0-us-east-1.pooler.supabase.com',
-      username: 'postgres.hhyvmhgpapyuzjgxfnqv',
-      port: 6543,
-    })),
-    /failed checks: port/,
-  );
-  assert.throws(
-    () => validatedConnection(databaseURL({
-      hostname: 'db.aaaaaaaaaaaaaaaaaaaa.supabase.co',
-    })),
-    /failed checks: project_ref/,
-  );
-  const sessionPooler = validatedConnection(databaseURL({
-    hostname: 'aws-0-us-east-1.pooler.supabase.com',
-    username: 'postgres.hhyvmhgpapyuzjgxfnqv',
-  }));
+test('authorized target uses only fixed Staging Session Pooler fields', () => {
+  const sessionPooler = buildAuthorizedStagingTarget('local-only');
+  assert.equal(sessionPooler.hostname, 'aws-0-us-east-1.pooler.supabase.com');
+  assert.equal(sessionPooler.database, 'postgres');
+  assert.equal(sessionPooler.username, 'postgres.hhyvmhgpapyuzjgxfnqv');
   assert.equal(sessionPooler.connectionMode, 'session-pooler');
   assert.equal(sessionPooler.projectRef, 'hhyvmhgpapyuzjgxfnqv');
   assert.equal(sessionPooler.port, 5432);
+  assert.throws(
+    () => buildAuthorizedStagingTarget(''),
+    /failed checks: password/,
+  );
+});
+
+test('secure macOS dialog requests only a hidden password and keeps it out of arguments', () => {
+  const secret = 'new-password-only-from-dialog-pipe';
+  let invocation = null;
+  const password = readPasswordFromMacOSDialog({
+    platform: 'darwin',
+    spawn(command, args, options) {
+      invocation = { command, args, options };
+      return {
+        status: 0,
+        stdout: `${secret}\n`,
+        stderr: '',
+      };
+    },
+  });
+  assert.equal(password, secret);
+  assert.equal(invocation.command, '/usr/bin/osascript');
+  assert.deepEqual(invocation.options.stdio, ['ignore', 'pipe', 'pipe']);
+  assert.match(invocation.args.join(' '), /with hidden answer/);
+  assert.equal(invocation.args.some((argument) => argument.includes(secret)), false);
+  assert.doesNotMatch(invocation.args.join(' '), /postgres(?:ql)?:\/\//);
+});
+
+test('secure macOS dialog reports cancellation without exposing child output', () => {
+  const secret = 'must-not-appear-in-the-error';
+  assert.throws(
+    () => readPasswordFromMacOSDialog({
+      platform: 'darwin',
+      spawn: () => ({
+        status: 1,
+        stdout: '',
+        stderr: secret,
+      }),
+    }),
+    (error) => {
+      assert.match(error.message, /cancelled or unavailable/);
+      assert.doesNotMatch(error.message, new RegExp(secret));
+      return true;
+    },
+  );
 });
 
 test('valid Session Pooler diagnostic passes when client TLS is strict and backend pg_stat_ssl is false', () => {
@@ -517,47 +527,39 @@ test('valid Session Pooler diagnostic passes when client TLS is strict and backe
   assert.match(diagnostic.observed.targetUsername, /^postgres\.hhyvmh…$/);
 });
 
-test('connection target rejects every unsafe Session Pooler condition by name', () => {
-  const hostname = 'aws-0-us-east-1.pooler.supabase.com';
+test('connection target rejects every unsafe Staging condition by name', () => {
+  const authorized = buildAuthorizedStagingTarget('local-only');
   const cases = [
     {
       label: 'project_ref',
-      url: databaseURL({
-        hostname,
-        username: 'postgres.aaaaaaaaaaaaaaaaaaaa',
-      }),
+      mutate: (target) => { target.projectRef = 'aaaaaaaaaaaaaaaaaaaa'; },
     },
     {
       label: 'database',
-      url: databaseURL({
-        hostname,
-        username: 'postgres.hhyvmhgpapyuzjgxfnqv',
-        database: 'template1',
-      }),
+      mutate: (target) => { target.database = 'template1'; },
     },
     {
       label: 'username',
-      url: databaseURL({ hostname, username: 'postgres' }),
+      mutate: (target) => { target.username = 'postgres'; },
     },
     {
       label: 'session_pooler',
-      url: databaseURL({
-        hostname: 'shared.example.invalid',
-        username: 'postgres.hhyvmhgpapyuzjgxfnqv',
-      }),
+      mutate: (target) => { target.hostname = 'db.hhyvmhgpapyuzjgxfnqv.supabase.co'; },
     },
     {
       label: 'port',
-      url: databaseURL({
-        hostname,
-        username: 'postgres.hhyvmhgpapyuzjgxfnqv',
-        port: 6543,
-      }),
+      mutate: (target) => { target.port = 6543; },
+    },
+    {
+      label: 'password',
+      mutate: (target) => { target.password = ''; },
     },
   ];
-  for (const { label, url } of cases) {
+  for (const { label, mutate } of cases) {
+    const target = structuredClone(authorized);
+    mutate(target);
     assert.throws(
-      () => validatedConnection(url),
+      () => assertAuthorizedStagingTarget(target),
       new RegExp(`failed checks: .*${label}`),
     );
   }
@@ -603,6 +605,7 @@ test('connected diagnostic rejects each post-connect condition independently', (
   ];
   for (const { label, mutate } of cases) {
     const fixture = validSessionPoolerDiagnostic();
+    fixture.target = { ...fixture.target };
     mutate(fixture);
     const diagnostic = evaluateConnectedDiagnostics(fixture);
     assert.equal(diagnostic.status, 'fail', label);
@@ -718,7 +721,7 @@ test('runner completes manifest validation before reading the CA or credentials'
 });
 
 test('ephemeral PostgreSQL TLS handshake trusts only the configured CA and sends zero SQL on rejection', async (t) => {
-  const hostname = 'db.hhyvmhgpapyuzjgxfnqv.supabase.co';
+  const hostname = 'aws-0-us-east-1.pooler.supabase.com';
   const trusted = await createTLSFixture(hostname);
   const untrusted = await createTLSFixture(hostname);
   const server = await startPostgresTLSServer(trusted);
@@ -728,7 +731,7 @@ test('ephemeral PostgreSQL TLS handshake trusts only the configured CA and sends
     await rm(untrusted.directory, { recursive: true, force: true });
   });
 
-  const target = validatedConnection(databaseURL({ hostname }));
+  const target = buildAuthorizedStagingTarget('local-only');
   const trustedClient = pgClientForLocalTLSServer(
     buildStrictPgConfiguration(target, trusted.ca),
     server.port,
@@ -758,8 +761,8 @@ test('ephemeral PostgreSQL TLS handshake trusts only the configured CA and sends
 });
 
 test('ephemeral PostgreSQL TLS handshake rejects a CA-trusted hostname mismatch before SQL', async (t) => {
-  const targetHostname = 'db.hhyvmhgpapyuzjgxfnqv.supabase.co';
-  const wrongHostname = 'db.aaaaaaaaaaaaaaaaaaaa.supabase.co';
+  const targetHostname = 'aws-0-us-east-1.pooler.supabase.com';
+  const wrongHostname = 'wrong.pooler.supabase.com';
   const fixture = await createTLSFixture(wrongHostname);
   const server = await startPostgresTLSServer(fixture);
   t.after(async () => {
@@ -767,7 +770,7 @@ test('ephemeral PostgreSQL TLS handshake rejects a CA-trusted hostname mismatch 
     await rm(fixture.directory, { recursive: true, force: true });
   });
 
-  const target = validatedConnection(databaseURL({ hostname: targetHostname }));
+  const target = buildAuthorizedStagingTarget('local-only');
   const client = pgClientForLocalTLSServer(
     buildStrictPgConfiguration(target, fixture.ca),
     server.port,
