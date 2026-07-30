@@ -1,69 +1,47 @@
-# Reporte de ejecución — QA Foundation
+# Reporte de ejecución — dataset QA real
 
 Fecha: 2026-07-30.
 
-Worktree:
-`/Users/nicoavayu/Downloads/arma2/arma2-torneos-qa-foundation`
+- Base exacta: `94e4b0825a0c166289982edd045edbb715ff138c`.
+- Rama: `codex/torneos-qa-seed`.
+- Worktree: `/Users/nicoavayu/Downloads/arma2/arma2-torneos-qa-seed`.
+- Supabase efímero local: API `57321`, PostgreSQL `57322`.
+- Staging/Production: no conectados, no ejecutados.
 
-Base exacta:
-`3de01b435fcdb4a63c6b92ba8b5dc934c1bb3a4c`
-
-## Resultado
+## Resultado local
 
 | Verificación | Resultado |
 | --- | --- |
-| `npm ci` | OK |
-| `npm run test:qa:guards` | 9 passed |
-| `npm run qa:torneos:seed:dry-run` | OK; sin conexión ni escritura |
-| `npm run test:e2e` | 35 passed, 40 skipped por sesiones/datos ausentes |
-| `npm run test:ci` | 250 suites, 1861 tests passed |
-| `npm run test:db:torneos` | OK; todas las verificaciones locales pasaron |
-| `npm run lint` | OK, 0 errores |
-| Lint explícito de archivos QA | OK, 0 errores |
-| `npm run build` con variables locales placeholder | OK |
+| `npm ci --ignore-scripts` | OK; dependencias del lockfile |
+| dry-run seed/usuarios/cleanup | OK; cero conexiones y cero escrituras |
+| usuarios QA local | 6 creados/resueltos; 6 perfiles canónicos |
+| preflight inicial | `create`, 587 esperadas, 0 presentes, 0 colisiones |
+| primera ejecución | `created`, 587 filas, 32 tablas |
+| segunda ejecución | `skip`, 587/587 presentes, 0 inserts |
+| colisión de registro ajeno | `reject: foreign_data_collision` |
+| fallo deliberado tras `tournament_matches` | rollback completo; 0 filas del seed |
+| rollback | `cleaned`; 0 seed rows; 0 leftovers por organization |
+| segundo rollback | `already_clean` |
+| roja/sanción | mismo `roster_player_id` y `source_event_id` |
+| outsider | 0 memberships |
+| equipo ideal | 5 IDs únicos, criterio `manual_curated`, selección no automática |
+| rechazo Production/ref/host | OK |
+| rechazo credenciales incompletas/ambiguas | OK |
+| `npm run test:qa:guards` | 8 passed, integración local omitida sin DB URL |
+| `npm run test:qa:torneos:local` | 1 passed; reset completo + ciclo end-to-end |
+| auditoría RPCs anon | 9/9 inspeccionadas; sin cambios de permisos |
+| FKs sin índice | 197 clasificadas: 91 críticas, 87 corto plazo, 19 sin evidencia |
 
-La suite DB se ejecutó contra un Supabase efímero exclusivamente local en el
-puerto 57322 porque el puerto default estaba ocupado por otro worktree. Al
-terminar se detuvo y eliminó el entorno local; el cambio temporal de
-`supabase/config.toml` fue revertido y no forma parte del diff.
+## Observaciones
 
-## Viewports
+- El primer intento local falló por la regla canónica que vuelve inmutable una operación oficial. La transacción revirtió todo; el runner se corrigió para finalizar operaciones después de sus hijos dentro de la misma transacción.
+- El cleanup necesita bypass transaccional de triggers porque el historial oficial es append-only. Está habilitado sólo para local con doble confirmación y verificación pre-commit/post-commit.
+- El advisor local actual reporta 244 FKs sin índice en todo `public`; el inventario Torneos solicitado contiene 197. Hay tres FKs adicionales de la tabla raíz `tournaments` y 44 ajenas al conjunto.
+- `npm ci` conserva 70 vulnerabilidades del árbol existente (10 low, 27 moderate, 29 high, 4 critical). No se ejecutó `npm audit fix`.
 
-Los cinco proyectos pasaron acceso sin sesión, preservación de `returnTo`,
-guards de rutas, navegación del shell de login, overflow horizontal y captura
-de screenshot:
+## Artefactos
 
-- Chromium desktop 1440x900.
-- Tablet 768x1024.
-- Mobile 320x700.
-- Mobile 375x812.
-- Mobile 430x932.
-
-## Pendientes explícitos
-
-Cuarenta ejecuciones quedan en `skipped`, no aprobadas:
-
-- navegación del shell organizacional como owner;
-- guardas reales de admin, delegate, player, outsider y collaborator;
-- navegación móvil organizacional;
-- apertura y cierre de un modal real.
-
-Requieren storage states no versionados y que el dataset sea ejecutado más
-adelante en un entorno autorizado.
-
-## Warnings observados
-
-- `npm ci` informó 70 vulnerabilidades del árbol existente: 10 low, 27
-  moderate, 29 high y 4 critical. No se ejecutó `npm audit fix` porque sería un
-  cambio general fuera de alcance.
-- La compilación de desarrollo de CRA informó tres source maps faltantes en
-  `@capacitor-community/apple-sign-in`.
-- `caniuse-lite` tiene seis meses y Browserslist recomienda actualizarlo.
-- Webpack Dev Server informó deprecaciones de `onBeforeSetupMiddleware` y
-  `onAfterSetupMiddleware`.
-- Jest muestra warnings preexistentes de `act()`,
-  `ReactDOMTestUtils.act` y future flags de React Router v7, además de logs
-  intencionales de pruebas negativas.
-
-Ninguno pertenece a archivos funcionales modificados en esta etapa, por lo que
-no se hizo una refactorización general para silenciarlos.
+- Arquitectura y operación: `docs/qa/torneos-demo-dataset.md`.
+- RPCs anon: `docs/qa/torneos-anon-rpc-audit.md`.
+- FKs: `docs/qa/torneos-foreign-key-classification.md`.
+- Dry-run completo: `node scripts/qa/seed-torneos-demo.mjs --dry-run`.
