@@ -332,6 +332,10 @@ async function countExpectedRows(client, manifest, { includeMissing = true } = {
   };
 }
 
+export async function readManifestExpectedState(client, manifest, options = {}) {
+  return countExpectedRows(client, manifest, options);
+}
+
 export async function preflightDatabase(client, manifest) {
   const schemaIssues = await requiredSchemaPreflight(client, manifest);
   const userVerification = await verifyRequiredUsers(client, manifest);
@@ -502,6 +506,69 @@ async function finalizeMatchOperations(client, manifest) {
       ],
     );
   }
+}
+
+function markerRows(operation) {
+  return operation.table === 'tournament_audit_log'
+    ? operation.rows.filter((row) => row.resource_type === 'qa_seed_execution')
+    : [];
+}
+
+export function splitManifestForAtomicReplacement(manifest) {
+  const baseOperations = [];
+  const markerOperations = [];
+  for (const operation of manifest.operations) {
+    const markers = markerRows(operation);
+    const markerSet = new Set(markers);
+    const baseRows = operation.rows.filter((row) => !markerSet.has(row));
+    if (baseRows.length > 0) baseOperations.push({ ...operation, rows: baseRows });
+    if (markers.length > 0) markerOperations.push({ ...operation, rows: markers });
+  }
+  const baseRows = baseOperations.reduce((sum, operation) => sum + operation.rows.length, 0);
+  const markers = markerOperations.reduce((sum, operation) => sum + operation.rows.length, 0);
+  if (baseRows !== 586 || markers !== 1) {
+    throw new Error('Atomic replacement requires exactly 586 base rows and one marker.');
+  }
+  return { baseOperations, markerOperations, baseRows, markers };
+}
+
+async function insertOperations(client, operations, {
+  manifest,
+  failAfterRowCount = null,
+} = {}) {
+  const inserted = [];
+  let insertedRows = 0;
+  for (const operation of operations) {
+    for (const row of operation.rows) {
+      try {
+        await insertRow(client, operation, row);
+      } catch (error) {
+        error.message = `${operation.table}: ${error.message}`;
+        throw error;
+      }
+      insertedRows += 1;
+      if (failAfterRowCount !== null && insertedRows >= failAfterRowCount) {
+        await client.query('select 1 / 0 as qa_deliberate_seed_failure');
+      }
+    }
+    inserted.push({ table: operation.table, rows: operation.rows.length });
+  }
+  return { inserted, insertedRows };
+}
+
+export async function insertManifestBaseInCurrentTransaction(client, manifest, options = {}) {
+  const { baseOperations } = splitManifestForAtomicReplacement(manifest);
+  const result = await insertOperations(client, baseOperations, {
+    manifest,
+    ...options,
+  });
+  await finalizeMatchOperations(client, manifest);
+  return result;
+}
+
+export async function insertManifestMarkerInCurrentTransaction(client, manifest) {
+  const { markerOperations } = splitManifestForAtomicReplacement(manifest);
+  return insertOperations(client, markerOperations, { manifest });
 }
 
 function isSerializationFailure(error) {

@@ -243,7 +243,7 @@ function identityFromRow(table, row) {
   return Object.fromEntries(table.identity.map((column) => [column, row[column]]));
 }
 
-async function readExpectedState(client, descriptor) {
+export async function readV2ExpectedState(client, descriptor) {
   const tableResults = [];
   let present = 0;
   let exact = 0;
@@ -315,7 +315,7 @@ async function schemaIssues(client, descriptor) {
   return issues;
 }
 
-async function ownershipInventory(client, descriptor) {
+export async function readV2OwnershipInventory(client, descriptor) {
   const inventory = [];
   for (const table of descriptor.tables) {
     const values = table.ownership.values;
@@ -386,7 +386,7 @@ async function unrelatedTableInventory(client, descriptor) {
   return inventory;
 }
 
-async function profileSnapshot(client, profiles) {
+export async function readQAProfileSnapshot(client, profiles) {
   if (!Array.isArray(profiles) || profiles.length !== 6) {
     throw new Error('Exactly six QA profiles are required for cleanup preflight.');
   }
@@ -423,7 +423,7 @@ async function v3MarkerCount(client) {
   return result.rows[0].count;
 }
 
-async function readDeleteGuards(client, descriptor) {
+export async function readV2DeleteGuards(client, descriptor) {
   const tables = descriptor.tables.map((table) => table.table);
   const result = await client.query(
     `select table_row.relname as table_name,
@@ -454,7 +454,7 @@ function guardKey(guard) {
   return `${guard.table}.${guard.trigger}.${guard.functionName}`;
 }
 
-function validateDeleteGuards(guards) {
+export function validateV2DeleteGuards(guards) {
   const actual = guards.map(guardKey).sort();
   const expected = ALLOWED_DELETE_GUARDS.map(guardKey).sort();
   return canonicalJson(actual) === canonicalJson(expected)
@@ -505,14 +505,14 @@ export async function preflightV2Cleanup(client, {
   }
   if (!lockAcquired) return { status: 'reject', reason: 'advisory_lock_unavailable' };
 
-  const expectedState = await readExpectedState(client, descriptor);
-  const ownership = await ownershipInventory(client, descriptor);
+  const expectedState = await readV2ExpectedState(client, descriptor);
+  const ownership = await readV2OwnershipInventory(client, descriptor);
   const unexpectedOwnership = ownership.filter((entry) => entry.actual !== entry.expected);
-  const profilesBefore = await profileSnapshot(client, profiles);
+  const profilesBefore = await readQAProfileSnapshot(client, profiles);
   const v3Markers = await v3MarkerCount(client);
   const foreign = await foreignInventory(client, descriptor);
   const unrelated = await unrelatedTableInventory(client, descriptor);
-  const guards = await readDeleteGuards(client, descriptor);
+  const guards = await readV2DeleteGuards(client, descriptor);
   const marker = await markerResult(client, descriptor);
   const failures = [];
   if (!marker.uniqueAndExact) failures.push('marker_v2_mismatch');
@@ -525,7 +525,7 @@ export async function preflightV2Cleanup(client, {
   ) failures.push('partial_or_tampered_v2');
   if (unexpectedOwnership.length > 0) failures.push('unexpected_v2_ownership');
   if (!profilesBefore.intact) failures.push('qa_profiles_mismatch');
-  if (!validateDeleteGuards(guards)) failures.push('delete_guard_contract_mismatch');
+  if (!validateV2DeleteGuards(guards)) failures.push('delete_guard_contract_mismatch');
   return {
     status: failures.length === 0 ? 'ready' : 'reject',
     reason: failures[0] || 'ownership_verified',
@@ -549,7 +549,7 @@ export async function preflightV2Cleanup(client, {
   };
 }
 
-async function lockCleanupTables(client, descriptor) {
+export async function lockCleanupTables(client, descriptor) {
   for (const table of [...descriptor.tables].map((entry) => entry.table).sort()) {
     await client.query(
       `lock table public.${quoteIdentifier(table)} in access exclusive mode`,
@@ -557,7 +557,7 @@ async function lockCleanupTables(client, descriptor) {
   }
 }
 
-async function setDeleteGuards(client, enabled) {
+export async function setDeleteGuards(client, enabled) {
   const action = enabled ? 'enable' : 'disable';
   for (const guard of ALLOWED_DELETE_GUARDS) {
     await client.query(
@@ -637,6 +637,59 @@ async function deleteFinalParentsAndMarker(client, descriptor) {
   };
 }
 
+export async function deleteV2InCurrentTransaction(client, {
+  descriptor = TORNEOS_DEMO_V2_CLEANUP_DESCRIPTOR,
+  failAfterDeleteCount = null,
+} = {}) {
+  await setDeleteGuards(client, false);
+
+  const auditTable = descriptor.tables.find((table) => table.table === descriptor.marker.table);
+  const markerKey = identityKey(descriptor.marker.identity);
+  const nonMarkerAuditRows = auditTable.rows.filter((row) => (
+    identityKey(row.identity) !== markerKey
+  ));
+  let deleted = 0;
+  for (const row of [...nonMarkerAuditRows].reverse()) {
+    const result = await deleteDescriptorRow(client, auditTable, row);
+    if (result.rowCount !== 1) throw new Error('Expected one owned audit row.');
+    deleted += 1;
+  }
+  const deleteTables = descriptor.tables.filter((table) => (
+    table.table !== 'tournament_organizations'
+    && table.table !== 'tournament_seasons'
+    && table.table !== 'tournaments'
+    && table.table !== descriptor.marker.table
+  )).reverse();
+  for (const table of deleteTables) {
+    for (const row of [...table.rows].reverse()) {
+      const result = await deleteDescriptorRow(client, table, row);
+      if (result.rowCount !== 1) {
+        throw new Error(`Expected one owned ${table.table} row, deleted ${result.rowCount}.`);
+      }
+      deleted += 1;
+      if (failAfterDeleteCount !== null && deleted >= failAfterDeleteCount) {
+        await client.query('select 1 / 0 as qa_deliberate_cleanup_failure');
+      }
+    }
+  }
+  const finalRows = await deleteFinalParentsAndMarker(client, descriptor);
+  if (
+    finalRows.tournamentsDeleted !== 4
+    || finalRows.seasonsDeleted !== 1
+    || finalRows.rootDeleted !== 1
+    || finalRows.markerDeleted !== 1
+  ) {
+    throw new Error('Final v2 marker and parent deletion did not delete exactly seven rows.');
+  }
+  deleted += 7;
+  if (deleted !== descriptor.expected.totalRows) {
+    throw new Error(`Cleanup deleted ${deleted}, expected ${descriptor.expected.totalRows}.`);
+  }
+
+  await setDeleteGuards(client, true);
+  return { deleted, deleteGuardsRestored: true };
+}
+
 function sameInventory(left, right) {
   return canonicalJson(left) === canonicalJson(right);
 }
@@ -690,59 +743,18 @@ export async function executeV2Cleanup(client, {
         throw error;
       }
       await afterPreflight({ attempt, preflight });
-      await setDeleteGuards(client, false);
-
-      const auditTable = descriptor.tables.find((table) => table.table === descriptor.marker.table);
-      const markerKey = identityKey(descriptor.marker.identity);
-      const nonMarkerAuditRows = auditTable.rows.filter((row) => (
-        identityKey(row.identity) !== markerKey
-      ));
-      let deleted = 0;
-      for (const row of [...nonMarkerAuditRows].reverse()) {
-        const result = await deleteDescriptorRow(client, auditTable, row);
-        if (result.rowCount !== 1) throw new Error('Expected one owned audit row.');
-        deleted += 1;
-      }
-      const deleteTables = descriptor.tables.filter((table) => (
-        table.table !== 'tournament_organizations'
-        && table.table !== 'tournament_seasons'
-        && table.table !== 'tournaments'
-        && table.table !== descriptor.marker.table
-      )).reverse();
-      for (const table of deleteTables) {
-        for (const row of [...table.rows].reverse()) {
-          const result = await deleteDescriptorRow(client, table, row);
-          if (result.rowCount !== 1) {
-            throw new Error(`Expected one owned ${table.table} row, deleted ${result.rowCount}.`);
-          }
-          deleted += 1;
-          if (failAfterDeleteCount !== null && deleted >= failAfterDeleteCount) {
-            await client.query('select 1 / 0 as qa_deliberate_cleanup_failure');
-          }
-        }
-      }
-      const finalRows = await deleteFinalParentsAndMarker(client, descriptor);
-      if (
-        finalRows.tournamentsDeleted !== 4
-        || finalRows.seasonsDeleted !== 1
-        || finalRows.rootDeleted !== 1
-        || finalRows.markerDeleted !== 1
-      ) {
-        throw new Error('Final v2 marker and parent deletion did not delete exactly seven rows.');
-      }
-      deleted += 7;
-      if (deleted !== descriptor.expected.totalRows) {
-        throw new Error(`Cleanup deleted ${deleted}, expected ${descriptor.expected.totalRows}.`);
-      }
-
-      await setDeleteGuards(client, true);
-      const postState = await readExpectedState(client, descriptor);
-      const postOwnership = await ownershipInventory(client, descriptor);
-      const postProfiles = await profileSnapshot(client, profiles);
+      const cleanup = await deleteV2InCurrentTransaction(client, {
+        descriptor,
+        failAfterDeleteCount,
+      });
+      const { deleted } = cleanup;
+      const postState = await readV2ExpectedState(client, descriptor);
+      const postOwnership = await readV2OwnershipInventory(client, descriptor);
+      const postProfiles = await readQAProfileSnapshot(client, profiles);
       const postForeign = await foreignInventory(client, descriptor);
       const postUnrelated = await unrelatedTableInventory(client, descriptor);
       const postV3Marker = await v3MarkerCount(client);
-      const postGuards = await readDeleteGuards(client, descriptor);
+      const postGuards = await readV2DeleteGuards(client, descriptor);
       if (
         postState.present !== 0
         || postOwnership.some((entry) => entry.actual !== 0)
@@ -751,7 +763,7 @@ export async function executeV2Cleanup(client, {
         || !sameInventory(postForeign, preflight.foreignInventory)
         || !sameInventory(postUnrelated, preflight.unrelatedTableInventory)
         || postV3Marker !== 0
-        || !validateDeleteGuards(postGuards)
+        || !validateV2DeleteGuards(postGuards)
       ) {
         throw new Error('Cleanup post-validation rejected before commit.');
       }
