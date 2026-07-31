@@ -38,6 +38,13 @@ test('QAIdentityMap rejects credentials and incompatible projections', () => {
   const incompatible = rawMap();
   incompatible.outsider.projected_relations = ['organization_membership:owner'];
   assert.throws(() => new QAIdentityMap(incompatible), /incompatible projected_relations/);
+
+  const duplicate = rawMap();
+  duplicate.owner.projected_relations = [
+    ...duplicate.owner.projected_relations,
+    duplicate.owner.projected_relations[0],
+  ];
+  assert.throws(() => new QAIdentityMap(duplicate), /duplicate projected_relations/);
 });
 
 test('secure environment contract resolves without legacy fixed-ID variables', () => {

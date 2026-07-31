@@ -1,99 +1,91 @@
-# Reporte de ejecución — dataset QA real
+# Reporte de ejecución — torneos-demo-v3
 
-Fecha: 2026-07-30.
+Fecha: 2026-07-31.
 
-- Base remota anterior a la corrección: `33906604ea5cd0e6b5a66134f082d38ddcfdeac9`.
 - Rama: `codex/torneos-qa-seed`.
-- Worktree: `/Users/nicoavayu/Downloads/arma2/arma2-torneos-qa-seed`.
-- Supabase efímero local: API `57321`, PostgreSQL `57322`.
-- Staging: auditado sólo con `SELECT`; seed no ejecutado.
-- Production: no conectado ni ejecutado.
+- Base del cambio: `0dc66b5f0297d7c59be486559ec36c8c50779e96`.
+- Dataset remoto observado previamente: `torneos-demo-v2`, 587/587, marker único.
+- Alcance de esta ejecución: código, documentación y Supabase local.
+- Staging y Production: sin conexiones ni escrituras.
 
-## Rechazo de Session Pooler
+## Causa y corrección
 
-La condición exacta era `server.rows[0].ssl !== true` en
-`apply-torneos-seed-direct.mjs`. El único `if` posterior a `connect()` combinaba
-`current_database() !== 'postgres' || !pg_stat_ssl.ssl` bajo el error genérico.
-La connection string ya había sido validada con pathname `/postgres`, y la
-sesión autenticó, por lo que el rechazo correspondió al segundo operando.
+El manifest v2 asignaba el rol `captain` de los equipos 03 a 08 al usuario QA
+`collaborator`. Ese vínculo le otorgaba equipos administrados y acceso a RPCs de
+convocatoria, roster y retiro que no correspondían a su membership de lectura.
 
-La validación confundía dos tramos distintos: `pg_stat_ssl` observa la conexión
-del backend Pooler→Postgres, mientras que Node había validado CA, hostname,
-versión y cipher en el socket cliente→Pooler. La corrección usa el `TLSSocket`
-autorizado como prueba de TLS del cliente y conserva `pg_stat_ssl` como dato
-observado, sin convertirlo en sustituto del socket cliente.
+V3 conserva los nueve registros de `tournament_team_managers`, sus IDs, equipos,
+roles `captain` y estados `active`, pero reasigna al owner las seis capitanías de
+RIB, PPC, EDS, FER, SDC y VIL. El admin conserva HOR; el owner ya tenía BNO y
+termina con siete capitanías. El delegate conserva únicamente BNO como
+`delegate` y su roster link.
 
-Valores sanitizados observados:
+## Contrato de identidades
 
-- hostname compartido `aws-0-us-east-1.pooler.supabase.com`;
-- usuario `postgres.hhyvmh…`; project ref derivado `hhyvmh…`;
-- database/current user/session user: `postgres`;
-- endpoint y backend en puerto `5432`; backend PID observado;
-- dirección de backend sanitizada `2600:…`;
-- conexión SQL read-only de control: TLS `TLSv1.3`,
-  `TLS_AES_256_GCM_SHA384`;
-- marker `0`; huellas de filas del manifest `0/587`;
-- identidades preparadas intactas: 6 Auth + 6 perfiles;
-- outsider: 0 relaciones en 119 columnas FK inspeccionadas;
-- transacciones del runner `0`; advisory locks del seed `0`.
+| Identidad | Memberships | Managers | Roster links | Resultado funcional |
+| --- | ---: | ---: | ---: | --- |
+| owner | 1 (`owner`) | 7 `captain` | 0 | equipos administrados y acceso coherente |
+| admin | 1 (`admin`) | 1 `captain` | 0 | regresión positiva |
+| collaborator | 1 (`collaborator`) | 0 | 0 | 0 managed matches; escrituras denegadas |
+| delegate | 0 | 1 `delegate` | 1 | regresión positiva |
+| player | 0 | 0 | 1 | 0 managed matches |
+| outsider | 0 | 0 | 0 | 0 relaciones y 0 managed matches |
 
-## Corrección
+`validateQAIdentityRelations()` deriva todas las referencias a UUIDs QA por
+tabla/columna y las relaciones semánticas de membership, manager, roster,
+creador y validador. La comparación con `QA_IDENTITY_RELATIONS` es exacta y
+rechaza faltantes, inesperadas, rol/estado incorrecto y duplicados. El runner la
+ejecuta antes de cargar CA, solicitar credenciales o abrir una conexión.
 
-- nuevo modo `--diagnose`, mutuamente exclusivo con `--execute`;
-- `BEGIN READ ONLY`, un `SELECT` de identidad/SSL y `ROLLBACK`;
-- controles independientes con `pass`/`fail`: `project_ref`, `database`,
-  `username`, `session_pooler`, `ssl_active`, `tls_version`,
-  `certificate_validation` y `port`;
-- identidad de Session Pooler derivada de `postgres.<project-ref>`, nunca del
-  hostname compartido;
-- `rejectUnauthorized: true`, CA, `checkServerIdentity`, servername y puerto
-  `5432` conservados;
-- puerto `6543`, TLS overrides y targets ajenos continúan rechazados sin
-  fallback;
-- cada rechazo enumera los controles fallidos; se eliminó el error genérico.
+## Versionado v3
+
+- seed key: `torneos-demo-v3`;
+- versión: `3`;
+- marker: `85ab8c2e-6cd5-54c4-86b6-fbbfc0f0b050`;
+- manifest hash: `0afc357d733bdfbed0bae9ea8bf87b6c0b58a05ada2c0d8b65ef4b51cbb596f4`;
+- identity map fingerprint: `d13bf642667c8a02c79a6f7b6db3325be3a2196c1569cfb655d67a72a3ab4cdd`;
+- ownership fingerprint: `940e50032644694b3e2e06f0a022ada8b0474bfa4e70cb22ea45e4ceb3701d7a`.
+
+Ningún valor anterior de v2 se reutiliza. La huella de ownership incluye ahora
+el `seed_key`, además de las identidades determinísticas de filas. El preflight
+devuelve `replacement_authorization_required` si detecta el marker v2 en la
+organización y no borra ni reemplaza datasets automáticamente. Las identidades
+Auth v2 existentes se aceptan como predecesor explícito para no modificar Auth.
 
 ## Resultado local
 
 | Verificación | Resultado |
 | --- | --- |
-| auditoría remota read-only previa | marker 0; manifest 0/587; 12 identidades intactas; outsider 0 relaciones; 0 transacciones/locks |
-| `npm ci --ignore-scripts` | OK; dependencias del lockfile |
-| dry-run seed/usuarios/cleanup | OK; cero conexiones y cero escrituras |
-| usuarios QA local | 6 creados por Auth sin fijar UUID; 6 perfiles canónicos |
-| preflight inicial | `create`, 587 esperadas, 0 presentes, 0 colisiones |
-| primera ejecución | `created`, 587 filas, 32 tablas |
-| segunda ejecución | `skip`, 587/587 presentes, 0 inserts |
-| colisión de registro ajeno | `reject: foreign_data_collision` |
-| fallo deliberado tras `tournament_matches` | rollback completo; 0 filas del seed |
-| cambio de una identidad | `reject: identity_map_changed` |
-| cleanup con FKs/triggers activos | `reject: active_append_only_cleanup_guards`; cero deletes |
-| segundo cleanup / cero huérfanos | bloqueado por los mismos guards; no ejecutable sin migración acotada |
-| roja/sanción | mismo `roster_player_id` y `source_event_id` |
-| outsider | 0 memberships y 0 organizaciones visibles bajo RLS |
-| equipo ideal | 5 IDs únicos, criterio `manual_curated`, selección no automática |
-| rechazo Production/ref/host | OK |
-| rechazo credenciales incompletas/ambiguas | OK |
-| retry SERIALIZABLE | 2 fallos sintéticos `40001`, éxito en intento 3; `23503` no reintentado |
-| runner directo y TLS | 21 passed; incluye Session Pooler válido, 8 rechazos separados, CA y hostname |
-| `npm run test:qa:guards` | 34 passed; 1 integración local omitida fuera del comando conectado |
-| `npm run test:qa:torneos:local` | 1 passed; reset completo + ciclo conectado hasta diagnóstico de cleanup |
-| auditoría RPCs anon | 9/9 inspeccionadas; sin cambios de permisos |
-| FKs sin índice | 197 clasificadas: 91 críticas, 87 corto plazo, 19 sin evidencia |
+| manifest estático | 586 base + 1 marker = 587; 32 tablas |
+| relación manifest ↔ identity map | igualdad exacta; mutaciones negativas rechazadas |
+| Supabase local | reset completo, migraciones canónicas aplicadas |
+| marker v2 presente | `reject: replacement_authorization_required` |
+| rollback deliberado | 0 filas persistidas |
+| primera aplicación | `created`; 587/587; 32 tablas |
+| segunda aplicación | `skip`; 587/587; `inserted=[]` |
+| collaborator | 1 membership, 0 managers, 0 roster, 0 managed matches |
+| escrituras collaborator | retiro, roster lock y convocatoria: SQLSTATE `42501` |
+| owner | 7 capitanías; 7 equipos observados en managed matches |
+| admin/delegate/player | conteos y acceso esperados |
+| outsider | 0 relaciones, 0 managed matches, 0 organizaciones visibles por RLS |
+| cleanup default | bloquea guards antes de mutar |
+| cleanup local autorizado | `cleaned`; 0 huérfanos; guards restaurados |
+| fila sentinel ajena | intacta después del cleanup |
+| suite QA/TLS | 38 passed; integración local omitida por diseño |
+| ciclo conectado final | 1 passed desde `supabase db reset --local --no-seed` |
 
-## Observaciones
+## Cleanup local
 
-- El primer intento local falló por la regla canónica que vuelve inmutable una operación oficial. La transacción revirtió todo; el runner se corrigió para finalizar operaciones después de sus hijos dentro de la misma transacción.
-- El rechazo remoto investigado ocurrió antes de `BEGIN`; por eso no pudo
-  persistir filas ni adquirir el advisory lock transaccional del seed. La
-  auditoría posterior confirmó ambos contadores en cero.
-- Se eliminó por completo el uso de `session_replication_role`. El catálogo confirmó guards append-only/no-delete en audit log, operaciones y sus hijos, reviews y standings revisions. Con triggers activos, el esquema actual no ofrece una secuencia legal de DELETE. El runner rechaza antes de mutar y el runbook define la migración mínima futura: excepción transaccional sólo para filas verificadas del seed, sin deshabilitar triggers ni FKs.
-- El advisor local actual reporta 244 FKs sin índice en todo `public`; el inventario Torneos solicitado contiene 197. Hay tres FKs adicionales de la tabla raíz `tournaments` y 44 ajenas al conjunto.
-- `npm ci` conserva 70 vulnerabilidades del árbol existente (10 low, 27 moderate, 29 high, 4 critical). No se ejecutó `npm audit fix`.
+El cleanup mantiene SERIALIZABLE, advisory lock, prueba exacta de ownership y
+FKs activas. Sólo en `--apply-local`, después de validar loopback y confirmaciones,
+toma locks `ACCESS EXCLUSIVE`, deshabilita dentro de la transacción los triggers
+de DELETE definidos por usuario en las tablas del seed, elimina únicamente las
+identidades verificadas y restaura cada trigger antes del commit. No usa
+`session_replication_role`, no toca triggers FK/internos y no existe cleanup
+remoto.
 
-## Artefactos
+## Límites confirmados
 
-- Arquitectura y operación: `docs/qa/torneos-demo-dataset.md`.
-- Identidades y plan remoto A–G: `docs/qa/torneos-qa-auth-runbook.md`.
-- RPCs anon: `docs/qa/torneos-anon-rpc-audit.md`.
-- FKs: `docs/qa/torneos-foreign-key-classification.md`.
-- Dry-run completo: `node scripts/qa/seed-torneos-demo.mjs --dry-run`.
+No se modificaron Auth remoto, contraseñas, storage states, RLS, policies,
+migraciones, Storage, Production, Vercel ni builds. No se aplicó v3 en Staging,
+no se limpió v2 y no se realizó merge ni deployment.

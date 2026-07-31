@@ -10,8 +10,9 @@ import {
   QA_IDENTITY_ROLES,
 } from './torneos-qa-identity-map.mjs';
 
-export const SEED_KEY = 'torneos-demo-v2';
-export const SEED_VERSION = 2;
+export const SEED_KEY = 'torneos-demo-v3';
+export const PREVIOUS_SEED_KEY = 'torneos-demo-v2';
+export const SEED_VERSION = 3;
 export const SEED_ORGANIZATION_SLUG = 'qa-metropolitana';
 export const FIXED_NOW = '2026-07-30T12:00:00.000Z';
 
@@ -738,7 +739,7 @@ function buildManifestTemplate({ users }) {
       idempotency_key: stableUuid(`team-entry:${team.shortName}`),
     })), [['tournament_id', 'slug'], ['organization_id', 'created_by', 'idempotency_key']]),
     table('tournament_team_managers', ['id'], dataset.teams.flatMap((team, index) => {
-      const captainRole = index === 0 ? 'owner' : (index === 1 ? 'admin' : 'collaborator');
+      const captainRole = index === 1 ? 'admin' : 'owner';
       const managers = [{
         id: stableUuid(`manager:${team.shortName}:captain`),
         organization_id: dataset.organization.id,
@@ -1139,13 +1140,167 @@ function manifestHashInput(operations) {
   }));
 }
 
-function ownershipFingerprint(operations) {
-  return sha256(canonicalJson(operations.map((operation) => ({
-    table: operation.table,
-    identities: operation.rows.map((row) => Object.fromEntries(
-      operation.identity.map((column) => [column, row[column]]),
-    )),
-  }))));
+function ownershipFingerprint(operations, seedKey) {
+  return sha256(canonicalJson({
+    seedKey,
+    operations: operations.map((operation) => ({
+      table: operation.table,
+      identities: operation.rows.map((row) => Object.fromEntries(
+        operation.identity.map((column) => [column, row[column]]),
+      )),
+    })),
+  }));
+}
+
+function tableRows(manifest) {
+  const byTable = new Map();
+  for (const operation of manifest.operations) {
+    byTable.set(operation.table, [
+      ...(byTable.get(operation.table) || []),
+      ...operation.rows,
+    ]);
+  }
+  return byTable;
+}
+
+function addUniqueRelation(relations, seen, role, relation, identity) {
+  const key = `${role}:${identity}`;
+  if (seen.has(key)) {
+    throw new Error(`Duplicate QA identity relation for ${role}: ${identity}.`);
+  }
+  seen.add(key);
+  relations[role].push(relation);
+}
+
+function assertUniqueRelationIdentity(seen, role, identity) {
+  const key = `${role}:${identity}`;
+  if (seen.has(key)) {
+    throw new Error(`Duplicate QA identity relation for ${role}: ${identity}.`);
+  }
+  seen.add(key);
+}
+
+export function deriveQAIdentityRelations(manifest) {
+  const roleByUserId = new Map(QA_USER_ROLES.map((role) => [
+    manifest.users[role].id,
+    role,
+  ]));
+  if (roleByUserId.size !== QA_USER_ROLES.length) {
+    throw new Error('QA identity relation derivation requires six unique users.');
+  }
+  const relations = Object.fromEntries(QA_USER_ROLES.map((role) => [role, []]));
+  const referenceCounts = Object.fromEntries(QA_USER_ROLES.map((role) => [role, new Map()]));
+  const byTable = tableRows(manifest);
+  for (const operation of manifest.operations) {
+    for (const row of operation.rows) {
+      for (const [column, value] of Object.entries(row)) {
+        const role = roleByUserId.get(value);
+        if (!role) continue;
+        const reference = `${operation.table}.${column}`;
+        referenceCounts[role].set(reference, (referenceCounts[role].get(reference) || 0) + 1);
+      }
+    }
+  }
+  for (const role of QA_USER_ROLES) {
+    for (const [reference, count] of referenceCounts[role]) {
+      relations[role].push(`reference:${reference}:${count}`);
+    }
+  }
+
+  const seen = new Set();
+  const teamShortName = new Map((byTable.get('tournament_team_entries') || []).map(
+    (row) => [row.id, row.short_name],
+  ));
+  for (const row of byTable.get('tournament_organizations') || []) {
+    const role = roleByUserId.get(row.created_by);
+    if (!role) throw new Error('Dataset creator is not a declared QA identity.');
+    addUniqueRelation(
+      relations,
+      seen,
+      role,
+      'dataset_creator:tournament_organizations:1',
+      `dataset_creator:${row.id}`,
+    );
+  }
+  for (const row of byTable.get('tournament_organization_members') || []) {
+    const role = roleByUserId.get(row.user_id);
+    if (!role) throw new Error('Organization membership references an undeclared QA identity.');
+    addUniqueRelation(
+      relations,
+      seen,
+      role,
+      `organization_membership:${row.role}:${row.status}:1`,
+      `organization_membership:${row.organization_id}:${row.user_id}`,
+    );
+  }
+  for (const row of byTable.get('tournament_team_managers') || []) {
+    const role = roleByUserId.get(row.user_id);
+    if (!role) throw new Error('Team manager references an undeclared QA identity.');
+    const shortName = teamShortName.get(row.team_entry_id);
+    if (!shortName) throw new Error('Team manager references an unknown team.');
+    addUniqueRelation(
+      relations,
+      seen,
+      role,
+      `team_manager:${shortName}:${row.role}:${row.status}`,
+      `team_manager:${row.team_entry_id}:${row.user_id}`,
+    );
+  }
+  for (const row of (byTable.get('tournament_roster_players') || []).filter(
+    (player) => player.arma2_user_id,
+  )) {
+    const role = roleByUserId.get(row.arma2_user_id);
+    if (!role) throw new Error('Roster link references an undeclared QA identity.');
+    const shortName = teamShortName.get(row.team_entry_id);
+    if (!shortName) throw new Error('Roster link references an unknown team.');
+    addUniqueRelation(
+      relations,
+      seen,
+      role,
+      `roster_link:${shortName}:${row.status}`,
+      `roster_link:${row.team_entry_id}:${row.arma2_user_id}`,
+    );
+  }
+  const validatorsByRoleAndStatus = new Map();
+  for (const row of byTable.get('tournament_match_operations') || []) {
+    if (!row.validated_by) continue;
+    const role = roleByUserId.get(row.validated_by);
+    if (!role) throw new Error('Match validator references an undeclared QA identity.');
+    const key = `${role}:${row.status}`;
+    validatorsByRoleAndStatus.set(key, (validatorsByRoleAndStatus.get(key) || 0) + 1);
+    assertUniqueRelationIdentity(
+      seen,
+      role,
+      `match_operation_validator:${row.id}:${row.validated_by}`,
+    );
+  }
+  for (const [key, count] of validatorsByRoleAndStatus) {
+    const [role, status] = key.split(':');
+    relations[role].push(`match_operation_validator:${status}:${count}`);
+  }
+  return Object.freeze(Object.fromEntries(QA_USER_ROLES.map((role) => [
+    role,
+    Object.freeze(relations[role].sort()),
+  ])));
+}
+
+export function validateQAIdentityRelations(manifest) {
+  const actual = deriveQAIdentityRelations(manifest);
+  for (const role of QA_USER_ROLES) {
+    const expected = [...QA_IDENTITY_RELATIONS[role]].sort();
+    if (canonicalJson(actual[role]) !== canonicalJson(expected)) {
+      const expectedSet = new Set(expected);
+      const actualSet = new Set(actual[role]);
+      const missing = expected.filter((relation) => !actualSet.has(relation));
+      const unexpected = actual[role].filter((relation) => !expectedSet.has(relation));
+      throw new Error(
+        `QA identity relations mismatch for ${role} `
+        + `(missing: ${missing.join(', ') || 'none'}; `
+        + `unexpected: ${unexpected.join(', ') || 'none'}).`,
+      );
+    }
+  }
+  return actual;
 }
 
 export function buildBaseManifest() {
@@ -1162,6 +1317,7 @@ export function buildBaseManifest() {
     organizationCreationKey: template.organizationCreationKey,
     seedRegistryId: template.seedRegistryId,
     activeTournamentId: template.activeTournamentId,
+    acceptedAuthSeedKeys: Object.freeze([template.seedKey, PREVIOUS_SEED_KEY]),
     identityPlaceholders: Object.fromEntries(QA_USER_ROLES.map((role) => [
       role,
       PLACEHOLDER_USERS[role].id,
@@ -1187,7 +1343,7 @@ export function resolveCanonicalManifest({
   const users = usersFromIdentityMap(resolvedIdentityMap);
   const manifestHash = sha256(canonicalJson(manifestHashInput(operations)));
   const identityMapFingerprint = resolvedIdentityMap.fingerprint();
-  const rowOwnershipFingerprint = ownershipFingerprint(operations);
+  const rowOwnershipFingerprint = ownershipFingerprint(operations, baseManifest.seedKey);
   const expectedRowCount = operations.reduce((sum, operation) => sum + operation.rows.length, 0) + 1;
   const expectedTableCount = new Set([
     ...operations.map((operation) => operation.table),
@@ -1285,6 +1441,7 @@ export function validateCanonicalManifest(manifest) {
       + `${totalRows} rows/${tables} tables validated.`,
     );
   }
+  const identityRelations = validateQAIdentityRelations(manifest);
   const byTable = new Map();
   manifest.operations.forEach((operation) => {
     byTable.set(operation.table, [
@@ -1401,6 +1558,7 @@ export function validateCanonicalManifest(manifest) {
   return {
     ...manifest.summary,
     manifestHash: manifest.manifestHash,
+    identityRelations,
     counts,
   };
 }

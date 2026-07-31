@@ -13,12 +13,14 @@ import {
   buildCanonicalManifest,
   validateCanonicalManifest,
 } from './torneos-demo-manifest.mjs';
+import { stableUuid } from './torneos-demo-dataset.mjs';
 import {
   QAIdentityMap,
   QA_IDENTITY_RELATIONS,
 } from './torneos-qa-identity-map.mjs';
 import {
   cleanupManifest,
+  detectCleanupTriggerBlockers,
   materializeManifest,
   preflightDatabase,
   withSerializableRetry,
@@ -57,6 +59,41 @@ function resolveLocalRuntime() {
 
 const localRuntime = resolveLocalRuntime();
 
+async function withAuthenticatedIdentity(client, userId, action) {
+  await client.query('begin');
+  try {
+    await client.query('set local role authenticated');
+    await client.query(
+      `select set_config(
+        'request.jwt.claims',
+        json_build_object('sub', $1::text, 'role', 'authenticated')::text,
+        true
+      )`,
+      [userId],
+    );
+    return await action();
+  } finally {
+    await client.query('rollback');
+  }
+}
+
+async function managedMatchesFor(client, userId) {
+  return withAuthenticatedIdentity(client, userId, async () => {
+    const result = await client.query('select public.get_managed_tournament_matches() as matches');
+    return result.rows[0].matches;
+  });
+}
+
+async function assertAdministrativeWriteDenied(client, userId, sql, values) {
+  await assert.rejects(
+    () => withAuthenticatedIdentity(client, userId, () => client.query(sql, values)),
+    (error) => {
+      assert.equal(error.code, '42501');
+      return true;
+    },
+  );
+}
+
 test('local canonical seed lifecycle validates Auth UUIDs, safety and cleanup blockers', {
   skip: !localRuntime,
 }, async () => {
@@ -78,6 +115,37 @@ test('local canonical seed lifecycle validates Auth UUIDs, safety and cleanup bl
     ]));
     const manifest = buildCanonicalManifest({ identityMap });
     validateCanonicalManifest(manifest);
+
+    await client.query('begin');
+    await client.query(
+      `insert into public.tournament_organizations (
+        id, name, slug, status, created_by, creation_key
+      ) values ($1, 'Dataset QA v2 pendiente', $2, 'active', $3, $4)`,
+      [
+        manifest.organizationId,
+        manifest.organizationSlug,
+        users.owner.id,
+        stableUuid('seed-key:torneos-demo-v2'),
+      ],
+    );
+    await client.query(
+      `insert into public.tournament_audit_log (
+        organization_id, actor_user_id, actor_type, action,
+        resource_type, resource_id, metadata, created_at
+      ) values ($1, $2, 'user', 'qa.seed.applied',
+        'qa_seed_execution', $3, $4::jsonb, now())`,
+      [
+        manifest.organizationId,
+        users.owner.id,
+        stableUuid('seed-registry:torneos-demo-v2'),
+        JSON.stringify({ seed_key: 'torneos-demo-v2' }),
+      ],
+    );
+    const replacementBlocked = await preflightDatabase(client, manifest);
+    assert.equal(replacementBlocked.status, 'reject');
+    assert.equal(replacementBlocked.reason, 'replacement_authorization_required');
+    assert.equal(replacementBlocked.collisions[0].seedKey, 'torneos-demo-v2');
+    await client.query('rollback');
 
     const { data: foreignCreator, error: foreignCreatorError } = await authAdmin.createUser({
       email: 'qa-foreign-collision@localhost.invalid',
@@ -138,6 +206,86 @@ test('local canonical seed lifecycle validates Auth UUIDs, safety and cleanup bl
     const second = await materializeManifest(client, manifest);
     assert.equal(second.status, 'skip');
     assert.equal(second.preflight.present, second.preflight.expected);
+    assert.deepEqual(second.inserted, []);
+
+    const relationCounts = {};
+    for (const [role, user] of Object.entries(users)) {
+      const result = await client.query(
+        `select
+          (select count(*)::integer from public.tournament_organization_members
+           where organization_id = $1 and user_id = $2) as memberships,
+          (select count(*)::integer from public.tournament_team_managers
+           where organization_id = $1 and user_id = $2) as managers,
+          (select count(*)::integer from public.tournament_roster_players
+           where organization_id = $1 and arma2_user_id = $2) as roster_links`,
+        [manifest.organizationId, user.id],
+      );
+      relationCounts[role] = result.rows[0];
+    }
+    assert.deepEqual(relationCounts, {
+      owner: { memberships: 1, managers: 7, roster_links: 0 },
+      admin: { memberships: 1, managers: 1, roster_links: 0 },
+      collaborator: { memberships: 1, managers: 0, roster_links: 0 },
+      delegate: { memberships: 0, managers: 1, roster_links: 1 },
+      player: { memberships: 0, managers: 0, roster_links: 1 },
+      outsider: { memberships: 0, managers: 0, roster_links: 0 },
+    });
+
+    const teamRows = manifest.operations.find(
+      (operation) => operation.table === 'tournament_team_entries',
+    ).rows;
+    const rosterRows = manifest.operations.find(
+      (operation) => operation.table === 'tournament_rosters',
+    ).rows;
+    const participants = manifest.operations.find(
+      (operation) => operation.table === 'tournament_competition_participants',
+    ).rows;
+    const matches = manifest.operations.find(
+      (operation) => operation.table === 'tournament_matches',
+    ).rows;
+    const ownerTeam = teamRows[2];
+    const ownerParticipant = participants.find(
+      (participant) => participant.team_entry_id === ownerTeam.id,
+    );
+    const ownerMatch = matches.find((match) => (
+      match.home_participant_id === ownerParticipant.id
+      || match.away_participant_id === ownerParticipant.id
+    ));
+    const collaboratorManaged = await managedMatchesFor(client, users.collaborator.id);
+    assert.deepEqual(collaboratorManaged, []);
+    assert.equal((await managedMatchesFor(client, users.outsider.id)).length, 0);
+    assert.equal((await managedMatchesFor(client, users.player.id)).length, 0);
+    const ownerManaged = await managedMatchesFor(client, users.owner.id);
+    const adminManaged = await managedMatchesFor(client, users.admin.id);
+    const delegateManaged = await managedMatchesFor(client, users.delegate.id);
+    assert.equal(new Set(ownerManaged.map((match) => match.teamEntryId)).size, 7);
+    assert.equal(new Set(adminManaged.map((match) => match.teamEntryId)).size, 1);
+    assert.equal(new Set(delegateManaged.map((match) => match.teamEntryId)).size, 1);
+    await assertAdministrativeWriteDenied(
+      client,
+      users.collaborator.id,
+      'select public.withdraw_tournament_team_entry($1, $2, $3)',
+      [manifest.organizationId, ownerTeam.id, 'QA denied'],
+    );
+    await assertAdministrativeWriteDenied(
+      client,
+      users.collaborator.id,
+      'select public.lock_tournament_roster($1, $2, $3)',
+      [manifest.organizationId, ownerTeam.id, rosterRows[2].id],
+    );
+    await assertAdministrativeWriteDenied(
+      client,
+      users.collaborator.id,
+      "select public.save_match_squad($1, $2, $3, '[]'::jsonb)",
+      [manifest.organizationId, ownerMatch.id, ownerTeam.id],
+    );
+    const ownerWithdraw = await withAuthenticatedIdentity(client, users.owner.id, () => (
+      client.query(
+        'select public.withdraw_tournament_team_entry($1, $2, $3) as result',
+        [manifest.organizationId, ownerTeam.id, 'QA owner rollback'],
+      )
+    ));
+    assert.equal(ownerWithdraw.rows[0].result.status, 'withdrawn');
 
     const redCoherence = await client.query(
       `select count(*)::integer as count
@@ -160,21 +308,10 @@ test('local canonical seed lifecycle validates Auth UUIDs, safety and cleanup bl
     );
     assert.equal(outsiderMembership.rows[0].count, 0);
 
-    await client.query('begin');
-    await client.query('set local role authenticated');
-    await client.query(
-      `select set_config(
-        'request.jwt.claims',
-        json_build_object('sub', $1::text, 'role', 'authenticated')::text,
-        true
-      )`,
-      [users.outsider.id],
-    );
-    const outsiderVisible = await client.query(
-      'select count(*)::integer as count from public.tournament_organizations',
-    );
+    const outsiderVisible = await withAuthenticatedIdentity(client, users.outsider.id, () => (
+      client.query('select count(*)::integer as count from public.tournament_organizations')
+    ));
     assert.equal(outsiderVisible.rows[0].count, 0);
-    await client.query('rollback');
 
     const ideal = await client.query(
       `select metadata
@@ -213,6 +350,36 @@ test('local canonical seed lifecycle validates Auth UUIDs, safety and cleanup bl
     assert.ok(cleanup.triggerBlockers.some(
       (item) => item.trigger === 'tournament_audit_append_only',
     ));
+
+    await client.query(
+      `insert into public.tournament_organizations (
+        id, name, slug, status, created_by, creation_key
+      ) values ($1, 'Sentinel ajeno', 'qa-foreign-sentinel', 'active', $2, $3)`,
+      [
+        stableUuid('foreign-sentinel-organization'),
+        foreignCreator.user.id,
+        stableUuid('foreign-sentinel-creation-key'),
+      ],
+    );
+    const cleaned = await cleanupManifest(client, manifest, {
+      apply: true,
+      allowLocalTriggerBypass: true,
+    });
+    assert.equal(cleaned.status, 'cleaned');
+    assert.equal(cleaned.after.identityPresent, 0);
+    assert.equal(cleaned.orphanCount, 0);
+    assert.equal(cleaned.organizationScopedLeftovers.length, 0);
+    assert.ok(cleaned.localTriggerBypass.every((trigger) => trigger.restored));
+    const sentinel = await client.query(
+      'select count(*)::integer as count from public.tournament_organizations where slug = $1',
+      ['qa-foreign-sentinel'],
+    );
+    assert.equal(sentinel.rows[0].count, 1);
+    const restoredBlockers = await detectCleanupTriggerBlockers(client, manifest);
+    assert.equal(restoredBlockers.length, cleanup.triggerBlockers.length);
+    const afterCleanup = await preflightDatabase(client, manifest);
+    assert.equal(afterCleanup.status, 'create');
+    assert.equal(afterCleanup.present, 0);
 
     const retryEvents = [];
     let serializationAttempts = 0;

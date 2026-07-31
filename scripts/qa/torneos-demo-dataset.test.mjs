@@ -4,7 +4,9 @@ import test from 'node:test';
 import { dryRun } from './seed-torneos-demo.mjs';
 import {
   buildCanonicalManifest,
+  deriveQAIdentityRelations,
   validateCanonicalManifest,
+  validateQAIdentityRelations,
 } from './torneos-demo-manifest.mjs';
 import { buildTorneosDemoDataset } from './torneos-demo-dataset.mjs';
 import {
@@ -40,6 +42,7 @@ test('canonical manifest covers the requested QA edge cases', () => {
     events: 14,
     suspensions: 2,
     manifestHash: summary.manifestHash,
+    identityRelations: summary.identityRelations,
     counts: {
       baseRows: 586,
       markerRows: 1,
@@ -47,6 +50,55 @@ test('canonical manifest covers the requested QA edge cases', () => {
       tables: 32,
     },
   });
+});
+
+test('identity relations are derived exactly and collaborator has no manager or roster link', () => {
+  const manifest = buildCanonicalManifest({ identityMap: fixtureIdentityMap() });
+  const actual = deriveQAIdentityRelations(manifest);
+  assert.deepEqual(actual, QA_IDENTITY_RELATIONS);
+  assert.deepEqual(actual.collaborator, [
+    'organization_membership:collaborator:active:1',
+    'reference:tournament_organization_members.user_id:1',
+  ]);
+  assert.equal(actual.outsider.length, 0);
+  assert.equal(actual.delegate.filter((relation) => relation.startsWith('team_manager:')).length, 1);
+  assert.equal(actual.delegate.filter((relation) => relation.startsWith('roster_link:')).length, 1);
+  assert.equal(actual.player.filter((relation) => relation.startsWith('roster_link:')).length, 1);
+  assert.equal(actual.owner.filter((relation) => relation.includes(':captain:active')).length, 7);
+  assert.equal(actual.admin.filter((relation) => relation.includes(':captain:active')).length, 1);
+});
+
+test('identity relation validation rejects missing, unexpected, incorrect and duplicate relations', () => {
+  const manifest = buildCanonicalManifest({ identityMap: fixtureIdentityMap() });
+  const managers = manifest.operations.find(
+    (operation) => operation.table === 'tournament_team_managers',
+  ).rows;
+
+  const missing = structuredClone(manifest);
+  missing.operations.find(
+    (operation) => operation.table === 'tournament_team_managers',
+  ).rows.pop();
+  assert.throws(() => validateQAIdentityRelations(missing), /missing:|unexpected:/);
+
+  const unexpected = structuredClone(manifest);
+  unexpected.operations.find(
+    (operation) => operation.table === 'tournament_team_managers',
+  ).rows[2].user_id = manifest.users.collaborator.id;
+  assert.throws(() => validateQAIdentityRelations(unexpected), /missing:|unexpected:/);
+
+  for (const [field, value] of [['role', 'delegate'], ['status', 'revoked']]) {
+    const incorrect = structuredClone(manifest);
+    incorrect.operations.find(
+      (operation) => operation.table === 'tournament_team_managers',
+    ).rows[0][field] = value;
+    assert.throws(() => validateQAIdentityRelations(incorrect), /missing:|unexpected:/);
+  }
+
+  const duplicate = structuredClone(manifest);
+  duplicate.operations.find(
+    (operation) => operation.table === 'tournament_team_managers',
+  ).rows.push(structuredClone(managers[0]));
+  assert.throws(() => validateQAIdentityRelations(duplicate), /Duplicate QA identity relation/);
 });
 
 test('stable IDs and manifest hash make repeated plans deterministic', () => {
@@ -96,6 +148,19 @@ test('resolved marker persists the complete ownership and identity contract', ()
     ].sort(),
   );
   assert.equal(JSON.stringify(marker.metadata).includes('@'), false);
+  assert.notEqual(marker.resource_id, 'b66dc982-e959-5780-8b72-ab70761e2bec');
+  assert.notEqual(
+    manifest.manifestHash,
+    '48b413d1c6673ad96d3ce5bb30fecc89bd2c432b465a00447eb6f2cb51befb2f',
+  );
+  assert.notEqual(
+    manifest.identityMapFingerprint,
+    '77d95cb8caee567de1e8275b81c1e8c850eb59dcf6025504cab93c634ff3657c',
+  );
+  assert.notEqual(
+    manifest.rowOwnershipFingerprint,
+    '9375b59f2f908aec4b0d5b32b79514491e2ebbd648c4d9e7c245064c772ebe8d',
+  );
 });
 
 test('red-card event and sanction identify the same roster player', () => {

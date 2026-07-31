@@ -30,10 +30,10 @@ import { materializeManifest } from './torneos-seed-db.mjs';
 
 const AUTHORIZED = Object.freeze({
   projectRef: 'hhyvmhgpapyuzjgxfnqv',
-  seedKey: 'torneos-demo-v2',
-  manifestHash: '48b413d1c6673ad96d3ce5bb30fecc89bd2c432b465a00447eb6f2cb51befb2f',
-  identityMapFingerprint: '77d95cb8caee567de1e8275b81c1e8c850eb59dcf6025504cab93c634ff3657c',
-  ownershipFingerprint: '9375b59f2f908aec4b0d5b32b79514491e2ebbd648c4d9e7c245064c772ebe8d',
+  seedKey: 'torneos-demo-v3',
+  manifestHash: '0afc357d733bdfbed0bae9ea8bf87b6c0b58a05ada2c0d8b65ef4b51cbb596f4',
+  identityMapFingerprint: 'd13bf642667c8a02c79a6f7b6db3325be3a2196c1569cfb655d67a72a3ab4cdd',
+  ownershipFingerprint: '940e50032644694b3e2e06f0a022ada8b0474bfa4e70cb22ea45e4ceb3701d7a',
   baseRows: 586,
   markerRows: 1,
   totalRows: 587,
@@ -599,7 +599,7 @@ async function main() {
       env: {
         ...process.env,
         QA_IDENTITY_MAP_FILE: process.env.QA_IDENTITY_MAP_FILE
-          || 'torneos-demo-v2-identity-map.local',
+          || 'torneos-demo-v3-identity-map.local',
       },
     });
     manifest = buildCanonicalManifest({ identityMap });

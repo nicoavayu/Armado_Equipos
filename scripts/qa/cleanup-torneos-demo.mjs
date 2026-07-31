@@ -8,6 +8,7 @@ import {
   SEED_KEY,
   SEED_ORGANIZATION_SLUG,
   buildCanonicalManifest,
+  validateCanonicalManifest,
 } from './torneos-demo-manifest.mjs';
 import { loadQAIdentityMap } from './torneos-qa-identity-map.mjs';
 import {
@@ -27,6 +28,7 @@ async function main() {
   if (args.has('--apply') || args.has('--apply-remote')) assertRemoteApplyDisabled();
   const identityMap = await loadQAIdentityMap({ env: process.env });
   const manifest = buildCanonicalManifest({ identityMap });
+  validateCanonicalManifest(manifest);
   if (!args.has('--dry-run-local') && !args.has('--apply-local')) {
     if (args.size > 0 && !args.has('--dry-run')) {
       throw new Error('Use --dry-run, --dry-run-local, or --apply-local.');
@@ -65,7 +67,10 @@ async function main() {
   }
   const result = await withDatabase(
     target.databaseUrl,
-    (client) => cleanupManifest(client, manifest, { apply }),
+    (client) => cleanupManifest(client, manifest, {
+      apply,
+      allowLocalTriggerBypass: apply,
+    }),
   );
   console.log(JSON.stringify({
     mode: apply ? 'local-cleanup-apply' : 'local-cleanup-dry-run',

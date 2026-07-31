@@ -52,11 +52,14 @@ el hash antiguo.
 Antes de insertar, el runner verifica:
 
 - existencia única de las seis identidades por UUID y email;
-- `raw_app_meta_data.qa_seed_key=torneos-demo-v2` y `qa_role` exacto, para impedir
-  reutilizar usuarios personales o identidades de otro dataset;
+- `raw_app_meta_data.qa_seed_key` igual a `torneos-demo-v3` o a su predecesor
+  autorizado `torneos-demo-v2`, y `qa_role` exacto. Esto conserva Auth intacto
+  durante el versionado sin aceptar identidades personales o ajenas;
 - perfil sincronizado en `public.usuarios`;
 - ausencia de relaciones previas para una creación nueva;
-- igualdad exacta de relaciones proyectadas cuando el marker ya existe;
+- igualdad exacta entre las relaciones derivadas del manifest y
+  `QA_IDENTITY_RELATIONS` antes de conectar, más igualdad materializada cuando
+  el marker ya existe;
 - cero relaciones para `outsider`;
 - tablas, columnas, identidades determinísticas y natural keys;
 - 587 filas en 32 tablas;
@@ -70,7 +73,6 @@ el último `DELETE`, usa orden inverso explícito, transacción SERIALIZABLE,
 advisory lock, identidades exactas y verificaciones de ownership, filas ajenas y
 cero leftovers antes y después del commit.
 
-El esquema canónico actual impide ejecutar esa secuencia con triggers activos.
 El catálogo local confirmó estos guards relevantes:
 
 - `tournament_audit_append_only`;
@@ -84,17 +86,12 @@ El catálogo local confirmó estos guards relevantes:
 - `tournament_standings_revisions_no_delete`;
 - los guards `*_immutable` de proyecciones y disciplina.
 
-En particular, audit log, eventos, reviews, standings revisions y operaciones
-oficiales rechazan `DELETE` aun con un orden FK correcto. Por eso el cleanup
-devuelve `active_append_only_cleanup_guards` antes de mutar.
-
-La solución específica requiere una migración futura y autorización separada:
-los guard functions deben aceptar un contexto transaccional de cleanup QA sólo
-para el database owner, comprobar dentro del trigger el marker, `creation_key`,
-hash resuelto, fingerprint y organización exacta, y permitir únicamente los
-`DELETE` de esas identidades. Todos los triggers y FKs permanecen habilitados;
-cualquier fila ajena continúa siendo append-only. No se incluyó esa migración en
-este PR.
+El cleanup default devuelve `active_append_only_cleanup_guards` antes de mutar.
+El apply existe exclusivamente para PostgreSQL local ya validado: toma locks
+`ACCESS EXCLUSIVE`, deshabilita sólo esos triggers de DELETE dentro de la misma
+transacción, conserva FKs y triggers internos, elimina las identidades exactas y
+restaura todos los guards antes del commit. No existe cleanup remoto ni se agregó
+una migración.
 
 ## Creación futura en Staging (no ejecutada)
 
@@ -105,7 +102,9 @@ este PR.
    el campo `id`, para que Auth genere UUID v4.
 3. Ingresar service-role y contraseñas QA por prompt sin echo o secret environment
    efímero. No escribirlos en logs, shell history ni identity map.
-4. Enviar `app_metadata` con `qa_seed_key=torneos-demo-v2` y `qa_role` exacto.
+4. Para identidades nuevas, enviar `app_metadata` con
+   `qa_seed_key=torneos-demo-v3` y `qa_role` exacto. Las identidades v2 existentes
+   se aceptan sin modificar Auth.
 5. Confirmar por UUID que el trigger creó los seis perfiles `public.usuarios`.
 6. Guardar sólo UUID, email esperado, rol y relaciones en un archivo `0600`
    ignorado por Git.
@@ -133,9 +132,9 @@ Production y no imprimir emails, tokens ni datos personales.
 
 ### F. Cleanup del dataset
 
-No autorizar hasta aprobar la migración acotada de guards descripta arriba.
-Después: verificar ownership íntegro, ejecutar deletes en orden inverso con
-marker al final, mantener FKs/triggers activos y confirmar cero referencias.
+No existe cleanup remoto en esta versión. Cualquier reemplazo de v2 y cleanup de
+Staging requiere una autorización posterior explícita y un diseño remoto
+separado; el bypass local no se habilita para Staging.
 
 ### G. Eliminar usuarios QA
 

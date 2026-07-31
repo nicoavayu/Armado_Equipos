@@ -12,13 +12,70 @@ export const QA_IDENTITY_ROLES = Object.freeze([
   'outsider',
 ]);
 
+function relations(...values) {
+  return Object.freeze(values.sort());
+}
+
 export const QA_IDENTITY_RELATIONS = Object.freeze({
-  owner: Object.freeze(['organization_membership:owner', 'dataset:creator']),
-  admin: Object.freeze(['organization_membership:admin', 'match_operation:validator']),
-  collaborator: Object.freeze(['organization_membership:collaborator']),
-  delegate: Object.freeze(['team_manager:delegate', 'roster_player']),
-  player: Object.freeze(['roster_player']),
-  outsider: Object.freeze([]),
+  owner: relations(
+    'dataset_creator:tournament_organizations:1',
+    'organization_membership:owner:active:1',
+    'reference:tournament_audit_log.actor_user_id:2',
+    'reference:tournament_fixture_versions.created_by:1',
+    'reference:tournament_match_events.created_by:14',
+    'reference:tournament_match_operations.official_by:28',
+    'reference:tournament_match_operations.opened_by:31',
+    'reference:tournament_match_operations.submitted_by:30',
+    'reference:tournament_match_reviews.requested_by:2',
+    'reference:tournament_matches.created_by:31',
+    'reference:tournament_organization_members.invited_by:2',
+    'reference:tournament_organization_members.user_id:1',
+    'reference:tournament_organizations.created_by:1',
+    'reference:tournament_participant_sets.frozen_by:1',
+    'reference:tournament_provisional_players.created_by:78',
+    'reference:tournament_roster_players.added_by:80',
+    'reference:tournament_rosters.created_by:8',
+    'reference:tournament_seasons.created_by:1',
+    'reference:tournament_standings_revisions.calculated_by:1',
+    'reference:tournament_standings_revisions.published_by:1',
+    'reference:tournament_suspension_served_matches.marked_by:1',
+    'reference:tournament_team_entries.created_by:8',
+    'reference:tournament_team_entries.submitted_by:8',
+    'reference:tournament_team_managers.invited_by:9',
+    'reference:tournament_team_managers.user_id:7',
+    'reference:tournaments.created_by:4',
+    'team_manager:BNO:captain:active',
+    'team_manager:EDS:captain:active',
+    'team_manager:FER:captain:active',
+    'team_manager:PPC:captain:active',
+    'team_manager:RIB:captain:active',
+    'team_manager:SDC:captain:active',
+    'team_manager:VIL:captain:active',
+  ),
+  admin: relations(
+    'match_operation_validator:official:28',
+    'organization_membership:admin:active:1',
+    'reference:tournament_match_operations.validated_by:28',
+    'reference:tournament_organization_members.user_id:1',
+    'reference:tournament_team_entries.reviewed_by:8',
+    'reference:tournament_team_managers.user_id:1',
+    'team_manager:HOR:captain:active',
+  ),
+  collaborator: relations(
+    'organization_membership:collaborator:active:1',
+    'reference:tournament_organization_members.user_id:1',
+  ),
+  delegate: relations(
+    'reference:tournament_roster_players.arma2_user_id:1',
+    'reference:tournament_team_managers.user_id:1',
+    'roster_link:BNO:active',
+    'team_manager:BNO:delegate:active',
+  ),
+  player: relations(
+    'reference:tournament_roster_players.arma2_user_id:1',
+    'roster_link:BNO:active',
+  ),
+  outsider: relations(),
 });
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -57,7 +114,11 @@ function normalizeRelations(role, relations) {
   if (!Array.isArray(relations)) {
     throw new Error(`Identity ${role} must declare projected_relations.`);
   }
-  const normalized = [...new Set(relations.map((value) => String(value).trim()))].sort();
+  const declared = relations.map((value) => String(value).trim());
+  if (new Set(declared).size !== declared.length) {
+    throw new Error(`Identity ${role} contains duplicate projected_relations.`);
+  }
+  const normalized = declared.sort();
   const expected = [...QA_IDENTITY_RELATIONS[role]].sort();
   if (canonicalJson(normalized) !== canonicalJson(expected)) {
     throw new Error(`Identity ${role} has incompatible projected_relations.`);

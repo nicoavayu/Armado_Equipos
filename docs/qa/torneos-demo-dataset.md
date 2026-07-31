@@ -1,12 +1,11 @@
 # Dataset QA real de Torneos
 
-Estado: seed implementado y probado contra Supabase local efímero. Staging se
-auditó exclusivamente con lecturas; el seed remoto no se ejecutó. El cleanup
-local continúa bloqueado de forma segura por guards canónicos activos.
+Estado: `torneos-demo-v3` preparado para validación local. Staging y Production
+no fueron conectados ni modificados; `torneos-demo-v2` continúa intacto.
 
 ## Arquitectura
 
-El dataset `torneos-demo-v2` se compone de cinco capas:
+El dataset `torneos-demo-v3` se compone de cinco capas:
 
 1. `torneos-demo-dataset.mjs`: casos semánticos determinísticos.
 2. `buildBaseManifest()`: manifest determinístico independiente de Auth.
@@ -57,12 +56,21 @@ Los casos incluyen resultado normal, empate, penales con empate previo y ganador
 
 Las seis identidades son `owner`, `admin`, `delegate`, `player`, `collaborator` y `outsider`.
 
-- owner/admin/collaborator: memberships activas.
+- owner: membership `owner` activa y capitanía activa de BNO, RIB, PPC, EDS,
+  FER, SDC y VIL.
+- admin: membership `admin` activa y capitanía activa de HOR.
+- collaborator: una única membership `collaborator` activa; cero managers,
+  roster links o equipos administrados.
 - delegate: manager `delegate` del primer equipo y roster player Arma2.
 - player: roster player Arma2.
 - outsider: perfil real sin membership, manager ni roster.
 
 `prepare-torneos-qa-users.mjs` usa `supabase.auth.admin.createUser` sólo contra Auth local y nunca envía un `id`; Supabase Auth genera los UUIDs. El trigger canónico debe crear `public.usuarios`. El mapa resultante puede persistirse en una ruta nueva ignorada por Git, modo `0600`. En remoto el script sólo genera un plan. El mapa rechaza contraseñas, tokens, service-role keys, roles incompletos y relaciones incompatibles.
+
+La validación deriva todas las referencias reales a UUIDs QA por tabla/columna,
+además de memberships, managers, roster links, creador y validadores. Compara el
+resultado exacto con `QA_IDENTITY_RELATIONS` y rechaza faltantes, inesperadas,
+rol/estado incorrecto y relaciones duplicadas antes de cualquier conexión.
 
 Auth es una transacción administrativa separada. Si falla el seed, esas identidades quedan preparadas, no parcialmente relacionadas. La compensación local opcional verifica `raw_app_meta_data.qa_seed_key`, ausencia total de relaciones y doble confirmación antes de eliminar perfil/Auth.
 
@@ -75,7 +83,14 @@ La prueba persistente de ownership combina:
 - `seed_key`, versión, hash resuelto, identity fingerprint y ownership fingerprint;
 - IDs determinísticos del manifest.
 
-No se usa upsert. Sin marker, cualquier colisión de ID, slug, creation key, idempotency key o natural key declarada rechaza la operación. Con marker exacto, mismo mapa y contenido exacto de las 587 filas, la reejecución devuelve `skip`. Un mapa distinto devuelve `identity_map_changed`; marker distinto, duplicado o dataset parcial/tampered devuelve `reject`.
+No se usa upsert. Sin marker, cualquier colisión de ID, slug, creation key, idempotency key o natural key declarada rechaza la operación. Con marker exacto, mismo mapa y contenido exacto de las 587 filas, la reejecución devuelve `skip`. Un mapa distinto devuelve `identity_map_changed`; marker distinto, duplicado o dataset parcial/tampered devuelve `reject`. La presencia del marker `torneos-demo-v2` devuelve `replacement_authorization_required`: v3 nunca borra ni reemplaza v2 automáticamente.
+
+Valores autorizados de v3 para las identidades QA existentes:
+
+- marker: `85ab8c2e-6cd5-54c4-86b6-fbbfc0f0b050`;
+- manifest hash: `0afc357d733bdfbed0bae9ea8bf87b6c0b58a05ada2c0d8b65ef4b51cbb596f4`;
+- identity map fingerprint: `d13bf642667c8a02c79a6f7b6db3325be3a2196c1569cfb655d67a72a3ab4cdd`;
+- ownership fingerprint: `940e50032644694b3e2e06f0a022ada8b0474bfa4e70cb22ea45e4ceb3701d7a`.
 
 ## Transacción
 
@@ -88,12 +103,17 @@ El fallo deliberado después de `tournament_matches` confirmó que no queda orga
 El cleanup default es offline. El dry-run local comprueba marker, hash, creation key y presencia exacta de las 587 identidades. El apply requiere:
 
 - `QA_ALLOW_LOCAL_CLEANUP=true`;
-- `QA_CONFIRM_SEED_KEY=torneos-demo-v2`;
+- `QA_CONFIRM_SEED_KEY=torneos-demo-v3`;
 - `QA_CONFIRM_ORGANIZATION_SLUG=qa-metropolitana`.
 
-El cleanup no usa `session_replication_role` ni deshabilita FKs/triggers. Verifica marker, fingerprints, contenido exacto y ausencia de filas ajenas, conserva el marker hasta el final y proyecta deletes inversos.
-
-El esquema actual tiene guards append-only que rechazan esos deletes con triggers activos (`tournament_audit_append_only`, guards de historia de operaciones/hijos, eventos y reviews no-delete, standings revisions no-delete). El runner devuelve `active_append_only_cleanup_guards` antes de mutar. La solución exacta, que requiere una migración futura no incluida, está en `torneos-qa-auth-runbook.md`.
+El cleanup no usa `session_replication_role` ni deshabilita FKs. Verifica marker,
+fingerprints, contenido exacto y ausencia de filas ajenas, conserva el marker
+hasta el final y proyecta deletes inversos. Por defecto rechaza los guards
+append-only activos. Sólo `--apply-local`, después de validar target loopback y
+doble confirmación, toma locks `ACCESS EXCLUSIVE`, deshabilita transaccionalmente
+los guards de DELETE identificados (nunca triggers internos/FK), elimina
+exclusivamente las 587 identidades verificadas y restaura cada guard antes del
+commit. Un error revierte tanto los deletes como el estado de los triggers.
 
 ## Equipo ideal
 

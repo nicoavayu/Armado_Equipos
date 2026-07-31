@@ -144,6 +144,20 @@ export async function readSeedMarker(client, manifest) {
   return result.rows;
 }
 
+async function readConflictingSeedMarkers(client, manifest) {
+  const result = await client.query(
+    `select resource_id, metadata
+     from public.tournament_audit_log
+     where organization_id = $1
+       and resource_type = 'qa_seed_execution'
+       and action = 'qa.seed.applied'
+       and resource_id <> $2
+     order by resource_id`,
+    [manifest.organizationId, manifest.seedRegistryId],
+  );
+  return result.rows.filter((row) => row.metadata?.seed_key !== manifest.seedKey);
+}
+
 async function verifyRequiredUsers(client, manifest) {
   const issues = [];
   const references = [];
@@ -168,7 +182,7 @@ async function verifyRequiredUsers(client, manifest) {
       continue;
     }
     if (
-      exactAuth.raw_app_meta_data?.qa_seed_key !== manifest.seedKey
+      !manifest.acceptedAuthSeedKeys.includes(exactAuth.raw_app_meta_data?.qa_seed_key)
       || exactAuth.raw_app_meta_data?.qa_role !== user.role
     ) {
       issues.push({ role: user.role, code: 'personal_or_foreign_auth_user_rejected' });
@@ -324,10 +338,27 @@ export async function preflightDatabase(client, manifest) {
   const markers = schemaIssues.length === 0
     ? await readSeedMarker(client, manifest)
     : [];
+  const conflictingMarkers = schemaIssues.length === 0
+    ? await readConflictingSeedMarkers(client, manifest)
+    : [];
   const userIssues = [
     ...userVerification.issues,
     ...referenceIssues(userVerification.references, { materialized: markers.length === 1 }),
   ];
+  if (conflictingMarkers.length > 0) {
+    return {
+      status: 'reject',
+      reason: 'replacement_authorization_required',
+      schemaIssues,
+      userIssues,
+      collisions: conflictingMarkers.map((marker) => ({
+        table: 'tournament_audit_log',
+        seedKey: marker.metadata?.seed_key || 'unknown',
+      })),
+      expected: manifest.expectedRowCount,
+      present: 0,
+    };
+  }
   if (markers.length > 1) {
     return {
       status: 'reject',
@@ -615,8 +646,18 @@ function cleanupOperations(manifest) {
   const markerOperations = manifest.operations.filter(isSeedMarkerOperation);
   const ownedDataOperations = manifest.operations.filter(
     (operation) => !isSeedMarkerOperation(operation),
+  ).reverse();
+  const tournamentParents = ownedDataOperations.findIndex(
+    (operation) => operation.table === 'tournaments',
   );
-  return [...ownedDataOperations.reverse(), ...markerOperations];
+  if (tournamentParents < 0) {
+    throw new Error('Cleanup could not locate the tournament parent boundary.');
+  }
+  return [
+    ...ownedDataOperations.slice(0, tournamentParents),
+    ...markerOperations,
+    ...ownedDataOperations.slice(tournamentParents),
+  ];
 }
 
 async function countOrganizationScopedRows(client, organizationId) {
@@ -677,16 +718,6 @@ export async function detectCleanupTriggerBlockers(client, manifest) {
        and not trigger_row.tgisinternal
        and trigger_row.tgenabled <> 'D'
        and (trigger_row.tgtype & 8) = 8
-       and (
-         trigger_row.tgname ~ '(append_only|history_guard|no_delete)'
-         or trigger_row.tgname in (
-           'tournament_standings_revisions_no_delete',
-           'tournament_team_standings_immutable',
-           'tournament_team_statistics_immutable',
-           'tournament_player_statistics_immutable',
-           'tournament_discipline_ledgers_immutable'
-         )
-       )
      order by table_row.relname, trigger_row.tgname`,
     [seededTables],
   );
@@ -697,7 +728,25 @@ export async function detectCleanupTriggerBlockers(client, manifest) {
   }));
 }
 
-export async function cleanupManifest(client, manifest, { apply = false } = {}) {
+async function setLocalCleanupGuardState(client, triggerBlockers, enabled) {
+  const action = enabled ? 'enable' : 'disable';
+  const tables = [...new Set(triggerBlockers.map((blocker) => blocker.table))].sort();
+  for (const tableName of tables) {
+    await client.query(
+      `lock table public.${quoteIdentifier(tableName)} in access exclusive mode`,
+    );
+  }
+  for (const blocker of triggerBlockers) {
+    await client.query(
+      `alter table public.${quoteIdentifier(blocker.table)} ${action} trigger ${quoteIdentifier(blocker.trigger)}`,
+    );
+  }
+}
+
+export async function cleanupManifest(client, manifest, {
+  apply = false,
+  allowLocalTriggerBypass = false,
+} = {}) {
   const markers = await readSeedMarker(client, manifest);
   const counts = await countExpectedRows(client, manifest, { includeMissing: false });
   if (markers.length === 0) {
@@ -739,19 +788,19 @@ export async function cleanupManifest(client, manifest, { apply = false } = {}) 
     };
   }
   const triggerBlockers = await detectCleanupTriggerBlockers(client, manifest);
-  if (triggerBlockers.length > 0) {
+  if (triggerBlockers.length > 0 && !allowLocalTriggerBypass) {
     return {
       status: 'reject',
       reason: 'active_append_only_cleanup_guards',
       triggerBlockers,
       requiredSolution: {
-        scope: 'future explicitly-authorized schema migration',
+        scope: 'explicitly-authorized local cleanup only',
         design: [
-          'keep every FK and trigger enabled',
-          'teach only the listed guard functions to accept a transaction-local QA cleanup context',
-          'verify seed marker, creation_key, manifest_hash and identity fingerprint inside each guard',
-          'allow DELETE only for the exact seed-owned organization and only in that transaction',
-          'leave all non-seed rows append-only',
+          'validate a loopback PostgreSQL target in the cleanup CLI',
+          'verify marker, creation_key, manifest_hash and fingerprints before mutation',
+          'lock affected tables and keep all FK/internal triggers enabled',
+          'disable only user-defined DELETE triggers inside the cleanup transaction',
+          'restore every trigger before commit and reject any foreign organization row',
         ],
       },
       ...counts,
@@ -770,6 +819,9 @@ export async function cleanupManifest(client, manifest, { apply = false } = {}) 
       await client.query('select pg_advisory_xact_lock(hashtextextended($1, 0))', [
         manifest.seedKey,
       ]);
+      if (triggerBlockers.length > 0) {
+        await setLocalCleanupGuardState(client, triggerBlockers, false);
+      }
       for (const operation of orderedCleanup) {
         for (const row of [...operation.rows].reverse()) {
           const result = await deleteExpectedRow(client, operation, row);
@@ -779,6 +831,9 @@ export async function cleanupManifest(client, manifest, { apply = false } = {}) 
             );
           }
         }
+      }
+      if (triggerBlockers.length > 0) {
+        await setLocalCleanupGuardState(client, triggerBlockers, true);
       }
       const inTransactionPost = await countExpectedRows(
         client,
@@ -811,6 +866,11 @@ export async function cleanupManifest(client, manifest, { apply = false } = {}) 
   return {
     status: 'cleaned',
     reason: 'ownership_verified',
+    localTriggerBypass: triggerBlockers.map((blocker) => ({
+      table: blocker.table,
+      trigger: blocker.trigger,
+      restored: true,
+    })),
     projected: projected.map(({ table, rows }) => ({ table, rows })),
     before: counts,
     after: post,
