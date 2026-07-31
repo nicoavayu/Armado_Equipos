@@ -19,7 +19,10 @@ import {
   buildCleanupDescriptor,
 } from './torneos-demo-v2-cleanup-contract.mjs';
 import { buildCanonicalManifest } from './torneos-demo-manifest.mjs';
-import { insertManifestMarkerInCurrentTransaction } from './torneos-seed-db.mjs';
+import {
+  cleanupManifest,
+  insertManifestMarkerInCurrentTransaction,
+} from './torneos-seed-db.mjs';
 
 function localRuntime() {
   if (process.env.QA_TORNEOS_REPLACEMENT_LOCAL_TEST !== 'true') return null;
@@ -117,6 +120,9 @@ test('atomic v2 to v3 replacement is fail-closed across the required local matri
     const tournamentId = descriptor.tables.find(
       (table) => table.table === 'tournaments',
     ).rows[0].identity.id;
+    const alternateTournamentId = descriptor.tables.find(
+      (table) => table.table === 'tournaments',
+    ).rows[2].identity.id;
     const preferenceTimestamp = new Date('2026-07-30T10:11:12.345Z');
     await client.query(
       `insert into public.user_tournament_context_preferences (
@@ -126,7 +132,8 @@ test('atomic v2 to v3 replacement is fail-closed across the required local matri
         descriptor.organizationId, seasonId, tournamentId, preferenceTimestamp],
     );
     const preferenceBefore = (await client.query(
-      `select user_id, organization_id, active_season_id, active_tournament_id, updated_at
+      `select user_id, organization_id, active_season_id, active_tournament_id,
+              updated_at::text as updated_at
        from public.user_tournament_context_preferences
        where organization_id = $1`,
       [descriptor.organizationId],
@@ -167,10 +174,41 @@ test('atomic v2 to v3 replacement is fail-closed across the required local matri
       descriptor,
       manifest,
       profiles,
-      expectedPreferenceFingerprint,
       artifactAuthorization,
       backoffMs: [0, 0],
     };
+
+    async function currentPreference() {
+      return (await client.query(
+        `select user_id, organization_id, active_season_id, active_tournament_id,
+                updated_at::text as updated_at
+           from public.user_tournament_context_preferences
+          where organization_id = $1`,
+        [descriptor.organizationId],
+      )).rows[0];
+    }
+
+    async function resetV3ToV2(preference) {
+      await client.query(
+        `delete from public.user_tournament_context_preferences
+          where user_id = $1 and organization_id = $2`,
+        [preference.user_id, preference.organization_id],
+      );
+      const cleaned = await cleanupManifest(client, manifest, {
+        apply: true,
+        allowLocalTriggerBypass: true,
+      });
+      assert.equal(cleaned.status, 'cleaned');
+      const restoredV2 = await historical.database.materializeManifest(client, v2Manifest);
+      assert.equal(restoredV2.status, 'created');
+      await client.query(
+        `insert into public.user_tournament_context_preferences (
+           user_id, organization_id, active_season_id, active_tournament_id, updated_at
+         ) values ($1, $2, $3, $4, $5)`,
+        [preference.user_id, preference.organization_id, preference.active_season_id,
+          preference.active_tournament_id, preference.updated_at],
+      );
+    }
 
     async function assertOriginalState(label) {
       const preflight = await preflightReplacement(client, replacementOptions);
@@ -178,7 +216,11 @@ test('atomic v2 to v3 replacement is fail-closed across the required local matri
       assert.equal(preflight.v2State.present, 587, label);
       assert.equal(preflight.v2State.exact, 587, label);
       assert.equal(preflight.v3State.present < 587, true, label);
-      assert.equal(preflight.preferenceFingerprint, expectedPreferenceFingerprint, label);
+      assert.equal(
+        preflight.preferenceFingerprint,
+        preferenceFingerprint(preflight.preference),
+        label,
+      );
       const sentinel = await client.query(
         `select
            (select count(*)::integer from public.tournament_organizations where id = $1) as organizations,
@@ -221,18 +263,61 @@ test('atomic v2 to v3 replacement is fail-closed across the required local matri
       });
     }
 
-    await t.test('11 incorrect preference fingerprint aborts before writing', async () => {
-      await assert.rejects(
-        () => executeReplacement(client, {
-          ...replacementOptions,
-          expectedPreferenceFingerprint: '0'.repeat(64),
-        }),
-        /fingerprint mismatch/,
-      );
-      await assertOriginalState('incorrect preference fingerprint');
+    await t.test('11 current updated_at and a different shared tournament are authorized dynamically', async () => {
+      await client.query('begin');
+      try {
+        await client.query(
+          `update public.user_tournament_context_preferences
+              set active_tournament_id = $1
+            where user_id = $2 and organization_id = $3`,
+          [alternateTournamentId, preferenceBefore.user_id, descriptor.organizationId],
+        );
+        const preflight = await preflightReplacement(client, replacementOptions);
+        assert.equal(preflight.status, 'ready');
+        assert.equal(preflight.preference.active_tournament_id, alternateTournamentId);
+        assert.notEqual(preflight.preferenceFingerprint, expectedPreferenceFingerprint);
+        assert.notEqual(preflight.preference.updated_at, preferenceBefore.updated_at);
+      } finally {
+        await client.query('rollback');
+      }
+      await assertOriginalState('dynamic preference snapshot');
     });
 
-    await t.test('12 a second external preference aborts before writing', async () => {
+    await t.test('12 wrong owner, organization and incoherent contexts are rejected', async () => {
+      const adminId = profiles.find((profile) => profile.role === 'admin').id;
+      await client.query('begin');
+      try {
+        await client.query(
+          `update public.user_tournament_context_preferences
+              set user_id = $1
+            where user_id = $2 and organization_id = $3`,
+          [adminId, preferenceBefore.user_id, descriptor.organizationId],
+        );
+        await assert.rejects(
+          () => preflightReplacement(client, replacementOptions),
+          /not associated with the QA owner/,
+        );
+      } finally {
+        await client.query('rollback');
+      }
+      assert.throws(
+        () => assertSharedPreferenceDestinations({
+          ...preferenceBefore,
+          organization_id: sentinelOrganization,
+        }, descriptor, manifest),
+        /not identical/,
+      );
+      assert.throws(
+        () => assertSharedPreferenceDestinations({
+          ...preferenceBefore,
+          active_season_id: null,
+        }, descriptor, manifest),
+        /not identical/,
+      );
+      await assertOriginalState('semantic preference rejection');
+    });
+
+    await t.test('13 a second external preference aborts before writing', async () => {
       await client.query('begin');
       try {
         await client.query(
@@ -252,7 +337,7 @@ test('atomic v2 to v3 replacement is fail-closed across the required local matri
       await assertOriginalState('second preference');
     });
 
-    await t.test('13 a new external FK aborts before writing', async () => {
+    await t.test('14 a new external FK aborts before writing', async () => {
       await client.query('begin');
       try {
         await client.query(
@@ -271,7 +356,7 @@ test('atomic v2 to v3 replacement is fail-closed across the required local matri
       await assertOriginalState('new FK');
     });
 
-    await t.test('14 RESTRICT/CASCADE change aborts', async () => {
+    await t.test('15 RESTRICT/CASCADE change aborts', async () => {
       await client.query('begin');
       try {
         await client.query(
@@ -291,7 +376,7 @@ test('atomic v2 to v3 replacement is fail-closed across the required local matri
       await assertOriginalState('FK action');
     });
 
-    await t.test('15 nullability change aborts', async () => {
+    await t.test('16 nullability change aborts', async () => {
       await client.query('begin');
       try {
         await client.query(
@@ -308,7 +393,7 @@ test('atomic v2 to v3 replacement is fail-closed across the required local matri
       await assertOriginalState('nullability');
     });
 
-    await t.test('16 UUID mismatch between v2 and v3 aborts before database access', () => {
+    await t.test('17 UUID mismatch between v2 and v3 aborts before database access', () => {
       const changed = structuredClone(manifest);
       changed.operations.find((operation) => operation.table === 'tournaments').rows[0].id =
         '00000000-0000-4000-8000-000000000099';
@@ -318,7 +403,7 @@ test('atomic v2 to v3 replacement is fail-closed across the required local matri
       );
     });
 
-    await t.test('17 incomplete v2 aborts before writing', async () => {
+    await t.test('18 incomplete v2 aborts before writing', async () => {
       await client.query('begin');
       try {
         await client.query(
@@ -336,7 +421,7 @@ test('atomic v2 to v3 replacement is fail-closed across the required local matri
       await assertOriginalState('incomplete v2');
     });
 
-    await t.test('18 simultaneous v2 and v3 markers abort', async () => {
+    await t.test('19 simultaneous v2 and v3 markers abort', async () => {
       await client.query('begin');
       try {
         await insertManifestMarkerInCurrentTransaction(client, manifest);
@@ -350,7 +435,7 @@ test('atomic v2 to v3 replacement is fail-closed across the required local matri
       await assertOriginalState('both markers');
     });
 
-    await t.test('19 non-40001 is not retried and rolls back', async () => {
+    await t.test('20 non-40001 is not retried and rolls back', async () => {
       let attempts = 0;
       await assert.rejects(
         () => executeReplacement(client, {
@@ -368,7 +453,109 @@ test('atomic v2 to v3 replacement is fail-closed across the required local matri
       await assertOriginalState('non-40001');
     });
 
-    await t.test('20 retry 40001 repeats full preflight and stops at three', async () => {
+    await t.test('21 historical preference replaces successfully and is byte-exact', async () => {
+      const before = await currentPreference();
+      const result = await executeReplacement(client, replacementOptions);
+      assert.equal(result.status, 'replaced');
+      const after = await currentPreference();
+      assert.equal(preferenceFingerprint(after), preferenceFingerprint(before));
+      assert.equal(after.updated_at, before.updated_at);
+      await resetV3ToV2(before);
+      await assertOriginalState('historical successful replacement reset');
+    });
+
+    await t.test('22 nullable season and tournament are preserved according to schema', async () => {
+      await client.query(
+        `update public.user_tournament_context_preferences
+            set active_season_id = null, active_tournament_id = null
+          where user_id = $1 and organization_id = $2`,
+        [preferenceBefore.user_id, descriptor.organizationId],
+      );
+      const before = await currentPreference();
+      const result = await executeReplacement(client, replacementOptions);
+      assert.equal(result.status, 'replaced');
+      const after = await currentPreference();
+      assert.equal(after.active_season_id, null);
+      assert.equal(after.active_tournament_id, null);
+      assert.equal(preferenceFingerprint(after), preferenceFingerprint(before));
+      await resetV3ToV2(preferenceBefore);
+      await assertOriginalState('nullable successful replacement reset');
+    });
+
+    await t.test('23 FOR UPDATE prevents a concurrent preference change', async () => {
+      const competing = new pg.Client({ connectionString: runtime.databaseUrl });
+      await competing.connect();
+      try {
+        await assert.rejects(
+          () => executeReplacement(client, {
+            ...replacementOptions,
+            afterPreflight: async () => {
+              await competing.query("set lock_timeout = '250ms'");
+              await assert.rejects(
+                () => competing.query(
+                  `update public.user_tournament_context_preferences
+                      set active_tournament_id = $1
+                    where user_id = $2 and organization_id = $3`,
+                  [alternateTournamentId, preferenceBefore.user_id, descriptor.organizationId],
+                ),
+                (error) => error.code === '55P03',
+              );
+              const error = new Error('stop after proving row lock');
+              error.code = '23503';
+              throw error;
+            },
+          }),
+          (error) => error.code === '23503',
+        );
+      } finally {
+        await competing.end();
+      }
+      await assertOriginalState('row lock protection');
+    });
+
+    await t.test('24 restored fingerprint mismatch rolls back the complete replacement', async () => {
+      await assert.rejects(
+        () => executeReplacement(client, {
+          ...replacementOptions,
+          afterPreflight: async () => {
+            await client.query(
+              `create function pg_temp.mutate_replacement_preference()
+               returns trigger language plpgsql as $$
+               begin
+                 new.updated_at := new.updated_at + interval '1 second';
+                 return new;
+               end
+               $$`,
+            );
+            await client.query(
+              `create trigger qa_mutate_replacement_preference
+               before insert on public.user_tournament_context_preferences
+               for each row execute function pg_temp.mutate_replacement_preference()`,
+            );
+          },
+        }),
+        /not byte-exact/,
+      );
+      await assertOriginalState('restored fingerprint mismatch');
+    });
+
+    await t.test('25 execute captures changes made after manual preflight and retries 40001', async () => {
+      await client.query(
+        `update public.user_tournament_context_preferences
+            set active_season_id = null, active_tournament_id = null
+          where user_id = $1 and organization_id = $2`,
+        [preferenceBefore.user_id, descriptor.organizationId],
+      );
+      const manualPreflight = await preflightReplacement(client, replacementOptions);
+      assert.equal(manualPreflight.preference.active_season_id, null);
+      assert.equal(manualPreflight.preference.active_tournament_id, null);
+      await client.query(
+        `update public.user_tournament_context_preferences
+            set active_season_id = $1, active_tournament_id = $2
+          where user_id = $3 and organization_id = $4`,
+        [seasonId, alternateTournamentId, preferenceBefore.user_id, descriptor.organizationId],
+      );
+      const latestPreference = await currentPreference();
       const attempts = [];
       const retries = [];
       const result = await executeReplacement(client, {
@@ -402,23 +589,23 @@ test('atomic v2 to v3 replacement is fail-closed across the required local matri
       assert.equal(result.validation.triggersIdentical, true);
       assert.equal(result.validation.outsiderRelations, 0);
       assert.equal(result.lastWrite, 'v3_marker');
+      const after = await currentPreference();
+      assert.equal(preferenceFingerprint(after), preferenceFingerprint(latestPreference));
+      assert.equal(after.updated_at, latestPreference.updated_at);
+      assert.equal(after.active_season_id, seasonId);
+      assert.equal(after.active_tournament_id, alternateTournamentId);
     });
 
-    await t.test('21 second execution is an exact zero-write skip', async () => {
+    await t.test('26 second execution is an exact zero-write skip', async () => {
       const result = await executeReplacement(client, replacementOptions);
       assert.equal(result.status, 'skip');
       assert.equal(result.preflight.reason, 'v3_already_exact');
-      const preferenceAfter = (await client.query(
-        `select user_id, organization_id, active_season_id, active_tournament_id, updated_at
-         from public.user_tournament_context_preferences
-         where organization_id = $1`,
-        [descriptor.organizationId],
-      )).rows[0];
-      assert.equal(preferenceFingerprint(preferenceAfter), expectedPreferenceFingerprint);
-      assert.equal(preferenceAfter.updated_at.toISOString(), preferenceTimestamp.toISOString());
+      assert.deepEqual(result.deletedV2, undefined);
+      assert.deepEqual(result.insertedV3Base, undefined);
+      assert.deepEqual(result.insertedV3Marker, undefined);
     });
 
-    await t.test('22 Auth, profiles, preference and sentinels remain intact', async () => {
+    await t.test('27 Auth, profiles, preference and sentinels remain intact', async () => {
       const auth = await client.query(
         'select count(*)::integer as count from auth.users where id = any($1::uuid[])',
         [profiles.map((profile) => profile.id)],

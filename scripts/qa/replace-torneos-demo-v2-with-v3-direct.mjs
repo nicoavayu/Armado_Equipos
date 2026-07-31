@@ -59,7 +59,6 @@ export const REPLACEMENT_AUTHORIZATION = Object.freeze({
   v3IdentityFingerprint: 'd13bf642667c8a02c79a6f7b6db3325be3a2196c1569cfb655d67a72a3ab4cdd',
   v3OwnershipFingerprint: '940e50032644694b3e2e06f0a022ada8b0474bfa4e70cb22ea45e4ceb3701d7a',
   v3MarkerId: '85ab8c2e-6cd5-54c4-86b6-fbbfc0f0b050',
-  preferenceFingerprint: '9a161397fe84d50269cc8a290b74b9ab8f3880d3da745a8edb2cde0c36611221',
   baseRows: 586,
   totalRows: 587,
   tables: 32,
@@ -80,6 +79,12 @@ const PREFERENCE_COLUMNS = Object.freeze([
   Object.freeze({ name: 'active_tournament_id', type: 'uuid', nullable: true }),
   Object.freeze({ name: 'updated_at', type: 'timestamp with time zone', nullable: false }),
 ]);
+const PREFERENCE_PRIMARY_KEY = Object.freeze({
+  name: 'user_tournament_context_preferences_pkey',
+  columns: Object.freeze(['user_id', 'organization_id']),
+  deferrable: false,
+  initiallyDeferred: false,
+});
 const EXPECTED_EXTERNAL_CONSTRAINTS = Object.freeze({
   user_tournament_context_preferences_organization_id_fkey: Object.freeze({
     sourceColumns: Object.freeze(['organization_id']),
@@ -129,6 +134,27 @@ export function preferenceFingerprint(row) {
   return sha256(canonicalJson(normalizeValue(Object.fromEntries(
     PREFERENCE_COLUMNS.map(({ name }) => [name, row[name]]),
   ))));
+}
+
+function sanitizedFingerprint(value) {
+  return `${value.slice(0, 12)}…${value.slice(-8)}`;
+}
+
+function nullableValueFingerprint(label, value) {
+  return value === null ? null : sanitizedFingerprint(sha256(`${label}:${value}`));
+}
+
+export function preferenceSnapshotReport(preference) {
+  return {
+    fingerprint: sanitizedFingerprint(preferenceFingerprint(preference)),
+    owner: nullableValueFingerprint('user_id', preference.user_id),
+    organization: nullableValueFingerprint('organization_id', preference.organization_id),
+    season: nullableValueFingerprint('active_season_id', preference.active_season_id),
+    tournament: nullableValueFingerprint('active_tournament_id', preference.active_tournament_id),
+    seasonIsNull: preference.active_season_id === null,
+    tournamentIsNull: preference.active_tournament_id === null,
+    updatedAtCaptured: preference.updated_at !== null,
+  };
 }
 
 export function parseReplacementArguments(args, env = process.env) {
@@ -271,6 +297,44 @@ async function readPreferenceCatalog(client) {
   return result.rows;
 }
 
+async function readPreferencePrimaryKeyCatalog(client) {
+  const result = await client.query(
+    `select constraint_row.conname as name,
+            constraint_row.condeferrable as deferrable,
+            constraint_row.condeferred as initially_deferred,
+            array(
+              select column_row.attname
+              from unnest(constraint_row.conkey) with ordinality key(attnum, position)
+              join pg_attribute column_row
+                on column_row.attrelid = table_row.oid and column_row.attnum = key.attnum
+              order by key.position
+            )::text[] as columns
+       from pg_constraint constraint_row
+       join pg_class table_row on table_row.oid = constraint_row.conrelid
+       join pg_namespace schema_row on schema_row.oid = table_row.relnamespace
+      where constraint_row.contype = 'p'
+        and schema_row.nspname = 'public'
+        and table_row.relname = $1
+      order by constraint_row.conname`,
+    [PREFERENCE_TABLE],
+  );
+  return result.rows;
+}
+
+export function validatePreferencePrimaryKeyCatalog(rows) {
+  if (rows.length !== 1) throw new Error('Preference primary key contract changed.');
+  const [row] = rows;
+  if (
+    row.name !== PREFERENCE_PRIMARY_KEY.name
+    || canonicalJson(row.columns) !== canonicalJson(PREFERENCE_PRIMARY_KEY.columns)
+    || row.deferrable !== PREFERENCE_PRIMARY_KEY.deferrable
+    || row.initially_deferred !== PREFERENCE_PRIMARY_KEY.initiallyDeferred
+  ) {
+    throw new Error('Preference primary key contract changed.');
+  }
+  return true;
+}
+
 export async function readExternalConstraintCatalog(client, descriptor) {
   const datasetTables = descriptor.tables.map((table) => table.table);
   const result = await client.query(
@@ -384,7 +448,7 @@ async function readOtherExternalReferenceCount(client, descriptor, constraints) 
   return count;
 }
 
-function validatePreferenceCatalog(rows) {
+export function validatePreferenceCatalog(rows) {
   const actual = rows.map((row) => ({
     name: row.name,
     type: row.type,
@@ -395,18 +459,20 @@ function validatePreferenceCatalog(rows) {
   }
 }
 
-async function readPreferenceRows(client, descriptor) {
+async function readPreferenceRows(client, descriptor, { forUpdate = false } = {}) {
   const seasons = descriptor.tables.find((table) => table.table === 'tournament_seasons')
     .rows.map((row) => row.identity.id);
   const tournaments = descriptor.tables.find((table) => table.table === 'tournaments')
     .rows.map((row) => row.identity.id);
   return client.query(
-    `select user_id, organization_id, active_season_id, active_tournament_id, updated_at
+    `select user_id, organization_id, active_season_id, active_tournament_id,
+            updated_at::text as updated_at
      from public.user_tournament_context_preferences
      where organization_id = $1
         or active_season_id = any($2::uuid[])
         or active_tournament_id = any($3::uuid[])
-     order by user_id, organization_id`,
+     order by user_id, organization_id
+     ${forUpdate ? 'for update' : ''}`,
     [descriptor.organizationId, seasons, tournaments],
   );
 }
@@ -425,14 +491,30 @@ export function assertSharedPreferenceDestinations(preference, descriptor, manif
   ).rows.map((row) => row.identity.id));
   const v3Organizations = new Set(tableRows(manifest, 'tournament_organizations').map((row) => row.id));
   const v3Seasons = new Set(tableRows(manifest, 'tournament_seasons').map((row) => row.id));
-  const v3Tournaments = new Set(tableRows(manifest, 'tournaments').map((row) => row.id));
+  const v3TournamentRows = tableRows(manifest, 'tournaments');
+  const v3Tournaments = new Set(v3TournamentRows.map((row) => row.id));
+  const seasonIsValid = preference.active_season_id === null || (
+    v2Seasons.has(preference.active_season_id)
+    && v3Seasons.has(preference.active_season_id)
+  );
+  const tournamentIsValid = preference.active_tournament_id === null || (
+    v2Tournaments.has(preference.active_tournament_id)
+    && v3Tournaments.has(preference.active_tournament_id)
+  );
+  const selectedTournament = preference.active_tournament_id === null
+    ? null
+    : v3TournamentRows.find((row) => row.id === preference.active_tournament_id);
+  const contextIsCoherent = (selectedTournament === null || selectedTournament === undefined)
+    ? preference.active_tournament_id === null
+    : preference.active_season_id !== null
+      && selectedTournament.organization_id === preference.organization_id
+      && selectedTournament.season_id === preference.active_season_id;
   if (
     preference.organization_id !== descriptor.organizationId
     || !v3Organizations.has(preference.organization_id)
-    || !v2Seasons.has(preference.active_season_id)
-    || !v3Seasons.has(preference.active_season_id)
-    || !v2Tournaments.has(preference.active_tournament_id)
-    || !v3Tournaments.has(preference.active_tournament_id)
+    || !seasonIsValid
+    || !tournamentIsValid
+    || !contextIsCoherent
   ) {
     throw new Error('Preference destinations are not identical between v2 and v3.');
   }
@@ -766,27 +848,17 @@ export async function preflightReplacement(client, {
   manifest,
   profiles,
   targetProjectRef = REPLACEMENT_AUTHORIZATION.stagingProjectRef,
-  expectedPreferenceFingerprint = REPLACEMENT_AUTHORIZATION.preferenceFingerprint,
   artifactAuthorization = REPLACEMENT_AUTHORIZATION,
   advisoryLockAcquired = false,
+  lockPreference = false,
 } = {}) {
   assertReplacementProjectRef(targetProjectRef);
   validateReplacementArtifacts({ descriptor, manifest, authorization: artifactAuthorization });
   deriveQAIdentityRelations(manifest);
 
-  const preferenceCatalog = await readPreferenceCatalog(client);
-  validatePreferenceCatalog(preferenceCatalog);
-  const constraints = await readExternalConstraintCatalog(client, descriptor);
-  validateExternalConstraintCatalog(constraints);
-  const otherExternalReferences = await readOtherExternalReferenceCount(
-    client,
-    descriptor,
-    constraints,
-  );
-  if (otherExternalReferences !== 0) {
-    throw new Error('Unexpected external data references v2.');
-  }
-  const preferenceResult = await readPreferenceRows(client, descriptor);
+  const preferenceResult = await readPreferenceRows(client, descriptor, {
+    forUpdate: lockPreference,
+  });
   if (preferenceResult.rowCount !== 1) {
     throw new Error('Expected exactly one external preference referencing v2.');
   }
@@ -796,8 +868,20 @@ export async function preflightReplacement(client, {
   }
   assertSharedPreferenceDestinations(preference, descriptor, manifest);
   const actualPreferenceFingerprint = preferenceFingerprint(preference);
-  if (actualPreferenceFingerprint !== expectedPreferenceFingerprint) {
-    throw new Error('External preference fingerprint mismatch.');
+
+  const preferenceCatalog = await readPreferenceCatalog(client);
+  validatePreferenceCatalog(preferenceCatalog);
+  const preferencePrimaryKey = await readPreferencePrimaryKeyCatalog(client);
+  validatePreferencePrimaryKeyCatalog(preferencePrimaryKey);
+  const constraints = await readExternalConstraintCatalog(client, descriptor);
+  validateExternalConstraintCatalog(constraints);
+  const otherExternalReferences = await readOtherExternalReferenceCount(
+    client,
+    descriptor,
+    constraints,
+  );
+  if (otherExternalReferences !== 0) {
+    throw new Error('Unexpected external data references v2.');
   }
 
   const triggers = await readTriggerInventory(client, descriptor);
@@ -830,6 +914,9 @@ export async function preflightReplacement(client, {
       reason: 'v3_already_exact',
       preference,
       preferenceFingerprint: actualPreferenceFingerprint,
+      preferenceCatalog,
+      preferencePrimaryKey,
+      constraints,
       profiles: profilesBefore,
       foreignInventory,
       unrelatedInventory,
@@ -867,6 +954,9 @@ export async function preflightReplacement(client, {
     reason: 'atomic_replacement_authorized',
     preference,
     preferenceFingerprint: actualPreferenceFingerprint,
+    preferenceCatalog,
+    preferencePrimaryKey,
+    constraints,
     profiles: profilesBefore,
     foreignInventory,
     unrelatedInventory,
@@ -886,7 +976,8 @@ async function restorePreference(client, preference) {
     `insert into public.user_tournament_context_preferences (
        user_id, organization_id, active_season_id, active_tournament_id, updated_at
      ) values ($1, $2, $3, $4, $5)
-     returning user_id, organization_id, active_season_id, active_tournament_id, updated_at`,
+     returning user_id, organization_id, active_season_id, active_tournament_id,
+               updated_at::text as updated_at`,
     [
       preference.user_id,
       preference.organization_id,
@@ -904,7 +995,6 @@ async function validateFinalState(client, {
   manifest,
   profiles,
   preflight,
-  expectedPreferenceFingerprint,
 }) {
   const v2 = await readV2ExpectedState(client, descriptor);
   const v2Exclusive = await readV2ExpectedState(
@@ -927,6 +1017,10 @@ async function validateFinalState(client, {
   const roles = await readRoleValidation(client, manifest);
   const finalConstraints = await readExternalConstraintCatalog(client, descriptor);
   validateExternalConstraintCatalog(finalConstraints);
+  const finalPreferenceCatalog = await readPreferenceCatalog(client);
+  validatePreferenceCatalog(finalPreferenceCatalog);
+  const finalPreferencePrimaryKey = await readPreferencePrimaryKeyCatalog(client);
+  validatePreferencePrimaryKeyCatalog(finalPreferencePrimaryKey);
   const otherExternalReferences = await readOtherExternalReferenceCount(
     client,
     descriptor,
@@ -942,7 +1036,6 @@ async function validateFinalState(client, {
       && v3.mismatched.length === 0,
     marker_exact: marker.count === 1 && marker.exact,
     preference_exact: preferenceResult.rowCount === 1
-      && preferenceHash === expectedPreferenceFingerprint
       && preferenceHash === preflight.preferenceFingerprint,
     updated_at_exact: normalizeValue(preference?.updated_at)
       === normalizeValue(preflight.preference.updated_at),
@@ -952,6 +1045,12 @@ async function validateFinalState(client, {
     unrelated_data_exact: same(unrelatedAfter, preflight.unrelatedInventory),
     triggers_exact: same(triggersAfter, preflight.triggers),
     guards_exact: validateV2DeleteGuards(guardsAfter),
+    preference_catalog_exact: same(finalPreferenceCatalog, preflight.preferenceCatalog),
+    preference_primary_key_exact: same(
+      finalPreferencePrimaryKey,
+      preflight.preferencePrimaryKey,
+    ),
+    external_constraint_catalog_exact: same(finalConstraints, preflight.constraints),
     other_external_references_absent: otherExternalReferences === 0,
   };
   const failures = Object.entries(finalChecks)
@@ -990,7 +1089,6 @@ export async function executeReplacement(client, {
   failAfterCleanupDeleteCount = null,
   failAfterV3BaseRowCount = null,
   afterPreflight = () => {},
-  expectedPreferenceFingerprint = REPLACEMENT_AUTHORIZATION.preferenceFingerprint,
   artifactAuthorization = REPLACEMENT_AUTHORIZATION,
 } = {}) {
   if (!Number.isInteger(maxAttempts) || maxAttempts < 1 || maxAttempts > 3) {
@@ -1014,9 +1112,9 @@ export async function executeReplacement(client, {
         descriptor,
         manifest,
         profiles,
-        expectedPreferenceFingerprint,
         artifactAuthorization,
         advisoryLockAcquired: true,
+        lockPreference: true,
       });
       if (preflight.status === 'skip') {
         await client.query('rollback');
@@ -1064,7 +1162,6 @@ export async function executeReplacement(client, {
         manifest,
         profiles,
         preflight,
-        expectedPreferenceFingerprint,
       });
       await client.query('commit');
       return {
@@ -1098,6 +1195,8 @@ function assertDiagnosticPass(diagnostic) {
 }
 
 function preflightReport(preflight) {
+  const preference = preferenceSnapshotReport(preflight.preference);
+  const count = (value) => Array.isArray(value) ? value.length : Number(value || 0);
   return {
     status: preflight.status,
     reason: preflight.reason,
@@ -1105,20 +1204,31 @@ function preflightReport(preflight) {
       expected: REPLACEMENT_AUTHORIZATION.totalRows,
       present: preflight.v2State.present,
       exact: preflight.v2State.exact,
-      missing: preflight.v2State.missing,
-      mismatched: preflight.v2State.mismatched,
+      missing: count(preflight.v2State.missing),
+      mismatched: count(preflight.v2State.mismatched),
     },
     v3: {
       expected: REPLACEMENT_AUTHORIZATION.totalRows,
       present: preflight.v3State.present,
-      mismatched: preflight.v3State.mismatched.length,
+      mismatched: count(preflight.v3State.mismatched),
     },
     preference: {
       count: 1,
-      fingerprintMatches: true,
+      currentFingerprint: preference.fingerprint,
+      dynamicSnapshot: true,
+      ownerFingerprint: preference.owner,
+      organizationFingerprint: preference.organization,
+      seasonFingerprint: preference.season,
+      tournamentFingerprint: preference.tournament,
+      seasonIsNull: preference.seasonIsNull,
+      tournamentIsNull: preference.tournamentIsNull,
+      updatedAtCaptured: preference.updatedAtCaptured,
       destinationsShared: true,
+      semanticallyValid: true,
+      restorable: true,
     },
     constraints: 3,
+    additionalExternalReferences: preflight.otherExternalReferences,
     profiles: preflight.profiles.count,
     authPlanRows: 0,
     storageStatePlanRows: 0,

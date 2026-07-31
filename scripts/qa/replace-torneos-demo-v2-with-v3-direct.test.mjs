@@ -12,9 +12,12 @@ import {
   externalConstraintCatalogFingerprint,
   parseReplacementArguments,
   preferenceFingerprint,
+  preferenceSnapshotReport,
   preflightReplacement,
   shouldRetryReplacement,
   validateExternalConstraintCatalog,
+  validatePreferenceCatalog,
+  validatePreferencePrimaryKeyCatalog,
   validateReplacementArtifacts,
 } from './replace-torneos-demo-v2-with-v3-direct.mjs';
 import { loadV2IdentityMap } from './cleanup-torneos-demo-v2-direct.mjs';
@@ -198,6 +201,59 @@ test('preference fingerprint is deterministic and covers every stored value', ()
   }
 });
 
+test('preference snapshot report exposes only partial fingerprints and null state', () => {
+  const report = preferenceSnapshotReport({
+    user_id: '00000000-0000-4000-8000-000000000001',
+    organization_id: '00000000-0000-4000-8000-000000000002',
+    active_season_id: null,
+    active_tournament_id: null,
+    updated_at: new Date('2026-07-30T12:34:56.789Z'),
+  });
+  assert.match(report.fingerprint, /^[0-9a-f]{12}…[0-9a-f]{8}$/);
+  assert.match(report.owner, /^[0-9a-f]{12}…[0-9a-f]{8}$/);
+  assert.equal(report.season, null);
+  assert.equal(report.tournament, null);
+  assert.equal(report.seasonIsNull, true);
+  assert.equal(report.tournamentIsNull, true);
+  assert.equal(JSON.stringify(report).includes('00000000-'), false);
+});
+
+test('preference primary key must remain exact, ordered and non-deferrable', () => {
+  const expected = [{
+    name: 'user_tournament_context_preferences_pkey',
+    columns: ['user_id', 'organization_id'],
+    deferrable: false,
+    initially_deferred: false,
+  }];
+  assert.equal(validatePreferencePrimaryKeyCatalog(expected), true);
+  for (const rows of [
+    [],
+    [...expected, expected[0]],
+    [{ ...expected[0], columns: [...expected[0].columns].reverse() }],
+    [{ ...expected[0], deferrable: true }],
+  ]) {
+    assert.throws(() => validatePreferencePrimaryKeyCatalog(rows), /primary key contract/);
+  }
+});
+
+test('preference columns, types and nullability remain exact', () => {
+  const expected = [
+    { name: 'user_id', type: 'uuid', not_null: true },
+    { name: 'organization_id', type: 'uuid', not_null: true },
+    { name: 'active_season_id', type: 'uuid', not_null: false },
+    { name: 'active_tournament_id', type: 'uuid', not_null: false },
+    { name: 'updated_at', type: 'timestamp with time zone', not_null: true },
+  ];
+  assert.equal(validatePreferenceCatalog(expected), undefined);
+  for (const rows of [
+    expected.slice(0, -1),
+    expected.map((row, index) => index === 2 ? { ...row, type: 'text' } : row),
+    expected.map((row, index) => index === 3 ? { ...row, not_null: true } : row),
+  ]) {
+    assert.throws(() => validatePreferenceCatalog(rows), /column\/type\/nullability contract/);
+  }
+});
+
 test('external catalog accepts the three preference FKs plus the known zero-row workspace FK', () => {
   const rows = constraintFixture();
   assert.equal(validateExternalConstraintCatalog(rows, {
@@ -253,6 +309,11 @@ test('preference destinations must exist with identical UUIDs in v2 and v3', asy
     ).rows[0].identity.id,
   };
   assert.equal(assertSharedPreferenceDestinations(preference, descriptor, manifest), true);
+  assert.equal(assertSharedPreferenceDestinations({
+    ...preference,
+    active_season_id: null,
+    active_tournament_id: null,
+  }, descriptor, manifest), true);
   assert.throws(
     () => assertSharedPreferenceDestinations({
       ...preference,
@@ -260,6 +321,20 @@ test('preference destinations must exist with identical UUIDs in v2 and v3', asy
     }, descriptor, manifest),
     /not identical/,
   );
+  assert.throws(
+    () => assertSharedPreferenceDestinations({
+      ...preference,
+      active_season_id: null,
+    }, descriptor, manifest),
+    /not identical/,
+  );
+  const otherTournament = manifest.operations.find(
+    (operation) => operation.table === 'tournaments',
+  ).rows[2];
+  assert.equal(assertSharedPreferenceDestinations({
+    ...preference,
+    active_tournament_id: otherTournament.id,
+  }, descriptor, manifest), true);
 });
 
 test('marker is separated from all 586 base rows for last-write insertion', async () => {
@@ -295,6 +370,8 @@ test('runner source contains one COMMIT site and no forbidden remote mechanism',
     'service_role',
     'connectionString',
     '--confirm',
+    '9a161397fe84d50269cc8a290b74b9ab8f3880d3da745a8edb2cde0c36611221',
+    'expectedPreferenceFingerprint',
   ]) {
     assert.equal(source.includes(forbidden), false, forbidden);
   }
