@@ -11,12 +11,26 @@ import pg from 'pg';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..', '..');
-const MIGRATION = path.join(
-  ROOT,
-  'supabase',
-  'migrations_history',
-  '20260724233000_tournament_organization_workspaces.sql',
-);
+const MIGRATIONS = [
+  path.join(
+    ROOT,
+    'supabase',
+    'migrations_history',
+    '20260724233000_tournament_organization_workspaces.sql',
+  ),
+  path.join(
+    ROOT,
+    'supabase',
+    'migrations_history',
+    '20260725120000_tournament_competition_core.sql',
+  ),
+  path.join(
+    ROOT,
+    'supabase',
+    'migrations',
+    '20260801090000_tournament_context_reads_are_pure.sql',
+  ),
+];
 const PORT = 54800 + Math.floor(Math.random() * 500);
 const DATABASE = 'arma2_torneos_workspaces';
 const DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'arma2-torneos-pg-'));
@@ -33,6 +47,8 @@ const USERS = {
   slugRaceA: '10000000-0000-4000-8000-000000000009',
   slugRaceB: '10000000-0000-4000-8000-000000000010',
   rateLimit: '10000000-0000-4000-8000-000000000011',
+  delegate: '10000000-0000-4000-8000-000000000012',
+  player: '10000000-0000-4000-8000-000000000013',
 };
 
 const postgres = new EmbeddedPostgres({
@@ -156,7 +172,9 @@ async function setup() {
     );
   }
 
-  await admin.query(fs.readFileSync(MIGRATION, 'utf8'));
+  for (const migration of MIGRATIONS) {
+    await admin.query(fs.readFileSync(migration, 'utf8'));
+  }
   return admin;
 }
 
@@ -179,6 +197,11 @@ async function main() {
     role: 'authenticated',
     userId: USERS.suspendedA,
   });
+  const delegate = await connect({
+    role: 'authenticated',
+    userId: USERS.delegate,
+  });
+  const player = await connect({ role: 'authenticated', userId: USERS.player });
 
   console.log('\nAutenticación y creación atómica');
   await expectError(
@@ -294,6 +317,80 @@ async function main() {
     7,
     'las siete SECURITY DEFINER fijan search_path, usan auth.uid y no ejecutan SQL dinámico',
   );
+  eq(
+    await count(
+      admin,
+      `select count(*)
+       from pg_proc procedure
+       join pg_namespace namespace on namespace.oid = procedure.pronamespace
+       where namespace.nspname = 'public'
+         and procedure.proname in (
+           'get_tournament_workspace_context',
+           'get_tournament_competition_context'
+         )
+         and procedure.provolatile = 's'
+         and procedure.prosecdef
+         and 'search_path=""' = any(procedure.proconfig)
+         and pg_get_userbyid(procedure.proowner) = 'postgres'`,
+    ),
+    2,
+    'ambos getters finales son STABLE, SECURITY DEFINER, owner postgres y search_path seguro',
+  );
+  eq(
+    await count(
+      admin,
+      `select count(*)
+       from (values
+         ('public.get_tournament_workspace_context()'::text),
+         ('public.get_tournament_competition_context(uuid)'::text)
+       ) function_signature(signature)
+       where not has_function_privilege('anon', signature, 'execute')
+         and has_function_privilege('authenticated', signature, 'execute')
+         and not has_function_privilege('service_role', signature, 'execute')`,
+    ),
+    2,
+    'los grants finales preservan sólo authenticated y excluyen anon/service_role',
+  );
+
+  console.log('\nLecturas puras sin preferencia');
+  for (const [label, userId, client] of [
+    ['owner', USERS.ownerA, ownerA],
+    ['admin', USERS.adminA, adminA],
+    ['collaborator', USERS.collaboratorA, collaboratorA],
+    ['delegate', USERS.delegate, delegate],
+    ['player', USERS.player, player],
+    ['outsider', USERS.outsider, outsider],
+  ]) {
+    const before = await count(
+      admin,
+      'select count(*) from public.user_workspace_preferences where user_id = $1',
+      [userId],
+    );
+    const contexts = [];
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      contexts.push(await value(
+        client,
+        'select public.get_tournament_workspace_context()',
+      ));
+    }
+    const after = await count(
+      admin,
+      'select count(*) from public.user_workspace_preferences where user_id = $1',
+      [userId],
+    );
+    eq(before, 0, `${label} comienza sin preferencia de workspace`);
+    eq(after, 0, `${label} conserva 0 filas después de diez lecturas/retry`);
+    eq(
+      contexts[0].preference.workspaceType,
+      'personal',
+      `${label} recibe el workspace personal efectivo`,
+    );
+    eq(
+      new Set(contexts.map((context) => JSON.stringify(context))).size,
+      1,
+      `${label} recibe diez fingerprints idénticos`,
+    );
+  }
   await expectError(
     () => createOrganization(
       ownerA,
@@ -360,6 +457,36 @@ async function main() {
     ),
     1,
     'la organización nace con exactamente un owner activo',
+  );
+  const ownerPreferenceBeforeReads = await value(
+    admin,
+    `select row_to_json(preference)::text
+     from public.user_workspace_preferences preference
+     where user_id = $1`,
+    [USERS.ownerA],
+  );
+  const ownerContexts = [];
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    ownerContexts.push(await value(
+      ownerA,
+      'select public.get_tournament_workspace_context()',
+    ));
+  }
+  eq(
+    new Set(ownerContexts.map((context) => JSON.stringify(context))).size,
+    1,
+    'diez lecturas owner válidas conservan el mismo fingerprint',
+  );
+  eq(
+    await value(
+      admin,
+      `select row_to_json(preference)::text
+       from public.user_workspace_preferences preference
+       where user_id = $1`,
+      [USERS.ownerA],
+    ),
+    ownerPreferenceBeforeReads,
+    'la preferencia workspace válida y updated_at quedan byte-idénticos',
   );
 
   const repeatedA = await createOrganization(
@@ -604,6 +731,13 @@ async function main() {
      where organization_id = $1 and user_id = $2`,
     [organizationA, USERS.collaboratorA],
   );
+  const revokedPreferenceBeforeRead = await value(
+    admin,
+    `select row_to_json(preference)::text
+     from public.user_workspace_preferences preference
+     where user_id = $1`,
+    [USERS.collaboratorA],
+  );
   const revokedContext = await value(
     collaboratorA,
     'select public.get_tournament_workspace_context()',
@@ -612,6 +746,17 @@ async function main() {
     revokedContext.preference.workspaceType,
     'personal',
     'una preferencia vieja se descarta tras revocar la membresía',
+  );
+  eq(
+    await value(
+      admin,
+      `select row_to_json(preference)::text
+       from public.user_workspace_preferences preference
+       where user_id = $1`,
+      [USERS.collaboratorA],
+    ),
+    revokedPreferenceBeforeRead,
+    'la preferencia workspace inválida no se repara y conserva updated_at',
   );
   eq(
     revokedContext.organizations.length,
@@ -697,7 +842,36 @@ async function main() {
   eq(
     contextRaceResults.filter((result) => result.status === 'fulfilled').length,
     2,
-    'dos inicializaciones concurrentes de preferencia son idempotentes',
+    'dos lecturas concurrentes sin preferencia responden correctamente',
+  );
+  eq(
+    await count(
+      admin,
+      'select count(*) from public.user_workspace_preferences where user_id = $1',
+      [USERS.contextRace],
+    ),
+    0,
+    'dos lecturas concurrentes no crean preferencias',
+  );
+  const setterRaceResults = await Promise.allSettled(
+    contextRaceClients.map((client) => value(
+      client,
+      "select public.set_tournament_workspace_preference('personal', null)",
+    )),
+  );
+  eq(
+    setterRaceResults.filter((result) => result.status === 'fulfilled').length,
+    2,
+    'dos setters explícitos concurrentes completan de forma coherente',
+  );
+  eq(
+    await count(
+      admin,
+      'select count(*) from public.user_workspace_preferences where user_id = $1',
+      [USERS.contextRace],
+    ),
+    1,
+    'la PK limita los setters concurrentes a una preferencia',
   );
 
   const idempotencyRaceClients = await Promise.all([

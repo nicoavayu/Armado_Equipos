@@ -51,7 +51,7 @@ npm run staging:verify
 npm run staging:unlink
 ```
 
-The dry-run and push wrappers accept exactly the two canonical migrations. Edge
+The dry-run and push wrappers accept exactly the three canonical migrations. Edge
 Functions must be named explicitly and must be present in the allowlist.
 
 Direct manual use of the `supabase` binary bypasses these controls and is
