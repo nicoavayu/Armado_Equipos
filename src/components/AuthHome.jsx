@@ -1,10 +1,17 @@
 import logger from '../utils/logger';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { Capacitor } from '@capacitor/core';
 import { Link, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthProvider';
 import { setAuthReturnTo } from '../utils/authReturnTo';
 import { getAuthRedirectUrl } from '../utils/authRedirectUrl';
 import { redactUrlForLog } from '../utils/nativeAppLink';
+import { isQaPasswordLoginEnabled } from '../utils/qaPasswordLogin';
 import AppleAuth from './AppleAuth';
 import GoogleAuth from './GoogleAuth';
 import usePendingAuthFlow from '../hooks/usePendingAuthFlow';
@@ -31,11 +38,19 @@ export default function AuthHome() {
   const [emailLoading, setEmailLoading] = useState(false);
   const [notice, setNotice] = useState({ type: '', message: '' });
   const [cooldown, setCooldown] = useState(0);
+  const [qaEmail, setQaEmail] = useState('');
+  const [qaPassword, setQaPassword] = useState('');
+  const [qaPasswordLoading, setQaPasswordLoading] = useState(false);
+  const [qaNotice, setQaNotice] = useState({ type: '', message: '' });
+  const qaPasswordSubmittingRef = useRef(false);
   const pendingAuthFlow = usePendingAuthFlow();
 
   const returnTo = useMemo(() => getReturnTo(location.search), [location.search]);
   const googleLoading = pendingAuthFlow?.provider === 'google';
   const appleLoading = pendingAuthFlow?.provider === 'apple';
+  const qaPasswordLoginEnabled = isQaPasswordLoginEnabled({
+    isNativePlatform: Capacitor.isNativePlatform(),
+  });
 
   useEffect(() => {
     logger.info('[AUTH] login_route_enter', {
@@ -89,7 +104,7 @@ export default function AuthHome() {
     });
   }, []);
 
-  const sendingBlocked = emailLoading || Boolean(pendingAuthFlow);
+  const sendingBlocked = emailLoading || qaPasswordLoading || Boolean(pendingAuthFlow);
 
   const sendMagicLink = async () => {
     logger.info('[AUTH] magic_link_submit', {
@@ -128,6 +143,51 @@ export default function AuthHome() {
   const onEmailSubmit = async (event) => {
     event.preventDefault();
     await sendMagicLink();
+  };
+
+  const onQaPasswordSubmit = async (event) => {
+    event.preventDefault();
+    if (
+      !qaPasswordLoginEnabled
+      || qaPasswordSubmittingRef.current
+      || emailLoading
+      || pendingAuthFlow
+    ) {
+      return;
+    }
+    if (!qaEmail.trim() || !qaPassword) {
+      setQaNotice({
+        type: 'warning',
+        message: 'Ingresá el email y la contraseña de prueba.',
+      });
+      return;
+    }
+
+    qaPasswordSubmittingRef.current = true;
+    setQaPasswordLoading(true);
+    setQaNotice({ type: '', message: '' });
+    try {
+      setAuthReturnTo(returnTo || '/home');
+      const { error } = await supabase.auth.signInWithPassword({
+        email: qaEmail.trim(),
+        password: qaPassword,
+      });
+      if (error) throw error;
+
+      setQaNotice({
+        type: 'success',
+        message: 'Acceso verificado. Ingresando…',
+      });
+    } catch {
+      setQaNotice({
+        type: 'warning',
+        message: 'No pudimos ingresar con esas credenciales.',
+      });
+    } finally {
+      setQaPassword('');
+      qaPasswordSubmittingRef.current = false;
+      setQaPasswordLoading(false);
+    }
   };
 
   if (!loading && user) {
@@ -236,6 +296,58 @@ export default function AuthHome() {
                 </button>
               </form>
             )}
+
+            {qaPasswordLoginEnabled ? (
+              <section
+                aria-labelledby="qa-password-login-title"
+                className="mt-2 border-t border-white/15 pt-5"
+              >
+                <h2
+                  id="qa-password-login-title"
+                  className="mb-3 text-sm font-semibold uppercase tracking-[0.12em] text-white/80"
+                >
+                  Acceso de prueba
+                </h2>
+                <form onSubmit={onQaPasswordSubmit} className="flex flex-col gap-3">
+                  <label className="flex flex-col gap-1.5 text-sm text-white/80">
+                    Email
+                    <input
+                      type="email"
+                      value={qaEmail}
+                      onChange={(event) => setQaEmail(event.target.value)}
+                      autoComplete="username"
+                      required
+                      className="auth-email-input h-12 w-full rounded-none px-4 text-white placeholder:text-white/45 outline-none max-[480px]:h-[46px]"
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1.5 text-sm text-white/80">
+                    Contraseña
+                    <input
+                      type="password"
+                      value={qaPassword}
+                      onChange={(event) => setQaPassword(event.target.value)}
+                      autoComplete="current-password"
+                      required
+                      className="auth-email-input h-12 w-full rounded-none px-4 text-white placeholder:text-white/45 outline-none max-[480px]:h-[46px]"
+                    />
+                  </label>
+                  <button
+                    type="submit"
+                    disabled={sendingBlocked}
+                    className="auth-btn auth-btn-secondary h-12 w-full rounded-none px-4 text-base font-medium max-[480px]:h-[46px]"
+                  >
+                    {qaPasswordLoading ? 'Ingresando...' : 'Ingresar'}
+                  </button>
+                  <div aria-live="polite" className="min-h-[22px]">
+                    {qaNotice.message ? (
+                      <p className={`text-sm ${qaNotice.type === 'success' ? 'text-[#76e7a0]' : 'text-[#ffadba]'}`}>
+                        {qaNotice.message}
+                      </p>
+                    ) : null}
+                  </div>
+                </form>
+              </section>
+            ) : null}
           </div>
         </div>
 
