@@ -14,6 +14,7 @@ import {
 const EXPECTED_MIGRATIONS = [
   '20260727090000_arma2_canonical_baseline.sql',
   '20260727215106_canonical_core_rls_contracts.sql',
+  '20260801090000_tournament_context_reads_are_pure.sql',
 ];
 const FORBIDDEN_ARGUMENTS = new Set([
   '--db-url',
@@ -82,7 +83,7 @@ const assertCanonicalMigrationSet = () => {
 const assertDryRunOutput = (output) => {
   const mentioned = EXPECTED_MIGRATIONS.filter((migration) => output.includes(migration));
   if (mentioned.length !== EXPECTED_MIGRATIONS.length) {
-    fail('Dry-run did not include both canonical migrations.');
+    fail('Dry-run did not include every canonical migration.');
   }
   const unexpected = [
     ...output.matchAll(/\b\d{14}_[A-Za-z0-9_-]+\.sql\b/g),
@@ -134,7 +135,7 @@ try {
         { capture: true },
       );
       assertDryRunOutput(output);
-      console.log('[staging:db:dry-run] Exactly two canonical migrations are pending.');
+      console.log('[staging:db:dry-run] Exactly the approved canonical migrations are pending.');
       break;
     }
     case 'db-push':

@@ -194,7 +194,7 @@ Las funciones `SECURITY DEFINER`:
 | `save_tournament_category` | Crea, edita, reordena o archiva una categoría |
 | `change_tournament_status` | Ejecuta sólo transiciones autorizadas |
 | `set_active_tournament_context` | Valida y persiste temporada/torneo activos |
-| `get_tournament_competition_context` | Devuelve catálogos y agregado autorizado |
+| `get_tournament_competition_context` | Devuelve catálogos, agregado autorizado y fallback efectivo sin persistir |
 
 Las creaciones de temporada y torneo usan una clave UUID de idempotencia con
 índices únicos por organización/actor. La creación del torneo es atómica: no
@@ -209,10 +209,12 @@ El workspace sigue representando la organización. Dentro de él,
 `TorneosCompetitionContext` carga una única proyección autoritativa, descarta
 respuestas fuera de orden y limpia temporadas/torneos durante loading o error.
 
-La preferencia vive en PostgreSQL. Una selección sólo se acepta si la temporada
-pertenece a la organización, no está archivada y el torneo pertenece exactamente
-a esa temporada. Si el recurso dejó de ser válido, la RPC repara la preferencia
-con un fallback seguro o `NULL`; no se confía en `localStorage`.
+La preferencia vive en PostgreSQL. Una selección explícita sólo se acepta si la
+temporada pertenece a la organización, no está archivada y el torneo pertenece
+exactamente a esa temporada. Si la preferencia falta o el recurso dejó de ser
+válido, la RPC de lectura calcula un fallback determinista o `NULL` sin insertar,
+actualizar ni reparar la fila. Sólo `set_active_tournament_context` persiste la
+selección; no se confía en `localStorage`.
 
 ## Rutas
 

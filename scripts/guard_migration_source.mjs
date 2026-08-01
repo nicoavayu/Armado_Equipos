@@ -8,6 +8,7 @@ const allowlistPath = path.join(rootMigrationsDir, 'ROOT_SQL_ALLOWLIST.txt');
 const expectedCanonicalMigrations = [
   '20260727090000_arma2_canonical_baseline.sql',
   '20260727215106_canonical_core_rls_contracts.sql',
+  '20260801090000_tournament_context_reads_are_pure.sql',
 ];
 
 const exitWithError = (message) => {
@@ -61,11 +62,11 @@ if (
 ) {
   exitWithError(
     [
-      'Canonical migration set must contain exactly two approved files.',
+      'Canonical migration set must contain exactly the approved files.',
       `Expected: ${expectedCanonicalMigrations.join(', ')}`,
       `Found: ${canonicalSqlFiles.join(', ') || '(none)'}`,
     ].join(' '),
   );
 }
 
-console.log('[migrations:guard] OK. Exactly two approved canonical migrations are present.');
+console.log('[migrations:guard] OK. Exactly the approved canonical migrations are present.');

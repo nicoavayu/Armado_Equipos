@@ -3,7 +3,7 @@
 ## Scope
 
 This P0 change is limited to the confirmed `0029` authenticated RPC exposure in
-the two active canonical migrations and to the Security Advisor response parser.
+the original two canonical migrations and to the Security Advisor response parser.
 It does not change visuals, Storage policies, Edge Function deployments, or any
 remote environment.
 
@@ -11,6 +11,7 @@ The active migration path remains:
 
 - `20260727090000_arma2_canonical_baseline.sql`
 - `20260727215106_canonical_core_rls_contracts.sql`
+- `20260801090000_tournament_context_reads_are_pure.sql`
 
 All 214 files under `supabase/migrations_history/` remain byte-identical.
 
@@ -165,11 +166,11 @@ Multimedia Upload and Estudio Social remain disabled.
 
 Only after this draft PR is reviewed and merged into its protected base:
 
-1. Reconfirm the approved commit, two active migrations, 214 unchanged
+1. Reconfirm the approved commit, three active migrations, 214 unchanged
    historical SQL files, and an empty synthetic staging target.
 2. Recreate staging in the approved region and plan; do not reuse a partially
    migrated database.
-3. Apply only the two canonical migrations with the normal controlled pipeline.
+3. Apply only the three canonical migrations with the normal controlled pipeline.
 4. Deploy no Edge Function until its service-role configuration and secrets are
    independently verified.
 5. Run the authenticated/anonymous catalog allowlist and negative RPC suite
