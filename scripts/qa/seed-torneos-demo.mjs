@@ -2,105 +2,134 @@
 
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
+
 import productionGuard from './production-guard.js';
 import {
-  buildIdempotentSeedPlan,
-  buildTorneosDemoDataset,
-} from './torneos-demo-dataset.mjs';
+  buildBaseManifest,
+  buildCanonicalManifest,
+  resolveCanonicalManifest,
+  validateCanonicalManifest,
+} from './torneos-demo-manifest.mjs';
+import { loadQAIdentityMap } from './torneos-qa-identity-map.mjs';
+import { QA_IDENTITY_ROLES } from './torneos-qa-identity-map.mjs';
+import {
+  materializeManifest,
+  offlinePlan,
+  preflightDatabase,
+  withDatabase,
+} from './torneos-seed-db.mjs';
 
-const { assertSafeSeedTarget } = productionGuard;
+const {
+  assertLocalDatabaseTarget,
+  assertRemoteApplyDisabled,
+  assertRemotePlanTarget,
+  assertSafeQaEnvironment,
+} = productionGuard;
 
-export function validateDemoDataset(dataset) {
-  const matches = dataset.rounds.flatMap((round) => round.matches);
-  const allPlayers = dataset.teams.flatMap((team) => team.roster);
-  const outcomes = new Set([
-    ...matches.map((match) => match.outcome),
-    ...dataset.playoffs.semifinals.map((match) => match.outcome),
-    dataset.playoffs.final.outcome,
-  ]);
-  const states = new Set(matches.map((match) => match.state));
-
-  const assertions = [
-    [dataset.teams.length === 8, 'exactly 8 teams'],
-    [dataset.teams.every((team) => team.roster.length >= 8), 'complete rosters'],
-    [dataset.rounds.length === 7, 'seven league rounds'],
-    [dataset.playoffs.semifinals.length === 2, 'two semifinals'],
-    [Boolean(dataset.playoffs.final), 'one final'],
-    [outcomes.has('draw'), 'a draw'],
-    [outcomes.has('penalties'), 'a penalty shootout'],
-    [outcomes.has('walkover'), 'a walkover'],
-    [states.has('suspended'), 'a suspended match'],
-    [states.has('postponed'), 'a postponed match'],
-    [states.has('under_review'), 'a result under review'],
-    [dataset.events.some((event) => event.type === 'goal'), 'goals'],
-    [dataset.events.some((event) => event.assistPlayerId), 'assists'],
-    [dataset.events.some((event) => event.type.includes('card')), 'cards'],
-    [dataset.sanctions.length >= 2, 'sanctions'],
-    [dataset.teams.some((team) => !team.shieldPath), 'teams without shields'],
-    [allPlayers.some((player) => !player.avatarUrl), 'players without avatars'],
-    [
-      dataset.teams.some((team) => team.name.length > 35)
-      && allPlayers.some((player) => player.displayName.length > 35),
-      'long names',
-    ],
-    [
-      new Set(dataset.tournaments.map((item) => item.status)).size >= 4,
-      'multiple tournament states',
-    ],
-    [
-      dataset.manualIdealTeam.selectionMode === 'manual',
-      'explicitly manual ideal-team selection',
-    ],
-  ];
-
-  const missing = assertions.filter(([passes]) => !passes).map(([, label]) => label);
-  if (missing.length > 0) {
-    throw new Error(`Demo dataset is incomplete: ${missing.join(', ')}.`);
+export function dryRun({ env = process.env, identityMap } = {}) {
+  assertSafeQaEnvironment(env);
+  if (!identityMap) {
+    throw new Error('dryRun requires an explicit QAIdentityMap.');
   }
+  const manifest = resolveCanonicalManifest({
+    baseManifest: buildBaseManifest(),
+    identityMap,
+  });
   return {
-    teams: dataset.teams.length,
-    players: allPlayers.length,
-    rounds: dataset.rounds.length,
-    leagueMatches: matches.length,
-    playoffMatches: dataset.playoffs.semifinals.length + 1,
-    events: dataset.events.length,
-    sanctions: dataset.sanctions.length,
+    ...offlinePlan(manifest),
+    validation: validateCanonicalManifest(manifest),
   };
 }
 
-export function dryRun() {
-  const dataset = buildTorneosDemoDataset();
-  const summary = validateDemoDataset(dataset);
-  const plan = buildIdempotentSeedPlan(dataset);
-  const operations = plan.map(({ entity, conflictTarget, records }) => ({
-    entity,
-    operation: 'upsert',
-    conflictTarget,
-    records: records.length,
-  }));
+export function baseDryRun({ env = process.env } = {}) {
+  assertSafeQaEnvironment(env);
+  const manifest = buildBaseManifest();
   return {
-    mode: 'dry-run',
-    seedKey: dataset.seedKey,
-    summary,
-    operations,
+    mode: 'offline-base-manifest',
+    connects: false,
+    writes: false,
+    resolved: false,
+    seedKey: manifest.seedKey,
+    datasetVersion: manifest.datasetVersion,
+    baseManifestHash: manifest.baseManifestHash,
+    rowsBeforeMarker: manifest.operations.reduce(
+      (sum, operation) => sum + operation.rows.length,
+      0,
+    ),
+    expectedResolvedRows: 587,
+    expectedTables: 32,
+    identityRoles: QA_IDENTITY_ROLES,
+    note: 'Load a QAIdentityMap to calculate the authorized resolved manifest hash.',
   };
+}
+
+function hasIdentitySource(env) {
+  return Boolean(env.QA_IDENTITY_MAP_FILE) || QA_IDENTITY_ROLES.some((role) => (
+    env[`QA_IDENTITY_${role.toUpperCase()}_AUTH_USER_ID`]
+    || env[`QA_IDENTITY_${role.toUpperCase()}_EMAIL`]
+  ));
+}
+
+async function main() {
+  const args = new Set(process.argv.slice(2));
+  if (args.has('--apply') || args.has('--execute') || args.has('--apply-remote')) {
+    assertRemoteApplyDisabled();
+  }
+  if (args.has('--remote-plan')) {
+    const target = assertRemotePlanTarget(process.env);
+    const identityMap = await loadQAIdentityMap({ env: process.env });
+    console.log(JSON.stringify({
+      ...dryRun({ identityMap }),
+      mode: target.mode,
+      target,
+      note: 'No connection was opened and no credential was accepted.',
+    }, null, 2));
+    return;
+  }
+  if (args.has('--preflight-local') || args.has('--apply-local')) {
+    const target = assertLocalDatabaseTarget(process.env);
+    if (args.has('--apply-local') && process.env.QA_ALLOW_LOCAL_SEED !== 'true') {
+      throw new Error('QA_ALLOW_LOCAL_SEED=true is required for local materialization.');
+    }
+    const identityMap = await loadQAIdentityMap({ env: process.env });
+    const manifest = buildCanonicalManifest({ identityMap });
+    validateCanonicalManifest(manifest);
+    const result = await withDatabase(target.databaseUrl, async (client) => (
+      args.has('--apply-local')
+        ? materializeManifest(client, manifest, {
+          failAfterTable: process.env.QA_SEED_FAIL_AFTER_TABLE || null,
+        })
+        : preflightDatabase(client, manifest)
+    ));
+    console.log(JSON.stringify({
+      mode: args.has('--apply-local') ? 'local-apply' : 'local-preflight',
+      target: { mode: target.mode, host: new URL(target.databaseUrl).hostname },
+      seedKey: manifest.seedKey,
+      manifestHash: manifest.manifestHash,
+      result,
+    }, null, 2));
+    return;
+  }
+  if (args.size > 0 && !args.has('--dry-run')) {
+    throw new Error(
+      'Unknown arguments. Use --dry-run, --remote-plan, --preflight-local, or --apply-local.',
+    );
+  }
+  if (!hasIdentitySource(process.env)) {
+    console.log(JSON.stringify(baseDryRun(), null, 2));
+    return;
+  }
+  const identityMap = await loadQAIdentityMap({ env: process.env });
+  console.log(JSON.stringify(dryRun({ identityMap }), null, 2));
 }
 
 const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
 if (isMain) {
-  const args = new Set(process.argv.slice(2));
-  const wantsApply = args.has('--apply') || args.has('--execute');
-  assertSafeSeedTarget({ dryRun: !wantsApply });
-
-  if (wantsApply) {
-    throw new Error(
-      'Seed execution is intentionally disabled in QA Foundation. '
-      + 'Only the idempotent dry-run plan is authorized in this stage.',
-    );
-  }
-  if (args.size > 0 && !args.has('--dry-run')) {
-    throw new Error('Unknown arguments. Use --dry-run.');
-  }
-
-  console.log(JSON.stringify(dryRun(), null, 2));
+  main().catch((error) => {
+    const detail = error.preflight ? { message: error.message, preflight: error.preflight } : {
+      message: error.message,
+    };
+    console.error(JSON.stringify({ error: detail }, null, 2));
+    process.exitCode = 1;
+  });
 }

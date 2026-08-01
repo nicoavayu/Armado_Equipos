@@ -54,7 +54,12 @@ function buildTeam([name, shortName, shieldPath], teamIndex) {
       displayName: longName,
       shirtNumber: playerIndex + 1,
       position: playerIndex === 0 ? 'goalkeeper' : 'field',
-      source: playerIndex < 7 ? 'arma2_profile' : 'provisional',
+      source: teamIndex === 0 && [1, 2].includes(playerIndex)
+        ? 'arma2_profile'
+        : 'provisional',
+      qaRole: teamIndex === 0 && playerIndex === 1
+        ? 'player'
+        : (teamIndex === 0 && playerIndex === 2 ? 'delegate' : null),
       avatarUrl: playerIndex % 4 === 0 ? null : `/qa/avatars/${shortName.toLowerCase()}-${playerIndex + 1}.png`,
       eligibility: playerIndex === 9 && teamIndex === 6 ? 'pending_review' : 'eligible',
     };
@@ -245,6 +250,7 @@ export function buildTorneosDemoDataset() {
     awayPenalties: null,
   };
   const events = matchEvents(teams, rounds);
+  const directRedEvent = events.find((event) => event.type === 'red_card');
 
   return {
     version: 1,
@@ -295,7 +301,8 @@ export function buildTorneosDemoDataset() {
     sanctions: [
       {
         id: stableUuid('sanction:red-card'),
-        playerId: teams[1].roster[4].id,
+        playerId: directRedEvent.playerId,
+        sourceEventId: directRedEvent.id,
         reason: 'direct_red_card',
         matches: 2,
         served: 0,
@@ -314,8 +321,16 @@ export function buildTorneosDemoDataset() {
       id: stableUuid('manual-ideal-team:round-1'),
       round: 1,
       selectionMode: 'manual',
+      criterion: 'manual_curated',
       selectedByRole: 'owner',
-      playerIds: teams.slice(0, 7).map((team, index) => team.roster[index + 1].id),
+      formation: ['ARQ', 'DEF', 'MED', 'DEL', 'DEL'],
+      playerIds: [
+        teams[0].roster[0].id,
+        teams[1].roster[1].id,
+        teams[2].roster[2].id,
+        teams[3].roster[3].id,
+        teams[4].roster[4].id,
+      ],
       published: false,
     },
   };

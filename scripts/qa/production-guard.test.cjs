@@ -2,101 +2,71 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 
 const {
+  ALLOWED_QA_PROJECT_REF,
+  PRODUCTION_PROJECT_REF,
   ProductionGuardError,
+  assertLocalDatabaseTarget,
+  assertRemoteApplyDisabled,
+  assertRemotePlanTarget,
   assertSafeQaEnvironment,
   assertSafeQaValue,
-  assertSafeSeedTarget,
 } = require('./production-guard');
 
-const productionRef = 'productionfixture123';
-const stagingRef = 'stagingfixture456';
-const safeEnv = {
-  QA_PRODUCTION_PROJECT_REF: productionRef,
-  QA_ALLOWED_SUPABASE_PROJECT_REF: stagingRef,
-  REACT_APP_DEPLOY_ENV: 'test',
-};
-
-test('allows localhost and an explicitly allowlisted QA project', () => {
-  assert.doesNotThrow(() => {
-    assertSafeQaValue('http://127.0.0.1:54321/rest/v1/example', 'local', safeEnv);
-    assertSafeQaValue(`https://${stagingRef}.supabase.co`, 'staging', safeEnv);
-  });
+test('allows loopback and only the exact authorized QA project', () => {
+  assert.doesNotThrow(() => assertSafeQaValue('http://127.0.0.1:57321'));
+  assert.doesNotThrow(() => assertSafeQaValue(
+    `https://${ALLOWED_QA_PROJECT_REF}.supabase.co`,
+  ));
+  assert.throws(
+    () => assertSafeQaValue('https://unknownprojectrefxxx.supabase.co'),
+    /not the authorized QA ref/,
+  );
 });
 
-test('rejects the protected application host', () => {
+test('rejects protected hosts, Production ref, and Production environments', () => {
   assert.throws(
-    () => assertSafeQaValue('https://app.arma2.com.ar/torneos', 'navigation', safeEnv),
+    () => assertSafeQaValue('https://app.arma2.com.ar/torneos'),
     ProductionGuardError,
   );
-});
-
-test('rejects the Production project ref in arbitrary text', () => {
   assert.throws(
-    () => assertSafeQaValue(`request:${productionRef}:failed`, 'console', safeEnv),
-    /Production project ref/,
-  );
-});
-
-test('rejects Production and unknown remote Supabase projects', () => {
-  assert.throws(
-    () => assertSafeQaValue(
-      `https://${productionRef}.supabase.co`,
-      'request',
-      safeEnv,
-    ),
+    () => assertSafeQaValue(`https://${PRODUCTION_PROJECT_REF}.supabase.co`),
     /Production/,
   );
   assert.throws(
-    () => assertSafeQaValue(
-      'https://unknownfixture999.supabase.co',
-      'request',
-      safeEnv,
-    ),
-    /not explicitly allowlisted/,
-  );
-});
-
-test('rejects a Production execution environment', () => {
-  assert.throws(
-    () => assertSafeQaEnvironment({
-      ...safeEnv,
-      VERCEL_ENV: 'production',
-    }),
+    () => assertSafeQaEnvironment({ VERCEL_ENV: 'production' }),
     /Production execution is forbidden/,
   );
 });
 
-test('seed is dry-run by default and local execution is double opted-in', () => {
-  assert.deepEqual(
-    assertSafeSeedTarget({ env: safeEnv }),
-    { dryRun: true, targetUrl: null },
-  );
-  assert.throws(
-    () => assertSafeSeedTarget({
-      dryRun: false,
-      env: {
-        ...safeEnv,
-        QA_SEED_SUPABASE_URL: `https://${stagingRef}.supabase.co`,
-        QA_ALLOW_LOCAL_SEED: 'true',
-      },
-    }),
-    /only permits local seed execution/,
-  );
-  assert.doesNotThrow(() => assertSafeSeedTarget({
-    dryRun: false,
-    env: {
-      ...safeEnv,
-      QA_SEED_SUPABASE_URL: 'http://127.0.0.1:54321',
-      QA_ALLOW_LOCAL_SEED: 'true',
-    },
-  }));
-  assert.throws(
-    () => assertSafeSeedTarget({
-      env: {
-        ...safeEnv,
-        ARMA2_DEPLOY_ENV: 'production',
-      },
-    }),
-    /Production execution is forbidden/,
-  );
+test('local target rejects missing, remote, and ambiguous credentials', () => {
+  assert.throws(() => assertLocalDatabaseTarget({}), /QA_SEED_ENV/);
+  assert.throws(() => assertLocalDatabaseTarget({
+    QA_SEED_ENV: 'local',
+    QA_SEED_PROJECT_REF: 'local',
+  }), /required and has no fallback/);
+  assert.throws(() => assertLocalDatabaseTarget({
+    QA_SEED_ENV: 'local',
+    QA_SEED_PROJECT_REF: 'local',
+    QA_SEED_DATABASE_URL: 'postgresql://postgres:test@example.com/postgres',
+  }), /loopback/);
+  assert.throws(() => assertLocalDatabaseTarget({
+    QA_SEED_ENV: 'local',
+    QA_SEED_PROJECT_REF: 'local',
+    QA_SEED_DATABASE_URL: 'postgresql://postgres:test@127.0.0.1:57322/postgres',
+    DATABASE_URL: 'postgresql://postgres:other@127.0.0.1:57322/postgres',
+  }), /ambiguous/);
+});
+
+test('remote plan requires exact non-ambiguous variables and never applies', () => {
+  assert.throws(() => assertRemotePlanTarget({}), /required and has no fallback/);
+  assert.deepEqual(assertRemotePlanTarget({
+    QA_SEED_PROJECT_REF: ALLOWED_QA_PROJECT_REF,
+    QA_SEED_SUPABASE_URL: `https://${ALLOWED_QA_PROJECT_REF}.supabase.co`,
+    QA_SEED_ENV: 'staging',
+  }), {
+    mode: 'remote-plan-only',
+    projectRef: ALLOWED_QA_PROJECT_REF,
+    apiUrl: `https://${ALLOWED_QA_PROJECT_REF}.supabase.co`,
+  });
+  assert.throws(() => assertRemoteApplyDisabled(), /intentionally disabled/);
 });

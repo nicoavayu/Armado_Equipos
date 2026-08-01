@@ -1,3 +1,21 @@
+project_id = "arma2-torneos-qa-seed"
+
+[api]
+port = 57321
+
+[db]
+port = 57322
+shadow_port = 57320
+
+[studio]
+port = 57323
+
+[local_smtp]
+port = 57324
+
+[analytics]
+port = 57327
+
 [functions.join-match-guest]
 verify_jwt = false
 
