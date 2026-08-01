@@ -29,6 +29,58 @@ const competitionCenterCss = fs.readFileSync(
   ),
   'utf8',
 );
+const teamRegistrationCss = fs.readFileSync(
+  path.join(
+    process.cwd(),
+    'src/features/torneos/components/TeamRegistration.module.css',
+  ),
+  'utf8',
+);
+
+const TEAM_FILTERS = [
+  'Todos',
+  'Presentados',
+  'Observados',
+  'Aprobados',
+  'Incompletos',
+];
+
+function getTeamFilterStyles(viewport) {
+  Object.defineProperty(window, 'innerWidth', {
+    configurable: true,
+    value: viewport.width,
+  });
+  Object.defineProperty(window, 'innerHeight', {
+    configurable: true,
+    value: viewport.height,
+  });
+
+  const style = document.createElement('style');
+  style.textContent = teamRegistrationCss;
+  const rail = document.createElement('div');
+  rail.className = 'filterRail';
+  TEAM_FILTERS.forEach((label) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = label;
+    rail.appendChild(button);
+  });
+  document.head.appendChild(style);
+  document.body.appendChild(rail);
+
+  const result = {
+    buttons: [...rail.querySelectorAll('button')].map((button) => ({
+      label: button.textContent,
+      minHeight: Number.parseFloat(getComputedStyle(button).minHeight),
+      whiteSpace: getComputedStyle(button).whiteSpace,
+    })),
+    railOverflowX: getComputedStyle(rail).overflowX,
+  };
+
+  rail.remove();
+  style.remove();
+  return result;
+}
 
 describe('Torneos responsive navigation CSS', () => {
   test('keeps mobile navigation hidden until the mobile/tablet breakpoint', () => {
@@ -101,5 +153,20 @@ describe('Torneos responsive navigation CSS', () => {
     expect(competitionCenterCss).toMatch(
       /@media \(prefers-reduced-motion:\s*reduce\)/,
     );
+  });
+
+  test.each([
+    { width: 320, height: 700 },
+    { width: 390, height: 844 },
+  ])('keeps all five team filters at least 44px tall at $width × $height', (viewport) => {
+    const { buttons, railOverflowX } = getTeamFilterStyles(viewport);
+
+    expect(buttons.map(({ label }) => label)).toEqual(TEAM_FILTERS);
+    expect(buttons).toHaveLength(5);
+    buttons.forEach(({ minHeight, whiteSpace }) => {
+      expect(minHeight).toBeGreaterThanOrEqual(44);
+      expect(whiteSpace).toBe('nowrap');
+    });
+    expect(railOverflowX).toBe('auto');
   });
 });
