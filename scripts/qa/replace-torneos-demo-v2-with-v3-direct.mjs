@@ -68,6 +68,8 @@ export const REQUIRED_REPLACEMENT_CONFIRMATION =
   'REEMPLAZAR torneos-demo-v2 POR torneos-demo-v3 EN STAGING';
 
 const DEFAULT_IDENTITY_MAP_FILE = 'torneos-demo-v2-identity-map.local';
+const REPLACEMENT_ADVISORY_LOCK_NAMESPACE = 'replace:torneos-demo-v2:torneos-demo-v3';
+const REPLACEMENT_ADVISORY_LOCK_PROOF = Symbol('replacement-advisory-lock-proof');
 const PREFERENCE_TABLE = 'user_tournament_context_preferences';
 const EXTERNAL_CONSTRAINT_COUNT = 61;
 const EXTERNAL_CONSTRAINT_CATALOG_FINGERPRINT =
@@ -138,6 +140,65 @@ export function preferenceFingerprint(row) {
 
 function sanitizedFingerprint(value) {
   return `${value.slice(0, 12)}…${value.slice(-8)}`;
+}
+
+function advisoryLockUnavailableError() {
+  const error = new Error('Replacement advisory lock is unavailable.');
+  error.code = '55P03';
+  error.preflight = {
+    status: 'reject',
+    reason: 'advisory_lock_unavailable',
+  };
+  return error;
+}
+
+export async function tryAcquireReplacementAdvisoryLock(client) {
+  const result = await client.query(
+    'select pg_try_advisory_xact_lock(hashtextextended($1, 0)) as acquired',
+    [REPLACEMENT_ADVISORY_LOCK_NAMESPACE],
+  );
+  if (
+    result?.rowCount !== 1
+    || !Array.isArray(result.rows)
+    || result.rows.length !== 1
+    || typeof result.rows[0]?.acquired !== 'boolean'
+  ) {
+    throw new Error('PostgreSQL returned an invalid advisory lock result.');
+  }
+  return result.rows[0].acquired;
+}
+
+export async function acquireReplacementAdvisoryLock(client) {
+  const acquired = await tryAcquireReplacementAdvisoryLock(client);
+  if (!acquired) throw advisoryLockUnavailableError();
+  return Object.freeze({
+    [REPLACEMENT_ADVISORY_LOCK_PROOF]: client,
+    attempted: true,
+    acquired,
+    source: 'postgres',
+    namespaceFingerprint: sanitizedFingerprint(sha256(REPLACEMENT_ADVISORY_LOCK_NAMESPACE)),
+  });
+}
+
+function replacementAdvisoryLockReport(client, lock, releasedBy) {
+  if (
+    lock?.[REPLACEMENT_ADVISORY_LOCK_PROOF] !== client
+    || lock.attempted !== true
+    || lock.acquired !== true
+    || lock.source !== 'postgres'
+  ) {
+    throw new Error('A verified PostgreSQL replacement advisory lock is required.');
+  }
+  if (!['rollback', 'transaction_end'].includes(releasedBy)) {
+    throw new Error('Replacement advisory lock release contract is invalid.');
+  }
+  return {
+    advisoryLockAttempted: true,
+    advisoryLockAcquired: true,
+    advisoryLockSource: lock.source,
+    advisoryLockNamespaceFingerprint: lock.namespaceFingerprint,
+    advisoryLockReleasedBy: releasedBy,
+  };
 }
 
 function nullableValueFingerprint(label, value) {
@@ -849,10 +910,16 @@ export async function preflightReplacement(client, {
   profiles,
   targetProjectRef = REPLACEMENT_AUTHORIZATION.stagingProjectRef,
   artifactAuthorization = REPLACEMENT_AUTHORIZATION,
-  advisoryLockAcquired = false,
+  advisoryLock,
+  advisoryLockReleasedBy = 'transaction_end',
   lockPreference = false,
 } = {}) {
   assertReplacementProjectRef(targetProjectRef);
+  const advisoryLockReport = replacementAdvisoryLockReport(
+    client,
+    advisoryLock,
+    advisoryLockReleasedBy,
+  );
   validateReplacementArtifacts({ descriptor, manifest, authorization: artifactAuthorization });
   deriveQAIdentityRelations(manifest);
 
@@ -927,6 +994,7 @@ export async function preflightReplacement(client, {
       v2ExclusiveState,
       v2Marker,
       v3State,
+      ...advisoryLockReport,
     };
   }
   if (v3Marker.count !== 0) throw new Error('v2 and v3 are present simultaneously or v3 is partial.');
@@ -934,7 +1002,7 @@ export async function preflightReplacement(client, {
   const v2 = await preflightV2Cleanup(client, {
     descriptor,
     profiles,
-    advisoryLockAcquired,
+    advisoryLockAcquired: advisoryLock.acquired,
     targetProjectRef,
   });
   if (v2.status !== 'ready') {
@@ -968,6 +1036,7 @@ export async function preflightReplacement(client, {
     v2Marker,
     v3State,
     v2,
+    ...advisoryLockReport,
   };
 }
 
@@ -1098,22 +1167,15 @@ export async function executeReplacement(client, {
     await client.query('begin isolation level serializable');
     try {
       await client.query("set local idle_in_transaction_session_timeout = '5min'");
-      const lock = await client.query(
-        'select pg_try_advisory_xact_lock(hashtextextended($1, 0)) as acquired',
-        ['replace:torneos-demo-v2:torneos-demo-v3'],
-      );
-      if (lock.rows[0]?.acquired !== true) {
-        const error = new Error('Replacement advisory lock is already held.');
-        error.code = '55P03';
-        throw error;
-      }
+      const advisoryLock = await acquireReplacementAdvisoryLock(client);
       await lockReplacementTables(client, descriptor);
       const preflight = await preflightReplacement(client, {
         descriptor,
         manifest,
         profiles,
         artifactAuthorization,
-        advisoryLockAcquired: true,
+        advisoryLock,
+        advisoryLockReleasedBy: 'transaction_end',
         lockPreference: true,
       });
       if (preflight.status === 'skip') {
@@ -1232,6 +1294,11 @@ function preflightReport(preflight) {
     profiles: preflight.profiles.count,
     authPlanRows: 0,
     storageStatePlanRows: 0,
+    advisoryLockAttempted: preflight.advisoryLockAttempted,
+    advisoryLockAcquired: preflight.advisoryLockAcquired,
+    advisoryLockSource: preflight.advisoryLockSource,
+    advisoryLockNamespaceFingerprint: preflight.advisoryLockNamespaceFingerprint,
+    advisoryLockReleasedBy: preflight.advisoryLockReleasedBy,
   };
 }
 
@@ -1282,14 +1349,16 @@ async function main() {
       }
       return;
     }
-    const diagnostic = assertDiagnosticPass(await diagnoseConnectedDatabase(client, target));
     if (options.mode === 'preflight') {
       await client.query('begin isolation level repeatable read read only');
       try {
+        const diagnostic = assertDiagnosticPass(await diagnoseConnectedDatabase(client, target));
+        const advisoryLock = await acquireReplacementAdvisoryLock(client);
         const preflight = await preflightReplacement(client, {
           manifest,
           profiles: identity.profiles,
-          advisoryLockAcquired: true,
+          advisoryLock,
+          advisoryLockReleasedBy: 'rollback',
         });
         console.log(JSON.stringify({
           connectionDiagnostic: diagnostic,
@@ -1300,6 +1369,7 @@ async function main() {
       }
       return;
     }
+    const diagnostic = assertDiagnosticPass(await diagnoseConnectedDatabase(client, target));
     const retries = [];
     const result = await executeReplacement(client, {
       manifest,

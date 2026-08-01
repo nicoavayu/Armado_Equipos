@@ -7,6 +7,7 @@ import pg from 'pg';
 import { createClient } from '@supabase/supabase-js';
 
 import {
+  acquireReplacementAdvisoryLock,
   assertSharedPreferenceDestinations,
   buildV3IdentityMap,
   executeReplacement,
@@ -178,6 +179,29 @@ test('atomic v2 to v3 replacement is fail-closed across the required local matri
       backoffMs: [0, 0],
     };
 
+    async function preflightInCurrentTransaction(options = replacementOptions) {
+      const advisoryLock = await acquireReplacementAdvisoryLock(client);
+      return preflightReplacement(client, {
+        ...options,
+        advisoryLock,
+        advisoryLockReleasedBy: 'transaction_end',
+      });
+    }
+
+    async function readOnlyPreflight(options = replacementOptions) {
+      await client.query('begin isolation level repeatable read read only');
+      try {
+        const advisoryLock = await acquireReplacementAdvisoryLock(client);
+        return await preflightReplacement(client, {
+          ...options,
+          advisoryLock,
+          advisoryLockReleasedBy: 'rollback',
+        });
+      } finally {
+        await client.query('rollback');
+      }
+    }
+
     async function currentPreference() {
       return (await client.query(
         `select user_id, organization_id, active_season_id, active_tournament_id,
@@ -211,7 +235,7 @@ test('atomic v2 to v3 replacement is fail-closed across the required local matri
     }
 
     async function assertOriginalState(label) {
-      const preflight = await preflightReplacement(client, replacementOptions);
+      const preflight = await readOnlyPreflight();
       assert.equal(preflight.status, 'ready', label);
       assert.equal(preflight.v2State.present, 587, label);
       assert.equal(preflight.v2State.exact, 587, label);
@@ -236,11 +260,65 @@ test('atomic v2 to v3 replacement is fail-closed across the required local matri
     }
 
     await t.test('2 preflight captures one exact preference and foreign sentinels', async () => {
-      const preflight = await preflightReplacement(client, replacementOptions);
+      const preflight = await readOnlyPreflight();
       assert.equal(preflight.status, 'ready');
+      assert.equal(preflight.advisoryLockAttempted, true);
+      assert.equal(preflight.advisoryLockAcquired, true);
+      assert.equal(preflight.advisoryLockSource, 'postgres');
+      assert.equal(preflight.advisoryLockReleasedBy, 'rollback');
       assert.equal(preflight.preferenceFingerprint, expectedPreferenceFingerprint);
       assert.equal(preflight.profiles.count, 6);
       assert.equal(preflight.v2.present, 587);
+    });
+
+    await t.test('advisory lock concurrency is fail-closed and released by rollback', async () => {
+      const holder = new pg.Client({ connectionString: runtime.databaseUrl });
+      const contender = new pg.Client({ connectionString: runtime.databaseUrl });
+      const observer = new pg.Client({ connectionString: runtime.databaseUrl });
+      await Promise.all([holder.connect(), contender.connect(), observer.connect()]);
+      try {
+        await holder.query('begin');
+        await acquireReplacementAdvisoryLock(holder);
+
+        await contender.query('begin isolation level repeatable read read only');
+        await assert.rejects(
+          () => acquireReplacementAdvisoryLock(contender),
+          (error) => error.code === '55P03'
+            && error.preflight?.reason === 'advisory_lock_unavailable',
+        );
+        await contender.query('rollback');
+        await holder.query('rollback');
+
+        await contender.query('begin isolation level repeatable read read only');
+        const contenderLock = await acquireReplacementAdvisoryLock(contender);
+        const preflight = await preflightReplacement(contender, {
+          ...replacementOptions,
+          advisoryLock: contenderLock,
+          advisoryLockReleasedBy: 'rollback',
+        });
+        assert.equal(preflight.status, 'ready');
+        assert.equal(preflight.advisoryLockAcquired, true);
+
+        await observer.query('begin');
+        await assert.rejects(
+          () => acquireReplacementAdvisoryLock(observer),
+          (error) => error.code === '55P03',
+        );
+        await observer.query('rollback');
+        await contender.query('rollback');
+
+        await observer.query('begin');
+        const observerLock = await acquireReplacementAdvisoryLock(observer);
+        assert.equal(observerLock.acquired, true);
+        await observer.query('rollback');
+      } finally {
+        await Promise.allSettled([
+          holder.query('rollback'),
+          contender.query('rollback'),
+          observer.query('rollback'),
+        ]);
+        await Promise.all([holder.end(), contender.end(), observer.end()]);
+      }
     });
 
     const failures = [
@@ -272,7 +350,7 @@ test('atomic v2 to v3 replacement is fail-closed across the required local matri
             where user_id = $2 and organization_id = $3`,
           [alternateTournamentId, preferenceBefore.user_id, descriptor.organizationId],
         );
-        const preflight = await preflightReplacement(client, replacementOptions);
+        const preflight = await preflightInCurrentTransaction();
         assert.equal(preflight.status, 'ready');
         assert.equal(preflight.preference.active_tournament_id, alternateTournamentId);
         assert.notEqual(preflight.preferenceFingerprint, expectedPreferenceFingerprint);
@@ -294,7 +372,7 @@ test('atomic v2 to v3 replacement is fail-closed across the required local matri
           [adminId, preferenceBefore.user_id, descriptor.organizationId],
         );
         await assert.rejects(
-          () => preflightReplacement(client, replacementOptions),
+          () => preflightInCurrentTransaction(),
           /not associated with the QA owner/,
         );
       } finally {
@@ -328,7 +406,7 @@ test('atomic v2 to v3 replacement is fail-closed across the required local matri
             descriptor.organizationId, seasonId, tournamentId, preferenceTimestamp],
         );
         await assert.rejects(
-          () => preflightReplacement(client, replacementOptions),
+          () => preflightInCurrentTransaction(),
           /exactly one external preference/,
         );
       } finally {
@@ -347,7 +425,7 @@ test('atomic v2 to v3 replacement is fail-closed across the required local matri
            )`,
         );
         await assert.rejects(
-          () => preflightReplacement(client, replacementOptions),
+          () => preflightInCurrentTransaction(),
           /catalog count changed/,
         );
       } finally {
@@ -367,7 +445,7 @@ test('atomic v2 to v3 replacement is fail-closed across the required local matri
              references public.tournament_seasons(organization_id, id) on delete cascade`,
         );
         await assert.rejects(
-          () => preflightReplacement(client, replacementOptions),
+          () => preflightInCurrentTransaction(),
           /constraint contract changed/,
         );
       } finally {
@@ -384,7 +462,7 @@ test('atomic v2 to v3 replacement is fail-closed across the required local matri
            alter column active_season_id set not null`,
         );
         await assert.rejects(
-          () => preflightReplacement(client, replacementOptions),
+          () => preflightInCurrentTransaction(),
           /column\/type\/nullability contract changed/,
         );
       } finally {
@@ -412,7 +490,7 @@ test('atomic v2 to v3 replacement is fail-closed across the required local matri
           [descriptor.organizationId],
         );
         await assert.rejects(
-          () => preflightReplacement(client, replacementOptions),
+          () => preflightInCurrentTransaction(),
           /Replacement v2 preflight rejected/,
         );
       } finally {
@@ -426,7 +504,7 @@ test('atomic v2 to v3 replacement is fail-closed across the required local matri
       try {
         await insertManifestMarkerInCurrentTransaction(client, manifest);
         await assert.rejects(
-          () => preflightReplacement(client, replacementOptions),
+          () => preflightInCurrentTransaction(),
           /simultaneously|partial/,
         );
       } finally {
@@ -451,6 +529,61 @@ test('atomic v2 to v3 replacement is fail-closed across the required local matri
       );
       assert.equal(attempts, 1);
       await assertOriginalState('non-40001');
+    });
+
+    await t.test('execute reacquires after a successful manual preflight', async () => {
+      const manualPreflight = await readOnlyPreflight();
+      assert.equal(manualPreflight.advisoryLockAcquired, true);
+      const originalQuery = client.query.bind(client);
+      let lockAttempts = 0;
+      client.query = (...args) => {
+        if (String(args[0]).includes('pg_try_advisory_xact_lock')) lockAttempts += 1;
+        return originalQuery(...args);
+      };
+      try {
+        await assert.rejects(
+          () => executeReplacement(client, {
+            ...replacementOptions,
+            afterPreflight: () => {
+              const error = new Error('stop after proving execute reacquisition');
+              error.code = '23503';
+              throw error;
+            },
+          }),
+          (error) => error.code === '23503',
+        );
+      } finally {
+        client.query = originalQuery;
+      }
+      assert.equal(lockAttempts, 1);
+      await assertOriginalState('execute reacquisition rollback');
+    });
+
+    await t.test('execute aborts without writing when the lock is taken after preflight', async () => {
+      const manualPreflight = await readOnlyPreflight();
+      assert.equal(manualPreflight.advisoryLockAcquired, true);
+      const holder = new pg.Client({ connectionString: runtime.databaseUrl });
+      await holder.connect();
+      let reachedPreflight = false;
+      try {
+        await holder.query('begin');
+        await acquireReplacementAdvisoryLock(holder);
+        await assert.rejects(
+          () => executeReplacement(client, {
+            ...replacementOptions,
+            afterPreflight: () => {
+              reachedPreflight = true;
+            },
+          }),
+          (error) => error.code === '55P03'
+            && error.preflight?.reason === 'advisory_lock_unavailable',
+        );
+      } finally {
+        await holder.query('rollback');
+        await holder.end();
+      }
+      assert.equal(reachedPreflight, false);
+      await assertOriginalState('execute busy lock');
     });
 
     await t.test('21 historical preference replaces successfully and is byte-exact', async () => {
@@ -483,7 +616,7 @@ test('atomic v2 to v3 replacement is fail-closed across the required local matri
     });
 
     await t.test('23 only updated_at changed after manual preflight is recaptured', async () => {
-      const manualPreflight = await preflightReplacement(client, replacementOptions);
+      const manualPreflight = await readOnlyPreflight();
       await client.query(
         `update public.user_tournament_context_preferences
             set updated_at = updated_at
@@ -583,7 +716,7 @@ test('atomic v2 to v3 replacement is fail-closed across the required local matri
           where user_id = $1 and organization_id = $2`,
         [preferenceBefore.user_id, descriptor.organizationId],
       );
-      const manualPreflight = await preflightReplacement(client, replacementOptions);
+      const manualPreflight = await readOnlyPreflight();
       assert.equal(manualPreflight.preference.active_season_id, null);
       assert.equal(manualPreflight.preference.active_tournament_id, null);
       await client.query(
@@ -595,21 +728,33 @@ test('atomic v2 to v3 replacement is fail-closed across the required local matri
       const latestPreference = await currentPreference();
       const attempts = [];
       const retries = [];
-      const result = await executeReplacement(client, {
-        ...replacementOptions,
-        onRetry: (event) => retries.push(event),
-        afterPreflight: ({ attempt, preflight }) => {
-          attempts.push({ attempt, status: preflight.status });
-          if (attempt < 3) {
-            const error = new Error('synthetic serialization failure');
-            error.code = '40001';
-            throw error;
-          }
-        },
-      });
+      const originalQuery = client.query.bind(client);
+      let lockAttempts = 0;
+      client.query = (...args) => {
+        if (String(args[0]).includes('pg_try_advisory_xact_lock')) lockAttempts += 1;
+        return originalQuery(...args);
+      };
+      let result;
+      try {
+        result = await executeReplacement(client, {
+          ...replacementOptions,
+          onRetry: (event) => retries.push(event),
+          afterPreflight: ({ attempt, preflight }) => {
+            attempts.push({ attempt, status: preflight.status });
+            if (attempt < 3) {
+              const error = new Error('synthetic serialization failure');
+              error.code = '40001';
+              throw error;
+            }
+          },
+        });
+      } finally {
+        client.query = originalQuery;
+      }
       assert.equal(result.status, 'replaced');
       assert.equal(result.attempts, 3);
       assert.equal(result.retries, 2);
+      assert.equal(lockAttempts, 3);
       assert.deepEqual(attempts, [
         { attempt: 1, status: 'ready' },
         { attempt: 2, status: 'ready' },
@@ -640,6 +785,16 @@ test('atomic v2 to v3 replacement is fail-closed across the required local matri
       assert.deepEqual(result.deletedV2, undefined);
       assert.deepEqual(result.insertedV3Base, undefined);
       assert.deepEqual(result.insertedV3Marker, undefined);
+      const observer = new pg.Client({ connectionString: runtime.databaseUrl });
+      await observer.connect();
+      try {
+        await observer.query('begin');
+        const lock = await acquireReplacementAdvisoryLock(observer);
+        assert.equal(lock.acquired, true);
+        await observer.query('rollback');
+      } finally {
+        await observer.end();
+      }
     });
 
     await t.test('29 Auth, profiles, preference and sentinels remain intact', async () => {

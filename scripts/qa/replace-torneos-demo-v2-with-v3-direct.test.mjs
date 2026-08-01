@@ -5,6 +5,7 @@ import test from 'node:test';
 import {
   REPLACEMENT_AUTHORIZATION,
   REQUIRED_REPLACEMENT_CONFIRMATION,
+  acquireReplacementAdvisoryLock,
   assertInteractiveReplacementConfirmation,
   assertReplacementProjectRef,
   assertSharedPreferenceDestinations,
@@ -15,6 +16,7 @@ import {
   preferenceSnapshotReport,
   preflightReplacement,
   shouldRetryReplacement,
+  tryAcquireReplacementAdvisoryLock,
   validateExternalConstraintCatalog,
   validatePreferenceCatalog,
   validatePreferencePrimaryKeyCatalog,
@@ -182,6 +184,100 @@ test('Production is rejected before the first database query', async () => {
     /Production/,
   );
   assert.equal(queries, 0);
+});
+
+test('PostgreSQL advisory lock result is queried and accepted only when exactly true', async () => {
+  const queries = [];
+  const acquired = await tryAcquireReplacementAdvisoryLock({
+    query: async (...args) => {
+      queries.push(args);
+      return { rowCount: 1, rows: [{ acquired: true }] };
+    },
+  });
+  assert.equal(acquired, true);
+  assert.equal(queries.length, 1);
+  assert.equal(
+    queries[0][0],
+    'select pg_try_advisory_xact_lock(hashtextextended($1, 0)) as acquired',
+  );
+  assert.equal(queries[0][1].length, 1);
+  assert.equal(typeof queries[0][1][0], 'string');
+
+  const lock = await acquireReplacementAdvisoryLock({
+    query: async () => ({ rowCount: 1, rows: [{ acquired: true }] }),
+  });
+  assert.equal(lock.attempted, true);
+  assert.equal(lock.acquired, true);
+  assert.equal(lock.source, 'postgres');
+  assert.match(lock.namespaceFingerprint, /^[0-9a-f]{12}…[0-9a-f]{8}$/);
+});
+
+test('a busy PostgreSQL advisory lock aborts with no ready result', async () => {
+  let queries = 0;
+  let writes = 0;
+  await assert.rejects(
+    () => acquireReplacementAdvisoryLock({
+      query: async (sql) => {
+        queries += 1;
+        if (!/^select pg_try_advisory_xact_lock/.test(sql)) writes += 1;
+        return { rowCount: 1, rows: [{ acquired: false }] };
+      },
+    }),
+    (error) => {
+      assert.equal(error.code, '55P03');
+      assert.equal(error.preflight.status, 'reject');
+      assert.equal(error.preflight.reason, 'advisory_lock_unavailable');
+      return true;
+    },
+  );
+  assert.equal(queries, 1);
+  assert.equal(writes, 0);
+});
+
+test('missing, null and unexpected advisory lock results fail closed', async () => {
+  for (const result of [
+    undefined,
+    { rowCount: 0, rows: [] },
+    { rowCount: 1, rows: [] },
+    { rowCount: 1, rows: [{ acquired: null }] },
+    { rowCount: 1, rows: [{ acquired: 1 }] },
+    { rowCount: 1, rows: [{ acquired: 'true' }] },
+    { rowCount: 2, rows: [{ acquired: true }, { acquired: true }] },
+  ]) {
+    await assert.rejects(
+      () => tryAcquireReplacementAdvisoryLock({ query: async () => result }),
+      /invalid advisory lock result/,
+    );
+  }
+});
+
+test('preflight rejects a forged or missing advisory lock proof before inventory queries', async () => {
+  const { descriptor, identity, manifest } = await artifacts();
+  const otherClientLock = await acquireReplacementAdvisoryLock({
+    query: async () => ({ rowCount: 1, rows: [{ acquired: true }] }),
+  });
+  for (const advisoryLock of [undefined, {
+    attempted: true,
+    acquired: true,
+    source: 'postgres',
+  }, otherClientLock]) {
+    let queries = 0;
+    await assert.rejects(
+      () => preflightReplacement({
+        query: async () => {
+          queries += 1;
+          throw new Error('inventory query must not run');
+        },
+      }, {
+        descriptor,
+        manifest,
+        profiles: identity.profiles,
+        advisoryLock,
+      }),
+      /verified PostgreSQL replacement advisory lock/,
+    );
+    assert.equal(queries, 0);
+  }
 });
 
 test('preference fingerprint is deterministic and covers every stored value', () => {
@@ -363,6 +459,9 @@ test('runner source contains one COMMIT site and no forbidden remote mechanism',
     'utf8',
   );
   assert.equal((source.match(/client\.query\('commit'\)/g) || []).length, 1);
+  assert.equal((source.match(/pg_try_advisory_xact_lock/g) || []).length, 1);
+  assert.equal((source.match(/await acquireReplacementAdvisoryLock\(client\)/g) || []).length, 2);
+  assert.equal(source.includes('advisoryLockAcquired = false'), false);
   for (const forbidden of [
     'session_replication_role',
     'TRUNCATE',
