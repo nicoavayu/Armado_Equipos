@@ -1,4 +1,10 @@
-# Reporte de ejecución — torneos-demo-v3
+# Reporte histórico de ejecución — torneos-demo-v3
+
+Estado posterior certificado: V3 está instalado en Staging con el contrato
+descrito abajo. Permanece legacy e inmutable. V4 corrige localmente la
+inconsistencia histórica `automatic_suspensions=0` del jugador con roja directa,
+versionándola como `automatic_suspensions=1`. Este PR no ejecuta la transición,
+cleanup ni ninguna escritura remota.
 
 Fecha: 2026-07-31.
 
@@ -86,6 +92,7 @@ remoto.
 
 ## Límites confirmados
 
-No se modificaron Auth remoto, contraseñas, storage states, RLS, policies,
-migraciones, Storage, Production, Vercel ni builds. No se aplicó v3 en Staging,
-no se limpió v2 y no se realizó merge ni deployment.
+En la ejecución histórica no se modificaron Auth remoto, contraseñas, storage
+states, RLS, policies, migraciones, Storage, Production, Vercel ni builds. La
+corrección V4 tampoco contacta Staging/Production, no limpia V3 y no realiza
+merge ni deployment.

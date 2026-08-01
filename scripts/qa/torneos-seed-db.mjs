@@ -350,6 +350,23 @@ export async function preflightDatabase(client, manifest) {
     ...referenceIssues(userVerification.references, { materialized: markers.length === 1 }),
   ];
   if (conflictingMarkers.length > 0) {
+    const legacySeedKeys = new Set(manifest.legacySeedKeys || []);
+    if (
+      conflictingMarkers.every((marker) => legacySeedKeys.has(marker.metadata?.seed_key))
+    ) {
+      return {
+        status: 'legacy_dataset_detected',
+        reason: 'explicit_transition_required',
+        schemaIssues,
+        userIssues,
+        collisions: conflictingMarkers.map((marker) => ({
+          table: 'tournament_audit_log',
+          seedKey: marker.metadata?.seed_key || 'unknown',
+        })),
+        expected: manifest.expectedRowCount,
+        present: 0,
+      };
+    }
     return {
       status: 'reject',
       reason: 'replacement_authorization_required',
@@ -642,6 +659,15 @@ export async function materializeManifest(
           attempts: attempt,
         };
       }
+      if (preflight.status === 'legacy_dataset_detected') {
+        await client.query('rollback');
+        return {
+          status: 'legacy_dataset_detected',
+          preflight,
+          inserted: [],
+          attempts: attempt,
+        };
+      }
       if (preflight.status !== 'create') {
         const error = new Error(`Seed preflight rejected: ${preflight.reason}`);
         error.preflight = preflight;
@@ -769,6 +795,10 @@ async function findUnexpectedOrganizationRows(client, manifest) {
       expected: expectedByTable.get(table) || 0,
     }),
   );
+}
+
+export async function readUnexpectedOrganizationRows(client, manifest) {
+  return findUnexpectedOrganizationRows(client, manifest);
 }
 
 export async function detectCleanupTriggerBlockers(client, manifest) {

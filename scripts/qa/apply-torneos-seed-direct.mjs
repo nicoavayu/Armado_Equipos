@@ -24,20 +24,17 @@ import pg from 'pg';
 import {
   buildCanonicalManifest,
   validateCanonicalManifest,
-} from './torneos-demo-manifest.mjs';
+} from './torneos-demo-v3-manifest.mjs';
+import {
+  V3_LEGACY_AUTHORIZATION,
+  validateLegacyV3Manifest,
+} from './torneos-demo-v3-contract.mjs';
 import { loadQAIdentityMap } from './torneos-qa-identity-map.mjs';
 import { materializeManifest } from './torneos-seed-db.mjs';
 
 const AUTHORIZED = Object.freeze({
   projectRef: 'hhyvmhgpapyuzjgxfnqv',
-  seedKey: 'torneos-demo-v3',
-  manifestHash: '0afc357d733bdfbed0bae9ea8bf87b6c0b58a05ada2c0d8b65ef4b51cbb596f4',
-  identityMapFingerprint: 'd13bf642667c8a02c79a6f7b6db3325be3a2196c1569cfb655d67a72a3ab4cdd',
-  ownershipFingerprint: '940e50032644694b3e2e06f0a022ada8b0474bfa4e70cb22ea45e4ceb3701d7a',
-  baseRows: 586,
-  markerRows: 1,
-  totalRows: 587,
-  tables: 32,
+  ...V3_LEGACY_AUTHORIZATION,
 });
 
 const STAGING_TARGET = Object.freeze({
@@ -562,7 +559,9 @@ export function assertAuthorizedManifest(
 }
 
 export function validateRunnerPreflight(manifest, authorization = AUTHORIZED) {
-  const validation = validateCanonicalManifest(manifest);
+  const validation = authorization === AUTHORIZED
+    ? validateLegacyV3Manifest(manifest, authorization)
+    : validateCanonicalManifest(manifest);
   assertAuthorizedManifest(manifest, validation, authorization);
   return validation;
 }

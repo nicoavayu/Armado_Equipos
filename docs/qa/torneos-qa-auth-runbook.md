@@ -52,8 +52,8 @@ el hash antiguo.
 Antes de insertar, el runner verifica:
 
 - existencia única de las seis identidades por UUID y email;
-- `raw_app_meta_data.qa_seed_key` igual a `torneos-demo-v3` o a su predecesor
-  autorizado `torneos-demo-v2`, y `qa_role` exacto. Esto conserva Auth intacto
+- `raw_app_meta_data.qa_seed_key` igual a `torneos-demo-v4` o a los predecesores
+  explícitos `torneos-demo-v3`/`torneos-demo-v2`, y `qa_role` exacto. Esto conserva Auth intacto
   durante el versionado sin aceptar identidades personales o ajenas;
 - perfil sincronizado en `public.usuarios`;
 - ausencia de relaciones previas para una creación nueva;
@@ -103,7 +103,7 @@ una migración.
 3. Ingresar service-role y contraseñas QA por prompt sin echo o secret environment
    efímero. No escribirlos en logs, shell history ni identity map.
 4. Para identidades nuevas, enviar `app_metadata` con
-   `qa_seed_key=torneos-demo-v3` y `qa_role` exacto. Las identidades v2 existentes
+   `qa_seed_key=torneos-demo-v4` y `qa_role` exacto. Las identidades V3/V2 existentes
    se aceptan sin modificar Auth.
 5. Confirmar por UUID que el trigger creó los seis perfiles `public.usuarios`.
 6. Guardar sólo UUID, email esperado, rol y relaciones en un archivo `0600`
@@ -132,9 +132,10 @@ Production y no imprimir emails, tokens ni datos personales.
 
 ### F. Cleanup del dataset
 
-No existe cleanup remoto en esta versión. Cualquier reemplazo de v2 y cleanup de
-Staging requiere una autorización posterior explícita y un diseño remoto
-separado; el bypass local no se habilita para Staging.
+V3 conserva un cleanup legacy exacto y V4 tiene su cleanup separado, pero no
+existe cleanup remoto autorizado en esta versión. Cualquier transición V3→V4 o
+cleanup de Staging requiere autorización posterior explícita; el bypass local no
+se habilita para Staging.
 
 ### G. Eliminar usuarios QA
 

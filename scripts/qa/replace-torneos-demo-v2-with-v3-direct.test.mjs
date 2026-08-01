@@ -23,7 +23,7 @@ import {
   validateReplacementArtifacts,
 } from './replace-torneos-demo-v2-with-v3-direct.mjs';
 import { loadV2IdentityMap } from './cleanup-torneos-demo-v2-direct.mjs';
-import { buildCanonicalManifest } from './torneos-demo-manifest.mjs';
+import { buildCanonicalManifest } from './torneos-demo-v3-manifest.mjs';
 import { TORNEOS_DEMO_V2_CLEANUP_DESCRIPTOR } from './torneos-demo-v2-cleanup-descriptor.mjs';
 import { splitManifestForAtomicReplacement } from './torneos-seed-db.mjs';
 

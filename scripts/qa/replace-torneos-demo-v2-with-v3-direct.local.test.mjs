@@ -19,7 +19,7 @@ import {
   V2_CLEANUP_AUTHORIZATION,
   buildCleanupDescriptor,
 } from './torneos-demo-v2-cleanup-contract.mjs';
-import { buildCanonicalManifest } from './torneos-demo-manifest.mjs';
+import { buildCanonicalManifest } from './torneos-demo-v3-manifest.mjs';
 import {
   cleanupManifest,
   insertManifestMarkerInCurrentTransaction,

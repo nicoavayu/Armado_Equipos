@@ -173,8 +173,26 @@ test('red-card event and sanction identify the same roster player', () => {
   ).rows;
   const red = events.find((event) => event.event_type === 'red_card');
   const sanction = suspensions.find((item) => item.source_type === 'direct_red');
+  const ledgers = manifest.operations.find(
+    (operation) => operation.table === 'tournament_discipline_ledgers',
+  ).rows;
+  const redLedger = ledgers.find((item) => item.roster_player_id === red.roster_player_id);
   assert.equal(sanction.roster_player_id, red.roster_player_id);
   assert.equal(sanction.source_event_id, red.id);
+  assert.equal(events.filter((event) => event.event_type === 'red_card').length, 1);
+  assert.equal(redLedger.direct_reds, 1);
+  assert.equal(redLedger.automatic_suspensions, 1);
+  assert.equal(sanction.total_matches, 2);
+  assert.equal(sanction.served_matches, 0);
+  assert.equal(sanction.status, 'active');
+
+  const served = suspensions.find((item) => item.status === 'served');
+  const servedLedger = ledgers.find((item) => item.roster_player_id === served.roster_player_id);
+  assert.equal(events.filter((event) => (
+    event.roster_player_id === served.roster_player_id && event.event_type === 'yellow_card'
+  )).length, 5);
+  assert.equal(servedLedger.automatic_suspensions, 1);
+  assert.equal(served.served_matches, served.total_matches);
 });
 
 test('ideal team is manual_curated, formation-valid, and duplicate-free', () => {

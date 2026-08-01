@@ -28,7 +28,7 @@ import {
   buildCanonicalManifest,
   deriveQAIdentityRelations,
   validateCanonicalManifest,
-} from './torneos-demo-manifest.mjs';
+} from './torneos-demo-v3-manifest.mjs';
 import { TORNEOS_DEMO_V2_CLEANUP_DESCRIPTOR } from './torneos-demo-v2-cleanup-descriptor.mjs';
 import {
   V2_CLEANUP_AUTHORIZATION,

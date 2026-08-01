@@ -31,7 +31,7 @@ import {
 import {
   buildCanonicalManifest,
   validateCanonicalManifest,
-} from './torneos-demo-manifest.mjs';
+} from './torneos-demo-v3-manifest.mjs';
 import {
   QAIdentityMap,
   QA_IDENTITY_RELATIONS,
