@@ -4,6 +4,7 @@ import { supabase, getProfile, createOrUpdateProfile } from '../supabase';
 import AppLoadingScreen from './AppLoadingScreen';
 import { clearAuthFlowIfSessionSettled } from '../services/auth/socialAuth';
 import { clearSentryUser, setSentryUser } from '../utils/monitoring/sentry';
+import { withTimeout } from '../utils/promiseTimeout';
 
 const AuthContext = createContext();
 let authProviderInstanceCounter = 0;
@@ -11,6 +12,7 @@ let authProviderInstanceCounter = 0;
 const LOCAL_EDIT_MODE = process.env.NODE_ENV === 'development' && process.env.REACT_APP_LOCAL_EDIT_MODE !== 'false';
 const LOCAL_DEV_USER_ID = '00000000-0000-4000-8000-000000000001';
 const LOCAL_DEV_PROFILE_KEY = 'local:dev:profile';
+const INITIAL_SESSION_TIMEOUT_MS = 12000;
 
 function createLocalDevUser() {
   return {
@@ -212,7 +214,11 @@ const AuthProvider = ({ children }) => {
       let sessionUserId = null;
 
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session } } = await withTimeout(
+          supabase.auth.getSession(),
+          INITIAL_SESSION_TIMEOUT_MS,
+          'No pudimos verificar tu sesión porque Supabase no respondió a tiempo.',
+        );
         sessionExists = Boolean(session);
         sessionUserExists = Boolean(session?.user);
         sessionUserId = session?.user?.id || null;

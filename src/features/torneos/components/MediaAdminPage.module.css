@@ -381,3 +381,58 @@ button:focus-visible, .galleryRail button:focus-visible {
   .skeleton span { animation: none; }
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
 }
+
+/* Arma2 Personal visual alignment */
+.page {
+  --media-cyan: var(--torneos-accent);
+  --media-violet: var(--torneos-purple-bright);
+  width: min(1180px, 100%);
+  margin: 0 auto;
+  font-family: inherit;
+}
+
+.hero,
+.composer,
+.galleryDesk,
+.reports,
+.assetCard,
+.stateCard,
+.toolbar {
+  background: var(--torneos-card-bg);
+  border-color: var(--torneos-border);
+  border-radius: var(--torneos-radius);
+  box-shadow: var(--torneos-elevated-shadow);
+}
+
+.hero h1 {
+  font-size: clamp(2.25rem, 5vw, 3.75rem);
+  line-height: 1;
+}
+
+.toolbar button,
+.composer button,
+.galleryActions button,
+.assetActions button,
+.stateCard button,
+.reports button {
+  min-height: 48px;
+  border-radius: var(--torneos-control-radius);
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+.toolbar button,
+.composer button[type="submit"],
+.galleryActions button:first-child {
+  color: #fff;
+  background: var(--torneos-cta);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: var(--torneos-cta-shadow);
+}
+
+.toolbar input,
+.toolbar select,
+.formGrid input,
+.formGrid select,
+.formGrid textarea {
+  border-radius: var(--torneos-control-radius);
+}

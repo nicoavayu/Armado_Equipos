@@ -69,6 +69,13 @@
   letter-spacing: -0.055em;
 }
 
+.pageHeader h1 {
+  font-family: "Bebas Neue", Impact, sans-serif;
+  font-size: clamp(2.1rem, 4.8vw, 3.4rem);
+  line-height: 1;
+  letter-spacing: 0.015em;
+}
+
 .description {
   max-width: 68ch;
   margin: 0;
@@ -1263,4 +1270,90 @@
   .iconButton {
     transition: none;
   }
+}
+
+/* Arma2 Personal visual alignment */
+.page {
+  width: min(1180px, 100%);
+  margin: 0 auto;
+  font-family: inherit;
+}
+
+.hero,
+.panel,
+.contextBar,
+.metric,
+.groupCard,
+.matchCard,
+.venueCard,
+.emptyState,
+.generatePanel {
+  background: var(--torneos-card-bg);
+  border-color: var(--torneos-border);
+  border-radius: var(--torneos-radius);
+  box-shadow: var(--torneos-elevated-shadow);
+}
+
+.hero {
+  text-align: center;
+}
+
+.heroContent {
+  max-width: 760px;
+  margin-inline: auto;
+}
+
+.heroActions {
+  justify-content: center;
+}
+
+.title {
+  font-family: "Bebas Neue", Impact, sans-serif;
+  font-size: clamp(2.25rem, 5vw, 3.75rem);
+  line-height: 1;
+  letter-spacing: 0.015em;
+}
+
+.button,
+.buttonSecondary,
+.buttonDanger,
+.primaryAction {
+  min-height: 48px;
+  border-radius: var(--torneos-control-radius);
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.94rem;
+}
+
+.button,
+.primaryAction {
+  color: #fff;
+  background: var(--torneos-cta);
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: var(--torneos-cta-shadow);
+}
+
+.buttonSecondary {
+  color: var(--torneos-copy);
+  background: var(--torneos-control-bg);
+  border-color: var(--torneos-border);
+}
+
+.button:hover,
+.buttonSecondary:hover,
+.buttonDanger:hover,
+.primaryAction:hover {
+  transform: scale(1.02);
+}
+
+.versionNumber {
+  font-size: clamp(2rem, 5vw, 3.25rem);
+}
+
+.field input,
+.field select,
+.field textarea,
+.inlineForm input,
+.scheduleForm input,
+.scheduleForm select {
+  border-radius: var(--torneos-control-radius);
 }

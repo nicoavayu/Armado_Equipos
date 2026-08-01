@@ -13,8 +13,10 @@ import {
   startPendingAuthFlow,
 } from '../../utils/authFlowState';
 import { track } from '../../utils/monitoring/analytics';
+import { withTimeout } from '../../utils/promiseTimeout';
 
 const IOS_BUNDLE_ID = 'com.teambalancer.app';
+const AUTH_REQUEST_TIMEOUT_MS = 15000;
 
 const getSafeObjectKeys = (value) => {
   try {
@@ -232,10 +234,14 @@ export const signInWithGoogle = async ({ source = 'auth_button' } = {}) => {
       skipBrowserRedirect: options.skipBrowserRedirect === true,
     });
 
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: Object.keys(options).length > 0 ? options : undefined,
-    });
+    const { data, error } = await withTimeout(
+      supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: Object.keys(options).length > 0 ? options : undefined,
+      }),
+      AUTH_REQUEST_TIMEOUT_MS,
+      'Supabase no respondió a tiempo. Verificá tu conexión e intentá de nuevo.',
+    );
 
     if (error) throw error;
 
