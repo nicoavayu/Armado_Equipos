@@ -90,6 +90,47 @@ describe('upload capability', () => {
     expect(closed.blockers).toEqual(['storage.bucket_absent']);
   });
 
+  test('stays closed while any single processing tier is missing', () => {
+    // El backend puede tener storage, signer y processor listos y aun así
+    // faltarle el decode de píxeles, el transcode, el saneo de metadata, el
+    // antivirus o la limpieza. Ninguno de esos casos ofrece carga.
+    const tiers = [
+      'processor.pixel_decode_absent',
+      'processor.pixel_transcode_absent',
+      'processor.metadata_sanitization_absent',
+      'processor.antivirus_absent',
+      'cleanup.unavailable',
+    ];
+    for (const blocker of tiers) {
+      const partial = resolveUploadCapability(
+        {
+          uploadReady: false,
+          storageReady: true,
+          signerReady: true,
+          processorReady: true,
+          blockers: [blocker],
+        },
+        { canUpload: true },
+      );
+      expect(partial.canOfferUpload).toBe(false);
+      expect(partial.uploadReady).toBe(false);
+      expect(partial.blockers).toEqual([blocker]);
+    }
+  });
+
+  test('reports the pixel and antivirus tiers from the backend, never assumed', () => {
+    const derived = resolveUploadCapability(
+      { uploadReady: true, blockers: [], pixelTranscode: true, antivirusScanning: true },
+      { canUpload: true },
+    );
+    expect(derived.pixelTranscode).toBe(true);
+    expect(derived.antivirusScanning).toBe(true);
+    // Y ausentes significa false, nunca "probablemente sí".
+    const absent = resolveUploadCapability(capable, { canUpload: true });
+    expect(absent.pixelTranscode).toBe(false);
+    expect(absent.antivirusScanning).toBe(false);
+  });
+
   test('is closed when the role cannot upload, whatever the backend says', () => {
     expect(resolveUploadCapability(capable, { canUpload: false }).canOfferUpload)
       .toBe(false);

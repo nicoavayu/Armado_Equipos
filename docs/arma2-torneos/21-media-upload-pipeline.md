@@ -1,5 +1,18 @@
 # Multimedia Upload · pipeline de carga real
 
+> **SUPERSEDIDO EN PARTE.** Este documento describe la primera revisión del
+> pipeline. Una auditoría posterior encontró tres agujeros en ella:
+> `uploadReady` podía ser true con `pixelTranscode:false` y
+> `antivirusScanning:false`; la atestación aceptaba cualquier objeto jsonb; y
+> `request_tournament_media_upload_session` emitía sesión, token, path, cuota y
+> auditoría con `uploadReady:false`. Además el `original` publicado era una
+> copia de lo subido y las renditions publicadas eran las del navegador.
+>
+> La arquitectura, la readiness, el saneamiento y el modelo de amenazas
+> vigentes están en
+> **[23-media-trusted-processing.md](23-media-trusted-processing.md)**.
+> Lo que sigue se conserva como registro de qué se cambió y por qué.
+
 Estado: implementado y certificable **localmente**. `uploadReady` dejó de ser
 una constante y pasó a derivarse de capacidades verificables. En cualquier
 entorno sin bucket privado, sin signer atestiguado o sin processor atestiguado

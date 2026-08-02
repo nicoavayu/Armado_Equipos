@@ -273,13 +273,48 @@ test('variant geometry is deterministic, never upscales, and matches the box', (
   assert.throws(() => variantObjectName('../escape.jpg', 'grid'), /MEDIA_PATH_INVALID/);
 });
 
-test('the processor self-test passes every capability it attests', async () => {
+test('the structural pre-flight still passes every check it reports', async () => {
+  // This suite is no longer a certification. The Edge function that runs it
+  // attests nothing: `structuralDecode` is not a capability name any more, and
+  // the pixel, metadata and antivirus tiers belong to
+  // `workers/tournament-media-processor`. The pre-flight is kept because a
+  // regression in it would let obvious rubbish reach the queue.
   const result = await edge.selfTest.runProcessorSelfTest();
   const failed = Object.entries(result.checks)
     .filter(([, passed]) => !passed)
     .map(([name]) => name);
   assert.deepEqual(failed, [], `failing checks: ${failed.join(', ')}`);
   assert.equal(result.passed, true);
+});
+
+test('the Edge orchestrator can no longer certify the pipeline', async () => {
+  const source = await fs.readFile(
+    path.join(process.cwd(), 'supabase', 'functions',
+      'tournament-media-processor', 'index.ts'),
+    'utf8',
+  );
+  // It must not write an attestation, under any name.
+  assert.equal(
+    /attest_tournament_media_service/.test(source), false,
+    'the orchestrator must not attest anything',
+  );
+  assert.ok(
+    source.includes('revoke_tournament_media_service_attestation'),
+    'and it must clear a stale processor attestation instead',
+  );
+  // It must not accept browser renditions any more.
+  assert.equal(
+    /formData\(\)/.test(source), false,
+    'browser renditions must not reach the orchestrator',
+  );
+  assert.equal(
+    /finalize_tournament_media_variants/.test(source), false,
+    'only the trusted worker may finalise variants',
+  );
+  assert.ok(
+    source.includes('enqueue_tournament_media_processing_job'),
+    'the orchestrator queues work and nothing else',
+  );
 });
 
 test.after(() => edge.cleanup());

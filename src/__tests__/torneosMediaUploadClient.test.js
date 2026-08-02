@@ -90,10 +90,11 @@ function serviceResponses(overrides = {}) {
     },
     'tournament-media-processor': {
       ok: true,
-      body: {
-        assetId: 'asset-1', safeName: 'foto-abc.jpg', status: 'pending_review',
-        width: 4000, height: 3000, byteSize: 900_000,
-      },
+      status: 202,
+      // The orchestrator only queues. There is no assetId yet, and there will
+      // not be one until the trusted worker has decoded, transcoded, scanned
+      // and written every final object.
+      body: { sessionId: 'session-1', jobId: 'job-1', status: 'queued', assetId: null },
     },
     ...overrides,
   };
@@ -139,7 +140,7 @@ describe('tournament media upload client', () => {
     });
   });
 
-  test('runs decode, intent, signer, upload and processor in that order', async () => {
+  test('runs decode, intent, signer, upload and queue in that order', async () => {
     const stages = [];
     const progress = [];
     const requestUploadSession = jest.fn().mockResolvedValue({
@@ -151,8 +152,9 @@ describe('tournament media upload client', () => {
       onProgress: (value) => progress.push(value),
     });
 
-    expect(stages).toEqual(['preparing', 'uploading', 'processing', 'pending_review']);
-    expect(result).toMatchObject({ assetId: 'asset-1', status: 'pending_review' });
+    // Terminal at `processing`: the browser is done, the asset does not exist.
+    expect(stages).toEqual(['preparing', 'uploading', 'processing']);
+    expect(result).toMatchObject({ jobId: 'job-1', assetId: null, status: 'processing' });
     // Decoding happens before the intent, so a file that cannot be decoded
     // never consumes quota or creates a session.
     expect(prepareUploadPayload).toHaveBeenCalledTimes(1);
@@ -176,20 +178,32 @@ describe('tournament media upload client', () => {
     });
   });
 
-  test('sends the three renditions to the processor, and nothing else', async () => {
+  test('sends only the session handle to the orchestrator — never a rendition', async () => {
     await runUpload();
     const call = global.fetch.mock.calls.find(
       ([url]) => String(url).endsWith('tournament-media-processor'),
     );
-    const form = call[1].body;
-    expect(form.get('sessionId')).toBe('session-1');
-    expect(form.get('token')).toBe('a'.repeat(64));
-    for (const kind of ['thumbnail', 'grid', 'detail']) {
-      expect(form.get(kind)).toBeTruthy();
+    // A FormData body is what carried the browser's renditions. There is none.
+    expect(call[1].body).toEqual(expect.any(String));
+    const body = JSON.parse(call[1].body);
+    expect(body).toEqual({
+      action: 'queue', sessionId: 'session-1', token: 'a'.repeat(64),
+    });
+    // Nothing about the file, the path or the client's own measurements.
+    for (const key of ['thumbnail', 'grid', 'detail', 'fileName', 'path', 'checksum']) {
+      expect(body[key]).toBeUndefined();
     }
-    expect(form.get('fileName')).toBeNull();
-    expect(form.get('path')).toBeNull();
-    expect(form.get('checksum')).toBeNull();
+  });
+
+  test('the browser never uploads more than the one quarantined object', async () => {
+    await runUpload();
+    // One PUT, to the signed URL, and nothing else touches Storage.
+    expect(xhrInstances).toHaveLength(1);
+    expect(xhrInstances[0].url).toBe('https://storage.local/signed');
+    const storageCalls = global.fetch.mock.calls.filter(
+      ([url]) => String(url).includes('storage'),
+    );
+    expect(storageCalls).toHaveLength(0);
   });
 
   test('never reaches the signer when the environment is not ready', async () => {
