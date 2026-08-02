@@ -148,6 +148,12 @@ export function validateManifest({ repoRoot = process.cwd(), manifest = loadMani
   const workerPackage = readJson(path.join(repoRoot, manifest.worker.path, 'package.json'));
   assert(workerPackage.dependencies?.sharp === manifest.worker.sharpVersion,
     'WORKER_SHARP', 'Worker sharp version differs.');
+  assert(workerPackage.engines?.node === '22.x', 'WORKER_NODE', 'Worker package must pin Node 22.x.');
+  assert(fs.existsSync(path.join(repoRoot, manifest.worker.path, 'package-lock.json')),
+    'WORKER_LOCKFILE', 'Worker lockfile is missing.');
+  const workerDockerfile = fs.readFileSync(path.join(repoRoot, manifest.worker.path, 'Dockerfile'), 'utf8');
+  assert(/^FROM node:22\./m.test(workerDockerfile) && /\bnpm ci\b/.test(workerDockerfile),
+    'WORKER_IMAGE', 'Worker image must pin Node 22 and use npm ci.');
   assert(manifest.worker.nodeMajor === 22, 'WORKER_NODE', 'Worker must require Node 22.');
   assert(manifest.worker.clamavRequired && manifest.worker.freshclamRequired,
     'WORKER_ANTIVIRUS', 'Worker must require clamd and freshclam.');

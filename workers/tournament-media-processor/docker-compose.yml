@@ -37,6 +37,9 @@ services:
       TOURNAMENT_MEDIA_CLAMD_HOST: clamd
       TOURNAMENT_MEDIA_CLAMD_PORT: "3310"
       TOURNAMENT_MEDIA_ATTEST_TTL_SECONDS: "900"
+      TOURNAMENT_MEDIA_LEASE_SECONDS: "300"
+      TOURNAMENT_MEDIA_BATCH_SIZE: "1"
+      TOURNAMENT_MEDIA_POLL_MS: "2000"
     # Hard resource ceilings: a decompression bomb that somehow reaches the
     # decoder is bounded by the container, not only by libvips.
     mem_limit: 1g
@@ -49,4 +52,11 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    healthcheck:
+      test: ["CMD", "node", "src/healthcheck-cli.mjs"]
+      interval: 5m
+      timeout: 30s
+      retries: 2
+      start_period: 30s
+    stop_grace_period: 6m
     restart: on-failure
