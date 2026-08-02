@@ -16,7 +16,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import {
   USERS,
@@ -28,7 +28,10 @@ import {
 } from './torneos-match-operations.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-const PIPELINE_MIGRATION = '20260802090000_tournament_media_upload_pipeline.sql';
+const PIPELINE_MIGRATIONS = [
+  '20260802090000_tournament_media_upload_pipeline.sql',
+  '20260802120000_tournament_media_trusted_processing.sql',
+];
 const SESSION_PATH_RE =
   /^[0-9a-f-]{36}\/[0-9a-f-]{36}\/[0-9a-f-]{36}\/[0-9a-f-]{36}\.(jpg|png|webp)$/;
 
@@ -109,21 +112,57 @@ async function readiness(admin) {
   return value(admin, 'select public.tournament_media_pipeline_readiness()');
 }
 
-async function attest(admin, service, capabilities, ttlSeconds = 3600) {
+export const SIGNER_CAPABILITIES = {
+  signedUploadUrls: true, signedReadUrls: true, derivesPathServerSide: true,
+};
+
+/**
+ * Everything the trusted worker has to prove. `structuralDecode` is gone: it is
+ * not a capability name any more, so a container walk can no longer stand in
+ * for `pixelDecode`.
+ */
+export const PROCESSOR_CAPABILITIES = {
+  contentSniffing: true, pixelDecode: true, pixelTranscode: true,
+  metadataStrippingApplied: true, checksumVerification: true,
+  variantGeneration: true, antivirusScanning: true,
+  storageReadWrite: true, cleanup: true,
+};
+
+/**
+ * Builds the envelope `attest_tournament_media_service` accepts: the claimed
+ * capabilities, a self-test that names each of them, this backend's own
+ * fingerprint and fresh evidence for the codec and the scanner.
+ */
+export async function buildAttestation(admin, service, capabilities, overrides = {}) {
+  const fingerprint = await value(
+    admin, 'select public.tournament_media_backend_fingerprint()',
+  );
+  const now = new Date().toISOString();
+  const checks = { ...capabilities, ...(overrides.checks || {}) };
+  const evidence = {
+    selfTest: { passed: overrides.selfTestPassed !== false, checks },
+    backendFingerprint: overrides.backendFingerprint || fingerprint,
+    probedAt: overrides.probedAt || now,
+  };
+  if (service === 'processor') {
+    evidence.workerType = overrides.workerType === undefined
+      ? 'external_image_worker' : overrides.workerType;
+    evidence.codec = overrides.codec === undefined
+      ? { name: 'libvips', version: '8.15.3' } : overrides.codec;
+    evidence.antivirus = overrides.antivirus === undefined
+      ? { name: 'clamav', version: '1.3.1', signaturesAt: now } : overrides.antivirus;
+  }
+  return { capabilities, evidence };
+}
+
+export async function attest(admin, service, capabilities, ttlSeconds = 900, overrides = {}) {
+  const envelope = await buildAttestation(admin, service, capabilities, overrides);
   return value(
     admin,
     'select public.attest_tournament_media_service($1,$2,$3::jsonb,$4)',
-    [service, '0.1.0', JSON.stringify(capabilities), ttlSeconds],
+    [service, '0.2.0', JSON.stringify(envelope), ttlSeconds],
   );
 }
-
-const SIGNER_CAPABILITIES = {
-  signedUploadUrls: true, signedReadUrls: true, derivesPathServerSide: true,
-};
-const PROCESSOR_CAPABILITIES = {
-  contentSniffing: true, structuralDecode: true, metadataStripping: true,
-  checksumVerification: true, variantGeneration: true, pixelTranscode: false,
-};
 
 // ---------------------------------------------------------------------------
 
@@ -198,6 +237,8 @@ function variantPayload(width, height, overrides = {}) {
       height: geometry.height,
       checksumSha256: 'b'.repeat(64),
       metadataStripped: true,
+      pixelTranscoded: true,
+      antivirusClean: true,
       ...(overrides[kind] || {}),
     };
   }
@@ -231,9 +272,11 @@ async function run() {
       '20260727010000_tournament_communications.sql',
       '20260727060000_tournament_media_galleries.sql',
     ]);
-    await admin.query(
-      fs.readFileSync(path.join(ROOT, 'supabase', 'migrations', PIPELINE_MIGRATION), 'utf8'),
-    );
+    for (const migration of PIPELINE_MIGRATIONS) {
+      await admin.query(
+        fs.readFileSync(path.join(ROOT, 'supabase', 'migrations', migration), 'utf8'),
+      );
+    }
     const scope = await seedOperationalMatch(admin);
     const owner = scope.owner;
     const adminUser = await connect({ role: 'authenticated', userId: USERS.admin });
@@ -251,14 +294,20 @@ async function run() {
     let state = await readiness(admin);
     eq(state.uploadReady, false, 'sin storage ni servicios la carga está cerrada');
     ok(
-      state.blockers.includes('storage.bucket_absent')
-      && state.blockers.includes('service.signer_unattested')
-      && state.blockers.includes('service.processor_unattested'),
-      'los tres bloqueos se reportan explícitamente',
+      [
+        'storage.bucket_absent', 'service.signer_unattested',
+        'service.processor_unattested', 'processor.pixel_decode_absent',
+        'processor.pixel_transcode_absent', 'processor.metadata_sanitization_absent',
+        'processor.antivirus_absent', 'cleanup.unavailable',
+      ].every((blocker) => state.blockers.includes(blocker)),
+      'cada capacidad ausente se reporta con su propio bloqueo',
       JSON.stringify(state.blockers),
     );
     eq(state.pixelTranscode, false, 'el transcode de píxeles no se declara');
     eq(state.antivirusScanning, false, 'el antivirus no se declara');
+    eq(state.pixelDecodeReady, false, 'sin worker no hay decodificación de píxeles');
+    eq(state.metadataSanitizationReady, false, 'ni saneamiento de metadata');
+    eq(state.cleanupReady, false, 'ni limpieza atestiguada');
 
     await attest(admin, 'signer', SIGNER_CAPABILITIES);
     await attest(admin, 'processor', PROCESSOR_CAPABILITIES);
@@ -275,8 +324,15 @@ async function run() {
       "insert into storage.buckets (id, public) values ('tournament-media', false)",
     );
     state = await readiness(admin);
-    eq(state.uploadReady, true, 'bucket privado + servicios atestiguados abre la carga');
+    eq(state.uploadReady, true, 'bucket privado + worker atestiguado abre la carga');
     eq(state.blockers.length, 0, 'no quedan bloqueos');
+    eq(state.pixelDecodeReady, true, 'el decode de píxeles queda verificado');
+    eq(state.pixelTranscodeReady, true, 'y el transcode también');
+    eq(state.metadataSanitizationReady, true, 'y el saneamiento de metadata');
+    eq(state.antivirusReady, true, 'y el antivirus');
+    eq(state.cleanupReady, true, 'y la limpieza');
+    eq(state.pixelTranscode, true, 'la proyección deja de ser una constante');
+    eq(state.antivirusScanning, true, 'el antivirus deja de ser una constante');
 
     await admin.query("update storage.buckets set public = true where id = 'tournament-media'");
     state = await readiness(admin);
@@ -313,9 +369,9 @@ async function run() {
     await attest(admin, 'processor', PROCESSOR_CAPABILITIES);
 
     await expectError(
-      () => attest(admin, 'processor', PROCESSOR_CAPABILITIES, 172800),
+      () => attest(admin, 'processor', PROCESSOR_CAPABILITIES, 3600),
       /TORNEOS_MEDIA_ATTESTATION_INVALID/,
-      'una atestación no puede durar más de 24 horas',
+      'una atestación de processor no puede durar más de 15 minutos',
     );
     await expectError(
       () => attest(admin, 'transcoder', PROCESSOR_CAPABILITIES),
@@ -913,7 +969,14 @@ async function run() {
   }
 }
 
-run().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+// Guarded so `torneos-media-failclosed.mjs` can reuse the attestation helpers
+// above without running this suite as a side effect of importing them.
+if (
+  process.argv[1]
+  && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href
+) {
+  run().catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
+}
