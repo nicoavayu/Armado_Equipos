@@ -1,49 +1,55 @@
 #!/usr/bin/env node
-//
-// Provisions the private `tournament-media` bucket on a LOCAL Supabase stack.
-//
-// Bucket creation is deliberately operational rather than migratory: a
-// migration that created it would provision cloud storage on every `db push`,
-// including Staging and Production. The DB instead ships a fail-closed
-// verifier (`tournament_media_storage_contract_status`) so that a missing or
-// misconfigured bucket keeps `uploadReady` false.
-//
-// This script refuses to run against anything that is not a loopback host.
-// There is no flag to override that.
-//
-//   node scripts/storage/provision-tournament-media-local.mjs
-//   node scripts/storage/provision-tournament-media-local.mjs --verify
 
+// Local-only Storage lifecycle for tournament-media. There is no remote
+// override. Existing configuration is verified exactly and never reconciled
+// silently. Rollback can remove only a proven-empty LOCAL bucket and needs a
+// second explicit confirmation.
+
+import path from 'node:path';
 import process from 'node:process';
+import { fileURLToPath } from 'node:url';
 
-const BUCKET = 'tournament-media';
-const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp'];
-const MAX_FILE_BYTES = 12 * 1024 * 1024;
-const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1', '[::1]', '0.0.0.0']);
+export const STORAGE_CONTRACT = Object.freeze({
+  bucket: 'tournament-media',
+  public: false,
+  maxFileBytes: 12 * 1024 * 1024,
+  allowedMimeTypes: Object.freeze(['image/jpeg', 'image/png', 'image/webp']),
+});
+export const STORAGE_MODES = Object.freeze(['inspect', 'plan', 'dry-run', 'apply', 'verify', 'rollback']);
+const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1', '[::1]']);
 
-function fail(message) {
-  console.error(`[tournament-media] ${message}`);
-  process.exit(1);
-}
+export class LocalStorageError extends Error {}
+const fail = (message) => { throw new LocalStorageError(message); };
 
-function assertLocal(rawUrl) {
+export function assertLocal(rawUrl) {
   let url;
-  try {
-    url = new URL(rawUrl);
-  } catch {
-    fail(`SUPABASE_URL is not a valid URL: ${rawUrl}`);
-  }
+  try { url = new URL(rawUrl); } catch { fail('SUPABASE_URL is invalid.'); }
   if (!LOOPBACK_HOSTS.has(url.hostname)) {
-    fail(
-      `refusing to touch a non-local backend (${url.hostname}). `
-      + 'Remote buckets are provisioned by an operator, never by this script.',
-    );
+    fail(`refusing non-local backend ${url.hostname}; there is no override`);
   }
-  return url;
+  return url.origin;
 }
 
-async function storageRequest(baseUrl, secret, path, init = {}) {
-  const response = await fetch(`${baseUrl}/storage/v1${path}`, {
+const normalizeMimes = (value) => [...(value || [])].sort();
+
+export function validateBucket(snapshot) {
+  if (!snapshot?.exists) fail('bucket is absent');
+  if (snapshot.id !== STORAGE_CONTRACT.bucket && snapshot.name !== STORAGE_CONTRACT.bucket) {
+    fail('bucket identity differs');
+  }
+  if (snapshot.public !== false) fail('bucket is PUBLIC');
+  if (Number(snapshot.file_size_limit) !== STORAGE_CONTRACT.maxFileBytes) {
+    fail('bucket file size limit differs');
+  }
+  if (JSON.stringify(normalizeMimes(snapshot.allowed_mime_types))
+    !== JSON.stringify(normalizeMimes(STORAGE_CONTRACT.allowedMimeTypes))) {
+    fail('bucket MIME allowlist differs');
+  }
+  return true;
+}
+
+async function storageRequest(fetchImpl, baseUrl, secret, requestPath, init = {}) {
+  const response = await fetchImpl(`${baseUrl}/storage/v1${requestPath}`, {
     ...init,
     headers: {
       apikey: secret,
@@ -54,59 +60,101 @@ async function storageRequest(baseUrl, secret, path, init = {}) {
   });
   const text = await response.text();
   let payload = null;
-  try {
-    payload = text ? JSON.parse(text) : null;
-  } catch {
-    payload = { raw: text };
-  }
+  try { payload = text ? JSON.parse(text) : null; } catch { payload = null; }
   return { ok: response.ok, status: response.status, payload };
 }
 
-async function main() {
-  const verifyOnly = process.argv.includes('--verify');
-  const rawUrl = process.env.SUPABASE_URL || 'http://127.0.0.1:57321';
-  const secret = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
-  if (!secret) {
-    fail('set SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_SECRET_KEY) for the local stack.');
-  }
-  const url = assertLocal(rawUrl);
-  const baseUrl = url.origin;
+const inspect = async (fetchImpl, baseUrl, secret) => {
+  const response = await storageRequest(fetchImpl, baseUrl, secret, `/bucket/${STORAGE_CONTRACT.bucket}`);
+  if (!response.ok && response.status === 404) return { exists: false, id: STORAGE_CONTRACT.bucket };
+  if (!response.ok) fail(`bucket inspection failed with HTTP ${response.status}`);
+  return { exists: true, ...response.payload };
+};
 
-  const existing = await storageRequest(baseUrl, secret, `/bucket/${BUCKET}`);
-  if (existing.ok) {
-    const isPrivate = existing.payload?.public === false;
-    console.log(
-      `[tournament-media] bucket present · public=${existing.payload?.public} `
-      + `· fileSizeLimit=${existing.payload?.file_size_limit}`,
-    );
-    if (!isPrivate) fail('bucket exists but is PUBLIC. Delete it and re-run.');
-    if (verifyOnly) return;
-    const updated = await storageRequest(baseUrl, secret, `/bucket/${BUCKET}`, {
-      method: 'PUT',
+export async function runStorageMode({
+  mode,
+  rawUrl,
+  secret,
+  confirmEmptyLocalBucketDelete = false,
+  fetchImpl = fetch,
+}) {
+  if (!STORAGE_MODES.includes(mode)) fail(`unknown mode ${mode}`);
+  const baseUrl = assertLocal(rawUrl);
+  if (!secret) fail('local service credential is required');
+  const before = await inspect(fetchImpl, baseUrl, secret);
+  const plan = {
+    mode,
+    remoteCalls: 0,
+    target: 'loopback-only',
+    bucket: STORAGE_CONTRACT,
+    current: before.exists ? 'present' : 'absent',
+    action: before.exists ? 'verify-exact' : 'create',
+    policyAction: 'verify-via-database-contract-no-replacement',
+  };
+
+  if (mode === 'inspect') return { ...plan, snapshot: before };
+  if (mode === 'plan' || mode === 'dry-run') {
+    if (before.exists) validateBucket(before);
+    return plan;
+  }
+  if (mode === 'verify') {
+    validateBucket(before);
+    return { ...plan, verified: true };
+  }
+  if (mode === 'apply') {
+    if (before.exists) {
+      validateBucket(before);
+      return { ...plan, applied: false, idempotent: true };
+    }
+    const created = await storageRequest(fetchImpl, baseUrl, secret, '/bucket', {
+      method: 'POST',
       body: JSON.stringify({
+        id: STORAGE_CONTRACT.bucket,
+        name: STORAGE_CONTRACT.bucket,
         public: false,
-        file_size_limit: MAX_FILE_BYTES,
-        allowed_mime_types: ALLOWED_MIME,
+        file_size_limit: STORAGE_CONTRACT.maxFileBytes,
+        allowed_mime_types: STORAGE_CONTRACT.allowedMimeTypes,
       }),
     });
-    if (!updated.ok) fail(`could not reconcile bucket: ${JSON.stringify(updated.payload)}`);
-    console.log('[tournament-media] bucket reconciled (private, 12 MiB, image/* allowlist).');
-    return;
+    if (!created.ok) fail(`bucket create failed with HTTP ${created.status}`);
+    const after = await inspect(fetchImpl, baseUrl, secret);
+    validateBucket(after);
+    return { ...plan, applied: true, verified: true };
   }
-  if (verifyOnly) fail('bucket absent. Run without --verify to create it locally.');
 
-  const created = await storageRequest(baseUrl, secret, '/bucket', {
-    method: 'POST',
-    body: JSON.stringify({
-      id: BUCKET,
-      name: BUCKET,
-      public: false,
-      file_size_limit: MAX_FILE_BYTES,
-      allowed_mime_types: ALLOWED_MIME,
-    }),
+  // rollback
+  if (!before.exists) return { ...plan, rolledBack: false, idempotent: true };
+  validateBucket(before);
+  if (!confirmEmptyLocalBucketDelete) {
+    fail('rollback requires --confirm-empty-local-bucket-delete');
+  }
+  const listed = await storageRequest(fetchImpl, baseUrl, secret, `/object/list/${STORAGE_CONTRACT.bucket}`, {
+    method: 'POST', body: JSON.stringify({ prefix: '', limit: 1 }),
   });
-  if (!created.ok) fail(`could not create bucket: ${JSON.stringify(created.payload)}`);
-  console.log(`[tournament-media] created private bucket on ${baseUrl}.`);
+  if (!listed.ok) fail(`bucket emptiness check failed with HTTP ${listed.status}`);
+  if (Array.isArray(listed.payload) && listed.payload.length > 0) {
+    fail('rollback refuses a non-empty bucket; object deletion is never automatic');
+  }
+  const removed = await storageRequest(fetchImpl, baseUrl, secret, `/bucket/${STORAGE_CONTRACT.bucket}`, {
+    method: 'DELETE',
+  });
+  if (!removed.ok) fail(`empty local bucket removal failed with HTTP ${removed.status}`);
+  return { ...plan, rolledBack: true, userObjectsDeleted: false };
 }
 
-main().catch((error) => fail(error?.message || String(error)));
+const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (isMain) {
+  const modeArg = process.argv.find((arg) => arg.startsWith('--mode='));
+  const mode = process.argv.includes('--verify') ? 'verify' : (modeArg?.slice(7) || 'apply');
+  runStorageMode({
+    mode,
+    rawUrl: process.env.SUPABASE_URL || 'http://127.0.0.1:57321',
+    secret: process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY,
+    confirmEmptyLocalBucketDelete: process.argv.includes('--confirm-empty-local-bucket-delete'),
+  }).then((result) => {
+    process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+  }).catch((error) => {
+    console.error(`[tournament-media] ${error.message}`);
+    process.exit(1);
+  });
+}

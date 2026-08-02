@@ -284,7 +284,7 @@ Nada de esta sección fue creado ni ejecutado.
 
 ### Bucket y paths
 
-- bucket privado y exclusivo: `tournament-media-staging`;
+- bucket privado y exclusivo: `tournament-media`;
 - nunca reutilizar el bucket productivo;
 - path canónico emitido por signer:
   `<organization>/<tournament>/<gallery>/<session>/<asset>/original`;
@@ -292,7 +292,7 @@ Nada de esta sección fue creado ni ejecutado.
   `{original,thumbnail,grid,detail}`; el original también queda restringido;
 - prohibir listados, paths elegidos por el cliente y overwrite;
 - content types allowlist (`image/jpeg`, `image/png`, `image/webp`, HEIC sólo si
-  el pipeline lo normaliza), tamaño máximo 25 MiB y checksum SHA-256 obligatorio.
+  el pipeline lo normaliza), tamaño máximo 12 MiB y checksum SHA-256 obligatorio.
 
 ### Signer
 
