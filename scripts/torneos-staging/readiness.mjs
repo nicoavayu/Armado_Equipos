@@ -38,7 +38,9 @@ const fixturePath = (options) => path.resolve(
 );
 
 const print = (value, json) => {
-  const output = json ? `${JSON.stringify(value, null, 2)}\n` : String(value);
+  const output = typeof value === 'string'
+    ? value
+    : `${JSON.stringify(value, null, json ? 2 : 0)}\n`;
   assertSanitizedOutput(output);
   process.stdout.write(output);
 };
