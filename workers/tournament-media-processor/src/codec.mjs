@@ -100,6 +100,42 @@ function open(sharp, bytes, limits) {
   }).timeout({ seconds: limits.timeoutSeconds });
 }
 
+const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+
+/**
+ * True when a PNG carries the APNG animation control chunk.
+ *
+ * libvips' PNG loader does not decode APNG, so an animated PNG opens as a
+ * still and reports a single page — the frame count check therefore never
+ * fires for it, and the file would be silently flattened to its first frame
+ * instead of refused. The Edge structural verifier already rejects these by
+ * walking the chunks; the worker is the publishing authority now, so it has to
+ * be at least as strict. `acTL` must appear before the first `IDAT` to be a
+ * valid APNG, which is exactly the window walked here.
+ */
+function isAnimatedPng(bytes) {
+  if (bytes.length < 8) return false;
+  for (let index = 0; index < PNG_SIGNATURE.length; index += 1) {
+    if (bytes[index] !== PNG_SIGNATURE[index]) return false;
+  }
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  let offset = 8;
+  while (offset + 8 <= bytes.length) {
+    const length = view.getUint32(offset);
+    const type = String.fromCharCode(
+      bytes[offset + 4], bytes[offset + 5], bytes[offset + 6], bytes[offset + 7],
+    );
+    if (type === 'acTL') return true;
+    // Anything after the first frame data cannot make the file animated.
+    if (type === 'IDAT' || type === 'IEND') return false;
+    // 4 length + 4 type + payload + 4 CRC. A truncated chunk ends the walk;
+    // the decoder below is what rejects a malformed file.
+    if (length > bytes.length) return false;
+    offset += 12 + length;
+  }
+  return false;
+}
+
 function encoderFor(pipeline, mime) {
   switch (mime) {
     case 'image/jpeg':
@@ -149,7 +185,7 @@ async function probe(sharp, bytes, declaredMime, limits) {
     // below; it is not evidence of animation.
     frames = 1;
   }
-  if (frames > 1) {
+  if (frames > 1 || isAnimatedPng(bytes)) {
     throw new CodecError('MEDIA_ANIMATION_UNSUPPORTED', `${frames} pages`);
   }
   const width = Number(metadata.width || 0);

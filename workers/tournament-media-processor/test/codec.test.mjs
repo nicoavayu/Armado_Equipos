@@ -117,6 +117,28 @@ test('una imagen animada es rechazada', async () => {
   );
 });
 
+test('un APNG también es rechazado, no aplanado', async () => {
+  // libvips no decodifica APNG: abre el archivo como una imagen fija y reporta
+  // una sola página, así que el conteo de frames no lo ve. El verificador
+  // estructural del Edge ya lo rechazaba recorriendo los chunks; el worker es
+  // ahora quien publica, así que no puede ser más permisivo que él.
+  const apng = new Uint8Array(
+    fs.readFileSync(path.join(FIXTURES, 'animated-16x16.png')),
+  );
+  await rejectsWith(
+    () => decodeSanitizedOriginal(apng, 'image/png'), 'MEDIA_ANIMATION_UNSUPPORTED',
+  );
+});
+
+test('un PNG fijo sigue pasando', async () => {
+  const still = new Uint8Array(
+    fs.readFileSync(path.join(FIXTURES, 'clean-64x48.png')),
+  );
+  const decoded = await decodeSanitizedOriginal(still, 'image/png');
+  assert.equal(decoded.width, 64);
+  assert.equal(decoded.height, 48);
+});
+
 test('el original final no conserva EXIF, ICC ni orientación', async () => {
   const dirty = await make({ dirty: true });
   const before = await inspectMetadataCarriers(dirty);

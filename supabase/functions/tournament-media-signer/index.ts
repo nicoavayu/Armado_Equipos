@@ -193,14 +193,41 @@ async function handleHealth(service: ServiceClient) {
     await service.storage.from(TOURNAMENT_MEDIA_BUCKET).remove([probeName])
   }
 
+  // The attestation envelope is `{ capabilities, evidence }`, and every
+  // capability claimed true has to be backed by a self-test check of the same
+  // name that passed. The probes above are that self-test: only what they
+  // actually demonstrated gets claimed.
+  const checks: Record<string, boolean> = {
+    signedUploadUrls: evidence.signedUploadUrls,
+    signedReadUrls: evidence.signedReadUrls,
+    // Structural rather than probed: the signer has no code path that accepts a
+    // client-supplied object name. Every path comes back from
+    // `authorize_tournament_media_upload_target`.
+    derivesPathServerSide: true,
+  }
+  const capabilities: Record<string, boolean> = {}
+  for (const [name, passed] of Object.entries(checks)) {
+    if (passed) capabilities[name] = true
+  }
+
+  const fingerprint = await service.rpc("tournament_media_backend_fingerprint")
+  if (fingerprint.error || !fingerprint.data) {
+    return { status: 500, payload: { error: "attestation_failed", evidence } }
+  }
+
   const { error } = await service.rpc("attest_tournament_media_service", {
     p_service: "signer",
     p_release: RELEASE,
     p_capabilities: {
-      signedUploadUrls: true,
-      signedReadUrls: true,
-      derivesPathServerSide: true,
-      probedAt: new Date().toISOString(),
+      capabilities,
+      evidence: {
+        selfTest: {
+          passed: Object.values(checks).every(Boolean),
+          checks,
+        },
+        backendFingerprint: fingerprint.data,
+        probedAt: new Date().toISOString(),
+      },
     },
     p_ttl_seconds: 3600,
   })

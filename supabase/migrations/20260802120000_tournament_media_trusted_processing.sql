@@ -1025,6 +1025,17 @@ $_$;
 --     check it always did, on a token it verifies normally;
 --   * the browser's own token stops working the moment the worker takes over,
 --     so an upload under processing can no longer be re-signed or replayed.
+--
+-- It also re-baselines the reserved size. `complete_tournament_media_upload`
+-- demands `p_byte_size = requested_size`, which was right when the published
+-- original was a byte-for-byte copy of the upload. It is not right now: the
+-- worker re-encodes, so the original it publishes almost never weighs what the
+-- browser sent, and the equality would make a genuinely sanitised original
+-- impossible to publish. The reservation was always an upper bound — what the
+-- organisation is finally charged is the asset row — so the session is moved to
+-- the size the worker actually produced, still bounded by the session's own
+-- `max_size`. A worker that reports something outside that bound is rejected
+-- here, before any asset row exists.
 CREATE OR REPLACE FUNCTION "public"."complete_tournament_media_upload_for_job"(
   "p_job_id" "uuid", "p_lease_token" "text", "p_detected_mime" "text",
   "p_byte_size" bigint, "p_width" integer, "p_height" integer,
@@ -1059,8 +1070,17 @@ begin
   then
     raise exception using errcode = '42501', message = 'TORNEOS_MEDIA_UPLOAD_SESSION_INVALID';
   end if;
+  if p_byte_size is null
+    or p_byte_size < 1
+    or p_byte_size > v_session.max_size
+  then
+    update public.tournament_media_upload_sessions set status = 'failed'
+    where id = v_session.id;
+    raise exception using errcode = '22023', message = 'TORNEOS_MEDIA_FILE_INVALID';
+  end if;
   update public.tournament_media_upload_sessions
-  set token_hash = encode(public.digest(v_token,'sha256'),'hex')
+  set token_hash = encode(public.digest(v_token,'sha256'),'hex'),
+      requested_size = p_byte_size
   where id = v_session.id;
   return public.complete_tournament_media_upload_for_actor(
     v_session.requested_by, v_session.id, v_token, p_detected_mime,

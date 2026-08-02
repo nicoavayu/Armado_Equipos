@@ -88,6 +88,22 @@ export function createDbClient(config, fetchImpl = fetch) {
   };
 }
 
+/**
+ * True when a non-OK download response is Storage reporting an absent object
+ * rather than a real failure. Only the `not_found` shape counts: a 400 that is
+ * anything else still raises, so a misconfigured bucket is never mistaken for
+ * an empty one.
+ */
+async function isObjectMissing(response) {
+  if (response.status !== 400) return false;
+  try {
+    const body = JSON.parse(await response.text());
+    return String(body?.statusCode) === '404' || body?.error === 'not_found';
+  } catch {
+    return false;
+  }
+}
+
 export function createStorageClient(config, fetchImpl = fetch) {
   const base = `${config.url}/storage/v1/object`;
   const headers = { apikey: config.key, Authorization: `Bearer ${config.key}` };
@@ -97,7 +113,15 @@ export function createStorageClient(config, fetchImpl = fetch) {
         headers,
       });
       if (response.status === 404) return null;
-      if (!response.ok) throw new Error(`STORAGE_DOWNLOAD_FAILED:${response.status}`);
+      // Storage does not always answer a miss with a 404: current versions reply
+      // `400 {"statusCode":"404","error":"not_found"}`. An absent object is an
+      // answer, not a transport failure — reading it as one would make the
+      // post-delete probe in the self-test throw, and `cleanup` could never be
+      // proved, so `uploadReady` could never open against a real bucket.
+      if (!response.ok) {
+        if (await isObjectMissing(response)) return null;
+        throw new Error(`STORAGE_DOWNLOAD_FAILED:${response.status}`);
+      }
       return new Uint8Array(await response.arrayBuffer());
     },
     async upload(objectName, bytes, contentType) {

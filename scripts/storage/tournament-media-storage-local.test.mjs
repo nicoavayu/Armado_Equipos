@@ -53,6 +53,51 @@ function storageUrl(suffix) {
   return `${origin}/storage/v1${suffix}`;
 }
 
+const SIGNER_CAPABILITIES = {
+  signedUploadUrls: true, signedReadUrls: true, derivesPathServerSide: true,
+};
+
+/**
+ * The nine capabilities the trusted worker has to prove. `structuralDecode` is
+ * deliberately absent: it stopped being a capability name when the pipeline
+ * started demanding real pixels, so a container walk cannot stand in for
+ * `pixelDecode` here either.
+ */
+const PROCESSOR_CAPABILITIES = {
+  contentSniffing: true, pixelDecode: true, pixelTranscode: true,
+  metadataStrippingApplied: true, checksumVerification: true,
+  variantGeneration: true, antivirusScanning: true,
+  storageReadWrite: true, cleanup: true,
+};
+
+/**
+ * Writes an attestation in the envelope the database actually accepts: the
+ * claimed capabilities, a self-test naming every one of them, this backend's
+ * own fingerprint, and fresh codec/scanner evidence. This test is about the
+ * storage gate, so the evidence is synthetic — the worker's real self-test is
+ * what produces it in `workers/tournament-media-processor`.
+ */
+async function attestService(client, service, capabilities) {
+  const { rows } = await client.query(
+    'select public.tournament_media_backend_fingerprint() as fingerprint',
+  );
+  const now = new Date().toISOString();
+  const evidence = {
+    selfTest: { passed: true, checks: { ...capabilities } },
+    backendFingerprint: rows[0].fingerprint,
+    probedAt: now,
+  };
+  if (service === 'processor') {
+    evidence.workerType = 'external_image_worker';
+    evidence.codec = { name: 'libvips', version: '8.15.3' };
+    evidence.antivirus = { name: 'clamav', version: '1.4.5', signaturesAt: now };
+  }
+  return client.query(
+    'select public.attest_tournament_media_service($1,$2,$3::jsonb,$4)',
+    [service, '0.2.0', JSON.stringify({ capabilities, evidence }), 900],
+  );
+}
+
 async function serviceFetch(suffix, init = {}) {
   return fetch(storageUrl(suffix), {
     ...init,
@@ -279,19 +324,8 @@ test('readiness closes when the bucket disappears and reopens when it returns', 
       'select public.tournament_media_pipeline_readiness() as state',
     )).rows[0].state;
 
-    await client.query(
-      `select public.attest_tournament_media_service('signer','0.1.0',$1::jsonb,3600)`,
-      [JSON.stringify({
-        signedUploadUrls: true, signedReadUrls: true, derivesPathServerSide: true,
-      })],
-    );
-    await client.query(
-      `select public.attest_tournament_media_service('processor','0.1.0',$1::jsonb,3600)`,
-      [JSON.stringify({
-        contentSniffing: true, structuralDecode: true, metadataStripping: true,
-        checksumVerification: true, variantGeneration: true, pixelTranscode: false,
-      })],
-    );
+    await attestService(client, 'signer', SIGNER_CAPABILITIES);
+    await attestService(client, 'processor', PROCESSOR_CAPABILITIES);
     assert.equal((await readiness()).uploadReady, true, 'ready with a live bucket');
 
     await client.query(

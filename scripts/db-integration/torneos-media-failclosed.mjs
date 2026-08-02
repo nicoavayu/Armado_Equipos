@@ -499,12 +499,24 @@ async function run() {
       'un lease token equivocado no completa nada',
     );
 
+    // Un original re-encodeado casi nunca pesa lo que pesaba la subida (acá la
+    // sesión reservó 2048). Si la completación exigiera que coincidieran, un
+    // saneamiento real jamás se podría publicar, así que el worker completa con
+    // el tamaño que midió y no con el que se reservó.
     const asset = await value(
       service,
       `select public.complete_tournament_media_upload_for_job($1,$2,$3,$4,$5,$6,$7)`,
-      [lease.jobId, lease.leaseToken, 'image/jpeg', 2048, 4000, 3000, 'a'.repeat(64)],
+      [lease.jobId, lease.leaseToken, 'image/jpeg', 7331, 4000, 3000, 'a'.repeat(64)],
     );
     ok(Boolean(asset.assetId), 'el worker registra el asset con lo que él midió');
+    eq(
+      Number(await value(
+        admin, 'select byte_size from public.tournament_media_assets where id = $1',
+        [asset.assetId],
+      )),
+      7331,
+      'y el asset guarda el tamaño del original re-encodeado, no el de la subida',
+    );
     // El token del navegador dejó de servir en cuanto el worker tomó el trabajo.
     await expectError(
       () => value(
@@ -624,6 +636,40 @@ async function run() {
     );
 
     // -----------------------------------------------------------------------
+    // Re-basear el tamaño no es barra libre: sigue acotado por el tope de la
+    // sesión, y un worker que reporte cualquier cosa no publica nada.
+    const boundGallery = await createGallery(owner, scope);
+    const boundSession = await requestUpload(owner, boundGallery);
+    await value(
+      service, 'select public.enqueue_tournament_media_processing_job($1,$2,$3)',
+      [boundSession.sessionId, boundSession.token, USERS.owner],
+    );
+    const boundLease = await value(
+      service, 'select public.lease_tournament_media_processing_jobs($1,$2,$3)',
+      ['media-worker-bound', 300, 1],
+    );
+    await expectError(
+      () => value(
+        service, `select public.complete_tournament_media_upload_for_job(
+          $1,$2,$3,$4,$5,$6,$7)`,
+        [
+          boundLease.jobs[0].jobId, boundLease.jobs[0].leaseToken,
+          'image/jpeg', 12582913, 4000, 3000, 'a'.repeat(64),
+        ],
+      ),
+      /TORNEOS_MEDIA_FILE_INVALID/,
+      'un tamaño por encima del tope de la sesión se rechaza',
+    );
+    eq(
+      Number(await value(
+        admin,
+        `select count(*) from public.tournament_media_assets where gallery_id = $1`,
+        [boundGallery],
+      )),
+      0,
+      'y no deja ningún asset',
+    );
+
     console.log('\n· reintento, abandono y limpieza de trabajos');
     // -----------------------------------------------------------------------
     const retryGallery = await createGallery(owner, scope);
