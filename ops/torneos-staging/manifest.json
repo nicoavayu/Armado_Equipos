@@ -1,0 +1,203 @@
+{
+  "$schema": "./manifest.schema.json",
+  "schemaVersion": 1,
+  "name": "arma2-torneos-staging-readiness",
+  "status": "locally-certified-staging-uninspected",
+  "repository": {
+    "branch": "feature/torneos-staging-readiness",
+    "baseBranch": "epic/arma2-torneos",
+    "expectedBaseSha": "e9a43a7bde37039f60e6b7b8e44bb84f8a118b42",
+    "expectedEpicSha": "e9a43a7bde37039f60e6b7b8e44bb84f8a118b42",
+    "planBindsExactHeadSha": true,
+    "requireCleanWorktree": true
+  },
+  "environment": {
+    "name": "staging",
+    "authorizedProjectRef": "hhyvmhgpapyuzjgxfnqv",
+    "forbiddenProjectRefs": [
+      "rcyuuoaqfwcembdajcss"
+    ],
+    "authorizedApiHost": "hhyvmhgpapyuzjgxfnqv.supabase.co",
+    "productionApiHost": "rcyuuoaqfwcembdajcss.supabase.co",
+    "unknownProjectRefs": "reject",
+    "production": "always-reject"
+  },
+  "stages": [
+    { "name": "inspect", "mutation": false, "approval": "none" },
+    { "name": "plan", "mutation": false, "approval": "none", "requires": ["inspect"] },
+    { "name": "dry-run", "mutation": false, "approval": "none", "requires": ["plan"] },
+    { "name": "migrate", "mutation": true, "approval": "per-stage", "requires": ["dry-run"] },
+    { "name": "storage", "mutation": true, "approval": "per-stage", "requires": ["migrate"] },
+    { "name": "secrets-check", "mutation": false, "approval": "read-only", "requires": ["storage"] },
+    { "name": "edge-deploy", "mutation": true, "approval": "per-function", "requires": ["secrets-check"] },
+    { "name": "worker-check", "mutation": false, "approval": "read-only", "requires": ["edge-deploy"] },
+    { "name": "attest", "mutation": true, "approval": "per-service", "requires": ["worker-check"] },
+    { "name": "enable-multimedia", "mutation": true, "approval": "per-stage", "requires": ["attest"] },
+    { "name": "qa-multimedia", "mutation": false, "approval": "human", "requires": ["enable-multimedia"] },
+    { "name": "enable-social", "mutation": true, "approval": "per-stage", "requires": ["qa-multimedia"] },
+    { "name": "qa-social", "mutation": false, "approval": "human", "requires": ["enable-social"] },
+    { "name": "rollback", "mutation": true, "approval": "per-stage", "requires": ["plan"] },
+    { "name": "cleanup-local", "mutation": true, "approval": "local-only", "requires": [] }
+  ],
+  "migrationPolicy": {
+    "selection": "explicit-subset-not-complete-remote-history",
+    "unexpectedRemoteMigration": "abort",
+    "missingPredecessor": "abort",
+    "checksumMismatch": "abort",
+    "outOfOrder": "abort",
+    "transactionRequired": true,
+    "historyComparison": [
+      "applied",
+      "local",
+      "remote-history",
+      "checksums",
+      "order",
+      "unexpected",
+      "missing"
+    ],
+    "migrations": [
+      {
+        "order": 1,
+        "version": "20260802090000",
+        "file": "supabase/migrations/20260802090000_tournament_media_upload_pipeline.sql",
+        "sha256": "793ffbbe8cf7f7f94b4924d781fa81e01ebf92208c80e70b60e2daf92a72a417",
+        "rollback": "supabase/rollbacks/20260802090000_tournament_media_upload_pipeline.safe.sql",
+        "risk": "high",
+        "expectedLocks": ["ACCESS EXCLUSIVE on newly created relations", "catalog locks for functions and grants"]
+      },
+      {
+        "order": 2,
+        "version": "20260802120000",
+        "file": "supabase/migrations/20260802120000_tournament_media_trusted_processing.sql",
+        "sha256": "5b678c593f685feb66ee34fd694403bac2cae828321eae65ee044287a51eba73",
+        "rollback": "supabase/rollbacks/20260802120000_tournament_media_trusted_processing.safe.sql",
+        "risk": "high",
+        "expectedLocks": ["ACCESS EXCLUSIVE on newly created relations", "catalog locks for replaced functions"]
+      },
+      {
+        "order": 3,
+        "version": "20260803090000",
+        "file": "supabase/migrations/20260803090000_tournament_social_studio.sql",
+        "sha256": "000ed7c503f148f2bf7ed666526d031c16a84eb07518959c8a7e5c48c3d599e2",
+        "rollback": "supabase/rollbacks/20260803090000_tournament_social_studio.safe.sql",
+        "risk": "medium",
+        "expectedLocks": ["ACCESS EXCLUSIVE on newly created relations", "catalog locks for functions and grants"]
+      }
+    ]
+  },
+  "storage": {
+    "bucket": "tournament-media",
+    "public": false,
+    "maxFileBytes": 12582912,
+    "allowedMimeTypes": ["image/jpeg", "image/png", "image/webp"],
+    "forbiddenMimeTypes": ["image/svg+xml"],
+    "clientDirectWriteRoles": [],
+    "policies": [
+      "tournament_media_service_read",
+      "tournament_media_service_insert",
+      "tournament_media_service_update",
+      "tournament_media_service_delete"
+    ],
+    "unexpectedPolicy": "abort",
+    "replaceExistingPolicy": false,
+    "modes": ["inspect", "plan", "dry-run", "apply", "verify", "rollback"]
+  },
+  "edgeFunctions": [
+    {
+      "name": "tournament-media-signer",
+      "role": "signed-url-gateway",
+      "entrypoint": "supabase/functions/tournament-media-signer/index.ts",
+      "sha256": "18f938a55e9fd76daee6b2050bf1dba55276a1340d6a88ed396370d694360386",
+      "verifyJwt": true,
+      "deployOrder": 1,
+      "healthContract": "self-test action plus signer attestation",
+      "rollback": "restore previous recorded release; otherwise revoke attestation and undeploy only with separate approval"
+    },
+    {
+      "name": "tournament-media-processor",
+      "role": "queue-orchestrator-edge-not-image-worker",
+      "entrypoint": "supabase/functions/tournament-media-processor/index.ts",
+      "sha256": "8da07322db6fa88c989fdf3a65d3c0d7067bac72ab0ede397cea1974fdc7d4d5",
+      "verifyJwt": true,
+      "deployOrder": 2,
+      "healthContract": "self-test action plus processor attestation",
+      "rollback": "restore previous recorded release; otherwise revoke attestation and undeploy only with separate approval"
+    }
+  ],
+  "configuration": {
+    "variables": ["SUPABASE_URL"],
+    "secretAlternatives": [
+      ["SUPABASE_SECRET_KEYS", "SUPABASE_SERVICE_ROLE_KEY"],
+      ["SUPABASE_PUBLISHABLE_KEYS", "SUPABASE_ANON_KEY"],
+      ["TOURNAMENT_MEDIA_ATTESTATION_SECRET"]
+    ],
+    "secretValuesInManifest": false,
+    "browserForbiddenPatterns": ["SERVICE_ROLE", "SECRET_KEY", "SUPABASE_SECRET_KEYS"]
+  },
+  "worker": {
+    "path": "workers/tournament-media-processor",
+    "runtime": "node",
+    "nodeMajor": 22,
+    "sharpVersion": "0.33.5",
+    "libvipsRequired": true,
+    "clamavRequired": true,
+    "clamdEndpoint": "clamd:3310",
+    "freshclamRequired": true,
+    "maxSignatureAgeDays": 7,
+    "cpuLimit": 1,
+    "memoryLimitMiB": 1024,
+    "maxInputBytes": 12582912,
+    "maxInputPixels": 36000000,
+    "timeoutSeconds": 20,
+    "leaseSeconds": 300,
+    "retries": 3,
+    "backoff": "bounded-exponential-with-jitter",
+    "idempotency": "database idempotency key plus lease token",
+    "health": "self-test must prove decode, transcode, metadata stripping, antivirus, storage and cleanup",
+    "attestationTtlSeconds": 900,
+    "safeShutdown": "stop leasing, finish current job, revoke attestation"
+  },
+  "flags": {
+    "productionForcedFalse": true,
+    "initial": {
+      "REACT_APP_TORNEOS_MEDIA_UPLOAD_ENABLED": false,
+      "REACT_APP_TORNEOS_SOCIAL_GENERATOR_ENABLED": false
+    },
+    "multimediaRequiresUploadReady": true,
+    "socialRequiresMultimediaQa": true,
+    "enableOrder": ["multimedia", "qa-multimedia", "social", "qa-social"]
+  },
+  "qa": {
+    "matrix": "ops/torneos-staging/qa-matrix.json",
+    "fixture": "ops/torneos-staging/fixtures/local-ready.json",
+    "remoteExecutionInThisChange": false
+  },
+  "rollback": {
+    "automaticDataDeletion": false,
+    "disableFlagsFirst": true,
+    "revokeAttestations": true,
+    "blockNewWrites": true,
+    "drainJobs": true,
+    "preserveUserData": true,
+    "destructiveCleanupRequiresSecondApproval": true
+  },
+  "cleanup": {
+    "localOnlyByDefault": true,
+    "remoteObjectDeletionAutomatic": false,
+    "identityMapContentInOutput": false
+  },
+  "observability": {
+    "structuredLogs": true,
+    "sanitize": ["tokens", "keys", "signed-urls", "identity-maps", "credentials"],
+    "requiredSignals": ["migration-drift", "quarantine-depth", "job-age", "worker-health", "clamav-signature-age", "attestation-expiry", "upload-errors"]
+  },
+  "approvals": {
+    "humanBeforeMutation": true,
+    "perStageToken": true,
+    "exactPlanSha": true,
+    "exactRepositorySha": true,
+    "priorStateReceipt": true,
+    "pauseBetweenEdgeFunctions": true,
+    "singleApplyAllCommand": false
+  }
+}

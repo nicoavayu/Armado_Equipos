@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://arma2.local/schemas/torneos-staging-readiness-v1.json",
+  "title": "Arma2 Torneos staging readiness manifest",
+  "type": "object",
+  "required": ["schemaVersion", "repository", "environment", "stages", "migrationPolicy", "storage", "edgeFunctions", "configuration", "worker", "flags", "qa", "rollback", "observability", "approvals"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "status": { "const": "locally-certified-staging-uninspected" },
+    "repository": { "type": "object", "required": ["branch", "baseBranch", "expectedBaseSha", "expectedEpicSha", "requireCleanWorktree"] },
+    "environment": { "type": "object", "required": ["name", "authorizedProjectRef", "forbiddenProjectRefs", "authorizedApiHost"] },
+    "stages": { "type": "array", "minItems": 15, "maxItems": 15 },
+    "migrationPolicy": { "type": "object", "required": ["migrations", "checksumMismatch", "outOfOrder"] },
+    "storage": { "type": "object", "required": ["bucket", "public", "maxFileBytes", "allowedMimeTypes", "policies"] },
+    "edgeFunctions": { "type": "array", "minItems": 2, "maxItems": 2 },
+    "configuration": { "type": "object", "required": ["variables", "secretAlternatives", "secretValuesInManifest"] },
+    "worker": { "type": "object", "required": ["nodeMajor", "sharpVersion", "clamavRequired", "maxSignatureAgeDays"] },
+    "flags": { "type": "object", "required": ["productionForcedFalse", "initial", "enableOrder"] },
+    "qa": { "type": "object", "required": ["matrix", "fixture"] },
+    "rollback": { "type": "object", "required": ["automaticDataDeletion", "preserveUserData"] },
+    "observability": { "type": "object", "required": ["structuredLogs", "sanitize"] },
+    "approvals": { "type": "object", "required": ["humanBeforeMutation", "perStageToken", "singleApplyAllCommand"] }
+  },
+  "additionalProperties": true
+}
