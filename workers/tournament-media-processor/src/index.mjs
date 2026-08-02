@@ -47,7 +47,15 @@ async function main() {
   const antivirus = createAntivirus(defaultAntivirusConfig());
 
   let attestedAt = 0;
-  for (;;) {
+  let consecutiveErrors = 0;
+  let stopping = false;
+  for (const signal of ['SIGTERM', 'SIGINT']) {
+    process.once(signal, () => {
+      stopping = true;
+      log('shutdown_requested', { signal });
+    });
+  }
+  while (!stopping) {
     try {
       // Re-attest at a third of the TTL so a transient failure never leaves a
       // stale claim standing.
@@ -70,11 +78,22 @@ async function main() {
           jobId: outcome.jobId, status: outcome.status, code: outcome.code || null,
         });
       }
+      consecutiveErrors = 0;
     } catch (error) {
+      consecutiveErrors += 1;
       log('loop_error', { error: String(error?.message || error) });
-      await new Promise((resolve) => { setTimeout(resolve, config.pollMs); });
+      const exponential = Math.min(30000, config.pollMs * (2 ** Math.min(consecutiveErrors - 1, 4)));
+      const jitter = Math.floor(Math.random() * Math.max(1, Math.floor(exponential / 5)));
+      await new Promise((resolve) => { setTimeout(resolve, exponential + jitter); });
     }
   }
+  try {
+    await db.revoke();
+    log('attestation_revoked');
+  } catch {
+    log('attestation_revocation_failed');
+  }
+  log('shutdown_complete');
 }
 
 main().catch((error) => {
