@@ -102,6 +102,16 @@ const ANON_ALLOWLIST = [
   'public.validate_guest_match_invite(bigint,text,text)',
 ];
 
+// Functions created after the canonical contracts migration cannot be listed
+// inside its chronological DO block: resolving their regprocedure there would
+// fail before the later feature migration has created them. Keep each later
+// authenticated surface explicit here so the catalog remains fail-closed.
+const POST_CANONICAL_AUTHENTICATED_ALLOWLIST = [
+  ['public.get_tournament_social_snapshot(uuid,uuid,uuid,uuid,text,uuid,uuid)', 'frontend_legitimate'],
+  ['public.get_tournament_social_studio_context(uuid)', 'frontend_legitimate'],
+  ['public.set_tournament_social_permission(uuid,uuid,boolean)', 'frontend_legitimate'],
+];
+
 const contracts = fs.readFileSync(contractsPath, 'utf8');
 const allowlistBlock = contracts.match(
   /-- BEGIN AUTHENTICATED EXECUTE ALLOWLIST([\s\S]*?)-- END AUTHENTICATED EXECUTE ALLOWLIST/,
@@ -116,6 +126,12 @@ for (const match of allowlistBlock.matchAll(
     throw new Error(`Duplicate authenticated allowlist signature: ${match[1]}`);
   }
   allowlist.set(match[1], match[2]);
+}
+for (const [signature, category] of POST_CANONICAL_AUTHENTICATED_ALLOWLIST) {
+  if (allowlist.has(signature)) {
+    throw new Error(`Duplicate authenticated allowlist signature: ${signature}`);
+  }
+  allowlist.set(signature, category);
 }
 
 let checks = 0;
@@ -361,7 +377,7 @@ const counts = {
 };
 check(counts.publicExecute === 0, 'PUBLIC EXECUTE count remains 0');
 check(counts.anonExecute === 18, 'anon EXECUTE count remains 18');
-check(counts.authenticatedExecute === 222, 'authenticated EXECUTE count remains 222');
+check(counts.authenticatedExecute === 225, 'authenticated EXECUTE count remains 225');
 console.log('\nCatalog counts:', counts);
 console.log(`\n${checks} grant/security checks, ${failures} failures.`);
 
