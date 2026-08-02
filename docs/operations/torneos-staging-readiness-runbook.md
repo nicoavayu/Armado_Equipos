@@ -1,6 +1,6 @@
 # Runbook operativo: Multimedia Upload y Estudio Social
 
-Estado antes de completar la suite live: **contratos certificados; certificación live local pendiente**. La descripción del PR debe actualizar este estado únicamente después de ejecutar Storage, grants y rollbacks contra un Supabase local efímero.
+Estado auditado: **contratos certificados; certificación live local pendiente**. Storage, grants y rollbacks se probaron contra un Supabase local efímero, pero el identity map legacy no satisface el contrato V3/V4 actual y el self-test real del worker no puede atestiguar antivirus/Storage sin `clamd` y credenciales locales del worker. No se modifican identidades, descriptor ni fingerprint para ocultar esos bloqueos.
 
 Este runbook separa inspección, planificación, mutaciones, QA y rollback. Ningún comando único aplica todo. Cada etapa mutante se autoriza por separado y se detiene ante SHA, ref, historial, checksum, configuración o recibo divergente.
 
