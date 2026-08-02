@@ -5,6 +5,19 @@ del torneo. Apagado por defecto
 (`REACT_APP_TORNEOS_SOCIAL_GENERATOR_ENABLED=false`) y forzado a `false` en
 Production.
 
+## Estado de integración
+
+Multimedia Upload ya está integrado en `epic/arma2-torneos` y Estudio Social
+se valida directamente contra esa epic. La integración conserva los scripts y
+las migraciones de ambos dominios sin duplicados; el diff resultante contiene
+únicamente esta superficie social.
+
+La certificación local posterior al merge cubrió las once piezas en los dos
+formatos: 22/22 renders Canvas, dimensiones exactas, igualdad entre preview y
+PNG exportado, nombres largos, escudos ausentes, tablas extensas, caracteres
+especiales, safe areas y fallback de descarga. Staging y Production permanecen
+fuera de alcance; el QA con datos reales continúa listado como pendiente.
+
 ## Qué NO es
 
 No es un editor tipo Canva. No hace screenshots de la aplicación. No captura el
