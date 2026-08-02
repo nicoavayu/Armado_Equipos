@@ -9,6 +9,7 @@ const expectedCanonicalMigrations = [
   '20260727090000_arma2_canonical_baseline.sql',
   '20260727215106_canonical_core_rls_contracts.sql',
   '20260801090000_tournament_context_reads_are_pure.sql',
+  '20260802090000_tournament_media_upload_pipeline.sql',
 ];
 
 const exitWithError = (message) => {
