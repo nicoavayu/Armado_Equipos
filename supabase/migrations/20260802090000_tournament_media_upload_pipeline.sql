@@ -580,7 +580,9 @@ declare
   v_previous_claim text := coalesce(
     pg_catalog.current_setting('request.jwt.claim.sub', true), ''
   );
-  v_is_manager boolean := false;
+  v_is_staff boolean := false;
+  v_owns_upload boolean := false;
+  v_can_read_original boolean := false;
   v_is_participant boolean := false;
 begin
   if p_actor_user_id is null
@@ -600,20 +602,26 @@ begin
     'request.jwt.claim.sub', p_actor_user_id::text, true
   );
   begin
-    v_is_manager := public.has_tournament_media_capability(
+    -- `media.read` is editorial access: it covers the derived variants of any
+    -- asset in the organisation, at any lifecycle state.
+    v_is_staff := public.has_tournament_media_capability(
       v_asset.organization_id, 'media.read'
     );
-    -- A photographer may re-read only their own upload, and only while the
-    -- assignment is still active. Revoking the assignment cuts reads too.
-    if not v_is_manager and v_asset.uploaded_by = p_actor_user_id then
-      v_is_manager := exists (
-        select 1 from public.tournament_media_assignments assignment
-        where assignment.gallery_id = v_asset.gallery_id
-          and assignment.user_id = p_actor_user_id
-          and assignment.status = 'active'
-          and assignment.can_upload
-      );
-    end if;
+    -- An assigned photographer may re-read only their own upload, and only
+    -- while the assignment is active. Revoking it cuts reads, not just writes.
+    v_owns_upload := v_asset.uploaded_by = p_actor_user_id and exists (
+      select 1 from public.tournament_media_assignments assignment
+      where assignment.gallery_id = v_asset.gallery_id
+        and assignment.user_id = p_actor_user_id
+        and assignment.status = 'active'
+        and assignment.can_upload
+    );
+    -- The unprocessed frame is the most sensitive object in the pipeline, so
+    -- it is narrower than editorial access: moderators, and the photographer
+    -- who took it. A read-only collaborator never reaches it.
+    v_can_read_original := v_owns_upload or public.has_tournament_media_capability(
+      v_asset.organization_id, 'media.review'
+    );
     v_is_participant := v_asset.status = 'published'
       and v_gallery.status = 'published'
       and public.tournament_media_asset_has_internal_consent(p_asset_id)
@@ -624,10 +632,10 @@ begin
   end;
   perform pg_catalog.set_config('request.jwt.claim.sub', v_previous_claim, true);
 
-  if p_kind = 'original' and not v_is_manager then
+  if p_kind = 'original' and not v_can_read_original then
     raise exception using errcode = '42501', message = 'TORNEOS_MEDIA_FORBIDDEN';
   end if;
-  if not v_is_manager and not v_is_participant then
+  if not v_is_staff and not v_owns_upload and not v_is_participant then
     raise exception using errcode = '42501', message = 'TORNEOS_MEDIA_FORBIDDEN';
   end if;
 
@@ -641,7 +649,8 @@ begin
     'assetId',p_asset_id,'kind',p_kind,'bucket',v_variant.bucket,
     'objectName',v_variant.internal_path,'width',v_variant.width,
     'height',v_variant.height,'contentType',v_variant.detected_mime,
-    'audience',case when v_is_manager then 'manager' else 'participant' end
+    'audience',case
+      when v_is_staff or v_owns_upload then 'manager' else 'participant' end
   );
 end;
 $$;
