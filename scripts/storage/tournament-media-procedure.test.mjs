@@ -5,7 +5,9 @@ import {
   LocalStorageError,
   STORAGE_CONTRACT,
   STORAGE_MODES,
+  STORAGE_POLICY_CONTRACT,
   runStorageMode,
+  validatePolicies,
 } from './provision-tournament-media-local.mjs';
 
 const response = (status, payload) => ({
@@ -49,11 +51,20 @@ const exactBucket = () => ({
   allowed_mime_types: [...STORAGE_CONTRACT.allowedMimeTypes],
 });
 
+const exactPolicies = () => Object.entries(STORAGE_POLICY_CONTRACT).map(([policyname, cmd]) => ({
+  policyname,
+  cmd,
+  roles: ['service_role'],
+  qual: ['SELECT', 'INSERT'].includes(cmd) ? "bucket_id = 'tournament-media'" : 'false',
+  with_check: cmd === 'INSERT' ? "bucket_id = 'tournament-media'" : (cmd === 'UPDATE' ? 'false' : null),
+}));
+
 const run = (mode, fake, extra = {}) => runStorageMode({
   mode,
   rawUrl: 'http://127.0.0.1:54321',
   secret: 'local-fixture-key',
   fetchImpl: fake.fetchImpl,
+  policySnapshot: exactPolicies(),
   ...extra,
 });
 
@@ -92,6 +103,25 @@ test('apply refuses to replace public or mismatched existing configuration', asy
   }
 });
 
+test('every mode rejects missing, unexpected, or client Storage policies before mutation', async () => {
+  assert.equal(validatePolicies(exactPolicies()), true);
+  for (const mutation of [
+    (policies) => { policies.pop(); },
+    (policies) => { policies.push({ policyname: 'tournament_media_client_write', cmd: 'INSERT', roles: ['authenticated'], with_check: "bucket_id = 'tournament-media'" }); },
+    (policies) => { policies[0].roles = ['authenticated']; },
+    (policies) => { policies[0].cmd = 'INSERT'; },
+  ]) {
+    const policies = exactPolicies();
+    mutation(policies);
+    const fake = fakeStorage();
+    await assert.rejects(
+      () => run('apply', fake, { policySnapshot: policies }),
+      LocalStorageError,
+    );
+    assert.equal(fake.mutations(), 0);
+  }
+});
+
 test('rollback needs second confirmation and never deletes a non-empty bucket', async () => {
   const fake = fakeStorage({ initial: exactBucket() });
   await assert.rejects(() => run('rollback', fake), /confirm-empty-local-bucket-delete/);
@@ -109,7 +139,7 @@ test('non-loopback targets always abort with no override', async () => {
   const fake = fakeStorage();
   await assert.rejects(() => runStorageMode({
     mode: 'inspect', rawUrl: 'https://hhyvmhgpapyuzjgxfnqv.supabase.co',
-    secret: 'fixture', fetchImpl: fake.fetchImpl,
+    secret: 'fixture', fetchImpl: fake.fetchImpl, policySnapshot: exactPolicies(),
   }), /refusing non-local backend/);
   assert.equal(fake.mutations(), 0);
 });

@@ -87,11 +87,12 @@
     "test:db:torneos:participant-hub": "node scripts/db-integration/torneos-participant-hub.mjs",
     "test:db:torneos:communications": "node scripts/db-integration/torneos-communications.mjs",
     "test:db:torneos:media": "node scripts/db-integration/torneos-media-galleries.mjs",
-    "torneos:staging:validate": "node --test scripts/torneos-staging/readiness.test.mjs scripts/torneos-staging/static-guard.test.mjs scripts/storage/tournament-media-procedure.test.mjs && npm run migrations:guard",
+    "torneos:staging:validate": "node --test scripts/torneos-staging/readiness.test.mjs scripts/torneos-staging/rollback-contract.test.mjs scripts/torneos-staging/static-guard.test.mjs scripts/storage/tournament-media-procedure.test.mjs && npm run migrations:guard",
     "torneos:staging:inspect": "node scripts/staging/run.mjs inspect",
     "torneos:staging:plan": "node scripts/staging/run.mjs plan",
     "torneos:staging:dry-run": "node scripts/staging/run.mjs dry-run",
     "torneos:staging:rollback:simulated": "node scripts/staging/run.mjs rollback --simulate",
+    "test:staging:rollback:local": "node scripts/torneos-staging/verify-rollbacks-local.mjs",
     "test:db:torneos:media-upload": "node scripts/db-integration/torneos-media-upload-pipeline.mjs",
     "test:db:torneos:media-failclosed": "node scripts/db-integration/torneos-media-failclosed.mjs",
     "test:db:torneos:social": "node scripts/db-integration/torneos-social-studio.mjs",
@@ -128,8 +129,8 @@
     "staging:plan": "node scripts/staging/run.mjs plan",
     "staging:dry-run": "node scripts/staging/run.mjs dry-run",
     "staging:static-guard": "node scripts/torneos-staging/static-guard.mjs",
-    "test:staging:readiness": "node --test scripts/torneos-staging/readiness.test.mjs scripts/torneos-staging/static-guard.test.mjs scripts/storage/tournament-media-procedure.test.mjs",
-    "test:staging:guard": "node --test scripts/staging/guard.test.mjs scripts/torneos-staging/readiness.test.mjs scripts/torneos-staging/static-guard.test.mjs scripts/storage/tournament-media-procedure.test.mjs"
+    "test:staging:readiness": "node --test scripts/torneos-staging/readiness.test.mjs scripts/torneos-staging/rollback-contract.test.mjs scripts/torneos-staging/static-guard.test.mjs scripts/storage/tournament-media-procedure.test.mjs",
+    "test:staging:guard": "node --test scripts/staging/guard.test.mjs scripts/torneos-staging/readiness.test.mjs scripts/torneos-staging/rollback-contract.test.mjs scripts/torneos-staging/static-guard.test.mjs scripts/storage/tournament-media-procedure.test.mjs"
   },
   "eslintConfig": {
     "extends": [

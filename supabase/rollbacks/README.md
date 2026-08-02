@@ -1,6 +1,8 @@
 # Rollbacks conservadores de Arma2 Torneos
 
-Estos archivos son contención operativa versionada, no migraciones `down` destructivas. Se ejecutan en orden inverso y sólo después de apagar flags, revocar atestaciones y drenar trabajo. Preservan tablas, filas, objetos de Storage y auditoría.
+Estos archivos son contención operativa versionada, no migraciones `down` destructivas. Se ejecutan en orden inverso y sólo después de apagar flags, detener productores externos y drenar trabajo. Preservan tablas, filas, objetos de Storage y auditoría.
+
+Los rollbacks Multimedia serializan writers antes de comprobar sesiones/jobs y revocan tanto la emisión como la re-atestación de `service_role`. Conservan lectura, auditoría y cleanup para recuperación. El rollback Social revoca las tres APIs cliente y mantiene acceso de servicio para auditoría/restauración.
 
 Precondiciones comunes:
 
@@ -17,4 +19,4 @@ Variantes:
 - **Restauración de release:** después de contener y auditar, volver a desplegar el release Edge/worker anterior registrado en el plan.
 - **Restauración de contrato SQL anterior:** requiere una migración forward nueva, revisada a partir del estado real. No se reejecuta a ciegas una migración histórica sobre datos nuevos.
 
-Validación posterior: `uploadReady=false`, flags apagadas, atestaciones ausentes, cero leases activos, RPCs de escritura rechazadas, bucket privado y datos/auditoría aún presentes.
+Validación posterior: `uploadReady=false`, flags apagadas, atestaciones ausentes, cero leases activos, RPCs de escritura rechazadas, bucket privado y datos/auditoría aún presentes. Los SQL no cambian variables frontend ni plataformas de flags: apagarlas sigue siendo una precondición humana respaldada por el cierre independiente de las APIs.

@@ -9,6 +9,8 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
+import pg from 'pg';
+
 export const STORAGE_CONTRACT = Object.freeze({
   bucket: 'tournament-media',
   public: false,
@@ -16,6 +18,12 @@ export const STORAGE_CONTRACT = Object.freeze({
   allowedMimeTypes: Object.freeze(['image/jpeg', 'image/png', 'image/webp']),
 });
 export const STORAGE_MODES = Object.freeze(['inspect', 'plan', 'dry-run', 'apply', 'verify', 'rollback']);
+export const STORAGE_POLICY_CONTRACT = Object.freeze({
+  tournament_media_service_read: 'SELECT',
+  tournament_media_service_insert: 'INSERT',
+  tournament_media_service_update: 'UPDATE',
+  tournament_media_service_delete: 'DELETE',
+});
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1', '[::1]']);
 
 export class LocalStorageError extends Error {}
@@ -48,6 +56,67 @@ export function validateBucket(snapshot) {
   return true;
 }
 
+const policyText = (policy) => [policy.qual, policy.with_check]
+  .filter(Boolean)
+  .join(' ');
+
+export function validatePolicies(policies) {
+  if (!Array.isArray(policies)) fail('Storage policy snapshot is required');
+  const scoped = policies.filter((policy) => (
+    String(policy.policyname || '').startsWith('tournament_media_')
+    || policyText(policy).includes('tournament-media')
+  ));
+  const expectedNames = Object.keys(STORAGE_POLICY_CONTRACT).sort();
+  const actualNames = scoped.map(({ policyname }) => policyname).sort();
+  if (JSON.stringify(actualNames) !== JSON.stringify(expectedNames)) {
+    fail('Storage policies differ from the exact allowlist');
+  }
+  for (const policy of scoped) {
+    if (String(policy.cmd).toUpperCase() !== STORAGE_POLICY_CONTRACT[policy.policyname]) {
+      fail(`Storage policy command differs for ${policy.policyname}`);
+    }
+    const roles = [...(policy.roles || [])].map(String).sort();
+    if (JSON.stringify(roles) !== JSON.stringify(['service_role'])) {
+      fail(`Storage policy roles differ for ${policy.policyname}`);
+    }
+    if (['SELECT', 'INSERT'].includes(String(policy.cmd).toUpperCase())
+      && !policyText(policy).includes('tournament-media')) {
+      fail(`Storage policy bucket scope differs for ${policy.policyname}`);
+    }
+  }
+  return true;
+}
+
+function assertLocalDatabase(rawUrl) {
+  let url;
+  try { url = new URL(rawUrl); } catch { fail('SUPABASE_DB_URL is invalid.'); }
+  if (!['postgres:', 'postgresql:'].includes(url.protocol) || !LOOPBACK_HOSTS.has(url.hostname)) {
+    fail('SUPABASE_DB_URL must target loopback PostgreSQL; there is no override');
+  }
+  return rawUrl;
+}
+
+export async function inspectPolicies(databaseUrl) {
+  const client = new pg.Client({ connectionString: assertLocalDatabase(databaseUrl) });
+  await client.connect();
+  try {
+    const { rows } = await client.query(`
+      select policyname, cmd, roles, qual, with_check
+      from pg_policies
+      where schemaname = 'storage'
+        and tablename = 'objects'
+        and (
+          policyname like 'tournament_media_%'
+          or coalesce(qual, '') || coalesce(with_check, '') like '%tournament-media%'
+        )
+      order by policyname
+    `);
+    return rows;
+  } finally {
+    await client.end();
+  }
+}
+
 async function storageRequest(fetchImpl, baseUrl, secret, requestPath, init = {}) {
   const response = await fetchImpl(`${baseUrl}/storage/v1${requestPath}`, {
     ...init,
@@ -77,10 +146,12 @@ export async function runStorageMode({
   secret,
   confirmEmptyLocalBucketDelete = false,
   fetchImpl = fetch,
+  policySnapshot,
 }) {
   if (!STORAGE_MODES.includes(mode)) fail(`unknown mode ${mode}`);
   const baseUrl = assertLocal(rawUrl);
   if (!secret) fail('local service credential is required');
+  validatePolicies(policySnapshot);
   const before = await inspect(fetchImpl, baseUrl, secret);
   const plan = {
     mode,
@@ -89,7 +160,8 @@ export async function runStorageMode({
     bucket: STORAGE_CONTRACT,
     current: before.exists ? 'present' : 'absent',
     action: before.exists ? 'verify-exact' : 'create',
-    policyAction: 'verify-via-database-contract-no-replacement',
+    policyAction: 'verify-exact-no-replacement',
+    policies: Object.keys(STORAGE_POLICY_CONTRACT).sort(),
   };
 
   if (mode === 'inspect') return { ...plan, snapshot: before };
@@ -150,6 +222,9 @@ if (isMain) {
     mode,
     rawUrl: process.env.SUPABASE_URL || 'http://127.0.0.1:57321',
     secret: process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY,
+    policySnapshot: await inspectPolicies(
+      process.env.SUPABASE_DB_URL || 'postgresql://postgres:postgres@127.0.0.1:57322/postgres',
+    ),
     confirmEmptyLocalBucketDelete: process.argv.includes('--confirm-empty-local-bucket-delete'),
   }).then((result) => {
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
