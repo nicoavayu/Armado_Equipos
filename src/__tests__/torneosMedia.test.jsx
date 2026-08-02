@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -357,6 +358,188 @@ describe('participant tournament media gallery', () => {
     resolveOld(participantPayload());
     await waitFor(() => {
       expect(screen.queryByText('La noche de la final')).not.toBeInTheDocument();
+    });
+  });
+});
+
+function readyPayload(galleryOverrides = {}) {
+  return adminPayload({
+    storage: {
+      bucket: 'tournament-media',
+      private: true,
+      certified: true,
+      uploadReady: true,
+      requiresStagingGate: false,
+      storageReady: true,
+      signerReady: true,
+      processorReady: true,
+      blockers: [],
+      pixelTranscode: false,
+      antivirusScanning: false,
+      signedUrlTtlSeconds: 300,
+      maxFileBytes: 12582912,
+      maxPixels: 36000000,
+      maxBatchFiles: 40,
+    },
+    galleries: [{
+      id: 'gallery-a',
+      tournamentId: 'tournament-a',
+      title: 'Fecha 1',
+      description: '',
+      status: 'draft',
+      visibility: 'tournament_participants',
+      coverAssetId: null,
+      assets: [],
+      ...galleryOverrides,
+    }],
+  });
+}
+
+describe('media center with a certified pipeline', () => {
+  beforeEach(() => {
+    global.URL.createObjectURL = jest.fn(() => 'blob:preview');
+    global.URL.revokeObjectURL = jest.fn();
+    mockContextService = createAdminService(readyPayload());
+    mockContextService.uploadMediaPhoto = jest.fn();
+    mockContextService.signMediaReadUrls = jest.fn().mockResolvedValue({});
+  });
+
+  test('offers a real upload and reports progress from the transfer, not a timer', async () => {
+    let reportStage;
+    let reportProgress;
+    let finishUpload;
+    mockContextService.uploadMediaPhoto.mockImplementation(
+      ({ onStage, onProgress }) => new Promise((resolve) => {
+        reportStage = onStage;
+        reportProgress = onProgress;
+        finishUpload = resolve;
+      }),
+    );
+    renderAdmin();
+    const input = await screen.findByLabelText('Seleccionar fotos');
+    fireEvent.change(input, {
+      target: { files: [new File(['foto'], 'partido.jpg', { type: 'image/jpeg' })] },
+    });
+
+    const upload = await screen.findByRole('button', { name: 'Subir' });
+    // Nothing pretends to be in progress before the user asks for it.
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+    await userEvent.click(upload);
+
+    await waitFor(() => expect(mockContextService.uploadMediaPhoto).toHaveBeenCalled());
+    expect(mockContextService.uploadMediaPhoto).toHaveBeenCalledWith(
+      expect.objectContaining({ galleryId: 'gallery-a', idempotencyKey: 'key-a' }),
+    );
+
+    await act(async () => {
+      reportStage('uploading');
+      reportProgress(0.42);
+    });
+    const bar = screen.getByRole('progressbar', { name: /Progreso de Foto 01/ });
+    expect(bar).toHaveAttribute('aria-valuenow', '42');
+
+    await act(async () => { reportStage('processing'); });
+    expect(screen.getByText(/Procesando/)).toBeInTheDocument();
+    // Processing is genuinely indeterminate, so no bar is shown for it.
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+
+    await act(async () => {
+      finishUpload({ assetId: 'asset-a', status: 'pending_review' });
+    });
+    expect(await screen.findByText('Pendiente de aprobación')).toBeInTheDocument();
+  });
+
+  test('cancels an in-flight upload and lets the queue retry it', async () => {
+    mockContextService.uploadMediaPhoto
+      .mockImplementationOnce(({ onStage, signal }) => new Promise((resolve, reject) => {
+        onStage('uploading');
+        signal.addEventListener('abort', () => {
+          const error = new Error('Carga cancelada.');
+          error.code = 'cancelled';
+          error.retryable = true;
+          reject(error);
+        });
+      }))
+      .mockResolvedValueOnce({ assetId: 'asset-a', status: 'pending_review' });
+
+    renderAdmin();
+    fireEvent.change(await screen.findByLabelText('Seleccionar fotos'), {
+      target: { files: [new File(['foto'], 'partido.jpg', { type: 'image/jpeg' })] },
+    });
+    await userEvent.click(await screen.findByRole('button', { name: 'Subir' }));
+    await userEvent.click(await screen.findByRole('button', {
+      name: 'Cancelar la carga de Foto 01',
+    }));
+
+    const retry = await screen.findByRole('button', { name: 'Reintentar' });
+    expect(screen.getByText('Carga cancelada.')).toBeInTheDocument();
+    // A consumed intent can never be replayed, so a retry must carry a new key.
+    mockContextService.createIdempotencyKey.mockReturnValue('key-b');
+    await userEvent.click(retry);
+    await waitFor(() => {
+      expect(mockContextService.uploadMediaPhoto).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  test('a rejected file explains itself without naming infrastructure', async () => {
+    const rejection = new Error('El archivo no es una foto JPEG, PNG o WebP real.');
+    rejection.code = 'MEDIA_MIME_MISMATCH';
+    rejection.retryable = false;
+    mockContextService.uploadMediaPhoto.mockRejectedValue(rejection);
+
+    renderAdmin();
+    fireEvent.change(await screen.findByLabelText('Seleccionar fotos'), {
+      target: { files: [new File(['foto'], 'partido.jpg', { type: 'image/jpeg' })] },
+    });
+    await userEvent.click(await screen.findByRole('button', { name: 'Subir' }));
+    expect(await screen.findByText(/no es una foto JPEG/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Reintentar' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/bucket|signer|processor|storage/i)).not.toBeInTheDocument();
+  });
+
+  test('accepts drag and drop and exposes a camera control', async () => {
+    renderAdmin();
+    await screen.findByLabelText('Seleccionar fotos');
+    expect(screen.getByLabelText('Tomar una foto')).toHaveAttribute('capture', 'environment');
+    expect(screen.getByText(/arrastrar y soltar/i)).toBeInTheDocument();
+
+    const panel = document.querySelector('[data-dragging]');
+    fireEvent.dragOver(panel);
+    expect(panel).toHaveAttribute('data-dragging', 'true');
+    fireEvent.drop(panel, {
+      dataTransfer: { files: [new File(['foto'], 'partido.jpg', { type: 'image/jpeg' })] },
+    });
+    expect(await screen.findByText('Foto 01')).toBeInTheDocument();
+    expect(panel).toHaveAttribute('data-dragging', 'false');
+  });
+
+  test('an asset whose variants are missing cannot be moderated yet', async () => {
+    mockContextService = createAdminService(readyPayload({
+      status: 'under_review',
+      assets: [asset('asset-a', { variantsReady: 1 })],
+    }));
+    mockContextService.signMediaReadUrls = jest.fn().mockResolvedValue({});
+    renderAdmin();
+    expect(await screen.findByText('Procesando…')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Aprobar' })).not.toBeInTheDocument();
+  });
+
+  test('thumbnails come from the signer, never from the projection', async () => {
+    mockContextService = createAdminService(readyPayload({
+      assets: [asset('asset-a', {
+        variantsReady: 4, thumbnailUrl: null, gridUrl: null, detailUrl: null,
+      })],
+    }));
+    mockContextService.signMediaReadUrls = jest.fn().mockResolvedValue({
+      'asset-a:thumbnail': 'https://signed.local/asset-a?token=abc',
+    });
+    renderAdmin();
+    await waitFor(() => expect(mockContextService.signMediaReadUrls).toHaveBeenCalledWith(
+      [{ assetId: 'asset-a', kind: 'thumbnail' }],
+      expect.objectContaining({ signal: expect.anything() }),
+    ));
+    await waitFor(() => {
+      expect(document.querySelector('img[src^="https://signed.local/"]')).toBeTruthy();
     });
   });
 });
