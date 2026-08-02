@@ -16,14 +16,16 @@ const response = (status, payload) => ({
   text: async () => payload === null ? '' : JSON.stringify(payload),
 });
 
-const fakeStorage = ({ initial = null, objects = [] } = {}) => {
+const fakeStorage = ({ initial = null, objects = [], missingStatus = 404 } = {}) => {
   let bucket = initial;
   let mutations = 0;
   const fetchImpl = async (url, init = {}) => {
     const parsed = new URL(url);
     const requestPath = parsed.pathname.replace('/storage/v1', '');
     if (requestPath === `/bucket/${STORAGE_CONTRACT.bucket}` && (!init.method || init.method === 'GET')) {
-      return bucket ? response(200, bucket) : response(404, { message: 'not found' });
+      return bucket ? response(200, bucket) : response(missingStatus, missingStatus === 400
+        ? { statusCode: '404', error: 'Bucket not found', message: 'Bucket not found' }
+        : { message: 'not found' });
     }
     if (requestPath === '/bucket' && init.method === 'POST') {
       mutations += 1;
@@ -81,6 +83,13 @@ test('inspect, plan and dry-run never mutate the local fixture', async () => {
   }
 });
 
+test('current local Storage 400/404 absence envelope is recognized narrowly', async () => {
+  const absent = fakeStorage({ missingStatus: 400 });
+  assert.equal((await run('inspect', absent)).current, 'absent');
+  const unexpected = fakeStorage({ missingStatus: 401 });
+  await assert.rejects(() => run('inspect', unexpected), /HTTP 401/);
+});
+
 test('apply creates exact private bucket and is idempotent', async () => {
   const fake = fakeStorage();
   assert.equal((await run('apply', fake)).verified, true);
@@ -105,6 +114,10 @@ test('apply refuses to replace public or mismatched existing configuration', asy
 
 test('every mode rejects missing, unexpected, or client Storage policies before mutation', async () => {
   assert.equal(validatePolicies(exactPolicies()), true);
+  assert.equal(validatePolicies(exactPolicies().map((policy) => ({
+    ...policy,
+    roles: '{service_role}',
+  }))), true);
   for (const mutation of [
     (policies) => { policies.pop(); },
     (policies) => { policies.push({ policyname: 'tournament_media_client_write', cmd: 'INSERT', roles: ['authenticated'], with_check: "bucket_id = 'tournament-media'" }); },

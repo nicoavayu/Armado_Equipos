@@ -75,7 +75,14 @@ export function validatePolicies(policies) {
     if (String(policy.cmd).toUpperCase() !== STORAGE_POLICY_CONTRACT[policy.policyname]) {
       fail(`Storage policy command differs for ${policy.policyname}`);
     }
-    const roles = [...(policy.roles || [])].map(String).sort();
+    const roles = Array.isArray(policy.roles)
+      ? policy.roles.map(String).sort()
+      : String(policy.roles || '')
+        .replace(/^\{|\}$/g, '')
+        .split(',')
+        .map((role) => role.trim().replace(/^"|"$/g, ''))
+        .filter(Boolean)
+        .sort();
     if (JSON.stringify(roles) !== JSON.stringify(['service_role'])) {
       fail(`Storage policy roles differ for ${policy.policyname}`);
     }
@@ -135,7 +142,17 @@ async function storageRequest(fetchImpl, baseUrl, secret, requestPath, init = {}
 
 const inspect = async (fetchImpl, baseUrl, secret) => {
   const response = await storageRequest(fetchImpl, baseUrl, secret, `/bucket/${STORAGE_CONTRACT.bucket}`);
-  if (!response.ok && response.status === 404) return { exists: false, id: STORAGE_CONTRACT.bucket };
+  const absentEnvelope = response.status === 400
+    && String(response.payload?.statusCode) === '404'
+    && (
+      (response.payload?.error === 'Bucket not found'
+        && response.payload?.message === 'Bucket not found')
+      || (response.payload?.error === 'InvalidRequest'
+        && response.payload?.message === 'The related resource does not exist')
+    );
+  if (!response.ok && (response.status === 404 || absentEnvelope)) {
+    return { exists: false, id: STORAGE_CONTRACT.bucket };
+  }
   if (!response.ok) fail(`bucket inspection failed with HTTP ${response.status}`);
   return { exists: true, ...response.payload };
 };
