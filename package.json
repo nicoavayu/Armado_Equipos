@@ -86,6 +86,7 @@
     "test:db:torneos:communications": "node scripts/db-integration/torneos-communications.mjs",
     "test:db:torneos:media": "node scripts/db-integration/torneos-media-galleries.mjs",
     "test:db:torneos:media-upload": "node scripts/db-integration/torneos-media-upload-pipeline.mjs",
+    "test:db:torneos:social": "node scripts/db-integration/torneos-social-studio.mjs",
     "test:db:security": "node scripts/db-integration/security_patch.mjs && node scripts/db-integration/authenticated-rpc-grants.mjs && node --test scripts/security-advisor/response.test.mjs",
     "test:db:grants": "node scripts/db-integration/authenticated-rpc-grants.mjs",
     "test:db:authenticated-rpc-grants": "node scripts/db-integration/authenticated-rpc-grants.mjs",
