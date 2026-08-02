@@ -48,3 +48,13 @@ verify_jwt = true
 # itself, so the platform gateway MUST verify it. Never set this to false.
 [functions.push-auto-match-now]
 verify_jwt = true
+
+# Multimedia Upload. Both are user-scoped: the gateway verifies the JWT and the
+# handlers re-validate it against GoTrue before binding an actor. The
+# attestation/health action on each is additionally gated by
+# TOURNAMENT_MEDIA_ATTESTATION_SECRET.
+[functions.tournament-media-signer]
+verify_jwt = true
+
+[functions.tournament-media-processor]
+verify_jwt = true
