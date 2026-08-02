@@ -1,6 +1,6 @@
 # Runbook operativo: Multimedia Upload y Estudio Social
 
-Estado de esta entrega: **Sistema de preparación certificado localmente; Staging todavía no inspeccionada ni modificada**.
+Estado antes de completar la suite live: **contratos certificados; certificación live local pendiente**. La descripción del PR debe actualizar este estado únicamente después de ejecutar Storage, grants y rollbacks contra un Supabase local efímero.
 
 Este runbook separa inspección, planificación, mutaciones, QA y rollback. Ningún comando único aplica todo. Cada etapa mutante se autoriza por separado y se detiene ante SHA, ref, historial, checksum, configuración o recibo divergente.
 

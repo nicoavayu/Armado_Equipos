@@ -4,7 +4,7 @@
   "name": "arma2-torneos-staging-readiness",
   "status": "locally-certified-staging-uninspected",
   "repository": {
-    "branch": "feature/torneos-staging-readiness",
+    "branch": "feature/torneos-staging-readiness-v2",
     "baseBranch": "epic/arma2-torneos",
     "expectedBaseSha": "e9a43a7bde37039f60e6b7b8e44bb84f8a118b42",
     "expectedEpicSha": "e9a43a7bde37039f60e6b7b8e44bb84f8a118b42",
