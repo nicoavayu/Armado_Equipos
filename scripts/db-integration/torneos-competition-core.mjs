@@ -12,9 +12,25 @@ import pg from 'pg';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..', '..');
 const MIGRATIONS = [
-  '20260724233000_tournament_organization_workspaces.sql',
-  '20260725120000_tournament_competition_core.sql',
-].map((name) => path.join(ROOT, 'supabase', 'migrations', name));
+  path.join(
+    ROOT,
+    'supabase',
+    'migrations_history',
+    '20260724233000_tournament_organization_workspaces.sql',
+  ),
+  path.join(
+    ROOT,
+    'supabase',
+    'migrations_history',
+    '20260725120000_tournament_competition_core.sql',
+  ),
+  path.join(
+    ROOT,
+    'supabase',
+    'migrations',
+    '20260801090000_tournament_context_reads_are_pure.sql',
+  ),
+];
 const PORT = 55300 + Math.floor(Math.random() * 400);
 const DATABASE = 'arma2_torneos_competition';
 const DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'arma2-competition-pg-'));
@@ -480,8 +496,75 @@ async function main() {
       organization_id, user_id, role, status, joined_at
     ) values
       ($1, $2, 'admin', 'active', now()),
-      ($1, $3, 'collaborator', 'active', now())`,
-    [organizationA, USERS.adminA, USERS.collaboratorA],
+      ($1, $3, 'collaborator', 'active', now()),
+      ($1, $4, 'collaborator', 'active', now())`,
+    [organizationA, USERS.adminA, USERS.collaboratorA, USERS.race],
+  );
+
+  console.log('\nLecturas competitivas puras sin preferencia');
+  for (const [label, userId, client] of [
+    ['admin', USERS.adminA, adminA],
+    ['collaborator', USERS.collaboratorA, collaboratorA],
+  ]) {
+    const contexts = [];
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      contexts.push(await value(
+        client,
+        'select public.get_tournament_competition_context($1)',
+        [organizationA],
+      ));
+    }
+    eq(
+      await count(
+        admin,
+        `select count(*) from public.user_tournament_context_preferences
+         where user_id = $1 and organization_id = $2`,
+        [userId, organizationA],
+      ),
+      0,
+      `${label} conserva 0 filas después de diez lecturas/retry`,
+    );
+    eq(
+      contexts[0].preference.activeSeasonId,
+      null,
+      `${label} recibe NULL cuando todavía no hay temporada`,
+    );
+    eq(
+      new Set(contexts.map((context) => JSON.stringify(context))).size,
+      1,
+      `${label} recibe diez fingerprints idénticos`,
+    );
+  }
+  const collaboratorConcurrent = await connect({
+    role: 'authenticated',
+    userId: USERS.collaboratorA,
+  });
+  const concurrentReadResults = await Promise.allSettled([
+    value(
+      collaboratorA,
+      'select public.get_tournament_competition_context($1)',
+      [organizationA],
+    ),
+    value(
+      collaboratorConcurrent,
+      'select public.get_tournament_competition_context($1)',
+      [organizationA],
+    ),
+  ]);
+  eq(
+    concurrentReadResults.filter((result) => result.status === 'fulfilled').length,
+    2,
+    'dos lecturas competitivas concurrentes responden correctamente',
+  );
+  eq(
+    await count(
+      admin,
+      `select count(*) from public.user_tournament_context_preferences
+       where user_id = $1 and organization_id = $2`,
+      [USERS.collaboratorA, organizationA],
+    ),
+    0,
+    'dos lecturas competitivas concurrentes no crean filas',
   );
 
   const seasonA = await createSeason(
@@ -550,6 +633,32 @@ async function main() {
     '42000000-0000-4000-8000-000000000015',
   );
   ok(Boolean(adminSeason.id), 'admin puede crear temporadas en su organización');
+  const seasonOnlyContext = await value(
+    collaboratorA,
+    'select public.get_tournament_competition_context($1)',
+    [organizationA],
+  );
+  ok(
+    [seasonA.id, adminSeason.id].includes(
+      seasonOnlyContext.preference.activeSeasonId,
+    ),
+    'sin torneos el getter calcula una temporada válida',
+  );
+  eq(
+    seasonOnlyContext.preference.activeTournamentId,
+    null,
+    'el fallback de temporada no inventa un torneo',
+  );
+  eq(
+    await count(
+      admin,
+      `select count(*) from public.user_tournament_context_preferences
+       where user_id = $1 and organization_id = $2`,
+      [USERS.collaboratorA, organizationA],
+    ),
+    0,
+    'el fallback de temporada no persiste preferencia',
+  );
   await value(
     ownerA,
     `select public.update_tournament_season(
@@ -661,6 +770,20 @@ async function main() {
     'el fallo tardío tampoco deja datos parciales',
   );
 
+  await expectError(
+    () => createTournament(
+      ownerA,
+      organizationA,
+      seasonA.id,
+      'Modalidad inexistente',
+      'modalidad-inexistente',
+      '42000000-0000-4000-8000-000000000017',
+      'football_10',
+    ),
+    /TORNEOS_INVALID_MODALITY/,
+    'una modalidad fuera del catálogo sigue siendo rechazada',
+  );
+
   const tournamentA = await createTournament(
     ownerA,
     organizationA,
@@ -695,6 +818,107 @@ async function main() {
     ),
     1,
     'la creación atómica incluye disciplina',
+  );
+  const collaboratorFallbacks = [];
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    collaboratorFallbacks.push(await value(
+      collaboratorA,
+      'select public.get_tournament_competition_context($1)',
+      [organizationA],
+    ));
+  }
+  eq(
+    collaboratorFallbacks[0].preference.activeTournamentId,
+    tournamentA.id,
+    'collaborator recibe el torneo autorizado como fallback efectivo',
+  );
+  eq(
+    new Set(collaboratorFallbacks.map((context) => JSON.stringify(context))).size,
+    1,
+    'diez fallbacks competitivos conservan el mismo fingerprint',
+  );
+  eq(
+    await count(
+      admin,
+      `select count(*) from public.user_tournament_context_preferences
+       where user_id = $1 and organization_id = $2`,
+      [USERS.collaboratorA, organizationA],
+    ),
+    0,
+    'los fallbacks competitivos repetidos no crean preferencia',
+  );
+  const ownerPreferenceBeforeReads = await value(
+    admin,
+    `select row_to_json(preference)::text
+     from public.user_tournament_context_preferences preference
+     where user_id = $1 and organization_id = $2`,
+    [USERS.ownerA, organizationA],
+  );
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    await value(
+      ownerA,
+      'select public.get_tournament_competition_context($1)',
+      [organizationA],
+    );
+  }
+  eq(
+    await value(
+      admin,
+      `select row_to_json(preference)::text
+       from public.user_tournament_context_preferences preference
+       where user_id = $1 and organization_id = $2`,
+      [USERS.ownerA, organizationA],
+    ),
+    ownerPreferenceBeforeReads,
+    'la preferencia competitiva owner válida queda byte-idéntica',
+  );
+  const setterRaceClients = await Promise.all([
+    connect({ role: 'authenticated', userId: USERS.race }),
+    connect({ role: 'authenticated', userId: USERS.race }),
+  ]);
+  const setterRaceResults = await Promise.allSettled([
+    value(
+      setterRaceClients[0],
+      'select public.set_active_tournament_context($1, $2, $3)',
+      [organizationA, seasonA.id, tournamentA.id],
+    ),
+    value(
+      setterRaceClients[1],
+      'select public.set_active_tournament_context($1, $2, null)',
+      [organizationA, adminSeason.id],
+    ),
+  ]);
+  eq(
+    setterRaceResults.filter((result) => result.status === 'fulfilled').length,
+    2,
+    'dos setters competitivos concurrentes completan',
+  );
+  eq(
+    await count(
+      admin,
+      `select count(*) from public.user_tournament_context_preferences
+       where user_id = $1 and organization_id = $2`,
+      [USERS.race, organizationA],
+    ),
+    1,
+    'la PK limita dos setters competitivos a una fila',
+  );
+  ok(
+    await value(
+      admin,
+      `select (active_season_id = $3 and active_tournament_id = $4)
+          or (active_season_id = $5 and active_tournament_id is null)
+       from public.user_tournament_context_preferences
+       where user_id = $1 and organization_id = $2`,
+      [
+        USERS.race,
+        organizationA,
+        seasonA.id,
+        tournamentA.id,
+        adminSeason.id,
+      ],
+    ),
+    'el resultado concurrente es una selección completa y coherente',
   );
   const repeatedTournament = await createTournament(
     ownerA,
@@ -1107,6 +1331,44 @@ async function main() {
     [organizationA],
   );
   eq(afterArchive.tournaments.length, 0, 'el contexto no devuelve torneos archivados');
+
+  await admin.query(
+    `insert into public.user_tournament_context_preferences (
+       user_id, organization_id, active_season_id, active_tournament_id
+     ) values ($1, $2, $3, $4)
+     on conflict (user_id, organization_id) do update
+     set active_season_id = excluded.active_season_id,
+         active_tournament_id = excluded.active_tournament_id`,
+    [USERS.collaboratorA, organizationA, seasonA.id, tournamentA.id],
+  );
+  const invalidPreferenceBeforeRead = await value(
+    admin,
+    `select row_to_json(preference)::text
+     from public.user_tournament_context_preferences preference
+     where user_id = $1 and organization_id = $2`,
+    [USERS.collaboratorA, organizationA],
+  );
+  const invalidPreferenceContext = await value(
+    collaboratorA,
+    'select public.get_tournament_competition_context($1)',
+    [organizationA],
+  );
+  eq(
+    invalidPreferenceContext.preference.activeTournamentId,
+    null,
+    'un torneo archivado produce un fallback seguro sin torneo',
+  );
+  eq(
+    await value(
+      admin,
+      `select row_to_json(preference)::text
+       from public.user_tournament_context_preferences preference
+       where user_id = $1 and organization_id = $2`,
+      [USERS.collaboratorA, organizationA],
+    ),
+    invalidPreferenceBeforeRead,
+    'la preferencia competitiva inválida y updated_at quedan byte-idénticos',
+  );
 
   await value(
     ownerA,

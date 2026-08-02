@@ -1,0 +1,153 @@
+# Runbook de identidades QA de Torneos
+
+Estado: diseño y automatización local listos. Ningún paso remoto fue ejecutado.
+
+## Contrato de identidades
+
+`QAIdentityMap` contiene exactamente `owner`, `admin`, `collaborator`, `delegate`,
+`player` y `outsider`. Cada entrada declara:
+
+- `auth_user_id`: UUID real devuelto por Supabase Auth;
+- `expected_email`: email QA esperado;
+- `logical_role`: uno de los seis roles;
+- `projected_relations`: relaciones exactas permitidas por el manifest.
+
+El mapa rechaza roles faltantes, UUIDs/emails duplicados, relaciones distintas a
+las esperadas, campos desconocidos y cualquier campo con forma de contraseña,
+access token, refresh token, service-role o secret key. Puede entrar por variables
+`QA_IDENTITY_<ROLE>_AUTH_USER_ID/EMAIL` o por `QA_IDENTITY_MAP_FILE`. El archivo
+debe estar ignorado por Git; el preparador local sólo lo escribe con modo `0600`,
+en una ruta nueva ya ignorada, indicada por `QA_IDENTITY_MAP_OUTPUT`.
+
+Los reportes muestran rol, relaciones y fingerprints truncados del UUID y email.
+Nunca muestran el UUID o email completos.
+
+## Manifest base y resolución
+
+1. `buildBaseManifest()` produce el dataset determinístico con placeholders
+   internos por rol y sin depender de Auth.
+2. `QAIdentityMap` aporta los UUID reales y emails esperados.
+3. `resolveCanonicalManifest()` reemplaza únicamente los placeholders de Auth,
+   calcula el hash SHA-256 sobre las 586 filas de datos ya resueltas y agrega el
+   marker como fila 587.
+
+El marker `qa.seed.applied` persiste:
+
+- `seed_key`;
+- `manifest_hash` resuelto;
+- `dataset_version`;
+- `identity_map_fingerprint` (UUIDs, hashes de email, roles y relaciones);
+- `created_at`;
+- `creation_key`;
+- `ownership_fingerprint`;
+- cantidad esperada de filas y tablas.
+
+Una ejecución existente con otro fingerprint devuelve
+`identity_map_changed`. Nunca reemplaza usuarios o relaciones. Un cambio legítimo
+de UUID antes de materializar genera un nuevo hash resuelto; no se exige conservar
+el hash antiguo.
+
+## Preflight conectado
+
+Antes de insertar, el runner verifica:
+
+- existencia única de las seis identidades por UUID y email;
+- `raw_app_meta_data.qa_seed_key` igual a `torneos-demo-v4` o a los predecesores
+  explícitos `torneos-demo-v3`/`torneos-demo-v2`, y `qa_role` exacto. Esto conserva Auth intacto
+  durante el versionado sin aceptar identidades personales o ajenas;
+- perfil sincronizado en `public.usuarios`;
+- ausencia de relaciones previas para una creación nueva;
+- igualdad exacta entre las relaciones derivadas del manifest y
+  `QA_IDENTITY_RELATIONS` antes de conectar, más igualdad materializada cuando
+  el marker ya existe;
+- cero relaciones para `outsider`;
+- tablas, columnas, identidades determinísticas y natural keys;
+- 587 filas en 32 tablas;
+- contenido materializado exacto, normalizando sólo representaciones equivalentes
+  de `date`, JSON y enteros de PostgreSQL.
+
+## Cleanup con integridad activa
+
+El código ya no usa ni cambia `session_replication_role`. Mantiene el marker hasta
+el último `DELETE`, usa orden inverso explícito, transacción SERIALIZABLE,
+advisory lock, identidades exactas y verificaciones de ownership, filas ajenas y
+cero leftovers antes y después del commit.
+
+El catálogo local confirmó estos guards relevantes:
+
+- `tournament_audit_append_only`;
+- `tournament_match_events_history_guard` y
+  `tournament_match_events_no_delete`;
+- `tournament_match_operation_players_history_guard`;
+- `tournament_match_operations_history_guard`;
+- `tournament_match_outcomes_history_guard`;
+- `tournament_match_reviews_no_delete`;
+- `tournament_match_scores_history_guard`;
+- `tournament_standings_revisions_no_delete`;
+- los guards `*_immutable` de proyecciones y disciplina.
+
+El cleanup default devuelve `active_append_only_cleanup_guards` antes de mutar.
+El apply existe exclusivamente para PostgreSQL local ya validado: toma locks
+`ACCESS EXCLUSIVE`, deshabilita sólo esos triggers de DELETE dentro de la misma
+transacción, conserva FKs y triggers internos, elimina las identidades exactas y
+restaura todos los guards antes del commit. No existe cleanup remoto ni se agregó
+una migración.
+
+## Creación futura en Staging (no ejecutada)
+
+### A. Crear usuarios QA
+
+1. Autorizar sólo esta etapa y confirmar ref `hhyvmhgpapyuzjgxfnqv`.
+2. Ejecutar un proceso server-side con `supabase.auth.admin.createUser`; no pasar
+   el campo `id`, para que Auth genere UUID v4.
+3. Ingresar service-role y contraseñas QA por prompt sin echo o secret environment
+   efímero. No escribirlos en logs, shell history ni identity map.
+4. Para identidades nuevas, enviar `app_metadata` con
+   `qa_seed_key=torneos-demo-v4` y `qa_role` exacto. Las identidades V3/V2 existentes
+   se aceptan sin modificar Auth.
+5. Confirmar por UUID que el trigger creó los seis perfiles `public.usuarios`.
+6. Guardar sólo UUID, email esperado, rol y relaciones en un archivo `0600`
+   ignorado por Git.
+
+### B. Resolver manifest y ejecutar preflight
+
+Autorizar lectura conectada. Resolver el manifest con el mapa, registrar sólo
+fingerprints/hash y exigir resultado `safe_to_create`. No aplicar filas.
+
+### C. Aplicar seed
+
+Autorizar por separado la transacción SERIALIZABLE. Aplicar exactamente 587 filas
+en 32 tablas; no hay upsert. Reejecutar y exigir `skip`.
+
+### D. Generar storage states
+
+Autorizar por separado. Leer credenciales desde input seguro, iniciar sesión por
+rol y escribir estados sólo bajo `playwright/.auth/` o `tests/.auth/`, ambos
+ignorados. No incluir service-role en Playwright.
+
+### E. Ejecutar pruebas
+
+Autorizar la suite contra Staging con los storage states. No ejecutar en
+Production y no imprimir emails, tokens ni datos personales.
+
+### F. Cleanup del dataset
+
+V3 conserva un cleanup legacy exacto y V4 tiene su cleanup separado, pero no
+existe cleanup remoto autorizado en esta versión. Cualquier transición V3→V4 o
+cleanup de Staging requiere autorización posterior explícita; el bypass local no
+se habilita para Staging.
+
+### G. Eliminar usuarios QA
+
+Sólo después de F:
+
+1. comprobar cero referencias;
+2. revocar globalmente cada sesión conocida usando sus tokens en memoria;
+3. eliminar cada usuario con `auth.admin.deleteUser`;
+4. confirmar eliminación del perfil sincronizado;
+5. borrar los storage states y credenciales temporales.
+
+Los JWT de acceso ya emitidos pueden seguir siendo criptográficamente válidos
+hasta expirar. Para una revocación estricta, los endpoints sensibles deben además
+validar `session_id` contra sesiones activas o se debe esperar el TTL máximo antes
+de considerar cerrada la etapa G.

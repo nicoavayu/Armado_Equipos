@@ -1,5 +1,6 @@
 import logger from './logger';
 import { supabase } from '../supabase';
+import { insertNotificationsSecure } from './notificationHelpers';
 
 /**
  * Crea notificaciones para llamar a votar a todos los jugadores de un partido
@@ -28,32 +29,33 @@ export const createCallToVoteNotifications = async (matchData) => {
     
     if (recipients.length === 0) return [];
     
-    // construir payload (usar nombres de columnas REALES de la tabla)
-    const rows = recipients.map((user_id) => ({
-      user_id,
+    // SEC: routed — one server-content create_notification per recipient
+    // (fallback only if the RPC is absent). The base payload below is kept as
+    // the legacy fallback row shape.
+    const baseData = {
+      target_route: 'voting_view',
+      target_params: { partido_id: matchData.id },
+      action: { label: 'Ir a Voting View', route: 'voting_view' },
+      matchId: matchData.id,
+      matchCode: matchData.codigo,
+      matchDate: matchData.fecha,
+      matchTime: matchData.hora,
+      matchVenue: matchData.sede,
+    };
+    const { sent } = await insertNotificationsSecure(recipients.map((user_id) => ({
       type: 'pre_match_vote',
-      title: '¡Armemos los equipos!',
-      message: 'Calificá a los jugadores para armar el partido más parejo.',
-      data: {
-        target_route: 'voting_view',
-        target_params: { partido_id: matchData.id },
-        action: { label: 'Ir a Voting View', route: 'voting_view' },
-        matchId: matchData.id,
-        matchCode: matchData.codigo,
-        matchDate: matchData.fecha,
-        matchTime: matchData.hora,
-        matchVenue: matchData.sede,
+      recipientId: user_id,
+      context: { match_id: matchData.id },
+      legacyRow: {
+        user_id,
+        type: 'pre_match_vote',
+        title: '¡Armemos los equipos!',
+        message: 'Calificá a los jugadores para armar el partido más parejo.',
+        data: baseData,
+        read: false,
       },
-      read: false,
-    }));
-
-    const { data, error } = await supabase
-      .from('notifications')
-      .insert(rows)
-      .select();
-
-    if (error) throw error;
-    return data || [];
+    })));
+    return sent;
   } catch (error) {
     logger.error('Error creando notificaciones de llamado a votar:', error);
     return [];

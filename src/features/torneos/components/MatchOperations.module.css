@@ -37,6 +37,10 @@
   text-transform: uppercase;
 }
 
+.scoreboard b {
+  font-size: clamp(2rem, 4vw, 3rem);
+}
+
 .matchHeader h1 {
   font-size: clamp(2.2rem, 5vw, 4.1rem);
 }
@@ -1322,4 +1326,61 @@
   .matchRow {
     transition: none;
   }
+}
+
+/* Arma2 Personal visual alignment */
+.page {
+  max-width: 1180px;
+  font-family: inherit;
+}
+
+.pageHeader,
+.matchHeader {
+  align-items: center;
+}
+
+.pageHeader h1,
+.matchHeader h1 {
+  font-size: clamp(2.25rem, 5vw, 3.75rem);
+  line-height: 1;
+  letter-spacing: 0.015em;
+}
+
+.primaryButton {
+  min-height: 48px;
+  border-radius: var(--torneos-control-radius);
+  background: var(--torneos-cta);
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: var(--torneos-cta-shadow);
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+.primaryButton:hover:not(:disabled) {
+  transform: scale(1.02);
+}
+
+.metrics article,
+.matchRail,
+.detailCard,
+.closureCard,
+.eventsSection,
+.historyPanel,
+.reviewPanel,
+.squadPanel,
+.versionCard,
+.playerMatchCard {
+  background: var(--torneos-card-bg);
+  border-color: var(--torneos-border);
+  border-radius: var(--torneos-radius);
+  box-shadow: var(--torneos-elevated-shadow);
+}
+
+.filterBar input,
+.filterBar select,
+.searchField,
+.scoreInputs input,
+.eventComposer input,
+.eventComposer select,
+.eventComposer textarea {
+  border-radius: var(--torneos-control-radius);
 }

@@ -2,9 +2,9 @@ name: Prelaunch Quality Gate
 
 on:
   push:
-    branches: [main, prelaunch-hardening]
+    branches: [main, prelaunch-hardening, epic/arma2-torneos]
   pull_request:
-    branches: [main]
+    branches: [main, epic/arma2-torneos]
 
 jobs:
   quality:
@@ -38,6 +38,14 @@ jobs:
 
       - name: Run PostgreSQL integration suite
         run: npm run test:db
+
+      - name: Start canonical Supabase local
+        run: npx supabase start
+
+      - name: Run RPC grant and Security Advisor parser suite
+        run: |
+          trap 'npx supabase stop --no-backup' EXIT
+          npm run test:db:security
 
       - name: Run lint
         run: npm run lint

@@ -183,3 +183,30 @@
     animation-duration: 1500ms;
   }
 }
+
+/* Arma2 Personal visual alignment */
+.card {
+  background: var(--torneos-card-bg);
+  border-color: var(--torneos-border);
+  border-radius: var(--torneos-radius);
+  box-shadow: var(--torneos-elevated-shadow);
+  font-family: inherit;
+}
+
+.header > span,
+.organizationIcon {
+  border-radius: 12px;
+}
+
+.list button,
+.error button {
+  border-radius: var(--torneos-control-radius);
+  font-family: inherit;
+}
+
+.list strong,
+.list small,
+.state,
+.error {
+  font-family: inherit;
+}

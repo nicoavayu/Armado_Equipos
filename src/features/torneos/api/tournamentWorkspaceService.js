@@ -1,5 +1,9 @@
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '../../../services/api/supabase';
+import {
+  signTournamentMediaReadUrls,
+  uploadTournamentMediaPhoto,
+} from './tournamentMediaUploadClient';
 
 const ERROR_MESSAGES = {
   TORNEOS_AUTH_REQUIRED: 'Tu sesión venció. Volvé a iniciar sesión para continuar.',
@@ -1654,6 +1658,69 @@ export async function reportTournamentMediaAsset({
   }), 'No pudimos enviar el reporte.');
 }
 
+/**
+ * Runs one photo through the whole pipeline. The session RPCs are injected so
+ * the upload client never reaches back into this module, and so tests can
+ * drive the flow without a Supabase client.
+ */
+export async function uploadTournamentMediaPhotoToGallery(options) {
+  return uploadTournamentMediaPhoto({
+    ...options,
+    requestUploadSession: requestTournamentMediaUploadSession,
+    cancelUploadSession: cancelTournamentMediaUploadSession,
+  });
+}
+
+export async function loadTournamentSocialStudioContext(organizationId) {
+  return unwrapRpc(await supabase.rpc('get_tournament_social_studio_context', {
+    p_organization_id: organizationId,
+  }), 'No pudimos abrir el Estudio Social.');
+}
+
+export async function loadTournamentSocialSnapshot({
+  organizationId,
+  tournamentId,
+  categoryId,
+  phaseId,
+  piece,
+  roundId = null,
+  groupId = null,
+}) {
+  return unwrapRpc(await supabase.rpc('get_tournament_social_snapshot', {
+    p_organization_id: organizationId,
+    p_tournament_id: tournamentId,
+    p_category_id: categoryId,
+    p_phase_id: phaseId,
+    p_piece: piece,
+    p_round_id: roundId,
+    p_group_id: groupId,
+  }), 'No pudimos preparar esta pieza con datos oficiales.');
+}
+
+export async function setTournamentSocialPermission({
+  organizationId,
+  userId,
+  canExport,
+}) {
+  return unwrapRpc(await supabase.rpc('set_tournament_social_permission', {
+    p_organization_id: organizationId,
+    p_user_id: userId,
+    p_can_export: canExport,
+  }), 'No pudimos actualizar el permiso del Estudio Social.');
+}
+
+/**
+ * Team crests live in the public `team-crests` bucket, so they resolve to a
+ * plain URL. Private photographs never come through here: they are signed by
+ * the Multimedia signer, which is what enforces publication and consent.
+ */
+export function resolveTeamShieldUrl(shieldPath) {
+  if (!shieldPath) return null;
+  if (/^https?:\/\//i.test(shieldPath)) return shieldPath;
+  const { data } = supabase.storage.from('team-crests').getPublicUrl(shieldPath);
+  return data?.publicUrl || null;
+}
+
 export async function handleTournamentMediaReport({
   reportId,
   status,
@@ -1791,5 +1858,11 @@ export const tournamentWorkspaceService = Object.freeze({
   loadPublishedMedia: loadPublishedTournamentMedia,
   reportMediaAsset: reportTournamentMediaAsset,
   handleMediaReport: handleTournamentMediaReport,
+  uploadMediaPhoto: uploadTournamentMediaPhotoToGallery,
+  signMediaReadUrls: signTournamentMediaReadUrls,
+  loadSocialStudioContext: loadTournamentSocialStudioContext,
+  loadSocialSnapshot: loadTournamentSocialSnapshot,
+  setSocialPermission: setTournamentSocialPermission,
+  resolveTeamShieldUrl,
   createIdempotencyKey,
 });

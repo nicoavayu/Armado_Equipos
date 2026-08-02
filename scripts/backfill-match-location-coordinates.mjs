@@ -84,13 +84,11 @@ if (!VALID_PROVIDERS.has(PROVIDER)) {
 
 const readHeaders = {
   apikey: SUPABASE_READ_KEY,
-  Authorization: `Bearer ${SUPABASE_READ_KEY}`,
 };
 
 const writeHeaders = SUPABASE_WRITE_KEY
   ? {
     apikey: SUPABASE_WRITE_KEY,
-    Authorization: `Bearer ${SUPABASE_WRITE_KEY}`,
   }
   : null;
 

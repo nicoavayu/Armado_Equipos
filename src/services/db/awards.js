@@ -1,5 +1,6 @@
 import logger from '../../utils/logger';
 import { supabase } from '../../lib/supabaseClient';
+import { insertNotificationSecure } from '../../utils/notificationHelpers';
 import {
   getAwardCounterField,
   normalizeAwardType,
@@ -77,25 +78,34 @@ const insertAwardWonNotification = async ({
   const awardLabel = awardLabelByType(awardType);
   const resultsUrl = `/resultados-encuesta/${matchId}?showAwards=1`;
 
-  const { error } = await supabase
-    .from('notifications')
-    .insert([{
-      user_id: userId,
-      partido_id: Number(matchId),
+  // SEC: routed — server-content RPC create_notification (fallback only if absent)
+  let error = null;
+  try {
+    await insertNotificationSecure({
       type: AWARD_WON_NOTIFICATION_TYPE,
-      title: `Ganaste un premio: ${awardLabel}`,
-      message: `Ganaste "${awardLabel}" en el partido "${matchName}".`,
-      data: {
-        match_id: String(matchId),
-        match_name: matchName,
-        award_type: awardType,
-        award_label: awardLabel,
-        link: resultsUrl,
-        resultsUrl,
+      recipientId: userId,
+      context: { match_id: Number(matchId), award_type: awardType },
+      legacyRow: {
+        user_id: userId,
+        partido_id: Number(matchId),
+        type: AWARD_WON_NOTIFICATION_TYPE,
+        title: `Ganaste un premio: ${awardLabel}`,
+        message: `Ganaste "${awardLabel}" en el partido "${matchName}".`,
+        data: {
+          match_id: String(matchId),
+          match_name: matchName,
+          award_type: awardType,
+          award_label: awardLabel,
+          link: resultsUrl,
+          resultsUrl,
+        },
+        read: false,
+        created_at: new Date().toISOString(),
       },
-      read: false,
-      created_at: new Date().toISOString(),
-    }]);
+    });
+  } catch (e) {
+    error = e;
+  }
 
   if (error) throw error;
 };

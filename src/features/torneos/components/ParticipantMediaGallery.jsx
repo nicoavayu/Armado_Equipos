@@ -244,6 +244,7 @@ export default function ParticipantMediaGallery({
   const triggerRef = useRef(null);
   const [state, setState] = useState({ status: 'loading', data: null, error: '' });
   const [activeIndex, setActiveIndex] = useState(null);
+  const [signedUrls, setSignedUrls] = useState({});
 
   const load = useCallback(async () => {
     const requestId = requestRef.current + 1;
@@ -268,6 +269,9 @@ export default function ParticipantMediaGallery({
   }, [categoryId, matchId, service, tournamentId]);
 
   useEffect(() => {
+    // Signed URLs are scoped to the query that produced them; a new tournament
+    // or category must not reuse a grant issued for the previous one.
+    setSignedUrls({});
     load();
     return () => {
       requestRef.current += 1;
@@ -280,8 +284,39 @@ export default function ParticipantMediaGallery({
       ...asset,
       galleryId: gallery.id,
       galleryTitle: gallery.title,
+      // The projection carries no URL: it never has and never will. Whatever
+      // this participant is allowed to see arrives from the signer, briefly.
+      thumbnailUrl: asset.thumbnailUrl || signedUrls[`${asset.id}:thumbnail`] || null,
+      gridUrl: asset.gridUrl || signedUrls[`${asset.id}:grid`] || null,
+      detailUrl: asset.detailUrl || signedUrls[`${asset.id}:detail`] || null,
     }))
-  )), [galleries]);
+  )), [galleries, signedUrls]);
+
+  const assetIds = useMemo(
+    () => assets.filter((asset) => !asset.gridUrl).map((asset) => asset.id).join(','),
+    [assets],
+  );
+
+  useEffect(() => {
+    const ids = assetIds ? assetIds.split(',') : [];
+    if (ids.length === 0) return undefined;
+    if (state.data?.delivery?.status !== 'signed_urls') return undefined;
+    if (typeof service.signMediaReadUrls !== 'function') return undefined;
+    const controller = new AbortController();
+    service.signMediaReadUrls(
+      ids.flatMap((assetId) => [
+        { assetId, kind: 'grid' },
+        { assetId, kind: 'detail' },
+      ]).slice(0, 60),
+      { signal: controller.signal },
+    ).then((urls) => {
+      if (!controller.signal.aborted) setSignedUrls((current) => ({ ...current, ...urls }));
+    }).catch(() => {
+      // Without a URL the grid falls back to the protected placeholder, which
+      // is the correct behaviour for an unauthorised or unprocessed asset.
+    });
+    return () => controller.abort();
+  }, [assetIds, service, state.data?.delivery?.status]);
 
   const closeLightbox = () => {
     setActiveIndex(null);

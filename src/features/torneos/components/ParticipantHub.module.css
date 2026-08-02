@@ -747,3 +747,70 @@
     transition-duration: .01ms !important;
   }
 }
+
+/* Arma2 Personal visual alignment */
+.hubPage {
+  --hub-accent: var(--torneos-purple);
+  --hub-accent-secondary: var(--torneos-accent);
+  --hub-panel: var(--torneos-surface);
+  --hub-panel-strong: var(--torneos-surface-strong);
+  --hub-border: var(--torneos-border);
+  --hub-muted: var(--torneos-muted);
+  width: min(1180px, 100%);
+  margin: 0 auto;
+  font-family: inherit;
+}
+
+.myTournamentsHero,
+.tournamentHero,
+.featurePanel,
+.nextMatchPanel,
+.rankingPanel,
+.myTeamPanel,
+.captainPanel,
+.matchCard,
+.participantTableWrap,
+.teamDirectory > article,
+.disciplineDirectory > article,
+.matchDetailHero {
+  background: var(--torneos-card-bg);
+  border-color: var(--torneos-border);
+  border-radius: var(--torneos-radius);
+  box-shadow: var(--torneos-elevated-shadow);
+}
+
+.myTournamentsHero {
+  min-height: 230px;
+  align-items: center;
+}
+
+.myTournamentsHero h1,
+.tournamentHero h1 {
+  font-size: clamp(2.4rem, 5.5vw, 4rem);
+  line-height: 1;
+}
+
+.heroNumber {
+  font-size: clamp(3rem, 9vw, 6rem);
+  line-height: 0.9;
+  opacity: 0.58;
+}
+
+.cardCta,
+.panelLink,
+.captainCta,
+.manageLink,
+.matchActions a,
+.tournamentHeroActions a {
+  min-height: 48px;
+  border-radius: var(--torneos-control-radius);
+  background: var(--torneos-cta);
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: var(--torneos-cta-shadow);
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+.categorySelect,
+.projectionFilters select {
+  border-radius: var(--torneos-control-radius);
+}

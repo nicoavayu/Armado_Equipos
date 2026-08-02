@@ -9,6 +9,7 @@ import {
   Home,
   Settings2,
   ShieldCheck,
+  Sparkles,
   Trophy,
   UsersRound,
 } from 'lucide-react';
@@ -21,6 +22,8 @@ import {
   useLocation,
   useParams,
 } from 'react-router-dom';
+import Logo from '../../../Logo.png';
+import { useKeyboard } from '../../../hooks/useKeyboard';
 import { torneosFeatureFlags } from '../config/featureFlags';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
 import CreateOrganizationPage from './CreateOrganizationPage';
@@ -47,6 +50,7 @@ import TournamentHubPage from './TournamentHubPage';
 import MyCommunicationsPage from './MyCommunicationsPage';
 import CommunicationsAdminPage from './CommunicationsAdminPage';
 import MediaAdminPage from './MediaAdminPage';
+import SocialStudioPage from './SocialStudioPage';
 import styles from './TorneosShell.module.css';
 
 const organizationNavigation = [
@@ -63,6 +67,7 @@ const organizationNavigation = [
   { label: 'Competencia', path: 'competencia', icon: Medal },
   { label: 'Comunicaciones', path: 'comunicaciones', icon: Megaphone },
   { label: 'Multimedia', path: 'multimedia', icon: Images },
+  { label: 'Estudio Social', path: 'estudio-social', icon: Sparkles, flag: 'socialContentGenerator' },
   { label: 'Configuración', path: 'configuracion', icon: Settings2 },
 ];
 
@@ -87,47 +92,56 @@ function TeamEntryRedirect() {
   );
 }
 
-function OrganizationNavigation({ organization, mobile = false }) {
+function OrganizationNavigation({ organization, mobile = false, keyboardHidden = false }) {
   const location = useLocation();
   if (!organization) return null;
   const base = `/torneos/organizacion/${organization.id}`;
   return (
     <nav
-      className={mobile ? styles.mobileNavigation : styles.desktopNavigation}
+      className={
+        mobile
+          ? `${styles.mobileNavigation} ${keyboardHidden ? styles.mobileNavigationHidden : ''}`
+          : styles.desktopNavigation
+      }
       aria-label={mobile ? 'Navegación móvil de la organización' : 'Navegación de la organización'}
+      aria-hidden={mobile && keyboardHidden ? 'true' : undefined}
     >
-      {organizationNavigation.map(({
-        label, path, icon: Icon, relatedPaths = [],
-      }) => (
-        <NavLink
-          key={path}
-          to={`${base}/${path}`}
-          className={({ isActive }) => {
-            const related = relatedPaths.some((candidate) => (
-              location.pathname.startsWith(`${base}/${candidate}`)
-            ));
-            return `${styles.navigationItem} ${isActive || related ? styles.navigationItemActive : ''}`;
-          }}
-        >
-          <span className={styles.navigationIcon} aria-hidden="true">
-            <Icon size={mobile ? 20 : 18} strokeWidth={1.9} />
-          </span>
-          <span>{label}</span>
-        </NavLink>
-      ))}
+      {organizationNavigation
+        // A flagged surface must not even appear in the nav when it is off.
+        .filter(({ flag }) => !flag || torneosFeatureFlags[flag])
+        .map(({
+          label, path, icon: Icon, relatedPaths = [],
+        }) => (
+          <NavLink
+            key={path}
+            to={`${base}/${path}`}
+            className={({ isActive }) => {
+              const related = relatedPaths.some((candidate) => (
+                location.pathname.startsWith(`${base}/${candidate}`)
+              ));
+              return `${styles.navigationItem} ${isActive || related ? styles.navigationItemActive : ''}`;
+            }}
+          >
+            <span className={styles.navigationIcon} aria-hidden="true">
+              <Icon size={mobile ? 20 : 18} strokeWidth={1.9} />
+            </span>
+            <span>{label}</span>
+          </NavLink>
+        ))}
     </nav>
   );
 }
 
 export default function TorneosShell() {
   const location = useLocation();
+  const { isKeyboardOpen } = useKeyboard();
   const { activeOrganization } = useTorneosWorkspace();
   const isOrganizationRoute = location.pathname.includes('/torneos/organizacion/');
   const organizationRelativePath = isOrganizationRoute
     ? location.pathname.split('/').slice(4).join('/')
     : '';
   const currentNavigation = organizationNavigation.find(({ path }) => (
-    ['torneos', 'equipos', 'fixture', 'partidos', 'competencia', 'comunicaciones', 'multimedia'].includes(path)
+    ['torneos', 'equipos', 'fixture', 'partidos', 'competencia', 'comunicaciones', 'multimedia', 'estudio-social'].includes(path)
       ? (
         organizationRelativePath.startsWith(path)
         || (path === 'torneos' && organizationRelativePath.startsWith('temporadas'))
@@ -149,9 +163,8 @@ export default function TorneosShell() {
 
       <aside className={styles.sidebar}>
         <Link className={styles.brand} to="/torneos" aria-label="Arma2 Torneos">
-          <span className={styles.brandMark}>A2</span>
+          <img className={styles.brandLogo} src={Logo} alt="" />
           <span className={styles.brandLockup}>
-            <strong>ARMA2</strong>
             <small>TORNEOS</small>
           </span>
         </Link>
@@ -172,7 +185,7 @@ export default function TorneosShell() {
       <section className={styles.workspace}>
         <header className={styles.topbar}>
           <Link className={styles.mobileBrand} to="/torneos">
-            <span className={styles.brandMark}>A2</span>
+            <img className={styles.brandLogo} src={Logo} alt="" />
             <span className={styles.mobileTitle}>
               <small>Arma2 Torneos</small>
               <strong>{activeOrganization?.name || 'Tus espacios'}</strong>
@@ -271,6 +284,9 @@ export default function TorneosShell() {
               <Route path="competencia/disciplina" element={<CompetitionCenterPage mode="discipline" />} />
               <Route path="comunicaciones" element={<CommunicationsAdminPage />} />
               <Route path="multimedia" element={<MediaAdminPage />} />
+              {torneosFeatureFlags.socialContentGenerator && (
+                <Route path="estudio-social" element={<SocialStudioPage />} />
+              )}
               <Route path="configuracion" element={<OrganizationSettingsPage />} />
               <Route path="miembros" element={<OrganizationMembersPage />} />
             </Route>
@@ -320,6 +336,7 @@ export default function TorneosShell() {
         <OrganizationNavigation
           organization={isOrganizationRoute ? activeOrganization : null}
           mobile
+          keyboardHidden={isKeyboardOpen}
         />
       </section>
 

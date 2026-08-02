@@ -87,10 +87,16 @@ export const uploadFoto = async (file, jugador) => {
   const { file: fileToUpload } = await prepareImageForUpload(file);
 
   const fileExt = fileToUpload.name.split('.').pop() || 'jpg';
-  const fileName = `${jugador.uuid}_${Date.now()}.${fileExt}`;
+  // Owner-scoped folder + unpredictable random name (no overwrite). The folder
+  // is the uploader's own id, which matches the jugadores-fotos owner-scoped
+  // Storage policy (name LIKE auth.uid() || '%').
+  const randomName = (typeof crypto !== 'undefined' && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+  const fileName = `${jugador.uuid}/${randomName}.${fileExt}`;
   const { error: uploadError } = await supabase.storage
     .from('jugadores-fotos')
-    .upload(fileName, fileToUpload, { upsert: true });
+    .upload(fileName, fileToUpload, { upsert: false });
   if (uploadError) throw uploadError;
 
   const { data } = supabase.storage

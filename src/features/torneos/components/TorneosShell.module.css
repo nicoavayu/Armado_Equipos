@@ -1,30 +1,37 @@
 :global(html),
 :global(body) {
-  background: #07070d;
+  background: var(--surface-0, #0c0a1d);
 }
 
 .shell {
-  --torneos-bg: #09090f;
-  --torneos-surface: rgba(20, 18, 31, 0.9);
-  --torneos-surface-strong: #171522;
-  --torneos-border: rgba(255, 255, 255, 0.1);
-  --torneos-border-strong: rgba(161, 126, 255, 0.38);
+  --torneos-bg: var(--surface-0, #0c0a1d);
+  --torneos-surface: rgba(20, 16, 41, 0.92);
+  --torneos-surface-strong: var(--surface-1, #141029);
+  --torneos-card-bg: linear-gradient(160deg, rgba(29, 23, 64, 0.94), rgba(20, 16, 41, 0.96));
+  --torneos-control-bg: rgba(255, 255, 255, 0.045);
+  --torneos-border: var(--surface-border, rgba(255, 255, 255, 0.1));
+  --torneos-border-strong: var(--surface-border-strong, rgba(148, 134, 255, 0.35));
   --torneos-copy: #f7f3ff;
-  --torneos-muted: #aaa4ba;
-  --torneos-purple: #885cff;
-  --torneos-purple-bright: #aa88ff;
+  --torneos-muted: rgba(255, 255, 255, 0.64);
+  --torneos-purple: var(--violet-primary, #6a43ff);
+  --torneos-purple-bright: var(--violet-soft, #8b7cff);
+  --torneos-accent: var(--accent-magenta, #ec007d);
   --torneos-green: #4de2a7;
   --torneos-danger: #ff6b84;
-  --torneos-radius: 18px;
+  --torneos-radius: 20px;
+  --torneos-control-radius: 16px;
+  --torneos-cta: linear-gradient(135deg, #8b5cff, #6a43ff 52%, #5430e0);
+  --torneos-cta-shadow: 0 6px 22px rgba(106, 67, 255, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  --torneos-elevated-shadow: 0 18px 44px rgba(5, 3, 16, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   min-height: 100dvh;
   display: grid;
-  grid-template-columns: 282px minmax(0, 1fr);
+  grid-template-columns: 264px minmax(0, 1fr);
   color: var(--torneos-copy);
   background:
-    radial-gradient(circle at 80% -10%, rgba(107, 66, 255, 0.24), transparent 36rem),
-    radial-gradient(circle at 20% 100%, rgba(76, 32, 155, 0.16), transparent 34rem),
+    radial-gradient(circle at 78% -12%, rgba(106, 67, 255, 0.22), transparent 34rem),
+    radial-gradient(circle at 18% 100%, rgba(236, 0, 125, 0.07), transparent 32rem),
     var(--torneos-bg);
-  font-family: "Oswald", "Arial Narrow", Arial, sans-serif;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   isolation: isolate;
 }
 
@@ -93,42 +100,25 @@
   text-decoration: none;
 }
 
-.brandMark {
-  width: 44px;
+.brandLogo {
+  width: 60px;
   height: 44px;
-  display: grid;
-  place-items: center;
   flex: 0 0 auto;
-  color: #fff;
-  background:
-    linear-gradient(140deg, #9d78ff 0%, #6a36ea 56%, #411aa1 100%);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 13px 3px 13px 3px;
-  box-shadow: 0 10px 28px rgba(108, 55, 235, 0.36);
-  font-family: "Bebas Neue", Impact, sans-serif;
-  font-size: 24px;
-  line-height: 1;
-  letter-spacing: 0.04em;
+  object-fit: contain;
+  filter: drop-shadow(0 8px 18px rgba(106, 67, 255, 0.28));
 }
 
 .brandLockup {
   display: flex;
   flex-direction: column;
-  line-height: 0.9;
-}
-
-.brandLockup strong {
-  font-family: "Bebas Neue", Impact, sans-serif;
-  font-size: 27px;
-  letter-spacing: 0.08em;
+  line-height: 1;
 }
 
 .brandLockup small {
-  margin-top: 6px;
   color: var(--torneos-purple-bright);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.28em;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.22em;
 }
 
 .switcher {
@@ -325,7 +315,7 @@
   color: #b9b3c5;
   text-decoration: none;
   border: 1px solid transparent;
-  border-radius: 10px;
+  border-radius: 14px;
   transition: color 180ms ease, background 180ms ease, border-color 180ms ease;
 }
 
@@ -337,8 +327,9 @@
 
 .navigationItemActive {
   color: #fff;
-  background: linear-gradient(90deg, rgba(136, 92, 255, 0.2), rgba(136, 92, 255, 0.04));
-  border-color: rgba(161, 126, 255, 0.22);
+  background: linear-gradient(160deg, rgba(139, 92, 255, 0.28), rgba(106, 67, 255, 0.12));
+  border-color: rgba(148, 134, 255, 0.34);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.09), 0 0 18px rgba(106, 67, 255, 0.16);
 }
 
 .navigationIcon {
@@ -446,7 +437,7 @@
 
 .main {
   width: 100%;
-  max-width: 1480px;
+  max-width: 1280px;
   flex: 1;
   align-self: center;
   padding: clamp(22px, 3.2vw, 46px);
@@ -474,31 +465,30 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 42px;
+  align-items: center;
+  gap: 32px;
 }
 
 .landingHero {
   position: relative;
-  max-width: 900px;
-  padding: clamp(26px, 5vw, 68px);
+  width: 100%;
+  max-width: 980px;
+  padding: clamp(28px, 5vw, 58px);
+  text-align: center;
   overflow: hidden;
   background:
     linear-gradient(135deg, rgba(137, 89, 255, 0.18), rgba(18, 16, 27, 0.94) 56%),
     var(--torneos-surface);
   border: 1px solid var(--torneos-border-strong);
-  border-radius: 30px 8px 30px 8px;
-  box-shadow: 0 32px 100px rgba(0, 0, 0, 0.32);
+  border-radius: 28px;
+  box-shadow: var(--torneos-elevated-shadow);
 }
 
 .landingHero::after {
-  content: "A2";
+  content: "";
   position: absolute;
-  right: -18px;
-  bottom: -70px;
-  color: rgba(255, 255, 255, 0.025);
-  font-family: "Bebas Neue", Impact, sans-serif;
-  font-size: clamp(180px, 28vw, 360px);
-  line-height: 1;
+  inset: 0;
+  background: radial-gradient(circle at 50% 0%, rgba(139, 124, 255, 0.12), transparent 48%);
   pointer-events: none;
 }
 
@@ -507,7 +497,7 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  margin-bottom: 24px;
+  margin: 0 auto 20px;
   padding: 8px 11px;
   color: #d9ccff;
   background: rgba(132, 85, 255, 0.1);
@@ -525,13 +515,13 @@
 .pageHeader h1 {
   position: relative;
   z-index: 1;
-  max-width: 780px;
-  margin: 0;
+  max-width: 760px;
+  margin: 0 auto;
   font-family: "Bebas Neue", Impact, sans-serif;
-  font-size: clamp(48px, 7.2vw, 94px);
+  font-size: clamp(38px, 5.8vw, 68px);
   font-weight: 400;
-  line-height: 0.9;
-  letter-spacing: 0.005em;
+  line-height: 0.98;
+  letter-spacing: 0.015em;
   text-wrap: balance;
 }
 
@@ -547,9 +537,9 @@
   position: relative;
   z-index: 1;
   max-width: 640px;
-  margin: 22px 0 0;
+  margin: 18px auto 0;
   color: var(--torneos-muted);
-  font-family: Arial, sans-serif;
+  font-family: inherit;
   font-size: clamp(15px, 1.6vw, 18px);
   line-height: 1.65;
 }
@@ -560,7 +550,8 @@
   display: flex;
   flex-wrap: wrap;
   gap: 11px;
-  margin-top: 30px;
+  justify-content: center;
+  margin-top: 26px;
 }
 
 .primaryButton,
@@ -573,30 +564,31 @@
   justify-content: center;
   gap: 9px;
   padding: 0 18px;
-  font: 700 14px/1 "Oswald", Arial, sans-serif;
+  font: 700 15px/1 Inter, ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: 0.01em;
   text-decoration: none;
-  border-radius: 10px 3px 10px 3px;
+  border-radius: var(--torneos-control-radius);
   cursor: pointer;
   transition: transform 180ms ease, box-shadow 180ms ease, opacity 180ms ease;
 }
 
 .primaryButton {
   color: #fff;
-  background: linear-gradient(135deg, #956dff, #6733e6);
-  border: 1px solid #a985ff;
-  box-shadow: 0 12px 28px rgba(104, 51, 230, 0.28);
+  background: var(--torneos-cta);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: var(--torneos-cta-shadow);
 }
 
 .secondaryButton {
   color: var(--torneos-copy);
-  background: rgba(255, 255, 255, 0.045);
+  background: var(--torneos-control-bg);
   border: 1px solid var(--torneos-border);
 }
 
 .primaryButton:hover:not(:disabled),
 .secondaryButton:hover:not(:disabled),
 .dangerButton:hover:not(:disabled) {
-  transform: translateY(-2px);
+  transform: scale(1.02);
 }
 
 .primaryButton:disabled,
@@ -1165,9 +1157,10 @@
   font-size: 12px;
   font-weight: 700;
   text-decoration: none;
-  background: linear-gradient(135deg, rgba(142, 95, 255, 0.9), rgba(91, 47, 203, 0.9));
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 9px;
+  background: var(--torneos-cta);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--torneos-control-radius);
+  box-shadow: var(--torneos-cta-shadow);
 }
 
 .futureSection {
@@ -1498,10 +1491,9 @@
     text-decoration: none;
   }
 
-  .mobileBrand .brandMark {
-    width: 44px;
+  .mobileBrand .brandLogo {
+    width: 50px;
     height: 44px;
-    font-size: 21px;
   }
 
   .mobileTitle {
@@ -1565,18 +1557,25 @@
   .mobileNavigation {
     position: fixed;
     z-index: 40;
-    right: 12px;
-    bottom: max(12px, env(safe-area-inset-bottom));
-    left: 12px;
+    right: max(12px, calc((100vw - 560px) / 2));
+    bottom: max(env(safe-area-inset-bottom), 8px);
+    left: max(12px, calc((100vw - 560px) / 2));
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 4px;
     padding: 6px;
-    background: rgba(21, 18, 31, 0.96);
-    border: 1px solid var(--torneos-border-strong);
-    border-radius: 17px 6px 17px 6px;
-    box-shadow: 0 18px 55px rgba(0, 0, 0, 0.5);
+    background: rgba(18, 14, 40, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 22px;
+    box-shadow: 0 18px 44px rgba(5, 3, 16, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.08);
     backdrop-filter: blur(18px);
+    transition: transform 200ms ease, opacity 200ms ease;
+  }
+
+  .mobileNavigationHidden {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(130%);
   }
 
   .mobileNavigation .navigationItem {
@@ -1586,7 +1585,15 @@
     justify-content: center;
     gap: 2px;
     padding: 4px;
-    font-size: 10px;
+    color: rgba(255, 255, 255, 0.64);
+    font-size: 10.5px;
+    border-radius: 16px;
+  }
+
+  .mobileNavigation .navigationItemActive {
+    color: #fff;
+    background: linear-gradient(160deg, rgba(139, 92, 255, 0.32), rgba(106, 67, 255, 0.14));
+    border-color: rgba(148, 134, 255, 0.35);
   }
 
   .mobileNavigation .navigationIcon {
@@ -1612,7 +1619,7 @@
 
 @media (max-width: 680px) {
   .landingHero {
-    border-radius: 22px 6px 22px 6px;
+    border-radius: 22px;
   }
 
   .dashboardHero {
@@ -1736,5 +1743,59 @@
   .workspaceButton,
   .navigationItem {
     transition: none;
+  }
+}
+
+/* Final Arma2 Personal alignment for shared Torneos surfaces. */
+.dashboardHero,
+.panel,
+.futureSection,
+.organizationForm,
+.settingsCard,
+.dangerCard,
+.organizationCards article,
+.summaryGrid article {
+  background: var(--torneos-card-bg);
+  border-color: var(--torneos-border);
+  border-radius: var(--torneos-radius);
+  box-shadow: var(--torneos-elevated-shadow);
+}
+
+.dashboardHero h1,
+.pageHeader h1,
+.formIntro h1 {
+  font-size: clamp(2.25rem, 5vw, 3.75rem);
+  line-height: 1;
+}
+
+.dashboardHero p,
+.statePanel span,
+.sectionHeading p,
+.dangerCard p,
+.futureGrid small {
+  font-family: inherit;
+}
+
+.organizationForm input,
+.organizationForm select,
+.organizationForm textarea,
+.settingsCard input,
+.settingsCard select,
+.settingsCard textarea {
+  border-radius: var(--torneos-control-radius);
+}
+
+@media (max-width: 900px) {
+  .mobileNavigation {
+    grid-auto-columns: minmax(72px, 1fr);
+    grid-auto-flow: column;
+    grid-template-columns: none;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+
+  .mobileNavigation::-webkit-scrollbar {
+    display: none;
   }
 }

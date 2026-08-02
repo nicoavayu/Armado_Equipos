@@ -6,7 +6,7 @@ const migrationPath = path.join(
   '..',
   '..',
   'supabase',
-  'migrations',
+  'migrations_history',
   '20260615201614_fix_team_member_permissions_for_account_deletion.sql',
 );
 

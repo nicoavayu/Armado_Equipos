@@ -228,6 +228,8 @@ const scheduleSurveyReminderNotifications = async ({
 
   if (reminderRows.length === 0) return { inserted: 0 };
 
+  // SEC: dead — reached only via checkAndNotifyMatchFinish, which has no callers
+  // (prod survey notifications come from the DB cron fanout). Does not run at Stage B.
   const { error: bulkInsertError } = await supabase
     .from('notifications')
     .insert(reminderRows);
@@ -246,6 +248,7 @@ const scheduleSurveyReminderNotifications = async ({
 
   let inserted = 0;
   for (const row of reminderRows) {
+    // SEC: dead — see above (checkAndNotifyMatchFinish has no callers).
     // eslint-disable-next-line no-await-in-loop
     const { error: singleInsertError } = await supabase.from('notifications').insert([row]);
     if (!singleInsertError) {
@@ -341,7 +344,7 @@ export const checkAndNotifyMatchFinish = async (partido) => {
     };
 
     // Intentar camino canónico (RPC fanout para todos los logueados del partido).
-    const { data: rpcData, error: rpcError } = await supabase.rpc('enqueue_partido_notification', {
+    const { data: rpcData, error: rpcError } = await supabase.rpc('enqueue_partido_notification_as_actor', {
       p_partido_id: partidoId,
       p_type: 'survey_start',
       p_title: title,
@@ -411,6 +414,8 @@ export const checkAndNotifyMatchFinish = async (partido) => {
       send_at: nowIso,
     }));
 
+    // SEC: dead — reached only via checkAndNotifyMatchFinish (no callers); the
+    // primary path is the DEFINER enqueue_partido_notification RPC. Not run at Stage B.
     // Insert notifications in bulk first; if one FK fails, retry by user to avoid blocking valid recipients.
     const { error: insertError } = await supabase
       .from('notifications')
@@ -438,6 +443,7 @@ export const checkAndNotifyMatchFinish = async (partido) => {
     let sentCount = 0;
     let skippedCount = 0;
     for (const notification of notifications) {
+      // SEC: dead — see above (checkAndNotifyMatchFinish has no callers).
       const { error: singleError } = await supabase
         .from('notifications')
         .insert([notification]);

@@ -3,7 +3,7 @@ const path = require('path');
 
 const migrationPath = path.join(
   process.cwd(),
-  'supabase/migrations/20260617120000_directed_team_challenges.sql',
+  'supabase/migrations_history/20260617120000_directed_team_challenges.sql',
 );
 
 const sql = fs.readFileSync(migrationPath, 'utf8');

@@ -197,6 +197,9 @@ export const ensureChallengeResultSurveyNotificationsForUser = async (userId, { 
 
   if (rowsToInsert.length === 0) return { inserted: 0, skipped: true, reason: 'already_exists' };
 
+  // SEC: self — ensureChallengeResultSurveyNotificationsForUser(userId) notifies
+  // the user about their OWN pending challenge-result surveys (user_id = userId,
+  // the current user); survives the Stage B self-insert policy.
   const { data, error } = await supabase
     .from('notifications')
     .insert(rowsToInsert)

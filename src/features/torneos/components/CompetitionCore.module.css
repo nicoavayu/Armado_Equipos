@@ -1487,3 +1487,86 @@
     transition: none;
   }
 }
+
+/* Arma2 Personal visual alignment */
+.competitionPage,
+.formPage,
+.wizardPage {
+  max-width: 1180px;
+  font-family: inherit;
+}
+
+.competitionHeader,
+.formHeader,
+.wizardHeader {
+  align-items: center;
+}
+
+.competitionHeader h1,
+.formHeader h1,
+.wizardHeader h1,
+.reviewHero h1 {
+  font-size: clamp(2.25rem, 5vw, 3.75rem);
+  line-height: 1;
+}
+
+.competitionHeader p,
+.formHeader p,
+.wizardHeader p {
+  font-family: inherit;
+}
+
+.primaryAction,
+.secondaryAction,
+.ghostAction,
+.dangerAction {
+  min-height: 48px;
+  border-radius: var(--torneos-control-radius);
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.94rem;
+}
+
+.primaryAction {
+  background: var(--torneos-cta);
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: var(--torneos-cta-shadow);
+}
+
+.secondaryAction,
+.ghostAction {
+  color: var(--torneos-copy);
+  background: var(--torneos-control-bg);
+  border-color: var(--torneos-border);
+}
+
+.primaryAction:hover:not(:disabled),
+.secondaryAction:hover:not(:disabled),
+.ghostAction:hover:not(:disabled),
+.dangerAction:hover:not(:disabled) {
+  transform: scale(1.02);
+}
+
+.wizardCanvas,
+.sectionBlock,
+.lifecyclePanel,
+.checklistPanel,
+.reviewHero,
+.reviewSummary,
+.categoryForm,
+.categoryList,
+.inlineSettings,
+.warningBox {
+  background: var(--torneos-card-bg);
+  border-color: var(--torneos-border);
+  border-radius: var(--torneos-radius);
+  box-shadow: var(--torneos-elevated-shadow);
+}
+
+.seasonForm input,
+.seasonForm select,
+.inputGrid input,
+.inputGrid select,
+.inputGrid textarea,
+.categoryForm input {
+  border-radius: var(--torneos-control-radius);
+}

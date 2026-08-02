@@ -3,7 +3,7 @@ import path from 'path';
 
 const migrationPath = path.resolve(
   process.cwd(),
-  'supabase/migrations/20260703150623_transfer_match_admin.sql',
+  'supabase/migrations_history/20260703150623_transfer_match_admin.sql',
 );
 
 describe('transfer_match_admin migration', () => {

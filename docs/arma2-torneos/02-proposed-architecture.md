@@ -70,17 +70,27 @@ El contexto de workspace obtiene organizaciones, membresías, capacidades y pref
 
 1. La RPC toma el usuario exclusivamente de `auth.uid()`.
 2. Filtra memberships `active` y organizaciones `active`.
-3. Si la preferencia dejó de ser válida, la restablece a `personal`.
+3. Si la preferencia falta o dejó de ser válida, devuelve `personal` como
+   default efectivo sin insertar, reparar ni actualizar la preferencia.
 4. El cliente no muestra datos institucionales hasta recibir esa respuesta.
 5. `localStorage` conserva sólo un hint versionado posterior a la validación; nunca concede acceso.
-6. Cambiar de organización persiste mediante `set_tournament_workspace_preference()`.
+6. Sólo un cambio explícito de organización persiste mediante
+   `set_tournament_workspace_preference()`.
 
 Datos remotos deberán usar claves que incluyan organización/torneo para impedir contaminación entre espacios.
 
+Las cuatro preferencias observadas durante el smoke previo pueden permanecer:
+las filas de contexto competitivo de `admin` y `collaborator`, y las preferencias
+personales de workspace de `delegate` y `player`, fueron creadas legítimamente
+por el comportamiento anterior. No están duplicadas, no conceden privilegios y
+no afectan este contrato de lectura pura. Eliminarlas o modificarlas remotamente
+requiere una autorización de limpieza independiente.
+
 El contexto competitivo implementado repite el mismo patrón con
 `get_tournament_competition_context()`. Limpia datos privados mientras valida,
-ignora respuestas fuera de orden y persiste temporada/torneo mediante una
-preferencia separada y autoritativa. Las keys lógicas contienen siempre
+ignora respuestas fuera de orden y calcula un fallback determinista sin
+persistirlo. Sólo `set_active_tournament_context()` persiste temporada/torneo en
+la preferencia separada y autoritativa. Las keys lógicas contienen siempre
 organización, temporada y torneo.
 
 ## Backend implementado

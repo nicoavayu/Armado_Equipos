@@ -90,7 +90,6 @@ jobs:
           http_code=$(curl --silent --show-error \
             --request POST "$PUSH_SENDER_URL" \
             --header "Content-Type: application/json" \
-            --header "Authorization: Bearer $SERVICE_ROLE_KEY" \
             --header "apikey: $SERVICE_ROLE_KEY" \
             --header "x-push-sender-secret: $PUSH_SENDER_SECRET" \
             --data "$payload" \

@@ -230,6 +230,10 @@ describe('public WhatsApp guest match invitation flow', () => {
     );
 
     const request = global.fetch.mock.calls[0][1];
+    expect(request.headers).toEqual(expect.objectContaining({
+      apikey: 'anon-test-key',
+    }));
+    expect(request.headers).not.toHaveProperty('Authorization');
     expect(JSON.parse(request.body)).toEqual(expect.objectContaining({
       partido_id: MATCH_ID,
       codigo: MATCH_CODE,

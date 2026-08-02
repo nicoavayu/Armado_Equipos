@@ -1,6 +1,7 @@
 import logger from '../utils/logger';
 import { supabase } from '../supabase';
 import { requestImmediatePushDispatch } from './pushDispatchService';
+import { isMissingRpcError } from '../utils/backendFallback';
 
 const normalizeName = (value, fallback = 'Un jugador') => {
   const raw = String(value || '').trim();
@@ -83,10 +84,19 @@ const directInsertNotifications = async ({
   message,
   payload = {},
   recipients = [],
+  sourceError = null,
 }) => {
   const matchIdNumber = toMatchId(matchId);
   if (!matchIdNumber || !Array.isArray(recipients) || recipients.length === 0) {
     return { ok: false, reason: 'no_recipients' };
+  }
+
+  // SEC: rpc-primary — enqueue_partido_notification is the DEFINER path. This
+  // cross-user direct insert is allowed ONLY as a pre-deploy fallback, i.e. when
+  // that RPC is not defined yet (PGRST202). After Stage B it would be denied by
+  // RLS, so we never attempt it for any other error.
+  if (!isMissingRpcError(sourceError)) {
+    return { ok: false, reason: 'rpc_error_not_missing' };
   }
 
   const nowIso = new Date().toISOString();
@@ -102,6 +112,8 @@ const directInsertNotifications = async ({
   }));
 
   try {
+    // SEC: rpc-primary — only reached when the enqueue RPC is missing (gated by
+    // the isMissingRpcError check above); never runs once Stage B is applied.
     const { error } = await supabase
       .from('notifications')
       .insert(notifications);
@@ -141,7 +153,7 @@ const enqueueAdminNotification = async ({
   if (!matchIdNumber) return { ok: false, reason: 'invalid_match_id' };
 
   try {
-    const { error } = await supabase.rpc('enqueue_partido_notification', {
+    const { error } = await supabase.rpc('enqueue_partido_notification_as_actor', {
       p_partido_id: matchIdNumber,
       p_type: type,
       p_title: title,
@@ -174,6 +186,7 @@ const enqueueAdminNotification = async ({
           direct_insert_reason: 'enqueue_partido_notification_rpc_error',
         },
         recipients,
+        sourceError: error,
       });
 
       if (fallbackResult.ok) return { ok: true, reason: fallbackResult.reason };
@@ -205,6 +218,7 @@ const enqueueAdminNotification = async ({
         direct_insert_reason: 'enqueue_partido_notification_unexpected_error',
       },
       recipients,
+      sourceError: error,
     });
 
     if (fallbackResult.ok) return { ok: true, reason: fallbackResult.reason };
@@ -263,6 +277,7 @@ const enqueueParticipantNotification = async ({
         direct_insert_reason: fallbackReason,
       },
       recipients,
+      sourceError,
     });
     if (directResult.ok) {
       return { ok: true, reason: 'direct_insert_fallback' };
@@ -277,7 +292,7 @@ const enqueueParticipantNotification = async ({
   };
 
   try {
-    const { error } = await supabase.rpc('enqueue_match_participant_notification', {
+    const { error } = await supabase.rpc('enqueue_match_participant_notification_as_actor', {
       p_partido_id: matchIdNumber,
       p_type: type,
       p_title: title,

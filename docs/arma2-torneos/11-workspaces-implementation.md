@@ -135,9 +135,10 @@ Los helpers `is_tournament_organization_member()` y `has_tournament_organization
 - obtiene sólo organizaciones activas del usuario;
 - incluye rol y capacidades;
 - valida la preferencia;
-- descarta preferencias revocadas o archivadas;
-- inicializa la preferencia sin colisionar ante dos cargas concurrentes;
-- vuelve a `personal` sin revelar datos del tenant anterior.
+- proyecta como `personal` las preferencias ausentes, revocadas o archivadas;
+- no inserta, actualiza ni repara preferencias durante una lectura;
+- vuelve a `personal` sin revelar datos del tenant anterior ni cambiar la fila
+  almacenada.
 
 ### `is_tournament_organization_slug_available`
 
@@ -145,7 +146,9 @@ Comprueba disponibilidad sin devolver datos de la organización. Exige sesión, 
 
 ### `set_tournament_workspace_preference`
 
-Permite `personal` o una organización activa con `workspace.access`. Reemplazar `organization_id` en DevTools no supera la validación.
+Permite `personal` o una organización activa con `workspace.access`. Es el único
+RPC que persiste esta selección; reemplazar `organization_id` en DevTools no
+supera la validación.
 
 ### `update_tournament_organization`
 

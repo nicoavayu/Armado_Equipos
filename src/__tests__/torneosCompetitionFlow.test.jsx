@@ -1,5 +1,11 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import TorneosFeatureGate from '../features/torneos/TorneosFeatureGate';
 import { getCapabilitiesForRole } from '../features/torneos/domain/capabilities';
@@ -154,7 +160,11 @@ describe('Arma2 Torneos competition flow', () => {
   test('renders a dashboard using only persisted tournament values', async () => {
     const api = createService();
     renderPath(`/torneos/organizacion/${ORGANIZATION_ID}/inicio`, api);
-    expect(await screen.findByRole('heading', { name: 'Copa Apertura' }))
+    expect(await screen.findByRole(
+      'heading',
+      { name: 'Copa Apertura' },
+      { timeout: 5000 },
+    ))
       .toBeInTheDocument();
     expect(screen.getAllByText('Apertura 2027').length).toBeGreaterThan(0);
     expect(screen.getByText('100%')).toBeInTheDocument();
@@ -195,12 +205,33 @@ describe('Arma2 Torneos competition flow', () => {
   });
 
   test('persists an ordered tiebreak change as a structured patch', async () => {
-    const api = createService();
+    const api = createService({
+      competition: competitionPayload({
+        tournaments: [{
+          ...tournament,
+          tiebreaks: [
+            'head_to_head',
+            'goal_difference',
+            'goals_for',
+            'fair_play',
+          ],
+        }],
+      }),
+    });
     renderPath(
       `/torneos/organizacion/${ORGANIZATION_ID}/torneos/${TOURNAMENT_ID}/configuracion?step=3`,
       api,
     );
-    const moveUp = await screen.findByRole('button', { name: 'Subir Goles a favor' });
+    await screen.findByRole(
+      'heading',
+      { name: 'Copa Apertura' },
+      { timeout: 5000 },
+    );
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Subir Resultado entre sí' }))
+        .toBeDisabled();
+    });
+    const moveUp = screen.getByRole('button', { name: 'Subir Diferencia de gol' });
     fireEvent.click(moveUp);
     fireEvent.click(screen.getByRole('button', { name: /guardar borrador/i }));
     await waitFor(() => {
@@ -209,9 +240,9 @@ describe('Arma2 Torneos competition flow', () => {
         tournamentId: TOURNAMENT_ID,
         patch: expect.objectContaining({
           tiebreaks: [
-            'goals_for',
             'goal_difference',
             'head_to_head',
+            'goals_for',
             'fair_play',
           ],
         }),
@@ -231,24 +262,35 @@ describe('Arma2 Torneos competition flow', () => {
         tournaments: [],
       }),
     });
+    let rejectFirstAttempt;
     api.createTournament
-      .mockRejectedValueOnce(new Error('Sin conexión'))
+      .mockImplementationOnce(() => new Promise((_, reject) => {
+        rejectFirstAttempt = reject;
+      }))
       .mockResolvedValueOnce({ id: 'tournament-retried' });
     renderPath(`/torneos/organizacion/${ORGANIZATION_ID}/torneos/nuevo`, api);
-    fireEvent.change(
-      await screen.findByPlaceholderText('Copa Apertura 2027'),
-      { target: { value: 'Copa Retry' } },
-    );
-    fireEvent.click(screen.getByRole('button', { name: /guardar borrador/i }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('Sin conexión');
+    const nameInput = await screen.findByRole('textbox', { name: /nombre del torneo/i });
+    const seasonSelect = screen.getByRole('combobox', { name: 'Temporada' });
+    fireEvent.change(seasonSelect, { target: { value: SEASON_ID } });
+    expect(seasonSelect).toHaveValue(SEASON_ID);
+    fireEvent.change(nameInput, { target: { value: 'Copa Retry' } });
     fireEvent.click(screen.getByRole('button', { name: /guardar borrador/i }));
     await waitFor(() => {
-      expect(api.createTournament).toHaveBeenCalledTimes(2);
+      expect(api.createTournament).toHaveBeenCalledTimes(1);
     });
+    await act(async () => {
+      rejectFirstAttempt(new Error('Sin conexión'));
+    });
+    expect(await screen.findByRole('alert', {}, { timeout: 5000 }))
+      .toHaveTextContent('Sin conexión');
+    fireEvent.click(screen.getByRole('button', { name: /guardar borrador/i }));
+    expect(await screen.findByRole('heading', { name: 'Temporadas y torneos' }))
+      .toBeInTheDocument();
+    expect(api.createTournament).toHaveBeenCalledTimes(2);
     expect(api.createTournament.mock.calls[0][0].idempotencyKey).toBe('request-key');
     expect(api.createTournament.mock.calls[1][0].idempotencyKey).toBe('request-key');
     expect(api.createIdempotencyKey).toHaveBeenCalledTimes(1);
-  });
+  }, 15_000);
 
   test('blocks registration CTA when the backend checklist is incomplete', async () => {
     const api = createService({

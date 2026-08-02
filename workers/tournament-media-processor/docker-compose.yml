@@ -1,0 +1,52 @@
+# Local certification stack for the Multimedia worker.
+#
+# `docker compose up` brings up ClamAV and the worker against whatever
+# SUPABASE_URL the environment names — intended for `supabase start` on the
+# developer's own machine. It is NEVER pointed at Staging or Production from
+# here: those environments get the worker through their own deploy, which is
+# out of scope for this repository.
+
+services:
+  clamd:
+    # Pinned to a supported release, on the `-debian` variant: it is the only
+    # one published for arm64, so this comes up on Apple Silicon as well as on
+    # x86. (1.3.x is end-of-life and no longer resolves on Docker Hub at all.)
+    image: clamav/clamav:1.4.5-debian
+    environment:
+      CLAMAV_NO_MILTERD: "true"
+      CLAMAV_NO_CLAMD: "false"
+      CLAMAV_NO_FRESHCLAMD: "false"
+    healthcheck:
+      test: ["CMD-SHELL", "clamdscan --ping 1 || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+    # Signature updates need the network; nothing else in this stack does.
+    mem_limit: 2g
+
+  worker:
+    build: .
+    depends_on:
+      clamd:
+        condition: service_healthy
+    environment:
+      SUPABASE_URL: ${SUPABASE_URL:?set SUPABASE_URL to your LOCAL supabase}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:?local service key}
+      TOURNAMENT_MEDIA_WORKER_ID: ${TOURNAMENT_MEDIA_WORKER_ID:-media-worker-local}
+      TOURNAMENT_MEDIA_WORKER_RELEASE: ${TOURNAMENT_MEDIA_WORKER_RELEASE:-0.1.0}
+      TOURNAMENT_MEDIA_CLAMD_HOST: clamd
+      TOURNAMENT_MEDIA_CLAMD_PORT: "3310"
+      TOURNAMENT_MEDIA_ATTEST_TTL_SECONDS: "900"
+    # Hard resource ceilings: a decompression bomb that somehow reaches the
+    # decoder is bounded by the container, not only by libvips.
+    mem_limit: 1g
+    cpus: 1.0
+    pids_limit: 128
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    restart: on-failure

@@ -47,6 +47,8 @@ ios/App/App/GoogleService-Info.plist
 *.lcov
 coverage/
 *.nyc_output
+playwright/.auth/
+tests/.auth/
 
 # Database / Data dumps
 *.sqlite
@@ -87,6 +89,7 @@ coverage/
 # Git
 .git/
 .gitignore
+supabase/.branches/
 
 # Custom: tu propio directorio para cosas grandes o irrelevantes
 # por ejemplo, elimina backups viejos, dumps, etc
