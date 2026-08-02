@@ -1,10 +1,16 @@
 /**
- * Drives one photo from a file input to `pending_review`.
+ * Drives one photo from a file input into the processing queue.
  *
  * The browser never chooses a path, never names a bucket and never tells the
  * database what a file is. It asks for an intent, exchanges it for a signed
- * URL at the signer, PUTs the bytes, and hands the renditions to the processor,
- * which verifies everything again from the stored object.
+ * URL at the signer and PUTs ONE object — the quarantined upload.
+ *
+ * What it no longer does is produce the published renditions. The three
+ * canvas re-encodes below are a local preview and a size pre-flight; the
+ * trusted worker decodes the quarantined object with a real codec, re-encodes
+ * it, strips its metadata, derives every variant from those pixels and scans
+ * them. So the flow ends at `processing`, not at `pending_review`: the asset
+ * does not exist until the worker says it does.
  *
  * Progress, cancellation and retry live here rather than in the component so
  * that the UI only renders state.
@@ -18,7 +24,7 @@ import {
 import { MediaClientError, prepareUploadPayload } from '../domain/mediaImageClient';
 
 const SIGNER_FUNCTION = 'tournament-media-signer';
-const PROCESSOR_FUNCTION = 'tournament-media-processor';
+const ORCHESTRATOR_FUNCTION = 'tournament-media-processor';
 
 export class MediaUploadError extends Error {
   constructor(message, { code = null, retryable = true } = {}) {
@@ -193,22 +199,26 @@ export async function uploadTournamentMediaPhoto({
     onProgress(1);
 
     onStage('processing');
-    const form = new FormData();
-    form.append('sessionId', session.sessionId);
-    form.append('token', session.token);
-    for (const rendition of payload.renditions) {
-      form.append(rendition.kind, rendition.blob, `${rendition.kind}.bin`);
-    }
-    const finalized = await callFunction(PROCESSOR_FUNCTION, { body: form, signal });
+    const queued = await callFunction(ORCHESTRATOR_FUNCTION, {
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'queue',
+        sessionId: session.sessionId,
+        token: session.token,
+      }),
+      signal,
+    });
 
-    onStage('pending_review');
+    // Deliberately terminal at `processing`. There is no assetId yet, and
+    // pretending otherwise is what let a browser rendition look publishable.
     return {
-      assetId: finalized.assetId,
-      safeName: finalized.safeName,
-      status: finalized.status,
-      width: finalized.width,
-      height: finalized.height,
-      byteSize: finalized.byteSize,
+      jobId: queued.jobId,
+      assetId: null,
+      safeName: session.safeName,
+      status: 'processing',
+      width: payload.width ?? null,
+      height: payload.height ?? null,
+      byteSize: payload.source.size,
     };
   } catch (error) {
     // A session that was issued but never consumed holds quota until it

@@ -354,8 +354,11 @@ export default function MediaAdminPage() {
         onStage: (stage) => patchQueueItem(item.id, { status: stage }),
         onProgress: (progress) => patchQueueItem(item.id, { progress }),
       });
+      // The worker publishes asynchronously, so the queue stops at
+      // `processing`; `load()` picks the asset up once its variants are ready.
       patchQueueItem(item.id, {
-        status: 'pending_review', progress: 1, error: '', assetId: result.assetId,
+        status: result?.status || 'processing', progress: 1, error: '',
+        assetId: result?.assetId || null, jobId: result?.jobId || null,
       });
       await load();
     } catch (error) {
