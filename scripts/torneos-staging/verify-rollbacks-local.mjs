@@ -25,7 +25,7 @@ const preservedTables = [
   'tournament_media_service_attestations',
   'tournament_media_upload_sessions',
   'tournament_media_assets',
-  'tournament_media_asset_variants',
+  'tournament_media_variants',
   'tournament_media_processing_jobs',
   'tournament_social_permissions',
 ];

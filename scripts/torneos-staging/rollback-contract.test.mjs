@@ -71,3 +71,12 @@ test('Social rollback removes all three authenticated API entry points and prese
   }
   assert.doesNotMatch(sql, /FROM service_role, authenticated/i);
 });
+
+test('local rollback verification preserves the exact media variant table', () => {
+  const source = fs.readFileSync(
+    path.join(ROOT, 'scripts', 'torneos-staging', 'verify-rollbacks-local.mjs'),
+    'utf8',
+  );
+  assert.match(source, /'tournament_media_variants'/);
+  assert.doesNotMatch(source, /'tournament_media_asset_variants'/);
+});
