@@ -1,10 +1,20 @@
 # Fotos y galerías de partidos
 
-Estado auditado: contratos, metadata y superficies implementados únicamente
-para integración en `epic/arma2-torneos`. La carga binaria, el bucket y las URLs
-firmadas siguen bloqueados con `uploadReady: false` hasta certificar el staging
-aislado. Esta fase no crea recursos cloud, no toca producción y no habilita
-ningún consumidor social.
+Estado auditado: contratos, metadata y superficies del dominio privado de
+Multimedia.
+
+> **Superado en parte.** La carga binaria dejó de estar bloqueada por una
+> constante. `uploadReady` ahora se deriva de capacidades verificables —bucket
+> privado real, policies presentes, signer y processor atestiguados— y el
+> pipeline completo está documentado en
+> [21-media-upload-pipeline.md](21-media-upload-pipeline.md). Este documento
+> sigue siendo la referencia del dominio (tablas, RPCs, estados, moderación,
+> consentimiento); donde dice "`uploadReady: false`" hay que leer "cerrado
+> mientras falte evidencia". Sigue sin crearse ningún recurso cloud remoto.
+>
+> Un cambio de contrato respecto de lo escrito abajo: `media.read` ya no
+> alcanza para leer el **original** de un asset. Ver la sección de permisos del
+> documento 21.
 
 ## Alcance y límites
 
@@ -314,4 +324,6 @@ no forman parte de este PR.
 - revisión independiente de RLS, RPC, Storage y claves.
 
 Ninguno de estos gates puede resolverse cambiando `uploadReady` sin evidencia
-de staging.
+de staging — y desde el pipeline de carga ya no existe un `uploadReady` que se
+pueda cambiar a mano. El estado de cada gate y los pendientes exactos están en
+[21-media-upload-pipeline.md](21-media-upload-pipeline.md).

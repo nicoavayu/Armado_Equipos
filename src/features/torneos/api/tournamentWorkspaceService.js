@@ -1,5 +1,9 @@
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '../../../services/api/supabase';
+import {
+  signTournamentMediaReadUrls,
+  uploadTournamentMediaPhoto,
+} from './tournamentMediaUploadClient';
 
 const ERROR_MESSAGES = {
   TORNEOS_AUTH_REQUIRED: 'Tu sesión venció. Volvé a iniciar sesión para continuar.',
@@ -1654,6 +1658,19 @@ export async function reportTournamentMediaAsset({
   }), 'No pudimos enviar el reporte.');
 }
 
+/**
+ * Runs one photo through the whole pipeline. The session RPCs are injected so
+ * the upload client never reaches back into this module, and so tests can
+ * drive the flow without a Supabase client.
+ */
+export async function uploadTournamentMediaPhotoToGallery(options) {
+  return uploadTournamentMediaPhoto({
+    ...options,
+    requestUploadSession: requestTournamentMediaUploadSession,
+    cancelUploadSession: cancelTournamentMediaUploadSession,
+  });
+}
+
 export async function handleTournamentMediaReport({
   reportId,
   status,
@@ -1791,5 +1808,7 @@ export const tournamentWorkspaceService = Object.freeze({
   loadPublishedMedia: loadPublishedTournamentMedia,
   reportMediaAsset: reportTournamentMediaAsset,
   handleMediaReport: handleTournamentMediaReport,
+  uploadMediaPhoto: uploadTournamentMediaPhotoToGallery,
+  signMediaReadUrls: signTournamentMediaReadUrls,
   createIdempotencyKey,
 });

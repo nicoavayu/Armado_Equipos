@@ -19,6 +19,8 @@ const expectedFunctions = [
   'push-auto-match-now',
   'push-dispatch-now',
   'push-sender',
+  'tournament-media-processor',
+  'tournament-media-signer',
   'upload-voting-photo',
 ];
 
@@ -34,6 +36,8 @@ const userFunctions = new Set([
   'delete-account',
   'push-auto-match-now',
   'push-dispatch-now',
+  'tournament-media-processor',
+  'tournament-media-signer',
 ]);
 
 const backendFunctions = new Set(['push-sender']);

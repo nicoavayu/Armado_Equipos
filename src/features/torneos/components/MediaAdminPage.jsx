@@ -30,9 +30,14 @@ import {
 import { useParams } from 'react-router-dom';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
 import {
+  MEDIA_ASSET_STATE_LABELS,
+  MEDIA_LIMITS,
   formatMediaBytes,
-  prepareTournamentMediaBatch,
-} from '../domain/mediaValidation';
+  localDisplayName,
+  resolveUploadCapability,
+} from '../domain/mediaPipeline';
+import { createPreviewUrl, validateSelection } from '../domain/mediaImageClient';
+import MediaUploadQueue from './MediaUploadQueue';
 import styles from './MediaAdminPage.module.css';
 
 const STATUS_LABELS = {
@@ -41,11 +46,8 @@ const STATUS_LABELS = {
   published: 'Publicada',
   archived: 'Archivada',
   revoked: 'Revocada',
+  ...MEDIA_ASSET_STATE_LABELS,
   pending_review: 'Pendiente',
-  approved: 'Aprobada',
-  rejected: 'Rechazada',
-  hidden: 'Oculta',
-  failed: 'Con error',
 };
 const VISIBILITY_LABELS = {
   organization: 'Organización',
@@ -76,20 +78,26 @@ function MediaState({
   );
 }
 
-function AssetPreview({ asset, cover, canManage, onAction, onMove }) {
+function AssetPreview({ asset, cover, canManage, onAction, onMove, thumbnailUrl }) {
   const actionable = ['pending_review', 'approved', 'published', 'hidden'].includes(asset.status);
+  // Four ready variants is the same gate the database enforces on approval, so
+  // the card can say "procesando" without guessing.
+  const processing = Number(asset.variantsReady ?? 4) < 4;
   return (
     <article className={styles.assetCard} data-status={asset.status}>
       <div className={styles.assetVisual} aria-label={`Vista protegida de ${asset.safeName}`}>
-        <Camera size={25} />
+        {thumbnailUrl
+          ? <img src={thumbnailUrl} alt="" loading="lazy" />
+          : <Camera size={25} aria-hidden="true" />}
         <span>{asset.width} × {asset.height}</span>
-        {cover && <b><Star size={13} /> Portada</b>}
+        {cover && <b><Star size={13} aria-hidden="true" /> Portada</b>}
+        {processing && <i>Procesando…</i>}
       </div>
       <div className={styles.assetInfo}>
         <span><strong>{asset.safeName}</strong><small>{formatMediaBytes(asset.byteSize)}</small></span>
         <em data-status={asset.status}>{STATUS_LABELS[asset.status] || asset.status}</em>
       </div>
-      {canManage && actionable && (
+      {canManage && actionable && !processing && (
         <div className={styles.assetActions}>
           {asset.status === 'pending_review' && (
             <>
@@ -143,7 +151,10 @@ export default function MediaAdminPage() {
   const requestRef = useRef(0);
   const publishLockRef = useRef(false);
   const fileInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
   const queueRef = useRef([]);
+  const controllersRef = useRef(new Map());
+  const activeUploadsRef = useRef(0);
   const [state, setState] = useState({ status: 'loading', data: null, error: '' });
   const [filters, setFilters] = useState({ tournamentId: '', status: '' });
   const [composerOpen, setComposerOpen] = useState(false);
@@ -152,7 +163,13 @@ export default function MediaAdminPage() {
   const [activeGalleryId, setActiveGalleryId] = useState('');
   const [busy, setBusy] = useState('');
   const [notice, setNotice] = useState('');
+  const [dragging, setDragging] = useState(false);
+  const [thumbnails, setThumbnails] = useState({});
   queueRef.current = queue;
+
+  const patchQueueItem = (id, patch) => setQueue((current) => current.map(
+    (candidate) => (candidate.id === id ? { ...candidate, ...patch } : candidate),
+  ));
 
   const load = async () => {
     const requestId = requestRef.current + 1;
@@ -201,10 +218,12 @@ export default function MediaAdminPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [organizationId, filters.tournamentId, filters.status, service]);
 
-  useEffect(() => () => {
-    queueRef.current.forEach(
-      (item) => item.previewUrl && URL.revokeObjectURL(item.previewUrl),
-    );
+  useEffect(() => {
+    const controllers = controllersRef.current;
+    return () => {
+      controllers.forEach((controller) => controller.abort());
+      controllers.clear();
+    };
   }, []);
 
   const capabilities = state.data?.capabilities || [];
@@ -213,7 +232,8 @@ export default function MediaAdminPage() {
   const canReview = capabilities.includes('media.review');
   const canPublish = capabilities.includes('media.publish');
   const canHandleReports = capabilities.includes('media.handle_reports');
-  const uploadReady = state.data?.storage?.uploadReady === true;
+  const capability = resolveUploadCapability(state.data?.storage, { canUpload });
+  const uploadReady = capability.canOfferUpload;
   const selectedTournament = useMemo(() => (
     state.data?.tournaments?.find((item) => item.id === form.tournamentId) || null
   ), [form.tournamentId, state.data]);
@@ -260,61 +280,123 @@ export default function MediaAdminPage() {
     }
   };
 
-  const selectFiles = (event) => {
-    const prepared = prepareTournamentMediaBatch(event.target.files).map((item) => ({
-      ...item,
-      idempotencyKey: service.createIdempotencyKey(),
-      previewUrl: item.status === 'ready' ? URL.createObjectURL(item.file) : '',
-      ...(item.status === 'ready' && !uploadReady ? {
-        status: 'staging_required',
-        error: 'La carga de fotos todavía no está habilitada en este entorno.',
-      } : {}),
-    }));
-    setQueue((current) => {
-      current.forEach((item) => item.previewUrl && URL.revokeObjectURL(item.previewUrl));
-      return prepared;
+  const enqueueFiles = async (files) => {
+    const selected = Array.from(files || []).slice(0, capability.maxBatchFiles);
+    if (selected.length === 0) return;
+    const prepared = selected.map((file, index) => {
+      const validation = validateSelection(file, {
+        ...MEDIA_LIMITS, maxFileBytes: capability.maxFileBytes,
+      });
+      const invalid = !validation.valid;
+      return {
+        id: `${file.name}:${file.size}:${file.lastModified || 0}:${index}:${Date.now()}`,
+        file,
+        displayName: `Foto ${String(index + 1).padStart(2, '0')}`,
+        // Shown only here, only to the person who picked the file. The name is
+        // never sent: the upload intent uses a synthetic one.
+        localName: localDisplayName(file, index),
+        status: invalid
+          ? 'invalid'
+          : uploadReady ? 'ready' : 'staging_required',
+        error: invalid
+          ? validation.message
+          : uploadReady ? '' : capability.unavailableCopy,
+        progress: 0,
+        previewUrl: '',
+        retryable: true,
+        idempotencyKey: service.createIdempotencyKey(),
+      };
     });
+    setQueue(prepared);
+
+    // Previews are decoded one at a time so that picking forty photos does not
+    // hold forty full-size bitmaps in memory at once.
+    for (const item of prepared) {
+      if (item.status === 'invalid') continue;
+      // eslint-disable-next-line no-await-in-loop
+      const previewUrl = await createPreviewUrl(item.file);
+      if (!queueRef.current.some((candidate) => candidate.id === item.id)) continue;
+      patchQueueItem(item.id, { previewUrl });
+    }
+  };
+
+  const selectFiles = (event) => {
+    enqueueFiles(event.target.files);
     event.target.value = '';
   };
 
-  const prepareUpload = async (item) => {
-    if (!selectedGallery || !canUpload || !uploadReady || item.status === 'requesting') return;
-    setQueue((current) => current.map((candidate) => (
-      candidate.id === item.id
-        ? { ...candidate, status: 'requesting', error: '', progress: 0 }
-        : candidate
-    )));
-    try {
-      const session = await service.requestMediaUploadSession({
-        galleryId: selectedGallery.id,
-        fileName: item.file.name,
-        mime: item.file.type,
-        byteSize: item.file.size,
-        idempotencyKey: item.idempotencyKey,
+  const handleDrop = (event) => {
+    event.preventDefault();
+    setDragging(false);
+    if (!uploadReady && !canUpload) return;
+    enqueueFiles(event.dataTransfer?.files);
+  };
+
+  const startUpload = async (item) => {
+    if (!selectedGallery || !uploadReady) return;
+    if (activeUploadsRef.current >= MEDIA_LIMITS.maxConcurrentUploads) {
+      patchQueueItem(item.id, {
+        status: 'ready',
+        error: 'Hay otras fotos subiendo. Esperá a que terminen.',
       });
-      setQueue((current) => current.map((candidate) => (
-        candidate.id === item.id
-          ? {
-            ...candidate,
-            session,
-            status: session.uploadReady ? 'ready_to_upload' : 'staging_required',
-            error: session.uploadReady
-              ? ''
-              : 'La carga de fotos todavía no está habilitada en este entorno.',
-          }
-          : candidate
-      )));
+      return;
+    }
+    const controller = new AbortController();
+    controllersRef.current.set(item.id, controller);
+    activeUploadsRef.current += 1;
+    patchQueueItem(item.id, { status: 'preparing', error: '', progress: 0 });
+    try {
+      const result = await service.uploadMediaPhoto({
+        galleryId: selectedGallery.id,
+        file: item.file,
+        idempotencyKey: item.idempotencyKey,
+        signal: controller.signal,
+        onStage: (stage) => patchQueueItem(item.id, { status: stage }),
+        onProgress: (progress) => patchQueueItem(item.id, { progress }),
+      });
+      // The worker publishes asynchronously, so the queue stops at
+      // `processing`; `load()` picks the asset up once its variants are ready.
+      patchQueueItem(item.id, {
+        status: result?.status || 'processing', progress: 1, error: '',
+        assetId: result?.assetId || null, jobId: result?.jobId || null,
+      });
+      await load();
     } catch (error) {
-      setQueue((current) => current.map((candidate) => (
-        candidate.id === item.id
-          ? { ...candidate, status: 'error', error: error?.message || 'No pudimos preparar esta foto.' }
-          : candidate
-      )));
+      patchQueueItem(item.id, {
+        status: error?.code === 'cancelled' ? 'cancelled' : 'error',
+        error: error?.message || 'No pudimos subir esta foto.',
+        retryable: error?.retryable !== false,
+        // A consumed intent can never be replayed, so a retry needs a new one.
+        idempotencyKey: service.createIdempotencyKey(),
+        progress: 0,
+      });
+    } finally {
+      controllersRef.current.delete(item.id);
+      activeUploadsRef.current = Math.max(0, activeUploadsRef.current - 1);
+    }
+  };
+
+  const cancelUpload = (item) => {
+    controllersRef.current.get(item.id)?.abort();
+  };
+
+  const retryUpload = (item) => startUpload({
+    ...item,
+    ...(queueRef.current.find((candidate) => candidate.id === item.id) || {}),
+  });
+
+  const uploadAll = async () => {
+    const pending = queueRef.current.filter((item) => item.status === 'ready');
+    for (const item of pending) {
+      // Sequential on purpose: the concurrency ceiling exists to keep a phone
+      // on a stadium connection from thrashing, not to go faster.
+      // eslint-disable-next-line no-await-in-loop
+      await startUpload(item);
     }
   };
 
   const removeQueueItem = (item) => {
-    if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
+    controllersRef.current.get(item.id)?.abort();
     setQueue((current) => current.filter((candidate) => candidate.id !== item.id));
   };
 
@@ -407,6 +489,26 @@ export default function MediaAdminPage() {
     }
   };
 
+  // Thumbnails are signed on demand and never persisted: the projection from
+  // the database carries no URL at all, by design.
+  useEffect(() => {
+    const assets = (selectedGallery?.assets || [])
+      .filter((asset) => Number(asset.variantsReady ?? 4) >= 4)
+      .slice(0, 60);
+    if (assets.length === 0 || typeof service.signMediaReadUrls !== 'function') return undefined;
+    const controller = new AbortController();
+    service.signMediaReadUrls(
+      assets.map((asset) => ({ assetId: asset.id, kind: 'thumbnail' })),
+      { signal: controller.signal },
+    ).then((urls) => {
+      if (!controller.signal.aborted) setThumbnails((current) => ({ ...current, ...urls }));
+    }).catch(() => {
+      // A gallery still renders without thumbnails; it must not error out.
+    });
+    return () => controller.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedGallery?.id, selectedGallery?.assets?.length, service]);
+
   if (state.status === 'loading' && !state.data) {
     return <div className={styles.skeleton}><span /><span /><span /></div>;
   }
@@ -445,15 +547,17 @@ export default function MediaAdminPage() {
         </div>
       </header>
 
-      <div className={styles.storageGate}>
-        <ShieldCheck size={20} />
+      <div className={styles.storageGate} data-ready={capability.uploadReady}>
+        <ShieldCheck size={20} aria-hidden="true" />
         <span>
           <strong>Carga protegida</strong>
           <small>
-            La carga de fotos todavía no está habilitada en este entorno.
+            {capability.uploadReady
+              ? 'Cada foto se verifica y se limpia antes de quedar pendiente de aprobación.'
+              : 'La carga de fotos todavía no está habilitada en este entorno.'}
           </small>
         </span>
-        <em>Próximamente</em>
+        <em>{capability.uploadReady ? 'Activa' : 'Próximamente'}</em>
       </div>
 
       {(state.error || notice) && (
@@ -598,12 +702,21 @@ export default function MediaAdminPage() {
               </header>
 
               {canUpload && ['draft', 'under_review'].includes(selectedGallery.status) && (
-                <section className={styles.uploadPanel}>
+                <section
+                  className={styles.uploadPanel}
+                  data-dragging={dragging}
+                  onDragOver={(event) => { event.preventDefault(); setDragging(true); }}
+                  onDragLeave={() => setDragging(false)}
+                  onDrop={handleDrop}
+                >
                   <div>
-                    <UploadCloud size={24} />
+                    <UploadCloud size={24} aria-hidden="true" />
                     <span>
-                      <strong>{uploadReady ? 'Preparar fotos' : 'Revisar fotos'}</strong>
-                      <small>JPEG, PNG o WebP · hasta 12 MB · máximo 40 por tanda</small>
+                      <strong>{uploadReady ? 'Cargar fotos' : 'Revisar fotos'}</strong>
+                      <small>
+                        JPEG, PNG o WebP · hasta 12 MB · máximo {capability.maxBatchFiles} por tanda
+                      </small>
+                      {!uploadReady && <small>{capability.unavailableCopy}</small>}
                     </span>
                   </div>
                   <input
@@ -615,36 +728,47 @@ export default function MediaAdminPage() {
                     multiple
                     onChange={selectFiles}
                   />
-                  <button type="button" onClick={() => fileInputRef.current?.click()}>
-                    <FileImage size={17} /> Seleccionar archivos
-                  </button>
-                  {queue.length > 0 && (
-                    <div className={styles.queue} aria-live="polite">
-                      {queue.map((item) => (
-                        <article key={item.id} data-status={item.status}>
-                          <div className={styles.queueThumb}>
-                            {item.previewUrl
-                              ? <img src={item.previewUrl} alt="" />
-                              : <FileImage size={20} />}
-                          </div>
-                          <span>
-                            <strong>{item.safeName}</strong>
-                            <small>{formatMediaBytes(item.file.size)} · {item.file.type || 'Formato desconocido'}</small>
-                            {item.error && <em>{item.error}</em>}
-                          </span>
-                          {['ready', 'error'].includes(item.status) && (
-                            <button type="button" onClick={() => prepareUpload(item)}>
-                              {item.status === 'error' ? <RefreshCw size={15} /> : <Send size={15} />}
-                              {item.status === 'error' ? 'Reintentar' : 'Preparar'}
-                            </button>
-                          )}
-                          <button type="button" aria-label={`Quitar ${item.safeName}`} onClick={() => removeQueueItem(item)}>
-                            <Trash2 size={16} />
-                          </button>
-                        </article>
-                      ))}
-                    </div>
-                  )}
+                  <input
+                    ref={cameraInputRef}
+                    className={styles.srOnly}
+                    type="file"
+                    aria-label="Tomar una foto"
+                    accept="image/jpeg,image/png,image/webp"
+                    capture="environment"
+                    onChange={selectFiles}
+                  />
+                  <div className={styles.uploadActions}>
+                    <button type="button" onClick={() => fileInputRef.current?.click()}>
+                      <FileImage size={17} aria-hidden="true" /> Seleccionar archivos
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.secondaryAction}
+                      onClick={() => cameraInputRef.current?.click()}
+                    >
+                      <Camera size={17} aria-hidden="true" /> Tomar foto
+                    </button>
+                    {uploadReady && queue.some((item) => item.status === 'ready') && (
+                      <button
+                        type="button"
+                        className={styles.secondaryAction}
+                        onClick={uploadAll}
+                      >
+                        <UploadCloud size={17} aria-hidden="true" /> Subir todas
+                      </button>
+                    )}
+                  </div>
+                  <p className={styles.dropHint}>
+                    También podés arrastrar y soltar las fotos acá.
+                  </p>
+                  <MediaUploadQueue
+                    items={queue}
+                    canUpload={uploadReady}
+                    onUpload={startUpload}
+                    onCancel={cancelUpload}
+                    onRetry={retryUpload}
+                    onRemove={removeQueueItem}
+                  />
                 </section>
               )}
 
@@ -658,6 +782,7 @@ export default function MediaAdminPage() {
                       canManage={canReview}
                       onAction={actOnAsset}
                       onMove={moveAsset}
+                      thumbnailUrl={thumbnails[`${asset.id}:thumbnail`] || ''}
                     />
                   ))}
                 </div>
