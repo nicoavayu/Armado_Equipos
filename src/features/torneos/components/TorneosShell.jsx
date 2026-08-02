@@ -9,6 +9,7 @@ import {
   Home,
   Settings2,
   ShieldCheck,
+  Sparkles,
   Trophy,
   UsersRound,
 } from 'lucide-react';
@@ -49,6 +50,7 @@ import TournamentHubPage from './TournamentHubPage';
 import MyCommunicationsPage from './MyCommunicationsPage';
 import CommunicationsAdminPage from './CommunicationsAdminPage';
 import MediaAdminPage from './MediaAdminPage';
+import SocialStudioPage from './SocialStudioPage';
 import styles from './TorneosShell.module.css';
 
 const organizationNavigation = [
@@ -65,6 +67,7 @@ const organizationNavigation = [
   { label: 'Competencia', path: 'competencia', icon: Medal },
   { label: 'Comunicaciones', path: 'comunicaciones', icon: Megaphone },
   { label: 'Multimedia', path: 'multimedia', icon: Images },
+  { label: 'Estudio Social', path: 'estudio-social', icon: Sparkles, flag: 'socialContentGenerator' },
   { label: 'Configuración', path: 'configuracion', icon: Settings2 },
 ];
 
@@ -103,25 +106,28 @@ function OrganizationNavigation({ organization, mobile = false, keyboardHidden =
       aria-label={mobile ? 'Navegación móvil de la organización' : 'Navegación de la organización'}
       aria-hidden={mobile && keyboardHidden ? 'true' : undefined}
     >
-      {organizationNavigation.map(({
-        label, path, icon: Icon, relatedPaths = [],
-      }) => (
-        <NavLink
-          key={path}
-          to={`${base}/${path}`}
-          className={({ isActive }) => {
-            const related = relatedPaths.some((candidate) => (
-              location.pathname.startsWith(`${base}/${candidate}`)
-            ));
-            return `${styles.navigationItem} ${isActive || related ? styles.navigationItemActive : ''}`;
-          }}
-        >
-          <span className={styles.navigationIcon} aria-hidden="true">
-            <Icon size={mobile ? 20 : 18} strokeWidth={1.9} />
-          </span>
-          <span>{label}</span>
-        </NavLink>
-      ))}
+      {organizationNavigation
+        // A flagged surface must not even appear in the nav when it is off.
+        .filter(({ flag }) => !flag || torneosFeatureFlags[flag])
+        .map(({
+          label, path, icon: Icon, relatedPaths = [],
+        }) => (
+          <NavLink
+            key={path}
+            to={`${base}/${path}`}
+            className={({ isActive }) => {
+              const related = relatedPaths.some((candidate) => (
+                location.pathname.startsWith(`${base}/${candidate}`)
+              ));
+              return `${styles.navigationItem} ${isActive || related ? styles.navigationItemActive : ''}`;
+            }}
+          >
+            <span className={styles.navigationIcon} aria-hidden="true">
+              <Icon size={mobile ? 20 : 18} strokeWidth={1.9} />
+            </span>
+            <span>{label}</span>
+          </NavLink>
+        ))}
     </nav>
   );
 }
@@ -135,7 +141,7 @@ export default function TorneosShell() {
     ? location.pathname.split('/').slice(4).join('/')
     : '';
   const currentNavigation = organizationNavigation.find(({ path }) => (
-    ['torneos', 'equipos', 'fixture', 'partidos', 'competencia', 'comunicaciones', 'multimedia'].includes(path)
+    ['torneos', 'equipos', 'fixture', 'partidos', 'competencia', 'comunicaciones', 'multimedia', 'estudio-social'].includes(path)
       ? (
         organizationRelativePath.startsWith(path)
         || (path === 'torneos' && organizationRelativePath.startsWith('temporadas'))
@@ -278,6 +284,9 @@ export default function TorneosShell() {
               <Route path="competencia/disciplina" element={<CompetitionCenterPage mode="discipline" />} />
               <Route path="comunicaciones" element={<CommunicationsAdminPage />} />
               <Route path="multimedia" element={<MediaAdminPage />} />
+              {torneosFeatureFlags.socialContentGenerator && (
+                <Route path="estudio-social" element={<SocialStudioPage />} />
+              )}
               <Route path="configuracion" element={<OrganizationSettingsPage />} />
               <Route path="miembros" element={<OrganizationMembersPage />} />
             </Route>
