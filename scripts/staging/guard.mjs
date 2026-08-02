@@ -10,6 +10,8 @@ const PROJECT_REF_PATTERN = /^[a-z0-9]{8,64}$/;
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 const ALLOWED_PREVIEW_ENVIRONMENTS = new Set(['preview', 'staging']);
 const FALSE_OR_EMPTY = new Set(['', 'false']);
+const AUTHORIZED_STAGING_PROJECT_REF = 'hhyvmhgpapyuzjgxfnqv';
+const PROTECTED_PRODUCTION_PROJECT_REF = 'rcyuuoaqfwcembdajcss';
 const AUTHORIZED_CREATION = Object.freeze({
   projectName: 'arma2-torneos-staging',
   organization: "nicoavayu's Org",
@@ -99,6 +101,17 @@ export function validateStagingTarget({
   if (!PROJECT_REF_PATTERN.test(targetProjectRef)) {
     fail('ARMA2_TARGET_PROJECT_REF has an invalid format.');
   }
+  if (targetProjectRef === PROTECTED_PRODUCTION_PROJECT_REF) {
+    fail('The target project ref resolves to the protected production project.');
+  }
+  if (targetProjectRef !== AUTHORIZED_STAGING_PROJECT_REF) {
+    fail('ARMA2_TARGET_PROJECT_REF is not the authorized Staging project.');
+  }
+
+  const credentialProjectRef = required(env, 'ARMA2_CREDENTIAL_PROJECT_REF').toLowerCase();
+  if (credentialProjectRef !== targetProjectRef) {
+    fail('The supplied credential belongs to another project.');
+  }
 
   const productionProjectRef = required(env, 'ARMA2_PRODUCTION_PROJECT_REF').toLowerCase();
   if (!PROJECT_REF_PATTERN.test(productionProjectRef)) {
@@ -159,6 +172,13 @@ export function validateStagingTarget({
     'REACT_APP_TORNEOS_MEDIA_UPLOAD_ENABLED',
     'Torneos Multimedia Upload',
   );
+
+  for (const key of Object.keys(env)) {
+    if (/^REACT_APP_.*(?:SERVICE_ROLE|SECRET_KEYS?|PRIVATE_KEY)/i.test(key)
+      && String(env[key] || '').trim()) {
+      fail(`${key} is forbidden in browser-visible environment variables.`);
+    }
+  }
   validateDisabledFlag(
     env,
     'REACT_APP_TORNEOS_SOCIAL_GENERATOR_ENABLED',

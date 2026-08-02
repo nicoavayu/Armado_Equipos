@@ -1,0 +1,43 @@
+{
+  "fixtureVersion": 1,
+  "environment": "staging",
+  "projectRef": "hhyvmhgpapyuzjgxfnqv",
+  "apiUrl": "https://hhyvmhgpapyuzjgxfnqv.supabase.co",
+  "credentialProjectRef": "hhyvmhgpapyuzjgxfnqv",
+  "browserEnvironmentKeys": ["SUPABASE_URL", "SUPABASE_PUBLISHABLE_KEYS"],
+  "remoteHistory": [
+    { "version": "20260801090000", "name": "tournament_context_reads_are_pure", "status": "applied" }
+  ],
+  "pendingMigrations": [
+    "20260802090000",
+    "20260802120000",
+    "20260803090000"
+  ],
+  "storage": {
+    "exists": false,
+    "bucket": "tournament-media",
+    "public": false,
+    "maxFileBytes": 12582912,
+    "allowedMimeTypes": ["image/jpeg", "image/png", "image/webp"],
+    "policies": []
+  },
+  "edgeFunctions": [],
+  "availableSecretNames": [],
+  "worker": {
+    "deployed": false,
+    "nodeMajor": 22,
+    "sharpVersion": "0.33.5",
+    "libvips": true,
+    "clamav": true,
+    "clamd": true,
+    "freshclam": true,
+    "signatureAgeDays": 0,
+    "cleanup": true,
+    "health": false,
+    "selfTest": false,
+    "attested": false
+  },
+  "readiness": { "uploadReady": false, "signerAttested": false, "processorAttested": false },
+  "flags": { "multimedia": false, "social": false, "production": false },
+  "qaReceipts": { "multimedia": false, "social": false }
+}

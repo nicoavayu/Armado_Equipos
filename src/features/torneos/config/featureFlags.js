@@ -6,6 +6,7 @@ const NON_PRODUCTION_ENVIRONMENTS = new Set([
   'staging',
 ]);
 const LOCAL_SUPABASE_HOSTS = new Set(['127.0.0.1', '[::1]', 'localhost']);
+const AUTHORIZED_STAGING_PROJECT_REF = 'hhyvmhgpapyuzjgxfnqv';
 const FLAG_ENV_KEYS = {
   torneosEnabled: 'REACT_APP_TORNEOS_ENABLED',
   workspacesEnabled: 'REACT_APP_TORNEOS_WORKSPACES_ENABLED',
@@ -79,7 +80,7 @@ export function resolveTorneosBackendIsolation(env = {}) {
   );
   const isStaging = (
     dataEnvironment === 'staging'
-    && /^[a-z0-9]{8,64}$/.test(stagingProjectRef)
+    && stagingProjectRef === AUTHORIZED_STAGING_PROJECT_REF
     && hostname === `${stagingProjectRef}.supabase.co`
     && parsedUrl.protocol === 'https:'
     && parsedUrl.port === ''

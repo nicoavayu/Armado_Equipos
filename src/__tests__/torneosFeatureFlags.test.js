@@ -4,6 +4,8 @@ import {
   resolveTorneosFeatureFlags,
 } from '../features/torneos/config/featureFlags';
 
+const stagingRef = 'hhyvmhgpapyuzjgxfnqv';
+
 describe('Arma2 Torneos feature flags', () => {
   test('defaults production builds to production and keeps every flag off', () => {
     const flags = resolveTorneosFeatureFlags({
@@ -35,8 +37,8 @@ describe('Arma2 Torneos feature flags', () => {
       REACT_APP_TORNEOS_WORKSPACES_ENABLED: 'true',
       REACT_APP_TORNEOS_NOTIFICATIONS_ENABLED: 'TRUE',
       REACT_APP_TORNEOS_DATA_ENV: 'staging',
-      REACT_APP_TORNEOS_STAGING_PROJECT_REF: 'stagingref123',
-      REACT_APP_SUPABASE_URL: 'https://stagingref123.supabase.co',
+      REACT_APP_TORNEOS_STAGING_PROJECT_REF: stagingRef,
+      REACT_APP_SUPABASE_URL: `https://${stagingRef}.supabase.co`,
     });
 
     expect(flags.deployEnvironment).toBe('staging');
@@ -102,7 +104,7 @@ describe('Arma2 Torneos feature flags', () => {
   });
 
   test('rejects the known production project even when staging flags are forged', () => {
-    const productionFixtureRef = 'productionfixture123';
+    const productionFixtureRef = 'rcyuuoaqfwcembdajcss';
     const flags = resolveTorneosFeatureFlags({
       NODE_ENV: 'production',
       REACT_APP_DEPLOY_ENV: 'preview',
@@ -125,14 +127,14 @@ describe('Arma2 Torneos feature flags', () => {
   test('rejects staging URL lookalikes, credentials, paths and non-default ports', () => {
     const base = {
       REACT_APP_TORNEOS_DATA_ENV: 'staging',
-      REACT_APP_TORNEOS_STAGING_PROJECT_REF: 'stagingref123',
+      REACT_APP_TORNEOS_STAGING_PROJECT_REF: stagingRef,
     };
     [
-      'https://stagingref123.supabase.co.evil.example',
-      'https://stagingref123.supabase.co:444',
-      'https://user@stagingref123.supabase.co',
-      'https://stagingref123.supabase.co/rest/v1',
-      'http://stagingref123.supabase.co',
+      `https://${stagingRef}.supabase.co.evil.example`,
+      `https://${stagingRef}.supabase.co:444`,
+      `https://user@${stagingRef}.supabase.co`,
+      `https://${stagingRef}.supabase.co/rest/v1`,
+      `http://${stagingRef}.supabase.co`,
     ].forEach((supabaseUrl) => {
       expect(resolveTorneosBackendIsolation({
         ...base,
@@ -146,8 +148,8 @@ describe('Arma2 Torneos feature flags', () => {
       NODE_ENV: 'production',
       REACT_APP_DEPLOY_ENV: 'staging',
       REACT_APP_TORNEOS_DATA_ENV: 'staging',
-      REACT_APP_TORNEOS_STAGING_PROJECT_REF: 'stagingref123',
-      REACT_APP_SUPABASE_URL: 'https://stagingref123.supabase.co',
+      REACT_APP_TORNEOS_STAGING_PROJECT_REF: stagingRef,
+      REACT_APP_SUPABASE_URL: `https://${stagingRef}.supabase.co`,
       REACT_APP_TORNEOS_ENABLED: 'true',
       REACT_APP_TORNEOS_MEDIA_ENABLED: 'true',
       REACT_APP_TORNEOS_MEDIA_UPLOAD_ENABLED: 'true',
