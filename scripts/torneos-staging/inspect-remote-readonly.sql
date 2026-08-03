@@ -94,19 +94,27 @@ WHERE namespace_row.nspname = 'public' AND procedure_row.proname LIKE '%tourname
 ORDER BY procedure_row.proname, arguments;
 
 -- inspector:statement grants
-SELECT table_schema AS schema_name, table_name AS object_name, grantee, privilege_type, 'table' AS object_type
-FROM information_schema.table_privileges
-WHERE (table_schema = 'public' AND table_name LIKE 'tournament_%')
-   OR (table_schema = 'storage' AND table_name = 'objects')
+SELECT namespace_row.nspname AS schema_name, relation_row.relname AS object_name,
+  COALESCE(grantee_row.rolname, 'PUBLIC') AS grantee, acl_row.privilege_type, 'table' AS object_type
+FROM pg_class relation_row
+JOIN pg_namespace namespace_row ON namespace_row.oid = relation_row.relnamespace
+CROSS JOIN LATERAL aclexplode(COALESCE(relation_row.relacl, acldefault('r', relation_row.relowner))) acl_row
+LEFT JOIN pg_roles grantee_row ON grantee_row.oid = acl_row.grantee
+WHERE (namespace_row.nspname = 'public' AND relation_row.relname LIKE 'tournament_%')
+   OR (namespace_row.nspname = 'storage' AND relation_row.relname = 'objects')
 UNION ALL
-SELECT routine_schema, routine_name, grantee, privilege_type, 'routine'
-FROM information_schema.routine_privileges
-WHERE routine_schema = 'public' AND routine_name LIKE '%tournament_%'
+SELECT namespace_row.nspname, procedure_row.proname,
+  COALESCE(grantee_row.rolname, 'PUBLIC'), acl_row.privilege_type, 'routine'
+FROM pg_proc procedure_row
+JOIN pg_namespace namespace_row ON namespace_row.oid = procedure_row.pronamespace
+CROSS JOIN LATERAL aclexplode(COALESCE(procedure_row.proacl, acldefault('f', procedure_row.proowner))) acl_row
+LEFT JOIN pg_roles grantee_row ON grantee_row.oid = acl_row.grantee
+WHERE namespace_row.nspname = 'public' AND procedure_row.proname LIKE '%tournament_%'
 ORDER BY schema_name, object_name, grantee, privilege_type;
 
 -- inspector:statement policies
 SELECT schemaname AS schema_name, tablename AS table_name, policyname AS policy_name,
-  permissive, roles, cmd
+  permissive, roles::text[] AS roles, cmd
 FROM pg_policies
 WHERE (schemaname = 'public' AND tablename LIKE 'tournament_%')
    OR (schemaname = 'storage' AND tablename = 'objects' AND policyname LIKE 'tournament_media_%')

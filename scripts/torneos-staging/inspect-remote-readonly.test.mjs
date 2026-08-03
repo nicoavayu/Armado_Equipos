@@ -45,6 +45,8 @@ test('the complete inspector SQL is named, statically read-only, and transaction
   assert.match(statements.get('search_path'), /search_path/);
   assert.match(statements.get('role_privileges'), /has_schema_privilege\(current_user, namespace_row\.oid, 'USAGE'\)/);
   assert.match(statements.get('role_privileges'), /FROM pg_roles role_row\s+WHERE role_row\.rolname = current_user/);
+  assert.match(statements.get('grants'), /aclexplode/);
+  assert.match(statements.get('policies'), /roles::text\[\]/);
 });
 
 test('DML, DDL, COPY, CALL, DO and non-allowlisted volatile functions are rejected', () => {
@@ -141,6 +143,25 @@ test('fixture snapshot is deterministic, sanitized and explicitly zero-mutation'
   assert.equal(first.flags.remote.REACT_APP_TORNEOS_MEDIA_UPLOAD_ENABLED, 'unknown');
   assert.ok(first.blockers.includes('storage.bucket_absent'));
   assert.equal(validateSnapshot(first), true);
+});
+
+test('RLS-filtered operational rows remain unknown instead of becoming absent or zero', () => {
+  const input = fixture();
+  input.database.results.tables.push(
+    { schema_name: 'storage', table_name: 'buckets', rls_enabled: true, rls_forced: false },
+    { schema_name: 'storage', table_name: 'objects', rls_enabled: true, rls_forced: false },
+    { schema_name: 'public', table_name: 'tournament_media_assets', rls_enabled: true, rls_forced: false },
+  );
+  input.database.results.storage_objects = [{ total: 0, svg: 0, partial: 0, variants: 0, quarantine: 0 }];
+  input.database.results.assets = [];
+  const snapshot = buildSnapshot({ repoRoot: ROOT, repositorySha: EXPECTED_REPOSITORY_SHA,
+    projectRef: AUTHORIZED_STAGING_REF, timestamp: '2026-08-03T02:00:00Z',
+    database: input.database, metadata: input.metadata });
+  assert.equal(snapshot.storage.exists, 'unknown');
+  assert.equal(snapshot.storage.objectCounts, 'unknown');
+  assert.equal(snapshot.aggregates.assets, 'unknown');
+  assert.ok(snapshot.blockers.includes('storage.bucket_unknown'));
+  assert.ok(!snapshot.blockers.includes('storage.bucket_absent'));
 });
 
 test('snapshot sanitizer rejects secret values, JWTs, signed URLs, email and object paths', () => {

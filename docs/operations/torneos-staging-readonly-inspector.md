@@ -114,6 +114,9 @@ El historial estándar de Supabase no expone checksums, por lo que se declara
 de Functions tampoco prueba el contenido desplegado. Las flags frontend quedan
 `unknown` porque esta tarea no contacta Vercel. El worker externo sólo se
 describe mediante evidencia ya persistida en la base; no se lo contacta.
+Cuando RLS impide distinguir una tabla vacía de filas no visibles para el rol
+mínimo, el snapshot conserva `unknown`; nunca convierte esa falta de visibilidad
+en “ausente” o cero ni amplía permisos para resolverla.
 
 ## Evidencia de cero mutaciones
 

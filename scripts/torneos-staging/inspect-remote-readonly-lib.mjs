@@ -37,7 +37,7 @@ const REQUIRED_TABLES = Object.freeze({
 });
 
 const SAFE_FUNCTIONS = new Set([
-  'coalesce', 'count', 'current_database', 'current_setting', 'extract',
+  'acldefault', 'aclexplode', 'coalesce', 'count', 'current_database', 'current_setting', 'extract',
   'has_database_privilege', 'has_schema_privilege', 'has_table_privilege',
   'lower', 'max', 'now', 'pg_get_function_identity_arguments',
   'tournament_media_pipeline_readiness',
@@ -363,7 +363,21 @@ export function buildSnapshot({ repoRoot, repositorySha, projectRef, timestamp, 
     'SUPABASE_PUBLISHABLE_KEYS', 'SUPABASE_ANON_KEY',
   ];
   const secretSet = new Set(metadata.secretNames);
+  const tableByName = new Map((database.results.tables || [])
+    .map((item) => [`${item.schema_name}.${item.table_name}`, item]));
+  const rlsLimited = (name) => tableByName.get(name)?.rls_enabled === true;
   const storageBucket = database.results.storage_bucket?.[0] || null;
+  const storageExists = storageBucket ? true : (rlsLimited('storage.buckets') ? 'unknown' : false);
+  const rlsLimitedFields = [
+    ['storage.bucket', 'storage.buckets'],
+    ['storage.objectCounts', 'storage.objects'],
+    ['aggregates.jobs', 'public.tournament_media_processing_jobs'],
+    ['aggregates.sessions', 'public.tournament_media_upload_sessions'],
+    ['aggregates.assets', 'public.tournament_media_assets'],
+    ['aggregates.variants', 'public.tournament_media_variants'],
+    ['aggregates.socialPermissions', 'public.tournament_social_permissions'],
+    ['workerAttestations', 'public.tournament_media_service_attestations'],
+  ].filter(([, table]) => rlsLimited(table)).map(([field]) => field);
   const policies = database.results.policies || [];
   const directWriteRoles = [...new Set(policies
     .filter((item) => item.schema_name === 'storage' && item.table_name === 'objects'
@@ -375,7 +389,8 @@ export function buildSnapshot({ repoRoot, repositorySha, projectRef, timestamp, 
   const actualFunctionSet = new Set(functions.map((item) => item.name));
   const blockers = [...new Set([
     ...readiness.blockers,
-    ...(!storageBucket ? ['storage.bucket_absent'] : []),
+    ...(storageExists === false ? ['storage.bucket_absent'] : []),
+    ...(storageExists === 'unknown' ? ['storage.bucket_unknown'] : []),
     ...(storageBucket?.public ? ['storage.bucket_public'] : []),
     ...(directWriteRoles.length ? ['storage.client_write_open'] : []),
     ...expectedFunctions.filter(([name]) => !actualFunctionSet.has(name)).map(([name]) => `edge.${name}_absent`),
@@ -413,7 +428,7 @@ export function buildSnapshot({ repoRoot, repositorySha, projectRef, timestamp, 
       constraints: database.results.constraints,
     },
     storage: {
-      exists: Boolean(storageBucket),
+      exists: storageExists,
       bucket: storageBucket ? {
         name: storageBucket.bucket, public: storageBucket.public,
         maxFileBytes: storageBucket.max_file_bytes,
@@ -421,14 +436,20 @@ export function buildSnapshot({ repoRoot, repositorySha, projectRef, timestamp, 
       } : null,
       policies: policies.filter((item) => item.schema_name === 'storage'),
       directWriteRoles,
-      objectCounts: database.results.storage_objects?.[0] || { total: 0, svg: 0, partial: 0, variants: 0, quarantine: 0 },
+      objectCounts: rlsLimited('storage.objects') ? 'unknown'
+        : (database.results.storage_objects?.[0] || { total: 0, svg: 0, partial: 0, variants: 0, quarantine: 0 }),
+      rlsLimitedFields: rlsLimitedFields.filter((field) => field.startsWith('storage.')),
     },
     edgeFunctions: functions,
     secrets: expectedSecrets.map((name) => ({ name, present: secretSet.has(name) })),
     aggregates: {
-      jobs: database.results.jobs || [], sessions: database.results.sessions || [],
-      assets: database.results.assets || [], variants: database.results.variants || [],
-      socialPermissions: database.results.social_permissions?.[0]?.count ?? null,
+      jobs: rlsLimited('public.tournament_media_processing_jobs') ? 'unknown' : (database.results.jobs || []),
+      sessions: rlsLimited('public.tournament_media_upload_sessions') ? 'unknown' : (database.results.sessions || []),
+      assets: rlsLimited('public.tournament_media_assets') ? 'unknown' : (database.results.assets || []),
+      variants: rlsLimited('public.tournament_media_variants') ? 'unknown' : (database.results.variants || []),
+      socialPermissions: rlsLimited('public.tournament_social_permissions') ? 'unknown'
+        : (database.results.social_permissions?.[0]?.count ?? null),
+      rlsLimitedFields: rlsLimitedFields.filter((field) => field.startsWith('aggregates.')),
     },
     workerAttestations: sanitizeAttestations(database.results.attestations || []),
     readiness,
@@ -450,12 +471,16 @@ export function buildSnapshot({ repoRoot, repositorySha, projectRef, timestamp, 
       'Edge Functions metadata does not expose deployed source content; remote content was not checksum-verified.',
       'Frontend deployment flags were not queried from Vercel and remain unknown.',
       'No external worker runtime or mutating health endpoint was contacted.',
+      ...(rlsLimitedFields.length
+        ? [`RLS prevented complete observation of: ${rlsLimitedFields.join(', ')}; those fields are unknown.`]
+        : []),
     ],
     readOnlyEvidence: {
       transactionReadOnlyVerified: database.transactionReadOnlyVerified,
       role: database.results.role,
       commands: ['PostgreSQL SELECT inside BEGIN READ ONLY', 'supabase functions list', 'supabase secrets list'],
       queryErrorsAbortTransaction: true,
+      rlsLimitedFields,
       ddlStatements: 0, dmlStatements: 0,
     },
     remoteCalls: database.remoteCalls + metadata.remoteCalls,
@@ -533,8 +558,9 @@ export function buildDryRun({ repoRoot, snapshot, repositorySha }) {
     },
     storage: {
       current: snapshot.storage,
-      requiredOperation: !snapshot.storage.exists ? 'create private bucket only after separate approval'
-        : 'reconcile contract differences only after separate approval',
+      requiredOperation: snapshot.storage.exists === false ? 'create private bucket only after separate approval'
+        : (snapshot.storage.exists === true ? 'reconcile contract differences only after separate approval'
+          : 'no operation: bucket state is unknown under RLS'),
       missingPolicies: expectedPolicyNames.filter((name) => !actualPolicies.includes(name)),
       unexpectedPolicies: actualPolicies.filter((name) => !expectedPolicyNames.includes(name)),
       risk: 'bucket or policy changes can expose or block media access',
