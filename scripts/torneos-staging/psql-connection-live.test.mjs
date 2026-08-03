@@ -122,16 +122,18 @@ test('verify-mode SQL runs read-only through the fixed connection', { skip: skip
   assert.doesNotMatch(result.stdout, /HISTORY_DRIFT/);
 });
 
-test('an explicit psql path outside PATH is honoured', { skip: skipReason }, async () => {
-  const staged = path.join(DATA_DIR, 'psql-copy');
-  fs.copyFileSync(PSQL, staged);
-  fs.chmodSync(staged, 0o755);
-  const result = await runPsql({
-    databaseUrl: url(), sql: 'SELECT 1;', psql: staged,
-    env: { PATH: '/nonexistent', LANG: 'C', LC_ALL: 'C' },
+test('an explicit psql path is honoured when psql is unreachable through PATH',
+  { skip: skipReason }, async () => {
+    // The keg-only scenario: psql is absent from PATH and supplied by --psql=<absolute path>.
+    // The binary is used in place, never copied: relocating it breaks its shared-library lookup
+    // on Linux, where libpq is resolved relative to the executable.
+    assert.ok(path.isAbsolute(PSQL), 'the resolved psql path must be absolute');
+    const result = await runPsql({
+      databaseUrl: url(), sql: 'SELECT 1;', psql: PSQL,
+      env: { PATH: '/nonexistent', LANG: 'C', LC_ALL: 'C' },
+    });
+    assert.match(result.stdout, /1/);
   });
-  assert.match(result.stdout, /1/);
-});
 
 test('a wrong connection URI fails with a sanitized error that never leaks the credential',
   { skip: skipReason }, async () => {
