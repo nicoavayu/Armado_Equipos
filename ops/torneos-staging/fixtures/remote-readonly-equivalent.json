@@ -1,0 +1,40 @@
+{
+  "database": {
+    "results": {
+      "role": {
+        "verified": true,
+        "superuser": false,
+        "bypassRls": false,
+        "create": false,
+        "relationWrite": false
+      },
+      "migration_history": [
+        { "version": "20260801090000", "name": "tournament_context_reads_are_pure" }
+      ],
+      "tables": [],
+      "columns": [],
+      "functions": [],
+      "grants": [],
+      "policies": [],
+      "indexes": [],
+      "triggers": [],
+      "constraints": [],
+      "storage_bucket": [],
+      "storage_objects": [],
+      "attestations": [],
+      "readiness": [],
+      "jobs": [],
+      "sessions": [],
+      "assets": [],
+      "variants": [],
+      "social_permissions": []
+    },
+    "remoteCalls": 0,
+    "transactionReadOnlyVerified": true
+  },
+  "metadata": {
+    "functions": [],
+    "secretNames": [],
+    "remoteCalls": 0
+  }
+}
