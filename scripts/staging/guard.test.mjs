@@ -11,13 +11,14 @@ import {
   validateStagingTarget,
 } from './guard.mjs';
 
-const productionRef = 'productionfixture123';
-const stagingRef = 'stagingfixture456';
+const productionRef = 'rcyuuoaqfwcembdajcss';
+const stagingRef = 'hhyvmhgpapyuzjgxfnqv';
 const fingerprint = createHash('sha256').update(productionRef).digest('hex');
 
 const validEnv = {
   ARMA2_DEPLOY_ENV: 'staging',
   ARMA2_TARGET_PROJECT_REF: stagingRef,
+  ARMA2_CREDENTIAL_PROJECT_REF: stagingRef,
   ARMA2_TARGET_SUPABASE_URL: `https://${stagingRef}.supabase.co`,
   ARMA2_PRODUCTION_PROJECT_REF: productionRef,
   ARMA2_PRODUCTION_PROJECT_REF_SHA256: fingerprint,
@@ -76,6 +77,22 @@ test('rejects a missing target project ref', () => {
 
 test('rejects a missing target URL', () => {
   rejects({ ARMA2_TARGET_SUPABASE_URL: '' }, /ARMA2_TARGET_SUPABASE_URL/);
+});
+
+test('rejects an unknown project ref even when URL and credential agree', () => {
+  rejects({
+    ARMA2_TARGET_PROJECT_REF: 'unknownprojectfixture',
+    ARMA2_CREDENTIAL_PROJECT_REF: 'unknownprojectfixture',
+    ARMA2_TARGET_SUPABASE_URL: 'https://unknownprojectfixture.supabase.co',
+  }, /not the authorized Staging project/);
+});
+
+test('rejects a credential associated with another project', () => {
+  rejects({ ARMA2_CREDENTIAL_PROJECT_REF: 'differentprojectfixture' }, /credential belongs to another project/);
+});
+
+test('rejects service-role material in browser environment', () => {
+  rejects({ REACT_APP_SUPABASE_SERVICE_ROLE_KEY: 'fixture-not-a-real-secret' }, /forbidden in browser/);
 });
 
 test('rejects the production project ref', () => {

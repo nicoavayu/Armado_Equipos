@@ -8,10 +8,11 @@
   "scripts": {
     "start": "node src/index.mjs",
     "selftest": "node src/selftest-cli.mjs",
+    "healthcheck": "node src/healthcheck-cli.mjs",
     "test": "node --test test/*.test.mjs"
   },
   "engines": {
-    "node": ">=20"
+    "node": "22.x"
   },
   "dependencies": {
     "sharp": "0.33.5"

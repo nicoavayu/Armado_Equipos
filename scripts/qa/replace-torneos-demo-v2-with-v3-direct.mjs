@@ -71,9 +71,9 @@ const DEFAULT_IDENTITY_MAP_FILE = 'torneos-demo-v2-identity-map.local';
 const REPLACEMENT_ADVISORY_LOCK_NAMESPACE = 'replace:torneos-demo-v2:torneos-demo-v3';
 const REPLACEMENT_ADVISORY_LOCK_PROOF = Symbol('replacement-advisory-lock-proof');
 const PREFERENCE_TABLE = 'user_tournament_context_preferences';
-const EXTERNAL_CONSTRAINT_COUNT = 61;
+const EXTERNAL_CONSTRAINT_COUNT = 62;
 const EXTERNAL_CONSTRAINT_CATALOG_FINGERPRINT =
-  'a29596721dea56d6be1d89f8b9b6da213fe80a8a3f43c12fd4cc36bd42b07ca7';
+  'f0e09632e900cc9b25666c44d999e5102120a8e7ab5880b442de9464aeccbb5a';
 const PREFERENCE_COLUMNS = Object.freeze([
   Object.freeze({ name: 'user_id', type: 'uuid', nullable: false }),
   Object.freeze({ name: 'organization_id', type: 'uuid', nullable: false }),
