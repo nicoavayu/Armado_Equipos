@@ -49,6 +49,8 @@ const assert = (condition, code, message, details) => {
   if (!condition) fail(code, message, details);
 };
 
+export const FULL_GIT_SHA = /^[0-9a-f]{40}$/;
+
 const fileDigest = (repoRoot, relativeFile) => (
   sha256(fs.readFileSync(path.join(repoRoot, relativeFile)))
 );
@@ -88,11 +90,16 @@ function validateNoEmbeddedSecrets(manifest) {
 }
 
 export function validateManifest({ repoRoot = process.cwd(), manifest = loadManifest(repoRoot) } = {}) {
-  assert(manifest.schemaVersion === 1, 'MANIFEST_SCHEMA', 'Unsupported manifest schema.');
+  assert(manifest.schemaVersion === 2, 'MANIFEST_SCHEMA', 'Unsupported manifest schema.');
   assert(canonicalJson(manifest.stages.map(({ name }) => name)) === canonicalJson(STAGE_NAMES),
     'MANIFEST_STAGES', 'Stage list or order differs from the deployment contract.');
-  assert(manifest.repository.expectedBaseSha === manifest.repository.expectedEpicSha,
-    'MANIFEST_BASE_SHA', 'Expected repository base and epic SHA must match.');
+  assert(manifest.repository.authorizedHeadArgumentRequired === true,
+    'MANIFEST_REPOSITORY_SHA', 'The operational repository SHA must be supplied explicitly.');
+  assert(canonicalJson(manifest.repository.requiredMergedPrs) === canonicalJson([122, 123, 124, 125]),
+    'MANIFEST_REQUIRED_PRS', 'Required merged PR set differs.');
+  assert(manifest.repository.requiredMergeCommits.length === 4
+    && manifest.repository.requiredMergeCommits.every((sha) => /^[0-9a-f]{40}$/.test(sha)),
+  'MANIFEST_REQUIRED_PRS', 'Required merge commits must be exact full Git SHAs.');
   assert(manifest.environment.name === 'staging', 'ENVIRONMENT_UNKNOWN', 'Only staging is authorized.');
   assert(!manifest.environment.forbiddenProjectRefs.includes(manifest.environment.authorizedProjectRef),
     'PROJECT_REF_COLLISION', 'Authorized project is also forbidden.');
@@ -121,6 +128,47 @@ export function validateManifest({ repoRoot = process.cwd(), manifest = loadMani
     assert(/\bbegin\s*;/i.test(rollbackSql) && /\bcommit\s*;/i.test(rollbackSql),
       'ROLLBACK_TRANSACTION', `${migration.rollback} must be transactional.`);
   }
+  assert(manifest.migrationPolicy.transactionRequired === true
+    && manifest.migrationPolicy.oneMigrationPerExecution === true
+    && manifest.migrationPolicy.concurrentMigrationPolicy === 'abort'
+    && manifest.migrationPolicy.pauseAfterEachMigration === true,
+  'MIGRATION_EXECUTION_CONTRACT', 'Migration execution must be transactional, singular, exclusive, and paused.');
+  const limits = manifest.migrationPolicy.timeoutLimitsMs;
+  const limitContract = {
+    lockTimeoutMs: 10000,
+    statementTimeoutMs: 300000,
+    idleInTransactionSessionTimeoutMs: 120000,
+  };
+  for (const [name, maximum] of Object.entries(limitContract)) {
+    assert(Number.isInteger(limits?.[name]) && limits[name] > 0 && limits[name] === maximum,
+      'MIGRATION_TIMEOUT_LIMIT', `${name} limit is missing or invalid.`);
+  }
+  const a1 = migrations[0];
+  const execution = a1.execution;
+  assert(execution.authorizedStage === 'A1' && execution.singleMigrationOnly === true
+    && execution.transactionRequired === true && execution.onErrorStop === true
+    && execution.applicationName === 'arma2-torneos-a1-migrate'
+    && execution.projectRef === manifest.environment.authorizedProjectRef
+    && execution.repositoryShaSource === 'authorized-argument-must-match-head'
+    && execution.checksumRequired === true && execution.versionRequired === true
+    && execution.snapshotRequired === true && execution.planRequired === true
+    && execution.historyBeforeSource === 'snapshot-exact'
+    && execution.historyAfterRule === 'history-before-plus-this-version'
+    && execution.concurrentMigrations === 'abort' && execution.postApplyPause === true,
+  'MIGRATION_EXECUTION_CONTRACT', 'A1 execution contract is incomplete.');
+  const expectedTimeouts = {
+    lockTimeoutMs: 5000,
+    statementTimeoutMs: 120000,
+    idleInTransactionSessionTimeoutMs: 60000,
+  };
+  for (const [name, expected] of Object.entries(expectedTimeouts)) {
+    const value = execution.timeouts?.[name];
+    assert(Number.isInteger(value) && value > 0 && value <= limits[name] && value === expected,
+      'MIGRATION_TIMEOUT', `${name} must equal the authorized A1 value.`);
+  }
+  assert(migrations.slice(1).every((migration) => migration.execution?.blocked === true
+    && migration.execution.authorizedStage === null && migration.execution.reason === 'outside-a1'),
+  'MIGRATION_SCOPE', 'A2 and Social must remain explicitly blocked.');
 
   const storage = manifest.storage;
   assert(storage.bucket === 'tournament-media' && storage.public === false,
@@ -171,18 +219,59 @@ function git(repoRoot, args) {
   return execFileSync('git', args, { cwd: repoRoot, encoding: 'utf8' }).trim();
 }
 
-export function inspectRepository({ repoRoot = process.cwd(), manifest = loadManifest(repoRoot), requireClean = true } = {}) {
-  const branch = git(repoRoot, ['branch', '--show-current']);
-  const headSha = git(repoRoot, ['rev-parse', 'HEAD']);
-  const status = git(repoRoot, ['status', '--porcelain']);
-  assert(branch === manifest.repository.branch, 'REPOSITORY_BRANCH', `Expected ${manifest.repository.branch}, got ${branch}.`);
-  if (requireClean) assert(status === '', 'REPOSITORY_DIRTY', 'Worktree must be clean.');
+const isAncestor = (repoRoot, ancestor, descendant) => {
   try {
-    git(repoRoot, ['merge-base', '--is-ancestor', manifest.repository.expectedEpicSha, 'HEAD']);
+    execFileSync('git', ['merge-base', '--is-ancestor', ancestor, descendant], {
+      cwd: repoRoot,
+      stdio: 'ignore',
+    });
+    return true;
   } catch {
-    fail('REPOSITORY_BASE_SHA', 'Expected epic SHA is not an ancestor of HEAD.');
+    return false;
   }
-  return { branch, headSha, clean: status === '', expectedEpicSha: manifest.repository.expectedEpicSha };
+};
+
+export function validateRepositoryBinding({
+  repoRoot = process.cwd(),
+  manifest = loadManifest(repoRoot),
+  expectedRepositorySha,
+  requireClean = true,
+} = {}) {
+  assert(FULL_GIT_SHA.test(String(expectedRepositorySha || '')), 'REPOSITORY_SHA',
+    'A full 40-character lowercase repository SHA is required.');
+  const headSha = git(repoRoot, ['rev-parse', 'HEAD']);
+  assert(headSha === expectedRepositorySha, 'REPOSITORY_DRIFT',
+    'Authorized repository SHA does not match HEAD.');
+  const status = git(repoRoot, ['status', '--porcelain']);
+  if (requireClean) assert(status === '', 'REPOSITORY_DIRTY', 'Worktree must be clean.');
+  const epicRef = `refs/remotes/origin/${manifest.repository.baseBranch}`;
+  const requiredEpicAnchor = manifest.repository.requiredMergeCommits.at(-1);
+  let epicAnchor = requiredEpicAnchor;
+  try { epicAnchor = git(repoRoot, ['rev-parse', '--verify', epicRef]); } catch {
+    try { git(repoRoot, ['cat-file', '-e', `${requiredEpicAnchor}^{commit}`]); } catch {
+      fail('REPOSITORY_EPIC_REF',
+        `Neither ${epicRef} nor the required epic anchor commit is available locally.`);
+    }
+  }
+  assert(isAncestor(repoRoot, epicAnchor, headSha), 'REPOSITORY_EPIC_CONTAINMENT',
+    `HEAD must descend from ${manifest.repository.baseBranch}.`);
+  for (const [index, mergeCommit] of manifest.repository.requiredMergeCommits.entries()) {
+    assert(isAncestor(repoRoot, mergeCommit, headSha), 'REPOSITORY_REQUIRED_PR',
+      `HEAD does not include required PR #${manifest.repository.requiredMergedPrs[index]}.`);
+  }
+  return {
+    branch: git(repoRoot, ['branch', '--show-current']),
+    headSha,
+    clean: status === '',
+    epicRef: epicAnchor,
+    requiredMergedPrs: [...manifest.repository.requiredMergedPrs],
+  };
+}
+
+export function inspectRepository({
+  repoRoot = process.cwd(), manifest = loadManifest(repoRoot), expectedRepositorySha, requireClean = true,
+} = {}) {
+  return validateRepositoryBinding({ repoRoot, manifest, expectedRepositorySha, requireClean });
 }
 
 export function localMigrationVersions(repoRoot = process.cwd()) {
@@ -260,10 +349,17 @@ export function validateState({ repoRoot = process.cwd(), manifest = loadManifes
   return { ok: true, stateSha256: sha256(canonicalJson(state)), pendingMigrations: expectedPending };
 }
 
-export function buildPlan({ repoRoot = process.cwd(), manifest = loadManifest(repoRoot), state, repositorySha, includeSql = false }) {
+export function buildPlan({
+  repoRoot = process.cwd(), manifest = loadManifest(repoRoot), state, repositorySha,
+  includeSql = false, createdAt = new Date().toISOString(), ttlSeconds = 1800,
+}) {
   const manifestResult = validateManifest({ repoRoot, manifest });
   const stateResult = validateState({ repoRoot, manifest, state });
-  assert(/^[a-f0-9]{40}$/.test(repositorySha), 'REPOSITORY_SHA', 'Plan requires an exact Git SHA.');
+  assert(FULL_GIT_SHA.test(repositorySha), 'REPOSITORY_SHA', 'Plan requires an exact Git SHA.');
+  const created = new Date(createdAt);
+  assert(!Number.isNaN(created.valueOf()), 'PLAN_TIME', 'Plan creation time is invalid.');
+  assert(Number.isInteger(ttlSeconds) && ttlSeconds > 0 && ttlSeconds <= 3600,
+    'PLAN_TTL', 'Plan TTL must be between 1 and 3600 seconds.');
   const pending = manifest.migrationPolicy.migrations
     .filter(({ version }) => stateResult.pendingMigrations.includes(version))
     .map((migration) => {
@@ -288,9 +384,11 @@ export function buildPlan({ repoRoot = process.cwd(), manifest = loadManifest(re
     environment: manifest.environment.name,
     projectRef: manifest.environment.authorizedProjectRef,
     repositorySha,
-    expectedEpicSha: manifest.repository.expectedEpicSha,
+    baseBranch: manifest.repository.baseBranch,
     manifestSha256: manifestResult.manifestSha256,
     inspectedStateSha256: stateResult.stateSha256,
+    createdAt: created.toISOString(),
+    expiresAt: new Date(created.valueOf() + ttlSeconds * 1000).toISOString(),
     migrations: pending,
     storage: {
       action: state.storage?.exists ? 'verify' : 'create',
@@ -395,6 +493,9 @@ export function authorizeStage({ manifest, plan, state, stage, repositorySha, co
     'PROJECT_REF_UNKNOWN', 'Plan targets an unauthorized ref.');
   assert(plan.environment === 'staging', 'ENVIRONMENT_UNKNOWN', 'Plan environment is not staging.');
   assert(repositorySha === plan.repositorySha, 'REPOSITORY_DRIFT', 'Repository SHA changed after plan.');
+  assert(Date.now() < new Date(plan.expiresAt).valueOf(), 'PLAN_EXPIRED', 'Execution plan has expired.');
+  const currentManifestSha = sha256(canonicalJson(manifest));
+  assert(plan.manifestSha256 === currentManifestSha, 'PLAN_MANIFEST_DRIFT', 'Manifest changed after plan.');
   assert(sha256(canonicalJson(state)) === plan.inspectedStateSha256,
     'STATE_DRIFT', 'State changed after plan.');
   const expected = stageAuthorization(plan, stage);

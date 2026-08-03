@@ -11,7 +11,7 @@
   ],
   "properties": {
     "schemaVersion": { "const": 1 },
-    "repositorySha": { "const": "93225cae8fde398e1c73b8a9e077325bda6d450d" },
+    "repositorySha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
     "projectRef": { "const": "hhyvmhgpapyuzjgxfnqv" },
     "timestamp": { "type": "string", "format": "date-time" },
     "migrationState": { "type": "object" },

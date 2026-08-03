@@ -4,11 +4,22 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 
-import { analyzeSql, canonicalJson, loadManifest, sha256 } from './readiness-lib.mjs';
+import {
+  FULL_GIT_SHA,
+  analyzeSql,
+  canonicalJson,
+  loadManifest,
+  sha256,
+  validateManifest,
+  validateRepositoryBinding,
+} from './readiness-lib.mjs';
 
 export const AUTHORIZED_STAGING_REF = 'hhyvmhgpapyuzjgxfnqv';
 export const FORBIDDEN_PRODUCTION_REF = 'rcyuuoaqfwcembdajcss';
-export const EXPECTED_REPOSITORY_SHA = '93225cae8fde398e1c73b8a9e077325bda6d450d';
+export const SUPERSEDED_PLAN_IDS = Object.freeze([
+  'dd06024015444217e9cd87054b165b7fe902d15b920d5842af1825c947355762',
+  'e4144f8bcb810755d18c471e85e389faaa2e4448f68d356367fb4551cfd6e88e',
+]);
 export const TARGET_EDGE_FUNCTIONS = Object.freeze([
   'tournament-media-signer',
   'tournament-media-processor',
@@ -593,7 +604,8 @@ export function classifyStorageMetadata(storageAdmin) {
 }
 
 export function buildSnapshot({ repoRoot, repositorySha, projectRef, timestamp, database, metadata }) {
-  assert(repositorySha === EXPECTED_REPOSITORY_SHA, 'REPOSITORY_DRIFT', 'Snapshot must bind the exact authorized epic SHA.');
+  assert(FULL_GIT_SHA.test(repositorySha), 'REPOSITORY_SHA',
+    'Snapshot must bind a full 40-character repository SHA.');
   assert(projectRef === AUTHORIZED_STAGING_REF, 'PROJECT_REF_UNKNOWN', 'Snapshot project is not authorized Staging.');
   const localMigrations = localMigrationInventory(repoRoot);
   const localByVersion = new Map(localMigrations.map((item) => [item.version, item]));
@@ -746,8 +758,8 @@ export function refreshFocalSnapshot({
   storageAdmin,
 }) {
   validateSnapshot(priorSnapshot);
-  assert(repositorySha === EXPECTED_REPOSITORY_SHA, 'REPOSITORY_DRIFT',
-    'Focal snapshot must bind the exact authorized epic SHA.');
+  assert(FULL_GIT_SHA.test(repositorySha) && repositorySha === priorSnapshot.repositorySha,
+    'REPOSITORY_DRIFT', 'Focal snapshot must bind the same full repository SHA as its source.');
   assert(projectRef === AUTHORIZED_STAGING_REF, 'PROJECT_REF_UNKNOWN',
     'Focal snapshot project is not authorized Staging.');
   assert(sha256(`${JSON.stringify(JSON.parse(canonicalJson(priorSnapshot)), null, 2)}\n`) === priorSnapshotSha256,
@@ -827,9 +839,14 @@ export function assertSnapshotSanitized(value, currentKey = '') {
   return true;
 }
 
-export function validateSnapshot(snapshot) {
+export function validateSnapshot(snapshot, { expectedRepositorySha } = {}) {
   assert(snapshot?.schemaVersion === 1, 'SNAPSHOT_SCHEMA', 'Unsupported snapshot schemaVersion.');
-  assert(snapshot.repositorySha === EXPECTED_REPOSITORY_SHA, 'REPOSITORY_DRIFT', 'Snapshot repository SHA differs.');
+  assert(FULL_GIT_SHA.test(snapshot.repositorySha), 'REPOSITORY_SHA',
+    'Snapshot repository SHA must be 40 lowercase hexadecimal characters.');
+  if (expectedRepositorySha !== undefined) {
+    assert(FULL_GIT_SHA.test(expectedRepositorySha) && snapshot.repositorySha === expectedRepositorySha,
+      'REPOSITORY_DRIFT', 'Snapshot repository SHA differs from the authorized SHA.');
+  }
   assert(snapshot.projectRef === AUTHORIZED_STAGING_REF, 'PROJECT_REF_UNKNOWN', 'Snapshot project differs.');
   assert(snapshot.mutationsPerformed === 0, 'SNAPSHOT_MUTATION', 'Snapshot reports remote mutations.');
   assert(typeof snapshot.remoteCalls === 'number' && snapshot.remoteCalls >= 0,
@@ -838,11 +855,16 @@ export function validateSnapshot(snapshot) {
   return true;
 }
 
-export function buildDryRun({ repoRoot, snapshot, repositorySha }) {
-  validateSnapshot(snapshot);
-  assert(repositorySha === EXPECTED_REPOSITORY_SHA && snapshot.repositorySha === repositorySha,
-    'REPOSITORY_DRIFT', 'Dry-run SHA must exactly match the snapshot and authorized epic.');
+export function buildDryRun({ repoRoot, snapshot, repositorySha, ttlSeconds = 1800 }) {
+  validateSnapshot(snapshot, { expectedRepositorySha: repositorySha });
+  assert(FULL_GIT_SHA.test(repositorySha) && snapshot.repositorySha === repositorySha,
+    'REPOSITORY_DRIFT', 'Dry-run SHA must exactly match the snapshot and authorized HEAD.');
   const manifest = loadManifest(repoRoot);
+  const manifestResult = validateManifest({ repoRoot, manifest });
+  assert(Number.isInteger(ttlSeconds) && ttlSeconds > 0 && ttlSeconds <= 3600,
+    'PLAN_TTL', 'Plan TTL must be between 1 and 3600 seconds.');
+  const createdAt = new Date(snapshot.timestamp);
+  assert(!Number.isNaN(createdAt.valueOf()), 'PLAN_TIME', 'Snapshot timestamp is invalid.');
   const applied = new Set(snapshot.migrationState.remoteHistory.map((item) => item.version));
   const migrations = manifest.migrationPolicy.migrations
     .filter((item) => !applied.has(item.version))
@@ -850,6 +872,7 @@ export function buildDryRun({ repoRoot, snapshot, repositorySha }) {
       const sql = fs.readFileSync(path.join(repoRoot, item.file), 'utf8');
       return { order: item.order, version: item.version, file: item.file,
         localSha256: item.sha256, remoteChecksum: 'unverifiable', dependencies: item.order === 1 ? [] : [manifest.migrationPolicy.migrations[item.order - 2].version],
+        execution: item.execution,
         affected: analyzeSql(sql), locks: item.expectedLocks,
         estimatedDuration: 'unknown: no Staging execution evidence exists; measure only during a separately approved migration window',
         risk: item.risk, rollback: item.rollback,
@@ -863,8 +886,13 @@ export function buildDryRun({ repoRoot, snapshot, repositorySha }) {
   const missingSecrets = manifest.configuration.secretAlternatives
     .filter((group) => !group.some((name) => snapshot.secrets.some((item) => item.name === name && item.present)));
   const core = {
-    schemaVersion: 1, repositorySha, projectRef: snapshot.projectRef,
-    snapshotSha256: sha256(canonicalJson(snapshot)), mutationsPerformed: 0,
+    schemaVersion: 2, status: 'active', repositorySha, projectRef: snapshot.projectRef,
+    manifestSha256: manifestResult.manifestSha256,
+    snapshotSha256: sha256(canonicalJson(snapshot)),
+    remoteCalls: snapshot.remoteCalls,
+    mutationsPerformed: 0,
+    createdAt: createdAt.toISOString(),
+    expiresAt: new Date(createdAt.valueOf() + ttlSeconds * 1000).toISOString(),
     migrations: {
       pending: migrations,
       discrepancies: {
@@ -961,11 +989,58 @@ export function buildDryRun({ repoRoot, snapshot, repositorySha }) {
   return { ...core, planId: sha256(canonicalJson(core)) };
 }
 
+export function validateExecutionPlan({
+  repoRoot,
+  plan,
+  snapshot,
+  expectedRepositorySha,
+  now = new Date(),
+  requireClean = false,
+}) {
+  if (SUPERSEDED_PLAN_IDS.includes(plan?.planId)) {
+    fail('PLAN_SUPERSEDED', 'The historical pre-A1 plan is superseded and cannot be executed.');
+  }
+  const manifest = loadManifest(repoRoot);
+  validateRepositoryBinding({ repoRoot, manifest, expectedRepositorySha, requireClean });
+  validateSnapshot(snapshot, { expectedRepositorySha });
+  assert(plan?.schemaVersion === 2 && plan.status === 'active', 'PLAN_SCHEMA',
+    'Only an active execution plan schema v2 is accepted.');
+  assert(plan.repositorySha === expectedRepositorySha, 'PLAN_REPOSITORY_DRIFT',
+    'Plan repository SHA does not match the authorized HEAD.');
+  assert(plan.projectRef === manifest.environment.authorizedProjectRef
+    && plan.projectRef === snapshot.projectRef, 'PLAN_PROJECT_REF',
+  'Plan project ref differs from the manifest or source snapshot.');
+  const manifestSha256 = validateManifest({ repoRoot, manifest }).manifestSha256;
+  assert(plan.manifestSha256 === manifestSha256, 'PLAN_MANIFEST_DRIFT',
+    'Plan manifest checksum differs from the current manifest.');
+  assert(plan.snapshotSha256 === sha256(canonicalJson(snapshot)), 'PLAN_SNAPSHOT_DRIFT',
+    'Plan source snapshot checksum differs.');
+  const expiresAt = new Date(plan.expiresAt);
+  assert(!Number.isNaN(expiresAt.valueOf()) && now.valueOf() < expiresAt.valueOf(),
+    'PLAN_EXPIRED', 'Execution plan has expired.');
+  const applied = new Set(snapshot.migrationState.remoteHistory.map((item) => item.version));
+  const expectedPending = manifest.migrationPolicy.migrations
+    .filter((item) => !applied.has(item.version))
+    .map((item) => ({ version: item.version, file: item.file, localSha256: item.sha256 }));
+  const actualPending = (plan.migrations?.pending || [])
+    .map((item) => ({ version: item.version, file: item.file, localSha256: item.localSha256 }));
+  assert(canonicalJson(actualPending) === canonicalJson(expectedPending), 'PLAN_PENDING_DRIFT',
+    'Plan pending migration list or order differs from the snapshot and manifest.');
+  for (const item of plan.migrations.pending) {
+    assert(sha256(fs.readFileSync(path.join(repoRoot, item.file))) === item.localSha256,
+      'PLAN_MIGRATION_DRIFT', `Migration checksum changed for ${item.version}.`);
+  }
+  const { planId, ...core } = plan;
+  assert(planId === sha256(canonicalJson(core)), 'PLAN_ID_DRIFT', 'Plan ID does not match its content.');
+  return { ok: true, manifest, manifestSha256, pending: actualPending };
+}
+
 export function formatDryRunMarkdown(plan) {
   const lines = [
     '# Arma2 Torneos — Staging read-only dry-run', '',
     `- Repository SHA: \`${plan.repositorySha}\``,
     `- Snapshot SHA-256: \`${plan.snapshotSha256}\``,
+    `- Remote calls heredadas del snapshot: **${plan.remoteCalls}**`,
     `- Remote mutations: **${plan.mutationsPerformed}**`, '',
     '## Migraciones', '',
   ];
