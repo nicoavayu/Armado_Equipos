@@ -93,6 +93,7 @@
     "torneos:staging:plan": "node scripts/staging/run.mjs plan",
     "torneos:staging:dry-run": "node scripts/staging/run.mjs dry-run",
     "torneos:staging:dry-run:readonly": "node scripts/torneos-staging/dry-run-readonly.mjs",
+    "torneos:staging:a1": "node scripts/torneos-staging/apply-single-migration.mjs",
     "torneos:staging:rollback:simulated": "node scripts/staging/run.mjs rollback --simulate",
     "test:staging:rollback:local": "node scripts/torneos-staging/verify-rollbacks-local.mjs",
     "test:db:torneos:media-upload": "node scripts/db-integration/torneos-media-upload-pipeline.mjs",
