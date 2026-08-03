@@ -44,6 +44,7 @@ SELECT
     WHERE relation_row.relkind IN ('r', 'p', 'v', 'm', 'f')
       AND namespace_row.nspname NOT LIKE 'pg_%'
       AND namespace_row.nspname <> 'information_schema'
+      AND has_schema_privilege(current_user, namespace_row.oid, 'USAGE')
       AND (
         has_table_privilege(current_user, relation_row.oid, 'INSERT')
         OR has_table_privilege(current_user, relation_row.oid, 'UPDATE')

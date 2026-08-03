@@ -48,7 +48,8 @@ Al conectar, el inspector:
 3. comprueba `current_setting('transaction_read_only') = 'on'`;
 4. comprueba `NOSUPERUSER`, `NOBYPASSRLS`, `NOCREATEDB`, `NOCREATEROLE`,
    `NOREPLICATION`, `NOINHERIT`, `CREATE` efectivo y privilegios efectivos de
-   escritura sobre relaciones;
+   escritura efectivamente utilizables sobre relaciones (incluido `USAGE` del
+   schema contenedor);
 5. consulta catálogos, `information_schema`, historial de migraciones, metadata
    de Storage y agregados de Media/Social;
 6. invoca `tournament_media_pipeline_readiness()` sólo si existe y el catálogo
