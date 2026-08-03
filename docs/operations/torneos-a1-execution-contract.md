@@ -92,11 +92,103 @@ ordena antes de construir ambos lados de la comparación. Por eso el orden del
 JSON remoto no puede producir drift falso. Un segundo intento devuelve
 `A1 already applied` después de adquirir el lock y no ejecuta el body.
 
-Los errores de `psql` conservan el código SQLSTATE y el mensaje técnico
-acotado a 2000 caracteres, pero eliminan URLs, credenciales, JWT, parámetros
-sensibles, refs prohibidas y paths locales. La URL de base se entrega sólo en
-`PGDATABASE`; `psql` recibe el SQL por stdin, se invoca con `shell:false` y la
-URL nunca forma parte de sus argumentos.
+Los errores de `psql` conservan el código de salida, el SQLSTATE cuando está
+disponible y el mensaje técnico acotado, pero eliminan URLs, credenciales,
+JWT, parámetros sensibles, refs prohibidas y paths locales. El SQL enviado no
+se refleja en el error.
+
+## Contrato de conexión de `psql`
+
+### Causa raíz del defecto corregido
+
+La primera versión del executor entregaba la URL completa de conexión en la
+variable `PGDATABASE`. **libpq no expande una URI de conexión recibida por
+`PGDATABASE`**: la expansión (`expand_dbname`) sólo aplica al parámetro
+`dbname` que `psql` recibe como argumento posicional. Por variable de entorno,
+libpq trata el string `postgresql://…` como un **nombre literal de base** y
+cae al socket Unix local.
+
+El síntoma es inequívoco y no depende de la credencial:
+
+```
+psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed:
+No such file or directory
+```
+
+Nunca intenta resolver el host de la URI. Los modos `apply` y `verify` —y
+cualquier llamada a `runPsql()`— eran por lo tanto inutilizables contra
+Staging, con cualquier credencial. El defecto no se detectó porque las pruebas
+unitarias sólo verificaban el SQL generado por `buildTransactionalSql()` y la
+suite live conectaba con el cliente `pg` de Node, sin ejercitar `runPsql()`.
+
+### Proyección discreta de variables libpq
+
+`buildPsqlConnectionEnv()` parsea la URL exclusivamente en memoria y proyecta
+variables libpq discretas: `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`,
+`PGDATABASE` —sólo el nombre real de la base— y, cuando la URL los declara,
+`PGSSLMODE`, `PGCONNECT_TIMEOUT`, `PGTARGETSESSIONATTRS` y `PGCHANNELBINDING`.
+Soporta host directo, pooler oficial, usernames que incluyen el project ref,
+credenciales y nombres de base percent-encoded (decodificados exactamente una
+vez) y puerto explícito, con `5432` por defecto. La URL completa no queda en
+ninguna variable libpq.
+
+Sólo se aceptan estos parámetros de conexión en la URL: `sslmode`,
+`connect_timeout`, `target_session_attrs` y `channel_binding`, cada uno con
+sus valores válidos. Cualquier otro parámetro —incluidos `application_name`,
+`options`, `statement_timeout`, `lock_timeout`, `service` y `passfile`—
+aborta: la URL no puede sustituir el `application_name` ni los timeouts de la
+migración, que el contrato A1 fija con `SET LOCAL` dentro de la transacción.
+TLS falla cerrado: `PGSSLMODE` vale `require` salvo que la URL lo baje
+explícitamente. Se rechazan además URLs malformadas, esquemas ajenos,
+fragmentos, usuario ausente, base ausente y —para `apply` y `verify`—
+password ausente.
+
+El entorno del proceso hijo se construye desde una allowlist (`PATH`, `LANG`,
+`LC_ALL`) en lugar de heredar `process.env`, de modo que ninguna configuración
+libpq ambiente puede redirigir el destino ni sustituir la credencial:
+`PGSERVICE`, `PGSERVICEFILE`, `PGPASSFILE`, `PGOPTIONS`, `PGHOSTADDR`,
+`PGREQUIRESSL`, `PGSSLCERT`, `PGSSLKEY`, `PGSSLROOTCERT` y cualquier otra
+`PG*` heredada quedan fuera.
+
+La validación de destino Supabase sigue en `validateTarget`, que
+`prepareExecution` aplica antes de abrir cualquier conexión; el ref de
+Production se rechaza además dentro de la propia proyección, como defensa en
+profundidad y antes de que exista proceso hijo.
+
+### Protección del secreto
+
+La URL y su password nunca aparecen en argv, stdout, stderr, logs ni receipts.
+`psql` se sigue invocando con `shell:false`, `-X`, `--no-psqlrc`,
+`--set=ON_ERROR_STOP=1` y el SQL por stdin. El sanitizador de errores recibe
+además el valor literal de la credencial —en claro y percent-encoded— para
+redactarlo aunque no coincida con ningún patrón genérico.
+
+### Ruta de `psql`
+
+El default sigue siendo `psql` resuelto por `PATH`. Cuando libpq está
+instalado keg-only y `psql` no está en `PATH`, la ruta se pasa por argumento,
+por ejemplo `--psql=/opt/homebrew/opt/libpq/bin/psql`. Esa ruta es una
+conveniencia del host, no una constante del producto.
+
+### Pruebas de regresión
+
+`scripts/torneos-staging/psql-connection-contract.test.mjs` inyecta un `spawn`
+controlado y verifica argv, `shell:false`, SQL por stdin, `ON_ERROR_STOP=1`,
+el entorno discreto resultante, la eliminación de las `PG*` hostiles y la
+sanitización de errores. `scripts/torneos-staging/psql-connection-live.test.mjs`
+ejercita `runPsql()` real contra un PostgreSQL local efímero por TCP: `SELECT
+1`, el SQL de `verify`, una ruta de `psql` fuera de `PATH`, una URI incorrecta
+que falla sanitizada, y reproduce la proyección anterior (`PGDATABASE=URI`)
+demostrando que contra el mismo servidor no puede conectarse. Ambas suites
+corren dentro de `test:staging:guard`, que ejecuta el Quality Gate vía
+`test:ci`. Ninguna contacta Staging ni Production.
+
+### Consecuencia operativa
+
+El fix cambia el HEAD de la epic. Todo snapshot, dry-run, plan y approval
+token anterior queda inválido: después del merge hay que reinspeccionar en
+read-only y generar un plan nuevo ligado al SHA nuevo antes de cualquier
+apply.
 
 ## Inspect y dry-run local
 
@@ -150,6 +242,10 @@ npm run torneos:staging:a1 -- apply \
   --confirmation=APPLY-ONLY-A1-20260802090000 \
   --approval-token=<token-A1-del-plan>
 ```
+
+Si `psql` no está en `PATH` —por ejemplo con libpq keg-only— se agrega
+`--psql=<ruta absoluta a psql>`. La conexión sigue llegando únicamente por
+`STAGING_MIGRATION_DATABASE_URL`, nunca como argumento.
 
 El modo rechaza directorios, globs, rangos, múltiples archivos, “all”, otra
 migración, A1 ya aplicada, historial inesperado y cualquier argumento
