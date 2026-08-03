@@ -269,6 +269,10 @@ test('atomic v2 to v3 replacement is fail-closed across the required local matri
       assert.equal(preflight.preferenceFingerprint, expectedPreferenceFingerprint);
       assert.equal(preflight.profiles.count, 6);
       assert.equal(preflight.v2.present, 587);
+      assert.equal(preflight.constraints.length, 62);
+      assert.ok(preflight.constraints.some(
+        (constraint) => constraint.name === 'tournament_social_permissions_organization_fk',
+      ));
     });
 
     await t.test('advisory lock concurrency is fail-closed and released by rollback', async () => {

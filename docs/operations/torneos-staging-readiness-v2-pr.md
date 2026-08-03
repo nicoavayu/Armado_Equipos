@@ -2,7 +2,7 @@
 
 ## Estado
 
-**Contratos certificados; certificación live local pendiente.**
+**Sistema de preparación completamente certificado en entorno local efímero; Staging todavía no inspeccionada ni modificada.**
 
 Este PR draft reemplaza como candidato recomendado al PR #103, que permanece abierto, draft y sin reescritura para comparación. La rama se reconstruyó desde la epic exacta `e9a43a7bde37039f60e6b7b8e44bb84f8a118b42`; no contiene los commits históricos, el merge puente ni los scripts sintéticos ajenos de #103.
 
@@ -10,10 +10,9 @@ No se contactó Staging ni Production. No se aplicaron migraciones remotas, no s
 
 ## Tamaño real
 
-- Commits propios: **9**.
-- Archivos: **34**.
-- Inserciones: **3.321**.
-- Eliminaciones: **296**.
+- Commits propios antes de esta certificación: **9**.
+- Archivos antes de esta certificación: **34**.
+- Esta certificación agrega un commit focal con la actualización documental y la corrección/regresión del catálogo QA V2→V3 que reveló la base completa actual.
 - Base: `epic/arma2-torneos` en `e9a43a7bde37039f60e6b7b8e44bb84f8a118b42`.
 
 ## Qué se eliminó del alcance histórico
@@ -58,30 +57,29 @@ No se copiaron `scripts/backfill-match-location-coordinates.mjs`, `scripts/db-in
 | `workers/tournament-media-processor/package.json` | Engines y dependencias fijadas. |
 | `workers/tournament-media-processor/src/healthcheck-cli.mjs` | Health estricto; no declara capacidades no probadas. |
 | `workers/tournament-media-processor/src/index.mjs` | Backoff, señales, cleanup y shutdown seguro. |
+| `scripts/qa/replace-torneos-demo-v2-with-v3-direct.mjs` | Actualiza el catálogo fail-closed de FKs externas para incluir el FK de Social presente en el schema completo actual. |
+| `scripts/qa/replace-torneos-demo-v2-with-v3-direct.local.test.mjs` | Regresión live local que exige las 62 FKs y la presencia explícita del FK de permisos sociales. |
 
 ## Certificación local ejecutada
 
-- Docker Desktop encontrado en `/Applications/Docker.app`; CLI usada desde `/Applications/Docker.app/Contents/Resources/bin/docker` sin modificar el PATH global.
-- Supabase efímero exclusivo: puertos `59320–59327`, project-id, red y volúmenes propios. No se detuvieron ni eliminaron recursos ajenos.
-- Storage live: seis modos ejecutados; bucket privado, 12 MiB, JPEG/PNG/WebP, cuatro policies `service_role`, cero escritura directa cliente; segundo apply idempotente; policy inesperada y bucket público rechazados; cleanup local idempotente. Suite total `14/14`.
-- DB: media upload `112/112`; media fail-closed `141/141`; Social `39/39`; security patch `104/104`; Security Advisor `8/8`.
-- Authenticated RPC grants: `767` verificaciones, `0` fallos; catálogo `public=0`, `anon=18`, `authenticated=225`, `service_role=488`.
-- Rollbacks live: `3/3`, seis tablas preservadas, APIs mutantes revocadas y `uploadReady=false`.
-- Readiness/Storage/rollback/static: `59/59`; validación staging focal `42/42`; migrations guard OK; inspect, plan, dry-run y rollback simulado OK.
-- Edge Functions: `41/41`; worker: `44/44`.
-- QA normal sin material privado: `70/75`, con 5 suites live correctamente omitidas. QA local-only sobre el stack: `9/9`.
-- Jest: `254/254` suites, `1955/1955` tests. Lint y build optimizado con todas las flags Torneos/Multimedia/Social OFF: OK.
-- Node syntax: 17 archivos cambiados; TypeScript cambiado: 0; Deno no aplicable al diff y CLI no disponible en host/runtime local.
-- `npm ci`, `git diff --check`, escaneo de secretos/project refs y Production fail-closed: OK.
+- Docker Desktop `/Applications/Docker.app`, CLI `29.6.2`, contexto `desktop-linux`, Apple Silicon. El stack exclusivo `arma2-pr124-cert-20260802` usó la red `arma2_pr124_cert_20260802_net`, puertos loopback `60320–60327` y volúmenes propios; ningún recurso preexistente fue detenido.
+- Supabase CLI `2.110.0` y Postgres `17.6.1.143`: dos resets desde cero, seis migraciones en orden exacto, checksums estables e idempotencia. Storage quedó privado, 12 MiB, JPEG/PNG/WebP, cuatro policies exclusivas de `service_role` y cero escritura de `PUBLIC`, `anon` o `authenticated`.
+- Identity map: las seis identidades canónicas eran correctas; sólo las relaciones proyectadas V2 estaban desactualizadas. Una copia temporal `0600`, ignorada por Git, preservó UUID/email/rol/alias y reconstruyó únicamente relaciones actuales. Fingerprints: legacy V2 `77d95cb8caee567de1e8275b81c1e8c850eb59dcf6025504cab93c634ff3657c`; actual `d13bf642667c8a02c79a6f7b6db3325be3a2196c1569cfb655d67a72a3ab4cdd`.
+- QA: umbrella `71/75` con cuatro skips local-only por diseño; las cuatro familias omitidas se ejecutaron en resets independientes: lifecycle V4/transición V3→V4 `9/9`, cleanup legacy V2 `13/13` y reemplazo V2→V3 `33/33`. El reemplazo reveló un catálogo heredado de 61 FKs; se actualizó de forma focal a las 62 del schema actual y se agregó regresión explícita para Social.
+- ClamAV: imagen fijada `clamav/clamav:1.4.5-debian`, multiarch arm64, digest `sha256:50296b62b23764b474be18310521f64a720524d69334ea5236aab5fac44ff993`. `freshclam` y reload reales dejaron firmas `28080`, fecha `2026-08-02 06:24:19 UTC`, menores de siete días. Health `PONG`, limpio negativo y EICAR positivo. Caída de `clamd`, firmas vencidas simuladas y recuperación fueron fail-closed.
+- Worker: imagen local Node `22.14.0`, sharp `0.33.5`, libvips `8.15.3`. Self-test dentro de la red real: `passed=true`; decode/transcode, stripping de metadata, checksums, variantes, ClamAV, Storage y cleanup en true. Atestación processor TTL `900s`; signer TTL `3600s`; `uploadReady` cambió `false→true` y volvió a false al revocar/rollback.
+- E2E: signer/orquestador/worker locales procesaron una imagen real con orientación EXIF, GPS, ICC y metadata adicional. Se verificaron cuarentena, orientación aplicada, metadata eliminada, re-encode, antivirus, original saneado, thumbnail/grid/detail, cuatro checksums/variantes ready y purga de cuarentena. Tras publicación, las cuatro lecturas del owner fueron firmadas; el participante obtuvo `grid`, no `original`, cuarentena ni path interno.
+- Negativos: EICAR, JPEG corrupto, magic bytes falsos, bomba de descompresión, metadata, SVG, APNG, WebP animado, Storage/cleanup ausente, `clamd` caído, firmas vencidas, atestaciones vencidas, policy cliente, bucket público, ref Production, credencial cruzada y flags prematuras. Los gates cerraron sin sesión/publicación parcial y con cuotas/auditoría consistentes.
+- Rollbacks live: los tres scripts versionados se ejecutaron dos veces. Drenaron sesiones/jobs, revocaron atestaciones y grants mutantes, preservaron seis tablas y sus conteos, no ejecutaron `DROP`/`TRUNCATE`, mantuvieron cleanup aprobado y dejaron `uploadReady=false`.
+- Suites: Storage contractual `8/8` y live `6/6`; readiness/rollback/static `42/42`; Edge `41/41`; worker `44/44`; media upload `112/112`; media fail-closed `141/141`; Social `39/39`; security patch `104/104`; Security Advisor `8/8`; grants `767/767`; Jest `254/254` suites y `1955/1955` tests; lint, migrations guard, Node checks, diff-check, secretos/project refs, flags OFF y build web optimizado: OK.
+- Deno `2.1.4` verificó resolución de las 11 Edge Functions. El type-check global reporta 28 errores heredados en fuentes idénticas a la epic (principalmente genéricos de Supabase y nullability en Push); este PR no modifica Edge Functions. El runtime local Edge `1.74.2`/Deno `2.1.4`, su serve real y las suites operativas sí pasaron.
 
-## Pruebas omitidas o bloqueadas
+## Límites reales restantes
 
-1. El identity map local existente se copió temporalmente con modo `0600` y bajo `.gitignore`, sin publicar su contenido. Su guard falla porque la relación proyectada de `owner` no coincide con el contrato V3/V4 actual. No se modificó el mapa, descriptor ni fingerprint legacy. La copia se eliminó tras la prueba.
-2. El self-test real del worker verifica codec/libvips, sniffing, decode/transcode, stripping, variantes y checksum, pero no atestigua antivirus ni Storage/cleanup porque el host no tiene `clamd` ni credenciales Storage del worker. La suite contractual sí pasa `44/44`.
-3. No se ejecutaron pruebas remotas por prohibición expresa: Staging/Production, migraciones, buckets, Edge, worker y flags remotos permanecieron sin contacto.
-
-Por estos dos bloqueos live locales no se afirma “certificado localmente”.
+- Staging y Production no fueron inspeccionadas ni modificadas. No hubo migraciones, buckets, deploys, flags, seeds, replacements ni cleanup remotos.
+- La certificación prueba el sistema en un stack local efímero; no sustituye una autorización futura y separada para inspeccionar Staging.
+- El PR permanece abierto y draft. No se mergeó ni se marcó ready; el PR #103 sigue abierto e intacto.
 
 ## Resultado recomendado
 
-Mantener este PR draft y usarlo para comparar/reemplazar #103. No mergear ni marcar ready hasta resolver el identity map autorizado, provisionar el self-test completo del worker y obtener una autorización separada para cualquier inspección remota.
+Mantener este PR draft para auditoría final de merge. La preparación local está certificada; cualquier contacto posterior con Staging requiere autorización explícita separada.
