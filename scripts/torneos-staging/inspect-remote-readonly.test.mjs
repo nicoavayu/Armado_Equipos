@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
@@ -8,9 +9,9 @@ import { canonicalJson, sha256 } from './readiness-lib.mjs';
 
 import {
   AUTHORIZED_STAGING_REF,
-  EXPECTED_REPOSITORY_SHA,
   FORBIDDEN_PRODUCTION_REF,
   InspectorError,
+  SUPERSEDED_PLAN_IDS,
   assertReadOnlyRole,
   assertReadOnlySql,
   assertSnapshotSanitized,
@@ -24,10 +25,12 @@ import {
   refreshFocalSnapshot,
   safeCliEnv,
   validateSnapshot,
+  validateExecutionPlan,
   validateTarget,
 } from './inspect-remote-readonly-lib.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+const SYNTHETIC_REPOSITORY_SHA = 'a'.repeat(40);
 const SQL = path.join(ROOT, 'scripts', 'torneos-staging', 'inspect-remote-readonly.sql');
 const FIXTURE = path.join(ROOT, 'ops', 'torneos-staging', 'fixtures', 'remote-readonly-equivalent.json');
 const fixture = () => JSON.parse(fs.readFileSync(FIXTURE, 'utf8'));
@@ -139,7 +142,7 @@ test('legitimate unrelated Edge Functions are class B and do not block', () => {
   const classified = classifyEdgeFunctions({ repoRoot: ROOT, functions: input.metadata.functions });
   assert.ok(classified.every((item) => item.classification === 'B'));
   assert.ok(classified.every((item) => item.belongsToTorneos === false && item.collidesWithTarget === false));
-  const snapshot = buildSnapshot({ repoRoot: ROOT, repositorySha: EXPECTED_REPOSITORY_SHA,
+  const snapshot = buildSnapshot({ repoRoot: ROOT, repositorySha: SYNTHETIC_REPOSITORY_SHA,
     projectRef: AUTHORIZED_STAGING_REF, timestamp: '2026-08-03T02:00:00Z',
     database: input.database, metadata: input.metadata });
   assert.ok(!snapshot.blockers.includes('edge.unexpected_function'));
@@ -153,7 +156,7 @@ test('unknown Functions inside the reserved Torneos namespace remain blocking cl
   const classified = classifyEdgeFunctions({ repoRoot: ROOT, functions: input.metadata.functions });
   assert.equal(classified[0].classification, 'D');
   assert.equal(classified[0].belongsToTorneos, true);
-  const snapshot = buildSnapshot({ repoRoot: ROOT, repositorySha: EXPECTED_REPOSITORY_SHA,
+  const snapshot = buildSnapshot({ repoRoot: ROOT, repositorySha: SYNTHETIC_REPOSITORY_SHA,
     projectRef: AUTHORIZED_STAGING_REF, timestamp: '2026-08-03T02:00:00Z',
     database: input.database, metadata: input.metadata });
   assert.ok(snapshot.blockers.includes('edge.unexpected_function'));
@@ -167,7 +170,7 @@ test('signer and processor name collisions are class A and block before deployme
   ];
   const classified = classifyEdgeFunctions({ repoRoot: ROOT, functions: input.metadata.functions });
   assert.ok(classified.every((item) => item.classification === 'A' && item.collidesWithTarget));
-  const snapshot = buildSnapshot({ repoRoot: ROOT, repositorySha: EXPECTED_REPOSITORY_SHA,
+  const snapshot = buildSnapshot({ repoRoot: ROOT, repositorySha: SYNTHETIC_REPOSITORY_SHA,
     projectRef: AUTHORIZED_STAGING_REF, timestamp: '2026-08-03T02:00:00Z',
     database: input.database, metadata: input.metadata });
   assert.ok(snapshot.blockers.includes('edge.tournament-media-signer_collision'));
@@ -223,7 +226,7 @@ test('database inspection aborts immediately when transaction_read_only is not o
 
 test('fixture snapshot is deterministic, sanitized and explicitly zero-mutation', () => {
   const input = fixture();
-  const args = { repoRoot: ROOT, repositorySha: EXPECTED_REPOSITORY_SHA,
+  const args = { repoRoot: ROOT, repositorySha: SYNTHETIC_REPOSITORY_SHA,
     projectRef: AUTHORIZED_STAGING_REF, timestamp: '2026-08-03T02:00:00.000Z',
     database: input.database, metadata: input.metadata };
   const first = buildSnapshot(args);
@@ -239,13 +242,13 @@ test('fixture snapshot is deterministic, sanitized and explicitly zero-mutation'
 
 test('focal refresh inherits sanitized non-focal evidence and counts only new remote calls', () => {
   const input = fixture();
-  const prior = buildSnapshot({ repoRoot: ROOT, repositorySha: EXPECTED_REPOSITORY_SHA,
+  const prior = buildSnapshot({ repoRoot: ROOT, repositorySha: SYNTHETIC_REPOSITORY_SHA,
     projectRef: AUTHORIZED_STAGING_REF, timestamp: '2026-08-03T02:00:00Z',
     database: input.database, metadata: input.metadata });
   const serialized = `${JSON.stringify(JSON.parse(canonicalJson(prior)), null, 2)}\n`;
   const refreshed = refreshFocalSnapshot({
     repoRoot: ROOT,
-    repositorySha: EXPECTED_REPOSITORY_SHA,
+    repositorySha: SYNTHETIC_REPOSITORY_SHA,
     projectRef: AUTHORIZED_STAGING_REF,
     timestamp: '2026-08-03T03:00:00Z',
     priorSnapshot: prior,
@@ -271,7 +274,7 @@ test('RLS-filtered operational rows remain unknown instead of becoming absent or
   );
   input.database.results.storage_objects = [{ total: 0, svg: 0, partial: 0, variants: 0, quarantine: 0 }];
   input.database.results.assets = [];
-  const snapshot = buildSnapshot({ repoRoot: ROOT, repositorySha: EXPECTED_REPOSITORY_SHA,
+  const snapshot = buildSnapshot({ repoRoot: ROOT, repositorySha: SYNTHETIC_REPOSITORY_SHA,
     projectRef: AUTHORIZED_STAGING_REF, timestamp: '2026-08-03T02:00:00Z',
     database: input.database, metadata: input.metadata });
   assert.equal(snapshot.storage.exists, 'unknown');
@@ -305,10 +308,10 @@ test('dry-run reports duplicate/unexpected migration, unsafe Storage and reserve
   input.database.results.policies.push({ schema_name: 'storage', table_name: 'objects',
     policy_name: 'client_write', roles: ['authenticated'], cmd: 'INSERT' });
   input.metadata.functions.push({ name: 'tournament-media-shadow', version: 1, status: 'ACTIVE', updatedAt: null });
-  const snapshot = buildSnapshot({ repoRoot: ROOT, repositorySha: EXPECTED_REPOSITORY_SHA,
+  const snapshot = buildSnapshot({ repoRoot: ROOT, repositorySha: SYNTHETIC_REPOSITORY_SHA,
     projectRef: AUTHORIZED_STAGING_REF, timestamp: '2026-08-03T02:00:00Z',
     database: input.database, metadata: input.metadata });
-  const plan = buildDryRun({ repoRoot: ROOT, snapshot, repositorySha: EXPECTED_REPOSITORY_SHA });
+  const plan = buildDryRun({ repoRoot: ROOT, snapshot, repositorySha: SYNTHETIC_REPOSITORY_SHA });
   assert.deepEqual(plan.migrations.discrepancies.duplicates, ['20260801090000']);
   assert.deepEqual(plan.migrations.discrepancies.unexpectedRemote, ['20990101000000']);
   assert.ok(snapshot.blockers.includes('storage.bucket_public'));
@@ -319,10 +322,10 @@ test('dry-run reports duplicate/unexpected migration, unsafe Storage and reserve
 
 test('dry-run JSON and Markdown bind the exact SHA and remain sanitized', () => {
   const input = fixture();
-  const snapshot = buildSnapshot({ repoRoot: ROOT, repositorySha: EXPECTED_REPOSITORY_SHA,
+  const snapshot = buildSnapshot({ repoRoot: ROOT, repositorySha: SYNTHETIC_REPOSITORY_SHA,
     projectRef: AUTHORIZED_STAGING_REF, timestamp: '2026-08-03T02:00:00Z',
     database: input.database, metadata: input.metadata });
-  const plan = buildDryRun({ repoRoot: ROOT, snapshot, repositorySha: EXPECTED_REPOSITORY_SHA });
+  const plan = buildDryRun({ repoRoot: ROOT, snapshot, repositorySha: SYNTHETIC_REPOSITORY_SHA });
   assert.equal(plan.migrations.pending.length, 3);
   assert.ok(plan.migrations.pending.every((item) => item.remoteChecksum === 'unverifiable'));
   const markdown = formatDryRunMarkdown(plan);
@@ -331,4 +334,48 @@ test('dry-run JSON and Markdown bind the exact SHA and remain sanitized', () => 
   assert.equal(assertSnapshotSanitized(markdown), true);
   expectCode('REPOSITORY_DRIFT', () => buildDryRun({ repoRoot: ROOT, snapshot,
     repositorySha: '0'.repeat(40) }));
+});
+
+test('execution plans bind HEAD, manifest, migration checksums, snapshot, project, order, and expiry', () => {
+  const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim();
+  const input = fixture();
+  const timestamp = new Date().toISOString();
+  const snapshot = buildSnapshot({
+    repoRoot: ROOT,
+    repositorySha: head,
+    projectRef: AUTHORIZED_STAGING_REF,
+    timestamp,
+    database: input.database,
+    metadata: input.metadata,
+  });
+  const plan = buildDryRun({ repoRoot: ROOT, snapshot, repositorySha: head });
+  assert.equal(validateExecutionPlan({
+    repoRoot: ROOT, plan, snapshot, expectedRepositorySha: head, requireClean: false,
+  }).ok, true);
+
+  const reordered = structuredClone(plan);
+  reordered.migrations.pending.reverse();
+  expectCode('PLAN_PENDING_DRIFT', () => validateExecutionPlan({
+    repoRoot: ROOT, plan: reordered, snapshot, expectedRepositorySha: head, requireClean: false,
+  }));
+
+  const wrongSnapshot = structuredClone(snapshot);
+  wrongSnapshot.blockers.push('synthetic.drift');
+  expectCode('PLAN_SNAPSHOT_DRIFT', () => validateExecutionPlan({
+    repoRoot: ROOT, plan, snapshot: wrongSnapshot, expectedRepositorySha: head, requireClean: false,
+  }));
+
+  expectCode('PLAN_EXPIRED', () => validateExecutionPlan({
+    repoRoot: ROOT, plan, snapshot, expectedRepositorySha: head,
+    now: new Date(Date.parse(plan.expiresAt) + 1), requireClean: false,
+  }));
+});
+
+test('historical pre-A1 plan is explicitly superseded before repository or network validation', () => {
+  expectCode('PLAN_SUPERSEDED', () => validateExecutionPlan({
+    repoRoot: ROOT,
+    plan: { planId: SUPERSEDED_PLAN_IDS[0] },
+    snapshot: {},
+    expectedRepositorySha: '0'.repeat(40),
+  }));
 });

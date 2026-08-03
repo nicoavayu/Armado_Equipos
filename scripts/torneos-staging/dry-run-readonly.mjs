@@ -6,14 +6,19 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 import {
-  EXPECTED_REPOSITORY_SHA,
   InspectorError,
   assertSnapshotSanitized,
   buildDryRun,
   defaultArtifactDirectory,
   formatDryRunMarkdown,
 } from './inspect-remote-readonly-lib.mjs';
-import { canonicalJson, sha256 } from './readiness-lib.mjs';
+import {
+  ReadinessError,
+  canonicalJson,
+  loadManifest,
+  sha256,
+  validateRepositoryBinding,
+} from './readiness-lib.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const parse = (argv) => Object.fromEntries(argv.map((arg) => {
@@ -24,10 +29,13 @@ const parse = (argv) => Object.fromEntries(argv.map((arg) => {
 export function main(argv = process.argv.slice(2)) {
   const options = parse(argv);
   if (!options.snapshot) throw new InspectorError('SNAPSHOT_REQUIRED', '--snapshot=<absolute path> is required.');
-  const repositorySha = String(options['repository-sha'] || '');
-  if (repositorySha !== EXPECTED_REPOSITORY_SHA) {
-    throw new InspectorError('REPOSITORY_DRIFT', `--repository-sha must be ${EXPECTED_REPOSITORY_SHA}.`);
-  }
+  const repositorySha = String(options['expected-repository-sha'] || '');
+  validateRepositoryBinding({
+    repoRoot: ROOT,
+    manifest: loadManifest(ROOT),
+    expectedRepositorySha: repositorySha,
+    requireClean: options['allow-dirty'] !== true,
+  });
   const snapshot = JSON.parse(fs.readFileSync(path.resolve(String(options.snapshot)), 'utf8'));
   const plan = buildDryRun({ repoRoot: ROOT, snapshot, repositorySha });
   const markdown = formatDryRunMarkdown(plan);
@@ -49,7 +57,8 @@ export function main(argv = process.argv.slice(2)) {
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) {
   try { main(); } catch (error) {
-    const code = error instanceof InspectorError ? error.code : 'DRY_RUN_FAILURE';
+    const code = error instanceof InspectorError || error instanceof ReadinessError
+      ? error.code : 'DRY_RUN_FAILURE';
     process.stderr.write(`[torneos-readonly-dry-run] ${code}: ${error.message}\n`);
     process.exitCode = 1;
   }

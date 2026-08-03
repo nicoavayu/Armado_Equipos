@@ -49,6 +49,8 @@ const assert = (condition, code, message, details) => {
   if (!condition) fail(code, message, details);
 };
 
+export const FULL_GIT_SHA = /^[0-9a-f]{40}$/;
+
 const fileDigest = (repoRoot, relativeFile) => (
   sha256(fs.readFileSync(path.join(repoRoot, relativeFile)))
 );
@@ -217,18 +219,54 @@ function git(repoRoot, args) {
   return execFileSync('git', args, { cwd: repoRoot, encoding: 'utf8' }).trim();
 }
 
-export function inspectRepository({ repoRoot = process.cwd(), manifest = loadManifest(repoRoot), requireClean = true } = {}) {
-  const branch = git(repoRoot, ['branch', '--show-current']);
-  const headSha = git(repoRoot, ['rev-parse', 'HEAD']);
-  const status = git(repoRoot, ['status', '--porcelain']);
-  assert(branch === manifest.repository.branch, 'REPOSITORY_BRANCH', `Expected ${manifest.repository.branch}, got ${branch}.`);
-  if (requireClean) assert(status === '', 'REPOSITORY_DIRTY', 'Worktree must be clean.');
+const isAncestor = (repoRoot, ancestor, descendant) => {
   try {
-    git(repoRoot, ['merge-base', '--is-ancestor', manifest.repository.expectedEpicSha, 'HEAD']);
+    execFileSync('git', ['merge-base', '--is-ancestor', ancestor, descendant], {
+      cwd: repoRoot,
+      stdio: 'ignore',
+    });
+    return true;
   } catch {
-    fail('REPOSITORY_BASE_SHA', 'Expected epic SHA is not an ancestor of HEAD.');
+    return false;
   }
-  return { branch, headSha, clean: status === '', expectedEpicSha: manifest.repository.expectedEpicSha };
+};
+
+export function validateRepositoryBinding({
+  repoRoot = process.cwd(),
+  manifest = loadManifest(repoRoot),
+  expectedRepositorySha,
+  requireClean = true,
+} = {}) {
+  assert(FULL_GIT_SHA.test(String(expectedRepositorySha || '')), 'REPOSITORY_SHA',
+    'A full 40-character lowercase repository SHA is required.');
+  const headSha = git(repoRoot, ['rev-parse', 'HEAD']);
+  assert(headSha === expectedRepositorySha, 'REPOSITORY_DRIFT',
+    'Authorized repository SHA does not match HEAD.');
+  const status = git(repoRoot, ['status', '--porcelain']);
+  if (requireClean) assert(status === '', 'REPOSITORY_DIRTY', 'Worktree must be clean.');
+  const epicRef = `refs/remotes/origin/${manifest.repository.baseBranch}`;
+  try { git(repoRoot, ['rev-parse', '--verify', epicRef]); } catch {
+    fail('REPOSITORY_EPIC_REF', `Missing local remote-tracking ref ${epicRef}.`);
+  }
+  assert(isAncestor(repoRoot, epicRef, headSha), 'REPOSITORY_EPIC_CONTAINMENT',
+    `HEAD must descend from ${manifest.repository.baseBranch}.`);
+  for (const [index, mergeCommit] of manifest.repository.requiredMergeCommits.entries()) {
+    assert(isAncestor(repoRoot, mergeCommit, headSha), 'REPOSITORY_REQUIRED_PR',
+      `HEAD does not include required PR #${manifest.repository.requiredMergedPrs[index]}.`);
+  }
+  return {
+    branch: git(repoRoot, ['branch', '--show-current']),
+    headSha,
+    clean: status === '',
+    epicRef,
+    requiredMergedPrs: [...manifest.repository.requiredMergedPrs],
+  };
+}
+
+export function inspectRepository({
+  repoRoot = process.cwd(), manifest = loadManifest(repoRoot), expectedRepositorySha, requireClean = true,
+} = {}) {
+  return validateRepositoryBinding({ repoRoot, manifest, expectedRepositorySha, requireClean });
 }
 
 export function localMigrationVersions(repoRoot = process.cwd()) {
@@ -306,10 +344,17 @@ export function validateState({ repoRoot = process.cwd(), manifest = loadManifes
   return { ok: true, stateSha256: sha256(canonicalJson(state)), pendingMigrations: expectedPending };
 }
 
-export function buildPlan({ repoRoot = process.cwd(), manifest = loadManifest(repoRoot), state, repositorySha, includeSql = false }) {
+export function buildPlan({
+  repoRoot = process.cwd(), manifest = loadManifest(repoRoot), state, repositorySha,
+  includeSql = false, createdAt = new Date().toISOString(), ttlSeconds = 1800,
+}) {
   const manifestResult = validateManifest({ repoRoot, manifest });
   const stateResult = validateState({ repoRoot, manifest, state });
-  assert(/^[a-f0-9]{40}$/.test(repositorySha), 'REPOSITORY_SHA', 'Plan requires an exact Git SHA.');
+  assert(FULL_GIT_SHA.test(repositorySha), 'REPOSITORY_SHA', 'Plan requires an exact Git SHA.');
+  const created = new Date(createdAt);
+  assert(!Number.isNaN(created.valueOf()), 'PLAN_TIME', 'Plan creation time is invalid.');
+  assert(Number.isInteger(ttlSeconds) && ttlSeconds > 0 && ttlSeconds <= 3600,
+    'PLAN_TTL', 'Plan TTL must be between 1 and 3600 seconds.');
   const pending = manifest.migrationPolicy.migrations
     .filter(({ version }) => stateResult.pendingMigrations.includes(version))
     .map((migration) => {
@@ -334,9 +379,11 @@ export function buildPlan({ repoRoot = process.cwd(), manifest = loadManifest(re
     environment: manifest.environment.name,
     projectRef: manifest.environment.authorizedProjectRef,
     repositorySha,
-    expectedEpicSha: manifest.repository.expectedEpicSha,
+    baseBranch: manifest.repository.baseBranch,
     manifestSha256: manifestResult.manifestSha256,
     inspectedStateSha256: stateResult.stateSha256,
+    createdAt: created.toISOString(),
+    expiresAt: new Date(created.valueOf() + ttlSeconds * 1000).toISOString(),
     migrations: pending,
     storage: {
       action: state.storage?.exists ? 'verify' : 'create',
@@ -441,6 +488,9 @@ export function authorizeStage({ manifest, plan, state, stage, repositorySha, co
     'PROJECT_REF_UNKNOWN', 'Plan targets an unauthorized ref.');
   assert(plan.environment === 'staging', 'ENVIRONMENT_UNKNOWN', 'Plan environment is not staging.');
   assert(repositorySha === plan.repositorySha, 'REPOSITORY_DRIFT', 'Repository SHA changed after plan.');
+  assert(Date.now() < new Date(plan.expiresAt).valueOf(), 'PLAN_EXPIRED', 'Execution plan has expired.');
+  const currentManifestSha = sha256(canonicalJson(manifest));
+  assert(plan.manifestSha256 === currentManifestSha, 'PLAN_MANIFEST_DRIFT', 'Manifest changed after plan.');
   assert(sha256(canonicalJson(state)) === plan.inspectedStateSha256,
     'STATE_DRIFT', 'State changed after plan.');
   const expected = stageAuthorization(plan, stage);

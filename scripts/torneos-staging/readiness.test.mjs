@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -15,6 +16,7 @@ import {
   simulateStage,
   stageAuthorization,
   validateManifest,
+  validateRepositoryBinding,
   validateStageReadiness,
   validateState,
 } from './readiness-lib.mjs';
@@ -40,6 +42,24 @@ test('versioned manifest, checksums, rollbacks, worker and QA contracts are vali
   const result = validateManifest({ repoRoot: ROOT, manifest });
   assert.equal(result.ok, true);
   assert.match(result.manifestSha256, /^[a-f0-9]{64}$/);
+});
+
+test('repository binding is dynamic, exact, based on the epic, and includes PRs 122-125', () => {
+  const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim();
+  const result = validateRepositoryBinding({
+    repoRoot: ROOT,
+    manifest,
+    expectedRepositorySha: head,
+    requireClean: false,
+  });
+  assert.equal(result.headSha, head);
+  assert.deepEqual(result.requiredMergedPrs, [122, 123, 124, 125]);
+  expectCode('REPOSITORY_DRIFT', () => validateRepositoryBinding({
+    repoRoot: ROOT,
+    manifest,
+    expectedRepositorySha: 'f'.repeat(40),
+    requireClean: false,
+  }));
 });
 
 test('A1 has exact bounded session timeouts and later migrations remain blocked', () => {
@@ -75,8 +95,9 @@ test('missing, zero, negative, or over-limit A1 timeouts abort', () => {
 
 test('plan and dry-run data are deterministic and can include exact SQL', () => {
   const state = fixture();
-  const first = buildPlan({ repoRoot: ROOT, manifest, state, repositorySha: HEAD, includeSql: true });
-  const second = buildPlan({ repoRoot: ROOT, manifest, state, repositorySha: HEAD, includeSql: true });
+  const createdAt = '2099-01-01T00:00:00.000Z';
+  const first = buildPlan({ repoRoot: ROOT, manifest, state, repositorySha: HEAD, includeSql: true, createdAt });
+  const second = buildPlan({ repoRoot: ROOT, manifest, state, repositorySha: HEAD, includeSql: true, createdAt });
   assert.deepEqual(first, second);
   assert.equal(first.migrations.length, 3);
   assert.match(first.migrations[0].sql, /^-- Arma2 Torneos · Multimedia Upload pipeline/);
