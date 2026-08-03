@@ -14,6 +14,7 @@ import {
   A1_FILE,
   A1_VERSION,
   buildTransactionalSql,
+  splitSqlStatements,
 } from './single-migration-executor-lib.mjs';
 import { loadManifest } from './readiness-lib.mjs';
 
@@ -122,6 +123,47 @@ test('unexpected history aborts before A1 and leaves zero partial application', 
   await admin.query(`delete from supabase_migrations.schema_migrations where version = '20990101000000'`);
 });
 
+test('statement timeout rolls back local objects and never records history', async () => {
+  const timedOut = `BEGIN;
+CREATE TABLE public.a1_statement_timeout_object(id integer primary key);
+SET LOCAL statement_timeout = '50ms';
+SELECT pg_sleep(0.2);
+COMMIT;`;
+  await assert.rejects(admin.query(generated(timedOut)), /statement timeout|canceling statement/i);
+  await rollbackQuietly(admin);
+  assert.equal(await value(admin, `select to_regclass('public.a1_statement_timeout_object') is null`), true);
+  assert.equal(Number(await value(admin,
+    `select count(*) from supabase_migrations.schema_migrations where version = '${A1_VERSION}'`)), 0);
+});
+
+test('two concurrent executions serialize and apply exactly once', async () => {
+  const contender = await connect();
+  const concurrentSql = generated(`BEGIN;
+CREATE TABLE public.a1_concurrency_object(id integer primary key);
+SELECT pg_sleep(0.25);
+COMMIT;`);
+  try {
+    const outcomes = await Promise.allSettled([
+      admin.query(concurrentSql),
+      contender.query(concurrentSql),
+    ]);
+    assert.equal(outcomes.filter(({ status }) => status === 'fulfilled').length, 1);
+    const rejected = outcomes.find(({ status }) => status === 'rejected');
+    assert.match(String(rejected?.reason?.message || ''), /A1 already applied/i);
+    await rollbackQuietly(admin);
+    await rollbackQuietly(contender);
+    assert.equal(Number(await value(admin,
+      `select count(*) from supabase_migrations.schema_migrations where version = '${A1_VERSION}'`)), 1);
+    assert.equal(await value(admin, `select to_regclass('public.a1_concurrency_object') is not null`), true);
+  } finally {
+    await rollbackQuietly(admin);
+    await rollbackQuietly(contender);
+    await admin.query('drop table if exists public.a1_concurrency_object');
+    await admin.query(`delete from supabase_migrations.schema_migrations where version = '${A1_VERSION}'`);
+    await contender.end();
+  }
+});
+
 test('happy path applies and records only A1 while A2, Social, Storage, Functions, and readiness remain closed', async () => {
   await admin.query(generated());
   assert.deepEqual((await admin.query(
@@ -137,11 +179,14 @@ test('happy path applies and records only A1 while A2, Social, Storage, Function
   assert.ok(readiness.blockers.includes('storage.bucket_absent'));
   assert.equal(Number(await value(admin,
     `select count(*) from supabase_migrations.schema_migrations where version = '${A1_VERSION}'`)), 1);
+  assert.equal(Number(await value(admin,
+    `select cardinality(statements) from supabase_migrations.schema_migrations where version = '${A1_VERSION}'`)),
+  splitSqlStatements(canonicalSql).length);
 });
 
-test('repetition rejects reapplication and never duplicates history or replaces objects', async () => {
+test('repetition returns already applied and never duplicates history or replaces objects', async () => {
   const objectOid = await value(admin, `select 'public.tournament_media_service_attestations'::regclass::oid`);
-  await assert.rejects(admin.query(generated()), /unexpected migration history before A1/);
+  await assert.rejects(admin.query(generated()), /A1 already applied/);
   await rollbackQuietly(admin);
   assert.equal(Number(await value(admin,
     `select count(*) from supabase_migrations.schema_migrations where version = '${A1_VERSION}'`)), 1);

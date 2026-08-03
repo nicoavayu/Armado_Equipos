@@ -329,7 +329,9 @@ test('dry-run JSON and Markdown bind the exact SHA and remain sanitized', () => 
   const plan = buildDryRun({ repoRoot: ROOT, snapshot, repositorySha: SYNTHETIC_REPOSITORY_SHA });
   assert.equal(plan.migrations.pending.length, 3);
   assert.ok(plan.migrations.pending.every((item) => item.remoteChecksum === 'unverifiable'));
+  assert.equal(plan.remoteCalls, snapshot.remoteCalls);
   const markdown = formatDryRunMarkdown(plan);
+  assert.match(markdown, /Remote calls heredadas del snapshot: \*\*[0-9]+\*\*/);
   assert.match(markdown, /Remote mutations: \*\*0\*\*/);
   assert.equal(assertSnapshotSanitized(plan), true);
   assert.equal(assertSnapshotSanitized(markdown), true);
@@ -372,11 +374,17 @@ test('execution plans bind HEAD, manifest, migration checksums, snapshot, projec
   }));
 });
 
-test('historical pre-A1 plan is explicitly superseded before repository or network validation', () => {
-  expectCode('PLAN_SUPERSEDED', () => validateExecutionPlan({
-    repoRoot: ROOT,
-    plan: { planId: SUPERSEDED_PLAN_IDS[0] },
-    snapshot: {},
-    expectedRepositorySha: '0'.repeat(40),
-  }));
+test('both pre-merge A1 plans are superseded before repository or network validation', () => {
+  assert.deepEqual(SUPERSEDED_PLAN_IDS, [
+    'dd06024015444217e9cd87054b165b7fe902d15b920d5842af1825c947355762',
+    'e4144f8bcb810755d18c471e85e389faaa2e4448f68d356367fb4551cfd6e88e',
+  ]);
+  for (const planId of SUPERSEDED_PLAN_IDS) {
+    expectCode('PLAN_SUPERSEDED', () => validateExecutionPlan({
+      repoRoot: ROOT,
+      plan: { planId },
+      snapshot: {},
+      expectedRepositorySha: '0'.repeat(40),
+    }));
+  }
 });

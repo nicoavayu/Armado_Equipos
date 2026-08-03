@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { main as inspectMain } from './inspect-remote-readonly.mjs';
 import { main as dryRunMain } from './dry-run-readonly.mjs';
 import {
+  buildExecutionDryRun,
   buildReceipt,
   buildTransactionalSql,
   buildVerifySql,
@@ -25,10 +26,23 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
     throw new Error('Mode must be one of: inspect, dry-run, apply, verify, receipt.');
   }
   if (mode === 'inspect') return inspectMain(rawOptions, env);
-  if (mode === 'dry-run') return dryRunMain(rawOptions);
+  const executionDryRun = mode === 'dry-run'
+    && rawOptions.some((option) => option.startsWith('--plan='));
+  if (mode === 'dry-run' && !executionDryRun) return dryRunMain(rawOptions);
 
   const options = parseStrictArgs(rawOptions);
-  const contract = prepareExecution({ repoRoot: ROOT, options, env });
+  const contract = prepareExecution({
+    repoRoot: ROOT,
+    options,
+    env,
+    requireApproval: !executionDryRun,
+    requireDatabaseUrl: !executionDryRun,
+  });
+  if (executionDryRun) {
+    const result = buildExecutionDryRun(contract);
+    process.stdout.write(`${JSON.stringify(result)}\n`);
+    return result;
+  }
   if (mode === 'apply') {
     const migrationSql = fs.readFileSync(contract.migrationFile, 'utf8');
     const sql = buildTransactionalSql({

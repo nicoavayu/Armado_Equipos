@@ -18,6 +18,7 @@ export const AUTHORIZED_STAGING_REF = 'hhyvmhgpapyuzjgxfnqv';
 export const FORBIDDEN_PRODUCTION_REF = 'rcyuuoaqfwcembdajcss';
 export const SUPERSEDED_PLAN_IDS = Object.freeze([
   'dd06024015444217e9cd87054b165b7fe902d15b920d5842af1825c947355762',
+  'e4144f8bcb810755d18c471e85e389faaa2e4448f68d356367fb4551cfd6e88e',
 ]);
 export const TARGET_EDGE_FUNCTIONS = Object.freeze([
   'tournament-media-signer',
@@ -887,7 +888,9 @@ export function buildDryRun({ repoRoot, snapshot, repositorySha, ttlSeconds = 18
   const core = {
     schemaVersion: 2, status: 'active', repositorySha, projectRef: snapshot.projectRef,
     manifestSha256: manifestResult.manifestSha256,
-    snapshotSha256: sha256(canonicalJson(snapshot)), mutationsPerformed: 0,
+    snapshotSha256: sha256(canonicalJson(snapshot)),
+    remoteCalls: snapshot.remoteCalls,
+    mutationsPerformed: 0,
     createdAt: createdAt.toISOString(),
     expiresAt: new Date(createdAt.valueOf() + ttlSeconds * 1000).toISOString(),
     migrations: {
@@ -1037,6 +1040,7 @@ export function formatDryRunMarkdown(plan) {
     '# Arma2 Torneos — Staging read-only dry-run', '',
     `- Repository SHA: \`${plan.repositorySha}\``,
     `- Snapshot SHA-256: \`${plan.snapshotSha256}\``,
+    `- Remote calls heredadas del snapshot: **${plan.remoteCalls}**`,
     `- Remote mutations: **${plan.mutationsPerformed}**`, '',
     '## Migraciones', '',
   ];

@@ -4,8 +4,9 @@
 
 Este contrato corrige los bloqueos de timeouts, SHA histórico, planes stale y
 registro atómico de una migración. No autoriza ejecutar A1 dentro de este PR.
-Staging y Production no fueron contactadas, no se aplicaron migraciones remotas
-y no se modificaron Storage, Functions, workers, secretos ni flags.
+La auditoría final sólo contacta Staging con transacciones `READ ONLY` y
+listados de metadata; Production no se contacta. No se aplican migraciones
+remotas ni se modifican Storage, Functions, workers, secretos o flags.
 
 La única migración aceptada es
 `supabase/migrations/20260802090000_tournament_media_upload_pipeline.sql`,
@@ -27,11 +28,14 @@ y el código oficial de CLI 2.84.2 para
 y la [aplicación transaccional](https://github.com/supabase/cli/blob/v2.84.2/pkg/migration/file.go).
 No apareció un breaking change de migraciones aplicable a este contrato.
 
-Supabase registra oficialmente la versión, nombre y sentencias en
-`supabase_migrations.schema_migrations`; `version` es la clave primaria. El
-CLI agrega el `INSERT` al mismo batch que las sentencias de la migración y ese
-batch es implícitamente transaccional. `migration repair --status applied`
-sólo repara historial: no aplica el SQL.
+Supabase registra oficialmente la versión, nombre y el array de sentencias
+parseadas en `supabase_migrations.schema_migrations`; `version` es la clave
+primaria. El executor usa la misma separación léxica del CLI (quotes,
+dollar-quotes, comentarios, bloques y paréntesis) y no guarda el archivo SQL
+completo como un único elemento incompatible. El CLI agrega el `INSERT` al
+mismo batch que las sentencias de la migración y ese batch es implícitamente
+transaccional. `migration repair --status applied` sólo repara historial: no
+aplica el SQL.
 
 En 2.84.2, `migration up` no acepta archivo, versión, límite ni cantidad. Toma
 la lista completa de pendientes y la recorre. `db push` tiene la misma
@@ -57,9 +61,11 @@ del snapshot, project ref, lista/orden/checksum de pendientes, creación y
 vencimiento. Su ID es el SHA-256 del contenido completo. Cualquier diferencia
 aborta antes de importar `pg`, ejecutar `psql` o abrir una conexión.
 
-El plan histórico
-`dd06024015444217e9cd87054b165b7fe902d15b920d5842af1825c947355762`
-queda preservado como evidencia con estado `superseded`. No puede ejecutarse.
+Los planes pre-merge
+`dd06024015444217e9cd87054b165b7fe902d15b920d5842af1825c947355762` y
+`e4144f8bcb810755d18c471e85e389faaa2e4448f68d356367fb4551cfd6e88e`
+quedan preservados como evidencia con estado `superseded`. Ninguno puede
+ejecutarse.
 
 ## Timeouts y exclusión
 
@@ -80,9 +86,21 @@ de ejecutar A1 y vuelve a comprobar el historial esperado después del insert.
 Esto evita dos ejecutores cooperantes y bloquea escritores concurrentes del
 historial durante toda la transacción.
 
+El historial proveniente del snapshot se convierte explícitamente a versiones
+textuales de 14 dígitos, rechaza duplicados y versiones inesperadas, y se
+ordena antes de construir ambos lados de la comparación. Por eso el orden del
+JSON remoto no puede producir drift falso. Un segundo intento devuelve
+`A1 already applied` después de adquirir el lock y no ejecuta el body.
+
+Los errores de `psql` conservan el código SQLSTATE y el mensaje técnico
+acotado a 2000 caracteres, pero eliminan URLs, credenciales, JWT, parámetros
+sensibles, refs prohibidas y paths locales. La URL de base se entrega sólo en
+`PGDATABASE`; `psql` recibe el SQL por stdin, se invoca con `shell:false` y la
+URL nunca forma parte de sus argumentos.
+
 ## Inspect y dry-run local
 
-Estos comandos son los únicos modos ejecutados durante este PR:
+Estos son los modos locales usados para construir y probar los artefactos:
 
 ```bash
 EXPECTED_SHA="$(git rev-parse HEAD)"
@@ -102,6 +120,12 @@ npm run torneos:staging:a1 -- dry-run \
 La fixture es sintética. Snapshot y dry-run deben informar las tres
 migraciones pendientes, bucket/signer/processor/secret ausentes, readiness
 cerrada, `remoteCalls: 0` y `mutationsPerformed: 0`.
+
+Cuando `dry-run` recibe además snapshot, plan e identidad A1 exactos, cambia a
+preview del executor: valida el contrato completo sin URL de base ni conexión,
+informa una sola migración, historia anterior/posterior normalizada, timeouts,
+locks, transacción, stdin, `shell:false` y pausa. Sólo muestra el SHA-256 del
+token de aprobación derivable; no persiste el token.
 
 ## Apply futuro, sólo bajo nueva autorización
 
