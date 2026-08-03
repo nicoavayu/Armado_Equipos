@@ -33,7 +33,14 @@
     "transactionReadOnlyVerified": true
   },
   "metadata": {
-    "functions": [],
+    "functions": [
+      {
+        "name": "accept-invite",
+        "version": 5,
+        "status": "ACTIVE",
+        "updatedAt": "2026-08-01T00:00:00.000Z"
+      }
+    ],
     "secretNames": [],
     "remoteCalls": 0
   }

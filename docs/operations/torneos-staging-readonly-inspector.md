@@ -61,9 +61,12 @@ Las únicas otras llamadas remotas son equivalentes a:
 ```text
 supabase functions list --project-ref hhyvmhgpapyuzjgxfnqv -o json
 supabase secrets list --project-ref hhyvmhgpapyuzjgxfnqv -o json
+supabase db query --linked <BEGIN READ ONLY + storage.buckets/policy/grant catalogs>
 ```
 
-No se usa `supabase link`.
+La tercera llamada sólo se usa en el refresco focal de Storage. Crea un
+workdir local temporal con el ref autorizado, no ejecuta `supabase link`, no
+consulta filas de `storage.objects` y elimina el workdir local al terminar.
 
 ## Uso remoto
 
@@ -87,6 +90,20 @@ npm run torneos:staging:dry-run:readonly -- \
 
 Esto genera Markdown y JSON temporales. No existe modo apply ni continuación
 automática desde el plan.
+
+Para refrescar exclusivamente Edge, nombres de Secrets y metadata
+administrativa de Storage a partir de un snapshot sanitizado ya autorizado:
+
+```bash
+AUTHORIZED_STAGING_PROJECT_REF=hhyvmhgpapyuzjgxfnqv \
+npm run torneos:staging:inspect:remote:readonly -- \
+  --prior-snapshot=/absolute/path/staging-readonly-snapshot.json \
+  --prior-snapshot-sha256=<sha256-autorizado>
+```
+
+El refresco valida el hash del snapshot fuente y mantiene explícita su
+procedencia. Los datos no focales no se vuelven a consultar con privilegios
+administrativos.
 
 ## Fixture local
 
@@ -188,3 +205,102 @@ Blockers reales: `edge.tournament-media-processor_absent`,
 
 El dry-run no se aplicó. Staging quedó sin cambios funcionales, Production no
 fue contactada y el PR permaneció draft y sin merge.
+
+## Reinspección focal real — 2026-08-03
+
+La segunda inspección partió del snapshot sanitizado anterior, cuyo SHA-256
+se revalidó como
+`56b82e1a186e32cb2d3aa11e71874bc70c7b9948b776b0316f2168d106617950`.
+Volvió a consultar únicamente Functions, presencia de Secrets por nombre y
+metadata de `storage.buckets`, policies, grants y RLS dentro de una transacción
+administrativa `BEGIN READ ONLY`. No consultó filas ni nombres de
+`storage.objects`.
+
+El blocker `edge.unexpected_function` era un falso positivo: la implementación
+anterior lo agregaba por cada Function cuyo nombre no fuera uno de los dos
+objetivos. Las nueve Functions preexistentes son de otras verticales, están
+activas en versión 5, no pertenecen a Torneos y no colisionan con los nombres
+objetivo:
+
+| Function | Actualizada UTC | Clase | Torneos | Colisión |
+| --- | --- | --- | --- | --- |
+| `accept-invite` | 2026-07-29 23:51:12.971 | B | no | no |
+| `approve-join-request` | 2026-07-29 23:51:31.182 | B | no | no |
+| `delete-account` | 2026-07-29 23:51:37.948 | B | no | no |
+| `issue-voting-photo-token` | 2026-07-29 23:51:45.322 | B | no | no |
+| `join-match-guest` | 2026-07-29 23:51:53.887 | B | no | no |
+| `push-auto-match-now` | 2026-07-29 23:52:22.396 | B | no | no |
+| `push-dispatch-now` | 2026-07-29 23:52:39.863 | B | no | no |
+| `push-sender` | 2026-07-29 23:52:45.668 | B | no | no |
+| `upload-voting-photo` | 2026-07-29 23:52:50.284 | B | no | no |
+
+La corrección clasifica como A los dos objetivos, B las Functions ajenas, C
+las Functions Torneos preexistentes declaradas y D cualquier nombre no
+declarado dentro de `tournament-*` o `torneos-*`. Una Function clase D sigue
+activando `edge.unexpected_function`; una coincidencia exacta con signer o
+processor activa un blocker de colisión porque el contenido remoto no es
+verificable. Las regresiones cubren los tres casos.
+
+Storage quedó resuelto exactamente como `bucket_absent`: no existe una fila
+`tournament-media` en `storage.buckets`. Por lo tanto privacidad, límite,
+MIME, owner, AVIF y tipo no aplican todavía y no se infieren desde policies.
+Las cuatro policies objetivo existen sobre `storage.objects`, son
+`PERMISSIVE` y alcanzan exclusivamente `service_role`:
+
+- `tournament_media_service_read`: `SELECT`, scope `tournament-media`;
+- `tournament_media_service_insert`: `INSERT`, scope `tournament-media`;
+- `tournament_media_service_update`: `UPDATE`, deny-all;
+- `tournament_media_service_delete`: `DELETE`, deny-all.
+
+`storage.objects` tiene RLS habilitado. `PUBLIC` no posee grants directos. Los
+roles `anon` y `authenticated` tienen grants de tabla por el contrato general
+de Storage, pero sus únicas policies de escritura observadas están acotadas a
+`jugadores-fotos` y `team-crests`; no existe una policy cliente aplicable a
+`tournament-media`. En consecuencia, `directWriteRoles` es vacío. El conteo
+de objetos permanece `unknown` deliberadamente porque no se leyó contenido ni
+metadata de archivos.
+
+Artefactos temporales sanitizados de la reinspección:
+
+- snapshot: SHA-256
+  `a52d2de311e08e869ddef4bc818c85c6bea95cf5bbcf5f375bc48cec47983c8f`,
+  3 llamadas remotas y `mutationsPerformed: 0`;
+- dry-run JSON: SHA-256
+  `2ce256398fdab7ac5e32777e2f51ed597e5783f1aaef80866d8fdcf00d7df6fc`;
+- dry-run Markdown: SHA-256
+  `b0a190cefb8c89bab1d15997d35be946a1e2e99943de7efc0524b8e5602567d0`;
+- plan ID:
+  `dd06024015444217e9cd87054b165b7fe902d15b920d5842af1825c947355762`.
+
+El plan sigue dividido en autorizaciones independientes y no se ejecutó:
+
+1. Migraciones: aplicar `20260802090000`, `20260802120000` y
+   `20260803090000` en ese orden, cada una con validación y pausa. No existe
+   evidencia de duración en Staging, por lo que la estimación queda
+   explícitamente `unknown`.
+2. Storage: crear un bucket privado de 12 MiB con JPEG, PNG y WebP, sin SVG;
+   conservar las cuatro policies existentes, verificar por catálogos y pausar.
+3. Secrets: configurar por autorización separada
+   `TOURNAMENT_MEDIA_ATTESTATION_SECRET`, una alternativa de credencial de
+   servidor y una alternativa de credencial pública; no se generaron valores.
+4. Edge: desplegar signer, validar health, desplegar processor y validar
+   health, con pausa por Function.
+5. Worker: aprovisionar runtime externo, ClamAV/freshclam, red, credenciales,
+   self-test, atestación, observabilidad y rollback; no se aprovisionó.
+6. Readiness: verificar gates, probar `uploadReady=true`, revocación, retorno a
+   false y recuperación.
+7. Flags y QA: Multimedia, QA Multimedia, Social y QA Social; ambos flags
+   permanecen OFF.
+
+Las tres migraciones continúan pendientes y ordenadas, el secreto de
+atestación y las dos Functions objetivo continúan ausentes, y worker,
+atestaciones, readiness operativo y flags remotas continúan `unknown` o no
+listos. El blocker falso fue retirado; los blockers reales son la ausencia de
+signer, processor y bucket, más `readiness.upload_not_ready`.
+
+No se creó un rol PostgreSQL específico de la tarea en esta segunda
+inspección. La consulta administrativa confirmó que el rol temporal de la
+inspección anterior ya no existe; los roles de transporte de CLI son roles
+gestionados por la plataforma, no creados por este PR. No se expusieron
+credenciales ni valores de Secrets. Staging no recibió modificaciones
+funcionales, Production no fue contactada y no se ejecutó ningún build móvil.

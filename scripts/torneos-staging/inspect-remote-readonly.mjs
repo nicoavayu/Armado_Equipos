@@ -9,13 +9,17 @@ import { fileURLToPath } from 'node:url';
 import {
   AUTHORIZED_STAGING_REF,
   EXPECTED_REPOSITORY_SHA,
+  FORBIDDEN_PRODUCTION_REF,
   InspectorError,
   assertSnapshotSanitized,
   buildSnapshot,
   defaultArtifactDirectory,
   inspectDatabase,
   inspectSupabaseMetadata,
+  inspectSupabaseStorageMetadata,
   loadInspectorSql,
+  refreshFocalSnapshot,
+  validateSnapshot,
   validateTarget,
 } from './inspect-remote-readonly-lib.mjs';
 import { canonicalJson, sha256 } from './readiness-lib.mjs';
@@ -58,11 +62,42 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
   const timestamp = options.timestamp || new Date().toISOString();
   let database;
   let metadata;
+  let snapshot;
 
   if (options.fixture) {
     const fixture = JSON.parse(fs.readFileSync(path.resolve(ROOT, String(options.fixture)), 'utf8'));
     database = fixture.database;
     metadata = fixture.metadata;
+    snapshot = buildSnapshot({
+      repoRoot: ROOT, repositorySha: EXPECTED_REPOSITORY_SHA,
+      projectRef: AUTHORIZED_STAGING_REF, timestamp, database, metadata,
+    });
+  } else if (options['prior-snapshot']) {
+    const projectRef = String(env.AUTHORIZED_STAGING_PROJECT_REF || '').trim().toLowerCase();
+    if (!projectRef) {
+      throw new InspectorError('CREDENTIAL_MISSING',
+        'Missing required environment variable: AUTHORIZED_STAGING_PROJECT_REF.');
+    }
+    if (projectRef !== AUTHORIZED_STAGING_REF) {
+      throw new InspectorError(projectRef === FORBIDDEN_PRODUCTION_REF ? 'PRODUCTION_FORBIDDEN' : 'PROJECT_REF_UNKNOWN',
+        'Focal reinspection target is not authorized Staging.');
+    }
+    const priorSnapshotFile = path.resolve(String(options['prior-snapshot']));
+    const priorSnapshotSha256 = String(options['prior-snapshot-sha256'] || '').toLowerCase();
+    if (!/^[0-9a-f]{64}$/.test(priorSnapshotSha256)) {
+      throw new InspectorError('PRIOR_SNAPSHOT_SHA_REQUIRED',
+        '--prior-snapshot-sha256=<64 lowercase hex characters> is required.');
+    }
+    const priorSnapshot = JSON.parse(fs.readFileSync(priorSnapshotFile, 'utf8'));
+    validateSnapshot(priorSnapshot);
+    metadata = inspectSupabaseMetadata({ accessToken: env.SUPABASE_ACCESS_TOKEN, projectRef,
+      cli: String(options['supabase-cli'] || 'supabase') });
+    const storageAdmin = inspectSupabaseStorageMetadata({ accessToken: env.SUPABASE_ACCESS_TOKEN, projectRef,
+      cli: String(options['supabase-cli'] || 'supabase') });
+    snapshot = refreshFocalSnapshot({
+      repoRoot: ROOT, repositorySha: EXPECTED_REPOSITORY_SHA, projectRef, timestamp,
+      priorSnapshot, priorSnapshotSha256, metadata, storageAdmin,
+    });
   } else {
     const required = ['STAGING_READONLY_DATABASE_URL', 'AUTHORIZED_STAGING_PROJECT_REF'];
     const missing = required.filter((name) => !String(env[name] || '').trim());
@@ -76,12 +111,11 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
     database = await inspectDatabase({ databaseUrl: env.STAGING_READONLY_DATABASE_URL, statements, Client });
     metadata = inspectSupabaseMetadata({ accessToken: env.SUPABASE_ACCESS_TOKEN, projectRef,
       cli: String(options['supabase-cli'] || 'supabase') });
+    snapshot = buildSnapshot({
+      repoRoot: ROOT, repositorySha: EXPECTED_REPOSITORY_SHA,
+      projectRef: AUTHORIZED_STAGING_REF, timestamp, database, metadata,
+    });
   }
-
-  const snapshot = buildSnapshot({
-    repoRoot: ROOT, repositorySha: EXPECTED_REPOSITORY_SHA,
-    projectRef: AUTHORIZED_STAGING_REF, timestamp, database, metadata,
-  });
   const outputDirectory = options['output-dir']
     ? path.resolve(String(options['output-dir'])) : defaultArtifactDirectory();
   fs.mkdirSync(outputDirectory, { recursive: true });

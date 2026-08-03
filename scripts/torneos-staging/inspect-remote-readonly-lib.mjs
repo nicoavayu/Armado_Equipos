@@ -9,6 +9,30 @@ import { analyzeSql, canonicalJson, loadManifest, sha256 } from './readiness-lib
 export const AUTHORIZED_STAGING_REF = 'hhyvmhgpapyuzjgxfnqv';
 export const FORBIDDEN_PRODUCTION_REF = 'rcyuuoaqfwcembdajcss';
 export const EXPECTED_REPOSITORY_SHA = '93225cae8fde398e1c73b8a9e077325bda6d450d';
+export const TARGET_EDGE_FUNCTIONS = Object.freeze([
+  'tournament-media-signer',
+  'tournament-media-processor',
+]);
+
+const DOCUMENTED_PREEXISTING_TORNEOS_FUNCTIONS = new Set([]);
+const RESERVED_TORNEOS_FUNCTION_NAMESPACE = /^(?:tournament|torneos)(?:-|$)/i;
+const EXPECTED_STORAGE_POLICIES = Object.freeze([
+  'tournament_media_service_read',
+  'tournament_media_service_insert',
+  'tournament_media_service_update',
+  'tournament_media_service_delete',
+]);
+const EXPECTED_STORAGE_POLICY_CONTRACT = Object.freeze({
+  tournament_media_service_read: { command: 'SELECT', bucketScope: 'tournament-media' },
+  tournament_media_service_insert: { command: 'INSERT', bucketScope: 'tournament-media' },
+  tournament_media_service_update: { command: 'UPDATE', bucketScope: 'deny-all' },
+  tournament_media_service_delete: { command: 'DELETE', bucketScope: 'deny-all' },
+});
+const EXPECTED_STORAGE_MIME_TYPES = Object.freeze([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+]);
 
 export class InspectorError extends Error {
   constructor(code, message, details = {}) {
@@ -39,7 +63,8 @@ const REQUIRED_TABLES = Object.freeze({
 const SAFE_FUNCTIONS = new Set([
   'acldefault', 'aclexplode', 'coalesce', 'count', 'current_database', 'current_setting', 'extract',
   'has_database_privilege', 'has_schema_privilege', 'has_table_privilege',
-  'lower', 'max', 'now', 'pg_get_function_identity_arguments',
+  'jsonb_agg', 'jsonb_build_object', 'lower', 'max', 'now', 'nullif', 'pg_get_function_identity_arguments',
+  'position',
   'tournament_media_pipeline_readiness',
 ]);
 
@@ -64,7 +89,7 @@ export function assertReadOnlySql(sql) {
   if (/^SELECT\b/i.test(trimmed)) {
     const calls = [...normalized.matchAll(/\b([a-z_][a-z0-9_]*)\s*\(/gi)]
       .map((item) => item[1].toLowerCase())
-      .filter((name) => !['and', 'case', 'exists', 'filter', 'from', 'in', 'not', 'or', 'when', 'where'].includes(name));
+      .filter((name) => !['and', 'case', 'exists', 'filter', 'from', 'in', 'not', 'or', 'values', 'when', 'where'].includes(name));
     const unexpected = [...new Set(calls.filter((name) => !SAFE_FUNCTIONS.has(name)))];
     assert(unexpected.length === 0, 'SQL_FUNCTION_FORBIDDEN',
       `SQL calls a non-allowlisted function: ${unexpected.join(', ')}.`, { unexpected });
@@ -267,6 +292,108 @@ export function inspectSupabaseMetadata({ accessToken, projectRef, cli = 'supaba
   return { functions, secretNames, remoteCalls: 2 };
 }
 
+const STORAGE_ADMIN_STATEMENTS = [
+  'BEGIN READ ONLY;',
+  "SET LOCAL statement_timeout = '5s';",
+  "SET LOCAL lock_timeout = '1s';",
+  `SELECT jsonb_build_object(
+    'transactionReadOnly', current_setting('transaction_read_only'),
+    'bucket', (
+      SELECT COALESCE(jsonb_agg(jsonb_build_object(
+        'name', id,
+        'nameMatchesId', name = id,
+        'public', public,
+        'maxFileBytes', file_size_limit,
+        'allowedMimeTypes', allowed_mime_types,
+        'ownerConfigured', owner IS NOT NULL OR NULLIF(owner_id, '') IS NOT NULL,
+        'avifAutodetection', avif_autodetection,
+        'type', type::text
+      )), '[]'::jsonb)
+      FROM storage.buckets
+      WHERE id = 'tournament-media'
+    ),
+    'rls', (
+      SELECT jsonb_build_object('enabled', relation_row.relrowsecurity, 'forced', relation_row.relforcerowsecurity)
+      FROM pg_class relation_row
+      JOIN pg_namespace namespace_row ON namespace_row.oid = relation_row.relnamespace
+      WHERE namespace_row.nspname = 'storage' AND relation_row.relname = 'objects'
+    ),
+    'policies', (
+      SELECT COALESCE(jsonb_agg(jsonb_build_object(
+        'name', policyname,
+        'command', cmd,
+        'roles', roles::text[],
+        'permissive', permissive,
+        'bucketScope', CASE
+          WHEN position('tournament-media' in COALESCE(qual::text, '') || ' ' || COALESCE(with_check::text, '')) > 0 THEN 'tournament-media'
+          WHEN position('jugadores-fotos' in COALESCE(qual::text, '') || ' ' || COALESCE(with_check::text, '')) > 0 THEN 'jugadores-fotos'
+          WHEN position('team-crests' in COALESCE(qual::text, '') || ' ' || COALESCE(with_check::text, '')) > 0 THEN 'team-crests'
+          WHEN COALESCE(qual::text, '') = 'false' OR COALESCE(with_check::text, '') = 'false' THEN 'deny-all'
+          ELSE 'unclassified'
+        END
+      ) ORDER BY policyname), '[]'::jsonb)
+      FROM pg_policies
+      WHERE schemaname = 'storage' AND tablename = 'objects'
+    ),
+    'grants', jsonb_build_object(
+      'public', COALESCE((
+        SELECT jsonb_agg(DISTINCT acl_row.privilege_type ORDER BY acl_row.privilege_type)
+        FROM pg_class relation_row
+        CROSS JOIN LATERAL aclexplode(COALESCE(relation_row.relacl, acldefault('r', relation_row.relowner))) acl_row
+        WHERE relation_row.oid = 'storage.objects'::regclass AND acl_row.grantee = 0
+      ), '[]'::jsonb),
+      'roles', (
+        SELECT jsonb_agg(jsonb_build_object(
+          'role', role_name,
+          'select', has_table_privilege(role_name, 'storage.objects', 'SELECT'),
+          'insert', has_table_privilege(role_name, 'storage.objects', 'INSERT'),
+          'update', has_table_privilege(role_name, 'storage.objects', 'UPDATE'),
+          'delete', has_table_privilege(role_name, 'storage.objects', 'DELETE')
+        ) ORDER BY role_name)
+        FROM (
+          SELECT 'anon' AS role_name
+          UNION ALL SELECT 'authenticated'
+          UNION ALL SELECT 'service_role'
+        ) target_roles
+      )
+    )
+  ) AS inspection;`,
+  'COMMIT;',
+];
+const STORAGE_ADMIN_SQL = STORAGE_ADMIN_STATEMENTS.join('\n');
+
+export function inspectSupabaseStorageMetadata({ accessToken, projectRef, cli = 'supabase' }) {
+  assert(projectRef === AUTHORIZED_STAGING_REF, 'PROJECT_REF_UNKNOWN',
+    'Storage metadata target is not authorized Staging.');
+  for (const statement of STORAGE_ADMIN_STATEMENTS) assertReadOnlySql(statement);
+  const workdir = fs.mkdtempSync(path.join(os.tmpdir(), 'arma2-supabase-storage-readonly-'));
+  try {
+    const supabaseDirectory = path.join(workdir, 'supabase');
+    const tempDirectory = path.join(supabaseDirectory, '.temp');
+    fs.mkdirSync(tempDirectory, { recursive: true });
+    fs.writeFileSync(path.join(supabaseDirectory, 'config.toml'), [
+      'project_id = "arma2-storage-readonly"', '',
+      '[api]', 'port = 54321', '',
+      '[db]', 'port = 54322', 'shadow_port = 54320', '',
+      '[studio]', 'port = 54323', '',
+      '[analytics]', 'port = 54327', '',
+    ].join('\n'), { mode: 0o600 });
+    fs.writeFileSync(path.join(tempDirectory, 'project-ref'), `${projectRef}\n`, { mode: 0o600 });
+    const raw = runSupabaseJson({
+      cli,
+      accessToken,
+      args: ['db', 'query', '--linked', '--agent=no', '-o', 'json', '--workdir', workdir, STORAGE_ADMIN_SQL],
+    });
+    const inspection = asArray(raw)[0]?.inspection;
+    assert(inspection && inspection.transactionReadOnly === 'on', 'STORAGE_ADMIN_NOT_READ_ONLY',
+      'Administrative Storage metadata query did not prove a read-only transaction.');
+    assertSnapshotSanitized(inspection);
+    return { ...inspection, remoteCalls: 1, transactionReadOnlyVerified: true };
+  } finally {
+    fs.rmSync(workdir, { recursive: true, force: true });
+  }
+}
+
 const safeName = (value) => (/^[a-zA-Z0-9_.:-]{1,120}$/.test(String(value || '')) ? String(value) : null);
 const safeEvidenceValue = (value) => (/^[a-zA-Z0-9_.:+ -]{1,120}$/.test(String(value || '')) ? String(value) : null);
 const safeTimestamp = (value) => {
@@ -338,6 +465,133 @@ const directoryDigest = (directory) => {
   return digest.digest('hex');
 };
 
+export function classifyEdgeFunctions({ repoRoot, functions }) {
+  const localDirectories = new Map([
+    ['tournament-media-signer', 'supabase/functions/tournament-media-signer'],
+    ['tournament-media-processor', 'supabase/functions/tournament-media-processor'],
+  ]);
+  return functions.map((item) => {
+    const name = String(item.name || '');
+    const isTarget = TARGET_EDGE_FUNCTIONS.includes(name);
+    const documentedPreexisting = DOCUMENTED_PREEXISTING_TORNEOS_FUNCTIONS.has(name);
+    const inReservedNamespace = RESERVED_TORNEOS_FUNCTION_NAMESPACE.test(name);
+    const classification = isTarget ? 'A' : (documentedPreexisting ? 'C' : (inReservedNamespace ? 'D' : 'B'));
+    const classificationLabel = {
+      A: 'target_vertical',
+      B: 'preexisting_unrelated_allowed',
+      C: 'preexisting_torneos_documented',
+      D: 'unexpected_or_suspicious',
+    }[classification];
+    const localDirectory = localDirectories.get(name);
+    return {
+      name,
+      status: item.status ?? null,
+      version: item.version ?? null,
+      updatedAt: safeTimestamp(item.updatedAt),
+      belongsToTorneos: isTarget || documentedPreexisting || inReservedNamespace,
+      collidesWithTarget: isTarget,
+      classification,
+      classificationLabel,
+      localSha256: localDirectory ? directoryDigest(path.join(repoRoot, localDirectory)) : null,
+      remoteContentVerifiable: false,
+    };
+  }).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+const edgeBlockers = (functions) => [
+  ...TARGET_EDGE_FUNCTIONS
+    .filter((name) => !functions.some((item) => item.name === name))
+    .map((name) => `edge.${name}_absent`),
+  ...functions
+    .filter((item) => item.classification === 'D')
+    .map(() => 'edge.unexpected_function'),
+  ...functions
+    .filter((item) => item.collidesWithTarget)
+    .map((item) => `edge.${item.name}_collision`),
+];
+
+export function classifyStorageMetadata(storageAdmin) {
+  if (!storageAdmin || !Array.isArray(storageAdmin.bucket) || !Array.isArray(storageAdmin.policies)) {
+    return {
+      status: 'bucket_presence_unverifiable',
+      exists: 'unknown',
+      bucket: null,
+      policies: [],
+      otherPolicies: [],
+      directWriteRoles: [],
+      grants: null,
+      rls: null,
+      objectCounts: 'unknown',
+      unexpectedConfiguration: ['storage.admin_metadata_unavailable'],
+      rlsLimitedFields: ['storage.objectCounts'],
+    };
+  }
+  const bucketRow = storageAdmin.bucket[0] || null;
+  const targetPolicies = storageAdmin.policies.filter((item) => EXPECTED_STORAGE_POLICIES.includes(item.name));
+  const otherPolicies = storageAdmin.policies.filter((item) => !EXPECTED_STORAGE_POLICIES.includes(item.name));
+  const directWriteRoles = [...new Set(storageAdmin.policies
+    .filter((item) => item.bucketScope === 'tournament-media'
+      && ['INSERT', 'UPDATE', 'DELETE', 'ALL'].includes(String(item.command).toUpperCase()))
+    .flatMap((item) => item.roles || [])
+    .filter((role) => ['public', 'PUBLIC', 'anon', 'authenticated'].includes(role)))].sort();
+  const allowedMimeTypes = [...(bucketRow?.allowedMimeTypes || [])].sort();
+  const expectedMimeTypes = [...EXPECTED_STORAGE_MIME_TYPES].sort();
+  const unexpectedConfiguration = [];
+  if (bucketRow) {
+    if (bucketRow.name !== 'tournament-media' || bucketRow.nameMatchesId !== true) {
+      unexpectedConfiguration.push('storage.bucket_identity');
+    }
+    if (bucketRow.public !== false) unexpectedConfiguration.push('storage.bucket_public');
+    if (bucketRow.maxFileBytes !== 12 * 1024 * 1024) unexpectedConfiguration.push('storage.bucket_size_limit');
+    if (JSON.stringify(allowedMimeTypes) !== JSON.stringify(expectedMimeTypes)) {
+      unexpectedConfiguration.push('storage.bucket_mime_types');
+    }
+    if (bucketRow.avifAutodetection === true) unexpectedConfiguration.push('storage.bucket_avif_autodetection');
+  }
+  for (const name of EXPECTED_STORAGE_POLICIES) {
+    const policy = targetPolicies.find((item) => item.name === name);
+    if (!policy) {
+      unexpectedConfiguration.push(`storage.policy_missing:${name}`);
+      continue;
+    }
+    const expected = EXPECTED_STORAGE_POLICY_CONTRACT[name];
+    if (String(policy.command).toUpperCase() !== expected.command) {
+      unexpectedConfiguration.push(`storage.policy_command:${name}`);
+    }
+    if (policy.bucketScope !== expected.bucketScope) {
+      unexpectedConfiguration.push(`storage.policy_scope:${name}`);
+    }
+    if (JSON.stringify([...(policy.roles || [])].sort()) !== JSON.stringify(['service_role'])) {
+      unexpectedConfiguration.push(`storage.policy_roles:${name}`);
+    }
+  }
+  for (const policy of otherPolicies.filter((item) => (
+    item.bucketScope === 'tournament-media' || String(item.name).startsWith('tournament_media_')
+  ))) unexpectedConfiguration.push(`storage.policy_unexpected:${policy.name}`);
+  if (directWriteRoles.length) unexpectedConfiguration.push('storage.client_write_open');
+  const status = !bucketRow ? 'bucket_absent'
+    : (unexpectedConfiguration.length ? 'bucket_present_noncompliant' : 'bucket_present_compliant');
+  return {
+    status,
+    exists: Boolean(bucketRow),
+    bucket: bucketRow,
+    policies: targetPolicies.map((item) => ({
+      schema_name: 'storage', table_name: 'objects', policy_name: item.name,
+      cmd: item.command, roles: item.roles, permissive: item.permissive,
+      bucketScope: item.bucketScope,
+    })),
+    otherPolicies: otherPolicies.map((item) => ({
+      policy_name: item.name, cmd: item.command, roles: item.roles, bucketScope: item.bucketScope,
+    })),
+    directWriteRoles,
+    grants: storageAdmin.grants,
+    rls: storageAdmin.rls,
+    objectCounts: 'unknown',
+    unexpectedConfiguration,
+    rlsLimitedFields: ['storage.objectCounts'],
+  };
+}
+
 export function buildSnapshot({ repoRoot, repositorySha, projectRef, timestamp, database, metadata }) {
   assert(repositorySha === EXPECTED_REPOSITORY_SHA, 'REPOSITORY_DRIFT', 'Snapshot must bind the exact authorized epic SHA.');
   assert(projectRef === AUTHORIZED_STAGING_REF, 'PROJECT_REF_UNKNOWN', 'Snapshot project is not authorized Staging.');
@@ -349,15 +603,7 @@ export function buildSnapshot({ repoRoot, repositorySha, projectRef, timestamp, 
   const versions = remoteHistory.map((item) => item.version);
   const duplicates = [...new Set(versions.filter((version, index) => versions.indexOf(version) !== index))].sort();
   const remoteSet = new Set(versions);
-  const expectedFunctions = [
-    ['tournament-media-signer', 'supabase/functions/tournament-media-signer'],
-    ['tournament-media-processor', 'supabase/functions/tournament-media-processor'],
-  ];
-  const functions = metadata.functions.map((item) => {
-    const local = expectedFunctions.find(([name]) => name === item.name);
-    return { ...item, localSha256: local ? directoryDigest(path.join(repoRoot, local[1])) : null,
-      remoteContentVerifiable: false };
-  });
+  const functions = classifyEdgeFunctions({ repoRoot, functions: metadata.functions });
   const expectedSecrets = [
     'TOURNAMENT_MEDIA_ATTESTATION_SECRET', 'SUPABASE_SECRET_KEYS', 'SUPABASE_SERVICE_ROLE_KEY',
     'SUPABASE_PUBLISHABLE_KEYS', 'SUPABASE_ANON_KEY',
@@ -385,16 +631,13 @@ export function buildSnapshot({ repoRoot, repositorySha, projectRef, timestamp, 
     .flatMap((item) => item.roles || [])
     .filter((role) => ['PUBLIC', 'anon', 'authenticated'].includes(role)))].sort();
   const readiness = sanitizeReadiness(database.results.readiness?.[0]);
-  const expectedFunctionSet = new Set(expectedFunctions.map(([name]) => name));
-  const actualFunctionSet = new Set(functions.map((item) => item.name));
   const blockers = [...new Set([
     ...readiness.blockers,
     ...(storageExists === false ? ['storage.bucket_absent'] : []),
     ...(storageExists === 'unknown' ? ['storage.bucket_unknown'] : []),
     ...(storageBucket?.public ? ['storage.bucket_public'] : []),
     ...(directWriteRoles.length ? ['storage.client_write_open'] : []),
-    ...expectedFunctions.filter(([name]) => !actualFunctionSet.has(name)).map(([name]) => `edge.${name}_absent`),
-    ...functions.filter((item) => !expectedFunctionSet.has(item.name)).map(() => 'edge.unexpected_function'),
+    ...edgeBlockers(functions),
     ...(!readiness.uploadReady ? ['readiness.upload_not_ready'] : []),
     ...(duplicates.length ? ['migrations.duplicate_history'] : []),
     ...remoteHistory.filter((item) => !localByVersion.has(item.version)).map(() => 'migrations.remote_missing_locally'),
@@ -428,6 +671,8 @@ export function buildSnapshot({ repoRoot, repositorySha, projectRef, timestamp, 
       constraints: database.results.constraints,
     },
     storage: {
+      status: storageExists === false ? 'bucket_absent'
+        : (storageExists === 'unknown' ? 'bucket_presence_unverifiable' : 'bucket_present_noncompliant'),
       exists: storageExists,
       bucket: storageBucket ? {
         name: storageBucket.bucket, public: storageBucket.public,
@@ -490,6 +735,74 @@ export function buildSnapshot({ repoRoot, repositorySha, projectRef, timestamp, 
   return snapshot;
 }
 
+export function refreshFocalSnapshot({
+  repoRoot,
+  repositorySha,
+  projectRef,
+  timestamp,
+  priorSnapshot,
+  priorSnapshotSha256,
+  metadata,
+  storageAdmin,
+}) {
+  validateSnapshot(priorSnapshot);
+  assert(repositorySha === EXPECTED_REPOSITORY_SHA, 'REPOSITORY_DRIFT',
+    'Focal snapshot must bind the exact authorized epic SHA.');
+  assert(projectRef === AUTHORIZED_STAGING_REF, 'PROJECT_REF_UNKNOWN',
+    'Focal snapshot project is not authorized Staging.');
+  assert(sha256(`${JSON.stringify(JSON.parse(canonicalJson(priorSnapshot)), null, 2)}\n`) === priorSnapshotSha256,
+    'PRIOR_SNAPSHOT_DRIFT', 'Prior sanitized snapshot SHA-256 does not match the authorized evidence.');
+
+  const edgeFunctions = classifyEdgeFunctions({ repoRoot, functions: metadata.functions });
+  const storage = classifyStorageMetadata(storageAdmin);
+  const expectedSecrets = [
+    'TOURNAMENT_MEDIA_ATTESTATION_SECRET', 'SUPABASE_SECRET_KEYS', 'SUPABASE_SERVICE_ROLE_KEY',
+    'SUPABASE_PUBLISHABLE_KEYS', 'SUPABASE_ANON_KEY',
+  ];
+  const secretSet = new Set(metadata.secretNames);
+  const storageBlockers = storage.status === 'bucket_absent' ? ['storage.bucket_absent']
+    : (storage.status === 'bucket_presence_unverifiable' ? ['storage.bucket_unknown']
+      : (storage.status === 'bucket_present_noncompliant' ? storage.unexpectedConfiguration : []));
+  const inheritedRlsFields = (priorSnapshot.readOnlyEvidence.rlsLimitedFields || [])
+    .filter((field) => field !== 'storage.bucket');
+  const inheritedLimitations = priorSnapshot.limitations
+    .filter((item) => !String(item).startsWith('RLS prevented complete observation of:'));
+  const snapshot = {
+    ...structuredClone(priorSnapshot),
+    timestamp: new Date(timestamp).toISOString(),
+    storage,
+    edgeFunctions,
+    secrets: expectedSecrets.map((name) => ({ name, present: secretSet.has(name) })),
+    blockers: [...new Set([
+      ...priorSnapshot.blockers.filter((item) => !item.startsWith('edge.') && !item.startsWith('storage.')),
+      ...edgeBlockers(edgeFunctions),
+      ...storageBlockers,
+    ])].sort(),
+    limitations: [
+      ...inheritedLimitations,
+      ...(inheritedRlsFields.length
+        ? [`RLS prevented complete observation of: ${inheritedRlsFields.join(', ')}; those fields are unknown.`]
+        : []),
+      `The focal reinspection refreshed Edge, Secret names, and Storage catalog metadata; non-focal database evidence was inherited from sanitized snapshot ${priorSnapshotSha256}.`,
+    ],
+    readOnlyEvidence: {
+      ...priorSnapshot.readOnlyEvidence,
+      commands: [
+        ...priorSnapshot.readOnlyEvidence.commands,
+        'supabase db query --linked: Storage catalogs inside BEGIN READ ONLY',
+      ],
+      rlsLimitedFields: inheritedRlsFields,
+      storageAdministrativeTransactionReadOnlyVerified: storageAdmin?.transactionReadOnlyVerified === true,
+      storageObjectsRead: false,
+      sourceSnapshotSha256: priorSnapshotSha256,
+    },
+    remoteCalls: metadata.remoteCalls + (storageAdmin?.remoteCalls || 0),
+    mutationsPerformed: 0,
+  };
+  assertSnapshotSanitized(snapshot);
+  return snapshot;
+}
+
 const forbiddenKey = /^(?:password|token|jwt|apiKey|connectionString|databaseUrl|signedUrl|objectPath|originalFileName|payload|editorialContent|email|secretValue)$/i;
 const forbiddenValuePatterns = [
   /eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/,
@@ -537,7 +850,11 @@ export function buildDryRun({ repoRoot, snapshot, repositorySha }) {
       const sql = fs.readFileSync(path.join(repoRoot, item.file), 'utf8');
       return { order: item.order, version: item.version, file: item.file,
         localSha256: item.sha256, remoteChecksum: 'unverifiable', dependencies: item.order === 1 ? [] : [manifest.migrationPolicy.migrations[item.order - 2].version],
-        affected: analyzeSql(sql), locks: item.expectedLocks, risk: item.risk, rollback: item.rollback };
+        affected: analyzeSql(sql), locks: item.expectedLocks,
+        estimatedDuration: 'unknown: no Staging execution evidence exists; measure only during a separately approved migration window',
+        risk: item.risk, rollback: item.rollback,
+        validation: 'verify migration history, affected object contracts, grants, RLS and readiness before continuing',
+        pause: 'mandatory approval boundary before the next migration or stage' };
     });
   const expectedPolicyNames = manifest.storage.policies;
   const actualPolicies = snapshot.storage.policies.map((item) => item.policy_name);
@@ -558,13 +875,25 @@ export function buildDryRun({ repoRoot, snapshot, repositorySha }) {
     },
     storage: {
       current: snapshot.storage,
-      requiredOperation: snapshot.storage.exists === false ? 'create private bucket only after separate approval'
-        : (snapshot.storage.exists === true ? 'reconcile contract differences only after separate approval'
-          : 'no operation: bucket state is unknown under RLS'),
+      requiredOperation: snapshot.storage.status === 'bucket_absent'
+        ? 'create private tournament-media bucket only after separate approval; preserve existing service_role policies'
+        : (snapshot.storage.status === 'bucket_present_compliant' ? 'no change'
+          : (snapshot.storage.status === 'bucket_present_noncompliant'
+            ? 'reconcile only the reported contract differences after separate approval'
+            : 'no operation: bucket presence is unverifiable')),
       missingPolicies: expectedPolicyNames.filter((name) => !actualPolicies.includes(name)),
       unexpectedPolicies: actualPolicies.filter((name) => !expectedPolicyNames.includes(name)),
+      target: {
+        private: true,
+        maxFileBytes: 12 * 1024 * 1024,
+        allowedMimeTypes: [...EXPECTED_STORAGE_MIME_TYPES],
+        forbiddenMimeTypes: ['image/svg+xml'],
+        directClientWriteRoles: [],
+      },
+      verification: 're-read storage.buckets and policy/grant catalogs; do not inspect storage.objects content',
       risk: 'bucket or policy changes can expose or block media access',
       rollback: 'restore captured bucket configuration and exact prior policies under separate approval',
+      pause: 'mandatory approval boundary before Secrets',
     },
     edge: {
       present: actualFunctions, missing: expectedFunctions.filter((name) => !actualFunctions.includes(name)),
@@ -592,6 +921,42 @@ export function buildDryRun({ repoRoot, snapshot, repositorySha }) {
     },
     risks: [...snapshot.blockers, ...snapshot.limitations],
     blockers: snapshot.blockers,
+    futureAuthorizations: {
+      A_migrations: migrations,
+      B_storage: {
+        operation: snapshot.storage.status === 'bucket_absent' ? 'create bucket' : (snapshot.storage.status === 'bucket_present_compliant' ? 'no change' : 'reconcile or pause'),
+        target: { private: true, maxFileBytes: 12 * 1024 * 1024, allowedMimeTypes: [...EXPECTED_STORAGE_MIME_TYPES] },
+        policies: expectedPolicyNames,
+        verification: 'catalog-only reinspection plus readiness contract',
+        rollback: snapshot.storage.status === 'bucket_absent'
+          ? 'delete the newly created bucket only if empty and separately approved; otherwise keep it private and pause'
+          : 'restore captured prior bucket metadata and policies under separate approval',
+        pause: 'mandatory before Secrets',
+      },
+      C_secrets: {
+        namesOnly: [
+          'TOURNAMENT_MEDIA_ATTESTATION_SECRET',
+          'SUPABASE_SECRET_KEYS|SUPABASE_SERVICE_ROLE_KEY',
+          'SUPABASE_PUBLISHABLE_KEYS|SUPABASE_ANON_KEY',
+        ],
+        action: 'generate and configure only after separate approval',
+      },
+      D_edge: {
+        order: ['tournament-media-signer', 'validate signer health', 'tournament-media-processor', 'validate processor health'],
+        action: 'deploy only after separate per-function approval',
+      },
+      E_worker: {
+        requirements: ['external runtime', 'ClamAV', 'freshclam', 'network', 'credentials', 'self-test', 'attestation', 'observability'],
+        rollback: 'stop leasing, drain current job, revoke attestation and restore prior runtime',
+      },
+      F_readiness: {
+        sequence: ['verify all gates', 'prove uploadReady=true', 'run revocation test', 'confirm return to false', 'prove recovery'],
+      },
+      G_flags_and_qa: {
+        sequence: ['enable Multimedia', 'QA Multimedia', 'enable Social', 'QA Social'],
+        action: 'leave both flags OFF until separately approved',
+      },
+    },
   };
   return { ...core, planId: sha256(canonicalJson(core)) };
 }
@@ -609,12 +974,14 @@ export function formatDryRunMarkdown(plan) {
     lines.push(`${item.order}. \`${item.file}\``, `   - SHA-256 local: \`${item.localSha256}\``,
       `   - Checksum remoto: ${item.remoteChecksum}`, `   - Dependencias: ${item.dependencies.join(', ') || 'ninguna'}`,
       `   - Locks previsibles: ${item.locks.join('; ')}`, `   - Riesgo: ${item.risk}`, `   - Rollback: \`${item.rollback}\``,
+      `   - Duración: ${item.estimatedDuration}`, `   - Validación: ${item.validation}`, `   - Pausa: ${item.pause}`,
       `   - Objetos: ${item.affected.tables.length} tablas, ${item.affected.functions.length} funciones, ${item.affected.indexes.length} índices, ${item.affected.triggers.length} triggers`, '');
   }
   lines.push('## Storage', '', `- Operación futura: ${plan.storage.requiredOperation}`,
     `- Policies faltantes: ${plan.storage.missingPolicies.join(', ') || 'ninguna'}`,
     `- Policies inesperadas: ${plan.storage.unexpectedPolicies.join(', ') || 'ninguna'}`,
-    `- Riesgo: ${plan.storage.risk}`, `- Rollback: ${plan.storage.rollback}`, '',
+    `- Verificación: ${plan.storage.verification}`, `- Riesgo: ${plan.storage.risk}`,
+    `- Rollback: ${plan.storage.rollback}`, `- Pausa: ${plan.storage.pause}`, '',
     '## Edge', '', `- Presentes: ${plan.edge.present.join(', ') || 'ninguna'}`,
     `- Ausentes: ${plan.edge.missing.join(', ') || 'ninguna'}`, `- Orden futuro: ${plan.edge.order.join(' → ')}`,
     `- Secretos alternativos faltantes: ${plan.edge.missingSecretAlternatives.map((item) => item.join('|')).join(', ') || 'ninguno'}`,
@@ -630,6 +997,26 @@ export function formatDryRunMarkdown(plan) {
     `- Fail-closed: ${plan.qa.failClosed}`, `- Rollback: ${plan.qa.rollback}`, '',
     '## Bloqueos y limitaciones', '');
   lines.push(...(plan.risks.length ? plan.risks.map((item) => `- ${item}`) : ['- Ninguno informado.']));
+  lines.push('', '## Plan futuro por autorización', '',
+    '### Etapa A — Migraciones', '',
+    '- Ejecutar sólo las migraciones enumeradas arriba, una por autorización y con pausa obligatoria.', '',
+    '### Etapa B — Storage', '',
+    `- Operación: ${plan.futureAuthorizations.B_storage.operation}.`,
+    `- Policies: ${plan.futureAuthorizations.B_storage.policies.join(', ')}.`,
+    `- Verificación: ${plan.futureAuthorizations.B_storage.verification}.`,
+    `- Rollback: ${plan.futureAuthorizations.B_storage.rollback}.`, '',
+    '### Etapa C — Secretos', '',
+    `- Nombres solamente: ${plan.futureAuthorizations.C_secrets.namesOnly.join(', ')}.`, '',
+    '### Etapa D — Edge', '',
+    `- Orden: ${plan.futureAuthorizations.D_edge.order.join(' → ')}.`, '',
+    '### Etapa E — Worker', '',
+    `- Requisitos: ${plan.futureAuthorizations.E_worker.requirements.join(', ')}.`,
+    `- Rollback: ${plan.futureAuthorizations.E_worker.rollback}.`, '',
+    '### Etapa F — Readiness', '',
+    `- Secuencia: ${plan.futureAuthorizations.F_readiness.sequence.join(' → ')}.`, '',
+    '### Etapa G — Flags y QA', '',
+    `- Secuencia: ${plan.futureAuthorizations.G_flags_and_qa.sequence.join(' → ')}.`,
+    `- Acción actual: ${plan.futureAuthorizations.G_flags_and_qa.action}.`);
   const markdown = `${lines.join('\n')}\n`;
   assertSnapshotSanitized(markdown);
   return markdown;

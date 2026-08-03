@@ -4,6 +4,8 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
+import { canonicalJson, sha256 } from './readiness-lib.mjs';
+
 import {
   AUTHORIZED_STAGING_REF,
   EXPECTED_REPOSITORY_SHA,
@@ -14,9 +16,12 @@ import {
   assertSnapshotSanitized,
   buildDryRun,
   buildSnapshot,
+  classifyEdgeFunctions,
+  classifyStorageMetadata,
   formatDryRunMarkdown,
   inspectDatabase,
   loadInspectorSql,
+  refreshFocalSnapshot,
   safeCliEnv,
   validateSnapshot,
   validateTarget,
@@ -31,6 +36,20 @@ const expectCode = (code, run) => assert.throws(run, (error) => (
 ));
 
 const stagingDatabaseUrl = `postgresql://readonly.${AUTHORIZED_STAGING_REF}:fixture-password@aws-0-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require`;
+const storageAdminFixture = (bucket = []) => ({
+  bucket,
+  rls: { enabled: true, forced: false },
+  policies: [
+    { name: 'team_crests_insert_owner_folder', command: 'INSERT', roles: ['authenticated'], permissive: 'PERMISSIVE', bucketScope: 'team-crests' },
+    { name: 'tournament_media_service_read', command: 'SELECT', roles: ['service_role'], permissive: 'PERMISSIVE', bucketScope: 'tournament-media' },
+    { name: 'tournament_media_service_insert', command: 'INSERT', roles: ['service_role'], permissive: 'PERMISSIVE', bucketScope: 'tournament-media' },
+    { name: 'tournament_media_service_update', command: 'UPDATE', roles: ['service_role'], permissive: 'PERMISSIVE', bucketScope: 'deny-all' },
+    { name: 'tournament_media_service_delete', command: 'DELETE', roles: ['service_role'], permissive: 'PERMISSIVE', bucketScope: 'deny-all' },
+  ],
+  grants: { public: [], roles: [] },
+  remoteCalls: 1,
+  transactionReadOnlyVerified: true,
+});
 
 test('the complete inspector SQL is named, statically read-only, and transaction guarded', () => {
   const statements = loadInspectorSql(SQL);
@@ -111,6 +130,79 @@ test('Supabase metadata accepts the existing CLI session without injecting a tok
   assert.equal(safeCliEnv('fixture-token').SUPABASE_ACCESS_TOKEN, 'fixture-token');
 });
 
+test('legitimate unrelated Edge Functions are class B and do not block', () => {
+  const input = fixture();
+  input.metadata.functions = [
+    { name: 'accept-invite', version: 5, status: 'ACTIVE', updatedAt: 1785369072971 },
+    { name: 'push-sender', version: 5, status: 'ACTIVE', updatedAt: 1785369165668 },
+  ];
+  const classified = classifyEdgeFunctions({ repoRoot: ROOT, functions: input.metadata.functions });
+  assert.ok(classified.every((item) => item.classification === 'B'));
+  assert.ok(classified.every((item) => item.belongsToTorneos === false && item.collidesWithTarget === false));
+  const snapshot = buildSnapshot({ repoRoot: ROOT, repositorySha: EXPECTED_REPOSITORY_SHA,
+    projectRef: AUTHORIZED_STAGING_REF, timestamp: '2026-08-03T02:00:00Z',
+    database: input.database, metadata: input.metadata });
+  assert.ok(!snapshot.blockers.includes('edge.unexpected_function'));
+});
+
+test('unknown Functions inside the reserved Torneos namespace remain blocking class D', () => {
+  const input = fixture();
+  input.metadata.functions = [
+    { name: 'tournament-media-shadow', version: 1, status: 'ACTIVE', updatedAt: null },
+  ];
+  const classified = classifyEdgeFunctions({ repoRoot: ROOT, functions: input.metadata.functions });
+  assert.equal(classified[0].classification, 'D');
+  assert.equal(classified[0].belongsToTorneos, true);
+  const snapshot = buildSnapshot({ repoRoot: ROOT, repositorySha: EXPECTED_REPOSITORY_SHA,
+    projectRef: AUTHORIZED_STAGING_REF, timestamp: '2026-08-03T02:00:00Z',
+    database: input.database, metadata: input.metadata });
+  assert.ok(snapshot.blockers.includes('edge.unexpected_function'));
+});
+
+test('signer and processor name collisions are class A and block before deployment', () => {
+  const input = fixture();
+  input.metadata.functions = [
+    { name: 'tournament-media-signer', version: 9, status: 'ACTIVE', updatedAt: null },
+    { name: 'tournament-media-processor', version: 3, status: 'ACTIVE', updatedAt: null },
+  ];
+  const classified = classifyEdgeFunctions({ repoRoot: ROOT, functions: input.metadata.functions });
+  assert.ok(classified.every((item) => item.classification === 'A' && item.collidesWithTarget));
+  const snapshot = buildSnapshot({ repoRoot: ROOT, repositorySha: EXPECTED_REPOSITORY_SHA,
+    projectRef: AUTHORIZED_STAGING_REF, timestamp: '2026-08-03T02:00:00Z',
+    database: input.database, metadata: input.metadata });
+  assert.ok(snapshot.blockers.includes('edge.tournament-media-signer_collision'));
+  assert.ok(snapshot.blockers.includes('edge.tournament-media-processor_collision'));
+  assert.ok(!snapshot.blockers.includes('edge.tournament-media-signer_absent'));
+});
+
+test('administrative Storage metadata resolves absent, compliant and noncompliant bucket states', () => {
+  const absent = classifyStorageMetadata(storageAdminFixture());
+  assert.equal(absent.status, 'bucket_absent');
+  assert.equal(absent.exists, false);
+  assert.deepEqual(absent.directWriteRoles, []);
+  assert.equal(absent.policies.length, 4);
+  assert.equal(absent.otherPolicies[0].bucketScope, 'team-crests');
+
+  const compliant = classifyStorageMetadata(storageAdminFixture([{
+    name: 'tournament-media', nameMatchesId: true, public: false,
+    maxFileBytes: 12582912, allowedMimeTypes: ['image/webp', 'image/jpeg', 'image/png'],
+    ownerConfigured: false, avifAutodetection: false, type: 'STANDARD',
+  }]));
+  assert.equal(compliant.status, 'bucket_present_compliant');
+
+  const unsafeInput = storageAdminFixture([{
+    name: 'tournament-media', nameMatchesId: true, public: true,
+    maxFileBytes: 1, allowedMimeTypes: ['image/svg+xml'],
+    ownerConfigured: true, avifAutodetection: true, type: 'STANDARD',
+  }]);
+  unsafeInput.policies.push({ name: 'tournament_media_client_insert', command: 'INSERT',
+    roles: ['authenticated'], permissive: 'PERMISSIVE', bucketScope: 'tournament-media' });
+  const noncompliant = classifyStorageMetadata(unsafeInput);
+  assert.equal(noncompliant.status, 'bucket_present_noncompliant');
+  assert.deepEqual(noncompliant.directWriteRoles, ['authenticated']);
+  assert.ok(noncompliant.unexpectedConfiguration.includes('storage.bucket_public'));
+});
+
 test('database inspection aborts immediately when transaction_read_only is not on', async () => {
   class FakeClient {
     async connect() {}
@@ -145,6 +237,31 @@ test('fixture snapshot is deterministic, sanitized and explicitly zero-mutation'
   assert.equal(validateSnapshot(first), true);
 });
 
+test('focal refresh inherits sanitized non-focal evidence and counts only new remote calls', () => {
+  const input = fixture();
+  const prior = buildSnapshot({ repoRoot: ROOT, repositorySha: EXPECTED_REPOSITORY_SHA,
+    projectRef: AUTHORIZED_STAGING_REF, timestamp: '2026-08-03T02:00:00Z',
+    database: input.database, metadata: input.metadata });
+  const serialized = `${JSON.stringify(JSON.parse(canonicalJson(prior)), null, 2)}\n`;
+  const refreshed = refreshFocalSnapshot({
+    repoRoot: ROOT,
+    repositorySha: EXPECTED_REPOSITORY_SHA,
+    projectRef: AUTHORIZED_STAGING_REF,
+    timestamp: '2026-08-03T03:00:00Z',
+    priorSnapshot: prior,
+    priorSnapshotSha256: sha256(serialized),
+    metadata: { functions: [{ name: 'accept-invite', version: 5, status: 'ACTIVE', updatedAt: null }],
+      secretNames: [], remoteCalls: 2 },
+    storageAdmin: storageAdminFixture(),
+  });
+  assert.equal(refreshed.remoteCalls, 3);
+  assert.equal(refreshed.mutationsPerformed, 0);
+  assert.equal(refreshed.storage.status, 'bucket_absent');
+  assert.ok(refreshed.blockers.includes('storage.bucket_absent'));
+  assert.ok(!refreshed.blockers.includes('edge.unexpected_function'));
+  assert.equal(refreshed.readOnlyEvidence.storageObjectsRead, false);
+});
+
 test('RLS-filtered operational rows remain unknown instead of becoming absent or zero', () => {
   const input = fixture();
   input.database.results.tables.push(
@@ -177,7 +294,7 @@ test('snapshot sanitizer rejects secret values, JWTs, signed URLs, email and obj
     () => assertSnapshotSanitized(sample));
 });
 
-test('dry-run reports duplicate/unexpected migration, unsafe Storage and unexpected Function without mutation', () => {
+test('dry-run reports duplicate/unexpected migration, unsafe Storage and reserved-namespace Function without mutation', () => {
   const input = fixture();
   input.database.results.migration_history.push(
     { version: '20260801090000', name: 'duplicate' },
@@ -187,7 +304,7 @@ test('dry-run reports duplicate/unexpected migration, unsafe Storage and unexpec
     max_file_bytes: 12582912, allowed_mime_types: ['image/jpeg'] }];
   input.database.results.policies.push({ schema_name: 'storage', table_name: 'objects',
     policy_name: 'client_write', roles: ['authenticated'], cmd: 'INSERT' });
-  input.metadata.functions.push({ name: 'unexpected-function', version: 1, status: 'ACTIVE', updatedAt: null });
+  input.metadata.functions.push({ name: 'tournament-media-shadow', version: 1, status: 'ACTIVE', updatedAt: null });
   const snapshot = buildSnapshot({ repoRoot: ROOT, repositorySha: EXPECTED_REPOSITORY_SHA,
     projectRef: AUTHORIZED_STAGING_REF, timestamp: '2026-08-03T02:00:00Z',
     database: input.database, metadata: input.metadata });
