@@ -31,12 +31,15 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
   if (mode === 'dry-run' && !executionDryRun) return dryRunMain(rawOptions);
 
   const options = parseStrictArgs(rawOptions);
+  // The operational target mode comes from the CLI mode, never from a flag: there is no argument
+  // that selects a different connection profile, and none that reaches the test-only exception.
   const contract = prepareExecution({
     repoRoot: ROOT,
     options,
     env,
     requireApproval: !executionDryRun,
     requireDatabaseUrl: !executionDryRun,
+    targetMode: mode,
   });
   if (executionDryRun) {
     const result = buildExecutionDryRun(contract);
@@ -51,7 +54,7 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
       historyBefore: contract.historyBefore,
       historyAfter: contract.historyAfter,
     });
-    await runPsql({ databaseUrl: contract.databaseUrl, sql, psql: options.psql || 'psql' });
+    await runPsql({ connection: contract.connection, sql, psql: options.psql || 'psql' });
     const result = { status: 'applied', migrationVersion: options['migration-version'],
       repositorySha: contract.expectedRepositorySha, planId: contract.plan.planId,
       postApplyPauseRequired: true };
@@ -60,7 +63,7 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
   }
   if (mode === 'verify') {
     const result = await runPsql({
-      databaseUrl: contract.databaseUrl,
+      connection: contract.connection,
       sql: buildVerifySql(contract),
       psql: options.psql || 'psql',
     });

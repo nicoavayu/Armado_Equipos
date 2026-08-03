@@ -92,11 +92,187 @@ ordena antes de construir ambos lados de la comparación. Por eso el orden del
 JSON remoto no puede producir drift falso. Un segundo intento devuelve
 `A1 already applied` después de adquirir el lock y no ejecuta el body.
 
-Los errores de `psql` conservan el código SQLSTATE y el mensaje técnico
-acotado a 2000 caracteres, pero eliminan URLs, credenciales, JWT, parámetros
-sensibles, refs prohibidas y paths locales. La URL de base se entrega sólo en
-`PGDATABASE`; `psql` recibe el SQL por stdin, se invoca con `shell:false` y la
-URL nunca forma parte de sus argumentos.
+Los errores de `psql` conservan el código de salida, el SQLSTATE cuando está
+disponible y el mensaje técnico acotado, pero eliminan URLs, credenciales,
+JWT, parámetros sensibles, refs prohibidas y paths locales. El SQL enviado no
+se refleja en el error.
+
+## Contrato de conexión de `psql`
+
+### Causa raíz del defecto corregido
+
+La primera versión del executor entregaba la URL completa de conexión en la
+variable `PGDATABASE`. **libpq no expande una URI de conexión recibida por
+`PGDATABASE`**: la expansión (`expand_dbname`) sólo aplica al parámetro
+`dbname` que `psql` recibe como argumento posicional. Por variable de entorno,
+libpq trata el string `postgresql://…` como un **nombre literal de base** y
+cae al socket Unix local.
+
+El síntoma es inequívoco y no depende de la credencial:
+
+```
+psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed:
+No such file or directory
+```
+
+Nunca intenta resolver el host de la URI. Los modos `apply` y `verify` —y
+cualquier llamada a `runPsql()`— eran por lo tanto inutilizables contra
+Staging, con cualquier credencial. El defecto no se detectó porque las pruebas
+unitarias sólo verificaban el SQL generado por `buildTransactionalSql()` y la
+suite live conectaba con el cliente `pg` de Node, sin ejercitar `runPsql()`.
+
+### Proyección discreta de variables libpq
+
+`buildPsqlConnectionEnv()` parsea la URL exclusivamente en memoria y proyecta
+variables libpq discretas: `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`,
+`PGDATABASE` —sólo el nombre real de la base— y, cuando la URL los declara,
+`PGSSLMODE`, `PGCONNECT_TIMEOUT`, `PGTARGETSESSIONATTRS` y `PGCHANNELBINDING`.
+Soporta host directo, pooler oficial, usernames que incluyen el project ref,
+credenciales y nombres de base percent-encoded (decodificados exactamente una
+vez) y puerto explícito, con `5432` por defecto. La URL completa no queda en
+ninguna variable libpq.
+
+Sólo se aceptan estos parámetros de conexión en la URL: `sslmode`,
+`connect_timeout`, `target_session_attrs` y `channel_binding`, cada uno con
+sus valores válidos. Cualquier otro parámetro —incluidos `application_name`,
+`options`, `statement_timeout`, `lock_timeout`, `search_path`, `service`,
+`passfile` y `hostaddr`— aborta: la URL no puede sustituir el
+`application_name` ni los timeouts de la migración, que el contrato A1 fija
+con `SET LOCAL` dentro de la transacción. Se rechazan además URLs malformadas,
+esquemas ajenos, fragmentos, usuario ausente, base ausente, path con más de
+una base, parámetros duplicados y —para `apply` y `verify`— password ausente.
+
+`connect_timeout` exige un entero positivo en segundos, sin ceros a la
+izquierda: `0` (que en libpq significa "esperar indefinidamente") se rechaza,
+y el máximo es **30 segundos** (`MAX_CONNECT_TIMEOUT_SECONDS`), para que una
+URL hostil no pueda dejar al executor colgado de un host inalcanzable mientras
+la ventana de aprobación del operador sigue abierta.
+
+### TLS: Staging nunca permite downgrade
+
+**En el camino operativo remoto no existe forma de bajar TLS.** El piso es
+`require` y los únicos valores aceptados son:
+
+| `sslmode` | Remoto (Staging) |
+| --- | --- |
+| `require`, `verify-ca`, `verify-full` | aceptado |
+| `disable`, `allow`, `prefer` | **rechazado** (`DATABASE_URL_PARAMETER`) |
+
+Sin `sslmode` en la URL, el valor efectivo es `require`: falla cerrado. Una
+URL que pida `sslmode=disable` no "degrada": **aborta**, porque con esos tres
+modos un atacante pasivo —o una respuesta DNS hostil— leería la credencial de
+migración en claro. Lo mismo vale para `channel_binding`: en remoto sólo se
+aceptan `prefer` y `require`; `disable` se rechaza, y sólo se reconsideraría
+con una razón técnica documentada y demostrada, que hoy no existe para este
+executor. Un `PGSSLMODE=disable` heredado del ambiente tampoco puede degradar
+nada, porque el entorno del hijo no hereda `PG*`.
+
+La única excepción es de **pruebas locales**: los PostgreSQL efímeros que usan
+las suites no tienen TLS. Para eso existe `buildLocalTestConnection({ …,
+allowInsecureLocalTestConnection: true })`, y está deliberadamente fuera del
+alcance operativo:
+
+* default `false`, y exige el booleano literal (`'true'` no alcanza);
+* ningún argumento de CLI y ninguna variable de entorno la activan;
+* nunca se serializa en snapshots, planes, dry-runs ni receipts;
+* exige host loopback (`127.0.0.1`, `::1`, `localhost`);
+* rechaza cualquier host Supabase y el ref de Production;
+* produce un descriptor con `targetMode: 'local-test'`, que `apply` y `verify`
+  jamás emiten.
+
+El contrato remoto no se relaja para facilitar las pruebas.
+
+El entorno del proceso hijo se construye desde una allowlist (`PATH`, `LANG`,
+`LC_ALL`) en lugar de heredar `process.env`, de modo que ninguna configuración
+libpq ambiente puede redirigir el destino ni sustituir la credencial:
+`PGSERVICE`, `PGSERVICEFILE`, `PGPASSFILE`, `PGOPTIONS`, `PGHOSTADDR`,
+`PGREQUIRESSL`, `PGSSLCERT`, `PGSSLKEY`, `PGSSLROOTCERT` y cualquier otra
+`PG*` heredada quedan fuera.
+
+### Validación de destino obligatoria
+
+`apply` y `verify` **siempre** validan el destino, y no por convención: por
+construcción.
+
+1. `main()` sólo obtiene una conexión a través de `prepareExecution`.
+2. `prepareExecution` corre `validateTarget` y, sólo después, emite un
+   **descriptor de conexión validado** vía `buildOperationalConnection`, que
+   vuelve a correr `validateTarget` como defensa en profundidad.
+3. `runPsql` ya **no acepta una URL**: exige ese descriptor, marcado con un
+   `Symbol` privado del módulo que ningún caller externo puede falsificar ni
+   viajar en un JSON. Un objeto plano —aunque copie todos los campos— se
+   rechaza con `CONNECTION_NOT_VALIDATED` antes de cualquier `spawn`.
+4. No existe argumento ni modo que saltee la validación: el `targetMode` sale
+   del modo de la CLI, no de un flag, y un descriptor de modo `receipt` no es
+   spawneable.
+5. No existe call site remoto alternativo: `runPsql` sólo se invoca desde
+   `apply-single-migration.mjs`, con `connection: contract.connection`.
+
+La URL cruda muere en `prepareExecution`: el contrato devuelto ya no expone
+`databaseUrl`. El descriptor guarda el entorno con la credencial en una
+propiedad no enumerable y serializa sólo su identidad
+(`profile`, `projectRef`, `targetMode`, `databaseHostKind`), de modo que no
+puede filtrarse a un snapshot, un plan o un receipt. El ref de Production se
+rechaza además dentro de la propia proyección, antes de que exista proceso
+hijo.
+
+### Protección del secreto
+
+La URL y su password nunca aparecen en argv, stdout, stderr, logs ni receipts.
+`psql` se sigue invocando con `shell:false`, `-X`, `--no-psqlrc`,
+`--set=ON_ERROR_STOP=1` y el SQL por stdin. El sanitizador de errores recibe
+además el valor literal de la credencial —en claro y percent-encoded— para
+redactarlo aunque no coincida con ningún patrón genérico.
+
+### Ruta de `psql`
+
+El default sigue siendo `psql` resuelto por `PATH`. Cuando libpq está
+instalado keg-only y `psql` no está en `PATH`, la ruta se pasa por argumento,
+por ejemplo `--psql=/opt/homebrew/opt/libpq/bin/psql`. Esa ruta es una
+conveniencia del host, no una constante del producto.
+
+### Pruebas de regresión
+
+`scripts/torneos-staging/psql-connection-contract.test.mjs` inyecta un `spawn`
+controlado y verifica argv, `shell:false`, SQL por stdin, `ON_ERROR_STOP=1`,
+el entorno discreto resultante, la eliminación de las `PG*` hostiles y la
+sanitización de errores. Cubre además las regresiones del contrato TLS y de
+validación de destino:
+
+1. `sslmode=disable` remoto rechazado.
+2. `sslmode=allow` remoto rechazado.
+3. `sslmode=prefer` remoto rechazado.
+4. `sslmode=require` remoto aceptado.
+5. `sslmode=verify-ca` aceptado.
+6. `sslmode=verify-full` aceptado.
+7. ausencia de `sslmode` remoto produce `require`.
+8. conexión local sin TLS rechazada sin el flag test-only.
+9. conexión local sin TLS aceptada sólo con el flag test-only explícito.
+10. flag test-only con host Supabase rechazado.
+11. `apply` siempre pasa por `validateTarget`.
+12. `verify` siempre pasa por `validateTarget`.
+13. `runPsql` no acepta un descriptor no validado.
+14. Production aborta antes del `spawn`.
+15. host desconocido aborta antes del `spawn`.
+16. ningún secreto aparece en argv, logs ni errores.
+
+`scripts/torneos-staging/psql-connection-live.test.mjs` ejercita `runPsql()`
+real contra un PostgreSQL local efímero **por TCP, nunca por socket Unix**:
+`SELECT 1`, el SQL de `verify`, una ruta de `psql` fuera de `PATH`, una URI
+incorrecta que falla sanitizada, y reproduce la proyección anterior
+(`PGDATABASE=URI`) demostrando que contra el mismo servidor no puede
+conectarse. Es el único consumidor de la excepción loopback test-only. Ambas
+suites corren dentro de `test:staging:guard`, que ejecuta el Quality Gate vía
+`test:ci`. Ninguna contacta Staging ni Production.
+
+### Consecuencia operativa
+
+El fix cambia el HEAD de la epic. **Todo plan anterior al merge queda
+inválido**: snapshot, dry-run, plan y approval token están ligados al SHA del
+repositorio, y el approval token se deriva del `planId` y de ese SHA. Después
+del merge hay que reinspeccionar en read-only y generar un plan nuevo ligado
+al SHA nuevo antes de cualquier `apply`; reutilizar artefactos previos aborta
+con `SNAPSHOT_DRIFT`, `PLAN_ID_DRIFT` o `APPROVAL_TOKEN`.
 
 ## Inspect y dry-run local
 
@@ -150,6 +326,10 @@ npm run torneos:staging:a1 -- apply \
   --confirmation=APPLY-ONLY-A1-20260802090000 \
   --approval-token=<token-A1-del-plan>
 ```
+
+Si `psql` no está en `PATH` —por ejemplo con libpq keg-only— se agrega
+`--psql=<ruta absoluta a psql>`. La conexión sigue llegando únicamente por
+`STAGING_MIGRATION_DATABASE_URL`, nunca como argumento.
 
 El modo rechaza directorios, globs, rangos, múltiples archivos, “all”, otra
 migración, A1 ya aplicada, historial inesperado y cualquier argumento
