@@ -245,10 +245,15 @@ export function validateRepositoryBinding({
   const status = git(repoRoot, ['status', '--porcelain']);
   if (requireClean) assert(status === '', 'REPOSITORY_DIRTY', 'Worktree must be clean.');
   const epicRef = `refs/remotes/origin/${manifest.repository.baseBranch}`;
-  try { git(repoRoot, ['rev-parse', '--verify', epicRef]); } catch {
-    fail('REPOSITORY_EPIC_REF', `Missing local remote-tracking ref ${epicRef}.`);
+  const requiredEpicAnchor = manifest.repository.requiredMergeCommits.at(-1);
+  let epicAnchor = requiredEpicAnchor;
+  try { epicAnchor = git(repoRoot, ['rev-parse', '--verify', epicRef]); } catch {
+    try { git(repoRoot, ['cat-file', '-e', `${requiredEpicAnchor}^{commit}`]); } catch {
+      fail('REPOSITORY_EPIC_REF',
+        `Neither ${epicRef} nor the required epic anchor commit is available locally.`);
+    }
   }
-  assert(isAncestor(repoRoot, epicRef, headSha), 'REPOSITORY_EPIC_CONTAINMENT',
+  assert(isAncestor(repoRoot, epicAnchor, headSha), 'REPOSITORY_EPIC_CONTAINMENT',
     `HEAD must descend from ${manifest.repository.baseBranch}.`);
   for (const [index, mergeCommit] of manifest.repository.requiredMergeCommits.entries()) {
     assert(isAncestor(repoRoot, mergeCommit, headSha), 'REPOSITORY_REQUIRED_PR',
@@ -258,7 +263,7 @@ export function validateRepositoryBinding({
     branch: git(repoRoot, ['branch', '--show-current']),
     headSha,
     clean: status === '',
-    epicRef,
+    epicRef: epicAnchor,
     requiredMergedPrs: [...manifest.repository.requiredMergedPrs],
   };
 }
