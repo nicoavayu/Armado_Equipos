@@ -44,6 +44,7 @@ test('the complete inspector SQL is named, statically read-only, and transaction
   assert.match(statements.get('idle_timeout'), /idle_in_transaction_session_timeout/);
   assert.match(statements.get('search_path'), /search_path/);
   assert.match(statements.get('role_privileges'), /has_schema_privilege\(current_user, namespace_row\.oid, 'USAGE'\)/);
+  assert.match(statements.get('role_privileges'), /FROM pg_roles role_row\s+WHERE role_row\.rolname = current_user/);
 });
 
 test('DML, DDL, COPY, CALL, DO and non-allowlisted volatile functions are rejected', () => {

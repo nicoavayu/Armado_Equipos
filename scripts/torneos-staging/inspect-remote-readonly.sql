@@ -53,7 +53,9 @@ SELECT
         OR has_table_privilege(current_user, relation_row.oid, 'REFERENCES')
         OR has_table_privilege(current_user, relation_row.oid, 'TRIGGER')
       )
-  ) AS relation_write;
+  ) AS relation_write
+FROM pg_roles role_row
+WHERE role_row.rolname = current_user;
 
 -- inspector:statement migration_history
 SELECT version::text AS version, name::text AS name
