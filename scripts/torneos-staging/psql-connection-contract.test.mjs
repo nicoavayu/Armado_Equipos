@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { PassThrough } from 'node:stream';
+import process from 'node:process';
+import { PassThrough, Writable } from 'node:stream';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
@@ -23,16 +24,21 @@ import {
   LOOPBACK_TEST_HOSTS,
   MAX_CONNECT_TIMEOUT_SECONDS,
   PRODUCTION_GUARD_CONFIRMATION,
+  MAX_CA_CERT_BYTES,
   PSQL_CONNECTION_PARAM_ALLOWLIST,
   REMOTE_CHANNEL_BINDINGS,
   REMOTE_SSLMODES,
+  STAGING_CA_CERT_ENV,
   SingleMigrationError,
+  VERIFIED_TLS_SSLMODE,
+  VERIFIED_TLS_TARGET_MODES,
   approvalTokenForPlan,
   buildLocalTestConnection,
   buildOperationalConnection,
   buildPsqlConnectionEnv,
   isValidatedConnection,
   prepareExecution,
+  resolveCaCertificatePath,
   runPsql,
   sanitizePsqlError,
 } from './single-migration-executor-lib.mjs';
@@ -44,8 +50,26 @@ const DIRECT_HOST = `db.${AUTHORIZED_STAGING_REF}.supabase.co`;
 const POOLER_HOST = 'aws-0-us-east-1.pooler.supabase.com';
 const PASSWORD = 'p@ss w/ord:with#specials';
 const DIRECT_URL = `postgresql://postgres:${encodeURIComponent(PASSWORD)}@${DIRECT_HOST}:5432/postgres`;
+// The only URL shape a remote apply or verify accepts: the server identity must be verified.
+const DIRECT_VERIFIED_URL = `${DIRECT_URL}?sslmode=${VERIFIED_TLS_SSLMODE}`;
 const UNKNOWN_HOST_URL = 'postgresql://postgres:secret@db.unknown-project.supabase.co:5432/postgres';
 const PRODUCTION_URL = `postgresql://postgres:secret@db.${FORBIDDEN_PRODUCTION_REF}.supabase.co:5432/postgres`;
+
+// A syntactically valid PEM bundle. It is not a real certificate and carries no key material; the
+// executor only has to prove it validates provenance and permissions before pointing psql at it.
+const CA_PEM = `-----BEGIN CERTIFICATE-----\n${'QXJtYTIgVG9ybmVvcyBBMSB0ZXN0IENBIGJ1bmRsZSAtIG5vdCBhIHJlYWwgY2Vy'.repeat(3)}\n-----END CERTIFICATE-----\n`;
+const CA_DIRECTORY = fs.mkdtempSync(path.join(os.tmpdir(), 'arma2-a1-ca-'));
+const CA_PATH = path.join(CA_DIRECTORY, 'staging-ca.crt');
+fs.writeFileSync(CA_PATH, CA_PEM, { mode: 0o600 });
+
+const writeCa = (name, { contents = CA_PEM, mode = 0o600 } = {}) => {
+  const file = path.join(CA_DIRECTORY, name);
+  fs.writeFileSync(file, contents, { mode });
+  fs.chmodSync(file, mode);
+  return file;
+};
+
+test.after(() => fs.rmSync(CA_DIRECTORY, { recursive: true, force: true }));
 
 const isExecutorError = (error) => (
   error instanceof SingleMigrationError || error instanceof InspectorError
@@ -57,8 +81,10 @@ const rejectsWithCode = (code, promise) => assert.rejects(promise, (error) => (
   isExecutorError(error) && error.code === code
 ), `expected ${code}`);
 
-const operational = (databaseUrl = DIRECT_URL, targetMode = 'apply') => buildOperationalConnection({
-  projectRef: AUTHORIZED_STAGING_REF, databaseUrl, targetMode, inheritedEnv: {},
+const operational = (
+  databaseUrl = DIRECT_VERIFIED_URL, targetMode = 'apply', caCertPath = CA_PATH,
+) => buildOperationalConnection({
+  projectRef: AUTHORIZED_STAGING_REF, databaseUrl, targetMode, inheritedEnv: {}, caCertPath,
 });
 
 // Records what the executor would hand to psql without ever launching a process.
@@ -201,20 +227,22 @@ test('regression 1-3: sslmode=disable, allow and prefer are rejected on the remo
   assert.deepEqual([...REMOTE_SSLMODES], ['require', 'verify-ca', 'verify-full']);
 });
 
-test('regression 4-6: sslmode require, verify-ca and verify-full are accepted', () => {
+test('regression 4-6: sslmode require, verify-ca and verify-full survive the projection', () => {
   for (const accepted of REMOTE_SSLMODES) {
     assert.equal(buildPsqlConnectionEnv(`${DIRECT_URL}?sslmode=${accepted}`, {}).env.PGSSLMODE,
       accepted);
-    assert.equal(operational(`${DIRECT_URL}?sslmode=${accepted}`).env.PGSSLMODE, accepted);
   }
+  // But only verify-full reaches an operational apply or verify: see the CA contract below.
+  assert.equal(operational().env.PGSSLMODE, VERIFIED_TLS_SSLMODE);
 });
 
 test('regression 7: a remote URL without sslmode fails closed at require', () => {
   assert.equal(buildPsqlConnectionEnv(DIRECT_URL, {}).env.PGSSLMODE, 'require');
-  assert.equal(operational().env.PGSSLMODE, 'require');
-  assert.equal(operational(
-    `postgresql://postgres.${AUTHORIZED_STAGING_REF}:secret@${POOLER_HOST}:6543/postgres`,
+  assert.equal(buildPsqlConnectionEnv(
+    `postgresql://postgres.${AUTHORIZED_STAGING_REF}:secret@${POOLER_HOST}:6543/postgres`, {},
   ).env.PGSSLMODE, 'require');
+  // `require` encrypts but authenticates nothing, so it is not enough for an operational target.
+  expectCode('TLS_VERIFICATION_REQUIRED', () => operational(DIRECT_URL));
 });
 
 test('channel_binding may not be disabled on the remote path', () => {
@@ -296,15 +324,138 @@ test('the test-only opt-in is unreachable from the CLI and never serialized', ()
   });
 });
 
+// --- CA bundle contract -------------------------------------------------------------------------
+
+test('a valid CA bundle is projected onto PGSSLROOTCERT for psql', () => {
+  const connection = operational();
+  assert.equal(connection.env.PGSSLROOTCERT, CA_PATH);
+  assert.equal(connection.env.PGSSLMODE, VERIFIED_TLS_SSLMODE);
+  const projected = buildPsqlConnectionEnv(DIRECT_VERIFIED_URL, {}, {
+    caCertPath: CA_PATH, requireCaCert: true, requireVerifiedTls: true,
+  });
+  assert.equal(projected.env.PGSSLROOTCERT, CA_PATH);
+  assert.equal(projected.caCertificate, CA_PATH);
+  // NODE_EXTRA_CA_CERTS only configures Node's own TLS stack; psql never reads it, so it is not a
+  // substitute and the executor never consults it.
+  const source = fs.readFileSync(
+    path.join(ROOT, 'scripts/torneos-staging/single-migration-executor-lib.mjs'), 'utf8',
+  );
+  assert.doesNotMatch(source, /process\.env\.NODE_EXTRA_CA_CERTS|env\.NODE_EXTRA_CA_CERTS/);
+});
+
+test('an absent CA bundle fails closed for every remote apply and verify', () => {
+  for (const targetMode of VERIFIED_TLS_TARGET_MODES) {
+    for (const missing of [null, '', '   ', 0, false]) {
+      expectCode('CA_CERT_REQUIRED', () => operational(DIRECT_VERIFIED_URL, targetMode, missing));
+    }
+    // Omitting the argument entirely is the same failure, not a default.
+    expectCode('CA_CERT_REQUIRED', () => buildOperationalConnection({
+      projectRef: AUTHORIZED_STAGING_REF,
+      databaseUrl: DIRECT_VERIFIED_URL,
+      targetMode,
+      inheritedEnv: {},
+    }));
+  }
+  // The projection layer refuses just as hard when the CA is declared required.
+  expectCode('CA_CERT_REQUIRED', () => buildPsqlConnectionEnv(DIRECT_VERIFIED_URL, {}, {
+    requireCaCert: true, requireVerifiedTls: true,
+  }));
+});
+
+test('an insecure or malformed CA bundle fails closed instead of downgrading verification', () => {
+  const groupWritable = writeCa('group-writable.crt', { mode: 0o620 });
+  const worldWritable = writeCa('world-writable.crt', { mode: 0o606 });
+  const notPem = writeCa('not-a-bundle.crt', { contents: 'just some bytes\n' });
+  const empty = writeCa('empty.crt', { contents: '' });
+  const oversized = writeCa('oversized.crt', {
+    contents: `-----BEGIN CERTIFICATE-----\n${'A'.repeat(MAX_CA_CERT_BYTES + 1)}\n-----END CERTIFICATE-----\n`,
+  });
+  const symlink = path.join(CA_DIRECTORY, 'symlinked.crt');
+  fs.symlinkSync(CA_PATH, symlink);
+  const directory = fs.mkdtempSync(path.join(CA_DIRECTORY, 'dir-'));
+
+  for (const [file, code] of [
+    [groupWritable, 'CA_CERT_INSECURE'],
+    [worldWritable, 'CA_CERT_INSECURE'],
+    [symlink, 'CA_CERT_INSECURE'],
+    [directory, 'CA_CERT_INVALID'],
+    [notPem, 'CA_CERT_INVALID'],
+    [empty, 'CA_CERT_INVALID'],
+    [oversized, 'CA_CERT_INVALID'],
+    [path.join(CA_DIRECTORY, 'does-not-exist.crt'), 'CA_CERT_INVALID'],
+    ['relative/staging-ca.crt', 'CA_CERT_INVALID'],
+    [`${CA_PATH}\nPGSSLMODE=disable`, 'CA_CERT_INVALID'],
+  ]) {
+    expectCode(code, () => resolveCaCertificatePath(file));
+    expectCode(code, () => operational(DIRECT_VERIFIED_URL, 'apply', file));
+  }
+  // A bundle owned by somebody else is refused even with impeccable permissions.
+  expectCode('CA_CERT_INSECURE', () => resolveCaCertificatePath(CA_PATH, {
+    currentUid: (process.getuid?.() ?? 0) + 1,
+  }));
+});
+
+test('an inherited PGSSLROOTCERT is refused out loud, never silently ignored', () => {
+  const inherited = { PATH: '/usr/bin', PGSSLROOTCERT: '/tmp/attacker-root.crt' };
+  expectCode('CA_CERT_INHERITED', () => buildPsqlConnectionEnv(DIRECT_URL, inherited));
+  expectCode('CA_CERT_INHERITED', () => buildOperationalConnection({
+    projectRef: AUTHORIZED_STAGING_REF,
+    databaseUrl: DIRECT_VERIFIED_URL,
+    targetMode: 'apply',
+    inheritedEnv: inherited,
+    caCertPath: CA_PATH,
+  }));
+  // Even the test-only local profile refuses it, so no suite can normalise the habit.
+  expectCode('CA_CERT_INHERITED', () => buildLocalTestConnection({
+    databaseUrl: 'postgresql://postgres:secret@127.0.0.1:56999/arma2_local?sslmode=disable',
+    inheritedEnv: inherited,
+    allowInsecureLocalTestConnection: true,
+  }));
+  // The validated bundle wins because it is the only source, not because it was merged last.
+  assert.equal(operational().env.PGSSLROOTCERT, CA_PATH);
+});
+
+test('sslrootcert inside the URL stays rejected, CA path and all', () => {
+  for (const query of [
+    `sslrootcert=${encodeURIComponent(CA_PATH)}`,
+    'sslrootcert=/tmp/root.crt',
+    `sslmode=${VERIFIED_TLS_SSLMODE}&sslrootcert=${encodeURIComponent(CA_PATH)}`,
+    'sslcert=/tmp/client.crt',
+    'sslkey=/tmp/client.key',
+  ]) {
+    expectCode('DATABASE_URL_PARAMETER', () => buildPsqlConnectionEnv(`${DIRECT_URL}?${query}`, {}));
+    expectCode('DATABASE_URL_PARAMETER',
+      () => operational(`${DIRECT_URL}?${query}`, 'apply', CA_PATH));
+  }
+});
+
+test('remote apply and verify require sslmode=verify-full and nothing less', () => {
+  assert.deepEqual([...VERIFIED_TLS_TARGET_MODES], ['apply', 'verify']);
+  for (const targetMode of VERIFIED_TLS_TARGET_MODES) {
+    for (const insufficient of ['require', 'verify-ca']) {
+      expectCode('TLS_VERIFICATION_REQUIRED',
+        () => operational(`${DIRECT_URL}?sslmode=${insufficient}`, targetMode));
+    }
+    // No sslmode at all falls back to `require`, which is still not verification.
+    expectCode('TLS_VERIFICATION_REQUIRED', () => operational(DIRECT_URL, targetMode));
+    const connection = operational(DIRECT_VERIFIED_URL, targetMode);
+    assert.equal(connection.env.PGSSLMODE, VERIFIED_TLS_SSLMODE);
+    assert.equal(connection.env.PGSSLROOTCERT, CA_PATH);
+  }
+});
+
 // --- Target validation ------------------------------------------------------------------------
 
 // `main()` reaches a connection only through `prepareExecution`, and `prepareExecution` reaches a
 // descriptor only through `validateTarget`. The first link is asserted statically (the CLI source
 // has no other path to psql); the second is asserted functionally below, for both modes.
-const prepareWith = (options, databaseUrl, targetMode) => prepareExecution({
+const prepareWith = (options, databaseUrl, targetMode, caCertPath = CA_PATH) => prepareExecution({
   repoRoot: ROOT,
   options,
-  env: { STAGING_MIGRATION_DATABASE_URL: databaseUrl },
+  env: {
+    STAGING_MIGRATION_DATABASE_URL: databaseUrl,
+    ...(caCertPath === null ? {} : { [STAGING_CA_CERT_ENV]: caCertPath }),
+  },
   requireClean: false,
   targetMode,
 });
@@ -322,12 +473,17 @@ for (const [regression, targetMode] of [['11', 'apply'], ['12', 'verify']]) {
       expectCode('DATABASE_URL_REQUIRED', () => prepareWith(options, '', targetMode));
       expectCode('DATABASE_URL_PARAMETER',
         () => prepareWith(options, `${DIRECT_URL}?sslmode=prefer`, targetMode));
+      expectCode('TLS_VERIFICATION_REQUIRED',
+        () => prepareWith(options, `${DIRECT_URL}?sslmode=require`, targetMode));
+      // The CA travels through its own environment variable; without it the mode aborts.
+      expectCode('CA_CERT_REQUIRED', () => prepareWith(options, DIRECT_VERIFIED_URL, targetMode, null));
       const contract = prepareWith(options, `${DIRECT_URL}?sslmode=verify-full`, targetMode);
       assert.ok(isValidatedConnection(contract.connection));
       assert.equal(contract.connection.targetMode, targetMode);
       assert.equal(contract.connection.profile, 'remote');
       assert.equal(contract.connection.databaseHostKind, 'direct');
       assert.equal(contract.connection.env.PGSSLMODE, 'verify-full');
+      assert.equal(contract.connection.env.PGSSLROOTCERT, CA_PATH);
       assert.ok(!Object.hasOwn(contract, 'databaseUrl'), 'the raw URL must not survive in the contract');
       // A dry-run mints no connection at all, so it can never spawn.
       assert.equal(prepareDryRun(options, targetMode).connection, null);
@@ -477,7 +633,8 @@ test('hostile inherited PG* settings never reach the child process', () => {
     PGSSLMODE: 'disable',
     PGSSLCERT: '/tmp/client.crt',
     PGSSLKEY: '/tmp/client.key',
-    PGSSLROOTCERT: '/tmp/root.crt',
+    // PGSSLROOTCERT is not listed here: it no longer gets quietly dropped, it aborts. See the
+    // dedicated CA test above.
     PGDATABASE: 'someone-elses-db',
     PGUSER: 'someone-else',
     PGPASSWORD: 'someone-elses-password',
@@ -488,6 +645,10 @@ test('hostile inherited PG* settings never reach the child process', () => {
     'PGSERVICE', 'PGSERVICEFILE', 'PGPASSFILE', 'PGOPTIONS', 'PGHOSTADDR',
     'PGREQUIRESSL', 'PGSSLCERT', 'PGSSLKEY', 'PGSSLROOTCERT',
   ]) assert.ok(!Object.hasOwn(env, removed), `${removed} must not be inherited`);
+  // The CA is the single exception, and only from its own validated variable.
+  assert.equal(buildPsqlConnectionEnv(DIRECT_VERIFIED_URL, hostile, {
+    caCertPath: CA_PATH, requireCaCert: true, requireVerifiedTls: true,
+  }).env.PGSSLROOTCERT, CA_PATH);
   assert.equal(env.PGHOST, DIRECT_HOST);
   assert.equal(env.PGUSER, 'postgres');
   assert.equal(env.PGDATABASE, 'postgres');
@@ -497,7 +658,7 @@ test('hostile inherited PG* settings never reach the child process', () => {
   assert.equal(env.PGSSLMODE, 'require');
   const allowed = new Set([
     'PATH', 'LANG', 'LC_ALL', 'PGHOST', 'PGPORT', 'PGUSER', 'PGPASSWORD', 'PGDATABASE',
-    'PGSSLMODE', 'PGCONNECT_TIMEOUT', 'PGTARGETSESSIONATTRS', 'PGCHANNELBINDING',
+    'PGSSLMODE', 'PGSSLROOTCERT', 'PGCONNECT_TIMEOUT', 'PGTARGETSESSIONATTRS', 'PGCHANNELBINDING',
   ]);
   for (const key of Object.keys(env)) assert.ok(allowed.has(key), `unexpected variable ${key}`);
 });
@@ -524,7 +685,10 @@ test('runPsql keeps the spawn contract: no credential in argv, shell false, SQL 
   assert.equal(call.options.env.PGDATABASE, 'postgres');
   assert.equal(call.options.env.PGHOST, DIRECT_HOST);
   assert.equal(call.options.env.PGPASSWORD, PASSWORD);
-  assert.equal(call.options.env.PGSSLMODE, 'require');
+  assert.equal(call.options.env.PGSSLMODE, VERIFIED_TLS_SSLMODE);
+  assert.equal(call.options.env.PGSSLROOTCERT, CA_PATH);
+  assert.equal(result.psqlExitCode, 0);
+  assert.equal(result.signal, null);
 });
 
 test('psql failures surface exit code and SQLSTATE with the credential redacted', async () => {
@@ -538,6 +702,10 @@ test('psql failures surface exit code and SQLSTATE with the credential redacted'
     (error) => {
       assert.equal(error.code, 'PSQL_FAILED');
       assert.equal(error.details.exitCode, 3);
+      assert.equal(error.details.psqlExitCode, 3);
+      assert.equal(error.details.signal, null);
+      assert.equal(error.details.stdinErrorCode, null);
+      assert.equal(error.details.requiresReadOnlyReinspection, true);
       assert.equal(error.details.sqlState, '23505');
       assert.match(error.details.stderr, /duplicate key value/);
       assert.ok(error.details.stderr.length <= 800);
@@ -580,4 +748,200 @@ test('explicit secrets are redacted even when they defeat the generic patterns',
   const safe = sanitizePsqlError(`credential ${plain} leaked`, { secrets: [plain] });
   assert.ok(!safe.includes(plain));
   assert.match(safe, /\[REDACTED_SECRET\]/);
+});
+
+// --- stdin transport: a child that stops reading -------------------------------------------------
+
+// A payload comfortably larger than any pipe buffer, so a child that exits early cannot possibly
+// have consumed it. 100 KB is the contractual floor; this is well past it.
+const LARGE_SQL = `-- ${'x'.repeat(512 * 1024)}\nSELECT 1;\n`;
+
+// Simulates psql dying mid-write: stdin rejects the payload with EPIPE and the process still
+// reports its own exit code, signal and stderr through `close`, a turn later.
+const makeEarlyExitSpawn = ({ exitCode = 3, signal = null, stderr = '', errorCode = 'EPIPE' } = {}) => {
+  const calls = [];
+  const spawnFn = (command, args, options) => {
+    calls.push({ command, args, options });
+    const child = new EventEmitter();
+    child.stdout = new PassThrough();
+    child.stderr = new PassThrough();
+    let written = 0;
+    child.stdin = new Writable({
+      write(chunk, _encoding, callback) {
+        written += chunk.length;
+        const error = new Error('write EPIPE');
+        error.code = errorCode;
+        callback(error);
+      },
+    });
+    child.stdin.on('error', () => {
+      calls[calls.length - 1].bytesWritten = written;
+      if (stderr) child.stderr.write(stderr);
+      child.stdout.end();
+      child.stderr.end();
+      // The child's own outcome arrives after the stdin failure, exactly as it does with real pipes.
+      setImmediate(() => child.emit('close', exitCode, signal));
+    });
+    return child;
+  };
+  return { calls, spawnFn };
+};
+
+test('a child that stops reading a >100 KB payload never raises an uncaughtException', async () => {
+  const uncaught = [];
+  const capture = (error) => uncaught.push(error);
+  process.on('uncaughtException', capture);
+  try {
+    const { calls, spawnFn } = makeEarlyExitSpawn({
+      exitCode: 3, stderr: `psql: error: could not send data to server ${DIRECT_URL}\n`,
+    });
+    await assert.rejects(
+      runPsql({ connection: operational(), sql: LARGE_SQL, spawnFn }),
+      (error) => {
+        assert.equal(error.code, 'PSQL_STDIN_TRANSPORT');
+        // EPIPE is recognised as an early close, not swallowed and not fatal.
+        assert.equal(error.details.stdinErrorCode, 'EPIPE');
+        // The child's outcome survived the transport failure.
+        assert.equal(error.details.psqlExitCode, 3);
+        assert.equal(error.details.exitCode, 3);
+        assert.equal(error.details.signal, null);
+        assert.match(error.details.stderr, /could not send data to server/);
+        // The remote state is undetermined: nothing here claims a rollback.
+        assert.equal(error.details.requiresReadOnlyReinspection, true);
+        assert.doesNotMatch(error.message, /roll ?back/i);
+        assert.doesNotMatch(JSON.stringify(error.details), /roll ?back/i);
+        // And no secret rode along with the diagnosis.
+        for (const secret of [PASSWORD, encodeURIComponent(PASSWORD), DIRECT_URL, CA_PEM]) {
+          assert.ok(!error.details.stderr.includes(secret));
+          assert.ok(!error.message.includes(secret));
+        }
+        return true;
+      },
+    );
+    assert.ok(LARGE_SQL.length > 100 * 1024, 'the payload must exceed the 100 KB floor');
+    assert.equal(calls.length, 1, 'the failure must not be retried automatically');
+  } finally {
+    process.off('uncaughtException', capture);
+  }
+  assert.deepEqual(uncaught, []);
+});
+
+test('an exit code of 0 does not absolve a truncated stdin write', async () => {
+  const { spawnFn } = makeEarlyExitSpawn({ exitCode: 0 });
+  await assert.rejects(
+    runPsql({ connection: operational(), sql: LARGE_SQL, spawnFn }),
+    (error) => {
+      assert.equal(error.code, 'PSQL_STDIN_TRANSPORT');
+      assert.equal(error.details.psqlExitCode, 0);
+      assert.equal(error.details.stdinErrorCode, 'EPIPE');
+      assert.equal(error.details.requiresReadOnlyReinspection, true);
+      return true;
+    },
+  );
+});
+
+test('a child killed by a signal reports the signal alongside the exit code', async () => {
+  const { spawnFn } = makeEarlyExitSpawn({ exitCode: null, signal: 'SIGKILL' });
+  await assert.rejects(
+    runPsql({ connection: operational(), sql: LARGE_SQL, spawnFn }),
+    (error) => {
+      assert.equal(error.details.signal, 'SIGKILL');
+      assert.equal(error.details.psqlExitCode, null);
+      assert.equal(error.details.requiresReadOnlyReinspection, true);
+      return true;
+    },
+  );
+});
+
+test('a real child that exits before reading a >100 KB payload is diagnosed, not fatal', async () => {
+  const uncaught = [];
+  const capture = (error) => uncaught.push(error);
+  process.on('uncaughtException', capture);
+  try {
+    await assert.rejects(
+      runPsql({
+        connection: operational(),
+        sql: LARGE_SQL,
+        // A real process with real pipes: it writes to stderr and exits without draining stdin.
+        spawnFn: (command, args, options) => spawn(process.execPath, [
+          '-e', 'process.stderr.write("psql: fatal: server closed the connection\\n"); process.exit(3);',
+        ], { ...options, stdio: ['pipe', 'pipe', 'pipe'], shell: false }),
+      }),
+      (error) => {
+        assert.ok(['PSQL_STDIN_TRANSPORT', 'PSQL_FAILED'].includes(error.code), error.code);
+        assert.equal(error.details.psqlExitCode, 3, 'the real exit code must survive');
+        assert.match(error.details.stderr, /server closed the connection/);
+        assert.equal(error.details.requiresReadOnlyReinspection, true);
+        if (error.code === 'PSQL_STDIN_TRANSPORT') {
+          assert.match(error.details.stdinErrorCode, /EPIPE|ERR_STREAM_DESTROYED/);
+        }
+        return true;
+      },
+    );
+  } finally {
+    process.off('uncaughtException', capture);
+  }
+  assert.deepEqual(uncaught, [], 'the EPIPE must never escape as an uncaught exception');
+});
+
+test('a healthy child consumes the whole SQL payload and resolves', async () => {
+  const { calls, spawnFn } = makeSpawnRecorder({ stdout: 'HISTORY_OK\n' });
+  const result = await runPsql({ connection: operational(), sql: LARGE_SQL, spawnFn });
+  assert.equal(result.psqlExitCode, 0);
+  assert.equal(result.signal, null);
+  assert.equal(result.onErrorStop, true);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].stdin, LARGE_SQL, 'the child must receive the payload byte for byte');
+});
+
+test('a spawn that never produces a process is reported without leaking or asserting rollback',
+  async () => {
+    const spawnFn = () => {
+      const child = new EventEmitter();
+      child.stdout = new PassThrough();
+      child.stderr = new PassThrough();
+      child.stdin = new PassThrough();
+      setImmediate(() => {
+        const error = new Error(`spawn psql ENOENT for ${DIRECT_URL}`);
+        error.code = 'ENOENT';
+        child.emit('error', error);
+      });
+      return child;
+    };
+    await assert.rejects(
+      runPsql({ connection: operational(), sql: 'SELECT 1;', spawnFn }),
+      (error) => {
+        assert.equal(error.code, 'PSQL_EXECUTION');
+        assert.equal(error.details.requiresReadOnlyReinspection, true);
+        assert.ok(!error.message.includes(DIRECT_URL));
+        assert.ok(!error.message.includes(PASSWORD));
+        return true;
+      },
+    );
+  });
+
+// --- The executor still selects A1 and nothing else ----------------------------------------------
+
+test('the fixed transport did not widen the migration selection beyond A1', async () => {
+  await withContractFiles(async ({ options }) => {
+    const contract = prepareWith(options, DIRECT_VERIFIED_URL, 'apply');
+    assert.equal(path.relative(ROOT, contract.migrationFile), A1_FILE);
+    assert.deepEqual(contract.historyAfter.filter((version) => version === A1_VERSION), [A1_VERSION]);
+    assert.equal(contract.historyAfter.length, contract.historyBefore.length + 1);
+    for (const rejected of [
+      'supabase/migrations',
+      'supabase/migrations/*.sql',
+      'all',
+      `${A1_FILE},supabase/migrations/20260802120000_tournament_media_trusted_processing.sql`,
+      'supabase/migrations/20260802120000_tournament_media_trusted_processing.sql',
+    ]) {
+      assert.throws(() => prepareWith({ ...options, migration: rejected }, DIRECT_VERIFIED_URL, 'apply'),
+        (error) => isExecutorError(error)
+          && ['MIGRATION_SELECTION', 'MIGRATION_NOT_AUTHORIZED'].includes(error.code));
+    }
+    // Production stays blocked on the very same path, before any descriptor exists.
+    expectCode('PRODUCTION_FORBIDDEN',
+      () => prepareWith({ ...options, 'project-ref': FORBIDDEN_PRODUCTION_REF }, DIRECT_VERIFIED_URL, 'apply'));
+    expectCode('PRODUCTION_FORBIDDEN', () => prepareWith(options, PRODUCTION_URL, 'apply'));
+  });
 });

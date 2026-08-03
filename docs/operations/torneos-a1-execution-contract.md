@@ -153,10 +153,11 @@ la ventana de aprobación del operador sigue abierta.
 **En el camino operativo remoto no existe forma de bajar TLS.** El piso es
 `require` y los únicos valores aceptados son:
 
-| `sslmode` | Remoto (Staging) |
-| --- | --- |
-| `require`, `verify-ca`, `verify-full` | aceptado |
-| `disable`, `allow`, `prefer` | **rechazado** (`DATABASE_URL_PARAMETER`) |
+| `sslmode` | Proyección | `apply` / `verify` remotos |
+| --- | --- | --- |
+| `verify-full` | aceptado | **único aceptado** |
+| `require`, `verify-ca` | aceptado | **rechazado** (`TLS_VERIFICATION_REQUIRED`) |
+| `disable`, `allow`, `prefer` | **rechazado** (`DATABASE_URL_PARAMETER`) | rechazado |
 
 Sin `sslmode` en la URL, el valor efectivo es `require`: falla cerrado. Una
 URL que pida `sslmode=disable` no "degrada": **aborta**, porque con esos tres
@@ -186,8 +187,35 @@ El entorno del proceso hijo se construye desde una allowlist (`PATH`, `LANG`,
 `LC_ALL`) en lugar de heredar `process.env`, de modo que ninguna configuración
 libpq ambiente puede redirigir el destino ni sustituir la credencial:
 `PGSERVICE`, `PGSERVICEFILE`, `PGPASSFILE`, `PGOPTIONS`, `PGHOSTADDR`,
-`PGREQUIRESSL`, `PGSSLCERT`, `PGSSLKEY`, `PGSSLROOTCERT` y cualquier otra
-`PG*` heredada quedan fuera.
+`PGREQUIRESSL`, `PGSSLCERT`, `PGSSLKEY` y cualquier otra `PG*` heredada quedan
+fuera. `PGSSLROOTCERT` es el único caso que además **aborta** en lugar de
+descartarse en silencio (`CA_CERT_INHERITED`): un operador que exportó una CA
+no debe poder creer que es la que se está verificando.
+
+### CA explícita: `STAGING_DATABASE_CA_CERT`
+
+`verify-full` sin ancla de confianza no verifica nada, y **`NODE_EXTRA_CA_CERTS`
+no sirve**: configura únicamente el stack TLS de Node y `psql`/libpq jamás lo
+lee. El executor por lo tanto no lo consulta.
+
+La CA viaja por una variable dedicada, `STAGING_DATABASE_CA_CERT`, se valida
+antes de proyectarse y sólo entonces se traduce a `PGSSLROOTCERT` para el
+proceso hijo. El archivo debe ser:
+
+* una ruta **absoluta**, sin NUL ni saltos de línea (`CA_CERT_INVALID`);
+* un **archivo regular**, nunca un symlink —cuyo destino podría cambiarse entre
+  la validación y el `spawn`— ni un directorio (`CA_CERT_INSECURE` /
+  `CA_CERT_INVALID`);
+* **propiedad del usuario actual** (`CA_CERT_INSECURE`);
+* **no escribible por grupo ni por otros** (`CA_CERT_INSECURE`);
+* no vacío, de a lo sumo 256 KB, y con un bundle PEM
+  (`-----BEGIN CERTIFICATE-----`) adentro (`CA_CERT_INVALID`).
+
+Ausente, vacía o inválida, `apply` y `verify` remotos **abortan**
+(`CA_CERT_REQUIRED`) antes de cualquier `spawn`. `sslrootcert` sigue fuera de
+la allowlist de la URL: no hay forma de inyectar una CA arbitraria por
+`STAGING_MIGRATION_DATABASE_URL`. La CA no es un argumento de CLI: como la
+credencial, llega por ambiente.
 
 ### Validación de destino obligatoria
 
@@ -224,6 +252,34 @@ La URL y su password nunca aparecen en argv, stdout, stderr, logs ni receipts.
 además el valor literal de la credencial —en claro y percent-encoded— para
 redactarlo aunque no coincida con ningún patrón genérico.
 
+### Transporte de stdin: un hijo que deja de leer
+
+`child.stdin` es un `Writable`. Si `psql` termina antes de consumir todo el
+payload —el SQL de A1 supera holgadamente el buffer de un pipe— la escritura
+falla con `EPIPE`. Sin listener, Node lo eleva a `uncaughtException` y el
+proceso muere **perdiendo la única evidencia de lo que pasó del otro lado**:
+exit code, señal y el stderr de `psql`.
+
+El executor ahora:
+
+* registra `child.stdin.on('error')` antes de escribir, y también captura el
+  throw sincrónico de escribir sobre un pipe ya destruido;
+* reconoce `EPIPE` como síntoma de cierre temprano, no como error fatal;
+* **siempre espera el evento `close` del hijo** —el único que trae el resultado
+  real— y difiere el settle un turno para que un `EPIPE` entregado junto al
+  `close` igual se vea;
+* un `stdin` truncado invalida el resultado **aunque el exit code sea 0**:
+  `psql` no puede haber ejecutado SQL que nunca recibió;
+* **no reintenta** y **no afirma rollback**: el hijo pudo morir después de que
+  el `COMMIT` llegara al servidor.
+
+Ante fallo devuelve un error estructurado —`PSQL_STDIN_TRANSPORT` si hubo error
+de stdin, `PSQL_FAILED` si sólo falló el proceso, `PSQL_EXECUTION` si nunca
+hubo proceso— con `psqlExitCode`, `signal`, `stdinErrorCode`, `stderr`
+sanitizado y `requiresReadOnlyReinspection: true`. Ese último campo es el
+contrato operativo: **el estado remoto queda indeterminado hasta reinspeccionar
+en read-only**.
+
 ### Ruta de `psql`
 
 El default sigue siendo `psql` resuelto por `PATH`. Cuando libpq está
@@ -242,10 +298,10 @@ validación de destino:
 1. `sslmode=disable` remoto rechazado.
 2. `sslmode=allow` remoto rechazado.
 3. `sslmode=prefer` remoto rechazado.
-4. `sslmode=require` remoto aceptado.
-5. `sslmode=verify-ca` aceptado.
-6. `sslmode=verify-full` aceptado.
-7. ausencia de `sslmode` remoto produce `require`.
+4. `sslmode=require` aceptado por la proyección, rechazado para `apply`/`verify`.
+5. `sslmode=verify-ca` idem.
+6. `sslmode=verify-full` aceptado, único válido para `apply`/`verify`.
+7. ausencia de `sslmode` remoto produce `require`, insuficiente para operar.
 8. conexión local sin TLS rechazada sin el flag test-only.
 9. conexión local sin TLS aceptada sólo con el flag test-only explícito.
 10. flag test-only con host Supabase rechazado.
@@ -255,6 +311,24 @@ validación de destino:
 14. Production aborta antes del `spawn`.
 15. host desconocido aborta antes del `spawn`.
 16. ningún secreto aparece en argv, logs ni errores.
+
+Y las del contrato de CA y de transporte:
+
+17. una CA válida se proyecta como `PGSSLROOTCERT`.
+18. CA ausente falla cerrado (`CA_CERT_REQUIRED`).
+19. CA insegura o malformada falla cerrado —symlink, escribible por grupo u
+    otros, de otro dueño, directorio, no-PEM, vacía, sobredimensionada,
+    inexistente, relativa, con salto de línea.
+20. `PGSSLROOTCERT` heredado aborta (`CA_CERT_INHERITED`), no se ignora.
+21. `sslrootcert` dentro de la URL sigue rechazado.
+22. `apply` y `verify` remotos exigen `verify-full`.
+23. un hijo que termina antes con payload > 100 KB no produce
+    `uncaughtException`, captura `EPIPE`, espera `close` y conserva exit code,
+    señal y stderr —con un mock determinístico y con un proceso real.
+24. exit code 0 no absuelve un `stdin` truncado.
+25. un hijo sano consume el payload completo byte a byte.
+26. ningún secreto aparece en el error de transporte, y nada afirma rollback.
+27. Production sigue bloqueada y el executor sigue seleccionando sólo A1.
 
 `scripts/torneos-staging/psql-connection-live.test.mjs` ejercita `runPsql()`
 real contra un PostgreSQL local efímero **por TCP, nunca por socket Unix**:
@@ -307,10 +381,14 @@ token de aprobación derivable; no persiste el token.
 
 Después del merge se debe reinspeccionar, generar un plan nuevo y obtener una
 aprobación A1 específica. `STAGING_MIGRATION_DATABASE_URL` se suministra por un
-canal externo y nunca como argumento, archivo o log.
+canal externo y nunca como argumento, archivo o log. `STAGING_DATABASE_CA_CERT`
+apunta al bundle PEM de la CA de Supabase, con permisos `0600` y del usuario
+que ejecuta; la URL debe pedir `sslmode=verify-full`.
 
 ```bash
 EXPECTED_SHA="$(git rev-parse HEAD)"
+# El bundle debe ser archivo regular, propio y no escribible por grupo/otros.
+chmod 600 "$STAGING_DATABASE_CA_CERT"
 
 npm run torneos:staging:a1 -- apply \
   --project-ref=hhyvmhgpapyuzjgxfnqv \
@@ -329,7 +407,13 @@ npm run torneos:staging:a1 -- apply \
 
 Si `psql` no está en `PATH` —por ejemplo con libpq keg-only— se agrega
 `--psql=<ruta absoluta a psql>`. La conexión sigue llegando únicamente por
-`STAGING_MIGRATION_DATABASE_URL`, nunca como argumento.
+`STAGING_MIGRATION_DATABASE_URL` y la CA por `STAGING_DATABASE_CA_CERT`, nunca
+como argumento.
+
+Si `apply` falla con `PSQL_STDIN_TRANSPORT`, `PSQL_FAILED` o `PSQL_EXECUTION`,
+**no se reintenta**: el error trae `requiresReadOnlyReinspection: true` y el
+paso siguiente es reinspeccionar en read-only para determinar el estado real
+del historial antes de decidir nada.
 
 El modo rechaza directorios, globs, rangos, múltiples archivos, “all”, otra
 migración, A1 ya aplicada, historial inesperado y cualquier argumento

@@ -16,6 +16,10 @@ export const A1_FILE = 'supabase/migrations/20260802090000_tournament_media_uplo
 export const A1_CHECKSUM = '793ffbbe8cf7f7f94b4924d781fa81e01ebf92208c80e70b60e2daf92a72a417';
 export const A1_CONFIRMATION = 'APPLY-ONLY-A1-20260802090000';
 export const PRODUCTION_GUARD_CONFIRMATION = 'PRODUCTION-IS-FORBIDDEN';
+// The single, dedicated channel for the CA bundle psql must verify Staging against.
+// `NODE_EXTRA_CA_CERTS` is deliberately NOT read here: it only affects Node's own TLS stack and is
+// invisible to psql/libpq, so trusting it would have promised a verification that never happened.
+export const STAGING_CA_CERT_ENV = 'STAGING_DATABASE_CA_CERT';
 
 export class SingleMigrationError extends Error {
   constructor(code, message, details = {}) {
@@ -145,7 +149,13 @@ export function prepareExecution({
     // The raw URL stops here. Everything downstream travels as a validated descriptor, so no call
     // site can reach psql with a host that was never checked.
     connection = buildOperationalConnection({
-      projectRef: options['project-ref'], databaseUrl, targetMode, inheritedEnv: env,
+      projectRef: options['project-ref'],
+      databaseUrl,
+      targetMode,
+      inheritedEnv: env,
+      // The CA path also comes from the environment, never from argv: it is an operational secret's
+      // trust anchor, not a switch, and it is validated before it can be projected onto psql.
+      caCertPath: typeof env[STAGING_CA_CERT_ENV] === 'string' ? env[STAGING_CA_CERT_ENV] : null,
     });
   }
   return {
@@ -379,6 +389,58 @@ export const CONNECTION_PROFILES = Object.freeze(['remote', 'local-test']);
 // A descriptor may be minted for `receipt`, but only these modes may reach a spawn.
 export const CONNECTION_TARGET_MODES = Object.freeze(['apply', 'verify', 'receipt']);
 export const SPAWNABLE_TARGET_MODES = Object.freeze(['apply', 'verify', 'local-test']);
+// The two remote modes that actually talk to Staging must prove the server's identity, not merely
+// encrypt the channel: `require` alone accepts any certificate, so a hostile DNS answer or an
+// on-path proxy would still receive the migration credential. Those modes therefore demand
+// `verify-full` plus an explicit, validated CA bundle.
+export const VERIFIED_TLS_TARGET_MODES = Object.freeze(['apply', 'verify']);
+export const VERIFIED_TLS_SSLMODE = 'verify-full';
+// A CA bundle is a handful of PEM blocks. Anything larger is not the file the operator meant.
+export const MAX_CA_CERT_BYTES = 256 * 1024;
+
+/**
+ * Resolves the operator-supplied CA bundle path into a path psql may be pointed at.
+ *
+ * The bundle is the trust anchor of the whole connection, so it is accepted only when the process
+ * can still reason about who controls it: a regular file (never a symlink, whose target could be
+ * swapped between this check and the spawn), owned by the current user, and not writable by group
+ * or others. Anything else fails closed rather than silently downgrading verification.
+ */
+export function resolveCaCertificatePath(value, {
+  lstat = fs.lstatSync,
+  readFile = fs.readFileSync,
+  currentUid = (typeof process.getuid === 'function' ? process.getuid() : null),
+} = {}) {
+  assert(typeof value === 'string' && value.trim().length > 0, 'CA_CERT_REQUIRED',
+    `${STAGING_CA_CERT_ENV} is required: remote apply and verify must verify Staging against an explicit CA bundle.`);
+  const candidate = value.trim();
+  assert(!/[\0\r\n]/.test(candidate), 'CA_CERT_INVALID',
+    `${STAGING_CA_CERT_ENV} must be a plain filesystem path.`);
+  assert(path.isAbsolute(candidate), 'CA_CERT_INVALID',
+    `${STAGING_CA_CERT_ENV} must be an absolute path.`);
+  const absolute = path.normalize(candidate);
+  let stats;
+  try { stats = lstat(absolute); } catch {
+    fail('CA_CERT_INVALID', `${STAGING_CA_CERT_ENV} does not name an existing file.`);
+  }
+  assert(!stats.isSymbolicLink(), 'CA_CERT_INSECURE',
+    `${STAGING_CA_CERT_ENV} must not be a symbolic link.`);
+  assert(stats.isFile(), 'CA_CERT_INVALID', `${STAGING_CA_CERT_ENV} must name a regular file.`);
+  assert(currentUid === null || stats.uid === currentUid, 'CA_CERT_INSECURE',
+    `${STAGING_CA_CERT_ENV} must be owned by the current user.`);
+  assert((stats.mode & 0o022) === 0, 'CA_CERT_INSECURE',
+    `${STAGING_CA_CERT_ENV} must not be writable by group or others.`);
+  assert(stats.size > 0 && stats.size <= MAX_CA_CERT_BYTES, 'CA_CERT_INVALID',
+    `${STAGING_CA_CERT_ENV} must be a non-empty file of at most ${MAX_CA_CERT_BYTES} bytes.`);
+  let contents;
+  try { contents = readFile(absolute, 'utf8'); } catch {
+    fail('CA_CERT_INVALID', `${STAGING_CA_CERT_ENV} is not readable.`);
+  }
+  assert(contents.includes('-----BEGIN CERTIFICATE-----')
+    && contents.includes('-----END CERTIFICATE-----'), 'CA_CERT_INVALID',
+  `${STAGING_CA_CERT_ENV} must contain a PEM certificate bundle.`);
+  return absolute;
+}
 
 // libpq never expands a connection URI supplied through PGDATABASE: it treats the whole string as a
 // literal database name and falls back to the local Unix socket. The URL is therefore parsed here and
@@ -423,9 +485,18 @@ const bareHostname = (value) => String(value || '').toLowerCase().replace(/^\[|\
 export function buildPsqlConnectionEnv(databaseUrl, inheritedEnv = process.env, {
   requirePassword = true,
   profile = 'remote',
+  caCertPath = null,
+  requireCaCert = false,
+  requireVerifiedTls = false,
+  caCertChecks = {},
 } = {}) {
   assert(CONNECTION_PROFILES.includes(profile), 'CONNECTION_PROFILE',
     `Connection profile must be one of: ${CONNECTION_PROFILES.join(', ')}.`);
+  // An inherited PGSSLROOTCERT is not merely dropped: it is refused out loud. Silently ignoring it
+  // would leave an operator believing the CA they exported is the one being verified against.
+  assert(!(typeof inheritedEnv?.PGSSLROOTCERT === 'string' && inheritedEnv.PGSSLROOTCERT.length),
+    'CA_CERT_INHERITED',
+    `An inherited PGSSLROOTCERT is never accepted; supply the CA bundle through ${STAGING_CA_CERT_ENV}.`);
   assert(typeof databaseUrl === 'string' && databaseUrl.length > 0, 'DATABASE_URL_REQUIRED',
     'A PostgreSQL connection URL is required.');
   let parsed;
@@ -474,6 +545,18 @@ export function buildPsqlConnectionEnv(databaseUrl, inheritedEnv = process.env, 
     projected[rule.variable] = value;
   }
 
+  // Fail closed. On the remote profile the allowlist above has already rejected every downgrade,
+  // so this default can only ever be raised, never lowered.
+  const sslMode = projected.PGSSLMODE || (profile === 'local-test' ? 'disable' : DEFAULT_REMOTE_SSLMODE);
+  assert(!requireVerifiedTls || sslMode === VERIFIED_TLS_SSLMODE, 'TLS_VERIFICATION_REQUIRED',
+    `Remote ${VERIFIED_TLS_TARGET_MODES.join(' and ')} require sslmode=${VERIFIED_TLS_SSLMODE}; `
+    + `${sslMode} does not verify the server identity.`);
+  // The CA never travels in the URL (`sslrootcert` is not allowlisted) and is never inherited: the
+  // only source is the dedicated variable, validated before it can be projected.
+  const caCertificate = (requireCaCert || (typeof caCertPath === 'string' && caCertPath.length))
+    ? resolveCaCertificatePath(caCertPath, caCertChecks)
+    : null;
+
   const env = {};
   for (const name of PSQL_INHERITED_ENV_ALLOWLIST) {
     const value = inheritedEnv?.[name];
@@ -486,12 +569,13 @@ export function buildPsqlConnectionEnv(databaseUrl, inheritedEnv = process.env, 
     PGPORT: parsed.port || '5432',
     PGUSER: user,
     PGDATABASE: database,
-    // Fail closed. On the remote profile the allowlist above has already rejected every downgrade,
-    // so this default can only ever be raised, never lowered.
-    PGSSLMODE: projected.PGSSLMODE || (profile === 'local-test' ? 'disable' : DEFAULT_REMOTE_SSLMODE),
+    PGSSLMODE: sslMode,
   }, projected);
+  if (caCertificate) env.PGSSLROOTCERT = caCertificate;
   if (password) env.PGPASSWORD = password;
-  return { env, password, hostname, redactions: [password, parsed.password].filter(Boolean) };
+  return {
+    env, password, hostname, caCertificate, redactions: [password, parsed.password].filter(Boolean),
+  };
 }
 
 // Brand carried by descriptors that a validating builder produced. It is a module-private symbol,
@@ -523,7 +607,8 @@ export const isValidatedConnection = (value) => Boolean(
  * against an unvalidated or unknown host is impossible by construction, not by convention.
  */
 export function buildOperationalConnection({
-  projectRef, databaseUrl, targetMode, inheritedEnv = process.env,
+  projectRef, databaseUrl, targetMode, inheritedEnv = process.env, caCertPath = null,
+  caCertChecks = {},
 }) {
   assert(CONNECTION_TARGET_MODES.includes(targetMode), 'CONNECTION_TARGET_MODE',
     `Operational target mode must be one of: ${CONNECTION_TARGET_MODES.join(', ')}.`);
@@ -532,8 +617,14 @@ export function buildOperationalConnection({
   assert(projectRef === AUTHORIZED_STAGING_REF, 'PROJECT_REF_UNKNOWN',
     'Exact authorized Staging project ref is required.');
   const target = validateTarget({ projectRef, databaseUrl });
+  const verified = VERIFIED_TLS_TARGET_MODES.includes(targetMode);
   const { env, redactions } = buildPsqlConnectionEnv(databaseUrl, inheritedEnv, {
-    requirePassword: true, profile: 'remote',
+    requirePassword: true,
+    profile: 'remote',
+    caCertPath,
+    requireCaCert: verified,
+    requireVerifiedTls: verified,
+    caCertChecks,
   });
   return sealConnection({
     profile: 'remote',
@@ -607,25 +698,71 @@ export async function runPsql({ connection, sql, psql = 'psql', spawnFn = spawn 
     });
     let stdout = '';
     let stderr = '';
+    let stdinError = null;
+    let settled = false;
+    const settle = (action) => {
+      if (settled) return;
+      settled = true;
+      action();
+    };
+    // Whatever went wrong, the caller may not assume the transaction rolled back: the child may have
+    // died after COMMIT reached the server. The remote state is undetermined until it is re-read.
+    const failure = (code, message, details = {}) => new SingleMigrationError(code, message, {
+      psqlExitCode: null,
+      signal: null,
+      stdinErrorCode: stdinError?.code ? String(stdinError.code) : null,
+      stderr: sanitize(stderr, { maxLength: 800 }),
+      requiresReadOnlyReinspection: true,
+      ...details,
+    });
     child.stdout.setEncoding('utf8');
     child.stderr.setEncoding('utf8');
     child.stdout.on('data', (chunk) => { stdout += chunk; });
     child.stderr.on('data', (chunk) => { stderr += chunk; });
-    child.on('error', (error) => reject(new SingleMigrationError(
-      'PSQL_EXECUTION', sanitize(error.message),
+    // child.stdin is a Writable, and psql may exit before it has consumed a large payload. Without
+    // this listener the resulting EPIPE would surface as an uncaughtException that tears the process
+    // down, destroying the exit code, the signal and psql's own stderr — the only evidence of what
+    // actually happened remotely. The error is recorded and never settles the promise on its own.
+    child.stdin.on('error', (error) => { if (!stdinError) stdinError = error; });
+    // A spawn that never produced a process has no exit code to wait for.
+    child.on('error', (error) => settle(() => reject(
+      failure('PSQL_EXECUTION', sanitize(error.message)),
     )));
-    child.on('close', (code) => {
-      if (code === 0) resolve({ stdout, stderr: sanitize(stderr), onErrorStop: true });
-      else {
-        const sanitizedStderr = sanitize(stderr, { maxLength: 800 });
-        reject(new SingleMigrationError('PSQL_FAILED', `psql aborted with exit code ${code}.`, {
-          exitCode: code,
-          sqlState: extractSqlState(sanitizedStderr),
-          stderr: sanitizedStderr,
-        }));
+    // The child's `close` is always awaited: it is the only event that carries the real outcome.
+    // Settling is deferred one turn so a stdin EPIPE delivered alongside the close is still seen.
+    child.on('close', (code, signal) => setImmediate(() => settle(() => {
+      const exitCode = typeof code === 'number' ? code : null;
+      const exitSignal = signal || null;
+      const sanitizedStderr = sanitize(stderr, { maxLength: 800 });
+      const details = {
+        psqlExitCode: exitCode,
+        signal: exitSignal,
+        stdinErrorCode: stdinError?.code ? String(stdinError.code) : null,
+        sqlState: extractSqlState(sanitizedStderr),
+        stderr: sanitizedStderr,
+        // Retained for existing callers; `psqlExitCode` is the contractual name.
+        exitCode,
+        requiresReadOnlyReinspection: true,
+      };
+      if (stdinError) {
+        // Exit code 0 does not clear this: psql cannot have executed SQL it never received.
+        reject(failure('PSQL_STDIN_TRANSPORT',
+          `psql stopped reading its input before the payload was fully written (${details.stdinErrorCode || 'stream error'}); `
+          + 'the remote outcome is undetermined.', details));
+        return;
       }
-    });
-    child.stdin.end(sql);
+      if (exitCode === 0 && !exitSignal) {
+        resolve({
+          stdout, stderr: sanitize(stderr), onErrorStop: true, psqlExitCode: 0, signal: null,
+        });
+        return;
+      }
+      reject(failure('PSQL_FAILED', exitSignal
+        ? `psql was terminated by signal ${exitSignal}.`
+        : `psql aborted with exit code ${exitCode}.`, details));
+    })));
+    // Writing to an already destroyed pipe can also throw synchronously.
+    try { child.stdin.end(sql); } catch (error) { if (!stdinError) stdinError = error; }
   });
 }
 
