@@ -94,6 +94,7 @@ export function prepareExecution({
   requireClean = true,
   requireApproval = true,
   requireDatabaseUrl = true,
+  targetMode = 'apply',
 }) {
   assert(options._?.length === 0, 'MIGRATION_SELECTION', 'Positional migration selectors are forbidden.');
   const manifest = loadManifest(repoRoot);
@@ -137,9 +138,15 @@ export function prepareExecution({
   assert(!historyBefore.includes(A1_VERSION), 'MIGRATION_ALREADY_APPLIED',
     'A1 is already present in migration history.');
   const databaseUrl = String(env.STAGING_MIGRATION_DATABASE_URL || '');
+  let connection = null;
   if (requireDatabaseUrl) {
     assert(databaseUrl, 'DATABASE_URL_REQUIRED', 'STAGING_MIGRATION_DATABASE_URL is required for apply or verify.');
     validateTarget({ projectRef: options['project-ref'], databaseUrl });
+    // The raw URL stops here. Everything downstream travels as a validated descriptor, so no call
+    // site can reach psql with a host that was never checked.
+    connection = buildOperationalConnection({
+      projectRef: options['project-ref'], databaseUrl, targetMode, inheritedEnv: env,
+    });
   }
   return {
     manifest,
@@ -147,7 +154,7 @@ export function prepareExecution({
     snapshot,
     expectedRepositorySha,
     migrationFile,
-    databaseUrl,
+    connection,
     historyBefore,
     historyAfter: normalizeHistoryVersions([...historyBefore, A1_VERSION], { label: 'post-A1 history' }),
     execution: a1.execution,
@@ -335,7 +342,7 @@ export function sanitizePsqlError(value, { maxLength = 2000, secrets = [] } = {}
     .replace(/\b(?:sbp|sb_secret|sb_publishable)_[A-Za-z0-9_-]{8,}/gi, '[REDACTED_TOKEN]')
     .replace(/([?&](?:access_token|apikey|api_key|jwt|password|secret|signature|sig|token)=)[^&\s]+/gi,
       '$1[REDACTED]')
-    .replace(/\b(password|pass|access[_ -]?token|api[_ -]?key|jwt|secret)\s*[:=]\s*[^\s,;]+/gi,
+    .replace(/\b(PG(?:PASSWORD|PASSFILE|SSLKEY)|password|pass|access[_ -]?token|api[_ -]?key|jwt|secret)\s*[:=]\s*[^\s,;]+/gi,
       '$1=[REDACTED]')
     .replace(/(?:\/Users|\/home)\/[^\s:"']+/g, '[REDACTED_PATH]')
     .replaceAll(FORBIDDEN_PRODUCTION_REF, '[REDACTED_PROJECT_REF]');
@@ -351,36 +358,74 @@ export const extractSqlState = (value) => {
   return match ? match[1].toUpperCase() : null;
 };
 
+// TLS never degrades on the operational path to Supabase Staging: `require` is the floor and the
+// only upgrades are certificate verification. `disable`, `allow` and `prefer` would let a passive
+// attacker (or a hostile DNS answer) read the migration credential in clear, so they are rejected
+// even when the URL asks for them explicitly. There is no operational way to downgrade this.
+export const REMOTE_SSLMODES = Object.freeze(['require', 'verify-ca', 'verify-full']);
+export const DEFAULT_REMOTE_SSLMODE = 'require';
+// SCRAM channel binding may be negotiated (`prefer`) or demanded (`require`); turning it off on a
+// remote administrative connection has no documented technical justification for this executor.
+export const REMOTE_CHANNEL_BINDINGS = Object.freeze(['prefer', 'require']);
+// Only the local, test-only profile may talk to a TLS-less PostgreSQL, and only over loopback.
+export const LOCAL_TEST_SSLMODES = Object.freeze(['disable', ...REMOTE_SSLMODES]);
+export const LOCAL_TEST_CHANNEL_BINDINGS = Object.freeze(['disable', ...REMOTE_CHANNEL_BINDINGS]);
+export const LOOPBACK_TEST_HOSTS = Object.freeze(['127.0.0.1', '::1', 'localhost']);
+// libpq gives up on the connection after this many seconds. Bounded so a hostile URL cannot park
+// the executor on an unreachable host while it holds the operator's approval window open.
+export const MAX_CONNECT_TIMEOUT_SECONDS = 30;
+
+export const CONNECTION_PROFILES = Object.freeze(['remote', 'local-test']);
+// A descriptor may be minted for `receipt`, but only these modes may reach a spawn.
+export const CONNECTION_TARGET_MODES = Object.freeze(['apply', 'verify', 'receipt']);
+export const SPAWNABLE_TARGET_MODES = Object.freeze(['apply', 'verify', 'local-test']);
+
 // libpq never expands a connection URI supplied through PGDATABASE: it treats the whole string as a
 // literal database name and falls back to the local Unix socket. The URL is therefore parsed here and
 // projected onto discrete libpq variables. Only these connection parameters may travel in the URL.
-export const PSQL_CONNECTION_PARAM_ALLOWLIST = Object.freeze({
+const connectionParamAllowlist = (profile) => Object.freeze({
   sslmode: {
     variable: 'PGSSLMODE',
-    values: ['disable', 'allow', 'prefer', 'require', 'verify-ca', 'verify-full'],
+    values: profile === 'local-test' ? LOCAL_TEST_SSLMODES : REMOTE_SSLMODES,
   },
-  connect_timeout: { variable: 'PGCONNECT_TIMEOUT', pattern: /^\d{1,4}$/ },
+  connect_timeout: {
+    variable: 'PGCONNECT_TIMEOUT',
+    // Positive integer seconds, no leading zeros, never 0 (which means "wait forever").
+    pattern: /^[1-9]\d*$/,
+    max: MAX_CONNECT_TIMEOUT_SECONDS,
+  },
   target_session_attrs: {
     variable: 'PGTARGETSESSIONATTRS',
     values: ['any', 'read-write', 'read-only', 'primary', 'standby', 'prefer-standby'],
   },
-  channel_binding: { variable: 'PGCHANNELBINDING', values: ['disable', 'prefer', 'require'] },
+  channel_binding: {
+    variable: 'PGCHANNELBINDING',
+    values: profile === 'local-test' ? LOCAL_TEST_CHANNEL_BINDINGS : REMOTE_CHANNEL_BINDINGS,
+  },
 });
+
+export const PSQL_CONNECTION_PARAM_ALLOWLIST = connectionParamAllowlist('remote');
 
 // Inherited libpq settings can silently redirect the connection or swap the credential, so the child
 // process is built from this allowlist instead of from process.env.
 export const PSQL_INHERITED_ENV_ALLOWLIST = Object.freeze(['PATH', 'LANG', 'LC_ALL']);
 
+const bareHostname = (value) => String(value || '').toLowerCase().replace(/^\[|\]$/g, '');
+
 /**
  * Projects a PostgreSQL connection URI onto discrete libpq environment variables.
  * The URI, and in particular its password, never reaches argv, stdout, stderr or any log.
- * Supabase/Production target validation stays in `validateTarget`, which `prepareExecution`
- * applies before this function is ever reached; the production ref is rejected here too as
- * defense in depth.
+ *
+ * This is the projection only. Supabase target validation lives in `validateTarget` and is applied
+ * by `buildOperationalConnection`, which is the sole way to obtain a spawnable remote descriptor;
+ * the production ref is rejected here too as defense in depth.
  */
 export function buildPsqlConnectionEnv(databaseUrl, inheritedEnv = process.env, {
   requirePassword = true,
+  profile = 'remote',
 } = {}) {
+  assert(CONNECTION_PROFILES.includes(profile), 'CONNECTION_PROFILE',
+    `Connection profile must be one of: ${CONNECTION_PROFILES.join(', ')}.`);
   assert(typeof databaseUrl === 'string' && databaseUrl.length > 0, 'DATABASE_URL_REQUIRED',
     'A PostgreSQL connection URL is required.');
   let parsed;
@@ -390,10 +435,19 @@ export function buildPsqlConnectionEnv(databaseUrl, inheritedEnv = process.env, 
   assert(['postgres:', 'postgresql:'].includes(parsed.protocol), 'DATABASE_URL_INVALID',
     'The connection URL must use the PostgreSQL scheme.');
   assert(!parsed.hash, 'DATABASE_URL_INVALID', 'The connection URL must not carry a fragment.');
-  assert(!parsed.hostname.toLowerCase().includes(FORBIDDEN_PRODUCTION_REF)
+  const hostname = bareHostname(parsed.hostname);
+  assert(!hostname.includes(FORBIDDEN_PRODUCTION_REF)
     && !decodeURIComponent(parsed.username || '').toLowerCase().includes(FORBIDDEN_PRODUCTION_REF),
   'PRODUCTION_FORBIDDEN', 'The connection URL resolves to Production.');
-  assert(parsed.hostname, 'DATABASE_URL_INVALID', 'The connection URL must name a host.');
+  assert(hostname, 'DATABASE_URL_INVALID', 'The connection URL must name a host.');
+  if (profile === 'local-test') {
+    // A test-only descriptor must never be able to reach a managed database, and in particular
+    // never a Supabase project, whatever the flag or the URL claim.
+    assert(!hostname.includes('supabase'), 'CONNECTION_TEST_ONLY',
+      'The test-only local profile must never target a Supabase host.');
+    assert(LOOPBACK_TEST_HOSTS.includes(hostname), 'CONNECTION_TEST_ONLY',
+      `The test-only local profile only accepts loopback hosts: ${LOOPBACK_TEST_HOSTS.join(', ')}.`);
+  }
 
   const user = decodeURIComponent(parsed.username || '');
   assert(user, 'DATABASE_URL_INVALID', 'The connection URL must carry its user.');
@@ -404,17 +458,19 @@ export function buildPsqlConnectionEnv(databaseUrl, inheritedEnv = process.env, 
   assert(database && !database.includes('/'), 'DATABASE_URL_INVALID',
     'The connection URL must name exactly one database.');
 
+  const allowlist = connectionParamAllowlist(profile);
   const projected = {};
   const seen = new Set();
   for (const [name, value] of parsed.searchParams) {
-    const rule = Object.hasOwn(PSQL_CONNECTION_PARAM_ALLOWLIST, name)
-      ? PSQL_CONNECTION_PARAM_ALLOWLIST[name] : null;
+    const rule = Object.hasOwn(allowlist, name) ? allowlist[name] : null;
     assert(rule, 'DATABASE_URL_PARAMETER',
       `Connection parameter ${name} is not allowlisted for the A1 executor.`);
     assert(!seen.has(name), 'DATABASE_URL_PARAMETER', `Connection parameter ${name} is duplicated.`);
     seen.add(name);
     assert(rule.values ? rule.values.includes(value) : rule.pattern.test(value),
       'DATABASE_URL_PARAMETER', `Connection parameter ${name} carries an unsupported value.`);
+    assert(rule.max === undefined || Number(value) <= rule.max, 'DATABASE_URL_PARAMETER',
+      `Connection parameter ${name} must not exceed ${rule.max}.`);
     projected[rule.variable] = value;
   }
 
@@ -426,15 +482,94 @@ export function buildPsqlConnectionEnv(databaseUrl, inheritedEnv = process.env, 
   env.LANG = env.LANG || 'C';
   env.LC_ALL = env.LC_ALL || 'C';
   Object.assign(env, {
-    PGHOST: parsed.hostname,
+    PGHOST: hostname,
     PGPORT: parsed.port || '5432',
     PGUSER: user,
     PGDATABASE: database,
-    // Fail closed: TLS is required unless the URL explicitly downgrades it.
-    PGSSLMODE: projected.PGSSLMODE || 'require',
+    // Fail closed. On the remote profile the allowlist above has already rejected every downgrade,
+    // so this default can only ever be raised, never lowered.
+    PGSSLMODE: projected.PGSSLMODE || (profile === 'local-test' ? 'disable' : DEFAULT_REMOTE_SSLMODE),
   }, projected);
   if (password) env.PGPASSWORD = password;
-  return { env, password, redactions: [password, parsed.password].filter(Boolean) };
+  return { env, password, hostname, redactions: [password, parsed.password].filter(Boolean) };
+}
+
+// Brand carried by descriptors that a validating builder produced. It is a module-private symbol,
+// so no caller outside this module can forge one, and no JSON payload can carry it.
+const VALIDATED_CONNECTION = Symbol('arma2.a1.validated-connection');
+
+const sealConnection = ({ profile, projectRef, targetMode, env, redactions, databaseHostKind }) => {
+  const descriptor = { profile, projectRef, targetMode, databaseHostKind };
+  // The credential-bearing environment is non-enumerable and the descriptor serializes to its
+  // identity only, so it can never end up inside a snapshot, a plan, a dry-run or a receipt.
+  Object.defineProperty(descriptor, VALIDATED_CONNECTION, { value: true, enumerable: false });
+  Object.defineProperty(descriptor, 'env', { value: Object.freeze({ ...env }), enumerable: false });
+  Object.defineProperty(descriptor, 'redactions', {
+    value: Object.freeze([...redactions]), enumerable: false,
+  });
+  Object.defineProperty(descriptor, 'toJSON', {
+    value: () => ({ profile, projectRef, targetMode, databaseHostKind }), enumerable: false,
+  });
+  return Object.freeze(descriptor);
+};
+
+export const isValidatedConnection = (value) => Boolean(
+  value && typeof value === 'object' && value[VALIDATED_CONNECTION] === true,
+);
+
+/**
+ * The only way to obtain a descriptor that `runPsql` will accept for a remote target.
+ * `validateTarget` runs here as defense in depth — `prepareExecution` already ran it — so a spawn
+ * against an unvalidated or unknown host is impossible by construction, not by convention.
+ */
+export function buildOperationalConnection({
+  projectRef, databaseUrl, targetMode, inheritedEnv = process.env,
+}) {
+  assert(CONNECTION_TARGET_MODES.includes(targetMode), 'CONNECTION_TARGET_MODE',
+    `Operational target mode must be one of: ${CONNECTION_TARGET_MODES.join(', ')}.`);
+  assert(projectRef !== FORBIDDEN_PRODUCTION_REF, 'PRODUCTION_FORBIDDEN',
+    'Production project ref is forbidden.');
+  assert(projectRef === AUTHORIZED_STAGING_REF, 'PROJECT_REF_UNKNOWN',
+    'Exact authorized Staging project ref is required.');
+  const target = validateTarget({ projectRef, databaseUrl });
+  const { env, redactions } = buildPsqlConnectionEnv(databaseUrl, inheritedEnv, {
+    requirePassword: true, profile: 'remote',
+  });
+  return sealConnection({
+    profile: 'remote',
+    projectRef,
+    targetMode,
+    env,
+    redactions,
+    databaseHostKind: target.databaseHostKind,
+  });
+}
+
+/**
+ * TEST-ONLY. Local PostgreSQL instances used by the regression suites have no TLS, and the remote
+ * contract above refuses to talk to them — correctly. This is the only exception, and it is
+ * deliberately unreachable from the operational path: `allowInsecureLocalTestConnection` defaults
+ * to false, no CLI argument and no environment variable maps to it, it is never persisted in a
+ * descriptor, snapshot, plan or receipt, the host must be loopback, any Supabase host is refused,
+ * and the resulting descriptor carries the `local-test` target mode that `apply` and `verify`
+ * never mint. Callers must pass the flag literally, in test code.
+ */
+export function buildLocalTestConnection({
+  databaseUrl, inheritedEnv = process.env, allowInsecureLocalTestConnection = false,
+}) {
+  assert(allowInsecureLocalTestConnection === true, 'CONNECTION_TEST_ONLY',
+    'A TLS-less local connection requires the explicit test-only opt-in.');
+  const { env, redactions } = buildPsqlConnectionEnv(databaseUrl, inheritedEnv, {
+    requirePassword: false, profile: 'local-test',
+  });
+  return sealConnection({
+    profile: 'local-test',
+    projectRef: null,
+    targetMode: 'local-test',
+    env,
+    redactions,
+    databaseHostKind: 'loopback',
+  });
 }
 
 export function buildVerifySql({ historyAfter, execution }) {
@@ -453,12 +588,15 @@ COMMIT;
 }
 
 // async so that a rejected connection contract surfaces as a rejection, never as a sync throw.
-export async function runPsql({
-  databaseUrl, sql, psql = 'psql', requirePassword = true, spawnFn = spawn, env: inheritedEnv,
-}) {
-  const { env, redactions } = buildPsqlConnectionEnv(
-    databaseUrl, inheritedEnv || process.env, { requirePassword },
-  );
+// `connection` must be a descriptor minted by `buildOperationalConnection` (which re-runs
+// `validateTarget`) or by the test-only `buildLocalTestConnection`. A raw URL is not accepted:
+// there is no argument and no mode that reaches a spawn without target validation.
+export async function runPsql({ connection, sql, psql = 'psql', spawnFn = spawn }) {
+  assert(isValidatedConnection(connection), 'CONNECTION_NOT_VALIDATED',
+    'runPsql requires a validated connection descriptor; a raw connection URL is not accepted.');
+  assert(SPAWNABLE_TARGET_MODES.includes(connection.targetMode), 'CONNECTION_TARGET_MODE',
+    `Only ${SPAWNABLE_TARGET_MODES.join(', ')} descriptors may reach psql.`);
+  const { env, redactions } = connection;
   const sanitize = (value, options = {}) => sanitizePsqlError(value, { ...options, secrets: redactions });
   return new Promise((resolve, reject) => {
     // The URL never reaches argv and the SQL always travels over stdin.

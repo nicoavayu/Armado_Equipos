@@ -10,7 +10,7 @@ import test from 'node:test';
 import EmbeddedPostgres from 'embedded-postgres';
 import pg from 'pg';
 
-import { buildVerifySql, runPsql } from './single-migration-executor-lib.mjs';
+import { buildLocalTestConnection, buildVerifySql, runPsql } from './single-migration-executor-lib.mjs';
 
 const PORT = 56800 + Math.floor(Math.random() * 300);
 const DATABASE = 'arma2_a1_psql_contract';
@@ -59,6 +59,15 @@ const url = (overrides = {}) => {
   return `postgresql://${credential}@${host}:${port}/${database}${query ? `?${query}` : ''}`;
 };
 
+// The ephemeral local server has no TLS, which the remote contract refuses outright. This is the
+// only exception, it is test-only, and it is constrained to loopback: the URLs above always use
+// 127.0.0.1 over TCP, never a Unix socket and never a Supabase host.
+const localConnection = (overrides = {}, inheritedEnv = process.env) => buildLocalTestConnection({
+  databaseUrl: url(overrides),
+  inheritedEnv,
+  allowInsecureLocalTestConnection: true,
+});
+
 let started = false;
 
 test.before(async () => {
@@ -92,7 +101,7 @@ const skipReason = PSQL ? false : 'psql binary unavailable; set A1_PSQL_BINARY t
 test('runPsql connects over TCP to a real server instead of the local Unix socket', { skip: skipReason },
   async () => {
     const result = await runPsql({
-      databaseUrl: url(), sql: "SELECT 'LIVE_OK' AS marker;", psql: PSQL,
+      connection: localConnection(), sql: "SELECT 'LIVE_OK' AS marker;", psql: PSQL,
     });
     assert.match(result.stdout, /LIVE_OK/);
     assert.doesNotMatch(result.stdout, /\.s\.PGSQL/);
@@ -114,7 +123,7 @@ test('the pre-fix contract (whole URI in PGDATABASE) fails against the very same
 
 test('verify-mode SQL runs read-only through the fixed connection', { skip: skipReason }, async () => {
   const result = await runPsql({
-    databaseUrl: url(),
+    connection: localConnection(),
     sql: buildVerifySql({ historyAfter: ['20260801090000'], execution: EXECUTION }),
     psql: PSQL,
   });
@@ -129,8 +138,9 @@ test('an explicit psql path is honoured when psql is unreachable through PATH',
     // on Linux, where libpq is resolved relative to the executable.
     assert.ok(path.isAbsolute(PSQL), 'the resolved psql path must be absolute');
     const result = await runPsql({
-      databaseUrl: url(), sql: 'SELECT 1;', psql: PSQL,
-      env: { PATH: '/nonexistent', LANG: 'C', LC_ALL: 'C' },
+      connection: localConnection({}, { PATH: '/nonexistent', LANG: 'C', LC_ALL: 'C' }),
+      sql: 'SELECT 1;',
+      psql: PSQL,
     });
     assert.match(result.stdout, /1/);
   });
@@ -138,7 +148,7 @@ test('an explicit psql path is honoured when psql is unreachable through PATH',
 test('a wrong connection URI fails with a sanitized error that never leaks the credential',
   { skip: skipReason }, async () => {
     await assert.rejects(
-      runPsql({ databaseUrl: url({ port: PORT + 137 }), sql: 'SELECT 1;', psql: PSQL }),
+      runPsql({ connection: localConnection({ port: PORT + 137 }), sql: 'SELECT 1;', psql: PSQL }),
       (error) => {
         assert.equal(error.code, 'PSQL_FAILED');
         assert.ok(Number.isInteger(error.details.exitCode));
@@ -155,7 +165,7 @@ test('the credential never reaches the process arguments of a real spawn', { ski
   async () => {
     const seen = [];
     await runPsql({
-      databaseUrl: url(),
+      connection: localConnection(),
       sql: 'SELECT 1;',
       psql: PSQL,
       spawnFn: (command, args, options) => {
