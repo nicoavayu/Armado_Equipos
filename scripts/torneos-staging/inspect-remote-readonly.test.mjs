@@ -236,6 +236,7 @@ test('fixture snapshot is deterministic, sanitized and explicitly zero-mutation'
   assert.equal(first.mutationsPerformed, 0);
   assert.equal(first.migrationState.remoteChecksumUnavailable, true);
   assert.equal(first.flags.remote.REACT_APP_TORNEOS_MEDIA_UPLOAD_ENABLED, 'unknown');
+  assert.equal(first.readiness.uploadReady, false);
   assert.ok(first.blockers.includes('storage.bucket_absent'));
   assert.equal(validateSnapshot(first), true);
 });

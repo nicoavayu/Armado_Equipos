@@ -70,10 +70,14 @@ consulta filas de `storage.objects` y elimina el workdir local al terminar.
 
 ## Uso remoto
 
-Desde un worktree limpio de `feature/torneos-staging-readonly-inspector`:
+Desde un worktree limpio, el SHA operativo se obtiene de `HEAD` y se entrega
+explícitamente. Debe ser un commit completo, descender de
+`origin/epic/arma2-torneos` e incluir los merges de #122, #123, #124 y #125:
 
 ```bash
-npm run torneos:staging:inspect:remote:readonly
+EXPECTED_SHA="$(git rev-parse HEAD)"
+npm run torneos:staging:inspect:remote:readonly -- \
+  --expected-repository-sha="$EXPECTED_SHA"
 ```
 
 El snapshot se escribe con modo `0600` en un directorio temporal fuera del
@@ -85,7 +89,7 @@ Luego, usando el path informado:
 ```bash
 npm run torneos:staging:dry-run:readonly -- \
   --snapshot=/absolute/path/staging-readonly-snapshot.json \
-  --repository-sha=93225cae8fde398e1c73b8a9e077325bda6d450d
+  --expected-repository-sha="$EXPECTED_SHA"
 ```
 
 Esto genera Markdown y JSON temporales. No existe modo apply ni continuación
@@ -97,6 +101,7 @@ administrativa de Storage a partir de un snapshot sanitizado ya autorizado:
 ```bash
 AUTHORIZED_STAGING_PROJECT_REF=hhyvmhgpapyuzjgxfnqv \
 npm run torneos:staging:inspect:remote:readonly -- \
+  --expected-repository-sha="$EXPECTED_SHA" \
   --prior-snapshot=/absolute/path/staging-readonly-snapshot.json \
   --prior-snapshot-sha256=<sha256-autorizado>
 ```
@@ -111,6 +116,7 @@ La fixture equivalente permite validar el flujo sin red:
 
 ```bash
 npm run torneos:staging:inspect:remote:readonly -- \
+  --expected-repository-sha="$(git rev-parse HEAD)" \
   --fixture=ops/torneos-staging/fixtures/remote-readonly-equivalent.json \
   --timestamp=2026-08-03T02:00:00.000Z \
   --allow-dirty
@@ -145,7 +151,8 @@ salidas no sanitizadas.
 
 ## Inspección remota real — 2026-08-03
 
-La inspección real se ejecutó exclusivamente contra Staging
+Esta sección preserva evidencia histórica y no autoriza reutilizar su SHA ni
+sus planes. La inspección real se ejecutó exclusivamente contra Staging
 `hhyvmhgpapyuzjgxfnqv`, con la epic
 `93225cae8fde398e1c73b8a9e077325bda6d450d` y el inspector en
 `1464b13e772cc3e7bdfe8ea89bf202b98b09d04a`. La sesión autenticada existente
@@ -272,7 +279,9 @@ Artefactos temporales sanitizados de la reinspección:
 - plan ID:
   `dd06024015444217e9cd87054b165b7fe902d15b920d5842af1825c947355762`.
 
-El plan sigue dividido en autorizaciones independientes y no se ejecutó:
+Ese plan fue generado para un commit anterior. Queda explícitamente
+`superseded` y el guard actual lo rechaza antes de abrir red. El plan histórico
+seguía dividido en autorizaciones independientes y no se ejecutó:
 
 1. Migraciones: aplicar `20260802090000`, `20260802120000` y
    `20260803090000` en ese orden, cada una con validación y pausa. No existe

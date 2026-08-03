@@ -1,6 +1,9 @@
 # Runbook operativo: Multimedia Upload y Estudio Social
 
-Estado auditado: **contratos certificados; certificación live local pendiente**. Storage, grants y rollbacks se probaron contra un Supabase local efímero, pero el identity map legacy no satisface el contrato V3/V4 actual y el self-test real del worker no puede atestiguar antivirus/Storage sin `clamd` y credenciales locales del worker. No se modifican identidades, descriptor ni fingerprint para ocultar esos bloqueos.
+Estado auditado: **contrato A1 certificado localmente; ejecución remota no
+autorizada**. La aplicación singular, locks, timeouts, historial y rollback se
+probaron en PostgreSQL efímero. Este host no tiene Docker, por lo que no pudo
+levantarse el stack Supabase local completo; esa limitación se conserva visible.
 
 Este runbook separa inspección, planificación, mutaciones, QA y rollback. Ningún comando único aplica todo. Cada etapa mutante se autoriza por separado y se detiene ante SHA, ref, historial, checksum, configuración o recibo divergente.
 
@@ -33,7 +36,11 @@ Ante un error:
 - Auditoría previa: `docs/operations/torneos-staging-readiness-audit.md`.
 - Worker: `docs/operations/tournament-media-worker-runbook.md`.
 
-El plan liga el SHA exacto del HEAD, SHA de epic, digest del manifiesto y digest del snapshot. La salida no incluye tokens, claves, URLs firmadas o identity maps.
+El plan liga el SHA exacto de `HEAD`, digest del manifiesto, digest del snapshot,
+project ref, lista y orden exactos de pendientes y vencimiento. Un merge, un
+cambio de `HEAD`, una modificación de manifiesto/migración/snapshot o el
+vencimiento invalida el plan antes de abrir red. La salida no incluye tokens,
+claves, URLs firmadas o identity maps.
 
 ## 1. Preflight local
 
@@ -45,9 +52,12 @@ npm run test:staging:guard
 npm run torneos:staging:inspect
 npm run torneos:staging:plan
 npm run torneos:staging:dry-run -- --include-sql
+npm run test:staging:a1:local
 ```
 
-`inspect`, `plan` y `dry-run` usan fixture en esta entrega y reportan `remoteCalls=0`. Un futuro inspector read-only deberá producir un snapshot con el mismo schema después de comparar historial remoto completo, migraciones locales, checksums, orden, faltantes e inesperadas. Hasta entonces las etapas remotas permanecen bloqueadas.
+`inspect`, `plan` y `dry-run` con fixture reportan `remoteCalls=0`. El inspector
+read-only remoto requiere autorización separada. A1 permanece bloqueada en
+este PR incluso si todas las pruebas locales pasan.
 
 Preflight fail-closed obligatorio:
 
@@ -95,7 +105,30 @@ Orden único:
 2. `20260802120000_tournament_media_trusted_processing.sql`.
 3. `20260803090000_tournament_social_studio.sql`.
 
-Antes de `migrate`: flags falsas, plan/recibo `dry-run`, aprobación de etapa, mismo HEAD y nuevo inspect sin drift. El futuro executor puede usar `supabase db push --dry-run --linked` sólo si enumera exactamente este subconjunto pendiente. El `db push --linked --yes` se ejecuta una vez y luego se vuelve a inspeccionar el historial; si el dry-run menciona otra migración, no se aplica nada.
+Antes de `migrate`: flags falsas, snapshot y plan nuevos, aprobación de etapa,
+mismo `HEAD`, historial exacto sin drift y plan vigente. Para A1 se usa
+exclusivamente `scripts/torneos-staging/apply-single-migration.mjs`; quedan
+prohibidos `db push`, `migration up`, globs, directorios, rangos, múltiples
+archivos y “todas las pendientes”. A2 y Social están explícitamente bloqueadas.
+
+El contrato A1 configura sólo su sesión con `SET LOCAL`:
+
+- `lock_timeout=5000ms`;
+- `statement_timeout=120000ms`;
+- `idle_in_transaction_session_timeout=60000ms`;
+- `application_name=arma2-torneos-a1-migrate`.
+
+Son guardas de seguridad, no estimaciones de duración. `psql` se invoca con
+`ON_ERROR_STOP=1`. Un lock exclusivo del historial, la validación exacta del
+historial anterior, el SQL canónico y el `INSERT` de versión
+`20260802090000` comparten la misma transacción. Si falla el SQL o el historial,
+ambos se revierten. Después de aplicar hay una pausa obligatoria antes de
+`verify`; no existe continuación implícita con la siguiente migración.
+
+El procedimiento completo de argumentos, verify, receipt y recuperación está
+en `docs/operations/torneos-a1-execution-contract.md`. Después del merge hay
+que reinspeccionar y generar un plan nuevo; ningún artefacto de este PR puede
+reutilizarse para ejecutar A1.
 
 No ejecutar DDL con sesiones activas no evaluadas. Considerar locks de catálogo y `ACCESS EXCLUSIVE` sobre relaciones nuevas/reemplazadas. Ante timeout o estado ambiguo, inspeccionar primero; nunca reintentar a ciegas.
 

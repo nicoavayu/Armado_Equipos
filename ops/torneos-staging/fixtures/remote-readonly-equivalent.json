@@ -22,7 +22,17 @@
       "storage_bucket": [],
       "storage_objects": [],
       "attestations": [],
-      "readiness": [],
+      "readiness": [
+        {
+          "readiness": {
+            "uploadReady": false,
+            "storageReady": false,
+            "signerReady": false,
+            "processorReady": false,
+            "blockers": ["service.signer_unattested", "service.processor_unattested"]
+          }
+        }
+      ],
       "jobs": [],
       "sessions": [],
       "assets": [],
