@@ -17,7 +17,9 @@ import {
   A1_FILE,
   A1_VERSION,
   PRODUCTION_GUARD_CONFIRMATION,
+  STAGING_CA_CERT_ENV,
   SingleMigrationError,
+  VERIFIED_TLS_SSLMODE,
   approvalTokenForPlan,
   buildExecutionDryRun,
   buildTransactionalSql,
@@ -31,7 +33,23 @@ import { canonicalJson, loadManifest, sha256 } from './readiness-lib.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const FIXTURE = path.join(ROOT, 'ops', 'torneos-staging', 'fixtures', 'remote-readonly-equivalent.json');
-const DATABASE_URL = `postgresql://readonly.${AUTHORIZED_STAGING_REF}:fixture-password@aws-0-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require`;
+const DATABASE_URL = `postgresql://readonly.${AUTHORIZED_STAGING_REF}:fixture-password@aws-0-us-east-1.pooler.supabase.com:6543/postgres?sslmode=${VERIFIED_TLS_SSLMODE}`;
+
+// Remote apply and verify demand an explicit CA bundle, so the suite provides a synthetic one with
+// the exact provenance the executor requires: a regular file, owned here, not group/other writable.
+const CA_DIRECTORY = fs.mkdtempSync(path.join(os.tmpdir(), 'arma2-a1-executor-ca-'));
+const CA_PATH = path.join(CA_DIRECTORY, 'staging-ca.crt');
+fs.writeFileSync(
+  CA_PATH,
+  `-----BEGIN CERTIFICATE-----\n${'QXJtYTIgVG9ybmVvcyBBMSB0ZXN0IENBIC0gbm90IGEgcmVhbCBjZXJ0aWZpY2F0ZQ=='.repeat(3)}\n-----END CERTIFICATE-----\n`,
+  { mode: 0o600 },
+);
+test.after(() => fs.rmSync(CA_DIRECTORY, { recursive: true, force: true }));
+
+const operationalEnv = () => ({
+  STAGING_MIGRATION_DATABASE_URL: DATABASE_URL,
+  [STAGING_CA_CERT_ENV]: CA_PATH,
+});
 
 const expectCode = (code, run) => assert.throws(run, (error) => (
   error instanceof SingleMigrationError && error.code === code
@@ -84,7 +102,7 @@ test('A1 execution contract is prepared completely before opening a connection',
     const contract = prepareExecution({
       repoRoot: ROOT,
       options: input.options,
-      env: { STAGING_MIGRATION_DATABASE_URL: DATABASE_URL },
+      env: operationalEnv(),
       requireClean: false,
     });
     assert.equal(contract.expectedRepositorySha, input.head);
@@ -119,7 +137,7 @@ test('unordered snapshot history is normalized before comparison without false d
     const contract = prepareExecution({
       repoRoot: ROOT,
       options: input.options,
-      env: { STAGING_MIGRATION_DATABASE_URL: DATABASE_URL },
+      env: operationalEnv(),
       requireClean: false,
     });
     assert.deepEqual(contract.historyBefore, [...contract.historyBefore].sort());
@@ -153,7 +171,7 @@ test('duplicate or unexpected snapshot history aborts before connection', () => 
         () => prepareExecution({
           repoRoot: ROOT,
           options: input.options,
-          env: { STAGING_MIGRATION_DATABASE_URL: DATABASE_URL },
+          env: operationalEnv(),
           requireClean: false,
         }));
     } finally {
@@ -177,7 +195,7 @@ test('directories, globs, ranges, other migrations, two migrations, and all-pend
       assert.throws(() => prepareExecution({
         repoRoot: ROOT,
         options: input.options,
-        env: { STAGING_MIGRATION_DATABASE_URL: DATABASE_URL },
+        env: operationalEnv(),
         requireClean: false,
       }), (error) => error instanceof SingleMigrationError
         && ['MIGRATION_SELECTION', 'MIGRATION_NOT_AUTHORIZED'].includes(error.code));
@@ -201,7 +219,7 @@ test('wrong checksum, SHA, Production ref, or approval aborts before connection'
       assert.throws(() => prepareExecution({
         repoRoot: ROOT,
         options: input.options,
-        env: { STAGING_MIGRATION_DATABASE_URL: DATABASE_URL },
+        env: operationalEnv(),
         requireClean: false,
       }), (error) => error?.code === code);
     } finally {
