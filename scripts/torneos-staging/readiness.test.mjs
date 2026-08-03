@@ -42,6 +42,37 @@ test('versioned manifest, checksums, rollbacks, worker and QA contracts are vali
   assert.match(result.manifestSha256, /^[a-f0-9]{64}$/);
 });
 
+test('A1 has exact bounded session timeouts and later migrations remain blocked', () => {
+  const [a1, a2, social] = manifest.migrationPolicy.migrations;
+  assert.deepEqual(a1.execution.timeouts, {
+    lockTimeoutMs: 5000,
+    statementTimeoutMs: 120000,
+    idleInTransactionSessionTimeoutMs: 60000,
+  });
+  assert.equal(a1.execution.transactionRequired, true);
+  assert.equal(a1.execution.onErrorStop, true);
+  assert.equal(a1.execution.applicationName, 'arma2-torneos-a1-migrate');
+  assert.equal(a1.execution.singleMigrationOnly, true);
+  assert.equal(a2.execution.blocked, true);
+  assert.equal(social.execution.blocked, true);
+});
+
+test('missing, zero, negative, or over-limit A1 timeouts abort', () => {
+  for (const [field, value] of [
+    ['lockTimeoutMs', undefined],
+    ['lockTimeoutMs', 0],
+    ['lockTimeoutMs', -1],
+    ['lockTimeoutMs', 10001],
+    ['statementTimeoutMs', 300001],
+    ['idleInTransactionSessionTimeoutMs', 120001],
+  ]) {
+    const changed = clone(manifest);
+    if (value === undefined) delete changed.migrationPolicy.migrations[0].execution.timeouts[field];
+    else changed.migrationPolicy.migrations[0].execution.timeouts[field] = value;
+    expectCode('MIGRATION_TIMEOUT', () => validateManifest({ repoRoot: ROOT, manifest: changed }));
+  }
+});
+
 test('plan and dry-run data are deterministic and can include exact SQL', () => {
   const state = fixture();
   const first = buildPlan({ repoRoot: ROOT, manifest, state, repositorySha: HEAD, includeSql: true });

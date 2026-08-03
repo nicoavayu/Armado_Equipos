@@ -88,11 +88,16 @@ function validateNoEmbeddedSecrets(manifest) {
 }
 
 export function validateManifest({ repoRoot = process.cwd(), manifest = loadManifest(repoRoot) } = {}) {
-  assert(manifest.schemaVersion === 1, 'MANIFEST_SCHEMA', 'Unsupported manifest schema.');
+  assert(manifest.schemaVersion === 2, 'MANIFEST_SCHEMA', 'Unsupported manifest schema.');
   assert(canonicalJson(manifest.stages.map(({ name }) => name)) === canonicalJson(STAGE_NAMES),
     'MANIFEST_STAGES', 'Stage list or order differs from the deployment contract.');
-  assert(manifest.repository.expectedBaseSha === manifest.repository.expectedEpicSha,
-    'MANIFEST_BASE_SHA', 'Expected repository base and epic SHA must match.');
+  assert(manifest.repository.authorizedHeadArgumentRequired === true,
+    'MANIFEST_REPOSITORY_SHA', 'The operational repository SHA must be supplied explicitly.');
+  assert(canonicalJson(manifest.repository.requiredMergedPrs) === canonicalJson([122, 123, 124, 125]),
+    'MANIFEST_REQUIRED_PRS', 'Required merged PR set differs.');
+  assert(manifest.repository.requiredMergeCommits.length === 4
+    && manifest.repository.requiredMergeCommits.every((sha) => /^[0-9a-f]{40}$/.test(sha)),
+  'MANIFEST_REQUIRED_PRS', 'Required merge commits must be exact full Git SHAs.');
   assert(manifest.environment.name === 'staging', 'ENVIRONMENT_UNKNOWN', 'Only staging is authorized.');
   assert(!manifest.environment.forbiddenProjectRefs.includes(manifest.environment.authorizedProjectRef),
     'PROJECT_REF_COLLISION', 'Authorized project is also forbidden.');
@@ -121,6 +126,47 @@ export function validateManifest({ repoRoot = process.cwd(), manifest = loadMani
     assert(/\bbegin\s*;/i.test(rollbackSql) && /\bcommit\s*;/i.test(rollbackSql),
       'ROLLBACK_TRANSACTION', `${migration.rollback} must be transactional.`);
   }
+  assert(manifest.migrationPolicy.transactionRequired === true
+    && manifest.migrationPolicy.oneMigrationPerExecution === true
+    && manifest.migrationPolicy.concurrentMigrationPolicy === 'abort'
+    && manifest.migrationPolicy.pauseAfterEachMigration === true,
+  'MIGRATION_EXECUTION_CONTRACT', 'Migration execution must be transactional, singular, exclusive, and paused.');
+  const limits = manifest.migrationPolicy.timeoutLimitsMs;
+  const limitContract = {
+    lockTimeoutMs: 10000,
+    statementTimeoutMs: 300000,
+    idleInTransactionSessionTimeoutMs: 120000,
+  };
+  for (const [name, maximum] of Object.entries(limitContract)) {
+    assert(Number.isInteger(limits?.[name]) && limits[name] > 0 && limits[name] === maximum,
+      'MIGRATION_TIMEOUT_LIMIT', `${name} limit is missing or invalid.`);
+  }
+  const a1 = migrations[0];
+  const execution = a1.execution;
+  assert(execution.authorizedStage === 'A1' && execution.singleMigrationOnly === true
+    && execution.transactionRequired === true && execution.onErrorStop === true
+    && execution.applicationName === 'arma2-torneos-a1-migrate'
+    && execution.projectRef === manifest.environment.authorizedProjectRef
+    && execution.repositoryShaSource === 'authorized-argument-must-match-head'
+    && execution.checksumRequired === true && execution.versionRequired === true
+    && execution.snapshotRequired === true && execution.planRequired === true
+    && execution.historyBeforeSource === 'snapshot-exact'
+    && execution.historyAfterRule === 'history-before-plus-this-version'
+    && execution.concurrentMigrations === 'abort' && execution.postApplyPause === true,
+  'MIGRATION_EXECUTION_CONTRACT', 'A1 execution contract is incomplete.');
+  const expectedTimeouts = {
+    lockTimeoutMs: 5000,
+    statementTimeoutMs: 120000,
+    idleInTransactionSessionTimeoutMs: 60000,
+  };
+  for (const [name, expected] of Object.entries(expectedTimeouts)) {
+    const value = execution.timeouts?.[name];
+    assert(Number.isInteger(value) && value > 0 && value <= limits[name] && value === expected,
+      'MIGRATION_TIMEOUT', `${name} must equal the authorized A1 value.`);
+  }
+  assert(migrations.slice(1).every((migration) => migration.execution?.blocked === true
+    && migration.execution.authorizedStage === null && migration.execution.reason === 'outside-a1'),
+  'MIGRATION_SCOPE', 'A2 and Social must remain explicitly blocked.');
 
   const storage = manifest.storage;
   assert(storage.bucket === 'tournament-media' && storage.public === false,

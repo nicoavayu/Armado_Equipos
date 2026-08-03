@@ -1,13 +1,19 @@
 {
   "$schema": "./manifest.schema.json",
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "name": "arma2-torneos-staging-readiness",
-  "status": "remote-readonly-inspector-candidate",
+  "status": "a1-execution-contract-local-only",
   "repository": {
-    "branch": "feature/torneos-staging-readonly-inspector",
+    "branch": "feature/torneos-a1-execution-contract",
     "baseBranch": "epic/arma2-torneos",
-    "expectedBaseSha": "93225cae8fde398e1c73b8a9e077325bda6d450d",
-    "expectedEpicSha": "93225cae8fde398e1c73b8a9e077325bda6d450d",
+    "authorizedHeadArgumentRequired": true,
+    "requiredMergedPrs": [122, 123, 124, 125],
+    "requiredMergeCommits": [
+      "753add5c4c445e9f5c1eff3f2947c1804e649d76",
+      "e9a43a7bde37039f60e6b7b8e44bb84f8a118b42",
+      "93225cae8fde398e1c73b8a9e077325bda6d450d",
+      "1430c29321b3fc7fb09d6a05ac212463e55dbd9b"
+    ],
     "planBindsExactHeadSha": true,
     "requireCleanWorktree": true
   },
@@ -46,6 +52,16 @@
     "checksumMismatch": "abort",
     "outOfOrder": "abort",
     "transactionRequired": true,
+    "oneMigrationPerExecution": true,
+    "historyBeforeSource": "snapshot-exact",
+    "historyAfterRule": "history-before-plus-exact-authorized-version",
+    "concurrentMigrationPolicy": "abort",
+    "pauseAfterEachMigration": true,
+    "timeoutLimitsMs": {
+      "lockTimeoutMs": 10000,
+      "statementTimeoutMs": 300000,
+      "idleInTransactionSessionTimeoutMs": 120000
+    },
     "historyComparison": [
       "applied",
       "local",
@@ -63,7 +79,29 @@
         "sha256": "793ffbbe8cf7f7f94b4924d781fa81e01ebf92208c80e70b60e2daf92a72a417",
         "rollback": "supabase/rollbacks/20260802090000_tournament_media_upload_pipeline.safe.sql",
         "risk": "high",
-        "expectedLocks": ["ACCESS EXCLUSIVE on newly created relations", "catalog locks for functions and grants"]
+        "expectedLocks": ["ACCESS EXCLUSIVE on newly created relations", "catalog locks for functions and grants"],
+        "execution": {
+          "authorizedStage": "A1",
+          "singleMigrationOnly": true,
+          "transactionRequired": true,
+          "onErrorStop": true,
+          "applicationName": "arma2-torneos-a1-migrate",
+          "projectRef": "hhyvmhgpapyuzjgxfnqv",
+          "repositoryShaSource": "authorized-argument-must-match-head",
+          "checksumRequired": true,
+          "versionRequired": true,
+          "snapshotRequired": true,
+          "planRequired": true,
+          "historyBeforeSource": "snapshot-exact",
+          "historyAfterRule": "history-before-plus-this-version",
+          "concurrentMigrations": "abort",
+          "postApplyPause": true,
+          "timeouts": {
+            "lockTimeoutMs": 5000,
+            "statementTimeoutMs": 120000,
+            "idleInTransactionSessionTimeoutMs": 60000
+          }
+        }
       },
       {
         "order": 2,
@@ -72,7 +110,8 @@
         "sha256": "5b678c593f685feb66ee34fd694403bac2cae828321eae65ee044287a51eba73",
         "rollback": "supabase/rollbacks/20260802120000_tournament_media_trusted_processing.safe.sql",
         "risk": "high",
-        "expectedLocks": ["ACCESS EXCLUSIVE on newly created relations", "catalog locks for replaced functions"]
+        "expectedLocks": ["ACCESS EXCLUSIVE on newly created relations", "catalog locks for replaced functions"],
+        "execution": { "authorizedStage": null, "blocked": true, "reason": "outside-a1" }
       },
       {
         "order": 3,
@@ -81,7 +120,8 @@
         "sha256": "000ed7c503f148f2bf7ed666526d031c16a84eb07518959c8a7e5c48c3d599e2",
         "rollback": "supabase/rollbacks/20260803090000_tournament_social_studio.safe.sql",
         "risk": "medium",
-        "expectedLocks": ["ACCESS EXCLUSIVE on newly created relations", "catalog locks for functions and grants"]
+        "expectedLocks": ["ACCESS EXCLUSIVE on newly created relations", "catalog locks for functions and grants"],
+        "execution": { "authorizedStage": null, "blocked": true, "reason": "outside-a1" }
       }
     ]
   },
