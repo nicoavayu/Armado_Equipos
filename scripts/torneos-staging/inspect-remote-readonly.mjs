@@ -64,7 +64,7 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
     database = fixture.database;
     metadata = fixture.metadata;
   } else {
-    const required = ['STAGING_READONLY_DATABASE_URL', 'AUTHORIZED_STAGING_PROJECT_REF', 'SUPABASE_ACCESS_TOKEN'];
+    const required = ['STAGING_READONLY_DATABASE_URL', 'AUTHORIZED_STAGING_PROJECT_REF'];
     const missing = required.filter((name) => !String(env[name] || '').trim());
     if (missing.length) {
       throw new InspectorError('CREDENTIAL_MISSING', `Missing required environment variable(s): ${missing.join(', ')}.`);

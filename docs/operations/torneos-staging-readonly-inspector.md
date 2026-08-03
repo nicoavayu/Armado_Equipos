@@ -20,12 +20,16 @@ Sólo se aceptan estos nombres:
   `CONNECT`, `USAGE` y `SELECT`, sin atributos ni grants de escritura.
 - `AUTHORIZED_STAGING_PROJECT_REF`: debe ser exactamente
   `hhyvmhgpapyuzjgxfnqv`.
-- `SUPABASE_ACCESS_TOKEN`: usado únicamente por los listados de metadata de
-  Functions y Secrets del proyecto explícito.
+- sesión autenticada existente de Supabase CLI o, alternativamente,
+  `SUPABASE_ACCESS_TOKEN`: usada únicamente por los listados de metadata de
+  Functions y Secrets del proyecto explícito. El inspector no extrae ni
+  imprime el token persistido por la CLI.
 
-El inspector nunca imprime sus valores. Si falta alguna, el preflight enumera
-únicamente el nombre y abre cero conexiones remotas. Una credencial más
-privilegiada no es un reemplazo válido.
+El inspector nunca imprime sus valores. Si falta la URL read-only o el project
+ref, el preflight enumera únicamente el nombre y abre cero conexiones remotas.
+Para metadata, una sesión CLI autenticada válida evita exigir una variable de
+token explícita. Una credencial PostgreSQL más privilegiada no es un reemplazo
+válido.
 
 ## Consultas y garantías
 
@@ -39,10 +43,11 @@ El driver aborta ante el primer error de consulta, con semántica equivalente a
 Al conectar, el inspector:
 
 1. inicia `BEGIN READ ONLY`;
-2. configura `statement_timeout=15s`, `lock_timeout=2s`,
+2. configura `statement_timeout=5s`, `lock_timeout=1s`,
    `idle_in_transaction_session_timeout=20s` y `search_path` explícito;
 3. comprueba `current_setting('transaction_read_only') = 'on'`;
-4. comprueba atributos del rol, `CREATE` efectivo y privilegios efectivos de
+4. comprueba `NOSUPERUSER`, `NOBYPASSRLS`, `NOCREATEDB`, `NOCREATEROLE`,
+   `NOREPLICATION`, `NOINHERIT`, `CREATE` efectivo y privilegios efectivos de
    escritura sobre relaciones;
 5. consulta catálogos, `information_schema`, historial de migraciones, metadata
    de Storage y agregados de Media/Social;

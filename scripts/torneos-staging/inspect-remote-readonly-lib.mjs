@@ -141,6 +141,8 @@ export function assertReadOnlyRole(row) {
   assert(row.bypass_rls === false, 'ROLE_PRIVILEGED', 'Read-only role must not bypass RLS.');
   assert(row.create_role === false && row.create_database === false,
     'ROLE_PRIVILEGED', 'Read-only role must not create roles or databases.');
+  assert(row.replication === false && row.inherit === false,
+    'ROLE_PRIVILEGED', 'Read-only role must be NOREPLICATION and NOINHERIT.');
   assert(row.database_create === false && row.schema_create === false,
     'ROLE_WRITE_PRIVILEGE', 'Read-only role has CREATE privilege.');
   assert(row.relation_write === false, 'ROLE_WRITE_PRIVILEGE',
@@ -149,6 +151,8 @@ export function assertReadOnlyRole(row) {
     verified: true,
     superuser: false,
     bypassRls: false,
+    replication: false,
+    inherit: false,
     create: false,
     relationWrite: false,
   };
@@ -218,12 +222,15 @@ export async function inspectDatabase({ databaseUrl, statements, Client }) {
   }
 }
 
-const safeCliEnv = (accessToken) => ({
-  PATH: process.env.PATH,
-  HOME: process.env.HOME,
-  SUPABASE_ACCESS_TOKEN: accessToken,
-  NO_COLOR: '1',
-});
+export const safeCliEnv = (accessToken) => {
+  const env = {
+    PATH: process.env.PATH,
+    HOME: process.env.HOME,
+    NO_COLOR: '1',
+  };
+  if (String(accessToken || '').trim()) env.SUPABASE_ACCESS_TOKEN = accessToken;
+  return env;
+};
 
 const runSupabaseJson = ({ cli = 'supabase', args, accessToken }) => {
   try {
@@ -240,7 +247,6 @@ const runSupabaseJson = ({ cli = 'supabase', args, accessToken }) => {
 const asArray = (value) => Array.isArray(value) ? value : (Array.isArray(value?.data) ? value.data : []);
 
 export function inspectSupabaseMetadata({ accessToken, projectRef, cli = 'supabase' }) {
-  assert(accessToken, 'CREDENTIAL_MISSING', 'Missing required environment variable SUPABASE_ACCESS_TOKEN.');
   assert(projectRef === AUTHORIZED_STAGING_REF, 'PROJECT_REF_UNKNOWN', 'Metadata target is not authorized Staging.');
   const functionsRaw = runSupabaseJson({
     cli, accessToken,

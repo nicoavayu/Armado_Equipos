@@ -17,6 +17,7 @@ import {
   formatDryRunMarkdown,
   inspectDatabase,
   loadInspectorSql,
+  safeCliEnv,
   validateSnapshot,
   validateTarget,
 } from './inspect-remote-readonly-lib.mjs';
@@ -37,7 +38,9 @@ test('the complete inspector SQL is named, statically read-only, and transaction
   assert.match(statements.get('transaction_guard'), /transaction_read_only/);
   assert.ok([...statements.values()].every(assertReadOnlySql));
   assert.match(statements.get('statement_timeout'), /statement_timeout/);
+  assert.match(statements.get('statement_timeout'), /'5s'/);
   assert.match(statements.get('lock_timeout'), /lock_timeout/);
+  assert.match(statements.get('lock_timeout'), /'1s'/);
   assert.match(statements.get('idle_timeout'), /idle_in_transaction_session_timeout/);
   assert.match(statements.get('search_path'), /search_path/);
 });
@@ -88,13 +91,20 @@ test('transaction and role guards reject any write-capable connection', () => {
   for (const [field, code] of [
     ['superuser', 'ROLE_PRIVILEGED'], ['bypass_rls', 'ROLE_PRIVILEGED'],
     ['create_role', 'ROLE_PRIVILEGED'], ['create_database', 'ROLE_PRIVILEGED'],
+    ['replication', 'ROLE_PRIVILEGED'], ['inherit', 'ROLE_PRIVILEGED'],
     ['database_create', 'ROLE_WRITE_PRIVILEGE'], ['schema_create', 'ROLE_WRITE_PRIVILEGE'],
     ['relation_write', 'ROLE_WRITE_PRIVILEGE'],
   ]) {
     const row = { superuser: false, bypass_rls: false, create_role: false, create_database: false,
+      replication: false, inherit: false,
       database_create: false, schema_create: false, relation_write: false, [field]: true };
     expectCode(code, () => assertReadOnlyRole(row));
   }
+});
+
+test('Supabase metadata accepts the existing CLI session without injecting a token', () => {
+  assert.equal(Object.hasOwn(safeCliEnv(), 'SUPABASE_ACCESS_TOKEN'), false);
+  assert.equal(safeCliEnv('fixture-token').SUPABASE_ACCESS_TOKEN, 'fixture-token');
 });
 
 test('database inspection aborts immediately when transaction_read_only is not on', async () => {

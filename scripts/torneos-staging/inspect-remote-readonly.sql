@@ -8,10 +8,10 @@
 BEGIN READ ONLY;
 
 -- inspector:statement statement_timeout
-SET LOCAL statement_timeout = '15s';
+SET LOCAL statement_timeout = '5s';
 
 -- inspector:statement lock_timeout
-SET LOCAL lock_timeout = '2s';
+SET LOCAL lock_timeout = '1s';
 
 -- inspector:statement idle_timeout
 SET LOCAL idle_in_transaction_session_timeout = '20s';
@@ -29,6 +29,8 @@ SELECT
   role_row.rolbypassrls AS bypass_rls,
   role_row.rolcreaterole AS create_role,
   role_row.rolcreatedb AS create_database,
+  role_row.rolreplication AS replication,
+  role_row.rolinherit AS inherit,
   has_database_privilege(current_user, current_database(), 'CREATE') AS database_create,
   EXISTS (
     SELECT 1 FROM pg_namespace namespace_row
