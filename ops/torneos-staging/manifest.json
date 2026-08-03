@@ -2,12 +2,12 @@
   "$schema": "./manifest.schema.json",
   "schemaVersion": 1,
   "name": "arma2-torneos-staging-readiness",
-  "status": "locally-certified-staging-uninspected",
+  "status": "remote-readonly-inspector-candidate",
   "repository": {
-    "branch": "feature/torneos-staging-readiness-v2",
+    "branch": "feature/torneos-staging-readonly-inspector",
     "baseBranch": "epic/arma2-torneos",
-    "expectedBaseSha": "e9a43a7bde37039f60e6b7b8e44bb84f8a118b42",
-    "expectedEpicSha": "e9a43a7bde37039f60e6b7b8e44bb84f8a118b42",
+    "expectedBaseSha": "93225cae8fde398e1c73b8a9e077325bda6d450d",
+    "expectedEpicSha": "93225cae8fde398e1c73b8a9e077325bda6d450d",
     "planBindsExactHeadSha": true,
     "requireCleanWorktree": true
   },
