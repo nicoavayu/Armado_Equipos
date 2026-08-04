@@ -1,9 +1,13 @@
 # Runbook operativo: Multimedia Upload y Estudio Social
 
-Estado auditado: **contrato A1 certificado localmente; ejecución remota no
+Estado auditado: **contratos A1 y A2 certificados localmente; ejecución remota no
 autorizada**. La aplicación singular, locks, timeouts, historial y rollback se
 probaron en PostgreSQL efímero. Este host no tiene Docker, por lo que no pudo
 levantarse el stack Supabase local completo; esa limitación se conserva visible.
+
+A1 ya está aplicada en Staging (`20260802090000`). **A2 (`20260802120000`) y
+Social (`20260803090000`) siguen pendientes**: este runbook autoriza el contrato
+de ejecución de A2, no su aplicación.
 
 Este runbook separa inspección, planificación, mutaciones, QA y rollback. Ningún comando único aplica todo. Cada etapa mutante se autoriza por separado y se detiene ante SHA, ref, historial, checksum, configuración o recibo divergente.
 
@@ -31,6 +35,9 @@ Ante un error:
 
 - Manifiesto: `ops/torneos-staging/manifest.json`.
 - Fixture local: `ops/torneos-staging/fixtures/local-ready.json`.
+- Fixture equivalente remoto pre-A1: `ops/torneos-staging/fixtures/remote-readonly-equivalent.json`.
+- Fixture equivalente remoto post-A1 (precondición de A2):
+  `ops/torneos-staging/fixtures/remote-readonly-equivalent-a1-applied.json`.
 - QA: `ops/torneos-staging/qa-matrix.json`.
 - Rollbacks: `supabase/rollbacks/*.safe.sql`.
 - Auditoría previa: `docs/operations/torneos-staging-readiness-audit.md`.
@@ -106,29 +113,92 @@ Orden único:
 3. `20260803090000_tournament_social_studio.sql`.
 
 Antes de `migrate`: flags falsas, snapshot y plan nuevos, aprobación de etapa,
-mismo `HEAD`, historial exacto sin drift y plan vigente. Para A1 se usa
+mismo `HEAD`, historial exacto sin drift y plan vigente. Para A1 y A2 se usa
 exclusivamente `scripts/torneos-staging/apply-single-migration.mjs`; quedan
 prohibidos `db push`, `migration up`, globs, directorios, rangos, múltiples
-archivos y “todas las pendientes”. A2 y Social están explícitamente bloqueadas.
+archivos y “todas las pendientes”.
 
-El contrato A1 configura sólo su sesión con `SET LOCAL`:
+### Etapas autorizadas
 
-- `lock_timeout=5000ms`;
-- `statement_timeout=120000ms`;
-- `idle_in_transaction_session_timeout=60000ms`;
-- `application_name=arma2-torneos-a1-migrate`.
+El ejecutor está parametrizado por una **allowlist cerrada de etapas**: sólo
+`A1` y `A2`. La etapa se nombra con `--stage`; nunca se aceptan versión,
+archivo, checksum ni rollback arbitrarios desde la CLI — todos se derivan del
+contrato congelado de la etapa. **Social (`20260803090000`) no tiene contrato de
+etapa y no puede ejecutarse**: sigue bloqueada en el manifiesto
+(`reason: outside-authorized-stages`) y se rechaza como etapa, como selección y
+como autorización.
+
+| Etapa | Versión | `application_name` | Timeouts (lock / statement / idle) | Requiere aplicada antes | Comando |
+| --- | --- | --- | --- | --- | --- |
+| A1 | `20260802090000` | `arma2-torneos-a1-migrate` | 5000 / 120000 / 60000 ms | — | `npm run torneos:staging:a1` |
+| A2 | `20260802120000` | `arma2-torneos-a2-migrate` | 5000 / **180000** / 60000 ms | A1, exactamente una vez | `npm run torneos:staging:a2` |
+| Social | `20260803090000` | — | — | — | **bloqueada, sin comando** |
+
+`torneos:staging:a2` fija `--stage=A2` dentro del propio script de npm, de modo
+que la etapa la fija el comando revisado y no lo que se tipea en la terminal. El
+comando de A1 no cambió: sin `--stage` el ejecutor sigue resolviendo A1 con su
+contrato histórico exacto.
 
 Son guardas de seguridad, no estimaciones de duración. `psql` se invoca con
-`ON_ERROR_STOP=1`. Un lock exclusivo del historial, la validación exacta del
-historial anterior, el SQL canónico y el `INSERT` de versión
-`20260802090000` comparten la misma transacción. Si falla el SQL o el historial,
-ambos se revierten. Después de aplicar hay una pausa obligatoria antes de
-`verify`; no existe continuación implícita con la siguiente migración.
+`ON_ERROR_STOP=1`, sin shell, con la URL fuera de `argv` y el SQL por stdin. Un
+lock exclusivo del historial, la validación exacta del historial anterior, el
+SQL canónico y el `INSERT` de la versión de la etapa comparten la misma
+transacción. Si falla el SQL o el historial, ambos se revierten. No hay
+reintento: un fallo de transporte (por ejemplo EPIPE en stdin) deja el estado
+remoto **indeterminado** y exige reinspección read-only antes de cualquier otra
+acción. Después de aplicar hay una pausa obligatoria antes de `verify`; no
+existe continuación implícita con la siguiente migración.
+
+### Precondiciones exclusivas de A2
+
+Además de todo lo anterior, A2 exige:
+
+- Staging exacto `hhyvmhgpapyuzjgxfnqv`; Production `rcyuuoaqfwcembdajcss`
+  prohibida en project ref y en la URL de conexión;
+- `sslmode=verify-full` y CA explícita en `STAGING_DATABASE_CA_CERT` (una
+  `PGSSLROOTCERT` heredada se rechaza, no se ignora);
+- historial remoto con **A1 aplicada exactamente una vez**, A2 pendiente y
+  Social pendiente;
+- A2 como primera migración pendiente del plan, con selección **exclusiva** de
+  A2: Social queda listada como pendiente pero nunca seleccionada ni aplicada;
+- checksum `5b678c59…1eba73` del archivo y `9d7236bc…62fc49` del rollback
+  `supabase/rollbacks/20260802120000_tournament_media_trusted_processing.safe.sql`;
+- plan nuevo, vigente y no reutilizado, ligado al `HEAD` autorizado;
+- autorización humana **exclusiva de A2 y distinta de la de A1**.
+
+### Frase de autorización de A2 (propuesta)
+
+La frase de A2 está ligada al `planId`, de modo que no puede acuñarse antes de
+que exista el plan ni reutilizarse contra otro plan:
+
+```
+APPLY-ONLY-A2-20260802120000-PLAN-<primeros 16 hex del planId>
+```
+
+El token de aprobación es además distinto por etapa
+(`sha256("arma2-a2-apply:<planId>:<repositorySha>:20260802120000")`), así que una
+autorización de A1 nunca satisface A2 ni al revés, incluso sobre el mismo plan.
+**Ninguna autorización real se generó ni se usó en este PR.**
 
 El procedimiento completo de argumentos, verify, receipt y recuperación está
 en `docs/operations/torneos-a1-execution-contract.md`. Después del merge hay
 que reinspeccionar y generar un plan nuevo; ningún artefacto de este PR puede
-reutilizarse para ejecutar A1.
+reutilizarse para ejecutar A1 ni A2.
+
+### Objetos marcados “REVISAR” por el inspector
+
+El inspector read-only marcó dos objetos para revisión:
+
+- `index:tournaments_org_season_status_idx`;
+- `policy:public.tournaments.tournaments_select_capability`.
+
+Ambos son creados **exclusivamente** por
+`supabase/migrations/20260727090000_arma2_canonical_baseline.sql` y no aparecen
+en A1, A2, Social ni en el rollback de A2. **No forman parte de la superficie de
+A2**, no se modificaron y no requieren ampliar el parser: las guardas del
+ejecutor comparan versiones de migración, no objetos, por lo que no pueden
+producir un bloqueo falso futuro. Verificado por test en
+`scripts/torneos-staging/apply-single-migration.a2.test.mjs`.
 
 No ejecutar DDL con sesiones activas no evaluadas. Considerar locks de catálogo y `ACCESS EXCLUSIVE` sobre relaciones nuevas/reemplazadas. Ante timeout o estado ambiguo, inspeccionar primero; nunca reintentar a ciegas.
 

@@ -20,11 +20,23 @@ import {
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
-export async function main(argv = process.argv.slice(2), env = process.env) {
-  const [mode, ...rawOptions] = argv;
-  if (!['inspect', 'dry-run', 'apply', 'verify', 'receipt'].includes(mode)) {
-    throw new Error('Mode must be one of: inspect, dry-run, apply, verify, receipt.');
+export const MODES = Object.freeze(['inspect', 'dry-run', 'apply', 'verify', 'receipt']);
+
+/**
+ * The mode is the first positional argument, wherever it sits. Taking it positionally rather than
+ * as `argv[0]` is what lets the per-stage npm scripts pin `--stage=...` ahead of the operator's
+ * arguments, so the stage is fixed by the reviewed command rather than typed at the terminal.
+ */
+export function splitMode(argv) {
+  const index = argv.findIndex((value) => !value.startsWith('--'));
+  if (index === -1 || !MODES.includes(argv[index])) {
+    throw new Error(`Mode must be one of: ${MODES.join(', ')}.`);
   }
+  return { mode: argv[index], rawOptions: [...argv.slice(0, index), ...argv.slice(index + 1)] };
+}
+
+export async function main(argv = process.argv.slice(2), env = process.env) {
+  const { mode, rawOptions } = splitMode(argv);
   if (mode === 'inspect') return inspectMain(rawOptions, env);
   const executionDryRun = mode === 'dry-run'
     && rawOptions.some((option) => option.startsWith('--plan='));
@@ -53,10 +65,15 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
       execution: contract.execution,
       historyBefore: contract.historyBefore,
       historyAfter: contract.historyAfter,
+      stage: contract.stage,
     });
     await runPsql({ connection: contract.connection, sql, psql: options.psql || 'psql' });
-    const result = { status: 'applied', migrationVersion: options['migration-version'],
+    const result = { status: 'applied', stage: contract.stage,
+      migrationVersion: options['migration-version'],
       repositorySha: contract.expectedRepositorySha, planId: contract.plan.planId,
+      // The remote state is only asserted once it has been read back: apply never reports success
+      // on its own evidence.
+      reinspectionRequired: true,
       postApplyPauseRequired: true };
     process.stdout.write(`${JSON.stringify(result)}\n`);
     return result;
@@ -68,7 +85,7 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
       psql: options.psql || 'psql',
     });
     const history = result.stdout.includes('HISTORY_OK') ? 'HISTORY_OK' : 'HISTORY_DRIFT';
-    const output = { history, repositorySha: contract.expectedRepositorySha,
+    const output = { history, stage: contract.stage, repositorySha: contract.expectedRepositorySha,
       planId: contract.plan.planId, remoteMutation: false };
     process.stdout.write(`${JSON.stringify(output)}\n`);
     return output;
@@ -82,7 +99,7 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) {
   main().catch((error) => {
-    process.stderr.write(`[torneos-a1-executor] ${executorErrorCode(error)}: ${error.message}\n`);
+    process.stderr.write(`[torneos-single-migration-executor] ${executorErrorCode(error)}: ${error.message}\n`);
     process.exitCode = 1;
   });
 }
