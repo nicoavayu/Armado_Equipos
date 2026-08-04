@@ -14,7 +14,32 @@ import { canonicalJson, loadManifest, sha256 } from './readiness-lib.mjs';
 export const A1_VERSION = '20260802090000';
 export const A1_FILE = 'supabase/migrations/20260802090000_tournament_media_upload_pipeline.sql';
 export const A1_CHECKSUM = '793ffbbe8cf7f7f94b4924d781fa81e01ebf92208c80e70b60e2daf92a72a417';
+export const A1_ROLLBACK = 'supabase/rollbacks/20260802090000_tournament_media_upload_pipeline.safe.sql';
+export const A1_ROLLBACK_CHECKSUM = '1e8eecc3e93eccc2701b1b4808bb9039aa0c67a45dd4a12d322e5d1102dcf8ad';
 export const A1_CONFIRMATION = 'APPLY-ONLY-A1-20260802090000';
+
+export const A2_VERSION = '20260802120000';
+export const A2_FILE = 'supabase/migrations/20260802120000_tournament_media_trusted_processing.sql';
+export const A2_CHECKSUM = '5b678c593f685feb66ee34fd694403bac2cae828321eae65ee044287a51eba73';
+export const A2_ROLLBACK = 'supabase/rollbacks/20260802120000_tournament_media_trusted_processing.safe.sql';
+export const A2_ROLLBACK_CHECKSUM = '9d7236bc51af0c321cff8ac772869b57959e718a7d6d2a6c06a60d255f62fc49';
+// A2's authorization phrase is bound to the plan it authorizes: the operator cannot mint it before
+// the plan exists, and it cannot be replayed against a different (or refreshed) plan. A1's phrase is
+// deliberately left as the historical static string so its contract stays byte-identical.
+export const A2_CONFIRMATION_PREFIX = 'APPLY-ONLY-A2-20260802120000-PLAN-';
+export const A2_CONFIRMATION_PLAN_ID_LENGTH = 16;
+export const a2ConfirmationForPlan = (plan) => {
+  const planId = String(plan?.planId || '');
+  assert(/^[0-9a-f]{64}$/.test(planId), 'PLAN_ID_INVALID',
+    'An A2 authorization phrase can only be derived from a full plan ID.');
+  return `${A2_CONFIRMATION_PREFIX}${planId.slice(0, A2_CONFIRMATION_PLAN_ID_LENGTH)}`;
+};
+
+// Social is named here only so the executor can prove it is never selected, never applied and never
+// present in generated SQL. It carries no stage contract and cannot be authorized.
+export const SOCIAL_VERSION = '20260803090000';
+export const SOCIAL_FILE = 'supabase/migrations/20260803090000_tournament_social_studio.sql';
+
 export const PRODUCTION_GUARD_CONFIRMATION = 'PRODUCTION-IS-FORBIDDEN';
 // The single, dedicated channel for the CA bundle psql must verify Staging against.
 // `NODE_EXTRA_CA_CERTS` is deliberately NOT read here: it only affects Node's own TLS stack and is
@@ -35,6 +60,77 @@ const assert = (condition, code, message, details) => {
   if (!condition) fail(code, message, details);
 };
 
+/**
+ * The closed allowlist of executable stages.
+ *
+ * Every operational identity of a stage — version, file, checksum, rollback, application name,
+ * timeouts, predecessors, authorization phrase — is fixed here. The CLI may only *name* a stage;
+ * it can never introduce a version, a file, a checksum or a rollback of its own, so an operator
+ * cannot widen the executor's reach by argument. Authorizing a further migration requires editing
+ * this table and the manifest together, under review.
+ */
+export const STAGE_CONTRACTS = Object.freeze({
+  A1: Object.freeze({
+    stage: 'A1',
+    manifestIndex: 0,
+    version: A1_VERSION,
+    file: A1_FILE,
+    checksum: A1_CHECKSUM,
+    rollback: A1_ROLLBACK,
+    rollbackChecksum: A1_ROLLBACK_CHECKSUM,
+    migrationName: 'tournament_media_upload_pipeline',
+    applicationName: 'arma2-torneos-a1-migrate',
+    timeouts: Object.freeze({
+      lockTimeoutMs: 5000, statementTimeoutMs: 120000, idleInTransactionSessionTimeoutMs: 60000,
+    }),
+    // Versions that must already be in remote history, exactly once, before this stage may run.
+    requiresAppliedBefore: Object.freeze([]),
+    // Versions that must be absent from remote history: the stage itself and everything after it.
+    forbiddenAppliedBefore: Object.freeze([A1_VERSION, A2_VERSION, SOCIAL_VERSION]),
+    sqlTag: '$arma2_a1_canonical_sql$',
+    guardPrefix: 'arma2_a1',
+    tokenPrefix: 'arma2-a1-apply',
+    confirmation: () => A1_CONFIRMATION,
+  }),
+  A2: Object.freeze({
+    stage: 'A2',
+    manifestIndex: 1,
+    version: A2_VERSION,
+    file: A2_FILE,
+    checksum: A2_CHECKSUM,
+    rollback: A2_ROLLBACK,
+    rollbackChecksum: A2_ROLLBACK_CHECKSUM,
+    migrationName: 'tournament_media_trusted_processing',
+    applicationName: 'arma2-torneos-a2-migrate',
+    timeouts: Object.freeze({
+      lockTimeoutMs: 5000, statementTimeoutMs: 180000, idleInTransactionSessionTimeoutMs: 60000,
+    }),
+    requiresAppliedBefore: Object.freeze([A1_VERSION]),
+    forbiddenAppliedBefore: Object.freeze([A2_VERSION, SOCIAL_VERSION]),
+    sqlTag: '$arma2_a2_canonical_sql$',
+    guardPrefix: 'arma2_a2',
+    tokenPrefix: 'arma2-a2-apply',
+    confirmation: (plan) => a2ConfirmationForPlan(plan),
+  }),
+});
+
+export const AUTHORIZED_STAGES = Object.freeze(Object.keys(STAGE_CONTRACTS));
+// The default keeps every historical A1 invocation working unchanged: an operator who never learned
+// about `--stage` still gets exactly the A1 contract they had before.
+export const DEFAULT_STAGE = 'A1';
+
+/**
+ * Resolves a stage name to its frozen contract. This is the only entry point into the table, and it
+ * accepts nothing outside the allowlist — Social in particular resolves to no contract at all.
+ */
+export function resolveStageContract(value) {
+  const requested = value === undefined || value === null || value === '' ? DEFAULT_STAGE : value;
+  assert(typeof requested === 'string' && Object.hasOwn(STAGE_CONTRACTS, requested),
+    'STAGE_NOT_AUTHORIZED',
+    `--stage must be exactly one of: ${AUTHORIZED_STAGES.join(', ')}. Social is never executable.`);
+  return STAGE_CONTRACTS[requested];
+}
+
 export function parseStrictArgs(argv) {
   const result = { _: [] };
   for (const raw of argv) {
@@ -50,16 +146,27 @@ export function parseStrictArgs(argv) {
   return result;
 }
 
-export function approvalTokenForPlan(plan) {
-  return sha256(`arma2-a1-apply:${plan.planId}:${plan.repositorySha}:${A1_VERSION}`);
+/**
+ * The per-plan approval token. The stage is part of the preimage through both its token prefix and
+ * its version, so an approval minted for A1 can never satisfy A2 and vice versa, even for the same
+ * plan. For A1 the preimage is byte-identical to the historical one.
+ */
+export function approvalTokenForPlan(plan, stage = DEFAULT_STAGE) {
+  const contract = resolveStageContract(stage);
+  return sha256(`${contract.tokenPrefix}:${plan.planId}:${plan.repositorySha}:${contract.version}`);
 }
 
-const exactMigrationPath = (repoRoot, value) => {
+const exactMigrationPath = (repoRoot, value, contract) => {
   assert(typeof value === 'string' && value.length > 0, 'MIGRATION_REQUIRED',
-    '--migration must name exactly the authorized A1 file.');
+    `--migration must name exactly the authorized ${contract.stage} file.`);
   assert(!/[\*?\[\]{},]/.test(value) && !value.includes('..') && !value.includes(':'),
     'MIGRATION_SELECTION', 'Globs, ranges, traversal, and multiple migration selectors are forbidden.');
-  assert(value === A1_FILE, 'MIGRATION_NOT_AUTHORIZED', 'Only the exact A1 migration file is authorized.');
+  // Naming Social is not merely "not this stage": it is never executable by any stage, so it is
+  // rejected with its own code rather than being folded into a generic mismatch.
+  assert(value !== SOCIAL_FILE && !value.includes(SOCIAL_VERSION), 'SOCIAL_FORBIDDEN',
+    'The Social migration is outside every authorized stage and can never be applied by this executor.');
+  assert(value === contract.file, 'MIGRATION_NOT_AUTHORIZED',
+    `Only the exact ${contract.stage} migration file is authorized for stage ${contract.stage}.`);
   const absolute = path.resolve(repoRoot, value);
   assert(fs.statSync(absolute).isFile(), 'MIGRATION_SELECTION', 'Migration selection must be one regular file.');
   return absolute;
@@ -101,6 +208,9 @@ export function prepareExecution({
   targetMode = 'apply',
 }) {
   assert(options._?.length === 0, 'MIGRATION_SELECTION', 'Positional migration selectors are forbidden.');
+  // The stage is resolved first: everything below is derived from its frozen contract, never from
+  // an operator-supplied version, file, checksum or rollback.
+  const contract = resolveStageContract(options.stage);
   const manifest = loadManifest(repoRoot);
   assert(options['project-ref'] !== FORBIDDEN_PRODUCTION_REF, 'PRODUCTION_FORBIDDEN',
     'Production project ref is forbidden.');
@@ -114,33 +224,80 @@ export function prepareExecution({
   validateExecutionPlan({
     repoRoot, plan, snapshot, expectedRepositorySha, now, requireClean,
   });
-  assert(options['migration-version'] === A1_VERSION, 'MIGRATION_VERSION',
-    `Migration version must be exactly ${A1_VERSION}.`);
-  assert(options['migration-checksum'] === A1_CHECKSUM, 'MIGRATION_CHECKSUM',
-    `Migration checksum must be exactly ${A1_CHECKSUM}.`);
+  assert(options['migration-version'] === contract.version, 'MIGRATION_VERSION',
+    `Migration version must be exactly ${contract.version} for stage ${contract.stage}.`);
+  assert(options['migration-checksum'] === contract.checksum, 'MIGRATION_CHECKSUM',
+    `Migration checksum must be exactly ${contract.checksum} for stage ${contract.stage}.`);
+  // A supplied rollback is optional, but if present it must be this stage's exact rollback: an
+  // approval may never be paired with another stage's undo path.
+  if (options.rollback !== undefined) {
+    assert(options.rollback === contract.rollback, 'ROLLBACK_NOT_AUTHORIZED',
+      `--rollback must be exactly ${contract.rollback} for stage ${contract.stage}.`);
+  }
   assert(options['snapshot-sha'] === sha256(canonicalJson(snapshot))
     && options['snapshot-sha'] === plan.snapshotSha256, 'SNAPSHOT_DRIFT',
   'Snapshot checksum differs from the plan or supplied argument.');
   assert(options['plan-id'] === plan.planId, 'PLAN_ID_DRIFT', 'Supplied plan ID differs from the plan file.');
   if (requireApproval) {
-    assert(options.confirmation === A1_CONFIRMATION, 'A1_CONFIRMATION',
-      `--confirmation must equal ${A1_CONFIRMATION}.`);
-    assert(options['approval-token'] === approvalTokenForPlan(plan), 'APPROVAL_TOKEN',
-      'Exact per-plan A1 approval token is required.');
+    // The phrase and the token are both stage-scoped, so an A1 authorization presented for A2 (or
+    // the reverse) fails here rather than reaching a connection.
+    assert(options.confirmation === contract.confirmation(plan), `${contract.stage}_CONFIRMATION`,
+      `--confirmation must equal this plan's exact ${contract.stage} authorization phrase.`);
+    assert(options['approval-token'] === approvalTokenForPlan(plan, contract.stage), 'APPROVAL_TOKEN',
+      `Exact per-plan ${contract.stage} approval token is required.`);
   }
-  const migrationFile = exactMigrationPath(repoRoot, options.migration);
-  assert(sha256(fs.readFileSync(migrationFile)) === A1_CHECKSUM, 'MIGRATION_CHECKSUM',
-    'Canonical A1 migration checksum differs.');
-  const a1 = manifest.migrationPolicy.migrations[0];
-  assert(a1.version === A1_VERSION && a1.file === A1_FILE && a1.sha256 === A1_CHECKSUM,
-    'MIGRATION_MANIFEST_DRIFT', 'Manifest A1 identity differs from the executor contract.');
-  const pending = plan.migrations.pending.map((item) => item.version);
-  assert(pending[0] === A1_VERSION, 'MIGRATION_PENDING_ORDER', 'A1 must be the first pending migration.');
+  const migrationFile = exactMigrationPath(repoRoot, options.migration, contract);
+  assert(sha256(fs.readFileSync(migrationFile)) === contract.checksum, 'MIGRATION_CHECKSUM',
+    `Canonical ${contract.stage} migration checksum differs.`);
+  // The rollback is pinned by content too: a stage is not authorized while its declared undo path
+  // has drifted from the reviewed one.
+  const rollbackFile = path.resolve(repoRoot, contract.rollback);
+  assert(fs.statSync(rollbackFile).isFile(), 'ROLLBACK_MISSING',
+    `${contract.rollback} must exist before ${contract.stage} may be authorized.`);
+  assert(sha256(fs.readFileSync(rollbackFile)) === contract.rollbackChecksum, 'ROLLBACK_CHECKSUM',
+    `Canonical ${contract.stage} rollback checksum differs.`);
+  const manifestMigrations = manifest.migrationPolicy.migrations;
+  const entry = manifestMigrations[contract.manifestIndex];
+  assert(entry.version === contract.version && entry.file === contract.file
+    && entry.sha256 === contract.checksum && entry.rollback === contract.rollback
+    && entry.rollbackSha256 === contract.rollbackChecksum
+    && entry.execution?.authorizedStage === contract.stage
+    && entry.execution.applicationName === contract.applicationName,
+  'MIGRATION_MANIFEST_DRIFT', `Manifest ${contract.stage} identity differs from the executor contract.`);
+  assert(canonicalJson([...entry.execution.requiresAppliedBefore])
+    === canonicalJson([...contract.requiresAppliedBefore]), 'MIGRATION_MANIFEST_DRIFT',
+  `Manifest ${contract.stage} predecessors differ from the executor contract.`);
+  // Social must still be blocked in the manifest at the moment any stage is authorized, so A2 can
+  // never be carried out under a manifest that has quietly opened Social.
+  const social = manifestMigrations.find((item) => item.version === SOCIAL_VERSION);
+  assert(social?.execution?.blocked === true && social.execution.authorizedStage === null,
+    'SOCIAL_FORBIDDEN', 'Social must remain explicitly blocked in the manifest.');
   assert((snapshot.migrationState.remoteVersionsMissingLocally || []).length === 0,
     'MIGRATION_HISTORY_UNEXPECTED', 'Snapshot contains a remote migration absent from the repository.');
+  // Remote history is judged before the plan's pending list, so an operator sees the precise reason
+  // ("A1 is not applied", "A2 is already applied") rather than the pending-order symptom it causes.
   const historyBefore = historyVersions(snapshot);
-  assert(!historyBefore.includes(A1_VERSION), 'MIGRATION_ALREADY_APPLIED',
-    'A1 is already present in migration history.');
+  // Predecessors must be present exactly once. `normalizeHistoryVersions` has already rejected any
+  // duplicate, so presence here is presence exactly once.
+  for (const predecessor of contract.requiresAppliedBefore) {
+    assert(historyBefore.filter((version) => version === predecessor).length === 1,
+      'MIGRATION_PREDECESSOR_MISSING',
+      `${contract.stage} requires ${predecessor} to be applied exactly once before it.`);
+  }
+  for (const forbidden of contract.forbiddenAppliedBefore) {
+    assert(!historyBefore.includes(forbidden), forbidden === contract.version
+      ? 'MIGRATION_ALREADY_APPLIED' : 'MIGRATION_HISTORY_UNEXPECTED',
+    forbidden === contract.version
+      ? `${contract.stage} is already present in migration history.`
+      : `${forbidden} must not be applied before ${contract.stage}.`);
+  }
+  const pending = plan.migrations.pending.map((item) => item.version);
+  assert(pending[0] === contract.version, 'MIGRATION_PENDING_ORDER',
+    `${contract.stage} must be the first pending migration.`);
+  // Exactly one migration is carried out per execution. The plan may legitimately list later
+  // pending migrations (A2 leaves Social pending), but none of them is ever selected or applied.
+  assert(new Set(pending).size === pending.length, 'MIGRATION_PENDING_ORDER',
+    'Plan pending list contains a duplicate migration version.');
   const databaseUrl = String(env.STAGING_MIGRATION_DATABASE_URL || '');
   let connection = null;
   if (requireDatabaseUrl) {
@@ -164,10 +321,15 @@ export function prepareExecution({
     snapshot,
     expectedRepositorySha,
     migrationFile,
+    rollbackFile,
     connection,
+    contract,
+    stage: contract.stage,
     historyBefore,
-    historyAfter: normalizeHistoryVersions([...historyBefore, A1_VERSION], { label: 'post-A1 history' }),
-    execution: a1.execution,
+    historyAfter: normalizeHistoryVersions([...historyBefore, contract.version], {
+      label: `post-${contract.stage} history`,
+    }),
+    execution: entry.execution,
   };
 }
 
@@ -245,8 +407,7 @@ export function splitSqlStatements(sql) {
   return statements;
 }
 
-const sqlTextArrayLiteral = (statements) => {
-  const tag = '$arma2_a1_canonical_sql$';
+const sqlTextArrayLiteral = (statements, tag) => {
   assert(statements.every((statement) => !statement.includes(tag)), 'MIGRATION_SQL_TAG',
     'Canonical SQL contains the reserved history delimiter.');
   return `ARRAY[${statements.map((statement) => `${tag}${statement}${tag}`).join(', ')}]::text[]`;
@@ -258,82 +419,97 @@ const versionArrayLiteral = (versions) => (
     : 'ARRAY[]::text[]'
 );
 
-export function buildTransactionalSql({ migrationSql, execution, historyBefore, historyAfter }) {
-  assert(typeof migrationSql === 'string' && migrationSql.length > 0, 'MIGRATION_SQL', 'A1 SQL is empty.');
+export function buildTransactionalSql({
+  migrationSql, execution, historyBefore, historyAfter, stage = DEFAULT_STAGE,
+}) {
+  const contract = resolveStageContract(stage);
+  const { version, guardPrefix } = contract;
+  assert(typeof migrationSql === 'string' && migrationSql.length > 0, 'MIGRATION_SQL',
+    `${contract.stage} SQL is empty.`);
   const beginMatches = [...migrationSql.matchAll(/^\s*BEGIN\s*;\s*$/gim)];
   const commitMatches = [...migrationSql.matchAll(/^\s*COMMIT\s*;\s*$/gim)];
   assert(beginMatches.length === 1 && commitMatches.length === 1, 'MIGRATION_TRANSACTION',
-    'Canonical A1 must contain exactly one BEGIN and one COMMIT.');
+    `Canonical ${contract.stage} must contain exactly one BEGIN and one COMMIT.`);
   const begin = beginMatches[0];
   const commit = commitMatches[0];
   assert(begin.index < commit.index && migrationSql.slice(commit.index + commit[0].length).trim() === '',
-    'MIGRATION_TRANSACTION', 'Canonical A1 COMMIT must be the final statement.');
+    'MIGRATION_TRANSACTION', `Canonical ${contract.stage} COMMIT must be the final statement.`);
   const timeouts = execution.timeouts;
-  for (const [name, exact] of Object.entries({
-    lockTimeoutMs: 5000,
-    statementTimeoutMs: 120000,
-    idleInTransactionSessionTimeoutMs: 60000,
-  })) {
+  for (const [name, exact] of Object.entries(contract.timeouts)) {
     assert(timeouts?.[name] === exact, 'MIGRATION_TIMEOUT', `${name} must equal exactly ${exact}.`);
   }
-  assert(execution.applicationName === 'arma2-torneos-a1-migrate', 'APPLICATION_NAME',
-    'A1 application_name differs from the contract.');
+  assert(execution.applicationName === contract.applicationName, 'APPLICATION_NAME',
+    `${contract.stage} application_name differs from the contract.`);
   const before = migrationSql.slice(0, begin.index + begin[0].length);
   const body = migrationSql.slice(begin.index + begin[0].length, commit.index);
   const canonicalStatements = splitSqlStatements(migrationSql);
-  const normalizedBefore = normalizeHistoryVersions(historyBefore, { label: 'pre-A1 history' });
-  const normalizedAfter = normalizeHistoryVersions(historyAfter, { label: 'post-A1 history' });
+  const normalizedBefore = normalizeHistoryVersions(historyBefore, { label: `pre-${contract.stage} history` });
+  const normalizedAfter = normalizeHistoryVersions(historyAfter, { label: `post-${contract.stage} history` });
   assert(canonicalJson(normalizedAfter) === canonicalJson(
-    normalizeHistoryVersions([...normalizedBefore, A1_VERSION], { label: 'derived post-A1 history' }),
-  ), 'MIGRATION_HISTORY_AFTER', 'Post-A1 history must equal pre-A1 history plus A1 exactly once.');
+    normalizeHistoryVersions([...normalizedBefore, version], {
+      label: `derived post-${contract.stage} history`,
+    }),
+  ), 'MIGRATION_HISTORY_AFTER',
+  `Post-${contract.stage} history must equal pre-${contract.stage} history plus ${contract.stage} exactly once.`);
+  // Every predecessor this stage depends on must already be in the pre-history the transaction will
+  // assert against, so the remote guard below enforces the dependency too, not only the local check.
+  for (const predecessor of contract.requiresAppliedBefore) {
+    assert(normalizedBefore.includes(predecessor), 'MIGRATION_PREDECESSOR_MISSING',
+      `${contract.stage} pre-history must contain ${predecessor}.`);
+  }
   const guard = `
 SET LOCAL lock_timeout = '${timeouts.lockTimeoutMs}ms';
 SET LOCAL statement_timeout = '${timeouts.statementTimeoutMs}ms';
 SET LOCAL idle_in_transaction_session_timeout = '${timeouts.idleInTransactionSessionTimeoutMs}ms';
 SET LOCAL application_name = '${execution.applicationName}';
-DO $arma2_a1_session_guard$
+DO $${guardPrefix}_session_guard$
 BEGIN
   IF current_setting('lock_timeout')::interval <> interval '${timeouts.lockTimeoutMs} milliseconds'
     OR current_setting('statement_timeout')::interval <> interval '${timeouts.statementTimeoutMs} milliseconds'
     OR current_setting('idle_in_transaction_session_timeout')::interval <> interval '${timeouts.idleInTransactionSessionTimeoutMs} milliseconds'
     OR current_setting('application_name') <> '${execution.applicationName}' THEN
-    RAISE EXCEPTION 'A1 migration session settings differ from contract';
+    RAISE EXCEPTION '${contract.stage} migration session settings differ from contract';
   END IF;
 END
-$arma2_a1_session_guard$;
+$${guardPrefix}_session_guard$;
 SELECT pg_advisory_xact_lock(hashtextextended('arma2-torneos-single-migration', 0));
 LOCK TABLE supabase_migrations.schema_migrations IN SHARE ROW EXCLUSIVE MODE;
-DO $arma2_a1_history_guard$
+DO $${guardPrefix}_history_guard$
 DECLARE actual text[];
 BEGIN
   SELECT COALESCE(array_agg(version ORDER BY version), ARRAY[]::text[])
   INTO actual
   FROM supabase_migrations.schema_migrations;
-  IF '${A1_VERSION}' = ANY(actual) THEN
-    RAISE EXCEPTION 'A1 already applied';
+  IF '${version}' = ANY(actual) THEN
+    RAISE EXCEPTION '${contract.stage} already applied';
   ELSIF actual IS DISTINCT FROM ${versionArrayLiteral(normalizedBefore)} THEN
-    RAISE EXCEPTION 'unexpected migration history before A1';
+    RAISE EXCEPTION 'unexpected migration history before ${contract.stage}';
   END IF;
 END
-$arma2_a1_history_guard$;
+$${guardPrefix}_history_guard$;
 `;
   const history = `
 INSERT INTO supabase_migrations.schema_migrations(version, name, statements)
-VALUES ('${A1_VERSION}', 'tournament_media_upload_pipeline', ${sqlTextArrayLiteral(canonicalStatements)});
-DO $arma2_a1_history_after$
+VALUES ('${version}', '${contract.migrationName}', ${sqlTextArrayLiteral(canonicalStatements, contract.sqlTag)});
+DO $${guardPrefix}_history_after$
 DECLARE actual text[];
 BEGIN
   SELECT COALESCE(array_agg(version ORDER BY version), ARRAY[]::text[])
   INTO actual
   FROM supabase_migrations.schema_migrations;
   IF actual IS DISTINCT FROM ${versionArrayLiteral(normalizedAfter)} THEN
-    RAISE EXCEPTION 'unexpected migration history after A1';
+    RAISE EXCEPTION 'unexpected migration history after ${contract.stage}';
   END IF;
 END
-$arma2_a1_history_after$;
+$${guardPrefix}_history_after$;
 COMMIT;
 `;
-  return `${before}${guard}${body}${history}`;
+  const sql = `${before}${guard}${body}${history}`;
+  // Last line of defence before the payload leaves the process: whatever the canonical body
+  // contained, the statement this executor is about to run may not register Social.
+  assert(!sql.includes(`VALUES ('${SOCIAL_VERSION}'`), 'SOCIAL_FORBIDDEN',
+    'Generated SQL must never register the Social migration.');
+  return sql;
 }
 
 const escapeRegExp = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -767,21 +943,31 @@ export async function runPsql({ connection, sql, psql = 'psql', spawnFn = spawn 
 }
 
 export function buildExecutionDryRun(contract) {
-  const token = approvalTokenForPlan(contract.plan);
+  const stage = contract.contract;
+  const token = approvalTokenForPlan(contract.plan, stage.stage);
   return {
     schemaVersion: 1,
     operation: 'would-apply-single-migration',
+    stage: stage.stage,
     projectRef: AUTHORIZED_STAGING_REF,
     repositorySha: contract.expectedRepositorySha,
     planId: contract.plan.planId,
     snapshotSha256: contract.plan.snapshotSha256,
     manifestSha256: contract.plan.manifestSha256,
     migration: {
-      version: A1_VERSION,
-      file: A1_FILE,
-      sha256: A1_CHECKSUM,
+      version: stage.version,
+      file: stage.file,
+      sha256: stage.checksum,
+      rollback: stage.rollback,
+      rollbackSha256: stage.rollbackChecksum,
+      requiresAppliedBefore: [...stage.requiresAppliedBefore],
       selectionCount: 1,
     },
+    // Named explicitly so a reviewer of the dry-run can see that Social is still pending and is not
+    // part of this execution.
+    notSelected: contract.plan.migrations.pending
+      .map((item) => item.version)
+      .filter((version) => version !== stage.version),
     historyBefore: contract.historyBefore,
     historyAfter: contract.historyAfter,
     timeouts: contract.execution.timeouts,
@@ -804,17 +990,20 @@ export function buildExecutionDryRun(contract) {
 
 export function buildReceipt({ contract, verification }) {
   assert(verification?.history === 'HISTORY_OK', 'VERIFY_HISTORY', 'Receipt requires exact verified history.');
+  const stage = contract.contract;
   const core = {
     schemaVersion: 1,
     operation: 'apply-single-migration',
-    stage: 'A1',
+    stage: stage.stage,
     repositorySha: contract.expectedRepositorySha,
     projectRef: AUTHORIZED_STAGING_REF,
     planId: contract.plan.planId,
     snapshotSha256: contract.plan.snapshotSha256,
     manifestSha256: contract.plan.manifestSha256,
-    migrationVersion: A1_VERSION,
-    migrationChecksum: A1_CHECKSUM,
+    migrationVersion: stage.version,
+    migrationChecksum: stage.checksum,
+    rollback: stage.rollback,
+    rollbackChecksum: stage.rollbackChecksum,
     historyBefore: contract.historyBefore,
     historyAfter: contract.historyAfter,
     timeouts: contract.execution.timeouts,
