@@ -62,19 +62,38 @@ test('repository binding is dynamic, exact, based on the epic, and includes PRs 
   }));
 });
 
-test('A1 has exact bounded session timeouts and later migrations remain blocked', () => {
+test('A1 and A2 have exact bounded session timeouts and Social remains blocked', () => {
   const [a1, a2, social] = manifest.migrationPolicy.migrations;
+  // A1 keeps its historical contract byte for byte.
   assert.deepEqual(a1.execution.timeouts, {
     lockTimeoutMs: 5000,
     statementTimeoutMs: 120000,
     idleInTransactionSessionTimeoutMs: 60000,
   });
+  assert.equal(a1.execution.authorizedStage, 'A1');
   assert.equal(a1.execution.transactionRequired, true);
   assert.equal(a1.execution.onErrorStop, true);
   assert.equal(a1.execution.applicationName, 'arma2-torneos-a1-migrate');
   assert.equal(a1.execution.singleMigrationOnly, true);
-  assert.equal(a2.execution.blocked, true);
+  assert.deepEqual(a1.execution.requiresAppliedBefore, []);
+  // A2 is authorized as its own stage, with its own application name and timeouts, and depends on
+  // A1 having been applied first.
+  assert.equal(a2.execution.authorizedStage, 'A2');
+  assert.deepEqual(a2.execution.timeouts, {
+    lockTimeoutMs: 5000,
+    statementTimeoutMs: 180000,
+    idleInTransactionSessionTimeoutMs: 60000,
+  });
+  assert.equal(a2.execution.transactionRequired, true);
+  assert.equal(a2.execution.onErrorStop, true);
+  assert.equal(a2.execution.applicationName, 'arma2-torneos-a2-migrate');
+  assert.equal(a2.execution.singleMigrationOnly, true);
+  assert.deepEqual(a2.execution.requiresAppliedBefore, ['20260802090000']);
+  assert.notEqual(a2.execution.applicationName, a1.execution.applicationName);
+  // Social is still outside every authorized stage.
   assert.equal(social.execution.blocked, true);
+  assert.equal(social.execution.authorizedStage, null);
+  assert.equal(social.execution.reason, 'outside-authorized-stages');
 });
 
 test('missing, zero, negative, or over-limit A1 timeouts abort', () => {
