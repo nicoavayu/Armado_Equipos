@@ -3,10 +3,11 @@
   "$id": "https://arma2.local/schemas/torneos-staging-readiness-v2.json",
   "title": "Arma2 Torneos staging readiness manifest",
   "type": "object",
-  "required": ["schemaVersion", "repository", "environment", "stages", "migrationPolicy", "storage", "edgeFunctions", "configuration", "worker", "flags", "qa", "rollback", "observability", "approvals"],
+  "required": ["schemaVersion", "authorizedStages", "repository", "environment", "stages", "migrationPolicy", "storage", "edgeFunctions", "configuration", "worker", "flags", "qa", "rollback", "observability", "approvals"],
   "properties": {
     "schemaVersion": { "const": 2 },
-    "status": { "const": "a1-execution-contract-local-only" },
+    "status": { "const": "a1-a2-execution-contract-local-only" },
+    "authorizedStages": { "const": ["A1", "A2"] },
     "repository": {
       "type": "object",
       "required": ["branch", "baseBranch", "authorizedHeadArgumentRequired", "requiredMergedPrs", "requiredMergeCommits", "requireCleanWorktree"],
@@ -41,21 +42,48 @@
         "migrations": {
           "type": "array", "minItems": 3, "maxItems": 3,
           "items": {
-            "type": "object", "required": ["order", "version", "file", "sha256", "execution"],
+            "type": "object", "required": ["order", "version", "file", "sha256", "rollback", "risk", "execution"],
             "properties": {
               "version": { "type": "string", "pattern": "^[0-9]{14}$" },
               "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+              "rollback": { "type": "string", "pattern": "^supabase/rollbacks/[0-9]{14}_[a-z0-9_]+\\.safe\\.sql$" },
+              "risk": { "enum": ["low", "medium", "high"] },
               "execution": {
                 "oneOf": [
                   {
                     "type": "object", "additionalProperties": false,
-                    "required": ["authorizedStage", "singleMigrationOnly", "transactionRequired", "onErrorStop", "applicationName", "projectRef", "repositoryShaSource", "checksumRequired", "versionRequired", "snapshotRequired", "planRequired", "historyBeforeSource", "historyAfterRule", "concurrentMigrations", "postApplyPause", "timeouts"],
+                    "required": ["authorizedStage", "singleMigrationOnly", "transactionRequired", "onErrorStop", "applicationName", "projectRef", "repositoryShaSource", "checksumRequired", "versionRequired", "rollbackRequired", "snapshotRequired", "planRequired", "historyBeforeSource", "historyAfterRule", "requiresAppliedBefore", "concurrentMigrations", "postApplyPause", "timeouts"],
+                    "allOf": [
+                      {
+                        "if": { "properties": { "authorizedStage": { "const": "A1" } } },
+                        "then": {
+                          "properties": {
+                            "applicationName": { "const": "arma2-torneos-a1-migrate" },
+                            "requiresAppliedBefore": { "const": [] }
+                          }
+                        }
+                      },
+                      {
+                        "if": { "properties": { "authorizedStage": { "const": "A2" } } },
+                        "then": {
+                          "properties": {
+                            "applicationName": { "const": "arma2-torneos-a2-migrate" },
+                            "requiresAppliedBefore": { "const": ["20260802090000"] }
+                          }
+                        }
+                      }
+                    ],
                     "properties": {
-                      "authorizedStage": { "const": "A1" },
+                      "authorizedStage": { "enum": ["A1", "A2"] },
+                      "rollbackRequired": { "const": true },
+                      "requiresAppliedBefore": {
+                        "type": "array", "uniqueItems": true,
+                        "items": { "type": "string", "pattern": "^[0-9]{14}$" }
+                      },
                       "singleMigrationOnly": { "const": true },
                       "transactionRequired": { "const": true },
                       "onErrorStop": { "const": true },
-                      "applicationName": { "type": "string", "minLength": 1, "maxLength": 63 },
+                      "applicationName": { "enum": ["arma2-torneos-a1-migrate", "arma2-torneos-a2-migrate"] },
                       "projectRef": { "type": "string", "pattern": "^[a-z]{20}$" },
                       "repositoryShaSource": { "const": "authorized-argument-must-match-head" },
                       "checksumRequired": { "const": true },
@@ -83,7 +111,7 @@
                     "properties": {
                       "authorizedStage": { "type": "null" },
                       "blocked": { "const": true },
-                      "reason": { "const": "outside-a1" }
+                      "reason": { "const": "outside-authorized-stages" }
                     }
                   }
                 ]

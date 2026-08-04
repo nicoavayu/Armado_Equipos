@@ -9,6 +9,10 @@ export const STAGE_NAMES = Object.freeze([
   'qa-multimedia', 'enable-social', 'qa-social', 'rollback', 'cleanup-local',
 ]);
 
+// The closed set of migration stages a manifest may authorize for execution. Social is deliberately
+// absent: it can only become executable through a reviewed change to this list.
+export const AUTHORIZED_MANIFEST_STAGES = Object.freeze(['A1', 'A2']);
+
 export class ReadinessError extends Error {
   constructor(code, message, details = {}) {
     super(message);
@@ -122,6 +126,10 @@ export function validateManifest({ repoRoot = process.cwd(), manifest = loadMani
     assert(fileDigest(repoRoot, migration.file) === migration.sha256,
       'MIGRATION_CHECKSUM', `${migration.file} checksum differs from manifest.`);
     assert(fs.existsSync(path.join(repoRoot, migration.rollback)), 'ROLLBACK_MISSING', `${migration.rollback} is missing.`);
+    // The rollback is pinned by content, not only by path: a stage may not be authorized against a
+    // rollback that was edited after the manifest declared it.
+    assert(fileDigest(repoRoot, migration.rollback) === migration.rollbackSha256,
+      'ROLLBACK_CHECKSUM', `${migration.rollback} checksum differs from manifest.`);
     const rollbackSql = stripSqlComments(fs.readFileSync(path.join(repoRoot, migration.rollback), 'utf8'));
     assert(!/\b(?:drop|truncate)\b/i.test(rollbackSql) && !/\bdelete\s+from\b/i.test(rollbackSql),
       'ROLLBACK_DESTRUCTIVE', `${migration.rollback} contains automatic destructive SQL.`);
@@ -143,32 +151,62 @@ export function validateManifest({ repoRoot = process.cwd(), manifest = loadMani
     assert(Number.isInteger(limits?.[name]) && limits[name] > 0 && limits[name] === maximum,
       'MIGRATION_TIMEOUT_LIMIT', `${name} limit is missing or invalid.`);
   }
-  const a1 = migrations[0];
-  const execution = a1.execution;
-  assert(execution.authorizedStage === 'A1' && execution.singleMigrationOnly === true
-    && execution.transactionRequired === true && execution.onErrorStop === true
-    && execution.applicationName === 'arma2-torneos-a1-migrate'
-    && execution.projectRef === manifest.environment.authorizedProjectRef
-    && execution.repositoryShaSource === 'authorized-argument-must-match-head'
-    && execution.checksumRequired === true && execution.versionRequired === true
-    && execution.snapshotRequired === true && execution.planRequired === true
-    && execution.historyBeforeSource === 'snapshot-exact'
-    && execution.historyAfterRule === 'history-before-plus-this-version'
-    && execution.concurrentMigrations === 'abort' && execution.postApplyPause === true,
-  'MIGRATION_EXECUTION_CONTRACT', 'A1 execution contract is incomplete.');
-  const expectedTimeouts = {
-    lockTimeoutMs: 5000,
-    statementTimeoutMs: 120000,
-    idleInTransactionSessionTimeoutMs: 60000,
+  // The authorized stages are a closed set declared by the manifest itself. Every migration is
+  // either bound to exactly one of them or explicitly blocked; there is no third state and no free
+  // stage value, so authorizing a new migration is always a reviewable manifest change.
+  assert(canonicalJson(manifest.authorizedStages) === canonicalJson(AUTHORIZED_MANIFEST_STAGES),
+    'MANIFEST_STAGE_ALLOWLIST', 'Authorized stage allowlist differs from the execution contract.');
+  const stageContract = {
+    A1: {
+      migrationIndex: 0,
+      applicationName: 'arma2-torneos-a1-migrate',
+      requiresAppliedBefore: [],
+      timeouts: { lockTimeoutMs: 5000, statementTimeoutMs: 120000, idleInTransactionSessionTimeoutMs: 60000 },
+    },
+    A2: {
+      migrationIndex: 1,
+      applicationName: 'arma2-torneos-a2-migrate',
+      requiresAppliedBefore: ['20260802090000'],
+      timeouts: { lockTimeoutMs: 5000, statementTimeoutMs: 180000, idleInTransactionSessionTimeoutMs: 60000 },
+    },
   };
-  for (const [name, expected] of Object.entries(expectedTimeouts)) {
-    const value = execution.timeouts?.[name];
-    assert(Number.isInteger(value) && value > 0 && value <= limits[name] && value === expected,
-      'MIGRATION_TIMEOUT', `${name} must equal the authorized A1 value.`);
+  for (const [stage, contract] of Object.entries(stageContract)) {
+    const migration = migrations[contract.migrationIndex];
+    const execution = migration.execution;
+    assert(execution.authorizedStage === stage && execution.singleMigrationOnly === true
+      && execution.transactionRequired === true && execution.onErrorStop === true
+      && execution.applicationName === contract.applicationName
+      && execution.projectRef === manifest.environment.authorizedProjectRef
+      && execution.repositoryShaSource === 'authorized-argument-must-match-head'
+      && execution.checksumRequired === true && execution.versionRequired === true
+      && execution.rollbackRequired === true
+      && execution.snapshotRequired === true && execution.planRequired === true
+      && execution.historyBeforeSource === 'snapshot-exact'
+      && execution.historyAfterRule === 'history-before-plus-this-version'
+      && canonicalJson(execution.requiresAppliedBefore) === canonicalJson(contract.requiresAppliedBefore)
+      && execution.concurrentMigrations === 'abort' && execution.postApplyPause === true,
+    'MIGRATION_EXECUTION_CONTRACT', `${stage} execution contract is incomplete.`);
+    for (const [name, expected] of Object.entries(contract.timeouts)) {
+      const value = execution.timeouts?.[name];
+      assert(Number.isInteger(value) && value > 0 && value <= limits[name] && value === expected,
+        'MIGRATION_TIMEOUT', `${name} must equal the authorized ${stage} value.`);
+    }
+    // A stage may only require predecessors that the manifest itself declares, and only ones that
+    // sort strictly before it, so no entry can authorize itself or depend on a later migration.
+    for (const predecessor of execution.requiresAppliedBefore) {
+      const declared = migrations.find((item) => item.version === predecessor);
+      assert(declared && declared.order < migration.order, 'MIGRATION_PREDECESSOR',
+        `${stage} declares a predecessor that is not an earlier manifest migration.`);
+    }
   }
-  assert(migrations.slice(1).every((migration) => migration.execution?.blocked === true
-    && migration.execution.authorizedStage === null && migration.execution.reason === 'outside-a1'),
-  'MIGRATION_SCOPE', 'A2 and Social must remain explicitly blocked.');
+  const socialMigration = migrations[2];
+  assert(socialMigration.execution?.blocked === true
+    && socialMigration.execution.authorizedStage === null
+    && socialMigration.execution.reason === 'outside-authorized-stages',
+  'MIGRATION_SCOPE', 'Social must remain explicitly blocked.');
+  assert(migrations.filter((item) => item.execution?.authorizedStage !== null
+    && item.execution?.authorizedStage !== undefined).length === AUTHORIZED_MANIFEST_STAGES.length,
+  'MIGRATION_SCOPE', 'Exactly the authorized stages may carry an execution authorization.');
 
   const storage = manifest.storage;
   assert(storage.bucket === 'tournament-media' && storage.public === false,
