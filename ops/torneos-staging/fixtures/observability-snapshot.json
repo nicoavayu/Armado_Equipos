@@ -1,0 +1,46 @@
+{
+  "fixtureVersion": 1,
+  "note": "Deterministic healthy snapshot. Local only: no collector ran, nothing was contacted. Shapes the contract the real collectors must produce.",
+  "collectedAt": "2099-01-01T00:00:00.000Z",
+  "database": {
+    "quarantineDepth": 2,
+    "quarantineDepthSustainedSeconds": 3600,
+    "queueDepth": 1,
+    "queueDepthSustainedSeconds": 3600,
+    "oldestJobAgeSeconds": 12,
+    "oldestJobAgeSecondsSustainedSeconds": 3600,
+    "expiredLeases": 0,
+    "expiredLeasesSustainedSeconds": 3600,
+    "stuckLeaseAgeSeconds": 0,
+    "stuckLeaseAgeSecondsSustainedSeconds": 3600,
+    "signerAttestationExpiresInSeconds": 2900,
+    "processorAttestationExpiresInSeconds": 780,
+    "clamavSignatureAgeSeconds": 7200,
+    "uploadFailureRatio": 0,
+    "uploadFailureRatioSustainedSeconds": 3600,
+    "uploadReady": 1,
+    "uploadReadySustainedSeconds": 3600
+  },
+  "storage": {
+    "residualProbeObjects": 0,
+    "residualProbeObjectsSustainedSeconds": 3600,
+    "residualSelfTestObjects": 0,
+    "residualSelfTestObjectsSustainedSeconds": 3600
+  },
+  "runtime": {
+    "attestationRenewalConsecutiveFailures": 0,
+    "selfTestFailures15m": 0,
+    "cleanupFailures30m": 0,
+    "signerLatencyP95Ms": 240,
+    "signerLatencyP95MsSustainedSeconds": 3600,
+    "signerErrorRatio": 0,
+    "signerErrorRatioSustainedSeconds": 3600,
+    "processorLatencyP95Ms": 180,
+    "processorLatencyP95MsSustainedSeconds": 3600,
+    "processorErrorRatio": 0,
+    "processorErrorRatioSustainedSeconds": 3600
+  },
+  "readiness": {
+    "migrationDrift": 0
+  }
+}

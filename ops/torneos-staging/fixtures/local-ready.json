@@ -38,6 +38,13 @@
     "attested": false
   },
   "readiness": { "uploadReady": false, "signerAttested": false, "processorAttested": false },
-  "flags": { "multimedia": false, "social": false, "production": false },
+  "signerAttestationRenewer": { "deployed": false, "lastRenewalOutcome": null, "consecutiveFailures": 0 },
+  "observability": {
+    "signalsDeployed": false,
+    "validatedInStaging": false,
+    "missingRequiredSignals": [],
+    "catalogMetrics": 20
+  },
+  "flags": { "multimedia": false, "social": false, "production": false, "observabilityReady": false },
   "qaReceipts": { "multimedia": false, "social": false }
 }

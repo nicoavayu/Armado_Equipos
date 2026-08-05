@@ -179,7 +179,12 @@
       "sha256": "18f938a55e9fd76daee6b2050bf1dba55276a1340d6a88ed396370d694360386",
       "verifyJwt": true,
       "deployOrder": 1,
-      "healthContract": "self-test action plus signer attestation",
+      "healthContract": "probes the private bucket end to end (signed upload, write, signed read, fetch, delete) and writes the signer attestation from what the probe actually demonstrated",
+      "healthAuthorization": "x-media-attestation-secret",
+      "attests": ["signer"],
+      "revokesOnHealth": [],
+      "attestationTtlSeconds": 3600,
+      "attestationRenewal": "external-scheduler-required",
       "rollback": "restore previous recorded release; otherwise revoke attestation and undeploy only with separate approval"
     },
     {
@@ -189,10 +194,47 @@
       "sha256": "8da07322db6fa88c989fdf3a65d3c0d7067bac72ab0ede397cea1974fdc7d4d5",
       "verifyJwt": true,
       "deployOrder": 2,
-      "healthContract": "self-test action plus processor attestation",
+      "healthContract": "structural pre-flight only; REVOKES any stale processor attestation and never writes one. The Edge runtime has no libvips and no ClamAV, so it cannot pass the processor self-test and is not on the worker type allowlist",
+      "healthAuthorization": "x-media-attestation-secret",
+      "attests": [],
+      "revokesOnHealth": ["processor"],
+      "attestationTtlSeconds": null,
+      "attestationRenewal": "not-applicable",
+      "processorAttestationOwner": "workers/tournament-media-processor",
       "rollback": "restore previous recorded release; otherwise revoke attestation and undeploy only with separate approval"
     }
   ],
+  "signerAttestationRenewal": {
+    "required": true,
+    "reason": "the signer only attests while answering its own health probe, so its 3600s attestation cannot renew itself the way the worker loop renews the processor's",
+    "path": "workers/tournament-media-signer-renewer",
+    "entrypoint": "workers/tournament-media-signer-renewer/src/cli.mjs",
+    "runbook": "docs/operations/tournament-media-signer-attestation-renewal.md",
+    "attestationTtlSeconds": 3600,
+    "intervalSeconds": 1200,
+    "jitterRatio": 0.1,
+    "timeoutMs": 10000,
+    "maxAttempts": 3,
+    "backoffBaseMs": 2000,
+    "backoffMaxMs": 30000,
+    "safetyMarginSeconds": 900,
+    "alertAfterConsecutiveFailures": 2,
+    "idempotent": true,
+    "failClosed": "no code path extends, forges or preserves an attestation; the TTL expiring is the enforcement",
+    "holdsServiceCredential": false,
+    "secretExposure": "attestation secret stays in the worker host secret store; never in the database, never in CI, never in a public endpoint",
+    "scheduler": {
+      "configuredInThisChange": false,
+      "deployedInThisChange": false,
+      "stagingOwner": "the host/orchestrator that already runs workers/tournament-media-processor in Staging, as a sidecar service",
+      "productionOwner": "not applicable while Multimedia is forced false in production; same sidecar pattern and a distinct secret when it exists",
+      "rejectedAlternatives": [
+        "pg_cron plus pg_net, because the attestation secret would have to live inside the database",
+        "GitHub Actions cron, because it moves the secret into CI and its schedule granularity does not fit a 3600s window",
+        "any publicly callable renewal endpoint, because a renewal without the secret turns the attestation into a rubber stamp"
+      ]
+    }
+  },
   "configuration": {
     "variables": ["SUPABASE_URL"],
     "secretAlternatives": [
@@ -224,15 +266,20 @@
     "idempotency": "database idempotency key plus lease token",
     "health": "self-test must prove decode, transcode, metadata stripping, antivirus, storage and cleanup",
     "attestationTtlSeconds": 900,
+    "attestationRenewalIntervalSeconds": 300,
+    "attestationRenewedBy": "its own loop; the worker re-attests at a third of the TTL",
+    "serviceCredentialReview": "docs/operations/tournament-media-service-role-review.md",
     "safeShutdown": "stop leasing, finish current job, revoke attestation"
   },
   "flags": {
     "productionForcedFalse": true,
     "initial": {
       "REACT_APP_TORNEOS_MEDIA_UPLOAD_ENABLED": false,
-      "REACT_APP_TORNEOS_SOCIAL_GENERATOR_ENABLED": false
+      "REACT_APP_TORNEOS_SOCIAL_GENERATOR_ENABLED": false,
+      "REACT_APP_TORNEOS_MEDIA_OBSERVABILITY_READY": false
     },
     "multimediaRequiresUploadReady": true,
+    "multimediaRequiresObservability": true,
     "socialRequiresMultimediaQa": true,
     "enableOrder": ["multimedia", "qa-multimedia", "social", "qa-social"]
   },
@@ -258,7 +305,40 @@
   "observability": {
     "structuredLogs": true,
     "sanitize": ["tokens", "keys", "signed-urls", "identity-maps", "credentials"],
-    "requiredSignals": ["migration-drift", "quarantine-depth", "job-age", "worker-health", "clamav-signature-age", "attestation-expiry", "upload-errors"]
+    "catalog": "ops/torneos-staging/observability/catalog.json",
+    "query": "ops/torneos-staging/observability/media-pipeline-signals.sql",
+    "runbook": "docs/operations/tournament-media-observability.md",
+    "browserFlag": "REACT_APP_TORNEOS_MEDIA_OBSERVABILITY_READY",
+    "signalsDeployedInStaging": false,
+    "validatedInStaging": false,
+    "flagMustRemainFalseUntilValidated": true,
+    "requiredSignals": [
+      "migration-drift",
+      "quarantine-depth",
+      "queue-depth",
+      "job-age",
+      "expired-leases",
+      "stuck-leases",
+      "worker-health",
+      "clamav-signature-age",
+      "attestation-expiry",
+      "attestation-renewal-failures",
+      "selftest-failures",
+      "cleanup-failures",
+      "residual-probe-objects",
+      "residual-selftest-objects",
+      "signer-latency",
+      "signer-error-rate",
+      "processor-latency",
+      "processor-error-rate",
+      "upload-errors"
+    ]
+  },
+  "authorizedStagesProposal": {
+    "applied": false,
+    "document": "docs/operations/torneos-authorized-stages-proposal.md",
+    "proposedStages": ["A3", "A4", "A5", "A6"],
+    "note": "Prepared for review only. `authorizedStages` above stays ['A1','A2'] and every deploy/enablement stage stays outside the executable allowlist until this proposal is approved as its own change."
   },
   "approvals": {
     "humanBeforeMutation": true,

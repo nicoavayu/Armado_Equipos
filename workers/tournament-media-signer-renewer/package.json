@@ -1,0 +1,19 @@
+{
+  "name": "arma2-tournament-media-signer-renewer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Scheduled renewal of the Arma2 Torneos media signer attestation. No service credential, fail-closed, not deployed by this repository.",
+  "engines": {
+    "node": "22.x"
+  },
+  "bin": {
+    "tournament-media-signer-renewer": "./src/cli.mjs"
+  },
+  "scripts": {
+    "start": "node src/cli.mjs",
+    "renew:once": "node src/cli.mjs --once",
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {}
+}

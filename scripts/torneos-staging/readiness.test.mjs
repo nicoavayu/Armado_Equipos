@@ -15,7 +15,9 @@ import {
   readJson,
   simulateStage,
   stageAuthorization,
+  validateAttestationContract,
   validateManifest,
+  validateObservabilityContract,
   validateRepositoryBinding,
   validateStageReadiness,
   validateState,
@@ -226,6 +228,20 @@ const readyState = () => {
   return state;
 };
 
+/**
+ * The state an operator would have AFTER deploying and validating the signals
+ * in Staging. It is deliberately not the default: every enablement test has to
+ * opt into it, so a regression that drops the gate shows up as a passing test
+ * that should have failed.
+ */
+const observedState = (state) => {
+  state.observability = {
+    signalsDeployed: true, validatedInStaging: true, missingRequiredSignals: [], catalogMetrics: 20,
+  };
+  state.flags.observabilityReady = true;
+  return state;
+};
+
 test('missing secret name aborts before Edge deploy', () => {
   const state = readyState();
   state.availableSecretNames = ['SUPABASE_SECRET_KEYS'];
@@ -255,6 +271,7 @@ test('uploadReady=false and Social-before-Multimedia both abort', () => {
   const state = readyState();
   expectCode('UPLOAD_NOT_READY', () => validateStageReadiness({ manifest, state, stage: 'enable-multimedia' }));
   state.readiness.uploadReady = true;
+  observedState(state);
   expectCode('SOCIAL_ORDER', () => validateStageReadiness({ manifest, state, stage: 'enable-social' }));
 });
 
@@ -317,4 +334,211 @@ test('Production flag always aborts stage readiness', () => {
   const state = readyState();
   state.flags.production = true;
   expectCode('PRODUCTION_FLAG', () => validateStageReadiness({ manifest, state, stage: 'worker-check' }));
+});
+
+// --- attestation contract: the manifest may not describe code that does not exist
+
+test('the manifest describes the real attestation behaviour of both Edge Functions', () => {
+  const [signer, processor] = manifest.edgeFunctions;
+  assert.deepEqual(signer.attests, ['signer']);
+  assert.deepEqual(signer.revokesOnHealth, []);
+  assert.equal(signer.attestationTtlSeconds, 3600);
+  // The drift the audit found: the processor health does NOT certify the
+  // processor tier. It revokes a stale attestation and writes none.
+  assert.deepEqual(processor.attests, []);
+  assert.deepEqual(processor.revokesOnHealth, ['processor']);
+  assert.equal(processor.attestationTtlSeconds, null);
+  assert.equal(processor.processorAttestationOwner, 'workers/tournament-media-processor');
+  assert.match(processor.healthContract, /REVOKES/);
+  assert.doesNotMatch(processor.healthContract, /processor attestation$/);
+  assert.equal(validateAttestationContract({ repoRoot: ROOT, manifest }).ok, true);
+});
+
+test('a manifest that claims the processor attests is rejected against the source', () => {
+  const changed = clone(manifest);
+  changed.edgeFunctions[1].attests = ['processor'];
+  expectCode('ATTESTATION_CONTRACT', () => validateManifest({ repoRoot: ROOT, manifest: changed }));
+
+  const claimsTtl = clone(manifest);
+  claimsTtl.edgeFunctions[1].attestationTtlSeconds = 900;
+  expectCode('ATTESTATION_TTL', () => validateManifest({ repoRoot: ROOT, manifest: claimsTtl }));
+
+  const dropsRevocation = clone(manifest);
+  dropsRevocation.edgeFunctions[1].revokesOnHealth = [];
+  expectCode('ATTESTATION_CONTRACT', () => validateManifest({ repoRoot: ROOT, manifest: dropsRevocation }));
+
+  const wrongSignerTtl = clone(manifest);
+  wrongSignerTtl.edgeFunctions[0].attestationTtlSeconds = 7200;
+  expectCode('ATTESTATION_TTL', () => validateManifest({ repoRoot: ROOT, manifest: wrongSignerTtl }));
+});
+
+test('the signer renewal contract renews before expiry, alerts in time and holds no service credential', () => {
+  const renewal = manifest.signerAttestationRenewal;
+  assert.equal(renewal.required, true);
+  assert.equal(renewal.attestationTtlSeconds, 3600);
+  assert.ok(renewal.intervalSeconds * (1 + renewal.jitterRatio) < renewal.attestationTtlSeconds / 2);
+  assert.ok(renewal.alertAfterConsecutiveFailures * renewal.intervalSeconds < renewal.attestationTtlSeconds);
+  assert.equal(renewal.idempotent, true);
+  assert.equal(renewal.holdsServiceCredential, false);
+  assert.ok(renewal.timeoutMs > 0 && renewal.maxAttempts >= 1);
+  assert.ok(renewal.backoffMaxMs >= renewal.backoffBaseMs);
+
+  const slow = clone(manifest);
+  slow.signerAttestationRenewal.intervalSeconds = 3000;
+  expectCode('ATTESTATION_RENEWAL_UNSAFE', () => validateManifest({ repoRoot: ROOT, manifest: slow }));
+
+  const lateAlert = clone(manifest);
+  lateAlert.signerAttestationRenewal.alertAfterConsecutiveFailures = 4;
+  expectCode('ATTESTATION_RENEWAL_UNSAFE', () => validateManifest({ repoRoot: ROOT, manifest: lateAlert }));
+
+  const privileged = clone(manifest);
+  privileged.signerAttestationRenewal.holdsServiceCredential = true;
+  expectCode('ATTESTATION_RENEWAL', () => validateManifest({ repoRoot: ROOT, manifest: privileged }));
+});
+
+test('the renewal scheduler stays unconfigured and undeployed, and names its owners', () => {
+  const { scheduler } = manifest.signerAttestationRenewal;
+  assert.equal(scheduler.configuredInThisChange, false);
+  assert.equal(scheduler.deployedInThisChange, false);
+  assert.ok(scheduler.stagingOwner.length > 10);
+  assert.ok(scheduler.productionOwner.length > 10);
+  assert.ok(scheduler.rejectedAlternatives.some((entry) => /pg_cron/.test(entry)),
+    'the alternative that would expose the secret has to be recorded as rejected');
+  for (const field of ['configuredInThisChange', 'deployedInThisChange']) {
+    const changed = clone(manifest);
+    changed.signerAttestationRenewal.scheduler[field] = true;
+    expectCode('ATTESTATION_RENEWAL_SCOPE', () => validateManifest({ repoRoot: ROOT, manifest: changed }));
+  }
+});
+
+// --- observability ---------------------------------------------------------
+
+test('every required signal has a metric, and every catalog metric is required', () => {
+  const result = validateObservabilityContract({ repoRoot: ROOT, manifest });
+  assert.equal(result.ok, true);
+  const catalog = readJson(path.join(ROOT, manifest.observability.catalog));
+  const signals = new Set(catalog.metrics.map(({ signal }) => signal));
+  for (const required of manifest.observability.requiredSignals) {
+    assert.ok(signals.has(required), `${required} has no metric`);
+  }
+  for (const signal of signals) {
+    assert.ok(manifest.observability.requiredSignals.includes(signal), `${signal} is not required`);
+  }
+  // The minimum the audit demanded, by name.
+  for (const signal of [
+    'quarantine-depth', 'queue-depth', 'job-age', 'expired-leases', 'stuck-leases',
+    'attestation-expiry', 'clamav-signature-age', 'selftest-failures', 'cleanup-failures',
+    'residual-probe-objects', 'residual-selftest-objects',
+    'signer-latency', 'signer-error-rate', 'processor-latency', 'processor-error-rate',
+  ]) {
+    assert.ok(signals.has(signal), `${signal} is missing from the catalog`);
+  }
+});
+
+test('a required signal without a metric, or a metric nobody requires, aborts', () => {
+  const orphanSignal = clone(manifest);
+  orphanSignal.observability.requiredSignals.push('signal-nobody-implemented');
+  expectCode('OBSERVABILITY_SIGNAL_MISSING',
+    () => validateManifest({ repoRoot: ROOT, manifest: orphanSignal }));
+
+  const droppedSignal = clone(manifest);
+  droppedSignal.observability.requiredSignals = droppedSignal.observability.requiredSignals
+    .filter((signal) => signal !== 'queue-depth');
+  expectCode('OBSERVABILITY_SIGNAL_UNDECLARED',
+    () => validateManifest({ repoRoot: ROOT, manifest: droppedSignal }));
+});
+
+test('the observability flag stays closed until the signals are deployed and validated', () => {
+  assert.equal(manifest.observability.validatedInStaging, false);
+  assert.equal(manifest.observability.signalsDeployedInStaging, false);
+  assert.equal(manifest.flags.initial.REACT_APP_TORNEOS_MEDIA_OBSERVABILITY_READY, false);
+  assert.equal(manifest.flags.multimediaRequiresObservability, true);
+
+  // Opening the flag while the signals are not validated is a manifest error.
+  const openedFlag = clone(manifest);
+  openedFlag.flags.initial.REACT_APP_TORNEOS_MEDIA_OBSERVABILITY_READY = true;
+  expectCode('OBSERVABILITY_FLAG_OPEN', () => validateManifest({ repoRoot: ROOT, manifest: openedFlag }));
+
+  // And so is claiming validation in only one of the two places.
+  const halfClaimed = clone(manifest);
+  halfClaimed.observability.validatedInStaging = true;
+  expectCode('OBSERVABILITY_STATE_DRIFT', () => validateManifest({ repoRoot: ROOT, manifest: halfClaimed }));
+});
+
+test('enablement stages abort while observability is not deployed and validated', () => {
+  for (const stage of ['enable-multimedia', 'qa-multimedia', 'enable-social', 'qa-social']) {
+    const state = readyState();
+    state.readiness.uploadReady = true;
+    state.qaReceipts.multimedia = true;
+    expectCode('OBSERVABILITY_NOT_VALIDATED',
+      () => validateStageReadiness({ manifest, state, stage }));
+  }
+  // Deployed but not validated is still closed.
+  const halfway = readyState();
+  halfway.readiness.uploadReady = true;
+  halfway.observability = { signalsDeployed: true, validatedInStaging: false, missingRequiredSignals: [] };
+  expectCode('OBSERVABILITY_NOT_VALIDATED',
+    () => validateStageReadiness({ manifest, state: halfway, stage: 'enable-multimedia' }));
+
+  // Validated but with a signal reporting nothing is closed too: fail-closed on
+  // absence, not "mostly observable".
+  const incomplete = observedState(readyState());
+  incomplete.readiness.uploadReady = true;
+  incomplete.observability.missingRequiredSignals = ['arma2_torneos_media_queue_depth'];
+  expectCode('OBSERVABILITY_INCOMPLETE',
+    () => validateStageReadiness({ manifest, state: incomplete, stage: 'enable-multimedia' }));
+
+  // Signals validated but the browser flag still closed is also a stop.
+  const flagClosed = observedState(readyState());
+  flagClosed.readiness.uploadReady = true;
+  flagClosed.flags.observabilityReady = false;
+  expectCode('OBSERVABILITY_FLAG_CLOSED',
+    () => validateStageReadiness({ manifest, state: flagClosed, stage: 'enable-multimedia' }));
+
+  // With everything in place the stage is allowed.
+  const ready = observedState(readyState());
+  ready.readiness.uploadReady = true;
+  assert.equal(validateStageReadiness({ manifest, state: ready, stage: 'enable-multimedia' }).ok, true);
+});
+
+test('simulated Multimedia enablement is impossible without validated observability', () => {
+  const state = readyState();
+  state.readiness = { uploadReady: true, signerAttested: true, processorAttested: true };
+  const plan = buildPlan({ repoRoot: ROOT, manifest, state: fixture(), repositorySha: HEAD });
+  expectCode('OBSERVABILITY_NOT_VALIDATED',
+    () => simulateStage({ manifest, plan, state, stage: 'enable-multimedia' }));
+  const observed = observedState(clone(state));
+  assert.equal(simulateStage({ manifest, plan, state: observed, stage: 'enable-multimedia' })
+    .state.flags.multimedia, true);
+});
+
+test('the inspected state may not open the flag ahead of the signals', () => {
+  rejectWithoutMutation('OBSERVABILITY_FLAG_DRIFT', (state) => {
+    state.flags.observabilityReady = true;
+  });
+  rejectWithoutMutation('OBSERVABILITY_STATE_DRIFT', (state) => {
+    state.observability.validatedInStaging = true;
+  });
+  rejectWithoutMutation('OBSERVABILITY_STATE_MISSING', (state) => {
+    delete state.observability.signalsDeployed;
+  });
+});
+
+// --- the stage allowlist stays closed --------------------------------------
+
+test('the authorized stage extension is a proposal, not an authorization', () => {
+  assert.deepEqual(manifest.authorizedStages, ['A1', 'A2']);
+  const proposal = manifest.authorizedStagesProposal;
+  assert.equal(proposal.applied, false);
+  assert.deepEqual(proposal.proposedStages, ['A3', 'A4', 'A5', 'A6']);
+  for (const stage of proposal.proposedStages) {
+    assert.ok(!manifest.authorizedStages.includes(stage), `${stage} must not be authorized yet`);
+  }
+  const applied = clone(manifest);
+  applied.authorizedStagesProposal.applied = true;
+  expectCode('STAGE_PROPOSAL_APPLIED', () => validateManifest({ repoRoot: ROOT, manifest: applied }));
+
+  const extended = clone(manifest);
+  extended.authorizedStages = ['A1', 'A2', 'A3'];
+  expectCode('MANIFEST_STAGE_ALLOWLIST', () => validateManifest({ repoRoot: ROOT, manifest: extended }));
 });

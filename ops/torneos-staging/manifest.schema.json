@@ -3,7 +3,7 @@
   "$id": "https://arma2.local/schemas/torneos-staging-readiness-v2.json",
   "title": "Arma2 Torneos staging readiness manifest",
   "type": "object",
-  "required": ["schemaVersion", "authorizedStages", "repository", "environment", "stages", "migrationPolicy", "storage", "edgeFunctions", "configuration", "worker", "flags", "qa", "rollback", "observability", "approvals"],
+  "required": ["schemaVersion", "authorizedStages", "repository", "environment", "stages", "migrationPolicy", "storage", "edgeFunctions", "signerAttestationRenewal", "configuration", "worker", "flags", "qa", "rollback", "observability", "authorizedStagesProposal", "approvals"],
   "properties": {
     "schemaVersion": { "const": 2 },
     "status": { "const": "a1-a2-execution-contract-local-only" },
@@ -122,13 +122,65 @@
       }
     },
     "storage": { "type": "object", "required": ["bucket", "public", "maxFileBytes", "allowedMimeTypes", "policies"] },
-    "edgeFunctions": { "type": "array", "minItems": 2, "maxItems": 2 },
+    "edgeFunctions": {
+      "type": "array", "minItems": 2, "maxItems": 2,
+      "items": {
+        "type": "object",
+        "required": ["name", "entrypoint", "sha256", "verifyJwt", "deployOrder", "healthContract", "attests", "revokesOnHealth", "attestationTtlSeconds"],
+        "properties": {
+          "attests": { "type": "array", "items": { "enum": ["signer", "processor"] }, "uniqueItems": true },
+          "revokesOnHealth": { "type": "array", "items": { "enum": ["signer", "processor"] }, "uniqueItems": true },
+          "attestationTtlSeconds": { "type": ["integer", "null"], "minimum": 60, "maximum": 86400 }
+        }
+      }
+    },
+    "signerAttestationRenewal": {
+      "type": "object",
+      "required": ["required", "path", "entrypoint", "runbook", "attestationTtlSeconds", "intervalSeconds", "jitterRatio", "timeoutMs", "maxAttempts", "backoffBaseMs", "backoffMaxMs", "safetyMarginSeconds", "alertAfterConsecutiveFailures", "idempotent", "failClosed", "holdsServiceCredential", "scheduler"],
+      "properties": {
+        "required": { "const": true },
+        "idempotent": { "const": true },
+        "holdsServiceCredential": { "const": false },
+        "intervalSeconds": { "type": "integer", "minimum": 60, "maximum": 43200 },
+        "jitterRatio": { "type": "number", "minimum": 0, "maximum": 0.5 },
+        "timeoutMs": { "type": "integer", "minimum": 1000, "maximum": 60000 },
+        "maxAttempts": { "type": "integer", "minimum": 1, "maximum": 6 },
+        "alertAfterConsecutiveFailures": { "type": "integer", "minimum": 1, "maximum": 10 },
+        "scheduler": {
+          "type": "object",
+          "required": ["configuredInThisChange", "deployedInThisChange", "stagingOwner", "productionOwner", "rejectedAlternatives"],
+          "properties": {
+            "configuredInThisChange": { "const": false },
+            "deployedInThisChange": { "const": false }
+          }
+        }
+      }
+    },
     "configuration": { "type": "object", "required": ["variables", "secretAlternatives", "secretValuesInManifest"] },
     "worker": { "type": "object", "required": ["nodeMajor", "sharpVersion", "clamavRequired", "maxSignatureAgeDays"] },
     "flags": { "type": "object", "required": ["productionForcedFalse", "initial", "enableOrder"] },
     "qa": { "type": "object", "required": ["matrix", "fixture"] },
     "rollback": { "type": "object", "required": ["automaticDataDeletion", "preserveUserData"] },
-    "observability": { "type": "object", "required": ["structuredLogs", "sanitize"] },
+    "observability": {
+      "type": "object",
+      "required": ["structuredLogs", "sanitize", "catalog", "query", "runbook", "browserFlag", "signalsDeployedInStaging", "validatedInStaging", "flagMustRemainFalseUntilValidated", "requiredSignals"],
+      "properties": {
+        "browserFlag": { "const": "REACT_APP_TORNEOS_MEDIA_OBSERVABILITY_READY" },
+        "flagMustRemainFalseUntilValidated": { "const": true },
+        "requiredSignals": { "type": "array", "minItems": 15, "uniqueItems": true, "items": { "type": "string" } }
+      }
+    },
+    "authorizedStagesProposal": {
+      "type": "object",
+      "required": ["applied", "document", "proposedStages"],
+      "properties": {
+        "applied": { "const": false },
+        "proposedStages": {
+          "type": "array", "minItems": 1, "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^A[3-9][0-9]*$" }
+        }
+      }
+    },
     "approvals": { "type": "object", "required": ["humanBeforeMutation", "perStageToken", "singleApplyAllCommand"] }
   },
   "additionalProperties": true

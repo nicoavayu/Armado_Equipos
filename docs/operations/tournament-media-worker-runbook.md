@@ -39,6 +39,15 @@ Checklist:
 
 SIGTERM/SIGINT activan shutdown seguro: el loop deja de pedir trabajo, termina lo ya arrendado, intenta revocar y sale. Nunca matar durante publicación salvo contención de seguridad.
 
+## Servicios que acompañan al worker
+
+- **Renovador de la atestación del signer.** El worker renueva sólo la suya (`processor`, TTL 900 s, a un tercio del TTL). La del signer dura 3600 s y necesita un scheduler externo que corre junto a este worker, con el mismo secret store y **sin** credencial de servicio: ver [renovación de la atestación del signer](tournament-media-signer-attestation-renewal.md). Provisionarlo es parte de la checklist: sin él, `uploadReady` se cierra sola cada hora.
+- **Colectores de observabilidad.** Cuatro colectores alimentan las señales del [catálogo](tournament-media-observability.md). Hasta que estén desplegados y validados contra Staging, `REACT_APP_TORNEOS_MEDIA_OBSERVABILITY_READY` queda en false y Multimedia no se habilita.
+
+## Credencial de servicio
+
+El worker usa `service_role`, que es una credencial de proyecto entero. El inventario exacto de lo que necesita, el riesgo residual y la alternativa de menor privilegio están en [la revisión de credencial de servicio](tournament-media-service-role-review.md). Reglas vigentes: sólo en el secret store del host, nunca impresa ni persistida, egress restringido al host de Staging autorizado, y el lease token obligatorio en cada transición.
+
 ## Incidentes
 
 - **clamd caído o firmas viejas:** revocar, Multimedia false, restaurar scanner, self-test y re-atestación.
