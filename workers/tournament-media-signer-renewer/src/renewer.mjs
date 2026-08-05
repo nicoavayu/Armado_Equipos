@@ -25,6 +25,7 @@
  */
 
 import { secretValues } from './config.mjs';
+import { attestationMargin } from './schedule.mjs';
 
 export const OUTCOME = Object.freeze({
   RENEWED: 'renewed',
@@ -127,8 +128,11 @@ export async function renewOnce(config, { fetchImpl = fetch, monotonic = () => D
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        apikey: config.gatewayKey,
-        Authorization: `Bearer ${config.gatewayKey}`,
+        // Two different credentials for two different layers: the apikey gets
+        // past the gateway, the Bearer JWT satisfies verify_jwt = true, and the
+        // attestation secret is the only one that authorises the renewal.
+        apikey: config.apikey,
+        Authorization: `Bearer ${config.authorizationJwt}`,
         'x-media-attestation-secret': config.attestationSecret,
       },
       body: JSON.stringify({ action: 'health' }),
@@ -170,6 +174,73 @@ export async function renewOnce(config, { fetchImpl = fetch, monotonic = () => D
 
 export const defaultSleep = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });
 
+/**
+ * A sleep that can be cut short, because the alternative is a container that
+ * ignores SIGTERM for up to twenty minutes and is eventually SIGKILLed.
+ *
+ * The old loop slept on a bare `setTimeout` and only re-checked the stop flag
+ * when the timer fired, so a shutdown during the interval — the overwhelmingly
+ * likely moment, since the process spends nearly all its time there — waited
+ * out the whole interval. Every orchestrator's patience is shorter than that.
+ *
+ * `cancel()` clears the pending timer and resolves the pending sleep, and is
+ * idempotent. Nothing is left registered afterwards: no timer to keep the event
+ * loop alive, no resolver holding a closure.
+ */
+export function createInterruptibleSleep() {
+  let timer = null;
+  let resolveCurrent = null;
+  let cancelled = false;
+  const sleep = (ms) => {
+    if (cancelled) return Promise.resolve('cancelled');
+    return new Promise((resolve) => {
+      resolveCurrent = resolve;
+      // Deliberately NOT unref'd. The interval sleep is the only thing keeping
+      // a long-lived renewer alive between cycles; an unref'd timer would let
+      // the process exit the moment it went to sleep, which looks like a clean
+      // shutdown and is actually a renewer that stopped renewing.
+      timer = setTimeout(() => {
+        timer = null;
+        resolveCurrent = null;
+        resolve('elapsed');
+      }, ms);
+    });
+  };
+  const cancel = () => {
+    cancelled = true;
+    if (timer) {
+      clearTimeout(timer);
+      timer = null;
+    }
+    if (resolveCurrent) {
+      const resolve = resolveCurrent;
+      resolveCurrent = null;
+      resolve('cancelled');
+    }
+  };
+  return { sleep, cancel, get cancelled() { return cancelled; } };
+}
+
+/**
+ * Signal wiring, extracted so it can be tested with a fake emitter and so the
+ * listeners are removable. Handlers are registered with `once` and explicitly
+ * removed on release, which matters for `--once`: a process that exits while
+ * still holding signal listeners keeps them registered through whatever the
+ * host does next.
+ */
+export function installShutdownHandlers({
+  target = process, signals = ['SIGTERM', 'SIGINT'], onSignal,
+}) {
+  const handlers = signals.map((signal) => {
+    const handler = () => onSignal(signal);
+    target.once(signal, handler);
+    return { signal, handler };
+  });
+  return () => {
+    for (const { signal, handler } of handlers) target.removeListener(signal, handler);
+  };
+}
+
 /** Bounded retries. A misconfiguration is reported once, not hammered. */
 export async function renewWithRetries(config, deps = {}) {
   const {
@@ -202,14 +273,34 @@ export async function renewWithRetries(config, deps = {}) {
   return last;
 }
 
-export function createRenewerState() {
+/**
+ * In-memory state, optionally seeded from what a previous run persisted.
+ *
+ * `persisted` is what makes `--once` able to alert at all: without it the
+ * failure counter restarts at zero on every invocation and never reaches the
+ * threshold. See `state-store.mjs`.
+ */
+export function createRenewerState(persisted = null) {
+  const lastSuccessAt = persisted?.lastSuccessAt ? Date.parse(persisted.lastSuccessAt) : null;
   return {
     inFlight: false,
-    consecutiveFailures: 0,
-    lastRenewedAt: null,
-    lastFailureCode: null,
-    alerting: false,
+    consecutiveFailures: Number.isInteger(persisted?.consecutiveFailures)
+      ? persisted.consecutiveFailures : 0,
+    lastRenewedAt: Number.isFinite(lastSuccessAt) ? lastSuccessAt : null,
+    lastFailureCode: persisted?.lastFailureCode ?? null,
+    alerting: persisted?.alerting === true,
     cycles: 0,
+  };
+}
+
+/** The subset that may be written to disk: a counter, a time, a code, a flag. */
+export function persistableState(state, { now = Date.now() } = {}) {
+  return {
+    consecutiveFailures: state.consecutiveFailures,
+    lastSuccessAt: state.lastRenewedAt === null ? null : new Date(state.lastRenewedAt).toISOString(),
+    lastFailureCode: state.lastFailureCode,
+    alerting: state.alerting,
+    updatedAt: new Date(now).toISOString(),
   };
 }
 
@@ -256,25 +347,35 @@ export async function runRenewalCycle({ state, config, deps = {} }) {
     }
     state.consecutiveFailures += 1;
     state.lastFailureCode = result?.code || 'SIGNER_UNREACHABLE';
-    const expiresInSeconds = state.lastRenewedAt === null
-      ? null
-      : Math.round((state.lastRenewedAt + config.ttlSeconds * 1000 - now()) / 1000);
+    // One implementation of this arithmetic, shared with the config validator.
+    // A process that has never succeeded — a cold container, a `--once` run
+    // whose state file is new — cannot show any margin, and an unprovable
+    // margin escalates to critical instead of sitting in warning forever.
+    const margin = attestationMargin({
+      lastSuccessAtMs: state.lastRenewedAt,
+      knownExpiresAtMs: config.knownAttestationExpiresAtMs ?? null,
+      ttlSeconds: config.ttlSeconds,
+      safetyMarginSeconds: config.safetyMarginSeconds,
+      now: now(),
+    });
     log('renewal_failed', {
       code: state.lastFailureCode,
       consecutiveFailures: state.consecutiveFailures,
-      attestationExpiresInSeconds: expiresInSeconds,
+      attestationExpiresInSeconds: margin.expiresInSeconds,
+      attestationMarginProven: margin.marginProven,
     });
     if (state.consecutiveFailures >= config.alertAfterFailures) {
       state.alerting = true;
       log('renewal_alert', {
         // Fail-closed: nothing here keeps the attestation alive. The alert is
         // the only action, and the expiry does the enforcing.
-        severity: expiresInSeconds !== null && expiresInSeconds <= config.safetyMarginSeconds
-          ? 'critical' : 'warning',
+        severity: margin.severity,
+        severityReason: margin.reason,
         metric: 'arma2_torneos_media_signer_attestation_renewal_failures_consecutive',
         value: state.consecutiveFailures,
         code: state.lastFailureCode,
-        attestationExpiresInSeconds: expiresInSeconds,
+        attestationExpiresInSeconds: margin.expiresInSeconds,
+        attestationMarginProven: margin.marginProven,
         runbook: 'docs/operations/tournament-media-signer-attestation-renewal.md#incidentes',
       });
     }
@@ -310,8 +411,11 @@ export async function runRenewalLoop({
       intervalSeconds: config.intervalSeconds, jitterRatio: config.jitterRatio, random,
     });
     log('renewal_sleeping', { sleepMs });
+    // The sleep is interruptible; a shutdown mid-interval ends here rather than
+    // twenty minutes from here.
     // eslint-disable-next-line no-await-in-loop
-    await sleep(sleepMs);
+    const woke = await sleep(sleepMs);
+    if (woke === 'cancelled') break;
   }
   log('renewer_stopped', { cycles: state.cycles, consecutiveFailures: state.consecutiveFailures });
   return state;

@@ -1,8 +1,35 @@
 {
-  "fixtureVersion": 1,
-  "note": "Deterministic healthy snapshot. Local only: no collector ran, nothing was contacted. Shapes the contract the real collectors must produce.",
+  "fixtureVersion": 2,
+  "note": "Deterministic healthy snapshot AFTER the collector has derived dwell across scrapes. Local only: no collector ran, nothing was contacted. Shapes the contract the real collectors must produce, including the visibility proof without which no count may be believed.",
   "collectedAt": "2099-01-01T00:00:00.000Z",
   "database": {
+    "collector": {
+      "role": "torneos_media_observability_collector",
+      "bypassesRls": true,
+      "isSuperuser": false
+    },
+    "visibility": {
+      "observable": true,
+      "blockers": [],
+      "tables": {
+        "tournament_media_processing_jobs": {
+          "present": true,
+          "canSelect": true,
+          "rlsEnabled": true,
+          "rlsExempt": true,
+          "policyCount": 4,
+          "observable": true
+        },
+        "tournament_media_service_attestations": {
+          "present": true,
+          "canSelect": true,
+          "rlsEnabled": true,
+          "rlsExempt": true,
+          "policyCount": 2,
+          "observable": true
+        }
+      }
+    },
     "quarantineDepth": 2,
     "quarantineDepthSustainedSeconds": 3600,
     "queueDepth": 1,
@@ -17,6 +44,7 @@
     "processorAttestationExpiresInSeconds": 780,
     "clamavSignatureAgeSeconds": 7200,
     "uploadFailureRatio": 0,
+    "uploadFailureRatioSampleCount": 412,
     "uploadFailureRatioSustainedSeconds": 3600,
     "uploadReady": 1,
     "uploadReadySustainedSeconds": 3600

@@ -1,0 +1,45 @@
+{
+  "fixtureVersion": 1,
+  "note": "LITERAL shape of the single JSON row produced by ops/torneos-staging/observability/media-pipeline-signals.sql, for a collector whose visibility is proven and a pipeline that is genuinely idle. Nothing ran: this is the hand-written contract of the query's output, not a capture from any environment. Note what is absent: the query emits no *SustainedSeconds field, because one scrape cannot know how long a value has held.",
+  "row": {
+    "collectedAt": "2099-01-01T00:00:00.000Z",
+    "collector": {
+      "role": "torneos_media_observability_collector",
+      "bypassesRls": true,
+      "isSuperuser": false
+    },
+    "visibility": {
+      "observable": true,
+      "blockers": [],
+      "tables": {
+        "tournament_media_processing_jobs": {
+          "present": true,
+          "canSelect": true,
+          "rlsEnabled": true,
+          "rlsExempt": true,
+          "policyCount": 4,
+          "observable": true
+        },
+        "tournament_media_service_attestations": {
+          "present": true,
+          "canSelect": true,
+          "rlsEnabled": true,
+          "rlsExempt": true,
+          "policyCount": 2,
+          "observable": true
+        }
+      }
+    },
+    "quarantineDepth": 0,
+    "queueDepth": 0,
+    "oldestJobAgeSeconds": 0,
+    "expiredLeases": 0,
+    "stuckLeaseAgeSeconds": 0,
+    "signerAttestationExpiresInSeconds": 2900,
+    "processorAttestationExpiresInSeconds": 780,
+    "clamavSignatureAgeSeconds": 7200,
+    "uploadFailureRatio": 0,
+    "uploadFailureRatioSampleCount": 0,
+    "uploadReady": 1
+  }
+}

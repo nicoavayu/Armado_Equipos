@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { RenewerConfigError, readRenewerConfig, worstCaseCycleSeconds } from '../src/config.mjs';
+import { inspectGatewayJwt } from '../src/gateway.mjs';
 import {
   OUTCOME,
   computeBackoffMs,
@@ -16,13 +17,30 @@ import {
 } from '../src/renewer.mjs';
 
 const SECRET = 'a'.repeat(48);
-const GATEWAY_KEY = 'sb_publishable_fixture_key_value';
+const PROJECT_REF = 'hhyvmhgpapyuzjgxfnqv';
+
+/**
+ * A structurally valid, deliberately unsigned JWT. The renewer never verifies
+ * signatures — only the gateway can — so a fixture with a placeholder signature
+ * exercises exactly the checks the renewer actually performs.
+ */
+const b64url = (value) => Buffer.from(JSON.stringify(value)).toString('base64url');
+const makeJwt = ({
+  role = 'anon', expSeconds = 3600, ref = PROJECT_REF, alg = 'HS256', typ = 'JWT',
+} = {}) => [
+  b64url({ alg, typ }),
+  b64url({ iss: 'supabase', ref, role, exp: Math.floor(Date.now() / 1000) + expSeconds }),
+  'fixture-signature-not-verified-here',
+].join('.');
+
+const ANON_JWT = makeJwt();
+const PUBLISHABLE_KEY = 'sb_publishable_fixture_key_value';
 
 const baseEnv = (overrides = {}) => ({
   SUPABASE_URL: 'https://hhyvmhgpapyuzjgxfnqv.supabase.co',
   TOURNAMENT_MEDIA_EXPECTED_API_HOST: 'hhyvmhgpapyuzjgxfnqv.supabase.co',
   TOURNAMENT_MEDIA_ATTESTATION_SECRET: SECRET,
-  SUPABASE_PUBLISHABLE_KEY: GATEWAY_KEY,
+  SUPABASE_ANON_KEY: ANON_JWT,
   ...overrides,
 });
 
@@ -62,9 +80,83 @@ test('a missing attestation secret refuses to start', () => {
 
 test('a missing or privileged gateway credential refuses to start', () => {
   expectConfigCode('RENEWER_GATEWAY_KEY_MISSING',
-    () => readRenewerConfig(baseEnv({ SUPABASE_PUBLISHABLE_KEY: '' })));
+    () => readRenewerConfig({ ...baseEnv(), SUPABASE_ANON_KEY: '' }));
   expectConfigCode('RENEWER_GATEWAY_KEY_PRIVILEGED',
-    () => readRenewerConfig(baseEnv({ SUPABASE_PUBLISHABLE_KEY: 'sb_secret_never_use_this_here' })));
+    () => readRenewerConfig(baseEnv({ SUPABASE_ANON_KEY: 'sb_secret_never_use_this_here' })));
+  // The same privilege wearing a JWT is refused just as flatly.
+  expectConfigCode('RENEWER_GATEWAY_KEY_PRIVILEGED',
+    () => readRenewerConfig(baseEnv({ SUPABASE_ANON_KEY: makeJwt({ role: 'service_role' }) })));
+  expectConfigCode('RENEWER_GATEWAY_KEY_PRIVILEGED',
+    () => readRenewerConfig(baseEnv({ TOURNAMENT_MEDIA_GATEWAY_JWT: 'sb_secret_never_use_this_here' })));
+});
+
+// --- the gateway credential, which is not the attestation secret ------------
+
+test('a publishable key cannot be the bearer, because verify_jwt = true rejects it', () => {
+  // This is the deployment reality the renewer used to ignore: every Edge
+  // Function in the manifest is deployed with verifyJwt true, and a
+  // sb_publishable_ key is not a JWT. Sending it would 401 at the gateway
+  // forever while the alert blamed the credential.
+  expectConfigCode('RENEWER_GATEWAY_JWT_REQUIRED', () => readRenewerConfig({
+    ...baseEnv(), SUPABASE_ANON_KEY: undefined, SUPABASE_PUBLISHABLE_KEY: PUBLISHABLE_KEY,
+  }));
+  const inspected = inspectGatewayJwt(PUBLISHABLE_KEY);
+  assert.equal(inspected.ok, false);
+  assert.equal(inspected.code, 'RENEWER_GATEWAY_JWT_NOT_A_JWT');
+});
+
+test('a publishable key is accepted as the apikey when a dedicated identity JWT is supplied', () => {
+  const resolved = readRenewerConfig({
+    ...baseEnv(),
+    SUPABASE_ANON_KEY: undefined,
+    SUPABASE_PUBLISHABLE_KEY: PUBLISHABLE_KEY,
+    TOURNAMENT_MEDIA_GATEWAY_JWT: makeJwt({ role: 'authenticated' }),
+  });
+  assert.equal(resolved.gatewayCredentialKind, 'publishable-plus-jwt');
+  // The two headers carry two different values on purpose.
+  assert.equal(resolved.apikey, PUBLISHABLE_KEY);
+  assert.notEqual(resolved.authorizationJwt, resolved.apikey);
+  assert.equal(resolved.gatewayJwtRole, 'authenticated');
+  // And neither of them is the attestation secret.
+  assert.notEqual(resolved.authorizationJwt, resolved.attestationSecret);
+  assert.notEqual(resolved.apikey, resolved.attestationSecret);
+});
+
+test('a legacy anon JWT is accepted structurally and serves as both headers', () => {
+  const resolved = config();
+  assert.equal(resolved.gatewayCredentialKind, 'legacy-anon-jwt');
+  assert.equal(resolved.gatewayJwtRole, 'anon');
+  assert.equal(resolved.apikey, resolved.authorizationJwt);
+  assert.ok(Date.parse(resolved.gatewayJwtExpiresAt) > Date.now());
+  const inspected = inspectGatewayJwt(ANON_JWT);
+  assert.equal(inspected.ok, true);
+  assert.equal(inspected.projectRef, PROJECT_REF);
+});
+
+test('a malformed, expired, algorithm-less or wrong-project JWT refuses to start', () => {
+  expectConfigCode('RENEWER_GATEWAY_JWT_MALFORMED',
+    () => readRenewerConfig(baseEnv({ SUPABASE_ANON_KEY: 'not.a.jwt at all' })));
+  expectConfigCode('RENEWER_GATEWAY_JWT_MALFORMED',
+    () => readRenewerConfig(baseEnv({ SUPABASE_ANON_KEY: 'onlytwo.segments' })));
+  expectConfigCode('RENEWER_GATEWAY_JWT_EXPIRED',
+    () => readRenewerConfig(baseEnv({ SUPABASE_ANON_KEY: makeJwt({ expSeconds: -7200 }) })));
+  expectConfigCode('RENEWER_GATEWAY_JWT_ALG',
+    () => readRenewerConfig(baseEnv({ SUPABASE_ANON_KEY: makeJwt({ alg: 'none' }) })));
+  expectConfigCode('RENEWER_GATEWAY_JWT_ROLE',
+    () => readRenewerConfig(baseEnv({ SUPABASE_ANON_KEY: makeJwt({ role: 'postgres' }) })));
+  expectConfigCode('RENEWER_GATEWAY_JWT_PROJECT_MISMATCH',
+    () => readRenewerConfig(baseEnv({ SUPABASE_ANON_KEY: makeJwt({ ref: 'someotherprojectref' }) })));
+});
+
+test('no credential value ever appears in a configuration error', () => {
+  const values = [PUBLISHABLE_KEY, SECRET, makeJwt({ role: 'service_role' })];
+  for (const value of values) {
+    try {
+      readRenewerConfig(baseEnv({ SUPABASE_ANON_KEY: value }));
+    } catch (error) {
+      assert.doesNotMatch(error.message, new RegExp(value.slice(0, 24).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    }
+  }
 });
 
 test('the target host has to be named twice and agree', () => {
@@ -225,7 +317,7 @@ test('consecutive failures raise one alert and a later success clears it', async
   const resolved = config();
   const state = createRenewerState();
   const lines = [];
-  const log = createLogger({ write: (line) => lines.push(JSON.parse(line)), secrets: [SECRET, GATEWAY_KEY] });
+  const log = createLogger({ write: (line) => lines.push(JSON.parse(line)), secrets: [SECRET, ANON_JWT] });
   const failing = { fetchImpl: async () => jsonResponse(503, {}), sleep: async () => {}, log };
   const passing = { fetchImpl: async () => jsonResponse(200, okBody), sleep: async () => {}, log };
 
@@ -319,17 +411,17 @@ test('the loop paces itself with jitter and stops on request', async () => {
 // --- redaction -------------------------------------------------------------
 
 test('no log line can carry the attestation secret, the gateway key or a token', () => {
-  const redact = createRedactor([SECRET, GATEWAY_KEY]);
+  const redact = createRedactor([SECRET, ANON_JWT]);
   const payload = redact({
     event: 'renewal_failed',
     message: `POST failed with header x-media-attestation-secret: ${SECRET}`,
-    headers: { Authorization: `Bearer ${GATEWAY_KEY}`, apikey: GATEWAY_KEY },
+    headers: { Authorization: `Bearer ${ANON_JWT}`, apikey: ANON_JWT },
     url: 'https://example.invalid/object?token=signed-value&x=1',
     jwt: 'eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIn0.abcdefghijklmnop',
   });
   const serialized = JSON.stringify(payload);
   assert.doesNotMatch(serialized, new RegExp(SECRET));
-  assert.doesNotMatch(serialized, new RegExp(GATEWAY_KEY));
+  assert.doesNotMatch(serialized, new RegExp(ANON_JWT));
   assert.doesNotMatch(serialized, /token=signed-value/);
   assert.doesNotMatch(serialized, /eyJhbGciOiJIUzI1NiJ9/);
   assert.equal(payload.headers, undefined, 'credential-bearing keys are dropped entirely');
@@ -341,7 +433,7 @@ test('a failure whose error text embeds the secret is still safe to log', async 
   const lines = [];
   const log = createLogger({
     write: (line) => lines.push(line),
-    secrets: [resolved.attestationSecret, resolved.gatewayKey],
+    secrets: [resolved.attestationSecret, resolved.authorizationJwt],
   });
   await runRenewalCycle({
     state,
@@ -356,6 +448,6 @@ test('a failure whose error text embeds the secret is still safe to log', async 
   assert.ok(lines.length > 0);
   for (const line of lines) {
     assert.doesNotMatch(line, new RegExp(SECRET));
-    assert.doesNotMatch(line, new RegExp(GATEWAY_KEY));
+    assert.doesNotMatch(line, new RegExp(ANON_JWT));
   }
 });

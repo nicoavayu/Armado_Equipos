@@ -15,6 +15,8 @@ import {
   readJson,
   simulateStage,
   stageAuthorization,
+  computeMigrationDrift,
+  stripSourceComments,
   validateAttestationContract,
   validateManifest,
   validateObservabilityContract,
@@ -541,4 +543,122 @@ test('the authorized stage extension is a proposal, not an authorization', () =>
   const extended = clone(manifest);
   extended.authorizedStages = ['A1', 'A2', 'A3'];
   expectCode('MANIFEST_STAGE_ALLOWLIST', () => validateManifest({ repoRoot: ROOT, manifest: extended }));
+});
+
+// --- drift detection may not be fooled, or tripped, by prose ----------------
+
+test('the drift regexes read code, not comments', () => {
+  const source = [
+    '// This function must never call revoke_tournament_media_service_attestation.',
+    '/* Nor attest_tournament_media_service, however tempting. */',
+    'const label = "attest_tournament_media_service is mentioned in this string";',
+    'const url = "https://example.invalid/a//b";',
+    'await client.rpc("attest_tournament_media_service", { p_service: \'signer\' });',
+  ].join('\n');
+  const stripped = stripSourceComments(source);
+
+  // Comments are gone...
+  assert.doesNotMatch(stripped, /must never call/);
+  assert.doesNotMatch(stripped, /however tempting/);
+  // ...but code, and strings inside code, survive intact.
+  assert.match(stripped, /p_service: 'signer'/);
+  assert.match(stripped, /is mentioned in this string/);
+  assert.match(stripped, /example\.invalid\/a\/\/b/, 'a // inside a string is not a comment');
+  // Line count is preserved so any later message still points at the right line.
+  assert.equal(stripped.split('\n').length, source.split('\n').length);
+
+  // The concrete consequence: a file that only talks about attesting no longer
+  // satisfies a positive check, and a file that only warns about revoking no
+  // longer trips a negative one.
+  const talksOnly = '// calls attest_tournament_media_service with p_service: "signer"\nexport const noop = () => {};';
+  assert.doesNotMatch(stripSourceComments(talksOnly), /attest_tournament_media_service/);
+});
+
+test('the real Edge Function sources still satisfy the contract once comments are stripped', () => {
+  // Guards the fix itself: stripping must not have broken the positive checks.
+  assert.equal(validateAttestationContract({ repoRoot: ROOT, manifest }).ok, true);
+});
+
+// --- migration drift, over what the remote actually exposes -----------------
+
+test('migration drift counts version presence and order, never a remote checksum', () => {
+  const state = fixture();
+  const clean = computeMigrationDrift({ repoRoot: ROOT, manifest, state });
+  assert.equal(clean.drift, 0);
+  assert.match(clean.observedFrom, /no checksum/);
+
+  const duplicated = fixture();
+  duplicated.remoteHistory = [...(duplicated.remoteHistory || []), ...(duplicated.remoteHistory || [])];
+  if (duplicated.remoteHistory.length > 0) {
+    const withDuplicates = computeMigrationDrift({ repoRoot: ROOT, manifest, state: duplicated });
+    assert.ok(withDuplicates.drift > 0);
+    assert.ok(withDuplicates.details.duplicatedRemoteVersions.length > 0);
+  }
+
+  const foreign = fixture();
+  foreign.remoteHistory = [...(foreign.remoteHistory || []), { version: '29991231235959', name: 'not_in_this_repository' }];
+  const withForeign = computeMigrationDrift({ repoRoot: ROOT, manifest, state: foreign });
+  assert.ok(withForeign.details.remoteVersionsWithoutLocalFile.includes('29991231235959'));
+  assert.ok(withForeign.drift >= 1);
+
+  // Nothing counted comes from a checksum, because the remote exposes none.
+  // The only mention of the word is the explanation of why.
+  assert.equal(JSON.stringify(withForeign.details).includes('checksum'), false);
+  assert.deepEqual(Object.keys(withForeign.details).sort(), [
+    'duplicatedRemoteVersions', 'remoteVersionsWithoutLocalFile', 'targetVersionsAppliedOutOfOrder',
+  ]);
+});
+
+// --- the deploy-blocking contracts the manifest now carries -----------------
+
+test('the manifest keeps the gateway credential separate from the attestation secret', () => {
+  const gateway = manifest.signerAttestationRenewal.gatewayCredential;
+  assert.equal(gateway.separateFromAttestationSecret, true);
+  assert.equal(gateway.mustSatisfyVerifyJwt, true);
+  assert.ok(gateway.rejected.some((entry) => /sb_publishable_/.test(entry)));
+
+  const conflated = clone(manifest);
+  conflated.signerAttestationRenewal.gatewayCredential.mustSatisfyVerifyJwt = false;
+  expectCode('ATTESTATION_RENEWAL_CREDENTIAL',
+    () => validateManifest({ repoRoot: ROOT, manifest: conflated }));
+
+  const permissive = clone(manifest);
+  permissive.signerAttestationRenewal.gatewayCredential.rejected = ['nothing in particular'];
+  expectCode('ATTESTATION_RENEWAL_CREDENTIAL',
+    () => validateManifest({ repoRoot: ROOT, manifest: permissive }));
+});
+
+test('the manifest requires --once to be able to alert at all', () => {
+  const once = manifest.signerAttestationRenewal.onceMode;
+  assert.equal(once.statePersisted, true);
+  assert.equal(once.stateFileMode, '0600');
+  assert.equal(once.exclusiveLock, true);
+  assert.equal(once.corruptionFailsClosed, true);
+  assert.ok(once.orchestratorAlternative.length > 20);
+
+  const unsafe = clone(manifest);
+  unsafe.signerAttestationRenewal.onceMode.corruptionFailsClosed = false;
+  expectCode('ATTESTATION_RENEWAL_STATE', () => validateManifest({ repoRoot: ROOT, manifest: unsafe }));
+});
+
+test('the manifest declares the Staging probe as prepared, gated and never executed', () => {
+  const probe = manifest.signerAttestationRenewal.gatewayProbe;
+  assert.equal(probe.executedInThisChange, false);
+  assert.equal(probe.requiresExplicitAuthorization, true);
+  assert.match(probe.writes, /attestation/i);
+
+  const executed = clone(manifest);
+  executed.signerAttestationRenewal.gatewayProbe.executedInThisChange = true;
+  expectCode('ATTESTATION_PROBE_SCOPE', () => validateManifest({ repoRoot: ROOT, manifest: executed }));
+});
+
+test('a collector the catalog does not have keeps the manifest gate shut', () => {
+  assert.deepEqual(manifest.observability.collectorsNotImplemented,
+    ['database', 'readiness', 'runtime', 'storage']);
+  assert.equal(manifest.observability.collectorContract.grantedInThisChange, false);
+
+  const pretending = clone(manifest);
+  pretending.observability.collectorsNotImplemented = [];
+  expectCode('OBSERVABILITY_COLLECTOR_DRIFT',
+    () => validateObservabilityContract({ repoRoot: ROOT, manifest: pretending }));
 });

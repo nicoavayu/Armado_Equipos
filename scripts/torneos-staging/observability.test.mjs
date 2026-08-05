@@ -6,12 +6,17 @@ import { fileURLToPath } from 'node:url';
 
 import { clone, loadManifest, readJson } from './readiness-lib.mjs';
 import {
+  COLLECTOR_ROLE_CONTRACT,
   ObservabilityError,
+  assertCollectorVisibility,
   assertSnapshotIsAnonymous,
+  deriveSustainedSeconds,
   evaluateMetric,
   evaluateObservability,
   loadCatalog,
+  missingCollectors,
   observabilityReadiness,
+  snapshotFromDatabaseRow,
   validateCatalog,
 } from './observability-lib.mjs';
 
@@ -20,6 +25,7 @@ const catalog = loadCatalog(ROOT);
 const manifest = loadManifest(ROOT);
 const snapshot = () => readJson(path.join(ROOT, 'ops/torneos-staging/fixtures/observability-snapshot.json'));
 const metricByName = (name) => catalog.metrics.find((metric) => metric.name === name);
+const sqlRow = (name) => readJson(path.join(ROOT, `ops/torneos-staging/fixtures/observability-sql-output-${name}.json`)).row;
 
 const expectCode = (code, run) => assert.throws(run, (error) => (
   error instanceof ObservabilityError && error.code === code
@@ -288,21 +294,63 @@ test('a snapshot carrying an identifying field or value is refused', () => {
   assert.equal(assertSnapshotIsAnonymous(snapshot()), true);
 });
 
+test('a UUID is caught wherever it sits inside a string, not only at its start', () => {
+  // The pattern used to be anchored at the start of the value, so a UUID one
+  // character into a message walked straight through the check.
+  const embedded = [
+    'job 3f1a2b4c-1111-2222-3333-444455556666 abandoned after 3 attempts',
+    'lease held by 3f1a2b4c-1111-2222-3333-444455556666',
+    'prefix:3f1a2b4c-1111-2222-3333-444455556666:suffix',
+    '3F1A2B4C-1111-2222-3333-444455556666 in upper case',
+  ];
+  for (const value of embedded) {
+    expectCode('SNAPSHOT_IDENTIFYING_VALUE',
+      () => assertSnapshotIsAnonymous({ runtime: { note: value } }));
+  }
+  // Inside an array and inside a nested object too.
+  expectCode('SNAPSHOT_IDENTIFYING_VALUE', () => assertSnapshotIsAnonymous({
+    runtime: { notes: ['fine', { deeper: 'saw 3f1a2b4c-1111-2222-3333-444455556666 here' }] },
+  }));
+  // A filename mid-string is caught as well, not only as a suffix.
+  expectCode('SNAPSHOT_IDENTIFYING_VALUE', () => assertSnapshotIsAnonymous({
+    runtime: { note: 'failed on cover.png while processing' },
+  }));
+  // And something that merely looks hex-ish is not a false positive.
+  assert.equal(assertSnapshotIsAnonymous({ runtime: { note: 'release abc1234 deadbeef' } }), true);
+});
+
 // --- the readiness gate ----------------------------------------------------
+
+/** A hypothetical future catalog whose collectors all exist. Never the shipped one. */
+const withCollectorsBuilt = (source = catalog) => {
+  const built = clone(source);
+  for (const collector of Object.values(built.collectors)) {
+    collector.implemented = true;
+    collector.implementedBy = 'package.json';
+  }
+  return built;
+};
 
 test('observability is not ready while the signals are undeployed or unvalidated', () => {
   const notDeployed = observabilityReadiness({ repoRoot: ROOT, catalog, snapshot: snapshot() });
   assert.equal(notDeployed.ready, false);
-  assert.deepEqual(notDeployed.blockers, ['signals.not_deployed', 'signals.not_validated']);
+  assert.deepEqual(notDeployed.blockers, [
+    'collectors.not_implemented:database',
+    'collectors.not_implemented:readiness',
+    'collectors.not_implemented:runtime',
+    'collectors.not_implemented:storage',
+    'signals.not_deployed',
+    'signals.not_validated',
+  ]);
 
-  const deployedOnly = clone(catalog);
+  const deployedOnly = withCollectorsBuilt();
   deployedOnly.signalsDeployedInStaging = true;
   assert.deepEqual(
     observabilityReadiness({ repoRoot: ROOT, catalog: deployedOnly, snapshot: snapshot() }).blockers,
     ['signals.not_validated'],
   );
 
-  const validated = clone(catalog);
+  const validated = withCollectorsBuilt();
   validated.signalsDeployedInStaging = true;
   validated.validatedInStaging = true;
   assert.equal(observabilityReadiness({ repoRoot: ROOT, catalog: validated, snapshot: snapshot() }).ready, true);
@@ -343,4 +391,213 @@ test('evaluateMetric reports the breached threshold and its recovery condition',
   assert.equal(evaluated.recovery.comparator, '<');
   assert.equal(evaluated.recovery.value, 10);
   assert.equal(evaluated.recovered, false);
+});
+
+// --- H1: the collector may not mistake invisibility for health --------------
+
+test('the collector query proves its own visibility before it emits any count', () => {
+  const sql = fs.readFileSync(path.join(ROOT, manifest.observability.query), 'utf8');
+  // The canary is in the same statement as the counts, so it cannot be skipped
+  // by running the interesting half on its own.
+  assert.match(sql, /relrowsecurity/);
+  assert.match(sql, /rolbypassrls/);
+  assert.match(sql, /has_table_privilege/);
+  assert.match(sql, /has_function_privilege/);
+  assert.match(sql, /'visibility',\s*jsonb_build_object/);
+  // Every metric is gated on the same verdict.
+  const gated = sql.match(/CASE WHEN \(SELECT ok FROM gate\) THEN/g) || [];
+  assert.ok(gated.length >= 11, 'every metric must be gated on the visibility verdict');
+  // And the role contract is written down where the collector operator reads it.
+  assert.match(sql, /Role contract required by this collector/);
+  assert.equal(COLLECTOR_ROLE_CONTRACT.grantsInThisChange, false);
+});
+
+test('a collector that cannot see the tables aborts instead of reporting zeros', () => {
+  const blind = snapshotFromDatabaseRow(sqlRow('rls-blind'));
+  expectCode('COLLECTOR_VISIBILITY_UNPROVEN', () => assertCollectorVisibility(blind));
+  expectCode('COLLECTOR_VISIBILITY_UNPROVEN',
+    () => evaluateObservability({ repoRoot: ROOT, catalog, snapshot: blind }));
+  // Fail-closed all the way to the flag.
+  assert.throws(() => observabilityReadiness({ repoRoot: ROOT, catalog, snapshot: blind }));
+});
+
+test('RLS enabled without a bypass is refused even when SELECT is granted', () => {
+  const state = snapshot();
+  const table = state.database.visibility.tables.tournament_media_processing_jobs;
+  table.rlsExempt = false;
+  table.observable = false;
+  state.database.visibility.observable = false;
+  state.database.visibility.blockers = ['tournament_media_processing_jobs:rls_enabled_with_policies_and_without_bypass'];
+  expectCode('COLLECTOR_VISIBILITY_UNPROVEN', () => assertCollectorVisibility(state));
+
+  // Even a snapshot that claims overall visibility is refused if a required
+  // table contradicts it: partial visibility is not visibility.
+  const contradictory = snapshot();
+  contradictory.database.visibility.tables.tournament_media_service_attestations.rlsExempt = false;
+  expectCode('COLLECTOR_VISIBILITY_UNPROVEN', () => assertCollectorVisibility(contradictory));
+});
+
+test('a snapshot with no visibility proof at all is refused', () => {
+  const noProof = snapshot();
+  delete noProof.database.visibility;
+  expectCode('COLLECTOR_VISIBILITY_MISSING', () => assertCollectorVisibility(noProof));
+  expectCode('COLLECTOR_VISIBILITY_MISSING',
+    () => evaluateObservability({ repoRoot: ROOT, catalog, snapshot: noProof }));
+
+  const partialProof = snapshot();
+  delete partialProof.database.visibility.tables.tournament_media_processing_jobs;
+  expectCode('COLLECTOR_VISIBILITY_MISSING', () => assertCollectorVisibility(partialProof));
+});
+
+test('zero real rows and zero rows because of RLS are not the same answer', () => {
+  const empty = sqlRow('empty');
+  const blind = sqlRow('rls-blind');
+
+  // Strip the proof and the two rows become indistinguishable at the values —
+  // which is exactly the failure mode the canary exists to prevent.
+  const valuesOnly = (row) => Object.fromEntries(Object.entries(row)
+    .filter(([key]) => !['visibility', 'collector', 'collectedAt'].includes(key)));
+  assert.notDeepEqual(valuesOnly(empty), valuesOnly(blind));
+  assert.equal(valuesOnly(empty).queueDepth, 0);
+  assert.equal(valuesOnly(blind).queueDepth, null,
+    'an unobservable collector must emit null, never a zero');
+
+  // With the proof, the two get opposite verdicts.
+  const emptySnapshot = { ...snapshot(), database: snapshotFromDatabaseRow(empty).database };
+  // The idle row carries no dwell, so derive it the way the collector must.
+  const derived = deriveSustainedSeconds({ catalog, snapshot: emptySnapshot, at: Date.parse('2099-01-01T01:00:00Z') });
+  const evaluation = evaluateObservability({ repoRoot: ROOT, catalog, snapshot: derived.snapshot });
+  assert.equal(evaluation.observable, true, 'a genuinely empty queue is observable and healthy');
+  assert.equal(evaluation.worstSeverity, 'ok');
+  assert.equal(evaluation.metrics.find((m) => m.name === 'arma2_torneos_media_queue_depth').value, 0);
+
+  expectCode('COLLECTOR_VISIBILITY_UNPROVEN', () => evaluateObservability({
+    repoRoot: ROOT, catalog, snapshot: { ...snapshot(), database: snapshotFromDatabaseRow(blind).database },
+  }));
+});
+
+// --- M1: dwell time is measured, never assumed ------------------------------
+
+test('the literal SQL output carries no dwell, so a breaching value is unknown', () => {
+  // The real query emits instantaneous values only: one scrape cannot know how
+  // long anything has held. This is that exact shape, with a breaching value.
+  const row = { ...sqlRow('empty'), queueDepth: 40 };
+  const literal = { ...snapshot(), database: snapshotFromDatabaseRow(row).database };
+  assert.equal(literal.database.queueDepthSustainedSeconds, undefined);
+
+  const evaluated = evaluateMetric(metricByName('arma2_torneos_media_queue_depth'), literal);
+  assert.equal(evaluated.value, 40);
+  assert.equal(evaluated.severity, 'unknown');
+  assert.equal(evaluated.reason, 'dwell_unknown');
+  assert.equal(evaluated.undecidableSeverity, 'warning');
+  // Never Infinity: the old default asserted "true forever" and fired instantly.
+  assert.equal(evaluated.sustainedSeconds, null);
+
+  const evaluation = evaluateObservability({ repoRoot: ROOT, catalog, snapshot: literal });
+  assert.equal(evaluation.observable, false);
+  assert.ok(evaluation.missingRequired.includes('arma2_torneos_media_queue_depth'));
+});
+
+test('a value that breaches nothing needs no dwell', () => {
+  const literal = { ...snapshot(), database: snapshotFromDatabaseRow(sqlRow('empty')).database };
+  const evaluated = evaluateMetric(metricByName('arma2_torneos_media_queue_depth'), literal);
+  assert.equal(evaluated.severity, 'ok', 'an untripped threshold does not need a window');
+  assert.equal(evaluated.sustainedSeconds, null);
+});
+
+test('a dwell-free threshold still decides without a window', () => {
+  const literal = { ...snapshot(), database: snapshotFromDatabaseRow({ ...sqlRow('empty'), signerAttestationExpiresInSeconds: 300 }).database };
+  // forSeconds is 0 on the attestation thresholds, so this is decidable now.
+  const evaluated = evaluateMetric(metricByName('arma2_torneos_media_signer_attestation_expires_in_seconds'), literal);
+  assert.equal(evaluated.severity, 'critical');
+});
+
+test('the collector derives dwell across scrapes, per severity band', () => {
+  const at0 = Date.parse('2099-01-01T00:00:00Z');
+  const base = { ...snapshot(), database: snapshotFromDatabaseRow({ ...sqlRow('empty'), queueDepth: 30 }).database };
+
+  // First scrape: the band has been observed for zero seconds, which is honest.
+  const first = deriveSustainedSeconds({ catalog, snapshot: base, at: at0 });
+  assert.equal(first.snapshot.database.queueDepthSustainedSeconds, 0);
+  assert.equal(first.state.bands.arma2_torneos_media_queue_depth.band, 'warning');
+  assert.equal(evaluateMetric(metricByName('arma2_torneos_media_queue_depth'), first.snapshot).severity, 'ok',
+    'a fresh breach has not yet met its 600s window');
+
+  // Eleven minutes later, still in the warning band: the window is met.
+  const later = deriveSustainedSeconds({
+    catalog, snapshot: base, previous: first.state, at: at0 + 660_000,
+  });
+  assert.equal(later.snapshot.database.queueDepthSustainedSeconds, 660);
+  assert.equal(evaluateMetric(metricByName('arma2_torneos_media_queue_depth'), later.snapshot).severity, 'warning');
+
+  // A wiggle inside the same band does not restart the clock...
+  const wiggled = { ...base, database: { ...base.database, queueDepth: 33 } };
+  const stillWarning = deriveSustainedSeconds({
+    catalog, snapshot: wiggled, previous: later.state, at: at0 + 720_000,
+  });
+  assert.equal(stillWarning.snapshot.database.queueDepthSustainedSeconds, 720);
+
+  // ...but leaving the band does.
+  const recovered = { ...base, database: { ...base.database, queueDepth: 1 } };
+  const reset = deriveSustainedSeconds({
+    catalog, snapshot: recovered, previous: stillWarning.state, at: at0 + 780_000,
+  });
+  assert.equal(reset.snapshot.database.queueDepthSustainedSeconds, 0);
+  assert.equal(reset.state.bands.arma2_torneos_media_queue_depth.band, 'ok');
+});
+
+test('derived dwell state is small, anonymous and safe to persist', () => {
+  const derived = deriveSustainedSeconds({ catalog, snapshot: snapshot(), at: Date.now() });
+  assert.equal(derived.state.schemaVersion, 1);
+  assert.doesNotThrow(() => assertSnapshotIsAnonymous(derived.state));
+  for (const entry of Object.values(derived.state.bands)) {
+    assert.deepEqual(Object.keys(entry).sort(), ['band', 'since']);
+  }
+});
+
+// --- M2: metrics nobody can collect ----------------------------------------
+
+test('every collector says whether it exists, and none of them does yet', () => {
+  assert.deepEqual(missingCollectors(catalog), ['database', 'readiness', 'runtime', 'storage']);
+  for (const [name, collector] of Object.entries(catalog.collectors)) {
+    assert.equal(collector.implemented, false, name);
+    assert.ok(collector.blocker.length >= 20, `${name} must say what is missing`);
+    assert.ok(collector.plannedSource.length >= 20, `${name} must name a concrete source`);
+  }
+  // And the manifest agrees, so neither file can open the gate alone.
+  assert.deepEqual(manifest.observability.collectorsNotImplemented, missingCollectors(catalog));
+});
+
+test('a collector that claims an implementation it does not have is rejected', () => {
+  const lying = clone(catalog);
+  lying.collectors.storage.implemented = true;
+  lying.collectors.storage.implementedBy = 'scripts/does-not-exist.mjs';
+  expectCode('OBSERVABILITY_COLLECTOR_STATUS', () => validateCatalog({ repoRoot: ROOT, catalog: lying }));
+
+  const vague = clone(catalog);
+  delete vague.collectors.runtime.plannedSource;
+  expectCode('OBSERVABILITY_COLLECTOR_SOURCE', () => validateCatalog({ repoRoot: ROOT, catalog: vague }));
+
+  const undefinedSource = clone(catalog);
+  delete undefinedSource.metrics[0].source.definition;
+  expectCode('OBSERVABILITY_SOURCE_DEFINITION',
+    () => validateCatalog({ repoRoot: ROOT, catalog: undefinedSource }));
+});
+
+test('signals cannot be declared live while a collector does not exist', () => {
+  const premature = clone(catalog);
+  premature.signalsDeployedInStaging = true;
+  expectCode('OBSERVABILITY_COLLECTOR_CLAIM', () => validateCatalog({ repoRoot: ROOT, catalog: premature }));
+});
+
+test('migration drift is defined over versions, never over a remote checksum', () => {
+  const metric = metricByName('arma2_torneos_media_migration_drift');
+  // The remote migration history exposes version and name only. The inspector
+  // records checksum: null and says so in its own limitations, so a metric
+  // defined over remote checksums could never have reported at all.
+  assert.match(metric.source.definition, /version presence and order/i);
+  assert.doesNotMatch(metric.description, /checksum differs/i);
+  assert.match(metric.description, /never a checksum comparison/i);
+  const inspector = fs.readFileSync(path.join(ROOT, 'scripts/torneos-staging/inspect-remote-readonly-lib.mjs'), 'utf8');
+  assert.match(inspector, /Remote migration history does not expose checksums/);
 });

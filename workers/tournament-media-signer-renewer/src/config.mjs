@@ -6,15 +6,26 @@
  * that never starts, because the attestation expiring on its own is already the
  * safe outcome (`uploadReady` closes, uploads stop).
  *
- * Two credentials are read, and only one of them is a secret:
+ * Two credentials are read, they authorise different layers, and only one of
+ * them is a secret. See `gateway.mjs` for the full distinction:
  *   - the attestation secret, which is what the signer's `health` action
  *     actually authorises against. It is never logged, never placed in a URL,
  *     and never sent anywhere except the one authorised host below.
- *   - the Functions gateway credential (publishable/anon). It is public by
- *     design. This process deliberately holds NO service credential: it cannot
- *     read the bucket, cannot read the queue and cannot write an attestation
- *     itself. It can only ask the signer to re-prove itself.
+ *   - the Functions gateway credential, which only gets the request past the
+ *     gateway. It is public by design, and because every Edge Function in the
+ *     manifest is deployed with `verify_jwt = true`, the bearer half of it has
+ *     to be an actual JWT. This process deliberately holds NO service
+ *     credential: it cannot read the bucket, cannot read the queue and cannot
+ *     write an attestation itself. It can only ask the signer to re-prove
+ *     itself.
  */
+
+import path from 'node:path';
+
+import {
+  GATEWAY_CREDENTIAL_OPTIONS, inspectGatewayJwt, isPublishableKey, isServiceCredential,
+} from './gateway.mjs';
+import { worstCaseCycleSeconds } from './schedule.mjs';
 
 export class RenewerConfigError extends Error {
   constructor(code, message) {
@@ -77,23 +88,64 @@ function resolveHealthUrl(env) {
 }
 
 /**
- * The worst case a renewal cycle can take: a full jittered interval, then every
- * retry timing out with every backoff jittered to its maximum. If that plus the
- * safety margin does not fit inside the attestation TTL, the schedule cannot
- * guarantee renewal before expiry and this process must not start.
+ * Resolves the two halves of the gateway credential.
+ *
+ * `apikey` may be a publishable key or a legacy anon key; `authorizationJwt`
+ * must be a JWT, because `verify_jwt = true` accepts nothing else. When the
+ * apikey is a publishable key it cannot double as the bearer, so the dedicated
+ * identity JWT becomes mandatory and its absence is a start-up refusal rather
+ * than a 401 an hour later.
  */
-export function worstCaseCycleSeconds(config) {
-  const interval = config.intervalSeconds * (1 + config.jitterRatio);
-  let backoffMs = 0;
-  for (let attempt = 1; attempt < config.maxAttempts; attempt += 1) {
-    backoffMs += Math.min(config.backoffMaxMs, config.backoffBaseMs * (2 ** (attempt - 1)))
-      * (1 + config.jitterRatio);
+function resolveGatewayCredential(env, { now = Date.now() } = {}) {
+  const explicitJwt = String(env.TOURNAMENT_MEDIA_GATEWAY_JWT || '');
+  const legacyKey = String(
+    env.TOURNAMENT_MEDIA_GATEWAY_KEY || env.SUPABASE_PUBLISHABLE_KEY || env.SUPABASE_ANON_KEY || '',
+  );
+  if (!explicitJwt && !legacyKey) {
+    fail('RENEWER_GATEWAY_KEY_MISSING',
+      'A Functions gateway credential is required. Accepted options: '
+      + `${GATEWAY_CREDENTIAL_OPTIONS.map(({ variable }) => variable).join(' | ')}. `
+      + 'Never a service credential.');
   }
-  const attemptsMs = config.maxAttempts * config.timeoutMs + backoffMs;
-  return interval + attemptsMs / 1000;
+  for (const [name, value] of [['TOURNAMENT_MEDIA_GATEWAY_KEY/SUPABASE_*', legacyKey], ['TOURNAMENT_MEDIA_GATEWAY_JWT', explicitJwt]]) {
+    if (value && isServiceCredential(value)) {
+      fail('RENEWER_GATEWAY_KEY_PRIVILEGED',
+        `${name} looks like a service credential; the renewer must hold none.`);
+    }
+  }
+
+  // A publishable key is not a JWT, so it can only ever be the apikey half.
+  const publishableApikey = legacyKey && isPublishableKey(legacyKey);
+  const bearerSource = explicitJwt || (publishableApikey ? '' : legacyKey);
+  if (!bearerSource) {
+    fail('RENEWER_GATEWAY_JWT_REQUIRED',
+      'The configured gateway credential is a publishable key, which is not a JWT and cannot '
+      + 'satisfy verify_jwt = true. Set TOURNAMENT_MEDIA_GATEWAY_JWT to a dedicated identity JWT '
+      + 'with role anon or authenticated.');
+  }
+  const inspected = inspectGatewayJwt(bearerSource, { now });
+  if (!inspected.ok) {
+    // The value is never in the message: only the variable and the rule.
+    fail(inspected.code,
+      `${explicitJwt ? 'TOURNAMENT_MEDIA_GATEWAY_JWT' : 'the configured gateway credential'} `
+      + `is not usable against verify_jwt = true: ${inspected.rule}.`);
+  }
+  return {
+    apikey: legacyKey || bearerSource,
+    authorizationJwt: bearerSource,
+    gatewayCredentialKind: explicitJwt
+      ? (publishableApikey ? 'publishable-plus-jwt' : 'dedicated-identity-jwt')
+      : 'legacy-anon-jwt',
+    gatewayJwtRole: inspected.role,
+    gatewayJwtExpiresAt: inspected.expiresAt,
+    gatewayJwtAlgorithm: inspected.algorithm,
+    gatewayJwtProjectRef: inspected.projectRef,
+  };
 }
 
-export function readRenewerConfig(env = process.env) {
+export { worstCaseCycleSeconds };
+
+export function readRenewerConfig(env = process.env, { now = Date.now() } = {}) {
   const target = resolveHealthUrl(env);
 
   const attestationSecret = String(env.TOURNAMENT_MEDIA_ATTESTATION_SECRET || '');
@@ -103,16 +155,14 @@ export function readRenewerConfig(env = process.env) {
     fail('RENEWER_SECRET_MISSING',
       'TOURNAMENT_MEDIA_ATTESTATION_SECRET is required and must be at least 32 characters.');
   }
-  const gatewayKey = String(
-    env.TOURNAMENT_MEDIA_GATEWAY_KEY || env.SUPABASE_PUBLISHABLE_KEY || env.SUPABASE_ANON_KEY || '',
-  );
-  if (!gatewayKey) {
-    fail('RENEWER_GATEWAY_KEY_MISSING',
-      'A Functions gateway credential (publishable/anon) is required. Never use a service credential.');
-  }
-  if (/^(?:sb_secret_|service_role)/.test(gatewayKey)) {
-    fail('RENEWER_GATEWAY_KEY_PRIVILEGED',
-      'The gateway credential must not be a service credential.');
+  const gateway = resolveGatewayCredential(env, { now });
+  // The credential must belong to the project we are renewing against. A JWT
+  // from another project would be rejected by the gateway anyway; failing here
+  // says which variable to fix instead of leaving a 401 to be diagnosed.
+  const expectedRef = target.host.split('.')[0];
+  if (gateway.gatewayJwtProjectRef && gateway.gatewayJwtProjectRef !== expectedRef) {
+    fail('RENEWER_GATEWAY_JWT_PROJECT_MISMATCH',
+      'The gateway JWT ref claim names a different project than the authorized host.');
   }
 
   const ttlSeconds = readInteger(env.TOURNAMENT_MEDIA_SIGNER_ATTEST_TTL_SECONDS, 3600, {
@@ -145,11 +195,32 @@ export function readRenewerConfig(env = process.env) {
     },
   );
 
+  const statePath = String(env.TOURNAMENT_MEDIA_RENEW_STATE_FILE || '').trim();
+  if (statePath && !path.isAbsolute(statePath)) {
+    fail('RENEWER_STATE_PATH_INVALID',
+      'TOURNAMENT_MEDIA_RENEW_STATE_FILE must be an absolute path.');
+  }
+
+  // An operator who already knows when the current attestation expires can say
+  // so, which turns the first cycle's severity from "cannot prove a margin" into
+  // a real number. Optional by design: its absence is handled, not guessed at.
+  const knownExpiresAtRaw = String(env.TOURNAMENT_MEDIA_ATTESTATION_KNOWN_EXPIRES_AT || '').trim();
+  let knownAttestationExpiresAtMs = null;
+  if (knownExpiresAtRaw) {
+    knownAttestationExpiresAtMs = Date.parse(knownExpiresAtRaw);
+    if (!Number.isFinite(knownAttestationExpiresAtMs)) {
+      fail('RENEWER_KNOWN_EXPIRY_INVALID',
+        'TOURNAMENT_MEDIA_ATTESTATION_KNOWN_EXPIRES_AT must be an ISO-8601 timestamp.');
+    }
+  }
+
   const config = {
     ...target,
     healthUrl: `${target.origin}/functions/v1/${target.functionName}`,
     attestationSecret,
-    gatewayKey,
+    ...gateway,
+    statePath: statePath || null,
+    knownAttestationExpiresAtMs,
     ttlSeconds,
     intervalSeconds,
     jitterRatio,
@@ -175,7 +246,12 @@ export function readRenewerConfig(env = process.env) {
   return Object.freeze(config);
 }
 
-/** The values that must never reach a log line, an alert or an exit message. */
+/**
+ * The values that must never reach a log line, an alert or an exit message.
+ * Both halves of the gateway credential are included even though they are
+ * public by design: a log line is not the place to publish them, and a leaked
+ * bearer is still a bearer.
+ */
 export function secretValues(config) {
-  return [config.attestationSecret, config.gatewayKey].filter(Boolean);
+  return [config.attestationSecret, config.apikey, config.authorizationJwt].filter(Boolean);
 }

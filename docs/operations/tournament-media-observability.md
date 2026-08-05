@@ -2,18 +2,46 @@
 
 Definición operativa de las señales que el manifiesto declara obligatorias. La fuente de verdad legible por máquina es `ops/torneos-staging/observability/catalog.json`; este documento explica cada señal, qué hacer cuando dispara y qué nunca puede aparecer en un log.
 
-**Estado: definido, no desplegado.** Ninguna de estas señales está instrumentada todavía en Staging. `catalog.json` declara `signalsDeployedInStaging: false` y `validatedInStaging: false`, y mientras cualquiera de los dos sea false el flag `REACT_APP_TORNEOS_MEDIA_OBSERVABILITY_READY` permanece en false y `mediaUploadEnabled` no puede abrirse (`src/features/torneos/config/featureFlags.js`).
+**Estado: definido, sin colectores implementados, no desplegado.** Ninguna de estas señales está instrumentada todavía en Staging, y **ninguno de los cuatro colectores existe como proceso ejecutable en este repositorio**. `catalog.json` declara `signalsDeployedInStaging: false`, `validatedInStaging: false` e `implemented: false` en los cuatro colectores; mientras cualquiera de esos sea false el flag `REACT_APP_TORNEOS_MEDIA_OBSERVABILITY_READY` permanece en false y `mediaUploadEnabled` no puede abrirse (`src/features/torneos/config/featureFlags.js`).
+
+La distinción importa: una señal *apagada* se enciende esperando; una señal *sin colector* no se enciende nunca por más que se espere. `observabilityReadiness()` las separa con blockers propios (`collectors.not_implemented:<nombre>`), y el manifiesto tiene que listar exactamente los mismos en `observability.collectorsNotImplemented` — así ninguno de los dos archivos puede abrir la compuerta solo.
 
 ## Colectores
 
-| Colector | Qué corre | Intervalo | Credencial |
-|---|---|---:|---|
-| `database` | `ops/torneos-staging/observability/media-pipeline-signals.sql`, un único SELECT de sólo lectura | 60 s | credencial de servicio del host colector; nunca el browser, nunca CI |
-| `storage` | listado de los prefijos `_probe/` y `_selftest/` | 300 s | misma credencial de servicio, sólo lectura y borrado del residuo |
-| `readiness` | `npm run torneos:staging:inspect:remote:readonly` | 900 s | credencial read-only de inspección |
-| `runtime` | agregación de los logs estructurados del signer, del orquestador, del worker y del renovador | 60 s | ninguna: sólo lee logs ya emitidos |
+| Colector | Qué corre | Intervalo | Credencial | Implementado |
+|---|---|---:|---|---|
+| `database` | `ops/torneos-staging/observability/media-pipeline-signals.sql`, un único SELECT de sólo lectura | 60 s | rol colector descrito abajo; nunca el browser, nunca CI | **no** — existe el SQL, falta el proceso que lo corra, derive la ventana y publique |
+| `storage` | listado de los prefijos `_probe/` y `_selftest/` | 300 s | credencial de servicio de Storage, sólo lectura | **no** — nada en el repo lista los prefijos |
+| `readiness` | `npm run torneos:staging:inspect:remote:readonly` | 900 s | credencial read-only de inspección | **no** — existen el inspector y `computeMigrationDrift()`, falta el proceso que los una |
+| `runtime` | agregación de los logs estructurados del signer, del orquestador, del worker y del renovador | 60 s | ninguna: sólo lee logs ya emitidos | **no** — falta el agregador y el pipeline de logs |
+
+Cada colector declara en el catálogo qué le falta (`blocker`) y de dónde saldría el número (`plannedSource`). Un colector sin ambas cosas es rechazado por `validateCatalog`, para que "no implementado" no pueda degradarse a "ya veremos".
 
 El SQL devuelve una sola fila JSON con conteos, edades y ratios. No devuelve nombres de objeto, paths, ids de organización/torneo/galería, ids de usuario, tokens ni texto de error. `uploadReady` sale de `tournament_media_pipeline_readiness()`: el colector nunca lo recalcula.
+
+### Contrato del rol colector
+
+RLS convierte a `count(*)` en una mentira por omisión: un rol que no ve ninguna fila de `tournament_media_processing_jobs` obtiene exactamente la misma respuesta que un rol mirando una cola realmente vacía — cero. Publicar ese cero como `queueDepth` sería convertir un colector ciego en un tablero verde.
+
+Por eso la consulta **prueba su propia visibilidad antes de contar**, en la misma sentencia. El rol tiene que cumplir todo esto, y la consulta verifica cada punto en vez de asumirlo:
+
+1. `SELECT` sobre `public.tournament_media_processing_jobs` y `public.tournament_media_service_attestations`;
+2. `EXECUTE` sobre `public.tournament_media_pipeline_readiness()`;
+3. exención de RLS en ambas tablas, por exactamente una de: `rolbypassrls` (la forma prevista), `rolsuper`, o ser dueño de la tabla mientras la tabla no tenga `FORCE ROW LEVEL SECURITY`.
+
+**Ser miembro del rol destino de una policy NO alcanza.** Una policy filtra, y un conteo filtrado no se distingue de uno chico. Visibilidad parcial se rechaza igual que visibilidad nula.
+
+Cuando la prueba falla, el SQL emite `NULL` en **todas** las métricas — nunca 0 — y `visibility.observable: false` con los blockers exactos. El evaluador rechaza ese snapshot con `COLLECTOR_VISIBILITY_UNPROVEN` en vez de evaluarlo, y sin bloque de visibilidad rechaza con `COLLECTOR_VISIBILITY_MISSING`. Fail-closed de punta a punta.
+
+**Este cambio no crea ningún rol ni otorga ningún permiso.** Los `GRANT` correspondientes son su propio cambio revisado, con la advertencia obvia: `rolbypassrls` es un privilegio serio y el rol que lo tenga no debe poder hacer nada más que estos `SELECT`.
+
+### Ventana de sostenimiento (dwell)
+
+El SQL devuelve valores instantáneos y **no emite ningún campo `*SustainedSeconds`**: una sola lectura no puede saber cuánto hace que un valor está donde está. La ventana la deriva el colector entre lecturas consecutivas, con `deriveSustainedSeconds()` de `scripts/torneos-staging/observability-lib.mjs`, que guarda por métrica la banda de severidad y desde cuándo está en ella.
+
+Banda y no valor: un gauge que oscila entre 61 y 64 no salió de su banda de warning, y reiniciar el reloj en cada oscilación haría que una condición persistente nunca madure a alerta.
+
+Si un umbral con ventana se cumple y el colector no informó dwell, la métrica queda en **`unknown`** — no en `ok` y no en alerta. Antes se asumía `Infinity`, que afirmaba en silencio "esto viene pasando desde siempre" y convertía cualquier umbral con ventana en una alerta instantánea sobre un snapshot que nunca midió nada. Las dos direcciones de esa suposición son incorrectas; la respuesta honesta es que no sabemos.
 
 ## Evaluación y compuerta
 
@@ -116,7 +144,17 @@ Es una señal derivada: cuando cae, la causa está en alguna de las anteriores. 
 
 ### migration-drift
 
-`arma2_torneos_media_migration_drift` — migraciones aplicadas cuyo checksum remoto difiere del manifiesto, o que el manifiesto no declara. Crítico a partir de 1, sin ventana: cualquier drift invalida el contrato de ejecución.
+`arma2_torneos_media_migration_drift` — desacuerdos entre el objetivo de migraciones del manifiesto y el historial remoto, contados **por presencia y orden de versiones**. Crítico a partir de 1, sin ventana: cualquier drift invalida el contrato de ejecución.
+
+No es una comparación de checksums, y no puede serlo: el historial remoto expone `version` y `name` y nada más. El inspector read-only registra `checksum: null` y lo dice en su propia lista de limitaciones. Una métrica definida sobre un campo inexistente no es una métrica apagada — es una que no puede reportar nunca, mientras figura en la lista de requeridas pareciendo lo primero.
+
+Lo que sí es observable, y es lo que cuenta `computeMigrationDrift()` en `readiness-lib.mjs`:
+
+- versiones remotas sin archivo de migración local que las explique;
+- migraciones del objetivo aplicadas fuera del orden declarado;
+- versiones remotas duplicadas.
+
+La verificación de checksum no desaparece: sigue ocurriendo localmente, contra los archivos de migración, en `validateManifest`. Simplemente deja de disfrazarse de observación remota.
 
 ## Prohibido en logs y métricas
 
@@ -146,7 +184,8 @@ Por debajo de 14 días de logs, un incidente de malware detectado tarde ya no es
 
 ## Antes de marcar la observabilidad como validada
 
-1. Desplegar los cuatro colectores contra Staging y confirmar que cada métrica requerida reporta valor.
+0. **Implementar los cuatro colectores.** Ninguno existe todavía; hasta que existan, la compuerta está cerrada por `collectors.not_implemented:*` y ningún tiempo de espera la abre.
+1. Crear el rol colector con el contrato de arriba (cambio propio, revisado), desplegar los cuatro colectores contra Staging y confirmar que cada métrica requerida reporta valor.
 2. Correr `node scripts/torneos-staging/observability.mjs evaluate --snapshot=<snapshot real>` y obtener `observable: true`.
 3. Provocar deliberadamente al menos una alerta por familia (cola, lease, atestación, firmas AV, residuo) y verificar que dispara, que enruta al runbook correcto y que se recupera sola cuando la condición cede.
 4. Verificar en el backend de métricas que ningún campo prohibido llegó a persistirse.
