@@ -3,6 +3,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 
+import { validateCatalog } from './observability-lib.mjs';
+
 export const STAGE_NAMES = Object.freeze([
   'inspect', 'plan', 'dry-run', 'migrate', 'storage', 'secrets-check',
   'edge-deploy', 'worker-check', 'attest', 'enable-multimedia',
@@ -91,6 +93,149 @@ function validateNoEmbeddedSecrets(manifest) {
   assert(!privateKey.test(serialized), 'MANIFEST_SECRET_VALUE', 'Manifest contains a private key.');
   assert(manifest.configuration.secretValuesInManifest === false,
     'MANIFEST_SECRET_POLICY', 'Manifest must forbid secret values.');
+}
+
+/**
+ * The manifest may not describe an attestation contract the code does not
+ * implement. This reads both Edge entrypoints and the renewer and refuses any
+ * disagreement, because a manifest that claims the processor health certifies
+ * the processor tier is exactly the drift this check exists to catch: it does
+ * the opposite — it REVOKES a stale processor attestation and writes none.
+ */
+export function validateAttestationContract({ repoRoot = process.cwd(), manifest = loadManifest(repoRoot) } = {}) {
+  const byName = new Map(manifest.edgeFunctions.map((edge) => [edge.name, edge]));
+  const source = (edge) => fs.readFileSync(path.join(repoRoot, edge.entrypoint), 'utf8');
+
+  const signer = byName.get('tournament-media-signer');
+  assert(canonicalJson(signer.attests) === canonicalJson(['signer'])
+    && canonicalJson(signer.revokesOnHealth) === canonicalJson([]),
+  'ATTESTATION_CONTRACT', 'The signer must be declared as the only writer of the signer attestation.');
+  assert(signer.attestationTtlSeconds === 3600, 'ATTESTATION_TTL',
+    'The declared signer attestation TTL differs from the contract.');
+  const signerSource = source(signer);
+  assert(/attest_tournament_media_service/.test(signerSource)
+    && /p_service:\s*["']signer["']/.test(signerSource),
+  'ATTESTATION_DRIFT', 'The signer does not attest itself the way the manifest declares.');
+  assert(new RegExp(`p_ttl_seconds:\\s*${signer.attestationTtlSeconds}\\b`).test(signerSource),
+    'ATTESTATION_DRIFT', 'The signer writes a TTL the manifest does not declare.');
+  assert(!/revoke_tournament_media_service_attestation/.test(signerSource),
+    'ATTESTATION_DRIFT', 'The signer is not declared as revoking anything.');
+
+  const processor = byName.get('tournament-media-processor');
+  assert(canonicalJson(processor.attests) === canonicalJson([]),
+    'ATTESTATION_CONTRACT', 'The processor Edge Function must attest nothing.');
+  assert(canonicalJson(processor.revokesOnHealth) === canonicalJson(['processor']),
+    'ATTESTATION_CONTRACT', 'The processor health must be declared as revoking the stale processor attestation.');
+  assert(processor.attestationTtlSeconds === null, 'ATTESTATION_TTL',
+    'A function that writes no attestation may not declare a TTL.');
+  assert(processor.processorAttestationOwner === manifest.worker.path,
+    'ATTESTATION_CONTRACT', 'The processor attestation owner must be the external worker.');
+  const processorSource = source(processor);
+  assert(/revoke_tournament_media_service_attestation/.test(processorSource)
+    && /p_service:\s*["']processor["']/.test(processorSource),
+  'ATTESTATION_DRIFT', 'The processor health does not revoke the stale processor attestation.');
+  assert(!/attest_tournament_media_service/.test(processorSource),
+    'ATTESTATION_DRIFT', 'The processor Edge Function must never call the attestation contract.');
+
+  // The worker owns the processor attestation and renews it inside its own loop.
+  assert(manifest.worker.attestationTtlSeconds === 900
+    && manifest.worker.attestationRenewalIntervalSeconds * 3 <= manifest.worker.attestationTtlSeconds,
+  'ATTESTATION_RENEWAL', 'The worker must renew its attestation at or under a third of its TTL.');
+
+  // The signer cannot renew itself, so the scheduler is part of the contract.
+  const renewal = manifest.signerAttestationRenewal;
+  assert(renewal?.required === true, 'ATTESTATION_RENEWAL',
+    'The signer attestation renewal contract is missing.');
+  assert(renewal.attestationTtlSeconds === signer.attestationTtlSeconds,
+    'ATTESTATION_RENEWAL', 'Renewal TTL differs from the TTL the signer writes.');
+  for (const file of [renewal.entrypoint, renewal.runbook]) {
+    assert(fs.existsSync(path.join(repoRoot, file)), 'ATTESTATION_RENEWAL_MISSING', `${file} is missing.`);
+  }
+  const worstCase = renewal.intervalSeconds * (1 + renewal.jitterRatio)
+    + (renewal.maxAttempts * renewal.timeoutMs
+      + renewal.backoffBaseMs * (2 ** renewal.maxAttempts - 2) * (1 + renewal.jitterRatio)) / 1000;
+  assert(worstCase + renewal.safetyMarginSeconds <= renewal.attestationTtlSeconds,
+    'ATTESTATION_RENEWAL_UNSAFE', 'The declared renewal schedule can miss the attestation expiry.');
+  assert(renewal.alertAfterConsecutiveFailures * renewal.intervalSeconds < renewal.attestationTtlSeconds,
+    'ATTESTATION_RENEWAL_UNSAFE', 'The renewal alert would fire after the attestation could expire.');
+  assert(renewal.idempotent === true && renewal.holdsServiceCredential === false,
+    'ATTESTATION_RENEWAL', 'Renewal must be idempotent and must not hold a service credential.');
+  // Nothing is scheduled or deployed by this change; the manifest has to say so.
+  assert(renewal.scheduler?.configuredInThisChange === false
+    && renewal.scheduler?.deployedInThisChange === false,
+  'ATTESTATION_RENEWAL_SCOPE', 'The renewal scheduler must remain unconfigured and undeployed.');
+  for (const field of ['stagingOwner', 'productionOwner']) {
+    assert(typeof renewal.scheduler?.[field] === 'string' && renewal.scheduler[field].length > 10,
+      'ATTESTATION_RENEWAL_OWNER', `The renewal scheduler must name its ${field}.`);
+  }
+  const renewerConfig = fs.readFileSync(
+    path.join(repoRoot, renewal.path, 'src', 'config.mjs'), 'utf8',
+  );
+  assert(!/env\.SUPABASE_SERVICE_ROLE_KEY|env\.SUPABASE_SECRET_KEY/.test(renewerConfig),
+    'ATTESTATION_RENEWAL_PRIVILEGE', 'The renewer must never read a service credential.');
+  return { ok: true };
+}
+
+/**
+ * Observability is a gate, not a nice-to-have: every signal the manifest
+ * requires has to exist in the catalog with a threshold, a severity, a recovery
+ * condition and a runbook, and the browser flag has to stay closed until the
+ * signals are deployed AND validated against Staging.
+ */
+export function validateObservabilityContract({ repoRoot = process.cwd(), manifest = loadManifest(repoRoot) } = {}) {
+  const observability = manifest.observability;
+  for (const file of [observability.catalog, observability.query, observability.runbook]) {
+    assert(typeof file === 'string' && fs.existsSync(path.join(repoRoot, file)),
+      'OBSERVABILITY_MISSING', `${file} declared by the manifest is missing.`);
+  }
+  const catalog = readJson(path.join(repoRoot, observability.catalog));
+  validateCatalog({ repoRoot, catalog });
+
+  const catalogSignals = new Set(catalog.metrics.map(({ signal }) => signal));
+  const required = observability.requiredSignals;
+  assert(Array.isArray(required) && required.length > 0,
+    'OBSERVABILITY_SIGNALS', 'The manifest declares no required signals.');
+  assert(new Set(required).size === required.length,
+    'OBSERVABILITY_SIGNALS', 'The required signal list repeats a signal.');
+  for (const signal of required) {
+    assert(catalogSignals.has(signal), 'OBSERVABILITY_SIGNAL_MISSING',
+      `Required signal ${signal} has no metric in the catalog.`);
+  }
+  // Bidirectional: a metric nobody requires is a metric nobody watches.
+  for (const signal of catalogSignals) {
+    assert(required.includes(signal), 'OBSERVABILITY_SIGNAL_UNDECLARED',
+      `Catalog metric signal ${signal} is not declared as required.`);
+  }
+
+  // The flag stays closed until the signals are real. Manifest and catalog have
+  // to agree, so flipping one of them alone can never open the gate.
+  assert(observability.flagMustRemainFalseUntilValidated === true,
+    'OBSERVABILITY_FLAG_CONTRACT', 'The observability flag contract is missing.');
+  assert(observability.browserFlag === 'REACT_APP_TORNEOS_MEDIA_OBSERVABILITY_READY',
+    'OBSERVABILITY_FLAG_CONTRACT', 'The observability browser flag name differs.');
+  assert(observability.signalsDeployedInStaging === catalog.signalsDeployedInStaging
+    && observability.validatedInStaging === catalog.validatedInStaging,
+  'OBSERVABILITY_STATE_DRIFT', 'Manifest and catalog disagree on observability state.');
+  assert(manifest.flags.multimediaRequiresObservability === true,
+    'OBSERVABILITY_FLAG_CONTRACT', 'Multimedia must require observability.');
+  if (observability.validatedInStaging !== true || observability.signalsDeployedInStaging !== true) {
+    assert(manifest.flags.initial[observability.browserFlag] === false,
+      'OBSERVABILITY_FLAG_OPEN', 'The observability flag must start false until the signals are validated.');
+    assert(manifest.flags.initial.REACT_APP_TORNEOS_MEDIA_UPLOAD_ENABLED === false,
+      'OBSERVABILITY_FLAG_OPEN', 'Multimedia cannot start enabled without validated observability.');
+  }
+
+  // The stage allowlist extension is a proposal until it is approved as its own
+  // change: it may be written down, it may not be in effect.
+  const proposal = manifest.authorizedStagesProposal;
+  assert(proposal?.applied === false, 'STAGE_PROPOSAL_APPLIED',
+    'The authorized stage extension must not be applied.');
+  assert(fs.existsSync(path.join(repoRoot, proposal.document)), 'STAGE_PROPOSAL_MISSING',
+    'The authorized stage proposal document is missing.');
+  assert(Array.isArray(proposal.proposedStages) && proposal.proposedStages.length > 0
+    && proposal.proposedStages.every((stage) => !AUTHORIZED_MANIFEST_STAGES.includes(stage)),
+  'STAGE_PROPOSAL_OVERLAP', 'A proposed stage may not already be authorized.');
+  return { ok: true };
 }
 
 export function validateManifest({ repoRoot = process.cwd(), manifest = loadManifest(repoRoot) } = {}) {
@@ -230,6 +375,8 @@ export function validateManifest({ repoRoot = process.cwd(), manifest = loadMani
       'EDGE_CHECKSUM', `${edge.name} checksum differs from manifest.`);
     assert(edge.verifyJwt === true, 'EDGE_JWT', `${edge.name} must verify JWT.`);
   }
+  validateAttestationContract({ repoRoot, manifest });
+  validateObservabilityContract({ repoRoot, manifest });
 
   const workerPackage = readJson(path.join(repoRoot, manifest.worker.path, 'package.json'));
   assert(workerPackage.dependencies?.sharp === manifest.worker.sharpVersion,
@@ -384,6 +531,21 @@ export function validateState({ repoRoot = process.cwd(), manifest = loadManifes
   assert(state.flags?.production === false, 'PRODUCTION_FLAG', 'Production flag must be false.');
   assert(state.flags?.multimedia === false && state.flags?.social === false,
     'FLAGS_NOT_CLOSED', 'Multimedia and Social must start false.');
+
+  // The observability flag may not run ahead of the signals it stands for.
+  const observability = state.observability || {};
+  for (const field of ['signalsDeployed', 'validatedInStaging']) {
+    assert(typeof observability[field] === 'boolean', 'OBSERVABILITY_STATE_MISSING',
+      `Inspected state must report observability.${field}.`);
+  }
+  if (state.flags?.observabilityReady === true) {
+    assert(observability.signalsDeployed === true && observability.validatedInStaging === true,
+      'OBSERVABILITY_FLAG_DRIFT', 'The observability flag is open without deployed, validated signals.');
+  }
+  if (manifest.observability.validatedInStaging === false) {
+    assert(observability.validatedInStaging === false, 'OBSERVABILITY_STATE_DRIFT',
+      'Staging reports validated observability that the manifest does not declare.');
+  }
   return { ok: true, stateSha256: sha256(canonicalJson(state)), pendingMigrations: expectedPending };
 }
 
@@ -438,6 +600,15 @@ export function buildPlan({
     })),
     missingSecretAlternatives,
     worker: { action: state.worker?.deployed ? 'verify' : 'provision-manually', contract: manifest.worker },
+    signerAttestationRenewal: {
+      action: state.signerAttestationRenewer?.deployed ? 'verify' : 'provision-manually',
+      contract: manifest.signerAttestationRenewal,
+    },
+    observability: {
+      action: state.observability?.validatedInStaging ? 'verify' : 'deploy-and-validate',
+      current: state.observability || null,
+      contract: manifest.observability,
+    },
     flags: { current: state.flags, requiredOrder: manifest.flags.enableOrder },
     qa: manifest.qa,
     rollback: manifest.rollback,
@@ -446,6 +617,8 @@ export function buildPlan({
       'authorize each mutating stage independently',
       'pause and verify signer health before processor deploy',
       'provision the external worker outside this repository',
+      'provision the signer attestation renewer next to the worker, outside this repository',
+      'deploy and validate the observability signals before enabling Multimedia',
       'run revocation proof before enabling Multimedia',
       'record QA receipts before enabling Social',
     ],
@@ -515,6 +688,19 @@ export function validateStageReadiness({ manifest, state, stage, input = {} }) {
   if (stage === 'enable-multimedia' || stage === 'qa-multimedia'
     || stage === 'enable-social' || stage === 'qa-social') {
     assert(state.readiness?.uploadReady === true, 'UPLOAD_NOT_READY', 'uploadReady=false blocks enablement.');
+    // A pipeline nobody can see may not be a pipeline anybody can use. Both
+    // halves are required: signals deployed, and signals proven against
+    // Staging. Either one alone keeps the flag closed.
+    if (manifest.flags?.multimediaRequiresObservability === true) {
+      assert(state.observability?.signalsDeployed === true
+        && state.observability?.validatedInStaging === true,
+      'OBSERVABILITY_NOT_VALIDATED', `${stage} requires deployed and validated observability signals.`);
+      assert(state.observability?.missingRequiredSignals === undefined
+        || state.observability.missingRequiredSignals.length === 0,
+      'OBSERVABILITY_INCOMPLETE', `${stage} requires every required signal to report a value.`);
+      assert(state.flags?.observabilityReady === true,
+        'OBSERVABILITY_FLAG_CLOSED', `${stage} requires ${manifest.observability.browserFlag}=true.`);
+    }
   }
   if (stage === 'enable-social' || stage === 'qa-social') {
     assert(state.qaReceipts?.multimedia === true, 'SOCIAL_ORDER', 'Social requires Multimedia QA receipt.');
@@ -576,6 +762,10 @@ export function simulateStage({ manifest, plan, state, stage, input = {} }) {
       break;
     case 'enable-multimedia':
       assert(next.readiness?.uploadReady === true, 'UPLOAD_NOT_READY', 'uploadReady=false blocks Multimedia.');
+      assert(manifest.flags?.multimediaRequiresObservability !== true
+        || (next.observability?.signalsDeployed === true
+          && next.observability?.validatedInStaging === true),
+      'OBSERVABILITY_NOT_VALIDATED', 'Multimedia cannot be enabled without validated observability.');
       next.flags.multimedia = true;
       break;
     case 'qa-multimedia':

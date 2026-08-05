@@ -130,6 +130,67 @@ test('the browser guest flow sends only apikey when no user JWT exists', async (
   assert.doesNotMatch(invocation, /Authorization/);
 });
 
+test('the signer attests itself, and only itself, with the TTL the manifest declares', async () => {
+  const source = await fs.readFile(
+    path.join(functionsRoot, 'tournament-media-signer', 'index.ts'),
+    'utf8',
+  );
+  const manifest = JSON.parse(await fs.readFile(
+    path.join(repoRoot, 'ops', 'torneos-staging', 'manifest.json'), 'utf8',
+  ));
+  const declared = manifest.edgeFunctions.find(({ name }) => name === 'tournament-media-signer');
+
+  assert.match(source, /\.rpc\("attest_tournament_media_service"/);
+  assert.match(source, /p_service:\s*"signer"/);
+  assert.match(source, new RegExp(`p_ttl_seconds:\\s*${declared.attestationTtlSeconds}\\b`));
+  assert.doesNotMatch(source, /revoke_tournament_media_service_attestation/);
+  // The health action is the only path that attests, and it is behind the
+  // attestation secret rather than behind a user session.
+  assert.match(source, /x-media-attestation-secret/);
+  assert.deepEqual(declared.attests, ['signer']);
+});
+
+test('the processor health revokes a stale attestation and never writes one', async () => {
+  const source = await fs.readFile(
+    path.join(functionsRoot, 'tournament-media-processor', 'index.ts'),
+    'utf8',
+  );
+  const manifest = JSON.parse(await fs.readFile(
+    path.join(repoRoot, 'ops', 'torneos-staging', 'manifest.json'), 'utf8',
+  ));
+  const declared = manifest.edgeFunctions.find(({ name }) => name === 'tournament-media-processor');
+
+  // The drift the audit found: the manifest used to describe this health probe
+  // as "self-test action plus processor attestation". It is the opposite.
+  assert.match(source, /\.rpc\("revoke_tournament_media_service_attestation"/);
+  assert.match(source, /p_service:\s*"processor"/);
+  assert.doesNotMatch(source, /attest_tournament_media_service/);
+  assert.match(source, /attests:\s*false/);
+  assert.deepEqual(declared.attests, []);
+  assert.deepEqual(declared.revokesOnHealth, ['processor']);
+  assert.equal(declared.attestationTtlSeconds, null);
+  assert.equal(declared.processorAttestationOwner, 'workers/tournament-media-processor');
+  assert.match(declared.healthContract, /REVOKES any stale processor attestation and never writes one/);
+});
+
+test('the signer attestation has a scheduled renewer that holds no service credential', async () => {
+  const manifest = JSON.parse(await fs.readFile(
+    path.join(repoRoot, 'ops', 'torneos-staging', 'manifest.json'), 'utf8',
+  ));
+  const renewal = manifest.signerAttestationRenewal;
+  const config = await fs.readFile(
+    path.join(repoRoot, renewal.path, 'src', 'config.mjs'), 'utf8',
+  );
+  // The renewer talks to the signer with the attestation secret and a public
+  // gateway credential. A service credential here would defeat the split.
+  assert.doesNotMatch(config, /env\.SUPABASE_SERVICE_ROLE_KEY|env\.SUPABASE_SECRET_KEY/);
+  assert.match(config, /RENEWER_GATEWAY_KEY_PRIVILEGED/);
+  assert.equal(renewal.holdsServiceCredential, false);
+  // Renewal has to happen well inside the TTL the signer writes.
+  assert.ok(renewal.intervalSeconds * (1 + renewal.jitterRatio) + renewal.safetyMarginSeconds
+    < renewal.attestationTtlSeconds);
+});
+
 test('guest invite consumption and player creation use one atomic RPC', async () => {
   const source = await fs.readFile(
     path.join(functionsRoot, 'join-match-guest', 'index.ts'),

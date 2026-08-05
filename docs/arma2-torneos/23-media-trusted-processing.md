@@ -183,6 +183,27 @@ Reglas, todas verificadas por `tournament_media_attestation_rejection`:
 El fingerprint es un SHA-256 de identificadores del catálogo local. No publica
 nombres, credenciales ni el project ref.
 
+### Quién renueva cada atestación
+
+Las dos expiran solas, pero no se renuevan igual:
+
+| Atestación | TTL | Quién la renueva | Cadencia |
+| --- | ---: | --- | --- |
+| `processor` | 900 s | el propio loop del worker (`workers/tournament-media-processor/src/index.mjs`) | a un tercio del TTL |
+| `signer` | 3600 s | **un scheduler externo** (`workers/tournament-media-signer-renewer`) | cada 1200 s con jitter ±10 % |
+
+El signer no puede renovarse solo: es una Edge Function y sólo atestigua
+mientras responde su propio `health`, que está autorizado por
+`TOURNAMENT_MEDIA_ATTESTATION_SECRET`. Sin scheduler, alguien tenía que
+ejecutar el probe a mano cada hora o `uploadReady` se cerraba solo.
+
+El renovador **no tiene credencial de servicio**: lleva el secreto de
+atestación y una credencial pública del gateway, y no hay en él ningún camino
+que extienda, falsifique o preserve una atestación. Si muere, la atestación
+vence y las cargas se cierran; eso es el comportamiento correcto. Detalle,
+alternativas descartadas y responsables en
+[docs/operations/tournament-media-signer-attestation-renewal.md](../operations/tournament-media-signer-attestation-renewal.md).
+
 ## Fail-closed en cada escritura
 
 `tournament_media_require_pipeline_ready()` levanta un único error estable,
@@ -293,8 +314,15 @@ Para abrir la carga hace falta, fuera de este repositorio:
 3. El bucket privado `tournament-media` con las cuatro policies de servicio y
    ninguna de escritura para `anon`/`authenticated`
    (`npm run storage:tournament-media:local` lo hace en local).
-4. `SUPABASE_URL` + credencial de servicio en el entorno del worker.
+4. `SUPABASE_URL` + credencial de servicio en el entorno del worker. El alcance
+   real de esa credencial y la alternativa de menor privilegio están revisados
+   en [docs/operations/tournament-media-service-role-review.md](../operations/tournament-media-service-role-review.md).
 5. Deploy de las dos Edge Functions y `TOURNAMENT_MEDIA_ATTESTATION_SECRET`.
+6. El renovador de la atestación del signer corriendo junto al worker, con el
+   mismo secret store y sin credencial de servicio.
+7. Las señales de observabilidad desplegadas y validadas contra Staging. Hasta
+   entonces `REACT_APP_TORNEOS_MEDIA_OBSERVABILITY_READY` queda en false y
+   Multimedia no puede habilitarse.
 
 Nada de eso ocurre desde CI ni desde este PR.
 
@@ -305,6 +333,8 @@ npm run test:db:torneos:media-upload        # pipeline completo
 npm run test:db:torneos:media-failclosed    # el contrato fail-closed
 npm run test:worker:media                   # codec real + clamd + rollback
 npm run test:worker:media:selftest          # veredicto de esta máquina
+npm run test:worker:signer-renewer          # renovación, jitter, backoff, redacción
+npm run test:torneos:observability          # catálogo, umbrales y compuerta
 npm run test:edge-functions
 npm run test:storage:local
 ```

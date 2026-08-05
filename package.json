@@ -65,6 +65,10 @@
     "test:storage:local": "node --test scripts/storage/*.test.mjs",
     "test:worker:media": "node --test workers/tournament-media-processor/test/*.test.mjs",
     "test:worker:media:selftest": "node workers/tournament-media-processor/src/selftest-cli.mjs",
+    "test:worker:signer-renewer": "node --test workers/tournament-media-signer-renewer/test/*.test.mjs",
+    "test:torneos:observability": "node --test scripts/torneos-staging/observability.test.mjs",
+    "torneos:media:observability:validate": "node scripts/torneos-staging/observability.mjs validate --json",
+    "torneos:media:observability:evaluate": "node scripts/torneos-staging/observability.mjs evaluate --json",
     "storage:tournament-media:local": "node scripts/storage/provision-tournament-media-local.mjs",
     "storage:tournament-media:verify": "node scripts/storage/provision-tournament-media-local.mjs --verify",
     "test:web-access": "node --test server/__tests__/*.test.mjs",
@@ -87,7 +91,7 @@
     "test:db:torneos:participant-hub": "node scripts/db-integration/torneos-participant-hub.mjs",
     "test:db:torneos:communications": "node scripts/db-integration/torneos-communications.mjs",
     "test:db:torneos:media": "node scripts/db-integration/torneos-media-galleries.mjs",
-    "torneos:staging:validate": "node --test scripts/torneos-staging/apply-single-migration.test.mjs scripts/torneos-staging/apply-single-migration.a2.test.mjs scripts/torneos-staging/psql-connection-contract.test.mjs scripts/torneos-staging/inspect-remote-readonly.test.mjs scripts/torneos-staging/readiness.test.mjs scripts/torneos-staging/rollback-contract.test.mjs scripts/torneos-staging/static-guard.test.mjs scripts/storage/tournament-media-procedure.test.mjs && npm run migrations:guard",
+    "torneos:staging:validate": "node --test scripts/torneos-staging/apply-single-migration.test.mjs scripts/torneos-staging/apply-single-migration.a2.test.mjs scripts/torneos-staging/psql-connection-contract.test.mjs scripts/torneos-staging/inspect-remote-readonly.test.mjs scripts/torneos-staging/readiness.test.mjs scripts/torneos-staging/observability.test.mjs scripts/torneos-staging/rollback-contract.test.mjs scripts/torneos-staging/static-guard.test.mjs scripts/storage/tournament-media-procedure.test.mjs && npm run migrations:guard",
     "torneos:staging:inspect": "node scripts/staging/run.mjs inspect",
     "torneos:staging:inspect:remote:readonly": "node scripts/torneos-staging/inspect-remote-readonly.mjs",
     "torneos:staging:plan": "node scripts/staging/run.mjs plan",
@@ -134,8 +138,8 @@
     "staging:plan": "node scripts/staging/run.mjs plan",
     "staging:dry-run": "node scripts/staging/run.mjs dry-run",
     "staging:static-guard": "node scripts/torneos-staging/static-guard.mjs",
-    "test:staging:readiness": "node --test scripts/torneos-staging/apply-single-migration.test.mjs scripts/torneos-staging/apply-single-migration.a2.test.mjs scripts/torneos-staging/psql-connection-contract.test.mjs scripts/torneos-staging/inspect-remote-readonly.test.mjs scripts/torneos-staging/readiness.test.mjs scripts/torneos-staging/rollback-contract.test.mjs scripts/torneos-staging/static-guard.test.mjs scripts/storage/tournament-media-procedure.test.mjs",
-    "test:staging:guard": "node --test scripts/staging/guard.test.mjs scripts/torneos-staging/apply-single-migration.test.mjs scripts/torneos-staging/apply-single-migration.a2.test.mjs scripts/torneos-staging/psql-connection-contract.test.mjs scripts/torneos-staging/psql-connection-live.test.mjs scripts/torneos-staging/inspect-remote-readonly.test.mjs scripts/torneos-staging/readiness.test.mjs scripts/torneos-staging/rollback-contract.test.mjs scripts/torneos-staging/static-guard.test.mjs scripts/storage/tournament-media-procedure.test.mjs"
+    "test:staging:readiness": "node --test scripts/torneos-staging/apply-single-migration.test.mjs scripts/torneos-staging/apply-single-migration.a2.test.mjs scripts/torneos-staging/psql-connection-contract.test.mjs scripts/torneos-staging/inspect-remote-readonly.test.mjs scripts/torneos-staging/readiness.test.mjs scripts/torneos-staging/observability.test.mjs scripts/torneos-staging/rollback-contract.test.mjs scripts/torneos-staging/static-guard.test.mjs scripts/storage/tournament-media-procedure.test.mjs",
+    "test:staging:guard": "node --test scripts/staging/guard.test.mjs scripts/torneos-staging/apply-single-migration.test.mjs scripts/torneos-staging/apply-single-migration.a2.test.mjs scripts/torneos-staging/psql-connection-contract.test.mjs scripts/torneos-staging/psql-connection-live.test.mjs scripts/torneos-staging/inspect-remote-readonly.test.mjs scripts/torneos-staging/readiness.test.mjs scripts/torneos-staging/observability.test.mjs scripts/torneos-staging/rollback-contract.test.mjs scripts/torneos-staging/static-guard.test.mjs scripts/storage/tournament-media-procedure.test.mjs"
   },
   "eslintConfig": {
     "extends": [
