@@ -1,0 +1,364 @@
+{
+  "schemaVersion": 1,
+  "name": "arma2-torneos-multimedia-observability",
+  "status": "defined-local-only-not-deployed",
+  "metricNamespace": "arma2_torneos_media_",
+  "signalsDeployedInStaging": false,
+  "validatedInStaging": false,
+  "collectors": {
+    "database": {
+      "kind": "read-only-sql",
+      "query": "ops/torneos-staging/observability/media-pipeline-signals.sql",
+      "credential": "service credential held by the collector host; never the browser, never CI",
+      "intervalSeconds": 60,
+      "notes": "One SELECT, no writes, no DDL. Returns counts and ages only: no object name, no path, no user id, no token."
+    },
+    "storage": {
+      "kind": "storage-list",
+      "prefixes": ["_probe/", "_selftest/"],
+      "intervalSeconds": 300,
+      "notes": "Counts objects older than the grace period. Names are counted, never emitted."
+    },
+    "readiness": {
+      "kind": "read-only-inspector",
+      "command": "npm run torneos:staging:inspect:remote:readonly",
+      "intervalSeconds": 900,
+      "notes": "The only collector that knows the manifest checksums, so migration drift is computed there and nowhere else."
+    },
+    "runtime": {
+      "kind": "structured-logs",
+      "sources": [
+        "supabase/functions/tournament-media-signer",
+        "supabase/functions/tournament-media-processor",
+        "workers/tournament-media-processor",
+        "workers/tournament-media-signer-renewer"
+      ],
+      "intervalSeconds": 60,
+      "notes": "Latency, error ratio and failure counters derived from structured log events, never from response bodies."
+    }
+  },
+  "retention": {
+    "metricsDays": 30,
+    "alertEventsDays": 90,
+    "structuredLogsDays": 14,
+    "minimumRecommendedDays": 14,
+    "rationale": "Thirty days of metrics covers a full staging QA cycle plus one regression window; ninety days of alert events keeps the incident trail that the rollback contract references; fourteen days of raw logs is the floor at which a quarantine incident can still be correlated."
+  },
+  "prohibitedInLogsAndMetrics": [
+    "storage object names and internal paths",
+    "signed URLs and any query string carrying token/signature",
+    "upload session tokens and lease tokens",
+    "API keys, service credentials and the attestation secret",
+    "JWTs and Authorization headers",
+    "user ids, emails, display names and identity maps",
+    "IP addresses of uploaders",
+    "EXIF payloads and any image bytes",
+    "raw database error text from the media RPCs"
+  ],
+  "labelPolicy": {
+    "allowedLabels": ["environment", "service", "release", "severity"],
+    "forbiddenLabels": ["organization_id", "tournament_id", "gallery_id", "user_id", "object_name", "job_id"],
+    "rationale": "Per-tenant labels would rebuild the identity map inside the metrics backend, which the pipeline contract forbids."
+  },
+  "metrics": [
+    {
+      "signal": "quarantine-depth",
+      "name": "arma2_torneos_media_quarantine_depth",
+      "type": "gauge",
+      "unit": "objects",
+      "description": "Uploaded objects still sitting in quarantine: every job that is not succeeded, counted from the queue rather than from a bucket listing.",
+      "source": { "collector": "database", "path": "database.quarantineDepth" },
+      "thresholds": [
+        { "severity": "warning", "comparator": ">=", "value": 50, "forSeconds": 600 },
+        { "severity": "critical", "comparator": ">=", "value": 200, "forSeconds": 600 }
+      ],
+      "recovery": { "comparator": "<", "value": 25, "forSeconds": 900 },
+      "runbook": "docs/operations/tournament-media-observability.md#quarantine-depth",
+      "requiredForObservabilityReady": true
+    },
+    {
+      "signal": "queue-depth",
+      "name": "arma2_torneos_media_queue_depth",
+      "type": "gauge",
+      "unit": "jobs",
+      "description": "Processing jobs in status queued and waiting for a worker lease.",
+      "source": { "collector": "database", "path": "database.queueDepth" },
+      "thresholds": [
+        { "severity": "warning", "comparator": ">=", "value": 25, "forSeconds": 600 },
+        { "severity": "critical", "comparator": ">=", "value": 100, "forSeconds": 600 }
+      ],
+      "recovery": { "comparator": "<", "value": 10, "forSeconds": 900 },
+      "runbook": "docs/operations/tournament-media-observability.md#queue-depth",
+      "requiredForObservabilityReady": true
+    },
+    {
+      "signal": "job-age",
+      "name": "arma2_torneos_media_oldest_job_age_seconds",
+      "type": "gauge",
+      "unit": "seconds",
+      "description": "Age of the oldest job that has not reached a terminal status. The single best proxy for a stopped worker.",
+      "source": { "collector": "database", "path": "database.oldestJobAgeSeconds" },
+      "thresholds": [
+        { "severity": "warning", "comparator": ">=", "value": 900, "forSeconds": 300 },
+        { "severity": "critical", "comparator": ">=", "value": 3600, "forSeconds": 300 }
+      ],
+      "recovery": { "comparator": "<", "value": 300, "forSeconds": 900 },
+      "runbook": "docs/operations/tournament-media-observability.md#job-age",
+      "requiredForObservabilityReady": true
+    },
+    {
+      "signal": "expired-leases",
+      "name": "arma2_torneos_media_expired_leases",
+      "type": "gauge",
+      "unit": "jobs",
+      "description": "Jobs still marked leased whose lease has already expired. A non-zero value that persists means the sweeper is not running.",
+      "source": { "collector": "database", "path": "database.expiredLeases" },
+      "thresholds": [
+        { "severity": "warning", "comparator": ">=", "value": 1, "forSeconds": 600 },
+        { "severity": "critical", "comparator": ">=", "value": 5, "forSeconds": 600 }
+      ],
+      "recovery": { "comparator": "==", "value": 0, "forSeconds": 900 },
+      "runbook": "docs/operations/tournament-media-observability.md#expired-leases",
+      "requiredForObservabilityReady": true
+    },
+    {
+      "signal": "stuck-leases",
+      "name": "arma2_torneos_media_stuck_lease_age_seconds",
+      "type": "gauge",
+      "unit": "seconds",
+      "description": "How long the most overdue expired lease has been overdue. Separates a slow sweep from a stuck one.",
+      "source": { "collector": "database", "path": "database.stuckLeaseAgeSeconds" },
+      "thresholds": [
+        { "severity": "warning", "comparator": ">=", "value": 300, "forSeconds": 300 },
+        { "severity": "critical", "comparator": ">=", "value": 900, "forSeconds": 300 }
+      ],
+      "recovery": { "comparator": "<", "value": 60, "forSeconds": 900 },
+      "runbook": "docs/operations/tournament-media-observability.md#expired-leases",
+      "requiredForObservabilityReady": true
+    },
+    {
+      "signal": "attestation-expiry",
+      "name": "arma2_torneos_media_signer_attestation_expires_in_seconds",
+      "type": "gauge",
+      "unit": "seconds",
+      "description": "Time left on the signer attestation. Renewal runs every 1200s against a 3600s TTL, so anything under 1200s means at least one renewal has already been missed.",
+      "source": { "collector": "database", "path": "database.signerAttestationExpiresInSeconds" },
+      "thresholds": [
+        { "severity": "warning", "comparator": "<=", "value": 1200, "forSeconds": 0 },
+        { "severity": "critical", "comparator": "<=", "value": 600, "forSeconds": 0 }
+      ],
+      "recovery": { "comparator": ">", "value": 2400, "forSeconds": 0 },
+      "runbook": "docs/operations/tournament-media-signer-attestation-renewal.md#incidentes",
+      "requiredForObservabilityReady": true
+    },
+    {
+      "signal": "attestation-expiry",
+      "name": "arma2_torneos_media_processor_attestation_expires_in_seconds",
+      "type": "gauge",
+      "unit": "seconds",
+      "description": "Time left on the processor attestation. The worker re-attests at a third of its 900s TTL, so under 300s means the worker loop is not renewing.",
+      "source": { "collector": "database", "path": "database.processorAttestationExpiresInSeconds" },
+      "thresholds": [
+        { "severity": "warning", "comparator": "<=", "value": 300, "forSeconds": 0 },
+        { "severity": "critical", "comparator": "<=", "value": 120, "forSeconds": 0 }
+      ],
+      "recovery": { "comparator": ">", "value": 600, "forSeconds": 0 },
+      "runbook": "docs/operations/tournament-media-worker-runbook.md",
+      "requiredForObservabilityReady": true
+    },
+    {
+      "signal": "attestation-renewal-failures",
+      "name": "arma2_torneos_media_signer_attestation_renewal_failures_consecutive",
+      "type": "gauge",
+      "unit": "cycles",
+      "description": "Consecutive failed renewal cycles reported by the renewer. Alerts before the TTL can run out, not after.",
+      "source": { "collector": "runtime", "path": "runtime.attestationRenewalConsecutiveFailures" },
+      "thresholds": [
+        { "severity": "warning", "comparator": ">=", "value": 1, "forSeconds": 0 },
+        { "severity": "critical", "comparator": ">=", "value": 2, "forSeconds": 0 }
+      ],
+      "recovery": { "comparator": "==", "value": 0, "forSeconds": 0 },
+      "runbook": "docs/operations/tournament-media-signer-attestation-renewal.md#incidentes",
+      "requiredForObservabilityReady": true
+    },
+    {
+      "signal": "clamav-signature-age",
+      "name": "arma2_torneos_media_clamav_signature_age_seconds",
+      "type": "gauge",
+      "unit": "seconds",
+      "description": "Age of the ClamAV signature set the processor last attested. The worker self-test fails at seven days, so the alert has to fire at five.",
+      "source": { "collector": "database", "path": "database.clamavSignatureAgeSeconds" },
+      "thresholds": [
+        { "severity": "warning", "comparator": ">=", "value": 432000, "forSeconds": 0 },
+        { "severity": "critical", "comparator": ">=", "value": 604800, "forSeconds": 0 }
+      ],
+      "recovery": { "comparator": "<", "value": 86400, "forSeconds": 0 },
+      "runbook": "docs/operations/tournament-media-worker-runbook.md",
+      "requiredForObservabilityReady": true
+    },
+    {
+      "signal": "selftest-failures",
+      "name": "arma2_torneos_media_selftest_failures_total",
+      "type": "counter",
+      "unit": "failures",
+      "description": "Self-test failures across the worker and the signer probe, counted over the alert window. Any failure has already closed a readiness gate.",
+      "source": { "collector": "runtime", "path": "runtime.selfTestFailures15m", "windowSeconds": 900 },
+      "thresholds": [
+        { "severity": "warning", "comparator": ">=", "value": 1, "forSeconds": 0 },
+        { "severity": "critical", "comparator": ">=", "value": 3, "forSeconds": 0 }
+      ],
+      "recovery": { "comparator": "==", "value": 0, "forSeconds": 1800 },
+      "runbook": "docs/operations/tournament-media-observability.md#selftest-failures",
+      "requiredForObservabilityReady": true
+    },
+    {
+      "signal": "cleanup-failures",
+      "name": "arma2_torneos_media_cleanup_failures_total",
+      "type": "counter",
+      "unit": "failures",
+      "description": "Failures of the sweeping contracts: the session/job cleanup RPCs and the storage deletes that follow them.",
+      "source": { "collector": "runtime", "path": "runtime.cleanupFailures30m", "windowSeconds": 1800 },
+      "thresholds": [
+        { "severity": "warning", "comparator": ">=", "value": 1, "forSeconds": 0 },
+        { "severity": "critical", "comparator": ">=", "value": 3, "forSeconds": 0 }
+      ],
+      "recovery": { "comparator": "==", "value": 0, "forSeconds": 3600 },
+      "runbook": "docs/operations/tournament-media-observability.md#cleanup-failures",
+      "requiredForObservabilityReady": true
+    },
+    {
+      "signal": "residual-probe-objects",
+      "name": "arma2_torneos_media_residual_probe_objects",
+      "type": "gauge",
+      "unit": "objects",
+      "description": "Objects left under _probe/ for longer than the grace period. The signer health probe deletes its own object in a finally block, so a residue means a delete path is failing.",
+      "source": { "collector": "storage", "path": "storage.residualProbeObjects", "prefix": "_probe/", "graceSeconds": 300 },
+      "thresholds": [
+        { "severity": "warning", "comparator": ">=", "value": 1, "forSeconds": 900 },
+        { "severity": "critical", "comparator": ">=", "value": 10, "forSeconds": 900 }
+      ],
+      "recovery": { "comparator": "==", "value": 0, "forSeconds": 900 },
+      "runbook": "docs/operations/tournament-media-observability.md#residual-objects",
+      "requiredForObservabilityReady": true
+    },
+    {
+      "signal": "residual-selftest-objects",
+      "name": "arma2_torneos_media_residual_selftest_objects",
+      "type": "gauge",
+      "unit": "objects",
+      "description": "Objects left under _selftest/ for longer than the grace period. The worker self-test proves cleanup by deleting this object, so a residue contradicts an attestation that claims cleanup.",
+      "source": { "collector": "storage", "path": "storage.residualSelfTestObjects", "prefix": "_selftest/", "graceSeconds": 300 },
+      "thresholds": [
+        { "severity": "warning", "comparator": ">=", "value": 1, "forSeconds": 900 },
+        { "severity": "critical", "comparator": ">=", "value": 10, "forSeconds": 900 }
+      ],
+      "recovery": { "comparator": "==", "value": 0, "forSeconds": 900 },
+      "runbook": "docs/operations/tournament-media-observability.md#residual-objects",
+      "requiredForObservabilityReady": true
+    },
+    {
+      "signal": "signer-latency",
+      "name": "arma2_torneos_media_signer_latency_p95_ms",
+      "type": "gauge",
+      "unit": "milliseconds",
+      "description": "p95 end-to-end latency of the signer Edge Function across upload-intent and read-urls.",
+      "source": { "collector": "runtime", "path": "runtime.signerLatencyP95Ms", "windowSeconds": 300 },
+      "thresholds": [
+        { "severity": "warning", "comparator": ">=", "value": 1500, "forSeconds": 600 },
+        { "severity": "critical", "comparator": ">=", "value": 3000, "forSeconds": 300 }
+      ],
+      "recovery": { "comparator": "<", "value": 1000, "forSeconds": 900 },
+      "runbook": "docs/operations/tournament-media-observability.md#latency-and-errors",
+      "requiredForObservabilityReady": true
+    },
+    {
+      "signal": "signer-error-rate",
+      "name": "arma2_torneos_media_signer_error_ratio",
+      "type": "gauge",
+      "unit": "ratio",
+      "description": "Share of signer responses in 5xx over the window. Authorisation refusals (401/403) are counted separately and are not errors.",
+      "source": { "collector": "runtime", "path": "runtime.signerErrorRatio", "windowSeconds": 300 },
+      "thresholds": [
+        { "severity": "warning", "comparator": ">=", "value": 0.02, "forSeconds": 600 },
+        { "severity": "critical", "comparator": ">=", "value": 0.1, "forSeconds": 300 }
+      ],
+      "recovery": { "comparator": "<", "value": 0.01, "forSeconds": 900 },
+      "runbook": "docs/operations/tournament-media-observability.md#latency-and-errors",
+      "requiredForObservabilityReady": true
+    },
+    {
+      "signal": "processor-latency",
+      "name": "arma2_torneos_media_processor_latency_p95_ms",
+      "type": "gauge",
+      "unit": "milliseconds",
+      "description": "p95 latency of the processor orchestrator Edge Function on the queue action.",
+      "source": { "collector": "runtime", "path": "runtime.processorLatencyP95Ms", "windowSeconds": 300 },
+      "thresholds": [
+        { "severity": "warning", "comparator": ">=", "value": 1500, "forSeconds": 600 },
+        { "severity": "critical", "comparator": ">=", "value": 3000, "forSeconds": 300 }
+      ],
+      "recovery": { "comparator": "<", "value": 1000, "forSeconds": 900 },
+      "runbook": "docs/operations/tournament-media-observability.md#latency-and-errors",
+      "requiredForObservabilityReady": true
+    },
+    {
+      "signal": "processor-error-rate",
+      "name": "arma2_torneos_media_processor_error_ratio",
+      "type": "gauge",
+      "unit": "ratio",
+      "description": "Share of processor orchestrator responses in 5xx over the window.",
+      "source": { "collector": "runtime", "path": "runtime.processorErrorRatio", "windowSeconds": 300 },
+      "thresholds": [
+        { "severity": "warning", "comparator": ">=", "value": 0.02, "forSeconds": 600 },
+        { "severity": "critical", "comparator": ">=", "value": 0.1, "forSeconds": 300 }
+      ],
+      "recovery": { "comparator": "<", "value": 0.01, "forSeconds": 900 },
+      "runbook": "docs/operations/tournament-media-observability.md#latency-and-errors",
+      "requiredForObservabilityReady": true
+    },
+    {
+      "signal": "upload-errors",
+      "name": "arma2_torneos_media_upload_failure_ratio",
+      "type": "gauge",
+      "unit": "ratio",
+      "description": "Share of upload sessions that end in a failed or abandoned job rather than a published asset.",
+      "source": { "collector": "database", "path": "database.uploadFailureRatio", "windowSeconds": 3600 },
+      "thresholds": [
+        { "severity": "warning", "comparator": ">=", "value": 0.1, "forSeconds": 900 },
+        { "severity": "critical", "comparator": ">=", "value": 0.3, "forSeconds": 900 }
+      ],
+      "recovery": { "comparator": "<", "value": 0.05, "forSeconds": 1800 },
+      "runbook": "docs/operations/tournament-media-observability.md#latency-and-errors",
+      "requiredForObservabilityReady": true
+    },
+    {
+      "signal": "worker-health",
+      "name": "arma2_torneos_media_upload_ready",
+      "type": "gauge",
+      "unit": "boolean",
+      "description": "The database's own uploadReady verdict, exported as 1/0. It is the conjunction of every gate and is never computed by the collector.",
+      "source": { "collector": "database", "path": "database.uploadReady" },
+      "thresholds": [
+        { "severity": "warning", "comparator": "==", "value": 0, "forSeconds": 300 },
+        { "severity": "critical", "comparator": "==", "value": 0, "forSeconds": 1800 }
+      ],
+      "recovery": { "comparator": "==", "value": 1, "forSeconds": 300 },
+      "runbook": "docs/operations/tournament-media-observability.md#upload-ready",
+      "requiredForObservabilityReady": true
+    },
+    {
+      "signal": "migration-drift",
+      "name": "arma2_torneos_media_migration_drift",
+      "type": "gauge",
+      "unit": "migrations",
+      "description": "Applied migrations whose remote checksum differs from the manifest, or that the manifest does not declare at all. Comes from the read-only inspector, which is the only collector that holds the manifest checksums.",
+      "source": { "collector": "readiness", "path": "readiness.migrationDrift" },
+      "thresholds": [
+        { "severity": "critical", "comparator": ">=", "value": 1, "forSeconds": 0 }
+      ],
+      "recovery": { "comparator": "==", "value": 0, "forSeconds": 0 },
+      "runbook": "docs/operations/torneos-staging-readiness-runbook.md",
+      "requiredForObservabilityReady": true
+    }
+  ]
+}
