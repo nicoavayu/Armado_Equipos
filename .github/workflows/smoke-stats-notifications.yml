@@ -1,5 +1,38 @@
 name: Prelaunch Quality Gate
 
+# ---------------------------------------------------------------------------
+# What this gate covers
+# ---------------------------------------------------------------------------
+# Test suites are reached through ONE entrypoint — `npm run test:ci` — so that
+# this file and package.json cannot drift apart. Adding a suite here instead of
+# to `test:ci` is the mistake that let 104 signer-renewer tests pass for weeks
+# without CI ever running them; `scripts/ci/quality-gate-contract.test.mjs`
+# asserts the arrangement below and fails the gate if it is undone.
+#
+#   migrations:guard   migration source guard
+#   test:db            PostgreSQL integration suite
+#   test:db:security   RPC grants + Security Advisor parser
+#   lint               ESLint over src/
+#   build              production build
+#   test:ci            = test:staging:guard          (CI contract, staging guard,
+#                                                     A1/A2 execution contracts,
+#                                                     psql TLS + live connection
+#                                                     contracts, readonly
+#                                                     inspector, readiness,
+#                                                     observability, signer
+#                                                     gateway probe, rollback
+#                                                     contract, repository-wide
+#                                                     static credential scan,
+#                                                     tournament-media storage)
+#                      + test:worker:signer-renewer  (renewer config, compiled
+#                                                     forbidden-target policy,
+#                                                     schedule, redirects, state
+#                                                     store, locking, shutdown,
+#                                                     CLI)
+#                      + the Jest suite
+#
+# No step here may be optional: no continue-on-error, no `|| true`, no `if:`.
+
 on:
   push:
     branches: [main, prelaunch-hardening, epic/arma2-torneos]
@@ -56,5 +89,7 @@ jobs:
       - name: Run build
         run: npm run build
 
-      - name: Run full Jest suite
+      # Composes test:staging:guard, test:worker:signer-renewer and Jest.
+      # Suites are added to the script, never as a step beside it.
+      - name: Run staging guards, signer-renewer and Jest suites
         run: npm run test:ci

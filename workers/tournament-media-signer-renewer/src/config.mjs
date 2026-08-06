@@ -23,6 +23,10 @@
 import path from 'node:path';
 
 import {
+  isCompiledForbiddenProjectRef, projectRefFromHost,
+  resolveForbiddenApiHosts, resolveForbiddenProjectRefs,
+} from './forbidden-targets.mjs';
+import {
   GATEWAY_CREDENTIAL_OPTIONS, inspectGatewayJwt, isPublishableKey, isServiceCredential,
 } from './gateway.mjs';
 import { worstCaseCycleSeconds } from './schedule.mjs';
@@ -65,6 +69,14 @@ const readRatio = (raw, fallback, { min, max, code, name }) => {
  * The target has to be named twice and agree with itself: the URL, and the host
  * the operator says they expect. A copy-pasted production URL therefore fails
  * here instead of renewing an attestation against the wrong project.
+ *
+ * Agreement alone is not authorization, though — two copies of the same wrong
+ * host still name Production. So both statements are additionally checked
+ * against the compiled policy in `forbidden-targets.mjs`, which the environment
+ * can only extend. A deployment that never exported
+ * `TOURNAMENT_MEDIA_FORBIDDEN_API_HOSTS` or
+ * `TOURNAMENT_MEDIA_FORBIDDEN_PROJECT_REFS` — or exported them empty — still
+ * refuses Production here.
  */
 function resolveHealthUrl(env) {
   const rawUrl = String(env.SUPABASE_URL || '').trim().replace(/\/+$/, '');
@@ -83,22 +95,30 @@ function resolveHealthUrl(env) {
   if (url.hostname.toLowerCase() !== expectedHost) {
     fail('RENEWER_HOST_MISMATCH', 'SUPABASE_URL host is not the expected authorized host.');
   }
-  const forbidden = String(env.TOURNAMENT_MEDIA_FORBIDDEN_API_HOSTS || '')
-    .split(',').map((entry) => entry.trim().toLowerCase()).filter(Boolean);
-  if (forbidden.includes(url.hostname.toLowerCase())) {
-    fail('RENEWER_HOST_FORBIDDEN', 'SUPABASE_URL host is explicitly forbidden.');
+  // The compiled policy plus whatever the environment added. The environment
+  // cannot subtract: absent, empty and whitespace-only values all still yield a
+  // list that forbids Production, which is the whole point of resolving them
+  // here instead of splitting the raw string inline.
+  const forbidden = resolveForbiddenApiHosts(env.TOURNAMENT_MEDIA_FORBIDDEN_API_HOSTS);
+  const forbiddenRefs = resolveForbiddenProjectRefs(env.TOURNAMENT_MEDIA_FORBIDDEN_PROJECT_REFS);
+  const host = url.hostname.toLowerCase();
+  // Both statements the operator made are checked against the policy, not just
+  // the URL. They have already been proven equal above, so this is belt and
+  // braces — but the guarantee "EXPECTED_API_HOST may not name Production" is
+  // then anchored in a line of code rather than in a chain of inference.
+  for (const [what, candidate] of [['SUPABASE_URL host', host], ['TOURNAMENT_MEDIA_EXPECTED_API_HOST', expectedHost]]) {
+    if (forbidden.includes(candidate)) {
+      fail('RENEWER_HOST_FORBIDDEN', `${what} is explicitly forbidden.`);
+    }
+    if (forbiddenRefs.includes(projectRefFromHost(candidate))) {
+      fail('RENEWER_HOST_FORBIDDEN', `${what} carries an explicitly forbidden project ref.`);
+    }
   }
-  const forbiddenRefs = String(env.TOURNAMENT_MEDIA_FORBIDDEN_PROJECT_REFS || '')
-    .split(',').map((entry) => entry.trim().toLowerCase()).filter(Boolean);
   const functionName = String(env.TOURNAMENT_MEDIA_SIGNER_FUNCTION || 'tournament-media-signer').trim();
   if (!/^[a-z][a-z0-9-]{2,60}$/.test(functionName)) {
     fail('RENEWER_FUNCTION_INVALID', 'Signer function name is invalid.');
   }
-  const host = url.hostname.toLowerCase();
-  const projectRef = host.split('.')[0];
-  if (forbiddenRefs.includes(projectRef)) {
-    fail('RENEWER_HOST_FORBIDDEN', 'SUPABASE_URL project ref is explicitly forbidden.');
-  }
+  const projectRef = projectRefFromHost(host);
   // The frozen descriptor every request is re-checked against. Built here, at
   // the one point where the operator's two independent statements about the
   // target have just been proven to agree.
@@ -201,6 +221,15 @@ export function readRenewerConfig(env = process.env, { now = Date.now() } = {}) 
     fail('RENEWER_GATEWAY_JWT_REF_MISSING',
       'The gateway JWT carries no ref claim, and the authorized host is project-bound; '
       + 'the credential cannot be shown to belong to this project.');
+  }
+  // Checked BEFORE the mismatch rule, and deliberately so. A custom domain
+  // fronting Production produces a host that names no forbidden ref and a
+  // credential that does; both rules would refuse it, but only this one says
+  // why. "Your credential belongs to the forbidden project" is a different
+  // operational fact from "these two names disagree", and the more urgent one.
+  if (isCompiledForbiddenProjectRef(gateway.gatewayJwtProjectRef)) {
+    fail('RENEWER_GATEWAY_JWT_PROJECT_FORBIDDEN',
+      'The gateway JWT ref claim names a forbidden project.');
   }
   if (gateway.gatewayJwtProjectRef && gateway.gatewayJwtProjectRef !== target.projectRef) {
     fail('RENEWER_GATEWAY_JWT_PROJECT_MISMATCH',

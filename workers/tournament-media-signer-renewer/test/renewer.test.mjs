@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { RenewerConfigError, readRenewerConfig, worstCaseCycleSeconds } from '../src/config.mjs';
+import { COMPILED_FORBIDDEN_PROJECT_REFS } from '../src/forbidden-targets.mjs';
 import { inspectGatewayJwt } from '../src/gateway.mjs';
 import {
   OUTCOME,
@@ -492,8 +493,11 @@ test('a forbidden project ref is refused by name as well as by host', () => {
   }));
   // The descriptor every request is validated against carries the list too, so
   // the block survives into the transport rather than living only in start-up.
+  // The environment's entry is ADDED to the compiled policy, never substituted
+  // for it: both are present, and Production is present first.
   const resolved = config({ TOURNAMENT_MEDIA_FORBIDDEN_PROJECT_REFS: 'prodref00000000000000' });
-  assert.deepEqual(resolved.target.forbiddenProjectRefs, ['prodref00000000000000']);
+  assert.deepEqual(resolved.target.forbiddenProjectRefs,
+    [...COMPILED_FORBIDDEN_PROJECT_REFS, 'prodref00000000000000']);
   assert.equal(resolved.target.url, resolved.healthUrl);
   assert.equal(resolved.target.path, '/functions/v1/tournament-media-signer');
 });

@@ -27,6 +27,16 @@
  * one that runs at the moment of the call.
  *
  * ---------------------------------------------------------------------------
+ * The forbidden-target rule
+ * ---------------------------------------------------------------------------
+ * The Production block is not a parameter. Whatever forbidden hosts and refs a
+ * caller passes in are unioned with the compiled policy in
+ * `forbidden-targets.mjs`, so every descriptor this module hands out refuses
+ * Production even when the caller passed nothing at all. There is no argument,
+ * and no environment variable behind an argument, that produces a descriptor
+ * without it.
+ *
+ * ---------------------------------------------------------------------------
  * The protocol rule
  * ---------------------------------------------------------------------------
  * https is required, with exactly one exception: a loopback literal
@@ -36,6 +46,10 @@
  * server. There is no flag, no env var and no test-only branch that relaxes
  * anything else; `config.mjs` independently requires https for the real target.
  */
+
+import {
+  projectRefFromHost, resolveForbiddenApiHosts, resolveForbiddenProjectRefs,
+} from './forbidden-targets.mjs';
 
 export class TargetError extends Error {
   constructor(code, message) {
@@ -52,16 +66,18 @@ const LOOPBACK_HOSTS = new Set(['127.0.0.1', '[::1]', '::1', 'localhost']);
 /** Loopback literals only. `localhost` resolves through the resolver, so it is not one. */
 const isLoopbackLiteral = (hostname) => hostname === '127.0.0.1' || hostname === '[::1]' || hostname === '::1';
 
-const normalizeList = (values) => Object.freeze([...new Set((values || [])
-  .map((value) => String(value || '').trim().toLowerCase())
-  .filter(Boolean))]);
-
 /**
  * The immutable description of the single endpoint a caller is allowed to
  * reach. Built once, frozen, and re-checked before every request.
  *
  * `projectRef` is carried explicitly rather than re-derived at each call site:
  * two call sites deriving "the first DNS label" independently is how they drift.
+ *
+ * `forbiddenHosts` and `forbiddenProjectRefs` are what the CALLER wants to add.
+ * They are unioned with the compiled policy in `forbidden-targets.mjs`, never
+ * substituted for it, so a descriptor built with both lists empty still refuses
+ * Production. Every descriptor in the process — the renewer's, the probe's, a
+ * test's — therefore carries the block whether or not its builder remembered it.
  */
 export function createTarget({
   origin, functionName, projectRef = null,
@@ -81,14 +97,20 @@ export function createTarget({
   if (!secure && !isLoopbackLiteral(hostname)) {
     fail('SIGNER_TARGET_INSECURE', 'The target must be https unless it is a loopback literal.');
   }
-  const forbiddenHostList = normalizeList(forbiddenHosts);
-  const forbiddenRefList = normalizeList(forbiddenProjectRefs);
+  const forbiddenHostList = resolveForbiddenApiHosts(forbiddenHosts);
+  const forbiddenRefList = resolveForbiddenProjectRefs(forbiddenProjectRefs);
   if (forbiddenHostList.includes(hostname)) {
     fail('SIGNER_TARGET_FORBIDDEN', 'The target host is explicitly forbidden.');
   }
   const ref = projectRef === null ? null : String(projectRef).toLowerCase();
   if (ref && forbiddenRefList.includes(ref)) {
     fail('SIGNER_TARGET_FORBIDDEN', 'The target project ref is explicitly forbidden.');
+  }
+  // A custom domain carries no ref in its host, so `projectRef` may legitimately
+  // be null — but the host's own first label is still checked. That is what stops
+  // `<production-ref>.example.com` from being accepted as "just a custom domain".
+  if (!isLoopbackLiteral(hostname) && forbiddenRefList.includes(projectRefFromHost(hostname))) {
+    fail('SIGNER_TARGET_FORBIDDEN', 'The target host carries a forbidden project ref.');
   }
   const path = `/functions/v1/${functionName}`;
   return Object.freeze({
@@ -142,11 +164,15 @@ export function assertAuthorizedUrl(candidate, target) {
   if (target.forbiddenHosts.includes(url.hostname.toLowerCase())) {
     fail('SIGNER_TARGET_FORBIDDEN', 'The request host is explicitly forbidden.');
   }
+  // Checked unconditionally, and not only when the descriptor happens to name a
+  // `projectRef`: a descriptor built without one must not become the way a
+  // forbidden ref reaches the wire.
+  if (!isLoopbackLiteral(url.hostname.toLowerCase())
+    && target.forbiddenProjectRefs.includes(projectRefFromHost(url.hostname))) {
+    fail('SIGNER_TARGET_FORBIDDEN', 'The request project ref is explicitly forbidden.');
+  }
   if (target.projectRef) {
-    const ref = url.hostname.toLowerCase().split('.')[0];
-    if (target.forbiddenProjectRefs.includes(ref)) {
-      fail('SIGNER_TARGET_FORBIDDEN', 'The request project ref is explicitly forbidden.');
-    }
+    const ref = projectRefFromHost(url.hostname);
     // Only meaningful for a `<ref>.host` shape; a loopback test server has no
     // ref to check and must not be forced to invent one.
     if (!isLoopbackLiteral(url.hostname.toLowerCase()) && ref !== target.projectRef) {
