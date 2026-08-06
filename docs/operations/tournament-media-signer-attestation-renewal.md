@@ -87,7 +87,7 @@ La corrección es estructural, no vigilante (`src/target.mjs`):
 - **`redirect: 'error'`**, puesto después del spread para que ningún llamador pueda pisarlo. El runtime rechaza el redirect **antes de abrir conexión** con el segundo host, así que el secreto nunca se serializa hacia él. `test/redirect.test.mjs` lo prueba con dos servidores HTTP reales: el servidor destino está vivo, dispuesto y registra todo lo que recibe — y recibe **nada**. Cubre 301, 302, 307 y 308, y también una cadena de redirects (no se sigue ni el primer salto).
 - **`response.redirected === true` y cualquier status 3xx resuelto** también se rechazan, porque un llamador puede inyectar `fetchImpl` y esa implementación podría seguir el redirect por su cuenta.
 - **La URL se revalida contra un descriptor congelado inmediatamente antes de cada request**: protocolo, host, origen (que atrapa un puerto cambiado), path exacto de la función, ausencia de userinfo/query/fragment, y project ref. Validar sólo al arrancar no alcanza: la URL es un string, los strings se concatenan, y el chequeo que importa es el que corre en el momento de la llamada.
-- **Producción sigue bloqueada** por ref y por host, en el descriptor y otra vez en cada request. El probe además arma su descriptor con los `forbiddenProjectRefs` del **manifiesto**, no sólo con los del entorno: un operador que simplemente se olvidó de exportar `TOURNAMENT_MEDIA_FORBIDDEN_API_HOSTS` no pierde el bloqueo de Producción.
+- **Producción sigue bloqueada** por ref y por host, en el descriptor y otra vez en cada request. El bloqueo ya no depende del entorno: vive compilado en `src/forbidden-targets.mjs` (ver abajo), y tanto el renovador como el probe lo consumen desde ahí.
 - Un redirect es `SIGNER_REDIRECTED` y **no se reintenta**: es configuración o compromiso, nunca algo transitorio, y reintentar sólo volvería a ofrecer las credenciales.
 
 `https` es obligatorio, con una única excepción: un literal de loopback (`127.0.0.1`, `::1`), que es lo que permite que los tests de redirect corran contra servidores reales sin que un paquete salga de la máquina. No es un flag ni una rama de test: un literal de loopback no puede alcanzar Producción ni exfiltrar a ningún lado. `config.mjs` exige `https` para el destino real de todos modos.
@@ -203,8 +203,8 @@ Nombres, sin valores. Ninguna es un Secret creado en este cambio.
 ```
 SUPABASE_URL                                     origen https desnudo del proyecto autorizado
 TOURNAMENT_MEDIA_EXPECTED_API_HOST               el mismo host, dicho por segunda vez
-TOURNAMENT_MEDIA_FORBIDDEN_API_HOSTS             opcional, lista separada por comas
-TOURNAMENT_MEDIA_FORBIDDEN_PROJECT_REFS          opcional, lista separada por comas (bloqueo por ref)
+TOURNAMENT_MEDIA_FORBIDDEN_API_HOSTS             opcional, lista separada por comas; SÓLO AGREGA
+TOURNAMENT_MEDIA_FORBIDDEN_PROJECT_REFS          opcional, lista separada por comas; SÓLO AGREGA
 TOURNAMENT_MEDIA_ATTESTATION_SECRET              secreto; ≥ 32 caracteres
 TOURNAMENT_MEDIA_GATEWAY_JWT                     JWT de identidad dedicado (preferido)
 TOURNAMENT_MEDIA_GATEWAY_KEY                     credencial pública del gateway
@@ -225,6 +225,47 @@ TOURNAMENT_MEDIA_RENEWER_ID                      identificador de instancia para
 ```
 
 El host se declara dos veces a propósito: una URL de producción pegada por error falla en el arranque (`RENEWER_HOST_MISMATCH`) en lugar de renovar contra el proyecto equivocado.
+
+### El bloqueo de Producción no es configuración
+
+Declarar el host dos veces atrapa el error de tipeo, pero **coincidir no es autorizar**: dos copias del mismo host equivocado siguen nombrando Producción. Antes, el bloqueo vivía entero en dos variables de entorno, así que un despliegue que simplemente nunca las exportó aceptaba una URL de Producción sin objetar nada.
+
+Ahora la política es **código compilado**, en `workers/tournament-media-signer-renewer/src/forbidden-targets.mjs`:
+
+```
+PRODUCTION_PROJECT_REF   rcyuuoaqfwcembdajcss
+PRODUCTION_API_HOST      rcyuuoaqfwcembdajcss.supabase.co
+```
+
+Las reglas:
+
+- **El entorno sólo puede agregar.** `resolveForbiddenApiHosts` y `resolveForbiddenProjectRefs` devuelven siempre las entradas compiladas más lo que aporte el entorno. No existe entrada — ausente, vacía, con espacios, sólo comas, o una lista que omita Producción a propósito — que achique el resultado. *Desprohibir* no es una operación que el módulo ofrezca.
+- **Una sola fuente para los dos llamadores.** `createTarget` unifica la política compilada en todo descriptor que emite, así que el renovador y el probe la heredan sin tener que acordarse de pedirla. El probe además suma los refs del manifiesto: son un agregado sobre la política, no lo que la sostiene.
+- **Vive dentro del paquete del renovador.** No lee `ops/**` ni `docs/**`: una política que se degrada en silencio cuando falta un archivo no es una política. El manifiesto sigue siendo la declaración humana del mismo hecho, y un test contractual (`test/forbidden-targets.test.mjs`) rompe el Quality Gate ante cualquier divergencia entre los dos.
+- **Se bloquea por ref y por host**, sobre la URL *y* sobre `TOURNAMENT_MEDIA_EXPECTED_API_HOST`, en el arranque y otra vez en cada request.
+- **Dominios custom** siguen aceptándose bajo el contrato de siempre, pero nunca con el ref prohibido: ni como primera etiqueta del host (`<ref-prohibido>.dominio.custom`), ni declarado por el claim `ref` del JWT del gateway (`RENEWER_GATEWAY_JWT_PROJECT_FORBIDDEN`) — que es como un dominio custom podría estar tapando Producción sin que el host lo diga.
+- **Los errores siguen saneados**: nombran la variable y la regla, nunca el valor, y no imprimen URLs completas.
+
+Staging (`hhyvmhgpapyuzjgxfnqv`) sigue aceptándose sin ninguna variable extra.
+
+## Quality Gate
+
+Las suites llegan a CI por **un solo punto de entrada**, `npm run test:ci`, para que el workflow y `package.json` no puedan divergir. Agregar una suite como paso del YAML en lugar de agregarla al script es exactamente el error que dejó 104 tests del renovador pasando sin que CI los corriera nunca.
+
+```
+npm run migrations:guard    guarda del origen de las migraciones
+npm run test:db             suite de integración PostgreSQL
+npm run test:db:security    grants de RPC + parser del Security Advisor
+npm run lint                ESLint sobre src/
+npm run build               build de producción
+npm run test:ci             = test:staging:guard
+                            + test:worker:signer-renewer
+                            + la suite Jest
+```
+
+`test:staging:guard` cubre el contrato de CI, la guarda de staging, los contratos de ejecución A1/A2, los contratos de conexión psql (TLS y loopback), el inspector read-only, readiness, observabilidad, el probe del signer gateway, el contrato de rollback, el escaneo estático de credenciales sobre todo el repositorio y el procedimiento de storage multimedia. `test:worker:signer-renewer` cubre config, la política compilada de destinos prohibidos, schedule, redirects, state store, lock, apagado y CLI. `torneos:staging:validate` queda cubierto por construcción: todos sus tests están también en `test:staging:guard`, y esa contención se afirma en el test contractual.
+
+`scripts/ci/quality-gate-contract.test.mjs` afirma este arreglo — y corre dentro de `test:ci`, así que no se puede saltear sin saltear también todo lo que protege. Ningún paso puede ser opcional: sin `continue-on-error`, sin `|| true`, sin `if:`.
 
 ## Eventos
 

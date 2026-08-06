@@ -39,6 +39,9 @@ import { fileURLToPath } from 'node:url';
 
 import { assertSanitizedOutput, loadManifest } from './readiness-lib.mjs';
 import { readRenewerConfig } from '../../workers/tournament-media-signer-renewer/src/config.mjs';
+import {
+  COMPILED_FORBIDDEN_PROJECT_REFS, isCompiledForbiddenProjectRef,
+} from '../../workers/tournament-media-signer-renewer/src/forbidden-targets.mjs';
 import { GATEWAY_CREDENTIAL_OPTIONS, REJECTED_GATEWAY_CREDENTIALS } from '../../workers/tournament-media-signer-renewer/src/gateway.mjs';
 import { TargetError, createTarget, fetchAuthorized } from '../../workers/tournament-media-signer-renewer/src/target.mjs';
 
@@ -137,17 +140,21 @@ export function preflight({ env = process.env, repoRoot = ROOT } = {}) {
   });
   checks.push({
     check: 'target-is-not-production',
-    ok: targetRef === null || !manifest.environment.forbiddenProjectRefs.includes(targetRef),
+    // Three independent statements of the same refusal: the compiled policy the
+    // renewer package carries, the manifest, and — below — the descriptor. The
+    // compiled one is listed first because it is the only one that cannot be
+    // absent from a deployed image.
+    ok: targetRef === null || (!isCompiledForbiddenProjectRef(targetRef)
+      && !manifest.environment.forbiddenProjectRefs.includes(targetRef)),
     detail: 'production project refs are refused unconditionally',
   });
 
   // The descriptor the request will actually be validated against, rebuilt here
-  // with the MANIFEST's forbidden refs rather than only the environment's. The
-  // renewer's own descriptor knows about `TOURNAMENT_MEDIA_FORBIDDEN_API_HOSTS`
-  // and nothing else, so an operator who simply forgot to export that variable
-  // would have lost the production block for this probe. The manifest is the
-  // repository's own statement about which refs are Production, and it is not
-  // optional.
+  // with the MANIFEST's forbidden refs on top of the canonical compiled policy.
+  // `createTarget` unions in `COMPILED_FORBIDDEN_PROJECT_REFS` on its own, so
+  // the production block holds even if this file, the environment and the
+  // manifest all said nothing; the manifest entries are an addition to it, not
+  // the thing carrying it.
   let target = null;
   if (config) {
     try {
@@ -157,6 +164,7 @@ export function preflight({ env = process.env, repoRoot = ROOT } = {}) {
         projectRef: config.projectRef,
         forbiddenHosts: config.target.forbiddenHosts,
         forbiddenProjectRefs: [
+          ...COMPILED_FORBIDDEN_PROJECT_REFS,
           ...config.target.forbiddenProjectRefs,
           ...manifest.environment.forbiddenProjectRefs,
         ],

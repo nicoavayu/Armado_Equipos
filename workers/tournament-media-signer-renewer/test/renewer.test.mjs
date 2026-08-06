@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { RenewerConfigError, readRenewerConfig, worstCaseCycleSeconds } from '../src/config.mjs';
+import { COMPILED_FORBIDDEN_PROJECT_REFS } from '../src/forbidden-targets.mjs';
 import { inspectGatewayJwt } from '../src/gateway.mjs';
 import {
   OUTCOME,
@@ -248,17 +249,33 @@ test('the renewal call carries the secret in a header, never in the URL or body'
 
 test('an explicit timeout aborts the request and reports it as a timeout', async () => {
   const resolved = config({ TOURNAMENT_MEDIA_RENEW_TIMEOUT_MS: '1000' });
-  const result = await renewOnce(resolved, {
-    fetchImpl: (url, init) => new Promise((resolve, reject) => {
-      init.signal.addEventListener('abort', () => {
-        const error = new Error('aborted');
-        error.name = 'AbortError';
-        reject(error);
-      });
-    }),
-  });
-  assert.equal(result.ok, false);
-  assert.equal(result.code, 'SIGNER_TIMEOUT');
+  // `AbortSignal.timeout` arms an *unref'd* timer: it only ever fires if
+  // something else is still keeping the event loop alive. A real fetch holds an
+  // open socket and does exactly that. This stub returns a promise with no
+  // handle behind it at all, so on Linux/Node 20 the loop ran out of work and
+  // exited before the abort could fire — node:test then cancelled this test and
+  // every test after it in the file ("Promise resolution is still pending but
+  // the event loop has already resolved"). The ref'd timer below models the
+  // socket the stub is standing in for, exactly as the shutdown stub does, and
+  // is cleared on every exit path including a failed assertion.
+  let openSocket = null;
+  try {
+    const result = await renewOnce(resolved, {
+      fetchImpl: (url, init) => new Promise((resolve, reject) => {
+        openSocket = setTimeout(() => {}, 60_000);
+        init.signal.addEventListener('abort', () => {
+          clearTimeout(openSocket);
+          const error = new Error('aborted');
+          error.name = 'AbortError';
+          reject(error);
+        }, { once: true });
+      }),
+    });
+    assert.equal(result.ok, false);
+    assert.equal(result.code, 'SIGNER_TIMEOUT');
+  } finally {
+    clearTimeout(openSocket);
+  }
 });
 
 test('an invalid health response is a failure even with HTTP 200', async () => {
@@ -492,8 +509,11 @@ test('a forbidden project ref is refused by name as well as by host', () => {
   }));
   // The descriptor every request is validated against carries the list too, so
   // the block survives into the transport rather than living only in start-up.
+  // The environment's entry is ADDED to the compiled policy, never substituted
+  // for it: both are present, and Production is present first.
   const resolved = config({ TOURNAMENT_MEDIA_FORBIDDEN_PROJECT_REFS: 'prodref00000000000000' });
-  assert.deepEqual(resolved.target.forbiddenProjectRefs, ['prodref00000000000000']);
+  assert.deepEqual(resolved.target.forbiddenProjectRefs,
+    [...COMPILED_FORBIDDEN_PROJECT_REFS, 'prodref00000000000000']);
   assert.equal(resolved.target.url, resolved.healthUrl);
   assert.equal(resolved.target.path, '/functions/v1/tournament-media-signer');
 });
