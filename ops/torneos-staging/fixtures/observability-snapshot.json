@@ -1,8 +1,51 @@
 {
-  "fixtureVersion": 1,
-  "note": "Deterministic healthy snapshot. Local only: no collector ran, nothing was contacted. Shapes the contract the real collectors must produce.",
-  "collectedAt": "2099-01-01T00:00:00.000Z",
+  "fixtureVersion": 3,
+  "note": "Deterministic healthy snapshot AFTER the collector has derived dwell across scrapes. Local only: no collector ran, nothing was contacted. Shapes the contract the real collectors must produce, including the two-phase visibility proof without which no count may be believed. The visibility block carries provenBy: preflight, which only snapshotFromCollectorPhases() may stamp — a hand-assembled visibility block is refused.",
+  "collectedAt": "2099-01-01T00:00:01.000Z",
   "database": {
+    "collector": {
+      "role": "torneos_media_observability_collector",
+      "database": "postgres",
+      "bypassesRls": true,
+      "isSuperuser": false
+    },
+    "visibility": {
+      "provenBy": "preflight",
+      "contractVersion": 1,
+      "observable": true,
+      "blockers": [],
+      "provenAt": "2099-01-01T00:00:00.000Z",
+      "tables": {
+        "tournament_media_processing_jobs": {
+          "present": true,
+          "canSelect": true,
+          "rlsEnabled": true,
+          "rlsForced": false,
+          "isOwner": false,
+          "rlsExempt": true,
+          "policyCount": 4,
+          "observable": true,
+          "blocker": null
+        },
+        "tournament_media_service_attestations": {
+          "present": true,
+          "canSelect": true,
+          "rlsEnabled": true,
+          "rlsForced": false,
+          "isOwner": false,
+          "rlsExempt": true,
+          "policyCount": 2,
+          "observable": true,
+          "blocker": null
+        }
+      },
+      "functions": {
+        "tournament_media_pipeline_readiness": {
+          "present": true,
+          "canExecute": true
+        }
+      }
+    },
     "quarantineDepth": 2,
     "quarantineDepthSustainedSeconds": 3600,
     "queueDepth": 1,
@@ -17,6 +60,7 @@
     "processorAttestationExpiresInSeconds": 780,
     "clamavSignatureAgeSeconds": 7200,
     "uploadFailureRatio": 0,
+    "uploadFailureRatioSampleCount": 412,
     "uploadFailureRatioSustainedSeconds": 3600,
     "uploadReady": 1,
     "uploadReadySustainedSeconds": 3600

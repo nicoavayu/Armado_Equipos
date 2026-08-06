@@ -1,0 +1,396 @@
+{
+  "fixtureVersion": 2,
+  "note": "LITERAL shapes of the TWO JSON rows the collector contract produces: Phase A from ops/torneos-staging/observability/media-pipeline-preflight.sql and Phase B from ops/torneos-staging/observability/media-pipeline-signals.sql. Nothing ran: these are the hand-written contract of the queries' output, not a capture from any environment. Note what is absent from every metrics row: no *SustainedSeconds field, because one scrape cannot know how long a value has held.",
+  "contract": {
+    "version": 1,
+    "ordering": "Phase A first. Phase B runs ONLY if Phase A returned observable: true, as the same role against the same database, and both rows are handed to snapshotFromCollectorPhases().",
+    "whyTwoPhases": "PostgreSQL resolves names at parse time and checks privileges at executor start-up, so a single statement cannot report 'table absent', 'no SELECT' or 'no EXECUTE' — it fails with them instead. Phase A touches only pg_catalog, to_regclass and to_regprocedure, none of which raise for a missing or forbidden object."
+  },
+
+  "cases": {
+    "observable-and-idle": {
+      "note": "A collector whose visibility is proven and a pipeline that is genuinely idle. The zeros here are real zeros, and they are only believable because the preflight below proved the rows would have been visible had they existed.",
+      "preflight": {
+        "phase": "preflight",
+        "contractVersion": 1,
+        "collectedAt": "2099-01-01T00:00:00.000Z",
+        "collector": {
+          "role": "torneos_media_observability_collector",
+          "database": "postgres",
+          "bypassesRls": true,
+          "isSuperuser": false
+        },
+        "observable": true,
+        "blockers": [],
+        "tables": {
+          "tournament_media_processing_jobs": {
+            "present": true,
+            "canSelect": true,
+            "rlsEnabled": true,
+            "rlsForced": false,
+            "isOwner": false,
+            "rlsExempt": true,
+            "policyCount": 4,
+            "observable": true,
+            "blocker": null
+          },
+          "tournament_media_service_attestations": {
+            "present": true,
+            "canSelect": true,
+            "rlsEnabled": true,
+            "rlsForced": false,
+            "isOwner": false,
+            "rlsExempt": true,
+            "policyCount": 2,
+            "observable": true,
+            "blocker": null
+          }
+        },
+        "functions": {
+          "tournament_media_pipeline_readiness": {
+            "present": true,
+            "canExecute": true
+          }
+        }
+      },
+      "metrics": {
+        "phase": "metrics",
+        "contractVersion": 1,
+        "collectedAt": "2099-01-01T00:00:01.000Z",
+        "collector": {
+          "role": "torneos_media_observability_collector",
+          "database": "postgres"
+        },
+        "quarantineDepth": 0,
+        "queueDepth": 0,
+        "oldestJobAgeSeconds": 0,
+        "expiredLeases": 0,
+        "stuckLeaseAgeSeconds": 0,
+        "signerAttestationExpiresInSeconds": 2900,
+        "processorAttestationExpiresInSeconds": 780,
+        "clamavSignatureAgeSeconds": 7200,
+        "uploadFailureRatio": 0,
+        "uploadFailureRatioSampleCount": 0,
+        "uploadReady": 1
+      }
+    },
+
+    "rls-blind": {
+      "note": "The collector role holds SELECT but is NOT exempt from Row Level Security. Phase A refuses, so Phase B is never run and there are no counts at all — which is the point. Compare with observable-and-idle: without the preflight the two would produce identical zeros, and one of them is a healthy idle queue while the other is a blind collector.",
+      "preflight": {
+        "phase": "preflight",
+        "contractVersion": 1,
+        "collectedAt": "2099-01-01T00:00:00.000Z",
+        "collector": {
+          "role": "torneos_media_readonly_no_bypass",
+          "database": "postgres",
+          "bypassesRls": false,
+          "isSuperuser": false
+        },
+        "observable": false,
+        "blockers": [
+          "tournament_media_processing_jobs:rls_enabled_with_policies_and_without_bypass",
+          "tournament_media_service_attestations:rls_enabled_with_policies_and_without_bypass"
+        ],
+        "tables": {
+          "tournament_media_processing_jobs": {
+            "present": true,
+            "canSelect": true,
+            "rlsEnabled": true,
+            "rlsForced": false,
+            "isOwner": false,
+            "rlsExempt": false,
+            "policyCount": 4,
+            "observable": false,
+            "blocker": "rls_enabled_with_policies_and_without_bypass"
+          },
+          "tournament_media_service_attestations": {
+            "present": true,
+            "canSelect": true,
+            "rlsEnabled": true,
+            "rlsForced": false,
+            "isOwner": false,
+            "rlsExempt": false,
+            "policyCount": 2,
+            "observable": false,
+            "blocker": "rls_enabled_with_policies_and_without_bypass"
+          }
+        },
+        "functions": {
+          "tournament_media_pipeline_readiness": {
+            "present": true,
+            "canExecute": true
+          }
+        },
+        "metrics": null
+      }
+    },
+
+    "table-absent": {
+      "note": "The migration has not been applied in this environment. Under the old single-statement design this case could not be reported at all: the statement failed to parse with 42P01 and the collector saw an exception, not a blocker.",
+      "preflight": {
+        "phase": "preflight",
+        "contractVersion": 1,
+        "collectedAt": "2099-01-01T00:00:00.000Z",
+        "collector": {
+          "role": "torneos_media_observability_collector",
+          "database": "postgres",
+          "bypassesRls": true,
+          "isSuperuser": false
+        },
+        "observable": false,
+        "blockers": [
+          "tournament_media_processing_jobs:table_absent"
+        ],
+        "tables": {
+          "tournament_media_processing_jobs": {
+            "present": false,
+            "canSelect": false,
+            "rlsEnabled": false,
+            "rlsForced": false,
+            "isOwner": false,
+            "rlsExempt": true,
+            "policyCount": 0,
+            "observable": false,
+            "blocker": "table_absent"
+          },
+          "tournament_media_service_attestations": {
+            "present": true,
+            "canSelect": true,
+            "rlsEnabled": true,
+            "rlsForced": false,
+            "isOwner": false,
+            "rlsExempt": true,
+            "policyCount": 2,
+            "observable": true,
+            "blocker": null
+          }
+        },
+        "functions": {
+          "tournament_media_pipeline_readiness": {
+            "present": true,
+            "canExecute": true
+          }
+        },
+        "metrics": null
+      }
+    },
+
+    "no-select-privilege": {
+      "note": "The role exists and the table exists, but no SELECT grant was ever made. Previously this failed at executor start-up with 42501 — for the whole statement, including the visibility verdict it was supposed to produce.",
+      "preflight": {
+        "phase": "preflight",
+        "contractVersion": 1,
+        "collectedAt": "2099-01-01T00:00:00.000Z",
+        "collector": {
+          "role": "torneos_media_observability_collector",
+          "database": "postgres",
+          "bypassesRls": true,
+          "isSuperuser": false
+        },
+        "observable": false,
+        "blockers": [
+          "tournament_media_service_attestations:no_select_privilege"
+        ],
+        "tables": {
+          "tournament_media_processing_jobs": {
+            "present": true,
+            "canSelect": true,
+            "rlsEnabled": true,
+            "rlsForced": false,
+            "isOwner": false,
+            "rlsExempt": true,
+            "policyCount": 4,
+            "observable": true,
+            "blocker": null
+          },
+          "tournament_media_service_attestations": {
+            "present": true,
+            "canSelect": false,
+            "rlsEnabled": true,
+            "rlsForced": false,
+            "isOwner": false,
+            "rlsExempt": true,
+            "policyCount": 2,
+            "observable": false,
+            "blocker": "no_select_privilege"
+          }
+        },
+        "functions": {
+          "tournament_media_pipeline_readiness": {
+            "present": true,
+            "canExecute": true
+          }
+        },
+        "metrics": null
+      }
+    },
+
+    "no-execute-privilege": {
+      "note": "Both tables are visible, but the readiness function cannot be called. uploadReady would be unobtainable, so the preflight refuses rather than letting Phase B fail halfway through.",
+      "preflight": {
+        "phase": "preflight",
+        "contractVersion": 1,
+        "collectedAt": "2099-01-01T00:00:00.000Z",
+        "collector": {
+          "role": "torneos_media_observability_collector",
+          "database": "postgres",
+          "bypassesRls": true,
+          "isSuperuser": false
+        },
+        "observable": false,
+        "blockers": [
+          "tournament_media_pipeline_readiness:no_execute_privilege"
+        ],
+        "tables": {
+          "tournament_media_processing_jobs": {
+            "present": true,
+            "canSelect": true,
+            "rlsEnabled": true,
+            "rlsForced": false,
+            "isOwner": false,
+            "rlsExempt": true,
+            "policyCount": 4,
+            "observable": true,
+            "blocker": null
+          },
+          "tournament_media_service_attestations": {
+            "present": true,
+            "canSelect": true,
+            "rlsEnabled": true,
+            "rlsForced": false,
+            "isOwner": false,
+            "rlsExempt": true,
+            "policyCount": 2,
+            "observable": true,
+            "blocker": null
+          }
+        },
+        "functions": {
+          "tournament_media_pipeline_readiness": {
+            "present": true,
+            "canExecute": false
+          }
+        },
+        "metrics": null
+      }
+    },
+
+    "force-rls-on-owned-table": {
+      "note": "The role owns the table, which would normally exempt it from RLS — but FORCE ROW LEVEL SECURITY is set, so the owner is filtered like anybody else. Ownership alone is never treated as exemption.",
+      "preflight": {
+        "phase": "preflight",
+        "contractVersion": 1,
+        "collectedAt": "2099-01-01T00:00:00.000Z",
+        "collector": {
+          "role": "torneos_media_table_owner",
+          "database": "postgres",
+          "bypassesRls": false,
+          "isSuperuser": false
+        },
+        "observable": false,
+        "blockers": [
+          "tournament_media_processing_jobs:rls_forced_on_owned_table"
+        ],
+        "tables": {
+          "tournament_media_processing_jobs": {
+            "present": true,
+            "canSelect": true,
+            "rlsEnabled": true,
+            "rlsForced": true,
+            "isOwner": true,
+            "rlsExempt": false,
+            "policyCount": 4,
+            "observable": false,
+            "blocker": "rls_forced_on_owned_table"
+          },
+          "tournament_media_service_attestations": {
+            "present": true,
+            "canSelect": true,
+            "rlsEnabled": true,
+            "rlsForced": false,
+            "isOwner": true,
+            "rlsExempt": true,
+            "policyCount": 2,
+            "observable": true,
+            "blocker": null
+          }
+        },
+        "functions": {
+          "tournament_media_pipeline_readiness": {
+            "present": true,
+            "canExecute": true
+          }
+        },
+        "metrics": null
+      }
+    },
+
+    "owner-without-force": {
+      "note": "The same owner, without FORCE. An owner IS exempt unless FORCE is set, so this collector can be believed — and the counts it returns are the proven-empty queue, not a filtered one.",
+      "preflight": {
+        "phase": "preflight",
+        "contractVersion": 1,
+        "collectedAt": "2099-01-01T00:00:00.000Z",
+        "collector": {
+          "role": "torneos_media_table_owner",
+          "database": "postgres",
+          "bypassesRls": false,
+          "isSuperuser": false
+        },
+        "observable": true,
+        "blockers": [],
+        "tables": {
+          "tournament_media_processing_jobs": {
+            "present": true,
+            "canSelect": true,
+            "rlsEnabled": true,
+            "rlsForced": false,
+            "isOwner": true,
+            "rlsExempt": true,
+            "policyCount": 4,
+            "observable": true,
+            "blocker": null
+          },
+          "tournament_media_service_attestations": {
+            "present": true,
+            "canSelect": true,
+            "rlsEnabled": true,
+            "rlsForced": false,
+            "isOwner": true,
+            "rlsExempt": true,
+            "policyCount": 2,
+            "observable": true,
+            "blocker": null
+          }
+        },
+        "functions": {
+          "tournament_media_pipeline_readiness": {
+            "present": true,
+            "canExecute": true
+          }
+        }
+      },
+      "metrics": {
+        "phase": "metrics",
+        "contractVersion": 1,
+        "collectedAt": "2099-01-01T00:00:02.000Z",
+        "collector": {
+          "role": "torneos_media_table_owner",
+          "database": "postgres"
+        },
+        "quarantineDepth": 0,
+        "queueDepth": 0,
+        "oldestJobAgeSeconds": 0,
+        "expiredLeases": 0,
+        "stuckLeaseAgeSeconds": 0,
+        "signerAttestationExpiresInSeconds": 2900,
+        "processorAttestationExpiresInSeconds": 780,
+        "clamavSignatureAgeSeconds": 7200,
+        "uploadFailureRatio": 0,
+        "uploadFailureRatioSampleCount": 0,
+        "uploadReady": 1
+      }
+    }
+  }
+}

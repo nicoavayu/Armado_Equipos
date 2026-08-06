@@ -3,7 +3,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 
-import { validateCatalog } from './observability-lib.mjs';
+import { missingCollectors, validateCatalog } from './observability-lib.mjs';
+import { worstCaseCycleSeconds } from '../../workers/tournament-media-signer-renewer/src/schedule.mjs';
 
 export const STAGE_NAMES = Object.freeze([
   'inspect', 'plan', 'dry-run', 'migrate', 'storage', 'secrets-check',
@@ -96,6 +97,107 @@ function validateNoEmbeddedSecrets(manifest) {
 }
 
 /**
+ * Comments are prose, and the drift checks below are about behaviour.
+ *
+ * Without this, every one of the negative assertions — "the signer must NOT
+ * call revoke", "the processor Edge Function must NEVER attest" — could be
+ * tripped by a comment that merely names the function it forbids, and the
+ * honest fix would be to stop explaining the code. Worse, the positive
+ * assertions could be satisfied by a comment, so a file that only *talks* about
+ * attesting would validate.
+ *
+ * Deliberately simple: line comments, block comments, and enough string
+ * awareness that a `//` inside a quoted string is not mistaken for one. The
+ * inputs are the repository's own Edge Function entrypoints, not arbitrary
+ * input, so a full JavaScript lexer would be precision nobody needs here.
+ */
+export function stripSourceComments(source) {
+  let out = '';
+  let index = 0;
+  let quote = null;
+  while (index < source.length) {
+    const char = source[index];
+    const next = source[index + 1];
+    if (quote) {
+      if (char === '\\') { out += ' '; index += 2; continue; }
+      if (char === quote) quote = null;
+      out += char;
+      index += 1;
+      continue;
+    }
+    if (char === '"' || char === "'" || char === '`') {
+      quote = char;
+      out += char;
+      index += 1;
+      continue;
+    }
+    if (char === '/' && next === '/') {
+      while (index < source.length && source[index] !== '\n') index += 1;
+      continue;
+    }
+    if (char === '/' && next === '*') {
+      index += 2;
+      while (index < source.length && !(source[index] === '*' && source[index + 1] === '/')) {
+        // Newlines are preserved so line numbers in any later message stay usable.
+        if (source[index] === '\n') out += '\n';
+        index += 1;
+      }
+      index += 2;
+      continue;
+    }
+    out += char;
+    index += 1;
+  }
+  return out;
+}
+
+/**
+ * Migration drift, defined over what the remote actually exposes.
+ *
+ * The observability catalog used to define this as "applied migrations whose
+ * remote checksum differs from the manifest". There is no such checksum: the
+ * remote migration history exposes `version` and `name` and nothing else, which
+ * is why the read-only inspector records `checksum: null` and says so in its
+ * own limitations list. A metric defined over a field that does not exist is
+ * not a metric that has not been switched on yet — it is one that can never
+ * report, while sitting in the required list looking like the former.
+ *
+ * So drift is counted from presence and order, all of which are observable:
+ *
+ *   - a remote version the manifest target does not declare and no local
+ *     migration file explains;
+ *   - a target migration applied out of the manifest's declared order;
+ *   - a duplicated remote version.
+ *
+ * Checksum verification does not disappear — it still happens locally, against
+ * the migration files, in `validateManifest`. It simply stops pretending to be
+ * a remote observation.
+ */
+export function computeMigrationDrift({ repoRoot = process.cwd(), manifest = loadManifest(repoRoot), state }) {
+  const localVersions = localMigrationVersions(repoRoot);
+  const history = state?.remoteHistory || [];
+  const remoteVersions = history.map(({ version }) => String(version));
+  const seen = new Set(remoteVersions);
+  const target = manifest.migrationPolicy.migrations.map(({ version }) => version);
+
+  const duplicated = remoteVersions
+    .filter((version, index) => remoteVersions.indexOf(version) !== index);
+  const undeclared = remoteVersions.filter((version) => !localVersions.has(version));
+  const applied = target.filter((version) => seen.has(version));
+  const outOfOrder = applied.filter((version, index) => version !== target[index]);
+
+  const details = {
+    duplicatedRemoteVersions: [...new Set(duplicated)].sort(),
+    remoteVersionsWithoutLocalFile: [...new Set(undeclared)].sort(),
+    targetVersionsAppliedOutOfOrder: outOfOrder,
+  };
+  const drift = details.duplicatedRemoteVersions.length
+    + details.remoteVersionsWithoutLocalFile.length
+    + details.targetVersionsAppliedOutOfOrder.length;
+  return { drift, details, observedFrom: 'version presence and order; the remote history exposes no checksum' };
+}
+
+/**
  * The manifest may not describe an attestation contract the code does not
  * implement. This reads both Edge entrypoints and the renewer and refuses any
  * disagreement, because a manifest that claims the processor health certifies
@@ -104,7 +206,9 @@ function validateNoEmbeddedSecrets(manifest) {
  */
 export function validateAttestationContract({ repoRoot = process.cwd(), manifest = loadManifest(repoRoot) } = {}) {
   const byName = new Map(manifest.edgeFunctions.map((edge) => [edge.name, edge]));
-  const source = (edge) => fs.readFileSync(path.join(repoRoot, edge.entrypoint), 'utf8');
+  const source = (edge) => stripSourceComments(
+    fs.readFileSync(path.join(repoRoot, edge.entrypoint), 'utf8'),
+  );
 
   const signer = byName.get('tournament-media-signer');
   assert(canonicalJson(signer.attests) === canonicalJson(['signer'])
@@ -151,9 +255,10 @@ export function validateAttestationContract({ repoRoot = process.cwd(), manifest
   for (const file of [renewal.entrypoint, renewal.runbook]) {
     assert(fs.existsSync(path.join(repoRoot, file)), 'ATTESTATION_RENEWAL_MISSING', `${file} is missing.`);
   }
-  const worstCase = renewal.intervalSeconds * (1 + renewal.jitterRatio)
-    + (renewal.maxAttempts * renewal.timeoutMs
-      + renewal.backoffBaseMs * (2 ** renewal.maxAttempts - 2) * (1 + renewal.jitterRatio)) / 1000;
+  // The same function the renewer refuses to start with, not a second copy of
+  // it: this used to recompute the worst case without the backoff cap, so a
+  // schedule the renewer rejected could still pass manifest validation.
+  const worstCase = worstCaseCycleSeconds(renewal);
   assert(worstCase + renewal.safetyMarginSeconds <= renewal.attestationTtlSeconds,
     'ATTESTATION_RENEWAL_UNSAFE', 'The declared renewal schedule can miss the attestation expiry.');
   assert(renewal.alertAfterConsecutiveFailures * renewal.intervalSeconds < renewal.attestationTtlSeconds,
@@ -168,11 +273,60 @@ export function validateAttestationContract({ repoRoot = process.cwd(), manifest
     assert(typeof renewal.scheduler?.[field] === 'string' && renewal.scheduler[field].length > 10,
       'ATTESTATION_RENEWAL_OWNER', `The renewal scheduler must name its ${field}.`);
   }
-  const renewerConfig = fs.readFileSync(
+  const renewerConfig = stripSourceComments(fs.readFileSync(
     path.join(repoRoot, renewal.path, 'src', 'config.mjs'), 'utf8',
-  );
+  ));
   assert(!/env\.SUPABASE_SERVICE_ROLE_KEY|env\.SUPABASE_SECRET_KEY/.test(renewerConfig),
     'ATTESTATION_RENEWAL_PRIVILEGE', 'The renewer must never read a service credential.');
+
+  // The gateway credential is a different thing from the attestation secret and
+  // the manifest has to keep saying so, because conflating them is what made
+  // the renewer send a non-JWT as a Bearer to a function with verify_jwt = true.
+  const gateway = renewal.gatewayCredential;
+  assert(gateway && gateway.separateFromAttestationSecret === true,
+    'ATTESTATION_RENEWAL_CREDENTIAL',
+    'The manifest must state that the gateway credential is not the attestation secret.');
+  assert(gateway.mustSatisfyVerifyJwt === true, 'ATTESTATION_RENEWAL_CREDENTIAL',
+    'The gateway credential contract must require a JWT, because every Edge Function verifies JWT.');
+  assert(Array.isArray(gateway.acceptedOptions) && gateway.acceptedOptions.length >= 2,
+    'ATTESTATION_RENEWAL_CREDENTIAL', 'The manifest must enumerate the accepted gateway credentials.');
+  assert(Array.isArray(gateway.rejected)
+    && gateway.rejected.some((entry) => /service_role/.test(entry))
+    && gateway.rejected.some((entry) => /sb_secret_/.test(entry))
+    && gateway.rejected.some((entry) => /sb_publishable_/.test(entry)),
+  'ATTESTATION_RENEWAL_CREDENTIAL',
+  'The manifest must reject service credentials and a publishable key used as the bearer.');
+  const renewerGateway = stripSourceComments(fs.readFileSync(
+    path.join(repoRoot, renewal.path, 'src', 'gateway.mjs'), 'utf8',
+  ));
+  assert(/verify_jwt/.test(renewerGateway) && /RENEWER_GATEWAY_JWT_NOT_A_JWT/.test(renewerGateway),
+    'ATTESTATION_RENEWAL_CREDENTIAL',
+    'The renewer does not implement the declared gateway credential contract.');
+
+  // The probe against Staging is prepared, never executed by this repository.
+  const probe = renewal.gatewayProbe;
+  assert(probe?.executedInThisChange === false && probe?.requiresExplicitAuthorization === true,
+    'ATTESTATION_PROBE_SCOPE',
+    'The gateway probe must be declared as unexecuted and authorization-gated.');
+  for (const file of [probe.entrypoint, probe.runbook]) {
+    assert(fs.existsSync(path.join(repoRoot, file)), 'ATTESTATION_PROBE_MISSING', `${file} is missing.`);
+  }
+  assert(typeof probe.writes === 'string' && /attestation/i.test(probe.writes),
+    'ATTESTATION_PROBE_SCOPE', 'The probe contract must state that the health call writes an attestation.');
+  assert(typeof probe.rollback === 'string' && probe.rollback.length > 20,
+    'ATTESTATION_PROBE_ROLLBACK', 'The probe must declare how its attestation is rolled back.');
+
+  // Persisted state is what makes the consecutive-failure metric reachable in
+  // --once, so the manifest may not describe a renewer that cannot alert.
+  const oneShot = renewal.onceMode;
+  assert(oneShot?.statePersisted === true && oneShot?.stateFileMode === '0600'
+    && oneShot?.atomicWrites === true && oneShot?.exclusiveLock === true
+    && oneShot?.corruptionFailsClosed === true,
+  'ATTESTATION_RENEWAL_STATE',
+  'The --once contract must persist state safely, atomically, exclusively and fail-closed.');
+  assert(typeof oneShot.orchestratorAlternative === 'string' && oneShot.orchestratorAlternative.length > 20,
+    'ATTESTATION_RENEWAL_STATE',
+    'The --once contract must document the orchestrator exit-code alternative.');
   return { ok: true };
 }
 
@@ -184,10 +338,22 @@ export function validateAttestationContract({ repoRoot = process.cwd(), manifest
  */
 export function validateObservabilityContract({ repoRoot = process.cwd(), manifest = loadManifest(repoRoot) } = {}) {
   const observability = manifest.observability;
-  for (const file of [observability.catalog, observability.query, observability.runbook]) {
+  // Both halves of the collector contract, because a manifest that declares
+  // only the metrics query describes a collector that cannot prove it may run.
+  for (const file of [
+    observability.catalog, observability.preflightQuery, observability.query, observability.runbook,
+  ]) {
     assert(typeof file === 'string' && fs.existsSync(path.join(repoRoot, file)),
       'OBSERVABILITY_MISSING', `${file} declared by the manifest is missing.`);
   }
+  const contract = observability.collectorContract || {};
+  assert(contract.phases === 2, 'OBSERVABILITY_COLLECTOR_CONTRACT',
+    'The database collector contract must declare its two phases.');
+  assert(typeof contract.phaseOrder === 'string' && contract.phaseOrder.length >= 40,
+    'OBSERVABILITY_COLLECTOR_CONTRACT', 'The collector contract must state the phase ordering.');
+  assert(typeof contract.whyTwoPhases === 'string' && contract.whyTwoPhases.length >= 80,
+    'OBSERVABILITY_COLLECTOR_CONTRACT',
+    'The collector contract must say why one statement cannot do both jobs.');
   const catalog = readJson(path.join(repoRoot, observability.catalog));
   validateCatalog({ repoRoot, catalog });
 
@@ -218,6 +384,24 @@ export function validateObservabilityContract({ repoRoot = process.cwd(), manife
   'OBSERVABILITY_STATE_DRIFT', 'Manifest and catalog disagree on observability state.');
   assert(manifest.flags.multimediaRequiresObservability === true,
     'OBSERVABILITY_FLAG_CONTRACT', 'Multimedia must require observability.');
+
+  // A signal whose collector was never written will never report, no matter how
+  // long Staging runs. The manifest has to name those collectors, agree with the
+  // catalog about which ones they are, and keep the gate shut while any remain.
+  // This is the difference between a signal that is off and one that cannot be
+  // turned on as specified, and only the second kind blocks unconditionally.
+  const missing = missingCollectors(catalog);
+  assert(canonicalJson(observability.collectorsNotImplemented || []) === canonicalJson(missing),
+    'OBSERVABILITY_COLLECTOR_DRIFT',
+    'Manifest and catalog disagree about which collectors do not exist yet.');
+  if (missing.length > 0) {
+    assert(observability.signalsDeployedInStaging === false
+      && observability.validatedInStaging === false,
+    'OBSERVABILITY_COLLECTOR_CLAIM',
+    'Signals cannot be declared deployed or validated while a required collector does not exist.');
+    assert(manifest.flags.initial[observability.browserFlag] === false,
+      'OBSERVABILITY_FLAG_OPEN', 'The observability flag must stay closed while a collector is missing.');
+  }
   if (observability.validatedInStaging !== true || observability.signalsDeployedInStaging !== true) {
     assert(manifest.flags.initial[observability.browserFlag] === false,
       'OBSERVABILITY_FLAG_OPEN', 'The observability flag must start false until the signals are validated.');
@@ -807,6 +991,14 @@ export function assertSanitizedOutput(output) {
     /(?:access_token|refresh_token|service_role_key|password)\s*[=:]\s*["']?[^\s,"']{8,}/i,
     /[?&](?:token|signature|sig)=[^&\s]+/i,
     /"identityMap"\s*:/i,
+    // New-style Supabase keys. These are not JWTs, so the `eyJ...` pattern
+    // above never saw them — `sb_secret_` in particular is a service credential
+    // and the single worst thing that could appear in a transcript. A key BODY
+    // is required, so the prose that names these prefixes while explaining
+    // which credentials are rejected (`sb_secret_… — a service credential`)
+    // is not itself a false positive.
+    /sb_secret_[A-Za-z0-9_-]{8,}/,
+    /sb_publishable_[A-Za-z0-9_-]{8,}/,
   ];
   for (const pattern of forbidden) {
     assert(!pattern.test(text), 'OUTPUT_SECRET', `Output matched forbidden pattern ${pattern}.`);

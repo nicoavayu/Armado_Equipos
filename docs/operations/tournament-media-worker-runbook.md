@@ -42,7 +42,7 @@ SIGTERM/SIGINT activan shutdown seguro: el loop deja de pedir trabajo, termina l
 ## Servicios que acompañan al worker
 
 - **Renovador de la atestación del signer.** El worker renueva sólo la suya (`processor`, TTL 900 s, a un tercio del TTL). La del signer dura 3600 s y necesita un scheduler externo que corre junto a este worker, con el mismo secret store y **sin** credencial de servicio: ver [renovación de la atestación del signer](tournament-media-signer-attestation-renewal.md). Provisionarlo es parte de la checklist: sin él, `uploadReady` se cierra sola cada hora.
-- **Colectores de observabilidad.** Cuatro colectores alimentan las señales del [catálogo](tournament-media-observability.md). Hasta que estén desplegados y validados contra Staging, `REACT_APP_TORNEOS_MEDIA_OBSERVABILITY_READY` queda en false y Multimedia no se habilita.
+- **Colectores de observabilidad.** Cuatro colectores alimentan las señales del [catálogo](tournament-media-observability.md), y **ninguno está implementado todavía**: existen el SQL del colector `database` y el inspector del colector `readiness`, pero ningún proceso los corre, deriva la ventana de sostenimiento y publica el snapshot. Hasta que existan, se desplieguen y se validen contra Staging, `REACT_APP_TORNEOS_MEDIA_OBSERVABILITY_READY` queda en false y Multimedia no se habilita. El colector `database` además necesita un rol con exención probada de RLS: sin ella su conteo es indistinguible de una cola vacía y el propio SQL se niega a emitir números ([contrato del rol colector](tournament-media-observability.md#contrato-del-rol-colector)).
 
 ## Credencial de servicio
 
