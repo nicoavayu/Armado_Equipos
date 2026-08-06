@@ -169,14 +169,53 @@ export const saveMyAvailability = async (input) => {
   return data;
 };
 
+// Baja atómica de la búsqueda. Los dos RPC hacen exactamente lo mismo —cancelan
+// la disponibilidad Y retiran las membresías que todavía ocupan cupo, en la
+// misma transacción—; el `_detailed` además devuelve los contadores de lo que
+// hizo, para que la interfaz pueda decir la verdad sin volver a inferirla.
+//
+// `cancel_my_availability()` conserva intacta su firma pública histórica
+// (returns void), así que los builds ya publicados de iOS, Android y web siguen
+// funcionando contra este backend. El fallback de acá cubre el caso simétrico:
+// este cliente contra un backend donde la migración todavía no se aplicó.
+const toCount = (value) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+};
+
+// PostgREST devuelve PGRST202 (y 404) cuando el RPC no existe en el esquema.
+const isMissingRpcError = (error) => {
+  if (!error) return false;
+  if (String(error.code || '') === 'PGRST202') return true;
+  return /could not find the function|does not exist/i.test(String(error.message || ''));
+};
+
 export const cancelMyAvailability = async () => {
   const session = await requireSession();
-  const { error } = await supabase.rpc('cancel_my_availability');
+
+  let { data, error } = await supabase.rpc('cancel_my_availability_detailed');
+  let target = 'rpc:cancel_my_availability_detailed';
+
+  if (isMissingRpcError(error)) {
+    // Backend anterior a la migración: el contrato viejo sigue disponible y
+    // sigue siendo una baja válida, sólo que sin contadores.
+    ({ data, error } = await supabase.rpc('cancel_my_availability'));
+    target = 'rpc:cancel_my_availability';
+  }
+
   if (error) {
     throw describeAvailabilityDbError(error, {
-      operation: 'cancelMyAvailability', target: 'rpc:cancel_my_availability', userId: session.user?.id,
+      operation: 'cancelMyAvailability', target, userId: session.user?.id,
     });
   }
+  kickAutoMatchPushes();
+  const row = Array.isArray(data) ? data[0] : data;
+  return {
+    availabilityCancelled: toCount(row?.availability_cancelled),
+    gestationMembershipsReleased: toCount(row?.gestation_memberships_released),
+    createdInvitesWithdrawn: toCount(row?.created_invites_withdrawn),
+    createdMembershipsKept: toCount(row?.created_memberships_kept),
+  };
 };
 
 export const getMyActiveAvailability = async (userId) => {

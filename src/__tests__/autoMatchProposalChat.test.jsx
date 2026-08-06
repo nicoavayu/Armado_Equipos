@@ -157,7 +157,11 @@ describe('gestation detail — flat layout', () => {
     renderDetail();
     const detail = await screen.findByTestId('gestation-detail-screen');
 
-    for (const member of MEMBERS) {
+    // El roster son sólo los miembros activos: 'declined' (y 'expired' /
+    // 'waitlisted') dejaron de ser participantes y no se renderizan.
+    expect(within(detail).queryByTestId('player-trigger-dec-1')).toBeNull();
+
+    for (const member of MEMBERS.filter((row) => row.response !== 'declined')) {
       const trigger = await within(detail).findByTestId(`player-trigger-${member.user_id}`);
       // El ProfileCard resuelve la cuenta desde usuario_id/user_id/id.
       expect(trigger).toHaveAttribute('data-profile-usuario', member.user_id);
@@ -198,22 +202,26 @@ describe('gestation detail — group chat', () => {
     expect(chat).toHaveAttribute('data-can-send', 'true');
   });
 
-  test('declined members do not get the chat entry', async () => {
-    currentProposals = [baseProposal({ my_response: 'declined' })];
-    renderDetail();
-    const detail = await screen.findByTestId('gestation-detail-screen');
-    await within(detail).findByText('PARTIDO F5');
+  // Una membresía terminal ya no es una propuesta propia: la gestación deja de
+  // listarse y el deep link al detalle se resuelve como estado final. Sin
+  // detalle no hay chat — una garantía más fuerte que ocultar el botón.
+  test.each(['declined', 'expired', 'waitlisted'])(
+    '%s members do not get the chat entry',
+    async (response) => {
+      currentProposals = [baseProposal({ my_response: response })];
+      renderDetail();
 
-    expect(within(detail).queryByTestId('gestation-chat-button')).toBeNull();
-  });
+      await waitFor(() => expect(screen.queryByTestId('gestation-detail-screen')).toBeNull());
+      expect(screen.queryByTestId('gestation-chat-button')).toBeNull();
+    },
+  );
 
   test('a user with no membership (outsider) gets no chat entry', async () => {
     currentProposals = [baseProposal({ my_response: null })];
     renderDetail();
-    const detail = await screen.findByTestId('gestation-detail-screen');
-    await within(detail).findByText('PARTIDO F5');
 
-    expect(within(detail).queryByTestId('gestation-chat-button')).toBeNull();
+    await waitFor(() => expect(screen.queryByTestId('gestation-detail-screen')).toBeNull());
+    expect(screen.queryByTestId('gestation-chat-button')).toBeNull();
   });
 
   // Spec §1: una gestación cerrada NO abre el chat, ni siquiera en modo lectura.

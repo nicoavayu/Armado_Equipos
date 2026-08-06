@@ -16,8 +16,11 @@ import {
   Users,
 } from 'lucide-react';
 
+import { App as CapacitorApp } from '@capacitor/app';
+
 import { useAuth } from '../AuthProvider';
 import AutoMatchOrganizeSheet from './AutoMatchOrganizeSheet';
+import ConfirmModal from '../ConfirmModal';
 import DistanceSlider from './DistanceSlider';
 import PageTitle from '../PageTitle';
 import { PlayerCardTrigger } from '../ProfileComponents';
@@ -185,6 +188,21 @@ export const resolveProposalStage = (proposal) => {
 // partidos en gestación" y las únicas con chat. Exportado para tests.
 const INACTIVE_MEMBERSHIP_RESPONSES = new Set(['declined', 'expired', 'waitlisted', 'cancelled', 'canceled']);
 
+// Defensa en profundidad del roster. El backend ya no devuelve estas filas
+// (get_auto_match_proposal_members las filtra), pero un cliente publicado puede
+// seguir hablando con un backend viejo: 'declined', 'expired' y 'waitlisted' no
+// son participantes activos y no se muestran ni cuentan como tales.
+// Exportado para tests.
+export const isActiveMembershipResponse = (response) => (
+  !INACTIVE_MEMBERSHIP_RESPONSES.has(String(response || '').toLowerCase())
+);
+
+// Una propuesta donde YO sigo siendo miembro activo. Misma regla que aplica el
+// backend en get_my_auto_match_proposals. Exportado para tests.
+export const iAmStillInProposal = (proposal) => (
+  Boolean(proposal?.my_response) && isActiveMembershipResponse(proposal.my_response)
+);
+
 const isPastTimestamp = (value, now) => {
   if (!value) return false;
   const timestamp = new Date(value).getTime();
@@ -264,9 +282,8 @@ const MemberStatusLine = ({ member }) => {
       </span>
     );
   }
-  if (member.response === 'declined') {
-    return <span className="mt-0.5 block font-sans text-[9.5px] text-white/40">No juega</span>;
-  }
+  // Solo se pintan miembros activos: no existe un indicador "No juega" porque
+  // quien declinó, venció o quedó en lista de espera ya no figura en el roster.
   if (member.response === 'accepted') {
     return (
       <span className="mt-0.5 flex items-center gap-1 font-sans text-[9.5px] text-white/50">
@@ -287,7 +304,7 @@ const PlayerTile = ({ member }) => (
   <PlayerCardTrigger profile={memberToProfile(member)}>
     <div
       data-testid={`gestation-player-${member.user_id}`}
-      className={`flex h-full items-center gap-2.5 rounded-2xl border border-white/[0.08] bg-black/20 px-3 py-2.5 transition-all hover:border-[#9b7bff]/40 hover:bg-black/30 ${member.response === 'declined' ? 'opacity-45' : ''}`}
+      className="flex h-full items-center gap-2.5 rounded-2xl border border-white/[0.08] bg-black/20 px-3 py-2.5 transition-all hover:border-[#9b7bff]/40 hover:bg-black/30"
     >
       {member.avatar_url ? (
         <img src={member.avatar_url} alt="" className="h-9 w-9 shrink-0 rounded-full object-cover" />
@@ -400,9 +417,10 @@ export const ProposalDetail = ({
   const iAmOrganizer = Boolean(proposal.organizer_id) && proposal.organizer_id === userId;
   const iAccepted = proposal.my_response === 'accepted';
   const active = stage.key !== 'created' && stage.key !== 'cancelled';
-  const visibleMembers = (members || []).filter((member) => member.response !== 'declined');
-  const declinedMembers = (members || []).filter((member) => member.response === 'declined');
-  const orderedMembers = [...visibleMembers, ...declinedMembers];
+  // El roster son SOLO los miembros activos. Los estados terminales
+  // ('declined', 'expired', 'waitlisted') no se re-agregan al final de la
+  // lista: dejaron de ser participantes de esta oportunidad.
+  const orderedMembers = (members || []).filter((member) => isActiveMembershipResponse(member.response));
   // El chat de la gestación existe SOLO mientras la gestación está viva
   // (collecting/ready y dentro de expires_at). Una vez materializado el partido,
   // cancelado o vencido, el chat se cierra definitivamente: NO hay modo lectura.
@@ -411,9 +429,10 @@ export const ProposalDetail = ({
   const liveGestation = isLiveGestation(proposal);
   const chatAvailable = liveGestation
     && (!proposal.expires_at || new Date(proposal.expires_at).getTime() > Date.now());
-  const iAmActiveMember = Boolean(proposal.my_response)
-    && proposal.my_response !== 'declined'
-    && chatAvailable;
+  // Acceso al chat de la gestación: mismo criterio que el backend en
+  // auto_match_user_in_proposal. 'declined', 'expired' y 'waitlisted' no
+  // conservan acceso.
+  const iAmActiveMember = iAmStillInProposal(proposal) && chatAvailable;
 
   const proposalId = proposal.id;
   const chatReadKey = `chat_read_proposal:${proposalId}`;
@@ -512,16 +531,11 @@ export const ProposalDetail = ({
             <p className="font-oswald text-[11px] font-semibold uppercase tracking-[0.16em] text-white/50">Jugadores</p>
             <p className="font-sans text-[10px] text-white/35">Tocá un jugador para ver su perfil</p>
           </div>
+          {/* Sin leyenda decorativa: cada jugador ya lleva su propio indicador
+              de estado (Confirmado / Pendiente) debajo del nombre. */}
           <div className="grid grid-cols-2 gap-2" data-testid="proposal-roster">
             {orderedMembers.map((member) => <PlayerTile key={member.user_id} member={member} />)}
           </div>
-          <p className="mt-2.5 font-sans text-[9.5px] text-white/32">
-            <span className="mr-3"><span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-[#2dd4bf]" />confirmado</span>
-            <span className="mr-3"><span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-amber-300" />pendiente</span>
-            {declinedMembers.length > 0 ? (
-              <span><span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-white/40" />no juega</span>
-            ) : null}
-          </p>
         </div>
       ) : null}
 
@@ -765,8 +779,12 @@ export default function AvailabilityOpportunityCard() {
   const [refreshIssue, setRefreshIssue] = useState(null);
   const [notice, setNotice] = useState('');
   const [listNotice, setListNotice] = useState('');
+  const [confirmStopOpen, setConfirmStopOpen] = useState(false);
   const refreshAttemptRef = useRef(0);
   const refreshInFlightRef = useRef(false);
+  // Un segundo toque sobre "Dejar de buscar" no dispara una segunda baja: el
+  // RPC es idempotente, pero tampoco hace falta llamarlo dos veces.
+  const cancelInFlightRef = useRef(false);
 
   const proposalParam = useMemo(
     () => new URLSearchParams(location.search).get('proposal'),
@@ -877,7 +895,13 @@ export default function AvailabilityOpportunityCard() {
           AUTO_MATCH_REFRESH_STEPS.members,
           () => getAutoMatchProposalMembers(proposal.id),
         );
-        return { proposalId: proposal.id, rows, error: null };
+        // Defensa adicional en cliente: aunque el RPC ya los excluye, ningún
+        // estado terminal entra al roster local.
+        return {
+          proposalId: proposal.id,
+          rows: (rows || []).filter((member) => isActiveMembershipResponse(member.response)),
+          error: null,
+        };
       } catch (memberError) {
         return { proposalId: proposal.id, rows: null, error: memberError };
       }
@@ -934,9 +958,12 @@ export default function AvailabilityOpportunityCard() {
         AUTO_MATCH_REFRESH_STEPS.proposals,
         () => getMyActiveProposals(user.id),
       );
-      setProposals(nextProposals);
+      // Defensa adicional en cliente: una propuesta donde mi membresía quedó
+      // en un estado terminal no vuelve a aparecer como card.
+      const activeProposals = (nextProposals || []).filter(iAmStillInProposal);
+      setProposals(activeProposals);
       setProposalsLoaded(true);
-      await loadMembers(nextProposals);
+      await loadMembers(activeProposals);
       refreshAttemptRef.current = 0;
       if (locationSucceeded) setRefreshIssue(null);
       return locationSucceeded;
@@ -1052,6 +1079,11 @@ export default function AvailabilityOpportunityCard() {
     [orderedProposals],
   );
 
+  // Dejar de buscar sólo pide confirmación si hay algo que perder: una
+  // oportunidad todavía en formación o una invitación pendiente a un partido
+  // ya creado (ambas se retiran al cancelar la búsqueda).
+  const stopSearchAffectsProposals = visibleProposals.length > 0 || matchInvites.length > 0;
+
   const detailProposal = useMemo(() => {
     if (!proposalParam) return null;
     return proposals.find((proposal) => String(proposal.id) === String(proposalParam)) || null;
@@ -1151,24 +1183,109 @@ export default function AvailabilityOpportunityCard() {
     }
   };
 
-  const cancel = async () => {
+  // Baja efectiva. El RPC es atómico e idempotente: cancela la disponibilidad y
+  // retira las membresías que todavía ocupaban cupo en la misma transacción, y
+  // re-verifica el estado real bajo lock (si una propuesta pasó a 'created'
+  // mientras el modal estaba abierto, conserva al jugador que ya pertenece al
+  // partido y sólo retira invitaciones pendientes).
+  const performCancel = useCallback(async () => {
+    if (cancelInFlightRef.current) return;
+    cancelInFlightRef.current = true;
     setLoading(true);
     setError('');
+    setNotice('');
+
+    // Limpieza optimista de las oportunidades: las cards se van en el acto, sin
+    // esperar el próximo polling. Se guarda el estado previo para restaurarlo
+    // tal cual si falla. La disponibilidad NO se limpia acá a propósito: el
+    // resumen de la búsqueda sólo cambia con la confirmación del backend, así
+    // el formulario no se re-despliega (con su CTA deshabilitado) a mitad de
+    // una baja que todavía puede fallar.
+    const previousProposals = proposals;
+    const previousMembers = membersByProposal;
+    setProposals([]);
+    setMembersByProposal({});
+
     try {
-      await cancelMyAvailability();
-      setAvailability(null);
+      const result = await cancelMyAvailability();
       setRefreshIssue(null);
-      setNotice('Búsqueda desactivada.');
+      // Los contadores son informativos: si un backend viejo no los devuelve,
+      // la baja igual fue exitosa y el mensaje cae al genérico.
+      setNotice(Number(result?.createdMembershipsKept) > 0
+        ? 'Búsqueda desactivada. Seguís en los partidos que ya se crearon.'
+        : 'Búsqueda desactivada.');
+      // Estado real desde el backend: invalida lo local y vuelve a consultar
+      // disponibilidad y propuestas.
+      await load({ sync: false, source: 'availability_cancelled', force: true });
     } catch (err) {
+      // El backend no cambió nada: se restaura exactamente el estado previo
+      // para no dejar la interfaz contradiciendo a la base.
+      setProposals(previousProposals);
+      setMembersByProposal(previousMembers);
       reportActionFailure(err, {
         operation: 'cancel_availability',
         target: 'rpc:cancel_my_availability',
         message: 'No pudimos detener la búsqueda. Tu búsqueda sigue activa.',
       });
     } finally {
+      // El modal se cierra recién cuando el RPC terminó (bien o mal). Mientras
+      // tanto queda abierto en estado "Procesando…": el overlay bloquea el
+      // toque exterior, Escape y Atrás, y el botón de confirmar está
+      // deshabilitado, así que la baja no se puede disparar dos veces.
+      cancelInFlightRef.current = false;
+      setConfirmStopOpen(false);
       setLoading(false);
     }
-  };
+  }, [availability, load, membersByProposal, proposals, reportActionFailure]);
+
+  const cancel = useCallback(() => {
+    setError('');
+    // Si no pertenece a ninguna oportunidad activa, no hay nada que advertir:
+    // se cancela directo, sin modal.
+    if (!stopSearchAffectsProposals) {
+      performCancel();
+      return;
+    }
+    setConfirmStopOpen(true);
+  }, [performCancel, stopSearchAffectsProposals]);
+
+  // El modal NO se cierra acá: lo cierra performCancel cuando el RPC termina.
+  // Así el estado "Procesando…" es real y no hay ventana para un segundo toque.
+  const confirmStopSearching = useCallback(() => {
+    if (cancelInFlightRef.current) return;
+    performCancel();
+  }, [performCancel]);
+
+  // "Seguir buscando" / Escape / Atrás de Android: cierra el modal y no toca
+  // absolutamente nada del backend ni del estado local.
+  const keepSearching = useCallback(() => {
+    if (cancelInFlightRef.current) return;
+    setConfirmStopOpen(false);
+  }, []);
+
+  // Botón Atrás de Android con el modal abierto: equivale a "Seguir buscando".
+  // Cierra sólo el modal, no la vista de Partido automático, y no cancela nada.
+  // Mismo patrón de suscripción que usa el resto de los diálogos de Arma2.
+  const keepSearchingRef = useRef(keepSearching);
+  keepSearchingRef.current = keepSearching;
+
+  useEffect(() => {
+    if (!confirmStopOpen) return undefined;
+    let disposed = false;
+    let handle = null;
+
+    Promise.resolve(CapacitorApp.addListener('backButton', () => keepSearchingRef.current?.()))
+      .then((nextHandle) => {
+        if (disposed) nextHandle?.remove?.();
+        else handle = nextHandle;
+      })
+      .catch(() => {});
+
+    return () => {
+      disposed = true;
+      handle?.remove?.();
+    };
+  }, [confirmStopOpen]);
 
   const respond = async (proposalId, response, { canOrganize: respondCanOrganize = false } = {}) => {
     setLoading(true);
@@ -1623,6 +1740,21 @@ export default function AvailabilityOpportunityCard() {
           </main>
         </div>
       ) : null}
+
+      {/* Confirmación antes de dejar de buscar. Reutiliza el ConfirmModal de
+          Arma2 tal cual: mismo overlay, tipografías, radios, animación,
+          foco/Escape y tratamiento de botones que el resto de la app. */}
+      <ConfirmModal
+        isOpen={confirmStopOpen}
+        title="¿Querés dejar de buscar?"
+        message="Vas a dejar de aparecer en los partidos automáticos que todavía se están formando y tu lugar quedará disponible para otros jugadores."
+        confirmText="Dejar de buscar"
+        cancelText="Seguir buscando"
+        danger
+        isDeleting={loading}
+        onConfirm={confirmStopSearching}
+        onCancel={keepSearching}
+      />
 
       {organizingProposal ? (
         <AutoMatchOrganizeSheet
