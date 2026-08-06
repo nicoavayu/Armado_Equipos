@@ -40,6 +40,7 @@ import { fileURLToPath } from 'node:url';
 import { assertSanitizedOutput, loadManifest } from './readiness-lib.mjs';
 import { readRenewerConfig } from '../../workers/tournament-media-signer-renewer/src/config.mjs';
 import { GATEWAY_CREDENTIAL_OPTIONS, REJECTED_GATEWAY_CREDENTIALS } from '../../workers/tournament-media-signer-renewer/src/gateway.mjs';
+import { TargetError, createTarget, fetchAuthorized } from '../../workers/tournament-media-signer-renewer/src/target.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -128,7 +129,7 @@ export function preflight({ env = process.env, repoRoot = ROOT } = {}) {
     checks.push({ check: 'credential-shape', ok: false, code: error.code, detail: error.message });
   }
   const expectedRef = manifest.environment.authorizedProjectRef;
-  const targetRef = config ? config.host.split('.')[0] : null;
+  const targetRef = config ? config.projectRef : null;
   checks.push({
     check: 'target-is-authorized-staging',
     ok: targetRef === expectedRef,
@@ -139,7 +140,33 @@ export function preflight({ env = process.env, repoRoot = ROOT } = {}) {
     ok: targetRef === null || !manifest.environment.forbiddenProjectRefs.includes(targetRef),
     detail: 'production project refs are refused unconditionally',
   });
-  return { ok: checks.every(({ ok }) => ok), checks, config };
+
+  // The descriptor the request will actually be validated against, rebuilt here
+  // with the MANIFEST's forbidden refs rather than only the environment's. The
+  // renewer's own descriptor knows about `TOURNAMENT_MEDIA_FORBIDDEN_API_HOSTS`
+  // and nothing else, so an operator who simply forgot to export that variable
+  // would have lost the production block for this probe. The manifest is the
+  // repository's own statement about which refs are Production, and it is not
+  // optional.
+  let target = null;
+  if (config) {
+    try {
+      target = createTarget({
+        origin: config.origin,
+        functionName: config.functionName,
+        projectRef: config.projectRef,
+        forbiddenHosts: config.target.forbiddenHosts,
+        forbiddenProjectRefs: [
+          ...config.target.forbiddenProjectRefs,
+          ...manifest.environment.forbiddenProjectRefs,
+        ],
+      });
+      checks.push({ check: 'target-descriptor', ok: true, detail: 'redirects refused, path pinned' });
+    } catch (error) {
+      checks.push({ check: 'target-descriptor', ok: false, code: error.code, detail: error.message });
+    }
+  }
+  return { ok: checks.every(({ ok }) => ok), checks, config, target };
 }
 
 /**
@@ -164,13 +191,20 @@ export function assertAuthorized({ options, env = process.env, expectedRef }) {
 }
 
 /** The request, described rather than made. Header values are never included. */
-export const describeRequest = (config) => ({
+export const describeRequest = (config, target = null) => ({
   method: 'POST',
   url: config ? config.healthUrl : '<resolved from SUPABASE_URL at run time>',
   headerNames: ['content-type', 'apikey', 'authorization', 'x-media-attestation-secret'],
   body: { action: 'health' },
   timeoutMs: config ? config.timeoutMs : null,
   writes: 'one signer attestation row, TTL 3600s',
+  // Stated in the plan because it is the property that decides where the
+  // attestation secret can end up, and a reviewer should not have to read the
+  // transport to find out.
+  redirectPolicy: 'refused (redirect: error); no credential is ever re-sent to a Location host',
+  authorizedOrigin: target ? target.origin : null,
+  authorizedPath: target ? target.path : null,
+  forbiddenProjectRefs: target ? target.forbiddenProjectRefs : [],
 });
 
 export async function main(argv = process.argv.slice(2), {
@@ -181,14 +215,14 @@ export async function main(argv = process.argv.slice(2), {
   const expectedRef = manifest.environment.authorizedProjectRef;
 
   if (command === 'plan') {
-    const { ok, checks, config } = preflight({ env, repoRoot });
+    const { ok, checks, config, target } = preflight({ env, repoRoot });
     const output = `${JSON.stringify({
       status: 'plan-only',
       remoteCalls: 0,
       executed: false,
       preflightOk: ok,
       preflight: checks,
-      request: describeRequest(config),
+      request: describeRequest(config, target),
       acceptedCredentials: GATEWAY_CREDENTIAL_OPTIONS,
       rejectedCredentials: REJECTED_GATEWAY_CREDENTIALS,
       authorizationRequired: {
@@ -209,18 +243,20 @@ export async function main(argv = process.argv.slice(2), {
   }
 
   assertAuthorized({ options, env, expectedRef });
-  const { ok, checks, config } = preflight({ env, repoRoot });
+  const { ok, checks, config, target } = preflight({ env, repoRoot });
   if (!ok) {
     throw new ProbeError('PROBE_PREFLIGHT_FAILED',
       `Refusing: ${checks.filter((check) => !check.ok).map(({ check }) => check).join(', ')}.`);
   }
 
-  const doFetch = fetchImpl || fetch;
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), config.timeoutMs);
   let outcome;
   try {
-    const response = await doFetch(config.healthUrl, {
+    // Same guarded transport as the renewer: the URL is re-validated against
+    // the descriptor immediately before the call, and a redirect is refused
+    // before any credential can be serialised toward the host it names.
+    const response = await fetchAuthorized(config.healthUrl, {
+      target,
+      fetchImpl: fetchImpl || fetch,
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -229,7 +265,7 @@ export async function main(argv = process.argv.slice(2), {
         'x-media-attestation-secret': config.attestationSecret,
       },
       body: JSON.stringify({ action: 'health' }),
-      signal: controller.signal,
+      signal: AbortSignal.timeout(config.timeoutMs),
     });
     // Only the status and the shape are reported. The body may carry evidence
     // fields, and none of them belong in a terminal transcript.
@@ -242,8 +278,13 @@ export async function main(argv = process.argv.slice(2), {
           : response.status === 200 ? 'signer-attested' : 'other',
       attestationWritten: response.status === 200,
     };
-  } finally {
-    clearTimeout(timer);
+  } catch (error) {
+    if (error instanceof TargetError) {
+      // Nothing was written and nothing was sent onward, so this is a refusal
+      // to report rather than a state change to roll back.
+      throw new ProbeError(error.code, error.message);
+    }
+    throw error;
   }
   const output = `${JSON.stringify({
     status: 'executed',

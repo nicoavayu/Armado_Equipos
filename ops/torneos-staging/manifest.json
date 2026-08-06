@@ -526,6 +526,7 @@
       "credentials"
     ],
     "catalog": "ops/torneos-staging/observability/catalog.json",
+    "preflightQuery": "ops/torneos-staging/observability/media-pipeline-preflight.sql",
     "query": "ops/torneos-staging/observability/media-pipeline-signals.sql",
     "runbook": "docs/operations/tournament-media-observability.md",
     "browserFlag": "REACT_APP_TORNEOS_MEDIA_OBSERVABILITY_READY",
@@ -562,7 +563,10 @@
     "collectorContract": {
       "database": "A role with SELECT on the media tables, EXECUTE on tournament_media_pipeline_readiness(), and a provable RLS exemption (rolbypassrls, rolsuper, or ownership without FORCE ROW LEVEL SECURITY). Membership in a policy target role is explicitly not sufficient.",
       "provenAtCollectionTime": true,
-      "failsClosed": "When the proof fails the query emits NULL for every metric, never 0, and the evaluator refuses the snapshot.",
+      "phases": 2,
+      "phaseOrder": "preflightQuery first; query runs only if the preflight returned observable: true, as the same role against the same database.",
+      "whyTwoPhases": "PostgreSQL resolves relation and function names at parse time and checks table privileges at executor start-up, for the whole range table, before any CASE is evaluated. A single statement therefore cannot report table_absent, no_select_privilege or no_execute_privilege — it fails with them. The preflight touches only pg_catalog, to_regclass and to_regprocedure, none of which raise for a missing or forbidden object, which is what makes those three reportable as blockers.",
+      "failsClosed": "A failing preflight means the metrics query is never run, so there are no counts to misread; and snapshotFromCollectorPhases() refuses metrics that arrive without a matching, recent, same-role preflight.",
       "grantedInThisChange": false
     }
   },

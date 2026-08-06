@@ -16,8 +16,9 @@ import {
   loadCatalog,
   missingCollectors,
   observabilityReadiness,
-  snapshotFromDatabaseRow,
+  snapshotFromCollectorPhases,
   validateCatalog,
+  worstSeverityOf,
 } from './observability-lib.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -25,7 +26,15 @@ const catalog = loadCatalog(ROOT);
 const manifest = loadManifest(ROOT);
 const snapshot = () => readJson(path.join(ROOT, 'ops/torneos-staging/fixtures/observability-snapshot.json'));
 const metricByName = (name) => catalog.metrics.find((metric) => metric.name === name);
-const sqlRow = (name) => readJson(path.join(ROOT, `ops/torneos-staging/fixtures/observability-sql-output-${name}.json`)).row;
+const phases = readJson(path.join(ROOT, 'ops/torneos-staging/fixtures/observability-collector-phases.json')).cases;
+/** The two rows of one collector case, as the SQL files would return them. */
+const phaseCase = (name) => clone(phases[name]);
+/** A snapshot assembled through the real two-phase contract. */
+const fromPhases = (name, mutate = () => {}) => {
+  const rows = phaseCase(name);
+  mutate(rows);
+  return snapshotFromCollectorPhases({ preflight: rows.preflight, metrics: rows.metrics });
+};
 
 const expectCode = (code, run) => assert.throws(run, (error) => (
   error instanceof ObservabilityError && error.code === code
@@ -395,84 +404,204 @@ test('evaluateMetric reports the breached threshold and its recovery condition',
 
 // --- H1: the collector may not mistake invisibility for health --------------
 
-test('the collector query proves its own visibility before it emits any count', () => {
-  const sql = fs.readFileSync(path.join(ROOT, manifest.observability.query), 'utf8');
-  // The canary is in the same statement as the counts, so it cannot be skipped
-  // by running the interesting half on its own.
+test('the preflight touches no protected table, so it can report their absence', () => {
+  const sql = fs.readFileSync(path.join(ROOT, manifest.observability.preflightQuery), 'utf8');
+  // Everything the role contract is asserted with.
   assert.match(sql, /relrowsecurity/);
+  assert.match(sql, /relforcerowsecurity/);
   assert.match(sql, /rolbypassrls/);
   assert.match(sql, /has_table_privilege/);
   assert.match(sql, /has_function_privilege/);
-  assert.match(sql, /'visibility',\s*jsonb_build_object/);
-  // Every metric is gated on the same verdict.
-  const gated = sql.match(/CASE WHEN \(SELECT ok FROM gate\) THEN/g) || [];
-  assert.ok(gated.length >= 11, 'every metric must be gated on the visibility verdict');
-  // And the role contract is written down where the collector operator reads it.
-  assert.match(sql, /Role contract required by this collector/);
+  assert.match(sql, /to_regclass/);
+  assert.match(sql, /to_regprocedure/);
+  assert.match(sql, /'phase',\s*'preflight'/);
+
+  // The load-bearing property: the protected tables are NEVER named as
+  // relations. `to_regclass('public.' || quote_ident(...))` resolves them from
+  // a VALUES list of strings, so they never enter the range table and can
+  // therefore never cause a parse error or a privilege error.
+  const body = sql.split('\n').filter((line) => !line.trim().startsWith('--')).join('\n');
+  for (const table of COLLECTOR_ROLE_CONTRACT.requiredTables) {
+    assert.doesNotMatch(body, new RegExp(`FROM\\s+public\\.${table}`, 'i'),
+      `the preflight must not read ${table}`);
+    assert.doesNotMatch(body, new RegExp(`JOIN\\s+public\\.${table}`, 'i'));
+  }
+  assert.doesNotMatch(body, /public\.tournament_media_pipeline_readiness\s*\(\s*\)\s*(?:->>|->)/,
+    'the preflight must probe the function by privilege, never call it');
+  // Only catalog relations may appear in a FROM/JOIN.
+  const relations = [...body.matchAll(/\b(?:FROM|JOIN)\s+([a-z_][a-z0-9_.]*)/gi)]
+    .map(([, name]) => name.toLowerCase())
+    .filter((name) => name.includes('.'));
+  for (const relation of relations) {
+    assert.ok(relation.startsWith('pg_catalog.'),
+      `the preflight may only read pg_catalog, found ${relation}`);
+  }
   assert.equal(COLLECTOR_ROLE_CONTRACT.grantsInThisChange, false);
+  assert.equal(COLLECTOR_ROLE_CONTRACT.phases.length, 2);
 });
 
-test('a collector that cannot see the tables aborts instead of reporting zeros', () => {
-  const blind = snapshotFromDatabaseRow(sqlRow('rls-blind'));
-  expectCode('COLLECTOR_VISIBILITY_UNPROVEN', () => assertCollectorVisibility(blind));
+test('the metrics query is honest that it cannot guard itself', () => {
+  const sql = fs.readFileSync(path.join(ROOT, manifest.observability.query), 'utf8');
+  assert.match(sql, /'phase',\s*'metrics'/);
+  // The counts are no longer wrapped in a CASE that never protected anything.
+  assert.doesNotMatch(sql, /CASE WHEN \(SELECT ok FROM gate\) THEN/,
+    'the removed gate looked like a guard and could not be one');
+  // It states its precondition where somebody about to run it will read it.
+  assert.match(sql, /PRECONDITION/);
+  assert.match(sql, /media-pipeline-preflight\.sql/);
+  // It carries the identity the evaluator pairs on.
+  assert.match(sql, /current_user/);
+  assert.match(sql, /current_database/);
+  // The manifest names both halves, and they exist.
+  assert.ok(fs.existsSync(path.join(ROOT, manifest.observability.preflightQuery)));
+  assert.equal(manifest.observability.collectorContract.phases, 2);
+});
+
+test('a collector that cannot see the tables never reaches the counts', () => {
+  const blind = phaseCase('rls-blind');
+  // The preflight refused, so Phase B was never run: there are no metrics.
+  assert.equal(blind.preflight.observable, false);
+  assert.equal(blind.metrics, undefined);
   expectCode('COLLECTOR_VISIBILITY_UNPROVEN',
-    () => evaluateObservability({ repoRoot: ROOT, catalog, snapshot: blind }));
-  // Fail-closed all the way to the flag.
-  assert.throws(() => observabilityReadiness({ repoRoot: ROOT, catalog, snapshot: blind }));
+    () => snapshotFromCollectorPhases({ preflight: blind.preflight, metrics: {} }));
+  // Fail-closed all the way to the flag, and as a verdict rather than a crash.
+  const readiness = observabilityReadiness({
+    repoRoot: ROOT,
+    catalog,
+    snapshot: { collectedAt: null, database: { collector: {}, visibility: blind.preflight } },
+  });
+  assert.equal(readiness.ready, false);
+  assert.ok(readiness.blockers.some((blocker) => blocker.startsWith('signals.unproven:')));
 });
 
-test('RLS enabled without a bypass is refused even when SELECT is granted', () => {
-  const state = snapshot();
-  const table = state.database.visibility.tables.tournament_media_processing_jobs;
-  table.rlsExempt = false;
-  table.observable = false;
-  state.database.visibility.observable = false;
-  state.database.visibility.blockers = ['tournament_media_processing_jobs:rls_enabled_with_policies_and_without_bypass'];
-  expectCode('COLLECTOR_VISIBILITY_UNPROVEN', () => assertCollectorVisibility(state));
-
-  // Even a snapshot that claims overall visibility is refused if a required
-  // table contradicts it: partial visibility is not visibility.
-  const contradictory = snapshot();
-  contradictory.database.visibility.tables.tournament_media_service_attestations.rlsExempt = false;
-  expectCode('COLLECTOR_VISIBILITY_UNPROVEN', () => assertCollectorVisibility(contradictory));
+test('each way the role contract can fail is a named blocker, not an exception', () => {
+  // Every one of these was previously unreportable: the statement failed with
+  // the very condition it was supposed to describe.
+  const cases = {
+    'table-absent': 'tournament_media_processing_jobs:table_absent',
+    'no-select-privilege': 'tournament_media_service_attestations:no_select_privilege',
+    'no-execute-privilege': 'tournament_media_pipeline_readiness:no_execute_privilege',
+    'force-rls-on-owned-table': 'tournament_media_processing_jobs:rls_forced_on_owned_table',
+    'rls-blind': 'tournament_media_processing_jobs:rls_enabled_with_policies_and_without_bypass',
+  };
+  for (const [name, blocker] of Object.entries(cases)) {
+    const { preflight } = phaseCase(name);
+    assert.equal(preflight.observable, false, `${name} must not be observable`);
+    assert.ok(preflight.blockers.includes(blocker),
+      `${name} must report ${blocker}, got ${JSON.stringify(preflight.blockers)}`);
+    expectCode('COLLECTOR_VISIBILITY_UNPROVEN',
+      () => snapshotFromCollectorPhases({ preflight, metrics: {} }));
+  }
 });
 
-test('a snapshot with no visibility proof at all is refused', () => {
+test('ownership exempts from RLS only while FORCE is off', () => {
+  const forced = phaseCase('force-rls-on-owned-table').preflight
+    .tables.tournament_media_processing_jobs;
+  assert.equal(forced.isOwner, true);
+  assert.equal(forced.rlsForced, true);
+  assert.equal(forced.rlsExempt, false, 'FORCE filters the owner like anybody else');
+
+  const unforced = phaseCase('owner-without-force').preflight
+    .tables.tournament_media_processing_jobs;
+  assert.equal(unforced.isOwner, true);
+  assert.equal(unforced.rlsForced, false);
+  assert.equal(unforced.rlsExempt, true);
+  // And that collector's counts are believed.
+  const evaluation = evaluateObservability({
+    repoRoot: ROOT,
+    catalog,
+    snapshot: deriveSustainedSeconds({
+      catalog,
+      snapshot: { ...snapshot(), database: fromPhases('owner-without-force').database },
+      at: Date.parse('2099-01-01T01:00:00Z'),
+    }).snapshot,
+  });
+  assert.equal(evaluation.observable, true);
+});
+
+test('metrics without a preflight are refused, however complete they look', () => {
+  const good = phaseCase('observable-and-idle');
+
+  // No preflight at all.
+  expectCode('COLLECTOR_PREFLIGHT_MISSING',
+    () => snapshotFromCollectorPhases({ metrics: good.metrics }));
+  // Something that is not a preflight row.
+  expectCode('COLLECTOR_PREFLIGHT_MISSING', () => snapshotFromCollectorPhases({
+    preflight: { ...good.preflight, phase: 'metrics' }, metrics: good.metrics,
+  }));
+  // No metrics.
+  expectCode('COLLECTOR_METRICS_MISSING',
+    () => snapshotFromCollectorPhases({ preflight: good.preflight }));
+  // A contract version nobody here understands.
+  expectCode('COLLECTOR_CONTRACT_VERSION', () => snapshotFromCollectorPhases({
+    preflight: { ...good.preflight, contractVersion: 2 }, metrics: good.metrics,
+  }));
+
+  // And a hand-assembled visibility block cannot impersonate a proof: only
+  // snapshotFromCollectorPhases may stamp provenBy.
+  const forged = snapshot();
+  delete forged.database.visibility.provenBy;
+  expectCode('COLLECTOR_PREFLIGHT_MISSING', () => assertCollectorVisibility(forged));
+  expectCode('COLLECTOR_PREFLIGHT_MISSING',
+    () => evaluateObservability({ repoRoot: ROOT, catalog, snapshot: forged }));
+
   const noProof = snapshot();
   delete noProof.database.visibility;
   expectCode('COLLECTOR_VISIBILITY_MISSING', () => assertCollectorVisibility(noProof));
-  expectCode('COLLECTOR_VISIBILITY_MISSING',
-    () => evaluateObservability({ repoRoot: ROOT, catalog, snapshot: noProof }));
 
   const partialProof = snapshot();
   delete partialProof.database.visibility.tables.tournament_media_processing_jobs;
   expectCode('COLLECTOR_VISIBILITY_MISSING', () => assertCollectorVisibility(partialProof));
 });
 
+test('the two phases must be about the same role, database and moment', () => {
+  const mismatches = {
+    'a different role': (rows) => { rows.metrics.collector.role = 'somebody_else'; },
+    'a different database': (rows) => { rows.metrics.collector.database = 'other_db'; },
+    'metrics before the proof': (rows) => { rows.metrics.collectedAt = '2098-12-31T23:00:00.000Z'; },
+    'a stale proof': (rows) => { rows.metrics.collectedAt = '2099-01-01T01:00:00.000Z'; },
+    'an unnamed role': (rows) => { delete rows.metrics.collector.role; },
+  };
+  for (const [what, mutate] of Object.entries(mismatches)) {
+    expectCode('COLLECTOR_PHASE_MISMATCH', () => fromPhases('observable-and-idle', mutate));
+    assert.ok(what);
+  }
+  // The unmutated pair is accepted, and carries the proof forward.
+  const assembled = fromPhases('observable-and-idle');
+  assert.equal(assembled.database.visibility.provenBy, 'preflight');
+  assert.equal(assembled.database.visibility.observable, true);
+  assert.equal(assembled.database.collector.role, 'torneos_media_observability_collector');
+  assert.equal(assembled.database.queueDepth, 0);
+  // The envelope fields do not leak into the metric namespace.
+  for (const key of ['phase', 'contractVersion']) {
+    assert.ok(!(key in assembled.database), `${key} must not become a metric path`);
+  }
+});
+
 test('zero real rows and zero rows because of RLS are not the same answer', () => {
-  const empty = sqlRow('empty');
-  const blind = sqlRow('rls-blind');
+  // The whole point of the split: the blind collector produces NO counts at
+  // all, because Phase B is never run. There is nothing to mistake for health.
+  const blind = phaseCase('rls-blind');
+  const idle = phaseCase('observable-and-idle');
+  assert.equal(blind.metrics, undefined, 'a blind collector must never reach Phase B');
+  assert.equal(idle.metrics.queueDepth, 0);
 
-  // Strip the proof and the two rows become indistinguishable at the values —
-  // which is exactly the failure mode the canary exists to prevent.
-  const valuesOnly = (row) => Object.fromEntries(Object.entries(row)
-    .filter(([key]) => !['visibility', 'collector', 'collectedAt'].includes(key)));
-  assert.notDeepEqual(valuesOnly(empty), valuesOnly(blind));
-  assert.equal(valuesOnly(empty).queueDepth, 0);
-  assert.equal(valuesOnly(blind).queueDepth, null,
-    'an unobservable collector must emit null, never a zero');
-
-  // With the proof, the two get opposite verdicts.
-  const emptySnapshot = { ...snapshot(), database: snapshotFromDatabaseRow(empty).database };
-  // The idle row carries no dwell, so derive it the way the collector must.
-  const derived = deriveSustainedSeconds({ catalog, snapshot: emptySnapshot, at: Date.parse('2099-01-01T01:00:00Z') });
+  // The proven-idle collector evaluates as healthy...
+  const derived = deriveSustainedSeconds({
+    catalog,
+    snapshot: { ...snapshot(), database: fromPhases('observable-and-idle').database },
+    at: Date.parse('2099-01-01T01:00:00Z'),
+  });
   const evaluation = evaluateObservability({ repoRoot: ROOT, catalog, snapshot: derived.snapshot });
   assert.equal(evaluation.observable, true, 'a genuinely empty queue is observable and healthy');
   assert.equal(evaluation.worstSeverity, 'ok');
   assert.equal(evaluation.metrics.find((m) => m.name === 'arma2_torneos_media_queue_depth').value, 0);
 
-  expectCode('COLLECTOR_VISIBILITY_UNPROVEN', () => evaluateObservability({
-    repoRoot: ROOT, catalog, snapshot: { ...snapshot(), database: snapshotFromDatabaseRow(blind).database },
+  // ...and the blind one cannot be assembled into a snapshot at all, even if a
+  // caller pairs its refusal with a full set of counts it did not earn.
+  expectCode('COLLECTOR_VISIBILITY_UNPROVEN', () => snapshotFromCollectorPhases({
+    preflight: blind.preflight,
+    metrics: { ...idle.metrics, collector: blind.preflight.collector },
   }));
 });
 
@@ -481,8 +610,10 @@ test('zero real rows and zero rows because of RLS are not the same answer', () =
 test('the literal SQL output carries no dwell, so a breaching value is unknown', () => {
   // The real query emits instantaneous values only: one scrape cannot know how
   // long anything has held. This is that exact shape, with a breaching value.
-  const row = { ...sqlRow('empty'), queueDepth: 40 };
-  const literal = { ...snapshot(), database: snapshotFromDatabaseRow(row).database };
+  const literal = {
+    ...snapshot(),
+    database: fromPhases('observable-and-idle', (rows) => { rows.metrics.queueDepth = 40; }).database,
+  };
   assert.equal(literal.database.queueDepthSustainedSeconds, undefined);
 
   const evaluated = evaluateMetric(metricByName('arma2_torneos_media_queue_depth'), literal);
@@ -499,14 +630,19 @@ test('the literal SQL output carries no dwell, so a breaching value is unknown',
 });
 
 test('a value that breaches nothing needs no dwell', () => {
-  const literal = { ...snapshot(), database: snapshotFromDatabaseRow(sqlRow('empty')).database };
+  const literal = { ...snapshot(), database: fromPhases('observable-and-idle').database };
   const evaluated = evaluateMetric(metricByName('arma2_torneos_media_queue_depth'), literal);
   assert.equal(evaluated.severity, 'ok', 'an untripped threshold does not need a window');
   assert.equal(evaluated.sustainedSeconds, null);
 });
 
 test('a dwell-free threshold still decides without a window', () => {
-  const literal = { ...snapshot(), database: snapshotFromDatabaseRow({ ...sqlRow('empty'), signerAttestationExpiresInSeconds: 300 }).database };
+  const literal = {
+    ...snapshot(),
+    database: fromPhases('observable-and-idle', (rows) => {
+      rows.metrics.signerAttestationExpiresInSeconds = 300;
+    }).database,
+  };
   // forSeconds is 0 on the attestation thresholds, so this is decidable now.
   const evaluated = evaluateMetric(metricByName('arma2_torneos_media_signer_attestation_expires_in_seconds'), literal);
   assert.equal(evaluated.severity, 'critical');
@@ -514,7 +650,10 @@ test('a dwell-free threshold still decides without a window', () => {
 
 test('the collector derives dwell across scrapes, per severity band', () => {
   const at0 = Date.parse('2099-01-01T00:00:00Z');
-  const base = { ...snapshot(), database: snapshotFromDatabaseRow({ ...sqlRow('empty'), queueDepth: 30 }).database };
+  const base = {
+    ...snapshot(),
+    database: fromPhases('observable-and-idle', (rows) => { rows.metrics.queueDepth = 30; }).database,
+  };
 
   // First scrape: the band has been observed for zero seconds, which is honest.
   const first = deriveSustainedSeconds({ catalog, snapshot: base, at: at0 });
@@ -600,4 +739,83 @@ test('migration drift is defined over versions, never over a remote checksum', (
   assert.match(metric.description, /never a checksum comparison/i);
   const inspector = fs.readFileSync(path.join(ROOT, 'scripts/torneos-staging/inspect-remote-readonly-lib.mjs'), 'utf8');
   assert.match(inspector, /Remote migration history does not expose checksums/);
+});
+
+// --- L: a summary that cannot hide a page ----------------------------------
+
+test('an unknown metric never masks a critical one in the worst severity', () => {
+  // The bug: the threshold-escalation order puts `unknown` above `critical`,
+  // because for "could this missing dwell window change the verdict?" it does.
+  // Reusing that order for the summary meant one absent signal downgraded a
+  // real page to `unknown`, and an on-call dashboard showed the wrong thing.
+  assert.equal(worstSeverityOf(['ok', 'unknown', 'critical']), 'critical');
+  assert.equal(worstSeverityOf(['critical', 'unknown']), 'critical');
+  assert.equal(worstSeverityOf(['warning', 'unknown']), 'unknown', 'unknown still outranks warning');
+  assert.equal(worstSeverityOf(['ok', 'warning']), 'warning');
+  assert.equal(worstSeverityOf([]), 'ok');
+  assert.equal(worstSeverityOf(['ok']), 'ok');
+
+  // End to end: one metric absent, another critical.
+  const evaluation = evaluate((state) => {
+    delete state.database.queueDepth;
+    state.database.signerAttestationExpiresInSeconds = 30;
+  });
+  assert.equal(severityOf(evaluation, 'arma2_torneos_media_queue_depth'), 'unknown');
+  assert.equal(severityOf(evaluation, 'arma2_torneos_media_signer_attestation_expires_in_seconds'), 'critical');
+  assert.equal(evaluation.worstSeverity, 'critical',
+    'a confirmed critical must not be hidden behind an unrelated absent signal');
+  // The absent signal is still reported, just not as the headline.
+  assert.ok(evaluation.missingRequired.includes('arma2_torneos_media_queue_depth'));
+  assert.equal(evaluation.observable, false);
+});
+
+test('unproven visibility is a controlled ready:false, not a thrown error', () => {
+  const blind = phaseCase('rls-blind');
+  const snapshotWithoutProof = {
+    collectedAt: null,
+    database: { collector: {}, visibility: blind.preflight },
+  };
+  // It used to throw here, so a caller asking "is observability ready?" got an
+  // exception instead of an answer — and the answer was always going to be no.
+  const readiness = observabilityReadiness({
+    repoRoot: ROOT, catalog, snapshot: snapshotWithoutProof,
+  });
+  assert.equal(readiness.ready, false);
+  assert.equal(readiness.evaluation, null);
+  assert.equal(readiness.refusal.code, 'COLLECTOR_PREFLIGHT_MISSING');
+  assert.ok(readiness.blockers.includes('signals.unproven:COLLECTOR_PREFLIGHT_MISSING'));
+  // The pre-existing blockers are still reported alongside it.
+  assert.ok(readiness.blockers.includes('signals.not_deployed'));
+  assert.ok(readiness.blockers.some((blocker) => blocker.startsWith('collectors.not_implemented:')));
+});
+
+test('a snapshot carrying a new-style Supabase key is refused', () => {
+  for (const value of ['sb_secret_abcdefghijklmnop', 'sb_publishable_abcdefghijklmnop']) {
+    const leaking = snapshot();
+    leaking.database.collector.role = value;
+    expectCode('SNAPSHOT_IDENTIFYING_VALUE', () => assertSnapshotIsAnonymous(leaking));
+  }
+  // The prose that names the prefixes while explaining what is rejected is not
+  // a key and must not be flagged.
+  assert.doesNotThrow(() => assertSnapshotIsAnonymous({
+    note: 'sb_secret_… is a service credential and is rejected',
+  }));
+});
+
+test('migration drift is described as it is actually computed', () => {
+  const metric = metricByName('arma2_torneos_media_migration_drift');
+  const lib = fs.readFileSync(path.join(ROOT, 'scripts/torneos-staging/readiness-lib.mjs'), 'utf8');
+  // The three detail arrays computeMigrationDrift() actually sums.
+  for (const part of [
+    'duplicatedRemoteVersions', 'remoteVersionsWithoutLocalFile', 'targetVersionsAppliedOutOfOrder',
+  ]) {
+    assert.ok(lib.includes(part), `${part} must exist in the implementation`);
+    assert.ok(metric.source.definition.includes(part),
+      `the definition must name ${part}, which is what is counted`);
+  }
+  // The claim that drifted from the code: it compares against the LOCAL
+  // migration files, never against the manifest target.
+  assert.doesNotMatch(metric.description, /remote versions the manifest does not declare/i);
+  assert.match(metric.source.definition, /NOT against the manifest target/);
+  assert.match(metric.description, /never a checksum comparison/i);
 });

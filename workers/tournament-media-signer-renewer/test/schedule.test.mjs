@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 
 import { attestationMargin, worstCaseCycleSeconds } from '../src/schedule.mjs';
 import { OUTCOME, createRenewerState, runRenewalCycle } from '../src/renewer.mjs';
+import { testConfig } from './fixtures.mjs';
 
 const PACKAGE_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const REPO_ROOT = path.resolve(PACKAGE_DIR, '..', '..');
@@ -95,12 +96,7 @@ test('an operator-supplied expiry restores a provable margin', () => {
 test('a cold renewer alerts critical on its first failures, not warning', async () => {
   const lines = [];
   const state = createRenewerState();
-  const config = {
-    healthUrl: 'https://example.invalid/functions/v1/tournament-media-signer',
-    apikey: 'k', authorizationJwt: 'j', attestationSecret: 'x'.repeat(48),
-    ttlSeconds: 3600, safetyMarginSeconds: 900, maxAttempts: 1, timeoutMs: 500,
-    backoffBaseMs: 10, backoffMaxMs: 20, jitterRatio: 0, alertAfterFailures: 1,
-  };
+  const config = testConfig({ alertAfterFailures: 1 });
   const { outcome } = await runRenewalCycle({
     state,
     config,

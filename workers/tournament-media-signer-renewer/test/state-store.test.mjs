@@ -15,6 +15,7 @@ import {
 import {
   OUTCOME, createRenewerState, persistableState, runRenewalCycle,
 } from '../src/renewer.mjs';
+import { testConfig } from './fixtures.mjs';
 
 const tempDir = () => fs.mkdtempSync(path.join(os.tmpdir(), 'renewer-state-'));
 
@@ -22,20 +23,11 @@ const expectStateCode = (code, run) => assert.throws(run, (error) => (
   error instanceof RenewerStateError && error.code === code
 ));
 
-const config = {
-  healthUrl: 'https://example.invalid/functions/v1/tournament-media-signer',
+const config = testConfig({
   apikey: 'apikey-fixture',
   authorizationJwt: 'jwt-fixture',
-  attestationSecret: 'x'.repeat(48),
-  ttlSeconds: 3600,
-  safetyMarginSeconds: 900,
-  maxAttempts: 1,
   timeoutMs: 1000,
-  backoffBaseMs: 10,
-  backoffMaxMs: 20,
-  jitterRatio: 0,
-  alertAfterFailures: 2,
-};
+});
 
 const failingFetch = async () => ({ status: 503, json: async () => ({}) });
 const okFetch = async () => ({

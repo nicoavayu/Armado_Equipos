@@ -26,6 +26,7 @@ import {
   GATEWAY_CREDENTIAL_OPTIONS, inspectGatewayJwt, isPublishableKey, isServiceCredential,
 } from './gateway.mjs';
 import { worstCaseCycleSeconds } from './schedule.mjs';
+import { createTarget } from './target.mjs';
 
 export class RenewerConfigError extends Error {
   constructor(code, message) {
@@ -36,6 +37,13 @@ export class RenewerConfigError extends Error {
 }
 
 const fail = (code, message) => { throw new RenewerConfigError(code, message); };
+
+/**
+ * A host whose first DNS label IS the project ref. Only for these can the ref
+ * claim be demanded, because only for these does the address itself name a
+ * project to compare against.
+ */
+const PROJECT_BOUND_HOST = /^[a-z0-9]{16,32}\.supabase\.(?:co|in|net)$/;
 
 const readInteger = (raw, fallback, { min, max, code, name }) => {
   const value = raw === undefined || raw === '' ? fallback : Number(raw);
@@ -80,11 +88,33 @@ function resolveHealthUrl(env) {
   if (forbidden.includes(url.hostname.toLowerCase())) {
     fail('RENEWER_HOST_FORBIDDEN', 'SUPABASE_URL host is explicitly forbidden.');
   }
+  const forbiddenRefs = String(env.TOURNAMENT_MEDIA_FORBIDDEN_PROJECT_REFS || '')
+    .split(',').map((entry) => entry.trim().toLowerCase()).filter(Boolean);
   const functionName = String(env.TOURNAMENT_MEDIA_SIGNER_FUNCTION || 'tournament-media-signer').trim();
   if (!/^[a-z][a-z0-9-]{2,60}$/.test(functionName)) {
     fail('RENEWER_FUNCTION_INVALID', 'Signer function name is invalid.');
   }
-  return { origin: url.origin, host: url.hostname.toLowerCase(), functionName };
+  const host = url.hostname.toLowerCase();
+  const projectRef = host.split('.')[0];
+  if (forbiddenRefs.includes(projectRef)) {
+    fail('RENEWER_HOST_FORBIDDEN', 'SUPABASE_URL project ref is explicitly forbidden.');
+  }
+  // The frozen descriptor every request is re-checked against. Built here, at
+  // the one point where the operator's two independent statements about the
+  // target have just been proven to agree.
+  let descriptor;
+  try {
+    descriptor = createTarget({
+      origin: url.origin,
+      functionName,
+      projectRef,
+      forbiddenHosts: forbidden,
+      forbiddenProjectRefs: forbiddenRefs,
+    });
+  } catch (error) {
+    return fail('RENEWER_URL_INVALID', `The authorized target is not usable: ${error.message}`);
+  }
+  return { origin: url.origin, host, projectRef, functionName, target: descriptor };
 }
 
 /**
@@ -159,8 +189,20 @@ export function readRenewerConfig(env = process.env, { now = Date.now() } = {}) 
   // The credential must belong to the project we are renewing against. A JWT
   // from another project would be rejected by the gateway anyway; failing here
   // says which variable to fix instead of leaving a 401 to be diagnosed.
-  const expectedRef = target.host.split('.')[0];
-  if (gateway.gatewayJwtProjectRef && gateway.gatewayJwtProjectRef !== expectedRef) {
+  //
+  // When the endpoint is project-bound — a `<ref>.supabase.co` host, where the
+  // ref is part of the address itself — the `ref` claim is REQUIRED, not merely
+  // checked when present. A JWT without one cannot be shown to belong to this
+  // project, and "we could not tell" is not a reason to send the attestation
+  // secret. A custom domain carries no ref in its host, so there the claim is
+  // compared only when the credential offers it.
+  const projectBound = PROJECT_BOUND_HOST.test(target.host);
+  if (projectBound && !gateway.gatewayJwtProjectRef) {
+    fail('RENEWER_GATEWAY_JWT_REF_MISSING',
+      'The gateway JWT carries no ref claim, and the authorized host is project-bound; '
+      + 'the credential cannot be shown to belong to this project.');
+  }
+  if (gateway.gatewayJwtProjectRef && gateway.gatewayJwtProjectRef !== target.projectRef) {
     fail('RENEWER_GATEWAY_JWT_PROJECT_MISMATCH',
       'The gateway JWT ref claim names a different project than the authorized host.');
   }
@@ -216,7 +258,9 @@ export function readRenewerConfig(env = process.env, { now = Date.now() } = {}) 
 
   const config = {
     ...target,
-    healthUrl: `${target.origin}/functions/v1/${target.functionName}`,
+    // Derived from the descriptor, never re-assembled from parts: the string
+    // that is fetched and the string that is validated must have one source.
+    healthUrl: target.target.url,
     attestationSecret,
     ...gateway,
     statePath: statePath || null,

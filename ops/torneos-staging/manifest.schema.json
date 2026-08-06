@@ -675,6 +675,7 @@
         "structuredLogs",
         "sanitize",
         "catalog",
+        "preflightQuery",
         "query",
         "runbook",
         "browserFlag",
@@ -717,12 +718,26 @@
           "required": [
             "database",
             "provenAtCollectionTime",
+            "phases",
+            "phaseOrder",
+            "whyTwoPhases",
             "failsClosed",
             "grantedInThisChange"
           ],
           "properties": {
             "provenAtCollectionTime": {
               "const": true
+            },
+            "phases": {
+              "const": 2
+            },
+            "phaseOrder": {
+              "type": "string",
+              "minLength": 40
+            },
+            "whyTwoPhases": {
+              "type": "string",
+              "minLength": 80
             },
             "grantedInThisChange": {
               "const": false

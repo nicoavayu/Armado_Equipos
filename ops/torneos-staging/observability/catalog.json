@@ -8,13 +8,15 @@
   "collectors": {
     "database": {
       "kind": "read-only-sql",
+      "preflightQuery": "ops/torneos-staging/observability/media-pipeline-preflight.sql",
       "query": "ops/torneos-staging/observability/media-pipeline-signals.sql",
       "implemented": false,
       "artifacts": [
+        "ops/torneos-staging/observability/media-pipeline-preflight.sql",
         "ops/torneos-staging/observability/media-pipeline-signals.sql"
       ],
-      "blocker": "The statement exists and proves its own visibility, but no scheduled process runs it, derives dwell across scrapes and publishes the snapshot fields.",
-      "plannedSource": "A sidecar of the Multimedia worker host running this exact .sql file every 60s through psql with the collector role below, passing the single JSON row through deriveSustainedSeconds() in scripts/torneos-staging/observability-lib.mjs before publishing it.",
+      "blocker": "Both statements exist and the preflight proves visibility before any count is collected, but no scheduled process runs the two in order, derives dwell across scrapes and publishes the snapshot fields.",
+      "plannedSource": "A sidecar of the Multimedia worker host running, every 60s through psql with the collector role below, first media-pipeline-preflight.sql and then \u2014 only if it returned observable: true \u2014 media-pipeline-signals.sql, pairing the two JSON rows through snapshotFromCollectorPhases() and then deriveSustainedSeconds() in scripts/torneos-staging/observability-lib.mjs before publishing.",
       "intervalSeconds": 60,
       "role": {
         "contract": "A dedicated read-only role that is provably exempt from RLS on the media tables.",
@@ -30,9 +32,9 @@
           "SELECT alone while RLS is enabled and the role is not exempt"
         ],
         "grantedInThisChange": false,
-        "notes": "No role is created and nothing is granted by this change. The SQL asserts every clause of this contract at collection time and emits NULL for every metric when the assertion fails."
+        "notes": "No role is created and nothing is granted by this change. The preflight asserts every clause of this contract before any count is collected; when the assertion fails the metrics query is never run, so there are no counts to misread."
       },
-      "notes": "One SELECT, no writes, no DDL. Returns counts, ages and ratios only: no object name, no path, no user id, no token. When visibility is unproven every metric is NULL, never 0."
+      "notes": "Two SELECTs, no writes, no DDL, run strictly in order. Returns counts, ages and ratios only: no object name, no path, no user id, no token. The preflight touches only pg_catalog, to_regclass and to_regprocedure, so a missing table, a missing SELECT grant or a missing EXECUTE grant is reported as a blocker instead of failing the scrape \u2014 which a single statement could not do, because PostgreSQL resolves names at parse time and checks privileges at executor start-up, before any CASE is evaluated."
     },
     "storage": {
       "kind": "storage-list",
@@ -755,11 +757,11 @@
       "name": "arma2_torneos_media_migration_drift",
       "type": "gauge",
       "unit": "migrations",
-      "description": "Disagreements between the manifest migration target and the remote migration history, counted by version presence and order. The remote history exposes version and name only, so this is never a checksum comparison: it counts remote versions the manifest does not declare, target versions applied out of order, duplicated remote versions and remote versions with no local file.",
+      "description": "Disagreements between this repository and the remote migration history, counted by version presence and order. The remote history exposes version and name only, so this is never a checksum comparison. It is the sum of exactly three counts: remote versions with no local migration file, remote versions applied more than once, and manifest target versions applied out of order relative to the target sequence. Note what is deliberately NOT counted: a target version that has not been applied yet is pending, not drift.",
       "source": {
         "collector": "readiness",
         "path": "readiness.migrationDrift",
-        "definition": "computeMigrationDrift() over the inspector snapshot: remote versions absent from the manifest target, manifest target versions applied out of order, duplicated remote versions, and remote versions with no local migration file. Version presence and order only, because the remote migration history exposes no checksum."
+        "definition": "computeMigrationDrift() in scripts/torneos-staging/readiness-lib.mjs, summing the lengths of its three detail arrays: remoteVersionsWithoutLocalFile (remote versions absent from supabase/migrations on disk — compared against the local files, NOT against the manifest target), duplicatedRemoteVersions, and targetVersionsAppliedOutOfOrder. Version presence and order only, because the remote migration history exposes no checksum."
       },
       "thresholds": [
         {

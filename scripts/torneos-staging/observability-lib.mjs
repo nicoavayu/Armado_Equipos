@@ -16,9 +16,12 @@
  *
  *   2. Invisible is not empty. Row Level Security answers a forbidden count
  *      with zero, which is indistinguishable from a healthy idle queue. The
- *      database collector therefore proves its own visibility in the same
- *      statement that collects the counts, and this module refuses a snapshot
- *      whose proof is missing or negative — before any zero is believed.
+ *      database collector therefore proves its own visibility BEFORE it
+ *      collects any count — in a separate statement, because a statement
+ *      cannot report on the conditions that stop it from running — and this
+ *      module refuses a snapshot whose proof is missing, negative, or not
+ *      demonstrably about the same role, database and moment as the counts it
+ *      is supposed to authorise. See `snapshotFromCollectorPhases`.
  *
  *   3. Dwell time is measured, never assumed. A threshold with a dwell window
  *      can only fire, or be cleared, if the collector said how long the value
@@ -45,7 +48,39 @@ export class ObservabilityError extends Error {
 const fail = (code, message, details) => { throw new ObservabilityError(code, message, details); };
 const assert = (condition, code, message, details) => { if (!condition) fail(code, message, details); };
 
+/**
+ * Escalation order for THRESHOLDS. Only `ok`, `warning` and `critical` ever
+ * take part: a threshold cannot declare `unknown`, which is a verdict about
+ * missing evidence rather than a band a value can fall into.
+ */
 export const SEVERITY_ORDER = Object.freeze(['ok', 'warning', 'critical', 'unknown']);
+
+/**
+ * Ranking for the single worst-severity verdict, which is NOT the same order.
+ *
+ * `SEVERITY_ORDER` puts `unknown` last because, when deciding whether a missing
+ * dwell window could still change a metric's verdict, "we do not know" outranks
+ * every band. Reusing that order to summarise a whole evaluation had a bad
+ * consequence: one metric with no value made `worstSeverity` report `unknown`
+ * even when another metric was outright `critical`, so a real, actionable
+ * page could be hidden behind an unrelated absent signal.
+ *
+ * For the summary the priority is inverted where it matters: `critical` is the
+ * loudest thing that can be said, and `unknown` sits just below it — worse than
+ * a warning, because a signal nobody can see is worse than one that is merely
+ * high, but never loud enough to mask a confirmed critical.
+ *
+ * The count of unknown-but-required metrics is not lost either way: it is
+ * reported separately as `missingRequired`, and it independently forces
+ * `observable: false`.
+ */
+const WORST_SEVERITY_RANK = Object.freeze({
+  ok: 0, warning: 1, unknown: 2, critical: 3,
+});
+
+export const worstSeverityOf = (severities) => severities.reduce((worst, severity) => (
+  (WORST_SEVERITY_RANK[severity] ?? 0) > (WORST_SEVERITY_RANK[worst] ?? 0) ? severity : worst
+), 'ok');
 const COMPARATORS = Object.freeze({
   '>=': (value, threshold) => value >= threshold,
   '>': (value, threshold) => value > threshold,
@@ -62,9 +97,9 @@ export function loadCatalog(repoRoot = process.cwd()) {
 
 /**
  * The exact contract the database collector's role has to satisfy, asserted by
- * the SQL in the same statement that produces the counts. It is duplicated here
- * only as the machine-readable half of the same sentence: the SQL proves it,
- * this module refuses to believe a snapshot that did not prove it, and
+ * PHASE A of the SQL before any count is collected. It is duplicated here only
+ * as the machine-readable half of the same sentence: the SQL proves it, this
+ * module refuses to believe a snapshot that did not prove it, and
  * docs/operations/tournament-media-observability.md explains it.
  *
  * Membership in a policy's target role is deliberately NOT sufficient. A policy
@@ -72,6 +107,22 @@ export function loadCatalog(repoRoot = process.cwd()) {
  */
 export const COLLECTOR_ROLE_CONTRACT = Object.freeze({
   collector: 'database',
+  phases: Object.freeze([
+    Object.freeze({
+      phase: 'preflight',
+      file: 'ops/torneos-staging/observability/media-pipeline-preflight.sql',
+      touches: 'pg_catalog, to_regclass, to_regprocedure — never a protected table',
+      purpose: 'proves the role could see the rows, and can therefore report a missing '
+        + 'table, a missing SELECT grant or a missing EXECUTE grant as blockers instead '
+        + 'of failing with them',
+    }),
+    Object.freeze({
+      phase: 'metrics',
+      file: 'ops/torneos-staging/observability/media-pipeline-signals.sql',
+      touches: 'the protected tables and the readiness function, directly',
+      purpose: 'the counts. May only be run after a preflight returned observable: true',
+    }),
+  ]),
   requiredTables: Object.freeze([
     'tournament_media_processing_jobs',
     'tournament_media_service_attestations',
@@ -91,17 +142,46 @@ export const COLLECTOR_ROLE_CONTRACT = Object.freeze({
 });
 
 /**
+ * The version of the two-phase collector contract this module understands. It
+ * is stamped by both SQL files and re-checked here, so a collector running an
+ * older or newer pair of queries is refused rather than half-understood.
+ */
+export const COLLECTOR_CONTRACT_VERSION = 1;
+
+/**
+ * How far apart the two phases may be collected.
+ *
+ * The proof is a statement about a moment. A preflight from an hour ago says
+ * nothing about whether the grant still exists now, so a metrics row paired
+ * with a stale proof is refused. Five minutes is comfortably longer than a
+ * scrape and far shorter than the time it takes anyone to change a grant.
+ */
+export const MAX_PHASE_SKEW_SECONDS = 300;
+
+/**
  * The canary. A snapshot may only be evaluated once the collector has proven it
  * could have seen the rows it is counting.
  *
- * This is the whole point of H1: without it, `queueDepth: 0` from a role that
- * RLS filters to nothing is byte-identical to `queueDepth: 0` from an empty
- * queue, and the second one is healthy while the first one is blind.
+ * Without it, `queueDepth: 0` from a role that RLS filters to nothing is
+ * byte-identical to `queueDepth: 0` from an empty queue, and the second one is
+ * healthy while the first one is blind.
+ *
+ * The proof must additionally be a real Phase A result — `provenBy:
+ * 'preflight'` with a matching contract version — and not a `visibility` block
+ * some caller assembled by hand. That is what makes "metrics without a prior
+ * proof of visibility" a refusal rather than a convention: a snapshot whose
+ * counts were never authorised by a preflight cannot present itself as one that
+ * was.
  */
 export function assertCollectorVisibility(snapshot) {
   const visibility = snapshot?.database?.visibility;
   assert(visibility && typeof visibility === 'object', 'COLLECTOR_VISIBILITY_MISSING',
     'The database snapshot carries no visibility proof; its counts cannot be believed.');
+  assert(visibility.provenBy === 'preflight', 'COLLECTOR_PREFLIGHT_MISSING',
+    'The visibility block was not produced by a preflight phase; metrics may not be '
+    + 'evaluated without one.');
+  assert(visibility.contractVersion === COLLECTOR_CONTRACT_VERSION, 'COLLECTOR_CONTRACT_VERSION',
+    'The visibility proof declares an unsupported collector contract version.');
   assert(typeof visibility.observable === 'boolean', 'COLLECTOR_VISIBILITY_MISSING',
     'The visibility proof does not state whether the collector could observe the tables.');
   assert(visibility.observable === true, 'COLLECTOR_VISIBILITY_UNPROVEN',
@@ -265,6 +345,9 @@ export function assertSnapshotIsAnonymous(snapshot) {
   const forbiddenValue = [
     /eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/,
     /[?&](?:token|signature|sig)=/i,
+    // Not JWTs, so nothing above matches them. A snapshot has no business
+    // carrying either, and `sb_secret_` least of all.
+    /sb_(?:secret|publishable)_[A-Za-z0-9_-]{8,}/,
     // Unanchored on purpose. A UUID leaks just as completely from the middle of
     // a message ("job 550e8400-... abandoned") as it does from the start, and
     // the anchored version this replaces let exactly that through.
@@ -453,9 +536,7 @@ export function evaluateObservability({
       recovery: metric.recovery,
       runbook: metric.runbook,
     }));
-  const worstSeverity = metrics.reduce((worst, metric) => (
-    SEVERITY_ORDER.indexOf(metric.severity) > SEVERITY_ORDER.indexOf(worst) ? metric.severity : worst
-  ), 'ok');
+  const worstSeverity = worstSeverityOf(metrics.map(({ severity }) => severity));
   return {
     collectedAt: snapshot.collectedAt || null,
     observable: missingRequired.length === 0,
@@ -466,20 +547,113 @@ export function evaluateObservability({
   };
 }
 
+/** Fields the SQL rows carry for bookkeeping rather than as metrics. */
+const PHASE_ENVELOPE = new Set(['phase', 'contractVersion', 'collectedAt', 'collector']);
+
 /**
- * The single JSON row the collector SQL returns, placed where the catalog's
- * `database.*` paths expect it. Nothing is reshaped and nothing is defaulted:
- * a NULL the query emitted stays absent, so it evaluates as `unknown` rather
- * than as a zero somebody invented on the way through.
+ * Assembles a snapshot from the TWO rows the collector contract produces, and
+ * refuses every way in which they could fail to be about the same thing.
+ *
+ * This is the executable half of the split described in
+ * `ops/torneos-staging/observability/media-pipeline-preflight.sql`. The SQL
+ * cannot enforce the ordering — a query cannot report on the conditions that
+ * stop it from running — so the ordering is enforced here, and enforced
+ * sceptically: a caller that ran only Phase B, or ran Phase B as a different
+ * role, or paired today's metrics with last week's proof, gets an error rather
+ * than a snapshot.
+ *
+ * Refused, each with its own code:
+ *   - preflight absent, or not actually a preflight row;
+ *   - preflight present but `observable: false` — the counts must never even
+ *     have been collected, and if they were, they may not be believed;
+ *   - metrics absent or not a metrics row;
+ *   - either row from an unsupported contract version;
+ *   - role or database disagreeing between the phases;
+ *   - metrics collected before the proof, or too long after it.
  */
-export function snapshotFromDatabaseRow(row, rest = {}) {
-  assert(row && typeof row === 'object', 'SNAPSHOT_ROW', 'A collector row is required.');
-  const database = {};
-  for (const [key, value] of Object.entries(row)) {
-    if (key === 'collectedAt' || value === null) continue;
+export function snapshotFromCollectorPhases({
+  preflight, metrics, rest = {}, maxSkewSeconds = MAX_PHASE_SKEW_SECONDS,
+} = {}) {
+  // --- the proof must exist, and be a proof --------------------------------
+  assert(preflight && typeof preflight === 'object', 'COLLECTOR_PREFLIGHT_MISSING',
+    'A preflight row is required; metrics alone cannot be evaluated.');
+  assert(preflight.phase === 'preflight', 'COLLECTOR_PREFLIGHT_MISSING',
+    'The row offered as a preflight does not declare itself as one.');
+  assert(preflight.contractVersion === COLLECTOR_CONTRACT_VERSION, 'COLLECTOR_CONTRACT_VERSION',
+    'The preflight row declares an unsupported collector contract version.');
+  assert(typeof preflight.observable === 'boolean', 'COLLECTOR_VISIBILITY_MISSING',
+    'The preflight row does not state whether the collector could observe the tables.');
+  assert(preflight.observable === true, 'COLLECTOR_VISIBILITY_UNPROVEN',
+    'The preflight refused: the collector cannot observe the media tables, so Phase B '
+    + 'must not have been run and its counts may not be believed.',
+    { blockers: preflight.blockers || [] });
+  assert(preflight.tables && typeof preflight.tables === 'object', 'COLLECTOR_VISIBILITY_MISSING',
+    'The preflight row reports no per-table verdict.');
+
+  // --- the metrics must exist, and be metrics ------------------------------
+  assert(metrics && typeof metrics === 'object', 'COLLECTOR_METRICS_MISSING',
+    'A metrics row is required.');
+  assert(metrics.phase === 'metrics', 'COLLECTOR_METRICS_MISSING',
+    'The row offered as metrics does not declare itself as one.');
+  assert(metrics.contractVersion === COLLECTOR_CONTRACT_VERSION, 'COLLECTOR_CONTRACT_VERSION',
+    'The metrics row declares an unsupported collector contract version.');
+
+  // --- and they must be about the same thing -------------------------------
+  const proofRole = preflight.collector?.role;
+  const metricRole = metrics.collector?.role;
+  assert(typeof proofRole === 'string' && proofRole.length > 0, 'COLLECTOR_PHASE_MISMATCH',
+    'The preflight row does not name the role it ran as.');
+  assert(typeof metricRole === 'string' && metricRole.length > 0, 'COLLECTOR_PHASE_MISMATCH',
+    'The metrics row does not name the role it ran as.');
+  assert(proofRole === metricRole, 'COLLECTOR_PHASE_MISMATCH',
+    'The metrics were collected as a different role than the one whose visibility was proven.');
+
+  const proofDatabase = preflight.collector?.database;
+  const metricDatabase = metrics.collector?.database;
+  assert(typeof proofDatabase === 'string' && proofDatabase.length > 0, 'COLLECTOR_PHASE_MISMATCH',
+    'The preflight row does not name the database it ran against.');
+  assert(proofDatabase === metricDatabase, 'COLLECTOR_PHASE_MISMATCH',
+    'The metrics were collected against a different database than the one that was proven.');
+
+  const provenAt = Date.parse(preflight.collectedAt);
+  const measuredAt = Date.parse(metrics.collectedAt);
+  assert(Number.isFinite(provenAt), 'COLLECTOR_PHASE_MISMATCH',
+    'The preflight row carries no usable timestamp.');
+  assert(Number.isFinite(measuredAt), 'COLLECTOR_PHASE_MISMATCH',
+    'The metrics row carries no usable timestamp.');
+  assert(measuredAt >= provenAt, 'COLLECTOR_PHASE_MISMATCH',
+    'The metrics were collected before the visibility that supposedly authorised them.');
+  assert(measuredAt - provenAt <= maxSkewSeconds * 1000, 'COLLECTOR_PHASE_MISMATCH',
+    `The visibility proof is more than ${maxSkewSeconds}s older than the metrics it authorises.`);
+
+  // --- assembly -------------------------------------------------------------
+  // Nothing is reshaped and nothing is defaulted: a NULL the query emitted
+  // stays absent, so it evaluates as `unknown` rather than as a zero somebody
+  // invented on the way through.
+  const database = {
+    collector: {
+      role: proofRole,
+      database: proofDatabase,
+      bypassesRls: preflight.collector?.bypassesRls ?? null,
+      isSuperuser: preflight.collector?.isSuperuser ?? null,
+    },
+    visibility: {
+      // The stamp `assertCollectorVisibility` looks for. It can only be set
+      // here, by a function that has just checked everything above.
+      provenBy: 'preflight',
+      contractVersion: COLLECTOR_CONTRACT_VERSION,
+      observable: true,
+      blockers: preflight.blockers || [],
+      provenAt: preflight.collectedAt,
+      tables: preflight.tables,
+      functions: preflight.functions || {},
+    },
+  };
+  for (const [key, value] of Object.entries(metrics)) {
+    if (PHASE_ENVELOPE.has(key) || value === null) continue;
     database[key] = value;
   }
-  return { collectedAt: row.collectedAt || null, ...rest, database };
+  return { collectedAt: metrics.collectedAt || null, ...rest, database };
 }
 
 /** Collectors a required metric depends on that do not exist yet. */
@@ -514,12 +688,30 @@ export function observabilityReadiness({
   if (catalog.signalsDeployedInStaging !== true) blockers.push('signals.not_deployed');
   if (catalog.validatedInStaging !== true) blockers.push('signals.not_validated');
   let evaluation = null;
+  let refusal = null;
   if (snapshot) {
-    evaluation = evaluateObservability({ repoRoot, catalog, snapshot });
-    if (!evaluation.observable) blockers.push('signals.incomplete');
-    if (evaluation.worstSeverity === 'critical') blockers.push('signals.critical');
+    try {
+      evaluation = evaluateObservability({ repoRoot, catalog, snapshot });
+      if (!evaluation.observable) blockers.push('signals.incomplete');
+      if (evaluation.worstSeverity === 'critical') blockers.push('signals.critical');
+    } catch (error) {
+      // A snapshot that cannot prove its own visibility is the single most
+      // important thing this gate exists to catch, and it used to arrive here
+      // as a thrown ObservabilityError — so the caller got an exception where
+      // it expected a verdict, and any caller that wrapped this in a `try` to
+      // stay running would have gone on with no `ready` value at all.
+      //
+      // It is now what it always meant: not ready, with the reason named. The
+      // flag stays closed either way; the difference is that a closed flag with
+      // a blocker is actionable and a crash is not.
+      if (!(error instanceof ObservabilityError)) throw error;
+      refusal = { code: error.code, message: error.message, details: error.details };
+      blockers.push(`signals.unproven:${error.code}`);
+    }
   } else {
     blockers.push('signals.no_snapshot');
   }
-  return { ready: blockers.length === 0, blockers, evaluation };
+  return {
+    ready: blockers.length === 0, blockers, evaluation, refusal,
+  };
 }

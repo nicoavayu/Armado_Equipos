@@ -12,7 +12,7 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-import { main } from '../src/cli.mjs';
+import { assertSupportedRuntime, main } from '../src/cli.mjs';
 import { acquireLock, emptyState, lockPathFor, writeState } from '../src/state-store.mjs';
 
 const b64url = (value) => Buffer.from(JSON.stringify(value)).toString('base64url');
@@ -103,4 +103,29 @@ test('a relative state path is refused, so the file cannot follow the working di
   });
   assert.equal(code, 1);
   assert.equal(errors[0].code, 'RENEWER_STATE_PATH_INVALID');
+});
+
+test('an unsupported Node runtime is refused at start-up, naming what is missing', async () => {
+  // The engines field is advisory — npm warns and installs anyway, and nothing
+  // reads it when the container just runs `node src/cli.mjs`. Without this
+  // check, a runtime without AbortSignal.any would start fine and fail at the
+  // first shutdown, which is the worst moment to find out.
+  assert.deepEqual(assertSupportedRuntime(), { ok: true, missing: [] });
+  assert.deepEqual(
+    assertSupportedRuntime([['AbortSignal.any', () => false], ['fetch', () => true]]),
+    { ok: false, missing: ['AbortSignal.any'] },
+  );
+});
+
+test('the declared engines range covers the runtime the suites actually run on', () => {
+  const pkg = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+  const range = pkg.engines.node;
+  assert.match(range, /^>=20\.6\.0 <27$/, 'the supported range must be stated, not implied');
+  const [major, minor] = process.versions.node.split('.').map(Number);
+  assert.ok(major > 20 || (major === 20 && minor >= 6),
+    `the suites are running on Node ${process.versions.node}, below the declared minimum`);
+  assert.ok(major < 27, `Node ${process.versions.node} is outside the declared range`);
+  // The lockfile records the same range, so `npm ci` cannot disagree with it.
+  const lock = JSON.parse(fs.readFileSync(new URL('../package-lock.json', import.meta.url), 'utf8'));
+  assert.equal(lock.packages[''].engines.node, range);
 });

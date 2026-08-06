@@ -451,3 +451,82 @@ test('a failure whose error text embeds the secret is still safe to log', async 
     assert.doesNotMatch(line, new RegExp(ANON_JWT));
   }
 });
+
+// --- the credential must be shown to belong to THIS project -----------------
+
+test('a project-bound host requires the JWT to carry a matching ref claim', () => {
+  // A `<ref>.supabase.co` host names a project in the address itself, so a
+  // credential that cannot be shown to belong to that project is refused
+  // rather than sent. "We could not tell" is not a reason to offer the
+  // attestation secret to an endpoint.
+  const noRef = [
+    b64url({ alg: 'HS256', typ: 'JWT' }),
+    b64url({ iss: 'supabase', role: 'anon', exp: Math.floor(Date.now() / 1000) + 3600 }),
+    'fixture-signature-not-verified-here',
+  ].join('.');
+  expectConfigCode('RENEWER_GATEWAY_JWT_REF_MISSING', () => config({ SUPABASE_ANON_KEY: noRef }));
+
+  // A ref from another project is still the pre-existing mismatch.
+  expectConfigCode('RENEWER_GATEWAY_JWT_PROJECT_MISMATCH',
+    () => config({ SUPABASE_ANON_KEY: makeJwt({ ref: 'someotherprojectref00' }) }));
+
+  // The matching ref is accepted, and is carried on the config.
+  assert.equal(config().gatewayJwtProjectRef, PROJECT_REF);
+  assert.equal(config().projectRef, PROJECT_REF);
+
+  // A custom domain carries no ref in its host, so the claim is only compared
+  // when the credential offers one — demanding it there would be demanding
+  // something the address cannot be checked against.
+  const custom = readRenewerConfig({
+    ...baseEnv(),
+    SUPABASE_URL: 'https://api.arma2.example',
+    TOURNAMENT_MEDIA_EXPECTED_API_HOST: 'api.arma2.example',
+    SUPABASE_ANON_KEY: noRef,
+  });
+  assert.equal(custom.gatewayJwtProjectRef, null);
+});
+
+test('a forbidden project ref is refused by name as well as by host', () => {
+  expectConfigCode('RENEWER_HOST_FORBIDDEN', () => config({
+    TOURNAMENT_MEDIA_FORBIDDEN_PROJECT_REFS: `something,${PROJECT_REF}`,
+  }));
+  // The descriptor every request is validated against carries the list too, so
+  // the block survives into the transport rather than living only in start-up.
+  const resolved = config({ TOURNAMENT_MEDIA_FORBIDDEN_PROJECT_REFS: 'prodref00000000000000' });
+  assert.deepEqual(resolved.target.forbiddenProjectRefs, ['prodref00000000000000']);
+  assert.equal(resolved.target.url, resolved.healthUrl);
+  assert.equal(resolved.target.path, '/functions/v1/tournament-media-signer');
+});
+
+// --- latency is measured on a clock that cannot go backwards ----------------
+
+test('latency comes from a monotonic clock, not the wall clock', async () => {
+  // `Date.now()` is not monotonic: an NTP step or a manual correction during a
+  // slow request produces a negative or wildly inflated latency, and latency is
+  // a published metric. This simulates the clock jumping backwards mid-request.
+  const jumping = (() => {
+    let calls = 0;
+    return () => { calls += 1; return calls === 1 ? 1_000_000 : 0; };
+  })();
+  const result = await renewOnce(config(), {
+    monotonic: jumping,
+    fetchImpl: async () => jsonResponse(200, okBody),
+  });
+  assert.equal(result.ok, true);
+  assert.ok(result.latencyMs < 0, 'the fixture proves the value is taken from the supplied clock');
+
+  // The real default is performance.now(), which cannot regress.
+  const real = await renewOnce(config(), { fetchImpl: async () => jsonResponse(200, okBody) });
+  assert.ok(real.latencyMs >= 0, 'the default clock must never produce a negative latency');
+  assert.ok(Number.isInteger(real.latencyMs));
+});
+
+test('the redactor removes new-style Supabase keys, which are not JWTs', () => {
+  const redact = createRedactor([]);
+  const line = redact({
+    message: 'gateway rejected sb_publishable_abcdefghijklmnopqrst for sb_secret_zyxwvutsrqponmlkjihg',
+  });
+  assert.doesNotMatch(line.message, /sb_publishable_abcdefghijklmnopqrst/);
+  assert.doesNotMatch(line.message, /sb_secret_zyxwvutsrqponmlkjihg/);
+  assert.match(line.message, /\[redacted\]/);
+});

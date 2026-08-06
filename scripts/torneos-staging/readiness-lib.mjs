@@ -338,10 +338,22 @@ export function validateAttestationContract({ repoRoot = process.cwd(), manifest
  */
 export function validateObservabilityContract({ repoRoot = process.cwd(), manifest = loadManifest(repoRoot) } = {}) {
   const observability = manifest.observability;
-  for (const file of [observability.catalog, observability.query, observability.runbook]) {
+  // Both halves of the collector contract, because a manifest that declares
+  // only the metrics query describes a collector that cannot prove it may run.
+  for (const file of [
+    observability.catalog, observability.preflightQuery, observability.query, observability.runbook,
+  ]) {
     assert(typeof file === 'string' && fs.existsSync(path.join(repoRoot, file)),
       'OBSERVABILITY_MISSING', `${file} declared by the manifest is missing.`);
   }
+  const contract = observability.collectorContract || {};
+  assert(contract.phases === 2, 'OBSERVABILITY_COLLECTOR_CONTRACT',
+    'The database collector contract must declare its two phases.');
+  assert(typeof contract.phaseOrder === 'string' && contract.phaseOrder.length >= 40,
+    'OBSERVABILITY_COLLECTOR_CONTRACT', 'The collector contract must state the phase ordering.');
+  assert(typeof contract.whyTwoPhases === 'string' && contract.whyTwoPhases.length >= 80,
+    'OBSERVABILITY_COLLECTOR_CONTRACT',
+    'The collector contract must say why one statement cannot do both jobs.');
   const catalog = readJson(path.join(repoRoot, observability.catalog));
   validateCatalog({ repoRoot, catalog });
 
@@ -979,6 +991,14 @@ export function assertSanitizedOutput(output) {
     /(?:access_token|refresh_token|service_role_key|password)\s*[=:]\s*["']?[^\s,"']{8,}/i,
     /[?&](?:token|signature|sig)=[^&\s]+/i,
     /"identityMap"\s*:/i,
+    // New-style Supabase keys. These are not JWTs, so the `eyJ...` pattern
+    // above never saw them — `sb_secret_` in particular is a service credential
+    // and the single worst thing that could appear in a transcript. A key BODY
+    // is required, so the prose that names these prefixes while explaining
+    // which credentials are rejected (`sb_secret_… — a service credential`)
+    // is not itself a false positive.
+    /sb_secret_[A-Za-z0-9_-]{8,}/,
+    /sb_publishable_[A-Za-z0-9_-]{8,}/,
   ];
   for (const pattern of forbidden) {
     assert(!pattern.test(text), 'OUTPUT_SECRET', `Output matched forbidden pattern ${pattern}.`);

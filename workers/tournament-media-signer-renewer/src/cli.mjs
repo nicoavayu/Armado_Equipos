@@ -41,16 +41,53 @@
  * docs/operations/tournament-media-signer-attestation-renewal.md.
  */
 
+import crypto from 'node:crypto';
 import process from 'node:process';
 
 import { RenewerConfigError, readRenewerConfig } from './config.mjs';
 import {
-  OUTCOME, createInterruptibleSleep, createLogger, createRenewerState, installShutdownHandlers,
+  OUTCOME, createLogger, createRenewerState, createShutdown, installShutdownHandlers,
   persistableState, runRenewalCycle, runRenewalLoop, secretValues,
 } from './renewer.mjs';
 import {
   RenewerStateError, acquireLock, emptyState, lockPathFor, readState, writeState,
 } from './state-store.mjs';
+
+/**
+ * The runtime features this process cannot work without, checked by name
+ * rather than by parsing a version string.
+ *
+ * `engines` in package.json is advisory: npm warns and installs anyway, and
+ * nothing consults it when the container is simply `node src/cli.mjs`. On a
+ * runtime without `AbortSignal.any` the failure would be neither loud nor
+ * early — the config would validate, the loop would start, and the FIRST
+ * shutdown would be the thing that did not work, which is the worst possible
+ * moment to discover it. So the check is here, before anything else runs.
+ *
+ * Supported: Node >= 20.6.0 (the first release with all of the below) and
+ * below 27. Behaviour on other versions:
+ *   - older than 20.6: refused here, naming the missing feature.
+ *   - 27 and later: unverified. `engines` marks it out of range so a package
+ *     manager warns; nothing stops it running, and it will most likely work,
+ *     but no suite in this repository has been run against it.
+ */
+const REQUIRED_RUNTIME = Object.freeze([
+  // Combines the request timeout with the shutdown onto one signal. Node 20.3+.
+  ['AbortSignal.any', () => typeof AbortSignal?.any === 'function'],
+  ['AbortSignal.timeout', () => typeof AbortSignal?.timeout === 'function'],
+  // `typeof` on a possibly-undeclared identifier is the only safe way to ask:
+  // a bare reference would throw the ReferenceError this check exists to avoid.
+  ['fetch', () => typeof fetch === 'function'],
+  ['crypto.randomUUID', () => typeof crypto.randomUUID === 'function'],
+  ['performance.timeOrigin', () => Number.isFinite(performance?.timeOrigin)],
+]);
+
+export function assertSupportedRuntime(features = REQUIRED_RUNTIME) {
+  const missing = features.filter(([, present]) => !present()).map(([name]) => name);
+  return missing.length === 0
+    ? { ok: true, missing: [] }
+    : { ok: false, missing };
+}
 
 const refuse = (code, message) => {
   process.stderr.write(`${JSON.stringify({
@@ -64,6 +101,13 @@ const refuse = (code, message) => {
 };
 
 async function main(argv = process.argv.slice(2)) {
+  const runtime = assertSupportedRuntime();
+  if (!runtime.ok) {
+    return refuse('RENEWER_RUNTIME_UNSUPPORTED',
+      `This Node runtime (${process.version}) is missing ${runtime.missing.join(', ')}. `
+      + 'The renewer requires Node >= 20.6.0; see package.json engines.');
+  }
+
   let config;
   try {
     config = readRenewerConfig(process.env);
@@ -116,40 +160,50 @@ async function main(argv = process.argv.slice(2)) {
     }
   };
 
+  // One shutdown object for BOTH shapes. `--once` used to install no handlers
+  // at all, so a SIGTERM arriving during its single cycle killed the process
+  // with the state file untouched and the lock still on disk — the next run
+  // then refused to start, citing a lock held by a pid that no longer existed.
+  // A one-shot renewal is short, but "short" is not "uninterruptible".
+  const shutdown = createShutdown();
+  const removeHandlers = installShutdownHandlers({
+    onSignal: (signal) => {
+      // Idempotent: a second signal during the wind-down is ignored rather than
+      // re-entering the whole teardown.
+      if (shutdown.request(signal)) log('shutdown_requested', { signal });
+    },
+  });
+  // No revocation on shutdown: this process is not the signer and must never
+  // speak for it. The attestation expires by itself, which is the fail-closed
+  // path the pipeline already relies on.
   try {
     if (once) {
-      const { outcome } = await runRenewalCycle({ state, config, deps: { log } });
+      const { outcome } = await runRenewalCycle({
+        state, config, deps: { log, shutdown, sleep: shutdown.sleep },
+      });
+      // Persisted on every path, including the interrupted one: the counter is
+      // the only thing that makes `--once` able to alert at all, and dropping
+      // it because a signal arrived is how a shutdown silently resets alerting.
       persist();
+      if (outcome === OUTCOME.SHUTDOWN) return 0;
       return outcome === OUTCOME.RENEWED ? 0 : 1;
     }
 
-    let stopping = false;
-    const napper = createInterruptibleSleep();
-    const removeHandlers = installShutdownHandlers({
-      onSignal: (signal) => {
-        stopping = true;
-        log('shutdown_requested', { signal });
-        // Cut the current interval short instead of waiting it out.
-        napper.cancel();
-      },
-    });
-    // No revocation on shutdown: this process is not the signer and must never
-    // speak for it. The attestation expires by itself, which is the fail-closed
-    // path the pipeline already relies on.
     try {
       await runRenewalLoop({
         config,
         state,
-        deps: { log, sleep: napper.sleep },
-        shouldContinue: () => !stopping,
+        deps: { log, sleep: shutdown.sleep, shutdown },
+        shouldContinue: () => !shutdown.requested,
       });
     } finally {
-      removeHandlers();
-      napper.cancel();
       persist();
     }
     return 0;
   } finally {
+    // Order matters: the listeners go first so nothing can re-enter during the
+    // release, and the lock goes last so it is gone before the process is.
+    removeHandlers();
     lock?.release();
   }
 }
