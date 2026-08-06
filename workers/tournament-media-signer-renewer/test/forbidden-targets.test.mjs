@@ -20,8 +20,11 @@ import {
   COMPILED_FORBIDDEN_PROJECT_REFS,
   PRODUCTION_API_HOST,
   PRODUCTION_PROJECT_REF,
+  hostCarriesForbiddenRef,
+  hostLabels,
   isCompiledForbiddenHost,
   isCompiledForbiddenProjectRef,
+  normalizeHost,
   parseForbiddenList,
   projectRefFromHost,
   resolveForbiddenApiHosts,
@@ -284,10 +287,268 @@ test('the renewer and the probe resolve the same canonical policy module', async
     path.join(REPO_ROOT, 'scripts/torneos-staging/signer-gateway-probe.mjs'), 'utf8',
   );
   // The probe must reach the policy through the renewer package, not through a
-  // second copy of the literals.
+  // second copy of the literals — and must reach the label-wise test through it
+  // too, rather than deciding for itself what part of a hostname to read.
   assert.match(probeSource, /from '\.\.\/\.\.\/workers\/tournament-media-signer-renewer\/src\/forbidden-targets\.mjs'/);
+  assert.match(probeSource, /hostCarriesForbiddenRef/,
+    'the probe must use the canonical label-wise host test, not its own');
   const probeModule = await import('../../../scripts/torneos-staging/signer-gateway-probe.mjs');
   assert.equal(typeof probeModule.preflight, 'function');
+});
+
+// --- a forbidden ref in ANY label ------------------------------------------
+//
+// The residual hole this section closes. `projectRefFromHost` reads the FIRST
+// DNS label, and every forbidden-target check used to be written against it. So
+// `<prod-ref>.supabase.co` was refused and `db.<prod-ref>.supabase.co` — the
+// same project, one ordinary prefix away — was not.
+
+/** Prefixed and suffixed shapes that all name Production somewhere in the host. */
+const FORBIDDEN_HOST_SHAPES = [
+  PRODUCTION_API_HOST,
+  `db.${PRODUCTION_PROJECT_REF}.supabase.co`,
+  `api.${PRODUCTION_PROJECT_REF}.supabase.co`,
+  `gateway.${PRODUCTION_PROJECT_REF}.example.com`,
+  // Fourth label deep, to show the rule is "any label", not "one of the first few".
+  `a.b.${PRODUCTION_PROJECT_REF}.example.com`,
+  // The same names an operator could plausibly type differently.
+  PRODUCTION_API_HOST.toUpperCase(),
+  `DB.${PRODUCTION_PROJECT_REF.toUpperCase()}.SUPABASE.CO`,
+  `Gateway.${PRODUCTION_PROJECT_REF}.Example.COM`,
+  `${PRODUCTION_API_HOST}.`,
+  `db.${PRODUCTION_PROJECT_REF}.supabase.co.`,
+  `API.${PRODUCTION_PROJECT_REF.toUpperCase()}.SUPABASE.CO.`,
+];
+
+/**
+ * Hosts that merely resemble Production. Every one of these would be refused by
+ * a substring test, and every one of them is a legitimately different host.
+ */
+const ALLOWED_HOST_SHAPES = [
+  STAGING_HOST,
+  'api.arma2.example',
+  'media.arma2.example',
+  `${PRODUCTION_PROJECT_REF}2.supabase.co`,
+  `x${PRODUCTION_PROJECT_REF}.supabase.co`,
+  `${PRODUCTION_PROJECT_REF}extra.example.com`,
+  `prefix${PRODUCTION_PROJECT_REF}suffix.example.com`,
+  // A genuine prefix of the forbidden ref, which is not the forbidden ref.
+  `${PRODUCTION_PROJECT_REF.slice(0, 12)}.example.com`,
+  // The ref's own characters, in order, split across two labels — so no single
+  // label is it.
+  `${PRODUCTION_PROJECT_REF.slice(0, 10)}.${PRODUCTION_PROJECT_REF.slice(10)}.example.com`,
+];
+
+test('normalizeHost and hostLabels agree on what a hostname is made of', () => {
+  assert.equal(normalizeHost('  Example.COM.  '), 'example.com');
+  assert.equal(normalizeHost(undefined), '');
+  assert.equal(normalizeHost(null), '');
+  assert.deepEqual(hostLabels('DB.Example.COM.'), ['db', 'example', 'com']);
+  // Empty labels carry no name, so they cannot shift what a position means.
+  assert.deepEqual(hostLabels('a..b'), ['a', 'b']);
+  assert.deepEqual(hostLabels('.a.b.'), ['a', 'b']);
+  assert.deepEqual(hostLabels(''), []);
+  // Only ONE trailing root dot is meaningful; the rest are empty labels.
+  assert.deepEqual(hostLabels(`${PRODUCTION_API_HOST}..`), ['rcyuuoaqfwcembdajcss', 'supabase', 'co']);
+});
+
+test('hostCarriesForbiddenRef matches a forbidden ref in any label, in any casing', () => {
+  for (const host of FORBIDDEN_HOST_SHAPES) {
+    assert.equal(hostCarriesForbiddenRef(host, []), true, `${host} was not recognised as Production`);
+  }
+  // First, second and third label, stated one at a time so a regression names
+  // the position it lost.
+  assert.equal(hostCarriesForbiddenRef(`${PRODUCTION_PROJECT_REF}.example.com`, []), true);
+  assert.equal(hostCarriesForbiddenRef(`one.${PRODUCTION_PROJECT_REF}.example.com`, []), true);
+  assert.equal(hostCarriesForbiddenRef(`one.two.${PRODUCTION_PROJECT_REF}.example.com`, []), true);
+});
+
+test('hostCarriesForbiddenRef does not substring-match, so near misses stay usable', () => {
+  for (const host of ALLOWED_HOST_SHAPES) {
+    assert.equal(hostCarriesForbiddenRef(host, []), false, `${host} was refused as a false positive`);
+    // Still false with the ref named explicitly, so the answer comes from the
+    // matching rule and not from the ref happening to be absent from the list.
+    assert.equal(hostCarriesForbiddenRef(host, [PRODUCTION_PROJECT_REF]), false);
+  }
+  assert.equal(hostCarriesForbiddenRef('', []), false);
+  assert.equal(hostCarriesForbiddenRef(null, []), false);
+  assert.equal(hostCarriesForbiddenRef(undefined, []), false);
+});
+
+test('hostCarriesForbiddenRef obeys the one-way rule: callers may add, never subtract', () => {
+  for (const refs of [undefined, null, [], [''], '', '   ', ',,,', ['other'], 'notproduction,alsonot']) {
+    assert.equal(hostCarriesForbiddenRef(`db.${PRODUCTION_PROJECT_REF}.supabase.co`, refs), true,
+      `an argument of ${JSON.stringify(refs)} weakened the compiled policy`);
+  }
+  // A caller's own additions are honoured in every label too.
+  assert.equal(hostCarriesForbiddenRef('db.extraref.example.com', ['extraref']), true);
+  assert.equal(hostCarriesForbiddenRef('db.extraref.example.com', 'EXTRAREF'), true);
+  assert.equal(hostCarriesForbiddenRef('db.extraref2.example.com', ['extraref']), false);
+});
+
+test('the config refuses every labelled form of Production, from the URL and the expected host', () => {
+  for (const host of FORBIDDEN_HOST_SHAPES) {
+    // Both statements name the same host and agree with each other, which is the
+    // shape that used to be accepted for the prefixed variants.
+    expectConfigCode('RENEWER_HOST_FORBIDDEN', () => readRenewerConfig(stagingEnv({
+      SUPABASE_URL: `https://${host}`,
+      TOURNAMENT_MEDIA_EXPECTED_API_HOST: host,
+      SUPABASE_ANON_KEY: makeJwt({ ref: null }),
+    })));
+    // With the forbidden-list variables absent, empty, and pointed elsewhere.
+    for (const value of [undefined, '', '   ', 'somewhere.else.example']) {
+      expectConfigCode('RENEWER_HOST_FORBIDDEN', () => readRenewerConfig(stagingEnv({
+        SUPABASE_URL: `https://${host}`,
+        TOURNAMENT_MEDIA_EXPECTED_API_HOST: host,
+        SUPABASE_ANON_KEY: makeJwt({ ref: null }),
+        TOURNAMENT_MEDIA_FORBIDDEN_API_HOSTS: value,
+        TOURNAMENT_MEDIA_FORBIDDEN_PROJECT_REFS: value,
+      })));
+    }
+  }
+});
+
+test('an EXPECTED_API_HOST naming a labelled Production host is refused', () => {
+  for (const host of FORBIDDEN_HOST_SHAPES) {
+    // Reached from the other side: the URL is the authorized Staging host and
+    // only the expected host names Production. Whether the mismatch or the block
+    // is reported first, the one thing it can never be is an acceptance.
+    assert.throws(() => readRenewerConfig(stagingEnv({
+      TOURNAMENT_MEDIA_EXPECTED_API_HOST: host,
+    })), (error) => error instanceof RenewerConfigError
+      && ['RENEWER_HOST_FORBIDDEN', 'RENEWER_HOST_MISMATCH'].includes(error.code),
+    `an expected host of ${host} was not refused`);
+  }
+});
+
+test('a JWT whose ref claim names Production is refused behind an innocent host', () => {
+  expectConfigCode('RENEWER_GATEWAY_JWT_PROJECT_FORBIDDEN', () => readRenewerConfig(stagingEnv({
+    SUPABASE_URL: 'https://gateway.arma2.example',
+    TOURNAMENT_MEDIA_EXPECTED_API_HOST: 'gateway.arma2.example',
+    SUPABASE_ANON_KEY: makeJwt({ ref: PRODUCTION_PROJECT_REF }),
+  })));
+  // Including the casing the claim might arrive in.
+  expectConfigCode('RENEWER_GATEWAY_JWT_PROJECT_FORBIDDEN', () => readRenewerConfig(stagingEnv({
+    SUPABASE_URL: 'https://gateway.arma2.example',
+    TOURNAMENT_MEDIA_EXPECTED_API_HOST: 'gateway.arma2.example',
+    SUPABASE_ANON_KEY: makeJwt({ ref: PRODUCTION_PROJECT_REF.toUpperCase() }),
+  })));
+});
+
+test('createTarget refuses every labelled form of Production with no lists supplied', () => {
+  for (const host of FORBIDDEN_HOST_SHAPES) {
+    for (const lists of [
+      {},
+      { forbiddenHosts: [], forbiddenProjectRefs: [] },
+      { forbiddenHosts: ['other.example'], forbiddenProjectRefs: ['otherref'] },
+    ]) {
+      assert.throws(() => createTarget({
+        origin: `https://${host}`,
+        functionName: 'tournament-media-signer',
+        ...lists,
+      }), (error) => error instanceof TargetError && error.code === 'SIGNER_TARGET_FORBIDDEN',
+      `createTarget accepted ${host} with lists ${JSON.stringify(lists)}`);
+    }
+  }
+});
+
+test('createTarget still accepts Staging and every near miss', () => {
+  for (const host of ALLOWED_HOST_SHAPES) {
+    const target = createTarget({ origin: `https://${host}`, functionName: 'tournament-media-signer' });
+    assert.equal(target.hostname, host.toLowerCase());
+    // Accepted, and still carrying the block for the request-time re-check.
+    assert.ok(target.forbiddenProjectRefs.includes(PRODUCTION_PROJECT_REF));
+  }
+});
+
+/**
+ * A descriptor that could not be built today — `createTarget` refuses this host
+ * — standing in for one built before the lists were tightened, or by a caller
+ * that assembled the object itself. It is the only way to reach the
+ * request-time branch with a forbidden host, and reaching it is the point: the
+ * block must not depend on the descriptor having remembered to carry it.
+ */
+const staleDescriptor = (hostname) => Object.freeze({
+  origin: `https://${hostname}`,
+  hostname,
+  protocol: 'https:',
+  functionName: 'tournament-media-signer',
+  projectRef: null,
+  path: '/functions/v1/tournament-media-signer',
+  url: `https://${hostname}/functions/v1/tournament-media-signer`,
+  forbiddenHosts: [],
+  forbiddenProjectRefs: [],
+});
+
+test('request-time validation refuses a labelled Production host against an empty descriptor', () => {
+  for (const host of FORBIDDEN_HOST_SHAPES) {
+    const hostname = host.toLowerCase();
+    const target = staleDescriptor(hostname);
+    // The descriptor forbids nothing and agrees with the URL on host, origin and
+    // path, so every other rule in assertAuthorizedUrl passes. Only the compiled
+    // policy is left to refuse it.
+    assert.throws(
+      () => assertAuthorizedUrl(target.url, target),
+      (error) => error instanceof TargetError && error.code === 'SIGNER_TARGET_FORBIDDEN',
+      `request-time validation accepted ${hostname}`,
+    );
+  }
+});
+
+test('request-time validation still accepts the authorized Staging URL', () => {
+  const target = createTarget({
+    origin: `https://${STAGING_HOST}`,
+    functionName: 'tournament-media-signer',
+    projectRef: STAGING_REF,
+  });
+  const url = assertAuthorizedUrl(target.url, target);
+  assert.equal(url.hostname, STAGING_HOST);
+  // And a loopback descriptor, which has no ref to read, is unaffected.
+  const loopback = createTarget({ origin: 'http://127.0.0.1:8080', functionName: 'tournament-media-signer' });
+  assert.equal(assertAuthorizedUrl(loopback.url, loopback).hostname, '127.0.0.1');
+});
+
+test('no call site tests a forbidden ref against the first label alone', () => {
+  // The regression lock. `projectRefFromHost` answers "which project does this
+  // address name", and remains correct for that; using it AS the block is what
+  // left the prefixed hosts open, so the shape is banned outright rather than
+  // left to review.
+  for (const file of ['src/config.mjs', 'src/target.mjs']) {
+    const source = fs.readFileSync(path.join(REPO_ROOT, 'workers/tournament-media-signer-renewer', file), 'utf8');
+    assert.doesNotMatch(source, /includes\(\s*projectRefFromHost\(/,
+      `${file} still tests a forbidden ref against the first DNS label only`);
+    assert.match(source, /hostCarriesForbiddenRef\(/,
+      `${file} does not use the canonical label-wise host test`);
+  }
+});
+
+test('the labelled refusals name no host and carry no credential', () => {
+  const jwt = makeJwt({ ref: PRODUCTION_PROJECT_REF });
+  for (const host of FORBIDDEN_HOST_SHAPES) {
+    assert.throws(() => readRenewerConfig(stagingEnv({
+      SUPABASE_URL: `https://${host}`,
+      TOURNAMENT_MEDIA_EXPECTED_API_HOST: host,
+      SUPABASE_ANON_KEY: jwt,
+    })), (error) => {
+      const text = `${error.message}\n${error.stack || ''}`;
+      assert.equal(text.includes(host), false, 'an error carried the rejected hostname');
+      assert.equal(text.includes(host.toLowerCase()), false, 'an error carried the rejected hostname');
+      assert.equal(error.message.includes(PRODUCTION_PROJECT_REF), false,
+        'an error message named the forbidden project ref');
+      assert.equal(error.message.includes(jwt), false, 'a credential leaked into the error message');
+      assert.equal(error.message.includes(SECRET), false, 'the attestation secret leaked into the error message');
+      assert.equal(/https?:\/\/\S+/.test(error.message), false, 'an error message carried a full URL');
+      return error instanceof RenewerConfigError;
+    });
+    assert.throws(() => createTarget({ origin: `https://${host}`, functionName: 'tournament-media-signer' }),
+      (error) => {
+        assert.equal(error.message.includes(host.toLowerCase()), false,
+          'a target error carried the rejected hostname');
+        assert.equal(error.message.includes(PRODUCTION_PROJECT_REF), false,
+          'a target error named the forbidden project ref');
+        return error instanceof TargetError;
+      });
+  }
 });
 
 // --- the contract with the manifest ----------------------------------------
@@ -313,6 +574,13 @@ test('the compiled policy and the staging manifest agree exactly', () => {
   const authorizedHost = String(manifest.environment.authorizedApiHost).trim().toLowerCase();
   assert.equal(isCompiledForbiddenProjectRef(authorizedRef), false);
   assert.equal(isCompiledForbiddenHost(authorizedHost), false);
+  // Under the label-wise rule as well — the guard has to be strong enough to
+  // stop Production and narrow enough to leave the authorized target reachable,
+  // and both halves of that are the manifest's business.
+  assert.equal(hostCarriesForbiddenRef(authorizedHost, declaredRefs), false,
+    'the label-wise guard would refuse the authorized staging host');
+  assert.equal(hostCarriesForbiddenRef(productionHost, declaredRefs), true);
+  assert.equal(hostCarriesForbiddenRef(`db.${productionHost}`, declaredRefs), true);
 });
 
 // --- sanitisation ----------------------------------------------------------

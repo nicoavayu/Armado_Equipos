@@ -40,7 +40,7 @@ import { fileURLToPath } from 'node:url';
 import { assertSanitizedOutput, loadManifest } from './readiness-lib.mjs';
 import { readRenewerConfig } from '../../workers/tournament-media-signer-renewer/src/config.mjs';
 import {
-  COMPILED_FORBIDDEN_PROJECT_REFS, isCompiledForbiddenProjectRef,
+  COMPILED_FORBIDDEN_PROJECT_REFS, hostCarriesForbiddenRef, isCompiledForbiddenProjectRef,
 } from '../../workers/tournament-media-signer-renewer/src/forbidden-targets.mjs';
 import { GATEWAY_CREDENTIAL_OPTIONS, REJECTED_GATEWAY_CREDENTIALS } from '../../workers/tournament-media-signer-renewer/src/gateway.mjs';
 import { TargetError, createTarget, fetchAuthorized } from '../../workers/tournament-media-signer-renewer/src/target.mjs';
@@ -133,20 +133,29 @@ export function preflight({ env = process.env, repoRoot = ROOT } = {}) {
   }
   const expectedRef = manifest.environment.authorizedProjectRef;
   const targetRef = config ? config.projectRef : null;
+  const targetHost = config ? config.host : null;
   checks.push({
     check: 'target-is-authorized-staging',
     ok: targetRef === expectedRef,
     detail: targetRef === expectedRef ? 'authorized staging ref' : 'target is not the authorized staging ref',
   });
+  // The same canonical, label-wise test the renewer's config and target modules
+  // use — not a second reading of the same rule. `config.projectRef` is the
+  // FIRST label of the host, so a check written only against it would report
+  // `db.<prod-ref>.supabase.co` as `db` and call it clean; asking about the
+  // whole host is what makes this check say what its name claims.
+  const hostNamesForbiddenProject = targetHost !== null
+    && hostCarriesForbiddenRef(targetHost, manifest.environment.forbiddenProjectRefs);
   checks.push({
     check: 'target-is-not-production',
     // Three independent statements of the same refusal: the compiled policy the
     // renewer package carries, the manifest, and — below — the descriptor. The
     // compiled one is listed first because it is the only one that cannot be
     // absent from a deployed image.
-    ok: targetRef === null || (!isCompiledForbiddenProjectRef(targetRef)
-      && !manifest.environment.forbiddenProjectRefs.includes(targetRef)),
-    detail: 'production project refs are refused unconditionally',
+    ok: !hostNamesForbiddenProject
+      && (targetRef === null || (!isCompiledForbiddenProjectRef(targetRef)
+        && !manifest.environment.forbiddenProjectRefs.includes(targetRef))),
+    detail: 'production project refs are refused in any label of the target host',
   });
 
   // The descriptor the request will actually be validated against, rebuilt here
