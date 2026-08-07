@@ -36,6 +36,13 @@
  * and no environment variable behind an argument, that produces a descriptor
  * without it.
  *
+ * A forbidden ref is looked for in EVERY DNS label of the host, via the one
+ * shared `hostCarriesForbiddenRef`, so `db.<prod-ref>.supabase.co` is refused
+ * exactly like the bare host. Both the build-time and the request-time check go
+ * through that same function: two call sites deciding label-splitting for
+ * themselves is how one of them ends up reading only the first label, which is
+ * precisely the hole this replaced.
+ *
  * ---------------------------------------------------------------------------
  * The protocol rule
  * ---------------------------------------------------------------------------
@@ -48,7 +55,8 @@
  */
 
 import {
-  projectRefFromHost, resolveForbiddenApiHosts, resolveForbiddenProjectRefs,
+  hostCarriesForbiddenRef, normalizeHost, projectRefFromHost,
+  resolveForbiddenApiHosts, resolveForbiddenProjectRefs,
 } from './forbidden-targets.mjs';
 
 export class TargetError extends Error {
@@ -99,7 +107,7 @@ export function createTarget({
   }
   const forbiddenHostList = resolveForbiddenApiHosts(forbiddenHosts);
   const forbiddenRefList = resolveForbiddenProjectRefs(forbiddenProjectRefs);
-  if (forbiddenHostList.includes(hostname)) {
+  if (forbiddenHostList.includes(normalizeHost(hostname))) {
     fail('SIGNER_TARGET_FORBIDDEN', 'The target host is explicitly forbidden.');
   }
   const ref = projectRef === null ? null : String(projectRef).toLowerCase();
@@ -107,9 +115,11 @@ export function createTarget({
     fail('SIGNER_TARGET_FORBIDDEN', 'The target project ref is explicitly forbidden.');
   }
   // A custom domain carries no ref in its host, so `projectRef` may legitimately
-  // be null — but the host's own first label is still checked. That is what stops
-  // `<production-ref>.example.com` from being accepted as "just a custom domain".
-  if (!isLoopbackLiteral(hostname) && forbiddenRefList.includes(projectRefFromHost(hostname))) {
+  // be null — but every label of the host is still checked. That is what stops
+  // `<production-ref>.example.com` from being accepted as "just a custom domain",
+  // and equally `gateway.<production-ref>.example.com`, whose first label says
+  // nothing about which project is behind it.
+  if (!isLoopbackLiteral(hostname) && hostCarriesForbiddenRef(hostname, forbiddenRefList)) {
     fail('SIGNER_TARGET_FORBIDDEN', 'The target host carries a forbidden project ref.');
   }
   const path = `/functions/v1/${functionName}`;
@@ -161,14 +171,15 @@ export function assertAuthorizedUrl(candidate, target) {
   if (url.pathname !== target.path) {
     fail('SIGNER_TARGET_PATH', 'The request path is not the authorized function path.');
   }
-  if (target.forbiddenHosts.includes(url.hostname.toLowerCase())) {
+  if (target.forbiddenHosts.includes(normalizeHost(url.hostname))) {
     fail('SIGNER_TARGET_FORBIDDEN', 'The request host is explicitly forbidden.');
   }
   // Checked unconditionally, and not only when the descriptor happens to name a
   // `projectRef`: a descriptor built without one must not become the way a
-  // forbidden ref reaches the wire.
+  // forbidden ref reaches the wire. Label-wise, for the same reason as in
+  // `createTarget` — a prefixed hostname is still the host it is prefixing.
   if (!isLoopbackLiteral(url.hostname.toLowerCase())
-    && target.forbiddenProjectRefs.includes(projectRefFromHost(url.hostname))) {
+    && hostCarriesForbiddenRef(url.hostname, target.forbiddenProjectRefs)) {
     fail('SIGNER_TARGET_FORBIDDEN', 'The request project ref is explicitly forbidden.');
   }
   if (target.projectRef) {

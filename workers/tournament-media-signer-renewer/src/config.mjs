@@ -23,7 +23,7 @@
 import path from 'node:path';
 
 import {
-  isCompiledForbiddenProjectRef, projectRefFromHost,
+  hostCarriesForbiddenRef, isCompiledForbiddenProjectRef, normalizeHost, projectRefFromHost,
   resolveForbiddenApiHosts, resolveForbiddenProjectRefs,
 } from './forbidden-targets.mjs';
 import {
@@ -106,11 +106,17 @@ function resolveHealthUrl(env) {
   // the URL. They have already been proven equal above, so this is belt and
   // braces — but the guarantee "EXPECTED_API_HOST may not name Production" is
   // then anchored in a line of code rather than in a chain of inference.
+  //
+  // The ref test reads EVERY label, not the first one. `db.<prod-ref>.supabase.co`
+  // and `gateway.<prod-ref>.example.com` name Production just as plainly as the
+  // bare host does; a first-label-only test called them `db` and `gateway` and
+  // let them through. Neither message ever names the host — the operator knows
+  // what they exported, and an error line is not the place to reprint it.
   for (const [what, candidate] of [['SUPABASE_URL host', host], ['TOURNAMENT_MEDIA_EXPECTED_API_HOST', expectedHost]]) {
-    if (forbidden.includes(candidate)) {
+    if (forbidden.includes(normalizeHost(candidate))) {
       fail('RENEWER_HOST_FORBIDDEN', `${what} is explicitly forbidden.`);
     }
-    if (forbiddenRefs.includes(projectRefFromHost(candidate))) {
+    if (hostCarriesForbiddenRef(candidate, forbiddenRefs)) {
       fail('RENEWER_HOST_FORBIDDEN', `${what} carries an explicitly forbidden project ref.`);
     }
   }

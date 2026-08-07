@@ -117,6 +117,47 @@ test('a probe aimed anywhere but authorized staging is refused before running', 
   ));
 });
 
+test('a probe aimed at a prefixed Production host is refused, and contacts nothing', async () => {
+  const production = manifest.environment.forbiddenProjectRefs[0];
+  // The shapes whose FIRST label is innocent. `config.projectRef` would read
+  // `db`, `api` or `gateway` here, so a preflight written against the first
+  // label alone had nothing to object to.
+  for (const host of [
+    `db.${production}.supabase.co`,
+    `api.${production}.supabase.co`,
+    `gateway.${production}.example.com`,
+    `DB.${production.toUpperCase()}.SUPABASE.CO`,
+    `db.${production}.supabase.co.`,
+  ]) {
+    const result = preflight({
+      env: env({ SUPABASE_URL: `https://${host}`, TOURNAMENT_MEDIA_EXPECTED_API_HOST: host }),
+      repoRoot: ROOT,
+    });
+    assert.equal(result.ok, false, `the preflight accepted ${host}`);
+    const shape = result.checks.find(({ check }) => check === 'credential-shape');
+    assert.equal(shape.ok, false);
+    assert.equal(shape.code, 'RENEWER_HOST_FORBIDDEN');
+    assert.equal(result.config, null);
+    assert.equal(result.target, null);
+    // The refusal never reprints the host it refused.
+    assert.equal(shape.detail.includes(host.toLowerCase()), false);
+  }
+  // And through the entrypoint, with a fetch that throws if it is ever reached.
+  await expectProbeCode('PROBE_TARGET_UNCONFIRMED', () => main(
+    ['run', '--i-authorize-attestation-write', `--project-ref=db`],
+    {
+      env: env({
+        TORNEOS_PROBE_AUTHORIZATION: AUTHORIZATION_PHRASE,
+        SUPABASE_URL: `https://db.${production}.supabase.co`,
+        TOURNAMENT_MEDIA_EXPECTED_API_HOST: `db.${production}.supabase.co`,
+      }),
+      fetchImpl: neverCalled,
+      repoRoot: ROOT,
+      write: () => {},
+    },
+  ));
+});
+
 test('a credential that verify_jwt would reject fails the preflight, so the probe is not run', async () => {
   const { ok, checks } = preflight({
     env: { ...env(), SUPABASE_ANON_KEY: undefined, SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_not_a_jwt' },
