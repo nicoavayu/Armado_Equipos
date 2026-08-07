@@ -33,6 +33,7 @@ const MIGRATIONS = [
   '20260715003000_auto_match_materialization_schedule_fix.sql',
   '20260716120000_auto_match_real_conflict_slots_and_invite_capacity_race.sql',
   '20260716160000_user_onboarding_state.sql',
+  '20260806120000_auto_match_stop_search_atomic_exit.sql',
 ];
 
 const PORT = 54300 + Math.floor(Math.random() * 500);
@@ -2788,6 +2789,719 @@ async function scenarioOnboardingStateRls() {
   await c1.query('delete from public.user_onboarding_state where user_id=$1', [u1]);
 }
 
+// ---------------------------------------------------------------------------
+// Escenario 21: "Dejar de buscar" es una baja completa y atómica.
+//
+// Cubre la frontera por estado de la propuesta, la idempotencia, el roster sin
+// estados terminales y la concurrencia contra finalize_auto_match_proposal.
+// ---------------------------------------------------------------------------
+// RPC con contadores. `cancel_my_availability()` (returns void) hace lo mismo
+// y conserva el contrato publicado; se prueba aparte en scenarioStopSearchingRpcContract.
+const stopSearching = async (uid) => {
+  const client = await asUser(uid);
+  return one(client, 'select * from public.cancel_my_availability_detailed()');
+};
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Membresías que todavía ocupan cupo, en cualquier propuesta. Es la métrica del
+// invariante: después de "Dejar de buscar" tiene que ser 0.
+const activeMembershipCount = (uid) => num(
+  admin,
+  `select count(*) from public.auto_match_proposal_members m
+     join public.auto_match_proposals p on p.id = m.proposal_id
+    where m.user_id = $1
+      and m.response not in ('declined','expired','waitlisted')
+      and p.status in ('collecting','ready','created')`,
+  [uid],
+);
+
+const memberRow = (proposalId, uid) => one(
+  admin,
+  'select * from public.auto_match_proposal_members where proposal_id=$1 and user_id=$2',
+  [proposalId, uid],
+);
+
+const activeMemberCount = (proposalId) => num(
+  admin,
+  `select count(*) from public.auto_match_proposal_members
+   where proposal_id=$1 and response not in ('declined','expired','waitlisted')`,
+  [proposalId],
+);
+
+async function scenarioStopSearchingGestation() {
+  console.log('\nEscenario 21: dejar de buscar libera la gestación (collecting/ready)');
+  await resetData();
+
+  for (const user of USERS.slice(0, 12)) await activate(user.id, { canOrganize: true });
+  const proposal = await activeProposal();
+  const roster = await members(proposal.id);
+  const creatorId = roster.find((row) => row.response === 'accepted').user_id;
+  const pendings = roster.filter((row) => row.response === 'pending').map((row) => row.user_id);
+  ok(pendings.length > 0, 'la gestación arrancó con convocados pendientes');
+
+  // Un pendiente confirma: hay un accepted que no es el creador.
+  const acceptedId = pendings[0];
+  await respond(acceptedId, proposal.id, 'accepted');
+  const pendingId = pendings[1];
+
+  const activeBefore = await activeMemberCount(proposal.id);
+
+  // --- Un 'pending' que deja de buscar ---
+  const resPending = await stopSearching(pendingId);
+  eq(Number(resPending.availability_cancelled), 1, 'se canceló la disponibilidad activa');
+  eq(Number(resPending.gestation_memberships_released), 1, 'se liberó su membresía en la gestación');
+  eq(Number(resPending.created_invites_withdrawn), 0, 'no había invitaciones a partidos creados');
+  eq(
+    await val(admin, "select status from public.player_availability where user_id=$1 order by id desc limit 1", [pendingId]),
+    'cancelled',
+    'la disponibilidad queda cancelada',
+  );
+  const pendingMember = await memberRow(proposal.id, pendingId);
+  eq(pendingMember.response, 'declined', 'su membresía pendiente queda declined');
+  eq(pendingMember.response_reason, 'user_declined', 'con motivo user_declined (salida voluntaria)');
+  eq(pendingMember.confirmed_at, null, 'sin confirmed_at: ninguna reconciliación puede restaurarla');
+
+  // --- Idempotencia: un segundo clic no duplica efectos ---
+  const again = await stopSearching(pendingId);
+  eq(Number(again.availability_cancelled), 0, 'segunda llamada: nada que cancelar');
+  eq(Number(again.gestation_memberships_released), 0, 'segunda llamada: nada que liberar');
+  const pendingMemberAgain = await memberRow(proposal.id, pendingId);
+  eq(pendingMemberAgain.responded_at.getTime(), pendingMember.responded_at.getTime(), 'la membresía no se vuelve a tocar');
+
+  // --- El matcher no lo reincorpora sin disponibilidad activa ---
+  await val(admin, 'select public.auto_match_scheduled_sweep()');
+  eq(
+    (await memberRow(proposal.id, pendingId)).response,
+    'declined',
+    'el barrido de backend no lo vuelve a convocar sin disponibilidad activa',
+  );
+  eq(
+    (await sync(pendingId)).length,
+    0,
+    'el matcher no genera ninguna acción para quien dejó de buscar',
+  );
+  eq(
+    (await memberRow(proposal.id, pendingId)).response,
+    'declined',
+    'ni siquiera su propio sync lo reincorpora',
+  );
+
+  // --- Un 'accepted' que deja de buscar libera cupo y recalcula la propuesta ---
+  const resAccepted = await stopSearching(acceptedId);
+  eq(Number(resAccepted.gestation_memberships_released), 1, 'el confirmado también sale de la gestación');
+  const acceptedMember = await memberRow(proposal.id, acceptedId);
+  eq(acceptedMember.response, 'declined', 'su membresía confirmada queda declined');
+  eq(acceptedMember.confirmed_at, null, 'pierde la confirmación (deja de contar para el cupo)');
+  ok(
+    await activeMemberCount(proposal.id) < activeBefore,
+    'el cupo activo baja: los lugares quedan disponibles',
+  );
+  eq(
+    await val(admin, 'select status from public.auto_match_proposals where id=$1', [proposal.id]),
+    'collecting',
+    'la propuesta sigue viva (no se cancela por una baja) y vuelve a recolectar',
+  );
+
+  // --- El roster ya no muestra estados terminales ni les deja el chat ---
+  const rosterRows = await (await asUser(creatorId))
+    .query('select * from public.get_auto_match_proposal_members($1)', [proposal.id])
+    .then((r) => r.rows);
+  eq(
+    rosterRows.filter((row) => ['declined', 'expired', 'waitlisted'].includes(row.response)).length,
+    0,
+    'get_auto_match_proposal_members no devuelve declined/expired/waitlisted',
+  );
+  eq(
+    rosterRows.filter((row) => String(row.user_id) === String(pendingId)).length,
+    0,
+    'quien dejó de buscar desaparece del roster',
+  );
+  const rosterForLeaver = await (await asUser(pendingId))
+    .query('select * from public.get_auto_match_proposal_members($1)', [proposal.id])
+    .then((r) => r.rows);
+  eq(rosterForLeaver.length, 0, 'quien salió tampoco puede leer el plantel');
+  eq(
+    await num(admin, 'select case when public.auto_match_user_in_proposal($1,$2) then 1 else 0 end', [proposal.id, pendingId]),
+    0,
+    'pierde el acceso al chat de la gestación',
+  );
+}
+
+async function scenarioStopSearchingCreatedBoundary() {
+  console.log('\nEscenario 21a: frontera created — el partido real no se toca');
+  await resetData();
+
+  for (const user of USERS.slice(0, 12)) await activate(user.id, { canOrganize: true });
+  const proposal = await activeProposal();
+  const roster = await members(proposal.id);
+  const creatorId = roster.find((row) => row.response === 'accepted').user_id;
+  const pendings = roster.filter((row) => row.response === 'pending').map((row) => row.user_id);
+
+  for (const uid of pendings.slice(0, 9)) await respond(uid, proposal.id, 'accepted');
+  const leftPending = pendings.slice(9);
+  ok(leftPending.length > 0, 'queda al menos una invitación de suplente');
+
+  const done = await finalize(creatorId, proposal.id);
+  const partidoId = Number(done.partido_id);
+  ok(Boolean(partidoId), 'el partido real se creó');
+
+  // --- accepted + created: se queda en el partido ---
+  const playerId = pendings[0]; // confirmado y titular del partido real
+  eq(
+    await num(admin, 'select count(*) from public.jugadores where partido_id=$1 and usuario_id=$2', [partidoId, playerId]),
+    1,
+    'el jugador pertenece al partido real antes de dejar de buscar',
+  );
+  const playersBefore = await num(admin, 'select count(*) from public.jugadores where partido_id=$1', [partidoId]);
+
+  const resPlayer = await stopSearching(playerId);
+  eq(Number(resPlayer.availability_cancelled), 1, 'su búsqueda se desactiva');
+  eq(Number(resPlayer.gestation_memberships_released), 0, 'no hay gestaciones vivas que liberar');
+  eq(Number(resPlayer.created_invites_withdrawn), 0, 'no tenía invitaciones pendientes');
+  eq(Number(resPlayer.created_memberships_kept), 1, 'se informa que sigue en 1 partido creado');
+  eq(
+    (await memberRow(proposal.id, playerId)).response,
+    'accepted',
+    'su membresía del partido creado NO se toca',
+  );
+  eq(
+    await num(admin, 'select count(*) from public.jugadores where partido_id=$1 and usuario_id=$2', [partidoId, playerId]),
+    1,
+    'sigue en la tabla de jugadores del partido real',
+  );
+  eq(
+    await num(admin, 'select count(*) from public.jugadores where partido_id=$1', [partidoId]),
+    playersBefore,
+    'el plantel del partido real queda intacto',
+  );
+
+  // --- pending + created: la invitación de suplente se retira ---
+  const subId = leftPending[0];
+  const resSub = await stopSearching(subId);
+  eq(Number(resSub.created_invites_withdrawn), 1, 'la invitación al partido creado se retira');
+  const subMember = await memberRow(proposal.id, subId);
+  eq(subMember.response, 'expired', 'la invitación pendiente queda expirada');
+  eq(subMember.response_reason, 'invite_expired', 'con motivo invite_expired');
+  eq(subMember.confirmed_at, null, 'terminal: ninguna reconciliación la restaura');
+  eq(
+    await num(admin, 'select count(*) from public.jugadores where partido_id=$1 and usuario_id=$2', [partidoId, subId]),
+    0,
+    'el invitado retirado no entró al partido real',
+  );
+  await expectError(
+    (await asUser(subId)).query('select public.respond_to_auto_match_substitute($1,$2)', [proposal.id, 'accepted']),
+    /substitute_invite_closed|proposal_member_not_found/,
+    'la invitación retirada ya no se puede aceptar',
+  );
+}
+
+async function scenarioStopSearchingVsFinalize() {
+  console.log('\nEscenario 21b: cancelación concurrente con la materialización');
+  await resetData();
+
+  for (const user of USERS.slice(0, 12)) await activate(user.id, { canOrganize: true });
+  const proposal = await activeProposal();
+  const roster = await members(proposal.id);
+  const creatorId = roster.find((row) => row.response === 'accepted').user_id;
+  const pendings = roster.filter((row) => row.response === 'pending').map((row) => row.user_id);
+  for (const uid of pendings.slice(0, 9)) await respond(uid, proposal.id, 'accepted');
+
+  // El jugador que va a cancelar es un confirmado que NO organiza.
+  const racerId = pendings[0];
+
+  const organizer = await connect(creatorId);
+  const racer = await connect(racerId);
+  await racer.query("set lock_timeout='10s'; set statement_timeout='20s'");
+
+  // El organizador materializa DENTRO de una transacción abierta: toma el lock
+  // de la fila de la propuesta y todavía no commitea.
+  await organizer.query('begin');
+  await organizer.query(
+    `select * from public.finalize_auto_match_proposal(
+       $1, 'Partido carrera', null, null, 'Masculino', 8000, 'Cancha', 'p1', 'Dir', -34.6, -58.4)`,
+    [proposal.id],
+  );
+
+  // La cancelación arranca con la propuesta todavía 'ready' en su snapshot y se
+  // bloquea al pedir el lock de esa fila.
+  const racing = racer.query('select * from public.cancel_my_availability_detailed()');
+  await new Promise((resolve) => setTimeout(resolve, 400));
+
+  await organizer.query('commit');
+  const raced = (await racing).rows[0];
+
+  const partidoId = await num(admin, 'select partido_id from public.auto_match_proposals where id=$1', [proposal.id]);
+  eq(
+    await val(admin, 'select status from public.auto_match_proposals where id=$1', [proposal.id]),
+    'created',
+    'la propuesta se materializó',
+  );
+  eq(Number(raced.availability_cancelled), 1, 'la búsqueda del jugador se desactiva igual');
+  eq(Number(raced.gestation_memberships_released), 0, 'no se lo saca de una gestación que ya dejó de existir');
+  eq(Number(raced.created_memberships_kept), 1, 'se lo reconoce como parte del partido creado');
+  eq(
+    (await memberRow(proposal.id, racerId)).response,
+    'accepted',
+    'la frontera created se respeta bajo concurrencia: sigue accepted',
+  );
+  eq(
+    await num(admin, 'select count(*) from public.jugadores where partido_id=$1 and usuario_id=$2', [partidoId, racerId]),
+    1,
+    'no se lo elimina silenciosamente del plantel real',
+  );
+}
+
+async function scenarioStopSearchingReadOnlyDryRun() {
+  console.log('\nEscenario 21c: el dry-run de producción es SQL de solo lectura');
+  await resetData();
+
+  for (const user of USERS.slice(0, 12)) await activate(user.id, { canOrganize: true });
+  const proposal = await activeProposal();
+  const roster = await members(proposal.id);
+  const orphanId = roster.find((row) => row.response === 'pending').user_id;
+
+  // Se simula el residuo del bug: disponibilidad cancelada "a mano" (como hacía
+  // el cancel_my_availability viejo) dejando la membresía viva.
+  await admin.query("update public.player_availability set status='cancelled' where user_id=$1", [orphanId]);
+
+  // Ya no existe ninguna función de dry-run instalada en la base: la
+  // inspección vive fuera, como archivo de solo lectura.
+  eq(
+    await num(admin, "select count(*) from pg_proc where proname = 'auto_match_orphan_members_dry_run'"),
+    0,
+    'no queda ninguna función de dry-run persistente en producción',
+  );
+
+  const dryRunPath = path.join(ROOT, 'scripts', 'auto-match-stop-search', 'readonly_dry_run.sql');
+  const raw = fs.readFileSync(dryRunPath, 'utf8');
+
+  // (a) El archivo no contiene ninguna sentencia de escritura. Se evalúa sobre
+  // el SQL sin comentarios: el texto explicativo sí menciona esas palabras.
+  const stripped = raw
+    .split('\n')
+    .map((line) => line.replace(/--.*$/, ''))
+    .join('\n');
+  const forbidden = /\b(create|drop|alter|insert|update|delete|truncate|grant|revoke)\b/i;
+  ok(!forbidden.test(stripped), 'el archivo de dry-run no tiene sentencias de escritura', stripped.match(forbidden)?.[0]);
+
+  // (b) Corre de verdad y no modifica nada. Los bloques de pg_cron se saltan:
+  // la extensión no existe en el Postgres embebido.
+  const before = await members(proposal.id);
+  const availabilityBefore = await admin
+    .query('select id, status from public.player_availability order by id')
+    .then((r) => JSON.stringify(r.rows));
+
+  const blocks = stripped
+    .replace(/^\\echo.*$/gm, '')
+    .split(';')
+    .map((block) => block.trim())
+    .filter((block) => block.length > 0)
+    .filter((block) => !/^(begin|commit|set transaction)/i.test(block))
+    .filter((block) => !/\bcron\./i.test(block) && !/pg_extension/i.test(block));
+
+  ok(blocks.length >= 6, `el archivo aporta ${blocks.length} consultas ejecutables sobre las tablas de la app`);
+
+  const reader = await connect();
+  await reader.query('begin');
+  await reader.query('set transaction read only');
+  let readOnlyFailure = null;
+  const results = [];
+  for (const block of blocks) {
+    try {
+      results.push(await reader.query(block));
+    } catch (error) {
+      readOnlyFailure = `${error.message} :: ${block.slice(0, 120)}`;
+      break;
+    }
+  }
+  ok(readOnlyFailure === null, 'todas las consultas corren dentro de una transacción READ ONLY', readOnlyFailure);
+  await reader.query('commit');
+
+  const totals = results.find((res) => res.fields?.some((f) => f.name === 'memberships_total'))?.rows?.[0];
+  ok(Number(totals?.memberships_total) >= 1, 'el dry-run detecta la membresía huérfana');
+  eq(
+    Number(totals?.orphan_availability_only),
+    Number(totals?.memberships_total),
+    'todas son huérfanas por búsqueda cancelada, no cuentas inelegibles',
+  );
+
+  const summary = results.find((res) => res.fields?.some((f) => f.name === 'notifications_upper_bound'))?.rows?.[0];
+  ok(summary !== undefined, 'informa la cota de notificaciones');
+  ok(summary?.proposals_ready_to_collecting !== undefined, 'informa las que pasarían de ready a collecting');
+  ok(summary?.proposals_below_minimum !== undefined, 'informa las propuestas que caerían bajo el mínimo');
+  ok(summary?.proposals_created_related !== undefined, 'informa las propuestas created relacionadas');
+
+  const after = await members(proposal.id);
+  eq(
+    JSON.stringify(after.map((row) => [String(row.user_id), row.response])),
+    JSON.stringify(before.map((row) => [String(row.user_id), row.response])),
+    'el dry-run NO modifica ninguna membresía',
+  );
+  eq(
+    await admin.query('select id, status from public.player_availability order by id').then((r) => JSON.stringify(r.rows)),
+    availabilityBefore,
+    'el dry-run NO modifica ninguna disponibilidad',
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Escenario 22: la carrera con el backfill, en Postgres real.
+//
+// Estas dos pruebas corren DOS VECES cada una:
+//   * con la implementación anterior (fixture de "hasta tres pasadas") — donde
+//     tienen que FALLAR, es decir reproducir la violación del invariante;
+//   * con la implementación nueva — donde tienen que PASAR.
+// ---------------------------------------------------------------------------
+
+const MIGRATION_STOP_SEARCH = '20260806120000_auto_match_stop_search_atomic_exit.sql';
+
+const applyLegacyStopSearch = () => admin.query(
+  fs.readFileSync(path.join(__dirname, 'fixtures', 'legacy_three_pass_stop_search.sql'), 'utf8'),
+);
+
+const applyCurrentStopSearch = async () => {
+  // El fixture dejó cancel_my_availability() devolviendo una tabla; la versión
+  // buena devuelve void y CREATE OR REPLACE no puede cambiar el tipo.
+  await admin.query('drop function if exists public.cancel_my_availability();');
+  await admin.query(fs.readFileSync(path.join(ROOT, 'supabase', 'migrations', MIGRATION_STOP_SEARCH), 'utf8'));
+};
+
+// Siembra una gestación 'collecting' con `memberCount` invitados y devuelve un
+// jugador de AFUERA que es compatible, tiene búsqueda activa y todavía no es
+// miembro: exactamente el candidato que el backfill va a querer incorporar.
+const seedProposalWithOutsider = async (memberCount = 6) => {
+  await resetData();
+  const format = 'F5';
+  const required = 10;
+  const slot = await fixtureFutureSlotAt20();
+  const slotDow = await num(
+    admin,
+    "select extract(isodow from ($1::timestamptz at time zone 'America/Argentina/Buenos_Aires'))",
+    [slot],
+  );
+  const pid = await val(
+    admin,
+    `insert into public.auto_match_proposals
+       (format, proposed_starts_at, max_players, status, expires_at, gestation_started_at, gestation_threshold)
+     values ($1, $2, $3, 'collecting', $2::timestamptz - interval '30 minutes', now(), 4) returning id`,
+    [format, slot, required],
+  );
+
+  const newAvailability = async (uid) => val(
+    admin,
+    `insert into public.player_availability
+       (user_id, days_of_week, time_start, time_end, formats, latitude, longitude, max_distance_km, status)
+     values ($1, $2::smallint[], '00:00', '23:59', $3, -34.60, -58.40, 8, 'active') returning id`,
+    [uid, [slotDow], `{${format}}`],
+  );
+
+  for (let i = 0; i < memberCount; i += 1) {
+    const availId = await newAvailability(USERS[i].id);
+    await admin.query(
+      `insert into public.auto_match_proposal_members (proposal_id, availability_id, user_id, response, invite_expires_at)
+       values ($1, $2, $3, 'pending', now() + interval '5 hours')`,
+      [pid, availId, USERS[i].id],
+    );
+  }
+
+  const outsider = USERS[memberCount];
+  const outsiderAvailId = await newAvailability(outsider.id);
+  eq(
+    await num(admin, 'select count(*) from public.auto_match_proposal_members where proposal_id=$1 and user_id=$2', [pid, outsider.id]),
+    0,
+    'el candidato de afuera todavía no es miembro',
+  );
+  return { pid, outsiderId: outsider.id, outsiderAvailId };
+};
+
+// ---- Carrera 1: el orden literal del pedido -------------------------------
+//   (1) el backfill comienza y observa disponibilidad activa
+//   (2) el usuario ejecuta "Dejar de buscar"
+//   (3) la cancelación TERMINA (commit)
+//   (4) el backfill intenta insertar la membresía
+//   (5) el usuario no debe quedar con ninguna membresía activa
+//
+// La transacción del backfill usa REPEATABLE READ: es la forma exacta de decir
+// "ya observó la disponibilidad activa y actúa sobre esa observación". Con la
+// implementación anterior el snapshot congelado alcanza para insertar igual.
+const raceObserveThenCancelThenInsert = async ({ legacy }) => {
+  const { pid, outsiderId, outsiderAvailId } = await seedProposalWithOutsider(6);
+  const label = legacy ? '[anterior]' : '[nueva]';
+
+  const backfiller = await connect();
+  await backfiller.query('begin isolation level repeatable read');
+
+  // (1) El backfill observa la disponibilidad activa y congela ese snapshot.
+  eq(
+    await val(backfiller, 'select public.auto_match_availability_is_eligible($1)', [outsiderAvailId]),
+    true,
+    `${label} (1) el backfill observa la disponibilidad activa`,
+  );
+
+  // (2)(3) El usuario deja de buscar y la cancelación termina.
+  const canceller = await asUser(outsiderId);
+  if (legacy) await canceller.query('select * from public.cancel_my_availability()');
+  else await canceller.query('select * from public.cancel_my_availability_detailed()');
+  eq(
+    await val(admin, "select status from public.player_availability where id=$1", [outsiderAvailId]),
+    'cancelled',
+    `${label} (3) la cancelación terminó y está comiteada`,
+  );
+
+  // (4) Recién ahora el backfill intenta insertar.
+  let inserted = null;
+  let raceError = null;
+  try {
+    inserted = await num(backfiller, 'select public.backfill_auto_match_proposal_members($1)', [pid]);
+    await backfiller.query('commit');
+  } catch (error) {
+    raceError = error;
+    await backfiller.query('rollback').catch(() => {});
+  }
+  await backfiller.end();
+  clients.splice(clients.indexOf(backfiller), 1);
+
+  // (5) Estado final.
+  const active = await activeMembershipCount(outsiderId);
+  return { active, inserted, raceError };
+};
+
+// ---- Carrera 2: la que las "tres pasadas" NO podían atrapar ---------------
+// El backfill inserta y todavía NO comitea. Bajo READ COMMITTED esa fila es
+// invisible para la cancelación, así que las tres pasadas escanean y no
+// encuentran nada. La cancelación comitea; el backfill comitea después y deja
+// una membresía viva de alguien con la búsqueda apagada.
+const raceInsertUncommittedThenCancel = async ({ legacy }) => {
+  const { pid, outsiderId } = await seedProposalWithOutsider(6);
+  const label = legacy ? '[anterior]' : '[nueva]';
+
+  const backfiller = await connect();
+  await backfiller.query('begin');
+  const added = await num(backfiller, 'select public.backfill_auto_match_proposal_members($1)', [pid]);
+  ok(added >= 1, `${label} (1) el backfill insertó la invitación, sin comitear`);
+
+  // (2) El usuario deja de buscar, en paralelo.
+  const canceller = await connect(outsiderId);
+  await canceller.query("set lock_timeout='15s'");
+  const cancelling = legacy
+    ? canceller.query('select * from public.cancel_my_availability()')
+    : canceller.query('select * from public.cancel_my_availability_detailed()');
+
+  await sleep(400);
+  // (3)(4) El backfill comitea. Con la implementación nueva la cancelación
+  // estuvo bloqueada en el advisory lock hasta este momento.
+  await backfiller.query('commit');
+  await cancelling;
+
+  await backfiller.end();
+  clients.splice(clients.indexOf(backfiller), 1);
+  await canceller.end();
+  clients.splice(clients.indexOf(canceller), 1);
+
+  const active = await activeMembershipCount(outsiderId);
+  return { active };
+};
+
+async function scenarioBackfillCancelRace() {
+  console.log('\nEscenario 22: carrera backfill / "Dejar de buscar" (Postgres real)');
+
+  // ---------- La implementación ANTERIOR viola el invariante ----------
+  await applyLegacyStopSearch();
+
+  const legacyA = await raceObserveThenCancelThenInsert({ legacy: true });
+  eq(legacyA.active, 1, 'ANTERIOR — carrera 1: queda una membresía activa de alguien que dejó de buscar (violación reproducida)');
+
+  const legacyB = await raceInsertUncommittedThenCancel({ legacy: true });
+  eq(legacyB.active, 1, 'ANTERIOR — carrera 2: las tres pasadas no ven el insert sin comitear (violación reproducida)');
+
+  // ---------- La implementación NUEVA lo sostiene ----------
+  await applyCurrentStopSearch();
+
+  const currentA = await raceObserveThenCancelThenInsert({ legacy: false });
+  eq(currentA.active, 0, 'NUEVA — carrera 1: el usuario NO queda con ninguna membresía activa');
+  ok(
+    currentA.inserted === 0 || currentA.raceError !== null,
+    'NUEVA — carrera 1: el alta se descarta (o la transacción aborta por serialización)',
+    `inserted=${currentA.inserted} error=${currentA.raceError?.message ?? 'ninguno'}`,
+  );
+
+  const currentB = await raceInsertUncommittedThenCancel({ legacy: false });
+  eq(currentB.active, 0, 'NUEVA — carrera 2: la cancelación espera el lock, ve la fila comiteada y la retira');
+
+  // ---------- La clave del lock es la MISMA que usa el matcher ----------
+  eq(
+    await num(
+      admin,
+      `select case when public.auto_match_user_lock_key($1)
+                     = hashtext('auto_match_sync:' || $1::text)::bigint
+              then 1 else 0 end`,
+      [USERS[0].id],
+    ),
+    1,
+    'auto_match_user_lock_key coincide exactamente con la clave de sync_my_auto_match_gestations',
+  );
+
+  // Contención real contra el matcher: mientras una cancelación tiene el lock,
+  // sync_my_auto_match_gestations del MISMO usuario se bloquea.
+  await seedProposalWithOutsider(6);
+  const holder = await connect(USERS[0].id);
+  await holder.query('begin');
+  await holder.query('select * from public.cancel_my_availability_detailed()');
+
+  const syncer = await connect(USERS[0].id);
+  await syncer.query("set lock_timeout='500ms'");
+  await expectError(
+    syncer.query('select * from public.sync_my_auto_match_gestations()'),
+    /lock timeout|canceling statement/i,
+    'el matcher del mismo usuario espera el lock que retiene la cancelación',
+  );
+  await holder.query('rollback');
+  await holder.end();
+  clients.splice(clients.indexOf(holder), 1);
+  await syncer.end();
+  clients.splice(clients.indexOf(syncer), 1);
+}
+
+// ---------------------------------------------------------------------------
+// Escenario 23: el contrato público de los RPC.
+// ---------------------------------------------------------------------------
+async function scenarioStopSearchingRpcContract() {
+  console.log('\nEscenario 23: contrato de cancel_my_availability()');
+  await resetData();
+
+  // Firma histórica intacta: sin argumentos, returns void.
+  const signature = await one(
+    admin,
+    `select pg_get_function_identity_arguments(p.oid) as args,
+            pg_get_function_result(p.oid)             as result
+       from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname='public' and p.proname='cancel_my_availability'`,
+  );
+  eq(signature.args, '', 'cancel_my_availability() sigue sin argumentos');
+  eq(signature.result, 'void', 'cancel_my_availability() sigue devolviendo void (contrato publicado intacto)');
+
+  const detailed = await one(
+    admin,
+    `select pg_get_function_identity_arguments(p.oid) as args,
+            pg_get_function_result(p.oid)             as result
+       from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname='public' and p.proname='cancel_my_availability_detailed'`,
+  );
+  eq(detailed.args, '', 'cancel_my_availability_detailed() no toma argumentos');
+  ok(/^TABLE/.test(detailed.result), 'cancel_my_availability_detailed() devuelve la tabla de contadores', detailed.result);
+
+  // El contrato viejo produce la MISMA baja completa que el nuevo.
+  for (const user of USERS.slice(0, 12)) await activate(user.id, { canOrganize: true });
+  const proposal = await activeProposal();
+  const roster = await members(proposal.id);
+  const legacyCaller = roster.find((row) => row.response === 'pending').user_id;
+
+  const client = await asUser(legacyCaller);
+  // Una función void devuelve una única columna vacía: exactamente lo mismo que
+  // devolvía la versión de 20260710101500. El cliente publicado la ignora.
+  const voidResult = await one(client, 'select public.cancel_my_availability() as result');
+  eq(voidResult.result, '', 'el RPC void sigue devolviendo el mismo valor vacío de siempre');
+  eq(
+    (await memberRow(proposal.id, legacyCaller)).response,
+    'declined',
+    'un cliente publicado que llama al RPC viejo recibe igual la baja completa',
+  );
+  eq(await activeMembershipCount(legacyCaller), 0, 'no le queda ninguna membresía activa');
+
+  // Los internos no se exponen a ningún rol de cliente.
+  for (const fn of [
+    'select * from public.auto_match_cancel_search()',
+    'select public.auto_match_try_lock_user($1)',
+    'select public.auto_match_user_lock_key($1)',
+    'select public.auto_match_user_search_is_active($1)',
+    'select public.auto_match_availability_is_eligible_locked(1)',
+  ]) {
+    await expectError(
+      client.query(fn, fn.includes('$1') ? [legacyCaller] : []),
+      /permission denied/i,
+      `authenticated no puede ejecutar: ${fn.slice(7, 60)}`,
+    );
+  }
+}
+
+
+// ---------------------------------------------------------------------------
+// Escenario 24: el rollback de la migración corre y deja el estado previo.
+// Se prueba de verdad: se aplica el script, se verifica el schema y el
+// COMPORTAMIENTO anterior, y después se vuelve a la implementación buena.
+// ---------------------------------------------------------------------------
+async function scenarioStopSearchingRollback() {
+  console.log('\nEscenario 24: rollback completo de 20260806120000');
+
+  const rollbackPath = path.join(ROOT, 'scripts', 'auto-match-stop-search', 'rollback_20260806120000.sql');
+  await admin.query(fs.readFileSync(rollbackPath, 'utf8'));
+  ok(true, 'el script de rollback se aplica sin errores');
+
+  // (a) Las funciones nuevas desaparecen.
+  for (const fn of [
+    'cancel_my_availability_detailed',
+    'auto_match_cancel_search',
+    'auto_match_user_search_is_active',
+    'auto_match_availability_is_eligible_locked',
+    'auto_match_try_lock_user',
+    'auto_match_lock_user',
+    'auto_match_user_lock_key',
+  ]) {
+    eq(
+      await num(admin, 'select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname=$1 and p.proname=$2', ['public', fn]),
+      0,
+      `rollback: se borró public.${fn}`,
+    );
+  }
+
+  // (b) cancel_my_availability vuelve a ser la de 20260710101500.
+  const restored = await one(
+    admin,
+    `select pg_get_function_result(p.oid) as result, l.lanname as lang, p.prosrc
+       from pg_proc p
+       join pg_namespace n on n.oid = p.pronamespace
+       join pg_language l on l.oid = p.prolang
+      where n.nspname='public' and p.proname='cancel_my_availability'`,
+  );
+  eq(restored.result, 'void', 'rollback: cancel_my_availability sigue devolviendo void');
+  eq(restored.lang, 'sql', 'rollback: vuelve a ser language sql');
+  ok(!/advisory/i.test(restored.prosrc), 'rollback: ya no toma ningún advisory lock');
+
+  // (c) Comportamiento anterior restaurado: la baja vuelve a ser a medias.
+  await resetData();
+  for (const user of USERS.slice(0, 12)) await activate(user.id, { canOrganize: true });
+  const proposal = await activeProposal();
+  const roster = await members(proposal.id);
+  const victim = roster.find((row) => row.response === 'pending').user_id;
+
+  await (await asUser(victim)).query('select public.cancel_my_availability()');
+  eq(
+    await val(admin, 'select status from public.player_availability where user_id=$1 order by id desc limit 1', [victim]),
+    'cancelled',
+    'rollback: la disponibilidad se cancela',
+  );
+  eq(
+    (await memberRow(proposal.id, victim)).response,
+    'pending',
+    'rollback: la membresía vuelve a quedar viva (comportamiento anterior, tal cual)',
+  );
+  ok(
+    (await (await asUser(victim)).query('select * from public.get_auto_match_proposal_members($1)', [proposal.id])).rows.length > 0,
+    'rollback: el roster vuelve a ser visible para quien se dio de baja',
+  );
+
+  // (d) Y se vuelve a la implementación buena, sin residuos.
+  await applyCurrentStopSearch();
+  await resetData();
+  for (const user of USERS.slice(0, 12)) await activate(user.id, { canOrganize: true });
+  const proposal2 = await activeProposal();
+  const roster2 = await members(proposal2.id);
+  const victim2 = roster2.find((row) => row.response === 'pending').user_id;
+  await stopSearching(victim2);
+  eq(await activeMembershipCount(victim2), 0, 're-aplicada la migración, la baja vuelve a ser completa');
+}
+
 async function main() {
   console.log(`Iniciando Postgres embebido en :${PORT} (${DATA_DIR})`);
   await postgres.initialise();
@@ -2857,6 +3571,13 @@ async function main() {
   await scenarioRealMatchConflictGating();
   await scenarioInviteCapacityRace();
   await scenarioOnboardingStateRls();
+  await scenarioStopSearchingGestation();
+  await scenarioStopSearchingCreatedBoundary();
+  await scenarioStopSearchingVsFinalize();
+  await scenarioStopSearchingReadOnlyDryRun();
+  await scenarioBackfillCancelRace();
+  await scenarioStopSearchingRpcContract();
+  await scenarioStopSearchingRollback();
 
   console.log(`\n${checks} chequeos, ${failures} fallas`);
   if (failures > 0) process.exitCode = 1;
