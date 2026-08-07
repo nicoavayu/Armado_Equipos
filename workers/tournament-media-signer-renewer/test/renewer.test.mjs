@@ -503,6 +503,97 @@ test('a project-bound host requires the JWT to carry a matching ref claim', () =
   assert.equal(custom.gatewayJwtProjectRef, null);
 });
 
+test('a trailing root dot does not turn the required ref claim back into an optional one', () => {
+  // The LOW-1 regression, exactly as the PR #133 audit observed it. The
+  // project-bound test is an anchored pattern, so `<ref>.supabase.co.` — the
+  // same host to any resolver — failed it and was treated as a custom domain,
+  // for which the ref claim is only compared when offered. One typed dot
+  // downgraded a REQUIRED claim to an optional one and the credential was
+  // accepted without ever being shown to belong to this project.
+  const noRef = [
+    b64url({ alg: 'HS256', typ: 'JWT' }),
+    b64url({ iss: 'supabase', role: 'anon', exp: Math.floor(Date.now() / 1000) + 3600 }),
+    'fixture-signature-not-verified-here',
+  ].join('.');
+  const dotted = (overrides = {}) => readRenewerConfig(baseEnv({
+    SUPABASE_URL: `https://${PROJECT_REF}.supabase.co.`,
+    TOURNAMENT_MEDIA_EXPECTED_API_HOST: `${PROJECT_REF}.supabase.co.`,
+    ...overrides,
+  }));
+
+  // The finding itself: refused now, on the same code as the undotted host.
+  expectConfigCode('RENEWER_GATEWAY_JWT_REF_MISSING', () => dotted({ SUPABASE_ANON_KEY: noRef }));
+  // And the undotted host still refuses it, so the two agree rather than the
+  // dotted one merely having moved to some other failure.
+  expectConfigCode('RENEWER_GATEWAY_JWT_REF_MISSING', () => config({ SUPABASE_ANON_KEY: noRef }));
+
+  // Normalising the decision must not turn a valid deployment into a refusal:
+  // the dotted host with a matching ref claim is still accepted, and still
+  // resolves to the same project as the undotted one.
+  const resolved = dotted();
+  assert.equal(resolved.gatewayJwtProjectRef, PROJECT_REF);
+  assert.equal(resolved.projectRef, PROJECT_REF);
+  // A wrong ref is still the pre-existing mismatch, not a silent pass.
+  expectConfigCode('RENEWER_GATEWAY_JWT_PROJECT_MISMATCH',
+    () => dotted({ SUPABASE_ANON_KEY: makeJwt({ ref: 'someotherprojectref00' }) }));
+
+  // The host still has to be named twice and agree: a dot on one side only is a
+  // mismatch. Normalisation decides whether the ref claim is DEMANDED; it does
+  // not make the operator's two statements interchangeable.
+  expectConfigCode('RENEWER_HOST_MISMATCH', () => readRenewerConfig(baseEnv({
+    SUPABASE_URL: `https://${PROJECT_REF}.supabase.co.`,
+  })));
+  expectConfigCode('RENEWER_HOST_MISMATCH', () => readRenewerConfig(baseEnv({
+    TOURNAMENT_MEDIA_EXPECTED_API_HOST: `${PROJECT_REF}.supabase.co.`,
+  })));
+
+  // A real custom domain is untouched: it names no project, so the claim stays
+  // optional there — with and without the dot alike.
+  for (const host of ['api.arma2.example', 'api.arma2.example.']) {
+    const custom = readRenewerConfig({
+      ...baseEnv(),
+      SUPABASE_URL: `https://${host}`,
+      TOURNAMENT_MEDIA_EXPECTED_API_HOST: host,
+      SUPABASE_ANON_KEY: noRef,
+    });
+    assert.equal(custom.gatewayJwtProjectRef, null);
+  }
+});
+
+test('a dotted, prefixed or bare Production host is refused before the ref claim is ever reached', () => {
+  // Requirement that the normalisation must not have weakened: the compiled
+  // Production block already reads canonical hosts and whole labels, and it
+  // fires earlier than the project-bound decision. These three shapes stay
+  // refused on the host rule, not on the claim rule.
+  const prod = COMPILED_FORBIDDEN_PROJECT_REFS[0];
+  for (const host of [
+    `${prod}.supabase.co`,
+    `${prod}.supabase.co.`,
+    `db.${prod}.supabase.co`,
+    `db.${prod}.supabase.co.`,
+  ]) {
+    expectConfigCode('RENEWER_HOST_FORBIDDEN', () => readRenewerConfig(baseEnv({
+      SUPABASE_URL: `https://${host}`,
+      TOURNAMENT_MEDIA_EXPECTED_API_HOST: host,
+    })));
+  }
+  // Fail-closed on the operator's second statement too: an EXPECTED_API_HOST
+  // that is absent is a refusal, never a default derived from the URL.
+  expectConfigCode('RENEWER_EXPECTED_HOST_MISSING',
+    () => readRenewerConfig(baseEnv({ TOURNAMENT_MEDIA_EXPECTED_API_HOST: '' })));
+
+  // Exact labels, never substrings: a different project whose ref merely
+  // contains Production's is a different host and stays usable.
+  const neighbour = `${prod}2`;
+  const resolved = readRenewerConfig({
+    ...baseEnv(),
+    SUPABASE_URL: `https://${neighbour}.supabase.co.`,
+    TOURNAMENT_MEDIA_EXPECTED_API_HOST: `${neighbour}.supabase.co.`,
+    SUPABASE_ANON_KEY: makeJwt({ ref: neighbour }),
+  });
+  assert.equal(resolved.projectRef, neighbour);
+});
+
 test('a forbidden project ref is refused by name as well as by host', () => {
   expectConfigCode('RENEWER_HOST_FORBIDDEN', () => config({
     TOURNAMENT_MEDIA_FORBIDDEN_PROJECT_REFS: `something,${PROJECT_REF}`,
