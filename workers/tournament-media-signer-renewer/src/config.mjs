@@ -46,8 +46,24 @@ const fail = (code, message) => { throw new RenewerConfigError(code, message); }
  * A host whose first DNS label IS the project ref. Only for these can the ref
  * claim be demanded, because only for these does the address itself name a
  * project to compare against.
+ *
+ * The pattern is anchored, so it has to be applied to a CANONICAL host —
+ * `normalizeHost` from `forbidden-targets.mjs`, the same normalisation every
+ * other host decision in this package already goes through. `<ref>.supabase.co.`
+ * and `<ref>.supabase.co` are one host to a resolver, but the trailing root dot
+ * defeats the `$` anchor, and a host that failed this test was treated as a
+ * custom domain — for which the ref claim is optional. One typed dot therefore
+ * turned a REQUIRED claim into an optional one. See `isProjectBoundHost`.
  */
 const PROJECT_BOUND_HOST = /^[a-z0-9]{16,32}\.supabase\.(?:co|in|net)$/;
+
+/**
+ * Whether the address itself names a project. Canonicalises first, so the answer
+ * cannot be changed by a difference that does not change which host is reached.
+ * Deliberately the only reader of `PROJECT_BOUND_HOST`: a second call site
+ * testing the raw host is how the dot got back in.
+ */
+const isProjectBoundHost = (host) => PROJECT_BOUND_HOST.test(normalizeHost(host));
 
 const readInteger = (raw, fallback, { min, max, code, name }) => {
   const value = raw === undefined || raw === '' ? fallback : Number(raw);
@@ -222,7 +238,7 @@ export function readRenewerConfig(env = process.env, { now = Date.now() } = {}) 
   // project, and "we could not tell" is not a reason to send the attestation
   // secret. A custom domain carries no ref in its host, so there the claim is
   // compared only when the credential offers it.
-  const projectBound = PROJECT_BOUND_HOST.test(target.host);
+  const projectBound = isProjectBoundHost(target.host);
   if (projectBound && !gateway.gatewayJwtProjectRef) {
     fail('RENEWER_GATEWAY_JWT_REF_MISSING',
       'The gateway JWT carries no ref claim, and the authorized host is project-bound; '
