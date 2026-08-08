@@ -40,6 +40,17 @@
  *                                           config, forbidden-target policy,
  *                                           schedule, redirects, state store,
  *                                           locking, shutdown, CLI
+ *       npm run test:worker:media:ci      — the media processor's suites that
+ *                                           need no infrastructure: target
+ *                                           guard, quarantine sweeper, geometry
+ *                                           contract, job pipeline, self-test,
+ *                                           storage client, antivirus protocol.
+ *                                           `codec.test.mjs` is excluded on
+ *                                           purpose — it loads real libvips,
+ *                                           which the repository's npm ci does
+ *                                           not install; it runs through
+ *                                           `test:worker:media` on the host
+ *                                           that certifies the worker.
  *       CI=true react-scripts test        — the Jest suite
  *
  * `torneos:staging:validate` is covered by construction: every node test it
@@ -81,7 +92,24 @@ const workflowExecutedScripts = [...workflowDirectives.matchAll(/npm run ([a-z0-
   .map(([, name]) => name);
 
 /** The suites `test:ci` must compose. Removing one from the script fails here. */
-const REQUIRED_IN_TEST_CI = ['test:staging:guard', 'test:worker:signer-renewer'];
+const REQUIRED_IN_TEST_CI = [
+  'test:staging:guard', 'test:worker:signer-renewer', 'test:worker:media:ci',
+];
+
+/**
+ * The media-processor suites that need nothing but Node — no Supabase, no
+ * ClamAV, no libvips, no network. These are what `test:worker:media:ci` runs,
+ * and each one is named explicitly rather than globbed so that adding a suite
+ * with an infrastructure dependency cannot quietly join the CI path.
+ *
+ * `codec.test.mjs` is deliberately absent: it loads real sharp at import time,
+ * and the worker's native dependencies are not installed by the repository's
+ * `npm ci`. It stays in `test:worker:media`, which is run on a host that has
+ * the worker's own `node_modules` — the same host that certifies the codec.
+ */
+const MEDIA_CI_SUITES = [
+  'antivirus', 'cleanup', 'contract', 'pipeline', 'selfTest', 'supabase', 'target',
+];
 
 /** Extracts the test files a `node --test a.mjs b.mjs` script names. */
 const testFilesOf = (script) => String(script || '').split(/\s+/)
@@ -110,6 +138,33 @@ test('test:ci runs the signer-renewer suite', () => {
   }
   assert.ok(scripts['test:worker:signer-renewer'].includes('workers/tournament-media-signer-renewer/test/'),
     'test:worker:signer-renewer no longer points at the renewer test directory');
+});
+
+test('test:ci runs the media-processor suites that need no infrastructure', () => {
+  // The same finding as the renewer's, one worker over: the processor suite —
+  // including the target guard that keeps a service-role key away from
+  // Production, and the sweeper that deletes quarantined uploads — existed in
+  // package.json and was on no CI path at all.
+  const script = scripts['test:worker:media:ci'];
+  assert.ok(script, 'package.json must define test:worker:media:ci');
+  for (const suite of MEDIA_CI_SUITES) {
+    assert.ok(script.includes(`workers/tournament-media-processor/test/${suite}.test.mjs`),
+      `test:worker:media:ci must run ${suite}.test.mjs`);
+  }
+  // A suite added to the directory and forgotten here is a coverage hole, so
+  // the two lists are held together: everything on disk is either on the CI
+  // path or is the one suite documented as needing real libvips.
+  const onDisk = fs.readdirSync(path.join(REPO_ROOT, 'workers/tournament-media-processor/test'))
+    .filter((entry) => entry.endsWith('.test.mjs'))
+    .map((entry) => entry.replace(/\.test\.mjs$/, ''));
+  for (const suite of onDisk) {
+    assert.ok(MEDIA_CI_SUITES.includes(suite) || suite === 'codec',
+      `${suite}.test.mjs is in the processor test directory but on no CI path`);
+  }
+  // The full suite, libvips included, must stay available for the host that
+  // certifies the worker.
+  assert.ok(scripts['test:worker:media'].includes('workers/tournament-media-processor/test/'),
+    'test:worker:media no longer points at the processor test directory');
 });
 
 test('every suite in test:ci is chained with && so a failure fails the gate', () => {
