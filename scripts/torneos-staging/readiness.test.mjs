@@ -224,7 +224,7 @@ const readyState = () => {
     maxFileBytes: manifest.storage.maxFileBytes, allowedMimeTypes: manifest.storage.allowedMimeTypes,
     policies: [...manifest.storage.policies], directWriteRoles: [] };
   state.availableSecretNames = ['SUPABASE_SECRET_KEYS', 'SUPABASE_PUBLISHABLE_KEYS', 'TOURNAMENT_MEDIA_ATTESTATION_SECRET'];
-  state.worker = { deployed: true, nodeMajor: 22, sharpVersion: '0.33.5', libvips: true,
+  state.worker = { deployed: true, nodeMajor: 22, sharpVersion: '0.35.3', libvips: true,
     clamav: true, clamd: true, freshclam: true, signatureAgeDays: 0, cleanup: true,
     health: true, selfTest: true, attested: false };
   return state;

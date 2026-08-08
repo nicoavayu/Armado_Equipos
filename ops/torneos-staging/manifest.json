@@ -458,7 +458,7 @@
     "path": "workers/tournament-media-processor",
     "runtime": "node",
     "nodeMajor": 22,
-    "sharpVersion": "0.33.5",
+    "sharpVersion": "0.35.3",
     "libvipsRequired": true,
     "clamavRequired": true,
     "clamdEndpoint": "clamd:3310",
