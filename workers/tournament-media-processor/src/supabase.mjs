@@ -9,13 +9,29 @@
  */
 
 import { TOURNAMENT_MEDIA_BUCKET } from './contract.mjs';
+import { assertAuthorizedUrl, createSupabaseTarget } from './target.mjs';
 
 export function readConfig(env = process.env) {
   const url = String(env.SUPABASE_URL || '').replace(/\/+$/, '');
-  const key = String(env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_SECRET_KEY || '');
-  if (!url || !key) throw new Error('WORKER_MISCONFIGURED');
-  return {
+  // The target is resolved BEFORE the credential is read, and the order is
+  // load-bearing rather than stylistic: a service-role key is unconditional
+  // authority over whatever project it is sent to, so the only safe moment to
+  // discover that `SUPABASE_URL` names the wrong project is before the key is
+  // in a variable, let alone in a header. `createSupabaseTarget` throws a
+  // `TargetError` whose message never contains the URL or the key.
+  const target = createSupabaseTarget({
     url,
+    expectedProjectRef: env.TOURNAMENT_MEDIA_EXPECTED_PROJECT_REF,
+    forbiddenHosts: env.TOURNAMENT_MEDIA_FORBIDDEN_API_HOSTS,
+    forbiddenProjectRefs: env.TOURNAMENT_MEDIA_FORBIDDEN_PROJECT_REFS,
+  });
+  const key = String(env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_SECRET_KEY || '');
+  if (!key) throw new Error('WORKER_MISCONFIGURED');
+  return {
+    // The canonical origin the target validated, not the raw string: every
+    // request URL is built from this, so the two can never disagree.
+    url: target.origin,
+    target,
     key,
     workerId: String(env.TOURNAMENT_MEDIA_WORKER_ID || 'media-worker-local'),
     release: String(env.TOURNAMENT_MEDIA_WORKER_RELEASE || '0.1.0'),
@@ -26,8 +42,44 @@ export function readConfig(env = process.env) {
   };
 }
 
+/**
+ * The last gate before a credentialed request leaves the process.
+ *
+ * Every request URL below is built by concatenating strings onto `config.url`,
+ * and one of those strings is an object name that arrived from the database. So
+ * the descriptor is re-checked here, at the moment of the call, rather than
+ * trusted from configuration time — and a config that never went through
+ * `readConfig` has no descriptor at all, which is refused rather than waved
+ * through. Fail closed: no descriptor, no request.
+ */
+function authorizedUrl(config, path) {
+  if (!config || !config.target) {
+    throw new Error('WORKER_TARGET_UNVERIFIED');
+  }
+  return assertAuthorizedUrl(`${config.url}${path}`, config.target).toString();
+}
+
+/**
+ * Keeps an object name inside the bucket it was addressed to.
+ *
+ * `new URL()` resolves `..` segments, so a name carrying them would silently
+ * address something above the bucket prefix rather than fail. Every name this
+ * client is legitimately given — a quarantine path, a derived variant name, the
+ * self-test's `_selftest/` probe — is a plain relative path, so refusing the
+ * rest costs nothing. The stricter, namespace-aware check for the names the
+ * sweeper deletes lives in `cleanup.mjs`; this is the floor under all of them.
+ */
+function assertObjectName(objectName) {
+  const name = String(objectName === undefined || objectName === null ? '' : objectName);
+  if (!name || name.startsWith('/') || name.includes('..') || /[?#]/.test(name)) {
+    throw new Error('STORAGE_OBJECT_NAME_INVALID');
+  }
+  return name;
+}
+
 async function rpc(config, name, args, fetchImpl = fetch) {
-  const response = await fetchImpl(`${config.url}/rest/v1/rpc/${name}`, {
+  const url = authorizedUrl(config, `/rest/v1/rpc/${name}`);
+  const response = await fetchImpl(url, {
     method: 'POST',
     headers: {
       apikey: config.key,
@@ -105,11 +157,14 @@ async function isObjectMissing(response) {
 }
 
 export function createStorageClient(config, fetchImpl = fetch) {
-  const base = `${config.url}/storage/v1/object`;
+  const base = '/storage/v1/object';
   const headers = { apikey: config.key, Authorization: `Bearer ${config.key}` };
   return {
     async download(objectName) {
-      const response = await fetchImpl(`${base}/${TOURNAMENT_MEDIA_BUCKET}/${objectName}`, {
+      const url = authorizedUrl(
+        config, `${base}/${TOURNAMENT_MEDIA_BUCKET}/${assertObjectName(objectName)}`,
+      );
+      const response = await fetchImpl(url, {
         headers,
       });
       if (response.status === 404) return null;
@@ -125,7 +180,10 @@ export function createStorageClient(config, fetchImpl = fetch) {
       return new Uint8Array(await response.arrayBuffer());
     },
     async upload(objectName, bytes, contentType) {
-      const response = await fetchImpl(`${base}/${TOURNAMENT_MEDIA_BUCKET}/${objectName}`, {
+      const url = authorizedUrl(
+        config, `${base}/${TOURNAMENT_MEDIA_BUCKET}/${assertObjectName(objectName)}`,
+      );
+      const response = await fetchImpl(url, {
         method: 'POST',
         headers: { ...headers, 'Content-Type': contentType, 'x-upsert': 'false' },
         body: Buffer.from(bytes),
@@ -135,10 +193,12 @@ export function createStorageClient(config, fetchImpl = fetch) {
     },
     async remove(objectNames) {
       if (!objectNames || objectNames.length === 0) return true;
-      const response = await fetchImpl(`${base}/${TOURNAMENT_MEDIA_BUCKET}`, {
+      const prefixes = objectNames.map(assertObjectName);
+      const url = authorizedUrl(config, `${base}/${TOURNAMENT_MEDIA_BUCKET}`);
+      const response = await fetchImpl(url, {
         method: 'DELETE',
         headers: { ...headers, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prefixes: objectNames }),
+        body: JSON.stringify({ prefixes }),
       });
       if (!response.ok) throw new Error(`STORAGE_REMOVE_FAILED:${response.status}`);
       return true;
