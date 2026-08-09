@@ -27,6 +27,7 @@ tournament media pipeline for Staging.
 | `firewall/hetzner-cloud-firewall.json` | edge firewall spec — **not created** |
 | `firewall/validate.sh` | dry run; parses and checks, loads nothing |
 | `firewall/apply-with-rollback.sh` | the only apply path; arms a revert first |
+| `firewall/address-space-preflight.mjs` | local read-only collision check required before I1 |
 | `dns/unbound-media-staging.conf` | resolver policy — **not applied** |
 | `lib/compose-subset.mjs` | the strict YAML subset reader the tests use |
 | `test/` | the guarantees above, re-derived from the files |
@@ -78,3 +79,10 @@ from what a real parser would read.
   not used because whether `dockerd` can resolve `$CREDENTIALS_DIRECTORY` from
   its own mount namespace is not a property this repository can demonstrate. The
   probe that would settle it is in the secret-injection audit.
+- **Runtime never acquires images.** Every service uses `pull_policy: never`;
+  processor and renewer must be built locally first, and the pinned ClamAV tag
+  must be obtained during a separately authorized provisioning stage. A missing
+  image stops startup instead of turning a restart into a pull.
+- **systemd does not supervise container life.** The oneshot unit supervises the
+  Compose CLI during start/stop; Docker restart policies maintain containers
+  after `up -d` exits.

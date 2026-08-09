@@ -25,6 +25,12 @@ No entrypoint wrapper is used, and none may be added: the secret is read
 directly by Node at start-up, so it never enters the process environment. The
 mechanism is detailed in the secret-injection document.
 
+The host ownership contract is two-layered: the secret directory is
+`root:root 0700`, while each secret file is `1000:1000 0400`. The root-only
+directory is the traversal control: host uid 1000 cannot open those files even
+though their owner number matches. Docker exposes each file to container uid
+1000 as a read-only bind mount.
+
 ---
 
 ## Host
@@ -118,7 +124,10 @@ different network after any recreate.
 **nftables / DOCKER-USER enforces:**
 
 - Per-service egress **ports**. A compromised processor cannot leave over SMTP,
-  SSH or arbitrary DNS. clamd cannot reach Supabase on any port.
+  SSH or arbitrary DNS. clamd has generic tcp/80,443 for freshclam and can reach
+  any endpoint on those ports, including a Supabase host at the network layer.
+  It has no Supabase credential and does not share `processor-egress`; credential
+  separation, not the ClamAV firewall rule, limits its impact.
 - **Not** destinations. `tcp dport 443 accept` permits every HTTPS host on the
   internet. A packet filter never sees the SNI it would need to distinguish
   Supabase Staging from Production. Anyone reading the ruleset as "Production is
@@ -157,6 +166,12 @@ containers and substitutes public resolvers. Every container would then resolve
 around the policy while the host looks correctly configured. The fix is in the
 compose file: each service sets `dns:` to its own egress bridge gateway, which
 is this host on a non-loopback address.
+
+Unbound keeps only the explicit interfaces `.17`, `.33` and `.49` and enables
+Linux `ip-freebind: yes`. IP_FREEBIND lets it start before Docker creates those
+bridge addresses; when the networks appear, the same addresses become usable.
+It does not listen on `0.0.0.0`, and Production NXDOMAIN remains defence in
+depth beneath the workers' primary compiled target guard.
 
 **When the resolver is down**, nothing degrades open: the processor's requests
 fail and its lease expires; the renewer's cycle fails and the attestation
@@ -242,6 +257,11 @@ Create the VM, the Hetzner firewall, the resolver and the host firewall. Nothing
 Arma2-specific runs.
 
 - [ ] Authorization recorded, naming I1 specifically
+- [ ] **Before any I1 networking**, `node firewall/address-space-preflight.mjs`
+      returns `ADDRESS_SPACE_PREFLIGHT_OK` for `172.31.20.0/24`; any collision or
+      UNKNOWN source blocks I1. It reads local routes (all tables, including
+      visible VPN/admin routes), interface addresses, Docker networks and the
+      configured Docker address pools. It contacts no Hetzner API.
 - [ ] `ADMIN_CIDR` decided and substituted; the repository keeps its placeholder
 - [ ] `firewall/validate.sh` passes on the host, with `nft` and `shellcheck`
       actually installed so nothing reports SKIP
@@ -250,6 +270,9 @@ Arma2-specific runs.
 - [ ] `unbound-checkconf` accepts the fragment; Production resolves NXDOMAIN and
       Staging resolves, both checked from the host
 - [ ] Docker installed; `docker compose version` reports v2
+- [ ] The exact `clamav/clamav:1.4.5-debian` image is acquired and inspected in
+      this separately authorized provisioning stage. This remediation performs
+      no pull; runtime `pull_policy: never` fails closed if it is absent.
 - [ ] **No Arma2 image built, no secret created**
 
 ### I2 — ClamAV only
@@ -260,7 +283,11 @@ Arma2-specific runs.
       signature set
 - [ ] Restart-persistence check above passes
 - [ ] `docker compose ps` shows clamd healthy and **no other service running**
-- [ ] Confirmed that clamd cannot reach Supabase on any port
+- [ ] `docker inspect` confirms clamd has no `SUPABASE_*`, service-role or other
+      Supabase credential and is not attached to `processor-egress`
+- [ ] The reviewed policy still allows only generic tcp/80,443 from
+      `clamav-egress` and drops other ports; no destination-isolation claim is
+      made and no Supabase endpoint is contacted to test it
 - [ ] **No Supabase contact of any kind**
 
 ### I3 — processor with no credential
@@ -283,7 +310,7 @@ The stage that proves fail-closed behaviour is real rather than intended.
 - [ ] Authorization recorded, naming I4
 - [x] `SECRET_INJECTION_CODE_GAP` closed — PR #139, in the epic. The images
       deployed to the host must be built from a revision that contains it
-- [ ] Real secrets placed, `0400`, owned by uid 1000
+- [ ] Secret directory `root:root 0700`; real files `1000:1000 0400`
 - [ ] Processor starts and reaches its polling loop
 - [ ] Renewer starts and validates its target without contacting anything
 - [ ] Remote certification **still not run** — it is its own authorization
@@ -304,9 +331,16 @@ docker compose -f docker-compose.staging.yml ps
 docker compose -f docker-compose.staging.yml logs --tail=100 processor
 ```
 
-The systemd unit runs `up --no-build`, so a restart can never ship an image
-other than the one that was built and reviewed. Building is a separate,
-deliberate step.
+The systemd unit runs `up --no-build`, and all three services declare
+`pull_policy: never`. Processor and renewer therefore use only a previously
+built/reviewed local image; ClamAV uses only the exact tag obtained during the
+authorized provisioning step. If any image is missing, startup fails. A
+systemctl restart is never an image-acquisition mechanism.
+
+`Type=oneshot` plus `RemainAfterExit` supervises the Compose CLI only while
+start/stop runs; it does not monitor container life after `up -d` returns.
+Docker's service restart policies maintain the containers. The unit's
+`Restart=on-failure` applies only when `ExecStart` itself fails.
 
 ---
 

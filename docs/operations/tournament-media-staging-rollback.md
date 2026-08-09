@@ -118,8 +118,10 @@ incident and is only an ordering mistake.
 docker compose -f docker-compose.staging.yml up --detach --no-build processor
 ```
 
-`--no-build` is what makes this a rollback rather than a rebuild of whatever
-happens to be checked out.
+`--no-build` prevents a rebuild and `pull_policy: never` prevents acquisition
+from a registry. The rollback therefore uses only a tag already present on the
+host and fails closed if that image is absent. `systemctl restart` and
+`docker compose up` are never image-acquisition mechanisms.
 
 ---
 
@@ -162,8 +164,12 @@ Separate from all of the above, and the one with a time limit.
 sudo ops/torneos-staging/media-runtime/firewall/apply-with-rollback.sh --confirm
 ```
 
-If the new session cannot connect, **do nothing**. The armed revert restores the
-pre-apply ruleset from `/var/lib/arma2-media-staging/firewall/` on its own.
+If the new session cannot connect, **do nothing**. The armed revert feeds the
+saved backup to `nft -f`; that backup begins with `flush ruleset` and then the
+complete pre-apply dump, so restoration replaces rather than merges the nft
+ruleset. The iptables snapshot remains a separate `iptables-restore` step. The
+offline tests prove backup construction and ordering, not live-kernel
+atomicity. The files live under `/var/lib/arma2-media-staging/firewall/`.
 Confirming from the session that applied the rules proves nothing: it is already
 `ESTABLISHED`, so conntrack accepts it whatever the input policy says.
 

@@ -52,9 +52,9 @@ the worker sources on every run.
 |---|---|---|---|---|
 | `docker inspect` | **value** | path only | path only | path only |
 | `config.v2.json` at rest | **value** | path only | path only | path only |
-| `docker compose config` | **value printed** | path only | path only | path only |
+| `docker compose config` | **value printed** | host path only | path only | path only |
 | `/proc/1/environ` (container) | **value** | absent | absent | **value** |
-| container filesystem | absent | value, tmpfs `0400` | value, tmpfs `0400` | value, tmpfs `0400` |
+| container filesystem | absent | read-only bind mount of host file | value, tmpfs `0400` | value, tmpfs `0400` |
 | process `argv` | absent | absent | absent | absent, *if written correctly* |
 | image layers | absent | absent | absent | absent |
 | logs | absent | absent | absent | absent |
@@ -82,9 +82,10 @@ into the log of any CI job that runs it.
 
 ### B — Compose file secrets
 
-The chosen mechanism. `secrets:` with `file:` bind-mounts the host file to
-`/run/secrets/<name>` inside the container, and only the mount path appears in
-the container configuration.
+The chosen mechanism. `secrets:` with `file:` creates a **read-only bind mount**
+of the host file at `/run/secrets/<name>` inside the container. It is not tmpfs.
+The container configuration and `docker compose config` may reveal the host
+path, but not the file contents.
 
 Two implementation facts that must not be guessed at:
 
@@ -95,6 +96,8 @@ Two implementation facts that must not be guessed at:
   look like it worked and would do nothing.
 - The mount is read-only and the file is not copied into the image or any
   layer.
+- `dockerd` and host root can read the host file. Its contents never enter
+  `process.env`, but do exist in the worker heap after Node reads the file.
 
 ### C — systemd `LoadCredentialEncrypted=`
 
@@ -134,8 +137,10 @@ If that prints `not-a-real-secret`, mechanism C is available and mechanism B
 should be replaced by it. If it prints nothing or errors, C is unavailable on
 this host and B is correct. Either way, delete `/tmp/fake.cred` afterwards.
 
-Until that probe runs, the secrets are root-owned files under
-`ARMA2_MEDIA_SECRET_DIR`, which `dockerd` can unambiguously resolve. **The
+Until that probe runs, `ARMA2_MEDIA_SECRET_DIR` is a `root:root 0700` directory
+containing `1000:1000 0400` secret files, which `dockerd` can unambiguously
+resolve. The directory is the traversal control: a host process running as uid
+1000 cannot open the files even though their numeric owner is 1000. **The
 residual risk is stated rather than hidden:** those files are at rest on the
 host disk, protected by `0400` ownership and whatever full-disk encryption the
 VM has, not by TPM sealing.
@@ -288,6 +293,10 @@ install -m 0400 -o 1000 -g 1000 /dev/null /etc/arma2/media-staging/secrets/supab
 install -m 0400 -o 1000 -g 1000 /dev/null /etc/arma2/media-staging/secrets/attestation_secret
 install -m 0400 -o 1000 -g 1000 /dev/null /etc/arma2/media-staging/secrets/gateway_jwt
 ```
+
+In contract notation: secret dir `root:root 0700`; secret files
+`1000:1000 0400`. Compose non-Swarm uses those host file permissions rather
+than enforcing `uid`, `gid` or `mode` from the secret declaration.
 
 Rotation is a file replacement plus `systemctl restart arma2-media-staging`. The
 secrets are read at start-up, so a running container keeps the old value until
