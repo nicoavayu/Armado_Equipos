@@ -1,0 +1,322 @@
+# Multimedia Staging runtime — architecture and staged rollout
+
+The declarative description of the host that will run
+`workers/tournament-media-processor` and
+`workers/tournament-media-signer-renewer` for Staging.
+
+**Nothing in this document has been provisioned or executed.** No VM exists, no
+Hetzner API call was made, no firewall was created, no secret was created or
+read, no container was started, no Supabase project was contacted, no migration
+was run.
+
+Manifests: [`ops/torneos-staging/media-runtime/`](../../ops/torneos-staging/media-runtime/).
+Secret model: [tournament-media-staging-secret-injection.md](./tournament-media-staging-secret-injection.md).
+Stop and rollback: [tournament-media-staging-rollback.md](./tournament-media-staging-rollback.md).
+
+---
+
+## Blocked on
+
+**`SECRET_INJECTION_CODE_GAP`.** The manifest injects the three credentials as
+files; the workers read them from the environment and implement no `*_FILE`
+form. As committed, the stack **fails closed and does not start**. The follow-up
+PR is specified in the secret-injection document. Do not work around it in the
+manifest.
+
+---
+
+## Host
+
+| | |
+|---|---|
+| Provider | Hetzner Cloud |
+| Instances | 1 |
+| Shape | 4 vCPU / 8 GB RAM |
+| Runtime | Docker Compose under systemd |
+| Inbound | SSH from `ADMIN_CIDR` only |
+
+Budget: clamd 4 GB, processor 1 GB, renewer 256 MB — 5.25 GB of 8, leaving the
+host itself roughly 2.75 GB. clamd is the large one because it holds the full
+signature set in memory; a clamd that is swapping fails scans on timeout, and a
+failed scan correctly blocks an upload, so under-provisioning it looks like a
+pipeline fault rather than a memory fault.
+
+---
+
+## Topology
+
+```
+                        ┌──────────────────────── Hetzner Cloud firewall ────┐
+                        │  in : tcp/22 from ADMIN_CIDR only                  │
+                        │  out: 443, 80, 853→DoT, udp/123, icmp             │
+                        └───────────────────────────────────────────────────┘
+                                            │
+  ┌───────────────────────────────── Staging VM ──────────────────────────────┐
+  │                                                                            │
+  │   nftables (host processes)          DOCKER-USER → ARMA2-MEDIA (containers)│
+  │                                                                            │
+  │   ┌────────────┐     media-internal 172.31.20.0/28   (internal: true)      │
+  │   │ processor  │◄────────────── 3310 ──────────────►┌────────────┐         │
+  │   │            │                                     │   clamd    │         │
+  │   │ 1 CPU 1 GB │                                     │  4 GB      │         │
+  │   │ ro rootfs  │                                     │ freshclam  │         │
+  │   └─────┬──────┘                                     └─────┬──────┘         │
+  │         │ processor-egress .16/28                          │ clamav-egress  │
+  │         │                                                  │ .32/28         │
+  │   ┌─────▼──────┐                                           │                │
+  │   │  renewer   │─── renewer-egress .48/28 ───┐             │                │
+  │   │  256 MB    │                             │             │                │
+  │   │  ro rootfs │                             │             │                │
+  │   └────────────┘                             │             │                │
+  │                                              │             │                │
+  │   unbound on .17 / .33 / .49  ───────────────┴─────────────┘                │
+  │     Production ref → NXDOMAIN                                              │
+  └────────────────────────────────────────────────────────────────────────────┘
+                     │                              │
+              Supabase Staging                ClamAV mirrors
+```
+
+### Networks
+
+| Network | `internal` | Members | Purpose |
+|---|---|---|---|
+| `media-internal` 172.31.20.0/28 | **yes** | processor, clamd | the only path to clamd:3310 |
+| `processor-egress` .16/28 | no | processor | HTTPS to Supabase Staging |
+| `clamav-egress` .32/28 | no | clamd | freshclam signature updates |
+| `renewer-egress` .48/28 | no | renewer | HTTPS to the signer gateway |
+
+The processor needs both TCP to clamd and HTTPS outbound, so it is on two
+networks; clamd is deliberately **not** on `processor-egress` and the processor
+is deliberately **not** on `clamav-egress`. The renewer shares no network with
+either, so it can neither reach clamd nor be reached by it.
+
+Subnets are pinned rather than pool-allocated because they are the selectors the
+firewall matches on. An auto-allocated subnet would make the firewall describe a
+different network after any recreate.
+
+### What isolates what — the honest division
+
+**Docker enforces:**
+
+- `internal: true` — real. Docker installs rules that drop traffic between that
+  subnet and anything outside it, and gives it no default route. clamd:3310 is
+  unreachable off-host by construction, not by convention.
+- Network membership — real. Containers can only address each other on a shared
+  network.
+- No published ports — real. No `ports:` anywhere means no host-side listener.
+
+**Docker does NOT enforce:**
+
+- Anything about destinations. A non-internal bridge grants NAT'd egress to
+  every routable address. Creating four bridge networks restricts *nothing*
+  about where a container may connect. Their value is that each service leaves
+  through a distinct subnet, which is what makes per-service firewall rules
+  possible at all.
+
+**nftables / DOCKER-USER enforces:**
+
+- Per-service egress **ports**. A compromised processor cannot leave over SMTP,
+  SSH or arbitrary DNS. clamd cannot reach Supabase on any port.
+- **Not** destinations. `tcp dport 443 accept` permits every HTTPS host on the
+  internet. A packet filter never sees the SNI it would need to distinguish
+  Supabase Staging from Production. Anyone reading the ruleset as "Production is
+  firewalled off" has read it wrong.
+- Bypassable by host root. The layer that survives host root is the Hetzner
+  Cloud firewall, enforced outside the VM.
+
+**DNS enforces:**
+
+- That Production's name returns NXDOMAIN on this host. Defence in depth.
+- **Not** anything against a connection by IP literal.
+
+**The actual guarantee** that this host cannot reach Production is
+`workers/*/src/target.mjs`: Production's ref is compiled in as forbidden, the
+environment can only add to that list and never subtract from it, and every
+request URL is re-validated against a frozen descriptor immediately before the
+credential leaves the process. Pointing this host at Production is a reviewed
+source change, not a configuration flip.
+
+---
+
+## DNS
+
+Local `unbound`, `local-zone: "rcyuuoaqfwcembdajcss.supabase.co." always_nxdomain`,
+everything else forwarded over DNS-over-TLS to two independent operators.
+
+**No `/etc/hosts` entry and no pinned addresses.** Supabase sits behind
+Cloudflare: those addresses are anycast and rotate, so pinning one converts a
+routine upstream change into an outage that looks like a code bug. A hosts entry
+also cannot express "must not resolve" — `127.0.0.1` is an *answer*, so a client
+connects to the loopback and reads whatever listens there.
+
+**The trap that makes this work or silently not work:** when the host's
+`/etc/resolv.conf` lists a loopback nameserver, `dockerd` discards it for
+containers and substitutes public resolvers. Every container would then resolve
+around the policy while the host looks correctly configured. The fix is in the
+compose file: each service sets `dns:` to its own egress bridge gateway, which
+is this host on a non-loopback address.
+
+**When the resolver is down**, nothing degrades open: the processor's requests
+fail and its lease expires; the renewer's cycle fails and the attestation
+lapses, closing `uploadReady`; freshclam cannot update and clamd keeps serving
+the signatures it has until the worker's own 7-day freshness check refuses them.
+A resolver outage stops work. It never widens what is reachable.
+
+---
+
+## Health
+
+Three separate things, kept separate:
+
+| | Runs | Touches Supabase | Where |
+|---|---|---|---|
+| **Liveness / local readiness** | every 60s | **no** | Docker `HEALTHCHECK` |
+| **ClamAV readiness** | every 30s | no | Docker `HEALTHCHECK` |
+| **Remote certification** | manual only | **yes, writes** | not configured anywhere |
+
+**Processor local readiness** — `probes/processor-local-readiness.mjs`: Node
+major is 22, sharp/libvips can decode-resize-encode real pixels, and clamd
+answers a `zPING` on 3310. It deliberately does not import from `/app`: a
+healthcheck sharing modules with the process it watches reports healthy whenever
+those modules load.
+
+**ClamAV readiness** — `clamdscan --ping` plus `clamdscan --version`, which
+returns the daemon's own `ClamAV <ver>/<sigs>/<date>`. Ping, version and
+signature set in one local command.
+
+**Remote certification** — `npm run healthcheck` runs the full worker self-test,
+which uploads, downloads and deletes `_selftest/<timestamp>.png` in the Staging
+bucket.
+
+> **`REQUIRES_EXPLICIT_REMOTE_WRITE_AUTHORIZATION`**
+>
+> It is **not** configured as a `HEALTHCHECK` at any interval. As a periodic
+> probe it is an unbounded series of remote writes against a project whose write
+> authorization is granted per operation. It stays a manual command, run
+> deliberately, once, with authorization.
+
+**The renewer has no healthcheck at all.** Its only health endpoint *attests* as
+a side effect of answering, so probing it on an interval would mint a fresh
+3600s attestation forever, from a probe. The renewal loop already makes exactly
+that call on its own schedule.
+
+---
+
+## ClamAV persistence
+
+Named volume `clamav-db` → `/var/lib/clamav`, declared at the top level so it is
+not an anonymous volume lost on recreate.
+
+- The official image's entrypoint owns and initialises the directory; clamd and
+  freshclam run as the image's `clamav` user and are the only writers.
+- **The processor does not mount it.** It reaches clamd over TCP and never reads
+  a signature file. Same for the renewer.
+- `docker compose stop` / `start` and `systemctl restart` all preserve it. Only
+  `docker compose down -v` destroys it, which is why the systemd unit uses
+  `stop` and never `down`.
+
+Verifying persistence does not require downloading real signatures:
+
+```bash
+docker compose -f docker-compose.staging.yml exec clamd sh -c \
+  'ls -l /var/lib/clamav; clamdscan --version'
+docker compose -f docker-compose.staging.yml restart clamd
+# same file list, same signature count — no re-download
+```
+
+Requires a running stack, so it belongs to stage **I2** below.
+
+---
+
+## Staged rollout — I1 to I4
+
+Each stage is separately authorized. **None has been executed.** Do not proceed
+past a stage whose checklist is unsatisfied, and do not batch stages: the point
+of the split is that each one has exactly one way to fail.
+
+### I1 — empty infrastructure
+
+Create the VM, the Hetzner firewall, the resolver and the host firewall. Nothing
+Arma2-specific runs.
+
+- [ ] Authorization recorded, naming I1 specifically
+- [ ] `ADMIN_CIDR` decided and substituted; the repository keeps its placeholder
+- [ ] `firewall/validate.sh` passes on the host, with `nft` and `shellcheck`
+      actually installed so nothing reports SKIP
+- [ ] Firewall applied through `apply-with-rollback.sh --i-am-on-the-console`,
+      confirmed from a **second** ssh session
+- [ ] `unbound-checkconf` accepts the fragment; Production resolves NXDOMAIN and
+      Staging resolves, both checked from the host
+- [ ] Docker installed; `docker compose version` reports v2
+- [ ] **No Arma2 image built, no secret created**
+
+### I2 — ClamAV only
+
+- [ ] Authorization recorded, naming I2
+- [ ] `docker compose up -d clamd` only
+- [ ] freshclam completes a first download; `clamdscan --version` reports a
+      signature set
+- [ ] Restart-persistence check above passes
+- [ ] `docker compose ps` shows clamd healthy and **no other service running**
+- [ ] Confirmed that clamd cannot reach Supabase on any port
+- [ ] **No Supabase contact of any kind**
+
+### I3 — processor with no credential
+
+The stage that proves fail-closed behaviour is real rather than intended.
+
+- [ ] Authorization recorded, naming I3
+- [ ] Image built from the pinned Dockerfile and tagged
+- [ ] `ARMA2_MEDIA_SECRET_DIR` points at a directory whose files are **empty**
+- [ ] Processor starts and **exits `WORKER_MISCONFIGURED`** — this is the pass
+      condition, not a failure
+- [ ] `docker inspect` on the processor shows **no** credential value in
+      `Config.Env`; only `*_FILE` paths
+- [ ] `docker compose config` output contains no credential
+- [ ] Local readiness probe passes when run by hand against a running container
+- [ ] **No Supabase contact, no attestation written**
+
+### I4 — local smoke
+
+- [ ] Authorization recorded, naming I4
+- [ ] `SECRET_INJECTION_CODE_GAP` closed: the `*_FILE` PR merged and released
+- [ ] Real secrets placed, `0400`, owned by uid 1000
+- [ ] Processor starts and reaches its polling loop
+- [ ] Renewer starts and validates its target without contacting anything
+- [ ] Remote certification **still not run** — it is its own authorization
+
+Anything beyond I4 — the first remote write, the first attestation, the first
+real job — is outside this document and outside this change.
+
+---
+
+## Operating the stack
+
+```bash
+cd /opt/arma2/media-staging
+
+docker compose -f docker-compose.staging.yml config     # parse, no side effects
+systemctl status arma2-media-staging
+docker compose -f docker-compose.staging.yml ps
+docker compose -f docker-compose.staging.yml logs --tail=100 processor
+```
+
+The systemd unit runs `up --no-build`, so a restart can never ship an image
+other than the one that was built and reviewed. Building is a separate,
+deliberate step.
+
+---
+
+## Local validation of these manifests
+
+No Docker required:
+
+```bash
+node --test ops/torneos-staging/media-runtime/test/*.test.mjs
+ops/torneos-staging/media-runtime/firewall/validate.sh
+```
+
+Where Docker exists, `docker compose config` is the authoritative reader and
+should be run as well. The Node suite exists because it is the check that runs
+everywhere — including on the machines that review this change, none of which
+have Docker, `nft`, `yq` or `systemd-analyze`.
