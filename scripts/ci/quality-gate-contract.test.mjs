@@ -108,7 +108,7 @@ const REQUIRED_IN_TEST_CI = [
  * the worker's own `node_modules` — the same host that certifies the codec.
  */
 const MEDIA_CI_SUITES = [
-  'antivirus', 'cleanup', 'contract', 'pipeline', 'selfTest', 'supabase', 'target',
+  'antivirus', 'cleanup', 'contract', 'pipeline', 'secret-source', 'selfTest', 'supabase', 'target',
 ];
 
 /** Extracts the test files a `node --test a.mjs b.mjs` script names. */

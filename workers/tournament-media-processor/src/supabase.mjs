@@ -9,9 +9,32 @@
  */
 
 import { TOURNAMENT_MEDIA_BUCKET } from './contract.mjs';
+import { readFirstSecret } from './secret-source.mjs';
 import { assertAuthorizedUrl, createSupabaseTarget } from './target.mjs';
 
-export function readConfig(env = process.env) {
+/**
+ * The service credential, in the order it has always been looked for, with each
+ * variable's file twin beside it.
+ *
+ * The pairs are written out rather than derived by appending `_FILE`, so that
+ * every environment variable this worker reads is a literal string that can be
+ * grepped for — in this repository, in a deployment manifest, or by the
+ * infrastructure test that checks the two agree.
+ *
+ * Precedence is unchanged: `SUPABASE_SERVICE_ROLE_KEY` before
+ * `SUPABASE_SECRET_KEY`, whichever source each is given.
+ */
+export const SERVICE_CREDENTIAL_SOURCES = Object.freeze([
+  Object.freeze({ variable: 'SUPABASE_SERVICE_ROLE_KEY', fileVariable: 'SUPABASE_SERVICE_ROLE_KEY_FILE' }),
+  Object.freeze({ variable: 'SUPABASE_SECRET_KEY', fileVariable: 'SUPABASE_SECRET_KEY_FILE' }),
+]);
+
+/**
+ * @param {object} env
+ * @param {{fs?: object}} [options] an injectable `fs`, so a test can prove that
+ *   no secret file is opened when the target is refused
+ */
+export function readConfig(env = process.env, { fs: fsImpl } = {}) {
   const url = String(env.SUPABASE_URL || '').replace(/\/+$/, '');
   // The target is resolved BEFORE the credential is read, and the order is
   // load-bearing rather than stylistic: a service-role key is unconditional
@@ -25,7 +48,19 @@ export function readConfig(env = process.env) {
     forbiddenHosts: env.TOURNAMENT_MEDIA_FORBIDDEN_API_HOSTS,
     forbiddenProjectRefs: env.TOURNAMENT_MEDIA_FORBIDDEN_PROJECT_REFS,
   });
-  const key = String(env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_SECRET_KEY || '');
+  // Only now, with the target proven, is the credential resolved — and the file
+  // form does not weaken that: `readFirstSecret` opens nothing until it is
+  // called, and it is called here, below `createSupabaseTarget`. A refused
+  // target therefore still costs no read of `SUPABASE_SERVICE_ROLE_KEY`, no
+  // read of `SUPABASE_SERVICE_ROLE_KEY_FILE`'s file, and no syscall at all.
+  //
+  // A credential given two sources at once (`SUPABASE_SERVICE_ROLE_KEY` and
+  // `SUPABASE_SERVICE_ROLE_KEY_FILE`, or the `SUPABASE_SECRET_KEY` pair) throws
+  // `SECRET_SOURCE_AMBIGUOUS` rather than being silently resolved; a file that
+  // is missing, empty or implausible throws its own `SECRET_FILE_*` code. Both
+  // are start-up refusals, like the missing-credential case below: this worker
+  // has no half-configured mode.
+  const { value: key } = readFirstSecret(env, SERVICE_CREDENTIAL_SOURCES, { fs: fsImpl });
   if (!key) throw new Error('WORKER_MISCONFIGURED');
   return {
     // The canonical origin the target validated, not the raw string: every
