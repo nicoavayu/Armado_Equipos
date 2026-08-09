@@ -200,7 +200,9 @@ services:
     secrets:
       - supabase_service_role_key
     volumes:
-      - ./probes:/opt/arma2/probes:ro
+      # Keep the probe under /app so Node's ESM resolver ascends to the worker's
+      # existing /app/node_modules/sharp. No dependency is copied or duplicated.
+      - ./probes:/app/probes:ro
     mem_limit: 1g
     cpus: 1.0
     pids_limit: 128
@@ -222,7 +224,7 @@ services:
     # manual command, gated in the runbook under
     # REQUIRES_EXPLICIT_REMOTE_WRITE_AUTHORIZATION.
     healthcheck:
-      test: ["CMD", "node", "/opt/arma2/probes/processor-local-readiness.mjs"]
+      test: ["CMD", "node", "/app/probes/processor-local-readiness.mjs"]
       interval: 60s
       timeout: 20s
       retries: 3

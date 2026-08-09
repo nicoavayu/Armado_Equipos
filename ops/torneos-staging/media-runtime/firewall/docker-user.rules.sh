@@ -31,8 +31,9 @@
 # What it does buy, precisely:
 #   - a compromised processor cannot exfiltrate over SMTP, DNS-to-arbitrary,
 #     SSH, or any other port;
-#   - clamd cannot reach Supabase at all, on any port, which is the property
-#     that keeps an antivirus container out of the credentialed blast radius;
+#   - clamd has generic tcp/80,443 egress for freshclam and can therefore reach
+#     an HTTPS Supabase host at the network layer. It holds no Supabase
+#     credential and does not share processor-egress, which bounds impact;
 #   - the renewer cannot reach clamd, and clamd cannot reach the renewer;
 #   - media-internal is dropped explicitly, so the `internal: true` guarantee
 #     does not rest on Docker's implementation alone.
@@ -58,10 +59,12 @@ JUMP_FROM=DOCKER-USER
 # --- established --------------------------------------------------------------
 "$IPT" -A "$CHAIN" -m conntrack --ctstate ESTABLISHED,RELATED -j RETURN
 
-# --- media-internal: no egress, ever ------------------------------------------
-# `internal: true` in the compose file already makes Docker install equivalent
-# drops. Restated because this is the isolation that keeps clamd:3310 off the
-# network, and a guarantee that matters should not have exactly one enforcer.
+# --- media-internal: clamd only, then no general egress ------------------------
+# The processor and clamd are the only members. Permit only the processor's
+# required east-west TCP connection to clamd:3310; responses are covered by the
+# established rule above. Everything else sourced from or destined to this
+# internal subnet remains dropped, so this is not a general egress path.
+"$IPT" -A "$CHAIN" -s "$NET_INTERNAL" -d "$NET_INTERNAL" -p tcp --dport 3310 -j RETURN
 "$IPT" -A "$CHAIN" -s "$NET_INTERNAL" -j DROP
 "$IPT" -A "$CHAIN" -d "$NET_INTERNAL" -j DROP
 
@@ -74,6 +77,8 @@ JUMP_FROM=DOCKER-USER
 # retained because several official mirrors still redirect through it and a
 # silent signature-update failure degrades into a worker that stops certifying
 # scans seven days later, which is a slow and confusing outage.
+# These are port rules, not destination rules. They can reach any tcp/80,443
+# endpoint, including Supabase; clamd's isolation is the absence of credentials.
 "$IPT" -A "$CHAIN" -s "$NET_CLAMAV" -p tcp -m multiport --dports 80,443 -j RETURN
 "$IPT" -A "$CHAIN" -s "$NET_CLAMAV" -j DROP
 

@@ -13,10 +13,10 @@
  * what runs on a timer.
  *
  * It is also not the worker self-test's local half. It deliberately does NOT
- * import from /app: a healthcheck that shares modules with the process it
- * watches reports "healthy" whenever those modules load, which is the case it
- * is least useful in. Everything below is reproduced in ~40 lines against the
- * same libraries the worker actually uses.
+ * import worker source modules: a healthcheck that reuses the process it watches
+ * is least useful when those modules are the failure. The probe is mounted below
+ * /app solely so ESM resolves the image's existing /app/node_modules/sharp;
+ * everything else is reproduced here against the same libraries.
  *
  * ---------------------------------------------------------------------------
  * What it proves

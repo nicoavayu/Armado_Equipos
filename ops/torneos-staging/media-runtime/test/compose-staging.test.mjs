@@ -8,7 +8,9 @@
  */
 
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
@@ -103,6 +105,9 @@ test('clamd:3310 is reachable only over the internal network', () => {
   assert.equal(services.processor.environment.TOURNAMENT_MEDIA_CLAMD_HOST, 'clamd');
   assert.equal(services.processor.environment.TOURNAMENT_MEDIA_CLAMD_PORT, '3310');
   assert.ok(services.processor.networks.includes('media-internal'));
+  const members = SERVICE_NAMES.filter((name) => services[name].networks.includes('media-internal'));
+  assert.deepEqual(members, ['clamd', 'processor'],
+    'processor and clamd must remain the only members of media-internal');
 });
 
 test('the renewer shares no network with clamd or the processor', () => {
@@ -170,13 +175,44 @@ test('the remote certification command is not wired as a healthcheck anywhere', 
 
 test('the processor healthcheck is the local readiness probe', () => {
   assert.deepEqual(services.processor.healthcheck.test,
-    ['CMD', 'node', '/opt/arma2/probes/processor-local-readiness.mjs']);
-  assert.deepEqual(services.processor.volumes, ['./probes:/opt/arma2/probes:ro']);
+    ['CMD', 'node', '/app/probes/processor-local-readiness.mjs']);
+  assert.deepEqual(services.processor.volumes, ['./probes:/app/probes:ro']);
   const probe = fs.readFileSync(path.join(RUNTIME, 'probes/processor-local-readiness.mjs'), 'utf8');
   // It must reach clamd and must not reach Supabase.
   assert.ok(probe.includes('node:net'), 'the probe does not open a TCP connection to clamd');
   assert.ok(!/supabase|SUPABASE_URL|fetch\(/i.test(probe),
     'the local readiness probe references Supabase');
+});
+
+test('the readiness layout resolves sharp from /app/node_modules and the old /opt layout does not', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'arma2-readiness-layout-'));
+  try {
+    const modules = path.join(root, 'app/node_modules/sharp');
+    fs.mkdirSync(modules, { recursive: true });
+    fs.writeFileSync(path.join(modules, 'package.json'), JSON.stringify({
+      name: 'sharp', version: '0.0.0-fixture', type: 'module', exports: './index.mjs',
+    }));
+    fs.writeFileSync(path.join(modules, 'index.mjs'), 'export default "fixture-sharp";\n');
+
+    const probeSource = 'const { default: sharp } = await import("sharp"); process.stdout.write(sharp);\n';
+    const oldProbe = path.join(root, 'opt/arma2/probes/processor-local-readiness.mjs');
+    const newProbe = path.join(root, 'app/probes/processor-local-readiness.mjs');
+    fs.mkdirSync(path.dirname(oldProbe), { recursive: true });
+    fs.mkdirSync(path.dirname(newProbe), { recursive: true });
+    fs.writeFileSync(oldProbe, probeSource);
+    fs.writeFileSync(newProbe, probeSource);
+
+    const oldLayout = spawnSync(process.execPath, [oldProbe], { encoding: 'utf8' });
+    assert.notEqual(oldLayout.status, 0,
+      'the regression fixture is invalid: /opt unexpectedly resolved /app/node_modules/sharp');
+    assert.match(oldLayout.stderr, /ERR_MODULE_NOT_FOUND|Cannot find package/);
+
+    const newLayout = spawnSync(process.execPath, [newProbe], { encoding: 'utf8' });
+    assert.equal(newLayout.status, 0, newLayout.stderr);
+    assert.equal(newLayout.stdout, 'fixture-sharp');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test('the renewer has no healthcheck at all', () => {

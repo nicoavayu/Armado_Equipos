@@ -211,12 +211,26 @@ test('each service subnet gets its own egress rule and a default drop', () => {
     assert.ok(dockerUser.includes(`-s "$${subnet}" -j DROP`),
       `${subnet} has no default drop, so an unlisted port is permitted`);
   }
-  assert.match(dockerUser, /-s "\$NET_INTERNAL" -j DROP/,
-    'media-internal egress is not dropped explicitly');
-  // clamd must not be able to reach Supabase on any port.
-  assert.ok(!/NET_CLAMAV.*--dport 443 -j RETURN\s*$/.test(dockerUser)
-    || dockerUser.includes('multiport --dports 80,443'),
-  'the clamav rule is not the documented signature-mirror rule');
+  const rules = directives(dockerUser).split('\n');
+  const establishedAt = rules.findIndex((line) => line.includes('ESTABLISHED,RELATED'));
+  const internalAllow = '"$IPT" -A "$CHAIN" -s "$NET_INTERNAL" -d "$NET_INTERNAL" -p tcp --dport 3310 -j RETURN';
+  const allowAt = rules.indexOf(internalAllow);
+  const sourceDropAt = rules.indexOf('"$IPT" -A "$CHAIN" -s "$NET_INTERNAL" -j DROP');
+  const destinationDropAt = rules.indexOf('"$IPT" -A "$CHAIN" -d "$NET_INTERNAL" -j DROP');
+  assert.ok(establishedAt >= 0 && allowAt > establishedAt,
+    'tcp/3310 east-west must follow ESTABLISHED,RELATED');
+  assert.ok(sourceDropAt > allowAt && destinationDropAt > allowAt,
+    'both NET_INTERNAL blanket drops must remain after the tcp/3310 exception');
+  assert.equal(rules.filter((line) => line.includes('$NET_INTERNAL') && line.endsWith('-j RETURN')).length, 1,
+    'tcp/3310 must be the only new east-west exception on media-internal');
+  assert.match(internalAllow, /-p tcp --dport 3310 -j RETURN$/);
+  assert.match(dockerUser, /-s 172\.31\.20\.0\/24 -j DROP/,
+    'the enclosing Docker subnet still needs a fail-closed default');
+
+  // This is a port allowance, not destination isolation: clamd can reach any
+  // TCP/80 or TCP/443 destination but holds no Supabase credential.
+  assert.match(dockerUser, /NET_CLAMAV.*multiport --dports 80,443 -j RETURN/);
+  assert.doesNotMatch(dockerUser, /clamd cannot reach Supabase(?: at all| on any port)/i);
 });
 
 // ---------------------------------------------------------------------------
