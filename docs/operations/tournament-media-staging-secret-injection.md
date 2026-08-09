@@ -1,11 +1,13 @@
 # Multimedia Staging — secret injection audit
 
-**Verdict: `SECRET_INJECTION_CODE_GAP`.**
+**Verdict: `FILE_SECRET_SUPPORT_RESOLVED`. The former
+`SECRET_INJECTION_CODE_GAP` is CLOSED.**
 
-The Staging manifest is wired for file-based secret injection. The worker
-packages do not implement it yet. Nothing in this repository changes that — the
-fix is a small, separate PR against the two workers, specified at the end of
-this document.
+The Staging manifest is wired for file-based secret injection, and the worker
+packages implement it. The support arrived in PR #139 — `src/secret-source.mjs`
+in both packages — and is merged into `epic/arma2-torneos`. This document was
+written while the gap was open; the sections below now describe the resolved
+state, and the history is kept only where it explains a decision.
 
 Nothing here was executed against a host. No secret was created, read or
 written. The values in every example below are fictional.
@@ -56,7 +58,7 @@ the worker sources on every run.
 | process `argv` | absent | absent | absent | absent, *if written correctly* |
 | image layers | absent | absent | absent | absent |
 | logs | absent | absent | absent | absent |
-| **works with today's code** | **yes** | no | no | yes |
+| **works with today's code** | **yes** | **yes**, since PR #139 | no | yes |
 
 ### A — `environment:` with the value
 
@@ -160,13 +162,17 @@ the same uid inside the container, or root on the host — reads the key. That i
 the same exposure as mechanism A for an attacker who is already inside, and the
 difference is entirely about the *host-side* surfaces.
 
-It is a real improvement over A, and it is a workaround that makes the code gap
-invisible: with a wrapper in place, nothing ever forces the `*_FILE` support to
-be written. That is the reason it is not used here.
+It is a real improvement over A, and while the gap was open it was also the
+workaround that would have made the gap invisible: with a wrapper in place,
+nothing ever forces the `*_FILE` support to be written. That support now exists,
+so the wrapper buys nothing at all and costs `/proc/<pid>/environ`. It stays
+rejected, and `test/secrets-model.test.mjs` still fails the suite if an
+`entrypoint:`, a `command:` or a `$(cat /run/secrets/…)` appears in the
+manifest.
 
 ---
 
-## Why the manifest is wired to a mechanism the code ignores
+## The manifest and the code agree
 
 `docker-compose.staging.yml` passes:
 
@@ -176,74 +182,94 @@ TOURNAMENT_MEDIA_ATTESTATION_SECRET_FILE: /run/secrets/attestation_secret
 TOURNAMENT_MEDIA_GATEWAY_JWT_FILE: /run/secrets/gateway_jwt
 ```
 
-None of those three variables is read by any worker today. Verified against the
-source, not assumed:
+All three are read by the workers. Verified against the source, not assumed:
 
-- `workers/tournament-media-processor/src/supabase.mjs:28` reads
-  `env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_SECRET_KEY`, and throws
-  `WORKER_MISCONFIGURED` when both are empty.
-- `workers/tournament-media-signer-renewer/src/config.mjs:223` reads
-  `env.TOURNAMENT_MEDIA_ATTESTATION_SECRET` and fails
-  `RENEWER_SECRET_MISSING` below 32 characters.
-- `workers/tournament-media-signer-renewer/src/config.mjs:172` reads
-  `env.TOURNAMENT_MEDIA_GATEWAY_JWT`.
+- `workers/tournament-media-processor/src/supabase.mjs:27` declares
+  `SERVICE_CREDENTIAL_SOURCES`, pairing `SUPABASE_SERVICE_ROLE_KEY` with
+  `SUPABASE_SERVICE_ROLE_KEY_FILE` (and `SUPABASE_SECRET_KEY` with its twin).
+  `readFirstSecret` resolves them; `WORKER_MISCONFIGURED` is still thrown when
+  no source yields a credential.
+- `workers/tournament-media-signer-renewer/src/config.mjs:51` declares
+  `ATTESTATION_SECRET_SOURCE`, pairing `TOURNAMENT_MEDIA_ATTESTATION_SECRET`
+  with `TOURNAMENT_MEDIA_ATTESTATION_SECRET_FILE`. `RENEWER_SECRET_MISSING` is
+  still the failure below 32 characters.
+- `workers/tournament-media-signer-renewer/src/config.mjs:56` declares
+  `GATEWAY_JWT_SOURCE`, pairing `TOURNAMENT_MEDIA_GATEWAY_JWT` with
+  `TOURNAMENT_MEDIA_GATEWAY_JWT_FILE`.
 
-So the stack as committed **does not start**. The processor exits
-`WORKER_MISCONFIGURED`; the renewer exits `RENEWER_SECRET_MISSING`.
+The pairs are written out as literal strings rather than derived by appending
+`_FILE`, which is what lets `test/secrets-model.test.mjs` decide the question by
+grepping the worker source instead of trusting this paragraph.
 
-That is the intended state, for three reasons:
+### What the file mechanism does and does not buy
 
-1. **It fails closed.** No credential is disclosed, no job is leased, no
-   attestation is minted. The pipeline's own fail-closed design does the rest:
-   with no fresh attestation, `uploadReady` goes false and uploads stop.
-2. **It is honest about the blocker.** The alternative — wiring mechanism A or
-   D so the stack comes up — would ship an infrastructure PR whose security
-   posture is worse than the one it documents, and would remove the pressure to
-   fix it.
-3. **It cannot be deployed by accident.** `ARMA2_MEDIA_SECRET_DIR` has no
-   default, so `docker compose` refuses to read the manifest at all until an
-   operator names a directory. There is no path where this stack quietly comes
-   up half-configured.
+- The **path** may live in `environment:`. The **contents** may not — a
+  credential-shaped key in this manifest is asserted to match
+  `^/run/secrets/[a-z_]+$`.
+- **No wrapper, no `export`.** Node opens the file itself, at start-up, in
+  `readConfig` / `readRenewerConfig`. The credential never passes through the
+  shell and never lands in `/proc/<pid>/environ`.
+- **The remaining exposure is stated, not hidden.** The value is in the
+  process's heap once it is read. Host root, a debugger, or a core dump still
+  reach it, and the secret files themselves are at rest on the host disk under
+  `0400` ownership and whatever full-disk encryption the VM has. `*_FILE`
+  removes the host-side configuration surfaces — `docker inspect`,
+  `config.v2.json`, `docker compose config`, the container environment — it does
+  not remove every risk.
+
+### It still cannot be deployed by accident
+
+`ARMA2_MEDIA_SECRET_DIR` has no default, so `docker compose` refuses to read the
+manifest at all until an operator names a directory. Closing the code gap did not
+change that: the stack comes up fully configured or not at all, and it is a
+separate, authorized act to place the secret files. Refusals stay refusals — the
+processor exits `WORKER_MISCONFIGURED` and the renewer exits
+`RENEWER_SECRET_MISSING` when no source resolves, and neither has a default, an
+empty-string acceptance or an unauthenticated path.
 
 ---
 
-## The follow-up PR this blocks on
+## The follow-up PR that closed this — PR #139
 
-Small, isolated, against the two worker packages. **Not part of the
-infrastructure PR** — an application change hidden in an IaC diff is how a
-credential-handling path gets merged without a credential-handling review.
+Small, isolated, against the two worker packages, and kept **out of the
+infrastructure PR** on purpose: an application change hidden in an IaC diff is
+how a credential-handling path gets merged without a credential-handling review.
+It was reviewed and merged on its own, into `epic/arma2-torneos`.
 
-**Scope**
+**What it delivered**, per `workers/*/src/secret-source.mjs`:
 
-For each of the three variables, accept a `*_FILE` form:
+- if `<VAR>_FILE` is set, the file is read and at most one trailing line ending
+  is stripped. The secret is otherwise never trimmed;
+- if both `<VAR>` and `<VAR>_FILE` are set, it **fails** — `SECRET_SOURCE_AMBIGUOUS`,
+  no preference. Two sources for one credential means one of them is stale, and
+  picking silently is how a rotated key keeps not taking effect;
+- the path must be **absolute**; a relative one resolves against a working
+  directory the manifest does not state;
+- the descriptor is opened `O_RDONLY | O_NOFOLLOW | O_NONBLOCK`, and the type is
+  checked with `fstat` on that descriptor rather than `stat` on the path, so
+  nothing can be swapped between the check and the read. A **symlink** is
+  refused rather than followed. A **fifo** is refused *without blocking* —
+  `O_NONBLOCK` is what makes the check reachable, since `openSync` on a fifo
+  otherwise waits for a writer forever and hanging is not failing closed;
+- contents over **64 KiB**, an empty file, or a NUL byte are refused, each with
+  its own `SECRET_FILE_*` code. There is no fallback to the environment;
+- it is read **once, at start-up**, in `readConfig` / `readRenewerConfig`, below
+  `createSupabaseTarget` — so the "target is validated before the credential is
+  read" ordering holds, and a refused target still costs no syscall;
+- neither the path nor the contents appear in an error message.
 
-- if `<VAR>_FILE` is set, read the file, `trim()` the trailing newline, and use
-  the contents;
-- if both `<VAR>` and `<VAR>_FILE` are set, **fail** — do not prefer one. Two
-  sources for one credential means one of them is stale, and picking silently
-  is how a rotated key keeps not taking effect;
-- if the file is missing, unreadable or empty, fail with the existing
-  fail-closed code. No fallback to the environment;
-- read it **once, at start-up**, in `readConfig` / `readRenewerConfig`, so the
-  existing "target is validated before the credential is read" ordering in
-  `target.mjs` is preserved;
-- never put the path or the contents in an error message. The existing
-  `secretValues()` redactor in the renewer already covers the value.
+Seven pairs are supported in total: `SUPABASE_SERVICE_ROLE_KEY_FILE` and
+`SUPABASE_SECRET_KEY_FILE` in the processor;
+`TOURNAMENT_MEDIA_ATTESTATION_SECRET_FILE`, `TOURNAMENT_MEDIA_GATEWAY_JWT_FILE`,
+`TOURNAMENT_MEDIA_GATEWAY_KEY_FILE`, `SUPABASE_PUBLISHABLE_KEY_FILE` and
+`SUPABASE_ANON_KEY_FILE` in the renewer. This manifest uses three of them; the
+rest exist for the local stack and for rotation.
 
-**Tests it needs**
+**After it landed**
 
-- `<VAR>_FILE` alone → config resolves, value matches file contents
-- `<VAR>` alone → still works, so nothing about the local stack breaks
-- both set → refusal, with a distinct code
-- file missing / empty / unreadable → the existing fail-closed code
-- trailing newline is stripped; interior whitespace is not
-- no test uses a real credential
-
-**After it lands**
-
-`test/secrets-model.test.mjs` detects the `*_FILE` support and stops requiring
-this document — the invariant it asserts holds in both states, so nothing here
-has to be edited in lockstep.
+`test/secrets-model.test.mjs` detects the `*_FILE` support from the worker source
+and stops requiring this document — the invariant it asserts holds in both
+states, so it kept passing across the change rather than becoming an obstacle.
 
 ---
 

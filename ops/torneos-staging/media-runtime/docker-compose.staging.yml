@@ -99,10 +99,14 @@ volumes:
 # and `chmod 0400`. That is a host provisioning step, not something this file can
 # assert — see the runbook.
 #
-# READ THIS BEFORE DEPLOYING: the worker packages do not implement `*_FILE` yet.
-# Wiring them here is deliberate and fails CLOSED — the processor exits
-# WORKER_MISCONFIGURED and the renewer exits RENEWER_SECRET_MISSING rather than
-# starting with a secret injected through a weaker path. See
+# The `*_FILE` form wired below is HONOURED by the worker packages: PR #139 added
+# `src/secret-source.mjs` to both, and it is in the epic. Each variable's twin is
+# read once at start-up, directly by Node — there is no wrapper, and the value
+# never enters the process environment. A credential given both directly and by
+# file is refused (SECRET_SOURCE_AMBIGUOUS); a file that is a symlink, a fifo, a
+# directory, empty or over 64 KiB is refused with its own SECRET_FILE_* code. The
+# processor still exits WORKER_MISCONFIGURED and the renewer still exits
+# RENEWER_SECRET_MISSING when no source resolves. See
 # docs/operations/tournament-media-staging-secret-injection.md.
 secrets:
   supabase_service_role_key:

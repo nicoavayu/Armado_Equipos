@@ -7,10 +7,11 @@ tournament media pipeline for Staging.
 > No VM, no Hetzner API call, no firewall, no secret, no container, no Supabase
 > contact, no migration. These files describe a host that does not exist yet.
 
-> **BLOCKED: `SECRET_INJECTION_CODE_GAP`.**
-> The manifest injects credentials as files; the workers read them from the
-> environment and implement no `*_FILE` form. As committed the stack **fails
-> closed and does not start**, deliberately. See
+> **`SECRET_INJECTION_CODE_GAP`: CLOSED.**
+> The manifest injects credentials as files, and the workers now implement the
+> `*_FILE` form natively — added by PR #139 and merged into the epic. The three
+> names this manifest passes are read directly by Node, with no entrypoint
+> wrapper. See
 > [the secret-injection audit](../../../docs/operations/tournament-media-staging-secret-injection.md).
 
 ## Files

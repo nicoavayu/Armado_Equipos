@@ -7,15 +7,18 @@
  *   1. ISOLATION — each secret reaches exactly one service. This is a property
  *      of the manifest and is fully decidable from it.
  *   2. MECHANISM — no credential is passed by VALUE. Also decidable here.
- *   3. THE CODE GAP — the workers read their secrets from `process.env` and
- *      implement no `*_FILE` fallback, so the file mechanism the manifest wires
- *      is not yet honoured. This is a property of the WORKER SOURCE, so it is
- *      read from the worker source rather than asserted in prose.
+ *   3. THE CODE GAP — whether the file mechanism the manifest wires is actually
+ *      honoured by the workers. This is a property of the WORKER SOURCE, so it
+ *      is read from the worker source rather than asserted in prose.
  *
  * Claim 3 is written as an invariant that holds in BOTH states: either the code
  * supports `*_FILE`, or the manifest is wired fail-closed and the gap is
- * documented. When the follow-up PR adds `*_FILE` support, this test keeps
- * passing instead of turning into an obstacle.
+ * documented. PR #139 added `*_FILE` support to both workers, so the gap is now
+ * CLOSED and this test takes its first branch — which is exactly what writing it
+ * as a two-state invariant was for: it kept passing across the change instead of
+ * turning into an obstacle. The second branch is kept, not deleted, because it is
+ * what would catch the support being reverted or an image being built from a
+ * revision that predates it.
  */
 
 import assert from 'node:assert/strict';

@@ -15,13 +15,15 @@ Stop and rollback: [tournament-media-staging-rollback.md](./tournament-media-sta
 
 ---
 
-## Blocked on
+## Secret injection: resolved
 
-**`SECRET_INJECTION_CODE_GAP`.** The manifest injects the three credentials as
-files; the workers read them from the environment and implement no `*_FILE`
-form. As committed, the stack **fails closed and does not start**. The follow-up
-PR is specified in the secret-injection document. Do not work around it in the
-manifest.
+**`SECRET_INJECTION_CODE_GAP` is CLOSED.** The manifest injects the three
+credentials as files, and both worker packages now implement the `*_FILE` form
+natively — `src/secret-source.mjs`, added by PR #139 and merged into
+`epic/arma2-torneos`. The path lives in `environment:`; the credential does not.
+No entrypoint wrapper is used, and none may be added: the secret is read
+directly by Node at start-up, so it never enters the process environment. The
+mechanism is detailed in the secret-injection document.
 
 ---
 
@@ -279,7 +281,8 @@ The stage that proves fail-closed behaviour is real rather than intended.
 ### I4 — local smoke
 
 - [ ] Authorization recorded, naming I4
-- [ ] `SECRET_INJECTION_CODE_GAP` closed: the `*_FILE` PR merged and released
+- [x] `SECRET_INJECTION_CODE_GAP` closed — PR #139, in the epic. The images
+      deployed to the host must be built from a revision that contains it
 - [ ] Real secrets placed, `0400`, owned by uid 1000
 - [ ] Processor starts and reaches its polling loop
 - [ ] Renewer starts and validates its target without contacting anything
