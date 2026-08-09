@@ -1,0 +1,303 @@
+# Arma2 Torneos · Multimedia runtime, STAGING host.
+#
+# This file provisions nothing. It is the declarative description of the stack
+# that a future, separately authorized change would bring up on one Hetzner
+# Cloud VM. Bringing it up requires a host that does not exist yet, secrets that
+# have not been created, and an authorization step per stage (see
+# docs/operations/tournament-media-staging-runtime.md).
+#
+# ---------------------------------------------------------------------------
+# Why this is a standalone file and not an override
+# ---------------------------------------------------------------------------
+# workers/tournament-media-processor/docker-compose.yml is the certified LOCAL
+# stack, and reusing it as a base with `-f base -f this` was the first design.
+# It does not work, for one decisive reason: Compose MERGES `environment` maps
+# and offers no way to remove an inherited key. The certified file declares
+#
+#     SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:?local service key}
+#
+# so any stack built on it puts the service-role key into the container's
+# `Config.Env`, where `docker inspect` prints it and where it is written to
+# /var/lib/docker/containers/<id>/config.v2.json in clear. That is exactly the
+# exposure this file exists to avoid, and no override can undo it. Two other
+# merge behaviours are unverifiable without Docker on the reviewing machine
+# (relative `build.context` resolution across `-f` files, and sequence
+# concatenation for `tmpfs`/`cap_drop`), which would have meant asserting merge
+# semantics nobody here can demonstrate.
+#
+# The duplication that buys is bounded and guarded rather than trusted:
+#   - the image is BUILT FROM THE SAME Dockerfile, not redefined;
+#   - test/compose-staging.test.mjs re-reads the certified file and fails if any
+#     hardening key it sets is missing here, or if any ceiling here is looser.
+# So the two files can differ, but not silently and not downwards.
+#
+# ---------------------------------------------------------------------------
+# Run it from THIS directory, so relative paths resolve against this file
+# ---------------------------------------------------------------------------
+#   docker compose -f docker-compose.staging.yml config     # parse only
+#   docker compose -f docker-compose.staging.yml up -d      # NOT authorized yet
+
+name: arma2-media-staging
+
+# ---------------------------------------------------------------------------
+# Networks
+# ---------------------------------------------------------------------------
+# Subnets are pinned rather than left to Docker's pool because they are the
+# selectors the host firewall matches on. An auto-allocated subnet would make
+# firewall/docker-user.staging.nft describe a different network after any
+# recreate, which is the kind of drift that silently opens a rule.
+#
+# What Docker actually enforces here, and what it does not:
+#   - `internal: true` IS enforcement. Docker installs rules that drop traffic
+#     between that subnet and anything outside it, and gives it no default
+#     route. clamd:3310 is unreachable from off-host by construction.
+#   - Membership IS enforcement. Two containers can only address each other when
+#     they share a network, so the renewer cannot reach clamd and clamd cannot
+#     reach the processor's egress path.
+#   - A non-internal bridge is NOT destination enforcement. It grants NAT'd
+#     egress to every routable address; Docker filters nothing by destination.
+#     Its value here is that each service leaves through its own subnet, which
+#     is what lets the host firewall write per-service rules at all.
+networks:
+  media-internal:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.31.20.0/28
+  processor-egress:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.31.20.16/28
+  clamav-egress:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.31.20.32/28
+  renewer-egress:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.31.20.48/28
+
+volumes:
+  clamav-db:
+    driver: local
+
+# ---------------------------------------------------------------------------
+# Secrets
+# ---------------------------------------------------------------------------
+# Files on the host, mounted read-only at /run/secrets/<name>. Nothing here is
+# a value: `ARMA2_MEDIA_SECRET_DIR` has no default, so `docker compose` refuses
+# to read this file at all until an operator names a directory, and the
+# repository never learns the path.
+#
+# Compose in non-Swarm mode IGNORES `uid`/`gid`/`mode` on file-based secrets and
+# mounts the host file with the ownership and mode it already has. The processor
+# image runs as `node` (uid 1000), so the host files must be `chown 1000:1000`
+# and `chmod 0400`. That is a host provisioning step, not something this file can
+# assert — see the runbook.
+#
+# READ THIS BEFORE DEPLOYING: the worker packages do not implement `*_FILE` yet.
+# Wiring them here is deliberate and fails CLOSED — the processor exits
+# WORKER_MISCONFIGURED and the renewer exits RENEWER_SECRET_MISSING rather than
+# starting with a secret injected through a weaker path. See
+# docs/operations/tournament-media-staging-secret-injection.md.
+secrets:
+  supabase_service_role_key:
+    file: ${ARMA2_MEDIA_SECRET_DIR:?name the host directory holding the secret files}/supabase_service_role_key
+  attestation_secret:
+    file: ${ARMA2_MEDIA_SECRET_DIR:?name the host directory holding the secret files}/attestation_secret
+  gateway_jwt:
+    file: ${ARMA2_MEDIA_SECRET_DIR:?name the host directory holding the secret files}/gateway_jwt
+
+services:
+
+  # -------------------------------------------------------------------------
+  # ClamAV: clamd + freshclam. Holds no Supabase credential of any kind.
+  # -------------------------------------------------------------------------
+  clamd:
+    image: clamav/clamav:1.4.5-debian
+    networks:
+      - media-internal
+      - clamav-egress
+    dns:
+      - 172.31.20.33
+    environment:
+      CLAMAV_NO_MILTERD: "true"
+      CLAMAV_NO_CLAMD: "false"
+      CLAMAV_NO_FRESHCLAMD: "false"
+    volumes:
+      - clamav-db:/var/lib/clamav
+    # Local only: asks the running daemon to answer, then asks it which
+    # signature database it has loaded. `clamdscan --version` returns the
+    # daemon's own `ClamAV <ver>/<sigs>/<date>` string, so the `/<digits>/`
+    # match is the signature-set assertion. Nothing here leaves the host.
+    healthcheck:
+      test: ["CMD-SHELL", "clamdscan --ping 1 >/dev/null 2>&1 && clamdscan --version 2>/dev/null | grep -qE '/[0-9]+/'"]
+      interval: 30s
+      timeout: 15s
+      retries: 10
+      start_period: 5m
+    mem_limit: 4g
+    pids_limit: 256
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
+
+  # -------------------------------------------------------------------------
+  # The processor. Holds the service credential; holds no attestation secret.
+  # -------------------------------------------------------------------------
+  processor:
+    build:
+      context: ../../../workers/tournament-media-processor
+      dockerfile: Dockerfile
+    image: arma2/tournament-media-processor:0.1.0
+    depends_on:
+      clamd:
+        condition: service_healthy
+    networks:
+      - media-internal
+      - processor-egress
+    # Resolution goes to the host resolver on the processor-egress gateway, not
+    # to whatever Docker inherited. This is load-bearing: when /etc/resolv.conf
+    # on the host points at a loopback resolver, dockerd DISCARDS it for
+    # containers and substitutes public nameservers, which would route around
+    # the NXDOMAIN policy in dns/unbound-media-staging.conf entirely.
+    dns:
+      - 172.31.20.17
+    environment:
+      SUPABASE_URL: ${TOURNAMENT_MEDIA_STAGING_URL:?set the Staging API origin}
+      TOURNAMENT_MEDIA_EXPECTED_PROJECT_REF: ${TOURNAMENT_MEDIA_EXPECTED_PROJECT_REF:?name the authorized Staging project ref}
+      # The compiled block in src/target.mjs already refuses Production and the
+      # environment can only ADD to it. This restates it so the refusal is
+      # visible in `docker inspect` too, and so a reader of this file can see
+      # which project is being excluded without going to the source.
+      TOURNAMENT_MEDIA_FORBIDDEN_PROJECT_REFS: rcyuuoaqfwcembdajcss
+      TOURNAMENT_MEDIA_FORBIDDEN_API_HOSTS: rcyuuoaqfwcembdajcss.supabase.co
+      TOURNAMENT_MEDIA_WORKER_ID: ${TOURNAMENT_MEDIA_WORKER_ID:-media-worker-staging-1}
+      TOURNAMENT_MEDIA_WORKER_RELEASE: ${TOURNAMENT_MEDIA_WORKER_RELEASE:-0.1.0}
+      TOURNAMENT_MEDIA_CLAMD_HOST: clamd
+      TOURNAMENT_MEDIA_CLAMD_PORT: "3310"
+      TOURNAMENT_MEDIA_CLAMD_MAX_SIGNATURE_AGE_DAYS: "7"
+      TOURNAMENT_MEDIA_ATTEST_TTL_SECONDS: "900"
+      TOURNAMENT_MEDIA_LEASE_SECONDS: "300"
+      TOURNAMENT_MEDIA_BATCH_SIZE: "1"
+      TOURNAMENT_MEDIA_POLL_MS: "2000"
+      # The credential is named by PATH, never by value. See the secrets block.
+      SUPABASE_SERVICE_ROLE_KEY_FILE: /run/secrets/supabase_service_role_key
+    secrets:
+      - supabase_service_role_key
+    volumes:
+      - ./probes:/opt/arma2/probes:ro
+    mem_limit: 1g
+    cpus: 1.0
+    pids_limit: 128
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=256m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    init: true
+    # LOCAL readiness only: Node major, a real sharp/libvips raster, and a TCP
+    # open to clamd:3310. It performs no Supabase request.
+    #
+    # The certified file runs `node src/healthcheck-cli.mjs` here instead. That
+    # command uploads, downloads and deletes `_selftest/<n>.png` in the Staging
+    # bucket on EVERY interval, which is a remote write on a timer that nobody
+    # authorized. It is not configured on this host at any interval; it stays a
+    # manual command, gated in the runbook under
+    # REQUIRES_EXPLICIT_REMOTE_WRITE_AUTHORIZATION.
+    healthcheck:
+      test: ["CMD", "node", "/opt/arma2/probes/processor-local-readiness.mjs"]
+      interval: 60s
+      timeout: 20s
+      retries: 3
+      start_period: 30s
+    # At least the 300s lease, so a SIGTERM'd worker can finish or hand back the
+    # job it holds instead of leaving it leased until expiry.
+    stop_grace_period: 6m
+    # Bounded on purpose. Every start-up refusal in this worker is a fail-closed
+    # configuration verdict — wrong project ref, missing credential, forbidden
+    # host — and none of them get better by being retried. Five attempts, then
+    # the container stays down and an operator reads one log line.
+    restart: on-failure:5
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
+
+  # -------------------------------------------------------------------------
+  # The signer attestation renewer. Holds NO service credential, by design and
+  # by start-up refusal (RENEWER_GATEWAY_KEY_PRIVILEGED).
+  # -------------------------------------------------------------------------
+  renewer:
+    build:
+      context: ../../../workers/tournament-media-signer-renewer
+      dockerfile: Dockerfile
+    image: arma2/tournament-media-signer-renewer:0.1.0
+    networks:
+      - renewer-egress
+    dns:
+      - 172.31.20.49
+    environment:
+      SUPABASE_URL: ${TOURNAMENT_MEDIA_STAGING_URL:?set the Staging API origin}
+      TOURNAMENT_MEDIA_EXPECTED_API_HOST: ${TOURNAMENT_MEDIA_EXPECTED_API_HOST:?name the authorized Staging API host}
+      TOURNAMENT_MEDIA_FORBIDDEN_PROJECT_REFS: rcyuuoaqfwcembdajcss
+      TOURNAMENT_MEDIA_FORBIDDEN_API_HOSTS: rcyuuoaqfwcembdajcss.supabase.co
+      TOURNAMENT_MEDIA_SIGNER_FUNCTION: tournament-media-signer
+      TOURNAMENT_MEDIA_SIGNER_ATTEST_TTL_SECONDS: "3600"
+      TOURNAMENT_MEDIA_RENEW_INTERVAL_SECONDS: "1200"
+      TOURNAMENT_MEDIA_RENEW_JITTER_RATIO: "0.1"
+      TOURNAMENT_MEDIA_RENEW_TIMEOUT_MS: "10000"
+      TOURNAMENT_MEDIA_RENEW_MAX_ATTEMPTS: "3"
+      TOURNAMENT_MEDIA_RENEW_BACKOFF_MS: "2000"
+      TOURNAMENT_MEDIA_RENEW_BACKOFF_MAX_MS: "30000"
+      TOURNAMENT_MEDIA_RENEW_ALERT_AFTER_FAILURES: "2"
+      TOURNAMENT_MEDIA_RENEW_SAFETY_MARGIN_SECONDS: "900"
+      TOURNAMENT_MEDIA_RENEWER_ID: ${TOURNAMENT_MEDIA_RENEWER_ID:-media-signer-renewer-staging-1}
+      TOURNAMENT_MEDIA_ATTESTATION_SECRET_FILE: /run/secrets/attestation_secret
+      TOURNAMENT_MEDIA_GATEWAY_JWT_FILE: /run/secrets/gateway_jwt
+    secrets:
+      - attestation_secret
+      - gateway_jwt
+    mem_limit: 256m
+    cpus: 0.5
+    pids_limit: 64
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=16m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    init: true
+    # No volume: loop mode holds the consecutive-failure counter in memory, and
+    # TOURNAMENT_MEDIA_RENEW_STATE_FILE is only needed by `--once` under an
+    # external scheduler. Nothing in this container needs to survive a restart.
+    #
+    # No HEALTHCHECK either, deliberately. The only health this process has is
+    # `health` on the signer Edge Function, and that endpoint ATTESTS as part of
+    # answering — a Docker healthcheck pointed at it would write a fresh 3600s
+    # attestation on every interval, from a probe, forever. The renewal loop
+    # already performs exactly that call on its own schedule; a second caller
+    # would only add writes nobody reads.
+    healthcheck:
+      disable: true
+    restart: unless-stopped
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
