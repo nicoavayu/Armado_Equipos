@@ -33,14 +33,21 @@
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-STATE_DIR=/var/lib/arma2-media-staging/firewall
+STATE_DIR="${STATE_DIR:-/var/lib/arma2-media-staging/firewall}"
 BACKUP="$STATE_DIR/nftables.pre-apply.nft"
+RAW_DUMP_TMP=""
 BACKUP_TMP=""
 REVERT_UNIT=arma2-media-firewall-revert
 CONFIRM_WINDOW="${CONFIRM_WINDOW:-300}"
 
-cleanup() { [ -z "$BACKUP_TMP" ] || rm -f "$BACKUP_TMP"; }
+cleanup() {
+  [ -z "$RAW_DUMP_TMP" ] || rm -f "$RAW_DUMP_TMP"
+  [ -z "$BACKUP_TMP" ] || rm -f "$BACKUP_TMP"
+}
 trap cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
 die() { printf 'apply-with-rollback: %s\n' "$1" >&2; exit 1; }
 
 mode="${1:-}"
@@ -79,16 +86,24 @@ command -v iptables >/dev/null 2>&1 || die "iptables is not installed"
 mkdir -p "$STATE_DIR"
 
 # --- 2. save the current ruleset ---------------------------------------------
-# Build beside the real backup and publish it only after nft produced a complete
-# dump. A dump failure therefore leaves no flush-only file that looks valid.
-BACKUP_TMP="$(mktemp "${BACKUP}.tmp.XXXXXX")"
-printf 'flush ruleset\n' > "$BACKUP_TMP"
-if ! nft list ruleset >> "$BACKUP_TMP"; then
+# Capture and validate the raw dump separately. Checking the combined file would
+# accept the synthetic flush line as proof that nft emitted a useful ruleset.
+RAW_DUMP_TMP="$(mktemp "${BACKUP}.raw.XXXXXX")"
+if ! nft list ruleset > "$RAW_DUMP_TMP"; then
   die "could not dump the current nft ruleset; nothing was loaded"
 fi
-[ -s "$BACKUP_TMP" ] || die "nft backup is empty; nothing was loaded"
+if [ ! -s "$RAW_DUMP_TMP" ] || ! grep -q '[^[:space:]]' "$RAW_DUMP_TMP"; then
+  die "nft returned an empty or whitespace-only ruleset; nothing was loaded"
+fi
+
+# Build beside the real backup and publish only after both writes succeeded.
+BACKUP_TMP="$(mktemp "${BACKUP}.tmp.XXXXXX")"
+printf 'flush ruleset\n' > "$BACKUP_TMP"
+cat "$RAW_DUMP_TMP" >> "$BACKUP_TMP"
 mv "$BACKUP_TMP" "$BACKUP"
 BACKUP_TMP=""
+rm -f "$RAW_DUMP_TMP"
+RAW_DUMP_TMP=""
 iptables-save > "$STATE_DIR/iptables.pre-apply.rules"
 printf 'saved current ruleset to %s\n' "$BACKUP"
 

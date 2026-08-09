@@ -26,13 +26,11 @@ function ipv4Number(value) {
 }
 
 function cidrRange(value) {
-  const text = String(value).trim();
-  if (!text || text === 'default') return null;
-  const [address, prefixText = '32'] = text.split('/');
+  const text = String(value);
+  const match = /^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(?:\/(0|[1-9]|[12]\d|3[0-2]))?$/.exec(text);
+  if (!match) throw new Error(`invalid IPv4 CIDR: ${value}`);
+  const [, address, prefixText = '32'] = match;
   const prefix = Number(prefixText);
-  if (!Number.isInteger(prefix) || prefix < 0 || prefix > 32) {
-    throw new Error(`invalid IPv4 prefix: ${value}`);
-  }
   const hostBits = 32n - BigInt(prefix);
   const size = 1n << hostBits;
   const start = (ipv4Number(address) / size) * size;
@@ -50,8 +48,9 @@ export function evaluateAddressSpace(input, candidate = CANDIDATE) {
   for (const source of ['routes', 'addresses', 'dockerNetworks', 'dockerPools']) {
     for (const cidr of input[source] || []) {
       try {
+        if (source === 'routes' && cidr === 'default') continue;
         const range = cidrRange(cidr);
-        if (range && overlaps(target, range)) collisions.push({ source, cidr });
+        if (overlaps(target, range)) collisions.push({ source, cidr });
       } catch (error) {
         unknown.push(`${source}: ${error.message}`);
       }

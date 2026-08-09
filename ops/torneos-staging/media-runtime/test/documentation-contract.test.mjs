@@ -32,6 +32,11 @@ test('I1 documents the local fail-closed preflight before networking', () => {
   assert.match(i1, /address-space-preflight\.mjs/);
   assert.match(i1, /before|antes/i);
   assert.match(i1, /UNKNOWN[^\n]*blocks I1/i);
+  assert.match(i1, /Docker missing[\s\S]*?UNKNOWN/i);
+  assert.match(i1, /absence of `daemon\.json` is not evidence/i);
+  assert.match(i1, /Before any Arma2 networking/i);
+  assert.ok(i1.indexOf('effective daemon address pools') < i1.indexOf('the preflight\nruns'),
+    'the runbook still orders the preflight before Docker is inspectable');
   assert.match(i1, /no Hetzner API/i);
 });
 

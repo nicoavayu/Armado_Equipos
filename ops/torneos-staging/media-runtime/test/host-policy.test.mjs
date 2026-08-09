@@ -294,16 +294,22 @@ test('the apply path validates first and arms a revert before it commits', () =>
 
 test('the nft backup is replacement-safe and the deadman restores that exact backup', () => {
   const apply = read('firewall/apply-with-rollback.sh');
+  assert.match(apply, /RAW_DUMP_TMP="\$\(mktemp /,
+    'the raw nft dump does not have its own temporary file');
+  assert.match(apply, /nft list ruleset > "\$RAW_DUMP_TMP"/,
+    'the raw nft dump is not captured separately');
+  assert.match(apply, /\[ ! -s "\$RAW_DUMP_TMP" \].*grep -q '\[\^\[:space:\]\]'/,
+    'empty or whitespace-only raw dumps are not rejected');
   assert.match(apply, /printf ['"]flush ruleset\\n['"] > "\$BACKUP_TMP"/,
     'the backup does not begin with flush ruleset');
-  assert.match(apply, /nft list ruleset >> "\$BACKUP_TMP"/,
+  assert.match(apply, /cat "\$RAW_DUMP_TMP" >> "\$BACKUP_TMP"/,
     'the original ruleset is not appended after the flush instruction');
-  assert.match(apply, /if ! nft list ruleset >> "\$BACKUP_TMP"; then[\s\S]*?die /,
+  assert.match(apply, /if ! nft list ruleset > "\$RAW_DUMP_TMP"; then[\s\S]*?die /,
     'a failed dump is not rejected');
-  assert.match(apply, /\[ -s "\$BACKUP_TMP" \]/,
-    'the apply path never rejects an empty backup');
   assert.match(apply, /mv "\$BACKUP_TMP" "\$BACKUP"/,
-    'the incomplete temporary backup is not atomically published after success');
+    'the incomplete temporary backup is published before construction succeeds');
+  assert.match(apply, /cleanup\(\)[\s\S]*RAW_DUMP_TMP[\s\S]*BACKUP_TMP/,
+    'the apply path does not clean both of its own temporary files');
   assert.match(apply, /ExecStart=\/usr\/sbin\/nft -f \$\{BACKUP\}/,
     'the deadman no longer restores through nft -f BACKUP');
   assert.match(apply, /iptables-save > "\$STATE_DIR\/iptables\.pre-apply\.rules"/);

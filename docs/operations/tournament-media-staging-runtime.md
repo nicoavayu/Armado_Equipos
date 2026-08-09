@@ -254,14 +254,23 @@ of the split is that each one has exactly one way to fail.
 ### I1 — empty infrastructure
 
 Create the VM, the Hetzner firewall, the resolver and the host firewall. Nothing
-Arma2-specific runs.
+Arma2-specific runs. The future provisioning order is: the host exists; local
+tools including Docker are installed; Docker network inspection and the
+effective daemon address pools are authoritative and inspectable; the preflight
+runs; only then may the four Arma2 networks (`172.31.20.0/28`, `.16/28`,
+`.32/28`, `.48/28`) or rules depending on them be created.
 
 - [ ] Authorization recorded, naming I1 specifically
-- [ ] **Before any I1 networking**, `node firewall/address-space-preflight.mjs`
+- [ ] **Before any Arma2 networking**, `node firewall/address-space-preflight.mjs`
       returns `ADDRESS_SPACE_PREFLIGHT_OK` for `172.31.20.0/24`; any collision or
       UNKNOWN source blocks I1. It reads local routes (all tables, including
       visible VPN/admin routes), interface addresses, Docker networks and the
-      configured Docker address pools. It contacts no Hetzner API.
+      configured Docker address pools. Docker missing, failed network inspection,
+      or address pools that cannot be determined authoritatively are UNKNOWN and
+      block I1; absence of `daemon.json` is not evidence that no pools exist.
+      Future provisioning must install/start Docker and expose its effective
+      network and pool configuration to make those sources inspectable. The
+      preflight contacts no Hetzner API.
 - [ ] `ADMIN_CIDR` decided and substituted; the repository keeps its placeholder
 - [ ] `firewall/validate.sh` passes on the host, with `nft` and `shellcheck`
       actually installed so nothing reports SKIP
@@ -269,7 +278,7 @@ Arma2-specific runs.
       confirmed from a **second** ssh session
 - [ ] `unbound-checkconf` accepts the fragment; Production resolves NXDOMAIN and
       Staging resolves, both checked from the host
-- [ ] Docker installed; `docker compose version` reports v2
+- [ ] Docker remains installed; `docker compose version` reports v2
 - [ ] The exact `clamav/clamav:1.4.5-debian` image is acquired and inspected in
       this separately authorized provisioning stage. This remediation performs
       no pull; runtime `pull_policy: never` fails closed if it is absent.

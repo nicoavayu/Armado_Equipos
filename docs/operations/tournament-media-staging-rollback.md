@@ -168,8 +168,12 @@ If the new session cannot connect, **do nothing**. The armed revert feeds the
 saved backup to `nft -f`; that backup begins with `flush ruleset` and then the
 complete pre-apply dump, so restoration replaces rather than merges the nft
 ruleset. The iptables snapshot remains a separate `iptables-restore` step. The
-offline tests prove backup construction and ordering, not live-kernel
-atomicity. The files live under `/var/lib/arma2-media-staging/firewall/`.
+raw nft dump and the combined backup use separate temporary files. A failed,
+zero-byte or whitespace-only dump publishes nothing, removes the temporary
+files and preserves any prior valid definitive backup. A stale temporary file
+is never treated as that definitive backup. The offline tests prove backup
+construction, cleanup and publication ordering, not live-kernel atomicity. The
+files live under `/var/lib/arma2-media-staging/firewall/`.
 Confirming from the session that applied the rules proves nothing: it is already
 `ESTABLISHED`, so conntrack accepts it whatever the input policy says.
 
