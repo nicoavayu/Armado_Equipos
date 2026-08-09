@@ -64,7 +64,7 @@
     "test:edge-functions": "node --test scripts/edge-functions/*.test.mjs",
     "test:storage:local": "node --test scripts/storage/*.test.mjs",
     "test:worker:media": "node --test workers/tournament-media-processor/test/*.test.mjs",
-    "test:worker:media:ci": "node --test workers/tournament-media-processor/test/antivirus.test.mjs workers/tournament-media-processor/test/cleanup.test.mjs workers/tournament-media-processor/test/contract.test.mjs workers/tournament-media-processor/test/pipeline.test.mjs workers/tournament-media-processor/test/selfTest.test.mjs workers/tournament-media-processor/test/supabase.test.mjs workers/tournament-media-processor/test/target.test.mjs",
+    "test:worker:media:ci": "node --test workers/tournament-media-processor/test/antivirus.test.mjs workers/tournament-media-processor/test/cleanup.test.mjs workers/tournament-media-processor/test/contract.test.mjs workers/tournament-media-processor/test/pipeline.test.mjs workers/tournament-media-processor/test/secret-source.test.mjs workers/tournament-media-processor/test/selfTest.test.mjs workers/tournament-media-processor/test/supabase.test.mjs workers/tournament-media-processor/test/target.test.mjs",
     "test:worker:media:selftest": "node workers/tournament-media-processor/src/selftest-cli.mjs",
     "test:worker:signer-renewer": "node --test workers/tournament-media-signer-renewer/test/*.test.mjs",
     "test:media-runtime": "node --test ops/torneos-staging/media-runtime/test/*.test.mjs",
