@@ -1,0 +1,148 @@
+#!/usr/sbin/nft -f
+#
+# Arma2 Torneos · Multimedia Staging VM — HOST packet policy.
+#
+# TEMPLATE. NOT APPLIED. Validate with ./validate.sh; apply only through
+# ./apply-with-rollback.sh, which arms a revert timer before it commits.
+#
+# ===========================================================================
+# READ THIS FIRST: what this file does NOT do
+# ===========================================================================
+# 1. It does not filter container traffic. Packets leaving a container are
+#    ROUTED by the host, so they traverse the `forward` hook and Docker's own
+#    chains — not `output`. A default-deny `output` policy governs sshd, apt,
+#    dockerd's image pulls and unbound, and governs the processor not at all.
+#    Container egress is in docker-user.rules.sh, at the one insertion point
+#    Docker documents as reserved for operators.
+#
+# 2. `tcp dport 443 accept` DOES NOT MEAN "may reach Supabase Staging". It
+#    means "may reach any host on the internet that listens on 443", which is
+#    most of them. A stateless address/port firewall cannot distinguish one
+#    TLS endpoint from another; it never sees the SNI it would need. Anyone
+#    reading this file as "Production is firewalled off" has read it wrong.
+#    Production is refused by the compiled block in the workers' target.mjs
+#    and by NXDOMAIN in the resolver. This layer bounds the blast radius of a
+#    compromised container — no SMTP, no SSH out, no arbitrary ports — and
+#    that is the entirety of what it is worth.
+#
+# 3. Root inside this VM can flush it. It is a control against a compromised
+#    unprivileged container and against operator error, not against host root.
+#    The layer that survives host root is the Hetzner Cloud firewall, which is
+#    enforced outside the VM: see hetzner-cloud-firewall.json.
+#
+# ===========================================================================
+# Placeholders to substitute before applying
+# ===========================================================================
+#   @ADMIN_CIDR@   the address range administrative SSH may come from.
+#                  A CIDR, never a bare personal address committed to git.
+#                  e.g. 203.0.113.0/24
+#
+# `define` below is the only edit needed. validate.sh substitutes a syntactic
+# placeholder so the file can be syntax-checked without anyone's real address.
+
+define ADMIN_CIDR = @ADMIN_CIDR@
+
+# The bridge subnets from docker-compose.staging.yml. Pinned there precisely so
+# they can be named here.
+define NET_INTERNAL  = 172.31.20.0/28
+define NET_PROCESSOR = 172.31.20.16/28
+define NET_CLAMAV    = 172.31.20.32/28
+define NET_RENEWER   = 172.31.20.48/28
+
+# The two DNS-over-TLS upstreams unbound forwards to.
+define DOT_UPSTREAMS = { 1.1.1.1, 9.9.9.9 }
+
+table inet arma2_media_staging {
+
+  chain input {
+    type filter hook input priority filter; policy drop;
+
+    ct state established,related accept
+    ct state invalid drop
+    iif lo accept
+
+    # ---------------------------------------------------------------------
+    # Administrative SSH. The ONE inbound service on this VM.
+    # ---------------------------------------------------------------------
+    # Nothing else is published: the compose file declares no `ports:` on any
+    # service, so clamd:3310, the processor and the renewer have no host-side
+    # listener to reach. There is no HTTP port here to allow.
+    ip saddr $ADMIN_CIDR tcp dport 22 ct state new limit rate 6/minute burst 6 packets accept
+
+    # ---------------------------------------------------------------------
+    # The containers' resolver.
+    # ---------------------------------------------------------------------
+    # A container querying its `dns:` address is addressing the bridge gateway,
+    # which IS this host — so the packet is delivered locally and arrives on
+    # `input`, not `forward`. That is why the DNS allowance lives here and not
+    # in the Docker chain. Each egress subnet may reach only its own resolver
+    # address; media-internal is absent because it has no route to this host.
+    ip saddr $NET_PROCESSOR ip daddr 172.31.20.17 udp dport 53 accept
+    ip saddr $NET_PROCESSOR ip daddr 172.31.20.17 tcp dport 53 accept
+    ip saddr $NET_CLAMAV    ip daddr 172.31.20.33 udp dport 53 accept
+    ip saddr $NET_CLAMAV    ip daddr 172.31.20.33 tcp dport 53 accept
+    ip saddr $NET_RENEWER   ip daddr 172.31.20.49 udp dport 53 accept
+    ip saddr $NET_RENEWER   ip daddr 172.31.20.49 tcp dport 53 accept
+
+    # DHCP replies. Hetzner Cloud configures the primary interface by DHCP and
+    # renews the lease; dropping this costs the VM its address at renewal time,
+    # which is an outage with a multi-hour fuse and no obvious cause.
+    udp sport 67 udp dport 68 accept
+
+    # ICMP. Path-MTU discovery is not optional on a NAT'd cloud network: drop
+    # `frag-needed` and large TLS responses hang instead of failing.
+    ip protocol icmp icmp type { echo-request, echo-reply, destination-unreachable, time-exceeded, parameter-problem } accept
+    ip6 nexthdr icmpv6 accept
+
+    counter comment "input drops"
+  }
+
+  chain forward {
+    type filter hook forward priority filter; policy accept;
+    # Deliberately `accept` with no rules.
+    #
+    # Docker manages the forward path through iptables-nft (DOCKER, DOCKER-USER,
+    # DOCKER-ISOLATION-STAGE-*) in the `ip filter` table. A second nft table
+    # hooking `forward` is evaluated INDEPENDENTLY, and the verdicts interact in
+    # ways that depend on hook priority and on the Docker version — a `drop`
+    # here would silently override Docker's own accepts, and an `accept` here
+    # does not override Docker's drops. Splitting container policy across two
+    # engines is how these setups end up with a rule nobody can explain.
+    #
+    # So the forward path has exactly one owner: docker-user.rules.sh.
+  }
+
+  chain output {
+    type filter hook output priority filter; policy drop;
+
+    ct state established,related accept
+    oif lo accept
+
+    # DNS-over-TLS, from unbound, to the two configured upstreams only. Plain
+    # udp/53 outbound is NOT allowed anywhere — that is what stops a container
+    # (or a host process) from ignoring the local resolver and querying
+    # 8.8.8.8 directly, which would route around the NXDOMAIN policy.
+    ip daddr $DOT_UPSTREAMS tcp dport 853 accept
+
+    # Registry pulls and package installation, from the host. See the warning
+    # at the top: this is "any HTTPS host", not "Supabase".
+    tcp dport { 80, 443 } accept
+
+    # NTP. A host with a skewed clock produces attestations whose validity
+    # window is wrong on both ends and TLS handshakes that fail for no visible
+    # reason. This is required, not optional.
+    udp dport 123 accept
+
+    # DHCP client.
+    udp sport 68 udp dport 67 accept
+
+    # Hetzner Cloud instance metadata. cloud-init and the guest agent read it;
+    # blocking it breaks first boot and network reconfiguration.
+    ip daddr 169.254.169.254 tcp dport 80 accept
+
+    ip protocol icmp accept
+    ip6 nexthdr icmpv6 accept
+
+    counter comment "output drops"
+  }
+}

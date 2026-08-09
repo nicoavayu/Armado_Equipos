@@ -1,0 +1,110 @@
+{
+  "$comment": [
+    "Arma2 Torneos · Multimedia Staging — Hetzner Cloud Firewall specification.",
+    "",
+    "TEMPLATE. NOT CREATED. No Hetzner API call has been made by this change and",
+    "no VM, firewall, network or volume exists. This file is the reviewable",
+    "description of the resource a future, separately authorized step would ask",
+    "for; it is not read by any tool in this repository.",
+    "",
+    "WHY BOTH THIS AND nftables-host.staging.nft",
+    "  Hetzner Cloud Firewall is enforced in the network fabric, OUTSIDE the VM.",
+    "  Root inside the VM cannot flush it, so it is the only layer that still",
+    "  holds after a full host compromise. It is also stateful and address/port",
+    "  based, which means it can express 'only this CIDR may open tcp/22' and",
+    "  cannot express anything about which HTTPS endpoint is being reached.",
+    "  nftables inside the VM is the opposite trade: bypassable by host root,",
+    "  but able to see the docker bridge subnets and write per-service rules.",
+    "  Neither replaces the other and neither identifies Supabase Staging.",
+    "",
+    "OUTBOUND RULES ARE PRESENT AND DELIBERATELY COARSE",
+    "  Hetzner applies outbound rules only when at least one is defined; a",
+    "  firewall with inbound rules only leaves egress unrestricted. The rules",
+    "  below therefore exist to make egress DEFINED, not because tcp/443 to",
+    "  0.0.0.0/0 is a meaningful restriction. It is not. It permits every HTTPS",
+    "  host on the internet, Production's API host included. Production is",
+    "  refused by the compiled block in the workers' target.mjs; nothing at this",
+    "  layer contributes to that guarantee.",
+    "",
+    "BEFORE APPLYING",
+    "  Replace ADMIN_CIDR_PLACEHOLDER. Applying with the placeholder in place is",
+    "  rejected by the API (not a valid CIDR), which is the intended failure:",
+    "  no personal address is committed to this repository, and a firewall that",
+    "  silently defaults to 0.0.0.0/0 on tcp/22 is worse than no firewall."
+  ],
+  "name": "arma2-media-staging",
+  "labels": {
+    "project": "arma2-torneos",
+    "component": "media-processor",
+    "environment": "staging",
+    "managed-by": "ops/torneos-staging/media-runtime"
+  },
+  "apply_to": [
+    {
+      "type": "label_selector",
+      "label_selector": { "selector": "component=media-processor,environment=staging" }
+    }
+  ],
+  "rules": [
+    {
+      "$comment": "Administrative SSH. The only inbound service. No container port is published by docker-compose.staging.yml, so there is nothing else to open.",
+      "direction": "in",
+      "protocol": "tcp",
+      "port": "22",
+      "source_ips": ["ADMIN_CIDR_PLACEHOLDER"],
+      "description": "admin SSH"
+    },
+    {
+      "$comment": "Diagnostics. Without it, an unreachable host cannot be distinguished from a firewalled one, and PMTU black holes are invisible.",
+      "direction": "in",
+      "protocol": "icmp",
+      "source_ips": ["ADMIN_CIDR_PLACEHOLDER"],
+      "description": "admin ICMP"
+    },
+    {
+      "$comment": "HTTPS out: Supabase Staging for the processor and the renewer, the ClamAV mirrors for freshclam, the container registry for image pulls, the distribution mirrors for apt. All four are indistinguishable at this layer.",
+      "direction": "out",
+      "protocol": "tcp",
+      "port": "443",
+      "destination_ips": ["0.0.0.0/0", "::/0"],
+      "description": "HTTPS egress (NOT destination-restricted)"
+    },
+    {
+      "$comment": "HTTP out: apt on the Hetzner Debian mirrors, and the ClamAV mirrors that still redirect through 80.",
+      "direction": "out",
+      "protocol": "tcp",
+      "port": "80",
+      "destination_ips": ["0.0.0.0/0", "::/0"],
+      "description": "HTTP egress for package and signature mirrors"
+    },
+    {
+      "$comment": "DNS-over-TLS to the two upstreams unbound forwards to. Plain udp/53 egress is intentionally absent, so a process that ignores the local resolver cannot query a public one directly.",
+      "direction": "out",
+      "protocol": "tcp",
+      "port": "853",
+      "destination_ips": ["1.1.1.1/32", "9.9.9.9/32"],
+      "description": "DoT upstreams"
+    },
+    {
+      "$comment": "NTP. A skewed clock produces attestations with wrong validity windows on both ends and TLS failures with no visible cause.",
+      "direction": "out",
+      "protocol": "udp",
+      "port": "123",
+      "destination_ips": ["0.0.0.0/0", "::/0"],
+      "description": "NTP"
+    },
+    {
+      "$comment": "ICMP out. Path-MTU discovery on a NAT'd cloud network is not optional: without frag-needed, large TLS responses hang rather than fail.",
+      "direction": "out",
+      "protocol": "icmp",
+      "destination_ips": ["0.0.0.0/0", "::/0"],
+      "description": "ICMP egress including PMTU"
+    }
+  ],
+  "$notApplied": {
+    "vmCreated": false,
+    "firewallCreated": false,
+    "apiCallsMade": 0,
+    "hetznerTokenRead": false
+  }
+}
