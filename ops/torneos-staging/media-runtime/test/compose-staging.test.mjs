@@ -338,3 +338,10 @@ test('every image reference is pinned to an exact tag', () => {
   }
   assert.equal(services.clamd.image, 'clamav/clamav:1.4.5-debian');
 });
+
+test('runtime never acquires images implicitly', () => {
+  for (const name of SERVICE_NAMES) {
+    assert.equal(services[name].pull_policy, 'never',
+      `${name} may pull an image during compose up/restart`);
+  }
+});

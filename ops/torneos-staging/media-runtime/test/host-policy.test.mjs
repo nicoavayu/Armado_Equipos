@@ -292,6 +292,53 @@ test('the apply path validates first and arms a revert before it commits', () =>
     'the script does not refuse to apply the documentation placeholder');
 });
 
+test('the nft backup is replacement-safe and the deadman restores that exact backup', () => {
+  const apply = read('firewall/apply-with-rollback.sh');
+  assert.match(apply, /printf ['"]flush ruleset\\n['"] > "\$BACKUP_TMP"/,
+    'the backup does not begin with flush ruleset');
+  assert.match(apply, /nft list ruleset >> "\$BACKUP_TMP"/,
+    'the original ruleset is not appended after the flush instruction');
+  assert.match(apply, /if ! nft list ruleset >> "\$BACKUP_TMP"; then[\s\S]*?die /,
+    'a failed dump is not rejected');
+  assert.match(apply, /\[ -s "\$BACKUP_TMP" \]/,
+    'the apply path never rejects an empty backup');
+  assert.match(apply, /mv "\$BACKUP_TMP" "\$BACKUP"/,
+    'the incomplete temporary backup is not atomically published after success');
+  assert.match(apply, /ExecStart=\/usr\/sbin\/nft -f \$\{BACKUP\}/,
+    'the deadman no longer restores through nft -f BACKUP');
+  assert.match(apply, /iptables-save > "\$STATE_DIR\/iptables\.pre-apply\.rules"/);
+  assert.match(apply, /ExecStart=\/usr\/sbin\/iptables-restore \$\{STATE_DIR\}\/iptables\.pre-apply\.rules/);
+});
+
+test('Unbound can bind only the explicit future bridge gateways before Docker creates them', () => {
+  const configured = directives(unbound);
+  assert.match(configured, /^ip-freebind: yes$/m);
+  assert.doesNotMatch(configured, /^interface:\s+0\.0\.0\.0$/m);
+  for (const address of ['172.31.20.17', '172.31.20.33', '172.31.20.49']) {
+    assert.match(configured, new RegExp(`^interface: ${address}$`, 'm'));
+  }
+});
+
+test('I1 has a fail-closed, local-only address-space collision preflight', async () => {
+  const preflight = path.join(RUNTIME, 'firewall/address-space-preflight.mjs');
+  assert.ok(fs.existsSync(preflight), 'address-space-preflight.mjs is missing');
+  const { evaluateAddressSpace } = await import(new URL(`file://${preflight}`));
+  const base = { routes: [], addresses: [], dockerNetworks: [], dockerPools: [], unknown: [] };
+  assert.deepEqual(evaluateAddressSpace(base).collisions, []);
+  for (const [source, value] of [
+    ['routes', '172.31.20.0/24'],
+    ['addresses', '172.31.20.17/32'],
+    ['dockerNetworks', '172.31.16.0/20'],
+    ['dockerPools', '172.16.0.0/12'],
+  ]) {
+    const input = structuredClone(base);
+    input[source].push(value);
+    assert.ok(evaluateAddressSpace(input).collisions.length > 0, `${source} collision was accepted`);
+  }
+  const unknown = evaluateAddressSpace({ ...base, unknown: ['docker address pools unavailable'] });
+  assert.equal(unknown.ok, false, 'an UNKNOWN inspection source must fail closed');
+});
+
 test('the Hetzner spec records that nothing was provisioned', () => {
   assert.deepEqual(hetzner.$notApplied, {
     vmCreated: false,

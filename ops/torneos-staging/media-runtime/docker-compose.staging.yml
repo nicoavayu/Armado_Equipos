@@ -94,10 +94,11 @@ volumes:
 # repository never learns the path.
 #
 # Compose in non-Swarm mode IGNORES `uid`/`gid`/`mode` on file-based secrets and
-# mounts the host file with the ownership and mode it already has. The processor
-# image runs as `node` (uid 1000), so the host files must be `chown 1000:1000`
-# and `chmod 0400`. That is a host provisioning step, not something this file can
-# assert — see the runbook.
+# mounts the host file with the ownership and mode it already has. The host
+# directory must be root:root 0700; its traversal restriction prevents host uid
+# 1000 from opening the files. The files are 1000:1000 0400 so container uid
+# 1000 can read their bind mounts. That is a host provisioning step, not
+# something this file can assert — see the runbook.
 #
 # The `*_FILE` form wired below is HONOURED by the worker packages: PR #139 added
 # `src/secret-source.mjs` to both, and it is in the epic. Each variable's twin is
@@ -123,6 +124,9 @@ services:
   # -------------------------------------------------------------------------
   clamd:
     image: clamav/clamav:1.4.5-debian
+    # Runtime never acquires images. A future authorized provisioning stage must
+    # obtain this exact tag first; a missing local image fails closed.
+    pull_policy: never
     networks:
       - media-internal
       - clamav-egress
@@ -164,6 +168,7 @@ services:
       context: ../../../workers/tournament-media-processor
       dockerfile: Dockerfile
     image: arma2/tournament-media-processor:0.1.0
+    pull_policy: never
     depends_on:
       clamd:
         condition: service_healthy
@@ -252,6 +257,7 @@ services:
       context: ../../../workers/tournament-media-signer-renewer
       dockerfile: Dockerfile
     image: arma2/tournament-media-signer-renewer:0.1.0
+    pull_policy: never
     networks:
       - renewer-egress
     dns:

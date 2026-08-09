@@ -35,9 +35,12 @@ set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 STATE_DIR=/var/lib/arma2-media-staging/firewall
 BACKUP="$STATE_DIR/nftables.pre-apply.nft"
+BACKUP_TMP=""
 REVERT_UNIT=arma2-media-firewall-revert
 CONFIRM_WINDOW="${CONFIRM_WINDOW:-300}"
 
+cleanup() { [ -z "$BACKUP_TMP" ] || rm -f "$BACKUP_TMP"; }
+trap cleanup EXIT
 die() { printf 'apply-with-rollback: %s\n' "$1" >&2; exit 1; }
 
 mode="${1:-}"
@@ -76,7 +79,16 @@ command -v iptables >/dev/null 2>&1 || die "iptables is not installed"
 mkdir -p "$STATE_DIR"
 
 # --- 2. save the current ruleset ---------------------------------------------
-nft list ruleset > "$BACKUP"
+# Build beside the real backup and publish it only after nft produced a complete
+# dump. A dump failure therefore leaves no flush-only file that looks valid.
+BACKUP_TMP="$(mktemp "${BACKUP}.tmp.XXXXXX")"
+printf 'flush ruleset\n' > "$BACKUP_TMP"
+if ! nft list ruleset >> "$BACKUP_TMP"; then
+  die "could not dump the current nft ruleset; nothing was loaded"
+fi
+[ -s "$BACKUP_TMP" ] || die "nft backup is empty; nothing was loaded"
+mv "$BACKUP_TMP" "$BACKUP"
+BACKUP_TMP=""
 iptables-save > "$STATE_DIR/iptables.pre-apply.rules"
 printf 'saved current ruleset to %s\n' "$BACKUP"
 
@@ -109,7 +121,7 @@ printf 'revert armed: the pre-apply ruleset returns in %ss unless --confirm runs
 
 # --- 4. load ------------------------------------------------------------------
 tmp="$(mktemp)"
-trap 'rm -f "$tmp"' EXIT
+trap 'rm -f "$tmp"; cleanup' EXIT
 sed "s|@ADMIN_CIDR@|${ADMIN_CIDR}|g" "$HERE/nftables-host.staging.nft" > "$tmp"
 nft -f "$tmp"
 bash "$HERE/docker-user.rules.sh"

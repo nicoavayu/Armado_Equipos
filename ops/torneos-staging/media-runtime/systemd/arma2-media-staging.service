@@ -20,7 +20,10 @@
 # confined in docker-compose.staging.yml, where the confinement actually lands:
 # read-only rootfs, cap_drop ALL, no-new-privileges, pids and memory ceilings.
 # What is set here is the part that is genuinely this unit's job — ordering,
-# restart semantics, and how the secrets reach the CLI.
+# start/stop of the Compose CLI, and how the secret paths reach it. Type=oneshot
+# plus RemainAfterExit does not monitor container life after `up -d` returns;
+# Docker's per-container restart policies do that. Restart=on-failure below only
+# retries when ExecStart itself fails.
 #
 # ---------------------------------------------------------------------------
 # Secrets: LoadCredentialEncrypted is NOT used, and that is a finding
@@ -39,8 +42,11 @@
 # wrongly means a stack that either fails to start or, worse, silently mounts
 # an empty file.
 #
-# So the secrets are plain root-owned files under ARMA2_MEDIA_SECRET_DIR, which
-# dockerd can unambiguously resolve, and the encrypted-credential path is left
+# So the directory is root:root 0700 and contains uid/gid 1000:1000, mode 0400
+# secret files under ARMA2_MEDIA_SECRET_DIR, which dockerd can unambiguously
+# resolve. The root-only directory blocks host uid 1000 from traversing to the
+# files; the container's uid 1000 can read them only through Docker's bind mount.
+# The encrypted-credential path is left
 # as a documented follow-up with a host-side verification procedure in
 # docs/operations/tournament-media-staging-secret-injection.md. The residual
 # risk is stated there rather than papered over: those files are at rest on the
@@ -68,9 +74,9 @@ WorkingDirectory=/opt/arma2/media-staging
 # `docker inspect`; see env.example.
 EnvironmentFile=/etc/arma2/media-staging/runtime.env
 
-# `up` without `--build`: the images are built and tagged in a separate,
-# separately authorized step, so a restart can never silently ship a different
-# image than the one that was reviewed.
+# `--no-build` plus `pull_policy: never`: images are built or acquired in a
+# separate, authorized step. A restart fails if an image is absent and never
+# downloads a replacement. systemctl restart is not image acquisition.
 ExecStart=/usr/bin/docker compose -f docker-compose.staging.yml up --detach --no-build --remove-orphans
 ExecStop=/usr/bin/docker compose -f docker-compose.staging.yml stop --timeout 400
 ExecReload=/usr/bin/docker compose -f docker-compose.staging.yml up --detach --no-build --remove-orphans
