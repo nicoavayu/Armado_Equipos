@@ -4,7 +4,7 @@ El directorio `workers/tournament-media-processor` describe un worker de imágen
 
 ## Provisión
 
-- Host/container Node 22 exacto; sharp 0.33.5 y libvips reportado por self-test.
+- Host/container Node 22 exacto; sharp 0.35.3 y libvips reportado por self-test.
 - ClamAV/clamd/freshclam activos; TCP interno `clamd:3310`; firmas menores a siete días.
 - Egress sólo hacia la API de Staging autorizada; ninguna ruta a Production.
 - CPU 1, memoria 1 GiB, pids 128, filesystem read-only y `/tmp` 256 MiB.
@@ -12,6 +12,16 @@ El directorio `workers/tournament-media-processor` describe un worker de imágen
 - Lease 300 s, máximo tres intentos en DB, batch 1 y backoff exponencial acotado con jitter.
 - Variables desde `.env.example`; secretos desde el secret store, nunca en imagen o Compose versionado.
 - Logs JSON sin object names, tokens, claves, paths, URLs firmadas o identidad.
+
+### Proyecto autorizado (obligatorio)
+
+`TOURNAMENT_MEDIA_EXPECTED_PROJECT_REF` nombra el único proyecto Supabase al que este worker puede mandar su service-role key. **Es obligatoria**: sin ella, cualquier `SUPABASE_URL` que no sea loopback aborta el arranque con `TARGET_REF_REQUIRED`, antes de leer la credencial y antes de abrir un socket.
+
+- Staging: `TOURNAMENT_MEDIA_EXPECTED_PROJECT_REF=hhyvmhgpapyuzjgxfnqv`
+- `SUPABASE_URL` debe ser exactamente `https://<ref>.supabase.co`, sin puerto, sin userinfo, sin query.
+- Production (`rcyuuoaqfwcembdajcss`) está prohibida en el código compilado: no hay valor de entorno que la habilite, ni como URL ni como ref esperado. Habilitarla sería un cambio de fuente revisado, no un cambio de configuración.
+
+Un proceso configurado por error contra Production aborta antes de cualquier request. La validación corre en `readConfig` y se repite contra el descriptor congelado antes de cada llamada.
 
 Checklist:
 

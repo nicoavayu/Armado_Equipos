@@ -293,7 +293,7 @@ lectura/escritura/borrado reales contra el bucket.
 
 | capacidad | en este repo hoy |
 | --- | --- |
-| codec real | ✅ libvips 8.15.3 vía `sharp@0.33.5`, con 12 pruebas sobre píxeles reales |
+| codec real | ✅ libvips 8.18.3 vía `sharp@0.35.3`, con 12 pruebas sobre píxeles reales |
 | antivirus real | ❌ no hay ClamAV ni Docker en el entorno de desarrollo usado |
 | Storage real | ❌ requiere `supabase start` local |
 

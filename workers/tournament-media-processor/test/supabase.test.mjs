@@ -14,8 +14,18 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createStorageClient } from '../src/supabase.mjs';
+import { createSupabaseTarget } from '../src/target.mjs';
 
-const CONFIG = { url: 'http://127.0.0.1:57321', key: 'service-key' };
+// A loopback literal is an authorized target in its own right: it cannot reach
+// Production and cannot exfiltrate anywhere, which is what lets these tests
+// drive the real client. The descriptor is built rather than hand-written
+// because the client refuses a config that never went through the guard —
+// see `test/target.test.mjs`.
+const CONFIG = {
+  url: 'http://127.0.0.1:57321',
+  key: 'service-key',
+  target: createSupabaseTarget({ url: 'http://127.0.0.1:57321' }),
+};
 
 function respond({ status, body = '', bytes = null }) {
   return {

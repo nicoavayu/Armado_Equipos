@@ -13,6 +13,7 @@
 
 import * as codec from './codec.mjs';
 import { createAntivirus, defaultAntivirusConfig } from './antivirus.mjs';
+import { createQuarantinePurger } from './cleanup.mjs';
 import { processMediaJob } from './pipeline.mjs';
 import { buildAttestation, runWorkerSelfTest } from './selfTest.mjs';
 import { createDbClient, createStorageClient, readConfig } from './supabase.mjs';
@@ -45,6 +46,7 @@ async function main() {
   const db = createDbClient(config);
   const storage = createStorageClient(config);
   const antivirus = createAntivirus(defaultAntivirusConfig());
+  const purger = createQuarantinePurger({ storage, logger: log });
 
   let attestedAt = 0;
   let consecutiveErrors = 0;
@@ -63,7 +65,13 @@ async function main() {
         const result = await attestOnce(config, db, storage, antivirus);
         attestedAt = result.attested ? Date.now() : 0;
       }
-      await db.sweep(200);
+      // The sweep both requeues expired leases and names the quarantined
+      // objects of jobs that ran out of attempts. Discarding the second half is
+      // what left raw, unscanned uploads in the bucket forever; `purge` deletes
+      // them and reports what it could not. Anything that fails here is offered
+      // again by the next sweep, because `purgeable` is a pure read over rows
+      // that stay `abandoned` — so this never needs to succeed on the first try.
+      await purger.purge(await db.sweep(200));
       const leased = await db.lease(config.workerId, config.leaseSeconds, config.batchSize);
       const jobs = leased?.jobs || [];
       if (jobs.length === 0) {

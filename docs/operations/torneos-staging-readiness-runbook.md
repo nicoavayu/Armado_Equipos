@@ -250,7 +250,7 @@ Rollback Edge: revocar atestación primero; restaurar el release anterior regist
 
 ## 8. Worker y atestaciones
 
-Seguir `tournament-media-worker-runbook.md`. El worker debe pasar Node 22, sharp 0.33.5/libvips, clamd/freshclam, firmas menores a siete días, límites, Storage R/W/delete de self-test, cleanup y shutdown seguro.
+Seguir `tournament-media-worker-runbook.md`. El worker debe pasar Node 22, sharp 0.35.3/libvips, clamd/freshclam, firmas menores a siete días, límites, Storage R/W/delete de self-test, cleanup y shutdown seguro.
 
 Atestiguar signer y processor por separado con TTL corto. Probar revocación y confirmar que `uploadReady` vuelve a false antes de re-atestiguar. No atestiguar a partir de un reporte editado o self-test parcial.
 

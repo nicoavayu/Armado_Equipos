@@ -32,6 +32,12 @@ services:
     environment:
       SUPABASE_URL: ${SUPABASE_URL:?set SUPABASE_URL to your LOCAL supabase}
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:?local service key}
+      # The single project this container may send its service-role key to.
+      # A loopback SUPABASE_URL (which is what `supabase start` gives you) needs
+      # no ref; anything else refuses to start without one, and Production is
+      # refused whatever this says. Empty is the right default HERE precisely
+      # because this file is only ever pointed at a local stack.
+      TOURNAMENT_MEDIA_EXPECTED_PROJECT_REF: ${TOURNAMENT_MEDIA_EXPECTED_PROJECT_REF:-}
       TOURNAMENT_MEDIA_WORKER_ID: ${TOURNAMENT_MEDIA_WORKER_ID:-media-worker-local}
       TOURNAMENT_MEDIA_WORKER_RELEASE: ${TOURNAMENT_MEDIA_WORKER_RELEASE:-0.1.0}
       TOURNAMENT_MEDIA_CLAMD_HOST: clamd
