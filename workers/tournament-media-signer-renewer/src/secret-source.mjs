@@ -87,6 +87,22 @@ const fail = (code, message) => { throw new SecretSourceError(code, message); };
 const O_NOFOLLOW = fs.constants.O_NOFOLLOW || 0;
 
 /**
+ * `O_NONBLOCK` is what makes the "not a regular file" check below reachable at
+ * all. Opening a fifo for reading waits for a writer — forever, if none ever
+ * arrives — and `openSync` blocks the thread, so a `_FILE` pointing at a fifo
+ * would hang start-up inside `open`, before the `fstat` that exists to reject
+ * it ever ran. Hanging is not failing closed: nothing is refused, nothing is
+ * logged, and the container simply never becomes ready. With this flag the open
+ * returns at once, `fstat` sees a fifo, and the process refuses to start. The
+ * same reasoning covers a device whose open waits on a carrier.
+ *
+ * It is free on the only thing this module is meant to read: a regular file is
+ * always ready under POSIX, so neither the open nor any read below behaves
+ * differently for one.
+ */
+const O_NONBLOCK = fs.constants.O_NONBLOCK || 0;
+
+/**
  * Reads one secret file, or throws.
  *
  * Nothing here is best-effort: every rejection below is a state in which the
@@ -113,7 +129,7 @@ function readSecretFile(fileVariable, rawPath, fsImpl) {
 
   let fd = null;
   try {
-    fd = fsImpl.openSync(filePath, fs.constants.O_RDONLY | O_NOFOLLOW);
+    fd = fsImpl.openSync(filePath, fs.constants.O_RDONLY | O_NOFOLLOW | O_NONBLOCK);
   } catch (error) {
     // The errno is named because it is what an operator needs and it discloses
     // nothing; the path is not, because an error string ends up in logs and the
@@ -141,8 +157,13 @@ function readSecretFile(fileVariable, rawPath, fsImpl) {
       fail('SECRET_FILE_SYMLINK', `${fileVariable} names a symlink, which is not accepted.`);
     }
     if (!stat.isFile()) {
-      // A directory, a fifo, a socket or a device. A fifo in particular would
-      // block start-up forever on a reader that trusted it.
+      // Whatever special file the kernel did let this process open: a fifo — it
+      // reaches here only because the open above was non-blocking — a device, or
+      // a directory on a platform that opens one for reading. The special files
+      // whose open the kernel refuses outright never arrive here at all; a Unix
+      // socket is the usual one, and it has already failed above as
+      // `SECRET_FILE_UNREADABLE`. Both are refusals, which is the point: this
+      // branch is not the only way a non-regular file fails closed.
       fail('SECRET_FILE_NOT_REGULAR', `${fileVariable} does not name a regular file.`);
     }
     if (stat.size > SECRET_FILE_MAX_BYTES) {

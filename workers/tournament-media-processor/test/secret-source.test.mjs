@@ -19,11 +19,12 @@
  */
 
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test, { after, mock } from 'node:test';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import {
   SECRET_FILE_MAX_BYTES, SecretSourceError, readFirstSecret, readSecret,
@@ -131,6 +132,111 @@ test('a directory is not a secret file', () => {
   assert.equal(codeOf(() => readSecret({
     [SERVICE_ROLE.fileVariable]: dir,
   }, SERVICE_ROLE)), 'SECRET_FILE_NOT_REGULAR');
+});
+
+// --- a fifo, which is the case that could hang instead of fail -------------
+
+/**
+ * A real fifo, made with the system `mkfifo`, because this is precisely the
+ * property a mocked `stat` cannot demonstrate: the danger is not that the type
+ * check gets the wrong answer, it is that a blocking `open` never reaches the
+ * type check at all.
+ */
+const fifoPath = path.join(root, 'a-fifo');
+const fifoSkip = (() => {
+  const made = spawnSync('mkfifo', [fifoPath]);
+  if (made.error || made.status !== 0) return 'mkfifo is unavailable on this platform';
+  try {
+    // `stat` never opens, so this is safe on a fifo with no writer.
+    if (!fs.statSync(fifoPath).isFIFO()) return 'mkfifo did not produce a fifo';
+  } catch {
+    return 'mkfifo is unavailable on this platform';
+  }
+  return false;
+})();
+
+test('a fifo with no writer is refused instead of hanging start-up', { skip: fifoSkip }, () => {
+  // Opening a fifo for reading waits for a writer, and `openSync` blocks the
+  // thread — so before the non-blocking open this exact configuration hung the
+  // process inside `open`, below every refusal this module has. Hanging is not
+  // failing closed: nothing is refused, nothing is logged, and the worker just
+  // never becomes ready.
+  //
+  // The read runs in a child process with a hard timeout for the same reason.
+  // A regression here does not fail an assertion, it blocks the event loop, and
+  // an in-process version of this test would hang the whole runner rather than
+  // report anything. The child bounds it: a blocking open is killed and shows
+  // up as a failure with a name.
+  const child = `
+    import fs from 'node:fs';
+    const { readSecret } = await import(${JSON.stringify(pathToFileURL(path.join(HERE, '../src/secret-source.mjs')).href)});
+    const opened = [];
+    const closed = [];
+    let reads = 0;
+    // Delegates to the real fs — these are real syscalls on a real fifo — while
+    // recording what the reader did with the descriptor.
+    const watched = {
+      openSync: (...args) => { const fd = fs.openSync(...args); opened.push(fd); return fd; },
+      fstatSync: (...args) => fs.fstatSync(...args),
+      readSync: (...args) => { reads += 1; return fs.readSync(...args); },
+      closeSync: (fd) => { closed.push(fd); return fs.closeSync(fd); },
+    };
+    let code = null;
+    try {
+      readSecret({ FIFO_SECRET_FILE: ${JSON.stringify(fifoPath)} },
+        { variable: 'FIFO_SECRET', fileVariable: 'FIFO_SECRET_FILE' }, { fs: watched });
+    } catch (error) {
+      code = error.code ?? String(error);
+    }
+    console.log(JSON.stringify({ code, opened, closed, reads }));
+  `;
+  const result = spawnSync(process.execPath, ['--input-type=module', '-e', child], {
+    timeout: 20_000, killSignal: 'SIGKILL', encoding: 'utf8',
+  });
+  assert.equal(result.error?.code, undefined,
+    `the read did not return: the fifo open blocked (${result.error?.code})`);
+  assert.equal(result.signal, null, 'the child was killed rather than returning');
+  assert.equal(result.status, 0, `the child failed: ${result.stderr}`);
+
+  const report = JSON.parse(result.stdout);
+  assert.equal(report.code, 'SECRET_FILE_NOT_REGULAR',
+    'a fifo is not a regular file and must be refused as one');
+  // Nothing was read from it. The refusal happens at `fstat`, before any byte
+  // of a stream an attacker could still be feeding could reach the credential.
+  assert.equal(report.reads, 0, 'the reader read from the fifo');
+  // The descriptor the open produced was closed. A refusal that leaks the fd
+  // would hold the fifo open for as long as the process lives.
+  assert.equal(report.opened.length, 1, 'the fifo was opened more or less than once');
+  assert.deepEqual(report.closed, report.opened, 'the refused descriptor was not closed');
+
+  // The reader observes; it does not consume, replace or remove.
+  assert.ok(fs.existsSync(fifoPath), 'the fifo was deleted');
+  assert.ok(fs.statSync(fifoPath).isFIFO(), 'the fifo was replaced');
+});
+
+test('the secret file is opened non-blocking, and still refuses a symlink', () => {
+  // The flags themselves, so the property survives on a platform where the
+  // fifo test above skips. `O_NONBLOCK` is what makes the type check
+  // reachable; dropping `O_NOFOLLOW` to get there would trade one hole for
+  // another, so both are pinned together.
+  let flags = null;
+  let delivered = false;
+  const watched = {
+    openSync: (_path, openFlags) => { flags = openFlags; return 7; },
+    fstatSync: () => ({
+      isSymbolicLink: () => false, isFile: () => true, size: FAKE_SECRET.length,
+    }),
+    readSync: (_fd, buffer, offset) => {
+      if (delivered) return 0;
+      delivered = true;
+      return buffer.write(FAKE_SECRET, offset, 'utf8');
+    },
+    closeSync: () => {},
+  };
+  const secret = readSecret({ [SERVICE_ROLE.fileVariable]: path.join(root, 'flags-probe') },
+    SERVICE_ROLE, { fs: watched });
+  assert.equal(secret, FAKE_SECRET, 'the flags probe did not exercise a successful read');
+  assert.equal(flags, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW | fs.constants.O_NONBLOCK);
 });
 
 test('a symlink is refused rather than followed', () => {

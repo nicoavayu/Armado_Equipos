@@ -41,19 +41,33 @@ directory, not a fifo, and **not a symlink**. A symlink is refused rather than
 followed: the point of the mechanism is that the operator named the file, and a
 link redirects that to somewhere the manifest never mentions.
 
+The open is non-blocking, which matters for one case in particular: opening a
+fifo for reading otherwise waits for a writer that may never arrive, so a `_FILE`
+pointing at one would hang start-up rather than refuse it. Every non-regular file
+is refused, but **which** code you get depends on how far the kernel let the open
+get — see below.
+
 ## Failure codes
 
 | code | meaning |
 |---|---|
 | `SECRET_SOURCE_AMBIGUOUS` | both the variable and its `_FILE` twin are set |
 | `SECRET_FILE_PATH_INVALID` | `_FILE` is set to an empty or relative path |
-| `SECRET_FILE_UNREADABLE` | missing, or this process may not read it |
-| `SECRET_FILE_NOT_REGULAR` | a directory, fifo, socket or device |
+| `SECRET_FILE_UNREADABLE` | missing, this process may not read it, or the kernel refused the open outright — a Unix socket is the usual example |
+| `SECRET_FILE_NOT_REGULAR` | opened, but not a regular file: a fifo, a device, a directory |
 | `SECRET_FILE_SYMLINK` | a symlink |
 | `SECRET_FILE_TOO_LARGE` | over 64 KiB |
 | `SECRET_FILE_EMPTY` | empty, or nothing but a line ending |
 | `SECRET_FILE_BINARY` | contains a NUL byte |
 | `WORKER_MISCONFIGURED` | no credential was supplied by either mechanism |
+
+The split between `SECRET_FILE_UNREADABLE` and `SECRET_FILE_NOT_REGULAR` is the
+kernel's, not a promise this worker makes. A non-regular file is rejected at the `fstat` on the open descriptor, so
+it reports `SECRET_FILE_NOT_REGULAR` only when the open succeeded; when the
+kernel refuses the open first, the failure is `SECRET_FILE_UNREADABLE` and the
+`fstat` never runs. Do not pin a specific code for a specific special file —
+platforms differ. What is guaranteed is the part that matters: **no non-regular
+file ever yields a credential, and none of them can hang start-up.**
 
 No message ever contains the credential, the file's contents, or the path. They
 name the variable and the rule, because that is what an operator needs and it
