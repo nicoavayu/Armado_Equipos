@@ -1,0 +1,97 @@
+# Arma2 Torneos · Multimedia Staging stack.
+#
+# TEMPLATE. Not installed by this change. Nothing in this repository writes to
+# /etc, and no `systemctl` command has been run. To install it later, under its
+# own authorization:
+#
+#   install -m 0644 arma2-media-staging.service /etc/systemd/system/
+#   systemd-analyze verify /etc/systemd/system/arma2-media-staging.service
+#   systemctl daemon-reload
+#
+# ---------------------------------------------------------------------------
+# Why the hardening here is modest
+# ---------------------------------------------------------------------------
+# This unit does not run the workload. It runs the `docker compose` CLI, which
+# asks dockerd — a separate, long-running, root daemon in its own namespaces —
+# to do everything that matters. So the strong sandboxing directives
+# (ProtectSystem=strict, PrivateDevices, RestrictAddressFamilies, NoNewPrivileges)
+# would constrain a short-lived CLI and constrain the containers not at all,
+# while breaking the CLI's access to /var/run/docker.sock. The containers are
+# confined in docker-compose.staging.yml, where the confinement actually lands:
+# read-only rootfs, cap_drop ALL, no-new-privileges, pids and memory ceilings.
+# What is set here is the part that is genuinely this unit's job — ordering,
+# start/stop of the Compose CLI, and how the secret paths reach it. Type=oneshot
+# plus RemainAfterExit does not monitor container life after `up -d` returns;
+# Docker's per-container restart policies do that. Restart=on-failure below only
+# retries when ExecStart itself fails.
+#
+# ---------------------------------------------------------------------------
+# Secrets: LoadCredentialEncrypted is NOT used, and that is a finding
+# ---------------------------------------------------------------------------
+# The obvious design is LoadCredentialEncrypted=, which decrypts to a
+# root-only tmpfs under $CREDENTIALS_DIRECTORY and never touches the disk in
+# clear. It is the right mechanism for a process that reads its own secrets.
+#
+# It does not compose with Docker, for a reason that is structural rather than
+# a configuration detail: the bind mount is performed by DOCKERD, not by this
+# unit, and dockerd resolves the source path in its OWN mount namespace.
+# $CREDENTIALS_DIRECTORY is a per-unit mount. Whether dockerd can see it depends
+# on the host's systemd version and on whether this unit ends up with a private
+# mount namespace, which several unrelated directives turn on implicitly. That
+# is not a property this repository can assert from here, and asserting it
+# wrongly means a stack that either fails to start or, worse, silently mounts
+# an empty file.
+#
+# So the directory is root:root 0700 and contains uid/gid 1000:1000, mode 0400
+# secret files under ARMA2_MEDIA_SECRET_DIR, which dockerd can unambiguously
+# resolve. The root-only directory blocks host uid 1000 from traversing to the
+# files; the container's uid 1000 can read them only through Docker's bind mount.
+# The encrypted-credential path is left
+# as a documented follow-up with a host-side verification procedure in
+# docs/operations/tournament-media-staging-secret-injection.md. The residual
+# risk is stated there rather than papered over: those files are at rest on the
+# host disk, protected by 0400 ownership and full-disk encryption, not by TPM
+# sealing.
+
+[Unit]
+Description=Arma2 Torneos Multimedia processing stack (Staging)
+Documentation=file:///opt/arma2/media-staging/README.md
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+# The stack resolves the Staging host through the local resolver, whose policy
+# is what returns NXDOMAIN for Production. Starting before it is up means the
+# first renewal cycle resolves through whatever else answers.
+After=unbound.service
+Wants=unbound.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/arma2/media-staging
+
+# Non-secret configuration only. Every value in this file reaches
+# `docker inspect`; see env.example.
+EnvironmentFile=/etc/arma2/media-staging/runtime.env
+
+# `--no-build` plus `pull_policy: never`: images are built or acquired in a
+# separate, authorized step. A restart fails if an image is absent and never
+# downloads a replacement. systemctl restart is not image acquisition.
+ExecStart=/usr/bin/docker compose -f docker-compose.staging.yml up --detach --no-build --remove-orphans
+ExecStop=/usr/bin/docker compose -f docker-compose.staging.yml stop --timeout 400
+ExecReload=/usr/bin/docker compose -f docker-compose.staging.yml up --detach --no-build --remove-orphans
+
+# Longer than the processor's 6m stop_grace_period plus the ExecStop timeout, so
+# systemd never SIGKILLs a worker that is still handing back a lease.
+TimeoutStopSec=500
+TimeoutStartSec=600
+
+# `stop`, not `down`: `down` removes the networks and would remove the
+# clamav-db volume the moment anyone adds `-v`. Stopping leaves the signature
+# database and the network definitions in place. Tearing the stack down is a
+# deliberate, separate runbook step.
+Restart=on-failure
+RestartSec=30s
+
+[Install]
+WantedBy=multi-user.target
