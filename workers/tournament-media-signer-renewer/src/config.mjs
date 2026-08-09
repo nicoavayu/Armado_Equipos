@@ -18,6 +18,11 @@
  *     credential: it cannot read the bucket, cannot read the queue and cannot
  *     write an attestation itself. It can only ask the signer to re-prove
  *     itself.
+ *
+ * Every credential below may arrive either directly, as `VARIABLE=<value>`, or
+ * from a mounted file, as `VARIABLE_FILE=/run/secrets/<name>` — never both at
+ * once. See `secret-source.mjs` for the contract and for what the file form
+ * does and does not protect against; see `SECRETS.md` for the operator view.
  */
 
 import path from 'node:path';
@@ -30,7 +35,34 @@ import {
   GATEWAY_CREDENTIAL_OPTIONS, inspectGatewayJwt, isPublishableKey, isServiceCredential,
 } from './gateway.mjs';
 import { worstCaseCycleSeconds } from './schedule.mjs';
+import { readFirstSecret, readSecret } from './secret-source.mjs';
 import { createTarget } from './target.mjs';
+
+/**
+ * Every credential this process reads, with its file twin beside it.
+ *
+ * Written out rather than derived by appending `_FILE`, so each variable name
+ * is a literal string that can be grepped for — here, in a deployment manifest,
+ * or by the infrastructure test that checks the two agree.
+ *
+ * The order inside `GATEWAY_KEY_SOURCES` is the existing precedence between the
+ * alternative apikey variables and is unchanged by the file mechanism.
+ */
+export const ATTESTATION_SECRET_SOURCE = Object.freeze({
+  variable: 'TOURNAMENT_MEDIA_ATTESTATION_SECRET',
+  fileVariable: 'TOURNAMENT_MEDIA_ATTESTATION_SECRET_FILE',
+});
+
+export const GATEWAY_JWT_SOURCE = Object.freeze({
+  variable: 'TOURNAMENT_MEDIA_GATEWAY_JWT',
+  fileVariable: 'TOURNAMENT_MEDIA_GATEWAY_JWT_FILE',
+});
+
+export const GATEWAY_KEY_SOURCES = Object.freeze([
+  Object.freeze({ variable: 'TOURNAMENT_MEDIA_GATEWAY_KEY', fileVariable: 'TOURNAMENT_MEDIA_GATEWAY_KEY_FILE' }),
+  Object.freeze({ variable: 'SUPABASE_PUBLISHABLE_KEY', fileVariable: 'SUPABASE_PUBLISHABLE_KEY_FILE' }),
+  Object.freeze({ variable: 'SUPABASE_ANON_KEY', fileVariable: 'SUPABASE_ANON_KEY_FILE' }),
+]);
 
 export class RenewerConfigError extends Error {
   constructor(code, message) {
@@ -168,18 +200,25 @@ function resolveHealthUrl(env) {
  * identity JWT becomes mandatory and its absence is a start-up refusal rather
  * than a 401 an hour later.
  */
-function resolveGatewayCredential(env, { now = Date.now() } = {}) {
-  const explicitJwt = String(env.TOURNAMENT_MEDIA_GATEWAY_JWT || '');
-  const legacyKey = String(
-    env.TOURNAMENT_MEDIA_GATEWAY_KEY || env.SUPABASE_PUBLISHABLE_KEY || env.SUPABASE_ANON_KEY || '',
-  );
+function resolveGatewayCredential(env, { now = Date.now(), fs: fsImpl } = {}) {
+  // Either half may arrive directly or through its `_FILE` twin, never both:
+  // `TOURNAMENT_MEDIA_GATEWAY_JWT` beside `TOURNAMENT_MEDIA_GATEWAY_JWT_FILE`
+  // is `SECRET_SOURCE_AMBIGUOUS` rather than a silent choice. The precedence
+  // among the apikey alternatives is the one that was already here.
+  const explicitJwt = readSecret(env, GATEWAY_JWT_SOURCE, { fs: fsImpl });
+  const legacy = readFirstSecret(env, GATEWAY_KEY_SOURCES, { fs: fsImpl });
+  const legacyKey = legacy.value;
+  // The variable actually in use, so the privileged-credential refusal below
+  // names the one to fix instead of a slash-separated list of candidates.
+  const legacyName = legacy.variable || 'TOURNAMENT_MEDIA_GATEWAY_KEY/SUPABASE_*';
   if (!explicitJwt && !legacyKey) {
     fail('RENEWER_GATEWAY_KEY_MISSING',
       'A Functions gateway credential is required. Accepted options: '
       + `${GATEWAY_CREDENTIAL_OPTIONS.map(({ variable }) => variable).join(' | ')}. `
+      + 'Each may instead be supplied as a file through its _FILE twin. '
       + 'Never a service credential.');
   }
-  for (const [name, value] of [['TOURNAMENT_MEDIA_GATEWAY_KEY/SUPABASE_*', legacyKey], ['TOURNAMENT_MEDIA_GATEWAY_JWT', explicitJwt]]) {
+  for (const [name, value] of [[legacyName, legacyKey], ['TOURNAMENT_MEDIA_GATEWAY_JWT', explicitJwt]]) {
     if (value && isServiceCredential(value)) {
       fail('RENEWER_GATEWAY_KEY_PRIVILEGED',
         `${name} looks like a service credential; the renewer must hold none.`);
@@ -217,17 +256,31 @@ function resolveGatewayCredential(env, { now = Date.now() } = {}) {
 
 export { worstCaseCycleSeconds };
 
-export function readRenewerConfig(env = process.env, { now = Date.now() } = {}) {
+/**
+ * @param {object} env
+ * @param {{now?: number, fs?: object}} [options] an injectable `fs`, so a test
+ *   can prove that no secret file is opened for a target that is refused
+ */
+export function readRenewerConfig(env = process.env, { now = Date.now(), fs: fsImpl } = {}) {
+  // The target first, and the ordering is load-bearing rather than stylistic:
+  // a refused host must cost no credential, and the file mechanism must not
+  // change that. Nothing below `resolveHealthUrl` runs when it throws, so a
+  // forbidden target still opens no secret file and issues no syscall.
   const target = resolveHealthUrl(env);
 
-  const attestationSecret = String(env.TOURNAMENT_MEDIA_ATTESTATION_SECRET || '');
+  // `TOURNAMENT_MEDIA_ATTESTATION_SECRET` or its file twin
+  // `TOURNAMENT_MEDIA_ATTESTATION_SECRET_FILE`, never both.
+  const attestationSecret = readSecret(env, ATTESTATION_SECRET_SOURCE, { fs: fsImpl });
   if (attestationSecret.length < 32) {
     // Length is checked, the value never is: no comparison against a literal,
-    // no prefix in a log line, no error message carrying it.
+    // no prefix in a log line, no error message carrying it. A file source that
+    // failed to resolve has already thrown its own `SECRET_FILE_*` code above,
+    // so reaching here means the credential is genuinely absent or too short.
     fail('RENEWER_SECRET_MISSING',
-      'TOURNAMENT_MEDIA_ATTESTATION_SECRET is required and must be at least 32 characters.');
+      'TOURNAMENT_MEDIA_ATTESTATION_SECRET is required and must be at least 32 characters. '
+      + 'It may instead be supplied as a file through TOURNAMENT_MEDIA_ATTESTATION_SECRET_FILE.');
   }
-  const gateway = resolveGatewayCredential(env, { now });
+  const gateway = resolveGatewayCredential(env, { now, fs: fsImpl });
   // The credential must belong to the project we are renewing against. A JWT
   // from another project would be rejected by the gateway anyway; failing here
   // says which variable to fix instead of leaving a 401 to be diagnosed.
