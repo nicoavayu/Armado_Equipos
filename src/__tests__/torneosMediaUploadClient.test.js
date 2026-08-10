@@ -29,8 +29,7 @@ import {
   uploadTournamentMediaPhoto,
 } from '../features/torneos/api/tournamentMediaUploadClient';
 
-// Real Blobs: FormData rejects anything else, and the client appends the
-// renditions verbatim.
+// Real Blobs: the client transfers the normalized display object verbatim.
 const blob = (size) => new Blob([new Uint8Array(size)], { type: 'image/jpeg' });
 
 function payload() {
@@ -39,11 +38,6 @@ function payload() {
     width: 4000,
     height: 3000,
     source: blob(900_000),
-    renditions: [
-      { kind: 'thumbnail', blob: blob(9_000), width: 320, height: 240 },
-      { kind: 'grid', blob: blob(60_000), width: 800, height: 600 },
-      { kind: 'detail', blob: blob(300_000), width: 1600, height: 1200 },
-    ],
   };
 }
 
@@ -204,6 +198,38 @@ describe('tournament media upload client', () => {
       ([url]) => String(url).includes('storage'),
     );
     expect(storageCalls).toHaveLength(0);
+  });
+
+  test('the simple tier uses the actor-bound upload URL then finalizes synchronously', async () => {
+    global.fetch = mockFetch(serviceResponses({
+      'tournament-media-signer': {
+        ok: true,
+        body: { uploadUrl: 'https://edge.local/capability', requiresAuth: true },
+      },
+      'tournament-media-processor': {
+        ok: true,
+        status: 201,
+        body: { sessionId: 'session-1', assetId: 'asset-1', status: 'pending_review' },
+      },
+    }));
+    const result = await runUpload({
+      requestUploadSession: jest.fn().mockResolvedValue({
+        sessionId: 'session-1', token: 'a'.repeat(64), uploadReady: true,
+        processingTier: 'mvp_simple',
+      }),
+    });
+    const processorCall = global.fetch.mock.calls.find(
+      ([url]) => String(url).endsWith('tournament-media-processor'),
+    );
+    expect(JSON.parse(processorCall[1].body)).toEqual({
+      action: 'finalize-simple', sessionId: 'session-1', token: 'a'.repeat(64),
+    });
+    expect(xhrInstances[0].headers).toMatchObject({
+      Authorization: 'Bearer jwt-token', apikey: 'anon-key',
+    });
+    expect(result).toMatchObject({
+      assetId: 'asset-1', jobId: null, status: 'pending_review',
+    });
   });
 
   test('never reaches the signer when the environment is not ready', async () => {

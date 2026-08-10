@@ -34,6 +34,30 @@ describe('tournament media service contracts', () => {
       p_limit: 30,
       p_offset: 60,
     });
+    expect(supabase.rpc).toHaveBeenCalledWith('get_tournament_media_upload_capability', {
+      p_organization_id: 'org-a',
+    });
+    expect(supabase.rpc).toHaveBeenCalledWith(
+      'get_tournament_media_asset_processing_tiers',
+      { p_organization_id: 'org-a' },
+    );
+  });
+
+  test('merges the persisted processing tier into each admin asset', async () => {
+    supabase.rpc.mockImplementation(async (name) => {
+      if (name === 'get_tournament_media_admin_context') {
+        return {
+          data: { galleries: [{ id: 'gallery-a', assets: [{ id: 'asset-a' }] }] },
+          error: null,
+        };
+      }
+      if (name === 'get_tournament_media_asset_processing_tiers') {
+        return { data: { 'asset-a': 'mvp_simple' }, error: null };
+      }
+      return { data: { uploadReady: true }, error: null };
+    });
+    const context = await loadTournamentMediaAdminContext({ organizationId: 'org-a' });
+    expect(context.galleries[0].assets[0].processingTier).toBe('mvp_simple');
   });
 
   test('creates a scoped gallery without trusting actor or storage path', async () => {

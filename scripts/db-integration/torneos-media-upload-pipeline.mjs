@@ -31,6 +31,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '.
 const PIPELINE_MIGRATIONS = [
   '20260802090000_tournament_media_upload_pipeline.sql',
   '20260802120000_tournament_media_trusted_processing.sql',
+  '20260809232508_tournament_media_free_mvp.sql',
 ];
 const SESSION_PATH_RE =
   /^[0-9a-f-]{36}\/[0-9a-f-]{36}\/[0-9a-f-]{36}\/[0-9a-f-]{36}\.(jpg|png|webp)$/;
@@ -222,6 +223,25 @@ async function completeForActor(client, session, actorId, overrides = {}) {
       overrides.width || 4000,
       overrides.height || 3000,
       overrides.checksum || 'a'.repeat(64),
+    ],
+  );
+}
+
+async function completeSimple(client, session, actorId, overrides = {}) {
+  return value(
+    client,
+    `select public.complete_tournament_media_simple_upload(
+      $1,$2,$3,$4,$5,$6,$7,$8
+    )`,
+    [
+      actorId,
+      session.sessionId,
+      session.token,
+      overrides.mime || 'image/jpeg',
+      overrides.size || 2048,
+      overrides.width || 1200,
+      overrides.height || 800,
+      overrides.checksum || 'e'.repeat(64),
     ],
   );
 }
@@ -872,6 +892,11 @@ async function run() {
       'tournament_media_pipeline_readiness',
       'tournament_media_storage_contract_status',
       'complete_tournament_media_upload_for_actor',
+      'tournament_media_current_pipeline_mode',
+      'tournament_media_effective_readiness',
+      'tournament_media_require_upload_tier',
+      'tournament_media_mvp_user_can_upload',
+      'complete_tournament_media_simple_upload',
     ];
     eq(
       Number(await value(
@@ -960,6 +985,174 @@ async function run() {
       )),
       0,
       'todas las funciones del pipeline fijan search_path vacío',
+    );
+
+    // -----------------------------------------------------------------------
+    console.log('\n· tier gratuito simple (activación local explícita)');
+    // -----------------------------------------------------------------------
+    const simpleGalleryId = await createGallery(owner, scope, '7', { matchId: null });
+    await value(owner, 'select public.assign_tournament_media_photographer($1,$2,$3)',
+      [simpleGalleryId, USERS.collaborator, false]);
+
+    await admin.query(
+      "update public.tournament_media_pipeline_configuration set mode = 'DISABLED'",
+    );
+    let simpleCapability = await value(
+      owner, 'select public.get_tournament_media_upload_capability($1)',
+      [scope.organizationId],
+    );
+    eq(simpleCapability.uploadReady, false, 'DISABLED cierra la carga');
+    eq(simpleCapability.blockers[0], 'pipeline.disabled', 'el cierre es explícito');
+    await expectError(
+      () => requestUpload(owner, simpleGalleryId, '70'),
+      /TORNEOS_MEDIA_PIPELINE_NOT_READY/,
+      'DISABLED tampoco permite abrir sesiones',
+    );
+
+    await admin.query(
+      "update public.tournament_media_pipeline_configuration set mode = 'MVP_SIMPLE'",
+    );
+    await admin.query(
+      "delete from public.tournament_media_service_attestations where service = 'processor'",
+    );
+    simpleCapability = await value(
+      owner, 'select public.get_tournament_media_upload_capability($1)',
+      [scope.organizationId],
+    );
+    eq(simpleCapability.uploadReady, true, 'MVP_SIMPLE no depende del worker externo');
+    eq(simpleCapability.processingTier, 'mvp_simple', 'expone el tier seleccionado');
+    eq(Number(simpleCapability.maxFileBytes), 4194304, 'fija salida máxima en 4 MiB');
+    eq(Number(simpleCapability.maxSelectedFileBytes), 8388608,
+      'expone selección local máxima de 8 MiB');
+    eq(Number(simpleCapability.maxEdge), 1600, 'fija lado máximo en 1600');
+    eq(Number(simpleCapability.maxPixels), 2560000, 'fija 2,56 MP');
+    eq(Number(simpleCapability.maxConcurrentUploads), 2, 'fija concurrencia en dos');
+    eq(Number(simpleCapability.signedUrlTtlSeconds), 300, 'fija URL en cinco minutos');
+    eq(simpleCapability.pixelTranscode, false, 'no afirma transcode server-side');
+    eq(simpleCapability.antivirusScanning, false, 'no afirma antivirus');
+    await expectError(
+      () => value(outsider, 'select public.get_tournament_media_upload_capability($1)',
+        [scope.organizationId]),
+      /TORNEOS_MEDIA_FORBIDDEN/,
+      'un tenant ajeno no obtiene la capability',
+    );
+    await expectError(
+      () => value(owner, 'select mode from public.tournament_media_pipeline_configuration'),
+      /permission denied/i,
+      'el cliente no puede leer la configuración operativa',
+    );
+    eq(
+      await value(admin, 'select public.tournament_media_mvp_user_can_upload($1,$2)',
+        [USERS.admin, simpleGalleryId]),
+      true,
+      'un admin activo puede cargar en el tier simple',
+    );
+    await expectError(
+      () => requestUpload(collaborator, simpleGalleryId, '71'),
+      /TORNEOS_MEDIA_FORBIDDEN/,
+      'un fotógrafo asignado no carga en MVP_SIMPLE',
+    );
+    await expectError(
+      () => requestUpload(anonymous, simpleGalleryId, '74'),
+      /TORNEOS_AUTH_REQUIRED|permission denied/i,
+      'anon no abre sesiones simples',
+    );
+    await expectError(
+      () => requestUpload(outsider, simpleGalleryId, '75'),
+      /TORNEOS_MEDIA_FORBIDDEN/,
+      'un authenticated sin capacidad no abre sesiones simples',
+    );
+    await expectError(
+      () => requestUpload(owner, simpleGalleryId, '72', { size: 4194305 }),
+      /TORNEOS_MEDIA_FILE_INVALID/,
+      'la salida por encima de 4 MiB no abre sesión simple',
+    );
+
+    const simpleSession = await requestUpload(owner, simpleGalleryId, '73');
+    eq(simpleSession.processingTier, 'mvp_simple', 'la sesión queda ligada al tier');
+    ok(
+      new Date(simpleSession.expiresAt).getTime() - Date.now() <= 300000,
+      'la sesión no vive más de cinco minutos',
+    );
+    const simpleTarget = await authorizeTarget(service, simpleSession, USERS.owner);
+    eq(simpleTarget.processingTier, 'mvp_simple', 'el destino conserva el tier');
+    await expectError(
+      () => value(
+        service,
+        'select public.enqueue_tournament_media_processing_job($1,$2,$3)',
+        [simpleSession.sessionId, simpleSession.token, USERS.owner],
+      ),
+      /TORNEOS_MEDIA_FORBIDDEN/,
+      'el tier simple nunca entra a la cola robusta',
+    );
+    const simpleAsset = await completeSimple(service, simpleSession, USERS.owner);
+    eq(simpleAsset.status, 'pending_review', 'la foto simple entra a moderación');
+    eq(simpleAsset.processingTier, 'mvp_simple', 'el asset persiste el tier');
+    const projectedTiers = await value(
+      owner, 'select public.get_tournament_media_asset_processing_tiers($1)',
+      [scope.organizationId],
+    );
+    eq(projectedTiers[simpleAsset.assetId], 'mvp_simple',
+      'la UI recibe el tier histórico del asset');
+    eq(
+      Number(await value(admin,
+        'select count(*) from public.tournament_media_variants where asset_id = $1',
+        [simpleAsset.assetId])),
+      0,
+      'una foto simple no duplica objetos como variantes físicas',
+    );
+    const simpleGrid = await authorizeRead(
+      service, USERS.owner, simpleAsset.assetId, 'grid',
+    );
+    const simpleOriginal = await authorizeRead(
+      service, USERS.owner, simpleAsset.assetId, 'original',
+    );
+    eq(simpleGrid.objectName, simpleTarget.objectName, 'grid resuelve al único objeto');
+    eq(simpleOriginal.objectName, simpleTarget.objectName, 'original resuelve al mismo objeto');
+    await value(owner, 'select public.transition_tournament_media_asset($1,$2,$3)',
+      [simpleAsset.assetId, 'approve', null]);
+    eq(
+      await value(admin, 'select status from public.tournament_media_assets where id = $1',
+        [simpleAsset.assetId]),
+      'approved',
+      'la moderación simple no exige variantes inexistentes',
+    );
+
+    const openSessions = [];
+    for (let index = 0; index < 10; index += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      openSessions.push(await requestUpload(owner, simpleGalleryId, String(100 + index)));
+    }
+    await expectError(
+      () => requestUpload(owner, simpleGalleryId, '110'),
+      /TORNEOS_MEDIA_QUOTA_EXCEEDED/,
+      'la sesión abierta número once se rechaza',
+    );
+    await admin.query(
+      `update public.tournament_media_upload_sessions
+       set status = case when status = 'issued' then 'revoked' else status end,
+           created_at = now() - interval '16 minutes',
+           expires_at = now() - interval '11 minutes'
+       where requested_by = $1`,
+      [USERS.owner],
+    );
+    const recentSessions = [];
+    for (let index = 0; index < 30; index += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      const emitted = await requestUpload(owner, simpleGalleryId, String(200 + index));
+      recentSessions.push(emitted.sessionId);
+      // eslint-disable-next-line no-await-in-loop
+      await value(owner, 'select public.cancel_tournament_media_upload_session($1)',
+        [emitted.sessionId]);
+    }
+    await expectError(
+      () => requestUpload(owner, simpleGalleryId, '230'),
+      /TORNEOS_MEDIA_MVP_RATE_LIMITED/,
+      'la emisión número 31 dentro de 15 minutos se limita',
+    );
+
+    await admin.query(
+      "update public.tournament_media_pipeline_configuration set mode = 'PROCESSOR_EXTERNAL'",
     );
 
     console.log(`\n${checks - failures}/${checks} verificaciones del pipeline aprobadas`);

@@ -129,6 +129,18 @@ test('an unsupported container is rejected even when it is a real image', async 
   expectCode(() => verifyNormalizedImage(gif, 'image/png'), 'MEDIA_MIME_MISMATCH');
 });
 
+test('GIF, HEIC, AVIF, TIFF and BMP signatures are outside the allowlist', () => {
+  const { sniffImageMime } = edge.image;
+  const unsupported = [
+    new TextEncoder().encode('GIF89a'),
+    Uint8Array.from([0, 0, 0, 24, 0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69, 0x63]),
+    Uint8Array.from([0, 0, 0, 24, 0x66, 0x74, 0x79, 0x70, 0x61, 0x76, 0x69, 0x66]),
+    Uint8Array.from([0x49, 0x49, 0x2a, 0x00]),
+    Uint8Array.from([0x42, 0x4d, 0, 0]),
+  ];
+  for (const bytes of unsupported) assert.equal(sniffImageMime(bytes), null);
+});
+
 test('EXIF orientation other than the identity is refused, not silently kept', async () => {
   const { inspectImage, verifyNormalizedImage } = edge.image;
   const bytes = await fixture('exif-orient6-64x48.jpg');
@@ -236,6 +248,26 @@ test('an empty or oversized payload is refused before parsing', async () => {
   const huge = new Uint8Array(12 * 1024 * 1024 + 1);
   huge.set(await fixture('clean-64x48.png'));
   expectCode(() => verifyNormalizedImage(huge, 'image/png'), 'MEDIA_TOO_LARGE');
+});
+
+test('the simple tier applies its own 4 MiB, 1600 edge and 2.56 MP limits', async () => {
+  const { verifyNormalizedImage } = edge.image;
+  const png = await fixture('clean-64x48.png');
+  assert.doesNotThrow(() => verifyNormalizedImage(png, 'image/png', {
+    maxFileBytes: 4 * 1024 * 1024,
+    maxPixels: 2_560_000,
+    maxEdge: 1600,
+  }));
+  expectCode(() => verifyNormalizedImage(png, 'image/png', {
+    maxFileBytes: png.length - 1,
+    maxPixels: 2_560_000,
+    maxEdge: 1600,
+  }), 'MEDIA_TOO_LARGE');
+  expectCode(() => verifyNormalizedImage(png, 'image/png', {
+    maxFileBytes: 4 * 1024 * 1024,
+    maxPixels: 2_560_000,
+    maxEdge: 63,
+  }), 'MEDIA_DIMENSIONS_INVALID');
 });
 
 test('checksums are stable and lowercase hex', async () => {
