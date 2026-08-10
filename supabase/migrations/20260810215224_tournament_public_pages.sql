@@ -551,13 +551,10 @@ BEGIN
           'redCards', ledger.direct_reds + ledger.second_yellows,
           'suspensions', COALESCE((
             SELECT jsonb_agg(jsonb_build_object(
-              'totalMatches', suspension.total_matches,
-              'servedMatches', suspension.served_matches,
               'remainingMatches', greatest(
                 suspension.total_matches - suspension.served_matches,
                 0
-              ),
-              'status', suspension.status
+              )
             ) ORDER BY suspension.created_at)
             FROM public.tournament_player_suspensions suspension
             WHERE suspension.revision_id = revision.id

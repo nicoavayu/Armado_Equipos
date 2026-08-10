@@ -25,7 +25,7 @@ La página ofrece:
 - tabla canónica proveniente exclusivamente de una revisión publicada;
 - goleadores y estadísticas de la misma revisión publicada;
 - equipos como snapshots deportivos mínimos, sin planteles;
-- disciplina limitada a nombre deportivo, equipo, tarjetas y cantidad de fechas de suspensión;
+- disciplina limitada a nombre deportivo, equipo, tarjetas y cantidad de fechas pendientes de suspensión;
 - selectores de categoría y de fase/grupo cuando corresponde.
 
 No se recalculan posiciones, goles, tarjetas ni sanciones en el cliente. El browser representa la proyección canónica que entrega el servidor.
@@ -39,6 +39,8 @@ get_public_tournament_page(text, text)
 ```
 
 El RPC es una proyección explícita `jsonb`; no retorna filas genéricas. Excluye IDs de usuario y recursos internos, emails, teléfonos, domicilios de sedes, planteles, disponibilidades, convocatorias, notas, motivos disciplinarios, metadata administrativa, rutas privadas y tokens. Los IDs técnicos internos tampoco se exponen en el payload.
+
+Cada elemento de `competition[].discipline[].suspensions[]` expone únicamente `remainingMatches`, calculado en servidor como la cantidad de fechas pendientes. El total original, las fechas ya cumplidas y el estado interno del lifecycle de la suspensión no forman parte del contrato anónimo.
 
 La tabla `tournament_public_pages` tiene RLS habilitado y no otorga acceso directo a `anon` ni `authenticated`. Los RPCs administrativos requieren sesión y vuelven a verificar capabilities en servidor:
 

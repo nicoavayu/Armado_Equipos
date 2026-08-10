@@ -234,6 +234,25 @@ async function publishOfficialProjection(admin, scope) {
     'select public.publish_tournament_standings_revision($1,$2)',
     [revisionId, 'Publicación pública QA'],
   );
+  await admin.query(
+    `insert into public.tournament_player_suspensions(
+      revision_id,organization_id,tournament_id,category_id,phase_id,
+      roster_player_id,team_entry_id,source_type,source_key,rule_snapshot,
+      total_matches,served_matches,status,reason
+    ) values (
+      $1,$2,$3,$4,$5,$6,$7,'manual','public-pages-contract',
+      '{}'::jsonb,3,1,'active','Detalle disciplinario interno QA'
+    )`,
+    [
+      revisionId,
+      scope.organizationId,
+      scope.tournamentId,
+      scope.categoryId,
+      match.phase_id,
+      scope.rosterPlayers[homeIndex][0],
+      match.home_entry_id,
+    ],
+  );
 }
 
 async function run() {
@@ -371,6 +390,19 @@ async function run() {
     check(page.competition[0].standings.length === 2, 'tabla usa revisión canónica publicada');
     check(page.competition[0].players.some((item) => item.goals > 0), 'goleadores usan estadística oficial');
     check(page.competition[0].discipline.some((item) => item.yellowCards > 0), 'disciplina pública usa ledger publicado');
+    const publicSuspension = page.competition[0].discipline
+      .flatMap((item) => item.suspensions)[0];
+    equal(
+      publicSuspension,
+      { remainingMatches: 2 },
+      'suspensión pública expone exclusivamente las fechas pendientes calculadas server-side',
+    );
+    check(
+      !('totalMatches' in publicSuspension)
+        && !('servedMatches' in publicSuspension)
+        && !('status' in publicSuspension),
+      'objeto discipline[].suspensions[] no expone totalMatches, servedMatches ni status',
+    );
     check(page.teams.length === 2 && page.teams.every((team) => !('roster' in team)), 'equipos no exponen planteles');
 
     const forbiddenKeys = new Set([
