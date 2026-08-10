@@ -599,7 +599,144 @@
 }
 
 .organizationPicker {
+  width: 100%;
   max-width: 900px;
+}
+
+.experienceSection {
+  width: 100%;
+  max-width: 980px;
+  padding: clamp(20px, 3vw, 30px);
+  background: rgba(14, 12, 27, 0.7);
+  border: 1px solid var(--torneos-border);
+  border-radius: 20px 5px 20px 5px;
+}
+
+.sectionHeadingRow {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.sectionHeadingRow .secondaryButton {
+  flex: 0 0 auto;
+}
+
+.experienceActions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.experienceActions a {
+  min-width: 0;
+  min-height: 94px;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  color: var(--torneos-copy);
+  text-decoration: none;
+  background: var(--torneos-card-bg);
+  border: 1px solid var(--torneos-border);
+  border-radius: 15px 4px 15px 4px;
+  transition: transform 180ms ease, border-color 180ms ease;
+}
+
+.experienceActions a:hover,
+.experienceActions a:focus-visible {
+  transform: translateY(-2px);
+  border-color: var(--torneos-border-strong);
+}
+
+.experienceActions a > span:first-child {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  color: var(--torneos-purple-bright);
+  background: rgba(136, 92, 255, 0.1);
+  border-radius: 12px 4px 12px 4px;
+}
+
+.experienceActions a > span:nth-child(2) {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.experienceActions strong,
+.experienceActions small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.experienceActions small {
+  color: var(--torneos-muted);
+  font-size: 11px;
+}
+
+.contextNotice {
+  width: 100%;
+  max-width: 980px;
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 13px;
+  color: #ded3f3;
+  background: rgba(136, 92, 255, 0.08);
+  border: 1px solid rgba(136, 92, 255, 0.2);
+  border-radius: 12px;
+  font-size: 13px;
+}
+
+.unifiedEmptyState {
+  width: 100%;
+  max-width: 760px;
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 18px;
+  align-items: center;
+  padding: clamp(22px, 4vw, 34px);
+  background: var(--torneos-surface);
+  border: 1px solid var(--torneos-border);
+  border-radius: 20px 5px 20px 5px;
+}
+
+.unifiedEmptyState > span {
+  width: 58px;
+  height: 58px;
+  display: grid;
+  place-items: center;
+  color: var(--torneos-purple-bright);
+  background: rgba(136, 92, 255, 0.1);
+  border-radius: 16px 5px 16px 5px;
+}
+
+.unifiedEmptyState h2 {
+  margin: 5px 0 0;
+  font-family: "Bebas Neue", Impact, sans-serif;
+  font-size: clamp(28px, 4vw, 40px);
+  font-weight: 400;
+  line-height: 1;
+}
+
+.unifiedEmptyState p {
+  max-width: 620px;
+  margin: 9px 0 0;
+  color: var(--torneos-muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.unifiedEmptyState .primaryButton {
+  margin-top: 18px;
 }
 
 .sectionHeading > span,
@@ -1615,6 +1752,10 @@
   .formIntro {
     max-width: 680px;
   }
+
+  .experienceActions {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 680px) {
@@ -1629,6 +1770,15 @@
   .organizationIdentity {
     width: 100%;
     flex-direction: column;
+  }
+
+  .sectionHeadingRow {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .unifiedEmptyState {
+    grid-template-columns: 1fr;
   }
 
   .organizationIdentity > div {

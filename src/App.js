@@ -34,6 +34,7 @@ import {
   getGoogleMapsLoaderState,
   loadGoogleMapsScript,
 } from './services/googleMapsLoader';
+import { isArma2NativeRuntime } from './utils/runtimePlatform';
 
 
 import { NotificationProvider } from './context/NotificationContext';
@@ -108,6 +109,21 @@ export default function App() {
                       <AccountDeletionInfoPage />
                     </Suspense>
                   } />
+                  <Route path="/login" element={
+                    <Suspense fallback={<AppLoadingScreen />}>
+                      <AuthHome />
+                    </Suspense>
+                  } />
+                  <Route path="/login/email" element={
+                    <Suspense fallback={<AppLoadingScreen />}>
+                      <AuthHome />
+                    </Suspense>
+                  } />
+                  <Route path="/auth/callback" element={
+                    <Suspense fallback={<AppLoadingScreen />}>
+                      <AuthCallback />
+                    </Suspense>
+                  } />
                   <Route path="/encuesta/:partidoId" element={
                     <Suspense fallback={<AppLoadingScreen />}>
                       <EncuestaPartido />
@@ -128,35 +144,18 @@ export default function App() {
                       <PaymentsView />
                     </Suspense>
                   } />
-                  <Route path="/login" element={
-                    <Suspense fallback={<AppLoadingScreen />}>
-                      <AuthHome />
-                    </Suspense>
-                  } />
-                  <Route path="/login/email" element={
-                    <Suspense fallback={<AppLoadingScreen />}>
-                      <AuthHome />
-                    </Suspense>
-                  } />
-                  <Route path="/auth/callback" element={
-                    <Suspense fallback={<AppLoadingScreen />}>
-                      <AuthCallback />
-                    </Suspense>
-                  } />
                   <Route path="/i/:token" element={
                     <Suspense fallback={<AppLoadingScreen />}>
                       <InviteLanding />
                     </Suspense>
                   } />
-                  
-                  {/* Ruta pública: invitación a partido (sin auth requerido) */}
+
+                  {/* Public/special web flows remain isolated from the player product shell. */}
                   <Route path="/partido/:partidoId/invitacion" element={
                     <Suspense fallback={<AppLoadingScreen />}>
                       <PartidoInvitacion />
                     </Suspense>
                   } />
-                  
-                  {/* Ruta pública: votación de equipos (sin auth requerido) */}
                   <Route path="/votar-equipos" element={
                     <Suspense fallback={<AppLoadingScreen />}>
                       <VotarEquiposPage />
@@ -164,18 +163,24 @@ export default function App() {
                   } />
 
                   <Route path="/" element={<AppAuthWrapper />}>
-                    <Route path="" element={<MainLayout />}>
-                      <Route index element={
-                        <Suspense fallback={<AppLoadingScreen />}>
-                          <HomePage />
-                        </Suspense>
-                      } />
-                      <Route path="home" element={<Navigate to="/" replace />} />
-                      <Route path="nuevo-partido" element={
-                        <Suspense fallback={<AppLoadingScreen />}>
-                          <NuevoPartidoPage />
-                        </Suspense>
-                      } />
+                    <Route path="partido-publico/:partidoId" element={
+                      <Suspense fallback={<AppLoadingScreen />}>
+                        <PartidoInvitacion mode="public" />
+                      </Suspense>
+                    } />
+                    <Route element={<PlayerProductRouteBoundary />}>
+                      <Route path="" element={<MainLayout />}>
+                        <Route index element={
+                          <Suspense fallback={<AppLoadingScreen />}>
+                            <HomePage />
+                          </Suspense>
+                        } />
+                        <Route path="home" element={<Navigate to="/" replace />} />
+                        <Route path="nuevo-partido" element={
+                          <Suspense fallback={<AppLoadingScreen />}>
+                            <NuevoPartidoPage />
+                          </Suspense>
+                        } />
                       <Route path="quiero-jugar" element={
                         <Suspense fallback={<AppLoadingScreen />}>
                           <QuieroJugarPage />
@@ -254,11 +259,7 @@ export default function App() {
                           <AdminPanelPage />
                         </Suspense>
                       } />
-                      <Route path="partido-publico/:partidoId" element={
-                        <Suspense fallback={<AppLoadingScreen />}>
-                          <PartidoInvitacion mode="public" />
-                        </Suspense>
-                      } />
+                      </Route>
                     </Route>
                     {/* Independent authenticated shell. The gate is fail-closed in production. */}
                     <Route path="torneos/*" element={<TorneosFeatureGate />} />
@@ -278,9 +279,68 @@ function isTorneosNamespace(pathname = '') {
   return pathname === '/torneos' || pathname.startsWith('/torneos/');
 }
 
+const PUBLIC_SPECIAL_WEB_ROUTE_PATTERNS = Object.freeze([
+  /^\/encuesta\/[^/]+\/?$/,
+  /^\/resultados-encuesta\/[^/]+\/?$/,
+  /^\/resultados\/[^/]+\/?$/,
+  /^\/pagos\/[^/]+\/?$/,
+  /^\/i\/[^/]+\/?$/,
+  /^\/partido\/[^/]+\/invitacion\/?$/,
+  /^\/votar-equipos\/?$/,
+  /^\/partido-publico\/[^/]+\/?$/,
+]);
+
+export function isPublicSpecialWebRoute(pathname = '') {
+  return PUBLIC_SPECIAL_WEB_ROUTE_PATTERNS.some((pattern) => pattern.test(pathname));
+}
+
+export function isPlayerProductRoute(pathname = '') {
+  if (isPublicSpecialWebRoute(pathname)) return false;
+
+  return [
+    '/',
+    '/home',
+    '/nuevo-partido',
+    '/quiero-jugar',
+    '/desafios',
+    '/amigos',
+    '/profile',
+    '/notifications',
+    '/stats',
+    '/frecuentes',
+    '/historial',
+    '/admin',
+    '/partido',
+  ].some((route) => pathname === route || (
+    route !== '/' && pathname.startsWith(`${route}/`)
+  ));
+}
+
+function isBlockedWebPlayerRoute(pathname = '') {
+  return !isArma2NativeRuntime() && isPlayerProductRoute(pathname);
+}
+
+function isIsolatedWebSpecialRoute(pathname = '') {
+  return !isArma2NativeRuntime() && isPublicSpecialWebRoute(pathname);
+}
+
+export function PlayerProductRouteBoundary({ native = isArma2NativeRuntime() }) {
+  const location = useLocation();
+  if (!native && isPlayerProductRoute(location.pathname)) {
+    return <Navigate to="/torneos" replace />;
+  }
+  return <Outlet />;
+}
+
 export function RouteScopedProviders({ children }) {
   const location = useLocation();
-  if (isTorneosNamespace(location.pathname)) return children;
+  if (
+    isTorneosNamespace(location.pathname)
+    || isBlockedWebPlayerRoute(location.pathname)
+    || isIsolatedWebSpecialRoute(location.pathname)
+  ) {
+    return children;
+  }
 
   return (
     <BadgeProvider>
@@ -293,7 +353,13 @@ export function RouteScopedProviders({ children }) {
 
 export function PersonalRuntimeEffects() {
   const location = useLocation();
-  if (isTorneosNamespace(location.pathname)) return null;
+  if (
+    isTorneosNamespace(location.pathname)
+    || isBlockedWebPlayerRoute(location.pathname)
+    || isIsolatedWebSpecialRoute(location.pathname)
+  ) {
+    return null;
+  }
 
   return (
     <>
@@ -310,13 +376,21 @@ export function PersonalRuntimeEffects() {
 
 export function ScopedPublicVotingRouteIsolation({ children }) {
   const location = useLocation();
-  if (isTorneosNamespace(location.pathname)) return children;
+  if (isTorneosNamespace(location.pathname) || isBlockedWebPlayerRoute(location.pathname)) {
+    return children;
+  }
   return <PublicVotingRouteIsolation>{children}</PublicVotingRouteIsolation>;
 }
 
 export function PersonalGlobalNotice() {
   const location = useLocation();
-  if (isTorneosNamespace(location.pathname)) return null;
+  if (
+    isTorneosNamespace(location.pathname)
+    || isBlockedWebPlayerRoute(location.pathname)
+    || isIsolatedWebSpecialRoute(location.pathname)
+  ) {
+    return null;
+  }
   return <GlobalNoticeModal />;
 }
 
