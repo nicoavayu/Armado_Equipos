@@ -23,7 +23,7 @@ export function buildCorsHeaders(request: Request) {
   )).join(", ")
   return {
     "Access-Control-Allow-Origin": origin,
-    "Access-Control-Allow-Methods": "POST,OPTIONS",
+    "Access-Control-Allow-Methods": "POST,PUT,OPTIONS",
     "Access-Control-Allow-Headers": allowHeaders,
     "Access-Control-Max-Age": "86400",
     Vary: "Origin, Access-Control-Request-Headers",
@@ -46,6 +46,8 @@ export function jsonResponse(
  */
 export function mapRpcError(message: string): { status: number; error: string } {
   const table: Array<[string, number, string]> = [
+    ["TORNEOS_MEDIA_PIPELINE_NOT_READY", 503, "storage_unavailable"],
+    ["TORNEOS_MEDIA_MVP_RATE_LIMITED", 429, "rate_limited"],
     ["TORNEOS_MEDIA_UPLOAD_SESSION_INVALID", 409, "upload_session_invalid"],
     ["TORNEOS_MEDIA_PROCESSING_REQUIRED", 409, "processing_required"],
     ["TORNEOS_MEDIA_DUPLICATE", 409, "duplicate_asset"],
