@@ -107,6 +107,8 @@ const ANON_ALLOWLIST = [
 // fail before the later feature migration has created them. Keep each later
 // authenticated surface explicit here so the catalog remains fail-closed.
 const POST_CANONICAL_AUTHENTICATED_ALLOWLIST = [
+  ['public.get_effective_tournament_entitlements(uuid,uuid)', 'frontend_legitimate'],
+  ['public.has_tournament_entitlement(uuid,uuid,text)', 'frontend_legitimate'],
   ['public.get_tournament_media_asset_processing_tiers(uuid)', 'frontend_legitimate'],
   ['public.get_tournament_media_upload_capability(uuid)', 'frontend_legitimate'],
   ['public.get_tournament_social_snapshot(uuid,uuid,uuid,uuid,text,uuid,uuid)', 'frontend_legitimate'],
@@ -379,7 +381,7 @@ const counts = {
 };
 check(counts.publicExecute === 0, 'PUBLIC EXECUTE count remains 0');
 check(counts.anonExecute === 18, 'anon EXECUTE count remains 18');
-check(counts.authenticatedExecute === 227, 'authenticated EXECUTE count remains 227');
+check(counts.authenticatedExecute === 229, 'authenticated EXECUTE count remains 229');
 console.log('\nCatalog counts:', counts);
 console.log(`\n${checks} grant/security checks, ${failures} failures.`);
 

@@ -23,6 +23,10 @@ const cases = [
     name: '20260803090000_tournament_social_studio',
     migrations: ['20260803090000_tournament_social_studio.sql'],
   },
+  {
+    name: '20260810160355_tournament_entitlements_foundation',
+    migrations: ['20260810160355_tournament_entitlements_foundation.sql'],
+  },
 ];
 
 for (const item of cases) {
