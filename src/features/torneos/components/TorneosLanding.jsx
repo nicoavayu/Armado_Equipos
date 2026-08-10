@@ -117,9 +117,6 @@ export default function TorneosLanding() {
     const selected = await selectOrganization(organization.id);
     if (selected) navigate(`/torneos/organizacion/${organization.id}/inicio`);
   };
-  const canCreateAnotherOrganization = availableOrganizations.some(
-    (organization) => ['owner', 'admin'].includes(organization.role),
-  );
 
   return (
     <div className={styles.landing}>
@@ -133,12 +130,22 @@ export default function TorneosLanding() {
           Consultá tu actividad como jugador y abrí las organizaciones que administrás,
           siempre con la misma identidad Arma2.
         </p>
-        {nativeRuntime && (
+        {(nativeRuntime || (
+          experience.hasParticipantActivity && !experience.hasAdministration
+        )) && (
           <div className={styles.heroActions}>
-            <Link className={styles.secondaryButton} to="/">
-              <ArrowLeft size={18} aria-hidden="true" />
-              Volver a Arma2
-            </Link>
+            {experience.hasParticipantActivity && !experience.hasAdministration && (
+              <Link className={styles.primaryButton} to="/torneos/nueva-organizacion">
+                <Plus size={18} aria-hidden="true" />
+                Crear organización
+              </Link>
+            )}
+            {nativeRuntime && (
+              <Link className={styles.secondaryButton} to="/">
+                <ArrowLeft size={18} aria-hidden="true" />
+                Volver a Arma2
+              </Link>
+            )}
           </div>
         )}
       </section>
@@ -177,11 +184,9 @@ export default function TorneosLanding() {
               <h2 id="organizations-title">Tus organizaciones</h2>
               <p>Cada workspace conserva sus datos, permisos y capacidades.</p>
             </div>
-            {canCreateAnotherOrganization && (
-              <Link className={styles.secondaryButton} to="/torneos/nueva-organizacion">
-                <Plus size={17} aria-hidden="true" /> Nueva organización
-              </Link>
-            )}
+            <Link className={styles.secondaryButton} to="/torneos/nueva-organizacion">
+              <Plus size={17} aria-hidden="true" /> Nueva organización
+            </Link>
           </div>
           <div className={styles.organizationCards}>
             {experience.administrativeOrganizations.map((organization) => (
@@ -214,6 +219,9 @@ export default function TorneosLanding() {
               Cuando una organización te vincule como jugador, responsable o miembro,
               tu actividad aparecerá acá.
             </p>
+            <Link className={styles.primaryButton} to="/torneos/nueva-organizacion">
+              <Plus size={17} aria-hidden="true" /> Crear organización
+            </Link>
           </div>
         </section>
       )}

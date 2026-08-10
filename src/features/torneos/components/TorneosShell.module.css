@@ -735,6 +735,10 @@
   line-height: 1.55;
 }
 
+.unifiedEmptyState .primaryButton {
+  margin-top: 18px;
+}
+
 .sectionHeading > span,
 .eyebrow {
   color: var(--torneos-purple-bright);

@@ -79,6 +79,8 @@ describe('Arma2 Torneos unified participant/admin entrypoint', () => {
     }, { timeout: 5000 })).toBeInTheDocument();
     expect(screen.queryByText('Administrar')).not.toBeInTheDocument();
     expect(screen.queryByText('Mi actividad')).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Crear organización' }))
+      .toHaveAttribute('href', '/torneos/nueva-organizacion');
   });
 
   test('participant only sees personal activity and no administration', async () => {
@@ -89,6 +91,8 @@ describe('Arma2 Torneos unified participant/admin entrypoint', () => {
     expect(screen.getByRole('link', { name: /Mis partidos/i })).toBeInTheDocument();
     expect(screen.queryByText('Administrar')).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Nueva organización/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Crear organización' }))
+      .toHaveAttribute('href', '/torneos/nueva-organizacion');
   });
 
   test('owner only sees administration without being classified as participant', async () => {
@@ -119,13 +123,14 @@ describe('Arma2 Torneos unified participant/admin entrypoint', () => {
     expect(screen.getByText('Liga Devoto')).toBeInTheDocument();
   });
 
-  test('limited collaborator is not promoted to owner/admin actions', async () => {
+  test('limited collaborator keeps its role and may create a separate organization', async () => {
     renderLanding(createService({
       organizations: [{ ...ORGANIZATION, role: 'collaborator' }],
     }));
 
     expect(await screen.findByText('Colaborador · active')).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: /Nueva organización/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Nueva organización/i }))
+      .toHaveAttribute('href', '/torneos/nueva-organizacion');
     expect(screen.queryByText('Mi actividad')).not.toBeInTheDocument();
   });
 
@@ -143,6 +148,8 @@ describe('Arma2 Torneos unified participant/admin entrypoint', () => {
     renderLanding(createService({ relations: [PARTICIPANT_RELATION] }));
 
     expect(await screen.findByText('Mi actividad')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Crear organización' }))
+      .toHaveAttribute('href', '/torneos/nueva-organizacion');
     expect(screen.getByRole('link', { name: 'Volver a Arma2' })).toBeInTheDocument();
   });
 

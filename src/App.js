@@ -124,45 +124,50 @@ export default function App() {
                       <AuthCallback />
                     </Suspense>
                   } />
-                  <Route element={<PlayerProductRouteBoundary />}>
-                    <Route path="/encuesta/:partidoId" element={
-                      <Suspense fallback={<AppLoadingScreen />}>
-                        <EncuestaPartido />
-                      </Suspense>
-                    } />
-                    <Route path="/resultados-encuesta/:partidoId" element={
-                      <Suspense fallback={<AppLoadingScreen />}>
-                        <ResultadosEncuestaView />
-                      </Suspense>
-                    } />
-                    <Route path="/resultados/:partidoId" element={
-                      <Suspense fallback={<AppLoadingScreen />}>
-                        <ResultadosEncuestaView />
-                      </Suspense>
-                    } />
-                    <Route path="/pagos/:partidoId" element={
-                      <Suspense fallback={<AppLoadingScreen />}>
-                        <PaymentsView />
-                      </Suspense>
-                    } />
-                    <Route path="/i/:token" element={
-                      <Suspense fallback={<AppLoadingScreen />}>
-                        <InviteLanding />
-                      </Suspense>
-                    } />
-                    <Route path="/partido/:partidoId/invitacion" element={
-                      <Suspense fallback={<AppLoadingScreen />}>
-                        <PartidoInvitacion />
-                      </Suspense>
-                    } />
-                    <Route path="/votar-equipos" element={
-                      <Suspense fallback={<AppLoadingScreen />}>
-                        <VotarEquiposPage />
-                      </Suspense>
-                    } />
-                  </Route>
+                  <Route path="/encuesta/:partidoId" element={
+                    <Suspense fallback={<AppLoadingScreen />}>
+                      <EncuestaPartido />
+                    </Suspense>
+                  } />
+                  <Route path="/resultados-encuesta/:partidoId" element={
+                    <Suspense fallback={<AppLoadingScreen />}>
+                      <ResultadosEncuestaView />
+                    </Suspense>
+                  } />
+                  <Route path="/resultados/:partidoId" element={
+                    <Suspense fallback={<AppLoadingScreen />}>
+                      <ResultadosEncuestaView />
+                    </Suspense>
+                  } />
+                  <Route path="/pagos/:partidoId" element={
+                    <Suspense fallback={<AppLoadingScreen />}>
+                      <PaymentsView />
+                    </Suspense>
+                  } />
+                  <Route path="/i/:token" element={
+                    <Suspense fallback={<AppLoadingScreen />}>
+                      <InviteLanding />
+                    </Suspense>
+                  } />
+
+                  {/* Public/special web flows remain isolated from the player product shell. */}
+                  <Route path="/partido/:partidoId/invitacion" element={
+                    <Suspense fallback={<AppLoadingScreen />}>
+                      <PartidoInvitacion />
+                    </Suspense>
+                  } />
+                  <Route path="/votar-equipos" element={
+                    <Suspense fallback={<AppLoadingScreen />}>
+                      <VotarEquiposPage />
+                    </Suspense>
+                  } />
 
                   <Route path="/" element={<AppAuthWrapper />}>
+                    <Route path="partido-publico/:partidoId" element={
+                      <Suspense fallback={<AppLoadingScreen />}>
+                        <PartidoInvitacion mode="public" />
+                      </Suspense>
+                    } />
                     <Route element={<PlayerProductRouteBoundary />}>
                       <Route path="" element={<MainLayout />}>
                         <Route index element={
@@ -254,11 +259,6 @@ export default function App() {
                           <AdminPanelPage />
                         </Suspense>
                       } />
-                        <Route path="partido-publico/:partidoId" element={
-                          <Suspense fallback={<AppLoadingScreen />}>
-                            <PartidoInvitacion mode="public" />
-                          </Suspense>
-                        } />
                       </Route>
                     </Route>
                     {/* Independent authenticated shell. The gate is fail-closed in production. */}
@@ -279,7 +279,24 @@ function isTorneosNamespace(pathname = '') {
   return pathname === '/torneos' || pathname.startsWith('/torneos/');
 }
 
-function isPlayerProductRoute(pathname = '') {
+const PUBLIC_SPECIAL_WEB_ROUTE_PATTERNS = Object.freeze([
+  /^\/encuesta\/[^/]+\/?$/,
+  /^\/resultados-encuesta\/[^/]+\/?$/,
+  /^\/resultados\/[^/]+\/?$/,
+  /^\/pagos\/[^/]+\/?$/,
+  /^\/i\/[^/]+\/?$/,
+  /^\/partido\/[^/]+\/invitacion\/?$/,
+  /^\/votar-equipos\/?$/,
+  /^\/partido-publico\/[^/]+\/?$/,
+]);
+
+export function isPublicSpecialWebRoute(pathname = '') {
+  return PUBLIC_SPECIAL_WEB_ROUTE_PATTERNS.some((pattern) => pattern.test(pathname));
+}
+
+export function isPlayerProductRoute(pathname = '') {
+  if (isPublicSpecialWebRoute(pathname)) return false;
+
   return [
     '/',
     '/home',
@@ -294,13 +311,6 @@ function isPlayerProductRoute(pathname = '') {
     '/historial',
     '/admin',
     '/partido',
-    '/partido-publico',
-    '/encuesta',
-    '/resultados-encuesta',
-    '/resultados',
-    '/pagos',
-    '/i',
-    '/votar-equipos',
   ].some((route) => pathname === route || (
     route !== '/' && pathname.startsWith(`${route}/`)
   ));
@@ -310,14 +320,25 @@ function isBlockedWebPlayerRoute(pathname = '') {
   return !isArma2NativeRuntime() && isPlayerProductRoute(pathname);
 }
 
+function isIsolatedWebSpecialRoute(pathname = '') {
+  return !isArma2NativeRuntime() && isPublicSpecialWebRoute(pathname);
+}
+
 export function PlayerProductRouteBoundary({ native = isArma2NativeRuntime() }) {
-  if (!native) return <Navigate to="/torneos" replace />;
+  const location = useLocation();
+  if (!native && isPlayerProductRoute(location.pathname)) {
+    return <Navigate to="/torneos" replace />;
+  }
   return <Outlet />;
 }
 
 export function RouteScopedProviders({ children }) {
   const location = useLocation();
-  if (isTorneosNamespace(location.pathname) || isBlockedWebPlayerRoute(location.pathname)) {
+  if (
+    isTorneosNamespace(location.pathname)
+    || isBlockedWebPlayerRoute(location.pathname)
+    || isIsolatedWebSpecialRoute(location.pathname)
+  ) {
     return children;
   }
 
@@ -332,7 +353,11 @@ export function RouteScopedProviders({ children }) {
 
 export function PersonalRuntimeEffects() {
   const location = useLocation();
-  if (isTorneosNamespace(location.pathname) || isBlockedWebPlayerRoute(location.pathname)) {
+  if (
+    isTorneosNamespace(location.pathname)
+    || isBlockedWebPlayerRoute(location.pathname)
+    || isIsolatedWebSpecialRoute(location.pathname)
+  ) {
     return null;
   }
 
@@ -359,7 +384,11 @@ export function ScopedPublicVotingRouteIsolation({ children }) {
 
 export function PersonalGlobalNotice() {
   const location = useLocation();
-  if (isTorneosNamespace(location.pathname) || isBlockedWebPlayerRoute(location.pathname)) {
+  if (
+    isTorneosNamespace(location.pathname)
+    || isBlockedWebPlayerRoute(location.pathname)
+    || isIsolatedWebSpecialRoute(location.pathname)
+  ) {
     return null;
   }
   return <GlobalNoticeModal />;
