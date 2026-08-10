@@ -24,6 +24,7 @@ import {
 } from 'react-router-dom';
 import Logo from '../../../Logo.png';
 import { useKeyboard } from '../../../hooks/useKeyboard';
+import { isArma2NativeRuntime } from '../../../utils/runtimePlatform';
 import { torneosFeatureFlags } from '../config/featureFlags';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
 import CreateOrganizationPage from './CreateOrganizationPage';
@@ -51,6 +52,9 @@ import MyCommunicationsPage from './MyCommunicationsPage';
 import CommunicationsAdminPage from './CommunicationsAdminPage';
 import MediaAdminPage from './MediaAdminPage';
 import SocialStudioPage from './SocialStudioPage';
+import SocialStudioEntitlementGate, {
+  useSocialStudioEntitlement,
+} from './SocialStudioEntitlementGate';
 import styles from './TorneosShell.module.css';
 
 const organizationNavigation = [
@@ -92,7 +96,12 @@ function TeamEntryRedirect() {
   );
 }
 
-function OrganizationNavigation({ organization, mobile = false, keyboardHidden = false }) {
+function OrganizationNavigation({
+  organization,
+  mobile = false,
+  keyboardHidden = false,
+  socialStudioAvailable = false,
+}) {
   const location = useLocation();
   if (!organization) return null;
   const base = `/torneos/organizacion/${organization.id}`;
@@ -109,6 +118,7 @@ function OrganizationNavigation({ organization, mobile = false, keyboardHidden =
       {organizationNavigation
         // A flagged surface must not even appear in the nav when it is off.
         .filter(({ flag }) => !flag || torneosFeatureFlags[flag])
+        .filter(({ path }) => path !== 'estudio-social' || socialStudioAvailable)
         .map(({
           label, path, icon: Icon, relatedPaths = [],
         }) => (
@@ -135,7 +145,8 @@ function OrganizationNavigation({ organization, mobile = false, keyboardHidden =
 export default function TorneosShell() {
   const location = useLocation();
   const { isKeyboardOpen } = useKeyboard();
-  const { activeOrganization } = useTorneosWorkspace();
+  const { activeOrganization, service } = useTorneosWorkspace();
+  const nativeRuntime = isArma2NativeRuntime();
   const isOrganizationRoute = location.pathname.includes('/torneos/organizacion/');
   const organizationRelativePath = isOrganizationRoute
     ? location.pathname.split('/').slice(4).join('/')
@@ -152,6 +163,11 @@ export default function TorneosShell() {
       )
       : organizationRelativePath === path
   ));
+  const socialStudioAccess = useSocialStudioEntitlement({
+    organizationId: isOrganizationRoute ? activeOrganization?.id : null,
+    service,
+    enabled: torneosFeatureFlags.socialContentGenerator,
+  });
 
   return (
     <div className={styles.shell}>
@@ -171,7 +187,10 @@ export default function TorneosShell() {
 
         <WorkspaceSwitcher />
 
-        <OrganizationNavigation organization={isOrganizationRoute ? activeOrganization : null} />
+        <OrganizationNavigation
+          organization={isOrganizationRoute ? activeOrganization : null}
+          socialStudioAvailable={socialStudioAccess.allowed}
+        />
 
         <div className={styles.previewNotice}>
           <ShieldCheck size={16} aria-hidden="true" />
@@ -204,7 +223,7 @@ export default function TorneosShell() {
           <div className={styles.mobileSwitcher}>
             <WorkspaceSwitcher />
           </div>
-          {!torneosFeatureFlags.workspaceSwitcher && (
+          {nativeRuntime && !torneosFeatureFlags.workspaceSwitcher && (
             <Link className={styles.topbarExit} to="/">
               <Building2 size={17} />
               Arma2
@@ -285,7 +304,17 @@ export default function TorneosShell() {
               <Route path="comunicaciones" element={<CommunicationsAdminPage />} />
               <Route path="multimedia" element={<MediaAdminPage />} />
               {torneosFeatureFlags.socialContentGenerator && (
-                <Route path="estudio-social" element={<SocialStudioPage />} />
+                <Route
+                  path="estudio-social"
+                  element={(
+                    <SocialStudioEntitlementGate
+                      access={socialStudioAccess}
+                      organizationId={activeOrganization?.id || ''}
+                    >
+                      <SocialStudioPage />
+                    </SocialStudioEntitlementGate>
+                  )}
+                />
               )}
               <Route path="configuracion" element={<OrganizationSettingsPage />} />
               <Route path="miembros" element={<OrganizationMembersPage />} />
@@ -337,6 +366,7 @@ export default function TorneosShell() {
           organization={isOrganizationRoute ? activeOrganization : null}
           mobile
           keyboardHidden={isKeyboardOpen}
+          socialStudioAvailable={socialStudioAccess.allowed}
         />
       </section>
 

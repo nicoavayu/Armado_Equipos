@@ -1,6 +1,7 @@
 import { supabase } from '../services/api/supabase';
 import {
   loadMyTournamentMemberships,
+  loadTournamentExperienceRelations,
   loadPublishedTournamentMatches,
   loadPublishedTournamentStandings,
   loadPublishedTournamentStatistics,
@@ -28,6 +29,40 @@ describe('participant hub service contracts', () => {
     expect(supabase.rpc).toHaveBeenCalledWith('get_my_tournament_memberships', {
       p_limit: 18,
       p_offset: 36,
+    });
+  });
+
+  test('resolves the unified entrypoint from every bounded membership page', async () => {
+    supabase.rpc
+      .mockResolvedValueOnce({
+        data: {
+          items: [{ tournamentId: 'admin-tournament', role: 'owner' }],
+          pagination: { hasMore: true },
+        },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: {
+          items: [{ tournamentId: 'player-tournament', role: 'player' }],
+          pagination: { hasMore: false },
+        },
+        error: null,
+      });
+
+    await expect(loadTournamentExperienceRelations({ pageSize: 1 }))
+      .resolves.toEqual(expect.objectContaining({
+        items: [
+          { tournamentId: 'admin-tournament', role: 'owner' },
+          { tournamentId: 'player-tournament', role: 'player' },
+        ],
+      }));
+    expect(supabase.rpc).toHaveBeenNthCalledWith(1, 'get_my_tournament_memberships', {
+      p_limit: 1,
+      p_offset: 0,
+    });
+    expect(supabase.rpc).toHaveBeenNthCalledWith(2, 'get_my_tournament_memberships', {
+      p_limit: 1,
+      p_offset: 1,
     });
   });
 

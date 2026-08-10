@@ -12,6 +12,7 @@ import {
 import { track } from '../utils/monitoring/analytics';
 import { redactUrlForLog } from '../utils/nativeAppLink';
 import AppLoadingScreen from './AppLoadingScreen';
+import { getAuthenticatedProductHome } from '../utils/runtimePlatform';
 
 const SESSION_RETRY_DELAYS_MS = [0, 250, 600, 1200];
 const AUTH_CALLBACK_TIMEOUT_MS = 20000;
@@ -171,7 +172,7 @@ export default function AuthCallback() {
           method: 'oauth_callback',
         });
 
-        const target = consumeAuthReturnTo('/home');
+        const target = consumeAuthReturnTo(getAuthenticatedProductHome());
         logAuth('auth_callback_navigate', { target: redactUrlForLog(target) });
         if (settled || !mounted) return;
         settled = true;

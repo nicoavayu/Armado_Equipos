@@ -8,6 +8,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { isArma2NativeRuntime } from '../../../utils/runtimePlatform';
 import { torneosFeatureFlags } from '../config/featureFlags';
 import { getRoleLabel } from '../domain/capabilities';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
@@ -29,6 +30,7 @@ export default function WorkspaceSwitcher() {
   const containerRef = useRef(null);
   const [open, setOpen] = useState(false);
   const [busyId, setBusyId] = useState('');
+  const nativeRuntime = isArma2NativeRuntime();
   const {
     activeOrganization,
     availableOrganizations,
@@ -117,19 +119,21 @@ export default function WorkspaceSwitcher() {
       {open && (
         <div className={styles.switcherMenu} role="menu" aria-label="Cambiar espacio">
           <span className={styles.menuLabel}>Tus espacios</span>
-          <button
-            type="button"
-            role="menuitem"
-            disabled={Boolean(busyId)}
-            onClick={goPersonal}
-          >
-            <span className={styles.personalAvatar}><CircleUserRound size={19} /></span>
-            <span>
-              <strong>Arma2</strong>
-              <small>Tu espacio personal</small>
-            </span>
-            {busyId === 'personal' && <span className={styles.miniSpinner} />}
-          </button>
+          {nativeRuntime && (
+            <button
+              type="button"
+              role="menuitem"
+              disabled={Boolean(busyId)}
+              onClick={goPersonal}
+            >
+              <span className={styles.personalAvatar}><CircleUserRound size={19} /></span>
+              <span>
+                <strong>Arma2</strong>
+                <small>Tu espacio personal</small>
+              </span>
+              {busyId === 'personal' && <span className={styles.miniSpinner} />}
+            </button>
+          )}
 
           <button
             type="button"
@@ -165,18 +169,20 @@ export default function WorkspaceSwitcher() {
             </button>
           ))}
 
-          <button
-            type="button"
-            role="menuitem"
-            className={styles.createWorkspaceItem}
-            onClick={() => navigate('/torneos/nueva-organizacion')}
-          >
-            <span className={styles.personalAvatar}><Plus size={19} /></span>
-            <span>
-              <strong>Crear organización</strong>
-              <small>Nuevo workspace de Torneos</small>
-            </span>
-          </button>
+          {availableOrganizations.some(({ role }) => ['owner', 'admin'].includes(role)) && (
+            <button
+              type="button"
+              role="menuitem"
+              className={styles.createWorkspaceItem}
+              onClick={() => navigate('/torneos/nueva-organizacion')}
+            >
+              <span className={styles.personalAvatar}><Plus size={19} /></span>
+              <span>
+                <strong>Crear organización</strong>
+                <small>Nuevo workspace de Torneos</small>
+              </span>
+            </button>
+          )}
         </div>
       )}
     </div>

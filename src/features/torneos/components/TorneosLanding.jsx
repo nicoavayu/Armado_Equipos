@@ -1,43 +1,114 @@
-import React from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   ArrowLeft,
   ArrowRight,
   Bell,
   Building2,
+  CalendarDays,
   CalendarRange,
   Plus,
   ShieldCheck,
+  Trophy,
 } from 'lucide-react';
-import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { isArma2NativeRuntime } from '../../../utils/runtimePlatform';
 import { getRoleLabel } from '../domain/capabilities';
+import { resolveTorneosUserExperience } from '../domain/userExperience';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import styles from './TorneosShell.module.css';
 
+const ACTIVITY_LINKS = [
+  {
+    title: 'Mis torneos',
+    copy: 'Fixture, tabla, equipos y estadísticas',
+    path: '/torneos/mis-torneos',
+    icon: Trophy,
+  },
+  {
+    title: 'Mis partidos',
+    copy: 'Próximos cruces y disponibilidad',
+    path: '/torneos/mis-partidos',
+    icon: CalendarDays,
+  },
+  {
+    title: 'Comunicados',
+    copy: 'Novedades oficiales de tus competencias',
+    path: '/torneos/comunicados',
+    icon: Bell,
+  },
+];
+
 export default function TorneosLanding() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const nativeRuntime = isArma2NativeRuntime();
   const {
     status,
     error,
-    preference,
     availableOrganizations,
     selectOrganization,
     refresh,
+    service,
   } = useTorneosWorkspace();
+  const relationsRequestRef = useRef(0);
+  const [relationsState, setRelationsState] = useState({
+    status: 'loading',
+    relations: [],
+    error: '',
+  });
 
-  if (status === 'loading' || status === 'idle') return <WorkspaceLoading />;
-  if (status === 'error') {
-    return <WorkspaceError message={error} onRetry={() => refresh().catch(() => {})} />;
+  const loadRelations = useCallback(async () => {
+    const requestId = relationsRequestRef.current + 1;
+    relationsRequestRef.current = requestId;
+    setRelationsState({ status: 'loading', relations: [], error: '' });
+    try {
+      const payload = typeof service.loadExperienceRelations === 'function'
+        ? await service.loadExperienceRelations()
+        : await service.loadMyTournaments({ limit: 50, offset: 0 });
+      if (relationsRequestRef.current !== requestId) return;
+      setRelationsState({
+        status: 'ready',
+        relations: Array.isArray(payload?.items) ? payload.items : [],
+        error: '',
+      });
+    } catch (loadError) {
+      if (relationsRequestRef.current !== requestId) return;
+      setRelationsState({
+        status: 'error',
+        relations: [],
+        error: loadError?.message || 'No pudimos resolver tu actividad de Torneos.',
+      });
+    }
+  }, [service]);
+
+  useEffect(() => {
+    loadRelations();
+    return () => { relationsRequestRef.current += 1; };
+  }, [loadRelations]);
+
+  const experience = useMemo(() => resolveTorneosUserExperience({
+    organizations: availableOrganizations,
+    tournamentRelations: relationsState.relations,
+  }), [availableOrganizations, relationsState.relations]);
+
+  if (status === 'loading' || status === 'idle' || relationsState.status === 'loading') {
+    return <WorkspaceLoading label="Resolviendo tu experiencia de Torneos…" />;
   }
-
-  const preferred = availableOrganizations.find(
-    (organization) => organization.id === preference.activeOrganizationId,
-  );
-  if (preferred) {
+  if (status === 'error' || relationsState.status === 'error') {
     return (
-      <Navigate
-        to={`/torneos/organizacion/${preferred.id}/inicio`}
-        replace
+      <WorkspaceError
+        message={error || relationsState.error}
+        onRetry={() => Promise.all([
+          refresh().catch(() => {}),
+          loadRelations(),
+        ])}
       />
     );
   }
@@ -46,47 +117,74 @@ export default function TorneosLanding() {
     const selected = await selectOrganization(organization.id);
     if (selected) navigate(`/torneos/organizacion/${organization.id}/inicio`);
   };
+  const canCreateAnotherOrganization = availableOrganizations.some(
+    (organization) => ['owner', 'admin'].includes(organization.role),
+  );
 
   return (
     <div className={styles.landing}>
       <section className={styles.landingHero}>
         <div className={styles.heroBadge}>
           <ShieldCheck size={17} aria-hidden="true" />
-          Entorno aislado · Desarrollo
+          Una cuenta · Todos tus torneos
         </div>
-        <h1>El centro de mando de tu <em>competencia.</em></h1>
+        <h1>Tu competencia, <em>en un solo lugar.</em></h1>
         <p>
-          Operá una organización o entrá a tu calendario competitivo como
-          jugador, capitán o colaborador.
+          Consultá tu actividad como jugador y abrí las organizaciones que administrás,
+          siempre con la misma identidad Arma2.
         </p>
-        <div className={styles.heroActions}>
-          <Link className={styles.primaryButton} to="/torneos/mis-torneos">
-            <CalendarRange size={18} aria-hidden="true" />
-            Ver mis torneos
-          </Link>
-          <Link className={styles.secondaryButton} to="/torneos/comunicados">
-            <Bell size={18} aria-hidden="true" />
-            Comunicados
-          </Link>
-          <Link className={styles.primaryButton} to="/torneos/nueva-organizacion">
-            <Plus size={18} aria-hidden="true" />
-            Crear organización
-          </Link>
-          <Link className={styles.secondaryButton} to="/">
-            <ArrowLeft size={18} aria-hidden="true" />
-            Volver a Arma2
-          </Link>
-        </div>
+        {nativeRuntime && (
+          <div className={styles.heroActions}>
+            <Link className={styles.secondaryButton} to="/">
+              <ArrowLeft size={18} aria-hidden="true" />
+              Volver a Arma2
+            </Link>
+          </div>
+        )}
       </section>
 
-      {availableOrganizations.length > 0 && (
-        <section className={styles.organizationPicker} aria-labelledby="organizations-title">
+      {location.state?.safeMessage && (
+        <div className={styles.contextNotice} role="status">
+          <ShieldCheck size={17} aria-hidden="true" />
+          {location.state.safeMessage}
+        </div>
+      )}
+
+      {experience.hasParticipantActivity && (
+        <section className={styles.experienceSection} aria-labelledby="activity-title">
           <div className={styles.sectionHeading}>
-            <span>Workspaces disponibles</span>
-            <h2 id="organizations-title">Elegí dónde trabajar</h2>
+            <span>Mi actividad</span>
+            <h2 id="activity-title">Viví tus torneos</h2>
+            <p>Accesos personales derivados de tu equipo, plantel o rol deportivo real.</p>
+          </div>
+          <div className={styles.experienceActions}>
+            {ACTIVITY_LINKS.map(({ title, copy, path, icon: Icon }) => (
+              <Link key={path} to={path}>
+                <span><Icon size={21} aria-hidden="true" /></span>
+                <span><strong>{title}</strong><small>{copy}</small></span>
+                <ArrowRight size={18} aria-hidden="true" />
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {experience.hasAdministration && (
+        <section className={`${styles.organizationPicker} ${styles.experienceSection}`} aria-labelledby="organizations-title">
+          <div className={styles.sectionHeadingRow}>
+            <div className={styles.sectionHeading}>
+              <span>Administrar</span>
+              <h2 id="organizations-title">Tus organizaciones</h2>
+              <p>Cada workspace conserva sus datos, permisos y capacidades.</p>
+            </div>
+            {canCreateAnotherOrganization && (
+              <Link className={styles.secondaryButton} to="/torneos/nueva-organizacion">
+                <Plus size={17} aria-hidden="true" /> Nueva organización
+              </Link>
+            )}
           </div>
           <div className={styles.organizationCards}>
-            {availableOrganizations.map((organization) => (
+            {experience.administrativeOrganizations.map((organization) => (
               <button
                 key={organization.id}
                 type="button"
@@ -102,6 +200,20 @@ export default function TorneosLanding() {
                 <ArrowRight size={19} aria-hidden="true" />
               </button>
             ))}
+          </div>
+        </section>
+      )}
+
+      {!experience.hasAnyRelationship && (
+        <section className={styles.unifiedEmptyState}>
+          <span><CalendarRange size={28} aria-hidden="true" /></span>
+          <div>
+            <span className={styles.eyebrow}>Arma2 Torneos</span>
+            <h2>No participás ni administrás torneos todavía</h2>
+            <p>
+              Cuando una organización te vincule como jugador, responsable o miembro,
+              tu actividad aparecerá acá.
+            </p>
           </div>
         </section>
       )}

@@ -1183,6 +1183,42 @@ export async function loadMyTournamentMemberships({
   }), 'No pudimos cargar tus torneos.');
 }
 
+export async function loadTournamentExperienceRelations({
+  pageSize = 50,
+  maxItems = 500,
+} = {}) {
+  const items = [];
+  let offset = 0;
+  let pagination = null;
+  let receivedItems = false;
+
+  do {
+    const payload = await loadMyTournamentMemberships({
+      limit: pageSize,
+      offset,
+    });
+    const page = Array.isArray(payload?.items) ? payload.items : [];
+    receivedItems = page.length > 0;
+    items.push(...page);
+    pagination = payload?.pagination || null;
+    offset += page.length;
+  } while (
+    pagination?.hasMore
+    && offset < maxItems
+    && receivedItems
+  );
+
+  return {
+    items: items.slice(0, maxItems),
+    pagination: {
+      ...(pagination || {}),
+      offset: 0,
+      returned: Math.min(items.length, maxItems),
+      truncated: Boolean(pagination?.hasMore && items.length >= maxItems),
+    },
+  };
+}
+
 export async function loadTournamentParticipantHub({
   tournamentId,
   categoryId = null,
@@ -1772,6 +1808,7 @@ export async function handleTournamentMediaReport({
 
 export const tournamentWorkspaceService = Object.freeze({
   loadContext: loadTournamentWorkspaceContext,
+  loadEntitlements: loadEffectiveTournamentEntitlements,
   createOrganization: createTournamentOrganization,
   checkSlugAvailability: checkTournamentOrganizationSlugAvailability,
   setPreference: setTournamentWorkspacePreference,
@@ -1858,6 +1895,7 @@ export const tournamentWorkspaceService = Object.freeze({
   loadPlayerStatistics: loadPlayerTournamentStatistics,
   loadPlayerSuspensions: loadPlayerTournamentSuspensions,
   loadMyTournaments: loadMyTournamentMemberships,
+  loadExperienceRelations: loadTournamentExperienceRelations,
   loadParticipantHub: loadTournamentParticipantHub,
   setHubCategory: setTournamentHubCategory,
   loadPublishedMatches: loadPublishedTournamentMatches,

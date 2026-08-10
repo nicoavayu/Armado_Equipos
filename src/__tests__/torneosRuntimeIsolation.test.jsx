@@ -1,9 +1,15 @@
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter, useLocation } from 'react-router-dom';
+import {
+  MemoryRouter,
+  Route,
+  Routes,
+  useLocation,
+} from 'react-router-dom';
 import {
   PersonalGlobalNotice,
   PersonalRuntimeEffects,
+  PlayerProductRouteBoundary,
   RouteScopedProviders,
   ScopedPublicVotingRouteIsolation,
 } from '../App';
@@ -12,6 +18,13 @@ import { useNotificationRedirect } from '../hooks/useNotificationRedirect';
 import { useRouteScrollReset } from '../hooks/useScrollReset';
 import { loadGoogleMapsScript } from '../services/googleMapsLoader';
 import { warmLikelyRoutes } from '../utils/routePrefetch';
+
+let mockNativeRuntime = true;
+
+jest.mock('../utils/runtimePlatform', () => ({
+  isArma2NativeRuntime: () => mockNativeRuntime,
+  getAuthenticatedProductHome: () => (mockNativeRuntime ? '/' : '/torneos'),
+}));
 
 jest.mock('../components/AuthProvider', () => ({
   __esModule: true,
@@ -102,6 +115,7 @@ function RuntimeHarness() {
 
 describe('Torneos global runtime isolation', () => {
   beforeEach(() => {
+    mockNativeRuntime = true;
     jest.clearAllMocks();
     loadGoogleMapsScript.mockResolvedValue(undefined);
     initNativePushNotifications.mockResolvedValue(undefined);
@@ -146,5 +160,93 @@ describe('Torneos global runtime isolation', () => {
     expect(warmLikelyRoutes).not.toHaveBeenCalled();
     expect(useNotificationRedirect).not.toHaveBeenCalled();
     expect(useRouteScrollReset).not.toHaveBeenCalled();
+  });
+
+  test('mounts no personal runtime while a browser player URL is redirected', () => {
+    mockNativeRuntime = false;
+    render(
+      <MemoryRouter initialEntries={['/profile']}>
+        <RuntimeHarness />
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByTestId('notification-provider')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('global-notice')).not.toBeInTheDocument();
+    expect(loadGoogleMapsScript).not.toHaveBeenCalled();
+    expect(initNativePushNotifications).not.toHaveBeenCalled();
+  });
+
+  test('mounts no personal runtime for a public player deep link in browser', () => {
+    mockNativeRuntime = false;
+    render(
+      <MemoryRouter initialEntries={['/votar-equipos?codigo=H03G61']}>
+        <RuntimeHarness />
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByTestId('notification-provider')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('public-voting-isolation')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('global-notice')).not.toBeInTheDocument();
+    expect(loadGoogleMapsScript).not.toHaveBeenCalled();
+  });
+
+  test('blocks the traditional player product on web and preserves it on native', () => {
+    const { unmount } = render(
+      <MemoryRouter initialEntries={['/profile']}>
+        <Routes>
+          <Route element={<PlayerProductRouteBoundary native={false} />}>
+            <Route path="/profile" element={<div>Perfil de jugador</div>} />
+          </Route>
+          <Route path="/torneos" element={<div>Arma2 Torneos</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText('Arma2 Torneos')).toBeInTheDocument();
+    expect(screen.queryByText('Perfil de jugador')).not.toBeInTheDocument();
+    unmount();
+
+    render(
+      <MemoryRouter initialEntries={['/profile']}>
+        <Routes>
+          <Route element={<PlayerProductRouteBoundary native />}>
+            <Route path="/profile" element={<div>Perfil de jugador</div>} />
+          </Route>
+          <Route path="/torneos" element={<div>Arma2 Torneos</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText('Perfil de jugador')).toBeInTheDocument();
+  });
+
+  test('blocks public player deep links on web and preserves them on native', () => {
+    const { unmount } = render(
+      <MemoryRouter initialEntries={['/votar-equipos?codigo=H03G61']}>
+        <Routes>
+          <Route element={<PlayerProductRouteBoundary native={false} />}>
+            <Route path="/votar-equipos" element={<div>Votación informal</div>} />
+          </Route>
+          <Route path="/torneos" element={<div>Arma2 Torneos</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText('Arma2 Torneos')).toBeInTheDocument();
+    expect(screen.queryByText('Votación informal')).not.toBeInTheDocument();
+    unmount();
+
+    render(
+      <MemoryRouter initialEntries={['/votar-equipos?codigo=H03G61']}>
+        <Routes>
+          <Route element={<PlayerProductRouteBoundary native />}>
+            <Route path="/votar-equipos" element={<div>Votación informal</div>} />
+          </Route>
+          <Route path="/torneos" element={<div>Arma2 Torneos</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText('Votación informal')).toBeInTheDocument();
   });
 });

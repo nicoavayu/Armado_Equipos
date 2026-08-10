@@ -31,6 +31,10 @@ function createService({ organizations = null, error = null } = {}) {
         },
         organizations: available,
       }),
+    loadExperienceRelations: jest.fn().mockResolvedValue({
+      items: [],
+      pagination: { total: 0, hasMore: false },
+    }),
     setPreference: jest.fn(async (workspaceType, organizationId) => ({
       workspaceType,
       activeOrganizationId: organizationId,
@@ -43,7 +47,7 @@ function createService({ organizations = null, error = null } = {}) {
 }
 
 describe('Arma2 Torneos route isolation', () => {
-  test('redirects to personal home without initializing Torneos when disabled', () => {
+  test('redirects native to personal home without initializing Torneos when disabled', () => {
     const service = createService();
     render(
       <MemoryRouter initialEntries={['/torneos']}>
@@ -51,13 +55,32 @@ describe('Arma2 Torneos route isolation', () => {
           <Route path="/" element={<div>Arma2 personal</div>} />
           <Route
             path="/torneos/*"
-            element={<TorneosFeatureGate enabled={false} service={service} />}
+            element={<TorneosFeatureGate enabled={false} service={service} native />}
           />
         </Routes>
       </MemoryRouter>,
     );
 
     expect(screen.getByText('Arma2 personal')).toBeInTheDocument();
+    expect(service.loadContext).not.toHaveBeenCalled();
+  });
+
+  test('fails closed on web when Torneos is disabled', () => {
+    const service = createService();
+    render(
+      <MemoryRouter initialEntries={['/torneos']}>
+        <Routes>
+          <Route path="/" element={<div>Arma2 personal</div>} />
+          <Route
+            path="/torneos/*"
+            element={<TorneosFeatureGate enabled={false} service={service} native={false} />}
+          />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Arma2 Torneos no está disponible');
+    expect(screen.queryByText('Arma2 personal')).not.toBeInTheDocument();
     expect(service.loadContext).not.toHaveBeenCalled();
   });
 
@@ -100,7 +123,7 @@ describe('Arma2 Torneos route isolation', () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByRole('heading', { name: /el centro de mando/i }))
+    expect(await screen.findByRole('heading', { name: /tu competencia/i }))
       .toBeInTheDocument();
     expect(screen.queryByText(/organización secreta/i)).not.toBeInTheDocument();
     expect(service.setPreference).not.toHaveBeenCalled();

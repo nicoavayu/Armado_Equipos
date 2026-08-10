@@ -14,6 +14,7 @@ import {
 } from '../utils/authFlowState';
 import { supabase } from '../supabase';
 import logo from '../Logo.png';
+import { getAuthenticatedProductHome } from '../utils/runtimePlatform';
 
 function getReturnTo(search) {
   const sp = new URLSearchParams(search || '');
@@ -108,7 +109,7 @@ export default function AuthHome() {
     setEmailLoading(true);
     setNotice({ type: '', message: '' });
     try {
-      setAuthReturnTo(returnTo || '/home');
+      setAuthReturnTo(returnTo || getAuthenticatedProductHome());
       const emailRedirectTo = getAuthRedirectUrl();
       const { error } = await supabase.auth.signInWithOtp({
         email: email.trim(),
@@ -131,7 +132,7 @@ export default function AuthHome() {
   };
 
   if (!loading && user) {
-    return <Navigate to="/" replace />;
+    return <Navigate to={getAuthenticatedProductHome()} replace />;
   }
 
   return (
