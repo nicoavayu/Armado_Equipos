@@ -41,6 +41,10 @@ describe('tournament media service contracts', () => {
       'get_tournament_media_asset_processing_tiers',
       { p_organization_id: 'org-a' },
     );
+    expect(supabase.rpc).toHaveBeenCalledWith(
+      'get_effective_tournament_entitlements',
+      { p_organization_id: 'org-a', p_tournament_id: 'tournament-a' },
+    );
   });
 
   test('merges the persisted processing tier into each admin asset', async () => {
@@ -54,10 +58,14 @@ describe('tournament media service contracts', () => {
       if (name === 'get_tournament_media_asset_processing_tiers') {
         return { data: { 'asset-a': 'mvp_simple' }, error: null };
       }
+      if (name === 'get_effective_tournament_entitlements') {
+        return { data: { plan: 'FREE', media: { maxPhotosPerMatchday: 20 } }, error: null };
+      }
       return { data: { uploadReady: true }, error: null };
     });
     const context = await loadTournamentMediaAdminContext({ organizationId: 'org-a' });
     expect(context.galleries[0].assets[0].processingTier).toBe('mvp_simple');
+    expect(context.entitlements.media.maxPhotosPerMatchday).toBe(20);
   });
 
   test('creates a scoped gallery without trusting actor or storage path', async () => {

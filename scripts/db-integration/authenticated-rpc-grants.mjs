@@ -107,6 +107,8 @@ const ANON_ALLOWLIST = [
 // fail before the later feature migration has created them. Keep each later
 // authenticated surface explicit here so the catalog remains fail-closed.
 const POST_CANONICAL_AUTHENTICATED_ALLOWLIST = [
+  ['public.get_effective_tournament_entitlements(uuid,uuid)', 'frontend_legitimate'],
+  ['public.has_tournament_entitlement(uuid,uuid,text)', 'frontend_legitimate'],
   ['public.get_tournament_media_asset_processing_tiers(uuid)', 'frontend_legitimate'],
   ['public.get_tournament_media_upload_capability(uuid)', 'frontend_legitimate'],
   ['public.get_tournament_social_snapshot(uuid,uuid,uuid,uuid,text,uuid,uuid)', 'frontend_legitimate'],
