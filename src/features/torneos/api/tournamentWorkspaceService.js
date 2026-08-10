@@ -1506,13 +1506,32 @@ export async function loadTournamentMediaAdminContext({
   limit = 30,
   offset = 0,
 }) {
-  return unwrapRpc(await supabase.rpc('get_tournament_media_admin_context', {
-    p_organization_id: organizationId,
-    p_tournament_id: tournamentId,
-    p_status: status,
-    p_limit: limit,
-    p_offset: offset,
-  }), 'No pudimos cargar el Centro Multimedia.');
+  const [contextResult, capabilityResult, tiersResult] = await Promise.all([
+    supabase.rpc('get_tournament_media_admin_context', {
+      p_organization_id: organizationId,
+      p_tournament_id: tournamentId,
+      p_status: status,
+      p_limit: limit,
+      p_offset: offset,
+    }),
+    supabase.rpc('get_tournament_media_upload_capability', {
+      p_organization_id: organizationId,
+    }),
+    supabase.rpc('get_tournament_media_asset_processing_tiers', {
+      p_organization_id: organizationId,
+    }),
+  ]);
+  const context = unwrapRpc(contextResult, 'No pudimos cargar el Centro Multimedia.');
+  const storage = unwrapRpc(capabilityResult, 'No pudimos verificar la carga de fotos.');
+  const processingTiers = unwrapRpc(tiersResult, 'No pudimos cargar las fotos.');
+  const galleries = (context.galleries || []).map((gallery) => ({
+    ...gallery,
+    assets: (gallery.assets || []).map((asset) => ({
+      ...asset,
+      processingTier: processingTiers?.[asset.id] || 'processor_external',
+    })),
+  }));
+  return { ...context, galleries, storage };
 }
 
 export async function createTournamentMediaGallery({

@@ -5,8 +5,8 @@
  * database what a file is. It asks for an intent, exchanges it for a signed
  * URL at the signer and PUTs ONE object — the quarantined upload.
  *
- * What it no longer does is produce the published renditions. The three
- * canvas re-encodes below are a local preview and a size pre-flight; the
+ * What it no longer does is produce the published renditions. The single
+ * canvas re-encode is a local display image and size pre-flight; the
  * trusted worker decodes the quarantined object with a real codec, re-encodes
  * it, strips its metadata, derives every variant from those pixels and scans
  * them. So the flow ends at `processing`, not at `pending_review`: the asset
@@ -92,12 +92,17 @@ async function callFunction(name, { body, headers = {}, signal }) {
  * PUT with real progress. `fetch` still cannot report upload progress, so this
  * is the one place the codebase reaches for XMLHttpRequest.
  */
-function putWithProgress(url, blob, contentType, { onProgress, signal }) {
+function putWithProgress(url, blob, contentType, {
+  onProgress, signal, headers = {},
+}) {
   return new Promise((resolve, reject) => {
     const request = new XMLHttpRequest();
     const abort = () => request.abort();
     request.open('PUT', url, true);
     request.setRequestHeader('Content-Type', contentType);
+    Object.entries(headers).forEach(([name, value]) => {
+      if (value) request.setRequestHeader(name, value);
+    });
     request.upload.onprogress = (event) => {
       if (event.lengthComputable && typeof onProgress === 'function') {
         onProgress(Math.min(0.95, event.loaded / event.total));
@@ -149,6 +154,7 @@ export async function uploadTournamentMediaPhoto({
   idempotencyKey,
   requestUploadSession,
   cancelUploadSession,
+  limits,
   signal,
   onStage = () => {},
   onProgress = () => {},
@@ -156,7 +162,7 @@ export async function uploadTournamentMediaPhoto({
   let session = null;
   try {
     onStage('preparing');
-    const payload = await prepareUploadPayload(file, { signal });
+    const payload = await prepareUploadPayload(file, { signal, limits });
     if (signal?.aborted) throw new MediaUploadError('Carga cancelada.', { code: 'cancelled' });
 
     // The intent is opened for the NORMALISED bytes, not the original file:
@@ -194,28 +200,31 @@ export async function uploadTournamentMediaPhoto({
 
     onStage('uploading');
     await putWithProgress(intent.uploadUrl, payload.source, payload.mime, {
-      onProgress, signal,
+      onProgress,
+      signal,
+      headers: intent.requiresAuth ? await authHeaders() : {},
     });
     onProgress(1);
 
     onStage('processing');
+    const simple = session.processingTier === 'mvp_simple';
     const queued = await callFunction(ORCHESTRATOR_FUNCTION, {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        action: 'queue',
+        action: simple ? 'finalize-simple' : 'queue',
         sessionId: session.sessionId,
         token: session.token,
       }),
       signal,
     });
 
-    // Deliberately terminal at `processing`. There is no assetId yet, and
-    // pretending otherwise is what let a browser rendition look publishable.
+    // The reduced tier completes synchronously into the existing moderation
+    // queue. The external tier remains asynchronous and returns no asset yet.
     return {
-      jobId: queued.jobId,
-      assetId: null,
+      jobId: queued.jobId || null,
+      assetId: queued.assetId || null,
       safeName: session.safeName,
-      status: 'processing',
+      status: simple ? (queued.status || 'pending_review') : 'processing',
       width: payload.width ?? null,
       height: payload.height ?? null,
       byteSize: payload.source.size,

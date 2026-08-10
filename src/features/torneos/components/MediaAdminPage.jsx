@@ -65,6 +65,17 @@ const EMPTY_FORM = {
   visibility: 'tournament_participants',
 };
 
+function assetDisplayReady(asset) {
+  const readyVariants = Number(asset?.variantsReady ?? 4);
+  // MVP_SIMPLE has one physical display object and therefore no derived rows.
+  // PROCESSOR_EXTERNAL still needs all four real variants.
+  return readyVariants >= 4 || (
+    asset?.processingTier === 'mvp_simple'
+    && ['pending_review', 'approved', 'published', 'rejected', 'hidden', 'revoked']
+      .includes(asset?.status)
+  );
+}
+
 function MediaState({
   icon: Icon = Images, title, copy, action = null,
 }) {
@@ -82,7 +93,7 @@ function AssetPreview({ asset, cover, canManage, onAction, onMove, thumbnailUrl 
   const actionable = ['pending_review', 'approved', 'published', 'hidden'].includes(asset.status);
   // Four ready variants is the same gate the database enforces on approval, so
   // the card can say "procesando" without guessing.
-  const processing = Number(asset.variantsReady ?? 4) < 4;
+  const processing = !assetDisplayReady(asset);
   return (
     <article className={styles.assetCard} data-status={asset.status}>
       <div className={styles.assetVisual} aria-label={`Vista protegida de ${asset.safeName}`}>
@@ -285,7 +296,10 @@ export default function MediaAdminPage() {
     if (selected.length === 0) return;
     const prepared = selected.map((file, index) => {
       const validation = validateSelection(file, {
-        ...MEDIA_LIMITS, maxFileBytes: capability.maxFileBytes,
+        ...MEDIA_LIMITS,
+        maxFileBytes: capability.maxFileBytes,
+        maxSelectedFileBytes: capability.maxSelectedFileBytes,
+        allowHeicTranscode: capability.allowHeicTranscode,
       });
       const invalid = !validation.valid;
       return {
@@ -334,7 +348,7 @@ export default function MediaAdminPage() {
 
   const startUpload = async (item) => {
     if (!selectedGallery || !uploadReady) return;
-    if (activeUploadsRef.current >= MEDIA_LIMITS.maxConcurrentUploads) {
+    if (activeUploadsRef.current >= capability.maxConcurrentUploads) {
       patchQueueItem(item.id, {
         status: 'ready',
         error: 'Hay otras fotos subiendo. Esperá a que terminen.',
@@ -350,12 +364,20 @@ export default function MediaAdminPage() {
         galleryId: selectedGallery.id,
         file: item.file,
         idempotencyKey: item.idempotencyKey,
+        limits: {
+          maxFileBytes: capability.maxFileBytes,
+          maxSelectedFileBytes: capability.maxSelectedFileBytes,
+          maxPixels: capability.maxPixels,
+          maxEdge: capability.maxEdge,
+          allowHeicTranscode: capability.allowHeicTranscode,
+          resizeToFit: capability.resizeToFit,
+        },
         signal: controller.signal,
         onStage: (stage) => patchQueueItem(item.id, { status: stage }),
         onProgress: (progress) => patchQueueItem(item.id, { progress }),
       });
-      // The worker publishes asynchronously, so the queue stops at
-      // `processing`; `load()` picks the asset up once its variants are ready.
+      // External processing remains asynchronous; the simple tier returns the
+      // asset already waiting for the existing approval flow.
       patchQueueItem(item.id, {
         status: result?.status || 'processing', progress: 1, error: '',
         assetId: result?.assetId || null, jobId: result?.jobId || null,
@@ -387,11 +409,10 @@ export default function MediaAdminPage() {
 
   const uploadAll = async () => {
     const pending = queueRef.current.filter((item) => item.status === 'ready');
-    for (const item of pending) {
-      // Sequential on purpose: the concurrency ceiling exists to keep a phone
-      // on a stadium connection from thrashing, not to go faster.
+    const concurrency = Math.max(1, Math.min(2, capability.maxConcurrentUploads));
+    for (let index = 0; index < pending.length; index += concurrency) {
       // eslint-disable-next-line no-await-in-loop
-      await startUpload(item);
+      await Promise.all(pending.slice(index, index + concurrency).map(startUpload));
     }
   };
 
@@ -493,7 +514,7 @@ export default function MediaAdminPage() {
   // the database carries no URL at all, by design.
   useEffect(() => {
     const assets = (selectedGallery?.assets || [])
-      .filter((asset) => Number(asset.variantsReady ?? 4) >= 4)
+      .filter(assetDisplayReady)
       .slice(0, 60);
     if (assets.length === 0 || typeof service.signMediaReadUrls !== 'function') return undefined;
     const controller = new AbortController();
@@ -714,7 +735,8 @@ export default function MediaAdminPage() {
                     <span>
                       <strong>{uploadReady ? 'Cargar fotos' : 'Revisar fotos'}</strong>
                       <small>
-                        JPEG, PNG o WebP · hasta 12 MB · máximo {capability.maxBatchFiles} por tanda
+                        JPEG, PNG o WebP · hasta {formatMediaBytes(capability.maxSelectedFileBytes)}
+                        {' · '}máximo {capability.maxBatchFiles} por tanda
                       </small>
                       {!uploadReady && <small>{capability.unavailableCopy}</small>}
                     </span>

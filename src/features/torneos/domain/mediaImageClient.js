@@ -14,19 +14,16 @@
  *   - applying EXIF orientation to the pixels, because the processor rejects
  *     any file that still carries a non-identity orientation tag;
  *   - producing output with no metadata, which a canvas re-encode does;
- *   - producing the three renditions at exactly the derived geometry.
+ *   - producing one metadata-free display object within the selected tier.
  */
 
 import {
-  MEDIA_DERIVED_KINDS,
   MEDIA_LIMITS,
   MEDIA_TRANSCODABLE_MIME,
   MEDIA_UPLOAD_MIME,
-  variantGeometry,
 } from './mediaPipeline';
 
 const JPEG_QUALITY = 0.86;
-const RENDITION_QUALITY = 0.82;
 
 export class MediaClientError extends Error {
   constructor(code, message) {
@@ -84,6 +81,33 @@ function dimensionsOf(source) {
   return { width, height };
 }
 
+/**
+ * Pure geometry helper shared by the browser encoder and its contract tests.
+ * Flooring is intentional: the resulting bitmap can never cross either the
+ * longest-edge or decoded-pixel ceiling after scaling.
+ */
+export function fitMediaDimensions(width, height, limits = MEDIA_LIMITS) {
+  const sourceWidth = Number(width);
+  const sourceHeight = Number(height);
+  if (!Number.isFinite(sourceWidth) || !Number.isFinite(sourceHeight)
+    || sourceWidth < 1 || sourceHeight < 1) {
+    return null;
+  }
+  const edgeScale = Math.min(
+    1,
+    Number(limits.maxEdge) / Math.max(sourceWidth, sourceHeight),
+  );
+  const pixelScale = Math.min(
+    1,
+    Math.sqrt(Number(limits.maxPixels) / (sourceWidth * sourceHeight)),
+  );
+  const scale = Math.min(edgeScale, pixelScale);
+  return {
+    width: Math.max(1, Math.floor(sourceWidth * scale)),
+    height: Math.max(1, Math.floor(sourceHeight * scale)),
+  };
+}
+
 function drawTo(source, width, height) {
   const canvas = document.createElement('canvas');
   canvas.width = width;
@@ -115,11 +139,11 @@ async function encode(canvas, mime, quality) {
   return blob;
 }
 
-/** The MIME the pipeline will store for a given input. HEIC becomes JPEG. */
-export function targetMimeFor(file) {
+/** The MIME the pipeline will store for a given input. */
+export function targetMimeFor(file, { allowHeicTranscode = true } = {}) {
   const declared = String(file?.type || '').toLowerCase();
   if (MEDIA_UPLOAD_MIME.includes(declared)) return declared;
-  if (MEDIA_TRANSCODABLE_MIME.includes(declared)) return 'image/jpeg';
+  if (allowHeicTranscode && MEDIA_TRANSCODABLE_MIME.includes(declared)) return 'image/jpeg';
   return null;
 }
 
@@ -130,7 +154,7 @@ export function targetMimeFor(file) {
  */
 export function validateSelection(file, limits = MEDIA_LIMITS) {
   if (!file) return { valid: false, code: 'missing', message: 'Elegí un archivo.' };
-  if (!targetMimeFor(file)) {
+  if (!targetMimeFor(file, { allowHeicTranscode: limits.allowHeicTranscode !== false })) {
     return {
       valid: false,
       code: 'mime',
@@ -140,14 +164,13 @@ export function validateSelection(file, limits = MEDIA_LIMITS) {
   if (!Number.isFinite(file.size) || file.size < 1) {
     return { valid: false, code: 'size', message: 'El archivo está vacío.' };
   }
-  // A 12 MiB ceiling applies to what gets uploaded, and re-encoding usually
-  // shrinks a photo — but a file many times over the limit is never going to
-  // fit, and decoding it would just burn memory.
-  if (file.size > limits.maxFileBytes * 4) {
+  const maxSelectedFileBytes = Number(limits.maxSelectedFileBytes)
+    || Number(limits.maxFileBytes) * 4;
+  if (file.size > maxSelectedFileBytes) {
     return {
       valid: false,
       code: 'size',
-      message: `La foto es demasiado grande (máximo ${Math.floor(limits.maxFileBytes / 1024 / 1024)} MB una vez optimizada).`,
+      message: `La foto seleccionada supera los ${Math.floor(maxSelectedFileBytes / 1024 / 1024)} MB.`,
     };
   }
   return { valid: true, code: null, message: '' };
@@ -162,20 +185,22 @@ export async function sha256Hex(blob) {
 }
 
 /**
- * Turns a selected file into exactly what the pipeline stores: one normalised
- * source plus the three derived renditions, all metadata-free and all at the
- * geometry the server will independently recompute.
+ * Turns a selected file into the single normalized object uploaded to
+ * quarantine. Published variants, when required by PROCESSOR_EXTERNAL, remain
+ * the trusted worker's responsibility.
  *
  * @returns {Promise<{
  *   mime: string, width: number, height: number,
- *   source: Blob, renditions: Array<{kind: string, blob: Blob, width: number, height: number}>,
+ *   source: Blob,
  * }>}
  */
-export async function prepareUploadPayload(file, { signal } = {}) {
+export async function prepareUploadPayload(file, { signal, limits = MEDIA_LIMITS } = {}) {
   if (!hasCanvas()) {
     throw new MediaClientError('canvas_unavailable', 'Este navegador no puede procesar la foto.');
   }
-  const mime = targetMimeFor(file);
+  const mime = targetMimeFor(file, {
+    allowHeicTranscode: limits.allowHeicTranscode !== false,
+  });
   if (!mime) {
     throw new MediaClientError('mime', 'Formato no admitido. Usá JPEG, PNG o WebP.');
   }
@@ -183,51 +208,60 @@ export async function prepareUploadPayload(file, { signal } = {}) {
   const decoded = await decode(file);
   try {
     if (signal?.aborted) throw new MediaClientError('cancelled', 'Carga cancelada.');
-    const { width, height } = dimensionsOf(decoded);
-    if (width < 1 || height < 1) {
+    const decodedSize = dimensionsOf(decoded);
+    if (decodedSize.width < 1 || decodedSize.height < 1) {
       throw new MediaClientError('decode_failed', 'No pudimos abrir esta imagen.');
     }
-    if (
-      width > MEDIA_LIMITS.maxEdge || height > MEDIA_LIMITS.maxEdge
-      || width * height > MEDIA_LIMITS.maxPixels
-    ) {
+
+    // Fit the decoded pixels inside both server-enforced limits. This also
+    // bakes the browser-corrected orientation into the single display image.
+    const fitted = limits.resizeToFit === true
+      ? fitMediaDimensions(decodedSize.width, decodedSize.height, limits)
+      : decodedSize;
+    if (fitted.width > limits.maxEdge || fitted.height > limits.maxEdge
+      || fitted.width * fitted.height > limits.maxPixels) {
       throw new MediaClientError(
         'dimensions', 'La foto excede las dimensiones permitidas.',
       );
     }
+    const initialWidth = fitted.width;
+    const initialHeight = fitted.height;
 
-    // The source is a full-size re-encode, which is what strips EXIF and bakes
-    // the orientation into the pixels.
-    const quality = mime === 'image/png' ? undefined : JPEG_QUALITY;
-    const source = await encode(drawTo(decoded, width, height), mime, quality);
-    if (source.size > MEDIA_LIMITS.maxFileBytes) {
+    let source = null;
+    let width = initialWidth;
+    let height = initialHeight;
+    const attempts = limits.resizeToFit === true ? 10 : 1;
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      if (signal?.aborted) throw new MediaClientError('cancelled', 'Carga cancelada.');
+      const dimensionScale = limits.resizeToFit === true
+        ? 0.88 ** Math.floor(attempt / 2) : 1;
+      width = Math.max(1, Math.floor(initialWidth * dimensionScale));
+      height = Math.max(1, Math.floor(initialHeight * dimensionScale));
+      const quality = mime === 'image/png'
+        ? undefined
+        : Math.max(0.58, JPEG_QUALITY - (attempt * 0.04));
+      // eslint-disable-next-line no-await-in-loop
+      const candidate = await encode(drawTo(decoded, width, height), mime, quality);
+      if (candidate.size <= limits.maxFileBytes) {
+        source = candidate;
+        break;
+      }
+    }
+    if (!source) {
       throw new MediaClientError(
         'size',
-        `La foto supera los ${Math.floor(MEDIA_LIMITS.maxFileBytes / 1024 / 1024)} MB una vez optimizada.`,
+        `La foto supera los ${Math.floor(limits.maxFileBytes / 1024 / 1024)} MB una vez optimizada.`,
       );
     }
 
-    const renditions = [];
-    for (const kind of MEDIA_DERIVED_KINDS) {
-      if (signal?.aborted) throw new MediaClientError('cancelled', 'Carga cancelada.');
-      const geometry = variantGeometry(kind, width, height);
-      // eslint-disable-next-line no-await-in-loop
-      const blob = await encode(
-        drawTo(decoded, geometry.width, geometry.height),
-        mime,
-        mime === 'image/png' ? undefined : RENDITION_QUALITY,
-      );
-      renditions.push({ kind, blob, width: geometry.width, height: geometry.height });
-    }
-
-    return { mime, width, height, source, renditions };
+    return { mime, width, height, source };
   } finally {
     if (typeof decoded.close === 'function') decoded.close();
   }
 }
 
 /**
- * A downscaled preview for the queue. Separate from the renditions on purpose:
+ * A downscaled preview for the queue. Separate from the upload on purpose:
  * previews are throwaway and must not keep a full-size bitmap alive.
  */
 export async function createPreviewUrl(file, maxEdge = 320) {

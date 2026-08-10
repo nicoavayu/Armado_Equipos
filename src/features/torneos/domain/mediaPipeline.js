@@ -14,10 +14,27 @@
 
 export const MEDIA_LIMITS = Object.freeze({
   maxFileBytes: 12 * 1024 * 1024,
+  maxSelectedFileBytes: 48 * 1024 * 1024,
   maxPixels: 36_000_000,
   maxEdge: 12_000,
   maxBatchFiles: 40,
   maxConcurrentUploads: 3,
+  allowHeicTranscode: true,
+  resizeToFit: false,
+});
+
+// Temporary reduced-security tier. These values intentionally do not replace
+// the external processor contract above: the backend selects one complete set
+// or the other and the browser mirrors that decision.
+export const MVP_SIMPLE_MEDIA_LIMITS = Object.freeze({
+  maxSelectedFileBytes: 8 * 1024 * 1024,
+  maxFileBytes: 4 * 1024 * 1024,
+  maxPixels: 2_560_000,
+  maxEdge: 1600,
+  maxBatchFiles: 10,
+  maxConcurrentUploads: 2,
+  allowHeicTranscode: false,
+  resizeToFit: true,
 });
 
 export const MEDIA_VARIANT_BOX = Object.freeze({
@@ -116,6 +133,7 @@ const PIPELINE_MESSAGES = Object.freeze({
   storage_unavailable: 'El servicio de fotos no está disponible en este momento.',
   media_service_failed: 'No pudimos completar la carga. Reintentá en unos minutos.',
   signer_failed: 'No pudimos completar la carga. Reintentá en unos minutos.',
+  rate_limited: 'Preparaste muchas fotos seguidas. Esperá unos minutos y reintentá.',
 });
 
 /**
@@ -130,7 +148,7 @@ const CONTENT_MESSAGES = Object.freeze({
   MEDIA_TRAILING_BYTES: 'El archivo tiene contenido extra después de la imagen.',
   MEDIA_ANIMATION_UNSUPPORTED: 'Las imágenes animadas todavía no se admiten.',
   MEDIA_DIMENSIONS_INVALID: 'La foto excede las dimensiones permitidas.',
-  MEDIA_TOO_LARGE: 'La foto supera los 12 MB.',
+  MEDIA_TOO_LARGE: 'La foto supera el límite permitido.',
   MEDIA_EMPTY: 'El archivo está vacío.',
   MEDIA_ORIENTATION_NOT_NORMALIZED: 'No pudimos normalizar la orientación. Reintentá.',
   MEDIA_METADATA_PRESENT: 'No pudimos limpiar los metadatos de la foto. Reintentá.',
@@ -163,7 +181,16 @@ export function resolveUploadCapability(storage, { canUpload = false } = {}) {
     pixelTranscode: storage?.pixelTranscode === true,
     antivirusScanning: storage?.antivirusScanning === true,
     maxFileBytes: Number(storage?.maxFileBytes) || MEDIA_LIMITS.maxFileBytes,
+    maxSelectedFileBytes: Number(storage?.maxSelectedFileBytes)
+      || MEDIA_LIMITS.maxSelectedFileBytes,
+    maxPixels: Number(storage?.maxPixels) || MEDIA_LIMITS.maxPixels,
+    maxEdge: Number(storage?.maxEdge) || MEDIA_LIMITS.maxEdge,
     maxBatchFiles: Number(storage?.maxBatchFiles) || MEDIA_LIMITS.maxBatchFiles,
+    maxConcurrentUploads: Number(storage?.maxConcurrentUploads)
+      || MEDIA_LIMITS.maxConcurrentUploads,
+    allowHeicTranscode: storage?.allowHeicTranscode !== false,
+    processingTier: storage?.processingTier || 'processor_external',
+    resizeToFit: storage?.processingTier === 'mvp_simple',
     signedUrlTtlSeconds: Number(storage?.signedUrlTtlSeconds) || 300,
   };
 }
