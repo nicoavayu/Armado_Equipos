@@ -27,6 +27,10 @@ const cases = [
     name: '20260810160355_tournament_entitlements_foundation',
     migrations: ['20260810160355_tournament_entitlements_foundation.sql'],
   },
+  {
+    name: '20260810215224_tournament_public_pages',
+    migrations: ['20260810215224_tournament_public_pages.sql'],
+  },
 ];
 
 for (const item of cases) {
@@ -83,4 +87,11 @@ test('local rollback verification preserves the exact media variant table', () =
   );
   assert.match(source, /'tournament_media_variants'/);
   assert.doesNotMatch(source, /'tournament_media_asset_variants'/);
+});
+
+test('public pages rollback fails closed while preserving slugs and publication history', () => {
+  const sql = rollback('20260810215224_tournament_public_pages.safe.sql');
+  assert.match(sql, /UPDATE public\.tournament_public_pages[\s\S]+status = 'unpublished'/i);
+  assert.match(sql, /REVOKE ALL ON FUNCTION public\.get_public_tournament_page[\s\S]+FROM anon, authenticated, service_role/i);
+  assert.doesNotMatch(sql, /DROP TABLE|DELETE FROM public\.tournament_public_pages/i);
 });

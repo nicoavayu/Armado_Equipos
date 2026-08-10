@@ -50,6 +50,7 @@ import {
   TOURNAMENT_CAPABILITIES,
 } from '../domain/capabilities';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
+import TournamentPublicPageSettings from './TournamentPublicPageSettings';
 import styles from './CompetitionCore.module.css';
 
 const STEPS = [
@@ -574,6 +575,14 @@ export default function TournamentWizardPage() {
           <CheckCircle2 size={18} />
           Vista de consulta. Tu rol no puede modificar la configuración.
         </div>
+      )}
+
+      {!isNew && (
+        <TournamentPublicPageSettings
+          organizationId={organization.id}
+          tournamentId={tournament.id}
+          canPublish={canUpdate}
+        />
       )}
 
       <nav className={styles.stepper} aria-label="Pasos de configuración">

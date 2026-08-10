@@ -218,12 +218,13 @@ rutas, componentes, servicios y RPCs. La única diferencia de navegación es que
 
 ## Gaps y futuro
 
-- No se agregaron páginas públicas de Torneos. Una fase futura deberá definir
-  URLs, caché, privacidad y proyecciones anónimas específicas.
+- Las páginas públicas de Torneos se implementan en la fase documentada en
+  `docs/torneos-public-pages.md`, con URL estable, publicación opt-in y una
+  proyección anónima deportiva específica.
 - `arma2.com.ar/torneos` sigue perteneciendo al proyecto de marketing separado.
 - Billing y providers de pago siguen fuera de alcance.
-- Los deep links standalone de Arma2 Jugadores se preservan en iOS/Android y se
-  redirigen a Torneos en browser, de acuerdo con la frontera formal de producto.
+- Arma2 Jugadores completo es native-only. Los public/special standalone flows
+  permitidos mantienen acceso browser aislado según el contrato de cada ruta.
 - La compuerta de entitlement de Estudio Social se aplica en el cliente usando
   la proyección canónica existente; una futura fase de enforcement comercial
   puede incorporar el mismo predicado dentro de los RPCs sociales sin modificar
@@ -231,6 +232,7 @@ rutas, componentes, servicios y RPCs. La única diferencia de navegación es que
 
 ## Backend y migraciones
 
-No se agregan tablas, roles, usuarios, políticas, RPCs ni migraciones. No se
-modifican migraciones históricas. La entrega reutiliza los contratos server-side
-existentes y no requiere contacto con Staging o Production.
+Esta experiencia autenticada original no agregó tablas ni RPCs. La fase pública
+posterior incorpora una migración nueva y aislada, sin modificar migraciones
+históricas ni requerir contacto con Staging o Production; ver
+`docs/torneos-public-pages.md`.

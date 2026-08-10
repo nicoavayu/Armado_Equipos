@@ -1,0 +1,108 @@
+.publicSettings {
+  position: relative;
+  display: grid;
+  grid-template-columns: 52px minmax(260px, 1fr) minmax(260px, .8fr);
+  gap: 20px;
+  align-items: start;
+  margin-bottom: 24px;
+  padding: 24px;
+  overflow: hidden;
+  border: 1px solid rgba(137, 104, 255, .42);
+  border-radius: 16px;
+  background:
+    linear-gradient(112deg, rgba(117, 75, 255, .16), transparent 52%),
+    rgba(20, 16, 41, .82);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .07);
+}
+
+.publicSettings::after {
+  content: 'PUBLIC';
+  position: absolute;
+  right: -14px;
+  bottom: -23px;
+  color: rgba(255, 255, 255, .025);
+  font-family: 'Bebas Neue', Impact, sans-serif;
+  font-size: 82px;
+  letter-spacing: .08em;
+  pointer-events: none;
+}
+
+.iconBlock {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  color: #fff;
+  border: 1px solid rgba(182, 161, 255, .38);
+  border-radius: 12px;
+  background: #6a43ff;
+}
+
+.copy { position: relative; z-index: 1; }
+.kicker { display: block; margin-bottom: 5px; color: #a992ff; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .14em; }
+.copy h2 { margin: 0; color: #fff; font-family: 'Bebas Neue', Impact, sans-serif; font-size: 32px; font-weight: 400; letter-spacing: .03em; }
+.copy > p { max-width: 620px; margin: 7px 0 0; color: rgba(255, 255, 255, .68); font-family: Oswald, sans-serif; font-size: 13px; line-height: 1.5; }
+
+.loading,
+.statusLine { display: flex; gap: 7px; align-items: center; margin-top: 14px; font-size: 12px; }
+.loading { color: rgba(255, 255, 255, .65); }
+.loading svg { animation: rotate .9s linear infinite; }
+.statusLine { width: fit-content; padding: 7px 10px; color: #c8c0d8; border: 1px solid rgba(255, 255, 255, .12); border-radius: 7px; background: rgba(0, 0, 0, .18); }
+.statusLine b { color: #fff; }
+.statusLine[data-published='true'] { color: #8cf0ba; border-color: rgba(65, 207, 131, .28); background: rgba(32, 125, 76, .16); }
+.statusLine[data-published='true'] b { color: #a7f5ca; }
+.eligibility,
+.error { color: #ffd5a8 !important; }
+.error { margin-top: 8px !important; }
+
+.actions { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 8px; align-items: stretch; }
+.actions > button,
+.actions > a,
+.retry {
+  display: inline-flex;
+  min-height: 43px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 14px;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, .18);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .07);
+  font-family: Oswald, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.actions .publish { color: #211343; border-color: #a893fa; background: #bca9ff; }
+.actions .unpublish { color: #f5d5d5; border-color: rgba(237, 105, 105, .35); background: rgba(158, 47, 47, .16); }
+.actions button:disabled { cursor: not-allowed; opacity: .5; }
+.retry { min-height: 36px; margin-top: 10px; }
+
+.linkBox { display: grid; grid-template-columns: 1fr 44px; overflow: hidden; border: 1px solid rgba(255, 255, 255, .16); border-radius: 8px; }
+.linkBox input { min-width: 0; height: 44px; padding: 0 11px; color: #ded8e8; border: 0; background: rgba(0, 0, 0, .26); font-family: Oswald, sans-serif; font-size: 11px; }
+.linkBox button { display: grid; min-width: 44px; min-height: 44px; place-items: center; color: #fff; border: 0; border-left: 1px solid rgba(255, 255, 255, .12); background: rgba(109, 74, 237, .35); cursor: pointer; }
+.readOnly { color: rgba(255, 255, 255, .48); font-size: 11px; line-height: 1.45; }
+
+.actions :focus-visible,
+.retry:focus-visible { outline: 3px solid #ae98ff; outline-offset: 2px; }
+
+@keyframes rotate { to { transform: rotate(360deg); } }
+
+@media (max-width: 900px) {
+  .publicSettings { grid-template-columns: 52px 1fr; }
+  .actions { grid-column: 2; }
+}
+
+@media (max-width: 560px) {
+  .publicSettings { grid-template-columns: 1fr; padding: 18px; }
+  .actions { grid-column: 1; }
+  .statusLine { align-items: flex-start; flex-wrap: wrap; }
+  .statusLine span { flex-basis: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading svg { animation-duration: 2s; }
+}

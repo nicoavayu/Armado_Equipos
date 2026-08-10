@@ -82,6 +82,7 @@ const AUTO_MATCH_SERVICE_ROLE = [
 ];
 
 const ANON_ALLOWLIST = [
+  'public.get_public_tournament_page(text,text)',
   'public.get_invite_landing(text)',
   'public.get_partido_by_invite(bigint,text)',
   'public.get_published_tournament_documents(uuid,uuid)',
@@ -107,6 +108,9 @@ const ANON_ALLOWLIST = [
 // fail before the later feature migration has created them. Keep each later
 // authenticated surface explicit here so the catalog remains fail-closed.
 const POST_CANONICAL_AUTHENTICATED_ALLOWLIST = [
+  ['public.get_public_tournament_page(text,text)', 'frontend_legitimate'],
+  ['public.get_tournament_public_page_settings(uuid,uuid)', 'frontend_legitimate'],
+  ['public.set_tournament_public_page_published(uuid,uuid,boolean)', 'frontend_legitimate'],
   ['public.get_effective_tournament_entitlements(uuid,uuid)', 'frontend_legitimate'],
   ['public.has_tournament_entitlement(uuid,uuid,text)', 'frontend_legitimate'],
   ['public.get_tournament_media_asset_processing_tiers(uuid)', 'frontend_legitimate'],
@@ -220,7 +224,7 @@ const unexpectedAnon = catalog.rows
   .map((row) => row.signature);
 check(
   unexpectedAnon.length === 0,
-  'anon has exactly the 18 historical signatures',
+  `anon has exactly the ${ANON_ALLOWLIST.length} approved signatures`,
   unexpectedAnon.join(', '),
 );
 
@@ -380,8 +384,14 @@ const counts = {
   authenticatedAllowlist: allowlist.size,
 };
 check(counts.publicExecute === 0, 'PUBLIC EXECUTE count remains 0');
-check(counts.anonExecute === 18, 'anon EXECUTE count remains 18');
-check(counts.authenticatedExecute === 229, 'authenticated EXECUTE count remains 229');
+check(
+  counts.anonExecute === ANON_ALLOWLIST.length,
+  `anon EXECUTE count remains ${ANON_ALLOWLIST.length}`,
+);
+check(
+  counts.authenticatedExecute === allowlist.size,
+  `authenticated EXECUTE count remains ${allowlist.size}`,
+);
 console.log('\nCatalog counts:', counts);
 console.log(`\n${checks} grant/security checks, ${failures} failures.`);
 
