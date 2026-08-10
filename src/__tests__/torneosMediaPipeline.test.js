@@ -1,5 +1,6 @@
 import {
   MEDIA_LIMITS,
+  MVP_SIMPLE_MEDIA_LIMITS,
   MEDIA_VARIANT_BOX,
   describeMediaPipelineError,
   formatMediaBytes,
@@ -10,6 +11,8 @@ import {
   variantPlan,
 } from '../features/torneos/domain/mediaPipeline';
 import {
+  fitMediaDimensions,
+  prepareUploadPayload,
   targetMimeFor,
   validateSelection,
 } from '../features/torneos/domain/mediaImageClient';
@@ -192,6 +195,68 @@ describe('local file handling', () => {
   test('re-encodes HEIC to JPEG rather than storing it as-is', () => {
     expect(targetMimeFor(file('a.heic', 'image/heic'))).toBe('image/jpeg');
     expect(targetMimeFor(file('a.heif', 'image/heif'))).toBe('image/jpeg');
+  });
+
+  test('the simple tier rejects HEIC and enforces the selected-file ceiling', () => {
+    expect(targetMimeFor(file('a.heic', 'image/heic'), { allowHeicTranscode: false }))
+      .toBeNull();
+    expect(validateSelection(
+      file('a.heic', 'image/heic'), MVP_SIMPLE_MEDIA_LIMITS,
+    ).code).toBe('mime');
+    expect(validateSelection(
+      file('a.jpg', 'image/jpeg', MVP_SIMPLE_MEDIA_LIMITS.maxSelectedFileBytes + 1),
+      MVP_SIMPLE_MEDIA_LIMITS,
+    ).code).toBe('size');
+    expect(MVP_SIMPLE_MEDIA_LIMITS).toMatchObject({
+      maxFileBytes: 4 * 1024 * 1024,
+      maxPixels: 2_560_000,
+      maxEdge: 1600,
+      maxBatchFiles: 10,
+      maxConcurrentUploads: 2,
+      resizeToFit: true,
+    });
+  });
+
+  test('fits simple-tier pixels inside both the 1600 edge and 2.56 MP ceilings', () => {
+    expect(fitMediaDimensions(4000, 3000, MVP_SIMPLE_MEDIA_LIMITS))
+      .toEqual({ width: 1600, height: 1200 });
+    expect(fitMediaDimensions(4000, 4000, MVP_SIMPLE_MEDIA_LIMITS))
+      .toEqual({ width: 1600, height: 1600 });
+    expect(fitMediaDimensions(1000, 500, MVP_SIMPLE_MEDIA_LIMITS))
+      .toEqual({ width: 1000, height: 500 });
+    const panorama = fitMediaDimensions(10000, 1000, MVP_SIMPLE_MEDIA_LIMITS);
+    expect(panorama.width).toBeLessThanOrEqual(1600);
+    expect(panorama.width * panorama.height).toBeLessThanOrEqual(2_560_000);
+  });
+
+  test('the simple encoder downsizes again until its one object fits 4 MiB', async () => {
+    const decoded = { width: 4000, height: 3000, close: jest.fn() };
+    const originalCreateImageBitmap = global.createImageBitmap;
+    global.createImageBitmap = jest.fn().mockResolvedValue(decoded);
+    const context = { drawImage: jest.fn(), imageSmoothingEnabled: false };
+    const contextSpy = jest.spyOn(HTMLCanvasElement.prototype, 'getContext')
+      .mockReturnValue(context);
+    const toBlobSpy = jest.spyOn(HTMLCanvasElement.prototype, 'toBlob')
+      .mockImplementation(function encodeForTest(callback, mime) {
+        const size = this.width >= 1600 ? 5 * 1024 * 1024 : 3 * 1024 * 1024;
+        callback(new Blob([new Uint8Array(size)], { type: mime }));
+      });
+    try {
+      const result = await prepareUploadPayload(
+        file('large.jpg', 'image/jpeg', 7 * 1024 * 1024),
+        { limits: MVP_SIMPLE_MEDIA_LIMITS },
+      );
+      expect(result).toMatchObject({ mime: 'image/jpeg', width: 1408, height: 1056 });
+      expect(result.source.size).toBe(3 * 1024 * 1024);
+      expect(result).not.toHaveProperty('renditions');
+      expect(toBlobSpy).toHaveBeenCalledTimes(3);
+      expect(decoded.close).toHaveBeenCalledTimes(1);
+    } finally {
+      contextSpy.mockRestore();
+      toBlobSpy.mockRestore();
+      if (originalCreateImageBitmap === undefined) delete global.createImageBitmap;
+      else global.createImageBitmap = originalCreateImageBitmap;
+    }
   });
 
   test('rejects unsupported formats, empty files and absurd sizes', () => {

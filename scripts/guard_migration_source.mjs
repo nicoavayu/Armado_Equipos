@@ -12,6 +12,7 @@ const expectedCanonicalMigrations = [
   '20260802090000_tournament_media_upload_pipeline.sql',
   '20260802120000_tournament_media_trusted_processing.sql',
   '20260803090000_tournament_social_studio.sql',
+  '20260809232508_tournament_media_free_mvp.sql',
 ];
 
 const exitWithError = (message) => {

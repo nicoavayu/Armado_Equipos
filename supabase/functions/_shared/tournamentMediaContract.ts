@@ -14,6 +14,15 @@ export const MEDIA_MAX_EDGE = 12_000
 export const MEDIA_SIGNED_URL_TTL_SECONDS = 300
 export const MEDIA_UPLOAD_URL_TTL_SECONDS = 300
 
+export const MVP_SIMPLE_MEDIA_LIMITS = Object.freeze({
+  maxSelectedFileBytes: 8 * 1024 * 1024,
+  maxFileBytes: 4 * 1024 * 1024,
+  maxPixels: 2_560_000,
+  maxEdge: 1600,
+  maxBatchFiles: 10,
+  maxConcurrentUploads: 2,
+})
+
 export const MEDIA_ALLOWED_MIME = ["image/jpeg", "image/png", "image/webp"] as const
 export type MediaMime = (typeof MEDIA_ALLOWED_MIME)[number]
 

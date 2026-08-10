@@ -76,6 +76,18 @@ export type MediaImageInspection = {
   alreadyClean: boolean
 }
 
+export type MediaImageLimits = {
+  maxFileBytes: number
+  maxPixels: number
+  maxEdge: number
+}
+
+const EXTERNAL_PROCESSOR_LIMITS: MediaImageLimits = {
+  maxFileBytes: MEDIA_MAX_FILE_BYTES,
+  maxPixels: MEDIA_MAX_PIXELS,
+  maxEdge: MEDIA_MAX_EDGE,
+}
+
 const SVG_HINT = /<svg[\s>]|<!doctype\s+svg|<\?xml/i
 
 function be16(bytes: Uint8Array, at: number) {
@@ -515,9 +527,13 @@ function inspectWebp(bytes: Uint8Array): Omit<MediaImageInspection, "mime" | "by
 // Entry points
 // ---------------------------------------------------------------------------
 
-export function inspectImage(bytes: Uint8Array, declaredMime: string): MediaImageInspection {
+export function inspectImage(
+  bytes: Uint8Array,
+  declaredMime: string,
+  limits: MediaImageLimits = EXTERNAL_PROCESSOR_LIMITS,
+): MediaImageInspection {
   if (!bytes || bytes.length === 0) throw new MediaImageError("MEDIA_EMPTY")
-  if (bytes.length > MEDIA_MAX_FILE_BYTES) throw new MediaImageError("MEDIA_TOO_LARGE")
+  if (bytes.length > limits.maxFileBytes) throw new MediaImageError("MEDIA_TOO_LARGE")
   if (!(MEDIA_ALLOWED_MIME as readonly string[]).includes(declaredMime)) {
     throw new MediaImageError("MEDIA_MIME_UNSUPPORTED", declaredMime)
   }
@@ -538,8 +554,8 @@ export function inspectImage(bytes: Uint8Array, declaredMime: string): MediaImag
 
   if (
     inspected.width < 1 || inspected.height < 1
-    || inspected.width > MEDIA_MAX_EDGE || inspected.height > MEDIA_MAX_EDGE
-    || inspected.width * inspected.height > MEDIA_MAX_PIXELS
+    || inspected.width > limits.maxEdge || inspected.height > limits.maxEdge
+    || inspected.width * inspected.height > limits.maxPixels
   ) {
     throw new MediaImageError(
       "MEDIA_DIMENSIONS_INVALID", `${inspected.width}x${inspected.height}`,
@@ -564,8 +580,9 @@ export function inspectImage(bytes: Uint8Array, declaredMime: string): MediaImag
 export function verifyNormalizedImage(
   bytes: Uint8Array,
   declaredMime: string,
+  limits: MediaImageLimits = EXTERNAL_PROCESSOR_LIMITS,
 ): MediaImageInspection {
-  const inspection = inspectImage(bytes, declaredMime)
+  const inspection = inspectImage(bytes, declaredMime, limits)
   if (inspection.exifOrientation !== null && inspection.exifOrientation !== 1) {
     throw new MediaImageError(
       "MEDIA_ORIENTATION_NOT_NORMALIZED", `orientation ${inspection.exifOrientation}`,

@@ -42,6 +42,15 @@ import {
   secretMatches,
 } from "../_shared/tournamentMediaService.ts"
 import { runProcessorSelfTest } from "../_shared/tournamentMediaSelfTest.ts"
+import {
+  MVP_SIMPLE_MEDIA_LIMITS,
+  TOURNAMENT_MEDIA_BUCKET,
+} from "../_shared/tournamentMediaContract.ts"
+import {
+  MediaImageError,
+  sha256Hex,
+  verifyNormalizedImage,
+} from "../_shared/tournamentMediaImage.ts"
 
 const RELEASE = "0.2.0"
 
@@ -81,6 +90,96 @@ async function handleQueue(
       // The asset does not exist yet and will not exist until the worker has
       // decoded, transcoded, scanned and written every final object.
       assetId: null,
+    },
+  }
+}
+
+async function rejectSimpleUpload(
+  service: ServiceClient,
+  sessionId: string,
+  objectName: string,
+  failureCode: string,
+  error: string,
+  status = 422,
+) {
+  await service.rpc("fail_tournament_media_upload_session", {
+    p_session_id: sessionId,
+    p_failure_code: failureCode,
+  })
+  // Quarantine cleanup is deliberately best-effort; the existing sweeper also
+  // receives failed session paths and remains the final safety net.
+  await service.storage.from(TOURNAMENT_MEDIA_BUCKET).remove([objectName])
+  return { status, payload: { error, code: failureCode } }
+}
+
+async function handleSimpleFinalize(
+  service: ServiceClient, actorId: string, body: Record<string, unknown>,
+) {
+  const sessionId = String(body.sessionId ?? "")
+  const token = String(body.token ?? "")
+  if (!UUID_RE.test(sessionId) || !SESSION_TOKEN_RE.test(token)) {
+    return { status: 400, payload: { error: "invalid_request" } }
+  }
+  const authorized = await service.rpc("authorize_tournament_media_upload_target", {
+    p_session_id: sessionId, p_token: token, p_actor_user_id: actorId,
+  })
+  if (authorized.error) {
+    const mapped = mapRpcError(authorized.error.message || "")
+    return { status: mapped.status, payload: { error: mapped.error } }
+  }
+  const target = authorized.data as Record<string, unknown>
+  const objectName = String(target.objectName ?? "")
+  if (target.processingTier !== "mvp_simple") {
+    return { status: 403, payload: { error: "forbidden" } }
+  }
+  const downloaded = await service.storage.from(TOURNAMENT_MEDIA_BUCKET).download(objectName)
+  if (downloaded.error || !downloaded.data) {
+    return rejectSimpleUpload(
+      service, sessionId, objectName, "SOURCE_OBJECT_MISSING", "source_object_missing", 422,
+    )
+  }
+  const bytes = new Uint8Array(await downloaded.data.arrayBuffer())
+  if (bytes.length !== Number(target.expectedBytes)) {
+    return rejectSimpleUpload(
+      service, sessionId, objectName, "SOURCE_SIZE_MISMATCH", "source_size_mismatch", 422,
+    )
+  }
+  let inspection
+  try {
+    inspection = verifyNormalizedImage(bytes, String(target.contentType), {
+      maxFileBytes: MVP_SIMPLE_MEDIA_LIMITS.maxFileBytes,
+      maxPixels: MVP_SIMPLE_MEDIA_LIMITS.maxPixels,
+      maxEdge: MVP_SIMPLE_MEDIA_LIMITS.maxEdge,
+    })
+  } catch (error) {
+    const code = error instanceof MediaImageError ? error.code : "MEDIA_CONTENT_CORRUPT"
+    return rejectSimpleUpload(service, sessionId, objectName, code, "source_rejected", 422)
+  }
+  const checksum = await sha256Hex(bytes)
+  const completed = await service.rpc("complete_tournament_media_simple_upload", {
+    p_actor_user_id: actorId,
+    p_session_id: sessionId,
+    p_token: token,
+    p_detected_mime: inspection.mime,
+    p_byte_size: inspection.byteSize,
+    p_width: inspection.width,
+    p_height: inspection.height,
+    p_checksum_sha256: checksum,
+  })
+  if (completed.error) {
+    const mapped = mapRpcError(completed.error.message || "")
+    await rejectSimpleUpload(
+      service, sessionId, objectName, "SIMPLE_FINALIZE_FAILED", mapped.error, mapped.status,
+    )
+    return { status: mapped.status, payload: { error: mapped.error } }
+  }
+  const result = completed.data as Record<string, unknown>
+  return {
+    status: 201,
+    payload: {
+      sessionId,
+      assetId: result.assetId,
+      status: "pending_review",
     },
   }
 }
@@ -157,6 +256,10 @@ serve(async (request) => {
   try {
     if (action === "queue") {
       const result = await handleQueue(service, actorId, body)
+      return jsonResponse(cors, result.status, result.payload)
+    }
+    if (action === "finalize-simple") {
+      const result = await handleSimpleFinalize(service, actorId, body)
       return jsonResponse(cors, result.status, result.payload)
     }
   } catch {
