@@ -51,7 +51,7 @@ const PROBE_PNG = Uint8Array.from(
 type ServiceClient = ReturnType<typeof createClient>
 
 async function handleUploadIntent(
-  service: ServiceClient, actorId: string, body: Record<string, unknown>, request: Request,
+  service: ServiceClient, actorId: string, body: Record<string, unknown>, supabaseUrl: string,
 ) {
   const sessionId = String(body.sessionId ?? "")
   const token = String(body.token ?? "")
@@ -71,7 +71,7 @@ async function handleUploadIntent(
     // Supabase Storage upload tokens currently have a fixed two-hour lifetime.
     // The MVP contract is five minutes, so the existing signer becomes the
     // exact-path upload endpoint and re-checks the actor-bound DB capability.
-    const uploadUrl = new URL(request.url)
+    const uploadUrl = new URL("/functions/v1/tournament-media-signer", supabaseUrl)
     uploadUrl.search = new URLSearchParams({
       action: "mvp-simple-upload",
       sessionId,
@@ -364,7 +364,7 @@ serve(async (request) => {
 
   try {
     if (action === "upload-intent") {
-      const result = await handleUploadIntent(service, actorId, body, request)
+      const result = await handleUploadIntent(service, actorId, body, supabaseUrl)
       return jsonResponse(cors, result.status, result.payload)
     }
     if (action === "read-urls") {

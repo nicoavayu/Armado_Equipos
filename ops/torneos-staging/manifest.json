@@ -312,7 +312,7 @@
       "name": "tournament-media-signer",
       "role": "signed-url-gateway",
       "entrypoint": "supabase/functions/tournament-media-signer/index.ts",
-      "sha256": "0c74ffd021a85085d64701cd8b52537e2e300a86839b0fc8f7d326552d3b70e6",
+      "sha256": "16d112e86e6131f953a642d087d807d008a84ce650d573994fb71702a3885e9d",
       "verifyJwt": true,
       "deployOrder": 1,
       "healthContract": "probes the private bucket end to end (signed upload, write, signed read, fetch, delete) and writes the signer attestation from what the probe actually demonstrated",
