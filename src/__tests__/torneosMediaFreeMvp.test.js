@@ -6,6 +6,7 @@ const migration = read('supabase/migrations/20260809232508_tournament_media_free
 const processor = read('supabase/functions/tournament-media-processor/index.ts');
 const signer = read('supabase/functions/tournament-media-signer/index.ts');
 const image = read('supabase/functions/_shared/tournamentMediaImage.ts');
+const migrationGuard = read('scripts/guard_migration_source.mjs');
 
 describe('free tournament gallery MVP contract', () => {
   test('is code-only, defaults to the robust tier and fails closed', () => {
@@ -15,6 +16,37 @@ describe('free tournament gallery MVP contract', () => {
     expect(migration).toContain('tournament_media_pipeline_readiness()');
     expect(migration).not.toMatch(/CREATE OR REPLACE FUNCTION "public"\."tournament_media_pipeline_readiness"/);
     expect(migration).not.toContain('attest_tournament_media_service');
+  });
+
+  test('is part of the explicit canonical migration contract', () => {
+    expect(migrationGuard).toContain(
+      "'20260809232508_tournament_media_free_mvp.sql'",
+    );
+  });
+
+  test('simple readiness ignores external attestations but keeps local gates fail-closed', () => {
+    const readiness = migration.match(
+      /tournament_media_effective_readiness[\s\S]+?\nEND;\n\$\$;/,
+    )?.[0] || '';
+    expect(readiness).toMatch(/v_ready := v_storage_ready AND v_simple_contract/);
+    expect(readiness).not.toContain("v_robust->>'signerReady'");
+    expect(readiness).not.toContain('service.signer_unattested');
+    expect(readiness).toContain('storage.bucket_absent');
+    expect(readiness).toContain('storage.bucket_public');
+    expect(readiness).toContain('storage.service_policies_absent');
+    expect(readiness).toContain('storage.client_write_open');
+    expect(readiness).toContain('simple.contract_absent');
+    for (const signature of [
+      'request_tournament_media_upload_session(uuid,text,text,bigint,uuid)',
+      'tournament_media_require_upload_tier(text)',
+      'tournament_media_mvp_user_can_upload(uuid,uuid)',
+      'authorize_tournament_media_upload_target(uuid,text,uuid)',
+      'complete_tournament_media_simple_upload(uuid,uuid,text,text,bigint,integer,integer,text)',
+      'fail_tournament_media_upload_session(uuid,text)',
+    ]) expect(readiness).toContain(signature);
+    expect(readiness).toMatch(
+      /IF v_mode = 'PROCESSOR_EXTERNAL'[\s\S]+v_robust := public\.tournament_media_pipeline_readiness\(\)/,
+    );
   });
 
   test('persists the tier without weakening external processing', () => {
@@ -41,7 +73,7 @@ describe('free tournament gallery MVP contract', () => {
 
   test('allows only active owner/admin for simple uploads', () => {
     const helper = migration.match(
-      /tournament_media_mvp_user_can_upload[\s\S]+?\$\$;/,
+      /CREATE OR REPLACE FUNCTION "public"\."tournament_media_mvp_user_can_upload"[\s\S]+?\$\$;/,
     )?.[0] || '';
     expect(helper).toMatch(/membership\.role IN \('owner','admin'\)/);
     expect(helper).not.toMatch(/photographer|assignment/);

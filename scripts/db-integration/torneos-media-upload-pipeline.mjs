@@ -1013,13 +1013,20 @@ async function run() {
       "update public.tournament_media_pipeline_configuration set mode = 'MVP_SIMPLE'",
     );
     await admin.query(
-      "delete from public.tournament_media_service_attestations where service = 'processor'",
+      "delete from public.tournament_media_service_attestations where service in ('signer','processor')",
     );
     simpleCapability = await value(
       owner, 'select public.get_tournament_media_upload_capability($1)',
       [scope.organizationId],
     );
-    eq(simpleCapability.uploadReady, true, 'MVP_SIMPLE no depende del worker externo');
+    eq(simpleCapability.uploadReady, true,
+      'MVP_SIMPLE abre sin attestations externas de signer ni processor');
+    eq(simpleCapability.signerReady, null,
+      'MVP_SIMPLE no presenta una attestation externa del signer como requisito');
+    eq(simpleCapability.processorReady, null,
+      'MVP_SIMPLE no presenta una attestation externa del processor como requisito');
+    eq(simpleCapability.simpleContractReady, true,
+      'MVP_SIMPLE verifica sus RPC locales completos');
     eq(simpleCapability.processingTier, 'mvp_simple', 'expone el tier seleccionado');
     eq(Number(simpleCapability.maxFileBytes), 4194304, 'fija salida máxima en 4 MiB');
     eq(Number(simpleCapability.maxSelectedFileBytes), 8388608,
@@ -1030,6 +1037,76 @@ async function run() {
     eq(Number(simpleCapability.signedUrlTtlSeconds), 300, 'fija URL en cinco minutos');
     eq(simpleCapability.pixelTranscode, false, 'no afirma transcode server-side');
     eq(simpleCapability.antivirusScanning, false, 'no afirma antivirus');
+
+    await admin.query(
+      "update public.tournament_media_pipeline_configuration set mode = 'PROCESSOR_EXTERNAL'",
+    );
+    await attest(admin, 'processor', PROCESSOR_CAPABILITIES);
+    let externalCapability = await value(
+      owner, 'select public.get_tournament_media_upload_capability($1)',
+      [scope.organizationId],
+    );
+    eq(externalCapability.uploadReady, false,
+      'PROCESSOR_EXTERNAL cierra si falta la attestation del signer');
+    ok(externalCapability.blockers.includes('service.signer_unattested'),
+      'PROCESSOR_EXTERNAL reporta signer sin attestation');
+
+    await admin.query(
+      "delete from public.tournament_media_service_attestations where service = 'processor'",
+    );
+    await attest(admin, 'signer', SIGNER_CAPABILITIES);
+    externalCapability = await value(
+      owner, 'select public.get_tournament_media_upload_capability($1)',
+      [scope.organizationId],
+    );
+    eq(externalCapability.uploadReady, false,
+      'PROCESSOR_EXTERNAL cierra si falta la attestation del processor');
+    ok(externalCapability.blockers.includes('service.processor_unattested'),
+      'PROCESSOR_EXTERNAL reporta processor sin attestation');
+
+    await admin.query(
+      "update public.tournament_media_pipeline_configuration set mode = 'MVP_SIMPLE'",
+    );
+    await admin.query(
+      "update storage.buckets set public = true where id = 'tournament-media'",
+    );
+    simpleCapability = await value(
+      owner, 'select public.get_tournament_media_upload_capability($1)',
+      [scope.organizationId],
+    );
+    eq(simpleCapability.uploadReady, false,
+      'MVP_SIMPLE cierra con el contrato de Storage inválido');
+    ok(simpleCapability.blockers.includes('storage.bucket_public'),
+      'MVP_SIMPLE explica que el bucket dejó de ser privado');
+    await admin.query(
+      "update storage.buckets set public = false where id = 'tournament-media'",
+    );
+
+    await admin.query(
+      `alter function public.complete_tournament_media_simple_upload(
+        uuid,uuid,text,text,bigint,integer,integer,text
+      ) rename to complete_tournament_media_simple_upload_contract_test_missing`,
+    );
+    simpleCapability = await value(
+      owner, 'select public.get_tournament_media_upload_capability($1)',
+      [scope.organizationId],
+    );
+    eq(simpleCapability.uploadReady, false,
+      'MVP_SIMPLE cierra si falta un RPC del contrato simple');
+    ok(simpleCapability.blockers.includes('simple.contract_absent'),
+      'MVP_SIMPLE reporta el contrato simple ausente');
+    await admin.query(
+      `alter function public.complete_tournament_media_simple_upload_contract_test_missing(
+        uuid,uuid,text,text,bigint,integer,integer,text
+      ) rename to complete_tournament_media_simple_upload`,
+    );
+
+    simpleCapability = await value(
+      owner, 'select public.get_tournament_media_upload_capability($1)',
+      [scope.organizationId],
+    );
+    eq(simpleCapability.uploadReady, true,
+      'MVP_SIMPLE reabre sólo al restaurar Storage y todos sus RPC');
     await expectError(
       () => value(outsider, 'select public.get_tournament_media_upload_capability($1)',
         [scope.organizationId]),

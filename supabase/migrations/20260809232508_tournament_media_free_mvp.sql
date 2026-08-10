@@ -73,46 +73,73 @@ SET search_path TO ''
 AS $$
 DECLARE
   v_mode text := public.tournament_media_current_pipeline_mode();
-  v_robust jsonb := public.tournament_media_pipeline_readiness();
+  v_robust jsonb;
+  v_storage jsonb := public.tournament_media_storage_contract_status();
+  v_storage_ready boolean;
   v_simple_contract boolean;
   v_ready boolean := false;
   v_blockers jsonb := '[]'::jsonb;
 BEGIN
+  v_storage_ready :=
+    coalesce((v_storage->>'bucketPresent')::boolean,false)
+    AND coalesce((v_storage->>'bucketPrivate')::boolean,false)
+    AND coalesce((v_storage->>'publicUrlDisabled')::boolean,false)
+    AND coalesce((v_storage->>'servicePoliciesPresent')::boolean,false)
+    AND coalesce((v_storage->>'clientWriteBlocked')::boolean,false);
+
   v_simple_contract :=
     pg_catalog.to_regprocedure(
-      'public.complete_tournament_media_simple_upload(uuid,uuid,text,text,bigint,integer,integer,text)'
+      'public.request_tournament_media_upload_session(uuid,text,text,bigint,uuid)'
+    ) IS NOT NULL
+    AND pg_catalog.to_regprocedure(
+      'public.tournament_media_require_upload_tier(text)'
+    ) IS NOT NULL
+    AND pg_catalog.to_regprocedure(
+      'public.tournament_media_mvp_user_can_upload(uuid,uuid)'
     ) IS NOT NULL
     AND pg_catalog.to_regprocedure(
       'public.authorize_tournament_media_upload_target(uuid,text,uuid)'
+    ) IS NOT NULL
+    AND pg_catalog.to_regprocedure(
+      'public.complete_tournament_media_simple_upload(uuid,uuid,text,text,bigint,integer,integer,text)'
+    ) IS NOT NULL
+    AND pg_catalog.to_regprocedure(
+      'public.fail_tournament_media_upload_session(uuid,text)'
     ) IS NOT NULL;
 
   IF v_mode = 'PROCESSOR_EXTERNAL' THEN
+    v_robust := public.tournament_media_pipeline_readiness();
     RETURN v_robust || jsonb_build_object(
       'mode',v_mode,'processingTier','processor_external',
       'maxSelectedFileBytes',50331648,'maxConcurrentUploads',3,
       'maxEdge',12000,'allowHeicTranscode',true
     );
   ELSIF v_mode = 'MVP_SIMPLE' THEN
-    v_ready := coalesce((v_robust->>'storageReady')::boolean,false)
-      AND coalesce((v_robust->>'signerReady')::boolean,false)
-      AND v_simple_contract;
-    IF NOT coalesce((v_robust->>'storageReady')::boolean,false) THEN
-      v_blockers := v_blockers || '"storage.unavailable"'::jsonb;
+    v_ready := v_storage_ready AND v_simple_contract;
+    IF NOT coalesce((v_storage->>'bucketPresent')::boolean,false) THEN
+      v_blockers := v_blockers || '"storage.bucket_absent"'::jsonb;
+    ELSIF NOT coalesce((v_storage->>'bucketPrivate')::boolean,false) THEN
+      v_blockers := v_blockers || '"storage.bucket_public"'::jsonb;
     END IF;
-    IF NOT coalesce((v_robust->>'signerReady')::boolean,false) THEN
-      v_blockers := v_blockers || '"service.signer_unattested"'::jsonb;
+    IF NOT coalesce((v_storage->>'servicePoliciesPresent')::boolean,false) THEN
+      v_blockers := v_blockers || '"storage.service_policies_absent"'::jsonb;
+    END IF;
+    IF NOT coalesce((v_storage->>'clientWriteBlocked')::boolean,false) THEN
+      v_blockers := v_blockers || '"storage.client_write_open"'::jsonb;
     END IF;
     IF NOT v_simple_contract THEN
       v_blockers := v_blockers || '"simple.contract_absent"'::jsonb;
     END IF;
     RETURN jsonb_build_object(
       'mode',v_mode,'processingTier','mvp_simple',
-      'bucket','tournament-media','private',true,
+      'bucket','tournament-media',
+      'private',coalesce((v_storage->>'bucketPrivate')::boolean,false),
       'uploadReady',v_ready,
-      'storageReady',coalesce((v_robust->>'storageReady')::boolean,false),
-      'signerReady',coalesce((v_robust->>'signerReady')::boolean,false),
-      'processorReady',v_simple_contract,
+      'storageReady',v_storage_ready,
+      'simpleContractReady',v_simple_contract,
+      'signerReady',null,'processorReady',null,
       'blockers',v_blockers,
+      'storage',v_storage,
       'maxSelectedFileBytes',8388608,'maxFileBytes',4194304,
       'maxPixels',2560000,'maxEdge',1600,
       'maxBatchFiles',10,'maxConcurrentUploads',2,
