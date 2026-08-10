@@ -381,7 +381,7 @@ const counts = {
 };
 check(counts.publicExecute === 0, 'PUBLIC EXECUTE count remains 0');
 check(counts.anonExecute === 18, 'anon EXECUTE count remains 18');
-check(counts.authenticatedExecute === 227, 'authenticated EXECUTE count remains 227');
+check(counts.authenticatedExecute === 229, 'authenticated EXECUTE count remains 229');
 console.log('\nCatalog counts:', counts);
 console.log(`\n${checks} grant/security checks, ${failures} failures.`);
 
