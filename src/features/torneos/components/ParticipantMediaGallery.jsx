@@ -21,6 +21,7 @@ import {
   X,
 } from 'lucide-react';
 import { getMediaAssetUrl } from '../domain/mediaValidation';
+import TorneosSelect from './TorneosSelect';
 import styles from './ParticipantMediaGallery.module.css';
 
 const REPORT_REASONS = [
@@ -190,13 +191,13 @@ function Lightbox({
               <>
                 <label>
                   <span>Motivo</span>
-                  <select value={report.reason} onChange={(event) => setReport((current) => ({
+                  <TorneosSelect value={report.reason} onChange={(event) => setReport((current) => ({
                     ...current, reason: event.target.value,
                   }))}>
                     {REPORT_REASONS.map(([value, label]) => (
                       <option key={value} value={value}>{label}</option>
                     ))}
-                  </select>
+                  </TorneosSelect>
                 </label>
                 <label>
                   <span>Detalle</span>

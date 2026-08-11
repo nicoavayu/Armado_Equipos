@@ -37,7 +37,10 @@ import { useTorneosFixture } from '../context/TorneosFixtureContext';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
 import { hasCapability, TOURNAMENT_CAPABILITIES } from '../domain/capabilities';
 import CompetitionSelector from './CompetitionSelector';
+import { importantNameProps } from './importantNames';
+import { getReviewTypeLabel, getStatusLabel, humanizeInternalValue } from './presentationLabels';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
+import TorneosSelect from './TorneosSelect';
 import styles from './MatchOperations.module.css';
 
 const STATUS_LABELS = {
@@ -74,6 +77,9 @@ const EVENT_LABELS = {
   suspension: 'Suspensión',
 };
 
+const REPORTABLE_EVENTS = Object.entries(EVENT_LABELS)
+  .filter(([eventType]) => eventType !== 'assist');
+
 const OUTCOME_OPTIONS = [
   ['played', 'Jugado'],
   ['postponed_before_start', 'Postergado antes de comenzar'],
@@ -89,8 +95,18 @@ const OUTCOME_OPTIONS = [
   ['not_played', 'No jugado'],
 ];
 
+const PERIOD_LABELS = Object.freeze({
+  pre_match: 'Prepartido',
+  first_half: 'Primer tiempo',
+  halftime: 'Entretiempo',
+  second_half: 'Segundo tiempo',
+  extra_time: 'Alargue',
+  penalties: 'Penales',
+  post_match: 'Postpartido',
+});
+
 function dateParts(value) {
-  if (!value) return ['A confirmar', 'Sin hora'];
+  if (!value) return ['A confirmar', 'Sin horario'];
   const date = new Date(value);
   return [
     new Intl.DateTimeFormat('es-AR', {
@@ -107,20 +123,22 @@ function dateParts(value) {
 
 function StatusPill({ status }) {
   return (
-    <span className={styles.statusPill} data-status={status}>
+    <span className={styles.statusPill} data-status={status} data-torneos-chip>
       <CircleDot size={12} />
-      {STATUS_LABELS[status] || status || 'Sin acta'}
+      {STATUS_LABELS[status] || getStatusLabel(status, 'Sin acta')}
     </span>
   );
 }
 
 function MatchScore({ match, operation }) {
   const score = operation?.score;
+  const homeName = match.homeName || operation?.operation?.home_team_snapshot?.name || 'Local';
+  const awayName = match.awayName || operation?.operation?.away_team_snapshot?.name || 'Visitante';
   return (
     <div className={styles.scoreboard} aria-label="Resultado">
       <div>
         <small>LOCAL</small>
-        <strong>{match.homeName || operation?.operation?.home_team_snapshot?.name || 'Local'}</strong>
+        <strong {...importantNameProps(homeName, 'match')}>{homeName}</strong>
       </div>
       <span>
         <b>{score?.home_score ?? match.homeScore ?? '—'}</b>
@@ -129,7 +147,7 @@ function MatchScore({ match, operation }) {
       </span>
       <div>
         <small>VISITANTE</small>
-        <strong>{match.awayName || operation?.operation?.away_team_snapshot?.name || 'Visitante'}</strong>
+        <strong {...importantNameProps(awayName, 'match')}>{awayName}</strong>
       </div>
     </div>
   );
@@ -182,7 +200,7 @@ function MatchList({
         <label>
           <Filter size={17} />
           <span className={styles.srOnly}>Estado</span>
-          <select
+          <TorneosSelect
             value={filters.status}
             onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}
           >
@@ -194,7 +212,7 @@ function MatchList({
             <option value="suspended">Suspendido</option>
             <option value="administrative">Ausente / administrativo</option>
             <option value="correction">Con corrección</option>
-          </select>
+          </TorneosSelect>
         </label>
       </section>
       {!filtered.length ? (
@@ -211,10 +229,10 @@ function MatchList({
               <article key={match.id} className={styles.matchRow}>
                 <div className={styles.dateBlock}><span>{day}</span><strong>{time}</strong></div>
                 <div className={styles.teamsBlock}>
-                  <strong>{match.homeName}</strong>
+                  <strong {...importantNameProps(match.homeName, 'match')}>{match.homeName}</strong>
                   <span>vs.</span>
-                  <strong>{match.awayName}</strong>
-                  <small><MapPin size={13} /> {[match.venue, match.court].filter(Boolean).join(' · ') || 'Sede a confirmar'}</small>
+                  <strong {...importantNameProps(match.awayName, 'match')}>{match.awayName}</strong>
+                  <small><MapPin size={13} /><span title={[match.venue, match.court].filter(Boolean).join(' · ') || 'Sede a confirmar'}>{[match.venue, match.court].filter(Boolean).join(' · ') || 'Sede a confirmar'}</span></small>
                 </div>
                 <div className={styles.squadSignals}>
                   <span data-ready={Boolean(match.homeSquadStatus)}>
@@ -308,7 +326,7 @@ export function SquadEditor({
         </div>
         <StatusPill status={context?.squad?.status || 'draft'} />
       </div>
-      <div className={styles.squadSummary}>
+      <div className={styles.squadSummary} data-allow-horizontal-scroll="true">
         <span><b>{selected.length}</b> convocados</span>
         <span><b>{starters.length}</b> / {context?.teamSize || 11} titulares</span>
         <span><b>{selected.filter((player) => player.isGoalkeeper).length}</b> arqueros</span>
@@ -334,7 +352,7 @@ export function SquadEditor({
                   {player.avatarUrl ? <img src={player.avatarUrl} alt="" /> : player.displayName.slice(0, 2).toUpperCase()}
                 </span>
                 <span>
-                  <strong>{player.displayName}</strong>
+                  <strong {...importantNameProps(player.displayName, 'player')}>{player.displayName}</strong>
                   <small>
                     #{player.shirtNumber ?? '—'} · {player.position || 'Sin posición'} · {
                       player.availability === 'available' ? 'Voy'
@@ -347,7 +365,7 @@ export function SquadEditor({
               </button>
               {called && (
                 <div className={styles.playerControls}>
-                  <select
+                  <TorneosSelect
                     aria-label={`Alineación de ${player.displayName}`}
                     disabled={readOnly}
                     value={player.lineupStatus}
@@ -355,8 +373,8 @@ export function SquadEditor({
                   >
                     <option value="starter">Titular</option>
                     <option value="substitute">Suplente</option>
-                  </select>
-                  <select
+                  </TorneosSelect>
+                  <TorneosSelect
                     aria-label={`Presencia de ${player.displayName}`}
                     disabled={readOnly}
                     value={player.attendanceStatus}
@@ -369,7 +387,7 @@ export function SquadEditor({
                     <option value="late">Llegó tarde</option>
                     <option value="absent">Ausente</option>
                     <option value="excused">Ausencia justificada</option>
-                  </select>
+                  </TorneosSelect>
                   <button
                     type="button"
                     disabled
@@ -489,18 +507,18 @@ function ReportEditor({
         </div>
         <label>
           <span>Qué ocurrió</span>
-          <select
+          <TorneosSelect
             disabled={readOnly}
             value={outcome.outcomeType}
             onChange={(e) => setOutcome((current) => ({ ...current, outcomeType: e.target.value }))}
           >
             {OUTCOME_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-          </select>
+          </TorneosSelect>
         </label>
         {outcome.outcomeType === 'suspended' && (
           <div className={styles.twoColumns}>
             <label><span>Minuto</span><input disabled={readOnly} type="number" min="0" max="240" value={outcome.suspensionMinute} onChange={(e) => setOutcome((c) => ({ ...c, suspensionMinute: e.target.value }))} /></label>
-            <label><span>Período</span><select disabled={readOnly} value={outcome.suspensionPeriod} onChange={(e) => setOutcome((c) => ({ ...c, suspensionPeriod: e.target.value }))}><option value="first_half">Primer tiempo</option><option value="halftime">Entretiempo</option><option value="second_half">Segundo tiempo</option><option value="extra_time">Alargue</option></select></label>
+            <label><span>Período</span><TorneosSelect disabled={readOnly} value={outcome.suspensionPeriod} onChange={(e) => setOutcome((c) => ({ ...c, suspensionPeriod: e.target.value }))}><option value="first_half">Primer tiempo</option><option value="halftime">Entretiempo</option><option value="second_half">Segundo tiempo</option><option value="extra_time">Alargue</option></TorneosSelect></label>
           </div>
         )}
         <label>
@@ -527,12 +545,12 @@ function ReportEditor({
         </div>
         <label>
           <span>Tipo de resultado</span>
-          <select disabled={readOnly} value={score.scoreType} onChange={(e) => setScore((c) => ({ ...c, scoreType: e.target.value }))}>
+          <TorneosSelect disabled={readOnly} value={score.scoreType} onChange={(e) => setScore((c) => ({ ...c, scoreType: e.target.value }))}>
             <option value="played">Jugado</option>
             <option value="administrative">Administrativo</option>
             <option value="walkover">Walkover</option>
             <option value="series_leg">Partido de serie</option>
-          </select>
+          </TorneosSelect>
         </label>
         <div className={styles.twoColumns}>
           <label><span>Penales local (opcional)</span><input disabled={readOnly} type="number" min="0" max="99" value={score.homePenalties} onChange={(e) => setScore((c) => ({ ...c, homePenalties: e.target.value }))} /></label>
@@ -555,26 +573,26 @@ function ReportEditor({
         </div>
         {!readOnly && (
           <div className={styles.eventComposer}>
-            <label><span>Evento</span><select value={event.eventType} onChange={(e) => setEvent((c) => ({
+            <label><span>Evento</span><TorneosSelect value={event.eventType} onChange={(e) => setEvent((c) => ({
               ...c,
               eventType: e.target.value,
               relatedEventId: '',
               relatedRosterPlayerId: '',
-            }))}>{Object.entries(EVENT_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-            <label><span>Equipo</span><select value={event.teamEntryId} onChange={(e) => setEvent((c) => ({
+            }))}>{REPORTABLE_EVENTS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</TorneosSelect></label>
+            <label><span>Equipo</span><TorneosSelect value={event.teamEntryId} onChange={(e) => setEvent((c) => ({
               ...c,
               teamEntryId: e.target.value,
               rosterPlayerId: '',
               relatedEventId: '',
               relatedRosterPlayerId: '',
-            }))}><option value={operation.home_team_entry_id}>{match.homeName}</option><option value={operation.away_team_entry_id}>{match.awayName}</option></select></label>
-            <label><span>Jugador</span><select value={event.rosterPlayerId} onChange={(e) => setEvent((c) => ({ ...c, rosterPlayerId: e.target.value }))}><option value="">Sin identificar / equipo</option>{players.map((player) => <option key={player.roster_player_id} value={player.roster_player_id}>{player.display_name_snapshot}</option>)}</select></label>
+            }))}><option value={operation.home_team_entry_id}>{match.homeName}</option><option value={operation.away_team_entry_id}>{match.awayName}</option></TorneosSelect></label>
+            <label><span>Jugador</span><TorneosSelect value={event.rosterPlayerId} onChange={(e) => setEvent((c) => ({ ...c, rosterPlayerId: e.target.value }))}><option value="">Sin identificar / equipo</option>{players.map((player) => <option key={player.roster_player_id} value={player.roster_player_id}>{player.display_name_snapshot}</option>)}</TorneosSelect></label>
             <label><span>Minuto</span><input type="number" min="0" max="240" value={event.minute} onChange={(e) => setEvent((c) => ({ ...c, minute: e.target.value }))} /></label>
-            <label><span>Período</span><select value={event.period} onChange={(e) => setEvent((c) => ({ ...c, period: e.target.value }))}><option value="pre_match">Prepartido</option><option value="first_half">Primer tiempo</option><option value="halftime">Entretiempo</option><option value="second_half">Segundo tiempo</option><option value="extra_time">Alargue</option><option value="penalties">Penales</option><option value="post_match">Postpartido</option></select></label>
+            <label><span>Período</span><TorneosSelect value={event.period} onChange={(e) => setEvent((c) => ({ ...c, period: e.target.value }))}><option value="pre_match">Prepartido</option><option value="first_half">Primer tiempo</option><option value="halftime">Entretiempo</option><option value="second_half">Segundo tiempo</option><option value="extra_time">Alargue</option><option value="penalties">Penales</option><option value="post_match">Postpartido</option></TorneosSelect></label>
             {event.eventType === 'assist' && (
               <label className={styles.fullField}>
                 <span>Gol asistido</span>
-                <select value={event.relatedEventId} onChange={(e) => setEvent((c) => ({
+                <TorneosSelect value={event.relatedEventId} onChange={(e) => setEvent((c) => ({
                   ...c,
                   relatedEventId: e.target.value,
                 }))}>
@@ -586,13 +604,13 @@ function ReportEditor({
                       )?.display_name_snapshot || 'Gol identificado'}
                     </option>
                   ))}
-                </select>
+                </TorneosSelect>
               </label>
             )}
             {event.eventType === 'substitution_in' && (
               <label className={styles.fullField}>
                 <span>Salida vinculada</span>
-                <select value={event.relatedEventId} onChange={(e) => {
+                <TorneosSelect value={event.relatedEventId} onChange={(e) => {
                   const related = relatedSubstitutionOuts.find(
                     (candidate) => candidate.id === e.target.value,
                   );
@@ -612,7 +630,7 @@ function ReportEditor({
                       )?.display_name_snapshot || 'Jugador saliente'}
                     </option>
                   ))}
-                </select>
+                </TorneosSelect>
               </label>
             )}
             {!event.rosterPlayerId && ['goal', 'own_goal'].includes(event.eventType) && <label className={styles.fullField}><span>Motivo del autor desconocido</span><input value={event.unidentifiedPlayerReason} onChange={(e) => setEvent((c) => ({ ...c, unidentifiedPlayerReason: e.target.value }))} /></label>}
@@ -633,7 +651,7 @@ function ReportEditor({
           {context.events.map((item) => (
             <li key={item.id} data-voided={Boolean(item.voided_at)}>
               <span>{item.minute ?? '·'}′</span>
-              <div><strong>{EVENT_LABELS[item.event_type] || item.event_type}</strong><small>{context.players.find((player) => player.roster_player_id === item.roster_player_id)?.display_name_snapshot || 'Evento de equipo'} · {item.period}</small></div>
+              <div><strong>{EVENT_LABELS[item.event_type] || humanizeInternalValue(item.event_type)}</strong><small>{context.players.find((player) => player.roster_player_id === item.roster_player_id)?.display_name_snapshot || 'Evento de equipo'} · {PERIOD_LABELS[item.period] || humanizeInternalValue(item.period)}</small></div>
               {!readOnly && !item.voided_at && (
                 <button type="button" aria-label="Anular evento" onClick={() => {
                   const reason = window.prompt('Motivo de anulación (queda auditado):', voidReason);
@@ -791,7 +809,7 @@ export default function MatchOperationsPage({ mode = 'list' }) {
       if (action === 'requestCorrection') await service.requestMatchCorrection({ ...common, operationId, reason: payload.reason });
       if (action === 'createCorrection') await service.createMatchCorrection({ ...common, operationId });
       await load({ notice: {
-        open: 'Acta abierta con snapshots del partido.',
+        open: 'Acta abierta con los datos registrados del partido.',
         saveSquad: 'Convocatoria guardada.',
         submitSquad: 'Convocatoria presentada.',
         outcome: 'Estado deportivo guardado.',
@@ -831,12 +849,12 @@ export default function MatchOperationsPage({ mode = 'list' }) {
           <header className={styles.pageHeader}>
             <div>
               <span className={styles.kicker}>Control de jornada</span>
-              <h1>Partidos</h1>
+              <h1 data-torneos-display="xl">Partidos</h1>
               <p>Convocatorias, actas, incidencias y resultados oficiales en una sola cola operativa.</p>
             </div>
             <div className={styles.categoryStamp}>
               <ShieldCheck size={18} />
-              <span>{categories.find((category) => category.id === categoryId)?.name || 'Categoría'}</span>
+              <span {...importantNameProps(categories.find((category) => category.id === categoryId)?.name || 'Categoría', 'compact')}>{categories.find((category) => category.id === categoryId)?.name || 'Categoría'}</span>
             </div>
           </header>
           {!activeTournament ? (
@@ -856,13 +874,21 @@ export default function MatchOperationsPage({ mode = 'list' }) {
           <header className={styles.matchHeader}>
             <div>
               <span className={styles.kicker}>Partido #{match.matchNumber}</span>
-              <h1>{match.homeName} <em>vs.</em> {match.awayName}</h1>
+              <h1 className={styles.matchTitle}>
+                <span {...importantNameProps(match.homeName, 'hero')}>{match.homeName}</span>
+                <em>vs.</em>
+                <span {...importantNameProps(match.awayName, 'hero')}>{match.awayName}</span>
+              </h1>
               <p>{dateParts(match.scheduledAt).join(' · ')} · {[match.venue, match.court].filter(Boolean).join(' · ') || 'Sede a confirmar'}</p>
             </div>
             <StatusPill status={state.operation?.operation?.status || match.planningStatus} />
           </header>
           <MatchScore match={match} operation={state.operation} />
-          <nav className={styles.matchSubnav} aria-label="Secciones del partido">
+          <nav
+            className={styles.matchSubnav}
+            aria-label="Secciones del partido"
+            data-allow-horizontal-scroll="true"
+          >
             <Link to={`${base}/${match.id}`}>Resumen</Link>
             <Link to={`${base}/${match.id}/convocatorias`}>Convocatorias</Link>
             <Link to={`${base}/${match.id}/acta`}>Acta</Link>
@@ -909,6 +935,7 @@ export default function MatchOperationsPage({ mode = 'list' }) {
               <div className={styles.teamTabs} role="tablist" aria-label="Equipo de la convocatoria">
                 {[match.homeTeamEntryId, match.awayTeamEntryId].map((teamId, index) => (
                   <button
+                    {...importantNameProps(index === 0 ? match.homeName : match.awayName, 'compact')}
                     key={teamId}
                     type="button"
                     role="tab"
@@ -936,7 +963,7 @@ export default function MatchOperationsPage({ mode = 'list' }) {
               <section className={styles.emptyState}>
                 <ClipboardCheck size={30} />
                 <h2>Primero abrí el acta</h2>
-                <p>La apertura crea la versión y copia los snapshots disponibles.</p>
+                <p>La apertura crea la versión y copia los datos disponibles.</p>
                 {canOpen && ['scheduled', 'ready'].includes(match.planningStatus)
                   && <button type="button" disabled={busy} onClick={() => run('open')}>Abrir acta</button>}
               </section>
@@ -995,7 +1022,7 @@ export default function MatchOperationsPage({ mode = 'list' }) {
                   </div>
                   <div className={styles.reviewHistory}>
                     {(state.operation.reviews || []).map((review) => (
-                      <article key={review.id}><StatusPill status={review.status} /><strong>{review.review_type}</strong><p>{review.reason}</p><small>{new Date(review.requested_at).toLocaleString('es-AR')}</small></article>
+                      <article key={review.id}><StatusPill status={review.status} /><strong>{getReviewTypeLabel(review.review_type)}</strong><p>{review.reason}</p><small>{new Date(review.requested_at).toLocaleString('es-AR')}</small></article>
                     ))}
                   </div>
                 </>
@@ -1005,11 +1032,11 @@ export default function MatchOperationsPage({ mode = 'list' }) {
 
           {mode === 'history' && (
             <section className={styles.historyPanel}>
-              <div className={styles.panelHeading}><div><span>Append-only</span><h2>Historial del acta</h2></div><History size={24} /></div>
+              <div className={styles.panelHeading}><div><span>Registro histórico</span><h2>Historial del acta</h2></div><History size={24} /></div>
               {!state.operation ? <p>No existen versiones del acta.</p> : (
                 <div className={styles.versionCard}>
                   <span>v{state.operation.operation.operation_version}</span>
-                  <div><StatusPill status={state.operation.operation.status} /><h3>{state.operation.operation.home_team_snapshot.name} vs. {state.operation.operation.away_team_snapshot.name}</h3><p>Abierta {new Date(state.operation.operation.opened_at).toLocaleString('es-AR')}</p></div>
+                  <div><StatusPill status={state.operation.operation.status} /><h3 className={styles.historyMatchName}><span {...importantNameProps(state.operation.operation.home_team_snapshot.name, 'match')}>{state.operation.operation.home_team_snapshot.name}</span><em>vs.</em><span {...importantNameProps(state.operation.operation.away_team_snapshot.name, 'match')}>{state.operation.operation.away_team_snapshot.name}</span></h3><p>Abierta {new Date(state.operation.operation.opened_at).toLocaleString('es-AR')}</p></div>
                   {state.operation.operation.source_operation_id && <small>Corrige una versión anterior</small>}
                 </div>
               )}

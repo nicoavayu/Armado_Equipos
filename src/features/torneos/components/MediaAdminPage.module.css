@@ -117,7 +117,7 @@
 .toolbar > div { display: flex; align-items: end; gap: 12px; }
 .toolbar > div > svg { align-self: center; color: #867c99; }
 .toolbar label, .formGrid label { display: grid; gap: 6px; }
-.toolbar label span, .formGrid label span {
+.toolbar label > span, .formGrid label > span {
   color: #9e96ad;
   font-size: 10px;
   font-weight: 800;

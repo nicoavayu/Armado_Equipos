@@ -8,10 +8,11 @@ import {
 } from '../domain/capabilities';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
+import { getStatusLabel } from './presentationLabels';
 import styles from './TorneosShell.module.css';
 
 function safeMemberLabel(member, organization) {
-  if (member.role === 'owner') return `Owner de ${organization.name}`;
+  if (member.role === 'owner') return `Responsable de ${organization.name}`;
   return `Miembro · ${String(member.user_id).slice(0, 8)}`;
 }
 
@@ -107,7 +108,7 @@ export default function OrganizationMembersPage() {
             </span>
             <span className={styles.roleChip}>{getRoleLabel(member.role)}</span>
             <span className={member.status === 'active' ? styles.activeChip : styles.neutralChip}>
-              {member.status === 'active' ? 'Activo' : member.status}
+              {getStatusLabel(member.status)}
             </span>
           </article>
         ))}

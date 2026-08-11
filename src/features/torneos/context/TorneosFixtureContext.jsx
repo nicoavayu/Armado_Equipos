@@ -145,7 +145,7 @@ export function TorneosFixtureProvider({
     ),
     savePots: (pots) => mutate(
       () => service.saveDrawPots(scoped({ pots })),
-      'Bombos y seeds guardados.',
+      'Bombos y cabezas de serie guardados.',
     ),
     draw: (input) => mutate(
       () => service.executeGroupDraw(scoped(input)),

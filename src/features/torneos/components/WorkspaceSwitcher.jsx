@@ -12,6 +12,7 @@ import { isArma2NativeRuntime } from '../../../utils/runtimePlatform';
 import { torneosFeatureFlags } from '../config/featureFlags';
 import { getRoleLabel } from '../domain/capabilities';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
+import { importantNameProps } from './importantNames';
 import styles from './TorneosShell.module.css';
 
 function OrganizationAvatar({ organization }) {
@@ -111,7 +112,9 @@ export default function WorkspaceSwitcher() {
           )}
         <span className={styles.workspaceCopy}>
           <small>Espacio activo</small>
-          <strong>{activeOrganization?.name || 'Arma2 Torneos'}</strong>
+          <strong {...importantNameProps(activeOrganization?.name || 'Arma2 Torneos', 'compact')}>
+            {activeOrganization?.name || 'Arma2 Torneos'}
+          </strong>
         </span>
         <ChevronDown size={18} aria-hidden="true" />
       </button>
@@ -159,7 +162,7 @@ export default function WorkspaceSwitcher() {
             >
               <OrganizationAvatar organization={organization} />
               <span>
-                <strong>{organization.name}</strong>
+                <strong {...importantNameProps(organization.name, 'compact')}>{organization.name}</strong>
                 <small>{getRoleLabel(organization.role)}</small>
               </span>
               {activeOrganization?.id === organization.id && busyId !== organization.id && (

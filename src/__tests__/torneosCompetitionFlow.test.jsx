@@ -271,7 +271,6 @@ describe('Arma2 Torneos competition flow', () => {
     renderPath(`/torneos/organizacion/${ORGANIZATION_ID}/torneos/nuevo`, api);
     const nameInput = await screen.findByRole('textbox', { name: /nombre del torneo/i });
     const seasonSelect = screen.getByRole('combobox', { name: 'Temporada' });
-    fireEvent.change(seasonSelect, { target: { value: SEASON_ID } });
     expect(seasonSelect).toHaveValue(SEASON_ID);
     fireEvent.change(nameInput, { target: { value: 'Copa Retry' } });
     fireEvent.click(screen.getByRole('button', { name: /guardar borrador/i }));

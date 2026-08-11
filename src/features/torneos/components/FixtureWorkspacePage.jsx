@@ -27,16 +27,23 @@ import {
   zonedLocalDateTimeToIso,
 } from '../domain/fixtureAlgorithms';
 import CompetitionSelector from './CompetitionSelector';
+import { importantNameProps } from './importantNames';
+import {
+  getFormatLabel,
+  getGenerationMethodLabel,
+  getStatusLabel,
+} from './presentationLabels';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
+import TorneosSelect from './TorneosSelect';
 import styles from './FixtureWorkspace.module.css';
 
 const MODE_COPY = {
   overview: ['Centro de competencia', 'Fixture', 'Versiones, fases, jornadas y programación real.'],
   participants: ['Paso 01', 'Participantes', 'Cerrá una fotografía competitiva antes de sortear.'],
-  pots: ['Paso 02', 'Bombos y seeds', 'Ordená la entrada del sorteo sin depender del orden de la base.'],
-  draw: ['Paso 03', 'Sorteo', 'Misma entrada y misma seed producen exactamente los mismos grupos.'],
+  pots: ['Paso 02', 'Bombos y cabezas de serie', 'Ordená la entrada del sorteo sin depender del orden de la base.'],
+  draw: ['Paso 03', 'Sorteo', 'La misma entrada y la misma clave producen exactamente los mismos grupos.'],
   groups: ['Estructura', 'Grupos', 'Distribución publicada y miembros congelados.'],
-  generate: ['Paso 04', 'Generar fixture', 'Creá una versión draft transaccional y verificable.'],
+  generate: ['Paso 04', 'Generar fixture', 'Creá una versión borrador verificable.'],
   rounds: ['Calendario', 'Jornadas', 'Fechas, cruces y estados de planificación.'],
   bracket: ['Eliminación', 'Llave', 'Cruces futuros expresados como fuentes estructuradas.'],
   schedule: ['Operación previa', 'Programación', 'Asigná horarios y canchas con conflictos visibles.'],
@@ -59,7 +66,11 @@ const FIXTURE_NAVIGATION = [
 function FixtureSubnav({ organizationId }) {
   const base = `/torneos/organizacion/${organizationId}`;
   return (
-    <nav className={styles.subnav} aria-label="Flujo de fixture">
+    <nav
+      className={styles.subnav}
+      aria-label="Flujo de fixture"
+      data-allow-horizontal-scroll="true"
+    >
       {FIXTURE_NAVIGATION.map(([path, label]) => (
         <Link key={path} to={`${base}/${path}`}>{label}</Link>
       ))}
@@ -86,7 +97,8 @@ function ContextBar() {
       <CompetitionSelector compact />
       <label>
         <span>Categoría</span>
-        <select
+        <TorneosSelect
+          {...importantNameProps(activeCategory?.name, 'selector')}
           aria-label="Categoría activa del fixture"
           value={categoryId || ''}
           onChange={(event) => setCategoryId(event.target.value)}
@@ -94,9 +106,9 @@ function ContextBar() {
           {categories.map((category) => (
             <option key={category.id} value={category.id}>{category.name}</option>
           ))}
-        </select>
+        </TorneosSelect>
       </label>
-      <span className={styles.contextStatus}>
+      <span className={styles.contextStatus} {...importantNameProps(activeCategory?.name || 'Sin categoría', 'compact')}>
         <CircleDot size={14} />
         {activeCategory?.name || 'Sin categoría'}
       </span>
@@ -115,8 +127,8 @@ function Metrics() {
     : [];
   return (
     <section className={styles.metrics} aria-label="Resumen del fixture">
-      <article><span>Participantes</span><strong>{participants.length}</strong><small>{participantSet?.status || 'abierto'}</small></article>
-      <article><span>Versión</span><strong>{activeVersion ? `v${activeVersion.versionNumber}` : '—'}</strong><small>{activeVersion?.status || 'sin generar'}</small></article>
+      <article><span>Participantes</span><strong>{participants.length}</strong><small>{getStatusLabel(participantSet?.status, 'Abierto')}</small></article>
+      <article><span>Versión</span><strong>{activeVersion ? `v${activeVersion.versionNumber}` : '—'}</strong><small>{getStatusLabel(activeVersion?.status, 'Sin generar')}</small></article>
       <article><span>Partidos</span><strong>{visibleMatches.length}</strong><small>identidades futuras</small></article>
       <article><span>Sin horario</span><strong>{visibleMatches.filter((match) => match.status === 'unscheduled').length}</strong><small>requieren programación</small></article>
     </section>
@@ -137,8 +149,8 @@ function ParticipantsPanel({ canManage }) {
     <section className={styles.panel}>
       <div className={styles.panelHeading}>
         <div>
-          <span>{participantSet ? `Snapshot v${participantSet.versionNumber}` : 'Cierre pendiente'}</span>
-          <h2>{participantSet?.status === 'frozen' ? 'Identidad congelada' : 'Equipos elegibles'}</h2>
+          <span>{participantSet ? `Nómina v${participantSet.versionNumber}` : 'Cierre pendiente'}</span>
+          <h2>{participantSet?.status === 'frozen' ? 'Nómina cerrada' : 'Equipos elegibles'}</h2>
         </div>
         {canManage && participantSet?.status !== 'frozen' && (
           <button type="button" disabled={busy || eligibleEntries.length < 2} onClick={() => run(() => actions.freeze())}>
@@ -150,8 +162,8 @@ function ParticipantsPanel({ canManage }) {
         {(participants.length ? participants : eligibleEntries).map((participant) => (
           <article key={participant.id}>
             <ParticipantMark participant={participant} />
-            <div><strong>{participant.name}</strong><small>{participant.status}</small></div>
-            {participant.seedNumber && <em>Seed {participant.seedNumber}</em>}
+            <div><strong {...importantNameProps(participant.name, 'card')}>{participant.name}</strong><small>{getStatusLabel(participant.status)}</small></div>
+            {participant.seedNumber && <em>Cabeza de serie {participant.seedNumber}</em>}
             {participant.potNumber && <em>Bombo {participant.potNumber}</em>}
           </article>
         ))}
@@ -211,7 +223,7 @@ function PotsPanel({ canManage }) {
             <h3>{pot.name}</h3>
             <div>{pot.members?.map((member) => {
               const participant = participants.find((item) => item.id === member.participantId);
-              return <small key={member.participantId}>{participant?.name || 'Participante'} {member.seedNumber ? `· S${member.seedNumber}` : ''}</small>;
+              return <small {...importantNameProps(participant?.name || 'Participante', 'compact')} key={member.participantId}>{participant?.name || 'Participante'} {member.seedNumber ? `· CS ${member.seedNumber}` : ''}</small>;
             })}</div>
           </article>
         ))}
@@ -238,7 +250,7 @@ function DrawPanel({ canManage }) {
   return (
     <section className={styles.panel}>
       <div className={styles.drawControls}>
-        <label><span>Seed explícita</span><input value={seed} onChange={(event) => setSeed(event.target.value)} placeholder="ej. apertura-2026-v1" /></label>
+        <label><span>Clave del sorteo</span><input value={seed} onChange={(event) => setSeed(event.target.value)} placeholder="ej. apertura-2026-v1" /></label>
         <label><span>Grupos</span><input type="number" min="2" max="32" value={groupCount} onChange={(event) => setGroupCount(event.target.value)} /></label>
         {canManage && <button type="button" disabled={busy || !participantSet || !seed.trim()} onClick={() => execute(false)}><Shuffle size={17} /> Sortear</button>}
         {canManage && <button type="button" disabled={busy || !drawGroups.length || !seed.trim()} onClick={() => execute(true)}><ShieldCheck size={17} /> Publicar</button>}
@@ -250,15 +262,15 @@ function DrawPanel({ canManage }) {
 
 function GroupsGrid({ groups }) {
   const { participants } = useTorneosFixture();
-  if (!groups.length) return <div className={styles.empty}><Shuffle size={24} /><strong>Todavía no hay grupos</strong><span>Ejecutá un sorteo draft o crealos de forma controlada.</span></div>;
+  if (!groups.length) return <div className={styles.empty}><Shuffle size={24} /><strong>Todavía no hay grupos</strong><span>Ejecutá un sorteo borrador o crealos de forma controlada.</span></div>;
   return (
     <div className={styles.groupGrid}>
       {groups.map((group) => (
         <article key={group.id}>
-          <header><span>{group.code}</span><div><h3>{group.name}</h3><small>{group.status} · seed {group.drawSeed || 'manual'}</small></div></header>
+          <header><span>{group.code}</span><div><h3>{group.name}</h3><small>{getStatusLabel(group.status)} · clave {group.drawSeed || 'manual'}</small></div></header>
           <ol>{group.members?.map((member) => {
             const participant = participants.find((item) => item.id === member.participantId);
-            return <li key={member.participantId}><ParticipantMark participant={participant} /><span>{participant?.name || 'Participante'}</span></li>;
+            return <li key={member.participantId}><ParticipantMark participant={participant} /><span {...importantNameProps(participant?.name || 'Participante', 'table')}>{participant?.name || 'Participante'}</span></li>;
           })}</ol>
         </article>
       ))}
@@ -278,12 +290,12 @@ function VersionPanel({ canManage }) {
   };
   return (
     <section className={styles.panel}>
-      <div className={styles.panelHeading}><div><span>Historial inmutable</span><h2>Versiones</h2></div></div>
+      <div className={styles.panelHeading}><div><span>Historial de versiones</span><h2>Versiones del fixture</h2></div></div>
       <div className={styles.versionList}>
         {versions.map((version) => (
           <article key={version.id}>
             <span className={styles.versionNumber}>v{version.versionNumber}</span>
-            <div><small>{version.generationMethod}</small><h3>{version.status}</h3><p>{version.matchCount} partidos · {version.scheduledCount} programados</p></div>
+            <div><small>{getGenerationMethodLabel(version.generationMethod)}</small><h3>{getStatusLabel(version.status)}</h3><p>{version.matchCount} partidos · {version.scheduledCount} programados</p></div>
             <div className={styles.versionActions}>
               <Link to={`/torneos/organizacion/${organization.id}/fixture/version/${version.id}`}>Abrir <ArrowRight size={15} /></Link>
               {canManage && version.status === 'draft' && <button type="button" disabled={busy} onClick={() => publish(version.id)}>Publicar</button>}
@@ -306,14 +318,14 @@ function GeneratePanel({ canManage }) {
   return (
     <section className={`${styles.panel} ${styles.generatePanel}`}>
       <Sparkles size={28} />
-      <div><span>Operación atómica</span><h2>{activeTournament?.competitionFormat || 'Formato competitivo'}</h2><p>Se crean versión, fases, jornadas, partidos y fuentes en una única transacción.</p></div>
-      <label><span>Seed de generación</span><input value={seed} onChange={(event) => setSeed(event.target.value)} placeholder="opcional para liga; requerida para trazabilidad" /></label>
+      <div><span>Operación atómica</span><h2>{getFormatLabel(activeTournament?.competitionFormat, 'Formato competitivo')}</h2><p>Se crean versión, fases, jornadas, partidos y fuentes en una única transacción.</p></div>
+      <label><span>Clave de generación</span><input value={seed} onChange={(event) => setSeed(event.target.value)} placeholder="Opcional para liga; requerida para trazabilidad" /></label>
       {canManage && (
         <div className={styles.formActions}>
           <button type="button" disabled={busy || participantSet?.status !== 'frozen'} onClick={async () => {
             setBusy(true);
             try { await actions.generate({ seed, configuration: {} }); } finally { setBusy(false); }
-          }}><Sparkles size={17} /> Generar draft</button>
+          }}><Sparkles size={17} /> Generar borrador</button>
           <button type="button" disabled={busy || participantSet?.status !== 'frozen'} onClick={async () => {
             setBusy(true);
             try {
@@ -362,7 +374,7 @@ function DraftEditor({ version }) {
         }}>
           <h3>Nueva fase</h3>
           <label><span>Nombre</span><input required value={phase.name} onChange={(event) => setPhase({ ...phase, name: event.target.value })} /></label>
-          <label><span>Tipo</span><select value={phase.phaseType} onChange={(event) => setPhase({ ...phase, phaseType: event.target.value })}><option value="league">Liga</option><option value="groups">Grupos</option><option value="custom_knockout">Eliminación</option></select></label>
+          <label><span>Tipo</span><TorneosSelect value={phase.phaseType} onChange={(event) => setPhase({ ...phase, phaseType: event.target.value })}><option value="league">Liga</option><option value="groups">Grupos</option><option value="custom_knockout">Eliminación</option></TorneosSelect></label>
           <button type="submit"><Plus size={16} /> Crear fase</button>
         </form>
         <form onSubmit={async (event) => {
@@ -371,7 +383,7 @@ function DraftEditor({ version }) {
           setRound((current) => ({ ...current, name: '' }));
         }}>
           <h3>Nueva jornada</h3>
-          <label><span>Fase</span><select required value={round.phaseId} onChange={(event) => setRound({ ...round, phaseId: event.target.value })}><option value="">Seleccionar</option>{versionPhases.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+          <label><span>Fase</span><TorneosSelect required value={round.phaseId} onChange={(event) => setRound({ ...round, phaseId: event.target.value })}><option value="">Seleccionar</option>{versionPhases.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</TorneosSelect></label>
           <label><span>Nombre</span><input required value={round.name} onChange={(event) => setRound({ ...round, name: event.target.value })} /></label>
           <button type="submit"><Plus size={16} /> Crear jornada</button>
         </form>
@@ -386,9 +398,9 @@ function DraftEditor({ version }) {
           }));
         }}>
           <h3>Nuevo partido</h3>
-          <label><span>Jornada</span><select required value={match.roundId} onChange={(event) => setMatch({ ...match, roundId: event.target.value })}><option value="">Seleccionar</option>{versionRounds.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-          <label><span>Local</span><select required value={match.homeParticipantId} onChange={(event) => setMatch({ ...match, homeParticipantId: event.target.value })}><option value="">Seleccionar</option>{participants.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-          <label><span>Visitante</span><select required value={match.awayParticipantId} onChange={(event) => setMatch({ ...match, awayParticipantId: event.target.value })}><option value="">Seleccionar</option>{participants.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+          <label><span>Jornada</span><TorneosSelect required value={match.roundId} onChange={(event) => setMatch({ ...match, roundId: event.target.value })}><option value="">Seleccionar</option>{versionRounds.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</TorneosSelect></label>
+          <label><span>Local</span><TorneosSelect required value={match.homeParticipantId} onChange={(event) => setMatch({ ...match, homeParticipantId: event.target.value })}><option value="">Seleccionar</option>{participants.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</TorneosSelect></label>
+          <label><span>Visitante</span><TorneosSelect required value={match.awayParticipantId} onChange={(event) => setMatch({ ...match, awayParticipantId: event.target.value })}><option value="">Seleccionar</option>{participants.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</TorneosSelect></label>
           <label><span>Duración</span><input type="number" min="15" max="240" value={match.durationMinutes} onChange={(event) => setMatch({ ...match, durationMinutes: event.target.value })} /></label>
           <button type="submit" disabled={match.homeParticipantId === match.awayParticipantId}><Plus size={16} /> Crear partido</button>
         </form>
@@ -452,16 +464,16 @@ function RoundsPanel({ bracket = false, canManage = false }) {
                   <small>Partido {match.matchNumber}{match.legNumber > 1 ? ` · vuelta` : ''}</small>
                   <div className={styles.bracketTeam}>
                     <span>Local</span>
-                    <strong>
-                      {participantSeed(match.homeParticipantId) && <small>Seed {participantSeed(match.homeParticipantId)}</small>}
+                    <strong {...importantNameProps(participantName(match.homeParticipantId) || sourceLabel(match.sources?.find((source) => source.side === 'home')), 'match')}>
+                      {participantSeed(match.homeParticipantId) && <small>Cabeza de serie {participantSeed(match.homeParticipantId)}</small>}
                       {participantName(match.homeParticipantId) || sourceLabel(match.sources?.find((source) => source.side === 'home'))}
                     </strong>
                   </div>
                   <span className={styles.bracketVersus} aria-hidden="true">vs</span>
                   <div className={styles.bracketTeam}>
                     <span>Visitante</span>
-                    <strong>
-                      {participantSeed(match.awayParticipantId) && <small>Seed {participantSeed(match.awayParticipantId)}</small>}
+                    <strong {...importantNameProps(participantName(match.awayParticipantId) || sourceLabel(match.sources?.find((source) => source.side === 'away')), 'match')}>
+                      {participantSeed(match.awayParticipantId) && <small>Cabeza de serie {participantSeed(match.awayParticipantId)}</small>}
                       {participantName(match.awayParticipantId) || sourceLabel(match.sources?.find((source) => source.side === 'away'))}
                     </strong>
                   </div>
@@ -480,14 +492,14 @@ function RoundsPanel({ bracket = false, canManage = false }) {
         <div className={styles.roundList}>
         {visibleRounds.map((round) => (
           <article key={round.id}>
-            <header><span>F{round.roundNumber}</span><div><h3>{round.name}</h3><small>{round.status}</small></div></header>
+            <header><span className={styles.roundCode}>F{round.roundNumber}</span><div><h3>{round.name}</h3><small>{getStatusLabel(round.status)}</small></div></header>
             <div>{shownMatches.filter((match) => match.roundId === round.id).map((match) => (
               <Link key={match.id} to={`/torneos/organizacion/${organization.id}/fixture/partidos/${match.id}`}>
                 <small>#{match.matchNumber}</small>
-                <strong>{participantName(match.homeParticipantId) || sourceLabel(match.sources?.find((source) => source.side === 'home'))}</strong>
+                <strong {...importantNameProps(participantName(match.homeParticipantId) || sourceLabel(match.sources?.find((source) => source.side === 'home')), 'match')}>{participantName(match.homeParticipantId) || sourceLabel(match.sources?.find((source) => source.side === 'home'))}</strong>
                 <span>vs</span>
-                <strong>{participantName(match.awayParticipantId) || sourceLabel(match.sources?.find((source) => source.side === 'away'))}</strong>
-                <em>{match.status}</em>
+                <strong {...importantNameProps(participantName(match.awayParticipantId) || sourceLabel(match.sources?.find((source) => source.side === 'away')), 'match')}>{participantName(match.awayParticipantId) || sourceLabel(match.sources?.find((source) => source.side === 'away'))}</strong>
+                <em data-torneos-chip>{getStatusLabel(match.status)}</em>
               </Link>
             ))}</div>
           </article>
@@ -568,16 +580,16 @@ function SchedulePanel({ canManage }) {
             courtId: match.courtId || '',
             durationMinutes: match.durationMinutes || 60,
           }))}>
-            <span>#{match.matchNumber}</span><strong>{participantName(match.homeParticipantId)} · {participantName(match.awayParticipantId)}</strong><small>{match.scheduledAt ? formatInstantInTimeZone(match.scheduledAt, venues.find((venue) => venue.id === match.venueId)?.timezone || 'America/Argentina/Buenos_Aires') : 'Sin horario'}</small><em>{match.status}</em>
+            <span>#{match.matchNumber}</span><strong className={styles.scheduleTeams}><span {...importantNameProps(participantName(match.homeParticipantId), 'match')}>{participantName(match.homeParticipantId)}</span><i aria-hidden="true">vs.</i><span {...importantNameProps(participantName(match.awayParticipantId), 'match')}>{participantName(match.awayParticipantId)}</span></strong><small>{match.scheduledAt ? formatInstantInTimeZone(match.scheduledAt, venues.find((venue) => venue.id === match.venueId)?.timezone || 'America/Argentina/Buenos_Aires') : 'Sin horario'}</small><em data-torneos-chip>{getStatusLabel(match.status)}</em>
           </button>
         ))}</div>
       </section>
       <form className={`${styles.panel} ${styles.scheduleForm}`} onSubmit={submit}>
-        <div><span>Fallback accesible</span><h2>{selected?.status === 'scheduled' ? 'Reprogramar' : 'Asignar horario'}</h2></div>
-        <label><span>Partido</span><select required value={form.matchId} onChange={set('matchId')}><option value="">Seleccionar</option>{candidateMatches.map((match) => <option key={match.id} value={match.id}>#{match.matchNumber} · {participantName(match.homeParticipantId)} vs {participantName(match.awayParticipantId)}</option>)}</select></label>
+        <div><span>Edición manual</span><h2>{selected?.status === 'scheduled' ? 'Reprogramar' : 'Asignar horario'}</h2></div>
+        <label><span>Partido</span><TorneosSelect {...importantNameProps(selected ? `${participantName(selected.homeParticipantId)} vs ${participantName(selected.awayParticipantId)}` : 'Seleccionar', 'selector')} required value={form.matchId} onChange={set('matchId')}><option value="">Seleccionar</option>{candidateMatches.map((match) => <option key={match.id} value={match.id}>#{match.matchNumber} · {participantName(match.homeParticipantId)} vs {participantName(match.awayParticipantId)}</option>)}</TorneosSelect></label>
         <label><span>Fecha y hora</span><input required type="datetime-local" value={form.scheduledAt} onChange={set('scheduledAt')} /></label>
-        <label><span>Sede</span><select required value={form.venueId} onChange={(event) => setForm((current) => ({ ...current, venueId: event.target.value, courtId: '' }))}><option value="">Seleccionar</option>{venues.filter((venue) => venue.status === 'active').map((venue) => <option key={venue.id} value={venue.id}>{venue.name}</option>)}</select></label>
-        <label><span>Cancha</span><select required value={form.courtId} onChange={set('courtId')}><option value="">Seleccionar</option>{availableCourts.map((court) => <option key={court.id} value={court.id}>{court.name}</option>)}</select></label>
+        <label><span>Sede</span><TorneosSelect required value={form.venueId} onChange={(event) => setForm((current) => ({ ...current, venueId: event.target.value, courtId: '' }))}><option value="">Seleccionar</option>{venues.filter((venue) => venue.status === 'active').map((venue) => <option key={venue.id} value={venue.id}>{venue.name}</option>)}</TorneosSelect></label>
+        <label><span>Cancha</span><TorneosSelect required value={form.courtId} onChange={set('courtId')}><option value="">Seleccionar</option>{availableCourts.map((court) => <option key={court.id} value={court.id}>{court.name}</option>)}</TorneosSelect></label>
         <label><span>Duración</span><input required type="number" min="15" max="240" value={form.durationMinutes} onChange={set('durationMinutes')} /></label>
         {(selected?.status === 'scheduled' || selected?.status === 'postponed') && <label><span>Motivo</span><textarea required minLength={3} value={form.reason} onChange={set('reason')} /></label>}
         {scheduleTimeError && <div className={styles.validation} role="alert"><AlertTriangle size={17} /><span>Esa hora local no existe o es ambigua para la zona horaria de la sede.</span></div>}
@@ -608,7 +620,7 @@ function VenuesPanel({ canManage }) {
       <section className={styles.panel}>
         <div className={styles.panelHeading}><div><span>Recursos activos</span><h2>Sedes</h2></div></div>
         <div className={styles.venueList}>{venues.map((item) => (
-          <article key={item.id}><MapPin size={19} /><div><h3>{item.name}</h3><p>{item.address}</p><small>{courts.filter((value) => value.venueId === item.id).length} canchas · {item.status}</small></div></article>
+          <article key={item.id}><MapPin size={19} /><div><h3>{item.name}</h3><p>{item.address}</p><small>{courts.filter((value) => value.venueId === item.id).length} canchas · {getStatusLabel(item.status)}</small></div></article>
         ))}</div>
       </section>
       {canManage && <section className={styles.resourceForms}>
@@ -621,9 +633,9 @@ function VenuesPanel({ canManage }) {
         </form>
         <form className={styles.panel} onSubmit={async (event) => { event.preventDefault(); await actions.createCourt(court); setCourt((current) => ({ ...current, name: '' })); }}>
           <h2>Nueva cancha</h2>
-          <label><span>Sede</span><select required value={court.venueId} onChange={(event) => setCourt({ ...court, venueId: event.target.value })}><option value="">Seleccionar</option>{venues.filter((item) => item.status === 'active').map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+          <label><span>Sede</span><TorneosSelect required value={court.venueId} onChange={(event) => setCourt({ ...court, venueId: event.target.value })}><option value="">Seleccionar</option>{venues.filter((item) => item.status === 'active').map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</TorneosSelect></label>
           <label><span>Nombre</span><input required value={court.name} onChange={(event) => setCourt({ ...court, name: event.target.value })} /></label>
-          <label><span>Modalidad</span><select value={court.sportModality} onChange={(event) => setCourt({ ...court, sportModality: event.target.value })}><option value="football_5">Fútbol 5</option><option value="football_6">Fútbol 6</option><option value="football_7">Fútbol 7</option><option value="football_8">Fútbol 8</option><option value="football_9">Fútbol 9</option><option value="football_11">Fútbol 11</option><option value="futsal">Futsal</option></select></label>
+          <label><span>Modalidad</span><TorneosSelect value={court.sportModality} onChange={(event) => setCourt({ ...court, sportModality: event.target.value })}><option value="football_5">Fútbol 5</option><option value="football_6">Fútbol 6</option><option value="football_7">Fútbol 7</option><option value="football_8">Fútbol 8</option><option value="football_9">Fútbol 9</option><option value="football_11">Fútbol 11</option><option value="futsal">Futsal</option></TorneosSelect></label>
           <button type="submit"><Plus size={16} /> Crear cancha</button>
         </form>
         <form className={styles.panel} onSubmit={async (event) => {
@@ -637,12 +649,12 @@ function VenuesPanel({ canManage }) {
           }]);
         }}>
           <h2>Ventana semanal</h2>
-          <label><span>Día</span><select value={scheduleWindow.dayOfWeek} onChange={(event) => setScheduleWindow({ ...scheduleWindow, dayOfWeek: event.target.value })}><option value="1">Lunes</option><option value="2">Martes</option><option value="3">Miércoles</option><option value="4">Jueves</option><option value="5">Viernes</option><option value="6">Sábado</option><option value="7">Domingo</option></select></label>
+          <label><span>Día</span><TorneosSelect value={scheduleWindow.dayOfWeek} onChange={(event) => setScheduleWindow({ ...scheduleWindow, dayOfWeek: event.target.value })}><option value="1">Lunes</option><option value="2">Martes</option><option value="3">Miércoles</option><option value="4">Jueves</option><option value="5">Viernes</option><option value="6">Sábado</option><option value="7">Domingo</option></TorneosSelect></label>
           <label><span>Desde</span><input required type="time" value={scheduleWindow.startsAt} onChange={(event) => setScheduleWindow({ ...scheduleWindow, startsAt: event.target.value })} /></label>
           <label><span>Hasta</span><input required type="time" value={scheduleWindow.endsAt} onChange={(event) => setScheduleWindow({ ...scheduleWindow, endsAt: event.target.value })} /></label>
           <label><span>Minutos por turno</span><input required type="number" min="15" max="240" value={scheduleWindow.slotDurationMinutes} onChange={(event) => setScheduleWindow({ ...scheduleWindow, slotDurationMinutes: event.target.value })} /></label>
-          <label><span>Sede opcional</span><select value={scheduleWindow.venueId} onChange={(event) => setScheduleWindow({ ...scheduleWindow, venueId: event.target.value, courtId: '' })}><option value="">Todas</option>{venues.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-          <label><span>Cancha opcional</span><select value={scheduleWindow.courtId} onChange={(event) => setScheduleWindow({ ...scheduleWindow, courtId: event.target.value })}><option value="">Todas</option>{courts.filter((item) => !scheduleWindow.venueId || item.venueId === scheduleWindow.venueId).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+          <label><span>Sede opcional</span><TorneosSelect value={scheduleWindow.venueId} onChange={(event) => setScheduleWindow({ ...scheduleWindow, venueId: event.target.value, courtId: '' })}><option value="">Todas</option>{venues.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</TorneosSelect></label>
+          <label><span>Cancha opcional</span><TorneosSelect value={scheduleWindow.courtId} onChange={(event) => setScheduleWindow({ ...scheduleWindow, courtId: event.target.value })}><option value="">Todas</option>{courts.filter((item) => !scheduleWindow.venueId || item.venueId === scheduleWindow.venueId).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</TorneosSelect></label>
           <button type="submit"><Save size={16} /> Guardar ventana</button>
         </form>
       </section>}
@@ -664,7 +676,7 @@ export default function FixtureWorkspacePage({ mode = 'overview' }) {
       <ContextBar />
       <FixtureSubnav organizationId={organization.id} />
       <header className={styles.pageHeader}>
-        <div><span>{kicker}</span><h1>{title}</h1><p>{activeTournament ? `${activeTournament.name} · ${description}` : 'Seleccioná un torneo activo.'}</p></div>
+        <div><span>{kicker}</span><h1 data-torneos-display="xl" title={title}>{title}</h1><p className={styles.pageContext}>{activeTournament ? <><strong {...importantNameProps(activeTournament.name, 'compact')}>{activeTournament.name}</strong><span>{description}</span></> : 'Seleccioná un torneo activo.'}</p></div>
         <div className={styles.headerBadge}><Trophy size={20} /><span><small>Modo</small><strong>{canManage ? 'Organización' : 'Sólo lectura'}</strong></span></div>
       </header>
       {fixture.notice && <div className={styles.notice} role="status"><CheckCircle2 size={17} />{fixture.notice}</div>}

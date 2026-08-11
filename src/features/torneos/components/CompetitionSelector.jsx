@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { CalendarRange, ChevronDown, Trophy } from 'lucide-react';
+import { CalendarRange, Trophy } from 'lucide-react';
 import { useTorneosCompetition } from '../context/TorneosCompetitionContext';
+import { importantNameProps } from './importantNames';
+import TorneosSelect from './TorneosSelect';
 import styles from './CompetitionCore.module.css';
 
 export default function CompetitionSelector({ compact = false }) {
@@ -14,6 +16,10 @@ export default function CompetitionSelector({ compact = false }) {
   const [busy, setBusy] = useState(false);
   const seasonTournaments = tournaments.filter(
     (tournament) => tournament.seasonId === preference.activeSeasonId,
+  );
+  const activeSeason = seasons.find((season) => season.id === preference.activeSeasonId);
+  const activeTournament = seasonTournaments.find(
+    (tournament) => tournament.id === preference.activeTournamentId,
   );
 
   const selectSeason = async (event) => {
@@ -59,7 +65,8 @@ export default function CompetitionSelector({ compact = false }) {
       <label>
         <CalendarRange size={15} aria-hidden="true" />
         <span>Temporada</span>
-        <select
+        <TorneosSelect
+          {...importantNameProps(activeSeason?.name, 'selector')}
           value={preference.activeSeasonId || ''}
           onChange={selectSeason}
           disabled={busy}
@@ -68,13 +75,13 @@ export default function CompetitionSelector({ compact = false }) {
           {seasons.map((season) => (
             <option key={season.id} value={season.id}>{season.name}</option>
           ))}
-        </select>
-        <ChevronDown size={14} aria-hidden="true" />
+        </TorneosSelect>
       </label>
       <label>
         <Trophy size={15} aria-hidden="true" />
         <span>Torneo</span>
-        <select
+        <TorneosSelect
+          {...importantNameProps(activeTournament?.name || 'Sin torneo seleccionado', 'selector')}
           value={preference.activeTournamentId || ''}
           onChange={selectTournament}
           disabled={busy}
@@ -86,8 +93,7 @@ export default function CompetitionSelector({ compact = false }) {
               {tournament.name}
             </option>
           ))}
-        </select>
-        <ChevronDown size={14} aria-hidden="true" />
+        </TorneosSelect>
       </label>
     </section>
   );

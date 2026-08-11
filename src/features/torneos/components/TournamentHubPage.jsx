@@ -34,7 +34,10 @@ import {
   useSearchParams,
 } from 'react-router-dom';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
+import TorneosSelect from './TorneosSelect';
 import styles from './ParticipantHub.module.css';
+import { getImportantNameLength, importantNameProps } from './importantNames';
+import { getStatusLabel } from './presentationLabels';
 import TournamentCommunicationsPanel from './TournamentCommunicationsPanel';
 import ParticipantMediaGallery from './ParticipantMediaGallery';
 
@@ -141,21 +144,26 @@ function AvailabilityActions({
 function MatchCard({
   match, tournamentId, categoryId, busy, onRespond, readOnly = false,
 }) {
+  const hasExtraLongName = [match.home?.name, match.away?.name]
+    .some((name) => getImportantNameLength(name) === 'extra-long');
   return (
-    <article className={`${styles.matchCard} ${match.isMyTeam ? styles.matchCardMine : ''}`}>
+    <article
+      className={`${styles.matchCard} ${match.isMyTeam ? styles.matchCardMine : ''}`}
+      data-long-names={hasExtraLongName}
+    >
       <header>
         <span>{match.roundName || match.round?.name || 'Fixture'}</span>
-        <strong>{STATUS_LABELS[match.status] || match.status || 'Partido'}</strong>
+        <strong>{STATUS_LABELS[match.status] || getStatusLabel(match.status, 'Partido')}</strong>
       </header>
       <div className={styles.matchup}>
         <div>
           <TeamMark team={match.home} />
-          <span><strong>{match.home?.name || 'Por definir'}</strong><small>Local</small></span>
+          <span><strong {...importantNameProps(match.home?.name || 'Por definir', 'match')}>{match.home?.name || 'Por definir'}</strong><small>Local</small></span>
         </div>
         <Score match={match} />
         <div>
           <TeamMark team={match.away} />
-          <span><strong>{match.away?.name || 'Por definir'}</strong><small>Visitante</small></span>
+          <span><strong {...importantNameProps(match.away?.name || 'Por definir', 'match')}>{match.away?.name || 'Por definir'}</strong><small>Visitante</small></span>
         </div>
       </div>
       <div className={styles.matchMeta}>
@@ -316,9 +324,13 @@ function OverviewSection({
         {hub.standings?.length ? (
           <ol className={styles.miniStandings}>
             {hub.standings.map((row) => (
-              <li key={row.participantId} className={row.isMyTeam ? styles.isMine : ''}>
+              <li
+                key={row.participantId}
+                className={row.isMyTeam ? styles.isMine : ''}
+                data-long-name={getImportantNameLength(row.teamName) === 'extra-long'}
+              >
                 <strong>{row.position}</strong>
-                <span>{row.teamName}</span>
+                <span {...importantNameProps(row.teamName, 'table')}>{row.teamName}</span>
                 <small>{row.played} PJ</small>
                 <b>{row.points} pts</b>
               </li>
@@ -340,7 +352,7 @@ function OverviewSection({
             {hub.topScorers.map((player, index) => (
               <li key={player.rosterPlayerId} className={player.isMe ? styles.isMine : ''}>
                 <strong>{String(index + 1).padStart(2, '0')}</strong>
-                <span><b>{player.name}</b><small>{player.teamName}</small></span>
+                <span><b {...importantNameProps(player.name, 'player')}>{player.name}</b><small {...importantNameProps(player.teamName, 'compact')}>{player.teamName}</small></span>
                 <em>{player.goals}</em>
               </li>
             ))}
@@ -355,7 +367,7 @@ function OverviewSection({
         <section className={`${styles.featurePanel} ${styles.myTeamPanel}`}>
           <div className={styles.panelHeading}>
             <span>Tu vestuario</span>
-            <h2>{hub.myTeam.name}</h2>
+            <h2 {...importantNameProps(hub.myTeam.name, 'card')}>{hub.myTeam.name}</h2>
           </div>
           <div className={styles.myTeamSummary}>
             <TeamMark team={hub.myTeam} />
@@ -368,7 +380,6 @@ function OverviewSection({
             <dl className={styles.personalStats}>
               <div><dt>Partidos</dt><dd>{hub.myStatistics.appearances}</dd></div>
               <div><dt>Goles</dt><dd>{hub.myStatistics.goals}</dd></div>
-              <div><dt>Asist.</dt><dd>{hub.myStatistics.assists}</dd></div>
             </dl>
           )}
         </section>
@@ -383,9 +394,9 @@ function OverviewSection({
           <div className={styles.resultList}>
             {hub.recentResults.map((match) => (
               <Link key={match.matchId} to={`/torneos/torneo/${tournamentId}/partidos/${match.matchId}?categoria=${categoryId}`}>
-                <span>{match.home.name}</span>
+                <span {...importantNameProps(match.home.name, 'match')}>{match.home.name}</span>
                 <Score match={match} />
-                <span>{match.away.name}</span>
+                <span {...importantNameProps(match.away.name, 'match')}>{match.away.name}</span>
               </Link>
             ))}
           </div>
@@ -401,27 +412,29 @@ function ProjectionFilters({
   const groups = (hub.competition?.groups || []).filter(
     (group) => group.phaseId === phaseId,
   );
+  const activePhase = (hub.competition?.phases || []).find((phase) => phase.id === phaseId);
+  const activeGroup = groups.find((group) => group.id === groupId);
   return (
     <section className={styles.projectionFilters} aria-label="Contexto de la competencia">
       <label>
         <span>Fase</span>
-        <select value={phaseId || ''} onChange={(event) => {
+        <TorneosSelect {...importantNameProps(activePhase?.name, 'selector')} value={phaseId || ''} onChange={(event) => {
           setPhaseId(event.target.value);
           setGroupId(null);
         }}>
           {(hub.competition?.phases || []).map((phase) => (
             <option key={phase.id} value={phase.id}>{phase.name}</option>
           ))}
-        </select>
+        </TorneosSelect>
       </label>
       <label>
         <span>Grupo</span>
-        <select value={groupId || ''} onChange={(event) => setGroupId(event.target.value || null)}>
+        <TorneosSelect {...importantNameProps(activeGroup?.name || 'Tabla general', 'selector')} value={groupId || ''} onChange={(event) => setGroupId(event.target.value || null)}>
           <option value="">Tabla general</option>
           {groups.map((group) => (
             <option key={group.id} value={group.id}>{group.name}</option>
           ))}
-        </select>
+        </TorneosSelect>
       </label>
     </section>
   );
@@ -430,14 +443,14 @@ function ProjectionFilters({
 function StandingsSection({ rows, myTeamId }) {
   if (!rows.length) return <HubState title="Sin tabla publicada" copy="La tabla aparecerá cuando la organización publique un cálculo oficial para esta fase." />;
   return (
-    <div className={styles.participantTableWrap}>
+    <div className={styles.participantTableWrap} data-allow-horizontal-scroll="true">
       <table className={styles.participantTable}>
         <thead><tr><th>Pos.</th><th>Equipo</th><th>PJ</th><th>G</th><th>E</th><th>P</th><th>DG</th><th>Pts.</th></tr></thead>
         <tbody>
           {rows.map((row) => (
             <tr key={row.participantId} className={row.teamEntryId === myTeamId ? styles.tableMine : ''}>
               <td><strong>{row.position}</strong></td>
-              <td><TeamMark team={{ name: row.teamName, shortName: row.shortName }} compact /><span>{row.teamName}</span></td>
+              <td><TeamMark team={{ name: row.teamName, shortName: row.shortName }} compact /><span {...importantNameProps(row.teamName, 'table')}>{row.teamName}</span></td>
               <td>{row.played}</td><td>{row.won}</td><td>{row.drawn}</td><td>{row.lost}</td>
               <td>{row.goalDifference > 0 ? `+${row.goalDifference}` : row.goalDifference}</td>
               <td><b>{row.points}</b></td>
@@ -456,14 +469,13 @@ function StatisticsSection({ data, myPlayerId }) {
   return (
     <div className={styles.statisticsGrid}>
       <section className={styles.rankingPanel}>
-        <div className={styles.panelHeading}><span>Ranking individual</span><h2>Goles y asistencias</h2></div>
+        <div className={styles.panelHeading}><span>Ranking individual</span><h2>Goleadores</h2></div>
         <ol className={styles.fullRanking}>
           {players.map((player, index) => (
             <li key={player.rosterPlayerId} className={player.rosterPlayerId === myPlayerId ? styles.isMine : ''}>
               <strong>{String(index + 1).padStart(2, '0')}</strong>
-              <span><b>{player.name}</b><small>{player.appearances} apariciones</small></span>
+              <span><b {...importantNameProps(player.name, 'player')}>{player.name}</b><small>{player.appearances} apariciones</small></span>
               <em>{player.goals}<small>goles</small></em>
-              <em>{player.assists}<small>asis.</small></em>
             </li>
           ))}
         </ol>
@@ -474,7 +486,7 @@ function StatisticsSection({ data, myPlayerId }) {
           {teams.map((team) => (
             <article key={team.participantId}>
               <TeamMark team={team} compact />
-              <span><strong>{team.teamName}</strong><small>{team.streakCount || 0} en racha</small></span>
+              <span><strong {...importantNameProps(team.teamName, 'table')}>{team.teamName}</strong><small>{team.streakCount || 0} en racha</small></span>
               <b>{team.goals} GF</b>
             </article>
           ))}
@@ -491,14 +503,14 @@ function TeamsSection({ payload }) {
     <div className={styles.teamDirectory}>
       {teams.map((team) => (
         <article key={team.participantId} className={team.isMyTeam ? styles.teamCardMine : ''}>
-          <header><TeamMark team={team} /><span><strong>{team.name}</strong><small>{team.position ? `#${team.position} · ${team.points} pts` : 'Sin posición publicada'}</small></span></header>
+          <header><TeamMark team={team} /><span><strong {...importantNameProps(team.name, 'card')}>{team.name}</strong><small>{team.position ? `#${team.position} · ${team.points} pts` : 'Sin posición publicada'}</small></span></header>
           <details>
             <summary>Ver plantel ({team.roster.length})</summary>
             <ul>
               {team.roster.map((player) => (
                 <li key={player.id}>
                   <b>{player.shirtNumber ?? '—'}</b>
-                  <span>{player.displayName}</span>
+                  <span {...importantNameProps(player.displayName, 'player')}>{player.displayName}</span>
                   <small>{player.primaryPosition || 'Sin posición'}</small>
                 </li>
               ))}
@@ -518,7 +530,7 @@ function DisciplineSection({ data, myPlayerId }) {
     <div className={styles.disciplineDirectory}>
       {rows.map((row) => (
         <article key={row.rosterPlayerId} className={row.rosterPlayerId === myPlayerId ? styles.isMine : ''}>
-          <header><Shield size={18} /><span><strong>{row.name}</strong><small>{row.yellowCards} amarillas · {row.directReds + row.secondYellows} rojas</small></span><b>{row.fairPlayPoints} FP</b></header>
+          <header><Shield size={18} /><span><strong {...importantNameProps(row.name, 'player')}>{row.name}</strong><small>{row.yellowCards} amarillas · {row.directReds + row.secondYellows} rojas</small></span><b>{row.fairPlayPoints} FP</b></header>
           {(row.suspensions || []).map((suspension) => (
             <div key={suspension.id}>
               <ShieldAlert size={16} />
@@ -556,9 +568,9 @@ function MatchDetail({
       <section className={styles.matchDetailHero}>
         <span>{match.round?.name} · {match.phaseName}</span>
         <div className={styles.detailScoreboard}>
-          <div><TeamMark team={match.home} /><strong>{match.home.name}</strong></div>
+          <div><TeamMark team={match.home} /><strong {...importantNameProps(match.home.name, 'match')}>{match.home.name}</strong></div>
           <Score match={match} />
-          <div><TeamMark team={match.away} /><strong>{match.away.name}</strong></div>
+          <div><TeamMark team={match.away} /><strong {...importantNameProps(match.away.name, 'match')}>{match.away.name}</strong></div>
         </div>
         <p><CalendarDays size={16} /> {formatDate(match.scheduledAt)} {match.venue?.name ? `· ${match.venue.name}` : ''}</p>
       </section>
@@ -581,7 +593,7 @@ function MatchDetail({
           <div className={styles.panelHeading}><span>Acta oficial</span><h2>Goles</h2></div>
           {goals.length ? goals.map((event) => (
             <article className={styles.eventRow} key={event.id}>
-              <Goal size={17} /><span><strong>{event.playerName || 'Autor no identificado'}</strong><small>{event.minute ?? '—'}’</small></span>
+              <Goal size={17} /><span><strong {...importantNameProps(event.playerName || 'Autor no identificado', 'player')}>{event.playerName || 'Autor no identificado'}</strong><small>{event.minute ?? '—'}’</small></span>
             </article>
           )) : <p className={styles.panelEmpty}>Sin goles oficiales.</p>}
         </section>
@@ -590,7 +602,7 @@ function MatchDetail({
           {cards.length ? cards.map((event) => (
             <article className={styles.eventRow} key={event.id}>
               <span className={event.type === 'yellow_card' ? styles.yellowCard : styles.redCard} />
-              <span><strong>{event.playerName || 'Jugador'}</strong><small>{event.minute ?? '—'}’</small></span>
+              <span><strong {...importantNameProps(event.playerName || 'Jugador', 'player')}>{event.playerName || 'Jugador'}</strong><small>{event.minute ?? '—'}’</small></span>
             </article>
           )) : <p className={styles.panelEmpty}>Sin tarjetas oficiales.</p>}
         </section>
@@ -811,23 +823,27 @@ export default function TournamentHubPage({ defaultSection = 'resumen', matchMod
             {hub.tournament.name.slice(0, 2).toUpperCase()}
           </span>
           <div>
-            <span className={styles.hubKicker}>{hub.tournament.seasonName} · {hub.tournament.organizationName}</span>
-            <h1>{hub.tournament.name}</h1>
+            <span className={styles.hubKicker}>
+              <span {...importantNameProps(hub.tournament.seasonName, 'compact')}>{hub.tournament.seasonName}</span>
+              <span aria-hidden="true">·</span>
+              <span {...importantNameProps(hub.tournament.organizationName, 'compact')}>{hub.tournament.organizationName}</span>
+            </span>
+            <h1 {...importantNameProps(hub.tournament.name, 'hero')}>{hub.tournament.name}</h1>
             <p>{hub.tournament.description || 'Competencia oficial dentro de Arma2.'}</p>
           </div>
         </div>
         <div className={styles.tournamentHeroActions}>
-          <span className={styles.stateChip} data-state={hub.tournament.status}>
-            {STATUS_LABELS[hub.tournament.status] || hub.tournament.status}
+          <span className={styles.stateChip} data-state={hub.tournament.status} data-torneos-chip>
+            {STATUS_LABELS[hub.tournament.status] || getStatusLabel(hub.tournament.status)}
           </span>
           {hub.categories.length > 1 && (
             <label className={styles.categorySelect}>
               <span>Categoría</span>
-              <select value={categoryId} onChange={(event) => changeCategory(event.target.value)}>
+              <TorneosSelect {...importantNameProps(hub.categories.find((category) => category.id === categoryId)?.name, 'selector')} value={categoryId} onChange={(event) => changeCategory(event.target.value)}>
                 {hub.categories.map((category) => (
                   <option value={category.id} key={category.id}>{category.name}</option>
                 ))}
-              </select>
+              </TorneosSelect>
             </label>
           )}
           {hub.audience.canManageTournament && !hub.tournament.readOnly && (
@@ -839,7 +855,11 @@ export default function TournamentHubPage({ defaultSection = 'resumen', matchMod
       </header>
 
       {!matchMode && (
-        <nav className={styles.hubNav} aria-label="Secciones del torneo">
+        <nav
+          className={styles.hubNav}
+          aria-label="Secciones del torneo"
+          data-allow-horizontal-scroll="true"
+        >
           {SECTIONS.map(([key, label, Icon]) => (
             <Link
               key={key}

@@ -22,7 +22,6 @@ import {
   useLocation,
   useParams,
 } from 'react-router-dom';
-import Logo from '../../../Logo.png';
 import { useKeyboard } from '../../../hooks/useKeyboard';
 import { isArma2NativeRuntime } from '../../../utils/runtimePlatform';
 import { torneosFeatureFlags } from '../config/featureFlags';
@@ -56,7 +55,11 @@ import SocialStudioPage from './SocialStudioPage';
 import SocialStudioEntitlementGate, {
   useSocialStudioEntitlement,
 } from './SocialStudioEntitlementGate';
+import TorneosBrand from './TorneosBrand';
+import { importantNameProps } from './importantNames';
 import styles from './TorneosShell.module.css';
+import './TorneosDesignSystem.css';
+import './ImportantNames.css';
 
 const organizationNavigation = [
   { label: 'Inicio', path: 'inicio', icon: Home },
@@ -120,6 +123,7 @@ function OrganizationNavigation({
       }
       aria-label={mobile ? 'Navegación móvil de la organización' : 'Navegación de la organización'}
       aria-hidden={mobile && keyboardHidden ? 'true' : undefined}
+      data-allow-horizontal-scroll={mobile ? 'true' : undefined}
     >
       {organizationNavigation
         // A flagged surface must not even appear in the nav when it is off.
@@ -179,7 +183,7 @@ export default function TorneosShell() {
   });
 
   return (
-    <div className={styles.shell}>
+    <div className={styles.shell} data-torneos-surface="admin">
       <a className={styles.skipLink} href="#torneos-main">
         Saltar al contenido
       </a>
@@ -188,10 +192,7 @@ export default function TorneosShell() {
 
       <aside className={styles.sidebar}>
         <Link className={styles.brand} to="/torneos" aria-label="Arma2 Torneos">
-          <img className={styles.brandLogo} src={Logo} alt="" />
-          <span className={styles.brandLockup}>
-            <small>TORNEOS</small>
-          </span>
+          <TorneosBrand decorative />
         </Link>
 
         <WorkspaceSwitcher />
@@ -213,20 +214,20 @@ export default function TorneosShell() {
       <section className={styles.workspace}>
         <header className={styles.topbar}>
           <Link className={styles.mobileBrand} to="/torneos">
-            <img className={styles.brandLogo} src={Logo} alt="" />
+            <TorneosBrand decorative />
             <span className={styles.mobileTitle}>
-              <small>Arma2 Torneos</small>
-              <strong>{activeOrganization?.name || 'Tus espacios'}</strong>
+              <strong {...importantNameProps(activeOrganization?.name || 'Tus espacios', 'compact')}>
+                {activeOrganization?.name || 'Tus espacios'}
+              </strong>
             </span>
           </Link>
 
           <div className={styles.pageIdentity}>
             <span>{currentNavigation?.label || (isOrganizationRoute ? 'Organización' : 'Torneos')}</span>
-            <strong>
-              {activeOrganization
-                ? `${activeOrganization.name} · ${activeOrganization.slug}`
-                : 'Workspaces privados'}
+            <strong {...importantNameProps(activeOrganization?.name || 'Workspaces privados', 'compact')}>
+              {activeOrganization?.name || 'Workspaces privados'}
             </strong>
+            {activeOrganization?.slug && <small className={styles.pageIdentityMeta}>{activeOrganization.slug}</small>}
           </div>
 
           <div className={styles.mobileSwitcher}>

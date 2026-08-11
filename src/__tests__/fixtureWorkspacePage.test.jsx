@@ -174,13 +174,13 @@ describe('FixtureWorkspacePage', () => {
       </MemoryRouter>,
     );
     expect(screen.getByRole('heading', { name: 'Programación' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Partido')).toBeRequired();
+    expect(screen.getByLabelText('Partido')).toHaveAttribute('aria-required', 'true');
     expect(screen.getByLabelText('Fecha y hora')).toHaveAttribute('type', 'datetime-local');
     expect(screen.getByLabelText('Sede')).toBeRequired();
     expect(screen.getByRole('button', { name: 'Guardar' })).toBeInTheDocument();
   });
 
-  test('renders a semantic mobile-friendly bracket with sides and seeds', () => {
+  test('renders a semantic mobile-friendly bracket with sides and heads of series', () => {
     render(
       <MemoryRouter>
         <FixtureWorkspacePage mode="bracket" />
@@ -189,8 +189,8 @@ describe('FixtureWorkspacePage', () => {
     expect(screen.getByRole('heading', { name: 'Llave eliminatoria' })).toBeInTheDocument();
     expect(screen.getByText('Local')).toBeInTheDocument();
     expect(screen.getByText('Visitante')).toBeInTheDocument();
-    expect(screen.getByText('Seed 1')).toBeInTheDocument();
-    expect(screen.getByText('Seed 2')).toBeInTheDocument();
+    expect(screen.getByText('Cabeza de serie 1')).toBeInTheDocument();
+    expect(screen.getByText('Cabeza de serie 2')).toBeInTheDocument();
   });
 
   test('keeps venue, court, and scheduling-window creation in one resource surface', () => {

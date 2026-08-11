@@ -12,6 +12,8 @@ import {
 import { Link, useNavigate, useOutletContext } from 'react-router-dom';
 import { useTorneosCompetition } from '../context/TorneosCompetitionContext';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
+import { importantNameProps } from './importantNames';
+import TorneosSelect from './TorneosSelect';
 import styles from './TeamRegistration.module.css';
 
 export default function NewTeamEntryPage() {
@@ -157,7 +159,7 @@ export default function NewTeamEntryPage() {
       <header className={styles.formHeader}>
         <span className={styles.kicker}>Alta manual</span>
         <h1>Agregar equipo</h1>
-        <p>{activeTournament.name} · la inscripción se guarda primero como borrador.</p>
+        <p className={styles.pageContext}><strong {...importantNameProps(activeTournament.name, 'compact')}>{activeTournament.name}</strong><span>la inscripción se guarda primero como borrador.</span></p>
       </header>
 
       <form className={styles.teamForm} onSubmit={submit}>
@@ -214,7 +216,7 @@ export default function NewTeamEntryPage() {
                     }}
                   >
                     <span className={styles.avatar}>{team.name.slice(0, 2)}</span>
-                    <span><strong>{team.name}</strong><small>Fútbol {team.format}</small></span>
+                    <span><strong {...importantNameProps(team.name, 'card')}>{team.name}</strong><small>Fútbol {team.format}</small></span>
                     {selectedTeam?.id === team.id && <Check size={18} />}
                   </button>
                 ))}
@@ -226,16 +228,16 @@ export default function NewTeamEntryPage() {
         <section className={styles.formSection}>
           <div className={styles.sectionHeading}>
             <span>01</span>
-            <div><h2>Identidad competitiva</h2><p>Snapshot usado únicamente en este torneo.</p></div>
+            <div><h2>Identidad competitiva</h2><p>Datos guardados únicamente para este torneo.</p></div>
           </div>
           <label>
             Categoría
-            <select value={form.categoryId} onChange={update('categoryId')} required>
+            <TorneosSelect {...importantNameProps((activeTournament.categories || []).find((category) => category.id === form.categoryId)?.name, 'selector')} value={form.categoryId} onChange={update('categoryId')} required>
               {(activeTournament.categories || []).filter((category) => category.status === 'active')
                 .map((category) => (
                   <option key={category.id} value={category.id}>{category.name}</option>
                 ))}
-            </select>
+            </TorneosSelect>
           </label>
           <div className={styles.twoColumns}>
             <label>

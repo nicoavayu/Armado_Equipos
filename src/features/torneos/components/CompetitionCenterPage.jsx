@@ -24,7 +24,9 @@ import { useTorneosFixture } from '../context/TorneosFixtureContext';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
 import { hasCapability, TOURNAMENT_CAPABILITIES } from '../domain/capabilities';
 import CompetitionSelector from './CompetitionSelector';
+import { importantNameProps } from './importantNames';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
+import TorneosSelect from './TorneosSelect';
 import styles from './CompetitionCenter.module.css';
 
 const MODES = {
@@ -44,31 +46,36 @@ function ContextFilters({
     ))
   ));
   const groups = fixture.groups.filter((group) => group.phaseId === phaseId);
+  const activeCategory = fixture.categories.find((category) => category.id === fixture.categoryId);
+  const activePhase = phases.find((phase) => phase.id === phaseId);
+  const activeGroup = groups.find((group) => group.id === groupId);
   return (
     <section className={styles.contextBar} aria-label="Contexto competitivo">
       <CompetitionSelector compact />
       <label>
         <span>Categoría</span>
-        <select
+        <TorneosSelect
+          {...importantNameProps(activeCategory?.name, 'selector')}
           value={fixture.categoryId || ''}
           onChange={(event) => fixture.setCategoryId(event.target.value)}
         >
           {fixture.categories.map((category) => (
             <option key={category.id} value={category.id}>{category.name}</option>
           ))}
-        </select>
+        </TorneosSelect>
       </label>
       <label>
         <span>Fase</span>
-        <select value={phaseId || ''} onChange={(event) => setPhaseId(event.target.value)}>
+        <TorneosSelect {...importantNameProps(activePhase?.name, 'selector')} value={phaseId || ''} onChange={(event) => setPhaseId(event.target.value)}>
           {phases.map((phase) => (
             <option key={phase.id} value={phase.id}>{phase.name}</option>
           ))}
-        </select>
+        </TorneosSelect>
       </label>
       <label>
         <span>Grupo</span>
-        <select
+        <TorneosSelect
+          {...importantNameProps(activeGroup?.name || 'Tabla general', 'selector')}
           value={groupId || ''}
           onChange={(event) => setGroupId(event.target.value || null)}
         >
@@ -76,7 +83,7 @@ function ContextFilters({
           {groups.map((group) => (
             <option key={group.id} value={group.id}>{group.name}</option>
           ))}
-        </select>
+        </TorneosSelect>
       </label>
     </section>
   );
@@ -85,7 +92,11 @@ function ContextFilters({
 function CompetitionSubnav({ organizationId, mode }) {
   const base = `/torneos/organizacion/${organizationId}/competencia`;
   return (
-    <nav className={styles.subnav} aria-label="Centro de competencia">
+    <nav
+      className={styles.subnav}
+      aria-label="Centro de competencia"
+      data-allow-horizontal-scroll="true"
+    >
       {Object.entries(MODES).map(([key, [label, Icon]]) => (
         <Link
           key={key}
@@ -121,7 +132,7 @@ function StandingsTable({ rows }) {
     );
   }
   return (
-    <div className={styles.tableScroller}>
+    <div className={styles.tableScroller} data-allow-horizontal-scroll="true">
       <table className={styles.table}>
         <thead>
           <tr>
@@ -137,7 +148,7 @@ function StandingsTable({ rows }) {
                 <span className={styles.team}>
                   <span className={styles.teamMark}>{(row.shortName || row.teamName || '—').slice(0, 2)}</span>
                   <span>
-                    <strong>{row.teamName}</strong>
+                    <strong {...importantNameProps(row.teamName, 'table')}>{row.teamName}</strong>
                     <small>{row.pointsAdjustment ? `${row.pointsAdjustment > 0 ? '+' : ''}${row.pointsAdjustment} ajuste` : 'Sin ajustes'}</small>
                     <details className={styles.teamDetail}>
                       <summary>Ver detalle</summary>
@@ -169,14 +180,13 @@ function StatisticsPanel({ data }) {
   return (
     <div className={styles.statsGrid}>
       <section className={styles.card}>
-        <div className={styles.cardHeading}><span>Ranking individual</span><h2>Goleadores y asistencias</h2></div>
+        <div className={styles.cardHeading}><span>Ranking individual</span><h2>Goleadores</h2></div>
         <ol className={styles.leaderboard}>
           {leaders.map((player, index) => (
             <li key={player.rosterPlayerId} className={index < 3 ? styles.podium : ''}>
               <span className={styles.rank}>{String(index + 1).padStart(2, '0')}</span>
-              <span><strong>{player.name}</strong><small>{player.appearances} presencias acreditadas</small></span>
+              <span><strong {...importantNameProps(player.name, 'player')}>{player.name}</strong><small>{player.appearances} presencias acreditadas</small></span>
               <span className={styles.statPair}><strong>{player.goals}</strong><small>goles</small></span>
-              <span className={styles.statPair}><strong>{player.assists}</strong><small>asis.</small></span>
             </li>
           ))}
         </ol>
@@ -187,7 +197,7 @@ function StatisticsPanel({ data }) {
           {data.teams.slice(0, 8).map((team) => (
             <article key={team.participantId}>
               <span className={styles.teamMark}>{(team.name || '—').slice(0, 2)}</span>
-              <span><strong>{team.name}</strong><small>{team.homePlayed} local · {team.awayPlayed} visitante</small></span>
+              <span><strong {...importantNameProps(team.name, 'table')}>{team.name}</strong><small>{team.homePlayed} local · {team.awayPlayed} visitante</small></span>
               <strong>{team.goals} GF</strong>
             </article>
           ))}
@@ -216,7 +226,7 @@ function QualificationPanel({ standings, revision, onResolve, busy }) {
         {standings.slice(0, 6).map((row) => (
           <article key={row.participantId}>
             <span className={styles.position}>{row.position}</span>
-            <span><strong>{row.teamName}</strong><small>{row.points} pts. · DG {row.goalDifference}</small></span>
+            <span><strong {...importantNameProps(row.teamName, 'table')}>{row.teamName}</strong><small>{row.points} pts. · DG {row.goalDifference}</small></span>
             <ChevronRight size={18} />
           </article>
         ))}
@@ -248,7 +258,7 @@ function DisciplinePanel({ rows }) {
         <article className={styles.card} key={row.rosterPlayerId}>
           <div className={styles.disciplineHeader}>
             <span className={styles.playerMark}>{row.name?.slice(0, 2)}</span>
-            <span><strong>{row.name}</strong><small>{row.fairPlayPoints} puntos disciplinarios</small></span>
+            <span><strong {...importantNameProps(row.name, 'player')}>{row.name}</strong><small>{row.fairPlayPoints} puntos disciplinarios</small></span>
             <span className={styles.cards}>{row.yellowCards}A · {row.directReds + row.secondYellows}R</span>
           </div>
           {(row.suspensions || []).length ? row.suspensions.map((suspension) => (
@@ -440,7 +450,11 @@ export default function CompetitionCenterPage({ mode = 'table' }) {
         <div>
           <span className={styles.eyebrow}>Centro de competencia · datos oficiales</span>
           <h1>{MODES[mode]?.[0] || 'Competencia'}</h1>
-          <p>{activeTournament?.name || 'Seleccioná un torneo'} · {fixture.activeCategory?.name || 'Sin categoría'} · {phases.find((phase) => phase.id === phaseId)?.name || 'Sin fase'}</p>
+          <p className={styles.competitionContextLine}>
+            <span {...importantNameProps(activeTournament?.name || 'Seleccioná un torneo', 'compact')}>{activeTournament?.name || 'Seleccioná un torneo'}</span>
+            <span {...importantNameProps(fixture.activeCategory?.name || 'Sin categoría', 'compact')}>{fixture.activeCategory?.name || 'Sin categoría'}</span>
+            <span {...importantNameProps(phases.find((phase) => phase.id === phaseId)?.name || 'Sin fase', 'compact')}>{phases.find((phase) => phase.id === phaseId)?.name || 'Sin fase'}</span>
+          </p>
         </div>
         <div className={styles.heroActions}>
           <RevisionBadge revision={state.revision} />

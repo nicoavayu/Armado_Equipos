@@ -38,6 +38,7 @@ import {
 } from '../domain/mediaPipeline';
 import { createPreviewUrl, validateSelection } from '../domain/mediaImageClient';
 import MediaUploadQueue from './MediaUploadQueue';
+import TorneosSelect from './TorneosSelect';
 import styles from './MediaAdminPage.module.css';
 
 const STATUS_LABELS = {
@@ -593,7 +594,7 @@ export default function MediaAdminPage() {
           <Filter size={17} />
           <label>
             <span>Torneo</span>
-            <select
+            <TorneosSelect
               value={filters.tournamentId}
               onChange={(event) => setFilters((current) => ({
                 ...current, tournamentId: event.target.value,
@@ -603,11 +604,11 @@ export default function MediaAdminPage() {
               {(state.data?.tournaments || []).map((tournament) => (
                 <option key={tournament.id} value={tournament.id}>{tournament.name}</option>
               ))}
-            </select>
+            </TorneosSelect>
           </label>
           <label>
             <span>Estado</span>
-            <select
+            <TorneosSelect
               value={filters.status}
               onChange={(event) => setFilters((current) => ({
                 ...current, status: event.target.value,
@@ -617,7 +618,7 @@ export default function MediaAdminPage() {
               {Object.entries(STATUS_LABELS).slice(0, 5).map(([value, label]) => (
                 <option key={value} value={value}>{label}</option>
               ))}
-            </select>
+            </TorneosSelect>
           </label>
         </div>
         {canCreate && (
@@ -633,40 +634,40 @@ export default function MediaAdminPage() {
           <div className={styles.formGrid}>
             <label>
               <span>Torneo</span>
-              <select required value={form.tournamentId} onChange={(event) => updateForm('tournamentId', event.target.value)}>
+              <TorneosSelect required value={form.tournamentId} onChange={(event) => updateForm('tournamentId', event.target.value)}>
                 <option value="">Elegí un torneo</option>
                 {(state.data?.tournaments || []).map((tournament) => (
                   <option key={tournament.id} value={tournament.id}>{tournament.name}</option>
                 ))}
-              </select>
+              </TorneosSelect>
             </label>
             <label>
               <span>Categoría</span>
-              <select value={form.categoryId} onChange={(event) => updateForm('categoryId', event.target.value)}>
+              <TorneosSelect value={form.categoryId} onChange={(event) => updateForm('categoryId', event.target.value)}>
                 <option value="">Todo el torneo</option>
                 {(selectedTournament?.categories || []).map((category) => (
                   <option key={category.id} value={category.id}>{category.name}</option>
                 ))}
-              </select>
+              </TorneosSelect>
             </label>
             <label>
               <span>Partido</span>
-              <select value={form.matchId} onChange={(event) => updateForm('matchId', event.target.value)}>
+              <TorneosSelect value={form.matchId} onChange={(event) => updateForm('matchId', event.target.value)}>
                 <option value="">Sin partido específico</option>
                 {(selectedTournament?.matches || []).filter((match) => (
                   !form.categoryId || match.categoryId === form.categoryId
                 )).map((match) => (
                   <option key={match.id} value={match.id}>Partido #{match.matchNumber}</option>
                 ))}
-              </select>
+              </TorneosSelect>
             </label>
             <label>
               <span>Visibilidad</span>
-              <select value={form.visibility} onChange={(event) => updateForm('visibility', event.target.value)}>
+              <TorneosSelect value={form.visibility} onChange={(event) => updateForm('visibility', event.target.value)}>
                 {Object.entries(VISIBILITY_LABELS).map(([value, label]) => (
                   <option key={value} value={value}>{label}</option>
                 ))}
-              </select>
+              </TorneosSelect>
             </label>
             <label className={styles.wideField}>
               <span>Título</span>
@@ -693,7 +694,11 @@ export default function MediaAdminPage() {
 
       {galleries.length ? (
         <div className={styles.workspace}>
-          <aside className={styles.galleryRail} aria-label="Galerías">
+          <aside
+            className={styles.galleryRail}
+            aria-label="Galerías"
+            data-allow-horizontal-scroll="true"
+          >
             {galleries.map((gallery) => (
               <button
                 key={gallery.id}

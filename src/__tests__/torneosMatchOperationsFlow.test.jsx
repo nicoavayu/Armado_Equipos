@@ -158,6 +158,7 @@ describe('Arma2 Torneos match operations flow', () => {
       }],
     });
     renderPath('/torneos/mis-partidos', service);
+    expect(await screen.findByRole('heading', { name: 'VS. Belgrano' })).toBeInTheDocument();
     fireEvent.click(await screen.findByRole('button', { name: 'Voy' }));
     expect(service.respondMatchAvailability).toHaveBeenCalledWith({
       matchId: MATCH,

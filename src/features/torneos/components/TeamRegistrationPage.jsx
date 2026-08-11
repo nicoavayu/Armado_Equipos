@@ -18,14 +18,17 @@ import {
 } from 'lucide-react';
 import { Link, useOutletContext, useParams } from 'react-router-dom';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
-import { hasCapability, TOURNAMENT_CAPABILITIES } from '../domain/capabilities';
+import { getRoleLabel, hasCapability, TOURNAMENT_CAPABILITIES } from '../domain/capabilities';
 import {
   getRosterProgress,
   ROSTER_POSITIONS,
   TEAM_ENTRY_STATUS_LABELS,
 } from '../domain/teamRegistration';
 import PlayerAutocomplete from './PlayerAutocomplete';
+import { importantNameProps } from './importantNames';
+import { getStatusLabel } from './presentationLabels';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
+import TorneosSelect from './TorneosSelect';
 import styles from './TeamRegistration.module.css';
 
 function PlayerRow({ player, editable, onUpdate, onRemove }) {
@@ -35,7 +38,7 @@ function PlayerRow({ player, editable, onUpdate, onRemove }) {
         {player.avatarUrl ? <img src={player.avatarUrl} alt="" /> : player.displayName.slice(0, 2)}
       </span>
       <div className={styles.playerIdentity}>
-        <strong>{player.displayName}</strong>
+        <strong {...importantNameProps(player.displayName, 'player')}>{player.displayName}</strong>
         <small>{player.arma2UserId ? 'Cuenta Arma2 vinculada' : 'Jugador sin cuenta'}</small>
       </div>
       <label>
@@ -52,7 +55,7 @@ function PlayerRow({ player, editable, onUpdate, onRemove }) {
       </label>
       <label>
         <span>Posición</span>
-        <select
+        <TorneosSelect
           value={player.primaryPosition || ''}
           disabled={!editable}
           onChange={(event) => onUpdate(player, {
@@ -65,7 +68,7 @@ function PlayerRow({ player, editable, onUpdate, onRemove }) {
           {ROSTER_POSITIONS.map((position) => (
             <option key={position.value} value={position.value}>{position.label}</option>
           ))}
-        </select>
+        </TorneosSelect>
       </label>
       <span className={styles.eligibility} data-status={player.eligibilityStatus}>
         {player.eligibilityStatus === 'eligible' ? 'Habilitado' : 'Pendiente'}
@@ -203,8 +206,8 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
           {data.entry.name.slice(0, 2).toUpperCase()}
         </span>
         <div>
-          <span className={styles.kicker}>{data.tournament.name} · {data.category.name}</span>
-          <h1>{data.entry.name}</h1>
+          <span className={styles.kicker}><span {...importantNameProps(data.tournament.name, 'compact')}>{data.tournament.name}</span> · <span {...importantNameProps(data.category.name, 'compact')}>{data.category.name}</span></span>
+          <h1 {...importantNameProps(data.entry.name, 'hero')}>{data.entry.name}</h1>
           <p>{data.entry.linked ? 'Equipo Arma2 vinculado' : 'Equipo provisional'} · versión {data.roster.version}</p>
         </div>
         <span className={styles.statusPill} data-status={data.entry.status}>
@@ -212,7 +215,11 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
         </span>
       </header>
 
-      <nav className={styles.detailTabs} aria-label="Secciones de la inscripción">
+      <nav
+        className={styles.detailTabs}
+        aria-label="Secciones de la inscripción"
+        data-allow-horizontal-scroll="true"
+      >
         <Link aria-current={initialTab === 'inscripcion' ? 'page' : undefined} to={`${base}/inscripcion`}>Inscripción</Link>
         <Link aria-current={initialTab === 'plantel' ? 'page' : undefined} to={`${base}/plantel`}>Plantel <span>{players.length}</span></Link>
         {canReview && <Link aria-current={initialTab === 'revision' ? 'page' : undefined} to={`${base}/revision`}>Revisión</Link>}
@@ -224,7 +231,7 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
       {initialTab === 'inscripcion' && (
         <div className={styles.detailGrid}>
           <section className={styles.formSection}>
-            <div className={styles.sectionHeading}><span>01</span><div><h2>Datos del equipo</h2><p>Snapshot de esta competencia.</p></div></div>
+            <div className={styles.sectionHeading}><span>01</span><div><h2>Datos del equipo</h2><p>Identidad guardada para esta competencia.</p></div></div>
             <div className={styles.twoColumns}>
               <label>Nombre<input value={teamForm.name} disabled={!editable} onChange={(event) => setTeamForm({ ...teamForm, name: event.target.value })} /></label>
               <label>Nombre corto<input value={teamForm.shortName} disabled={!editable} onChange={(event) => setTeamForm({ ...teamForm, shortName: event.target.value })} /></label>
@@ -251,7 +258,7 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
             <Users size={22} />
             <h2>Responsables</h2>
             {data.managers.map((manager) => (
-              <div key={manager.id}><strong>{manager.displayName}</strong><span>{manager.role} · {manager.status}</span></div>
+              <div key={manager.id}><strong {...importantNameProps(manager.displayName, 'player')}>{manager.displayName}</strong><span>{getRoleLabel(manager.role)} · {getStatusLabel(manager.status)}</span></div>
             ))}
             {!data.managers.length && <p>No hay un responsable asignado.</p>}
           </aside>

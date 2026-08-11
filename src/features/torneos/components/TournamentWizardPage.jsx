@@ -50,7 +50,9 @@ import {
   TOURNAMENT_CAPABILITIES,
 } from '../domain/capabilities';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
+import { importantNameProps } from './importantNames';
 import TournamentPublicPageSettings from './TournamentPublicPageSettings';
+import TorneosSelect from './TorneosSelect';
 import styles from './CompetitionCore.module.css';
 
 const STEPS = [
@@ -125,14 +127,14 @@ function FormatSettings({ draft, setDraft, disabled }) {
   const roundField = (key, label) => (
     <label>
       <span>{label}</span>
-      <select
+      <TorneosSelect
         value={settings[key] || 'single'}
         onChange={(event) => update(key, event.target.value)}
         disabled={disabled}
       >
         <option value="single">Una rueda / partido único</option>
         <option value="double">Ida y vuelta</option>
-      </select>
+      </TorneosSelect>
     </label>
   );
   const numberField = (key, label, min, max) => (
@@ -302,6 +304,9 @@ export default function TournamentWizardPage() {
   if (status === 'loading') return <WorkspaceLoading label="Cargando configuración…" />;
   if (status === 'error') {
     return <WorkspaceError message={loadError} onRetry={() => refresh().catch(() => {})} />;
+  }
+  if (isNew && seasons.length && modalities.length && formats.length && !draft.seasonId) {
+    return <WorkspaceLoading label="Preparando el nuevo torneo…" />;
   }
   if (!isNew && !tournament) {
     return <Navigate to={`${organizationPath}/torneos`} replace />;
@@ -557,7 +562,7 @@ export default function TournamentWizardPage() {
           <span className={styles.kicker}>
             {isNew ? 'Nuevo torneo' : TOURNAMENT_STATUS_LABELS[tournament.status]}
           </span>
-          <h1>{isNew ? 'Diseñá la competencia' : tournament.name}</h1>
+          <h1 {...importantNameProps(isNew ? 'Diseñá la competencia' : tournament.name, 'hero')}>{isNew ? 'Diseñá la competencia' : tournament.name}</h1>
           <p>
             Configuración progresiva. Cada bloque se guarda por separado y podés
             retomarlo sin perder el contexto.
@@ -585,7 +590,11 @@ export default function TournamentWizardPage() {
         />
       )}
 
-      <nav className={styles.stepper} aria-label="Pasos de configuración">
+      <nav
+        className={styles.stepper}
+        aria-label="Pasos de configuración"
+        data-allow-horizontal-scroll="true"
+      >
         {STEPS.map((label, index) => (
           <button
             key={label}
@@ -622,7 +631,7 @@ export default function TournamentWizardPage() {
             </label>
             <label>
               <span>Temporada</span>
-              <select
+              <TorneosSelect
                 value={draft.seasonId}
                 onChange={(event) => change('seasonId', event.target.value)}
                 disabled={!isNew || !editable || Boolean(busy)}
@@ -630,14 +639,14 @@ export default function TournamentWizardPage() {
                 {seasons.map((season) => (
                   <option key={season.id} value={season.id}>{season.name}</option>
                 ))}
-              </select>
+              </TorneosSelect>
               {errors.seasonId && (
                 <small className={styles.fieldError}>{errors.seasonId}</small>
               )}
             </label>
             <label>
               <span>Género o tipo</span>
-              <select
+              <TorneosSelect
                 value={draft.genderCategory}
                 onChange={(event) => change('genderCategory', event.target.value)}
                 disabled={!editable || Boolean(busy)}
@@ -645,7 +654,7 @@ export default function TournamentWizardPage() {
                 {GENDER_OPTIONS.map((option) => (
                   <option key={option.code} value={option.code}>{option.name}</option>
                 ))}
-              </select>
+              </TorneosSelect>
             </label>
             <label className={styles.spanTwo}>
               <span>Identificador</span>
@@ -880,7 +889,7 @@ export default function TournamentWizardPage() {
               </div>
               {editable && (
                 <div className={styles.ruleActions}>
-                  <select
+                  <TorneosSelect
                     value=""
                     onChange={(event) => {
                       if (!event.target.value) return;
@@ -896,7 +905,7 @@ export default function TournamentWizardPage() {
                     ).map((option) => (
                       <option key={option.code} value={option.code}>{option.name}</option>
                     ))}
-                  </select>
+                  </TorneosSelect>
                   <button
                     type="button"
                     onClick={() => setDraft((current) => ({
@@ -1009,7 +1018,7 @@ export default function TournamentWizardPage() {
                     <article key={category.id}>
                       <span className={styles.categoryOrder}>{index + 1}</span>
                       <div>
-                        <strong>{category.name}</strong>
+                        <strong {...importantNameProps(category.name, 'card')}>{category.name}</strong>
                         <small>
                           {category.genderCategory
                             ? getGenderName(category.genderCategory)
@@ -1122,7 +1131,7 @@ export default function TournamentWizardPage() {
                 </div>
                 <label>
                   <span>Género</span>
-                  <select
+                  <TorneosSelect
                     value={categoryForm.genderCategory}
                     onChange={(event) => setCategoryForm((current) => ({
                       ...current,
@@ -1133,11 +1142,11 @@ export default function TournamentWizardPage() {
                     {GENDER_OPTIONS.map((option) => (
                       <option key={option.code} value={option.code}>{option.name}</option>
                     ))}
-                  </select>
+                  </TorneosSelect>
                 </label>
                 <label>
                   <span>Modalidad</span>
-                  <select
+                  <TorneosSelect
                     value={categoryForm.sportModality}
                     onChange={(event) => {
                       const modality = modalities.find(
@@ -1156,7 +1165,7 @@ export default function TournamentWizardPage() {
                         {modality.name}
                       </option>
                     ))}
-                  </select>
+                  </TorneosSelect>
                 </label>
                 <div className={styles.formButtons}>
                   <button

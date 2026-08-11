@@ -96,12 +96,14 @@
 
 .contextBar {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1px;
   overflow: hidden;
   padding: 1px;
   border-radius: 16px;
 }
+
+.contextBar > :first-child { grid-column: 1 / -1; margin-bottom: 0; }
 
 .contextItem {
   min-width: 0;
@@ -122,9 +124,14 @@
   display: flex;
   gap: 8px;
   overflow-x: auto;
-  padding: 4px 0 10px;
+  padding: 4px 22px 10px 0;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-inline: contain;
+  scroll-padding-inline: 0 22px;
+  scroll-snap-type: inline proximity;
   scrollbar-width: thin;
   scrollbar-color: #6f52dd transparent;
+  touch-action: pan-x pan-y;
 }
 
 .subnav a {
@@ -138,6 +145,7 @@
   font-size: 0.86rem;
   font-weight: 700;
   text-decoration: none;
+  scroll-snap-align: start;
 }
 
 .subnav a:hover,
@@ -400,7 +408,11 @@
   grid-template-columns: repeat(4, minmax(160px, 1fr));
   gap: 12px;
   overflow-x: auto;
-  padding-bottom: 8px;
+  padding: 0 22px 8px 0;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-inline: contain;
+  scroll-padding-inline: 0 22px;
+  touch-action: pan-x pan-y;
 }
 
 .pot {
@@ -457,6 +469,10 @@
   gap: 18px;
   overflow-x: auto;
   padding: 2px 2px 16px;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-inline: contain;
+  scroll-padding-inline: 2px 22px;
+  touch-action: pan-x pan-y;
 }
 
 .bracketRound {
@@ -542,13 +558,16 @@
   color: #faf8ff;
   font-size: clamp(2.25rem, 6vw, 4.6rem);
   line-height: 0.96;
-  letter-spacing: -0.055em;
+  letter-spacing: var(--torneos-display-letter-spacing, 0.035em);
 }
 
 .pageHeader p {
   margin: 0;
   color: #b7b1c3;
 }
+
+.pageContext { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.pageContext strong { color: var(--torneos-copy); }
 
 .headerBadge {
   display: flex;
@@ -682,6 +701,7 @@
   font-size: 0.85rem;
   font-weight: 750;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .panel button:disabled {
@@ -872,6 +892,11 @@
   place-items: center;
   border-radius: 14px 4px 14px 4px;
   background: rgba(111, 82, 221, 0.22);
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.86rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .versionActions {
@@ -941,6 +966,21 @@
   color: #f6f3fd;
 }
 
+.roundCode {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  place-items: center;
+  color: #f7f3ff;
+  border: 1px solid rgba(169, 137, 255, .38);
+  border-radius: 11px 3px 11px 3px;
+  background: rgba(118, 76, 235, .26);
+  font-size: .72rem;
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+
 .roundList article > div {
   display: grid;
 }
@@ -954,6 +994,10 @@
   padding: 10px 13px;
   color: #e7e1ef;
   text-decoration: none;
+}
+
+.roundList article > div > a > strong {
+  min-width: 0;
 }
 
 .roundList em {
@@ -1025,15 +1069,37 @@
 
 .scheduleList button {
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr) auto auto;
+  grid-template-columns: 42px minmax(0, 1fr) minmax(118px, auto) 112px;
+  align-items: center;
+  gap: 9px;
   width: 100%;
+  min-width: 0;
   text-align: left;
+}
+
+.scheduleList button > span,
+.scheduleList button > small,
+.scheduleList button > em {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .scheduleList button[aria-pressed="true"] {
   border-color: #9b80ff;
   background: rgba(111, 82, 221, 0.3);
 }
+
+.scheduleTeams {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+.scheduleTeams > span:last-child { text-align: right; }
+.scheduleTeams i { color: var(--torneos-muted); font-size: .66rem; font-style: normal; }
 
 .scheduleList em {
   color: #a79dae;
@@ -1184,6 +1250,41 @@
     align-items: flex-start;
   }
 
+  .versionList article {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr);
+    align-items: start;
+    gap: 10px 12px;
+    padding: 14px;
+  }
+
+  .versionNumber {
+    width: 44px;
+    height: 44px;
+    grid-column: 1;
+    grid-row: 1;
+    flex-basis: 44px;
+  }
+
+  .versionList article > div:nth-child(2) {
+    grid-column: 2;
+    width: 100%;
+  }
+
+  .versionActions {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .versionActions a,
+  .versionActions button {
+    width: 100%;
+    min-width: 0;
+  }
+
   .pageHeader {
     display: grid;
   }
@@ -1205,6 +1306,12 @@
   .scheduleList button > em {
     grid-column: 2;
   }
+
+  .scheduleList button > em { justify-self: start; }
+
+  .scheduleTeams { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .scheduleTeams > span:last-child { text-align: left; }
+  .scheduleTeams i { display: none; }
 
   .bracketList article {
     grid-template-columns: 1fr;
@@ -1343,10 +1450,6 @@
 .buttonDanger:hover,
 .primaryAction:hover {
   transform: scale(1.02);
-}
-
-.versionNumber {
-  font-size: clamp(2rem, 5vw, 3.25rem);
 }
 
 .field input,

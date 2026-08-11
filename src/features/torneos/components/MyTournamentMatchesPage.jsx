@@ -17,6 +17,8 @@ import {
 } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
+import { importantNameProps } from './importantNames';
+import { getStatusLabel } from './presentationLabels';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import styles from './MatchOperations.module.css';
 
@@ -78,13 +80,15 @@ function PlayerMatchCard({
       <div className={styles.matchRail}>
         <span>{date.day}</span>
         <strong>{date.time}</strong>
-        <small>{match.status}</small>
+        <small>{getStatusLabel(match.status)}</small>
       </div>
       <div className={styles.playerMatchBody}>
         <div className={styles.playerMatchHeading}>
           <div>
-            <small>{match.teamName}</small>
-            <h2>vs. {match.opponentName}</h2>
+            <small {...importantNameProps(match.teamName, 'compact')}>{match.teamName}</small>
+            <h2 {...importantNameProps(`VS. ${match.opponentName}`, 'card')}>
+              <span className={styles.versusLabel}>VS.</span> {match.opponentName}
+            </h2>
           </div>
           <span className={styles.teamSide}>{match.isHome ? 'LOCAL' : 'VISITANTE'}</span>
         </div>

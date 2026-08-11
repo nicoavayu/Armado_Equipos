@@ -16,7 +16,9 @@ import {
   useTorneosWorkspace,
 } from '../context/TorneosWorkspaceContext';
 import { getRoleLabel } from '../domain/capabilities';
+import { importantNameProps } from './importantNames';
 import styles from './PersonalWorkspaceSwitcher.module.css';
+import './ImportantNames.css';
 
 export function WorkspaceList() {
   const navigate = useNavigate();
@@ -97,7 +99,7 @@ export function WorkspaceList() {
                 {organization.name.slice(0, 2).toUpperCase()}
               </span>
               <span>
-                <strong>{organization.name}</strong>
+                <strong {...importantNameProps(organization.name, 'compact')}>{organization.name}</strong>
                 <small>{getRoleLabel(organization.role)}</small>
               </span>
               {busyId === organization.id

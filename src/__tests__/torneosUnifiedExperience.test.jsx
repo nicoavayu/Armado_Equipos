@@ -128,7 +128,7 @@ describe('Arma2 Torneos unified participant/admin entrypoint', () => {
       organizations: [{ ...ORGANIZATION, role: 'collaborator' }],
     }));
 
-    expect(await screen.findByText('Colaborador · active')).toBeInTheDocument();
+    expect(await screen.findByText('Colaborador · En juego')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Nueva organización/i }))
       .toHaveAttribute('href', '/torneos/nueva-organizacion');
     expect(screen.queryByText('Mi actividad')).not.toBeInTheDocument();
