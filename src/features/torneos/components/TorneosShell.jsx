@@ -32,6 +32,7 @@ import CompetitionOverviewPage from './CompetitionOverviewPage';
 import OrganizationMembersPage from './OrganizationMembersPage';
 import OrganizationRouteGuard from './OrganizationRouteGuard';
 import OrganizationSettingsPage from './OrganizationSettingsPage';
+import PlanExperiencePage from './PlanExperiencePage';
 import TorneosDashboard from './TorneosDashboard';
 import TorneosLanding from './TorneosLanding';
 import SeasonFormPage from './SeasonFormPage';
@@ -72,7 +73,12 @@ const organizationNavigation = [
   { label: 'Comunicaciones', path: 'comunicaciones', icon: Megaphone },
   { label: 'Multimedia', path: 'multimedia', icon: Images },
   { label: 'Estudio Social', path: 'estudio-social', icon: Sparkles, flag: 'socialContentGenerator' },
-  { label: 'Configuración', path: 'configuracion', icon: Settings2 },
+  {
+    label: 'Configuración',
+    path: 'configuracion',
+    icon: Settings2,
+    relatedPaths: ['configuracion/plan'],
+  },
 ];
 
 function TournamentConfigurationRedirect({ step = null }) {
@@ -151,17 +157,20 @@ export default function TorneosShell() {
   const organizationRelativePath = isOrganizationRoute
     ? location.pathname.split('/').slice(4).join('/')
     : '';
-  const currentNavigation = organizationNavigation.find(({ path }) => (
-    ['torneos', 'equipos', 'fixture', 'partidos', 'competencia', 'comunicaciones', 'multimedia', 'estudio-social'].includes(path)
-      ? (
-        organizationRelativePath.startsWith(path)
-        || (path === 'torneos' && organizationRelativePath.startsWith('temporadas'))
-        || (path === 'fixture' && (
-          organizationRelativePath.startsWith('programacion')
-          || organizationRelativePath.startsWith('sedes')
-        ))
-      )
-      : organizationRelativePath === path
+  const currentNavigation = organizationNavigation.find(({ path, relatedPaths = [] }) => (
+    relatedPaths.some((candidate) => organizationRelativePath.startsWith(candidate))
+    || (
+      ['torneos', 'equipos', 'fixture', 'partidos', 'competencia', 'comunicaciones', 'multimedia', 'estudio-social'].includes(path)
+        ? (
+          organizationRelativePath.startsWith(path)
+          || (path === 'torneos' && organizationRelativePath.startsWith('temporadas'))
+          || (path === 'fixture' && (
+            organizationRelativePath.startsWith('programacion')
+            || organizationRelativePath.startsWith('sedes')
+          ))
+        )
+        : organizationRelativePath === path
+    )
   ));
   const socialStudioAccess = useSocialStudioEntitlement({
     organizationId: isOrganizationRoute ? activeOrganization?.id : null,
@@ -317,6 +326,7 @@ export default function TorneosShell() {
                 />
               )}
               <Route path="configuracion" element={<OrganizationSettingsPage />} />
+              <Route path="configuracion/plan" element={<PlanExperiencePage />} />
               <Route path="miembros" element={<OrganizationMembersPage />} />
             </Route>
             <Route path="mis-partidos" element={<MyTournamentMatchesPage />} />

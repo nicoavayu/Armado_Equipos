@@ -10,6 +10,7 @@ import {
   validateOrganizationInput,
 } from '../domain/organizationValidation';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
+import OrganizationSettingsNav from './OrganizationSettingsNav';
 import styles from './TorneosShell.module.css';
 
 export default function OrganizationSettingsPage() {
@@ -85,6 +86,8 @@ export default function OrganizationSettingsPage() {
             : 'Tenés acceso de lectura a la configuración.'}
         </p>
       </header>
+
+      <OrganizationSettingsNav />
 
       <form className={styles.settingsCard} onSubmit={save}>
         {!canUpdate && (

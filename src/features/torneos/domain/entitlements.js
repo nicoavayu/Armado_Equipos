@@ -3,6 +3,15 @@ export const TOURNAMENT_PLANS = Object.freeze({
   PRO: 'PRO',
 });
 
+export const TOURNAMENT_SUBSCRIPTION_STATUSES = Object.freeze({
+  NONE: 'none',
+  ACTIVE: 'active',
+  GRACE_PERIOD: 'grace_period',
+  PAST_DUE: 'past_due',
+  CANCELLED: 'cancelled',
+  EXPIRED: 'expired',
+});
+
 export const TOURNAMENT_ENTITLEMENTS = Object.freeze({
   MEDIA_UPLOAD: 'media.upload',
   MEDIA_HISTORY: 'media.history',
@@ -14,18 +23,37 @@ export const TOURNAMENT_ENTITLEMENTS = Object.freeze({
 });
 
 const KNOWN_ENTITLEMENTS = new Set(Object.values(TOURNAMENT_ENTITLEMENTS));
+const KNOWN_SUBSCRIPTION_STATUSES = new Set(
+  Object.values(TOURNAMENT_SUBSCRIPTION_STATUSES),
+);
 
-export function normalizeTournamentEntitlements(payload) {
+function matchesExpectedScope(scope, expectedScope) {
+  if (!expectedScope || Object.keys(expectedScope).length === 0) return true;
+  if (!scope || typeof scope !== 'object') return false;
+  if (
+    expectedScope.organizationId
+    && scope.organizationId !== expectedScope.organizationId
+  ) return false;
+  if (Object.prototype.hasOwnProperty.call(expectedScope, 'tournamentId')) {
+    return (scope.tournamentId || null) === (expectedScope.tournamentId || null);
+  }
+  return true;
+}
+
+export function normalizeTournamentEntitlements(payload, expectedScope = null) {
   const hasKnownPlan = payload?.plan === TOURNAMENT_PLANS.FREE
     || payload?.plan === TOURNAMENT_PLANS.PRO;
-  const plan = hasKnownPlan ? payload.plan : TOURNAMENT_PLANS.FREE;
+  const isTrusted = payload?.schemaVersion === 1
+    && hasKnownPlan
+    && matchesExpectedScope(payload?.scope, expectedScope);
+  const plan = isTrusted ? payload.plan : TOURNAMENT_PLANS.FREE;
   const capabilities = Object.fromEntries(
     [...KNOWN_ENTITLEMENTS].map((capability) => [
       capability,
-      hasKnownPlan && payload?.capabilities?.[capability] === true,
+      isTrusted && payload?.capabilities?.[capability] === true,
     ]),
   );
-  const media = hasKnownPlan && payload?.media && typeof payload.media === 'object'
+  const media = isTrusted && payload?.media && typeof payload.media === 'object'
     ? {
       maxPhotosPerMatchday: Number.isInteger(payload.media.maxPhotosPerMatchday)
         ? payload.media.maxPhotosPerMatchday
@@ -42,14 +70,18 @@ export function normalizeTournamentEntitlements(payload) {
       postProProtectedUntil: payload.media.postProProtectedUntil || null,
     }
     : null;
+  const rawSubscriptionStatus = String(payload?.subscriptionStatus || 'unknown');
 
   return {
-    schemaVersion: payload?.schemaVersion === 1 ? 1 : null,
+    schemaVersion: isTrusted ? 1 : null,
+    isTrusted,
     plan,
-    subscriptionStatus: String(payload?.subscriptionStatus || 'unknown'),
+    subscriptionStatus: isTrusted && KNOWN_SUBSCRIPTION_STATUSES.has(rawSubscriptionStatus)
+      ? rawSubscriptionStatus
+      : 'unknown',
     capabilities,
     media,
-    scope: payload?.scope || null,
+    scope: isTrusted ? payload.scope : null,
   };
 }
 
