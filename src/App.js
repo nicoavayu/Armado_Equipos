@@ -69,6 +69,7 @@ const TemplateDetailsPage = lazy(() => import('./pages/TemplateDetailsPage'));
 const TemplateHistoryPage = lazy(() => import('./pages/TemplateHistoryPage'));
 const AdminPanelPage = lazy(() => import('./pages/AdminPanelPage'));
 const PartidoInvitacion = lazy(() => import('./pages/PartidoInvitacion'));
+const PublicTournamentPage = lazy(() => import('./features/torneos/components/PublicTournamentPage'));
 
 // Dev-only diagnostics (excluded in production builds)
 if (process.env.NODE_ENV === 'development') {
@@ -159,6 +160,11 @@ export default function App() {
                   <Route path="/votar-equipos" element={
                     <Suspense fallback={<AppLoadingScreen />}>
                       <VotarEquiposPage />
+                    </Suspense>
+                  } />
+                  <Route path="/torneos/publico/:publicSlug" element={
+                    <Suspense fallback={<AppLoadingScreen />}>
+                      <PublicTournamentPage />
                     </Suspense>
                   } />
 

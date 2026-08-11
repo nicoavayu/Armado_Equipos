@@ -155,6 +155,8 @@ const ERROR_MESSAGES = {
   TORNEOS_MEDIA_REPORT_RATE_LIMITED: 'Recibimos varios reportes. Esperá antes de enviar otro.',
   TORNEOS_MEDIA_REPORT_INVALID: 'Ese reporte ya no admite esa resolución.',
   TORNEOS_MEDIA_ORDER_INVALID: 'No pudimos mover la foto a esa posición.',
+  TORNEOS_PUBLIC_PAGE_FORBIDDEN: 'No tenés permiso para publicar esta página.',
+  TORNEOS_PUBLIC_PAGE_NOT_PUBLISHABLE: 'El torneo todavía no está en un estado publicable.',
 };
 
 export class TournamentWorkspaceError extends Error {
@@ -217,6 +219,28 @@ export async function loadEffectiveTournamentEntitlements({
     p_organization_id: organizationId,
     p_tournament_id: tournamentId,
   }), 'No pudimos cargar las funcionalidades disponibles.');
+}
+
+export async function loadTournamentPublicPageSettings({
+  organizationId,
+  tournamentId,
+}) {
+  return unwrapRpc(await supabase.rpc('get_tournament_public_page_settings', {
+    p_organization_id: organizationId,
+    p_tournament_id: tournamentId,
+  }), 'No pudimos cargar el estado de la página pública.');
+}
+
+export async function setTournamentPublicPagePublished({
+  organizationId,
+  tournamentId,
+  published,
+}) {
+  return unwrapRpc(await supabase.rpc('set_tournament_public_page_published', {
+    p_organization_id: organizationId,
+    p_tournament_id: tournamentId,
+    p_published: Boolean(published),
+  }), 'No pudimos actualizar la página pública.');
 }
 
 export async function createTournamentOrganization({
@@ -1938,6 +1962,8 @@ export const tournamentWorkspaceService = Object.freeze({
   loadSocialStudioContext: loadTournamentSocialStudioContext,
   loadSocialSnapshot: loadTournamentSocialSnapshot,
   setSocialPermission: setTournamentSocialPermission,
+  loadPublicPageSettings: loadTournamentPublicPageSettings,
+  setPublicPagePublished: setTournamentPublicPagePublished,
   resolveTeamShieldUrl,
   createIdempotencyKey,
 });
