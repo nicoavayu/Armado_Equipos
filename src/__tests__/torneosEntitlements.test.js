@@ -50,4 +50,27 @@ describe('Torneos effective entitlements frontend foundation', () => {
       TOURNAMENT_ENTITLEMENTS.SOCIAL_STUDIO_FULL,
     )).toBe(false);
   });
+
+  test('requires the canonical schema and expected organization scope', () => {
+    const clientForged = normalizeTournamentEntitlements({
+      plan: 'PRO',
+      subscriptionStatus: 'active',
+      capabilities: { advanced_stats: true },
+    });
+    expect(clientForged.plan).toBe('FREE');
+    expect(clientForged.isTrusted).toBe(false);
+
+    const crossOrganization = normalizeTournamentEntitlements({
+      schemaVersion: 1,
+      plan: 'PRO',
+      subscriptionStatus: 'active',
+      capabilities: { advanced_stats: true },
+      scope: { organizationId: 'org-b', tournamentId: null },
+    }, { organizationId: 'org-a', tournamentId: null });
+    expect(crossOrganization.plan).toBe('FREE');
+    expect(hasEffectiveTournamentEntitlement(
+      crossOrganization,
+      TOURNAMENT_ENTITLEMENTS.ADVANCED_STATS,
+    )).toBe(false);
+  });
 });
