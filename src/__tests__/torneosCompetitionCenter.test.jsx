@@ -206,6 +206,8 @@ describe('CompetitionCenterPage', () => {
     const { unmount } = renderCenter('statistics');
     expect(await screen.findByText('Ada Gol')).toBeInTheDocument();
     expect(screen.getByText('7')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Goleadores' })).toBeInTheDocument();
+    expect(screen.queryByText(/asis\./i)).not.toBeInTheDocument();
     unmount();
     renderCenter('discipline');
     expect(await screen.findByText('Roja directa')).toBeInTheDocument();

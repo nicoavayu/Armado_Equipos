@@ -1,0 +1,112 @@
+[data-torneos-surface] {
+  --torneos-font-ui: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --torneos-control-height: 44px;
+  --torneos-control-radius-unified: 12px;
+  --torneos-control-border-unified: rgba(178, 153, 255, .27);
+  --torneos-control-focus-unified: rgba(171, 142, 255, .58);
+  --torneos-inline-gap: 8px;
+  --torneos-display-letter-spacing: 0.035em;
+  --torneos-display-xl: clamp(3rem, 7vw, 5.5rem);
+  --torneos-display-l: clamp(2.25rem, 5vw, 4rem);
+  --torneos-display-m: clamp(1.75rem, 3.5vw, 2.75rem);
+  font-family: var(--torneos-font-ui);
+}
+
+[data-torneos-surface] :where(button, input, textarea) {
+  font-family: var(--torneos-font-ui) !important;
+}
+
+[data-torneos-surface] :where(button, a, summary) > svg {
+  flex: 0 0 auto;
+  align-self: center;
+}
+
+[data-torneos-surface] :where(input, textarea) {
+  font-size: .9rem;
+}
+
+[data-torneos-surface] :where(input, textarea)::placeholder {
+  color: rgba(184, 176, 197, .68);
+}
+
+[data-torneos-surface] :where(input, textarea):focus-visible {
+  outline: 3px solid var(--torneos-control-focus-unified);
+  outline-offset: 2px;
+}
+
+.torneosIconText {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--torneos-inline-gap);
+}
+
+[data-torneos-surface] :where(button, a[role='button']) {
+  white-space: nowrap;
+}
+
+[data-torneos-display] {
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+  overflow: hidden;
+  font-family: "Bebas Neue", Impact, sans-serif !important;
+  font-weight: 400 !important;
+  line-height: .96 !important;
+  letter-spacing: var(--torneos-display-letter-spacing) !important;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+[data-torneos-display='xl'] { font-size: var(--torneos-display-xl) !important; }
+[data-torneos-display='l'] { font-size: var(--torneos-display-l) !important; }
+[data-torneos-display='m'] { font-size: var(--torneos-display-m) !important; }
+
+[data-torneos-chip] {
+  min-width: 0;
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 5px 10px;
+  overflow: hidden;
+  border: 1px solid var(--torneos-border, rgba(178, 153, 255, .27));
+  border-radius: 999px;
+  font-family: var(--torneos-font-ui) !important;
+  font-size: .68rem !important;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: .075em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+@media (max-width: 390px) {
+  [data-torneos-surface] {
+    --torneos-display-xl: clamp(2.3rem, 13vw, 3.4rem);
+    --torneos-display-l: clamp(1.9rem, 10vw, 2.75rem);
+    --torneos-display-m: clamp(1.55rem, 8vw, 2.15rem);
+  }
+}
+
+@media (max-width: 520px) {
+  [data-torneos-display]:not([data-important-name]) {
+    overflow: visible;
+    line-height: 1.02 !important;
+    text-overflow: clip;
+    text-wrap: balance;
+    white-space: normal;
+  }
+
+  [data-torneos-surface] :where(
+    input:not([type='checkbox']):not([type='radio']),
+    select,
+    textarea
+  ) {
+    min-height: 48px;
+    font-size: 1rem;
+  }
+}

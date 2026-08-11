@@ -33,6 +33,10 @@
 }
 
 .eyebrow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px 7px;
   margin: 0;
   color: #9e8aff;
   font-size: 0.73rem;

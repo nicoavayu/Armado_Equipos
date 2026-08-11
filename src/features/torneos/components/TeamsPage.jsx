@@ -16,6 +16,7 @@ import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
 import { hasCapability, TOURNAMENT_CAPABILITIES } from '../domain/capabilities';
 import { TEAM_ENTRY_STATUS_LABELS } from '../domain/teamRegistration';
 import CompetitionSelector from './CompetitionSelector';
+import { importantNameProps } from './importantNames';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import styles from './TeamRegistration.module.css';
 
@@ -98,9 +99,9 @@ export default function TeamsPage() {
         <div>
           <span className={styles.kicker}>Inscripciones y planteles</span>
           <h1>Equipos</h1>
-          <p>
+          <p className={styles.pageContext}>
             {activeTournament
-              ? `${activeTournament.name} · seguimiento real de cada inscripción`
+              ? <><strong {...importantNameProps(activeTournament.name, 'compact')}>{activeTournament.name}</strong><span>seguimiento real de cada inscripción</span></>
               : 'Seleccioná un torneo para administrar sus equipos.'}
           </p>
         </div>
@@ -137,7 +138,7 @@ export default function TeamsPage() {
                 placeholder="Buscar equipo"
               />
             </label>
-            <div className={styles.filterRail}>
+            <div className={styles.filterRail} data-allow-horizontal-scroll="true">
               <Filter size={16} aria-hidden="true" />
               {FILTERS.map((item) => (
                 <button
@@ -176,8 +177,8 @@ export default function TeamsPage() {
                     <div className={styles.entryIdentity}>
                       <span className={styles.teamMark}>{entry.name.slice(0, 2).toUpperCase()}</span>
                       <div>
-                        <span>{entry.categoryName}</span>
-                        <h2>{entry.name}</h2>
+                        <span {...importantNameProps(entry.categoryName, 'compact')}>{entry.categoryName}</span>
+                        <h2 {...importantNameProps(entry.name, 'card')}>{entry.name}</h2>
                         <small>{entry.linked ? 'Equipo Arma2 vinculado' : 'Equipo provisional'}</small>
                       </div>
                     </div>
@@ -191,7 +192,9 @@ export default function TeamsPage() {
                       </span>
                       <span>
                         {entry.manager ? <Users size={16} /> : <UserRoundX size={16} />}
-                        {entry.manager?.displayName || 'Sin responsable'}
+                        <span {...importantNameProps(entry.manager?.displayName || 'Sin responsable', 'player')}>
+                          {entry.manager?.displayName || 'Sin responsable'}
+                        </span>
                       </span>
                     </div>
                     <Link to={`${base}/${entry.id}`}>

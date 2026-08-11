@@ -22,6 +22,8 @@ import {
 } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
+import { importantNameProps } from './importantNames';
+import TorneosSelect from './TorneosSelect';
 import styles from './CommunicationsAdminPage.module.css';
 
 const STEPS = ['Tipo', 'Contenido', 'Audiencia', 'Contexto', 'Vista previa', 'Confirmar'];
@@ -366,7 +368,11 @@ export default function CommunicationsAdminPage() {
       {section === 'announcements' && (
         <div className={styles.workspace}>
           <section className={styles.composer}>
-            <div className={styles.steps} aria-label={`Paso ${step} de ${STEPS.length}`}>
+            <div
+              className={styles.steps}
+              aria-label={`Paso ${step} de ${STEPS.length}`}
+              data-allow-horizontal-scroll="true"
+            >
               {STEPS.map((label, index) => (
                 <span
                   key={label}
@@ -460,7 +466,7 @@ export default function CommunicationsAdminPage() {
                     <legend>Audiencia</legend>
                     <label className={styles.field}>
                       <span>Torneo</span>
-                      <select
+                      <TorneosSelect
                         value={form.tournamentId}
                         onChange={(event) => updateForm('tournamentId', event.target.value)}
                       >
@@ -469,11 +475,11 @@ export default function CommunicationsAdminPage() {
                             {item.name} · {item.seasonName}
                           </option>
                         ))}
-                      </select>
+                      </TorneosSelect>
                     </label>
                     <label className={styles.field}>
                       <span>Criterio</span>
-                      <select
+                      <TorneosSelect
                         value={form.audienceType}
                         onChange={(event) => updateForm('audienceType', event.target.value)}
                       >
@@ -485,12 +491,12 @@ export default function CommunicationsAdminPage() {
                         <option value="match">Participantes de un partido</option>
                         <option value="home_team">Equipo local</option>
                         <option value="away_team">Equipo visitante</option>
-                      </select>
+                      </TorneosSelect>
                     </label>
                     {form.audienceType === 'category' && (
                       <label className={styles.field}>
                         <span>Categoría</span>
-                        <select
+                        <TorneosSelect
                           value={form.categoryId}
                           onChange={(event) => updateForm('categoryId', event.target.value)}
                         >
@@ -498,13 +504,13 @@ export default function CommunicationsAdminPage() {
                           {tournament?.categories?.map((category) => (
                             <option value={category.id} key={category.id}>{category.name}</option>
                           ))}
-                        </select>
+                        </TorneosSelect>
                       </label>
                     )}
                     {form.audienceType === 'team' && (
                       <label className={styles.field}>
                         <span>Equipo</span>
-                        <select
+                        <TorneosSelect
                           value={form.teamEntryId}
                           onChange={(event) => updateForm('teamEntryId', event.target.value)}
                         >
@@ -512,13 +518,13 @@ export default function CommunicationsAdminPage() {
                           {tournament?.teams?.map((team) => (
                             <option value={team.id} key={team.id}>{team.name}</option>
                           ))}
-                        </select>
+                        </TorneosSelect>
                       </label>
                     )}
                     {['match', 'home_team', 'away_team'].includes(form.audienceType) && (
                       <label className={styles.field}>
                         <span>Partido</span>
-                        <select
+                        <TorneosSelect
                           value={form.matchId}
                           onChange={(event) => updateForm('matchId', event.target.value)}
                         >
@@ -528,7 +534,7 @@ export default function CommunicationsAdminPage() {
                               Partido {match.matchNumber} · {formatDate(match.scheduledAt)}
                             </option>
                           ))}
-                        </select>
+                        </TorneosSelect>
                       </label>
                     )}
                     <div className={styles.audiencePromise}>
@@ -543,7 +549,7 @@ export default function CommunicationsAdminPage() {
                     <legend>Contexto y prioridad</legend>
                     <label className={styles.field}>
                       <span>Categoría del comunicado (opcional)</span>
-                      <select
+                      <TorneosSelect
                         value={form.categoryId}
                         onChange={(event) => updateForm('categoryId', event.target.value)}
                       >
@@ -551,29 +557,29 @@ export default function CommunicationsAdminPage() {
                         {tournament?.categories?.map((category) => (
                           <option value={category.id} key={category.id}>{category.name}</option>
                         ))}
-                      </select>
+                      </TorneosSelect>
                     </label>
                     <label className={styles.field}>
                       <span>Prioridad</span>
-                      <select
+                      <TorneosSelect
                         value={form.priority}
                         onChange={(event) => updateForm('priority', event.target.value)}
                       >
                         <option value="normal">Información</option>
                         <option value="important">Importante</option>
                         <option value="urgent">Urgente</option>
-                      </select>
+                      </TorneosSelect>
                     </label>
                     <label className={styles.field}>
                       <span>Registro de lectura</span>
-                      <select
+                      <TorneosSelect
                         value={form.acknowledgementMode}
                         onChange={(event) => updateForm('acknowledgementMode', event.target.value)}
                       >
                         <option value="none">Sin confirmación</option>
                         <option value="read">Marcar como leído</option>
                         <option value="explicit">Confirmo que lo leí</option>
-                      </select>
+                      </TorneosSelect>
                     </label>
                     <div className={styles.disabledSchedule}>
                       <Radio size={18} />
@@ -602,7 +608,7 @@ export default function CommunicationsAdminPage() {
                       <h2>{preview.estimatedRecipients} destinatarios</h2>
                       <dl>
                         <div><dt>Canal</dt><dd>Sólo inbox interno</dd></div>
-                        <div><dt>Torneo</dt><dd>{tournament?.name}</dd></div>
+                        <div><dt>Torneo</dt><dd {...importantNameProps(tournament?.name, 'compact')}>{tournament?.name}</dd></div>
                         <div>
                           <dt>Criterio</dt>
                           <dd>{AUDIENCE_LABELS[form.audienceType]}</dd>
@@ -698,7 +704,7 @@ export default function CommunicationsAdminPage() {
             </div>
             <label className={styles.field}>
               <span>Torneo</span>
-              <select
+              <TorneosSelect
                 value={documentForm.tournamentId}
                 onChange={(event) => setDocumentForm((current) => ({
                   ...current,
@@ -709,11 +715,11 @@ export default function CommunicationsAdminPage() {
                 {state.data.tournaments.map((item) => (
                   <option value={item.id} key={item.id}>{item.name}</option>
                 ))}
-              </select>
+              </TorneosSelect>
             </label>
             <label className={styles.field}>
               <span>Tipo</span>
-              <select
+              <TorneosSelect
                 value={documentForm.type}
                 onChange={(event) => setDocumentForm((current) => ({
                   ...current,
@@ -726,7 +732,7 @@ export default function CommunicationsAdminPage() {
                 <option value="requirements">Requisitos</option>
                 <option value="policy">Política</option>
                 <option value="other">Otro</option>
-              </select>
+              </TorneosSelect>
             </label>
             {[
               ['title', 'Título', 120],
@@ -758,7 +764,7 @@ export default function CommunicationsAdminPage() {
             </label>
             <label className={styles.field}>
               <span>Lectura</span>
-              <select
+              <TorneosSelect
                 value={documentForm.acknowledgementMode}
                 onChange={(event) => setDocumentForm((current) => ({
                   ...current,
@@ -768,7 +774,7 @@ export default function CommunicationsAdminPage() {
                 <option value="none">Sin registro</option>
                 <option value="read">Marcar como leído</option>
                 <option value="explicit">Confirmo que lo leí</option>
-              </select>
+              </TorneosSelect>
             </label>
             <button className={styles.primaryAction} disabled={busy} type="submit">
               <Check size={18} />

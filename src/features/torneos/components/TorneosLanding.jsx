@@ -22,6 +22,8 @@ import { getRoleLabel } from '../domain/capabilities';
 import { resolveTorneosUserExperience } from '../domain/userExperience';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
+import { importantNameProps } from './importantNames';
+import { getStatusLabel } from './presentationLabels';
 import styles from './TorneosShell.module.css';
 
 const ACTIVITY_LINKS = [
@@ -199,8 +201,8 @@ export default function TorneosLanding() {
                   <Building2 size={22} aria-hidden="true" />
                 </span>
                 <span>
-                  <strong>{organization.name}</strong>
-                  <small>{getRoleLabel(organization.role)} · {organization.status}</small>
+                  <strong {...importantNameProps(organization.name, 'card')}>{organization.name}</strong>
+                  <small>{getRoleLabel(organization.role)} · {getStatusLabel(organization.status)}</small>
                 </span>
                 <ArrowRight size={19} aria-hidden="true" />
               </button>

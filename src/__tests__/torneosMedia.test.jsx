@@ -128,8 +128,10 @@ describe('organizer tournament media center', () => {
   test('creates a match gallery with relation-scoped visibility', async () => {
     renderAdmin();
     await userEvent.click(await screen.findByRole('button', { name: 'Crear galería' }));
-    await userEvent.selectOptions(screen.getByLabelText('Categoría'), 'category-a');
-    await userEvent.selectOptions(screen.getByLabelText('Partido'), 'match-a');
+    await userEvent.click(screen.getByLabelText('Categoría'));
+    await userEvent.click(screen.getByRole('option', { name: 'Libre' }));
+    await userEvent.click(screen.getByLabelText('Partido'));
+    await userEvent.click(screen.getByRole('option', { name: 'Partido #1' }));
     await userEvent.type(screen.getByLabelText('Título'), 'La gran final');
     await userEvent.click(screen.getByRole('button', { name: 'Crear borrador' }));
     expect(mockContextService.createMediaGallery).toHaveBeenCalledWith(
@@ -304,7 +306,8 @@ describe('participant tournament media gallery', () => {
     }));
     await userEvent.click(screen.getByRole('button', { name: 'Reportar foto' }));
     expect(screen.getByText('Reporte privado')).toBeInTheDocument();
-    await userEvent.selectOptions(screen.getByLabelText('Motivo'), 'privacy');
+    await userEvent.click(screen.getByLabelText('Motivo'));
+    await userEvent.click(screen.getByRole('option', { name: /Privacidad/i }));
     await userEvent.type(screen.getByLabelText('Detalle'), 'Necesito una revisión de privacidad.');
     await userEvent.click(screen.getByRole('checkbox', {
       name: 'Solicitar que se oculte mientras se revisa',

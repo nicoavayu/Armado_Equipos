@@ -20,6 +20,7 @@ import {
 } from '../domain/capabilities';
 import CompetitionSelector from './CompetitionSelector';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
+import { importantNameProps } from './importantNames';
 import styles from './CompetitionCore.module.css';
 
 function formatDateRange(startDate, endDate) {
@@ -64,7 +65,7 @@ export default function CompetitionOverviewPage() {
       <header className={styles.competitionHeader}>
         <div>
           <span className={styles.kicker}>Núcleo competitivo</span>
-          <h1>Temporadas y torneos</h1>
+          <h1 data-torneos-display="l">Temporadas y torneos</h1>
           <p>
             Organizá el calendario, definí reglas y dejá cada competencia lista
             antes de incorporar equipos.
@@ -112,7 +113,7 @@ export default function CompetitionOverviewPage() {
             <div className={styles.sectionTitle}>
               <div>
                 <span>{seasons.length} {seasons.length === 1 ? 'temporada' : 'temporadas'}</span>
-                <h2 id="seasons-title">Calendario institucional</h2>
+                <h2 id="seasons-title" data-torneos-display="l">Calendario institucional</h2>
               </div>
             </div>
             <div className={styles.seasonGrid}>
@@ -127,7 +128,7 @@ export default function CompetitionOverviewPage() {
                     </span>
                     <span>
                       <small>{SEASON_STATUS_LABELS[season.status]}</small>
-                      <strong>{season.name}</strong>
+                      <strong {...importantNameProps(season.name, 'card')}>{season.name}</strong>
                       <em>{formatDateRange(season.startDate, season.endDate)}</em>
                     </span>
                     <span className={styles.countPill}>
@@ -143,7 +144,7 @@ export default function CompetitionOverviewPage() {
             <div className={styles.sectionTitle}>
               <div>
                 <span>{tournaments.length} {tournaments.length === 1 ? 'torneo' : 'torneos'}</span>
-                <h2 id="tournaments-title">Competencias configuradas</h2>
+                <h2 id="tournaments-title" data-torneos-display="l">Competencias configuradas</h2>
               </div>
             </div>
             {!tournaments.length ? (
@@ -164,7 +165,7 @@ export default function CompetitionOverviewPage() {
                   return (
                     <article key={tournament.id}>
                       <div className={styles.tournamentCardTop}>
-                        <span className={styles.statusPill} data-status={tournament.status}>
+                        <span className={styles.statusPill} data-status={tournament.status} data-torneos-chip>
                           {TOURNAMENT_STATUS_LABELS[tournament.status]}
                         </span>
                         {complete
@@ -175,17 +176,17 @@ export default function CompetitionOverviewPage() {
                         <small>
                           {seasons.find((season) => season.id === tournament.seasonId)?.name}
                         </small>
-                        <h3>{tournament.name}</h3>
+                        <h3 {...importantNameProps(tournament.name, 'tournament')}>{tournament.name}</h3>
                         <p>{formatDateRange(tournament.startDate, tournament.endDate)}</p>
                       </div>
                       <dl>
                         <div>
                           <dt>Modalidad</dt>
-                          <dd>{getOptionName(modalities, tournament.sportModality)}</dd>
+                          <dd title={getOptionName(modalities, tournament.sportModality)}>{getOptionName(modalities, tournament.sportModality)}</dd>
                         </div>
                         <div>
                           <dt>Formato</dt>
-                          <dd>{getOptionName(formats, tournament.competitionFormat)}</dd>
+                          <dd title={getOptionName(formats, tournament.competitionFormat)}>{getOptionName(formats, tournament.competitionFormat)}</dd>
                         </div>
                         <div>
                           <dt>Categorías</dt>

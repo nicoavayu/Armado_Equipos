@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
+import { getImportantNameLength, importantNameProps } from './importantNames';
 import styles from './ParticipantHub.module.css';
 
 const STATUS_LABELS = {
@@ -59,18 +60,19 @@ function MyTournamentCard({ item }) {
     <article className={styles.tournamentCard}>
       <header className={styles.tournamentCardTop}>
         <TournamentMonogram item={item} />
-        <span className={styles.stateChip} data-state={item.tournamentStatus}>
+        <span className={styles.stateChip} data-state={item.tournamentStatus} data-torneos-chip>
           <CircleDot size={13} />
           {stateLabel}
         </span>
       </header>
       <div className={styles.tournamentCardCopy}>
         <span>{item.seasonName} · {item.categoryName}</span>
-        <h2>{item.tournamentName}</h2>
+        <h2 {...importantNameProps(item.tournamentName, 'card')}>{item.tournamentName}</h2>
         <p>
-          {item.teamName || item.organizationName}
-          {' · '}
-          {ROLE_LABELS[item.role] || 'Participante'}
+          <span {...importantNameProps(item.teamName || item.organizationName, 'compact')}>
+            {item.teamName || item.organizationName}
+          </span>
+          <small>{ROLE_LABELS[item.role] || 'Participante'}</small>
         </p>
       </div>
       <dl className={styles.tournamentFacts}>
@@ -90,7 +92,17 @@ function MyTournamentCard({ item }) {
         <div className={styles.nextMatchLine}>
           <CalendarClock size={16} />
           <span>
-            <strong>{next.homeName} vs. {next.awayName}</strong>
+            <strong
+              className={styles.nextMatchTeams}
+              data-long-names={[
+                getImportantNameLength(next.homeName),
+                getImportantNameLength(next.awayName),
+              ].includes('extra-long') || `${next.homeName}${next.awayName}`.length >= 26}
+            >
+              <span {...importantNameProps(next.homeName, 'match')}>{next.homeName}</span>
+              <em>vs.</em>
+              <span {...importantNameProps(next.awayName, 'match')}>{next.awayName}</span>
+            </strong>
             <small>{next.roundName || 'Fixture publicado'}</small>
           </span>
         </div>

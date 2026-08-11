@@ -18,6 +18,7 @@ import {
   TOURNAMENT_CAPABILITIES,
 } from '../domain/capabilities';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
+import { importantNameProps } from './importantNames';
 import styles from './CompetitionCore.module.css';
 
 export default function SeasonFormPage() {
@@ -151,14 +152,14 @@ export default function SeasonFormPage() {
           <span className={styles.kicker}>
             {isNew ? 'Nueva temporada' : SEASON_STATUS_LABELS[season.status]}
           </span>
-          <h1>{isNew ? 'Abrí un nuevo ciclo' : season.name}</h1>
+          <h1 {...importantNameProps(isNew ? 'Abrí un nuevo ciclo' : season.name, 'hero')}>{isNew ? 'Abrí un nuevo ciclo' : season.name}</h1>
           <p>
             La temporada ordena competencias y calendario. Podés mantener más de
             una activa; el selector define cuál estás administrando.
           </p>
         </div>
         {!isNew && (
-          <span className={styles.largeStatus} data-status={season.status}>
+          <span className={styles.largeStatus} data-status={season.status} data-torneos-chip>
             {SEASON_STATUS_LABELS[season.status]}
           </span>
         )}

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Search, UserPlus, Users } from 'lucide-react';
+import { importantNameProps } from './importantNames';
 import styles from './TeamRegistration.module.css';
 
 export default function PlayerAutocomplete({
@@ -77,8 +78,8 @@ export default function PlayerAutocomplete({
                   : <Users size={18} aria-hidden="true" />}
               </span>
               <span>
-                <strong>{player.displayName}</strong>
-                <small>
+                <strong {...importantNameProps(player.displayName, 'player')}>{player.displayName}</strong>
+                <small {...importantNameProps(player.teamName, 'compact')}>
                   {[player.teamName, player.positions?.join(' · ')]
                     .filter(Boolean).join(' · ') || 'Perfil Arma2'}
                 </small>

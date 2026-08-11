@@ -45,6 +45,20 @@ const TEAM_FILTERS = [
   'Incompletos',
 ];
 
+const TOUCH_SCROLL_SOURCES = [
+  'FixtureWorkspacePage.jsx',
+  'CompetitionCenterPage.jsx',
+  'MatchOperationsPage.jsx',
+  'TorneosShell.jsx',
+  'TournamentHubPage.jsx',
+  'PublicTournamentPage.jsx',
+  'TeamsPage.jsx',
+  'TeamRegistrationPage.jsx',
+  'TournamentWizardPage.jsx',
+  'MediaAdminPage.jsx',
+  'CommunicationsAdminPage.jsx',
+];
+
 function getTeamFilterStyles(viewport) {
   Object.defineProperty(window, 'innerWidth', {
     configurable: true,
@@ -118,7 +132,7 @@ describe('Torneos responsive navigation CSS', () => {
       /@media \(max-width:\s*900px\)[\s\S]*?\.mobileBrand\s*\{[\s\S]*?min-width:\s*44px;[\s\S]*?min-height:\s*44px;/,
     );
     expect(css).toMatch(
-      /\.mobileBrand \.brandLogo\s*\{[^}]*width:\s*50px;[^}]*height:\s*44px;/s,
+      /\.mobileBrand > span:first-child\s*\{[^}]*width:\s*138px;[^}]*height:\s*32px;/s,
     );
     expect(css).toMatch(
       /\.mobileNavigationHidden\s*\{[^}]*opacity:\s*0;[^}]*pointer-events:\s*none;[^}]*transform:\s*translateY\(130%\);/s,
@@ -168,5 +182,15 @@ describe('Torneos responsive navigation CSS', () => {
       expect(whiteSpace).toBe('nowrap');
     });
     expect(railOverflowX).toBe('auto');
+  });
+
+  test.each(TOUCH_SCROLL_SOURCES)('%s opts horizontal rails into the global touch contract', (fileName) => {
+    const source = fs.readFileSync(path.join(
+      process.cwd(),
+      'src/features/torneos/components',
+      fileName,
+    ), 'utf8');
+
+    expect(source).toContain('data-allow-horizontal-scroll');
   });
 });

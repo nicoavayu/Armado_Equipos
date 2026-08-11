@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
+import { importantNameProps } from './importantNames';
 import styles from './TournamentCommunications.module.css';
 
 function formatDate(value) {
@@ -144,7 +145,9 @@ export default function MyCommunicationsPage() {
           <span data-priority={detail.priority}>{priorityLabel(detail.priority)}</span>
         </div>
         <p className={styles.eyebrow}>
-          {detail.organization.name} · {detail.tournament.name}
+          <span {...importantNameProps(detail.organization.name, 'compact')}>{detail.organization.name}</span>
+          <span aria-hidden="true">·</span>
+          <span {...importantNameProps(detail.tournament.name, 'compact')}>{detail.tournament.name}</span>
         </p>
         <h2>{detail.title}</h2>
         <p className={styles.summary}>{detail.summary}</p>

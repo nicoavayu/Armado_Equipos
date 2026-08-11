@@ -243,8 +243,10 @@ describe('Participant Hub', () => {
     render(<MemoryRouter><MyTournamentsPage /></MemoryRouter>);
     expect(await screen.findByText('Copa Horizonte')).toBeInTheDocument();
     expect(screen.getByText('Liga Nocturna')).toBeInTheDocument();
-    expect(screen.getByText(/Violetas · Jugador/)).toBeInTheDocument();
-    expect(screen.getByText(/Nómades · Capitán/)).toBeInTheDocument();
+    expect(screen.getByText('Violetas')).toBeInTheDocument();
+    expect(screen.getByText('Jugador')).toBeInTheDocument();
+    expect(screen.getByText('Nómades')).toBeInTheDocument();
+    expect(screen.getByText('Capitán')).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: /Abrir torneo/ })[0]).toHaveAttribute(
       'href',
       '/torneos/torneo/tournament-a?categoria=category-a',
@@ -257,6 +259,7 @@ describe('Participant Hub', () => {
     expect(screen.getByText('Ada Gol')).toBeInTheDocument();
     expect(screen.getByText('¿Podés jugar?')).toBeInTheDocument();
     expect(screen.getByText('Sin alertas pendientes.')).toBeInTheDocument();
+    expect(screen.queryByText(/Asist\./i)).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Abrir gestor' })).not.toBeInTheDocument();
   });
 
@@ -333,7 +336,8 @@ describe('Participant Hub', () => {
       .mockResolvedValueOnce(buildHub({ activeCategoryId: 'category-b' }));
     renderHub();
     const selector = await screen.findByLabelText('Categoría');
-    await userEvent.selectOptions(selector, 'category-b');
+    await userEvent.click(selector);
+    await userEvent.click(screen.getByRole('option', { name: 'Senior' }));
     await waitFor(() => expect(mockService.setHubCategory).toHaveBeenCalledWith({
       tournamentId: 'tournament-a',
       categoryId: 'category-b',
@@ -423,7 +427,8 @@ describe('Participant Hub', () => {
       .mockRejectedValueOnce(new Error('Acceso removido'));
     renderHub();
     const selector = await screen.findByLabelText('Categoría');
-    await userEvent.selectOptions(selector, 'category-b');
+    await userEvent.click(selector);
+    await userEvent.click(screen.getByRole('option', { name: 'Senior' }));
     expect(await screen.findByRole('heading', {
       name: 'No pudimos abrir este torneo',
     })).toBeInTheDocument();

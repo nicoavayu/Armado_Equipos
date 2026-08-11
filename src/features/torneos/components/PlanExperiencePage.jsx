@@ -292,7 +292,7 @@ export default function PlanExperiencePage({
           icon={Gauge}
           label="Protección post-PRO"
           value={media ? describeMediaLimit(media.postExpirationRetentionDays, 'día', 'días') : 'No verificado'}
-          detail="Snapshot de protección informado por el resolver canónico."
+          detail="Estado de protección informado por la configuración oficial."
         />
       </section>
 

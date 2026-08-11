@@ -138,7 +138,7 @@ const SNAPSHOTS = {
   }),
   scorers: baseSnapshot('scorers', {
     revisionId: 'rev-9',
-    players: [{ rosterPlayerId: 'rp-1', name: 'Lucía Fernández', goals: 9, assists: 3 }],
+    players: [{ rosterPlayerId: 'rp-1', name: 'Lucía Fernández', goals: 9, assists: 3, appearances: 6 }],
   }),
   discipline: baseSnapshot('discipline', {
     revisionId: 'rev-9',
@@ -150,7 +150,7 @@ const SNAPSHOTS = {
   best_eleven: baseSnapshot('best_eleven', {
     requiresHumanSelection: true,
     candidates: Array.from({ length: 14 }, (_unused, index) => ({
-      rosterPlayerId: `rp-${index}`, name: `Jugadora ${index}`, goals: index, assists: 1,
+      rosterPlayerId: `rp-${index}`, name: `Jugadora ${index}`, goals: index, assists: 1, appearances: index + 1,
     })),
   }),
   mvp: baseSnapshot('mvp', {

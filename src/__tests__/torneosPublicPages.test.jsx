@@ -83,6 +83,9 @@ describe('public tournament page', () => {
       categorySlug: 'primera',
     });
     expect(screen.getByText('Sitio oficial')).toBeInTheDocument();
+    expect(screen.getByText('Fútbol 7')).toBeInTheDocument();
+    expect(screen.getByText('Liga')).toBeInTheDocument();
+    expect(screen.queryByText('football_7')).not.toBeInTheDocument();
     expect(screen.getByText('Resultado oficial')).toBeInTheDocument();
     expect(screen.queryByText(/iniciar sesión/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/administración/i)).not.toBeInTheDocument();
@@ -97,6 +100,8 @@ describe('public tournament page', () => {
     expect(screen.getByRole('columnheader', { name: 'Pts' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Goleadores' }));
     expect(screen.getByText('Leo Díaz')).toBeInTheDocument();
+    expect(screen.getByText('PJ')).toBeInTheDocument();
+    expect(screen.queryByText(/asist\./i)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Equipos' }));
     expect(screen.getByText('Los Pinos')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Disciplina' }));
@@ -104,11 +109,33 @@ describe('public tournament page', () => {
     expect(screen.queryByText(/motivo/i)).not.toBeInTheDocument();
   });
 
+  test('replaces a broken team shield with the team initials', async () => {
+    const page = {
+      ...PAGE,
+      matches: [{
+        ...PAGE.matches[0],
+        home: { ...PAGE.matches[0].home, shieldPath: 'broken-shield.png' },
+      }],
+    };
+    const service = publicService(page);
+    service.resolveTeamShieldUrl.mockImplementation((path) => (path ? '/broken-shield.png' : null));
+    const { container } = renderPublic(service);
+    await screen.findByRole('heading', { name: 'Copa Apertura' });
+    const brokenShield = container.querySelector('img[src="/broken-shield.png"]');
+    expect(brokenShield).not.toBeNull();
+    fireEvent.error(brokenShield);
+    await waitFor(() => {
+      expect(container.querySelector('img[src="/broken-shield.png"]')).toBeNull();
+      expect(container.textContent).toContain('LP');
+    });
+  });
+
   test('reloads the server projection when category changes', async () => {
     const service = publicService();
     renderPublic(service);
     await screen.findByRole('heading', { name: 'Copa Apertura' });
-    fireEvent.change(screen.getByRole('combobox', { name: 'Categoría' }), { target: { value: 'reserva' } });
+    fireEvent.click(screen.getByRole('combobox', { name: 'Categoría' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Reserva' }));
     await waitFor(() => expect(service.loadPage).toHaveBeenLastCalledWith(expect.objectContaining({ categorySlug: 'reserva' })));
   });
 

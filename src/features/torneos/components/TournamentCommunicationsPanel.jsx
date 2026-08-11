@@ -17,6 +17,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { importantNameProps } from './importantNames';
 import styles from './TournamentCommunications.module.css';
 
 const TYPE_LABELS = {
@@ -92,8 +93,10 @@ function AnnouncementDetail({
         </span>
       </div>
       <p className={styles.eyebrow}>
-        {announcement.organization.name} · {announcement.tournament.name}
-        {announcement.category ? ` · ${announcement.category.name}` : ''}
+        <span {...importantNameProps(announcement.organization.name, 'compact')}>{announcement.organization.name}</span>
+        <span aria-hidden="true">·</span>
+        <span {...importantNameProps(announcement.tournament.name, 'compact')}>{announcement.tournament.name}</span>
+        {announcement.category && <><span aria-hidden="true">·</span><span {...importantNameProps(announcement.category.name, 'compact')}>{announcement.category.name}</span></>}
       </p>
       <h2 id="announcement-title">{announcement.title}</h2>
       <p className={styles.summary}>{announcement.summary}</p>

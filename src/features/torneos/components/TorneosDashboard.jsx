@@ -25,6 +25,7 @@ import {
   TOURNAMENT_CAPABILITIES,
 } from '../domain/capabilities';
 import CompetitionSelector from './CompetitionSelector';
+import { importantNameProps } from './importantNames';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import styles from './TorneosShell.module.css';
 import coreStyles from './CompetitionCore.module.css';
@@ -161,8 +162,8 @@ export default function TorneosDashboard() {
         <div className={styles.organizationIdentity}>
           <span className={styles.largeMonogram}><Trophy size={30} /></span>
           <div>
-            <span className={styles.eyebrow}>{activeSeason?.name}</span>
-            <h1>{activeTournament.name}</h1>
+            <span className={styles.eyebrow} {...importantNameProps(activeSeason?.name, 'compact')}>{activeSeason?.name}</span>
+            <h1 {...importantNameProps(activeTournament.name, 'hero')}>{activeTournament.name}</h1>
             <p>
               {getOptionName(modalities, activeTournament.sportModality)}
               {' · '}
@@ -172,7 +173,7 @@ export default function TorneosDashboard() {
             </p>
           </div>
         </div>
-        <span className={styles.activeStatus}>
+        <span className={styles.activeStatus} data-torneos-chip>
           <span aria-hidden="true" />
           {TOURNAMENT_STATUS_LABELS[activeTournament.status]}
         </span>
@@ -196,7 +197,7 @@ export default function TorneosDashboard() {
         </article>
         <article>
           <span>Fixture</span>
-          <strong>{fixture.versions.find((version) => version.status === 'published') ? 'Publicado' : fixture.versions.length ? 'Draft' : 'Pendiente'}</strong>
+          <strong>{fixture.versions.find((version) => version.status === 'published') ? 'Publicado' : fixture.versions.length ? 'Borrador' : 'Pendiente'}</strong>
           <small>{fixture.matches.length} partidos · {fixture.matches.filter((match) => match.status === 'scheduled').length} programados</small>
         </article>
       </section>
@@ -257,7 +258,7 @@ export default function TorneosDashboard() {
           </div>
           <p>
             {fixture.participantSet?.status === 'frozen'
-              ? `${fixture.participants.length} participantes congelados en una fotografía auditable.`
+              ? `${fixture.participants.length} participantes confirmados en una nómina cerrada y auditable.`
               : 'Cerrá los participantes aprobados antes de generar cruces.'}
           </p>
           <Link className={styles.dashboardPrimaryLink} to={`${organizationPath}/fixture`}>

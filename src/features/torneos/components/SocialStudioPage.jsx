@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
+import { importantNameProps } from './importantNames';
 import {
   SOCIAL_ACCENTS,
   SOCIAL_FORMATS,
@@ -35,6 +36,7 @@ import {
   renderSocialPiece,
   shareSocialPiece,
 } from '../social/socialStudio';
+import TorneosSelect from './TorneosSelect';
 import styles from './SocialStudioPage.module.css';
 
 const PREVIEW_WIDTH = 300;
@@ -301,7 +303,7 @@ export default function SocialStudioPage() {
             <legend>Alcance</legend>
             <label>
               <span>Torneo</span>
-              <select
+              <TorneosSelect
                 value={scope.tournamentId}
                 onChange={(event) => setScope({
                   tournamentId: event.target.value, categoryId: '', phaseId: '', roundId: '',
@@ -310,11 +312,11 @@ export default function SocialStudioPage() {
                 {tournaments.map((entry) => (
                   <option key={entry.id} value={entry.id}>{entry.name}</option>
                 ))}
-              </select>
+              </TorneosSelect>
             </label>
             <label>
               <span>Categoría</span>
-              <select
+              <TorneosSelect
                 value={scope.categoryId}
                 onChange={(event) => setScope((current) => ({
                   ...current, categoryId: event.target.value, phaseId: '', roundId: '',
@@ -324,11 +326,11 @@ export default function SocialStudioPage() {
                 {(tournament?.categories || []).map((entry) => (
                   <option key={entry.id} value={entry.id}>{entry.name}</option>
                 ))}
-              </select>
+              </TorneosSelect>
             </label>
             <label>
               <span>Fase</span>
-              <select
+              <TorneosSelect
                 value={scope.phaseId}
                 onChange={(event) => setScope((current) => ({
                   ...current, phaseId: event.target.value, roundId: '',
@@ -338,12 +340,12 @@ export default function SocialStudioPage() {
                 {(category?.phases || []).map((entry) => (
                   <option key={entry.id} value={entry.id}>{entry.name}</option>
                 ))}
-              </select>
+              </TorneosSelect>
             </label>
             {piece?.requiresRound && (
               <label>
                 <span>Fecha</span>
-                <select
+                <TorneosSelect
                   value={scope.roundId}
                   onChange={(event) => setScope((current) => ({
                     ...current, roundId: event.target.value,
@@ -353,7 +355,7 @@ export default function SocialStudioPage() {
                   {rounds.map((entry) => (
                     <option key={entry.id} value={entry.id}>{entry.name}</option>
                   ))}
-                </select>
+                </TorneosSelect>
               </label>
             )}
           </fieldset>
@@ -477,10 +479,10 @@ export default function SocialStudioPage() {
                         onChange={() => toggleSelection(id)}
                       />
                       <span>
-                        <strong>{candidate.name || candidate.teamName}</strong>
+                        <strong {...importantNameProps(candidate.name || candidate.teamName, candidate.name ? 'player' : 'table')}>{candidate.name || candidate.teamName}</strong>
                         <small>
                           {candidate.goals !== undefined
-                            ? `${candidate.goals} G · ${candidate.assists ?? 0} A`
+                            ? `${candidate.goals} G · ${candidate.appearances ?? 0} PJ`
                             : `${candidate.points ?? 0} pts`}
                         </small>
                       </span>

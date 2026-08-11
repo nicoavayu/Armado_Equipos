@@ -422,7 +422,8 @@ describe('organizer communications composer', () => {
     await userEvent.click(screen.getByRole('button', { name: /Preparar vista previa/ }));
     await screen.findByText('12 destinatarios');
     await userEvent.click(screen.getByRole('button', { name: /Anterior/ }));
-    await userEvent.selectOptions(screen.getByLabelText('Prioridad'), 'urgent');
+    await userEvent.click(screen.getByLabelText('Prioridad'));
+    await userEvent.click(screen.getByRole('option', { name: 'Urgente' }));
     await userEvent.click(screen.getByRole('button', { name: /Preparar vista previa/ }));
     await waitFor(() => {
       expect(mockContextService.updateAnnouncementDraft).toHaveBeenCalledWith(

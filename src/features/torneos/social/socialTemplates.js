@@ -293,8 +293,8 @@ const TEMPLATES = {
         family: SOCIAL_THEME.display, maxWidth: 90, value: (row) => String(row.goals ?? 0),
       },
       {
-        label: 'Asist.', offset: 112, align: 'right', size: 26, maxWidth: 80,
-        color: SOCIAL_THEME.textMuted, value: (row) => String(row.assists ?? 0),
+        label: 'PJ', offset: 112, align: 'right', size: 26, maxWidth: 80,
+        color: SOCIAL_THEME.textMuted, value: (row) => String(row.appearances ?? 0),
       },
     ],
   }),
@@ -379,7 +379,7 @@ const TEMPLATES = {
         family: SOCIAL_THEME.heading, size: 28, weight: 500,
         maxWidth: cellWidth - 84, minSize: 16,
       });
-      drawText(ctx, `${player.goals ?? 0}G · ${player.assists ?? 0}A`, x + 62, y + cellHeight / 2 + 30, {
+      drawText(ctx, `${player.goals ?? 0}G · ${player.appearances ?? 0} PJ`, x + 62, y + cellHeight / 2 + 30, {
         family: SOCIAL_THEME.body, size: 20, color: SOCIAL_THEME.textFaint,
         maxWidth: cellWidth - 84, minSize: 14,
       });
@@ -397,7 +397,7 @@ const TEMPLATES = {
     drawCuratedFigure(ctx, {
       ...context,
       name: player.name || '—',
-      detail: `${player.goals ?? 0} goles · ${player.assists ?? 0} asistencias · ${player.appearances ?? 0} PJ`,
+      detail: `${player.goals ?? 0} goles · ${player.appearances ?? 0} PJ`,
     });
   },
 

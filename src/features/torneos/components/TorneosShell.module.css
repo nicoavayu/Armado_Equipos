@@ -25,7 +25,7 @@
   --torneos-elevated-shadow: 0 18px 44px rgba(5, 3, 16, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   min-height: 100dvh;
   display: grid;
-  grid-template-columns: 264px minmax(0, 1fr);
+  grid-template-columns: clamp(280px, 23vw, 320px) minmax(0, 1fr);
   color: var(--torneos-copy);
   background:
     radial-gradient(circle at 78% -12%, rgba(106, 67, 255, 0.22), transparent 34rem),
@@ -95,30 +95,10 @@
 .brand {
   display: flex;
   align-items: center;
-  gap: 11px;
+  justify-content: center;
+  min-height: 48px;
   color: inherit;
   text-decoration: none;
-}
-
-.brandLogo {
-  width: 60px;
-  height: 44px;
-  flex: 0 0 auto;
-  object-fit: contain;
-  filter: drop-shadow(0 8px 18px rgba(106, 67, 255, 0.28));
-}
-
-.brandLockup {
-  display: flex;
-  flex-direction: column;
-  line-height: 1;
-}
-
-.brandLockup small {
-  color: var(--torneos-purple-bright);
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.22em;
 }
 
 .switcher {
@@ -204,6 +184,16 @@
   white-space: nowrap;
 }
 
+.workspaceCopy strong[data-important-name] {
+  overflow: visible;
+  text-overflow: unset;
+}
+
+.workspaceCopy strong[data-important-name][data-name-length="extra-long"] {
+  line-height: 1.18;
+  white-space: normal;
+}
+
 .switcherMenu {
   position: absolute;
   z-index: 60;
@@ -269,6 +259,15 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.switcherMenu button strong[data-important-name] {
+  overflow: visible;
+  text-overflow: unset;
+}
+
+.switcherMenu button strong[data-important-name][data-name-length="extra-long"] {
+  white-space: normal;
 }
 
 .switcherMenu button strong {
@@ -414,12 +413,16 @@
 }
 
 .pageIdentity strong {
-  overflow: hidden;
   color: #d4cfdd;
   font-size: 13px;
   font-weight: 500;
-  text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.pageIdentityMeta {
+  color: #827b8c;
+  font-size: 10px;
+  letter-spacing: 0.04em;
 }
 
 .topbarExit {
@@ -1051,6 +1054,7 @@
 }
 
 .dashboardHero {
+  min-width: 0;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -1068,6 +1072,10 @@
   display: flex;
   align-items: flex-start;
   gap: clamp(18px, 3vw, 30px);
+}
+
+.organizationIdentity > div {
+  min-width: 0;
 }
 
 .largeMonogram {
@@ -1580,7 +1588,7 @@
 
 @media (max-width: 1080px) {
   .shell {
-    grid-template-columns: 248px minmax(0, 1fr);
+    grid-template-columns: 280px minmax(0, 1fr);
   }
 
   .sidebar {
@@ -1628,9 +1636,9 @@
     text-decoration: none;
   }
 
-  .mobileBrand .brandLogo {
-    width: 50px;
-    height: 44px;
+  .mobileBrand > span:first-child {
+    width: 138px;
+    height: 32px;
   }
 
   .mobileTitle {
@@ -1649,11 +1657,9 @@
   }
 
   .mobileTitle strong {
-    max-width: min(42vw, 240px);
-    overflow: hidden;
-    font-size: 13px;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    max-width: min(38vw, 240px);
+    font-size: 12px;
+    white-space: normal;
   }
 
   .pageIdentity {
@@ -1662,7 +1668,7 @@
 
   .mobileSwitcher {
     display: block;
-    width: min(52vw, 260px);
+    width: min(45vw, 340px);
   }
 
   .mobileSwitcher .workspaceButton {
@@ -1829,12 +1835,51 @@
 }
 
 @media (max-width: 430px) {
+  .topbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    padding:
+      max(8px, env(safe-area-inset-top))
+      12px
+      10px;
+  }
+
+  .mobileBrand {
+    width: fit-content;
+    min-height: 34px;
+  }
+
+  .mobileBrand > span:first-child {
+    width: 132px;
+    height: 30px;
+  }
+
   .mobileTitle {
     display: none;
   }
 
   .mobileSwitcher {
-    width: calc(100% - 50px);
+    width: 100%;
+  }
+
+  .mobileSwitcher .workspaceButton {
+    min-height: 50px;
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+    gap: 9px;
+    padding: 6px 9px;
+  }
+
+  .mobileSwitcher .workspaceAvatar {
+    width: 34px;
+    height: 34px;
+  }
+
+  .mobileSwitcher .workspaceCopy strong[data-important-name] {
+    overflow: hidden;
+    line-height: 1.15;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .main {
@@ -1941,8 +1986,17 @@
     grid-auto-flow: column;
     grid-template-columns: none;
     overflow-x: auto;
+    padding-inline: 8px 18px;
+    -webkit-overflow-scrolling: touch;
     overscroll-behavior-x: contain;
+    scroll-padding-inline: 8px 18px;
+    scroll-snap-type: inline proximity;
     scrollbar-width: none;
+    touch-action: pan-x pan-y;
+  }
+
+  .mobileNavigation .navigationItem {
+    scroll-snap-align: start;
   }
 
   .mobileNavigation::-webkit-scrollbar {

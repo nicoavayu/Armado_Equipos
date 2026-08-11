@@ -8,9 +8,14 @@ import {
   Trophy,
 } from 'lucide-react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import Logo from '../../../Logo.png';
 import { publicTournamentService } from '../api/publicTournamentService';
+import { importantNameProps } from './importantNames';
+import { getFormatLabel, getModalityLabel, getStatusLabel } from './presentationLabels';
+import TorneosBrand from './TorneosBrand';
+import TorneosSelect from './TorneosSelect';
 import styles from './PublicTournamentPage.module.css';
+import './TorneosDesignSystem.css';
+import './ImportantNames.css';
 
 const TABS = [
   ['inicio', 'Inicio'],
@@ -40,16 +45,19 @@ const formatDate = (value, options = {}) => {
   }).format(date);
 };
 
-const initials = (name = '') => name
-  .split(/\s+/)
-  .filter(Boolean)
-  .slice(0, 2)
-  .map((part) => part[0])
-  .join('')
-  .toUpperCase() || '–';
+const initials = (name = '') => {
+  const parts = String(name).trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return '–';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return parts.slice(0, 2).map((part) => part[0]).join('').toUpperCase();
+};
 
-function TeamMark({ team, service, compact = false }) {
+function TeamMark({
+  team, service, compact = false, nameContext,
+}) {
   const shieldUrl = service.resolveTeamShieldUrl(team?.shieldPath);
+  const [failedShieldUrl, setFailedShieldUrl] = useState(null);
+  const shieldFailed = Boolean(shieldUrl && failedShieldUrl === shieldUrl);
   const style = {
     '--team-primary': team?.primaryColor || '#6d4aff',
     '--team-secondary': team?.secondaryColor || '#f4f0ff',
@@ -57,11 +65,13 @@ function TeamMark({ team, service, compact = false }) {
   return (
     <span className={compact ? styles.teamCompact : styles.team} style={style}>
       <span className={styles.crest} aria-hidden="true">
-        {shieldUrl
-          ? <img src={shieldUrl} alt="" loading="lazy" />
+        {shieldUrl && !shieldFailed
+          ? <img src={shieldUrl} alt="" loading="lazy" onError={() => setFailedShieldUrl(shieldUrl)} />
           : initials(team?.shortName || team?.name)}
       </span>
-      <span>{team?.name || 'A definir'}</span>
+      <span {...importantNameProps(team?.name || 'A definir', nameContext || (compact ? 'table' : 'match'))}>
+        {team?.name || 'A definir'}
+      </span>
     </span>
   );
 }
@@ -69,7 +79,10 @@ function TeamMark({ team, service, compact = false }) {
 function MatchCard({ match, service }) {
   const official = Boolean(match.result);
   return (
-    <article className={styles.matchCard} data-official={official}>
+    <article
+      className={styles.matchCard}
+      data-official={official}
+    >
       <header>
         <span>Partido {match.matchNumber || '–'}</span>
         <time dateTime={match.scheduledAt || undefined}>
@@ -140,10 +153,9 @@ function PlayerList({ players, limit }) {
       {rows.map((player, index) => (
         <li key={`${player.name}-${player.teamName}`}>
           <span className={styles.rank}>{String(index + 1).padStart(2, '0')}</span>
-          <div><strong>{player.name}</strong><small>{player.teamName}</small></div>
+          <div><strong {...importantNameProps(player.name, 'player')}>{player.name}</strong><small {...importantNameProps(player.teamName, 'compact')}>{player.teamName}</small></div>
           <div className={styles.playerMetrics}>
             <span><b>{player.goals}</b> goles</span>
-            <span><b>{player.assists}</b> asist.</span>
             <span><b>{player.appearances}</b> PJ</span>
           </div>
         </li>
@@ -213,14 +225,14 @@ function PublicTournamentContent({ page, activeTab, scope, service }) {
   if (activeTab === 'goleadores') return <><ScopeHeading scope={scope} /><PlayerList players={scope?.players} /></>;
   if (activeTab === 'equipos') {
     return page.teams.length ? (
-      <div className={styles.teamsGrid}>{page.teams.map((team) => <article key={team.name} className={styles.teamCard}><TeamMark team={team} service={service} /><small>{team.status === 'withdrawn' ? 'Retirado' : 'Participante'}</small></article>)}</div>
+      <div className={styles.teamsGrid}>{page.teams.map((team) => <article key={team.name} className={styles.teamCard}><TeamMark team={team} service={service} nameContext="card" /><small>{team.status === 'withdrawn' ? 'Retirado' : 'Participante'}</small></article>)}</div>
     ) : <EmptySection title="Equipos todavía no publicados" detail="Los equipos aparecen cuando existe un fixture oficial." />;
   }
   if (activeTab === 'disciplina') {
     return scope?.discipline?.length ? (
       <div className={styles.disciplineList}>{scope.discipline.map((row) => {
         const remaining = row.suspensions.reduce((total, suspension) => total + suspension.remainingMatches, 0);
-        return <article key={`${row.name}-${row.teamName}`}><div><strong>{row.name}</strong><small>{row.teamName}</small></div><span><b>{row.yellowCards}</b> amarillas</span><span><b>{row.redCards}</b> rojas</span><span data-active={remaining > 0}><b>{remaining}</b> fechas pendientes</span></article>;
+        return <article key={`${row.name}-${row.teamName}`}><div><strong {...importantNameProps(row.name, 'player')}>{row.name}</strong><small {...importantNameProps(row.teamName, 'compact')}>{row.teamName}</small></div><span><b>{row.yellowCards}</b> amarillas</span><span><b>{row.redCards}</b> rojas</span><span data-active={remaining > 0}><b>{remaining}</b> fechas pendientes</span></article>;
       })}</div>
     ) : <EmptySection title="Sin disciplina publicada" detail="Sólo se muestran tarjetas y fechas de suspensión; nunca motivos ni notas internas." />;
   }
@@ -285,46 +297,54 @@ export default function PublicTournamentPage({ service = publicTournamentService
   const scope = useMemo(() => page?.competition?.find((item) => item.scopeKey === scopeKey)
     || page?.competition?.[0] || null, [page, scopeKey]);
 
-  if (state.status === 'loading') return <main className={styles.statePage}><div className={styles.loader} /><p>Cargando competencia oficial…</p></main>;
-  if (state.status === 'not-found') return <main className={styles.statePage}><img src={Logo} alt="Arma2" /><span>404</span><h1>Torneo no disponible</h1><p>El enlace no existe, dejó de estar publicado o la competencia ya no está disponible.</p></main>;
-  if (state.status === 'error') return <main className={styles.statePage}><img src={Logo} alt="Arma2" /><span>Sin conexión</span><h1>No pudimos cargar el torneo</h1><p>Probá de nuevo en unos minutos.</p><button type="button" onClick={() => window.location.reload()}>Reintentar</button></main>;
+  if (state.status === 'loading') return <main className={styles.statePage} data-torneos-surface="public" data-torneos-tone="dark"><div className={styles.loader} /><p>Cargando competencia oficial…</p></main>;
+  if (state.status === 'not-found') return <main className={styles.statePage} data-torneos-surface="public" data-torneos-tone="dark"><TorneosBrand /><span>404</span><h1>Torneo no disponible</h1><p>El enlace no existe, dejó de estar publicado o la competencia ya no está disponible.</p></main>;
+  if (state.status === 'error') return <main className={styles.statePage} data-torneos-surface="public" data-torneos-tone="dark"><TorneosBrand /><span>Sin conexión</span><h1>No pudimos cargar el torneo</h1><p>Probá de nuevo en unos minutos.</p><button type="button" onClick={() => window.location.reload()}>Reintentar</button></main>;
 
   const selectedCategory = page.selectedCategory;
   return (
-    <div className={styles.publicPage}>
+    <div className={styles.publicPage} data-torneos-surface="public" data-torneos-tone="dark">
       <a className={styles.skipLink} href="#contenido-publico">Saltar al contenido</a>
       <header className={styles.topbar}>
-        <div className={styles.brand}><img src={Logo} alt="" /><span><b>ARMA2</b> TORNEOS</span></div>
-        <span className={styles.officialBadge}><Shield size={14} /> Sitio oficial</span>
+        <TorneosBrand className={styles.brand} />
+        <span className={styles.officialBadge} data-torneos-chip><Shield size={14} /> Sitio oficial</span>
       </header>
       <section className={styles.hero}>
         <div className={styles.heroCopy}>
-          <span className={styles.eyebrow}>{page.organization.name} <ChevronRight size={14} /> {page.season.name}</span>
-          <h1>{page.tournament.name}</h1>
+          <span className={styles.eyebrow}>
+            <span {...importantNameProps(page.organization.name, 'compact')}>{page.organization.name}</span>
+            <ChevronRight size={14} />
+            <span {...importantNameProps(page.season.name, 'compact')}>{page.season.name}</span>
+          </span>
+          <h1 {...importantNameProps(page.tournament.name, 'hero')}>{page.tournament.name}</h1>
           <p>{page.tournament.description || 'Información oficial de la competencia.'}</p>
           <div className={styles.heroTags}>
-            <span data-status={page.tournament.status}>{STATUS_LABELS[page.tournament.status] || page.tournament.status}</span>
-            <span>{page.tournament.sportModality}</span>
-            <span>{page.tournament.competitionFormat}</span>
+            <span data-status={page.tournament.status} data-torneos-chip>{STATUS_LABELS[page.tournament.status] || getStatusLabel(page.tournament.status)}</span>
+            <span data-torneos-chip>{getModalityLabel(page.tournament.sportModality)}</span>
+            <span data-torneos-chip>{getFormatLabel(page.tournament.competitionFormat)}</span>
           </div>
         </div>
         <aside className={styles.heroBoard} aria-label="Resumen de competencia">
-          <div><CalendarDays size={18} /><span>Temporada</span><b>{page.season.name}</b></div>
-          <div><Trophy size={18} /><span>Categoría</span><b>{selectedCategory?.name || 'General'}</b></div>
+          <div><CalendarDays size={18} /><span>Temporada</span><b {...importantNameProps(page.season.name, 'card')}>{page.season.name}</b></div>
+          <div><Trophy size={18} /><span>Categoría</span><b {...importantNameProps(selectedCategory?.name || 'General', 'card')}>{selectedCategory?.name || 'General'}</b></div>
           <div><Clock3 size={18} /><span>Partidos oficiales</span><b>{page.matches.filter((match) => match.result).length}</b></div>
         </aside>
       </section>
       <div className={styles.controls}>
-        {page.categories.length > 1 && <label><span>Categoría</span><select aria-label="Categoría" value={selectedCategory?.slug || ''} onChange={(event) => setSearchParams(event.target.value ? { categoria: event.target.value } : {})}>{page.categories.map((category) => <option key={category.slug} value={category.slug}>{category.name}</option>)}</select></label>}
-        {page.competition.length > 1 && <label><span>Fase o grupo</span><select aria-label="Fase o grupo" value={scope?.scopeKey || ''} onChange={(event) => setScopeKey(event.target.value)}>{page.competition.map((item) => <option key={item.scopeKey} value={item.scopeKey}>{item.label}</option>)}</select></label>}
+        {page.categories.length > 1 && <label><span>Categoría</span><TorneosSelect {...importantNameProps(selectedCategory?.name, 'selector')} aria-label="Categoría" value={selectedCategory?.slug || ''} onChange={(event) => setSearchParams(event.target.value ? { categoria: event.target.value } : {})}>{page.categories.map((category) => <option key={category.slug} value={category.slug}>{category.name}</option>)}</TorneosSelect></label>}
+        {page.competition.length > 1 && <label><span>Fase o grupo</span><TorneosSelect {...importantNameProps(scope?.label, 'selector')} aria-label="Fase o grupo" value={scope?.scopeKey || ''} onChange={(event) => setScopeKey(event.target.value)}>{page.competition.map((item) => <option key={item.scopeKey} value={item.scopeKey}>{item.label}</option>)}</TorneosSelect></label>}
       </div>
-      <nav className={styles.tabs} aria-label="Secciones del torneo">
+      <nav
+        className={styles.tabs}
+        aria-label="Secciones del torneo"
+        data-allow-horizontal-scroll="true"
+      >
         {TABS.map(([key, label]) => <button key={key} type="button" aria-current={activeTab === key ? 'page' : undefined} onClick={() => setActiveTab(key)}>{label}</button>)}
       </nav>
       <main id="contenido-publico" className={styles.content} tabIndex="-1">
         <PublicTournamentContent page={page} activeTab={activeTab} scope={scope} service={service} />
       </main>
-      <footer className={styles.pageFooter}><div className={styles.brand}><img src={Logo} alt="" /><span><b>ARMA2</b> TORNEOS</span></div><p>Información oficial publicada por {page.organization.name}.</p></footer>
+      <footer className={styles.pageFooter}><TorneosBrand className={styles.brand} /><p>Información oficial publicada por {page.organization.name}.</p></footer>
     </div>
   );
 }
