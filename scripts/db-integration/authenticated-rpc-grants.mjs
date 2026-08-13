@@ -118,6 +118,13 @@ const POST_CANONICAL_AUTHENTICATED_ALLOWLIST = [
   ['public.get_tournament_social_snapshot(uuid,uuid,uuid,uuid,text,uuid,uuid)', 'frontend_legitimate'],
   ['public.get_tournament_social_studio_context(uuid)', 'frontend_legitimate'],
   ['public.set_tournament_social_permission(uuid,uuid,boolean)', 'frontend_legitimate'],
+  ['public.start_tournament_competition(uuid,uuid)', 'frontend_legitimate'],
+  ['public.finish_tournament_competition(uuid,uuid)', 'frontend_legitimate'],
+  ['public.reopen_tournament_competition(uuid,uuid,text)', 'frontend_legitimate'],
+  [
+    'public.withdraw_tournament_competition_participant(uuid,uuid,uuid,text,text)',
+    'frontend_legitimate',
+  ],
 ];
 
 const contracts = fs.readFileSync(contractsPath, 'utf8');
