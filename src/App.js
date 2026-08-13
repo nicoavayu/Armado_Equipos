@@ -34,7 +34,8 @@ import {
   getGoogleMapsLoaderState,
   loadGoogleMapsScript,
 } from './services/googleMapsLoader';
-import { isArma2NativeRuntime } from './utils/runtimePlatform';
+import { isArma2NativeRuntime, isPersonalSpaceAvailable } from './utils/runtimePlatform';
+import { SpaceNavigationProvider } from './features/space-navigation';
 
 
 import { NotificationProvider } from './context/NotificationContext';
@@ -90,7 +91,8 @@ export default function App() {
       <ErrorBoundary>
         <AuthProvider>
           <Router>
-            <RouteScopedProviders>
+            <SpaceNavigationProvider>
+              <RouteScopedProviders>
                 <PersonalRuntimeEffects />
                 <ScopedPublicVotingRouteIsolation>
                   <Routes>
@@ -273,7 +275,8 @@ export default function App() {
                   </Routes>
                 </ScopedPublicVotingRouteIsolation>
                 <PersonalGlobalNotice />
-            </RouteScopedProviders>
+              </RouteScopedProviders>
+            </SpaceNavigationProvider>
           </Router>
         </AuthProvider>
       </ErrorBoundary>
@@ -323,14 +326,14 @@ export function isPlayerProductRoute(pathname = '') {
 }
 
 function isBlockedWebPlayerRoute(pathname = '') {
-  return !isArma2NativeRuntime() && isPlayerProductRoute(pathname);
+  return !isPersonalSpaceAvailable() && isPlayerProductRoute(pathname);
 }
 
 function isIsolatedWebSpecialRoute(pathname = '') {
   return !isArma2NativeRuntime() && isPublicSpecialWebRoute(pathname);
 }
 
-export function PlayerProductRouteBoundary({ native = isArma2NativeRuntime() }) {
+export function PlayerProductRouteBoundary({ native = isPersonalSpaceAvailable() }) {
   const location = useLocation();
   if (!native && isPlayerProductRoute(location.pathname)) {
     return <Navigate to="/torneos" replace />;

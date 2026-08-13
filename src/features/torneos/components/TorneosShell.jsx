@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  Building2,
+  ArrowLeft,
   CalendarRange,
   ClipboardList,
   Images,
@@ -22,9 +22,9 @@ import {
   useLocation,
   useParams,
 } from 'react-router-dom';
-import Logo from '../../../Logo.png';
 import { useKeyboard } from '../../../hooks/useKeyboard';
-import { isArma2NativeRuntime } from '../../../utils/runtimePlatform';
+import GlobalHeader from '../../../components/global-header/GlobalHeader';
+import { shouldShowTorneosSpaceHeader } from '../../space-navigation/spaceNavigation';
 import { torneosFeatureFlags } from '../config/featureFlags';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
 import CreateOrganizationPage from './CreateOrganizationPage';
@@ -152,7 +152,8 @@ export default function TorneosShell() {
   const location = useLocation();
   const { isKeyboardOpen } = useKeyboard();
   const { activeOrganization, service } = useTorneosWorkspace();
-  const nativeRuntime = isArma2NativeRuntime();
+  const showSpaceHeader = shouldShowTorneosSpaceHeader(location.pathname);
+  const isCreateOrganizationRoute = /^\/torneos\/nueva-organizacion\/?$/.test(location.pathname);
   const isOrganizationRoute = location.pathname.includes('/torneos/organizacion/');
   const organizationRelativePath = isOrganizationRoute
     ? location.pathname.split('/').slice(4).join('/')
@@ -179,21 +180,16 @@ export default function TorneosShell() {
   });
 
   return (
-    <div className={styles.shell}>
+    <div className={`${styles.shell} ${showSpaceHeader ? '' : styles.shellWithoutGlobalHeader}`}>
       <a className={styles.skipLink} href="#torneos-main">
         Saltar al contenido
       </a>
       <div className={styles.ambientGlow} aria-hidden="true" />
       <div className={styles.gridTexture} aria-hidden="true" />
 
-      <aside className={styles.sidebar}>
-        <Link className={styles.brand} to="/torneos" aria-label="Arma2 Torneos">
-          <img className={styles.brandLogo} src={Logo} alt="" />
-          <span className={styles.brandLockup}>
-            <small>TORNEOS</small>
-          </span>
-        </Link>
+      {showSpaceHeader && <GlobalHeader className={styles.globalHeader} />}
 
+      <aside className={styles.sidebar}>
         <WorkspaceSwitcher />
 
         <OrganizationNavigation
@@ -211,32 +207,27 @@ export default function TorneosShell() {
       </aside>
 
       <section className={styles.workspace}>
-        <header className={styles.topbar}>
-          <Link className={styles.mobileBrand} to="/torneos">
-            <img className={styles.brandLogo} src={Logo} alt="" />
-            <span className={styles.mobileTitle}>
-              <small>Arma2 Torneos</small>
-              <strong>{activeOrganization?.name || 'Tus espacios'}</strong>
-            </span>
-          </Link>
-
-          <div className={styles.pageIdentity}>
-            <span>{currentNavigation?.label || (isOrganizationRoute ? 'Organización' : 'Torneos')}</span>
-            <strong>
-              {activeOrganization
-                ? `${activeOrganization.name} · ${activeOrganization.slug}`
-                : 'Workspaces privados'}
-            </strong>
-          </div>
-
-          <div className={styles.mobileSwitcher}>
-            <WorkspaceSwitcher />
-          </div>
-          {nativeRuntime && !torneosFeatureFlags.workspaceSwitcher && (
-            <Link className={styles.topbarExit} to="/">
-              <Building2 size={17} />
-              Arma2
+        <header className={`${styles.topbar} ${isCreateOrganizationRoute ? styles.topbarContextual : ''}`}>
+          {isCreateOrganizationRoute ? (
+            <Link className={styles.contextBackLink} to="/torneos">
+              <ArrowLeft size={17} aria-hidden="true" />
+              <span><small>Volver a</small><strong>Tus espacios</strong></span>
             </Link>
+          ) : (
+            <>
+              <div className={styles.pageIdentity}>
+                <span>{currentNavigation?.label || (isOrganizationRoute ? 'Organización' : 'Torneos')}</span>
+                <strong>
+                  {activeOrganization
+                    ? `${activeOrganization.name} · ${activeOrganization.slug}`
+                    : 'Workspaces privados'}
+                </strong>
+              </div>
+
+              <div className={styles.mobileSwitcher}>
+                <WorkspaceSwitcher />
+              </div>
+            </>
           )}
         </header>
 

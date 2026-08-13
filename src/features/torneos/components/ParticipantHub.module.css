@@ -77,10 +77,11 @@
 }
 
 .myTournamentsHero {
+  width: 100%;
   min-height: 280px;
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
   gap: 30px;
   padding: clamp(25px, 5vw, 52px);
   border-radius: 27px 7px 27px 7px;
@@ -298,6 +299,7 @@
   font-weight: 800;
   text-decoration: none;
   cursor: pointer;
+  white-space: nowrap;
 }
 .cardCta { justify-self: stretch; }
 .cardCta:hover,
@@ -361,6 +363,12 @@
 .tournamentHero h1 { overflow-wrap: anywhere; font-size: clamp(2.8rem, 7vw, 5.9rem); }
 .tournamentHeroActions { position: relative; z-index: 1; align-items: flex-end; flex-direction: column; gap: 10px; }
 
+.manageLink {
+  min-width: max-content;
+  text-align: center;
+  white-space: nowrap;
+}
+
 .categorySelect {
   display: grid;
   gap: 5px;
@@ -374,6 +382,12 @@
 .projectionFilters label span { color: #9f94bd; font-size: .63rem; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
 .categorySelect select,
 .projectionFilters select { width: 100%; min-height: 30px; border: 0; color: #fff; background: transparent; font: inherit; font-weight: 800; }
+
+.categorySelect select option,
+.projectionFilters select option {
+  color: #f7f3ff;
+  background: #171326;
+}
 
 .hubNav {
   display: flex;
@@ -692,8 +706,9 @@
 
 @media (max-width: 680px) {
   .hubPage { gap: 15px; }
-  .myTournamentsHero { min-height: 250px; align-items: stretch; flex-direction: column; padding: 24px 20px; }
-  .heroNumber { align-self: flex-end; }
+  .myTournamentsHero { min-height: 0; grid-template-columns: 1fr; padding: 24px 20px; }
+  .myTournamentsHero > div { width: 100%; }
+  .heroNumber { position: absolute; top: 16px; right: 18px; font-size: 3.2rem; opacity: .24; }
   .tournamentGrid,
   .teamDirectory,
   .matchGrid,

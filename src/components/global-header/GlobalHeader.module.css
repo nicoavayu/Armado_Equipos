@@ -1,0 +1,454 @@
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 1200;
+  width: 100%;
+  min-height: calc(64px + var(--safe-top, env(safe-area-inset-top, 0px)));
+  flex: 0 0 auto;
+  padding: var(--safe-top, env(safe-area-inset-top, 0px)) 14px 0;
+  color: #fff;
+  background:
+    radial-gradient(380px 72px at 50% 0%, rgba(118, 82, 255, 0.19), transparent 72%),
+    rgba(18, 14, 40, 0.96);
+  border-bottom: 1px solid rgba(148, 134, 255, 0.16);
+  box-shadow: 0 9px 28px rgba(5, 3, 16, 0.34);
+  backdrop-filter: blur(18px);
+}
+
+.headerTorneos {
+  background:
+    radial-gradient(420px 78px at 50% 0%, rgba(118, 82, 255, 0.2), transparent 72%),
+    rgba(9, 9, 15, 0.95);
+}
+
+.header::after {
+  content: "";
+  position: absolute;
+  right: 8%;
+  bottom: -1px;
+  left: 8%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(139, 92, 255, 0.58), rgba(236, 0, 125, 0.28), transparent);
+  pointer-events: none;
+}
+
+.headerInner {
+  width: 100%;
+  max-width: 1440px;
+  min-height: 64px;
+  display: grid;
+  grid-template-columns: minmax(44px, 1fr) auto minmax(44px, 1fr);
+  align-items: center;
+  margin: 0 auto;
+}
+
+.headerSideLeft,
+.headerSideRight {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+.headerSideLeft { justify-content: flex-start; }
+.headerSideRight { justify-content: flex-end; }
+.headerCenter {
+  min-width: 0;
+  display: grid;
+  grid-column: 2;
+  place-items: center;
+}
+
+.spaceTrigger {
+  position: relative;
+  min-width: 0;
+  height: 50px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: #fff;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.spaceTrigger:focus-visible {
+  outline: none;
+}
+
+.spaceAffordance {
+  position: absolute;
+  top: 50%;
+  left: 100%;
+  width: 14px;
+  height: 14px;
+  margin-left: 5px;
+  overflow: visible;
+  opacity: 0.84;
+  transform: translateY(-50%);
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), opacity 160ms ease;
+}
+
+.spaceTrigger:hover .spaceAffordance,
+.spaceTrigger:focus-visible .spaceAffordance,
+.spaceTrigger[aria-expanded="true"] .spaceAffordance {
+  opacity: 1;
+}
+
+.spaceTrigger[aria-expanded="true"] .spaceAffordance {
+  transform: translateY(-50%) rotate(180deg);
+}
+
+.arma2Logo {
+  width: 55px;
+  height: 38px;
+  object-fit: contain;
+  filter: drop-shadow(0 6px 13px rgba(106, 67, 255, 0.22));
+}
+
+.torneosOfficialLogo {
+  width: min(116px, 34vw);
+  height: 30px;
+  object-fit: contain;
+}
+
+.avatarMenuRoot { position: relative; }
+
+.avatarTrigger {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: #fff;
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.avatarTrigger:focus-visible {
+  outline: 2px solid #b0a0ff;
+  outline-offset: 3px;
+}
+
+.avatarImage {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  color: #fff;
+  background: #1d1740;
+  border: 1px solid rgba(148, 134, 255, 0.42);
+  border-radius: 50%;
+  font: 700 16px/1 Arial, sans-serif;
+}
+
+.avatarImage img { width: 100%; height: 100%; object-fit: cover; }
+
+.avatarHasStory::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border: 2px solid rgba(255, 255, 255, 0.28);
+  border-radius: 50%;
+}
+
+.avatarPendingStory::before {
+  border: 0;
+  background: linear-gradient(135deg, #ff2f5b, #ff7a36, #ffb018);
+  mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 0);
+  box-shadow: 0 0 14px rgba(255, 111, 53, 0.34);
+}
+
+.availabilityDot,
+.statusDot {
+  display: inline-block;
+  border-radius: 50%;
+}
+
+.availabilityDot {
+  position: absolute;
+  right: 0;
+  bottom: 1px;
+  width: 11px;
+  height: 11px;
+  border: 2px solid #120e28;
+}
+
+.available { background: #4ade80; }
+.unavailable { background: #f87171; }
+
+.avatarMenu {
+  position: absolute;
+  z-index: 1250;
+  top: calc(100% + 10px);
+  left: 0;
+  width: min(350px, calc(100vw - 28px));
+  overflow: hidden;
+  color: #fff;
+  background:
+    radial-gradient(300px 150px at 15% -15%, rgba(139, 92, 255, 0.24), transparent 70%),
+    linear-gradient(168deg, rgba(38, 30, 80, 0.99), rgba(16, 12, 33, 0.995));
+  border: 1px solid rgba(148, 134, 255, 0.31);
+  border-radius: 18px;
+  box-shadow: 0 26px 72px rgba(5, 3, 16, 0.72), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  animation: surfaceIn 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.avatarMenuHeading,
+.selectorHeading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.avatarMenuHeading {
+  padding: 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.avatarMenuHeading > div { min-width: 0; }
+.avatarMenuHeading span,
+.selectorHeading span {
+  display: block;
+  color: #b0a0ff;
+  font: 800 10px/1 Arial, sans-serif;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.avatarMenuHeading h2,
+.selectorHeading h2 {
+  margin: 5px 0 0;
+  color: #fff;
+  font-family: "Oswald", Arial, sans-serif;
+}
+
+.avatarMenuHeading h2 {
+  overflow: hidden;
+  font-size: 20px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.avatarMenuHeading small {
+  display: block;
+  overflow: hidden;
+  margin-top: 4px;
+  color: rgba(255, 255, 255, 0.52);
+  font: 12px/1.3 Arial, sans-serif;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.closeButton {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: #ded7f5;
+  background: rgba(255, 255, 255, 0.055);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.closeButton:focus-visible { outline: 2px solid #b0a0ff; outline-offset: 2px; }
+.avatarMenuBody { padding: 14px; }
+
+.availabilityHeading {
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 3px 8px;
+  color: rgba(255, 255, 255, 0.64);
+  font: 700 11px/1 Arial, sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.availabilityOptions { display: grid; grid-template-columns: 1fr; gap: 8px; }
+.availabilityOptions button {
+  min-height: 62px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 9px 11px;
+  color: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.availabilityOptions .availabilityActive {
+  color: #fff;
+  background: rgba(106, 67, 255, 0.24);
+  border-color: rgba(148, 134, 255, 0.42);
+}
+
+.availabilityOptions button svg { margin-left: auto; }
+.statusDot { width: 9px; height: 9px; }
+.availabilityOptionCopy {
+  min-width: 0;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+  text-align: left;
+}
+.availabilityOptionCopy strong { color: inherit; font: 700 13px/1.2 Arial, sans-serif; }
+.availabilityOptionCopy small { color: rgba(255, 255, 255, 0.5); font: 11px/1.35 Arial, sans-serif; }
+.availabilityActive .availabilityOptionCopy small { color: rgba(255, 255, 255, 0.67); }
+.menuError { margin: 9px 3px 0; color: #ffb1bd; font: 12px/1.4 Arial, sans-serif; }
+.spinner { animation: spin 700ms linear infinite; }
+
+.avatarActions {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: 13px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.avatarActions button {
+  width: 100%;
+  min-height: 54px;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  color: #fff;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: 11px;
+  cursor: pointer;
+}
+
+.avatarActions button:hover,
+.avatarActions button:focus-visible { background: rgba(139, 92, 255, 0.13); outline: none; }
+.avatarActions button > span { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.avatarActions strong { font: 700 14px/1.1 Arial, sans-serif; }
+.avatarActions small { color: rgba(255, 255, 255, 0.56); font: 11px/1.3 Arial, sans-serif; }
+
+.selectorBackdrop {
+  position: fixed;
+  z-index: 1300;
+  inset: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: calc(var(--safe-top, env(safe-area-inset-top, 0px)) + 72px) 16px 20px;
+  background: rgba(5, 3, 16, 0.5);
+  backdrop-filter: blur(6px);
+}
+
+.selectorDialog {
+  width: min(520px, 100%);
+  padding: 18px;
+  color: #fff;
+  background:
+    radial-gradient(430px 190px at 50% -20%, rgba(139, 92, 255, 0.22), transparent 72%),
+    rgba(17, 13, 36, 0.985);
+  border: 1px solid rgba(148, 134, 255, 0.32);
+  border-radius: 22px;
+  box-shadow: 0 30px 90px rgba(5, 3, 16, 0.72), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  animation: surfaceIn 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.selectorHeading { padding: 2px 2px 15px; }
+.selectorHeading h2 { font-size: 23px; line-height: 1.12; }
+.spaceOptions { display: flex; flex-direction: column; gap: 9px; }
+
+.spaceOption {
+  width: 100%;
+  min-height: 92px;
+  display: grid;
+  grid-template-columns: 138px minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  padding: 14px 16px;
+  color: #fff;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.095);
+  border-radius: 16px;
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.spaceOption:hover:not(:disabled),
+.spaceOption:focus-visible:not(:disabled) {
+  background: rgba(106, 67, 255, 0.14);
+  border-color: rgba(148, 134, 255, 0.48);
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.spaceOption:disabled { cursor: default; }
+.spaceOptionCurrent { background: rgba(106, 67, 255, 0.11); border-color: rgba(148, 134, 255, 0.25); }
+.spaceOption:disabled:not(.spaceOptionCurrent) { opacity: 0.52; }
+.optionBrand { display: grid; place-items: center; }
+.optionBrand .arma2Logo { width: 58px; height: 42px; }
+.optionBrand .torneosOfficialLogo { width: min(128px, 100%); height: auto; }
+.optionCopy { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.optionCopy small { color: rgba(255, 255, 255, 0.68); font: 13px/1.4 Arial, sans-serif; }
+.optionAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 5px;
+  color: #c6baff;
+  font: 700 11px/1.25 Arial, sans-serif;
+  text-align: left;
+}
+
+.optionActionCurrent::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  background: #a78bfa;
+  border-radius: 50%;
+  box-shadow: 0 0 8px rgba(167, 139, 250, 0.72);
+}
+
+@keyframes surfaceIn {
+  from { opacity: 0; transform: translateY(-8px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 680px) {
+  .selectorBackdrop { align-items: flex-end; padding: 16px 10px max(10px, env(safe-area-inset-bottom)); }
+  .selectorDialog { border-radius: 24px 24px 18px 18px; }
+  .spaceOption { grid-template-columns: 118px minmax(0, 1fr); gap: 14px; }
+}
+
+@media (max-width: 360px) {
+  .header { padding-right: 9px; padding-left: 9px; }
+  .torneosOfficialLogo { width: min(108px, 34vw); }
+  .selectorDialog { padding: 14px; }
+  .spaceOption { grid-template-columns: 98px minmax(0, 1fr); gap: 12px; padding: 12px; }
+  .optionBrand .torneosOfficialLogo { width: min(98px, 100%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .avatarMenu,
+  .selectorDialog { animation: none; }
+  .spaceTrigger,
+  .spaceOption,
+  .spaceAffordance { transition: none; }
+}

@@ -1,5 +1,10 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import FixtureWorkspacePage from '../features/torneos/components/FixtureWorkspacePage';
 import { getCapabilitiesForRole } from '../features/torneos/domain/capabilities';
@@ -133,6 +138,7 @@ jest.mock('../features/torneos/context/TorneosCompetitionContext', () => ({
     activeTournament: {
       id: 'tournament-a',
       name: 'Copa Apertura',
+      status: 'registration',
       competitionFormat: 'league',
       sportModality: 'football_5',
     },
@@ -167,6 +173,29 @@ describe('FixtureWorkspacePage', () => {
     );
   });
 
+  test('uses the kickoff time instead of a misleading match status for scheduling metrics', () => {
+    const previousMatches = mockFixtureState.matches;
+    mockFixtureState.matches = [{
+      ...previousMatches[0],
+      status: 'ready',
+      scheduledAt: null,
+    }, {
+      ...previousMatches[1],
+      status: 'ready',
+      scheduledAt: '2026-08-20T20:00:00Z',
+    }];
+    render(
+      <MemoryRouter>
+        <FixtureWorkspacePage mode="overview" />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText('1 partidos · 1 programados')).toBeInTheDocument();
+    expect(screen.getByText('Sin horario').closest('article')).toHaveTextContent(
+      'Sin horario1requieren programación',
+    );
+    mockFixtureState.matches = previousMatches;
+  });
+
   test('offers a keyboard-accessible schedule form backed by persisted resources', () => {
     render(
       <MemoryRouter>
@@ -180,6 +209,32 @@ describe('FixtureWorkspacePage', () => {
     expect(screen.getByRole('button', { name: 'Guardar' })).toBeInTheDocument();
   });
 
+  test('explains fixture publication consequences before calling the backend action', async () => {
+    const previousVersions = mockFixtureState.versions;
+    mockFixtureState.versions = [{
+      id: 'version-draft',
+      versionNumber: 2,
+      status: 'draft',
+      generationMethod: 'automatic',
+      matchCount: 1,
+      scheduledCount: 0,
+    }];
+    mockFixtureState.actions.publish.mockResolvedValue({});
+    render(
+      <MemoryRouter>
+        <FixtureWorkspacePage mode="overview" />
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Publicar' }));
+    expect(screen.getByRole('heading', { name: 'Publicar el fixture y cerrar el alta normal' }))
+      .toBeInTheDocument();
+    expect(screen.getByText(/se cierra el alta normal de equipos/i)).toBeInTheDocument();
+    expect(mockFixtureState.actions.publish).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Publicar fixture' }));
+    await waitFor(() => expect(mockFixtureState.actions.publish).toHaveBeenCalledWith('version-draft'));
+    mockFixtureState.versions = previousVersions;
+  });
+
   test('renders a semantic mobile-friendly bracket with sides and seeds', () => {
     render(
       <MemoryRouter>
@@ -189,8 +244,8 @@ describe('FixtureWorkspacePage', () => {
     expect(screen.getByRole('heading', { name: 'Llave eliminatoria' })).toBeInTheDocument();
     expect(screen.getByText('Local')).toBeInTheDocument();
     expect(screen.getByText('Visitante')).toBeInTheDocument();
-    expect(screen.getByText('Seed 1')).toBeInTheDocument();
-    expect(screen.getByText('Seed 2')).toBeInTheDocument();
+    expect(screen.getByText('Orden 1')).toBeInTheDocument();
+    expect(screen.getByText('Orden 2')).toBeInTheDocument();
   });
 
   test('keeps venue, court, and scheduling-window creation in one resource surface', () => {

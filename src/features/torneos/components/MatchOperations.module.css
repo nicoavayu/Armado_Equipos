@@ -203,6 +203,8 @@
 
 .dateBlock strong {
   font-size: 1.18rem;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .teamsBlock {
@@ -920,6 +922,42 @@
   color: #ff9aaa;
   background: rgba(255, 107, 132, 0.07);
   border: 1px solid rgba(255, 107, 132, 0.24);
+}
+
+/* Apertura del acta: pide el motivo cuando falta mucho para el horario. */
+.openReport {
+  display: grid;
+  gap: 12px;
+  width: 100%;
+}
+
+.openReport label {
+  display: grid;
+  gap: 6px;
+  font-size: 0.8rem;
+  text-align: left;
+}
+
+.openReport textarea {
+  width: 100%;
+  resize: vertical;
+}
+
+.inlineHint strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+/* Explica, junto al control, qué falta completar antes de poder guardar. */
+.inlineHint {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--torneos-text-soft, #b9bed4);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--torneos-border, rgba(255, 255, 255, 0.12));
 }
 
 .emptyState {

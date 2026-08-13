@@ -98,10 +98,153 @@
   color: #e8edff;
 }
 
+.dangerButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 42px;
+  padding: 0 18px;
+  font: inherit;
+  font-weight: 600;
+  color: #2a0f0f;
+  background: #ff9d7a;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.dangerButton:disabled,
+.withdrawButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.withdrawButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 14px;
+  color: #ffb9a1;
+  background: transparent;
+  border: 1px solid rgba(255, 157, 122, 0.45);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.withdrawalDialog {
+  display: flex;
+  gap: 14px;
+  padding: 20px;
+  background: rgba(20, 16, 41, 0.96);
+  border: 1px solid rgba(255, 157, 122, 0.45);
+  border-radius: 16px;
+}
+
+.withdrawalDialog h2 {
+  margin: 0 0 8px;
+  font-size: 21px;
+}
+
+.withdrawalDialog p {
+  margin: 0 0 10px;
+  line-height: 1.55;
+}
+
+.withdrawalDialog ul {
+  margin: 0 0 14px;
+  padding-left: 18px;
+  line-height: 1.55;
+}
+
+.withdrawalReasons {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border: 1px solid rgba(128, 151, 255, 0.28);
+  border-radius: 12px;
+}
+
+.withdrawalReasons legend {
+  padding: 0 6px;
+  font-weight: 600;
+}
+
+.withdrawalReasons label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 5px 0;
+  cursor: pointer;
+}
+
+.withdrawalNote {
+  display: block;
+  margin-bottom: 14px;
+}
+
+.withdrawalNote span {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+.withdrawalNote textarea {
+  width: 100%;
+  padding: 10px 12px;
+  font: inherit;
+  color: inherit;
+  background: rgba(12, 9, 26, 0.8);
+  border: 1px solid rgba(128, 151, 255, 0.32);
+  border-radius: 10px;
+  resize: vertical;
+}
+
+.withdrawalError {
+  margin: 0 0 12px;
+  color: #ff9d7a;
+}
+
+.withdrawalActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .metrics {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
+}
+
+.stageNotice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px 20px;
+  border: 1px solid rgba(255, 177, 102, 0.3);
+  border-radius: 16px;
+  background: rgba(171, 96, 36, 0.1);
+}
+
+.stageNotice[data-open="true"] {
+  border-color: rgba(83, 225, 173, 0.3);
+  background: rgba(53, 185, 139, 0.1);
+}
+
+.stageNotice strong {
+  display: block;
+  margin-bottom: 4px;
+  color: #f7f8fc;
+}
+
+.stageNotice p {
+  max-width: 760px;
+  margin: 0;
+  color: #aab4c8;
+  line-height: 1.5;
 }
 
 .metrics article {
@@ -288,7 +431,8 @@
   color: #ffad89;
 }
 
-.entryCard > a {
+.entryCard > a,
+.entryActions > a {
   display: inline-flex;
   min-height: 42px;
   align-items: center;
@@ -296,6 +440,13 @@
   color: #aab9ff;
   font-weight: 800;
   text-decoration: none;
+}
+
+.entryActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: flex-end;
 }
 
 .emptyState,
@@ -986,6 +1137,11 @@
 }
 
 @media (max-width: 760px) {
+  .stageNotice {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
   .pageHeader,
   .formHeader {
     align-items: stretch;

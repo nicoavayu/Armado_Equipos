@@ -108,4 +108,41 @@ describe('tournamentWorkspaceService', () => {
     );
     expect(eq).toHaveBeenCalledWith('organization_id', 'org-a');
   });
+
+  // Las reglas de negocio de los flujos core del ciclo de vida dejaron de
+  // viajar como `55000`/HTTP 500. Lo que importa acá es lo que ve el
+  // organizador: una explicación en lenguaje de producto, nunca el código.
+  describe('reglas de negocio de los flujos core', () => {
+    const CASES = [
+      ['TORNEOS_STANDINGS_DRAFT_EXISTS', /borrador/i],
+      ['TORNEOS_STANDINGS_STALE', /recalcul/i],
+      ['TORNEOS_STANDINGS_NOT_PUBLISHABLE', /publicarse/i],
+      ['TORNEOS_MATCH_OPERATION_ACTIVE', /acta activa/i],
+      ['TORNEOS_MATCH_NOT_OPENABLE', /condiciones para abrir el acta/i],
+      ['TORNEOS_MATCH_ALREADY_OFFICIAL', /resultado oficial/i],
+    ];
+
+    const failWith = (code) => {
+      supabase.rpc.mockResolvedValue({
+        data: null,
+        error: { code: '22023', message: code, details: null, hint: null },
+      });
+      return loadTournamentWorkspaceContext().catch((error) => error);
+    };
+
+    test.each(CASES)('%s se traduce a una explicación accionable', async (code, matcher) => {
+      const failure = await failWith(code);
+      expect(failure).toBeInstanceOf(TournamentWorkspaceError);
+      expect(failure.code).toBe(code);
+      expect(failure.message).toMatch(matcher);
+    });
+
+    test.each(CASES)('%s no filtra nada técnico a la pantalla', async (code) => {
+      const { message } = await failWith(code);
+      expect(message).not.toMatch(/TORNEOS_/);
+      expect(message).not.toMatch(/55000|22023|SQLSTATE/i);
+      expect(message).not.toMatch(/rpc|postgrest|supabase/i);
+      expect(message).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+    });
+  });
 });

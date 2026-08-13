@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
+import { getRoleLabel } from '../domain/rolePresentation';
 import styles from './CommunicationsAdminPage.module.css';
 
 const STEPS = ['Tipo', 'Contenido', 'Audiencia', 'Contexto', 'Vista previa', 'Confirmar'];
@@ -607,7 +608,12 @@ export default function CommunicationsAdminPage() {
                           <dt>Criterio</dt>
                           <dd>{AUDIENCE_LABELS[form.audienceType]}</dd>
                         </div>
-                        <div><dt>Roles</dt><dd>{preview.roles.join(', ')}</dd></div>
+                        <div>
+                          <dt>Roles</dt>
+                          <dd>
+                            {preview.roles.map((role) => getRoleLabel(role, 'Participante')).join(', ')}
+                          </dd>
+                        </div>
                       </dl>
                       <p>La cantidad se volverá a calcular al publicar.</p>
                     </div>

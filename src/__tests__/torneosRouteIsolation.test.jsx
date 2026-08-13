@@ -3,6 +3,8 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import TorneosFeatureGate from '../features/torneos/TorneosFeatureGate';
 
+jest.mock('../components/global-header/GlobalHeader', () => () => <header data-testid="global-header" />);
+
 const ORGANIZATION_ID = '10000000-0000-4000-8000-000000000001';
 
 function createService({ organizations = null, error = null } = {}) {
@@ -99,10 +101,17 @@ describe('Arma2 Torneos route isolation', () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByRole('heading', { name: /empezá un torneo/i }))
+    expect(await screen.findByRole(
+      'heading',
+      { name: /empezá un torneo/i },
+      { timeout: 5000 },
+    ))
       .toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Navegación de la organización' }))
       .toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Navegación móvil de la organización' }))
+      .toBeInTheDocument();
+    expect(screen.getByTestId('global-header')).toBeInTheDocument();
     expect(screen.queryByText('Crear partido')).not.toBeInTheDocument();
     expect(screen.queryByText('Amigos')).not.toBeInTheDocument();
     expect(screen.queryByText('Partidos hoy')).not.toBeInTheDocument();

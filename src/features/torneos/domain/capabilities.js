@@ -23,6 +23,9 @@ export const TOURNAMENT_CAPABILITIES = Object.freeze({
   TOURNAMENTS_UPDATE: 'tournaments.update',
   TOURNAMENTS_CHANGE_STATUS: 'tournaments.change_status',
   TOURNAMENTS_ARCHIVE: 'tournaments.archive',
+  TOURNAMENTS_START: 'tournaments.start',
+  TOURNAMENTS_FINISH: 'tournaments.finish',
+  TOURNAMENTS_REOPEN: 'tournaments.reopen',
   CATEGORIES_READ: 'categories.read',
   CATEGORIES_CREATE: 'categories.create',
   CATEGORIES_UPDATE: 'categories.update',
@@ -57,6 +60,7 @@ export const TOURNAMENT_CAPABILITIES = Object.freeze({
   PARTICIPANTS_READ: 'participants.read',
   PARTICIPANTS_FREEZE: 'participants.freeze',
   PARTICIPANTS_REOPEN: 'participants.reopen',
+  PARTICIPANTS_WITHDRAW: 'participants.withdraw',
   DRAW_READ: 'draw.read',
   DRAW_MANAGE: 'draw.manage',
   DRAW_EXECUTE: 'draw.execute',
@@ -163,6 +167,8 @@ const competitionManagementCapabilities = [
   TOURNAMENT_CAPABILITIES.TOURNAMENTS_UPDATE,
   TOURNAMENT_CAPABILITIES.TOURNAMENTS_CHANGE_STATUS,
   TOURNAMENT_CAPABILITIES.TOURNAMENTS_ARCHIVE,
+  TOURNAMENT_CAPABILITIES.TOURNAMENTS_START,
+  TOURNAMENT_CAPABILITIES.TOURNAMENTS_FINISH,
   TOURNAMENT_CAPABILITIES.CATEGORIES_CREATE,
   TOURNAMENT_CAPABILITIES.CATEGORIES_UPDATE,
   TOURNAMENT_CAPABILITIES.CATEGORIES_ARCHIVE,
@@ -215,6 +221,7 @@ const fixtureReadCapabilities = [
 const fixtureManagementCapabilities = [
   TOURNAMENT_CAPABILITIES.PARTICIPANTS_FREEZE,
   TOURNAMENT_CAPABILITIES.PARTICIPANTS_REOPEN,
+  TOURNAMENT_CAPABILITIES.PARTICIPANTS_WITHDRAW,
   TOURNAMENT_CAPABILITIES.DRAW_MANAGE,
   TOURNAMENT_CAPABILITIES.DRAW_EXECUTE,
   TOURNAMENT_CAPABILITIES.DRAW_PUBLISH,
@@ -321,6 +328,8 @@ export const ROLE_CAPABILITIES = Object.freeze({
     TOURNAMENT_CAPABILITIES.MEMBERS_UPDATE_ROLE,
     TOURNAMENT_CAPABILITIES.MEMBERS_REMOVE,
     TOURNAMENT_CAPABILITIES.WORKSPACE_MANAGE,
+    // Reabrir una competencia finalizada es exclusivo del propietario.
+    TOURNAMENT_CAPABILITIES.TOURNAMENTS_REOPEN,
     ...competitionManagementCapabilities,
     ...teamReadCapabilities,
     ...teamManagementCapabilities,
@@ -374,11 +383,9 @@ export function hasCapability(subject, capability) {
   return capabilities.includes(capability);
 }
 
-export function getRoleLabel(role) {
-  const labels = {
-    [TOURNAMENT_ROLES.OWNER]: 'Owner',
-    [TOURNAMENT_ROLES.ADMIN]: 'Admin',
-    [TOURNAMENT_ROLES.COLLABORATOR]: 'Colaborador',
-  };
-  return labels[role] || 'Sin rol';
-}
+export {
+  getRoleDescription,
+  getRoleLabel,
+  ROLE_DESCRIPTIONS,
+  ROLE_LABELS,
+} from './rolePresentation';

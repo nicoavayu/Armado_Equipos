@@ -1,5 +1,7 @@
 import {
   getCapabilitiesForRole,
+  getRoleDescription,
+  getRoleLabel,
   hasCapability,
   TOURNAMENT_CAPABILITIES,
   TOURNAMENT_ROLES,
@@ -89,6 +91,24 @@ describe('Torneos role capabilities', () => {
       role: 'owner',
       capabilities: ['organization.read'],
     }, 'organization.archive')).toBe(false);
+  });
+
+  test.each([
+    ['owner', 'Propietario'],
+    ['admin', 'Administrador'],
+    ['collaborator', 'Colaborador'],
+    ['delegate', 'Delegado'],
+    ['player', 'Jugador'],
+    ['outsider', 'Sin acceso'],
+  ])('presents %s with its centralized Spanish label', (role, label) => {
+    expect(getRoleLabel(role)).toBe(label);
+    expect(getRoleDescription(role)).not.toBe('');
+  });
+
+  test('keeps relational scope explicit in role descriptions', () => {
+    expect(getRoleDescription('delegate')).toMatch(/que tiene asignados/i);
+    expect(getRoleDescription('collaborator')).toMatch(/sin realizar cambios administrativos/i);
+    expect(getRoleDescription('outsider')).toMatch(/no tiene una membresía/i);
   });
 
   test.each([

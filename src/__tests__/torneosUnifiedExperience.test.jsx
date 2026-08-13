@@ -7,6 +7,8 @@ import {
   resolveTorneosUserExperience,
 } from '../features/torneos/domain/userExperience';
 
+jest.mock('../components/global-header/GlobalHeader', () => () => <header data-testid="global-header" />);
+
 let mockNativeRuntime = false;
 
 jest.mock('../utils/runtimePlatform', () => ({
@@ -77,6 +79,7 @@ describe('Arma2 Torneos unified participant/admin entrypoint', () => {
     expect(await screen.findByRole('heading', {
       name: 'No participás ni administrás torneos todavía',
     }, { timeout: 5000 })).toBeInTheDocument();
+    expect(screen.getByTestId('global-header')).toBeInTheDocument();
     expect(screen.queryByText('Administrar')).not.toBeInTheDocument();
     expect(screen.queryByText('Mi actividad')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Crear organización' }))

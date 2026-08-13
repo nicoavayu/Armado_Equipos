@@ -112,6 +112,43 @@ describe('public tournament page', () => {
     await waitFor(() => expect(service.loadPage).toHaveBeenLastCalledWith(expect.objectContaining({ categorySlug: 'reserva' })));
   });
 
+  test('separates past schedules, future matches and postponed matches', async () => {
+    const page = {
+      ...PAGE,
+      matches: [
+        {
+          ...PAGE.matches[1],
+          matchNumber: 3,
+          status: 'ready',
+          scheduledAt: '2020-03-20T18:00:00.000Z',
+        },
+        {
+          ...PAGE.matches[1],
+          matchNumber: 4,
+          status: 'postponed',
+          scheduledAt: '2099-03-27T18:00:00.000Z',
+        },
+        {
+          ...PAGE.matches[1],
+          matchNumber: 5,
+          status: 'cancelled',
+          scheduledAt: '2099-04-03T18:00:00.000Z',
+        },
+      ],
+    };
+    renderPublic(publicService(page));
+    await screen.findByRole('heading', { name: 'Copa Apertura' });
+
+    expect(screen.getByText('Partido postergado')).toBeInTheDocument();
+    expect(screen.queryByText('Partido anterior')).not.toBeInTheDocument();
+    expect(screen.queryByText('Partido cancelado')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Fixture' }));
+    expect(screen.getByText('Partido anterior')).toBeInTheDocument();
+    expect(screen.getByText('Partido postergado')).toBeInTheDocument();
+    expect(screen.getByText('Partido cancelado')).toBeInTheDocument();
+  });
+
   test('fails closed without a login action when publication is absent', async () => {
     renderPublic(publicService(null));
     expect(await screen.findByRole('heading', { name: 'Torneo no disponible' })).toBeInTheDocument();

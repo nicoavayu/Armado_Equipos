@@ -383,6 +383,8 @@ describe('organizer communications composer', () => {
     await userEvent.click(screen.getByRole('button', { name: /Siguiente/ }));
     await userEvent.click(screen.getByRole('button', { name: /Preparar vista previa/ }));
     expect(await screen.findByText('12 destinatarios')).toBeInTheDocument();
+    expect(screen.getByText('Jugador, Capitán')).toBeInTheDocument();
+    expect(screen.queryByText('player, captain')).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /Revisar publicación/ }));
     const publish = screen.getByRole('button', { name: /Publicar comunicado/ });
     await userEvent.dblClick(publish);

@@ -14,6 +14,7 @@ import {
   Check,
   CheckCircle2,
   Circle,
+  CircleAlert,
   Plus,
   RotateCcw,
   Save,
@@ -45,6 +46,10 @@ import {
   toNullableNumber,
   validateTournamentStep,
 } from '../domain/competitionCatalog';
+import {
+  getTournamentStage,
+  getTransitionConsequences,
+} from '../domain/competitionLifecycle';
 import {
   hasCapability,
   TOURNAMENT_CAPABILITIES,
@@ -243,7 +248,7 @@ export default function TournamentWizardPage() {
     organization,
     TOURNAMENT_CAPABILITIES.CATEGORIES_UPDATE,
   );
-  const editable = isNew ? canCreate : canUpdate;
+  const editable = isNew ? canCreate : canUpdate && ['draft', 'registration'].includes(tournament?.status);
   const requestedStep = Number(searchParams.get('step') || 0);
   const step = Number.isInteger(requestedStep) && requestedStep >= 0 && requestedStep < STEPS.length
     ? requestedStep
@@ -266,6 +271,7 @@ export default function TournamentWizardPage() {
   const [busy, setBusy] = useState('');
   const [slugTouched, setSlugTouched] = useState(false);
   const [categoryForm, setCategoryForm] = useState(null);
+  const [pendingStatus, setPendingStatus] = useState(null);
 
   useEffect(() => {
     const tournamentVersion = tournament
@@ -535,6 +541,7 @@ export default function TournamentWizardPage() {
         tournamentId: tournament.id,
         status: nextStatus,
       });
+      setPendingStatus(null);
       if (nextStatus === 'archived') {
         navigate(`${organizationPath}/torneos`, { replace: true });
       }
@@ -544,6 +551,11 @@ export default function TournamentWizardPage() {
       setBusy('');
     }
   };
+
+  const stage = tournament ? getTournamentStage(tournament.status) : null;
+  const pendingConsequences = tournament && pendingStatus
+    ? getTransitionConsequences(tournament.status, pendingStatus)
+    : null;
 
   return (
     <div className={styles.wizardPage}>
@@ -569,6 +581,22 @@ export default function TournamentWizardPage() {
           </span>
         )}
       </header>
+
+      {tournament && (
+        <section className={styles.lifecycleNotice} data-read-only={!editable}>
+          <CircleAlert size={20} aria-hidden="true" />
+          <div>
+            <strong>{stage.label}</strong>
+            <p>{stage.description}</p>
+            {!editable && (
+              <small>
+                La configuración estructural ya no admite cambios en esta etapa.
+                Podés consultar las reglas y continuar desde las pantallas operativas.
+              </small>
+            )}
+          </div>
+        </section>
+      )}
 
       {!editable && (
         <div className={styles.readOnlyNotice}>
@@ -1247,7 +1275,7 @@ export default function TournamentWizardPage() {
                 <button
                   type="button"
                   className={styles.primaryAction}
-                  onClick={() => changeStatus('registration')}
+                  onClick={() => setPendingStatus('registration')}
                   disabled={Boolean(busy) || !tournament?.checklist?.ready}
                 >
                   <CheckCircle2 size={17} />
@@ -1260,7 +1288,7 @@ export default function TournamentWizardPage() {
                 <button
                   type="button"
                   className={styles.secondaryAction}
-                  onClick={() => changeStatus('draft')}
+                  onClick={() => setPendingStatus('draft')}
                   disabled={Boolean(busy)}
                 >
                   Volver a borrador
@@ -1270,7 +1298,7 @@ export default function TournamentWizardPage() {
                 <button
                   type="button"
                   className={styles.dangerAction}
-                  onClick={() => changeStatus('archived')}
+                  onClick={() => setPendingStatus('archived')}
                   disabled={Boolean(busy)}
                 >
                   <Archive size={16} />
@@ -1278,6 +1306,33 @@ export default function TournamentWizardPage() {
                 </button>
               )}
             </section>
+            {pendingConsequences && (
+              <section
+                className={styles.transitionConfirmation}
+                role="alertdialog"
+                aria-labelledby="transition-title"
+              >
+                <ShieldAlert size={22} aria-hidden="true" />
+                <div>
+                  <h3 id="transition-title">{pendingConsequences.title}</h3>
+                  <p>{pendingConsequences.description}</p>
+                  <ul>
+                    {pendingConsequences.changes.map((change) => <li key={change}>{change}</li>)}
+                  </ul>
+                  <strong>{pendingConsequences.reversible
+                    ? 'Esta etapa permite volver atrás con la acción disponible.'
+                    : 'El contrato actual no ofrece una acción para deshacerla.'}</strong>
+                  <div className={styles.confirmationActions}>
+                    <button type="button" className={styles.secondaryAction} onClick={() => setPendingStatus(null)} disabled={Boolean(busy)}>
+                      Cancelar
+                    </button>
+                    <button type="button" className={pendingStatus === 'archived' ? styles.dangerAction : styles.primaryAction} onClick={() => changeStatus(pendingStatus)} disabled={Boolean(busy)}>
+                      {busy ? 'Aplicando…' : pendingConsequences.confirmLabel}
+                    </button>
+                  </div>
+                </div>
+              </section>
+            )}
           </div>
         )}
 

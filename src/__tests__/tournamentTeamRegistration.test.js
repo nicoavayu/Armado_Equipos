@@ -46,6 +46,19 @@ describe('tournament team registration domain', () => {
     ]));
   });
 
+  test('fails closed when roster settings are legitimately absent', () => {
+    const progress = getRosterProgress([], null);
+    expect(progress).toEqual(expect.objectContaining({
+      configured: false,
+      complete: false,
+      minimum: 0,
+      percent: 0,
+    }));
+    expect(progress.errors).toContain(
+      'Los requisitos del plantel todavía no están configurados.',
+    );
+  });
+
   test('keeps audit append-only and all client writes behind RPCs', () => {
     expect(migration).toMatch(/create table public\.tournament_audit_log/i);
     expect(migration).toMatch(/tournament_audit_append_only before update or delete/i);

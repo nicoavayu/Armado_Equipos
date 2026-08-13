@@ -42,25 +42,28 @@ export const ROSTER_POSITIONS = Object.freeze([
 ]);
 
 export function getRosterProgress(players = [], settings = {}) {
+  const configured = Boolean(settings && Number.isFinite(Number(settings.minimumPlayers)));
+  const safeSettings = settings || {};
   const count = players.length;
-  const minimum = Number(settings.minimumPlayers || 0);
-  const maximum = Number(settings.maximumPlayers || 0);
+  const minimum = Number(safeSettings.minimumPlayers || 0);
+  const maximum = Number(safeSettings.maximumPlayers || 0);
   const goalkeepers = players.filter((player) => player.isGoalkeeper).length;
-  const minimumGoalkeepers = Number(settings.minimumGoalkeepers || 0);
+  const minimumGoalkeepers = Number(safeSettings.minimumGoalkeepers || 0);
   const errors = [];
+  if (!configured) errors.push('Los requisitos del plantel todavía no están configurados.');
   if (count < minimum) errors.push(`Faltan ${minimum - count} jugadores para el mínimo.`);
   if (maximum && count > maximum) errors.push(`El plantel supera el máximo de ${maximum}.`);
   if (goalkeepers < minimumGoalkeepers) {
     errors.push(`Faltan ${minimumGoalkeepers - goalkeepers} arqueros.`);
   }
-  if (settings.shirtNumberRequired && players.some((player) => player.shirtNumber == null)) {
+  if (safeSettings.shirtNumberRequired && players.some((player) => player.shirtNumber == null)) {
     errors.push('Todos los jugadores necesitan dorsal.');
   }
-  if (settings.positionRequired && players.some((player) => !player.primaryPosition)) {
+  if (safeSettings.positionRequired && players.some((player) => !player.primaryPosition)) {
     errors.push('Todos los jugadores necesitan una posición.');
   }
   const numbers = players.map((player) => player.shirtNumber).filter((value) => value != null);
-  if (settings.uniqueShirtNumbers && new Set(numbers).size !== numbers.length) {
+  if (safeSettings.uniqueShirtNumbers && new Set(numbers).size !== numbers.length) {
     errors.push('Hay dorsales repetidos.');
   }
   return {
@@ -69,6 +72,7 @@ export function getRosterProgress(players = [], settings = {}) {
     maximum,
     goalkeepers,
     minimumGoalkeepers,
+    configured,
     errors,
     complete: errors.length === 0,
     percent: minimum ? Math.min(100, Math.round((count / minimum) * 100)) : 0,

@@ -8,6 +8,10 @@ import React, {
   useState,
 } from 'react';
 import { tournamentWorkspaceService } from '../api/tournamentWorkspaceService';
+import {
+  createRecoverableTournamentService,
+  DEFAULT_TOURNAMENT_REQUEST_TIMEOUT_MS,
+} from '../api/tournamentRequestBoundary';
 
 export const TORNEOS_WORKSPACE_STORAGE_KEY = 'arma2:torneos:last-workspace:v2';
 
@@ -60,6 +64,7 @@ export function TorneosWorkspaceProvider({
   children,
   service = tournamentWorkspaceService,
   autoLoad = true,
+  requestTimeoutMs = DEFAULT_TOURNAMENT_REQUEST_TIMEOUT_MS,
 }) {
   const mountedRef = useRef(true);
   const refreshRequestRef = useRef(0);
@@ -70,6 +75,10 @@ export function TorneosWorkspaceProvider({
     error: '',
     notice: '',
   });
+  const recoverableService = useMemo(
+    () => createRecoverableTournamentService(service, requestTimeoutMs),
+    [requestTimeoutMs, service],
+  );
 
   useEffect(() => {
     mountedRef.current = true;
@@ -90,7 +99,7 @@ export function TorneosWorkspaceProvider({
       notice: preserveNotice ? current.notice : '',
     }));
     try {
-      const normalized = normalizeContext(await service.loadContext());
+      const normalized = normalizeContext(await recoverableService.loadContext());
       if (
         !mountedRef.current
         || refreshRequestRef.current !== requestId
@@ -117,7 +126,7 @@ export function TorneosWorkspaceProvider({
       }));
       throw error;
     }
-  }, [service]);
+  }, [recoverableService]);
 
   useEffect(() => {
     if (!autoLoad) return;
@@ -161,7 +170,7 @@ export function TorneosWorkspaceProvider({
       return null;
     }
 
-    const preference = await service.setPreference(
+    const preference = await recoverableService.setPreference(
       'tournament_organization',
       organizationId,
     );
@@ -177,10 +186,10 @@ export function TorneosWorkspaceProvider({
       error: '',
     }));
     return organization;
-  }, [service, state.organizations]);
+  }, [recoverableService, state.organizations]);
 
   const selectPersonal = useCallback(async () => {
-    await service.setPreference('personal', null);
+    await recoverableService.setPreference('personal', null);
     persistValidatedHint(PERSONAL_PREFERENCE);
     setState((current) => ({
       ...current,
@@ -189,10 +198,10 @@ export function TorneosWorkspaceProvider({
       error: '',
     }));
     return true;
-  }, [service]);
+  }, [recoverableService]);
 
   const createOrganization = useCallback(async (input) => {
-    const result = await service.createOrganization(input);
+    const result = await recoverableService.createOrganization(input);
     const organization = {
       ...result.organization,
       role: result.membership?.role || 'owner',
@@ -217,10 +226,10 @@ export function TorneosWorkspaceProvider({
       error: '',
     }));
     return organization;
-  }, [service]);
+  }, [recoverableService]);
 
   const updateOrganization = useCallback(async (input) => {
-    const updated = await service.updateOrganization(input);
+    const updated = await recoverableService.updateOrganization(input);
     setState((current) => ({
       ...current,
       organizations: updated.status === 'active'
@@ -237,7 +246,7 @@ export function TorneosWorkspaceProvider({
       error: '',
     }));
     return updated;
-  }, [service]);
+  }, [recoverableService]);
 
   const clearNotice = useCallback(() => {
     setState((current) => ({ ...current, notice: '' }));
@@ -260,7 +269,7 @@ export function TorneosWorkspaceProvider({
     createOrganization,
     updateOrganization,
     clearNotice,
-    service,
+    service: recoverableService,
   }), [
     activeOrganization,
     clearNotice,
@@ -268,7 +277,7 @@ export function TorneosWorkspaceProvider({
     refresh,
     selectOrganization,
     selectPersonal,
-    service,
+    recoverableService,
     state,
     updateOrganization,
   ]);

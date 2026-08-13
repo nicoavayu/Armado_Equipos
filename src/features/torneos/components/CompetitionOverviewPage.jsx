@@ -18,6 +18,7 @@ import {
   hasCapability,
   TOURNAMENT_CAPABILITIES,
 } from '../domain/capabilities';
+import { getTournamentCardAction } from '../domain/competitionLifecycle';
 import CompetitionSelector from './CompetitionSelector';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import styles from './CompetitionCore.module.css';
@@ -161,6 +162,10 @@ export default function CompetitionOverviewPage() {
               <div className={styles.tournamentGrid}>
                 {tournaments.map((tournament) => {
                   const complete = tournament.checklist?.ready;
+                  const canUpdate = hasCapability(
+                    organization,
+                    TOURNAMENT_CAPABILITIES.TOURNAMENTS_UPDATE,
+                  );
                   return (
                     <article key={tournament.id}>
                       <div className={styles.tournamentCardTop}>
@@ -193,10 +198,7 @@ export default function CompetitionOverviewPage() {
                         </div>
                       </dl>
                       <Link to={`${organizationPath}/torneos/${tournament.id}/configuracion`}>
-                        {hasCapability(
-                          organization,
-                          TOURNAMENT_CAPABILITIES.TOURNAMENTS_UPDATE,
-                        ) ? 'Continuar configuración' : 'Consultar configuración'}
+                        {getTournamentCardAction(tournament.status, canUpdate)}
                         <ArrowRight size={16} />
                       </Link>
                     </article>

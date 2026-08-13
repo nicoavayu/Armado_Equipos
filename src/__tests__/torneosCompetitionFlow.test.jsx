@@ -10,6 +10,10 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import TorneosFeatureGate from '../features/torneos/TorneosFeatureGate';
 import { getCapabilitiesForRole } from '../features/torneos/domain/capabilities';
 
+jest.mock('../components/global-header/GlobalHeader', () => () => (
+  <header data-testid="global-header" />
+));
+
 const ORGANIZATION_ID = '51000000-0000-4000-8000-000000000001';
 const SEASON_ID = '52000000-0000-4000-8000-000000000001';
 const TOURNAMENT_ID = '53000000-0000-4000-8000-000000000001';
@@ -132,6 +136,9 @@ function createService({ role = 'owner', competition = competitionPayload() } = 
     updateOrganization: jest.fn(),
     listMembers: jest.fn().mockResolvedValue([]),
     loadCompetitionContext: jest.fn().mockResolvedValue(competition),
+    loadTeamsContext: jest.fn().mockResolvedValue({ settings: { minimumPlayers: 7 }, entries: [] }),
+    loadFixtureContext: jest.fn().mockResolvedValue({}),
+    loadScheduleContext: jest.fn().mockResolvedValue({}),
     setTournamentContext: jest.fn().mockResolvedValue({}),
     createSeason: jest.fn(),
     updateSeason: jest.fn(),
@@ -169,7 +176,9 @@ describe('Arma2 Torneos competition flow', () => {
     expect(screen.getAllByText('Apertura 2027').length).toBeGreaterThan(0);
     expect(screen.getByText('100%')).toBeInTheDocument();
     expect(screen.queryByText('12 equipos')).not.toBeInTheDocument();
-    expect(screen.getByText('Inscripciones')).toBeInTheDocument();
+    expect(await screen.findByText('0 equipos')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Abrí la inscripción de equipos' }))
+      .toBeInTheDocument();
   });
 
   test('shows a useful empty state without invented metrics', async () => {
@@ -313,5 +322,41 @@ describe('Arma2 Torneos competition flow', () => {
     );
     expect(await screen.findByRole('button', { name: /preparar inscripción/i }))
       .toBeDisabled();
+  });
+
+  test('explains consequences before opening registration', async () => {
+    const api = createService();
+    renderPath(
+      `/torneos/organizacion/${ORGANIZATION_ID}/torneos/${TOURNAMENT_ID}/configuracion?step=5`,
+      api,
+    );
+    fireEvent.click(await screen.findByRole('button', { name: /preparar inscripción/i }));
+    expect(screen.getByRole('heading', { name: 'Abrir la etapa de inscripción' }))
+      .toBeInTheDocument();
+    expect(screen.getByText(/se habilita el alta de equipos/i)).toBeInTheDocument();
+    expect(api.changeTournamentStatus).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir inscripción' }));
+    await waitFor(() => expect(api.changeTournamentStatus).toHaveBeenCalledWith({
+      organizationId: ORGANIZATION_ID,
+      tournamentId: TOURNAMENT_ID,
+      status: 'registration',
+    }));
+  });
+
+  test('shows a recoverable dashboard error instead of zero teams', async () => {
+    const api = createService({
+      competition: competitionPayload({
+        tournaments: [{ ...tournament, status: 'registration' }],
+      }),
+    });
+    api.loadTeamsContext.mockRejectedValueOnce(new Error('Falló la consulta de equipos'))
+      .mockResolvedValueOnce({ settings: { minimumPlayers: 7 }, entries: [] });
+    renderPath(`/torneos/organizacion/${ORGANIZATION_ID}/inicio`, api);
+    expect(await screen.findByText('Falló la consulta de equipos')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'No pudimos leer las inscripciones' }))
+      .toBeInTheDocument();
+    expect(screen.queryByText('0 equipos')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
+    expect(await screen.findByText('0 equipos')).toBeInTheDocument();
   });
 });
