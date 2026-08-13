@@ -1,0 +1,29 @@
+  snapshot_name   |  status   | withdrawal_reason_code |                        withdrawal_reason_text                         
+------------------+-----------+------------------------+-----------------------------------------------------------------------
+ Atlético QA Uno  | active    |                        | 
+ Club QA Tres     | active    |                        | 
+ Deportivo QA Dos | withdrawn | voluntary_resignation  | Certificacion QA 2026-08-13: retiro por renuncia voluntaria del club.
+ Estrella QA Seis | active    |                        | 
+ Racing QA Cuatro | active    |                        | 
+ Unión QA Cinco   | active    |                        | 
+(6 rows)
+
+ n  |   status    |       home       |       away       |  withdrawn_side  | cancellation_reason_code 
+----+-------------+------------------+------------------+------------------+--------------------------
+  1 | cancelled   | Deportivo QA Dos | Racing QA Cuatro | Deportivo QA Dos | withdrawal_bye
+  2 | scheduled   | Atlético QA Uno  | Estrella QA Seis |                  | 
+  3 | scheduled   | Unión QA Cinco   | Club QA Tres     |                  | 
+  4 | scheduled   | Atlético QA Uno  | Deportivo QA Dos |                  | 
+  5 | scheduled   | Racing QA Cuatro | Club QA Tres     |                  | 
+  6 | unscheduled | Unión QA Cinco   | Estrella QA Seis |                  | 
+  7 | cancelled   | Deportivo QA Dos | Club QA Tres     | Deportivo QA Dos | withdrawal_bye
+  8 | unscheduled | Unión QA Cinco   | Atlético QA Uno  |                  | 
+  9 | unscheduled | Racing QA Cuatro | Estrella QA Seis |                  | 
+ 10 | cancelled   | Unión QA Cinco   | Deportivo QA Dos | Deportivo QA Dos | withdrawal_bye
+ 11 | unscheduled | Club QA Tres     | Estrella QA Seis |                  | 
+ 12 | unscheduled | Racing QA Cuatro | Atlético QA Uno  |                  | 
+ 13 | cancelled   | Deportivo QA Dos | Estrella QA Seis | Deportivo QA Dos | withdrawal_bye
+ 14 | unscheduled | Racing QA Cuatro | Unión QA Cinco   |                  | 
+ 15 | unscheduled | Club QA Tres     | Atlético QA Uno  |                  | 
+(15 rows)
+
