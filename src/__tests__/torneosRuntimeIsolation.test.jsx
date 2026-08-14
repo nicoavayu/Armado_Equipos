@@ -25,6 +25,7 @@ let mockNativeRuntime = true;
 
 jest.mock('../utils/runtimePlatform', () => ({
   isArma2NativeRuntime: () => mockNativeRuntime,
+  isPersonalSpaceAvailable: () => mockNativeRuntime,
   getAuthenticatedProductHome: () => (mockNativeRuntime ? '/' : '/torneos'),
 }));
 

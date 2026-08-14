@@ -4,6 +4,10 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import TorneosFeatureGate from '../features/torneos/TorneosFeatureGate';
 import { getCapabilitiesForRole } from '../features/torneos/domain/capabilities';
 
+jest.mock('../components/global-header/GlobalHeader', () => () => (
+  <header data-testid="global-header" />
+));
+
 const ORG = '71000000-0000-4000-8000-000000000001';
 const SEASON = '72000000-0000-4000-8000-000000000001';
 const TOURNAMENT = '73000000-0000-4000-8000-000000000001';
@@ -61,7 +65,7 @@ function registration() {
   };
 }
 
-function createService({ role = 'owner', organizations = true } = {}) {
+function createService({ role = 'owner', organizations = true, tournamentStatus = 'registration' } = {}) {
   const organization = {
     id: ORG,
     name: 'Liga Devoto',
@@ -77,7 +81,13 @@ function createService({ role = 'owner', organizations = true } = {}) {
       organizations: organizations ? [organization] : [],
     }),
     setPreference: jest.fn().mockResolvedValue({ activeOrganizationId: ORG }),
-    loadCompetitionContext: jest.fn().mockResolvedValue(competition()),
+    loadCompetitionContext: jest.fn().mockResolvedValue({
+      ...competition(),
+      tournaments: competition().tournaments.map((item) => ({
+        ...item,
+        status: tournamentStatus,
+      })),
+    }),
     setTournamentContext: jest.fn(),
     loadTeamsContext: jest.fn().mockResolvedValue({
       settings: { minimumPlayers: 5 },
@@ -138,6 +148,40 @@ describe('Arma2 Torneos teams flow', () => {
     expect(screen.queryByRole('link', { name: 'Agregar equipo' })).not.toBeInTheDocument();
   });
 
+  test('keeps the add action visible only while registration is open', async () => {
+    const service = createService();
+    renderPath(`/torneos/organizacion/${ORG}/equipos`, service);
+    expect(await screen.findByRole('link', { name: 'Agregar equipo' })).toBeInTheDocument();
+    expect(screen.getByText('Inscripción de equipos habilitada')).toBeInTheDocument();
+  });
+
+  test('explains why normal registration is closed after fixture publication', async () => {
+    const service = createService({ tournamentStatus: 'scheduled' });
+    renderPath(`/torneos/organizacion/${ORG}/equipos`, service);
+    expect(await screen.findByText('La inscripción de equipos está cerrada')).toBeInTheDocument();
+    expect(screen.getByText(/fixture ya fue publicado/i)).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Agregar equipo' })).not.toBeInTheDocument();
+  });
+
+  test('does not invent a zero minimum in the team list', async () => {
+    const service = createService();
+    service.loadTeamsContext.mockResolvedValue({
+      settings: null,
+      entries: [{
+        id: ENTRY,
+        name: 'Barrio Norte',
+        categoryName: 'Primera',
+        status: 'approved',
+        linked: false,
+        manager: { displayName: 'QA Owner' },
+        roster: { playerCount: 10, goalkeeperCount: 1 },
+      }],
+    });
+    renderPath(`/torneos/organizacion/${ORG}/equipos`, service);
+    expect(await screen.findByText('10 jugadores · mínimo sin definir')).toBeInTheDocument();
+    expect(screen.queryByText('10/0 jugadores')).not.toBeInTheDocument();
+  });
+
   test('allows a relational captain route without organization membership', async () => {
     const service = createService({ organizations: false });
     renderPath(`/torneos/organizacion/${ORG}/equipos/${ENTRY}/plantel`, service);
@@ -145,6 +189,24 @@ describe('Arma2 Torneos teams flow', () => {
     expect(screen.getByText('Plantel vacío')).toBeInTheDocument();
     expect(service.loadTeamRegistration).toHaveBeenCalledWith(ORG, ENTRY);
     await waitFor(() => expect(screen.getByText('Presentar plantel')).toBeDisabled());
+  });
+
+  test('renders a roster safely when the persisted settings row is absent', async () => {
+    const service = createService();
+    service.loadTeamRegistration.mockResolvedValue({
+      ...registration(),
+      entry: { ...registration().entry, name: 'Barrio Norte' },
+      settings: null,
+    });
+    renderPath(`/torneos/organizacion/${ORG}/equipos/${ENTRY}/plantel`, service);
+
+    expect(await screen.findByRole('heading', { name: 'Barrio Norte' })).toBeInTheDocument();
+    expect(screen.getByText('Los requisitos del plantel todavía no están configurados.'))
+      .toBeInTheDocument();
+    expect(screen.getByText('jugadores · mínimo sin definir')).toBeInTheDocument();
+    expect(screen.queryByText('0/0')).not.toBeInTheDocument();
+    expect(screen.getAllByText('Sin definir')).toHaveLength(4);
+    expect(screen.getByRole('button', { name: 'Presentar plantel' })).toBeDisabled();
   });
 
   test('creates the manager invitation and shows its token only in the success step', async () => {

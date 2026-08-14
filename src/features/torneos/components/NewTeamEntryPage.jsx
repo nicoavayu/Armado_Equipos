@@ -12,6 +12,7 @@ import {
 import { Link, useNavigate, useOutletContext } from 'react-router-dom';
 import { useTorneosCompetition } from '../context/TorneosCompetitionContext';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
+import { getTeamRegistrationAvailability } from '../domain/competitionLifecycle';
 import styles from './TeamRegistration.module.css';
 
 export default function NewTeamEntryPage() {
@@ -100,12 +101,13 @@ export default function NewTeamEntryPage() {
     }
   };
 
-  if (!activeTournament || activeTournament.status !== 'registration') {
+  const registration = getTeamRegistrationAvailability(activeTournament);
+  if (!registration.canAdd) {
     return (
       <section className={styles.emptyState}>
         <ShieldPlus size={28} />
-        <h1>Inscripción cerrada</h1>
-        <p>Seleccioná un torneo en estado de inscripción para agregar equipos.</p>
+        <h1>{registration.title}</h1>
+        <p>{registration.description}</p>
         <Link to={base}>Volver a equipos</Link>
       </section>
     );

@@ -1,0 +1,61 @@
+HALLAZGOS REGISTRADOS Y NO CORREGIDOS — pasada P1-D del 2026-08-13
+Alcance autorizado: exclusivamente las 4 condiciones de las RPC nuevas de ciclo
+de vida. Todo lo de acá queda registrado y NO se tocó.
+
+--------------------------------------------------------------------------
+P1-E (nuevo) — un quinto 55000 fuera del alcance autorizado
+--------------------------------------------------------------------------
+Detectado al probar el read-only de Finalizada por HTTP, como owner, en LOCAL:
+
+  POST /rest/v1/rpc/open_tournament_match_operation -> 500 Internal Server Error
+  {"code":"55000","message":"TORNEOS_MATCH_ALREADY_OFFICIAL"}
+
+Es el mismo defecto de clase que P1-C y P1-D: una condición de negocio prevista
+—el acta ya está oficial— se presenta como falla del servidor. NO está en las
+cuatro autorizadas y NO se corrigió: vive en `open_tournament_match_operation`,
+que es código preexistente, no en las RPC nuevas de ciclo de vida.
+
+Conviene revisar de una sola vez si quedan más `55000` en rutas ejecutables por
+cliente; esta pasada sólo cerró las cuatro nombradas.
+
+--------------------------------------------------------------------------
+P2 — el rechazo dominante de una competencia Finalizada dice "permisos"
+--------------------------------------------------------------------------
+Con la competencia Finalizada, todo camino de cliente hacia una escritura queda
+cortado ANTES del trigger `protect_tournament_completed_competition`, por la
+capability o por RLS:
+
+  reschedule_tournament_match -> 403 TORNEOS_RESOURCE_FORBIDDEN
+  save_match_squad            -> 403 TORNEOS_MATCH_FORBIDDEN
+
+O sea que el guard read-only es defensa en profundidad y casi nunca es el que
+contesta. El copy de `TORNEOS_RESOURCE_FORBIDDEN` dice "No tenés permisos para
+hacer esto en esta organización", que para el propietario de una competencia
+finalizada es engañoso: no es un problema de permisos, es que la competencia
+está cerrada.
+
+No se corrigió porque tocar eso significa meterse con los guards de capability,
+que está explícitamente fuera de alcance.
+
+Atenuante real: por interfaz el propietario nunca llega a ese camino. La UI de
+una competencia Finalizada no ofrece acciones mutables —el editor de acta se
+renderiza sin ningún botón de guardado— y muestra el estado y la acción
+"Reabrir competencia". El mensaje engañoso sólo aparece si un cliente llama la
+RPC directamente.
+
+--------------------------------------------------------------------------
+P2 `unscheduled` y demás P2 previos
+--------------------------------------------------------------------------
+Siguen registrados de la pasada anterior. No se corrigieron.
+
+--------------------------------------------------------------------------
+Entorno — `.env.local` apunta al Supabase remoto
+--------------------------------------------------------------------------
+Confirmado sobre el dev server vivo:
+  .env.local en disco        -> https://rcyuuoaqfwcembdajcss.supabase.co (REMOTO)
+  entorno del proceso vivo   -> http://127.0.0.1:57321 (LOCAL)
+
+La sesión de QA estaba bien; lo que estaba mal es que sólo un override de
+proceso la separaba del remoto. CERRADO en esta pasada con el arranque
+fail-closed `npm run qa:start:local` (ver docs/qa/torneos-local-qa-runbook.md).
+El proyecto remoto no se tocó en ningún momento.

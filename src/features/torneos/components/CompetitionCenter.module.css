@@ -51,6 +51,18 @@
 .teamDetail > span { display: block; margin-top: 4px; }
 .teamMark, .playerMark { display: grid; place-items: center; flex: 0 0 auto; width: 38px; height: 38px; border: 1px solid rgba(164, 140, 255, .28); border-radius: 12px; color: #d8ccff; background: linear-gradient(145deg, #30274c, #1a1725); font-size: .7rem; font-weight: 900; text-transform: uppercase; }
 .reviewFlag { color: #ffc68f; background: rgba(232, 133, 48, .12); }
+.retiredFlag {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border: 1px solid rgba(255, 157, 122, .45);
+  border-radius: 999px;
+  color: #ffb9a1;
+  font-size: .68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
 .statsGrid { display: grid; grid-template-columns: 1.35fr .9fr; gap: 18px; }
 .card { padding: clamp(18px, 3vw, 26px); border-radius: 19px; }
 .cardHeading { display: grid; gap: 7px; margin-bottom: 18px; }

@@ -4,7 +4,12 @@ import styles from './TorneosShell.module.css';
 
 export function WorkspaceLoading({ label = 'Validando tu espacio…' }) {
   return (
-    <div className={styles.statePanel} role="status" aria-live="polite">
+    <div
+      className={styles.statePanel}
+      role="status"
+      aria-live="polite"
+      data-torneos-loading="true"
+    >
       <LoaderCircle className={styles.spinner} size={28} aria-hidden="true" />
       <strong>{label}</strong>
       <span>Confirmamos tu sesión y membresías antes de mostrar información.</span>

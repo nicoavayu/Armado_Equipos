@@ -1,4 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   AlertTriangle,
   ArrowRight,
@@ -15,9 +21,15 @@ import { useTorneosCompetition } from '../context/TorneosCompetitionContext';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
 import { hasCapability, TOURNAMENT_CAPABILITIES } from '../domain/capabilities';
 import { TEAM_ENTRY_STATUS_LABELS } from '../domain/teamRegistration';
+import { getTeamRegistrationAvailability } from '../domain/competitionLifecycle';
 import CompetitionSelector from './CompetitionSelector';
+import TeamWithdrawalDialog from './TeamWithdrawalDialog';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import styles from './TeamRegistration.module.css';
+
+// El retiro estructural sólo existe una vez que la competencia tiene el fixture
+// publicado y sus participantes congelados.
+const WITHDRAWABLE_TOURNAMENT_STATUSES = ['scheduled', 'active'];
 
 const FILTERS = [
   { value: 'all', label: 'Todos' },
@@ -27,9 +39,19 @@ const FILTERS = [
   { value: 'incomplete', label: 'Incompletos' },
 ];
 
+function configuredMinimumPlayers(settings) {
+  const minimum = Number(settings?.minimumPlayers);
+  return Number.isFinite(minimum) && minimum > 0 ? minimum : null;
+}
+
 export default function TeamsPage() {
   const { organization } = useOutletContext();
-  const { activeTournament, status: competitionStatus } = useTorneosCompetition();
+  const {
+    activeTournament,
+    status: competitionStatus,
+    error: competitionError,
+    refresh: refreshCompetition,
+  } = useTorneosCompetition();
   const requestRef = useRef(0);
   const [state, setState] = useState({
     status: 'idle',
@@ -39,17 +61,18 @@ export default function TeamsPage() {
   });
   const [filter, setFilter] = useState('all');
   const [query, setQuery] = useState('');
+  const [withdrawing, setWithdrawing] = useState(null);
   const { service: workspaceService } = useTorneosWorkspace();
 
-  useEffect(() => {
+  const loadTeams = useCallback(() => {
     if (!activeTournament?.id || typeof workspaceService.loadTeamsContext !== 'function') {
       setState({ status: 'ready', entries: [], settings: {}, error: '' });
-      return;
+      return Promise.resolve();
     }
     const requestId = requestRef.current + 1;
     requestRef.current = requestId;
     setState({ status: 'loading', entries: [], settings: {}, error: '' });
-    workspaceService.loadTeamsContext(organization.id, activeTournament.id)
+    return workspaceService.loadTeamsContext(organization.id, activeTournament.id)
       .then((payload) => {
         if (requestRef.current !== requestId) return;
         setState({
@@ -65,15 +88,21 @@ export default function TeamsPage() {
       });
   }, [activeTournament?.id, organization.id, workspaceService]);
 
+  useEffect(() => {
+    loadTeams();
+    return () => { requestRef.current += 1; };
+  }, [loadTeams]);
+
   const rows = useMemo(() => state.entries.filter((entry) => {
     const searchMatch = entry.name.toLowerCase().includes(query.trim().toLowerCase());
     if (!searchMatch) return false;
     if (filter === 'all') return true;
     if (filter === 'incomplete') {
-      return Number(entry.roster?.playerCount || 0) < Number(state.settings.minimumPlayers || 0);
+      const minimum = configuredMinimumPlayers(state.settings);
+      return minimum !== null && Number(entry.roster?.playerCount || 0) < minimum;
     }
     return entry.status === filter;
-  }), [filter, query, state.entries, state.settings.minimumPlayers]);
+  }), [filter, query, state.entries, state.settings?.minimumPlayers]);
 
   const metrics = useMemo(() => ({
     total: state.entries.length,
@@ -82,13 +111,31 @@ export default function TeamsPage() {
     withoutManager: state.entries.filter((entry) => !entry.manager).length,
   }), [state.entries]);
   const canCreate = hasCapability(organization, TOURNAMENT_CAPABILITIES.TEAM_ENTRIES_CREATE);
+  const canUpdateTournament = hasCapability(
+    organization,
+    TOURNAMENT_CAPABILITIES.TOURNAMENTS_UPDATE,
+  );
+  const canWithdrawParticipants = hasCapability(
+    organization,
+    TOURNAMENT_CAPABILITIES.PARTICIPANTS_WITHDRAW,
+  ) && WITHDRAWABLE_TOURNAMENT_STATUSES.includes(activeTournament?.status);
+  const registration = getTeamRegistrationAvailability(activeTournament);
+  const canAdd = canCreate && registration.canAdd;
   const base = `/torneos/organizacion/${organization.id}/equipos`;
 
   if (competitionStatus === 'loading' || state.status === 'loading') {
     return <WorkspaceLoading label="Cargando inscripciones…" />;
   }
+  if (competitionStatus === 'error') {
+    return (
+      <WorkspaceError
+        message={competitionError}
+        onRetry={() => refreshCompetition().catch(() => {})}
+      />
+    );
+  }
   if (state.status === 'error') {
-    return <WorkspaceError message={state.error} onRetry={() => window.location.reload()} />;
+    return <WorkspaceError message={state.error} onRetry={() => loadTeams()} />;
   }
 
   return (
@@ -104,7 +151,7 @@ export default function TeamsPage() {
               : 'Seleccioná un torneo para administrar sus equipos.'}
           </p>
         </div>
-        {canCreate && activeTournament?.status === 'registration' && (
+        {canAdd && (
           <Link className={styles.primaryButton} to={`${base}/nuevo`}>
             <Plus size={18} />
             Agregar equipo
@@ -120,6 +167,24 @@ export default function TeamsPage() {
         </section>
       ) : (
         <>
+          <section className={styles.stageNotice} data-open={registration.canAdd}>
+            <div>
+              <strong>{registration.title}</strong>
+              <p>{registration.description}</p>
+            </div>
+            {!registration.canAdd
+              && activeTournament.status === 'draft'
+              && canUpdateTournament && (
+                <Link
+                  className={styles.secondaryButton}
+                  to={`/torneos/organizacion/${organization.id}/torneos/${activeTournament.id}/configuracion?step=5`}
+                >
+                  Revisar configuración
+                  <ArrowRight size={17} />
+                </Link>
+            )}
+          </section>
+
           <section className={styles.metrics} aria-label="Resumen de inscripciones">
             <article><span>Total</span><strong>{metrics.total}</strong><small>equipos vigentes</small></article>
             <article><span>Para revisar</span><strong>{metrics.submitted}</strong><small>presentados</small></article>
@@ -159,9 +224,11 @@ export default function TeamsPage() {
               <p>
                 {state.entries.length
                   ? 'Ajustá los filtros o la búsqueda.'
-                  : 'Agregá un equipo provisional o vinculá uno existente de Arma2.'}
+                  : registration.canAdd
+                    ? 'Agregá los equipos que van a participar antes de cerrar la lista y generar el fixture.'
+                    : registration.description}
               </p>
-              {canCreate && activeTournament.status === 'registration' && (
+              {canAdd && (
                 <Link className={styles.primaryButton} to={`${base}/nuevo`}>Agregar equipo</Link>
               )}
             </section>
@@ -169,8 +236,8 @@ export default function TeamsPage() {
             <div className={styles.entryList}>
               {rows.map((entry) => {
                 const count = Number(entry.roster?.playerCount || 0);
-                const minimum = Number(state.settings.minimumPlayers || 0);
-                const incomplete = count < minimum;
+                const minimum = configuredMinimumPlayers(state.settings);
+                const incomplete = minimum !== null && count < minimum;
                 return (
                   <article key={entry.id} className={styles.entryCard}>
                     <div className={styles.entryIdentity}>
@@ -186,22 +253,48 @@ export default function TeamsPage() {
                         {TEAM_ENTRY_STATUS_LABELS[entry.status]}
                       </span>
                       <span>
-                        {incomplete ? <AlertTriangle size={16} /> : <CheckCircle2 size={16} />}
-                        {count}/{minimum} jugadores
+                        {incomplete || minimum === null
+                          ? <AlertTriangle size={16} />
+                          : <CheckCircle2 size={16} />}
+                        {minimum === null
+                          ? `${count} jugadores · mínimo sin definir`
+                          : `${count}/${minimum} jugadores`}
                       </span>
                       <span>
                         {entry.manager ? <Users size={16} /> : <UserRoundX size={16} />}
                         {entry.manager?.displayName || 'Sin responsable'}
                       </span>
                     </div>
-                    <Link to={`${base}/${entry.id}`}>
-                      Abrir
-                      <ArrowRight size={17} />
-                    </Link>
+                    <div className={styles.entryActions}>
+                      {canWithdrawParticipants && entry.status === 'approved' && (
+                        <button
+                          type="button"
+                          className={styles.withdrawButton}
+                          onClick={() => setWithdrawing(entry)}
+                        >
+                          <UserRoundX size={16} />
+                          Retirar equipo
+                        </button>
+                      )}
+                      <Link to={`${base}/${entry.id}`}>
+                        Abrir
+                        <ArrowRight size={17} />
+                      </Link>
+                    </div>
                   </article>
                 );
               })}
             </div>
+          )}
+
+          {withdrawing && (
+            <TeamWithdrawalDialog
+              organization={organization}
+              tournament={activeTournament}
+              entry={withdrawing}
+              onClose={() => setWithdrawing(null)}
+              onWithdrawn={() => loadTeams()}
+            />
           )}
         </>
       )}

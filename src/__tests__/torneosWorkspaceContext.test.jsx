@@ -1,5 +1,11 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import {
   TORNEOS_WORKSPACE_STORAGE_KEY,
   TorneosWorkspaceProvider,
@@ -263,5 +269,84 @@ describe('TorneosWorkspaceProvider', () => {
       expect(screen.queryByText('Liga Devoto')).not.toBeInTheDocument();
       expect(screen.getByText('0 organizaciones')).toBeInTheDocument();
     });
+  });
+
+  test.each([
+    ['500', 'El servicio respondió 500.'],
+    ['504', 'El servicio respondió 504.'],
+  ])('turns an HTTP %s failure into a recoverable error', async (_status, message) => {
+    const service = createService();
+    service.loadContext.mockRejectedValueOnce(new Error(message));
+    render(
+      <TorneosWorkspaceProvider service={service}>
+        <WorkspaceProbe />
+      </TorneosWorkspaceProvider>,
+    );
+
+    expect(await screen.findByText(message)).toBeInTheDocument();
+    expect(screen.getByText('pending')).toBeInTheDocument();
+    expect(screen.getByText('0 organizaciones')).toBeInTheDocument();
+  });
+
+  test('turns a request that never settles into an error and allows a successful retry', async () => {
+    jest.useFakeTimers();
+    const service = createService();
+    service.loadContext
+      .mockImplementationOnce(() => new Promise(() => {}))
+      .mockResolvedValueOnce({
+        preference: { workspaceType: 'personal', activeOrganizationId: null },
+        organizations: ORGANIZATIONS,
+      });
+    render(
+      <TorneosWorkspaceProvider service={service} requestTimeoutMs={25}>
+        <WorkspaceProbe />
+      </TorneosWorkspaceProvider>,
+    );
+
+    await act(async () => {
+      jest.advanceTimersByTime(26);
+      await Promise.resolve();
+    });
+    expect(screen.getByText(/tardó demasiado/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Refrescar' }));
+    await act(async () => { await Promise.resolve(); });
+    expect(screen.getByText('2 organizaciones')).toBeInTheDocument();
+    jest.useRealTimers();
+  });
+
+  test('keeps a failed retry in the recoverable error state without starting a loop', async () => {
+    const service = createService();
+    service.loadContext
+      .mockRejectedValueOnce(new Error('Primer fallo 504.'))
+      .mockRejectedValueOnce(new Error('Segundo fallo 500.'));
+    render(
+      <TorneosWorkspaceProvider service={service}>
+        <WorkspaceProbe />
+      </TorneosWorkspaceProvider>,
+    );
+
+    expect(await screen.findByText('Primer fallo 504.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Refrescar' }));
+    expect(await screen.findByText('Segundo fallo 500.')).toBeInTheDocument();
+    expect(service.loadContext).toHaveBeenCalledTimes(2);
+  });
+
+  test('keeps synchronous presentation helpers synchronous', async () => {
+    const service = createService();
+    service.resolveTeamShieldUrl = jest.fn(() => 'https://local.test/shield.png');
+    let exposedService;
+    function ServiceProbe() {
+      exposedService = useTorneosWorkspace().service;
+      return null;
+    }
+    render(
+      <TorneosWorkspaceProvider service={service}>
+        <ServiceProbe />
+      </TorneosWorkspaceProvider>,
+    );
+    await waitFor(() => expect(service.loadContext).toHaveBeenCalled());
+    expect(exposedService.resolveTeamShieldUrl('shield.png'))
+      .toBe('https://local.test/shield.png');
   });
 });

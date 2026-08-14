@@ -4,6 +4,11 @@ const { assertSafeQaValue } = require('./scripts/qa/production-guard');
 
 const localBaseURL = 'http://127.0.0.1:3107';
 const baseURL = process.env.QA_BASE_URL || localBaseURL;
+const outputDir = process.env.QA_OUTPUT_DIR || 'artifacts/playwright/test-results';
+const jsonOutputFile = process.env.QA_JSON_OUTPUT_FILE || 'artifacts/playwright/results.json';
+const htmlOutputFolder = process.env.QA_HTML_OUTPUT_FOLDER
+  || process.env.QA_HTML_OUTPUT_DIR
+  || 'artifacts/playwright/html-report';
 assertSafeQaValue(baseURL, 'Playwright baseURL');
 
 const chromiumProject = (name, width, height, mobile = false) => ({
@@ -20,7 +25,7 @@ const chromiumProject = (name, width, height, mobile = false) => ({
 
 module.exports = defineConfig({
   testDir: './tests/e2e',
-  outputDir: 'artifacts/playwright/test-results',
+  outputDir,
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,
@@ -31,8 +36,9 @@ module.exports = defineConfig({
   },
   reporter: [
     ['list'],
+    ['json', { outputFile: jsonOutputFile }],
     ['html', {
-      outputFolder: 'artifacts/playwright/html-report',
+      outputFolder: htmlOutputFolder,
       open: 'never',
     }],
   ],
@@ -49,7 +55,8 @@ module.exports = defineConfig({
     chromiumProject('chromium-desktop-1440x900', 1440, 900),
     chromiumProject('chromium-tablet-768x1024', 768, 1024),
     chromiumProject('chromium-mobile-320x700', 320, 700, true),
-    chromiumProject('chromium-mobile-375x812', 375, 812, true),
+    chromiumProject('chromium-mobile-360x800', 360, 800, true),
+    chromiumProject('chromium-mobile-390x844', 390, 844, true),
     chromiumProject('chromium-mobile-430x932', 430, 932, true),
   ],
   webServer: process.env.QA_BASE_URL ? undefined : {

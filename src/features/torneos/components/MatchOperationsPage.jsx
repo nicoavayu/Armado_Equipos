@@ -36,6 +36,13 @@ import { useTorneosCompetition } from '../context/TorneosCompetitionContext';
 import { useTorneosFixture } from '../context/TorneosFixtureContext';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
 import { hasCapability, TOURNAMENT_CAPABILITIES } from '../domain/capabilities';
+import {
+  getCompetitionErrorContext,
+  getLifecycleErrorMessage,
+  getMatchResolutionPresentation,
+} from '../domain/competitionLifecycle';
+import { describeMatchOutcomeGap } from '../domain/matchOutcome';
+import { describeEarlyOpen, isEarlyOpenReasonValid } from '../domain/matchSchedule';
 import CompetitionSelector from './CompetitionSelector';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import styles from './MatchOperations.module.css';
@@ -101,16 +108,56 @@ function dateParts(value) {
     new Intl.DateTimeFormat('es-AR', {
       hour: '2-digit',
       minute: '2-digit',
+      hour12: false,
     }).format(date),
   ];
 }
 
-function StatusPill({ status }) {
+function StatusPill({ status, label }) {
   return (
     <span className={styles.statusPill} data-status={status}>
       <CircleDot size={12} />
-      {STATUS_LABELS[status] || status || 'Sin acta'}
+      {label || STATUS_LABELS[status] || status || 'Sin acta'}
     </span>
+  );
+}
+
+/**
+ * Abrir el acta. Cuando todavía falta mucho para el horario del partido, el
+ * backend pide dejar registrado por qué se adelanta: el motivo se pide acá,
+ * antes de intentar, en vez de devolver un error sin salida.
+ */
+function OpenReportAction({ match, busy, run }) {
+  const [reason, setReason] = useState('');
+  const earlyOpen = describeEarlyOpen(match);
+  const blocked = Boolean(earlyOpen) && !isEarlyOpenReasonValid(reason);
+  return (
+    <div className={styles.openReport}>
+      {earlyOpen && (
+        <div className={styles.inlineHint}>
+          <strong>{earlyOpen.title}</strong>
+          <span>{earlyOpen.description}</span>
+        </div>
+      )}
+      {earlyOpen && (
+        <label>
+          <span>{earlyOpen.label}</span>
+          <textarea
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            placeholder={earlyOpen.placeholder}
+            rows="3"
+          />
+        </label>
+      )}
+      <button
+        type="button"
+        disabled={busy || blocked}
+        onClick={() => run('open', earlyOpen ? { overrideReason: reason.trim() } : {})}
+      >
+        <Plus size={17} /> Abrir acta
+      </button>
+    </div>
   );
 }
 
@@ -207,6 +254,11 @@ function MatchList({
         <div className={styles.matchList}>
           {filtered.map((match) => {
             const [day, time] = dateParts(match.scheduledAt);
+            const resolution = getMatchResolutionPresentation({
+              status: match.planningStatus,
+              cancellationReasonCode: match.cancellationReasonCode,
+              cancellationReasonText: match.cancellationReasonText,
+            });
             return (
               <article key={match.id} className={styles.matchRow}>
                 <div className={styles.dateBlock}><span>{day}</span><strong>{time}</strong></div>
@@ -214,7 +266,11 @@ function MatchList({
                   <strong>{match.homeName}</strong>
                   <span>vs.</span>
                   <strong>{match.awayName}</strong>
-                  <small><MapPin size={13} /> {[match.venue, match.court].filter(Boolean).join(' · ') || 'Sede a confirmar'}</small>
+                  {resolution ? (
+                    <small>{resolution.description}</small>
+                  ) : (
+                    <small><MapPin size={13} /> {[match.venue, match.court].filter(Boolean).join(' · ') || 'Sede a confirmar'}</small>
+                  )}
                 </div>
                 <div className={styles.squadSignals}>
                   <span data-ready={Boolean(match.homeSquadStatus)}>
@@ -224,9 +280,15 @@ function MatchList({
                     V {match.awaySquadStatus ? '✓' : '—'}
                   </span>
                 </div>
-                <StatusPill status={match.operationStatus || match.planningStatus} />
+                <StatusPill
+                  status={match.operationStatus || match.planningStatus}
+                  label={resolution?.code === 'withdrawal_bye' ? resolution.label : null}
+                />
                 <div className={styles.rowActions}>
-                  <Link to={`${base}/${match.id}`}>Operar <ChevronRight size={16} /></Link>
+                  <Link to={`${base}/${match.id}`}>
+                    {resolution ? 'Ver' : 'Operar'}
+                    <ChevronRight size={16} />
+                  </Link>
                 </div>
               </article>
             );
@@ -443,6 +505,7 @@ function ReportEditor({
     requiresResolution: context.outcome?.requires_resolution ?? false,
     eventsRemainValid: context.outcome?.events_remain_valid ?? true,
   });
+  const outcomeGap = describeMatchOutcomeGap(outcome);
   const [event, setEvent] = useState({
     eventType: 'goal',
     teamEntryId: operation.home_team_entry_id,
@@ -512,7 +575,8 @@ function ReportEditor({
           <label><input disabled={readOnly} type="checkbox" checked={outcome.countsForPlayerStats} onChange={(e) => setOutcome((c) => ({ ...c, countsForPlayerStats: e.target.checked }))} /> Cuenta estadísticas</label>
           <label><input disabled={readOnly} type="checkbox" checked={outcome.requiresResolution} onChange={(e) => setOutcome((c) => ({ ...c, requiresResolution: e.target.checked }))} /> Requiere resolución</label>
         </div>
-        {!readOnly && <button type="button" disabled={busy} onClick={() => run('outcome', outcome)}><Save size={17} /> Guardar estado</button>}
+        {!readOnly && outcomeGap && <p className={styles.inlineHint}>{outcomeGap}</p>}
+        {!readOnly && <button type="button" disabled={busy || Boolean(outcomeGap)} onClick={() => run('outcome', outcome)}><Save size={17} /> Guardar estado</button>}
       </section>
 
       <section className={styles.reportSection}>
@@ -806,7 +870,18 @@ export default function MatchOperationsPage({ mode = 'list' }) {
         createCorrection: 'Nueva versión editable creada.',
       }[action] });
     } catch (error) {
-      setState((current) => ({ ...current, error: error.message, notice: '' }));
+      // Con la competencia cerrada el rechazo llega casi siempre como falta de
+      // permisos, aunque el propietario tenga el rol: la causa real es el
+      // estado. Se explica con lo que esta pantalla ya sabe.
+      setState((current) => ({
+        ...current,
+        error: getLifecycleErrorMessage(
+          error,
+          error.message,
+          getCompetitionErrorContext(organization, activeTournament),
+        ),
+        notice: '',
+      }));
     } finally {
       setBusy(false);
     }
@@ -889,9 +964,7 @@ export default function MatchOperationsPage({ mode = 'list' }) {
                 {state.operation ? (
                   <Link to={`${base}/${match.id}/acta`}>Continuar acta</Link>
                 ) : canOpen && ['scheduled', 'ready'].includes(match.planningStatus) ? (
-                  <button type="button" disabled={busy} onClick={() => run('open')}>
-                    <Plus size={17} /> Abrir acta
-                  </button>
+                  <OpenReportAction match={match} busy={busy} run={run} />
                 ) : <small>Acción no disponible para tu rol o estado.</small>}
               </section>
               <section className={styles.detailCard}>
@@ -938,7 +1011,7 @@ export default function MatchOperationsPage({ mode = 'list' }) {
                 <h2>Primero abrí el acta</h2>
                 <p>La apertura crea la versión y copia los snapshots disponibles.</p>
                 {canOpen && ['scheduled', 'ready'].includes(match.planningStatus)
-                  && <button type="button" disabled={busy} onClick={() => run('open')}>Abrir acta</button>}
+                  && <OpenReportAction match={match} busy={busy} run={run} />}
               </section>
             ) : (
               <>

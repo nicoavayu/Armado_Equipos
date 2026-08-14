@@ -32,10 +32,13 @@ export function TorneosFixtureProvider({
   service,
   children,
 }) {
-  const { activeTournament } = useTorneosCompetition();
+  const {
+    activeTournament,
+    refresh: refreshCompetition,
+  } = useTorneosCompetition();
   const requestRef = useRef(0);
   const scopeRef = useRef('');
-  const [categoryId, setCategoryId] = useState(null);
+  const [preferredCategoryId, setPreferredCategoryId] = useState(null);
   const [state, setState] = useState({
     status: 'idle',
     data: EMPTY_DATA,
@@ -46,16 +49,15 @@ export function TorneosFixtureProvider({
     () => (activeTournament?.categories || []).filter((category) => category.status === 'active'),
     [activeTournament?.categories],
   );
+  const categoryId = categories.some((category) => category.id === preferredCategoryId)
+    ? preferredCategoryId
+    : categories[0]?.id || null;
   const scopeKey = `${organizationId || ''}:${activeTournament?.id || ''}:${categoryId || ''}`;
   scopeRef.current = scopeKey;
 
   useEffect(() => {
-    setCategoryId((current) => (
-      categories.some((category) => category.id === current)
-        ? current
-        : categories[0]?.id || null
-    ));
-  }, [activeTournament?.id, categories]);
+    setPreferredCategoryId(categoryId);
+  }, [activeTournament?.id, categories, categoryId]);
 
   const refresh = useCallback(async ({ notice = '' } = {}) => {
     const requestedScope = scopeKey;
@@ -137,7 +139,7 @@ export function TorneosFixtureProvider({
         ...input,
         idempotencyKey: input.idempotencyKey || service.createIdempotencyKey(),
       })),
-      'Participantes cerrados y fotografiados.',
+      'Lista de participantes confirmada.',
     ),
     reopen: (reason) => mutate(
       () => service.reopenParticipants(scoped({ reason })),
@@ -145,7 +147,7 @@ export function TorneosFixtureProvider({
     ),
     savePots: (pots) => mutate(
       () => service.saveDrawPots(scoped({ pots })),
-      'Bombos y seeds guardados.',
+      'Bombos y orden de sorteo guardados.',
     ),
     draw: (input) => mutate(
       () => service.executeGroupDraw(scoped(input)),
@@ -156,25 +158,29 @@ export function TorneosFixtureProvider({
         ...input,
         idempotencyKey: input.idempotencyKey || service.createIdempotencyKey(),
       })),
-      'Nueva versión draft generada.',
+      'Nueva versión borrador generada.',
     ),
     createManual: (sourceFixtureVersionId = null) => mutate(
       () => service.createManualFixture(scoped({
         sourceFixtureVersionId,
         idempotencyKey: service.createIdempotencyKey(),
       })),
-      sourceFixtureVersionId ? 'Copia manual draft creada.' : 'Versión manual vacía creada.',
+      sourceFixtureVersionId ? 'Copia editable creada.' : 'Versión manual vacía creada.',
     ),
     updateDraft: (fixtureVersionId, action, payload) => mutate(
       () => service.updateDraftFixture(scoped({ fixtureVersionId, action, payload })),
-      'Versión draft actualizada.',
+      'Versión borrador actualizada.',
     ),
     validateFixture: (fixtureVersionId) => service.validateFixture(
       scoped({ fixtureVersionId }),
     ),
     publish: (fixtureVersionId) => mutate(
-      () => service.publishFixture(scoped({ fixtureVersionId })),
-      'Fixture publicado internamente.',
+      async () => {
+        const result = await service.publishFixture(scoped({ fixtureVersionId }));
+        await refreshCompetition();
+        return result;
+      },
+      'Fixture publicado. Se cerró el alta normal de equipos.',
     ),
     supersede: (fixtureVersionId) => mutate(
       () => service.supersedeFixture(scoped({
@@ -212,7 +218,7 @@ export function TorneosFixtureProvider({
       () => service.autoScheduleMatches(scoped({ fixtureVersionId })),
       'Programación automática básica completada.',
     ),
-  }), [mutate, scoped, service]);
+  }), [mutate, refreshCompetition, scoped, service]);
 
   const value = useMemo(() => ({
     ...state,
@@ -220,7 +226,7 @@ export function TorneosFixtureProvider({
     categories,
     categoryId,
     activeCategory: categories.find((category) => category.id === categoryId) || null,
-    setCategoryId,
+    setCategoryId: setPreferredCategoryId,
     refresh,
     actions,
   }), [actions, categories, categoryId, refresh, state]);

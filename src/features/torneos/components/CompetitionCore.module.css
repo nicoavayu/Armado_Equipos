@@ -180,6 +180,17 @@
   border: 0;
   outline: 0;
   appearance: none;
+  cursor: pointer;
+}
+
+.contextSelector select option,
+.inputGrid select option,
+.dependentSettings select option,
+.ruleActions select option,
+.categoryForm select option,
+.seasonForm select option {
+  color: #f7f3ff;
+  background: #171326;
 }
 
 .contextSelector label > svg:last-child {
@@ -532,6 +543,42 @@
   color: #ddd1fa;
   background: rgba(139, 94, 255, 0.09);
   border: 1px solid rgba(164, 126, 255, 0.2);
+}
+
+.lifecycleNotice {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 11px;
+  margin-bottom: 18px;
+  padding: 15px 17px;
+  color: #e8ddff;
+  background: rgba(139, 94, 255, 0.09);
+  border: 1px solid rgba(164, 126, 255, 0.22);
+  border-radius: 12px;
+}
+
+.lifecycleNotice[data-read-only="true"] {
+  background: rgba(255, 177, 102, 0.08);
+  border-color: rgba(255, 177, 102, 0.24);
+}
+
+.lifecycleNotice strong,
+.lifecycleNotice p,
+.lifecycleNotice small {
+  display: block;
+  margin: 0;
+}
+
+.lifecycleNotice p {
+  margin-top: 4px;
+  color: var(--torneos-muted);
+  line-height: 1.5;
+}
+
+.lifecycleNotice small {
+  margin-top: 7px;
+  color: #ffc38b;
 }
 
 .formAlert {
@@ -1194,6 +1241,43 @@
   background: rgba(255, 255, 255, 0.025);
   border: 1px solid var(--torneos-border);
   border-radius: 13px;
+}
+
+.transitionConfirmation {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 13px;
+  padding: 18px;
+  background: rgba(179, 103, 45, 0.11);
+  border: 1px solid rgba(255, 177, 102, 0.3);
+  border-radius: 13px;
+}
+
+.transitionConfirmation > svg {
+  color: #ffb166;
+}
+
+.transitionConfirmation p,
+.transitionConfirmation li {
+  color: var(--torneos-muted);
+  line-height: 1.5;
+}
+
+.transitionConfirmation p {
+  margin: 7px 0;
+}
+
+.transitionConfirmation ul {
+  margin: 8px 0 12px;
+  padding-left: 20px;
+}
+
+.confirmationActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-top: 15px;
 }
 
 .reviewHero {

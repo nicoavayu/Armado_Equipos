@@ -1,0 +1,32 @@
+HALLAZGO P1-D — Condiciones de negocio previstas se responden como HTTP 500
+Detectado: 2026-08-13, certificación item 5 (Finalizar bloqueado con pendientes)
+Origen: supabase/migrations/20260812120000_tournament_competition_lifecycle.sql (NUEVA, sin commit)
+
+EVIDENCIA VIVA (UI real, owner, LOCAL):
+  POST /rest/v1/rpc/finish_tournament_competition -> 500 Internal Server Error (56ms)
+  UI muestra: "No pudimos finalizar la competencia."  (fallback genérico, sin causa ni cantidad)
+  La competencia queda correctamente en EN JUEGO: el guard funciona; falla la comunicación.
+
+CAUSA RAIZ:
+  L594-598  if v_pending > 0 then
+              raise exception using errcode = '55000',
+                message = 'TORNEOS_COMPETITION_HAS_PENDING_COMMITMENTS',
+                detail  = v_pending::text;      <-- el dato accionable se calcula y se descarta
+  PostgREST traduce 55000 (object_not_in_prerequisite_state) a HTTP 500.
+
+ALCANCE — 4 sitios con 55000 en la misma migración nueva:
+  L595   TORNEOS_COMPETITION_HAS_PENDING_COMMITMENTS   (finalizar con pendientes)   [CONFIRMADO 500 EN VIVO]
+  L835   TORNEOS_PARTICIPANT_ALREADY_WITHDRAWN         (retirar dos veces)
+  L855   TORNEOS_PARTICIPANT_HAS_OPEN_OPERATIONS       (retiro con acta abierta)
+  L1164  TORNEOS_COMPETITION_READ_ONLY                 (trigger read-only de Finalizada)
+
+INCONSISTENCIA INTERNA: el mismo archivo usa 22023 (-> HTTP 400) en 9 sitios para
+la misma clase de regla. 4 de 13 quedaron como error de servidor.
+
+POR QUE ES P1 Y NO P2:
+  Es el mismo defecto que P1-C, ya aprobado y corregido en esta misma pasada
+  (20260813121000_match_open_window_is_a_client_error.sql), que cambió 55000 -> 22023
+  con el argumento explícito: "una condición que el propio contrato prevé se le
+  presentaba como una falla del servidor". P1-C arregló una instancia preexistente;
+  el código nuevo bajo certificación introduce cuatro más.
+  Ademas L1164 es el guard del item 7 (read-only server-side de Finalizada).

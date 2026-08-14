@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '../../../services/api/supabase';
+import { normalizeMatchOutcome } from '../domain/matchOutcome';
 import {
   signTournamentMediaReadUrls,
   uploadTournamentMediaPhoto,
@@ -15,9 +16,9 @@ const ERROR_MESSAGES = {
   TORNEOS_CREATION_RATE_LIMITED: 'Se hicieron varios intentos. Esperá unos minutos y probá de nuevo.',
   TORNEOS_WORKSPACE_FORBIDDEN: 'Ya no tenés acceso a ese espacio.',
   TORNEOS_ORGANIZATION_FORBIDDEN: 'No tenés permiso para realizar esa acción.',
-  TORNEOS_ARCHIVE_FORBIDDEN: 'Sólo el owner puede archivar la organización.',
+  TORNEOS_ARCHIVE_FORBIDDEN: 'Sólo el Propietario puede archivar la organización.',
   TORNEOS_INVALID_STATUS: 'El estado seleccionado no es válido.',
-  TORNEOS_ACTIVE_OWNER_REQUIRED: 'La organización debe conservar un owner activo.',
+  TORNEOS_ACTIVE_OWNER_REQUIRED: 'La organización debe conservar un Propietario activo.',
   TORNEOS_RESOURCE_FORBIDDEN: 'No encontramos ese recurso o no tenés permiso para acceder.',
   TORNEOS_CONTEXT_FORBIDDEN: 'Ese contexto ya no está disponible.',
   TORNEOS_INVALID_SEASON: 'Revisá los datos de la temporada.',
@@ -157,6 +158,17 @@ const ERROR_MESSAGES = {
   TORNEOS_MEDIA_ORDER_INVALID: 'No pudimos mover la foto a esa posición.',
   TORNEOS_PUBLIC_PAGE_FORBIDDEN: 'No tenés permiso para publicar esta página.',
   TORNEOS_PUBLIC_PAGE_NOT_PUBLISHABLE: 'El torneo todavía no está en un estado publicable.',
+  // Reglas del ciclo de vida de la competencia. Sin estas entradas cualquier
+  // llamador las recibe como un fallo genérico: el código funcional se pierde
+  // acá y no llega a la pantalla. `getLifecycleErrorMessage` refina estos
+  // mensajes con la cantidad cuando el backend la informa.
+  TORNEOS_COMPETITION_HAS_PENDING_COMMITMENTS:
+    'Todavía quedan partidos por resolver antes de finalizar la competencia.',
+  TORNEOS_COMPETITION_READ_ONLY:
+    'La competencia está finalizada y no admite cambios. Reabrila si necesitás corregir algo.',
+  TORNEOS_PARTICIPANT_ALREADY_WITHDRAWN: 'Este equipo ya figura como retirado.',
+  TORNEOS_PARTICIPANT_HAS_OPEN_OPERATIONS:
+    'El equipo tiene un acta abierta. Resolvela o anulala antes de retirarlo.',
 };
 
 export class TournamentWorkspaceError extends Error {
@@ -511,6 +523,76 @@ export async function changeTournamentCompetitionStatus({
     );
   } catch (error) {
     throw toWorkspaceError(error, 'No pudimos cambiar el estado del torneo.');
+  }
+}
+
+export async function startTournamentCompetition({ organizationId, tournamentId }) {
+  try {
+    return unwrapRpc(
+      await supabase.rpc('start_tournament_competition', {
+        p_organization_id: organizationId,
+        p_tournament_id: tournamentId,
+      }),
+      'No pudimos iniciar la competencia.',
+    );
+  } catch (error) {
+    throw toWorkspaceError(error, 'No pudimos iniciar la competencia.');
+  }
+}
+
+export async function finishTournamentCompetition({ organizationId, tournamentId }) {
+  try {
+    return unwrapRpc(
+      await supabase.rpc('finish_tournament_competition', {
+        p_organization_id: organizationId,
+        p_tournament_id: tournamentId,
+      }),
+      'No pudimos finalizar la competencia.',
+    );
+  } catch (error) {
+    throw toWorkspaceError(error, 'No pudimos finalizar la competencia.');
+  }
+}
+
+export async function reopenTournamentCompetition({
+  organizationId,
+  tournamentId,
+  reason,
+}) {
+  try {
+    return unwrapRpc(
+      await supabase.rpc('reopen_tournament_competition', {
+        p_organization_id: organizationId,
+        p_tournament_id: tournamentId,
+        p_reason: reason,
+      }),
+      'No pudimos reabrir la competencia.',
+    );
+  } catch (error) {
+    throw toWorkspaceError(error, 'No pudimos reabrir la competencia.');
+  }
+}
+
+export async function withdrawTournamentCompetitionParticipant({
+  organizationId,
+  tournamentId,
+  teamEntryId,
+  reasonCode,
+  reasonText = null,
+}) {
+  try {
+    return unwrapRpc(
+      await supabase.rpc('withdraw_tournament_competition_participant', {
+        p_organization_id: organizationId,
+        p_tournament_id: tournamentId,
+        p_team_entry_id: teamEntryId,
+        p_reason_code: reasonCode,
+        p_reason_text: reasonText,
+      }),
+      'No pudimos retirar el equipo.',
+    );
+  } catch (error) {
+    throw toWorkspaceError(error, 'No pudimos retirar el equipo.');
   }
 }
 
@@ -1020,7 +1102,7 @@ export async function setTournamentMatchOutcome(input) {
   return unwrapRpc(await supabase.rpc('set_tournament_match_outcome', {
     p_organization_id: input.organizationId,
     p_match_operation_id: input.operationId,
-    p_outcome: input.outcome,
+    p_outcome: normalizeMatchOutcome(input.outcome),
   }), 'No pudimos guardar la resolución deportiva.');
 }
 
@@ -1845,6 +1927,10 @@ export const tournamentWorkspaceService = Object.freeze({
   updateTournament: updateTournamentCompetition,
   saveCategory: saveTournamentCategory,
   changeTournamentStatus: changeTournamentCompetitionStatus,
+  startCompetition: startTournamentCompetition,
+  finishCompetition: finishTournamentCompetition,
+  reopenCompetition: reopenTournamentCompetition,
+  withdrawCompetitionParticipant: withdrawTournamentCompetitionParticipant,
   setTournamentContext: setActiveTournamentContext,
   loadTeamsContext: loadTournamentTeamsContext,
   loadTeamRegistration: loadTeamRegistrationContext,

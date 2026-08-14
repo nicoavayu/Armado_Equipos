@@ -11,13 +11,13 @@ import {
   useTorneosFixture,
 } from '../features/torneos/context/TorneosFixtureContext';
 
-const activeTournament = {
+let mockActiveTournament = {
   id: 'tournament-a',
   categories: [{ id: 'category-a', name: 'Primera', status: 'active' }],
 };
 
 jest.mock('../features/torneos/context/TorneosCompetitionContext', () => ({
-  useTorneosCompetition: () => ({ activeTournament }),
+  useTorneosCompetition: () => ({ activeTournament: mockActiveTournament }),
 }));
 
 function Harness() {
@@ -42,6 +42,76 @@ function deferred() {
 }
 
 describe('TorneosFixtureContext scope isolation', () => {
+  beforeEach(() => {
+    mockActiveTournament = {
+      id: 'tournament-a',
+      categories: [{ id: 'category-a', name: 'Primera', status: 'active' }],
+    };
+  });
+
+  test('never requests the new tournament with the previous tournament category', async () => {
+    const service = {
+      loadFixtureContext: jest.fn().mockResolvedValue({}),
+      loadScheduleContext: jest.fn().mockResolvedValue({}),
+    };
+    const view = render(
+      <TorneosFixtureProvider organizationId="org-a" service={service}>
+        <Harness />
+      </TorneosFixtureProvider>,
+    );
+    await waitFor(() => expect(service.loadFixtureContext).toHaveBeenCalledWith(
+      'org-a',
+      'tournament-a',
+      'category-a',
+    ));
+
+    mockActiveTournament = {
+      id: 'tournament-b',
+      categories: [{ id: 'category-b', name: 'Segunda', status: 'active' }],
+    };
+    view.rerender(
+      <TorneosFixtureProvider organizationId="org-a" service={service}>
+        <Harness />
+      </TorneosFixtureProvider>,
+    );
+
+    await waitFor(() => expect(service.loadFixtureContext).toHaveBeenCalledWith(
+      'org-a',
+      'tournament-b',
+      'category-b',
+    ));
+    expect(service.loadFixtureContext).not.toHaveBeenCalledWith(
+      'org-a',
+      'tournament-b',
+      'category-a',
+    );
+    expect(service.loadScheduleContext).not.toHaveBeenCalledWith(
+      'org-a',
+      'tournament-b',
+      'category-a',
+    );
+
+    mockActiveTournament = {
+      id: 'tournament-a',
+      categories: [{ id: 'category-a', name: 'Primera', status: 'active' }],
+    };
+    view.rerender(
+      <TorneosFixtureProvider organizationId="org-a" service={service}>
+        <Harness />
+      </TorneosFixtureProvider>,
+    );
+    await waitFor(() => expect(service.loadScheduleContext).toHaveBeenLastCalledWith(
+      'org-a',
+      'tournament-a',
+      'category-a',
+    ));
+    expect(service.loadFixtureContext).not.toHaveBeenCalledWith(
+      'org-a',
+      'tournament-a',
+      'category-b',
+    );
+  });
+
   test('discards responses from the previous organization even if they finish last', async () => {
     const requests = new Map();
     const service = {

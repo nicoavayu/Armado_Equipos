@@ -204,6 +204,26 @@ export function TorneosCompetitionProvider({
         : 'Estado actualizado.',
   ), [organizationId, runMutation, service]);
 
+  const startCompetition = useCallback((input) => runMutation(
+    () => service.startCompetition({ organizationId, ...input }),
+    'La competencia quedó En juego.',
+  ), [organizationId, runMutation, service]);
+
+  const finishCompetition = useCallback((input) => runMutation(
+    () => service.finishCompetition({ organizationId, ...input }),
+    'La competencia quedó finalizada.',
+  ), [organizationId, runMutation, service]);
+
+  const reopenCompetition = useCallback((input) => runMutation(
+    () => service.reopenCompetition({ organizationId, ...input }),
+    'La competencia volvió a estar En juego.',
+  ), [organizationId, runMutation, service]);
+
+  const withdrawCompetitionParticipant = useCallback((input) => runMutation(
+    () => service.withdrawCompetitionParticipant({ organizationId, ...input }),
+    'El equipo quedó retirado de la competencia.',
+  ), [organizationId, runMutation, service]);
+
   const createIdempotencyKey = useCallback(
     () => service.createIdempotencyKey(),
     [service],
@@ -232,6 +252,10 @@ export function TorneosCompetitionProvider({
     updateTournament,
     saveCategory,
     changeTournamentStatus,
+    startCompetition,
+    finishCompetition,
+    reopenCompetition,
+    withdrawCompetitionParticipant,
     createIdempotencyKey,
     clearNotice,
   }), [
@@ -242,12 +266,16 @@ export function TorneosCompetitionProvider({
     createSeason,
     createTournament,
     createIdempotencyKey,
+    finishCompetition,
     refresh,
+    reopenCompetition,
     saveCategory,
     selectContext,
+    startCompetition,
     state,
     updateSeason,
     updateTournament,
+    withdrawCompetitionParticipant,
   ]);
 
   return (

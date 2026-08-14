@@ -15,6 +15,12 @@ const expectedCanonicalMigrations = [
   '20260809232508_tournament_media_free_mvp.sql',
   '20260810160355_tournament_entitlements_foundation.sql',
   '20260810215224_tournament_public_pages.sql',
+  '20260812120000_tournament_competition_lifecycle.sql',
+  '20260813120000_rank_standings_safeupdate_guard.sql',
+  '20260813121000_match_open_window_is_a_client_error.sql',
+  '20260813122000_lifecycle_business_rules_are_client_errors.sql',
+  '20260813123000_match_already_official_is_a_client_error.sql',
+  '20260813124000_core_flow_business_rules_are_client_errors.sql',
 ];
 
 const exitWithError = (message) => {

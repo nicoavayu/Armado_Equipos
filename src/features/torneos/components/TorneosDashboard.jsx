@@ -1,5 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import {
+  AlertCircle,
   ArrowRight,
   CalendarDays,
   CheckCircle2,
@@ -18,22 +24,30 @@ import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
 import {
   CHECKLIST_ITEMS,
   getOptionName,
-  TOURNAMENT_STATUS_LABELS,
 } from '../domain/competitionCatalog';
 import {
   hasCapability,
   TOURNAMENT_CAPABILITIES,
 } from '../domain/capabilities';
 import CompetitionSelector from './CompetitionSelector';
+import CompetitionLifecycleActions from './CompetitionLifecycleActions';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import styles from './TorneosShell.module.css';
 import coreStyles from './CompetitionCore.module.css';
+import {
+  countScheduledMatches,
+  hasScheduledTime,
+} from '../domain/matchSchedule';
+import {
+  getOwnerNextStep,
+  getTournamentStage,
+} from '../domain/competitionLifecycle';
 
-const futureModules = [
-  { label: 'Partidos', description: 'Operación y resultados', icon: ClipboardList },
-  { label: 'Tabla', description: 'Posiciones y desempates', icon: Table2 },
-  { label: 'Disciplina', description: 'Casos y sanciones', icon: Gavel },
-  { label: 'Comunicaciones', description: 'Avisos por audiencia', icon: Megaphone },
+const operationalModules = [
+  { label: 'Partidos', description: 'Resultados, actas e historial', icon: ClipboardList, path: 'partidos' },
+  { label: 'Tabla', description: 'Posiciones y desempates', icon: Table2, path: 'competencia/tabla' },
+  { label: 'Disciplina', description: 'Tarjetas, casos y sanciones derivadas', icon: Gavel, path: 'competencia/disciplina' },
+  { label: 'Comunicaciones', description: 'Avisos para la competencia', icon: Megaphone, path: 'comunicaciones' },
 ];
 
 function formatDate(value) {
@@ -60,7 +74,12 @@ export default function TorneosDashboard() {
   } = useTorneosCompetition();
   const { service } = useTorneosWorkspace();
   const fixture = useTorneosFixture();
-  const [teamsSummary, setTeamsSummary] = useState(null);
+  const teamsRequestRef = useRef(0);
+  const [teamsSummary, setTeamsSummary] = useState({
+    status: 'idle',
+    data: null,
+    error: '',
+  });
   const canCreateTournament = hasCapability(
     organization,
     TOURNAMENT_CAPABILITIES.TOURNAMENTS_CREATE,
@@ -70,31 +89,49 @@ export default function TorneosDashboard() {
     TOURNAMENT_CAPABILITIES.TOURNAMENTS_UPDATE,
   );
 
-  useEffect(() => {
-    let active = true;
-    setTeamsSummary(null);
+  const loadTeamsSummary = useCallback(() => {
+    const requestId = teamsRequestRef.current + 1;
+    teamsRequestRef.current = requestId;
+    setTeamsSummary({ status: 'loading', data: null, error: '' });
     if (!activeTournament?.id || typeof service.loadTeamsContext !== 'function') {
-      return undefined;
+      setTeamsSummary({ status: 'ready', data: null, error: '' });
+      return Promise.resolve();
     }
-    service.loadTeamsContext(organization.id, activeTournament.id)
+    return service.loadTeamsContext(organization.id, activeTournament.id)
       .then((payload) => {
-        if (!active) return;
+        if (teamsRequestRef.current !== requestId) return;
         const entries = payload?.entries || [];
-        const minimum = Number(payload?.settings?.minimumPlayers || 0);
+        const minimumValue = Number(payload?.settings?.minimumPlayers);
+        const minimum = Number.isFinite(minimumValue) && minimumValue > 0
+          ? minimumValue
+          : null;
         setTeamsSummary({
-          total: entries.length,
-          submitted: entries.filter((entry) => entry.status === 'submitted').length,
-          approved: entries.filter((entry) => entry.status === 'approved').length,
-          incomplete: entries.filter(
-            (entry) => Number(entry.roster?.playerCount || 0) < minimum,
-          ).length,
+          status: 'ready',
+          error: '',
+          data: {
+            total: entries.length,
+            submitted: entries.filter((entry) => entry.status === 'submitted').length,
+            approved: entries.filter((entry) => entry.status === 'approved').length,
+            incomplete: minimum === null ? null : entries.filter(
+              (entry) => Number(entry.roster?.playerCount || 0) < minimum,
+            ).length,
+          },
         });
       })
-      .catch(() => {
-        if (active) setTeamsSummary(null);
+      .catch((loadError) => {
+        if (teamsRequestRef.current !== requestId) return;
+        setTeamsSummary({
+          status: 'error',
+          data: null,
+          error: loadError?.message || 'No pudimos cargar las inscripciones.',
+        });
       });
-    return () => { active = false; };
   }, [activeTournament?.id, organization.id, service]);
+
+  useEffect(() => {
+    loadTeamsSummary().catch(() => {});
+    return () => { teamsRequestRef.current += 1; };
+  }, [loadTeamsSummary]);
 
   if (status === 'loading') return <WorkspaceLoading label="Armando tu tablero…" />;
   if (status === 'error') {
@@ -112,7 +149,7 @@ export default function TorneosDashboard() {
                 : organization.name.slice(0, 2).toUpperCase()}
             </span>
             <div>
-              <span className={styles.eyebrow}>Workspace competitivo</span>
+              <span className={styles.eyebrow}>Organización de competencias</span>
               <h1>{seasons.length ? 'Creá tu primer ' : 'Empezá un '}<em>torneo</em></h1>
               <p>
                 {seasons.length
@@ -126,11 +163,12 @@ export default function TorneosDashboard() {
         <section className={coreStyles.emptyCompetition}>
           <span><Trophy size={27} /></span>
           <div>
-            <span className={coreStyles.kicker}>Sin datos ficticios</span>
+            <span className={coreStyles.kicker}>Primer paso</span>
             <h2>{seasons.length ? 'No hay un torneo activo' : 'No hay temporadas todavía'}</h2>
             <p>
-              Este tablero se completa únicamente con configuración real guardada
-              por tu organización.
+              {seasons.length
+                ? 'Creá el torneo que vas a organizar y completá sus reglas y categorías.'
+                : 'Creá una temporada para agrupar los torneos de este período.'}
             </p>
           </div>
           {canCreateTournament && (
@@ -152,6 +190,18 @@ export default function TorneosDashboard() {
   const checks = activeTournament.checklist?.checks || {};
   const completeCount = CHECKLIST_ITEMS.filter((item) => checks[item.key]).length;
   const completion = Math.round((completeCount / CHECKLIST_ITEMS.length) * 100);
+  const stage = getTournamentStage(activeTournament.status);
+  const nextStep = getOwnerNextStep({
+    tournament: activeTournament,
+    teamsSummary,
+    fixture,
+    organizationPath,
+  });
+  const teams = teamsSummary.data;
+  const fixtureReady = fixture.status === 'ready';
+  const publishedFixture = fixtureReady
+    ? fixture.versions.find((version) => version.status === 'published')
+    : null;
 
   return (
     <div className={styles.dashboard}>
@@ -174,8 +224,26 @@ export default function TorneosDashboard() {
         </div>
         <span className={styles.activeStatus}>
           <span aria-hidden="true" />
-          {TOURNAMENT_STATUS_LABELS[activeTournament.status]}
+          {stage.label}
         </span>
+      </section>
+
+      <section className={styles.lifecyclePanel} data-blocked={Boolean(nextStep?.blocked)}>
+        <div>
+          <span className={styles.eyebrow}>Estado actual · {stage.label}</span>
+          <h2>{nextStep?.title}</h2>
+          <p>{stage.description} {nextStep?.description}</p>
+        </div>
+        {nextStep?.to && (
+          <Link className={styles.dashboardPrimaryLink} to={nextStep.to}>
+            {nextStep.label}
+            <ArrowRight size={17} />
+          </Link>
+        )}
+        <CompetitionLifecycleActions
+          organization={organization}
+          tournament={activeTournament}
+        />
       </section>
 
       <section className={styles.summaryGrid} aria-label="Resumen del torneo">
@@ -196,8 +264,22 @@ export default function TorneosDashboard() {
         </article>
         <article>
           <span>Fixture</span>
-          <strong>{fixture.versions.find((version) => version.status === 'published') ? 'Publicado' : fixture.versions.length ? 'Draft' : 'Pendiente'}</strong>
-          <small>{fixture.matches.length} partidos · {fixture.matches.filter((match) => match.status === 'scheduled').length} programados</small>
+          {fixture.status === 'loading' || fixture.status === 'idle' ? (
+            <><strong>Cargando…</strong><small>Consultando partidos y versiones</small></>
+          ) : fixture.status === 'error' ? (
+            <>
+              <strong>No disponible</strong>
+              <small>La consulta falló; no se interpreta como 0.</small>
+              <button type="button" className={styles.inlineRetry} onClick={() => fixture.refresh().catch(() => {})}>
+                Reintentar
+              </button>
+            </>
+          ) : (
+            <>
+              <strong>{publishedFixture ? 'Publicado' : fixture.versions.length ? 'Borrador' : 'Pendiente'}</strong>
+              <small>{fixture.matches.length} partidos · {countScheduledMatches(fixture.matches)} programados</small>
+            </>
+          )}
         </article>
       </section>
 
@@ -231,12 +313,26 @@ export default function TorneosDashboard() {
         <article className={`${styles.panel} ${styles.securityPanel}`}>
           <Shield size={24} aria-hidden="true" />
           <span className={styles.eyebrow}>Operación de equipos</span>
-          <h2>{teamsSummary ? `${teamsSummary.total} equipos` : 'Inscripciones'}</h2>
-          <p>
-            {teamsSummary
-              ? `${teamsSummary.submitted} para revisar · ${teamsSummary.approved} aprobados · ${teamsSummary.incomplete} incompletos.`
-              : 'El resumen se completa únicamente con inscripciones persistidas.'}
-          </p>
+          <h2>{teamsSummary.status === 'error'
+            ? 'No disponible'
+            : teams
+              ? `${teams.total} equipos`
+              : 'Cargando inscripciones…'}</h2>
+          {teamsSummary.status === 'error' ? (
+            <div className={styles.inlineError} role="alert">
+              <AlertCircle size={18} />
+              <p>{teamsSummary.error}</p>
+              <button type="button" onClick={() => loadTeamsSummary().catch(() => {})}>Reintentar</button>
+            </div>
+          ) : (
+            <p>
+              {teams
+                ? `${teams.submitted} para revisar · ${teams.approved} aprobados · ${teams.incomplete === null
+                  ? 'requisitos de plantel sin configurar.'
+                  : `${teams.incomplete} incompletos.`}`
+                : 'Consultando equipos y planteles.'}
+            </p>
+          )}
           <Link
             className={styles.dashboardPrimaryLink}
             to={`${organizationPath}/equipos`}
@@ -256,9 +352,11 @@ export default function TorneosDashboard() {
             </div>
           </div>
           <p>
-            {fixture.participantSet?.status === 'frozen'
-              ? `${fixture.participants.length} participantes congelados en una fotografía auditable.`
-              : 'Cerrá los participantes aprobados antes de generar cruces.'}
+            {fixture.status === 'error'
+              ? 'No pudimos consultar el fixture. Reintentá antes de continuar.'
+              : fixture.participantSet?.status === 'frozen'
+                ? `${fixture.participants.length} equipos confirmados para esta versión.`
+                : 'Confirmá los equipos aprobados antes de generar cruces.'}
           </p>
           <Link className={styles.dashboardPrimaryLink} to={`${organizationPath}/fixture`}>
             Abrir fixture
@@ -268,8 +366,12 @@ export default function TorneosDashboard() {
         <article className={`${styles.panel} ${styles.securityPanel}`}>
           <CalendarDays size={24} aria-hidden="true" />
           <span className={styles.eyebrow}>Operación previa</span>
-          <h2>{fixture.matches.filter((match) => match.status === 'unscheduled').length} sin horario</h2>
-          <p>Las canchas, ventanas y conflictos se resuelven antes de habilitar cualquier operación de resultados.</p>
+          <h2>{fixtureReady
+            ? `${fixture.matches.filter((match) => !hasScheduledTime(match)).length} sin horario`
+            : 'Programación no disponible'}</h2>
+          <p>{fixtureReady
+            ? 'Asigná horarios y canchas antes de iniciar la competencia.'
+            : 'Primero necesitamos cargar el fixture para indicar qué partidos requieren programación.'}</p>
           <Link className={styles.dashboardPrimaryLink} to={`${organizationPath}/programacion`}>
             Programar partidos
             <ArrowRight size={17} />
@@ -277,22 +379,22 @@ export default function TorneosDashboard() {
         </article>
       </section>
 
-      <section className={styles.futureSection} aria-labelledby="future-modules-title">
+      <section className={styles.futureSection} aria-labelledby="available-modules-title">
         <div className={styles.sectionHeading}>
-          <span>Módulos futuros</span>
-          <h2 id="future-modules-title">Todavía inactivos</h2>
-          <p>No hay enlaces, métricas ni datos simulados para estas funciones.</p>
+          <span>Operación y seguimiento</span>
+          <h2 id="available-modules-title">Herramientas disponibles</h2>
+          <p>Usan los mismos partidos y datos oficiales que la página pública.</p>
         </div>
         <div className={styles.futureGrid}>
-          {futureModules.map(({ label, description, icon: Icon }) => (
-            <article key={label}>
+          {operationalModules.map(({ label, description, icon: Icon, path }) => (
+            <Link key={label} to={`${organizationPath}/${path}`}>
               <Icon size={20} aria-hidden="true" />
               <span>
                 <strong>{label}</strong>
                 <small>{description}</small>
               </span>
-              <em>Próximamente</em>
-            </article>
+              <ArrowRight size={17} aria-hidden="true" />
+            </Link>
           ))}
         </div>
       </section>

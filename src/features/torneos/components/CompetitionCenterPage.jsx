@@ -23,6 +23,10 @@ import { useTorneosCompetition } from '../context/TorneosCompetitionContext';
 import { useTorneosFixture } from '../context/TorneosFixtureContext';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
 import { hasCapability, TOURNAMENT_CAPABILITIES } from '../domain/capabilities';
+import {
+  getCompetitionErrorContext,
+  getLifecycleErrorMessage,
+} from '../domain/competitionLifecycle';
 import CompetitionSelector from './CompetitionSelector';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import styles from './CompetitionCenter.module.css';
@@ -137,8 +141,17 @@ function StandingsTable({ rows }) {
                 <span className={styles.team}>
                   <span className={styles.teamMark}>{(row.shortName || row.teamName || '—').slice(0, 2)}</span>
                   <span>
-                    <strong>{row.teamName}</strong>
-                    <small>{row.pointsAdjustment ? `${row.pointsAdjustment > 0 ? '+' : ''}${row.pointsAdjustment} ajuste` : 'Sin ajustes'}</small>
+                    <strong>
+                      {row.teamName}
+                      {row.participantStatus === 'withdrawn' && (
+                        <span className={styles.retiredFlag}>Retirado</span>
+                      )}
+                    </strong>
+                    <small>{row.participantStatus === 'withdrawn'
+                      ? 'Se retiró de la competencia; conserva lo obtenido antes del retiro.'
+                      : row.pointsAdjustment
+                        ? `${row.pointsAdjustment > 0 ? '+' : ''}${row.pointsAdjustment} ajuste`
+                        : 'Sin ajustes'}</small>
                     <details className={styles.teamDetail}>
                       <summary>Ver detalle</summary>
                       <span>{row.won}G · {row.drawn}E · {row.lost}P · {row.goalsFor}:{row.goalsAgainst}</span>
@@ -422,7 +435,17 @@ export default function CompetitionCenterPage({ mode = 'table' }) {
       setReason('');
       await refresh(notice);
     } catch (error) {
-      setState((current) => ({ ...current, error: error?.message || 'No pudimos completar la acción.', notice: '' }));
+      // Ver la nota de MatchOperationsPage: con la competencia cerrada el
+      // rechazo se disfraza de falta de permisos y la causa real es el estado.
+      setState((current) => ({
+        ...current,
+        error: getLifecycleErrorMessage(
+          error,
+          error?.message || 'No pudimos completar la acción.',
+          getCompetitionErrorContext(organization, activeTournament),
+        ),
+        notice: '',
+      }));
       setAction(null);
     } finally {
       setBusy(false);

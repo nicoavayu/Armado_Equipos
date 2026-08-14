@@ -85,8 +85,16 @@ function formatDate(value, withTime = true) {
     weekday: 'short',
     day: '2-digit',
     month: 'short',
-    ...(withTime ? { hour: '2-digit', minute: '2-digit' } : {}),
+    ...(withTime ? { hour: '2-digit', minute: '2-digit', hour12: false } : {}),
   }).format(new Date(value));
+}
+
+function presentTournamentDescription(description) {
+  const value = String(description || '').trim();
+  const looksLikeFixtureMetadata = /^dataset\b/i.test(value) || /\bin_progress\b/i.test(value);
+  return value && !looksLikeFixtureMetadata
+    ? value
+    : 'Competencia oficial dentro de Arma2.';
 }
 
 function TeamMark({ team, compact = false }) {
@@ -813,7 +821,7 @@ export default function TournamentHubPage({ defaultSection = 'resumen', matchMod
           <div>
             <span className={styles.hubKicker}>{hub.tournament.seasonName} · {hub.tournament.organizationName}</span>
             <h1>{hub.tournament.name}</h1>
-            <p>{hub.tournament.description || 'Competencia oficial dentro de Arma2.'}</p>
+            <p>{presentTournamentDescription(hub.tournament.description)}</p>
           </div>
         </div>
         <div className={styles.tournamentHeroActions}>

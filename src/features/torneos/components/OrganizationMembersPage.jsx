@@ -2,16 +2,37 @@ import React, { useEffect, useState } from 'react';
 import { Clock3, LockKeyhole, Plus, UserRound, Users } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
 import {
+  getRoleDescription,
   getRoleLabel,
   hasCapability,
   TOURNAMENT_CAPABILITIES,
 } from '../domain/capabilities';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
+import OrganizationSettingsNav from './OrganizationSettingsNav';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import styles from './TorneosShell.module.css';
 
+const ORGANIZATION_ROLE_GUIDE = ['owner', 'admin', 'collaborator'];
+const RELATIONAL_ROLE_GUIDE = ['delegate', 'player'];
+
+function RoleGuideGroup({ label, roles }) {
+  return (
+    <div className={styles.roleGuideGroup}>
+      <h3>{label}</h3>
+      <div>
+        {roles.map((role) => (
+          <article key={role}>
+            <strong>{getRoleLabel(role)}</strong>
+            <p>{getRoleDescription(role)}</p>
+          </article>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function safeMemberLabel(member, organization) {
-  if (member.role === 'owner') return `Owner de ${organization.name}`;
+  if (member.role === 'owner') return `Propietario de ${organization.name}`;
   return `Miembro · ${String(member.user_id).slice(0, 8)}`;
 }
 
@@ -78,6 +99,18 @@ export default function OrganizationMembersPage() {
         <p>Roles y estados visibles dentro de esta organización.</p>
       </header>
 
+      <OrganizationSettingsNav />
+
+      <section className={styles.roleGuide} aria-labelledby="role-guide-title">
+        <header>
+          <span className={styles.eyebrow}>Permisos claros</span>
+          <h2 id="role-guide-title">Qué permite cada acceso</h2>
+          <p>Los roles de organización y los accesos asignados a un equipo tienen alcances distintos.</p>
+        </header>
+        <RoleGuideGroup label="Organización" roles={ORGANIZATION_ROLE_GUIDE} />
+        <RoleGuideGroup label="Por equipo o plantel asignado" roles={RELATIONAL_ROLE_GUIDE} />
+      </section>
+
       <div className={styles.membersToolbar}>
         <span><Users size={18} /> {state.members.length} miembros</span>
         <button type="button" disabled title="Las invitaciones estarán disponibles en una próxima fase">
@@ -105,7 +138,10 @@ export default function OrganizationMembersPage() {
                 Desde {formatDate(member.joined_at || member.created_at)}
               </small>
             </span>
-            <span className={styles.roleChip}>{getRoleLabel(member.role)}</span>
+            <span className={styles.memberRole}>
+              <span className={styles.roleChip}>{getRoleLabel(member.role)}</span>
+              <small>{getRoleDescription(member.role)}</small>
+            </span>
             <span className={member.status === 'active' ? styles.activeChip : styles.neutralChip}>
               {member.status === 'active' ? 'Activo' : member.status}
             </span>

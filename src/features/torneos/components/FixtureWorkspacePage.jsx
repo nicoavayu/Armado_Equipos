@@ -5,6 +5,7 @@ import {
   CalendarClock,
   CheckCircle2,
   CircleDot,
+  CircleHelp,
   GitBranch,
   LockKeyhole,
   MapPin,
@@ -26,22 +27,71 @@ import {
   instantToZonedLocalInput,
   zonedLocalDateTimeToIso,
 } from '../domain/fixtureAlgorithms';
+import { getCompetitionFormatName } from '../domain/competitionCatalog';
+import { getTransitionConsequences } from '../domain/competitionLifecycle';
+import {
+  countScheduledMatches,
+  hasScheduledTime,
+} from '../domain/matchSchedule';
 import CompetitionSelector from './CompetitionSelector';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import styles from './FixtureWorkspace.module.css';
 
 const MODE_COPY = {
   overview: ['Centro de competencia', 'Fixture', 'Versiones, fases, jornadas y programación real.'],
-  participants: ['Paso 01', 'Participantes', 'Cerrá una fotografía competitiva antes de sortear.'],
-  pots: ['Paso 02', 'Bombos y seeds', 'Ordená la entrada del sorteo sin depender del orden de la base.'],
-  draw: ['Paso 03', 'Sorteo', 'Misma entrada y misma seed producen exactamente los mismos grupos.'],
+  participants: ['Paso 01', 'Participantes', 'Confirmá la lista de equipos antes de sortear.'],
+  pots: ['Paso 02', 'Bombos y orden de sorteo', 'Definí cómo se distribuyen los equipos antes del sorteo.'],
+  draw: ['Paso 03', 'Sorteo', 'Usá una clave para poder repetir exactamente el mismo sorteo.'],
   groups: ['Estructura', 'Grupos', 'Distribución publicada y miembros congelados.'],
-  generate: ['Paso 04', 'Generar fixture', 'Creá una versión draft transaccional y verificable.'],
+  generate: ['Paso 04', 'Generar fixture', 'Creá un borrador completo para revisarlo antes de publicarlo.'],
   rounds: ['Calendario', 'Jornadas', 'Fechas, cruces y estados de planificación.'],
   bracket: ['Eliminación', 'Llave', 'Cruces futuros expresados como fuentes estructuradas.'],
   schedule: ['Operación previa', 'Programación', 'Asigná horarios y canchas con conflictos visibles.'],
   venues: ['Recursos', 'Sedes y canchas', 'Infraestructura reusable y aislada por organización.'],
 };
+
+const STATUS_LABELS = Object.freeze({
+  active: 'Activo',
+  cancelled: 'Cancelado',
+  draft: 'Borrador',
+  frozen: 'Cerrado',
+  locked: 'Cerrada',
+  postponed: 'Postergado',
+  published: 'Publicada',
+  ready: 'Listo',
+  reopened: 'Reabierto',
+  scheduled: 'Programado',
+  superseded: 'Reemplazada',
+  unscheduled: 'Sin horario',
+});
+
+const GENERATION_METHOD_LABELS = Object.freeze({
+  automatic: 'Generada automáticamente',
+  draw: 'Generada desde el sorteo',
+  manual: 'Creada manualmente',
+});
+
+const statusLabel = (status, fallback = 'Sin definir') => STATUS_LABELS[status] || fallback;
+
+function SectionHelp({ label = 'Ayuda sobre esta sección', children }) {
+  return (
+    <details className={styles.sectionHelp}>
+      <summary aria-label={label} title={label}>
+        <CircleHelp size={17} aria-hidden="true" />
+      </summary>
+      <p>{children}</p>
+    </details>
+  );
+}
+
+function SectionHeading({ eyebrow, title, help }) {
+  return (
+    <div className={styles.headingWithHelp}>
+      <div><span>{eyebrow}</span><h2>{title}</h2></div>
+      {help && <SectionHelp>{help}</SectionHelp>}
+    </div>
+  );
+}
 
 const FIXTURE_NAVIGATION = [
   ['fixture', 'Versiones'],
@@ -84,7 +134,7 @@ function ContextBar() {
   return (
     <div className={styles.contextBar}>
       <CompetitionSelector compact />
-      <label>
+      <label className={styles.categoryControl}>
         <span>Categoría</span>
         <select
           aria-label="Categoría activa del fixture"
@@ -115,10 +165,10 @@ function Metrics() {
     : [];
   return (
     <section className={styles.metrics} aria-label="Resumen del fixture">
-      <article><span>Participantes</span><strong>{participants.length}</strong><small>{participantSet?.status || 'abierto'}</small></article>
-      <article><span>Versión</span><strong>{activeVersion ? `v${activeVersion.versionNumber}` : '—'}</strong><small>{activeVersion?.status || 'sin generar'}</small></article>
-      <article><span>Partidos</span><strong>{visibleMatches.length}</strong><small>identidades futuras</small></article>
-      <article><span>Sin horario</span><strong>{visibleMatches.filter((match) => match.status === 'unscheduled').length}</strong><small>requieren programación</small></article>
+      <article><span>Participantes</span><strong>{participants.length}</strong><small>{statusLabel(participantSet?.status, 'Abierto')}</small></article>
+      <article><span>Versión</span><strong>{activeVersion ? `v${activeVersion.versionNumber}` : '—'}</strong><small>{statusLabel(activeVersion?.status, 'Sin generar')}</small></article>
+      <article><span>Partidos</span><strong>{visibleMatches.length}</strong><small>incluidos en esta versión</small></article>
+      <article><span>Sin horario</span><strong>{visibleMatches.filter((match) => !hasScheduledTime(match)).length}</strong><small>requieren programación</small></article>
     </section>
   );
 }
@@ -136,10 +186,11 @@ function ParticipantsPanel({ canManage }) {
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeading}>
-        <div>
-          <span>{participantSet ? `Snapshot v${participantSet.versionNumber}` : 'Cierre pendiente'}</span>
-          <h2>{participantSet?.status === 'frozen' ? 'Identidad congelada' : 'Equipos elegibles'}</h2>
-        </div>
+        <SectionHeading
+          eyebrow={participantSet ? `Lista cerrada · versión ${participantSet.versionNumber}` : 'Cierre pendiente'}
+          title={participantSet?.status === 'frozen' ? 'Equipos confirmados' : 'Equipos habilitados'}
+          help="Al cerrar la lista, estos equipos quedan asociados a esta versión del torneo. Los cambios posteriores no alteran un fixture ya generado."
+        />
         {canManage && participantSet?.status !== 'frozen' && (
           <button type="button" disabled={busy || eligibleEntries.length < 2} onClick={() => run(() => actions.freeze())}>
             <LockKeyhole size={17} /> Cerrar participantes
@@ -150,8 +201,8 @@ function ParticipantsPanel({ canManage }) {
         {(participants.length ? participants : eligibleEntries).map((participant) => (
           <article key={participant.id}>
             <ParticipantMark participant={participant} />
-            <div><strong>{participant.name}</strong><small>{participant.status}</small></div>
-            {participant.seedNumber && <em>Seed {participant.seedNumber}</em>}
+            <div><strong>{participant.name}</strong><small>{statusLabel(participant.status)}</small></div>
+            {participant.seedNumber && <em>Orden de sorteo {participant.seedNumber}</em>}
             {participant.potNumber && <em>Bombo {participant.potNumber}</em>}
           </article>
         ))}
@@ -211,7 +262,7 @@ function PotsPanel({ canManage }) {
             <h3>{pot.name}</h3>
             <div>{pot.members?.map((member) => {
               const participant = participants.find((item) => item.id === member.participantId);
-              return <small key={member.participantId}>{participant?.name || 'Participante'} {member.seedNumber ? `· S${member.seedNumber}` : ''}</small>;
+              return <small key={member.participantId}>{participant?.name || 'Participante'} {member.seedNumber ? `· orden ${member.seedNumber}` : ''}</small>;
             })}</div>
           </article>
         ))}
@@ -237,8 +288,15 @@ function DrawPanel({ canManage }) {
   const drawGroups = groups.filter((group) => !group.fixtureVersionId);
   return (
     <section className={styles.panel}>
+      <div className={styles.panelHeading}>
+        <SectionHeading
+          eyebrow="Sorteo reproducible"
+          title="Configurar sorteo"
+          help="La clave permite repetir el mismo sorteo con los mismos equipos. Escribí una palabra o frase fácil de reconocer, por ejemplo: apertura-2026."
+        />
+      </div>
       <div className={styles.drawControls}>
-        <label><span>Seed explícita</span><input value={seed} onChange={(event) => setSeed(event.target.value)} placeholder="ej. apertura-2026-v1" /></label>
+        <label><span>Clave del sorteo</span><input value={seed} onChange={(event) => setSeed(event.target.value)} placeholder="Ej.: apertura-2026" /></label>
         <label><span>Grupos</span><input type="number" min="2" max="32" value={groupCount} onChange={(event) => setGroupCount(event.target.value)} /></label>
         {canManage && <button type="button" disabled={busy || !participantSet || !seed.trim()} onClick={() => execute(false)}><Shuffle size={17} /> Sortear</button>}
         {canManage && <button type="button" disabled={busy || !drawGroups.length || !seed.trim()} onClick={() => execute(true)}><ShieldCheck size={17} /> Publicar</button>}
@@ -250,12 +308,18 @@ function DrawPanel({ canManage }) {
 
 function GroupsGrid({ groups }) {
   const { participants } = useTorneosFixture();
-  if (!groups.length) return <div className={styles.empty}><Shuffle size={24} /><strong>Todavía no hay grupos</strong><span>Ejecutá un sorteo draft o crealos de forma controlada.</span></div>;
+  if (!groups.length) return <div className={styles.empty}><Shuffle size={24} /><strong>Todavía no hay grupos</strong><span>Prepará un borrador del sorteo o crealos manualmente.</span></div>;
   return (
     <div className={styles.groupGrid}>
       {groups.map((group) => (
         <article key={group.id}>
-          <header><span>{group.code}</span><div><h3>{group.name}</h3><small>{group.status} · seed {group.drawSeed || 'manual'}</small></div></header>
+          <header>
+            <span>{group.code}</span>
+            <div>
+              <h3>{group.name}</h3>
+              <small>{statusLabel(group.status)} · {group.drawSeed ? 'Sorteo reproducible' : 'Armado manual'}</small>
+            </div>
+          </header>
           <ol>{group.members?.map((member) => {
             const participant = participants.find((item) => item.id === member.participantId);
             return <li key={member.participantId}><ParticipantMark participant={participant} /><span>{participant?.name || 'Participante'}</span></li>;
@@ -268,30 +332,70 @@ function GroupsGrid({ groups }) {
 
 function VersionPanel({ canManage }) {
   const { organization } = useOutletContext();
+  const { activeTournament } = useTorneosCompetition();
   const {
     versions, phases, rounds, matches, actions,
   } = useTorneosFixture();
   const [busy, setBusy] = useState(false);
+  const [pendingPublish, setPendingPublish] = useState(null);
+  const publishConsequences = getTransitionConsequences(
+    activeTournament?.status,
+    'scheduled',
+  );
   const publish = async (id) => {
     setBusy(true);
-    try { await actions.publish(id); } finally { setBusy(false); }
+    try {
+      await actions.publish(id);
+      setPendingPublish(null);
+    } finally { setBusy(false); }
   };
   return (
     <section className={styles.panel}>
-      <div className={styles.panelHeading}><div><span>Historial inmutable</span><h2>Versiones</h2></div></div>
+      <div className={styles.panelHeading}>
+        <SectionHeading
+          eyebrow="Historial de cambios"
+          title="Versiones"
+          help="Cada versión guarda cómo estaba armado el fixture en ese momento. Las versiones publicadas se conservan para poder revisar cambios sin perder el historial."
+        />
+      </div>
       <div className={styles.versionList}>
         {versions.map((version) => (
           <article key={version.id}>
             <span className={styles.versionNumber}>v{version.versionNumber}</span>
-            <div><small>{version.generationMethod}</small><h3>{version.status}</h3><p>{version.matchCount} partidos · {version.scheduledCount} programados</p></div>
+            <div><small>{GENERATION_METHOD_LABELS[version.generationMethod] || 'Método no informado'}</small><h3>{statusLabel(version.status)}</h3><p>{version.matchCount} partidos · {countScheduledMatches(matches.filter((match) => match.fixtureVersionId === version.id))} programados</p></div>
             <div className={styles.versionActions}>
               <Link to={`/torneos/organizacion/${organization.id}/fixture/version/${version.id}`}>Abrir <ArrowRight size={15} /></Link>
-              {canManage && version.status === 'draft' && <button type="button" disabled={busy} onClick={() => publish(version.id)}>Publicar</button>}
+              {canManage && version.status === 'draft' && <button type="button" disabled={busy} onClick={() => setPendingPublish(version.id)}>Publicar</button>}
               {canManage && version.status === 'published' && <button type="button" disabled={busy} onClick={() => actions.supersede(version.id)}>Nueva revisión</button>}
             </div>
           </article>
         ))}
       </div>
+      {pendingPublish && publishConsequences && (
+        <section
+          className={styles.consequencePanel}
+          role="alertdialog"
+          aria-labelledby="publish-fixture-title"
+        >
+          <AlertTriangle size={21} aria-hidden="true" />
+          <div>
+            <h3 id="publish-fixture-title">{publishConsequences.title}</h3>
+            <p>{publishConsequences.description}</p>
+            <ul>
+              {publishConsequences.changes.map((change) => <li key={change}>{change}</li>)}
+            </ul>
+            <strong>{publishConsequences.reversible
+              ? 'Esta acción puede revertirse desde el flujo disponible.'
+              : 'Esta publicación no tiene una acción simple para volver atrás.'}</strong>
+            <div className={styles.formActions}>
+              <button type="button" disabled={busy} onClick={() => setPendingPublish(null)}>Cancelar</button>
+              <button type="button" disabled={busy} onClick={() => publish(pendingPublish)}>
+                {busy ? 'Publicando…' : publishConsequences.confirmLabel}
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
       {!versions.length && <div className={styles.empty}><GitBranch size={24} /><strong>Sin versiones</strong><span>Generá la primera versión desde participantes congelados.</span></div>}
       {!!versions.length && <div className={styles.structureStrip}><span>{phases.length} fases</span><span>{rounds.length} jornadas</span><span>{matches.length} partidos</span></div>}
     </section>
@@ -306,14 +410,23 @@ function GeneratePanel({ canManage }) {
   return (
     <section className={`${styles.panel} ${styles.generatePanel}`}>
       <Sparkles size={28} />
-      <div><span>Operación atómica</span><h2>{activeTournament?.competitionFormat || 'Formato competitivo'}</h2><p>Se crean versión, fases, jornadas, partidos y fuentes en una única transacción.</p></div>
-      <label><span>Seed de generación</span><input value={seed} onChange={(event) => setSeed(event.target.value)} placeholder="opcional para liga; requerida para trazabilidad" /></label>
+      <div>
+        <div className={styles.generateTitleRow}>
+          <div><span>Generación segura</span><h2>{getCompetitionFormatName(activeTournament?.competitionFormat)}</h2></div>
+          <SectionHelp>La generación crea toda la estructura del fixture de una vez. Si algo falla, no quedan fases o partidos creados a medias.</SectionHelp>
+        </div>
+        <p>Se prepara el fixture completo como borrador para que puedas revisarlo antes de publicarlo.</p>
+      </div>
+      <label>
+        <span className={styles.fieldLabelWithHelp}>Clave para repetir el resultado <SectionHelp label="¿Qué es esta clave?">Es una palabra o frase que permite volver a generar exactamente el mismo orden. En una liga podés dejarla vacía.</SectionHelp></span>
+        <input value={seed} onChange={(event) => setSeed(event.target.value)} placeholder="Opcional en formato liga" />
+      </label>
       {canManage && (
         <div className={styles.formActions}>
           <button type="button" disabled={busy || participantSet?.status !== 'frozen'} onClick={async () => {
             setBusy(true);
             try { await actions.generate({ seed, configuration: {} }); } finally { setBusy(false); }
-          }}><Sparkles size={17} /> Generar draft</button>
+          }}><Sparkles size={17} /> Generar borrador</button>
           <button type="button" disabled={busy || participantSet?.status !== 'frozen'} onClick={async () => {
             setBusy(true);
             try {
@@ -321,7 +434,7 @@ function GeneratePanel({ canManage }) {
                 versions.find((version) => version.status === 'published')?.id || null,
               );
             } finally { setBusy(false); }
-          }}><Plus size={17} /> {versions.some((version) => version.status === 'published') ? 'Copiar a manual' : 'Versión manual'}</button>
+          }}><Plus size={17} /> {versions.some((version) => version.status === 'published') ? 'Crear copia editable' : 'Crear manualmente'}</button>
         </div>
       )}
     </section>
@@ -442,7 +555,13 @@ function RoundsPanel({ bracket = false, canManage = false }) {
     ));
     return (
       <section className={styles.panel}>
-        <div className={styles.panelHeading}><div><span>Vista vertical responsive</span><h2>Llave eliminatoria</h2></div></div>
+        <div className={styles.panelHeading}>
+          <SectionHeading
+            eyebrow="Cruces eliminatorios"
+            title="Llave eliminatoria"
+            help="Muestra el camino hacia la final. El número de orden indica la ubicación asignada a cada equipo al generar el fixture."
+          />
+        </div>
         <div className={styles.bracketList}>
           {knockoutPhases.flatMap((phase) => visibleRounds.filter((round) => round.phaseId === phase.id)).map((round) => (
             <section key={round.id}>
@@ -453,7 +572,7 @@ function RoundsPanel({ bracket = false, canManage = false }) {
                   <div className={styles.bracketTeam}>
                     <span>Local</span>
                     <strong>
-                      {participantSeed(match.homeParticipantId) && <small>Seed {participantSeed(match.homeParticipantId)}</small>}
+                      {participantSeed(match.homeParticipantId) && <small>Orden {participantSeed(match.homeParticipantId)}</small>}
                       {participantName(match.homeParticipantId) || sourceLabel(match.sources?.find((source) => source.side === 'home'))}
                     </strong>
                   </div>
@@ -461,7 +580,7 @@ function RoundsPanel({ bracket = false, canManage = false }) {
                   <div className={styles.bracketTeam}>
                     <span>Visitante</span>
                     <strong>
-                      {participantSeed(match.awayParticipantId) && <small>Seed {participantSeed(match.awayParticipantId)}</small>}
+                      {participantSeed(match.awayParticipantId) && <small>Orden {participantSeed(match.awayParticipantId)}</small>}
                       {participantName(match.awayParticipantId) || sourceLabel(match.sources?.find((source) => source.side === 'away'))}
                     </strong>
                   </div>
@@ -480,14 +599,14 @@ function RoundsPanel({ bracket = false, canManage = false }) {
         <div className={styles.roundList}>
         {visibleRounds.map((round) => (
           <article key={round.id}>
-            <header><span>F{round.roundNumber}</span><div><h3>{round.name}</h3><small>{round.status}</small></div></header>
+            <header><span>F{round.roundNumber}</span><div><h3>{round.name}</h3><small>{statusLabel(round.status)}</small></div></header>
             <div>{shownMatches.filter((match) => match.roundId === round.id).map((match) => (
               <Link key={match.id} to={`/torneos/organizacion/${organization.id}/fixture/partidos/${match.id}`}>
                 <small>#{match.matchNumber}</small>
                 <strong>{participantName(match.homeParticipantId) || sourceLabel(match.sources?.find((source) => source.side === 'home'))}</strong>
                 <span>vs</span>
                 <strong>{participantName(match.awayParticipantId) || sourceLabel(match.sources?.find((source) => source.side === 'away'))}</strong>
-                <em>{match.status}</em>
+                <em>{statusLabel(match.status)}</em>
               </Link>
             ))}</div>
           </article>
@@ -551,7 +670,7 @@ function SchedulePanel({ canManage }) {
     <div className={styles.scheduleLayout}>
       <section className={styles.panel}>
         <div className={styles.panelHeading}><div><span>Agenda real</span><h2>Partidos</h2></div>
-          {canManage && versions.length > 0 && <button type="button" onClick={() => actions.autoSchedule((versions.find((version) => version.status === 'published') || versions.find((version) => version.status === 'draft') || versions[0]).id)}><Sparkles size={16} /> Auto básico</button>}
+          {canManage && versions.length > 0 && <button type="button" onClick={() => actions.autoSchedule((versions.find((version) => version.status === 'published') || versions.find((version) => version.status === 'draft') || versions[0]).id)}><Sparkles size={16} /> Programar automáticamente</button>}
         </div>
         <div className={styles.scheduleList}>{candidateMatches.map((match) => (
           <button key={match.id} type="button" aria-pressed={form.matchId === match.id} onClick={() => setForm((current) => ({
@@ -568,12 +687,12 @@ function SchedulePanel({ canManage }) {
             courtId: match.courtId || '',
             durationMinutes: match.durationMinutes || 60,
           }))}>
-            <span>#{match.matchNumber}</span><strong>{participantName(match.homeParticipantId)} · {participantName(match.awayParticipantId)}</strong><small>{match.scheduledAt ? formatInstantInTimeZone(match.scheduledAt, venues.find((venue) => venue.id === match.venueId)?.timezone || 'America/Argentina/Buenos_Aires') : 'Sin horario'}</small><em>{match.status}</em>
+            <span>#{match.matchNumber}</span><strong>{participantName(match.homeParticipantId)} · {participantName(match.awayParticipantId)}</strong><small>{match.scheduledAt ? formatInstantInTimeZone(match.scheduledAt, venues.find((venue) => venue.id === match.venueId)?.timezone || 'America/Argentina/Buenos_Aires') : 'Sin horario'}</small><em>{statusLabel(match.status)}</em>
           </button>
         ))}</div>
       </section>
       <form className={`${styles.panel} ${styles.scheduleForm}`} onSubmit={submit}>
-        <div><span>Fallback accesible</span><h2>{selected?.status === 'scheduled' ? 'Reprogramar' : 'Asignar horario'}</h2></div>
+        <div><span>Programación manual</span><h2>{selected?.status === 'scheduled' ? 'Reprogramar' : 'Asignar horario'}</h2></div>
         <label><span>Partido</span><select required value={form.matchId} onChange={set('matchId')}><option value="">Seleccionar</option>{candidateMatches.map((match) => <option key={match.id} value={match.id}>#{match.matchNumber} · {participantName(match.homeParticipantId)} vs {participantName(match.awayParticipantId)}</option>)}</select></label>
         <label><span>Fecha y hora</span><input required type="datetime-local" value={form.scheduledAt} onChange={set('scheduledAt')} /></label>
         <label><span>Sede</span><select required value={form.venueId} onChange={(event) => setForm((current) => ({ ...current, venueId: event.target.value, courtId: '' }))}><option value="">Seleccionar</option>{venues.filter((venue) => venue.status === 'active').map((venue) => <option key={venue.id} value={venue.id}>{venue.name}</option>)}</select></label>
@@ -608,7 +727,7 @@ function VenuesPanel({ canManage }) {
       <section className={styles.panel}>
         <div className={styles.panelHeading}><div><span>Recursos activos</span><h2>Sedes</h2></div></div>
         <div className={styles.venueList}>{venues.map((item) => (
-          <article key={item.id}><MapPin size={19} /><div><h3>{item.name}</h3><p>{item.address}</p><small>{courts.filter((value) => value.venueId === item.id).length} canchas · {item.status}</small></div></article>
+          <article key={item.id}><MapPin size={19} /><div><h3>{item.name}</h3><p>{item.address}</p><small>{courts.filter((value) => value.venueId === item.id).length} canchas · {statusLabel(item.status)}</small></div></article>
         ))}</div>
       </section>
       {canManage && <section className={styles.resourceForms}>

@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
+import { getRoleLabel } from '../domain/rolePresentation';
 import styles from './ParticipantHub.module.css';
 
 const STATUS_LABELS = {
@@ -23,16 +24,6 @@ const STATUS_LABELS = {
   active: 'En juego',
   completed: 'Finalizado',
   archived: 'Archivado',
-};
-
-const ROLE_LABELS = {
-  owner: 'Responsable',
-  admin: 'Administrador',
-  collaborator: 'Colaborador',
-  captain: 'Capitán',
-  delegate: 'Delegado',
-  assistant: 'Asistente',
-  player: 'Jugador',
 };
 
 function TournamentMonogram({ item }) {
@@ -70,7 +61,7 @@ function MyTournamentCard({ item }) {
         <p>
           {item.teamName || item.organizationName}
           {' · '}
-          {ROLE_LABELS[item.role] || 'Participante'}
+          {getRoleLabel(item.role, 'Participante')}
         </p>
       </div>
       <dl className={styles.tournamentFacts}>

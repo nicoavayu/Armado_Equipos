@@ -19,6 +19,7 @@ import {
 import { Link, useOutletContext, useParams } from 'react-router-dom';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
 import { hasCapability, TOURNAMENT_CAPABILITIES } from '../domain/capabilities';
+import { getRoleLabel } from '../domain/rolePresentation';
 import {
   getRosterProgress,
   ROSTER_POSITIONS,
@@ -27,6 +28,16 @@ import {
 import PlayerAutocomplete from './PlayerAutocomplete';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import styles from './TeamRegistration.module.css';
+
+const requirementValue = (value) => (
+  value === null || value === undefined ? 'Sin definir' : value
+);
+
+const MANAGER_STATUS_LABELS = Object.freeze({
+  active: 'Activo',
+  invited: 'Invitado',
+  revoked: 'Revocado',
+});
 
 function PlayerRow({ player, editable, onUpdate, onRemove }) {
   return (
@@ -251,7 +262,14 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
             <Users size={22} />
             <h2>Responsables</h2>
             {data.managers.map((manager) => (
-              <div key={manager.id}><strong>{manager.displayName}</strong><span>{manager.role} · {manager.status}</span></div>
+              <div key={manager.id}>
+                <strong>{manager.displayName}</strong>
+                <span>
+                  {getRoleLabel(manager.role, 'Responsable')}
+                  {' · '}
+                  {MANAGER_STATUS_LABELS[manager.status] || manager.status}
+                </span>
+              </div>
             ))}
             {!data.managers.length && <p>No hay un responsable asignado.</p>}
           </aside>
@@ -264,7 +282,18 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
             <div className={styles.progressPanel} data-complete={progress.complete}>
               <div>
                 {progress.complete ? <CheckCircle2 size={24} /> : <ClipboardCheck size={24} />}
-                <span><strong>{progress.count}/{progress.minimum}</strong><small>jugadores mínimos</small></span>
+                <span>
+                  <strong>
+                    {progress.configured
+                      ? `${progress.count}/${progress.minimum}`
+                      : progress.count}
+                  </strong>
+                  <small>
+                    {progress.configured
+                      ? 'jugadores mínimos'
+                      : 'jugadores · mínimo sin definir'}
+                  </small>
+                </span>
               </div>
               <div className={styles.progressTrack}><span style={{ width: `${progress.percent}%` }} /></div>
               <ul>{progress.errors.map((error) => <li key={error}>{error}</li>)}</ul>
@@ -307,10 +336,17 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
             <Lock size={20} />
             <h2>Requisitos</h2>
             <dl>
-              <div><dt>Mínimo</dt><dd>{data.settings.minimumPlayers}</dd></div>
-              <div><dt>Máximo</dt><dd>{data.settings.maximumPlayers}</dd></div>
-              <div><dt>Arqueros</dt><dd>{data.settings.minimumGoalkeepers}</dd></div>
-              <div><dt>Dorsal</dt><dd>{data.settings.shirtNumberRequired ? 'Obligatorio' : 'Opcional'}</dd></div>
+              <div><dt>Mínimo</dt><dd>{requirementValue(data.settings?.minimumPlayers)}</dd></div>
+              <div><dt>Máximo</dt><dd>{requirementValue(data.settings?.maximumPlayers)}</dd></div>
+              <div><dt>Arqueros</dt><dd>{requirementValue(data.settings?.minimumGoalkeepers)}</dd></div>
+              <div>
+                <dt>Dorsal</dt>
+                <dd>
+                  {data.settings?.shirtNumberRequired == null
+                    ? 'Sin definir'
+                    : data.settings.shirtNumberRequired ? 'Obligatorio' : 'Opcional'}
+                </dd>
+              </div>
             </dl>
             {editable && (
               <button

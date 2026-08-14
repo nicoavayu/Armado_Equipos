@@ -542,7 +542,7 @@
   color: #faf8ff;
   font-size: clamp(2.25rem, 6vw, 4.6rem);
   line-height: 0.96;
-  letter-spacing: -0.055em;
+  letter-spacing: 0.045em;
 }
 
 .pageHeader p {
@@ -576,7 +576,14 @@
 }
 
 .contextBar {
+  grid-template-columns: minmax(560px, 2.6fr) minmax(170px, 0.8fr) minmax(140px, 0.7fr);
   align-items: stretch;
+}
+
+.contextBar > section {
+  grid-template-columns: minmax(240px, 0.85fr) minmax(320px, 1.15fr);
+  margin: 0;
+  border-radius: 0;
 }
 
 .contextBar > label {
@@ -604,6 +611,14 @@
   background: transparent;
   font: inherit;
   font-weight: 700;
+  cursor: pointer;
+}
+
+.contextBar select option,
+.panel select option,
+.resourceForms select option {
+  color: #f7f3ff;
+  background: #171326;
 }
 
 .contextStatus {
@@ -654,6 +669,88 @@
   margin-bottom: 20px;
 }
 
+.headingWithHelp,
+.generateTitleRow,
+.fieldLabelWithHelp {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 9px;
+}
+
+.headingWithHelp > div,
+.generateTitleRow > div {
+  min-width: 0;
+}
+
+.headingWithHelp > div > span,
+.generateTitleRow > div > span {
+  color: #a98eff;
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.sectionHelp {
+  position: relative;
+  z-index: 8;
+  flex: 0 0 auto;
+}
+
+.sectionHelp summary {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(166, 138, 255, 0.34);
+  border-radius: 50%;
+  color: #c4b5ff;
+  background: rgba(126, 86, 238, 0.12);
+  cursor: pointer;
+  list-style: none;
+}
+
+.sectionHelp summary::-webkit-details-marker {
+  display: none;
+}
+
+.sectionHelp summary:hover,
+.sectionHelp summary:focus-visible {
+  color: #fff;
+  border-color: #a98eff;
+  background: rgba(126, 86, 238, 0.24);
+  outline: none;
+}
+
+.sectionHelp p {
+  position: absolute;
+  z-index: 12;
+  top: calc(100% + 8px);
+  left: 0;
+  width: min(300px, 76vw);
+  margin: 0;
+  padding: 13px 14px;
+  border: 1px solid rgba(177, 151, 255, 0.36);
+  border-radius: 12px;
+  color: #e4dff0;
+  background: #181424;
+  box-shadow: 0 18px 44px rgba(4, 2, 14, 0.55);
+  font-size: 0.78rem;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.fieldLabelWithHelp {
+  align-items: center;
+  justify-content: space-between;
+}
+
+.fieldLabelWithHelp .sectionHelp summary {
+  width: 28px;
+  height: 28px;
+}
+
 .panelHeading h2,
 .generatePanel h2,
 .scheduleForm h2,
@@ -682,6 +779,7 @@
   font-size: 0.85rem;
   font-weight: 750;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .panel button:disabled {
@@ -843,6 +941,8 @@
   height: 38px;
   flex: 0 0 38px;
   place-items: center;
+  text-align: center;
+  line-height: 1;
   border-radius: 50%;
   color: #fff;
   background: #6849d5;
@@ -890,6 +990,38 @@
   text-decoration: none;
 }
 
+.consequencePanel {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 14px;
+  margin-top: 16px;
+  padding: 18px;
+  color: #f7f5ff;
+  background: rgba(179, 103, 45, 0.12);
+  border: 1px solid rgba(255, 177, 102, 0.32);
+  border-radius: 14px;
+}
+
+.consequencePanel > svg {
+  color: #ffb166;
+}
+
+.consequencePanel h3,
+.consequencePanel p {
+  margin: 0 0 8px;
+}
+
+.consequencePanel p,
+.consequencePanel li {
+  color: #c9c1d3;
+  line-height: 1.5;
+}
+
+.consequencePanel ul {
+  margin: 8px 0 12px;
+  padding-left: 20px;
+}
+
 .structureStrip,
 .formActions {
   display: flex;
@@ -911,6 +1043,10 @@
   grid-template-columns: auto minmax(220px, 1fr) minmax(220px, 0.7fr) auto;
   align-items: center;
   gap: 18px;
+}
+
+.generateTitleRow {
+  justify-content: space-between;
 }
 
 .generatePanel > svg {
@@ -1160,6 +1296,10 @@
   .groupsGrid,
   .formGrid,
   .matches {
+    grid-template-columns: 1fr;
+  }
+
+  .contextBar > section {
     grid-template-columns: 1fr;
   }
 

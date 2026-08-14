@@ -3,12 +3,10 @@ import {
   Check,
   CalendarRange,
   ChevronDown,
-  CircleUserRound,
   Plus,
   ShieldCheck,
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { isArma2NativeRuntime } from '../../../utils/runtimePlatform';
 import { torneosFeatureFlags } from '../config/featureFlags';
 import { getRoleLabel } from '../domain/capabilities';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
@@ -30,7 +28,6 @@ export default function WorkspaceSwitcher() {
   const containerRef = useRef(null);
   const [open, setOpen] = useState(false);
   const [busyId, setBusyId] = useState('');
-  const nativeRuntime = isArma2NativeRuntime();
   const {
     activeOrganization,
     availableOrganizations,
@@ -60,16 +57,6 @@ export default function WorkspaceSwitcher() {
   }, [open]);
 
   if (!torneosFeatureFlags.workspaceSwitcher) return null;
-
-  const goPersonal = async () => {
-    setBusyId('personal');
-    try {
-      await selectPersonal();
-      navigate('/');
-    } finally {
-      setBusyId('');
-    }
-  };
 
   const goOrganization = async (organization) => {
     setBusyId(organization.id);
@@ -110,30 +97,15 @@ export default function WorkspaceSwitcher() {
             </span>
           )}
         <span className={styles.workspaceCopy}>
-          <small>Espacio activo</small>
-          <strong>{activeOrganization?.name || 'Arma2 Torneos'}</strong>
+          <small>Workspace Torneos</small>
+          <strong>{activeOrganization?.name || 'Mis torneos'}</strong>
         </span>
         <ChevronDown size={18} aria-hidden="true" />
       </button>
 
       {open && (
-        <div className={styles.switcherMenu} role="menu" aria-label="Cambiar espacio">
-          <span className={styles.menuLabel}>Tus espacios</span>
-          {nativeRuntime && (
-            <button
-              type="button"
-              role="menuitem"
-              disabled={Boolean(busyId)}
-              onClick={goPersonal}
-            >
-              <span className={styles.personalAvatar}><CircleUserRound size={19} /></span>
-              <span>
-                <strong>Arma2</strong>
-                <small>Tu espacio personal</small>
-              </span>
-              {busyId === 'personal' && <span className={styles.miniSpinner} />}
-            </button>
-          )}
+        <div className={styles.switcherMenu} role="menu" aria-label="Cambiar workspace de Torneos">
+          <span className={styles.menuLabel}>Dentro de Torneos</span>
 
           <button
             type="button"

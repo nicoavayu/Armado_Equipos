@@ -10,6 +10,11 @@ import {
 import { useParams, useSearchParams } from 'react-router-dom';
 import Logo from '../../../Logo.png';
 import { publicTournamentService } from '../api/publicTournamentService';
+import {
+  classifyPublicMatch,
+  getPublicMatchLabel,
+  PUBLIC_MATCH_KIND,
+} from '../domain/matchSchedule';
 import styles from './PublicTournamentPage.module.css';
 
 const TABS = [
@@ -90,7 +95,9 @@ function MatchCard({ match, service }) {
         <TeamMark team={match.away} service={service} />
       </div>
       <footer>
-        {official ? <b>Resultado oficial</b> : <span>Próximo partido</span>}
+        {official
+          ? <b>{getPublicMatchLabel(match)}</b>
+          : <span>{getPublicMatchLabel(match)}</span>}
         {match.venue?.name && (
           <span><MapPin size={13} /> {match.venue.name}{match.venue.courtName ? ` · ${match.venue.courtName}` : ''}</span>
         )}
@@ -162,8 +169,12 @@ function ScopeHeading({ scope }) {
 }
 
 function PublicTournamentContent({ page, activeTab, scope, service }) {
-  const officialMatches = page.matches.filter((match) => Boolean(match.result));
-  const upcomingMatches = page.matches.filter((match) => !match.result);
+  const officialMatches = page.matches.filter(
+    (match) => classifyPublicMatch(match) === PUBLIC_MATCH_KIND.OFFICIAL,
+  );
+  const upcomingMatches = page.matches.filter(
+    (match) => classifyPublicMatch(match) === PUBLIC_MATCH_KIND.UPCOMING,
+  );
   const groups = page.matches.reduce((result, match) => {
     const label = match.round?.name || `Fecha ${match.round?.number || '–'}`;
     if (!result[label]) result[label] = [];

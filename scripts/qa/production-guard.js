@@ -142,6 +142,50 @@ function assertRemotePlanTarget(env = process.env) {
   return { mode: 'remote-plan-only', projectRef, apiUrl: apiUrl.toString().replace(/\/$/, '') };
 }
 
+/**
+ * El destino de la app para una sesión de QA LOCAL.
+ *
+ * `.env.local` puede apuntar a un Supabase remoto, y CRA lo lee solo si nadie
+ * pisa la variable en el proceso. Es decir: una sesión de QA LOCAL depende hoy
+ * de que quien la arranca se acuerde del override. Este guard invierte eso —
+ * sin un destino loopback explícito no hay arranque— y no acepta caer al
+ * archivo: el valor tiene que llegar por variables de proceso.
+ */
+function assertLocalAppTarget(env = process.env) {
+  assertSafeQaEnvironment(env);
+  const supabaseUrl = parseRequiredUrl(env.QA_SUPABASE_URL, 'QA_SUPABASE_URL');
+  if (supabaseUrl.protocol !== 'http:') {
+    fail('QA_SUPABASE_URL', 'a local QA session only accepts http:// on loopback');
+  }
+  if (!LOCAL_HOSTS.has(normalized(supabaseUrl.hostname))) {
+    fail('QA_SUPABASE_URL', 'local execution only accepts a loopback host');
+  }
+  const anonKey = String(env.QA_SUPABASE_ANON_KEY || '').trim();
+  if (!anonKey) fail('QA_SUPABASE_ANON_KEY', 'the variable is required and has no fallback');
+  // Una anon key de un proyecto hospedado lleva su ref adentro. Si aparece una,
+  // el destino real no es el que dice la URL.
+  const claims = readJwtClaims(anonKey);
+  const boundRef = normalized(claims?.ref);
+  if (boundRef && PROJECT_REF_PATTERN.test(boundRef)) {
+    fail('QA_SUPABASE_ANON_KEY', `the key belongs to the hosted project ${boundRef}, not to LOCAL`);
+  }
+  return {
+    mode: 'local-app',
+    supabaseUrl: supabaseUrl.toString().replace(/\/$/, ''),
+    anonKey,
+  };
+}
+
+function readJwtClaims(token) {
+  const segments = String(token).split('.');
+  if (segments.length !== 3) return null;
+  try {
+    return JSON.parse(Buffer.from(segments[1], 'base64url').toString('utf8'));
+  } catch {
+    return null;
+  }
+}
+
 function assertRemoteApplyDisabled() {
   fail(
     'remote apply',
@@ -167,6 +211,7 @@ module.exports = {
   PRODUCTION_PROJECT_REF,
   ProductionGuardError,
   allowedQaProjectRefs,
+  assertLocalAppTarget,
   assertLocalDatabaseTarget,
   assertRemoteApplyDisabled,
   assertRemotePlanTarget,

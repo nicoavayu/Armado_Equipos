@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Building2, Check, LoaderCircle } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Building2, LoaderCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import {
   normalizeOrganizationSlug,
   validateOrganizationInput,
@@ -86,27 +86,19 @@ export default function CreateOrganizationPage() {
 
   return (
     <div className={styles.formPage}>
-      <Link className={styles.backLink} to="/torneos">
-        <ArrowLeft size={17} aria-hidden="true" />
-        Tus espacios
-      </Link>
-
       <div className={styles.formLayout}>
         <section className={styles.formIntro}>
-          <span className={styles.organizationMonogram}><Building2 size={25} /></span>
-          <span className={styles.eyebrow}>Nuevo workspace</span>
-          <h1>Creá tu organización.</h1>
+          <div className={styles.formIntroHeader}>
+            <span className={styles.organizationMonogram}><Building2 size={25} /></span>
+            <div>
+              <span className={styles.eyebrow}>Nuevo workspace</span>
+              <h1>Creá tu organización</h1>
+            </div>
+          </div>
           <p>
-            Vas a quedar como owner automáticamente. Nombre, membresía y espacio
+            Vas a quedar como Propietario automáticamente. Nombre, membresía y espacio
             activo se guardan juntos en una única operación.
           </p>
-          <div className={styles.atomicNote}>
-            <Check size={18} aria-hidden="true" />
-            <span>
-              <strong>Creación atómica</strong>
-              Si algo falla, no queda una organización incompleta.
-            </span>
-          </div>
         </section>
 
         <form className={styles.organizationForm} onSubmit={submit} noValidate>

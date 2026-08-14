@@ -59,12 +59,24 @@ export const SEASON_STATUS_LABELS = Object.freeze({
 
 export const TOURNAMENT_STATUS_LABELS = Object.freeze({
   draft: 'Borrador',
-  registration: 'Inscripción preparada',
-  scheduled: 'Programado',
+  registration: 'Inscripción de equipos',
+  scheduled: 'Lista para comenzar',
   active: 'En juego',
-  completed: 'Completado',
-  archived: 'Archivado',
+  completed: 'Finalizada',
+  archived: 'Archivada',
 });
+
+export const COMPETITION_FORMAT_LABELS = Object.freeze({
+  league: 'Liga',
+  knockout: 'Eliminación directa',
+  groups: 'Fase de grupos',
+  groups_and_playoffs: 'Grupos y eliminatorias',
+  league_and_playoffs: 'Liga y eliminatorias',
+});
+
+export function getCompetitionFormatName(code, fallback = 'Formato competitivo') {
+  return COMPETITION_FORMAT_LABELS[code] || fallback;
+}
 
 export const CHECKLIST_ITEMS = Object.freeze([
   { key: 'information', label: 'Información general completa' },

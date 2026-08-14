@@ -41,7 +41,7 @@ test('switches from the personal profile to an authorized organization', async (
   );
 
   fireEvent.click(await screen.findByRole('button', {
-    name: /liga metropolitana del sur owner/i,
+    name: /liga metropolitana del sur propietario/i,
   }));
 
   expect(await screen.findByText(

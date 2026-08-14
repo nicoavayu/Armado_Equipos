@@ -11,6 +11,10 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import TorneosFeatureGate from '../features/torneos/TorneosFeatureGate';
 import { getCapabilitiesForRole } from '../features/torneos/domain/capabilities';
 
+jest.mock('../components/global-header/GlobalHeader', () => () => (
+  <header data-testid="global-header" />
+));
+
 const ORG = 'a1000000-0000-4000-8000-000000000001';
 const TOURNAMENT = 'a2000000-0000-4000-8000-000000000001';
 const CATEGORY = 'a3000000-0000-4000-8000-000000000001';
@@ -121,6 +125,13 @@ describe('Arma2 Torneos match operations flow', () => {
 
   test('protects act opening from repeated clicks', async () => {
     const service = createService();
+    // Dentro de la ventana de apertura: sin ese detalle el acta pediría primero
+    // el motivo por el que se adelanta, y el botón arrancaría deshabilitado.
+    service.loadMatchOperations.mockResolvedValue({
+      matches: [operationalMatch({
+        scheduledAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      })],
+    });
     let resolveOpen;
     service.openMatchOperation.mockImplementation(() => new Promise((resolve) => {
       resolveOpen = resolve;

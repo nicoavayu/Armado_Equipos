@@ -2,8 +2,6 @@ import React, { useState } from 'react';
 import {
   ArrowRight,
   CalendarRange,
-  Check,
-  CircleUserRound,
   LoaderCircle,
   Plus,
   RotateCcw,
@@ -44,8 +42,8 @@ export function WorkspaceList() {
       <div className={styles.header}>
         <span><Trophy size={18} /></span>
         <div>
-          <small>Espacios</small>
-          <h2 id="workspace-switcher-title">Arma2 y Torneos</h2>
+          <small>Torneos</small>
+          <h2 id="workspace-switcher-title">Tus espacios de competición</h2>
         </div>
       </div>
 
@@ -64,15 +62,6 @@ export function WorkspaceList() {
         </div>
       ) : (
         <div className={styles.list}>
-          <button type="button" className={styles.activeItem} disabled>
-            <span className={styles.personalIcon}><CircleUserRound size={20} /></span>
-            <span>
-              <strong>Arma2</strong>
-              <small>Tu espacio personal</small>
-            </span>
-            <Check size={17} aria-label="Espacio activo" />
-          </button>
-
           <button
             type="button"
             className={styles.tournamentsItem}
