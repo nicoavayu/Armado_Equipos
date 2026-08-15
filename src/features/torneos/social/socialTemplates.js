@@ -12,6 +12,8 @@
  */
 
 import { findSocialPiece } from './socialContracts';
+import { formatSocialDateTime } from './socialDateTime';
+import { renderResultsListLayout } from './resultsListLayout';
 import {
   SOCIAL_THEME,
   drawPhoto,
@@ -62,7 +64,9 @@ function drawTruncationNote(ctx, body, hidden, accent) {
 // Match-shaped pieces
 // ---------------------------------------------------------------------------
 
-function drawMatchRow(ctx, match, x, y, width, height, { accent, assets, showResult }) {
+function drawMatchRow(ctx, match, x, y, width, height, {
+  accent, assets, showResult, timezone,
+}) {
   glassCard(ctx, x, y, width, height, { radius: 22 });
   const pad = 22;
   const shield = Math.min(56, height - pad * 2);
@@ -103,11 +107,7 @@ function drawMatchRow(ctx, match, x, y, width, height, { accent, assets, showRes
       );
     }
   } else {
-    const when = match.scheduledAt
-      ? new Date(match.scheduledAt).toLocaleString('es-AR', {
-        day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
-      })
-      : 'A confirmar';
+    const when = formatSocialDateTime(match.scheduledAt, match.timezone || timezone);
     drawText(ctx, when, centreX, centreY + 4, {
       family: SOCIAL_THEME.body, size: 24, weight: 600, align: 'center',
       color: SOCIAL_THEME.textMuted, maxWidth: scoreWidth, minSize: 16,
@@ -131,7 +131,9 @@ function matchesTemplate({ showResult, emphasis = 1 }) {
     if (emphasis === 1 && matches.length === 1) {
       // A single decisive match gets the whole body, not a one-row list.
       drawMatchRow(ctx, matches[0], body.x, body.y, body.width,
-        Math.min(280, body.height), { accent, assets, showResult });
+        Math.min(280, body.height), {
+          accent, assets, showResult, timezone: snapshot.competition?.timezone,
+        });
       return;
     }
     const { rowHeight, visible, hidden } = rowMetrics(body, matches.length, {
@@ -140,7 +142,7 @@ function matchesTemplate({ showResult, emphasis = 1 }) {
     matches.slice(0, visible).forEach((match, index) => {
       drawMatchRow(
         ctx, match, body.x, body.y + index * rowHeight, body.width, rowHeight - 14,
-        { accent, assets, showResult },
+        { accent, assets, showResult, timezone: snapshot.competition?.timezone },
       );
     });
     drawTruncationNote(ctx, body, hidden, accent);
@@ -249,7 +251,7 @@ function selectedFrom(snapshot, editorial, key = 'rosterPlayerId') {
 
 const TEMPLATES = {
   next_fixture: matchesTemplate({ showResult: false, emphasis: 0 }),
-  round_results: matchesTemplate({ showResult: true, emphasis: 0 }),
+  round_results: renderResultsListLayout,
   semifinals: matchesTemplate({ showResult: true, emphasis: 0 }),
   final: matchesTemplate({ showResult: true, emphasis: 1 }),
 

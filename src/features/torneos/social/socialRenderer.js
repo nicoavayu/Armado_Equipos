@@ -14,22 +14,11 @@
  */
 
 import { SOCIAL_ACCENTS, SOCIAL_FORMATS } from './socialContracts';
+import { DEFAULT_SOCIAL_THEME } from './socialThemes';
 
-export const SOCIAL_THEME = Object.freeze({
-  background: '#07060D',
-  backgroundDeep: '#120B22',
-  surface: 'rgba(18, 13, 33, 0.72)',
-  surfaceStrong: 'rgba(26, 19, 45, 0.92)',
-  hairline: 'rgba(255, 255, 255, 0.10)',
-  text: '#FFFFFF',
-  textMuted: 'rgba(226, 220, 240, 0.72)',
-  textFaint: 'rgba(198, 190, 216, 0.55)',
-  electricBlue: '#3B82F6',
-  violet: '#9D7BFF',
-  display: 'Bebas Neue',
-  heading: 'Oswald',
-  body: 'Inter',
-});
+// Compatibility bridge for templates not migrated in Phase 1. Results receives
+// DEFAULT_SOCIAL_THEME explicitly and does not import this alias.
+export const SOCIAL_THEME = DEFAULT_SOCIAL_THEME;
 
 const FALLBACK_STACK = {
   'Bebas Neue': '"Bebas Neue", "Oswald", "Arial Narrow", sans-serif',
@@ -41,29 +30,48 @@ export function fontOf(family, size, weight = 400) {
   return `${weight} ${size}px ${FALLBACK_STACK[family] || family}`;
 }
 
-export function accentValue(accentId) {
-  return (SOCIAL_ACCENTS.find((entry) => entry.id === accentId) || SOCIAL_ACCENTS[0]).value;
+export function accentValue(accentId, theme = DEFAULT_SOCIAL_THEME) {
+  const fallback = SOCIAL_ACCENTS.find(
+    (entry) => entry.id === theme.accentBehavior.defaultAccentId,
+  ) || SOCIAL_ACCENTS[0];
+  return (SOCIAL_ACCENTS.find((entry) => entry.id === accentId) || fallback).value;
 }
 
-/**
- * Waits for the display faces before drawing. Without this the first export of
- * a session silently falls back to a system font — deterministic, but not the
- * brand. If the API is unavailable the caller still gets a piece, drawn with
- * the fallback stack.
- */
+export const SOCIAL_REQUIRED_FONTS = Object.freeze([
+  '700 96px "Bebas Neue"',
+  '500 40px "Oswald"',
+  '600 44px "Oswald"',
+  '400 30px "Inter"',
+  '600 30px "Inter"',
+  '700 30px "Inter"',
+]);
+
+/** Waits for every renderer face and fails closed before any canvas is ready. */
 export async function ensureSocialFonts() {
-  if (typeof document === 'undefined' || !document.fonts?.load) return false;
+  if (
+    typeof document === 'undefined'
+    || !document.fonts?.load
+    || typeof document.fonts.check !== 'function'
+  ) {
+    const error = new Error('SOCIAL_FONTS_UNAVAILABLE');
+    error.code = 'SOCIAL_FONTS_UNAVAILABLE';
+    throw error;
+  }
   try {
-    await Promise.all([
-      document.fonts.load('700 96px "Bebas Neue"'),
-      document.fonts.load('600 44px "Oswald"'),
-      document.fonts.load('400 30px "Inter"'),
-      document.fonts.load('700 30px "Inter"'),
-    ]);
+    const loaded = await Promise.all(SOCIAL_REQUIRED_FONTS.map(
+      (descriptor) => document.fonts.load(descriptor, 'Arma2 Resultados'),
+    ));
     await document.fonts.ready;
+    const missing = SOCIAL_REQUIRED_FONTS.find((descriptor, index) => (
+      loaded[index]?.length < 1 || !document.fonts.check(descriptor, 'Arma2 Resultados')
+    ));
+    if (missing) throw new Error(missing);
     return true;
-  } catch {
-    return false;
+  } catch (cause) {
+    const error = new Error('SOCIAL_FONTS_UNAVAILABLE');
+    error.code = 'SOCIAL_FONTS_UNAVAILABLE';
+    error.cause = cause;
+    throw error;
   }
 }
 
@@ -97,13 +105,16 @@ export function roundedRect(ctx, x, y, width, height, radius) {
 }
 
 /** Black-glass card: the surface every piece is built out of. */
-export function glassCard(ctx, x, y, width, height, { radius = 28, strong = false } = {}) {
+export function glassCard(ctx, x, y, width, height, options = {}) {
+  const theme = options.theme || DEFAULT_SOCIAL_THEME;
+  const radius = options.radius ?? theme.radii.card;
+  const strong = options.strong || false;
   ctx.save();
-  ctx.fillStyle = strong ? SOCIAL_THEME.surfaceStrong : SOCIAL_THEME.surface;
+  ctx.fillStyle = strong ? theme.surfaceStrong : theme.surface;
   roundedRect(ctx, x, y, width, height, radius);
   ctx.fill();
-  ctx.strokeStyle = SOCIAL_THEME.hairline;
-  ctx.lineWidth = 2;
+  ctx.strokeStyle = theme.hairline;
+  ctx.lineWidth = theme.lineWidth;
   ctx.stroke();
   ctx.restore();
 }
@@ -131,10 +142,12 @@ export function fitText(ctx, text, {
   return { text: `${truncated}…`, size: current };
 }
 
-export function drawText(ctx, text, x, y, {
-  family = SOCIAL_THEME.body, size = 30, weight = 400, color = SOCIAL_THEME.text,
-  align = 'left', maxWidth = Infinity, minSize = 12, letterSpacing = 0,
-} = {}) {
+export function drawText(ctx, text, x, y, options = {}) {
+  const theme = options.theme || DEFAULT_SOCIAL_THEME;
+  const {
+    family = theme.body, size = 30, weight = 400, color = theme.text,
+    align = 'left', maxWidth = Infinity, minSize = 12, letterSpacing = 0,
+  } = options;
   const fitted = maxWidth === Infinity
     ? { text: String(text ?? ''), size }
     : fitText(ctx, text, { family, size, weight, maxWidth, minSize });
@@ -175,25 +188,25 @@ export function wrapText(ctx, text, { family, size, weight = 400, maxWidth, maxL
 }
 
 /** The Arma2 backdrop: black, deep violet bloom, electric blue rim. */
-export function drawBackdrop(ctx, width, height, accent) {
+export function drawBackdrop(ctx, width, height, accent, theme = DEFAULT_SOCIAL_THEME) {
   ctx.save();
-  ctx.fillStyle = SOCIAL_THEME.background;
+  ctx.fillStyle = theme.background;
   ctx.fillRect(0, 0, width, height);
 
   const bloom = ctx.createRadialGradient(
     width * 0.24, height * 0.14, 0, width * 0.24, height * 0.14, width * 1.05,
   );
   bloom.addColorStop(0, accent);
-  bloom.addColorStop(0.42, SOCIAL_THEME.backgroundDeep);
-  bloom.addColorStop(1, SOCIAL_THEME.background);
-  ctx.globalAlpha = 0.55;
+  bloom.addColorStop(0.42, theme.backgroundDeep);
+  bloom.addColorStop(1, theme.background);
+  ctx.globalAlpha = theme.accentBehavior.backdropOpacity;
   ctx.fillStyle = bloom;
   ctx.fillRect(0, 0, width, height);
 
   const rim = ctx.createRadialGradient(
     width * 0.86, height * 0.9, 0, width * 0.86, height * 0.9, width * 0.85,
   );
-  rim.addColorStop(0, SOCIAL_THEME.electricBlue);
+  rim.addColorStop(0, theme.electricBlue);
   rim.addColorStop(1, 'rgba(7, 6, 13, 0)');
   ctx.globalAlpha = 0.3;
   ctx.fillStyle = rim;
@@ -205,7 +218,9 @@ export function drawBackdrop(ctx, width, height, accent) {
  * A crest, or a legible monogram when there is none. Amateur tournaments are
  * mostly crestless, so the fallback is a first-class state rather than a hole.
  */
-export function drawShield(ctx, image, x, y, size, { name = '', accent }) {
+export function drawShield(ctx, image, x, y, size, options = {}) {
+  const { name = '', accent } = options;
+  const theme = options.theme || DEFAULT_SOCIAL_THEME;
   ctx.save();
   roundedRect(ctx, x, y, size, size, size * 0.28);
   ctx.clip();
@@ -221,7 +236,7 @@ export function drawShield(ctx, image, x, y, size, { name = '', accent }) {
     ctx.fillRect(x, y, size, size);
     const initials = String(name).split(/\s+/).filter(Boolean)
       .slice(0, 2).map((word) => word[0]).join('').toUpperCase() || '—';
-    ctx.font = fontOf(SOCIAL_THEME.heading, size * 0.42, 600);
+    ctx.font = fontOf(theme.heading, size * 0.42, 600);
     ctx.fillStyle = accent;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -229,16 +244,36 @@ export function drawShield(ctx, image, x, y, size, { name = '', accent }) {
   }
   ctx.restore();
   ctx.save();
-  ctx.strokeStyle = SOCIAL_THEME.hairline;
-  ctx.lineWidth = 2;
+  ctx.strokeStyle = theme.hairline;
+  ctx.lineWidth = theme.lineWidth;
   roundedRect(ctx, x, y, size, size, size * 0.28);
   ctx.stroke();
   ctx.restore();
 }
 
+/** Fits a transparent brand asset without cropping or changing its aspect ratio. */
+export function drawImageContain(ctx, image, x, y, width, height, options = {}) {
+  if (!image?.width || !image?.height) return false;
+  const scale = Math.min(width / image.width, height / image.height);
+  const drawWidth = image.width * scale;
+  const drawHeight = image.height * scale;
+  ctx.save();
+  ctx.globalAlpha = options.opacity ?? 1;
+  ctx.drawImage(
+    image,
+    x + (width - drawWidth) / 2,
+    y + (height - drawHeight) / 2,
+    drawWidth,
+    drawHeight,
+  );
+  ctx.restore();
+  return true;
+}
+
 /** Cover-crop with a vertical offset, the only photo positioning we allow. */
-export function drawPhoto(ctx, image, x, y, width, height, { offsetY = 0.5, radius = 28 } = {}) {
+export function drawPhoto(ctx, image, x, y, width, height, options = {}) {
   if (!image) return false;
+  const { offsetY = 0.5, radius = 28 } = options;
   ctx.save();
   roundedRect(ctx, x, y, width, height, radius);
   ctx.clip();
@@ -263,9 +298,11 @@ export function drawPhoto(ctx, image, x, y, width, height, { offsetY = 0.5, radi
 }
 
 /** Wordmark, drawn rather than loaded: no external asset, no CSP surprise. */
-export function drawArma2Mark(ctx, x, y, { accent, size = 34 }) {
+export function drawArma2Mark(ctx, x, y, options = {}) {
+  const { accent, size = 34 } = options;
+  const theme = options.theme || DEFAULT_SOCIAL_THEME;
   ctx.save();
-  ctx.font = fontOf(SOCIAL_THEME.display, size, 700);
+  ctx.font = fontOf(theme.display, size, 700);
   ctx.textAlign = 'right';
   ctx.textBaseline = 'middle';
   const label = 'ARMA2';
@@ -275,7 +312,7 @@ export function drawArma2Mark(ctx, x, y, { accent, size = 34 }) {
   ctx.globalAlpha = 0.18;
   ctx.fill();
   ctx.globalAlpha = 1;
-  ctx.fillStyle = SOCIAL_THEME.text;
+  ctx.fillStyle = theme.text;
   ctx.fillText(label, x - size * 0.42, y);
   ctx.beginPath();
   ctx.arc(x - width - size * 0.62, y, size * 0.16, 0, Math.PI * 2);
@@ -289,53 +326,58 @@ export function drawArma2Mark(ctx, x, y, { accent, size = 34 }) {
  * Templates draw into the body rectangle this returns, so a new format is a
  * change to the band arithmetic here rather than eleven edits.
  */
-export function drawFrame(ctx, { width, height }, { snapshot, editorial, accent }) {
-  drawBackdrop(ctx, width, height, accent);
+export function drawFrame(ctx, { width, height }, {
+  snapshot, content, editorial, accent, theme = DEFAULT_SOCIAL_THEME,
+}) {
+  drawBackdrop(ctx, width, height, accent, theme);
   const margin = Math.round(width * 0.074);
   const tall = height > width * 1.5;
   const headerTop = tall ? Math.round(height * 0.085) : Math.round(height * 0.062);
 
   const eyebrow = [
-    snapshot.competition?.organizationName,
-    snapshot.competition?.tournamentName,
-    snapshot.competition?.categoryName,
+    (content || snapshot).competition?.organizationName,
+    (content || snapshot).competition?.tournamentName,
+    (content || snapshot).competition?.categoryName,
   ].filter(Boolean).join(' · ').toUpperCase();
   drawText(ctx, eyebrow, margin, headerTop, {
-    family: SOCIAL_THEME.body,
+    family: theme.body,
     size: 24,
     weight: 700,
     color: accent,
     maxWidth: width - margin * 2,
     minSize: 16,
     letterSpacing: 2,
+    theme,
   });
 
   const titleTop = headerTop + Math.round(height * 0.052);
   drawText(ctx, editorial.title, margin, titleTop, {
-    family: SOCIAL_THEME.display,
+    family: theme.display,
     size: tall ? 108 : 96,
     weight: 700,
     maxWidth: width - margin * 2,
     minSize: 46,
+    theme,
   });
 
   let cursor = titleTop + Math.round(height * 0.018);
   if (editorial.subtitle) {
     cursor += Math.round(height * 0.026);
     drawText(ctx, editorial.subtitle, margin, cursor, {
-      family: SOCIAL_THEME.heading,
+      family: theme.heading,
       size: 40,
       weight: 500,
-      color: SOCIAL_THEME.textMuted,
+      color: theme.textMuted,
       maxWidth: width - margin * 2,
       minSize: 22,
+      theme,
     });
   }
 
   const footerTop = height - Math.round(height * (tall ? 0.072 : 0.082));
   ctx.save();
-  ctx.strokeStyle = SOCIAL_THEME.hairline;
-  ctx.lineWidth = 2;
+  ctx.strokeStyle = theme.hairline;
+  ctx.lineWidth = theme.lineWidth;
   ctx.beginPath();
   ctx.moveTo(margin, footerTop - 28);
   ctx.lineTo(width - margin, footerTop - 28);
@@ -344,25 +386,26 @@ export function drawFrame(ctx, { width, height }, { snapshot, editorial, accent 
 
   if (editorial.note) {
     const lines = wrapText(ctx, editorial.note, {
-      family: SOCIAL_THEME.body, size: 26, maxWidth: width - margin * 2, maxLines: 2,
+      family: theme.body, size: 26, maxWidth: width - margin * 2, maxLines: 2,
     });
     lines.forEach((line, index) => {
       drawText(ctx, line, margin, footerTop - 74 + index * 32, {
-        family: SOCIAL_THEME.body, size: 26, color: SOCIAL_THEME.textFaint,
+        family: theme.body, size: 26, color: theme.textFaint, theme,
       });
     });
   }
 
   drawText(ctx, editorial.cta, margin, footerTop + 12, {
-    family: SOCIAL_THEME.body,
+    family: theme.body,
     size: 26,
     weight: 600,
-    color: SOCIAL_THEME.textMuted,
+    color: theme.textMuted,
     maxWidth: width * 0.5,
     minSize: 18,
+    theme,
   });
   if (editorial.showArma2Logo) {
-    drawArma2Mark(ctx, width - margin, footerTop + 2, { accent });
+    drawArma2Mark(ctx, width - margin, footerTop + 2, { accent, theme });
   }
 
   return {

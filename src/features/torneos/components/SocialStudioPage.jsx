@@ -31,13 +31,24 @@ import {
 } from '../social/socialContracts';
 import {
   exportSocialPiece,
-  releaseSocialAssets,
-  renderSocialPiece,
+  prepareSocialRender,
+  releasePreparedSocialRender,
+  replacePreparedSocialRender,
   shareSocialPiece,
 } from '../social/socialStudio';
+import {
+  SOCIAL_RESULTS_THEMES,
+  resolveSocialTheme,
+} from '../social/socialThemes';
 import styles from './SocialStudioPage.module.css';
 
 const PREVIEW_WIDTH = 300;
+// Exact, byte-preserved copy of the approved Social Studio lockup. The source
+// artwork includes meaningful transparent space, so layouts contain the full
+// bitmap instead of cropping or reconstructing it from separate marks.
+const OFFICIAL_BRAND_ASSETS = Object.freeze({
+  lockup: `${process.env.PUBLIC_URL || ''}/assets/social-studio/Logo%20Arma2_torneo.png`,
+});
 
 function StudioState({ icon: Icon = Sparkles, title, copy, action = null }) {
   return (
@@ -61,7 +72,7 @@ export default function SocialStudioPage() {
   const { organizationId } = useParams();
   const { service } = useTorneosWorkspace();
   const canvasHostRef = useRef(null);
-  const assetsRef = useRef(null);
+  const preparedRenderRef = useRef(null);
   const requestRef = useRef(0);
   const [context, setContext] = useState({ status: 'loading', data: null, error: '' });
   const [scope, setScope] = useState({
@@ -71,6 +82,7 @@ export default function SocialStudioPage() {
   const [snapshot, setSnapshot] = useState(null);
   const [snapshotError, setSnapshotError] = useState('');
   const [editorial, setEditorial] = useState(() => createEditorialState(null));
+  const [themeId, setThemeId] = useState('classic');
   const [renderState, setRenderState] = useState({ status: 'idle', error: '' });
   const [busy, setBusy] = useState('');
   const [notice, setNotice] = useState('');
@@ -134,6 +146,7 @@ export default function SocialStudioPage() {
       setSnapshot(data);
       setEditorial((current) => createEditorialState(data, {
         ...current,
+        format: data.piece === 'round_results' ? 'portrait' : current.format,
         title: undefined,
         subtitle: undefined,
         selection: [],
@@ -153,38 +166,70 @@ export default function SocialStudioPage() {
     () => (snapshot ? describeCurationGap(snapshot, editorial) : null),
     [snapshot, editorial],
   );
+  const selectedTheme = useMemo(
+    () => (pieceId === 'round_results' ? resolveSocialTheme(themeId) : resolveSocialTheme('classic')),
+    [pieceId, themeId],
+  );
+  const branding = useMemo(() => ({
+    tournamentName: snapshot?.competition?.tournamentName || tournament?.name || '',
+    tournamentLogo: null,
+    primaryColor: null,
+    secondaryColor: null,
+  }), [snapshot, tournament]);
 
   // Re-render the preview whenever anything it depends on changes. The canvas
   // is replaced wholesale rather than mutated so a failed render never leaves
   // half of the previous piece on screen.
   useEffect(() => {
-    if (!snapshot || !canvasHostRef.current) return undefined;
+    if (!snapshot) {
+      canvasHostRef.current?.replaceChildren();
+      releasePreparedSocialRender(preparedRenderRef.current);
+      preparedRenderRef.current = null;
+      setRenderState({ status: 'idle', error: '', renderKey: '' });
+      return undefined;
+    }
+    if (!canvasHostRef.current) return undefined;
     let cancelled = false;
     const controller = new AbortController();
-    setRenderState({ status: 'rendering', error: '' });
-    renderSocialPiece({
+    setRenderState({ status: 'loading', error: '', renderKey: '' });
+    prepareSocialRender({
       snapshot,
       editorial,
       organizationId,
       signMediaReadUrls: service.signMediaReadUrls,
       resolveShieldUrl: service.resolveTeamShieldUrl,
+      theme: selectedTheme,
+      branding,
+      brandAssetUrls: OFFICIAL_BRAND_ASSETS,
       signal: controller.signal,
-    }).then(({ canvas }) => {
-      if (cancelled) return;
-      releaseSocialAssets(assetsRef.current);
+      onStatus: (status) => {
+        if (!cancelled) setRenderState({ status, error: '', renderKey: '' });
+      },
+    }).then((prepared) => {
+      if (cancelled) {
+        releasePreparedSocialRender(prepared);
+        return;
+      }
+      const { canvas } = prepared;
       const host = canvasHostRef.current;
-      if (!host) return;
+      if (!host) {
+        releasePreparedSocialRender(prepared);
+        return;
+      }
       canvas.setAttribute('role', 'img');
       canvas.setAttribute(
         'aria-label',
-        `Vista previa de ${piece?.label || 'la pieza'} en ${SOCIAL_FORMATS[editorial.format].label}`,
+        `Vista previa de ${piece?.label || 'la pieza'} en ${SOCIAL_FORMATS[editorial.format].label}, theme ${selectedTheme.label}`,
       );
       canvas.className = styles.previewCanvas;
       host.replaceChildren(canvas);
-      setRenderState({ status: 'ready', error: '' });
+      replacePreparedSocialRender(preparedRenderRef, prepared);
+      setRenderState({ status: 'ready', error: '', renderKey: prepared.renderKey });
     }).catch((error) => {
       if (cancelled) return;
       canvasHostRef.current?.replaceChildren();
+      releasePreparedSocialRender(preparedRenderRef.current);
+      preparedRenderRef.current = null;
       setRenderState({
         status: error?.code === 'CURATION_REQUIRED' ? 'curation' : 'error',
         error: error?.code === 'CURATION_REQUIRED'
@@ -196,9 +241,12 @@ export default function SocialStudioPage() {
       cancelled = true;
       controller.abort();
     };
-  }, [snapshot, editorial, organizationId, service, piece]);
+  }, [snapshot, editorial, organizationId, service, piece, selectedTheme, branding]);
 
-  useEffect(() => () => releaseSocialAssets(assetsRef.current), []);
+  useEffect(() => () => {
+    releasePreparedSocialRender(preparedRenderRef.current);
+    preparedRenderRef.current = null;
+  }, []);
 
   const updateEditorial = (patch) => setEditorial((current) => ({ ...current, ...patch }));
 
@@ -213,16 +261,21 @@ export default function SocialStudioPage() {
   };
 
   const runExport = async (mode) => {
-    if (!canExport || !snapshot || busy) return;
+    if (
+      !canExport
+      || !snapshot
+      || busy
+      || renderState.status !== 'ready'
+      || !preparedRenderRef.current
+    ) return;
     setBusy(mode);
     setNotice('');
     try {
       const result = await exportSocialPiece({
+        prepared: preparedRenderRef.current,
         snapshot,
         editorial,
-        organizationId,
-        signMediaReadUrls: service.signMediaReadUrls,
-        resolveShieldUrl: service.resolveTeamShieldUrl,
+        expectedRenderKey: renderState.renderKey,
       });
       if (mode === 'share') {
         const outcome = await shareSocialPiece({
@@ -358,7 +411,7 @@ export default function SocialStudioPage() {
             )}
           </fieldset>
 
-          <fieldset>
+          <fieldset className={styles.pieceFieldset}>
             <legend>Pieza</legend>
             <div className={styles.pieceGrid} role="radiogroup" aria-label="Plantilla">
               {SOCIAL_PIECES.map((entry) => (
@@ -379,7 +432,9 @@ export default function SocialStudioPage() {
           <fieldset>
             <legend>Formato y estilo</legend>
             <div className={styles.chipRow} role="radiogroup" aria-label="Formato">
-              {Object.values(SOCIAL_FORMATS).map((entry) => (
+              {Object.values(SOCIAL_FORMATS)
+                .filter((entry) => pieceId !== 'round_results' || entry.id === 'portrait')
+                .map((entry) => (
                 <button
                   key={entry.id}
                   type="button"
@@ -390,8 +445,24 @@ export default function SocialStudioPage() {
                 >
                   {entry.label}
                 </button>
-              ))}
+                ))}
             </div>
+            {pieceId === 'round_results' && (
+              <div className={styles.chipRow} role="radiogroup" aria-label="Theme de Resultados">
+                {SOCIAL_RESULTS_THEMES.map((entry) => (
+                  <button
+                    key={entry.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={themeId === entry.id}
+                    className={themeId === entry.id ? styles.chipActive : ''}
+                    onClick={() => setThemeId(entry.id)}
+                  >
+                    {entry.label}
+                  </button>
+                ))}
+              </div>
+            )}
             <div className={styles.chipRow} role="radiogroup" aria-label="Acento">
               {SOCIAL_ACCENTS.map((entry) => (
                 <button
@@ -407,7 +478,7 @@ export default function SocialStudioPage() {
                 </button>
               ))}
             </div>
-            {canToggleBrand && (
+            {canToggleBrand && pieceId !== 'round_results' && (
               <label className={styles.checkboxRow}>
                 <input
                   type="checkbox"
@@ -508,12 +579,12 @@ export default function SocialStudioPage() {
             style={{ width: PREVIEW_WIDTH, height: previewHeight }}
           >
             <div ref={canvasHostRef} className={styles.previewHost} />
-            {renderState.status === 'rendering' && (
+            {['loading', 'rendering'].includes(renderState.status) && (
               <span className={styles.previewOverlay} role="status">
                 <Loader2 size={22} aria-hidden="true" /> Generando…
               </span>
             )}
-            {renderState.status !== 'rendering' && renderState.error && (
+            {!['loading', 'rendering'].includes(renderState.status) && renderState.error && (
               <span className={styles.previewOverlay} role="status">
                 <AlertTriangle size={22} aria-hidden="true" /> {renderState.error}
               </span>

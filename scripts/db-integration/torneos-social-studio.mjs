@@ -22,6 +22,8 @@ import {
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const SOCIAL_MIGRATION = '20260803090000_tournament_social_studio.sql';
+const NULLABLE_ROUND_FIX_MIGRATION =
+  '20260814053900_fix_tournament_social_snapshot_nullable_round.sql';
 const PIECES = [
   'next_fixture', 'round_results', 'standings', 'scorers', 'discipline',
   'best_eleven', 'mvp', 'round_summary', 'semifinals', 'final', 'champion',
@@ -84,6 +86,12 @@ async function run() {
     ]);
     await admin.query(
       fs.readFileSync(path.join(ROOT, 'supabase', 'migrations', SOCIAL_MIGRATION), 'utf8'),
+    );
+    await admin.query(
+      fs.readFileSync(
+        path.join(ROOT, 'supabase', 'migrations', NULLABLE_ROUND_FIX_MIGRATION),
+        'utf8',
+      ),
     );
     const base = await seedOperationalMatch(admin);
     const owner = base.owner;
@@ -234,6 +242,17 @@ async function run() {
       else console.error(`    (${piece}) ${JSON.stringify(payload)?.slice(0, 200)}`);
     }
     eq(rendered, PIECES.length, 'las once piezas devuelven un snapshot tipado y versionado');
+
+    for (const piece of ['standings', 'scorers', 'discipline', 'best_eleven', 'mvp', 'champion']) {
+      // Phase-scoped pieces are requested without a round by the real client.
+      // eslint-disable-next-line no-await-in-loop
+      const payload = await snapshot(owner, scope, piece, { roundId: null });
+      ok(
+        payload?.competition?.roundName === null
+        && payload?.competition?.roundNumber === null,
+        `${piece} acepta una jornada nula y devuelve metadata nula`,
+      );
+    }
 
     for (const piece of CURATED) {
       // eslint-disable-next-line no-await-in-loop
