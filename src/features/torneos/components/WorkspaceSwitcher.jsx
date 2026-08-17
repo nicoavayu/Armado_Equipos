@@ -11,14 +11,17 @@ import { torneosFeatureFlags } from '../config/featureFlags';
 import { getRoleLabel } from '../domain/capabilities';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
 import styles from './TorneosShell.module.css';
+import BrandingImage from './BrandingImage';
 
 function OrganizationAvatar({ organization }) {
   return (
-    <span className={styles.workspaceAvatar} aria-hidden="true">
-      {organization.logoPath
-        ? <img src={organization.logoPath} alt="" />
-        : organization.name.slice(0, 2).toUpperCase()}
-    </span>
+    <BrandingImage
+      kind="organization"
+      path={organization.logoPath}
+      name={organization.name}
+      className={styles.workspaceAvatar}
+      imageClassName={styles.brandingContain}
+    />
   );
 }
 

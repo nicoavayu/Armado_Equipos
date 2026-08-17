@@ -28,6 +28,7 @@ import {
   getLifecycleErrorMessage,
 } from '../domain/competitionLifecycle';
 import CompetitionSelector from './CompetitionSelector';
+import BrandingImage from './BrandingImage';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import styles from './CompetitionCenter.module.css';
 
@@ -139,7 +140,13 @@ function StandingsTable({ rows }) {
               <td><strong className={styles.position}>{row.position}</strong></td>
               <td>
                 <span className={styles.team}>
-                  <span className={styles.teamMark}>{(row.shortName || row.teamName || '—').slice(0, 2)}</span>
+                  <BrandingImage
+                    kind="team"
+                    path={row.shieldPath}
+                    name={row.shortName || row.teamName}
+                    className={styles.teamMark}
+                    imageClassName={styles.teamMarkImage}
+                  />
                   <span>
                     <strong>
                       {row.teamName}
@@ -199,7 +206,13 @@ function StatisticsPanel({ data }) {
         <div className={styles.teamStats}>
           {data.teams.slice(0, 8).map((team) => (
             <article key={team.participantId}>
-              <span className={styles.teamMark}>{(team.name || '—').slice(0, 2)}</span>
+              <BrandingImage
+                kind="team"
+                path={team.shieldPath}
+                name={team.name}
+                className={styles.teamMark}
+                imageClassName={styles.teamMarkImage}
+              />
               <span><strong>{team.name}</strong><small>{team.homePlayed} local · {team.awayPlayed} visitante</small></span>
               <strong>{team.goals} GF</strong>
             </article>

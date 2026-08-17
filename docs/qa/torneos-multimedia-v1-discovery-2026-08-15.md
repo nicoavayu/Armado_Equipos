@@ -681,3 +681,35 @@ documento; no activar flags, provisionar entornos remotos ni tocar Social Studio
   observabilidad y cleanup atestiguados antes de habilitar flags fuera de local.
 - 1C mantiene branding, logos, colores, escudos y retratos de roster fuera de
   este cambio. Social Studio, Staging y Production no fueron modificados.
+
+## 22. Actualización Multimedia 1C.1 — Branding estructural real (2026-08-17)
+
+- Se materializaron logo de organización, logo propio de torneo y escudo de
+  equipo como referencias durables, no URLs: columnas `logo_path`/`shield_path`,
+  bucket público separado `tournament-branding` y paths inmutables versionados
+  por organización, tipo, entidad y UUID. `tournament-media` y `team-crests` no
+  cambiaron; el último conserva sólo compatibilidad de lectura histórica.
+- El bucket admite únicamente JPEG/PNG/WebP hasta 2 MiB. El cliente valida,
+  decodifica, redimensiona y reencodea antes de subir; RLS vuelve a validar
+  tenant, entidad y capability. No hay overwrite: reemplazar crea una ruta
+  nueva, cambia la referencia por RPC auditable y elimina la versión previa.
+- Un resolver central entrega URL pública sólo desde buckets conocidos y aplica
+  fallback torneo → organización → iniciales. Se integró en Configuración,
+  selector de workspace, dashboard, alta/configuración de torneo, inscripción y
+  lista de equipos, hub participante, competencia y página pública. Los escudos
+  congelados no son mutables desde el navegador y sus snapshots QA quedaron
+  sincronizados durante la provisión local controlada.
+- Evidencia local reproducible: reset completo, dataset V4 587/587, seis
+  identidades QA canónicas, tres PNG reales, prueba Storage HTTP con owner y
+  outsider (tenant, rol, path traversal, SVG/HTML, tamaño, overwrite, delete y
+  lectura pública), tests de servicio/fallback, reload y build productivo.
+- Retrato de jugador queda fuera de 1C.1. Hoy conviven `usuarios.avatar_url` y
+  snapshots `tournament_roster_players.avatar_url`, mientras un jugador
+  provisional no tiene referencia propia. Recomendación 1C.2: agregar una
+  referencia durable independiente por jugador de roster, con consentimiento,
+  reglas explícitas de reemplazo y sin reutilizar automáticamente el avatar
+  global de Arma2; definir primero quién administra y en qué superficies puede
+  publicarse.
+- Social Studio no fue modificado. Sus snapshots continúan consumiendo escudos;
+  una futura adopción del logo de torneo debe leer el nuevo contexto de branding
+  sin acceder al bucket privado multimedia.

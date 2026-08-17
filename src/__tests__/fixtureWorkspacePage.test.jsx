@@ -33,6 +33,7 @@ const mockFixtureState = {
     {
       id: 'participant-a',
       name: 'Armas FC con un nombre deliberadamente extenso',
+      shieldPath: '11111111-1111-4111-8111-111111111111/teams/22222222-2222-4222-8222-222222222222/33333333-3333-4333-8333-333333333333.png',
       status: 'active',
       seedNumber: 1,
     },
@@ -156,6 +157,18 @@ jest.mock('../features/torneos/components/CompetitionSelector', () => (
 ));
 
 describe('FixtureWorkspacePage', () => {
+  test('renders the snapshotted shield in the frozen participant list', () => {
+    const view = render(
+      <MemoryRouter>
+        <FixtureWorkspacePage mode="participants" />
+      </MemoryRouter>,
+    );
+    expect(view.container.querySelector('.participantMark img')).toHaveAttribute(
+      'src',
+      expect.stringContaining(mockFixtureState.participants[0].shieldPath),
+    );
+  });
+
   test('renders persisted version metrics and the complete workflow navigation', () => {
     render(
       <MemoryRouter>

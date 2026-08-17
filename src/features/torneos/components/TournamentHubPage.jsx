@@ -37,6 +37,7 @@ import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
 import styles from './ParticipantHub.module.css';
 import TournamentCommunicationsPanel from './TournamentCommunicationsPanel';
 import ParticipantMediaGallery from './ParticipantMediaGallery';
+import BrandingImage from './BrandingImage';
 
 const SECTIONS = [
   ['resumen', 'Resumen', Sparkles],
@@ -815,9 +816,14 @@ export default function TournamentHubPage({ defaultSection = 'resumen', matchMod
     >
       <header className={styles.tournamentHero}>
         <div className={styles.tournamentIdentity}>
-          <span className={styles.tournamentMonogram} aria-hidden="true">
-            {hub.tournament.name.slice(0, 2).toUpperCase()}
-          </span>
+          <BrandingImage
+            kind="tournament"
+            path={hub.tournament.logoPath}
+            fallbackPath={hub.tournament.organizationLogoPath}
+            name={hub.tournament.name}
+            className={styles.tournamentMonogram}
+            imageClassName={styles.brandingContain}
+          />
           <div>
             <span className={styles.hubKicker}>{hub.tournament.seasonName} · {hub.tournament.organizationName}</span>
             <h1>{hub.tournament.name}</h1>

@@ -22,6 +22,7 @@ import { getTournamentCardAction } from '../domain/competitionLifecycle';
 import CompetitionSelector from './CompetitionSelector';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import styles from './CompetitionCore.module.css';
+import BrandingImage from './BrandingImage';
 
 function formatDateRange(startDate, endDate) {
   if (!startDate && !endDate) return 'Fechas a definir';
@@ -176,6 +177,14 @@ export default function CompetitionOverviewPage() {
                           ? <CheckCircle2 size={18} className={styles.readyIcon} />
                           : <CircleDashed size={18} className={styles.pendingIcon} />}
                       </div>
+                      <BrandingImage
+                        kind="tournament"
+                        path={tournament.logoPath}
+                        fallbackPath={tournament.organizationLogoPath || organization.logoPath}
+                        name={tournament.name}
+                        className={styles.competitionBrandMark}
+                        imageClassName={styles.competitionBrandImage}
+                      />
                       <div>
                         <small>
                           {seasons.find((season) => season.id === tournament.seasonId)?.name}

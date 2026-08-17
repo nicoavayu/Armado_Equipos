@@ -856,6 +856,7 @@
 }
 
 .participantMark {
+  overflow: hidden;
   display: inline-grid;
   width: 38px;
   height: 38px;
@@ -867,6 +868,13 @@
   background: color-mix(in srgb, var(--team-color), #171320 48%);
   font-size: 0.72rem;
   font-weight: 850;
+}
+
+.participantMarkImage {
+  width: 100%;
+  height: 100%;
+  padding: 3px;
+  object-fit: contain;
 }
 
 .inlineForm {

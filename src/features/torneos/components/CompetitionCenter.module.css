@@ -50,6 +50,8 @@
 .teamDetail summary { width: max-content; color: #b7a8ef; cursor: pointer; }
 .teamDetail > span { display: block; margin-top: 4px; }
 .teamMark, .playerMark { display: grid; place-items: center; flex: 0 0 auto; width: 38px; height: 38px; border: 1px solid rgba(164, 140, 255, .28); border-radius: 12px; color: #d8ccff; background: linear-gradient(145deg, #30274c, #1a1725); font-size: .7rem; font-weight: 900; text-transform: uppercase; }
+.teamMark { overflow: hidden; }
+.teamMarkImage { width: 100%; height: 100%; padding: 3px; object-fit: contain; }
 .reviewFlag { color: #ffc68f; background: rgba(232, 133, 48, .12); }
 .retiredFlag {
   display: inline-block;

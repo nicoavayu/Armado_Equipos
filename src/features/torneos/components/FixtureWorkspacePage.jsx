@@ -34,6 +34,7 @@ import {
   hasScheduledTime,
 } from '../domain/matchSchedule';
 import CompetitionSelector from './CompetitionSelector';
+import BrandingImage from './BrandingImage';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import styles from './FixtureWorkspace.module.css';
 
@@ -119,13 +120,14 @@ function FixtureSubnav({ organizationId }) {
 
 function ParticipantMark({ participant }) {
   return (
-    <span
+    <BrandingImage
+      kind="team"
+      path={participant?.shieldPath}
+      name={participant?.shortName || participant?.name}
       className={styles.participantMark}
+      imageClassName={styles.participantMarkImage}
       style={{ '--team-color': participant?.primaryColor || '#885cff' }}
-      aria-hidden="true"
-    >
-      {(participant?.shortName || participant?.name || '—').slice(0, 2).toUpperCase()}
-    </span>
+    />
   );
 }
 

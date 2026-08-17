@@ -26,6 +26,7 @@ import CompetitionSelector from './CompetitionSelector';
 import TeamWithdrawalDialog from './TeamWithdrawalDialog';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import styles from './TeamRegistration.module.css';
+import BrandingImage from './BrandingImage';
 
 // El retiro estructural sólo existe una vez que la competencia tiene el fixture
 // publicado y sus participantes congelados.
@@ -241,7 +242,13 @@ export default function TeamsPage() {
                 return (
                   <article key={entry.id} className={styles.entryCard}>
                     <div className={styles.entryIdentity}>
-                      <span className={styles.teamMark}>{entry.name.slice(0, 2).toUpperCase()}</span>
+                      <BrandingImage
+                        kind="team"
+                        path={entry.shieldPath}
+                        name={entry.name}
+                        className={styles.teamMark}
+                        imageClassName={styles.brandingContain}
+                      />
                       <div>
                         <span>{entry.categoryName}</span>
                         <h2>{entry.name}</h2>

@@ -34,6 +34,7 @@ import CompetitionLifecycleActions from './CompetitionLifecycleActions';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import styles from './TorneosShell.module.css';
 import coreStyles from './CompetitionCore.module.css';
+import BrandingImage from './BrandingImage';
 import {
   countScheduledMatches,
   hasScheduledTime,
@@ -143,11 +144,13 @@ export default function TorneosDashboard() {
       <div className={styles.dashboard}>
         <section className={styles.dashboardHero}>
           <div className={styles.organizationIdentity}>
-            <span className={styles.largeMonogram}>
-              {organization.logoPath
-                ? <img src={organization.logoPath} alt="" />
-                : organization.name.slice(0, 2).toUpperCase()}
-            </span>
+            <BrandingImage
+              kind="organization"
+              path={organization.logoPath}
+              name={organization.name}
+              className={styles.largeMonogram}
+              imageClassName={styles.brandingContain}
+            />
             <div>
               <span className={styles.eyebrow}>Organización de competencias</span>
               <h1>{seasons.length ? 'Creá tu primer ' : 'Empezá un '}<em>torneo</em></h1>

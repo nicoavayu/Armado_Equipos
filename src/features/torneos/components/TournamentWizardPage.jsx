@@ -56,6 +56,7 @@ import {
 } from '../domain/capabilities';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import TournamentPublicPageSettings from './TournamentPublicPageSettings';
+import BrandingAssetField from './BrandingAssetField';
 import styles from './CompetitionCore.module.css';
 
 const STEPS = [
@@ -72,6 +73,8 @@ function draftFromTournament(tournament) {
     name: tournament.name,
     slug: tournament.slug,
     description: tournament.description || '',
+    logoPath: tournament.logoPath || null,
+    organizationLogoPath: tournament.organizationLogoPath || null,
     seasonId: tournament.seasonId,
     startDate: tournament.startDate || '',
     endDate: tournament.endDate || '',
@@ -637,6 +640,23 @@ export default function TournamentWizardPage() {
 
         {step === 0 && (
           <div className={styles.inputGrid}>
+            {!isNew && (
+              <div className={styles.spanTwo}>
+                <BrandingAssetField
+                  organizationId={organization.id}
+                  kind="tournament"
+                  entityId={tournament.id}
+                  path={draft.logoPath}
+                  fallbackPath={draft.organizationLogoPath || organization.logoPath}
+                  name={draft.name || tournament.name}
+                  canEdit={canUpdate}
+                  onChanged={async (result) => {
+                    setDraft((current) => ({ ...current, logoPath: result.path || null }));
+                    await refresh({ notice: 'Identidad visual actualizada.' });
+                  }}
+                />
+              </div>
+            )}
             <label className={styles.spanTwo}>
               <span>Nombre del torneo</span>
               <input

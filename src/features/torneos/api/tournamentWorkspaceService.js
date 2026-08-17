@@ -1,6 +1,8 @@
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '../../../services/api/supabase';
 import { normalizeMatchOutcome } from '../domain/matchOutcome';
+import { resolveBrandingAssetUrl } from '../domain/brandingAssets';
+import { loadTournamentBrandingContext } from './tournamentBrandingService';
 import {
   deleteTournamentMediaAsset,
   signTournamentMediaReadUrls,
@@ -350,12 +352,25 @@ export async function listTournamentOrganizationMembers(organizationId) {
 
 export async function loadTournamentCompetitionContext(organizationId) {
   try {
-    return unwrapRpc(
+    const context = unwrapRpc(
       await supabase.rpc('get_tournament_competition_context', {
         p_organization_id: organizationId,
       }),
       'No pudimos cargar temporadas y torneos.',
     );
+    const branding = await loadTournamentBrandingContext({ organizationId });
+    const logoByTournament = new Map(
+      (branding?.tournaments || []).map((item) => [item.id, item.logoPath || null]),
+    );
+    return {
+      ...context,
+      organizationBranding: branding?.organization || null,
+      tournaments: (context?.tournaments || []).map((tournament) => ({
+        ...tournament,
+        logoPath: logoByTournament.get(tournament.id) || null,
+        organizationLogoPath: branding?.organization?.logoPath || null,
+      })),
+    };
   } catch (error) {
     throw toWorkspaceError(error, 'No pudimos cargar temporadas y torneos.');
   }
@@ -1330,10 +1345,23 @@ export async function loadTournamentParticipantHub({
   tournamentId,
   categoryId = null,
 }) {
-  return unwrapRpc(await supabase.rpc('get_tournament_participant_hub', {
+  const hub = unwrapRpc(await supabase.rpc('get_tournament_participant_hub', {
     p_tournament_id: tournamentId,
     p_category_id: categoryId,
   }), 'No pudimos cargar el centro del torneo.');
+  const branding = await loadTournamentBrandingContext({
+    organizationId: hub.tournament.organizationId,
+    tournamentId,
+  });
+  const tournamentBranding = branding?.tournaments?.[0] || null;
+  return {
+    ...hub,
+    tournament: {
+      ...hub.tournament,
+      logoPath: tournamentBranding?.logoPath || null,
+      organizationLogoPath: branding?.organization?.logoPath || null,
+    },
+  };
 }
 
 export async function setTournamentHubCategory({
@@ -1893,16 +1921,8 @@ export async function setTournamentSocialPermission({
   }), 'No pudimos actualizar el permiso del Estudio Social.');
 }
 
-/**
- * Team crests live in the public `team-crests` bucket, so they resolve to a
- * plain URL. Private photographs never come through here: they are signed by
- * the Multimedia signer, which is what enforces publication and consent.
- */
 export function resolveTeamShieldUrl(shieldPath) {
-  if (!shieldPath) return null;
-  if (/^https?:\/\//i.test(shieldPath)) return shieldPath;
-  const { data } = supabase.storage.from('team-crests').getPublicUrl(shieldPath);
-  return data?.publicUrl || null;
+  return resolveBrandingAssetUrl({ kind: 'team', path: shieldPath });
 }
 
 export async function handleTournamentMediaReport({

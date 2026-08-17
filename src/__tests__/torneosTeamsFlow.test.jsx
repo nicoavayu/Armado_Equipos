@@ -4,6 +4,14 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import TorneosFeatureGate from '../features/torneos/TorneosFeatureGate';
 import { getCapabilitiesForRole } from '../features/torneos/domain/capabilities';
 
+const mockUploadBranding = jest.fn();
+const mockRemoveBranding = jest.fn();
+
+jest.mock('../features/torneos/api/tournamentBrandingService', () => ({
+  uploadTournamentBrandingAsset: (...args) => mockUploadBranding(...args),
+  removeTournamentBrandingAsset: (...args) => mockRemoveBranding(...args),
+}));
+
 jest.mock('../components/global-header/GlobalHeader', () => () => (
   <header data-testid="global-header" />
 ));
@@ -131,6 +139,13 @@ function renderPath(path, service) {
 }
 
 describe('Arma2 Torneos teams flow', () => {
+  beforeEach(() => {
+    mockUploadBranding.mockReset();
+    mockRemoveBranding.mockReset();
+    URL.createObjectURL = jest.fn(() => 'blob:shield-preview');
+    URL.revokeObjectURL = jest.fn();
+  });
+
   test('renders persisted team metrics and filters without invented data', async () => {
     const service = createService();
     renderPath(`/torneos/organizacion/${ORG}/equipos`, service);
@@ -207,6 +222,99 @@ describe('Arma2 Torneos teams flow', () => {
     expect(screen.queryByText('0/0')).not.toBeInTheDocument();
     expect(screen.getAllByText('Sin definir')).toHaveLength(4);
     expect(screen.getByRole('button', { name: 'Presentar plantel' })).toBeDisabled();
+  });
+
+  test('keeps approved sports data locked while owner branding can upload, replace and remove', async () => {
+    const service = createService();
+    const approved = {
+      ...registration(),
+      entry: {
+        ...registration().entry,
+        status: 'approved',
+        shieldPath: 'qa/shields/barrio-norte.svg',
+      },
+      roster: { ...registration().roster, status: 'approved' },
+    };
+    service.loadTeamRegistration.mockResolvedValue(approved);
+    mockUploadBranding.mockResolvedValue({ path: `${ORG}/teams/${ENTRY}/new.png` });
+    mockRemoveBranding.mockResolvedValue({ path: null });
+
+    renderPath(`/torneos/organizacion/${ORG}/equipos/${ENTRY}/inscripcion`, service);
+
+    expect(await screen.findByRole('heading', { name: 'Napoli' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Nombre')).toBeDisabled();
+    expect(screen.getByLabelText('Nombre corto')).toBeDisabled();
+    expect(screen.queryByRole('button', { name: /guardar datos/i })).not.toBeInTheDocument();
+    expect(screen.getByText(/sólo estás editando la identidad visual/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cambiar' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Quitar' })).toBeEnabled();
+
+    const upload = new File(['png'], 'shield.png', { type: 'image/png' });
+    fireEvent.change(document.querySelector('input[type="file"]'), {
+      target: { files: [upload] },
+    });
+    await waitFor(() => expect(mockUploadBranding).toHaveBeenCalledWith(expect.objectContaining({
+      organizationId: ORG,
+      kind: 'team',
+      entityId: ENTRY,
+      file: upload,
+    })));
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Quitar' })).toBeEnabled());
+    fireEvent.click(screen.getByRole('button', { name: 'Quitar' }));
+    await waitFor(() => expect(mockRemoveBranding).toHaveBeenCalledWith({
+      organizationId: ORG,
+      kind: 'team',
+      entityId: ENTRY,
+    }));
+  });
+
+  test('uses the real capability and relationship contract for approved branding controls', async () => {
+    const collaboratorService = createService({ role: 'collaborator' });
+    collaboratorService.loadTeamRegistration.mockResolvedValue({
+      ...registration(),
+      entry: { ...registration().entry, status: 'approved', shieldPath: null },
+      roster: { ...registration().roster, status: 'approved' },
+      managers: registration().managers.map((manager) => ({
+        ...manager,
+        isCurrentUser: false,
+      })),
+    });
+    const collaboratorView = renderPath(
+      `/torneos/organizacion/${ORG}/equipos/${ENTRY}/inscripcion`,
+      collaboratorService,
+    );
+    expect(await screen.findByRole('heading', { name: 'Napoli' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Subir' })).not.toBeInTheDocument();
+    collaboratorView.unmount();
+
+    const delegateService = createService({ organizations: false });
+    delegateService.loadTeamRegistration.mockResolvedValue({
+      ...registration(),
+      entry: { ...registration().entry, status: 'approved', shieldPath: null },
+      roster: { ...registration().roster, status: 'approved' },
+      managers: [{
+        ...registration().managers[0],
+        role: 'delegate',
+        isCurrentUser: true,
+      }],
+    });
+    renderPath(`/torneos/organizacion/${ORG}/equipos/${ENTRY}/inscripcion`, delegateService);
+    expect(await screen.findByRole('button', { name: 'Subir' })).toBeEnabled();
+    expect(screen.getByLabelText('Nombre')).toBeDisabled();
+  });
+
+  test('does not extend branding writes to terminal team-entry states', async () => {
+    const service = createService();
+    service.loadTeamRegistration.mockResolvedValue({
+      ...registration(),
+      entry: { ...registration().entry, status: 'withdrawn', shieldPath: null },
+      roster: { ...registration().roster, status: 'approved' },
+    });
+
+    renderPath(`/torneos/organizacion/${ORG}/equipos/${ENTRY}/inscripcion`, service);
+    expect(await screen.findByRole('heading', { name: 'Napoli' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Subir' })).not.toBeInTheDocument();
   });
 
   test('creates the manager invitation and shows its token only in the success step', async () => {

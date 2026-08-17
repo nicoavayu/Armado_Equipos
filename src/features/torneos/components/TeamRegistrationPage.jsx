@@ -28,6 +28,8 @@ import {
 import PlayerAutocomplete from './PlayerAutocomplete';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import styles from './TeamRegistration.module.css';
+import BrandingAssetField from './BrandingAssetField';
+import BrandingImage from './BrandingImage';
 
 const requirementValue = (value) => (
   value === null || value === undefined ? 'Sin definir' : value
@@ -97,7 +99,7 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
   const { service } = useTorneosWorkspace();
   const requestRef = useRef(0);
   const [state, setState] = useState({ status: 'loading', data: null, error: '', notice: '' });
-  const [teamForm, setTeamForm] = useState({ name: '', shortName: '', primaryColor: '', secondaryColor: '' });
+  const [teamForm, setTeamForm] = useState({ name: '', shortName: '', primaryColor: '', secondaryColor: '', shieldPath: null });
   const [review, setReview] = useState({ decision: 'changes_requested', reason: '' });
   const [busy, setBusy] = useState('');
   const base = `/torneos/organizacion/${organization.id}/equipos/${teamEntryId}`;
@@ -114,6 +116,7 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
         shortName: data.entry.shortName || '',
         primaryColor: data.entry.primaryColor || '#4F7CFF',
         secondaryColor: data.entry.secondaryColor || '#111827',
+        shieldPath: data.entry.shieldPath || null,
       });
       setState({ status: 'ready', data, error: '', notice });
     } catch (error) {
@@ -144,6 +147,11 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
     (relationalEditor || organizationalEditor)
     && ['draft', 'invited', 'in_progress', 'changes_requested'].includes(data?.entry?.status)
     && ['draft', 'changes_requested'].includes(data?.roster?.status),
+  );
+  const canEditBranding = Boolean(
+    (relationalEditor || organizationalEditor)
+    && ['draft', 'invited', 'in_progress', 'changes_requested', 'approved']
+      .includes(data?.entry?.status),
   );
   const canReview = hasCapability(organization, TOURNAMENT_CAPABILITIES.TEAM_ENTRIES_REVIEW);
 
@@ -207,12 +215,13 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
         <ArrowLeft size={17} /> Equipos
       </Link>
       <header className={styles.detailHero}>
-        <span
+        <BrandingImage
+          kind="team"
+          path={teamForm.shieldPath}
+          name={data.entry.name}
           className={styles.heroMark}
-          style={{ '--team-primary': teamForm.primaryColor, '--team-secondary': teamForm.secondaryColor }}
-        >
-          {data.entry.name.slice(0, 2).toUpperCase()}
-        </span>
+          imageClassName={styles.brandingContain}
+        />
         <div>
           <span className={styles.kicker}>{data.tournament.name} · {data.category.name}</span>
           <h1>{data.entry.name}</h1>
@@ -236,6 +245,23 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
         <div className={styles.detailGrid}>
           <section className={styles.formSection}>
             <div className={styles.sectionHeading}><span>01</span><div><h2>Datos del equipo</h2><p>Snapshot de esta competencia.</p></div></div>
+            <BrandingAssetField
+              organizationId={organization.id}
+              kind="team"
+              entityId={teamEntryId}
+              path={teamForm.shieldPath}
+              name={teamForm.name || data.entry.name}
+              canEdit={canEditBranding}
+              onChanged={(result) => {
+                setTeamForm((current) => ({ ...current, shieldPath: result.path || null }));
+                return load('Escudo actualizado.');
+              }}
+            />
+            {canEditBranding && !editable && (
+              <p className={styles.brandingEditNotice}>
+                La inscripción deportiva está aprobada. Sólo estás editando la identidad visual.
+              </p>
+            )}
             <div className={styles.twoColumns}>
               <label>Nombre<input value={teamForm.name} disabled={!editable} onChange={(event) => setTeamForm({ ...teamForm, name: event.target.value })} /></label>
               <label>Nombre corto<input value={teamForm.shortName} disabled={!editable} onChange={(event) => setTeamForm({ ...teamForm, shortName: event.target.value })} /></label>
