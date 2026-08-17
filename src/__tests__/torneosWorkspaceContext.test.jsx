@@ -59,6 +59,7 @@ function WorkspaceProbe() {
     error,
     isAuthoritative,
     notice,
+    revalidating,
     refresh,
     selectOrganization,
     selectPersonal,
@@ -68,6 +69,7 @@ function WorkspaceProbe() {
     <div>
       <span>{activeOrganization?.name || 'Personal'}</span>
       <span>{isAuthoritative ? 'authoritative' : 'pending'}</span>
+      <span>{revalidating ? 'revalidating' : 'settled'}</span>
       <span>{notice}</span>
       <span>{error}</span>
       <span>{availableOrganizations.length} organizaciones</span>
@@ -88,6 +90,9 @@ function WorkspaceProbe() {
       </button>
       <button type="button" onClick={() => refresh().catch(() => {})}>
         Refrescar
+      </button>
+      <button type="button" onClick={() => refresh({ background: true }).catch(() => {})}>
+        Revalidar
       </button>
     </div>
   );
@@ -208,6 +213,7 @@ describe('TorneosWorkspaceProvider', () => {
 
     expect(await screen.findByText('Liga Devoto')).toBeInTheDocument();
     expect(screen.getByText('authoritative')).toBeInTheDocument();
+    expect(service.loadContext).toHaveBeenCalledTimes(1);
   });
 
   test('clears cached organization data while revalidating and after an auth error', async () => {
@@ -269,6 +275,49 @@ describe('TorneosWorkspaceProvider', () => {
       expect(screen.queryByText('Liga Devoto')).not.toBeInTheDocument();
       expect(screen.getByText('0 organizaciones')).toBeInTheDocument();
     });
+  });
+
+  test('coalesces background revalidation bursts without clearing an authorized workspace', async () => {
+    let resolveRevalidation;
+    const revalidation = new Promise((resolve) => { resolveRevalidation = resolve; });
+    const service = createService({
+      preference: {
+        workspaceType: 'tournament_organization',
+        activeOrganizationId: ORGANIZATIONS[0].id,
+      },
+    });
+    render(
+      <TorneosWorkspaceProvider service={service}>
+        <WorkspaceProbe />
+      </TorneosWorkspaceProvider>,
+    );
+    expect(await screen.findByText('Liga Devoto')).toBeInTheDocument();
+    service.loadContext.mockImplementationOnce(() => revalidation);
+
+    act(() => {
+      for (let index = 0; index < 20; index += 1) {
+        fireEvent.click(screen.getByRole('button', { name: 'Revalidar' }));
+      }
+    });
+
+    await waitFor(() => expect(service.loadContext).toHaveBeenCalledTimes(2));
+    expect(screen.getByText('Liga Devoto')).toBeInTheDocument();
+    expect(screen.getByText('authoritative')).toBeInTheDocument();
+    expect(screen.getByText('revalidating')).toBeInTheDocument();
+
+    await act(async () => {
+      resolveRevalidation({
+        preference: {
+          workspaceType: 'tournament_organization',
+          activeOrganizationId: ORGANIZATIONS[0].id,
+        },
+        organizations: ORGANIZATIONS,
+      });
+      await Promise.resolve();
+    });
+    expect(await screen.findByText('settled')).toBeInTheDocument();
+    await act(async () => { await Promise.resolve(); });
+    expect(service.loadContext).toHaveBeenCalledTimes(2);
   });
 
   test.each([

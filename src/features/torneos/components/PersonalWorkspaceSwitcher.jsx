@@ -47,7 +47,7 @@ export function WorkspaceList() {
         </div>
       </div>
 
-      {status === 'loading' || status === 'idle' ? (
+      {status === 'validating' || status === 'idle' ? (
         <div className={styles.state} role="status">
           <LoaderCircle className={styles.spinner} size={19} />
           Validando espacios…

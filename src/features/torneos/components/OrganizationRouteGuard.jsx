@@ -87,7 +87,7 @@ export default function OrganizationRouteGuard() {
     status,
   ]);
 
-  if (status === 'loading' || status === 'idle') return <WorkspaceLoading />;
+  if (status === 'validating' || status === 'idle') return <WorkspaceLoading />;
   if (status === 'error') {
     return <WorkspaceError message={error} onRetry={() => refresh().catch(() => {})} />;
   }

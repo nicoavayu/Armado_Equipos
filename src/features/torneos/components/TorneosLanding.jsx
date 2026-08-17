@@ -98,7 +98,7 @@ export default function TorneosLanding() {
     tournamentRelations: relationsState.relations,
   }), [availableOrganizations, relationsState.relations]);
 
-  if (status === 'loading' || status === 'idle' || relationsState.status === 'loading') {
+  if (status === 'validating' || status === 'idle' || relationsState.status === 'loading') {
     return <WorkspaceLoading label="Resolviendo tu experiencia de Torneos…" />;
   }
   if (status === 'error' || relationsState.status === 'error') {

@@ -700,11 +700,14 @@ export function AppAuthWrapper() {
   const location = useLocation();
   const pendingAuthFlow = usePendingAuthFlow();
   const localEditMode = process.env.NODE_ENV === 'development' && process.env.REACT_APP_LOCAL_EDIT_MODE !== 'false';
-  const shouldPassThroughWhileLoading = loading && process.env.NODE_ENV !== 'production';
   const isCompletingAuth = Boolean(!user && pendingAuthFlow);
 
-  if (shouldPassThroughWhileLoading) {
-    return <Outlet />;
+  // Private products must not start their authorization RPCs until Supabase
+  // has resolved the initial session. In development the old pass-through
+  // raced the workspace guard against session hydration and could leave a
+  // valid deep link displaying a workspace validation error.
+  if (loading) {
+    return <AppLoadingScreen />;
   }
 
   if (isCompletingAuth) {
