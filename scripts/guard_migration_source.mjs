@@ -21,6 +21,7 @@ const expectedCanonicalMigrations = [
   '20260813122000_lifecycle_business_rules_are_client_errors.sql',
   '20260813123000_match_already_official_is_a_client_error.sql',
   '20260813124000_core_flow_business_rules_are_client_errors.sql',
+  '20260815234340_tournament_media_storage_readiness_and_delete.sql',
 ];
 
 const exitWithError = (message) => {

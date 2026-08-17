@@ -72,6 +72,7 @@
     "torneos:media:observability:validate": "node scripts/torneos-staging/observability.mjs validate --json",
     "torneos:media:observability:evaluate": "node scripts/torneos-staging/observability.mjs evaluate --json",
     "storage:tournament-media:local": "node scripts/storage/provision-tournament-media-local.mjs",
+    "storage:tournament-media:local:qa": "node scripts/storage/provision-tournament-media-local.mjs --activate-simple",
     "storage:tournament-media:verify": "node scripts/storage/provision-tournament-media-local.mjs --verify",
     "test:web-access": "node --test server/__tests__/*.test.mjs",
     "test:db": "node scripts/db-integration/run.mjs",

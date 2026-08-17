@@ -89,7 +89,9 @@ function MediaState({
   );
 }
 
-function AssetPreview({ asset, cover, canManage, onAction, onMove, thumbnailUrl }) {
+function AssetPreview({
+  asset, cover, canManage, canDelete, onAction, onMove, thumbnailUrl,
+}) {
   const actionable = ['pending_review', 'approved', 'published', 'hidden'].includes(asset.status);
   // Four ready variants is the same gate the database enforces on approval, so
   // the card can say "procesando" without guessing.
@@ -108,9 +110,9 @@ function AssetPreview({ asset, cover, canManage, onAction, onMove, thumbnailUrl 
         <span><strong>{asset.safeName}</strong><small>{formatMediaBytes(asset.byteSize)}</small></span>
         <em data-status={asset.status}>{STATUS_LABELS[asset.status] || asset.status}</em>
       </div>
-      {canManage && actionable && !processing && (
+      {!processing && ((canManage && actionable) || canDelete) && (
         <div className={styles.assetActions}>
-          {asset.status === 'pending_review' && (
+          {canManage && asset.status === 'pending_review' && (
             <>
               <button type="button" onClick={() => onAction(asset, 'approve')}>
                 <Check size={15} /> Aprobar
@@ -120,36 +122,45 @@ function AssetPreview({ asset, cover, canManage, onAction, onMove, thumbnailUrl 
               </button>
             </>
           )}
-          {['approved', 'published'].includes(asset.status) && !cover && (
+          {canManage && ['approved', 'published'].includes(asset.status) && !cover && (
             <button type="button" onClick={() => onAction(asset, 'cover')}>
               <Star size={15} /> Portada
             </button>
           )}
-          {['approved', 'published'].includes(asset.status) && (
+          {canManage && ['approved', 'published'].includes(asset.status) && (
             <button type="button" onClick={() => onAction(asset, 'hide')}>
               <Eye size={15} /> Ocultar
             </button>
           )}
-          {asset.status === 'hidden' && (
+          {canManage && asset.status === 'hidden' && (
             <button type="button" onClick={() => onAction(asset, 'restore')}>
               <RefreshCw size={15} /> Restaurar
             </button>
           )}
-          <button
-            type="button"
-            aria-label={`Mover ${asset.safeName} hacia arriba`}
-            disabled={asset.sortOrder === 0}
-            onClick={() => onMove(asset, Math.max(0, asset.sortOrder - 1))}
-          >
-            <ArrowUp size={15} />
-          </button>
-          <button
-            type="button"
-            aria-label={`Mover ${asset.safeName} hacia abajo`}
-            onClick={() => onMove(asset, asset.sortOrder + 1)}
-          >
-            <ArrowDown size={15} />
-          </button>
+          {canManage && actionable && (
+            <>
+              <button
+                type="button"
+                aria-label={`Mover ${asset.safeName} hacia arriba`}
+                disabled={asset.sortOrder === 0}
+                onClick={() => onMove(asset, Math.max(0, asset.sortOrder - 1))}
+              >
+                <ArrowUp size={15} />
+              </button>
+              <button
+                type="button"
+                aria-label={`Mover ${asset.safeName} hacia abajo`}
+                onClick={() => onMove(asset, asset.sortOrder + 1)}
+              >
+                <ArrowDown size={15} />
+              </button>
+            </>
+          )}
+          {canDelete && (
+            <button type="button" onClick={() => onAction(asset, 'delete')}>
+              <Trash2 size={15} /> Eliminar definitivamente
+            </button>
+          )}
         </div>
       )}
     </article>
@@ -241,6 +252,7 @@ export default function MediaAdminPage() {
   const canCreate = capabilities.includes('media.create_gallery');
   const canUpload = capabilities.includes('media.upload');
   const canReview = capabilities.includes('media.review');
+  const canDelete = capabilities.includes('media.revoke');
   const canPublish = capabilities.includes('media.publish');
   const canHandleReports = capabilities.includes('media.handle_reports');
   const capability = resolveUploadCapability(state.data?.storage, { canUpload });
@@ -423,9 +435,15 @@ export default function MediaAdminPage() {
 
   const actOnAsset = async (asset, action) => {
     if (busy) return;
+    if (action === 'delete' && !window.confirm(
+      '¿Eliminar definitivamente esta foto? Se borrará del archivo privado y no se puede deshacer.',
+    )) return;
     setBusy(`${action}:${asset.id}`);
     try {
-      if (action === 'cover') {
+      if (action === 'delete') {
+        await service.deleteMediaAsset(asset.id);
+        setNotice('La foto y su archivo privado se eliminaron correctamente.');
+      } else if (action === 'cover') {
         await service.setMediaCover({ galleryId: selectedGallery.id, assetId: asset.id });
       } else {
         const reasons = {
@@ -568,17 +586,21 @@ export default function MediaAdminPage() {
         </div>
       </header>
 
-      <div className={styles.storageGate} data-ready={capability.uploadReady}>
+      <div
+        className={styles.storageGate}
+        data-ready={capability.uploadReady}
+        data-state={capability.readinessState}
+      >
         <ShieldCheck size={20} aria-hidden="true" />
         <span>
           <strong>Carga protegida</strong>
           <small>
             {capability.uploadReady
-              ? 'Cada foto se verifica y se limpia antes de quedar pendiente de aprobación.'
-              : 'La carga de fotos todavía no está habilitada en este entorno.'}
+              ? capability.readyCopy
+              : capability.unavailableCopy}
           </small>
         </span>
-        <em>{capability.uploadReady ? 'Activa' : 'Próximamente'}</em>
+        <em>{capability.readinessLabel}</em>
       </div>
 
       {(state.error || notice) && (
@@ -802,6 +824,7 @@ export default function MediaAdminPage() {
                       asset={asset}
                       cover={selectedGallery.coverAssetId === asset.id}
                       canManage={canReview}
+                      canDelete={canDelete}
                       onAction={actOnAsset}
                       onMove={moveAsset}
                       thumbnailUrl={thumbnails[`${asset.id}:thumbnail`] || ''}

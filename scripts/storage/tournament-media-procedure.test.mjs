@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  activateLocalSimpleMode,
+  assertLocalDatabase,
   LocalStorageError,
   STORAGE_CONTRACT,
   STORAGE_MODES,
@@ -155,4 +157,74 @@ test('non-loopback targets always abort with no override', async () => {
     secret: 'fixture', fetchImpl: fake.fetchImpl, policySnapshot: exactPolicies(),
   }), /refusing non-local backend/);
   assert.equal(fake.mutations(), 0);
+});
+
+test('the explicit QA activation is loopback-only and verifies effective readiness', async () => {
+  const queries = [];
+  class FakeClient {
+    constructor(config) { this.config = config; }
+    async connect() { queries.push('connect'); }
+    async end() { queries.push('end'); }
+    async query(sql) {
+      const normalized = String(sql).replace(/\s+/g, ' ').trim();
+      queries.push(normalized);
+      if (normalized.startsWith('update public.tournament_media_pipeline_configuration')) {
+        return { rowCount: 1, rows: [{ mode: 'MVP_SIMPLE' }] };
+      }
+      if (normalized.startsWith('select public.tournament_media_effective_readiness')) {
+        return {
+          rows: [{ value: {
+            mode: 'MVP_SIMPLE', uploadReady: true, storageReady: true,
+            private: true, blockers: [],
+          } }],
+        };
+      }
+      return { rowCount: null, rows: [] };
+    }
+  }
+  const result = await activateLocalSimpleMode(
+    'postgresql://postgres:fixture@127.0.0.1:54322/postgres',
+    FakeClient,
+  );
+  assert.deepEqual(result, {
+    mode: 'MVP_SIMPLE', uploadReady: true, storageReady: true,
+    private: true, blockers: [],
+  });
+  assert.ok(queries.includes('begin'));
+  assert.ok(queries.includes('commit'));
+  assert.equal(queries.includes('rollback'), false);
+  assert.throws(
+    () => assertLocalDatabase('postgresql://postgres:fixture@db.example.com/postgres'),
+    /loopback PostgreSQL/,
+  );
+});
+
+test('QA activation rolls back when readiness is not actually safe', async () => {
+  const queries = [];
+  class FakeClient {
+    async connect() {}
+    async end() {}
+    async query(sql) {
+      const normalized = String(sql).replace(/\s+/g, ' ').trim();
+      queries.push(normalized);
+      if (normalized.startsWith('update public.tournament_media_pipeline_configuration')) {
+        return { rowCount: 1, rows: [{ mode: 'MVP_SIMPLE' }] };
+      }
+      if (normalized.startsWith('select public.tournament_media_effective_readiness')) {
+        return { rows: [{ value: {
+          mode: 'MVP_SIMPLE', uploadReady: false, storageReady: false, private: true,
+        } }] };
+      }
+      return { rows: [] };
+    }
+  }
+  await assert.rejects(
+    () => activateLocalSimpleMode(
+      'postgresql://postgres:fixture@127.0.0.1:54322/postgres',
+      FakeClient,
+    ),
+    /did not become safe/,
+  );
+  assert.ok(queries.includes('rollback'));
+  assert.equal(queries.includes('commit'), false);
 });

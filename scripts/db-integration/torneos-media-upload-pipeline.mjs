@@ -32,6 +32,8 @@ const PIPELINE_MIGRATIONS = [
   '20260802090000_tournament_media_upload_pipeline.sql',
   '20260802120000_tournament_media_trusted_processing.sql',
   '20260809232508_tournament_media_free_mvp.sql',
+  '20260810160355_tournament_entitlements_foundation.sql',
+  '20260815234340_tournament_media_storage_readiness_and_delete.sql',
 ];
 const SESSION_PATH_RE =
   /^[0-9a-f-]{36}\/[0-9a-f-]{36}\/[0-9a-f-]{36}\/[0-9a-f-]{36}\.(jpg|png|webp)$/;
@@ -897,6 +899,8 @@ async function run() {
       'tournament_media_require_upload_tier',
       'tournament_media_mvp_user_can_upload',
       'complete_tournament_media_simple_upload',
+      'begin_tournament_media_asset_delete',
+      'complete_tournament_media_asset_delete',
     ];
     eq(
       Number(await value(
@@ -1193,6 +1197,109 @@ async function run() {
         [simpleAsset.assetId]),
       'approved',
       'la moderación simple no exige variantes inexistentes',
+    );
+
+    // ---------------------------------------------------------------------
+    console.log('\n· borrado definitivo en dos fases');
+    // ---------------------------------------------------------------------
+    await expectError(
+      () => value(owner, 'select public.begin_tournament_media_asset_delete($1,$2)',
+        [USERS.owner, simpleAsset.assetId]),
+      /permission denied|no existe la función|does not exist/i,
+      'ni siquiera el owner ejecuta la frontera reservada al servicio',
+    );
+    await expectError(
+      () => value(service, 'select public.begin_tournament_media_asset_delete($1,$2)',
+        [USERS.collaborator, simpleAsset.assetId]),
+      /TORNEOS_MEDIA_FORBIDDEN/,
+      'un colaborador sin media.revoke no inicia el borrado',
+    );
+    await expectError(
+      () => value(service, 'select public.begin_tournament_media_asset_delete($1,$2)',
+        [USERS.outsider, simpleAsset.assetId]),
+      /TORNEOS_MEDIA_FORBIDDEN/,
+      'un tenant ajeno no puede usar el gateway como oráculo',
+    );
+
+    const pendingDelete = await value(
+      service,
+      'select public.begin_tournament_media_asset_delete($1,$2)',
+      [USERS.owner, simpleAsset.assetId],
+    );
+    eq(pendingDelete.bucket, 'tournament-media', 'el bucket sale sólo de PostgreSQL');
+    eq(pendingDelete.objectNames.length, 1, 'MVP_SIMPLE purga un único objeto físico');
+    eq(pendingDelete.objectNames[0], simpleTarget.objectName,
+      'la ruta devuelta coincide con la ruta canónica emitida por el backend');
+    ok(
+      pendingDelete.objectNames[0].startsWith(
+        `${scope.organizationId}/${scope.tournamentId}/${simpleGalleryId}/`,
+      ),
+      'la ruta queda acotada al tenant, torneo y galería',
+      pendingDelete.objectNames[0],
+    );
+    eq(
+      await value(admin,
+        'select storage_state from public.tournament_media_assets where id = $1',
+        [simpleAsset.assetId]),
+      'retention_marked',
+      'fase 1 deja metadata explícitamente pendiente de borrado',
+    );
+    await expectError(
+      () => authorizeRead(service, USERS.owner, simpleAsset.assetId, 'grid'),
+      /TORNEOS_MEDIA_FORBIDDEN/,
+      'una fila pendiente no emite nuevas lecturas firmadas',
+    );
+    const retryDelete = await value(
+      service,
+      'select public.begin_tournament_media_asset_delete($1,$2)',
+      [USERS.owner, simpleAsset.assetId],
+    );
+    eq(retryDelete.objectNames[0], pendingDelete.objectNames[0],
+      'reintentar fase 1 es idempotente y conserva el destino');
+
+    await service.query('begin');
+    const rolledBackDelete = await value(
+      service,
+      'select public.complete_tournament_media_asset_delete($1,$2)',
+      [USERS.owner, simpleAsset.assetId],
+    );
+    eq(rolledBackDelete.deleted, true, 'la fase final se ejecuta dentro de la transacción');
+    await service.query('rollback');
+    eq(
+      Number(await value(admin,
+        'select count(*) from public.tournament_media_assets where id = $1',
+        [simpleAsset.assetId])),
+      1,
+      'un fallo transaccional conserva la fila pendiente para reintento',
+    );
+
+    const deleted = await value(
+      service,
+      'select public.complete_tournament_media_asset_delete($1,$2)',
+      [USERS.owner, simpleAsset.assetId],
+    );
+    eq(deleted.deleted, true, 'el reintento completa el borrado de metadata');
+    eq(
+      Number(await value(admin,
+        'select count(*) from public.tournament_media_assets where id = $1',
+        [simpleAsset.assetId])),
+      0,
+      'el asset deja de existir',
+    );
+    eq(
+      Number(await value(admin,
+        'select count(*) from public.tournament_media_gallery_items where asset_id = $1',
+        [simpleAsset.assetId])),
+      0,
+      'la relación de galería también se elimina',
+    );
+    eq(
+      Number(await value(admin,
+        `select count(*) from public.tournament_audit_log
+         where action = 'media.asset.deleted' and resource_id = $1`,
+        [simpleAsset.assetId])),
+      1,
+      'queda una auditoría general sin conservar metadata del asset',
     );
 
     const openSessions = [];

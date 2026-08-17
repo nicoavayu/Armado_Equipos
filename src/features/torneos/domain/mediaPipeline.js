@@ -131,6 +131,9 @@ const PIPELINE_MESSAGES = Object.freeze({
   variant_size_invalid: 'No pudimos preparar las versiones de esta foto. Reintentá.',
   processing_required: 'La foto todavía se está procesando.',
   storage_unavailable: 'El servicio de fotos no está disponible en este momento.',
+  delete_storage_failed: 'No pudimos terminar de eliminar la foto. Reintentá.',
+  delete_finalize_failed: 'La foto quedó pendiente de eliminación. Reintentá para completarla.',
+  delete_contract_invalid: 'No pudimos eliminar la foto de forma segura.',
   media_service_failed: 'No pudimos completar la carga. Reintentá en unos minutos.',
   signer_failed: 'No pudimos completar la carga. Reintentá en unos minutos.',
   rate_limited: 'Preparaste muchas fotos seguidas. Esperá unos minutos y reintentá.',
@@ -170,14 +173,50 @@ export function describeMediaPipelineError(error, code) {
 export function resolveUploadCapability(storage, { canUpload = false } = {}) {
   const ready = storage?.uploadReady === true;
   const blockers = Array.isArray(storage?.blockers) ? storage.blockers : [];
+  let readinessState = 'unknown_error';
+  if (ready) readinessState = 'ready';
+  else if (blockers.includes('storage.bucket_absent')) readinessState = 'bucket_missing';
+  else if (blockers.some((blocker) => [
+    'storage.client_write_open',
+    'storage.service_policies_absent',
+  ].includes(blocker))) readinessState = 'permission_error';
+  else if (blockers.some((blocker) => [
+    'storage.bucket_public',
+    'storage.schema_absent',
+    'simple.contract_absent',
+    'pipeline.disabled',
+  ].includes(blocker))) readinessState = 'configuration_error';
+  else if (blockers.length > 0) readinessState = 'service_unavailable';
+
+  const unavailableCopy = {
+    bucket_missing: 'El almacenamiento privado de fotos todavía no está preparado.',
+    permission_error: 'No pudimos verificar permisos seguros para las fotos.',
+    configuration_error: 'La configuración segura de fotos necesita revisión.',
+    service_unavailable: 'El servicio de fotos todavía no completó sus verificaciones.',
+    unknown_error: 'La carga de fotos todavía no está habilitada en este entorno.',
+  }[readinessState];
+  const readinessLabel = {
+    ready: 'Activa',
+    bucket_missing: 'Falta configurar',
+    permission_error: 'Revisar acceso',
+    configuration_error: 'Revisar configuración',
+    service_unavailable: 'No disponible',
+    unknown_error: 'No disponible',
+  }[readinessState];
+  const processingTier = storage?.processingTier || 'processor_external';
   return {
     canOfferUpload: ready && canUpload,
     uploadReady: ready,
     blockers,
+    readinessState,
+    readinessLabel,
     // Product copy never names the bucket, the signer or the environment.
     unavailableCopy: canUpload
-      ? 'La carga de fotos todavía no está habilitada en este entorno.'
+      ? unavailableCopy
       : 'Tu rol puede consultar Multimedia, sin cargar fotos.',
+    readyCopy: processingTier === 'mvp_simple'
+      ? 'Cada imagen se normaliza y valida antes de quedar pendiente de aprobación.'
+      : 'Cada foto se verifica y se limpia antes de quedar pendiente de aprobación.',
     pixelTranscode: storage?.pixelTranscode === true,
     antivirusScanning: storage?.antivirusScanning === true,
     maxFileBytes: Number(storage?.maxFileBytes) || MEDIA_LIMITS.maxFileBytes,
@@ -189,8 +228,8 @@ export function resolveUploadCapability(storage, { canUpload = false } = {}) {
     maxConcurrentUploads: Number(storage?.maxConcurrentUploads)
       || MEDIA_LIMITS.maxConcurrentUploads,
     allowHeicTranscode: storage?.allowHeicTranscode !== false,
-    processingTier: storage?.processingTier || 'processor_external',
-    resizeToFit: storage?.processingTier === 'mvp_simple',
+    processingTier,
+    resizeToFit: processingTier === 'mvp_simple',
     signedUrlTtlSeconds: Number(storage?.signedUrlTtlSeconds) || 300,
   };
 }

@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '../../../services/api/supabase';
 import { normalizeMatchOutcome } from '../domain/matchOutcome';
 import {
+  deleteTournamentMediaAsset,
   signTournamentMediaReadUrls,
   uploadTournamentMediaPhoto,
 } from './tournamentMediaUploadClient';
@@ -1850,6 +1851,10 @@ export async function uploadTournamentMediaPhotoToGallery(options) {
   });
 }
 
+export async function deleteTournamentMediaAssetPermanently(assetId, options) {
+  return deleteTournamentMediaAsset(assetId, options);
+}
+
 export async function loadTournamentSocialStudioContext(organizationId) {
   return unwrapRpc(await supabase.rpc('get_tournament_social_studio_context', {
     p_organization_id: organizationId,
@@ -2045,6 +2050,7 @@ export const tournamentWorkspaceService = Object.freeze({
   handleMediaReport: handleTournamentMediaReport,
   uploadMediaPhoto: uploadTournamentMediaPhotoToGallery,
   signMediaReadUrls: signTournamentMediaReadUrls,
+  deleteMediaAsset: deleteTournamentMediaAssetPermanently,
   loadSocialStudioContext: loadTournamentSocialStudioContext,
   loadSocialSnapshot: loadTournamentSocialSnapshot,
   setSocialPermission: setTournamentSocialPermission,
