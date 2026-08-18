@@ -125,6 +125,11 @@ const POST_CANONICAL_AUTHENTICATED_ALLOWLIST = [
     'public.withdraw_tournament_competition_participant(uuid,uuid,uuid,text,text)',
     'frontend_legitimate',
   ],
+  [
+    'public.set_tournament_player_portrait_crop(uuid,uuid,numeric,numeric,numeric)',
+    'frontend_legitimate',
+  ],
+  ['public.list_tournament_player_portrait_refs(uuid,uuid)', 'frontend_legitimate'],
 ];
 
 const contracts = fs.readFileSync(contractsPath, 'utf8');

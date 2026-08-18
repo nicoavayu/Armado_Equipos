@@ -1,0 +1,66 @@
+.portrait {
+  position: relative;
+  display: grid;
+  width: 42px;
+  height: 42px;
+  flex: none;
+  overflow: hidden;
+  place-items: center;
+  border-radius: 13px;
+  background: #26304a;
+  color: #dbe2f7;
+  /* Las mismas métricas que `.avatar` de Plantel: el autocompletado de
+     «Agregar jugador» pinta las iniciales del mismo jugador con esa clase, a
+     centímetros de esta fila. Dos monogramas iguales tienen que medir igual. */
+  font-size: 12px;
+  font-weight: 900;
+}
+
+/* El alto sale del propio 4:5 y no de un redondeo a píxeles enteros: es el
+   mismo marco que el editor, y la geometría del encuadre lo asume exacto. */
+.portrait[data-frame="portrait"] {
+  width: 42px;
+  height: auto;
+  border-radius: 11px;
+  aspect-ratio: 4 / 5;
+}
+
+/* El encuadre llega por estilo en línea y puede medir más que la card: sin
+   `max-width: none` el preflight de Tailwind (`img { max-width: 100% }`) lo
+   recortaría al marco y dejaría el borde vacío que el encuadre evita. */
+.image {
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  object-fit: cover;
+}
+
+.monogram {
+  display: block;
+  user-select: none;
+}
+
+.skeleton {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    rgba(142, 166, 209, 0) 32%,
+    rgba(180, 200, 240, 0.19) 50%,
+    rgba(142, 166, 209, 0) 68%
+  );
+  background-size: 260% 100%;
+  animation: portraitShimmer 1.15s linear infinite;
+}
+
+@keyframes portraitShimmer {
+  from { background-position: 140% 0; }
+  to { background-position: -140% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}

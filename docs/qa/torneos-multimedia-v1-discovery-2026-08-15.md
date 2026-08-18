@@ -1009,3 +1009,141 @@ purga. No debe habilitar página pública ni Social Studio todavía.
   públicas.
 - **1C.2D:** resolución `social_export`, variantes sociales y cualquier cambio
   en Social Studio o `photoAssetId`.
+
+## 24. Multimedia 1C.2B — Player Portrait UX (2026-08-18)
+
+1C.2B no rediseña nada de 1C.2A: lo consume desde Plantel. Ownership por
+`tournament_roster_players.id`, bucket privado, 8 MiB, JPEG/PNG/WebP, paths
+tenant-scoped y versionados, un retrato activo por jugador, `ImageRef`, firmas
+efímeras y `public_page`/`social_export` fail-closed siguen exactamente igual.
+
+### Dónde se edita
+
+La edición vive en la pestaña **Plantel** de la inscripción del equipo
+(`TeamRegistrationPage`), dentro de la misma fila donde ya están el nombre, el
+dorsal, la posición y el estado. No hay una sección nueva de navegación y
+Multimedia no administra retratos: sigue siendo el centro de galerías.
+
+`RosterPlayerPortrait` es el componente único de representación visual del
+jugador: retrato privado si la firma resuelve, monograma (`Francisco González`
+→ `FG`) en cualquier otro caso. El marco reserva su espacio siempre, así que
+resolver, fallar o volver al fallback no mueve la fila; nunca se pinta una
+imagen rota ni un placeholder técnico. `PlayerPortraitActions` agrega las tres
+únicas acciones: `Subir foto` cuando no hay retrato, `Cambiar` y `Quitar`
+cuando lo hay.
+
+### Dos funciones aditivas en la base
+
+1C.2A creó `focal_x`/`focal_y` con default `0.5` y **ninguna operación capaz de
+escribirlas**, y no tenía lectura por equipo. `20260818120000` agrega sólo eso,
+más la tercera fracción que le faltaba al encuadre: `crop_zoom`
+(`numeric(6,4) NOT NULL DEFAULT 1.0`, `CHECK (crop_zoom BETWEEN 1 AND 4)`). La
+columna es aditiva y su default describe correctamente toda fila existente, así
+que no hay backfill.
+
+- `set_tournament_player_portrait_crop(uuid, uuid, numeric, numeric, numeric)`:
+  escribe el encuadre completo —punto focal y zoom— en una sola operación.
+  Valida el focal en `0..1` y el zoom en `1..4`, exige
+  `can_manage_tournament_player_portrait_as` sobre un retrato `active`,
+  redondea a 4 decimales y audita `portrait.crop_updated`. No toca el objeto de
+  Storage ni el estado editorial ni el consentimiento. La forma de cuatro
+  argumentos `set_tournament_player_portrait_focal_point` —de la primera pasada
+  de esta misma fase, nunca commiteada ni publicada— se elimina en la misma
+  migración: dejarla habilitada permitiría guardar medio encuadre.
+- `list_tournament_player_portrait_refs(uuid, uuid)`: por cada jugador activo
+  del equipo devuelve `ImageRef`, encuadre y `canManage`, resuelto con el mismo
+  predicado que después autoriza la escritura. Nunca devuelve bucket,
+  `object_path` ni URL firmada.
+
+Ninguna de las dos crea tablas, políticas ni buckets, y ninguna redefine las
+operaciones de carga, reemplazo o baja de 1C.2A.
+
+### Carga
+
+`preparePlayerPortraitFile` reutiliza `mediaImageClient` (el mismo decode,
+orientación EXIF, re-encode sin metadata y control de tamaño que usan
+Multimedia 1A y Branding 1C.1). Se aceptan JPEG, PNG y WebP hasta 8 MiB; se
+rechazan SVG, HTML y HEIC/HEIF con un mensaje explícito, porque no existe una
+conversión HEIC real en el navegador y prometerla sería mentir. La
+normalización del cliente se queda en 3000 px de arista y 9 MP, muy por debajo
+del techo del contrato (12000 px / 36 MP): escala, no recorta.
+
+Elegir archivo **no** sube nada. Se muestra la preview local, se ajusta el
+encuadre y recién `Guardar foto` sube. `Cancelar` no deja nada en el servidor.
+
+### Encuadre: contrato definitivo
+
+No hay recorte destructivo y no se agregó ninguna librería. El original se
+guarda entero y **nunca** se reescribe; el encuadre son tres fracciones que
+viajan aparte de la imagen:
+
+- **`focal_x`** — punto horizontal de la imagen que debe quedar centrado en el
+  marco. Fracción `0..1` del ancho del original.
+- **`focal_y`** — punto vertical de la imagen que debe quedar centrado en el
+  marco. Fracción `0..1` del alto del original.
+- **`crop_zoom`** — escala relativa **al mínimo necesario para cubrir el
+  marco**, no al tamaño original. `1.0` = cubrir exacto, sin hueco. Rango
+  `1..4`.
+
+Medir el zoom contra ese mínimo —y no contra el original ni contra píxeles de
+pantalla— es lo que hace que la misma terna reconstruya idéntico el encuadre en
+el editor grande, en la preview 4:5, en el avatar chico y después de recargar.
+Nunca se persiste un píxel ni un tamaño de viewport.
+
+La UX no expone nada de esto. El usuario **arrastra la foto** dentro de un
+marco 4:5 —`pointer events`, así que mouse y touch son el mismo camino, con
+pinch de dos dedos— y mueve un único control de **Zoom**; el teclado cubre pan
+y zoom para quien no puede apuntar. El diálogo previsualiza con CSS sobre la
+misma imagen los dos encuadres que consume la app —4:5 y avatar—: no se genera
+ninguna variante física.
+
+`Cambiar` abre el mismo diálogo sobre el retrato vigente, así que el encuadre
+se puede reajustar sin volver a subir la foto.
+
+### Reemplazo y baja
+
+Cada carga estrena su propio path versionado; no hay overwrite. La anterior
+pasa a `replaced` sólo cuando el servidor da la nueva por activa, así que una
+subida fallida conserva la foto vigente. `Quitar` pide confirmación nombrando
+al jugador, elimina únicamente el retrato —el jugador sigue en el plantel—,
+devuelve el monograma y deja la auditoría.
+
+### Permisos
+
+La UI refleja el contrato real: `canManage` viaja desde
+`can_manage_tournament_player_portrait_as`, de modo que no puede aparecer un
+botón que el servidor vaya a rechazar. Owner y admin administran por la
+capability `roster_players.update`; capitán y delegado sólo sobre el equipo con
+el que tienen relación activa; collaborator y player **leen** el retrato
+(tienen `roster_players.read` o son el sujeto) pero no lo administran; outsider
+y cross-tenant no obtienen ni refs ni firma. Los jugadores provisionales, sin
+`user_id`, se administran igual que los vinculados.
+
+### Qué permanece privado
+
+Tener retrato no autoriza a publicarlo. Después de la carga el estado editorial
+queda en `pending_review` y el consentimiento en `unknown`: 1C.2B no ofrece
+aprobar, publicar, consentir ni copiar `usuarios.avatar_url`, y no expone
+ninguna de esas operaciones al cliente. Las audiencias `public_page` y
+`social_export` siguen fallando cerradas, la página pública no entrega
+retratos y Social Studio no se tocó.
+
+### Qué queda para 1C.2C y 1C.2D
+
+- **1C.2C:** consentimiento verificable del sujeto o su tutor, reglas para
+  menores y provisionales unclaimed, resolución `public_page` y adopción
+  gradual en plantel público, goleadores y estadísticas.
+- **1C.2D:** `social_export`, variantes físicas cuadrada/4:5/social derivadas
+  del original más la terna `focal_x`/`focal_y`/`crop_zoom`, y el selector de
+  `ImageRef` en Social Studio.
+- **Avatar global:** la propuesta explícita "usar mi avatar de Arma2" sigue
+  fuera de alcance; nada copia `usuarios.avatar_url`.
+
+### Deuda encontrada, no introducida
+
+`migrations:guard` y `test:db:grants` venían rojos desde los checkpoints de
+Branding 1C.1 y Player Portrait 1C.2A: el primero no listaba esas dos
+migraciones y el segundo no tenía sus RPCs en el allowlist. Se completó el
+listado de migraciones (guard verde) y se agregaron al allowlist únicamente las
+dos funciones nuevas de 1C.2B; las once firmas de 1C.1/1C.2A siguen fuera y son
+la causa de las 4 fallas que persisten en `test:db:grants`.

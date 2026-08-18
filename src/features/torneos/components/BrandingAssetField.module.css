@@ -43,7 +43,13 @@
   border: 1px solid rgba(142, 125, 255, .38);
   background: rgba(106, 67, 255, .16);
   color: #fff;
-  font: 600 14px Oswald, sans-serif;
+  /* Cambiar / Quitar / Subir son acciones, no titulares: llevan la tipografía
+     estándar de botón de Torneos (`.primaryButton` / `.secondaryButton`) y no
+     la Oswald condensada, que en Torneos es sólo editorial. Los títulos y las
+     leyendas de este campo quedan como estaban. */
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 800;
   cursor: pointer;
 }
 .actions button:hover:not(:disabled) { border-color: #9ed3ff; background: rgba(106, 67, 255, .27); }

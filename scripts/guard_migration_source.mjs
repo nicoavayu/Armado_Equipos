@@ -22,6 +22,9 @@ const expectedCanonicalMigrations = [
   '20260813123000_match_already_official_is_a_client_error.sql',
   '20260813124000_core_flow_business_rules_are_client_errors.sql',
   '20260815234340_tournament_media_storage_readiness_and_delete.sql',
+  '20260817062612_tournament_branding_assets.sql',
+  '20260817220554_tournament_player_portraits_foundation.sql',
+  '20260818120000_tournament_player_portrait_ux.sql',
 ];
 
 const exitWithError = (message) => {

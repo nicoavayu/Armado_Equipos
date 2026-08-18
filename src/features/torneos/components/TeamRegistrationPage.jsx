@@ -30,6 +30,9 @@ import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import styles from './TeamRegistration.module.css';
 import BrandingAssetField from './BrandingAssetField';
 import BrandingImage from './BrandingImage';
+import PlayerPortraitActions from './PlayerPortraitActions';
+import RosterPlayerPortrait from './RosterPlayerPortrait';
+import { loadRosterPortraits } from '../api/tournamentPlayerPortraitService';
 
 const requirementValue = (value) => (
   value === null || value === undefined ? 'Sin definir' : value
@@ -41,15 +44,23 @@ const MANAGER_STATUS_LABELS = Object.freeze({
   revoked: 'Revocado',
 });
 
-function PlayerRow({ player, editable, onUpdate, onRemove }) {
+function PlayerRow({
+  player, editable, portrait, onUpdate, onRemove, organizationId, onPortraitChanged,
+}) {
   return (
     <article className={styles.playerCard}>
-      <span className={styles.avatar}>
-        {player.avatarUrl ? <img src={player.avatarUrl} alt="" /> : player.displayName.slice(0, 2)}
-      </span>
+      <RosterPlayerPortrait name={player.displayName} portrait={portrait?.portrait || null} />
       <div className={styles.playerIdentity}>
         <strong>{player.displayName}</strong>
         <small>{player.arma2UserId ? 'Cuenta Arma2 vinculada' : 'Jugador sin cuenta'}</small>
+        <PlayerPortraitActions
+          organizationId={organizationId}
+          rosterPlayerId={player.id}
+          playerName={player.displayName}
+          portrait={portrait?.portrait || null}
+          canManage={portrait?.canManage === true}
+          onChanged={onPortraitChanged}
+        />
       </div>
       <label>
         <span>Dorsal</span>
@@ -102,6 +113,10 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
   const [teamForm, setTeamForm] = useState({ name: '', shortName: '', primaryColor: '', secondaryColor: '', shieldPath: null });
   const [review, setReview] = useState({ decision: 'changes_requested', reason: '' });
   const [busy, setBusy] = useState('');
+  const [portraits, setPortraits] = useState(
+    () => ({ status: 'loading', byRosterPlayerId: new Map() }),
+  );
+  const portraitsRequestRef = useRef(0);
   const base = `/torneos/organizacion/${organization.id}/equipos/${teamEntryId}`;
 
   const load = useCallback(async (notice = '') => {
@@ -129,6 +144,35 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
     load();
     return () => { requestRef.current += 1; };
   }, [load]);
+
+  // Los retratos viven fuera del contexto deportivo de la inscripción: una
+  // lectura aparte, que puede fallar sin llevarse puesto el plantel.
+  //
+  // Fallar no es lo mismo que no tener fotos. Vaciar el mapa ante un error
+  // convertía un backend caído en «ningún jugador tiene retrato», que es una
+  // afirmación falsa y silenciosa. La colección declara su estado —loading,
+  // ready, error— y ante el error conserva lo último que sí se leyó.
+  const loadPortraits = useCallback(async () => {
+    const requestId = portraitsRequestRef.current + 1;
+    portraitsRequestRef.current = requestId;
+    setPortraits((current) => ({ ...current, status: 'loading' }));
+    try {
+      const byRosterPlayerId = await loadRosterPortraits({
+        organizationId: organization.id, teamEntryId,
+      });
+      if (portraitsRequestRef.current !== requestId) return;
+      setPortraits({ status: 'ready', byRosterPlayerId });
+    } catch {
+      // La causa técnica queda fuera de la vista: al usuario le alcanza con
+      // saber que las fotos no cargaron y poder reintentar.
+      if (portraitsRequestRef.current !== requestId) return;
+      setPortraits((current) => ({ ...current, status: 'error' }));
+    }
+  }, [organization.id, teamEntryId]);
+
+  useEffect(() => {
+    loadPortraits();
+  }, [loadPortraits]);
 
   const data = state.data;
   const players = data?.roster?.players || [];
@@ -337,12 +381,25 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
                 onCreateProvisional={createProvisional}
               />
             )}
+            {portraits.status === 'error' && (
+              <p className={styles.portraitNotice} role="status">
+                <AlertCircle size={15} aria-hidden="true" />
+                <span>No pudimos cargar las fotos</span>
+                <button type="button" onClick={() => loadPortraits()}>Reintentar</button>
+              </p>
+            )}
             <div className={styles.playerList}>
               {players.map((player) => (
                 <PlayerRow
                   key={player.id}
                   player={player}
                   editable={editable}
+                  organizationId={organization.id}
+                  portrait={portraits.byRosterPlayerId.get(player.id)}
+                  onPortraitChanged={async (notice) => {
+                    await loadPortraits();
+                    setState((current) => ({ ...current, notice, error: '' }));
+                  }}
                   onUpdate={updatePlayer}
                   onRemove={(target) => run(
                     `remove-${target.id}`,

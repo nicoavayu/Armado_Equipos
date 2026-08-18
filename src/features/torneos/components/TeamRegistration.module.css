@@ -879,6 +879,42 @@
   font-weight: 800;
 }
 
+/* Señal discreta: dice que las fotos no cargaron sin robarle la fila a nadie
+   ni desplazar el plantel. */
+.portraitNotice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  padding: 7px 11px;
+  border: 1px solid rgba(255, 178, 122, 0.24);
+  border-radius: 11px;
+  background: rgba(150, 96, 44, 0.1);
+  color: #f0c69c;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.portraitNotice button {
+  min-height: 0;
+  margin-left: auto;
+  padding: 3px 10px;
+  border: 1px solid rgba(255, 178, 122, 0.34);
+  border-radius: 8px;
+  background: transparent;
+  color: #f7dcc2;
+  /* La misma familia que `.primaryButton` / `.secondaryButton`: un botón no
+     hereda la tipografía de la página, la declara. */
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.portraitNotice button:hover {
+  background: rgba(255, 178, 122, 0.12);
+}
+
 .playerList {
   display: grid;
   gap: 8px;
