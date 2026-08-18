@@ -713,3 +713,299 @@ documento; no activar flags, provisionar entornos remotos ni tocar Social Studio
 - Social Studio no fue modificado. Sus snapshots continúan consumiendo escudos;
   una futura adopción del logo de torneo debe leer el nuevo contexto de branding
   sin acceder al bucket privado multimedia.
+
+## 23. Multimedia 1C.2 — Player Photo · 1C.2A implementation status (2026-08-17)
+
+### Estado real de las tres identidades
+
+| Identidad | Contrato actual | Lifecycle y privacidad | Conclusión 1C.2 |
+| --- | --- | --- | --- |
+| Usuario Arma2 vinculado | `usuarios.avatar_url` y auth metadata; bucket público `jugadores-fotos` | El propio usuario lo cambia independientemente del torneo. La tabla `usuarios` requiere autenticación para leer, pero el objeto Storage es público si se conoce la URL. | Es avatar personal global, no consentimiento ni foto oficial del torneo. Puede ofrecerse para una **copia explícita** iniciada por el sujeto; nunca referenciarse o publicarse automáticamente. |
+| Jugador de roster | `tournament_roster_players`, exactamente una de `arma2_user_id` o `provisional_player_id`, más `display_name` y `avatar_url` | Al agregar una cuenta, `search_tournament_players` lee `usuarios.avatar_url` y `add_tournament_roster_player` lo copia. `update_tournament_roster_player` no lo actualiza: es un snapshot de URL que hoy se renderiza en Plantel y Operación de Partido. | La membresía de roster es el dueño correcto del retrato deportivo, pero `avatar_url` debe quedar como compatibilidad, no como nueva fuente de verdad. |
+| Provisional / sin cuenta | `tournament_provisional_players` con nombre/contacto, `claim_status` (`unclaimed`, `pending`, `claimed`, `rejected`) y `claimed_by_user_id`; el roster lo referencia | La RPC productiva crea sólo nombre. El claim está modelado pero no existe un flujo productivo; las pruebas lo simulan por SQL. Al quedar `claimed`, las lecturas relacionales usan `claimed_by_user_id`, pero la fila de roster sigue siendo provisional y no obtiene avatar. | Puede tener retrato porque el asset pertenece al roster, no a una cuenta. Mientras no exista claim/consentimiento verificable, sólo puede verse en superficies privadas autorizadas. |
+
+El mismo usuario en Apertura, Clausura u otra organización produce distintas
+filas de roster y, por diseño, distintos retratos/consentimientos. Esto permite
+uniforme, sponsor, edad y contexto editorial diferentes. Compartir reduce
+duplicación, pero acopla revocación y permisos entre torneos. V1 no comparte en
+forma implícita: una acción futura "Copiar retrato anterior" debe crear una nueva
+referencia dentro del torneo y pedir nuevamente autorización de publicación.
+
+### Regla de producto y ownership
+
+La regla propuesta encaja con el modelo actual:
+
+```text
+avatar global Arma2              retrato deportivo de roster
+controlado por el usuario        administrado en el contexto del torneo
+URL pública mutable              ImageRef durable y bucket privado
+sin scope promocional            consentimiento por uso
+        \                         /
+         copia explícita opcional, nunca fallback silencioso
+```
+
+El owner funcional es `tournament_roster_players.id`, no `auth.users.id`, el
+provisional organizacional ni una estadística. Es la única entidad real que
+representa a esa persona en ese equipo/plantel y ya es la FK de convocatoria,
+acta, estadísticas, disciplina, tags y consentimientos multimedia. Una remoción
+del equipo revoca nuevas entregas, pero no borra datos competitivos históricos.
+
+### Storage y referencia durable
+
+Comparación:
+
+| Opción | Ventaja | Problema |
+| --- | --- | --- |
+| A. Guardar en `tournament-media` | Bucket privado, signer, procesamiento y delete ya probados | El contrato actual está acoplado a `gallery_id`, paths de galería y cuatro variantes; ampliarlo sin separar el dominio mezcla retención y autorización. |
+| B. Bucket privado `tournament-player-portraits` | Policies, lifecycle, cache y purga propios; nunca confunde retrato con galería o branding | Requiere provisionamiento y adaptar el pipeline/signer para un segundo contrato. |
+| C. Reusar `tournament_media_assets` | Reutiliza moderación y consentimientos actuales | Obliga a crear una galería ficticia o a volver nullable/reformular muchas invariantes; convierte 1C.2 en una refactorización de galerías. |
+
+Se recomienda **B**, privado. No se debe duplicar la infraestructura: extraer y
+parametrizar preflight, procesamiento confiable, progreso, replace, signed read
+y delete de Multimedia 1A para el contrato de retratos. `tournament-branding`
+queda excluido porque es público y su dominio son logos/escudos.
+
+La referencia de aplicación es conceptual y no contiene path ni URL:
+
+```text
+ImageRef { kind: "player_portrait", id: portraitId, variant: "display" }
+```
+
+El path se deriva en servidor, por ejemplo
+`{organizationId}/{tournamentId}/{rosterPlayerId}/{portraitId}[-kind].webp`.
+El browser nunca persiste signed URLs. Un resolver batch valida tenant,
+membresía, estado, audiencia y uso antes de devolver una entrega efímera.
+
+### Modelo y migración propuestos
+
+Crear `tournament_player_portraits` en lugar de agregar una URL a roster:
+
+```text
+id, organization_id, tournament_id, team_entry_id, roster_player_id
+provider, bucket, internal_path
+status                  processing | pending_review | approved | rejected |
+                        replaced | revoked
+publication_status      private | public
+source                   upload | explicit_global_avatar_copy
+detected_mime, byte_size, width, height, checksum_sha256
+focal_x, focal_y         0..1, default 0.5
+uploaded_by, reviewed_by, created_at, updated_at
+approved_at, published_at, replaced_at, revoked_at, storage_purged_at
+```
+
+No es un historial editorial: sólo una fila `approved` no reemplazada/revocada
+puede ser el retrato activo de un roster player. Las filas anteriores sobreviven
+como tombstone auditable hasta la purga física; no se ofrecen como selector.
+
+Constraints/indices mínimos:
+
+- FKs compuestas a roster player y team entry para impedir cruce de tenant,
+  torneo o equipo; `ON DELETE RESTRICT` sobre identidad deportiva histórica;
+- FK de actor nullable con `ON DELETE SET NULL`, para no agregar otro bloqueo a
+  eliminación de cuenta;
+- `UNIQUE (bucket, internal_path)` y parcial único por `roster_player_id` para
+  el retrato aprobado vigente;
+- índices en todas las FKs y en
+  `(organization_id, tournament_id, publication_status, status)` para resolver
+  lotes públicos sin N+1;
+- checks para MIME raster, dimensiones, estados y focal point.
+
+RLS debe estar habilitado. No se conceden escrituras directas: RPC/Edge
+server-derived para request/upload/approve/replace/revoke/delete. Las lecturas
+autenticadas proyectan metadata segura y nunca `internal_path`; `anon` no recibe
+SELECT sobre tablas. La página pública futura usa una proyección SECURITY
+DEFINER acotada, con `auth.uid()` sólo cuando corresponda y grants explícitos.
+
+El consentimiento actual es reutilizable como **contrato**, no directamente
+como tabla: `tournament_media_consents` exige `asset_id` de galería y
+`manage_tournament_media_consent` sólo acepta owner/admin. 1C.2 necesita un
+snapshot `tournament_player_portrait_consents` y eventos append-only equivalentes,
+con `portrait_id`, `use_scope` (`view_internal`, `public_tournament`,
+`social_future`), `status` existente (`unknown`, `allowed`, `denied`, `revoked`,
+`not_required`), actor/legal basis y timestamps. No se debe generalizar las
+tablas de galería dentro de la misma migración.
+
+### Permisos, consentimiento y publicación
+
+Contrato mínimo propuesto, sin crear capabilities en este discovery:
+
+- **Owner/admin:** subir, reemplazar, quitar y moderar cualquier retrato del
+  tenant. Subir o aprobar no concede consentimiento público.
+- **Capitán/delegado activo:** subir/reemplazar para jugadores activos de su
+  `team_entry_id`; sin publicar, declarar `not_required` ni administrar otro
+  equipo. La relación se revalida en backend.
+- **Jugador vinculado/claimado:** proponer o cambiar su propio retrato y
+  permitir/denegar/revocar usos propios. La propuesta no se vuelve oficial ni
+  pública sin moderación.
+- **Collaborator:** lectura autorizada, sin mutación.
+- **Outsider:** nunca.
+
+Conviene proponer `roster_portraits.manage`,
+`roster_portraits.review` y `roster_portraits.publish` para owner/admin, más una
+autorización relacional de equipo y una operación self-service; no reutilizar
+`team_entries.update`, porque el retrato debe poder retirarse aunque el plantel
+ya esté locked o el torneo haya finalizado.
+
+Estados separados:
+
+```text
+cargada/procesada          status = pending_review/approved
+autorizada editorialmente  status = approved
+publicable                 publication_status = public
+                            + consentimiento vigente para el use_scope
+                            + torneo/página/sujeto elegibles
+```
+
+Por lo tanto, **no** podemos mostrar públicamente una foto sólo porque un owner
+la subió. Una cuenta vinculada debe consentir el uso. Un provisional unclaimed
+no tiene actor capaz de consentir dentro de Arma2: su retrato queda privado
+hasta que exista claim o un flujo legal explícitamente aprobado. `not_required`
+no es un atajo y exige una base documentada.
+
+El modelo actual no permite resolver menores: la base local no tiene fecha de
+nacimiento en `usuarios`, roster ni provisional. Sólo existen rangos
+`tournament_categories.min_age/max_age` y `minor_restriction=true` en galerías;
+no hay responsable, parentesco ni consentimiento de tutor. Categoría juvenil
+no demuestra la edad individual. Publicar retratos de posibles menores queda
+como decisión legal/producto bloqueante y debe fallar cerrado.
+
+### Entrega pública, fallback y revocación
+
+El bucket permanece privado. Para página pública, un RPC/resolver anónimo batch
+debe verificar que la página y el torneo sigan publicados, el retrato esté
+approved/public, el consentimiento siga vigente y no aplique un bloqueo de
+menores. Recién entonces firma una variante de display de TTL corto o la entrega
+por un gateway revocable. No se persiste la firma ni se configura cache pública
+larga; una revocación corta nuevas resoluciones inmediatamente.
+
+Fallback:
+
+```text
+retrato deportivo autorizado
+  → avatar global sólo si el propio usuario habilitó ese fallback explícitamente
+  → monograma del display_name
+```
+
+Quitar, reemplazar o revocar despublica primero y purga Storage en forma
+idempotente después; el tombstone/auditoría permanece. Dejar el equipo o
+finalizar el torneo no borra automáticamente el retrato, pero sí puede retirarlo
+de nuevas superficies según audiencia. La eliminación de cuenta debe revocar
+consentimiento y desacoplar actores antes de borrar Auth. Hoy los FKs de Torneos
+a `auth.users` son `RESTRICT` y `delete-account` no los trata: es un gap previo
+que 1C.2 no debe agravar.
+
+Una revocación no puede retirar PNGs ya exportados, screenshots ni copias de
+terceros. Debe impedir nuevas páginas, previews, firmas y exportaciones y dejar
+ese límite expresado en producto/política.
+
+### Crop, snapshots, UX y Social Studio futuro
+
+No guardar un único JPEG cuadrado. `AvatarCropModal` exporta 768×768 y sirve
+para el avatar personal, pero perdería torso/vertical necesarios para 4:5,
+stories y nuevas plantillas. Reutilizar `mediaImageClient` para orientación,
+decode, resize, MIME, progreso y preview; conservar el original normalizado y
+guardar `focal_x/focal_y`. Las variantes cuadrada, 4:5 y social se derivan sin
+destruir la fuente. V1 puede iniciar con focal point centrado y un ajuste simple
+en Plantel; no necesita agregar librerías.
+
+Los snapshots competitivos de nombre, dorsal, posición y eventos permanecen
+congelados. Hoy squad y match operation copian `avatar_url_snapshot`; no deben
+recibir la nueva signed URL ni el nuevo path. Las vistas históricas pueden
+resolver el retrato vigente/revocable por `roster_player_id` y caer a monograma.
+Así los datos deportivos son inmutables y la identidad visual sigue siendo
+mutable y revocable. Los `avatar_url_snapshot` actuales quedan como legado.
+
+La edición primaria pertenece a **Plantel**, en cada fila: retrato, Cambiar,
+Quitar y estado privado/publicable. Una ficha de jugador futura puede ofrecer el
+mismo control; Multimedia no debe listar retratos como álbum. Plantel público,
+goleadores, estadísticas y figura sólo muestran la foto si el resolver autoriza;
+tener asset no equivale a poder publicarlo.
+
+Social Studio permanece sin cambios. Su contrato futuro no debe pedir
+`avatar_url`, path o signed URL. La selección de Figura/Equipo Ideal produciría:
+
+```text
+ImageRef { kind: "player_portrait", id: portraitId, variant: "social" }
+resolveImageRefs(refs, audience="social_export", use="social_future")
+```
+
+El adaptador puede convivir con el `photoAssetId` actual para fotos de galería.
+El renderer recibe un bitmap y focal point, como ya hace con signed media, y
+descarta la URL antes del PNG.
+
+### Plan implementable
+
+1. **1C.2A — Modelo + Storage + permisos:** migración/tables/indices/RLS,
+   bucket privado, pipeline y resolver `ImageRef`, replace/revoke/purge,
+   consentimientos y matriz multirol. Sin superficie pública.
+2. **1C.2B — Plantel:** upload/progress/preview, aprobación, Cambiar/Quitar,
+   focal point, monograma y propuesta/copia explícita del avatar global.
+3. **1C.2C — Consentimiento + página pública:** self-service del sujeto,
+   resolver anónimo acotado y adopción gradual en plantel/goleadores/estadísticas.
+   Bloqueada hasta decidir menores y provisionales unclaimed.
+4. **1C.2D — Social Studio:** selector de `ImageRef`, variante social, focal
+   point y revalidación de consentimiento al exportar.
+
+La implementación mínima siguiente es 1C.2A y termina con lectura privada
+autenticada y tests de owner/admin, capitán/delegado, jugador propio,
+collaborator, outsider, segundo tenant, provisional, reemplazo, revocación y
+purga. No debe habilitar página pública ni Social Studio todavía.
+
+### 1C.2A materializado
+
+- `tournament_player_portraits` pertenece a
+  `tournament_roster_players.id` y conserva `organization_id`, torneo y equipo
+  como scope relacional verificable. Soporta indistintamente roster players
+  vinculados y provisionales. No copia `usuarios.avatar_url`, no altera
+  `avatar_url` legado y no participa en snapshots competitivos.
+- La fila separa `editorial_status` (`pending_review`, `approved`, `rejected`),
+  `publication_consent` (`unknown`, `granted`, `revoked`) y
+  `lifecycle_status` (`upload_pending`, `active`, `delete_pending`,
+  `replaced`, `removed`, `upload_failed`). 1C.2A no expone ninguna operación
+  que conceda `granted`: sólo conserva el estado para el futuro y permite
+  revocar. Upload, aprobación y consentimiento continúan siendo hechos
+  independientes.
+- El bucket versionado `tournament-player-portraits` es privado, server-only,
+  con límite de 8 MiB y allowlist JPEG/PNG/WebP. No existen policies directas
+  para `anon`/`authenticated`. Cada reemplazo usa
+  `organizations/{organizationId}/roster-players/{rosterPlayerId}/{portraitId}.{ext}`;
+  el nombre original no interviene y no hay overwrite.
+- La referencia durable es `{ kind: "player_portrait", id, variant }` y nunca
+  contiene bucket, path o URL. El resolver server-side acepta en 1C.2A sólo
+  `variant=original` y `audience=authenticated_roster`, devuelve firmas de 300
+  segundos y no las persiste. `public_page` y `social_export` fallan cerrados.
+  El contrato ya reserva `square`, `portrait` y `social` sin afirmar que esas
+  variantes físicas existan todavía.
+- Owner/admin administran mediante la capability real
+  `roster_players.update`; capitán/delegado sólo mediante relación activa con el
+  equipo concreto. Player no tiene self-service en 1C.2A, collaborator no
+  administra y outsider/cross-tenant nunca. Las lecturas privadas admiten el
+  scope real de roster y al propio jugador vinculado/claimado; la metadata
+  interna de Storage no es seleccionable por clientes.
+- Delete bloquea nuevas firmas antes de Storage, elimina el objeto y recién
+  entonces finaliza el tombstone/auditoría; `delete_pending` conserva el punto
+  de retry. Se auditan upload/reemplazo, revisión, revocación y remoción en
+  `tournament_audit_log`, sin un log paralelo.
+- Provisionales unclaimed y posibles menores permanecen privados y sin actor
+  capaz de conceder publicación. El modelo actual carece de edad individual,
+  tutor y base legal verificable; 1C.2A no intenta inferirlos.
+
+### Hardening pre-checkpoint
+
+- `test:qa:guards` reproduce exactamente `68 pass / 5 fail / 5 skip` tanto en
+  `3a5e893ce0ea0b5627e9d26ebd4235e90b0a3ebb` detached y limpio como en este
+  worktree. Los cinco fallos son la misma deuda histórica: falta el identity
+  map V2 regular requerido por `replace-torneos-demo-v2-with-v3-direct`.
+- `torneos-seed-local` dejó de ejecutar la baja irrelevante de un equipo en un
+  torneo `active`. Seed y transición V3→V4 ahora limpian dataset, sentinels y
+  usuarios QA en `finally`; pasan aislados y juntos sin estado residual.
+
+### Sigue bloqueado fuera de 1C.2A
+
+- **1C.2B:** UI de Plantel, selección de archivo, progreso, crop/focal point,
+  Cambiar/Quitar y copia explícita del avatar global.
+- **1C.2C:** consentimiento verificable del sujeto/tutor, reglas para menores y
+  provisionales, resolución `public_page` e integración gradual en superficies
+  públicas.
+- **1C.2D:** resolución `social_export`, variantes sociales y cualquier cambio
+  en Social Studio o `photoAssetId`.
