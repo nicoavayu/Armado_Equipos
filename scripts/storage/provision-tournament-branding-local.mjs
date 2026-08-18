@@ -56,6 +56,10 @@ async function verifyDatabase(client, targets) {
       (select shield_path from public.tournament_team_entries where id = $3) as team_path,
       (select count(*)::integer from public.tournament_competition_participants
         where team_entry_id = $3 and snapshot_shield_path = $6) as snapshot_count,
+      (select count(*)::integer from public.tournament_team_entries
+        where organization_id = $1 and shield_path like 'qa/shields/%.svg') as legacy_team_refs,
+      (select count(*)::integer from public.tournament_competition_participants
+        where organization_id = $1 and snapshot_shield_path like 'qa/shields/%.svg') as legacy_snapshot_refs,
       (select public.is_tournament_branding_path($4, 'organizations')) as organization_valid,
       (select public.is_tournament_branding_path($5, 'tournaments')) as tournament_valid,
       (select public.is_tournament_branding_path($6, 'teams')) as team_valid`,
@@ -77,6 +81,8 @@ async function verifyDatabase(client, targets) {
     || !row.organization_valid
     || !row.tournament_valid
     || !row.team_valid
+    || row.legacy_team_refs !== 0
+    || row.legacy_snapshot_refs !== 0
   ) throw new Error('QA branding database references are incomplete.');
   return row.snapshot_count;
 }

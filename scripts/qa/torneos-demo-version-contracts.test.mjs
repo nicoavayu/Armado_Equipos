@@ -63,7 +63,7 @@ test('current V4 authorization pins the corrected contract exactly', () => {
     seedKey: 'torneos-demo-v4',
     datasetVersion: 4,
     markerId: '909f1a27-71b4-5797-a229-75f7a91fa7e8',
-    manifestHash: 'ba26b0b199e212025a15b6b8b8aeedbe97d617f720088fb3bd32fa3b99f0c19d',
+    manifestHash: 'dcc0be5bedefafddd795e3d91b8feb48c0cd1121bcca0ab77f5c84db2b3678c0',
     identityMapFingerprint: 'd13bf642667c8a02c79a6f7b6db3325be3a2196c1569cfb655d67a72a3ab4cdd',
     ownershipFingerprint: '313fb9b527e8fbd591b795d6a19184aec5e8d264b16cbe336e22746387f7050a',
     baseRows: 586,
@@ -73,7 +73,7 @@ test('current V4 authorization pins the corrected contract exactly', () => {
   });
 });
 
-test('V3 and V4 differ only by the direct-red automatic suspension and marker contract', () => {
+test('V4 corrects discipline plus the five unprovisioned legacy QA shields', () => {
   const identityMap = fixtureIdentityMap();
   const v3Manifest = buildLegacyV3Manifest({ identityMap });
   const v4Manifest = buildV4Manifest({ identityMap });
@@ -85,13 +85,16 @@ test('V3 and V4 differ only by the direct-red automatic suspension and marker co
     v3Authorization,
     v4Authorization,
   });
-  assert.equal(transition.differences.length, 1);
+  assert.equal(transition.differences.length, 11);
+  const discipline = transition.differences.find(
+    (difference) => difference.table === 'tournament_discipline_ledgers',
+  );
   assert.deepEqual(
     {
-      table: transition.differences[0].table,
-      column: transition.differences[0].column,
-      before: transition.differences[0].before,
-      after: transition.differences[0].after,
+      table: discipline.table,
+      column: discipline.column,
+      before: discipline.before,
+      after: discipline.after,
     },
     {
       table: 'tournament_discipline_ledgers',
@@ -100,6 +103,14 @@ test('V3 and V4 differ only by the direct-red automatic suspension and marker co
       after: 1,
     },
   );
+  assert.equal(transition.differences.filter(
+    (difference) => difference.table === 'tournament_team_entries'
+      && difference.column === 'shield_path' && difference.after === null,
+  ).length, 5);
+  assert.equal(transition.differences.filter(
+    (difference) => difference.table === 'tournament_competition_participants'
+      && difference.column === 'snapshot_shield_path' && difference.after === null,
+  ).length, 5);
   const legacy = validateLegacyV3Manifest(v3Manifest, v3Authorization);
   assert.equal(legacy.legacy, true);
   assert.equal(legacy.reusableForNewDatasets, false);

@@ -6,10 +6,14 @@ import pg from 'pg';
 import { createClient } from '@supabase/supabase-js';
 
 import {
+  cleanupLocalUsers,
   createLocalUsers,
   localExpectedEmails,
 } from './prepare-torneos-qa-users.mjs';
-import { buildCanonicalManifest as buildV4Manifest } from './torneos-demo-manifest.mjs';
+import {
+  buildCanonicalManifest as buildV4Manifest,
+  SEED_KEY as V4_SEED_KEY,
+} from './torneos-demo-manifest.mjs';
 import { buildLegacyV3Manifest } from './torneos-demo-v3-contract.mjs';
 import {
   cleanupManifest,
@@ -62,13 +66,16 @@ test('V3/V4 local lifecycle, rollback, collision and transition are fail-closed'
   const authAdmin = createClient(runtime.apiUrl, runtime.serviceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   }).auth.admin;
+  let identityMap = null;
+  let v3Manifest = null;
+  let v4Manifest = null;
   try {
     const prepared = await createLocalUsers({
       client,
       authAdmin,
       expectedEmails: localExpectedEmails({}),
     });
-    const identityMap = prepared.identityMap;
+    identityMap = prepared.identityMap;
     for (const identity of Object.values(identityMap.toJSON())) {
       await client.query(
         `update auth.users
@@ -77,8 +84,8 @@ test('V3/V4 local lifecycle, rollback, collision and transition are fail-closed'
         [identity.auth_user_id],
       );
     }
-    const v3Manifest = buildLegacyV3Manifest({ identityMap });
-    const v4Manifest = buildV4Manifest({ identityMap });
+    v3Manifest = buildLegacyV3Manifest({ identityMap });
+    v4Manifest = buildV4Manifest({ identityMap });
     const v3Authorization = localAuthorization(v3Manifest);
     const v4Authorization = localAuthorization(v4Manifest);
     const transitionOptions = {
@@ -162,7 +169,7 @@ test('V3/V4 local lifecycle, rollback, collision and transition are fail-closed'
     await t.test('atomic V3 to V4 transition succeeds and then skips', async () => {
       const first = await transitionV3ToV4(client, transitionOptions);
       assert.equal(first.status, 'transitioned');
-      assert.equal(first.changedRows, 1);
+      assert.equal(first.changedRows, 11);
       assert.equal(first.verification.present, 587);
       assert.equal(first.verification.mismatched.length, 0);
       const second = await transitionV3ToV4(client, transitionOptions);
@@ -209,6 +216,41 @@ test('V3/V4 local lifecycle, rollback, collision and transition are fail-closed'
       assert.equal(second.status, 'already_clean');
     });
   } finally {
+    await client.query('rollback').catch(() => {});
+    if (identityMap) {
+      const owner = identityMap.get('owner');
+      await client.query(
+        'delete from public.user_tournament_context_preferences where user_id = $1',
+        [owner.auth_user_id],
+      );
+    }
+    const cleanupResults = [];
+    for (const manifest of [v4Manifest, v3Manifest].filter(Boolean)) {
+      cleanupResults.push(await cleanupManifest(client, manifest, {
+        apply: true,
+        allowLocalTriggerBypass: true,
+      }));
+    }
+    assert.ok(
+      cleanupResults.some((result) => ['cleaned', 'already_clean'].includes(result.status)),
+      `Transition suite cleanup failed: ${JSON.stringify(cleanupResults)}`,
+    );
+    for (const manifest of [v4Manifest, v3Manifest].filter(Boolean)) {
+      const residual = await readManifestExpectedState(client, manifest);
+      assert.equal(residual.present, 0, JSON.stringify(residual));
+    }
+    if (identityMap) {
+      for (const identity of Object.values(identityMap.toJSON())) {
+        await client.query(
+          `update auth.users
+           set raw_app_meta_data = jsonb_set(raw_app_meta_data, '{qa_seed_key}', to_jsonb($2::text))
+           where id = $1`,
+          [identity.auth_user_id, V4_SEED_KEY],
+        );
+      }
+      const cleanupUsers = await cleanupLocalUsers({ client, authAdmin, identityMap });
+      assert.ok(['cleaned', 'already_clean'].includes(cleanupUsers.status));
+    }
     await client.end();
   }
 });

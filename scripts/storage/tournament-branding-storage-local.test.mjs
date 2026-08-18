@@ -50,6 +50,7 @@ test('tournament branding Storage and reference policies are tenant scoped', { s
     auth: { autoRefreshToken: false, persistSession: false },
   });
   const objects = [];
+  const originalBrandingAuditIds = new Set();
   let qa = null;
   let originalParticipantShields = [];
   await database.connect();
@@ -98,6 +99,12 @@ test('tournament branding Storage and reference policies are tenant scoped', { s
     );
     assert.equal(rows.length, 1, 'The canonical QA dataset is required.');
     qa = rows[0];
+    const originalAudits = await database.query(
+      `select id from public.tournament_audit_log
+       where resource_id = $1 and action like 'branding.%'`,
+      [qa.team_id],
+    );
+    for (const row of originalAudits.rows) originalBrandingAuditIds.add(row.id);
     const originalParticipants = await database.query(
       `select id, snapshot_shield_path
        from public.tournament_competition_participants
@@ -297,6 +304,33 @@ test('tournament branding Storage and reference policies are tenant scoped', { s
            where id = $1`,
           [participant.id, participant.snapshot_shield_path],
         );
+      }
+      const currentAudits = await database.query(
+        `select id from public.tournament_audit_log
+         where resource_id = $1 and action like 'branding.%'`,
+        [qa.team_id],
+      );
+      const createdAuditIds = currentAudits.rows
+        .map((row) => row.id)
+        .filter((id) => !originalBrandingAuditIds.has(id));
+      if (createdAuditIds.length) {
+        await database.query('begin');
+        try {
+          await database.query(
+            'alter table public.tournament_audit_log disable trigger tournament_audit_append_only',
+          );
+          await database.query(
+            'delete from public.tournament_audit_log where id = any($1::bigint[])',
+            [createdAuditIds],
+          );
+          await database.query(
+            'alter table public.tournament_audit_log enable trigger tournament_audit_append_only',
+          );
+          await database.query('commit');
+        } catch (error) {
+          await database.query('rollback');
+          throw error;
+        }
       }
     }
     if (objects.length) await admin.storage.from(bucket).remove(objects);

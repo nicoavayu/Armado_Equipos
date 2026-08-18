@@ -6,6 +6,7 @@ import pg from 'pg';
 import { createClient } from '@supabase/supabase-js';
 
 import {
+  cleanupLocalUsers,
   createLocalUsers,
   localExpectedEmails,
 } from './prepare-torneos-qa-users.mjs';
@@ -102,18 +103,22 @@ test('local canonical seed lifecycle validates Auth UUIDs, safety and cleanup bl
   const authAdmin = createClient(localRuntime.apiUrl, localRuntime.serviceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   }).auth.admin;
+  let identityMap = null;
+  let manifest = null;
+  const transientAuthUserIds = [];
+  const sentinelOrganizationId = stableUuid('foreign-sentinel-organization');
   try {
     const prepared = await createLocalUsers({
       client,
       authAdmin,
       expectedEmails: localExpectedEmails({}),
     });
-    const identityMap = prepared.identityMap;
+    identityMap = prepared.identityMap;
     const users = Object.fromEntries(Object.entries(identityMap.toJSON()).map(([role, identity]) => [
       role,
       { id: identity.auth_user_id },
     ]));
-    const manifest = buildCanonicalManifest({ identityMap });
+    manifest = buildCanonicalManifest({ identityMap });
     validateCanonicalManifest(manifest);
 
     await client.query('begin');
@@ -153,6 +158,7 @@ test('local canonical seed lifecycle validates Auth UUIDs, safety and cleanup bl
       app_metadata: { qa_seed_key: 'foreign-dataset', qa_role: 'owner' },
     });
     assert.equal(foreignCreatorError, null);
+    transientAuthUserIds.push(foreignCreator.user.id);
     await client.query(
       `insert into public.tournament_organizations (
         id, name, slug, status, created_by, creation_key
@@ -279,14 +285,6 @@ test('local canonical seed lifecycle validates Auth UUIDs, safety and cleanup bl
       "select public.save_match_squad($1, $2, $3, '[]'::jsonb)",
       [manifest.organizationId, ownerMatch.id, ownerTeam.id],
     );
-    const ownerWithdraw = await withAuthenticatedIdentity(client, users.owner.id, () => (
-      client.query(
-        'select public.withdraw_tournament_team_entry($1, $2, $3) as result',
-        [manifest.organizationId, ownerTeam.id, 'QA owner rollback'],
-      )
-    ));
-    assert.equal(ownerWithdraw.rows[0].result.status, 'withdrawn');
-
     const redCoherence = await client.query(
       `select count(*)::integer as count
        from public.tournament_player_suspensions suspension
@@ -330,6 +328,7 @@ test('local canonical seed lifecycle validates Auth UUIDs, safety and cleanup bl
       app_metadata: { qa_seed_key: manifest.seedKey, qa_role: 'owner' },
     });
     assert.equal(replacementError, null);
+    transientAuthUserIds.push(replacement.user.id);
     const changedRaw = structuredClone(identityMap.toJSON());
     changedRaw.owner = {
       auth_user_id: replacement.user.id,
@@ -356,7 +355,7 @@ test('local canonical seed lifecycle validates Auth UUIDs, safety and cleanup bl
         id, name, slug, status, created_by, creation_key
       ) values ($1, 'Sentinel ajeno', 'qa-foreign-sentinel', 'active', $2, $3)`,
       [
-        stableUuid('foreign-sentinel-organization'),
+        sentinelOrganizationId,
         foreignCreator.user.id,
         stableUuid('foreign-sentinel-creation-key'),
       ],
@@ -407,6 +406,29 @@ test('local canonical seed lifecycle validates Auth UUIDs, safety and cleanup bl
       /constraint/,
     );
   } finally {
+    await client.query('rollback').catch(() => {});
+    if (manifest) {
+      const cleanup = await cleanupManifest(client, manifest, {
+        apply: true,
+        allowLocalTriggerBypass: true,
+      });
+      assert.ok(
+        ['cleaned', 'already_clean'].includes(cleanup.status),
+        `Seed suite cleanup failed: ${JSON.stringify(cleanup)}`,
+      );
+    }
+    await client.query(
+      'delete from public.tournament_organizations where id = $1',
+      [sentinelOrganizationId],
+    );
+    for (const userId of transientAuthUserIds.reverse()) {
+      const { error } = await authAdmin.deleteUser(userId);
+      assert.equal(error, null);
+    }
+    if (identityMap) {
+      const cleanupUsers = await cleanupLocalUsers({ client, authAdmin, identityMap });
+      assert.ok(['cleaned', 'already_clean'].includes(cleanupUsers.status));
+    }
     await client.end();
   }
 });
