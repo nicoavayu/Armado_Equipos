@@ -933,6 +933,61 @@ export async function supersedeTournamentFixture(input) {
   }), 'No pudimos preparar una nueva versión.');
 }
 
+/**
+ * Lectura de sedes y canchas a nivel organización.
+ *
+ * `tournament_venues` y `tournament_courts` pertenecen a la organización y no
+ * tienen `tournament_id`: pedirlas a través de `get_tournament_schedule_context`
+ * obligaba a tener un torneo y una categoría activos para ver un recurso que no
+ * depende de ninguno de los dos. Eso es lo que ataba la pantalla de Sedes al
+ * contexto de competencia.
+ *
+ * La autorización sigue siendo del servidor: ambas tablas tienen RLS con
+ * `has_tournament_organization_capability(organization_id, 'venues.read'
+ * /'courts.read')` y sólo `GRANT SELECT` a `authenticated`, así que esta lectura
+ * no puede ver nada que el RPC dejara ver.
+ */
+export async function loadTournamentOrganizationVenues(organizationId) {
+  const [venues, courts] = await Promise.all([
+    supabase
+      .from('tournament_venues')
+      .select('id, name, address, place_id, latitude, longitude, locality, timezone, status, notes')
+      .eq('organization_id', organizationId)
+      .order('status', { ascending: true })
+      .order('name', { ascending: true }),
+    supabase
+      .from('tournament_courts')
+      .select('id, venue_id, name, sport_modality, status, notes')
+      .eq('organization_id', organizationId)
+      .order('status', { ascending: true })
+      .order('name', { ascending: true }),
+  ]);
+  if (venues.error) throw toWorkspaceError(venues.error, 'No pudimos cargar las sedes.');
+  if (courts.error) throw toWorkspaceError(courts.error, 'No pudimos cargar las canchas.');
+  return {
+    venues: (venues.data || []).map((venue) => ({
+      id: venue.id,
+      name: venue.name,
+      address: venue.address,
+      placeId: venue.place_id,
+      latitude: venue.latitude,
+      longitude: venue.longitude,
+      locality: venue.locality,
+      timezone: venue.timezone,
+      status: venue.status,
+      notes: venue.notes,
+    })),
+    courts: (courts.data || []).map((court) => ({
+      id: court.id,
+      venueId: court.venue_id,
+      name: court.name,
+      sportModality: court.sport_modality,
+      status: court.status,
+      notes: court.notes,
+    })),
+  };
+}
+
 export async function createTournamentVenue(input) {
   return unwrapRpc(await supabase.rpc('create_tournament_venue', {
     p_organization_id: input.organizationId,
@@ -2008,6 +2063,7 @@ export const tournamentWorkspaceService = Object.freeze({
   validateFixture: validateTournamentFixture,
   publishFixture: publishTournamentFixture,
   supersedeFixture: supersedeTournamentFixture,
+  loadOrganizationVenues: loadTournamentOrganizationVenues,
   createVenue: createTournamentVenue,
   updateVenue: updateTournamentVenue,
   createCourt: createTournamentCourt,

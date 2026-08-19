@@ -48,7 +48,6 @@ const MODE_COPY = {
   rounds: ['Calendario', 'Jornadas', 'Fechas, cruces y estados de planificación.'],
   bracket: ['Eliminación', 'Llave', 'Cruces futuros expresados como fuentes estructuradas.'],
   schedule: ['Operación previa', 'Programación', 'Asigná horarios y canchas con conflictos visibles.'],
-  venues: ['Recursos', 'Sedes y canchas', 'Infraestructura reusable y aislada por organización.'],
 };
 
 const STATUS_LABELS = Object.freeze({
@@ -620,6 +619,41 @@ function RoundsPanel({ bracket = false, canManage = false }) {
   );
 }
 
+function ScheduleWindowForm() {
+  const { venues, courts, actions } = useTorneosFixture();
+  const [scheduleWindow, setScheduleWindow] = useState({
+    dayOfWeek: 6,
+    startsAt: '09:00',
+    endsAt: '18:00',
+    slotDurationMinutes: 60,
+    venueId: '',
+    courtId: '',
+  });
+  return (
+    <section className={styles.resourceForms}>
+        <form className={styles.panel} onSubmit={async (event) => {
+          event.preventDefault();
+          await actions.saveWindows([{
+            ...scheduleWindow,
+            dayOfWeek: Number(scheduleWindow.dayOfWeek),
+            slotDurationMinutes: Number(scheduleWindow.slotDurationMinutes),
+            venueId: scheduleWindow.venueId || null,
+            courtId: scheduleWindow.courtId || null,
+          }]);
+        }}>
+          <h2>Ventana semanal</h2>
+          <label><span>Día</span><select value={scheduleWindow.dayOfWeek} onChange={(event) => setScheduleWindow({ ...scheduleWindow, dayOfWeek: event.target.value })}><option value="1">Lunes</option><option value="2">Martes</option><option value="3">Miércoles</option><option value="4">Jueves</option><option value="5">Viernes</option><option value="6">Sábado</option><option value="7">Domingo</option></select></label>
+          <label><span>Desde</span><input required type="time" value={scheduleWindow.startsAt} onChange={(event) => setScheduleWindow({ ...scheduleWindow, startsAt: event.target.value })} /></label>
+          <label><span>Hasta</span><input required type="time" value={scheduleWindow.endsAt} onChange={(event) => setScheduleWindow({ ...scheduleWindow, endsAt: event.target.value })} /></label>
+          <label><span>Minutos por turno</span><input required type="number" min="15" max="240" value={scheduleWindow.slotDurationMinutes} onChange={(event) => setScheduleWindow({ ...scheduleWindow, slotDurationMinutes: event.target.value })} /></label>
+          <label><span>Sede opcional</span><select value={scheduleWindow.venueId} onChange={(event) => setScheduleWindow({ ...scheduleWindow, venueId: event.target.value, courtId: '' })}><option value="">Todas</option>{venues.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+          <label><span>Cancha opcional</span><select value={scheduleWindow.courtId} onChange={(event) => setScheduleWindow({ ...scheduleWindow, courtId: event.target.value })}><option value="">Todas</option>{courts.filter((item) => !scheduleWindow.venueId || item.venueId === scheduleWindow.venueId).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+          <button type="submit"><Save size={16} /> Guardar ventana</button>
+        </form>
+    </section>
+  );
+}
+
 function SchedulePanel({ canManage }) {
   const {
     versions, participants, matches, venues, courts, actions,
@@ -705,68 +739,11 @@ function SchedulePanel({ canManage }) {
         {validation && <div className={styles.validation} data-valid={validation.valid}><AlertTriangle size={17} /><span>{validation.blockers?.length || 0} bloqueos · {validation.warnings?.length || 0} advertencias</span></div>}
         {canManage && <div className={styles.formActions}><button type="button" disabled={busy || !form.matchId || !scheduleIso || !form.courtId} onClick={async () => setValidation(await actions.validateSchedule(payload))}>Validar</button><button type="submit" disabled={busy || !scheduleIso}>Guardar</button></div>}
       </form>
-    </div>
-  );
-}
-
-function VenuesPanel({ canManage }) {
-  const {
-    venues, courts, actions,
-  } = useTorneosFixture();
-  const { activeTournament } = useTorneosCompetition();
-  const [venue, setVenue] = useState({ name: '', address: '', locality: '', timezone: 'America/Argentina/Buenos_Aires' });
-  const [court, setCourt] = useState({ venueId: '', name: '', sportModality: activeTournament?.sportModality || 'football_5' });
-  const [scheduleWindow, setScheduleWindow] = useState({
-    dayOfWeek: 6,
-    startsAt: '09:00',
-    endsAt: '18:00',
-    slotDurationMinutes: 60,
-    venueId: '',
-    courtId: '',
-  });
-  return (
-    <div className={styles.venueLayout}>
-      <section className={styles.panel}>
-        <div className={styles.panelHeading}><div><span>Recursos activos</span><h2>Sedes</h2></div></div>
-        <div className={styles.venueList}>{venues.map((item) => (
-          <article key={item.id}><MapPin size={19} /><div><h3>{item.name}</h3><p>{item.address}</p><small>{courts.filter((value) => value.venueId === item.id).length} canchas · {statusLabel(item.status)}</small></div></article>
-        ))}</div>
-      </section>
-      {canManage && <section className={styles.resourceForms}>
-        <form className={styles.panel} onSubmit={async (event) => { event.preventDefault(); await actions.createVenue(venue); setVenue((current) => ({ ...current, name: '', address: '' })); }}>
-          <h2>Nueva sede</h2>
-          <label><span>Nombre</span><input required value={venue.name} onChange={(event) => setVenue({ ...venue, name: event.target.value })} /></label>
-          <label><span>Dirección</span><input required value={venue.address} onChange={(event) => setVenue({ ...venue, address: event.target.value })} /></label>
-          <label><span>Localidad</span><input value={venue.locality} onChange={(event) => setVenue({ ...venue, locality: event.target.value })} /></label>
-          <button type="submit"><Plus size={16} /> Crear sede</button>
-        </form>
-        <form className={styles.panel} onSubmit={async (event) => { event.preventDefault(); await actions.createCourt(court); setCourt((current) => ({ ...current, name: '' })); }}>
-          <h2>Nueva cancha</h2>
-          <label><span>Sede</span><select required value={court.venueId} onChange={(event) => setCourt({ ...court, venueId: event.target.value })}><option value="">Seleccionar</option>{venues.filter((item) => item.status === 'active').map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-          <label><span>Nombre</span><input required value={court.name} onChange={(event) => setCourt({ ...court, name: event.target.value })} /></label>
-          <label><span>Modalidad</span><select value={court.sportModality} onChange={(event) => setCourt({ ...court, sportModality: event.target.value })}><option value="football_5">Fútbol 5</option><option value="football_6">Fútbol 6</option><option value="football_7">Fútbol 7</option><option value="football_8">Fútbol 8</option><option value="football_9">Fútbol 9</option><option value="football_11">Fútbol 11</option><option value="futsal">Futsal</option></select></label>
-          <button type="submit"><Plus size={16} /> Crear cancha</button>
-        </form>
-        <form className={styles.panel} onSubmit={async (event) => {
-          event.preventDefault();
-          await actions.saveWindows([{
-            ...scheduleWindow,
-            dayOfWeek: Number(scheduleWindow.dayOfWeek),
-            slotDurationMinutes: Number(scheduleWindow.slotDurationMinutes),
-            venueId: scheduleWindow.venueId || null,
-            courtId: scheduleWindow.courtId || null,
-          }]);
-        }}>
-          <h2>Ventana semanal</h2>
-          <label><span>Día</span><select value={scheduleWindow.dayOfWeek} onChange={(event) => setScheduleWindow({ ...scheduleWindow, dayOfWeek: event.target.value })}><option value="1">Lunes</option><option value="2">Martes</option><option value="3">Miércoles</option><option value="4">Jueves</option><option value="5">Viernes</option><option value="6">Sábado</option><option value="7">Domingo</option></select></label>
-          <label><span>Desde</span><input required type="time" value={scheduleWindow.startsAt} onChange={(event) => setScheduleWindow({ ...scheduleWindow, startsAt: event.target.value })} /></label>
-          <label><span>Hasta</span><input required type="time" value={scheduleWindow.endsAt} onChange={(event) => setScheduleWindow({ ...scheduleWindow, endsAt: event.target.value })} /></label>
-          <label><span>Minutos por turno</span><input required type="number" min="15" max="240" value={scheduleWindow.slotDurationMinutes} onChange={(event) => setScheduleWindow({ ...scheduleWindow, slotDurationMinutes: event.target.value })} /></label>
-          <label><span>Sede opcional</span><select value={scheduleWindow.venueId} onChange={(event) => setScheduleWindow({ ...scheduleWindow, venueId: event.target.value, courtId: '' })}><option value="">Todas</option>{venues.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-          <label><span>Cancha opcional</span><select value={scheduleWindow.courtId} onChange={(event) => setScheduleWindow({ ...scheduleWindow, courtId: event.target.value })}><option value="">Todas</option>{courts.filter((item) => !scheduleWindow.venueId || item.venueId === scheduleWindow.venueId).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-          <button type="submit"><Save size={16} /> Guardar ventana</button>
-        </form>
-      </section>}
+      {/*
+        * La ventana semanal es del torneo y la categoría, no de la sede: se
+        * programa acá y consume las sedes/canchas de la organización.
+        */}
+      {canManage && <ScheduleWindowForm />}
     </div>
   );
 }
@@ -799,7 +776,6 @@ export default function FixtureWorkspacePage({ mode = 'overview' }) {
       {mode === 'rounds' && <RoundsPanel canManage={hasCapability(organization, TOURNAMENT_CAPABILITIES.FIXTURE_UPDATE_DRAFT)} />}
       {mode === 'bracket' && <RoundsPanel bracket />}
       {mode === 'schedule' && <SchedulePanel canManage={hasCapability(organization, TOURNAMENT_CAPABILITIES.MATCHES_SCHEDULE)} />}
-      {mode === 'venues' && <VenuesPanel canManage={hasCapability(organization, TOURNAMENT_CAPABILITIES.VENUES_CREATE)} />}
     </div>
   );
 }

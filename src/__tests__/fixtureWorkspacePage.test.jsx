@@ -261,15 +261,18 @@ describe('FixtureWorkspacePage', () => {
     expect(screen.getByText('Orden 2')).toBeInTheDocument();
   });
 
-  test('keeps venue, court, and scheduling-window creation in one resource surface', () => {
+  // La ventana semanal es del torneo y la categoría, así que se programa en
+  // Programación. Las sedes y canchas son de la organización y salieron a su
+  // propia superficie: ver organizationVenuesPage.test.jsx.
+  test('keeps the weekly scheduling window on the tournament schedule surface', () => {
     render(
       <MemoryRouter>
-        <FixtureWorkspacePage mode="venues" />
+        <FixtureWorkspacePage mode="schedule" />
       </MemoryRouter>,
     );
-    expect(screen.getByRole('heading', { name: 'Nueva sede' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Nueva cancha' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Ventana semanal' })).toBeInTheDocument();
     expect(screen.getByLabelText('Minutos por turno')).toHaveAttribute('min', '15');
+    // Y consume las sedes de la organización sin ser dueña de ellas.
+    expect(screen.queryByRole('heading', { name: 'Nueva sede' })).not.toBeInTheDocument();
   });
 });

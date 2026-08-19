@@ -31,6 +31,7 @@ import CreateOrganizationPage from './CreateOrganizationPage';
 import CompetitionOverviewPage from './CompetitionOverviewPage';
 import OrganizationMembersPage from './OrganizationMembersPage';
 import OrganizationRouteGuard from './OrganizationRouteGuard';
+import OrganizationVenuesPage from './OrganizationVenuesPage';
 import TournamentRouteGuard from './TournamentRouteGuard';
 import OrganizationSettingsPage from './OrganizationSettingsPage';
 import PlanExperiencePage from './PlanExperiencePage';
@@ -327,8 +328,12 @@ export default function TorneosShell() {
               <Route path="fixture/partidos/:matchId" element={<FixtureWorkspacePage mode="rounds" />} />
               <Route path="fixture/llave" element={<FixtureWorkspacePage mode="bracket" />} />
               <Route path="programacion" element={<FixtureWorkspacePage mode="schedule" />} />
-              <Route path="sedes" element={<FixtureWorkspacePage mode="venues" />} />
-              <Route path="sedes/:venueId" element={<FixtureWorkspacePage mode="venues" />} />
+              {/*
+                * Sedes y canchas son de la organización: no se mueven bajo
+                * torneo/:tournamentId por uniformidad estética.
+                */}
+              <Route path="sedes" element={<OrganizationVenuesPage />} />
+              <Route path="sedes/:venueId" element={<OrganizationVenuesPage />} />
               <Route path="partidos" element={<MatchOperationsPage mode="list" />} />
               <Route path="partidos/:matchId" element={<MatchOperationsPage mode="detail" />} />
               <Route path="partidos/:matchId/convocatorias" element={<MatchOperationsPage mode="squads" />} />
