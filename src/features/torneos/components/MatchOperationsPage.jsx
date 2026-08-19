@@ -43,6 +43,11 @@ import {
 } from '../domain/competitionLifecycle';
 import { describeMatchOutcomeGap } from '../domain/matchOutcome';
 import { describeEarlyOpen, isEarlyOpenReasonValid } from '../domain/matchSchedule';
+import {
+  getMatchPeriodLabel,
+  MATCH_EVENT_PERIOD_OPTIONS,
+  SUSPENSION_PERIOD_OPTIONS,
+} from '../domain/matchPeriods';
 import CompetitionSelector from './CompetitionSelector';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import styles from './MatchOperations.module.css';
@@ -63,6 +68,11 @@ const STATUS_LABELS = {
   suspended: 'Suspendido',
   abandoned: 'Abandonado',
   administrative: 'Administrativo',
+  // Estados de `tournament_match_reviews`: la píldora del historial de
+  // revisiones los mostraba crudos (`open`, `approved`).
+  open: 'Abierta',
+  approved: 'Aprobada',
+  rejected: 'Rechazada',
 };
 
 const EVENT_LABELS = {
@@ -79,6 +89,20 @@ const EVENT_LABELS = {
   incident: 'Incidencia',
   no_show: 'Ausencia',
   suspension: 'Suspensión',
+  // Eventos de ciclo de vida del partido: no los carga nadie a mano, pero
+  // aparecen en el timeline y sin etiqueta salían como `second_half_started`.
+  match_started: 'Comienzo del partido',
+  halftime: 'Entretiempo',
+  second_half_started: 'Comienzo del segundo tiempo',
+  match_ended: 'Fin del partido',
+  resumption_future: 'Reanudación',
+};
+
+const REVIEW_TYPE_LABELS = {
+  validation: 'Validación',
+  correction: 'Corrección',
+  dispute_future: 'Impugnación',
+  administrative_resolution: 'Resolución administrativa',
 };
 
 const OUTCOME_OPTIONS = [
@@ -117,7 +141,7 @@ function StatusPill({ status, label }) {
   return (
     <span className={styles.statusPill} data-status={status}>
       <CircleDot size={12} />
-      {label || STATUS_LABELS[status] || status || 'Sin acta'}
+      {label || STATUS_LABELS[status] || (status ? 'Sin estado' : 'Sin acta')}
     </span>
   );
 }
@@ -563,7 +587,7 @@ function ReportEditor({
         {outcome.outcomeType === 'suspended' && (
           <div className={styles.twoColumns}>
             <label><span>Minuto</span><input disabled={readOnly} type="number" min="0" max="240" value={outcome.suspensionMinute} onChange={(e) => setOutcome((c) => ({ ...c, suspensionMinute: e.target.value }))} /></label>
-            <label><span>Período</span><select disabled={readOnly} value={outcome.suspensionPeriod} onChange={(e) => setOutcome((c) => ({ ...c, suspensionPeriod: e.target.value }))}><option value="first_half">Primer tiempo</option><option value="halftime">Entretiempo</option><option value="second_half">Segundo tiempo</option><option value="extra_time">Alargue</option></select></label>
+            <label><span>Período</span><select disabled={readOnly} value={outcome.suspensionPeriod} onChange={(e) => setOutcome((c) => ({ ...c, suspensionPeriod: e.target.value }))}>{SUSPENSION_PERIOD_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
           </div>
         )}
         <label>
@@ -634,7 +658,7 @@ function ReportEditor({
             }))}><option value={operation.home_team_entry_id}>{match.homeName}</option><option value={operation.away_team_entry_id}>{match.awayName}</option></select></label>
             <label><span>Jugador</span><select value={event.rosterPlayerId} onChange={(e) => setEvent((c) => ({ ...c, rosterPlayerId: e.target.value }))}><option value="">Sin identificar / equipo</option>{players.map((player) => <option key={player.roster_player_id} value={player.roster_player_id}>{player.display_name_snapshot}</option>)}</select></label>
             <label><span>Minuto</span><input type="number" min="0" max="240" value={event.minute} onChange={(e) => setEvent((c) => ({ ...c, minute: e.target.value }))} /></label>
-            <label><span>Período</span><select value={event.period} onChange={(e) => setEvent((c) => ({ ...c, period: e.target.value }))}><option value="pre_match">Prepartido</option><option value="first_half">Primer tiempo</option><option value="halftime">Entretiempo</option><option value="second_half">Segundo tiempo</option><option value="extra_time">Alargue</option><option value="penalties">Penales</option><option value="post_match">Postpartido</option></select></label>
+            <label><span>Período</span><select value={event.period} onChange={(e) => setEvent((c) => ({ ...c, period: e.target.value }))}>{MATCH_EVENT_PERIOD_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
             {event.eventType === 'assist' && (
               <label className={styles.fullField}>
                 <span>Gol asistido</span>
@@ -697,7 +721,7 @@ function ReportEditor({
           {context.events.map((item) => (
             <li key={item.id} data-voided={Boolean(item.voided_at)}>
               <span>{item.minute ?? '·'}′</span>
-              <div><strong>{EVENT_LABELS[item.event_type] || item.event_type}</strong><small>{context.players.find((player) => player.roster_player_id === item.roster_player_id)?.display_name_snapshot || 'Evento de equipo'} · {item.period}</small></div>
+              <div><strong>{EVENT_LABELS[item.event_type] || 'Evento del partido'}</strong><small>{context.players.find((player) => player.roster_player_id === item.roster_player_id)?.display_name_snapshot || 'Evento de equipo'} · {getMatchPeriodLabel(item.period)}</small></div>
               {!readOnly && !item.voided_at && (
                 <button type="button" aria-label="Anular evento" onClick={() => {
                   const reason = window.prompt('Motivo de anulación (queda auditado):', voidReason);
@@ -1068,7 +1092,7 @@ export default function MatchOperationsPage({ mode = 'list' }) {
                   </div>
                   <div className={styles.reviewHistory}>
                     {(state.operation.reviews || []).map((review) => (
-                      <article key={review.id}><StatusPill status={review.status} /><strong>{review.review_type}</strong><p>{review.reason}</p><small>{new Date(review.requested_at).toLocaleString('es-AR')}</small></article>
+                      <article key={review.id}><StatusPill status={review.status} /><strong>{REVIEW_TYPE_LABELS[review.review_type] || 'Revisión'}</strong><p>{review.reason}</p><small>{new Date(review.requested_at).toLocaleString('es-AR')}</small></article>
                     ))}
                   </div>
                 </>

@@ -38,9 +38,12 @@ const requirementValue = (value) => (
   value === null || value === undefined ? 'Sin definir' : value
 );
 
+// Los tres valores de `tournament_team_managers.status`. `invited` no existe en
+// la base: el estado real de una invitación sin aceptar es `pending`, y sin
+// etiqueta el panel de Responsables imprimía la clave tal cual.
 const MANAGER_STATUS_LABELS = Object.freeze({
+  pending: 'Invitación pendiente',
   active: 'Activo',
-  invited: 'Invitado',
   revoked: 'Revocado',
 });
 
@@ -192,12 +195,16 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
     && ['draft', 'invited', 'in_progress', 'changes_requested'].includes(data?.entry?.status)
     && ['draft', 'changes_requested'].includes(data?.roster?.status),
   );
-  const canEditBranding = Boolean(
-    (relationalEditor || organizationalEditor)
-    && ['draft', 'invited', 'in_progress', 'changes_requested', 'approved']
-      .includes(data?.entry?.status),
-  );
+  // El permiso visual no se recalcula acá. Viene del mismo predicado que
+  // después autoriza la escritura, así que la política de autogestión del
+  // torneo no puede desincronizarse de lo que muestran los controles.
+  const canEditBranding = data?.visualAssets?.canManageShield === true;
   const canReview = hasCapability(organization, TOURNAMENT_CAPABILITIES.TEAM_ENTRIES_REVIEW);
+  // El alcance también lo decide el servidor. Con `visual` la inscripción llega
+  // sin responsables, sin revisiones y sin auditoría: no son datos del jugador.
+  // La pantalla tiene que dejar de mostrar esos bloques, no pintarlos vacíos —
+  // un panel de Responsables en blanco no dice «no te lo muestro», dice «no hay».
+  const visualOnlyViewer = data?.viewer?.scope === 'visual';
 
   const run = async (key, action, notice) => {
     if (busy) return;
@@ -286,7 +293,7 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
       {state.error && <div className={styles.errorBanner} role="alert"><AlertCircle size={17} />{state.error}</div>}
 
       {initialTab === 'inscripcion' && (
-        <div className={styles.detailGrid}>
+        <div className={`${styles.detailGrid}${visualOnlyViewer ? ` ${styles.detailGridSolo}` : ''}`}>
           <section className={styles.formSection}>
             <div className={styles.sectionHeading}><span>01</span><div><h2>Datos del equipo</h2><p>Snapshot de esta competencia.</p></div></div>
             <BrandingAssetField
@@ -328,6 +335,7 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
               </button>
             )}
           </section>
+          {!visualOnlyViewer && (
           <aside className={styles.sidePanel}>
             <Users size={22} />
             <h2>Responsables</h2>
@@ -337,12 +345,13 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
                 <span>
                   {getRoleLabel(manager.role, 'Responsable')}
                   {' · '}
-                  {MANAGER_STATUS_LABELS[manager.status] || manager.status}
+                  {MANAGER_STATUS_LABELS[manager.status] || 'Sin estado'}
                 </span>
               </div>
             ))}
             {!data.managers.length && <p>No hay un responsable asignado.</p>}
           </aside>
+          )}
         </div>
       )}
 

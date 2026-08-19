@@ -21,7 +21,7 @@
   right: -14px;
   bottom: -23px;
   color: rgba(255, 255, 255, .025);
-  font-family: 'Bebas Neue', Impact, sans-serif;
+  font-family: var(--torneos-editorial-font);
   font-size: 82px;
   letter-spacing: .08em;
   pointer-events: none;
@@ -40,8 +40,9 @@
 
 .copy { position: relative; z-index: 1; }
 .kicker { display: block; margin-bottom: 5px; color: #a992ff; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .14em; }
-.copy h2 { margin: 0; color: #fff; font-family: 'Bebas Neue', Impact, sans-serif; font-size: 32px; font-weight: 400; letter-spacing: .03em; }
-.copy > p { max-width: 620px; margin: 7px 0 0; color: rgba(255, 255, 255, .68); font-family: Oswald, sans-serif; font-size: 13px; line-height: 1.5; }
+.copy h2 { margin: 0; color: #fff; font-family: var(--torneos-editorial-font); font-size: 32px; font-weight: 400; letter-spacing: .03em; }
+/* El titular es editorial; el texto que lo explica es interfaz. */
+.copy > p { max-width: 620px; margin: 7px 0 0; color: rgba(255, 255, 255, .68); font-size: 13px; line-height: 1.5; }
 
 .loading,
 .statusLine { display: flex; gap: 7px; align-items: center; margin-top: 14px; font-size: 12px; }
@@ -56,22 +57,26 @@
 .error { margin-top: 8px !important; }
 
 .actions { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 8px; align-items: stretch; }
+/* `Publicar página` es un CTA, no un titular: entra al mismo sistema que
+   `Continuar`. Conserva su color y su jerarquía propia; lo que comparte es la
+   familia tipográfica, la escala, el radio, la altura y los estados. */
 .actions > button,
 .actions > a,
 .retry {
   display: inline-flex;
-  min-height: 43px;
+  min-height: var(--torneos-action-height);
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 0 14px;
+  gap: var(--torneos-action-gap);
+  padding: 0 var(--torneos-action-padding-x);
   color: #fff;
   border: 1px solid rgba(255, 255, 255, .18);
-  border-radius: 8px;
+  border-radius: var(--torneos-action-radius);
   background: rgba(255, 255, 255, .07);
-  font-family: Oswald, sans-serif;
-  font-size: 13px;
-  font-weight: 700;
+  font-family: var(--torneos-ui-font);
+  font-size: var(--torneos-action-font-size);
+  font-weight: var(--torneos-action-font-weight);
+  line-height: var(--torneos-action-line-height);
   text-decoration: none;
   cursor: pointer;
 }
@@ -79,15 +84,22 @@
 .actions .publish { color: #211343; border-color: #a893fa; background: #bca9ff; }
 .actions .unpublish { color: #f5d5d5; border-color: rgba(237, 105, 105, .35); background: rgba(158, 47, 47, .16); }
 .actions button:disabled { cursor: not-allowed; opacity: .5; }
-.retry { min-height: 36px; margin-top: 10px; }
+.retry {
+  min-height: var(--torneos-action-height-sm);
+  gap: var(--torneos-action-gap-sm);
+  padding: 0 var(--torneos-action-padding-x-sm);
+  border-radius: var(--torneos-action-radius-sm);
+  font-size: var(--torneos-action-font-size-sm);
+  margin-top: 10px;
+}
 
 .linkBox { display: grid; grid-template-columns: 1fr 44px; overflow: hidden; border: 1px solid rgba(255, 255, 255, .16); border-radius: 8px; }
-.linkBox input { min-width: 0; height: 44px; padding: 0 11px; color: #ded8e8; border: 0; background: rgba(0, 0, 0, .26); font-family: Oswald, sans-serif; font-size: 11px; }
+.linkBox input { min-width: 0; height: 44px; padding: 0 11px; color: #ded8e8; border: 0; background: rgba(0, 0, 0, .26); font-family: var(--torneos-ui-font); font-size: 11px; }
 .linkBox button { display: grid; min-width: 44px; min-height: 44px; place-items: center; color: #fff; border: 0; border-left: 1px solid rgba(255, 255, 255, .12); background: rgba(109, 74, 237, .35); cursor: pointer; }
 .readOnly { color: rgba(255, 255, 255, .48); font-size: 11px; line-height: 1.45; }
 
 .actions :focus-visible,
-.retry:focus-visible { outline: 3px solid #ae98ff; outline-offset: 2px; }
+.retry:focus-visible { outline: var(--torneos-focus-ring); outline-offset: var(--torneos-focus-ring-offset); }
 
 @keyframes rotate { to { transform: rotate(360deg); } }
 

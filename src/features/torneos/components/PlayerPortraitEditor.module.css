@@ -6,31 +6,38 @@
 }
 
 /*
- * Los botones de acción usan la misma tipografía que `.primaryButton` /
- * `.secondaryButton` de Torneos. Hay que declararla y no heredarla: el diálogo
- * se monta con `createPortal` en `body`, o sea fuera de `.shell`, donde lo que
- * se hereda es la Oswald editorial de `body` y no la familia de la app.
+ * Los botones de acción usan el sistema de botones de Torneos —el de
+ * `Continuar`— y no una geometría propia. Hay que declararlo y no heredarlo: el
+ * diálogo se monta con `createPortal` en `body`, o sea fuera de `.shell`, donde
+ * lo que se hereda es la Oswald editorial de `body` y no la familia de la app.
+ * Los tokens viven en `:root` justamente para llegar hasta acá.
  */
 .rowActions button,
 .dialogActions button,
 .fileButton {
-  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-  font-weight: 800;
+  font-family: var(--torneos-ui-font, Inter, ui-sans-serif, system-ui, sans-serif);
+  font-weight: var(--torneos-action-font-weight, 700);
+  line-height: var(--torneos-action-line-height, 1.15);
   letter-spacing: normal;
   text-transform: none;
 }
 
+/*
+ * Variante compacta: es una fila del plantel, no el pie de un formulario. Lo
+ * que cambia es la escala; el radio sigue la misma regla que el tamaño normal,
+ * así que no vuelve a ser un chip pill al lado de un CTA rectangular.
+ */
 .rowActions button {
   display: inline-flex;
-  min-height: 28px;
+  min-height: var(--torneos-action-height-sm, 36px);
   align-items: center;
-  gap: 5px;
-  padding: 0 9px;
+  gap: var(--torneos-action-gap-sm, 6px);
+  padding: 0 var(--torneos-action-padding-x-sm, 12px);
   border: 1px solid rgba(142, 166, 209, 0.26);
-  border-radius: 99px;
+  border-radius: var(--torneos-action-radius-sm, 12px);
   background: rgba(142, 166, 209, 0.09);
   color: #cdd7ee;
-  font-size: 11px;
+  font-size: var(--torneos-action-font-size-sm, 13px);
   cursor: pointer;
 }
 
@@ -319,16 +326,16 @@
 
 .fileButton {
   display: inline-flex;
-  min-height: 40px;
+  min-height: var(--torneos-action-height-sm, 36px);
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  padding: 0 15px;
+  gap: var(--torneos-action-gap-sm, 6px);
+  padding: 0 var(--torneos-action-padding-x-sm, 12px);
   border: 1px solid rgba(142, 166, 209, 0.26);
-  border-radius: 12px;
+  border-radius: var(--torneos-action-radius-sm, 12px);
   background: rgba(142, 166, 209, 0.09);
   color: #cdd7ee;
-  font-size: 13px;
+  font-size: var(--torneos-action-font-size-sm, 13px);
   cursor: pointer;
 }
 
@@ -379,15 +386,18 @@
   justify-content: flex-end;
 }
 
+/* El pie del diálogo sí es una barra de acciones: escala normal, la misma que
+   `Continuar`. `Cancelar` y `Quitar foto` sólo se diferencian por color. */
 .dialogActions button {
   display: inline-flex;
-  min-height: 40px;
+  min-height: var(--torneos-action-height, 48px);
   align-items: center;
-  gap: 7px;
-  padding: 0 15px;
+  justify-content: center;
+  gap: var(--torneos-action-gap, 8px);
+  padding: 0 var(--torneos-action-padding-x, 16px);
   border: 1px solid transparent;
-  border-radius: 12px;
-  font-size: 13px;
+  border-radius: var(--torneos-action-radius, 16px);
+  font-size: var(--torneos-action-font-size, 0.94rem);
   cursor: pointer;
 }
 

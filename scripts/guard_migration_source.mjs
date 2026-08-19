@@ -25,6 +25,7 @@ const expectedCanonicalMigrations = [
   '20260817062612_tournament_branding_assets.sql',
   '20260817220554_tournament_player_portraits_foundation.sql',
   '20260818120000_tournament_player_portrait_ux.sql',
+  '20260818210000_tournament_team_visual_self_management.sql',
 ];
 
 const exitWithError = (message) => {

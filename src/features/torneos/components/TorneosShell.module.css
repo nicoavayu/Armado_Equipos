@@ -3,6 +3,53 @@
   background: var(--surface-0, #0c0a1d);
 }
 
+/*
+ * Las dos tipografías de Torneos, y la geometría de un control.
+ *
+ * Torneos tiene dos familias y hacen cosas distintas. La editorial —Bebas, y la
+ * Oswald condensada que la acompaña— es identidad: titulares grandes, en
+ * mayúsculas, con función inequívoca de encabezado. La de interfaz es Inter, y
+ * es la que ya se lee en el resto del producto: botones, labels, opciones,
+ * tabs, ayudas, mensajes de estado. Un control con tipografía editorial no se
+ * ve «de marca», se ve de otro producto.
+ *
+ * Van en `:root` y no sólo en `.shell` por dos motivos. Uno, los diálogos de
+ * retrato se montan con `createPortal` en `body`, fuera de `.shell`, donde lo
+ * único que se hereda es la Oswald de `body`: sin tokens en la raíz cada portal
+ * tiene que volver a escribir la familia a mano, que es exactamente cómo
+ * empezó la inconsistencia. Dos, son variables: no pintan nada por sí solas,
+ * sólo las ve quien las nombra.
+ *
+ * La geometría sale de `Continuar` —`.primaryAction` de CompetitionCore—, que
+ * es el botón moderno de Torneos y la referencia de la familia: 44px de alto,
+ * 10px de radio, 16px de padding lateral, 8px entre ícono y texto, 13px/700. Un
+ * CTA no es un chip: el radio pill queda para chips, badges y botones ícono
+ * circulares, no para «Publicar página» ni para «Quitar».
+ */
+:global(:root) {
+  --torneos-ui-font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --torneos-editorial-font: "Bebas Neue", Impact, sans-serif;
+  --torneos-action-font-size: 0.94rem;
+  --torneos-action-font-weight: 700;
+  --torneos-action-line-height: 1.15;
+  --torneos-action-height: 48px;
+  --torneos-action-padding-x: 16px;
+  --torneos-action-radius: 16px;
+  --torneos-action-gap: 8px;
+  --torneos-action-icon: 17px;
+  /* La variante compacta de la misma familia: filas densas y barras de acción
+     dentro de una card. Cambia la escala, no el lenguaje — el radio sigue la
+     misma regla que el tamaño normal, un tercio del alto, así que una fila y un
+     CTA se ven emparentados en vez de venir de dos sistemas. */
+  --torneos-action-font-size-sm: 13px;
+  --torneos-action-height-sm: 36px;
+  --torneos-action-padding-x-sm: 12px;
+  --torneos-action-radius-sm: 12px;
+  --torneos-action-gap-sm: 6px;
+  --torneos-focus-ring: 3px solid #ae98ff;
+  --torneos-focus-ring-offset: 2px;
+}
+
 .shell {
   --global-header-size: calc(64px + var(--safe-top, env(safe-area-inset-top, 0px)));
   --torneos-bg: var(--surface-0, #0c0a1d);
@@ -33,7 +80,7 @@
     radial-gradient(circle at 78% -12%, rgba(106, 67, 255, 0.22), transparent 34rem),
     radial-gradient(circle at 18% 100%, rgba(236, 0, 125, 0.07), transparent 32rem),
     var(--torneos-bg);
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--torneos-ui-font);
   isolation: isolate;
 }
 

@@ -24,6 +24,13 @@ import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import styles from './TorneosShell.module.css';
 
+// `tournament_organizations.status` es `active` | `archived`. En la tarjeta va
+// junto al rol, así que se dice en castellano y no como clave de la base.
+const ORGANIZATION_STATUS_LABELS = {
+  active: 'Activa',
+  archived: 'Archivada',
+};
+
 const ACTIVITY_LINKS = [
   {
     title: 'Mis torneos',
@@ -200,7 +207,7 @@ export default function TorneosLanding() {
                 </span>
                 <span>
                   <strong>{organization.name}</strong>
-                  <small>{getRoleLabel(organization.role)} · {organization.status}</small>
+                  <small>{getRoleLabel(organization.role)}{ORGANIZATION_STATUS_LABELS[organization.status] ? ` · ${ORGANIZATION_STATUS_LABELS[organization.status]}` : ''}</small>
                 </span>
                 <ArrowRight size={19} aria-hidden="true" />
               </button>

@@ -71,6 +71,15 @@ test('player portraits enforce DB, tenant, private resolver and Storage lifecycl
   const objectPaths = new Set();
   const originalPortraitIds = new Set();
   let rosterPlayerId = null;
+  let originalVisualPolicy = null;
+  let visualPolicyTournamentId = null;
+  /** Cambia la política del torneo QA; el `finally` restituye el valor previo. */
+  const setVisualPolicy = async (policy) => {
+    await database.query(
+      'update public.tournaments set team_visual_management_policy = $2 where id = $1',
+      [visualPolicyTournamentId, policy],
+    );
+  };
   try {
     const { rows } = await database.query(
       `select organization.id as organization_id,
@@ -115,6 +124,16 @@ test('player portraits enforce DB, tenant, private resolver and Storage lifecycl
     assert.equal(rows.length, 1, 'Canonical V4 QA data is required.');
     const qa = rows[0];
     rosterPlayerId = qa.bno_provisional_id;
+    const visualPolicy = await database.query(
+      `select tournament.id, tournament.team_visual_management_policy as policy
+       from public.tournaments tournament
+       join public.tournament_team_entries entry
+         on entry.tournament_id = tournament.id
+       where entry.id = $1`,
+      [qa.bno_team_id],
+    );
+    visualPolicyTournamentId = visualPolicy.rows[0].id;
+    originalVisualPolicy = visualPolicy.rows[0].policy;
     const originalPortraits = await database.query(
       'select id from public.tournament_player_portraits where roster_player_id = $1',
       [rosterPlayerId],
@@ -135,18 +154,32 @@ test('player portraits enforce DB, tenant, private resolver and Storage lifecycl
       [qa.bno_provisional_id],
     );
 
-    const permissions = await Promise.all(Object.entries(clients).map(async ([role, client]) => {
-      const response = await client.rpc('can_manage_tournament_player_portrait', {
-        p_organization_id: qa.organization_id,
-        p_roster_player_id: qa.bno_provisional_id,
-      });
-      assert.ifError(response.error);
-      return [role, response.data];
-    }));
-    assert.deepEqual(Object.fromEntries(permissions), {
+    // Desde 1C.3A el acceso del delegado al retrato lo concede la política de
+    // autogestión del torneo, no su rol: con el valor cerrado —el default— el
+    // capitán/delegado no gestiona nada, y la organización sí. Se mide la misma
+    // pregunta en los dos valores, contra la RPC real y no contra el rol.
+    const readPermissions = async () => Object.fromEntries(
+      await Promise.all(Object.entries(clients).map(async ([role, client]) => {
+        const response = await client.rpc('can_manage_tournament_player_portrait', {
+          p_organization_id: qa.organization_id,
+          p_roster_player_id: qa.bno_provisional_id,
+        });
+        assert.ifError(response.error);
+        return [role, response.data];
+      })),
+    );
+
+    await setVisualPolicy('organization_only');
+    assert.deepEqual(await readPermissions(), {
+      owner: true, admin: true, delegate: false,
+      player: false, collaborator: false, outsider: false,
+    }, 'organization_only: la autogestión está cerrada');
+
+    await setVisualPolicy('delegates');
+    assert.deepEqual(await readPermissions(), {
       owner: true, admin: true, delegate: true,
       player: false, collaborator: false, outsider: false,
-    });
+    }, 'delegates: se amplía al responsable del propio equipo');
     const spoofAttempt = await clients.outsider.rpc('can_manage_tournament_player_portrait_as', {
       p_organization_id: qa.organization_id,
       p_roster_player_id: qa.bno_provisional_id,
@@ -331,6 +364,12 @@ test('player portraits enforce DB, tenant, private resolver and Storage lifecycl
       'portrait.publication_revoked', 'portrait.removed',
     ]);
   } finally {
+    if (visualPolicyTournamentId && originalVisualPolicy) {
+      await database.query(
+        'update public.tournaments set team_visual_management_policy = $2 where id = $1',
+        [visualPolicyTournamentId, originalVisualPolicy],
+      ).catch(() => {});
+    }
     let createdPortraitIds = [];
     if (rosterPlayerId) {
       const currentPortraits = await database.query(

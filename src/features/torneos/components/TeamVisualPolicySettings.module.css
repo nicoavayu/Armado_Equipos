@@ -1,0 +1,118 @@
+.visualPolicy {
+  position: relative;
+  display: grid;
+  grid-template-columns: 52px minmax(260px, 1fr) minmax(280px, .9fr);
+  gap: 20px;
+  align-items: start;
+  margin-bottom: 24px;
+  padding: 20px 22px;
+  overflow: hidden;
+  border: 1px solid rgba(137, 104, 255, .42);
+  border-radius: 16px;
+  background:
+    linear-gradient(112deg, rgba(117, 75, 255, .16), transparent 52%),
+    rgba(20, 16, 41, .82);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .07);
+}
+
+.visualPolicy::after {
+  content: 'TEAMS';
+  position: absolute;
+  right: -14px;
+  bottom: -23px;
+  color: rgba(255, 255, 255, .025);
+  font-family: var(--torneos-editorial-font);
+  font-size: 82px;
+  letter-spacing: .08em;
+  pointer-events: none;
+}
+
+.iconBlock {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  color: #fff;
+  border: 1px solid rgba(182, 161, 255, .38);
+  border-radius: 12px;
+  background: #6a43ff;
+}
+
+.copy { position: relative; z-index: 1; }
+.kicker { display: block; margin-bottom: 5px; color: #a992ff; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .14em; }
+/* El titular es editorial —grande, en mayúsculas, función inequívoca de
+   encabezado—. Lo que lo explica es interfaz y hereda la Inter de la app. */
+.copy h2 { margin: 0; color: #fff; font-family: var(--torneos-editorial-font); font-size: 32px; font-weight: 400; letter-spacing: .03em; }
+.copy > p { max-width: 620px; margin: 6px 0 0; color: rgba(255, 255, 255, .68); font-size: 13px; line-height: 1.45; }
+
+.help { margin-top: 10px !important; padding-left: 11px; border-left: 2px solid rgba(169, 146, 255, .32); color: rgba(255, 255, 255, .52) !important; font-size: 12px !important; }
+.error { margin-top: 8px !important; color: #ffd5a8 !important; }
+
+.loading { display: flex; gap: 7px; align-items: center; margin-top: 14px; color: rgba(255, 255, 255, .65); font-size: 12px; }
+.loading svg { animation: rotate .9s linear infinite; }
+
+/* Variante compacta del mismo sistema de botones que `Continuar`. */
+.retry {
+  display: inline-flex;
+  min-height: var(--torneos-action-height-sm);
+  align-items: center;
+  gap: var(--torneos-action-gap-sm);
+  margin-top: 10px;
+  padding: 0 var(--torneos-action-padding-x-sm);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, .18);
+  border-radius: var(--torneos-action-radius-sm);
+  background: rgba(255, 255, 255, .07);
+  font-family: var(--torneos-ui-font);
+  font-size: var(--torneos-action-font-size-sm);
+  font-weight: var(--torneos-action-font-weight);
+  line-height: var(--torneos-action-line-height);
+  cursor: pointer;
+}
+
+.options { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 6px; }
+
+.option {
+  display: grid;
+  grid-template-columns: 18px 1fr auto;
+  gap: 10px;
+  align-items: start;
+  /* Tres opciones no necesitan la altura de un formulario entero. Se recorta el
+     aire sobrante, no el área de toque: la card sigue midiendo más de 44px de
+     alto y sigue siendo clickeable completa. */
+  padding: 9px 12px;
+  border: 1px solid rgba(255, 255, 255, .14);
+  border-radius: var(--torneos-action-radius-sm);
+  background: rgba(0, 0, 0, .2);
+  cursor: pointer;
+}
+
+.option[data-selected='true'] { border-color: rgba(169, 146, 255, .6); background: rgba(109, 74, 237, .2); }
+.option:has(input:disabled) { cursor: not-allowed; opacity: .62; }
+.option input { width: 17px; height: 17px; margin: 1px 0 0; accent-color: #a893fa; cursor: inherit; }
+.option span { display: flex; flex-direction: column; gap: 2px; }
+/* Una opción de radio es un control, no un titular: tipografía de interfaz. */
+.option b { color: #fff; font-family: var(--torneos-ui-font); font-size: 13px; font-weight: 700; line-height: 1.3; }
+.option small { color: rgba(255, 255, 255, .58); font-size: 11.5px; line-height: 1.38; }
+.optionSpinner { color: #c3b2ff; animation: rotate .9s linear infinite; }
+
+.readOnly { color: rgba(255, 255, 255, .48); font-size: 11px; line-height: 1.45; }
+.option:focus-within { outline: var(--torneos-focus-ring); outline-offset: var(--torneos-focus-ring-offset); }
+.retry:focus-visible { outline: var(--torneos-focus-ring); outline-offset: var(--torneos-focus-ring-offset); }
+
+@keyframes rotate { to { transform: rotate(360deg); } }
+
+@media (max-width: 900px) {
+  .visualPolicy { grid-template-columns: 52px 1fr; }
+  .options { grid-column: 2; }
+}
+
+@media (max-width: 560px) {
+  .visualPolicy { grid-template-columns: 1fr; padding: 16px; }
+  .options { grid-column: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading svg,
+  .optionSpinner { animation-duration: 2s; }
+}

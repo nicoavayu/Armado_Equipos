@@ -70,6 +70,12 @@ function registration() {
     roster: { id: 'roster-a', version: 1, status: 'draft', players: [] },
     reviews: [],
     audit: [],
+    // 1C.3A: el permiso visual lo resuelve el servidor y viaja resuelto.
+    visualAssets: {
+      policy: 'organization_only',
+      canManageShield: true,
+      canManagePortraits: true,
+    },
   };
 }
 
@@ -269,7 +275,7 @@ describe('Arma2 Torneos teams flow', () => {
     }));
   });
 
-  test('uses the real capability and relationship contract for approved branding controls', async () => {
+  test('branding controls follow the server permission, never a local role read', async () => {
     const collaboratorService = createService({ role: 'collaborator' });
     collaboratorService.loadTeamRegistration.mockResolvedValue({
       ...registration(),
@@ -279,6 +285,11 @@ describe('Arma2 Torneos teams flow', () => {
         ...manager,
         isCurrentUser: false,
       })),
+      visualAssets: {
+        policy: 'organization_only',
+        canManageShield: false,
+        canManagePortraits: false,
+      },
     });
     const collaboratorView = renderPath(
       `/torneos/organizacion/${ORG}/equipos/${ENTRY}/inscripcion`,
@@ -298,9 +309,41 @@ describe('Arma2 Torneos teams flow', () => {
         role: 'delegate',
         isCurrentUser: true,
       }],
+      visualAssets: {
+        policy: 'organization_only',
+        canManageShield: false,
+        canManagePortraits: false,
+      },
     });
-    renderPath(`/torneos/organizacion/${ORG}/equipos/${ENTRY}/inscripcion`, delegateService);
+    const closedView = renderPath(
+      `/torneos/organizacion/${ORG}/equipos/${ENTRY}/inscripcion`,
+      delegateService,
+    );
+    // Mismo delegado, misma pantalla: sin la política habilitada no hay CTA,
+    // por más que el rol del usuario diga «delegate».
+    expect(await screen.findByRole('heading', { name: 'Napoli' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Subir' })).not.toBeInTheDocument();
+    closedView.unmount();
+
+    const selfManagedService = createService({ organizations: false });
+    selfManagedService.loadTeamRegistration.mockResolvedValue({
+      ...registration(),
+      entry: { ...registration().entry, status: 'approved', shieldPath: null },
+      roster: { ...registration().roster, status: 'approved' },
+      managers: [{
+        ...registration().managers[0],
+        role: 'delegate',
+        isCurrentUser: true,
+      }],
+      visualAssets: {
+        policy: 'delegates',
+        canManageShield: true,
+        canManagePortraits: true,
+      },
+    });
+    renderPath(`/torneos/organizacion/${ORG}/equipos/${ENTRY}/inscripcion`, selfManagedService);
     expect(await screen.findByRole('button', { name: 'Subir' })).toBeEnabled();
+    // El permiso es visual, no administrativo: la inscripción sigue cerrada.
     expect(screen.getByLabelText('Nombre')).toBeDisabled();
   });
 
@@ -310,6 +353,13 @@ describe('Arma2 Torneos teams flow', () => {
       ...registration(),
       entry: { ...registration().entry, status: 'withdrawn', shieldPath: null },
       roster: { ...registration().roster, status: 'approved' },
+      // La ventana de estados vive en can_update_tournament_team_branding: un
+      // equipo retirado nunca vuelve con permiso, ni siquiera para el owner.
+      visualAssets: {
+        policy: 'delegates',
+        canManageShield: false,
+        canManagePortraits: false,
+      },
     });
 
     renderPath(`/torneos/organizacion/${ORG}/equipos/${ENTRY}/inscripcion`, service);

@@ -64,21 +64,35 @@
   text-transform: uppercase;
 }
 
+/* Mismo sistema que `Continuar`: la geometría y la familia salen de los tokens
+   de Torneos, y cada variante sólo aporta su color. */
 .primaryButton,
 .secondaryButton,
 .backLink {
   display: inline-flex;
-  min-height: 44px;
+  min-height: var(--torneos-action-height);
   align-items: center;
   justify-content: center;
-  gap: 9px;
-  border-radius: 12px;
-  font-weight: 800;
+  gap: var(--torneos-action-gap);
+  border-radius: var(--torneos-action-radius);
+  font-family: var(--torneos-ui-font);
+  font-size: var(--torneos-action-font-size);
+  font-weight: var(--torneos-action-font-weight);
+  line-height: var(--torneos-action-line-height);
   text-decoration: none;
 }
 
+.primaryButton:focus-visible,
+.secondaryButton:focus-visible,
+.dangerButton:focus-visible,
+.iconButton:focus-visible,
+.backLink:focus-visible {
+  outline: var(--torneos-focus-ring);
+  outline-offset: var(--torneos-focus-ring-offset);
+}
+
 .primaryButton {
-  padding: 0 18px;
+  padding: 0 var(--torneos-action-padding-x);
   border: 1px solid #8097ff;
   background: linear-gradient(135deg, #5575ff, #795fff);
   color: white;
@@ -92,7 +106,7 @@
 }
 
 .secondaryButton {
-  padding: 0 16px;
+  padding: 0 var(--torneos-action-padding-x);
   border: 1px solid rgba(128, 151, 255, 0.45);
   background: rgba(87, 108, 207, 0.12);
   color: #e8edff;
@@ -102,15 +116,17 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  height: 42px;
-  padding: 0 18px;
-  font: inherit;
-  font-weight: 600;
+  gap: var(--torneos-action-gap);
+  min-height: var(--torneos-action-height);
+  padding: 0 var(--torneos-action-padding-x);
+  font-family: var(--torneos-ui-font);
+  font-size: var(--torneos-action-font-size);
+  font-weight: var(--torneos-action-font-weight);
+  line-height: var(--torneos-action-line-height);
   color: #2a0f0f;
   background: #ff9d7a;
   border: 1px solid transparent;
-  border-radius: 12px;
+  border-radius: var(--torneos-action-radius);
   cursor: pointer;
 }
 
@@ -716,6 +732,12 @@
   gap: 16px;
 }
 
+/* Quien entra sólo por autogestión visual no ve el panel de Responsables. Sin
+   este modificador la grilla igual le reserva la columna y deja el hueco. */
+.detailGridSolo {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .sidePanel,
 .requirementsPanel,
 .historyPanel {
@@ -895,19 +917,23 @@
   font-weight: 700;
 }
 
+/* `Reintentar` es la variante compacta del mismo sistema: vive dentro de un
+   aviso de una línea, así que baja de escala pero no cambia de lenguaje. */
 .portraitNotice button {
-  min-height: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--torneos-action-gap-sm);
+  min-height: var(--torneos-action-height-sm);
   margin-left: auto;
-  padding: 3px 10px;
+  padding: 0 var(--torneos-action-padding-x-sm);
   border: 1px solid rgba(255, 178, 122, 0.34);
-  border-radius: 8px;
+  border-radius: var(--torneos-action-radius-sm);
   background: transparent;
   color: #f7dcc2;
-  /* La misma familia que `.primaryButton` / `.secondaryButton`: un botón no
-     hereda la tipografía de la página, la declara. */
-  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-  font-size: 12px;
-  font-weight: 800;
+  font-family: var(--torneos-ui-font);
+  font-size: var(--torneos-action-font-size-sm);
+  font-weight: var(--torneos-action-font-weight);
+  line-height: var(--torneos-action-line-height);
   cursor: pointer;
 }
 
@@ -985,15 +1011,18 @@
   color: #72e5be;
 }
 
+/* Botón ícono: la excepción semántica de la escala. Es cuadrado y no lleva
+   texto, así que toma el radio compacto y no el del CTA. */
 .iconButton {
   display: grid;
-  width: 42px;
-  height: 42px;
+  width: var(--torneos-action-height-sm);
+  height: var(--torneos-action-height-sm);
   place-items: center;
   border: 1px solid rgba(255, 130, 111, 0.24);
-  border-radius: 11px;
+  border-radius: var(--torneos-action-radius-sm);
   background: rgba(181, 73, 58, 0.08);
   color: #ff9e8d;
+  cursor: pointer;
 }
 
 .requirementsPanel dl {

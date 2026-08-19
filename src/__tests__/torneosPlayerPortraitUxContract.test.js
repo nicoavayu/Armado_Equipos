@@ -132,7 +132,10 @@ test('la UI no ofrece el avatar global de Arma2 todavía', () => {
 // la Oswald editorial de `body`, así que la familia de los botones no se puede
 // dar por heredada. Éstas son las tres superficies con CTA de retrato/branding.
 test('los botones de acción llevan la tipografía estándar, nunca la editorial', () => {
-  const STANDARD = /font-family:\s*Inter,\s*ui-sans-serif,\s*system-ui,\s*sans-serif/;
+  // 1C.3A.1 movió la familia a un token de Torneos (`--torneos-ui-font`), que es
+  // la misma Inter y además llega a los portales. El invariante no cambió: lo
+  // que se afirma sigue siendo que estos botones no usan la familia editorial.
+  const STANDARD = /font-family:\s*(?:var\(--torneos-ui-font|Inter,\s*ui-sans-serif,\s*system-ui,\s*sans-serif)/;
   // Los CTA del retrato —Cambiar, Quitar, Subir foto, Guardar foto, Cancelar,
   // Elegir otra foto— se declaran juntos: una sola regla, una sola familia.
   const portraitButtons = block(editorCss, '.rowActions button,\n.dialogActions button,\n.fileButton');
@@ -145,8 +148,9 @@ test('los botones de acción llevan la tipografía estándar, nunca la editorial
   ];
   for (const surface of surfaces) {
     expect(surface).toMatch(STANDARD);
-    // Bebas y Oswald siguen siendo de los títulos: acá no entran.
-    expect(surface).not.toMatch(/Bebas|Oswald/);
+    // Bebas y Oswald siguen siendo de los títulos: acá no entran. El fallback
+    // del token nombra Inter, nunca la editorial.
+    expect(surface).not.toMatch(/Bebas|Oswald|--torneos-editorial-font/);
   }
 });
 

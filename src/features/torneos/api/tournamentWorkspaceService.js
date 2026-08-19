@@ -246,6 +246,28 @@ export async function loadTournamentPublicPageSettings({
   }), 'No pudimos cargar el estado de la página pública.');
 }
 
+export async function loadTournamentTeamVisualPolicy({
+  organizationId,
+  tournamentId,
+}) {
+  return unwrapRpc(await supabase.rpc('get_tournament_team_visual_policy', {
+    p_organization_id: organizationId,
+    p_tournament_id: tournamentId,
+  }), 'No pudimos cargar la gestión de imágenes por los equipos.');
+}
+
+export async function setTournamentTeamVisualPolicy({
+  organizationId,
+  tournamentId,
+  policy,
+}) {
+  return unwrapRpc(await supabase.rpc('set_tournament_team_visual_policy', {
+    p_organization_id: organizationId,
+    p_tournament_id: tournamentId,
+    p_policy: policy,
+  }), 'No pudimos actualizar la gestión de imágenes por los equipos.');
+}
+
 export async function setTournamentPublicPagePublished({
   organizationId,
   tournamentId,
@@ -2076,6 +2098,8 @@ export const tournamentWorkspaceService = Object.freeze({
   setSocialPermission: setTournamentSocialPermission,
   loadPublicPageSettings: loadTournamentPublicPageSettings,
   setPublicPagePublished: setTournamentPublicPagePublished,
+  loadTeamVisualPolicy: loadTournamentTeamVisualPolicy,
+  setTeamVisualPolicy: setTournamentTeamVisualPolicy,
   resolveTeamShieldUrl,
   createIdempotencyKey,
 });

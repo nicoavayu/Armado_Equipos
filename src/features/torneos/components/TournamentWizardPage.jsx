@@ -56,6 +56,7 @@ import {
 } from '../domain/capabilities';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import TournamentPublicPageSettings from './TournamentPublicPageSettings';
+import TeamVisualPolicySettings from './TeamVisualPolicySettings';
 import BrandingAssetField from './BrandingAssetField';
 import styles from './CompetitionCore.module.css';
 
@@ -613,6 +614,13 @@ export default function TournamentWizardPage() {
           organizationId={organization.id}
           tournamentId={tournament.id}
           canPublish={canUpdate}
+        />
+      )}
+
+      {!isNew && (
+        <TeamVisualPolicySettings
+          organizationId={organization.id}
+          tournamentId={tournament.id}
         />
       )}
 

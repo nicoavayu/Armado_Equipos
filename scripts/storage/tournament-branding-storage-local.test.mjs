@@ -53,6 +53,14 @@ test('tournament branding Storage and reference policies are tenant scoped', { s
   const originalBrandingAuditIds = new Set();
   let qa = null;
   let originalParticipantShields = [];
+  let originalVisualPolicy = null;
+  /** Cambia la política del torneo QA; el `finally` restituye el valor previo. */
+  const setVisualPolicy = async (policy) => {
+    await database.query(
+      'update public.tournaments set team_visual_management_policy = $2 where id = $1',
+      [qa.tournament_id, policy],
+    );
+  };
   await database.connect();
   try {
     const { rows } = await database.query(
@@ -99,6 +107,10 @@ test('tournament branding Storage and reference policies are tenant scoped', { s
     );
     assert.equal(rows.length, 1, 'The canonical QA dataset is required.');
     qa = rows[0];
+    originalVisualPolicy = (await database.query(
+      'select team_visual_management_policy as policy from public.tournaments where id = $1',
+      [qa.tournament_id],
+    )).rows[0].policy;
     const originalAudits = await database.query(
       `select id from public.tournament_audit_log
        where resource_id = $1 and action like 'branding.%'`,
@@ -137,19 +149,34 @@ test('tournament branding Storage and reference policies are tenant scoped', { s
 
     const approvedTeamPath = `${qa.organization_id}/teams/${qa.team_id}/${randomUUID()}.png`;
     const replacementTeamPath = `${qa.organization_id}/teams/${qa.team_id}/${randomUUID()}.png`;
-    for (const [client, expected, label] of [
-      [owner, true, 'owner'],
-      [adminMember, true, 'admin'],
-      [collaborator, false, 'collaborator without update capability'],
-      [delegate, true, 'active team delegate'],
-      [outsider, false, 'outsider'],
-    ]) {
-      const authorization = await client.rpc('can_write_tournament_branding_object', {
-        p_name: approvedTeamPath,
-      });
-      assert.ifError(authorization.error);
-      assert.equal(authorization.data, expected, `Unexpected branding authorization for ${label}.`);
-    }
+    // Desde 1C.3A el escudo del equipo pasa por la política de autogestión del
+    // torneo: la organización manda siempre, y el capitán/delegado entra sólo
+    // cuando el organizador lo habilita. Se mide contra el mismo helper que
+    // usan las policies de Storage, en los dos valores.
+    const brandingMatrix = async (label) => {
+      const seen = {};
+      for (const [client, role] of [
+        [owner, 'owner'], [adminMember, 'admin'],
+        [collaborator, 'collaborator'], [delegate, 'delegate'], [outsider, 'outsider'],
+      ]) {
+        const authorization = await client.rpc('can_write_tournament_branding_object', {
+          p_name: approvedTeamPath,
+        });
+        assert.ifError(authorization.error);
+        seen[role] = authorization.data;
+      }
+      return [label, seen];
+    };
+
+    await setVisualPolicy('organization_only');
+    assert.deepEqual((await brandingMatrix('closed'))[1], {
+      owner: true, admin: true, collaborator: false, delegate: false, outsider: false,
+    }, 'organization_only: sólo la organización escribe el escudo');
+
+    await setVisualPolicy('delegates');
+    assert.deepEqual((await brandingMatrix('delegates'))[1], {
+      owner: true, admin: true, collaborator: false, delegate: true, outsider: false,
+    }, 'delegates: el responsable del propio equipo escribe su escudo');
 
     for (const path of [approvedTeamPath, replacementTeamPath]) {
       const upload = await owner.storage.from(bucket).upload(path, png, {
@@ -290,6 +317,12 @@ test('tournament branding Storage and reference policies are tenant scoped', { s
     assert.ok(context.data?.organization?.logoPath);
 
   } finally {
+    if (qa && originalVisualPolicy) {
+      await database.query(
+        'update public.tournaments set team_visual_management_policy = $2 where id = $1',
+        [qa.tournament_id, originalVisualPolicy],
+      ).catch(() => {});
+    }
     if (qa) {
       await database.query(
         `update public.tournament_team_entries

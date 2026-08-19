@@ -44,7 +44,7 @@
 }
 .hero h1 {
   margin: 0;
-  font-family: "Bebas Neue", "Oswald", sans-serif;
+  font-family: var(--torneos-editorial-font);
   font-size: clamp(42px, 7vw, 76px);
   font-weight: 500;
   letter-spacing: .025em;
@@ -138,19 +138,25 @@
   border-color: var(--media-cyan);
   box-shadow: 0 0 0 3px rgba(99,238,208,.12);
 }
+/* Multimedia usaba tres radios distintos para tres botones que hacen lo mismo.
+   Los CTAs entran al sistema de `Continuar`; lo propio de Multimedia sigue
+   siendo el color. */
 .toolbar > button, .composer footer button:last-child, .uploadPanel > button,
 .galleryActions button:first-child {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  min-height: 44px;
+  gap: var(--torneos-action-gap);
+  min-height: var(--torneos-action-height);
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--torneos-action-radius);
   background: linear-gradient(120deg, var(--media-violet), #7657ff);
   color: white;
-  font-weight: 800;
-  padding: 0 16px;
+  font-family: var(--torneos-ui-font);
+  font-size: var(--torneos-action-font-size);
+  font-weight: var(--torneos-action-font-weight);
+  line-height: var(--torneos-action-line-height);
+  padding: 0 var(--torneos-action-padding-x);
   cursor: pointer;
 }
 
@@ -176,12 +182,16 @@
 .wideField { grid-column: 1 / -1; }
 .composer footer, .galleryActions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
 .composer footer button, .galleryActions button {
-  min-height: 44px;
+  min-height: var(--torneos-action-height);
   border: 1px solid rgba(255,255,255,.12);
-  border-radius: 12px;
+  border-radius: var(--torneos-action-radius);
   background: transparent;
   color: #eee9f8;
-  padding: 0 16px;
+  font-family: var(--torneos-ui-font);
+  font-size: var(--torneos-action-font-size);
+  font-weight: var(--torneos-action-font-weight);
+  line-height: var(--torneos-action-line-height);
+  padding: 0 var(--torneos-action-padding-x);
   cursor: pointer;
 }
 
@@ -263,19 +273,24 @@
 .queue article > span { display: grid; gap: 2px; min-width: 0; }
 .queue article > span small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .queue article > span em { color: #f4c27e; font-size: 11px; font-style: normal; }
+/* Acciones de fila: variante compacta del mismo sistema. */
 .queue button, .assetActions button {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  min-width: 44px;
-  min-height: 44px;
+  justify-content: center;
+  gap: var(--torneos-action-gap-sm);
+  min-width: var(--torneos-action-height-sm);
+  min-height: var(--torneos-action-height-sm);
   border: 1px solid rgba(255,255,255,.1);
-  border-radius: 9px;
+  border-radius: var(--torneos-action-radius-sm);
   background: transparent;
   color: #dcd5e9;
+  font-family: var(--torneos-ui-font);
+  font-weight: var(--torneos-action-font-weight);
+  line-height: var(--torneos-action-line-height);
   cursor: pointer;
 }
-.queue button { padding: 0 10px; }
+.queue button { padding: 0 var(--torneos-action-padding-x-sm); }
 
 .assetGrid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; }
 .assetCard { overflow: hidden; border: 1px solid rgba(255,255,255,.08); border-radius: 16px; background: #171321; }
@@ -326,7 +341,7 @@
 .stateCard svg { color: var(--media-violet); }
 .stateCard h2 { margin: 12px 0 4px; }
 .stateCard p { max-width: 480px; margin: 0; color: #948c9f; line-height: 1.5; }
-.stateCard button { margin-top: 15px; min-height: 44px; border-radius: 11px; }
+.stateCard button { margin-top: 15px; min-height: var(--torneos-action-height); border-radius: var(--torneos-action-radius); }
 
 .reports { padding: 20px; border: 1px solid rgba(255,176,90,.2); border-radius: 20px; background: rgba(42,25,21,.35); }
 .reports > header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
@@ -337,7 +352,7 @@
 .reports article small { color: #9d94a7; }
 .reports article > em { color: #ffc271; font-size: 10px; font-style: normal; text-transform: uppercase; }
 .reports article > div { display: flex; gap: 6px; }
-.reports button { min-height: 44px; border: 1px solid rgba(255,255,255,.1); border-radius: 9px; background: transparent; color: white; }
+.reports button { min-height: var(--torneos-action-height-sm); padding: 0 var(--torneos-action-padding-x-sm); border: 1px solid rgba(255,255,255,.1); border-radius: var(--torneos-action-radius-sm); background: transparent; color: white; font-family: var(--torneos-ui-font); font-size: var(--torneos-action-font-size-sm); font-weight: var(--torneos-action-font-weight); cursor: pointer; }
 
 .skeleton { display: grid; gap: 14px; }
 .skeleton span { display: block; height: 150px; border-radius: 22px; background: linear-gradient(90deg,#15111f,#21192d,#15111f); background-size: 200% 100%; animation: media-shimmer 1.2s infinite; }
