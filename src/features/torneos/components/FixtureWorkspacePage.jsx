@@ -22,6 +22,7 @@ import { Link, useOutletContext, useParams } from 'react-router-dom';
 import { useTorneosCompetition } from '../context/TorneosCompetitionContext';
 import { useTorneosFixture } from '../context/TorneosFixtureContext';
 import { hasCapability, TOURNAMENT_CAPABILITIES } from '../domain/capabilities';
+import { RESOURCE_SCOPE_MESSAGE, resolveScopedResource } from '../domain/routeResourceScope';
 import {
   formatInstantInTimeZone,
   instantToZonedLocalInput,
@@ -524,7 +525,11 @@ function RoundsPanel({ bracket = false, canManage = false }) {
   const {
     participants, versions, phases, rounds, matches,
   } = useTorneosFixture();
-  const version = versions.find((item) => item.id === fixtureVersionId)
+  // Una versión pedida por URL que no está entre las de este torneo y esta
+  // categoría no puede degradarse a la publicada: eso mostraría otra versión
+  // bajo una dirección que nombra una distinta.
+  const requestedVersion = resolveScopedResource(versions, fixtureVersionId);
+  const version = requestedVersion.resource
     || versions.find((item) => item.status === 'published')
     || versions[0];
   const visibleRounds = rounds.filter((round) => (
@@ -550,6 +555,14 @@ function RoundsPanel({ bracket = false, canManage = false }) {
     && (!roundId || match.roundId === roundId)
     && (!matchId || match.id === matchId)
   ));
+  if (requestedVersion.outOfScope) {
+    return (
+      <section className={styles.panel} role="alert">
+        <h2>Versión no encontrada</h2>
+        <p>{RESOURCE_SCOPE_MESSAGE}</p>
+      </section>
+    );
+  }
   if (bracket) {
     const knockoutPhases = phases.filter((phase) => (
       phase.fixtureVersionId === version?.id && phase.phaseType !== 'league' && phase.phaseType !== 'groups'

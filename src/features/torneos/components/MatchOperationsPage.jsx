@@ -42,6 +42,10 @@ import {
   getMatchResolutionPresentation,
 } from '../domain/competitionLifecycle';
 import { tournamentMatches } from '../routing/canonicalRoutes';
+import {
+  RESOURCE_SCOPE_MESSAGE,
+  resourceMatchesCanonicalScope,
+} from '../domain/routeResourceScope';
 import { describeMatchOutcomeGap } from '../domain/matchOutcome';
 import { describeEarlyOpen, isEarlyOpenReasonValid } from '../domain/matchSchedule';
 import {
@@ -804,6 +808,16 @@ export default function MatchOperationsPage({ mode = 'list' }) {
           organizationId: organization.id,
           operationId: match.operationId,
         });
+        // `get_tournament_match_operation_context(org, operationId)` no recibe
+        // torneo: autoriza la lectura, pero no afirma que la operación sea del
+        // torneo de esta URL. La operación sí trae `tournament_id`, así que la
+        // pertenencia se comprueba acá en vez de asumirse.
+        if (!resourceMatchesCanonicalScope(operation?.operation, {
+          organizationId: organization.id,
+          tournamentId: activeTournament.id,
+        })) {
+          throw new Error(RESOURCE_SCOPE_MESSAGE);
+        }
       }
       if (match && mode === 'squads') {
         const contexts = await Promise.all([

@@ -232,6 +232,94 @@ describe('canonical tournament routing', () => {
     });
   });
 
+  describe('a resource is not trusted just because the URL names it', () => {
+    test('an operation from tournament B never renders under tournament A', async () => {
+      const api = createService();
+      const MATCH = 'b5000000-0000-4000-8000-000000000001';
+      api.loadMatchOperations.mockResolvedValue({
+        matches: [{
+          id: MATCH,
+          categoryId: CATEGORY_A,
+          matchNumber: 1,
+          homeTeamEntryId: 'home',
+          awayTeamEntryId: 'away',
+          homeName: 'Napoli',
+          awayName: 'Belgrano',
+          operationId: 'operation-a',
+          operationStatus: 'draft',
+        }],
+      });
+      // El RPC autoriza la lectura pero no recibe torneo: devuelve una
+      // operación que pertenece a B.
+      api.loadMatchOperation.mockResolvedValue({
+        operation: {
+          id: 'operation-a',
+          tournament_id: TOURNAMENT_B,
+          organization_id: ORG,
+          status: 'draft',
+          home_team_entry_id: 'home',
+          away_team_entry_id: 'away',
+          home_team_snapshot: { name: 'Napoli' },
+          away_team_snapshot: { name: 'Belgrano' },
+        },
+        outcome: null,
+        score: null,
+        events: [],
+        players: [],
+        reviews: [],
+      });
+
+      renderPath(`${tournamentMatches(ORG, TOURNAMENT_A)}/${MATCH}/acta`, api);
+      expect(await screen.findByText(
+        /no pertenece al torneo de esta dirección/i,
+        {},
+        { timeout: 5000 },
+      )).toBeInTheDocument();
+    });
+
+    test('an operation of the URL tournament renders normally', async () => {
+      const api = createService();
+      const MATCH = 'b5000000-0000-4000-8000-000000000002';
+      api.loadMatchOperations.mockResolvedValue({
+        matches: [{
+          id: MATCH,
+          categoryId: CATEGORY_A,
+          matchNumber: 1,
+          homeTeamEntryId: 'home',
+          awayTeamEntryId: 'away',
+          homeName: 'Napoli',
+          awayName: 'Belgrano',
+          operationId: 'operation-b',
+          operationStatus: 'draft',
+        }],
+      });
+      api.loadMatchOperation.mockResolvedValue({
+        operation: {
+          id: 'operation-b',
+          tournament_id: TOURNAMENT_A,
+          organization_id: ORG,
+          status: 'draft',
+          home_team_entry_id: 'home',
+          away_team_entry_id: 'away',
+          home_team_snapshot: { name: 'Napoli' },
+          away_team_snapshot: { name: 'Belgrano' },
+        },
+        outcome: null,
+        score: null,
+        events: [],
+        players: [],
+        reviews: [],
+      });
+
+      renderPath(`${tournamentMatches(ORG, TOURNAMENT_A)}/${MATCH}/acta`, api);
+      await waitFor(() => {
+        expect(api.loadMatchOperation).toHaveBeenCalled();
+      }, { timeout: 5000 });
+      expect(screen.queryByText(/no pertenece al torneo de esta dirección/i))
+        .not.toBeInTheDocument();
+    });
+  });
+
   describe('?categoria= is the reproducible category', () => {
     test('a valid category from the URL wins over the default', async () => {
       const api = createService();
