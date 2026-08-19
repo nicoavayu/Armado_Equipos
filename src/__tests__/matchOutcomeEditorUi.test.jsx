@@ -64,6 +64,12 @@ function createService() {
     loadMatchOperation: jest.fn().mockResolvedValue({
       operation: {
         id: OPERATION,
+        // La operación declara su torneo y su organización, igual que la
+        // tabla real: son columnas not null y la UI las usa para comprobar
+        // que el recurso es el de la URL.
+        organization_id: ORG,
+        tournament_id: TOURNAMENT,
+        category_id: CATEGORY,
         operation_version: 1,
         status: 'draft',
         home_team_entry_id: HOME,
