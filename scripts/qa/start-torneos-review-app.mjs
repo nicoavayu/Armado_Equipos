@@ -22,8 +22,7 @@
 //   npm run qa:torneos:review            (verifica el destino y no arranca nada)
 //   npm run qa:torneos:review -- --start (verifica y arranca la app)
 //
-import { execFileSync } from 'node:child_process';
-import { spawn } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
@@ -38,6 +37,12 @@ const DATABASE_URL = 'postgresql://postgres:postgres@127.0.0.1:57322/postgres';
 const APP_PORT = '3100';
 const APP_HOST = '127.0.0.1';
 const REVIEW_SEED_KEY = 'qa.review.supplement.v1';
+const AUTH_STATE_DIRECTORY = path.join('.secrets', 'torneos-review-auth');
+// Los JWT LOCAL duran seis horas. Renovarlos recién cuando vencen significa
+// descubrirlo a mitad de una revisión, con un rol que de golpe no entra. Se
+// renuevan cuando les queda menos de una hora: siempre antes, nunca durante.
+const AUTH_STATE_MIN_SECONDS_LEFT = 3600;
+const QA_ROLES = ['owner', 'admin', 'collaborator', 'delegate', 'player', 'outsider'];
 
 // Los diez flags de producto y los cinco de readiness multimedia. La lista es
 // la misma que compila la app: si allá se agrega uno, este arranque lo delata
@@ -255,6 +260,9 @@ function buildChildEnvironment(anonKey) {
     // El gate exige un deploy no productivo además del backend aislado.
     REACT_APP_DEPLOY_ENV: 'development',
     REACT_APP_TORNEOS_STAGING_PROJECT_REF: '',
+    // El único lugar donde este flag se pone en true. No está en .env.example ni
+    // en ningún archivo: sin este arranque, el selector de rol no existe.
+    REACT_APP_TORNEOS_QA_ROLE_SWITCHER: 'true',
     REACT_APP_PUBLIC_APP_URL: `http://${APP_HOST}:${APP_PORT}`,
     REACT_APP_AUTH_REDIRECT_URL: `http://${APP_HOST}:${APP_PORT}/auth/callback`,
     ...enabled,
@@ -289,7 +297,183 @@ function assertFlagCoverage(repoRoot) {
   return { checked: true, covered: covered.size };
 }
 
-function main() {
+
+/**
+ * Resuelve el secreto JWT del stack LOCAL desde el propio container de Auth.
+ * No se imprime nunca: sólo viaja al proceso que firma los tokens QA.
+ */
+function resolveLocalJwtSecret(docker) {
+  try {
+    const secret = dockerOut(docker, [
+      'exec', `supabase_auth_${STACK_PROJECT}`, 'printenv', 'GOTRUE_JWT_SECRET',
+    ]);
+    if (!secret) throw new Error('empty');
+    return secret;
+  } catch {
+    return fail(
+      'No se pudo resolver el secreto JWT del stack LOCAL.',
+      'El container de Auth del stack canónico tiene que exponer GOTRUE_JWT_SECRET.',
+    );
+  }
+}
+
+/**
+ * Una sesión QA sirve si el archivo está, si tiene los permisos correctos, si
+ * fue emitida para este origen y si a su token le queda vida suficiente. Lo que
+ * se devuelve es el diagnóstico: el contenido del archivo no sale de acá.
+ */
+function inspectAuthStates(repoRoot) {
+  const directory = path.join(repoRoot, AUTH_STATE_DIRECTORY);
+  const expectedOrigin = `http://${APP_HOST}:${APP_PORT}`;
+  const now = Math.floor(Date.now() / 1000);
+  const problems = [];
+  let soonestSecondsLeft = Infinity;
+
+  for (const role of QA_ROLES) {
+    const file = path.join(directory, `${role}.json`);
+    let stats;
+    try {
+      stats = fs.lstatSync(file);
+    } catch {
+      problems.push(`${role}: falta`);
+      continue;
+    }
+    if (!stats.isFile() || stats.isSymbolicLink()) {
+      problems.push(`${role}: no es un archivo regular`);
+      continue;
+    }
+    if ((stats.mode & 0o077) !== 0) {
+      problems.push(`${role}: permisos más laxos que 0600`);
+      continue;
+    }
+    let session;
+    try {
+      const state = JSON.parse(fs.readFileSync(file, 'utf8'));
+      const origin = (state.origins || []).find((entry) => entry.origin === expectedOrigin);
+      const stored = (origin?.localStorage || []).find(
+        (entry) => entry.name === 'sb-127-auth-token',
+      );
+      session = JSON.parse(stored.value);
+    } catch {
+      problems.push(`${role}: storage state ilegible o de otro origen`);
+      continue;
+    }
+    const secondsLeft = Number(session.expires_at || 0) - now;
+    if (secondsLeft < AUTH_STATE_MIN_SECONDS_LEFT) {
+      problems.push(secondsLeft <= 0 ? `${role}: vencida` : `${role}: vence en breve`);
+      continue;
+    }
+    soonestSecondsLeft = Math.min(soonestSecondsLeft, secondsLeft);
+  }
+
+  return {
+    directory,
+    ok: problems.length === 0,
+    problems,
+    soonestSecondsLeft: Number.isFinite(soonestSecondsLeft) ? soonestSecondsLeft : 0,
+  };
+}
+
+/**
+ * Verifica contra Auth LOCAL, que es la única autoridad: un archivo bien formado
+ * con un token que el stack no reconoce no es una sesión.
+ */
+async function verifyAuthStates(repoRoot, anonKey) {
+  const directory = path.join(repoRoot, AUTH_STATE_DIRECTORY);
+  const rejected = [];
+  for (const role of QA_ROLES) {
+    try {
+      const state = JSON.parse(fs.readFileSync(path.join(directory, `${role}.json`), 'utf8'));
+      const stored = state.origins[0].localStorage.find(
+        (entry) => entry.name === 'sb-127-auth-token',
+      );
+      const session = JSON.parse(stored.value);
+      const response = await fetch(`${API_ORIGIN}/auth/v1/user`, {
+        headers: { apikey: anonKey, authorization: `Bearer ${session.access_token}` },
+      });
+      if (!response.ok) {
+        rejected.push(`${role}: Auth LOCAL respondió ${response.status}`);
+        continue;
+      }
+      const user = await response.json();
+      if (user?.app_metadata?.qa_role !== role) {
+        rejected.push(`${role}: Auth LOCAL reconoce otra identidad`);
+      }
+    } catch {
+      rejected.push(`${role}: no se pudo verificar contra Auth LOCAL`);
+    }
+  }
+  return rejected;
+}
+
+/**
+ * Regenera las seis sesiones con el generador canónico. No se inventa ningún
+ * refresh: se vuelven a firmar tokens de seis horas contra las identidades QA
+ * que ya existen en el stack.
+ */
+function regenerateAuthStates(repoRoot, docker, anonKey) {
+  const childEnvironment = { ...process.env };
+  // El generador rechaza URLs de base de datos en conflicto: el destino LOCAL
+  // tiene que ser el único que el proceso declara.
+  delete childEnvironment.DATABASE_URL;
+  delete childEnvironment.SUPABASE_DB_URL;
+  delete childEnvironment.ARMA2_TARGET_DATABASE_URL;
+  delete childEnvironment.QA_SUPABASE_URL;
+
+  const result = spawnSync(process.execPath, [
+    path.join('scripts', 'qa', 'prepare-torneos-local-auth-states.mjs'), '--write-local',
+  ], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+    env: {
+      ...childEnvironment,
+      QA_ALLOW_LOCAL_AUTH_STATES: 'true',
+      QA_SEED_ENV: 'local',
+      QA_SEED_PROJECT_REF: 'local',
+      QA_SEED_DATABASE_URL: DATABASE_URL,
+      QA_SUPABASE_URL: API_ORIGIN,
+      QA_SUPABASE_ANON_KEY: anonKey,
+      QA_LOCAL_JWT_SECRET: resolveLocalJwtSecret(docker),
+      QA_BASE_URL: `http://${APP_HOST}:${APP_PORT}`,
+      QA_AUTH_STATE_DIR: AUTH_STATE_DIRECTORY,
+    },
+  });
+  if (result.status !== 0) {
+    fail(
+      'No se pudieron regenerar las sesiones QA.',
+      `El generador canónico salió con código ${result.status}.\n`
+      + `${String(result.stderr || '').trim().slice(0, 400)}`,
+    );
+  }
+}
+
+/**
+ * Deja las seis sesiones utilizables o falla. Nunca se llega a la app con
+ * sesiones a medias: descubrir el vencimiento al cambiar de rol es exactamente
+ * lo que este paso viene a evitar.
+ */
+async function ensureAuthStates(repoRoot, docker, anonKey) {
+  let inspection = inspectAuthStates(repoRoot);
+  let rejected = inspection.ok ? await verifyAuthStates(repoRoot, anonKey) : [];
+  const reasons = [...inspection.problems, ...rejected];
+
+  if (reasons.length === 0) {
+    return { regenerated: false, secondsLeft: inspection.soonestSecondsLeft, reasons: [] };
+  }
+
+  regenerateAuthStates(repoRoot, docker, anonKey);
+  inspection = inspectAuthStates(repoRoot);
+  rejected = inspection.ok ? await verifyAuthStates(repoRoot, anonKey) : [];
+  if (!inspection.ok || rejected.length > 0) {
+    fail(
+      'Las sesiones QA siguen sin ser utilizables después de regenerarlas.',
+      [...inspection.problems, ...rejected].join('\n  '),
+    );
+  }
+  return { regenerated: true, secondsLeft: inspection.soonestSecondsLeft, reasons };
+}
+
+async function main() {
   const repoRoot = process.cwd();
   const shouldStart = process.argv.includes('--start');
 
@@ -314,6 +498,7 @@ function main() {
   console.log(`  branch / HEAD    ${checkout.branch} @ ${checkout.head}${checkout.dirty ? ' (working tree sucio)' : ''}`);
   console.log(`  flags Torneos    ${coverage.covered} en true, DATA_ENV=local, LOCAL_EDIT_MODE=false`);
   console.log(`  app              http://${APP_HOST}:${APP_PORT}`);
+  console.log(`  selector de rol  http://${APP_HOST}:${APP_PORT}/qa/rol (puente en /__qa/role-switcher)`);
 
   if (!dataset.reviewSeed) {
     console.log('');
@@ -327,6 +512,15 @@ function main() {
     return;
   }
 
+  const sessions = await ensureAuthStates(repoRoot, docker, anonKey);
+  const hoursLeft = (sessions.secondsLeft / 3600).toFixed(1);
+  if (sessions.regenerated) {
+    console.log(`  sesiones QA      regeneradas (${QA_ROLES.length} roles, ~${hoursLeft} h de vida)`);
+    console.log(`                   motivo: ${sessions.reasons.join('; ')}`);
+  } else {
+    console.log(`  sesiones QA      ${QA_ROLES.length} válidas (~${hoursLeft} h de vida)`);
+  }
+
   assertPortIsFree(docker);
   const child = spawn('npx', ['react-scripts', 'start'], {
     cwd: repoRoot,
@@ -336,12 +530,10 @@ function main() {
   child.on('exit', (code) => process.exit(code ?? 0));
 }
 
-try {
-  main();
-} catch (error) {
+main().catch((error) => {
   if (error instanceof ReviewStartError || error instanceof ProductionGuardError) {
     console.error(`\n[qa:torneos:review] ${error.message}\n`);
     process.exit(1);
   }
   throw error;
-}
+});

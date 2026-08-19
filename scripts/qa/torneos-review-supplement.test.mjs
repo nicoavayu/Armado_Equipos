@@ -130,3 +130,56 @@ test('un ref de Supabase remoto heredado aborta el arranque', () => {
   assert.equal(result.status, 1);
   assert.match(result.stderr, /remoto/i);
 });
+
+test('el arranque enciende el selector de rol y es el único lugar que lo hace', () => {
+  const source = fs.readFileSync(LAUNCHER, 'utf8');
+  assert.match(source, /REACT_APP_TORNEOS_QA_ROLE_SWITCHER: 'true'/);
+
+  // El flag no puede venir de un archivo: si estuviera en .env* alcanzaría con
+  // arrancar CRA a mano para tener el selector, y eso es exactamente lo que el
+  // gate explícito viene a impedir.
+  const tracked = execFileSync('git', ['ls-files'], { cwd: ROOT, encoding: 'utf8' })
+    .split('\n')
+    .filter((file) => /(^|\/)\.env/.test(file) && fs.existsSync(path.join(ROOT, file)));
+  for (const file of tracked) {
+    const contents = fs.readFileSync(path.join(ROOT, file), 'utf8');
+    const line = contents.split('\n').find(
+      (candidate) => candidate.trim().startsWith('REACT_APP_TORNEOS_QA_ROLE_SWITCHER'),
+    );
+    assert.equal(
+      Boolean(line && /=\s*true\s*$/.test(line)),
+      false,
+      `${file} no puede dejar el selector encendido`,
+    );
+  }
+});
+
+test('el arranque prepara, verifica y renueva las seis sesiones QA', () => {
+  const source = fs.readFileSync(LAUNCHER, 'utf8');
+
+  // Las cuatro condiciones de la renovación: faltante, permisos, origen ajeno y
+  // vencimiento próximo. Ninguna se descubre recién al cambiar de rol.
+  assert.match(source, /AUTH_STATE_MIN_SECONDS_LEFT = 3600/);
+  assert.match(source, /faltan?|falta/);
+  assert.match(source, /permisos más laxos que 0600/);
+  assert.match(source, /storage state ilegible o de otro origen/);
+  assert.match(source, /vencida/);
+
+  // La verificación es contra Auth LOCAL, no contra el archivo.
+  assert.match(source, /auth\/v1\/user/);
+  assert.match(source, /app_metadata\?\.qa_role !== role/);
+
+  // Se reutiliza el generador canónico: no hay refresh tokens inventados.
+  assert.match(source, /prepare-torneos-local-auth-states\.mjs/);
+  assert.equal(/refresh_token\s*:/.test(source), false);
+
+  // Y el arranque falla si después de regenerar siguen sin servir.
+  assert.match(source, /siguen sin ser utilizables después de regenerarlas/);
+});
+
+test('el arranque no imprime el secreto JWT ni el contenido de las sesiones', () => {
+  const source = fs.readFileSync(LAUNCHER, 'utf8');
+  assert.equal(/console\.log\([^)]*\b(jwtSecret|access_token|session\.)/.test(source), false);
+  assert.equal(/console\.log\([^)]*GOTRUE_JWT_SECRET/.test(source), false);
+  assert.match(source, /No se puede resolver|No se pudo resolver el secreto JWT/);
+});
