@@ -31,6 +31,7 @@ import CreateOrganizationPage from './CreateOrganizationPage';
 import CompetitionOverviewPage from './CompetitionOverviewPage';
 import OrganizationMembersPage from './OrganizationMembersPage';
 import OrganizationRouteGuard from './OrganizationRouteGuard';
+import TournamentRouteGuard from './TournamentRouteGuard';
 import OrganizationSettingsPage from './OrganizationSettingsPage';
 import PlanExperiencePage from './PlanExperiencePage';
 import TorneosDashboard from './TorneosDashboard';
@@ -90,6 +91,13 @@ function TournamentConfigurationRedirect({ step = null }) {
       replace
     />
   );
+}
+
+// Los redirects internos de las rutas canónicas no pueden tirar `?categoria=`:
+// la categoría es parte de lo que la URL reproduce.
+function CanonicalIndexRedirect({ to }) {
+  const { search } = useLocation();
+  return <Navigate to={{ pathname: to, search }} replace />;
 }
 
 function TeamEntryRedirect() {
@@ -276,6 +284,37 @@ export default function TorneosShell() {
                 path="torneos/:tournamentId/categorias"
                 element={<TournamentConfigurationRedirect step={4} />}
               />
+              {/*
+                * Rutas canónicas montadas EN PARALELO con las legacy. Todavía
+                * no se retira ninguna vieja: el objetivo del hito es validar
+                * el modelo, no cortar accesos.
+                */}
+              <Route path="torneo/:tournamentId" element={<TournamentRouteGuard />}>
+                <Route index element={<CanonicalIndexRedirect to="fixture" />} />
+                <Route path="configuracion" element={<TournamentWizardPage />} />
+                <Route path="fixture" element={<FixtureWorkspacePage mode="overview" />} />
+                <Route path="fixture/participantes" element={<FixtureWorkspacePage mode="participants" />} />
+                <Route path="fixture/bombos" element={<FixtureWorkspacePage mode="pots" />} />
+                <Route path="fixture/sorteo" element={<FixtureWorkspacePage mode="draw" />} />
+                <Route path="fixture/grupos" element={<FixtureWorkspacePage mode="groups" />} />
+                <Route path="fixture/generar" element={<FixtureWorkspacePage mode="generate" />} />
+                <Route path="fixture/version/:fixtureVersionId" element={<FixtureWorkspacePage mode="rounds" />} />
+                <Route path="fixture/jornadas" element={<FixtureWorkspacePage mode="rounds" />} />
+                <Route path="fixture/jornadas/:roundId" element={<FixtureWorkspacePage mode="rounds" />} />
+                <Route path="fixture/llave" element={<FixtureWorkspacePage mode="bracket" />} />
+                <Route path="programacion" element={<FixtureWorkspacePage mode="schedule" />} />
+                <Route path="partidos" element={<MatchOperationsPage mode="list" />} />
+                <Route path="partidos/:matchId" element={<MatchOperationsPage mode="detail" />} />
+                <Route path="partidos/:matchId/convocatorias" element={<MatchOperationsPage mode="squads" />} />
+                <Route path="partidos/:matchId/acta" element={<MatchOperationsPage mode="report" />} />
+                <Route path="partidos/:matchId/revision" element={<MatchOperationsPage mode="review" />} />
+                <Route path="partidos/:matchId/historial" element={<MatchOperationsPage mode="history" />} />
+                <Route path="competencia" element={<CanonicalIndexRedirect to="tabla" />} />
+                <Route path="competencia/tabla" element={<CompetitionCenterPage mode="table" />} />
+                <Route path="competencia/estadisticas" element={<CompetitionCenterPage mode="statistics" />} />
+                <Route path="competencia/clasificacion" element={<CompetitionCenterPage mode="qualification" />} />
+                <Route path="competencia/disciplina" element={<CompetitionCenterPage mode="discipline" />} />
+              </Route>
               <Route path="fixture" element={<FixtureWorkspacePage mode="overview" />} />
               <Route path="fixture/participantes" element={<FixtureWorkspacePage mode="participants" />} />
               <Route path="fixture/bombos" element={<FixtureWorkspacePage mode="pots" />} />

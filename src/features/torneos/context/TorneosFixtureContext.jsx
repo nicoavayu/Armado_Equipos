@@ -7,6 +7,8 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { CATEGORY_QUERY_PARAM, readCategoryId } from '../routing/canonicalRoutes';
 import { useTorneosCompetition } from './TorneosCompetitionContext';
 
 const EMPTY_DATA = Object.freeze({
@@ -34,8 +36,10 @@ export function TorneosFixtureProvider({
 }) {
   const {
     activeTournament,
+    isTournamentRoute,
     refresh: refreshCompetition,
   } = useTorneosCompetition();
+  const [searchParams, setSearchParams] = useSearchParams();
   const requestRef = useRef(0);
   const scopeRef = useRef('');
   const [preferredCategoryId, setPreferredCategoryId] = useState(null);
@@ -49,15 +53,40 @@ export function TorneosFixtureProvider({
     () => (activeTournament?.categories || []).filter((category) => category.status === 'active'),
     [activeTournament?.categories],
   );
-  const categoryId = categories.some((category) => category.id === preferredCategoryId)
-    ? preferredCategoryId
-    : categories[0]?.id || null;
+  // `?categoria=` es la categoría reproducible: si viene en la URL, gana sobre
+  // cualquier preferencia de React previa. Si viene y no pertenece a este
+  // torneo no se degrada al default —eso mostraría otra categoría bajo una URL
+  // que dice una— sino que queda en null y el guard cierra.
+  const queryCategoryId = readCategoryId(searchParams);
+  const isKnownCategory = useCallback(
+    (candidate) => Boolean(candidate) && categories.some((category) => category.id === candidate),
+    [categories],
+  );
+  const categoryId = (() => {
+    if (queryCategoryId) return isKnownCategory(queryCategoryId) ? queryCategoryId : null;
+    if (isKnownCategory(preferredCategoryId)) return preferredCategoryId;
+    return categories[0]?.id || null;
+  })();
   const scopeKey = `${organizationId || ''}:${activeTournament?.id || ''}:${categoryId || ''}`;
   scopeRef.current = scopeKey;
 
   useEffect(() => {
     setPreferredCategoryId(categoryId);
   }, [activeTournament?.id, categories, categoryId]);
+
+  // Elegir categoría en una ruta canónica tiene que quedar en la URL, o el
+  // link deja de reproducir lo que la persona está viendo. Fuera de las rutas
+  // canónicas se mantiene el comportamiento previo, en estado de React.
+  const selectCategory = useCallback((nextCategoryId) => {
+    setPreferredCategoryId(nextCategoryId);
+    if (!isTournamentRoute) return;
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      if (nextCategoryId) next.set(CATEGORY_QUERY_PARAM, nextCategoryId);
+      else next.delete(CATEGORY_QUERY_PARAM);
+      return next;
+    }, { replace: true });
+  }, [isTournamentRoute, setSearchParams]);
 
   const refresh = useCallback(async ({ notice = '' } = {}) => {
     const requestedScope = scopeKey;
@@ -225,11 +254,12 @@ export function TorneosFixtureProvider({
     ...state.data,
     categories,
     categoryId,
+    queryCategoryId,
     activeCategory: categories.find((category) => category.id === categoryId) || null,
-    setCategoryId: setPreferredCategoryId,
+    setCategoryId: selectCategory,
     refresh,
     actions,
-  }), [actions, categories, categoryId, refresh, state]);
+  }), [actions, categories, categoryId, queryCategoryId, refresh, selectCategory, state]);
 
   return (
     <TorneosFixtureContext.Provider value={value}>

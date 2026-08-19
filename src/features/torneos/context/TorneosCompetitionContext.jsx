@@ -42,13 +42,37 @@ function normalizeCompetitionContext(payload, organizationId) {
   };
 }
 
+//
+// El provider tiene dos modos inequívocos.
+//
+//   Tournament route      La URL manda. `routeTournamentId` viene de
+//                         :tournamentId y NADA lo sobrescribe: ni la
+//                         preferencia del servidor, ni un refresh, ni otra
+//                         pestaña que cambie el torneo activo.
+//
+//   Organization surface  No hay torneo en la URL, así que la preferencia
+//                         persistida sigue siendo el default de UX.
+//
+// Montar una ruta canónica no escribe la preferencia. Eso queda para la
+// elección explícita del usuario, el default al entrar en superficies sin
+// torneo y la compatibilidad legacy.
+//
 export function TorneosCompetitionProvider({
   organizationId,
+  routeTournamentId = null,
   service,
   children,
 }) {
+  const pinnedTournamentId = typeof routeTournamentId === 'string' && routeTournamentId
+    ? routeTournamentId
+    : null;
   const mountedRef = useRef(true);
   const requestRef = useRef(0);
+  // Por ref y no por dependencia: navegar de un torneo a otro dentro de la
+  // misma organización no puede invalidar `refresh` y disparar una recarga
+  // completa del catálogo. El catálogo es de la organización, no del torneo.
+  const pinnedRef = useRef(pinnedTournamentId);
+  pinnedRef.current = pinnedTournamentId;
   const supportsCompetition = typeof service?.loadCompetitionContext === 'function';
   const [state, setState] = useState({
     status: supportsCompetition ? 'loading' : 'ready',
@@ -76,9 +100,14 @@ export function TorneosCompetitionProvider({
     setState((current) => ({
       ...current,
       status: 'loading',
-      seasons: [],
-      tournaments: [],
-      preference: { ...EMPTY_PREFERENCE, organizationId },
+      // Con la URL como fuente de verdad no se puede vaciar el catálogo
+      // mientras recargamos: el torneo de la ruta se resuelve contra esta
+      // lista, y blanquearla haría que un refresh lo diera por inexistente.
+      seasons: pinnedRef.current ? current.seasons : [],
+      tournaments: pinnedRef.current ? current.tournaments : [],
+      preference: pinnedRef.current
+        ? current.preference
+        : { ...EMPTY_PREFERENCE, organizationId },
       error: '',
       notice: notice || current.notice,
     }));
@@ -233,15 +262,49 @@ export function TorneosCompetitionProvider({
     setState((current) => ({ ...current, notice: '' }));
   }, []);
 
-  const activeSeason = state.seasons.find(
-    (season) => season.id === state.preference.activeSeasonId,
-  ) || null;
-  const activeTournament = state.tournaments.find(
+  // La resolución del torneo es lo único que distingue los dos modos.
+  //
+  // Con `pinnedTournamentId` buscamos por id contra el catálogo de la
+  // organización y listo: la preferencia no participa. Sin él, vale la
+  // preferencia persistida, igual que antes.
+  const pinnedTournament = pinnedTournamentId
+    ? state.tournaments.find((tournament) => tournament.id === pinnedTournamentId) || null
+    : null;
+  const preferredTournament = state.tournaments.find(
     (tournament) => tournament.id === state.preference.activeTournamentId,
   ) || null;
+  const activeTournament = pinnedTournamentId ? pinnedTournament : preferredTournament;
+  const activeSeason = state.seasons.find((season) => (
+    season.id === (pinnedTournamentId
+      ? pinnedTournament?.seasonId
+      : state.preference.activeSeasonId)
+  )) || null;
+
+  // Un `:tournamentId` que no existe en la organización no puede degradarse al
+  // torneo de la preferencia: eso renderizaría el torneo equivocado bajo una
+  // URL que dice otra cosa. El guard lo lee y cierra.
+  const routeTournamentStatus = (() => {
+    if (!pinnedTournamentId) return 'idle';
+    if (pinnedTournament) return 'ready';
+    return state.status === 'ready' ? 'not-found' : 'loading';
+  })();
+
+  // La preferencia expuesta refleja lo que la ruta está mostrando, sin escribir
+  // nada en el servidor. Así los selectores no contradicen a la URL.
+  const effectivePreference = pinnedTournamentId
+    ? {
+      ...state.preference,
+      activeSeasonId: pinnedTournament?.seasonId || state.preference.activeSeasonId,
+      activeTournamentId: pinnedTournament?.id || null,
+    }
+    : state.preference;
 
   const value = useMemo(() => ({
     ...state,
+    preference: effectivePreference,
+    routeTournamentId: pinnedTournamentId,
+    isTournamentRoute: Boolean(pinnedTournamentId),
+    routeTournamentStatus,
     activeSeason,
     activeTournament,
     refresh,
@@ -261,6 +324,9 @@ export function TorneosCompetitionProvider({
   }), [
     activeSeason,
     activeTournament,
+    effectivePreference,
+    pinnedTournamentId,
+    routeTournamentStatus,
     changeTournamentStatus,
     clearNotice,
     createSeason,

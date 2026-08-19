@@ -41,6 +41,7 @@ import {
   getLifecycleErrorMessage,
   getMatchResolutionPresentation,
 } from '../domain/competitionLifecycle';
+import { tournamentMatches } from '../routing/canonicalRoutes';
 import { describeMatchOutcomeGap } from '../domain/matchOutcome';
 import { describeEarlyOpen, isEarlyOpenReasonValid } from '../domain/matchSchedule';
 import {
@@ -51,6 +52,18 @@ import {
 import CompetitionSelector from './CompetitionSelector';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import styles from './MatchOperations.module.css';
+
+// Único link tocado en este hito: dentro de una ruta canónica la navegación
+// entre pestañas del partido tiene que quedarse en la ruta canónica, o el
+// primer click devuelve a la legacy y se pierde el torneo de la URL. El barrido
+// del resto de los links internos es del hito siguiente.
+function useMatchOperationsBase(organizationId) {
+  const { isTournamentRoute, routeTournamentId } = useTorneosCompetition();
+  const { categoryId } = useTorneosFixture();
+  return isTournamentRoute && routeTournamentId
+    ? tournamentMatches(organizationId, routeTournamentId, { categoryId })
+    : `/torneos/organizacion/${organizationId}/partidos`;
+}
 
 const STATUS_LABELS = {
   draft: 'Borrador',
@@ -212,7 +225,7 @@ function MatchList({
   filters,
   setFilters,
 }) {
-  const base = `/torneos/organizacion/${organization.id}/partidos`;
+  const base = useMatchOperationsBase(organization.id);
   const filtered = useMemo(() => matches.filter((match) => {
     const search = filters.search.trim().toLowerCase();
     if (search && !`${match.homeName} ${match.awayName}`.toLowerCase().includes(search)) {
@@ -849,7 +862,7 @@ export default function MatchOperationsPage({ mode = 'list' }) {
   const canOpen = hasCapability(organization, TOURNAMENT_CAPABILITIES.MATCH_OPERATIONS_OPEN);
   const canManage = hasCapability(organization, TOURNAMENT_CAPABILITIES.MATCH_OPERATIONS_UPDATE_DRAFT);
   const canReview = hasCapability(organization, TOURNAMENT_CAPABILITIES.MATCH_OPERATIONS_REVIEW);
-  const base = `/torneos/organizacion/${organization.id}/partidos`;
+  const base = useMatchOperationsBase(organization.id);
 
   const run = async (action, payload = {}) => {
     if (busy) return;
