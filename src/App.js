@@ -36,6 +36,7 @@ import {
 } from './services/googleMapsLoader';
 import { isArma2NativeRuntime, isPersonalSpaceAvailable } from './utils/runtimePlatform';
 import { SpaceNavigationProvider } from './features/space-navigation';
+import { QA_ROLE_SWITCHER_PATH, isQaRoleSwitcherEnabled } from './features/qa/qaRoleSwitcher';
 
 
 import { NotificationProvider } from './context/NotificationContext';
@@ -71,6 +72,16 @@ const TemplateHistoryPage = lazy(() => import('./pages/TemplateHistoryPage'));
 const AdminPanelPage = lazy(() => import('./pages/AdminPanelPage'));
 const PartidoInvitacion = lazy(() => import('./pages/PartidoInvitacion'));
 const PublicTournamentPage = lazy(() => import('./features/torneos/components/PublicTournamentPage'));
+const QaRoleSwitcherPage = lazy(() => import('./features/qa/QaRoleSwitcherPage'));
+
+// Tooling QA LOCAL. El selector de rol no es una ruta que se oculte: si el gate
+// no cierra —flag, DATA_ENV, host, deploy o backend— el <Route> no se crea y la
+// URL no existe. En Production, Staging o cualquier build normal no hay ruta que
+// encontrar.
+const qaRoleSwitcherEnabled = isQaRoleSwitcherEnabled(
+  process.env,
+  typeof window === 'undefined' ? {} : window.location,
+);
 
 // Dev-only diagnostics (excluded in production builds)
 if (process.env.NODE_ENV === 'development') {
@@ -97,6 +108,13 @@ export default function App() {
                 <ScopedPublicVotingRouteIsolation>
                   <Routes>
                   <Route path="/health" element={<HealthRoute />} />
+                  {qaRoleSwitcherEnabled ? (
+                    <Route path={QA_ROLE_SWITCHER_PATH} element={
+                      <Suspense fallback={<AppLoadingScreen />}>
+                        <QaRoleSwitcherPage />
+                      </Suspense>
+                    } />
+                  ) : null}
                   <Route path="/terms" element={
                     <Suspense fallback={<AppLoadingScreen />}>
                       <TermsPage />
