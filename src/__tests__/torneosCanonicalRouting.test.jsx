@@ -1,9 +1,10 @@
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import TorneosFeatureGate from '../features/torneos/TorneosFeatureGate';
 import { getCapabilitiesForRole } from '../features/torneos/domain/capabilities';
 import {
+  organizationTournaments,
   tournamentDiscipline,
   tournamentFixture,
   tournamentMatches,
@@ -99,9 +100,26 @@ function createService({ role = 'owner', competitionPayload = competition() } = 
   };
 }
 
+/*
+ * La ubicación en curso, leída en render y no en un efecto: cuando el provider
+ * dispara su carga, este valor ya es el de la URL sobre la que esa carga ocurre.
+ * Sirve para atribuir cada request a la dirección que lo pidió, que es la única
+ * forma de distinguir un fallback real de una carga legítima posterior a un
+ * redirect.
+ */
+let currentPath = '';
+
+function LocationProbe() {
+  const location = useLocation();
+  currentPath = `${location.pathname}${location.search}`;
+  return null;
+}
+
 function renderPath(path, service) {
+  currentPath = path;
   return render(
     <MemoryRouter initialEntries={[path]}>
+      <LocationProbe />
       <Routes>
         <Route path="/torneos/*" element={<TorneosFeatureGate enabled service={service} />} />
       </Routes>
@@ -117,10 +135,6 @@ describe('canonical tournament routing', () => {
       await waitFor(() => {
         expect(api.loadFixtureContext).toHaveBeenCalledWith(ORG, TOURNAMENT_A, CATEGORY_A);
       }, { timeout: 5000 });
-      // eslint-disable-next-line no-console
-      await new Promise((r) => setTimeout(r, 400));
-      console.log('DBG-TEXT', JSON.stringify(document.body.textContent));
-      console.log('DBG-CALLS', JSON.stringify(api.loadFixtureContext.mock.calls));
     });
 
     test('programacion opens cold on the tournament of the URL', async () => {
@@ -209,11 +223,37 @@ describe('canonical tournament routing', () => {
   describe('invalid ids fail closed', () => {
     test('a tournament that is not in the organization does not fall back', async () => {
       const api = createService();
-      renderPath(tournamentFixture(ORG, 'b2000000-0000-4000-8000-0000000000ff'), api);
+      const MISSING = 'b2000000-0000-4000-8000-0000000000ff';
+      const invalidPath = tournamentFixture(ORG, MISSING);
+      // Cada carga de fixture queda atribuida a la URL desde la que se pidió.
+      // El contrato no es «B no se carga nunca» --- después del redirect, en una
+      // superficie de organización, la preferencia vuelve a ser el default
+      // legítimo--- sino «bajo la URL canónica inválida no se carga ningún
+      // torneo». Afirmar lo primero ata el test al momento en que se mira.
+      const fixtureCalls = [];
+      api.loadFixtureContext.mockImplementation((organizationId, tournamentId, categoryId) => {
+        fixtureCalls.push({ organizationId, tournamentId, categoryId, path: currentPath });
+        return Promise.resolve({
+          phases: [{ id: 'phase-a', fixtureVersionId: 'version-a', phaseType: 'league' }],
+          groups: [],
+          versions: [],
+        });
+      });
+
+      renderPath(invalidPath, api);
+
+      // El guard sale de esa ruta: no se queda mostrando nada bajo ella.
+      await waitFor(() => {
+        expect(currentPath).toBe(organizationTournaments(ORG));
+      }, { timeout: 5000 });
       expect(await screen.findByRole('heading', { name: /torneos/i }, { timeout: 5000 }))
         .toBeInTheDocument();
+
+      // Ninguna carga se originó bajo la dirección inválida, ni de B ni de nadie.
+      expect(fixtureCalls.filter((call) => call.path === invalidPath)).toEqual([]);
+      // Y el torneo inexistente jamás se pidió como si existiera.
       expect(api.loadFixtureContext).not.toHaveBeenCalledWith(
-        ORG, TOURNAMENT_B, expect.anything(),
+        ORG, MISSING, expect.anything(),
       );
       expect(screen.queryByText('Copa Alfa · Recorrido completo del fixture.'))
         .not.toBeInTheDocument();
