@@ -130,6 +130,7 @@
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:report": "playwright show-report artifacts/playwright/html-report",
     "qa:start:local": "node scripts/qa/start-local-qa-app.mjs",
+    "qa:torneos:review": "node scripts/qa/start-torneos-review-app.mjs",
     "qa:torneos:review:seed": "node scripts/qa/seed-torneos-qa-review-supplement.mjs",
     "qa:torneos:review:seed:apply": "node scripts/qa/seed-torneos-qa-review-supplement.mjs --apply-local",
     "qa:torneos:review:seed:report": "node scripts/qa/seed-torneos-qa-review-supplement.mjs --report",
