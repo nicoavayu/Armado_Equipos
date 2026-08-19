@@ -109,6 +109,32 @@ describe('returnTo', () => {
     }
   });
 
+  // El selector tiene que poder devolver a una ruta canónica de torneo con su
+  // categoría intacta, sin que eso afloje la allowlist en nada.
+  it('acepta las rutas canónicas de torneo y conserva ?categoria=', () => {
+    const canonical = '/torneos/organizacion/org-1/torneo/torneo-1/fixture';
+    expect(sanitizeReturnTo(canonical, { origin: LOCAL_LOCATION.origin })).toBe(canonical);
+    expect(sanitizeReturnTo(`${canonical}?categoria=cat-1`, { origin: LOCAL_LOCATION.origin }))
+      .toBe(`${canonical}?categoria=cat-1`);
+    expect(sanitizeReturnTo(
+      '/torneos/organizacion/org-1/torneo/torneo-1/partidos/match-1/acta?categoria=cat-1',
+      { origin: LOCAL_LOCATION.origin },
+    )).toBe('/torneos/organizacion/org-1/torneo/torneo-1/partidos/match-1/acta?categoria=cat-1');
+    expect(sanitizeReturnTo('/torneos/organizacion/org-1/sedes', { origin: LOCAL_LOCATION.origin }))
+      .toBe('/torneos/organizacion/org-1/sedes');
+  });
+
+  it('la allowlist sigue cerrada aunque la ruta traiga ?categoria=', () => {
+    for (const candidate of [
+      'https://evil.example/torneos/organizacion/org-1/torneo/t/fixture?categoria=cat-1',
+      '//evil.example/torneos/organizacion/org-1/torneo/t/fixture?categoria=cat-1',
+      '/admin/42?categoria=cat-1',
+      '/qa/rol?returnTo=/torneos/organizacion/org-1/torneo/t/fixture&categoria=cat-1',
+    ]) {
+      expect(sanitizeReturnTo(candidate, { origin: LOCAL_LOCATION.origin })).toBeNull();
+    }
+  });
+
   it('distingue las superficies de organización de las públicas', () => {
     expect(isOrganizationScopedPath('/torneos/equipos/BNO')).toBe(true);
     expect(isOrganizationScopedPath('/torneos')).toBe(false);

@@ -58,37 +58,79 @@ export function shouldShowTorneosSpaceHeader(pathname = '') {
     || TORNEOS_ORGANIZATION_TOP_LEVEL_PATTERN.test(pathname);
 }
 
-function normalizePath(pathname) {
-  if (typeof pathname !== 'string') return null;
-  const candidate = pathname.trim();
+// La query es parte de lo que la ruta reproduce: una ruta canónica de torneo
+// sin su `?categoria=` deja de representar lo que la persona estaba viendo.
+//
+// Pero conservar cualquier query sería otra cosa: esta memoria vive en
+// localStorage, y una ruta con un token en la query se quedaría guardada. Por
+// eso el criterio no es "sanitizar y guardar" sino allowlist de claves: sólo
+// las que son contexto reproducible se conservan, y una clave desconocida hace
+// que la ruta entera deje de ser restaurable, igual que antes.
+const RESTORABLE_QUERY_KEYS = Object.freeze(['categoria']);
+const SAFE_QUERY_VALUE_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
+
+function normalizeSearch(rawSearch) {
+  if (!rawSearch) return '';
+  if (rawSearch.length > 256) return null;
+  let params;
+  try {
+    params = new URLSearchParams(rawSearch);
+  } catch {
+    return null;
+  }
+  const entries = [...params.entries()];
+  if (!entries.length) return null;
+  for (const [key, value] of entries) {
+    if (!RESTORABLE_QUERY_KEYS.includes(key)) return null;
+    if (!SAFE_QUERY_VALUE_PATTERN.test(value)) return null;
+  }
+  return `?${entries.map(([key, value]) => `${key}=${value}`).join('&')}`;
+}
+
+function normalizeLocation(value) {
+  if (typeof value !== 'string') return null;
+  const candidate = value.trim();
   if (
     !candidate
     || candidate.length > 512
     || !candidate.startsWith('/')
     || candidate.startsWith('//')
-    || candidate.includes('?')
     || candidate.includes('#')
     || candidate.includes('\\')
     || /%(?:2f|5c)/i.test(candidate)
   ) return null;
 
+  const queryIndex = candidate.indexOf('?');
+  const rawPath = queryIndex === -1 ? candidate : candidate.slice(0, queryIndex);
+  const rawSearch = queryIndex === -1 ? '' : candidate.slice(queryIndex);
+  if (!rawPath || !rawPath.startsWith('/')) return null;
+
+  const search = normalizeSearch(rawSearch);
+  if (search === null) return null;
+
   try {
-    const decoded = decodeURIComponent(candidate);
+    const decoded = decodeURIComponent(rawPath);
     if (decoded.split('/').some((segment) => segment === '.' || segment === '..')) return null;
   } catch {
     return null;
   }
 
-  return candidate.length > 1 ? candidate.replace(/\/+$/, '') : candidate;
+  return {
+    pathname: rawPath.length > 1 ? rawPath.replace(/\/+$/, '') : rawPath,
+    search,
+  };
 }
 
 export function getValidRouteForSpace(space, pathname) {
-  const normalized = normalizePath(pathname);
+  const normalized = normalizeLocation(pathname);
   if (!normalized) return null;
   const patterns = space === APP_SPACE.TORNEOS
     ? TORNEOS_ROUTE_PATTERNS
     : ARMA2_ROUTE_PATTERNS;
-  return patterns.some((pattern) => pattern.test(normalized)) ? normalized : null;
+  // El allowlist se evalúa contra el pathname: la query no puede convertir una
+  // ruta no permitida en permitida.
+  if (!patterns.some((pattern) => pattern.test(normalized.pathname))) return null;
+  return `${normalized.pathname}${normalized.search}`;
 }
 
 export function getSpaceNavigationStorageKey(userId) {

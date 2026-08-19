@@ -65,6 +65,30 @@ describe('space navigation persistence', () => {
     expect(getValidRouteForSpace(getSpaceFromPath(route), route)).toBeNull();
   });
 
+  // La ruta canónica de torneo se guarda con su `?categoria=`: sin la query
+  // deja de reproducir lo que la persona estaba viendo.
+  test('keeps ?categoria= on a canonical tournament route', () => {
+    const canonical = '/torneos/organizacion/org-1/torneo/torneo-1/fixture?categoria=cat-1';
+    expect(getValidRouteForSpace(APP_SPACE.TORNEOS, canonical)).toBe(canonical);
+
+    rememberSpaceRoute(USER_ID, canonical);
+    expect(readSpaceNavigation(USER_ID).lastRoute.torneos).toBe(canonical);
+  });
+
+  test.each([
+    '/torneos/organizacion/org-1/torneo/torneo-1/fixture?token=secret',
+    '/torneos/organizacion/org-1/torneo/torneo-1/fixture?categoria=cat-1&token=secret',
+    '/torneos/organizacion/org-1/torneo/torneo-1/fixture?categoria=../otro',
+    '/torneos/organizacion/org-1/torneo/torneo-1/fixture?categoria=',
+  ])('refuses to remember a route carrying anything but reproducible context: %s', (route) => {
+    expect(getValidRouteForSpace(APP_SPACE.TORNEOS, route)).toBeNull();
+  });
+
+  test('a query cannot turn a non-restorable route into a restorable one', () => {
+    expect(getValidRouteForSpace(APP_SPACE.TORNEOS, '/torneos/publico/slug?categoria=cat-1'))
+      .toBeNull();
+  });
+
   test('ignores invalid persisted routes and applies safe fallbacks', () => {
     window.localStorage.setItem(getSpaceNavigationStorageKey(USER_ID), JSON.stringify({
       lastSpace: 'torneos',
