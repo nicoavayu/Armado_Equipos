@@ -116,11 +116,21 @@ function PlayerMatchCard({
             <strong>{match.officialScore.home} — {match.officialScore.away}</strong>
           </div>
         )}
-        <AvailabilityButtons
-          match={match}
-          busy={busy}
-          onRespond={onRespond}
-        />
+        {/*
+          * Responder "Voy / No voy" es contestar por uno mismo, y por eso lo
+          * habilita el vínculo con el plantel, no el cargo. Dirigir la
+          * organización o el equipo trae la convocatoria —el enlace de abajo—,
+          * no la respuesta de asistencia de otra persona. Quien además de
+          * dirigir está en el plantel conserva el control por esa segunda
+          * relación.
+          */}
+        {match.isRosteredPlayer && (
+          <AvailabilityButtons
+            match={match}
+            busy={busy}
+            onRespond={onRespond}
+          />
+        )}
         {match.canManageSquad && (
           <Link className={styles.textLink} to={`/torneos/mis-partidos/${match.matchId}/convocatoria`}>
             Gestionar convocatoria

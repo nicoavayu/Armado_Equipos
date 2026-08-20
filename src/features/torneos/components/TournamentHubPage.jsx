@@ -123,10 +123,18 @@ function Score({ match }) {
   );
 }
 
+//
+// `isMyTeam` es cierto tanto para el jugador del plantel como para el capitán o
+// delegado del equipo: el hub lo calcula con esas dos relaciones juntas. Para
+// contestar la disponibilidad hace falta la primera, porque
+// `respond_match_availability` responde por el jugador que la llama. De ahí que
+// el hub exponga `audience.isPlayer` aparte, y que sea eso lo que habilita el
+// control.
+//
 function AvailabilityActions({
-  match, busy, onRespond, readOnly,
+  match, busy, onRespond, readOnly, canRespond,
 }) {
-  if (!match.isMyTeam || match.result || readOnly) return null;
+  if (!canRespond || !match.isMyTeam || match.result || readOnly) return null;
   return (
     <div className={styles.availability} aria-label="Tu disponibilidad">
       <span>¿Podés jugar?</span>
@@ -149,7 +157,7 @@ function AvailabilityActions({
 }
 
 function MatchCard({
-  match, tournamentId, categoryId, busy, onRespond, readOnly = false,
+  match, tournamentId, categoryId, busy, onRespond, readOnly = false, canRespond = false,
 }) {
   return (
     <article className={`${styles.matchCard} ${match.isMyTeam ? styles.matchCardMine : ''}`}>
@@ -185,6 +193,7 @@ function MatchCard({
         busy={busy}
         onRespond={onRespond}
         readOnly={readOnly}
+        canRespond={canRespond}
       />
       <div className={styles.matchActions}>
         <Link to={`/torneos/torneo/${tournamentId}/partidos/${match.matchId}?categoria=${categoryId}`}>
@@ -244,6 +253,7 @@ function OverviewSection({
           busy={busyMatchId === nextMatch.matchId}
           onRespond={onRespond}
           readOnly={hub.tournament.readOnly}
+          canRespond={Boolean(hub.audience?.isPlayer)}
         />
       ) : (
         <p className={styles.panelEmpty}>La organización todavía no publicó un próximo partido.</p>
@@ -934,6 +944,7 @@ export default function TournamentHubPage({ defaultSection = 'resumen', matchMod
                 busy={busyMatchId === match.matchId}
                 onRespond={respond}
                 readOnly={hub.tournament.readOnly}
+                canRespond={Boolean(hub.audience?.isPlayer)}
               />
             ))}
           </div>

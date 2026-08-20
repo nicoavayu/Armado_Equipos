@@ -1094,6 +1094,22 @@ export async function autoScheduleTournamentMatches(input) {
   }), 'No pudimos completar la programación automática.');
 }
 
+//
+// "Mis partidos" une dos relaciones distintas con el mismo partido, y el
+// merge borraba de cuál venía cada fila.
+//
+// `get_player_tournament_matches` devuelve los partidos donde el usuario está
+// en un plantel vigente; `get_managed_tournament_matches`, aquellos donde es
+// capitán o delegado del equipo. Son cosas distintas: responder disponibilidad
+// es un acto del jugador sobre sí mismo —`respond_match_availability` exige un
+// `tournament_roster_players` propio— mientras que dirigir la convocatoria es
+// del cuerpo técnico. Fundidas en un objeto plano, la pantalla no podía
+// distinguirlas y ofrecía "Voy / No voy" también sobre filas donde el usuario
+// no es jugador, que el backend rechaza con TORNEOS_MATCH_FORBIDDEN.
+//
+// Por eso cada fila viaja etiquetada con su origen, y quien tiene las dos
+// relaciones conserva las dos capacidades.
+//
 export async function loadPlayerTournamentMatches() {
   const [playerMatches, managedMatches] = await Promise.all([
     supabase.rpc('get_player_tournament_matches'),
@@ -1102,11 +1118,17 @@ export async function loadPlayerTournamentMatches() {
   const playerRows = unwrapRpc(playerMatches, 'No pudimos cargar tus partidos del torneo.') || [];
   const managedRows = unwrapRpc(managedMatches, 'No pudimos cargar tus partidos del torneo.') || [];
   const byScope = new Map();
-  [...playerRows, ...managedRows].forEach((match) => {
+  const merge = (rows, relation) => rows.forEach((match) => {
     const key = `${match.matchId}:${match.teamEntryId}`;
-    byScope.set(key, { ...(byScope.get(key) || {}), ...match });
+    byScope.set(key, { ...(byScope.get(key) || {}), ...match, ...relation });
   });
-  return [...byScope.values()];
+  merge(playerRows, { isRosteredPlayer: true });
+  merge(managedRows, { isTeamManager: true });
+  return [...byScope.values()].map((match) => ({
+    isRosteredPlayer: false,
+    isTeamManager: false,
+    ...match,
+  }));
 }
 
 export async function respondTournamentMatchAvailability(input) {
