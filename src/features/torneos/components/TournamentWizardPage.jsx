@@ -258,6 +258,7 @@ export default function TournamentWizardPage() {
     ? requestedStep
     : 0;
   const initializedTournamentRef = useRef(null);
+  const wizardStepperRef = useRef(null);
   const [draft, setDraftState] = useState(() => (
     tournament ? draftFromTournament(tournament) : buildTournamentDraft()
   ));
@@ -325,7 +326,20 @@ export default function TournamentWizardPage() {
     setSearchParams(next ? { step: String(next) } : {}, { replace: true });
     setErrors({});
     setFormError('');
-    window.scrollTo?.({ top: 0, behavior: 'smooth' });
+    /*
+     * Cambiar de paso no es volver al principio del documento. El
+     * `window.scrollTo({ top: 0 })` que había acá mandaba la viewport al
+     * comienzo de toda la página, así que tocar el stepper --- que está a la
+     * vista--- lo sacaba a uno de la zona del wizard.
+     *
+     * El ancla es el stepper y no el lienzo: el lienzo es más alto que la
+     * viewport y cambia de altura con cada paso, así que `nearest` sobre él
+     * seguía moviendo cientos de píxeles. El stepper entra entero en pantalla,
+     * de modo que `nearest` no hace nada mientras se lo esté mirando --- que es
+     * el caso de quien acaba de tocarlo--- y sólo lo trae de vuelta cuando se
+     * avanza desde el pie de un paso largo.
+     */
+    wizardStepperRef.current?.scrollIntoView?.({ block: 'nearest' });
   };
   const change = (field, value) => {
     setDraft((current) => {
@@ -624,7 +638,7 @@ export default function TournamentWizardPage() {
         />
       )}
 
-      <nav className={styles.stepper} aria-label="Pasos de configuración">
+      <nav className={styles.stepper} aria-label="Pasos de configuración" ref={wizardStepperRef}>
         {STEPS.map((label, index) => (
           <button
             key={label}
