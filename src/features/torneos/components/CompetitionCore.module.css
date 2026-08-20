@@ -171,7 +171,7 @@
   background: rgba(17, 15, 27, 0.96);
 }
 
-.contextSelector label > svg:first-child {
+.contextSelector label > .selectorIcon {
   grid-row: 1 / 3;
   color: var(--torneos-purple-bright);
 }
@@ -210,14 +210,38 @@
   background: #171326;
 }
 
-.contextSelector label > svg:last-child {
+.contextSelector label > .selectorChevron {
   grid-column: 3;
   grid-row: 1 / 3;
   color: var(--torneos-muted);
 }
 
+/*
+ * Compacto = el selector vive dentro de una barra de contexto junto a
+ * Categoría/Fase/Grupo, y ahí el ancho es el recurso escaso.
+ *
+ * Dos decisiones deliberadas: el torneo pesa más que la temporada porque su
+ * nombre es el más largo del conjunto, y el icono decorativo de cada campo no
+ * se dibuja. Ese icono costaba 24px por campo (15 de glifo + 9 de gap) que es
+ * justo lo que le faltaba al nombre para entrar entero; entre icono y nombre
+ * completo, gana el nombre.
+ */
 .contextSelectorCompact {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
   margin-bottom: 16px;
+}
+
+.contextSelectorCompact label {
+  /* Padding y gap explícitos: `.contextBar label` del host empata en
+     especificidad con `.contextSelector label`, así que dejarlos implícitos
+     ataría el ancho útil del select al orden de los imports. */
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 8px;
+  padding: 10px;
+}
+
+.contextSelectorCompact label > .selectorChevron {
+  grid-column: 2;
 }
 
 .selectorSkeleton {

@@ -60,7 +60,7 @@ export default function CompetitionLifecycleActions({ organization, tournament }
       {!confirming ? (
         <button
           type="button"
-          className={styles.lifecycleActionButton}
+          className={`${styles.lifecycleActionButton} ${styles.lifecycleTriggerButton}`}
           onClick={() => { setConfirming(true); setError(''); }}
         >
           {Icon && <Icon size={18} aria-hidden="true" />}

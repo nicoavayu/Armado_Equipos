@@ -1256,10 +1256,15 @@
    de consecuencias, cuyo ancho natural supera al del contenedor. Con
    `flex-shrink: 0` el panel se salía del viewport en desktop y el texto que
    explica qué implica finalizar quedaba cortado, sin scroll que lo rescatara.
-   Ahora puede encogerse; `min-width` sigue protegiendo al botón colapsado. */
+   Ahora puede encogerse; `min-width` sigue protegiendo al botón colapsado.
+
+   Los 210px de antes no alcanzaban para la etiqueta más larga del ciclo de
+   vida: "Finalizar competencia" pide 230px con su icono, así que el CTA salía
+   partido en dos líneas. `min()` sube el piso sin volverlo un desbordamiento
+   en pantallas angostas. */
 .lifecycleActions {
   flex: 0 1 auto;
-  min-width: 210px;
+  min-width: min(100%, 248px);
   max-width: 100%;
 }
 
@@ -1281,6 +1286,13 @@
   color: #100c22;
   background: #b7a6ff;
   border: 1px solid transparent;
+}
+
+/* El disparador colapsado es una acción de jerarquía alta: entra en una línea.
+   No se aplica al botón de confirmación, que comparte fila con "Cancelar" y sí
+   necesita poder envolver. */
+.lifecycleTriggerButton {
+  white-space: nowrap;
 }
 
 .lifecycleActionButton:disabled,
@@ -1537,6 +1549,11 @@
 .securityPanel h2 {
   margin-top: 7px;
   color: #f2fff9;
+}
+
+/* El icono encabeza la card y arrancaba pegado al eyebrow, sin aire propio. */
+.securityPanel > svg:first-child {
+  margin-bottom: 10px;
 }
 
 .securityPanel p {

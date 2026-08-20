@@ -88,7 +88,7 @@ export default function CompetitionSelector({ compact = false }) {
       aria-label="Contexto competitivo activo"
     >
       <label>
-        <CalendarRange size={15} aria-hidden="true" />
+        {!compact && <CalendarRange size={15} className={styles.selectorIcon} aria-hidden="true" />}
         <span>Temporada</span>
         <select
           value={preference.activeSeasonId || ''}
@@ -100,10 +100,10 @@ export default function CompetitionSelector({ compact = false }) {
             <option key={season.id} value={season.id}>{season.name}</option>
           ))}
         </select>
-        <ChevronDown size={14} aria-hidden="true" />
+        <ChevronDown size={14} className={styles.selectorChevron} aria-hidden="true" />
       </label>
       <label>
-        <Trophy size={15} aria-hidden="true" />
+        {!compact && <Trophy size={15} className={styles.selectorIcon} aria-hidden="true" />}
         <span>Torneo</span>
         <select
           value={preference.activeTournamentId || ''}
@@ -118,7 +118,7 @@ export default function CompetitionSelector({ compact = false }) {
             </option>
           ))}
         </select>
-        <ChevronDown size={14} aria-hidden="true" />
+        <ChevronDown size={14} className={styles.selectorChevron} aria-hidden="true" />
       </label>
     </section>
   );

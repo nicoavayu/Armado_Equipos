@@ -1572,8 +1572,13 @@
   transform: scale(1.02);
 }
 
+/* La caja del badge mide 50x50; con `clamp(2rem, 5vw, 3.25rem)` el glifo
+   llegaba a 52px y, con su line-height, se salía de la caja por arriba y por
+   abajo hasta rozar el borde de la card. El número sigue siendo el elemento
+   destacado de la fila, pero dimensionado contra la caja que lo contiene. */
 .versionNumber {
-  font-size: clamp(2rem, 5vw, 3.25rem);
+  font-size: clamp(1.35rem, 2.2vw, 1.65rem);
+  line-height: 1;
 }
 
 .field input,

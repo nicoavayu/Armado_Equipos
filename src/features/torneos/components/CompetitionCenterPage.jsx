@@ -9,6 +9,7 @@ import {
   AlertTriangle,
   BarChart3,
   CheckCircle2,
+  ChevronDown,
   ChevronRight,
   ClipboardCheck,
   Medal,
@@ -63,6 +64,7 @@ function ContextFilters({
             <option key={category.id} value={category.id}>{category.name}</option>
           ))}
         </select>
+        <ChevronDown size={14} aria-hidden="true" />
       </label>
       <label>
         <span>Fase</span>
@@ -71,6 +73,7 @@ function ContextFilters({
             <option key={phase.id} value={phase.id}>{phase.name}</option>
           ))}
         </select>
+        <ChevronDown size={14} aria-hidden="true" />
       </label>
       <label>
         <span>Grupo</span>
@@ -83,6 +86,7 @@ function ContextFilters({
             <option key={group.id} value={group.id}>{group.name}</option>
           ))}
         </select>
+        <ChevronDown size={14} aria-hidden="true" />
       </label>
     </section>
   );
@@ -199,7 +203,7 @@ function StatisticsPanel({ data }) {
           {leaders.map((player, index) => (
             <li key={player.rosterPlayerId} className={index < 3 ? styles.podium : ''}>
               <span className={styles.rank}>{String(index + 1).padStart(2, '0')}</span>
-              <span><strong>{player.name}</strong><small>{player.appearances} presencias acreditadas</small></span>
+              <span className={styles.identity}><strong>{player.name}</strong><small>{player.appearances} presencias acreditadas</small></span>
               <span className={styles.statPair}><strong>{player.goals}</strong><small>goles</small></span>
               <span className={styles.statPair}><strong>{player.assists}</strong><small>asis.</small></span>
             </li>
@@ -218,7 +222,7 @@ function StatisticsPanel({ data }) {
                 className={styles.teamMark}
                 imageClassName={styles.teamMarkImage}
               />
-              <span><strong>{team.name}</strong><small>{team.homePlayed} local · {team.awayPlayed} visitante</small></span>
+              <span className={styles.identity}><strong>{team.name}</strong><small>{team.homePlayed} local · {team.awayPlayed} visitante</small></span>
               <strong>{team.goals} GF</strong>
             </article>
           ))}
@@ -247,7 +251,7 @@ function QualificationPanel({ standings, revision, onResolve, busy }) {
         {standings.slice(0, 6).map((row) => (
           <article key={row.participantId}>
             <span className={styles.position}>{row.position}</span>
-            <span><strong>{row.teamName}</strong><small>{row.points} pts. · DG {row.goalDifference}</small></span>
+            <span className={styles.identity}><strong>{row.teamName}</strong><small>{row.points} pts. · DG {row.goalDifference}</small></span>
             <ChevronRight size={18} />
           </article>
         ))}
