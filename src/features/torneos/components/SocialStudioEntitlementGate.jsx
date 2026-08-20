@@ -5,6 +5,7 @@ import {
   normalizeTournamentEntitlements,
   TOURNAMENT_ENTITLEMENTS,
 } from '../domain/entitlements';
+import { canonicalRoutes } from '../routing/canonicalRoutes';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 
 export function useSocialStudioEntitlement({
@@ -75,7 +76,7 @@ export default function SocialStudioEntitlementGate({
   if (!access.allowed) {
     return (
       <Navigate
-        to={`/torneos/organizacion/${organizationId}/inicio`}
+        to={canonicalRoutes.organizationHome(organizationId)}
         replace
         state={{ safeMessage: 'Estudio Social no está disponible para este espacio.' }}
       />

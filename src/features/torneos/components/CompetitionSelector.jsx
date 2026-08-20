@@ -1,6 +1,11 @@
 import React, { useState } from 'react';
 import { CalendarRange, ChevronDown, Trophy } from 'lucide-react';
+import { useMatch, useNavigate } from 'react-router-dom';
 import { useTorneosCompetition } from '../context/TorneosCompetitionContext';
+import {
+  CANONICAL_TOURNAMENT_ROUTE_PATTERN,
+  tournamentSectionRoute,
+} from '../routing/canonicalRoutes';
 import styles from './CompetitionCore.module.css';
 
 export default function CompetitionSelector({ compact = false }) {
@@ -12,9 +17,27 @@ export default function CompetitionSelector({ compact = false }) {
     selectContext,
   } = useTorneosCompetition();
   const [busy, setBusy] = useState(false);
+  const navigate = useNavigate();
+  const canonicalMatch = useMatch(CANONICAL_TOURNAMENT_ROUTE_PATTERN);
   const seasonTournaments = tournaments.filter(
     (tournament) => tournament.seasonId === preference.activeSeasonId,
   );
+
+  //
+  // Dentro de una ruta canónica, elegir torneo es *ir* al otro torneo.
+  //
+  // Escribir la preferencia y quedarse acá no alcanzaría: el provider anclado
+  // ignora la preferencia a propósito, así que el selector diría una cosa y la
+  // pantalla seguiría mostrando otra. La preferencia se actualiza igual, sin
+  // bloquear la navegación, porque sigue siendo el default de las superficies
+  // que no nombran torneo.
+  //
+  const goToTournament = (tournamentId) => {
+    if (!canonicalMatch || !tournamentId) return false;
+    const build = tournamentSectionRoute(canonicalMatch.params['*']);
+    navigate(build(canonicalMatch.params.organizationId, tournamentId));
+    return true;
+  };
 
   const selectSeason = async (event) => {
     const seasonId = event.target.value;
@@ -24,6 +47,10 @@ export default function CompetitionSelector({ compact = false }) {
       const fallback = tournaments.find(
         (tournament) => tournament.seasonId === seasonId,
       );
+      if (goToTournament(fallback?.id)) {
+        selectContext(seasonId, fallback.id).catch(() => {});
+        return;
+      }
       await selectContext(seasonId, fallback?.id || null);
     } finally {
       setBusy(false);
@@ -35,6 +62,10 @@ export default function CompetitionSelector({ compact = false }) {
     if (!preference.activeSeasonId) return;
     setBusy(true);
     try {
+      if (goToTournament(tournamentId)) {
+        selectContext(preference.activeSeasonId, tournamentId).catch(() => {});
+        return;
+      }
       await selectContext(preference.activeSeasonId, tournamentId);
     } finally {
       setBusy(false);

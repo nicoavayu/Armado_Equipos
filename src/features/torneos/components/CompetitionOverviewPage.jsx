@@ -19,6 +19,7 @@ import {
   TOURNAMENT_CAPABILITIES,
 } from '../domain/capabilities';
 import { getTournamentCardAction } from '../domain/competitionLifecycle';
+import { canonicalRoutes } from '../routing/canonicalRoutes';
 import CompetitionSelector from './CompetitionSelector';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import styles from './CompetitionCore.module.css';
@@ -37,7 +38,6 @@ function formatDateRange(startDate, endDate) {
 
 export default function CompetitionOverviewPage() {
   const { organization } = useOutletContext();
-  const organizationPath = `/torneos/organizacion/${organization.id}`;
   const {
     status,
     error,
@@ -74,13 +74,13 @@ export default function CompetitionOverviewPage() {
         </div>
         <div className={styles.headerActions}>
           {canCreateSeason && (
-            <Link className={styles.secondaryAction} to={`${organizationPath}/temporadas/nueva`}>
+            <Link className={styles.secondaryAction} to={canonicalRoutes.organizationSeasonNew(organization.id)}>
               <CalendarPlus size={17} />
               Nueva temporada
             </Link>
           )}
           {canCreateTournament && seasons.length > 0 && (
-            <Link className={styles.primaryAction} to={`${organizationPath}/torneos/nuevo`}>
+            <Link className={styles.primaryAction} to={canonicalRoutes.organizationTournamentNew(organization.id)}>
               <Plus size={17} />
               Crear torneo
             </Link>
@@ -102,7 +102,7 @@ export default function CompetitionOverviewPage() {
             </p>
           </div>
           {canCreateSeason && (
-            <Link className={styles.primaryAction} to={`${organizationPath}/temporadas/nueva`}>
+            <Link className={styles.primaryAction} to={canonicalRoutes.organizationSeasonNew(organization.id)}>
               Crear temporada
               <ArrowRight size={17} />
             </Link>
@@ -123,7 +123,7 @@ export default function CompetitionOverviewPage() {
                   (tournament) => tournament.seasonId === season.id,
                 ).length;
                 return (
-                  <Link key={season.id} to={`${organizationPath}/temporadas/${season.id}`}>
+                  <Link key={season.id} to={canonicalRoutes.organizationSeason(organization.id, season.id)}>
                     <span className={styles.seasonIndex}>
                       {String(seasons.indexOf(season) + 1).padStart(2, '0')}
                     </span>
@@ -156,7 +156,7 @@ export default function CompetitionOverviewPage() {
                   <span>Creá uno dentro de una temporada para empezar a configurarlo.</span>
                 </div>
                 {canCreateTournament && (
-                  <Link to={`${organizationPath}/torneos/nuevo`}>Crear torneo</Link>
+                  <Link to={canonicalRoutes.organizationTournamentNew(organization.id)}>Crear torneo</Link>
                 )}
               </div>
             ) : (
@@ -206,7 +206,7 @@ export default function CompetitionOverviewPage() {
                           <dd>{tournament.categories?.length || 0}</dd>
                         </div>
                       </dl>
-                      <Link to={`${organizationPath}/torneos/${tournament.id}/configuracion`}>
+                      <Link to={canonicalRoutes.tournamentConfiguration(organization.id, tournament.id)}>
                         {getTournamentCardAction(tournament.status, canUpdate)}
                         <ArrowRight size={16} />
                       </Link>

@@ -17,12 +17,12 @@ import {
   hasCapability,
   TOURNAMENT_CAPABILITIES,
 } from '../domain/capabilities';
+import { canonicalRoutes } from '../routing/canonicalRoutes';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import styles from './CompetitionCore.module.css';
 
 export default function SeasonFormPage() {
   const { organization } = useOutletContext();
-  const organizationPath = `/torneos/organizacion/${organization.id}`;
   const { seasonId } = useParams();
   const navigate = useNavigate();
   const {
@@ -79,8 +79,8 @@ export default function SeasonFormPage() {
   if (status === 'error') {
     return <WorkspaceError message={loadError} onRetry={() => refresh().catch(() => {})} />;
   }
-  if (!isNew && !season) return <Navigate to={`${organizationPath}/torneos`} replace />;
-  if (isNew && !canCreate) return <Navigate to={`${organizationPath}/torneos`} replace />;
+  if (!isNew && !season) return <Navigate to={canonicalRoutes.organizationTournaments(organization.id)} replace />;
+  if (isNew && !canCreate) return <Navigate to={canonicalRoutes.organizationTournaments(organization.id)} replace />;
 
   const change = (field, value) => {
     setValues((current) => {
@@ -109,7 +109,7 @@ export default function SeasonFormPage() {
           idempotencyKey: creationKeyRef.current,
         });
         creationKeyRef.current = null;
-        navigate(`${organizationPath}/temporadas/${created.id}`, { replace: true });
+        navigate(canonicalRoutes.organizationSeason(organization.id, created.id), { replace: true });
       } else {
         await updateSeason({
           seasonId: season.id,
@@ -130,7 +130,7 @@ export default function SeasonFormPage() {
     try {
       await updateSeason({ seasonId: season.id, status: nextStatus });
       if (nextStatus === 'archived') {
-        navigate(`${organizationPath}/torneos`, { replace: true });
+        navigate(canonicalRoutes.organizationTournaments(organization.id), { replace: true });
       }
     } catch (error) {
       setFormError(error?.message || 'No pudimos cambiar el estado.');
@@ -141,7 +141,7 @@ export default function SeasonFormPage() {
 
   return (
     <div className={styles.formPage}>
-      <Link className={styles.backLink} to={`${organizationPath}/torneos`}>
+      <Link className={styles.backLink} to={canonicalRoutes.organizationTournaments(organization.id)}>
         <ArrowLeft size={16} />
         Volver a torneos
       </Link>

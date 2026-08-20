@@ -180,9 +180,19 @@ describe('FixtureWorkspacePage', () => {
     expect(screen.getByText('1 partidos · 0 programados')).toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Flujo de fixture' }))
       .toBeInTheDocument();
+    // El flujo de fixture es del torneo: sus links lo nombran y arrastran la
+    // categoría. Sedes no, porque el recurso es de la organización.
     expect(screen.getByRole('link', { name: 'Programación' })).toHaveAttribute(
       'href',
-      '/torneos/organizacion/org-a/programacion',
+      '/torneos/organizacion/org-a/torneo/tournament-a/programacion?categoria=category-a',
+    );
+    expect(screen.getByRole('link', { name: 'Participantes' })).toHaveAttribute(
+      'href',
+      '/torneos/organizacion/org-a/torneo/tournament-a/fixture/participantes?categoria=category-a',
+    );
+    expect(screen.getByRole('link', { name: 'Sedes' })).toHaveAttribute(
+      'href',
+      '/torneos/organizacion/org-a/sedes',
     );
   });
 

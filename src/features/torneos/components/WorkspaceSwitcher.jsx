@@ -10,6 +10,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { torneosFeatureFlags } from '../config/featureFlags';
 import { getRoleLabel } from '../domain/capabilities';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
+import { canonicalRoutes } from '../routing/canonicalRoutes';
 import styles from './TorneosShell.module.css';
 import BrandingImage from './BrandingImage';
 
@@ -66,7 +67,7 @@ export default function WorkspaceSwitcher() {
     try {
       const selected = await selectOrganization(organization.id);
       if (selected) {
-        navigate(`/torneos/organizacion/${organization.id}/inicio`);
+        navigate(canonicalRoutes.organizationHome(organization.id));
       }
     } finally {
       setBusyId('');

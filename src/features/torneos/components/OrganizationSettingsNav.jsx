@@ -1,15 +1,15 @@
 import React from 'react';
 import { BadgeCheck, Settings2, Users } from 'lucide-react';
 import { NavLink, useParams } from 'react-router-dom';
+import { canonicalRoutes } from '../routing/canonicalRoutes';
 import styles from './OrganizationSettingsNav.module.css';
 
 export default function OrganizationSettingsNav() {
   const { organizationId } = useParams();
-  const base = `/torneos/organizacion/${organizationId}/configuracion`;
   return (
     <nav className={styles.nav} aria-label="Secciones de configuración">
       <NavLink
-        to={base}
+        to={canonicalRoutes.organizationSettings(organizationId)}
         end
         className={({ isActive }) => (isActive ? styles.active : '')}
       >
@@ -17,14 +17,14 @@ export default function OrganizationSettingsNav() {
         General
       </NavLink>
       <NavLink
-        to={`${base}/plan`}
+        to={canonicalRoutes.organizationSettingsPlan(organizationId)}
         className={({ isActive }) => (isActive ? styles.active : '')}
       >
         <BadgeCheck size={17} aria-hidden="true" />
         Plan
       </NavLink>
       <NavLink
-        to={`/torneos/organizacion/${organizationId}/miembros`}
+        to={canonicalRoutes.organizationMembers(organizationId)}
         className={({ isActive }) => (isActive ? styles.active : '')}
       >
         <Users size={17} aria-hidden="true" />

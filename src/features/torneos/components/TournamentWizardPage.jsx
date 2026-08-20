@@ -54,6 +54,7 @@ import {
   hasCapability,
   TOURNAMENT_CAPABILITIES,
 } from '../domain/capabilities';
+import { canonicalRoutes } from '../routing/canonicalRoutes';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import TournamentPublicPageSettings from './TournamentPublicPageSettings';
 import TeamVisualPolicySettings from './TeamVisualPolicySettings';
@@ -208,7 +209,6 @@ function FormatSettings({ draft, setDraft, disabled }) {
 
 export default function TournamentWizardPage() {
   const { organization } = useOutletContext();
-  const organizationPath = `/torneos/organizacion/${organization.id}`;
   const { tournamentId } = useParams();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -315,10 +315,10 @@ export default function TournamentWizardPage() {
     return <WorkspaceError message={loadError} onRetry={() => refresh().catch(() => {})} />;
   }
   if (!isNew && !tournament) {
-    return <Navigate to={`${organizationPath}/torneos`} replace />;
+    return <Navigate to={canonicalRoutes.organizationTournaments(organization.id)} replace />;
   }
   if (isNew && (!canCreate || !seasons.length)) {
-    return <Navigate to={`${organizationPath}/torneos`} replace />;
+    return <Navigate to={canonicalRoutes.organizationTournaments(organization.id)} replace />;
   }
 
   const categories = tournament?.categories || [];
@@ -425,9 +425,12 @@ export default function TournamentWizardPage() {
           idempotencyKey: creationKeyRef.current,
         });
         creationKeyRef.current = null;
-        navigate(`${organizationPath}/torneos/${created.id}/configuracion?step=${advance ? 1 : 0}`, {
-          replace: true,
-        });
+        navigate(
+          canonicalRoutes.tournamentConfiguration(organization.id, created.id, {
+            step: advance ? 1 : 0,
+          }),
+          { replace: true },
+        );
         return true;
       }
       const patch = patchForStep(step, currentDraft);
@@ -561,7 +564,7 @@ export default function TournamentWizardPage() {
       });
       setPendingStatus(null);
       if (nextStatus === 'archived') {
-        navigate(`${organizationPath}/torneos`, { replace: true });
+        navigate(canonicalRoutes.organizationTournaments(organization.id), { replace: true });
       }
     } catch (error) {
       setFormError(error?.message || 'No pudimos cambiar el estado.');
@@ -577,7 +580,7 @@ export default function TournamentWizardPage() {
 
   return (
     <div className={styles.wizardPage}>
-      <Link className={styles.backLink} to={`${organizationPath}/torneos`}>
+      <Link className={styles.backLink} to={canonicalRoutes.organizationTournaments(organization.id)}>
         <ArrowLeft size={16} />
         Volver a torneos
       </Link>

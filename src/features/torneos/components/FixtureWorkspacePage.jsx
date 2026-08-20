@@ -23,6 +23,8 @@ import { useTorneosCompetition } from '../context/TorneosCompetitionContext';
 import { useTorneosFixture } from '../context/TorneosFixtureContext';
 import { hasCapability, TOURNAMENT_CAPABILITIES } from '../domain/capabilities';
 import { RESOURCE_SCOPE_MESSAGE, resolveScopedResource } from '../domain/routeResourceScope';
+import { canonicalRoutes } from '../routing/canonicalRoutes';
+import { tournamentResourceSurface, tournamentSurface } from '../routing/legacyRoutes';
 import {
   formatInstantInTimeZone,
   instantToZonedLocalInput,
@@ -94,26 +96,41 @@ function SectionHeading({ eyebrow, title, help }) {
   );
 }
 
+// Los pasos del flujo son del torneo; Sedes no, y por eso se arma aparte.
 const FIXTURE_NAVIGATION = [
-  ['fixture', 'Versiones'],
-  ['fixture/participantes', 'Participantes'],
-  ['fixture/bombos', 'Bombos'],
-  ['fixture/sorteo', 'Sorteo'],
-  ['fixture/grupos', 'Grupos'],
-  ['fixture/generar', 'Generar'],
-  ['fixture/jornadas', 'Jornadas'],
-  ['fixture/llave', 'Llave'],
-  ['programacion', 'Programación'],
-  ['sedes', 'Sedes'],
+  ['tournamentFixture', 'Versiones'],
+  ['tournamentFixtureParticipants', 'Participantes'],
+  ['tournamentFixturePots', 'Bombos'],
+  ['tournamentFixtureDraw', 'Sorteo'],
+  ['tournamentFixtureGroups', 'Grupos'],
+  ['tournamentFixtureGenerate', 'Generar'],
+  ['tournamentFixtureRounds', 'Jornadas'],
+  ['tournamentFixtureBracket', 'Llave'],
+  ['tournamentSchedule', 'Programación'],
 ];
 
+// El torneo del subnav sale de la URL, nunca de la preferencia: moverse entre
+// pasos no puede cambiar de torneo por debajo. Sin torneo en la URL quedan las
+// direcciones viejas, que resuelven una sola vez y devuelven acá ya ancladas.
+function useTournamentAnchor() {
+  const { isTournamentRoute, routeTournamentId, activeTournament } = useTorneosCompetition();
+  return isTournamentRoute ? routeTournamentId : (activeTournament?.id || null);
+}
+
 function FixtureSubnav({ organizationId }) {
-  const base = `/torneos/organizacion/${organizationId}`;
+  const tournamentId = useTournamentAnchor();
+  const { categoryId } = useTorneosFixture();
   return (
     <nav className={styles.subnav} aria-label="Flujo de fixture">
-      {FIXTURE_NAVIGATION.map(([path, label]) => (
-        <Link key={path} to={`${base}/${path}`}>{label}</Link>
+      {FIXTURE_NAVIGATION.map(([builder, label]) => (
+        <Link
+          key={builder}
+          to={tournamentSurface(builder, organizationId, tournamentId, { categoryId })}
+        >
+          {label}
+        </Link>
       ))}
+      <Link to={canonicalRoutes.organizationVenues(organizationId)}>Sedes</Link>
     </nav>
   );
 }
@@ -335,9 +352,17 @@ function GroupsGrid({ groups }) {
 function VersionPanel({ canManage }) {
   const { organization } = useOutletContext();
   const { activeTournament } = useTorneosCompetition();
+  const tournamentId = useTournamentAnchor();
   const {
-    versions, phases, rounds, matches, actions,
+    versions, phases, rounds, matches, actions, categoryId,
   } = useTorneosFixture();
+  const versionLink = (versionId) => tournamentResourceSurface(
+    'tournamentFixtureVersion',
+    organization.id,
+    tournamentId,
+    versionId,
+    { categoryId },
+  );
   const [busy, setBusy] = useState(false);
   const [pendingPublish, setPendingPublish] = useState(null);
   const publishConsequences = getTransitionConsequences(
@@ -366,7 +391,7 @@ function VersionPanel({ canManage }) {
             <span className={styles.versionNumber}>v{version.versionNumber}</span>
             <div><small>{GENERATION_METHOD_LABELS[version.generationMethod] || 'Método no informado'}</small><h3>{statusLabel(version.status)}</h3><p>{version.matchCount} partidos · {countScheduledMatches(matches.filter((match) => match.fixtureVersionId === version.id))} programados</p></div>
             <div className={styles.versionActions}>
-              <Link to={`/torneos/organizacion/${organization.id}/fixture/version/${version.id}`}>Abrir <ArrowRight size={15} /></Link>
+              <Link to={versionLink(version.id)}>Abrir <ArrowRight size={15} /></Link>
               {canManage && version.status === 'draft' && <button type="button" disabled={busy} onClick={() => setPendingPublish(version.id)}>Publicar</button>}
               {canManage && version.status === 'published' && <button type="button" disabled={busy} onClick={() => actions.supersede(version.id)}>Nueva revisión</button>}
             </div>
@@ -522,9 +547,17 @@ function DraftEditor({ version }) {
 function RoundsPanel({ bracket = false, canManage = false }) {
   const { roundId, fixtureVersionId, matchId } = useParams();
   const { organization } = useOutletContext();
+  const tournamentId = useTournamentAnchor();
   const {
-    participants, versions, phases, rounds, matches,
+    participants, versions, phases, rounds, matches, categoryId,
   } = useTorneosFixture();
+  const matchLink = (id) => tournamentResourceSurface(
+    'tournamentFixtureMatch',
+    organization.id,
+    tournamentId,
+    id,
+    { categoryId },
+  );
   // Una versión pedida por URL que no está entre las de este torneo y esta
   // categoría no puede degradarse a la publicada: eso mostraría otra versión
   // bajo una dirección que nombra una distinta.
@@ -615,7 +648,7 @@ function RoundsPanel({ bracket = false, canManage = false }) {
           <article key={round.id}>
             <header><span>F{round.roundNumber}</span><div><h3>{round.name}</h3><small>{statusLabel(round.status)}</small></div></header>
             <div>{shownMatches.filter((match) => match.roundId === round.id).map((match) => (
-              <Link key={match.id} to={`/torneos/organizacion/${organization.id}/fixture/partidos/${match.id}`}>
+              <Link key={match.id} to={matchLink(match.id)}>
                 <small>#{match.matchNumber}</small>
                 <strong>{participantName(match.homeParticipantId) || sourceLabel(match.sources?.find((source) => source.side === 'home'))}</strong>
                 <span>vs</span>

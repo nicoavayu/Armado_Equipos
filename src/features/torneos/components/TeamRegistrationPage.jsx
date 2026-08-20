@@ -25,6 +25,7 @@ import {
   ROSTER_POSITIONS,
   TEAM_ENTRY_STATUS_LABELS,
 } from '../domain/teamRegistration';
+import { canonicalRoutes } from '../routing/canonicalRoutes';
 import PlayerAutocomplete from './PlayerAutocomplete';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import styles from './TeamRegistration.module.css';
@@ -120,7 +121,11 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
     () => ({ status: 'loading', byRosterPlayerId: new Map() }),
   );
   const portraitsRequestRef = useRef(0);
-  const base = `/torneos/organizacion/${organization.id}/equipos/${teamEntryId}`;
+  const entryTab = {
+    inscripcion: canonicalRoutes.organizationTeamEntryRegistration(organization.id, teamEntryId),
+    plantel: canonicalRoutes.organizationTeamEntryRoster(organization.id, teamEntryId),
+    revision: canonicalRoutes.organizationTeamEntryReview(organization.id, teamEntryId),
+  };
 
   const load = useCallback(async (notice = '') => {
     const requestId = requestRef.current + 1;
@@ -262,8 +267,19 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
 
   return (
     <div className={styles.detailPage}>
-      <Link className={styles.backLink} to={`/torneos/organizacion/${organization.id}/equipos`}>
-        <ArrowLeft size={17} /> Equipos
+      {/*
+        * El listado de equipos es del torneo y vive detrás del guard del
+        * torneo. Quien llegó por acceso relacional —capitán o delegado que no
+        * es miembro de la organización— no lo puede abrir, así que su vuelta
+        * es a sus propios torneos y no a una pantalla que lo rebotaría.
+        */}
+      <Link
+        className={styles.backLink}
+        to={organization.relationalAccess
+          ? '/torneos/mis-torneos'
+          : canonicalRoutes.tournamentTeams(organization.id, data.entry.tournamentId)}
+      >
+        <ArrowLeft size={17} /> {organization.relationalAccess ? 'Mis torneos' : 'Equipos'}
       </Link>
       <header className={styles.detailHero}>
         <BrandingImage
@@ -284,9 +300,9 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
       </header>
 
       <nav className={styles.detailTabs} aria-label="Secciones de la inscripción">
-        <Link aria-current={initialTab === 'inscripcion' ? 'page' : undefined} to={`${base}/inscripcion`}>Inscripción</Link>
-        <Link aria-current={initialTab === 'plantel' ? 'page' : undefined} to={`${base}/plantel`}>Plantel <span>{players.length}</span></Link>
-        {canReview && <Link aria-current={initialTab === 'revision' ? 'page' : undefined} to={`${base}/revision`}>Revisión</Link>}
+        <Link aria-current={initialTab === 'inscripcion' ? 'page' : undefined} to={entryTab.inscripcion}>Inscripción</Link>
+        <Link aria-current={initialTab === 'plantel' ? 'page' : undefined} to={entryTab.plantel}>Plantel <span>{players.length}</span></Link>
+        {canReview && <Link aria-current={initialTab === 'revision' ? 'page' : undefined} to={entryTab.revision}>Revisión</Link>}
       </nav>
 
       {state.notice && <div className={styles.successBanner} role="status"><CheckCircle2 size={17} />{state.notice}</div>}

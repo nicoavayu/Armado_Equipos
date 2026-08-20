@@ -27,16 +27,17 @@ import {
   getCompetitionErrorContext,
   getLifecycleErrorMessage,
 } from '../domain/competitionLifecycle';
+import { tournamentSurface } from '../routing/legacyRoutes';
 import CompetitionSelector from './CompetitionSelector';
 import BrandingImage from './BrandingImage';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import styles from './CompetitionCenter.module.css';
 
 const MODES = {
-  table: ['Tabla', Trophy],
-  statistics: ['Estadísticas', BarChart3],
-  qualification: ['Clasificación', Medal],
-  discipline: ['Disciplina', Scale],
+  table: ['Tabla', Trophy, 'tournamentTable'],
+  statistics: ['Estadísticas', BarChart3, 'tournamentStatistics'],
+  qualification: ['Clasificación', Medal, 'tournamentQualification'],
+  discipline: ['Disciplina', Scale, 'tournamentDiscipline'],
 };
 
 function ContextFilters({
@@ -87,14 +88,18 @@ function ContextFilters({
   );
 }
 
+// El torneo de las pestañas sale de la URL: cambiar de Tabla a Disciplina no
+// puede cambiar de torneo por debajo.
 function CompetitionSubnav({ organizationId, mode }) {
-  const base = `/torneos/organizacion/${organizationId}/competencia`;
+  const { isTournamentRoute, routeTournamentId, activeTournament } = useTorneosCompetition();
+  const { categoryId } = useTorneosFixture();
+  const tournamentId = isTournamentRoute ? routeTournamentId : (activeTournament?.id || null);
   return (
     <nav className={styles.subnav} aria-label="Centro de competencia">
-      {Object.entries(MODES).map(([key, [label, Icon]]) => (
+      {Object.entries(MODES).map(([key, [label, Icon, builder]]) => (
         <Link
           key={key}
-          to={`${base}/${key === 'table' ? 'tabla' : key === 'statistics' ? 'estadisticas' : key === 'qualification' ? 'clasificacion' : 'disciplina'}`}
+          to={tournamentSurface(builder, organizationId, tournamentId, { categoryId })}
           className={mode === key ? styles.activeTab : ''}
           aria-current={mode === key ? 'page' : undefined}
         >

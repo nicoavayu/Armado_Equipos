@@ -227,8 +227,12 @@ describe('Arma2 Torneos competition flow', () => {
         }],
       }),
     });
+    // Dirección canónica a propósito: este caso mide el borrador del asistente
+    // a lo largo de varios pasos, y entrar por la dirección vieja agregaría un
+    // redirect en el medio que no es lo que se está probando. Que la vieja
+    // resuelva a ésta lo cubre `torneosCanonicalAdoption`.
     renderPath(
-      `/torneos/organizacion/${ORGANIZATION_ID}/torneos/${TOURNAMENT_ID}/configuracion?step=3`,
+      `/torneos/organizacion/${ORGANIZATION_ID}/torneo/${TOURNAMENT_ID}/configuracion?step=3`,
       api,
     );
     await screen.findByRole(

@@ -479,11 +479,18 @@ export function getTeamRegistrationAvailability(tournament, now = new Date()) {
   return { canAdd: false, ...(copy[tournament.status] || copy.archived) };
 }
 
+//
+// El próximo paso del organizador incluye a dónde ir, y ese "dónde" ya no se
+// arma acá con un prefijo de organización: recibe los destinos ya construidos
+// por los builders de ruta. La razón es que la mitad de estas superficies son
+// del torneo, y concatenar sobre el prefijo de la organización era exactamente
+// la forma de perderlo.
+//
 export function getOwnerNextStep({
   tournament,
   teamsSummary,
   fixture,
-  organizationPath,
+  routes = {},
 }) {
   if (!tournament) return null;
   if (tournament.status === 'draft') {
@@ -494,7 +501,7 @@ export function getOwnerNextStep({
         ? 'La configuración está lista. Revisá las consecuencias y habilitá la incorporación de equipos.'
         : 'Terminá los requisitos pendientes antes de recibir equipos.',
       label: 'Revisar configuración',
-      to: `${organizationPath}/torneos/${tournament.id}/configuracion?step=5`,
+      to: routes.configuration,
     };
   }
   if (tournament.status === 'registration') {
@@ -504,7 +511,7 @@ export function getOwnerNextStep({
         title: 'No pudimos leer las inscripciones',
         description: 'Reintentá la consulta antes de decidir el siguiente paso.',
         label: 'Ver equipos',
-        to: `${organizationPath}/equipos`,
+        to: routes.teams,
       };
     }
     const teams = teamsSummary?.data;
@@ -514,7 +521,7 @@ export function getOwnerNextStep({
         title: 'Agregá los equipos participantes',
         description: 'Incorporá al menos dos equipos y completá sus planteles para poder preparar el fixture.',
         label: 'Agregar equipo',
-        to: `${organizationPath}/equipos/nuevo`,
+        to: routes.teamNew,
       };
     }
     if (teams?.submitted > 0 || (teams?.incomplete ?? 0) > 0) {
@@ -523,7 +530,7 @@ export function getOwnerNextStep({
         title: teams.submitted > 0 ? 'Revisá las inscripciones presentadas' : 'Completá los planteles',
         description: 'Todos los equipos deben quedar aprobados con su plantel válido antes de cerrar participantes.',
         label: 'Revisar equipos',
-        to: `${organizationPath}/equipos`,
+        to: routes.teams,
       };
     }
     if (fixture?.status === 'error') {
@@ -532,7 +539,7 @@ export function getOwnerNextStep({
         title: 'No pudimos leer el fixture',
         description: 'Reintentá la consulta; un error nunca se interpreta como ausencia de partidos.',
         label: 'Abrir fixture',
-        to: `${organizationPath}/fixture`,
+        to: routes.fixture,
       };
     }
     if (fixture?.status === 'ready' && fixture.participantSet?.status !== 'frozen') {
@@ -541,7 +548,7 @@ export function getOwnerNextStep({
         title: 'Cerrá la lista de participantes',
         description: 'Confirmá qué equipos aprobados van a integrar esta versión antes de generar cruces.',
         label: 'Confirmar participantes',
-        to: `${organizationPath}/fixture/participantes`,
+        to: routes.fixtureParticipants,
       };
     }
     if (fixture?.status === 'ready' && fixture.versions.length === 0) {
@@ -550,7 +557,7 @@ export function getOwnerNextStep({
         title: 'Generá el fixture',
         description: 'Creá una versión borrador, revisala y publicala cuando esté correcta.',
         label: 'Generar fixture',
-        to: `${organizationPath}/fixture/generar`,
+        to: routes.fixtureGenerate,
       };
     }
     return {
@@ -558,7 +565,7 @@ export function getOwnerNextStep({
       title: 'Revisá y publicá el fixture',
       description: 'La publicación cierra el alta normal de equipos y deja la competencia lista para programar.',
       label: 'Revisar versiones',
-      to: `${organizationPath}/fixture`,
+      to: routes.fixture,
     };
   }
   if (tournament.status === 'scheduled') {
@@ -571,7 +578,7 @@ export function getOwnerNextStep({
         title: 'Confirmá el estado de la programación',
         description: 'Necesitamos cargar el fixture antes de indicar si quedan partidos sin horario.',
         label: 'Abrir programación',
-        to: `${organizationPath}/programacion`,
+        to: routes.schedule,
       };
     }
     if (unscheduled > 0) {
@@ -580,7 +587,7 @@ export function getOwnerNextStep({
         title: 'Programá los partidos pendientes',
         description: `${unscheduled} ${unscheduled === 1 ? 'partido necesita' : 'partidos necesitan'} horario y cancha.`,
         label: 'Programar partidos',
-        to: `${organizationPath}/programacion`,
+        to: routes.schedule,
       };
     }
     return {
@@ -588,7 +595,7 @@ export function getOwnerNextStep({
       title: 'Iniciá la competencia',
       description: 'El fixture está publicado. Iniciar cierra la etapa de preparación; los partidos sin horario se pueden programar después.',
       label: 'Revisar partidos',
-      to: `${organizationPath}/partidos`,
+      to: routes.matches,
       action: COMPETITION_LIFECYCLE_ACTIONS.start,
     };
   }
@@ -598,7 +605,7 @@ export function getOwnerNextStep({
       title: 'Cargá resultados y actas',
       description: 'Operá cada partido y revisá su impacto en tabla, estadísticas y disciplina. Cuando no queden partidos por resolver vas a poder finalizarla.',
       label: 'Abrir partidos',
-      to: `${organizationPath}/partidos`,
+      to: routes.matches,
       action: COMPETITION_LIFECYCLE_ACTIONS.finish,
     };
   }
@@ -608,7 +615,7 @@ export function getOwnerNextStep({
       title: 'Revisá el cierre de la competencia',
       description: 'Resultados, tabla, estadísticas y disciplina quedan disponibles para consulta. Si detectás un error, el propietario puede reabrirla.',
       label: 'Ver tabla final',
-      to: `${organizationPath}/competencia/tabla`,
+      to: routes.table,
       action: COMPETITION_LIFECYCLE_ACTIONS.reopen,
     };
   }
@@ -617,7 +624,7 @@ export function getOwnerNextStep({
     title: 'Competencia archivada',
     description: 'El contrato actual no permite devolverla a una etapa operativa.',
     label: 'Ver torneos',
-    to: `${organizationPath}/torneos`,
+    to: routes.tournaments,
     blocked: true,
   };
 }

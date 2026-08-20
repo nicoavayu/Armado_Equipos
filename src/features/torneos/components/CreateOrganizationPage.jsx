@@ -6,6 +6,7 @@ import {
   validateOrganizationInput,
 } from '../domain/organizationValidation';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
+import { canonicalRoutes } from '../routing/canonicalRoutes';
 import styles from './TorneosShell.module.css';
 
 export default function CreateOrganizationPage() {
@@ -77,7 +78,7 @@ export default function CreateOrganizationPage() {
         idempotencyKey: idempotencyKeyRef.current,
       });
       setStatus('success');
-      navigate(`/torneos/organizacion/${organization.id}/inicio`, { replace: true });
+      navigate(canonicalRoutes.organizationHome(organization.id), { replace: true });
     } catch (submitError) {
       setStatus('error');
       setError(submitError?.message || 'No pudimos crear la organización.');

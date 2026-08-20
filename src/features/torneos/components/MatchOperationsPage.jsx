@@ -41,7 +41,7 @@ import {
   getLifecycleErrorMessage,
   getMatchResolutionPresentation,
 } from '../domain/competitionLifecycle';
-import { tournamentMatches } from '../routing/canonicalRoutes';
+import { tournamentResourceSurface, tournamentSurface } from '../routing/legacyRoutes';
 import {
   RESOURCE_SCOPE_MESSAGE,
   resourceMatchesCanonicalScope,
@@ -57,16 +57,36 @@ import CompetitionSelector from './CompetitionSelector';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import styles from './MatchOperations.module.css';
 
-// Único link tocado en este hito: dentro de una ruta canónica la navegación
-// entre pestañas del partido tiene que quedarse en la ruta canónica, o el
-// primer click devuelve a la legacy y se pierde el torneo de la URL. El barrido
-// del resto de los links internos es del hito siguiente.
-function useMatchOperationsBase(organizationId) {
-  const { isTournamentRoute, routeTournamentId } = useTorneosCompetition();
+//
+// Los links del partido salen de los builders, uno por superficie.
+//
+// Concatenar sobre la ruta del listado no alcanzaba: con `?categoria=` el
+// listado ya termina en query, así que `${base}/${match.id}` producía
+// `…/partidos?categoria=X/<id>`. El id tiene que entrar como segmento y la
+// query rearmarse después, que es exactamente lo que hace el builder.
+//
+function useMatchRoutes(organizationId) {
+  const { isTournamentRoute, routeTournamentId, activeTournament } = useTorneosCompetition();
   const { categoryId } = useTorneosFixture();
-  return isTournamentRoute && routeTournamentId
-    ? tournamentMatches(organizationId, routeTournamentId, { categoryId })
-    : `/torneos/organizacion/${organizationId}/partidos`;
+  const tournamentId = isTournamentRoute
+    ? routeTournamentId
+    : (activeTournament?.id || null);
+  const options = { categoryId };
+  const build = (name) => (matchId) => tournamentResourceSurface(
+    name,
+    organizationId,
+    tournamentId,
+    matchId,
+    options,
+  );
+  return {
+    list: tournamentSurface('tournamentMatches', organizationId, tournamentId, options),
+    detail: build('tournamentMatch'),
+    squads: build('tournamentMatchSquads'),
+    report: build('tournamentMatchReport'),
+    review: build('tournamentMatchReview'),
+    history: build('tournamentMatchHistory'),
+  };
 }
 
 const STATUS_LABELS = {
@@ -229,7 +249,7 @@ function MatchList({
   filters,
   setFilters,
 }) {
-  const base = useMatchOperationsBase(organization.id);
+  const matchRoutes = useMatchRoutes(organization.id);
   const filtered = useMemo(() => matches.filter((match) => {
     const search = filters.search.trim().toLowerCase();
     if (search && !`${match.homeName} ${match.awayName}`.toLowerCase().includes(search)) {
@@ -326,7 +346,7 @@ function MatchList({
                   label={resolution?.code === 'withdrawal_bye' ? resolution.label : null}
                 />
                 <div className={styles.rowActions}>
-                  <Link to={`${base}/${match.id}`}>
+                  <Link to={matchRoutes.detail(match.id)}>
                     {resolution ? 'Ver' : 'Operar'}
                     <ChevronRight size={16} />
                   </Link>
@@ -876,7 +896,7 @@ export default function MatchOperationsPage({ mode = 'list' }) {
   const canOpen = hasCapability(organization, TOURNAMENT_CAPABILITIES.MATCH_OPERATIONS_OPEN);
   const canManage = hasCapability(organization, TOURNAMENT_CAPABILITIES.MATCH_OPERATIONS_UPDATE_DRAFT);
   const canReview = hasCapability(organization, TOURNAMENT_CAPABILITIES.MATCH_OPERATIONS_REVIEW);
-  const base = useMatchOperationsBase(organization.id);
+  const matchRoutes = useMatchRoutes(organization.id);
 
   const run = async (action, payload = {}) => {
     if (busy) return;
@@ -978,7 +998,7 @@ export default function MatchOperationsPage({ mode = 'list' }) {
         </>
       ) : (
         <>
-          <Link className={styles.backLink} to={base}><ArrowLeft size={16} /> Volver a Partidos</Link>
+          <Link className={styles.backLink} to={matchRoutes.list}><ArrowLeft size={16} /> Volver a Partidos</Link>
           <header className={styles.matchHeader}>
             <div>
               <span className={styles.kicker}>Partido #{match.matchNumber}</span>
@@ -989,11 +1009,11 @@ export default function MatchOperationsPage({ mode = 'list' }) {
           </header>
           <MatchScore match={match} operation={state.operation} />
           <nav className={styles.matchSubnav} aria-label="Secciones del partido">
-            <Link to={`${base}/${match.id}`}>Resumen</Link>
-            <Link to={`${base}/${match.id}/convocatorias`}>Convocatorias</Link>
-            <Link to={`${base}/${match.id}/acta`}>Acta</Link>
-            <Link to={`${base}/${match.id}/revision`}>Revisión</Link>
-            <Link to={`${base}/${match.id}/historial`}>Historial</Link>
+            <Link to={matchRoutes.detail(match.id)}>Resumen</Link>
+            <Link to={matchRoutes.squads(match.id)}>Convocatorias</Link>
+            <Link to={matchRoutes.report(match.id)}>Acta</Link>
+            <Link to={matchRoutes.review(match.id)}>Revisión</Link>
+            <Link to={matchRoutes.history(match.id)}>Historial</Link>
           </nav>
           {state.notice && <div className={styles.successNotice} role="status">{state.notice}</div>}
           {state.error && <div className={styles.errorNotice} role="alert">{state.error}</div>}
@@ -1005,7 +1025,7 @@ export default function MatchOperationsPage({ mode = 'list' }) {
                 <span>Convocatorias</span>
                 <h2>{match.homeSquadStatus && match.awaySquadStatus ? 'Ambos equipos presentaron' : 'Hay convocatorias pendientes'}</h2>
                 <p>Local: {STATUS_LABELS[match.homeSquadStatus] || 'Sin presentar'} · Visitante: {STATUS_LABELS[match.awaySquadStatus] || 'Sin presentar'}</p>
-                <Link to={`${base}/${match.id}/convocatorias`}>Ver alineaciones</Link>
+                <Link to={matchRoutes.squads(match.id)}>Ver alineaciones</Link>
               </section>
               <section className={styles.detailCard}>
                 <FileClock size={24} />
@@ -1013,7 +1033,7 @@ export default function MatchOperationsPage({ mode = 'list' }) {
                 <h2>{state.operation ? `Versión ${state.operation.operation.operation_version}` : 'Todavía no fue abierta'}</h2>
                 <p>El fixture conserva cuándo y dónde; el acta registra qué ocurrió.</p>
                 {state.operation ? (
-                  <Link to={`${base}/${match.id}/acta`}>Continuar acta</Link>
+                  <Link to={matchRoutes.report(match.id)}>Continuar acta</Link>
                 ) : canOpen && ['scheduled', 'ready'].includes(match.planningStatus) ? (
                   <OpenReportAction match={match} busy={busy} run={run} />
                 ) : <small>Acción no disponible para tu rol o estado.</small>}
@@ -1023,7 +1043,7 @@ export default function MatchOperationsPage({ mode = 'list' }) {
                 <span>Autoridad</span>
                 <h2>{match.operationStatus === 'official' ? 'Resultado oficial' : 'Sin resultado oficial'}</h2>
                 <p>Un marcador editable nunca reemplaza la validación y el cierre del acta.</p>
-                <Link to={`${base}/${match.id}/historial`}>Ver versiones</Link>
+                <Link to={matchRoutes.history(match.id)}>Ver versiones</Link>
               </section>
             </div>
           )}

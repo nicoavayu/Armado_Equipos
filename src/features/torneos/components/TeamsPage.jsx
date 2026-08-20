@@ -22,6 +22,8 @@ import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
 import { hasCapability, TOURNAMENT_CAPABILITIES } from '../domain/capabilities';
 import { TEAM_ENTRY_STATUS_LABELS } from '../domain/teamRegistration';
 import { getTeamRegistrationAvailability } from '../domain/competitionLifecycle';
+import { canonicalRoutes } from '../routing/canonicalRoutes';
+import { tournamentSurface } from '../routing/legacyRoutes';
 import CompetitionSelector from './CompetitionSelector';
 import TeamWithdrawalDialog from './TeamWithdrawalDialog';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
@@ -49,6 +51,8 @@ export default function TeamsPage() {
   const { organization } = useOutletContext();
   const {
     activeTournament,
+    isTournamentRoute,
+    routeTournamentId,
     status: competitionStatus,
     error: competitionError,
     refresh: refreshCompetition,
@@ -122,7 +126,12 @@ export default function TeamsPage() {
   ) && WITHDRAWABLE_TOURNAMENT_STATUSES.includes(activeTournament?.status);
   const registration = getTeamRegistrationAvailability(activeTournament);
   const canAdd = canCreate && registration.canAdd;
-  const base = `/torneos/organizacion/${organization.id}/equipos`;
+  // El torneo del listado sale de la URL. La inscripción ya creada, en cambio,
+  // sigue siendo organization-scoped: la abre el capitán o el delegado, que no
+  // pasan por el guard del torneo.
+  const tournamentId = isTournamentRoute ? routeTournamentId : (activeTournament?.id || null);
+  const newEntryLink = tournamentSurface('tournamentTeamNew', organization.id, tournamentId);
+  const entryLink = (entryId) => canonicalRoutes.organizationTeamEntry(organization.id, entryId);
 
   if (competitionStatus === 'loading' || state.status === 'loading') {
     return <WorkspaceLoading label="Cargando inscripciones…" />;
@@ -153,7 +162,7 @@ export default function TeamsPage() {
           </p>
         </div>
         {canAdd && (
-          <Link className={styles.primaryButton} to={`${base}/nuevo`}>
+          <Link className={styles.primaryButton} to={newEntryLink}>
             <Plus size={18} />
             Agregar equipo
           </Link>
@@ -178,7 +187,11 @@ export default function TeamsPage() {
               && canUpdateTournament && (
                 <Link
                   className={styles.secondaryButton}
-                  to={`/torneos/organizacion/${organization.id}/torneos/${activeTournament.id}/configuracion?step=5`}
+                  to={canonicalRoutes.tournamentConfiguration(
+                    organization.id,
+                    activeTournament.id,
+                    { step: 5 },
+                  )}
                 >
                   Revisar configuración
                   <ArrowRight size={17} />
@@ -230,7 +243,7 @@ export default function TeamsPage() {
                     : registration.description}
               </p>
               {canAdd && (
-                <Link className={styles.primaryButton} to={`${base}/nuevo`}>Agregar equipo</Link>
+                <Link className={styles.primaryButton} to={newEntryLink}>Agregar equipo</Link>
               )}
             </section>
           ) : (
@@ -283,7 +296,7 @@ export default function TeamsPage() {
                           Retirar equipo
                         </button>
                       )}
-                      <Link to={`${base}/${entry.id}`}>
+                      <Link to={entryLink(entry.id)}>
                         Abrir
                         <ArrowRight size={17} />
                       </Link>

@@ -34,6 +34,7 @@ import {
   useSearchParams,
 } from 'react-router-dom';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
+import { canonicalRoutes } from '../routing/canonicalRoutes';
 import styles from './ParticipantHub.module.css';
 import TournamentCommunicationsPanel from './TournamentCommunicationsPanel';
 import ParticipantMediaGallery from './ParticipantMediaGallery';
@@ -273,7 +274,7 @@ function OverviewSection({
       {isOrganizer && (
         <Link
           className={styles.panelLink}
-          to={`/torneos/organizacion/${hub.tournament.organizationId}/inicio`}
+          to={canonicalRoutes.organizationHome(hub.tournament.organizationId)}
         >
           Abrir gestión operativa <ArrowRight size={16} />
         </Link>
@@ -845,7 +846,7 @@ export default function TournamentHubPage({ defaultSection = 'resumen', matchMod
             </label>
           )}
           {hub.audience.canManageTournament && !hub.tournament.readOnly && (
-            <Link className={styles.manageLink} to={`/torneos/organizacion/${hub.tournament.organizationId}/inicio`}>
+            <Link className={styles.manageLink} to={canonicalRoutes.organizationHome(hub.tournament.organizationId)}>
               Abrir gestor
             </Link>
           )}

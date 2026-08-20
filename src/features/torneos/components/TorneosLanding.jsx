@@ -22,6 +22,7 @@ import { getRoleLabel } from '../domain/capabilities';
 import { resolveTorneosUserExperience } from '../domain/userExperience';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
+import { canonicalRoutes } from '../routing/canonicalRoutes';
 import styles from './TorneosShell.module.css';
 
 // `tournament_organizations.status` es `active` | `archived`. En la tarjeta va
@@ -122,7 +123,7 @@ export default function TorneosLanding() {
 
   const openOrganization = async (organization) => {
     const selected = await selectOrganization(organization.id);
-    if (selected) navigate(`/torneos/organizacion/${organization.id}/inicio`);
+    if (selected) navigate(canonicalRoutes.organizationHome(organization.id));
   };
 
   return (
