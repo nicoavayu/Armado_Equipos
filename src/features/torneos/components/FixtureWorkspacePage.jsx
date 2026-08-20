@@ -736,7 +736,7 @@ function SchedulePanel({ canManage }) {
             courtId: match.courtId || '',
             durationMinutes: match.durationMinutes || 60,
           }))}>
-            <span>#{match.matchNumber}</span><strong>{participantName(match.homeParticipantId)} · {participantName(match.awayParticipantId)}</strong><small>{match.scheduledAt ? formatInstantInTimeZone(match.scheduledAt, venues.find((venue) => venue.id === match.venueId)?.timezone || 'America/Argentina/Buenos_Aires') : 'Sin horario'}</small><em>{statusLabel(match.status)}</em>
+            <span>#{match.matchNumber}</span><strong><span>{participantName(match.homeParticipantId)}</span><span className={styles.scheduleVersus}>vs</span><span>{participantName(match.awayParticipantId)}</span></strong><small>{match.scheduledAt ? formatInstantInTimeZone(match.scheduledAt, venues.find((venue) => venue.id === match.venueId)?.timezone || 'America/Argentina/Buenos_Aires') : 'Sin horario'}</small><em>{statusLabel(match.status)}</em>
           </button>
         ))}</div>
       </section>
