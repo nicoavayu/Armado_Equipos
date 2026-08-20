@@ -21,6 +21,7 @@
 
 export const TORNEOS_ROOT = '/torneos';
 export const CATEGORY_QUERY_PARAM = 'categoria';
+export const STEP_QUERY_PARAM = 'step';
 
 // Patrón para `useMatch`: identifica que una ubicación está bajo una ruta
 // canónica de torneo, y expone los dos ids sin que el padre tenga que parsear
@@ -81,22 +82,54 @@ function tournamentBase(organizationId, tournamentId) {
 }
 
 /**
+ * La query de una ruta canónica es una allowlist, no un passthrough.
+ *
+ * `categoria` es contexto reproducible del torneo; `step` es la posición dentro
+ * del asistente de configuración. Cualquier otra clave se descarta acá y no en
+ * cada llamada, que es la única forma de que un `?token=` no termine en un link
+ * por descuido. El orden es fijo para que dos builds de la misma ubicación
+ * produzcan exactamente el mismo string.
+ */
+function routeQuery(options = {}) {
+  const parts = [];
+  const categoryId = typeof options.categoryId === 'string' ? options.categoryId.trim() : '';
+  if (categoryId && UUID_LIKE.test(categoryId)) {
+    parts.push(`${CATEGORY_QUERY_PARAM}=${encodeURIComponent(categoryId)}`);
+  }
+  // `null`, `undefined` y `''` no son el paso 0: sin paso pedido no hay clave.
+  const rawStep = options.step;
+  if (rawStep !== null && rawStep !== undefined && rawStep !== '') {
+    const step = Number(rawStep);
+    if (Number.isInteger(step) && step >= 0 && step <= 99) {
+      parts.push(`${STEP_QUERY_PARAM}=${step}`);
+    }
+  }
+  return parts.length ? `?${parts.join('&')}` : '';
+}
+
+/**
  * Todos los builders de torneo comparten la misma firma:
  *
- *   builder(organizationId, tournamentId, { categoryId } = {})
+ *   builder(organizationId, tournamentId, { categoryId, step } = {})
  *
  * de modo que conservar la categoría nunca dependa de recordar concatenar.
  */
 function tournamentRoute(suffix) {
   return (organizationId, tournamentId, options = {}) => (
-    `${tournamentBase(organizationId, tournamentId)}${suffix}${categoryQuery(options.categoryId)}`
+    `${tournamentBase(organizationId, tournamentId)}${suffix}${routeQuery(options)}`
   );
 }
 
 function tournamentResourceRoute(prefix, suffix = '', label = 'resourceId') {
   return (organizationId, tournamentId, resourceId, options = {}) => (
     `${tournamentBase(organizationId, tournamentId)}${prefix}/${requireId(resourceId, label)}${suffix}`
-    + `${categoryQuery(options.categoryId)}`
+    + `${routeQuery(options)}`
+  );
+}
+
+function organizationRoute(suffix) {
+  return (organizationId, options = {}) => (
+    `${organizationBase(organizationId)}${suffix}${routeQuery(options)}`
   );
 }
 
@@ -105,15 +138,25 @@ function tournamentResourceRoute(prefix, suffix = '', label = 'resourceId') {
 // pertenece a la organización.
 
 export const organizationRoot = (organizationId) => organizationBase(organizationId);
-export const organizationHome = (organizationId) => `${organizationBase(organizationId)}/inicio`;
-export const organizationTournaments = (organizationId) => `${organizationBase(organizationId)}/torneos`;
-export const organizationSeasons = (organizationId) => `${organizationBase(organizationId)}/temporadas`;
-export const organizationTeams = (organizationId) => `${organizationBase(organizationId)}/equipos`;
-export const organizationMembers = (organizationId) => `${organizationBase(organizationId)}/miembros`;
-export const organizationSettings = (organizationId) => `${organizationBase(organizationId)}/configuracion`;
-export const organizationCommunications = (organizationId) => `${organizationBase(organizationId)}/comunicaciones`;
-export const organizationMedia = (organizationId) => `${organizationBase(organizationId)}/multimedia`;
-export const organizationSocialStudio = (organizationId) => `${organizationBase(organizationId)}/estudio-social`;
+export const organizationHome = organizationRoute('/inicio');
+export const organizationTournaments = organizationRoute('/torneos');
+export const organizationTournamentNew = organizationRoute('/torneos/nuevo');
+export const organizationSeasons = organizationRoute('/temporadas');
+export const organizationSeasonNew = organizationRoute('/temporadas/nueva');
+export const organizationSeason = (organizationId, seasonId) => (
+  `${organizationBase(organizationId)}/temporadas/${requireId(seasonId, 'seasonId')}`
+);
+export const organizationMembers = organizationRoute('/miembros');
+export const organizationSettings = organizationRoute('/configuracion');
+export const organizationSettingsPlan = organizationRoute('/configuracion/plan');
+export const organizationCommunications = organizationRoute('/comunicaciones');
+export const organizationMedia = organizationRoute('/multimedia');
+export const organizationSocialStudio = organizationRoute('/estudio-social');
+
+// El listado de equipos es del torneo —`loadTeamsContext` pide `tournamentId`—
+// así que su ruta canónica vive bajo el torneo. Lo que queda organization-scoped
+// es la inscripción ya creada, más abajo, y por una razón distinta.
+export const organizationTeams = organizationRoute('/equipos');
 
 // Sedes y canchas: organization-scoped por modelo, no por conveniencia.
 export const organizationVenues = (organizationId) => `${organizationBase(organizationId)}/sedes`;
@@ -139,6 +182,8 @@ export const organizationTeamEntryReview = (organizationId, teamEntryId) => (
 // ── Torneo ──────────────────────────────────────────────────────────────────
 
 export const tournamentRoot = tournamentRoute('');
+export const tournamentTeams = tournamentRoute('/equipos');
+export const tournamentTeamNew = tournamentRoute('/equipos/nuevo');
 export const tournamentConfiguration = tournamentRoute('/configuracion');
 
 export const tournamentFixture = tournamentRoute('/fixture');
@@ -151,6 +196,9 @@ export const tournamentFixtureRounds = tournamentRoute('/fixture/jornadas');
 export const tournamentFixtureBracket = tournamentRoute('/fixture/llave');
 export const tournamentFixtureRound = tournamentResourceRoute('/fixture/jornadas', '', 'roundId');
 export const tournamentFixtureVersion = tournamentResourceRoute('/fixture/version', '', 'fixtureVersionId');
+// El partido resaltado dentro de las jornadas: es la vista del fixture, no la
+// operación del partido, y por eso no colapsa contra `tournamentMatch`.
+export const tournamentFixtureMatch = tournamentResourceRoute('/fixture/partidos', '', 'matchId');
 
 export const tournamentSchedule = tournamentRoute('/programacion');
 
@@ -166,14 +214,40 @@ export const tournamentStatistics = tournamentRoute('/competencia/estadisticas')
 export const tournamentQualification = tournamentRoute('/competencia/clasificacion');
 export const tournamentDiscipline = tournamentRoute('/competencia/disciplina');
 
+//
+// Qué superficie del torneo es una ruta relativa.
+//
+// Se usa para cambiar de torneo sin cambiar de sección: quien está mirando la
+// tabla de un torneo y elige otro espera la tabla del otro. Lo que NO se
+// conserva es el recurso —un `:matchId` o un `:roundId` pertenecen al torneo
+// que se está dejando— ni `?categoria=`, por la misma razón.
+//
+export function tournamentSectionRoute(relativePath = '') {
+  const clean = String(relativePath || '').replace(/^\/+/, '');
+  if (clean.startsWith('equipos')) return tournamentTeams;
+  if (clean.startsWith('fixture')) return tournamentFixture;
+  if (clean.startsWith('programacion')) return tournamentSchedule;
+  if (clean.startsWith('partidos')) return tournamentMatches;
+  if (clean.startsWith('competencia/estadisticas')) return tournamentStatistics;
+  if (clean.startsWith('competencia/clasificacion')) return tournamentQualification;
+  if (clean.startsWith('competencia/disciplina')) return tournamentDiscipline;
+  if (clean.startsWith('competencia')) return tournamentTable;
+  if (clean.startsWith('configuracion')) return tournamentConfiguration;
+  return tournamentRoot;
+}
+
 export const canonicalRoutes = Object.freeze({
   organizationRoot,
   organizationHome,
   organizationTournaments,
+  organizationTournamentNew,
   organizationSeasons,
+  organizationSeasonNew,
+  organizationSeason,
   organizationTeams,
   organizationMembers,
   organizationSettings,
+  organizationSettingsPlan,
   organizationCommunications,
   organizationMedia,
   organizationSocialStudio,
@@ -184,6 +258,8 @@ export const canonicalRoutes = Object.freeze({
   organizationTeamEntryRoster,
   organizationTeamEntryReview,
   tournamentRoot,
+  tournamentTeams,
+  tournamentTeamNew,
   tournamentConfiguration,
   tournamentFixture,
   tournamentFixtureParticipants,
@@ -195,6 +271,7 @@ export const canonicalRoutes = Object.freeze({
   tournamentFixtureBracket,
   tournamentFixtureRound,
   tournamentFixtureVersion,
+  tournamentFixtureMatch,
   tournamentSchedule,
   tournamentMatches,
   tournamentMatch,
@@ -206,4 +283,5 @@ export const canonicalRoutes = Object.freeze({
   tournamentStatistics,
   tournamentQualification,
   tournamentDiscipline,
+  tournamentSectionRoute,
 });

@@ -14,7 +14,10 @@ import {
   tournamentMatches,
   tournamentRoot,
   tournamentSchedule,
+  tournamentSectionRoute,
   tournamentTable,
+  tournamentTeamNew,
+  tournamentTeams,
 } from '../canonicalRoutes';
 
 const ORG = '51000000-0000-4000-8000-000000000001';
@@ -120,6 +123,50 @@ describe('canonical torneos route builders', () => {
       expect(path).toMatch(pattern);
       expect(readCategoryId(path.slice(path.indexOf('?')))).toBe(CATEGORY);
     });
+  });
+
+  test('el listado de equipos vive bajo el torneo y la inscripción no', () => {
+    expect(tournamentTeams(ORG, TOURNAMENT))
+      .toBe(`/torneos/organizacion/${ORG}/torneo/${TOURNAMENT}/equipos`);
+    expect(tournamentTeamNew(ORG, TOURNAMENT))
+      .toBe(`/torneos/organizacion/${ORG}/torneo/${TOURNAMENT}/equipos/nuevo`);
+    expect(canonicalRoutes.organizationTeamEntry(ORG, MATCH))
+      .toBe(`/torneos/organizacion/${ORG}/equipos/${MATCH}`);
+  });
+
+  test('`step` es parte de la query sólo cuando se pide', () => {
+    expect(canonicalRoutes.tournamentConfiguration(ORG, TOURNAMENT))
+      .toBe(`/torneos/organizacion/${ORG}/torneo/${TOURNAMENT}/configuracion`);
+    expect(canonicalRoutes.tournamentConfiguration(ORG, TOURNAMENT, { step: 0 }))
+      .toBe(`/torneos/organizacion/${ORG}/torneo/${TOURNAMENT}/configuracion?step=0`);
+    expect(canonicalRoutes.tournamentConfiguration(ORG, TOURNAMENT, { step: '5' }))
+      .toBe(`/torneos/organizacion/${ORG}/torneo/${TOURNAMENT}/configuracion?step=5`);
+    // Ausencia no es el paso 0, y nada que no sea un paso entra en la URL.
+    expect(canonicalRoutes.tournamentConfiguration(ORG, TOURNAMENT, { step: null }))
+      .not.toContain('step=');
+    expect(canonicalRoutes.tournamentConfiguration(ORG, TOURNAMENT, { step: '' }))
+      .not.toContain('step=');
+    expect(canonicalRoutes.tournamentConfiguration(ORG, TOURNAMENT, { step: 'evil' }))
+      .not.toContain('step=');
+    expect(canonicalRoutes.tournamentConfiguration(ORG, TOURNAMENT, {
+      categoryId: CATEGORY,
+      step: 2,
+    })).toBe(`/torneos/organizacion/${ORG}/torneo/${TOURNAMENT}/configuracion?categoria=${CATEGORY}&step=2`);
+  });
+
+  test('cambiar de torneo conserva la sección y descarta el recurso', () => {
+    expect(tournamentSectionRoute('fixture/jornadas/abc')(ORG, TOURNAMENT))
+      .toBe(tournamentFixture(ORG, TOURNAMENT));
+    expect(tournamentSectionRoute('partidos/abc/acta')(ORG, TOURNAMENT))
+      .toBe(canonicalRoutes.tournamentMatches(ORG, TOURNAMENT));
+    expect(tournamentSectionRoute('competencia/disciplina')(ORG, TOURNAMENT))
+      .toBe(canonicalRoutes.tournamentDiscipline(ORG, TOURNAMENT));
+    expect(tournamentSectionRoute('competencia')(ORG, TOURNAMENT))
+      .toBe(tournamentTable(ORG, TOURNAMENT));
+    expect(tournamentSectionRoute('equipos')(ORG, TOURNAMENT))
+      .toBe(tournamentTeams(ORG, TOURNAMENT));
+    expect(tournamentSectionRoute('')(ORG, TOURNAMENT))
+      .toBe(tournamentRoot(ORG, TOURNAMENT));
   });
 
   test('exposes the route pattern the guard chain matches on', () => {
