@@ -1035,6 +1035,58 @@
   padding-left: 20px;
 }
 
+.appendPanel {
+  margin-top: 18px;
+}
+
+.appendForm,
+.appendConfirmation {
+  display: grid;
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.appendForm {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.appendForm > .appendSummary,
+.appendForm > .safeCopy,
+.appendForm > .formActions {
+  grid-column: 1 / -1;
+}
+
+.appendSummary {
+  display: grid;
+  gap: 4px;
+  border: 1px solid rgba(151, 125, 255, 0.18);
+  border-radius: 11px;
+  padding: 12px 14px;
+  background: rgba(12, 10, 19, 0.5);
+}
+
+.appendSummary span {
+  color: #9f97ac;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.safeCopy {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  border-radius: 11px;
+  padding: 12px 14px;
+  color: #bcebd7;
+  background: rgba(23, 133, 89, 0.14);
+  line-height: 1.5;
+}
+
+.safeCopy svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
 .structureStrip,
 .formActions {
   display: flex;
@@ -1409,6 +1461,27 @@
   .pageHeader,
   .panelHeading {
     align-items: flex-start;
+  }
+
+  .appendForm {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .appendForm > .appendSummary,
+  .appendForm > .safeCopy,
+  .appendForm > .formActions {
+    grid-column: auto;
+  }
+
+  .versionList article {
+    display: grid;
+    grid-template-columns: 50px minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .versionActions {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
   }
 
   .pageHeader {

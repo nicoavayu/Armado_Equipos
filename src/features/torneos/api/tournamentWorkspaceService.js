@@ -71,6 +71,11 @@ const ERROR_MESSAGES = {
   TORNEOS_INVALID_DRAW_POTS: 'Revisá la configuración de bombos.',
   TORNEOS_DUPLICATE_DRAW_ASSIGNMENT: 'Un participante o seed está asignado más de una vez.',
   TORNEOS_FIXTURE_INVALID: 'El fixture tiene conflictos estructurales que impiden publicarlo.',
+  TORNEOS_FIXTURE_DRAFT_READ_ONLY: 'Ese borrador quedó cerrado cuando comenzó el torneo. Archivá la revisión o agregá una fase sobre el fixture publicado.',
+  TORNEOS_PUBLISHED_FIXTURE_REQUIRED: 'Publicá primero el fixture de Liga antes de agregar Playoffs.',
+  TORNEOS_PLAYOFF_SOURCE_INVALID: 'Elegí una fase de Liga publicada como origen de la clasificación.',
+  TORNEOS_PLAYOFF_PHASE_EXISTS: 'Este fixture ya tiene una fase eliminatoria.',
+  TORNEOS_INVALID_QUALIFIERS: 'Elegí una cantidad de clasificados compatible con los equipos del torneo.',
   TORNEOS_SCHEDULE_CONFLICT: 'La programación tiene un conflicto bloqueante.',
   TORNEOS_SCHEDULE_WARNING_CONFIRMATION: 'Revisá las advertencias y confirmá el override con motivo.',
   TORNEOS_AUTOSCHEDULE_RANGE_REQUIRED: 'Definí un rango acotado para usar la programación automática.',
@@ -929,6 +934,26 @@ export async function publishTournamentFixture(input) {
     p_organization_id: input.organizationId,
     p_fixture_version_id: input.fixtureVersionId,
   }), 'No pudimos publicar el fixture.');
+}
+
+export async function appendTournamentPlayoffPhase(input) {
+  return unwrapRpc(await supabase.rpc('append_tournament_playoff_phase', {
+    p_organization_id: input.organizationId,
+    p_tournament_id: input.tournamentId,
+    p_category_id: input.categoryId,
+    p_source_phase_id: input.sourcePhaseId,
+    p_qualifier_count: input.qualifierCount,
+    p_double_leg: Boolean(input.doubleLeg),
+    p_idempotency_key: input.idempotencyKey,
+  }), 'No pudimos agregar los Playoffs.');
+}
+
+export async function archiveTournamentFixture(input) {
+  return unwrapRpc(await supabase.rpc('archive_tournament_fixture', {
+    p_organization_id: input.organizationId,
+    p_fixture_version_id: input.fixtureVersionId,
+    p_reason: input.reason,
+  }), 'No pudimos descartar el borrador.');
 }
 
 export async function supersedeTournamentFixture(input) {
@@ -2091,6 +2116,8 @@ export const tournamentWorkspaceService = Object.freeze({
   updateDraftFixture: updateDraftTournamentFixture,
   validateFixture: validateTournamentFixture,
   publishFixture: publishTournamentFixture,
+  appendPlayoffPhase: appendTournamentPlayoffPhase,
+  archiveFixture: archiveTournamentFixture,
   supersedeFixture: supersedeTournamentFixture,
   loadOrganizationVenues: loadTournamentOrganizationVenues,
   createVenue: createTournamentVenue,

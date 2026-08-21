@@ -18,7 +18,12 @@ import {
   Trophy,
   UsersRound,
 } from 'lucide-react';
-import { Link, useOutletContext, useParams } from 'react-router-dom';
+import {
+  Link,
+  useNavigate,
+  useOutletContext,
+  useParams,
+} from 'react-router-dom';
 import { useTorneosCompetition } from '../context/TorneosCompetitionContext';
 import { useTorneosFixture } from '../context/TorneosFixtureContext';
 import { hasCapability, TOURNAMENT_CAPABILITIES } from '../domain/capabilities';
@@ -349,12 +354,26 @@ function GroupsGrid({ groups }) {
   );
 }
 
-function VersionPanel({ canManage }) {
+const PLAYOFF_QUALIFIER_OPTIONS = [2, 4, 8, 16];
+const APPENDABLE_TOURNAMENT_STATUSES = new Set(['registration', 'scheduled', 'active']);
+const DRAFTABLE_TOURNAMENT_STATUSES = new Set(['registration', 'scheduled']);
+const KNOCKOUT_PHASE_TYPES = new Set([
+  'round_of_32',
+  'round_of_16',
+  'quarterfinal',
+  'semifinal',
+  'third_place',
+  'final',
+  'custom_knockout',
+]);
+
+function VersionPanel({ canManage, canAppend }) {
   const { organization } = useOutletContext();
   const { activeTournament } = useTorneosCompetition();
   const tournamentId = useTournamentAnchor();
+  const navigate = useNavigate();
   const {
-    versions, phases, rounds, matches, actions, categoryId,
+    versions, phases, rounds, matches, participants, actions, categoryId,
   } = useTorneosFixture();
   const versionLink = (versionId) => tournamentResourceSurface(
     'tournamentFixtureVersion',
@@ -365,6 +384,8 @@ function VersionPanel({ canManage }) {
   );
   const [busy, setBusy] = useState(false);
   const [pendingPublish, setPendingPublish] = useState(null);
+  const [pendingArchive, setPendingArchive] = useState(null);
+  const [phaseAppend, setPhaseAppend] = useState(null);
   const publishConsequences = getTransitionConsequences(
     activeTournament?.status,
     'scheduled',
@@ -376,6 +397,52 @@ function VersionPanel({ canManage }) {
       setPendingPublish(null);
     } finally { setBusy(false); }
   };
+  const openPhaseAppend = (versionId) => {
+    const sourcePhases = phases.filter((phase) => (
+      phase.fixtureVersionId === versionId
+      && phase.phaseType === 'league'
+      && phase.status !== 'archived'
+    ));
+    const qualifierOptions = PLAYOFF_QUALIFIER_OPTIONS.filter(
+      (amount) => amount <= participants.length,
+    );
+    setPhaseAppend({
+      versionId,
+      sourcePhaseId: sourcePhases[0]?.id || '',
+      qualifierCount: qualifierOptions.includes(8)
+        ? 8
+        : qualifierOptions[qualifierOptions.length - 1] || 2,
+      doubleLeg: false,
+      confirming: false,
+    });
+  };
+  const appendPlayoffs = async () => {
+    setBusy(true);
+    try {
+      await actions.appendPlayoffs({
+        sourcePhaseId: phaseAppend.sourcePhaseId,
+        qualifierCount: Number(phaseAppend.qualifierCount),
+        doubleLeg: phaseAppend.doubleLeg,
+      });
+      setPhaseAppend(null);
+      navigate(tournamentSurface(
+        'tournamentFixtureBracket',
+        organization.id,
+        tournamentId,
+        { categoryId },
+      ));
+    } finally { setBusy(false); }
+  };
+  const appendVersionPhases = phaseAppend
+    ? phases.filter((phase) => (
+      phase.fixtureVersionId === phaseAppend.versionId
+      && phase.phaseType === 'league'
+      && phase.status !== 'archived'
+    ))
+    : [];
+  const qualifierOptions = PLAYOFF_QUALIFIER_OPTIONS.filter(
+    (amount) => amount <= participants.length,
+  );
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeading}>
@@ -392,12 +459,137 @@ function VersionPanel({ canManage }) {
             <div><small>{GENERATION_METHOD_LABELS[version.generationMethod] || 'Método no informado'}</small><h3>{statusLabel(version.status)}</h3><p>{version.matchCount} partidos · {countScheduledMatches(matches.filter((match) => match.fixtureVersionId === version.id))} programados</p></div>
             <div className={styles.versionActions}>
               <Link to={versionLink(version.id)}>Abrir <ArrowRight size={15} /></Link>
-              {canManage && version.status === 'draft' && <button type="button" disabled={busy} onClick={() => setPendingPublish(version.id)}>Publicar</button>}
-              {canManage && version.status === 'published' && <button type="button" disabled={busy} onClick={() => actions.supersede(version.id)}>Nueva revisión</button>}
+              {canManage
+                && version.status === 'draft'
+                && DRAFTABLE_TOURNAMENT_STATUSES.has(activeTournament?.status)
+                && <button type="button" disabled={busy} onClick={() => setPendingPublish(version.id)}>Publicar</button>}
+              {canManage
+                && version.status === 'draft'
+                && !DRAFTABLE_TOURNAMENT_STATUSES.has(activeTournament?.status)
+                && <button type="button" disabled={busy} onClick={() => setPendingArchive(version.id)}>Descartar borrador</button>}
+              {canManage
+                && version.status === 'published'
+                && DRAFTABLE_TOURNAMENT_STATUSES.has(activeTournament?.status)
+                && <button type="button" disabled={busy} onClick={() => actions.supersede(version.id)}>Nueva revisión</button>}
+              {canAppend
+                && version.status === 'published'
+                && APPENDABLE_TOURNAMENT_STATUSES.has(activeTournament?.status)
+                && phases.some((phase) => (
+                  phase.fixtureVersionId === version.id
+                  && phase.phaseType === 'league'
+                  && phase.status !== 'archived'
+                ))
+                && !phases.some((phase) => (
+                  phase.fixtureVersionId === version.id
+                  && KNOCKOUT_PHASE_TYPES.has(phase.phaseType)
+                  && phase.status !== 'archived'
+                ))
+                && qualifierOptions.length > 0
+                && (
+                  <button type="button" disabled={busy} onClick={() => openPhaseAppend(version.id)}>
+                    <Plus size={15} /> Agregar fase
+                  </button>
+                )}
             </div>
           </article>
         ))}
       </div>
+      {phaseAppend && (
+        <section
+          className={`${styles.consequencePanel} ${styles.appendPanel}`}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="append-playoffs-title"
+        >
+          <GitBranch size={21} aria-hidden="true" />
+          <div>
+            <h3 id="append-playoffs-title">Agregar Playoffs</h3>
+            <p>Se agregará una nueva fase al torneo. Los partidos y resultados ya jugados no se modificarán.</p>
+            {!phaseAppend.confirming ? (
+              <form className={styles.appendForm} onSubmit={(event) => {
+                event.preventDefault();
+                setPhaseAppend((current) => ({ ...current, confirming: true }));
+              }}>
+                {appendVersionPhases.length > 1 ? (
+                  <label>
+                    <span>Fase de Liga de origen</span>
+                    <select
+                      required
+                      value={phaseAppend.sourcePhaseId}
+                      onChange={(event) => setPhaseAppend((current) => ({
+                        ...current,
+                        sourcePhaseId: event.target.value,
+                      }))}
+                    >
+                      {appendVersionPhases.map((phase) => (
+                        <option key={phase.id} value={phase.id}>{phase.name || 'Liga'}</option>
+                      ))}
+                    </select>
+                  </label>
+                ) : (
+                  <div className={styles.appendSummary}>
+                    <span>Clasificación desde</span>
+                    <strong>{appendVersionPhases[0]?.name || 'Liga'}</strong>
+                  </div>
+                )}
+                <label>
+                  <span>Cantidad de clasificados</span>
+                  <select
+                    value={phaseAppend.qualifierCount}
+                    onChange={(event) => setPhaseAppend((current) => ({
+                      ...current,
+                      qualifierCount: Number(event.target.value),
+                    }))}
+                  >
+                    {qualifierOptions.map((amount) => (
+                      <option key={amount} value={amount}>Top {amount}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>Partidos por cruce</span>
+                  <select
+                    value={phaseAppend.doubleLeg ? 'double' : 'single'}
+                    onChange={(event) => setPhaseAppend((current) => ({
+                      ...current,
+                      doubleLeg: event.target.value === 'double',
+                    }))}
+                  >
+                    <option value="single">Partido único</option>
+                    <option value="double">Ida y vuelta</option>
+                  </select>
+                </label>
+                <div className={styles.safeCopy}>
+                  <ShieldCheck size={17} aria-hidden="true" />
+                  <span>Los cruces se definirán desde la tabla oficial. Si todavía hay posiciones pendientes, la llave las conservará como pendientes.</span>
+                </div>
+                <div className={styles.formActions}>
+                  <button type="button" disabled={busy} onClick={() => setPhaseAppend(null)}>Cancelar</button>
+                  <button type="submit" disabled={!phaseAppend.sourcePhaseId}>Continuar</button>
+                </div>
+              </form>
+            ) : (
+              <div className={styles.appendConfirmation}>
+                <div className={styles.appendSummary}>
+                  <span>Origen</span>
+                  <strong>Top {phaseAppend.qualifierCount} de {appendVersionPhases.find((phase) => phase.id === phaseAppend.sourcePhaseId)?.name || 'Liga'}</strong>
+                </div>
+                <div className={styles.appendSummary}>
+                  <span>Formato</span>
+                  <strong>{phaseAppend.doubleLeg ? 'Ida y vuelta' : 'Partido único'}</strong>
+                </div>
+                <strong>Esta publicación sólo agregará Playoffs al fixture oficial actual.</strong>
+                <div className={styles.formActions}>
+                  <button type="button" disabled={busy} onClick={() => setPhaseAppend((current) => ({ ...current, confirming: false }))}>Volver</button>
+                  <button type="button" disabled={busy} onClick={appendPlayoffs}>
+                    {busy ? 'Agregando…' : 'Agregar Playoffs'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
       {pendingPublish && publishConsequences && (
         <section
           className={styles.consequencePanel}
@@ -419,6 +611,32 @@ function VersionPanel({ canManage }) {
               <button type="button" disabled={busy} onClick={() => publish(pendingPublish)}>
                 {busy ? 'Publicando…' : publishConsequences.confirmLabel}
               </button>
+            </div>
+          </div>
+        </section>
+      )}
+      {pendingArchive && (
+        <section
+          className={styles.consequencePanel}
+          role="alertdialog"
+          aria-labelledby="archive-fixture-title"
+        >
+          <AlertTriangle size={21} aria-hidden="true" />
+          <div>
+            <h3 id="archive-fixture-title">Descartar el borrador cerrado</h3>
+            <p>La competencia ya comenzó y esta revisión no puede publicarse. Descartarla no modifica el fixture oficial ni sus resultados.</p>
+            <div className={styles.formActions}>
+              <button type="button" disabled={busy} onClick={() => setPendingArchive(null)}>Cancelar</button>
+              <button type="button" disabled={busy} onClick={async () => {
+                setBusy(true);
+                try {
+                  await actions.archiveDraft(
+                    pendingArchive,
+                    'Descartado porque la competencia ya comenzó.',
+                  );
+                  setPendingArchive(null);
+                } finally { setBusy(false); }
+              }}>{busy ? 'Descartando…' : 'Descartar borrador'}</button>
             </div>
           </div>
         </section>
@@ -565,8 +783,13 @@ function RoundsPanel({ bracket = false, canManage = false }) {
   const version = requestedVersion.resource
     || versions.find((item) => item.status === 'published')
     || versions[0];
+  const visiblePhaseIds = new Set(phases.filter((phase) => (
+    (!version || phase.fixtureVersionId === version.id)
+    && phase.status !== 'archived'
+  )).map((phase) => phase.id));
   const visibleRounds = rounds.filter((round) => (
     (!version || round.fixtureVersionId === version.id)
+    && visiblePhaseIds.has(round.phaseId)
     && (!roundId || round.id === roundId)
   ));
   const participantName = (id) => participants.find((item) => item.id === id)?.name;
@@ -585,6 +808,7 @@ function RoundsPanel({ bracket = false, canManage = false }) {
   };
   const shownMatches = matches.filter((match) => (
     (!version || match.fixtureVersionId === version.id)
+    && visiblePhaseIds.has(match.phaseId)
     && (!roundId || match.roundId === roundId)
     && (!matchId || match.id === matchId)
   ));
@@ -598,7 +822,10 @@ function RoundsPanel({ bracket = false, canManage = false }) {
   }
   if (bracket) {
     const knockoutPhases = phases.filter((phase) => (
-      phase.fixtureVersionId === version?.id && phase.phaseType !== 'league' && phase.phaseType !== 'groups'
+      phase.fixtureVersionId === version?.id
+      && phase.status !== 'archived'
+      && phase.phaseType !== 'league'
+      && phase.phaseType !== 'groups'
     ));
     return (
       <section className={styles.panel}>
@@ -813,7 +1040,12 @@ export default function FixtureWorkspacePage({ mode = 'overview' }) {
       </header>
       {fixture.notice && <div className={styles.notice} role="status"><CheckCircle2 size={17} />{fixture.notice}</div>}
       <Metrics />
-      {mode === 'overview' && <VersionPanel canManage={canManage} />}
+      {mode === 'overview' && (
+        <VersionPanel
+          canManage={canManage}
+          canAppend={hasCapability(organization, TOURNAMENT_CAPABILITIES.FIXTURE_PUBLISH)}
+        />
+      )}
       {mode === 'participants' && <ParticipantsPanel canManage={canManage} />}
       {mode === 'pots' && <PotsPanel canManage={canManage} />}
       {mode === 'draw' && <DrawPanel canManage={canManage} />}

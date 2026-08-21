@@ -211,6 +211,17 @@ export function TorneosFixtureProvider({
       },
       'Fixture publicado. Se cerró el alta normal de equipos.',
     ),
+    appendPlayoffs: (input) => mutate(
+      () => service.appendPlayoffPhase(scoped({
+        ...input,
+        idempotencyKey: input.idempotencyKey || service.createIdempotencyKey(),
+      })),
+      'Playoffs publicados. La Liga y sus resultados siguen intactos.',
+    ),
+    archiveDraft: (fixtureVersionId, reason) => mutate(
+      () => service.archiveFixture(scoped({ fixtureVersionId, reason })),
+      'Borrador descartado.',
+    ),
     supersede: (fixtureVersionId) => mutate(
       () => service.supersedeFixture(scoped({
         fixtureVersionId,
