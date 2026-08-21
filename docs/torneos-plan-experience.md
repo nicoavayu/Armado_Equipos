@@ -1,200 +1,101 @@
-# Arma2 Torneos: experiencia de planes FREE / PRO
+# Arma2 Torneos · Plans & Entitlements V1
 
-## Objetivo
+## Unidad comercial
 
-Esta entrega incorpora una superficie de lectura para que una organización de
-Arma2 Torneos vea su plan efectivo, lifecycle, beneficios y límites. No agrega
-billing, precios, checkout ni mutaciones de suscripción.
+La licencia pertenece a `public.tournaments.id`, que en el modelo vigente es
+una competencia concreta dentro de una temporada: por ejemplo, Apertura 2027 o
+Clausura 2027. La organización es el tenant, `tournament_seasons` agrupa un
+período institucional y `tournament_categories` subdivide deportivamente esa
+competencia. Ni temporada, categoría, equipo, plantel ni jugador son unidades
+facturables independientes.
 
-La ruta es:
+Una nueva edición siempre debe tener un nuevo `tournaments.id`. Una licencia de
+otra edición no se consulta ni se copia al resolver el plan.
 
-`/torneos/organizacion/:organizationId/configuracion/plan`
+## Modelo de asignación
 
-La navegación sigue el patrón existente `Configuración → Plan` y comparte la
-misma implementación React responsive en browser, iOS y Android (Capacitor).
+`tournament_plan_grants` registra asignaciones permanentes por organización y
+torneo. Distingue tres orígenes:
 
-## Ownership del plan
+- `first_free`: primer torneo real de una organización nueva;
+- `purchase`: futura compra, reservada a una autoridad server-side;
+- `legacy_grant`: acceso preexistente preservado durante el backfill.
 
-El plan pertenece a `tournament_organizations`. No pertenece al usuario y no
-se deriva de su sesión, nombre de rol, ruta, query string, localStorage ni flag
-de frontend. Un mismo usuario puede administrar organizaciones con planes
-distintos y participar en otros torneos sin que esas relaciones se mezclen.
+`tournament_organization_plan_state` registra de forma determinista si la
+organización consumió su única oportunidad Free. Para una organización nueva,
+el primer insert en `tournaments` toma un lock por organización, crea el grant
+Free y registra el torneo que consumió la oportunidad. Después,
+`get_tournament_creation_eligibility` devuelve `premium_required`; Foundation
+no bloquea todavía el flujo de creación ni fabrica una compra.
 
-Los roles y los entitlements son dimensiones independientes:
+La resolución efectiva usa `get_effective_tournament_entitlements(org, torneo)`.
+El estado, finalización o archivado del torneo no interviene en esa resolución,
+por lo que Premium permanece asociado a esa edición histórica.
 
-- owner y admin poseen `workspace.manage` en la matriz canónica y pueden abrir
-  el CTA futuro, que hoy sólo muestra un modal local;
-- collaborator puede consultar el plan porque es miembro, pero el CTA futuro
-  permanece deshabilitado si no posee `workspace.manage`;
-- participant no recibe acceso a la administración comercial: el guard de
-  organización sólo monta la ruta para miembros del workspace;
-- ningún rol concede PRO ni una capability comercial.
+## Backfill
 
-## Foundation y resolver canónicos
+Las organizaciones con torneos preexistentes quedan inicializadas con
+`legacy_backfill` y la oportunidad Free ya consumida. Una organización previa
+que todavía no creó ningún torneo conserva su primer Free. Todos los torneos
+preexistentes reciben `PREMIUM / legacy_grant`, sin fechas de expiración. No se
+crean purchases, transacciones ni pagos ficticios.
 
-La única foundation continúa siendo la migration
-`20260810160355_tournament_entitlements_foundation.sql`:
+Las tablas del modelo temporal FREE/PRO anterior se conservan renombradas como
+`tournament_legacy_subscription_plans` y
+`tournament_legacy_organization_subscriptions`. Son historia no autoritativa y
+no conceden acceso.
 
-- `tournament_entitlement_plans` contiene la política FREE/PRO;
-- `tournament_entitlement_capabilities` contiene el catálogo;
-- `tournament_organization_subscriptions` contiene un lifecycle PRO por
-  organización;
-- `tournament_organization_entitlement_overrides` y
-  `tournament_entitlement_overrides` permiten overrides server-only;
-- `get_effective_tournament_entitlements(organization_id, tournament_id)` es
-  la proyección pública canónica;
-- `has_tournament_entitlement(...)` es el guard booleano canónico.
+## Catálogo central
 
-La pantalla llama exclusivamente a `get_effective_tournament_entitlements`
-mediante `tournamentWorkspaceService.loadEntitlements`. El cliente sólo envía
-el scope (`organizationId`, `tournamentId: null`); nunca envía plan,
-capabilities, status ni límites.
+`tournament_plan_catalog` es la fuente server-side de límites y branding:
 
-Antes de mostrar el payload se valida:
+| Plan | Galería general | Staff administrativo | Branding |
+| --- | ---: | ---: | --- |
+| FREE | 100 assets | 1 + owner | Arma2 Torneos visible |
+| PREMIUM | 10.000 assets configurables | 10 + owner | Powered by Arma2 |
 
-1. `schemaVersion === 1`;
-2. plan conocido (`FREE` o `PRO`);
-3. `scope.organizationId` igual al workspace pedido;
-4. `scope.tournamentId` igual al scope pedido;
-5. capabilities conocidas y booleanas estrictas;
-6. límites multimedia con tipos esperados.
+La cuota de galería cuenta únicamente assets generales de
+`tournament_media_assets`. Logo, portada, escudos, foto de equipo, retratos y
+otros assets de identidad viven en superficies específicas y no consumen esa
+cuota. El owner y los roles deportivos tampoco consumen la cuota administrativa;
+sólo membresías activas `admin`/`collaborator`.
 
-Un error, schema desconocido, plan desconocido, scope cruzado o dato
-incompleto falla cerrado: PLAN FREE/no verificado y capabilities desactivadas.
-Al cambiar de workspace se descarta inmediatamente la proyección anterior
-antes de resolver la siguiente organización.
+`tournament_pricing_config` es la única fuente del precio V1: ARS 49.900 de
+lista, ARS 39.900 de lanzamiento, pago único y alcance por edición.
 
-## Lifecycle
+`tournament_entitlement_capabilities` mantiene el core deportivo habilitado en
+FREE y PREMIUM. Las capacidades Premium son `statistics.advanced`,
+`branding.advanced`, `sponsors`, `social_studio.premium` y
+`exports.professional`. Registrar una capacidad no implica que la feature ya
+exista; Foundation no agrega esas features.
 
-La semántica no se reimplementa en el cliente. La migration resuelve:
+## Seguridad
 
-- `active` vigente → PRO;
-- `cancelled` antes de `current_period_end` → PRO;
-- `grace_period` antes de `grace_until` → PRO;
-- `past_due` → FREE en esta fase;
-- `expired` → FREE;
-- fila ausente, período vencido o datos inconsistentes → FREE.
+Las tablas de planes, pricing, grants y estado no exponen escrituras a `anon` ni
+`authenticated`. Los usuarios leen sólo las proyecciones RPC autorizadas para
+una organización/edición visible. `grant_tournament_premium` está reservado a
+`service_role`; no existe una mutación de browser que permita autoasignarse
+Premium. El setter de la suscripción temporal anterior queda deshabilitado.
 
-La UI usa `plan` como resultado efectivo y `subscriptionStatus` sólo como
-explicación del lifecycle. Así, `expired` y `past_due` nunca pintan PRO activo.
-`cancelled` y `grace_period` conservan el badge PRO sólo cuando el resolver
-también devuelve PRO.
+## Riesgo de reciclaje y contrato futuro
 
-El resolver v1 actual no expone `currentPeriodEnd`, `graceUntil`,
-`cancelledAt` ni `source`. Por eso esta PR muestra el estado y su semántica,
-pero no inventa una fecha ni un proveedor. Una evolución futura del contrato
-canónico puede exponer esas fechas de lectura; esta PR no crea una segunda
-consulta a la tabla privada ni una nueva foundation.
+El producto actual permite editar nombre, slug, fechas y configuración de un
+torneo ya creado, y permite finalizar, reabrir o archivar. No existe todavía un
+flujo formal de “duplicar edición” ni un lifecycle que determine cuándo una
+edición cambió de identidad comercial. Por eso Foundation no impone bloqueos
+destructivos sobre esas ediciones existentes.
 
-## FREE / PRO y catálogo efectivo
+El contrato para Billing/lifecycle es inequívoco: duplicar puede copiar
+configuración deportiva, pero nunca un row de `tournament_plan_grants`; una
+nueva edición debe crear un nuevo `tournaments.id` y obtener su propia
+asignación. Cualquier futura operación de reciclaje o duplicación debe apoyarse
+en `get_tournament_creation_eligibility` antes de persistir.
 
-La pantalla no mantiene una matriz paralela de `free_enabled` / `pro_enabled`.
-Presenta lenguaje amigable vinculado uno a uno con las claves ya conocidas por
-el cliente y decide su estado sólo desde la proyección efectiva:
+## QA LOCAL
 
-- `media.upload`;
-- `media.history`;
-- `media.extended_retention`;
-- `social_studio.basic`;
-- `social_studio.full`;
-- `advanced_stats`;
-- `higher_limits`.
-
-Cada fila informa `Incluido`, `No incluido en el plan actual` o `No disponible
-en este entorno`. La comparación FREE/PRO es explicativa; nunca constituye una
-promesa comercial ni desbloquea una función.
-
-## Feature flags vs entitlement
-
-Un entitlement no enciende una superficie global. La presentación combina:
-
-- multimedia con `mediaEnabled`;
-- carga con `mediaUploadEnabled` (que ya incorpora readiness operativo);
-- Social Studio con `socialContentGenerator`;
-- estadísticas avanzadas con `officialStats`.
-
-Cuando el flag relevante está apagado, la fila se marca no disponible aunque
-el entitlement sea `true`. La pantalla no cambia flags. Las acciones reales de
-Social Studio continúan exigiendo además sus capabilities específicas de rol
-(`social.create`, `social.export`, etc.) en los RPCs existentes.
-
-## Multimedia
-
-Los cuatro valores se leen de `entitlements.media`:
-
-- `maxPhotosPerMatchday`;
-- `retainedMatchdays`;
-- `retentionGraceDays`;
-- `postExpirationRetentionDays`;
-- y, cuando existe, `postProProtectedUntil`.
-
-Un `null` PRO se presenta como `A definir`, porque el contrato indica “sin
-límite comercial configurado”, no permiso operativo ilimitado. Esta PR no
-modifica buckets, privacidad, upload sessions, trusted processing, purge,
-retention candidates ni el pipeline multimedia. Los datos deportivos
-estructurados siguen fuera de toda retención de fotos.
-
-## Locked features
-
-Los locks nuevos viven sólo en la explicación del catálogo de Plan. No se
-agregaron guards server-side, no se cambió el catálogo y no se bloqueó ninguna
-funcionalidad que hoy resuelva FREE. Las superficies existentes conservan sus
-guards canónicos. En particular, participant sigue accediendo a las
-capabilities participant-applicable que el backend resuelva para su torneo.
-
-## CTA y precio
-
-FREE muestra `Pasar a PRO` y PRO muestra `Gestionar plan`. Para un miembro con
-`workspace.manage`, ambos abren un modal `Disponible próximamente`. Para un
-miembro sin esa capability, el botón permanece deshabilitado con copy de rol.
-
-El modal:
-
-- no llama servicios;
-- no crea ni actualiza filas;
-- no modifica entitlements;
-- no abre una URL externa;
-- no persiste estado;
-- no concede PRO.
-
-No hay precio, moneda ni importe hardcodeado. La UI dice `Sin precio publicado`.
-
-## Web / native parity
-
-No existe una implementación web-only. La ruta está dentro de `TorneosShell`,
-que se usa en browser y en el runtime Capacitor de iOS/Android. La vista usa
-CSS Grid amplio en desktop, dos columnas intermedias y cards verticales con
-targets táctiles en mobile/native. Respeta safe areas del shell y
-`prefers-reduced-motion`.
-
-## Estados seguros
-
-- Organización sin subscription row: FREE / `Sin suscripción PRO`.
-- PRO active: PRO / `Activo`.
-- PRO cancelled vigente: PRO / `Cancelado`.
-- PRO grace vigente: PRO / `Período de gracia`.
-- Expired: FREE / `PRO vencido`.
-- Past due: FREE / `Acceso PRO pausado`.
-- Resolver error o payload incompleto: FREE no verificado, capabilities false,
-  límites no verificados y reintento local.
-- Usuario sin organización o participant sin membership: el guard existente no
-  monta administración de Plan.
-- Cambio de workspace: invalida el plan anterior antes de cargar el nuevo.
-
-## No billing
-
-No se agregó backend, migration, tabla, provider SDK, secret, payment intent,
-provider customer, provider subscription, receipt, checkout ni webhook. No se
-contactó Supabase remoto, Staging ni Production para implementar esta entrega.
-
-## Futuro checkout web y sincronización móvil
-
-Una etapa futura, separada y revisada, podrá implementar checkout web (por
-ejemplo Mercado Pago) y validación de compras Apple/Google. Ese backend deberá
-validar pagos en un entorno confiable y transicionar el lifecycle canónico; la
-app sólo seguirá leyendo `get_effective_tournament_entitlements`.
-
-La compra web futura deberá sincronizarse con iOS/Android por la misma
-organización, no por una bandera del usuario. La app refrescará el resolver al
-cambiar workspace, recuperar foco o recibir una señal autenticada. Ningún
-receipt, token ni webhook debe convertir al cliente en fuente de verdad.
+El fixture `scripts/qa/seed-torneos-plan-review-fixtures.mjs` crea de forma
+idempotente una organización nueva, `qa-planes-first-free`. Su primer torneo
+recibe Free mediante el mismo trigger de producción. El Premium se revisa sobre
+`qa-metropolitana / Torneo Apertura QA 2026`, cuyo acceso proviene del backfill
+real. `/qa/torneos` sólo muestra esos atajos si la sesión puede leerlos y el
+resolver server-side devuelve el plan esperado.

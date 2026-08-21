@@ -178,7 +178,8 @@ async function report(client, scope) {
        (select count(*)::integer from public.tournament_media_galleries where organization_id=$1) galleries,
        (select count(*)::integer from public.tournament_player_suspensions where organization_id=$1) suspensions,
        (select count(*)::integer from public.tournament_public_pages where organization_id=$1 and status='published') public_pages,
-       (select count(*)::integer from public.tournament_organization_subscriptions where organization_id=$1 and status='active') active_subscriptions`,
+       (select count(*)::integer from public.tournament_plan_grants
+         where organization_id=$1 and plan_code='PREMIUM') premium_plan_grants`,
     [scope.organization_id],
   );
   return result.rows[0];
@@ -361,16 +362,6 @@ async function applySupplement(client) {
         'tournament_participants',
         uuid('media-gallery:fecha-1'),
       ],
-    );
-
-    await client.query('reset role');
-    await assumeRole(client, 'service_role');
-    await value(
-      client,
-      `select public.set_tournament_organization_subscription(
-        $1,'active','2026-08-01T00:00:00Z','2026-09-30T23:59:59Z',null,null,90
-      )`,
-      [scope.organization_id],
     );
 
     await client.query('reset role');

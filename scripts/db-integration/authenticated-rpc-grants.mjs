@@ -138,6 +138,7 @@ const POST_CANONICAL_AUTHENTICATED_ALLOWLIST = [
   ['public.get_tournament_public_page_settings(uuid,uuid)', 'frontend_legitimate'],
   ['public.set_tournament_public_page_published(uuid,uuid,boolean)', 'frontend_legitimate'],
   ['public.get_effective_tournament_entitlements(uuid,uuid)', 'frontend_legitimate'],
+  ['public.get_tournament_creation_eligibility(uuid)', 'frontend_legitimate'],
   ['public.has_tournament_entitlement(uuid,uuid,text)', 'frontend_legitimate'],
   ['public.get_tournament_media_asset_processing_tiers(uuid)', 'frontend_legitimate'],
   ['public.get_tournament_media_upload_capability(uuid)', 'frontend_legitimate'],
