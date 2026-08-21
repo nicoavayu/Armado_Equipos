@@ -77,9 +77,14 @@
   font-size: var(--torneos-action-font-size);
   font-weight: var(--torneos-action-font-weight);
   line-height: var(--torneos-action-line-height);
+  white-space: nowrap;
   text-decoration: none;
   cursor: pointer;
 }
+
+.actions > button > svg,
+.actions > a > svg,
+.retry > svg { flex: 0 0 auto; }
 
 .actions .publish { color: #211343; border-color: #a893fa; background: #bca9ff; }
 .actions .unpublish { color: #f5d5d5; border-color: rgba(237, 105, 105, .35); background: rgba(158, 47, 47, .16); }

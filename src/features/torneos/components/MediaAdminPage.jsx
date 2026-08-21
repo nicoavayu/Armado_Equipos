@@ -4,6 +4,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { createPortal } from 'react-dom';
 import {
   AlertTriangle,
   Archive,
@@ -90,6 +91,74 @@ function MediaState({
       <p>{copy}</p>
       {action}
     </section>
+  );
+}
+
+function DeletePhotoDialog({ busy, onCancel, onConfirm }) {
+  const dialogRef = useRef(null);
+  const cancelRef = useRef(null);
+
+  useEffect(() => {
+    cancelRef.current?.focus();
+  }, []);
+
+  const handleKeyDown = (event) => {
+    if (event.key === 'Escape' && !busy) onCancel();
+    if (event.key !== 'Tab' || !dialogRef.current) return;
+
+    const focusable = Array.from(dialogRef.current.querySelectorAll(
+      'button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
+    ));
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
+
+  return createPortal(
+    <div
+      className={styles.dialogOverlay}
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget && !busy) onCancel();
+      }}
+    >
+      <section
+        ref={dialogRef}
+        className={styles.confirmDialog}
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="delete-photo-title"
+        aria-describedby="delete-photo-description"
+        onKeyDown={handleKeyDown}
+      >
+        <span className={styles.confirmDialogIcon} aria-hidden="true">
+          <Trash2 size={21} />
+        </span>
+        <h2 id="delete-photo-title">¿Eliminar foto?</h2>
+        <p id="delete-photo-description">Esta acción no se puede deshacer.</p>
+        <footer className={styles.confirmDialogActions}>
+          <button ref={cancelRef} type="button" disabled={busy} onClick={onCancel}>
+            Cancelar
+          </button>
+          <button
+            type="button"
+            className={styles.confirmDangerAction}
+            disabled={busy}
+            onClick={onConfirm}
+          >
+            <Trash2 size={17} aria-hidden="true" /> Sí, eliminar
+          </button>
+        </footer>
+      </section>
+    </div>,
+    document.body,
   );
 }
 
@@ -198,7 +267,7 @@ function AssetPreview({
                 className={styles.assetDangerAction}
                 onClick={() => onAction(asset, 'delete')}
               >
-                <Trash2 size={15} aria-hidden="true" /> Eliminar definitivamente
+                <Trash2 size={15} aria-hidden="true" /> Eliminar
               </button>
             </div>
           )}
@@ -228,6 +297,7 @@ export default function MediaAdminPage() {
   const [notice, setNotice] = useState('');
   const [dragging, setDragging] = useState(false);
   const [thumbnails, setThumbnails] = useState({});
+  const [pendingDelete, setPendingDelete] = useState(null);
   queueRef.current = queue;
 
   const patchQueueItem = (id, patch) => setQueue((current) => current.map(
@@ -476,9 +546,6 @@ export default function MediaAdminPage() {
 
   const actOnAsset = async (asset, action) => {
     if (busy) return;
-    if (action === 'delete' && !window.confirm(
-      '¿Eliminar definitivamente esta foto? Se borrará del archivo privado y no se puede deshacer.',
-    )) return;
     setBusy(`${action}:${asset.id}`);
     try {
       if (action === 'delete') {
@@ -504,6 +571,22 @@ export default function MediaAdminPage() {
     } finally {
       setBusy('');
     }
+  };
+
+  const requestAssetAction = (asset, action) => {
+    if (busy) return;
+    if (action === 'delete') {
+      setPendingDelete(asset);
+      return;
+    }
+    actOnAsset(asset, action);
+  };
+
+  const confirmDelete = () => {
+    if (!pendingDelete || busy) return;
+    const asset = pendingDelete;
+    setPendingDelete(null);
+    actOnAsset(asset, 'delete');
   };
 
   const moveAsset = async (asset, targetOrder) => {
@@ -893,7 +976,7 @@ export default function MediaAdminPage() {
                       cover={selectedGallery.coverAssetId === asset.id}
                       gallery={selectedGallery}
                       capabilities={capabilities}
-                      onAction={actOnAsset}
+                      onAction={requestAssetAction}
                       onMove={moveAsset}
                       lastOrder={selectedGallery.assets.length - 1}
                       thumbnailUrl={thumbnails[`${asset.id}:thumbnail`] || ''}
@@ -969,6 +1052,14 @@ export default function MediaAdminPage() {
             ))}
           </div>
         </section>
+      )}
+
+      {pendingDelete && (
+        <DeletePhotoDialog
+          busy={busy === `delete:${pendingDelete.id}`}
+          onCancel={() => setPendingDelete(null)}
+          onConfirm={confirmDelete}
+        />
       )}
     </div>
   );

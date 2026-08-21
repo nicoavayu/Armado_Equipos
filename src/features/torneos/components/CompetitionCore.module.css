@@ -91,6 +91,7 @@
   font-style: normal;
   font-weight: var(--torneos-action-font-weight);
   line-height: var(--torneos-action-line-height);
+  white-space: nowrap;
   text-decoration: none;
   cursor: pointer;
   transition:
@@ -98,6 +99,13 @@
     border-color 180ms ease,
     background 180ms ease,
     opacity 180ms ease;
+}
+
+.primaryAction > svg,
+.secondaryAction > svg,
+.ghostAction > svg,
+.dangerAction > svg {
+  flex: 0 0 auto;
 }
 
 .primaryAction:focus-visible,

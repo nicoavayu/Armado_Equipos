@@ -56,8 +56,10 @@
   font-size: var(--torneos-action-font-size);
   font-weight: var(--torneos-action-font-weight);
   line-height: var(--torneos-action-line-height);
+  white-space: nowrap;
   cursor: pointer;
 }
+.actions button > svg { flex: 0 0 auto; }
 .actions button:hover:not(:disabled) { border-color: #9ed3ff; background: rgba(106, 67, 255, .27); }
 .actions button:focus-visible { outline: var(--torneos-focus-ring); outline-offset: var(--torneos-focus-ring-offset); }
 .actions button:disabled { cursor: wait; opacity: .55; }

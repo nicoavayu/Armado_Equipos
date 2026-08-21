@@ -252,7 +252,7 @@ describe('organizer tournament media center', () => {
     renderAdmin();
     expect(await screen.findByText('Modo lectura')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Crear galería' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Eliminar definitivamente' }))
+    expect(screen.queryByRole('button', { name: 'Eliminar' }))
       .not.toBeInTheDocument();
   });
 });
@@ -556,27 +556,30 @@ describe('media center with a certified pipeline', () => {
     });
   });
 
-  test('hard deletion requires revoke capability, explicit confirmation and reloads', async () => {
+  test('hard deletion requires revoke capability, explicit modal confirmation and reloads', async () => {
     const payloadWithDelete = readyPayload({
       assets: [asset('asset-a', { variantsReady: 4 })],
     });
     payloadWithDelete.capabilities = [...payloadWithDelete.capabilities, 'media.revoke'];
     mockContextService = createAdminService(payloadWithDelete);
     mockContextService.signMediaReadUrls = jest.fn().mockResolvedValue({});
-    const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(true);
     renderAdmin();
 
     await userEvent.click(await screen.findByRole('button', {
-      name: 'Eliminar definitivamente',
+      name: 'Eliminar',
     }));
 
-    expect(confirmSpy).toHaveBeenCalledWith(expect.stringMatching(/no se puede deshacer/i));
+    const dialog = screen.getByRole('alertdialog', { name: '¿Eliminar foto?' });
+    expect(dialog).toHaveTextContent('Esta acción no se puede deshacer.');
+    expect(mockContextService.deleteMediaAsset).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Sí, eliminar' }));
+
     expect(mockContextService.deleteMediaAsset).toHaveBeenCalledWith('asset-a');
     await waitFor(() => {
       expect(mockContextService.loadMediaAdminContext.mock.calls.length).toBeGreaterThan(1);
     });
     expect(screen.getByText(/se eliminaron correctamente/i)).toBeInTheDocument();
-    confirmSpy.mockRestore();
   });
 
   test('does not delete when the owner cancels the confirmation', async () => {
@@ -584,13 +587,14 @@ describe('media center with a certified pipeline', () => {
     payload.capabilities = [...payload.capabilities, 'media.revoke'];
     mockContextService = createAdminService(payload);
     mockContextService.signMediaReadUrls = jest.fn().mockResolvedValue({});
-    const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(false);
     renderAdmin();
 
     await userEvent.click(await screen.findByRole('button', {
-      name: 'Eliminar definitivamente',
+      name: 'Eliminar',
     }));
+    await userEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+
+    expect(screen.queryByRole('alertdialog', { name: '¿Eliminar foto?' })).not.toBeInTheDocument();
     expect(mockContextService.deleteMediaAsset).not.toHaveBeenCalled();
-    confirmSpy.mockRestore();
   });
 });

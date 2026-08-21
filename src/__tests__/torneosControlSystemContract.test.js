@@ -159,6 +159,27 @@ describe('1C.3A.1 — un solo sistema de botones', () => {
       expect(base[1]).toMatch(new RegExp(`var\\(--torneos-action-${part}\\)`));
     });
     expect(base[1]).toMatch(/font-family:\s*var\(--torneos-ui-font\)/);
+    expect(base[1]).toMatch(/white-space:\s*nowrap/);
+  });
+
+  test('las acciones multimedia mantienen label e icono en una sola línea', () => {
+    const media = read(`${TORNEOS_CSS}/MediaAdminPage.module.css`);
+    const action = media.match(/\.assetActions button\s*\{([\s\S]*?)\n\}/);
+    expect(action).not.toBeNull();
+    expect(action[1]).toMatch(/display:\s*inline-flex/);
+    expect(action[1]).toMatch(/align-items:\s*center/);
+    expect(action[1]).toMatch(/white-space:\s*nowrap/);
+    expect(media).toMatch(/\.assetActions button > svg[\s\S]*?flex:\s*0 0 auto/);
+  });
+
+  test('los tabs de Configuración usan radios consistentes y un activo sólido', () => {
+    const settingsNav = read(`${TORNEOS_CSS}/OrganizationSettingsNav.module.css`);
+    expect(settingsNav).toMatch(/\.nav\s*\{[\s\S]*?border-radius:\s*16px/);
+    expect(settingsNav).toMatch(/\.nav a\s*\{[\s\S]*?border-radius:\s*12px/);
+    expect(settingsNav).toMatch(/\.nav a\s*\{[\s\S]*?white-space:\s*nowrap/);
+    expect(settingsNav).toMatch(/\.nav a svg\s*\{\s*flex:\s*0 0 auto/);
+    expect(settingsNav).toMatch(/\.nav a\.active\s*\{[\s\S]*?linear-gradient/);
+    expect(settingsNav).not.toMatch(/border-radius:\s*\d+px\s+\d+px/);
   });
 
   // Segundo patrón opcional para los archivos donde la familia se declara en una

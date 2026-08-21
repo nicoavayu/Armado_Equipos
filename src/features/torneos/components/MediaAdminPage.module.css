@@ -158,6 +158,16 @@
   line-height: var(--torneos-action-line-height);
   padding: 0 var(--torneos-action-padding-x);
   cursor: pointer;
+  white-space: nowrap;
+}
+
+.toolbar button > svg,
+.composer button > svg,
+.uploadActions button > svg,
+.galleryActions button > svg,
+.assetActions button > svg,
+.reports button > svg {
+  flex: 0 0 auto;
 }
 
 .composer {
@@ -201,6 +211,7 @@
   line-height: var(--torneos-action-line-height);
   padding: 0 var(--torneos-action-padding-x);
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .workspace { display: grid; grid-template-columns: minmax(210px,.32fr) minmax(0,1fr); gap: 16px; }
@@ -296,12 +307,17 @@
   font-family: var(--torneos-ui-font);
   font-weight: var(--torneos-action-font-weight);
   line-height: var(--torneos-action-line-height);
+  white-space: nowrap;
   cursor: pointer;
 }
-.queue button { padding: 0 var(--torneos-action-padding-x-sm); }
+.queue button {
+  padding: 0 var(--torneos-action-padding-x-sm);
+  white-space: nowrap;
+}
+.queue button > svg { flex: 0 0 auto; }
 
 .assetGrid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; }
-.assetCard { overflow: hidden; border: 1px solid rgba(255,255,255,.08); border-radius: 16px; background: #171321; }
+.assetCard { display: flex; overflow: hidden; flex-direction: column; border: 1px solid rgba(255,255,255,.08); border-radius: 16px; background: #171321; }
 .assetVisual {
   position: relative;
   aspect-ratio: 4/3;
@@ -333,7 +349,7 @@
 .assetInfo small { color: #8d859b; font-size: 10px; }
 .assetInfo > em { padding: 5px 7px; font-size: 8px; }
 /* Tres pesos y no uno: moderar, curar y borrar no son la misma decisión. */
-.assetActions { display: grid; gap: 8px; padding: 0 10px 10px; }
+.assetActions { display: grid; gap: 8px; margin-top: auto; padding: 0 10px 10px; }
 .assetActionRow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .assetReorder { display: inline-flex; gap: 4px; margin-left: auto; }
 .assetActions button {
@@ -353,6 +369,7 @@
   font-weight: var(--torneos-action-font-weight);
   line-height: var(--torneos-action-line-height);
   cursor: pointer;
+  white-space: nowrap;
   transition: border-color 180ms ease, background 180ms ease, color 180ms ease;
 }
 .assetActions .assetPrimaryAction {
@@ -432,6 +449,105 @@
 .reports article > div { display: flex; gap: 6px; }
 .reports button { min-height: var(--torneos-action-height-sm); padding: 0 var(--torneos-action-padding-x-sm); border: 1px solid rgba(255,255,255,.1); border-radius: var(--torneos-action-radius-sm); background: transparent; color: white; font-family: var(--torneos-ui-font); font-size: var(--torneos-action-font-size-sm); font-weight: var(--torneos-action-font-weight); cursor: pointer; }
 
+.dialogOverlay,
+.dialogOverlay *,
+.dialogOverlay *::before,
+.dialogOverlay *::after {
+  box-sizing: border-box;
+}
+
+.dialogOverlay {
+  position: fixed;
+  z-index: 80;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  overflow-y: auto;
+  padding: 16px;
+  background: rgba(5, 3, 12, .78);
+  backdrop-filter: blur(8px);
+}
+
+.confirmDialog {
+  display: grid;
+  width: min(400px, 100%);
+  gap: 10px;
+  padding: 24px;
+  border: 1px solid rgba(255, 107, 132, .3);
+  border-radius: var(--torneos-radius, 20px);
+  background: linear-gradient(160deg, #1b1427, #110d1b);
+  color: #f8f4ff;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, .58), inset 0 1px 0 rgba(255,255,255,.06);
+}
+
+.confirmDialogIcon {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 4px;
+  place-items: center;
+  border: 1px solid rgba(255, 107, 132, .3);
+  border-radius: 14px;
+  background: rgba(255, 82, 113, .1);
+  color: #ff9bac;
+}
+
+.confirmDialog h2 {
+  margin: 0;
+  font-family: var(--torneos-ui-font, Inter, ui-sans-serif, system-ui, sans-serif);
+  font-size: 20px;
+}
+
+.confirmDialog p {
+  margin: 0;
+  color: #aaa2b8;
+  font-family: var(--torneos-ui-font, Inter, ui-sans-serif, system-ui, sans-serif);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.confirmDialogActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  margin-top: 12px;
+}
+
+.confirmDialogActions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--torneos-action-gap, 8px);
+  min-height: var(--torneos-action-height, 48px);
+  padding: 0 var(--torneos-action-padding-x, 16px);
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: var(--torneos-action-radius, 16px);
+  background: transparent;
+  color: #eee9f8;
+  font-family: var(--torneos-ui-font, Inter, ui-sans-serif, system-ui, sans-serif);
+  font-size: var(--torneos-action-font-size, .94rem);
+  font-weight: var(--torneos-action-font-weight, 700);
+  line-height: var(--torneos-action-line-height, 1.15);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.confirmDialogActions button > svg { flex: 0 0 auto; }
+
+.confirmDialogActions .confirmDangerAction {
+  border-color: rgba(255, 107, 132, .42);
+  background: #d94962;
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(217, 73, 98, .22);
+}
+
+.confirmDialogActions button:focus-visible {
+  outline: var(--torneos-focus-ring, 3px solid #ae98ff);
+  outline-offset: var(--torneos-focus-ring-offset, 2px);
+}
+
+.confirmDialogActions button:disabled { opacity: .55; cursor: not-allowed; }
+
 .skeleton { display: grid; gap: 14px; }
 .skeleton span { display: block; height: 150px; border-radius: 22px; background: linear-gradient(90deg,#15111f,#21192d,#15111f); background-size: 200% 100%; animation: media-shimmer 1.2s infinite; }
 .srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
@@ -472,6 +588,8 @@ button:focus-visible, .galleryRail button:focus-visible {
   .galleryActions button { flex: 1 1 100%; }
   .reports article { align-items: flex-start; flex-direction: column; }
   .reports article > div { width: 100%; }
+  .confirmDialog { padding: 20px; }
+  .confirmDialogActions button { flex: 1 1 0; min-width: 0; padding-inline: 12px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

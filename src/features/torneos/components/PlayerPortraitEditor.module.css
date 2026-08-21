@@ -20,7 +20,12 @@
   line-height: var(--torneos-action-line-height, 1.15);
   letter-spacing: normal;
   text-transform: none;
+  white-space: nowrap;
 }
+
+.rowActions button > svg,
+.dialogActions button > svg,
+.fileButton > svg { flex: 0 0 auto; }
 
 /*
  * Variante compacta: es una fila del plantel, no el pie de un formulario. Lo

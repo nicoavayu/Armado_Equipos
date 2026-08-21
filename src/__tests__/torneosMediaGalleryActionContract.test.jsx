@@ -141,7 +141,7 @@ describe('FPR-001.1 · galería publicada: inmutable de verdad', () => {
     renderAdmin('published');
     await screen.findByText('Galería publicada');
     expect(screen.getAllByRole('button', { name: /Ocultar/ })).toHaveLength(2);
-    expect(screen.getAllByRole('button', { name: /Eliminar definitivamente/ })).toHaveLength(2);
+    expect(screen.getAllByRole('button', { name: /^Eliminar$/ })).toHaveLength(2);
   });
 
   test('conserva Archivar cuando el actor tiene la capability', async () => {
@@ -221,7 +221,7 @@ describe('FPR-001.1 · archivada: histórica, sin restaurar ni republicar', () =
       assets: [photo('asset-cover', { status: 'hidden', sortOrder: 0 })],
     });
     await screen.findByText('Galería archivada');
-    expect(screen.getByRole('button', { name: /Eliminar definitivamente/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Eliminar$/ })).toBeInTheDocument();
   });
 });
 
@@ -230,7 +230,7 @@ describe('FPR-001.1 · un actor sin capability no ve acciones ajenas', () => {
     renderAdmin('published', READ_ONLY_CAPABILITIES);
     await screen.findByText('Modo lectura');
 
-    ['Portada', 'Ocultar', 'Eliminar definitivamente', 'Archivar', 'Publicar', 'Crear galería']
+    ['Portada', 'Ocultar', 'Eliminar', 'Archivar', 'Publicar', 'Crear galería']
       .forEach((label) => {
         expect(screen.queryByRole('button', { name: new RegExp(label) })).toBeNull();
       });

@@ -67,8 +67,11 @@
   font-size: var(--torneos-action-font-size-sm);
   font-weight: var(--torneos-action-font-weight);
   line-height: var(--torneos-action-line-height);
+  white-space: nowrap;
   cursor: pointer;
 }
+
+.retry > svg { flex: 0 0 auto; }
 
 .options { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 6px; }
 
