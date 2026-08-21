@@ -145,7 +145,11 @@ cada relación de jugador. Una decisión `unknown`, `denied` o `revoked`
 prevalece de forma fail-closed. Si se revoca una portada publicada, se elige una
 portada publicada de reemplazo bajo el mismo lock o se archiva la galería.
 Restaurar una foto dentro de una galería publicada vuelve a validar
-consentimiento.
+consentimiento. Restaurar exige además una galería que todavía pueda mostrarla
+—`draft`, `under_review` o `published`—: en `archived` y `revoked` la acción
+falla cerrada con `TORNEOS_MEDIA_TRANSITION_INVALID`, porque no existe
+`unarchive` ni `republish` y devolver la foto a `approved` la dejaría aprobada
+dentro de un contenedor que nadie puede reabrir.
 
 ## Matriz RPC
 

@@ -35,6 +35,7 @@ const PIPELINE_MIGRATIONS = [
   '20260810160355_tournament_entitlements_foundation.sql',
   '20260815234340_tournament_media_storage_readiness_and_delete.sql',
   '20260820120000_tournament_media_publication_is_processing_aware.sql',
+  '20260821120000_media_restore_respects_closed_galleries.sql',
 ];
 const SESSION_PATH_RE =
   /^[0-9a-f-]{36}\/[0-9a-f-]{36}\/[0-9a-f-]{36}\/[0-9a-f-]{36}\.(jpg|png|webp)$/;
@@ -1627,6 +1628,208 @@ async function run() {
       'ninguno de esos intentos movió el estado de la galería',
     );
 
+    // ---------------------------------------------------------------------
+    console.log('\n· FPR-001.2 · restaurar respeta la galería cerrada');
+    // ---------------------------------------------------------------------
+    // La emisión de sesiones es por actor y ventana; esta sección abre cinco
+    // más, así que envejece otra vez las que el owner ya gastó.
+    await admin.query(
+      `update public.tournament_media_upload_sessions
+       set created_at = now() - interval '16 minutes',
+           expires_at = now() - interval '11 minutes'
+       where requested_by = $1 and status <> 'issued'`,
+      [USERS.owner],
+    );
+
+    // Una galería publicada con DOS fotos: ocultar la que no es portada no
+    // dispara el reemplazo de portada, así que la galería sigue publicada y el
+    // caso legítimo de restore queda aislado del resto del contrato.
+    const restoreGallery = await createGallery(owner, scope, '303', { matchId: null });
+    const restoreCover = await completeSimple(
+      service, await requestUpload(owner, restoreGallery, '306'), USERS.owner,
+      { checksum: '7a'.repeat(32) },
+    );
+    const restorable = await completeSimple(
+      service, await requestUpload(owner, restoreGallery, '307'), USERS.owner,
+      { checksum: '7b'.repeat(32) },
+    );
+    for (const assetId of [restoreCover.assetId, restorable.assetId]) {
+      // eslint-disable-next-line no-await-in-loop
+      await value(owner, 'select public.transition_tournament_media_asset($1,$2,$3)',
+        [assetId, 'approve', null]);
+    }
+    await value(owner, 'select public.set_tournament_media_cover($1,$2)',
+      [restoreGallery, restoreCover.assetId]);
+    eq(
+      (await value(owner, 'select public.publish_tournament_media_gallery($1)',
+        [restoreGallery])).status,
+      'published',
+      'la galería del contrato de restore queda publicada',
+    );
+    eq(
+      (await value(owner, 'select public.transition_tournament_media_asset($1,$2,$3)',
+        [restorable.assetId, 'hide', 'Se revisa por privacidad a pedido del club.'])).status,
+      'hidden',
+      'ocultar una foto publicada la retira sin borrarla',
+    );
+    eq(
+      await value(admin,
+        'select status from public.tournament_media_galleries where id = $1',
+        [restoreGallery]),
+      'published',
+      'y ocultar una foto que no es portada deja la galería publicada',
+    );
+
+    // Ni el tenant ajeno ni quien no tiene `media.review` restauran nada, y el
+    // rechazo es el mismo antes y después de cerrar la galería.
+    for (const [client, label] of [
+      [outsider, 'un tenant ajeno'],
+      [playerHome, 'un participante del torneo'],
+      [collaborator, 'un colaborador sin media.review'],
+    ]) {
+      // eslint-disable-next-line no-await-in-loop
+      await expectError(
+        () => value(client, 'select public.transition_tournament_media_asset($1,$2,$3)',
+          [restorable.assetId, 'restore', null]),
+        /TORNEOS_MEDIA_FORBIDDEN/,
+        `${label} no restaura una foto oculta`,
+      );
+    }
+    await expectError(
+      () => value(anonymous, 'select public.transition_tournament_media_asset($1,$2,$3)',
+        [restorable.assetId, 'restore', null]),
+      /TORNEOS_MEDIA_FORBIDDEN|permission denied/i,
+      'anon tampoco',
+    );
+    eq(
+      await value(admin,
+        'select status from public.tournament_media_assets where id = $1',
+        [restorable.assetId]),
+      'hidden',
+      'ninguno de esos intentos movió la foto',
+    );
+
+    // El caso permitido, que es la razón por la que la acción existe.
+    eq(
+      (await value(owner, 'select public.transition_tournament_media_asset($1,$2,$3)',
+        [restorable.assetId, 'restore', null])).status,
+      'published',
+      'en una galería publicada, restaurar devuelve la foto a published',
+    );
+    await value(owner, 'select public.transition_tournament_media_asset($1,$2,$3)',
+      [restorable.assetId, 'hide', 'Vuelve a ocultarse antes de archivar.']);
+
+    // Y el mismo asset, misma persona, misma capacidad: lo único que cambia es
+    // que la galería pasó a ser un registro histórico.
+    eq(
+      (await value(owner, `select public.change_tournament_media_gallery_state(
+        $1,'archive','La fecha terminó y la selección pasa al archivo.'
+      )`, [restoreGallery])).status,
+      'archived',
+      'archivar cierra la galería',
+    );
+    eq(
+      await value(admin,
+        'select status from public.tournament_media_assets where id = $1',
+        [restorable.assetId]),
+      'hidden',
+      'y sus fotos quedan ocultas, no borradas',
+    );
+    await expectError(
+      () => value(owner, 'select public.transition_tournament_media_asset($1,$2,$3)',
+        [restorable.assetId, 'restore', null]),
+      /TORNEOS_MEDIA_TRANSITION_INVALID/,
+      'restaurar dentro de una galería archivada falla cerrado',
+    );
+    await expectError(
+      () => value(owner, 'select public.transition_tournament_media_asset($1,$2,$3)',
+        [restoreCover.assetId, 'restore', null]),
+      /TORNEOS_MEDIA_TRANSITION_INVALID/,
+      'tampoco la que era portada',
+    );
+    eq(
+      await value(admin,
+        'select status from public.tournament_media_assets where id = $1',
+        [restorable.assetId]),
+      'hidden',
+      'la foto sigue oculta después del rechazo',
+    );
+    eq(
+      Number(await value(admin,
+        `select count(*) from public.tournament_media_moderation_actions
+         where asset_id = $1 and action = 'restore'`,
+        [restorable.assetId])),
+      1,
+      'el rechazo no deja acción de moderación: sólo consta el restore que sí ocurrió',
+    );
+    eq(
+      Number(await value(admin,
+        `select count(*) from public.tournament_audit_log
+         where action = 'media.asset.restore' and resource_id = $1`,
+        [restorable.assetId])),
+      1,
+      'ni auditoría de un cambio que no pasó',
+    );
+
+    // Revocada. El producto no deja una foto `hidden` dentro de una galería
+    // revocada —revocar la galería arrastra todas sus fotos a `revoked`—, así
+    // que el estado se compone a mano: la compuerta tiene que estar igual, y
+    // fail-closed significa no depender de que el estado sea inalcanzable.
+    const revokedGallery = await createGallery(owner, scope, '304', { matchId: null });
+    const revokedAsset = await completeSimple(
+      service, await requestUpload(owner, revokedGallery, '308'), USERS.owner,
+      { checksum: '7c'.repeat(32) },
+    );
+    await value(owner, 'select public.transition_tournament_media_asset($1,$2,$3)',
+      [revokedAsset.assetId, 'approve', null]);
+    await value(owner, 'select public.set_tournament_media_cover($1,$2)',
+      [revokedGallery, revokedAsset.assetId]);
+    await value(owner, 'select public.publish_tournament_media_gallery($1)', [revokedGallery]);
+    eq(
+      (await value(owner, `select public.change_tournament_media_gallery_state(
+        $1,'revoke','Se retira por consentimiento de las personas retratadas.'
+      )`, [revokedGallery])).status,
+      'revoked',
+      'revocar cierra la galería',
+    );
+    eq(
+      await value(admin,
+        'select status from public.tournament_media_assets where id = $1',
+        [revokedAsset.assetId]),
+      'revoked',
+      'y revocar arrastra sus fotos, que por eso no son restaurables ni por estado',
+    );
+    await admin.query(
+      `update public.tournament_media_assets
+       set status = 'hidden', hidden_at = now(), revoked_at = null
+       where id = $1`,
+      [revokedAsset.assetId],
+    );
+    await expectError(
+      () => value(owner, 'select public.transition_tournament_media_asset($1,$2,$3)',
+        [revokedAsset.assetId, 'restore', null]),
+      /TORNEOS_MEDIA_TRANSITION_INVALID/,
+      'restaurar dentro de una galería revocada falla cerrado',
+    );
+
+    // Nada de esto estrecha el caso que siempre existió: en borrador, restaurar
+    // devuelve la foto a `approved`, que es donde la curaduría sigue decidiendo.
+    const draftGallery = await createGallery(owner, scope, '305', { matchId: null });
+    const draftAsset = await completeSimple(
+      service, await requestUpload(owner, draftGallery, '309'), USERS.owner,
+      { checksum: '7d'.repeat(32) },
+    );
+    await value(owner, 'select public.transition_tournament_media_asset($1,$2,$3)',
+      [draftAsset.assetId, 'approve', null]);
+    await value(owner, 'select public.transition_tournament_media_asset($1,$2,$3)',
+      [draftAsset.assetId, 'hide', 'Se oculta mientras se revisa el encuadre.']);
+    eq(
+      (await value(owner, 'select public.transition_tournament_media_asset($1,$2,$3)',
+        [draftAsset.assetId, 'restore', null])).status,
+      'approved',
+      'en borrador, restaurar sigue devolviendo la foto a aprobada',
+    );
+
     // Los techos de fotos son por organización, torneo y galería, y las
     // secciones siguientes cuentan con los suyos: retirar las fotos que esta
     // sección creó devuelve los contadores a donde estaban.
@@ -1634,7 +1837,7 @@ async function run() {
       `update public.tournament_media_assets
        set status = 'revoked', revoked_at = now()
        where gallery_id = any($1::uuid[])`,
-      [[simplePublish, degraded, forbiddenGallery]],
+      [[simplePublish, degraded, forbiddenGallery, restoreGallery, revokedGallery, draftGallery]],
     );
 
     const openSessions = [];

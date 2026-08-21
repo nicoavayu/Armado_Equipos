@@ -28,6 +28,7 @@ const expectedCanonicalMigrations = [
   '20260818120000_tournament_player_portrait_ux.sql',
   '20260818210000_tournament_team_visual_self_management.sql',
   '20260820120000_tournament_media_publication_is_processing_aware.sql',
+  '20260821120000_media_restore_respects_closed_galleries.sql',
 ];
 
 const exitWithError = (message) => {
