@@ -73,6 +73,8 @@ describe('canonical torneos route builders', () => {
   test('team entry routes stay outside the tournament nesting', () => {
     expect(canonicalRoutes.organizationTeamEntryRoster(ORG, 'entry-1'))
       .toBe(`/torneos/organizacion/${ORG}/equipos/entry-1/plantel`);
+    expect(canonicalRoutes.organizationTeamEntryVisualIdentity(ORG, 'entry-1'))
+      .toBe(`/torneos/organizacion/${ORG}/equipos/entry-1/identidad-visual`);
     expect(canonicalRoutes.organizationTeamEntryRoster(ORG, 'entry-1'))
       .not.toContain('/torneo/');
   });

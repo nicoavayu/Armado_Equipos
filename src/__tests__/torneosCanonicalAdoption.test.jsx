@@ -10,6 +10,7 @@ import TorneosFeatureGate from '../features/torneos/TorneosFeatureGate';
 import { getCapabilitiesForRole } from '../features/torneos/domain/capabilities';
 import {
   organizationTeamEntry,
+  organizationTeamEntryVisualIdentity,
   organizationVenues,
   tournamentConfiguration,
   tournamentFixture,
@@ -213,6 +214,14 @@ describe('canonical adoption', () => {
       expect(screen.getByRole('radio', { name: /Copa Alfa/ })).not.toBeChecked();
     });
 
+    test('el selector explica una decisión de producto, no la arquitectura de la URL', async () => {
+      const api = createService();
+      renderPath(legacyOrganizationFixture(ORG), api);
+      await screen.findByRole('heading', { name: /qué torneo querés abrir/i }, { timeout: 5000 });
+      expect(screen.getByText(/disponible en más de una competencia/i)).toBeInTheDocument();
+      expect(screen.queryByText(/dirección sin torneo|versión anterior/i)).toBeNull();
+    });
+
     test('elegir un torneo lleva a su dirección canónica', async () => {
       const api = createService();
       renderPath(legacyOrganizationFixture(ORG), api);
@@ -265,6 +274,79 @@ describe('canonical adoption', () => {
       const link = await screen.findByRole('link', { name: /abrir/i }, { timeout: 5000 });
       expect(link).toHaveAttribute('href', organizationTeamEntry(ORG, ENTRY));
       expect(link.getAttribute('href')).not.toContain('/torneo/');
+    });
+
+    test('la identidad visual es un acceso visible desde cada equipo', async () => {
+      const api = createService();
+      api.loadTeamsContext.mockResolvedValue({
+        settings: { minimumPlayers: 7 },
+        entries: [{
+          id: ENTRY,
+          name: 'Napoli',
+          categoryName: 'Primera',
+          status: 'approved',
+          linked: false,
+          roster: { playerCount: 9 },
+          manager: { displayName: 'Ana' },
+        }],
+      });
+      renderPath(tournamentTeams(ORG, TOURNAMENT_A), api);
+      expect(await screen.findByRole(
+        'link',
+        { name: /identidad visual/i },
+        { timeout: 5000 },
+      )).toHaveAttribute('href', organizationTeamEntryVisualIdentity(ORG, ENTRY));
+    });
+
+    test('abrir un equipo desde la lista no deja el guard en un loader', async () => {
+      const api = createService();
+      api.loadTeamsContext.mockResolvedValue({
+        settings: { minimumPlayers: 7 },
+        entries: [{
+          id: ENTRY,
+          name: 'Napoli',
+          categoryName: 'Primera',
+          status: 'approved',
+          linked: false,
+          roster: { playerCount: 9 },
+          manager: { displayName: 'Ana' },
+        }],
+      });
+      api.loadTeamRegistration = jest.fn().mockResolvedValue({
+        entry: {
+          id: ENTRY,
+          tournamentId: TOURNAMENT_A,
+          categoryId: CATEGORY_A,
+          name: 'Napoli',
+          status: 'approved',
+          linked: false,
+          shieldPath: null,
+        },
+        tournament: { id: TOURNAMENT_A, name: 'Copa Alfa', status: 'active' },
+        category: { id: CATEGORY_A, name: 'Primera' },
+        settings: {},
+        managers: [],
+        roster: { id: 'roster-a', version: 1, status: 'approved', players: [] },
+        reviews: [],
+        audit: [],
+        viewer: { scope: 'full' },
+        visualAssets: { canManageShield: false },
+      });
+
+      renderPath(tournamentTeams(ORG, TOURNAMENT_A), api);
+      fireEvent.click(await screen.findByRole(
+        'link',
+        { name: /abrir equipo/i },
+        { timeout: 5000 },
+      ));
+
+      expect(await screen.findByRole(
+        'heading',
+        { name: 'Napoli' },
+        { timeout: 5000 },
+      )).toBeInTheDocument();
+      expect(currentPath).toBe(`${organizationTeamEntry(ORG, ENTRY)}/inscripcion`);
+      expect(screen.queryByText(/confirmando acceso a la organización/i)).toBeNull();
     });
 
     test('la dirección vieja del listado también resuelve al torneo', async () => {

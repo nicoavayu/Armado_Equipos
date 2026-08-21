@@ -172,6 +172,9 @@ export const organizationTeamEntry = (organizationId, teamEntryId) => (
 export const organizationTeamEntryRegistration = (organizationId, teamEntryId) => (
   `${organizationTeamEntry(organizationId, teamEntryId)}/inscripcion`
 );
+export const organizationTeamEntryVisualIdentity = (organizationId, teamEntryId) => (
+  `${organizationTeamEntry(organizationId, teamEntryId)}/identidad-visual`
+);
 export const organizationTeamEntryRoster = (organizationId, teamEntryId) => (
   `${organizationTeamEntry(organizationId, teamEntryId)}/plantel`
 );
@@ -255,6 +258,7 @@ export const canonicalRoutes = Object.freeze({
   organizationVenue,
   organizationTeamEntry,
   organizationTeamEntryRegistration,
+  organizationTeamEntryVisualIdentity,
   organizationTeamEntryRoster,
   organizationTeamEntryReview,
   tournamentRoot,

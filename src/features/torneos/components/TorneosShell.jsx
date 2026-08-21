@@ -378,6 +378,10 @@ export default function TorneosShell() {
                 element={<TeamRegistrationPage initialTab="inscripcion" />}
               />
               <Route
+                path="equipos/:teamEntryId/identidad-visual"
+                element={<TeamRegistrationPage initialTab="identidad-visual" />}
+              />
+              <Route
                 path="equipos/:teamEntryId/plantel"
                 element={<TeamRegistrationPage initialTab="plantel" />}
               />

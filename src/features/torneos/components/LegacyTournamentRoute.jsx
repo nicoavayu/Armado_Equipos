@@ -45,7 +45,7 @@ export default function LegacyTournamentRoute({ build }) {
   });
 
   if (status === 'loading' || status === 'idle') {
-    return <WorkspaceLoading label="Resolviendo el torneo de esta dirección…" />;
+    return <WorkspaceLoading label="Buscando torneos disponibles…" />;
   }
   if (status === 'error') {
     return <WorkspaceError message={error} onRetry={() => refresh().catch(() => {})} />;
@@ -89,11 +89,11 @@ export default function LegacyTournamentRoute({ build }) {
   return (
     <section className={styles.selector} aria-labelledby="legacy-tournament-selector">
       <header>
-        <span className={styles.kicker}>Dirección sin torneo</span>
+        <span className={styles.kicker}>Elegí un torneo</span>
         <h1 id="legacy-tournament-selector">¿Qué torneo querés abrir?</h1>
         <p>
-          Esta dirección es de la versión anterior y no dice a qué torneo pertenece.
-          Elegí uno y la dirección pasa a nombrarlo, así el link reproduce lo que ves.
+          Esta sección está disponible en más de una competencia. Elegí cuál querés
+          consultar y conservaremos ese torneo mientras navegás.
         </p>
       </header>
 

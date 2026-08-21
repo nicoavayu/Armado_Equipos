@@ -127,6 +127,10 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
   const teamPhotoRequestRef = useRef(0);
   const entryTab = {
     inscripcion: canonicalRoutes.organizationTeamEntryRegistration(organization.id, teamEntryId),
+    visualIdentity: canonicalRoutes.organizationTeamEntryVisualIdentity(
+      organization.id,
+      teamEntryId,
+    ),
     plantel: canonicalRoutes.organizationTeamEntryRoster(organization.id, teamEntryId),
     revision: canonicalRoutes.organizationTeamEntryReview(organization.id, teamEntryId),
   };
@@ -305,7 +309,9 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
         className={styles.backLink}
         to={organization.relationalAccess
           ? '/torneos/mis-torneos'
-          : canonicalRoutes.tournamentTeams(organization.id, data.entry.tournamentId)}
+          : canonicalRoutes.tournamentTeams(organization.id, data.entry.tournamentId, {
+            categoryId: data.category?.id,
+          })}
       >
         <ArrowLeft size={17} /> {organization.relationalAccess ? 'Mis torneos' : 'Equipos'}
       </Link>
@@ -328,7 +334,13 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
       </header>
 
       <nav className={styles.detailTabs} aria-label="Secciones de la inscripción">
-        <Link aria-current={initialTab === 'inscripcion' ? 'page' : undefined} to={entryTab.inscripcion}>Inscripción</Link>
+        <Link aria-current={initialTab === 'inscripcion' ? 'page' : undefined} to={entryTab.inscripcion}>Información</Link>
+        <Link
+          aria-current={initialTab === 'identidad-visual' ? 'page' : undefined}
+          to={entryTab.visualIdentity}
+        >
+          Identidad visual
+        </Link>
         <Link aria-current={initialTab === 'plantel' ? 'page' : undefined} to={entryTab.plantel}>Plantel <span>{players.length}</span></Link>
         {canReview && <Link aria-current={initialTab === 'revision' ? 'page' : undefined} to={entryTab.revision}>Revisión</Link>}
       </nav>
@@ -413,6 +425,45 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
           </aside>
           )}
         </div>
+      )}
+
+      {initialTab === 'identidad-visual' && (
+        <section className={styles.formSection} aria-labelledby="team-visual-identity-title">
+          <div className={styles.sectionHeading}>
+            <span>02</span>
+            <div>
+              <h2 id="team-visual-identity-title">Identidad visual</h2>
+              <p>Escudo e imagen del equipo para esta competencia.</p>
+            </div>
+          </div>
+          <BrandingAssetField
+            organizationId={organization.id}
+            kind="team"
+            entityId={teamEntryId}
+            path={teamForm.shieldPath}
+            name={teamForm.name || data.entry.name}
+            canEdit={canEditBranding}
+            onChanged={(result) => {
+              setTeamForm((current) => ({ ...current, shieldPath: result.path || null }));
+              return load('Escudo actualizado.');
+            }}
+          />
+          {canEditBranding && !editable && (
+            <p className={styles.brandingEditNotice}>
+              La inscripción deportiva está aprobada. Sólo estás editando la identidad visual.
+            </p>
+          )}
+          <TeamPhotoPanel
+            organizationId={organization.id}
+            teamEntryId={teamEntryId}
+            state={teamPhoto.state}
+            status={teamPhoto.status}
+            teamName={teamForm.name || data.entry.name}
+            shieldPath={teamForm.shieldPath}
+            onChanged={loadTeamPhoto}
+            onRetry={loadTeamPhoto}
+          />
+        </section>
       )}
 
       {initialTab === 'plantel' && (

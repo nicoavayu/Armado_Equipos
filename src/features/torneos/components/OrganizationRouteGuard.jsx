@@ -35,7 +35,7 @@ export default function OrganizationRouteGuard() {
   useEffect(() => {
     setRelationalOrganization(null);
     setActivationState('idle');
-  }, [organizationId, relationalTeamEntryId]);
+  }, [organizationId]);
 
   useEffect(() => {
     if (status !== 'ready' || organization || !relationalTeamEntryId

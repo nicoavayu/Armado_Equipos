@@ -13,6 +13,7 @@ import {
   Plus,
   Search,
   Shield,
+  SwatchBook,
   UserRoundX,
   Users,
 } from 'lucide-react';
@@ -132,6 +133,9 @@ export default function TeamsPage() {
   const tournamentId = isTournamentRoute ? routeTournamentId : (activeTournament?.id || null);
   const newEntryLink = tournamentSurface('tournamentTeamNew', organization.id, tournamentId);
   const entryLink = (entryId) => canonicalRoutes.organizationTeamEntry(organization.id, entryId);
+  const visualIdentityLink = (entryId) => (
+    canonicalRoutes.organizationTeamEntryVisualIdentity(organization.id, entryId)
+  );
 
   if (competitionStatus === 'loading' || state.status === 'loading') {
     return <WorkspaceLoading label="Cargando inscripciones…" />;
@@ -296,8 +300,12 @@ export default function TeamsPage() {
                           Retirar equipo
                         </button>
                       )}
+                      <Link to={visualIdentityLink(entry.id)}>
+                        <SwatchBook size={17} aria-hidden="true" />
+                        Identidad visual
+                      </Link>
                       <Link to={entryLink(entry.id)}>
-                        Abrir
+                        Abrir equipo
                         <ArrowRight size={17} />
                       </Link>
                     </div>
