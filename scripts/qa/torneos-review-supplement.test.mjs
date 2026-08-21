@@ -99,6 +99,84 @@ test('las imágenes QA son determinísticas y son PNG válidos', () => {
   );
 });
 
+test('el fixture QA declara cinco fotos determinísticas y distintas', () => {
+  const source = fs.readFileSync(SEED, 'utf8');
+  const declaration = source.match(/const GALLERY_PHOTOS = \[([^\]]*)\]/);
+  assert.ok(declaration, 'el suplemento tiene que declarar sus etiquetas de galería');
+  const labels = [...declaration[1].matchAll(/'([^']+)'/g)].map((match) => match[1]);
+  assert.equal(labels.length, 5, 'la pantalla se revisa con cinco fotos: cuatro aprobadas y una pendiente');
+  const checksums = labels.map((label) => sha256Hex(galleryPhotoPng(label)));
+  assert.equal(new Set(checksums).size, 5, 'dos fotos del fixture no pueden compartir bytes');
+  for (const label of labels) {
+    assert.equal(
+      sha256Hex(galleryPhotoPng(label)),
+      sha256Hex(galleryPhotoPng(label)),
+      `${label} tiene que dar siempre los mismos bytes`,
+    );
+  }
+});
+
+test('sembrar multimedia no termina sin verificar el contrato de procesamiento', () => {
+  const source = fs.readFileSync(SEED, 'utf8');
+  const seedMedia = source.slice(
+    source.indexOf('async function seedMedia('),
+    source.indexOf('// 4 y 5. Convocatoria y acta completa'),
+  );
+  assert.match(
+    seedMedia,
+    /await assertSeededMediaContract\(client, scope\);[\s\S]*return \{/,
+    'la guarda tiene que correr ANTES de devolver el resultado del sembrado',
+  );
+  // El informe diagnostica en vez de morir: si el dataset arrastra fotos
+  // inválidas hay que poder listarlas, no perderlas en una excepción.
+  assert.match(source, /mvp_simple_contract_violations: contract\.violations/);
+});
+
+test('la guarda del fixture nombra cada condición que el producto exige a mvp_simple', () => {
+  const guard = (() => {
+    const source = fs.readFileSync(SEED, 'utf8');
+    return source.slice(
+      source.indexOf('async function inspectSeededMediaContract('),
+      source.indexOf('/** La misma guarda, pero fail-closed'),
+    );
+  })();
+
+  // La autoridad es la readiness del producto, así que la guarda la consulta
+  // directamente: el veredicto no puede desfasarse aunque los campos cambien.
+  assert.match(guard, /tournament_media_asset_publication_ready/);
+
+  // Y además nombra campo por campo, que es lo que vuelve legible el
+  // diagnóstico. Si la migración agrega una condición al tier y acá no está,
+  // este test la delata en vez de dejar un motivo mudo.
+  const readiness = fs.readFileSync(
+    path.join(ROOT, 'supabase', 'migrations',
+      '20260820120000_tournament_media_publication_is_processing_aware.sql'), 'utf8',
+  );
+  const branch = readiness.slice(
+    readiness.indexOf("WHEN 'mvp_simple' THEN"),
+    readiness.indexOf('ELSE false'),
+  );
+  const columns = new Set(
+    [...branch.matchAll(/asset\.([a-z0-9_]+)/g)].map((match) => match[1]),
+  );
+  assert.ok(columns.size >= 8, 'el tier simple exige varias condiciones, no una');
+  for (const column of columns) {
+    assert.ok(
+      guard.includes(`asset.${column}`),
+      `la guarda del fixture no mira asset.${column}`,
+    );
+  }
+
+  // Procesamiento terminado y aprobación editorial son preguntas distintas:
+  // el fixture necesita una foto en `pending_review` y eso no es una violación.
+  assert.equal(
+    /status\s*=\s*'approved'/.test(guard),
+    false,
+    'la guarda no puede exigir moderación aprobada',
+  );
+  assert.match(guard, /status <> 'revoked'/);
+});
+
 test('el arranque canónico fija los quince flags que la app declara', () => {
   const source = fs.readFileSync(LAUNCHER, 'utf8');
   const declared = new Set(

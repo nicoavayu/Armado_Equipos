@@ -437,7 +437,101 @@ async function seedPortraits(client, storage, scope) {
 // 3. Multimedia (tier MVP_SIMPLE)
 // ---------------------------------------------------------------------------
 
-const GALLERY_PHOTOS = ['saque-inicial', 'gol-local', 'tribuna', 'festejo-final'];
+// Cinco etiquetas, no cuatro: la pantalla de Multimedia se revisa con cuatro
+// fotos aprobadas y una todavía en revisión, y ése es el fixture que el seed
+// tiene que producir por sí solo. Las etiquetas son la identidad reproducible
+// de cada foto —de ellas salen los bytes, el checksum y, por lo tanto, lo que
+// el cleanup sabe borrar—, así que agregar una acá alcanza para que la quinta
+// foto entre y salga del dataset con las otras cuatro.
+const GALLERY_PHOTOS = [
+  'saque-inicial', 'gol-local', 'tribuna', 'festejo-final', 'vuelta-olimpica',
+];
+
+/**
+ * Contrato de PROCESAMIENTO de las fotos del fixture QA.
+ *
+ * FPR-001 hizo durable el veredicto de sanitización (`metadata_stripped` +
+ * `normalization_verified_at`) y lo volvió obligatorio para todo asset
+ * `mvp_simple` mediante un CHECK que entró `NOT VALID`: no afirma nada sobre
+ * las filas viejas, pero se evalúa en cuanto alguien las toca. Las cinco fotos
+ * que este suplemento había dejado antes de FPR-001 no tenían el veredicto, así
+ * que aprobar la pendiente moría en una violación de constraint — un escenario
+ * QA legítimo roto por deuda del dataset, no por el producto.
+ *
+ * Esta guarda impide que eso vuelva a pasar sin que nadie se entere. Se
+ * pregunta por el contrato COMPLETO —campo por campo, y además a la propia
+ * `tournament_media_asset_publication_ready`, que es la autoridad del producto
+ * y así la guarda no puede quedar desfasada de ella—.
+ *
+ * Lo que NO se exige acá es aprobación editorial: `pending_review` es un estado
+ * sano y deseado del fixture. Procesamiento terminado y moderación aprobada son
+ * dos preguntas distintas, y FPR-001 fue explícito en no confundirlas.
+ */
+async function inspectSeededMediaContract(client, scope) {
+  const suspects = await rows(
+    client,
+    `select asset.id, asset.safe_name, asset.status,
+            asset.metadata_stripped is not true as no_verdict,
+            asset.normalization_verified_at is null as no_attestation,
+            asset.storage_state <> 'active' as not_active,
+            asset.failure_code is not null as failed,
+            (asset.internal_path is null or asset.internal_path = ''
+             or asset.internal_path !~ '^[0-9a-f-]{36}/[0-9a-f-]{36}/[0-9a-f-]{36}/[0-9a-f-]{36}\\.(jpg|png|webp)$')
+              as bad_path,
+            asset.detected_mime not in ('image/jpeg','image/png','image/webp') as bad_mime,
+            asset.checksum_sha256 !~ '^[0-9a-f]{64}$' as bad_checksum,
+            (asset.byte_size not between 1 and 4194304
+             or asset.width not between 1 and 1600
+             or asset.height not between 1 and 1600) as out_of_bounds,
+            not exists (
+              select 1 from storage.objects object
+              where object.bucket_id = asset.bucket and object.name = asset.internal_path
+            ) as no_object,
+            not public.tournament_media_asset_publication_ready(asset.id)
+              as not_publication_ready
+     from public.tournament_media_assets asset
+     where asset.organization_id = $1
+       and asset.processing_tier = 'mvp_simple'
+       and asset.status <> 'revoked'
+     order by asset.created_at`,
+    [scope.organization_id],
+  );
+  const LABELS = {
+    no_verdict: 'metadata_stripped no es TRUE',
+    no_attestation: 'normalization_verified_at es NULL',
+    not_active: 'storage_state no es active',
+    failed: 'tiene failure_code',
+    bad_path: 'internal_path inválido',
+    bad_mime: 'detected_mime fuera del contrato',
+    bad_checksum: 'checksum_sha256 no es sha256 hex',
+    out_of_bounds: 'tamaño o dimensiones fuera del techo MVP_SIMPLE',
+    no_object: 'no tiene objeto en Storage',
+    not_publication_ready: 'tournament_media_asset_publication_ready dice que no',
+  };
+  const violations = suspects
+    .map((asset) => ({
+      assetId: asset.id,
+      safeName: asset.safe_name,
+      status: asset.status,
+      reasons: Object.keys(LABELS).filter((key) => asset[key]).map((key) => LABELS[key]),
+    }))
+    .filter((asset) => asset.reasons.length > 0);
+  return { checked: suspects.length, violations };
+}
+
+/** La misma guarda, pero fail-closed: se usa después de sembrar. */
+async function assertSeededMediaContract(client, scope) {
+  const contract = await inspectSeededMediaContract(client, scope);
+  if (contract.violations.length > 0) {
+    throw new Error(
+      'El fixture QA quedó con fotos mvp_simple que no cumplen el contrato de '
+      + `procesamiento:\n${contract.violations.map(
+        (asset) => `  · ${asset.safeName} (${asset.status}): ${asset.reasons.join('; ')}`,
+      ).join('\n')}`,
+    );
+  }
+  return contract;
+}
 
 async function seedMedia(client, storage, scope) {
   const gallery = (await rows(
@@ -565,12 +659,17 @@ async function seedMedia(client, storage, scope) {
     }
   }
 
-  // La galería queda en borrador a propósito, y conviene decir por qué:
-  // `publish_tournament_media_gallery` exige cuatro variantes `ready` por
-  // asset, y el tier MVP_SIMPLE no deriva variantes almacenadas —normaliza un
-  // único objeto de display—. O sea que en MVP_SIMPLE ninguna galería es
-  // publicable. Es un hueco del producto, no del dataset: forzarlo desde acá
-  // sería fabricar un estado que la app no sabe producir.
+  // La galería queda en borrador a propósito, y conviene decir por qué —porque
+  // el motivo cambió—. Antes de FPR-001 `publish_tournament_media_gallery`
+  // exigía cuatro variantes `ready` por asset, un contrato que MVP_SIMPLE nunca
+  // promete, y por eso NINGUNA galería simple era publicable. Eso se cerró: hoy
+  // cada asset se valida contra el contrato del pipeline que lo produjo y una
+  // galería MVP_SIMPLE sana publica sin problema.
+  //
+  // Lo que la deja en borrador ahora es la compuerta editorial, que FPR-001 no
+  // tocó: una de las cinco fotos sigue en `pending_review` a propósito. El
+  // intento de publicar se conserva porque es la prueba de que esa compuerta
+  // sigue en pie —y de que el bloqueo ya no es el del tier—.
   let publishBlockedBy = null;
   if (approvedInGallery.length > 0 && galleryState === 'draft') {
     await client.query('begin');
@@ -590,6 +689,10 @@ async function seedMedia(client, storage, scope) {
     [gallery.id],
   );
 
+  // Fail-closed antes de devolver: si alguna foto del fixture no cumple el
+  // contrato de procesamiento, el seed no termina fingiendo que sí.
+  const contract = await assertSeededMediaContract(client, scope);
+
   return {
     galleryId: gallery.id,
     assetsCreated: created.length,
@@ -597,6 +700,7 @@ async function seedMedia(client, storage, scope) {
     coverAssetId: cover,
     galleryStatus: finalState,
     publishBlockedBy,
+    mediaContractChecked: contract.checked,
     created,
   };
 }
@@ -1017,7 +1121,14 @@ async function report(client, scope) {
        (select count(*)::integer from public.partidos where deleted_at is null) arma2_matches`,
     [scope.organization_id, scope.tournament_id],
   );
-  return result.rows[0];
+  // El informe DIAGNOSTICA, no falla: si el dataset arrastra fotos inválidas
+  // hay que poder verlas sin que el comando muera antes de imprimirlas.
+  const contract = await inspectSeededMediaContract(client, scope);
+  return {
+    ...result.rows[0],
+    mvp_simple_assets_checked: contract.checked,
+    mvp_simple_contract_violations: contract.violations,
+  };
 }
 
 // ---------------------------------------------------------------------------
