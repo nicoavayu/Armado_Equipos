@@ -227,7 +227,13 @@ function describeDataset(docker) {
     "select coalesce(max(public_slug),'(ninguna)') from public.tournament_public_pages"
     + " where status = 'published';",
   );
-  return { head, ledger, reviewSeed, profile, publicSlug };
+  const planProfile = dbValue(docker, `
+    select concat_ws(' · ',
+      'free=' || (select count(*) from public.tournament_plan_grants where plan_code='FREE'),
+      'premium=' || (select count(*) from public.tournament_plan_grants where plan_code='PREMIUM'),
+      'purchases=' || (select count(*) from public.tournament_plan_grants where source='purchase'));
+  `.replace(/\s+/g, ' ').trim());
+  return { head, ledger, reviewSeed, profile, publicSlug, planProfile };
 }
 
 function describeCheckout(repoRoot) {
@@ -493,12 +499,14 @@ async function main() {
   console.log(`  anon key         resuelta desde ${source} (no se imprime)`);
   console.log(`  migration head   ${dataset.head} (${dataset.ledger} migraciones en el ledger)`);
   console.log(`  dataset          ${dataset.profile}`);
+  console.log(`  planes QA        ${dataset.planProfile}`);
   console.log(`  review seed      ${dataset.reviewSeed ? 'aplicado' : 'NO aplicado'}`);
   console.log(`  página pública   ${dataset.publicSlug}`);
   console.log(`  branch / HEAD    ${checkout.branch} @ ${checkout.head}${checkout.dirty ? ' (working tree sucio)' : ''}`);
   console.log(`  flags Torneos    ${coverage.covered} en true, DATA_ENV=local, LOCAL_EDIT_MODE=false`);
   console.log(`  app              http://${APP_HOST}:${APP_PORT}`);
   console.log(`  selector de rol  http://${APP_HOST}:${APP_PORT}/qa/rol (puente en /__qa/role-switcher)`);
+  console.log(`  mapa QA          http://${APP_HOST}:${APP_PORT}/qa/torneos`);
 
   if (!dataset.reviewSeed) {
     console.log('');

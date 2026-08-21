@@ -236,6 +236,12 @@ export async function loadEffectiveTournamentEntitlements({
   }), 'No pudimos cargar las funcionalidades disponibles.');
 }
 
+export async function loadTournamentCreationEligibility({ organizationId }) {
+  return unwrapRpc(await supabase.rpc('get_tournament_creation_eligibility', {
+    p_organization_id: organizationId,
+  }), 'No pudimos verificar si tu primer torneo gratis está disponible.');
+}
+
 export async function loadTournamentPublicPageSettings({
   organizationId,
   tournamentId,
@@ -2039,6 +2045,7 @@ export async function handleTournamentMediaReport({
 export const tournamentWorkspaceService = Object.freeze({
   loadContext: loadTournamentWorkspaceContext,
   loadEntitlements: loadEffectiveTournamentEntitlements,
+  loadTournamentCreationEligibility,
   createOrganization: createTournamentOrganization,
   checkSlugAvailability: checkTournamentOrganizationSlugAvailability,
   setPreference: setTournamentWorkspacePreference,

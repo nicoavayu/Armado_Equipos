@@ -358,3 +358,7 @@ export function useTorneosCompetition() {
   }
   return context;
 }
+
+export function useOptionalTorneosCompetition() {
+  return useContext(TorneosCompetitionContext);
+}

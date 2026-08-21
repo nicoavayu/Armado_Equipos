@@ -57,6 +57,10 @@ function chooseCanonicalOrganization(organizations) {
     || null;
 }
 
+function chooseFreePlanOrganization(organizations) {
+  return organizations.find((organization) => organization.slug === 'qa-planes-first-free') || null;
+}
+
 function chooseCanonicalTournament(payload) {
   return payload.tournaments?.find(
     (tournament) => tournament.id === payload.preference?.activeTournamentId,
@@ -83,13 +87,20 @@ export default function QaTournamentReviewMapPage({ service = tournamentWorkspac
         const workspace = await service.loadContext();
         const organization = chooseCanonicalOrganization(workspace?.organizations || []);
         if (!organization) throw new Error('Este rol no tiene una organización QA disponible.');
-        const competition = await service.loadCompetitionContext(organization.id);
+        const freeOrganization = chooseFreePlanOrganization(workspace?.organizations || []);
+        const [competition, freeCompetition] = await Promise.all([
+          service.loadCompetitionContext(organization.id),
+          freeOrganization ? service.loadCompetitionContext(freeOrganization.id) : null,
+        ]);
         const tournament = chooseCanonicalTournament(competition || {});
         if (!tournament) throw new Error('No encontramos el torneo principal del dataset QA.');
+        const freeTournament = freeCompetition?.tournaments?.find(
+          (item) => item.name === 'Primer Torneo Free QA',
+        ) || null;
         const category = tournament.categories?.find((item) => item.status === 'active')
           || tournament.categories?.[0]
           || null;
-        const [teams, operations, publicPage] = await Promise.all([
+        const [teams, operations, publicPage, premiumPlan, freePlan] = await Promise.all([
           service.loadTeamsContext(organization.id, tournament.id),
           service.loadMatchOperations({
             organizationId: organization.id,
@@ -100,6 +111,14 @@ export default function QaTournamentReviewMapPage({ service = tournamentWorkspac
             organizationId: organization.id,
             tournamentId: tournament.id,
           }),
+          service.loadEntitlements({
+            organizationId: organization.id,
+            tournamentId: tournament.id,
+          }),
+          freeOrganization && freeTournament ? service.loadEntitlements({
+            organizationId: freeOrganization.id,
+            tournamentId: freeTournament.id,
+          }) : null,
         ]);
         const team = teams?.entries?.find((entry) => entry.name === 'Barrio Norte FC')
           || teams?.entries?.[0]
@@ -116,6 +135,10 @@ export default function QaTournamentReviewMapPage({ service = tournamentWorkspac
             team,
             match,
             publicPath: publicPage?.published ? publicPage.publicPath : null,
+            planExamples: {
+              free: freePlan?.plan === 'FREE' ? { organization: freeOrganization, tournament: freeTournament } : null,
+              premium: premiumPlan?.plan === 'PREMIUM' ? { organization, tournament } : null,
+            },
           },
         });
       } catch (error) {
@@ -134,7 +157,7 @@ export default function QaTournamentReviewMapPage({ service = tournamentWorkspac
   const links = useMemo(() => {
     if (!state.model) return [];
     const {
-      organization, tournament, category, team, match, publicPath,
+      organization, tournament, category, team, match, publicPath, planExamples,
     } = state.model;
     const options = { categoryId: category?.id || null };
     const entries = [
@@ -150,6 +173,22 @@ export default function QaTournamentReviewMapPage({ service = tournamentWorkspac
       ['Gobierno', 'Plan', canonicalRoutes.organizationSettingsPlan(organization.id)],
       ['Multimedia', 'Centro Multimedia', canonicalRoutes.organizationMedia(organization.id)],
     ];
+    if (planExamples?.premium) {
+      entries.unshift([
+        'Planes',
+        'Ejemplo Premium · Edición preexistente',
+        canonicalRoutes.organizationSettingsPlan(planExamples.premium.organization.id),
+        'PREMIUM real · legacy_grant validado por servidor',
+      ]);
+    }
+    if (planExamples?.free) {
+      entries.unshift([
+        'Planes',
+        'Ejemplo Free · Primer torneo',
+        canonicalRoutes.organizationSettingsPlan(planExamples.free.organization.id),
+        'FREE real · first_free validado por servidor',
+      ]);
+    }
     if (team) {
       entries.splice(3, 0,
         ['Barrio Norte', 'Información y responsables', canonicalRoutes.organizationTeamEntryRegistration(organization.id, team.id)],
@@ -188,11 +227,11 @@ export default function QaTournamentReviewMapPage({ service = tournamentWorkspac
         ) : null}
         {state.status === 'ready' ? (
           <section style={styles.grid} aria-label="Destinos del recorrido QA">
-            {links.map(([section, label, to]) => (
+            {links.map(([section, label, to, detail = 'Abrir con permisos reales']) => (
               <Link key={`${section}:${label}`} to={to} style={styles.card}>
                 <span style={styles.section}>{section}</span>
                 <span style={styles.label}>{label}</span>
-                <span style={styles.detail}>Abrir con permisos reales</span>
+                <span style={styles.detail}>{detail}</span>
               </Link>
             ))}
           </section>
