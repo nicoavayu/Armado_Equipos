@@ -3,21 +3,24 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import PlanExperiencePage from '../features/torneos/components/PlanExperiencePage';
 import { TorneosWorkspaceProvider } from '../features/torneos/context/TorneosWorkspaceContext';
+import { TOURNAMENT_PLANS } from '../features/torneos/domain/entitlements';
+import { tournamentEntitlementsFixture } from '../testUtils/tournamentEntitlementsFixture';
 
-const ORG_A = {
+const ORGANIZATION = {
   id: '10000000-0000-4000-8000-000000000001',
   name: 'Liga Devoto',
   slug: 'liga-devoto',
   role: 'owner',
   capabilities: ['organization.read', 'workspace.access', 'workspace.manage'],
 };
-const ORG_B = {
-  ...ORG_A,
-  id: '20000000-0000-4000-8000-000000000001',
-  name: 'Liga Norte',
-  slug: 'liga-norte',
+const APERTURA = {
+  id: '30000000-0000-4000-8000-000000000001',
+  name: 'Apertura 2027',
 };
-
+const CLAUSURA = {
+  id: '30000000-0000-4000-8000-000000000002',
+  name: 'Clausura 2027',
+};
 const ALL_FLAGS_ON = {
   mediaEnabled: true,
   mediaUploadEnabled: true,
@@ -25,54 +28,17 @@ const ALL_FLAGS_ON = {
   officialStats: true,
 };
 
-function entitlementPayload({
-  organizationId = ORG_A.id,
-  plan = 'FREE',
-  subscriptionStatus = plan === 'PRO' ? 'active' : 'none',
-  capabilities = {},
-  media = {},
-} = {}) {
-  return {
-    schemaVersion: 1,
-    plan,
-    subscriptionStatus,
-    scope: {
-      organizationId,
-      tournamentId: null,
-      audience: 'organization_member',
-    },
-    capabilities: {
-      'media.upload': plan === 'FREE',
-      'media.history': plan === 'PRO',
-      'media.extended_retention': plan === 'PRO',
-      'social_studio.basic': true,
-      'social_studio.full': plan === 'PRO',
-      advanced_stats: plan === 'PRO',
-      higher_limits: plan === 'PRO',
-      ...capabilities,
-    },
-    media: {
-      maxPhotosPerMatchday: plan === 'FREE' ? 20 : null,
-      retainedMatchdays: plan === 'FREE' ? 3 : null,
-      retentionGraceDays: 7,
-      postExpirationRetentionDays: plan === 'PRO' ? 90 : 0,
-      postProProtectedUntil: null,
-      ...media,
-    },
-  };
-}
-
 function renderPlan({
-  organization = ORG_A,
-  service,
+  service = null,
+  tournament = APERTURA,
   featureFlags = ALL_FLAGS_ON,
 } = {}) {
   const planService = service || {
-    loadEntitlements: jest.fn().mockResolvedValue(entitlementPayload()),
+    loadEntitlements: jest.fn().mockResolvedValue(tournamentEntitlementsFixture()),
   };
   render(
     <MemoryRouter initialEntries={[
-      `/torneos/organizacion/${organization.id}/configuracion/plan`,
+      `/torneos/organizacion/${ORGANIZATION.id}/configuracion/plan`,
     ]}>
       <TorneosWorkspaceProvider service={planService} autoLoad={false}>
         <Routes>
@@ -80,7 +46,8 @@ function renderPlan({
             path="/torneos/organizacion/:organizationId/configuracion/plan"
             element={(
               <PlanExperiencePage
-                organization={organization}
+                organization={ORGANIZATION}
+                tournament={tournament}
                 featureFlags={featureFlags}
               />
             )}
@@ -92,170 +59,165 @@ function renderPlan({
   return planService;
 }
 
-describe('Arma2 Torneos plan experience', () => {
-  test('organization without subscription resolves FREE and displays server media limits', async () => {
+describe('Arma2 Torneos plan experience por edición', () => {
+  test('FREE explains the first tournament and shows centralized pricing', async () => {
     const service = renderPlan();
 
-    expect(await screen.findByRole('heading', { name: 'PLAN FREE' })).toBeInTheDocument();
-    expect(screen.getByText('Sin suscripción PRO')).toBeInTheDocument();
-    expect(screen.getByText('20 fotos')).toBeInTheDocument();
-    expect(screen.getByText('3 fechas')).toBeInTheDocument();
-    expect(screen.getAllByText('7 días').length).toBeGreaterThan(0);
-    expect(screen.getByText('Sin precio publicado')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Arma2 Torneos Free' }))
+      .toBeInTheDocument();
+    expect(screen.getAllByText('Tu primer torneo, gratis').length).toBeGreaterThan(0);
+    expect(screen.getByText('Todo lo necesario para organizar tu campeonato.'))
+      .toBeInTheDocument();
+    expect(screen.getByText(/Precio habitual:.*49\.900/)).toBeInTheDocument();
+    expect(screen.getByText(/Lanzamiento:.*39\.900/)).toBeInTheDocument();
+    expect(screen.getByText('Pago único por torneo · Sin suscripción')).toBeInTheDocument();
+    expect(screen.getByText('100 assets')).toBeInTheDocument();
+    expect(screen.getByText('0 de 1')).toBeInTheDocument();
     expect(service.loadEntitlements).toHaveBeenCalledWith({
-      organizationId: ORG_A.id,
-      tournamentId: null,
+      organizationId: ORGANIZATION.id,
+      tournamentId: APERTURA.id,
     });
   });
 
-  test.each([
-    ['active', 'Activo'],
-    ['cancelled', 'Cancelado'],
-    ['grace_period', 'Período de gracia'],
-  ])('PRO %s keeps PRO with its canonical lifecycle label', async (status, label) => {
+  test('PREMIUM is permanent for this edition without ambiguous forever copy', async () => {
     renderPlan({
       service: {
-        loadEntitlements: jest.fn().mockResolvedValue(entitlementPayload({
-          plan: 'PRO',
-          subscriptionStatus: status,
+        loadEntitlements: jest.fn().mockResolvedValue(tournamentEntitlementsFixture({
+          plan: TOURNAMENT_PLANS.PREMIUM,
+          galleryAssetLimit: 10000,
+          administrativeSeatLimit: 10,
         })),
       },
     });
 
-    expect(await screen.findByRole('heading', { name: 'PLAN PRO' })).toBeInTheDocument();
-    expect(screen.getByText(label)).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Arma2 Torneos Premium' }))
+      .toBeInTheDocument();
+    expect(screen.getAllByText('Premium para esta edición').length).toBeGreaterThan(0);
+    expect(screen.getByText('Pago único · acceso permanente para este torneo.'))
+      .toBeInTheDocument();
+    expect(screen.getByText('10.000 assets')).toBeInTheDocument();
+    expect(screen.getAllByText('Powered by Arma2').length).toBeGreaterThan(0);
+    expect(document.body).not.toHaveTextContent('Premium para siempre');
   });
 
-  test.each([
-    ['expired', 'PRO vencido'],
-    ['past_due', 'Acceso PRO pausado'],
-  ])('%s resolves FREE and never paints an active PRO plan', async (status, label) => {
+  test('future Premium capabilities are distinguished from implemented features', async () => {
     renderPlan({
       service: {
-        loadEntitlements: jest.fn().mockResolvedValue(entitlementPayload({
-          plan: 'FREE',
-          subscriptionStatus: status,
+        loadEntitlements: jest.fn().mockResolvedValue(tournamentEntitlementsFixture({
+          plan: TOURNAMENT_PLANS.PREMIUM,
         })),
       },
     });
 
-    expect(await screen.findByRole('heading', { name: 'PLAN FREE' })).toBeInTheDocument();
-    expect(screen.getByText(label)).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'PLAN PRO' })).not.toBeInTheDocument();
+    expect(await screen.findByText('Estadísticas avanzadas')).toBeInTheDocument();
+    for (const label of [
+      'Estadísticas avanzadas',
+      'Personalización avanzada',
+      'Sponsors',
+      'Social Studio Premium',
+      'Exportaciones profesionales',
+    ]) {
+      expect(screen.getByText(label).closest('li'))
+        .toHaveTextContent('Incluido en Premium · funcionalidad futura');
+    }
   });
 
-  test('feature flag off prevails over a true Social Studio entitlement', async () => {
-    renderPlan({
-      service: {
-        loadEntitlements: jest.fn().mockResolvedValue(entitlementPayload({
-          capabilities: { 'social_studio.basic': true },
-        })),
-      },
-      featureFlags: { ...ALL_FLAGS_ON, socialContentGenerator: false },
-    });
-
-    expect(await screen.findByRole('heading', { name: 'PLAN FREE' })).toBeInTheDocument();
-    const socialRow = screen.getByText('Estudio Social básico').closest('li');
-    expect(socialRow).toHaveAttribute('data-status', 'feature_unavailable');
-    expect(socialRow).toHaveTextContent('No disponible en este entorno');
+  test('there is no fake checkout CTA or dead purchase flow', async () => {
+    renderPlan();
+    expect(await screen.findByText(/checkout todavía no está habilitado/i))
+      .toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /comprar|pagar|pasar a premium/i }))
+      .not.toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent(/entitlement|grant|tournament_id/i);
   });
 
-  test('upgrade CTA is local-only and cannot grant PRO', async () => {
-    const service = renderPlan();
-    const upgrade = await screen.findByRole('button', { name: /Pasar a PRO/i });
-    fireEvent.click(upgrade);
-
-    expect(screen.getByRole('dialog', { name: 'Disponible próximamente' })).toBeInTheDocument();
-    expect(screen.getByText(/no compra, no crea una suscripción/i)).toBeInTheDocument();
-    expect(service.loadEntitlements).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole('heading', { name: 'PLAN FREE' })).toBeInTheDocument();
-  });
-
-  test('collaborator may read the plan but cannot use future commercial actions', async () => {
-    renderPlan({
-      organization: {
-        ...ORG_A,
-        role: 'collaborator',
-        capabilities: ['organization.read', 'workspace.access'],
-      },
-    });
-
-    expect(await screen.findByRole('heading', { name: 'PLAN FREE' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Pasar a PRO/i })).toBeDisabled();
-    expect(screen.getByText(/Tu rol permite ver el plan/i)).toBeInTheDocument();
-  });
-
-  test('resolver error fails closed without breaking the plan route', async () => {
+  test('resolver error fails closed without painting Premium', async () => {
     renderPlan({
       service: {
         loadEntitlements: jest.fn().mockRejectedValue(new Error('resolver unavailable')),
       },
     });
 
-    expect(await screen.findByText('Plan no verificado · acceso cerrado')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'PLAN FREE' })).toBeInTheDocument();
-    expect(screen.getAllByText('No verificado').length).toBeGreaterThan(0);
-    expect(screen.queryByRole('heading', { name: 'PLAN PRO' })).not.toBeInTheDocument();
+    expect(await screen.findByText('Plan no verificado · acceso cerrado'))
+      .toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Arma2 Torneos Free' }))
+      .toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Arma2 Torneos Premium' }))
+      .not.toBeInTheDocument();
   });
 
-  test('a cross-organization payload is rejected instead of leaking PRO', async () => {
+  test('a cross-edition payload is rejected instead of leaking Premium', async () => {
     renderPlan({
       service: {
-        loadEntitlements: jest.fn().mockResolvedValue(entitlementPayload({
-          organizationId: ORG_B.id,
-          plan: 'PRO',
+        loadEntitlements: jest.fn().mockResolvedValue(tournamentEntitlementsFixture({
+          tournamentId: CLAUSURA.id,
+          plan: TOURNAMENT_PLANS.PREMIUM,
         })),
       },
     });
 
-    expect(await screen.findByText('Plan no verificado · acceso cerrado')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'PLAN FREE' })).toBeInTheDocument();
+    expect(await screen.findByText('Plan no verificado · acceso cerrado'))
+      .toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Arma2 Torneos Free' }))
+      .toBeInTheDocument();
   });
 
-  test('changing workspace discards the previous plan before resolving the next organization', async () => {
+  test('changing edition discards the previous plan before resolving the next', async () => {
     const service = {
-      loadEntitlements: jest.fn(({ organizationId }) => Promise.resolve(
-        entitlementPayload({
-          organizationId,
-          plan: organizationId === ORG_A.id ? 'PRO' : 'FREE',
-          subscriptionStatus: organizationId === ORG_A.id ? 'active' : 'none',
+      loadEntitlements: jest.fn(({ tournamentId }) => Promise.resolve(
+        tournamentEntitlementsFixture({
+          tournamentId,
+          plan: tournamentId === APERTURA.id
+            ? TOURNAMENT_PLANS.PREMIUM : TOURNAMENT_PLANS.FREE,
         }),
       )),
     };
 
-    function WorkspaceHarness() {
-      const [organization, setOrganization] = useState(ORG_A);
+    function TournamentHarness() {
+      const [tournament, setTournament] = useState(APERTURA);
       return (
         <>
-          <button type="button" onClick={() => setOrganization(ORG_B)}>Cambiar organización</button>
-          <PlanExperiencePage organization={organization} featureFlags={ALL_FLAGS_ON} />
+          <button type="button" onClick={() => setTournament(CLAUSURA)}>Cambiar edición</button>
+          <PlanExperiencePage
+            organization={ORGANIZATION}
+            tournament={tournament}
+            featureFlags={ALL_FLAGS_ON}
+          />
         </>
       );
     }
 
     render(
       <MemoryRouter initialEntries={[
-        `/torneos/organizacion/${ORG_A.id}/configuracion/plan`,
+        `/torneos/organizacion/${ORGANIZATION.id}/configuracion/plan`,
       ]}>
         <TorneosWorkspaceProvider service={service} autoLoad={false}>
           <Routes>
             <Route
               path="/torneos/organizacion/:organizationId/configuracion/plan"
-              element={<WorkspaceHarness />}
+              element={<TournamentHarness />}
             />
           </Routes>
         </TorneosWorkspaceProvider>
       </MemoryRouter>,
     );
 
-    expect(await screen.findByRole('heading', { name: 'PLAN PRO' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Cambiar organización' }));
+    expect(await screen.findByRole('heading', { name: 'Arma2 Torneos Premium' }))
+      .toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Cambiar edición' }));
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'PLAN FREE' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Arma2 Torneos Free' }))
+        .toBeInTheDocument();
     });
     expect(service.loadEntitlements).toHaveBeenLastCalledWith({
-      organizationId: ORG_B.id,
-      tournamentId: null,
+      organizationId: ORGANIZATION.id,
+      tournamentId: CLAUSURA.id,
     });
+  });
+
+  test('without an active edition it asks for one and never calls the resolver', () => {
+    const service = renderPlan({ tournament: null });
+    expect(screen.getByText(/Elegí un torneo en el selector/i)).toBeInTheDocument();
+    expect(service.loadEntitlements).not.toHaveBeenCalled();
   });
 });

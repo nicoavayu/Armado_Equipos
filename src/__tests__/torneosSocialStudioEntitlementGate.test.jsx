@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import SocialStudioEntitlementGate, {
   useSocialStudioEntitlement,
 } from '../features/torneos/components/SocialStudioEntitlementGate';
+import { tournamentEntitlementsFixture } from '../testUtils/tournamentEntitlementsFixture';
 
 const ORGANIZATION_ID = '10000000-0000-4000-8000-000000000001';
 
@@ -40,11 +41,9 @@ function renderGate(service, enabled = true) {
 describe('Social Studio entitlement gate', () => {
   test('requires the canonical basic entitlement before rendering the role-gated studio', async () => {
     const service = {
-      loadEntitlements: jest.fn().mockResolvedValue({
-        schemaVersion: 1,
-        plan: 'FREE',
-        capabilities: { 'social_studio.basic': true },
-      }),
+      loadEntitlements: jest.fn().mockResolvedValue(tournamentEntitlementsFixture({
+        tournamentId: null,
+      })),
     };
     renderGate(service);
 
@@ -57,11 +56,11 @@ describe('Social Studio entitlement gate', () => {
 
   test('fails closed when the entitlement is disabled', async () => {
     const service = {
-      loadEntitlements: jest.fn().mockResolvedValue({
-        schemaVersion: 1,
-        plan: 'PRO',
+      loadEntitlements: jest.fn().mockResolvedValue(tournamentEntitlementsFixture({
+        tournamentId: null,
+        plan: 'PREMIUM',
         capabilities: { 'social_studio.basic': false, 'social_studio.full': true },
-      }),
+      })),
     };
     renderGate(service);
 
