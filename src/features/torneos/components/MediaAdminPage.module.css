@@ -142,7 +142,7 @@
    Los CTAs entran al sistema de `Continuar`; lo propio de Multimedia sigue
    siendo el color. */
 .toolbar > button, .composer footer button:last-child, .uploadPanel > button,
-.galleryActions button:first-child {
+.galleryActions .publishAction {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -181,6 +181,14 @@
 .formGrid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 14px; }
 .wideField { grid-column: 1 / -1; }
 .composer footer, .galleryActions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+.galleryActions {
+  flex-wrap: wrap;
+  align-items: center;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255,255,255,.07);
+}
+.galleryActions > p { flex: 1 1 240px; margin: 0; color: #948c9f; font-size: 12px; line-height: 1.45; }
+.galleryActions .archiveAction { border-color: rgba(255,255,255,.18); color: #cfc7dd; }
 .composer footer button, .galleryActions button {
   min-height: var(--torneos-action-height);
   border: 1px solid rgba(255,255,255,.12);
@@ -324,9 +332,79 @@
 .assetInfo strong { overflow: hidden; text-overflow: ellipsis; font-size: 12px; white-space: nowrap; }
 .assetInfo small { color: #8d859b; font-size: 10px; }
 .assetInfo > em { padding: 5px 7px; font-size: 8px; }
-.assetActions { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 10px 10px; }
-.assetActions button { padding: 0 8px; font-size: 10px; }
-.assetActions button:disabled { opacity: .35; cursor: not-allowed; }
+/* Tres pesos y no uno: moderar, curar y borrar no son la misma decisión. */
+.assetActions { display: grid; gap: 8px; padding: 0 10px 10px; }
+.assetActionRow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.assetReorder { display: inline-flex; gap: 4px; margin-left: auto; }
+.assetActions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--torneos-action-gap-sm);
+  min-width: var(--torneos-action-height-sm);
+  min-height: var(--torneos-action-height-sm);
+  padding: 0 var(--torneos-action-padding-x-sm);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: var(--torneos-action-radius-sm);
+  background: transparent;
+  color: #dcd5e9;
+  font-family: var(--torneos-ui-font);
+  font-size: var(--torneos-action-font-size-sm);
+  font-weight: var(--torneos-action-font-weight);
+  line-height: var(--torneos-action-line-height);
+  cursor: pointer;
+  transition: border-color 180ms ease, background 180ms ease, color 180ms ease;
+}
+.assetActions .assetPrimaryAction {
+  border-color: rgba(99,238,208,.42);
+  background: rgba(99,238,208,.12);
+  color: #a9f4e2;
+}
+.assetActions .assetIconAction { padding: 0; }
+.assetActions button:hover:not(:disabled) { border-color: rgba(190,162,255,.55); background: rgba(157,123,255,.1); }
+/* La fila peligrosa se separa: no compite con `Portada` ni con las flechas. */
+.assetDangerRow { display: flex; padding-top: 8px; border-top: 1px solid rgba(255,255,255,.07); }
+.assetActions .assetDangerAction {
+  width: 100%;
+  border-color: rgba(255,95,124,.28);
+  background: rgba(255,82,113,.08);
+  color: #ff9bac;
+}
+.assetActions .assetDangerAction:hover:not(:disabled) {
+  border-color: rgba(255,95,124,.55);
+  background: rgba(255,82,113,.16);
+}
+/* El deshabilitado no puede depender sólo del color. */
+.assetActions button:disabled { opacity: .4; cursor: not-allowed; border-style: dashed; }
+
+.lifecycleNotice {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  margin: 0 0 18px;
+  padding: 13px 15px;
+  border: 1px solid rgba(157,123,255,.26);
+  border-radius: 16px;
+  background: rgba(157,123,255,.07);
+}
+.lifecycleNotice svg { flex: 0 0 auto; margin-top: 2px; color: #cdbdff; }
+.lifecycleNotice > span { display: grid; gap: 3px; min-width: 0; }
+.lifecycleNotice strong { font-size: 13px; }
+.lifecycleNotice small { color: #a49bb5; font-size: 12px; line-height: 1.45; }
+.lifecycleNotice[data-status="draft"], .lifecycleNotice[data-status="under_review"] {
+  border-color: rgba(99,238,208,.26);
+  background: rgba(99,238,208,.05);
+}
+.lifecycleNotice[data-status="draft"] svg, .lifecycleNotice[data-status="under_review"] svg {
+  color: var(--media-cyan);
+}
+.lifecycleNotice[data-status="archived"], .lifecycleNotice[data-status="revoked"] {
+  border-color: rgba(255,255,255,.12);
+  background: rgba(255,255,255,.03);
+}
+.lifecycleNotice[data-status="archived"] svg, .lifecycleNotice[data-status="revoked"] svg {
+  color: #9b93a8;
+}
 
 .stateCard {
   display: grid;
@@ -388,6 +466,10 @@ button:focus-visible, .galleryRail button:focus-visible {
   .queue article { grid-template-columns: 44px minmax(0,1fr) auto; }
   .queue article > button:first-of-type { grid-column: 2 / 3; }
   .assetGrid { grid-template-columns: 1fr; }
+  .assetActions button { min-height: 44px; }
+  .assetReorder { margin-left: 0; }
+  .galleryActions { justify-content: stretch; }
+  .galleryActions button { flex: 1 1 100%; }
   .reports article { align-items: flex-start; flex-direction: column; }
   .reports article > div { width: 100%; }
 }
@@ -427,17 +509,20 @@ button:focus-visible, .galleryRail button:focus-visible {
 .toolbar button,
 .composer button,
 .galleryActions button,
-.assetActions button,
 .stateCard button,
 .reports button {
   min-height: 48px;
   border-radius: var(--torneos-control-radius);
-  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--torneos-ui-font);
 }
+/* Los controles de la tarjeta son compactos por jerarquía, no por descuido:
+   la escala chica del sistema existe justamente para esto. En una columna, la
+   tarjeta ocupa el ancho y el control vuelve a ser un objetivo táctil. */
+.assetActions button { border-radius: var(--torneos-action-radius-sm); }
 
 .toolbar button,
 .composer button[type="submit"],
-.galleryActions button:first-child {
+.galleryActions .publishAction {
   color: #fff;
   background: var(--torneos-cta);
   border: 1px solid rgba(255, 255, 255, 0.15);
