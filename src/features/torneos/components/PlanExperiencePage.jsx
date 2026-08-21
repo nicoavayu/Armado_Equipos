@@ -38,7 +38,7 @@ const AVAILABLE_PREMIUM_BENEFITS = Object.freeze([
   {
     icon: UsersRound,
     label: 'Más colaboradores',
-    description: 'Hasta 10 colaboradores administrativos, además del owner.',
+    description: 'Hasta 10 colaboradores administrativos, además del administrador principal.',
   },
   {
     icon: Palette,
@@ -191,6 +191,7 @@ export default function PlanExperiencePage({
 
       <section className={styles.currentPlan} data-plan={entitlements.plan.toLowerCase()}>
         <div className={styles.planSignal} aria-hidden="true">
+          <i />
           <span>{entitlements.plan}</span>
         </div>
         <div className={styles.currentCopy}>
@@ -200,8 +201,10 @@ export default function PlanExperiencePage({
             <span aria-hidden="true" />
             {lifecycle.label}
           </div>
-          <strong>{lifecycle.description}</strong>
-          {!isPremium && <small>Este plan corresponde a esta edición.</small>}
+          <div className={styles.planDetails}>
+            <strong>{lifecycle.description}</strong>
+            {!isPremium && <small>Este plan corresponde a esta edición.</small>}
+          </div>
         </div>
       </section>
 
@@ -210,7 +213,8 @@ export default function PlanExperiencePage({
           <span>FREE VS PREMIUM</span>
           <h2 id="plan-comparison-title">Organizar es Free. Profesionalizar es Premium.</h2>
           <p>
-            Tu primer torneo es gratis. Cada nueva edición posterior requiere Premium.
+            Tu primer torneo es gratis. A partir del segundo torneo, cada nueva edición requiere
+            Premium.
             Una vez adquirido, ese torneo conserva Premium.
           </p>
         </div>

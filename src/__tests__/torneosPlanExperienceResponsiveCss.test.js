@@ -52,6 +52,14 @@ describe('Torneos plan experience responsive CSS', () => {
     expect(css).not.toMatch(/min-width:\s*[4-9][0-9]{2}px/);
   });
 
+  test('uses ringed emblems and the violet-blue premium palette without the old target grid', () => {
+    expect(css).toMatch(/\.planSignal::before\s*\{[\s\S]*?border-radius:\s*50%/);
+    expect(css).toMatch(/\.currentPlan\[data-plan="premium"\][\s\S]*?conic-gradient/);
+    expect(css).not.toMatch(/--plan-cyan|#62e6cf|#c9f9ec/i);
+    expect(css).not.toMatch(/\.planSignal::before,\s*\.planSignal::after/);
+    expect(css).not.toMatch(/top:\s*-10px[\s\S]*?width:\s*1px/);
+  });
+
   test('does not present an empty tournament option when a tournament is active', () => {
     expect(competitionSelector).toMatch(
       /!preference\.activeTournamentId[\s\S]*?<option value="">Elegí un torneo<\/option>/,

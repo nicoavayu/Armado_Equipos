@@ -73,6 +73,10 @@ describe('Arma2 Torneos plan experience por edición', () => {
       .toHaveTextContent(/39\.900/);
     expect(screen.getByText('Pago único por torneo · Sin suscripción')).toBeInTheDocument();
     expect(screen.getByText('Este plan corresponde a esta edición.')).toBeInTheDocument();
+    expect(screen.getByText(
+      /Tu primer torneo es gratis\. A partir del segundo torneo, cada nueva edición requiere Premium\./,
+    )).toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent(/\bowner\b/i);
     expect(document.body).not.toHaveTextContent(/100 assets|0 de 1/);
     expect(service.loadEntitlements).toHaveBeenCalledWith({
       organizationId: ORGANIZATION.id,
@@ -114,6 +118,9 @@ describe('Arma2 Torneos plan experience por edición', () => {
     for (const label of ['Multimedia ampliada', 'Más colaboradores', 'Identidad más personalizada']) {
       expect(screen.getByText(label)).toBeInTheDocument();
     }
+    expect(screen.getByText(
+      'Hasta 10 colaboradores administrativos, además del administrador principal.',
+    )).toBeInTheDocument();
     for (const hiddenCapability of [
       'Estadísticas avanzadas',
       'Sponsors',
