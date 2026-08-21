@@ -305,8 +305,8 @@ export default function TeamsPage() {
                         Identidad visual
                       </Link>
                       <Link to={entryLink(entry.id)}>
-                        Abrir equipo
                         <ArrowRight size={17} />
+                        Abrir equipo
                       </Link>
                     </div>
                   </article>
