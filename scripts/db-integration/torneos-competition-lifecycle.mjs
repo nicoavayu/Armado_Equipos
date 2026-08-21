@@ -26,12 +26,12 @@ const COMPLETED_TOURNAMENT = '1b8663d4-a2bd-5740-b109-d5576493a444';
 const LEAGUE_PHASE = 'a05ccc3d-7ce4-5a01-9bae-844ccce0b87a';
 
 const USERS = {
-  owner: 'e2811418-066f-4fe6-b9a4-a513f9cd86bc',
-  admin: '9bfd3b70-735b-4eed-b341-848e999cd2c0',
-  collaborator: 'ca306695-edfe-42cb-a2ee-9266b4bdecd1',
-  delegate: '77416879-84d1-46c3-bfe9-9f746459addb',
-  player: 'd1bd72e8-946a-4bc6-bc0f-554733699eb8',
-  outsider: '4ddc94b9-94b7-4e8d-ba32-8ae305aedda5',
+  owner: null,
+  admin: null,
+  collaborator: null,
+  delegate: null,
+  player: null,
+  outsider: null,
 };
 
 let checks = 0;
@@ -47,6 +47,23 @@ const check = (condition, label, detail = '') => {
 };
 
 const client = new pg.Client({ connectionString: CONNECTION });
+
+async function resolveQaUsers() {
+  const result = await client.query(
+    `select id, raw_app_meta_data ->> 'qa_role' as role
+     from auth.users
+     where raw_app_meta_data ->> 'qa_seed_key' in (
+       'torneos-demo-v2', 'torneos-demo-v3', 'torneos-demo-v4'
+     )
+       and raw_app_meta_data ->> 'qa_role' = any($1::text[])`,
+    [Object.keys(USERS)],
+  );
+  for (const row of result.rows) USERS[row.role] = row.id;
+  const missing = Object.entries(USERS)
+    .filter(([, userId]) => !userId)
+    .map(([role]) => role);
+  assert.deepEqual(missing, [], `Faltan identidades Auth QA: ${missing.join(', ')}`);
+}
 
 // --- helpers ---------------------------------------------------------------
 
@@ -1361,6 +1378,7 @@ async function scenarioEntryWithdrawalHardening() {
 
 async function main() {
   await client.connect();
+  await resolveQaUsers();
   const second = new pg.Client({ connectionString: CONNECTION });
   await second.connect();
 
