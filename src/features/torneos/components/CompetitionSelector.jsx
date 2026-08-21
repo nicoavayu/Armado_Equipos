@@ -111,7 +111,9 @@ export default function CompetitionSelector({ compact = false }) {
           disabled={busy}
           aria-label="Torneo activo"
         >
-          <option value="">Sin torneo seleccionado</option>
+          {!preference.activeTournamentId && (
+            <option value="">Elegí un torneo</option>
+          )}
           {seasonTournaments.map((tournament) => (
             <option key={tournament.id} value={tournament.id}>
               {tournament.name}

@@ -66,13 +66,14 @@ describe('Arma2 Torneos plan experience por edición', () => {
     expect(await screen.findByRole('heading', { name: 'Arma2 Torneos Free' }))
       .toBeInTheDocument();
     expect(screen.getAllByText('Tu primer torneo, gratis').length).toBeGreaterThan(0);
-    expect(screen.getByText('Todo lo necesario para organizar tu campeonato.'))
-      .toBeInTheDocument();
-    expect(screen.getByText(/Precio habitual:.*49\.900/)).toBeInTheDocument();
-    expect(screen.getByText(/Lanzamiento:.*39\.900/)).toBeInTheDocument();
+    expect(screen.getAllByText('Todo lo necesario para organizar tu campeonato.').length)
+      .toBeGreaterThan(0);
+    expect(screen.getByText(/Precio habitual:/)).toHaveTextContent(/49\.900/);
+    expect(screen.getByText('Precio lanzamiento').nextElementSibling)
+      .toHaveTextContent(/39\.900/);
     expect(screen.getByText('Pago único por torneo · Sin suscripción')).toBeInTheDocument();
-    expect(screen.getByText('100 assets')).toBeInTheDocument();
-    expect(screen.getByText('0 de 1')).toBeInTheDocument();
+    expect(screen.getByText('Este plan corresponde a esta edición.')).toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent(/100 assets|0 de 1/);
     expect(service.loadEntitlements).toHaveBeenCalledWith({
       organizationId: ORGANIZATION.id,
       tournamentId: APERTURA.id,
@@ -93,14 +94,14 @@ describe('Arma2 Torneos plan experience por edición', () => {
     expect(await screen.findByRole('heading', { name: 'Arma2 Torneos Premium' }))
       .toBeInTheDocument();
     expect(screen.getAllByText('Premium para esta edición').length).toBeGreaterThan(0);
-    expect(screen.getByText('Pago único · acceso permanente para este torneo.'))
-      .toBeInTheDocument();
-    expect(screen.getByText('10.000 assets')).toBeInTheDocument();
-    expect(screen.getAllByText('Powered by Arma2').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Pago único · acceso permanente para este torneo.').length)
+      .toBeGreaterThan(0);
+    expect(screen.getByText('Powered by Arma2')).toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent('10.000 assets');
     expect(document.body).not.toHaveTextContent('Premium para siempre');
   });
 
-  test('future Premium capabilities are distinguished from implemented features', async () => {
+  test('shows only Premium benefits that are available today', async () => {
     renderPlan({
       service: {
         loadEntitlements: jest.fn().mockResolvedValue(tournamentEntitlementsFixture({
@@ -109,26 +110,29 @@ describe('Arma2 Torneos plan experience por edición', () => {
       },
     });
 
-    expect(await screen.findByText('Estadísticas avanzadas')).toBeInTheDocument();
-    for (const label of [
+    expect(await screen.findByText('Qué suma Premium hoy')).toBeInTheDocument();
+    for (const label of ['Multimedia ampliada', 'Más colaboradores', 'Identidad más personalizada']) {
+      expect(screen.getByText(label)).toBeInTheDocument();
+    }
+    for (const hiddenCapability of [
       'Estadísticas avanzadas',
-      'Personalización avanzada',
       'Sponsors',
       'Social Studio Premium',
       'Exportaciones profesionales',
     ]) {
-      expect(screen.getByText(label).closest('li'))
-        .toHaveTextContent('Incluido en Premium · funcionalidad futura');
+      expect(screen.queryByText(hiddenCapability)).not.toBeInTheDocument();
     }
   });
 
   test('there is no fake checkout CTA or dead purchase flow', async () => {
     renderPlan();
-    expect(await screen.findByText(/checkout todavía no está habilitado/i))
+    expect(await screen.findByRole('heading', { name: 'Arma2 Torneos Free' }))
       .toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /comprar|pagar|pasar a premium/i }))
       .not.toBeInTheDocument();
-    expect(document.body).not.toHaveTextContent(/entitlement|grant|tournament_id/i);
+    expect(document.body).not.toHaveTextContent(
+      /entitlement|grant|tournament_id|checkout|funcionalidad futura|validado por servidor|licencia pertenece/i,
+    );
   });
 
   test('resolver error fails closed without painting Premium', async () => {
@@ -138,7 +142,7 @@ describe('Arma2 Torneos plan experience por edición', () => {
       },
     });
 
-    expect(await screen.findByText('Plan no verificado · acceso cerrado'))
+    expect(await screen.findByText('No pudimos cargar el plan'))
       .toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Arma2 Torneos Free' }))
       .toBeInTheDocument();
@@ -156,7 +160,7 @@ describe('Arma2 Torneos plan experience por edición', () => {
       },
     });
 
-    expect(await screen.findByText('Plan no verificado · acceso cerrado'))
+    expect(await screen.findByText('No pudimos cargar el plan'))
       .toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Arma2 Torneos Free' }))
       .toBeInTheDocument();
