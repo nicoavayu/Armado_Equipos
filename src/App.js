@@ -36,7 +36,11 @@ import {
 } from './services/googleMapsLoader';
 import { isArma2NativeRuntime, isPersonalSpaceAvailable } from './utils/runtimePlatform';
 import { SpaceNavigationProvider } from './features/space-navigation';
-import { QA_ROLE_SWITCHER_PATH, isQaRoleSwitcherEnabled } from './features/qa/qaRoleSwitcher';
+import {
+  QA_ROLE_SWITCHER_PATH,
+  QA_TOURNAMENT_REVIEW_PATH,
+  isQaRoleSwitcherEnabled,
+} from './features/qa/qaRoleSwitcher';
 
 
 import { NotificationProvider } from './context/NotificationContext';
@@ -73,6 +77,7 @@ const AdminPanelPage = lazy(() => import('./pages/AdminPanelPage'));
 const PartidoInvitacion = lazy(() => import('./pages/PartidoInvitacion'));
 const PublicTournamentPage = lazy(() => import('./features/torneos/components/PublicTournamentPage'));
 const QaRoleSwitcherPage = lazy(() => import('./features/qa/QaRoleSwitcherPage'));
+const QaTournamentReviewMapPage = lazy(() => import('./features/qa/QaTournamentReviewMapPage'));
 
 // Tooling QA LOCAL. El selector de rol no es una ruta que se oculte: si el gate
 // no cierra —flag, DATA_ENV, host, deploy o backend— el <Route> no se crea y la
@@ -109,11 +114,18 @@ export default function App() {
                   <Routes>
                   <Route path="/health" element={<HealthRoute />} />
                   {qaRoleSwitcherEnabled ? (
-                    <Route path={QA_ROLE_SWITCHER_PATH} element={
-                      <Suspense fallback={<AppLoadingScreen />}>
-                        <QaRoleSwitcherPage />
-                      </Suspense>
-                    } />
+                    <>
+                      <Route path={QA_ROLE_SWITCHER_PATH} element={
+                        <Suspense fallback={<AppLoadingScreen />}>
+                          <QaRoleSwitcherPage />
+                        </Suspense>
+                      } />
+                      <Route path={QA_TOURNAMENT_REVIEW_PATH} element={
+                        <Suspense fallback={<AppLoadingScreen />}>
+                          <QaTournamentReviewMapPage />
+                        </Suspense>
+                      } />
+                    </>
                   ) : null}
                   <Route path="/terms" element={
                     <Suspense fallback={<AppLoadingScreen />}>

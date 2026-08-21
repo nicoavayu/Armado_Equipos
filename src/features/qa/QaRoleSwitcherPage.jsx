@@ -220,6 +220,9 @@ export default function QaRoleSwitcherPage({
           en archivos locales 0600, y nunca se muestran acá.
           {storageKey ? '' : ' El puente no informó la clave de sesión.'}
         </p>
+        <a href="/qa/torneos" style={{ ...styles.note, color: palette.accent, fontWeight: 700 }}>
+          Abrir QA · Recorrido Torneos
+        </a>
       </div>
     </main>
   );
