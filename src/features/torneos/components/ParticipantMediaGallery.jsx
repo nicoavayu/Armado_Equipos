@@ -1,6 +1,7 @@
 import React, {
   useCallback,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -68,6 +69,7 @@ function Lightbox({
     requestHide: false,
   });
   const [reportState, setReportState] = useState({ busy: false, sent: false, error: '' });
+  const reportFormId = useId();
   const active = assets[activeIndex];
   const previous = useCallback(() => {
     setActiveIndex((current) => (current - 1 + assets.length) % assets.length);
@@ -168,15 +170,21 @@ function Lightbox({
             <strong>{active.caption || 'Archivo oficial del torneo'}</strong>
             <small>Original restringido · acceso temporal por relación</small>
           </span>
-          <button type="button" onClick={() => {
-            setReportOpen((current) => !current);
-            setReportState({ busy: false, sent: false, error: '' });
-          }}>
-            <Flag size={16} /> Reportar foto
+          <button
+            type="button"
+            className={styles.reportAction}
+            aria-expanded={reportOpen}
+            aria-controls={reportFormId}
+            onClick={() => {
+              setReportOpen((current) => !current);
+              setReportState({ busy: false, sent: false, error: '' });
+            }}
+          >
+            <Flag size={16} aria-hidden="true" /> Reportar foto
           </button>
         </footer>
         {reportOpen && (
-          <form className={styles.reportForm} onSubmit={submitReport}>
+          <form id={reportFormId} className={styles.reportForm} onSubmit={submitReport}>
             <div>
               <span><ShieldCheck size={18} /><strong>Reporte privado</strong></span>
               <p>Tu identidad no se muestra en la galería ni a otros participantes.</p>
@@ -220,8 +228,13 @@ function Lightbox({
                   <span>Solicitar que se oculte mientras se revisa</span>
                 </label>
                 {reportState.error && <p className={styles.reportError} role="alert">{reportState.error}</p>}
-                <button type="submit" disabled={reportState.busy}>
-                  <Send size={16} /> {reportState.busy ? 'Enviando…' : 'Enviar reporte'}
+                <button
+                  type="submit"
+                  className={styles.reportSubmit}
+                  disabled={reportState.busy}
+                >
+                  <Send size={16} aria-hidden="true" />
+                  {reportState.busy ? 'Enviando…' : 'Enviar reporte'}
                 </button>
               </>
             )}
