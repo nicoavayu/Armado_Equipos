@@ -33,7 +33,9 @@ import BrandingAssetField from './BrandingAssetField';
 import BrandingImage from './BrandingImage';
 import PlayerPortraitActions from './PlayerPortraitActions';
 import RosterPlayerPortrait from './RosterPlayerPortrait';
+import TeamPhotoPanel, { TeamPhotoBanner } from './TeamPhotoPanel';
 import { loadRosterPortraits } from '../api/tournamentPlayerPortraitService';
+import { loadTeamPhotoState } from '../api/tournamentTeamPhotoService';
 
 const requirementValue = (value) => (
   value === null || value === undefined ? 'Sin definir' : value
@@ -121,6 +123,8 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
     () => ({ status: 'loading', byRosterPlayerId: new Map() }),
   );
   const portraitsRequestRef = useRef(0);
+  const [teamPhoto, setTeamPhoto] = useState(() => ({ status: 'loading', state: null }));
+  const teamPhotoRequestRef = useRef(0);
   const entryTab = {
     inscripcion: canonicalRoutes.organizationTeamEntryRegistration(organization.id, teamEntryId),
     plantel: canonicalRoutes.organizationTeamEntryRoster(organization.id, teamEntryId),
@@ -181,6 +185,30 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
   useEffect(() => {
     loadPortraits();
   }, [loadPortraits]);
+
+  // La foto del equipo se lee aparte por el mismo motivo que los retratos: es
+  // material multimedia que puede fallar sin llevarse puesta la inscripción, y
+  // fallar no es lo mismo que no tener foto. Ante el error conserva lo último
+  // que sí se leyó y ofrece reintentar.
+  const loadTeamPhoto = useCallback(async () => {
+    const requestId = teamPhotoRequestRef.current + 1;
+    teamPhotoRequestRef.current = requestId;
+    setTeamPhoto((current) => ({ ...current, status: 'loading' }));
+    try {
+      const photoState = await loadTeamPhotoState({
+        organizationId: organization.id, teamEntryId,
+      });
+      if (teamPhotoRequestRef.current !== requestId) return;
+      setTeamPhoto({ status: 'ready', state: photoState });
+    } catch {
+      if (teamPhotoRequestRef.current !== requestId) return;
+      setTeamPhoto((current) => ({ ...current, status: 'error' }));
+    }
+  }, [organization.id, teamEntryId]);
+
+  useEffect(() => {
+    loadTeamPhoto();
+  }, [loadTeamPhoto]);
 
   const data = state.data;
   const players = data?.roster?.players || [];
@@ -329,6 +357,22 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
                 La inscripción deportiva está aprobada. Sólo estás editando la identidad visual.
               </p>
             )}
+            {/*
+              * Escudo y foto, uno al lado del otro: son los dos recursos
+              * visuales del equipo y son cosas distintas. El escudo es la marca
+              * —pública, chiquita, sin moderación—; la foto es una fotografía
+              * del plantel —privada, grande, y la publica la organización—.
+              */}
+            <TeamPhotoPanel
+              organizationId={organization.id}
+              teamEntryId={teamEntryId}
+              state={teamPhoto.state}
+              status={teamPhoto.status}
+              teamName={teamForm.name || data.entry.name}
+              shieldPath={teamForm.shieldPath}
+              onChanged={loadTeamPhoto}
+              onRetry={loadTeamPhoto}
+            />
             <div className={styles.twoColumns}>
               <label>Nombre<input value={teamForm.name} disabled={!editable} onChange={(event) => setTeamForm({ ...teamForm, name: event.target.value })} /></label>
               <label>Nombre corto<input value={teamForm.shortName} disabled={!editable} onChange={(event) => setTeamForm({ ...teamForm, shortName: event.target.value })} /></label>
@@ -374,6 +418,12 @@ export default function TeamRegistrationPage({ initialTab = 'inscripcion' }) {
       {initialTab === 'plantel' && (
         <div className={styles.rosterLayout}>
           <section>
+            {/* Consumo puro: si el equipo tiene foto aprobada, encabeza a su
+                plantel. Sin foto no deja hueco ni pide nada. */}
+            <TeamPhotoBanner
+              state={teamPhoto.state}
+              teamName={teamForm.name || data.entry.name}
+            />
             <div className={styles.progressPanel} data-complete={progress.complete}>
               <div>
                 {progress.complete ? <CheckCircle2 size={24} /> : <ClipboardCheck size={24} />}
