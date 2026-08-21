@@ -32,11 +32,17 @@ Los modos son fail-closed:
    tokens nativos de Supabase Storage tienen una vigencia fija de dos horas.
 5. `tournament-media-processor` ejecuta la acción separada `finalize-simple`,
    descarga el objeto privado, inspecciona el archivo completo, calcula SHA-256
-   y recién entonces crea el asset `mvp_simple` en `pending_review`.
+   y recién entonces crea el asset `mvp_simple` en `pending_review`. El
+   veredicto de sanitización viaja como parámetro atestiguado a
+   `complete_tournament_media_simple_upload`, que rechaza cualquier cosa que no
+   sea afirmativa, y queda persistido en el asset (`metadata_stripped`,
+   `normalization_verified_at`).
 6. Si falla, no crea el asset, marca la sesión con un código auditable y borra
    cuarentena best-effort. El sweeper existente sigue siendo la red final.
 7. `thumbnail`, `grid` y `detail` firman el mismo objeto normalizado. No se
-   inventan ni se persisten variantes físicas.
+   inventan ni se persisten variantes físicas, y la publicación no las exige en
+   este tier: valida el contrato durable del asset. Ver
+   [20-media-galleries.md](20-media-galleries.md).
 
 El bucket `tournament-media` sigue siendo privado. No existe policy de escritura
 general para `anon` ni `authenticated`, no hay upsert y las lecturas siguen
