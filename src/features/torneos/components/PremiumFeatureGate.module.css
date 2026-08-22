@@ -1,0 +1,124 @@
+.backdrop {
+  position: fixed;
+  z-index: 120;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(4, 3, 12, 0.82);
+  backdrop-filter: blur(10px);
+}
+
+.dialog {
+  position: relative;
+  width: min(100%, 430px);
+  display: grid;
+  justify-items: center;
+  padding: clamp(28px, 6vw, 42px);
+  overflow: hidden;
+  color: #f6f4ff;
+  text-align: center;
+  background:
+    radial-gradient(circle at 50% 0, rgba(116, 118, 255, 0.23), transparent 45%),
+    linear-gradient(145deg, #191638, #0e0c20 68%);
+  border: 1px solid rgba(176, 178, 255, 0.34);
+  border-radius: 24px 7px 24px 7px;
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.55);
+}
+
+.closeIcon {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: #c8c3da;
+  background: transparent;
+  border: 0;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.icon {
+  width: 50px;
+  height: 50px;
+  display: grid;
+  place-items: center;
+  color: #d9ddff;
+  background: linear-gradient(145deg, rgba(100, 117, 255, 0.24), rgba(143, 80, 255, 0.2));
+  border: 1px solid rgba(183, 190, 255, 0.32);
+  border-radius: 15px 5px 15px 5px;
+}
+
+.dialog > p {
+  margin: 18px 0 0;
+  color: #a99bff;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.15em;
+}
+
+.dialog h2 {
+  margin: 7px 0 0;
+  font-family: "Bebas Neue", Impact, sans-serif;
+  font-size: clamp(34px, 8vw, 46px);
+  font-weight: 400;
+  line-height: 1;
+}
+
+.dialog > span:not(.icon) {
+  max-width: 34ch;
+  margin-top: 12px;
+  color: rgba(240, 237, 250, 0.68);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.actions {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  margin-top: 24px;
+}
+
+.actions button {
+  min-width: 0;
+  min-height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 14px;
+  color: #fff;
+  background: linear-gradient(120deg, #6655ff, #8d54ff);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 12px 4px 12px 4px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.actions .secondary {
+  color: #d6d0e4;
+  background: rgba(255, 255, 255, 0.035);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.dialog button:focus-visible {
+  outline: 2px solid #bfc8ff;
+  outline-offset: 3px;
+}
+
+@media (max-width: 360px) {
+  .dialog { padding-inline: 20px; }
+  .actions { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .backdrop { backdrop-filter: none; }
+}

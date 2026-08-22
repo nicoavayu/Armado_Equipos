@@ -63,9 +63,6 @@ import MyCommunicationsPage from './MyCommunicationsPage';
 import CommunicationsAdminPage from './CommunicationsAdminPage';
 import MediaAdminPage from './MediaAdminPage';
 import SocialStudioPage from './SocialStudioPage';
-import SocialStudioEntitlementGate, {
-  useSocialStudioEntitlement,
-} from './SocialStudioEntitlementGate';
 import styles from './TorneosShell.module.css';
 
 //
@@ -272,7 +269,7 @@ function OrganizationNavigation({
 export default function TorneosShell() {
   const location = useLocation();
   const { isKeyboardOpen } = useKeyboard();
-  const { activeOrganization, service } = useTorneosWorkspace();
+  const { activeOrganization } = useTorneosWorkspace();
   const showSpaceHeader = shouldShowTorneosSpaceHeader(location.pathname);
   const isCreateOrganizationRoute = /^\/torneos\/nueva-organizacion\/?$/.test(location.pathname);
   const isOrganizationRoute = location.pathname.includes('/torneos/organizacion/');
@@ -293,12 +290,6 @@ export default function TorneosShell() {
       || organizationRelativePath.startsWith(`${candidate}/`)
     ))
   ));
-  const socialStudioAccess = useSocialStudioEntitlement({
-    organizationId: isOrganizationRoute ? activeOrganization?.id : null,
-    service,
-    enabled: torneosFeatureFlags.socialContentGenerator,
-  });
-
   return (
     <div className={`${styles.shell} ${showSpaceHeader ? '' : styles.shellWithoutGlobalHeader}`}>
       <a className={styles.skipLink} href="#torneos-main">
@@ -314,7 +305,7 @@ export default function TorneosShell() {
 
         <OrganizationNavigation
           organization={isOrganizationRoute ? activeOrganization : null}
-          socialStudioAvailable={socialStudioAccess.allowed}
+          socialStudioAvailable={torneosFeatureFlags.socialContentGenerator}
           tournamentId={routeTournamentId}
           categoryId={routeCategoryId}
           relativePath={organizationRelativePath}
@@ -492,14 +483,7 @@ export default function TorneosShell() {
               {torneosFeatureFlags.socialContentGenerator && (
                 <Route
                   path="estudio-social"
-                  element={(
-                    <SocialStudioEntitlementGate
-                      access={socialStudioAccess}
-                      organizationId={activeOrganization?.id || ''}
-                    >
-                      <SocialStudioPage />
-                    </SocialStudioEntitlementGate>
-                  )}
+                  element={<SocialStudioPage />}
                 />
               )}
               <Route path="configuracion" element={<OrganizationSettingsPage />} />
@@ -553,7 +537,7 @@ export default function TorneosShell() {
           organization={isOrganizationRoute ? activeOrganization : null}
           mobile
           keyboardHidden={isKeyboardOpen}
-          socialStudioAvailable={socialStudioAccess.allowed}
+          socialStudioAvailable={torneosFeatureFlags.socialContentGenerator}
           tournamentId={routeTournamentId}
           categoryId={routeCategoryId}
           relativePath={organizationRelativePath}

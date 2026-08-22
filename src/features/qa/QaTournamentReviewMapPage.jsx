@@ -221,6 +221,12 @@ export default function QaTournamentReviewMapPage({ service = tournamentWorkspac
         canonicalRoutes.organizationSettingsPlan(planExamples.premium.organization.id),
         'PREMIUM real · legacy_grant validado por servidor',
       ]);
+      entries.unshift([
+        'Estudio Social',
+        'Resultados PREMIUM',
+        canonicalRoutes.organizationSocialStudio(planExamples.premium.organization.id),
+        'Classic, Street y Editorial habilitados por el plan real del torneo',
+      ]);
     }
     if (planExamples?.free) {
       entries.unshift([
@@ -228,6 +234,12 @@ export default function QaTournamentReviewMapPage({ service = tournamentWorkspac
         'Plan FREE',
         canonicalRoutes.organizationSettingsPlan(planExamples.free.organization.id),
         'FREE real · first_free validado por servidor',
+      ]);
+      entries.unshift([
+        'Estudio Social',
+        'Resultados FREE',
+        canonicalRoutes.organizationSocialStudio(planExamples.free.organization.id),
+        'Classic habilitado · Street y Editorial visibles con explicación Premium',
       ]);
     }
     if (phaseExamples?.before) {

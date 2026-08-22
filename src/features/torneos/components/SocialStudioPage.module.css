@@ -57,7 +57,7 @@
   border: 1px solid rgba(255, 255, 255, .08);
   background: rgba(16, 12, 26, .8);
 }
-.noticeBanner { border-color: rgba(110, 231, 168, .35); color: #b7f0cf; }
+.noticeBanner { border-color: rgba(139, 124, 255, .35); color: #d8d2ff; }
 .readOnlyBanner span { display: grid; gap: 3px; }
 .readOnlyBanner small { color: #aaa2b9; }
 
@@ -102,6 +102,35 @@
   color: #fff !important;
 }
 .chipRow { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.themePicker { display: grid; gap: 8px; }
+.themePicker .chipRow button { white-space: nowrap; text-wrap: nowrap; }
+.themeLocked {
+  justify-content: flex-start !important;
+  color: #d8d3e4 !important;
+  background: rgba(111, 91, 185, .055) !important;
+  border-color: rgba(167, 150, 225, .2) !important;
+}
+.themeLocked svg { flex: 0 0 auto; color: #b9adff; }
+.themeLocked span { min-width: 0; }
+.themeLocked small {
+  padding: 3px 5px;
+  color: #c8beff;
+  background: rgba(139, 124, 255, .12);
+  border: 1px solid rgba(139, 124, 255, .16);
+  border-radius: 999px;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: .05em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+.planVerificationNotice {
+  margin: 0;
+  color: #b9b1c9;
+  font-size: 11px;
+  line-height: 1.45;
+}
 
 .checkboxRow { display: flex; align-items: center; gap: 10px; min-height: 44px; }
 .checkboxRow input { width: 20px; height: 20px; }

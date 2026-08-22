@@ -107,6 +107,10 @@ describe('QA tournament review map', () => {
       .toHaveAttribute('href', canonicalRoutes.organizationSettingsPlan(FREE_ORG));
     expect(screen.getByRole('link', { name: /Plan PREMIUM/i }))
       .toHaveAttribute('href', canonicalRoutes.organizationSettingsPlan(PREMIUM_ORG));
+    expect(screen.getByRole('link', { name: /Resultados FREE/i }))
+      .toHaveAttribute('href', canonicalRoutes.organizationSocialStudio(FREE_ORG));
+    expect(screen.getByRole('link', { name: /Resultados PREMIUM/i }))
+      .toHaveAttribute('href', canonicalRoutes.organizationSocialStudio(PREMIUM_ORG));
     expect(screen.getByRole('link', { name: /Liga lista para agregar Playoffs/i }))
       .toHaveAttribute('href', canonicalRoutes.tournamentFixture(
         FREE_ORG,
