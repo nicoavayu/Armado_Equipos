@@ -8,12 +8,39 @@ import {
 } from '../routing/canonicalRoutes';
 import styles from './CompetitionCore.module.css';
 
+function TournamentPlanBadge({ planState }) {
+  const trustedPlan = planState?.status === 'ready' && planState.data?.isTrusted
+    ? planState.data.plan
+    : null;
+  const label = trustedPlan === 'PREMIUM'
+    ? 'Premium'
+    : trustedPlan === 'FREE'
+      ? 'Free'
+      : planState?.status === 'loading'
+        ? 'Verificando plan'
+        : 'Plan no verificado';
+  const tone = trustedPlan?.toLowerCase()
+    || (planState?.status === 'loading' ? 'loading' : 'unverified');
+
+  return (
+    <span
+      className={styles.planBadge}
+      data-plan={tone}
+      role="status"
+      aria-label={`Plan del torneo: ${label}`}
+    >
+      {label}
+    </span>
+  );
+}
+
 export default function CompetitionSelector({ compact = false }) {
   const {
     status,
     seasons,
     tournaments,
     preference,
+    planState,
     selectContext,
   } = useTorneosCompetition();
   const [busy, setBusy] = useState(false);
@@ -87,7 +114,7 @@ export default function CompetitionSelector({ compact = false }) {
       className={`${styles.contextSelector} ${compact ? styles.contextSelectorCompact : ''}`}
       aria-label="Contexto competitivo activo"
     >
-      <label>
+      <label className={styles.tournamentSelectorLabel}>
         {!compact && <CalendarRange size={15} className={styles.selectorIcon} aria-hidden="true" />}
         <span>Temporada</span>
         <select
@@ -100,6 +127,7 @@ export default function CompetitionSelector({ compact = false }) {
             <option key={season.id} value={season.id}>{season.name}</option>
           ))}
         </select>
+        {preference.activeTournamentId && <TournamentPlanBadge planState={planState} />}
         <ChevronDown size={14} className={styles.selectorChevron} aria-hidden="true" />
       </label>
       <label>

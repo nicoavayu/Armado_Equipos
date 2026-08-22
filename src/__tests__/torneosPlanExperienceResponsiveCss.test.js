@@ -23,9 +23,17 @@ describe('Torneos plan experience responsive CSS', () => {
     ),
     'utf8',
   );
+  const socialCss = fs.readFileSync(
+    path.join(process.cwd(), 'src/features/torneos/components/SocialStudioPage.module.css'),
+    'utf8',
+  );
+  const premiumGateCss = fs.readFileSync(
+    path.join(process.cwd(), 'src/features/torneos/components/PremiumFeatureGate.module.css'),
+    'utf8',
+  );
 
   test('collapses desktop plan layouts into native-friendly vertical cards', () => {
-    expect(css).toMatch(/grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/);
+    expect(css).toMatch(/\.premiumBenefits\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*620px\)/);
     expect(css).toMatch(
       /@media \(max-width:\s*760px\)[\s\S]*?\.planCards,[\s\S]*?grid-template-columns:\s*1fr/,
     );
@@ -65,5 +73,13 @@ describe('Torneos plan experience responsive CSS', () => {
       /!preference\.activeTournamentId[\s\S]*?<option value="">Elegí un torneo<\/option>/,
     );
     expect(competitionSelector).not.toContain('Sin torneo seleccionado');
+  });
+
+  test('keeps plan badges, locked themes and the modal mobile-safe', () => {
+    expect(competitionSelector).toContain('Plan no verificado');
+    expect(socialCss).toMatch(/\.themePicker \.chipRow button\s*\{[^}]*white-space:\s*nowrap/);
+    expect(premiumGateCss).toMatch(/width:\s*min\(100%,\s*430px\)/);
+    expect(premiumGateCss).toMatch(/\.actions button[\s\S]*?white-space:\s*nowrap/);
+    expect(premiumGateCss).toMatch(/@media \(max-width:\s*360px\)/);
   });
 });

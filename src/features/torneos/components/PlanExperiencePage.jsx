@@ -1,20 +1,12 @@
-import React, {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+import React from 'react';
 import {
   AlertTriangle,
   Check,
-  Images,
-  Palette,
+  Sparkles,
   Trophy,
-  UsersRound,
 } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
 import { useOptionalTorneosCompetition } from '../context/TorneosCompetitionContext';
-import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
 import {
   normalizeTournamentEntitlements,
   TOURNAMENT_PLANS,
@@ -31,79 +23,11 @@ const FAIL_CLOSED_ENTITLEMENTS = normalizeTournamentEntitlements(null);
 
 const AVAILABLE_PREMIUM_BENEFITS = Object.freeze([
   {
-    icon: Images,
-    label: 'Multimedia ampliada',
-    description: 'Más capacidad para fotos y galerías del torneo.',
-  },
-  {
-    icon: UsersRound,
-    label: 'Más colaboradores',
-    description: 'Hasta 10 colaboradores administrativos, además del administrador principal.',
-  },
-  {
-    icon: Palette,
-    label: 'Identidad más personalizada',
-    description: 'Marca propia con una presencia más discreta de Arma2.',
+    icon: Sparkles,
+    label: 'Más estilos para resultados',
+    description: 'Sumá Street y Editorial a Classic en tus placas de resultados.',
   },
 ]);
-
-export function useOrganizationPlan({ organizationId, tournamentId, service }) {
-  const requestRef = useRef(0);
-  const [state, setState] = useState({
-    status: organizationId && tournamentId ? 'loading' : 'empty',
-    data: FAIL_CLOSED_ENTITLEMENTS,
-    error: '',
-  });
-
-  const load = useCallback(async () => {
-    const requestId = requestRef.current + 1;
-    requestRef.current = requestId;
-    if (!organizationId || !tournamentId) {
-      setState({ status: 'empty', data: FAIL_CLOSED_ENTITLEMENTS, error: '' });
-      return;
-    }
-    if (typeof service?.loadEntitlements !== 'function') {
-      setState({
-        status: 'error',
-        data: FAIL_CLOSED_ENTITLEMENTS,
-        error: 'No pudimos cargar el plan de este torneo.',
-      });
-      return;
-    }
-    setState({ status: 'loading', data: FAIL_CLOSED_ENTITLEMENTS, error: '' });
-    try {
-      const payload = await service.loadEntitlements({ organizationId, tournamentId });
-      if (requestRef.current !== requestId) return;
-      const normalized = normalizeTournamentEntitlements(payload, {
-        organizationId,
-        tournamentId,
-      });
-      if (!normalized.isTrusted) {
-        setState({
-          status: 'error',
-          data: normalized,
-          error: 'No pudimos confirmar el plan de este torneo.',
-        });
-        return;
-      }
-      setState({ status: 'ready', data: normalized, error: '' });
-    } catch (error) {
-      if (requestRef.current !== requestId) return;
-      setState({
-        status: 'error',
-        data: FAIL_CLOSED_ENTITLEMENTS,
-        error: error?.message || 'No pudimos cargar el plan de este torneo.',
-      });
-    }
-  }, [organizationId, service, tournamentId]);
-
-  useEffect(() => {
-    load();
-    return () => { requestRef.current += 1; };
-  }, [load]);
-
-  return { ...state, retry: load };
-}
 
 function PremiumBenefit({ benefit }) {
   const Icon = benefit.icon;
@@ -124,14 +48,13 @@ export default function PlanExperiencePage({
 }) {
   const outletContext = useOutletContext() || {};
   const competition = useOptionalTorneosCompetition();
-  const { service } = useTorneosWorkspace();
   const organization = organizationProp || outletContext.organization || null;
   const tournament = tournamentProp || competition?.activeTournament || null;
-  const planState = useOrganizationPlan({
-    organizationId: organization?.id || null,
-    tournamentId: tournament?.id || null,
-    service,
-  });
+  const planState = competition?.planState || {
+    status: tournament ? 'error' : 'empty',
+    data: FAIL_CLOSED_ENTITLEMENTS,
+    error: tournament ? 'No pudimos verificar el plan de este torneo.' : '',
+  };
   const entitlements = planState.data || FAIL_CLOSED_ENTITLEMENTS;
   const lifecycle = getTournamentPlanLifecycle(entitlements);
   const isPremium = entitlements.plan === TOURNAMENT_PLANS.PREMIUM;
@@ -174,20 +97,38 @@ export default function PlanExperiencePage({
     );
   }
 
-  return (
-    <div className={styles.page} data-fail-closed={planState.status === 'error'}>
-      {pageHeader}
-
-      {planState.status === 'error' && (
+  if (planState.status === 'error') {
+    return (
+      <div className={styles.page} data-fail-closed="true">
+        {pageHeader}
         <div className={styles.errorBanner} role="alert">
           <AlertTriangle size={20} aria-hidden="true" />
           <span>
             <strong>No pudimos cargar el plan</strong>
             <small>{planState.error}</small>
           </span>
-          <button type="button" onClick={planState.retry}>Reintentar</button>
+          <button type="button" onClick={competition?.retryPlan}>Reintentar</button>
         </div>
-      )}
+        <section className={styles.currentPlan} data-plan="unverified">
+          <div className={styles.planSignal} aria-hidden="true"><i /><span>—</span></div>
+          <div className={styles.currentCopy}>
+            <p>PLAN ACTUAL · {tournament?.name}</p>
+            <h2>Plan no verificado</h2>
+            <div className={styles.lifecycle} data-tone="danger">
+              <span aria-hidden="true" /> No verificado
+            </div>
+            <div className={styles.planDetails}>
+              <strong>No pudimos validar el plan de esta edición.</strong>
+            </div>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.page} data-fail-closed={planState.status === 'error'}>
+      {pageHeader}
 
       <section className={styles.currentPlan} data-plan={entitlements.plan.toLowerCase()}>
         <div className={styles.planSignal} aria-hidden="true">
@@ -213,9 +154,8 @@ export default function PlanExperiencePage({
           <span>FREE VS PREMIUM</span>
           <h2 id="plan-comparison-title">Organizar es Free. Profesionalizar es Premium.</h2>
           <p>
-            Tu primer torneo es gratis. A partir del segundo torneo, cada nueva edición requiere
-            Premium.
-            Una vez adquirido, ese torneo conserva Premium.
+            Tu primer torneo es gratis. Después, pagás una sola vez por cada nuevo torneo.
+            Sin suscripción.
           </p>
         </div>
         <div className={styles.planCards}>
@@ -239,15 +179,15 @@ export default function PlanExperiencePage({
               <span>PREMIUM</span>
               {isPremium && <em>Plan actual</em>}
             </div>
-            <h3>Premium para esta edición.</h3>
-            <p>Pago único · acceso permanente para este torneo.</p>
+            <h3>Premium para este torneo</h3>
+            <p>Pagás una sola vez. Sin suscripción.</p>
             <div className={styles.noPrice}>
               <small>
                 Precio habitual: <s>{formatPlanPrice(entitlements.pricing, 'listPrice')}</s>
               </small>
               <span>Precio lanzamiento</span>
               <strong>{formatPlanPrice(entitlements.pricing, 'launchPrice')}</strong>
-              <p>Pago único por torneo · Sin suscripción</p>
+              <p>Pagás una sola vez. Sin suscripción.</p>
             </div>
           </article>
         </div>
@@ -257,7 +197,7 @@ export default function PlanExperiencePage({
         <div className={styles.sectionHeading}>
           <span>BENEFICIOS PREMIUM</span>
           <h2 id="premium-benefits-title">Qué suma Premium hoy</h2>
-          <p>Más capacidad y más control para profesionalizar tu torneo.</p>
+          <p>Más opciones visuales para comunicar cada fecha.</p>
         </div>
         <div className={styles.premiumBenefits}>
           {AVAILABLE_PREMIUM_BENEFITS.map((benefit) => (

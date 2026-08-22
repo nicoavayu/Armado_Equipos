@@ -7,6 +7,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { normalizeTournamentEntitlements } from '../domain/entitlements';
 
 const EMPTY_PREFERENCE = Object.freeze({
   organizationId: null,
@@ -15,6 +16,7 @@ const EMPTY_PREFERENCE = Object.freeze({
 });
 
 const TorneosCompetitionContext = createContext(null);
+const FAIL_CLOSED_ENTITLEMENTS = normalizeTournamentEntitlements(null);
 
 function normalizeCompetitionContext(payload, organizationId) {
   const seasons = Array.isArray(payload?.seasons) ? payload.seasons : [];
@@ -68,6 +70,7 @@ export function TorneosCompetitionProvider({
     : null;
   const mountedRef = useRef(true);
   const requestRef = useRef(0);
+  const planRequestRef = useRef(0);
   // Por ref y no por dependencia: navegar de un torneo a otro dentro de la
   // misma organización no puede invalidar `refresh` y disparar una recarga
   // completa del catálogo. El catálogo es de la organización, no del torneo.
@@ -84,12 +87,18 @@ export function TorneosCompetitionProvider({
     error: '',
     notice: '',
   });
+  const [planState, setPlanState] = useState({
+    status: 'empty',
+    data: FAIL_CLOSED_ENTITLEMENTS,
+    error: '',
+  });
 
   useEffect(() => {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
       requestRef.current += 1;
+      planRequestRef.current += 1;
     };
   }, []);
 
@@ -174,11 +183,7 @@ export function TorneosCompetitionProvider({
       }));
       return null;
     }
-    await service.setTournamentContext({
-      organizationId,
-      seasonId,
-      tournamentId,
-    });
+    const previousPreference = state.preference;
     setState((current) => ({
       ...current,
       preference: {
@@ -188,8 +193,22 @@ export function TorneosCompetitionProvider({
       },
       notice: '',
     }));
-    return tournament || season;
-  }, [organizationId, service, state.seasons, state.tournaments]);
+    try {
+      await service.setTournamentContext({
+        organizationId,
+        seasonId,
+        tournamentId,
+      });
+      return tournament || season;
+    } catch (error) {
+      setState((current) => ({
+        ...current,
+        preference: previousPreference,
+        notice: error?.message || 'No pudimos cambiar el torneo activo.',
+      }));
+      throw error;
+    }
+  }, [organizationId, service, state.preference, state.seasons, state.tournaments]);
 
   const createSeason = useCallback((input) => runMutation(
     () => service.createSeason({
@@ -279,6 +298,61 @@ export function TorneosCompetitionProvider({
       ? pinnedTournament?.seasonId
       : state.preference.activeSeasonId)
   )) || null;
+  const activeTournamentId = activeTournament?.id || null;
+
+  const loadActiveTournamentPlan = useCallback(async () => {
+    const requestId = planRequestRef.current + 1;
+    planRequestRef.current = requestId;
+    if (!organizationId || !activeTournamentId) {
+      setPlanState({ status: 'empty', data: FAIL_CLOSED_ENTITLEMENTS, error: '' });
+      return FAIL_CLOSED_ENTITLEMENTS;
+    }
+    if (typeof service?.loadEntitlements !== 'function') {
+      const error = 'No pudimos verificar el plan de este torneo.';
+      setPlanState({ status: 'error', data: FAIL_CLOSED_ENTITLEMENTS, error });
+      return FAIL_CLOSED_ENTITLEMENTS;
+    }
+
+    // El plan anterior nunca sobrevive al cambio de torneo. Durante la nueva
+    // resolución no afirmamos Free ni Premium.
+    setPlanState({ status: 'loading', data: FAIL_CLOSED_ENTITLEMENTS, error: '' });
+    try {
+      const payload = await service.loadEntitlements({
+        organizationId,
+        tournamentId: activeTournamentId,
+      });
+      const normalized = normalizeTournamentEntitlements(payload, {
+        organizationId,
+        tournamentId: activeTournamentId,
+      });
+      if (!mountedRef.current || planRequestRef.current !== requestId) return normalized;
+      if (!normalized.isTrusted) {
+        setPlanState({
+          status: 'error',
+          data: FAIL_CLOSED_ENTITLEMENTS,
+          error: 'No pudimos confirmar el plan de este torneo.',
+        });
+        return normalized;
+      }
+      setPlanState({ status: 'ready', data: normalized, error: '' });
+      return normalized;
+    } catch (error) {
+      if (!mountedRef.current || planRequestRef.current !== requestId) {
+        return FAIL_CLOSED_ENTITLEMENTS;
+      }
+      setPlanState({
+        status: 'error',
+        data: FAIL_CLOSED_ENTITLEMENTS,
+        error: error?.message || 'No pudimos verificar el plan de este torneo.',
+      });
+      return FAIL_CLOSED_ENTITLEMENTS;
+    }
+  }, [activeTournamentId, organizationId, service]);
+
+  useEffect(() => {
+    loadActiveTournamentPlan();
+    return () => { planRequestRef.current += 1; };
+  }, [loadActiveTournamentPlan]);
 
   // Un `:tournamentId` que no existe en la organización no puede degradarse al
   // torneo de la preferencia: eso renderizaría el torneo equivocado bajo una
@@ -307,6 +381,8 @@ export function TorneosCompetitionProvider({
     routeTournamentStatus,
     activeSeason,
     activeTournament,
+    planState,
+    retryPlan: loadActiveTournamentPlan,
     refresh,
     selectContext,
     createSeason,
@@ -324,6 +400,8 @@ export function TorneosCompetitionProvider({
   }), [
     activeSeason,
     activeTournament,
+    loadActiveTournamentPlan,
+    planState,
     effectivePreference,
     pinnedTournamentId,
     routeTournamentStatus,
