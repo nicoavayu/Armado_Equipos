@@ -94,8 +94,18 @@ en `get_tournament_creation_eligibility` antes de persistir.
 ## QA LOCAL
 
 El fixture `scripts/qa/seed-torneos-plan-review-fixtures.mjs` crea de forma
-idempotente una organización nueva, `qa-planes-first-free`. Su primer torneo
-recibe Free mediante el mismo trigger de producción. El Premium se revisa sobre
-`qa-metropolitana / Torneo Apertura QA 2026`, cuyo acceso proviene del backfill
-real. `/qa/torneos` sólo muestra esos atajos si la sesión puede leerlos y el
-resolver server-side devuelve el plan esperado.
+idempotente dos organizaciones dedicadas. `qa-planes-first-free` recibe Free
+mediante el mismo trigger de producción y contiene una Liga activa con 28
+resultados oficiales, tabla publicada y ninguna fase eliminatoria. Es el estado
+previo para recorrer `Fixture > Versiones > Agregar fase > Playoffs`.
+
+`qa-planes-legacy-premium` se inicializa con el mismo estado
+`legacy_backfill` del modelo real y recibe un único `PREMIUM / legacy_grant`
+mediante `grant_tournament_premium`. El motivo explicita que es QA LOCAL y no
+representa una compra. El fixture no crea purchases, pagos ni transacciones.
+
+El torneo canónico `qa-metropolitana / Torneo Apertura QA 2026` no se modifica
+y permanece como ejemplo posterior Liga + Playoffs. `/qa/torneos` sólo muestra
+los cuatro atajos si la sesión puede leerlos, el resolver server-side devuelve
+FREE/PREMIUM y los fixtures conservan respectivamente los estados previo y
+posterior.
