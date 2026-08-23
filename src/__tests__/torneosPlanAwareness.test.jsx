@@ -54,7 +54,13 @@ describe('selected tournament plan awareness', () => {
     renderSelector(createService(jest.fn().mockResolvedValue(
       tournamentEntitlementsFixture({ tournamentId: FREE }),
     )));
-    expect(await screen.findByLabelText('Plan del torneo: Free')).toHaveTextContent('Free');
+    const badge = await screen.findByLabelText('Plan del torneo: Free');
+    const seasonControl = screen.getByRole('combobox', { name: 'Temporada activa' });
+    const tournamentControl = screen.getByRole('combobox', { name: 'Torneo activo' });
+
+    expect(badge).toHaveTextContent('Free');
+    expect(tournamentControl.closest('label')).toContainElement(badge);
+    expect(seasonControl.closest('label')).not.toContainElement(badge);
   });
 
   test('shows the richer Premium badge from trusted server state', async () => {
