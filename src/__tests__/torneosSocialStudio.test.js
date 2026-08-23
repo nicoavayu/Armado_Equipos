@@ -16,6 +16,7 @@ import {
   createEditorialState,
   describeCurationGap,
   findSocialPiece,
+  selectionSizeForSnapshot,
   socialFileName,
   validateSocialSnapshot,
 } from '../features/torneos/social/socialContracts';
@@ -202,7 +203,7 @@ function editorialFor(pieceId, overrides = {}) {
   const piece = findSocialPiece(pieceId);
   const selection = piece.requiresHumanSelection
     ? (snapshot.official.candidates || [])
-      .slice(0, piece.selectionSize)
+      .slice(0, selectionSizeForSnapshot(snapshot))
       .map((candidate) => candidate.rosterPlayerId || candidate.participantId)
     : [];
   return createEditorialState(snapshot, { selection, ...overrides });
@@ -243,7 +244,7 @@ describe('social snapshot contracts', () => {
 
   test('rejects an unknown schema version rather than guessing', () => {
     expect(() => validateSocialSnapshot(
-      { ...SNAPSHOTS.standings, schemaVersion: 2 }, { organizationId: ORGANIZATION },
+      { ...SNAPSHOTS.standings, schemaVersion: 3 }, { organizationId: ORGANIZATION },
     )).toThrow(/SNAPSHOT_VERSION_UNSUPPORTED/);
   });
 

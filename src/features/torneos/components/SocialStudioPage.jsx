@@ -29,6 +29,7 @@ import {
   createEditorialState,
   describeCurationGap,
   findSocialPiece,
+  selectionSizeForSnapshot,
 } from '../social/socialContracts';
 import {
   exportSocialPiece,
@@ -292,7 +293,7 @@ export default function SocialStudioPage() {
     setEditorial((current) => {
       const selection = current.selection.includes(id)
         ? current.selection.filter((entry) => entry !== id)
-        : [...current.selection, id].slice(0, piece?.selectionSize || 1);
+        : [...current.selection, id].slice(0, selectionSizeForSnapshot(snapshot));
       return { ...current, selection };
     });
   };

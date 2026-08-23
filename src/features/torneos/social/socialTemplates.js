@@ -355,8 +355,14 @@ const TEMPLATES = {
     if (assets) { /* shields already drawn by the match rows */ }
   },
 
-  best_eleven: (ctx, { snapshot, editorial, body, accent, assets }) => {
-    const chosen = selectedFrom(snapshot, editorial);
+  best_eleven: (ctx, {
+    snapshot, content, editorial, body, accent, assets,
+  }) => {
+    const chosen = content?.kind === 'teamOfRound'
+      ? content.selectedPlayers.map((player) => ({
+        ...player.stats, ...player,
+      }))
+      : selectedFrom(snapshot, editorial);
     if (chosen.length === 0) {
       drawEmptyState(ctx, body, accent);
       return;
@@ -390,8 +396,14 @@ const TEMPLATES = {
   },
 
   mvp: (ctx, context) => {
-    const { snapshot, editorial, body, accent } = context;
-    const [player] = selectedFrom(snapshot, editorial);
+    const {
+      snapshot, content, editorial, body, accent,
+    } = context;
+    const player = content?.kind === 'figure'
+      ? (content.selectedPlayer ? {
+        ...content.selectedPlayer.stats, ...content.selectedPlayer,
+      } : null)
+      : selectedFrom(snapshot, editorial)[0];
     if (!player) {
       drawEmptyState(ctx, body, accent);
       return;
