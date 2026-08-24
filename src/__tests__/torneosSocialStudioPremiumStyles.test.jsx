@@ -38,7 +38,7 @@ function LocationProbe() {
 function renderPicker({
   planState = FREE_PLAN,
   tournamentId = FREE_TOURNAMENT,
-  themeId = 'classic',
+  themeId = 'base',
   onSelect = jest.fn(),
   onFallback = jest.fn(),
 } = {}) {
@@ -71,10 +71,10 @@ function renderPicker({
 }
 
 describe('Social Studio Premium result styles', () => {
-  test('FREE keeps Classic enabled', () => {
+  test('FREE keeps Base enabled', () => {
     const { onSelect } = renderPicker();
-    fireEvent.click(screen.getByRole('radio', { name: 'Classic' }));
-    expect(onSelect).toHaveBeenCalledWith('classic');
+    fireEvent.click(screen.getByRole('radio', { name: 'Base' }));
+    expect(onSelect).toHaveBeenCalledWith('base');
   });
 
   test.each(['Street', 'Editorial'])(
@@ -101,12 +101,12 @@ describe('Social Studio Premium result styles', () => {
     );
   });
 
-  test('PREMIUM enables Classic, Street and Editorial without an explanation', () => {
+  test('PREMIUM enables Base, Street and Editorial without an explanation', () => {
     const { onSelect } = renderPicker({
       planState: PREMIUM_PLAN,
       tournamentId: PREMIUM_TOURNAMENT,
     });
-    for (const [label, id] of [['Classic', 'classic'], ['Street', 'street'], ['Editorial', 'editorial']]) {
+    for (const [label, id] of [['Base', 'base'], ['Street', 'street'], ['Editorial', 'editorial']]) {
       fireEvent.click(screen.getByRole('radio', { name: label }));
       expect(onSelect).toHaveBeenCalledWith(id);
     }
@@ -117,7 +117,7 @@ describe('Social Studio Premium result styles', () => {
     expect(canUsePremiumResultStyles(PREMIUM_PLAN, FREE_TOURNAMENT)).toBe(false);
     expect(isSocialResultThemeAllowed('street', { status: 'loading' }, FREE_TOURNAMENT))
       .toBe(false);
-    expect(isSocialResultThemeAllowed('classic', { status: 'loading' }, FREE_TOURNAMENT))
+    expect(isSocialResultThemeAllowed('base', { status: 'loading' }, FREE_TOURNAMENT))
       .toBe(true);
   });
 
@@ -127,7 +127,7 @@ describe('Social Studio Premium result styles', () => {
     expect(hasSocialStudioRoleCapability(['social.read'], 'social.export')).toBe(false);
   });
 
-  test('PREMIUM to FREE falls back to Classic and explains the change', async () => {
+  test('PREMIUM to FREE falls back to Base and explains the change', async () => {
     function SwitchHarness() {
       const [planState, setPlanState] = useState(PREMIUM_PLAN);
       const [themeId, setThemeId] = useState('street');
@@ -144,7 +144,7 @@ describe('Social Studio Premium result styles', () => {
             planState={planState}
             themeId={themeId}
             onSelect={setThemeId}
-            onFallback={() => setNotice('Volvimos a Classic porque el torneo seleccionado es Free.')}
+            onFallback={() => setNotice('Volvimos a Base porque el torneo seleccionado es Free.')}
           />
         </>
       );
@@ -153,7 +153,7 @@ describe('Social Studio Premium result styles', () => {
     render(<MemoryRouter><SwitchHarness /></MemoryRouter>);
     expect(screen.getByTestId('theme')).toHaveTextContent('street');
     fireEvent.click(screen.getByRole('button', { name: 'Cambiar a Free' }));
-    await waitFor(() => expect(screen.getByTestId('theme')).toHaveTextContent('classic'));
-    expect(screen.getByText(/Volvimos a Classic/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId('theme')).toHaveTextContent('base'));
+    expect(screen.getByText(/Volvimos a Base/)).toBeInTheDocument();
   });
 });

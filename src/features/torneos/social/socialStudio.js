@@ -34,6 +34,7 @@ import {
   resolveBrandingAccent,
 } from './socialBranding';
 import { getResultsThemeLayout } from './resultsThemeLayouts';
+import { renderBaseSocialPiece } from './base';
 
 export class SocialRenderError extends Error {
   constructor(code, detail = '') {
@@ -119,13 +120,12 @@ export function createSocialAssetPlan(snapshot, editorial, content = null, optio
     collect(snapshot.official);
   }
   const branding = normalizeSocialBranding(options.branding, content);
-  const includeResultsBrand = content?.kind === 'results';
   return Object.freeze({
     shieldPaths: Object.freeze(Array.from(paths).sort()),
     photoAssetId: editorial.photoAssetId || null,
     branding: Object.freeze({
-      tournamentLogoUrl: includeResultsBrand ? branding.tournamentLogo : null,
-      officialLockupUrl: includeResultsBrand ? options.brandAssetUrls?.lockup || null : null,
+      tournamentLogoUrl: branding.tournamentLogo,
+      officialLockupUrl: options.brandAssetUrls?.lockup || null,
     }),
   });
 }
@@ -200,6 +200,13 @@ export function drawSocialPiece(ctx, {
     accentValue(editorial.accent, selectedTheme),
     selectedTheme,
   );
+  if (selectedTheme.id === 'base' || snapshot.piece !== 'round_results') {
+    const rendered = renderBaseSocialPiece(ctx, {
+      snapshot, editorial, assets, branding: normalizedBranding,
+    });
+    if (!rendered) throw new SocialRenderError('TEMPLATE_MISSING', snapshot.piece);
+    return;
+  }
   if (snapshot.piece === 'round_results') {
     const resultsContent = content || adaptSnapshotToResultsContent(snapshot, editorial);
     const resultsVariant = variant || resolveResultsVariant({

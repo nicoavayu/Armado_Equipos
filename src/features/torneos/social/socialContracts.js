@@ -1,3 +1,5 @@
+import { TORNEOS_URL } from './socialProductConfig';
+
 /**
  * Typed snapshot contracts for the Estudio Social.
  *
@@ -324,7 +326,7 @@ export function createEditorialState(snapshot, overrides = {}) {
       SOCIAL_TEXT_LIMITS.subtitle,
     ),
     note: clampText(overrides.note ?? '', SOCIAL_TEXT_LIMITS.note),
-    cta: clampText(overrides.cta ?? 'arma2.com.ar', SOCIAL_TEXT_LIMITS.cta),
+    cta: clampText(overrides.cta ?? TORNEOS_URL, SOCIAL_TEXT_LIMITS.cta),
     showArma2Logo: overrides.showArma2Logo !== false,
     photoAssetId: overrides.photoAssetId || null,
     photoOffsetY: Number.isFinite(overrides.photoOffsetY) ? overrides.photoOffsetY : 0.5,

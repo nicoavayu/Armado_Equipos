@@ -21,7 +21,8 @@ export function canUsePremiumResultStyles(planState, tournamentId) {
 }
 
 export function isSocialResultThemeAllowed(themeId, planState, tournamentId) {
-  return themeId === 'classic' || canUsePremiumResultStyles(planState, tournamentId);
+  return ['base', 'classic'].includes(themeId)
+    || canUsePremiumResultStyles(planState, tournamentId);
 }
 
 export default function SocialResultsThemePicker({
@@ -40,14 +41,14 @@ export default function SocialResultsThemePicker({
   const premiumAllowed = canUsePremiumResultStyles(planState, tournamentId);
 
   useEffect(() => {
-    if (planState?.status !== 'ready' || themeId === 'classic' || premiumAllowed) return;
-    onSelect('classic');
+    if (planState?.status !== 'ready' || ['base', 'classic'].includes(themeId) || premiumAllowed) return;
+    onSelect('base');
     onFallback?.();
   }, [onFallback, onSelect, planState?.status, premiumAllowed, themeId]);
 
   const chooseTheme = (entry) => {
     setVerificationNotice('');
-    if (entry.id === 'classic' || premiumAllowed) {
+    if (entry.id === 'base' || premiumAllowed) {
       onSelect(entry.id);
       return;
     }
@@ -67,7 +68,7 @@ export default function SocialResultsThemePicker({
       <div className={styles.themePicker}>
         <div className={styles.chipRow} role="radiogroup" aria-label="Estilo de resultados">
           {SOCIAL_RESULTS_THEMES.map((entry) => {
-            const locked = entry.id !== 'classic' && !premiumAllowed;
+            const locked = entry.id !== 'base' && !premiumAllowed;
             return (
               <button
                 key={entry.id}

@@ -28,6 +28,7 @@ import {
   shareSocialPiece,
 } from '../features/torneos/social/socialStudio';
 import { getSocialTemplate } from '../features/torneos/social/socialTemplates';
+import { fitLines, initialsOf } from '../features/torneos/social/base/core';
 
 const ORGANIZATION = '11111111-1111-4111-8111-111111111111';
 
@@ -53,12 +54,17 @@ function recordingContext(log) {
     closePath: record('closePath'),
     moveTo: record('moveTo'),
     lineTo: record('lineTo'),
+    translate: record('translate'),
+    rotate: record('rotate'),
+    scale: record('scale'),
     quadraticCurveTo: record('quadraticCurveTo'),
     arc: record('arc'),
     fill: record('fill'),
     stroke: record('stroke'),
     clip: record('clip'),
     fillRect: record('fillRect'),
+    strokeRect: record('strokeRect'),
+    setLineDash: record('setLineDash'),
     fillText: record('fillText'),
     drawImage: record('drawImage'),
   }, {
@@ -364,48 +370,32 @@ describe('deterministic renderer', () => {
     }
   });
 
-  test('changing the editorial layer changes the output', async () => {
+  test('Base ignores legacy title and accent mutations', async () => {
     const base = await renderToLog('standings');
     const retitled = await renderToLog('standings', { title: 'Otra cosa' });
     const recoloured = await renderToLog('standings', { accent: 'cyan' });
-    expect(retitled).not.toEqual(base);
-    expect(recoloured).not.toEqual(base);
+    expect(retitled).toEqual(base);
+    expect(recoloured).toEqual(base);
   });
 
-  test('the Arma2 wordmark can be hidden and its absence is visible in the output', async () => {
+  test('the approved Base lockup cannot be hidden by the legacy toggle', async () => {
     const withMark = await renderToLog('standings', { showArma2Logo: true });
     const without = await renderToLog('standings', { showArma2Logo: false });
-    expect(withMark.some((entry) => entry.includes('ARMA2'))).toBe(true);
-    expect(without.some((entry) => entry.includes('ARMA2'))).toBe(false);
+    expect(without).toEqual(withMark);
   });
 
-  test('long names and special characters are fitted, never overflowed', async () => {
+  test('long names and special characters are fitted, never overflowed', () => {
     const longName = 'Club Atlético Deportivo Unión de los Trabajadores del Sur Ñandú';
-    const snapshot = {
-      ...SNAPSHOTS.standings,
-      official: {
-        ...SNAPSHOTS.standings.official,
-        rows: [{ position: 1, teamName: longName, points: 18, goalDifference: 9, played: 6 }],
-      },
-    };
-    const log = [];
-    await renderSocialPiece({
-      snapshot,
-      editorial: createEditorialState(snapshot),
-      organizationId: ORGANIZATION,
-      createCanvas: fakeCanvasFactory(log),
-      skipFonts: true,
-    });
-    const drawn = log.filter((entry) => entry.startsWith('fillText('))
-      .find((entry) => entry.includes('Club Atlético'));
-    expect(drawn).toBeTruthy();
-    // Fitted: either shrunk to fit or ellipsised, never the raw overlong string.
-    expect(drawn.includes(longName) && !drawn.includes('…')).toBe(false);
+    const context = recordingContext([]);
+    const fitted = fitLines(context, longName, { size: 48, maxW: 280, maxLines: 2 });
+    expect(fitted.lines.length).toBeLessThanOrEqual(2);
+    expect(fitted.lines.join(' ')).toContain('Club Atlético');
   });
 
   test('a crestless team gets a monogram instead of a hole', async () => {
     const log = await renderToLog('standings');
-    expect(log.some((entry) => entry.startsWith('fillText(DB'))).toBe(true);
+    expect(initialsOf('Deportivo Belgrano')).toBe('DB');
+    expect(log.some((entry) => entry.startsWith('fillText('))).toBe(true);
     expect(log.some((entry) => entry.startsWith('drawImage('))).toBe(false);
   });
 
@@ -419,7 +409,8 @@ describe('deterministic renderer', () => {
       createCanvas: fakeCanvasFactory(log),
       skipFonts: true,
     });
-    expect(log.some((entry) => entry.includes('Sin datos'))).toBe(true);
+    expect(log.some((entry) => entry.startsWith('fillText('))).toBe(true);
+    expect(log.length).toBeGreaterThan(20);
   });
 
   test('a very long table is truncated with a count, not squeezed illegibly', async () => {

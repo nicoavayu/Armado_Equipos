@@ -39,17 +39,18 @@ import {
   shareSocialPiece,
 } from '../social/socialStudio';
 import { resolveSocialTheme } from '../social/socialThemes';
+import { BASE_LOCKUP_DATA_URL } from '../social/base/brandAsset';
 import SocialResultsThemePicker, {
   isSocialResultThemeAllowed,
 } from './SocialResultsThemePicker';
 import styles from './SocialStudioPage.module.css';
 
 const PREVIEW_WIDTH = 300;
-// Exact, byte-preserved copy of the approved Social Studio lockup. The source
-// artwork includes meaningful transparent space, so layouts contain the full
-// bitmap instead of cropping or reconstructing it from separate marks.
+// Lossless renderer asset derived from the approved Social Studio lockup. Its
+// meaningful transparent space is preserved instead of cropping or rebuilding
+// the identity from separate marks.
 const OFFICIAL_BRAND_ASSETS = Object.freeze({
-  lockup: `${process.env.PUBLIC_URL || ''}/assets/social-studio/Logo%20Arma2_torneo.png`,
+  lockup: BASE_LOCKUP_DATA_URL,
 });
 
 function StudioState({ icon: Icon = Sparkles, title, copy, action = null }) {
@@ -89,7 +90,7 @@ export default function SocialStudioPage() {
   const [snapshot, setSnapshot] = useState(null);
   const [snapshotError, setSnapshotError] = useState('');
   const [editorial, setEditorial] = useState(() => createEditorialState(null));
-  const [themeId, setThemeId] = useState('classic');
+  const [themeId, setThemeId] = useState('base');
   const [renderState, setRenderState] = useState({ status: 'idle', error: '' });
   const [busy, setBusy] = useState('');
   const [notice, setNotice] = useState('');
@@ -101,7 +102,6 @@ export default function SocialStudioPage() {
     || canCreate;
   const canEditText = hasSocialStudioRoleCapability(capabilities, 'social.editorial_text')
     || canCreate;
-  const canToggleBrand = hasSocialStudioRoleCapability(capabilities, 'social.brand_toggle');
 
   useEffect(() => {
     let active = true;
@@ -131,7 +131,7 @@ export default function SocialStudioPage() {
     themeId,
     competition.planState,
     scope.tournamentId,
-  ) ? themeId : 'classic';
+  ) ? themeId : 'base';
 
   const scopeForTournament = useCallback((entry) => {
     const nextCategory = entry?.categories?.[0];
@@ -205,15 +205,20 @@ export default function SocialStudioPage() {
   const selectedTheme = useMemo(
     () => (pieceId === 'round_results'
       ? resolveSocialTheme(effectiveThemeId)
-      : resolveSocialTheme('classic')),
+      : resolveSocialTheme('base')),
     [effectiveThemeId, pieceId],
   );
-  const branding = useMemo(() => ({
-    tournamentName: snapshot?.competition?.tournamentName || tournament?.name || '',
-    tournamentLogo: null,
-    primaryColor: null,
-    secondaryColor: null,
-  }), [snapshot, tournament]);
+  const branding = useMemo(() => {
+    const competitionTournament = competition.tournaments?.find(
+      (entry) => entry.id === scope.tournamentId,
+    );
+    return {
+      tournamentName: snapshot?.competition?.tournamentName || tournament?.name || '',
+      tournamentLogo: service.resolveTournamentLogoUrl?.(competitionTournament?.logoPath) || null,
+      primaryColor: null,
+      secondaryColor: null,
+    };
+  }, [competition.tournaments, scope.tournamentId, service, snapshot, tournament]);
 
   // Re-render the preview whenever anything it depends on changes. The canvas
   // is replaced wholesale rather than mutated so a failed render never leaves
@@ -355,8 +360,6 @@ export default function SocialStudioPage() {
 
   const candidates = snapshot?.official?.candidates || [];
   const format = SOCIAL_FORMATS[editorial.format];
-  const previewHeight = Math.round((PREVIEW_WIDTH * format.height) / format.width);
-
   return (
     <div className={styles.page}>
       <header className={styles.hero}>
@@ -475,9 +478,7 @@ export default function SocialStudioPage() {
           <fieldset>
             <legend>Formato y estilo</legend>
             <div className={styles.chipRow} role="radiogroup" aria-label="Formato">
-              {Object.values(SOCIAL_FORMATS)
-                .filter((entry) => pieceId !== 'round_results' || entry.id === 'portrait')
-                .map((entry) => (
+              {Object.values(SOCIAL_FORMATS).map((entry) => (
                 <button
                   key={entry.id}
                   type="button"
@@ -499,73 +500,67 @@ export default function SocialStudioPage() {
                 displayThemeId={effectiveThemeId}
                 onSelect={setThemeId}
                 onFallback={() => {
-                  setNotice('Volvimos a Classic porque el torneo seleccionado es Free.');
+                  setNotice('Volvimos a Base porque el torneo seleccionado es Free.');
                 }}
               />
             )}
-            <div className={styles.chipRow} role="radiogroup" aria-label="Acento">
-              {SOCIAL_ACCENTS.map((entry) => (
-                <button
-                  key={entry.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={editorial.accent === entry.id}
-                  aria-label={`Acento ${entry.label}`}
-                  className={editorial.accent === entry.id ? styles.chipActive : ''}
-                  onClick={() => updateEditorial({ accent: entry.id })}
-                >
-                  <Palette size={15} aria-hidden="true" /> {entry.label}
-                </button>
-              ))}
-            </div>
-            {canToggleBrand && pieceId !== 'round_results' && (
-              <label className={styles.checkboxRow}>
-                <input
-                  type="checkbox"
-                  checked={editorial.showArma2Logo}
-                  onChange={(event) => updateEditorial({ showArma2Logo: event.target.checked })}
-                />
-                <span>Mostrar el logo de Arma2</span>
-              </label>
+            {selectedTheme.id !== 'base' && (
+              <div className={styles.chipRow} role="radiogroup" aria-label="Acento">
+                {SOCIAL_ACCENTS.map((entry) => (
+                  <button
+                    key={entry.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={editorial.accent === entry.id}
+                    aria-label={`Acento ${entry.label}`}
+                    className={editorial.accent === entry.id ? styles.chipActive : ''}
+                    onClick={() => updateEditorial({ accent: entry.id })}
+                  >
+                    <Palette size={15} aria-hidden="true" /> {entry.label}
+                  </button>
+                ))}
+              </div>
             )}
           </fieldset>
 
-          <fieldset disabled={!canEditText}>
-            <legend>Texto</legend>
-            <label>
-              <span>Título</span>
-              <input
-                value={editorial.title}
-                maxLength={SOCIAL_TEXT_LIMITS.title}
-                onChange={(event) => updateEditorial({ title: event.target.value })}
-              />
-            </label>
-            <label>
-              <span>Subtítulo</span>
-              <input
-                value={editorial.subtitle}
-                maxLength={SOCIAL_TEXT_LIMITS.subtitle}
-                onChange={(event) => updateEditorial({ subtitle: event.target.value })}
-              />
-            </label>
-            <label>
-              <span>Texto editorial</span>
-              <textarea
-                value={editorial.note}
-                maxLength={SOCIAL_TEXT_LIMITS.note}
-                onChange={(event) => updateEditorial({ note: event.target.value })}
-                placeholder="Una línea breve, opcional."
-              />
-            </label>
-            <label>
-              <span>Sitio o CTA</span>
-              <input
-                value={editorial.cta}
-                maxLength={SOCIAL_TEXT_LIMITS.cta}
-                onChange={(event) => updateEditorial({ cta: event.target.value })}
-              />
-            </label>
-          </fieldset>
+          {selectedTheme.id !== 'base' && (
+            <fieldset disabled={!canEditText}>
+              <legend>Texto</legend>
+              <label>
+                <span>Título</span>
+                <input
+                  value={editorial.title}
+                  maxLength={SOCIAL_TEXT_LIMITS.title}
+                  onChange={(event) => updateEditorial({ title: event.target.value })}
+                />
+              </label>
+              <label>
+                <span>Subtítulo</span>
+                <input
+                  value={editorial.subtitle}
+                  maxLength={SOCIAL_TEXT_LIMITS.subtitle}
+                  onChange={(event) => updateEditorial({ subtitle: event.target.value })}
+                />
+              </label>
+              <label>
+                <span>Texto editorial</span>
+                <textarea
+                  value={editorial.note}
+                  maxLength={SOCIAL_TEXT_LIMITS.note}
+                  onChange={(event) => updateEditorial({ note: event.target.value })}
+                  placeholder="Una línea breve, opcional."
+                />
+              </label>
+              <label>
+                <span>Sitio o CTA</span>
+                <input
+                  value={editorial.cta}
+                  maxLength={SOCIAL_TEXT_LIMITS.cta}
+                  onChange={(event) => updateEditorial({ cta: event.target.value })}
+                />
+              </label>
+            </fieldset>
+          )}
 
           {piece?.requiresHumanSelection && (
             <fieldset disabled={!canSelect}>
@@ -616,7 +611,11 @@ export default function SocialStudioPage() {
 
           <div
             className={styles.previewStage}
-            style={{ width: PREVIEW_WIDTH, height: previewHeight }}
+            style={{
+              width: PREVIEW_WIDTH,
+              maxWidth: '100%',
+              aspectRatio: `${format.width} / ${format.height}`,
+            }}
           >
             <div ref={canvasHostRef} className={styles.previewHost} />
             {['loading', 'rendering'].includes(renderState.status) && (

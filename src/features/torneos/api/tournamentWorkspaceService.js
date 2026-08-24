@@ -2055,6 +2055,10 @@ export function resolveTeamShieldUrl(shieldPath) {
   return resolveBrandingAssetUrl({ kind: 'team', path: shieldPath });
 }
 
+export function resolveTournamentLogoUrl(logoPath) {
+  return resolveBrandingAssetUrl({ kind: 'tournament', path: logoPath });
+}
+
 export async function handleTournamentMediaReport({
   reportId,
   status,
@@ -2213,5 +2217,6 @@ export const tournamentWorkspaceService = Object.freeze({
   loadTeamVisualPolicy: loadTournamentTeamVisualPolicy,
   setTeamVisualPolicy: setTournamentTeamVisualPolicy,
   resolveTeamShieldUrl,
+  resolveTournamentLogoUrl,
   createIdempotencyKey,
 });

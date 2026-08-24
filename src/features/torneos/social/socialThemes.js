@@ -4,9 +4,9 @@ const sharedTypography = Object.freeze({
   body: 'Inter',
 });
 
-export const CLASSIC_SOCIAL_THEME = Object.freeze({
-  id: 'classic',
-  label: 'Classic',
+export const BASE_SOCIAL_THEME = Object.freeze({
+  id: 'base',
+  label: 'Base',
   background: '#08090C',
   backgroundDeep: '#11131A',
   surface: 'rgba(255, 255, 255, 0.035)',
@@ -65,7 +65,7 @@ export const EDITORIAL_SOCIAL_THEME = Object.freeze({
 });
 
 export const SOCIAL_RESULTS_THEMES = Object.freeze([
-  CLASSIC_SOCIAL_THEME,
+  BASE_SOCIAL_THEME,
   STREET_SOCIAL_THEME,
   EDITORIAL_SOCIAL_THEME,
 ]);
@@ -74,12 +74,16 @@ const THEMES_BY_ID = Object.freeze(Object.fromEntries(
   SOCIAL_RESULTS_THEMES.map((theme) => [theme.id, theme]),
 ));
 
-/** Unknown ids always resolve to Classic; explicit theme objects remain testable dependencies. */
+// Compatibility alias for saved local UI state from the pre-Base spike.
+export const CLASSIC_SOCIAL_THEME = BASE_SOCIAL_THEME;
+
+/** Unknown ids resolve to Base; explicit theme objects remain testable dependencies. */
 export function resolveSocialTheme(theme = 'classic') {
   if (theme && typeof theme === 'object') return theme;
-  return THEMES_BY_ID[theme] || CLASSIC_SOCIAL_THEME;
+  if (theme === 'classic') return BASE_SOCIAL_THEME;
+  return THEMES_BY_ID[theme] || BASE_SOCIAL_THEME;
 }
 
-export const DEFAULT_SOCIAL_THEME = CLASSIC_SOCIAL_THEME;
+export const DEFAULT_SOCIAL_THEME = BASE_SOCIAL_THEME;
 
 export default DEFAULT_SOCIAL_THEME;
