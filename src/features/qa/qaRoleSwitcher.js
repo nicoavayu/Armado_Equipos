@@ -10,6 +10,7 @@ const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1', '[::1]']);
 
 export const QA_ROLE_SWITCHER_PATH = '/qa/rol';
 export const QA_TOURNAMENT_REVIEW_PATH = '/qa/torneos';
+export const QA_SOCIAL_STUDIO_BASE_PATH = '/qa/torneos/estudio-social-base';
 export const QA_ROLE_BRIDGE_PATH = '/__qa/role-switcher';
 export const QA_ROLE_BRIDGE_HEADER = 'x-qa-role-switcher';
 

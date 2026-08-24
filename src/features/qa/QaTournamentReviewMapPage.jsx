@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { tournamentWorkspaceService } from '../torneos/api/tournamentWorkspaceService';
 import { canonicalRoutes } from '../torneos/routing/canonicalRoutes';
+import { QA_SOCIAL_STUDIO_BASE_PATH } from './qaRoleSwitcher';
 
 const palette = {
   background: '#0c0a1d',
@@ -293,6 +294,7 @@ export default function QaTournamentReviewMapPage({ service = tournamentWorkspac
         <div style={styles.actions}>
           <Link style={styles.action} to="/qa/rol">Cambiar rol QA</Link>
           <Link style={styles.action} to="/torneos">Empezar desde /torneos</Link>
+          <Link style={styles.action} to={QA_SOCIAL_STUDIO_BASE_PATH}>Galería Social Base</Link>
         </div>
         {state.status === 'loading' ? (
           <section style={styles.state} role="status">Preparando links con el acceso del rol actual…</section>
