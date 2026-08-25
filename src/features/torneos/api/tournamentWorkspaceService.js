@@ -41,6 +41,10 @@ const ERROR_MESSAGES = {
   TORNEOS_CATEGORY_REQUIRED: 'El torneo debe conservar al menos una categoría activa.',
   TORNEOS_INVALID_TOURNAMENT_TRANSITION: 'Ese cambio de estado del torneo no está permitido.',
   TORNEOS_REGISTRATION_INCOMPLETE: 'Completá los requisitos antes de preparar la inscripción.',
+  TORNEOS_PREMIUM_REQUIRED: 'Esta edición necesita Premium antes de abrir inscripciones u operar la competencia.',
+  TORNEOS_BILLING_FORBIDDEN: 'Sólo el Propietario o un Administrador pueden gestionar la compra.',
+  TORNEOS_ALREADY_PREMIUM: 'Este torneo ya tiene Premium activo.',
+  TORNEOS_PURCHASE_FORBIDDEN: 'No encontramos esa compra o no tenés permiso para verla.',
   TORNEOS_SCOPE_IMMUTABLE: 'No se puede mover un recurso entre organizaciones o torneos.',
   TORNEOS_REGISTRATION_CLOSED: 'La inscripción no está abierta para ese torneo o categoría.',
   TORNEOS_INVALID_TEAM_ENTRY: 'Revisá los datos del equipo.',
@@ -245,6 +249,51 @@ export async function loadTournamentCreationEligibility({ organizationId }) {
   return unwrapRpc(await supabase.rpc('get_tournament_creation_eligibility', {
     p_organization_id: organizationId,
   }), 'No pudimos verificar si tu primer torneo gratis está disponible.');
+}
+
+export async function createTournamentCheckout({
+  organizationId,
+  tournamentId,
+  idempotencyKey = createIdempotencyKey(),
+}) {
+  const { data, error } = await supabase.functions.invoke('tournament-checkout', {
+    body: { organizationId, tournamentId, idempotencyKey },
+  });
+  if (error || !data?.purchase) {
+    throw toWorkspaceError(error || data?.error, 'No pudimos iniciar la compra.');
+  }
+  return data;
+}
+
+export async function loadTournamentPurchase({ purchaseId, organizationId, tournamentId }) {
+  const purchase = unwrapRpc(await supabase.rpc('get_tournament_purchase', {
+    p_purchase_id: purchaseId,
+  }), 'No pudimos consultar el estado de la compra.');
+  if (!purchase
+    || purchase.organizationId !== organizationId
+    || purchase.tournamentId !== tournamentId) {
+    throw new TournamentWorkspaceError(
+      'TORNEOS_PURCHASE_FORBIDDEN',
+      ERROR_MESSAGES.TORNEOS_PURCHASE_FORBIDDEN,
+    );
+  }
+  return purchase;
+}
+
+export async function simulateFakeTournamentPayment({ purchaseId, status }) {
+  const { data, error } = await supabase.functions.invoke('tournament-fake-payment', {
+    body: { purchaseId, status },
+  });
+  if (error || !data?.purchase) {
+    throw toWorkspaceError(error || data?.error, 'No pudimos simular el pago FAKE.');
+  }
+  return data.purchase;
+}
+
+export async function cancelTournamentPurchase({ purchaseId }) {
+  return unwrapRpc(await supabase.rpc('cancel_tournament_purchase', {
+    p_purchase_id: purchaseId,
+  }), 'No pudimos cancelar la compra.');
 }
 
 export async function loadTournamentPublicPageSettings({
@@ -2074,6 +2123,10 @@ export async function handleTournamentMediaReport({
 export const tournamentWorkspaceService = Object.freeze({
   loadContext: loadTournamentWorkspaceContext,
   loadEntitlements: loadEffectiveTournamentEntitlements,
+  createCheckout: createTournamentCheckout,
+  loadPurchase: loadTournamentPurchase,
+  simulateFakePayment: simulateFakeTournamentPayment,
+  cancelPurchase: cancelTournamentPurchase,
   loadTournamentCreationEligibility,
   createOrganization: createTournamentOrganization,
   checkSlugAvailability: checkTournamentOrganizationSlugAvailability,

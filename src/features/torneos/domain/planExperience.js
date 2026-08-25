@@ -66,6 +66,13 @@ export function getTournamentPlanLifecycle(entitlements) {
       description: 'Pago único · acceso permanente para este torneo.',
     };
   }
+  if (entitlements.plan === TOURNAMENT_PLANS.PREMIUM_REQUIRED) {
+    return {
+      label: 'Premium requerido para activar',
+      tone: 'warning',
+      description: 'Podés configurar el borrador. Para publicar, inscribir equipos y competir necesitás Premium.',
+    };
+  }
   if (entitlements.assignmentSource === TOURNAMENT_PLAN_SOURCES.FIRST_FREE) {
     return {
       label: 'Tu primer torneo, gratis',

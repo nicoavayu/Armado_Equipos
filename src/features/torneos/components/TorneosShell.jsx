@@ -43,6 +43,8 @@ import OrganizationVenuesPage from './OrganizationVenuesPage';
 import TournamentRouteGuard from './TournamentRouteGuard';
 import OrganizationSettingsPage from './OrganizationSettingsPage';
 import PlanExperiencePage from './PlanExperiencePage';
+import PurchaseStatusPage from './PurchaseStatusPage';
+import { useOptionalTorneosCompetition } from '../context/TorneosCompetitionContext';
 import TorneosDashboard from './TorneosDashboard';
 import TorneosLanding from './TorneosLanding';
 import SeasonFormPage from './SeasonFormPage';
@@ -206,6 +208,14 @@ function TeamEntryRedirect() {
       replace
     />
   );
+}
+
+function LegacyPlanRedirect() {
+  const { organizationId } = useParams();
+  const competition = useOptionalTorneosCompetition();
+  const tournamentId = competition?.activeTournament?.id;
+  if (!tournamentId) return <PlanExperiencePage />;
+  return <Navigate to={canonicalRoutes.tournamentPlan(organizationId, tournamentId)} replace />;
 }
 
 function OrganizationNavigation({
@@ -400,6 +410,19 @@ export default function TorneosShell() {
               <Route path="torneo/:tournamentId" element={<TournamentRouteGuard />}>
                 <Route index element={<CanonicalIndexRedirect to="fixture" />} />
                 <Route path="configuracion" element={<TournamentWizardPage />} />
+                <Route path="plan" element={<PlanExperiencePage />} />
+                <Route
+                  path="plan/compra/:purchaseId/exito"
+                  element={<PurchaseStatusPage view="success" />}
+                />
+                <Route
+                  path="plan/compra/:purchaseId/pendiente"
+                  element={<PurchaseStatusPage view="pending" />}
+                />
+                <Route
+                  path="plan/compra/:purchaseId/fallo"
+                  element={<PurchaseStatusPage view="failure" />}
+                />
                 {/*
                   * El listado de equipos es del torneo: `loadTeamsContext` pide
                   * `tournamentId`, así que sin torneo en la URL la lista salía
@@ -487,7 +510,7 @@ export default function TorneosShell() {
                 />
               )}
               <Route path="configuracion" element={<OrganizationSettingsPage />} />
-              <Route path="configuracion/plan" element={<PlanExperiencePage />} />
+              <Route path="configuracion/plan" element={<LegacyPlanRedirect />} />
               <Route path="miembros" element={<OrganizationMembersPage />} />
             </Route>
             <Route path="mis-partidos" element={<MyTournamentMatchesPage />} />

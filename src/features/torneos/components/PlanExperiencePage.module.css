@@ -137,6 +137,13 @@
     inset 0 1px 0 rgba(226, 230, 255, 0.09);
 }
 
+.currentPlan[data-plan="premium_required"] {
+  background:
+    radial-gradient(circle at 12% 18%, rgba(255, 190, 89, 0.17), transparent 31%),
+    linear-gradient(132deg, rgba(46, 31, 23, 0.98), rgba(19, 15, 28, 0.99));
+  border-color: rgba(255, 202, 106, 0.34);
+}
+
 .currentPlan[data-plan="premium"]::before {
   opacity: 0.24;
   background-image:
@@ -539,6 +546,10 @@
   color: rgba(255, 255, 255, 0.45);
   font-size: 10px;
   line-height: 1.4;
+}
+
+.checkoutError {
+  color: #ffb3c0 !important;
 }
 
 .premiumBenefits {

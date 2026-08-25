@@ -71,3 +71,19 @@ verify_jwt = true
 # 1C.3B. Neither public_page nor social_export is enabled.
 [functions.tournament-team-photos]
 verify_jwt = true
+
+# Commercial catalog contains public offer fields only; tables remain private.
+[functions.public-tournament-commercial-catalog]
+verify_jwt = false
+
+[functions.tournament-checkout]
+verify_jwt = true
+
+[functions.tournament-purchase-status]
+verify_jwt = true
+
+# Local/QA-only simulator. The handler additionally requires
+# FAKE_PAYMENT_ENABLED=true plus FAKE_PROVIDER_ENVIRONMENT=local|qa and
+# revalidates the user before using service_role.
+[functions.tournament-fake-payment]
+verify_jwt = true

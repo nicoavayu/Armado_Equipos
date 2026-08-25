@@ -16,12 +16,16 @@ const expectedFunctions = [
   'delete-account',
   'issue-voting-photo-token',
   'join-match-guest',
+  'public-tournament-commercial-catalog',
   'push-auto-match-now',
   'push-dispatch-now',
   'push-sender',
+  'tournament-checkout',
+  'tournament-fake-payment',
   'tournament-media-processor',
   'tournament-media-signer',
   'tournament-player-portraits',
+  'tournament-purchase-status',
   'tournament-team-photos',
   'upload-voting-photo',
 ];
@@ -29,6 +33,7 @@ const expectedFunctions = [
 const publicFunctions = new Set([
   'issue-voting-photo-token',
   'join-match-guest',
+  'public-tournament-commercial-catalog',
   'upload-voting-photo',
 ]);
 
@@ -38,9 +43,12 @@ const userFunctions = new Set([
   'delete-account',
   'push-auto-match-now',
   'push-dispatch-now',
+  'tournament-checkout',
+  'tournament-fake-payment',
   'tournament-media-processor',
   'tournament-media-signer',
   'tournament-player-portraits',
+  'tournament-purchase-status',
   'tournament-team-photos',
 ]);
 
@@ -119,6 +127,29 @@ test('verify_jwt matches each function authentication mode', async () => {
     assert.equal(configuredModes.get(name), true, name);
   }
   assert.equal(configuredModes.get('push-sender'), false, 'push-sender');
+});
+
+test('the FAKE provider requires both explicit local/QA opt-ins', async () => {
+  const provider = await fs.readFile(
+    path.join(functionsRoot, '_shared', 'fakePaymentProvider.ts'),
+    'utf8',
+  );
+  const checkout = await fs.readFile(
+    path.join(functionsRoot, 'tournament-checkout', 'index.ts'),
+    'utf8',
+  );
+  const simulator = await fs.readFile(
+    path.join(functionsRoot, 'tournament-fake-payment', 'index.ts'),
+    'utf8',
+  );
+
+  assert.match(provider, /FAKE_PAYMENT_ENABLED\"\) !== \"true\"/);
+  assert.match(provider, /environment === \"local\" \|\| environment === \"qa\"/);
+  assert.doesNotMatch(provider, /\? \"qa\" : \"local\"/);
+  assert.match(checkout, /enabledFakeProviderEnvironment\(\)/);
+  assert.match(checkout, /fake_provider_disabled/);
+  assert.match(simulator, /enabledFakeProviderEnvironment\(\)/);
+  assert.match(simulator, /fake_provider_disabled/);
 });
 
 test('the browser guest flow sends only apikey when no user JWT exists', async () => {

@@ -1,7 +1,16 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import {
+  MemoryRouter,
+  Route,
+  Routes,
+  useLocation,
+} from 'react-router-dom';
 import PlanExperiencePage from '../features/torneos/components/PlanExperiencePage';
+import {
+  createIdempotencyKey,
+  createTournamentCheckout,
+} from '../features/torneos/api/tournamentWorkspaceService';
 import {
   TorneosCompetitionProvider,
   useTorneosCompetition,
@@ -9,6 +18,12 @@ import {
 import { TorneosWorkspaceProvider } from '../features/torneos/context/TorneosWorkspaceContext';
 import { TOURNAMENT_PLANS } from '../features/torneos/domain/entitlements';
 import { tournamentEntitlementsFixture } from '../testUtils/tournamentEntitlementsFixture';
+
+jest.mock('../features/torneos/api/tournamentWorkspaceService', () => ({
+  ...jest.requireActual('../features/torneos/api/tournamentWorkspaceService'),
+  createIdempotencyKey: jest.fn(),
+  createTournamentCheckout: jest.fn(),
+}));
 
 const ORGANIZATION = {
   id: '10000000-0000-4000-8000-000000000001',
@@ -63,6 +78,7 @@ function renderPlan({ service = createService(), child = null } = {}) {
               element={child || <PlanExperiencePage organization={ORGANIZATION} />}
             />
           </Routes>
+          <RouteLocationProbe />
         </TorneosCompetitionProvider>
       </TorneosWorkspaceProvider>
     </MemoryRouter>,
@@ -70,7 +86,19 @@ function renderPlan({ service = createService(), child = null } = {}) {
   return service;
 }
 
+function RouteLocationProbe() {
+  const location = useLocation();
+  return <output data-testid="route-location">{location.pathname}</output>;
+}
+
 describe('Arma2 Torneos plan experience por edición', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    createIdempotencyKey.mockReturnValue('40000000-0000-4000-8000-000000000001');
+    createTournamentCheckout.mockResolvedValue({
+      purchase: { id: '50000000-0000-4000-8000-000000000001' },
+    });
+  });
   test('FREE explains the commercial model and shows centralized pricing', async () => {
     const service = renderPlan();
 
@@ -129,15 +157,52 @@ describe('Arma2 Torneos plan experience por edición', () => {
     }
   });
 
-  test('there is no fake checkout CTA or internal commercial terminology', async () => {
+  test('owner sees the checkout CTA without internal commercial terminology', async () => {
     renderPlan();
     expect(await screen.findByRole('heading', { name: 'Arma2 Torneos Free' }))
       .toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /comprar|pagar|pasar a premium/i }))
-      .not.toBeInTheDocument();
+      .toBeInTheDocument();
     expect(document.body).not.toHaveTextContent(
       /entitlement|grant|tournament_id|checkout|funcionalidad futura|validado por servidor/i,
     );
+  });
+
+  test('checkout navigates to the canonical pending route returned by the server flow', async () => {
+    renderPlan();
+    fireEvent.click(await screen.findByRole('button', { name: /Comprar Premium/i }));
+
+    await waitFor(() => expect(createTournamentCheckout).toHaveBeenCalledWith({
+      organizationId: ORGANIZATION.id,
+      tournamentId: APERTURA.id,
+      idempotencyKey: '40000000-0000-4000-8000-000000000001',
+    }));
+    await waitFor(() => expect(screen.getByTestId('route-location')).toHaveTextContent(
+      `/torneos/organizacion/${ORGANIZATION.id}/torneo/${APERTURA.id}/plan/compra/50000000-0000-4000-8000-000000000001/pendiente`,
+    ));
+  });
+
+  test('a second edition is shown as configurable draft with Premium required', async () => {
+    renderPlan({
+      service: createService({
+        loadEntitlements: jest.fn().mockResolvedValue(tournamentEntitlementsFixture({
+          tournamentId: APERTURA.id,
+          plan: TOURNAMENT_PLANS.PREMIUM_REQUIRED,
+        })),
+      }),
+    });
+
+    expect(await screen.findByRole('heading', { name: 'Borrador · Premium requerido' }))
+      .toBeInTheDocument();
+    expect(screen.getByText(/Podés configurar el borrador/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Comprar Premium/i })).toBeEnabled();
+  });
+
+  test('collaborator cannot start checkout', async () => {
+    renderPlan({ child: <PlanExperiencePage organization={{ ...ORGANIZATION, role: 'collaborator' }} /> });
+    const button = await screen.findByRole('button', { name: /Comprar Premium/i });
+    expect(button).toBeDisabled();
+    expect(screen.getByText(/Sólo el Propietario o un Administrador/)).toBeInTheDocument();
   });
 
   test('resolver error fails closed without mislabeling the tournament as Free', async () => {

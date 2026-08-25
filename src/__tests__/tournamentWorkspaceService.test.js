@@ -3,6 +3,7 @@ import {
   checkTournamentOrganizationSlugAvailability,
   createTournamentOrganization,
   listTournamentOrganizationMembers,
+  loadTournamentPurchase,
   loadTournamentWorkspaceContext,
   setTournamentWorkspacePreference,
   TournamentWorkspaceError,
@@ -107,6 +108,43 @@ describe('tournamentWorkspaceService', () => {
       'id,user_id,role,status,joined_at,created_at',
     );
     expect(eq).toHaveBeenCalledWith('organization_id', 'org-a');
+  });
+
+  test('purchase projection must match the organization and tournament in the route', async () => {
+    supabase.rpc.mockResolvedValue({
+      data: {
+        id: 'purchase-a',
+        organizationId: 'organization-a',
+        tournamentId: 'tournament-a',
+      },
+      error: null,
+    });
+
+    await expect(loadTournamentPurchase({
+      purchaseId: 'purchase-a',
+      organizationId: 'organization-a',
+      tournamentId: 'tournament-b',
+    })).rejects.toEqual(expect.objectContaining({
+      code: 'TORNEOS_PURCHASE_FORBIDDEN',
+    }));
+    expect(supabase.rpc).toHaveBeenCalledWith('get_tournament_purchase', {
+      p_purchase_id: 'purchase-a',
+    });
+  });
+
+  test('purchase projection is returned only for the exact route scope', async () => {
+    const purchase = {
+      id: 'purchase-a',
+      organizationId: 'organization-a',
+      tournamentId: 'tournament-a',
+    };
+    supabase.rpc.mockResolvedValue({ data: purchase, error: null });
+
+    await expect(loadTournamentPurchase({
+      purchaseId: 'purchase-a',
+      organizationId: 'organization-a',
+      tournamentId: 'tournament-a',
+    })).resolves.toBe(purchase);
   });
 
   // Las reglas de negocio de los flujos core del ciclo de vida dejaron de

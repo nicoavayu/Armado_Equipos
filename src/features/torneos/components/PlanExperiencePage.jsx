@@ -1,11 +1,17 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import {
   AlertTriangle,
   Check,
   Sparkles,
   Trophy,
+  Zap,
 } from 'lucide-react';
-import { useOutletContext } from 'react-router-dom';
+import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
+import {
+  createIdempotencyKey,
+  createTournamentCheckout,
+} from '../api/tournamentWorkspaceService';
+import { canonicalRoutes } from '../routing/canonicalRoutes';
 import { useOptionalTorneosCompetition } from '../context/TorneosCompetitionContext';
 import {
   normalizeTournamentEntitlements,
@@ -58,6 +64,35 @@ export default function PlanExperiencePage({
   const entitlements = planState.data || FAIL_CLOSED_ENTITLEMENTS;
   const lifecycle = getTournamentPlanLifecycle(entitlements);
   const isPremium = entitlements.plan === TOURNAMENT_PLANS.PREMIUM;
+  const requiresPremium = entitlements.plan === TOURNAMENT_PLANS.PREMIUM_REQUIRED;
+  const canManageBilling = ['owner', 'admin'].includes(organization?.role);
+  const navigate = useNavigate();
+  const { organizationId: routeOrganizationId, tournamentId: routeTournamentId } = useParams();
+  const idempotencyKeyRef = useRef(null);
+  const [checkoutState, setCheckoutState] = useState({ status: 'idle', error: '' });
+
+  const beginCheckout = async () => {
+    if (!organization?.id || !tournament?.id || checkoutState.status === 'loading') return;
+    if (!idempotencyKeyRef.current) idempotencyKeyRef.current = createIdempotencyKey();
+    setCheckoutState({ status: 'loading', error: '' });
+    try {
+      const result = await createTournamentCheckout({
+        organizationId: organization.id,
+        tournamentId: tournament.id,
+        idempotencyKey: idempotencyKeyRef.current,
+      });
+      navigate(canonicalRoutes.tournamentPurchasePending(
+        routeOrganizationId || organization.id,
+        routeTournamentId || tournament.id,
+        result.purchase.id,
+      ));
+    } catch (error) {
+      setCheckoutState({
+        status: 'error',
+        error: error?.message || 'No pudimos iniciar la compra.',
+      });
+    }
+  };
 
   const pageHeader = (
     <>
@@ -137,14 +172,16 @@ export default function PlanExperiencePage({
         </div>
         <div className={styles.currentCopy}>
           <p>PLAN ACTUAL · {tournament?.name}</p>
-          <h2>Arma2 Torneos {isPremium ? 'Premium' : 'Free'}</h2>
+          <h2>
+            {requiresPremium ? 'Borrador · Premium requerido' : `Arma2 Torneos ${isPremium ? 'Premium' : 'Free'}`}
+          </h2>
           <div className={styles.lifecycle} data-tone={lifecycle.tone}>
             <span aria-hidden="true" />
             {lifecycle.label}
           </div>
           <div className={styles.planDetails}>
             <strong>{lifecycle.description}</strong>
-            {!isPremium && <small>Este plan corresponde a esta edición.</small>}
+            {!isPremium && <small>Este estado corresponde únicamente a esta edición.</small>}
           </div>
         </div>
       </section>
@@ -159,10 +196,10 @@ export default function PlanExperiencePage({
           </p>
         </div>
         <div className={styles.planCards}>
-          <article className={styles.planCard} data-current={!isPremium}>
+          <article className={styles.planCard} data-current={!isPremium && !requiresPremium}>
             <div className={styles.cardTopline}>
               <span>FREE</span>
-              {!isPremium && <em>Plan actual</em>}
+              {!isPremium && !requiresPremium && <em>Plan actual</em>}
             </div>
             <h3>Tu primer torneo, gratis.</h3>
             <p>Todo lo necesario para organizar tu campeonato.</p>
@@ -189,6 +226,22 @@ export default function PlanExperiencePage({
               <strong>{formatPlanPrice(entitlements.pricing, 'launchPrice')}</strong>
               <p>Pagás una sola vez. Sin suscripción.</p>
             </div>
+            {!isPremium && (
+              <button
+                type="button"
+                onClick={beginCheckout}
+                disabled={!canManageBilling || checkoutState.status === 'loading'}
+              >
+                <Zap size={17} aria-hidden="true" />
+                {checkoutState.status === 'loading' ? 'Preparando compra…' : 'Comprar Premium'}
+              </button>
+            )}
+            {!isPremium && !canManageBilling && (
+              <small>Sólo el Propietario o un Administrador pueden comprar.</small>
+            )}
+            {checkoutState.error && (
+              <small className={styles.checkoutError} role="alert">{checkoutState.error}</small>
+            )}
           </article>
         </div>
       </section>

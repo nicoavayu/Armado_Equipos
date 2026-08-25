@@ -1,6 +1,7 @@
 export const TOURNAMENT_PLANS = Object.freeze({
   FREE: 'FREE',
   PREMIUM: 'PREMIUM',
+  PREMIUM_REQUIRED: 'PREMIUM_REQUIRED',
 });
 
 export const TOURNAMENT_PLAN_SOURCES = Object.freeze({
@@ -79,7 +80,7 @@ function validPricing(pricing) {
     && pricing.launchPrice > 0
     && pricing.launchPrice < pricing.listPrice
     && pricing?.billingModel === 'one_time'
-    && pricing?.scope === 'tournament_edition';
+    && ['tournament_edition', 'tournament'].includes(pricing?.scope);
 }
 
 function validPlanSource(plan, source) {
@@ -88,16 +89,20 @@ function validPlanSource(plan, source) {
     return source === TOURNAMENT_PLAN_SOURCES.PURCHASE
       || source === TOURNAMENT_PLAN_SOURCES.LEGACY_GRANT;
   }
+  if (plan === TOURNAMENT_PLANS.PREMIUM_REQUIRED) {
+    return source === TOURNAMENT_PLAN_SOURCES.UNASSIGNED;
+  }
   return source === TOURNAMENT_PLAN_SOURCES.FIRST_FREE
-    || source === TOURNAMENT_PLAN_SOURCES.UNASSIGNED;
+    ;
 }
 
 export function normalizeTournamentEntitlements(payload, expectedScope = null) {
   const hasKnownPlan = payload?.plan === TOURNAMENT_PLANS.FREE
-    || payload?.plan === TOURNAMENT_PLANS.PREMIUM;
+    || payload?.plan === TOURNAMENT_PLANS.PREMIUM
+    || payload?.plan === TOURNAMENT_PLANS.PREMIUM_REQUIRED;
   const scopeIsValid = payload?.scope?.type === 'tournament_edition'
     && matchesExpectedScope(payload?.scope, expectedScope);
-  const isTrusted = payload?.schemaVersion === 2
+  const isTrusted = [2, 3].includes(payload?.schemaVersion)
     && hasKnownPlan
     && scopeIsValid
     && validPricing(payload?.pricing)
@@ -111,7 +116,7 @@ export function normalizeTournamentEntitlements(payload, expectedScope = null) {
   );
 
   return {
-    schemaVersion: isTrusted ? 2 : null,
+    schemaVersion: isTrusted ? payload.schemaVersion : null,
     isTrusted,
     plan,
     assignmentSource: isTrusted
@@ -124,6 +129,16 @@ export function normalizeTournamentEntitlements(payload, expectedScope = null) {
       billingModel: payload.pricing.billingModel,
       scope: payload.pricing.scope,
     } : null,
+    offer: isTrusted && payload?.offer ? {
+      code: payload.offer.code || null,
+      version: Number.isInteger(payload.offer.version) ? payload.offer.version : null,
+      label: payload.offer.label || '',
+      validUntil: payload.offer.validUntil || null,
+      availability: payload.offer.availability || null,
+    } : null,
+    requiresPremium: isTrusted && (
+      payload?.requiresPremium === true || plan === TOURNAMENT_PLANS.PREMIUM_REQUIRED
+    ),
     limits: isTrusted ? {
       galleryAssetLimit: Number.isInteger(payload?.limits?.galleryAssetLimit)
         ? payload.limits.galleryAssetLimit : null,
