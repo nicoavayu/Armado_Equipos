@@ -32,4 +32,3 @@ serve(async (req) => {
     return jsonResponse({ error: "purchase_unavailable" }, 503, cors)
   }
 })
-

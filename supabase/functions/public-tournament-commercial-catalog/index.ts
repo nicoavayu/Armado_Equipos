@@ -38,4 +38,3 @@ serve(async (req) => {
     return jsonResponse({ error: "catalog_unavailable" }, 503, cors)
   }
 })
-
