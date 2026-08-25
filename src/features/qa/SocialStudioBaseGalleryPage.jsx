@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { renderBaseSocialPiece } from '../torneos/social/base';
 import { BASE_LOCKUP_DATA_URL } from '../torneos/social/base/brandAsset';
+import { ensureSocialFonts } from '../torneos/social/socialRenderer';
 import { QA_TOURNAMENT_REVIEW_PATH } from './qaRoleSwitcher';
 import styles from './SocialStudioBaseGalleryPage.module.css';
 
@@ -29,7 +30,7 @@ const QA_SHIELD_B = svgDataUrl(`
   <svg xmlns="http://www.w3.org/2000/svg" width="160" height="190" viewBox="0 0 160 190">
     <path fill="#0B8F84" d="M8 12h144v94c0 39-29 61-72 76-43-15-72-37-72-76z"/>
     <path fill="#13B8A6" d="m22 38 116 116V98L78 38z"/>
-    <text x="80" y="104" fill="white" font-family="Arial" font-size="34" font-weight="900" text-anchor="middle">AS</text>
+    <text x="80" y="104" fill="white" font-family="Arial" font-size="28" font-weight="900" text-anchor="middle">ADS</text>
   </svg>
 `);
 const QA_PLAYER_PHOTO = svgDataUrl(`
@@ -191,7 +192,7 @@ const REVIEW_STATES = Object.freeze([
   },
   {
     id: 'standings', state: 'dense', label: 'Tabla · nombres largos + overflow',
-    snapshot: snapshot('standings', { rows: DENSE_STANDINGS }), formats: [FORMATS[0]],
+    snapshot: snapshot('standings', { rows: DENSE_STANDINGS }), formats: FORMATS,
   },
   {
     id: 'standings', state: 'empty', label: 'Tabla · vacío',
@@ -336,12 +337,13 @@ export default function SocialStudioBaseGalleryPage() {
   useEffect(() => {
     let active = true;
     Promise.all([
+      ensureSocialFonts(),
       loadImage(BASE_LOCKUP_DATA_URL),
       loadImage(QA_TOURNAMENT_LOGO),
       loadImage(QA_SHIELD_A),
       loadImage(QA_SHIELD_B),
       loadImage(QA_PLAYER_PHOTO),
-    ]).then(([lockup, tournamentLogo, shieldA, shieldB, photo]) => {
+    ]).then(([, lockup, tournamentLogo, shieldA, shieldB, photo]) => {
       if (active) {
         setQaAssets({
           lockup,

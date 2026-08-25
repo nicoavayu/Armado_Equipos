@@ -370,6 +370,40 @@ describe('deterministic renderer', () => {
     }
   });
 
+  test('Base never renders assists, even when real snapshots still provide them', async () => {
+    const logs = await Promise.all([
+      renderToLog('scorers'),
+      renderToLog('mvp'),
+      renderToLog('best_eleven'),
+    ]);
+    const renderedText = logs.flat()
+      .filter((entry) => entry.startsWith('fillText('))
+      .join('\n');
+    const renderedGlyphs = logs.flat()
+      .map((entry) => entry.match(/^fillText\(([^,]*)/)?.[1] || '')
+      .join('');
+
+    expect(renderedGlyphs).not.toMatch(/asistencias?/i);
+    expect(renderedText).not.toMatch(/fillText\([^,]*\bAS\b/i);
+  });
+
+  test('the decisive hero says Final and dominant headlines use condensed Oswald', async () => {
+    const [finalLog, standingsLog, championLog] = await Promise.all([
+      renderToLog('final'),
+      renderToLog('standings'),
+      renderToLog('champion'),
+    ]);
+    const finalGlyphs = finalLog
+      .map((entry) => entry.match(/^fillText\(([^,]*)/)?.[1] || '')
+      .join('');
+
+    expect(finalGlyphs).toContain('FINAL');
+    expect(finalGlyphs).not.toContain('GRANFINAL');
+    expect(finalLog.some((entry) => entry.includes('600 132px "Oswald"'))).toBe(true);
+    expect(standingsLog.some((entry) => entry.includes('600 76px "Oswald"'))).toBe(true);
+    expect(championLog.some((entry) => entry.includes('600 168px "Oswald"'))).toBe(true);
+  });
+
   test('Base ignores legacy title and accent mutations', async () => {
     const base = await renderToLog('standings');
     const retitled = await renderToLog('standings', { title: 'Otra cosa' });

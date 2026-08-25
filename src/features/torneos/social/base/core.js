@@ -502,8 +502,8 @@ export function pieceTitle(ctx, g, o = {}) {
   }
   cy += big * 0.74;
   txt(ctx, title, {
-    x: g.x, y: cy, size: big, fam: 'display', color: C.white, upper: true,
-    maxW: g.w - (o.reserveRight ?? 130), tracking: 1,
+    x: g.x, y: cy, size: big, fam: 'head', weight: 600, color: C.white, upper: true,
+    maxW: g.w - (o.reserveRight ?? 130), tracking: 0.5,
     glowColor: hexa(C.violetLite, 0.5), glowBlur: 22,
   });
   ctx.save();

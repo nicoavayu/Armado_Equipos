@@ -319,7 +319,6 @@ function figureStats(p) {
   const out = [];
   const add = (v, l) => { if (v != null) out.push([String(v), l]); };
   add(p.goals, p.goals === 1 ? 'Gol' : 'Goles');
-  add(p.assists, p.assists === 1 ? 'Asistencia' : 'Asistencias');
   add(p.appearances, 'Apariciones');
   add(p.starts, 'Titularidades');
   add(p.captaincies, 'Capitanías');
@@ -503,11 +502,14 @@ export function tabla(ctx, g, d, imgs) {
   const ptsW = 74;
   const numTotal = (cols.length - 1) * numW + ptsW;
   const headH = 40;
+  const bodyTopGap = 4;
   const gap = rows.length > 12 ? 5 : 9;
-  const availH = box.h - headH - 10 - (rest > 0 ? 58 : 0);
+  const availH = box.h - headH - bodyTopGap - (rest > 0 ? 58 : 0);
   const rowH = Math.min(rows.length > 12 ? 78 : 150, (availH - gap * (rows.length - 1)) / rows.length);
   const totalH = rowH * rows.length + gap * (rows.length - 1);
-  const startY = box.y + headH + 10 + Math.max(0, (availH - totalH) / 2);
+  // Keep a little breathing room when the table is short, while biasing the
+  // body upward so the header and first team read as one compact table.
+  const startY = box.y + headH + bodyTopGap + Math.max(0, (availH - totalH) * 0.06);
 
   // header
   const colX = (i) => box.x + box.w - numTotal + (i * numW) + (i === cols.length - 1 ? 0 : 0) + numW / 2;
@@ -589,7 +591,9 @@ export function goleadores(ctx, g, d, imgs) {
       ctx.restore();
     }
     cx += av + 18;
-    const rightW = dense ? 130 : 220;
+    // Goals are the only metric in this family. Reclaim the former secondary
+    // stat lane for long player and team names instead of leaving a dead gap.
+    const rightW = dense ? 112 : 160;
     const nameMax = box.x + box.w - rightW - cx - 16;
     const hasTeam = !!p.team;
     const nameSize = dense ? 24 : Math.min(44, 28 + L.h * 0.045);
@@ -604,7 +608,6 @@ export function goleadores(ctx, g, d, imgs) {
     txt(ctx, String(p.goals), { x: gx, y: cy + goalSize * 0.20, size: goalSize, fam: 'display', color: C.white, align: 'right', glowColor: hexa(C.violetLite, 0.45), glowBlur: 16 });
     if (!dense) {
       txt(ctx, p.goals === 1 ? 'Gol' : 'Goles', { x: gx, y: cy + goalSize * 0.20 + 26, size: 16, fam: 'head', weight: 500, color: C.violetLite, align: 'right', tracking: 2.6, upper: true });
-      if (p.assists != null) txt(ctx, `${p.assists} AS`, { x: gx - goalSize * 0.72 - 40, y: cy + 8, size: 24, fam: 'head', weight: 500, color: C.muted, align: 'right' });
     }
     y += L.h + L.gap;
   }
@@ -737,7 +740,7 @@ export function semis(ctx, g, d, imgs) {
   const box = chrome(ctx, g, imgs, { kicker: d.category, title: 'Semifinales', ...brand(d) });
   const ms = d.matches.slice(0, 4);
   const tall = g.id === '9:16';
-  // important, but deliberately below the Gran Final in scale
+  // important, but deliberately below the Final in scale
   const cap = ms.length <= 2 ? (tall ? 545 : 385) : (tall ? 300 : 232);
   const L = rowLayout(box, ms.length, { min: 150, max: cap, gap: tall ? 26 : 20 });
   let y = L.y;
@@ -778,9 +781,9 @@ function finalHero(ctx, g, d, imgs) {
   cy += 22 + (tall ? 46 : 38);
   const big = tall ? 156 : 132;
   const titleY = cy + big * 0.72;
-  txt(ctx, 'Gran final', {
-    x: cxm, y: titleY, size: big, fam: 'display', color: C.white, align: 'center',
-    upper: true, tracking: 4, maxW: box.w - 170, glowColor: hexa(C.violetLite, 0.8), glowBlur: 46,
+  txt(ctx, 'Final', {
+    x: cxm, y: titleY, size: big, fam: 'head', weight: 600, color: C.white, align: 'center',
+    upper: true, tracking: 2, maxW: box.w - 170, glowColor: hexa(C.violetLite, 0.8), glowBlur: 46,
   });
   ctx.save();
   for (let i = 0; i < 3; i++) {
@@ -941,8 +944,8 @@ export function campeon(ctx, g, d, imgs) {
   ctx.restore();
 
   txt(ctx, 'Campeón', {
-    x: cxm, y: ty, size: titleSize, fam: 'display', color: C.white,
-    align: 'center', upper: true, maxW: g.w - 120, tracking: 3,
+    x: cxm, y: ty, size: titleSize, fam: 'head', weight: 600, color: C.white,
+    align: 'center', upper: true, maxW: g.w - 120, tracking: 2,
     glowColor: hexa(C.violetLite, 0.75), glowBlur: 46,
   });
 
