@@ -270,6 +270,9 @@ export default function TournamentWizardPage() {
     draftRef.current = resolved;
     setDraftState(resolved);
   }, []);
+  useEffect(() => {
+    draftRef.current = draft;
+  }, [draft]);
   const creationKeyRef = useRef(null);
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState('');

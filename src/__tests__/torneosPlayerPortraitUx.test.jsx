@@ -233,6 +233,10 @@ function zoomTo(dialog, value) {
   fireEvent.change(within(dialog).getByLabelText('Zoom'), { target: { value: String(value) } });
 }
 
+beforeAll(async () => {
+  await import('../features/torneos/TorneosApp');
+});
+
 beforeEach(() => {
   jest.clearAllMocks();
   clearPlayerPortraitUrlCache();

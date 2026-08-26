@@ -6,6 +6,7 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import TorneosFeatureGate from '../features/torneos/TorneosFeatureGate';
 import { getCapabilitiesForRole } from '../features/torneos/domain/capabilities';
@@ -245,8 +246,9 @@ describe('Arma2 Torneos competition flow', () => {
         .toBeDisabled();
     });
     const moveUp = screen.getByRole('button', { name: 'Subir Diferencia de gol' });
-    fireEvent.click(moveUp);
-    fireEvent.click(screen.getByRole('button', { name: /guardar borrador/i }));
+    await userEvent.click(moveUp);
+    await waitFor(() => expect(moveUp).toBeDisabled());
+    await userEvent.click(screen.getByRole('button', { name: /guardar borrador/i }));
     await waitFor(() => {
       expect(api.updateTournament).toHaveBeenCalledWith({
         organizationId: ORGANIZATION_ID,

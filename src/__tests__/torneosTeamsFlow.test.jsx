@@ -180,6 +180,7 @@ describe('Arma2 Torneos teams flow', () => {
     const service = createService({ tournamentStatus: 'scheduled' });
     renderPath(`/torneos/organizacion/${ORG}/equipos`, service);
     expect(await screen.findByText('La inscripción de equipos está cerrada')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Napoli' })).toBeInTheDocument();
     expect(screen.getByText(/fixture ya fue publicado/i)).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Agregar equipo' })).not.toBeInTheDocument();
   });
