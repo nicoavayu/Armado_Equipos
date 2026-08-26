@@ -21,6 +21,8 @@ const expectedFunctions = [
   'push-sender',
   'tournament-media-processor',
   'tournament-media-signer',
+  'tournament-player-portraits',
+  'tournament-team-photos',
   'upload-voting-photo',
 ];
 
@@ -38,6 +40,8 @@ const userFunctions = new Set([
   'push-dispatch-now',
   'tournament-media-processor',
   'tournament-media-signer',
+  'tournament-player-portraits',
+  'tournament-team-photos',
 ]);
 
 const backendFunctions = new Set(['push-sender']);
