@@ -82,6 +82,7 @@ const AUTO_MATCH_SERVICE_ROLE = [
 ];
 
 const ANON_ALLOWLIST = [
+  'public.get_public_tournament_commercial_catalog(integer)',
   'public.get_public_tournament_branding(text)',
   'public.get_public_tournament_page(text,text)',
   'public.get_invite_landing(text)',
@@ -143,7 +144,16 @@ const POST_CANONICAL_AUTHENTICATED_ALLOWLIST = [
   ['public.set_tournament_public_page_published(uuid,uuid,boolean)', 'frontend_legitimate'],
   ['public.get_effective_tournament_entitlements(uuid,uuid)', 'frontend_legitimate'],
   ['public.get_tournament_creation_eligibility(uuid)', 'frontend_legitimate'],
+  ['public.has_organization_consumed_free_tournament(uuid)', 'frontend_legitimate'],
   ['public.has_tournament_entitlement(uuid,uuid,text)', 'frontend_legitimate'],
+  ['public.tournament_role_capabilities(text)', 'rls_helper_required'],
+  ['public.get_public_tournament_commercial_catalog(integer)', 'frontend_legitimate'],
+  ['public.get_tournament_purchase(uuid)', 'frontend_legitimate'],
+  [
+    'public.create_fake_tournament_purchase(uuid,uuid,text,uuid,text)',
+    'frontend_legitimate',
+  ],
+  ['public.cancel_tournament_purchase(uuid)', 'frontend_legitimate'],
   ['public.get_tournament_media_asset_processing_tiers(uuid)', 'frontend_legitimate'],
   ['public.get_tournament_media_upload_capability(uuid)', 'frontend_legitimate'],
   ['public.get_tournament_social_snapshot(uuid,uuid,uuid,uuid,text,uuid,uuid)', 'frontend_legitimate'],
@@ -161,24 +171,6 @@ const POST_CANONICAL_AUTHENTICATED_ALLOWLIST = [
     'frontend_legitimate',
   ],
   ['public.list_tournament_player_portrait_refs(uuid,uuid)', 'frontend_legitimate'],
-  ['public.can_manage_tournament_player_portrait(uuid,uuid)', 'rls_helper_required'],
-  ['public.can_read_tournament_player_portrait(uuid,uuid)', 'rls_helper_required'],
-  ['public.can_update_tournament_team_branding(uuid,uuid)', 'rls_helper_required'],
-  ['public.can_write_tournament_branding_object(text)', 'rls_helper_required'],
-  ['public.cancel_my_availability_detailed()', 'frontend_legitimate'],
-  ['public.get_public_tournament_branding(text)', 'frontend_legitimate'],
-  ['public.get_tournament_branding_context(uuid,uuid)', 'frontend_legitimate'],
-  ['public.get_tournament_player_portrait_ref(uuid,uuid,text)', 'frontend_legitimate'],
-  ['public.get_tournament_team_photo_state(uuid,uuid)', 'frontend_legitimate'],
-  ['public.get_tournament_team_visual_policy(uuid,uuid)', 'frontend_legitimate'],
-  ['public.has_organization_consumed_free_tournament(uuid)', 'frontend_legitimate'],
-  ['public.is_tournament_branding_path(text,text)', 'rls_helper_required'],
-  ['public.revoke_tournament_player_portrait_publication(uuid,uuid)', 'frontend_legitimate'],
-  ['public.revoke_tournament_team_photo(uuid,uuid)', 'frontend_legitimate'],
-  ['public.set_tournament_branding_reference(uuid,text,uuid,text)', 'frontend_legitimate'],
-  ['public.set_tournament_player_portrait_editorial_status(uuid,uuid,text)', 'frontend_legitimate'],
-  ['public.set_tournament_team_photo_editorial_status(uuid,uuid,text,text)', 'frontend_legitimate'],
-  ['public.set_tournament_team_visual_policy(uuid,uuid,text)', 'frontend_legitimate'],
 ];
 
 const contracts = fs.readFileSync(contractsPath, 'utf8');
