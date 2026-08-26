@@ -165,6 +165,11 @@ async function handleSimpleFinalize(
     p_width: inspection.width,
     p_height: inspection.height,
     p_checksum_sha256: checksum,
+    // El veredicto real del verificador estructural, no una constante:
+    // `verifyNormalizedImage` sólo retorna cuando no quedó ningún carrier de
+    // metadata, y la RPC rechaza cualquier cosa que no sea afirmativa. Es la
+    // única prueba durable de que MVP_SIMPLE cumplió su garantía.
+    p_metadata_stripped: inspection.alreadyClean === true,
   })
   if (completed.error) {
     const mapped = mapRpcError(completed.error.message || "")

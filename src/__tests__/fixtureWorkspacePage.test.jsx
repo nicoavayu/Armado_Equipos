@@ -33,6 +33,7 @@ const mockFixtureState = {
     {
       id: 'participant-a',
       name: 'Armas FC con un nombre deliberadamente extenso',
+      shieldPath: '11111111-1111-4111-8111-111111111111/teams/22222222-2222-4222-8222-222222222222/33333333-3333-4333-8333-333333333333.png',
       status: 'active',
       seedNumber: 1,
     },
@@ -156,6 +157,18 @@ jest.mock('../features/torneos/components/CompetitionSelector', () => (
 ));
 
 describe('FixtureWorkspacePage', () => {
+  test('renders the snapshotted shield in the frozen participant list', () => {
+    const view = render(
+      <MemoryRouter>
+        <FixtureWorkspacePage mode="participants" />
+      </MemoryRouter>,
+    );
+    expect(view.container.querySelector('.participantMark img')).toHaveAttribute(
+      'src',
+      expect.stringContaining(mockFixtureState.participants[0].shieldPath),
+    );
+  });
+
   test('renders persisted version metrics and the complete workflow navigation', () => {
     render(
       <MemoryRouter>
@@ -167,9 +180,19 @@ describe('FixtureWorkspacePage', () => {
     expect(screen.getByText('1 partidos · 0 programados')).toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Flujo de fixture' }))
       .toBeInTheDocument();
+    // El flujo de fixture es del torneo: sus links lo nombran y arrastran la
+    // categoría. Sedes no, porque el recurso es de la organización.
     expect(screen.getByRole('link', { name: 'Programación' })).toHaveAttribute(
       'href',
-      '/torneos/organizacion/org-a/programacion',
+      '/torneos/organizacion/org-a/torneo/tournament-a/programacion?categoria=category-a',
+    );
+    expect(screen.getByRole('link', { name: 'Participantes' })).toHaveAttribute(
+      'href',
+      '/torneos/organizacion/org-a/torneo/tournament-a/fixture/participantes?categoria=category-a',
+    );
+    expect(screen.getByRole('link', { name: 'Sedes' })).toHaveAttribute(
+      'href',
+      '/torneos/organizacion/org-a/sedes',
     );
   });
 
@@ -248,15 +271,18 @@ describe('FixtureWorkspacePage', () => {
     expect(screen.getByText('Orden 2')).toBeInTheDocument();
   });
 
-  test('keeps venue, court, and scheduling-window creation in one resource surface', () => {
+  // La ventana semanal es del torneo y la categoría, así que se programa en
+  // Programación. Las sedes y canchas son de la organización y salieron a su
+  // propia superficie: ver organizationVenuesPage.test.jsx.
+  test('keeps the weekly scheduling window on the tournament schedule surface', () => {
     render(
       <MemoryRouter>
-        <FixtureWorkspacePage mode="venues" />
+        <FixtureWorkspacePage mode="schedule" />
       </MemoryRouter>,
     );
-    expect(screen.getByRole('heading', { name: 'Nueva sede' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Nueva cancha' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Ventana semanal' })).toBeInTheDocument();
     expect(screen.getByLabelText('Minutos por turno')).toHaveAttribute('min', '15');
+    // Y consume las sedes de la organización sin ser dueña de ellas.
+    expect(screen.queryByRole('heading', { name: 'Nueva sede' })).not.toBeInTheDocument();
   });
 });

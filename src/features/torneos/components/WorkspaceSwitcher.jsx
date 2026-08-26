@@ -10,15 +10,19 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { torneosFeatureFlags } from '../config/featureFlags';
 import { getRoleLabel } from '../domain/capabilities';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
+import { canonicalRoutes } from '../routing/canonicalRoutes';
 import styles from './TorneosShell.module.css';
+import BrandingImage from './BrandingImage';
 
 function OrganizationAvatar({ organization }) {
   return (
-    <span className={styles.workspaceAvatar} aria-hidden="true">
-      {organization.logoPath
-        ? <img src={organization.logoPath} alt="" />
-        : organization.name.slice(0, 2).toUpperCase()}
-    </span>
+    <BrandingImage
+      kind="organization"
+      path={organization.logoPath}
+      name={organization.name}
+      className={styles.workspaceAvatar}
+      imageClassName={styles.brandingContain}
+    />
   );
 }
 
@@ -63,7 +67,7 @@ export default function WorkspaceSwitcher() {
     try {
       const selected = await selectOrganization(organization.id);
       if (selected) {
-        navigate(`/torneos/organizacion/${organization.id}/inicio`);
+        navigate(canonicalRoutes.organizationHome(organization.id));
       }
     } finally {
       setBusyId('');

@@ -18,10 +18,20 @@ jest.mock('../services/api/supabase', () => ({
   },
 }));
 
+const mockLoadTournamentBrandingContext = jest.fn();
+
+jest.mock('../features/torneos/api/tournamentBrandingService', () => ({
+  loadTournamentBrandingContext: (...args) => mockLoadTournamentBrandingContext(...args),
+}));
+
 describe('participant hub service contracts', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     supabase.rpc.mockResolvedValue({ data: { ok: true }, error: null });
+    mockLoadTournamentBrandingContext.mockResolvedValue({
+      organization: null,
+      tournaments: [],
+    });
   });
 
   test('lists only the authenticated user memberships with bounded pagination', async () => {
@@ -67,6 +77,15 @@ describe('participant hub service contracts', () => {
   });
 
   test('loads the hub with tournament and optional category scope only', async () => {
+    supabase.rpc.mockResolvedValueOnce({
+      data: {
+        tournament: {
+          id: 'tournament-a',
+          organizationId: 'organization-a',
+        },
+      },
+      error: null,
+    });
     await loadTournamentParticipantHub({
       tournamentId: 'tournament-a',
       categoryId: 'category-a',
@@ -75,6 +94,10 @@ describe('participant hub service contracts', () => {
     expect(supabase.rpc).toHaveBeenCalledWith('get_tournament_participant_hub', {
       p_tournament_id: 'tournament-a',
       p_category_id: 'category-a',
+    });
+    expect(mockLoadTournamentBrandingContext).toHaveBeenCalledWith({
+      organizationId: 'organization-a',
+      tournamentId: 'tournament-a',
     });
   });
 

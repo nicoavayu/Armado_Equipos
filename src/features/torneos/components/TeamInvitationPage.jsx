@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { CheckCircle2, Loader2, ShieldCheck, XCircle } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
+import { canonicalRoutes } from '../routing/canonicalRoutes';
 import styles from './TeamRegistration.module.css';
 
 export default function TeamInvitationPage() {
@@ -31,7 +32,10 @@ export default function TeamInvitationPage() {
         {state.status === 'success' ? (
           <>
             <div className={styles.successBanner}><CheckCircle2 size={17} />Invitación aceptada.</div>
-            <Link className={styles.primaryButton} to={`/torneos/organizacion/${state.result.organizationId}/equipos/${state.result.teamEntryId}/inscripcion`}>Abrir inscripción</Link>
+            <Link className={styles.primaryButton} to={canonicalRoutes.organizationTeamEntryRegistration(
+              state.result.organizationId,
+              state.result.teamEntryId,
+            )}>Abrir inscripción</Link>
           </>
         ) : (
           <button className={styles.primaryButton} type="button" onClick={accept} disabled={state.status === 'loading'}>

@@ -15,6 +15,10 @@ Multimedia.
 > Un cambio de contrato respecto de lo escrito abajo: `media.read` ya no
 > alcanza para leer el **original** de un asset. Ver la sección de permisos del
 > documento 21.
+>
+> Un segundo cambio de contrato: la publicación dejó de exigir cuatro variantes
+> a todo el mundo. Ahora cada asset se valida contra el contrato del pipeline
+> que realmente lo produjo. Ver «Publicación consciente del pipeline».
 
 ## Alcance y límites
 
@@ -139,13 +143,95 @@ visibility: organization | tournament_participants | match_participants
             related_teams | administrative_private
 ```
 
-Publicar exige todos los items aprobados, cuatro variantes `ready` con
-`metadata_stripped`, portada aprobada y consentimiento interno efectivo para
-cada relación de jugador. Una decisión `unknown`, `denied` o `revoked`
-prevalece de forma fail-closed. Si se revoca una portada publicada, se elige una
-portada publicada de reemplazo bajo el mismo lock o se archiva la galería.
-Restaurar una foto dentro de una galería publicada vuelve a validar
-consentimiento.
+## Publicación consciente del pipeline
+
+`publish_tournament_media_gallery` exige, para la galería entera: al menos un
+item, **todos** los items en `approved`, portada aprobada de la misma galería,
+consentimiento interno efectivo para cada relación de jugador y readiness de
+procesamiento de cada asset. Una decisión de consentimiento `unknown`, `denied`
+o `revoked` prevalece de forma fail-closed.
+
+La readiness de procesamiento **no es una regla única**. Se responde asset por
+asset —nunca a nivel galería— en
+`tournament_media_asset_publication_ready(p_asset_id)`, que es la fuente
+autoritativa del readiness por asset. El modo del pipeline es un singleton que
+puede cambiar entre subidas, así que una galería puede contener assets de los
+dos tiers: cada uno se valida contra el contrato del pipeline que realmente lo
+produjo y todos deben pasar. Un `processing_tier` desconocido devuelve `false`.
+
+### `processor_external`
+
+El contrato fuerte queda intacto. Publicar exige cuatro variantes en
+`tournament_media_variants` —kinds `thumbnail`, `grid`, `detail` y `original`—,
+las cuatro en `status = 'ready'` y las cuatro con `metadata_stripped`, además
+de la moderación y el consentimiento que se aplican a los dos tiers. El worker
+decodifica, re-encodea, deriva esas renditions y certifica cada una.
+
+### `mvp_simple`
+
+No fabrica variantes y nunca las prometió: conserva un único objeto
+normalizado. `authorize_tournament_media_read` ya lo sabía —para `mvp_simple`
+resuelve las cuatro kinds contra `asset.internal_path` y jamás consulta
+`tournament_media_variants`—; la lectura ya era tier-aware y la publicación no,
+así que una galería `mvp_simple` sana quedaba permanentemente no publicable.
+
+Su publicación depende del contrato durable del asset:
+
+```text
+processing_tier            = 'mvp_simple'
+metadata_stripped          IS TRUE
+normalization_verified_at  IS NOT NULL
+storage_state              = 'active'
+failure_code               IS NULL
+detected_mime              IN ('image/jpeg','image/png','image/webp')
+internal_path              NOT NULL y distinto de ''
+checksum_sha256            ~ '^[0-9a-f]{64}$'
+byte_size                  entre 1 y 4194304
+width, height              entre 1 y 1600
+```
+
+Esto no relaja la garantía: la mueve al único lugar donde en `mvp_simple` puede
+vivir. `metadata_stripped` y `normalization_verified_at` son el veredicto del
+verificador estructural server-side —`verifyNormalizedImage` sobre los bytes ya
+persistidos en el bucket, que aborta con `MEDIA_METADATA_PRESENT` si queda
+cualquier carrier—, atestiguado por el servicio que lo corrió y exigido como
+parámetro por `complete_tournament_media_simple_upload`: sin veredicto
+afirmativo el asset no llega a existir, y un CHECK impide que un asset
+`mvp_simple` exista sin él. Las dos columnas quedan en `NULL` para
+`processor_external`, donde la pregunta se responde por variante.
+
+### Lo que la readiness no responde
+
+Procesamiento terminado y aprobación editorial son dos preguntas distintas. La
+readiness sólo contesta si el pipeline entregó lo que promete; la moderación
+(`pending_review`, `rejected`) y el consentimiento siguen siendo compuertas
+separadas dentro de `publish_tournament_media_gallery`. La misma separación
+rige en `transition_tournament_media_asset`: la exigencia de las cuatro
+variantes para `approve`/`restore` se aplica sólo a `processor_external`.
+
+## Curaduría, moderación y borrado a lo largo del ciclo de vida
+
+Son tres preguntas independientes y la base las hace cumplir por separado:
+
+- **curaduría** —portada, orden, edición de la galería, carga— se rechaza fuera
+  de `draft`/`under_review` con `TORNEOS_MEDIA_GALLERY_IMMUTABLE`. Una galería
+  `published` no admite curaduría directa: no hay cambio de portada, de orden
+  ni de composición, y la UI administrativa no dibuja esos controles en vez de
+  ofrecerlos apagados;
+- **moderación** —ocultar, restaurar, revocar— no tiene compuerta de galería, y
+  `transition_tournament_media_asset` tiene una rama explícita para
+  `published`. Ocultar pide `media.revoke`, no `media.review`;
+- **borrado** por privacidad es deliberadamente agnóstico del ciclo de vida:
+  un pedido de privacidad no deja de serlo porque ya publicamos.
+
+Si se revoca una portada publicada, se elige una portada publicada de reemplazo
+bajo el mismo lock o se archiva la galería. Restaurar una foto dentro de una
+galería publicada vuelve a validar consentimiento. Restaurar exige además una
+galería que todavía pueda mostrarla —`draft`, `under_review` o `published`—: en
+`archived` y `revoked` la acción falla cerrada con
+`TORNEOS_MEDIA_TRANSITION_INVALID`, porque no existe `unarchive` ni `republish`
+y devolver la foto a `approved` la dejaría aprobada dentro de un contenedor que
+nadie puede reabrir.
 
 ## Matriz RPC
 
@@ -214,11 +300,15 @@ minutos, no aparece en logs/auditoría y nunca se devuelve en un replay. El
 checksum activo tiene índice único parcial por organización para resolver
 deduplicación concurrente.
 
-`complete_tournament_media_upload` es un contrato confiable exclusivo de
-`service_role`, pero requiere un actor autenticado que coincida con quien emitió
-la sesión y vuelve a validar assignment/membership. Registra el original y deja
-thumbnail/grid/detail en `processing`; no se puede aprobar ni publicar hasta
-que las cuatro variantes estén listas y marcadas como metadata saneada.
+`complete_tournament_media_upload` es el finalizador de `processor_external`:
+un contrato confiable exclusivo de `service_role`, pero requiere un actor
+autenticado que coincida con quien emitió la sesión y vuelve a validar
+assignment/membership. Registra el original y deja thumbnail/grid/detail en
+`processing`; en ese tier no se puede aprobar ni publicar hasta que las cuatro
+variantes estén listas y marcadas como metadata saneada. `mvp_simple` tiene su
+propio finalizador —`complete_tournament_media_simple_upload`—, que no fabrica
+variantes y exige el veredicto de sanitización descrito en «Publicación
+consciente del pipeline».
 
 ## Storage: probado y no probado
 
@@ -266,7 +356,7 @@ sin mencionar bucket, Storage, signer ni staging al usuario final.
 | Severidad original | Hallazgo | Corrección/evidencia |
 |---|---|---|
 | Alta | fotógrafo podía recibir review y completar una sesión tras revoke | assignment upload-only; revoke invalida sesiones; tests actor/RPC/direct-table |
-| Alta | publicación parcial o con variantes inseguras | todos los items aprobados + 4 variantes saneadas; test de publicación parcial |
+| Alta | publicación parcial o con variantes inseguras | todos los items aprobados + readiness de procesamiento por asset (cuatro variantes saneadas en `processor_external`); test de publicación parcial |
 | Alta | consentimientos equivalentes podían contradecirse y restore eludir revoke | identidad canónica, historial append-only, precedencia fail-closed y recheck al restore |
 | Alta | portada/tag mutables en published y portada revocada podía romper invariantes | inmutabilidad editorial y reemplazo/archivo atómico |
 | Alta | collaborator podía inferir reportes privados | detalle y contador condicionados a `media.handle_reports` |

@@ -87,12 +87,14 @@
   outline: 2px solid var(--social-cyan); outline-offset: 2px;
 }
 
-.pieceGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.pieceFieldset { container-type: inline-size; }
+.pieceGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .pieceGrid button, .chipRow button {
   display: inline-flex; align-items: center; justify-content: center; gap: 7px;
-  min-height: 44px; padding: 0 14px;
+  min-width: 0; min-height: 44px; padding: 8px 14px;
   border: 1px solid rgba(255, 255, 255, .12); border-radius: 12px;
-  background: transparent; color: #dcd5e9; font-weight: 600; cursor: pointer;
+  background: transparent; color: #dcd5e9; font-weight: 600; line-height: 1.25;
+  text-wrap: balance; cursor: pointer;
 }
 .pieceActive, .chipActive {
   border-color: var(--social-violet) !important;
@@ -172,8 +174,10 @@
 }
 @media (max-width: 480px) {
   .hero h1 { font-size: 32px; }
-  .pieceGrid { grid-template-columns: 1fr 1fr; }
   .candidateList { grid-template-columns: 1fr; }
+}
+@container (max-width: 440px) {
+  .pieceGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (prefers-reduced-motion: reduce) {
   .skeleton span, .previewOverlay svg { animation: none; }

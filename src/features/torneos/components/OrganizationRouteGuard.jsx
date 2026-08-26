@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Navigate, Outlet, useLocation, useParams } from 'react-router-dom';
+import { Navigate, Outlet, useLocation, useMatch, useParams } from 'react-router-dom';
+import { CANONICAL_TOURNAMENT_ROUTE_PATTERN } from '../routing/canonicalRoutes';
 import { TorneosCompetitionProvider } from '../context/TorneosCompetitionContext';
 import { TorneosFixtureProvider } from '../context/TorneosFixtureContext';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
@@ -8,6 +9,12 @@ import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 export default function OrganizationRouteGuard() {
   const { organizationId } = useParams();
   const location = useLocation();
+  // El `:tournamentId` de la ruta canónica se lee acá, en el padre, para que el
+  // provider de competencia nazca ya anclado a la URL. Montar un segundo
+  // provider más abajo resolvería lo mismo a costa de recargar el catálogo, y
+  // dejaría una ventana en la que el torneo mostrado es el de la preferencia.
+  const canonicalTournamentMatch = useMatch(CANONICAL_TOURNAMENT_ROUTE_PATTERN);
+  const routeTournamentId = canonicalTournamentMatch?.params?.tournamentId || null;
   const [activationState, setActivationState] = useState('idle');
   const [relationalOrganization, setRelationalOrganization] = useState(null);
   const {
@@ -28,7 +35,7 @@ export default function OrganizationRouteGuard() {
   useEffect(() => {
     setRelationalOrganization(null);
     setActivationState('idle');
-  }, [organizationId, relationalTeamEntryId]);
+  }, [organizationId]);
 
   useEffect(() => {
     if (status !== 'ready' || organization || !relationalTeamEntryId
@@ -87,7 +94,7 @@ export default function OrganizationRouteGuard() {
     status,
   ]);
 
-  if (status === 'loading' || status === 'idle') return <WorkspaceLoading />;
+  if (status === 'validating' || status === 'idle') return <WorkspaceLoading />;
   if (status === 'error') {
     return <WorkspaceError message={error} onRetry={() => refresh().catch(() => {})} />;
   }
@@ -118,6 +125,7 @@ export default function OrganizationRouteGuard() {
   return (
     <TorneosCompetitionProvider
       organizationId={(organization || relationalOrganization).id}
+      routeTournamentId={routeTournamentId}
       service={service}
     >
       <TorneosFixtureProvider

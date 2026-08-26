@@ -25,13 +25,13 @@ const TorneosWorkspaceContext = createContext(null);
 function persistValidatedHint(preference) {
   if (typeof window === 'undefined') return;
   try {
-    window.localStorage.setItem(
-      TORNEOS_WORKSPACE_STORAGE_KEY,
-      JSON.stringify({
-        workspaceType: preference.workspaceType,
-        activeOrganizationId: preference.activeOrganizationId || null,
-      }),
-    );
+    const serialized = JSON.stringify({
+      workspaceType: preference.workspaceType,
+      activeOrganizationId: preference.activeOrganizationId || null,
+    });
+    if (window.localStorage.getItem(TORNEOS_WORKSPACE_STORAGE_KEY) !== serialized) {
+      window.localStorage.setItem(TORNEOS_WORKSPACE_STORAGE_KEY, serialized);
+    }
   } catch {
     // This is a non-authoritative loading hint only.
   }
@@ -68,8 +68,10 @@ export function TorneosWorkspaceProvider({
 }) {
   const mountedRef = useRef(true);
   const refreshRequestRef = useRef(0);
+  const refreshPromiseRef = useRef(null);
   const [state, setState] = useState({
-    status: autoLoad ? 'loading' : 'idle',
+    status: autoLoad ? 'validating' : 'idle',
+    revalidating: false,
     organizations: [],
     preference: PERSONAL_PREFERENCE,
     error: '',
@@ -84,78 +86,66 @@ export function TorneosWorkspaceProvider({
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
-      refreshRequestRef.current += 1;
     };
   }, []);
 
-  const refresh = useCallback(async ({ preserveNotice = false } = {}) => {
+  const refresh = useCallback(({ preserveNotice = false, background = false } = {}) => {
+    if (refreshPromiseRef.current) return refreshPromiseRef.current;
     const requestId = refreshRequestRef.current + 1;
     refreshRequestRef.current = requestId;
     setState((current) => ({
-      status: 'loading',
-      organizations: [],
-      preference: PERSONAL_PREFERENCE,
+      status: background && current.status === 'ready' ? 'ready' : 'validating',
+      revalidating: background && current.status === 'ready',
+      organizations: background && current.status === 'ready' ? current.organizations : [],
+      preference: background && current.status === 'ready'
+        ? current.preference
+        : PERSONAL_PREFERENCE,
       error: '',
       notice: preserveNotice ? current.notice : '',
     }));
-    try {
-      const normalized = normalizeContext(await recoverableService.loadContext());
-      if (
-        !mountedRef.current
-        || refreshRequestRef.current !== requestId
-      ) return normalized;
-      persistValidatedHint(normalized.preference);
-      setState((current) => ({
-        ...current,
-        ...normalized,
-        status: 'ready',
-        error: '',
-      }));
-      return normalized;
-    } catch (error) {
-      if (
-        !mountedRef.current
-        || refreshRequestRef.current !== requestId
-      ) throw error;
-      setState((current) => ({
-        status: 'error',
-        organizations: [],
-        preference: PERSONAL_PREFERENCE,
-        error: error?.message || 'No pudimos cargar tus espacios.',
-        notice: preserveNotice ? current.notice : '',
-      }));
-      throw error;
-    }
+    const request = (async () => {
+      try {
+        const normalized = normalizeContext(await recoverableService.loadContext());
+        if (
+          !mountedRef.current
+          || refreshRequestRef.current !== requestId
+        ) return normalized;
+        persistValidatedHint(normalized.preference);
+        setState((current) => ({
+          ...current,
+          ...normalized,
+          status: 'ready',
+          revalidating: false,
+          error: '',
+        }));
+        return normalized;
+      } catch (error) {
+        if (
+          !mountedRef.current
+          || refreshRequestRef.current !== requestId
+        ) throw error;
+        setState((current) => ({
+          status: 'error',
+          revalidating: false,
+          organizations: [],
+          preference: PERSONAL_PREFERENCE,
+          error: error?.message || 'No pudimos cargar tus espacios.',
+          notice: preserveNotice ? current.notice : '',
+        }));
+        throw error;
+      } finally {
+        if (refreshPromiseRef.current === request) {
+          refreshPromiseRef.current = null;
+        }
+      }
+    })();
+    refreshPromiseRef.current = request;
+    return request;
   }, [recoverableService]);
 
   useEffect(() => {
     if (!autoLoad) return;
     refresh().catch(() => {});
-  }, [autoLoad, refresh]);
-
-  useEffect(() => {
-    if (!autoLoad || typeof window === 'undefined') return undefined;
-
-    const revalidate = () => {
-      refresh({ preserveNotice: true }).catch(() => {});
-    };
-    const revalidateWhenVisible = () => {
-      if (document.visibilityState === 'visible') revalidate();
-    };
-    const revalidateAfterWorkspaceChange = (event) => {
-      if (event.key === TORNEOS_WORKSPACE_STORAGE_KEY) revalidate();
-    };
-
-    window.addEventListener('focus', revalidate);
-    window.addEventListener('pageshow', revalidate);
-    window.addEventListener('storage', revalidateAfterWorkspaceChange);
-    document.addEventListener('visibilitychange', revalidateWhenVisible);
-    return () => {
-      window.removeEventListener('focus', revalidate);
-      window.removeEventListener('pageshow', revalidate);
-      window.removeEventListener('storage', revalidateAfterWorkspaceChange);
-      document.removeEventListener('visibilitychange', revalidateWhenVisible);
-    };
   }, [autoLoad, refresh]);
 
   const selectOrganization = useCallback(async (organizationId) => {

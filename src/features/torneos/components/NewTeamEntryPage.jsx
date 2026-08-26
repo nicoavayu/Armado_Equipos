@@ -13,11 +13,17 @@ import { Link, useNavigate, useOutletContext } from 'react-router-dom';
 import { useTorneosCompetition } from '../context/TorneosCompetitionContext';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
 import { getTeamRegistrationAvailability } from '../domain/competitionLifecycle';
+import { canonicalRoutes } from '../routing/canonicalRoutes';
+import { tournamentSurface } from '../routing/legacyRoutes';
 import styles from './TeamRegistration.module.css';
 
 export default function NewTeamEntryPage() {
   const { organization } = useOutletContext();
-  const { activeTournament } = useTorneosCompetition();
+  const {
+    activeTournament,
+    isTournamentRoute,
+    routeTournamentId,
+  } = useTorneosCompetition();
   const { service } = useTorneosWorkspace();
   const navigate = useNavigate();
   const keyRef = useRef(service.createIdempotencyKey());
@@ -36,7 +42,10 @@ export default function NewTeamEntryPage() {
   });
   const [state, setState] = useState({ status: 'idle', error: '' });
   const [createdInvitation, setCreatedInvitation] = useState(null);
-  const base = `/torneos/organizacion/${organization.id}/equipos`;
+  // Volver al listado es volver al listado del torneo; la inscripción recién
+  // creada, en cambio, se abre por su ruta organization-scoped.
+  const tournamentId = isTournamentRoute ? routeTournamentId : (activeTournament?.id || null);
+  const teamsLink = tournamentSurface('tournamentTeams', organization.id, tournamentId);
 
   useEffect(() => {
     if (!activeTournament?.id || mode !== 'arma2_team' || teamSearch.trim().length < 2) {
@@ -108,7 +117,7 @@ export default function NewTeamEntryPage() {
         <ShieldPlus size={28} />
         <h1>{registration.title}</h1>
         <p>{registration.description}</p>
-        <Link to={base}>Volver a equipos</Link>
+        <Link to={teamsLink}>Volver a equipos</Link>
       </section>
     );
   }
@@ -143,7 +152,10 @@ export default function NewTeamEntryPage() {
             <button
               className={styles.primaryButton}
               type="button"
-              onClick={() => navigate(`${base}/${createdInvitation.entryId}/inscripcion`)}
+              onClick={() => navigate(canonicalRoutes.organizationTeamEntryRegistration(
+                organization.id,
+                createdInvitation.entryId,
+              ))}
             >
               Abrir inscripción
             </button>
@@ -155,7 +167,7 @@ export default function NewTeamEntryPage() {
 
   return (
     <div className={styles.formPage}>
-      <Link className={styles.backLink} to={base}><ArrowLeft size={17} /> Equipos</Link>
+      <Link className={styles.backLink} to={teamsLink}><ArrowLeft size={17} /> Equipos</Link>
       <header className={styles.formHeader}>
         <span className={styles.kicker}>Alta manual</span>
         <h1>Agregar equipo</h1>
@@ -274,7 +286,7 @@ export default function NewTeamEntryPage() {
 
         {state.error && <div className={styles.errorBanner} role="alert">{state.error}</div>}
         <div className={styles.stickyActions}>
-          <Link to={base}>Cancelar</Link>
+          <Link to={teamsLink}>Cancelar</Link>
           <button
             className={styles.primaryButton}
             type="submit"

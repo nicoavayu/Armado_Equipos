@@ -66,29 +66,54 @@
   gap: 10px;
 }
 
+/*
+ * La base del botón de Torneos. `Continuar` es esta clase, y es la referencia:
+ * lo que las variantes cambian es color, fondo y borde — nunca la familia, la
+ * escala, la geometría ni los estados. Los valores salen de los tokens de
+ * `:root` (TorneosShell.module.css) para que un botón de Multimedia, de
+ * Branding o del panel de autogestión no tenga que copiar números a mano y
+ * después divergir.
+ */
 .primaryAction,
 .secondaryAction,
 .ghostAction,
 .dangerAction {
-  min-height: 44px;
+  min-height: var(--torneos-action-height);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 0 16px;
+  gap: var(--torneos-action-gap);
+  padding: 0 var(--torneos-action-padding-x);
+  border-radius: var(--torneos-action-radius);
   color: #fff;
-  font-family: inherit;
-  font-size: 13px;
+  font-family: var(--torneos-ui-font);
+  font-size: var(--torneos-action-font-size);
   font-style: normal;
-  font-weight: 700;
+  font-weight: var(--torneos-action-font-weight);
+  line-height: var(--torneos-action-line-height);
+  white-space: nowrap;
   text-decoration: none;
-  border-radius: 10px;
   cursor: pointer;
   transition:
     transform 180ms ease,
     border-color 180ms ease,
     background 180ms ease,
     opacity 180ms ease;
+}
+
+.primaryAction > svg,
+.secondaryAction > svg,
+.ghostAction > svg,
+.dangerAction > svg {
+  flex: 0 0 auto;
+}
+
+.primaryAction:focus-visible,
+.secondaryAction:focus-visible,
+.ghostAction:focus-visible,
+.dangerAction:focus-visible {
+  outline: var(--torneos-focus-ring);
+  outline-offset: var(--torneos-focus-ring-offset);
 }
 
 .primaryAction {
@@ -154,7 +179,7 @@
   background: rgba(17, 15, 27, 0.96);
 }
 
-.contextSelector label > svg:first-child {
+.contextSelector label > .selectorIcon {
   grid-row: 1 / 3;
   color: var(--torneos-purple-bright);
 }
@@ -193,14 +218,38 @@
   background: #171326;
 }
 
-.contextSelector label > svg:last-child {
+.contextSelector label > .selectorChevron {
   grid-column: 3;
   grid-row: 1 / 3;
   color: var(--torneos-muted);
 }
 
+/*
+ * Compacto = el selector vive dentro de una barra de contexto junto a
+ * Categoría/Fase/Grupo, y ahí el ancho es el recurso escaso.
+ *
+ * Dos decisiones deliberadas: el torneo pesa más que la temporada porque su
+ * nombre es el más largo del conjunto, y el icono decorativo de cada campo no
+ * se dibuja. Ese icono costaba 24px por campo (15 de glifo + 9 de gap) que es
+ * justo lo que le faltaba al nombre para entrar entero; entre icono y nombre
+ * completo, gana el nombre.
+ */
 .contextSelectorCompact {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
   margin-bottom: 16px;
+}
+
+.contextSelectorCompact label {
+  /* Padding y gap explícitos: `.contextBar label` del host empata en
+     especificidad con `.contextSelector label`, así que dejarlos implícitos
+     ataría el ancho útil del select al orden de los imports. */
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 8px;
+  padding: 10px;
+}
+
+.contextSelectorCompact label > .selectorChevron {
+  grid-column: 2;
 }
 
 .selectorSkeleton {
@@ -729,31 +778,40 @@
   font-size: 12px;
 }
 
+/* El paso apila la ficha sobre el título en lugar de ponerlos en fila. Es la
+   diferencia entre repartir ~53 px entre los dos y darle el ancho completo de
+   la celda al título: por eso acá los nombres entran enteros y no hace falta
+   recortarlos. Cuando aun así no entran en un renglón, bajan al siguiente. */
 .stepper {
   display: grid;
-  grid-template-columns: repeat(6, minmax(100px, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 1px;
-  overflow-x: auto;
+  overflow: hidden;
   margin-bottom: 14px;
   padding: 1px;
   background: rgba(255, 255, 255, 0.08);
   border-radius: 12px;
-  scrollbar-width: thin;
 }
 
 .stepper button {
+  position: relative;
   min-width: 0;
-  min-height: 64px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 8px;
+  min-height: 78px;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 7px;
+  justify-items: center;
+  align-content: center;
+  padding: 12px 7px 13px;
   color: var(--torneos-muted);
-  font-family: inherit;
+  /* Dentro del stepper, `Información`/`Modalidad`/`Formato`… son navegación, no
+     titulares: fuente de interfaz. El `INFORMACIÓN` grande de `.stepHeading h2`
+     sí es editorial y se queda con la Bebas. */
+  font-family: var(--torneos-ui-font);
   background: rgba(17, 15, 25, 0.98);
   border: 0;
   cursor: pointer;
+  transition: color 0.18s ease, background 0.18s ease;
 }
 
 .stepper button:disabled {
@@ -761,24 +819,39 @@
   opacity: 0.45;
 }
 
+.stepper button:not(:disabled):hover {
+  color: rgba(255, 255, 255, 0.88);
+  background: rgba(28, 24, 43, 0.98);
+}
+
 .stepper button > span {
-  width: 23px;
-  height: 23px;
+  width: 25px;
+  height: 25px;
   display: grid;
   place-items: center;
   flex: 0 0 auto;
   font-size: 10px;
+  font-weight: 700;
   background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 50%;
+  transition: color 0.18s ease, background 0.18s ease, border-color 0.18s ease;
 }
 
 .stepper em {
-  overflow: hidden;
-  font-size: 11px;
+  /* Sin `nowrap` ni ellipsis: el título se ve completo o pasa de renglón. Y sin
+     partir palabras, que es la otra forma de cortarlas. */
+  align-self: start;
+  font-size: clamp(10px, 0.86vw, 11.5px);
   font-style: normal;
   font-weight: 700;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.24;
+  text-align: center;
+  text-wrap: balance;
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
 }
 
 .stepper .stepActive {
@@ -786,9 +859,22 @@
   background: linear-gradient(135deg, rgba(137, 89, 255, 0.3), rgba(28, 22, 43, 0.98));
 }
 
+/* La barra de abajo ancla el paso actual sin robarle alto al título. */
+.stepper .stepActive::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--torneos-purple), var(--torneos-purple-bright));
+}
+
 .stepper .stepActive > span {
   color: #fff;
   background: var(--torneos-purple);
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow: 0 0 0 3px rgba(137, 89, 255, 0.16);
 }
 
 .wizardCanvas {
@@ -1512,12 +1598,16 @@
 
   .stepper {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    overflow-x: hidden;
     border-radius: 10px;
   }
 
   .stepper button {
-    min-height: 58px;
+    min-height: 72px;
+    padding: 11px 8px 12px;
+  }
+
+  .stepper em {
+    font-size: 11px;
   }
 
   .optionGrid button,
@@ -1600,16 +1690,8 @@
   font-family: inherit;
 }
 
-.primaryAction,
-.secondaryAction,
-.ghostAction,
-.dangerAction {
-  min-height: 48px;
-  border-radius: var(--torneos-control-radius);
-  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-  font-size: 0.94rem;
-}
-
+/* La geometría y la familia ya las fija la base de arriba desde los tokens.
+   Acá quedan sólo el color y la elevación de cada variante. */
 .primaryAction {
   background: var(--torneos-cta);
   border-color: rgba(255, 255, 255, 0.15);
@@ -1653,4 +1735,24 @@
 .inputGrid textarea,
 .categoryForm input {
   border-radius: var(--torneos-control-radius);
+}
+.competitionBrandMark {
+  display: grid;
+  width: 64px;
+  height: 56px;
+  margin: 2px 0 10px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(142, 125, 255, .24);
+  background: rgba(10, 15, 40, .58);
+  color: #d8d1ff;
+  font: 700 17px Oswald, sans-serif;
+  letter-spacing: .06em;
+}
+
+.competitionBrandImage {
+  width: 100%;
+  height: 100%;
+  padding: 4px;
+  object-fit: contain;
 }

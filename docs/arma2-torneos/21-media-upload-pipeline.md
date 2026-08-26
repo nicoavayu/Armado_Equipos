@@ -31,8 +31,12 @@ las 11 tablas, las 17 RPCs cliente, los estados, las cuotas, el path
 `organization_id/tournament_id/gallery_id/uuid.ext`, el `safe_name`
 `foto-<12hex>.ext`, la taxonomía de variantes
 `thumbnail | grid | detail | original` y las invariantes de publicación
-(cuatro variantes `ready` con `metadata_stripped`, portada aprobada,
-consentimiento interno efectivo).
+(readiness de procesamiento por asset —en `processor_external`, las cuatro
+variantes `ready` con `metadata_stripped`—, portada aprobada, consentimiento
+interno efectivo). Ese readiness pasó a resolverse por `processing_tier` en
+`tournament_media_asset_publication_ready`; el contrato de este documento, que
+es el del pipeline robusto, no cambió. Ver
+[20-media-galleries.md](20-media-galleries.md).
 
 No se creó una segunda taxonomía, ni una segunda tabla de sesiones, ni una RPC
 paralela de completado.
@@ -198,7 +202,7 @@ autoritativo para barridos de huérfanos.
 | Overwrite / replay de sesión | single-use + signed upload URL sin upsert + asset existente bloquea la firma | idem + `tournament-media-storage-local.test.mjs` |
 | Retarget de una firma a otro objeto | la firma está atada al nombre | storage local |
 | Cross-tenant | capability por organización + segundo tenant probado | pipeline |
-| Publicación incompleta | 4 variantes `ready` + `metadata_stripped` | pipeline |
+| Publicación incompleta | readiness por asset; en `processor_external`, 4 variantes `ready` + `metadata_stripped` | pipeline |
 | Lectura anónima o directa del bucket | sin policies para `anon`/`authenticated`; bucket privado | storage local |
 | Signed URL vencida o manipulada | probado contra el servicio real | storage local |
 | Consentimiento revocado | fail-closed en lectura y publicación | pipeline |

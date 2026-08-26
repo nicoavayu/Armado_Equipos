@@ -159,6 +159,50 @@ describe('upload capability', () => {
     const open = resolveUploadCapability(capable, { canUpload: true });
     expect(open.canOfferUpload).toBe(true);
     expect(open.maxFileBytes).toBe(12582912);
+    expect(open).toMatchObject({ readinessState: 'ready', readinessLabel: 'Activa' });
+  });
+
+  test.each([
+    ['storage.bucket_absent', 'bucket_missing', 'Falta configurar'],
+    ['storage.client_write_open', 'permission_error', 'Revisar acceso'],
+    ['storage.service_policies_absent', 'permission_error', 'Revisar acceso'],
+    ['storage.bucket_public', 'configuration_error', 'Revisar configuración'],
+    ['storage.schema_absent', 'configuration_error', 'Revisar configuración'],
+    ['simple.contract_absent', 'configuration_error', 'Revisar configuración'],
+    ['pipeline.disabled', 'configuration_error', 'Revisar configuración'],
+    ['processor.pixel_decode_absent', 'service_unavailable', 'No disponible'],
+  ])('classifies %s without leaking implementation details', (blocker, state, label) => {
+    const result = resolveUploadCapability(
+      { uploadReady: false, blockers: [blocker] },
+      { canUpload: true },
+    );
+    expect(result).toMatchObject({
+      canOfferUpload: false,
+      readinessState: state,
+      readinessLabel: label,
+    });
+    expect(result.unavailableCopy).not.toMatch(/bucket|signer|processor|staging|supabase/i);
+  });
+
+  test('uses an explicit unknown state when readiness is absent or contradictory', () => {
+    expect(resolveUploadCapability({}, { canUpload: true })).toMatchObject({
+      readinessState: 'unknown_error',
+      readinessLabel: 'No disponible',
+    });
+    expect(resolveUploadCapability(
+      { uploadReady: false, blockers: [] },
+      { canUpload: true },
+    ).readinessState).toBe('unknown_error');
+  });
+
+  test('describes the simple tier without promising external processing', () => {
+    const result = resolveUploadCapability(
+      { ...capable, processingTier: 'mvp_simple' },
+      { canUpload: true },
+    );
+    expect(result.readyCopy).toMatch(/normaliza y valida/i);
+    expect(result.readyCopy).not.toMatch(/antivirus|limpia|processor/i);
+    expect(result.resizeToFit).toBe(true);
   });
 
   test('does not claim transcoding or antivirus unless the backend does', () => {

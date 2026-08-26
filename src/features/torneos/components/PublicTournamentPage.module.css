@@ -115,6 +115,17 @@
 .heroCopy,
 .heroBoard { position: relative; z-index: 1; }
 
+.heroIdentity {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  gap: 22px;
+  min-width: 0;
+}
+
+.heroCopy { min-width: 0; }
+
 .eyebrow {
   display: flex;
   gap: 6px;
@@ -273,7 +284,16 @@
 .teamCompact > span:last-child { overflow: hidden; text-overflow: ellipsis; }
 .crest { flex: 0 0 auto; display: grid; place-items: center; width: 38px; height: 42px; overflow: hidden; color: var(--team-secondary); border: 2px solid var(--team-primary); background: var(--team-primary); clip-path: polygon(50% 0, 92% 15%, 84% 76%, 50% 100%, 16% 76%, 8% 15%); font: 800 11px Oswald, sans-serif; }
 .crest img { width: 100%; height: 100%; object-fit: contain; background: #fff; }
+.crestAsset { display: grid; width: 100%; height: 100%; place-items: center; }
+.crestImage { width: 100%; height: 100%; padding: 2px; object-fit: contain; background: #fff; }
+.heroLogo { display: grid; width: 112px; height: 96px; flex: 0 0 auto; place-items: center; overflow: hidden; border: 1px solid rgba(166, 143, 255, .3); background: rgba(12, 15, 34, .68); color: #e2dcff; font: 800 30px Oswald, sans-serif; letter-spacing: .06em; }
+.heroLogoImage { width: 100%; height: 100%; padding: 7px; object-fit: contain; }
 .teamCompact .crest { width: 28px; height: 31px; font-size: 9px; }
+
+@media (max-width: 720px) {
+  .heroLogo { width: 82px; height: 72px; }
+  .heroIdentity { flex-direction: column; gap: 16px; }
+}
 
 .tableScroll { max-width: 100%; overflow-x: auto; border: 1px solid var(--line); border-radius: 7px; background: #fff; }
 .standingsTable { width: 100%; min-width: 760px; border-collapse: collapse; font-size: 12px; }

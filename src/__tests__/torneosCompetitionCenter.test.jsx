@@ -40,6 +40,7 @@ const row = {
   teamEntryId: 'entry',
   teamName: 'Club Atlético de Nombre Extraordinariamente Largo',
   shortName: 'CAL',
+  shieldPath: '11111111-1111-4111-8111-111111111111/teams/22222222-2222-4222-8222-222222222222/33333333-3333-4333-8333-333333333333.png',
   played: 4,
   won: 3,
   drawn: 1,
@@ -120,8 +121,12 @@ describe('CompetitionCenterPage', () => {
       revision: { id: 'revision', number: 3, status: 'published' },
       standings: [row],
     });
-    renderCenter();
+    const view = renderCenter();
     expect(await screen.findByText(row.teamName)).toBeInTheDocument();
+    expect(view.container.querySelector('.teamMark img')).toHaveAttribute(
+      'src',
+      expect.stringContaining(row.shieldPath),
+    );
     expect(screen.getByText('10')).toBeInTheDocument();
     expect(screen.getByText('Ver detalle')).toBeInTheDocument();
     expect(screen.getByText(/Criterios aplicados/)).toBeInTheDocument();

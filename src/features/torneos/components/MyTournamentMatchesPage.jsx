@@ -20,6 +20,17 @@ import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import styles from './MatchOperations.module.css';
 
+// `tournament_matches.status` tal como lo devuelve la API. La tarjeta del
+// jugador lo mostraba crudo (`unscheduled`, `scheduled`) en el riel de fecha.
+const MATCH_STATUS_LABELS = {
+  draft: 'Borrador',
+  unscheduled: 'Sin fecha',
+  scheduled: 'Programado',
+  postponed: 'Postergado',
+  cancelled: 'Cancelado',
+  ready: 'Listo',
+};
+
 const AVAILABILITY_OPTIONS = [
   { value: 'available', label: 'Voy', icon: Check },
   { value: 'unavailable', label: 'No voy', icon: X },
@@ -78,7 +89,7 @@ function PlayerMatchCard({
       <div className={styles.matchRail}>
         <span>{date.day}</span>
         <strong>{date.time}</strong>
-        <small>{match.status}</small>
+        <small>{MATCH_STATUS_LABELS[match.status] || 'Sin estado'}</small>
       </div>
       <div className={styles.playerMatchBody}>
         <div className={styles.playerMatchHeading}>
@@ -105,11 +116,21 @@ function PlayerMatchCard({
             <strong>{match.officialScore.home} — {match.officialScore.away}</strong>
           </div>
         )}
-        <AvailabilityButtons
-          match={match}
-          busy={busy}
-          onRespond={onRespond}
-        />
+        {/*
+          * Responder "Voy / No voy" es contestar por uno mismo, y por eso lo
+          * habilita el vínculo con el plantel, no el cargo. Dirigir la
+          * organización o el equipo trae la convocatoria —el enlace de abajo—,
+          * no la respuesta de asistencia de otra persona. Quien además de
+          * dirigir está en el plantel conserva el control por esa segunda
+          * relación.
+          */}
+        {match.isRosteredPlayer && (
+          <AvailabilityButtons
+            match={match}
+            busy={busy}
+            onRespond={onRespond}
+          />
+        )}
         {match.canManageSquad && (
           <Link className={styles.textLink} to={`/torneos/mis-partidos/${match.matchId}/convocatoria`}>
             Gestionar convocatoria

@@ -488,13 +488,24 @@
 .teamTabs {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  gap: 6px;
+  padding: 5px;
+  border: 1px solid var(--torneos-border);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, .025);
+}
+
+.teamTabs button {
+  border-color: transparent;
+  border-radius: 12px;
+  white-space: nowrap;
 }
 
 .teamTabs button[aria-selected="true"] {
-  color: var(--torneos-purple-bright);
-  background: rgba(136, 92, 255, 0.12);
-  border-color: var(--torneos-border-strong);
+  color: #fff;
+  background: linear-gradient(135deg, #8058f5, #6840e9);
+  border-color: rgba(186, 169, 255, 0.46);
+  box-shadow: 0 6px 18px rgba(94, 55, 216, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
 
 .squadPanel,

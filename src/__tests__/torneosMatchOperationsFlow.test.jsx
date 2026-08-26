@@ -166,6 +166,9 @@ describe('Arma2 Torneos match operations flow', () => {
         venue: 'Club Horizonte',
         court: 'Cancha 1',
         availability: null,
+        // El vínculo con el plantel es lo que habilita responder: sin él, este
+        // caso ya no sería «el jugador vinculado».
+        isRosteredPlayer: true,
       }],
     });
     renderPath('/torneos/mis-partidos', service);
@@ -190,6 +193,7 @@ describe('Arma2 Torneos match operations flow', () => {
         venue: null,
         court: null,
         availability: 'available',
+        isRosteredPlayer: true,
       }],
     });
     renderPath('/torneos/mis-partidos', service);

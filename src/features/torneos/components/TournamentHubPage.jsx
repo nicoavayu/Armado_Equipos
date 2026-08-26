@@ -34,9 +34,11 @@ import {
   useSearchParams,
 } from 'react-router-dom';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
+import { canonicalRoutes } from '../routing/canonicalRoutes';
 import styles from './ParticipantHub.module.css';
 import TournamentCommunicationsPanel from './TournamentCommunicationsPanel';
 import ParticipantMediaGallery from './ParticipantMediaGallery';
+import BrandingImage from './BrandingImage';
 
 const SECTIONS = [
   ['resumen', 'Resumen', Sparkles],
@@ -121,10 +123,18 @@ function Score({ match }) {
   );
 }
 
+//
+// `isMyTeam` es cierto tanto para el jugador del plantel como para el capitán o
+// delegado del equipo: el hub lo calcula con esas dos relaciones juntas. Para
+// contestar la disponibilidad hace falta la primera, porque
+// `respond_match_availability` responde por el jugador que la llama. De ahí que
+// el hub exponga `audience.isPlayer` aparte, y que sea eso lo que habilita el
+// control.
+//
 function AvailabilityActions({
-  match, busy, onRespond, readOnly,
+  match, busy, onRespond, readOnly, canRespond,
 }) {
-  if (!match.isMyTeam || match.result || readOnly) return null;
+  if (!canRespond || !match.isMyTeam || match.result || readOnly) return null;
   return (
     <div className={styles.availability} aria-label="Tu disponibilidad">
       <span>¿Podés jugar?</span>
@@ -147,7 +157,7 @@ function AvailabilityActions({
 }
 
 function MatchCard({
-  match, tournamentId, categoryId, busy, onRespond, readOnly = false,
+  match, tournamentId, categoryId, busy, onRespond, readOnly = false, canRespond = false,
 }) {
   return (
     <article className={`${styles.matchCard} ${match.isMyTeam ? styles.matchCardMine : ''}`}>
@@ -183,6 +193,7 @@ function MatchCard({
         busy={busy}
         onRespond={onRespond}
         readOnly={readOnly}
+        canRespond={canRespond}
       />
       <div className={styles.matchActions}>
         <Link to={`/torneos/torneo/${tournamentId}/partidos/${match.matchId}?categoria=${categoryId}`}>
@@ -242,6 +253,7 @@ function OverviewSection({
           busy={busyMatchId === nextMatch.matchId}
           onRespond={onRespond}
           readOnly={hub.tournament.readOnly}
+          canRespond={Boolean(hub.audience?.isPlayer)}
         />
       ) : (
         <p className={styles.panelEmpty}>La organización todavía no publicó un próximo partido.</p>
@@ -272,7 +284,7 @@ function OverviewSection({
       {isOrganizer && (
         <Link
           className={styles.panelLink}
-          to={`/torneos/organizacion/${hub.tournament.organizationId}/inicio`}
+          to={canonicalRoutes.organizationHome(hub.tournament.organizationId)}
         >
           Abrir gestión operativa <ArrowRight size={16} />
         </Link>
@@ -815,9 +827,14 @@ export default function TournamentHubPage({ defaultSection = 'resumen', matchMod
     >
       <header className={styles.tournamentHero}>
         <div className={styles.tournamentIdentity}>
-          <span className={styles.tournamentMonogram} aria-hidden="true">
-            {hub.tournament.name.slice(0, 2).toUpperCase()}
-          </span>
+          <BrandingImage
+            kind="tournament"
+            path={hub.tournament.logoPath}
+            fallbackPath={hub.tournament.organizationLogoPath}
+            name={hub.tournament.name}
+            className={styles.tournamentMonogram}
+            imageClassName={styles.brandingContain}
+          />
           <div>
             <span className={styles.hubKicker}>{hub.tournament.seasonName} · {hub.tournament.organizationName}</span>
             <h1>{hub.tournament.name}</h1>
@@ -839,7 +856,7 @@ export default function TournamentHubPage({ defaultSection = 'resumen', matchMod
             </label>
           )}
           {hub.audience.canManageTournament && !hub.tournament.readOnly && (
-            <Link className={styles.manageLink} to={`/torneos/organizacion/${hub.tournament.organizationId}/inicio`}>
+            <Link className={styles.manageLink} to={canonicalRoutes.organizationHome(hub.tournament.organizationId)}>
               Abrir gestor
             </Link>
           )}
@@ -927,6 +944,7 @@ export default function TournamentHubPage({ defaultSection = 'resumen', matchMod
                 busy={busyMatchId === match.matchId}
                 onRespond={respond}
                 readOnly={hub.tournament.readOnly}
+                canRespond={Boolean(hub.audience?.isPlayer)}
               />
             ))}
           </div>

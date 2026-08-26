@@ -41,11 +41,53 @@ import {
   getLifecycleErrorMessage,
   getMatchResolutionPresentation,
 } from '../domain/competitionLifecycle';
+import { tournamentResourceSurface, tournamentSurface } from '../routing/legacyRoutes';
+import {
+  RESOURCE_SCOPE_MESSAGE,
+  resourceMatchesCanonicalScope,
+} from '../domain/routeResourceScope';
 import { describeMatchOutcomeGap } from '../domain/matchOutcome';
 import { describeEarlyOpen, isEarlyOpenReasonValid } from '../domain/matchSchedule';
+import {
+  getMatchPeriodLabel,
+  MATCH_EVENT_PERIOD_OPTIONS,
+  SUSPENSION_PERIOD_OPTIONS,
+} from '../domain/matchPeriods';
 import CompetitionSelector from './CompetitionSelector';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import styles from './MatchOperations.module.css';
+
+//
+// Los links del partido salen de los builders, uno por superficie.
+//
+// Concatenar sobre la ruta del listado no alcanzaba: con `?categoria=` el
+// listado ya termina en query, así que `${base}/${match.id}` producía
+// `…/partidos?categoria=X/<id>`. El id tiene que entrar como segmento y la
+// query rearmarse después, que es exactamente lo que hace el builder.
+//
+function useMatchRoutes(organizationId) {
+  const { isTournamentRoute, routeTournamentId, activeTournament } = useTorneosCompetition();
+  const { categoryId } = useTorneosFixture();
+  const tournamentId = isTournamentRoute
+    ? routeTournamentId
+    : (activeTournament?.id || null);
+  const options = { categoryId };
+  const build = (name) => (matchId) => tournamentResourceSurface(
+    name,
+    organizationId,
+    tournamentId,
+    matchId,
+    options,
+  );
+  return {
+    list: tournamentSurface('tournamentMatches', organizationId, tournamentId, options),
+    detail: build('tournamentMatch'),
+    squads: build('tournamentMatchSquads'),
+    report: build('tournamentMatchReport'),
+    review: build('tournamentMatchReview'),
+    history: build('tournamentMatchHistory'),
+  };
+}
 
 const STATUS_LABELS = {
   draft: 'Borrador',
@@ -63,6 +105,11 @@ const STATUS_LABELS = {
   suspended: 'Suspendido',
   abandoned: 'Abandonado',
   administrative: 'Administrativo',
+  // Estados de `tournament_match_reviews`: la píldora del historial de
+  // revisiones los mostraba crudos (`open`, `approved`).
+  open: 'Abierta',
+  approved: 'Aprobada',
+  rejected: 'Rechazada',
 };
 
 const EVENT_LABELS = {
@@ -79,6 +126,20 @@ const EVENT_LABELS = {
   incident: 'Incidencia',
   no_show: 'Ausencia',
   suspension: 'Suspensión',
+  // Eventos de ciclo de vida del partido: no los carga nadie a mano, pero
+  // aparecen en el timeline y sin etiqueta salían como `second_half_started`.
+  match_started: 'Comienzo del partido',
+  halftime: 'Entretiempo',
+  second_half_started: 'Comienzo del segundo tiempo',
+  match_ended: 'Fin del partido',
+  resumption_future: 'Reanudación',
+};
+
+const REVIEW_TYPE_LABELS = {
+  validation: 'Validación',
+  correction: 'Corrección',
+  dispute_future: 'Impugnación',
+  administrative_resolution: 'Resolución administrativa',
 };
 
 const OUTCOME_OPTIONS = [
@@ -117,7 +178,7 @@ function StatusPill({ status, label }) {
   return (
     <span className={styles.statusPill} data-status={status}>
       <CircleDot size={12} />
-      {label || STATUS_LABELS[status] || status || 'Sin acta'}
+      {label || STATUS_LABELS[status] || (status ? 'Sin estado' : 'Sin acta')}
     </span>
   );
 }
@@ -188,7 +249,7 @@ function MatchList({
   filters,
   setFilters,
 }) {
-  const base = `/torneos/organizacion/${organization.id}/partidos`;
+  const matchRoutes = useMatchRoutes(organization.id);
   const filtered = useMemo(() => matches.filter((match) => {
     const search = filters.search.trim().toLowerCase();
     if (search && !`${match.homeName} ${match.awayName}`.toLowerCase().includes(search)) {
@@ -285,7 +346,7 @@ function MatchList({
                   label={resolution?.code === 'withdrawal_bye' ? resolution.label : null}
                 />
                 <div className={styles.rowActions}>
-                  <Link to={`${base}/${match.id}`}>
+                  <Link to={matchRoutes.detail(match.id)}>
                     {resolution ? 'Ver' : 'Operar'}
                     <ChevronRight size={16} />
                   </Link>
@@ -563,7 +624,7 @@ function ReportEditor({
         {outcome.outcomeType === 'suspended' && (
           <div className={styles.twoColumns}>
             <label><span>Minuto</span><input disabled={readOnly} type="number" min="0" max="240" value={outcome.suspensionMinute} onChange={(e) => setOutcome((c) => ({ ...c, suspensionMinute: e.target.value }))} /></label>
-            <label><span>Período</span><select disabled={readOnly} value={outcome.suspensionPeriod} onChange={(e) => setOutcome((c) => ({ ...c, suspensionPeriod: e.target.value }))}><option value="first_half">Primer tiempo</option><option value="halftime">Entretiempo</option><option value="second_half">Segundo tiempo</option><option value="extra_time">Alargue</option></select></label>
+            <label><span>Período</span><select disabled={readOnly} value={outcome.suspensionPeriod} onChange={(e) => setOutcome((c) => ({ ...c, suspensionPeriod: e.target.value }))}>{SUSPENSION_PERIOD_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
           </div>
         )}
         <label>
@@ -634,7 +695,7 @@ function ReportEditor({
             }))}><option value={operation.home_team_entry_id}>{match.homeName}</option><option value={operation.away_team_entry_id}>{match.awayName}</option></select></label>
             <label><span>Jugador</span><select value={event.rosterPlayerId} onChange={(e) => setEvent((c) => ({ ...c, rosterPlayerId: e.target.value }))}><option value="">Sin identificar / equipo</option>{players.map((player) => <option key={player.roster_player_id} value={player.roster_player_id}>{player.display_name_snapshot}</option>)}</select></label>
             <label><span>Minuto</span><input type="number" min="0" max="240" value={event.minute} onChange={(e) => setEvent((c) => ({ ...c, minute: e.target.value }))} /></label>
-            <label><span>Período</span><select value={event.period} onChange={(e) => setEvent((c) => ({ ...c, period: e.target.value }))}><option value="pre_match">Prepartido</option><option value="first_half">Primer tiempo</option><option value="halftime">Entretiempo</option><option value="second_half">Segundo tiempo</option><option value="extra_time">Alargue</option><option value="penalties">Penales</option><option value="post_match">Postpartido</option></select></label>
+            <label><span>Período</span><select value={event.period} onChange={(e) => setEvent((c) => ({ ...c, period: e.target.value }))}>{MATCH_EVENT_PERIOD_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
             {event.eventType === 'assist' && (
               <label className={styles.fullField}>
                 <span>Gol asistido</span>
@@ -697,7 +758,7 @@ function ReportEditor({
           {context.events.map((item) => (
             <li key={item.id} data-voided={Boolean(item.voided_at)}>
               <span>{item.minute ?? '·'}′</span>
-              <div><strong>{EVENT_LABELS[item.event_type] || item.event_type}</strong><small>{context.players.find((player) => player.roster_player_id === item.roster_player_id)?.display_name_snapshot || 'Evento de equipo'} · {item.period}</small></div>
+              <div><strong>{EVENT_LABELS[item.event_type] || 'Evento del partido'}</strong><small>{context.players.find((player) => player.roster_player_id === item.roster_player_id)?.display_name_snapshot || 'Evento de equipo'} · {getMatchPeriodLabel(item.period)}</small></div>
               {!readOnly && !item.voided_at && (
                 <button type="button" aria-label="Anular evento" onClick={() => {
                   const reason = window.prompt('Motivo de anulación (queda auditado):', voidReason);
@@ -767,6 +828,16 @@ export default function MatchOperationsPage({ mode = 'list' }) {
           organizationId: organization.id,
           operationId: match.operationId,
         });
+        // `get_tournament_match_operation_context(org, operationId)` no recibe
+        // torneo: autoriza la lectura, pero no afirma que la operación sea del
+        // torneo de esta URL. La operación sí trae `tournament_id`, así que la
+        // pertenencia se comprueba acá en vez de asumirse.
+        if (!resourceMatchesCanonicalScope(operation?.operation, {
+          organizationId: organization.id,
+          tournamentId: activeTournament.id,
+        })) {
+          throw new Error(RESOURCE_SCOPE_MESSAGE);
+        }
       }
       if (match && mode === 'squads') {
         const contexts = await Promise.all([
@@ -825,7 +896,7 @@ export default function MatchOperationsPage({ mode = 'list' }) {
   const canOpen = hasCapability(organization, TOURNAMENT_CAPABILITIES.MATCH_OPERATIONS_OPEN);
   const canManage = hasCapability(organization, TOURNAMENT_CAPABILITIES.MATCH_OPERATIONS_UPDATE_DRAFT);
   const canReview = hasCapability(organization, TOURNAMENT_CAPABILITIES.MATCH_OPERATIONS_REVIEW);
-  const base = `/torneos/organizacion/${organization.id}/partidos`;
+  const matchRoutes = useMatchRoutes(organization.id);
 
   const run = async (action, payload = {}) => {
     if (busy) return;
@@ -927,7 +998,7 @@ export default function MatchOperationsPage({ mode = 'list' }) {
         </>
       ) : (
         <>
-          <Link className={styles.backLink} to={base}><ArrowLeft size={16} /> Volver a Partidos</Link>
+          <Link className={styles.backLink} to={matchRoutes.list}><ArrowLeft size={16} /> Volver a Partidos</Link>
           <header className={styles.matchHeader}>
             <div>
               <span className={styles.kicker}>Partido #{match.matchNumber}</span>
@@ -938,11 +1009,11 @@ export default function MatchOperationsPage({ mode = 'list' }) {
           </header>
           <MatchScore match={match} operation={state.operation} />
           <nav className={styles.matchSubnav} aria-label="Secciones del partido">
-            <Link to={`${base}/${match.id}`}>Resumen</Link>
-            <Link to={`${base}/${match.id}/convocatorias`}>Convocatorias</Link>
-            <Link to={`${base}/${match.id}/acta`}>Acta</Link>
-            <Link to={`${base}/${match.id}/revision`}>Revisión</Link>
-            <Link to={`${base}/${match.id}/historial`}>Historial</Link>
+            <Link to={matchRoutes.detail(match.id)}>Resumen</Link>
+            <Link to={matchRoutes.squads(match.id)}>Convocatorias</Link>
+            <Link to={matchRoutes.report(match.id)}>Acta</Link>
+            <Link to={matchRoutes.review(match.id)}>Revisión</Link>
+            <Link to={matchRoutes.history(match.id)}>Historial</Link>
           </nav>
           {state.notice && <div className={styles.successNotice} role="status">{state.notice}</div>}
           {state.error && <div className={styles.errorNotice} role="alert">{state.error}</div>}
@@ -954,7 +1025,7 @@ export default function MatchOperationsPage({ mode = 'list' }) {
                 <span>Convocatorias</span>
                 <h2>{match.homeSquadStatus && match.awaySquadStatus ? 'Ambos equipos presentaron' : 'Hay convocatorias pendientes'}</h2>
                 <p>Local: {STATUS_LABELS[match.homeSquadStatus] || 'Sin presentar'} · Visitante: {STATUS_LABELS[match.awaySquadStatus] || 'Sin presentar'}</p>
-                <Link to={`${base}/${match.id}/convocatorias`}>Ver alineaciones</Link>
+                <Link to={matchRoutes.squads(match.id)}>Ver alineaciones</Link>
               </section>
               <section className={styles.detailCard}>
                 <FileClock size={24} />
@@ -962,7 +1033,7 @@ export default function MatchOperationsPage({ mode = 'list' }) {
                 <h2>{state.operation ? `Versión ${state.operation.operation.operation_version}` : 'Todavía no fue abierta'}</h2>
                 <p>El fixture conserva cuándo y dónde; el acta registra qué ocurrió.</p>
                 {state.operation ? (
-                  <Link to={`${base}/${match.id}/acta`}>Continuar acta</Link>
+                  <Link to={matchRoutes.report(match.id)}>Continuar acta</Link>
                 ) : canOpen && ['scheduled', 'ready'].includes(match.planningStatus) ? (
                   <OpenReportAction match={match} busy={busy} run={run} />
                 ) : <small>Acción no disponible para tu rol o estado.</small>}
@@ -972,7 +1043,7 @@ export default function MatchOperationsPage({ mode = 'list' }) {
                 <span>Autoridad</span>
                 <h2>{match.operationStatus === 'official' ? 'Resultado oficial' : 'Sin resultado oficial'}</h2>
                 <p>Un marcador editable nunca reemplaza la validación y el cierre del acta.</p>
-                <Link to={`${base}/${match.id}/historial`}>Ver versiones</Link>
+                <Link to={matchRoutes.history(match.id)}>Ver versiones</Link>
               </section>
             </div>
           )}
@@ -1068,7 +1139,7 @@ export default function MatchOperationsPage({ mode = 'list' }) {
                   </div>
                   <div className={styles.reviewHistory}>
                     {(state.operation.reviews || []).map((review) => (
-                      <article key={review.id}><StatusPill status={review.status} /><strong>{review.review_type}</strong><p>{review.reason}</p><small>{new Date(review.requested_at).toLocaleString('es-AR')}</small></article>
+                      <article key={review.id}><StatusPill status={review.status} /><strong>{REVIEW_TYPE_LABELS[review.review_type] || 'Revisión'}</strong><p>{review.reason}</p><small>{new Date(review.requested_at).toLocaleString('es-AR')}</small></article>
                     ))}
                   </div>
                 </>

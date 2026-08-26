@@ -54,8 +54,11 @@ import {
   hasCapability,
   TOURNAMENT_CAPABILITIES,
 } from '../domain/capabilities';
+import { canonicalRoutes } from '../routing/canonicalRoutes';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import TournamentPublicPageSettings from './TournamentPublicPageSettings';
+import TeamVisualPolicySettings from './TeamVisualPolicySettings';
+import BrandingAssetField from './BrandingAssetField';
 import styles from './CompetitionCore.module.css';
 
 const STEPS = [
@@ -72,6 +75,8 @@ function draftFromTournament(tournament) {
     name: tournament.name,
     slug: tournament.slug,
     description: tournament.description || '',
+    logoPath: tournament.logoPath || null,
+    organizationLogoPath: tournament.organizationLogoPath || null,
     seasonId: tournament.seasonId,
     startDate: tournament.startDate || '',
     endDate: tournament.endDate || '',
@@ -204,7 +209,6 @@ function FormatSettings({ draft, setDraft, disabled }) {
 
 export default function TournamentWizardPage() {
   const { organization } = useOutletContext();
-  const organizationPath = `/torneos/organizacion/${organization.id}`;
   const { tournamentId } = useParams();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -254,6 +258,7 @@ export default function TournamentWizardPage() {
     ? requestedStep
     : 0;
   const initializedTournamentRef = useRef(null);
+  const wizardStepperRef = useRef(null);
   const [draft, setDraftState] = useState(() => (
     tournament ? draftFromTournament(tournament) : buildTournamentDraft()
   ));
@@ -265,6 +270,9 @@ export default function TournamentWizardPage() {
     draftRef.current = resolved;
     setDraftState(resolved);
   }, []);
+  useEffect(() => {
+    draftRef.current = draft;
+  }, [draft]);
   const creationKeyRef = useRef(null);
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState('');
@@ -310,10 +318,10 @@ export default function TournamentWizardPage() {
     return <WorkspaceError message={loadError} onRetry={() => refresh().catch(() => {})} />;
   }
   if (!isNew && !tournament) {
-    return <Navigate to={`${organizationPath}/torneos`} replace />;
+    return <Navigate to={canonicalRoutes.organizationTournaments(organization.id)} replace />;
   }
   if (isNew && (!canCreate || !seasons.length)) {
-    return <Navigate to={`${organizationPath}/torneos`} replace />;
+    return <Navigate to={canonicalRoutes.organizationTournaments(organization.id)} replace />;
   }
 
   const categories = tournament?.categories || [];
@@ -321,7 +329,20 @@ export default function TournamentWizardPage() {
     setSearchParams(next ? { step: String(next) } : {}, { replace: true });
     setErrors({});
     setFormError('');
-    window.scrollTo?.({ top: 0, behavior: 'smooth' });
+    /*
+     * Cambiar de paso no es volver al principio del documento. El
+     * `window.scrollTo({ top: 0 })` que había acá mandaba la viewport al
+     * comienzo de toda la página, así que tocar el stepper --- que está a la
+     * vista--- lo sacaba a uno de la zona del wizard.
+     *
+     * El ancla es el stepper y no el lienzo: el lienzo es más alto que la
+     * viewport y cambia de altura con cada paso, así que `nearest` sobre él
+     * seguía moviendo cientos de píxeles. El stepper entra entero en pantalla,
+     * de modo que `nearest` no hace nada mientras se lo esté mirando --- que es
+     * el caso de quien acaba de tocarlo--- y sólo lo trae de vuelta cuando se
+     * avanza desde el pie de un paso largo.
+     */
+    wizardStepperRef.current?.scrollIntoView?.({ block: 'nearest' });
   };
   const change = (field, value) => {
     setDraft((current) => {
@@ -407,9 +428,12 @@ export default function TournamentWizardPage() {
           idempotencyKey: creationKeyRef.current,
         });
         creationKeyRef.current = null;
-        navigate(`${organizationPath}/torneos/${created.id}/configuracion?step=${advance ? 1 : 0}`, {
-          replace: true,
-        });
+        navigate(
+          canonicalRoutes.tournamentConfiguration(organization.id, created.id, {
+            step: advance ? 1 : 0,
+          }),
+          { replace: true },
+        );
         return true;
       }
       const patch = patchForStep(step, currentDraft);
@@ -543,7 +567,7 @@ export default function TournamentWizardPage() {
       });
       setPendingStatus(null);
       if (nextStatus === 'archived') {
-        navigate(`${organizationPath}/torneos`, { replace: true });
+        navigate(canonicalRoutes.organizationTournaments(organization.id), { replace: true });
       }
     } catch (error) {
       setFormError(error?.message || 'No pudimos cambiar el estado.');
@@ -559,7 +583,7 @@ export default function TournamentWizardPage() {
 
   return (
     <div className={styles.wizardPage}>
-      <Link className={styles.backLink} to={`${organizationPath}/torneos`}>
+      <Link className={styles.backLink} to={canonicalRoutes.organizationTournaments(organization.id)}>
         <ArrowLeft size={16} />
         Volver a torneos
       </Link>
@@ -613,7 +637,14 @@ export default function TournamentWizardPage() {
         />
       )}
 
-      <nav className={styles.stepper} aria-label="Pasos de configuración">
+      {!isNew && (
+        <TeamVisualPolicySettings
+          organizationId={organization.id}
+          tournamentId={tournament.id}
+        />
+      )}
+
+      <nav className={styles.stepper} aria-label="Pasos de configuración" ref={wizardStepperRef}>
         {STEPS.map((label, index) => (
           <button
             key={label}
@@ -637,6 +668,23 @@ export default function TournamentWizardPage() {
 
         {step === 0 && (
           <div className={styles.inputGrid}>
+            {!isNew && (
+              <div className={styles.spanTwo}>
+                <BrandingAssetField
+                  organizationId={organization.id}
+                  kind="tournament"
+                  entityId={tournament.id}
+                  path={draft.logoPath}
+                  fallbackPath={draft.organizationLogoPath || organization.logoPath}
+                  name={draft.name || tournament.name}
+                  canEdit={canUpdate}
+                  onChanged={async (result) => {
+                    setDraft((current) => ({ ...current, logoPath: result.path || null }));
+                    await refresh({ notice: 'Identidad visual actualizada.' });
+                  }}
+                />
+              </div>
+            )}
             <label className={styles.spanTwo}>
               <span>Nombre del torneo</span>
               <input

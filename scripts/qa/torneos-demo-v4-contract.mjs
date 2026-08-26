@@ -7,7 +7,7 @@ export const V4_CURRENT_AUTHORIZATION = Object.freeze({
   seedKey: 'torneos-demo-v4',
   datasetVersion: 4,
   markerId: '909f1a27-71b4-5797-a229-75f7a91fa7e8',
-  manifestHash: 'ba26b0b199e212025a15b6b8b8aeedbe97d617f720088fb3bd32fa3b99f0c19d',
+  manifestHash: 'dcc0be5bedefafddd795e3d91b8feb48c0cd1121bcca0ab77f5c84db2b3678c0',
   identityMapFingerprint: 'd13bf642667c8a02c79a6f7b6db3325be3a2196c1569cfb655d67a72a3ab4cdd',
   ownershipFingerprint: '313fb9b527e8fbd591b795d6a19184aec5e8d264b16cbe336e22746387f7050a',
   baseRows: 586,

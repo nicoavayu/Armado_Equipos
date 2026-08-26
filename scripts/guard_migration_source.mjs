@@ -21,6 +21,15 @@ const expectedCanonicalMigrations = [
   '20260813122000_lifecycle_business_rules_are_client_errors.sql',
   '20260813123000_match_already_official_is_a_client_error.sql',
   '20260813124000_core_flow_business_rules_are_client_errors.sql',
+  '20260814053900_fix_tournament_social_snapshot_nullable_round.sql',
+  '20260815234340_tournament_media_storage_readiness_and_delete.sql',
+  '20260817062612_tournament_branding_assets.sql',
+  '20260817220554_tournament_player_portraits_foundation.sql',
+  '20260818120000_tournament_player_portrait_ux.sql',
+  '20260818210000_tournament_team_visual_self_management.sql',
+  '20260820120000_tournament_media_publication_is_processing_aware.sql',
+  '20260821120000_media_restore_respects_closed_galleries.sql',
+  '20260821180000_tournament_team_photo_moderated_lifecycle.sql',
 ];
 
 const exitWithError = (message) => {

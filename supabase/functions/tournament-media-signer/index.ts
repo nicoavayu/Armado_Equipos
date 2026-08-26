@@ -36,6 +36,18 @@ import {
 const RELEASE = "0.1.0"
 const MAX_READ_BATCH = 60
 const READ_KINDS = new Set(["thumbnail", "grid", "detail", "original"])
+const STORAGE_OBJECT_RE =
+  /^[0-9a-f-]{36}\/[0-9a-f-]{36}\/[0-9a-f-]{36}\/[0-9a-f-]{36}(?:-(?:thumbnail|grid|detail|original))?\.(?:jpg|png|webp)$/
+
+function originRelativeCapability(rawUrl: string) {
+  try {
+    const parsed = new URL(rawUrl)
+    return `${parsed.pathname}${parsed.search}${parsed.hash}`
+  } catch {
+    if (rawUrl.startsWith("/")) return rawUrl
+    throw new Error("invalid capability URL")
+  }
+}
 
 // 1×1 PNG. Used only by the health probe, which writes it, signs a read for
 // it, fetches it back and deletes it — a real end-to-end certification of the
@@ -51,7 +63,7 @@ const PROBE_PNG = Uint8Array.from(
 type ServiceClient = ReturnType<typeof createClient>
 
 async function handleUploadIntent(
-  service: ServiceClient, actorId: string, body: Record<string, unknown>, supabaseUrl: string,
+  service: ServiceClient, actorId: string, body: Record<string, unknown>,
 ) {
   const sessionId = String(body.sessionId ?? "")
   const token = String(body.token ?? "")
@@ -71,8 +83,7 @@ async function handleUploadIntent(
     // Supabase Storage upload tokens currently have a fixed two-hour lifetime.
     // The MVP contract is five minutes, so the existing signer becomes the
     // exact-path upload endpoint and re-checks the actor-bound DB capability.
-    const uploadUrl = new URL("/functions/v1/tournament-media-signer", supabaseUrl)
-    uploadUrl.search = new URLSearchParams({
+    const uploadQuery = new URLSearchParams({
       action: "mvp-simple-upload",
       sessionId,
       token,
@@ -81,7 +92,10 @@ async function handleUploadIntent(
       status: 200,
       payload: {
         sessionId,
-        uploadUrl: uploadUrl.toString(),
+        // Relative on purpose: the Edge runtime's SUPABASE_URL is an internal
+        // container address in local development. The browser resolves this
+        // capability against its already validated public Supabase origin.
+        uploadUrl: `/functions/v1/tournament-media-signer?${uploadQuery}`,
         requiresAuth: true,
         contentType: target.contentType,
         expectedBytes: Number(target.expectedBytes),
@@ -103,7 +117,7 @@ async function handleUploadIntent(
       sessionId,
       // The browser uploads through this URL and never learns the bucket layout
       // from us; whatever the URL itself embeds is opaque identifiers it holds.
-      uploadUrl: signed.data.signedUrl,
+      uploadUrl: originRelativeCapability(signed.data.signedUrl),
       uploadToken: signed.data.token,
       contentType: target.contentType,
       expectedBytes: Number(target.expectedBytes),
@@ -196,7 +210,7 @@ async function handleReadUrls(
     items.push({
       assetId,
       kind,
-      url: signed.data.signedUrl,
+      url: originRelativeCapability(signed.data.signedUrl),
       width: grant.width,
       height: grant.height,
       contentType: grant.contentType,
@@ -207,6 +221,65 @@ async function handleReadUrls(
     status: 200,
     payload: { items, ttlSeconds: MEDIA_SIGNED_URL_TTL_SECONDS },
   }
+}
+
+/**
+ * Deletes a persisted asset without ever accepting a bucket or object name
+ * from the browser. PostgreSQL authorizes the actor and marks the asset
+ * delete-pending before returning its canonical paths to this trusted caller.
+ * Metadata is finalized only after Storage confirms removal.
+ *
+ * Any ambiguous Storage or finalization failure intentionally leaves the row
+ * delete-pending: new signed reads are blocked and the same request is safe to
+ * retry. A retry removes already-missing names idempotently, then finalizes.
+ */
+async function handleDeleteAsset(
+  service: ServiceClient, actorId: string, body: Record<string, unknown>,
+) {
+  const assetId = String(body.assetId ?? "")
+  if (!UUID_RE.test(assetId)) {
+    return { status: 400, payload: { error: "invalid_request" } }
+  }
+  const begun = await service.rpc("begin_tournament_media_asset_delete", {
+    p_actor_user_id: actorId,
+    p_asset_id: assetId,
+  })
+  if (begun.error) {
+    const mapped = mapRpcError(begun.error.message || "")
+    return { status: mapped.status, payload: { error: mapped.error } }
+  }
+  const grant = begun.data as Record<string, unknown>
+  const objectNames = Array.isArray(grant.objectNames)
+    ? grant.objectNames.map(String)
+    : []
+  if (grant.bucket !== TOURNAMENT_MEDIA_BUCKET
+    || objectNames.length < 1
+    || objectNames.length > 5
+    || objectNames.some((name) => !STORAGE_OBJECT_RE.test(name))) {
+    return { status: 500, payload: { error: "delete_contract_invalid" } }
+  }
+
+  const removed = await service.storage
+    .from(TOURNAMENT_MEDIA_BUCKET)
+    .remove(objectNames)
+  if (removed.error) {
+    return {
+      status: 502,
+      payload: { error: "delete_storage_failed", deletePending: true },
+    }
+  }
+
+  const completed = await service.rpc("complete_tournament_media_asset_delete", {
+    p_actor_user_id: actorId,
+    p_asset_id: assetId,
+  })
+  if (completed.error) {
+    return {
+      status: 500,
+      payload: { error: "delete_finalize_failed", deletePending: true },
+    }
+  }
+  return { status: 200, payload: { assetId, deleted: true } }
 }
 
 /**
@@ -364,11 +437,15 @@ serve(async (request) => {
 
   try {
     if (action === "upload-intent") {
-      const result = await handleUploadIntent(service, actorId, body, supabaseUrl)
+      const result = await handleUploadIntent(service, actorId, body)
       return jsonResponse(cors, result.status, result.payload)
     }
     if (action === "read-urls") {
       const result = await handleReadUrls(service, actorId, body)
+      return jsonResponse(cors, result.status, result.payload)
+    }
+    if (action === "delete-asset") {
+      const result = await handleDeleteAsset(service, actorId, body)
       return jsonResponse(cors, result.status, result.payload)
     }
   } catch {

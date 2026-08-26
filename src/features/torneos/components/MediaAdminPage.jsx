@@ -4,6 +4,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { createPortal } from 'react-dom';
 import {
   AlertTriangle,
   Archive,
@@ -13,6 +14,7 @@ import {
   Check,
   CheckCircle2,
   Eye,
+  EyeOff,
   FileImage,
   Filter,
   ImagePlus,
@@ -36,16 +38,19 @@ import {
   localDisplayName,
   resolveUploadCapability,
 } from '../domain/mediaPipeline';
+import {
+  MEDIA_GALLERY_STATE_LABELS,
+  MEDIA_REPORT_REASON_LABELS,
+  hasMediaAssetActions,
+  resolveMediaAssetActions,
+  resolveMediaGalleryActions,
+} from '../domain/mediaGalleryActions';
 import { createPreviewUrl, validateSelection } from '../domain/mediaImageClient';
 import MediaUploadQueue from './MediaUploadQueue';
 import styles from './MediaAdminPage.module.css';
 
 const STATUS_LABELS = {
-  draft: 'Borrador',
-  under_review: 'En revisión',
-  published: 'Publicada',
-  archived: 'Archivada',
-  revoked: 'Revocada',
+  ...MEDIA_GALLERY_STATE_LABELS,
   ...MEDIA_ASSET_STATE_LABELS,
   pending_review: 'Pendiente',
 };
@@ -89,11 +94,83 @@ function MediaState({
   );
 }
 
-function AssetPreview({ asset, cover, canManage, onAction, onMove, thumbnailUrl }) {
-  const actionable = ['pending_review', 'approved', 'published', 'hidden'].includes(asset.status);
+function DeletePhotoDialog({ busy, onCancel, onConfirm }) {
+  const dialogRef = useRef(null);
+  const cancelRef = useRef(null);
+
+  useEffect(() => {
+    cancelRef.current?.focus();
+  }, []);
+
+  const handleKeyDown = (event) => {
+    if (event.key === 'Escape' && !busy) onCancel();
+    if (event.key !== 'Tab' || !dialogRef.current) return;
+
+    const focusable = Array.from(dialogRef.current.querySelectorAll(
+      'button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
+    ));
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
+
+  return createPortal(
+    <div
+      className={styles.dialogOverlay}
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget && !busy) onCancel();
+      }}
+    >
+      <section
+        ref={dialogRef}
+        className={styles.confirmDialog}
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="delete-photo-title"
+        aria-describedby="delete-photo-description"
+        onKeyDown={handleKeyDown}
+      >
+        <span className={styles.confirmDialogIcon} aria-hidden="true">
+          <Trash2 size={21} />
+        </span>
+        <h2 id="delete-photo-title">¿Eliminar foto?</h2>
+        <p id="delete-photo-description">Esta acción no se puede deshacer.</p>
+        <footer className={styles.confirmDialogActions}>
+          <button ref={cancelRef} type="button" disabled={busy} onClick={onCancel}>
+            Cancelar
+          </button>
+          <button
+            type="button"
+            className={styles.confirmDangerAction}
+            disabled={busy}
+            onClick={onConfirm}
+          >
+            <Trash2 size={17} aria-hidden="true" /> Sí, eliminar
+          </button>
+        </footer>
+      </section>
+    </div>,
+    document.body,
+  );
+}
+
+function AssetPreview({
+  asset, cover, gallery, capabilities, onAction, onMove, thumbnailUrl, lastOrder,
+}) {
   // Four ready variants is the same gate the database enforces on approval, so
   // the card can say "procesando" without guessing.
   const processing = !assetDisplayReady(asset);
+  const actions = resolveMediaAssetActions(asset, gallery, capabilities, { isCover: cover });
+  const curation = actions.cover || actions.reorder;
+  const moderation = actions.approve || actions.reject || actions.hide || actions.restore;
   return (
     <article className={styles.assetCard} data-status={asset.status}>
       <div className={styles.assetVisual} aria-label={`Vista protegida de ${asset.safeName}`}>
@@ -108,48 +185,92 @@ function AssetPreview({ asset, cover, canManage, onAction, onMove, thumbnailUrl 
         <span><strong>{asset.safeName}</strong><small>{formatMediaBytes(asset.byteSize)}</small></span>
         <em data-status={asset.status}>{STATUS_LABELS[asset.status] || asset.status}</em>
       </div>
-      {canManage && actionable && !processing && (
+      {!processing && hasMediaAssetActions(actions) && (
         <div className={styles.assetActions}>
-          {asset.status === 'pending_review' && (
-            <>
-              <button type="button" onClick={() => onAction(asset, 'approve')}>
-                <Check size={15} /> Aprobar
+          {(curation || moderation) && (
+            <div className={styles.assetActionRow}>
+              {actions.approve && (
+                <button
+                  type="button"
+                  className={styles.assetPrimaryAction}
+                  onClick={() => onAction(asset, 'approve')}
+                >
+                  <Check size={15} aria-hidden="true" /> Aprobar
+                </button>
+              )}
+              {actions.reject && (
+                <button
+                  type="button"
+                  className={styles.assetGhostAction}
+                  onClick={() => onAction(asset, 'reject')}
+                >
+                  <X size={15} aria-hidden="true" /> Rechazar
+                </button>
+              )}
+              {actions.cover && (
+                <button
+                  type="button"
+                  className={styles.assetGhostAction}
+                  onClick={() => onAction(asset, 'cover')}
+                >
+                  <Star size={15} aria-hidden="true" /> Portada
+                </button>
+              )}
+              {actions.hide && (
+                <button
+                  type="button"
+                  className={styles.assetGhostAction}
+                  onClick={() => onAction(asset, 'hide')}
+                >
+                  <EyeOff size={15} aria-hidden="true" /> Ocultar
+                </button>
+              )}
+              {actions.restore && (
+                <button
+                  type="button"
+                  className={styles.assetGhostAction}
+                  onClick={() => onAction(asset, 'restore')}
+                >
+                  <RefreshCw size={15} aria-hidden="true" /> Restaurar
+                </button>
+              )}
+              {actions.reorder && (
+                <span className={styles.assetReorder}>
+                  <button
+                    type="button"
+                    className={styles.assetIconAction}
+                    aria-label={`Mover ${asset.safeName} hacia arriba`}
+                    title="Mover hacia arriba"
+                    disabled={asset.sortOrder <= 0}
+                    onClick={() => onMove(asset, Math.max(0, asset.sortOrder - 1))}
+                  >
+                    <ArrowUp size={15} aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.assetIconAction}
+                    aria-label={`Mover ${asset.safeName} hacia abajo`}
+                    title="Mover hacia abajo"
+                    disabled={asset.sortOrder >= lastOrder}
+                    onClick={() => onMove(asset, asset.sortOrder + 1)}
+                  >
+                    <ArrowDown size={15} aria-hidden="true" />
+                  </button>
+                </span>
+              )}
+            </div>
+          )}
+          {actions.remove && (
+            <div className={styles.assetDangerRow}>
+              <button
+                type="button"
+                className={styles.assetDangerAction}
+                onClick={() => onAction(asset, 'delete')}
+              >
+                <Trash2 size={15} aria-hidden="true" /> Eliminar
               </button>
-              <button type="button" onClick={() => onAction(asset, 'reject')}>
-                <X size={15} /> Rechazar
-              </button>
-            </>
+            </div>
           )}
-          {['approved', 'published'].includes(asset.status) && !cover && (
-            <button type="button" onClick={() => onAction(asset, 'cover')}>
-              <Star size={15} /> Portada
-            </button>
-          )}
-          {['approved', 'published'].includes(asset.status) && (
-            <button type="button" onClick={() => onAction(asset, 'hide')}>
-              <Eye size={15} /> Ocultar
-            </button>
-          )}
-          {asset.status === 'hidden' && (
-            <button type="button" onClick={() => onAction(asset, 'restore')}>
-              <RefreshCw size={15} /> Restaurar
-            </button>
-          )}
-          <button
-            type="button"
-            aria-label={`Mover ${asset.safeName} hacia arriba`}
-            disabled={asset.sortOrder === 0}
-            onClick={() => onMove(asset, Math.max(0, asset.sortOrder - 1))}
-          >
-            <ArrowUp size={15} />
-          </button>
-          <button
-            type="button"
-            aria-label={`Mover ${asset.safeName} hacia abajo`}
-            onClick={() => onMove(asset, asset.sortOrder + 1)}
-          >
-            <ArrowDown size={15} />
-          </button>
         </div>
       )}
     </article>
@@ -176,6 +297,7 @@ export default function MediaAdminPage() {
   const [notice, setNotice] = useState('');
   const [dragging, setDragging] = useState(false);
   const [thumbnails, setThumbnails] = useState({});
+  const [pendingDelete, setPendingDelete] = useState(null);
   queueRef.current = queue;
 
   const patchQueueItem = (id, patch) => setQueue((current) => current.map(
@@ -238,19 +360,20 @@ export default function MediaAdminPage() {
   }, []);
 
   const capabilities = state.data?.capabilities || [];
-  const canCreate = capabilities.includes('media.create_gallery');
-  const canUpload = capabilities.includes('media.upload');
-  const canReview = capabilities.includes('media.review');
-  const canPublish = capabilities.includes('media.publish');
-  const canHandleReports = capabilities.includes('media.handle_reports');
+  const selectedGallery = state.data?.galleries?.find(
+    (gallery) => gallery.id === activeGalleryId,
+  ) || null;
+  // One place decides what this lifecycle state plus this member's capabilities
+  // allow. Every control below reads from it instead of re-deriving its own.
+  const gate = resolveMediaGalleryActions(selectedGallery, capabilities);
+  const canCreate = gate.canCreateGallery;
+  const canUpload = gate.canUpload;
+  const canHandleReports = gate.canHandleReports;
   const capability = resolveUploadCapability(state.data?.storage, { canUpload });
   const uploadReady = capability.canOfferUpload;
   const selectedTournament = useMemo(() => (
     state.data?.tournaments?.find((item) => item.id === form.tournamentId) || null
   ), [form.tournamentId, state.data]);
-  const selectedGallery = state.data?.galleries?.find(
-    (gallery) => gallery.id === activeGalleryId,
-  ) || null;
 
   const updateForm = (key, value) => {
     setForm((current) => ({
@@ -425,7 +548,10 @@ export default function MediaAdminPage() {
     if (busy) return;
     setBusy(`${action}:${asset.id}`);
     try {
-      if (action === 'cover') {
+      if (action === 'delete') {
+        await service.deleteMediaAsset(asset.id);
+        setNotice('La foto y su archivo privado se eliminaron correctamente.');
+      } else if (action === 'cover') {
         await service.setMediaCover({ galleryId: selectedGallery.id, assetId: asset.id });
       } else {
         const reasons = {
@@ -447,6 +573,22 @@ export default function MediaAdminPage() {
     }
   };
 
+  const requestAssetAction = (asset, action) => {
+    if (busy) return;
+    if (action === 'delete') {
+      setPendingDelete(asset);
+      return;
+    }
+    actOnAsset(asset, action);
+  };
+
+  const confirmDelete = () => {
+    if (!pendingDelete || busy) return;
+    const asset = pendingDelete;
+    setPendingDelete(null);
+    actOnAsset(asset, 'delete');
+  };
+
   const moveAsset = async (asset, targetOrder) => {
     if (busy || targetOrder < 0 || targetOrder >= selectedGallery.assets.length) return;
     setBusy(`move:${asset.id}`);
@@ -463,7 +605,7 @@ export default function MediaAdminPage() {
   };
 
   const publish = async () => {
-    if (busy || publishLockRef.current || !canPublish || !selectedGallery) return;
+    if (busy || publishLockRef.current || !gate.showPublish || !selectedGallery) return;
     publishLockRef.current = true;
     setBusy('publish');
     try {
@@ -480,6 +622,12 @@ export default function MediaAdminPage() {
 
   const archive = async () => {
     if (busy || !selectedGallery) return;
+    // Archiving hides every photo and there is no un-archive RPC: the gallery
+    // does not come back. That deserves the same confirmation as a deletion.
+    if (!window.confirm(
+      '¿Archivar esta galería? Sus fotos dejarán de verse para los participantes '
+      + 'y la galería no se puede volver a publicar.',
+    )) return;
     setBusy('archive');
     try {
       await service.changeMediaGalleryState({
@@ -487,7 +635,12 @@ export default function MediaAdminPage() {
         action: 'archive',
         reason: 'Galería archivada desde el Centro Multimedia.',
       });
+      setNotice('La galería quedó archivada como registro histórico.');
       await load();
+    } catch (error) {
+      setState((current) => ({
+        ...current, error: error?.message || 'No pudimos archivar la galería.',
+      }));
     } finally {
       setBusy('');
     }
@@ -568,17 +721,21 @@ export default function MediaAdminPage() {
         </div>
       </header>
 
-      <div className={styles.storageGate} data-ready={capability.uploadReady}>
+      <div
+        className={styles.storageGate}
+        data-ready={capability.uploadReady}
+        data-state={capability.readinessState}
+      >
         <ShieldCheck size={20} aria-hidden="true" />
         <span>
           <strong>Carga protegida</strong>
           <small>
             {capability.uploadReady
-              ? 'Cada foto se verifica y se limpia antes de quedar pendiente de aprobación.'
-              : 'La carga de fotos todavía no está habilitada en este entorno.'}
+              ? capability.readyCopy
+              : capability.unavailableCopy}
           </small>
         </span>
-        <em>{capability.uploadReady ? 'Activa' : 'Próximamente'}</em>
+        <em>{capability.readinessLabel}</em>
       </div>
 
       {(state.error || notice) && (
@@ -614,7 +771,7 @@ export default function MediaAdminPage() {
               }))}
             >
               <option value="">Todos</option>
-              {Object.entries(STATUS_LABELS).slice(0, 5).map(([value, label]) => (
+              {Object.entries(MEDIA_GALLERY_STATE_LABELS).map(([value, label]) => (
                 <option key={value} value={value}>{label}</option>
               ))}
             </select>
@@ -722,7 +879,23 @@ export default function MediaAdminPage() {
                 <em data-status={selectedGallery.status}>{STATUS_LABELS[selectedGallery.status]}</em>
               </header>
 
-              {canUpload && ['draft', 'under_review'].includes(selectedGallery.status) && (
+              {gate.lifecycle && (
+                <p
+                  className={styles.lifecycleNotice}
+                  data-status={selectedGallery.status}
+                  role="note"
+                >
+                  {gate.editable
+                    ? <ImagePlus size={17} aria-hidden="true" />
+                    : <LockKeyhole size={17} aria-hidden="true" />}
+                  <span>
+                    <strong>{gate.lifecycle.title}</strong>
+                    <small>{gate.lifecycle.copy}</small>
+                  </span>
+                </p>
+              )}
+
+              {gate.showUpload && (
                 <section
                   className={styles.uploadPanel}
                   data-dragging={dragging}
@@ -801,9 +974,11 @@ export default function MediaAdminPage() {
                       key={asset.id}
                       asset={asset}
                       cover={selectedGallery.coverAssetId === asset.id}
-                      canManage={canReview}
-                      onAction={actOnAsset}
+                      gallery={selectedGallery}
+                      capabilities={capabilities}
+                      onAction={requestAssetAction}
                       onMove={moveAsset}
+                      lastOrder={selectedGallery.assets.length - 1}
                       thumbnailUrl={thumbnails[`${asset.id}:thumbnail`] || ''}
                     />
                   ))}
@@ -812,16 +987,35 @@ export default function MediaAdminPage() {
                 <MediaState title="Todavía no hay fotos" copy="Elegí archivos para validar la tanda. Ningún archivo inválido cancela los demás." />
               )}
 
-              <footer className={styles.galleryActions}>
-                {canPublish && ['draft', 'under_review'].includes(selectedGallery.status) && (
-                  <button type="button" disabled={busy === 'publish'} onClick={publish}>
-                    <Send size={17} /> Publicar galería
-                  </button>
-                )}
-                {capabilities.includes('media.archive') && selectedGallery.status === 'published' && (
-                  <button type="button" onClick={archive}><Archive size={17} /> Archivar</button>
-                )}
-              </footer>
+              {(gate.showPublish || gate.showArchive) && (
+                <footer className={styles.galleryActions}>
+                  <p>
+                    {gate.showPublish
+                      ? 'Publicar abre la galería a la audiencia autorizada y fija la selección.'
+                      : 'Archivar cierra el ciclo de vida de la galería. No afecta a cada foto por separado.'}
+                  </p>
+                  {gate.showPublish && (
+                    <button
+                      type="button"
+                      className={styles.publishAction}
+                      disabled={busy === 'publish'}
+                      onClick={publish}
+                    >
+                      <Send size={17} aria-hidden="true" /> Publicar galería
+                    </button>
+                  )}
+                  {gate.showArchive && (
+                    <button
+                      type="button"
+                      className={styles.archiveAction}
+                      disabled={busy === 'archive'}
+                      onClick={archive}
+                    >
+                      <Archive size={17} aria-hidden="true" /> Archivar galería
+                    </button>
+                  )}
+                </footer>
+              )}
             </section>
           )}
         </div>
@@ -841,7 +1035,12 @@ export default function MediaAdminPage() {
           <div>
             {reports.map((report) => (
               <article key={report.id}>
-                <span><strong>{report.reason.replaceAll('_', ' ')}</strong><small>{report.detail || 'Sin detalle adicional'}</small></span>
+                <span>
+                  <strong>
+                    {MEDIA_REPORT_REASON_LABELS[report.reason] || 'Otro motivo'}
+                  </strong>
+                  <small>{report.detail || 'Sin detalle adicional'}</small>
+                </span>
                 {report.requestHide && <em>Solicita ocultamiento</em>}
                 {canHandleReports && (
                   <div>
@@ -853,6 +1052,14 @@ export default function MediaAdminPage() {
             ))}
           </div>
         </section>
+      )}
+
+      {pendingDelete && (
+        <DeletePhotoDialog
+          busy={busy === `delete:${pendingDelete.id}`}
+          onCancel={() => setPendingDelete(null)}
+          onConfirm={confirmDelete}
+        />
       )}
     </div>
   );

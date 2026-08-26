@@ -1,4 +1,5 @@
 import React from 'react';
+import { MemoryRouter } from 'react-router-dom';
 import {
   act,
   fireEvent,
@@ -55,9 +56,11 @@ describe('TorneosFixtureContext scope isolation', () => {
       loadScheduleContext: jest.fn().mockResolvedValue({}),
     };
     const view = render(
-      <TorneosFixtureProvider organizationId="org-a" service={service}>
-        <Harness />
-      </TorneosFixtureProvider>,
+      <MemoryRouter>
+        <TorneosFixtureProvider organizationId="org-a" service={service}>
+          <Harness />
+        </TorneosFixtureProvider>
+      </MemoryRouter>,
     );
     await waitFor(() => expect(service.loadFixtureContext).toHaveBeenCalledWith(
       'org-a',
@@ -70,9 +73,11 @@ describe('TorneosFixtureContext scope isolation', () => {
       categories: [{ id: 'category-b', name: 'Segunda', status: 'active' }],
     };
     view.rerender(
-      <TorneosFixtureProvider organizationId="org-a" service={service}>
-        <Harness />
-      </TorneosFixtureProvider>,
+      <MemoryRouter>
+        <TorneosFixtureProvider organizationId="org-a" service={service}>
+          <Harness />
+        </TorneosFixtureProvider>
+      </MemoryRouter>,
     );
 
     await waitFor(() => expect(service.loadFixtureContext).toHaveBeenCalledWith(
@@ -96,9 +101,11 @@ describe('TorneosFixtureContext scope isolation', () => {
       categories: [{ id: 'category-a', name: 'Primera', status: 'active' }],
     };
     view.rerender(
-      <TorneosFixtureProvider organizationId="org-a" service={service}>
-        <Harness />
-      </TorneosFixtureProvider>,
+      <MemoryRouter>
+        <TorneosFixtureProvider organizationId="org-a" service={service}>
+          <Harness />
+        </TorneosFixtureProvider>
+      </MemoryRouter>,
     );
     await waitFor(() => expect(service.loadScheduleContext).toHaveBeenLastCalledWith(
       'org-a',
@@ -127,15 +134,19 @@ describe('TorneosFixtureContext scope isolation', () => {
       }),
     };
     const view = render(
-      <TorneosFixtureProvider organizationId="org-a" service={service}>
-        <Harness />
-      </TorneosFixtureProvider>,
+      <MemoryRouter>
+        <TorneosFixtureProvider organizationId="org-a" service={service}>
+          <Harness />
+        </TorneosFixtureProvider>
+      </MemoryRouter>,
     );
     await waitFor(() => expect(requests.has('org-a:fixture')).toBe(true));
     view.rerender(
-      <TorneosFixtureProvider organizationId="org-b" service={service}>
-        <Harness />
-      </TorneosFixtureProvider>,
+      <MemoryRouter>
+        <TorneosFixtureProvider organizationId="org-b" service={service}>
+          <Harness />
+        </TorneosFixtureProvider>
+      </MemoryRouter>,
     );
     await waitFor(() => expect(requests.has('org-b:fixture')).toBe(true));
     await act(async () => {
@@ -161,9 +172,11 @@ describe('TorneosFixtureContext scope isolation', () => {
       freezeParticipants: jest.fn().mockRejectedValue(new Error('freeze failed')),
     };
     render(
-      <TorneosFixtureProvider organizationId="org-a" service={service}>
-        <Harness />
-      </TorneosFixtureProvider>,
+      <MemoryRouter>
+        <TorneosFixtureProvider organizationId="org-a" service={service}>
+          <Harness />
+        </TorneosFixtureProvider>
+      </MemoryRouter>,
     );
     expect(await screen.findByText('persisted-match')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Congelar' }));

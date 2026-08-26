@@ -40,6 +40,18 @@ function functionsBaseUrl() {
   return url ? `${url}/functions/v1` : '';
 }
 
+function resolveTransferUrl(rawUrl) {
+  const value = String(rawUrl || '');
+  if (/^https?:\/\//i.test(value)) return value;
+  const base = functionsBaseUrl();
+  if (!base || !value.startsWith('/')) {
+    throw new MediaUploadError('El servicio de fotos no está configurado en este entorno.', {
+      code: 'storage_unavailable', retryable: false,
+    });
+  }
+  return new URL(value, base).toString();
+}
+
 async function authHeaders() {
   const { data } = await supabase.auth.getSession();
   const accessToken = data?.session?.access_token;
@@ -199,7 +211,7 @@ export async function uploadTournamentMediaPhoto({
     });
 
     onStage('uploading');
-    await putWithProgress(intent.uploadUrl, payload.source, payload.mime, {
+    await putWithProgress(resolveTransferUrl(intent.uploadUrl), payload.source, payload.mime, {
       onProgress,
       signal,
       headers: intent.requiresAuth ? await authHeaders() : {},
@@ -269,7 +281,23 @@ export async function signTournamentMediaReadUrls(assets, { signal } = {}) {
   });
   const urls = {};
   for (const item of payload?.items || []) {
-    if (item?.url) urls[`${item.assetId}:${item.kind}`] = item.url;
+    if (item?.url) urls[`${item.assetId}:${item.kind}`] = resolveTransferUrl(item.url);
   }
   return urls;
+}
+
+/**
+ * Requests the trusted two-phase delete. The browser supplies only the durable
+ * asset id; bucket and object names remain server-derived and undisclosed.
+ */
+export async function deleteTournamentMediaAsset(assetId, { signal } = {}) {
+  const payload = await callFunction(SIGNER_FUNCTION, {
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'delete-asset', assetId }),
+    signal,
+  });
+  return {
+    assetId: payload?.assetId || assetId,
+    deleted: payload?.deleted === true,
+  };
 }

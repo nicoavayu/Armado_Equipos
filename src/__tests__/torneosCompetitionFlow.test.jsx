@@ -6,6 +6,7 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import TorneosFeatureGate from '../features/torneos/TorneosFeatureGate';
 import { getCapabilitiesForRole } from '../features/torneos/domain/capabilities';
@@ -227,8 +228,12 @@ describe('Arma2 Torneos competition flow', () => {
         }],
       }),
     });
+    // Dirección canónica a propósito: este caso mide el borrador del asistente
+    // a lo largo de varios pasos, y entrar por la dirección vieja agregaría un
+    // redirect en el medio que no es lo que se está probando. Que la vieja
+    // resuelva a ésta lo cubre `torneosCanonicalAdoption`.
     renderPath(
-      `/torneos/organizacion/${ORGANIZATION_ID}/torneos/${TOURNAMENT_ID}/configuracion?step=3`,
+      `/torneos/organizacion/${ORGANIZATION_ID}/torneo/${TOURNAMENT_ID}/configuracion?step=3`,
       api,
     );
     await screen.findByRole(
@@ -241,8 +246,9 @@ describe('Arma2 Torneos competition flow', () => {
         .toBeDisabled();
     });
     const moveUp = screen.getByRole('button', { name: 'Subir Diferencia de gol' });
-    fireEvent.click(moveUp);
-    fireEvent.click(screen.getByRole('button', { name: /guardar borrador/i }));
+    await userEvent.click(moveUp);
+    await waitFor(() => expect(moveUp).toBeDisabled());
+    await userEvent.click(screen.getByRole('button', { name: /guardar borrador/i }));
     await waitFor(() => {
       expect(api.updateTournament).toHaveBeenCalledWith({
         organizationId: ORGANIZATION_ID,

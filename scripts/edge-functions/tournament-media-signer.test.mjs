@@ -121,7 +121,66 @@ function uploadIntentRequest() {
   });
 }
 
-test('MVP_SIMPLE upload intent uses the canonical public Function URL', async (context) => {
+const DELETE_ASSET_ID = '44444444-4444-4444-8444-444444444444';
+const DELETE_OBJECT = [
+  '11111111-1111-4111-8111-111111111111',
+  '22222222-2222-4222-8222-222222222222',
+  '33333333-3333-4333-8333-333333333333',
+  `${DELETE_ASSET_ID}.jpg`,
+].join('/');
+
+function deleteRequest() {
+  return new Request('http://internal-host/tournament-media-signer', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ action: 'delete-asset', assetId: DELETE_ASSET_ID }),
+  });
+}
+
+function deleteService({ storageError = false, finalizeFailures = 0 } = {}) {
+  const calls = [];
+  let remainingFinalizeFailures = finalizeFailures;
+  return {
+    calls,
+    service: {
+      rpc: async (name, args) => {
+        calls.push({ type: 'rpc', name, args });
+        if (name === 'begin_tournament_media_asset_delete') {
+          return {
+            data: {
+              assetId: DELETE_ASSET_ID,
+              bucket: 'tournament-media',
+              objectNames: [DELETE_OBJECT],
+              deletePending: true,
+            },
+            error: null,
+          };
+        }
+        assert.equal(name, 'complete_tournament_media_asset_delete');
+        if (remainingFinalizeFailures > 0) {
+          remainingFinalizeFailures -= 1;
+          return { data: null, error: { message: 'finalize failed' } };
+        }
+        return { data: { assetId: DELETE_ASSET_ID, deleted: true }, error: null };
+      },
+      storage: {
+        from: (bucket) => {
+          assert.equal(bucket, 'tournament-media');
+          return {
+            remove: async (names) => {
+              calls.push({ type: 'remove', names });
+              return storageError
+                ? { data: null, error: { message: 'storage unavailable' } }
+                : { data: names.map((name) => ({ name })), error: null };
+            },
+          };
+        },
+      },
+    },
+  };
+}
+
+test('MVP_SIMPLE upload intent uses a public-origin-relative Function URL', async (context) => {
   const objectName = 'org/tournament/gallery/asset.jpg';
   const signedUpload = { calls: [], data: null };
   const loaded = await loadSigner(serviceFor({
@@ -139,10 +198,10 @@ test('MVP_SIMPLE upload intent uses the canonical public Function URL', async (c
   const response = await loaded.handler(uploadIntentRequest());
   assert.equal(response.status, 200);
   const intent = await response.json();
-  const uploadUrl = new URL(intent.uploadUrl);
+  const uploadUrl = new URL(intent.uploadUrl, 'https://browser-configured.example');
 
-  assert.equal(uploadUrl.protocol, 'https:');
-  assert.equal(uploadUrl.hostname, 'example-project.supabase.co');
+  assert.equal(intent.uploadUrl.startsWith('/functions/v1/'), true);
+  assert.equal(uploadUrl.hostname, 'browser-configured.example');
   assert.equal(uploadUrl.pathname, '/functions/v1/tournament-media-signer');
   assert.deepEqual(Object.fromEntries(uploadUrl.searchParams), {
     action: 'mvp-simple-upload',
@@ -160,7 +219,10 @@ test('PROCESSOR_EXTERNAL keeps the existing signed Storage upload flow', async (
   const objectName = 'org/tournament/gallery/asset.jpg';
   const signedUpload = {
     calls: [],
-    data: { signedUrl: 'https://storage.local/signed', token: 'storage-token' },
+    data: {
+      signedUrl: 'https://example-project.supabase.co/storage/v1/object/upload/sign/capability',
+      token: 'storage-token',
+    },
   };
   const loaded = await loadSigner(serviceFor({
     processingTier: 'processor_external',
@@ -177,7 +239,64 @@ test('PROCESSOR_EXTERNAL keeps the existing signed Storage upload flow', async (
   const response = await loaded.handler(uploadIntentRequest());
   assert.equal(response.status, 200);
   const intent = await response.json();
-  assert.equal(intent.uploadUrl, 'https://storage.local/signed');
+  assert.equal(intent.uploadUrl, '/storage/v1/object/upload/sign/capability');
   assert.equal(intent.uploadToken, 'storage-token');
   assert.deepEqual(signedUpload.calls, [{ objectName, options: { upsert: false } }]);
+});
+
+test('delete uses only DB-derived object names and finalizes after Storage', async (context) => {
+  const stub = deleteService();
+  const loaded = await loadSigner(stub.service, {
+    SUPABASE_URL: 'http://127.0.0.1:57321',
+  });
+  context.after(loaded.cleanup);
+
+  const response = await loaded.handler(deleteRequest());
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.deepEqual(body, { assetId: DELETE_ASSET_ID, deleted: true });
+  assert.deepEqual(stub.calls.map(({ type, name }) => name || type), [
+    'begin_tournament_media_asset_delete',
+    'remove',
+    'complete_tournament_media_asset_delete',
+  ]);
+  assert.deepEqual(stub.calls[1].names, [DELETE_OBJECT]);
+  assert.equal(JSON.stringify(body).includes(DELETE_OBJECT), false);
+});
+
+test('a Storage delete failure leaves metadata pending and never finalizes', async (context) => {
+  const stub = deleteService({ storageError: true });
+  const loaded = await loadSigner(stub.service, {
+    SUPABASE_URL: 'http://127.0.0.1:57321',
+  });
+  context.after(loaded.cleanup);
+
+  const response = await loaded.handler(deleteRequest());
+  assert.equal(response.status, 502);
+  assert.deepEqual(await response.json(), {
+    error: 'delete_storage_failed', deletePending: true,
+  });
+  assert.equal(stub.calls.some(({ name }) => (
+    name === 'complete_tournament_media_asset_delete'
+  )), false);
+});
+
+test('finalize failure remains retryable after Storage was removed', async (context) => {
+  const stub = deleteService({ finalizeFailures: 1 });
+  const loaded = await loadSigner(stub.service, {
+    SUPABASE_URL: 'http://127.0.0.1:57321',
+  });
+  context.after(loaded.cleanup);
+
+  const first = await loaded.handler(deleteRequest());
+  assert.equal(first.status, 500);
+  assert.deepEqual(await first.json(), {
+    error: 'delete_finalize_failed', deletePending: true,
+  });
+  const retry = await loaded.handler(deleteRequest());
+  assert.equal(retry.status, 200);
+  assert.equal(stub.calls.filter(({ type }) => type === 'remove').length, 2);
+  assert.equal(stub.calls.filter(({ name }) => (
+    name === 'complete_tournament_media_asset_delete'
+  )).length, 2);
 });

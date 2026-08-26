@@ -32,6 +32,10 @@ const PIPELINE_MIGRATIONS = [
   '20260802090000_tournament_media_upload_pipeline.sql',
   '20260802120000_tournament_media_trusted_processing.sql',
   '20260809232508_tournament_media_free_mvp.sql',
+  '20260810160355_tournament_entitlements_foundation.sql',
+  '20260815234340_tournament_media_storage_readiness_and_delete.sql',
+  '20260820120000_tournament_media_publication_is_processing_aware.sql',
+  '20260821120000_media_restore_respects_closed_galleries.sql',
 ];
 const SESSION_PATH_RE =
   /^[0-9a-f-]{36}\/[0-9a-f-]{36}\/[0-9a-f-]{36}\/[0-9a-f-]{36}\.(jpg|png|webp)$/;
@@ -231,7 +235,7 @@ async function completeSimple(client, session, actorId, overrides = {}) {
   return value(
     client,
     `select public.complete_tournament_media_simple_upload(
-      $1,$2,$3,$4,$5,$6,$7,$8
+      $1,$2,$3,$4,$5,$6,$7,$8,$9
     )`,
     [
       actorId,
@@ -242,6 +246,8 @@ async function completeSimple(client, session, actorId, overrides = {}) {
       overrides.width || 1200,
       overrides.height || 800,
       overrides.checksum || 'e'.repeat(64),
+      // El processor atestigua aquí el veredicto de `verifyNormalizedImage`.
+      overrides.metadataStripped === undefined ? true : overrides.metadataStripped,
     ],
   );
 }
@@ -897,6 +903,8 @@ async function run() {
       'tournament_media_require_upload_tier',
       'tournament_media_mvp_user_can_upload',
       'complete_tournament_media_simple_upload',
+      'begin_tournament_media_asset_delete',
+      'complete_tournament_media_asset_delete',
     ];
     eq(
       Number(await value(
@@ -1084,7 +1092,7 @@ async function run() {
 
     await admin.query(
       `alter function public.complete_tournament_media_simple_upload(
-        uuid,uuid,text,text,bigint,integer,integer,text
+        uuid,uuid,text,text,bigint,integer,integer,text,boolean
       ) rename to complete_tournament_media_simple_upload_contract_test_missing`,
     );
     simpleCapability = await value(
@@ -1097,7 +1105,7 @@ async function run() {
       'MVP_SIMPLE reporta el contrato simple ausente');
     await admin.query(
       `alter function public.complete_tournament_media_simple_upload_contract_test_missing(
-        uuid,uuid,text,text,bigint,integer,integer,text
+        uuid,uuid,text,text,bigint,integer,integer,text,boolean
       ) rename to complete_tournament_media_simple_upload`,
     );
 
@@ -1193,6 +1201,643 @@ async function run() {
         [simpleAsset.assetId]),
       'approved',
       'la moderación simple no exige variantes inexistentes',
+    );
+
+    // ---------------------------------------------------------------------
+    console.log('\n· borrado definitivo en dos fases');
+    // ---------------------------------------------------------------------
+    await expectError(
+      () => value(owner, 'select public.begin_tournament_media_asset_delete($1,$2)',
+        [USERS.owner, simpleAsset.assetId]),
+      /permission denied|no existe la función|does not exist/i,
+      'ni siquiera el owner ejecuta la frontera reservada al servicio',
+    );
+    await expectError(
+      () => value(service, 'select public.begin_tournament_media_asset_delete($1,$2)',
+        [USERS.collaborator, simpleAsset.assetId]),
+      /TORNEOS_MEDIA_FORBIDDEN/,
+      'un colaborador sin media.revoke no inicia el borrado',
+    );
+    await expectError(
+      () => value(service, 'select public.begin_tournament_media_asset_delete($1,$2)',
+        [USERS.outsider, simpleAsset.assetId]),
+      /TORNEOS_MEDIA_FORBIDDEN/,
+      'un tenant ajeno no puede usar el gateway como oráculo',
+    );
+
+    const pendingDelete = await value(
+      service,
+      'select public.begin_tournament_media_asset_delete($1,$2)',
+      [USERS.owner, simpleAsset.assetId],
+    );
+    eq(pendingDelete.bucket, 'tournament-media', 'el bucket sale sólo de PostgreSQL');
+    eq(pendingDelete.objectNames.length, 1, 'MVP_SIMPLE purga un único objeto físico');
+    eq(pendingDelete.objectNames[0], simpleTarget.objectName,
+      'la ruta devuelta coincide con la ruta canónica emitida por el backend');
+    ok(
+      pendingDelete.objectNames[0].startsWith(
+        `${scope.organizationId}/${scope.tournamentId}/${simpleGalleryId}/`,
+      ),
+      'la ruta queda acotada al tenant, torneo y galería',
+      pendingDelete.objectNames[0],
+    );
+    eq(
+      await value(admin,
+        'select storage_state from public.tournament_media_assets where id = $1',
+        [simpleAsset.assetId]),
+      'retention_marked',
+      'fase 1 deja metadata explícitamente pendiente de borrado',
+    );
+    await expectError(
+      () => authorizeRead(service, USERS.owner, simpleAsset.assetId, 'grid'),
+      /TORNEOS_MEDIA_FORBIDDEN/,
+      'una fila pendiente no emite nuevas lecturas firmadas',
+    );
+    const retryDelete = await value(
+      service,
+      'select public.begin_tournament_media_asset_delete($1,$2)',
+      [USERS.owner, simpleAsset.assetId],
+    );
+    eq(retryDelete.objectNames[0], pendingDelete.objectNames[0],
+      'reintentar fase 1 es idempotente y conserva el destino');
+
+    await service.query('begin');
+    const rolledBackDelete = await value(
+      service,
+      'select public.complete_tournament_media_asset_delete($1,$2)',
+      [USERS.owner, simpleAsset.assetId],
+    );
+    eq(rolledBackDelete.deleted, true, 'la fase final se ejecuta dentro de la transacción');
+    await service.query('rollback');
+    eq(
+      Number(await value(admin,
+        'select count(*) from public.tournament_media_assets where id = $1',
+        [simpleAsset.assetId])),
+      1,
+      'un fallo transaccional conserva la fila pendiente para reintento',
+    );
+
+    const deleted = await value(
+      service,
+      'select public.complete_tournament_media_asset_delete($1,$2)',
+      [USERS.owner, simpleAsset.assetId],
+    );
+    eq(deleted.deleted, true, 'el reintento completa el borrado de metadata');
+    eq(
+      Number(await value(admin,
+        'select count(*) from public.tournament_media_assets where id = $1',
+        [simpleAsset.assetId])),
+      0,
+      'el asset deja de existir',
+    );
+    eq(
+      Number(await value(admin,
+        'select count(*) from public.tournament_media_gallery_items where asset_id = $1',
+        [simpleAsset.assetId])),
+      0,
+      'la relación de galería también se elimina',
+    );
+    eq(
+      Number(await value(admin,
+        `select count(*) from public.tournament_audit_log
+         where action = 'media.asset.deleted' and resource_id = $1`,
+        [simpleAsset.assetId])),
+      1,
+      'queda una auditoría general sin conservar metadata del asset',
+    );
+
+    // ---------------------------------------------------------------------
+    console.log('\n· FPR-001 · la publicación conoce el pipeline de cada foto');
+    // ---------------------------------------------------------------------
+    // Los techos de emisión son por actor y ventana; esta sección abre varias
+    // sesiones más, así que envejece las que el owner ya gastó arriba.
+    await admin.query(
+      `update public.tournament_media_upload_sessions
+       set created_at = now() - interval '16 minutes',
+           expires_at = now() - interval '11 minutes'
+       where requested_by = $1`,
+      [USERS.owner],
+    );
+
+    // El veredicto del verificador estructural es un parámetro, no una
+    // constante: sin él afirmativo el asset simple no llega a nacer.
+    const strippedSession = await requestUpload(owner, simpleGalleryId, '300');
+    await expectError(
+      () => completeSimple(service, strippedSession, USERS.owner, {
+        checksum: '1a'.repeat(32), metadataStripped: false,
+      }),
+      /TORNEOS_MEDIA_METADATA_NOT_STRIPPED/,
+      'un veredicto negativo de sanitización no crea asset simple',
+    );
+    const nullVerdictSession = await requestUpload(owner, simpleGalleryId, '301');
+    await expectError(
+      () => completeSimple(service, nullVerdictSession, USERS.owner, {
+        checksum: '1b'.repeat(32), metadataStripped: null,
+      }),
+      /TORNEOS_MEDIA_METADATA_NOT_STRIPPED/,
+      'un veredicto ausente tampoco: fail-closed, no se asume',
+    );
+    // El RAISE aborta la sentencia entera, así que el `failed` que la propia
+    // función escribe se deshace con ella: las sesiones siguen abiertas y hay
+    // que cerrarlas para no gastar el techo de sesiones simultáneas.
+    for (const rejected of [strippedSession, nullVerdictSession]) {
+      // eslint-disable-next-line no-await-in-loop
+      await value(owner, 'select public.cancel_tournament_media_upload_session($1)',
+        [rejected.sessionId]);
+    }
+
+    const simplePublish = await createGallery(owner, scope, '300', { matchId: null });
+    const simpleFirst = await completeSimple(
+      service, await requestUpload(owner, simplePublish, '302'), USERS.owner,
+      { checksum: '2a'.repeat(32) },
+    );
+    eq(
+      await value(admin,
+        'select metadata_stripped from public.tournament_media_assets where id = $1',
+        [simpleFirst.assetId]),
+      true,
+      'el asset simple persiste el veredicto de sanitización',
+    );
+    ok(
+      await value(admin,
+        `select normalization_verified_at is not null
+         from public.tournament_media_assets where id = $1`,
+        [simpleFirst.assetId]),
+      'y también cuándo se atestiguó',
+    );
+    eq(
+      Number(await value(admin,
+        'select count(*) from public.tournament_media_variants where asset_id = $1',
+        [simpleFirst.assetId])),
+      0,
+      'sin fabricar ninguna variante para satisfacer el contrato viejo',
+    );
+    ok(
+      await value(admin,
+        'select public.tournament_media_asset_publication_ready($1)',
+        [simpleFirst.assetId]),
+      'MVP_SIMPLE queda listo para publicar con su propio contrato',
+    );
+
+    await value(owner, 'select public.transition_tournament_media_asset($1,$2,$3)',
+      [simpleFirst.assetId, 'approve', null]);
+    await value(owner, 'select public.set_tournament_media_cover($1,$2)',
+      [simplePublish, simpleFirst.assetId]);
+
+    // Una segunda foto todavía en moderación: FPR-001 no toca esa compuerta.
+    const simplePending = await completeSimple(
+      service, await requestUpload(owner, simplePublish, '303'), USERS.owner,
+      { checksum: '2b'.repeat(32) },
+    );
+    await expectError(
+      () => value(owner, 'select public.publish_tournament_media_gallery($1)',
+        [simplePublish]),
+      /TORNEOS_MEDIA_GALLERY_NOT_PUBLISHABLE/,
+      'una foto simple pendiente sigue impidiendo publicar',
+    );
+    eq(
+      await value(admin,
+        'select status from public.tournament_media_galleries where id = $1',
+        [simplePublish]),
+      'draft',
+      'y el rechazo no dejó la galería a medio publicar',
+    );
+
+    await value(owner, 'select public.transition_tournament_media_asset($1,$2,$3)',
+      [simplePending.assetId, 'approve', null]);
+    eq(
+      (await value(owner, 'select public.publish_tournament_media_gallery($1)',
+        [simplePublish])).status,
+      'published',
+      'una galería MVP_SIMPLE aprobada y verificada SÍ publica',
+    );
+    eq(
+      Number(await value(admin,
+        `select count(*) from public.tournament_media_assets
+         where gallery_id = $1 and status = 'published'`,
+        [simplePublish])),
+      2,
+      'y arrastra sus dos fotos a published de forma atómica',
+    );
+
+    // Procesamiento incompleto: el objeto ya no está sano en Storage.
+    const degraded = await createGallery(owner, scope, '301', { matchId: null });
+    const degradedAsset = await completeSimple(
+      service, await requestUpload(owner, degraded, '304'), USERS.owner,
+      { checksum: '3a'.repeat(32) },
+    );
+    await value(owner, 'select public.transition_tournament_media_asset($1,$2,$3)',
+      [degradedAsset.assetId, 'approve', null]);
+    await value(owner, 'select public.set_tournament_media_cover($1,$2)',
+      [degraded, degradedAsset.assetId]);
+    await admin.query(
+      `update public.tournament_media_assets set failure_code = 'MEDIA_CONTENT_CORRUPT'
+       where id = $1`,
+      [degradedAsset.assetId],
+    );
+    ok(
+      !(await value(admin, 'select public.tournament_media_asset_publication_ready($1)',
+        [degradedAsset.assetId])),
+      'un asset simple con falla registrada no está listo',
+    );
+    await expectError(
+      () => value(owner, 'select public.publish_tournament_media_gallery($1)', [degraded]),
+      /TORNEOS_MEDIA_GALLERY_NOT_PUBLISHABLE/,
+      'y por lo tanto su galería no publica',
+    );
+    await admin.query(
+      'update public.tournament_media_assets set failure_code = null where id = $1',
+      [degradedAsset.assetId],
+    );
+    await admin.query(
+      `update public.tournament_media_assets
+       set storage_state = 'retention_marked', retention_marked_at = now(),
+           retention_reason = 'FPR001_PUBLICATION_GATE_TEST'
+       where id = $1`,
+      [degradedAsset.assetId],
+    );
+    await expectError(
+      () => value(owner, 'select public.publish_tournament_media_gallery($1)', [degraded]),
+      /TORNEOS_MEDIA_GALLERY_NOT_PUBLISHABLE/,
+      'un objeto marcado para retención tampoco se publica',
+    );
+    await admin.query(
+      `update public.tournament_media_assets
+       set storage_state = 'active', retention_marked_at = null, retention_reason = null
+       where id = $1`,
+      [degradedAsset.assetId],
+    );
+
+    // Un tier desconocido no se interpreta: falla cerrado.
+    await admin.query(
+      `alter table public.tournament_media_assets
+       drop constraint tournament_media_assets_processing_tier_check`,
+    );
+    await admin.query(
+      "update public.tournament_media_assets set processing_tier = 'tier_del_futuro' where id = $1",
+      [degradedAsset.assetId],
+    );
+    ok(
+      !(await value(admin, 'select public.tournament_media_asset_publication_ready($1)',
+        [degradedAsset.assetId])),
+      'un modo de procesamiento desconocido nunca está listo',
+    );
+    await expectError(
+      () => value(owner, 'select public.publish_tournament_media_gallery($1)', [degraded]),
+      /TORNEOS_MEDIA_GALLERY_NOT_PUBLISHABLE/,
+      'la publicación falla cerrada ante un tier que no conoce',
+    );
+    await admin.query(
+      "update public.tournament_media_assets set processing_tier = 'mvp_simple' where id = $1",
+      [degradedAsset.assetId],
+    );
+    await admin.query(
+      `alter table public.tournament_media_assets
+       add constraint tournament_media_assets_processing_tier_check
+       check (processing_tier in ('processor_external','mvp_simple'))`,
+    );
+
+    // PROCESSOR_EXTERNAL conserva intacto su contrato fuerte. El camino de
+    // subida de ese tier ya está cubierto arriba; acá se ejercita sólo la
+    // compuerta de publicación, así que el asset se compone directamente.
+    const EXTERNAL_FILE_UUID = '44444444-4444-4444-8444-444444444444';
+    const externalAssetId = await value(
+      admin,
+      `insert into public.tournament_media_assets (
+         organization_id,tournament_id,gallery_id,internal_path,safe_name,
+         detected_mime,byte_size,width,height,checksum_sha256,status,uploaded_by,
+         processing_tier
+       ) values ($1,$2,$3,$4,'foto-4e4e4e4e4e4e.jpg','image/jpeg',4096,4000,3000,$5,
+         'approved',$6,'processor_external')
+       returning id`,
+      [
+        scope.organizationId, scope.tournamentId, degraded,
+        `${scope.organizationId}/${scope.tournamentId}/${degraded}/${EXTERNAL_FILE_UUID}.jpg`,
+        '4a'.repeat(32), USERS.owner,
+      ],
+    );
+    await admin.query(
+      `insert into public.tournament_media_gallery_items (
+         organization_id,tournament_id,gallery_id,asset_id,sort_order,added_by
+       ) values ($1,$2,$3,$4,9,$5)`,
+      [scope.organizationId, scope.tournamentId, degraded, externalAssetId, USERS.owner],
+    );
+    ok(
+      !(await value(admin, 'select public.tournament_media_asset_publication_ready($1)',
+        [externalAssetId])),
+      'un asset processor_external sin variantes no está listo',
+    );
+    for (const kind of ['thumbnail', 'grid', 'detail']) {
+      // eslint-disable-next-line no-await-in-loop
+      await admin.query(
+        `insert into public.tournament_media_variants (
+           organization_id,tournament_id,asset_id,kind,internal_path,detected_mime,
+           byte_size,width,height,checksum_sha256,metadata_stripped,status
+         ) values ($1,$2,$3,$4,$5,'image/jpeg',2048,800,600,$6,true,'ready')`,
+        [
+          scope.organizationId, scope.tournamentId, externalAssetId, kind,
+          `${scope.organizationId}/${scope.tournamentId}/${degraded}/${EXTERNAL_FILE_UUID}-${kind}.jpg`,
+          '5a'.repeat(32),
+        ],
+      );
+    }
+    ok(
+      !(await value(admin, 'select public.tournament_media_asset_publication_ready($1)',
+        [externalAssetId])),
+      'con tres variantes de cuatro sigue sin estar listo',
+    );
+    await admin.query(
+      `insert into public.tournament_media_variants (
+         organization_id,tournament_id,asset_id,kind,internal_path,detected_mime,
+         byte_size,width,height,checksum_sha256,metadata_stripped,status
+       ) values ($1,$2,$3,'original',$4,'image/jpeg',4096,4000,3000,$5,false,'ready')`,
+      [
+        scope.organizationId, scope.tournamentId, externalAssetId,
+        `${scope.organizationId}/${scope.tournamentId}/${degraded}/${EXTERNAL_FILE_UUID}-original.jpg`,
+        '5b'.repeat(32),
+      ],
+    );
+    ok(
+      !(await value(admin, 'select public.tournament_media_asset_publication_ready($1)',
+        [externalAssetId])),
+      'la cuarta variante sin metadata_stripped no completa el contrato fuerte',
+    );
+    await admin.query(
+      `update public.tournament_media_variants set metadata_stripped = true
+       where asset_id = $1 and kind = 'original'`,
+      [externalAssetId],
+    );
+    ok(
+      await value(admin, 'select public.tournament_media_asset_publication_ready($1)',
+        [externalAssetId]),
+      'con las cuatro variantes ready y sin metadata sí está listo',
+    );
+
+    // La galería ahora es mixta: una foto simple y una del processor externo.
+    eq(
+      Number(await value(admin,
+        `select count(distinct asset.processing_tier)
+         from public.tournament_media_gallery_items item
+         join public.tournament_media_assets asset on asset.id = item.asset_id
+         where item.gallery_id = $1`,
+        [degraded])),
+      2,
+      'una misma galería puede mezclar los dos pipelines',
+    );
+    eq(
+      (await value(owner, 'select public.publish_tournament_media_gallery($1)',
+        [degraded])).status,
+      'published',
+      'y publica cuando cada asset cumple el contrato de SU pipeline',
+    );
+
+    // La corrección de readiness no amplía permisos.
+    const forbiddenGallery = await createGallery(owner, scope, '302', { matchId: null });
+    const forbiddenAsset = await completeSimple(
+      service, await requestUpload(owner, forbiddenGallery, '305'), USERS.owner,
+      { checksum: '6a'.repeat(32) },
+    );
+    await value(owner, 'select public.transition_tournament_media_asset($1,$2,$3)',
+      [forbiddenAsset.assetId, 'approve', null]);
+    await value(owner, 'select public.set_tournament_media_cover($1,$2)',
+      [forbiddenGallery, forbiddenAsset.assetId]);
+    for (const [client, label] of [
+      [outsider, 'un tenant ajeno'],
+      [collaborator, 'un colaborador sin media.publish'],
+      [playerHome, 'un participante del torneo'],
+    ]) {
+      // eslint-disable-next-line no-await-in-loop
+      await expectError(
+        () => value(client, 'select public.publish_tournament_media_gallery($1)',
+          [forbiddenGallery]),
+        /TORNEOS_MEDIA_FORBIDDEN/,
+        `${label} no publica una galería MVP_SIMPLE lista`,
+      );
+    }
+    await expectError(
+      () => value(anonymous, 'select public.publish_tournament_media_gallery($1)',
+        [forbiddenGallery]),
+      /TORNEOS_MEDIA_FORBIDDEN|permission denied/i,
+      'anon tampoco',
+    );
+    eq(
+      await value(admin,
+        'select status from public.tournament_media_galleries where id = $1',
+        [forbiddenGallery]),
+      'draft',
+      'ninguno de esos intentos movió el estado de la galería',
+    );
+
+    // ---------------------------------------------------------------------
+    console.log('\n· FPR-001.2 · restaurar respeta la galería cerrada');
+    // ---------------------------------------------------------------------
+    // La emisión de sesiones es por actor y ventana; esta sección abre cinco
+    // más, así que envejece otra vez las que el owner ya gastó.
+    await admin.query(
+      `update public.tournament_media_upload_sessions
+       set created_at = now() - interval '16 minutes',
+           expires_at = now() - interval '11 minutes'
+       where requested_by = $1 and status <> 'issued'`,
+      [USERS.owner],
+    );
+
+    // Una galería publicada con DOS fotos: ocultar la que no es portada no
+    // dispara el reemplazo de portada, así que la galería sigue publicada y el
+    // caso legítimo de restore queda aislado del resto del contrato.
+    const restoreGallery = await createGallery(owner, scope, '303', { matchId: null });
+    const restoreCover = await completeSimple(
+      service, await requestUpload(owner, restoreGallery, '306'), USERS.owner,
+      { checksum: '7a'.repeat(32) },
+    );
+    const restorable = await completeSimple(
+      service, await requestUpload(owner, restoreGallery, '307'), USERS.owner,
+      { checksum: '7b'.repeat(32) },
+    );
+    for (const assetId of [restoreCover.assetId, restorable.assetId]) {
+      // eslint-disable-next-line no-await-in-loop
+      await value(owner, 'select public.transition_tournament_media_asset($1,$2,$3)',
+        [assetId, 'approve', null]);
+    }
+    await value(owner, 'select public.set_tournament_media_cover($1,$2)',
+      [restoreGallery, restoreCover.assetId]);
+    eq(
+      (await value(owner, 'select public.publish_tournament_media_gallery($1)',
+        [restoreGallery])).status,
+      'published',
+      'la galería del contrato de restore queda publicada',
+    );
+    eq(
+      (await value(owner, 'select public.transition_tournament_media_asset($1,$2,$3)',
+        [restorable.assetId, 'hide', 'Se revisa por privacidad a pedido del club.'])).status,
+      'hidden',
+      'ocultar una foto publicada la retira sin borrarla',
+    );
+    eq(
+      await value(admin,
+        'select status from public.tournament_media_galleries where id = $1',
+        [restoreGallery]),
+      'published',
+      'y ocultar una foto que no es portada deja la galería publicada',
+    );
+
+    // Ni el tenant ajeno ni quien no tiene `media.review` restauran nada, y el
+    // rechazo es el mismo antes y después de cerrar la galería.
+    for (const [client, label] of [
+      [outsider, 'un tenant ajeno'],
+      [playerHome, 'un participante del torneo'],
+      [collaborator, 'un colaborador sin media.review'],
+    ]) {
+      // eslint-disable-next-line no-await-in-loop
+      await expectError(
+        () => value(client, 'select public.transition_tournament_media_asset($1,$2,$3)',
+          [restorable.assetId, 'restore', null]),
+        /TORNEOS_MEDIA_FORBIDDEN/,
+        `${label} no restaura una foto oculta`,
+      );
+    }
+    await expectError(
+      () => value(anonymous, 'select public.transition_tournament_media_asset($1,$2,$3)',
+        [restorable.assetId, 'restore', null]),
+      /TORNEOS_MEDIA_FORBIDDEN|permission denied/i,
+      'anon tampoco',
+    );
+    eq(
+      await value(admin,
+        'select status from public.tournament_media_assets where id = $1',
+        [restorable.assetId]),
+      'hidden',
+      'ninguno de esos intentos movió la foto',
+    );
+
+    // El caso permitido, que es la razón por la que la acción existe.
+    eq(
+      (await value(owner, 'select public.transition_tournament_media_asset($1,$2,$3)',
+        [restorable.assetId, 'restore', null])).status,
+      'published',
+      'en una galería publicada, restaurar devuelve la foto a published',
+    );
+    await value(owner, 'select public.transition_tournament_media_asset($1,$2,$3)',
+      [restorable.assetId, 'hide', 'Vuelve a ocultarse antes de archivar.']);
+
+    // Y el mismo asset, misma persona, misma capacidad: lo único que cambia es
+    // que la galería pasó a ser un registro histórico.
+    eq(
+      (await value(owner, `select public.change_tournament_media_gallery_state(
+        $1,'archive','La fecha terminó y la selección pasa al archivo.'
+      )`, [restoreGallery])).status,
+      'archived',
+      'archivar cierra la galería',
+    );
+    eq(
+      await value(admin,
+        'select status from public.tournament_media_assets where id = $1',
+        [restorable.assetId]),
+      'hidden',
+      'y sus fotos quedan ocultas, no borradas',
+    );
+    await expectError(
+      () => value(owner, 'select public.transition_tournament_media_asset($1,$2,$3)',
+        [restorable.assetId, 'restore', null]),
+      /TORNEOS_MEDIA_TRANSITION_INVALID/,
+      'restaurar dentro de una galería archivada falla cerrado',
+    );
+    await expectError(
+      () => value(owner, 'select public.transition_tournament_media_asset($1,$2,$3)',
+        [restoreCover.assetId, 'restore', null]),
+      /TORNEOS_MEDIA_TRANSITION_INVALID/,
+      'tampoco la que era portada',
+    );
+    eq(
+      await value(admin,
+        'select status from public.tournament_media_assets where id = $1',
+        [restorable.assetId]),
+      'hidden',
+      'la foto sigue oculta después del rechazo',
+    );
+    eq(
+      Number(await value(admin,
+        `select count(*) from public.tournament_media_moderation_actions
+         where asset_id = $1 and action = 'restore'`,
+        [restorable.assetId])),
+      1,
+      'el rechazo no deja acción de moderación: sólo consta el restore que sí ocurrió',
+    );
+    eq(
+      Number(await value(admin,
+        `select count(*) from public.tournament_audit_log
+         where action = 'media.asset.restore' and resource_id = $1`,
+        [restorable.assetId])),
+      1,
+      'ni auditoría de un cambio que no pasó',
+    );
+
+    // Revocada. El producto no deja una foto `hidden` dentro de una galería
+    // revocada —revocar la galería arrastra todas sus fotos a `revoked`—, así
+    // que el estado se compone a mano: la compuerta tiene que estar igual, y
+    // fail-closed significa no depender de que el estado sea inalcanzable.
+    const revokedGallery = await createGallery(owner, scope, '304', { matchId: null });
+    const revokedAsset = await completeSimple(
+      service, await requestUpload(owner, revokedGallery, '308'), USERS.owner,
+      { checksum: '7c'.repeat(32) },
+    );
+    await value(owner, 'select public.transition_tournament_media_asset($1,$2,$3)',
+      [revokedAsset.assetId, 'approve', null]);
+    await value(owner, 'select public.set_tournament_media_cover($1,$2)',
+      [revokedGallery, revokedAsset.assetId]);
+    await value(owner, 'select public.publish_tournament_media_gallery($1)', [revokedGallery]);
+    eq(
+      (await value(owner, `select public.change_tournament_media_gallery_state(
+        $1,'revoke','Se retira por consentimiento de las personas retratadas.'
+      )`, [revokedGallery])).status,
+      'revoked',
+      'revocar cierra la galería',
+    );
+    eq(
+      await value(admin,
+        'select status from public.tournament_media_assets where id = $1',
+        [revokedAsset.assetId]),
+      'revoked',
+      'y revocar arrastra sus fotos, que por eso no son restaurables ni por estado',
+    );
+    await admin.query(
+      `update public.tournament_media_assets
+       set status = 'hidden', hidden_at = now(), revoked_at = null
+       where id = $1`,
+      [revokedAsset.assetId],
+    );
+    await expectError(
+      () => value(owner, 'select public.transition_tournament_media_asset($1,$2,$3)',
+        [revokedAsset.assetId, 'restore', null]),
+      /TORNEOS_MEDIA_TRANSITION_INVALID/,
+      'restaurar dentro de una galería revocada falla cerrado',
+    );
+
+    // Nada de esto estrecha el caso que siempre existió: en borrador, restaurar
+    // devuelve la foto a `approved`, que es donde la curaduría sigue decidiendo.
+    const draftGallery = await createGallery(owner, scope, '305', { matchId: null });
+    const draftAsset = await completeSimple(
+      service, await requestUpload(owner, draftGallery, '309'), USERS.owner,
+      { checksum: '7d'.repeat(32) },
+    );
+    await value(owner, 'select public.transition_tournament_media_asset($1,$2,$3)',
+      [draftAsset.assetId, 'approve', null]);
+    await value(owner, 'select public.transition_tournament_media_asset($1,$2,$3)',
+      [draftAsset.assetId, 'hide', 'Se oculta mientras se revisa el encuadre.']);
+    eq(
+      (await value(owner, 'select public.transition_tournament_media_asset($1,$2,$3)',
+        [draftAsset.assetId, 'restore', null])).status,
+      'approved',
+      'en borrador, restaurar sigue devolviendo la foto a aprobada',
+    );
+
+    // Los techos de fotos son por organización, torneo y galería, y las
+    // secciones siguientes cuentan con los suyos: retirar las fotos que esta
+    // sección creó devuelve los contadores a donde estaban.
+    await admin.query(
+      `update public.tournament_media_assets
+       set status = 'revoked', revoked_at = now()
+       where gallery_id = any($1::uuid[])`,
+      [[simplePublish, degraded, forbiddenGallery, restoreGallery, revokedGallery, draftGallery]],
     );
 
     const openSessions = [];

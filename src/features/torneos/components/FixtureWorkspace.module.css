@@ -475,9 +475,14 @@
   background: #121019;
 }
 
+/*
+ * La agenda es la columna con datos --- número, dos equipos, horario y estado---
+ * y llevaba 0.8fr contra los 1.4fr de un formulario de cinco campos cortos. La
+ * proporción estaba al revés, y era la mitad de por qué la fila no entraba.
+ */
 .scheduleLayout {
   display: grid;
-  grid-template-columns: minmax(280px, 0.8fr) minmax(0, 1.4fr);
+  grid-template-columns: minmax(320px, 1.15fr) minmax(280px, 1fr);
   gap: 18px;
 }
 
@@ -856,6 +861,7 @@
 }
 
 .participantMark {
+  overflow: hidden;
   display: inline-grid;
   width: 38px;
   height: 38px;
@@ -867,6 +873,13 @@
   background: color-mix(in srgb, var(--team-color), #171320 48%);
   font-size: 0.72rem;
   font-weight: 850;
+}
+
+.participantMarkImage {
+  width: 100%;
+  height: 100%;
+  padding: 3px;
+  object-fit: contain;
 }
 
 .inlineForm {
@@ -1159,11 +1172,58 @@
   font-size: 0.76rem;
 }
 
+/*
+ * La fila de un partido no es una etiqueta de una línea. `.panel button` declara
+ * `white-space: nowrap` para los botones de acción, y la fila lo heredaba: el
+ * nombre de los equipos no podía cortarse, desbordaba su columna --- que es
+ * `minmax(0, 1fr)`, o sea que sí puede achicarse--- y terminaba pintado encima
+ * del horario y del estado. El dato deportivo no se trunca: envuelve.
+ */
 .scheduleList button {
   display: grid;
   grid-template-columns: 42px minmax(0, 1fr) auto auto;
+  gap: 4px 12px;
+  align-items: center;
   width: 100%;
   text-align: left;
+  white-space: normal;
+}
+
+.scheduleList button > strong {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 7px;
+  /* Un nombre sin espacios tampoco puede empujar la columna. */
+  overflow-wrap: anywhere;
+}
+
+/*
+ * Con los nombres envolviendo, un punto medio no alcanza para saber quién es
+ * local: el separador se nombra y se distingue del dato.
+ */
+.scheduleVersus {
+  color: #91889e;
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+/* Horario y estado son cortos y de ancho automático: cortarlos no ayuda. */
+.scheduleList button > small,
+.scheduleList button > em {
+  white-space: nowrap;
+}
+
+/*
+ * `Programar automáticamente` es una etiqueta larga y `nowrap`: sin permitirle
+ * achicarse, su ancho mínimo se convertía en el mínimo del panel entero y le
+ * robaba el ancho a la lista. Puede envolver antes que estrangular la agenda.
+ */
+.panelHeading > button {
+  min-width: 0;
+  white-space: normal;
 }
 
 .scheduleList button[aria-pressed="true"] {
@@ -1211,6 +1271,33 @@
 
 .resourceForms {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+/*
+ * `scheduleLayout` tiene dos columnas y tres hijos: la ventana semanal caía en
+ * la fila siguiente, dentro de la columna angosta, y encima `.resourceForms` la
+ * repartía en tres. La tarjeta quedaba más angosta que sus propios controles
+ * --- que tienen ancho mínimo propio (`time`, `number`, selects)--- y se
+ * desbordaban. La ventana es del torneo, no una columna lateral: ocupa el ancho
+ * completo y acomoda sus campos según el lugar que hay.
+ */
+.scheduleLayout > .resourceForms {
+  grid-column: 1 / -1;
+  grid-template-columns: 1fr;
+}
+
+.scheduleLayout > .resourceForms > form {
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  align-items: end;
+}
+
+/* El título manda sobre su propia fila; el botón no se estira a un campo. */
+.scheduleLayout > .resourceForms > form > h2 {
+  grid-column: 1 / -1;
+}
+
+.scheduleLayout > .resourceForms > form > button {
+  justify-self: start;
 }
 
 .manualGrid {
@@ -1485,8 +1572,13 @@
   transform: scale(1.02);
 }
 
+/* La caja del badge mide 50x50; con `clamp(2rem, 5vw, 3.25rem)` el glifo
+   llegaba a 52px y, con su line-height, se salía de la caja por arriba y por
+   abajo hasta rozar el borde de la card. El número sigue siendo el elemento
+   destacado de la fila, pero dimensionado contra la caja que lo contiene. */
 .versionNumber {
-  font-size: clamp(2rem, 5vw, 3.25rem);
+  font-size: clamp(1.35rem, 2.2vw, 1.65rem);
+  line-height: 1;
 }
 
 .field input,

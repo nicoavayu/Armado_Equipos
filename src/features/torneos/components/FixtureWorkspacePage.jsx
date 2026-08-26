@@ -22,6 +22,9 @@ import { Link, useOutletContext, useParams } from 'react-router-dom';
 import { useTorneosCompetition } from '../context/TorneosCompetitionContext';
 import { useTorneosFixture } from '../context/TorneosFixtureContext';
 import { hasCapability, TOURNAMENT_CAPABILITIES } from '../domain/capabilities';
+import { RESOURCE_SCOPE_MESSAGE, resolveScopedResource } from '../domain/routeResourceScope';
+import { canonicalRoutes } from '../routing/canonicalRoutes';
+import { tournamentResourceSurface, tournamentSurface } from '../routing/legacyRoutes';
 import {
   formatInstantInTimeZone,
   instantToZonedLocalInput,
@@ -34,6 +37,7 @@ import {
   hasScheduledTime,
 } from '../domain/matchSchedule';
 import CompetitionSelector from './CompetitionSelector';
+import BrandingImage from './BrandingImage';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import styles from './FixtureWorkspace.module.css';
 
@@ -47,7 +51,6 @@ const MODE_COPY = {
   rounds: ['Calendario', 'Jornadas', 'Fechas, cruces y estados de planificación.'],
   bracket: ['Eliminación', 'Llave', 'Cruces futuros expresados como fuentes estructuradas.'],
   schedule: ['Operación previa', 'Programación', 'Asigná horarios y canchas con conflictos visibles.'],
-  venues: ['Recursos', 'Sedes y canchas', 'Infraestructura reusable y aislada por organización.'],
 };
 
 const STATUS_LABELS = Object.freeze({
@@ -93,39 +96,55 @@ function SectionHeading({ eyebrow, title, help }) {
   );
 }
 
+// Los pasos del flujo son del torneo; Sedes no, y por eso se arma aparte.
 const FIXTURE_NAVIGATION = [
-  ['fixture', 'Versiones'],
-  ['fixture/participantes', 'Participantes'],
-  ['fixture/bombos', 'Bombos'],
-  ['fixture/sorteo', 'Sorteo'],
-  ['fixture/grupos', 'Grupos'],
-  ['fixture/generar', 'Generar'],
-  ['fixture/jornadas', 'Jornadas'],
-  ['fixture/llave', 'Llave'],
-  ['programacion', 'Programación'],
-  ['sedes', 'Sedes'],
+  ['tournamentFixture', 'Versiones'],
+  ['tournamentFixtureParticipants', 'Participantes'],
+  ['tournamentFixturePots', 'Bombos'],
+  ['tournamentFixtureDraw', 'Sorteo'],
+  ['tournamentFixtureGroups', 'Grupos'],
+  ['tournamentFixtureGenerate', 'Generar'],
+  ['tournamentFixtureRounds', 'Jornadas'],
+  ['tournamentFixtureBracket', 'Llave'],
+  ['tournamentSchedule', 'Programación'],
 ];
 
+// El torneo del subnav sale de la URL, nunca de la preferencia: moverse entre
+// pasos no puede cambiar de torneo por debajo. Sin torneo en la URL quedan las
+// direcciones viejas, que resuelven una sola vez y devuelven acá ya ancladas.
+function useTournamentAnchor() {
+  const { isTournamentRoute, routeTournamentId, activeTournament } = useTorneosCompetition();
+  return isTournamentRoute ? routeTournamentId : (activeTournament?.id || null);
+}
+
 function FixtureSubnav({ organizationId }) {
-  const base = `/torneos/organizacion/${organizationId}`;
+  const tournamentId = useTournamentAnchor();
+  const { categoryId } = useTorneosFixture();
   return (
     <nav className={styles.subnav} aria-label="Flujo de fixture">
-      {FIXTURE_NAVIGATION.map(([path, label]) => (
-        <Link key={path} to={`${base}/${path}`}>{label}</Link>
+      {FIXTURE_NAVIGATION.map(([builder, label]) => (
+        <Link
+          key={builder}
+          to={tournamentSurface(builder, organizationId, tournamentId, { categoryId })}
+        >
+          {label}
+        </Link>
       ))}
+      <Link to={canonicalRoutes.organizationVenues(organizationId)}>Sedes</Link>
     </nav>
   );
 }
 
 function ParticipantMark({ participant }) {
   return (
-    <span
+    <BrandingImage
+      kind="team"
+      path={participant?.shieldPath}
+      name={participant?.shortName || participant?.name}
       className={styles.participantMark}
+      imageClassName={styles.participantMarkImage}
       style={{ '--team-color': participant?.primaryColor || '#885cff' }}
-      aria-hidden="true"
-    >
-      {(participant?.shortName || participant?.name || '—').slice(0, 2).toUpperCase()}
-    </span>
+    />
   );
 }
 
@@ -333,9 +352,17 @@ function GroupsGrid({ groups }) {
 function VersionPanel({ canManage }) {
   const { organization } = useOutletContext();
   const { activeTournament } = useTorneosCompetition();
+  const tournamentId = useTournamentAnchor();
   const {
-    versions, phases, rounds, matches, actions,
+    versions, phases, rounds, matches, actions, categoryId,
   } = useTorneosFixture();
+  const versionLink = (versionId) => tournamentResourceSurface(
+    'tournamentFixtureVersion',
+    organization.id,
+    tournamentId,
+    versionId,
+    { categoryId },
+  );
   const [busy, setBusy] = useState(false);
   const [pendingPublish, setPendingPublish] = useState(null);
   const publishConsequences = getTransitionConsequences(
@@ -364,7 +391,7 @@ function VersionPanel({ canManage }) {
             <span className={styles.versionNumber}>v{version.versionNumber}</span>
             <div><small>{GENERATION_METHOD_LABELS[version.generationMethod] || 'Método no informado'}</small><h3>{statusLabel(version.status)}</h3><p>{version.matchCount} partidos · {countScheduledMatches(matches.filter((match) => match.fixtureVersionId === version.id))} programados</p></div>
             <div className={styles.versionActions}>
-              <Link to={`/torneos/organizacion/${organization.id}/fixture/version/${version.id}`}>Abrir <ArrowRight size={15} /></Link>
+              <Link to={versionLink(version.id)}>Abrir <ArrowRight size={15} /></Link>
               {canManage && version.status === 'draft' && <button type="button" disabled={busy} onClick={() => setPendingPublish(version.id)}>Publicar</button>}
               {canManage && version.status === 'published' && <button type="button" disabled={busy} onClick={() => actions.supersede(version.id)}>Nueva revisión</button>}
             </div>
@@ -520,10 +547,22 @@ function DraftEditor({ version }) {
 function RoundsPanel({ bracket = false, canManage = false }) {
   const { roundId, fixtureVersionId, matchId } = useParams();
   const { organization } = useOutletContext();
+  const tournamentId = useTournamentAnchor();
   const {
-    participants, versions, phases, rounds, matches,
+    participants, versions, phases, rounds, matches, categoryId,
   } = useTorneosFixture();
-  const version = versions.find((item) => item.id === fixtureVersionId)
+  const matchLink = (id) => tournamentResourceSurface(
+    'tournamentFixtureMatch',
+    organization.id,
+    tournamentId,
+    id,
+    { categoryId },
+  );
+  // Una versión pedida por URL que no está entre las de este torneo y esta
+  // categoría no puede degradarse a la publicada: eso mostraría otra versión
+  // bajo una dirección que nombra una distinta.
+  const requestedVersion = resolveScopedResource(versions, fixtureVersionId);
+  const version = requestedVersion.resource
     || versions.find((item) => item.status === 'published')
     || versions[0];
   const visibleRounds = rounds.filter((round) => (
@@ -549,6 +588,14 @@ function RoundsPanel({ bracket = false, canManage = false }) {
     && (!roundId || match.roundId === roundId)
     && (!matchId || match.id === matchId)
   ));
+  if (requestedVersion.outOfScope) {
+    return (
+      <section className={styles.panel} role="alert">
+        <h2>Versión no encontrada</h2>
+        <p>{RESOURCE_SCOPE_MESSAGE}</p>
+      </section>
+    );
+  }
   if (bracket) {
     const knockoutPhases = phases.filter((phase) => (
       phase.fixtureVersionId === version?.id && phase.phaseType !== 'league' && phase.phaseType !== 'groups'
@@ -601,7 +648,7 @@ function RoundsPanel({ bracket = false, canManage = false }) {
           <article key={round.id}>
             <header><span>F{round.roundNumber}</span><div><h3>{round.name}</h3><small>{statusLabel(round.status)}</small></div></header>
             <div>{shownMatches.filter((match) => match.roundId === round.id).map((match) => (
-              <Link key={match.id} to={`/torneos/organizacion/${organization.id}/fixture/partidos/${match.id}`}>
+              <Link key={match.id} to={matchLink(match.id)}>
                 <small>#{match.matchNumber}</small>
                 <strong>{participantName(match.homeParticipantId) || sourceLabel(match.sources?.find((source) => source.side === 'home'))}</strong>
                 <span>vs</span>
@@ -615,6 +662,41 @@ function RoundsPanel({ bracket = false, canManage = false }) {
         {!visibleRounds.length && <div className={styles.empty}><CalendarClock size={24} /><strong>No hay jornadas</strong><span>Primero generá una versión del fixture.</span></div>}
       </section>
     </>
+  );
+}
+
+function ScheduleWindowForm() {
+  const { venues, courts, actions } = useTorneosFixture();
+  const [scheduleWindow, setScheduleWindow] = useState({
+    dayOfWeek: 6,
+    startsAt: '09:00',
+    endsAt: '18:00',
+    slotDurationMinutes: 60,
+    venueId: '',
+    courtId: '',
+  });
+  return (
+    <section className={styles.resourceForms}>
+        <form className={styles.panel} onSubmit={async (event) => {
+          event.preventDefault();
+          await actions.saveWindows([{
+            ...scheduleWindow,
+            dayOfWeek: Number(scheduleWindow.dayOfWeek),
+            slotDurationMinutes: Number(scheduleWindow.slotDurationMinutes),
+            venueId: scheduleWindow.venueId || null,
+            courtId: scheduleWindow.courtId || null,
+          }]);
+        }}>
+          <h2>Ventana semanal</h2>
+          <label><span>Día</span><select value={scheduleWindow.dayOfWeek} onChange={(event) => setScheduleWindow({ ...scheduleWindow, dayOfWeek: event.target.value })}><option value="1">Lunes</option><option value="2">Martes</option><option value="3">Miércoles</option><option value="4">Jueves</option><option value="5">Viernes</option><option value="6">Sábado</option><option value="7">Domingo</option></select></label>
+          <label><span>Desde</span><input required type="time" value={scheduleWindow.startsAt} onChange={(event) => setScheduleWindow({ ...scheduleWindow, startsAt: event.target.value })} /></label>
+          <label><span>Hasta</span><input required type="time" value={scheduleWindow.endsAt} onChange={(event) => setScheduleWindow({ ...scheduleWindow, endsAt: event.target.value })} /></label>
+          <label><span>Minutos por turno</span><input required type="number" min="15" max="240" value={scheduleWindow.slotDurationMinutes} onChange={(event) => setScheduleWindow({ ...scheduleWindow, slotDurationMinutes: event.target.value })} /></label>
+          <label><span>Sede opcional</span><select value={scheduleWindow.venueId} onChange={(event) => setScheduleWindow({ ...scheduleWindow, venueId: event.target.value, courtId: '' })}><option value="">Todas</option>{venues.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+          <label><span>Cancha opcional</span><select value={scheduleWindow.courtId} onChange={(event) => setScheduleWindow({ ...scheduleWindow, courtId: event.target.value })}><option value="">Todas</option>{courts.filter((item) => !scheduleWindow.venueId || item.venueId === scheduleWindow.venueId).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+          <button type="submit"><Save size={16} /> Guardar ventana</button>
+        </form>
+    </section>
   );
 }
 
@@ -687,7 +769,7 @@ function SchedulePanel({ canManage }) {
             courtId: match.courtId || '',
             durationMinutes: match.durationMinutes || 60,
           }))}>
-            <span>#{match.matchNumber}</span><strong>{participantName(match.homeParticipantId)} · {participantName(match.awayParticipantId)}</strong><small>{match.scheduledAt ? formatInstantInTimeZone(match.scheduledAt, venues.find((venue) => venue.id === match.venueId)?.timezone || 'America/Argentina/Buenos_Aires') : 'Sin horario'}</small><em>{statusLabel(match.status)}</em>
+            <span>#{match.matchNumber}</span><strong><span>{participantName(match.homeParticipantId)}</span><span className={styles.scheduleVersus}>vs</span><span>{participantName(match.awayParticipantId)}</span></strong><small>{match.scheduledAt ? formatInstantInTimeZone(match.scheduledAt, venues.find((venue) => venue.id === match.venueId)?.timezone || 'America/Argentina/Buenos_Aires') : 'Sin horario'}</small><em>{statusLabel(match.status)}</em>
           </button>
         ))}</div>
       </section>
@@ -703,68 +785,11 @@ function SchedulePanel({ canManage }) {
         {validation && <div className={styles.validation} data-valid={validation.valid}><AlertTriangle size={17} /><span>{validation.blockers?.length || 0} bloqueos · {validation.warnings?.length || 0} advertencias</span></div>}
         {canManage && <div className={styles.formActions}><button type="button" disabled={busy || !form.matchId || !scheduleIso || !form.courtId} onClick={async () => setValidation(await actions.validateSchedule(payload))}>Validar</button><button type="submit" disabled={busy || !scheduleIso}>Guardar</button></div>}
       </form>
-    </div>
-  );
-}
-
-function VenuesPanel({ canManage }) {
-  const {
-    venues, courts, actions,
-  } = useTorneosFixture();
-  const { activeTournament } = useTorneosCompetition();
-  const [venue, setVenue] = useState({ name: '', address: '', locality: '', timezone: 'America/Argentina/Buenos_Aires' });
-  const [court, setCourt] = useState({ venueId: '', name: '', sportModality: activeTournament?.sportModality || 'football_5' });
-  const [scheduleWindow, setScheduleWindow] = useState({
-    dayOfWeek: 6,
-    startsAt: '09:00',
-    endsAt: '18:00',
-    slotDurationMinutes: 60,
-    venueId: '',
-    courtId: '',
-  });
-  return (
-    <div className={styles.venueLayout}>
-      <section className={styles.panel}>
-        <div className={styles.panelHeading}><div><span>Recursos activos</span><h2>Sedes</h2></div></div>
-        <div className={styles.venueList}>{venues.map((item) => (
-          <article key={item.id}><MapPin size={19} /><div><h3>{item.name}</h3><p>{item.address}</p><small>{courts.filter((value) => value.venueId === item.id).length} canchas · {statusLabel(item.status)}</small></div></article>
-        ))}</div>
-      </section>
-      {canManage && <section className={styles.resourceForms}>
-        <form className={styles.panel} onSubmit={async (event) => { event.preventDefault(); await actions.createVenue(venue); setVenue((current) => ({ ...current, name: '', address: '' })); }}>
-          <h2>Nueva sede</h2>
-          <label><span>Nombre</span><input required value={venue.name} onChange={(event) => setVenue({ ...venue, name: event.target.value })} /></label>
-          <label><span>Dirección</span><input required value={venue.address} onChange={(event) => setVenue({ ...venue, address: event.target.value })} /></label>
-          <label><span>Localidad</span><input value={venue.locality} onChange={(event) => setVenue({ ...venue, locality: event.target.value })} /></label>
-          <button type="submit"><Plus size={16} /> Crear sede</button>
-        </form>
-        <form className={styles.panel} onSubmit={async (event) => { event.preventDefault(); await actions.createCourt(court); setCourt((current) => ({ ...current, name: '' })); }}>
-          <h2>Nueva cancha</h2>
-          <label><span>Sede</span><select required value={court.venueId} onChange={(event) => setCourt({ ...court, venueId: event.target.value })}><option value="">Seleccionar</option>{venues.filter((item) => item.status === 'active').map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-          <label><span>Nombre</span><input required value={court.name} onChange={(event) => setCourt({ ...court, name: event.target.value })} /></label>
-          <label><span>Modalidad</span><select value={court.sportModality} onChange={(event) => setCourt({ ...court, sportModality: event.target.value })}><option value="football_5">Fútbol 5</option><option value="football_6">Fútbol 6</option><option value="football_7">Fútbol 7</option><option value="football_8">Fútbol 8</option><option value="football_9">Fútbol 9</option><option value="football_11">Fútbol 11</option><option value="futsal">Futsal</option></select></label>
-          <button type="submit"><Plus size={16} /> Crear cancha</button>
-        </form>
-        <form className={styles.panel} onSubmit={async (event) => {
-          event.preventDefault();
-          await actions.saveWindows([{
-            ...scheduleWindow,
-            dayOfWeek: Number(scheduleWindow.dayOfWeek),
-            slotDurationMinutes: Number(scheduleWindow.slotDurationMinutes),
-            venueId: scheduleWindow.venueId || null,
-            courtId: scheduleWindow.courtId || null,
-          }]);
-        }}>
-          <h2>Ventana semanal</h2>
-          <label><span>Día</span><select value={scheduleWindow.dayOfWeek} onChange={(event) => setScheduleWindow({ ...scheduleWindow, dayOfWeek: event.target.value })}><option value="1">Lunes</option><option value="2">Martes</option><option value="3">Miércoles</option><option value="4">Jueves</option><option value="5">Viernes</option><option value="6">Sábado</option><option value="7">Domingo</option></select></label>
-          <label><span>Desde</span><input required type="time" value={scheduleWindow.startsAt} onChange={(event) => setScheduleWindow({ ...scheduleWindow, startsAt: event.target.value })} /></label>
-          <label><span>Hasta</span><input required type="time" value={scheduleWindow.endsAt} onChange={(event) => setScheduleWindow({ ...scheduleWindow, endsAt: event.target.value })} /></label>
-          <label><span>Minutos por turno</span><input required type="number" min="15" max="240" value={scheduleWindow.slotDurationMinutes} onChange={(event) => setScheduleWindow({ ...scheduleWindow, slotDurationMinutes: event.target.value })} /></label>
-          <label><span>Sede opcional</span><select value={scheduleWindow.venueId} onChange={(event) => setScheduleWindow({ ...scheduleWindow, venueId: event.target.value, courtId: '' })}><option value="">Todas</option>{venues.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-          <label><span>Cancha opcional</span><select value={scheduleWindow.courtId} onChange={(event) => setScheduleWindow({ ...scheduleWindow, courtId: event.target.value })}><option value="">Todas</option>{courts.filter((item) => !scheduleWindow.venueId || item.venueId === scheduleWindow.venueId).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-          <button type="submit"><Save size={16} /> Guardar ventana</button>
-        </form>
-      </section>}
+      {/*
+        * La ventana semanal es del torneo y la categoría, no de la sede: se
+        * programa acá y consume las sedes/canchas de la organización.
+        */}
+      {canManage && <ScheduleWindowForm />}
     </div>
   );
 }
@@ -797,7 +822,6 @@ export default function FixtureWorkspacePage({ mode = 'overview' }) {
       {mode === 'rounds' && <RoundsPanel canManage={hasCapability(organization, TOURNAMENT_CAPABILITIES.FIXTURE_UPDATE_DRAFT)} />}
       {mode === 'bracket' && <RoundsPanel bracket />}
       {mode === 'schedule' && <SchedulePanel canManage={hasCapability(organization, TOURNAMENT_CAPABILITIES.MATCHES_SCHEDULE)} />}
-      {mode === 'venues' && <VenuesPanel canManage={hasCapability(organization, TOURNAMENT_CAPABILITIES.VENUES_CREATE)} />}
     </div>
   );
 }

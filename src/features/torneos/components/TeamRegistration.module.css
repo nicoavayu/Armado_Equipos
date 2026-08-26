@@ -64,21 +64,40 @@
   text-transform: uppercase;
 }
 
+/* Mismo sistema que `Continuar`: la geometría y la familia salen de los tokens
+   de Torneos, y cada variante sólo aporta su color. */
 .primaryButton,
 .secondaryButton,
 .backLink {
   display: inline-flex;
-  min-height: 44px;
+  min-height: var(--torneos-action-height);
   align-items: center;
   justify-content: center;
-  gap: 9px;
-  border-radius: 12px;
-  font-weight: 800;
+  gap: var(--torneos-action-gap);
+  border-radius: var(--torneos-action-radius);
+  font-family: var(--torneos-ui-font);
+  font-size: var(--torneos-action-font-size);
+  font-weight: var(--torneos-action-font-weight);
+  line-height: var(--torneos-action-line-height);
+  white-space: nowrap;
   text-decoration: none;
 }
 
+.primaryButton > svg,
+.secondaryButton > svg,
+.backLink > svg { flex: 0 0 auto; }
+
+.primaryButton:focus-visible,
+.secondaryButton:focus-visible,
+.dangerButton:focus-visible,
+.iconButton:focus-visible,
+.backLink:focus-visible {
+  outline: var(--torneos-focus-ring);
+  outline-offset: var(--torneos-focus-ring-offset);
+}
+
 .primaryButton {
-  padding: 0 18px;
+  padding: 0 var(--torneos-action-padding-x);
   border: 1px solid #8097ff;
   background: linear-gradient(135deg, #5575ff, #795fff);
   color: white;
@@ -92,7 +111,7 @@
 }
 
 .secondaryButton {
-  padding: 0 16px;
+  padding: 0 var(--torneos-action-padding-x);
   border: 1px solid rgba(128, 151, 255, 0.45);
   background: rgba(87, 108, 207, 0.12);
   color: #e8edff;
@@ -102,15 +121,17 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  height: 42px;
-  padding: 0 18px;
-  font: inherit;
-  font-weight: 600;
+  gap: var(--torneos-action-gap);
+  min-height: var(--torneos-action-height);
+  padding: 0 var(--torneos-action-padding-x);
+  font-family: var(--torneos-ui-font);
+  font-size: var(--torneos-action-font-size);
+  font-weight: var(--torneos-action-font-weight);
+  line-height: var(--torneos-action-line-height);
   color: #2a0f0f;
   background: #ff9d7a;
   border: 1px solid transparent;
-  border-radius: 12px;
+  border-radius: var(--torneos-action-radius);
   cursor: pointer;
 }
 
@@ -122,6 +143,7 @@
 
 .withdrawButton {
   display: inline-flex;
+  min-height: 42px;
   align-items: center;
   gap: 7px;
   padding: 6px 12px;
@@ -131,7 +153,12 @@
   background: transparent;
   border: 1px solid rgba(255, 157, 122, 0.45);
   border-radius: 10px;
+  white-space: nowrap;
   cursor: pointer;
+}
+
+.withdrawButton > svg {
+  flex: 0 0 auto;
 }
 
 .withdrawalDialog {
@@ -305,7 +332,11 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  padding: 5px;
   overflow-x: auto;
+  border: 1px solid rgba(142, 166, 209, 0.16);
+  border-radius: 16px;
+  background: rgba(10, 14, 24, 0.58);
   scrollbar-width: none;
 }
 
@@ -313,16 +344,19 @@
   min-height: 44px;
   padding: 0 13px;
   white-space: nowrap;
-  border: 1px solid rgba(142, 166, 209, 0.18);
-  border-radius: 99px;
+  border: 1px solid transparent;
+  border-radius: 12px;
   background: transparent;
   color: #aeb8ca;
+  font-family: var(--torneos-ui-font);
+  font-weight: 700;
 }
 
 .filterRail button[aria-pressed="true"] {
-  border-color: #7590ff;
-  background: #6882f0;
+  border-color: rgba(155, 174, 255, .48);
+  background: linear-gradient(135deg, #7189f4, #5c70df);
   color: white;
+  box-shadow: 0 5px 16px rgba(71, 92, 196, .24), inset 0 1px 0 rgba(255,255,255,.14);
 }
 
 .entryList {
@@ -332,9 +366,9 @@
 
 .entryCard {
   display: grid;
-  grid-template-columns: minmax(260px, 1.4fr) minmax(340px, 1fr) auto;
+  grid-template-columns: minmax(200px, 1.2fr) minmax(220px, 1fr) max-content;
   align-items: center;
-  gap: 22px;
+  gap: 16px;
   padding: 16px 18px;
   border: 1px solid rgba(142, 166, 209, 0.16);
   border-radius: 17px;
@@ -349,8 +383,13 @@
 
 .entryIdentity {
   display: flex;
+  min-width: 0;
   align-items: center;
   gap: 13px;
+}
+
+.entryIdentity > div {
+  min-width: 0;
 }
 
 .teamMark,
@@ -384,7 +423,9 @@
 
 .entryFacts {
   display: flex;
+  min-width: 0;
   align-items: center;
+  flex-wrap: wrap;
   gap: 13px;
   color: #b8c1d1;
   font-size: 12px;
@@ -439,11 +480,17 @@
   gap: 6px;
   color: #aab9ff;
   font-weight: 800;
+  white-space: nowrap;
   text-decoration: none;
+}
+
+.entryActions > a > svg {
+  flex: 0 0 auto;
 }
 
 .entryActions {
   display: flex;
+  min-width: max-content;
   align-items: center;
   gap: 12px;
   justify-content: flex-end;
@@ -716,6 +763,12 @@
   gap: 16px;
 }
 
+/* Quien entra sólo por autogestión visual no ve el panel de Responsables. Sin
+   este modificador la grilla igual le reserva la columna y deja el hueco. */
+.detailGridSolo {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .sidePanel,
 .requirementsPanel,
 .historyPanel {
@@ -879,6 +932,46 @@
   font-weight: 800;
 }
 
+/* Señal discreta: dice que las fotos no cargaron sin robarle la fila a nadie
+   ni desplazar el plantel. */
+.portraitNotice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  padding: 7px 11px;
+  border: 1px solid rgba(255, 178, 122, 0.24);
+  border-radius: 11px;
+  background: rgba(150, 96, 44, 0.1);
+  color: #f0c69c;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* `Reintentar` es la variante compacta del mismo sistema: vive dentro de un
+   aviso de una línea, así que baja de escala pero no cambia de lenguaje. */
+.portraitNotice button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--torneos-action-gap-sm);
+  min-height: var(--torneos-action-height-sm);
+  margin-left: auto;
+  padding: 0 var(--torneos-action-padding-x-sm);
+  border: 1px solid rgba(255, 178, 122, 0.34);
+  border-radius: var(--torneos-action-radius-sm);
+  background: transparent;
+  color: #f7dcc2;
+  font-family: var(--torneos-ui-font);
+  font-size: var(--torneos-action-font-size-sm);
+  font-weight: var(--torneos-action-font-weight);
+  line-height: var(--torneos-action-line-height);
+  cursor: pointer;
+}
+
+.portraitNotice button:hover {
+  background: rgba(255, 178, 122, 0.12);
+}
+
 .playerList {
   display: grid;
   gap: 8px;
@@ -914,6 +1007,13 @@
   object-fit: cover;
 }
 
+.brandingContain {
+  width: 100%;
+  height: 100%;
+  padding: 4px;
+  object-fit: contain;
+}
+
 .playerIdentity {
   display: grid;
   gap: 2px;
@@ -942,15 +1042,18 @@
   color: #72e5be;
 }
 
+/* Botón ícono: la excepción semántica de la escala. Es cuadrado y no lleva
+   texto, así que toma el radio compacto y no el del CTA. */
 .iconButton {
   display: grid;
-  width: 42px;
-  height: 42px;
+  width: var(--torneos-action-height-sm);
+  height: var(--torneos-action-height-sm);
   place-items: center;
   border: 1px solid rgba(255, 130, 111, 0.24);
-  border-radius: 11px;
+  border-radius: var(--torneos-action-radius-sm);
   background: rgba(181, 73, 58, 0.08);
   color: #ff9e8d;
+  cursor: pointer;
 }
 
 .requirementsPanel dl {
@@ -1112,6 +1215,22 @@
   to { transform: rotate(360deg); }
 }
 
+@media (max-width: 1320px) {
+  .entryCard {
+    grid-template-columns: minmax(0, 1fr) max-content;
+  }
+
+  .entryFacts {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .entryActions {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+}
+
 @media (max-width: 1000px) {
   .entryCard {
     grid-template-columns: 1fr auto;
@@ -1248,7 +1367,8 @@
   }
 
   .entryCard > a,
-  .entryFacts {
+  .entryFacts,
+  .entryActions {
     grid-column: 1;
     grid-row: auto;
   }
@@ -1261,6 +1381,22 @@
   .entryCard > a {
     justify-content: center;
     border-top: 1px solid rgba(142, 166, 209, 0.11);
+  }
+
+  .entryActions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    min-width: 0;
+    align-items: stretch;
+    gap: 8px;
+    justify-content: stretch;
+  }
+
+  .entryActions > a,
+  .entryActions > .withdrawButton {
+    width: 100%;
+    box-sizing: border-box;
+    justify-content: center;
   }
 
   .decisionPicker {
@@ -1363,4 +1499,10 @@
 .formSection select,
 .formSection textarea {
   border-radius: var(--torneos-control-radius);
+}
+.brandingEditNotice {
+  margin: 16px 0 20px;
+  color: var(--torneos-text-muted, #a7a2bd);
+  font-size: 0.84rem;
+  line-height: 1.45;
 }

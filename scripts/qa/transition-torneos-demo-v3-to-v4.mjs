@@ -86,13 +86,26 @@ export function validateTransitionArtifacts({
       }
     });
   });
-  if (
-    differences.length !== 1
-    || differences[0].table !== 'tournament_discipline_ledgers'
-    || differences[0].column !== 'automatic_suspensions'
-    || differences[0].before !== 0
-    || differences[0].after !== 1
-  ) {
+  const discipline = differences.filter((difference) => (
+    difference.table === 'tournament_discipline_ledgers'
+    && difference.column === 'automatic_suspensions'
+    && difference.before === 0
+    && difference.after === 1
+  ));
+  const shields = differences.filter((difference) => (
+    difference.table === 'tournament_team_entries'
+    && difference.column === 'shield_path'
+    && /^qa\/shields\/[a-z0-9-]+\.svg$/.test(difference.before || '')
+    && difference.after === null
+  ));
+  const snapshots = differences.filter((difference) => (
+    difference.table === 'tournament_competition_participants'
+    && difference.column === 'snapshot_shield_path'
+    && /^qa\/shields\/[a-z0-9-]+\.svg$/.test(difference.before || '')
+    && difference.after === null
+  ));
+  if (differences.length !== 11 || discipline.length !== 1
+    || shields.length !== 5 || snapshots.length !== 5) {
     throw new Error(`Unexpected V3/V4 data differences: ${canonicalJson(differences)}`);
   }
   return Object.freeze({
@@ -170,7 +183,9 @@ export async function transitionV3ToV4(client, {
         error.foreignRows = foreignRows;
         throw error;
       }
-      const difference = contract.differences[0];
+      const difference = contract.differences.find(
+        (item) => item.table === 'tournament_discipline_ledgers',
+      );
       const ledgerUpdate = await client.query(
         `update public.tournament_discipline_ledgers
          set automatic_suspensions = $3
@@ -186,6 +201,30 @@ export async function transitionV3ToV4(client, {
       );
       if (ledgerUpdate.rowCount !== 1) {
         throw new Error(`Transition expected one ledger update, changed ${ledgerUpdate.rowCount}.`);
+      }
+      let brandingChanges = 0;
+      for (const item of contract.differences.filter(
+        (candidate) => candidate.table === 'tournament_team_entries',
+      )) {
+        const result = await client.query(
+          `update public.tournament_team_entries
+           set shield_path = null where id = $1 and shield_path = $2`,
+          [item.identity.id, item.before],
+        );
+        brandingChanges += result.rowCount;
+      }
+      for (const item of contract.differences.filter(
+        (candidate) => candidate.table === 'tournament_competition_participants',
+      )) {
+        const result = await client.query(
+          `update public.tournament_competition_participants
+           set snapshot_shield_path = null where id = $1 and snapshot_shield_path = $2`,
+          [item.identity.id, item.before],
+        );
+        brandingChanges += result.rowCount;
+      }
+      if (brandingChanges !== 10) {
+        throw new Error(`Transition expected ten branding cleanup updates, changed ${brandingChanges}.`);
       }
       await deliberateFailure(client, failAfterStep, 'ledger_update');
 
@@ -230,7 +269,7 @@ export async function transitionV3ToV4(client, {
       return {
         status: 'transitioned',
         attempts: attempt,
-        changedRows: 1,
+        changedRows: 11,
         retiredMarkers: 1,
         createdMarkers: 1,
         verification,

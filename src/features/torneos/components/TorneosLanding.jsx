@@ -22,7 +22,15 @@ import { getRoleLabel } from '../domain/capabilities';
 import { resolveTorneosUserExperience } from '../domain/userExperience';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
+import { canonicalRoutes } from '../routing/canonicalRoutes';
 import styles from './TorneosShell.module.css';
+
+// `tournament_organizations.status` es `active` | `archived`. En la tarjeta va
+// junto al rol, así que se dice en castellano y no como clave de la base.
+const ORGANIZATION_STATUS_LABELS = {
+  active: 'Activa',
+  archived: 'Archivada',
+};
 
 const ACTIVITY_LINKS = [
   {
@@ -98,7 +106,7 @@ export default function TorneosLanding() {
     tournamentRelations: relationsState.relations,
   }), [availableOrganizations, relationsState.relations]);
 
-  if (status === 'loading' || status === 'idle' || relationsState.status === 'loading') {
+  if (status === 'validating' || status === 'idle' || relationsState.status === 'loading') {
     return <WorkspaceLoading label="Resolviendo tu experiencia de Torneos…" />;
   }
   if (status === 'error' || relationsState.status === 'error') {
@@ -115,7 +123,7 @@ export default function TorneosLanding() {
 
   const openOrganization = async (organization) => {
     const selected = await selectOrganization(organization.id);
-    if (selected) navigate(`/torneos/organizacion/${organization.id}/inicio`);
+    if (selected) navigate(canonicalRoutes.organizationHome(organization.id));
   };
 
   return (
@@ -200,7 +208,7 @@ export default function TorneosLanding() {
                 </span>
                 <span>
                   <strong>{organization.name}</strong>
-                  <small>{getRoleLabel(organization.role)} · {organization.status}</small>
+                  <small>{getRoleLabel(organization.role)}{ORGANIZATION_STATUS_LABELS[organization.status] ? ` · ${ORGANIZATION_STATUS_LABELS[organization.status]}` : ''}</small>
                 </span>
                 <ArrowRight size={19} aria-hidden="true" />
               </button>

@@ -34,7 +34,7 @@ function rowsFor(manifest, table) {
     .flatMap((operation) => operation.rows);
 }
 
-function applyV4DisciplineCorrection(baseManifest) {
+function applyV4Corrections(baseManifest) {
   const suspensions = rowsFor(baseManifest, 'tournament_player_suspensions');
   const directRedSuspensions = suspensions.filter((row) => row.source_type === 'direct_red');
   if (directRedSuspensions.length !== 1) {
@@ -50,11 +50,37 @@ function applyV4DisciplineCorrection(baseManifest) {
     throw new Error('Frozen V3 no longer contains the known automatic_suspensions = 0 value.');
   }
   directRedLedger.automatic_suspensions = 1;
+
+  // V3 froze six synthetic SVG paths. Branding provisioning replaces BNO
+  // with a real raster object; the other five never existed and produced 400s.
+  // V4 removes those five reproducibly and lets every consumer use its
+  // existing monogram fallback.
+  const entries = rowsFor(baseManifest, 'tournament_team_entries');
+  const clearedTeamIds = new Set(entries.filter((row) => (
+    row.short_name !== 'BNO' && /^qa\/shields\/[a-z0-9-]+\.svg$/.test(row.shield_path || '')
+  )).map((row) => {
+    row.shield_path = null;
+    return row.id;
+  }));
+  if (clearedTeamIds.size !== 5) {
+    throw new Error(`V4 branding cleanup expected five legacy QA shields, got ${clearedTeamIds.size}.`);
+  }
+  const participants = rowsFor(baseManifest, 'tournament_competition_participants');
+  let clearedSnapshots = 0;
+  for (const participant of participants) {
+    if (clearedTeamIds.has(participant.team_entry_id)) {
+      participant.snapshot_shield_path = null;
+      clearedSnapshots += 1;
+    }
+  }
+  if (clearedSnapshots !== 5) {
+    throw new Error(`V4 branding cleanup expected five participant snapshots, got ${clearedSnapshots}.`);
+  }
 }
 
 export function buildBaseManifest() {
   const baseManifest = structuredClone(legacyV3.buildBaseManifest());
-  applyV4DisciplineCorrection(baseManifest);
+  applyV4Corrections(baseManifest);
   baseManifest.seedKey = SEED_KEY;
   baseManifest.seedVersion = SEED_VERSION;
   baseManifest.datasetVersion = SEED_VERSION;

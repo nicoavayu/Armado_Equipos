@@ -29,11 +29,14 @@ import {
   hasCapability,
   TOURNAMENT_CAPABILITIES,
 } from '../domain/capabilities';
+import { canonicalRoutes } from '../routing/canonicalRoutes';
+import { tournamentSurface } from '../routing/legacyRoutes';
 import CompetitionSelector from './CompetitionSelector';
 import CompetitionLifecycleActions from './CompetitionLifecycleActions';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import styles from './TorneosShell.module.css';
 import coreStyles from './CompetitionCore.module.css';
+import BrandingImage from './BrandingImage';
 import {
   countScheduledMatches,
   hasScheduledTime,
@@ -44,10 +47,10 @@ import {
 } from '../domain/competitionLifecycle';
 
 const operationalModules = [
-  { label: 'Partidos', description: 'Resultados, actas e historial', icon: ClipboardList, path: 'partidos' },
-  { label: 'Tabla', description: 'Posiciones y desempates', icon: Table2, path: 'competencia/tabla' },
-  { label: 'Disciplina', description: 'Tarjetas, casos y sanciones derivadas', icon: Gavel, path: 'competencia/disciplina' },
-  { label: 'Comunicaciones', description: 'Avisos para la competencia', icon: Megaphone, path: 'comunicaciones' },
+  { label: 'Partidos', description: 'Resultados, actas e historial', icon: ClipboardList, key: 'matches' },
+  { label: 'Tabla', description: 'Posiciones y desempates', icon: Table2, key: 'table' },
+  { label: 'Disciplina', description: 'Tarjetas, casos y sanciones derivadas', icon: Gavel, key: 'discipline' },
+  { label: 'Comunicaciones', description: 'Avisos para la competencia', icon: Megaphone, key: 'communications' },
 ];
 
 function formatDate(value) {
@@ -61,7 +64,6 @@ function formatDate(value) {
 
 export default function TorneosDashboard() {
   const { organization } = useOutletContext();
-  const organizationPath = `/torneos/organizacion/${organization.id}`;
   const {
     status,
     error,
@@ -70,8 +72,39 @@ export default function TorneosDashboard() {
     formats,
     activeSeason,
     activeTournament,
+    isTournamentRoute,
+    routeTournamentId,
     refresh,
   } = useTorneosCompetition();
+  // El tablero es de la organización, pero casi todo lo que ofrece abrir es del
+  // torneo: los destinos se arman con el torneo de la URL cuando lo hay, y con
+  // la dirección vieja cuando no —que pregunta en vez de adivinar—.
+  const anchoredTournamentId = isTournamentRoute
+    ? routeTournamentId
+    : (activeTournament?.id || null);
+  const tournamentLink = (builder) => tournamentSurface(
+    builder,
+    organization.id,
+    anchoredTournamentId,
+  );
+  const routes = {
+    tournaments: canonicalRoutes.organizationTournaments(organization.id),
+    tournamentNew: canonicalRoutes.organizationTournamentNew(organization.id),
+    seasonNew: canonicalRoutes.organizationSeasonNew(organization.id),
+    communications: canonicalRoutes.organizationCommunications(organization.id),
+    configuration: anchoredTournamentId
+      ? canonicalRoutes.tournamentConfiguration(organization.id, anchoredTournamentId, { step: 5 })
+      : canonicalRoutes.organizationTournaments(organization.id),
+    teams: tournamentLink('tournamentTeams'),
+    teamNew: tournamentLink('tournamentTeamNew'),
+    fixture: tournamentLink('tournamentFixture'),
+    fixtureParticipants: tournamentLink('tournamentFixtureParticipants'),
+    fixtureGenerate: tournamentLink('tournamentFixtureGenerate'),
+    schedule: tournamentLink('tournamentSchedule'),
+    matches: tournamentLink('tournamentMatches'),
+    table: tournamentLink('tournamentTable'),
+    discipline: tournamentLink('tournamentDiscipline'),
+  };
   const { service } = useTorneosWorkspace();
   const fixture = useTorneosFixture();
   const teamsRequestRef = useRef(0);
@@ -143,11 +176,13 @@ export default function TorneosDashboard() {
       <div className={styles.dashboard}>
         <section className={styles.dashboardHero}>
           <div className={styles.organizationIdentity}>
-            <span className={styles.largeMonogram}>
-              {organization.logoPath
-                ? <img src={organization.logoPath} alt="" />
-                : organization.name.slice(0, 2).toUpperCase()}
-            </span>
+            <BrandingImage
+              kind="organization"
+              path={organization.logoPath}
+              name={organization.name}
+              className={styles.largeMonogram}
+              imageClassName={styles.brandingContain}
+            />
             <div>
               <span className={styles.eyebrow}>Organización de competencias</span>
               <h1>{seasons.length ? 'Creá tu primer ' : 'Empezá un '}<em>torneo</em></h1>
@@ -174,9 +209,7 @@ export default function TorneosDashboard() {
           {canCreateTournament && (
             <Link
               className={coreStyles.primaryAction}
-              to={seasons.length
-                ? `${organizationPath}/torneos/nuevo`
-                : `${organizationPath}/temporadas/nueva`}
+              to={seasons.length ? routes.tournamentNew : routes.seasonNew}
             >
               {seasons.length ? 'Crear torneo' : 'Crear temporada'}
               <ArrowRight size={17} />
@@ -195,7 +228,7 @@ export default function TorneosDashboard() {
     tournament: activeTournament,
     teamsSummary,
     fixture,
-    organizationPath,
+    routes,
   });
   const teams = teamsSummary.data;
   const fixtureReady = fixture.status === 'ready';
@@ -303,7 +336,7 @@ export default function TorneosDashboard() {
           </ul>
           <Link
             className={styles.dashboardPrimaryLink}
-            to={`${organizationPath}/torneos/${activeTournament.id}/configuracion`}
+            to={canonicalRoutes.tournamentConfiguration(organization.id, activeTournament.id)}
           >
             {canUpdateTournament ? 'Continuar configuración' : 'Consultar configuración'}
             <ArrowRight size={17} />
@@ -335,7 +368,7 @@ export default function TorneosDashboard() {
           )}
           <Link
             className={styles.dashboardPrimaryLink}
-            to={`${organizationPath}/equipos`}
+            to={routes.teams}
           >
             Ver equipos
             <ArrowRight size={17} />
@@ -358,7 +391,7 @@ export default function TorneosDashboard() {
                 ? `${fixture.participants.length} equipos confirmados para esta versión.`
                 : 'Confirmá los equipos aprobados antes de generar cruces.'}
           </p>
-          <Link className={styles.dashboardPrimaryLink} to={`${organizationPath}/fixture`}>
+          <Link className={styles.dashboardPrimaryLink} to={routes.fixture}>
             Abrir fixture
             <CalendarDays size={17} />
           </Link>
@@ -372,7 +405,7 @@ export default function TorneosDashboard() {
           <p>{fixtureReady
             ? 'Asigná horarios y canchas antes de iniciar la competencia.'
             : 'Primero necesitamos cargar el fixture para indicar qué partidos requieren programación.'}</p>
-          <Link className={styles.dashboardPrimaryLink} to={`${organizationPath}/programacion`}>
+          <Link className={styles.dashboardPrimaryLink} to={routes.schedule}>
             Programar partidos
             <ArrowRight size={17} />
           </Link>
@@ -386,8 +419,8 @@ export default function TorneosDashboard() {
           <p>Usan los mismos partidos y datos oficiales que la página pública.</p>
         </div>
         <div className={styles.futureGrid}>
-          {operationalModules.map(({ label, description, icon: Icon, path }) => (
-            <Link key={label} to={`${organizationPath}/${path}`}>
+          {operationalModules.map(({ label, description, icon: Icon, key }) => (
+            <Link key={label} to={routes[key]}>
               <Icon size={20} aria-hidden="true" />
               <span>
                 <strong>{label}</strong>

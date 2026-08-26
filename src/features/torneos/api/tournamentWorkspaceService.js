@@ -1,7 +1,10 @@
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '../../../services/api/supabase';
 import { normalizeMatchOutcome } from '../domain/matchOutcome';
+import { resolveBrandingAssetUrl } from '../domain/brandingAssets';
+import { loadTournamentBrandingContext } from './tournamentBrandingService';
 import {
+  deleteTournamentMediaAsset,
   signTournamentMediaReadUrls,
   uploadTournamentMediaPhoto,
 } from './tournamentMediaUploadClient';
@@ -243,6 +246,28 @@ export async function loadTournamentPublicPageSettings({
   }), 'No pudimos cargar el estado de la página pública.');
 }
 
+export async function loadTournamentTeamVisualPolicy({
+  organizationId,
+  tournamentId,
+}) {
+  return unwrapRpc(await supabase.rpc('get_tournament_team_visual_policy', {
+    p_organization_id: organizationId,
+    p_tournament_id: tournamentId,
+  }), 'No pudimos cargar la gestión de imágenes por los equipos.');
+}
+
+export async function setTournamentTeamVisualPolicy({
+  organizationId,
+  tournamentId,
+  policy,
+}) {
+  return unwrapRpc(await supabase.rpc('set_tournament_team_visual_policy', {
+    p_organization_id: organizationId,
+    p_tournament_id: tournamentId,
+    p_policy: policy,
+  }), 'No pudimos actualizar la gestión de imágenes por los equipos.');
+}
+
 export async function setTournamentPublicPagePublished({
   organizationId,
   tournamentId,
@@ -349,12 +374,25 @@ export async function listTournamentOrganizationMembers(organizationId) {
 
 export async function loadTournamentCompetitionContext(organizationId) {
   try {
-    return unwrapRpc(
+    const context = unwrapRpc(
       await supabase.rpc('get_tournament_competition_context', {
         p_organization_id: organizationId,
       }),
       'No pudimos cargar temporadas y torneos.',
     );
+    const branding = await loadTournamentBrandingContext({ organizationId });
+    const logoByTournament = new Map(
+      (branding?.tournaments || []).map((item) => [item.id, item.logoPath || null]),
+    );
+    return {
+      ...context,
+      organizationBranding: branding?.organization || null,
+      tournaments: (context?.tournaments || []).map((tournament) => ({
+        ...tournament,
+        logoPath: logoByTournament.get(tournament.id) || null,
+        organizationLogoPath: branding?.organization?.logoPath || null,
+      })),
+    };
   } catch (error) {
     throw toWorkspaceError(error, 'No pudimos cargar temporadas y torneos.');
   }
@@ -895,6 +933,61 @@ export async function supersedeTournamentFixture(input) {
   }), 'No pudimos preparar una nueva versión.');
 }
 
+/**
+ * Lectura de sedes y canchas a nivel organización.
+ *
+ * `tournament_venues` y `tournament_courts` pertenecen a la organización y no
+ * tienen `tournament_id`: pedirlas a través de `get_tournament_schedule_context`
+ * obligaba a tener un torneo y una categoría activos para ver un recurso que no
+ * depende de ninguno de los dos. Eso es lo que ataba la pantalla de Sedes al
+ * contexto de competencia.
+ *
+ * La autorización sigue siendo del servidor: ambas tablas tienen RLS con
+ * `has_tournament_organization_capability(organization_id, 'venues.read'
+ * /'courts.read')` y sólo `GRANT SELECT` a `authenticated`, así que esta lectura
+ * no puede ver nada que el RPC dejara ver.
+ */
+export async function loadTournamentOrganizationVenues(organizationId) {
+  const [venues, courts] = await Promise.all([
+    supabase
+      .from('tournament_venues')
+      .select('id, name, address, place_id, latitude, longitude, locality, timezone, status, notes')
+      .eq('organization_id', organizationId)
+      .order('status', { ascending: true })
+      .order('name', { ascending: true }),
+    supabase
+      .from('tournament_courts')
+      .select('id, venue_id, name, sport_modality, status, notes')
+      .eq('organization_id', organizationId)
+      .order('status', { ascending: true })
+      .order('name', { ascending: true }),
+  ]);
+  if (venues.error) throw toWorkspaceError(venues.error, 'No pudimos cargar las sedes.');
+  if (courts.error) throw toWorkspaceError(courts.error, 'No pudimos cargar las canchas.');
+  return {
+    venues: (venues.data || []).map((venue) => ({
+      id: venue.id,
+      name: venue.name,
+      address: venue.address,
+      placeId: venue.place_id,
+      latitude: venue.latitude,
+      longitude: venue.longitude,
+      locality: venue.locality,
+      timezone: venue.timezone,
+      status: venue.status,
+      notes: venue.notes,
+    })),
+    courts: (courts.data || []).map((court) => ({
+      id: court.id,
+      venueId: court.venue_id,
+      name: court.name,
+      sportModality: court.sport_modality,
+      status: court.status,
+      notes: court.notes,
+    })),
+  };
+}
+
 export async function createTournamentVenue(input) {
   return unwrapRpc(await supabase.rpc('create_tournament_venue', {
     p_organization_id: input.organizationId,
@@ -1001,6 +1094,22 @@ export async function autoScheduleTournamentMatches(input) {
   }), 'No pudimos completar la programación automática.');
 }
 
+//
+// "Mis partidos" une dos relaciones distintas con el mismo partido, y el
+// merge borraba de cuál venía cada fila.
+//
+// `get_player_tournament_matches` devuelve los partidos donde el usuario está
+// en un plantel vigente; `get_managed_tournament_matches`, aquellos donde es
+// capitán o delegado del equipo. Son cosas distintas: responder disponibilidad
+// es un acto del jugador sobre sí mismo —`respond_match_availability` exige un
+// `tournament_roster_players` propio— mientras que dirigir la convocatoria es
+// del cuerpo técnico. Fundidas en un objeto plano, la pantalla no podía
+// distinguirlas y ofrecía "Voy / No voy" también sobre filas donde el usuario
+// no es jugador, que el backend rechaza con TORNEOS_MATCH_FORBIDDEN.
+//
+// Por eso cada fila viaja etiquetada con su origen, y quien tiene las dos
+// relaciones conserva las dos capacidades.
+//
 export async function loadPlayerTournamentMatches() {
   const [playerMatches, managedMatches] = await Promise.all([
     supabase.rpc('get_player_tournament_matches'),
@@ -1009,11 +1118,17 @@ export async function loadPlayerTournamentMatches() {
   const playerRows = unwrapRpc(playerMatches, 'No pudimos cargar tus partidos del torneo.') || [];
   const managedRows = unwrapRpc(managedMatches, 'No pudimos cargar tus partidos del torneo.') || [];
   const byScope = new Map();
-  [...playerRows, ...managedRows].forEach((match) => {
+  const merge = (rows, relation) => rows.forEach((match) => {
     const key = `${match.matchId}:${match.teamEntryId}`;
-    byScope.set(key, { ...(byScope.get(key) || {}), ...match });
+    byScope.set(key, { ...(byScope.get(key) || {}), ...match, ...relation });
   });
-  return [...byScope.values()];
+  merge(playerRows, { isRosteredPlayer: true });
+  merge(managedRows, { isTeamManager: true });
+  return [...byScope.values()].map((match) => ({
+    isRosteredPlayer: false,
+    isTeamManager: false,
+    ...match,
+  }));
 }
 
 export async function respondTournamentMatchAvailability(input) {
@@ -1329,10 +1444,23 @@ export async function loadTournamentParticipantHub({
   tournamentId,
   categoryId = null,
 }) {
-  return unwrapRpc(await supabase.rpc('get_tournament_participant_hub', {
+  const hub = unwrapRpc(await supabase.rpc('get_tournament_participant_hub', {
     p_tournament_id: tournamentId,
     p_category_id: categoryId,
   }), 'No pudimos cargar el centro del torneo.');
+  const branding = await loadTournamentBrandingContext({
+    organizationId: hub.tournament.organizationId,
+    tournamentId,
+  });
+  const tournamentBranding = branding?.tournaments?.[0] || null;
+  return {
+    ...hub,
+    tournament: {
+      ...hub.tournament,
+      logoPath: tournamentBranding?.logoPath || null,
+      organizationLogoPath: branding?.organization?.logoPath || null,
+    },
+  };
 }
 
 export async function setTournamentHubCategory({
@@ -1850,6 +1978,10 @@ export async function uploadTournamentMediaPhotoToGallery(options) {
   });
 }
 
+export async function deleteTournamentMediaAssetPermanently(assetId, options) {
+  return deleteTournamentMediaAsset(assetId, options);
+}
+
 export async function loadTournamentSocialStudioContext(organizationId) {
   return unwrapRpc(await supabase.rpc('get_tournament_social_studio_context', {
     p_organization_id: organizationId,
@@ -1888,16 +2020,8 @@ export async function setTournamentSocialPermission({
   }), 'No pudimos actualizar el permiso del Estudio Social.');
 }
 
-/**
- * Team crests live in the public `team-crests` bucket, so they resolve to a
- * plain URL. Private photographs never come through here: they are signed by
- * the Multimedia signer, which is what enforces publication and consent.
- */
 export function resolveTeamShieldUrl(shieldPath) {
-  if (!shieldPath) return null;
-  if (/^https?:\/\//i.test(shieldPath)) return shieldPath;
-  const { data } = supabase.storage.from('team-crests').getPublicUrl(shieldPath);
-  return data?.publicUrl || null;
+  return resolveBrandingAssetUrl({ kind: 'team', path: shieldPath });
 }
 
 export async function handleTournamentMediaReport({
@@ -1961,6 +2085,7 @@ export const tournamentWorkspaceService = Object.freeze({
   validateFixture: validateTournamentFixture,
   publishFixture: publishTournamentFixture,
   supersedeFixture: supersedeTournamentFixture,
+  loadOrganizationVenues: loadTournamentOrganizationVenues,
   createVenue: createTournamentVenue,
   updateVenue: updateTournamentVenue,
   createCourt: createTournamentCourt,
@@ -2045,11 +2170,14 @@ export const tournamentWorkspaceService = Object.freeze({
   handleMediaReport: handleTournamentMediaReport,
   uploadMediaPhoto: uploadTournamentMediaPhotoToGallery,
   signMediaReadUrls: signTournamentMediaReadUrls,
+  deleteMediaAsset: deleteTournamentMediaAssetPermanently,
   loadSocialStudioContext: loadTournamentSocialStudioContext,
   loadSocialSnapshot: loadTournamentSocialSnapshot,
   setSocialPermission: setTournamentSocialPermission,
   loadPublicPageSettings: loadTournamentPublicPageSettings,
   setPublicPagePublished: setTournamentPublicPagePublished,
+  loadTeamVisualPolicy: loadTournamentTeamVisualPolicy,
+  setTeamVisualPolicy: setTournamentTeamVisualPolicy,
   resolveTeamShieldUrl,
   createIdempotencyKey,
 });

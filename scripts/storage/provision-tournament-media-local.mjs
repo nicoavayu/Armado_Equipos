@@ -94,13 +94,54 @@ export function validatePolicies(policies) {
   return true;
 }
 
-function assertLocalDatabase(rawUrl) {
+export function assertLocalDatabase(rawUrl) {
   let url;
   try { url = new URL(rawUrl); } catch { fail('SUPABASE_DB_URL is invalid.'); }
   if (!['postgres:', 'postgresql:'].includes(url.protocol) || !LOOPBACK_HOSTS.has(url.hostname)) {
     fail('SUPABASE_DB_URL must target loopback PostgreSQL; there is no override');
   }
   return rawUrl;
+}
+
+export async function activateLocalSimpleMode(rawDatabaseUrl, Client = pg.Client) {
+  const databaseUrl = assertLocalDatabase(rawDatabaseUrl);
+  const client = new Client({ connectionString: databaseUrl });
+  await client.connect();
+  try {
+    await client.query('begin');
+    const updated = await client.query(`
+      update public.tournament_media_pipeline_configuration
+      set mode = 'MVP_SIMPLE', updated_at = now(), updated_by = null
+      where singleton
+      returning mode
+    `);
+    if (updated.rowCount !== 1 || updated.rows[0]?.mode !== 'MVP_SIMPLE') {
+      fail('local MVP_SIMPLE configuration row is missing or ambiguous');
+    }
+    const readiness = await client.query(
+      'select public.tournament_media_effective_readiness() as value',
+    );
+    const value = readiness.rows[0]?.value;
+    if (value?.mode !== 'MVP_SIMPLE'
+      || value?.uploadReady !== true
+      || value?.storageReady !== true
+      || value?.private !== true) {
+      fail('local MVP_SIMPLE readiness did not become safe and operational');
+    }
+    await client.query('commit');
+    return {
+      mode: value.mode,
+      uploadReady: value.uploadReady,
+      storageReady: value.storageReady,
+      private: value.private,
+      blockers: value.blockers || [],
+    };
+  } catch (error) {
+    await client.query('rollback').catch(() => {});
+    throw error;
+  } finally {
+    await client.end();
+  }
 }
 
 export async function inspectPolicies(databaseUrl) {
@@ -235,6 +276,7 @@ const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPat
 if (isMain) {
   const modeArg = process.argv.find((arg) => arg.startsWith('--mode='));
   const mode = process.argv.includes('--verify') ? 'verify' : (modeArg?.slice(7) || 'apply');
+  const activateSimple = process.argv.includes('--activate-simple');
   runStorageMode({
     mode,
     rawUrl: process.env.SUPABASE_URL || 'http://127.0.0.1:57321',
@@ -243,8 +285,14 @@ if (isMain) {
       process.env.SUPABASE_DB_URL || 'postgresql://postgres:postgres@127.0.0.1:57322/postgres',
     ),
     confirmEmptyLocalBucketDelete: process.argv.includes('--confirm-empty-local-bucket-delete'),
-  }).then((result) => {
-    process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+  }).then(async (result) => {
+    const activation = activateSimple
+      ? await activateLocalSimpleMode(
+        process.env.SUPABASE_DB_URL
+          || 'postgresql://postgres:postgres@127.0.0.1:57322/postgres',
+      )
+      : null;
+    process.stdout.write(`${JSON.stringify({ ...result, activation }, null, 2)}\n`);
   }).catch((error) => {
     console.error(`[tournament-media] ${error.message}`);
     process.exit(1);

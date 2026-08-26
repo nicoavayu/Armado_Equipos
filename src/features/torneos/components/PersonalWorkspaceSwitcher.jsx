@@ -14,6 +14,7 @@ import {
   useTorneosWorkspace,
 } from '../context/TorneosWorkspaceContext';
 import { getRoleLabel } from '../domain/capabilities';
+import { canonicalRoutes } from '../routing/canonicalRoutes';
 import styles from './PersonalWorkspaceSwitcher.module.css';
 
 export function WorkspaceList() {
@@ -31,7 +32,7 @@ export function WorkspaceList() {
     setBusyId(organization.id);
     try {
       const selected = await selectOrganization(organization.id);
-      if (selected) navigate(`/torneos/organizacion/${organization.id}/inicio`);
+      if (selected) navigate(canonicalRoutes.organizationHome(organization.id));
     } finally {
       setBusyId('');
     }
@@ -47,7 +48,7 @@ export function WorkspaceList() {
         </div>
       </div>
 
-      {status === 'loading' || status === 'idle' ? (
+      {status === 'validating' || status === 'idle' ? (
         <div className={styles.state} role="status">
           <LoaderCircle className={styles.spinner} size={19} />
           Validando espacios…

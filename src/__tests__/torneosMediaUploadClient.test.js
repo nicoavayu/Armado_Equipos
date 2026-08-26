@@ -25,7 +25,9 @@ jest.mock('../services/api/supabase', () => ({
 import { supabase } from '../services/api/supabase';
 import { MediaClientError, prepareUploadPayload } from '../features/torneos/domain/mediaImageClient';
 import {
+  deleteTournamentMediaAsset,
   MediaUploadError,
+  signTournamentMediaReadUrls,
   uploadTournamentMediaPhoto,
 } from '../features/torneos/api/tournamentMediaUploadClient';
 
@@ -204,7 +206,10 @@ describe('tournament media upload client', () => {
     global.fetch = mockFetch(serviceResponses({
       'tournament-media-signer': {
         ok: true,
-        body: { uploadUrl: 'https://edge.local/capability', requiresAuth: true },
+        body: {
+          uploadUrl: '/functions/v1/tournament-media-signer?action=mvp-simple-upload',
+          requiresAuth: true,
+        },
       },
       'tournament-media-processor': {
         ok: true,
@@ -227,9 +232,31 @@ describe('tournament media upload client', () => {
     expect(xhrInstances[0].headers).toMatchObject({
       Authorization: 'Bearer jwt-token', apikey: 'anon-key',
     });
+    expect(xhrInstances[0].url).toBe(
+      'http://127.0.0.1:57321/functions/v1/tournament-media-signer?action=mvp-simple-upload',
+    );
     expect(result).toMatchObject({
       assetId: 'asset-1', jobId: null, status: 'pending_review',
     });
+  });
+
+  test('resolves signed read capabilities against the configured Supabase origin', async () => {
+    global.fetch = mockFetch(serviceResponses({
+      'tournament-media-signer': {
+        ok: true,
+        body: {
+          items: [{
+            assetId: 'asset-1', kind: 'grid',
+            url: '/storage/v1/object/sign/tournament-media/capability?token=signed',
+          }],
+        },
+      },
+    }));
+    await expect(signTournamentMediaReadUrls([{ assetId: 'asset-1', kind: 'grid' }]))
+      .resolves.toEqual({
+        'asset-1:grid': 'http://127.0.0.1:57321/storage/v1/object/sign/'
+          + 'tournament-media/capability?token=signed',
+      });
   });
 
   test('never reaches the signer when the environment is not ready', async () => {
@@ -296,6 +323,37 @@ describe('tournament media upload client', () => {
     }));
     await expect(runUpload()).rejects.toMatchObject({
       code: 'upload_session_invalid', retryable: true,
+    });
+  });
+
+  test('hard delete sends only the durable asset id to the trusted gateway', async () => {
+    global.fetch = mockFetch(serviceResponses({
+      'tournament-media-signer': {
+        ok: true, status: 200,
+        body: { assetId: 'asset-a', deleted: true },
+      },
+    }));
+    await expect(deleteTournamentMediaAsset('asset-a')).resolves.toEqual({
+      assetId: 'asset-a', deleted: true,
+    });
+    const call = global.fetch.mock.calls[0];
+    expect(JSON.parse(call[1].body)).toEqual({
+      action: 'delete-asset', assetId: 'asset-a',
+    });
+    expect(call[1].body).not.toMatch(/bucket|path|object/i);
+  });
+
+  test('delete-pending failures stay retryable and never expose infrastructure', async () => {
+    global.fetch = mockFetch(serviceResponses({
+      'tournament-media-signer': {
+        ok: false, status: 502,
+        body: { error: 'delete_storage_failed', deletePending: true },
+      },
+    }));
+    await expect(deleteTournamentMediaAsset('asset-a')).rejects.toMatchObject({
+      message: 'No pudimos terminar de eliminar la foto. Reintentá.',
+      code: 'delete_storage_failed',
+      retryable: true,
     });
   });
 

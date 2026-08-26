@@ -58,3 +58,16 @@ verify_jwt = true
 
 [functions.tournament-media-processor]
 verify_jwt = true
+
+# Player portraits are private and roster-scoped. The handler revalidates the
+# actor with GoTrue, derives every Storage path server-side and signs only the
+# authenticated_roster audience in 1C.2A.
+[functions.tournament-player-portraits]
+verify_jwt = true
+
+# Team photos are private and team-scoped. The handler revalidates the actor
+# with GoTrue, derives every Storage path server-side, computes the stored
+# object's checksum itself, and signs only the authenticated_team audience in
+# 1C.3B. Neither public_page nor social_export is enabled.
+[functions.tournament-team-photos]
+verify_jwt = true

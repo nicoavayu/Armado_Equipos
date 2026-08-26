@@ -9,6 +9,7 @@ import {
   AlertTriangle,
   BarChart3,
   CheckCircle2,
+  ChevronDown,
   ChevronRight,
   ClipboardCheck,
   Medal,
@@ -27,15 +28,17 @@ import {
   getCompetitionErrorContext,
   getLifecycleErrorMessage,
 } from '../domain/competitionLifecycle';
+import { tournamentSurface } from '../routing/legacyRoutes';
 import CompetitionSelector from './CompetitionSelector';
+import BrandingImage from './BrandingImage';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import styles from './CompetitionCenter.module.css';
 
 const MODES = {
-  table: ['Tabla', Trophy],
-  statistics: ['Estadísticas', BarChart3],
-  qualification: ['Clasificación', Medal],
-  discipline: ['Disciplina', Scale],
+  table: ['Tabla', Trophy, 'tournamentTable'],
+  statistics: ['Estadísticas', BarChart3, 'tournamentStatistics'],
+  qualification: ['Clasificación', Medal, 'tournamentQualification'],
+  discipline: ['Disciplina', Scale, 'tournamentDiscipline'],
 };
 
 function ContextFilters({
@@ -61,6 +64,7 @@ function ContextFilters({
             <option key={category.id} value={category.id}>{category.name}</option>
           ))}
         </select>
+        <ChevronDown size={14} aria-hidden="true" />
       </label>
       <label>
         <span>Fase</span>
@@ -69,6 +73,7 @@ function ContextFilters({
             <option key={phase.id} value={phase.id}>{phase.name}</option>
           ))}
         </select>
+        <ChevronDown size={14} aria-hidden="true" />
       </label>
       <label>
         <span>Grupo</span>
@@ -81,19 +86,24 @@ function ContextFilters({
             <option key={group.id} value={group.id}>{group.name}</option>
           ))}
         </select>
+        <ChevronDown size={14} aria-hidden="true" />
       </label>
     </section>
   );
 }
 
+// El torneo de las pestañas sale de la URL: cambiar de Tabla a Disciplina no
+// puede cambiar de torneo por debajo.
 function CompetitionSubnav({ organizationId, mode }) {
-  const base = `/torneos/organizacion/${organizationId}/competencia`;
+  const { isTournamentRoute, routeTournamentId, activeTournament } = useTorneosCompetition();
+  const { categoryId } = useTorneosFixture();
+  const tournamentId = isTournamentRoute ? routeTournamentId : (activeTournament?.id || null);
   return (
     <nav className={styles.subnav} aria-label="Centro de competencia">
-      {Object.entries(MODES).map(([key, [label, Icon]]) => (
+      {Object.entries(MODES).map(([key, [label, Icon, builder]]) => (
         <Link
           key={key}
-          to={`${base}/${key === 'table' ? 'tabla' : key === 'statistics' ? 'estadisticas' : key === 'qualification' ? 'clasificacion' : 'disciplina'}`}
+          to={tournamentSurface(builder, organizationId, tournamentId, { categoryId })}
           className={mode === key ? styles.activeTab : ''}
           aria-current={mode === key ? 'page' : undefined}
         >
@@ -139,7 +149,13 @@ function StandingsTable({ rows }) {
               <td><strong className={styles.position}>{row.position}</strong></td>
               <td>
                 <span className={styles.team}>
-                  <span className={styles.teamMark}>{(row.shortName || row.teamName || '—').slice(0, 2)}</span>
+                  <BrandingImage
+                    kind="team"
+                    path={row.shieldPath}
+                    name={row.shortName || row.teamName}
+                    className={styles.teamMark}
+                    imageClassName={styles.teamMarkImage}
+                  />
                   <span>
                     <strong>
                       {row.teamName}
@@ -187,7 +203,7 @@ function StatisticsPanel({ data }) {
           {leaders.map((player, index) => (
             <li key={player.rosterPlayerId} className={index < 3 ? styles.podium : ''}>
               <span className={styles.rank}>{String(index + 1).padStart(2, '0')}</span>
-              <span><strong>{player.name}</strong><small>{player.appearances} presencias acreditadas</small></span>
+              <span className={styles.identity}><strong>{player.name}</strong><small>{player.appearances} presencias acreditadas</small></span>
               <span className={styles.statPair}><strong>{player.goals}</strong><small>goles</small></span>
               <span className={styles.statPair}><strong>{player.assists}</strong><small>asis.</small></span>
             </li>
@@ -199,8 +215,14 @@ function StatisticsPanel({ data }) {
         <div className={styles.teamStats}>
           {data.teams.slice(0, 8).map((team) => (
             <article key={team.participantId}>
-              <span className={styles.teamMark}>{(team.name || '—').slice(0, 2)}</span>
-              <span><strong>{team.name}</strong><small>{team.homePlayed} local · {team.awayPlayed} visitante</small></span>
+              <BrandingImage
+                kind="team"
+                path={team.shieldPath}
+                name={team.name}
+                className={styles.teamMark}
+                imageClassName={styles.teamMarkImage}
+              />
+              <span className={styles.identity}><strong>{team.name}</strong><small>{team.homePlayed} local · {team.awayPlayed} visitante</small></span>
               <strong>{team.goals} GF</strong>
             </article>
           ))}
@@ -229,7 +251,7 @@ function QualificationPanel({ standings, revision, onResolve, busy }) {
         {standings.slice(0, 6).map((row) => (
           <article key={row.participantId}>
             <span className={styles.position}>{row.position}</span>
-            <span><strong>{row.teamName}</strong><small>{row.points} pts. · DG {row.goalDifference}</small></span>
+            <span className={styles.identity}><strong>{row.teamName}</strong><small>{row.points} pts. · DG {row.goalDifference}</small></span>
             <ChevronRight size={18} />
           </article>
         ))}

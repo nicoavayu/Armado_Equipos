@@ -13,6 +13,7 @@ import {
   Plus,
   Search,
   Shield,
+  SwatchBook,
   UserRoundX,
   Users,
 } from 'lucide-react';
@@ -22,10 +23,13 @@ import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
 import { hasCapability, TOURNAMENT_CAPABILITIES } from '../domain/capabilities';
 import { TEAM_ENTRY_STATUS_LABELS } from '../domain/teamRegistration';
 import { getTeamRegistrationAvailability } from '../domain/competitionLifecycle';
+import { canonicalRoutes } from '../routing/canonicalRoutes';
+import { tournamentSurface } from '../routing/legacyRoutes';
 import CompetitionSelector from './CompetitionSelector';
 import TeamWithdrawalDialog from './TeamWithdrawalDialog';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import styles from './TeamRegistration.module.css';
+import BrandingImage from './BrandingImage';
 
 // El retiro estructural sólo existe una vez que la competencia tiene el fixture
 // publicado y sus participantes congelados.
@@ -48,6 +52,8 @@ export default function TeamsPage() {
   const { organization } = useOutletContext();
   const {
     activeTournament,
+    isTournamentRoute,
+    routeTournamentId,
     status: competitionStatus,
     error: competitionError,
     refresh: refreshCompetition,
@@ -121,7 +127,15 @@ export default function TeamsPage() {
   ) && WITHDRAWABLE_TOURNAMENT_STATUSES.includes(activeTournament?.status);
   const registration = getTeamRegistrationAvailability(activeTournament);
   const canAdd = canCreate && registration.canAdd;
-  const base = `/torneos/organizacion/${organization.id}/equipos`;
+  // El torneo del listado sale de la URL. La inscripción ya creada, en cambio,
+  // sigue siendo organization-scoped: la abre el capitán o el delegado, que no
+  // pasan por el guard del torneo.
+  const tournamentId = isTournamentRoute ? routeTournamentId : (activeTournament?.id || null);
+  const newEntryLink = tournamentSurface('tournamentTeamNew', organization.id, tournamentId);
+  const entryLink = (entryId) => canonicalRoutes.organizationTeamEntry(organization.id, entryId);
+  const visualIdentityLink = (entryId) => (
+    canonicalRoutes.organizationTeamEntryVisualIdentity(organization.id, entryId)
+  );
 
   if (competitionStatus === 'loading' || state.status === 'loading') {
     return <WorkspaceLoading label="Cargando inscripciones…" />;
@@ -152,7 +166,7 @@ export default function TeamsPage() {
           </p>
         </div>
         {canAdd && (
-          <Link className={styles.primaryButton} to={`${base}/nuevo`}>
+          <Link className={styles.primaryButton} to={newEntryLink}>
             <Plus size={18} />
             Agregar equipo
           </Link>
@@ -177,7 +191,11 @@ export default function TeamsPage() {
               && canUpdateTournament && (
                 <Link
                   className={styles.secondaryButton}
-                  to={`/torneos/organizacion/${organization.id}/torneos/${activeTournament.id}/configuracion?step=5`}
+                  to={canonicalRoutes.tournamentConfiguration(
+                    organization.id,
+                    activeTournament.id,
+                    { step: 5 },
+                  )}
                 >
                   Revisar configuración
                   <ArrowRight size={17} />
@@ -229,7 +247,7 @@ export default function TeamsPage() {
                     : registration.description}
               </p>
               {canAdd && (
-                <Link className={styles.primaryButton} to={`${base}/nuevo`}>Agregar equipo</Link>
+                <Link className={styles.primaryButton} to={newEntryLink}>Agregar equipo</Link>
               )}
             </section>
           ) : (
@@ -241,7 +259,13 @@ export default function TeamsPage() {
                 return (
                   <article key={entry.id} className={styles.entryCard}>
                     <div className={styles.entryIdentity}>
-                      <span className={styles.teamMark}>{entry.name.slice(0, 2).toUpperCase()}</span>
+                      <BrandingImage
+                        kind="team"
+                        path={entry.shieldPath}
+                        name={entry.name}
+                        className={styles.teamMark}
+                        imageClassName={styles.brandingContain}
+                      />
                       <div>
                         <span>{entry.categoryName}</span>
                         <h2>{entry.name}</h2>
@@ -276,9 +300,13 @@ export default function TeamsPage() {
                           Retirar equipo
                         </button>
                       )}
-                      <Link to={`${base}/${entry.id}`}>
-                        Abrir
+                      <Link to={visualIdentityLink(entry.id)}>
+                        <SwatchBook size={17} aria-hidden="true" />
+                        Identidad visual
+                      </Link>
+                      <Link to={entryLink(entry.id)}>
                         <ArrowRight size={17} />
+                        Abrir equipo
                       </Link>
                     </div>
                   </article>

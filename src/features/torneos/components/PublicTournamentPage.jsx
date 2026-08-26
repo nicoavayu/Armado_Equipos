@@ -16,6 +16,7 @@ import {
   PUBLIC_MATCH_KIND,
 } from '../domain/matchSchedule';
 import styles from './PublicTournamentPage.module.css';
+import BrandingImage from './BrandingImage';
 
 const TABS = [
   ['inicio', 'Inicio'],
@@ -45,16 +46,7 @@ const formatDate = (value, options = {}) => {
   }).format(date);
 };
 
-const initials = (name = '') => name
-  .split(/\s+/)
-  .filter(Boolean)
-  .slice(0, 2)
-  .map((part) => part[0])
-  .join('')
-  .toUpperCase() || '–';
-
-function TeamMark({ team, service, compact = false }) {
-  const shieldUrl = service.resolveTeamShieldUrl(team?.shieldPath);
+function TeamMark({ team, compact = false }) {
   const style = {
     '--team-primary': team?.primaryColor || '#6d4aff',
     '--team-secondary': team?.secondaryColor || '#f4f0ff',
@@ -62,9 +54,13 @@ function TeamMark({ team, service, compact = false }) {
   return (
     <span className={compact ? styles.teamCompact : styles.team} style={style}>
       <span className={styles.crest} aria-hidden="true">
-        {shieldUrl
-          ? <img src={shieldUrl} alt="" loading="lazy" />
-          : initials(team?.shortName || team?.name)}
+        <BrandingImage
+          kind="team"
+          path={team?.shieldPath}
+          name={team?.shortName || team?.name}
+          className={styles.crestAsset}
+          imageClassName={styles.crestImage}
+        />
       </span>
       <span>{team?.name || 'A definir'}</span>
     </span>
@@ -309,14 +305,25 @@ export default function PublicTournamentPage({ service = publicTournamentService
         <span className={styles.officialBadge}><Shield size={14} /> Sitio oficial</span>
       </header>
       <section className={styles.hero}>
-        <div className={styles.heroCopy}>
-          <span className={styles.eyebrow}>{page.organization.name} <ChevronRight size={14} /> {page.season.name}</span>
-          <h1>{page.tournament.name}</h1>
-          <p>{page.tournament.description || 'Información oficial de la competencia.'}</p>
-          <div className={styles.heroTags}>
-            <span data-status={page.tournament.status}>{STATUS_LABELS[page.tournament.status] || page.tournament.status}</span>
-            <span>{page.tournament.sportModality}</span>
-            <span>{page.tournament.competitionFormat}</span>
+        <div className={styles.heroIdentity}>
+          <BrandingImage
+            kind="tournament"
+            path={page.tournament.logoPath}
+            fallbackPath={page.organization.logoPath}
+            name={page.tournament.name}
+            className={styles.heroLogo}
+            imageClassName={styles.heroLogoImage}
+            loading="eager"
+          />
+          <div className={styles.heroCopy}>
+            <span className={styles.eyebrow}>{page.organization.name} <ChevronRight size={14} /> {page.season.name}</span>
+            <h1>{page.tournament.name}</h1>
+            <p>{page.tournament.description || 'Información oficial de la competencia.'}</p>
+            <div className={styles.heroTags}>
+              <span data-status={page.tournament.status}>{STATUS_LABELS[page.tournament.status] || page.tournament.status}</span>
+              <span>{page.tournament.sportModality}</span>
+              <span>{page.tournament.competitionFormat}</span>
+            </div>
           </div>
         </div>
         <aside className={styles.heroBoard} aria-label="Resumen de competencia">

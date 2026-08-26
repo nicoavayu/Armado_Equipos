@@ -82,6 +82,7 @@ const AUTO_MATCH_SERVICE_ROLE = [
 ];
 
 const ANON_ALLOWLIST = [
+  'public.get_public_tournament_branding(text)',
   'public.get_public_tournament_page(text,text)',
   'public.get_invite_landing(text)',
   'public.get_partido_by_invite(bigint,text)',
@@ -108,6 +109,31 @@ const ANON_ALLOWLIST = [
 // fail before the later feature migration has created them. Keep each later
 // authenticated surface explicit here so the catalog remains fail-closed.
 const POST_CANONICAL_AUTHENTICATED_ALLOWLIST = [
+  ['public.is_tournament_branding_path(text,text)', 'rls_helper_required'],
+  ['public.can_update_tournament_team_branding(uuid,uuid)', 'rls_helper_required'],
+  ['public.can_write_tournament_branding_object(text)', 'rls_helper_required'],
+  ['public.set_tournament_branding_reference(uuid,text,uuid,text)', 'frontend_legitimate'],
+  ['public.get_tournament_branding_context(uuid,uuid)', 'frontend_legitimate'],
+  ['public.get_public_tournament_branding(text)', 'frontend_legitimate'],
+  ['public.can_manage_tournament_player_portrait(uuid,uuid)', 'rls_helper_required'],
+  ['public.can_read_tournament_player_portrait(uuid,uuid)', 'rls_helper_required'],
+  ['public.get_tournament_player_portrait_ref(uuid,uuid,text)', 'frontend_legitimate'],
+  [
+    'public.set_tournament_player_portrait_editorial_status(uuid,uuid,text)',
+    'frontend_legitimate',
+  ],
+  [
+    'public.revoke_tournament_player_portrait_publication(uuid,uuid)',
+    'frontend_legitimate',
+  ],
+  ['public.get_tournament_team_visual_policy(uuid,uuid)', 'frontend_legitimate'],
+  ['public.set_tournament_team_visual_policy(uuid,uuid,text)', 'frontend_legitimate'],
+  ['public.get_tournament_team_photo_state(uuid,uuid)', 'frontend_legitimate'],
+  [
+    'public.set_tournament_team_photo_editorial_status(uuid,uuid,text,text)',
+    'frontend_legitimate',
+  ],
+  ['public.revoke_tournament_team_photo(uuid,uuid)', 'frontend_legitimate'],
   ['public.get_public_tournament_page(text,text)', 'frontend_legitimate'],
   ['public.get_tournament_public_page_settings(uuid,uuid)', 'frontend_legitimate'],
   ['public.set_tournament_public_page_published(uuid,uuid,boolean)', 'frontend_legitimate'],
@@ -125,6 +151,11 @@ const POST_CANONICAL_AUTHENTICATED_ALLOWLIST = [
     'public.withdraw_tournament_competition_participant(uuid,uuid,uuid,text,text)',
     'frontend_legitimate',
   ],
+  [
+    'public.set_tournament_player_portrait_crop(uuid,uuid,numeric,numeric,numeric)',
+    'frontend_legitimate',
+  ],
+  ['public.list_tournament_player_portrait_refs(uuid,uuid)', 'frontend_legitimate'],
 ];
 
 const contracts = fs.readFileSync(contractsPath, 'utf8');

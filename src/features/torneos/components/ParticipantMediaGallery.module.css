@@ -81,8 +81,8 @@
   cursor: pointer;
 }
 .photoGrid button:focus-visible {
-  outline: 3px solid #63eed0;
-  outline-offset: 2px;
+  outline: var(--torneos-focus-ring, 3px solid #ae98ff);
+  outline-offset: var(--torneos-focus-ring-offset, 2px);
 }
 .cover { min-height: 380px; }
 .photoGrid img, .protectedFrame {
@@ -180,9 +180,54 @@
   cursor: pointer;
 }
 .lightbox button:focus-visible, .reportForm :is(select,textarea,input):focus-visible {
-  outline: 3px solid #63eed0;
-  outline-offset: 2px;
+  outline: var(--torneos-focus-ring, 3px solid #ae98ff);
+  outline-offset: var(--torneos-focus-ring-offset, 2px);
 }
+
+/*
+ * Reportar una foto no es cerrar el visor ni pasar a la siguiente, y hasta acá
+ * los tres eran el mismo cuadrado neutro de `.lightbox button`. Es una acción
+ * secundaria, contextual y de moderación: toma la geometría chica del sistema
+ * de botones de Torneos —la misma de `Continuar`, a otra escala— y se distingue
+ * por el borde y el rótulo, no por gritar más fuerte que la foto.
+ */
+.lightbox .reportAction {
+  flex: 0 0 auto;
+  gap: var(--torneos-action-gap-sm, 6px);
+  min-width: 0;
+  min-height: var(--torneos-action-height, 48px);
+  padding: 0 var(--torneos-action-padding-x, 16px);
+  border: 1px solid var(--torneos-border, rgba(255,255,255,.13));
+  border-radius: var(--torneos-action-radius, 16px);
+  background: var(--torneos-control-bg, rgba(255,255,255,.055));
+  color: var(--torneos-copy, #e9e3f5);
+  font-family: var(--torneos-ui-font, Inter, ui-sans-serif, system-ui, sans-serif);
+  font-size: var(--torneos-action-font-size-sm, 13px);
+  font-weight: var(--torneos-action-font-weight, 700);
+  line-height: var(--torneos-action-line-height, 1.15);
+  white-space: nowrap;
+  transition: border-color 180ms ease, background 180ms ease, color 180ms ease;
+}
+.lightbox .reportAction svg { flex: 0 0 auto; color: #ffb774; }
+.lightbox .reportAction:hover { border-color: rgba(255,183,116,.5); background: rgba(255,183,116,.1); }
+.lightbox .reportAction[aria-expanded="true"] {
+  border-color: rgba(255,183,116,.55);
+  background: rgba(255,183,116,.14);
+  color: #ffd9ae;
+}
+/* El CTA vive adentro del panel, que es donde efectivamente se envía algo. */
+.reportForm .reportSubmit {
+  min-height: var(--torneos-action-height, 48px);
+  padding: 0 var(--torneos-action-padding-x, 16px);
+  border: 1px solid rgba(255,255,255,.15);
+  border-radius: var(--torneos-action-radius, 16px);
+  background: var(--torneos-cta, linear-gradient(135deg, #9d78ff, #6f3ce8));
+  color: #fff;
+  font-family: var(--torneos-ui-font, Inter, ui-sans-serif, system-ui, sans-serif);
+  font-size: var(--torneos-action-font-size, 0.94rem);
+  font-weight: var(--torneos-action-font-weight, 700);
+}
+.reportForm .reportSubmit:disabled { cursor: not-allowed; opacity: .55; }
 .lightboxStage {
   position: relative;
   display: grid;
@@ -269,7 +314,8 @@
   .lightbox { width: 100%; max-height: 100vh; min-height: 100vh; border: 0; border-radius: 0; }
   .lightboxStage > img, .lightboxStage > .protectedFrame { max-height: calc(100vh - 210px); }
   .lightbox > footer { align-items: flex-start; flex-direction: column; }
-  .lightbox > footer button { width: 100%; }
+  .lightbox > footer > span { min-width: 0; max-width: 100%; }
+  .lightbox .reportAction { align-self: flex-start; width: auto; }
   .reportForm { grid-template-columns: 1fr; }
   .reportSuccess { grid-column: auto; }
 }
@@ -310,7 +356,7 @@
 .reportForm button {
   min-height: 48px;
   border-radius: var(--torneos-control-radius);
-  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--torneos-ui-font);
 }
 
 .reportForm select,

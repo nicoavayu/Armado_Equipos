@@ -87,12 +87,14 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
+  white-space: nowrap;
 }
 
 .sectionTabs button[aria-selected='true'] {
-  border-color: rgba(158, 138, 255, 0.36);
+  border-color: rgba(190, 173, 255, 0.46);
   color: #fff;
-  background: rgba(113, 78, 239, 0.2);
+  background: linear-gradient(135deg, #8058f5, #6840e9);
+  box-shadow: 0 6px 18px rgba(94, 55, 216, 0.25), inset 0 1px 0 rgba(255,255,255,.14);
 }
 
 .newsList,
