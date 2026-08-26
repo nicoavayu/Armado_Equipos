@@ -3,7 +3,10 @@ import { formatSocialDateTime } from '../features/torneos/social/socialDateTime'
 import { adaptSnapshotToResultsContent } from '../features/torneos/social/resultsContent';
 import { resolveResultsVariant } from '../features/torneos/social/resultsVariants';
 import { ensureSocialFonts } from '../features/torneos/social/socialRenderer';
-import { DEFAULT_SOCIAL_THEME } from '../features/torneos/social/socialThemes';
+import {
+  DEFAULT_SOCIAL_THEME,
+  STREET_SOCIAL_THEME,
+} from '../features/torneos/social/socialThemes';
 import {
   createSocialAssetPlan,
   createSocialRenderKey,
@@ -72,12 +75,17 @@ function recordingContext(log) {
     closePath: record('closePath'),
     moveTo: record('moveTo'),
     lineTo: record('lineTo'),
+    translate: record('translate'),
+    rotate: record('rotate'),
+    scale: record('scale'),
     quadraticCurveTo: record('quadraticCurveTo'),
     arc: record('arc'),
     fill: record('fill'),
     stroke: record('stroke'),
     clip: record('clip'),
     fillRect: record('fillRect'),
+    strokeRect: record('strokeRect'),
+    setLineDash: record('setLineDash'),
     fillText: record('fillText'),
     drawImage: record('drawImage'),
   }, {
@@ -145,13 +153,13 @@ describe('Social Studio Phase 1 results pipeline', () => {
     expect(resolveResultsVariant({ matchCount, format }).id).toBe(expected);
   });
 
-  test('results receives the theme explicitly', async () => {
+  test('premium results receives the theme explicitly', async () => {
     const snapshot = resultsSnapshot([{
       id: 'm-1', status: 'played',
       home: team('Local', null), away: team('Visita', null),
       result: { homeScore: 1, awayScore: 0 },
     }]);
-    const theme = { ...DEFAULT_SOCIAL_THEME, surface: '#123456' };
+    const theme = { ...STREET_SOCIAL_THEME, surface: '#123456' };
     const log = [];
     await prepareSocialRender({
       snapshot,

@@ -38,6 +38,7 @@ import { isArma2NativeRuntime, isPersonalSpaceAvailable } from './utils/runtimeP
 import { SpaceNavigationProvider } from './features/space-navigation';
 import {
   QA_ROLE_SWITCHER_PATH,
+  QA_SOCIAL_STUDIO_BASE_PATH,
   QA_TOURNAMENT_REVIEW_PATH,
   isQaRoleSwitcherEnabled,
 } from './features/qa/qaRoleSwitcher';
@@ -78,6 +79,9 @@ const PartidoInvitacion = lazy(() => import('./pages/PartidoInvitacion'));
 const PublicTournamentPage = lazy(() => import('./features/torneos/components/PublicTournamentPage'));
 const QaRoleSwitcherPage = lazy(() => import('./features/qa/QaRoleSwitcherPage'));
 const QaTournamentReviewMapPage = lazy(() => import('./features/qa/QaTournamentReviewMapPage'));
+const SocialStudioBaseGalleryPage = lazy(
+  () => import('./features/qa/SocialStudioBaseGalleryPage'),
+);
 
 // Tooling QA LOCAL. El selector de rol no es una ruta que se oculte: si el gate
 // no cierra —flag, DATA_ENV, host, deploy o backend— el <Route> no se crea y la
@@ -123,6 +127,11 @@ export default function App() {
                       <Route path={QA_TOURNAMENT_REVIEW_PATH} element={
                         <Suspense fallback={<AppLoadingScreen />}>
                           <QaTournamentReviewMapPage />
+                        </Suspense>
+                      } />
+                      <Route path={QA_SOCIAL_STUDIO_BASE_PATH} element={
+                        <Suspense fallback={<AppLoadingScreen />}>
+                          <SocialStudioBaseGalleryPage />
                         </Suspense>
                       } />
                     </>

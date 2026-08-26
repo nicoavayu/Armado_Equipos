@@ -17,6 +17,7 @@ import { galleryPhotoPng, playerPortraitPng, sha256Hex, teamCrestPng } from './q
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..', '..');
 const SEED = path.join(HERE, 'seed-torneos-qa-review-supplement.mjs');
+const PLAN_FIXTURE = path.join(HERE, 'seed-torneos-plan-review-fixtures.mjs');
 const LAUNCHER = path.join(HERE, 'start-torneos-review-app.mjs');
 
 /** Corre el script con un entorno mínimo y devuelve su salida. */
@@ -48,6 +49,31 @@ test('sin argumentos el suplemento sólo planifica y no declara escrituras', () 
   assert.equal(payload.status, 'plan');
   assert.equal(payload.writes, false);
   assert.equal(payload.seedKey, 'qa.review.supplement.v1');
+});
+
+test('el fixture de planes sólo describe su plan por default', () => {
+  const result = run(PLAN_FIXTURE, []);
+  assert.equal(result.status, 0, result.stderr);
+  const payload = JSON.parse(result.stdout);
+  assert.equal(payload.status, 'plan');
+  assert.equal(payload.writes, false);
+  assert.equal(payload.fixtureKey, 'qa.plans.review.v1');
+  assert.equal(payload.freeOrganizationSlug, 'qa-planes-first-free');
+});
+
+test('el fixture de planes exige destino LOCAL y habilitación explícita', () => {
+  const disabled = run(PLAN_FIXTURE, ['--apply-local']);
+  assert.equal(disabled.status, 1);
+  assert.match(disabled.stderr, /QA_ALLOW_PLANS_REVIEW_FIXTURE=true/);
+
+  const remote = run(PLAN_FIXTURE, ['--apply-local'], {
+    QA_ALLOW_PLANS_REVIEW_FIXTURE: 'true',
+    QA_SEED_ENV: 'local',
+    QA_SEED_PROJECT_REF: 'local',
+    QA_SEED_DATABASE_URL: 'postgresql://postgres:postgres@db.example.com:5432/postgres',
+  });
+  assert.equal(remote.status, 1);
+  assert.match(remote.stderr, /loopback/i);
 });
 
 test('aplicar sin la habilitación explícita falla', () => {

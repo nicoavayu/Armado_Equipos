@@ -30,6 +30,10 @@ const expectedCanonicalMigrations = [
   '20260820120000_tournament_media_publication_is_processing_aware.sql',
   '20260821120000_media_restore_respects_closed_galleries.sql',
   '20260821180000_tournament_team_photo_moderated_lifecycle.sql',
+  '20260821213918_plans_entitlements_foundation_v2.sql',
+  '20260821230000_active_tournament_phase_append.sql',
+  '20260823120000_tournament_social_team_contract.sql',
+  '20260825194025_tournament_commercial_checkout_foundation.sql',
 ];
 
 const exitWithError = (message) => {

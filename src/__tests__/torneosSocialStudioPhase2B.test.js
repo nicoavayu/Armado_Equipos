@@ -54,9 +54,10 @@ function recordingCanvas(log) {
     createLinearGradient: () => ({ addColorStop: record('gradient.stop') }),
     save: record('save'), restore: record('restore'), beginPath: record('beginPath'),
     closePath: record('closePath'), moveTo: record('moveTo'), lineTo: record('lineTo'),
-    translate: record('translate'), scale: record('scale'),
+    translate: record('translate'), rotate: record('rotate'), scale: record('scale'),
     quadraticCurveTo: record('quadraticCurveTo'), arc: record('arc'), fill: record('fill'),
     stroke: record('stroke'), clip: record('clip'), fillRect: record('fillRect'),
+    strokeRect: record('strokeRect'), setLineDash: record('setLineDash'),
     fillText: record('fillText'), drawImage: record('drawImage'),
   }, {
     get(target, key) { return key in target ? target[key] : state[key]; },

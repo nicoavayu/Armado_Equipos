@@ -59,13 +59,13 @@ describe('tournament media service contracts', () => {
         return { data: { 'asset-a': 'mvp_simple' }, error: null };
       }
       if (name === 'get_effective_tournament_entitlements') {
-        return { data: { plan: 'FREE', media: { maxPhotosPerMatchday: 20 } }, error: null };
+        return { data: { plan: 'FREE', media: { galleryAssetLimit: 100 } }, error: null };
       }
       return { data: { uploadReady: true }, error: null };
     });
     const context = await loadTournamentMediaAdminContext({ organizationId: 'org-a' });
     expect(context.galleries[0].assets[0].processingTier).toBe('mvp_simple');
-    expect(context.entitlements.media.maxPhotosPerMatchday).toBe(20);
+    expect(context.entitlements.media.galleryAssetLimit).toBe(100);
   });
 
   test('creates a scoped gallery without trusting actor or storage path', async () => {

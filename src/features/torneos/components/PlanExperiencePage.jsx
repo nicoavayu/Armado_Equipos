@@ -1,218 +1,161 @@
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import React, { useRef, useState } from 'react';
 import {
   AlertTriangle,
-  ArrowUpRight,
-  BadgeCheck,
-  Camera,
   Check,
-  Clock3,
-  Gauge,
-  ImagePlus,
-  LockKeyhole,
-  ShieldCheck,
   Sparkles,
   Trophy,
-  X,
+  Zap,
 } from 'lucide-react';
-import { useOutletContext } from 'react-router-dom';
-import { torneosFeatureFlags } from '../config/featureFlags';
-import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
+import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import {
-  hasCapability,
-  TOURNAMENT_CAPABILITIES,
-} from '../domain/capabilities';
+  createIdempotencyKey,
+  createTournamentCheckout,
+} from '../api/tournamentWorkspaceService';
+import { canonicalRoutes } from '../routing/canonicalRoutes';
+import { useOptionalTorneosCompetition } from '../context/TorneosCompetitionContext';
 import {
   normalizeTournamentEntitlements,
   TOURNAMENT_PLANS,
 } from '../domain/entitlements';
 import {
-  describeMediaLimit,
-  formatPlanDate,
+  formatPlanPrice,
   getTournamentPlanLifecycle,
-  PLAN_BENEFITS,
-  resolvePlanBenefit,
 } from '../domain/planExperience';
+import CompetitionSelector from './CompetitionSelector';
 import OrganizationSettingsNav from './OrganizationSettingsNav';
 import styles from './PlanExperiencePage.module.css';
 
 const FAIL_CLOSED_ENTITLEMENTS = normalizeTournamentEntitlements(null);
 
-export function useOrganizationPlan({ organizationId, service }) {
-  const requestRef = useRef(0);
-  const [state, setState] = useState({
-    status: 'loading',
-    data: FAIL_CLOSED_ENTITLEMENTS,
-    error: '',
-  });
+const AVAILABLE_PREMIUM_BENEFITS = Object.freeze([
+  {
+    icon: Sparkles,
+    label: 'Más estilos para resultados',
+    description: 'Sumá Street y Editorial a Classic en tus placas de resultados.',
+  },
+]);
 
-  const load = useCallback(async () => {
-    const requestId = requestRef.current + 1;
-    requestRef.current = requestId;
-    if (!organizationId || typeof service?.loadEntitlements !== 'function') {
-      setState({
-        status: 'error',
-        data: FAIL_CLOSED_ENTITLEMENTS,
-        error: 'No pudimos identificar una organización válida.',
-      });
-      return;
-    }
-    setState({
-      status: 'loading',
-      data: FAIL_CLOSED_ENTITLEMENTS,
-      error: '',
-    });
-    try {
-      const payload = await service.loadEntitlements({
-        organizationId,
-        tournamentId: null,
-      });
-      if (requestRef.current !== requestId) return;
-      const normalized = normalizeTournamentEntitlements(payload, {
-        organizationId,
-        tournamentId: null,
-      });
-      if (!normalized.isTrusted) {
-        setState({
-          status: 'error',
-          data: normalized,
-          error: 'La respuesta del plan está incompleta o no coincide con este workspace.',
-        });
-        return;
-      }
-      setState({ status: 'ready', data: normalized, error: '' });
-    } catch (error) {
-      if (requestRef.current !== requestId) return;
-      setState({
-        status: 'error',
-        data: FAIL_CLOSED_ENTITLEMENTS,
-        error: error?.message || 'No pudimos validar el plan de esta organización.',
-      });
-    }
-  }, [organizationId, service]);
-
-  useEffect(() => {
-    load();
-    return () => { requestRef.current += 1; };
-  }, [load]);
-
-  return { ...state, retry: load };
-}
-
-function PlanMetric({ icon: Icon, label, value, detail }) {
+function PremiumBenefit({ benefit }) {
+  const Icon = benefit.icon;
   return (
-    <article className={styles.metric}>
-      <span><Icon size={18} aria-hidden="true" /></span>
+    <article className={styles.premiumBenefit}>
+      <span><Icon size={20} aria-hidden="true" /></span>
       <div>
-        <small>{label}</small>
-        <strong>{value}</strong>
-        <p>{detail}</p>
+        <h3>{benefit.label}</h3>
+        <p>{benefit.description}</p>
       </div>
     </article>
   );
 }
 
-function CapabilityRow({ benefit }) {
-  const Icon = benefit.status === 'included'
-    ? Check
-    : benefit.status === 'feature_unavailable' ? AlertTriangle : LockKeyhole;
-  return (
-    <li className={styles.capability} data-status={benefit.status}>
-      <span className={styles.capabilityIcon}><Icon size={17} aria-hidden="true" /></span>
-      <div>
-        <span className={styles.capabilityHeading}>
-          <strong>{benefit.label}</strong>
-          <code>{benefit.capability}</code>
-        </span>
-        <p>{benefit.description}</p>
-        <small>{benefit.statusLabel}</small>
-      </div>
-    </li>
-  );
-}
-
-function UpgradeModal({ organizationName, onClose }) {
-  useEffect(() => {
-    const closeOnEscape = (event) => {
-      if (event.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', closeOnEscape);
-    return () => document.removeEventListener('keydown', closeOnEscape);
-  }, [onClose]);
-
-  return (
-    <div className={styles.modalBackdrop} role="presentation" onMouseDown={onClose}>
-      <section
-        className={styles.modal}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="upgrade-modal-title"
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <button className={styles.modalClose} type="button" onClick={onClose} aria-label="Cerrar">
-          <X size={19} />
-        </button>
-        <span className={styles.modalMark}><Sparkles size={25} aria-hidden="true" /></span>
-        <p>ARMA2 TORNEOS · PRO</p>
-        <h2 id="upgrade-modal-title">Disponible próximamente</h2>
-        <span>
-          Estamos preparando la futura administración del plan de {organizationName}.
-          Esta acción no compra, no crea una suscripción y no cambia beneficios.
-        </span>
-        <button type="button" onClick={onClose}>Entendido</button>
-      </section>
-    </div>
-  );
-}
-
 export default function PlanExperiencePage({
   organization: organizationProp = null,
-  featureFlags = torneosFeatureFlags,
+  tournament: tournamentProp = null,
 }) {
   const outletContext = useOutletContext() || {};
-  const { service } = useTorneosWorkspace();
+  const competition = useOptionalTorneosCompetition();
   const organization = organizationProp || outletContext.organization || null;
-  const planState = useOrganizationPlan({
-    organizationId: organization?.id || null,
-    service,
-  });
-  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const tournament = tournamentProp || competition?.activeTournament || null;
+  const planState = competition?.planState || {
+    status: tournament ? 'error' : 'empty',
+    data: FAIL_CLOSED_ENTITLEMENTS,
+    error: tournament ? 'No pudimos verificar el plan de este torneo.' : '',
+  };
   const entitlements = planState.data || FAIL_CLOSED_ENTITLEMENTS;
   const lifecycle = getTournamentPlanLifecycle(entitlements);
-  const isPro = entitlements.plan === TOURNAMENT_PLANS.PRO;
-  const canManagePlan = hasCapability(
-    organization,
-    TOURNAMENT_CAPABILITIES.WORKSPACE_MANAGE,
+  const isPremium = entitlements.plan === TOURNAMENT_PLANS.PREMIUM;
+  const requiresPremium = entitlements.plan === TOURNAMENT_PLANS.PREMIUM_REQUIRED;
+  const canManageBilling = ['owner', 'admin'].includes(organization?.role);
+  const navigate = useNavigate();
+  const { organizationId: routeOrganizationId, tournamentId: routeTournamentId } = useParams();
+  const idempotencyKeyRef = useRef(null);
+  const [checkoutState, setCheckoutState] = useState({ status: 'idle', error: '' });
+
+  const beginCheckout = async () => {
+    if (!organization?.id || !tournament?.id || checkoutState.status === 'loading') return;
+    if (!idempotencyKeyRef.current) idempotencyKeyRef.current = createIdempotencyKey();
+    setCheckoutState({ status: 'loading', error: '' });
+    try {
+      const result = await createTournamentCheckout({
+        organizationId: organization.id,
+        tournamentId: tournament.id,
+        idempotencyKey: idempotencyKeyRef.current,
+      });
+      navigate(canonicalRoutes.tournamentPurchasePending(
+        routeOrganizationId || organization.id,
+        routeTournamentId || tournament.id,
+        result.purchase.id,
+      ));
+    } catch (error) {
+      setCheckoutState({
+        status: 'error',
+        error: error?.message || 'No pudimos iniciar la compra.',
+      });
+    }
+  };
+
+  const pageHeader = (
+    <>
+      <header className={styles.pageHeader}>
+        <span>Torneo · Plan de esta edición</span>
+        <h1>Plan</h1>
+        <p>
+          {tournament
+            ? `${tournament.name} · ${organization?.name || 'Organización'}`
+            : 'Seleccioná una edición para consultar su plan.'}
+        </p>
+      </header>
+      <OrganizationSettingsNav />
+      {competition && <CompetitionSelector />}
+    </>
   );
-  const benefits = useMemo(
-    () => PLAN_BENEFITS.map((benefit) => (
-      resolvePlanBenefit(benefit, entitlements, featureFlags)
-    )),
-    [entitlements, featureFlags],
-  );
-  const benefitGroups = useMemo(() => benefits.reduce((groups, benefit) => ({
-    ...groups,
-    [benefit.group]: [...(groups[benefit.group] || []), benefit],
-  }), {}), [benefits]);
-  const media = entitlements.media;
-  const protectedUntil = formatPlanDate(media?.postProProtectedUntil);
+
+  if (planState.status === 'empty') {
+    return (
+      <div className={styles.page}>
+        {pageHeader}
+        <section className={styles.loadingCard} role="status">
+          Elegí un torneo en el selector para ver su plan.
+        </section>
+      </div>
+    );
+  }
 
   if (planState.status === 'loading') {
     return (
       <div className={styles.page}>
-        <header className={styles.pageHeader}>
-          <span>Organización · Suscripción</span>
-          <h1>Plan</h1>
-          <p>Validando el plan efectivo de {organization?.name || 'esta organización'}.</p>
-        </header>
-        <OrganizationSettingsNav />
+        {pageHeader}
         <section className={styles.loadingCard} role="status">
-          Validando plan y beneficios con el servidor…
+          Cargando el plan de este torneo…
+        </section>
+      </div>
+    );
+  }
+
+  if (planState.status === 'error') {
+    return (
+      <div className={styles.page} data-fail-closed="true">
+        {pageHeader}
+        <div className={styles.errorBanner} role="alert">
+          <AlertTriangle size={20} aria-hidden="true" />
+          <span>
+            <strong>No pudimos cargar el plan</strong>
+            <small>{planState.error}</small>
+          </span>
+          <button type="button" onClick={competition?.retryPlan}>Reintentar</button>
+        </div>
+        <section className={styles.currentPlan} data-plan="unverified">
+          <div className={styles.planSignal} aria-hidden="true"><i /><span>—</span></div>
+          <div className={styles.currentCopy}>
+            <p>PLAN ACTUAL · {tournament?.name}</p>
+            <h2>Plan no verificado</h2>
+            <div className={styles.lifecycle} data-tone="danger">
+              <span aria-hidden="true" /> No verificado
+            </div>
+            <div className={styles.planDetails}>
+              <strong>No pudimos validar el plan de esta edición.</strong>
+            </div>
+          </div>
         </section>
       </div>
     );
@@ -220,173 +163,105 @@ export default function PlanExperiencePage({
 
   return (
     <div className={styles.page} data-fail-closed={planState.status === 'error'}>
-      <header className={styles.pageHeader}>
-        <span>Organización · Suscripción</span>
-        <h1>Plan</h1>
-        <p>
-          Beneficios y límites efectivos de {organization?.name || 'esta organización'}.
-          El rol y el plan se validan por separado.
-        </p>
-      </header>
-
-      <OrganizationSettingsNav />
-
-      {planState.status === 'error' && (
-        <div className={styles.errorBanner} role="alert">
-          <AlertTriangle size={20} aria-hidden="true" />
-          <span>
-            <strong>Plan no verificado · acceso cerrado</strong>
-            <small>{planState.error}</small>
-          </span>
-          <button type="button" onClick={planState.retry}>Reintentar</button>
-        </div>
-      )}
+      {pageHeader}
 
       <section className={styles.currentPlan} data-plan={entitlements.plan.toLowerCase()}>
         <div className={styles.planSignal} aria-hidden="true">
+          <i />
           <span>{entitlements.plan}</span>
         </div>
         <div className={styles.currentCopy}>
-          <p>PLAN ACTUAL</p>
-          <h2>PLAN {entitlements.plan}</h2>
+          <p>PLAN ACTUAL · {tournament?.name}</p>
+          <h2>
+            {requiresPremium ? 'Borrador · Premium requerido' : `Arma2 Torneos ${isPremium ? 'Premium' : 'Free'}`}
+          </h2>
           <div className={styles.lifecycle} data-tone={lifecycle.tone}>
             <span aria-hidden="true" />
             {lifecycle.label}
           </div>
-          <strong>{lifecycle.description}</strong>
-          {protectedUntil && (
-            <small>
-              Protección multimedia post-PRO hasta {protectedUntil}.
-            </small>
-          )}
+          <div className={styles.planDetails}>
+            <strong>{lifecycle.description}</strong>
+            {!isPremium && <small>Este estado corresponde únicamente a esta edición.</small>}
+          </div>
         </div>
-        <div className={styles.planAuthority}>
-          <ShieldCheck size={22} aria-hidden="true" />
-          <span>
-            <strong>Validado por servidor</strong>
-            <small>Organización · no usuario individual</small>
-          </span>
-        </div>
-      </section>
-
-      <section className={styles.metrics} aria-label="Límites efectivos de multimedia">
-        <PlanMetric
-          icon={ImagePlus}
-          label="Fotos por fecha"
-          value={media ? describeMediaLimit(media.maxPhotosPerMatchday, 'foto', 'fotos') : 'No verificado'}
-          detail="Límite comercial efectivo; las cuotas operativas siguen separadas."
-        />
-        <PlanMetric
-          icon={Camera}
-          label="Fechas conservadas"
-          value={media ? describeMediaLimit(media.retainedMatchdays, 'fecha', 'fechas') : 'No verificado'}
-          detail="Ventana definida por la política server-side del plan actual."
-        />
-        <PlanMetric
-          icon={Clock3}
-          label="Gracia de retención"
-          value={media ? describeMediaLimit(media.retentionGraceDays, 'día', 'días') : 'No verificado'}
-          detail="No altera el orden deportivo ni elimina datos estructurados."
-        />
-        <PlanMetric
-          icon={Gauge}
-          label="Protección post-PRO"
-          value={media ? describeMediaLimit(media.postExpirationRetentionDays, 'día', 'días') : 'No verificado'}
-          detail="Snapshot de protección informado por el resolver canónico."
-        />
       </section>
 
       <section className={styles.comparison} aria-labelledby="plan-comparison-title">
         <div className={styles.sectionHeading}>
-          <span>FREE VS PRO</span>
-          <h2 id="plan-comparison-title">Un plan para cada etapa del torneo</h2>
+          <span>FREE VS PREMIUM</span>
+          <h2 id="plan-comparison-title">Organizar es Free. Profesionalizar es Premium.</h2>
           <p>
-            La disponibilidad real de cada beneficio se detalla debajo. No hay precios ni compra habilitada.
+            Tu primer torneo es gratis. Después, pagás una sola vez por cada nuevo torneo.
+            Sin suscripción.
           </p>
         </div>
         <div className={styles.planCards}>
-          <article className={styles.planCard} data-current={!isPro}>
+          <article className={styles.planCard} data-current={!isPremium && !requiresPremium}>
             <div className={styles.cardTopline}>
               <span>FREE</span>
-              {!isPro && <em>Plan actual</em>}
+              {!isPremium && !requiresPremium && <em>Plan actual</em>}
             </div>
-            <h3>Empezá y participá</h3>
-            <p>
-              Organización base con capacidades y límites resueltos por servidor.
-              La experiencia participant no se convierte en un paywall.
-            </p>
+            <h3>Tu primer torneo, gratis.</h3>
+            <p>Todo lo necesario para organizar tu campeonato.</p>
             <ul>
-              <li><Check size={16} /> Plan por organización</li>
-              <li><Check size={16} /> Roles y permisos independientes</li>
-              <li><Check size={16} /> Sin checkout ni cobros</li>
+              <li><Check size={16} /> Equipos, planteles, fixture y programación</li>
+              <li><Check size={16} /> Actas, resultados, tabla y disciplina</li>
+              <li><Check size={16} /> Identidad esencial y página pública básica</li>
+              <li><Check size={16} /> Estadísticas y comunicados básicos</li>
             </ul>
           </article>
 
-          <article className={`${styles.planCard} ${styles.proCard}`} data-current={isPro}>
+          <article className={`${styles.planCard} ${styles.proCard}`} data-current={isPremium}>
             <div className={styles.cardTopline}>
-              <span>PRO</span>
-              <em>{isPro ? 'Plan actual' : 'Disponible próximamente'}</em>
+              <span>PREMIUM</span>
+              {isPremium && <em>Plan actual</em>}
             </div>
-            <h3>Más profundidad para organizar</h3>
-            <p>
-              Las capacidades avanzadas aparecen sólo cuando el resolver canónico las concede
-              y sus feature flags están activos.
-            </p>
-            <div className={styles.noPrice}>Sin precio publicado</div>
-            <button
-              type="button"
-              disabled={!canManagePlan}
-              onClick={() => setUpgradeOpen(true)}
-            >
-              {isPro ? 'Gestionar plan' : 'Pasar a PRO'}
-              <ArrowUpRight size={17} aria-hidden="true" />
-            </button>
-            {!canManagePlan && (
-              <small>Tu rol permite ver el plan, no administrar futuras acciones comerciales.</small>
+            <h3>Premium para este torneo</h3>
+            <p>Pagás una sola vez. Sin suscripción.</p>
+            <div className={styles.noPrice}>
+              <small>
+                Precio habitual: <s>{formatPlanPrice(entitlements.pricing, 'listPrice')}</s>
+              </small>
+              <span>Precio lanzamiento</span>
+              <strong>{formatPlanPrice(entitlements.pricing, 'launchPrice')}</strong>
+              <p>Pagás una sola vez. Sin suscripción.</p>
+            </div>
+            {!isPremium && (
+              <button
+                type="button"
+                onClick={beginCheckout}
+                disabled={!canManageBilling || checkoutState.status === 'loading'}
+              >
+                <Zap size={17} aria-hidden="true" />
+                {checkoutState.status === 'loading' ? 'Preparando compra…' : 'Comprar Premium'}
+              </button>
+            )}
+            {!isPremium && !canManageBilling && (
+              <small>Sólo el Propietario o un Administrador pueden comprar.</small>
+            )}
+            {checkoutState.error && (
+              <small className={styles.checkoutError} role="alert">{checkoutState.error}</small>
             )}
           </article>
         </div>
       </section>
 
-      <section className={styles.benefits} aria-labelledby="effective-benefits-title">
+      <section className={styles.benefits} aria-labelledby="premium-benefits-title">
         <div className={styles.sectionHeading}>
-          <span>CATÁLOGO EFECTIVO</span>
-          <h2 id="effective-benefits-title">Beneficios de esta organización</h2>
-          <p>
-            Cada fila está vinculada a una capability real. Un flag global apagado prevalece sobre el entitlement.
-          </p>
+          <span>BENEFICIOS PREMIUM</span>
+          <h2 id="premium-benefits-title">Qué suma Premium hoy</h2>
+          <p>Más opciones visuales para comunicar cada fecha.</p>
         </div>
-        <div className={styles.benefitGroups}>
-          {Object.entries(benefitGroups).map(([group, items]) => (
-            <article key={group} className={styles.benefitGroup}>
-              <header>
-                {group === 'Estudio Social' ? <Sparkles size={18} /> : <Trophy size={18} />}
-                <h3>{group}</h3>
-              </header>
-              <ul>
-                {items.map((benefit) => (
-                  <CapabilityRow key={benefit.capability} benefit={benefit} />
-                ))}
-              </ul>
-            </article>
+        <div className={styles.premiumBenefits}>
+          {AVAILABLE_PREMIUM_BENEFITS.map((benefit) => (
+            <PremiumBenefit key={benefit.label} benefit={benefit} />
           ))}
         </div>
+        <div className={styles.brandSignature}>
+          <Trophy size={16} aria-hidden="true" />
+          <span>Premium mantiene la firma <strong>Powered by Arma2</strong>.</span>
+        </div>
       </section>
-
-      <footer className={styles.disclaimer}>
-        <BadgeCheck size={19} aria-hidden="true" />
-        <p>
-          Esta pantalla es de lectura. No modifica suscripciones, entitlements, retención,
-          Storage ni flags de Estudio Social.
-        </p>
-      </footer>
-
-      {upgradeOpen && (
-        <UpgradeModal
-          organizationName={organization?.name || 'esta organización'}
-          onClose={() => setUpgradeOpen(false)}
-        />
-      )}
     </div>
   );
 }

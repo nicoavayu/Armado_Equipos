@@ -15,6 +15,7 @@ export function createRecoverableTournamentService(
         typeof value !== 'function'
         || name === 'createIdempotencyKey'
         || name === 'resolveTeamShieldUrl'
+        || name === 'resolveTournamentLogoUrl'
       ) {
         return [name, value];
       }

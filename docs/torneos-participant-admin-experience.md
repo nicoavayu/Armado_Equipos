@@ -148,7 +148,7 @@ Las identidades y fuentes se mantienen separadas:
 - participación: roster activo, team manager o membresía organizacional
   reconocida por `can_read_tournament_participant_hub`;
 - administración: membership y capabilities de organización/módulo;
-- entitlements: proyección comercial FREE/PRO independiente.
+- entitlements: proyección comercial FREE/PREMIUM por edición, independiente.
 
 `OrganizationRouteGuard` sólo activa organizaciones presentes en el contexto
 server-side. Una URL de Organization B no se valida con datos de Organization
@@ -163,8 +163,10 @@ acciones siguen dependiendo del payload del módulo y del RPC correspondiente.
 
 ## Entitlements y Social Studio
 
-`20260810160355_tournament_entitlements_foundation.sql` permanece intacta.
-FREE/PRO no participa en el resolver del entrypoint y nunca crea roles.
+La migración histórica `20260810160355_tournament_entitlements_foundation.sql`
+permanece intacta, pero su suscripción temporal fue reemplazada como autoridad
+por el modelo FREE/PREMIUM por edición. El plan no participa en el resolver del
+entrypoint y nunca crea roles.
 
 Estudio Social conserva tres compuertas independientes:
 

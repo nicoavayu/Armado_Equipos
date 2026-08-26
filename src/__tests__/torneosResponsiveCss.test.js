@@ -119,6 +119,14 @@ describe('Torneos responsive navigation CSS', () => {
     expect(competitionCss).toMatch(
       /@media \(max-width:\s*520px\)[\s\S]*?\.stepper\s*\{[\s\S]*?grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\);/,
     );
+    // En el selector móvil, el plan vive en la fila del rótulo y el chevron
+    // en la fila del select. Si ambos abarcan las dos filas se pisan a 320px.
+    expect(competitionCss).toMatch(
+      /@media \(max-width:\s*520px\)[\s\S]*?\.contextSelector \.tournamentSelectorLabel > \.planBadge\s*\{[^}]*grid-row:\s*1;/,
+    );
+    expect(competitionCss).toMatch(
+      /@media \(max-width:\s*520px\)[\s\S]*?\.contextSelector \.tournamentSelectorLabel > \.selectorChevron\s*\{[^}]*grid-row:\s*2;/,
+    );
     // Los títulos se ven enteros o pasan de renglón: nunca `nowrap` ni ellipsis.
     expect(competitionCss).toMatch(
       /\.stepper em\s*\{[^}]*white-space:\s*normal;/,

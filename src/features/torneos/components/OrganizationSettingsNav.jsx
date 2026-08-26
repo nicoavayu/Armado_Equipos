@@ -5,7 +5,7 @@ import { canonicalRoutes } from '../routing/canonicalRoutes';
 import styles from './OrganizationSettingsNav.module.css';
 
 export default function OrganizationSettingsNav() {
-  const { organizationId } = useParams();
+  const { organizationId, tournamentId } = useParams();
   return (
     <nav className={styles.nav} aria-label="Secciones de configuración">
       <NavLink
@@ -17,7 +17,9 @@ export default function OrganizationSettingsNav() {
         General
       </NavLink>
       <NavLink
-        to={canonicalRoutes.organizationSettingsPlan(organizationId)}
+        to={tournamentId
+          ? canonicalRoutes.tournamentPlan(organizationId, tournamentId)
+          : canonicalRoutes.organizationSettingsPlan(organizationId)}
         className={({ isActive }) => (isActive ? styles.active : '')}
       >
         <BadgeCheck size={17} aria-hidden="true" />

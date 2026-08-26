@@ -35,7 +35,7 @@ const JWT_SECRET = process.env.TORNEOS_LOCAL_JWT_SECRET
 
 const ORG = 'a5627c00-6b91-59b8-a366-455261e6e8de';
 const TOURNAMENT = '439fd0cf-ce9d-53b7-9d6d-d64d680dafd0';
-const OWNER = 'e2811418-066f-4fe6-b9a4-a513f9cd86bc';
+let ownerId = null;
 
 // PostgREST devuelve 4xx para estas clases de SQLSTATE y 500 para la clase 55.
 const CLIENT_ERROR_CLASSES = ['22', '23', '42', 'P0'];
@@ -151,7 +151,7 @@ async function scenarioPendingCommitments() {
     const error = await expectFailure(
       'select public.finish_tournament_competition($1, $2)',
       [ORG, TOURNAMENT],
-      OWNER,
+      ownerId,
     );
     checkIsClientError(error, 'TORNEOS_COMPETITION_HAS_PENDING_COMMITMENTS');
     check(
@@ -203,7 +203,7 @@ async function scenarioAlreadyWithdrawn() {
         json_build_object('sub', $1::text, 'role', 'authenticated')::text,
         true
       )`,
-      [OWNER],
+      [ownerId],
     );
     await client.query('set local role authenticated');
     await client.query(
@@ -215,7 +215,7 @@ async function scenarioAlreadyWithdrawn() {
     const error = await expectFailure(
       'select public.withdraw_tournament_competition_participant($1, $2, $3, $4, $5)',
       [ORG, TOURNAMENT, teamEntryId, 'voluntary_resignation', null],
-      OWNER,
+      ownerId,
     );
     checkIsClientError(error, 'TORNEOS_PARTICIPANT_ALREADY_WITHDRAWN');
 
@@ -281,7 +281,7 @@ async function scenarioOpenOperations() {
     const error = await expectFailure(
       'select public.withdraw_tournament_competition_participant($1, $2, $3, $4, $5)',
       [ORG, TOURNAMENT, teamEntryId, 'voluntary_resignation', null],
-      OWNER,
+      ownerId,
     );
     checkIsClientError(error, 'TORNEOS_PARTICIPANT_HAS_OPEN_OPERATIONS');
     check(
@@ -403,7 +403,7 @@ async function scenarioAlreadyOfficial() {
     const error = await expectFailure(
       'select public.open_tournament_match_operation($1, $2, $3)',
       [ORG, matchId, 'Revisión del acta pedida por el equipo local'],
-      OWNER,
+      ownerId,
     );
     checkIsClientError(error, 'TORNEOS_MATCH_ALREADY_OFFICIAL');
 
@@ -452,7 +452,7 @@ async function scenarioStandingsDraftExists() {
     const first = await expectFailure(
       'select public.rebuild_tournament_standings($1,$2,$3,$4,$5,$6,$7)',
       [org, TOURNAMENT, categoryId, phaseId, null, 'Recalculo del contrato', crypto.randomUUID()],
-      OWNER,
+      ownerId,
     );
     check(first === null, 'el primer recálculo crea el borrador sin problemas',
       first ? `${first.code} ${first.message}` : '');
@@ -461,7 +461,7 @@ async function scenarioStandingsDraftExists() {
     const error = await expectFailure(
       'select public.rebuild_tournament_standings($1,$2,$3,$4,$5,$6,$7)',
       [org, TOURNAMENT, categoryId, phaseId, null, 'Recalculo del contrato', crypto.randomUUID()],
-      OWNER,
+      ownerId,
     );
     checkIsClientError(error, 'TORNEOS_STANDINGS_DRAFT_EXISTS');
   });
@@ -518,7 +518,7 @@ async function scenarioMatchNotOpenable() {
     const error = await expectFailure(
       'select public.open_tournament_match_operation($1, $2, $3)',
       [ORG, match.rows[0].id, 'Control del contrato'],
-      OWNER,
+      ownerId,
     );
     checkIsClientError(error, 'TORNEOS_MATCH_NOT_OPENABLE');
     check(
@@ -544,7 +544,7 @@ async function probeHttpMapping() {
     return;
   }
 
-  const token = localJwt(OWNER);
+  const token = localJwt(ownerId);
   let response;
   try {
     response = await fetch(`${REST_URL}/rest/v1/rpc/finish_tournament_competition`, {
@@ -629,7 +629,7 @@ async function probeAlreadyOfficialHttpMapping() {
     [matchId],
   );
 
-  const token = localJwt(OWNER);
+  const token = localJwt(ownerId);
   let response;
   try {
     response = await fetch(`${REST_URL}/rest/v1/rpc/open_tournament_match_operation`, {
@@ -675,6 +675,16 @@ async function probeAlreadyOfficialHttpMapping() {
 
 async function main() {
   await client.connect();
+  const { rows: ownerRows } = await client.query(
+    `select user_id
+       from public.tournament_organization_members
+      where organization_id = $1 and role = 'owner' and status = 'active'`,
+    [ORG],
+  );
+  if (ownerRows.length !== 1) {
+    throw new Error(`El fixture QA debe tener exactamente un owner activo; encontrados ${ownerRows.length}.`);
+  }
+  ownerId = ownerRows[0].user_id;
   try {
     await scenarioPendingCommitments();
     await scenarioAlreadyWithdrawn();

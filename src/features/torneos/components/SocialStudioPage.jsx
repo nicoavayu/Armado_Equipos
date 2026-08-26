@@ -19,6 +19,7 @@ import {
   Users,
 } from 'lucide-react';
 import { useParams } from 'react-router-dom';
+import { useTorneosCompetition } from '../context/TorneosCompetitionContext';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
 import {
   SOCIAL_ACCENTS,
@@ -28,6 +29,7 @@ import {
   createEditorialState,
   describeCurationGap,
   findSocialPiece,
+  selectionSizeForSnapshot,
 } from '../social/socialContracts';
 import {
   exportSocialPiece,
@@ -36,18 +38,19 @@ import {
   replacePreparedSocialRender,
   shareSocialPiece,
 } from '../social/socialStudio';
-import {
-  SOCIAL_RESULTS_THEMES,
-  resolveSocialTheme,
-} from '../social/socialThemes';
+import { resolveSocialTheme } from '../social/socialThemes';
+import { BASE_LOCKUP_DATA_URL } from '../social/base/brandAsset';
+import SocialResultsThemePicker, {
+  isSocialResultThemeAllowed,
+} from './SocialResultsThemePicker';
 import styles from './SocialStudioPage.module.css';
 
 const PREVIEW_WIDTH = 300;
-// Exact, byte-preserved copy of the approved Social Studio lockup. The source
-// artwork includes meaningful transparent space, so layouts contain the full
-// bitmap instead of cropping or reconstructing it from separate marks.
+// Lossless renderer asset derived from the approved Social Studio lockup. Its
+// meaningful transparent space is preserved instead of cropping or rebuilding
+// the identity from separate marks.
 const OFFICIAL_BRAND_ASSETS = Object.freeze({
-  lockup: `${process.env.PUBLIC_URL || ''}/assets/social-studio/Logo%20Arma2_torneo.png`,
+  lockup: BASE_LOCKUP_DATA_URL,
 });
 
 function StudioState({ icon: Icon = Sparkles, title, copy, action = null }) {
@@ -61,6 +64,10 @@ function StudioState({ icon: Icon = Sparkles, title, copy, action = null }) {
   );
 }
 
+export function hasSocialStudioRoleCapability(capabilities, capability) {
+  return Array.isArray(capabilities) && capabilities.includes(capability);
+}
+
 /**
  * Estudio Social.
  *
@@ -71,6 +78,7 @@ function StudioState({ icon: Icon = Sparkles, title, copy, action = null }) {
 export default function SocialStudioPage() {
   const { organizationId } = useParams();
   const { service } = useTorneosWorkspace();
+  const competition = useTorneosCompetition();
   const canvasHostRef = useRef(null);
   const preparedRenderRef = useRef(null);
   const requestRef = useRef(0);
@@ -82,17 +90,18 @@ export default function SocialStudioPage() {
   const [snapshot, setSnapshot] = useState(null);
   const [snapshotError, setSnapshotError] = useState('');
   const [editorial, setEditorial] = useState(() => createEditorialState(null));
-  const [themeId, setThemeId] = useState('classic');
+  const [themeId, setThemeId] = useState('base');
   const [renderState, setRenderState] = useState({ status: 'idle', error: '' });
   const [busy, setBusy] = useState('');
   const [notice, setNotice] = useState('');
 
   const capabilities = context.data?.capabilities || [];
-  const canCreate = capabilities.includes('social.create');
-  const canExport = capabilities.includes('social.export');
-  const canSelect = capabilities.includes('social.manual_selection') || canCreate;
-  const canEditText = capabilities.includes('social.editorial_text') || canCreate;
-  const canToggleBrand = capabilities.includes('social.brand_toggle');
+  const canCreate = hasSocialStudioRoleCapability(capabilities, 'social.create');
+  const canExport = hasSocialStudioRoleCapability(capabilities, 'social.export');
+  const canSelect = hasSocialStudioRoleCapability(capabilities, 'social.manual_selection')
+    || canCreate;
+  const canEditText = hasSocialStudioRoleCapability(capabilities, 'social.editorial_text')
+    || canCreate;
 
   useEffect(() => {
     let active = true;
@@ -101,15 +110,6 @@ export default function SocialStudioPage() {
       .then((data) => {
         if (!active) return;
         setContext({ status: 'ready', data, error: '' });
-        const tournament = data.tournaments?.[0];
-        const category = tournament?.categories?.[0];
-        const phase = category?.phases?.[0];
-        setScope({
-          tournamentId: tournament?.id || '',
-          categoryId: category?.id || '',
-          phaseId: phase?.id || '',
-          roundId: phase?.rounds?.[phase.rounds.length - 1]?.id || '',
-        });
       })
       .catch((error) => {
         if (!active) return;
@@ -127,6 +127,42 @@ export default function SocialStudioPage() {
   const phase = category?.phases?.find((entry) => entry.id === scope.phaseId) || null;
   const rounds = phase?.rounds || [];
   const piece = findSocialPiece(pieceId);
+  const effectiveThemeId = isSocialResultThemeAllowed(
+    themeId,
+    competition.planState,
+    scope.tournamentId,
+  ) ? themeId : 'base';
+
+  const scopeForTournament = useCallback((entry) => {
+    const nextCategory = entry?.categories?.[0];
+    const nextPhase = nextCategory?.phases?.[0];
+    return {
+      tournamentId: entry?.id || '',
+      categoryId: nextCategory?.id || '',
+      phaseId: nextPhase?.id || '',
+      roundId: nextPhase?.rounds?.[nextPhase.rounds.length - 1]?.id || '',
+    };
+  }, []);
+
+  useEffect(() => {
+    if (context.status !== 'ready' || competition.status !== 'ready') return;
+    const active = tournaments.find((entry) => entry.id === competition.activeTournament?.id)
+      || tournaments[0]
+      || null;
+    if (!active || scope.tournamentId === active.id) return;
+    setScope(scopeForTournament(active));
+    if (!competition.activeTournament && active.seasonId) {
+      competition.selectContext(active.seasonId, active.id).catch(() => {});
+    }
+  }, [
+    competition.activeTournament,
+    competition.selectContext,
+    competition.status,
+    context.status,
+    scope.tournamentId,
+    scopeForTournament,
+    tournaments,
+  ]);
 
   const loadSnapshot = useCallback(async () => {
     if (!scope.tournamentId || !scope.categoryId || !scope.phaseId) return;
@@ -167,15 +203,22 @@ export default function SocialStudioPage() {
     [snapshot, editorial],
   );
   const selectedTheme = useMemo(
-    () => (pieceId === 'round_results' ? resolveSocialTheme(themeId) : resolveSocialTheme('classic')),
-    [pieceId, themeId],
+    () => (pieceId === 'round_results'
+      ? resolveSocialTheme(effectiveThemeId)
+      : resolveSocialTheme('base')),
+    [effectiveThemeId, pieceId],
   );
-  const branding = useMemo(() => ({
-    tournamentName: snapshot?.competition?.tournamentName || tournament?.name || '',
-    tournamentLogo: null,
-    primaryColor: null,
-    secondaryColor: null,
-  }), [snapshot, tournament]);
+  const branding = useMemo(() => {
+    const competitionTournament = competition.tournaments?.find(
+      (entry) => entry.id === scope.tournamentId,
+    );
+    return {
+      tournamentName: snapshot?.competition?.tournamentName || tournament?.name || '',
+      tournamentLogo: service.resolveTournamentLogoUrl?.(competitionTournament?.logoPath) || null,
+      primaryColor: null,
+      secondaryColor: null,
+    };
+  }, [competition.tournaments, scope.tournamentId, service, snapshot, tournament]);
 
   // Re-render the preview whenever anything it depends on changes. The canvas
   // is replaced wholesale rather than mutated so a failed render never leaves
@@ -255,7 +298,7 @@ export default function SocialStudioPage() {
     setEditorial((current) => {
       const selection = current.selection.includes(id)
         ? current.selection.filter((entry) => entry !== id)
-        : [...current.selection, id].slice(0, piece?.selectionSize || 1);
+        : [...current.selection, id].slice(0, selectionSizeForSnapshot(snapshot));
       return { ...current, selection };
     });
   };
@@ -317,8 +360,6 @@ export default function SocialStudioPage() {
 
   const candidates = snapshot?.official?.candidates || [];
   const format = SOCIAL_FORMATS[editorial.format];
-  const previewHeight = Math.round((PREVIEW_WIDTH * format.height) / format.width);
-
   return (
     <div className={styles.page}>
       <header className={styles.hero}>
@@ -356,9 +397,14 @@ export default function SocialStudioPage() {
               <span>Torneo</span>
               <select
                 value={scope.tournamentId}
-                onChange={(event) => setScope({
-                  tournamentId: event.target.value, categoryId: '', phaseId: '', roundId: '',
-                })}
+                onChange={(event) => {
+                  const next = tournaments.find((entry) => entry.id === event.target.value);
+                  setScope(scopeForTournament(next));
+                  setNotice('');
+                  if (next?.seasonId) {
+                    competition.selectContext(next.seasonId, next.id).catch(() => {});
+                  }
+                }}
               >
                 {tournaments.map((entry) => (
                   <option key={entry.id} value={entry.id}>{entry.name}</option>
@@ -432,9 +478,7 @@ export default function SocialStudioPage() {
           <fieldset>
             <legend>Formato y estilo</legend>
             <div className={styles.chipRow} role="radiogroup" aria-label="Formato">
-              {Object.values(SOCIAL_FORMATS)
-                .filter((entry) => pieceId !== 'round_results' || entry.id === 'portrait')
-                .map((entry) => (
+              {Object.values(SOCIAL_FORMATS).map((entry) => (
                 <button
                   key={entry.id}
                   type="button"
@@ -448,84 +492,75 @@ export default function SocialStudioPage() {
                 ))}
             </div>
             {pieceId === 'round_results' && (
-              <div className={styles.chipRow} role="radiogroup" aria-label="Theme de Resultados">
-                {SOCIAL_RESULTS_THEMES.map((entry) => (
+              <SocialResultsThemePicker
+                organizationId={organizationId}
+                tournamentId={scope.tournamentId}
+                planState={competition.planState}
+                themeId={themeId}
+                displayThemeId={effectiveThemeId}
+                onSelect={setThemeId}
+                onFallback={() => {
+                  setNotice('Volvimos a Base porque el torneo seleccionado es Free.');
+                }}
+              />
+            )}
+            {selectedTheme.id !== 'base' && (
+              <div className={styles.chipRow} role="radiogroup" aria-label="Acento">
+                {SOCIAL_ACCENTS.map((entry) => (
                   <button
                     key={entry.id}
                     type="button"
                     role="radio"
-                    aria-checked={themeId === entry.id}
-                    className={themeId === entry.id ? styles.chipActive : ''}
-                    onClick={() => setThemeId(entry.id)}
+                    aria-checked={editorial.accent === entry.id}
+                    aria-label={`Acento ${entry.label}`}
+                    className={editorial.accent === entry.id ? styles.chipActive : ''}
+                    onClick={() => updateEditorial({ accent: entry.id })}
                   >
-                    {entry.label}
+                    <Palette size={15} aria-hidden="true" /> {entry.label}
                   </button>
                 ))}
               </div>
             )}
-            <div className={styles.chipRow} role="radiogroup" aria-label="Acento">
-              {SOCIAL_ACCENTS.map((entry) => (
-                <button
-                  key={entry.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={editorial.accent === entry.id}
-                  aria-label={`Acento ${entry.label}`}
-                  className={editorial.accent === entry.id ? styles.chipActive : ''}
-                  onClick={() => updateEditorial({ accent: entry.id })}
-                >
-                  <Palette size={15} aria-hidden="true" /> {entry.label}
-                </button>
-              ))}
-            </div>
-            {canToggleBrand && pieceId !== 'round_results' && (
-              <label className={styles.checkboxRow}>
-                <input
-                  type="checkbox"
-                  checked={editorial.showArma2Logo}
-                  onChange={(event) => updateEditorial({ showArma2Logo: event.target.checked })}
-                />
-                <span>Mostrar el logo de Arma2</span>
-              </label>
-            )}
           </fieldset>
 
-          <fieldset disabled={!canEditText}>
-            <legend>Texto</legend>
-            <label>
-              <span>Título</span>
-              <input
-                value={editorial.title}
-                maxLength={SOCIAL_TEXT_LIMITS.title}
-                onChange={(event) => updateEditorial({ title: event.target.value })}
-              />
-            </label>
-            <label>
-              <span>Subtítulo</span>
-              <input
-                value={editorial.subtitle}
-                maxLength={SOCIAL_TEXT_LIMITS.subtitle}
-                onChange={(event) => updateEditorial({ subtitle: event.target.value })}
-              />
-            </label>
-            <label>
-              <span>Texto editorial</span>
-              <textarea
-                value={editorial.note}
-                maxLength={SOCIAL_TEXT_LIMITS.note}
-                onChange={(event) => updateEditorial({ note: event.target.value })}
-                placeholder="Una línea breve, opcional."
-              />
-            </label>
-            <label>
-              <span>Sitio o CTA</span>
-              <input
-                value={editorial.cta}
-                maxLength={SOCIAL_TEXT_LIMITS.cta}
-                onChange={(event) => updateEditorial({ cta: event.target.value })}
-              />
-            </label>
-          </fieldset>
+          {selectedTheme.id !== 'base' && (
+            <fieldset disabled={!canEditText}>
+              <legend>Texto</legend>
+              <label>
+                <span>Título</span>
+                <input
+                  value={editorial.title}
+                  maxLength={SOCIAL_TEXT_LIMITS.title}
+                  onChange={(event) => updateEditorial({ title: event.target.value })}
+                />
+              </label>
+              <label>
+                <span>Subtítulo</span>
+                <input
+                  value={editorial.subtitle}
+                  maxLength={SOCIAL_TEXT_LIMITS.subtitle}
+                  onChange={(event) => updateEditorial({ subtitle: event.target.value })}
+                />
+              </label>
+              <label>
+                <span>Texto editorial</span>
+                <textarea
+                  value={editorial.note}
+                  maxLength={SOCIAL_TEXT_LIMITS.note}
+                  onChange={(event) => updateEditorial({ note: event.target.value })}
+                  placeholder="Una línea breve, opcional."
+                />
+              </label>
+              <label>
+                <span>Sitio o CTA</span>
+                <input
+                  value={editorial.cta}
+                  maxLength={SOCIAL_TEXT_LIMITS.cta}
+                  onChange={(event) => updateEditorial({ cta: event.target.value })}
+                />
+              </label>
+            </fieldset>
+          )}
 
           {piece?.requiresHumanSelection && (
             <fieldset disabled={!canSelect}>
@@ -576,7 +611,11 @@ export default function SocialStudioPage() {
 
           <div
             className={styles.previewStage}
-            style={{ width: PREVIEW_WIDTH, height: previewHeight }}
+            style={{
+              width: PREVIEW_WIDTH,
+              maxWidth: '100%',
+              aspectRatio: `${format.width} / ${format.height}`,
+            }}
           >
             <div ref={canvasHostRef} className={styles.previewHost} />
             {['loading', 'rendering'].includes(renderState.status) && (

@@ -8,12 +8,39 @@ import {
 } from '../routing/canonicalRoutes';
 import styles from './CompetitionCore.module.css';
 
+function TournamentPlanBadge({ planState }) {
+  const trustedPlan = planState?.status === 'ready' && planState.data?.isTrusted
+    ? planState.data.plan
+    : null;
+  const label = trustedPlan === 'PREMIUM'
+    ? 'Premium'
+    : trustedPlan === 'FREE'
+      ? 'Free'
+      : planState?.status === 'loading'
+        ? 'Verificando plan'
+        : 'Plan no verificado';
+  const tone = trustedPlan?.toLowerCase()
+    || (planState?.status === 'loading' ? 'loading' : 'unverified');
+
+  return (
+    <span
+      className={styles.planBadge}
+      data-plan={tone}
+      role="status"
+      aria-label={`Plan del torneo: ${label}`}
+    >
+      {label}
+    </span>
+  );
+}
+
 export default function CompetitionSelector({ compact = false }) {
   const {
     status,
     seasons,
     tournaments,
     preference,
+    planState,
     selectContext,
   } = useTorneosCompetition();
   const [busy, setBusy] = useState(false);
@@ -102,7 +129,7 @@ export default function CompetitionSelector({ compact = false }) {
         </select>
         <ChevronDown size={14} className={styles.selectorChevron} aria-hidden="true" />
       </label>
-      <label>
+      <label className={styles.tournamentSelectorLabel}>
         {!compact && <Trophy size={15} className={styles.selectorIcon} aria-hidden="true" />}
         <span>Torneo</span>
         <select
@@ -111,13 +138,16 @@ export default function CompetitionSelector({ compact = false }) {
           disabled={busy}
           aria-label="Torneo activo"
         >
-          <option value="">Sin torneo seleccionado</option>
+          {!preference.activeTournamentId && (
+            <option value="">Elegí un torneo</option>
+          )}
           {seasonTournaments.map((tournament) => (
             <option key={tournament.id} value={tournament.id}>
               {tournament.name}
             </option>
           ))}
         </select>
+        {preference.activeTournamentId && <TournamentPlanBadge planState={planState} />}
         <ChevronDown size={14} className={styles.selectorChevron} aria-hidden="true" />
       </label>
     </section>

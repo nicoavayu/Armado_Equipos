@@ -1,5 +1,6 @@
 import { supabase } from '../services/api/supabase';
 import {
+  appendTournamentPlayoffPhase,
   executeTournamentGroupDraw,
   freezeTournamentParticipants,
   generateTournamentFixture,
@@ -83,6 +84,35 @@ describe('tournament fixture service contract', () => {
       p_tournament_id: 'tournament-a',
       p_windows: windows,
     });
+  });
+
+  test('appends playoffs to the same tournament without invoking creation or plan RPCs', async () => {
+    await appendTournamentPlayoffPhase({
+      ...scope,
+      sourcePhaseId: 'league-phase-a',
+      qualifierCount: 8,
+      doubleLeg: false,
+      idempotencyKey: 'append-request-a',
+    });
+
+    expect(supabase.rpc).toHaveBeenCalledTimes(1);
+    expect(supabase.rpc).toHaveBeenCalledWith('append_tournament_playoff_phase', {
+      p_organization_id: 'org-a',
+      p_tournament_id: 'tournament-a',
+      p_category_id: 'category-a',
+      p_source_phase_id: 'league-phase-a',
+      p_qualifier_count: 8,
+      p_double_leg: false,
+      p_idempotency_key: 'append-request-a',
+    });
+    expect(supabase.rpc).not.toHaveBeenCalledWith(
+      'get_tournament_creation_eligibility',
+      expect.anything(),
+    );
+    expect(supabase.rpc).not.toHaveBeenCalledWith(
+      'grant_tournament_premium',
+      expect.anything(),
+    );
   });
 
   test('requires scheduling overrides and reasons to be explicit', async () => {

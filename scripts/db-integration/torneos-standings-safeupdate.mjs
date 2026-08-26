@@ -35,7 +35,6 @@ const ORG = 'a5627c00-6b91-59b8-a366-455261e6e8de';
 const TOURNAMENT = '439fd0cf-ce9d-53b7-9d6d-d64d680dafd0';
 const CATEGORY = '6e91bbd4-db52-514e-a0b7-db44b6c91aa7';
 const LEAGUE_PHASE = 'a05ccc3d-7ce4-5a01-9bae-844ccce0b87a';
-const OWNER = 'e2811418-066f-4fe6-b9a4-a513f9cd86bc';
 
 let checks = 0;
 let failures = 0;
@@ -86,7 +85,7 @@ async function withRollback(client, run) {
  * el recálculo las exige. Termina dejando la sesión como la deja la aplicación,
  * con el rol `authenticated` y las claims del propietario.
  */
-async function prepareScenario(client) {
+async function prepareScenario(client, ownerId) {
   await client.query('set local role service_role');
   await client.query(
     `insert into public.tournament_scoring_rules (organization_id, tournament_id, points_win, points_draw, points_loss)
@@ -106,7 +105,7 @@ async function prepareScenario(client) {
   );
   await client.query('reset role');
   await client.query("select set_config('request.jwt.claims', $1, true)", [
-    JSON.stringify({ sub: OWNER, role: 'authenticated' }),
+    JSON.stringify({ sub: ownerId, role: 'authenticated' }),
   ]);
   await client.query('set local role authenticated');
 }
@@ -116,6 +115,17 @@ async function main() {
   const postgrest = new pg.Client({ connectionString: POSTGREST_CONNECTION });
   try {
     await admin.connect();
+
+    const { rows: ownerRows } = await admin.query(
+      `select user_id
+         from public.tournament_organization_members
+        where organization_id = $1 and role = 'owner' and status = 'active'`,
+      [ORG],
+    );
+    if (ownerRows.length !== 1) {
+      throw new Error(`El fixture QA debe tener exactamente un owner activo; encontrados ${ownerRows.length}.`);
+    }
+    const ownerId = ownerRows[0].user_id;
 
     console.log('\nContrato estático de la función de ranking');
     const { rows: definitionRows } = await admin.query(
@@ -162,7 +172,7 @@ async function main() {
     const runs = [];
     for (const label of ['primera', 'segunda']) {
       await withRollback(postgrest, async () => {
-        await prepareScenario(postgrest);
+        await prepareScenario(postgrest, ownerId);
         let failure = null;
         let revisionId = null;
         try {

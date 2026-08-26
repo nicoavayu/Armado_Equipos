@@ -1,3 +1,5 @@
+import { TORNEOS_URL } from './socialProductConfig';
+
 /**
  * Typed snapshot contracts for the Estudio Social.
  *
@@ -14,7 +16,10 @@
  * reason rather than render half a graphic.
  */
 
-export const SOCIAL_SNAPSHOT_SCHEMA_VERSION = 1;
+export const SOCIAL_SNAPSHOT_SCHEMA_VERSION = 2;
+export const SOCIAL_SNAPSHOT_SUPPORTED_VERSIONS = Object.freeze([1, 2]);
+export const SOCIAL_TEAM_SIZES = Object.freeze([5, 6, 7, 8, 9, 11]);
+const SOCIAL_PLAYER_POSITIONS = Object.freeze(['ARQ', 'DEF', 'MED', 'DEL']);
 
 export const SOCIAL_FORMATS = Object.freeze({
   portrait: Object.freeze({
@@ -37,7 +42,7 @@ export const SOCIAL_PIECES = Object.freeze([
     id: 'next_fixture',
     label: 'Próxima fecha',
     collection: 'matches',
-    requiresRound: true,
+    requiresRound: false,
     requiresHumanSelection: false,
     defaults: { title: 'Próxima fecha', subtitle: '' },
   },
@@ -75,12 +80,11 @@ export const SOCIAL_PIECES = Object.freeze([
   },
   {
     id: 'best_eleven',
-    label: 'Equipo ideal',
+    label: 'Equipo de la fecha',
     collection: 'candidates',
     requiresRound: false,
     requiresHumanSelection: true,
-    selectionSize: 11,
-    defaults: { title: 'Equipo ideal', subtitle: 'Selección de la fecha' },
+    defaults: { title: 'Equipo de la fecha', subtitle: 'Selección de la fecha' },
   },
   {
     id: 'mvp',
@@ -170,7 +174,7 @@ export function validateSocialSnapshot(snapshot, { organizationId } = {}) {
   if (!isPlainObject(snapshot)) {
     throw new SocialSnapshotError('SNAPSHOT_MALFORMED', 'not an object');
   }
-  if (snapshot.schemaVersion !== SOCIAL_SNAPSHOT_SCHEMA_VERSION) {
+  if (!SOCIAL_SNAPSHOT_SUPPORTED_VERSIONS.includes(snapshot.schemaVersion)) {
     throw new SocialSnapshotError(
       'SNAPSHOT_VERSION_UNSUPPORTED', String(snapshot.schemaVersion),
     );
@@ -206,6 +210,64 @@ export function validateSocialSnapshot(snapshot, { organizationId } = {}) {
     throw new SocialSnapshotError(
       'SNAPSHOT_CURATION_CONTRACT_BROKEN', piece.id,
     );
+  }
+  if (snapshot.schemaVersion === 2 && piece.id === 'best_eleven') {
+    if (
+      !SOCIAL_TEAM_SIZES.includes(official.teamSize)
+      || official.sportModality !== `football_${official.teamSize}`
+    ) {
+      throw new SocialSnapshotError('SNAPSHOT_TEAM_FORMAT_INVALID', piece.id);
+    }
+    official.candidates.forEach((candidate) => {
+      if (
+        !isPlainObject(candidate)
+        || !candidate.rosterPlayerId
+        || !candidate.teamEntryId
+        || typeof candidate.name !== 'string'
+        || (candidate.position !== null
+          && !SOCIAL_PLAYER_POSITIONS.includes(candidate.position))
+        || typeof candidate.isGoalkeeper !== 'boolean'
+        || !isPlainObject(candidate.team)
+        || candidate.team.teamEntryId !== candidate.teamEntryId
+      ) {
+        throw new SocialSnapshotError('SNAPSHOT_CANDIDATE_INVALID', piece.id);
+      }
+    });
+  }
+  if (snapshot.schemaVersion === 2 && piece.id === 'mvp') {
+    official.candidates.forEach((candidate) => {
+      if (
+        !isPlainObject(candidate)
+        || !candidate.rosterPlayerId
+        || !candidate.teamEntryId
+        || typeof candidate.name !== 'string'
+        || (candidate.position !== null
+          && !SOCIAL_PLAYER_POSITIONS.includes(candidate.position))
+        || typeof candidate.isGoalkeeper !== 'boolean'
+        || !isPlainObject(candidate.team)
+        || candidate.team.teamEntryId !== candidate.teamEntryId
+      ) {
+        throw new SocialSnapshotError('SNAPSHOT_CANDIDATE_INVALID', piece.id);
+      }
+    });
+  }
+  if (snapshot.schemaVersion === 2 && piece.id === 'next_fixture') {
+    if (official.semantics !== 'next_scheduled_unplayed_round') {
+      throw new SocialSnapshotError('SNAPSHOT_FIXTURE_SEMANTICS_INVALID', piece.id);
+    }
+    const generatedAt = new Date(snapshot.generatedAt).getTime();
+    if (!Number.isFinite(generatedAt)) {
+      throw new SocialSnapshotError('SNAPSHOT_MALFORMED', 'generatedAt');
+    }
+    const includesPastOrPlayed = official.matches.some((match) => {
+      const scheduledAt = new Date(match?.scheduledAt).getTime();
+      return !Number.isFinite(scheduledAt)
+        || (Number.isFinite(generatedAt) && scheduledAt < generatedAt)
+        || match.result;
+    });
+    if (includesPastOrPlayed) {
+      throw new SocialSnapshotError('SNAPSHOT_FIXTURE_NOT_UPCOMING', piece.id);
+    }
   }
   return snapshot;
 }
@@ -264,12 +326,45 @@ export function createEditorialState(snapshot, overrides = {}) {
       SOCIAL_TEXT_LIMITS.subtitle,
     ),
     note: clampText(overrides.note ?? '', SOCIAL_TEXT_LIMITS.note),
-    cta: clampText(overrides.cta ?? 'arma2.com.ar', SOCIAL_TEXT_LIMITS.cta),
+    cta: clampText(overrides.cta ?? TORNEOS_URL, SOCIAL_TEXT_LIMITS.cta),
     showArma2Logo: overrides.showArma2Logo !== false,
     photoAssetId: overrides.photoAssetId || null,
     photoOffsetY: Number.isFinite(overrides.photoOffsetY) ? overrides.photoOffsetY : 0.5,
     selection: Array.isArray(overrides.selection) ? overrides.selection : [],
   };
+}
+
+/** Historical V1 snapshots keep the old eleven-player rule. */
+export function selectionSizeForSnapshot(snapshot) {
+  const piece = findSocialPiece(snapshot?.piece);
+  if (!piece?.requiresHumanSelection) return 0;
+  if (piece.id === 'best_eleven') {
+    return snapshot?.schemaVersion === 2 ? snapshot?.official?.teamSize : 11;
+  }
+  return piece.selectionSize || 1;
+}
+
+export function validateSocialSelection(snapshot, editorial) {
+  const piece = findSocialPiece(snapshot?.piece);
+  if (!piece?.requiresHumanSelection) return { valid: true, code: null };
+  const selection = Array.isArray(editorial?.selection) ? editorial.selection : [];
+  const needed = selectionSizeForSnapshot(snapshot);
+  if (!Number.isInteger(needed) || needed < 1) {
+    return { valid: false, code: 'SELECTION_SIZE_INVALID', needed, chosen: selection.length };
+  }
+  if (new Set(selection).size !== selection.length) {
+    return { valid: false, code: 'SELECTION_DUPLICATED', needed, chosen: selection.length };
+  }
+  const candidateIds = new Set((snapshot?.official?.candidates || []).map(
+    (candidate) => candidate.rosterPlayerId || candidate.participantId,
+  ));
+  if (selection.some((id) => !candidateIds.has(id))) {
+    return { valid: false, code: 'SELECTION_CANDIDATE_INVALID', needed, chosen: selection.length };
+  }
+  if (selection.length !== needed) {
+    return { valid: false, code: 'SELECTION_COUNT_INVALID', needed, chosen: selection.length };
+  }
+  return { valid: true, code: null, needed, chosen: selection.length };
 }
 
 /**
@@ -279,11 +374,17 @@ export function createEditorialState(snapshot, overrides = {}) {
 export function describeCurationGap(snapshot, editorial) {
   const piece = findSocialPiece(snapshot?.piece);
   if (!piece?.requiresHumanSelection) return null;
-  const needed = piece.selectionSize || 1;
-  const chosen = (editorial?.selection || []).filter(Boolean).length;
-  if (chosen >= needed) return null;
+  const validation = validateSocialSelection(snapshot, editorial);
+  if (validation.valid) return null;
+  const { needed, chosen } = validation;
+  if (validation.code === 'SELECTION_CANDIDATE_INVALID') {
+    return 'La selección contiene una opción que ya no pertenece a los candidatos oficiales.';
+  }
+  if (validation.code === 'SELECTION_DUPLICATED') {
+    return 'La selección no puede repetir jugadores.';
+  }
   if (piece.id === 'best_eleven') {
-    return `Elegí ${needed} jugadores para el equipo ideal (${chosen}/${needed}).`;
+    return `Elegí exactamente ${needed} jugadores para el Equipo de la fecha (${chosen}/${needed}).`;
   }
   if (piece.id === 'mvp') return 'Elegí a la figura de la fecha.';
   if (piece.id === 'champion') {

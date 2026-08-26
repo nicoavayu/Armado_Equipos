@@ -1116,8 +1116,8 @@ async function report(client, scope) {
          where organization_id = $1 and period = 'second_half') second_half_events,
        (select count(*)::integer from public.tournament_public_pages
          where organization_id = $1 and tournament_id = $2 and status = 'published') public_page,
-       (select count(*)::integer from public.tournament_organization_subscriptions
-         where organization_id = $1 and status = 'active' and plan_code = 'PRO') pro_subscription,
+       (select count(*)::integer from public.tournament_plan_grants
+         where organization_id = $1 and plan_code = 'PREMIUM') premium_plan_grants,
        (select count(*)::integer from public.partidos where deleted_at is null) arma2_matches`,
     [scope.organization_id, scope.tournament_id],
   );

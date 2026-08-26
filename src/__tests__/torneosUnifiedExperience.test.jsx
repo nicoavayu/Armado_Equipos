@@ -159,12 +159,12 @@ describe('Arma2 Torneos unified participant/admin entrypoint', () => {
     expect(screen.getByRole('link', { name: 'Volver a Arma2' })).toBeInTheDocument();
   });
 
-  test('PRO or participant entitlement never creates administration', () => {
+  test('PREMIUM or participant entitlement never creates administration', () => {
     const experience = resolveTorneosUserExperience({
       organizations: [],
       tournamentRelations: [{
         ...PARTICIPANT_RELATION,
-        plan: 'PRO',
+        plan: 'PREMIUM',
         entitlements: { 'media.history': true },
       }],
     });

@@ -43,6 +43,8 @@ import OrganizationVenuesPage from './OrganizationVenuesPage';
 import TournamentRouteGuard from './TournamentRouteGuard';
 import OrganizationSettingsPage from './OrganizationSettingsPage';
 import PlanExperiencePage from './PlanExperiencePage';
+import PurchaseStatusPage from './PurchaseStatusPage';
+import { useOptionalTorneosCompetition } from '../context/TorneosCompetitionContext';
 import TorneosDashboard from './TorneosDashboard';
 import TorneosLanding from './TorneosLanding';
 import SeasonFormPage from './SeasonFormPage';
@@ -63,9 +65,6 @@ import MyCommunicationsPage from './MyCommunicationsPage';
 import CommunicationsAdminPage from './CommunicationsAdminPage';
 import MediaAdminPage from './MediaAdminPage';
 import SocialStudioPage from './SocialStudioPage';
-import SocialStudioEntitlementGate, {
-  useSocialStudioEntitlement,
-} from './SocialStudioEntitlementGate';
 import styles from './TorneosShell.module.css';
 
 //
@@ -211,6 +210,14 @@ function TeamEntryRedirect() {
   );
 }
 
+function LegacyPlanRedirect() {
+  const { organizationId } = useParams();
+  const competition = useOptionalTorneosCompetition();
+  const tournamentId = competition?.activeTournament?.id;
+  if (!tournamentId) return <PlanExperiencePage />;
+  return <Navigate to={canonicalRoutes.tournamentPlan(organizationId, tournamentId)} replace />;
+}
+
 function OrganizationNavigation({
   organization,
   mobile = false,
@@ -272,7 +279,7 @@ function OrganizationNavigation({
 export default function TorneosShell() {
   const location = useLocation();
   const { isKeyboardOpen } = useKeyboard();
-  const { activeOrganization, service } = useTorneosWorkspace();
+  const { activeOrganization } = useTorneosWorkspace();
   const showSpaceHeader = shouldShowTorneosSpaceHeader(location.pathname);
   const isCreateOrganizationRoute = /^\/torneos\/nueva-organizacion\/?$/.test(location.pathname);
   const isOrganizationRoute = location.pathname.includes('/torneos/organizacion/');
@@ -293,12 +300,6 @@ export default function TorneosShell() {
       || organizationRelativePath.startsWith(`${candidate}/`)
     ))
   ));
-  const socialStudioAccess = useSocialStudioEntitlement({
-    organizationId: isOrganizationRoute ? activeOrganization?.id : null,
-    service,
-    enabled: torneosFeatureFlags.socialContentGenerator,
-  });
-
   return (
     <div className={`${styles.shell} ${showSpaceHeader ? '' : styles.shellWithoutGlobalHeader}`}>
       <a className={styles.skipLink} href="#torneos-main">
@@ -314,7 +315,7 @@ export default function TorneosShell() {
 
         <OrganizationNavigation
           organization={isOrganizationRoute ? activeOrganization : null}
-          socialStudioAvailable={socialStudioAccess.allowed}
+          socialStudioAvailable={torneosFeatureFlags.socialContentGenerator}
           tournamentId={routeTournamentId}
           categoryId={routeCategoryId}
           relativePath={organizationRelativePath}
@@ -409,6 +410,19 @@ export default function TorneosShell() {
               <Route path="torneo/:tournamentId" element={<TournamentRouteGuard />}>
                 <Route index element={<CanonicalIndexRedirect to="fixture" />} />
                 <Route path="configuracion" element={<TournamentWizardPage />} />
+                <Route path="plan" element={<PlanExperiencePage />} />
+                <Route
+                  path="plan/compra/:purchaseId/exito"
+                  element={<PurchaseStatusPage view="success" />}
+                />
+                <Route
+                  path="plan/compra/:purchaseId/pendiente"
+                  element={<PurchaseStatusPage view="pending" />}
+                />
+                <Route
+                  path="plan/compra/:purchaseId/fallo"
+                  element={<PurchaseStatusPage view="failure" />}
+                />
                 {/*
                   * El listado de equipos es del torneo: `loadTeamsContext` pide
                   * `tournamentId`, así que sin torneo en la URL la lista salía
@@ -492,18 +506,11 @@ export default function TorneosShell() {
               {torneosFeatureFlags.socialContentGenerator && (
                 <Route
                   path="estudio-social"
-                  element={(
-                    <SocialStudioEntitlementGate
-                      access={socialStudioAccess}
-                      organizationId={activeOrganization?.id || ''}
-                    >
-                      <SocialStudioPage />
-                    </SocialStudioEntitlementGate>
-                  )}
+                  element={<SocialStudioPage />}
                 />
               )}
               <Route path="configuracion" element={<OrganizationSettingsPage />} />
-              <Route path="configuracion/plan" element={<PlanExperiencePage />} />
+              <Route path="configuracion/plan" element={<LegacyPlanRedirect />} />
               <Route path="miembros" element={<OrganizationMembersPage />} />
             </Route>
             <Route path="mis-partidos" element={<MyTournamentMatchesPage />} />
@@ -553,7 +560,7 @@ export default function TorneosShell() {
           organization={isOrganizationRoute ? activeOrganization : null}
           mobile
           keyboardHidden={isKeyboardOpen}
-          socialStudioAvailable={socialStudioAccess.allowed}
+          socialStudioAvailable={torneosFeatureFlags.socialContentGenerator}
           tournamentId={routeTournamentId}
           categoryId={routeCategoryId}
           relativePath={organizationRelativePath}

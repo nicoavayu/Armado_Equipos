@@ -355,8 +355,14 @@ const TEMPLATES = {
     if (assets) { /* shields already drawn by the match rows */ }
   },
 
-  best_eleven: (ctx, { snapshot, editorial, body, accent, assets }) => {
-    const chosen = selectedFrom(snapshot, editorial);
+  best_eleven: (ctx, {
+    snapshot, content, editorial, body, accent, assets,
+  }) => {
+    const chosen = content?.kind === 'teamOfRound'
+      ? content.selectedPlayers.map((player) => ({
+        ...player.stats, ...player,
+      }))
+      : selectedFrom(snapshot, editorial);
     if (chosen.length === 0) {
       drawEmptyState(ctx, body, accent);
       return;
@@ -381,7 +387,7 @@ const TEMPLATES = {
         family: SOCIAL_THEME.heading, size: 28, weight: 500,
         maxWidth: cellWidth - 84, minSize: 16,
       });
-      drawText(ctx, `${player.goals ?? 0}G · ${player.assists ?? 0}A`, x + 62, y + cellHeight / 2 + 30, {
+      drawText(ctx, `${player.goals ?? 0}G`, x + 62, y + cellHeight / 2 + 30, {
         family: SOCIAL_THEME.body, size: 20, color: SOCIAL_THEME.textFaint,
         maxWidth: cellWidth - 84, minSize: 14,
       });
@@ -390,8 +396,14 @@ const TEMPLATES = {
   },
 
   mvp: (ctx, context) => {
-    const { snapshot, editorial, body, accent } = context;
-    const [player] = selectedFrom(snapshot, editorial);
+    const {
+      snapshot, content, editorial, body, accent,
+    } = context;
+    const player = content?.kind === 'figure'
+      ? (content.selectedPlayer ? {
+        ...content.selectedPlayer.stats, ...content.selectedPlayer,
+      } : null)
+      : selectedFrom(snapshot, editorial)[0];
     if (!player) {
       drawEmptyState(ctx, body, accent);
       return;
@@ -399,7 +411,7 @@ const TEMPLATES = {
     drawCuratedFigure(ctx, {
       ...context,
       name: player.name || '—',
-      detail: `${player.goals ?? 0} goles · ${player.assists ?? 0} asistencias · ${player.appearances ?? 0} PJ`,
+      detail: `${player.goals ?? 0} goles · ${player.appearances ?? 0} PJ`,
     });
   },
 

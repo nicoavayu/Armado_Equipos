@@ -4,6 +4,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import FixtureWorkspacePage from '../features/torneos/components/FixtureWorkspacePage';
@@ -14,6 +15,8 @@ const mockOrganization = {
   role: 'owner',
   capabilities: getCapabilitiesForRole('owner'),
 };
+
+let mockTournamentStatus = 'registration';
 
 const mockFixtureState = {
   status: 'ready',
@@ -79,6 +82,7 @@ const mockFixtureState = {
   matches: [{
     id: 'match-a',
     fixtureVersionId: 'version-a',
+    phaseId: 'phase-a',
     roundId: 'round-a',
     matchNumber: 1,
     homeParticipantId: 'participant-a',
@@ -88,6 +92,7 @@ const mockFixtureState = {
   }, {
     id: 'match-b',
     fixtureVersionId: 'version-a',
+    phaseId: 'phase-b',
     roundId: 'round-b',
     matchNumber: 2,
     homeParticipantId: 'participant-a',
@@ -118,6 +123,8 @@ const mockFixtureState = {
     generate: jest.fn(),
     createManual: jest.fn(),
     publish: jest.fn(),
+    appendPlayoffs: jest.fn(),
+    archiveDraft: jest.fn(),
     supersede: jest.fn(),
     createVenue: jest.fn(),
     createCourt: jest.fn(),
@@ -139,7 +146,7 @@ jest.mock('../features/torneos/context/TorneosCompetitionContext', () => ({
     activeTournament: {
       id: 'tournament-a',
       name: 'Copa Apertura',
-      status: 'registration',
+      status: mockTournamentStatus,
       competitionFormat: 'league',
       sportModality: 'football_5',
     },
@@ -157,6 +164,11 @@ jest.mock('../features/torneos/components/CompetitionSelector', () => (
 ));
 
 describe('FixtureWorkspacePage', () => {
+  beforeEach(() => {
+    mockTournamentStatus = 'registration';
+    jest.clearAllMocks();
+  });
+
   test('renders the snapshotted shield in the frozen participant list', () => {
     const view = render(
       <MemoryRouter>
@@ -258,6 +270,97 @@ describe('FixtureWorkspacePage', () => {
     mockFixtureState.versions = previousVersions;
   });
 
+  test('adds playoffs through a two-step confirmation and keeps tournament/category context', async () => {
+    const previousPhases = mockFixtureState.phases;
+    mockTournamentStatus = 'active';
+    mockFixtureState.phases = [{
+      id: 'phase-a',
+      fixtureVersionId: 'version-a',
+      name: 'Liga principal',
+      phaseType: 'league',
+      status: 'scheduled',
+    }];
+    mockFixtureState.actions.appendPlayoffs.mockResolvedValue({ phaseId: 'playoffs-a' });
+
+    render(
+      <MemoryRouter initialEntries={['/torneos/organizacion/org-a/torneo/tournament-a/fixture?categoria=category-a']}>
+        <FixtureWorkspacePage mode="overview" />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Agregar fase/i }));
+    expect(screen.getByRole('dialog', { name: 'Agregar Playoffs' })).toBeInTheDocument();
+    expect(screen.getByText(/partidos y resultados ya jugados no se modificarán/i))
+      .toBeInTheDocument();
+    expect(screen.getByText('Liga principal')).toBeInTheDocument();
+    expect(screen.getByLabelText('Cantidad de clasificados')).toHaveValue('2');
+    expect(mockFixtureState.actions.appendPlayoffs).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Continuar' }));
+    expect(screen.getByText('Top 2 de Liga principal')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar Playoffs' }));
+
+    await waitFor(() => expect(mockFixtureState.actions.appendPlayoffs).toHaveBeenCalledWith({
+      sourcePhaseId: 'phase-a',
+      qualifierCount: 2,
+      doubleLeg: false,
+    }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    mockFixtureState.phases = previousPhases;
+  });
+
+  test('keeps completed tournaments closed to phase appends', () => {
+    const previousPhases = mockFixtureState.phases;
+    mockTournamentStatus = 'completed';
+    mockFixtureState.phases = [{
+      id: 'phase-a',
+      fixtureVersionId: 'version-a',
+      name: 'Liga',
+      phaseType: 'league',
+      status: 'scheduled',
+    }];
+    render(
+      <MemoryRouter>
+        <FixtureWorkspacePage mode="overview" />
+      </MemoryRouter>,
+    );
+    expect(screen.queryByRole('button', { name: /Agregar fase/i })).not.toBeInTheDocument();
+    mockFixtureState.phases = previousPhases;
+  });
+
+  test('lets the owner discard a pre-existing draft after the tournament starts', async () => {
+    const previousVersions = mockFixtureState.versions;
+    mockTournamentStatus = 'active';
+    mockFixtureState.versions = [{
+      id: 'version-stale-draft',
+      versionNumber: 2,
+      status: 'draft',
+      generationMethod: 'manual',
+      matchCount: 1,
+      scheduledCount: 0,
+    }];
+    mockFixtureState.actions.archiveDraft.mockResolvedValue({});
+    render(
+      <MemoryRouter>
+        <FixtureWorkspacePage mode="overview" />
+      </MemoryRouter>,
+    );
+    expect(screen.queryByRole('button', { name: 'Publicar' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Descartar borrador' }));
+    expect(screen.getByRole('heading', { name: 'Descartar el borrador cerrado' }))
+      .toBeInTheDocument();
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole(
+      'button',
+      { name: 'Descartar borrador' },
+    ));
+    await waitFor(() => expect(mockFixtureState.actions.archiveDraft).toHaveBeenCalledWith(
+      'version-stale-draft',
+      'Descartado porque la competencia ya comenzó.',
+    ));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+    mockFixtureState.versions = previousVersions;
+  });
+
   test('renders a semantic mobile-friendly bracket with sides and seeds', () => {
     render(
       <MemoryRouter>
@@ -269,6 +372,21 @@ describe('FixtureWorkspacePage', () => {
     expect(screen.getByText('Visitante')).toBeInTheDocument();
     expect(screen.getByText('Orden 1')).toBeInTheDocument();
     expect(screen.getByText('Orden 2')).toBeInTheDocument();
+  });
+
+  test('keeps archived phases and their rounds out of the official fixture views', () => {
+    const previousPhases = mockFixtureState.phases;
+    mockFixtureState.phases = previousPhases.map((phase) => (
+      phase.id === 'phase-b' ? { ...phase, status: 'archived' } : phase
+    ));
+    render(
+      <MemoryRouter>
+        <FixtureWorkspacePage mode="bracket" />
+      </MemoryRouter>,
+    );
+    expect(screen.queryByRole('heading', { name: 'Final' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Partido 2')).not.toBeInTheDocument();
+    mockFixtureState.phases = previousPhases;
   });
 
   // La ventana semanal es del torneo y la categoría, así que se programa en

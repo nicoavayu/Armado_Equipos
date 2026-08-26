@@ -28,7 +28,8 @@ const CONNECTION = process.env.TORNEOS_LOCAL_AUTHENTICATOR_URL
 
 const ORG = 'a5627c00-6b91-59b8-a366-455261e6e8de';
 const MATCH = '74db14eb-e6cd-5009-ad24-4ae627fba042';
-const OWNER = 'e2811418-066f-4fe6-b9a4-a513f9cd86bc';
+const VENUE = '93000000-0000-4000-8000-000000000001';
+const COURT = '93000000-0000-4000-8000-000000000002';
 
 // PostgREST devuelve 4xx para esta clase de SQLSTATE y 500 para la clase 55.
 const CLIENT_ERROR_CLASSES = ['22', '23', '42', 'P0'];
@@ -55,15 +56,31 @@ async function withRollback(client, run) {
 }
 
 /** Coloca el partido a `hours` horas de ahora y deja la sesión como el owner. */
-async function scenario(client, hours) {
+async function scenario(client, hours, ownerId) {
   await client.query('set local role service_role');
   await client.query(
-    "update public.tournament_matches set scheduled_at = now() + make_interval(hours => $2) where id = $1",
-    [MATCH, hours],
+    `insert into public.tournament_venues(
+       id, organization_id, name, address, locality, timezone, status
+     ) values ($1, $2, 'Sede contrato ventana', 'Calle QA 100', 'Buenos Aires',
+       'America/Argentina/Buenos_Aires', 'active')`,
+    [VENUE, ORG],
+  );
+  await client.query(
+    `insert into public.tournament_courts(
+       id, organization_id, venue_id, name, sport_modality, status
+     ) values ($1, $2, $3, 'Cancha contrato ventana', 'football_5', 'active')`,
+    [COURT, ORG, VENUE],
+  );
+  await client.query(
+    `update public.tournament_matches
+        set scheduled_at = now() + make_interval(hours => $2),
+            venue_id = $3, court_id = $4, duration_minutes = 60
+      where id = $1`,
+    [MATCH, hours, VENUE, COURT],
   );
   await client.query('reset role');
   await client.query("select set_config('request.jwt.claims', $1, true)", [
-    JSON.stringify({ sub: OWNER, role: 'authenticated' }),
+    JSON.stringify({ sub: ownerId, role: 'authenticated' }),
   ]);
   await client.query('set local role authenticated');
 }
@@ -80,9 +97,22 @@ async function main() {
   try {
     await client.connect();
 
+    await client.query('set role service_role');
+    const { rows: ownerRows } = await client.query(
+      `select user_id
+         from public.tournament_organization_members
+        where organization_id = $1 and role = 'owner' and status = 'active'`,
+      [ORG],
+    );
+    await client.query('reset role');
+    if (ownerRows.length !== 1) {
+      throw new Error(`El fixture QA debe tener exactamente un owner activo; encontrados ${ownerRows.length}.`);
+    }
+    const ownerId = ownerRows[0].user_id;
+
     console.log('\nDentro de la ventana el acta se abre sin explicaciones');
     await withRollback(client, async () => {
-      await scenario(client, 1);
+      await scenario(client, 1, ownerId);
       let failure = null;
       try {
         await open(client, null);
@@ -98,7 +128,7 @@ async function main() {
 
     console.log('\nFuera de la ventana, sin motivo, se rechaza');
     await withRollback(client, async () => {
-      await scenario(client, 48);
+      await scenario(client, 48, ownerId);
       let failure = null;
       try {
         await open(client, null);
@@ -125,7 +155,7 @@ async function main() {
 
     console.log('\nUn motivo demasiado corto no alcanza');
     await withRollback(client, async () => {
-      await scenario(client, 48);
+      await scenario(client, 48, ownerId);
       let failure = null;
       try {
         await open(client, '  x  ');
@@ -141,7 +171,7 @@ async function main() {
 
     console.log('\nCon un motivo real, el acta se abre y queda registrado');
     await withRollback(client, async () => {
-      await scenario(client, 48);
+      await scenario(client, 48, ownerId);
       const reason = 'Se adelantó el partido por lluvia anunciada';
       let failure = null;
       try {

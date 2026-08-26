@@ -188,6 +188,10 @@ export const tournamentRoot = tournamentRoute('');
 export const tournamentTeams = tournamentRoute('/equipos');
 export const tournamentTeamNew = tournamentRoute('/equipos/nuevo');
 export const tournamentConfiguration = tournamentRoute('/configuracion');
+export const tournamentPlan = tournamentRoute('/plan');
+export const tournamentPurchaseSuccess = tournamentResourceRoute('/plan/compra', '/exito', 'purchaseId');
+export const tournamentPurchasePending = tournamentResourceRoute('/plan/compra', '/pendiente', 'purchaseId');
+export const tournamentPurchaseFailure = tournamentResourceRoute('/plan/compra', '/fallo', 'purchaseId');
 
 export const tournamentFixture = tournamentRoute('/fixture');
 export const tournamentFixtureParticipants = tournamentRoute('/fixture/participantes');
@@ -265,6 +269,10 @@ export const canonicalRoutes = Object.freeze({
   tournamentTeams,
   tournamentTeamNew,
   tournamentConfiguration,
+  tournamentPlan,
+  tournamentPurchaseSuccess,
+  tournamentPurchasePending,
+  tournamentPurchaseFailure,
   tournamentFixture,
   tournamentFixtureParticipants,
   tournamentFixturePots,

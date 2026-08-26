@@ -288,8 +288,12 @@ async function main() {
          and table_name ~ '(catalog|lookup|type|status|format|modalit)'
        order by table_name`,
     ).then(({ rows }) => rows.map((row) => row.table_name)),
-    ['tournament_competition_formats', 'tournament_sport_modalities'],
-    'la auditoría preventiva identifica sólo dos tablas catálogo de Torneos',
+    [
+      'tournament_competition_formats',
+      'tournament_plan_catalog',
+      'tournament_sport_modalities',
+    ],
+    'la auditoría preventiva identifica sólo los tres catálogos canónicos de Torneos',
   );
   equal(
     await count(
@@ -494,6 +498,19 @@ async function main() {
       6,
       `${format.code} crea scoring, cuatro desempates y disciplina`,
     );
+
+    // The first edition keeps its automatic FREE grant. Additional editions
+    // need an explicit trusted grant before historical competitive fixtures
+    // can move beyond draft under the commercial Premium gate.
+    if (formatIndex > 0) {
+      await value(
+        admin,
+        `select public.grant_tournament_premium(
+          $1,$2,'legacy_grant','Fixture histórico autorizado para validar formatos competitivos'
+        )`,
+        [organizationId, tournament.id],
+      );
+    }
 
     const category = await createCategory(
       owner,
