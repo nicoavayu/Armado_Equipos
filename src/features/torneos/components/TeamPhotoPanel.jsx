@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import {
   AlertCircle, Check, EyeOff, ImagePlus, LoaderCircle, Trash2, X,
 } from 'lucide-react';
@@ -92,7 +92,7 @@ export default function TeamPhotoPanel({
     ? candidate.teamPhotoId : '';
   const candidateId = candidate?.teamPhotoId || '';
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     setRejecting(false);
     setReason('');
   }, [pendingKey]);
