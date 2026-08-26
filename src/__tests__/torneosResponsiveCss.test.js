@@ -99,11 +99,32 @@ describe('Torneos responsive navigation CSS', () => {
     expect(competitionCss).toMatch(
       /@media \(max-width:\s*760px\)[\s\S]*?\.contextSelector,[\s\S]*?grid-template-columns:\s*1fr;/,
     );
+    // Los seis pasos entran porque las columnas pueden achicarse hasta cero
+    // (`minmax(0, 1fr)`), no porque un rail horizontal los tape. Con un mínimo
+    // por columna —el `minmax(100px, 1fr)` que esto reemplazó— seis pasos piden
+    // 600px y en 320px se iban de la caja: de ahí venían el `overflow-x: auto`
+    // de base y el `overflow-x: hidden` del breakpoint, que recortaban el
+    // síntoma. El stepper actual elimina la causa, así que el contrato es que
+    // NO exista ese mínimo ni ese rail.
     expect(competitionCss).toMatch(
-      /@media \(max-width:\s*520px\)[\s\S]*?\.stepper\s*\{[\s\S]*?grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\);[\s\S]*?overflow-x:\s*hidden;/,
+      /\.stepper\s*\{[\s\S]*?grid-template-columns:\s*repeat\(6,\s*minmax\(0,\s*1fr\)\);/,
     );
+    expect(competitionCss).not.toMatch(
+      /\.stepper\s*\{[^}]*grid-template-columns:\s*repeat\(6,\s*minmax\((?!0[,)])/,
+    );
+    expect(competitionCss).not.toMatch(/\.stepper\s*\{[^}]*overflow-x:\s*auto;/);
+    // `overflow: hidden` (los dos ejes, en la regla base) es lo que garantiza
+    // cero scroll horizontal en TODO ancho, no sólo por debajo de 520px.
+    expect(competitionCss).toMatch(/\.stepper\s*\{[^}]*overflow:\s*hidden;/);
     expect(competitionCss).toMatch(
-      /\.stepper\s*\{[\s\S]*?overflow-x:\s*auto;/,
+      /@media \(max-width:\s*520px\)[\s\S]*?\.stepper\s*\{[\s\S]*?grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\);/,
+    );
+    // Los títulos se ven enteros o pasan de renglón: nunca `nowrap` ni ellipsis.
+    expect(competitionCss).toMatch(
+      /\.stepper em\s*\{[^}]*white-space:\s*normal;/,
+    );
+    expect(competitionCss).not.toMatch(
+      /\.stepper em\s*\{[^}]*(white-space:\s*nowrap|text-overflow:\s*ellipsis)/,
     );
   });
 
