@@ -34,6 +34,7 @@ const expectedCanonicalMigrations = [
   '20260821230000_active_tournament_phase_append.sql',
   '20260823120000_tournament_social_team_contract.sql',
   '20260825194025_tournament_commercial_checkout_foundation.sql',
+  '20260827001443_tournament_mercadopago_checkout_pro_test.sql',
 ];
 
 const exitWithError = (message) => {

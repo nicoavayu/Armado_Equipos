@@ -153,6 +153,10 @@ const POST_CANONICAL_AUTHENTICATED_ALLOWLIST = [
     'public.create_fake_tournament_purchase(uuid,uuid,text,uuid,text)',
     'frontend_legitimate',
   ],
+  [
+    'public.create_tournament_purchase(uuid,uuid,text,uuid,text,text)',
+    'frontend_legitimate',
+  ],
   ['public.cancel_tournament_purchase(uuid)', 'frontend_legitimate'],
   ['public.get_tournament_media_asset_processing_tiers(uuid)', 'frontend_legitimate'],
   ['public.get_tournament_media_upload_capability(uuid)', 'frontend_legitimate'],

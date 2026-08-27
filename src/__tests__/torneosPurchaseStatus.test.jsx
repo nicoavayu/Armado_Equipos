@@ -93,6 +93,17 @@ describe('purchase status routes', () => {
     expect(document.body).not.toHaveTextContent('Premium ya está activo');
   });
 
+  test.each([
+    ['refunded', /pago fue reembolsado/i],
+    ['charged_back', /pago está en contracargo/i],
+    ['expired', /preferencia venció/i],
+  ])('%s is rendered only from the verified backend state', async (status, title) => {
+    loadTournamentPurchase.mockResolvedValue(projection(status));
+    renderStatus('failure');
+    expect(await screen.findByRole('heading', { name: title })).toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent('Premium ya está activo');
+  });
+
   test('expired session fails closed and offers a retry', async () => {
     loadTournamentPurchase.mockRejectedValue(new Error('Tu sesión venció. Volvé a iniciar sesión.'));
     renderStatus('pending');

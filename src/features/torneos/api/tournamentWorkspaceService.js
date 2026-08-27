@@ -265,6 +265,21 @@ export async function createTournamentCheckout({
   return data;
 }
 
+export function isMercadoPagoCheckoutUrl(value) {
+  try {
+    const url = new URL(value);
+    const hostname = url.hostname.toLowerCase();
+    return url.protocol === 'https:' && (
+      hostname === 'mercadopago.com'
+      || hostname.endsWith('.mercadopago.com')
+      || hostname === 'mercadopago.com.ar'
+      || hostname.endsWith('.mercadopago.com.ar')
+    );
+  } catch {
+    return false;
+  }
+}
+
 export async function loadTournamentPurchase({ purchaseId, organizationId, tournamentId }) {
   const purchase = unwrapRpc(await supabase.rpc('get_tournament_purchase', {
     p_purchase_id: purchaseId,

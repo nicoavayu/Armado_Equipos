@@ -1,6 +1,7 @@
 import {
   type CheckoutPreference,
   type PaymentSimulation,
+  type PaymentPreferenceContext,
   type PurchaseProjection,
   type TournamentPaymentProvider,
 } from "./paymentProvider.ts"
@@ -24,19 +25,21 @@ function baseUrl(value: string) {
   return value.replace(/\/+$/, "")
 }
 
-export const fakePaymentProvider: TournamentPaymentProvider = {
+export const fakePaymentProvider: TournamentPaymentProvider & {
+  normalizeSimulation(value: unknown): PaymentSimulation | null
+} = {
   code: "FAKE",
-  createPreference(
+  async createPreference(
     purchase: PurchaseProjection,
-    appBaseUrl: string,
-  ): CheckoutPreference {
+    context: PaymentPreferenceContext,
+  ): Promise<CheckoutPreference> {
     const purchasePath = `/torneos/organizacion/${encodeURIComponent(purchase.organizationId)}`
       + `/torneo/${encodeURIComponent(purchase.tournamentId)}/plan/compra/`
       + `${encodeURIComponent(purchase.id)}/pendiente`
     return {
       provider: "FAKE",
       purchaseId: purchase.id,
-      checkoutUrl: `${baseUrl(appBaseUrl)}${purchasePath}`,
+      checkoutUrl: `${baseUrl(context.appBaseUrl)}${purchasePath}`,
       expiresAt: purchase.preferenceExpiresAt ?? null,
     }
   },

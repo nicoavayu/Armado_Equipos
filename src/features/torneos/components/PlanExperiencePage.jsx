@@ -10,6 +10,7 @@ import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import {
   createIdempotencyKey,
   createTournamentCheckout,
+  isMercadoPagoCheckoutUrl,
 } from '../api/tournamentWorkspaceService';
 import { canonicalRoutes } from '../routing/canonicalRoutes';
 import { useOptionalTorneosCompetition } from '../context/TorneosCompetitionContext';
@@ -51,6 +52,7 @@ function PremiumBenefit({ benefit }) {
 export default function PlanExperiencePage({
   organization: organizationProp = null,
   tournament: tournamentProp = null,
+  checkoutRedirect = (url) => window.location.assign(url),
 }) {
   const outletContext = useOutletContext() || {};
   const competition = useOptionalTorneosCompetition();
@@ -81,6 +83,17 @@ export default function PlanExperiencePage({
         tournamentId: tournament.id,
         idempotencyKey: idempotencyKeyRef.current,
       });
+      if (result.preference?.provider === 'MERCADO_PAGO') {
+        if (!isMercadoPagoCheckoutUrl(result.preference.checkoutUrl)) {
+          throw new Error('El proveedor devolvió una dirección de pago inválida.');
+        }
+        setCheckoutState({ status: 'redirecting', error: '' });
+        checkoutRedirect(result.preference.checkoutUrl);
+        return;
+      }
+      if (result.preference?.provider !== 'FAKE') {
+        throw new Error('El proveedor de pago no está disponible.');
+      }
       navigate(canonicalRoutes.tournamentPurchasePending(
         routeOrganizationId || organization.id,
         routeTournamentId || tournament.id,
@@ -230,10 +243,11 @@ export default function PlanExperiencePage({
               <button
                 type="button"
                 onClick={beginCheckout}
-                disabled={!canManageBilling || checkoutState.status === 'loading'}
+                disabled={!canManageBilling || ['loading', 'redirecting'].includes(checkoutState.status)}
               >
                 <Zap size={17} aria-hidden="true" />
-                {checkoutState.status === 'loading' ? 'Preparando compra…' : 'Comprar Premium'}
+                {checkoutState.status === 'loading' ? 'Preparando compra…'
+                  : checkoutState.status === 'redirecting' ? 'Redirigiendo…' : 'Comprar Premium'}
               </button>
             )}
             {!isPremium && !canManageBilling && (
