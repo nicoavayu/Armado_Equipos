@@ -24,6 +24,7 @@ const expectedFunctions = [
   'tournament-fake-payment',
   'tournament-media-processor',
   'tournament-media-signer',
+  'tournament-mercadopago-webhook',
   'tournament-player-portraits',
   'tournament-purchase-status',
   'tournament-team-photos',
@@ -35,6 +36,7 @@ const publicFunctions = new Set([
   'join-match-guest',
   'public-tournament-commercial-catalog',
   'upload-voting-photo',
+  'tournament-mercadopago-webhook',
 ]);
 
 const userFunctions = new Set([

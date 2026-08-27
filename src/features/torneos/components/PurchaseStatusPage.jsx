@@ -89,8 +89,13 @@ export default function PurchaseStatusPage({ view }) {
   } : canonicalView === 'failure' ? {
     icon: AlertTriangle,
     eyebrow: 'COMPRA NO COMPLETADA',
-    title: state.purchase.status === 'expired' ? 'La preferencia venció' : 'El pago no fue aprobado',
-    description: 'No se activó Premium. Podés volver al Plan e iniciar una compra nueva.',
+    title: state.purchase.status === 'expired' ? 'La preferencia venció'
+      : state.purchase.status === 'refunded' ? 'El pago fue reembolsado'
+        : state.purchase.status === 'charged_back' ? 'El pago está en contracargo'
+          : 'El pago no fue aprobado',
+    description: ['refunded', 'charged_back'].includes(state.purchase.status)
+      ? 'Premium no está activo porque el proveedor confirmó una reversión del pago.'
+      : 'No se activó Premium. Podés volver al Plan e iniciar una compra nueva.',
     tone: 'failure',
   } : {
     icon: Clock3,

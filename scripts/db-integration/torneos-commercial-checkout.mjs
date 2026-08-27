@@ -18,6 +18,20 @@ const MIGRATIONS = [
   '20260810160355_tournament_entitlements_foundation.sql',
   '20260821213918_plans_entitlements_foundation_v2.sql',
   '20260825194025_tournament_commercial_checkout_foundation.sql',
+  '20260827001443_tournament_mercadopago_checkout_pro_test.sql',
+];
+
+const COMMERCIAL_RPC_GRANTS = [
+  ['public.tournament_purchase_projection(public.tournament_purchases)', false, false, true],
+  ['public.create_tournament_purchase(uuid,uuid,text,uuid,text,text)', false, true, true],
+  ['public.record_tournament_purchase_preference(uuid,text,text,text,timestamptz)', false, false, true],
+  ['public.create_fake_tournament_purchase(uuid,uuid,text,uuid,text)', false, true, true],
+  ['public.get_provider_tournament_purchase(text,text,text)', false, false, true],
+  ['public.activate_verified_tournament_purchase(uuid,text,text,text,text,text,text)', false, false, true],
+  ['public.apply_verified_tournament_payment_status(uuid,text,text,text,text,text,text,text)', false, false, true],
+  ['public.apply_verified_tournament_payment_reversal(uuid,text,text,text,text,text,text)', false, false, true],
+  ['public.activate_verified_fake_tournament_purchase(uuid,text,text)', false, false, true],
+  ['public.apply_fake_tournament_payment_status(uuid,text,text,text,text)', false, false, true],
 ];
 
 let checks = 0;
@@ -125,6 +139,34 @@ async function run() {
     const service = await connect({ role: 'service_role' });
     const participant = await connect({ role: 'authenticated', userId: USERS.captainHome });
     const anonymous = await connect({ role: 'anon' });
+    for (const [signature, anon, authenticated, serviceRole] of COMMERCIAL_RPC_GRANTS) {
+      const result = await admin.query(`
+        select
+          procedure_row.prosecdef as security_definer,
+          'search_path=""' = any(coalesce(procedure_row.proconfig, '{}'::text[])) as empty_search_path,
+          exists (
+            select 1
+            from aclexplode(coalesce(
+              procedure_row.proacl,
+              acldefault('f', procedure_row.proowner)
+            )) acl
+            where acl.grantee = 0 and acl.privilege_type = 'EXECUTE'
+          ) as public_execute,
+          has_function_privilege('anon', procedure_row.oid, 'EXECUTE') as anon_execute,
+          has_function_privilege('authenticated', procedure_row.oid, 'EXECUTE') as authenticated_execute,
+          has_function_privilege('service_role', procedure_row.oid, 'EXECUTE') as service_execute
+        from pg_proc procedure_row
+        where procedure_row.oid = to_regprocedure($1)
+      `, [signature]);
+      const grant = result.rows[0];
+      ok(Boolean(grant), `RPC comercial existe: ${signature}`);
+      ok(grant?.security_definer === true, `RPC comercial SECURITY DEFINER: ${signature}`);
+      ok(grant?.empty_search_path === true, `RPC comercial search_path vacío: ${signature}`);
+      eq(grant?.public_execute, false, `PUBLIC no ejecuta ${signature}`);
+      eq(grant?.anon_execute, anon, `anon EXECUTE exacto: ${signature}`);
+      eq(grant?.authenticated_execute, authenticated, `authenticated EXECUTE exacto: ${signature}`);
+      eq(grant?.service_execute, serviceRole, `service_role EXECUTE exacto: ${signature}`);
+    }
     eq(Number(await value(
       admin,
       `select count(*) from information_schema.role_table_grants
@@ -363,6 +405,136 @@ async function run() {
     eq(Number(await value(admin,
       'select count(*) from public.tournament_plan_grants where origin_purchase_id = $1',
       [chargebackCase.purchase.id])), 1, 'refund/chargeback preservan el grant original');
+
+    const mpTournament = await createTournament(owner, organizationId, season.id, 'mercadopago-test');
+    const mpPurchase = await value(
+      owner,
+      `select public.create_tournament_purchase(
+        $1,$2,'torneos_premium',$3::uuid,'MERCADO_PAGO','test'
+      )`,
+      [organizationId, mpTournament.id, uuid(130)],
+    );
+    eq(mpPurchase.provider, 'MERCADO_PAGO', 'purchase genérica selecciona MP explícitamente');
+    eq(mpPurchase.providerEnvironment, 'test', 'MP sólo persiste environment test');
+    eq(mpPurchase.status, 'created', 'purchase MP espera la preferencia HTTP async');
+    eq(mpPurchase.amount, 39900, 'MP conserva el precio resuelto server-side');
+    eq(mpPurchase.externalReference, `arma2:tournament:purchase:${mpPurchase.id}`,
+      'MP conserva external_reference canónica por purchase');
+    await expectError(
+      () => value(owner,
+        `select public.create_tournament_purchase(
+          $1,$2,'torneos_premium',$3::uuid,'MERCADO_PAGO','production'
+        )`, [organizationId, mpTournament.id, uuid(131)]),
+      /TORNEOS_PURCHASE_INVALID/,
+      'el modelo DB no contiene environment productivo para MP',
+    );
+    const mpPreference = await value(
+      service,
+      `select public.record_tournament_purchase_preference(
+        $1,'MERCADO_PAGO','test',$2,$3::timestamptz
+      )`,
+      [mpPurchase.id, `mp_pref_${mpPurchase.id}`, mpPurchase.preferenceExpiresAt],
+    );
+    eq(mpPreference.status, 'preference_created', 'preferencia MP finaliza el paso async');
+    await expectError(
+      () => value(owner,
+        `select public.record_tournament_purchase_preference(
+          $1,'MERCADO_PAGO','test',$2,$3::timestamptz
+        )`, [mpPurchase.id, `mp_pref_${mpPurchase.id}`, mpPurchase.preferenceExpiresAt]),
+      /permission denied/,
+      'browser no puede persistir una preference del provider',
+    );
+    await expectError(
+      () => value(owner,
+        "select public.get_provider_tournament_purchase($1,'MERCADO_PAGO','test')",
+        [mpPurchase.externalReference]),
+      /permission denied/,
+      'lookup por external_reference es service-only',
+    );
+    const mpPreferenceReplay = await value(
+      service,
+      `select public.record_tournament_purchase_preference(
+        $1,'MERCADO_PAGO','test',$2,$3::timestamptz
+      )`,
+      [mpPurchase.id, `mp_pref_${mpPurchase.id}`, mpPurchase.preferenceExpiresAt],
+    );
+    eq(mpPreferenceReplay.idempotentReplay, true, 'retry de persistencia de preference es idempotente');
+    const mpPending = await value(
+      service,
+      `select public.apply_verified_tournament_payment_status(
+        $1,'MERCADO_PAGO','test','pending','in_process','pending_review',$2,null
+      )`,
+      [mpPurchase.id, `mp_pay_${mpPurchase.id}`],
+    );
+    eq(mpPending.status, 'pending', 'MP in_process normalizado mantiene purchase pending');
+    const pendingEventCount = Number(await value(admin,
+      "select count(*) from public.tournament_purchase_events where purchase_id = $1 and event_type = 'payment.pending'",
+      [mpPurchase.id]));
+    const mpPendingReplay = await value(
+      service,
+      `select public.apply_verified_tournament_payment_status(
+        $1,'MERCADO_PAGO','test','pending','in_process','pending_review',$2,null
+      )`,
+      [mpPurchase.id, `mp_pay_${mpPurchase.id}`],
+    );
+    eq(mpPendingReplay.idempotentReplay, true, 'webhook MP duplicado es replay');
+    eq(Number(await value(admin,
+      "select count(*) from public.tournament_purchase_events where purchase_id = $1 and event_type = 'payment.pending'",
+      [mpPurchase.id])), pendingEventCount, 'webhook duplicado no duplica evento equivalente');
+    const mpApproved = await value(
+      service,
+      `select public.apply_verified_tournament_payment_status(
+        $1,'MERCADO_PAGO','test','approved','approved','accredited',$2,null
+      )`,
+      [mpPurchase.id, `mp_pay_${mpPurchase.id}`],
+    );
+    eq(mpApproved.status, 'approved', 'MP approved activa la purchase verificada');
+    eq((await effective(owner, organizationId, mpTournament.id)).plan, 'PREMIUM',
+      'MP approved activa Premium mediante el dominio comercial');
+    const mpOutOfOrder = await value(
+      service,
+      `select public.apply_verified_tournament_payment_status(
+        $1,'MERCADO_PAGO','test','pending','pending','late_webhook',$2,null
+      )`,
+      [mpPurchase.id, `mp_pay_${mpPurchase.id}`],
+    );
+    eq(mpOutOfOrder.status, 'approved', 'webhook pending fuera de orden no degrada approved');
+    eq(mpOutOfOrder.ignoredOutOfOrder, true, 'fuera de orden queda explícitamente ignorado');
+    const approvedEventCount = Number(await value(admin,
+      "select count(*) from public.tournament_purchase_events where purchase_id = $1 and event_type = 'payment.approved'",
+      [mpPurchase.id]));
+    const mpApprovedReplay = await value(
+      service,
+      `select public.apply_verified_tournament_payment_status(
+        $1,'MERCADO_PAGO','test','approved','approved','accredited',$2,null
+      )`,
+      [mpPurchase.id, `mp_pay_${mpPurchase.id}`],
+    );
+    eq(mpApprovedReplay.idempotentReplay, true, 'mismo payment approved es idempotente');
+    eq(Number(await value(admin,
+      "select count(*) from public.tournament_purchase_events where purchase_id = $1 and event_type = 'payment.approved'",
+      [mpPurchase.id])), approvedEventCount, 'approved duplicado no duplica eventos');
+    eq(Number(await value(admin,
+      'select count(*) from public.tournament_plan_grants where origin_purchase_id = $1',
+      [mpPurchase.id])), 1, 'approved duplicado nunca crea dos grants');
+    const mpRefunded = await value(
+      service,
+      `select public.apply_verified_tournament_payment_reversal(
+        $1,'MERCADO_PAGO','test','refund','refunded','refunded',$2
+      )`,
+      [mpPurchase.id, `mp_pay_${mpPurchase.id}`],
+    );
+    eq(mpRefunded.status, 'refunded', 'refund MP usa la revocación comercial certificada');
+    eq((await effective(owner, organizationId, mpTournament.id)).plan, 'PREMIUM_REQUIRED',
+      'refund MP revoca Premium sin borrar el grant');
+    const mpRefundReplay = await value(
+      service,
+      `select public.apply_verified_tournament_payment_reversal(
+        $1,'MERCADO_PAGO','test','refund','refunded','refunded',$2
+      )`,
+      [mpPurchase.id, `mp_pay_${mpPurchase.id}`],
+    );
+    eq(mpRefundReplay.idempotentReplay, true, 'refund MP duplicado es idempotente');
 
     const catalog = await value(anonymous,
       'select public.get_public_tournament_commercial_catalog(1)');

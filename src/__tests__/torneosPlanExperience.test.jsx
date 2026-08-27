@@ -97,6 +97,7 @@ describe('Arma2 Torneos plan experience por edición', () => {
     createIdempotencyKey.mockReturnValue('40000000-0000-4000-8000-000000000001');
     createTournamentCheckout.mockResolvedValue({
       purchase: { id: '50000000-0000-4000-8000-000000000001' },
+      preference: { provider: 'FAKE', checkoutUrl: '/compra/pendiente' },
     });
   });
   test('FREE explains the commercial model and shows centralized pricing', async () => {
@@ -180,6 +181,38 @@ describe('Arma2 Torneos plan experience por edición', () => {
     await waitFor(() => expect(screen.getByTestId('route-location')).toHaveTextContent(
       `/torneos/organizacion/${ORGANIZATION.id}/torneo/${APERTURA.id}/plan/compra/50000000-0000-4000-8000-000000000001/pendiente`,
     ));
+  });
+
+  test('Mercado Pago Checkout Pro redirects only to its verified HTTPS checkout URL', async () => {
+    const checkoutRedirect = jest.fn();
+    createTournamentCheckout.mockResolvedValueOnce({
+      purchase: { id: '50000000-0000-4000-8000-000000000001' },
+      preference: {
+        provider: 'MERCADO_PAGO',
+        checkoutUrl: 'https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=test',
+      },
+    });
+    renderPlan({ child: <PlanExperiencePage organization={ORGANIZATION} checkoutRedirect={checkoutRedirect} /> });
+    fireEvent.click(await screen.findByRole('button', { name: /Comprar Premium/i }));
+    await waitFor(() => expect(checkoutRedirect).toHaveBeenCalledWith(
+      'https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=test',
+    ));
+    expect(screen.getByRole('button', { name: /Redirigiendo/i })).toBeDisabled();
+  });
+
+  test('a provider URL outside Mercado Pago is rejected instead of becoming an open redirect', async () => {
+    const checkoutRedirect = jest.fn();
+    createTournamentCheckout.mockResolvedValueOnce({
+      purchase: { id: '50000000-0000-4000-8000-000000000001' },
+      preference: {
+        provider: 'MERCADO_PAGO',
+        checkoutUrl: 'https://attacker.invalid/checkout',
+      },
+    });
+    renderPlan({ child: <PlanExperiencePage organization={ORGANIZATION} checkoutRedirect={checkoutRedirect} /> });
+    fireEvent.click(await screen.findByRole('button', { name: /Comprar Premium/i }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/dirección de pago inválida/i);
+    expect(checkoutRedirect).not.toHaveBeenCalled();
   });
 
   test('a second edition is shown as configurable draft with Premium required', async () => {
