@@ -149,14 +149,6 @@ const POST_CANONICAL_AUTHENTICATED_ALLOWLIST = [
   ['public.tournament_role_capabilities(text)', 'rls_helper_required'],
   ['public.get_public_tournament_commercial_catalog(integer)', 'frontend_legitimate'],
   ['public.get_tournament_purchase(uuid)', 'frontend_legitimate'],
-  [
-    'public.create_fake_tournament_purchase(uuid,uuid,text,uuid,text)',
-    'frontend_legitimate',
-  ],
-  [
-    'public.create_tournament_purchase(uuid,uuid,text,uuid,text,text)',
-    'frontend_legitimate',
-  ],
   ['public.cancel_tournament_purchase(uuid)', 'frontend_legitimate'],
   ['public.get_tournament_media_asset_processing_tiers(uuid)', 'frontend_legitimate'],
   ['public.get_tournament_media_upload_capability(uuid)', 'frontend_legitimate'],
@@ -175,6 +167,29 @@ const POST_CANONICAL_AUTHENTICATED_ALLOWLIST = [
     'frontend_legitimate',
   ],
   ['public.list_tournament_player_portrait_refs(uuid,uuid)', 'frontend_legitimate'],
+  ['public.get_effective_tournament_season_entitlements(uuid,uuid)', 'frontend_legitimate'],
+  [
+    'public.create_tournament_season_purchase(uuid,uuid,text,uuid,text,text)',
+    'frontend_legitimate',
+  ],
+  [
+    'public.create_fake_tournament_season_purchase(uuid,uuid,text,uuid,text)',
+    'frontend_legitimate',
+  ],
+  ['public.has_tournament_season_access(uuid,uuid)', 'rls_helper_required'],
+  ['public.has_tournament_season_capability(uuid,uuid,text)', 'rls_helper_required'],
+  ['public.has_tournament_capability(uuid,uuid,text)', 'rls_helper_required'],
+  ['public.assign_tournament_season_member(uuid,uuid,uuid)', 'frontend_legitimate'],
+  [
+    'public.remove_tournament_season_member_assignment(uuid,uuid,uuid)',
+    'frontend_legitimate',
+  ],
+  [
+    'public.list_tournament_season_member_assignments(uuid,uuid)',
+    'frontend_legitimate',
+  ],
+  ['public.authorize_tournament_social_export(uuid,uuid,text,boolean)', 'frontend_legitimate'],
+  ['public.get_tournament_season_media_usage(uuid,uuid)', 'frontend_legitimate'],
 ];
 
 const contracts = fs.readFileSync(contractsPath, 'utf8');

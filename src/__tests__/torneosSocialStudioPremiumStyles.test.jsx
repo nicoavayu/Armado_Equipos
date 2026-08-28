@@ -15,29 +15,31 @@ import { tournamentEntitlementsFixture } from '../testUtils/tournamentEntitlemen
 const ORGANIZATION_ID = '10000000-0000-4000-8000-000000000001';
 const FREE_TOURNAMENT = '30000000-0000-4000-8000-000000000001';
 const PREMIUM_TOURNAMENT = '30000000-0000-4000-8000-000000000002';
+const FREE_SEASON = '20000000-0000-4000-8000-000000000001';
+const PREMIUM_SEASON = '20000000-0000-4000-8000-000000000002';
 
-function readyPlan(tournamentId, plan) {
+function readyPlan(seasonId, tournamentId, plan) {
   return {
     status: 'ready',
     error: '',
     data: normalizeTournamentEntitlements(
-      tournamentEntitlementsFixture({ tournamentId, plan }),
-      { organizationId: ORGANIZATION_ID, tournamentId },
+      tournamentEntitlementsFixture({ seasonId, tournamentId, plan }),
+      { organizationId: ORGANIZATION_ID, seasonId },
     ),
   };
 }
 
-const FREE_PLAN = readyPlan(FREE_TOURNAMENT, TOURNAMENT_PLANS.FREE);
-const PREMIUM_PLAN = readyPlan(PREMIUM_TOURNAMENT, TOURNAMENT_PLANS.PREMIUM);
+const FREE_PLAN = readyPlan(FREE_SEASON, FREE_TOURNAMENT, TOURNAMENT_PLANS.FREE);
+const PREMIUM_PLAN = readyPlan(PREMIUM_SEASON, PREMIUM_TOURNAMENT, TOURNAMENT_PLANS.PREMIUM);
 
 function LocationProbe() {
   const location = useLocation();
-  return <div data-testid="location">{location.pathname}|{location.state?.tournamentId || ''}</div>;
+  return <div data-testid="location">{location.pathname}</div>;
 }
 
 function renderPicker({
   planState = FREE_PLAN,
-  tournamentId = FREE_TOURNAMENT,
+  seasonId = FREE_SEASON,
   themeId = 'base',
   onSelect = jest.fn(),
   onFallback = jest.fn(),
@@ -52,7 +54,7 @@ function renderPicker({
           element={(
             <SocialResultsThemePicker
               organizationId={ORGANIZATION_ID}
-              tournamentId={tournamentId}
+              seasonId={seasonId}
               planState={planState}
               themeId={themeId}
               onSelect={onSelect}
@@ -61,7 +63,7 @@ function renderPicker({
           )}
         />
         <Route
-          path="/torneos/organizacion/:organizationId/configuracion/plan"
+          path="/torneos/organizacion/:organizationId/temporada/:seasonId/plan"
           element={<LocationProbe />}
         />
       </Routes>
@@ -92,19 +94,19 @@ describe('Social Studio Premium result styles', () => {
     },
   );
 
-  test('Ver Premium targets the current organization and tournament Plan', () => {
+  test('Ver Premium targets the current organization and season Plan', () => {
     renderPicker();
     fireEvent.click(screen.getByRole('radio', { name: 'Street, disponible con Premium' }));
     fireEvent.click(screen.getByRole('button', { name: 'Ver Premium' }));
     expect(screen.getByTestId('location')).toHaveTextContent(
-      `/torneos/organizacion/${ORGANIZATION_ID}/configuracion/plan|${FREE_TOURNAMENT}`,
+      `/torneos/organizacion/${ORGANIZATION_ID}/temporada/${FREE_SEASON}/plan`,
     );
   });
 
   test('PREMIUM enables Base, Street and Editorial without an explanation', () => {
     const { onSelect } = renderPicker({
       planState: PREMIUM_PLAN,
-      tournamentId: PREMIUM_TOURNAMENT,
+      seasonId: PREMIUM_SEASON,
     });
     for (const [label, id] of [['Base', 'base'], ['Street', 'street'], ['Editorial', 'editorial']]) {
       fireEvent.click(screen.getByRole('radio', { name: label }));
@@ -114,15 +116,15 @@ describe('Social Studio Premium result styles', () => {
   });
 
   test('plan scope must match the selected tournament and fails closed while loading', () => {
-    expect(canUsePremiumResultStyles(PREMIUM_PLAN, FREE_TOURNAMENT)).toBe(false);
-    expect(isSocialResultThemeAllowed('street', { status: 'loading' }, FREE_TOURNAMENT))
+    expect(canUsePremiumResultStyles(PREMIUM_PLAN, FREE_SEASON)).toBe(false);
+    expect(isSocialResultThemeAllowed('street', { status: 'loading' }, FREE_SEASON))
       .toBe(false);
-    expect(isSocialResultThemeAllowed('base', { status: 'loading' }, FREE_TOURNAMENT))
+    expect(isSocialResultThemeAllowed('base', { status: 'loading' }, FREE_SEASON))
       .toBe(true);
   });
 
   test('Premium never manufactures missing role permissions', () => {
-    expect(canUsePremiumResultStyles(PREMIUM_PLAN, PREMIUM_TOURNAMENT)).toBe(true);
+    expect(canUsePremiumResultStyles(PREMIUM_PLAN, PREMIUM_SEASON)).toBe(true);
     expect(hasSocialStudioRoleCapability(['social.read'], 'social.create')).toBe(false);
     expect(hasSocialStudioRoleCapability(['social.read'], 'social.export')).toBe(false);
   });
@@ -132,7 +134,7 @@ describe('Social Studio Premium result styles', () => {
       const [planState, setPlanState] = useState(PREMIUM_PLAN);
       const [themeId, setThemeId] = useState('street');
       const [notice, setNotice] = useState('');
-      const tournamentId = planState === PREMIUM_PLAN ? PREMIUM_TOURNAMENT : FREE_TOURNAMENT;
+      const seasonId = planState === PREMIUM_PLAN ? PREMIUM_SEASON : FREE_SEASON;
       return (
         <>
           <button type="button" onClick={() => setPlanState(FREE_PLAN)}>Cambiar a Free</button>
@@ -140,7 +142,7 @@ describe('Social Studio Premium result styles', () => {
           <span>{notice}</span>
           <SocialResultsThemePicker
             organizationId={ORGANIZATION_ID}
-            tournamentId={tournamentId}
+            seasonId={seasonId}
             planState={planState}
             themeId={themeId}
             onSelect={setThemeId}

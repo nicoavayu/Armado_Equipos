@@ -17,18 +17,34 @@ const SUCCESS = new Set(['approved']);
 const FAILURE = new Set(['rejected', 'cancelled', 'expired', 'refunded', 'charged_back']);
 const OPEN_STATUSES = new Set(['created', 'preference_created', 'pending']);
 
-function routeForStatus(organizationId, tournamentId, purchaseId, status) {
+const STATUS_LABELS = Object.freeze({
+  created: 'Compra iniciada',
+  preference_created: 'Pago generado',
+  pending: 'Pendiente de confirmación',
+  approved: 'Pago aprobado',
+  rejected: 'Pago no aprobado',
+  cancelled: 'Compra cancelada',
+  expired: 'Solicitud vencida',
+  refunded: 'Pago reembolsado',
+  charged_back: 'Pago en contracargo',
+});
+
+function statusLabel(status) {
+  return STATUS_LABELS[status] || 'Estado en revisión';
+}
+
+function routeForStatus(organizationId, seasonId, purchaseId, status) {
   if (SUCCESS.has(status)) {
-    return canonicalRoutes.tournamentPurchaseSuccess(organizationId, tournamentId, purchaseId);
+    return canonicalRoutes.seasonPurchaseSuccess(organizationId, seasonId, purchaseId);
   }
   if (FAILURE.has(status)) {
-    return canonicalRoutes.tournamentPurchaseFailure(organizationId, tournamentId, purchaseId);
+    return canonicalRoutes.seasonPurchaseFailure(organizationId, seasonId, purchaseId);
   }
-  return canonicalRoutes.tournamentPurchasePending(organizationId, tournamentId, purchaseId);
+  return canonicalRoutes.seasonPurchasePending(organizationId, seasonId, purchaseId);
 }
 
 export default function PurchaseStatusPage({ view }) {
-  const { organizationId, tournamentId, purchaseId } = useParams();
+  const { organizationId, seasonId, tournamentId, purchaseId } = useParams();
   const [state, setState] = useState({ status: 'loading', purchase: null, error: '' });
 
   const refresh = useCallback(async () => {
@@ -37,6 +53,7 @@ export default function PurchaseStatusPage({ view }) {
       const purchase = await loadTournamentPurchase({
         purchaseId,
         organizationId,
+        seasonId,
         tournamentId,
       });
       setState({ status: 'ready', purchase, error: '' });
@@ -47,7 +64,7 @@ export default function PurchaseStatusPage({ view }) {
         error: error?.message || 'No pudimos consultar esta compra.',
       });
     }
-  }, [organizationId, purchaseId, tournamentId]);
+  }, [organizationId, purchaseId, seasonId, tournamentId]);
 
   useEffect(() => { refresh(); }, [refresh]);
   useEffect(() => {
@@ -77,34 +94,40 @@ export default function PurchaseStatusPage({ view }) {
     );
   }
   if (canonicalView && canonicalView !== view) {
-    return <Navigate to={routeForStatus(organizationId, tournamentId, purchaseId, state.purchase.status)} replace />;
+    return <Navigate to={routeForStatus(
+      organizationId,
+      state.purchase.seasonId,
+      purchaseId,
+      state.purchase.status,
+    )} replace />;
   }
 
   const presentation = canonicalView === 'success' ? {
     icon: CheckCircle2,
     eyebrow: 'PAGO VERIFICADO',
     title: 'Premium ya está activo',
-    description: 'El acceso se confirmó desde el backend y quedó vinculado a esta edición.',
+    description: 'El pago se confirmó y Premium quedó activo para esta temporada.',
     tone: 'success',
   } : canonicalView === 'failure' ? {
     icon: AlertTriangle,
     eyebrow: 'COMPRA NO COMPLETADA',
-    title: state.purchase.status === 'expired' ? 'La preferencia venció'
+    title: state.purchase.status === 'expired' ? 'La solicitud venció'
       : state.purchase.status === 'refunded' ? 'El pago fue reembolsado'
         : state.purchase.status === 'charged_back' ? 'El pago está en contracargo'
           : 'El pago no fue aprobado',
     description: ['refunded', 'charged_back'].includes(state.purchase.status)
-      ? 'Premium no está activo porque el proveedor confirmó una reversión del pago.'
+      ? 'Premium no está activo porque se confirmó una reversión del pago.'
       : 'No se activó Premium. Podés volver al Plan e iniciar una compra nueva.',
     tone: 'failure',
   } : {
     icon: Clock3,
     eyebrow: 'PAGO EN PROCESO',
     title: 'Estamos esperando confirmación',
-    description: 'Esta pantalla consulta el estado verificado. Nunca activa Premium por sí sola.',
+    description: 'Tu solicitud se generó correctamente. Premium se activa cuando recibimos la confirmación del pago.',
     tone: 'pending',
   };
   const Icon = presentation.icon;
+  const isTestPurchase = state.purchase.provider === 'FAKE';
 
   return (
     <main className={styles.page}>
@@ -114,15 +137,24 @@ export default function PurchaseStatusPage({ view }) {
         <h1>{presentation.title}</h1>
         <p>{presentation.description}</p>
         <dl>
-          <div><dt>Estado</dt><dd>{state.purchase.status}</dd></div>
+          <div><dt>Estado</dt><dd>{statusLabel(state.purchase.status)}</dd></div>
           <div><dt>Total</dt><dd>{new Intl.NumberFormat('es-AR', { style: 'currency', currency: state.purchase.currency, maximumFractionDigits: 0 }).format(state.purchase.amount)}</dd></div>
-          <div><dt>Proveedor</dt><dd>{state.purchase.provider}</dd></div>
+          <div>
+            <dt>{isTestPurchase ? 'Entorno' : 'Medio de pago'}</dt>
+            <dd>{isTestPurchase ? 'Prueba · sin cobro real' : 'Mercado Pago'}</dd>
+          </div>
         </dl>
         <div className={styles.actions}>
-          <Link to={canonicalRoutes.tournamentPlan(organizationId, tournamentId)}>Volver al Plan</Link>
+          <Link to={canonicalRoutes.seasonPlan(organizationId, state.purchase.seasonId)}>Volver al Plan</Link>
           <button type="button" onClick={refresh}><RefreshCw size={16} /> Actualizar</button>
         </div>
-        <small><ShieldCheck size={14} /> Compra y entitlement verificados por separado.</small>
+        <small><ShieldCheck size={14} /> Premium se activa sólo cuando el pago queda verificado.</small>
+        {isTestPurchase && (
+          <details className={styles.qaDetails}>
+            <summary>Información de prueba</summary>
+            <code>status: {state.purchase.status} · provider: {state.purchase.provider}</code>
+          </details>
+        )}
       </section>
     </main>
   );

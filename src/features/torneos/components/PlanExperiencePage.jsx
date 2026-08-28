@@ -1,9 +1,11 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   AlertTriangle,
   Check,
+  PanelsTopLeft,
+  ShieldCheck,
   Sparkles,
-  Trophy,
+  UsersRound,
   Zap,
 } from 'lucide-react';
 import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
@@ -22,46 +24,48 @@ import {
   formatPlanPrice,
   getTournamentPlanLifecycle,
 } from '../domain/planExperience';
-import CompetitionSelector from './CompetitionSelector';
 import OrganizationSettingsNav from './OrganizationSettingsNav';
 import styles from './PlanExperiencePage.module.css';
+import { clearPremiumIntent } from '../domain/premiumIntent';
 
 const FAIL_CLOSED_ENTITLEMENTS = normalizeTournamentEntitlements(null);
 
 const AVAILABLE_PREMIUM_BENEFITS = Object.freeze([
   {
     icon: Sparkles,
-    label: 'Más estilos para resultados',
-    description: 'Sumá Street y Editorial a Classic en tus placas de resultados.',
+    label: 'Multimedia ampliada',
+    description: 'hasta 1.000 archivos compartidos por la temporada.',
+  },
+  {
+    icon: UsersRound,
+    label: 'Más colaboradores',
+    description: 'Owner + hasta 10.',
+  },
+  {
+    icon: PanelsTopLeft,
+    label: 'Las 11 familias Base de Social Studio',
+    description: 'Street y Editorial disponibles donde están implementados: Resultados.',
+  },
+  {
+    icon: ShieldCheck,
+    label: 'Acceso Premium permanente',
+    description: 'para esta temporada y todos sus torneos actuales y futuros.',
   },
 ]);
 
-function PremiumBenefit({ benefit }) {
-  const Icon = benefit.icon;
-  return (
-    <article className={styles.premiumBenefit}>
-      <span><Icon size={20} aria-hidden="true" /></span>
-      <div>
-        <h3>{benefit.label}</h3>
-        <p>{benefit.description}</p>
-      </div>
-    </article>
-  );
-}
-
 export default function PlanExperiencePage({
   organization: organizationProp = null,
-  tournament: tournamentProp = null,
+  season: seasonProp = null,
   checkoutRedirect = (url) => window.location.assign(url),
 }) {
   const outletContext = useOutletContext() || {};
   const competition = useOptionalTorneosCompetition();
   const organization = organizationProp || outletContext.organization || null;
-  const tournament = tournamentProp || competition?.activeTournament || null;
+  const season = seasonProp || competition?.activeSeason || null;
   const planState = competition?.planState || {
-    status: tournament ? 'error' : 'empty',
+    status: season ? 'error' : 'empty',
     data: FAIL_CLOSED_ENTITLEMENTS,
-    error: tournament ? 'No pudimos verificar el plan de este torneo.' : '',
+    error: season ? 'No pudimos verificar el plan de esta temporada.' : '',
   };
   const entitlements = planState.data || FAIL_CLOSED_ENTITLEMENTS;
   const lifecycle = getTournamentPlanLifecycle(entitlements);
@@ -69,18 +73,20 @@ export default function PlanExperiencePage({
   const requiresPremium = entitlements.plan === TOURNAMENT_PLANS.PREMIUM_REQUIRED;
   const canManageBilling = ['owner', 'admin'].includes(organization?.role);
   const navigate = useNavigate();
-  const { organizationId: routeOrganizationId, tournamentId: routeTournamentId } = useParams();
+  const { organizationId: routeOrganizationId, seasonId: routeSeasonId } = useParams();
   const idempotencyKeyRef = useRef(null);
   const [checkoutState, setCheckoutState] = useState({ status: 'idle', error: '' });
 
+  useEffect(() => { clearPremiumIntent(); }, []);
+
   const beginCheckout = async () => {
-    if (!organization?.id || !tournament?.id || checkoutState.status === 'loading') return;
+    if (!organization?.id || !season?.id || checkoutState.status === 'loading') return;
     if (!idempotencyKeyRef.current) idempotencyKeyRef.current = createIdempotencyKey();
     setCheckoutState({ status: 'loading', error: '' });
     try {
       const result = await createTournamentCheckout({
         organizationId: organization.id,
-        tournamentId: tournament.id,
+        seasonId: season.id,
         idempotencyKey: idempotencyKeyRef.current,
       });
       if (result.preference?.provider === 'MERCADO_PAGO') {
@@ -94,9 +100,9 @@ export default function PlanExperiencePage({
       if (result.preference?.provider !== 'FAKE') {
         throw new Error('El proveedor de pago no está disponible.');
       }
-      navigate(canonicalRoutes.tournamentPurchasePending(
+      navigate(canonicalRoutes.seasonPurchasePending(
         routeOrganizationId || organization.id,
-        routeTournamentId || tournament.id,
+        routeSeasonId || season.id,
         result.purchase.id,
       ));
     } catch (error) {
@@ -110,16 +116,15 @@ export default function PlanExperiencePage({
   const pageHeader = (
     <>
       <header className={styles.pageHeader}>
-        <span>Torneo · Plan de esta edición</span>
+        <span>Temporada · Plan comercial</span>
         <h1>Plan</h1>
         <p>
-          {tournament
-            ? `${tournament.name} · ${organization?.name || 'Organización'}`
-            : 'Seleccioná una edición para consultar su plan.'}
+          {season
+            ? `${season.name} · ${organization?.name || 'Organización'}`
+            : 'Seleccioná una temporada para consultar su plan.'}
         </p>
       </header>
       <OrganizationSettingsNav />
-      {competition && <CompetitionSelector />}
     </>
   );
 
@@ -128,7 +133,7 @@ export default function PlanExperiencePage({
       <div className={styles.page}>
         {pageHeader}
         <section className={styles.loadingCard} role="status">
-          Elegí un torneo en el selector para ver su plan.
+          Elegí una temporada para ver su plan.
         </section>
       </div>
     );
@@ -139,7 +144,7 @@ export default function PlanExperiencePage({
       <div className={styles.page}>
         {pageHeader}
         <section className={styles.loadingCard} role="status">
-          Cargando el plan de este torneo…
+          Cargando el plan de esta temporada…
         </section>
       </div>
     );
@@ -160,13 +165,13 @@ export default function PlanExperiencePage({
         <section className={styles.currentPlan} data-plan="unverified">
           <div className={styles.planSignal} aria-hidden="true"><i /><span>—</span></div>
           <div className={styles.currentCopy}>
-            <p>PLAN ACTUAL · {tournament?.name}</p>
+            <p>PLAN ACTUAL · {season?.name}</p>
             <h2>Plan no verificado</h2>
             <div className={styles.lifecycle} data-tone="danger">
               <span aria-hidden="true" /> No verificado
             </div>
             <div className={styles.planDetails}>
-              <strong>No pudimos validar el plan de esta edición.</strong>
+              <strong>No pudimos validar el plan de esta temporada.</strong>
             </div>
           </div>
         </section>
@@ -184,7 +189,7 @@ export default function PlanExperiencePage({
           <span>{entitlements.plan}</span>
         </div>
         <div className={styles.currentCopy}>
-          <p>PLAN ACTUAL · {tournament?.name}</p>
+          <p>PLAN ACTUAL · {season?.name}</p>
           <h2>
             {requiresPremium ? 'Borrador · Premium requerido' : `Arma2 Torneos ${isPremium ? 'Premium' : 'Free'}`}
           </h2>
@@ -194,7 +199,7 @@ export default function PlanExperiencePage({
           </div>
           <div className={styles.planDetails}>
             <strong>{lifecycle.description}</strong>
-            {!isPremium && <small>Este estado corresponde únicamente a esta edición.</small>}
+            {!isPremium && <small>FREE es permanente para esta temporada y no limita crear otras temporadas.</small>}
           </div>
         </div>
       </section>
@@ -204,8 +209,8 @@ export default function PlanExperiencePage({
           <span>FREE VS PREMIUM</span>
           <h2 id="plan-comparison-title">Organizar es Free. Profesionalizar es Premium.</h2>
           <p>
-            Tu primer torneo es gratis. Después, pagás una sola vez por cada nuevo torneo.
-            Sin suscripción.
+            Cada temporada nace FREE para siempre. Premium se paga una sola vez por la temporada,
+            incluye todos sus torneos y no se hereda a otras temporadas.
           </p>
         </div>
         <div className={styles.planCards}>
@@ -214,13 +219,19 @@ export default function PlanExperiencePage({
               <span>FREE</span>
               {!isPremium && !requiresPremium && <em>Plan actual</em>}
             </div>
-            <h3>Tu primer torneo, gratis.</h3>
-            <p>Todo lo necesario para organizar tu campeonato.</p>
+            <h3>Gratis para siempre por temporada.</h3>
+            <p>Todo lo necesario para organizar y publicar tu torneo.</p>
             <ul>
-              <li><Check size={16} /> Equipos, planteles, fixture y programación</li>
-              <li><Check size={16} /> Actas, resultados, tabla y disciplina</li>
-              <li><Check size={16} /> Identidad esencial y página pública básica</li>
-              <li><Check size={16} /> Estadísticas y comunicados básicos</li>
+              <li><Check size={16} /> Equipos y planteles</li>
+              <li><Check size={16} /> Fixture, programación, partidos y resultados</li>
+              <li><Check size={16} /> Tabla, goleadores, disciplina y estadísticas básicas</li>
+              <li><Check size={16} /> Logo, portada, escudos, fotos y retratos</li>
+              <li><Check size={16} /> Página pública y comunicados</li>
+              <li><Check size={16} /> 3 familias Base: Resultados, Tabla y Próximo partido</li>
+              <li><Check size={16} /> Formatos 4:5 y 9:16</li>
+              <li><Check size={16} /> Galería multimedia — hasta 25 archivos por temporada</li>
+              <li><Check size={16} /> Owner + 1 colaborador</li>
+              <li className={styles.quietFeature}><Check size={16} /> Firma de Arma2 Torneos en Social Studio Base</li>
             </ul>
           </article>
 
@@ -229,15 +240,30 @@ export default function PlanExperiencePage({
               <span>PREMIUM</span>
               {isPremium && <em>Plan actual</em>}
             </div>
-            <h3>Premium para este torneo</h3>
-            <p>Pagás una sola vez. Sin suscripción.</p>
+            <h3>Profesionalizá esta temporada</h3>
+            <p className={styles.premiumAdds}>INCLUYE TODO LO DE FREE, MÁS:</p>
+            <ul className={styles.premiumFeatureList}>
+              {AVAILABLE_PREMIUM_BENEFITS.map((benefit) => {
+                const Icon = benefit.icon;
+                return (
+                  <li key={benefit.label}>
+                    <Icon size={17} aria-hidden="true" />
+                    <span><strong>{benefit.label}</strong><small>{benefit.description}</small></span>
+                  </li>
+                );
+              })}
+            </ul>
             <div className={styles.noPrice}>
               <small>
                 Precio habitual: <s>{formatPlanPrice(entitlements.pricing, 'listPrice')}</s>
               </small>
               <span>Precio lanzamiento</span>
-              <strong>{formatPlanPrice(entitlements.pricing, 'launchPrice')}</strong>
-              <p>Pagás una sola vez. Sin suscripción.</p>
+              <div className={styles.priceAmount}>
+                <strong>{formatPlanPrice(entitlements.pricing, 'launchPrice')}</strong>
+                <em>ARS · por temporada</em>
+              </div>
+              <p>Pago único para esta temporada · Sin suscripción</p>
+              <small className={styles.permanentAccess}>Acceso Premium permanente para todos sus torneos.</small>
             </div>
             {!isPremium && (
               <button
@@ -260,22 +286,6 @@ export default function PlanExperiencePage({
         </div>
       </section>
 
-      <section className={styles.benefits} aria-labelledby="premium-benefits-title">
-        <div className={styles.sectionHeading}>
-          <span>BENEFICIOS PREMIUM</span>
-          <h2 id="premium-benefits-title">Qué suma Premium hoy</h2>
-          <p>Más opciones visuales para comunicar cada fecha.</p>
-        </div>
-        <div className={styles.premiumBenefits}>
-          {AVAILABLE_PREMIUM_BENEFITS.map((benefit) => (
-            <PremiumBenefit key={benefit.label} benefit={benefit} />
-          ))}
-        </div>
-        <div className={styles.brandSignature}>
-          <Trophy size={16} aria-hidden="true" />
-          <span>Premium mantiene la firma <strong>Powered by Arma2</strong>.</span>
-        </div>
-      </section>
     </div>
   );
 }

@@ -6,7 +6,7 @@ import {
   CheckCircle2,
   Save,
 } from 'lucide-react';
-import { Link, Navigate, useNavigate, useOutletContext, useParams } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { useTorneosCompetition } from '../context/TorneosCompetitionContext';
 import {
   normalizeCompetitionSlug,
@@ -20,11 +20,13 @@ import {
 import { canonicalRoutes } from '../routing/canonicalRoutes';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import styles from './CompetitionCore.module.css';
+import { capturePremiumIntent, hasPendingPremiumIntent, withPremiumIntent } from '../domain/premiumIntent';
 
 export default function SeasonFormPage() {
   const { organization } = useOutletContext();
   const { seasonId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const {
     status,
     error: loadError,
@@ -63,6 +65,7 @@ export default function SeasonFormPage() {
   const [formError, setFormError] = useState('');
   const [busy, setBusy] = useState('');
   const creationKeyRef = React.useRef(null);
+  useEffect(() => { capturePremiumIntent(location.search); }, [location.search]);
 
   useEffect(() => {
     if (!season) return;
@@ -109,7 +112,10 @@ export default function SeasonFormPage() {
           idempotencyKey: creationKeyRef.current,
         });
         creationKeyRef.current = null;
-        navigate(canonicalRoutes.organizationSeason(organization.id, created.id), { replace: true });
+        const target = hasPendingPremiumIntent()
+          ? withPremiumIntent(canonicalRoutes.seasonPlan(organization.id, created.id))
+          : canonicalRoutes.organizationSeason(organization.id, created.id);
+        navigate(target, { replace: true });
       } else {
         await updateSeason({
           seasonId: season.id,

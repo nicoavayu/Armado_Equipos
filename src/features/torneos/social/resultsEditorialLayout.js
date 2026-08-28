@@ -203,11 +203,13 @@ export function renderResultsEditorialLayout(ctx, context) {
       family: theme.body, size: 17, color: 'rgba(255,255,255,0.62)', theme,
     }));
   }
-  drawText(ctx, editorial.cta, tuning.rail.contentX, 1058, {
-    family: theme.body, size: 14, weight: 600, color: 'rgba(255,255,255,0.62)',
-    maxWidth: tuning.rail.contentWidth, minSize: 12, theme,
-  });
-  drawOfficialSocialLockup(ctx, { assets, ...tuning.footer.lockup });
+  if (branding.showArma2Branding) {
+    drawText(ctx, editorial.cta, tuning.rail.contentX, 1058, {
+      family: theme.body, size: 14, weight: 600, color: 'rgba(255,255,255,0.62)',
+      maxWidth: tuning.rail.contentWidth, minSize: 12, theme,
+    });
+    drawOfficialSocialLockup(ctx, { assets, ...tuning.footer.lockup });
+  }
 
   drawTournamentIdentity(ctx, {
     branding, assets, ...tuning.identity, accent, theme, mode: 'editorial',
@@ -221,7 +223,8 @@ export function renderResultsEditorialLayout(ctx, context) {
 
   const matches = content.matches || [];
   const visible = Math.min(matches.length, variant.maxVisible);
-  const body = { ...tuning.body, height: tuning.body.bottom - tuning.body.y };
+  const bodyBottom = branding.showArma2Branding ? tuning.body.bottom : format.height - 54;
+  const body = { ...tuning.body, bottom: bodyBottom, height: bodyBottom - tuning.body.y };
   if (visible === 0) {
     rule(ctx, body.x, body.y, body.width, theme.hairline);
     drawText(ctx, 'Sin datos oficiales', body.x, body.y + 86, {

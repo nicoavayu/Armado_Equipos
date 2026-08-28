@@ -35,6 +35,13 @@ const expectedCanonicalMigrations = [
   '20260823120000_tournament_social_team_contract.sql',
   '20260825194025_tournament_commercial_checkout_foundation.sql',
   '20260827001443_tournament_mercadopago_checkout_pro_test.sql',
+  '20260827012000_align_tournament_premium_catalog.sql',
+  '20260828163326_tournament_season_commercial_domain.sql',
+  '20260828163328_tournament_season_member_scope.sql',
+  '20260828163329_tournament_season_media_social_branding.sql',
+  '20260828165314_remove_legacy_media_subquotas.sql',
+  '20260828172000_prune_legacy_media_subquota_work.sql',
+  '20260828174500_harden_season_rpc_execute_grants.sql',
 ];
 
 const exitWithError = (message) => {

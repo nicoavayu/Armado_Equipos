@@ -5,7 +5,10 @@ import {
   footerBrand, cornerTicks, txtFit, fitLines, metaLine,
 } from './core.js';
 
-const brand = (d) => ({ tournament: { name: d.tournament, category: d.category, logo: d.tournamentLogo } });
+const brand = (d) => ({
+  tournament: { name: d.tournament, category: d.category, logo: d.tournamentLogo },
+  showArma2Branding: d.showArma2Branding !== false,
+});
 const nameColor = (win) => (win === false ? '#9C9CB4' : C.white);
 
 /** Splits a row into two name lanes around a measured centre block.
@@ -767,8 +770,8 @@ function finalHero(ctx, g, d, imgs) {
   const m = d.matches[0];
   const tall = g.id === '9:16';
   background(ctx, g, { glowTop: 0.34, glowBottom: 0.42 });
-  const hy = brandHeader(ctx, g, imgs, { tournament: brand(d).tournament });
-  const floor = footerBrand(ctx, g, imgs, {});
+  const hy = brandHeader(ctx, g, imgs, brand(d));
+  const floor = footerBrand(ctx, g, imgs, { showArma2Branding: d.showArma2Branding !== false });
   const top = hy + (tall ? 46 : 36);
   const box = { x: g.x, y: top, w: g.w, h: floor - top };
   const cxm = g.W / 2;

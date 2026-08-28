@@ -34,7 +34,7 @@ export const fakePaymentProvider: TournamentPaymentProvider & {
     context: PaymentPreferenceContext,
   ): Promise<CheckoutPreference> {
     const purchasePath = `/torneos/organizacion/${encodeURIComponent(purchase.organizationId)}`
-      + `/torneo/${encodeURIComponent(purchase.tournamentId)}/plan/compra/`
+      + `/temporada/${encodeURIComponent(purchase.seasonId)}/plan/compra/`
       + `${encodeURIComponent(purchase.id)}/pendiente`
     return {
       provider: "FAKE",

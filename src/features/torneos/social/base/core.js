@@ -429,7 +429,8 @@ export function tournamentLogo(ctx, t, right, cy, maxH, imgs, maxW) {
 export function brandHeader(ctx, g, imgs, o = {}) {
   const k = sp(g);
   const h = o.h ?? k.headerH;
-  const img = imgs.get(LOGO_SRC);
+  const showArma2Branding = o.showArma2Branding !== false;
+  const img = showArma2Branding ? imgs.get(LOGO_SRC) : null;
   const y = o.y ?? g.m * 0.58;
   const w = h * LOGO_RATIO;
   if (img) {
@@ -445,7 +446,8 @@ export function brandHeader(ctx, g, imgs, o = {}) {
     const lg = tournamentLogo(ctx, t, g.x + g.w, cyc, h * 1.5, imgs, Math.min(150, g.w * 0.17));
     if (lg.h) bottom = Math.max(bottom, cyc + lg.h / 2);
     const right = g.x + g.w - (lg.w ? lg.w + 24 : 0);
-    const avail = right - (g.x + w + 44);
+    const identityLeft = showArma2Branding ? g.x + w + 44 : g.x;
+    const avail = right - identityLeft;
     if (t.name && avail > 130) {
       const nf = fitLines(ctx, t.name, {
         size: g.id === '9:16' ? 23 : 21, minSize: 15, maxW: avail, maxLines: 2,
@@ -525,6 +527,7 @@ export function pieceTitle(ctx, g, o = {}) {
 export function footerBrand(ctx, g, imgs, o = {}) {
   const k = sp(g);
   const bottom = g.H - g.m;
+  if (o.showArma2Branding === false) return bottom;
   const ly = bottom - k.footerH;
   line(ctx, g.x, ly, g.x + g.w, ly, hexa(C.violetLite, 0.13), 1);
 
@@ -556,11 +559,19 @@ export function footerBrand(ctx, g, imgs, o = {}) {
 export function chrome(ctx, g, imgs, o = {}) {
   background(ctx, g, o.bg);
   const k = sp(g);
-  const hy = brandHeader(ctx, g, imgs, { tournament: o.tournament });
+  const hy = brandHeader(ctx, g, imgs, {
+    tournament: o.tournament,
+    showArma2Branding: o.showArma2Branding,
+  });
   const top = o.title === null
     ? hy + k.headerBottom * 1.3
     : pieceTitle(ctx, g, { kicker: o.kicker, title: o.title, sub: o.sub, y: hy, size: o.titleSize, reserveRight: o.reserveRight });
-  const bottom = footerBrand(ctx, g, imgs, { right: o.footerRight, tag: o.footerTag, url: o.footerUrl });
+  const bottom = footerBrand(ctx, g, imgs, {
+    right: o.footerRight,
+    tag: o.footerTag,
+    url: o.footerUrl,
+    showArma2Branding: o.showArma2Branding,
+  });
   return { x: g.x, y: top, w: g.w, h: bottom - top, bottom, top };
 }
 

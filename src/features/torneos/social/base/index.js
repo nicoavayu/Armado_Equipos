@@ -45,6 +45,7 @@ function renderEmpty(ctx, geometry, images, snapshot, data) {
       category: data.category,
       logo: data.tournamentLogo,
     },
+    showArma2Branding: data.showArma2Branding,
   });
   emptyState(ctx, box, {
     kicker: data.round || 'Estado',

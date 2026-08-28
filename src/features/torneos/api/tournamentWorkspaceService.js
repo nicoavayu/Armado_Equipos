@@ -43,7 +43,12 @@ const ERROR_MESSAGES = {
   TORNEOS_REGISTRATION_INCOMPLETE: 'Completá los requisitos antes de preparar la inscripción.',
   TORNEOS_PREMIUM_REQUIRED: 'Esta edición necesita Premium antes de abrir inscripciones u operar la competencia.',
   TORNEOS_BILLING_FORBIDDEN: 'Sólo el Propietario o un Administrador pueden gestionar la compra.',
-  TORNEOS_ALREADY_PREMIUM: 'Este torneo ya tiene Premium activo.',
+  TORNEOS_ALREADY_PREMIUM: 'Esta temporada ya tiene Premium activo.',
+  TORNEOS_SEASON_ALREADY_PREMIUM: 'Esta temporada ya tiene Premium activo.',
+  TORNEOS_SEASON_COLLABORATOR_LIMIT_REACHED: 'La temporada alcanzó el límite de colaboradores de su plan.',
+  TORNEOS_SEASON_MEDIA_QUOTA_EXCEEDED: 'La temporada alcanzó la cuota multimedia de su plan.',
+  TORNEOS_SOCIAL_PREMIUM_REQUIRED: 'Esta familia de piezas requiere Premium en la temporada.',
+  TORNEOS_BRANDING_PREMIUM_REQUIRED: 'Sólo Premium permite exportar sin branding de Arma2.',
   TORNEOS_PURCHASE_FORBIDDEN: 'No encontramos esa compra o no tenés permiso para verla.',
   TORNEOS_SCOPE_IMMUTABLE: 'No se puede mover un recurso entre organizaciones o torneos.',
   TORNEOS_REGISTRATION_CLOSED: 'La inscripción no está abierta para ese torneo o categoría.',
@@ -245,19 +250,29 @@ export async function loadEffectiveTournamentEntitlements({
   }), 'No pudimos cargar las funcionalidades disponibles.');
 }
 
+export async function loadEffectiveTournamentSeasonEntitlements({
+  organizationId,
+  seasonId,
+}) {
+  return unwrapRpc(await supabase.rpc('get_effective_tournament_season_entitlements', {
+    p_organization_id: organizationId,
+    p_season_id: seasonId,
+  }), 'No pudimos cargar las funcionalidades disponibles para esta temporada.');
+}
+
 export async function loadTournamentCreationEligibility({ organizationId }) {
   return unwrapRpc(await supabase.rpc('get_tournament_creation_eligibility', {
     p_organization_id: organizationId,
-  }), 'No pudimos verificar si tu primer torneo gratis está disponible.');
+  }), 'No pudimos verificar si FREE está disponible para este torneo.');
 }
 
 export async function createTournamentCheckout({
   organizationId,
-  tournamentId,
+  seasonId,
   idempotencyKey = createIdempotencyKey(),
 }) {
   const { data, error } = await supabase.functions.invoke('tournament-checkout', {
-    body: { organizationId, tournamentId, idempotencyKey },
+    body: { organizationId, seasonId, idempotencyKey },
   });
   if (error || !data?.purchase) {
     throw toWorkspaceError(error || data?.error, 'No pudimos iniciar la compra.');
@@ -280,19 +295,59 @@ export function isMercadoPagoCheckoutUrl(value) {
   }
 }
 
-export async function loadTournamentPurchase({ purchaseId, organizationId, tournamentId }) {
+export async function loadTournamentPurchase({
+  purchaseId,
+  organizationId,
+  seasonId = null,
+  tournamentId = null,
+}) {
   const purchase = unwrapRpc(await supabase.rpc('get_tournament_purchase', {
     p_purchase_id: purchaseId,
   }), 'No pudimos consultar el estado de la compra.');
   if (!purchase
     || purchase.organizationId !== organizationId
-    || purchase.tournamentId !== tournamentId) {
+    || (seasonId && purchase.seasonId !== seasonId)
+    || (!seasonId && tournamentId && purchase.tournamentId !== tournamentId)) {
     throw new TournamentWorkspaceError(
       'TORNEOS_PURCHASE_FORBIDDEN',
       ERROR_MESSAGES.TORNEOS_PURCHASE_FORBIDDEN,
     );
   }
   return purchase;
+}
+
+export async function loadTournamentSeasonMediaUsage({ organizationId, seasonId }) {
+  return unwrapRpc(await supabase.rpc('get_tournament_season_media_usage', {
+    p_organization_id: organizationId,
+    p_season_id: seasonId,
+  }), 'No pudimos calcular el uso multimedia de la temporada.');
+}
+
+export async function listTournamentSeasonMemberAssignments({ organizationId, seasonId }) {
+  return unwrapRpc(await supabase.rpc('list_tournament_season_member_assignments', {
+    p_organization_id: organizationId,
+    p_season_id: seasonId,
+  }), 'No pudimos cargar los colaboradores de la temporada.');
+}
+
+export async function assignTournamentSeasonMember({ organizationId, seasonId, membershipId }) {
+  return unwrapRpc(await supabase.rpc('assign_tournament_season_member', {
+    p_organization_id: organizationId,
+    p_season_id: seasonId,
+    p_membership_id: membershipId,
+  }), 'No pudimos asignar el colaborador a la temporada.');
+}
+
+export async function removeTournamentSeasonMemberAssignment({
+  organizationId,
+  seasonId,
+  membershipId,
+}) {
+  return unwrapRpc(await supabase.rpc('remove_tournament_season_member_assignment', {
+    p_organization_id: organizationId,
+    p_season_id: seasonId,
+    p_membership_id: membershipId,
+  }), 'No pudimos quitar el colaborador de la temporada.');
 }
 
 export async function simulateFakeTournamentPayment({ purchaseId, status }) {
@@ -2103,6 +2158,20 @@ export async function loadTournamentSocialSnapshot({
   }), 'No pudimos preparar esta pieza con datos oficiales.');
 }
 
+export async function authorizeTournamentSocialExport({
+  organizationId,
+  tournamentId,
+  piece,
+  includeArma2Branding,
+}) {
+  return unwrapRpc(await supabase.rpc('authorize_tournament_social_export', {
+    p_organization_id: organizationId,
+    p_tournament_id: tournamentId,
+    p_piece: piece,
+    p_include_arma2_branding: Boolean(includeArma2Branding),
+  }), 'No pudimos autorizar la exportación de esta pieza.');
+}
+
 export async function setTournamentSocialPermission({
   organizationId,
   userId,
@@ -2138,10 +2207,15 @@ export async function handleTournamentMediaReport({
 export const tournamentWorkspaceService = Object.freeze({
   loadContext: loadTournamentWorkspaceContext,
   loadEntitlements: loadEffectiveTournamentEntitlements,
+  loadSeasonEntitlements: loadEffectiveTournamentSeasonEntitlements,
   createCheckout: createTournamentCheckout,
   loadPurchase: loadTournamentPurchase,
   simulateFakePayment: simulateFakeTournamentPayment,
   cancelPurchase: cancelTournamentPurchase,
+  loadSeasonMediaUsage: loadTournamentSeasonMediaUsage,
+  listSeasonMemberAssignments: listTournamentSeasonMemberAssignments,
+  assignSeasonMember: assignTournamentSeasonMember,
+  removeSeasonMemberAssignment: removeTournamentSeasonMemberAssignment,
   loadTournamentCreationEligibility,
   createOrganization: createTournamentOrganization,
   checkSlugAvailability: checkTournamentOrganizationSlugAvailability,
@@ -2279,6 +2353,7 @@ export const tournamentWorkspaceService = Object.freeze({
   deleteMediaAsset: deleteTournamentMediaAssetPermanently,
   loadSocialStudioContext: loadTournamentSocialStudioContext,
   loadSocialSnapshot: loadTournamentSocialSnapshot,
+  authorizeSocialExport: authorizeTournamentSocialExport,
   setSocialPermission: setTournamentSocialPermission,
   loadPublicPageSettings: loadTournamentPublicPageSettings,
   setPublicPagePublished: setTournamentPublicPagePublished,

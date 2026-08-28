@@ -2,7 +2,7 @@
 
 ## Alcance
 
-Esta etapa integra Checkout Pro mediante Preferences API exclusivamente con credenciales de prueba. El modelo sigue siendo `one_time`, producto `torneos_premium`, scope `tournament`, moneda `ARS` y precio resuelto por el catálogo comercial del servidor.
+Esta etapa integra Checkout Pro mediante Preferences API exclusivamente con credenciales de prueba. El modelo es `one_time`, producto `torneos_premium`, scope `season`, moneda `ARS` y precio resuelto por el catálogo comercial del servidor.
 
 Producción no está habilitada: no existe un environment productivo en el constraint, no existe fallback de configuración y este runbook no autoriza deploy remoto.
 
@@ -21,7 +21,7 @@ Referencias oficiales consultadas:
 El dominio comercial y Mercado Pago están separados:
 
 1. `tournament-checkout` revalida la sesión y selecciona un provider explícito.
-2. `create_tournament_purchase` verifica `billing.manage`, ownership organizacional, torneo, producto, oferta, precio, Premium vigente, idempotencia y purchase abierta.
+2. `create_tournament_season_purchase` verifica `billing.manage`, acceso a la temporada, producto, oferta, precio, Premium vigente, idempotencia y purchase abierta.
 3. El adapter `mercadoPagoPaymentProvider.ts` crea o recupera la Preference usando sólo el snapshot de la purchase.
 4. `record_tournament_purchase_preference` persiste el ID y completa `created → preference_created` como operación service-only.
 5. El browser navega al `init_point` validado de Mercado Pago. Las back URLs son UX solamente.
@@ -59,20 +59,20 @@ Para Mercado Pago TEST:
 - `APP_PUBLIC_URL` debe ser HTTPS público; localhost, `127.0.0.1` y loopback IPv6 se rechazan.
 - `SUPABASE_URL` y la credencial secreta de Supabase son las variables administradas por el runtime de Edge Functions. El webhook se deriva como `${SUPABASE_URL}/functions/v1/tournament-mercadopago-webhook`.
 
-Para FAKE se mantienen `TOURNAMENT_PAYMENT_PROVIDER=FAKE`, `FAKE_PAYMENT_ENABLED=true` y `FAKE_PROVIDER_ENVIRONMENT=local|qa`. La ausencia de configuración nunca selecciona FAKE automáticamente.
+Para FAKE se mantienen `TOURNAMENT_PAYMENT_PROVIDER=FAKE`, `FAKE_PAYMENT_ENABLED=true` y `FAKE_PROVIDER_ENVIRONMENT=local|qa`. En el runtime Supabase LOCAL (`SUPABASE_URL=http://kong:8000`) el checkout puede usar FAKE sin secretos adicionales; cualquier runtime no local sigue requiriendo la selección explícita del provider.
 
 ## Preference flow
 
 La Preference contiene solamente:
 
 - un item `torneos_premium`, título público, `quantity=1`, `currency_id=ARS` y `unit_price=amount_snapshot`;
-- `external_reference=arma2:tournament:purchase:<purchase UUID>`;
+- `external_reference=arma2:season:purchase:<purchase UUID>`;
 - back URLs `exito`, `pendiente` y `fallo` sobre la ruta canónica de Purchase Status;
 - `notification_url` del webhook TEST;
 - metadata mínima: `purchase_id`;
 - vigencia tomada del snapshot temporal de la purchase.
 
-El monto, producto, offer/version, organización y torneo nunca se aceptan desde el browser. El POST a Preferences usa el ID de purchase como idempotency key. Si la purchase ya tiene `provider_preference_id`, el adapter recupera esa Preference en lugar de crear otra.
+El monto, producto, offer/version, organización y temporada nunca se aceptan desde el browser. El browser sólo envía `organizationId` y `seasonId`; el servidor resuelve el resto. El POST a Preferences usa el ID de purchase como idempotency key. Si la purchase ya tiene `provider_preference_id`, el adapter recupera esa Preference en lugar de crear otra.
 
 La respuesta debe pertenecer al seller TEST configurado y su `init_point` debe ser HTTPS bajo un dominio de Mercado Pago. La UI vuelve a validar ese allowlist antes de redirigir.
 
@@ -126,7 +126,7 @@ Un estado futuro desconocido se acepta sin transición y sin grant. No se invent
 ## Idempotencia y orden
 
 - `(buyer_user_id,idempotency_key)` evita doble click/retry del cliente.
-- El advisory lock y el índice parcial permiten una sola purchase abierta por organización, torneo y producto.
+- El advisory lock y el índice parcial permiten una sola purchase abierta por organización, temporada y producto.
 - El índice de preference es único por provider/environment.
 - El payment aprobado es único por provider/environment.
 - La Preference usa el purchase UUID como idempotency key HTTP.
@@ -154,7 +154,7 @@ El harness `scripts/db-integration/torneos-commercial-checkout.mjs` levanta Post
 | Rol | Superficie comercial ejecutable |
 | --- | --- |
 | `anon` | Ninguna de estas diez funciones. Sólo conserva el catálogo público ya certificado fuera de este delta. |
-| `authenticated` | `create_tournament_purchase` y el wrapper FAKE preexistente `create_fake_tournament_purchase`; ambos vuelven a autorizar actor/capability dentro de la función. |
+| `authenticated` | `create_tournament_season_purchase` y `create_fake_tournament_season_purchase`; ambos vuelven a autorizar actor/capability dentro de la función. Los RPC históricos por torneo quedan sin grant de ejecución cliente. |
 | `service_role` | Proyección privada, persistencia de Preference, lookup provider-scoped y transiciones verificadas; también conserva los wrappers FAKE existentes. |
 | `PUBLIC` | Ninguna. |
 

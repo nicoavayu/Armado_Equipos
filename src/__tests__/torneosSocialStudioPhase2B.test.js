@@ -93,6 +93,16 @@ describe('Social Studio Phase 2B art direction', () => {
     expect(plan.branding).not.toHaveProperty('torneosLogoUrl');
   });
 
+  test('branding OFF never loads the official Arma2 asset', () => {
+    const editorial = createEditorialState(snapshot);
+    const content = adaptSnapshotToResultsContent(snapshot, editorial);
+    const plan = createSocialAssetPlan(snapshot, editorial, content, {
+      branding: { showArma2Branding: false },
+      brandAssetUrls: { lockup: '/assets/social-studio/Logo%20Arma2_torneo.png' },
+    });
+    expect(plan.branding.officialLockupUrl).toBeNull();
+  });
+
   test('all three art directions render the same ResultsContent through the shared contract', async () => {
     global.fetch = jest.fn().mockResolvedValue({
       ok: true, blob: async () => new Blob(['official-lockup'], { type: 'image/png' }),

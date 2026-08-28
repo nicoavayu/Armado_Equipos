@@ -12,6 +12,7 @@ import {
   Image as ImageIcon,
   LayoutTemplate,
   Loader2,
+  LockKeyhole,
   Palette,
   RefreshCw,
   Share2,
@@ -52,6 +53,7 @@ const PREVIEW_WIDTH = 300;
 const OFFICIAL_BRAND_ASSETS = Object.freeze({
   lockup: BASE_LOCKUP_DATA_URL,
 });
+const FREE_BASE_PIECES = new Set(['round_results', 'standings', 'next_fixture']);
 
 function StudioState({ icon: Icon = Sparkles, title, copy, action = null }) {
   return (
@@ -91,6 +93,7 @@ export default function SocialStudioPage() {
   const [snapshotError, setSnapshotError] = useState('');
   const [editorial, setEditorial] = useState(() => createEditorialState(null));
   const [themeId, setThemeId] = useState('base');
+  const [includeArma2Branding, setIncludeArma2Branding] = useState(true);
   const [renderState, setRenderState] = useState({ status: 'idle', error: '' });
   const [busy, setBusy] = useState('');
   const [notice, setNotice] = useState('');
@@ -123,6 +126,7 @@ export default function SocialStudioPage() {
 
   const tournaments = context.data?.tournaments || [];
   const tournament = tournaments.find((entry) => entry.id === scope.tournamentId) || null;
+  const seasonId = tournament?.seasonId || null;
   const category = tournament?.categories?.find((entry) => entry.id === scope.categoryId) || null;
   const phase = category?.phases?.find((entry) => entry.id === scope.phaseId) || null;
   const rounds = phase?.rounds || [];
@@ -130,8 +134,26 @@ export default function SocialStudioPage() {
   const effectiveThemeId = isSocialResultThemeAllowed(
     themeId,
     competition.planState,
-    scope.tournamentId,
+    seasonId,
   ) ? themeId : 'base';
+  const trustedSeasonPlan = competition.planState?.status === 'ready'
+    && competition.planState.data?.isTrusted === true
+    && competition.planState.data?.scope?.seasonId === seasonId;
+  const isPremiumSeason = trustedSeasonPlan
+    && competition.planState.data?.plan === 'PREMIUM';
+  const canRemoveArma2Branding = isPremiumSeason
+    && competition.planState.data?.branding?.canRemoveArma2 === true;
+  const availablePieces = isPremiumSeason
+    ? SOCIAL_PIECES
+    : SOCIAL_PIECES.filter((entry) => FREE_BASE_PIECES.has(entry.id));
+
+  useEffect(() => {
+    if (!canRemoveArma2Branding) setIncludeArma2Branding(true);
+  }, [canRemoveArma2Branding]);
+
+  useEffect(() => {
+    if (!isPremiumSeason && !FREE_BASE_PIECES.has(pieceId)) setPieceId('standings');
+  }, [isPremiumSeason, pieceId]);
 
   const scopeForTournament = useCallback((entry) => {
     const nextCategory = entry?.categories?.[0];
@@ -217,8 +239,9 @@ export default function SocialStudioPage() {
       tournamentLogo: service.resolveTournamentLogoUrl?.(competitionTournament?.logoPath) || null,
       primaryColor: null,
       secondaryColor: null,
+      showArma2Branding: includeArma2Branding,
     };
-  }, [competition.tournaments, scope.tournamentId, service, snapshot, tournament]);
+  }, [competition.tournaments, includeArma2Branding, scope.tournamentId, service, snapshot, tournament]);
 
   // Re-render the preview whenever anything it depends on changes. The canvas
   // is replaced wholesale rather than mutated so a failed render never leaves
@@ -243,7 +266,7 @@ export default function SocialStudioPage() {
       resolveShieldUrl: service.resolveTeamShieldUrl,
       theme: selectedTheme,
       branding,
-      brandAssetUrls: OFFICIAL_BRAND_ASSETS,
+      brandAssetUrls: includeArma2Branding ? OFFICIAL_BRAND_ASSETS : null,
       signal: controller.signal,
       onStatus: (status) => {
         if (!cancelled) setRenderState({ status, error: '', renderKey: '' });
@@ -284,7 +307,7 @@ export default function SocialStudioPage() {
       cancelled = true;
       controller.abort();
     };
-  }, [snapshot, editorial, organizationId, service, piece, selectedTheme, branding]);
+  }, [snapshot, editorial, organizationId, service, piece, selectedTheme, branding, includeArma2Branding]);
 
   useEffect(() => () => {
     releasePreparedSocialRender(preparedRenderRef.current);
@@ -314,6 +337,12 @@ export default function SocialStudioPage() {
     setBusy(mode);
     setNotice('');
     try {
+      await service.authorizeSocialExport({
+        organizationId,
+        tournamentId: scope.tournamentId,
+        piece: pieceId,
+        includeArma2Branding,
+      });
       const result = await exportSocialPiece({
         prepared: preparedRenderRef.current,
         snapshot,
@@ -369,7 +398,7 @@ export default function SocialStudioPage() {
           <span>Generá placas con la identidad de Arma2 a partir de lo que ya está publicado.</span>
         </div>
         <div className={styles.heroMetrics}>
-          <article><LayoutTemplate size={19} aria-hidden="true" /><span><strong>{SOCIAL_PIECES.length}</strong><small>plantillas</small></span></article>
+          <article><LayoutTemplate size={19} aria-hidden="true" /><span><strong>{availablePieces.length}</strong><small>familias Base</small></span></article>
           <article><ImageIcon size={19} aria-hidden="true" /><span><strong>2</strong><small>formatos</small></span></article>
         </div>
       </header>
@@ -460,7 +489,7 @@ export default function SocialStudioPage() {
           <fieldset className={styles.pieceFieldset}>
             <legend>Pieza</legend>
             <div className={styles.pieceGrid} role="radiogroup" aria-label="Plantilla">
-              {SOCIAL_PIECES.map((entry) => (
+              {availablePieces.map((entry) => (
                 <button
                   key={entry.id}
                   type="button"
@@ -473,6 +502,9 @@ export default function SocialStudioPage() {
                 </button>
               ))}
             </div>
+            {!isPremiumSeason && (
+              <p className={styles.previewHint}><LockKeyhole size={14} /> Premium habilita las 11 familias Base.</p>
+            )}
           </fieldset>
 
           <fieldset>
@@ -494,13 +526,13 @@ export default function SocialStudioPage() {
             {pieceId === 'round_results' && (
               <SocialResultsThemePicker
                 organizationId={organizationId}
-                tournamentId={scope.tournamentId}
+                seasonId={seasonId}
                 planState={competition.planState}
                 themeId={themeId}
                 displayThemeId={effectiveThemeId}
                 onSelect={setThemeId}
                 onFallback={() => {
-                  setNotice('Volvimos a Base porque el torneo seleccionado es Free.');
+                  setNotice('Volvimos a Base porque la temporada seleccionada es FREE.');
                 }}
               />
             )}
@@ -520,6 +552,22 @@ export default function SocialStudioPage() {
                   </button>
                 ))}
               </div>
+            )}
+          </fieldset>
+
+          <fieldset>
+            <legend>Branding Arma2</legend>
+            <label>
+              <input
+                type="checkbox"
+                checked={includeArma2Branding}
+                disabled={!canRemoveArma2Branding}
+                onChange={(event) => setIncludeArma2Branding(event.target.checked)}
+              />
+              <span>Mostrar firma, logo y URL de Arma2</span>
+            </label>
+            {!canRemoveArma2Branding && (
+              <p className={styles.previewHint}>En FREE el branding Arma2 permanece visible.</p>
             )}
           </fieldset>
 

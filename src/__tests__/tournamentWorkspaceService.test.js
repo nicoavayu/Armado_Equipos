@@ -110,12 +110,13 @@ describe('tournamentWorkspaceService', () => {
     expect(eq).toHaveBeenCalledWith('organization_id', 'org-a');
   });
 
-  test('purchase projection must match the organization and tournament in the route', async () => {
+  test('purchase projection must match the organization and season in the route', async () => {
     supabase.rpc.mockResolvedValue({
       data: {
         id: 'purchase-a',
         organizationId: 'organization-a',
-        tournamentId: 'tournament-a',
+        seasonId: 'season-a',
+        tournamentId: null,
       },
       error: null,
     });
@@ -123,7 +124,7 @@ describe('tournamentWorkspaceService', () => {
     await expect(loadTournamentPurchase({
       purchaseId: 'purchase-a',
       organizationId: 'organization-a',
-      tournamentId: 'tournament-b',
+      seasonId: 'season-b',
     })).rejects.toEqual(expect.objectContaining({
       code: 'TORNEOS_PURCHASE_FORBIDDEN',
     }));
@@ -136,14 +137,15 @@ describe('tournamentWorkspaceService', () => {
     const purchase = {
       id: 'purchase-a',
       organizationId: 'organization-a',
-      tournamentId: 'tournament-a',
+      seasonId: 'season-a',
+      tournamentId: null,
     };
     supabase.rpc.mockResolvedValue({ data: purchase, error: null });
 
     await expect(loadTournamentPurchase({
       purchaseId: 'purchase-a',
       organizationId: 'organization-a',
-      tournamentId: 'tournament-a',
+      seasonId: 'season-a',
     })).resolves.toBe(purchase);
   });
 

@@ -20,9 +20,11 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { isArma2NativeRuntime } from '../../../utils/runtimePlatform';
 import { getRoleLabel } from '../domain/capabilities';
 import { resolveTorneosUserExperience } from '../domain/userExperience';
+import { capturePremiumIntent, isPremiumIntentSearch, withPremiumIntent } from '../domain/premiumIntent';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import { canonicalRoutes } from '../routing/canonicalRoutes';
+import MobileAppCallout from './MobileAppCallout';
 import styles from './TorneosShell.module.css';
 
 // `tournament_organizations.status` es `active` | `archived`. En la tarjeta va
@@ -57,6 +59,7 @@ export default function TorneosLanding() {
   const navigate = useNavigate();
   const location = useLocation();
   const nativeRuntime = isArma2NativeRuntime();
+  const premiumIntent = isPremiumIntentSearch(location.search);
   const {
     status,
     error,
@@ -97,6 +100,7 @@ export default function TorneosLanding() {
   }, [service]);
 
   useEffect(() => {
+    capturePremiumIntent(location.search);
     loadRelations();
     return () => { relationsRequestRef.current += 1; };
   }, [loadRelations]);
@@ -123,7 +127,9 @@ export default function TorneosLanding() {
 
   const openOrganization = async (organization) => {
     const selected = await selectOrganization(organization.id);
-    if (selected) navigate(canonicalRoutes.organizationHome(organization.id));
+    if (selected) navigate(premiumIntent
+      ? withPremiumIntent(canonicalRoutes.organizationTournaments(organization.id))
+      : canonicalRoutes.organizationHome(organization.id));
   };
 
   return (
@@ -143,7 +149,7 @@ export default function TorneosLanding() {
         )) && (
           <div className={styles.heroActions}>
             {experience.hasParticipantActivity && !experience.hasAdministration && (
-              <Link className={styles.primaryButton} to="/torneos/nueva-organizacion">
+              <Link className={styles.primaryButton} to={premiumIntent ? withPremiumIntent('/torneos/nueva-organizacion') : '/torneos/nueva-organizacion'}>
                 <Plus size={18} aria-hidden="true" />
                 Crear organización
               </Link>
@@ -164,6 +170,8 @@ export default function TorneosLanding() {
           {location.state.safeMessage}
         </div>
       )}
+
+      <MobileAppCallout />
 
       {experience.hasParticipantActivity && (
         <section className={styles.experienceSection} aria-labelledby="activity-title">
@@ -192,7 +200,7 @@ export default function TorneosLanding() {
               <h2 id="organizations-title">Tus organizaciones</h2>
               <p>Cada workspace conserva sus datos, permisos y capacidades.</p>
             </div>
-            <Link className={styles.secondaryButton} to="/torneos/nueva-organizacion">
+            <Link className={styles.secondaryButton} to={premiumIntent ? withPremiumIntent('/torneos/nueva-organizacion') : '/torneos/nueva-organizacion'}>
               <Plus size={17} aria-hidden="true" /> Nueva organización
             </Link>
           </div>
@@ -227,7 +235,7 @@ export default function TorneosLanding() {
               Cuando una organización te vincule como jugador, responsable o miembro,
               tu actividad aparecerá acá.
             </p>
-            <Link className={styles.primaryButton} to="/torneos/nueva-organizacion">
+            <Link className={styles.primaryButton} to={premiumIntent ? withPremiumIntent('/torneos/nueva-organizacion') : '/torneos/nueva-organizacion'}>
               <Plus size={17} aria-hidden="true" /> Crear organización
             </Link>
           </div>

@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { Clock3, LockKeyhole, Plus, UserRound, Users } from 'lucide-react';
+import {
+  Check,
+  Clock3,
+  LoaderCircle,
+  LockKeyhole,
+  Plus,
+  UserRound,
+  Users,
+} from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
 import {
   getRoleDescription,
@@ -48,7 +56,13 @@ function formatDate(value) {
 export default function OrganizationMembersPage() {
   const { organization } = useOutletContext();
   const { service } = useTorneosWorkspace();
-  const [state, setState] = useState({ status: 'loading', members: [], error: '' });
+  const [state, setState] = useState({
+    status: 'loading', members: [], seasons: [], error: '',
+  });
+  const [selectedSeasonId, setSelectedSeasonId] = useState('');
+  const [assignmentState, setAssignmentState] = useState({
+    status: 'idle', assignments: [], entitlements: null, error: '', pendingId: '',
+  });
   const canInvite = hasCapability(
     organization,
     TOURNAMENT_CAPABILITIES.MEMBERS_INVITE,
@@ -57,12 +71,20 @@ export default function OrganizationMembersPage() {
   const load = async () => {
     setState((current) => ({ ...current, status: 'loading', error: '' }));
     try {
-      const members = await service.listMembers(organization.id);
-      setState({ status: 'ready', members, error: '' });
+      const [members, competition] = await Promise.all([
+        service.listMembers(organization.id),
+        service.loadCompetitionContext(organization.id),
+      ]);
+      const seasons = competition?.seasons || [];
+      setState({ status: 'ready', members, seasons, error: '' });
+      setSelectedSeasonId((current) => (
+        seasons.some((season) => season.id === current) ? current : (seasons[0]?.id || '')
+      ));
     } catch (error) {
       setState({
         status: 'error',
         members: [],
+        seasons: [],
         error: error?.message || 'No pudimos cargar los miembros.',
       });
     }
@@ -70,15 +92,24 @@ export default function OrganizationMembersPage() {
 
   useEffect(() => {
     let active = true;
-    service.listMembers(organization.id)
-      .then((members) => {
-        if (active) setState({ status: 'ready', members, error: '' });
+    Promise.all([
+      service.listMembers(organization.id),
+      service.loadCompetitionContext(organization.id),
+    ])
+      .then(([members, competition]) => {
+        if (!active) return;
+        const seasons = competition?.seasons || [];
+        setState({ status: 'ready', members, seasons, error: '' });
+        setSelectedSeasonId((current) => (
+          seasons.some((season) => season.id === current) ? current : (seasons[0]?.id || '')
+        ));
       })
       .catch((error) => {
         if (active) {
           setState({
             status: 'error',
             members: [],
+            seasons: [],
             error: error?.message || 'No pudimos cargar los miembros.',
           });
         }
@@ -87,6 +118,88 @@ export default function OrganizationMembersPage() {
       active = false;
     };
   }, [organization.id, service]);
+
+  useEffect(() => {
+    if (!selectedSeasonId) {
+      setAssignmentState({
+        status: 'idle', assignments: [], entitlements: null, error: '', pendingId: '',
+      });
+      return undefined;
+    }
+    let active = true;
+    setAssignmentState((current) => ({ ...current, status: 'loading', error: '' }));
+    Promise.all([
+      service.listSeasonMemberAssignments({
+        organizationId: organization.id,
+        seasonId: selectedSeasonId,
+      }),
+      service.loadSeasonEntitlements({
+        organizationId: organization.id,
+        seasonId: selectedSeasonId,
+      }),
+    ])
+      .then(([assignments, entitlements]) => {
+        if (active) {
+          setAssignmentState({
+            status: 'ready', assignments, entitlements, error: '', pendingId: '',
+          });
+        }
+      })
+      .catch((error) => {
+        if (active) {
+          setAssignmentState({
+            status: 'error', assignments: [], entitlements: null,
+            error: error?.message || 'No pudimos cargar los accesos de la temporada.',
+            pendingId: '',
+          });
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [organization.id, selectedSeasonId, service]);
+
+  const toggleAssignment = async (member) => {
+    if (!selectedSeasonId || assignmentState.pendingId) return;
+    const isAssigned = assignmentState.assignments.some(
+      (assignment) => assignment.membershipId === member.id,
+    );
+    setAssignmentState((current) => ({ ...current, pendingId: member.id, error: '' }));
+    try {
+      if (isAssigned) {
+        await service.removeSeasonMemberAssignment({
+          organizationId: organization.id,
+          seasonId: selectedSeasonId,
+          membershipId: member.id,
+        });
+      } else {
+        await service.assignSeasonMember({
+          organizationId: organization.id,
+          seasonId: selectedSeasonId,
+          membershipId: member.id,
+        });
+      }
+      const [assignments, entitlements] = await Promise.all([
+        service.listSeasonMemberAssignments({
+          organizationId: organization.id,
+          seasonId: selectedSeasonId,
+        }),
+        service.loadSeasonEntitlements({
+          organizationId: organization.id,
+          seasonId: selectedSeasonId,
+        }),
+      ]);
+      setAssignmentState({
+        status: 'ready', assignments, entitlements, error: '', pendingId: '',
+      });
+    } catch (error) {
+      setAssignmentState((current) => ({
+        ...current,
+        pendingId: '',
+        error: error?.message || 'No pudimos actualizar el acceso a la temporada.',
+      }));
+    }
+  };
 
   if (state.status === 'loading') return <WorkspaceLoading label="Cargando miembros…" />;
   if (state.status === 'error') return <WorkspaceError message={state.error} onRetry={load} />;
@@ -126,6 +239,91 @@ export default function OrganizationMembersPage() {
           Tu rol permite ver miembros, pero no administrarlos.
         </div>
       )}
+
+      <section className={styles.seasonAssignments} aria-labelledby="season-assignments-title">
+        <header>
+          <div>
+            <span className={styles.eyebrow}>Acceso por temporada</span>
+            <h2 id="season-assignments-title">Asignaciones explícitas</h2>
+            <p>
+              El propietario accede a todas las temporadas y no ocupa cupo. Administradores y
+              colaboradores sólo acceden a las temporadas que les asignes.
+            </p>
+          </div>
+          {state.seasons.length > 0 && (
+            <label>
+              <span>Temporada</span>
+              <select
+                value={selectedSeasonId}
+                onChange={(event) => setSelectedSeasonId(event.target.value)}
+              >
+                {state.seasons.map((season) => (
+                  <option key={season.id} value={season.id}>{season.name}</option>
+                ))}
+              </select>
+            </label>
+          )}
+        </header>
+
+        {state.seasons.length === 0 && (
+          <p className={styles.assignmentEmpty}>Creá una temporada para asignar accesos.</p>
+        )}
+
+        {selectedSeasonId && assignmentState.status === 'loading' && (
+          <p className={styles.assignmentEmpty}>
+            <LoaderCircle className={styles.spinIcon} size={16} /> Cargando accesos…
+          </p>
+        )}
+
+        {selectedSeasonId && assignmentState.status !== 'loading' && (
+          <>
+            <div className={styles.assignmentSummary}>
+              <strong>
+                {assignmentState.assignments.length}
+                {' / '}
+                {assignmentState.entitlements?.limits?.administrativeCollaboratorLimit ?? '—'}
+              </strong>
+              <span>cupos usados en esta temporada</span>
+            </div>
+            {assignmentState.error && (
+              <p className={styles.assignmentError} role="alert">{assignmentState.error}</p>
+            )}
+            <div className={styles.assignmentList}>
+              {state.members
+                .filter((member) => (
+                  member.status === 'active'
+                  && (member.role === 'admin' || member.role === 'collaborator')
+                ))
+                .map((member) => {
+                  const isAssigned = assignmentState.assignments.some(
+                    (assignment) => assignment.membershipId === member.id,
+                  );
+                  const isPending = assignmentState.pendingId === member.id;
+                  return (
+                    <article key={member.id}>
+                      <span>
+                        <strong>{safeMemberLabel(member, organization)}</strong>
+                        <small>{getRoleLabel(member.role)}</small>
+                      </span>
+                      <button
+                        type="button"
+                        className={isAssigned ? styles.assignmentActive : ''}
+                        disabled={!canInvite || Boolean(assignmentState.pendingId)}
+                        onClick={() => toggleAssignment(member)}
+                        aria-pressed={isAssigned}
+                      >
+                        {isPending ? <LoaderCircle className={styles.spinIcon} size={15} /> : (
+                          isAssigned ? <Check size={15} /> : <Plus size={15} />
+                        )}
+                        {isAssigned ? 'Asignado' : 'Asignar'}
+                      </button>
+                    </article>
+                  );
+                })}
+            </div>
+          </>
+        )}
+      </section>
 
       <div className={styles.memberList}>
         {state.members.map((member) => (

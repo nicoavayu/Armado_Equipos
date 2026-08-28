@@ -191,7 +191,8 @@ export function renderResultsStreetLayout(ctx, context) {
 
   const matches = content.matches || [];
   const visible = Math.min(matches.length, variant.maxVisible);
-  const body = { ...tuning.body, height: tuning.body.bottom - tuning.body.y };
+  const bodyBottom = branding.showArma2Branding ? tuning.body.bottom : format.height - 54;
+  const body = { ...tuning.body, bottom: bodyBottom, height: bodyBottom - tuning.body.y };
   if (visible === 0) {
     ctx.fillStyle = theme.surface;
     ctx.fillRect(body.x, body.y, body.width, 190);
@@ -229,16 +230,18 @@ export function renderResultsStreetLayout(ctx, context) {
       family: theme.body, size: 20, color: theme.textMuted, maxWidth: 580, minSize: 14, theme,
     });
   }
-  ctx.save();
-  ctx.fillStyle = accent;
-  ctx.fillRect(52, tuning.footer.ruleY, 976, 3);
-  ctx.fillRect(52, tuning.footer.ruleY + 8, 132, 2);
-  ctx.fillRect(944, tuning.footer.ruleY + 8, 84, 2);
-  ctx.restore();
-  drawText(ctx, editorial.cta, tuning.footer.cta.x, tuning.footer.cta.y, {
-    family: theme.body, size: tuning.footer.cta.size, weight: 700, color: theme.textMuted,
-    maxWidth: tuning.footer.cta.width, minSize: tuning.footer.cta.minSize,
-    letterSpacing: 1.2, theme,
-  });
-  drawOfficialSocialLockup(ctx, { assets, ...tuning.footer.lockup });
+  if (branding.showArma2Branding) {
+    ctx.save();
+    ctx.fillStyle = accent;
+    ctx.fillRect(52, tuning.footer.ruleY, 976, 3);
+    ctx.fillRect(52, tuning.footer.ruleY + 8, 132, 2);
+    ctx.fillRect(944, tuning.footer.ruleY + 8, 84, 2);
+    ctx.restore();
+    drawText(ctx, editorial.cta, tuning.footer.cta.x, tuning.footer.cta.y, {
+      family: theme.body, size: tuning.footer.cta.size, weight: 700, color: theme.textMuted,
+      maxWidth: tuning.footer.cta.width, minSize: tuning.footer.cta.minSize,
+      letterSpacing: 1.2, theme,
+    });
+    drawOfficialSocialLockup(ctx, { assets, ...tuning.footer.lockup });
+  }
 }

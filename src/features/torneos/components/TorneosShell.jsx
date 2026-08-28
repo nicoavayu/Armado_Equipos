@@ -213,9 +213,17 @@ function TeamEntryRedirect() {
 function LegacyPlanRedirect() {
   const { organizationId } = useParams();
   const competition = useOptionalTorneosCompetition();
-  const tournamentId = competition?.activeTournament?.id;
-  if (!tournamentId) return <PlanExperiencePage />;
-  return <Navigate to={canonicalRoutes.tournamentPlan(organizationId, tournamentId)} replace />;
+  const seasonId = competition?.activeSeason?.id;
+  if (!seasonId) return <PlanExperiencePage />;
+  return <Navigate to={canonicalRoutes.seasonPlan(organizationId, seasonId)} replace />;
+}
+
+function LegacyTournamentPlanRedirect() {
+  const { organizationId } = useParams();
+  const competition = useOptionalTorneosCompetition();
+  const seasonId = competition?.activeSeason?.id;
+  if (!seasonId) return <Navigate to={canonicalRoutes.organizationTournaments(organizationId)} replace />;
+  return <Navigate to={canonicalRoutes.seasonPlan(organizationId, seasonId)} replace />;
 }
 
 function OrganizationNavigation({
@@ -368,6 +376,19 @@ export default function TorneosShell() {
               <Route path="temporadas" element={<Navigate to="../torneos" replace />} />
               <Route path="temporadas/nueva" element={<SeasonFormPage />} />
               <Route path="temporadas/:seasonId" element={<SeasonFormPage />} />
+              <Route path="temporada/:seasonId/plan" element={<PlanExperiencePage />} />
+              <Route
+                path="temporada/:seasonId/plan/compra/:purchaseId/exito"
+                element={<PurchaseStatusPage view="success" />}
+              />
+              <Route
+                path="temporada/:seasonId/plan/compra/:purchaseId/pendiente"
+                element={<PurchaseStatusPage view="pending" />}
+              />
+              <Route
+                path="temporada/:seasonId/plan/compra/:purchaseId/fallo"
+                element={<PurchaseStatusPage view="failure" />}
+              />
               <Route path="torneos" element={<CompetitionOverviewPage />} />
               <Route path="torneos/nuevo" element={<TournamentWizardPage />} />
               <Route
@@ -410,7 +431,7 @@ export default function TorneosShell() {
               <Route path="torneo/:tournamentId" element={<TournamentRouteGuard />}>
                 <Route index element={<CanonicalIndexRedirect to="fixture" />} />
                 <Route path="configuracion" element={<TournamentWizardPage />} />
-                <Route path="plan" element={<PlanExperiencePage />} />
+                <Route path="plan" element={<LegacyTournamentPlanRedirect />} />
                 <Route
                   path="plan/compra/:purchaseId/exito"
                   element={<PurchaseStatusPage view="success" />}

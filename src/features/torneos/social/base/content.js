@@ -141,6 +141,7 @@ export function adaptSnapshotToBasePiece(snapshot, editorial, branding = {}) {
     category: competition.categoryName || competition.phaseName || '',
     round: competition.roundName || '',
     tournamentLogo: branding.tournamentLogo ? BASE_TOURNAMENT_LOGO_KEY : null,
+    showArma2Branding: branding.showArma2Branding !== false,
   };
 
   switch (snapshot?.piece) {

@@ -2,7 +2,6 @@ import {
   hasEffectiveTournamentEntitlement,
   TOURNAMENT_ENTITLEMENTS,
   TOURNAMENT_PLANS,
-  TOURNAMENT_PLAN_SOURCES,
 } from './entitlements';
 
 export const PLAN_BENEFITS = Object.freeze([
@@ -56,14 +55,14 @@ export function getTournamentPlanLifecycle(entitlements) {
     return {
       label: 'No verificado',
       tone: 'danger',
-      description: 'No pudimos validar el plan de esta edición.',
+      description: 'No pudimos validar el plan de esta temporada.',
     };
   }
   if (entitlements.plan === TOURNAMENT_PLANS.PREMIUM) {
     return {
-      label: 'Premium para esta edición',
+      label: 'Premium para esta temporada',
       tone: 'positive',
-      description: 'Pago único · acceso permanente para este torneo.',
+      description: 'Pago único · sin suscripción · acceso Premium permanente para todos los torneos de esta temporada.',
     };
   }
   if (entitlements.plan === TOURNAMENT_PLANS.PREMIUM_REQUIRED) {
@@ -73,17 +72,10 @@ export function getTournamentPlanLifecycle(entitlements) {
       description: 'Podés configurar el borrador. Para publicar, inscribir equipos y competir necesitás Premium.',
     };
   }
-  if (entitlements.assignmentSource === TOURNAMENT_PLAN_SOURCES.FIRST_FREE) {
-    return {
-      label: 'Tu primer torneo, gratis',
-      tone: 'neutral',
-      description: 'Todo lo necesario para organizar tu campeonato.',
-    };
-  }
   return {
-    label: 'Premium requerido para una nueva edición',
-    tone: 'warning',
-    description: 'Esta edición todavía no tiene una licencia Premium asignada.',
+    label: 'FREE para siempre',
+    tone: 'neutral',
+    description: 'Todo lo necesario para organizar esta temporada y sus torneos.',
   };
 }
 

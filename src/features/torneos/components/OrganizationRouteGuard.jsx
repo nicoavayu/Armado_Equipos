@@ -15,6 +15,8 @@ export default function OrganizationRouteGuard() {
   // dejaría una ventana en la que el torneo mostrado es el de la preferencia.
   const canonicalTournamentMatch = useMatch(CANONICAL_TOURNAMENT_ROUTE_PATTERN);
   const routeTournamentId = canonicalTournamentMatch?.params?.tournamentId || null;
+  const canonicalSeasonMatch = useMatch('/torneos/organizacion/:organizationId/temporada/:seasonId/*');
+  const routeSeasonId = canonicalSeasonMatch?.params?.seasonId || null;
   const [activationState, setActivationState] = useState('idle');
   const [relationalOrganization, setRelationalOrganization] = useState(null);
   const {
@@ -126,6 +128,7 @@ export default function OrganizationRouteGuard() {
     <TorneosCompetitionProvider
       organizationId={(organization || relationalOrganization).id}
       routeTournamentId={routeTournamentId}
+      routeSeasonId={routeSeasonId}
       service={service}
     >
       <TorneosFixtureProvider

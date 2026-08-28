@@ -10,24 +10,24 @@ import { SOCIAL_RESULTS_THEMES } from '../social/socialThemes';
 import PremiumFeatureGate from './PremiumFeatureGate';
 import styles from './SocialStudioPage.module.css';
 
-export function canUsePremiumResultStyles(planState, tournamentId) {
+export function canUsePremiumResultStyles(planState, seasonId) {
   return planState?.status === 'ready'
     && planState.data?.isTrusted === true
-    && planState.data?.scope?.tournamentId === tournamentId
+    && planState.data?.scope?.seasonId === seasonId
     && hasEffectiveTournamentEntitlement(
       planState.data,
       TOURNAMENT_ENTITLEMENTS.PREMIUM_SOCIAL_STUDIO,
     );
 }
 
-export function isSocialResultThemeAllowed(themeId, planState, tournamentId) {
+export function isSocialResultThemeAllowed(themeId, planState, seasonId) {
   return ['base', 'classic'].includes(themeId)
-    || canUsePremiumResultStyles(planState, tournamentId);
+    || canUsePremiumResultStyles(planState, seasonId);
 }
 
 export default function SocialResultsThemePicker({
   organizationId,
-  tournamentId,
+  seasonId,
   planState,
   themeId,
   displayThemeId = themeId,
@@ -38,7 +38,7 @@ export default function SocialResultsThemePicker({
   const [gateOpen, setGateOpen] = useState(false);
   const [verificationNotice, setVerificationNotice] = useState('');
   const closeGate = useCallback(() => setGateOpen(false), []);
-  const premiumAllowed = canUsePremiumResultStyles(planState, tournamentId);
+  const premiumAllowed = canUsePremiumResultStyles(planState, seasonId);
 
   useEffect(() => {
     if (planState?.status !== 'ready' || ['base', 'classic'].includes(themeId) || premiumAllowed) return;
@@ -58,7 +58,7 @@ export default function SocialResultsThemePicker({
     }
     setVerificationNotice(
       planState?.status === 'loading'
-        ? 'Estamos verificando el plan de este torneo.'
+        ? 'Estamos verificando el plan de esta temporada.'
         : 'Plan no verificado. Reintentá la validación antes de elegir este estilo.',
     );
   };
@@ -94,8 +94,7 @@ export default function SocialResultsThemePicker({
         open={gateOpen}
         onClose={closeGate}
         onViewPremium={() => navigate(
-          canonicalRoutes.organizationSettingsPlan(organizationId),
-          { state: { tournamentId } },
+          canonicalRoutes.seasonPlan(organizationId, seasonId),
         )}
       />
     </>

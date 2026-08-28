@@ -60,6 +60,7 @@ import TournamentPublicPageSettings from './TournamentPublicPageSettings';
 import TeamVisualPolicySettings from './TeamVisualPolicySettings';
 import BrandingAssetField from './BrandingAssetField';
 import styles from './CompetitionCore.module.css';
+import { capturePremiumIntent, clearPremiumIntent, hasPendingPremiumIntent } from '../domain/premiumIntent';
 
 const STEPS = [
   'Información',
@@ -281,6 +282,8 @@ export default function TournamentWizardPage() {
   const [categoryForm, setCategoryForm] = useState(null);
   const [pendingStatus, setPendingStatus] = useState(null);
 
+  useEffect(() => { capturePremiumIntent(searchParams); }, [searchParams]);
+
   useEffect(() => {
     const tournamentVersion = tournament
       ? `${tournament.id}:${tournament.updatedAt || ''}`
@@ -428,12 +431,17 @@ export default function TournamentWizardPage() {
           idempotencyKey: creationKeyRef.current,
         });
         creationKeyRef.current = null;
-        navigate(
-          canonicalRoutes.tournamentConfiguration(organization.id, created.id, {
-            step: advance ? 1 : 0,
-          }),
-          { replace: true },
-        );
+        if (hasPendingPremiumIntent()) {
+          clearPremiumIntent();
+          navigate(canonicalRoutes.tournamentPlan(organization.id, created.id), { replace: true });
+        } else {
+          navigate(
+            canonicalRoutes.tournamentConfiguration(organization.id, created.id, {
+              step: advance ? 1 : 0,
+            }),
+            { replace: true },
+          );
+        }
         return true;
       }
       const patch = patchForStep(step, currentDraft);

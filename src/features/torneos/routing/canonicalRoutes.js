@@ -146,6 +146,25 @@ export const organizationSeasonNew = organizationRoute('/temporadas/nueva');
 export const organizationSeason = (organizationId, seasonId) => (
   `${organizationBase(organizationId)}/temporadas/${requireId(seasonId, 'seasonId')}`
 );
+export const seasonRoot = (organizationId, seasonId) => (
+  `${organizationBase(organizationId)}/temporada/${requireId(seasonId, 'seasonId')}`
+);
+export const seasonPlan = (organizationId, seasonId) => (
+  `${seasonRoot(organizationId, seasonId)}/plan`
+);
+function seasonPurchaseRoute(organizationId, seasonId, purchaseId, result) {
+  return `${seasonPlan(organizationId, seasonId)}/compra/`
+    + `${requireId(purchaseId, 'purchaseId')}/${result}`;
+}
+export const seasonPurchaseSuccess = (organizationId, seasonId, purchaseId) => (
+  seasonPurchaseRoute(organizationId, seasonId, purchaseId, 'exito')
+);
+export const seasonPurchasePending = (organizationId, seasonId, purchaseId) => (
+  seasonPurchaseRoute(organizationId, seasonId, purchaseId, 'pendiente')
+);
+export const seasonPurchaseFailure = (organizationId, seasonId, purchaseId) => (
+  seasonPurchaseRoute(organizationId, seasonId, purchaseId, 'fallo')
+);
 export const organizationMembers = organizationRoute('/miembros');
 export const organizationSettings = organizationRoute('/configuracion');
 export const organizationSettingsPlan = organizationRoute('/configuracion/plan');
@@ -251,6 +270,11 @@ export const canonicalRoutes = Object.freeze({
   organizationSeasons,
   organizationSeasonNew,
   organizationSeason,
+  seasonRoot,
+  seasonPlan,
+  seasonPurchaseSuccess,
+  seasonPurchasePending,
+  seasonPurchaseFailure,
   organizationTeams,
   organizationMembers,
   organizationSettings,

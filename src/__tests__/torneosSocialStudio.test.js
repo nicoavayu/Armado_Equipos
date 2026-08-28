@@ -215,7 +215,7 @@ function editorialFor(pieceId, overrides = {}) {
   return createEditorialState(snapshot, { selection, ...overrides });
 }
 
-async function renderToLog(pieceId, overrides = {}) {
+async function renderToLog(pieceId, overrides = {}, renderOptions = {}) {
   const log = [];
   await renderSocialPiece({
     snapshot: SNAPSHOTS[pieceId],
@@ -223,6 +223,7 @@ async function renderToLog(pieceId, overrides = {}) {
     organizationId: ORGANIZATION,
     createCanvas: fakeCanvasFactory(log),
     skipFonts: true,
+    ...renderOptions,
   });
   return log;
 }
@@ -417,6 +418,26 @@ describe('deterministic renderer', () => {
     const without = await renderToLog('standings', { showArma2Logo: false });
     expect(without).toEqual(withMark);
   });
+
+  test.each(['portrait', 'story'])(
+    'Premium branding OFF removes Arma2 text/URL and reclaims layout space in %s',
+    async (format) => {
+      const branded = await renderToLog('standings', { format }, {
+        branding: { tournamentName: 'Copa Horizonte', showArma2Branding: true },
+      });
+      const clean = await renderToLog('standings', { format }, {
+        branding: { tournamentName: 'Copa Horizonte', showArma2Branding: false },
+      });
+      const glyphs = (log) => log
+        .map((entry) => entry.match(/^fillText\(([^,]*)/)?.[1] || '')
+        .join('');
+      expect(glyphs(branded)).toContain('ARMA2.COM.AR/TORNEOS');
+      expect(glyphs(branded)).toContain('GESTIONÁ TU TORNEO EN');
+      expect(glyphs(clean)).not.toContain('ARMA2');
+      expect(glyphs(clean)).not.toContain('TORNEOS_URL');
+      expect(clean).not.toEqual(branded);
+    },
+  );
 
   test('long names and special characters are fitted, never overflowed', () => {
     const longName = 'Club Atlético Deportivo Unión de los Trabajadores del Sur Ñandú';

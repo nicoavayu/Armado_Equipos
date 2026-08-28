@@ -7,15 +7,16 @@ import {
 
 export function tournamentEntitlementsFixture({
   organizationId = '10000000-0000-4000-8000-000000000001',
+  seasonId = '20000000-0000-4000-8000-000000000001',
   tournamentId = '30000000-0000-4000-8000-000000000001',
   plan = TOURNAMENT_PLANS.FREE,
   assignmentSource = plan === TOURNAMENT_PLANS.PREMIUM
     ? TOURNAMENT_PLAN_SOURCES.LEGACY_GRANT
     : plan === TOURNAMENT_PLANS.PREMIUM_REQUIRED
       ? TOURNAMENT_PLAN_SOURCES.UNASSIGNED
-      : TOURNAMENT_PLAN_SOURCES.FIRST_FREE,
+      : TOURNAMENT_PLAN_SOURCES.DEFAULT_FREE,
   capabilities = {},
-  galleryAssetLimit = plan === TOURNAMENT_PLANS.PREMIUM ? 10000 : 100,
+  galleryAssetLimit = plan === TOURNAMENT_PLANS.PREMIUM ? 1000 : 25,
   administrativeSeatLimit = plan === TOURNAMENT_PLANS.PREMIUM ? 10 : 1,
   administrativeSeatUsage = 0,
 } = {}) {
@@ -23,13 +24,14 @@ export function tournamentEntitlementsFixture({
   const locked = plan === TOURNAMENT_PLANS.PREMIUM_REQUIRED;
   const core = Object.fromEntries(CORE_SPORT_ENTITLEMENTS.map((key) => [key, !locked]));
   return {
-    schemaVersion: locked ? 3 : 2,
+    schemaVersion: 4,
     plan,
     assignmentSource,
     requiresPremium: locked,
     scope: {
-      type: 'tournament_edition',
+      type: 'season',
       organizationId,
+      seasonId,
       tournamentId,
       audience: 'organization_member',
     },
@@ -38,7 +40,7 @@ export function tournamentEntitlementsFixture({
       listPrice: 49900,
       launchPrice: 39900,
       billingModel: 'one_time',
-      scope: locked ? 'tournament' : 'tournament_edition',
+      scope: 'season',
     },
     ...(locked ? {
       offer: {
@@ -84,9 +86,11 @@ export function tournamentEntitlementsFixture({
       ownerCountsTowardLimit: false,
     },
     branding: {
-      mode: premium ? 'powered_by_arma2' : 'arma2_visible',
+      mode: premium ? 'branding_optional' : 'arma2_visible',
       arma2Visible: true,
-      label: premium ? 'Powered by Arma2' : 'Arma2 Torneos',
+      canRemoveArma2: premium,
+      label: 'Arma2 Torneos',
     },
+    social: { baseFamilyLimit: premium ? 11 : 3, premiumResultStyles: premium },
   };
 }

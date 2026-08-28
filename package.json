@@ -105,6 +105,7 @@
     "test:db:torneos:media": "node scripts/db-integration/torneos-media-galleries.mjs",
     "test:db:torneos:entitlements": "node scripts/db-integration/torneos-entitlements-foundation.mjs",
     "test:db:torneos:commercial": "node scripts/db-integration/torneos-commercial-checkout.mjs",
+    "test:db:torneos:season-commercial": "node scripts/db-integration/torneos-season-commercial-domain.mjs",
     "test:db:torneos:phase-append": "node scripts/db-integration/torneos-active-phase-append.mjs",
     "test:db:torneos:public-pages": "node scripts/db-integration/torneos-public-pages.mjs",
     "test:db:torneos:lifecycle": "node scripts/db-integration/torneos-competition-lifecycle.mjs",

@@ -62,11 +62,15 @@ function normalizeCompetitionContext(payload, organizationId) {
 export function TorneosCompetitionProvider({
   organizationId,
   routeTournamentId = null,
+  routeSeasonId = null,
   service,
   children,
 }) {
   const pinnedTournamentId = typeof routeTournamentId === 'string' && routeTournamentId
     ? routeTournamentId
+    : null;
+  const pinnedSeasonId = typeof routeSeasonId === 'string' && routeSeasonId
+    ? routeSeasonId
     : null;
   const mountedRef = useRef(true);
   const requestRef = useRef(0);
@@ -294,21 +298,24 @@ export function TorneosCompetitionProvider({
   ) || null;
   const activeTournament = pinnedTournamentId ? pinnedTournament : preferredTournament;
   const activeSeason = state.seasons.find((season) => (
-    season.id === (pinnedTournamentId
-      ? pinnedTournament?.seasonId
-      : state.preference.activeSeasonId)
+    season.id === (pinnedSeasonId
+      || (pinnedTournamentId ? pinnedTournament?.seasonId : state.preference.activeSeasonId))
   )) || null;
-  const activeTournamentId = activeTournament?.id || null;
+  const activeSeasonId = activeSeason?.id || null;
+  const fallbackTournamentId = typeof service?.loadSeasonEntitlements === 'function'
+    ? null
+    : activeTournament?.id || null;
 
   const loadActiveTournamentPlan = useCallback(async () => {
     const requestId = planRequestRef.current + 1;
     planRequestRef.current = requestId;
-    if (!organizationId || !activeTournamentId) {
+    if (!organizationId || !activeSeasonId) {
       setPlanState({ status: 'empty', data: FAIL_CLOSED_ENTITLEMENTS, error: '' });
       return FAIL_CLOSED_ENTITLEMENTS;
     }
-    if (typeof service?.loadEntitlements !== 'function') {
-      const error = 'No pudimos verificar el plan de este torneo.';
+    if (typeof service?.loadSeasonEntitlements !== 'function'
+      && (typeof service?.loadEntitlements !== 'function' || !fallbackTournamentId)) {
+      const error = 'No pudimos verificar el plan de esta temporada.';
       setPlanState({ status: 'error', data: FAIL_CLOSED_ENTITLEMENTS, error });
       return FAIL_CLOSED_ENTITLEMENTS;
     }
@@ -317,20 +324,19 @@ export function TorneosCompetitionProvider({
     // resolución no afirmamos Free ni Premium.
     setPlanState({ status: 'loading', data: FAIL_CLOSED_ENTITLEMENTS, error: '' });
     try {
-      const payload = await service.loadEntitlements({
-        organizationId,
-        tournamentId: activeTournamentId,
-      });
+      const payload = typeof service.loadSeasonEntitlements === 'function'
+        ? await service.loadSeasonEntitlements({ organizationId, seasonId: activeSeasonId })
+        : await service.loadEntitlements({ organizationId, tournamentId: fallbackTournamentId });
       const normalized = normalizeTournamentEntitlements(payload, {
         organizationId,
-        tournamentId: activeTournamentId,
+        seasonId: activeSeasonId,
       });
       if (!mountedRef.current || planRequestRef.current !== requestId) return normalized;
       if (!normalized.isTrusted) {
         setPlanState({
           status: 'error',
           data: FAIL_CLOSED_ENTITLEMENTS,
-          error: 'No pudimos confirmar el plan de este torneo.',
+          error: 'No pudimos confirmar el plan de esta temporada.',
         });
         return normalized;
       }
@@ -343,11 +349,11 @@ export function TorneosCompetitionProvider({
       setPlanState({
         status: 'error',
         data: FAIL_CLOSED_ENTITLEMENTS,
-        error: error?.message || 'No pudimos verificar el plan de este torneo.',
+        error: error?.message || 'No pudimos verificar el plan de esta temporada.',
       });
       return FAIL_CLOSED_ENTITLEMENTS;
     }
-  }, [activeTournamentId, organizationId, service]);
+  }, [activeSeasonId, fallbackTournamentId, organizationId, service]);
 
   useEffect(() => {
     loadActiveTournamentPlan();
@@ -377,6 +383,7 @@ export function TorneosCompetitionProvider({
     ...state,
     preference: effectivePreference,
     routeTournamentId: pinnedTournamentId,
+    routeSeasonId: pinnedSeasonId,
     isTournamentRoute: Boolean(pinnedTournamentId),
     routeTournamentStatus,
     activeSeason,

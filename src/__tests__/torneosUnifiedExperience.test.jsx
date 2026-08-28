@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import TorneosFeatureGate from '../features/torneos/TorneosFeatureGate';
 import {
@@ -80,6 +80,12 @@ describe('Arma2 Torneos unified participant/admin entrypoint', () => {
       name: 'No participás ni administrás torneos todavía',
     }, { timeout: 5000 })).toBeInTheDocument();
     expect(screen.getByTestId('global-header')).toBeInTheDocument();
+    expect(screen.getByRole('complementary', { name: 'Descargar la app de Arma2' }))
+      .toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Descargar Arma2 en App Store' }))
+      .toHaveAttribute('href', 'https://apps.apple.com/ar/app/arma2/id6760599244');
+    expect(screen.getByRole('link', { name: 'Descargar Arma2 en Google Play' }))
+      .toHaveAttribute('href', 'https://play.google.com/store/apps/details?id=com.teambalancer.app');
     expect(screen.queryByText('Administrar')).not.toBeInTheDocument();
     expect(screen.queryByText('Mi actividad')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Crear organización' }))
@@ -147,6 +153,18 @@ describe('Arma2 Torneos unified participant/admin entrypoint', () => {
 
     expect(await screen.findByText('Mi actividad')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Volver a Arma2' })).not.toBeInTheDocument();
+  });
+
+  test('browser callout links to both live stores and can be dismissed', async () => {
+    window.localStorage.removeItem('arma2:torneos:app-callout-dismissed:v1');
+    renderLanding(createService());
+    expect(await screen.findByText('La web primero. La app te acompaña.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Descargar Arma2 en App Store' }))
+      .toHaveAttribute('href', 'https://apps.apple.com/ar/app/arma2/id6760599244');
+    expect(screen.getByRole('link', { name: 'Descargar Arma2 en Google Play' }))
+      .toHaveAttribute('href', 'https://play.google.com/store/apps/details?id=com.teambalancer.app');
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar aviso' }));
+    expect(screen.queryByText('La web primero. La app te acompaña.')).not.toBeInTheDocument();
   });
 
   test('Capacitor/native preserves the same Torneos access and adds the native exit', async () => {

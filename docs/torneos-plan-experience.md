@@ -1,111 +1,92 @@
-# Arma2 Torneos · Plans & Entitlements V1
+# Arma2 Torneos · Plan por temporada
 
 ## Unidad comercial
 
-La licencia pertenece a `public.tournaments.id`, que en el modelo vigente es
-una competencia concreta dentro de una temporada: por ejemplo, Apertura 2027 o
-Clausura 2027. La organización es el tenant, `tournament_seasons` agrupa un
-período institucional y `tournament_categories` subdivide deportivamente esa
-competencia. Ni temporada, categoría, equipo, plantel ni jugador son unidades
-facturables independientes.
+La licencia pertenece a `public.tournament_seasons.id`. Una temporada agrupa
+todas sus competencias hijas (`public.tournaments`), categorías y fases. Cada
+temporada nueva comienza en FREE, puede permanecer FREE para siempre y puede
+subir una sola vez a PREMIUM. Premium es permanente para esa temporada y no se
+hereda a la siguiente.
 
-Una nueva edición siempre debe tener un nuevo `tournaments.id`. Una licencia de
-otra edición no se consulta ni se copia al resolver el plan.
+## Resolución y compatibilidad histórica
 
-## Modelo de asignación
+`tournament_season_plan_grants` es la fuente autoritativa nueva. El resolver
+`get_effective_tournament_season_entitlements(organization_id, season_id)`
+proyecta schema 4, scope `season`, precio y límites. El resolver compatible por
+torneo obtiene primero la temporada del hijo y devuelve el mismo plan.
 
-`tournament_plan_grants` registra asignaciones permanentes por organización y
-torneo. Distingue tres orígenes:
+Las tablas históricas de purchases, grants y events no se borran. Toda purchase
+histórica recibe `season_id` por backfill, y cualquier grant Premium efectivo de
+un torneo hijo promueve un grant efectivo de su temporada. Si existían varias
+compras, todas permanecen auditables; las compras nuevas usan únicamente
+`season_id` y un índice parcial evita duplicar una compra abierta o comprar una
+temporada que ya es Premium.
 
-- `first_free`: primer torneo real de una organización nueva;
-- `purchase`: futura compra, reservada a una autoridad server-side;
-- `legacy_grant`: acceso preexistente preservado durante el backfill.
-
-`tournament_organization_plan_state` registra de forma determinista si la
-organización consumió su única oportunidad Free. Para una organización nueva,
-el primer insert en `tournaments` toma un lock por organización, crea el grant
-Free y registra el torneo que consumió la oportunidad. Después,
-`get_tournament_creation_eligibility` devuelve `premium_required`; Foundation
-no bloquea todavía el flujo de creación ni fabrica una compra.
-
-La resolución efectiva usa `get_effective_tournament_entitlements(org, torneo)`.
-El estado, finalización o archivado del torneo no interviene en esa resolución,
-por lo que Premium permanece asociado a esa edición histórica.
-
-## Backfill
-
-Las organizaciones con torneos preexistentes quedan inicializadas con
-`legacy_backfill` y la oportunidad Free ya consumida. Una organización previa
-que todavía no creó ningún torneo conserva su primer Free. Todos los torneos
-preexistentes reciben `PREMIUM / legacy_grant`, sin fechas de expiración. No se
-crean purchases, transacciones ni pagos ficticios.
-
-Las tablas del modelo temporal FREE/PRO anterior se conservan renombradas como
-`tournament_legacy_subscription_plans` y
-`tournament_legacy_organization_subscriptions`. Son historia no autoritativa y
-no conceden acceso.
+`first_free` queda sólo como fuente histórica/compatibilidad. Ya no decide
+elegibilidad, no bloquea nuevas temporadas, no fuerza `premium_required` y no se
+presenta en la UI. El origen normal de toda temporada FREE nueva es
+`default_free`.
 
 ## Catálogo central
 
-`tournament_plan_catalog` es la fuente server-side de límites y branding:
+| Plan | Multimedia agregada por temporada | Colaboradores administrativos | Placas | Branding |
+| --- | ---: | ---: | --- | --- |
+| FREE | 25 archivos | owner + 1 | 3 familias Base, 4:5 y 9:16 | Arma2 obligatorio |
+| PREMIUM | 1.000 archivos | owner + 10 | 11 familias Base; Street/Editorial donde existe | Arma2 ON/OFF |
 
-| Plan | Galería general | Staff administrativo | Branding |
-| --- | ---: | ---: | --- |
-| FREE | 100 assets | 1 + owner | Arma2 Torneos visible |
-| PREMIUM | 10.000 assets configurables | 10 + owner | Powered by Arma2 |
+El precio autoritativo es ARS 49.900 de lista y ARS 39.900 de lanzamiento,
+pago único, scope `season`. Todos los torneos hijos consumen el mismo límite
+agregado y heredan las mismas capabilities.
 
-La cuota de galería cuenta únicamente assets generales de
-`tournament_media_assets`. Logo, portada, escudos, foto de equipo, retratos y
-otros assets de identidad viven en superficies específicas y no consumen esa
-cuota. El owner y los roles deportivos tampoco consumen la cuota administrativa;
-sólo membresías activas `admin`/`collaborator`.
+FREE permite Resultados, Tabla y Próxima fecha en el renderer Base. PREMIUM
+habilita las once familias Base y los estilos Street/Editorial sólo para
+Resultados, que es donde están implementados. El servidor vuelve a autorizar
+familia y branding antes de exportar.
 
-`tournament_pricing_config` es la única fuente del precio V1: ARS 49.900 de
-lista, ARS 39.900 de lanzamiento, pago único y alcance por edición.
+Si un export Premium usa branding OFF, no se dibujan logo, textos, URL, “Powered
+by Arma2” ni espacio reservado. FREE siempre normaliza el pedido a branding ON.
 
-`tournament_entitlement_capabilities` mantiene el core deportivo habilitado en
-FREE y PREMIUM. Las capacidades Premium son `statistics.advanced`,
-`branding.advanced`, `sponsors`, `social_studio.premium` y
-`exports.professional`. Registrar una capacidad no implica que la feature ya
-exista; Foundation no agrega esas features.
+## Membresía y scope administrativo
+
+`tournament_organization_members` conserva identidad, ownership, rol e
+invitaciones. `tournament_season_member_assignments` agrega el scope por
+temporada para miembros activos `admin` y `collaborator`.
+
+- El owner accede a todas las temporadas sin assignment y no consume cupo.
+- Admin/collaborator sólo acceden a temporadas asignadas.
+- Una persona asignada a dos temporadas consume un cupo en cada una.
+- El trigger de límite serializa por organización/temporada y aplica 1 o 10
+  según el plan efectivo.
+
+La UI de Miembros permite seleccionar temporada, ver uso/límite y asignar o
+quitar miembros. El enforcement real vive en RLS, triggers y
+`has_tournament_season_capability`; no depende del estado visual.
+
+## Funnel y Plan
+
+El intent Premium conserva la secuencia landing → auth → organización →
+temporada → Plan → checkout. Con cero temporadas se crea una; con una se abre
+su Plan directamente; con varias se muestra el selector de temporadas. Nunca
+se elige un torneo hijo para comprar.
+
+La ruta canónica es
+`/torneos/organizacion/:organizationId/temporada/:seasonId/plan`. Las rutas de
+Plan históricas por torneo redirigen a la temporada padre.
 
 ## Seguridad
 
-Las tablas de planes, pricing, grants y estado no exponen escrituras a `anon` ni
-`authenticated`. Los usuarios leen sólo las proyecciones RPC autorizadas para
-una organización/edición visible. `grant_tournament_premium` está reservado a
-`service_role`; no existe una mutación de browser que permita autoasignarse
-Premium. El setter de la suscripción temporal anterior queda deshabilitado.
-
-## Riesgo de reciclaje y contrato futuro
-
-El producto actual permite editar nombre, slug, fechas y configuración de un
-torneo ya creado, y permite finalizar, reabrir o archivar. No existe todavía un
-flujo formal de “duplicar edición” ni un lifecycle que determine cuándo una
-edición cambió de identidad comercial. Por eso Foundation no impone bloqueos
-destructivos sobre esas ediciones existentes.
-
-El contrato para Billing/lifecycle es inequívoco: duplicar puede copiar
-configuración deportiva, pero nunca un row de `tournament_plan_grants`; una
-nueva edición debe crear un nuevo `tournaments.id` y obtener su propia
-asignación. Cualquier futura operación de reciclaje o duplicación debe apoyarse
-en `get_tournament_creation_eligibility` antes de persistir.
+Las operaciones ligadas a temporada o torneo resuelven membership → owner o
+assignment de temporada → capability. Las operaciones genuinamente
+organizacionales conservan `has_tournament_organization_capability`. RLS filtra
+temporadas, torneos y raíces deportivas; los RPC de checkout, multimedia,
+Social y asignaciones reautorizan el scope server-side.
 
 ## QA LOCAL
 
-El fixture `scripts/qa/seed-torneos-plan-review-fixtures.mjs` crea de forma
-idempotente dos organizaciones dedicadas. `qa-planes-first-free` recibe Free
-mediante el mismo trigger de producción y contiene una Liga activa con 28
-resultados oficiales, tabla publicada y ninguna fase eliminatoria. Es el estado
-previo para recorrer `Fixture > Versiones > Agregar fase > Playoffs`.
-
-`qa-planes-legacy-premium` se inicializa con el mismo estado
-`legacy_backfill` del modelo real y recibe un único `PREMIUM / legacy_grant`
-mediante `grant_tournament_premium`. El motivo explicita que es QA LOCAL y no
-representa una compra. El fixture no crea purchases, pagos ni transacciones.
-
-El torneo canónico `qa-metropolitana / Torneo Apertura QA 2026` no se modifica
-y permanece como ejemplo posterior Liga + Playoffs. `/qa/torneos` sólo muestra
-los cuatro atajos si la sesión puede leerlos, el resolver server-side devuelve
-FREE/PREMIUM y los fixtures conservan respectivamente los estados previo y
-posterior.
+`npm run test:db:torneos:season-commercial` crea transaccionalmente `EDEBA QA`,
+`Apertura 2027`, `Clausura 2027` y `Apertura 2028`. Apertura contiene `+35`,
+`+40`, `Liga`, `Copa Argentina` y `Copa de Plata`. El harness compra Premium
+FAKE una sola vez para Apertura, comprueba herencia en las cinco competencias,
+aislamiento de Clausura, assignments, límites 25/1.000, gates Social/branding y
+preservación histórica. Al terminar revierte el fixture para mantener la base
+local determinista.

@@ -3,7 +3,8 @@ export type PaymentSimulation = "approved" | "pending" | "rejected" | "expired"
 export type PurchaseProjection = {
   id: string
   organizationId: string
-  tournamentId: string
+  seasonId: string
+  tournamentId?: string | null
   productCode: string
   provider: string
   providerEnvironment: string
