@@ -15,12 +15,13 @@ import {
 const PURCHASE = Object.freeze({
   id: '50000000-0000-4000-8000-000000000001',
   organizationId: '10000000-0000-4000-8000-000000000001',
-  tournamentId: '30000000-0000-4000-8000-000000000001',
+  seasonId: '20000000-0000-4000-8000-000000000001',
+  tournamentId: null,
   productCode: 'torneos_premium',
   provider: 'MERCADO_PAGO',
   providerEnvironment: 'test',
   providerPreferenceId: null,
-  externalReference: 'arma2:tournament:purchase:50000000-0000-4000-8000-000000000001',
+  externalReference: 'arma2:season:purchase:50000000-0000-4000-8000-000000000001',
   status: 'created',
   amount: 39900,
   currency: 'ARS',
@@ -47,7 +48,7 @@ test('preference uses only the server purchase snapshot and canonical return URL
     unit_price: 39900,
   }]);
   assert.equal(body.external_reference, PURCHASE.externalReference);
-  assert.equal(body.back_urls.success, `${CONTEXT.appBaseUrl}/torneos/organizacion/${PURCHASE.organizationId}/torneo/${PURCHASE.tournamentId}/plan/compra/${PURCHASE.id}/exito`);
+  assert.equal(body.back_urls.success, `${CONTEXT.appBaseUrl}/torneos/organizacion/${PURCHASE.organizationId}/temporada/${PURCHASE.seasonId}/plan/compra/${PURCHASE.id}/exito`);
   assert.equal(body.back_urls.pending.endsWith(`/${PURCHASE.id}/pendiente`), true);
   assert.equal(body.back_urls.failure.endsWith(`/${PURCHASE.id}/fallo`), true);
   assert.deepEqual(body.metadata, { purchase_id: PURCHASE.id });

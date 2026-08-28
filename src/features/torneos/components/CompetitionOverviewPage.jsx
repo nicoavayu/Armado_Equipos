@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   ArrowRight,
   CalendarPlus,
@@ -7,7 +7,7 @@ import {
   Plus,
   Trophy,
 } from 'lucide-react';
-import { Link, useOutletContext } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import { useTorneosCompetition } from '../context/TorneosCompetitionContext';
 import {
   getOptionName,
@@ -24,6 +24,7 @@ import CompetitionSelector from './CompetitionSelector';
 import { WorkspaceError, WorkspaceLoading } from './WorkspaceState';
 import styles from './CompetitionCore.module.css';
 import BrandingImage from './BrandingImage';
+import { capturePremiumIntent, hasPendingPremiumIntent, withPremiumIntent } from '../domain/premiumIntent';
 
 function formatDateRange(startDate, endDate) {
   if (!startDate && !endDate) return 'Fechas a definir';
@@ -38,6 +39,8 @@ function formatDateRange(startDate, endDate) {
 
 export default function CompetitionOverviewPage() {
   const { organization } = useOutletContext();
+  const location = useLocation();
+  const navigate = useNavigate();
   const {
     status,
     error,
@@ -55,10 +58,52 @@ export default function CompetitionOverviewPage() {
     organization,
     TOURNAMENT_CAPABILITIES.TOURNAMENTS_CREATE,
   );
+  const premiumIntent = hasPendingPremiumIntent() || location.search.includes('intent=premium');
+
+  useEffect(() => {
+    capturePremiumIntent(location.search);
+  }, [location.search]);
+
+  useEffect(() => {
+    if (status === 'ready' && premiumIntent && seasons.length === 1) {
+      navigate(withPremiumIntent(canonicalRoutes.seasonPlan(organization.id, seasons[0].id)), { replace: true });
+    }
+  }, [navigate, organization.id, premiumIntent, seasons, status]);
 
   if (status === 'loading') return <WorkspaceLoading label="Cargando competencia…" />;
   if (status === 'error') {
     return <WorkspaceError message={error} onRetry={() => refresh().catch(() => {})} />;
+  }
+
+  if (premiumIntent && seasons.length > 1) {
+    return (
+      <div className={styles.competitionPage}>
+        <header className={styles.competitionHeader}>
+          <div>
+            <span className={styles.kicker}>PREMIUM POR TEMPORADA</span>
+            <h1>Elegí la temporada</h1>
+            <p>La compra es permanente para una temporada e incluye todos sus torneos.</p>
+          </div>
+        </header>
+        <section className={styles.sectionBlock} aria-labelledby="premium-season-title">
+          <div className={styles.sectionTitle}>
+            <div><span>{seasons.length} temporadas</span><h2 id="premium-season-title">¿Cuál querés profesionalizar?</h2></div>
+          </div>
+          <div className={styles.seasonGrid}>
+            {seasons.map((season, index) => {
+              const count = tournaments.filter((item) => item.seasonId === season.id).length;
+              return (
+                <Link key={season.id} to={withPremiumIntent(canonicalRoutes.seasonPlan(organization.id, season.id))}>
+                  <span className={styles.seasonIndex}>{String(index + 1).padStart(2, '0')}</span>
+                  <span><small>{SEASON_STATUS_LABELS[season.status]}</small><strong>{season.name}</strong><em>{formatDateRange(season.startDate, season.endDate)}</em></span>
+                  <span className={styles.countPill}>{count} {count === 1 ? 'torneo' : 'torneos'}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      </div>
+    );
   }
 
   return (
@@ -74,13 +119,13 @@ export default function CompetitionOverviewPage() {
         </div>
         <div className={styles.headerActions}>
           {canCreateSeason && (
-            <Link className={styles.secondaryAction} to={canonicalRoutes.organizationSeasonNew(organization.id)}>
+            <Link className={styles.secondaryAction} to={premiumIntent ? withPremiumIntent(canonicalRoutes.organizationSeasonNew(organization.id)) : canonicalRoutes.organizationSeasonNew(organization.id)}>
               <CalendarPlus size={17} />
               Nueva temporada
             </Link>
           )}
-          {canCreateTournament && seasons.length > 0 && (
-            <Link className={styles.primaryAction} to={canonicalRoutes.organizationTournamentNew(organization.id)}>
+          {canCreateTournament && seasons.length > 0 && !premiumIntent && (
+            <Link className={styles.primaryAction} to={premiumIntent ? withPremiumIntent(canonicalRoutes.organizationTournamentNew(organization.id)) : canonicalRoutes.organizationTournamentNew(organization.id)}>
               <Plus size={17} />
               Crear torneo
             </Link>
@@ -102,7 +147,7 @@ export default function CompetitionOverviewPage() {
             </p>
           </div>
           {canCreateSeason && (
-            <Link className={styles.primaryAction} to={canonicalRoutes.organizationSeasonNew(organization.id)}>
+            <Link className={styles.primaryAction} to={premiumIntent ? withPremiumIntent(canonicalRoutes.organizationSeasonNew(organization.id)) : canonicalRoutes.organizationSeasonNew(organization.id)}>
               Crear temporada
               <ArrowRight size={17} />
             </Link>
@@ -156,7 +201,7 @@ export default function CompetitionOverviewPage() {
                   <span>Creá uno dentro de una temporada para empezar a configurarlo.</span>
                 </div>
                 {canCreateTournament && (
-                  <Link to={canonicalRoutes.organizationTournamentNew(organization.id)}>Crear torneo</Link>
+                  <Link to={premiumIntent ? withPremiumIntent(canonicalRoutes.organizationTournamentNew(organization.id)) : canonicalRoutes.organizationTournamentNew(organization.id)}>Crear torneo</Link>
                 )}
               </div>
             ) : (

@@ -89,7 +89,7 @@
   color: #fff;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 12px 4px 12px 4px;
+  border-radius: 12px;
   font-size: 12px;
   font-weight: 800;
   text-decoration: none;
@@ -97,6 +97,34 @@
 }
 .actions a { background: linear-gradient(135deg, #6845ff, #8b5cff); }
 .card > small { display: inline-flex; align-items: center; gap: 6px; margin-top: 22px; color: rgba(255,255,255,.45); font-size: 10px; }
+
+.qaDetails {
+  width: fit-content;
+  max-width: 100%;
+  margin: 14px auto 0;
+  color: rgba(255,255,255,.38);
+  font-size: 10px;
+  text-align: left;
+}
+
+.qaDetails summary {
+  width: fit-content;
+  margin: 0 auto;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.qaDetails code {
+  display: block;
+  margin-top: 8px;
+  padding: 8px 10px;
+  overflow-wrap: anywhere;
+  color: rgba(255,255,255,.5);
+  background: rgba(255,255,255,.035);
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 8px;
+}
 
 @media (max-width: 640px) {
   .card dl { grid-template-columns: 1fr; }

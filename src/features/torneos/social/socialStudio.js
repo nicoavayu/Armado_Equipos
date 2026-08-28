@@ -125,7 +125,9 @@ export function createSocialAssetPlan(snapshot, editorial, content = null, optio
     photoAssetId: editorial.photoAssetId || null,
     branding: Object.freeze({
       tournamentLogoUrl: branding.tournamentLogo,
-      officialLockupUrl: options.brandAssetUrls?.lockup || null,
+      officialLockupUrl: branding.showArma2Branding
+        ? options.brandAssetUrls?.lockup || null
+        : null,
     }),
   });
 }

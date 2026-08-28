@@ -89,7 +89,7 @@ export function requirePublicHttpsUrl(value: string) {
 
 function purchasePath(purchase: PurchaseProjection, result: "exito" | "pendiente" | "fallo") {
   return `/torneos/organizacion/${encodeURIComponent(purchase.organizationId)}`
-    + `/torneo/${encodeURIComponent(purchase.tournamentId)}/plan/compra/`
+    + `/temporada/${encodeURIComponent(purchase.seasonId)}/plan/compra/`
     + `${encodeURIComponent(purchase.id)}/${result}`
 }
 

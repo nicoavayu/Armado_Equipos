@@ -76,7 +76,9 @@ function renderResultsClassicLayout(ctx, context) {
   const body = {
     ...tuning.body,
     y: bodyY,
-    height: tuning.body.bottom - bodyY - noteReserve,
+    bottom: branding.showArma2Branding ? tuning.body.bottom : format.height - 54,
+    height: (branding.showArma2Branding ? tuning.body.bottom : format.height - 54)
+      - bodyY - noteReserve,
   };
   renderResultsListLayout(ctx, {
     content, editorial, body, accent, assets, format, theme, variant,
@@ -91,17 +93,19 @@ function renderResultsClassicLayout(ctx, context) {
       },
     ));
   }
-  rule(ctx, tuning.body.x, tuning.footer.ruleY, tuning.body.width, theme.hairline, theme.lineWidth);
-  drawText(ctx, editorial.cta, tuning.footer.cta.x, tuning.footer.cta.y, {
-    family: theme.body, size: tuning.footer.cta.size, weight: 600,
-    color: theme.textMuted, maxWidth: tuning.footer.cta.width,
-    minSize: tuning.footer.cta.minSize, theme,
-  });
-  drawText(ctx, 'DATOS OFICIALES', tuning.body.x, tuning.footer.ruleY + 32, {
-    family: theme.body, size: 14, weight: 700, letterSpacing: 2.6,
-    color: theme.textFaint, theme,
-  });
-  drawOfficialSocialLockup(ctx, { assets, ...tuning.footer.lockup });
+  if (branding.showArma2Branding) {
+    rule(ctx, tuning.body.x, tuning.footer.ruleY, tuning.body.width, theme.hairline, theme.lineWidth);
+    drawText(ctx, editorial.cta, tuning.footer.cta.x, tuning.footer.cta.y, {
+      family: theme.body, size: tuning.footer.cta.size, weight: 600,
+      color: theme.textMuted, maxWidth: tuning.footer.cta.width,
+      minSize: tuning.footer.cta.minSize, theme,
+    });
+    drawText(ctx, 'DATOS OFICIALES', tuning.body.x, tuning.footer.ruleY + 32, {
+      family: theme.body, size: 14, weight: 700, letterSpacing: 2.6,
+      color: theme.textFaint, theme,
+    });
+    drawOfficialSocialLockup(ctx, { assets, ...tuning.footer.lockup });
+  }
 }
 
 const RESULTS_LAYOUTS = Object.freeze({

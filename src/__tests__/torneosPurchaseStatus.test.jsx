@@ -13,14 +13,15 @@ jest.mock('../features/torneos/api/tournamentWorkspaceService', () => ({
 }));
 
 const ORG = '10000000-0000-4000-8000-000000000001';
-const TOURNAMENT = '30000000-0000-4000-8000-000000000001';
+const SEASON = '20000000-0000-4000-8000-000000000001';
 const PURCHASE = '40000000-0000-4000-8000-000000000001';
 
 function projection(status) {
   return {
     id: PURCHASE,
     organizationId: ORG,
-    tournamentId: TOURNAMENT,
+    seasonId: SEASON,
+    tournamentId: null,
     status,
     amount: 39900,
     currency: 'ARS',
@@ -34,22 +35,22 @@ function LocationProbe() {
 }
 
 function renderStatus(view = 'pending') {
-  const path = `/torneos/organizacion/${ORG}/torneo/${TOURNAMENT}/plan/compra/${PURCHASE}/${
+  const path = `/torneos/organizacion/${ORG}/temporada/${SEASON}/plan/compra/${PURCHASE}/${
     view === 'success' ? 'exito' : view === 'failure' ? 'fallo' : 'pendiente'
   }`;
   render(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route
-          path="/torneos/organizacion/:organizationId/torneo/:tournamentId/plan/compra/:purchaseId/pendiente"
+          path="/torneos/organizacion/:organizationId/temporada/:seasonId/plan/compra/:purchaseId/pendiente"
           element={<><PurchaseStatusPage view="pending" /><LocationProbe /></>}
         />
         <Route
-          path="/torneos/organizacion/:organizationId/torneo/:tournamentId/plan/compra/:purchaseId/exito"
+          path="/torneos/organizacion/:organizationId/temporada/:seasonId/plan/compra/:purchaseId/exito"
           element={<><PurchaseStatusPage view="success" /><LocationProbe /></>}
         />
         <Route
-          path="/torneos/organizacion/:organizationId/torneo/:tournamentId/plan/compra/:purchaseId/fallo"
+          path="/torneos/organizacion/:organizationId/temporada/:seasonId/plan/compra/:purchaseId/fallo"
           element={<><PurchaseStatusPage view="failure" /><LocationProbe /></>}
         />
       </Routes>
@@ -64,17 +65,21 @@ describe('purchase status routes', () => {
   });
 
   test('pending page only reads the backend projection', async () => {
-    loadTournamentPurchase.mockResolvedValue(projection('pending'));
+    loadTournamentPurchase.mockResolvedValue(projection('preference_created'));
     renderStatus('pending');
     expect(await screen.findByRole('heading', { name: /esperando confirmación/i }))
       .toBeInTheDocument();
     expect(loadTournamentPurchase).toHaveBeenCalledWith({
       purchaseId: PURCHASE,
       organizationId: ORG,
-      tournamentId: TOURNAMENT,
+      seasonId: SEASON,
+      tournamentId: undefined,
     });
     expect(simulateFakeTournamentPayment).not.toHaveBeenCalled();
-    expect(screen.getByText(/Nunca activa Premium por sí sola/)).toBeInTheDocument();
+    expect(screen.getByText(/Premium se activa cuando recibimos la confirmación/)).toBeInTheDocument();
+    expect(screen.getByText('Pago generado')).toBeInTheDocument();
+    expect(screen.getByText('Prueba · sin cobro real')).toBeInTheDocument();
+    expect(screen.getByText(/status: preference_created · provider: FAKE/)).toBeInTheDocument();
   });
 
   test('approved backend state redirects pending URL to canonical success', async () => {
@@ -96,7 +101,7 @@ describe('purchase status routes', () => {
   test.each([
     ['refunded', /pago fue reembolsado/i],
     ['charged_back', /pago está en contracargo/i],
-    ['expired', /preferencia venció/i],
+    ['expired', /solicitud venció/i],
   ])('%s is rendered only from the verified backend state', async (status, title) => {
     loadTournamentPurchase.mockResolvedValue(projection(status));
     renderStatus('failure');
@@ -112,7 +117,7 @@ describe('purchase status routes', () => {
     expect(document.body).not.toHaveTextContent('Premium ya está activo');
   });
 
-  test('missing or cross-tournament purchase fails closed', async () => {
+  test('missing or cross-season purchase fails closed', async () => {
     loadTournamentPurchase.mockRejectedValue(
       new Error('No encontramos esa compra o no tenés permiso para verla.'),
     );

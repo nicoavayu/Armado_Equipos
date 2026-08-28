@@ -56,6 +56,13 @@ describe('organization settings permission contract', () => {
       updateOrganization: jest.fn().mockResolvedValue({}),
       service: {
         listMembers: jest.fn().mockResolvedValue([]),
+        loadCompetitionContext: jest.fn().mockResolvedValue({ seasons: [] }),
+        listSeasonMemberAssignments: jest.fn().mockResolvedValue([]),
+        loadSeasonEntitlements: jest.fn().mockResolvedValue({
+          limits: { administrativeCollaboratorLimit: 1 },
+        }),
+        assignSeasonMember: jest.fn().mockResolvedValue({}),
+        removeSeasonMemberAssignment: jest.fn().mockResolvedValue(true),
       },
     };
   });
@@ -132,5 +139,41 @@ describe('organization settings permission contract', () => {
     expect(screen.getByText(/equipos o planteles que tiene asignados/)).toBeInTheDocument();
     expect(screen.getByText('Jugador')).toBeInTheDocument();
     expect(screen.queryByText(/\bOwner\b|\bCollaborator\b/)).not.toBeInTheDocument();
+  });
+
+  test('assigns an administrator explicitly to a season without counting the owner', async () => {
+    mockWorkspace.service.listMembers.mockResolvedValue([
+      {
+        id: 'member-owner', user_id: 'owner-user', role: 'owner', status: 'active',
+      },
+      {
+        id: 'member-admin', user_id: 'admin-user', role: 'admin', status: 'active',
+      },
+    ]);
+    mockWorkspace.service.loadCompetitionContext.mockResolvedValue({
+      seasons: [{ id: 'season-1', name: 'Apertura 2026' }],
+    });
+    mockWorkspace.service.listSeasonMemberAssignments
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ membershipId: 'member-admin' }]);
+
+    renderOrganizationRoute(
+      <OrganizationMembersPage />,
+      organizationFor('owner'),
+      'miembros',
+    );
+
+    expect(await screen.findByText('0 / 1')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Asignar' }));
+
+    await waitFor(() => {
+      expect(mockWorkspace.service.assignSeasonMember).toHaveBeenCalledWith({
+        organizationId: '10000000-0000-4000-8000-000000000001',
+        seasonId: 'season-1',
+        membershipId: 'member-admin',
+      });
+    });
+    expect(await screen.findByRole('button', { name: 'Asignado' })).toBeInTheDocument();
+    expect(screen.getByText('1 / 1')).toBeInTheDocument();
   });
 });

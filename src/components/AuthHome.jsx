@@ -132,7 +132,7 @@ export default function AuthHome() {
   };
 
   if (!loading && user) {
-    return <Navigate to={getAuthenticatedProductHome()} replace />;
+    return <Navigate to={returnTo || getAuthenticatedProductHome()} replace />;
   }
 
   return (

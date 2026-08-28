@@ -1,6 +1,7 @@
 import { supabase } from '../services/api/supabase';
 import {
   loadEffectiveTournamentEntitlements,
+  loadEffectiveTournamentSeasonEntitlements,
   loadTournamentCreationEligibility,
 } from '../features/torneos/api/tournamentWorkspaceService';
 import {
@@ -17,6 +18,7 @@ jest.mock('../services/api/supabase', () => ({
 }));
 
 const ORGANIZATION_ID = '10000000-0000-4000-8000-000000000001';
+const SEASON_ID = '20000000-0000-4000-8000-000000000001';
 const TOURNAMENT_ID = '30000000-0000-4000-8000-000000000001';
 
 describe('Torneos FREE/PREMIUM frontend contract', () => {
@@ -39,7 +41,19 @@ describe('Torneos FREE/PREMIUM frontend contract', () => {
     );
   });
 
-  test('loads first-Free eligibility from the domain decision', async () => {
+  test('loads the commercial policy directly from season_id', async () => {
+    supabase.rpc.mockResolvedValue({ data: tournamentEntitlementsFixture(), error: null });
+    await loadEffectiveTournamentSeasonEntitlements({
+      organizationId: ORGANIZATION_ID,
+      seasonId: SEASON_ID,
+    });
+    expect(supabase.rpc).toHaveBeenCalledWith(
+      'get_effective_tournament_season_entitlements',
+      { p_organization_id: ORGANIZATION_ID, p_season_id: SEASON_ID },
+    );
+  });
+
+  test('loads unlimited FREE eligibility from the domain decision', async () => {
     supabase.rpc.mockResolvedValue({
       data: { status: 'free_available', hasConsumedFreeTournament: false },
       error: null,
@@ -52,15 +66,16 @@ describe('Torneos FREE/PREMIUM frontend contract', () => {
   });
 
   test.each([
-    ['FREE', 'first_free'],
-    ['PREMIUM', 'legacy_grant'],
+    ['FREE', 'default_free'],
+    ['PREMIUM', 'historical_tournament_grant'],
     ['PREMIUM', 'purchase'],
-  ])('%s with source %s resolves as a trusted edition plan', (plan, assignmentSource) => {
+  ])('%s with source %s resolves as a trusted season plan', (plan, assignmentSource) => {
     const normalized = normalizeTournamentEntitlements(tournamentEntitlementsFixture({
       plan,
       assignmentSource,
     }), {
       organizationId: ORGANIZATION_ID,
+      seasonId: SEASON_ID,
       tournamentId: TOURNAMENT_ID,
     });
     expect(normalized.isTrusted).toBe(true);
@@ -75,11 +90,11 @@ describe('Torneos FREE/PREMIUM frontend contract', () => {
     });
     const forgedPremium = normalizeTournamentEntitlements({
       ...tournamentEntitlementsFixture({ plan: TOURNAMENT_PLANS.PREMIUM }),
-      assignmentSource: 'first_free',
+      assignmentSource: 'default_free',
     });
     const crossTournament = normalizeTournamentEntitlements(
       tournamentEntitlementsFixture(),
-      { organizationId: ORGANIZATION_ID, tournamentId: 'another-tournament' },
+      { organizationId: ORGANIZATION_ID, seasonId: 'another-season' },
     );
     expect(unknown.isTrusted).toBe(false);
     expect(forgedPremium.isTrusted).toBe(false);
@@ -123,15 +138,19 @@ describe('Torneos FREE/PREMIUM frontend contract', () => {
       listPrice: 49900,
       launchPrice: 39900,
       billingModel: 'one_time',
-      scope: 'tournament_edition',
+      scope: 'season',
     });
     expect(free.media).toEqual({
-      galleryAssetLimit: 100,
+      galleryAssetLimit: 25,
       essentialAssetsCountTowardLimit: false,
     });
     expect(free.administration.administrativeSeatLimit).toBe(1);
-    expect(premium.media.galleryAssetLimit).toBe(10000);
+    expect(premium.media.galleryAssetLimit).toBe(1000);
     expect(premium.administration.administrativeSeatLimit).toBe(10);
     expect(premium.administration.ownerCountsTowardLimit).toBe(false);
+    expect(free.social.baseFamilyLimit).toBe(3);
+    expect(premium.social.baseFamilyLimit).toBe(11);
+    expect(free.branding.canRemoveArma2).toBe(false);
+    expect(premium.branding.canRemoveArma2).toBe(true);
   });
 });

@@ -131,7 +131,7 @@ test('verify_jwt matches each function authentication mode', async () => {
   assert.equal(configuredModes.get('push-sender'), false, 'push-sender');
 });
 
-test('the FAKE provider requires both explicit local/QA opt-ins', async () => {
+test('the FAKE provider is explicit outside local QA and never reaches production', async () => {
   const provider = await fs.readFile(
     path.join(functionsRoot, '_shared', 'fakePaymentProvider.ts'),
     'utf8',
@@ -149,6 +149,8 @@ test('the FAKE provider requires both explicit local/QA opt-ins', async () => {
   assert.match(provider, /environment === \"local\" \|\| environment === \"qa\"/);
   assert.doesNotMatch(provider, /\? \"qa\" : \"local\"/);
   assert.match(checkout, /enabledFakeProviderEnvironment\(\)/);
+  assert.match(checkout, /supabaseUrl === "http:\/\/kong:8000"/);
+  assert.match(checkout, /isLocalRuntime \? "FAKE"/);
   assert.match(checkout, /fake_provider_disabled/);
   assert.match(simulator, /enabledFakeProviderEnvironment\(\)/);
   assert.match(simulator, /fake_provider_disabled/);

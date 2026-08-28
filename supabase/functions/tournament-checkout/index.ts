@@ -26,14 +26,20 @@ serve(async (req) => {
   if (req.method !== "POST") return jsonResponse({ error: "method_not_allowed" }, 405, cors)
   const body = await req.json().catch(() => null)
   const organizationId = safeUuid(body?.organizationId)
-  const tournamentId = safeUuid(body?.tournamentId)
+  const seasonId = safeUuid(body?.seasonId)
   const idempotencyKey = safeUuid(body?.idempotencyKey)
-  if (!organizationId || !tournamentId || !idempotencyKey) {
+  if (!organizationId || !seasonId || !idempotencyKey) {
     return jsonResponse({ error: "invalid_request" }, 400, cors)
   }
   const supabaseUrl = Deno.env.get("SUPABASE_URL")
-  const selectedProvider = Deno.env.get("TOURNAMENT_PAYMENT_PROVIDER")
   if (!supabaseUrl) return jsonResponse({ error: "service_unavailable" }, 503, cors)
+  // The local Supabase edge runtime is deliberately self-identifying through
+  // its internal Kong origin. It has no production credentials, so local QA
+  // can exercise the complete purchase/status route without silently opting
+  // into Mercado Pago or requiring a secret that belongs to another runtime.
+  const isLocalRuntime = supabaseUrl === "http://kong:8000"
+  const selectedProvider = Deno.env.get("TOURNAMENT_PAYMENT_PROVIDER")
+    || (isLocalRuntime ? "FAKE" : "")
 
   let providerEnvironment: "local" | "qa" | "test"
   let appBaseUrl: string
@@ -42,6 +48,7 @@ serve(async (req) => {
   try {
     if (selectedProvider === "FAKE") {
       const fakeEnvironment = enabledFakeProviderEnvironment()
+        || (isLocalRuntime ? "local" : null)
       if (!fakeEnvironment) {
         return jsonResponse({ error: "fake_provider_disabled" }, 404, cors)
       }
@@ -75,16 +82,16 @@ serve(async (req) => {
     const { data: auth, error: authError } = await client.auth.getUser()
     if (authError || !auth.user) return jsonResponse({ error: "not_authenticated" }, 401, cors)
     const purchaseRequest = selectedProvider === "FAKE"
-      ? await client.rpc("create_fake_tournament_purchase", {
+      ? await client.rpc("create_fake_tournament_season_purchase", {
         p_organization_id: organizationId,
-        p_tournament_id: tournamentId,
+        p_season_id: seasonId,
         p_product_code: "torneos_premium",
         p_idempotency_key: idempotencyKey,
         p_provider_environment: providerEnvironment,
       })
-      : await client.rpc("create_tournament_purchase", {
+      : await client.rpc("create_tournament_season_purchase", {
         p_organization_id: organizationId,
-        p_tournament_id: tournamentId,
+        p_season_id: seasonId,
         p_product_code: "torneos_premium",
         p_idempotency_key: idempotencyKey,
         p_provider: selectedProvider,

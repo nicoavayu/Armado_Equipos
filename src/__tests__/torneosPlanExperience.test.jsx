@@ -32,35 +32,36 @@ const ORGANIZATION = {
   role: 'owner',
   capabilities: ['organization.read', 'workspace.access', 'workspace.manage'],
 };
-const SEASON = '20000000-0000-4000-8000-000000000001';
+const SEASON = { id: '20000000-0000-4000-8000-000000000001', name: 'Temporada 2027' };
+const SECOND_SEASON = { id: '20000000-0000-4000-8000-000000000002', name: 'Temporada 2028' };
 const APERTURA = {
-  id: '30000000-0000-4000-8000-000000000001', seasonId: SEASON, name: 'Apertura 2027',
+  id: '30000000-0000-4000-8000-000000000001', seasonId: SEASON.id, name: 'Apertura 2027',
 };
 const CLAUSURA = {
-  id: '30000000-0000-4000-8000-000000000002', seasonId: SEASON, name: 'Clausura 2027',
+  id: '30000000-0000-4000-8000-000000000002', seasonId: SEASON.id, name: 'Clausura 2027',
 };
 
 function competitionPayload(activeTournamentId = APERTURA.id) {
   return {
     preference: {
       organizationId: ORGANIZATION.id,
-      activeSeasonId: activeTournamentId ? SEASON : null,
+      activeSeasonId: activeTournamentId ? SEASON.id : null,
       activeTournamentId,
     },
-    seasons: [{ id: SEASON, name: 'Temporada 2027' }],
+    seasons: [SEASON, SECOND_SEASON],
     tournaments: [APERTURA, CLAUSURA],
     modalities: [],
     formats: [],
   };
 }
 
-function createService({ loadEntitlements, activeTournamentId = APERTURA.id } = {}) {
+function createService({ loadSeasonEntitlements, activeTournamentId = APERTURA.id } = {}) {
   return {
     loadCompetitionContext: jest.fn().mockResolvedValue(competitionPayload(activeTournamentId)),
     setTournamentContext: jest.fn().mockResolvedValue({}),
     createIdempotencyKey: jest.fn(() => 'key'),
-    loadEntitlements: loadEntitlements || jest.fn().mockResolvedValue(
-      tournamentEntitlementsFixture({ tournamentId: activeTournamentId }),
+    loadSeasonEntitlements: loadSeasonEntitlements || jest.fn().mockResolvedValue(
+      tournamentEntitlementsFixture({ seasonId: SEASON.id, tournamentId: null }),
     ),
   };
 }
@@ -68,14 +69,18 @@ function createService({ loadEntitlements, activeTournamentId = APERTURA.id } = 
 function renderPlan({ service = createService(), child = null } = {}) {
   render(
     <MemoryRouter initialEntries={[
-      `/torneos/organizacion/${ORGANIZATION.id}/configuracion/plan`,
+      `/torneos/organizacion/${ORGANIZATION.id}/temporada/${SEASON.id}/plan`,
     ]}>
       <TorneosWorkspaceProvider service={service} autoLoad={false}>
-        <TorneosCompetitionProvider organizationId={ORGANIZATION.id} service={service}>
+        <TorneosCompetitionProvider organizationId={ORGANIZATION.id} routeSeasonId={SEASON.id} service={service}>
           <Routes>
             <Route
-              path="/torneos/organizacion/:organizationId/configuracion/plan"
+              path="/torneos/organizacion/:organizationId/temporada/:seasonId/plan"
               element={child || <PlanExperiencePage organization={ORGANIZATION} />}
+            />
+            <Route
+              path="/torneos/organizacion/:organizationId/temporada/:seasonId/plan/compra/:purchaseId/pendiente"
+              element={<div data-testid="checkout-test-status">Checkout TEST</div>}
             />
           </Routes>
           <RouteLocationProbe />
@@ -91,7 +96,7 @@ function RouteLocationProbe() {
   return <output data-testid="route-location">{location.pathname}</output>;
 }
 
-describe('Arma2 Torneos plan experience por edición', () => {
+describe('Arma2 Torneos plan experience por temporada', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     createIdempotencyKey.mockReturnValue('40000000-0000-4000-8000-000000000001');
@@ -105,27 +110,28 @@ describe('Arma2 Torneos plan experience por edición', () => {
 
     expect(await screen.findByRole('heading', { name: 'Arma2 Torneos Free' }))
       .toBeInTheDocument();
-    expect(screen.getAllByText('Tu primer torneo, gratis').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Gratis para siempre por temporada.').length).toBeGreaterThan(0);
     expect(screen.getByText(/Precio habitual:/)).toHaveTextContent(/49\.900/);
     expect(screen.getByText('Precio lanzamiento').nextElementSibling)
       .toHaveTextContent(/39\.900/);
-    expect(screen.getAllByText('Pagás una sola vez. Sin suscripción.').length)
+    expect(screen.getAllByText('Pago único para esta temporada · Sin suscripción').length)
       .toBeGreaterThan(0);
     expect(screen.getByText(
-      /Tu primer torneo es gratis\. Después, pagás una sola vez por cada nuevo torneo\. Sin suscripción\./,
+      /Cada temporada nace FREE para siempre\. Premium se paga una sola vez por la temporada/,
     )).toBeInTheDocument();
-    expect(document.body).not.toHaveTextContent(/\bowner\b/i);
-    expect(service.loadEntitlements).toHaveBeenCalledWith({
+    expect(screen.getByText(/Owner \+ 1 colaborador/)).toBeInTheDocument();
+    expect(service.loadSeasonEntitlements).toHaveBeenCalledWith({
       organizationId: ORGANIZATION.id,
-      tournamentId: APERTURA.id,
+      seasonId: SEASON.id,
     });
   });
 
   test('PREMIUM is permanent for this tournament without ambiguous forever copy', async () => {
     renderPlan({
       service: createService({
-        loadEntitlements: jest.fn().mockResolvedValue(tournamentEntitlementsFixture({
-          tournamentId: APERTURA.id,
+        loadSeasonEntitlements: jest.fn().mockResolvedValue(tournamentEntitlementsFixture({
+          seasonId: SEASON.id,
+          tournamentId: null,
           plan: TOURNAMENT_PLANS.PREMIUM,
         })),
       }),
@@ -133,26 +139,30 @@ describe('Arma2 Torneos plan experience por edición', () => {
 
     expect(await screen.findByRole('heading', { name: 'Arma2 Torneos Premium' }))
       .toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Premium para este torneo' }))
+    expect(screen.getByRole('heading', { name: 'Profesionalizá esta temporada' }))
       .toBeInTheDocument();
-    expect(screen.getByText('Powered by Arma2')).toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent('Powered by Arma2');
     expect(document.body).not.toHaveTextContent('Premium para siempre');
   });
 
   test('shows only the Premium result styles that are available today', async () => {
     renderPlan();
 
-    expect(await screen.findByText('Qué suma Premium hoy')).toBeInTheDocument();
-    expect(screen.getByText('Más estilos para resultados')).toBeInTheDocument();
-    expect(screen.getByText(/Street y Editorial a Classic/)).toBeInTheDocument();
+    expect(await screen.findByText('INCLUYE TODO LO DE FREE, MÁS:')).toBeInTheDocument();
+    expect(screen.getByText('Multimedia ampliada')).toBeInTheDocument();
+    expect(screen.getByText('Más colaboradores')).toBeInTheDocument();
+    expect(screen.getByText('Las 11 familias Base de Social Studio')).toBeInTheDocument();
+    expect(screen.getByText('Acceso Premium permanente')).toBeInTheDocument();
+    expect(screen.getByText(/Street y Editorial disponibles donde están implementados: Resultados/)).toBeInTheDocument();
+    expect(screen.getByText('ARS · por temporada')).toBeInTheDocument();
+    expect(screen.getByText('Pago único para esta temporada · Sin suscripción')).toBeInTheDocument();
+    expect(screen.getByText('Acceso Premium permanente para todos sus torneos.')).toBeInTheDocument();
     for (const unsupportedClaim of [
-      'Multimedia ampliada',
-      'Más colaboradores',
       'Identidad más personalizada',
       'Estadísticas avanzadas',
       'Sponsors',
       'Exportaciones profesionales',
-      'Hasta 10 colaboradores',
+      'white-label',
     ]) {
       expect(document.body).not.toHaveTextContent(unsupportedClaim);
     }
@@ -175,12 +185,13 @@ describe('Arma2 Torneos plan experience por edición', () => {
 
     await waitFor(() => expect(createTournamentCheckout).toHaveBeenCalledWith({
       organizationId: ORGANIZATION.id,
-      tournamentId: APERTURA.id,
+      seasonId: SEASON.id,
       idempotencyKey: '40000000-0000-4000-8000-000000000001',
     }));
     await waitFor(() => expect(screen.getByTestId('route-location')).toHaveTextContent(
-      `/torneos/organizacion/${ORGANIZATION.id}/torneo/${APERTURA.id}/plan/compra/50000000-0000-4000-8000-000000000001/pendiente`,
+      `/torneos/organizacion/${ORGANIZATION.id}/temporada/${SEASON.id}/plan/compra/50000000-0000-4000-8000-000000000001/pendiente`,
     ));
+    expect(screen.getByTestId('checkout-test-status')).toHaveTextContent('Checkout TEST');
   });
 
   test('Mercado Pago Checkout Pro redirects only to its verified HTTPS checkout URL', async () => {
@@ -215,19 +226,11 @@ describe('Arma2 Torneos plan experience por edición', () => {
     expect(checkoutRedirect).not.toHaveBeenCalled();
   });
 
-  test('a second edition is shown as configurable draft with Premium required', async () => {
-    renderPlan({
-      service: createService({
-        loadEntitlements: jest.fn().mockResolvedValue(tournamentEntitlementsFixture({
-          tournamentId: APERTURA.id,
-          plan: TOURNAMENT_PLANS.PREMIUM_REQUIRED,
-        })),
-      }),
-    });
-
-    expect(await screen.findByRole('heading', { name: 'Borrador · Premium requerido' }))
+  test('a new season remains FREE and never requires Premium to operate', async () => {
+    renderPlan();
+    expect(await screen.findByRole('heading', { name: 'Arma2 Torneos Free' }))
       .toBeInTheDocument();
-    expect(screen.getByText(/Podés configurar el borrador/)).toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent('Premium requerido');
     expect(screen.getByRole('button', { name: /Comprar Premium/i })).toBeEnabled();
   });
 
@@ -241,7 +244,7 @@ describe('Arma2 Torneos plan experience por edición', () => {
   test('resolver error fails closed without mislabeling the tournament as Free', async () => {
     renderPlan({
       service: createService({
-        loadEntitlements: jest.fn().mockRejectedValue(new Error('resolver unavailable')),
+        loadSeasonEntitlements: jest.fn().mockRejectedValue(new Error('resolver unavailable')),
       }),
     });
 
@@ -252,11 +255,12 @@ describe('Arma2 Torneos plan experience por edición', () => {
       .not.toBeInTheDocument();
   });
 
-  test('a cross-edition payload is rejected instead of leaking Premium or Free', async () => {
+  test('a cross-season payload is rejected instead of leaking Premium or Free', async () => {
     renderPlan({
       service: createService({
-        loadEntitlements: jest.fn().mockResolvedValue(tournamentEntitlementsFixture({
-          tournamentId: CLAUSURA.id,
+        loadSeasonEntitlements: jest.fn().mockResolvedValue(tournamentEntitlementsFixture({
+          seasonId: SECOND_SEASON.id,
+          tournamentId: null,
           plan: TOURNAMENT_PLANS.PREMIUM,
         })),
       }),
@@ -268,18 +272,13 @@ describe('Arma2 Torneos plan experience por edición', () => {
       .not.toBeInTheDocument();
   });
 
-  test('changing edition discards the previous plan before resolving the next', async () => {
-    let releaseFree;
-    const freePlan = new Promise((resolve) => { releaseFree = resolve; });
+  test('changing a child tournament keeps the parent season plan', async () => {
     const service = createService({
-      loadEntitlements: jest.fn(({ tournamentId }) => (
-        tournamentId === APERTURA.id
-          ? Promise.resolve(tournamentEntitlementsFixture({
-            tournamentId,
-            plan: TOURNAMENT_PLANS.PREMIUM,
-          }))
-          : freePlan
-      )),
+      loadSeasonEntitlements: jest.fn().mockResolvedValue(tournamentEntitlementsFixture({
+        seasonId: SEASON.id,
+        tournamentId: null,
+        plan: TOURNAMENT_PLANS.PREMIUM,
+      })),
     });
 
     function TournamentHarness() {
@@ -288,7 +287,7 @@ describe('Arma2 Torneos plan experience por edición', () => {
         <>
           <button
             type="button"
-            onClick={() => competition.selectContext(SEASON, CLAUSURA.id)}
+            onClick={() => competition.selectContext(SEASON.id, CLAUSURA.id)}
           >
             Cambiar edición
           </button>
@@ -301,24 +300,12 @@ describe('Arma2 Torneos plan experience por edición', () => {
     expect(await screen.findByRole('heading', { name: 'Arma2 Torneos Premium' }))
       .toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Cambiar edición' }));
-    expect(await screen.findByText('Cargando el plan de este torneo…')).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Arma2 Torneos Premium' }))
-      .not.toBeInTheDocument();
-
-    releaseFree(tournamentEntitlementsFixture({ tournamentId: CLAUSURA.id }));
-    await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Arma2 Torneos Free' })).toBeInTheDocument();
-    });
-    expect(service.loadEntitlements).toHaveBeenLastCalledWith({
+    expect(await screen.findByRole('heading', { name: 'Arma2 Torneos Premium' }))
+      .toBeInTheDocument();
+    expect(service.loadSeasonEntitlements).toHaveBeenCalledTimes(1);
+    expect(service.loadSeasonEntitlements).toHaveBeenCalledWith({
       organizationId: ORGANIZATION.id,
-      tournamentId: CLAUSURA.id,
+      seasonId: SEASON.id,
     });
-  });
-
-  test('without an active edition it asks for one and never calls the resolver', async () => {
-    const service = createService({ activeTournamentId: null });
-    renderPlan({ service });
-    expect(await screen.findByText(/Elegí un torneo en el selector/i)).toBeInTheDocument();
-    expect(service.loadEntitlements).not.toHaveBeenCalled();
   });
 });

@@ -5,8 +5,11 @@ export const TOURNAMENT_PLANS = Object.freeze({
 });
 
 export const TOURNAMENT_PLAN_SOURCES = Object.freeze({
+  DEFAULT_FREE: 'default_free',
   FIRST_FREE: 'first_free',
   PURCHASE: 'purchase',
+  HISTORICAL_TOURNAMENT_GRANT: 'historical_tournament_grant',
+  MANUAL_LEGACY: 'manual_legacy',
   LEGACY_GRANT: 'legacy_grant',
   UNASSIGNED: 'unassigned',
 });
@@ -67,7 +70,10 @@ function matchesExpectedScope(scope, expectedScope) {
     return false;
   }
   if (Object.prototype.hasOwnProperty.call(expectedScope, 'tournamentId')) {
-    return (scope.tournamentId || null) === (expectedScope.tournamentId || null);
+    if ((scope.tournamentId || null) !== (expectedScope.tournamentId || null)) return false;
+  }
+  if (Object.prototype.hasOwnProperty.call(expectedScope, 'seasonId')) {
+    if ((scope.seasonId || null) !== (expectedScope.seasonId || null)) return false;
   }
   return true;
 }
@@ -80,29 +86,31 @@ function validPricing(pricing) {
     && pricing.launchPrice > 0
     && pricing.launchPrice < pricing.listPrice
     && pricing?.billingModel === 'one_time'
-    && ['tournament_edition', 'tournament'].includes(pricing?.scope);
+    && pricing?.scope === 'season';
 }
 
 function validPlanSource(plan, source) {
   if (!KNOWN_SOURCES.has(source)) return false;
   if (plan === TOURNAMENT_PLANS.PREMIUM) {
     return source === TOURNAMENT_PLAN_SOURCES.PURCHASE
+      || source === TOURNAMENT_PLAN_SOURCES.HISTORICAL_TOURNAMENT_GRANT
+      || source === TOURNAMENT_PLAN_SOURCES.MANUAL_LEGACY
       || source === TOURNAMENT_PLAN_SOURCES.LEGACY_GRANT;
   }
   if (plan === TOURNAMENT_PLANS.PREMIUM_REQUIRED) {
     return source === TOURNAMENT_PLAN_SOURCES.UNASSIGNED;
   }
-  return source === TOURNAMENT_PLAN_SOURCES.FIRST_FREE
-    ;
+  return source === TOURNAMENT_PLAN_SOURCES.DEFAULT_FREE
+    || source === TOURNAMENT_PLAN_SOURCES.FIRST_FREE;
 }
 
 export function normalizeTournamentEntitlements(payload, expectedScope = null) {
   const hasKnownPlan = payload?.plan === TOURNAMENT_PLANS.FREE
     || payload?.plan === TOURNAMENT_PLANS.PREMIUM
     || payload?.plan === TOURNAMENT_PLANS.PREMIUM_REQUIRED;
-  const scopeIsValid = payload?.scope?.type === 'tournament_edition'
+  const scopeIsValid = payload?.scope?.type === 'season'
     && matchesExpectedScope(payload?.scope, expectedScope);
-  const isTrusted = [2, 3].includes(payload?.schemaVersion)
+  const isTrusted = payload?.schemaVersion === 4
     && hasKnownPlan
     && scopeIsValid
     && validPricing(payload?.pricing)
@@ -165,7 +173,13 @@ export function normalizeTournamentEntitlements(payload, expectedScope = null) {
     branding: isTrusted ? {
       mode: payload?.branding?.mode || null,
       arma2Visible: payload?.branding?.arma2Visible === true,
+      canRemoveArma2: payload?.branding?.canRemoveArma2 === true,
       label: payload?.branding?.label || '',
+    } : null,
+    social: isTrusted ? {
+      baseFamilyLimit: Number.isInteger(payload?.social?.baseFamilyLimit)
+        ? payload.social.baseFamilyLimit : null,
+      premiumResultStyles: payload?.social?.premiumResultStyles === true,
     } : null,
     scope: isTrusted ? payload.scope : null,
   };

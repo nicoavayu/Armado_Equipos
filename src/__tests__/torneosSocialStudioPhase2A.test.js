@@ -368,6 +368,7 @@ describe('Social Studio Phase 2A themes and branding', () => {
     expect(prepared.branding).toEqual({
       tournamentName: 'Copa Horizonte', tournamentLogo: null,
       primaryColor: null, secondaryColor: null,
+      showArma2Branding: true,
     });
     const key = createSocialRenderKey({
       snapshot: resultsSnapshot(),

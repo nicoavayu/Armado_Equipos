@@ -374,6 +374,7 @@
 .planCards {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
   gap: 14px;
   margin-top: 22px;
 }
@@ -399,13 +400,24 @@
 }
 
 .proCard {
+  overflow: hidden;
   background:
-    radial-gradient(circle at 90% 8%, rgba(111, 145, 255, 0.16), transparent 34%),
-    radial-gradient(circle at 12% 95%, rgba(146, 91, 255, 0.1), transparent 38%),
+    radial-gradient(circle at 90% 8%, rgba(111, 145, 255, 0.24), transparent 34%),
+    radial-gradient(circle at 12% 95%, rgba(146, 91, 255, 0.16), transparent 38%),
     linear-gradient(145deg, rgba(139, 124, 255, 0.12), transparent 47%),
     rgba(19, 16, 43, 0.94);
-  border-color: rgba(146, 133, 255, 0.22);
-  box-shadow: inset 0 1px 0 rgba(224, 227, 255, 0.045);
+  border-color: rgba(146, 133, 255, 0.48);
+  box-shadow:
+    0 26px 68px rgba(39, 24, 112, 0.25),
+    inset 0 1px 0 rgba(224, 227, 255, 0.08);
+}
+
+.proCard::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: linear-gradient(90deg, #6f91ff, #8b7cff, #c15dff);
 }
 
 .cardTopline {
@@ -455,7 +467,7 @@
   display: flex;
   flex-direction: column;
   gap: 9px;
-  margin: auto 0 0;
+  margin: 22px 0 0;
   padding: 22px 0 0;
   list-style: none;
 }
@@ -470,12 +482,53 @@
 
 .planCard li svg { color: var(--plan-blue); }
 
+.planCard .quietFeature {
+  color: rgba(255, 255, 255, 0.47);
+  font-size: 11px;
+}
+
+.premiumAdds {
+  color: #c9c2ff !important;
+  font-size: 10px !important;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+}
+
+.planCard .premiumFeatureList {
+  gap: 0;
+  margin: 18px 0 0;
+  padding: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.planCard .premiumFeatureList li {
+  align-items: flex-start;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.premiumFeatureList li > span {
+  display: grid;
+  gap: 3px;
+}
+
+.premiumFeatureList strong {
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 12px;
+}
+
+.premiumFeatureList small {
+  color: rgba(255, 255, 255, 0.52);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
 .noPrice {
   width: 100%;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  margin-top: auto;
+  margin-top: 18px;
   padding: 18px;
   color: #e6e9f8;
   background:
@@ -501,6 +554,22 @@
   letter-spacing: 0.02em;
 }
 
+.priceAmount {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.priceAmount em {
+  color: rgba(255, 255, 255, 0.56);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
 .noPrice > span {
   margin-top: 8px;
   color: rgba(198, 206, 232, 0.78);
@@ -517,6 +586,12 @@
   font-weight: 700;
 }
 
+.noPrice .permanentAccess {
+  margin-top: 2px;
+  color: rgba(220, 226, 255, 0.68);
+  line-height: 1.45;
+}
+
 .proCard > button,
 .modal > button:last-child {
   min-height: 46px;
@@ -529,7 +604,7 @@
   color: #fff;
   background: linear-gradient(135deg, #6a43ff, #8b5cff);
   border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 12px 4px 12px 4px;
+  border-radius: 12px;
   box-shadow: 0 12px 28px rgba(106, 67, 255, 0.22);
   font-size: 13px;
   font-weight: 800;

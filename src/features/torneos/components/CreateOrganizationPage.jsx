@@ -1,16 +1,18 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Building2, LoaderCircle } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   normalizeOrganizationSlug,
   validateOrganizationInput,
 } from '../domain/organizationValidation';
 import { useTorneosWorkspace } from '../context/TorneosWorkspaceContext';
 import { canonicalRoutes } from '../routing/canonicalRoutes';
+import { capturePremiumIntent, hasPendingPremiumIntent, withPremiumIntent } from '../domain/premiumIntent';
 import styles from './TorneosShell.module.css';
 
 export default function CreateOrganizationPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { createOrganization, service } = useTorneosWorkspace();
   const idempotencyKeyRef = useRef(service.createIdempotencyKey());
   const [name, setName] = useState('');
@@ -24,6 +26,8 @@ export default function CreateOrganizationPage() {
     () => validateOrganizationInput({ name, slug }),
     [name, slug],
   );
+
+  useEffect(() => { capturePremiumIntent(location.search); }, [location.search]);
 
   const updateName = (event) => {
     const value = event.target.value;
@@ -78,7 +82,10 @@ export default function CreateOrganizationPage() {
         idempotencyKey: idempotencyKeyRef.current,
       });
       setStatus('success');
-      navigate(canonicalRoutes.organizationHome(organization.id), { replace: true });
+      const target = hasPendingPremiumIntent()
+        ? withPremiumIntent(canonicalRoutes.organizationTournaments(organization.id))
+        : canonicalRoutes.organizationHome(organization.id);
+      navigate(target, { replace: true });
     } catch (submitError) {
       setStatus('error');
       setError(submitError?.message || 'No pudimos crear la organización.');

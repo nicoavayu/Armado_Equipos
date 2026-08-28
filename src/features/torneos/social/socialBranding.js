@@ -18,6 +18,7 @@ export function normalizeSocialBranding(branding = {}, content = null) {
     tournamentLogo: optionalText(input.tournamentLogo) || null,
     primaryColor: optionalColor(input.primaryColor),
     secondaryColor: optionalColor(input.secondaryColor),
+    showArma2Branding: input.showArma2Branding !== false,
   });
 }
 

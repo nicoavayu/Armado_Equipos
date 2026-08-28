@@ -1819,6 +1819,164 @@
   text-transform: uppercase;
 }
 
+.seasonAssignments {
+  margin-bottom: 16px;
+  padding: 18px;
+  background:
+    linear-gradient(145deg, rgba(136, 92, 255, 0.07), transparent 48%),
+    var(--torneos-surface);
+  border: 1px solid var(--torneos-border);
+  border-radius: 14px;
+}
+
+.seasonAssignments > header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 15px;
+}
+
+.seasonAssignments h2 {
+  margin: 5px 0 6px;
+  font-family: "Bebas Neue", Impact, sans-serif;
+  font-size: 28px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+
+.seasonAssignments p {
+  max-width: 620px;
+  margin: 0;
+  color: var(--torneos-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.seasonAssignments label {
+  min-width: 210px;
+  display: grid;
+  gap: 6px;
+  color: #b9abc9;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.seasonAssignments select {
+  min-height: 40px;
+  padding: 0 34px 0 11px;
+  color: #eee8f6;
+  background: #17131d;
+  border: 1px solid var(--torneos-border);
+  border-radius: 8px;
+}
+
+.assignmentSummary {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 10px;
+  color: var(--torneos-muted);
+  font-size: 11px;
+}
+
+.assignmentSummary strong {
+  color: #ded1ff;
+  font-size: 19px;
+}
+
+.assignmentList {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.assignmentList article {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 11px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 9px;
+}
+
+.assignmentList article > span {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.assignmentList article strong,
+.assignmentList article small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.assignmentList article strong {
+  color: #eee8f6;
+  font-size: 12px;
+}
+
+.assignmentList article small {
+  color: var(--torneos-muted);
+  font-size: 10px;
+}
+
+.assignmentList button {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  color: #d8cff1;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--torneos-border);
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.assignmentList button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.assignmentList .assignmentActive {
+  color: #bff5de;
+  background: rgba(50, 200, 140, 0.09);
+  border-color: rgba(50, 200, 140, 0.25);
+}
+
+.assignmentEmpty {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 13px 0;
+}
+
+.seasonAssignments .assignmentError {
+  max-width: none;
+  margin: 0 0 10px;
+  padding: 9px 10px;
+  color: #ffd6dc;
+  background: rgba(255, 107, 132, 0.08);
+  border: 1px solid rgba(255, 107, 132, 0.18);
+  border-radius: 8px;
+}
+
+.spinIcon {
+  animation: assignment-spin 0.8s linear infinite;
+}
+
+@keyframes assignment-spin {
+  to { transform: rotate(360deg); }
+}
+
 .memberList {
   display: flex;
   flex-direction: column;
@@ -2294,6 +2452,19 @@
     justify-content: center;
   }
 
+  .seasonAssignments > header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .seasonAssignments label {
+    min-width: 0;
+  }
+
+  .assignmentList {
+    grid-template-columns: 1fr;
+  }
+
   .memberList article {
     gap: 9px;
     padding-inline: 10px;
@@ -2376,4 +2547,59 @@
   height: 100%;
   padding: 4px;
   object-fit: contain;
+}
+
+.appCallout {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 12px;
+  margin: 22px 0 0;
+  padding: 15px 16px;
+  border: 1px solid var(--torneos-border);
+  border-radius: var(--torneos-radius);
+  background: color-mix(in srgb, var(--torneos-card-bg) 94%, var(--torneos-accent) 6%);
+}
+.appCalloutIcon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; color: var(--torneos-accent); background: color-mix(in srgb, var(--torneos-accent) 12%, transparent); }
+.appCalloutCopy { display: grid; gap: 3px; min-width: 0; }
+.appCalloutCopy strong { font-size: .9rem; }
+.appCalloutCopy span { max-width: 600px; color: var(--torneos-muted); font-size: .78rem; line-height: 1.45; }
+.appCalloutLinks { display: flex; gap: 8px; white-space: nowrap; }
+.appCalloutLinks a {
+  min-height: 43px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 11px;
+  color: #fff;
+  background: #09090c;
+  border: 1px solid rgba(255, 255, 255, .18);
+  border-radius: var(--torneos-control-radius);
+  text-decoration: none;
+  box-shadow: inset 0 1px rgba(255, 255, 255, .08);
+}
+.appCalloutLinks a > svg { flex: 0 0 auto; font-size: 20px; }
+.appCalloutLinks a > span { display: grid; gap: 1px; }
+.appCalloutLinks small { color: rgba(255,255,255,.58); font-size: 8px; line-height: 1; }
+.appCalloutLinks strong { font-size: 12px; line-height: 1.05; }
+.appCalloutDismiss {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--torneos-control-radius);
+  padding: 0;
+  color: var(--torneos-muted);
+  background: transparent;
+  cursor: pointer;
+}
+.appCalloutDismiss:hover { color: var(--torneos-copy); background: var(--torneos-control-bg); border-color: var(--torneos-border); }
+
+@media (max-width: 700px) {
+  .appCallout { grid-template-columns: auto minmax(0, 1fr); padding: 16px 46px 16px 14px; }
+  .appCalloutDismiss { position: absolute; top: 9px; right: 9px; }
+  .appCalloutLinks { grid-column: 1 / -1; flex-wrap: wrap; margin-top: 4px; }
+  .appCalloutLinks a { flex: 1 1 128px; justify-content: center; }
 }
