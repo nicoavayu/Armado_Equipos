@@ -47,11 +47,64 @@ describe('tournament media service contracts', () => {
     );
   });
 
+  test('resolves organization-level Multimedia entitlements through a valid child tournament', async () => {
+    supabase.rpc.mockImplementation(async (name, args) => {
+      if (name === 'get_tournament_media_admin_context') {
+        return {
+          data: {
+            tournaments: [{
+              id: 'tournament-child-a',
+              seasonId: 'season-a',
+            }],
+            galleries: [],
+          },
+          error: null,
+        };
+      }
+      if (name === 'get_effective_tournament_entitlements') {
+        if (!args.p_tournament_id) {
+          return {
+            data: null,
+            error: { code: '42501', message: 'TORNEOS_ENTITLEMENTS_FORBIDDEN', status: 403 },
+          };
+        }
+        return {
+          data: { plan: 'FREE', media: { galleryAssetLimit: 25 } },
+          error: null,
+        };
+      }
+      if (name === 'get_tournament_media_asset_processing_tiers') {
+        return { data: {}, error: null };
+      }
+      return { data: { uploadReady: true }, error: null };
+    });
+
+    const context = await loadTournamentMediaAdminContext({
+      organizationId: 'owner-organization-a',
+      tournamentId: null,
+    });
+
+    expect(supabase.rpc).toHaveBeenCalledWith(
+      'get_effective_tournament_entitlements',
+      {
+        p_organization_id: 'owner-organization-a',
+        p_tournament_id: 'tournament-child-a',
+      },
+    );
+    expect(context.entitlements).toEqual({
+      plan: 'FREE',
+      media: { galleryAssetLimit: 25 },
+    });
+  });
+
   test('merges the persisted processing tier into each admin asset', async () => {
     supabase.rpc.mockImplementation(async (name) => {
       if (name === 'get_tournament_media_admin_context') {
         return {
-          data: { galleries: [{ id: 'gallery-a', assets: [{ id: 'asset-a' }] }] },
+          data: {
+            tournaments: [{ id: 'tournament-a', seasonId: 'season-a' }],
+            galleries: [{ id: 'gallery-a', assets: [{ id: 'asset-a' }] }],
+          },
           error: null,
         };
       }

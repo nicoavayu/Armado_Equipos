@@ -1936,7 +1936,7 @@ export async function loadTournamentMediaAdminContext({
   limit = 30,
   offset = 0,
 }) {
-  const [contextResult, capabilityResult, tiersResult, entitlementsResult] = await Promise.all([
+  const [contextResult, capabilityResult, tiersResult] = await Promise.all([
     supabase.rpc('get_tournament_media_admin_context', {
       p_organization_id: organizationId,
       p_tournament_id: tournamentId,
@@ -1950,18 +1950,20 @@ export async function loadTournamentMediaAdminContext({
     supabase.rpc('get_tournament_media_asset_processing_tiers', {
       p_organization_id: organizationId,
     }),
-    supabase.rpc('get_effective_tournament_entitlements', {
-      p_organization_id: organizationId,
-      p_tournament_id: tournamentId,
-    }),
   ]);
   const context = unwrapRpc(contextResult, 'No pudimos cargar el Centro Multimedia.');
   const storage = unwrapRpc(capabilityResult, 'No pudimos verificar la carga de fotos.');
   const processingTiers = unwrapRpc(tiersResult, 'No pudimos cargar las fotos.');
-  const entitlements = unwrapRpc(
-    entitlementsResult,
-    'No pudimos cargar la política multimedia.',
-  );
+  const entitlementTournamentId = tournamentId || context.tournaments?.[0]?.id || null;
+  const entitlements = entitlementTournamentId
+    ? unwrapRpc(
+      await supabase.rpc('get_effective_tournament_entitlements', {
+        p_organization_id: organizationId,
+        p_tournament_id: entitlementTournamentId,
+      }),
+      'No pudimos cargar la política multimedia.',
+    )
+    : null;
   const galleries = (context.galleries || []).map((gallery) => ({
     ...gallery,
     assets: (gallery.assets || []).map((asset) => ({
