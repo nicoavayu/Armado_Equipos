@@ -1,0 +1,593 @@
+{
+  "$schema": "./manifest.schema.json",
+  "schemaVersion": 2,
+  "name": "arma2-torneos-staging-readiness",
+  "status": "a1-a2-execution-contract-local-only",
+  "authorizedStages": [
+    "A1",
+    "A2"
+  ],
+  "repository": {
+    "branch": "feature/torneos-a1-execution-contract",
+    "baseBranch": "epic/arma2-torneos",
+    "authorizedHeadArgumentRequired": true,
+    "requiredMergedPrs": [
+      122,
+      123,
+      124,
+      125
+    ],
+    "requiredMergeCommits": [
+      "753add5c4c445e9f5c1eff3f2947c1804e649d76",
+      "e9a43a7bde37039f60e6b7b8e44bb84f8a118b42",
+      "93225cae8fde398e1c73b8a9e077325bda6d450d",
+      "1430c29321b3fc7fb09d6a05ac212463e55dbd9b"
+    ],
+    "planBindsExactHeadSha": true,
+    "requireCleanWorktree": true
+  },
+  "environment": {
+    "name": "staging",
+    "authorizedProjectRef": "hhyvmhgpapyuzjgxfnqv",
+    "forbiddenProjectRefs": [
+      "rcyuuoaqfwcembdajcss"
+    ],
+    "authorizedApiHost": "hhyvmhgpapyuzjgxfnqv.supabase.co",
+    "productionApiHost": "rcyuuoaqfwcembdajcss.supabase.co",
+    "unknownProjectRefs": "reject",
+    "production": "always-reject"
+  },
+  "stages": [
+    {
+      "name": "inspect",
+      "mutation": false,
+      "approval": "none"
+    },
+    {
+      "name": "plan",
+      "mutation": false,
+      "approval": "none",
+      "requires": [
+        "inspect"
+      ]
+    },
+    {
+      "name": "dry-run",
+      "mutation": false,
+      "approval": "none",
+      "requires": [
+        "plan"
+      ]
+    },
+    {
+      "name": "migrate",
+      "mutation": true,
+      "approval": "per-stage",
+      "requires": [
+        "dry-run"
+      ]
+    },
+    {
+      "name": "storage",
+      "mutation": true,
+      "approval": "per-stage",
+      "requires": [
+        "migrate"
+      ]
+    },
+    {
+      "name": "secrets-check",
+      "mutation": false,
+      "approval": "read-only",
+      "requires": [
+        "storage"
+      ]
+    },
+    {
+      "name": "edge-deploy",
+      "mutation": true,
+      "approval": "per-function",
+      "requires": [
+        "secrets-check"
+      ]
+    },
+    {
+      "name": "worker-check",
+      "mutation": false,
+      "approval": "read-only",
+      "requires": [
+        "edge-deploy"
+      ]
+    },
+    {
+      "name": "attest",
+      "mutation": true,
+      "approval": "per-service",
+      "requires": [
+        "worker-check"
+      ]
+    },
+    {
+      "name": "enable-multimedia",
+      "mutation": true,
+      "approval": "per-stage",
+      "requires": [
+        "attest"
+      ]
+    },
+    {
+      "name": "qa-multimedia",
+      "mutation": false,
+      "approval": "human",
+      "requires": [
+        "enable-multimedia"
+      ]
+    },
+    {
+      "name": "enable-social",
+      "mutation": true,
+      "approval": "per-stage",
+      "requires": [
+        "qa-multimedia"
+      ]
+    },
+    {
+      "name": "qa-social",
+      "mutation": false,
+      "approval": "human",
+      "requires": [
+        "enable-social"
+      ]
+    },
+    {
+      "name": "rollback",
+      "mutation": true,
+      "approval": "per-stage",
+      "requires": [
+        "plan"
+      ]
+    },
+    {
+      "name": "cleanup-local",
+      "mutation": true,
+      "approval": "local-only",
+      "requires": []
+    }
+  ],
+  "migrationPolicy": {
+    "selection": "explicit-subset-not-complete-remote-history",
+    "unexpectedRemoteMigration": "abort",
+    "missingPredecessor": "abort",
+    "checksumMismatch": "abort",
+    "outOfOrder": "abort",
+    "transactionRequired": true,
+    "oneMigrationPerExecution": true,
+    "historyBeforeSource": "snapshot-exact",
+    "historyAfterRule": "history-before-plus-exact-authorized-version",
+    "concurrentMigrationPolicy": "abort",
+    "pauseAfterEachMigration": true,
+    "timeoutLimitsMs": {
+      "lockTimeoutMs": 10000,
+      "statementTimeoutMs": 300000,
+      "idleInTransactionSessionTimeoutMs": 120000
+    },
+    "historyComparison": [
+      "applied",
+      "local",
+      "remote-history",
+      "checksums",
+      "order",
+      "unexpected",
+      "missing"
+    ],
+    "migrations": [
+      {
+        "order": 1,
+        "version": "20260802090000",
+        "file": "supabase/migrations/20260802090000_tournament_media_upload_pipeline.sql",
+        "sha256": "793ffbbe8cf7f7f94b4924d781fa81e01ebf92208c80e70b60e2daf92a72a417",
+        "rollback": "supabase/rollbacks/20260802090000_tournament_media_upload_pipeline.safe.sql",
+        "rollbackSha256": "1e8eecc3e93eccc2701b1b4808bb9039aa0c67a45dd4a12d322e5d1102dcf8ad",
+        "risk": "high",
+        "expectedLocks": [
+          "ACCESS EXCLUSIVE on newly created relations",
+          "catalog locks for functions and grants"
+        ],
+        "execution": {
+          "authorizedStage": "A1",
+          "singleMigrationOnly": true,
+          "transactionRequired": true,
+          "onErrorStop": true,
+          "applicationName": "arma2-torneos-a1-migrate",
+          "projectRef": "hhyvmhgpapyuzjgxfnqv",
+          "repositoryShaSource": "authorized-argument-must-match-head",
+          "checksumRequired": true,
+          "versionRequired": true,
+          "rollbackRequired": true,
+          "snapshotRequired": true,
+          "planRequired": true,
+          "historyBeforeSource": "snapshot-exact",
+          "historyAfterRule": "history-before-plus-this-version",
+          "requiresAppliedBefore": [],
+          "concurrentMigrations": "abort",
+          "postApplyPause": true,
+          "timeouts": {
+            "lockTimeoutMs": 5000,
+            "statementTimeoutMs": 120000,
+            "idleInTransactionSessionTimeoutMs": 60000
+          }
+        }
+      },
+      {
+        "order": 2,
+        "version": "20260802120000",
+        "file": "supabase/migrations/20260802120000_tournament_media_trusted_processing.sql",
+        "sha256": "5b678c593f685feb66ee34fd694403bac2cae828321eae65ee044287a51eba73",
+        "rollback": "supabase/rollbacks/20260802120000_tournament_media_trusted_processing.safe.sql",
+        "rollbackSha256": "9d7236bc51af0c321cff8ac772869b57959e718a7d6d2a6c06a60d255f62fc49",
+        "risk": "high",
+        "expectedLocks": [
+          "ACCESS EXCLUSIVE on newly created relations",
+          "catalog locks for replaced functions"
+        ],
+        "execution": {
+          "authorizedStage": "A2",
+          "singleMigrationOnly": true,
+          "transactionRequired": true,
+          "onErrorStop": true,
+          "applicationName": "arma2-torneos-a2-migrate",
+          "projectRef": "hhyvmhgpapyuzjgxfnqv",
+          "repositoryShaSource": "authorized-argument-must-match-head",
+          "checksumRequired": true,
+          "versionRequired": true,
+          "rollbackRequired": true,
+          "snapshotRequired": true,
+          "planRequired": true,
+          "historyBeforeSource": "snapshot-exact",
+          "historyAfterRule": "history-before-plus-this-version",
+          "requiresAppliedBefore": [
+            "20260802090000"
+          ],
+          "concurrentMigrations": "abort",
+          "postApplyPause": true,
+          "timeouts": {
+            "lockTimeoutMs": 5000,
+            "statementTimeoutMs": 180000,
+            "idleInTransactionSessionTimeoutMs": 60000
+          }
+        }
+      },
+      {
+        "order": 3,
+        "version": "20260803090000",
+        "file": "supabase/migrations/20260803090000_tournament_social_studio.sql",
+        "sha256": "000ed7c503f148f2bf7ed666526d031c16a84eb07518959c8a7e5c48c3d599e2",
+        "rollback": "supabase/rollbacks/20260803090000_tournament_social_studio.safe.sql",
+        "rollbackSha256": "ad5c5cb87e68e1901b4a915180968da8d46e919af721950f26ef30c5e5a7e048",
+        "risk": "medium",
+        "expectedLocks": [
+          "ACCESS EXCLUSIVE on newly created relations",
+          "catalog locks for functions and grants"
+        ],
+        "execution": {
+          "authorizedStage": null,
+          "blocked": true,
+          "reason": "outside-authorized-stages"
+        }
+      }
+    ]
+  },
+  "storage": {
+    "bucket": "tournament-media",
+    "public": false,
+    "maxFileBytes": 12582912,
+    "allowedMimeTypes": [
+      "image/jpeg",
+      "image/png",
+      "image/webp"
+    ],
+    "forbiddenMimeTypes": [
+      "image/svg+xml"
+    ],
+    "clientDirectWriteRoles": [],
+    "policies": [
+      "tournament_media_service_read",
+      "tournament_media_service_insert",
+      "tournament_media_service_update",
+      "tournament_media_service_delete"
+    ],
+    "unexpectedPolicy": "abort",
+    "replaceExistingPolicy": false,
+    "modes": [
+      "inspect",
+      "plan",
+      "dry-run",
+      "apply",
+      "verify",
+      "rollback"
+    ]
+  },
+  "edgeFunctions": [
+    {
+      "name": "tournament-media-signer",
+      "role": "signed-url-gateway",
+      "entrypoint": "supabase/functions/tournament-media-signer/index.ts",
+      "sha256": "10ee251f114e871771282e241f246400ff6581142a1d22ee9a0483f9fc6cc2b5",
+      "verifyJwt": true,
+      "deployOrder": 1,
+      "healthContract": "probes the private bucket end to end (signed upload, write, signed read, fetch, delete) and writes the signer attestation from what the probe actually demonstrated",
+      "healthAuthorization": "x-media-attestation-secret",
+      "attests": [
+        "signer"
+      ],
+      "revokesOnHealth": [],
+      "attestationTtlSeconds": 3600,
+      "attestationRenewal": "external-scheduler-required",
+      "rollback": "restore previous recorded release; otherwise revoke attestation and undeploy only with separate approval"
+    },
+    {
+      "name": "tournament-media-processor",
+      "role": "queue-orchestrator-edge-not-image-worker",
+      "entrypoint": "supabase/functions/tournament-media-processor/index.ts",
+      "sha256": "9b8f37e461bf0c0c55f4b8dd76c17716702b3b6f63aca2db983d2ec4b0115c6e",
+      "verifyJwt": true,
+      "deployOrder": 2,
+      "healthContract": "structural pre-flight only; REVOKES any stale processor attestation and never writes one. The Edge runtime has no libvips and no ClamAV, so it cannot pass the processor self-test and is not on the worker type allowlist",
+      "healthAuthorization": "x-media-attestation-secret",
+      "attests": [],
+      "revokesOnHealth": [
+        "processor"
+      ],
+      "attestationTtlSeconds": null,
+      "attestationRenewal": "not-applicable",
+      "processorAttestationOwner": "workers/tournament-media-processor",
+      "rollback": "restore previous recorded release; otherwise revoke attestation and undeploy only with separate approval"
+    }
+  ],
+  "signerAttestationRenewal": {
+    "required": true,
+    "reason": "the signer only attests while answering its own health probe, so its 3600s attestation cannot renew itself the way the worker loop renews the processor's",
+    "path": "workers/tournament-media-signer-renewer",
+    "entrypoint": "workers/tournament-media-signer-renewer/src/cli.mjs",
+    "runbook": "docs/operations/tournament-media-signer-attestation-renewal.md",
+    "attestationTtlSeconds": 3600,
+    "intervalSeconds": 1200,
+    "jitterRatio": 0.1,
+    "timeoutMs": 10000,
+    "maxAttempts": 3,
+    "backoffBaseMs": 2000,
+    "backoffMaxMs": 30000,
+    "safetyMarginSeconds": 900,
+    "alertAfterConsecutiveFailures": 2,
+    "idempotent": true,
+    "failClosed": "no code path extends, forges or preserves an attestation; the TTL expiring is the enforcement",
+    "holdsServiceCredential": false,
+    "secretExposure": "attestation secret stays in the worker host secret store; never in the database, never in CI, never in a public endpoint",
+    "scheduler": {
+      "configuredInThisChange": false,
+      "deployedInThisChange": false,
+      "stagingOwner": "the host/orchestrator that already runs workers/tournament-media-processor in Staging, as a sidecar service",
+      "productionOwner": "not applicable while Multimedia is forced false in production; same sidecar pattern and a distinct secret when it exists",
+      "rejectedAlternatives": [
+        "pg_cron plus pg_net, because the attestation secret would have to live inside the database",
+        "GitHub Actions cron, because it moves the secret into CI and its schedule granularity does not fit a 3600s window",
+        "any publicly callable renewal endpoint, because a renewal without the secret turns the attestation into a rubber stamp"
+      ]
+    },
+    "gatewayCredential": {
+      "separateFromAttestationSecret": true,
+      "mustSatisfyVerifyJwt": true,
+      "reason": "Every Edge Function in this manifest is deployed with verifyJwt true, so the Authorization bearer has to be a JWT the gateway can verify. The attestation secret authorises the renewal itself and is a different credential at a different layer.",
+      "acceptedOptions": [
+        "TOURNAMENT_MEDIA_GATEWAY_JWT: a dedicated identity JWT with role anon or authenticated (preferred)",
+        "SUPABASE_ANON_KEY: the legacy anon key, which is itself a JWT and serves as both apikey and bearer",
+        "SUPABASE_PUBLISHABLE_KEY as apikey together with TOURNAMENT_MEDIA_GATEWAY_JWT as bearer"
+      ],
+      "rejected": [
+        "sb_secret_ prefixed keys: service credentials, which this process must never hold",
+        "a JWT whose role claim is service_role: the same privilege in JWT form",
+        "sb_publishable_ prefixed keys used as the bearer: not a JWT, refused by verify_jwt",
+        "any opaque non-JWT string used as the bearer"
+      ],
+      "validatedLocally": "structure, algorithm, role claim, expiry and project ref; never the signature, which only the gateway can verify, and never by printing the value"
+    },
+    "gatewayProbe": {
+      "entrypoint": "scripts/torneos-staging/signer-gateway-probe.mjs",
+      "runbook": "docs/operations/tournament-media-signer-gateway-probe.md",
+      "executedInThisChange": false,
+      "requiresExplicitAuthorization": true,
+      "authorizations": [
+        "--i-authorize-attestation-write flag",
+        "TORNEOS_PROBE_AUTHORIZATION phrase",
+        "--project-ref spelled out"
+      ],
+      "writes": "one signer attestation row with a 3600s TTL, because the health action is the only endpoint that answers and it attests as part of answering",
+      "defaultCommand": "plan, which contacts nothing and prints the request it would make plus the rollback",
+      "rollback": "let the 3600s TTL expire, or revoke immediately with revoke_tournament_media_service_attestation(p_service := signer) through the approved flow, then re-read tournament_media_pipeline_readiness() to confirm closure"
+    },
+    "onceMode": {
+      "statePersisted": true,
+      "stateFile": "TOURNAMENT_MEDIA_RENEW_STATE_FILE, an absolute path",
+      "stateFileMode": "0600",
+      "atomicWrites": true,
+      "exclusiveLock": true,
+      "corruptionFailsClosed": true,
+      "contents": "a failure counter, the last success timestamp, the last failure code and an alerting flag; no secret, no response body, no URL",
+      "reason": "without persisted state the consecutive-failure counter restarts at zero on every run, so the alert threshold is never reached and the required renewal-failures metric is structurally unreachable",
+      "orchestratorAlternative": "Run without a state file and let the scheduler alert on N consecutive non-zero exits (systemd OnFailure, Kubernetes CronJob failure history). The renewer then emits no consecutive-failure metric and the observability catalog entry must be sourced from the orchestrator instead."
+    },
+    "shutdown": {
+      "interruptibleSleep": true,
+      "signals": [
+        "SIGTERM",
+        "SIGINT"
+      ],
+      "budgetSeconds": 5,
+      "notes": "the interval sleep is cancellable, listeners are removed and timers cleared on exit, and the final log line passes through the same redactor as every other"
+    },
+    "initialSeverity": {
+      "unprovableMarginIsCritical": true,
+      "notes": "a process with no known last success cannot show any TTL margin; the alert escalates to critical rather than sitting in warning forever"
+    }
+  },
+  "configuration": {
+    "variables": [
+      "SUPABASE_URL"
+    ],
+    "secretAlternatives": [
+      [
+        "SUPABASE_SECRET_KEYS",
+        "SUPABASE_SERVICE_ROLE_KEY"
+      ],
+      [
+        "SUPABASE_PUBLISHABLE_KEYS",
+        "SUPABASE_ANON_KEY"
+      ],
+      [
+        "TOURNAMENT_MEDIA_ATTESTATION_SECRET"
+      ]
+    ],
+    "secretValuesInManifest": false,
+    "browserForbiddenPatterns": [
+      "SERVICE_ROLE",
+      "SECRET_KEY",
+      "SUPABASE_SECRET_KEYS"
+    ]
+  },
+  "worker": {
+    "path": "workers/tournament-media-processor",
+    "runtime": "node",
+    "nodeMajor": 22,
+    "sharpVersion": "0.35.3",
+    "libvipsRequired": true,
+    "clamavRequired": true,
+    "clamdEndpoint": "clamd:3310",
+    "freshclamRequired": true,
+    "maxSignatureAgeDays": 7,
+    "cpuLimit": 1,
+    "memoryLimitMiB": 1024,
+    "maxInputBytes": 12582912,
+    "maxInputPixels": 36000000,
+    "timeoutSeconds": 20,
+    "leaseSeconds": 300,
+    "retries": 3,
+    "backoff": "bounded-exponential-with-jitter",
+    "idempotency": "database idempotency key plus lease token",
+    "health": "self-test must prove decode, transcode, metadata stripping, antivirus, storage and cleanup",
+    "attestationTtlSeconds": 900,
+    "attestationRenewalIntervalSeconds": 300,
+    "attestationRenewedBy": "its own loop; the worker re-attests at a third of the TTL",
+    "serviceCredentialReview": "docs/operations/tournament-media-service-role-review.md",
+    "safeShutdown": "stop leasing, finish current job, revoke attestation"
+  },
+  "flags": {
+    "productionForcedFalse": true,
+    "initial": {
+      "REACT_APP_TORNEOS_MEDIA_UPLOAD_ENABLED": false,
+      "REACT_APP_TORNEOS_SOCIAL_GENERATOR_ENABLED": false,
+      "REACT_APP_TORNEOS_MEDIA_OBSERVABILITY_READY": false
+    },
+    "multimediaRequiresUploadReady": true,
+    "multimediaRequiresObservability": true,
+    "socialRequiresMultimediaQa": true,
+    "enableOrder": [
+      "multimedia",
+      "qa-multimedia",
+      "social",
+      "qa-social"
+    ]
+  },
+  "qa": {
+    "matrix": "ops/torneos-staging/qa-matrix.json",
+    "fixture": "ops/torneos-staging/fixtures/local-ready.json",
+    "remoteExecutionInThisChange": false
+  },
+  "rollback": {
+    "automaticDataDeletion": false,
+    "disableFlagsFirst": true,
+    "revokeAttestations": true,
+    "blockNewWrites": true,
+    "drainJobs": true,
+    "preserveUserData": true,
+    "destructiveCleanupRequiresSecondApproval": true
+  },
+  "cleanup": {
+    "localOnlyByDefault": true,
+    "remoteObjectDeletionAutomatic": false,
+    "identityMapContentInOutput": false
+  },
+  "observability": {
+    "structuredLogs": true,
+    "sanitize": [
+      "tokens",
+      "keys",
+      "signed-urls",
+      "identity-maps",
+      "credentials"
+    ],
+    "catalog": "ops/torneos-staging/observability/catalog.json",
+    "preflightQuery": "ops/torneos-staging/observability/media-pipeline-preflight.sql",
+    "query": "ops/torneos-staging/observability/media-pipeline-signals.sql",
+    "runbook": "docs/operations/tournament-media-observability.md",
+    "browserFlag": "REACT_APP_TORNEOS_MEDIA_OBSERVABILITY_READY",
+    "signalsDeployedInStaging": false,
+    "validatedInStaging": false,
+    "flagMustRemainFalseUntilValidated": true,
+    "requiredSignals": [
+      "migration-drift",
+      "quarantine-depth",
+      "queue-depth",
+      "job-age",
+      "expired-leases",
+      "stuck-leases",
+      "worker-health",
+      "clamav-signature-age",
+      "attestation-expiry",
+      "attestation-renewal-failures",
+      "selftest-failures",
+      "cleanup-failures",
+      "residual-probe-objects",
+      "residual-selftest-objects",
+      "signer-latency",
+      "signer-error-rate",
+      "processor-latency",
+      "processor-error-rate",
+      "upload-errors"
+    ],
+    "collectorsNotImplemented": [
+      "database",
+      "readiness",
+      "runtime",
+      "storage"
+    ],
+    "collectorContract": {
+      "database": "A role with SELECT on the media tables, EXECUTE on tournament_media_pipeline_readiness(), and a provable RLS exemption (rolbypassrls, rolsuper, or ownership without FORCE ROW LEVEL SECURITY). Membership in a policy target role is explicitly not sufficient.",
+      "provenAtCollectionTime": true,
+      "phases": 2,
+      "phaseOrder": "preflightQuery first; query runs only if the preflight returned observable: true, as the same role against the same database.",
+      "whyTwoPhases": "PostgreSQL resolves relation and function names at parse time and checks table privileges at executor start-up, for the whole range table, before any CASE is evaluated. A single statement therefore cannot report table_absent, no_select_privilege or no_execute_privilege — it fails with them. The preflight touches only pg_catalog, to_regclass and to_regprocedure, none of which raise for a missing or forbidden object, which is what makes those three reportable as blockers.",
+      "failsClosed": "A failing preflight means the metrics query is never run, so there are no counts to misread; and snapshotFromCollectorPhases() refuses metrics that arrive without a matching, recent, same-role preflight.",
+      "grantedInThisChange": false
+    }
+  },
+  "authorizedStagesProposal": {
+    "applied": false,
+    "document": "docs/operations/torneos-authorized-stages-proposal.md",
+    "proposedStages": [
+      "A3",
+      "A4",
+      "A5",
+      "A6"
+    ],
+    "note": "Prepared for review only. `authorizedStages` above stays ['A1','A2'] and every deploy/enablement stage stays outside the executable allowlist until this proposal is approved as its own change."
+  },
+  "approvals": {
+    "humanBeforeMutation": true,
+    "perStageToken": true,
+    "exactPlanSha": true,
+    "exactRepositorySha": true,
+    "priorStateReceipt": true,
+    "pauseBetweenEdgeFunctions": true,
+    "singleApplyAllCommand": false
+  }
+}

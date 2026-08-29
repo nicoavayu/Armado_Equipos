@@ -1,0 +1,1435 @@
+.page {
+  display: grid;
+  gap: 22px;
+  width: min(100%, 1240px);
+  margin: 0 auto;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.pageHeader,
+.matchHeader {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 8px 2px;
+}
+
+.pageHeader h1,
+.matchHeader h1 {
+  margin: 5px 0 8px;
+  font-family: "Bebas Neue", "Oswald", sans-serif;
+  font-size: clamp(2.6rem, 6vw, 5.2rem);
+  font-weight: 400;
+  line-height: 0.88;
+  letter-spacing: 0.025em;
+  text-transform: uppercase;
+}
+
+.scoreboard b {
+  font-size: clamp(2rem, 4vw, 3rem);
+}
+
+.matchHeader h1 {
+  font-size: clamp(2.2rem, 5vw, 4.1rem);
+}
+
+.matchHeader h1 em {
+  color: var(--torneos-purple-bright);
+  font-style: normal;
+}
+
+.pageHeader p,
+.matchHeader p {
+  max-width: 720px;
+  margin: 0;
+  color: var(--torneos-muted);
+  line-height: 1.6;
+}
+
+.kicker {
+  color: var(--torneos-purple-bright);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.headerStamp,
+.categoryStamp {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  padding: 10px 14px;
+  color: var(--torneos-green);
+  background: rgba(77, 226, 167, 0.08);
+  border: 1px solid rgba(77, 226, 167, 0.25);
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.metrics article {
+  position: relative;
+  display: grid;
+  gap: 3px;
+  min-height: 122px;
+  padding: 18px;
+  overflow: hidden;
+  background:
+    linear-gradient(135deg, rgba(136, 92, 255, 0.08), transparent 62%),
+    var(--torneos-surface);
+  border: 1px solid var(--torneos-border);
+  border-radius: 18px 5px 18px 5px;
+}
+
+.metrics article::after {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 42px;
+  height: 3px;
+  content: "";
+  background: var(--torneos-purple-bright);
+}
+
+.metrics span,
+.metrics small {
+  color: var(--torneos-muted);
+  font-size: 0.76rem;
+}
+
+.metrics strong {
+  font-family: "Bebas Neue", "Oswald", sans-serif;
+  font-size: 2.3rem;
+  font-weight: 400;
+}
+
+.filterBar {
+  display: flex;
+  gap: 10px;
+  padding: 12px;
+  background: rgba(14, 13, 22, 0.72);
+  border: 1px solid var(--torneos-border);
+  border-radius: 15px;
+}
+
+.filterBar label,
+.searchField,
+.rosterSearch {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  padding: 0 12px;
+  color: var(--torneos-muted);
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--torneos-border);
+  border-radius: 10px;
+}
+
+.filterBar input,
+.filterBar select,
+.rosterSearch input {
+  min-width: 0;
+  color: var(--torneos-copy);
+  background: transparent;
+  border: 0;
+  outline: 0;
+}
+
+.searchField {
+  flex: 1;
+}
+
+.matchList {
+  display: grid;
+  gap: 9px;
+}
+
+.matchRow {
+  display: grid;
+  grid-template-columns: 130px minmax(260px, 1fr) auto auto auto;
+  align-items: center;
+  gap: 18px;
+  min-height: 94px;
+  padding: 14px;
+  background: var(--torneos-surface);
+  border: 1px solid var(--torneos-border);
+  border-radius: 15px;
+  transition: border-color 160ms ease, transform 160ms ease;
+}
+
+.matchRow:hover {
+  border-color: var(--torneos-border-strong);
+  transform: translateY(-1px);
+}
+
+.dateBlock {
+  display: grid;
+  gap: 4px;
+  min-height: 62px;
+  padding: 10px 12px;
+  background: rgba(136, 92, 255, 0.08);
+  border-left: 3px solid var(--torneos-purple-bright);
+}
+
+.dateBlock span {
+  color: var(--torneos-muted);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dateBlock strong {
+  font-size: 1.18rem;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.teamsBlock {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+}
+
+.teamsBlock strong:last-of-type {
+  text-align: right;
+}
+
+.teamsBlock > span {
+  color: var(--torneos-purple-bright);
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.teamsBlock small {
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  gap: 5px;
+  color: var(--torneos-muted);
+}
+
+.squadSignals {
+  display: flex;
+  gap: 5px;
+}
+
+.squadSignals span {
+  display: grid;
+  min-width: 36px;
+  min-height: 36px;
+  place-items: center;
+  color: var(--torneos-muted);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--torneos-border);
+  border-radius: 8px;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.squadSignals span[data-ready="true"] {
+  color: var(--torneos-green);
+  border-color: rgba(77, 226, 167, 0.28);
+}
+
+.statusPill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 5px 9px;
+  color: var(--torneos-muted);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--torneos-border);
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.statusPill[data-status="official"],
+.statusPill[data-status="validated"],
+.statusPill[data-status="approved"] {
+  color: var(--torneos-green);
+  background: rgba(77, 226, 167, 0.07);
+  border-color: rgba(77, 226, 167, 0.25);
+}
+
+.statusPill[data-status="correction_requested"],
+.statusPill[data-status="suspended"],
+.statusPill[data-status="rejected"] {
+  color: #ffc06b;
+  background: rgba(255, 192, 107, 0.07);
+  border-color: rgba(255, 192, 107, 0.25);
+}
+
+.statusPill[data-status="voided"],
+.statusPill[data-status="cancelled"] {
+  color: var(--torneos-danger);
+}
+
+.rowActions a,
+.textLink,
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 44px;
+  color: var(--torneos-purple-bright);
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.backLink {
+  width: fit-content;
+}
+
+.scoreboard {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 22px;
+  padding: 20px clamp(16px, 4vw, 42px);
+  background:
+    linear-gradient(100deg, rgba(136, 92, 255, 0.14), transparent 36%, transparent 64%, rgba(77, 226, 167, 0.08)),
+    #11101a;
+  border: 1px solid var(--torneos-border-strong);
+  border-radius: 22px 6px 22px 6px;
+}
+
+.scoreboard > div {
+  display: grid;
+  gap: 5px;
+}
+
+.scoreboard > div:last-child {
+  text-align: right;
+}
+
+.scoreboard small {
+  color: var(--torneos-muted);
+  font-size: 0.65rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
+.scoreboard > span {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.scoreboard b {
+  min-width: 48px;
+  font-family: "Bebas Neue", "Oswald", sans-serif;
+  font-size: clamp(2.5rem, 6vw, 4.2rem);
+  font-weight: 400;
+  line-height: 1;
+  text-align: center;
+}
+
+.scoreboard em {
+  color: var(--torneos-purple-bright);
+  font-style: normal;
+}
+
+.matchSubnav {
+  display: flex;
+  gap: 6px;
+  padding: 5px;
+  overflow-x: auto;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--torneos-border);
+  border-radius: 12px;
+  scrollbar-width: none;
+}
+
+.matchSubnav a {
+  display: grid;
+  min-height: 44px;
+  padding: 0 14px;
+  place-items: center;
+  color: var(--torneos-muted);
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.matchSubnav a:hover,
+.matchSubnav a:focus-visible {
+  color: var(--torneos-copy);
+  background: rgba(136, 92, 255, 0.1);
+}
+
+.detailGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.detailCard {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  min-height: 250px;
+  padding: 22px;
+  background: var(--torneos-surface);
+  border: 1px solid var(--torneos-border);
+  border-radius: 18px 5px 18px 5px;
+}
+
+.detailCard > svg {
+  color: var(--torneos-purple-bright);
+}
+
+.detailCard > span,
+.panelHeading span {
+  color: var(--torneos-muted);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.detailCard h2,
+.panelHeading h2,
+.closureCard h2 {
+  margin: 4px 0;
+  font-size: 1.18rem;
+}
+
+.detailCard p,
+.closureCard p,
+.helperCopy {
+  color: var(--torneos-muted);
+  line-height: 1.55;
+}
+
+.detailCard a,
+.detailCard button {
+  margin-top: auto;
+}
+
+.detailCard a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+.page button,
+.page input,
+.page select,
+.page textarea {
+  box-sizing: border-box;
+  font: inherit;
+}
+
+.page button,
+.primaryButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 9px 13px;
+  color: var(--torneos-copy);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--torneos-border);
+  border-radius: 9px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.page button:hover:not(:disabled) {
+  border-color: var(--torneos-border-strong);
+}
+
+.page button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.page .primaryButton {
+  color: #120f1d;
+  background: var(--torneos-purple-bright);
+  border-color: transparent;
+}
+
+.teamTabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 5px;
+  border: 1px solid var(--torneos-border);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, .025);
+}
+
+.teamTabs button {
+  border-color: transparent;
+  border-radius: 12px;
+  white-space: nowrap;
+}
+
+.teamTabs button[aria-selected="true"] {
+  color: #fff;
+  background: linear-gradient(135deg, #8058f5, #6840e9);
+  border-color: rgba(186, 169, 255, 0.46);
+  box-shadow: 0 6px 18px rgba(94, 55, 216, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+.squadPanel,
+.reportSection,
+.reviewPanel,
+.historyPanel,
+.closureCard {
+  padding: clamp(16px, 3vw, 26px);
+  background: var(--torneos-surface);
+  border: 1px solid var(--torneos-border);
+  border-radius: 18px 5px 18px 5px;
+}
+
+.panelHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.panelHeading > svg {
+  color: var(--torneos-purple-bright);
+}
+
+.squadSummary {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+  overflow-x: auto;
+}
+
+.squadSummary span {
+  min-width: max-content;
+  padding: 8px 10px;
+  color: var(--torneos-muted);
+  background: rgba(255, 255, 255, 0.035);
+  border-radius: 8px;
+  font-size: 0.75rem;
+}
+
+.squadSummary b {
+  color: var(--torneos-copy);
+}
+
+.rosterSearch {
+  margin-bottom: 12px;
+}
+
+.rosterSearch input {
+  width: 100%;
+}
+
+.rosterList {
+  display: grid;
+  gap: 7px;
+}
+
+.rosterPlayerSelected {
+  background: rgba(136, 92, 255, 0.07);
+  border-color: var(--torneos-border-strong) !important;
+}
+
+.rosterList article {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  border: 1px solid var(--torneos-border);
+  border-radius: 12px;
+}
+
+.playerIdentity {
+  display: grid !important;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  justify-content: initial !important;
+  width: 100%;
+  padding: 0 !important;
+  text-align: left;
+  background: transparent !important;
+  border: 0 !important;
+}
+
+.playerIdentity > span:nth-child(2) {
+  display: grid;
+  min-width: 0;
+}
+
+.playerIdentity small {
+  overflow: hidden;
+  color: var(--torneos-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.playerIdentity em {
+  color: var(--torneos-purple-bright);
+  font-size: 0.7rem;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.playerAvatar {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  overflow: hidden;
+  place-items: center;
+  background: rgba(136, 92, 255, 0.12);
+  border: 1px solid var(--torneos-border-strong);
+  border-radius: 50%;
+  font-size: 0.68rem;
+  font-weight: 900;
+}
+
+.playerAvatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.playerControls {
+  display: flex;
+  gap: 5px;
+}
+
+.playerControls select {
+  min-height: 44px;
+  color: var(--torneos-copy);
+  background: #191724;
+  border: 1px solid var(--torneos-border);
+  border-radius: 8px;
+}
+
+.playerControls button {
+  min-width: 44px;
+  padding: 7px !important;
+}
+
+.playerControls button[aria-pressed="true"] {
+  color: #120f1d;
+  background: var(--torneos-green);
+}
+
+.stickyActions {
+  position: sticky;
+  bottom: 10px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+  padding: 10px;
+  background: rgba(9, 9, 15, 0.92);
+  border: 1px solid var(--torneos-border);
+  border-radius: 12px;
+  backdrop-filter: blur(14px);
+}
+
+.reportGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.reportSection {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+}
+
+.reportSection label,
+.reviewPanel > label,
+.eventComposer label {
+  display: grid;
+  gap: 6px;
+  color: var(--torneos-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.reportSection input:not([type="checkbox"]),
+.reportSection select,
+.reportSection textarea,
+.reviewPanel textarea,
+.eventComposer input,
+.eventComposer select {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px;
+  color: var(--torneos-copy);
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--torneos-border);
+  border-radius: 9px;
+  outline: 0;
+}
+
+.reportSection textarea,
+.reviewPanel textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.reportSection input:focus,
+.reportSection select:focus,
+.reportSection textarea:focus,
+.reviewPanel textarea:focus {
+  border-color: var(--torneos-purple-bright);
+  box-shadow: 0 0 0 3px rgba(136, 92, 255, 0.12);
+}
+
+.twoColumns,
+.scoreInputs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.scoreInputs {
+  grid-template-columns: 1fr auto 1fr;
+  align-items: end;
+}
+
+.scoreInputs em {
+  padding-bottom: 12px;
+  color: var(--torneos-purple-bright);
+  font-style: normal;
+  font-weight: 900;
+}
+
+.scoreInputs input {
+  min-height: 72px !important;
+  font-family: "Bebas Neue", "Oswald", sans-serif !important;
+  font-size: 2.5rem !important;
+  text-align: center;
+}
+
+.checkGrid {
+  display: grid;
+  gap: 8px;
+}
+
+.checkGrid label {
+  display: flex;
+  grid-template-columns: none;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+}
+
+.checkGrid input {
+  accent-color: var(--torneos-purple-bright);
+}
+
+.eventsSection {
+  grid-column: 1 / -1;
+}
+
+.eventComposer {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.4fr 0.7fr auto;
+  align-items: end;
+  gap: 8px;
+  padding: 12px;
+  background: rgba(136, 92, 255, 0.055);
+  border: 1px solid var(--torneos-border);
+  border-radius: 12px;
+}
+
+.eventComposer .fullField {
+  grid-column: 1 / -2;
+}
+
+.eventTimeline {
+  display: grid;
+  gap: 5px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.eventTimeline li {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 58px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--torneos-border);
+}
+
+.eventTimeline li[data-voided="true"] {
+  opacity: 0.48;
+  text-decoration: line-through;
+}
+
+.eventTimeline li > span {
+  color: var(--torneos-purple-bright);
+  font-weight: 900;
+  text-align: center;
+}
+
+.eventTimeline li > div {
+  display: grid;
+}
+
+.eventTimeline small {
+  color: var(--torneos-muted);
+}
+
+.closureCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  border-color: rgba(77, 226, 167, 0.25);
+}
+
+.closureCard > div > svg {
+  color: var(--torneos-green);
+}
+
+.reviewPanel {
+  display: grid;
+  gap: 18px;
+}
+
+.reviewActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.reviewHistory {
+  display: grid;
+  gap: 8px;
+}
+
+.reviewHistory article {
+  display: grid;
+  grid-template-columns: auto 140px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--torneos-border);
+  border-radius: 10px;
+}
+
+.reviewHistory p {
+  margin: 0;
+  color: var(--torneos-muted);
+}
+
+.reviewHistory small {
+  color: var(--torneos-muted);
+}
+
+.historyPanel {
+  display: grid;
+  gap: 14px;
+}
+
+.versionCard {
+  display: grid;
+  grid-template-columns: 70px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  padding: 16px;
+  border: 1px solid var(--torneos-border-strong);
+  border-radius: 12px;
+}
+
+.versionCard > span {
+  display: grid;
+  width: 56px;
+  height: 56px;
+  place-items: center;
+  color: var(--torneos-purple-bright);
+  background: rgba(136, 92, 255, 0.1);
+  border-radius: 50%;
+  font-family: "Bebas Neue", "Oswald", sans-serif;
+  font-size: 1.5rem;
+}
+
+.versionCard h3 {
+  margin: 6px 0 2px;
+}
+
+.versionCard p,
+.versionCard small {
+  margin: 0;
+  color: var(--torneos-muted);
+}
+
+.historyRule {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px;
+  color: var(--torneos-muted);
+  background: rgba(77, 226, 167, 0.05);
+  border-left: 3px solid var(--torneos-green);
+}
+
+.historyRule p {
+  margin: 0;
+  line-height: 1.55;
+}
+
+.successNotice,
+.errorNotice {
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-size: 0.84rem;
+}
+
+.successNotice {
+  color: var(--torneos-green);
+  background: rgba(77, 226, 167, 0.07);
+  border: 1px solid rgba(77, 226, 167, 0.24);
+}
+
+.errorNotice {
+  color: #ff9aaa;
+  background: rgba(255, 107, 132, 0.07);
+  border: 1px solid rgba(255, 107, 132, 0.24);
+}
+
+/* Apertura del acta: pide el motivo cuando falta mucho para el horario. */
+.openReport {
+  display: grid;
+  gap: 12px;
+  width: 100%;
+}
+
+.openReport label {
+  display: grid;
+  gap: 6px;
+  font-size: 0.8rem;
+  text-align: left;
+}
+
+.openReport textarea {
+  width: 100%;
+  resize: vertical;
+}
+
+.inlineHint strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+/* Explica, junto al control, qué falta completar antes de poder guardar. */
+.inlineHint {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--torneos-text-soft, #b9bed4);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--torneos-border, rgba(255, 255, 255, 0.12));
+}
+
+.emptyState {
+  display: grid;
+  min-height: 280px;
+  padding: 28px;
+  place-items: center;
+  align-content: center;
+  text-align: center;
+  background: var(--torneos-surface);
+  border: 1px dashed var(--torneos-border-strong);
+  border-radius: 18px;
+}
+
+.emptyState svg {
+  color: var(--torneos-purple-bright);
+}
+
+.emptyState h2 {
+  margin: 12px 0 5px;
+}
+
+.emptyState p {
+  max-width: 540px;
+  margin: 0;
+  color: var(--torneos-muted);
+  line-height: 1.55;
+}
+
+.emptyState a {
+  margin-top: 14px;
+  color: var(--torneos-purple-bright);
+}
+
+.playerMatches {
+  display: grid;
+  gap: 14px;
+}
+
+.playerMatchCard {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  overflow: hidden;
+  background: var(--torneos-surface);
+  border: 1px solid var(--torneos-border);
+  border-radius: 20px 5px 20px 5px;
+}
+
+.matchRail {
+  display: grid;
+  align-content: center;
+  gap: 7px;
+  min-height: 250px;
+  padding: 20px;
+  background:
+    linear-gradient(160deg, rgba(136, 92, 255, 0.28), rgba(20, 18, 31, 0.95)),
+    repeating-linear-gradient(135deg, transparent 0 12px, rgba(255, 255, 255, 0.03) 12px 13px);
+  border-right: 1px solid var(--torneos-border-strong);
+}
+
+.matchRail span,
+.matchRail small {
+  color: #d7caff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.matchRail strong {
+  font-family: "Bebas Neue", "Oswald", sans-serif;
+  font-size: 2rem;
+  font-weight: 400;
+}
+
+.playerMatchBody {
+  display: grid;
+  gap: 16px;
+  padding: 22px;
+}
+
+.playerMatchHeading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.playerMatchHeading small {
+  color: var(--torneos-purple-bright);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.playerMatchHeading h2 {
+  margin: 4px 0;
+  font-size: clamp(1.45rem, 3vw, 2rem);
+}
+
+.teamSide {
+  padding: 6px 8px;
+  color: var(--torneos-muted);
+  border: 1px solid var(--torneos-border);
+  border-radius: 6px;
+  font-size: 0.64rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.matchFacts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.matchFacts > div {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 7px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+}
+
+.matchFacts svg {
+  grid-row: 1 / 3;
+  color: var(--torneos-purple-bright);
+}
+
+.matchFacts dt {
+  color: var(--torneos-muted);
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.matchFacts dd {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.availabilityGroup {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 7px;
+}
+
+.availabilityGroup button {
+  min-height: 48px;
+}
+
+.availabilityGroup .availabilityActive {
+  color: #11101a;
+  background: var(--torneos-green);
+  border-color: transparent;
+}
+
+.officialResult {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  color: var(--torneos-green);
+  background: rgba(77, 226, 167, 0.06);
+  border-left: 3px solid var(--torneos-green);
+}
+
+.officialResult span {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.officialResult strong {
+  font-family: "Bebas Neue", "Oswald", sans-serif;
+  font-size: 1.6rem;
+  font-weight: 400;
+}
+
+@media (max-width: 980px) {
+  .metrics {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .matchRow {
+    grid-template-columns: 110px minmax(220px, 1fr) auto auto;
+  }
+
+  .squadSignals {
+    display: none;
+  }
+
+  .detailGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .detailCard {
+    min-height: 210px;
+  }
+
+  .eventComposer {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .eventComposer .fullField {
+    grid-column: 1 / -1;
+  }
+
+  .reportGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .eventsSection {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 720px) {
+  .page {
+    gap: 16px;
+  }
+
+  .pageHeader,
+  .matchHeader {
+    display: grid;
+    align-items: start;
+  }
+
+  .headerStamp,
+  .categoryStamp {
+    width: fit-content;
+  }
+
+  .metrics {
+    gap: 8px;
+  }
+
+  .metrics article {
+    min-height: 105px;
+    padding: 14px;
+  }
+
+  .filterBar {
+    display: grid;
+  }
+
+  .matchRow {
+    grid-template-columns: 90px minmax(0, 1fr) auto;
+    gap: 10px;
+  }
+
+  .matchRow > .statusPill {
+    grid-column: 1 / 3;
+    justify-self: start;
+  }
+
+  .rowActions {
+    grid-column: 3;
+    grid-row: 1 / 3;
+  }
+
+  .teamsBlock {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+
+  .teamsBlock strong:last-of-type {
+    text-align: left;
+  }
+
+  .teamsBlock > span {
+    display: none;
+  }
+
+  .scoreboard {
+    gap: 8px;
+    padding: 15px 10px;
+  }
+
+  .scoreboard > span {
+    gap: 4px;
+  }
+
+  .scoreboard b {
+    min-width: 32px;
+  }
+
+  .scoreboard strong {
+    font-size: 0.78rem;
+  }
+
+  .rosterList article {
+    grid-template-columns: 1fr;
+  }
+
+  .playerControls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .stickyActions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .eventComposer {
+    grid-template-columns: 1fr;
+  }
+
+  .eventComposer .fullField {
+    grid-column: auto;
+  }
+
+  .closureCard {
+    display: grid;
+  }
+
+  .closureCard button {
+    width: 100%;
+  }
+
+  .reviewHistory article {
+    grid-template-columns: 1fr;
+  }
+
+  .versionCard {
+    grid-template-columns: 56px minmax(0, 1fr);
+  }
+
+  .versionCard > small {
+    grid-column: 1 / -1;
+  }
+
+  .playerMatchCard {
+    grid-template-columns: 1fr;
+  }
+
+  .matchRail {
+    grid-template-columns: 1fr auto auto;
+    align-items: center;
+    min-height: 76px;
+    padding: 14px 16px;
+    border-right: 0;
+    border-bottom: 1px solid var(--torneos-border-strong);
+  }
+
+  .matchRail strong {
+    font-size: 1.5rem;
+  }
+
+  .playerMatchBody {
+    padding: 16px;
+  }
+
+  .matchFacts {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 390px) {
+  .metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .matchRow {
+    grid-template-columns: 76px minmax(0, 1fr);
+  }
+
+  .rowActions {
+    grid-column: 1 / -1;
+    grid-row: auto;
+  }
+
+  .rowActions a {
+    width: 100%;
+    justify-content: center;
+    border: 1px solid var(--torneos-border);
+    border-radius: 8px;
+  }
+
+  .availabilityGroup {
+    grid-template-columns: 1fr;
+  }
+
+  .stickyActions {
+    grid-template-columns: 1fr;
+  }
+
+  .twoColumns,
+  .scoreInputs {
+    grid-template-columns: 1fr;
+  }
+
+  .scoreInputs em {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .matchRow {
+    transition: none;
+  }
+}
+
+/* Arma2 Personal visual alignment */
+.page {
+  max-width: 1180px;
+  font-family: inherit;
+}
+
+.pageHeader,
+.matchHeader {
+  align-items: center;
+}
+
+.pageHeader h1,
+.matchHeader h1 {
+  font-size: clamp(2.25rem, 5vw, 3.75rem);
+  line-height: 1;
+  letter-spacing: 0.015em;
+}
+
+.primaryButton {
+  min-height: 48px;
+  border-radius: var(--torneos-control-radius);
+  background: var(--torneos-cta);
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: var(--torneos-cta-shadow);
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+.primaryButton:hover:not(:disabled) {
+  transform: scale(1.02);
+}
+
+.metrics article,
+.matchRail,
+.detailCard,
+.closureCard,
+.eventsSection,
+.historyPanel,
+.reviewPanel,
+.squadPanel,
+.versionCard,
+.playerMatchCard {
+  background: var(--torneos-card-bg);
+  border-color: var(--torneos-border);
+  border-radius: var(--torneos-radius);
+  box-shadow: var(--torneos-elevated-shadow);
+}
+
+.filterBar input,
+.filterBar select,
+.searchField,
+.scoreInputs input,
+.eventComposer input,
+.eventComposer select,
+.eventComposer textarea {
+  border-radius: var(--torneos-control-radius);
+}

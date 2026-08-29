@@ -1,0 +1,71 @@
+# Runbook del worker externo Multimedia
+
+El directorio `workers/tournament-media-processor` describe un worker de imágenes separado del orquestador Edge. No se despliega desde este repositorio ni desde CI.
+
+## Provisión
+
+- Host/container Node 22 exacto; sharp 0.35.3 y libvips reportado por self-test.
+- ClamAV/clamd/freshclam activos; TCP interno `clamd:3310`; firmas menores a siete días.
+- Egress sólo hacia la API de Staging autorizada; ninguna ruta a Production.
+- CPU 1, memoria 1 GiB, pids 128, filesystem read-only y `/tmp` 256 MiB.
+- Máximo 12 MiB, 36 millones de píxeles y 20 segundos de codec.
+- Lease 300 s, máximo tres intentos en DB, batch 1 y backoff exponencial acotado con jitter.
+- Variables desde `.env.example`; secretos desde el secret store, nunca en imagen o Compose versionado.
+- Logs JSON sin object names, tokens, claves, paths, URLs firmadas o identidad.
+
+### Proyecto autorizado (obligatorio)
+
+`TOURNAMENT_MEDIA_EXPECTED_PROJECT_REF` nombra el único proyecto Supabase al que este worker puede mandar su service-role key. **Es obligatoria**: sin ella, cualquier `SUPABASE_URL` que no sea loopback aborta el arranque con `TARGET_REF_REQUIRED`, antes de leer la credencial y antes de abrir un socket.
+
+- Staging: `TOURNAMENT_MEDIA_EXPECTED_PROJECT_REF=hhyvmhgpapyuzjgxfnqv`
+- `SUPABASE_URL` debe ser exactamente `https://<ref>.supabase.co`, sin puerto, sin userinfo, sin query.
+- Production (`rcyuuoaqfwcembdajcss`) está prohibida en el código compilado: no hay valor de entorno que la habilite, ni como URL ni como ref esperado. Habilitarla sería un cambio de fuente revisado, no un cambio de configuración.
+
+Un proceso configurado por error contra Production aborta antes de cualquier request. La validación corre en `readConfig` y se repite contra el descriptor congelado antes de cada llamada.
+
+Checklist:
+
+1. Construir imagen con lockfile y registrar digest/SBOM.
+2. Ejecutar tests unitarios y self-test real.
+3. Confirmar `freshclam`, fecha y timezone.
+4. Probar EICAR, MIME falso, SVG, metadata, orientación, pixel bomb y timeout.
+5. Probar upload/download/delete del objeto sintético y ausencia posterior.
+6. Verificar healthcheck verde sin crear atestación.
+7. Desplegar con flag Multimedia false.
+8. Atestiguar processor con TTL 900 s sólo después del self-test.
+
+## Actualización de firmas
+
+`freshclam` debe renovar sin reiniciar el worker. Alertar a cinco días; a siete días el self-test falla, se revoca la atestación y `uploadReady` se cierra. No cambiar la fecha reportada ni extender el umbral para recuperar servicio.
+
+## Apagado y rollback
+
+1. Detener nuevos leases.
+2. Esperar el job actual dentro del grace period mayor al lease.
+3. Revocar atestación processor.
+4. Confirmar cero leases del worker; los expirados vuelven por sweeper.
+5. Conservar logs, jobs, quarantine y objetos para auditoría.
+6. Volver al digest anterior registrado y repetir self-test.
+
+SIGTERM/SIGINT activan shutdown seguro: el loop deja de pedir trabajo, termina lo ya arrendado, intenta revocar y sale. Nunca matar durante publicación salvo contención de seguridad.
+
+## Servicios que acompañan al worker
+
+- **Renovador de la atestación del signer.** El worker renueva sólo la suya (`processor`, TTL 900 s, a un tercio del TTL). La del signer dura 3600 s y necesita un scheduler externo que corre junto a este worker, con el mismo secret store y **sin** credencial de servicio: ver [renovación de la atestación del signer](tournament-media-signer-attestation-renewal.md). Provisionarlo es parte de la checklist: sin él, `uploadReady` se cierra sola cada hora.
+- **Colectores de observabilidad.** Cuatro colectores alimentan las señales del [catálogo](tournament-media-observability.md), y **ninguno está implementado todavía**: existen el SQL del colector `database` y el inspector del colector `readiness`, pero ningún proceso los corre, deriva la ventana de sostenimiento y publica el snapshot. Hasta que existan, se desplieguen y se validen contra Staging, `REACT_APP_TORNEOS_MEDIA_OBSERVABILITY_READY` queda en false y Multimedia no se habilita. El colector `database` además necesita un rol con exención probada de RLS: sin ella su conteo es indistinguible de una cola vacía y el propio SQL se niega a emitir números ([contrato del rol colector](tournament-media-observability.md#contrato-del-rol-colector)).
+
+## Credencial de servicio
+
+El worker usa `service_role`, que es una credencial de proyecto entero. El inventario exacto de lo que necesita, el riesgo residual y la alternativa de menor privilegio están en [la revisión de credencial de servicio](tournament-media-service-role-review.md). Reglas vigentes: sólo en el secret store del host, nunca impresa ni persistida, egress restringido al host de Staging autorizado, y el lease token obligatorio en cada transición.
+
+## Incidentes
+
+- **clamd caído o firmas viejas:** revocar, Multimedia false, restaurar scanner, self-test y re-atestación.
+- **libvips/sharp diferente:** retirar release; no procesar. Reconstruir desde lockfile/base pinneada.
+- **worker caído:** dejar expirar leases, ejecutar sweeper, revisar idempotencia y reintentos antes de reemplazar.
+- **quarantine crece:** flags false, detener sesiones, medir jobs/edad, no borrar hasta correlacionar auditoría.
+- **posible malware publicado:** revocar, flags false, retirar publicación mediante flujo de negocio, preservar original/quarantine bajo control de incidente.
+- **credencial sospechada:** revocar en Staging, no imprimirla, reemplazar desde secret store y repetir fingerprint/self-test.
+- **red apunta a host desconocido/Production:** apagado inmediato; no aceptar override.
+
+Restaurar servicio sólo con plan nuevo, checksums sin drift, firmas vigentes, self-test completo, prueba de revocación y aprobación humana.

@@ -16,6 +16,7 @@ import GlobalNoticeModal from './components/GlobalNoticeModal';
 
 import MainLayout from './components/MainLayout';
 import PublicVotingRouteIsolation from './components/PublicVotingRouteIsolation';
+import TorneosFeatureGate from './features/torneos/TorneosFeatureGate';
 import { initNativePushNotifications } from './hooks/useNativeFeatures';
 import { useNotificationRedirect } from './hooks/useNotificationRedirect';
 import { useRouteScrollReset } from './hooks/useScrollReset';
@@ -33,6 +34,14 @@ import {
   getGoogleMapsLoaderState,
   loadGoogleMapsScript,
 } from './services/googleMapsLoader';
+import { isArma2NativeRuntime, isPersonalSpaceAvailable } from './utils/runtimePlatform';
+import { SpaceNavigationProvider } from './features/space-navigation';
+import {
+  QA_ROLE_SWITCHER_PATH,
+  QA_SOCIAL_STUDIO_BASE_PATH,
+  QA_TOURNAMENT_REVIEW_PATH,
+  isQaRoleSwitcherEnabled,
+} from './features/qa/qaRoleSwitcher';
 
 
 import { NotificationProvider } from './context/NotificationContext';
@@ -67,6 +76,21 @@ const TemplateDetailsPage = lazy(() => import('./pages/TemplateDetailsPage'));
 const TemplateHistoryPage = lazy(() => import('./pages/TemplateHistoryPage'));
 const AdminPanelPage = lazy(() => import('./pages/AdminPanelPage'));
 const PartidoInvitacion = lazy(() => import('./pages/PartidoInvitacion'));
+const PublicTournamentPage = lazy(() => import('./features/torneos/components/PublicTournamentPage'));
+const QaRoleSwitcherPage = lazy(() => import('./features/qa/QaRoleSwitcherPage'));
+const QaTournamentReviewMapPage = lazy(() => import('./features/qa/QaTournamentReviewMapPage'));
+const SocialStudioBaseGalleryPage = lazy(
+  () => import('./features/qa/SocialStudioBaseGalleryPage'),
+);
+
+// Tooling QA LOCAL. El selector de rol no es una ruta que se oculte: si el gate
+// no cierra —flag, DATA_ENV, host, deploy o backend— el <Route> no se crea y la
+// URL no existe. En Production, Staging o cualquier build normal no hay ruta que
+// encontrar.
+const qaRoleSwitcherEnabled = isQaRoleSwitcherEnabled(
+  process.env,
+  typeof window === 'undefined' ? {} : window.location,
+);
 
 // Dev-only diagnostics (excluded in production builds)
 if (process.env.NODE_ENV === 'development') {
@@ -86,19 +110,32 @@ export default function App() {
     <GlobalErrorBoundary>
       <ErrorBoundary>
         <AuthProvider>
-          <BadgeProvider>
-            <NotificationProvider>
-              <Router>
-                <GoogleMapsScriptBootstrap />
-                <NativePushBootstrap />
-                <NotificationRedirectBootstrap />
-                <NativeAuthDeepLinkBootstrap />
-                <RoutePrefetchBootstrap />
-                <ScrollToTop />
-                <RouteAnalyticsTracker />
-                <PublicVotingRouteIsolation>
+          <Router>
+            <SpaceNavigationProvider>
+              <RouteScopedProviders>
+                <PersonalRuntimeEffects />
+                <ScopedPublicVotingRouteIsolation>
                   <Routes>
                   <Route path="/health" element={<HealthRoute />} />
+                  {qaRoleSwitcherEnabled ? (
+                    <>
+                      <Route path={QA_ROLE_SWITCHER_PATH} element={
+                        <Suspense fallback={<AppLoadingScreen />}>
+                          <QaRoleSwitcherPage />
+                        </Suspense>
+                      } />
+                      <Route path={QA_TOURNAMENT_REVIEW_PATH} element={
+                        <Suspense fallback={<AppLoadingScreen />}>
+                          <QaTournamentReviewMapPage />
+                        </Suspense>
+                      } />
+                      <Route path={QA_SOCIAL_STUDIO_BASE_PATH} element={
+                        <Suspense fallback={<AppLoadingScreen />}>
+                          <SocialStudioBaseGalleryPage />
+                        </Suspense>
+                      } />
+                    </>
+                  ) : null}
                   <Route path="/terms" element={
                     <Suspense fallback={<AppLoadingScreen />}>
                       <TermsPage />
@@ -112,6 +149,21 @@ export default function App() {
                   <Route path="/account-deletion" element={
                     <Suspense fallback={<AppLoadingScreen />}>
                       <AccountDeletionInfoPage />
+                    </Suspense>
+                  } />
+                  <Route path="/login" element={
+                    <Suspense fallback={<AppLoadingScreen />}>
+                      <AuthHome />
+                    </Suspense>
+                  } />
+                  <Route path="/login/email" element={
+                    <Suspense fallback={<AppLoadingScreen />}>
+                      <AuthHome />
+                    </Suspense>
+                  } />
+                  <Route path="/auth/callback" element={
+                    <Suspense fallback={<AppLoadingScreen />}>
+                      <AuthCallback />
                     </Suspense>
                   } />
                   <Route path="/encuesta/:partidoId" element={
@@ -134,54 +186,48 @@ export default function App() {
                       <PaymentsView />
                     </Suspense>
                   } />
-                  <Route path="/login" element={
-                    <Suspense fallback={<AppLoadingScreen />}>
-                      <AuthHome />
-                    </Suspense>
-                  } />
-                  <Route path="/login/email" element={
-                    <Suspense fallback={<AppLoadingScreen />}>
-                      <AuthHome />
-                    </Suspense>
-                  } />
-                  <Route path="/auth/callback" element={
-                    <Suspense fallback={<AppLoadingScreen />}>
-                      <AuthCallback />
-                    </Suspense>
-                  } />
                   <Route path="/i/:token" element={
                     <Suspense fallback={<AppLoadingScreen />}>
                       <InviteLanding />
                     </Suspense>
                   } />
-                  
-                  {/* Ruta pública: invitación a partido (sin auth requerido) */}
+
+                  {/* Public/special web flows remain isolated from the player product shell. */}
                   <Route path="/partido/:partidoId/invitacion" element={
                     <Suspense fallback={<AppLoadingScreen />}>
                       <PartidoInvitacion />
                     </Suspense>
                   } />
-                  
-                  {/* Ruta pública: votación de equipos (sin auth requerido) */}
                   <Route path="/votar-equipos" element={
                     <Suspense fallback={<AppLoadingScreen />}>
                       <VotarEquiposPage />
                     </Suspense>
                   } />
+                  <Route path="/torneos/publico/:publicSlug" element={
+                    <Suspense fallback={<AppLoadingScreen />}>
+                      <PublicTournamentPage />
+                    </Suspense>
+                  } />
 
                   <Route path="/" element={<AppAuthWrapper />}>
-                    <Route path="" element={<MainLayout />}>
-                      <Route index element={
-                        <Suspense fallback={<AppLoadingScreen />}>
-                          <HomePage />
-                        </Suspense>
-                      } />
-                      <Route path="home" element={<Navigate to="/" replace />} />
-                      <Route path="nuevo-partido" element={
-                        <Suspense fallback={<AppLoadingScreen />}>
-                          <NuevoPartidoPage />
-                        </Suspense>
-                      } />
+                    <Route path="partido-publico/:partidoId" element={
+                      <Suspense fallback={<AppLoadingScreen />}>
+                        <PartidoInvitacion mode="public" />
+                      </Suspense>
+                    } />
+                    <Route element={<PlayerProductRouteBoundary />}>
+                      <Route path="" element={<MainLayout />}>
+                        <Route index element={
+                          <Suspense fallback={<AppLoadingScreen />}>
+                            <HomePage />
+                          </Suspense>
+                        } />
+                        <Route path="home" element={<Navigate to="/" replace />} />
+                        <Route path="nuevo-partido" element={
+                          <Suspense fallback={<AppLoadingScreen />}>
+                            <NuevoPartidoPage />
+                          </Suspense>
+                        } />
                       <Route path="quiero-jugar" element={
                         <Suspense fallback={<AppLoadingScreen />}>
                           <QuieroJugarPage />
@@ -260,24 +306,140 @@ export default function App() {
                           <AdminPanelPage />
                         </Suspense>
                       } />
-                      <Route path="partido-publico/:partidoId" element={
-                        <Suspense fallback={<AppLoadingScreen />}>
-                          <PartidoInvitacion mode="public" />
-                        </Suspense>
-                      } />
+                      </Route>
                     </Route>
+                    {/* Independent authenticated shell. The gate is fail-closed in production. */}
+                    <Route path="torneos/*" element={<TorneosFeatureGate />} />
                   </Route>
                   </Routes>
-                </PublicVotingRouteIsolation>
-                <GlobalNoticeModal />
-              </Router>
-              {/* Debug panel removed */}
-            </NotificationProvider>
-          </BadgeProvider>
+                </ScopedPublicVotingRouteIsolation>
+                <PersonalGlobalNotice />
+              </RouteScopedProviders>
+            </SpaceNavigationProvider>
+          </Router>
         </AuthProvider>
       </ErrorBoundary>
     </GlobalErrorBoundary>
   );
+}
+
+function isTorneosNamespace(pathname = '') {
+  return pathname === '/torneos' || pathname.startsWith('/torneos/');
+}
+
+const PUBLIC_SPECIAL_WEB_ROUTE_PATTERNS = Object.freeze([
+  /^\/encuesta\/[^/]+\/?$/,
+  /^\/resultados-encuesta\/[^/]+\/?$/,
+  /^\/resultados\/[^/]+\/?$/,
+  /^\/pagos\/[^/]+\/?$/,
+  /^\/i\/[^/]+\/?$/,
+  /^\/partido\/[^/]+\/invitacion\/?$/,
+  /^\/votar-equipos\/?$/,
+  /^\/partido-publico\/[^/]+\/?$/,
+]);
+
+export function isPublicSpecialWebRoute(pathname = '') {
+  return PUBLIC_SPECIAL_WEB_ROUTE_PATTERNS.some((pattern) => pattern.test(pathname));
+}
+
+export function isPlayerProductRoute(pathname = '') {
+  if (isPublicSpecialWebRoute(pathname)) return false;
+
+  return [
+    '/',
+    '/home',
+    '/nuevo-partido',
+    '/quiero-jugar',
+    '/desafios',
+    '/amigos',
+    '/profile',
+    '/notifications',
+    '/stats',
+    '/frecuentes',
+    '/historial',
+    '/admin',
+    '/partido',
+  ].some((route) => pathname === route || (
+    route !== '/' && pathname.startsWith(`${route}/`)
+  ));
+}
+
+function isBlockedWebPlayerRoute(pathname = '') {
+  return !isPersonalSpaceAvailable() && isPlayerProductRoute(pathname);
+}
+
+function isIsolatedWebSpecialRoute(pathname = '') {
+  return !isArma2NativeRuntime() && isPublicSpecialWebRoute(pathname);
+}
+
+export function PlayerProductRouteBoundary({ native = isPersonalSpaceAvailable() }) {
+  const location = useLocation();
+  if (!native && isPlayerProductRoute(location.pathname)) {
+    return <Navigate to="/torneos" replace />;
+  }
+  return <Outlet />;
+}
+
+export function RouteScopedProviders({ children }) {
+  const location = useLocation();
+  if (
+    isTorneosNamespace(location.pathname)
+    || isBlockedWebPlayerRoute(location.pathname)
+    || isIsolatedWebSpecialRoute(location.pathname)
+  ) {
+    return children;
+  }
+
+  return (
+    <BadgeProvider>
+      <NotificationProvider>
+        {children}
+      </NotificationProvider>
+    </BadgeProvider>
+  );
+}
+
+export function PersonalRuntimeEffects() {
+  const location = useLocation();
+  if (
+    isTorneosNamespace(location.pathname)
+    || isBlockedWebPlayerRoute(location.pathname)
+    || isIsolatedWebSpecialRoute(location.pathname)
+  ) {
+    return null;
+  }
+
+  return (
+    <>
+      <GoogleMapsScriptBootstrap />
+      <NativePushBootstrap />
+      <NotificationRedirectBootstrap />
+      <NativeAuthDeepLinkBootstrap />
+      <RoutePrefetchBootstrap />
+      <ScrollToTop />
+      <RouteAnalyticsTracker />
+    </>
+  );
+}
+
+export function ScopedPublicVotingRouteIsolation({ children }) {
+  const location = useLocation();
+  if (isTorneosNamespace(location.pathname) || isBlockedWebPlayerRoute(location.pathname)) {
+    return children;
+  }
+  return <PublicVotingRouteIsolation>{children}</PublicVotingRouteIsolation>;
+}
+
+export function PersonalGlobalNotice() {
+  const location = useLocation();
+  if (
+    isTorneosNamespace(location.pathname)
+    || isBlockedWebPlayerRoute(location.pathname)
+    || isIsolatedWebSpecialRoute(location.pathname)
+  ) {
+    return null;
+  }
+  return <GlobalNoticeModal />;
 }
 
 function GoogleMapsScriptBootstrap() {
@@ -577,11 +739,14 @@ export function AppAuthWrapper() {
   const location = useLocation();
   const pendingAuthFlow = usePendingAuthFlow();
   const localEditMode = process.env.NODE_ENV === 'development' && process.env.REACT_APP_LOCAL_EDIT_MODE !== 'false';
-  const shouldPassThroughWhileLoading = loading && process.env.NODE_ENV !== 'production';
   const isCompletingAuth = Boolean(!user && pendingAuthFlow);
 
-  if (shouldPassThroughWhileLoading) {
-    return <Outlet />;
+  // Private products must not start their authorization RPCs until Supabase
+  // has resolved the initial session. In development the old pass-through
+  // raced the workspace guard against session hydration and could leave a
+  // valid deep link displaying a workspace validation error.
+  if (loading) {
+    return <AppLoadingScreen />;
   }
 
   if (isCompletingAuth) {
@@ -597,10 +762,7 @@ export function AppAuthWrapper() {
     const returnTo = `${location.pathname}${location.search}${location.hash}`;
     setAuthReturnTo(returnTo);
     logger.info('[AUTH] app_auth_wrapper_redirect_login', {
-      pathname: location.pathname,
-      search: location.search,
-      hash: location.hash,
-      returnTo,
+      route: redactUrlForLog(returnTo),
       authResolved,
       loading,
     });

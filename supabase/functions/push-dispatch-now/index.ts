@@ -1,5 +1,9 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import {
+  createSupabaseCredentialFetch,
+  getSupabaseSecretCredential,
+} from "../_shared/supabaseApiKeys.ts";
 
 type KickEventType =
   | "match_invite"
@@ -1682,10 +1686,10 @@ serve(async (req) => {
   }
 
   const supabaseUrl = String(Deno.env.get("SUPABASE_URL") ?? "").trim();
-  const serviceRoleKey = String(Deno.env.get("SERVICE_ROLE_KEY") ?? "").trim();
+  const serviceCredential = getSupabaseSecretCredential();
   const senderSecret = String(Deno.env.get("PUSH_SENDER_SECRET") ?? "").trim();
 
-  if (!supabaseUrl || !serviceRoleKey || !senderSecret) {
+  if (!supabaseUrl || !senderSecret) {
     return jsonResponse({ ok: false, reason: "missing_sender_env" }, 500, cors);
   }
 
@@ -1707,7 +1711,8 @@ serve(async (req) => {
   );
   const windowStartIso = new Date(Date.now() - windowSeconds * 1000).toISOString();
 
-  const supabase = createClient(supabaseUrl, serviceRoleKey, {
+  const supabase = createClient(supabaseUrl, serviceCredential.key, {
+    global: { fetch: createSupabaseCredentialFetch(serviceCredential) },
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
@@ -1933,8 +1938,7 @@ serve(async (req) => {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${serviceRoleKey}`,
-      apikey: serviceRoleKey,
+      apikey: serviceCredential.key,
       "x-push-sender-secret": senderSecret,
     },
     body: JSON.stringify({

@@ -344,7 +344,7 @@ export const checkAndNotifyMatchFinish = async (partido) => {
     };
 
     // Intentar camino canónico (RPC fanout para todos los logueados del partido).
-    const { data: rpcData, error: rpcError } = await supabase.rpc('enqueue_partido_notification', {
+    const { data: rpcData, error: rpcError } = await supabase.rpc('enqueue_partido_notification_as_actor', {
       p_partido_id: partidoId,
       p_type: 'survey_start',
       p_title: title,

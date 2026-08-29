@@ -858,7 +858,7 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
       try {
         let fotoUrl;
         // Public/guest voter: upload through the capability-token Edge Functions
-        // (server-side, service_role) so anon no longer writes Storage directly.
+        // (server-side, privileged admin client) so anon no longer writes Storage directly.
         // Authenticated voters keep uploading to their own profile folder.
         if (isPublicVoting && !useAuthenticatedSubmit) {
           const matchId = Number(resolvedMatchIdRef.current || partidoActual?.id) || null;

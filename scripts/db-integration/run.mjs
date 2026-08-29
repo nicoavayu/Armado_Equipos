@@ -3511,7 +3511,7 @@ async function main() {
   admin = await connect();
   await admin.query(fs.readFileSync(path.join(__dirname, 'stub-schema.sql'), 'utf8'));
   for (const file of MIGRATIONS) {
-    const sql = fs.readFileSync(path.join(ROOT, 'supabase', 'migrations', file), 'utf8');
+    const sql = fs.readFileSync(path.join(ROOT, 'supabase', 'migrations_history', file), 'utf8');
     try {
       await admin.query(sql);
       console.log(`  migración aplicada: ${file}`);

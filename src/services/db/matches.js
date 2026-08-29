@@ -55,7 +55,7 @@ export const cleanupVotingAccessState = async (partidoId) => {
     throw new Error('Match ID is required to cleanup voting access');
   }
 
-  const { error } = await supabase.rpc('cleanup_voting_access_state', {
+  const { error } = await supabase.rpc('cleanup_voting_access_state_as_admin', {
     p_partido_id: pidNumber,
   });
 
@@ -1672,7 +1672,7 @@ export const debugTestVoting = async (partidoId) => {
 export const cancelPartidoWithNotification = async (partidoId, reason = 'Partido cancelado') => {
   logger.log('[NOTIF_DEBUG] Cancelling match with notification:', partidoId, reason);
 
-  const { data, error } = await supabase.rpc('cancel_partido_with_notification', {
+  const { data, error } = await supabase.rpc('cancel_partido_as_admin', {
     p_partido_id: partidoId,
     p_reason: reason
   });
@@ -1755,7 +1755,7 @@ export const deletePartidoWithNotification = async (partidoId) => {
   logger.log('[NOTIF_DEBUG] Deleting match with notification:', partidoId);
 
   // First notify
-  const { data: notifResult, error: notifError } = await supabase.rpc('enqueue_partido_notification', {
+  const { data: notifResult, error: notifError } = await supabase.rpc('enqueue_partido_notification_as_actor', {
     p_partido_id: partidoId,
     p_type: 'match_deleted',
     p_title: 'Partido eliminado',

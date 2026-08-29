@@ -231,7 +231,7 @@ async function main() {
   const admin = await connect();
   await admin.query(STUB_SCHEMA);
   for (const migration of MIGRATIONS) {
-    await admin.query(fs.readFileSync(path.join(ROOT, 'supabase', 'migrations', migration), 'utf8'));
+    await admin.query(fs.readFileSync(path.join(ROOT, 'supabase', 'migrations_history', migration), 'utf8'));
   }
   // The goalkeeper migration creates functions that grant execute to authenticated
   // themselves; ensure the pre-existing sequences stay usable by the role too.

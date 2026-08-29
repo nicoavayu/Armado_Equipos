@@ -1,5 +1,9 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import {
+  createSupabaseCredentialFetch,
+  getSupabasePublishableCredential,
+} from "../_shared/supabaseApiKeys.ts";
 
 function corsHeaders(req: Request) {
   const origin = req.headers.get("origin") ?? "*";
@@ -126,14 +130,15 @@ serve(async (req) => {
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
-  if (!supabaseUrl || !anonKey) {
+  const anonCredential = getSupabasePublishableCredential();
+  if (!supabaseUrl) {
     return jsonResponse({ ok: false, message: "missing_env" }, 500, cors);
   }
 
   const authHeader = req.headers.get("Authorization") || "";
-  const userClient = createClient(supabaseUrl, anonKey, {
+  const userClient = createClient(supabaseUrl, anonCredential.key, {
     global: {
+      fetch: createSupabaseCredentialFetch(anonCredential),
       headers: {
         Authorization: authHeader,
       },
@@ -200,7 +205,7 @@ serve(async (req) => {
   if (matchId && recipientUserId) {
     pushResult = await requestImmediateApprovalPush({
       supabaseUrl,
-      anonKey,
+      anonKey: anonCredential.key,
       authHeader,
       matchId,
       requestId: normalizedRequestId,

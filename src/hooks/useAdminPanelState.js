@@ -709,13 +709,10 @@ export const useAdminPanelState = ({
 
           let shouldKickPushImmediately = false;
           const { data: kickNotificationResult, error: kickNotificationError } = await supabase.rpc(
-            'send_match_kicked_notification',
+            'send_match_kicked_notification_as_admin',
             {
               p_user_id: jugadorAEliminar.usuario_id,
               p_partido_id: Number(partidoActual.id),
-              p_match_name: sanitizedMatchName,
-              p_kicked_by: user?.id || null,
-              p_kicked_at: kickedAt,
             },
           );
 

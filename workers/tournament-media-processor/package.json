@@ -1,0 +1,20 @@
+{
+  "name": "arma2-tournament-media-processor",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Arma2 Torneos · trusted image-processing worker (libvips + ClamAV). Never deployed from CI.",
+  "main": "src/index.mjs",
+  "scripts": {
+    "start": "node src/index.mjs",
+    "selftest": "node src/selftest-cli.mjs",
+    "healthcheck": "node src/healthcheck-cli.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "engines": {
+    "node": "22.x"
+  },
+  "dependencies": {
+    "sharp": "0.35.3"
+  }
+}

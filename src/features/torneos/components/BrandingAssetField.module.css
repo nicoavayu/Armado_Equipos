@@ -1,0 +1,76 @@
+.field {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  padding: 18px;
+  border: 1px solid rgba(142, 125, 255, 0.25);
+  /* El campo era el único bloque en ángulo recto de la pantalla. Toma el radio
+     de control de Torneos, el mismo que ya usan los inputs del wizard. */
+  border-radius: var(--torneos-control-radius, 16px);
+  background: linear-gradient(135deg, rgba(139, 103, 255, 0.09), rgba(18, 139, 233, 0.05));
+}
+
+.preview,
+.imageFrame {
+  display: grid;
+  width: 84px;
+  height: 72px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(158, 211, 255, 0.28);
+  background: rgba(8, 15, 40, 0.7);
+  color: #d8d1ff;
+  font: 700 22px Oswald, sans-serif;
+  letter-spacing: 0.06em;
+}
+
+.preview > span { display: grid; width: 100%; height: 100%; place-items: center; }
+.preview img,
+.image { width: 100%; height: 100%; object-fit: contain; }
+.copy { min-width: 0; }
+/* `Escudo del equipo` rotula un control: es interfaz, no un titular. */
+.copy strong { display: block; color: #fff; font-family: var(--torneos-ui-font); font-size: 15px; font-weight: 700; }
+.copy p { margin: 4px 0 0; color: rgba(255,255,255,.58); font-size: 12px; }
+.copy span { display: block; margin-top: 7px; font-size: 12px; }
+.success { color: #9fe4c9; }
+.error { color: #ffb2bd; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.actions input { display: none; }
+/* Subir / Cambiar / Quitar son acciones, no titulares. Entran al sistema de
+   `Continuar`: misma familia, misma escala, mismo radio, mismos estados. Lo
+   único propio es el color, que es lo que distingue `Quitar` de las otras dos
+   sin convertirlo en un componente de otro producto. */
+.actions button {
+  display: inline-flex;
+  min-height: var(--torneos-action-height);
+  align-items: center;
+  justify-content: center;
+  gap: var(--torneos-action-gap);
+  padding: 0 var(--torneos-action-padding-x);
+  border: 1px solid rgba(142, 125, 255, .38);
+  border-radius: var(--torneos-action-radius);
+  background: rgba(106, 67, 255, .16);
+  color: #fff;
+  font-family: var(--torneos-ui-font);
+  font-size: var(--torneos-action-font-size);
+  font-weight: var(--torneos-action-font-weight);
+  line-height: var(--torneos-action-line-height);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.actions button > svg { flex: 0 0 auto; }
+.actions button:hover:not(:disabled) { border-color: #9ed3ff; background: rgba(106, 67, 255, .27); }
+.actions button:focus-visible { outline: var(--torneos-focus-ring); outline-offset: var(--torneos-focus-ring-offset); }
+.actions button:disabled { cursor: wait; opacity: .55; }
+.actions .remove { border-color: rgba(255, 110, 133, .35); background: rgba(255, 79, 106, .08); color: #ffc2cb; }
+.spin { animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 640px) {
+  .field { grid-template-columns: 72px minmax(0, 1fr); gap: 12px; padding: 14px; }
+  .preview,
+  .imageFrame { width: 72px; height: 64px; }
+  .actions { grid-column: 1 / -1; justify-content: stretch; }
+  .actions button { flex: 1; }
+}

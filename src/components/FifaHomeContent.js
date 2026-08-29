@@ -1,17 +1,14 @@
 import logger from '../utils/logger';
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Activity, AlertTriangle, BarChart3, Bell, CalendarClock, CalendarDays, Check, CheckCircle, ChevronRight, ClipboardList, History, Trophy, UserPlus, Users, Vote } from 'lucide-react';
+import { Activity, AlertTriangle, BarChart3, Bell, CalendarClock, CalendarDays, CheckCircle, ChevronRight, ClipboardList, History, Trophy, UserPlus, Users, Vote } from 'lucide-react';
 import { useAuth } from './AuthProvider';
 import { useNotifications } from '../context/NotificationContext';
 import { useInterval } from '../hooks/useInterval';
-import { supabase, updateProfile, addFreePlayer, removeFreePlayer } from '../supabase';
+import { supabase } from '../supabase';
 import { listMyTeamMatches } from '../services/db/teamChallenges';
 import { parseLocalDateTime } from '../utils/dateLocal';
-import { firstName } from '../utils/displayName';
 import { buildActivityFeed } from '../utils/activityFeed';
-import { AWARDS_READY_NOTIFICATION_TYPES, isAwardsReadyStatus } from '../utils/awardsReadiness';
 import {
   getNextHomeAction,
   resolvePaymentsNextStepAction,
@@ -20,7 +17,6 @@ import {
 import { openNotification } from '../utils/notificationRouter';
 import { notifyBlockingError } from '../utils/notifyBlockingError';
 import ProximosPartidos from './ProximosPartidos';
-import NotificationsBell from './NotificationsBell';
 import HomeWelcomeCard from './HomeWelcomeCard';
 import HomeNextStepCard from './HomeNextStepCard';
 import QuickAccessRail from './QuickAccessRail';
@@ -32,6 +28,12 @@ import {
   filterDismissedRecentActivityItems,
   getRecentActivityItemKey,
 } from '../utils/recentActivityDismissals';
+import { useAwardsStory } from './global-header/AwardsStoryContext';
+
+export {
+  getDirectAwardsRingMatchIds,
+  isAwardsRingNotificationType,
+} from './global-header/AwardsStoryContext';
 
 // Line-style soccer ball icon for the "Partido nuevo" quick-access hero card.
 const SoccerBallIcon = (props) => (
@@ -62,34 +64,9 @@ const severityIconClass = {
   neutral: 'text-white/80',
 };
 
-const AWARDS_RING_WINDOW_MS = 24 * 60 * 60 * 1000;
 const HOME_ACTIVE_MATCHES_REFRESH_MS = 60000;
 const HOME_SNAPSHOT_STORAGE_PREFIX = 'home:snapshot:v1:';
 const RECENT_ACTIVITY_DISMISS_EXIT_MS = 240;
-const normalizeNotificationType = (notificationType) => String(notificationType || '').trim().toLowerCase();
-export const isAwardsRingNotificationType = (notificationType) => (
-  AWARDS_READY_NOTIFICATION_TYPES.has(normalizeNotificationType(notificationType))
-);
-export const isDirectAwardsRingNotificationType = (notificationType) => (
-  normalizeNotificationType(notificationType) === 'award_won'
-);
-
-const resolveNotificationMatchId = (notification) => (
-  notification?.partido_id
-  ?? notification?.data?.match_id
-  ?? notification?.data?.matchId
-  ?? notification?.match_ref
-  ?? null
-);
-
-export const getDirectAwardsRingMatchIds = (notifications = []) => Array.from(new Set(
-  (Array.isArray(notifications) ? notifications : [])
-    .filter((notification) => isDirectAwardsRingNotificationType(notification?.type))
-    .map((notification) => resolveNotificationMatchId(notification))
-    .filter((matchId) => matchId !== null && matchId !== undefined)
-    .map((matchId) => String(matchId).trim())
-    .filter(Boolean),
-));
 
 const normalizeStatusToken = (value) => String(value || '')
   .normalize('NFD')
@@ -106,11 +83,6 @@ const isCancelledChallengeStatus = (statusValue) => {
   const normalized = normalizeStatusToken(statusValue);
   return normalized === 'canceled' || normalized === 'cancelled' || normalized === 'cancelado';
 };
-
-// Mirrors the results page gate (deriveCanonicalResultsRow): a "results ready"
-// entry point must be backed by a row the page will actually render, otherwise
-// the CTA would land on "no hubo suficientes votos".
-const isAwardsReadyAndVisible = (row) => isAwardsReadyStatus(row) && row?.results_ready === true;
 
 const getHomeSnapshotStorageKey = (userId) => `${HOME_SNAPSHOT_STORAGE_PREFIX}${String(userId || '').trim()}`;
 
@@ -166,46 +138,9 @@ const writeHomeSnapshot = (userId, snapshot) => {
   }
 };
 
-const extractWinnerIds = (row) => {
-  const awards = row?.awards || {};
-  const mvpWinnerId = row?.mvp ?? awards?.mvp?.player_id ?? null;
-  const gloveWinnerId = row?.golden_glove ?? awards?.best_gk?.player_id ?? null;
-  const dirtyWinnerId = row?.dirty_player
-    ?? (Array.isArray(row?.red_cards) ? row.red_cards[0] : null)
-    ?? awards?.red_card?.player_id
-    ?? null;
-
-  return [mvpWinnerId, gloveWinnerId, dirtyWinnerId]
-    .filter((id) => id !== null && id !== undefined && String(id).trim() !== '');
-};
-
-const hasRenderableWinnerInRoster = (row, roster = []) => {
-  const winnerIds = extractWinnerIds(row);
-  if (winnerIds.length === 0 || !Array.isArray(roster) || roster.length === 0) return false;
-
-  return winnerIds.some((winnerId) => {
-    const winnerStr = String(winnerId);
-    const winnerStrLower = winnerStr.toLowerCase();
-
-    return roster.some((player) => {
-      const uuid = player?.uuid != null ? String(player.uuid) : '';
-      const usuarioId = player?.usuario_id != null ? String(player.usuario_id) : '';
-      const numericId = player?.id != null ? String(player.id) : '';
-
-      return (
-        uuid === winnerStr
-        || usuarioId === winnerStr
-        || numericId === winnerStr
-        || (uuid && winnerStr && uuid.toLowerCase() === winnerStrLower)
-      );
-    });
-  });
-};
-
 const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _onViewActivePlayers }) => {
-  const { user, profile, refreshProfile } = useAuth();
+  const { user } = useAuth();
   const notificationsCtx = useNotifications() || {};
-  const unreadCount = notificationsCtx.unreadCount || { friends: 0, matches: 0, total: 0 };
   const notifications = notificationsCtx.notifications || [];
   const navigate = useNavigate();
   const location = useLocation();
@@ -217,96 +152,16 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
   const [activityRefreshNonce, setActivityRefreshNonce] = useState(0);
   const [dismissingActivityKeys, setDismissingActivityKeys] = useState(() => new Set());
   const [showProximosPartidos, setShowProximosPartidos] = useState(false);
-  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
-  const [awardsReadyVisibleMatchIds, setAwardsReadyVisibleMatchIds] = useState([]);
-  const [awardsRingLoading, setAwardsRingLoading] = useState(false);
+  const {
+    awardsReadyVisibleMatchIds,
+    loading: awardsRingLoading,
+  } = useAwardsStory();
   const [paymentsNextStepAction, setPaymentsNextStepAction] = useState(null);
-  const statusDropdownRef = useRef(null);
-  const statusDropdownMenuRef = useRef(null);
   const activityLoadedRef = useRef(false);
   const nextStepValidationInFlightRef = useRef(false);
   const activeMatchesRefreshInFlightRef = useRef(false);
   const activeMatchesSignatureRef = useRef(buildActiveMatchesSignature([]));
   const activityDismissTimeoutsRef = useRef(new Map());
-
-  const awardsCandidateNotifs = useMemo(() => {
-    const nowTs = Date.now();
-    return (notifications || [])
-      .filter((n) => isAwardsRingNotificationType(n?.type))
-      .filter((n) => {
-        const createdTs = n?.created_at ? new Date(n.created_at).getTime() : 0;
-        return createdTs > 0 && (nowTs - createdTs) <= AWARDS_RING_WINDOW_MS;
-      })
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  }, [notifications]);
-  const directAwardsRingMatchIds = useMemo(
-    () => getDirectAwardsRingMatchIds(awardsCandidateNotifs),
-    [awardsCandidateNotifs],
-  );
-  const awardsValidationMatchIds = useMemo(() => Array.from(new Set(
-    awardsCandidateNotifs
-      .filter((notification) => !isDirectAwardsRingNotificationType(notification?.type))
-      .map((notification) => resolveNotificationMatchId(notification))
-      .filter((matchId) => matchId !== null && matchId !== undefined)
-      .map((matchId) => String(matchId).trim())
-      .filter(Boolean),
-  )), [awardsCandidateNotifs]);
-  const awardsCandidateMatchIdsKey = [
-    directAwardsRingMatchIds.join(','),
-    awardsValidationMatchIds.join(','),
-  ].join('::');
-  const awardsStoryNotifs = useMemo(() => {
-    const awardsReadyVisibleMatchIdSet = new Set((awardsReadyVisibleMatchIds || []).map((id) => String(id)));
-    return awardsCandidateNotifs.filter((notif) => {
-      const matchId = resolveNotificationMatchId(notif);
-      if (!matchId) return false;
-      return awardsReadyVisibleMatchIdSet.has(String(matchId));
-    });
-  }, [awardsCandidateNotifs, awardsReadyVisibleMatchIds]);
-  const hasAwardsStoryPending = awardsStoryNotifs.some((n) => !n.read);
-  const hasAwardsStoryViewed = !hasAwardsStoryPending && awardsStoryNotifs.some((n) => n.read);
-  const awardsReadyAndVisible = awardsStoryNotifs.length > 0;
-  const shouldShowAwardsRing = !awardsRingLoading && awardsReadyAndVisible;
-
-  const openAwardsStoryFromNotification = async (notif) => {
-    const matchId = resolveNotificationMatchId(notif);
-    if (!matchId) return false;
-    const resultsUrl = notif?.data?.resultsUrl || `/resultados-encuesta/${matchId}`;
-    await openNotification({
-      ...notif,
-      type: notif?.type || 'awards_ready',
-      partido_id: notif?.partido_id || matchId,
-      data: {
-        ...(notif?.data || {}),
-        resultsUrl,
-        match_id: notif?.data?.match_id || String(matchId),
-      },
-    }, navigate, {
-      supabaseClient: supabase,
-      onActionBlocked: (blocked) => {
-        if (blocked?.message) {
-          notifyBlockingError(blocked.message, { title: blocked.title });
-        }
-      },
-      onResultsUnavailable: (notice) => {
-        if (notice?.message) {
-          notifyBlockingError(notice.message, { title: notice.title });
-        }
-      },
-    });
-    return true;
-  };
-
-  const handleAvatarClick = async (e) => {
-    e.stopPropagation();
-    if (shouldShowAwardsRing) {
-      const latestPending = awardsStoryNotifs.find((n) => !n.read);
-      const latestViewed = awardsStoryNotifs.find((n) => n.read);
-      if (latestPending && await openAwardsStoryFromNotification(latestPending)) return;
-      if (latestViewed && await openAwardsStoryFromNotification(latestViewed)) return;
-    }
-    toggleStatusDropdown(e);
-  };
 
   const handleActivityItemClick = async (item) => {
     if (!item?.route) return;
@@ -516,93 +371,6 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
       activityItems,
     });
   }, [activeMatches, activityItems, user?.id]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const validateAwardsRing = async () => {
-      if (!user?.id) {
-        setAwardsReadyVisibleMatchIds([]);
-        setAwardsRingLoading(false);
-        return;
-      }
-
-      const trustedMatchIds = directAwardsRingMatchIds;
-      const candidateMatchIds = awardsValidationMatchIds;
-
-      if (trustedMatchIds.length === 0 && candidateMatchIds.length === 0) {
-        setAwardsReadyVisibleMatchIds([]);
-        setAwardsRingLoading(false);
-        return;
-      }
-
-      // "Trusted" (award_won) ids are validated too when we can query: awards
-      // can be reset after the notification was sent, and a stale id here means
-      // Home offering results that no longer exist. They only pass unvalidated
-      // as a fallback when the validation query itself fails.
-      const normalizedNumericIds = Array.from(new Set([...trustedMatchIds, ...candidateMatchIds]))
-        .map((id) => Number(id))
-        .filter((id) => Number.isFinite(id));
-
-      if (normalizedNumericIds.length === 0) {
-        setAwardsReadyVisibleMatchIds(trustedMatchIds);
-        setAwardsRingLoading(false);
-        return;
-      }
-
-      setAwardsRingLoading(true);
-      setAwardsReadyVisibleMatchIds([]);
-
-      try {
-        const { data: surveyResultsRows, error: surveyResultsError } = await supabase
-          .from('survey_results')
-          .select('*')
-          .in('partido_id', normalizedNumericIds);
-
-        if (surveyResultsError) throw surveyResultsError;
-
-        const { data: rosterRows, error: rosterError } = await supabase
-          .from('jugadores')
-          .select('partido_id, id, uuid, usuario_id')
-          .in('partido_id', normalizedNumericIds);
-
-        if (rosterError) throw rosterError;
-
-        const rosterByMatchId = new Map();
-        (rosterRows || []).forEach((player) => {
-          const key = String(player?.partido_id ?? '');
-          if (!key) return;
-          const list = rosterByMatchId.get(key) || [];
-          list.push(player);
-          rosterByMatchId.set(key, list);
-        });
-
-        const readyMatchIds = (surveyResultsRows || [])
-          .filter((row) => isAwardsReadyAndVisible(row))
-          .filter((row) => hasRenderableWinnerInRoster(row, rosterByMatchId.get(String(row.partido_id)) || []))
-          .map((row) => String(row.partido_id));
-
-        if (!cancelled) {
-          setAwardsReadyVisibleMatchIds(Array.from(new Set(readyMatchIds)));
-        }
-      } catch (error) {
-        logger.warn('[AWARDS_RING] Could not validate awards visibility:', error);
-        if (!cancelled) {
-          setAwardsReadyVisibleMatchIds(trustedMatchIds);
-        }
-      } finally {
-        if (!cancelled) {
-          setAwardsRingLoading(false);
-        }
-      }
-    };
-
-    validateAwardsRing();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.id, awardsCandidateMatchIdsKey]);
 
   const fetchActiveMatches = useCallback(async () => {
     if (!user) {
@@ -875,90 +643,6 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
     },
   );
 
-  const getInitial = () => {
-    if (profile?.avatar_url) return null;
-    return profile?.nombre?.charAt(0) || user?.email?.charAt(0) || '?';
-  };
-
-  // Bienvenida de Home: solo el primer nombre (evita "Juanito ferreri…"
-  // cortado con puntos suspensivos). No cambia el nombre en perfiles ni en el
-  // resto de la app. El recorte responsivo queda como salvaguarda por si el
-  // primer nombre fuera excepcionalmente largo.
-  const userName = profile?.nombre || user?.email?.split('@')[0] || 'Usuario';
-  const welcomeFirstName = firstName(userName, 'Usuario');
-  const truncatedName = welcomeFirstName.length > 15 ? `${welcomeFirstName.substring(0, 15)}...` : welcomeFirstName;
-  const isAvailable = profile?.acepta_invitaciones !== false;
-
-  const toggleStatusDropdown = (e) => {
-    e.stopPropagation();
-    setShowStatusDropdown(!showStatusDropdown);
-  };
-
-  const handleNotificationsClick = () => {
-    navigate('/notifications');
-    setShowStatusDropdown(false);
-  };
-
-  const updateAvailabilityStatus = async (status) => {
-    if (!user) return;
-
-    try {
-      if ((profile?.acepta_invitaciones !== false) === status) {
-        setShowStatusDropdown(false);
-        return;
-      }
-
-      await updateProfile(user.id, { acepta_invitaciones: status });
-
-      if (status) {
-        try {
-          await addFreePlayer();
-        } catch (syncError) {
-          const message = String(syncError?.message || '');
-          if (!/ya est[aá]s anotado como disponible/i.test(message)) {
-            throw syncError;
-          }
-        }
-      } else {
-        await removeFreePlayer();
-      }
-
-      await refreshProfile();
-      setShowStatusDropdown(false);
-    } catch (error) {
-      logger.error('Error updating availability status:', error);
-    }
-  };
-
-  useEffect(() => {
-    if (!showStatusDropdown) return undefined;
-
-    const handlePointerDownOutside = (event) => {
-      const target = event.target;
-      const clickedTrigger = statusDropdownRef.current?.contains(target);
-      const clickedMenu = statusDropdownMenuRef.current?.contains(target);
-
-      if (clickedTrigger || clickedMenu) return;
-      setShowStatusDropdown(false);
-    };
-
-    const handleEscape = (event) => {
-      if (event.key === 'Escape') {
-        setShowStatusDropdown(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handlePointerDownOutside);
-    document.addEventListener('touchstart', handlePointerDownOutside, { passive: true });
-    document.addEventListener('keydown', handleEscape);
-
-    return () => {
-      document.removeEventListener('mousedown', handlePointerDownOutside);
-      document.removeEventListener('touchstart', handlePointerDownOutside);
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [showStatusDropdown]);
-
   useEffect(() => {
     let cancelled = false;
 
@@ -1053,131 +737,6 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
   return (
     <div className="w-full bg-transparent shadow-none flex-1 flex flex-col min-h-0 overflow-hidden">
       <HomeWelcomeCard />
-
-      {/* Header elements - Avatar and Notifications */}
-      {user && (
-        <div className="relative left-1/2 right-1/2 ml-[-50vw] mr-[-50vw] w-screen shrink-0 mb-3 px-4 py-3 bg-[#120e28]/92 border-y border-[rgba(148,134,255,0.14)] rounded-none ui-flat shadow-[0_10px_28px_rgba(5,3,16,0.4)] after:content-[''] after:absolute after:bottom-0 after:left-0 after:right-0 after:h-px after:bg-[linear-gradient(90deg,transparent_8%,rgba(139,92,255,0.5)_42%,rgba(236,0,125,0.35)_66%,transparent_92%)]">
-          <div className="w-full max-w-[920px] mx-auto flex items-center justify-between">
-            <div className="flex flex-row items-center justify-center cursor-pointer relative z-[10000]" ref={statusDropdownRef}>
-            <div className="relative mr-4" onClick={handleAvatarClick}>
-              {/* "Historias" ring: pending = violet->blue gradient, viewed = muted gray. */}
-              <div
-                className={[
-                  'rounded-full',
-                  shouldShowAwardsRing ? 'p-[2px]' : 'p-0',
-                  hasAwardsStoryPending
-                    ? 'bg-gradient-to-r from-[#ff2f5b] via-[#ff5f3a] to-[#ff9800] shadow-[0_0_0_2px_rgba(255,255,255,0.10),0_0_16px_rgba(255,111,53,0.30)]'
-                    : shouldShowAwardsRing && hasAwardsStoryViewed
-                      ? 'bg-white/25'
-                      : 'bg-transparent',
-                ].join(' ')}
-              >
-                <div className="w-10 h-10 rounded-full overflow-hidden bg-[#1d1740] ring-1 ring-[rgba(148,134,255,0.4)] flex items-center justify-center text-white font-bold text-base">
-                  {profile?.avatar_url ? (
-                    <img
-                      src={profile.avatar_url}
-                      alt="Profile"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div>
-                      {getInitial()}
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-[#120e28] ${isAvailable ? 'bg-[#4CAF50]' : 'bg-[#F44336]'}`}></div>
-            </div>
-
-            <div className="flex flex-col" onClick={toggleStatusDropdown}>
-              <div className="text-[10px] font-sans font-bold uppercase tracking-[0.16em] text-[#b0a0ff]/80 leading-none">Hola</div>
-              <div className="flex items-center gap-2 mt-1">
-                <div className="text-white font-oswald text-lg font-bold leading-tight tracking-[0.01em]">{truncatedName}</div>
-              </div>
-            </div>
-
-            {showStatusDropdown && createPortal(
-              <div
-                ref={statusDropdownMenuRef}
-                className="fixed top-20 left-4 rounded-2xl w-[300px] z-[2147483647] overflow-hidden border border-[rgba(148,134,255,0.3)] bg-[radial-gradient(280px_140px_at_18%_-20%,rgba(139,92,255,0.22),transparent_70%),linear-gradient(168deg,rgba(38,30,80,0.98),rgba(16,12,33,0.99))] shadow-[0_24px_64px_rgba(5,3,16,0.7),inset_0_1px_0_rgba(255,255,255,0.08)] origin-top-left animate-[dropdownSlideIn_0.26s_cubic-bezier(0.16,1,0.3,1)]"
-              >
-                <div className="relative px-4 pt-3.5 pb-3 border-b border-white/[0.07]">
-                  <div className="font-sans font-bold text-[#b0a0ff]/85 uppercase tracking-[0.16em] text-[10.5px]">Tu estado</div>
-                  <div className="font-oswald text-white text-[17px] font-bold leading-tight mt-0.5">Disponibilidad</div>
-                  <div className="absolute inset-x-0 top-0 h-px bg-[linear-gradient(90deg,transparent_6%,rgba(139,92,255,0.55)_40%,rgba(236,0,125,0.35)_68%,transparent_94%)]" />
-                </div>
-                <div className="p-2.5 space-y-2">
-                  {[
-                    {
-                      value: true,
-                      label: 'Disponible',
-                      detail: 'Te mostramos como jugador activo y te avisamos de partidos cerca.',
-                      dotClass: 'bg-[#4ade80] shadow-[0_0_8px_rgba(74,222,128,0.7)]',
-                    },
-                    {
-                      value: false,
-                      label: 'No disponible',
-                      detail: 'Pausamos tu visibilidad y dejamos de enviarte avisos de partidos cercanos.',
-                      dotClass: 'bg-[#f87171] shadow-[0_0_8px_rgba(248,113,113,0.6)]',
-                    },
-                  ].map((option, optionIndex) => {
-                    const isActive = isAvailable === option.value;
-                    return (
-                      <button
-                        key={option.label}
-                        className={`group/opt w-full text-left flex items-start gap-3 px-3.5 py-3 rounded-xl cursor-pointer transition-[background-color,border-color,box-shadow,transform] duration-200 text-white/95 border active:scale-[0.985] animate-[dropdownItemIn_0.3s_cubic-bezier(0.16,1,0.3,1)_both] ${
-                          isActive
-                            ? 'bg-[linear-gradient(135deg,#7d52ff_0%,#6a43ff_60%,#5832e6_100%)] border-[#8d6bff] shadow-[0_6px_18px_rgba(106,67,255,0.38),inset_0_1px_0_rgba(255,255,255,0.22)]'
-                            : 'bg-white/[0.03] border-white/10 hover:bg-white/[0.07] hover:border-white/20'
-                        }`}
-                        style={{ animationDelay: `${40 + optionIndex * 45}ms` }}
-                        onClick={() => updateAvailabilityStatus(option.value)}
-                        type="button"
-                      >
-                        <span className={`w-2.5 h-2.5 rounded-full mt-1.5 shrink-0 ${option.dotClass}`} />
-                        <span className="min-w-0 flex-1 block">
-                          <span className="font-oswald text-base leading-none block">{option.label}</span>
-                          <span className={`font-sans text-[12px] leading-[1.35] mt-1 block ${isActive ? 'text-white/85' : 'text-white/55'}`}>
-                            {option.detail}
-                          </span>
-                        </span>
-                        <span
-                          className={`mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition-all duration-200 ${
-                            isActive
-                              ? 'bg-white/25 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.3)]'
-                              : 'bg-transparent text-transparent border border-white/15'
-                          }`}
-                        >
-                          <Check size={12} strokeWidth={3} />
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>,
-              document.body,
-            )}
-            <style>{`
-              @keyframes dropdownSlideIn {
-                from { opacity: 0; transform: translateY(-12px) scale(0.92); }
-                to { opacity: 1; transform: translateY(0) scale(1); }
-              }
-              @keyframes dropdownItemIn {
-                from { opacity: 0; transform: translateY(-6px); }
-                to { opacity: 1; transform: translateY(0); }
-              }
-            `}</style>
-            </div>
-
-            <div className="flex items-center justify-end">
-              <NotificationsBell
-                unreadCount={unreadCount}
-                onClick={handleNotificationsClick}
-              />
-            </div>
-          </div>
-        </div>
-      )}
 
       <QuickAccessRail items={quickAccessItems} />
 
