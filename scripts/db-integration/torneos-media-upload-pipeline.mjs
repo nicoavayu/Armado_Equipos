@@ -36,6 +36,7 @@ const PIPELINE_MIGRATIONS = [
   '20260815234340_tournament_media_storage_readiness_and_delete.sql',
   '20260820120000_tournament_media_publication_is_processing_aware.sql',
   '20260821120000_media_restore_respects_closed_galleries.sql',
+  '20260831163520_fix_tournament_media_session_reuse.sql',
 ];
 const SESSION_PATH_RE =
   /^[0-9a-f-]{36}\/[0-9a-f-]{36}\/[0-9a-f-]{36}\/[0-9a-f-]{36}\.(jpg|png|webp)$/;
@@ -96,7 +97,7 @@ const SERVICE_POLICIES = `
     for delete to service_role using (false);
 `;
 
-async function installStorageFixture(admin) {
+export async function installStorageFixture(admin) {
   await admin.query(`
     create schema if not exists storage;
     create table storage.buckets (

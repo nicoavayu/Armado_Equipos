@@ -1167,6 +1167,44 @@ async function cleanup(client, storage, scope) {
      where organization_id = $1 and checksum_sha256 = any($2::text[])`,
     [scope.organization_id, GALLERY_PHOTOS.map((label) => sha256Hex(galleryPhotoPng(label)))],
   );
+  const seededGallery = (await rows(
+    client,
+    `select id from public.tournament_media_galleries
+     where organization_id = $1 and tournament_id = $2
+     order by created_at limit 1`,
+    [scope.organization_id, scope.tournament_id],
+  ))[0];
+  const mediaSessionFixtures = GALLERY_PHOTOS.map((label) => ({
+    idempotencyKey: uuid(`media-session:${label}`),
+    byteSize: galleryPhotoPng(label).length,
+  }));
+  const seededPartialSessions = !seededGallery ? [] : await rows(
+    client,
+    `select session.id, session.internal_path
+     from public.tournament_media_upload_sessions session
+     join (values ${mediaSessionFixtures.map(
+       (_, index) => `($${index * 2 + 5}::uuid,$${index * 2 + 6}::bigint)`,
+     ).join(', ')}) expected(idempotency_key, requested_size)
+       on expected.idempotency_key = session.idempotency_key
+      and expected.requested_size = session.requested_size
+     where session.organization_id = $1
+       and session.tournament_id = $2
+       and session.requested_by = $3
+       and session.gallery_id = $4
+       and session.processing_tier = 'mvp_simple'
+       and session.requested_mime = 'image/png'
+       and session.asset_id is null
+       and session.consumed_at is null`,
+    [
+      scope.organization_id,
+      scope.tournament_id,
+      scope.owner_user_id,
+      seededGallery.id,
+      ...mediaSessionFixtures.flatMap((fixture) => [
+        fixture.idempotencyKey, fixture.byteSize,
+      ]),
+    ],
+  );
 
   const removed = {};
   await client.query('begin');
@@ -1186,6 +1224,32 @@ async function cleanup(client, storage, scope) {
       'delete from public.tournament_media_upload_sessions where asset_id = any($1::uuid[])',
       [assetIds],
     );
+    const partialSessionIds = seededPartialSessions.map((session) => session.id);
+    await client.query(
+      'delete from public.tournament_media_processing_jobs'
+      + ' where session_id = any($1::uuid[])',
+      [partialSessionIds],
+    );
+    const deletedPartialSessions = await client.query(
+      `delete from public.tournament_media_upload_sessions
+       where id = any($1::uuid[])
+         and organization_id = $2
+         and tournament_id = $3
+         and requested_by = $4
+         and gallery_id = $5
+         and processing_tier = 'mvp_simple'
+         and requested_mime = 'image/png'
+         and asset_id is null
+         and consumed_at is null`,
+      [
+        partialSessionIds,
+        scope.organization_id,
+        scope.tournament_id,
+        scope.owner_user_id,
+        seededGallery?.id || null,
+      ],
+    );
+    removed.partialMediaSessions = deletedPartialSessions.rowCount;
     await client.query(
       'delete from public.tournament_media_moderation_actions where asset_id = any($1::uuid[])',
       [assetIds],
@@ -1240,7 +1304,10 @@ async function cleanup(client, storage, scope) {
   }
 
   await storage.remove(PORTRAIT_BUCKET, seededPortraits.map((portrait) => portrait.object_path));
-  await storage.remove(MEDIA_BUCKET, seededAssets.map((asset) => asset.internal_path));
+  await storage.remove(MEDIA_BUCKET, [...new Set([
+    ...seededAssets.map((asset) => asset.internal_path),
+    ...seededPartialSessions.map((session) => session.internal_path),
+  ])]);
 
   // Los escudos, la convocatoria y el acta NO se revierten: son estado deportivo
   // que la organización ya considera propio, y deshacerlo desde un script de QA
