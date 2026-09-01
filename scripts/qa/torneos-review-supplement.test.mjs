@@ -76,6 +76,18 @@ test('el fixture de planes exige destino LOCAL y habilitación explícita', () =
   assert.match(remote.stderr, /loopback/i);
 });
 
+test('el fixture de planes usa el contrato comercial vigente por temporada', () => {
+  const source = fs.readFileSync(PLAN_FIXTURE, 'utf8');
+  assert.match(source, /resolve_effective_tournament_entitlements_at/);
+  assert.match(source, /create_fake_tournament_season_purchase/);
+  assert.match(source, /apply_fake_tournament_payment_status/);
+  assert.match(source, /tournament_season_plan_grants/);
+  assert.match(source, /assignmentSource === 'default_free'/);
+  assert.match(source, /assignmentSource === 'purchase'/);
+  assert.doesNotMatch(source, /grant_tournament_premium\(/);
+  assert.doesNotMatch(source, /plan_code = 'FREE' and grant_row\.source = 'first_free'/);
+});
+
 test('aplicar sin la habilitación explícita falla', () => {
   const result = run(SEED, ['--apply-local']);
   assert.equal(result.status, 1);
@@ -156,6 +168,32 @@ test('sembrar multimedia no termina sin verificar el contrato de procesamiento',
   // El informe diagnostica en vez de morir: si el dataset arrastra fotos
   // inválidas hay que poder listarlas, no perderlas en una excepción.
   assert.match(source, /mvp_simple_contract_violations: contract\.violations/);
+});
+
+test('el cleanup multimedia sólo elimina sesiones parciales inequívocas del fixture', () => {
+  const source = fs.readFileSync(SEED, 'utf8');
+  const cleanup = source.slice(
+    source.indexOf('async function cleanup('),
+    source.indexOf('// ---------------------------------------------------------------------------\n// Entrada'),
+  );
+  assert.match(cleanup, /GALLERY_PHOTOS\.map[\s\S]*uuid\(`media-session:\$\{label\}`\)/);
+  assert.match(cleanup, /expected\.idempotency_key = session\.idempotency_key/);
+  assert.match(cleanup, /expected\.requested_size = session\.requested_size/);
+  for (const predicate of [
+    'session.organization_id = $1',
+    'session.tournament_id = $2',
+    'session.requested_by = $3',
+    'session.gallery_id = $4',
+    "session.processing_tier = 'mvp_simple'",
+    "session.requested_mime = 'image/png'",
+    'session.asset_id is null',
+    'session.consumed_at is null',
+  ]) {
+    assert.ok(cleanup.includes(predicate), `falta el scope QA: ${predicate}`);
+  }
+  assert.match(cleanup, /removed\.partialMediaSessions = deletedPartialSessions\.rowCount/);
+  assert.match(cleanup, /new Set\(\[[\s\S]*seededPartialSessions/,
+    'los paths parciales se purgan sin duplicar nombres');
 });
 
 test('la guarda del fixture nombra cada condición que el producto exige a mvp_simple', () => {

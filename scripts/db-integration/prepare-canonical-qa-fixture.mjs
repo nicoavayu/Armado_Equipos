@@ -55,6 +55,87 @@ function authenticatorUrl(databaseUrl) {
   return parsed.toString();
 }
 
+function manifestRows(manifest, tableName) {
+  return manifest.operations
+    .filter((operation) => operation.table === tableName)
+    .flatMap((operation) => operation.rows);
+}
+
+async function ensureCanonicalAdminSeasonAssignment(client, manifest) {
+  const memberships = manifestRows(manifest, 'tournament_organization_members');
+  const seasons = manifestRows(manifest, 'tournament_seasons');
+  const adminMembership = memberships.find((membership) => membership.role === 'admin');
+
+  if (!adminMembership || seasons.length !== 1) {
+    throw new Error(
+      'El bootstrap canónico requiere admin y exactamente una season para resolver el scope.',
+    );
+  }
+
+  const [season] = seasons;
+  if (
+    adminMembership.organization_id !== manifest.organizationId
+    || season.organization_id !== manifest.organizationId
+  ) {
+    throw new Error('El assignment canónico no coincide con la organización del manifest.');
+  }
+
+  await client.query('begin isolation level serializable');
+  try {
+    await client.query(
+      'select pg_advisory_xact_lock(hashtextextended($1, 0))',
+      [`${manifest.seedKey}:admin-season-assignment`],
+    );
+    const inserted = await client.query(
+      `insert into public.tournament_season_member_assignments (
+         organization_id, season_id, membership_id
+       )
+       select $1, $2, $3
+       where not exists (
+         select 1
+         from public.tournament_season_member_assignments assignment
+         where assignment.organization_id = $1
+           and assignment.season_id = $2
+           and assignment.membership_id = $3
+       )`,
+      [
+        manifest.organizationId,
+        season.id,
+        adminMembership.id,
+      ],
+    );
+    const verification = await client.query(
+      `select assignment.id
+       from public.tournament_season_member_assignments assignment
+       join public.tournament_organization_members membership
+         on membership.id = assignment.membership_id
+       join public.tournament_seasons season
+         on season.id = assignment.season_id
+        and season.organization_id = assignment.organization_id
+       where assignment.organization_id = $1
+         and assignment.season_id = $2
+         and assignment.membership_id = $3
+         and membership.user_id = $4
+         and membership.role = 'admin'
+         and membership.status = 'active'`,
+      [
+        manifest.organizationId,
+        season.id,
+        adminMembership.id,
+        adminMembership.user_id,
+      ],
+    );
+    if (verification.rowCount !== 1) {
+      throw new Error('No se pudo verificar el season scope explícito del admin canónico.');
+    }
+    await client.query('commit');
+    return inserted.rowCount === 1 ? 'created' : 'reused';
+  } catch (error) {
+    await client.query('rollback');
+    throw error;
+  }
+}
+
 async function prepare(localEnv) {
   const authAdmin = createClient(localEnv.API_URL, localEnv.SERVICE_ROLE_KEY, {
     auth: {
@@ -73,6 +154,7 @@ async function prepare(localEnv) {
     const manifest = buildCanonicalManifest({ identityMap: users.identityMap });
     const validation = validateCanonicalManifest(manifest);
     const seed = await materializeManifest(client, manifest);
+    const adminSeasonAssignment = await ensureCanonicalAdminSeasonAssignment(client, manifest);
     return {
       users: {
         created: users.createdCount,
@@ -84,6 +166,7 @@ async function prepare(localEnv) {
         expectedRows: validation.counts.totalRows,
         expectedTables: validation.counts.tables,
       },
+      adminSeasonAssignment,
     };
   });
 }
@@ -100,7 +183,7 @@ async function main() {
 
   const localEnv = readLocalEnv();
   const result = await prepare(localEnv);
-  console.log(`Fixture QA canónico: ${result.seed.key} ${result.seed.status}; ${result.seed.expectedRows} filas/${result.seed.expectedTables} tablas; usuarios ${result.users.created} creados, ${result.users.reused} reutilizados.`);
+  console.log(`Fixture QA canónico: ${result.seed.key} ${result.seed.status}; ${result.seed.expectedRows} filas/${result.seed.expectedTables} tablas; usuarios ${result.users.created} creados, ${result.users.reused} reutilizados; scope admin ${result.adminSeasonAssignment}.`);
 
   if (command.length === 0) return;
   const child = spawnSync(command[0], command.slice(1), {

@@ -4,6 +4,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { findRegisteredSupabaseCalls } from './static-supabase-targets.mjs';
+
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(scriptDir, '../..');
 const outputPath = path.join(root, 'docs/database/arma2-functional-contract.md');
@@ -109,7 +111,10 @@ for (const absolute of files) {
   const text = fs.readFileSync(absolute, 'utf8');
   const flow = flowFor(relative);
 
-  for (const match of text.matchAll(/\.from\(\s*(['"`])([^'"`]+)\1\s*\)/g)) {
+  const literalFromCalls = [...text.matchAll(/\.from\(\s*(['"`])([^'"`]+)\1\s*\)/g)]
+    .map((match) => ({ index: match.index, target: match[2] }));
+  const registeredFromCalls = findRegisteredSupabaseCalls(text, relative, 'from');
+  for (const match of [...literalFromCalls, ...registeredFromCalls]) {
     const prefix = text.slice(Math.max(0, match.index - 120), match.index);
     const chain = chainAfter(text, match.index);
     const isStorage = /\.storage\s*$/.test(prefix) || /storage\s*\n?\s*$/.test(prefix);
@@ -127,25 +132,28 @@ for (const absolute of files) {
       flow,
       client: `${relative}:${lineAt(text, match.index)}`,
       kind,
-      target: isStorage ? `storage:${match[2]} (${operation})` : match[2],
+      target: isStorage ? `storage:${match.target} (${operation})` : match.target,
       input: mutation ? `${operation}: ${clip(mutation[2])}${filters ? `; ${filters}` : ''}` : (filters || 'sin filtro estático'),
       output: select ? clip(select[2]) : (isStorage ? 'Storage response / public URL' : operation === 'delete' ? 'filas afectadas' : 'payload Supabase'),
-      permission: permissionFor(relative, kind, match[2]),
+      permission: permissionFor(relative, kind, match.target),
       error: nearestErrors(text, match.index),
     });
   }
 
-  for (const match of text.matchAll(/\.rpc\(\s*(['"`])([^'"`]+)\1\s*(?:,\s*([\s\S]{0,700}?))?\)/g)) {
+  const literalRpcCalls = [...text.matchAll(/\.rpc\(\s*(['"`])([^'"`]+)\1\s*(?:,\s*([\s\S]{0,700}?))?\)/g)]
+    .map((match) => ({ index: match.index, target: match[2], args: match[3] || '' }));
+  const registeredRpcCalls = findRegisteredSupabaseCalls(text, relative, 'rpc');
+  for (const match of [...literalRpcCalls, ...registeredRpcCalls]) {
     const chain = chainAfter(text, match.index, 1200);
     const select = chain.match(/\.select\s*\(\s*(['"`])([\s\S]*?)\1/);
     addOperation({
       flow,
       client: `${relative}:${lineAt(text, match.index)}`,
       kind: 'rpc',
-      target: match[2],
-      input: clip(match[3] || '{}'),
+      target: match.target,
+      input: clip(match.args || '{}'),
       output: select ? clip(select[2]) : 'payload definido por RPC; data/error',
-      permission: permissionFor(relative, 'rpc', match[2]),
+      permission: permissionFor(relative, 'rpc', match.target),
       error: nearestErrors(text, match.index),
     });
   }
@@ -297,5 +305,5 @@ const lines = [
 ];
 
 fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-fs.writeFileSync(outputPath, `${lines.join('\n')}\n`);
+fs.writeFileSync(outputPath, `${lines.join('\n').trimEnd()}\n`);
 console.log(`Wrote ${path.relative(root, outputPath)} with ${uniqueOperations.length} operations.`);

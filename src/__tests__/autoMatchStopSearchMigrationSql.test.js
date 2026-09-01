@@ -1,18 +1,22 @@
 import fs from 'fs';
 import path from 'path';
 
-const migration = path.join(
+import migrationPathResolver from '../../scripts/resolve_migration_path.cjs';
+
+const { resolveMigrationPath } = migrationPathResolver;
+
+const migration = resolveMigrationPath(
   process.cwd(),
-  'supabase/migrations/20260806120000_auto_match_stop_search_atomic_exit.sql',
+  '20260806120000_auto_match_stop_search_atomic_exit.sql',
 );
 const sql = fs.readFileSync(migration, 'utf8');
 
 // Migración donde vive el matcher canónico: de ahí sale el advisory lock que la
 // baja tiene que compartir.
 const matcherSql = fs.readFileSync(
-  path.join(
+  resolveMigrationPath(
     process.cwd(),
-    'supabase/migrations/20260716120000_auto_match_real_conflict_slots_and_invite_capacity_race.sql',
+    '20260716120000_auto_match_real_conflict_slots_and_invite_capacity_race.sql',
   ),
   'utf8',
 );
@@ -36,11 +40,14 @@ const functionBody = (name) => bodyIn(sql, name);
 // La última definición de una función a lo largo de TODAS las migraciones: es
 // la que queda vigente en la base.
 const latestDefinition = (name) => {
-  const dir = path.join(process.cwd(), 'supabase/migrations');
-  const files = fs.readdirSync(dir).filter((file) => file.endsWith('.sql')).sort();
+  const root = process.cwd();
+  const files = [
+    ...fs.readdirSync(path.join(root, 'supabase', 'migrations')),
+    ...fs.readdirSync(path.join(root, 'supabase', 'migrations_history')),
+  ].filter((file) => file.endsWith('.sql')).sort();
   let latest = '';
   for (const file of files) {
-    const found = bodyIn(fs.readFileSync(path.join(dir, file), 'utf8'), name);
+    const found = bodyIn(fs.readFileSync(resolveMigrationPath(root, file), 'utf8'), name);
     if (found) latest = found;
   }
   return latest;
@@ -265,7 +272,10 @@ describe('migración: dejar de buscar es una baja atómica', () => {
       // Y la firma original que se conserva es la de 20260710101500.
       const original = bodyIn(
         fs.readFileSync(
-          path.join(process.cwd(), 'supabase/migrations/20260710101500_availability_auto_match_mvp.sql'),
+          resolveMigrationPath(
+            process.cwd(),
+            '20260710101500_availability_auto_match_mvp.sql',
+          ),
           'utf8',
         ),
         'cancel_my_availability',

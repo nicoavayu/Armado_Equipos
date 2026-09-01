@@ -2,12 +2,12 @@
 //
 // Fixtures LOCAL idempotentes para la review final de Planes y append de fase.
 //
-// Estados que prepara, sin compras ni transacciones:
-//   * una organización nueva cuyo primer torneo recibe FREE por el trigger real;
+// Estados que prepara, sin Mercado Pago real:
+//   * una organización nueva cuya temporada resuelve FREE por default;
 //   * ese torneo con Liga publicada, 28 resultados oficiales, tabla Top 8 y
 //     ninguna fase eliminatoria, listo para Fixture > Versiones > Agregar fase;
-//   * una organización legacy dedicada, inicializada como el backfill real y
-//     con un único PREMIUM / legacy_grant emitido por la función server-side;
+//   * una organización dedicada con una compra FAKE local aprobada y un único
+//     PREMIUM / purchase efectivo para toda la temporada;
 //   * el torneo canónico Liga + Playoffs queda estrictamente de sólo lectura.
 //
 // El script no contiene bypass de UI ni de RLS. Sólo el proceso QA local escribe
@@ -49,6 +49,7 @@ const PREMIUM_SEASON_ID = stableUuid(`${FIXTURE_KEY}:premium:season`);
 const PREMIUM_SEASON_CREATION_KEY = stableUuid(`${FIXTURE_KEY}:premium:season:create`);
 const PREMIUM_TOURNAMENT_ID = stableUuid(`${FIXTURE_KEY}:premium:tournament`);
 const PREMIUM_TOURNAMENT_CREATION_KEY = stableUuid(`${FIXTURE_KEY}:premium:tournament:create`);
+const PREMIUM_PURCHASE_IDEMPOTENCY_KEY = stableUuid(`${FIXTURE_KEY}:premium:purchase`);
 const PREMIUM_ORGANIZATION_SLUG = 'qa-planes-legacy-premium';
 const PREMIUM_TOURNAMENT_NAME = 'Torneo Premium Legacy QA';
 
@@ -162,29 +163,74 @@ function buildLeagueFixture() {
 
 async function readFixture(client) {
   const expectedFixture = buildLeagueFixture();
-  const plans = await client.query(
+  const entitlementRows = await client.query(
     `select organization.slug, tournament.id tournament_id, tournament.name,
-            grant_row.plan_code, grant_row.source
+            tournament.season_id,
+            public.resolve_effective_tournament_entitlements_at(
+              organization.id,tournament.id,now(),false
+            ) entitlements
      from public.tournament_organizations organization
      join public.tournaments tournament on tournament.organization_id = organization.id
-     join public.tournament_plan_grants grant_row
-       on grant_row.organization_id = organization.id
-      and grant_row.tournament_id = tournament.id
-     where (organization.slug = $1 and tournament.id = $2
-            and grant_row.plan_code = 'FREE' and grant_row.source = 'first_free')
-        or (organization.slug = $3 and tournament.id = $4
-            and grant_row.plan_code = 'PREMIUM' and grant_row.source = 'legacy_grant')
-     order by grant_row.plan_code`,
-    [
-      FREE_ORGANIZATION_SLUG,
-      FREE_TOURNAMENT_ID,
-      PREMIUM_ORGANIZATION_SLUG,
-      PREMIUM_TOURNAMENT_ID,
-    ],
+     where (organization.slug = $1 and tournament.id = $2)
+        or (organization.slug = $3 and tournament.id = $4)`,
+    [FREE_ORGANIZATION_SLUG, FREE_TOURNAMENT_ID, PREMIUM_ORGANIZATION_SLUG, PREMIUM_TOURNAMENT_ID],
   );
-  const free = plans.rows.find((row) => row.plan_code === 'FREE');
-  const premium = plans.rows.find((row) => row.plan_code === 'PREMIUM');
-  if (!free || !premium) return null;
+  const free = entitlementRows.rows.find((row) => row.tournament_id === FREE_TOURNAMENT_ID);
+  const premium = entitlementRows.rows.find((row) => row.tournament_id === PREMIUM_TOURNAMENT_ID);
+  if (!free?.entitlements || !premium?.entitlements) return null;
+
+  const premiumCommercial = (await client.query(
+    `select purchase.id purchase_id,purchase.offer_code,purchase.offer_version,
+            purchase.product_code,purchase.status purchase_status,
+            purchase.season_id purchase_season_id,purchase.tournament_id purchase_tournament_id,
+            purchase.buyer_user_id,
+            grant_row.id grant_id,grant_row.plan_code grant_plan,
+            grant_row.source grant_source,grant_row.season_id grant_season_id,
+            event.event_type grant_event_type,
+            (select count(*)::int
+             from public.tournament_season_plan_grant_events grant_event
+             where grant_event.season_grant_id = grant_row.id) grant_event_count,
+            (select jsonb_agg(purchase_event.event_type order by purchase_event.id)
+             from public.tournament_purchase_events purchase_event
+             where purchase_event.purchase_id = purchase.id) purchase_events,
+            count(*) over ()::int matching_rows
+     from public.tournament_purchases purchase
+     join public.tournament_season_plan_grants grant_row
+       on grant_row.origin_purchase_id = purchase.id
+      and grant_row.organization_id = purchase.organization_id
+      and grant_row.season_id = purchase.season_id
+     join lateral (
+       select grant_event.event_type
+       from public.tournament_season_plan_grant_events grant_event
+       where grant_event.season_grant_id = grant_row.id
+       order by grant_event.id desc
+       limit 1
+     ) event on true
+     where purchase.organization_id = $1
+       and purchase.season_id = $2
+       and purchase.idempotency_key = $3`,
+    [PREMIUM_ORGANIZATION_ID, PREMIUM_SEASON_ID, PREMIUM_PURCHASE_IDEMPOTENCY_KEY],
+  )).rows[0];
+
+  const fixtureCommercialCounts = (await client.query(
+    `select
+       count(*) filter (
+         where purchase.organization_id = $1 and purchase.season_id = $2
+       )::int free_purchases,
+       count(*) filter (
+         where purchase.organization_id = $3 and purchase.season_id = $4
+       )::int premium_purchases,
+       (select count(*)::int from public.tournament_season_plan_grants grant_row
+        where grant_row.organization_id = $1 and grant_row.season_id = $2) free_grants,
+       (select count(*)::int from public.tournament_season_plan_grants grant_row
+        where grant_row.organization_id = $3 and grant_row.season_id = $4) premium_grants,
+       (select count(*)::int from public.tournament_season_plan_grants grant_row
+        where grant_row.organization_id in ($1,$3)
+          and grant_row.season_id not in ($2,$4)) cross_season_grants
+     from public.tournament_purchases purchase
+     where purchase.organization_id in ($1,$3)`,
+    [FREE_ORGANIZATION_ID, FREE_SEASON_ID, PREMIUM_ORGANIZATION_ID, PREMIUM_SEASON_ID],
+  )).rows[0];
 
   const before = (await client.query(
     `select tournament.status,
@@ -195,8 +241,8 @@ async function readFixture(client) {
        count(distinct operation.id) filter (where operation.status = 'official')::int official_results,
        count(distinct score.match_operation_id)::int official_scores,
        count(distinct standing.id)::int standings_rows,
-       count(distinct grant_row.id)::int grant_count,
-       count(distinct grant_row.id) filter (where grant_row.source = 'purchase')::int purchase_count
+       count(distinct season_grant.id)::int season_grant_count,
+       count(distinct purchase.id)::int purchase_count
      from public.tournaments tournament
      left join public.tournament_fixture_versions version on version.tournament_id = tournament.id
      left join public.tournament_phases phase on phase.fixture_version_id = version.id
@@ -206,7 +252,12 @@ async function readFixture(client) {
      left join public.tournament_standings_revisions revision on revision.phase_id = phase.id
        and revision.status = 'published'
      left join public.tournament_team_standings standing on standing.revision_id = revision.id
-     left join public.tournament_plan_grants grant_row on grant_row.tournament_id = tournament.id
+     left join public.tournament_season_plan_grants season_grant
+       on season_grant.organization_id = tournament.organization_id
+      and season_grant.season_id = tournament.season_id
+     left join public.tournament_purchases purchase
+       on purchase.organization_id = tournament.organization_id
+      and purchase.season_id = tournament.season_id
      where tournament.id = $1
      group by tournament.status`,
     [FREE_TOURNAMENT_ID],
@@ -274,8 +325,58 @@ async function readFixture(client) {
     [POST_ORGANIZATION_SLUG, POST_TOURNAMENT_NAME],
   )).rows[0];
 
+  const freeEntitlements = free.entitlements;
+  const premiumEntitlements = premium.entitlements;
+  const freeContractValid = free.season_id === FREE_SEASON_ID
+    && freeEntitlements.plan === 'FREE'
+    && freeEntitlements.assignmentSource === 'default_free'
+    && freeEntitlements.scope?.type === 'season'
+    && freeEntitlements.scope?.seasonId === FREE_SEASON_ID
+    && freeEntitlements.scope?.tournamentId === FREE_TOURNAMENT_ID
+    && freeEntitlements.media?.galleryAssetLimit === 25
+    && freeEntitlements.administration?.administrativeSeatLimit === 1
+    && freeEntitlements.social?.baseFamilyLimit === 3
+    && freeEntitlements.social?.premiumResultStyles === false
+    && freeEntitlements.capabilities?.['media.history'] === true
+    && freeEntitlements.capabilities?.['social_studio.premium'] === false;
+  const premiumContractValid = premium.season_id === PREMIUM_SEASON_ID
+    && premiumEntitlements.plan === 'PREMIUM'
+    && premiumEntitlements.assignmentSource === 'purchase'
+    && premiumEntitlements.scope?.type === 'season'
+    && premiumEntitlements.scope?.seasonId === PREMIUM_SEASON_ID
+    && premiumEntitlements.scope?.tournamentId === PREMIUM_TOURNAMENT_ID
+    && premiumEntitlements.media?.galleryAssetLimit === 1000
+    && premiumEntitlements.administration?.administrativeSeatLimit === 10
+    && premiumEntitlements.social?.baseFamilyLimit === 11
+    && premiumEntitlements.social?.premiumResultStyles === true
+    && premiumEntitlements.capabilities?.['media.history'] === true
+    && premiumEntitlements.capabilities?.['social_studio.premium'] === true;
+
   if (
-    before?.status !== 'active'
+    !freeContractValid
+    || !premiumContractValid
+    || !premiumCommercial
+    || premiumCommercial.matching_rows !== 1
+    || premiumCommercial.product_code !== 'torneos_premium'
+    || premiumCommercial.offer_code !== premiumEntitlements.offer?.code
+    || premiumCommercial.offer_version !== premiumEntitlements.offer?.version
+    || premiumCommercial.purchase_status !== 'approved'
+    || premiumCommercial.purchase_season_id !== PREMIUM_SEASON_ID
+    || premiumCommercial.purchase_tournament_id !== null
+    || premiumCommercial.grant_plan !== 'PREMIUM'
+    || premiumCommercial.grant_source !== 'purchase'
+    || premiumCommercial.grant_season_id !== PREMIUM_SEASON_ID
+    || premiumCommercial.grant_event_type !== 'granted'
+    || premiumCommercial.grant_event_count !== 1
+    || JSON.stringify(premiumCommercial.purchase_events) !== JSON.stringify([
+      'purchase.created', 'preference.created', 'payment.approved',
+    ])
+    || fixtureCommercialCounts.free_purchases !== 0
+    || fixtureCommercialCounts.free_grants !== 0
+    || fixtureCommercialCounts.premium_purchases !== 1
+    || fixtureCommercialCounts.premium_grants !== 1
+    || fixtureCommercialCounts.cross_season_grants !== 0
+    || before?.status !== 'active'
     || before.published_versions !== 1
     || before.league_phases !== 1
     || ![0, 1].includes(before.playoff_phases)
@@ -283,7 +384,7 @@ async function readFixture(client) {
     || before.official_results !== 28
     || before.official_scores !== 28
     || before.standings_rows !== 8
-    || before.grant_count !== 1
+    || before.season_grant_count !== 0
     || before.purchase_count !== 0
     || !leagueIntegrity
     || after?.status !== 'active'
@@ -292,15 +393,31 @@ async function readFixture(client) {
   ) return null;
 
   return {
+    fixtureKey: FIXTURE_KEY,
     freeOrganizationId: FREE_ORGANIZATION_ID,
     freeTournamentId: FREE_TOURNAMENT_ID,
     freeCategoryId: FREE_CATEGORY_ID,
-    freePlan: free.plan_code,
-    freeSource: free.source,
+    freeSeasonId: FREE_SEASON_ID,
+    freePlan: freeEntitlements.plan,
+    freeSource: freeEntitlements.assignmentSource,
+    freeLimits: freeEntitlements.limits,
     premiumOrganizationId: PREMIUM_ORGANIZATION_ID,
     premiumTournamentId: PREMIUM_TOURNAMENT_ID,
-    premiumPlan: premium.plan_code,
-    premiumSource: premium.source,
+    premiumSeasonId: PREMIUM_SEASON_ID,
+    premiumPlan: premiumEntitlements.plan,
+    premiumSource: premiumEntitlements.assignmentSource,
+    premiumLimits: premiumEntitlements.limits,
+    premiumOffer: {
+      code: premiumCommercial.offer_code,
+      version: premiumCommercial.offer_version,
+    },
+    premiumPurchaseId: premiumCommercial.purchase_id,
+    premiumPurchaseStatus: premiumCommercial.purchase_status,
+    premiumGrantId: premiumCommercial.grant_id,
+    premiumGrantEvent: premiumCommercial.grant_event_type,
+    premiumGrantEventCount: premiumCommercial.grant_event_count,
+    premiumPurchaseEvents: premiumCommercial.purchase_events,
+    crossSeasonGrants: fixtureCommercialCounts.cross_season_grants,
     reviewState: before.playoff_phases === 0 ? 'before_append' : 'after_append',
     leagueIntegrity: 'exact',
     beforeAppend: before,
@@ -327,13 +444,6 @@ async function seedPremiumFixture(client, ownerUserId) {
      ) values ($1,$2,$3,'owner','active',$4)
      on conflict (organization_id,user_id) do nothing`,
     [PREMIUM_MEMBERSHIP_ID, PREMIUM_ORGANIZATION_ID, ownerUserId, FIXED_AT],
-  );
-  await client.query(
-    `insert into public.tournament_organization_plan_state (
-       organization_id,first_free_consumed_at,first_free_tournament_id,initialization_source
-     ) values ($1,$2,null,'legacy_backfill')
-     on conflict (organization_id) do nothing`,
-    [PREMIUM_ORGANIZATION_ID, FIXED_AT],
   );
   await client.query(
     `insert into public.tournament_seasons (
@@ -368,12 +478,35 @@ async function seedPremiumFixture(client, ownerUserId) {
       PREMIUM_TOURNAMENT_CREATION_KEY,
     ],
   );
+  let purchaseId = (await client.query(
+    `select id
+     from public.tournament_purchases
+     where organization_id = $1 and season_id = $2
+       and buyer_user_id = $3 and idempotency_key = $4`,
+    [PREMIUM_ORGANIZATION_ID, PREMIUM_SEASON_ID, ownerUserId, PREMIUM_PURCHASE_IDEMPOTENCY_KEY],
+  )).rows[0]?.id;
+  if (!purchaseId) {
+    await client.query('set local role authenticated');
+    await client.query("select set_config('request.jwt.claim.sub',$1,true)", [ownerUserId]);
+    const purchase = (await client.query(
+      `select public.create_fake_tournament_season_purchase(
+         $1,$2,'torneos_premium',$3::uuid,'local'
+       ) payload`,
+      [PREMIUM_ORGANIZATION_ID, PREMIUM_SEASON_ID, PREMIUM_PURCHASE_IDEMPOTENCY_KEY],
+    )).rows[0]?.payload;
+    await client.query('reset role');
+    await client.query("select set_config('request.jwt.claim.sub','',true)");
+    purchaseId = purchase?.id;
+  }
+  if (!purchaseId) throw new Error('La compra FAKE local Premium no pudo materializarse.');
+  await client.query('set local role service_role');
   await client.query(
-    `select public.grant_tournament_premium(
-       $1,$2,'legacy_grant','Grant QA LOCAL determinista; no representa una compra real'
+    `select public.apply_fake_tournament_payment_status(
+       $1,'approved',null,null,null
      )`,
-    [PREMIUM_ORGANIZATION_ID, PREMIUM_TOURNAMENT_ID],
+    [purchaseId],
   );
+  await client.query('reset role');
   await client.query(
     `insert into public.user_tournament_context_preferences (
        user_id,organization_id,active_season_id,active_tournament_id

@@ -12,6 +12,7 @@ const expectedCanonicalMigrations = [
   '20260802090000_tournament_media_upload_pipeline.sql',
   '20260802120000_tournament_media_trusted_processing.sql',
   '20260803090000_tournament_social_studio.sql',
+  '20260806120000_auto_match_stop_search_atomic_exit.sql',
   '20260809232508_tournament_media_free_mvp.sql',
   '20260810160355_tournament_entitlements_foundation.sql',
   '20260810215224_tournament_public_pages.sql',
@@ -42,6 +43,9 @@ const expectedCanonicalMigrations = [
   '20260828165314_remove_legacy_media_subquotas.sql',
   '20260828172000_prune_legacy_media_subquota_work.sql',
   '20260828174500_harden_season_rpc_execute_grants.sql',
+  '20260831034314_restore_current_product_contracts.sql',
+  '20260831163520_fix_tournament_media_session_reuse.sql',
+  '20260831200904_global_availability_atomic_contract.sql',
 ];
 
 const exitWithError = (message) => {
