@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Check, CircleUserRound, Gift, LoaderCircle, X } from 'lucide-react';
 import logger from '../../utils/logger';
 import { useAuth } from '../AuthProvider';
-import { addFreePlayer, removeFreePlayer, updateProfile } from '../../supabase';
+import { setMyGlobalAvailability } from '../../services/db/availability';
 import { firstName } from '../../utils/displayName';
 import { APP_SPACE, useSpaceNavigation } from '../../features/space-navigation';
 import { useAwardsStory } from './AwardsStoryContext';
@@ -67,16 +67,7 @@ export default function UserAvatarMenu() {
     setSavingAvailability(true);
     setAvailabilityError('');
     try {
-      await updateProfile(user.id, { acepta_invitaciones: nextValue });
-      if (nextValue) {
-        try {
-          await addFreePlayer();
-        } catch (error) {
-          if (!/ya est[aá]s anotado como disponible/i.test(String(error?.message || ''))) throw error;
-        }
-      } else {
-        await removeFreePlayer();
-      }
+      await setMyGlobalAvailability(nextValue);
       await refreshProfile();
     } catch (error) {
       logger.error('Error updating availability status:', error);

@@ -1,13 +1,11 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import GlobalHeader from '../components/global-header/GlobalHeader';
 
 let mockCurrentSpace = 'arma2';
 const mockSwitchSpace = jest.fn();
 const mockIsSpaceAvailable = jest.fn(() => true);
-const mockUpdateProfile = jest.fn().mockResolvedValue(undefined);
-const mockAddFreePlayer = jest.fn().mockResolvedValue(undefined);
-const mockRemoveFreePlayer = jest.fn().mockResolvedValue(undefined);
+const mockSetMyGlobalAvailability = jest.fn().mockResolvedValue(undefined);
 const mockOpenLatestStory = jest.fn().mockResolvedValue(true);
 let mockAwardsStory = {
   hasStory: false,
@@ -36,10 +34,8 @@ jest.mock('../context/NotificationContext', () => ({
   useNotifications: () => ({ unreadCount: { total: 3 }, notifications: [] }),
 }));
 
-jest.mock('../supabase', () => ({
-  updateProfile: (...args) => mockUpdateProfile(...args),
-  addFreePlayer: (...args) => mockAddFreePlayer(...args),
-  removeFreePlayer: (...args) => mockRemoveFreePlayer(...args),
+jest.mock('../services/db/availability', () => ({
+  setMyGlobalAvailability: (...args) => mockSetMyGlobalAvailability(...args),
 }));
 
 jest.mock('../components/global-header/AwardsStoryContext', () => ({
@@ -51,9 +47,7 @@ describe('GlobalHeader', () => {
     mockCurrentSpace = 'arma2';
     mockSwitchSpace.mockClear();
     mockIsSpaceAvailable.mockReturnValue(true);
-    mockUpdateProfile.mockClear();
-    mockAddFreePlayer.mockClear();
-    mockRemoveFreePlayer.mockClear();
+    mockSetMyGlobalAvailability.mockClear();
     mockOpenLatestStory.mockClear();
     mockAwardsStory = {
       hasStory: false,
@@ -167,6 +161,6 @@ describe('GlobalHeader', () => {
     render(<GlobalHeader />);
     fireEvent.click(screen.getByRole('button', { name: 'Abrir menú de usuario' }));
     fireEvent.click(screen.getByRole('button', { name: /^No disponible / }));
-    expect(mockUpdateProfile).toHaveBeenCalledWith('user-123', { acepta_invitaciones: false });
+    await waitFor(() => expect(mockSetMyGlobalAvailability).toHaveBeenCalledWith(false));
   });
 });

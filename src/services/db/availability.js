@@ -218,6 +218,23 @@ export const cancelMyAvailability = async () => {
   };
 };
 
+// Global availability is one server-side domain operation. Enabling it opts
+// into invitations + Quiero Jugar only; Auto-Match remains an explicit form.
+export const setMyGlobalAvailability = async (enabled) => {
+  const session = await requireSession();
+  const { data, error } = await supabase.rpc('set_my_global_availability', {
+    p_enabled: enabled,
+  });
+  if (error) {
+    throw describeAvailabilityDbError(error, {
+      operation: 'setMyGlobalAvailability',
+      target: 'rpc:set_my_global_availability',
+      userId: session.user?.id,
+    });
+  }
+  return data;
+};
+
 export const getMyActiveAvailability = async (userId) => {
   if (!userId) return null;
   const { data, error } = await supabase
