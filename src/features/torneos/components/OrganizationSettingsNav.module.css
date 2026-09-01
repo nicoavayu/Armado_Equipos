@@ -1,0 +1,59 @@
+.nav {
+  display: flex;
+  width: fit-content;
+  max-width: 100%;
+  gap: 6px;
+  margin: -8px 0 24px;
+  padding: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.nav a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  color: rgba(255, 255, 255, 0.66);
+  font-family: var(--torneos-ui-font);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: border-color 160ms ease, background 160ms ease, color 160ms ease, box-shadow 160ms ease;
+}
+
+.nav a svg { flex: 0 0 auto; }
+
+.nav a:hover,
+.nav a:focus-visible {
+  color: #fff;
+  outline: none;
+  border-color: rgba(139, 124, 255, 0.35);
+}
+
+.nav a.active {
+  color: #fff;
+  background: linear-gradient(135deg, #8058f5, #6840e9);
+  border-color: rgba(186, 169, 255, 0.46);
+  box-shadow: 0 6px 18px rgba(94, 55, 216, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+@media (max-width: 520px) {
+  .nav {
+    width: 100%;
+  }
+
+  .nav a {
+    flex: 1;
+    min-width: 0;
+    padding-inline: 10px;
+    font-size: 12px;
+  }
+}

@@ -1,0 +1,110 @@
+.selector {
+  display: grid;
+  gap: 20px;
+  align-content: start;
+  max-width: 620px;
+  padding: 26px;
+  border: 1px solid var(--torneos-border, rgba(255, 255, 255, 0.1));
+  border-radius: var(--torneos-radius, 20px);
+  background: var(--torneos-card-bg, rgba(20, 16, 41, 0.96));
+  box-shadow: var(--torneos-elevated-shadow, 0 18px 44px rgba(5, 3, 16, 0.42));
+  color: var(--torneos-copy, #f7f3ff);
+}
+
+.selector header {
+  display: grid;
+  gap: 8px;
+  /* La cabecera puede achicarse: en columna angosta el texto envuelve en vez
+     de estirar la tarjeta. */
+  min-width: 0;
+}
+
+.kicker {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--torneos-purple-bright, #8b7cff);
+}
+
+.selector h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  line-height: 1.2;
+}
+
+.selector p {
+  margin: 0;
+  color: var(--torneos-muted, rgba(255, 255, 255, 0.64));
+  line-height: 1.5;
+}
+
+.options {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+
+.option {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--torneos-border, rgba(255, 255, 255, 0.1));
+  border-radius: var(--torneos-control-radius, 16px);
+  background: var(--torneos-control-bg, rgba(255, 255, 255, 0.045));
+  cursor: pointer;
+}
+
+.option[data-selected='true'] {
+  border-color: var(--torneos-border-strong, rgba(148, 134, 255, 0.35));
+  background: rgba(139, 124, 255, 0.14);
+}
+
+.option:focus-within {
+  outline: var(--torneos-focus-ring, 3px solid #ae98ff);
+  outline-offset: var(--torneos-focus-ring-offset, 2px);
+}
+
+.option span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.option strong {
+  overflow-wrap: anywhere;
+}
+
+.option small {
+  color: var(--torneos-muted, rgba(255, 255, 255, 0.64));
+}
+
+.confirm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--torneos-action-gap, 8px);
+  justify-self: start;
+  min-height: var(--torneos-action-height, 48px);
+  padding: 0 var(--torneos-action-padding-x, 16px);
+  border: 0;
+  border-radius: var(--torneos-action-radius, 16px);
+  background: var(--torneos-cta, linear-gradient(135deg, #8b5cff, #6a43ff 52%, #5430e0));
+  box-shadow: var(--torneos-cta-shadow, 0 6px 22px rgba(106, 67, 255, 0.32));
+  color: #fff;
+  font-family: inherit;
+  font-size: var(--torneos-action-font-size, 0.94rem);
+  font-weight: var(--torneos-action-font-weight, 700);
+  line-height: var(--torneos-action-line-height, 1.15);
+  cursor: pointer;
+}
+
+.confirm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

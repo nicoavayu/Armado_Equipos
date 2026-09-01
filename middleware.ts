@@ -96,6 +96,14 @@ function isPublicSpaBuildAsset(pathname) {
   return PUBLIC_SPA_BUILD_ASSET_PATTERNS.some((pattern) => pattern.test(pathname));
 }
 
+function isPublicTorneosWebEntry(pathname) {
+  return pathname === '/torneos'
+    || pathname.startsWith('/torneos/')
+    || pathname === '/login'
+    || pathname === '/login/email'
+    || pathname === '/auth/callback';
+}
+
 export default async function privateWebGate(request) {
   const url = new URL(request.url);
   const legacyRedirect = redirectLegacyProductionHost(url);
@@ -111,6 +119,7 @@ export default async function privateWebGate(request) {
     && (
       isAllowedPublicVotingRequest(url)
       || isAllowedPublicMatchInviteRequest(url)
+      || isPublicTorneosWebEntry(url.pathname)
       || isPublicSpaBuildAsset(url.pathname)
     )
   ) {

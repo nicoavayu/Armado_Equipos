@@ -1,5 +1,10 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import {
+  createSupabaseCredentialFetch,
+  getSupabasePublishableCredential,
+  getSupabaseSecretCredential,
+} from "../_shared/supabaseApiKeys.ts";
 
 function corsHeaders(req: Request) {
   const origin = req.headers.get("origin") ?? "*";
@@ -149,10 +154,10 @@ serve(async (req) => {
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
-    const serviceKey = Deno.env.get("SERVICE_ROLE_KEY");
+    const anonCredential = getSupabasePublishableCredential();
+    const serviceCredential = getSupabaseSecretCredential();
 
-    if (!supabaseUrl || !anonKey || !serviceKey) {
+    if (!supabaseUrl) {
       return new Response(JSON.stringify({ ok: false, message: "missing_env" }), {
         status: 500,
         headers: { ...cors, "Content-Type": "application/json" },
@@ -161,8 +166,9 @@ serve(async (req) => {
 
     const authHeader = req.headers.get("Authorization") || "";
 
-    const userClient = createClient(supabaseUrl, anonKey, {
+    const userClient = createClient(supabaseUrl, anonCredential.key, {
       global: {
+        fetch: createSupabaseCredentialFetch(anonCredential),
         headers: {
           Authorization: authHeader,
         },
@@ -192,7 +198,8 @@ serve(async (req) => {
       });
     }
 
-    const adminClient = createClient(supabaseUrl, serviceKey, {
+    const adminClient = createClient(supabaseUrl, serviceCredential.key, {
+      global: { fetch: createSupabaseCredentialFetch(serviceCredential) },
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
@@ -248,7 +255,7 @@ serve(async (req) => {
 
       await requestImmediateJoinedPush({
         supabaseUrl,
-        anonKey,
+        anonKey: anonCredential.key,
         authHeader,
         partidoId: Number(partidoId),
       });

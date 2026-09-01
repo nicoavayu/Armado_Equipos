@@ -13,6 +13,7 @@ const SENSITIVE_QUERY_KEYS = new Set([
   'id_token',
   'invite',
   'refresh_token',
+  'returnto',
   'token',
 ]);
 
@@ -54,6 +55,10 @@ export function redactUrlForLog(incomingUrl) {
         parsed.searchParams.set(key, '[redacted]');
       }
     }
+    parsed.pathname = parsed.pathname.replace(
+      /(\/torneos\/invitacion\/equipo\/)[^/?#]+/i,
+      '$1[redacted]',
+    );
     if (parsed.hash) parsed.hash = '[redacted]';
 
     if (isRelative) return `${parsed.pathname}${parsed.search}${parsed.hash}`;

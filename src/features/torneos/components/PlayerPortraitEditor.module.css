@@ -1,0 +1,482 @@
+.rowActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+/*
+ * Los botones de acción usan el sistema de botones de Torneos —el de
+ * `Continuar`— y no una geometría propia. Hay que declararlo y no heredarlo: el
+ * diálogo se monta con `createPortal` en `body`, o sea fuera de `.shell`, donde
+ * lo que se hereda es la Oswald editorial de `body` y no la familia de la app.
+ * Los tokens viven en `:root` justamente para llegar hasta acá.
+ */
+.rowActions button,
+.dialogActions button,
+.fileButton {
+  font-family: var(--torneos-ui-font, Inter, ui-sans-serif, system-ui, sans-serif);
+  font-weight: var(--torneos-action-font-weight, 700);
+  line-height: var(--torneos-action-line-height, 1.15);
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.rowActions button > svg,
+.dialogActions button > svg,
+.fileButton > svg { flex: 0 0 auto; }
+
+/*
+ * Variante compacta: es una fila del plantel, no el pie de un formulario. Lo
+ * que cambia es la escala; el radio sigue la misma regla que el tamaño normal,
+ * así que no vuelve a ser un chip pill al lado de un CTA rectangular.
+ */
+.rowActions button {
+  display: inline-flex;
+  min-height: var(--torneos-action-height-sm, 36px);
+  align-items: center;
+  gap: var(--torneos-action-gap-sm, 6px);
+  padding: 0 var(--torneos-action-padding-x-sm, 12px);
+  border: 1px solid rgba(142, 166, 209, 0.26);
+  border-radius: var(--torneos-action-radius-sm, 12px);
+  background: rgba(142, 166, 209, 0.09);
+  color: #cdd7ee;
+  font-size: var(--torneos-action-font-size-sm, 13px);
+  cursor: pointer;
+}
+
+.rowActions button:hover {
+  border-color: rgba(130, 153, 255, 0.55);
+  color: #eaf0ff;
+}
+
+.rowActions button:focus-visible,
+.dialog button:focus-visible,
+.zoomRow input:focus-visible,
+.cropFrame:focus-visible {
+  outline: 2px solid #8299ff;
+  outline-offset: 2px;
+}
+
+.rowActions .remove {
+  border-color: rgba(255, 130, 111, 0.28);
+  color: #ffb3a4;
+}
+
+.rowActions .remove:hover {
+  border-color: rgba(255, 130, 111, 0.6);
+  color: #ffd0c6;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/*
+ * Arma2 no tiene un `box-sizing: border-box` global: cada superficie lo declara
+ * para su propio árbol (`.publicPage *`, `.hubPage *`, `.page button`…). El
+ * diálogo se portalea a `body`, o sea que no cae dentro de ninguno de esos
+ * árboles y quedaba en `content-box`: con `width: min(460px, 100%)` más 20px de
+ * padding y 1px de borde el diálogo medía 42px más que su hueco, y en un
+ * teléfono eso son 7px cortados de cada lado —arriba y abajo también— más
+ * scroll horizontal dentro del overlay. Éste es el árbol del portal, y acá se
+ * declara.
+ */
+.overlay,
+.overlay *,
+.overlay *::before,
+.overlay *::after {
+  box-sizing: border-box;
+}
+
+.overlay {
+  position: fixed;
+  z-index: 60;
+  display: grid;
+  padding: 16px;
+  overflow-y: auto;
+  place-items: center;
+  background: rgba(5, 8, 15, 0.72);
+  inset: 0;
+}
+
+.dialog {
+  display: grid;
+  width: min(460px, 100%);
+  max-height: calc(100dvh - 32px);
+  gap: 14px;
+  padding: 20px;
+  overflow-y: auto;
+  border: 1px solid rgba(142, 166, 209, 0.2);
+  border-radius: 20px;
+  outline: 0;
+  background: #101522;
+  color: #e6ecfb;
+}
+
+.confirmDialog {
+  width: min(380px, 100%);
+}
+
+.dialogHeader {
+  display: grid;
+  gap: 6px;
+}
+
+.dialog h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 900;
+}
+
+.dialog p {
+  margin: 0;
+  color: #97a3ba;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.privacyNote {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dialogBody {
+  display: grid;
+  gap: 14px;
+}
+
+.cropEditor {
+  display: grid;
+  gap: 12px;
+}
+
+/* Un selector de clase sola pierde contra `.dialog p`, que también es 0-1-1:
+   el rótulo y la pista se escriben con el contenedor adelante para que el color
+   y el cuerpo que declaran sean los que efectivamente se pintan. */
+.cropEditor .cropLabel {
+  color: #cdd7ee;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.cropStage {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: center;
+  gap: 14px;
+}
+
+/*
+ * El marco es lo único que no se mueve. Manda el 4:5 —el formato del retrato
+ * deportivo— y el ancho se limita a lo que ese alto permite, así que nunca hay
+ * que recortar el marco para que entre en la pantalla.
+ */
+.cropFrame {
+  position: relative;
+  width: min(100%, calc(46dvh * 4 / 5));
+  overflow: hidden;
+  /*
+   * El filo va por `box-shadow` y no por `border` a propósito: un borde deja el
+   * caja de relleno 2px más chica que la caja del 4:5, y como los porcentajes
+   * del encuadre se resuelven contra el relleno, marco y encuadre dejarían de
+   * hablar exactamente del mismo rectángulo. Sin borde, el 4:5 es uno solo.
+   */
+  border-radius: 14px;
+  box-shadow: inset 0 0 0 1px rgba(142, 166, 209, 0.2);
+  outline-offset: 2px;
+  background: #0b101c;
+  aspect-ratio: 4 / 5;
+  cursor: grab;
+  /*
+   * El gesto le pertenece a la foto: sin esto, arrastrarla en un teléfono
+   * scrollea el diálogo en vez de moverla. Es el marco el que lo declara, no el
+   * documento: fuera de acá el diálogo sigue scrolleando como siempre.
+   */
+  touch-action: none;
+  user-select: none;
+}
+
+.cropFrame:active {
+  cursor: grabbing;
+}
+
+/* Sin dimensiones naturales todavía no hay geometría: no se promete un arrastre
+   que no puede respetar los límites. */
+.cropFrame[data-ready="false"] {
+  cursor: default;
+}
+
+/*
+ * `max-width: none` no es cosmético: el preflight de Tailwind declara
+ * `img, video { max-width: 100%; height: auto }` para todo el documento, así que
+ * una imagen acercada —que por definición mide más que su marco— quedaba
+ * recortada al 100% del marco y aparecía el borde vacío que el encuadre
+ * justamente garantiza que no existe. La geometría la decide el encuadre, no el
+ * reset global.
+ */
+.cropImage {
+  display: block;
+  max-width: none;
+  max-height: none;
+  object-fit: cover;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* Un único control de zoom: `−` deslizador `+`. El porcentaje no aporta nada
+   que la propia foto no esté mostrando. */
+.zoomRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #8490a5;
+}
+
+.zoomRow input {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  accent-color: #8299ff;
+}
+
+.zoomRow input:disabled {
+  opacity: 0.5;
+}
+
+.cropEditor .cropHint {
+  font-size: 11px;
+}
+
+/*
+ * El 4:5 ya es el marco del editor, así que acá sólo queda lo que ese marco no
+ * muestra: el cuadrado. Se dibuja del mismo encuadre —misma foto, mismo punto
+ * focal, mismo zoom—, no de un segundo recorte.
+ */
+.framePreviews {
+  display: flex;
+  align-items: end;
+  gap: 14px;
+}
+
+.framePreviews figure {
+  display: grid;
+  margin: 0;
+  gap: 7px;
+  justify-items: center;
+}
+
+.framePreviews figcaption {
+  color: #8490a5;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.framePreview {
+  position: relative;
+  display: block;
+  width: 64px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #26304a;
+}
+
+/* El ancho, el alto y la esquina llegan por estilo en línea: son el encuadre.
+   `cover` queda como red por si todavía no hay dimensiones naturales, y
+   `max-width: none` evita que el preflight de Tailwind lo recorte al marco. */
+.framePreview img {
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  object-fit: cover;
+}
+
+.emptyPreview {
+  padding: 22px 14px;
+  border: 1px dashed rgba(142, 166, 209, 0.28);
+  border-radius: 14px;
+  text-align: center;
+}
+
+.fileField {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+/*
+ * El `<input type="file">` real sigue en el DOM, sigue siendo el que abre el
+ * selector y sigue siendo enfocable con teclado: sólo se saca de la vista para
+ * no mostrar el `Choose File / No file chosen` del navegador. `display: none`
+ * lo habría sacado también del foco y del lector de pantalla; esto no.
+ */
+.fileInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.fileButton {
+  display: inline-flex;
+  min-height: var(--torneos-action-height-sm, 36px);
+  align-items: center;
+  justify-content: center;
+  gap: var(--torneos-action-gap-sm, 6px);
+  padding: 0 var(--torneos-action-padding-x-sm, 12px);
+  border: 1px solid rgba(142, 166, 209, 0.26);
+  border-radius: var(--torneos-action-radius-sm, 12px);
+  background: rgba(142, 166, 209, 0.09);
+  color: #cdd7ee;
+  font-size: var(--torneos-action-font-size-sm, 13px);
+  cursor: pointer;
+}
+
+.fileButton:hover {
+  border-color: rgba(130, 153, 255, 0.55);
+  color: #eaf0ff;
+}
+
+/* El input está fuera de la vista: su anillo de foco tiene que aparecer sobre
+   el botón que lo representa, o navegar con teclado se vuelve a ciegas. */
+.fileInput:focus-visible + .fileButton {
+  outline: 2px solid #8299ff;
+  outline-offset: 2px;
+}
+
+.fileInput:disabled + .fileButton {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.fileName {
+  flex: 1 1 120px;
+  min-width: 0;
+  overflow: hidden;
+  color: #cdd7ee;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fileField .fileHint {
+  flex-basis: 100%;
+  margin: 0;
+  color: #8490a5;
+  font-size: 11px;
+}
+
+.dialog .dialogError {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #ffb3a4;
+}
+
+.dialogActions {
+  display: flex;
+  gap: 9px;
+  justify-content: flex-end;
+}
+
+/* El pie del diálogo sí es una barra de acciones: escala normal, la misma que
+   `Continuar`. `Cancelar` y `Quitar foto` sólo se diferencian por color. */
+.dialogActions button {
+  display: inline-flex;
+  min-height: var(--torneos-action-height, 48px);
+  align-items: center;
+  justify-content: center;
+  gap: var(--torneos-action-gap, 8px);
+  padding: 0 var(--torneos-action-padding-x, 16px);
+  border: 1px solid transparent;
+  border-radius: var(--torneos-action-radius, 16px);
+  font-size: var(--torneos-action-font-size, 0.94rem);
+  cursor: pointer;
+}
+
+.ghostButton {
+  border-color: rgba(142, 166, 209, 0.26);
+  background: transparent;
+  color: #cdd7ee;
+}
+
+.primaryButton {
+  background: #5d78f6;
+  color: white;
+}
+
+.dangerButton {
+  background: #d9533f;
+  color: white;
+}
+
+.dialogActions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.spin {
+  animation: portraitSpin 0.9s linear infinite;
+}
+
+@keyframes portraitSpin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 520px) {
+  .overlay {
+    padding: 10px;
+  }
+
+  .dialog {
+    /* El overlay pasó a 10px de padding: si el techo siguiera en 32px el
+       diálogo mediría más que su hueco y los botones del pie quedarían fuera
+       del alcance del scroll. */
+    max-height: calc(100dvh - 20px);
+    padding: 16px;
+    border-radius: 16px;
+  }
+
+  .cropFrame {
+    /* El overlay pasó a 10px y el diálogo a 16px de padding: el marco tiene que
+       ceder alto para que el pie siga alcanzable con un solo scroll. */
+    width: min(100%, calc(42dvh * 4 / 5));
+  }
+
+  .dialogActions {
+    flex-direction: column-reverse;
+  }
+
+  .dialogActions button {
+    justify-content: center;
+    width: 100%;
+  }
+}
+
+@media (max-width: 380px) {
+  .fileButton {
+    width: 100%;
+  }
+
+  .fileName {
+    flex-basis: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+  }
+}

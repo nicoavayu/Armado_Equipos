@@ -3,7 +3,7 @@ import path from 'path';
 
 const migrationPath = path.join(
   process.cwd(),
-  'supabase/migrations/20260713120000_auto_match_roster_cap_and_promotion.sql',
+  'supabase/migrations_history/20260713120000_auto_match_roster_cap_and_promotion.sql',
 );
 const sql = fs.readFileSync(migrationPath, 'utf8');
 

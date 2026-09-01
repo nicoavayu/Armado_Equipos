@@ -535,7 +535,6 @@ export const createOrUpdateProfile = async (user) => {
     posicion: null,                   // editable later
     acepta_invitaciones: true,
     bio: null,                        // editable later
-    fecha_alta: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     perfil_completo: false,
     profile_completion: 0,

@@ -1,5 +1,9 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import {
+  createSupabaseCredentialFetch,
+  getSupabaseSecretCredential,
+} from "../_shared/supabaseApiKeys.ts";
 
 type DeliveryLogRow = {
   id: string;
@@ -66,10 +70,6 @@ type SenderConfig = {
   maxBackoffSeconds: number;
 };
 
-type JwtClaims = Record<string, unknown> & {
-  role?: string;
-};
-
 const OAUTH_SCOPE = "https://www.googleapis.com/auth/firebase.messaging";
 const OAUTH_AUDIENCE = "https://oauth2.googleapis.com/token";
 const APNS_PRODUCTION_HOST = "api.push.apple.com";
@@ -79,15 +79,13 @@ const DEFAULT_MAX_ATTEMPTS = 5;
 const DEFAULT_PROCESSING_TIMEOUT_MINUTES = 20;
 const DEFAULT_INITIAL_BACKOFF_SECONDS = 30;
 const DEFAULT_MAX_BACKOFF_SECONDS = 3600;
-const REQUIRED_JWT_ROLE = "service_role";
-
 let cachedAccessToken: { token: string; expiresAtMs: number } | null = null;
 let cachedApnsJwt: { token: string; expiresAtMs: number } | null = null;
 
 function buildCorsHeaders(req: Request) {
   const origin = req.headers.get("origin") ?? "*";
   const reqHeaders = req.headers.get("access-control-request-headers") ?? "";
-  const required = ["content-type", "authorization", "apikey", "x-push-sender-secret"];
+  const required = ["content-type", "apikey", "x-push-sender-secret"];
   const allowHeaders = Array.from(
     new Set(
       reqHeaders
@@ -117,48 +115,9 @@ function jsonResponse(body: Record<string, unknown>, status = 200, headers: Reco
   });
 }
 
-function parseBearerToken(req: Request): string | null {
-  const authorization = req.headers.get("authorization") ?? "";
-  if (!authorization.toLowerCase().startsWith("bearer ")) return null;
-  const token = authorization.slice(7).trim();
-  return token || null;
-}
-
-function decodeBase64Url(input: string): string | null {
-  try {
-    const normalized = input.replace(/-/g, "+").replace(/_/g, "/");
-    const padding = "=".repeat((4 - (normalized.length % 4)) % 4);
-    return atob(normalized + padding);
-  } catch {
-    return null;
-  }
-}
-
-function parseJwtClaims(req: Request): JwtClaims | null {
-  const token = parseBearerToken(req);
-  if (!token) return null;
-
-  const segments = token.split(".");
-  if (segments.length < 2) return null;
-
-  const payload = decodeBase64Url(segments[1]);
-  if (!payload) return null;
-
-  try {
-    const claims = JSON.parse(payload);
-    if (!claims || typeof claims !== "object") return null;
-    return claims as JwtClaims;
-  } catch {
-    return null;
-  }
-}
-
-function hasServiceRoleJwt(req: Request): boolean {
-  const claims = parseJwtClaims(req);
-  if (!claims) return false;
-
-  const role = String(claims.role ?? claims["https://supabase.com/role"] ?? "").trim().toLowerCase();
-  return role === REQUIRED_JWT_ROLE;
+function hasValidSupabaseApiKey(req: Request, expectedKey: string): boolean {
+  const providedKey = req.headers.get("apikey")?.trim() ?? "";
+  return providedKey.length > 0 && providedKey === expectedKey;
 }
 
 function readConfiguredSenderSecret(): string | null {
@@ -1126,13 +1085,13 @@ serve(async (req) => {
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const serviceRoleKey = Deno.env.get("SERVICE_ROLE_KEY");
+  const serviceCredential = getSupabaseSecretCredential();
 
-  if (!supabaseUrl || !serviceRoleKey) {
+  if (!supabaseUrl) {
     return jsonResponse({ ok: false, reason: "missing_supabase_env" }, 500, cors);
   }
 
-  if (!hasServiceRoleJwt(req)) {
+  if (!hasValidSupabaseApiKey(req, serviceCredential.key)) {
     return jsonResponse({ ok: false, reason: "unauthorized" }, 401, cors);
   }
 
@@ -1151,7 +1110,8 @@ serve(async (req) => {
   const targetedLogIds = normalizeUuidList(body?.log_ids);
   const config = getConfig(body as Record<string, unknown>);
 
-  const supabase = createClient(supabaseUrl, serviceRoleKey, {
+  const supabase = createClient(supabaseUrl, serviceCredential.key, {
+    global: { fetch: createSupabaseCredentialFetch(serviceCredential) },
     auth: { autoRefreshToken: false, persistSession: false },
   });
 

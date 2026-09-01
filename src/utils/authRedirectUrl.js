@@ -12,14 +12,14 @@ export function getAuthRedirectUrl() {
     return NATIVE_AUTH_REDIRECT_FALLBACK;
   }
 
-  if (process.env.NODE_ENV === 'production') {
-    return `${PUBLIC_APP_ORIGIN}/auth/callback`;
+  if (typeof window !== 'undefined' && /^https?:\/\//i.test(window.location?.origin || '')) {
+    return `${window.location.origin.replace(/\/+$/, '')}/auth/callback`;
   }
 
   if (envUrl && /^https?:\/\//i.test(envUrl)) return envUrl;
 
-  if (typeof window !== 'undefined' && window.location?.origin) {
-    return `${window.location.origin}/auth/callback`;
+  if (process.env.NODE_ENV === 'production') {
+    return `${PUBLIC_APP_ORIGIN}/auth/callback`;
   }
 
   return undefined;

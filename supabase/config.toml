@@ -1,3 +1,21 @@
+project_id = "arma2-torneos-qa-seed"
+
+[api]
+port = 57321
+
+[db]
+port = 57322
+shadow_port = 57320
+
+[studio]
+port = 57323
+
+[local_smtp]
+port = 57324
+
+[analytics]
+port = 57327
+
 [functions.join-match-guest]
 verify_jwt = false
 
@@ -12,11 +30,16 @@ verify_jwt = false
 [functions.accept-invite]
 verify_jwt = true
 
+[functions.approve-join-request]
+verify_jwt = true
+
 [functions.delete-account]
 verify_jwt = true
 
 [functions.push-sender]
-verify_jwt = true
+# Service-to-service: validates apikey plus x-push-sender-secret in the handler.
+# New secret keys are opaque and cannot pass the gateway JWT verifier.
+verify_jwt = false
 
 [functions.push-dispatch-now]
 verify_jwt = true
@@ -24,4 +47,48 @@ verify_jwt = true
 # push-auto-match-now trusts the JWT sub without verifying the signature
 # itself, so the platform gateway MUST verify it. Never set this to false.
 [functions.push-auto-match-now]
+verify_jwt = true
+
+# Multimedia Upload. Both are user-scoped: the gateway verifies the JWT and the
+# handlers re-validate it against GoTrue before binding an actor. The
+# attestation/health action on each is additionally gated by
+# TOURNAMENT_MEDIA_ATTESTATION_SECRET.
+[functions.tournament-media-signer]
+verify_jwt = true
+
+[functions.tournament-media-processor]
+verify_jwt = true
+
+# Player portraits are private and roster-scoped. The handler revalidates the
+# actor with GoTrue, derives every Storage path server-side and signs only the
+# authenticated_roster audience in 1C.2A.
+[functions.tournament-player-portraits]
+verify_jwt = true
+
+# Team photos are private and team-scoped. The handler revalidates the actor
+# with GoTrue, derives every Storage path server-side, computes the stored
+# object's checksum itself, and signs only the authenticated_team audience in
+# 1C.3B. Neither public_page nor social_export is enabled.
+[functions.tournament-team-photos]
+verify_jwt = true
+
+# Commercial catalog contains public offer fields only; tables remain private.
+[functions.public-tournament-commercial-catalog]
+verify_jwt = false
+
+[functions.tournament-checkout]
+verify_jwt = true
+
+[functions.tournament-purchase-status]
+verify_jwt = true
+
+# Public TEST-only Mercado Pago receiver. Authentication is the official
+# x-signature HMAC plus a server-side Payment/Merchant Order verification.
+[functions.tournament-mercadopago-webhook]
+verify_jwt = false
+
+# Local/QA-only simulator. The handler additionally requires
+# FAKE_PAYMENT_ENABLED=true plus FAKE_PROVIDER_ENVIRONMENT=local|qa and
+# revalidates the user before using service_role.
+[functions.tournament-fake-payment]
 verify_jwt = true

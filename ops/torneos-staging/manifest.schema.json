@@ -1,0 +1,787 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://arma2.local/schemas/torneos-staging-readiness-v2.json",
+  "title": "Arma2 Torneos staging readiness manifest",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "authorizedStages",
+    "repository",
+    "environment",
+    "stages",
+    "migrationPolicy",
+    "storage",
+    "edgeFunctions",
+    "signerAttestationRenewal",
+    "configuration",
+    "worker",
+    "flags",
+    "qa",
+    "rollback",
+    "observability",
+    "authorizedStagesProposal",
+    "approvals"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 2
+    },
+    "status": {
+      "const": "a1-a2-execution-contract-local-only"
+    },
+    "authorizedStages": {
+      "const": [
+        "A1",
+        "A2"
+      ]
+    },
+    "repository": {
+      "type": "object",
+      "required": [
+        "branch",
+        "baseBranch",
+        "authorizedHeadArgumentRequired",
+        "requiredMergedPrs",
+        "requiredMergeCommits",
+        "requireCleanWorktree"
+      ],
+      "properties": {
+        "authorizedHeadArgumentRequired": {
+          "const": true
+        },
+        "requiredMergedPrs": {
+          "const": [
+            122,
+            123,
+            124,
+            125
+          ]
+        },
+        "requiredMergeCommits": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{40}$"
+          }
+        }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "required": [
+        "name",
+        "authorizedProjectRef",
+        "forbiddenProjectRefs",
+        "authorizedApiHost"
+      ]
+    },
+    "stages": {
+      "type": "array",
+      "minItems": 15,
+      "maxItems": 15
+    },
+    "migrationPolicy": {
+      "type": "object",
+      "required": [
+        "migrations",
+        "checksumMismatch",
+        "outOfOrder",
+        "transactionRequired",
+        "oneMigrationPerExecution",
+        "historyBeforeSource",
+        "historyAfterRule",
+        "concurrentMigrationPolicy",
+        "pauseAfterEachMigration",
+        "timeoutLimitsMs"
+      ],
+      "properties": {
+        "transactionRequired": {
+          "const": true
+        },
+        "oneMigrationPerExecution": {
+          "const": true
+        },
+        "concurrentMigrationPolicy": {
+          "const": "abort"
+        },
+        "pauseAfterEachMigration": {
+          "const": true
+        },
+        "timeoutLimitsMs": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "lockTimeoutMs",
+            "statementTimeoutMs",
+            "idleInTransactionSessionTimeoutMs"
+          ],
+          "properties": {
+            "lockTimeoutMs": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10000
+            },
+            "statementTimeoutMs": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 300000
+            },
+            "idleInTransactionSessionTimeoutMs": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 120000
+            }
+          }
+        },
+        "migrations": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "object",
+            "required": [
+              "order",
+              "version",
+              "file",
+              "sha256",
+              "rollback",
+              "risk",
+              "execution"
+            ],
+            "properties": {
+              "version": {
+                "type": "string",
+                "pattern": "^[0-9]{14}$"
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "rollback": {
+                "type": "string",
+                "pattern": "^supabase/rollbacks/[0-9]{14}_[a-z0-9_]+\\.safe\\.sql$"
+              },
+              "risk": {
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ]
+              },
+              "execution": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "authorizedStage",
+                      "singleMigrationOnly",
+                      "transactionRequired",
+                      "onErrorStop",
+                      "applicationName",
+                      "projectRef",
+                      "repositoryShaSource",
+                      "checksumRequired",
+                      "versionRequired",
+                      "rollbackRequired",
+                      "snapshotRequired",
+                      "planRequired",
+                      "historyBeforeSource",
+                      "historyAfterRule",
+                      "requiresAppliedBefore",
+                      "concurrentMigrations",
+                      "postApplyPause",
+                      "timeouts"
+                    ],
+                    "allOf": [
+                      {
+                        "if": {
+                          "properties": {
+                            "authorizedStage": {
+                              "const": "A1"
+                            }
+                          }
+                        },
+                        "then": {
+                          "properties": {
+                            "applicationName": {
+                              "const": "arma2-torneos-a1-migrate"
+                            },
+                            "requiresAppliedBefore": {
+                              "const": []
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "if": {
+                          "properties": {
+                            "authorizedStage": {
+                              "const": "A2"
+                            }
+                          }
+                        },
+                        "then": {
+                          "properties": {
+                            "applicationName": {
+                              "const": "arma2-torneos-a2-migrate"
+                            },
+                            "requiresAppliedBefore": {
+                              "const": [
+                                "20260802090000"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    ],
+                    "properties": {
+                      "authorizedStage": {
+                        "enum": [
+                          "A1",
+                          "A2"
+                        ]
+                      },
+                      "rollbackRequired": {
+                        "const": true
+                      },
+                      "requiresAppliedBefore": {
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                          "type": "string",
+                          "pattern": "^[0-9]{14}$"
+                        }
+                      },
+                      "singleMigrationOnly": {
+                        "const": true
+                      },
+                      "transactionRequired": {
+                        "const": true
+                      },
+                      "onErrorStop": {
+                        "const": true
+                      },
+                      "applicationName": {
+                        "enum": [
+                          "arma2-torneos-a1-migrate",
+                          "arma2-torneos-a2-migrate"
+                        ]
+                      },
+                      "projectRef": {
+                        "type": "string",
+                        "pattern": "^[a-z]{20}$"
+                      },
+                      "repositoryShaSource": {
+                        "const": "authorized-argument-must-match-head"
+                      },
+                      "checksumRequired": {
+                        "const": true
+                      },
+                      "versionRequired": {
+                        "const": true
+                      },
+                      "snapshotRequired": {
+                        "const": true
+                      },
+                      "planRequired": {
+                        "const": true
+                      },
+                      "historyBeforeSource": {
+                        "const": "snapshot-exact"
+                      },
+                      "historyAfterRule": {
+                        "const": "history-before-plus-this-version"
+                      },
+                      "concurrentMigrations": {
+                        "const": "abort"
+                      },
+                      "postApplyPause": {
+                        "const": true
+                      },
+                      "timeouts": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "lockTimeoutMs",
+                          "statementTimeoutMs",
+                          "idleInTransactionSessionTimeoutMs"
+                        ],
+                        "properties": {
+                          "lockTimeoutMs": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 10000
+                          },
+                          "statementTimeoutMs": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 300000
+                          },
+                          "idleInTransactionSessionTimeoutMs": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 120000
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "authorizedStage",
+                      "blocked",
+                      "reason"
+                    ],
+                    "properties": {
+                      "authorizedStage": {
+                        "type": "null"
+                      },
+                      "blocked": {
+                        "const": true
+                      },
+                      "reason": {
+                        "const": "outside-authorized-stages"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "storage": {
+      "type": "object",
+      "required": [
+        "bucket",
+        "public",
+        "maxFileBytes",
+        "allowedMimeTypes",
+        "policies"
+      ]
+    },
+    "edgeFunctions": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "entrypoint",
+          "sha256",
+          "verifyJwt",
+          "deployOrder",
+          "healthContract",
+          "attests",
+          "revokesOnHealth",
+          "attestationTtlSeconds"
+        ],
+        "properties": {
+          "attests": {
+            "type": "array",
+            "items": {
+              "enum": [
+                "signer",
+                "processor"
+              ]
+            },
+            "uniqueItems": true
+          },
+          "revokesOnHealth": {
+            "type": "array",
+            "items": {
+              "enum": [
+                "signer",
+                "processor"
+              ]
+            },
+            "uniqueItems": true
+          },
+          "attestationTtlSeconds": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 60,
+            "maximum": 86400
+          }
+        }
+      }
+    },
+    "signerAttestationRenewal": {
+      "type": "object",
+      "required": [
+        "required",
+        "path",
+        "entrypoint",
+        "runbook",
+        "attestationTtlSeconds",
+        "intervalSeconds",
+        "jitterRatio",
+        "timeoutMs",
+        "maxAttempts",
+        "backoffBaseMs",
+        "backoffMaxMs",
+        "safetyMarginSeconds",
+        "alertAfterConsecutiveFailures",
+        "idempotent",
+        "failClosed",
+        "holdsServiceCredential",
+        "scheduler",
+        "gatewayCredential",
+        "gatewayProbe",
+        "onceMode",
+        "shutdown",
+        "initialSeverity"
+      ],
+      "properties": {
+        "required": {
+          "const": true
+        },
+        "idempotent": {
+          "const": true
+        },
+        "holdsServiceCredential": {
+          "const": false
+        },
+        "intervalSeconds": {
+          "type": "integer",
+          "minimum": 60,
+          "maximum": 43200
+        },
+        "jitterRatio": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 0.5
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 60000
+        },
+        "maxAttempts": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 6
+        },
+        "alertAfterConsecutiveFailures": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10
+        },
+        "scheduler": {
+          "type": "object",
+          "required": [
+            "configuredInThisChange",
+            "deployedInThisChange",
+            "stagingOwner",
+            "productionOwner",
+            "rejectedAlternatives"
+          ],
+          "properties": {
+            "configuredInThisChange": {
+              "const": false
+            },
+            "deployedInThisChange": {
+              "const": false
+            }
+          }
+        },
+        "gatewayCredential": {
+          "type": "object",
+          "required": [
+            "separateFromAttestationSecret",
+            "mustSatisfyVerifyJwt",
+            "acceptedOptions",
+            "rejected",
+            "validatedLocally"
+          ],
+          "properties": {
+            "separateFromAttestationSecret": {
+              "const": true
+            },
+            "mustSatisfyVerifyJwt": {
+              "const": true
+            },
+            "acceptedOptions": {
+              "type": "array",
+              "minItems": 2,
+              "uniqueItems": true,
+              "items": {
+                "type": "string"
+              }
+            },
+            "rejected": {
+              "type": "array",
+              "minItems": 3,
+              "uniqueItems": true,
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "gatewayProbe": {
+          "type": "object",
+          "required": [
+            "entrypoint",
+            "runbook",
+            "executedInThisChange",
+            "requiresExplicitAuthorization",
+            "authorizations",
+            "writes",
+            "defaultCommand",
+            "rollback"
+          ],
+          "properties": {
+            "executedInThisChange": {
+              "const": false
+            },
+            "requiresExplicitAuthorization": {
+              "const": true
+            },
+            "authorizations": {
+              "type": "array",
+              "minItems": 3,
+              "uniqueItems": true,
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "onceMode": {
+          "type": "object",
+          "required": [
+            "statePersisted",
+            "stateFile",
+            "stateFileMode",
+            "atomicWrites",
+            "exclusiveLock",
+            "corruptionFailsClosed",
+            "contents",
+            "reason",
+            "orchestratorAlternative"
+          ],
+          "properties": {
+            "statePersisted": {
+              "const": true
+            },
+            "stateFileMode": {
+              "const": "0600"
+            },
+            "atomicWrites": {
+              "const": true
+            },
+            "exclusiveLock": {
+              "const": true
+            },
+            "corruptionFailsClosed": {
+              "const": true
+            }
+          }
+        },
+        "shutdown": {
+          "type": "object",
+          "required": [
+            "interruptibleSleep",
+            "signals",
+            "budgetSeconds"
+          ],
+          "properties": {
+            "interruptibleSleep": {
+              "const": true
+            },
+            "budgetSeconds": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 5
+            },
+            "signals": {
+              "type": "array",
+              "minItems": 2,
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "SIGTERM",
+                  "SIGINT"
+                ]
+              }
+            }
+          }
+        },
+        "initialSeverity": {
+          "type": "object",
+          "required": [
+            "unprovableMarginIsCritical"
+          ],
+          "properties": {
+            "unprovableMarginIsCritical": {
+              "const": true
+            }
+          }
+        }
+      }
+    },
+    "configuration": {
+      "type": "object",
+      "required": [
+        "variables",
+        "secretAlternatives",
+        "secretValuesInManifest"
+      ]
+    },
+    "worker": {
+      "type": "object",
+      "required": [
+        "nodeMajor",
+        "sharpVersion",
+        "clamavRequired",
+        "maxSignatureAgeDays"
+      ]
+    },
+    "flags": {
+      "type": "object",
+      "required": [
+        "productionForcedFalse",
+        "initial",
+        "enableOrder"
+      ]
+    },
+    "qa": {
+      "type": "object",
+      "required": [
+        "matrix",
+        "fixture"
+      ]
+    },
+    "rollback": {
+      "type": "object",
+      "required": [
+        "automaticDataDeletion",
+        "preserveUserData"
+      ]
+    },
+    "observability": {
+      "type": "object",
+      "required": [
+        "structuredLogs",
+        "sanitize",
+        "catalog",
+        "preflightQuery",
+        "query",
+        "runbook",
+        "browserFlag",
+        "signalsDeployedInStaging",
+        "validatedInStaging",
+        "flagMustRemainFalseUntilValidated",
+        "requiredSignals",
+        "collectorsNotImplemented",
+        "collectorContract"
+      ],
+      "properties": {
+        "browserFlag": {
+          "const": "REACT_APP_TORNEOS_MEDIA_OBSERVABILITY_READY"
+        },
+        "flagMustRemainFalseUntilValidated": {
+          "const": true
+        },
+        "requiredSignals": {
+          "type": "array",
+          "minItems": 15,
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        },
+        "collectorsNotImplemented": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "database",
+              "storage",
+              "readiness",
+              "runtime"
+            ]
+          }
+        },
+        "collectorContract": {
+          "type": "object",
+          "required": [
+            "database",
+            "provenAtCollectionTime",
+            "phases",
+            "phaseOrder",
+            "whyTwoPhases",
+            "failsClosed",
+            "grantedInThisChange"
+          ],
+          "properties": {
+            "provenAtCollectionTime": {
+              "const": true
+            },
+            "phases": {
+              "const": 2
+            },
+            "phaseOrder": {
+              "type": "string",
+              "minLength": 40
+            },
+            "whyTwoPhases": {
+              "type": "string",
+              "minLength": 80
+            },
+            "grantedInThisChange": {
+              "const": false
+            }
+          }
+        },
+        "signalsDeployedInStaging": {
+          "const": false
+        },
+        "validatedInStaging": {
+          "const": false
+        }
+      }
+    },
+    "authorizedStagesProposal": {
+      "type": "object",
+      "required": [
+        "applied",
+        "document",
+        "proposedStages"
+      ],
+      "properties": {
+        "applied": {
+          "const": false
+        },
+        "proposedStages": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^A[3-9][0-9]*$"
+          }
+        }
+      }
+    },
+    "approvals": {
+      "type": "object",
+      "required": [
+        "humanBeforeMutation",
+        "perStageToken",
+        "singleApplyAllCommand"
+      ]
+    }
+  },
+  "additionalProperties": true
+}

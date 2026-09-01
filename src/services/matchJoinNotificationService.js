@@ -153,7 +153,7 @@ const enqueueAdminNotification = async ({
   if (!matchIdNumber) return { ok: false, reason: 'invalid_match_id' };
 
   try {
-    const { error } = await supabase.rpc('enqueue_partido_notification', {
+    const { error } = await supabase.rpc('enqueue_partido_notification_as_actor', {
       p_partido_id: matchIdNumber,
       p_type: type,
       p_title: title,
@@ -292,7 +292,7 @@ const enqueueParticipantNotification = async ({
   };
 
   try {
-    const { error } = await supabase.rpc('enqueue_match_participant_notification', {
+    const { error } = await supabase.rpc('enqueue_match_participant_notification_as_actor', {
       p_partido_id: matchIdNumber,
       p_type: type,
       p_title: title,

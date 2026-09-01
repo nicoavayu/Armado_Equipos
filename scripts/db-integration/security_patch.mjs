@@ -22,12 +22,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = process.env.SECPATCH_ROOT
   ? path.resolve(process.env.SECPATCH_ROOT)
   : path.resolve(__dirname, '..', '..');
-const MIGRATIONS_DIR = path.join(ROOT, 'supabase', 'migrations');
-// Stage B migrations are kept OUT of supabase/migrations (so they can never
-// enter a `supabase db push` of the Stage A rollout) and live in a test-only
-// fixtures dir. Their SQL is byte-identical to the copies carried by the
-// separate Stage B enforcement PR. This harness still applies + asserts them.
-const STAGE_B_DIR = path.join(ROOT, 'scripts', 'db-integration', 'fixtures', 'stage-b');
+const MIGRATIONS_HISTORY_DIR = path.join(ROOT, 'supabase', 'migrations_history');
+// The canonical baseline folds Stage A and Stage B into its executable
+// contracts. Keep exercising the original rollout files from the immutable
+// migration archive so this focused harness still proves both phases.
+const STAGE_A_DIR = MIGRATIONS_HISTORY_DIR;
+const STAGE_B_DIR = MIGRATIONS_HISTORY_DIR;
 
 const STAGE_A = [
   '20260724121000_secure_no_show_ranking_stage_a.sql',
@@ -351,7 +351,7 @@ create policy jugadores_fotos_anon_authenticated_insert on storage.objects for i
 create policy jugadores_fotos_anon_authenticated_update on storage.objects for update to anon, authenticated using (bucket_id = 'jugadores-fotos') with check (bucket_id = 'jugadores-fotos');
 `;
 
-async function applyMigrations(list, dir = MIGRATIONS_DIR) {
+async function applyMigrations(list, dir) {
   await q('reset role');
   for (const file of list) {
     const sql = fs.readFileSync(path.join(dir, file), 'utf8');
@@ -404,7 +404,7 @@ async function main() {
   await client.connect();
 
   await q(STUB);
-  await applyMigrations(STAGE_A);
+  await applyMigrations(STAGE_A, STAGE_A_DIR);
   const { partidoId, players } = await seed();
 
   console.log('\nStage A — grants & internal RPC exposure');

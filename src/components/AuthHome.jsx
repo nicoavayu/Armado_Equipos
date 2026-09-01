@@ -4,6 +4,7 @@ import { Link, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthProvider';
 import { setAuthReturnTo } from '../utils/authReturnTo';
 import { getAuthRedirectUrl } from '../utils/authRedirectUrl';
+import { redactUrlForLog } from '../utils/nativeAppLink';
 import AppleAuth from './AppleAuth';
 import GoogleAuth from './GoogleAuth';
 import usePendingAuthFlow from '../hooks/usePendingAuthFlow';
@@ -13,6 +14,7 @@ import {
 } from '../utils/authFlowState';
 import { supabase } from '../supabase';
 import logo from '../Logo.png';
+import { getAuthenticatedProductHome } from '../utils/runtimePlatform';
 
 function getReturnTo(search) {
   const sp = new URLSearchParams(search || '');
@@ -38,9 +40,8 @@ export default function AuthHome() {
 
   useEffect(() => {
     logger.info('[AUTH] login_route_enter', {
-      pathname: location.pathname,
-      search: location.search,
-      returnTo,
+      route: redactUrlForLog(`${location.pathname}${location.search}`),
+      returnTo: redactUrlForLog(returnTo || ''),
       loading,
       hasUser: Boolean(user),
       mode,
@@ -52,7 +53,7 @@ export default function AuthHome() {
       setAuthReturnTo(returnTo);
       logger.info('[AUTH] login_return_to_stored', {
         pathname: location.pathname,
-        returnTo,
+        returnTo: redactUrlForLog(returnTo),
       });
     }
   }, [location.pathname, returnTo]);
@@ -94,7 +95,7 @@ export default function AuthHome() {
   const sendMagicLink = async () => {
     logger.info('[AUTH] magic_link_submit', {
       pathname: location.pathname,
-      returnTo: returnTo || '/home',
+      returnTo: redactUrlForLog(returnTo || '/home'),
       hasEmail: Boolean(email.trim()),
       sendingBlocked,
     });
@@ -108,7 +109,7 @@ export default function AuthHome() {
     setEmailLoading(true);
     setNotice({ type: '', message: '' });
     try {
-      setAuthReturnTo(returnTo || '/home');
+      setAuthReturnTo(returnTo || getAuthenticatedProductHome());
       const emailRedirectTo = getAuthRedirectUrl();
       const { error } = await supabase.auth.signInWithOtp({
         email: email.trim(),
@@ -131,7 +132,7 @@ export default function AuthHome() {
   };
 
   if (!loading && user) {
-    return <Navigate to="/" replace />;
+    return <Navigate to={returnTo || getAuthenticatedProductHome()} replace />;
   }
 
   return (
@@ -177,7 +178,7 @@ export default function AuthHome() {
                 onClick={() => {
                   logger.info('[AUTH] login_show_email_mode', {
                     pathname: location.pathname,
-                    returnTo,
+                    returnTo: redactUrlForLog(returnTo || ''),
                   });
                   setMode('email');
                   setNotice({ type: '', message: '' });

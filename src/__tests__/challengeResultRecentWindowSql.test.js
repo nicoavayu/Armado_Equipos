@@ -6,7 +6,7 @@ const migrationPath = path.join(
   '..',
   '..',
   'supabase',
-  'migrations',
+  'migrations_history',
   '20260616130000_challenge_result_survey_recent_window.sql',
 );
 

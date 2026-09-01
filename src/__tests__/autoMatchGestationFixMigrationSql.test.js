@@ -3,7 +3,7 @@ import path from 'path';
 
 const fixMigrationPath = path.join(
   process.cwd(),
-  'supabase/migrations/20260711150000_fix_auto_match_gestation_sync.sql',
+  'supabase/migrations_history/20260711150000_fix_auto_match_gestation_sync.sql',
 );
 const sql = fs.readFileSync(fixMigrationPath, 'utf8');
 

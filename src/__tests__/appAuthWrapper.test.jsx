@@ -124,4 +124,27 @@ describe('AppAuthWrapper', () => {
     expect(screen.queryByText('Login')).not.toBeInTheDocument();
     expect(mockSetAuthReturnTo).not.toHaveBeenCalled();
   });
+
+  test('does not mount a private deep link before initial session hydration finishes', () => {
+    mockUseAuth.mockReturnValue({
+      user: null,
+      loading: true,
+      authResolved: false,
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/torneos/organizacion/org-a/inicio']}>
+        <Routes>
+          <Route element={<AppAuthWrapper />}>
+            <Route path="/torneos/organizacion/:organizationId/inicio" element={<div>Workspace privado</div>} />
+          </Route>
+          <Route path="/login" element={<div>Login</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText('Loading')).toBeInTheDocument();
+    expect(screen.queryByText('Workspace privado')).not.toBeInTheDocument();
+    expect(screen.queryByText('Login')).not.toBeInTheDocument();
+  });
 });

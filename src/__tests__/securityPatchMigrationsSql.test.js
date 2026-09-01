@@ -1,11 +1,11 @@
 const fs = require('fs');
 const path = require('path');
 
-const migrationsDir = path.join(__dirname, '..', '..', 'supabase', 'migrations');
-// Stage B migrations are intentionally kept OUT of supabase/migrations (so they
-// cannot enter a `supabase db push` of the Stage A rollout) and live in a
-// test-only fixtures dir. Content is byte-identical to the separate Stage B PR.
-const stageBDir = path.join(__dirname, '..', '..', 'scripts', 'db-integration', 'fixtures', 'stage-b');
+const migrationsDir = path.join(__dirname, '..', '..', 'supabase', 'migrations_history');
+// The executable canonical contracts fold both rollout phases. Static tests
+// keep inspecting the archived source migrations to protect their exact
+// security semantics.
+const stageBDir = migrationsDir;
 
 // Executable SQL only (strip `--` comment lines so rollback SQL / prose in
 // comments does not trip the assertions), and the raw text for transaction checks.

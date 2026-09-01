@@ -6,7 +6,7 @@ const migrationsDir = path.join(
   '..',
   '..',
   'supabase',
-  'migrations',
+  'migrations_history',
 );
 
 const migrationPath = path.join(

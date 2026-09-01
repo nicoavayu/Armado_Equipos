@@ -1,0 +1,90 @@
+{
+  "fixtureVersion": 3,
+  "note": "Deterministic healthy snapshot AFTER the collector has derived dwell across scrapes. Local only: no collector ran, nothing was contacted. Shapes the contract the real collectors must produce, including the two-phase visibility proof without which no count may be believed. The visibility block carries provenBy: preflight, which only snapshotFromCollectorPhases() may stamp — a hand-assembled visibility block is refused.",
+  "collectedAt": "2099-01-01T00:00:01.000Z",
+  "database": {
+    "collector": {
+      "role": "torneos_media_observability_collector",
+      "database": "postgres",
+      "bypassesRls": true,
+      "isSuperuser": false
+    },
+    "visibility": {
+      "provenBy": "preflight",
+      "contractVersion": 1,
+      "observable": true,
+      "blockers": [],
+      "provenAt": "2099-01-01T00:00:00.000Z",
+      "tables": {
+        "tournament_media_processing_jobs": {
+          "present": true,
+          "canSelect": true,
+          "rlsEnabled": true,
+          "rlsForced": false,
+          "isOwner": false,
+          "rlsExempt": true,
+          "policyCount": 4,
+          "observable": true,
+          "blocker": null
+        },
+        "tournament_media_service_attestations": {
+          "present": true,
+          "canSelect": true,
+          "rlsEnabled": true,
+          "rlsForced": false,
+          "isOwner": false,
+          "rlsExempt": true,
+          "policyCount": 2,
+          "observable": true,
+          "blocker": null
+        }
+      },
+      "functions": {
+        "tournament_media_pipeline_readiness": {
+          "present": true,
+          "canExecute": true
+        }
+      }
+    },
+    "quarantineDepth": 2,
+    "quarantineDepthSustainedSeconds": 3600,
+    "queueDepth": 1,
+    "queueDepthSustainedSeconds": 3600,
+    "oldestJobAgeSeconds": 12,
+    "oldestJobAgeSecondsSustainedSeconds": 3600,
+    "expiredLeases": 0,
+    "expiredLeasesSustainedSeconds": 3600,
+    "stuckLeaseAgeSeconds": 0,
+    "stuckLeaseAgeSecondsSustainedSeconds": 3600,
+    "signerAttestationExpiresInSeconds": 2900,
+    "processorAttestationExpiresInSeconds": 780,
+    "clamavSignatureAgeSeconds": 7200,
+    "uploadFailureRatio": 0,
+    "uploadFailureRatioSampleCount": 412,
+    "uploadFailureRatioSustainedSeconds": 3600,
+    "uploadReady": 1,
+    "uploadReadySustainedSeconds": 3600
+  },
+  "storage": {
+    "residualProbeObjects": 0,
+    "residualProbeObjectsSustainedSeconds": 3600,
+    "residualSelfTestObjects": 0,
+    "residualSelfTestObjectsSustainedSeconds": 3600
+  },
+  "runtime": {
+    "attestationRenewalConsecutiveFailures": 0,
+    "selfTestFailures15m": 0,
+    "cleanupFailures30m": 0,
+    "signerLatencyP95Ms": 240,
+    "signerLatencyP95MsSustainedSeconds": 3600,
+    "signerErrorRatio": 0,
+    "signerErrorRatioSustainedSeconds": 3600,
+    "processorLatencyP95Ms": 180,
+    "processorLatencyP95MsSustainedSeconds": 3600,
+    "processorErrorRatio": 0,
+    "processorErrorRatioSustainedSeconds": 3600
+  },
+  "readiness": {
+    "migrationDrift": 0
+  }
+}

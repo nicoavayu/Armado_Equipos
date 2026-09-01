@@ -1,0 +1,1508 @@
+.page,
+.formPage,
+.detailPage {
+  grid-template-columns: minmax(0, 1fr);
+  width: min(1280px, 100%);
+  margin: 0 auto;
+  color: #f7f8fc;
+}
+
+.page {
+  display: grid;
+  gap: 22px;
+}
+
+.pageHeader,
+.detailHero,
+.formHeader {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 26px 28px;
+  overflow: hidden;
+  border: 1px solid rgba(142, 166, 209, 0.18);
+  border-radius: 22px;
+  background:
+    linear-gradient(115deg, rgba(80, 115, 255, 0.14), transparent 46%),
+    repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.018) 0 1px, transparent 1px 8px),
+    #101522;
+}
+
+.pageHeader::after,
+.detailHero::after,
+.formHeader::after {
+  position: absolute;
+  inset: auto 0 0;
+  height: 3px;
+  content: "";
+  background: linear-gradient(90deg, #6e8cff, #7bf0cc 68%, transparent);
+}
+
+.pageHeader h1,
+.detailHero h1,
+.formHeader h1 {
+  margin: 4px 0 6px;
+  font-size: clamp(30px, 4vw, 52px);
+  line-height: 1;
+  letter-spacing: -0.045em;
+}
+
+.pageHeader p,
+.detailHero p,
+.formHeader p {
+  margin: 0;
+  color: #aab4c8;
+}
+
+.kicker {
+  color: #80f1d2;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* Mismo sistema que `Continuar`: la geometría y la familia salen de los tokens
+   de Torneos, y cada variante sólo aporta su color. */
+.primaryButton,
+.secondaryButton,
+.backLink {
+  display: inline-flex;
+  min-height: var(--torneos-action-height);
+  align-items: center;
+  justify-content: center;
+  gap: var(--torneos-action-gap);
+  border-radius: var(--torneos-action-radius);
+  font-family: var(--torneos-ui-font);
+  font-size: var(--torneos-action-font-size);
+  font-weight: var(--torneos-action-font-weight);
+  line-height: var(--torneos-action-line-height);
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.primaryButton > svg,
+.secondaryButton > svg,
+.backLink > svg { flex: 0 0 auto; }
+
+.primaryButton:focus-visible,
+.secondaryButton:focus-visible,
+.dangerButton:focus-visible,
+.iconButton:focus-visible,
+.backLink:focus-visible {
+  outline: var(--torneos-focus-ring);
+  outline-offset: var(--torneos-focus-ring-offset);
+}
+
+.primaryButton {
+  padding: 0 var(--torneos-action-padding-x);
+  border: 1px solid #8097ff;
+  background: linear-gradient(135deg, #5575ff, #795fff);
+  color: white;
+  box-shadow: 0 12px 28px rgba(73, 86, 231, 0.25);
+}
+
+.primaryButton:disabled {
+  cursor: not-allowed;
+  filter: grayscale(0.55);
+  opacity: 0.5;
+}
+
+.secondaryButton {
+  padding: 0 var(--torneos-action-padding-x);
+  border: 1px solid rgba(128, 151, 255, 0.45);
+  background: rgba(87, 108, 207, 0.12);
+  color: #e8edff;
+}
+
+.dangerButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--torneos-action-gap);
+  min-height: var(--torneos-action-height);
+  padding: 0 var(--torneos-action-padding-x);
+  font-family: var(--torneos-ui-font);
+  font-size: var(--torneos-action-font-size);
+  font-weight: var(--torneos-action-font-weight);
+  line-height: var(--torneos-action-line-height);
+  color: #2a0f0f;
+  background: #ff9d7a;
+  border: 1px solid transparent;
+  border-radius: var(--torneos-action-radius);
+  cursor: pointer;
+}
+
+.dangerButton:disabled,
+.withdrawButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.withdrawButton {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 14px;
+  color: #ffb9a1;
+  background: transparent;
+  border: 1px solid rgba(255, 157, 122, 0.45);
+  border-radius: 10px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.withdrawButton > svg {
+  flex: 0 0 auto;
+}
+
+.withdrawalDialog {
+  display: flex;
+  gap: 14px;
+  padding: 20px;
+  background: rgba(20, 16, 41, 0.96);
+  border: 1px solid rgba(255, 157, 122, 0.45);
+  border-radius: 16px;
+}
+
+.withdrawalDialog h2 {
+  margin: 0 0 8px;
+  font-size: 21px;
+}
+
+.withdrawalDialog p {
+  margin: 0 0 10px;
+  line-height: 1.55;
+}
+
+.withdrawalDialog ul {
+  margin: 0 0 14px;
+  padding-left: 18px;
+  line-height: 1.55;
+}
+
+.withdrawalReasons {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border: 1px solid rgba(128, 151, 255, 0.28);
+  border-radius: 12px;
+}
+
+.withdrawalReasons legend {
+  padding: 0 6px;
+  font-weight: 600;
+}
+
+.withdrawalReasons label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 5px 0;
+  cursor: pointer;
+}
+
+.withdrawalNote {
+  display: block;
+  margin-bottom: 14px;
+}
+
+.withdrawalNote span {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+.withdrawalNote textarea {
+  width: 100%;
+  padding: 10px 12px;
+  font: inherit;
+  color: inherit;
+  background: rgba(12, 9, 26, 0.8);
+  border: 1px solid rgba(128, 151, 255, 0.32);
+  border-radius: 10px;
+  resize: vertical;
+}
+
+.withdrawalError {
+  margin: 0 0 12px;
+  color: #ff9d7a;
+}
+
+.withdrawalActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.stageNotice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px 20px;
+  border: 1px solid rgba(255, 177, 102, 0.3);
+  border-radius: 16px;
+  background: rgba(171, 96, 36, 0.1);
+}
+
+.stageNotice[data-open="true"] {
+  border-color: rgba(83, 225, 173, 0.3);
+  background: rgba(53, 185, 139, 0.1);
+}
+
+.stageNotice strong {
+  display: block;
+  margin-bottom: 4px;
+  color: #f7f8fc;
+}
+
+.stageNotice p {
+  max-width: 760px;
+  margin: 0;
+  color: #aab4c8;
+  line-height: 1.5;
+}
+
+.metrics article {
+  display: grid;
+  gap: 3px;
+  min-height: 120px;
+  align-content: center;
+  padding: 18px 20px;
+  border: 1px solid rgba(142, 166, 209, 0.16);
+  border-radius: 18px;
+  background: rgba(17, 23, 37, 0.84);
+}
+
+.metrics span,
+.metrics small {
+  color: #99a5bb;
+}
+
+.metrics strong {
+  font-size: 32px;
+  line-height: 1;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.searchBox,
+.searchField {
+  display: flex;
+  min-height: 46px;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  border: 1px solid rgba(142, 166, 209, 0.22);
+  border-radius: 13px;
+  background: #101522;
+  color: #8e9ab0;
+}
+
+.searchBox {
+  width: min(340px, 100%);
+}
+
+.searchBox input,
+.searchField input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: white;
+}
+
+.filterRail {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px;
+  overflow-x: auto;
+  border: 1px solid rgba(142, 166, 209, 0.16);
+  border-radius: 16px;
+  background: rgba(10, 14, 24, 0.58);
+  scrollbar-width: none;
+}
+
+.filterRail button {
+  min-height: 44px;
+  padding: 0 13px;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  color: #aeb8ca;
+  font-family: var(--torneos-ui-font);
+  font-weight: 700;
+}
+
+.filterRail button[aria-pressed="true"] {
+  border-color: rgba(155, 174, 255, .48);
+  background: linear-gradient(135deg, #7189f4, #5c70df);
+  color: white;
+  box-shadow: 0 5px 16px rgba(71, 92, 196, .24), inset 0 1px 0 rgba(255,255,255,.14);
+}
+
+.entryList {
+  display: grid;
+  gap: 10px;
+}
+
+.entryCard {
+  display: grid;
+  grid-template-columns: minmax(200px, 1.2fr) minmax(220px, 1fr) max-content;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 18px;
+  border: 1px solid rgba(142, 166, 209, 0.16);
+  border-radius: 17px;
+  background: rgba(15, 20, 33, 0.9);
+  transition: transform 180ms ease, border-color 180ms ease;
+}
+
+.entryCard:hover {
+  transform: translateY(-2px);
+  border-color: rgba(120, 145, 255, 0.46);
+}
+
+.entryIdentity {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 13px;
+}
+
+.entryIdentity > div {
+  min-width: 0;
+}
+
+.teamMark,
+.heroMark,
+.invitationMark {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid rgba(131, 153, 255, 0.55);
+  background: linear-gradient(145deg, #25345f, #151c31);
+  color: #e7ecff;
+  font-weight: 900;
+}
+
+.teamMark {
+  width: 50px;
+  height: 50px;
+  border-radius: 15px;
+}
+
+.entryIdentity h2 {
+  margin: 2px 0;
+  font-size: 18px;
+}
+
+.entryIdentity span,
+.entryIdentity small {
+  color: #8f9bb0;
+  font-size: 12px;
+}
+
+.entryFacts {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 13px;
+  color: #b8c1d1;
+  font-size: 12px;
+}
+
+.entryFacts > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.statusPill,
+.eligibility {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+  border: 1px solid rgba(140, 154, 184, 0.25);
+  border-radius: 99px;
+  background: rgba(133, 147, 178, 0.1);
+  color: #c4cddd;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.statusPill[data-status="approved"] {
+  border-color: rgba(83, 225, 173, 0.4);
+  background: rgba(53, 185, 139, 0.12);
+  color: #75ebc1;
+}
+
+.statusPill[data-status="submitted"] {
+  border-color: rgba(117, 144, 255, 0.48);
+  background: rgba(88, 115, 236, 0.16);
+  color: #a8b8ff;
+}
+
+.statusPill[data-status="changes_requested"],
+.statusPill[data-status="rejected"] {
+  border-color: rgba(255, 149, 105, 0.4);
+  background: rgba(232, 112, 70, 0.12);
+  color: #ffad89;
+}
+
+.entryCard > a,
+.entryActions > a {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  gap: 6px;
+  color: #aab9ff;
+  font-weight: 800;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.entryActions > a > svg {
+  flex: 0 0 auto;
+}
+
+.entryActions {
+  display: flex;
+  min-width: max-content;
+  align-items: center;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.emptyState,
+.inlineEmpty {
+  display: grid;
+  place-items: center;
+  gap: 8px;
+  padding: 48px 24px;
+  border: 1px dashed rgba(142, 166, 209, 0.26);
+  border-radius: 20px;
+  background: rgba(14, 19, 31, 0.72);
+  text-align: center;
+}
+
+.emptyState h1,
+.emptyState h2,
+.emptyState p {
+  margin: 0;
+}
+
+.emptyState p {
+  max-width: 560px;
+  color: #97a3b8;
+}
+
+.formPage,
+.detailPage {
+  display: grid;
+  gap: 18px;
+}
+
+.backLink {
+  width: fit-content;
+  padding: 0 6px;
+  color: #aab4c8;
+}
+
+.teamForm {
+  display: grid;
+  gap: 16px;
+}
+
+.modePicker {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.modePicker legend {
+  margin-bottom: 10px;
+  color: #aeb8ca;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.modePicker button {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  min-height: 84px;
+  align-items: center;
+  gap: 12px;
+  padding: 15px;
+  border: 1px solid rgba(142, 166, 209, 0.2);
+  border-radius: 16px;
+  background: #101522;
+  color: #e7eaf2;
+  text-align: left;
+}
+
+.modePicker button[aria-pressed="true"] {
+  border-color: #7791ff;
+  box-shadow: inset 0 0 0 1px #7791ff;
+}
+
+.modePicker button:disabled {
+  opacity: 0.45;
+}
+
+.modePicker span {
+  display: grid;
+  gap: 3px;
+}
+
+.modePicker small {
+  color: #8f9bb0;
+}
+
+.formSection,
+.sidePanel,
+.requirementsPanel,
+.reviewPanel,
+.historyPanel {
+  padding: 22px;
+  border: 1px solid rgba(142, 166, 209, 0.17);
+  border-radius: 19px;
+  background: #101522;
+}
+
+.sectionHeading {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.sectionHeading > span {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 9px;
+  background: rgba(111, 137, 255, 0.16);
+  color: #94a6ff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.sectionHeading h2,
+.sectionHeading p {
+  margin: 0;
+}
+
+.sectionHeading h2 {
+  font-size: 18px;
+}
+
+.sectionHeading p {
+  margin-top: 3px;
+  color: #8f9bb0;
+  font-size: 13px;
+}
+
+.formSection label,
+.reviewPanel label {
+  display: grid;
+  gap: 7px;
+  margin-bottom: 14px;
+  color: #b7c0d0;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.formSection input,
+.formSection select,
+.reviewPanel textarea,
+.playerCard input,
+.playerCard select {
+  min-height: 45px;
+  box-sizing: border-box;
+  padding: 0 12px;
+  border: 1px solid rgba(142, 166, 209, 0.23);
+  border-radius: 11px;
+  outline: 0;
+  background: #0b101c;
+  color: white;
+}
+
+.formSection input:focus,
+.formSection select:focus,
+.reviewPanel textarea:focus,
+.playerCard input:focus,
+.playerCard select:focus,
+.searchBox:focus-within,
+.searchField:focus-within {
+  border-color: #8299ff;
+  box-shadow: 0 0 0 3px rgba(93, 120, 246, 0.16);
+}
+
+.reviewPanel textarea {
+  min-height: 130px;
+  padding: 12px;
+  resize: vertical;
+}
+
+.twoColumns,
+.colorFields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.colorFields input {
+  width: 100%;
+  padding: 5px;
+}
+
+.stickyActions {
+  position: sticky;
+  z-index: 4;
+  bottom: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid rgba(142, 166, 209, 0.18);
+  border-radius: 15px;
+  background: rgba(12, 17, 29, 0.94);
+  backdrop-filter: blur(12px);
+}
+
+.stickyActions > a {
+  color: #aab4c8;
+  text-decoration: none;
+}
+
+.detailHero {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+}
+
+.heroMark {
+  width: 76px;
+  height: 76px;
+  border-radius: 22px;
+  background: linear-gradient(145deg, var(--team-primary), var(--team-secondary));
+  font-size: 22px;
+}
+
+.detailTabs {
+  display: flex;
+  gap: 6px;
+  padding: 5px;
+  overflow-x: auto;
+  border: 1px solid rgba(142, 166, 209, 0.17);
+  border-radius: 14px;
+  background: #0f1421;
+}
+
+.detailTabs a {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  gap: 7px;
+  padding: 0 15px;
+  border-radius: 10px;
+  color: #9da8bb;
+  font-weight: 800;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.detailTabs a[aria-current="page"] {
+  background: #202a45;
+  color: white;
+}
+
+.detailTabs span {
+  display: grid;
+  min-width: 22px;
+  height: 22px;
+  place-items: center;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 11px;
+}
+
+.detailGrid,
+.reviewLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.65fr);
+  gap: 16px;
+}
+
+/* Quien entra sólo por autogestión visual no ve el panel de Responsables. Sin
+   este modificador la grilla igual le reserva la columna y deja el hueco. */
+.detailGridSolo {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.sidePanel,
+.requirementsPanel,
+.historyPanel {
+  align-self: start;
+}
+
+.sidePanel h2,
+.requirementsPanel h2,
+.historyPanel h2 {
+  margin: 10px 0 16px;
+}
+
+.sidePanel > div {
+  display: grid;
+  gap: 3px;
+  padding: 12px 0;
+  border-top: 1px solid rgba(142, 166, 209, 0.12);
+}
+
+.sidePanel span,
+.sidePanel p {
+  color: #8f9bb0;
+  font-size: 12px;
+}
+
+.rosterLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(250px, 0.55fr);
+  gap: 16px;
+}
+
+.progressPanel {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 18px;
+  border: 1px solid rgba(255, 170, 111, 0.27);
+  border-radius: 17px;
+  background:
+    linear-gradient(135deg, rgba(150, 91, 49, 0.12), transparent 62%),
+    #121722;
+}
+
+.progressPanel[data-complete="true"] {
+  border-color: rgba(85, 226, 177, 0.28);
+  background:
+    linear-gradient(135deg, rgba(45, 137, 107, 0.18), transparent 62%),
+    #101a1d;
+}
+
+.progressPanel > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.progressPanel span {
+  display: grid;
+}
+
+.progressPanel strong {
+  font-size: 24px;
+}
+
+.progressPanel small,
+.progressPanel li {
+  color: #a5b0c2;
+}
+
+.progressPanel ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12px;
+}
+
+.progressTrack {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.progressTrack span {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #6e8cff, #6ce6c1);
+  transition: width 240ms ease;
+}
+
+.autocomplete {
+  position: relative;
+  display: grid;
+  gap: 7px;
+  margin-bottom: 14px;
+  padding: 16px;
+  border: 1px solid rgba(142, 166, 209, 0.17);
+  border-radius: 17px;
+  background: #101522;
+}
+
+.autocomplete > label {
+  color: #b8c1d1;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.searchStatus {
+  min-height: 16px;
+  color: #8390a6;
+  font-size: 11px;
+}
+
+.searchResults {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid rgba(142, 166, 209, 0.17);
+  border-radius: 13px;
+}
+
+.searchResults button {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 60px;
+  padding: 9px 11px;
+  border: 0;
+  border-bottom: 1px solid rgba(142, 166, 209, 0.1);
+  background: #0c111e;
+  color: white;
+  text-align: left;
+}
+
+.searchResults button:last-child {
+  border-bottom: 0;
+}
+
+.searchResults button > span:nth-child(2) {
+  display: grid;
+}
+
+.searchResults small {
+  color: #8793a8;
+}
+
+.searchResults em {
+  color: #72e5be;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.provisionalAction {
+  min-height: 44px;
+  border: 1px dashed rgba(126, 148, 255, 0.48);
+  border-radius: 11px;
+  background: rgba(87, 108, 207, 0.1);
+  color: #b7c4ff;
+  font-weight: 800;
+}
+
+/* Señal discreta: dice que las fotos no cargaron sin robarle la fila a nadie
+   ni desplazar el plantel. */
+.portraitNotice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  padding: 7px 11px;
+  border: 1px solid rgba(255, 178, 122, 0.24);
+  border-radius: 11px;
+  background: rgba(150, 96, 44, 0.1);
+  color: #f0c69c;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* `Reintentar` es la variante compacta del mismo sistema: vive dentro de un
+   aviso de una línea, así que baja de escala pero no cambia de lenguaje. */
+.portraitNotice button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--torneos-action-gap-sm);
+  min-height: var(--torneos-action-height-sm);
+  margin-left: auto;
+  padding: 0 var(--torneos-action-padding-x-sm);
+  border: 1px solid rgba(255, 178, 122, 0.34);
+  border-radius: var(--torneos-action-radius-sm);
+  background: transparent;
+  color: #f7dcc2;
+  font-family: var(--torneos-ui-font);
+  font-size: var(--torneos-action-font-size-sm);
+  font-weight: var(--torneos-action-font-weight);
+  line-height: var(--torneos-action-line-height);
+  cursor: pointer;
+}
+
+.portraitNotice button:hover {
+  background: rgba(255, 178, 122, 0.12);
+}
+
+.playerList {
+  display: grid;
+  gap: 8px;
+}
+
+.playerCard {
+  display: grid;
+  grid-template-columns: auto minmax(140px, 1fr) 80px minmax(130px, 0.6fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(142, 166, 209, 0.15);
+  border-radius: 15px;
+  background: #101522;
+}
+
+.avatar {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  overflow: hidden;
+  place-items: center;
+  border-radius: 13px;
+  background: #26304a;
+  color: #dbe2f7;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.brandingContain {
+  width: 100%;
+  height: 100%;
+  padding: 4px;
+  object-fit: contain;
+}
+
+.playerIdentity {
+  display: grid;
+  gap: 2px;
+}
+
+.playerIdentity small {
+  color: #8591a6;
+  font-size: 11px;
+}
+
+.playerCard label {
+  display: grid;
+  gap: 4px;
+  color: #8490a5;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.playerCard input,
+.playerCard select {
+  width: 100%;
+  min-height: 38px;
+}
+
+.eligibility[data-status="eligible"] {
+  color: #72e5be;
+}
+
+/* Botón ícono: la excepción semántica de la escala. Es cuadrado y no lleva
+   texto, así que toma el radio compacto y no el del CTA. */
+.iconButton {
+  display: grid;
+  width: var(--torneos-action-height-sm);
+  height: var(--torneos-action-height-sm);
+  place-items: center;
+  border: 1px solid rgba(255, 130, 111, 0.24);
+  border-radius: var(--torneos-action-radius-sm);
+  background: rgba(181, 73, 58, 0.08);
+  color: #ff9e8d;
+  cursor: pointer;
+}
+
+.requirementsPanel dl {
+  display: grid;
+  gap: 0;
+  margin: 0 0 18px;
+}
+
+.requirementsPanel dl > div {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(142, 166, 209, 0.11);
+}
+
+.requirementsPanel dt {
+  color: #8f9bb0;
+}
+
+.requirementsPanel dd {
+  margin: 0;
+  font-weight: 800;
+}
+
+.requirementsPanel .primaryButton {
+  width: 100%;
+}
+
+.decisionPicker {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.decisionPicker button {
+  display: flex;
+  min-height: 58px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 8px;
+  border: 1px solid rgba(142, 166, 209, 0.18);
+  border-radius: 12px;
+  background: #0b101c;
+  color: #aab4c8;
+  font-weight: 800;
+}
+
+.decisionPicker button[aria-pressed="true"] {
+  border-color: #7590ff;
+  background: rgba(89, 111, 220, 0.18);
+  color: white;
+}
+
+.historyPanel {
+  display: grid;
+  gap: 10px;
+}
+
+.historyPanel article {
+  padding: 12px;
+  border-left: 2px solid #718bff;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.historyPanel p {
+  margin: 5px 0;
+  color: #a3aec1;
+  font-size: 12px;
+}
+
+.historyPanel time {
+  color: #747f94;
+  font-size: 10px;
+}
+
+.successBanner,
+.errorBanner {
+  display: flex;
+  min-height: 46px;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.successBanner {
+  border: 1px solid rgba(78, 223, 169, 0.3);
+  background: rgba(48, 154, 116, 0.12);
+  color: #7be9c0;
+}
+
+.errorBanner {
+  border: 1px solid rgba(255, 129, 111, 0.32);
+  background: rgba(176, 69, 53, 0.12);
+  color: #ffad9f;
+}
+
+.invitationPage {
+  display: grid;
+  min-height: calc(100vh - 110px);
+  place-items: center;
+  padding: 24px;
+}
+
+.invitationCard {
+  display: grid;
+  width: min(480px, 100%);
+  justify-items: center;
+  gap: 14px;
+  padding: 34px;
+  border: 1px solid rgba(142, 166, 209, 0.2);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 50% 0, rgba(99, 127, 255, 0.2), transparent 42%),
+    #101522;
+  text-align: center;
+}
+
+.invitationMark {
+  width: 66px;
+  height: 66px;
+  border-radius: 21px;
+}
+
+.invitationCard h1,
+.invitationCard p {
+  margin: 0;
+}
+
+.invitationCard p {
+  color: #9ca8bc;
+  line-height: 1.55;
+}
+
+.invitationCard .primaryButton {
+  width: 100%;
+}
+
+.spin {
+  animation: spin 0.8s linear infinite;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 1320px) {
+  .entryCard {
+    grid-template-columns: minmax(0, 1fr) max-content;
+  }
+
+  .entryFacts {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .entryActions {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+}
+
+@media (max-width: 1000px) {
+  .entryCard {
+    grid-template-columns: 1fr auto;
+  }
+
+  .entryFacts {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .entryCard > a {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .playerCard {
+    grid-template-columns: auto minmax(140px, 1fr) 74px minmax(120px, 0.7fr) auto;
+  }
+
+  .playerCard .eligibility {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .stageNotice {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .pageHeader,
+  .formHeader {
+    align-items: stretch;
+    flex-direction: column;
+    padding: 22px;
+  }
+
+  .metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .metrics article {
+    min-height: 100px;
+  }
+
+  .toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .searchBox {
+    width: 100%;
+  }
+
+  .filterRail {
+    margin-inline: -3px;
+  }
+
+  .modePicker,
+  .twoColumns,
+  .colorFields,
+  .detailGrid,
+  .rosterLayout,
+  .reviewLayout {
+    grid-template-columns: 1fr;
+  }
+
+  .detailHero {
+    grid-template-columns: auto 1fr;
+    padding: 20px;
+  }
+
+  .detailHero > .statusPill {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
+  .requirementsPanel {
+    position: sticky;
+    bottom: 76px;
+  }
+
+  .playerCard {
+    grid-template-columns: auto 1fr auto;
+  }
+
+  .playerCard label {
+    grid-row: 2;
+  }
+
+  .playerCard label:nth-of-type(1) {
+    grid-column: 1 / 2;
+  }
+
+  .playerCard label:nth-of-type(2) {
+    grid-column: 2 / 3;
+  }
+
+  .playerCard .iconButton {
+    grid-column: 3;
+    grid-row: 2;
+  }
+}
+
+@media (max-width: 520px) {
+  .page,
+  .formPage,
+  .detailPage {
+    gap: 13px;
+  }
+
+  .pageHeader,
+  .formHeader,
+  .detailHero,
+  .formSection,
+  .sidePanel,
+  .requirementsPanel,
+  .reviewPanel,
+  .historyPanel {
+    border-radius: 16px;
+  }
+
+  .metrics {
+    gap: 8px;
+  }
+
+  .metrics article {
+    padding: 14px;
+  }
+
+  .entryCard {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .entryCard > a,
+  .entryFacts,
+  .entryActions {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .entryFacts {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .entryCard > a {
+    justify-content: center;
+    border-top: 1px solid rgba(142, 166, 209, 0.11);
+  }
+
+  .entryActions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    min-width: 0;
+    align-items: stretch;
+    gap: 8px;
+    justify-content: stretch;
+  }
+
+  .entryActions > a,
+  .entryActions > .withdrawButton {
+    width: 100%;
+    box-sizing: border-box;
+    justify-content: center;
+  }
+
+  .decisionPicker {
+    grid-template-columns: 1fr;
+  }
+
+  .stickyActions {
+    bottom: 72px;
+  }
+
+  .invitationCard {
+    padding: 26px 20px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .entryCard,
+  .progressTrack span,
+  .spin {
+    animation: none;
+    transition: none;
+  }
+}
+
+/* Arma2 Personal visual alignment */
+.page,
+.formPage,
+.detailPage {
+  max-width: 1180px;
+  font-family: inherit;
+}
+
+.pageHeader,
+.detailHero,
+.formHeader {
+  border-color: var(--torneos-border);
+  border-radius: var(--torneos-radius);
+  background: var(--torneos-card-bg);
+  box-shadow: var(--torneos-elevated-shadow);
+}
+
+.pageHeader::after,
+.detailHero::after,
+.formHeader::after {
+  background: linear-gradient(90deg, var(--torneos-accent), var(--torneos-purple), transparent);
+}
+
+.pageHeader h1,
+.detailHero h1,
+.formHeader h1 {
+  font-family: "Bebas Neue", Impact, sans-serif;
+  font-size: clamp(2.25rem, 5vw, 3.5rem);
+  line-height: 1;
+  letter-spacing: 0.015em;
+}
+
+.kicker {
+  color: var(--torneos-purple-bright);
+}
+
+.primaryButton,
+.secondaryButton {
+  min-height: 48px;
+  border-radius: var(--torneos-control-radius);
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+.primaryButton {
+  background: var(--torneos-cta);
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: var(--torneos-cta-shadow);
+}
+
+.secondaryButton {
+  color: var(--torneos-copy);
+  background: var(--torneos-control-bg);
+  border-color: var(--torneos-border);
+}
+
+.metrics article,
+.entryCard,
+.progressPanel,
+.formSection,
+.sidePanel,
+.reviewPanel,
+.requirementsPanel,
+.invitationCard,
+.historyPanel {
+  background: var(--torneos-card-bg);
+  border-color: var(--torneos-border);
+  border-radius: var(--torneos-radius);
+  box-shadow: var(--torneos-elevated-shadow);
+}
+
+.searchField,
+.teamForm input,
+.teamForm select,
+.teamForm textarea,
+.formSection input,
+.formSection select,
+.formSection textarea {
+  border-radius: var(--torneos-control-radius);
+}
+.brandingEditNotice {
+  margin: 16px 0 20px;
+  color: var(--torneos-text-muted, #a7a2bd);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}

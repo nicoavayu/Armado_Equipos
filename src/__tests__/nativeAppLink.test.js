@@ -34,4 +34,16 @@ describe('canonical native app links', () => {
     expect(safe).not.toContain('secret');
     expect(safe).toContain('redacted');
   });
+
+  test('redacts tournament invitation paths and nested login return routes', () => {
+    const tournamentToken = 'a'.repeat(64);
+    const invitePath = `/torneos/invitacion/equipo/${tournamentToken}`;
+    const safeInvite = redactUrlForLog(invitePath);
+    const safeLogin = redactUrlForLog(`/login?returnTo=${encodeURIComponent(invitePath)}`);
+
+    expect(safeInvite).not.toContain(tournamentToken);
+    expect(safeLogin).not.toContain(tournamentToken);
+    expect(safeInvite).toContain('redacted');
+    expect(safeLogin).toContain('redacted');
+  });
 });

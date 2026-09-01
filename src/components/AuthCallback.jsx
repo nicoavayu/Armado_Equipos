@@ -10,9 +10,12 @@ import {
   setAuthFlowResult,
 } from '../utils/authFlowState';
 import { track } from '../utils/monitoring/analytics';
+import { redactUrlForLog } from '../utils/nativeAppLink';
 import AppLoadingScreen from './AppLoadingScreen';
+import { getAuthenticatedProductHome } from '../utils/runtimePlatform';
 
 const SESSION_RETRY_DELAYS_MS = [0, 250, 600, 1200];
+const AUTH_CALLBACK_TIMEOUT_MS = 20000;
 
 export default function AuthCallback() {
   const navigate = useNavigate();
@@ -29,6 +32,31 @@ export default function AuthCallback() {
 
   useEffect(() => {
     let mounted = true;
+    let settled = false;
+    let callbackTimeoutId = null;
+
+    const fail = (err, provider = 'google') => {
+      if (settled) return;
+      settled = true;
+      if (callbackTimeoutId !== null) {
+        window.clearTimeout(callbackTimeoutId);
+        callbackTimeoutId = null;
+      }
+
+      const currentProvider = readPendingAuthFlow()?.provider || provider;
+      logAuth('auth_callback_error', {
+        provider: currentProvider,
+        message: err?.message || String(err),
+      });
+      clearPendingAuthFlow();
+      setAuthFlowResult({
+        type: 'error',
+        provider: currentProvider,
+        message: err?.message || 'No pudimos completar el login.',
+      });
+      if (!mounted) return;
+      setError(err?.message || 'No pudimos completar el login.');
+    };
 
     const waitForSession = async () => {
       let lastSessionError = null;
@@ -144,30 +172,33 @@ export default function AuthCallback() {
           method: 'oauth_callback',
         });
 
-        const target = consumeAuthReturnTo('/home');
-        logAuth('auth_callback_navigate', { target });
+        const target = consumeAuthReturnTo(getAuthenticatedProductHome());
+        logAuth('auth_callback_navigate', { target: redactUrlForLog(target) });
+        if (settled || !mounted) return;
+        settled = true;
+        if (callbackTimeoutId !== null) {
+          window.clearTimeout(callbackTimeoutId);
+          callbackTimeoutId = null;
+        }
         navigate(target, { replace: true });
       } catch (err) {
-        const currentProvider = readPendingAuthFlow()?.provider || provider;
-        logAuth('auth_callback_error', {
-          provider: currentProvider,
-          message: err?.message || String(err),
-        });
-        clearPendingAuthFlow();
-        setAuthFlowResult({
-          type: 'error',
-          provider: currentProvider,
-          message: err?.message || 'No pudimos completar el login.',
-        });
-        if (!mounted) return;
-        setError(err?.message || 'No pudimos completar el login.');
+        fail(err, provider);
       }
     };
 
+    callbackTimeoutId = window.setTimeout(() => {
+      fail(
+        new Error('Supabase no respondió a tiempo. Volvé a iniciar sesión.'),
+        readPendingAuthFlow()?.provider || 'google',
+      );
+    }, AUTH_CALLBACK_TIMEOUT_MS);
     run();
 
     return () => {
       mounted = false;
+      if (callbackTimeoutId !== null) {
+        window.clearTimeout(callbackTimeoutId);
+      }
     };
   }, [navigate]);
 

@@ -2341,9 +2341,6 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
     const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
     const anonKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
     if (!supabaseUrl || !anonKey) {
-      if (process.env.NODE_ENV === 'development') {
-        logger.error('[INVITE] Missing env', { supabaseUrl: !!supabaseUrl, anonKey: !!anonKey });
-      }
       showInlineNotice('warning', 'No se pudo validar la invitación. Reintentá en unos minutos.');
       return;
     }
@@ -2364,7 +2361,6 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
         headers: {
           'Content-Type': 'application/json',
           'apikey': anonKey,
-          'Authorization': `Bearer ${anonKey}`,
         },
         body: JSON.stringify({
           partido_id: Number(partidoId),

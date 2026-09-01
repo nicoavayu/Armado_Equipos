@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "arma2-torneos-staging-readonly-snapshot-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "repositorySha", "projectRef", "timestamp",
+    "migrationState", "schemaState", "storage", "edgeFunctions", "secrets",
+    "aggregates", "workerAttestations", "readiness", "flags", "blockers",
+    "limitations", "readOnlyEvidence", "remoteCalls", "mutationsPerformed"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "repositorySha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "projectRef": { "const": "hhyvmhgpapyuzjgxfnqv" },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "migrationState": { "type": "object" },
+    "schemaState": { "type": "object" },
+    "storage": { "type": "object" },
+    "edgeFunctions": { "type": "array" },
+    "secrets": { "type": "array" },
+    "aggregates": { "type": "object" },
+    "workerAttestations": { "type": "array" },
+    "readiness": { "type": "object" },
+    "flags": { "type": "object" },
+    "blockers": { "type": "array", "items": { "type": "string" } },
+    "limitations": { "type": "array", "items": { "type": "string" } },
+    "readOnlyEvidence": { "type": "object" },
+    "remoteCalls": { "type": "integer", "minimum": 0 },
+    "mutationsPerformed": { "const": 0 }
+  }
+}

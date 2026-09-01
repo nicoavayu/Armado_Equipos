@@ -1,0 +1,52 @@
+P1-D CORREGIDO — Las condiciones de negocio previstas ya no se responden como HTTP 500
+Corregido: 2026-08-13, sobre el hallazgo de 03-P1-D-finish-500.txt
+Alcance: exclusivamente las 4 condiciones detectadas. No se tocó ningún P2.
+
+CAMBIOS
+  supabase/migrations/20260813122000_lifecycle_business_rules_are_client_errors.sql  (NUEVA)
+    Parche textual sobre la definición viva, idempotente y fail-closed, con el
+    mismo criterio ya aprobado en P1-C (20260813121000).
+    55000 -> 22023 en los 4 sitios:
+      finish_tournament_competition              TORNEOS_COMPETITION_HAS_PENDING_COMMITMENTS
+      withdraw_..._participant                   TORNEOS_PARTICIPANT_ALREADY_WITHDRAWN
+      withdraw_..._participant                   TORNEOS_PARTICIPANT_HAS_OPEN_OPERATIONS
+      protect_tournament_completed_competition   TORNEOS_COMPETITION_READ_ONLY
+    Ninguna regla cambió de alcance: los 4 guards rechazan exactamente lo mismo,
+    con el mismo mensaje de contrato y el mismo `detail`.
+
+  src/features/torneos/api/tournamentWorkspaceService.js
+    Los 4 códigos no estaban en ERROR_MESSAGES, así que `toWorkspaceError` los
+    colapsaba en 'TORNEOS_REQUEST_FAILED' y el mensaje visible pasaba a ser el
+    fallback genérico. LIFECYCLE_ERROR_COPY nunca llegaba a dispararse: el
+    segundo tramo del defecto era del cliente, no del SQLSTATE.
+
+  src/features/torneos/domain/competitionLifecycle.js
+    `getLifecycleErrorMessage` ahora resuelve el código en message/code/details/
+    hint de las dos capas (el error de PostgREST queda en `cause`) y arma el
+    mensaje con la cantidad que el backend ya había calculado.
+
+EVIDENCIA VIVA (UI real, owner, LOCAL, fixture disposable)
+  Organización: QA E2E Lifecycle Disposable 2026 (f5fb22c4-751a-498f-afa6-f9c0f1dfd8b9)
+  Competencia:  Copa QA Disposable Lifecycle (4e137fde-a58d-41d0-b2b3-11c0f2b5bdb8), En juego
+  Pendientes reales en base: 9
+
+  POST http://127.0.0.1:57321/rest/v1/rpc/finish_tournament_competition -> 400 Bad Request
+    (antes: 500 Internal Server Error)
+  UI muestra: "Todavía quedan 9 partidos por resolver antes de finalizar la competencia."
+    (antes: "No pudimos finalizar la competencia.", sin causa ni cantidad)
+  La competencia sigue En juego: el guard no se debilitó.
+
+  El mensaje visible no contiene RPC, SQLSTATE, UUID, código interno, stack ni
+  inglés técnico. Hay un test que lo afirma para las cuatro condiciones.
+
+TESTS AGREGADOS
+  scripts/db-integration/torneos-lifecycle-client-errors.mjs   32/32
+    - las 4 condiciones: código de contrato, SQLSTATE de clase cliente, y la
+      afirmación explícita de que ya no usan la clase 55
+    - el `detail` sigue llevando la cantidad (pendientes y actas abiertas)
+    - el guard del retiro con acta abierta mantiene su rollback: el equipo sigue
+      activo, no se generó fecha libre y el acta queda intacta
+    - sonda HTTP real contra PostgREST: 400, cuerpo con el código y `details`
+    - todo en transacciones con ROLLBACK; el dataset QA canónico queda igual
+  src/__tests__/competitionLifecycle.test.js        (9 casos nuevos)
+  src/__tests__/competitionLifecycleActions.test.jsx (4 casos nuevos)

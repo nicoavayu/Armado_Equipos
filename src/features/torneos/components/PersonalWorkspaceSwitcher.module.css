@@ -1,0 +1,212 @@
+.card {
+  width: calc(100% - 32px);
+  max-width: 688px;
+  margin: 16px auto 4px;
+  padding: 15px;
+  color: #fff;
+  background:
+    linear-gradient(135deg, rgba(137, 91, 255, 0.12), rgba(20, 18, 35, 0.92));
+  border: 1px solid rgba(164, 128, 255, 0.24);
+  border-radius: 18px 5px 18px 5px;
+  box-shadow: 0 16px 45px rgba(0, 0, 0, 0.24);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 11px;
+}
+
+.header > span {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  color: #e1d4ff;
+  background: rgba(137, 91, 255, 0.13);
+  border-radius: 11px 4px 11px 4px;
+}
+
+.header div {
+  display: flex;
+  flex-direction: column;
+}
+
+.header small {
+  color: #ab91ec;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.header h2 {
+  margin: 1px 0 0;
+  font-family: "Bebas Neue", Impact, sans-serif;
+  font-size: 25px;
+  font-weight: 400;
+  letter-spacing: 0.03em;
+}
+
+.list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.list button {
+  min-width: 0;
+  min-height: 59px;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  padding: 8px;
+  color: #f5efff;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 11px;
+  cursor: pointer;
+}
+
+.list button:hover:not(:disabled),
+.list button:focus-visible:not(:disabled) {
+  background: rgba(137, 91, 255, 0.1);
+  border-color: rgba(164, 128, 255, 0.28);
+}
+
+.list button:disabled {
+  cursor: default;
+  opacity: 0.82;
+}
+
+.list button > span:nth-child(2) {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.list strong,
+.list small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.list strong {
+  font: 700 13px/1.1 "Oswald", Arial, sans-serif;
+}
+
+.list small {
+  color: #a9a1b6;
+  font: 10px/1.2 Arial, sans-serif;
+}
+
+.activeItem {
+  border-color: rgba(91, 222, 172, 0.18) !important;
+}
+
+.tournamentsItem {
+  border-color: rgba(164, 128, 255, 0.2) !important;
+  background: rgba(137, 91, 255, 0.075) !important;
+}
+
+.personalIcon,
+.organizationIcon {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  color: #d9ccff;
+  background: rgba(137, 91, 255, 0.1);
+  border-radius: 50%;
+}
+
+.organizationIcon {
+  border-radius: 10px 3px 10px 3px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.createItem {
+  border-style: dashed !important;
+}
+
+.state,
+.error {
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px;
+  color: #beb5c9;
+  font: 12px/1.4 Arial, sans-serif;
+}
+
+.error {
+  justify-content: space-between;
+  color: #ffd0d8;
+  background: rgba(255, 107, 132, 0.07);
+  border-radius: 9px;
+}
+
+.error button {
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #fff;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 7px;
+}
+
+.spinner {
+  animation: spin 700ms linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 560px) {
+  .list {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 1500ms;
+  }
+}
+
+/* Arma2 Personal visual alignment */
+.card {
+  background: var(--torneos-card-bg);
+  border-color: var(--torneos-border);
+  border-radius: var(--torneos-radius);
+  box-shadow: var(--torneos-elevated-shadow);
+  font-family: inherit;
+}
+
+.header > span,
+.organizationIcon {
+  border-radius: 12px;
+}
+
+.list button,
+.error button {
+  border-radius: var(--torneos-control-radius);
+  font-family: inherit;
+}
+
+.list strong,
+.list small,
+.state,
+.error {
+  font-family: inherit;
+}

@@ -15,8 +15,11 @@ import { fileURLToPath } from 'node:url';
 import EmbeddedPostgres from 'embedded-postgres';
 import pg from 'pg';
 
+import migrationPathResolver from '../resolve_migration_path.cjs';
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..', '..');
+const { resolveMigrationPath } = migrationPathResolver;
 const MIGRATIONS = [
   '20260710101500_availability_auto_match_mvp.sql',
   '20260710113000_create_auto_match_proposal_rpc.sql',
@@ -3164,7 +3167,7 @@ const applyCurrentStopSearch = async () => {
   // El fixture dejó cancel_my_availability() devolviendo una tabla; la versión
   // buena devuelve void y CREATE OR REPLACE no puede cambiar el tipo.
   await admin.query('drop function if exists public.cancel_my_availability();');
-  await admin.query(fs.readFileSync(path.join(ROOT, 'supabase', 'migrations', MIGRATION_STOP_SEARCH), 'utf8'));
+  await admin.query(fs.readFileSync(resolveMigrationPath(ROOT, MIGRATION_STOP_SEARCH), 'utf8'));
 };
 
 // Siembra una gestación 'collecting' con `memberCount` invitados y devuelve un
@@ -3511,7 +3514,7 @@ async function main() {
   admin = await connect();
   await admin.query(fs.readFileSync(path.join(__dirname, 'stub-schema.sql'), 'utf8'));
   for (const file of MIGRATIONS) {
-    const sql = fs.readFileSync(path.join(ROOT, 'supabase', 'migrations', file), 'utf8');
+    const sql = fs.readFileSync(resolveMigrationPath(ROOT, file), 'utf8');
     try {
       await admin.query(sql);
       console.log(`  migración aplicada: ${file}`);

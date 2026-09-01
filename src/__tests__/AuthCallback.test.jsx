@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import AuthCallback from '../components/AuthCallback';
 
@@ -67,6 +67,10 @@ describe('AuthCallback', () => {
     mockSetSession.mockResolvedValue({ error: null });
   });
 
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   test('continues when session already exists after code exchange failure', async () => {
     const exchangeError = new Error('code verifier mismatch');
     mockExchangeCodeForSession.mockResolvedValue({ error: exchangeError });
@@ -102,5 +106,29 @@ describe('AuthCallback', () => {
     expect(mockSetAuthFlowResult).not.toHaveBeenCalled();
     expect(screen.queryByText(/No pudimos completar el login/i)).not.toBeInTheDocument();
   });
-});
 
+  test('shows a recoverable error when Supabase never answers', async () => {
+    jest.useFakeTimers();
+    mockExchangeCodeForSession.mockImplementation(() => new Promise(() => {}));
+
+    render(
+      <MemoryRouter>
+        <AuthCallback />
+      </MemoryRouter>,
+    );
+
+    await act(async () => {
+      jest.advanceTimersByTime(20000);
+      await Promise.resolve();
+    });
+
+    expect(await screen.findByText('Supabase no respondió a tiempo. Volvé a iniciar sesión.')).toBeInTheDocument();
+    expect(mockClearPendingAuthFlow).toHaveBeenCalled();
+    expect(mockSetAuthFlowResult).toHaveBeenCalledWith({
+      type: 'error',
+      provider: 'google',
+      message: 'Supabase no respondió a tiempo. Volvé a iniciar sesión.',
+    });
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+});

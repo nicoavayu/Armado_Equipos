@@ -3,7 +3,7 @@ import path from 'path';
 
 const migrationPath = path.join(
   process.cwd(),
-  'supabase/migrations/20260712220000_auto_match_overbooking_confirmation_order.sql',
+  'supabase/migrations_history/20260712220000_auto_match_overbooking_confirmation_order.sql',
 );
 const sql = fs.readFileSync(migrationPath, 'utf8');
 

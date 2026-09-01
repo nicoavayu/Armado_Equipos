@@ -1,14 +1,17 @@
 import React from 'react';
 import { prefetchRoute } from '../utils/routePrefetch';
 
-const NotificationsBell = ({ unreadCount, onClick }) => {
+const NotificationsBell = ({ unreadCount, onClick, disabled = false }) => {
   return (
     <button
-      className="relative bg-transparent border-none cursor-pointer p-2 rounded-full flex items-center justify-center transition-colors hover:bg-white/10 active:bg-white/20 active:scale-95 md:p-3 group"
+      className="relative bg-transparent border-none cursor-pointer p-2 rounded-full flex items-center justify-center transition-colors hover:bg-white/10 active:bg-white/20 active:scale-95 md:p-3 group disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-transparent"
+      type="button"
+      aria-label="Abrir notificaciones"
+      disabled={disabled}
       onClick={onClick}
-      onMouseEnter={() => prefetchRoute('/notifications')}
-      onTouchStart={() => prefetchRoute('/notifications')}
-      onFocus={() => prefetchRoute('/notifications')}
+      onMouseEnter={() => !disabled && prefetchRoute('/notifications')}
+      onTouchStart={() => !disabled && prefetchRoute('/notifications')}
+      onFocus={() => !disabled && prefetchRoute('/notifications')}
     >
       <svg
         xmlns="http://www.w3.org/2000/svg"

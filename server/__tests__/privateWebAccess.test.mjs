@@ -113,8 +113,14 @@ test('returnTo accepts only same-origin paths and blocks open redirects', () => 
   assert.equal(normalizePrivateWebReturnTo('/login%0d%0aLocation:evil'), '/login');
 });
 
-test('an anonymous visitor receives mobile-only HTML for root and internal SPA routes', async () => {
-  for (const pathname of ['/', '/login', '/registro', '/profile', '/partido/123', '/auth/callback']) {
+test('anonymous Torneos and auth entry routes reach the web app while unrelated private routes stay gated', async () => {
+  for (const pathname of ['/torneos', '/torneos/nueva-organizacion', '/login', '/login/email', '/auth/callback']) {
+    const response = await invokeGate(pathname);
+    assert.equal(response.headers.get('x-middleware-next'), '1', pathname);
+    assert.equal(response.headers.get('x-middleware-rewrite'), null, pathname);
+  }
+
+  for (const pathname of ['/', '/registro', '/profile', '/partido/123']) {
     const response = await invokeGate(pathname);
     assert.equal(response.status, 200, pathname);
     assert.equal(
@@ -160,7 +166,6 @@ test('the public voting allowlist is exact and requires the existing match-code 
     '/votar-equipos?partidoId=321',
     '/votar-equipos-extra?codigo=H03G61',
     '/votar-equipos/321?codigo=H03G61',
-    '/login',
   ]) {
     const response = await invokeGate(pathname);
     assert.equal(
@@ -317,8 +322,8 @@ test('legacy production hosts redirect permanently while previews stay on their 
   });
   assert.equal(preview.status, 200);
   assert.equal(
-    preview.headers.get('x-middleware-rewrite'),
-    'https://arma2-git-private-web-nicoavayus-projects.vercel.app/mobile-only.html',
+    preview.headers.get('x-middleware-next'),
+    '1',
   );
 });
 
@@ -456,13 +461,12 @@ test('public and private pages preserve copy, stores, accessibility, and secret 
 
   assert.match(publicHtml, /<html lang="es"/);
   assert.match(publicHtml, /<main class="gate-shell">/);
-  assert.match(publicHtml, /<h1 id="mobile-only-title">ARMA2 SE VIVE DESDE LA APP<\/h1>/);
-  assert.match(publicHtml, /Descargala en tu teléfono y viví tu fútbol amateur como nunca antes\./);
+  assert.match(publicHtml, /<h1 id="mobile-only-title">LLEVÁ ARMA2 EN EL CELULAR<\/h1>/);
+  assert.match(publicHtml, /Arma2 Torneos también funciona completo en la web\./);
   assert.match(publicHtml, /Descargar en App Store/);
   assert.match(publicHtml, /apps\.apple\.com\/ar\/app\/arma2\/id6760599244/);
-  assert.match(publicHtml, /Próximamente en Google Play/);
-  assert.doesNotMatch(publicHtml, /play\.google\.com/);
-  assert.doesNotMatch(publicHtml, /href=["'][^"']*google/i);
+  assert.match(publicHtml, /Descargar en Google Play/);
+  assert.match(publicHtml, /play\.google\.com\/store\/apps\/details\?id=com\.teambalancer\.app/);
   assert.match(publicStyles, /\.gate-copy h1\s*{[^}]*font-family: 'Bebas Neue'/s);
   assert.match(publicStyles, /\.gate-lead\s*{[^}]*font-family: 'Inter', sans-serif;[^}]*font-weight: 400;[^}]*line-height: 1\.5;[^}]*letter-spacing: normal;/s);
   assert.match(publicStyles, /\.gate-store-button\s*{[^}]*font-family: 'Inter', sans-serif;[^}]*font-weight: 500;[^}]*line-height: 1\.5;[^}]*letter-spacing: normal;/s);
