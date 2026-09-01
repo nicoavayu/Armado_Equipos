@@ -378,7 +378,7 @@ const QuieroJugar = ({
 
       const { data: userProfiles, error: usersError } = await supabase
         .from('usuarios')
-        .select('id, nombre, avatar_url, localidad, latitud, longitud, ranking, partidos_jugados, posicion, posiciones, disponible_arquero, acepta_invitaciones, bio, fecha_alta, updated_at, nacionalidad, mvps')
+        .select('id, nombre, avatar_url, localidad, latitud, longitud, ranking, partidos_jugados, posicion, posiciones, disponible_arquero, acepta_invitaciones, bio, updated_at, nacionalidad, mvps')
         .in('id', userIds);
 
       if (usersError) throw usersError;

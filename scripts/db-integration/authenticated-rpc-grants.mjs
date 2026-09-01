@@ -110,6 +110,18 @@ const ANON_ALLOWLIST = [
 // fail before the later feature migration has created them. Keep each later
 // authenticated surface explicit here so the catalog remains fail-closed.
 const POST_CANONICAL_AUTHENTICATED_ALLOWLIST = [
+  ['public.set_my_global_availability(boolean)', 'frontend_legitimate'],
+  ['public.cancel_my_availability_detailed()', 'frontend_legitimate'],
+  [
+    'public.get_open_matches_for_quiero_jugar_v2(double precision,double precision,integer)',
+    'frontend_legitimate',
+  ],
+  [
+    'public.partido_is_operationally_open(text,timestamp with time zone,text,text,timestamp with time zone,date,text,boolean,timestamp with time zone)',
+    'rls_helper_required',
+  ],
+  ['public.normalize_partido_estado(text)', 'rls_helper_required'],
+  ['public.partido_kickoff_at(date,text)', 'rls_helper_required'],
   ['public.is_tournament_branding_path(text,text)', 'rls_helper_required'],
   ['public.can_update_tournament_team_branding(uuid,uuid)', 'rls_helper_required'],
   ['public.can_write_tournament_branding_object(text)', 'rls_helper_required'],
@@ -279,13 +291,21 @@ for (const [signature, category] of allowlist) {
   );
 }
 
-const unexpectedAuthenticated = catalog.rows
+const findUnexpectedAuthenticated = (rows) => rows
   .filter((row) => row.authenticated_execute && !allowlist.has(row.signature))
   .map((row) => row.signature);
+const unexpectedAuthenticated = findUnexpectedAuthenticated(catalog.rows);
 check(
   unexpectedAuthenticated.length === 0,
   'authenticated has no signatures outside the exact allowlist',
   unexpectedAuthenticated.join(', '),
+);
+const unregisteredSignatureProbe = 'public.__unregistered_rpc_contract_probe__()';
+check(
+  findUnexpectedAuthenticated([
+    { signature: unregisteredSignatureProbe, authenticated_execute: true },
+  ]).includes(unregisteredSignatureProbe),
+  'exact authenticated allowlist rejects an unregistered signature probe',
 );
 
 for (const signature of ANON_ALLOWLIST) {
