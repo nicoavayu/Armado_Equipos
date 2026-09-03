@@ -253,22 +253,35 @@ async function run() {
       /TORNEOS_(SEASON_)?MEDIA_QUOTA_EXCEEDED/, 'Premium acepta 1.000 y rechaza el archivo 1.001');
 
     const freeExport = await asRole(client, 'authenticated', OWNER, () => scalar(client,
-      "select public.authorize_tournament_social_export($1,$2,'next_fixture',true)",
+      "select public.authorize_tournament_social_export($1,$2,'next_fixture','base',true)",
       [organizationId, tournamentB1.id]));
     ok(freeExport.authorized === true, 'FREE exporta Próximo partido Base con branding');
     await expectError(client, () => asRole(client, 'authenticated', OWNER, () => scalar(client,
-      "select public.authorize_tournament_social_export($1,$2,'mvp',true)",
+      "select public.authorize_tournament_social_export($1,$2,'mvp','base',true)",
       [organizationId, tournamentB1.id])), /TORNEOS_SOCIAL_PREMIUM_REQUIRED/,
     'FREE no exporta familias fuera de las tres Base');
     await expectError(client, () => asRole(client, 'authenticated', OWNER, () => scalar(client,
-      "select public.authorize_tournament_social_export($1,$2,'standings',false)",
+      "select public.authorize_tournament_social_export($1,$2,'round_results','heritage',true)",
+      [organizationId, tournamentB1.id])), /TORNEOS_SOCIAL_PREMIUM_REQUIRED/,
+    'FREE no evita el lock eligiendo un theme Premium');
+    await expectError(client, () => asRole(client, 'authenticated', OWNER, () => scalar(client,
+      "select public.authorize_tournament_social_export($1,$2,'standings','base',false)",
       [organizationId, tournamentB1.id])), /TORNEOS_BRANDING_PREMIUM_REQUIRED/,
     'FREE no puede retirar el branding Arma2');
     const premiumExport = await asRole(client, 'authenticated', OWNER, () => scalar(client,
-      "select public.authorize_tournament_social_export($1,$2,'mvp',false)",
+      "select public.authorize_tournament_social_export($1,$2,'mvp','editorial',false)",
       [organizationId, tournamentA1.id]));
     ok(premiumExport.authorized && premiumExport.includeArma2Branding === false,
       'Premium autoriza las 11 familias y branding OFF');
+    const premiumWhiteLabel = await asRole(client, 'authenticated', OWNER, () => scalar(client,
+      "select public.authorize_tournament_social_export($1,$2,'round_results','heritage',true)",
+      [organizationId, tournamentA1.id]));
+    ok(premiumWhiteLabel.authorized && premiumWhiteLabel.includeArma2Branding === false,
+      'un theme Premium permanece white-label aunque el cliente pida branding Arma2');
+    await expectError(client, () => asRole(client, 'authenticated', OWNER, () => scalar(client,
+      "select public.authorize_tournament_social_export($1,$2,'round_results','desconocido',false)",
+      [organizationId, tournamentA1.id])), /TORNEOS_SOCIAL_THEME_UNKNOWN/,
+    'el backend rechaza themes fuera del catálogo');
 
     ok(Number(await scalar(client, `
       select count(*) from public.tournament_plan_grants old_grant

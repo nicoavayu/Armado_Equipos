@@ -12,6 +12,7 @@ const autoMatchMigration = '20260806120000_auto_match_stop_search_atomic_exit.sq
 const contractRepairMigration = '20260831034314_restore_current_product_contracts.sql';
 const mediaSessionReuseMigration = '20260831163520_fix_tournament_media_session_reuse.sql';
 const globalAvailabilityMigration = '20260831200904_global_availability_atomic_contract.sql';
+const socialStudioThemeMigration = '20260901120000_social_studio_theme_export_contract.sql';
 const approvedMigrations = fs.readdirSync(path.join(repoRoot, 'supabase', 'migrations'))
   .filter((file) => file.endsWith('.sql'))
   .sort();
@@ -35,16 +36,18 @@ const runGuard = (cwd) => spawnSync(process.execPath, [guardPath], {
 });
 
 test('accepts the closed set including Auto-Match, contract repair and global availability', (t) => {
-  assert.equal(approvedMigrations.length, 40);
+  assert.equal(approvedMigrations.length, 41);
   assert.ok(approvedMigrations.includes(autoMatchMigration));
   assert.ok(approvedMigrations.includes(contractRepairMigration));
   assert.ok(approvedMigrations.includes(mediaSessionReuseMigration));
   assert.ok(approvedMigrations.includes(globalAvailabilityMigration));
+  assert.ok(approvedMigrations.includes(socialStudioThemeMigration));
   assert.equal(
     approvedMigrations.filter(
       (file) => file !== autoMatchMigration
         && file !== contractRepairMigration
-        && file !== globalAvailabilityMigration,
+        && file !== globalAvailabilityMigration
+        && file !== socialStudioThemeMigration,
     ).length,
     37,
   );
