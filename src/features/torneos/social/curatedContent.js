@@ -1,4 +1,7 @@
-import { selectionSizeForSnapshot } from './socialContracts';
+import {
+  fallbackSocialPlayerLine,
+  selectionSizeForSnapshot,
+} from './socialContracts';
 
 function normalizedTeam(candidate) {
   if (candidate?.team) {
@@ -51,7 +54,15 @@ export function adaptSnapshotToCuratedContent(snapshot, editorial = {}) {
   }
   const candidates = (snapshot.official?.candidates || []).map(normalizedCandidate);
   const byId = new Map(candidates.map((candidate) => [candidate.rosterPlayerId, candidate]));
-  const selected = (editorial.selection || []).map((id) => byId.get(id)).filter(Boolean);
+  const selected = (editorial.selection || []).map((id, index) => {
+    const candidate = byId.get(id);
+    if (!candidate) return null;
+    return {
+      ...candidate,
+      selectedLine: editorial.selectedLines?.[id]
+        || fallbackSocialPlayerLine(candidate, index),
+    };
+  }).filter(Boolean);
   const competition = {
     tournamentName: snapshot.competition?.tournamentName || '',
     categoryName: snapshot.competition?.categoryName || '',

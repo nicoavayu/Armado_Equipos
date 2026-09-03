@@ -31,20 +31,30 @@ presenta en la UI. El origen normal de toda temporada FREE nueva es
 
 | Plan | Multimedia agregada por temporada | Colaboradores administrativos | Placas | Branding |
 | --- | ---: | ---: | --- | --- |
-| FREE | 25 archivos | owner + 1 | 3 familias Base, 4:5 y 9:16 | Arma2 obligatorio |
-| PREMIUM | 1.000 archivos | owner + 10 | 11 familias Base; Street/Editorial donde existe | Arma2 ON/OFF |
+| FREE | 25 archivos | owner + 1 | 3 familias Base utilizables; 8 Base y 4 themes Premium visibles pero bloqueados | Base con Arma2 obligatorio; themes Premium en preview white-label |
+| PREMIUM | 1.000 archivos | owner + 10 | 11 familias; Base + Heritage/Street/Scoreboard/Editorial | Base con Arma2 ON/OFF; themes Premium white-label |
 
 El precio autoritativo es ARS 49.900 de lista y ARS 39.900 de lanzamiento,
 pago único, scope `season`. Todos los torneos hijos consumen el mismo límite
 agregado y heredan las mismas capabilities.
 
-FREE permite Resultados, Tabla y Próxima fecha en el renderer Base. PREMIUM
-habilita las once familias Base y los estilos Street/Editorial sólo para
-Resultados, que es donde están implementados. El servidor vuelve a autorizar
-familia y branding antes de exportar.
+FREE permite utilizar y exportar únicamente Resultados (`round_results`), Tabla
+(`standings`) y Próxima fecha (`next_fixture`) con Base. Las otras ocho familias
+Base permanecen visibles pero bloqueadas; `baseFamilyLimit` continúa siendo 3.
+FREE también puede inspeccionar la preview real de Heritage, Street, Scoreboard
+y Editorial, siempre white-label, pero no puede exportarlos. Candado, badge y CTA
+Premium pertenecen a la interfaz del Studio y nunca al arte.
 
-Si un export Premium usa branding OFF, no se dibujan logo, textos, URL, “Powered
-by Arma2” ni espacio reservado. FREE siempre normaliza el pedido a branding ON.
+PREMIUM habilita las once familias y Base, Heritage, Street, Scoreboard y
+Editorial. En Base, el usuario Premium puede activar o desactivar `Branding
+Arma2`. Los cuatro themes Premium son white-label por definición y no muestran
+toggle de branding.
+
+El servidor vuelve a autorizar familia, theme y branding antes de exportar:
+FREE + Base fuerza branding ON; PREMIUM + Base admite ON/OFF; PREMIUM + theme
+Premium fuerza branding OFF; FREE + theme Premium no exporta. Un render
+white-label no dibuja logo, textos, URL, “Powered by Arma2”, CTA ni espacio
+reservado de Arma2.
 
 ## Membresía y scope administrativo
 

@@ -200,7 +200,7 @@ const POST_CANONICAL_AUTHENTICATED_ALLOWLIST = [
     'public.list_tournament_season_member_assignments(uuid,uuid)',
     'frontend_legitimate',
   ],
-  ['public.authorize_tournament_social_export(uuid,uuid,text,boolean)', 'frontend_legitimate'],
+  ['public.authorize_tournament_social_export(uuid,uuid,text,text,boolean)', 'frontend_legitimate'],
   ['public.get_tournament_season_media_usage(uuid,uuid)', 'frontend_legitimate'],
 ];
 

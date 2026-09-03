@@ -2164,12 +2164,14 @@ export async function authorizeTournamentSocialExport({
   organizationId,
   tournamentId,
   piece,
+  theme,
   includeArma2Branding,
 }) {
   return unwrapRpc(await supabase.rpc('authorize_tournament_social_export', {
     p_organization_id: organizationId,
     p_tournament_id: tournamentId,
     p_piece: piece,
+    p_theme: theme,
     p_include_arma2_branding: Boolean(includeArma2Branding),
   }), 'No pudimos autorizar la exportación de esta pieza.');
 }
