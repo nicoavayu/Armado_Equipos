@@ -34,6 +34,13 @@ export default function AuthCallback() {
     let mounted = true;
     let settled = false;
     let callbackTimeoutId = null;
+    // Identity of this login attempt. `settled`/`mounted` only protect a single
+    // effect run, so they cannot stop a second run of the same callback -- the
+    // StrictMode remount in development, or any remount in any build -- from
+    // resolving the destination again. The callback URL carries the OAuth code
+    // or the magic-link tokens, so it is stable across those runs and distinct
+    // between real login attempts.
+    const callbackIntent = `${window.location.pathname}${window.location.search}${window.location.hash}`;
 
     const fail = (err, provider = 'google') => {
       if (settled) return;
@@ -172,10 +179,16 @@ export default function AuthCallback() {
           method: 'oauth_callback',
         });
 
-        const target = consumeAuthReturnTo(getAuthenticatedProductHome());
-        logAuth('auth_callback_navigate', { target: redactUrlForLog(target) });
+        // Resolve the destination only once this run is the one that navigates:
+        // an already unmounted effect must not burn the stored returnTo of the
+        // run that will. `intent` covers the rest -- if two runs of the same
+        // callback do reach this point, both resolve to the same target.
         if (settled || !mounted) return;
         settled = true;
+        const target = consumeAuthReturnTo(getAuthenticatedProductHome(), {
+          intent: callbackIntent,
+        });
+        logAuth('auth_callback_navigate', { target: redactUrlForLog(target) });
         if (callbackTimeoutId !== null) {
           window.clearTimeout(callbackTimeoutId);
           callbackTimeoutId = null;
