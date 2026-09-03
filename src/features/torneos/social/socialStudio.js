@@ -15,13 +15,10 @@ import {
   validateSocialSnapshot,
 } from './socialContracts';
 import {
-  accentValue,
   canvasToPngBlob,
   createSocialCanvas,
-  drawFrame,
   ensureSocialFonts,
 } from './socialRenderer';
-import { getSocialTemplate } from './socialTemplates';
 import { adaptSnapshotToResultsContent } from './resultsContent';
 import { adaptSnapshotToCuratedContent } from './curatedContent';
 import { resolveResultsVariant } from './resultsVariants';
@@ -31,10 +28,16 @@ import {
 } from './socialThemes';
 import {
   normalizeSocialBranding,
-  resolveBrandingAccent,
 } from './socialBranding';
-import { getResultsThemeLayout } from './resultsThemeLayouts';
 import { renderBaseSocialPiece } from './base';
+import {
+  createPremiumDomRender,
+  ensurePremiumSocialFonts,
+  premiumDomToPngBlob,
+  releasePremiumDomRender,
+  waitForPremiumDomAssets,
+} from './premiumRenderer';
+import { resolveEditorialStandingsPagination } from './premium/premiumPagination';
 
 export class SocialRenderError extends Error {
   constructor(code, detail = '') {
@@ -123,6 +126,7 @@ export function createSocialAssetPlan(snapshot, editorial, content = null, optio
   return Object.freeze({
     shieldPaths: Object.freeze(Array.from(paths).sort()),
     photoAssetId: editorial.photoAssetId || null,
+    photoSourceKey: editorial.photoLocalKey || null,
     branding: Object.freeze({
       tournamentLogoUrl: branding.tournamentLogo,
       officialLockupUrl: branding.showArma2Branding
@@ -133,7 +137,7 @@ export function createSocialAssetPlan(snapshot, editorial, content = null, optio
 }
 
 export async function resolveSocialAssets(snapshot, editorial, {
-  signMediaReadUrls, resolveShieldUrl, signal, assetPlan,
+  signMediaReadUrls, resolveShieldUrl, signal, assetPlan, photoSourceUrl = null,
 } = {}) {
   const shields = {};
   const plan = assetPlan || createSocialAssetPlan(snapshot, editorial);
@@ -150,7 +154,10 @@ export async function resolveSocialAssets(snapshot, editorial, {
       shields[path] = url ? await loadBitmap(url, { signal }) : null;
     }));
 
-    if (editorial.photoAssetId) {
+    if (photoSourceUrl) {
+      photo = await loadBitmap(photoSourceUrl, { signal });
+      if (!photo) throw new SocialRenderError('ASSET_PHOTO_UNAVAILABLE', 'local-photo');
+    } else if (editorial.photoAssetId) {
       if (typeof signMediaReadUrls !== 'function') {
         throw new SocialRenderError('ASSET_PHOTO_UNAVAILABLE', 'multimedia is not available');
       }
@@ -193,43 +200,19 @@ export function drawSocialPiece(ctx, {
   theme = DEFAULT_SOCIAL_THEME,
   variant = null,
   branding = null,
+  sponsors = [],
+  photoSourceUrl = null,
 }) {
   const normalizedBranding = normalizeSocialBranding(branding, content);
-  const selectedTheme = snapshot.piece === 'round_results'
-    ? resolveSocialTheme(theme) : DEFAULT_SOCIAL_THEME;
-  const accent = resolveBrandingAccent(
-    normalizedBranding,
-    accentValue(editorial.accent, selectedTheme),
-    selectedTheme,
-  );
-  if (selectedTheme.id === 'base' || snapshot.piece !== 'round_results') {
+  const selectedTheme = resolveSocialTheme(theme);
+  if (selectedTheme.id === 'base') {
     const rendered = renderBaseSocialPiece(ctx, {
       snapshot, editorial, assets, branding: normalizedBranding,
     });
     if (!rendered) throw new SocialRenderError('TEMPLATE_MISSING', snapshot.piece);
     return;
   }
-  if (snapshot.piece === 'round_results') {
-    const resultsContent = content || adaptSnapshotToResultsContent(snapshot, editorial);
-    const resultsVariant = variant || resolveResultsVariant({
-      matchCount: resultsContent.matches.length,
-      format: editorial.format,
-    });
-    const layout = getResultsThemeLayout(selectedTheme.id);
-    layout(ctx, {
-      snapshot, content: resultsContent, editorial, accent, assets, format,
-      theme: selectedTheme, variant: resultsVariant, branding: normalizedBranding,
-    });
-    return;
-  }
-  const template = getSocialTemplate(snapshot.piece);
-  if (!template) throw new SocialRenderError('TEMPLATE_MISSING', snapshot.piece);
-  const body = drawFrame(ctx, format, {
-    snapshot, editorial, accent, theme: DEFAULT_SOCIAL_THEME,
-  });
-  template(ctx, {
-    snapshot, content, editorial, body, accent, assets, format, theme: DEFAULT_SOCIAL_THEME,
-  });
+  throw new SocialRenderError('PREMIUM_DOM_REQUIRED', selectedTheme.id);
 }
 
 function stableValue(value) {
@@ -242,7 +225,7 @@ function stableValue(value) {
 }
 
 export function createSocialRenderKey({
-  snapshot, content, editorial, format, theme, variant, assetPlan, branding,
+  snapshot, content, editorial, format, theme, variant, assetPlan, branding, sponsors = [],
 }) {
   return JSON.stringify(stableValue({
     piece: snapshot.piece,
@@ -252,6 +235,7 @@ export function createSocialRenderKey({
     theme,
     variant,
     branding: normalizeSocialBranding(branding, content),
+    sponsors: sponsors.map((entry) => entry?.id || entry?.name || null),
     assets: assetPlan,
   }));
 }
@@ -273,6 +257,8 @@ export async function prepareSocialRender({
   theme = DEFAULT_SOCIAL_THEME,
   branding = null,
   brandAssetUrls = null,
+  sponsors = [],
+  photoSourceUrl = null,
   onStatus,
 }) {
   validateSocialSnapshot(snapshot, { organizationId });
@@ -285,37 +271,59 @@ export async function prepareSocialRender({
     matchCount: content.matches.length,
     format: editorial.format,
   }) : null;
-  const selectedTheme = content?.kind === 'results'
-    ? resolveSocialTheme(theme) : DEFAULT_SOCIAL_THEME;
+  const selectedTheme = resolveSocialTheme(theme);
   const normalizedBranding = normalizeSocialBranding(branding, content);
   const assetPlan = createSocialAssetPlan(snapshot, editorial, content, {
     branding: normalizedBranding,
     brandAssetUrls,
   });
   onStatus?.('loading');
-  if (!skipFonts) await ensureSocialFonts();
+  if (!skipFonts) {
+    if (selectedTheme.id === 'base') await ensureSocialFonts();
+    else await ensurePremiumSocialFonts(selectedTheme.id);
+  }
   let assets = null;
+  let premiumRender = null;
   try {
     assets = await resolveSocialAssets(snapshot, editorial, {
-      signMediaReadUrls, resolveShieldUrl, signal, assetPlan,
+      signMediaReadUrls, resolveShieldUrl, signal, assetPlan, photoSourceUrl,
     });
     onStatus?.('rendering');
-    const { canvas, format } = createSocialCanvas(editorial.format, createCanvas);
-    const ctx = canvas.getContext('2d');
-    if (!ctx) throw new SocialRenderError('CANVAS_UNAVAILABLE');
-    drawSocialPiece(ctx, {
-      snapshot, content, editorial, assets, format, theme: selectedTheme, variant,
-      branding: normalizedBranding,
-    });
+    const format = SOCIAL_FORMATS[editorial.format] || SOCIAL_FORMATS.portrait;
+    let canvas = null;
+    let node = null;
+    let root = null;
+    if (selectedTheme.id === 'base') {
+      ({ canvas } = createSocialCanvas(editorial.format, createCanvas));
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new SocialRenderError('CANVAS_UNAVAILABLE');
+      drawSocialPiece(ctx, {
+        snapshot, content, editorial, assets, format, theme: selectedTheme, variant,
+        branding: normalizedBranding, sponsors,
+      });
+    } else {
+      premiumRender = createPremiumDomRender({
+        snapshot,
+        content,
+        editorial,
+        assets,
+        branding: { ...normalizedBranding, showArma2Branding: false },
+        theme: selectedTheme,
+        sponsors,
+      });
+      ({ node, root } = premiumRender);
+      await waitForPremiumDomAssets(node);
+    }
     const renderKey = createSocialRenderKey({
       snapshot, content, editorial, format, theme: selectedTheme, variant, assetPlan,
-      branding: normalizedBranding,
+      branding: normalizedBranding, sponsors,
     });
     return {
-      canvas, format, content, theme: selectedTheme, variant, assets, assetPlan,
-      branding: normalizedBranding, brandAssetUrls, renderKey,
+      canvas, node, root, format, content, theme: selectedTheme, variant, assets, assetPlan,
+      branding: normalizedBranding, brandAssetUrls, sponsors, renderKey,
     };
   } catch (error) {
+    releasePremiumDomRender(premiumRender);
     releaseSocialAssets(assets);
     throw error;
   }
@@ -330,7 +338,7 @@ export async function exportSocialPiece(options) {
     throw new SocialRenderError('RENDER_NOT_READY');
   }
   const prepared = options.prepared || await prepareSocialRender(options);
-  const { canvas, format } = prepared;
+  const { canvas, node, format } = prepared;
   let expectedRenderKey = options.expectedRenderKey;
   if (!expectedRenderKey && options.prepared && options.snapshot && options.editorial) {
     const content = adaptSnapshotToSocialContent(options.snapshot, options.editorial);
@@ -347,27 +355,41 @@ export async function exportSocialPiece(options) {
       theme: prepared.theme,
       variant,
       branding: prepared.branding,
-      assetPlan: createSocialAssetPlan(options.snapshot, options.editorial, content, {
-        branding: prepared.branding,
-        brandAssetUrls: prepared.brandAssetUrls,
-      }),
+      sponsors: prepared.sponsors || [],
+      assetPlan: prepared.assetPlan,
     });
   }
   if (expectedRenderKey && prepared.renderKey !== expectedRenderKey) {
     throw new SocialRenderError('RENDER_STALE');
   }
-  const blob = await canvasToPngBlob(canvas);
+  const blob = canvas
+    ? await canvasToPngBlob(canvas)
+    : await premiumDomToPngBlob(node, format);
   const expected = SOCIAL_FORMATS[options.editorial.format] || SOCIAL_FORMATS.portrait;
-  if (canvas.width !== expected.width || canvas.height !== expected.height) {
+  const renderedWidth = canvas?.width || Number.parseInt(node?.style?.width, 10);
+  const renderedHeight = canvas?.height || Number.parseInt(node?.style?.height, 10);
+  if (renderedWidth !== expected.width || renderedHeight !== expected.height) {
     throw new SocialRenderError(
-      'FORMAT_MISMATCH', `${canvas.width}x${canvas.height}`,
+      'FORMAT_MISMATCH', `${renderedWidth}x${renderedHeight}`,
     );
   }
+  const pagination = resolveEditorialStandingsPagination(
+    options.snapshot,
+    options.editorial,
+    prepared.theme,
+  );
+  const baseFileName = socialFileName(options.snapshot, options.editorial);
+  const pageSuffix = pagination.enabled
+    ? `-pagina-${pagination.page}-de-${pagination.pageCount}`
+    : '';
   return {
     blob,
     format,
-    fileName: socialFileName(options.snapshot, options.editorial),
+    fileName: pageSuffix
+      ? baseFileName.replace(/\.png$/i, `${pageSuffix}.png`)
+      : baseFileName,
     pieceLabel: findSocialPiece(options.snapshot.piece)?.label || options.snapshot.piece,
+    pagination,
   };
 }
 
@@ -422,6 +444,7 @@ export function releaseSocialAssets(assets) {
 }
 
 export function releasePreparedSocialRender(prepared) {
+  releasePremiumDomRender(prepared);
   releaseSocialAssets(prepared?.assets);
 }
 

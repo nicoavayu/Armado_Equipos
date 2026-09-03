@@ -19,7 +19,15 @@ import { TORNEOS_URL } from './socialProductConfig';
 export const SOCIAL_SNAPSHOT_SCHEMA_VERSION = 2;
 export const SOCIAL_SNAPSHOT_SUPPORTED_VERSIONS = Object.freeze([1, 2]);
 export const SOCIAL_TEAM_SIZES = Object.freeze([5, 6, 7, 8, 9, 11]);
-const SOCIAL_PLAYER_POSITIONS = Object.freeze(['ARQ', 'DEF', 'MED', 'DEL']);
+export const SOCIAL_PLAYER_LINES = Object.freeze(['ARQ', 'DEF', 'MED', 'DEL']);
+const SOCIAL_PLAYER_POSITIONS = SOCIAL_PLAYER_LINES;
+
+export const SOCIAL_PLAYER_LINE_LABELS = Object.freeze({
+  ARQ: 'ARQUERO',
+  DEF: 'DEFENSA',
+  MED: 'MEDIOCAMPO',
+  DEL: 'DELANTEROS',
+});
 
 export const SOCIAL_FORMATS = Object.freeze({
   portrait: Object.freeze({
@@ -308,6 +316,43 @@ function clampText(value, limit) {
   return String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, limit);
 }
 
+function normalizeSelectedLines(value) {
+  if (!isPlainObject(value)) return {};
+  return Object.fromEntries(Object.entries(value).filter(([, line]) => (
+    SOCIAL_PLAYER_LINES.includes(line)
+  )));
+}
+
+export function fallbackSocialPlayerLine(candidate, index = 0) {
+  if (candidate?.isGoalkeeper === true || candidate?.position === 'ARQ') return 'ARQ';
+  if (SOCIAL_PLAYER_LINES.includes(candidate?.position)) return candidate.position;
+  // Legacy/QA snapshots occasionally have no usable profile position. Keep
+  // that fallback deterministic without inventing or moving any selected player.
+  return ['DEF', 'MED', 'DEL'][Math.abs(index) % 3];
+}
+
+export function resolveFiguraDragFocal({
+  focalX = 0.5,
+  focalY = 0.5,
+  deltaX = 0,
+  deltaY = 0,
+  frameWidth = 1,
+  frameHeight = 1,
+  zoom = 1,
+} = {}) {
+  const safeZoom = Math.max(1, Math.min(3, Number(zoom) || 1));
+  const width = Math.max(1, Number(frameWidth) || 1);
+  const height = Math.max(1, Number(frameHeight) || 1);
+  return {
+    figuraFocalX: Math.max(0, Math.min(1,
+      (Number(focalX) || 0) - (Number(deltaX) || 0) / (width * safeZoom),
+    )),
+    figuraFocalY: Math.max(0, Math.min(1,
+      (Number(focalY) || 0) - (Number(deltaY) || 0) / (height * safeZoom),
+    )),
+  };
+}
+
 /**
  * The editable layer. Deliberately small: this is a template studio, not a
  * free-form canvas. Everything a user can change is in here, and nothing here
@@ -329,8 +374,19 @@ export function createEditorialState(snapshot, overrides = {}) {
     cta: clampText(overrides.cta ?? TORNEOS_URL, SOCIAL_TEXT_LIMITS.cta),
     showArma2Logo: overrides.showArma2Logo !== false,
     photoAssetId: overrides.photoAssetId || null,
+    photoLocalKey: overrides.photoLocalKey || null,
     photoOffsetY: Number.isFinite(overrides.photoOffsetY) ? overrides.photoOffsetY : 0.5,
+    figuraFocalX: Number.isFinite(overrides.figuraFocalX)
+      ? Math.max(0, Math.min(1, overrides.figuraFocalX)) : 0.5,
+    figuraFocalY: Number.isFinite(overrides.figuraFocalY)
+      ? Math.max(0, Math.min(1, overrides.figuraFocalY))
+      : (Number.isFinite(overrides.photoOffsetY)
+        ? Math.max(0, Math.min(1, overrides.photoOffsetY)) : 0.5),
+    figuraZoom: Number.isFinite(overrides.figuraZoom)
+      ? Math.max(1, Math.min(3, overrides.figuraZoom)) : 1,
+    page: Number.isInteger(overrides.page) && overrides.page > 0 ? overrides.page : 1,
     selection: Array.isArray(overrides.selection) ? overrides.selection : [],
+    selectedLines: normalizeSelectedLines(overrides.selectedLines),
   };
 }
 

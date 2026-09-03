@@ -343,7 +343,14 @@ export function figura(ctx, g, d, imgs) {
 
   if (photo) {
     const ph = box.h - railH - 22;
-    cardImage(ctx, photo, box.x, box.y, box.w, ph, { cut: 34, anchorY: 0.04, scrimA: 0.95 });
+    cardImage(ctx, photo, box.x, box.y, box.w, ph, {
+      cut: 34,
+      anchorY: 0.04,
+      focalX: p.crop?.x,
+      focalY: p.crop?.y,
+      zoom: p.crop?.zoom,
+      scrimA: 0.95,
+    });
     const by = box.y + ph;
     txt(ctx, p.position ?? '', { x: box.x + 36, y: by - 262, size: 20, fam: 'head', weight: 500, color: C.violetLite, tracking: 5.5, upper: true, maxW: box.w - 320 });
     line(ctx, box.x + 36, by - 232, box.x + 126, by - 232, hexa(C.violet, 0.85), 3);

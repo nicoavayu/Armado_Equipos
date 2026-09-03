@@ -38,7 +38,9 @@ export function accentValue(accentId, theme = DEFAULT_SOCIAL_THEME) {
 }
 
 export const SOCIAL_REQUIRED_FONTS = Object.freeze([
-  '700 96px "Bebas Neue"',
+  // Bebas Neue ships as a single 400 face; canvas may synthesize a heavier
+  // title, but readiness must load/check the real bundled face.
+  '400 96px "Bebas Neue"',
   '500 40px "Oswald"',
   '600 44px "Oswald"',
   '400 30px "Inter"',
@@ -58,6 +60,9 @@ export async function ensureSocialFonts() {
     throw error;
   }
   try {
+    // Let stylesheet-discovered FontFace declarations enter the set before
+    // requesting exact faces (important for lazy QA/application chunks).
+    await document.fonts.ready;
     const loaded = await Promise.all(SOCIAL_REQUIRED_FONTS.map(
       (descriptor) => document.fonts.load(descriptor, 'Arma2 Resultados'),
     ));

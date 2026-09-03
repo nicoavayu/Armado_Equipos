@@ -46,6 +46,7 @@ const expectedCanonicalMigrations = [
   '20260831034314_restore_current_product_contracts.sql',
   '20260831163520_fix_tournament_media_session_reuse.sql',
   '20260831200904_global_availability_atomic_contract.sql',
+  '20260901120000_social_studio_theme_export_contract.sql',
 ];
 
 const exitWithError = (message) => {
