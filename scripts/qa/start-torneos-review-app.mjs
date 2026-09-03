@@ -286,10 +286,17 @@ function buildChildEnvironment(anonKey) {
 function assertFlagCoverage(repoRoot) {
   const flagsFile = path.join(repoRoot, 'src', 'features', 'torneos', 'config', 'featureFlags.js');
   if (!fs.existsSync(flagsFile)) return { checked: false, covered: 0 };
+  // Estas tres describen el entorno, no una superficie del producto: el
+  // arranque LOCAL las fija por su cuenta —o, en el caso del habilitador de
+  // Production, no las fija nunca— así que no entran en la cobertura.
+  const environmentContractKeys = new Set([
+    'REACT_APP_TORNEOS_DATA_ENV',
+    'REACT_APP_TORNEOS_STAGING_PROJECT_REF',
+    'REACT_APP_TORNEOS_PRODUCTION_ENABLED',
+  ]);
   const declared = new Set(
     (fs.readFileSync(flagsFile, 'utf8').match(/REACT_APP_TORNEOS_[A-Z0-9_]+/g) || [])
-      .filter((key) => key !== 'REACT_APP_TORNEOS_DATA_ENV'
-        && key !== 'REACT_APP_TORNEOS_STAGING_PROJECT_REF'),
+      .filter((key) => !environmentContractKeys.has(key)),
   );
   const covered = new Set([...TORNEOS_FEATURE_FLAGS, ...TORNEOS_MEDIA_READINESS]);
   const missing = [...declared].filter((key) => !covered.has(key)).sort();

@@ -243,12 +243,18 @@ test('la guarda del fixture nombra cada condición que el producto exige a mvp_s
 
 test('el arranque canónico fija los quince flags que la app declara', () => {
   const source = fs.readFileSync(LAUNCHER, 'utf8');
+  // `DATA_ENV`, `STAGING_PROJECT_REF` y el habilitador de Production describen
+  // el entorno, no una superficie: el arranque LOCAL no las cuenta como flags.
+  const environmentContractKeys = [
+    'REACT_APP_TORNEOS_DATA_ENV',
+    'REACT_APP_TORNEOS_STAGING_PROJECT_REF',
+    'REACT_APP_TORNEOS_PRODUCTION_ENABLED',
+  ];
   const declared = new Set(
     (fs.readFileSync(
       path.join(ROOT, 'src', 'features', 'torneos', 'config', 'featureFlags.js'), 'utf8',
     ).match(/REACT_APP_TORNEOS_[A-Z0-9_]+/g) || [])
-      .filter((key) => !['REACT_APP_TORNEOS_DATA_ENV', 'REACT_APP_TORNEOS_STAGING_PROJECT_REF']
-        .includes(key)),
+      .filter((key) => !environmentContractKeys.includes(key)),
   );
   assert.equal(declared.size, 15, 'la app declara quince flags de Torneos');
   for (const key of declared) {

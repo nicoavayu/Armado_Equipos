@@ -56,6 +56,7 @@ REACT_APP_TORNEOS_NOTIFICATIONS_ENABLED
 REACT_APP_TORNEOS_OFFICIAL_STATS_ENABLED
 REACT_APP_TORNEOS_PUBLIC_PAGES_ENABLED
 REACT_APP_TORNEOS_SOCIAL_GENERATOR_ENABLED
+REACT_APP_TORNEOS_PRODUCTION_ENABLED
 ```
 
 Resolución fail-closed:
@@ -64,7 +65,10 @@ Resolución fail-closed:
 - deploy environment allowlisted;
 - backend local o staging comprobado;
 - project ref productivo conocido bloqueado aunque se etiquete como staging;
-- producción fuerza todo apagado;
+- producción cerrada salvo que se cumpla su contrato completo y explícito
+  (`NODE_ENV`, `DEPLOY_ENV`, `DATA_ENV`, `REACT_APP_TORNEOS_PRODUCTION_ENABLED`
+  y la URL Supabase productiva certificada), y aun así sólo para las superficies
+  elegibles para Production;
 - variables faltantes o inválidas fuerzan apagado.
 
 ## Tablas

@@ -117,7 +117,11 @@ const organizationNavigation = [
     label: 'Comunicaciones', path: 'comunicaciones', icon: Megaphone, builder: 'organizationCommunications',
   },
   {
-    label: 'Multimedia', path: 'multimedia', icon: Images, builder: 'organizationMedia',
+    label: 'Multimedia',
+    path: 'multimedia',
+    icon: Images,
+    flag: 'mediaEnabled',
+    builder: 'organizationMedia',
   },
   {
     label: 'Estudio Social',
@@ -523,7 +527,12 @@ export default function TorneosShell() {
               <Route path="sedes" element={<OrganizationVenuesPage />} />
               <Route path="sedes/:venueId" element={<OrganizationVenuesPage />} />
               <Route path="comunicaciones" element={<CommunicationsAdminPage />} />
-              <Route path="multimedia" element={<MediaAdminPage />} />
+              <Route
+                path="multimedia"
+                element={torneosFeatureFlags.mediaEnabled
+                  ? <MediaAdminPage />
+                  : <Navigate to="../inicio" replace />}
+              />
               {torneosFeatureFlags.socialContentGenerator && (
                 <Route
                   path="estudio-social"
