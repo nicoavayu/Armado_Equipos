@@ -1,11 +1,20 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { render, screen, waitFor } from '@testing-library/react';
+import {
+  MemoryRouter,
+  Route,
+  Routes,
+  useLocation,
+} from 'react-router-dom';
 import TorneosFeatureGate from '../features/torneos/TorneosFeatureGate';
 
 jest.mock('../components/global-header/GlobalHeader', () => () => <header data-testid="global-header" />);
 
 const ORGANIZATION_ID = '10000000-0000-4000-8000-000000000001';
+
+function CurrentPath() {
+  return <span data-testid="current-path">{useLocation().pathname}</span>;
+}
 
 function createService({ organizations = null, error = null } = {}) {
   const available = organizations ?? [{
@@ -115,6 +124,35 @@ describe('Arma2 Torneos route isolation', () => {
     expect(screen.queryByText('Crear partido')).not.toBeInTheDocument();
     expect(screen.queryByText('Amigos')).not.toBeInTheDocument();
     expect(screen.queryByText('Partidos hoy')).not.toBeInTheDocument();
+  });
+
+  test('keeps Multimedia out of navigation and redirects its direct route when disabled', async () => {
+    const service = createService();
+    render(
+      <MemoryRouter
+        initialEntries={[`/torneos/organizacion/${ORGANIZATION_ID}/multimedia`]}
+      >
+        <Routes>
+          <Route
+            path="/torneos/*"
+            element={(
+              <>
+                <CurrentPath />
+                <TorneosFeatureGate enabled service={service} />
+              </>
+            )}
+          />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('current-path')).toHaveTextContent(
+        `/torneos/organizacion/${ORGANIZATION_ID}/inicio`,
+      );
+    });
+    expect(screen.queryByRole('link', { name: 'Multimedia' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Centro Multimedia' })).not.toBeInTheDocument();
   });
 
   test('does not reveal an organization that is absent from authorized memberships', async () => {
