@@ -81,9 +81,9 @@ function playerTeamOf(player) {
   return null;
 }
 
-function playerOf(player, { photo = false } = {}) {
+function playerOf(player, { photo = false, crop = null } = {}) {
   const stats = player?.stats || {};
-  const position = player?.position ?? stats.position ?? null;
+  const position = player?.selectedLine ?? player?.position ?? stats.position ?? null;
   return {
     name: player?.name || 'Jugador',
     position: POSITION_LABELS[position] || position || 'Jugador',
@@ -96,6 +96,7 @@ function playerOf(player, { photo = false } = {}) {
     starts: player?.starts ?? stats.starts ?? null,
     captaincies: player?.captaincies ?? stats.captaincies ?? null,
     photo: photo ? BASE_PLAYER_PHOTO_KEY : null,
+    crop,
   };
 }
 
@@ -111,7 +112,13 @@ function selectedCandidates(snapshot, editorial) {
   const ids = new Set(editorial?.selection || []);
   return (snapshot?.official?.candidates || []).filter((candidate) => (
     ids.has(candidate.rosterPlayerId || candidate.participantId)
-  ));
+  )).map((candidate, index) => {
+    const id = candidate.rosterPlayerId || candidate.participantId;
+    const selectedLine = editorial?.selectedLines?.[id]
+      || (candidate.isGoalkeeper ? 'ARQ' : candidate.position)
+      || ['DEF', 'MED', 'DEL'][index % 3];
+    return { ...candidate, selectedLine };
+  });
 }
 
 function championOf(snapshot, editorial) {
@@ -153,7 +160,14 @@ export function adaptSnapshotToBasePiece(snapshot, editorial, branding = {}) {
     case 'mvp':
       return {
         ...common,
-        player: playerOf(selected[0], { photo: Boolean(editorial?.photoAssetId) }),
+        player: playerOf(selected[0], {
+          photo: Boolean(editorial?.photoAssetId || editorial?.photoLocalKey),
+          crop: {
+            x: editorial?.figuraFocalX,
+            y: editorial?.figuraFocalY,
+            zoom: editorial?.figuraZoom,
+          },
+        }),
       };
     case 'best_eleven':
       return {

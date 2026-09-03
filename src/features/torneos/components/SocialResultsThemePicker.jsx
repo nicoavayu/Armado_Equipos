@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React from 'react';
 import { LockKeyhole } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -7,7 +7,6 @@ import {
 } from '../domain/entitlements';
 import { canonicalRoutes } from '../routing/canonicalRoutes';
 import { SOCIAL_RESULTS_THEMES } from '../social/socialThemes';
-import PremiumFeatureGate from './PremiumFeatureGate';
 import styles from './SocialStudioPage.module.css';
 
 export function canUsePremiumResultStyles(planState, seasonId) {
@@ -32,39 +31,17 @@ export default function SocialResultsThemePicker({
   themeId,
   displayThemeId = themeId,
   onSelect,
-  onFallback = null,
+  onLockedPreview = null,
 }) {
   const navigate = useNavigate();
-  const [gateOpen, setGateOpen] = useState(false);
-  const [verificationNotice, setVerificationNotice] = useState('');
-  const closeGate = useCallback(() => setGateOpen(false), []);
   const premiumAllowed = canUsePremiumResultStyles(planState, seasonId);
 
-  useEffect(() => {
-    if (planState?.status !== 'ready' || ['base', 'classic'].includes(themeId) || premiumAllowed) return;
-    onSelect('base');
-    onFallback?.();
-  }, [onFallback, onSelect, planState?.status, premiumAllowed, themeId]);
-
   const chooseTheme = (entry) => {
-    setVerificationNotice('');
-    if (entry.id === 'base' || premiumAllowed) {
-      onSelect(entry.id);
-      return;
-    }
-    if (planState?.status === 'ready') {
-      setGateOpen(true);
-      return;
-    }
-    setVerificationNotice(
-      planState?.status === 'loading'
-        ? 'Estamos verificando el plan de esta temporada.'
-        : 'Plan no verificado. Reintentá la validación antes de elegir este estilo.',
-    );
+    onSelect(entry.id);
+    if (entry.id !== 'base' && !premiumAllowed) onLockedPreview?.(entry.id);
   };
 
   return (
-    <>
       <div className={styles.themePicker}>
         <div className={styles.chipRow} role="radiogroup" aria-label="Estilo de resultados">
           {SOCIAL_RESULTS_THEMES.map((entry) => {
@@ -86,17 +63,17 @@ export default function SocialResultsThemePicker({
             );
           })}
         </div>
-        {verificationNotice && (
-          <p className={styles.planVerificationNotice} role="status">{verificationNotice}</p>
+        {!premiumAllowed && displayThemeId !== 'base' && (
+          <div className={styles.lockedThemeNotice} role="status">
+            <span><LockKeyhole size={14} aria-hidden="true" /> Preview white-label · export bloqueado</span>
+            <button
+              type="button"
+              onClick={() => navigate(canonicalRoutes.seasonPlan(organizationId, seasonId))}
+            >
+              Ver Premium
+            </button>
+          </div>
         )}
       </div>
-      <PremiumFeatureGate
-        open={gateOpen}
-        onClose={closeGate}
-        onViewPremium={() => navigate(
-          canonicalRoutes.seasonPlan(organizationId, seasonId),
-        )}
-      />
-    </>
   );
 }

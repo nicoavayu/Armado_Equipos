@@ -813,9 +813,19 @@ export function cardImage(ctx, img, x, y, w, h, o = {}) {
   if (o.cut) notch(ctx, x, y, w, h, o.r ?? 14, o.cut, o.corner ?? 'tr'); else rrect(ctx, x, y, w, h, o.r ?? 14);
   ctx.clip();
   if (img) {
-    const s = Math.max(w / img.width, h / img.height);
+    const zoom = Math.max(1, Math.min(3, Number(o.zoom) || 1));
+    const s = Math.max(w / img.width, h / img.height) * zoom;
     const dw = img.width * s, dh = img.height * s;
-    ctx.drawImage(img, x + (w - dw) / 2 + (o.offsetX ?? 0), y + (h - dh) * (o.anchorY ?? 0), dw, dh);
+    const fx = Math.max(0, Math.min(1, Number.isFinite(o.focalX) ? o.focalX : 0.5));
+    const legacyY = Number.isFinite(o.anchorY) ? o.anchorY : 0.5;
+    const fy = Math.max(0, Math.min(1, Number.isFinite(o.focalY) ? o.focalY : legacyY));
+    ctx.drawImage(
+      img,
+      x - (dw - w) * fx + (o.offsetX ?? 0),
+      y - (dh - h) * fy,
+      dw,
+      dh,
+    );
   } else {
     ctx.fillStyle = C.panelAlt; ctx.fillRect(x, y, w, h);
   }
