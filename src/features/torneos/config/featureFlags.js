@@ -1,4 +1,5 @@
 const ENABLED_VALUE = 'true';
+const PRODUCTION_ENVIRONMENT = 'production';
 const NON_PRODUCTION_ENVIRONMENTS = new Set([
   'development',
   'test',
@@ -7,6 +8,28 @@ const NON_PRODUCTION_ENVIRONMENTS = new Set([
 ]);
 const LOCAL_SUPABASE_HOSTS = new Set(['127.0.0.1', '[::1]', 'localhost']);
 const AUTHORIZED_STAGING_PROJECT_REF = 'hhyvmhgpapyuzjgxfnqv';
+
+// Única variable que puede abrir Torneos en Production. No habilita nada por sí
+// sola: exige además build de Production, deploy environment `production`,
+// `REACT_APP_TORNEOS_DATA_ENV=production` y el backend productivo certificado
+// (el mismo `REACT_APP_PRODUCTION_PROJECT_REF` que ya se usa para reconocerlo).
+// Ausente, vacía o con cualquier valor que no sea el literal `true` => cerrado.
+const PRODUCTION_ENABLE_ENV_KEY = 'REACT_APP_TORNEOS_PRODUCTION_ENABLED';
+
+// Superficies que la activación de Production puede encender, cada una todavía
+// con su propia variable. Lo que no está acá queda cerrado en Production aunque
+// su variable diga `true`: multimedia depende de infraestructura que no está
+// desplegada ahí, y el generador social sigue en revisión. Ampliar esta lista
+// es una decisión explícita, no un efecto lateral de abrir el shell.
+const PRODUCTION_ELIGIBLE_FLAGS = new Set([
+  'torneosEnabled',
+  'workspacesEnabled',
+  'workspaceSwitcher',
+  'deepLinks',
+  'notifications',
+  'officialStats',
+  'publicPages',
+]);
 const FLAG_ENV_KEYS = {
   torneosEnabled: 'REACT_APP_TORNEOS_ENABLED',
   workspacesEnabled: 'REACT_APP_TORNEOS_WORKSPACES_ENABLED',
@@ -57,6 +80,7 @@ export function resolveTorneosBackendIsolation(env = {}) {
       dataEnvironment,
       isIsolatedBackend: false,
       isKnownProductionBackend: false,
+      isCertifiedProductionBackend: false,
     };
   }
 
@@ -88,10 +112,47 @@ export function resolveTorneosBackendIsolation(env = {}) {
     && !isKnownProductionBackend
   );
 
+  // `isKnownProductionBackend` alcanza para RECONOCER el backend productivo y
+  // apagarse; para HABILITAR hace falta además que la URL sea exactamente la
+  // canónica, con las mismas exigencias que ya se le piden a staging.
+  const isCertifiedProductionBackend = (
+    isKnownProductionBackend
+    && parsedUrl.protocol === 'https:'
+    && parsedUrl.port === ''
+    && !hasUnexpectedUrlParts
+  );
+
   return {
     dataEnvironment,
     isIsolatedBackend: isLocal || isStaging,
     isKnownProductionBackend,
+    isCertifiedProductionBackend,
+  };
+}
+
+/**
+ * Contrato de Production. Todas las condiciones son explícitas y se evalúan
+ * juntas: si falta una sola, Torneos queda cerrado en Production.
+ */
+export function resolveTorneosProductionEnablement(
+  env = {},
+  backendIsolation = resolveTorneosBackendIsolation(env),
+) {
+  const productionOptIn = env[PRODUCTION_ENABLE_ENV_KEY] === ENABLED_VALUE;
+  const isProductionBuild = String(env.NODE_ENV || '').trim().toLowerCase() === PRODUCTION_ENVIRONMENT;
+  const isProductionDeploy = resolveDeployEnvironment(env) === PRODUCTION_ENVIRONMENT;
+  const declaresProductionData = backendIsolation.dataEnvironment === PRODUCTION_ENVIRONMENT;
+
+  return {
+    productionOptIn,
+    productionEnablementAllowed: Boolean(
+      productionOptIn
+      && isProductionBuild
+      && isProductionDeploy
+      && declaresProductionData
+      && backendIsolation.isCertifiedProductionBackend
+      && !backendIsolation.isIsolatedBackend,
+    ),
   };
 }
 
@@ -99,16 +160,29 @@ export function resolveTorneosFeatureFlags(env = {}) {
   const deployEnvironment = resolveDeployEnvironment(env);
   const isNonProduction = NON_PRODUCTION_ENVIRONMENTS.has(deployEnvironment);
   const backendIsolation = resolveTorneosBackendIsolation(env);
-  const canEnableTorneos = isNonProduction && backendIsolation.isIsolatedBackend;
+  const productionEnablement = resolveTorneosProductionEnablement(env, backendIsolation);
+  const canEnableNonProduction = isNonProduction && backendIsolation.isIsolatedBackend;
+  const canEnableTorneos = (
+    canEnableNonProduction
+    || productionEnablement.productionEnablementAllowed
+  );
+  // Fuera de los entornos aislados, cada superficie necesita además estar
+  // habilitada para Production.
+  const isSurfaceAllowed = (flagName) => (
+    canEnableNonProduction || PRODUCTION_ELIGIBLE_FLAGS.has(flagName)
+  );
 
   const flags = Object.fromEntries(
     Object.entries(FLAG_ENV_KEYS).map(([flagName, environmentKey]) => [
       flagName,
-      canEnableTorneos && env[environmentKey] === ENABLED_VALUE,
+      canEnableTorneos
+        && isSurfaceAllowed(flagName)
+        && env[environmentKey] === ENABLED_VALUE,
     ]),
   );
   const mediaOperationalReady = (
     canEnableTorneos
+    && isSurfaceAllowed('mediaUploadEnabled')
     && MEDIA_UPLOAD_READINESS_ENV_KEYS.every(
       (environmentKey) => env[environmentKey] === ENABLED_VALUE,
     )
@@ -125,7 +199,9 @@ export function resolveTorneosFeatureFlags(env = {}) {
     mediaOperationalReady,
     deployEnvironment,
     isNonProduction,
+    canEnableTorneos,
     ...backendIsolation,
+    ...productionEnablement,
   };
 }
 

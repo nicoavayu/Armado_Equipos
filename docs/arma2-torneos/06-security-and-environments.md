@@ -11,17 +11,34 @@
 | Push | stub/dry run | credenciales sandbox | actual, sin eventos Torneos |
 | Analytics | desactivado | proyecto/dataset test | actual, sin eventos Torneos |
 | Dominio | localhost | preview privado | sin ruta pública |
-| Flags Torneos | opt-in | opt-in | forzadas off |
+| Flags Torneos | opt-in | opt-in | cerradas salvo contrato de Production completo (hoy sin activar) |
 
 Esta fase fue implementada y probada contra Postgres embebido/local. No se provisionó staging cloud porque el entorno no dispone de credenciales de infraestructura y no se reutilizaron credenciales productivas.
 
 ## Variables
 
-`REACT_APP_DEPLOY_ENV` identifica `development`, `test`, `preview`, `staging` o `production`. Las flags requieren `true` literal, un entorno de deploy no productivo y backend aislado verificado:
+`REACT_APP_DEPLOY_ENV` identifica `development`, `test`, `preview`, `staging` o `production`. En entornos no productivos las flags requieren `true` literal y backend aislado verificado:
 
 - `REACT_APP_TORNEOS_DATA_ENV=local` sólo acepta `REACT_APP_SUPABASE_URL` en `localhost` o `127.0.0.1`.
 - `REACT_APP_TORNEOS_DATA_ENV=staging` exige que `REACT_APP_TORNEOS_STAGING_PROJECT_REF` coincida con el hostname Supabase configurado.
-- Cualquier valor faltante, inválido o productivo fuerza todas las flags a `false`.
+- Cualquier valor faltante o inválido fuerza todas las flags a `false`.
+
+Production tiene un único camino de apertura, explícito y evaluado en conjunto.
+Si falta una sola condición, Torneos queda cerrado:
+
+- `NODE_ENV=production` (build de Production real);
+- `REACT_APP_DEPLOY_ENV=production`;
+- `REACT_APP_TORNEOS_DATA_ENV=production`;
+- `REACT_APP_TORNEOS_PRODUCTION_ENABLED=true`, literal;
+- `REACT_APP_SUPABASE_URL` exactamente `https://<REACT_APP_PRODUCTION_PROJECT_REF>.supabase.co`, sin puerto, path, query ni credenciales.
+
+La apertura de Production habilita solamente las superficies elegibles
+—`TORNEOS`, `WORKSPACES`, `WORKSPACE_SWITCHER`, `DEEP_LINKS`, `NOTIFICATIONS`,
+`OFFICIAL_STATS`, `PUBLIC_PAGES`—, cada una todavía con su propia variable en
+`true`. Multimedia (`MEDIA_*`) y el generador social quedan cerrados ahí aunque
+sus variables digan `true`: su infraestructura no está certificada en
+Production. El espacio personal en web sigue disponible sólo en entornos
+aislados. Ampliar la lista de superficies elegibles es una decisión explícita.
 
 Nunca se versionan URLs, anon keys, service role keys ni secretos reales. La anon key tampoco sustituye autorización.
 
