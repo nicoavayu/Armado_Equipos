@@ -46,6 +46,36 @@
   line-height: 1.55;
 }
 
+.reviewHeader {
+  display: grid;
+  gap: 8px;
+  margin: 64px 0 24px;
+}
+
+.reviewHeader span {
+  color: #ef6a58;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.reviewHeader h2,
+.reviewHeader p {
+  margin: 0;
+}
+
+.reviewHeader h2 {
+  font-family: "Bebas Neue", Impact, sans-serif;
+  font-size: clamp(38px, 6vw, 64px);
+  font-weight: 400;
+  line-height: 0.95;
+}
+
+.reviewHeader p {
+  color: #a6a1b8;
+}
+
 .meta {
   display: flex;
   flex-wrap: wrap;
@@ -65,6 +95,29 @@
 .meta a {
   color: #a98bff;
   font-weight: 700;
+}
+
+.filter {
+  display: grid;
+  gap: 7px;
+  width: min(280px, 100%);
+  color: #a6a1b8;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.filter select {
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid rgb(169 139 255 / 35%);
+  border-radius: 9px;
+  background: #14111f;
+  color: #f7f5ff;
+  font: inherit;
+  letter-spacing: normal;
+  text-transform: none;
 }
 
 .grid {
@@ -140,6 +193,27 @@
   display: block;
   width: min(100%, 540px);
   height: auto;
+}
+
+.premiumViewport {
+  width: min(100%, 540px);
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+}
+
+.card[data-format="story"] .premiumViewport {
+  aspect-ratio: 9 / 16;
+}
+
+.premiumSurface {
+  width: 1080px;
+  height: 1350px;
+  transform: scale(0.5);
+  transform-origin: top left;
+}
+
+.card[data-format="story"] .premiumSurface {
+  height: 1920px;
 }
 
 .error {

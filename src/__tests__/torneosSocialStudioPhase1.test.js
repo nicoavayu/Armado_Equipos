@@ -153,15 +153,15 @@ describe('Social Studio Phase 1 results pipeline', () => {
     expect(resolveResultsVariant({ matchCount, format }).id).toBe(expected);
   });
 
-  test('premium results receives the theme explicitly', async () => {
+  test('premium results receives the registry theme explicitly', async () => {
     const snapshot = resultsSnapshot([{
       id: 'm-1', status: 'played',
       home: team('Local', null), away: team('Visita', null),
       result: { homeScore: 1, awayScore: 0 },
     }]);
-    const theme = { ...STREET_SOCIAL_THEME, surface: '#123456' };
+    const theme = STREET_SOCIAL_THEME;
     const log = [];
-    await prepareSocialRender({
+    const prepared = await prepareSocialRender({
       snapshot,
       editorial: createEditorialState(snapshot),
       organizationId: ORGANIZATION,
@@ -169,7 +169,11 @@ describe('Social Studio Phase 1 results pipeline', () => {
       createCanvas: canvasFactory(log),
       skipFonts: true,
     });
-    expect(log).toContain('set:fillStyle=#123456');
+    expect(prepared.theme.id).toBe('street');
+    expect(prepared.canvas).toBeNull();
+    expect(prepared.node.dataset.premiumRenderer).toBe('v2');
+    expect(prepared.node.innerHTML).toContain('Archivo Black');
+    expect(prepared.node.innerHTML).not.toMatch(/Arma2|NaN|Infinity|undefined/);
   });
 
   test('schedule formatting is independent from the process timezone', () => {

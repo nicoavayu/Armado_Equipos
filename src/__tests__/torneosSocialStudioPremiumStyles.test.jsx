@@ -1,11 +1,16 @@
-import React, { useState } from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import React from 'react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import SocialResultsThemePicker, {
   canUsePremiumResultStyles,
   isSocialResultThemeAllowed,
 } from '../features/torneos/components/SocialResultsThemePicker';
-import { hasSocialStudioRoleCapability } from '../features/torneos/components/SocialStudioPage';
+import {
+  applyFiguraDragToEditorial,
+  claimFiguraDragPointer,
+  hasSocialStudioRoleCapability,
+  resolveSocialStudioSeasonId,
+} from '../features/torneos/components/SocialStudioPage';
 import {
   normalizeTournamentEntitlements,
   TOURNAMENT_PLANS,
@@ -79,36 +84,35 @@ describe('Social Studio Premium result styles', () => {
     expect(onSelect).toHaveBeenCalledWith('base');
   });
 
-  test.each(['Street', 'Editorial'])(
-    'FREE keeps %s visible and opens the Premium explanation',
+  test.each(['Heritage', 'Street', 'Scoreboard', 'Editorial'])(
+    'FREE keeps %s visible and selects its locked preview',
     (label) => {
       const { onSelect } = renderPicker();
       const locked = screen.getByRole('radio', { name: `${label}, disponible con Premium` });
       expect(locked).toHaveTextContent('Premium');
       fireEvent.click(locked);
-      expect(screen.getByRole('dialog', { name: 'Disponible con Premium' })).toBeInTheDocument();
-      expect(screen.getByText(
-        'Sumá más estilos profesionales para tus placas de resultados.',
-      )).toBeInTheDocument();
-      expect(onSelect).not.toHaveBeenCalled();
+      expect(onSelect).toHaveBeenCalledWith(label.toLowerCase());
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     },
   );
 
   test('Ver Premium targets the current organization and season Plan', () => {
-    renderPicker();
-    fireEvent.click(screen.getByRole('radio', { name: 'Street, disponible con Premium' }));
+    renderPicker({ themeId: 'street' });
     fireEvent.click(screen.getByRole('button', { name: 'Ver Premium' }));
     expect(screen.getByTestId('location')).toHaveTextContent(
       `/torneos/organizacion/${ORGANIZATION_ID}/temporada/${FREE_SEASON}/plan`,
     );
   });
 
-  test('PREMIUM enables Base, Street and Editorial without an explanation', () => {
+  test('PREMIUM enables all five catalog themes without an explanation', () => {
     const { onSelect } = renderPicker({
       planState: PREMIUM_PLAN,
       seasonId: PREMIUM_SEASON,
     });
-    for (const [label, id] of [['Base', 'base'], ['Street', 'street'], ['Editorial', 'editorial']]) {
+    for (const [label, id] of [
+      ['Base', 'base'], ['Heritage', 'heritage'], ['Street', 'street'],
+      ['Scoreboard', 'scoreboard'], ['Editorial', 'editorial'],
+    ]) {
       fireEvent.click(screen.getByRole('radio', { name: label }));
       expect(onSelect).toHaveBeenCalledWith(id);
     }
@@ -129,33 +133,42 @@ describe('Social Studio Premium result styles', () => {
     expect(hasSocialStudioRoleCapability(['social.read'], 'social.export')).toBe(false);
   });
 
-  test('PREMIUM to FREE falls back to Base and explains the change', async () => {
-    function SwitchHarness() {
-      const [planState, setPlanState] = useState(PREMIUM_PLAN);
-      const [themeId, setThemeId] = useState('street');
-      const [notice, setNotice] = useState('');
-      const seasonId = planState === PREMIUM_PLAN ? PREMIUM_SEASON : FREE_SEASON;
-      return (
-        <>
-          <button type="button" onClick={() => setPlanState(FREE_PLAN)}>Cambiar a Free</button>
-          <span data-testid="theme">{themeId}</span>
-          <span>{notice}</span>
-          <SocialResultsThemePicker
-            organizationId={ORGANIZATION_ID}
-            seasonId={seasonId}
-            planState={planState}
-            themeId={themeId}
-            onSelect={setThemeId}
-            onFallback={() => setNotice('Volvimos a Base porque el torneo seleccionado es Free.')}
-          />
-        </>
-      );
-    }
+  test('associates the Studio tournament with its real competition season', () => {
+    const studioTournament = { id: PREMIUM_TOURNAMENT, name: 'Copa Premium' };
+    expect(resolveSocialStudioSeasonId(studioTournament, [{
+      id: PREMIUM_TOURNAMENT,
+      seasonId: PREMIUM_SEASON,
+    }])).toBe(PREMIUM_SEASON);
+    expect(canUsePremiumResultStyles(PREMIUM_PLAN, PREMIUM_SEASON)).toBe(true);
+    expect(canUsePremiumResultStyles(FREE_PLAN, PREMIUM_SEASON)).toBe(false);
+  });
 
-    render(<MemoryRouter><SwitchHarness /></MemoryRouter>);
-    expect(screen.getByTestId('theme')).toHaveTextContent('street');
-    fireEvent.click(screen.getByRole('button', { name: 'Cambiar a Free' }));
-    await waitFor(() => expect(screen.getByTestId('theme')).toHaveTextContent('base'));
-    expect(screen.getByText(/Volvimos a Base/)).toBeInTheDocument();
+  test('Figura pointer drag is claimed and preserves the selected player', () => {
+    const event = { preventDefault: jest.fn(), stopPropagation: jest.fn() };
+    claimFiguraDragPointer(event);
+    expect(event.preventDefault).toHaveBeenCalledTimes(1);
+    expect(event.stopPropagation).toHaveBeenCalledTimes(1);
+
+    const selection = ['player-9'];
+    const next = applyFiguraDragToEditorial({
+      selection,
+      selectedLines: { 'player-9': 'DEL' },
+      figuraFocalX: 0.5,
+      figuraFocalY: 0.5,
+      figuraZoom: 2,
+    }, {
+      x: 0, y: 0, focalX: 0.5, focalY: 0.5,
+    }, {
+      clientX: 100, clientY: -50, frameWidth: 200, frameHeight: 100,
+    });
+    expect(next.selection).toBe(selection);
+    expect(next.selectedLines).toEqual({ 'player-9': 'DEL' });
+    expect(next).toMatchObject({ figuraFocalX: 0.25, figuraFocalY: 0.75 });
+  });
+
+  test('FREE preview of a Premium theme is clearly locked outside the art', () => {
+    renderPicker({ themeId: 'heritage' });
+    expect(screen.getByText(/Preview white-label · export bloqueado/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Ver Premium' })).toBeInTheDocument();
   });
 });
