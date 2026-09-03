@@ -1,3 +1,70 @@
+/* Premium Social Studio uses the exact Google Fonts faces from the approved
+   HTMLs. Direct face declarations keep canvas readiness deterministic in
+   browsers that return an empty stylesheet for CSS2 imports. */
+@font-face {
+  font-family: "Anton";
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url("https://fonts.gstatic.com/s/anton/v27/1Ptgg87LROyAm3Kz-C8CSKlv.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Archivo Black";
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url("https://fonts.gstatic.com/s/archivoblack/v23/HTxqL289NzCGg4MzN6KJ7eW6CYyF_jzx13E.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Archivo Narrow";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: block;
+  src: url("https://fonts.gstatic.com/s/archivonarrow/v35/tss0ApVBdCYD5Q7hcxTE1ArZ0bbwiXxw2d8o.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Barlow Condensed";
+  font-style: normal;
+  font-weight: 700;
+  font-display: block;
+  src: url("https://fonts.gstatic.com/s/barlowcondensed/v13/HTxwL3I-JCGChYJ8VI-L6OO_au7B46r2z3bWuYMBYro.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Barlow Semi Condensed";
+  font-style: normal;
+  font-weight: 600;
+  font-display: block;
+  src: url("https://fonts.gstatic.com/s/barlowsemicondensed/v16/wlpigxjLBV1hqnzfr-F8sEYMB0Yybp0mudRfp66_B2slqZ6GfQ.woff2") format("woff2");
+}
+
+@font-face { font-family: "Barlow Condensed"; font-style: normal; font-weight: 400; font-display: block; src: url("https://fonts.gstatic.com/s/barlowcondensed/v13/HTx3L3I-JCGChYJ8VI-L6OO_au7B2xY.ttf") format("truetype"); }
+@font-face { font-family: "Barlow Condensed"; font-style: normal; font-weight: 500; font-display: block; src: url("https://fonts.gstatic.com/s/barlowcondensed/v13/HTxwL3I-JCGChYJ8VI-L6OO_au7B4-Lw_3E.ttf") format("truetype"); }
+@font-face { font-family: "Barlow Condensed"; font-style: normal; font-weight: 600; font-display: block; src: url("https://fonts.gstatic.com/s/barlowcondensed/v13/HTxwL3I-JCGChYJ8VI-L6OO_au7B4873_3E.ttf") format("truetype"); }
+@font-face { font-family: "Barlow Semi Condensed"; font-style: normal; font-weight: 500; font-display: block; src: url("https://fonts.gstatic.com/s/barlowsemicondensed/v16/wlpigxjLBV1hqnzfr-F8sEYMB0Yybp0mudRfi6mPAA.ttf") format("truetype"); }
+@font-face { font-family: "Barlow Semi Condensed"; font-style: normal; font-weight: 700; font-display: block; src: url("https://fonts.gstatic.com/s/barlowsemicondensed/v16/wlpigxjLBV1hqnzfr-F8sEYMB0Yybp0mudRfw6-PAA.ttf") format("truetype"); }
+
+@font-face { font-family: "Oswald"; font-style: normal; font-weight: 400; font-display: block; src: url("https://fonts.gstatic.com/s/oswald/v57/TK3_WkUHHAIjg75cFRf3bXL8LICs1_FvgUE.ttf") format("truetype"); }
+@font-face { font-family: "Oswald"; font-style: normal; font-weight: 500; font-display: block; src: url("https://fonts.gstatic.com/s/oswald/v57/TK3_WkUHHAIjg75cFRf3bXL8LICs18NvgUE.ttf") format("truetype"); }
+@font-face { font-family: "Oswald"; font-style: normal; font-weight: 600; font-display: block; src: url("https://fonts.gstatic.com/s/oswald/v57/TK3_WkUHHAIjg75cFRf3bXL8LICs1y9ogUE.ttf") format("truetype"); }
+@font-face { font-family: "Oswald"; font-style: normal; font-weight: 700; font-display: block; src: url("https://fonts.gstatic.com/s/oswald/v57/TK3_WkUHHAIjg75cFRf3bXL8LICs1xZogUE.ttf") format("truetype"); }
+@font-face { font-family: "IBM Plex Sans Condensed"; font-style: normal; font-weight: 400; font-display: block; src: url("https://fonts.gstatic.com/s/ibmplexsanscondensed/v15/Gg8lN4UfRSqiPg7Jn2ZI12V4DCEwkj1E4LVeHbau.ttf") format("truetype"); }
+@font-face { font-family: "IBM Plex Sans Condensed"; font-style: normal; font-weight: 500; font-display: block; src: url("https://fonts.gstatic.com/s/ibmplexsanscondensed/v15/Gg8gN4UfRSqiPg7Jn2ZI12V4DCEwkj1E4LVeHY5a64vr.ttf") format("truetype"); }
+@font-face { font-family: "IBM Plex Sans Condensed"; font-style: normal; font-weight: 600; font-display: block; src: url("https://fonts.gstatic.com/s/ibmplexsanscondensed/v15/Gg8gN4UfRSqiPg7Jn2ZI12V4DCEwkj1E4LVeHY527Ivr.ttf") format("truetype"); }
+@font-face { font-family: "IBM Plex Sans Condensed"; font-style: normal; font-weight: 700; font-display: block; src: url("https://fonts.gstatic.com/s/ibmplexsanscondensed/v15/Gg8gN4UfRSqiPg7Jn2ZI12V4DCEwkj1E4LVeHY4S7Yvr.ttf") format("truetype"); }
+
+@font-face { font-family: "Bodoni Moda"; font-style: normal; font-weight: 400; font-display: block; src: url("https://fonts.gstatic.com/s/bodonimoda/v28/aFT67PxzY382XsXX63LUYL6GYFcan6NJrKp-VPjfJMShrpsGFUt8oU7awIA.ttf") format("truetype"); }
+@font-face { font-family: "Bodoni Moda"; font-style: normal; font-weight: 700; font-display: block; src: url("https://fonts.gstatic.com/s/bodonimoda/v28/aFT67PxzY382XsXX63LUYL6GYFcan6NJrKp-VPjfJMShrpsGFUt8oandwIA.ttf") format("truetype"); }
+@font-face { font-family: "Bodoni Moda"; font-style: normal; font-weight: 900; font-display: block; src: url("https://fonts.gstatic.com/s/bodonimoda/v28/aFT67PxzY382XsXX63LUYL6GYFcan6NJrKp-VPjfJMShrpsGFUt8oefdwIA.ttf") format("truetype"); }
+@font-face { font-family: "Bodoni Moda"; font-style: italic; font-weight: 400; font-display: block; src: url("https://fonts.gstatic.com/s/bodonimoda/v28/aFT07PxzY382XsXX63LUYJSPUqb0pL6OQqxrZLnVbvZedvJtj-V7tIaZKMN4sQ.ttf") format("truetype"); }
+@font-face { font-family: "Libre Franklin"; font-style: normal; font-weight: 400; font-display: block; src: url("https://fonts.gstatic.com/s/librefranklin/v20/jizOREVItHgc8qDIbSTKq4XkRg8T88bjFuXOnduhLsWUBw.ttf") format("truetype"); }
+@font-face { font-family: "Libre Franklin"; font-style: normal; font-weight: 500; font-display: block; src: url("https://fonts.gstatic.com/s/librefranklin/v20/jizOREVItHgc8qDIbSTKq4XkRg8T88bjFuXOnduhHMWUBw.ttf") format("truetype"); }
+@font-face { font-family: "Libre Franklin"; font-style: normal; font-weight: 600; font-display: block; src: url("https://fonts.gstatic.com/s/librefranklin/v20/jizOREVItHgc8qDIbSTKq4XkRg8T88bjFuXOnduh8MKUBw.ttf") format("truetype"); }
+@font-face { font-family: "Libre Franklin"; font-style: normal; font-weight: 700; font-display: block; src: url("https://fonts.gstatic.com/s/librefranklin/v20/jizOREVItHgc8qDIbSTKq4XkRg8T88bjFuXOnduhycKUBw.ttf") format("truetype"); }
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
