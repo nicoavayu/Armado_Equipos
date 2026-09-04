@@ -1,0 +1,14 @@
+{
+  "schemas": "select nspname,pg_get_userbyid(nspowner) owner,nspacl from pg_namespace where nspname not like 'pg_%' and nspname<>'information_schema' order by 1",
+  "functions": "select n.nspname,p.proname,pg_get_function_identity_arguments(p.oid) args,pg_get_userbyid(p.proowner) owner,p.proacl,p.proconfig,p.prosecdef,pg_get_functiondef(p.oid) definition from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname not like 'pg_%' and n.nspname<>'information_schema' and p.prokind in ('f','p') order by 1,2,3",
+  "relations": "select n.nspname,c.relname,c.relkind,c.relpersistence,c.relrowsecurity,c.relforcerowsecurity,pg_get_userbyid(c.relowner) owner,c.relacl,c.reloptions from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname not like 'pg_%' and n.nspname<>'information_schema' order by 1,2",
+  "columns": "select n.nspname,c.relname,a.attname,a.attnum,format_type(a.atttypid,a.atttypmod) type,a.attnotnull,a.attidentity,a.attgenerated,a.attacl,pg_get_expr(d.adbin,d.adrelid) default_expr from pg_attribute a join pg_class c on c.oid=a.attrelid join pg_namespace n on n.oid=c.relnamespace left join pg_attrdef d on d.adrelid=c.oid and d.adnum=a.attnum where a.attnum>0 and not a.attisdropped and n.nspname not like 'pg_%' and n.nspname<>'information_schema' order by 1,2,4",
+  "policies": "select * from pg_policies order by schemaname,tablename,policyname",
+  "constraints": "select n.nspname,c.relname,k.conname,k.contype,k.convalidated,pg_get_constraintdef(k.oid) definition from pg_constraint k join pg_class c on c.oid=k.conrelid join pg_namespace n on n.oid=c.relnamespace where n.nspname not like 'pg_%' order by 1,2,3",
+  "triggers": "select n.nspname,c.relname,t.tgname,t.tgenabled,pg_get_triggerdef(t.oid) definition from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace where not t.tgisinternal and n.nspname not like 'pg_%' order by 1,2,3",
+  "indexes": "select schemaname,tablename,indexname,indexdef from pg_indexes where schemaname not like 'pg_%' order by 1,2,3",
+  "default_acl": "select pg_get_userbyid(defaclrole) role,coalesce(n.nspname,'') schema,defaclobjtype,defaclacl from pg_default_acl d left join pg_namespace n on n.oid=d.defaclnamespace order by 1,2,3",
+  "settings": "select coalesce(d.datname,'<ALL_DATABASES>') db,coalesce(r.rolname,'<ALL_ROLES>') role,s.setconfig from pg_db_role_setting s left join pg_database d on d.oid=s.setdatabase left join pg_roles r on r.oid=s.setrole order by 1,2",
+  "events": "select evtname,evtevent,pg_get_userbyid(evtowner) owner,evtfoid::regproc::text function,evtenabled,evttags from pg_event_trigger order by 1",
+  "publications": "select * from pg_publication_tables order by 1,2,3"
+}

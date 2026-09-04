@@ -1,0 +1,7 @@
+{
+  "snapshotChecksumManifestSha256": "4da7db034576e866cea9b994ab9113f5ad86b875589eeac33cfd2f34d436ba7c",
+  "beforeLogicalSha256": "0e24527552cefd85f151d43b35e8e961687a0654c9702cac9c3a0a4e01afd728",
+  "expectedDeltaSha256": "3f5ce3ad6d42487ac9e2c3f954ca1c38dac8adf821d42815691642606fb22554",
+  "canonicalAuditSha256": "9f0ea49f24550b707361f5d3c378d348aad0af99681006b02e56288aa80a3f4b",
+  "canonicalCoreSha256": "bfbd8c58d760fec2c4b4021d18dce5a3eb433aa6f3c0f51f96dbebbe5e1cf424"
+}
