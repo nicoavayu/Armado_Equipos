@@ -25,4 +25,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
+// Explicit alias: the existing singleton remains the only Core Auth authority.
+export const supabaseCore = supabase;
 export default supabase;

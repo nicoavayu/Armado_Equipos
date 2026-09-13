@@ -1,0 +1,59 @@
+
+> test
+> npm run test:backend && npm run test:app
+
+
+> test:backend
+> node --test --test-concurrency=1 test.mjs
+
+(node:80137) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/src/features/torneos/isolated/createTorneosClient.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ SSO isolated backend certification
+  ✔ two independent databases; only gateway published; no remote network (590.991125ms)
+  ✔ exact JWT contract; distinct shadow IDs; concurrent upsert idempotent (2409.977916ms)
+  ✔ least privilege DB roles, forced RLS and exactly two public Torneos tables (760.486541ms)
+  ✔ own insert/read/update; cross-user read hidden by real Postgres RLS (436.509292ms)
+  ✔ cross-user insert/update/delete and ownership reassignment denied (123.654917ms)
+  ✔ expired token (319.289917ms)
+  ✔ wrong audience (355.169042ms)
+  ✔ wrong issuer (402.596542ms)
+  ✔ missing subject (304.983417ms)
+  ✔ missing core_user_id (307.591542ms)
+  ✔ missing session_id (295.836166ms)
+  ✔ invalid session_id (12.727ms)
+  ✔ user mismatch (329.809917ms)
+  ✔ Core session user mismatch (10.605042ms)
+  ✔ privilege escalation (380.755791ms)
+  ✔ future issued token (332.757625ms)
+  ✔ excessive lifetime (320.142584ms)
+  ✔ missing jti (326.616666ms)
+  ✔ forged signature, altered payload, unsigned and Core token rejected (1551.229834ms)
+  ✔ malformed JWT and malformed session UUID rejected (17.864584ms)
+  ✔ exchange ignores no caller identity; rejects spoofed body and foreign origin (16.16825ms)
+  ✔ bearer reuse allowed while active; jti is not one-use proof (29.682125ms)
+Failed to set initial Realtime auth token: Error: Core authorization required
+    at SupabaseClient.accessToken (file:///Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/src/features/torneos/isolated/createTorneosClient.js:23:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+  ✔ clock skew exact boundaries: exp+4 accepted, exp+5 denied; nbf-5 accepted, nbf-6 denied (318.024542ms)
+Failed to set initial Realtime auth token: Error: Core authorization required
+    at SupabaseClient.accessToken (file:///Users/nicoavayu/Downloads/arma2/arma2-torneos-real-core-sso-phase15/src/features/torneos/isolated/createTorneosClient.js:23:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+  ✔ two SDK clients keep Core session; no Torneos Auth; Core refresh works (476.861125ms)
+  ✔ Torneos outage preserves Core session; Core Auth outage fails closed; recovery (3853.858166ms)
+  ✔ rotation overlap, new signing key, old key removal in gateway and PostgREST (2332.635541ms)
+  ✔ disabled Core user rejected immediately at exchange and data access (465.621667ms)
+  ✔ direct Core logout rejects new exchange and replay of live Torneos bearer (169.964875ms)
+  ✔ Core session revoked server-side without browser logout rejects existing bearer (626.018125ms)
+  ✔ no secrets in browser assets; private paths inaccessible; no tokens in service logs (161.266583ms)
+  ✔ gateway cannot read Core signing secret or operator DB admin credentials (172.609708ms)
+✔ SSO isolated backend certification (18983.21025ms)
+ℹ tests 32
+ℹ suites 0
+ℹ pass 32
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 19275.152042

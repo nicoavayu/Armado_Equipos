@@ -1,0 +1,551 @@
+{
+  "scope": "Real App.js/AuthProvider/AuthCallback/Core singleton with isolated local GoTrue and profile fixtures",
+  "results": [
+    {
+      "name": "existing real Core callback/session -> /torneos silently obtains own RLS row",
+      "status": "PASS"
+    },
+    {
+      "name": "second login = 0; no Torneos Auth endpoint; normal navigation retains Core",
+      "status": "PASS"
+    },
+    {
+      "name": "browser cross-user SELECT empty and INSERT/PATCH ownership denied by real RLS",
+      "status": "PASS"
+    },
+    {
+      "name": "silent Torneos renewal after TTL threshold uses existing Core session",
+      "status": "PASS"
+    },
+    {
+      "name": "Torneos REST unavailable -> real app Core session and profile API unaffected",
+      "status": "PASS"
+    },
+    {
+      "name": "exchange transport unavailable -> Torneos fail-closed, no Core logout",
+      "status": "PASS"
+    },
+    {
+      "name": "Core banned user -> existing app authorization denied; unban recovers",
+      "status": "PASS"
+    },
+    {
+      "name": "Core session not_after expired -> live Torneos JWT denied",
+      "status": "PASS"
+    },
+    {
+      "name": "real Core SDK refresh on session hydration renews Torneos silently",
+      "status": "PASS"
+    },
+    {
+      "name": "Torneos tokens absent from browser storage; Core session persistence unchanged",
+      "status": "PASS"
+    },
+    {
+      "name": "real Core logout service -> login route; live Torneos bearer replay and exchange denied",
+      "status": "PASS"
+    },
+    {
+      "name": "real app build/logs contain no server secrets or full JWTs; no production API traffic",
+      "status": "PASS"
+    }
+  ],
+  "traffic": [
+    {
+      "path": "/auth/callback",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/auth/v1/user",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/usuarios",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/teams",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/teams",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/exchange",
+      "method": "POST",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/notifications",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/jugadores",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/player_awards",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/jugadores",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/partidos_manuales",
+      "method": "HEAD",
+      "grant": null
+    },
+    {
+      "path": "/torneos/rest/v1/sso_probe",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/usuarios",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/teams",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/teams",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/usuarios",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/usuarios",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/jugadores",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/notifications",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/jugadores",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/jugadores",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/player_awards",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/player_awards",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/player_awards",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/jugadores",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/jugadores",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/partidos_manuales",
+      "method": "HEAD",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/jugadores",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/partidos_manuales",
+      "method": "HEAD",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/partidos_manuales",
+      "method": "HEAD",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/usuarios",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/usuarios",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/usuarios",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/exchange",
+      "method": "POST",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/jugadores",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/jugadores",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/jugadores",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/player_awards",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/player_awards",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/player_awards",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/jugadores",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/jugadores",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/jugadores",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/partidos_manuales",
+      "method": "HEAD",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/partidos_manuales",
+      "method": "HEAD",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/partidos_manuales",
+      "method": "HEAD",
+      "grant": null
+    },
+    {
+      "path": "/torneos/rest/v1/sso_probe",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/torneos/rest/v1/sso_probe",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/torneos/rest/v1/sso_probe",
+      "method": "POST",
+      "grant": null
+    },
+    {
+      "path": "/torneos/rest/v1/sso_probe",
+      "method": "PATCH",
+      "grant": null
+    },
+    {
+      "path": "/exchange",
+      "method": "POST",
+      "grant": null
+    },
+    {
+      "path": "/torneos/rest/v1/sso_probe",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/torneos/rest/v1/sso_probe",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/exchange",
+      "method": "POST",
+      "grant": null
+    },
+    {
+      "path": "/torneos/rest/v1/sso_probe",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/usuarios",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/usuarios",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/exchange",
+      "method": "POST",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/usuarios",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/jugadores",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/jugadores",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/jugadores",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/player_awards",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/player_awards",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/player_awards",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/jugadores",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/jugadores",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/partidos_manuales",
+      "method": "HEAD",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/jugadores",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/partidos_manuales",
+      "method": "HEAD",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/partidos_manuales",
+      "method": "HEAD",
+      "grant": null
+    },
+    {
+      "path": "/exchange",
+      "method": "POST",
+      "grant": null
+    },
+    {
+      "path": "/torneos/rest/v1/sso_probe",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/torneos/rest/v1/sso_probe",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/exchange",
+      "method": "POST",
+      "grant": null
+    },
+    {
+      "path": "/torneos/rest/v1/sso_probe",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/torneos/rest/v1/sso_probe",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/exchange",
+      "method": "POST",
+      "grant": null
+    },
+    {
+      "path": "/torneos/rest/v1/sso_probe",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/auth/v1/token",
+      "method": "POST",
+      "grant": "refresh_token"
+    },
+    {
+      "path": "/rest/v1/usuarios",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/usuarios",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/usuarios",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/exchange",
+      "method": "POST",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/jugadores",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/jugadores",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/jugadores",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/player_awards",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/player_awards",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/player_awards",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/jugadores",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/jugadores",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/jugadores",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/partidos_manuales",
+      "method": "HEAD",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/partidos_manuales",
+      "method": "HEAD",
+      "grant": null
+    },
+    {
+      "path": "/rest/v1/partidos_manuales",
+      "method": "HEAD",
+      "grant": null
+    },
+    {
+      "path": "/torneos/rest/v1/sso_probe",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/auth/v1/logout",
+      "method": "POST",
+      "grant": null
+    }
+  ],
+  "bundleFilesScanned": 99,
+  "secondLoginCount": 0,
+  "configuredOrigins": [
+    "http://127.0.0.1:58410"
+  ],
+  "status": "PASS"
+}

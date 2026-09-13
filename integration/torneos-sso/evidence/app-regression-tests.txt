@@ -1,0 +1,705 @@
+
+> team-balancer@0.1.0 test
+> react-scripts test --watchAll=false --runInBand torneosIsolatedSso appAuthWrapper AuthCallback torneosRouteIsolation torneosRuntimeIsolation
+
+PASS src/__tests__/torneosIsolatedSso.test.js
+PASS src/__tests__/torneosRouteIsolation.test.jsx
+  ● Console
+
+    console.error
+      Warning: `ReactDOMTestUtils.act` is deprecated in favor of `React.act`. Import `act` from `react` instead of `react-dom/test-utils`. See https://react.dev/warnings/react-dom-test-utils for more info.
+
+      61 |   test('redirects native to personal home without initializing Torneos when disabled', () => {
+      62 |     const service = createService();
+    > 63 |     render(
+         |           ^
+      64 |       <MemoryRouter initialEntries={['/torneos']}>
+      65 |         <Routes>
+      66 |           <Route path="/" element={<div>Arma2 personal</div>} />
+
+      at printWarning (node_modules/react-dom/cjs/react-dom-test-utils.development.js:71:30)
+      at error (node_modules/react-dom/cjs/react-dom-test-utils.development.js:45:7)
+      at actWithWarning (node_modules/react-dom/cjs/react-dom-test-utils.development.js:1736:7)
+      at node_modules/@testing-library/react/dist/act-compat.js:63:25
+      at renderRoot (node_modules/@testing-library/react/dist/pure.js:159:26)
+      at render (node_modules/@testing-library/react/dist/pure.js:246:10)
+      at Object.<anonymous> (src/__tests__/torneosRouteIsolation.test.jsx:63:11)
+
+    console.warn
+      ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+
+      61 |   test('redirects native to personal home without initializing Torneos when disabled', () => {
+      62 |     const service = createService();
+    > 63 |     render(
+         |           ^
+      64 |       <MemoryRouter initialEntries={['/torneos']}>
+      65 |         <Routes>
+      66 |           <Route path="/" element={<div>Arma2 personal</div>} />
+
+      at warnOnce (node_modules/react-router/lib/deprecations.ts:9:13)
+      at logDeprecation (node_modules/react-router/lib/deprecations.ts:14:3)
+      at logV6DeprecationWarnings (node_modules/react-router/lib/deprecations.ts:26:5)
+      at node_modules/react-router/lib/components.tsx:257:25
+      at commitHookEffectListMount (node_modules/react-dom/cjs/react-dom.development.js:23189:26)
+      at commitPassiveMountOnFiber (node_modules/react-dom/cjs/react-dom.development.js:24970:11)
+      at commitPassiveMountEffects_complete (node_modules/react-dom/cjs/react-dom.development.js:24930:9)
+      at commitPassiveMountEffects_begin (node_modules/react-dom/cjs/react-dom.development.js:24917:7)
+      at commitPassiveMountEffects (node_modules/react-dom/cjs/react-dom.development.js:24905:3)
+      at flushPassiveEffectsImpl (node_modules/react-dom/cjs/react-dom.development.js:27078:3)
+      at flushPassiveEffects (node_modules/react-dom/cjs/react-dom.development.js:27023:14)
+      at node_modules/react-dom/cjs/react-dom.development.js:26808:9
+      at flushActQueue (node_modules/react/cjs/react.development.js:2667:24)
+      at act (node_modules/react/cjs/react.development.js:2582:11)
+      at actWithWarning (node_modules/react-dom/cjs/react-dom-test-utils.development.js:1740:10)
+      at node_modules/@testing-library/react/dist/act-compat.js:63:25
+      at renderRoot (node_modules/@testing-library/react/dist/pure.js:159:26)
+      at render (node_modules/@testing-library/react/dist/pure.js:246:10)
+      at Object.<anonymous> (src/__tests__/torneosRouteIsolation.test.jsx:63:11)
+
+    console.warn
+      ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+      61 |   test('redirects native to personal home without initializing Torneos when disabled', () => {
+      62 |     const service = createService();
+    > 63 |     render(
+         |           ^
+      64 |       <MemoryRouter initialEntries={['/torneos']}>
+      65 |         <Routes>
+      66 |           <Route path="/" element={<div>Arma2 personal</div>} />
+
+      at warnOnce (node_modules/react-router/lib/deprecations.ts:9:13)
+      at logDeprecation (node_modules/react-router/lib/deprecations.ts:14:3)
+      at logV6DeprecationWarnings (node_modules/react-router/lib/deprecations.ts:37:5)
+      at node_modules/react-router/lib/components.tsx:257:25
+      at commitHookEffectListMount (node_modules/react-dom/cjs/react-dom.development.js:23189:26)
+      at commitPassiveMountOnFiber (node_modules/react-dom/cjs/react-dom.development.js:24970:11)
+      at commitPassiveMountEffects_complete (node_modules/react-dom/cjs/react-dom.development.js:24930:9)
+      at commitPassiveMountEffects_begin (node_modules/react-dom/cjs/react-dom.development.js:24917:7)
+      at commitPassiveMountEffects (node_modules/react-dom/cjs/react-dom.development.js:24905:3)
+      at flushPassiveEffectsImpl (node_modules/react-dom/cjs/react-dom.development.js:27078:3)
+      at flushPassiveEffects (node_modules/react-dom/cjs/react-dom.development.js:27023:14)
+      at node_modules/react-dom/cjs/react-dom.development.js:26808:9
+      at flushActQueue (node_modules/react/cjs/react.development.js:2667:24)
+      at act (node_modules/react/cjs/react.development.js:2582:11)
+      at actWithWarning (node_modules/react-dom/cjs/react-dom-test-utils.development.js:1740:10)
+      at node_modules/@testing-library/react/dist/act-compat.js:63:25
+      at renderRoot (node_modules/@testing-library/react/dist/pure.js:159:26)
+      at render (node_modules/@testing-library/react/dist/pure.js:246:10)
+      at Object.<anonymous> (src/__tests__/torneosRouteIsolation.test.jsx:63:11)
+
+PASS src/__tests__/torneosRuntimeIsolation.test.jsx
+  ● Console
+
+    console.error
+      Warning: `ReactDOMTestUtils.act` is deprecated in favor of `React.act`. Import `act` from `react` instead of `react-dom/test-utils`. See https://react.dev/warnings/react-dom-test-utils for more info.
+
+      127 |
+      128 |   test('preserves personal providers and effects outside /torneos', async () => {
+    > 129 |     render(
+          |           ^
+      130 |       <MemoryRouter initialEntries={['/profile']}>
+      131 |         <RuntimeHarness />
+      132 |       </MemoryRouter>,
+
+      at printWarning (node_modules/react-dom/cjs/react-dom-test-utils.development.js:71:30)
+      at error (node_modules/react-dom/cjs/react-dom-test-utils.development.js:45:7)
+      at actWithWarning (node_modules/react-dom/cjs/react-dom-test-utils.development.js:1736:7)
+      at node_modules/@testing-library/react/dist/act-compat.js:63:25
+      at renderRoot (node_modules/@testing-library/react/dist/pure.js:159:26)
+      at render (node_modules/@testing-library/react/dist/pure.js:246:10)
+      at Object.<anonymous> (src/__tests__/torneosRuntimeIsolation.test.jsx:129:11)
+
+    console.warn
+      ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+
+      127 |
+      128 |   test('preserves personal providers and effects outside /torneos', async () => {
+    > 129 |     render(
+          |           ^
+      130 |       <MemoryRouter initialEntries={['/profile']}>
+      131 |         <RuntimeHarness />
+      132 |       </MemoryRouter>,
+
+      at warnOnce (node_modules/react-router/lib/deprecations.ts:9:13)
+      at logDeprecation (node_modules/react-router/lib/deprecations.ts:14:3)
+      at logV6DeprecationWarnings (node_modules/react-router/lib/deprecations.ts:26:5)
+      at node_modules/react-router/lib/components.tsx:257:25
+      at commitHookEffectListMount (node_modules/react-dom/cjs/react-dom.development.js:23189:26)
+      at commitPassiveMountOnFiber (node_modules/react-dom/cjs/react-dom.development.js:24970:11)
+      at commitPassiveMountEffects_complete (node_modules/react-dom/cjs/react-dom.development.js:24930:9)
+      at commitPassiveMountEffects_begin (node_modules/react-dom/cjs/react-dom.development.js:24917:7)
+      at commitPassiveMountEffects (node_modules/react-dom/cjs/react-dom.development.js:24905:3)
+      at flushPassiveEffectsImpl (node_modules/react-dom/cjs/react-dom.development.js:27078:3)
+      at flushPassiveEffects (node_modules/react-dom/cjs/react-dom.development.js:27023:14)
+      at node_modules/react-dom/cjs/react-dom.development.js:26808:9
+      at flushActQueue (node_modules/react/cjs/react.development.js:2667:24)
+      at act (node_modules/react/cjs/react.development.js:2582:11)
+      at actWithWarning (node_modules/react-dom/cjs/react-dom-test-utils.development.js:1740:10)
+      at node_modules/@testing-library/react/dist/act-compat.js:63:25
+      at renderRoot (node_modules/@testing-library/react/dist/pure.js:159:26)
+      at render (node_modules/@testing-library/react/dist/pure.js:246:10)
+      at Object.<anonymous> (src/__tests__/torneosRuntimeIsolation.test.jsx:129:11)
+
+    console.warn
+      ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+      127 |
+      128 |   test('preserves personal providers and effects outside /torneos', async () => {
+    > 129 |     render(
+          |           ^
+      130 |       <MemoryRouter initialEntries={['/profile']}>
+      131 |         <RuntimeHarness />
+      132 |       </MemoryRouter>,
+
+      at warnOnce (node_modules/react-router/lib/deprecations.ts:9:13)
+      at logDeprecation (node_modules/react-router/lib/deprecations.ts:14:3)
+      at logV6DeprecationWarnings (node_modules/react-router/lib/deprecations.ts:37:5)
+      at node_modules/react-router/lib/components.tsx:257:25
+      at commitHookEffectListMount (node_modules/react-dom/cjs/react-dom.development.js:23189:26)
+      at commitPassiveMountOnFiber (node_modules/react-dom/cjs/react-dom.development.js:24970:11)
+      at commitPassiveMountEffects_complete (node_modules/react-dom/cjs/react-dom.development.js:24930:9)
+      at commitPassiveMountEffects_begin (node_modules/react-dom/cjs/react-dom.development.js:24917:7)
+      at commitPassiveMountEffects (node_modules/react-dom/cjs/react-dom.development.js:24905:3)
+      at flushPassiveEffectsImpl (node_modules/react-dom/cjs/react-dom.development.js:27078:3)
+      at flushPassiveEffects (node_modules/react-dom/cjs/react-dom.development.js:27023:14)
+      at node_modules/react-dom/cjs/react-dom.development.js:26808:9
+      at flushActQueue (node_modules/react/cjs/react.development.js:2667:24)
+      at act (node_modules/react/cjs/react.development.js:2582:11)
+      at actWithWarning (node_modules/react-dom/cjs/react-dom-test-utils.development.js:1740:10)
+      at node_modules/@testing-library/react/dist/act-compat.js:63:25
+      at renderRoot (node_modules/@testing-library/react/dist/pure.js:159:26)
+      at render (node_modules/@testing-library/react/dist/pure.js:246:10)
+      at Object.<anonymous> (src/__tests__/torneosRuntimeIsolation.test.jsx:129:11)
+
+PASS src/__tests__/authCallbackReturnTo.test.jsx
+  ● Console
+
+    console.error
+      Warning: `ReactDOMTestUtils.act` is deprecated in favor of `React.act`. Import `act` from `react` instead of `react-dom/test-utils`. See https://react.dev/warnings/react-dom-test-utils for more info.
+
+      48 | }));
+      49 |
+    > 50 | const renderCallback = (ui) => render(
+         |                                      ^
+      51 |   <MemoryRouter>
+      52 |     {ui}
+      53 |   </MemoryRouter>,
+
+      at printWarning (node_modules/react-dom/cjs/react-dom-test-utils.development.js:71:30)
+      at error (node_modules/react-dom/cjs/react-dom-test-utils.development.js:45:7)
+      at actWithWarning (node_modules/react-dom/cjs/react-dom-test-utils.development.js:1736:7)
+      at node_modules/@testing-library/react/dist/act-compat.js:63:25
+      at renderRoot (node_modules/@testing-library/react/dist/pure.js:159:26)
+      at render (node_modules/@testing-library/react/dist/pure.js:246:10)
+      at renderCallback (src/__tests__/authCallbackReturnTo.test.jsx:50:38)
+      at Object.<anonymous> (src/__tests__/authCallbackReturnTo.test.jsx:80:5)
+
+    console.info
+      [AUTH] auth_callback_enter {"href":"http://localhost/auth/callback?code=test-code","pathname":"/auth/callback","search":"?code=test-code","hash":"","provider":"google"}
+
+      at Object.info (src/utils/logger.js:16:50)
+
+    console.info
+      [AUTH] auth_callback_code_detected {"codePresent":true,"provider":"google"}
+
+      at Object.info (src/utils/logger.js:16:50)
+
+    console.warn
+      ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+
+      48 | }));
+      49 |
+    > 50 | const renderCallback = (ui) => render(
+         |                                      ^
+      51 |   <MemoryRouter>
+      52 |     {ui}
+      53 |   </MemoryRouter>,
+
+      at warnOnce (node_modules/react-router/lib/deprecations.ts:9:13)
+      at logDeprecation (node_modules/react-router/lib/deprecations.ts:14:3)
+      at logV6DeprecationWarnings (node_modules/react-router/lib/deprecations.ts:26:5)
+      at node_modules/react-router/lib/components.tsx:257:25
+      at commitHookEffectListMount (node_modules/react-dom/cjs/react-dom.development.js:23189:26)
+      at commitPassiveMountOnFiber (node_modules/react-dom/cjs/react-dom.development.js:24970:11)
+      at commitPassiveMountEffects_complete (node_modules/react-dom/cjs/react-dom.development.js:24930:9)
+      at commitPassiveMountEffects_begin (node_modules/react-dom/cjs/react-dom.development.js:24917:7)
+      at commitPassiveMountEffects (node_modules/react-dom/cjs/react-dom.development.js:24905:3)
+      at flushPassiveEffectsImpl (node_modules/react-dom/cjs/react-dom.development.js:27078:3)
+      at flushPassiveEffects (node_modules/react-dom/cjs/react-dom.development.js:27023:14)
+      at node_modules/react-dom/cjs/react-dom.development.js:26808:9
+      at flushActQueue (node_modules/react/cjs/react.development.js:2667:24)
+      at act (node_modules/react/cjs/react.development.js:2582:11)
+      at actWithWarning (node_modules/react-dom/cjs/react-dom-test-utils.development.js:1740:10)
+      at node_modules/@testing-library/react/dist/act-compat.js:63:25
+      at renderRoot (node_modules/@testing-library/react/dist/pure.js:159:26)
+      at render (node_modules/@testing-library/react/dist/pure.js:246:10)
+      at renderCallback (src/__tests__/authCallbackReturnTo.test.jsx:50:38)
+      at Object.<anonymous> (src/__tests__/authCallbackReturnTo.test.jsx:80:5)
+
+    console.warn
+      ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+      48 | }));
+      49 |
+    > 50 | const renderCallback = (ui) => render(
+         |                                      ^
+      51 |   <MemoryRouter>
+      52 |     {ui}
+      53 |   </MemoryRouter>,
+
+      at warnOnce (node_modules/react-router/lib/deprecations.ts:9:13)
+      at logDeprecation (node_modules/react-router/lib/deprecations.ts:14:3)
+      at logV6DeprecationWarnings (node_modules/react-router/lib/deprecations.ts:37:5)
+      at node_modules/react-router/lib/components.tsx:257:25
+      at commitHookEffectListMount (node_modules/react-dom/cjs/react-dom.development.js:23189:26)
+      at commitPassiveMountOnFiber (node_modules/react-dom/cjs/react-dom.development.js:24970:11)
+      at commitPassiveMountEffects_complete (node_modules/react-dom/cjs/react-dom.development.js:24930:9)
+      at commitPassiveMountEffects_begin (node_modules/react-dom/cjs/react-dom.development.js:24917:7)
+      at commitPassiveMountEffects (node_modules/react-dom/cjs/react-dom.development.js:24905:3)
+      at flushPassiveEffectsImpl (node_modules/react-dom/cjs/react-dom.development.js:27078:3)
+      at flushPassiveEffects (node_modules/react-dom/cjs/react-dom.development.js:27023:14)
+      at node_modules/react-dom/cjs/react-dom.development.js:26808:9
+      at flushActQueue (node_modules/react/cjs/react.development.js:2667:24)
+      at act (node_modules/react/cjs/react.development.js:2582:11)
+      at actWithWarning (node_modules/react-dom/cjs/react-dom-test-utils.development.js:1740:10)
+      at node_modules/@testing-library/react/dist/act-compat.js:63:25
+      at renderRoot (node_modules/@testing-library/react/dist/pure.js:159:26)
+      at render (node_modules/@testing-library/react/dist/pure.js:246:10)
+      at renderCallback (src/__tests__/authCallbackReturnTo.test.jsx:50:38)
+      at Object.<anonymous> (src/__tests__/authCallbackReturnTo.test.jsx:80:5)
+
+    console.info
+      [AUTH] auth_callback_session_restored {"provider":"google","hasSession":true,"userId":"user-123"}
+
+      at Object.info (src/utils/logger.js:16:50)
+
+    console.info
+      [AUTH] auth_callback_navigate {"target":"/torneos/organizaciones/liga-demo/temporadas/2026/fixture"}
+
+      at Object.info (src/utils/logger.js:16:50)
+
+    console.info
+      [AUTH] auth_callback_enter {"href":"http://localhost/auth/callback?code=test-code","pathname":"/auth/callback","search":"?code=test-code","hash":"","provider":"google"}
+
+      at Object.info (src/utils/logger.js:16:50)
+
+    console.info
+      [AUTH] auth_callback_code_detected {"codePresent":true,"provider":"google"}
+
+      at Object.info (src/utils/logger.js:16:50)
+
+    console.info
+      [AUTH] auth_callback_enter {"href":"http://localhost/auth/callback?code=test-code","pathname":"/auth/callback","search":"?code=test-code","hash":"","provider":"google"}
+
+      at Object.info (src/utils/logger.js:16:50)
+
+    console.info
+      [AUTH] auth_callback_code_detected {"codePresent":true,"provider":"google"}
+
+      at Object.info (src/utils/logger.js:16:50)
+
+    console.info
+      [AUTH] auth_callback_session_restored {"provider":"google","hasSession":true,"userId":"user-123"}
+
+      at Object.info (src/utils/logger.js:16:50)
+
+    console.info
+      [AUTH] auth_callback_session_restored {"provider":"google","hasSession":true,"userId":"user-123"}
+
+      at Object.info (src/utils/logger.js:16:50)
+
+    console.info
+      [AUTH] auth_callback_navigate {"target":"/torneos/organizaciones/liga-demo/temporadas/2026/fixture"}
+
+      at Object.info (src/utils/logger.js:16:50)
+
+    console.info
+      [AUTH] auth_callback_enter {"href":"http://localhost/auth/callback?code=test-code","pathname":"/auth/callback","search":"?code=test-code","hash":"","provider":"google"}
+
+      at Object.info (src/utils/logger.js:16:50)
+
+    console.info
+      [AUTH] auth_callback_code_detected {"codePresent":true,"provider":"google"}
+
+      at Object.info (src/utils/logger.js:16:50)
+
+    console.info
+      [AUTH] auth_callback_session_restored {"provider":"google","hasSession":true,"userId":"user-123"}
+
+      at Object.info (src/utils/logger.js:16:50)
+
+    console.info
+      [AUTH] auth_callback_navigate {"target":"/torneos/organizaciones/liga-demo/temporadas/2026/fixture"}
+
+      at Object.info (src/utils/logger.js:16:50)
+
+    console.info
+      [AUTH] auth_callback_enter {"href":"http://localhost/auth/callback?code=test-code","pathname":"/auth/callback","search":"?code=test-code","hash":"","provider":"google"}
+
+      at Object.info (src/utils/logger.js:16:50)
+
+    console.info
+      [AUTH] auth_callback_code_detected {"codePresent":true,"provider":"google"}
+
+      at Object.info (src/utils/logger.js:16:50)
+
+    console.info
+      [AUTH] auth_callback_session_restored {"provider":"google","hasSession":true,"userId":"user-123"}
+
+      at Object.info (src/utils/logger.js:16:50)
+
+    console.info
+      [AUTH] auth_callback_navigate {"target":"/torneos/organizaciones/liga-demo/temporadas/2026/fixture"}
+
+      at Object.info (src/utils/logger.js:16:50)
+
+    console.info
+      [AUTH] auth_callback_enter {"href":"http://localhost/auth/callback?code=test-code","pathname":"/auth/callback","search":"?code=test-code","hash":"","provider":"google"}
+
+      at Object.info (src/utils/logger.js:16:50)
+
+    console.info
+      [AUTH] auth_callback_code_detected {"codePresent":true,"provider":"google"}
+
+      at Object.info (src/utils/logger.js:16:50)
+
+    console.info
+      [AUTH] auth_callback_enter {"href":"http://localhost/auth/callback?code=test-code","pathname":"/auth/callback","search":"?code=test-code","hash":"","provider":"google"}
+
+      at Object.info (src/utils/logger.js:16:50)
+
+    console.info
+      [AUTH] auth_callback_code_detected {"codePresent":true,"provider":"google"}
+
+      at Object.info (src/utils/logger.js:16:50)
+
+    console.info
+      [AUTH] auth_callback_session_restored {"provider":"google","hasSession":true,"userId":"user-123"}
+
+      at Object.info (src/utils/logger.js:16:50)
+
+    console.info
+      [AUTH] auth_callback_session_restored {"provider":"google","hasSession":true,"userId":"user-123"}
+
+      at Object.info (src/utils/logger.js:16:50)
+
+    console.info
+      [AUTH] auth_callback_navigate {"target":"/home"}
+
+      at Object.info (src/utils/logger.js:16:50)
+
+    console.info
+      [AUTH] auth_callback_enter {"href":"http://localhost/auth/callback?code=test-code","pathname":"/auth/callback","search":"?code=test-code","hash":"","provider":"google"}
+
+      at Object.info (src/utils/logger.js:16:50)
+
+    console.info
+      [AUTH] auth_callback_code_detected {"codePresent":true,"provider":"google"}
+
+      at Object.info (src/utils/logger.js:16:50)
+
+    console.info
+      [AUTH] auth_callback_enter {"href":"http://localhost/auth/callback?code=test-code","pathname":"/auth/callback","search":"?code=test-code","hash":"","provider":"google"}
+
+      at Object.info (src/utils/logger.js:16:50)
+
+    console.info
+      [AUTH] auth_callback_code_detected {"codePresent":true,"provider":"google"}
+
+      at Object.info (src/utils/logger.js:16:50)
+
+    console.info
+      [AUTH] auth_callback_session_restored {"provider":"google","hasSession":true,"userId":"user-123"}
+
+      at Object.info (src/utils/logger.js:16:50)
+
+    console.info
+      [AUTH] auth_callback_session_restored {"provider":"google","hasSession":true,"userId":"user-123"}
+
+      at Object.info (src/utils/logger.js:16:50)
+
+    console.info
+      [AUTH] auth_callback_navigate {"target":"/home"}
+
+      at Object.info (src/utils/logger.js:16:50)
+
+    console.info
+      [AUTH] auth_callback_enter {"href":"http://localhost/auth/callback?code=test-code","pathname":"/auth/callback","search":"?code=test-code","hash":"","provider":"google"}
+
+      at Object.info (src/utils/logger.js:16:50)
+
+    console.info
+      [AUTH] auth_callback_code_detected {"codePresent":true,"provider":"google"}
+
+      at Object.info (src/utils/logger.js:16:50)
+
+    console.info
+      [AUTH] auth_callback_session_restored {"provider":"google","hasSession":true,"userId":"user-123"}
+
+      at Object.info (src/utils/logger.js:16:50)
+
+    console.info
+      [AUTH] auth_callback_navigate {"target":"/torneos/organizaciones/liga-demo/temporadas/2026/fixture"}
+
+      at Object.info (src/utils/logger.js:16:50)
+
+    console.info
+      [AUTH] auth_callback_enter {"href":"http://localhost/auth/callback?code=second-code","pathname":"/auth/callback","search":"?code=second-code","hash":"","provider":"google"}
+
+      at Object.info (src/utils/logger.js:16:50)
+
+    console.info
+      [AUTH] auth_callback_code_detected {"codePresent":true,"provider":"google"}
+
+      at Object.info (src/utils/logger.js:16:50)
+
+    console.info
+      [AUTH] auth_callback_session_restored {"provider":"google","hasSession":true,"userId":"user-123"}
+
+      at Object.info (src/utils/logger.js:16:50)
+
+    console.info
+      [AUTH] auth_callback_navigate {"target":"/home"}
+
+      at Object.info (src/utils/logger.js:16:50)
+
+PASS src/__tests__/AuthCallback.test.jsx
+  ● Console
+
+    console.error
+      Warning: `ReactDOMTestUtils.act` is deprecated in favor of `React.act`. Import `act` from `react` instead of `react-dom/test-utils`. See https://react.dev/warnings/react-dom-test-utils for more info.
+
+      84 |     });
+      85 |
+    > 86 |     render(
+         |           ^
+      87 |       <MemoryRouter>
+      88 |         <AuthCallback />
+      89 |       </MemoryRouter>,
+
+      at printWarning (node_modules/react-dom/cjs/react-dom-test-utils.development.js:71:30)
+      at error (node_modules/react-dom/cjs/react-dom-test-utils.development.js:45:7)
+      at actWithWarning (node_modules/react-dom/cjs/react-dom-test-utils.development.js:1736:7)
+      at node_modules/@testing-library/react/dist/act-compat.js:63:25
+      at renderRoot (node_modules/@testing-library/react/dist/pure.js:159:26)
+      at render (node_modules/@testing-library/react/dist/pure.js:246:10)
+      at Object.<anonymous> (src/__tests__/AuthCallback.test.jsx:86:11)
+
+    console.info
+      [AUTH] auth_callback_enter {"href":"http://localhost/auth/callback?code=test-code","pathname":"/auth/callback","search":"?code=test-code","hash":"","provider":"google"}
+
+      at Object.info (src/utils/logger.js:16:50)
+
+    console.info
+      [AUTH] auth_callback_code_detected {"codePresent":true,"provider":"google"}
+
+      at Object.info (src/utils/logger.js:16:50)
+
+    console.warn
+      ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+
+      84 |     });
+      85 |
+    > 86 |     render(
+         |           ^
+      87 |       <MemoryRouter>
+      88 |         <AuthCallback />
+      89 |       </MemoryRouter>,
+
+      at warnOnce (node_modules/react-router/lib/deprecations.ts:9:13)
+      at logDeprecation (node_modules/react-router/lib/deprecations.ts:14:3)
+      at logV6DeprecationWarnings (node_modules/react-router/lib/deprecations.ts:26:5)
+      at node_modules/react-router/lib/components.tsx:257:25
+      at commitHookEffectListMount (node_modules/react-dom/cjs/react-dom.development.js:23189:26)
+      at commitPassiveMountOnFiber (node_modules/react-dom/cjs/react-dom.development.js:24970:11)
+      at commitPassiveMountEffects_complete (node_modules/react-dom/cjs/react-dom.development.js:24930:9)
+      at commitPassiveMountEffects_begin (node_modules/react-dom/cjs/react-dom.development.js:24917:7)
+      at commitPassiveMountEffects (node_modules/react-dom/cjs/react-dom.development.js:24905:3)
+      at flushPassiveEffectsImpl (node_modules/react-dom/cjs/react-dom.development.js:27078:3)
+      at flushPassiveEffects (node_modules/react-dom/cjs/react-dom.development.js:27023:14)
+      at node_modules/react-dom/cjs/react-dom.development.js:26808:9
+      at flushActQueue (node_modules/react/cjs/react.development.js:2667:24)
+      at act (node_modules/react/cjs/react.development.js:2582:11)
+      at actWithWarning (node_modules/react-dom/cjs/react-dom-test-utils.development.js:1740:10)
+      at node_modules/@testing-library/react/dist/act-compat.js:63:25
+      at renderRoot (node_modules/@testing-library/react/dist/pure.js:159:26)
+      at render (node_modules/@testing-library/react/dist/pure.js:246:10)
+      at Object.<anonymous> (src/__tests__/AuthCallback.test.jsx:86:11)
+
+    console.warn
+      ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+      84 |     });
+      85 |
+    > 86 |     render(
+         |           ^
+      87 |       <MemoryRouter>
+      88 |         <AuthCallback />
+      89 |       </MemoryRouter>,
+
+      at warnOnce (node_modules/react-router/lib/deprecations.ts:9:13)
+      at logDeprecation (node_modules/react-router/lib/deprecations.ts:14:3)
+      at logV6DeprecationWarnings (node_modules/react-router/lib/deprecations.ts:37:5)
+      at node_modules/react-router/lib/components.tsx:257:25
+      at commitHookEffectListMount (node_modules/react-dom/cjs/react-dom.development.js:23189:26)
+      at commitPassiveMountOnFiber (node_modules/react-dom/cjs/react-dom.development.js:24970:11)
+      at commitPassiveMountEffects_complete (node_modules/react-dom/cjs/react-dom.development.js:24930:9)
+      at commitPassiveMountEffects_begin (node_modules/react-dom/cjs/react-dom.development.js:24917:7)
+      at commitPassiveMountEffects (node_modules/react-dom/cjs/react-dom.development.js:24905:3)
+      at flushPassiveEffectsImpl (node_modules/react-dom/cjs/react-dom.development.js:27078:3)
+      at flushPassiveEffects (node_modules/react-dom/cjs/react-dom.development.js:27023:14)
+      at node_modules/react-dom/cjs/react-dom.development.js:26808:9
+      at flushActQueue (node_modules/react/cjs/react.development.js:2667:24)
+      at act (node_modules/react/cjs/react.development.js:2582:11)
+      at actWithWarning (node_modules/react-dom/cjs/react-dom-test-utils.development.js:1740:10)
+      at node_modules/@testing-library/react/dist/act-compat.js:63:25
+      at renderRoot (node_modules/@testing-library/react/dist/pure.js:159:26)
+      at render (node_modules/@testing-library/react/dist/pure.js:246:10)
+      at Object.<anonymous> (src/__tests__/AuthCallback.test.jsx:86:11)
+
+    console.info
+      [AUTH] auth_callback_exchange_failed {"provider":"google","message":"code verifier mismatch"}
+
+      at Object.info (src/utils/logger.js:16:50)
+
+    console.info
+      [AUTH] auth_callback_session_restored_after_callback_error {"provider":"google","message":"code verifier mismatch","userId":"user-123"}
+
+      at Object.info (src/utils/logger.js:16:50)
+
+    console.info
+      [AUTH] auth_callback_session_restored {"provider":"google","hasSession":true,"userId":"user-123"}
+
+      at Object.info (src/utils/logger.js:16:50)
+
+    console.info
+      [AUTH] auth_callback_navigate {"target":"/home"}
+
+      at Object.info (src/utils/logger.js:16:50)
+
+    console.info
+      [AUTH] auth_callback_enter {"href":"http://localhost/auth/callback?code=test-code","pathname":"/auth/callback","search":"?code=test-code","hash":"","provider":"google"}
+
+      at Object.info (src/utils/logger.js:16:50)
+
+    console.info
+      [AUTH] auth_callback_code_detected {"codePresent":true,"provider":"google"}
+
+      at Object.info (src/utils/logger.js:16:50)
+
+    console.info
+      [AUTH] auth_callback_error {"provider":"google","message":"Supabase no respondió a tiempo. Volvé a iniciar sesión."}
+
+      at Object.info (src/utils/logger.js:16:50)
+
+PASS src/__tests__/appAuthWrapper.test.jsx
+  ● Console
+
+    console.error
+      Warning: `ReactDOMTestUtils.act` is deprecated in favor of `React.act`. Import `act` from `react` instead of `react-dom/test-utils`. See https://react.dev/warnings/react-dom-test-utils for more info.
+
+      88 |
+      89 |   test('does not allow private routes to bypass auth with codigo query param', () => {
+    > 90 |     render(
+         |           ^
+      91 |       <MemoryRouter initialEntries={['/admin/123?codigo=QT97MX']}>
+      92 |         <Routes>
+      93 |           <Route element={<AppAuthWrapper />}>
+
+      at printWarning (node_modules/react-dom/cjs/react-dom-test-utils.development.js:71:30)
+      at error (node_modules/react-dom/cjs/react-dom-test-utils.development.js:45:7)
+      at actWithWarning (node_modules/react-dom/cjs/react-dom-test-utils.development.js:1736:7)
+      at node_modules/@testing-library/react/dist/act-compat.js:63:25
+      at renderRoot (node_modules/@testing-library/react/dist/pure.js:159:26)
+      at render (node_modules/@testing-library/react/dist/pure.js:246:10)
+      at Object.<anonymous> (src/__tests__/appAuthWrapper.test.jsx:90:11)
+      at TestScheduler.scheduleTests (node_modules/@jest/core/build/TestScheduler.js:333:13)
+      at runJest (node_modules/@jest/core/build/runJest.js:404:19)
+      at _run10000 (node_modules/@jest/core/build/cli/index.js:320:7)
+      at runCLI (node_modules/@jest/core/build/cli/index.js:173:3)
+
+    console.info
+      [AUTH] app_auth_wrapper_redirect_login {
+        route: '/admin/123?codigo=%5Bredacted%5D',
+        authResolved: true,
+        loading: false
+      }
+
+      at Object.info (src/utils/logger.js:16:50)
+
+    console.warn
+      ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+
+      88 |
+      89 |   test('does not allow private routes to bypass auth with codigo query param', () => {
+    > 90 |     render(
+         |           ^
+      91 |       <MemoryRouter initialEntries={['/admin/123?codigo=QT97MX']}>
+      92 |         <Routes>
+      93 |           <Route element={<AppAuthWrapper />}>
+
+      at warnOnce (node_modules/react-router/lib/deprecations.ts:9:13)
+      at logDeprecation (node_modules/react-router/lib/deprecations.ts:14:3)
+      at logV6DeprecationWarnings (node_modules/react-router/lib/deprecations.ts:26:5)
+      at node_modules/react-router/lib/components.tsx:257:25
+      at commitHookEffectListMount (node_modules/react-dom/cjs/react-dom.development.js:23189:26)
+      at commitPassiveMountOnFiber (node_modules/react-dom/cjs/react-dom.development.js:24970:11)
+      at commitPassiveMountEffects_complete (node_modules/react-dom/cjs/react-dom.development.js:24930:9)
+      at commitPassiveMountEffects_begin (node_modules/react-dom/cjs/react-dom.development.js:24917:7)
+      at commitPassiveMountEffects (node_modules/react-dom/cjs/react-dom.development.js:24905:3)
+      at flushPassiveEffectsImpl (node_modules/react-dom/cjs/react-dom.development.js:27078:3)
+      at flushPassiveEffects (node_modules/react-dom/cjs/react-dom.development.js:27023:14)
+      at node_modules/react-dom/cjs/react-dom.development.js:26808:9
+      at flushActQueue (node_modules/react/cjs/react.development.js:2667:24)
+      at act (node_modules/react/cjs/react.development.js:2582:11)
+      at actWithWarning (node_modules/react-dom/cjs/react-dom-test-utils.development.js:1740:10)
+      at node_modules/@testing-library/react/dist/act-compat.js:63:25
+      at renderRoot (node_modules/@testing-library/react/dist/pure.js:159:26)
+      at render (node_modules/@testing-library/react/dist/pure.js:246:10)
+      at Object.<anonymous> (src/__tests__/appAuthWrapper.test.jsx:90:11)
+      at TestScheduler.scheduleTests (node_modules/@jest/core/build/TestScheduler.js:333:13)
+      at runJest (node_modules/@jest/core/build/runJest.js:404:19)
+      at _run10000 (node_modules/@jest/core/build/cli/index.js:320:7)
+      at runCLI (node_modules/@jest/core/build/cli/index.js:173:3)
+
+    console.warn
+      ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+      88 |
+      89 |   test('does not allow private routes to bypass auth with codigo query param', () => {
+    > 90 |     render(
+         |           ^
+      91 |       <MemoryRouter initialEntries={['/admin/123?codigo=QT97MX']}>
+      92 |         <Routes>
+      93 |           <Route element={<AppAuthWrapper />}>
+
+      at warnOnce (node_modules/react-router/lib/deprecations.ts:9:13)
+      at logDeprecation (node_modules/react-router/lib/deprecations.ts:14:3)
+      at logV6DeprecationWarnings (node_modules/react-router/lib/deprecations.ts:37:5)
+      at node_modules/react-router/lib/components.tsx:257:25
+      at commitHookEffectListMount (node_modules/react-dom/cjs/react-dom.development.js:23189:26)
+      at commitPassiveMountOnFiber (node_modules/react-dom/cjs/react-dom.development.js:24970:11)
+      at commitPassiveMountEffects_complete (node_modules/react-dom/cjs/react-dom.development.js:24930:9)
+      at commitPassiveMountEffects_begin (node_modules/react-dom/cjs/react-dom.development.js:24917:7)
+      at commitPassiveMountEffects (node_modules/react-dom/cjs/react-dom.development.js:24905:3)
+      at flushPassiveEffectsImpl (node_modules/react-dom/cjs/react-dom.development.js:27078:3)
+      at flushPassiveEffects (node_modules/react-dom/cjs/react-dom.development.js:27023:14)
+      at node_modules/react-dom/cjs/react-dom.development.js:26808:9
+      at flushActQueue (node_modules/react/cjs/react.development.js:2667:24)
+      at act (node_modules/react/cjs/react.development.js:2582:11)
+      at actWithWarning (node_modules/react-dom/cjs/react-dom-test-utils.development.js:1740:10)
+      at node_modules/@testing-library/react/dist/act-compat.js:63:25
+      at renderRoot (node_modules/@testing-library/react/dist/pure.js:159:26)
+      at render (node_modules/@testing-library/react/dist/pure.js:246:10)
+      at Object.<anonymous> (src/__tests__/appAuthWrapper.test.jsx:90:11)
+      at TestScheduler.scheduleTests (node_modules/@jest/core/build/TestScheduler.js:333:13)
+      at runJest (node_modules/@jest/core/build/runJest.js:404:19)
+      at _run10000 (node_modules/@jest/core/build/cli/index.js:320:7)
+      at runCLI (node_modules/@jest/core/build/cli/index.js:173:3)
+
+
+Test Suites: 6 passed, 6 total
+Tests:       41 passed, 41 total
+Snapshots:   0 total
+Time:        2.094 s, estimated 4 s
+Ran all test suites matching /torneosIsolatedSso|appAuthWrapper|AuthCallback|torneosRouteIsolation|torneosRuntimeIsolation/i.

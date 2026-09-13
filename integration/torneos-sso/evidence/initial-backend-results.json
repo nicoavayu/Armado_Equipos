@@ -1,0 +1,187 @@
+{
+  "timestamp": "2026-09-12T19:57:21.970Z",
+  "scope": "Local GoTrue Core + private Torneos PostgREST; not real app integration",
+  "status": "FAIL",
+  "results": [
+    {
+      "name": "two independent databases; only gateway published; no remote network",
+      "status": "FAIL"
+    },
+    {
+      "name": "exact JWT contract; distinct shadow IDs; concurrent upsert idempotent",
+      "status": "PASS"
+    },
+    {
+      "name": "least privilege DB roles, forced RLS and exactly two public Torneos tables",
+      "status": "PASS"
+    },
+    {
+      "name": "own insert/read/update; cross-user read hidden by real Postgres RLS",
+      "status": "PASS"
+    },
+    {
+      "name": "cross-user insert/update/delete and ownership reassignment denied",
+      "status": "PASS"
+    },
+    {
+      "name": "expired token",
+      "status": "PASS"
+    },
+    {
+      "name": "wrong audience",
+      "status": "PASS"
+    },
+    {
+      "name": "wrong issuer",
+      "status": "PASS"
+    },
+    {
+      "name": "missing subject",
+      "status": "PASS"
+    },
+    {
+      "name": "missing core_user_id",
+      "status": "PASS"
+    },
+    {
+      "name": "missing session_id",
+      "status": "PASS"
+    },
+    {
+      "name": "invalid session_id",
+      "status": "PASS"
+    },
+    {
+      "name": "user mismatch",
+      "status": "PASS"
+    },
+    {
+      "name": "Core session user mismatch",
+      "status": "PASS"
+    },
+    {
+      "name": "privilege escalation",
+      "status": "PASS"
+    },
+    {
+      "name": "future issued token",
+      "status": "PASS"
+    },
+    {
+      "name": "excessive lifetime",
+      "status": "PASS"
+    },
+    {
+      "name": "missing jti",
+      "status": "PASS"
+    },
+    {
+      "name": "forged signature, altered payload, unsigned and Core token rejected",
+      "status": "PASS"
+    },
+    {
+      "name": "malformed JWT and malformed session UUID rejected",
+      "status": "PASS"
+    },
+    {
+      "name": "exchange ignores no caller identity; rejects spoofed body and foreign origin",
+      "status": "PASS"
+    },
+    {
+      "name": "bearer reuse allowed while active; jti is not one-use proof",
+      "status": "PASS"
+    },
+    {
+      "name": "clock skew exact boundaries: exp+4 accepted, exp+5 denied; nbf-5 accepted, nbf-6 denied",
+      "status": "PASS"
+    },
+    {
+      "name": "two SDK clients keep Core session; no Torneos Auth; Core refresh works",
+      "status": "FAIL"
+    },
+    {
+      "name": "Torneos outage preserves Core session; Core Auth outage fails closed; recovery",
+      "status": "FAIL"
+    },
+    {
+      "name": "rotation overlap, new signing key, old key removal in gateway and PostgREST",
+      "status": "PASS"
+    },
+    {
+      "name": "disabled Core user rejected immediately at exchange and data access",
+      "status": "PASS"
+    },
+    {
+      "name": "direct Core logout rejects new exchange and replay of live Torneos bearer",
+      "status": "PASS"
+    },
+    {
+      "name": "Core session revoked server-side without browser logout rejects existing bearer",
+      "status": "PASS"
+    },
+    {
+      "name": "browser /torneos: Core login once, silent exchange, Core return and logout",
+      "status": "FAIL"
+    },
+    {
+      "name": "no secrets in browser assets; private paths inaccessible; no tokens in service logs",
+      "status": "PASS"
+    },
+    {
+      "name": "gateway cannot read Core signing secret or operator DB admin credentials",
+      "status": "PASS"
+    }
+  ],
+  "browserRequests": [
+    {
+      "path": "/",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/static/js/main.dd46f439.js",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/static/css/main.cefda052.css",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/static/media/Logo.caa6c0d9880771643ab5.png",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/spinner.svg",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/32x32.png",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/static/js/8724.07dffc82.chunk.js",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/spinner.svg",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/32x32.png",
+      "method": "GET",
+      "grant": null
+    },
+    {
+      "path": "/16x16.png",
+      "method": "GET",
+      "grant": null
+    }
+  ]
+}

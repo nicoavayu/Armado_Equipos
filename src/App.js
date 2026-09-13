@@ -17,6 +17,7 @@ import GlobalNoticeModal from './components/GlobalNoticeModal';
 import MainLayout from './components/MainLayout';
 import PublicVotingRouteIsolation from './components/PublicVotingRouteIsolation';
 import TorneosFeatureGate from './features/torneos/TorneosFeatureGate';
+import { isolatedSsoEnabled } from './features/torneos/isolated/config';
 import { initNativePushNotifications } from './hooks/useNativeFeatures';
 import { useNotificationRedirect } from './hooks/useNotificationRedirect';
 import { useRouteScrollReset } from './hooks/useScrollReset';
@@ -76,6 +77,7 @@ const TemplateDetailsPage = lazy(() => import('./pages/TemplateDetailsPage'));
 const TemplateHistoryPage = lazy(() => import('./pages/TemplateHistoryPage'));
 const AdminPanelPage = lazy(() => import('./pages/AdminPanelPage'));
 const PartidoInvitacion = lazy(() => import('./pages/PartidoInvitacion'));
+const IsolatedTorneosPage = lazy(() => import('./features/torneos/isolated/IsolatedTorneosPage'));
 const PublicTournamentPage = lazy(() => import('./features/torneos/components/PublicTournamentPage'));
 const QaRoleSwitcherPage = lazy(() => import('./features/qa/QaRoleSwitcherPage'));
 const QaTournamentReviewMapPage = lazy(() => import('./features/qa/QaTournamentReviewMapPage'));
@@ -309,7 +311,7 @@ export default function App() {
                       </Route>
                     </Route>
                     {/* Independent authenticated shell. The gate is fail-closed in production. */}
-                    <Route path="torneos/*" element={<TorneosFeatureGate />} />
+                    <Route path="torneos/*" element={isolatedSsoEnabled ? <Suspense fallback={<AppLoadingScreen />}><IsolatedTorneosPage /></Suspense> : <TorneosFeatureGate />} />
                   </Route>
                   </Routes>
                 </ScopedPublicVotingRouteIsolation>
