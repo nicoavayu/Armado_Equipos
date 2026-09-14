@@ -1,0 +1,135 @@
+{
+  "buckets": [
+    {
+      "id": "tournament-branding",
+      "name": "tournament-branding",
+      "public": true,
+      "file_size_limit": 2097152,
+      "allowed_mime_types": [
+        "image/jpeg",
+        "image/png",
+        "image/webp"
+      ]
+    },
+    {
+      "id": "tournament-player-portraits",
+      "name": "tournament-player-portraits",
+      "public": false,
+      "file_size_limit": 8388608,
+      "allowed_mime_types": [
+        "image/jpeg",
+        "image/png",
+        "image/webp"
+      ]
+    },
+    {
+      "id": "tournament-team-photos",
+      "name": "tournament-team-photos",
+      "public": false,
+      "file_size_limit": 8388608,
+      "allowed_mime_types": [
+        "image/jpeg",
+        "image/png",
+        "image/webp"
+      ]
+    }
+  ],
+  "policies": [
+    {
+      "cmd": "INSERT",
+      "qual": null,
+      "roles": [
+        "service_role"
+      ],
+      "tablename": "objects",
+      "permissive": "PERMISSIVE",
+      "policyname": "tournament_media_service_insert",
+      "schemaname": "storage",
+      "with_check": "((bucket_id = 'tournament-media'::text) AND (name ~ '^[0-9a-f-]{36}/[0-9a-f-]{36}/[0-9a-f-]{36}/[0-9a-f-]{36}(-(?:thumbnail|grid|detail|original))?\\.(jpg|png|webp)$'::text))"
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "(bucket_id = 'tournament-media'::text)",
+      "roles": [
+        "service_role"
+      ],
+      "tablename": "objects",
+      "permissive": "PERMISSIVE",
+      "policyname": "tournament_media_service_read",
+      "schemaname": "storage",
+      "with_check": null
+    },
+    {
+      "cmd": "UPDATE",
+      "qual": "false",
+      "roles": [
+        "service_role"
+      ],
+      "tablename": "objects",
+      "permissive": "PERMISSIVE",
+      "policyname": "tournament_media_service_update",
+      "schemaname": "storage",
+      "with_check": "false"
+    },
+    {
+      "cmd": "DELETE",
+      "qual": "false",
+      "roles": [
+        "service_role"
+      ],
+      "tablename": "objects",
+      "permissive": "PERMISSIVE",
+      "policyname": "tournament_media_service_delete",
+      "schemaname": "storage",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "((bucket_id = 'tournament-branding'::text) AND public.can_write_tournament_branding_object(name))",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "objects",
+      "permissive": "PERMISSIVE",
+      "policyname": "tournament_branding_select_authorized",
+      "schemaname": "storage",
+      "with_check": null
+    },
+    {
+      "cmd": "INSERT",
+      "qual": null,
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "objects",
+      "permissive": "PERMISSIVE",
+      "policyname": "tournament_branding_insert_authorized",
+      "schemaname": "storage",
+      "with_check": "((bucket_id = 'tournament-branding'::text) AND public.can_write_tournament_branding_object(name))"
+    },
+    {
+      "cmd": "UPDATE",
+      "qual": "false",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "objects",
+      "permissive": "PERMISSIVE",
+      "policyname": "tournament_branding_update_denied",
+      "schemaname": "storage",
+      "with_check": "false"
+    },
+    {
+      "cmd": "DELETE",
+      "qual": "((bucket_id = 'tournament-branding'::text) AND public.can_write_tournament_branding_object(name))",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "objects",
+      "permissive": "PERMISSIVE",
+      "policyname": "tournament_branding_delete_authorized",
+      "schemaname": "storage",
+      "with_check": null
+    }
+  ]
+}

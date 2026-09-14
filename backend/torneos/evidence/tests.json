@@ -1,0 +1,366 @@
+[
+  {
+    "name": "empty database baseline installed 104 tables",
+    "pass": true,
+    "actual": 104,
+    "expected": 104
+  },
+  {
+    "name": "second execution atomically rejected",
+    "pass": true,
+    "actual": true,
+    "expected": true
+  },
+  {
+    "name": "all public tables RLS",
+    "pass": true,
+    "actual": true,
+    "expected": true
+  },
+  {
+    "name": "all tables have primary key",
+    "pass": true,
+    "actual": true,
+    "expected": true
+  },
+  {
+    "name": "no auth or physical Core tables",
+    "pass": true,
+    "actual": "0",
+    "expected": "0"
+  },
+  {
+    "name": "no foreign data wrappers configured",
+    "pass": true,
+    "actual": "0",
+    "expected": "0"
+  },
+  {
+    "name": "no physical Core SQL dependencies",
+    "pass": true,
+    "actual": true,
+    "expected": true
+  },
+  {
+    "name": "no production endpoints or embedded JWTs",
+    "pass": true,
+    "actual": true,
+    "expected": true
+  },
+  {
+    "name": "all SECURITY DEFINER functions fixed search path",
+    "pass": true,
+    "actual": true,
+    "expected": true
+  },
+  {
+    "name": "no definer PUBLIC EXECUTE",
+    "pass": true,
+    "actual": true,
+    "expected": true
+  },
+  {
+    "name": "no anon write grants",
+    "pass": true,
+    "actual": "0",
+    "expected": "0"
+  },
+  {
+    "name": "default future function PUBLIC execute denied",
+    "pass": true,
+    "actual": "f",
+    "expected": "f"
+  },
+  {
+    "name": "future migration can create table and rollback",
+    "pass": true,
+    "actual": "t",
+    "expected": "t"
+  },
+  {
+    "name": "storage remains unprovisioned",
+    "pass": true,
+    "actual": "t",
+    "expected": "t"
+  },
+  {
+    "name": "no scheduled cron",
+    "pass": true,
+    "actual": "t",
+    "expected": "t"
+  },
+  {
+    "name": "identity shadow own row only",
+    "pass": true,
+    "actual": "1",
+    "expected": "1"
+  },
+  {
+    "name": "valid certified claim tuple accepted",
+    "pass": true,
+    "actual": "c378151a-f7f6-4c0d-9838-62b95262f92b",
+    "expected": "c378151a-f7f6-4c0d-9838-62b95262f92b"
+  },
+  {
+    "name": "identity invalid core_user_id rejected",
+    "pass": true,
+    "actual": "t",
+    "expected": "t"
+  },
+  {
+    "name": "identity invalid iss rejected",
+    "pass": true,
+    "actual": "t",
+    "expected": "t"
+  },
+  {
+    "name": "identity invalid aud rejected",
+    "pass": true,
+    "actual": "t",
+    "expected": "t"
+  },
+  {
+    "name": "identity invalid exp rejected",
+    "pass": true,
+    "actual": "t",
+    "expected": "t"
+  },
+  {
+    "name": "identity invalid session_id rejected",
+    "pass": true,
+    "actual": "t",
+    "expected": "t"
+  },
+  {
+    "name": "identity invalid nbf rejected",
+    "pass": true,
+    "actual": "t",
+    "expected": "t"
+  },
+  {
+    "name": "client cannot create shadow",
+    "pass": true,
+    "actual": true,
+    "expected": true
+  },
+  {
+    "name": "writer cannot mutate identity mapping",
+    "pass": true,
+    "actual": true,
+    "expected": true
+  },
+  {
+    "name": "second bridge exchange reuses identity",
+    "pass": true,
+    "actual": "c378151a-f7f6-4c0d-9838-62b95262f92b",
+    "expected": "c378151a-f7f6-4c0d-9838-62b95262f92b"
+  },
+  {
+    "name": "PK rejects duplicate identity",
+    "pass": true,
+    "actual": true,
+    "expected": true
+  },
+  {
+    "name": "unique Core mapping enforced",
+    "pass": true,
+    "actual": true,
+    "expected": true
+  },
+  {
+    "name": "workspace owner sees only own organization",
+    "pass": true,
+    "actual": "1",
+    "expected": "1"
+  },
+  {
+    "name": "outsider sees no private organizations",
+    "pass": true,
+    "actual": "0",
+    "expected": "0"
+  },
+  {
+    "name": "cross-workspace organization hidden",
+    "pass": true,
+    "actual": "0",
+    "expected": "0"
+  },
+  {
+    "name": "cross-workspace mutation forbidden",
+    "pass": true,
+    "actual": true,
+    "expected": true
+  },
+  {
+    "name": "owner season access without assignment",
+    "pass": true,
+    "actual": "t",
+    "expected": "t"
+  },
+  {
+    "name": "admin needs season assignment",
+    "pass": true,
+    "actual": "f",
+    "expected": "f"
+  },
+  {
+    "name": "collaborator needs season assignment",
+    "pass": true,
+    "actual": "f",
+    "expected": "f"
+  },
+  {
+    "name": "assigned admin has season access",
+    "pass": true,
+    "actual": "t",
+    "expected": "t"
+  },
+  {
+    "name": "admin cannot access unassigned season",
+    "pass": true,
+    "actual": "f",
+    "expected": "f"
+  },
+  {
+    "name": "assigned collaborator reads season",
+    "pass": true,
+    "actual": "t",
+    "expected": "t"
+  },
+  {
+    "name": "collaborator cannot change roles",
+    "pass": true,
+    "actual": "f",
+    "expected": "f"
+  },
+  {
+    "name": "owner can archive organization",
+    "pass": true,
+    "actual": "t",
+    "expected": "t"
+  },
+  {
+    "name": "admin cannot archive organization",
+    "pass": true,
+    "actual": "f",
+    "expected": "f"
+  },
+  {
+    "name": "assigned admin cannot read tournament in other season",
+    "pass": true,
+    "actual": "0",
+    "expected": "0"
+  },
+  {
+    "name": "assigned admin reads tournament in assigned season",
+    "pass": true,
+    "actual": "1",
+    "expected": "1"
+  },
+  {
+    "name": "cross-organization tournament isolation",
+    "pass": true,
+    "actual": "0",
+    "expected": "0"
+  },
+  {
+    "name": "composite FK rejects cross-workspace tournament",
+    "pass": true,
+    "actual": true,
+    "expected": true
+  },
+  {
+    "name": "FK rejects absent local identity",
+    "pass": true,
+    "actual": true,
+    "expected": true
+  },
+  {
+    "name": "anonymous draft tournament hidden",
+    "pass": true,
+    "actual": [
+      "0"
+    ],
+    "expected": [
+      "0"
+    ]
+  },
+  {
+    "name": "unpublished public page returns null",
+    "pass": true,
+    "actual": [
+      "t"
+    ],
+    "expected": [
+      "t"
+    ]
+  },
+  {
+    "name": "published public page returns intended tournament",
+    "pass": true,
+    "actual": [
+      "t"
+    ],
+    "expected": [
+      "t"
+    ]
+  },
+  {
+    "name": "unpublish removes anonymous page",
+    "pass": true,
+    "actual": [
+      "t"
+    ],
+    "expected": [
+      "t"
+    ]
+  },
+  {
+    "name": "manual team and roster creation works",
+    "pass": true,
+    "actual": true,
+    "expected": true
+  },
+  {
+    "name": "Core team import fails closed",
+    "pass": true,
+    "actual": true,
+    "expected": true
+  },
+  {
+    "name": "media storage status fails closed",
+    "pass": true,
+    "actual": "false",
+    "expected": "false"
+  },
+  {
+    "name": "pipeline not activated",
+    "pass": true,
+    "actual": "false",
+    "expected": "false"
+  },
+  {
+    "name": "Core player search explicit pending contract",
+    "pass": true,
+    "actual": true,
+    "expected": true
+  },
+  {
+    "name": "Core team search explicit pending contract",
+    "pass": true,
+    "actual": true,
+    "expected": true
+  },
+  {
+    "name": "verified email invite explicit pending contract",
+    "pass": true,
+    "actual": true,
+    "expected": true
+  },
+  {
+    "name": "Mercado Pago provider RPC absent",
+    "pass": true,
+    "actual": "0",
+    "expected": "0"
+  }
+]

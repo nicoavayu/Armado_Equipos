@@ -1,0 +1,18 @@
+[
+  {
+    "function": "accept_tournament_team_invitation",
+    "change": "fail closed; requires certified Core directory/team/verified-email contract"
+  },
+  {
+    "function": "create_tournament_team_entry",
+    "change": "manual/provisional flow retained; Core import fails closed pending bridge contract"
+  },
+  {
+    "function": "search_tournament_arma2_teams",
+    "change": "fail closed; requires certified Core directory/team/verified-email contract"
+  },
+  {
+    "function": "search_tournament_players",
+    "change": "fail closed; requires certified Core directory/team/verified-email contract"
+  }
+]

@@ -1,0 +1,76 @@
+"""Generate one final-state candidate, never a historical migration replay installer."""
+import json,re,pathlib
+from lab import BASE,ROOT,sql,docker,NAME
+c=json.loads(sql('history',(BASE/'tools/catalog.sql').read_text()))
+(BASE/'evidence/history-catalog.json').write_text(json.dumps(c,indent=2)+'\n')
+excluded=['usuarios','jugadores','teams','team_members']
+dump=docker('exec',NAME,'pg_dump','-U','supabase_admin','-d','history','--schema-only','--no-owner','--schema=public',*[f'--exclude-table=public.{t}' for t in excluded])
+# pg_dump's per-session guards are psql meta commands, not migration SQL.
+dump=re.sub(r'^\\.*\n','',dump,flags=re.M)
+dump=re.sub(r'^CREATE SCHEMA public;\n','',dump,flags=re.M)
+dump=re.sub(r'^COMMENT ON SCHEMA public IS .*;\n','',dump,flags=re.M)
+# Remove the reference-only Core helper and its ACL block entirely.
+dump=re.sub(r'CREATE FUNCTION public.team_user_is_admin_or_owner\([\s\S]*?\$\$;\n','',dump)
+dump=re.sub(r'^(?:GRANT|REVOKE).*FUNCTION public.team_user_is_admin_or_owner.*;\n','',dump,flags=re.M)
+# Replace complete function definitions before rewriting identity references.
+blocked=['accept_tournament_team_invitation','search_tournament_players','search_tournament_arma2_teams']
+changes=[]
+for f in c['functions']:
+ name=f['name'].split('.')[-1]
+ if name=='team_user_is_admin_or_owner': continue
+ # Dump uses CREATE FUNCTION; catalog returns CREATE OR REPLACE FUNCTION.
+ pat=r'CREATE FUNCTION public\.'+name+r'\([^;]*?AS (\$[^$]*\$)([\s\S]*?)\1;'
+ # Signature has no dollar delimiter until AS; pg_dump always uses $function$.
+ for m in list(re.finditer(pat,dump)):
+  body=m.group(2); new=body
+  if name in blocked:
+   new="\nBEGIN RAISE SQLSTATE '0A000' USING MESSAGE='TORNEOS_CORE_BRIDGE_CONTRACT_PENDING'; END;\n"
+   changes.append({'function':name,'change':'fail closed; requires certified Core directory/team/verified-email contract'})
+  elif name=='create_tournament_team_entry':
+   new=new.replace('v_arma2_team public.teams%rowtype;','')
+   start=new.index('  if p_arma2_team_id is not null then')
+   end=new.index('  end if;',start)+len('  end if;')
+   # Nested missing-team IF is inside this branch; consume the outer end too.
+   end=new.index('  end if;',end)+len('  end if;')
+   new=new[:start]+"  if p_arma2_team_id is not null then\n    raise SQLSTATE '0A000' using message='TORNEOS_CORE_TEAM_IMPORT_CONTRACT_PENDING';\n  end if;"+new[end:]
+   changes.append({'function':name,'change':'manual/provisional flow retained; Core import fails closed pending bridge contract'})
+  if new!=body: dump=dump.replace(m.group(0),m.group(0).replace(body,new))
+# Identity UUIDs in historical user_id/arma2_user_id columns now mean local identity.id.
+dump=dump.replace('auth.uid()', 'private.current_identity_id()').replace('auth.users','public.torneos_identity')
+# External Core team identifier is an opaque reference, never a physical FK.
+dump=re.sub(r'ALTER TABLE ONLY public.tournament_team_entries\s+ADD CONSTRAINT tournament_team_entries_arma2_team_id_fkey FOREIGN KEY \(arma2_team_id\) REFERENCES public.teams\(id\) ON DELETE RESTRICT;','',dump)
+# Capture final authoritative seed rows, excluding temporary data/backfills.
+seed=[];seed_names=[]
+counts=json.loads(sql('history',"select json_object_agg(name,n) from ("+' union all '.join(f"select '{t['name']}' name,count(*) n from public.{t['name']}" for t in c['tables'])+") counts"))
+ordered=[];pending={t['name']:t for t in c['tables'] if counts[t['name']]}
+while pending:
+ ready=[t for t in pending.values() if not any(dep in pending and dep != t['name'] for x in t['constraints'] for dep in re.findall(r'REFERENCES (?:public\.)?([a-z_]+)',x['definition']))]
+ assert ready, 'cyclic seed dependency needs explicit handling'
+ for t in ready: ordered.append(t); del pending[t['name']]
+for t in ordered:
+ if t['name'] in excluded: continue
+ if counts[t['name']]:
+  seed_names.append(t['name'])
+  data=docker('exec',NAME,'pg_dump','-U','supabase_admin','-d','history','--data-only','--column-inserts','--table=public.'+t['name'])
+  seed.extend(line for line in data.splitlines() if line.startswith('INSERT INTO '))
+# Only a marker-free empty public schema can be installed. One transaction rolls back on rerun.
+header="""-- Arma2 Torneos baseline v1 CANDIDATE — LOCAL ONLY, certification BLOCKED.
+-- Derived from 48 hash-verified sources. See REPORT.md for explicit functionality gaps.
+BEGIN;
+SET LOCAL check_function_bodies = off;
+DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relkind IN ('r','v','m','S')) THEN RAISE EXCEPTION 'TORNEOS_BASELINE_REQUIRES_EMPTY_PUBLIC_SCHEMA'; END IF; END $$;
+CREATE SCHEMA IF NOT EXISTS extensions;
+CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
+REVOKE CREATE ON SCHEMA public FROM PUBLIC,anon,authenticated,service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM PUBLIC,anon,authenticated,service_role;
+ALTER DEFAULT PRIVILEGES REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC,anon,authenticated,service_role;
+"""
+# Dump restores default ACLs from reference: discard those, use deliberate fresh defaults.
+dump=re.sub(r'^ALTER DEFAULT PRIVILEGES .*;\n','',dump,flags=re.M)
+text=header+(BASE/'contracts/identity.sql').read_text()+'\n'+dump+'\n-- Final catalog seed data (no migration/backfill history).\n'+'\n'.join(seed)+'\nCOMMIT;\n'
+assert not re.search(r'auth\.(users|uid)|public\.(teams|usuarios|jugadores|team_members|team_user_is_admin_or_owner)\b',text)
+text='\n'.join(line.rstrip() for line in text.splitlines())+'\n'
+(BASE/'supabase/migrations/00000000000000_torneos_baseline_v1.sql').write_text(text)
+(BASE/'evidence/intentional-function-differences.json').write_text(json.dumps(changes,indent=2)+'\n')
+(BASE/'evidence/seed-tables.json').write_text(json.dumps(seed_names,indent=2)+'\n')
+print('Built candidate',len(text.splitlines()),'lines;',len(c['tables'])-4,'historical domain tables')

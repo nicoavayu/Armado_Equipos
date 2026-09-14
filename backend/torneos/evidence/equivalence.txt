@@ -1,0 +1,39 @@
+[
+  {
+    "kind": "tables",
+    "historical": 103,
+    "baseline": 103,
+    "equal_after_identity_normalization": 102
+  },
+  {
+    "kind": "indexes",
+    "historical": 367,
+    "baseline": 367,
+    "equal_after_identity_normalization": 367
+  },
+  {
+    "kind": "policies",
+    "historical": 61,
+    "baseline": 61,
+    "equal_after_identity_normalization": 61
+  },
+  {
+    "kind": "triggers",
+    "historical": 110,
+    "baseline": 110,
+    "equal_after_identity_normalization": 110
+  },
+  {
+    "kind": "functions",
+    "historical": 358,
+    "baseline": 358,
+    "equal_after_identity_normalization": 354
+  }
+]
+Differences 5 duplicate indexes []
+
+tables tournament_team_entries opaque Core team id: physical Core FK removed
+functions public.accept_tournament_team_invitation(p_token text) Core boundary adaptation; see intentional-function-differences.json
+functions public.create_tournament_team_entry(p_organization_id uuid, p_tournament_id uuid, p_category_id uuid, p_arma2_team_id uuid, p_name text, p_short_name text, p_primary_color text, p_secondary_color text, p_registration_source text, p_manager_user_id uuid, p_manager_email text, p_manager_display_name text, p_idempotency_key uuid) Core boundary adaptation; see intentional-function-differences.json
+functions public.search_tournament_arma2_teams(p_organization_id uuid, p_tournament_id uuid, p_query text, p_limit integer) Core boundary adaptation; see intentional-function-differences.json
+functions public.search_tournament_players(p_organization_id uuid, p_tournament_id uuid, p_query text, p_limit integer, p_team_entry_id uuid) Core boundary adaptation; see intentional-function-differences.json

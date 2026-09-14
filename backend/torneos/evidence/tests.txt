@@ -1,0 +1,59 @@
+PASS empty database baseline installed 104 tables
+PASS second execution atomically rejected
+PASS all public tables RLS
+PASS all tables have primary key
+PASS no auth or physical Core tables
+PASS no foreign data wrappers configured
+PASS no physical Core SQL dependencies
+PASS no production endpoints or embedded JWTs
+PASS all SECURITY DEFINER functions fixed search path
+PASS no definer PUBLIC EXECUTE
+PASS no anon write grants
+PASS default future function PUBLIC execute denied
+PASS future migration can create table and rollback
+PASS storage remains unprovisioned
+PASS no scheduled cron
+PASS identity shadow own row only
+PASS valid certified claim tuple accepted
+PASS identity invalid core_user_id rejected
+PASS identity invalid iss rejected
+PASS identity invalid aud rejected
+PASS identity invalid exp rejected
+PASS identity invalid session_id rejected
+PASS identity invalid nbf rejected
+PASS client cannot create shadow
+PASS writer cannot mutate identity mapping
+PASS second bridge exchange reuses identity
+PASS PK rejects duplicate identity
+PASS unique Core mapping enforced
+PASS workspace owner sees only own organization
+PASS outsider sees no private organizations
+PASS cross-workspace organization hidden
+PASS cross-workspace mutation forbidden
+PASS owner season access without assignment
+PASS admin needs season assignment
+PASS collaborator needs season assignment
+PASS assigned admin has season access
+PASS admin cannot access unassigned season
+PASS assigned collaborator reads season
+PASS collaborator cannot change roles
+PASS owner can archive organization
+PASS admin cannot archive organization
+PASS assigned admin cannot read tournament in other season
+PASS assigned admin reads tournament in assigned season
+PASS cross-organization tournament isolation
+PASS composite FK rejects cross-workspace tournament
+PASS FK rejects absent local identity
+PASS anonymous draft tournament hidden
+PASS unpublished public page returns null
+PASS published public page returns intended tournament
+PASS unpublish removes anonymous page
+PASS manual team and roster creation works
+PASS Core team import fails closed
+PASS media storage status fails closed
+PASS pipeline not activated
+PASS Core player search explicit pending contract
+PASS Core team search explicit pending contract
+PASS verified email invite explicit pending contract
+PASS Mercado Pago provider RPC absent
+58/58 passed
